@@ -148,7 +148,7 @@ FString FUnrealSourceFile::GetFileDefineName() const
 	return FString::Printf(TEXT("%s_%s_generated_h"), *API, *GetStrippedFilename());
 }
 
-void FUnrealSourceFile::AddClassIncludeIfNeeded(int32 InputLine, const FString& ClassNameWithoutPrefix, const FString& DependencyClassName)
+void FUnrealSourceFile::AddClassIncludeIfNeeded(FUHTMessageProvider& Context, const FString& ClassNameWithoutPrefix, const FString& DependencyClassName)
 {
 	if (!Algo::FindBy(GetDefinedClasses(), DependencyClassName, [](const TSharedRef<FUnrealTypeDefinitionInfo>& Info) { return Info->GetNameCPP(); }))
 	{
@@ -156,7 +156,7 @@ void FUnrealSourceFile::AddClassIncludeIfNeeded(int32 InputLine, const FString& 
 
 		if (ClassNameWithoutPrefix == DependencyClassNameWithoutPrefix)
 		{
-			FUHTException::Throwf(*this, InputLine, TEXT("A class cannot inherit itself or a type with the same name but a different prefix"));
+			Context.Throwf(TEXT("A class cannot inherit itself or a type with the same name but a different prefix"));
 		}
 
 		FString StrippedDependencyName = DependencyClassName.Mid(1);
@@ -170,7 +170,7 @@ void FUnrealSourceFile::AddClassIncludeIfNeeded(int32 InputLine, const FString& 
 	}
 }
 
-void FUnrealSourceFile::AddScriptStructIncludeIfNeeded(int32 InputLine, const FString& StructNameWithoutPrefix, const FString& DependencyStructName)
+void FUnrealSourceFile::AddScriptStructIncludeIfNeeded(FUHTMessageProvider& Context, const FString& StructNameWithoutPrefix, const FString& DependencyStructName)
 {
 	if (!Algo::FindBy(GetDefinedStructs(), DependencyStructName, [](const TSharedRef<FUnrealTypeDefinitionInfo>& Info) { return Info->GetNameCPP(); }))
 	{
@@ -178,7 +178,7 @@ void FUnrealSourceFile::AddScriptStructIncludeIfNeeded(int32 InputLine, const FS
 
 		if (StructNameWithoutPrefix == DependencyStructNameWithoutPrefix)
 		{
-			FUHTException::Throwf(*this, InputLine, TEXT("A struct cannot inherit itself or a type with the same name but a different prefix"));
+			Context.Throwf(TEXT("A struct cannot inherit itself or a type with the same name but a different prefix"));
 		}
 
 		FString StrippedDependencyName = DependencyStructName.Mid(1);

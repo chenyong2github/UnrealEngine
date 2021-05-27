@@ -11,12 +11,7 @@ class FBaseParser;
 class FUnrealSourceFile;
 class FUnrealTypeDefinitionInfo;
 
-class FUHTExceptionContext
-{
-public:
-	virtual FString GetFilename() const = 0;
-	virtual int32 GetLineNumber() const = 0;
-};
+class FUHTMessageProvider;
 
 class FUHTException
 {
@@ -24,98 +19,11 @@ public:
 
 	/**
 	 * Generate an exception
-	 * @param InFilename The file generating the exception
-	 * @param InLine The line number in the file
-	 * @param InFmt The format string
-	 * @param InArgs Arguments supplied to the format string
-	 */
-	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(FString&& InFilename, int32 InLine, const FmtType& InFmt, Types... InArgs)
-	{
-		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(ECompilationResult::OtherCompilationError, MoveTemp(InFilename), InLine, MoveTemp(ResultString));
-	}
-
-	/**
-	 * Generate an exception
-	 * @param InResult Result code to be returned as the overall result of the compilation process
-	 * @param InFilename The file generating the exception
-	 * @param InLine The line number in the file
-	 * @param InFmt The format string
-	 * @param InArgs Arguments supplied to the format string
-	 */
-	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(ECompilationResult::Type InResult, FString&& InFilename, int32 InLine, const FmtType& InFmt, Types... InArgs)
-	{
-		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(InResult, MoveTemp(InFilename), InLine, MoveTemp(ResultString));
-	}
-
-	/**
-	 * Generate an exception
-	 * @param InSourceFile The source file generating the exception
-	 * @param InLine The line number in the file
-	 * @param InFmt The format string
-	 * @param InArgs Arguments supplied to the format string
-	 */
-	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(const FUnrealSourceFile& InSourceFile, int32 InLine, const FmtType& InFmt, Types... InArgs)
-	{
-		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(ECompilationResult::OtherCompilationError, InSourceFile, InLine, MoveTemp(ResultString));
-	}
-
-	/**
-	 * Generate an exception
-	 * @param InResult Result code to be returned as the overall result of the compilation process
-	 * @param InSourceFile The source file generating the exception
-	 * @param InLine The line number in the file
-	 * @param InFmt The format string
-	 * @param InArgs Arguments supplied to the format string
-	 */
-	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(ECompilationResult::Type InResult, const FUnrealSourceFile& InSourceFile, int32 InLine, const FmtType& InFmt, Types... InArgs)
-	{
-		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(InResult, InSourceFile, InLine, MoveTemp(ResultString));
-	}
-
-	/**
-	 * Generate an exception
-	 * @param InContext The context of the exception
-	 * @param InText The text of the error
-	 */
-	UE_NORETURN static void Throwf(const FUHTExceptionContext& InContext, FString&& InText)
-	{
-		throw FUHTException(ECompilationResult::OtherCompilationError, InContext, MoveTemp(InText));
-	}
-
-	/**
-	 * Generate an exception
 	 * @param InContext The context of the exception
 	 * @param InFmt The format string
-	 * @param InArgs Arguments supplied to the format string
+	 * @param InArgs InMessage The text of the message
 	 */
-	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(const FUHTExceptionContext& InContext, const FmtType& InFmt, Types... InArgs)
-	{
-		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(ECompilationResult::OtherCompilationError, InContext, MoveTemp(ResultString));
-	}
-
-	/**
-	 * Generate an exception
-	 * @param InResult Result code to be returned as the overall result of the compilation process
-	 * @param InContext The context of the exception
-	 * @param InFmt The format string
-	 * @param InArgs Arguments supplied to the format string
-	 */
-	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(ECompilationResult::Type InResult, const FUHTExceptionContext& InContext, const FmtType& InFmt, Types... InArgs)
-	{
-		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(InResult, InContext, MoveTemp(ResultString));
-	}
+	FUHTException(ECompilationResult::Type InResult, const FUHTMessageProvider& InContext, FString&& InMessage);
 
 	/**
 	 * Return the result code of the exception
@@ -154,15 +62,12 @@ private:
 	FString Message;
 	FString Filename;
 	int32 Line;
-
-	FUHTException(ECompilationResult::Type InResult, FString&& InFilename, int32 InLine, FString&& InMessage);
-	FUHTException(ECompilationResult::Type InResult, const FUnrealSourceFile& SourceFile, int32 InLine, FString&& InMessage);
-	FUHTException(ECompilationResult::Type InResult, const FUHTExceptionContext& InContext, FString&& InMessage);
 };
 
 /** Helper methods for working with exceptions and compilation results */
 struct FResults
 {
+	friend class FUHTMessageProvider;
 
 	/**
 	 * Wait for any pending error tasks to complete.
@@ -199,35 +104,16 @@ struct FResults
 	static ECompilationResult::Type GetOverallResults();
 
 	/**
-	 * Log an error.
-	 * @param Filename The filename generating the error.  If empty, then no file and line number are included in the error.
-	 * @param Line Line number of the error
-	 * @param Message Message body of the error
-	 * @param Result Compilation result of the error
-	 */
-	static void LogError(FString&& Filename, int32 Line, const FString& Message, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
-
-	/**
-	 * Log an error from an exception with possible override of the source file.
-	 * @param SourceFile The source file currently being processed.  If the exception does not include filename information, the source file will be used.
-	 * @param Ex The exception generating the error.
-	 */
-	static void LogError(const FUnrealSourceFile& SourceFile, const FUHTException& Ex);
-
-	/**
-	 * Log an error from an exception.
-	 * @param Ex The exception generating the error.
+	 * Log an error
+	 * @param Ex The exception generating the error
 	 */
 	static void LogError(const FUHTException& Ex);
 
 	/**
-	 * Log an error for the given source file
-	 * @param SourceFile The source file generating the error
-	 * @param Line The line number generating the error
-	 * @param ErrorMsg The text of the error
-	 * @param Result Compilation result of the error
+	 * Log an error
+	 * @param Text
 	 */
-	static void LogError(const FUnrealSourceFile& SourceFile, int32 Line, const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
+	static void LogError(const TCHAR* Text);
 
 	/**
 	 * Log an error for the given source file where the type is defined
@@ -235,23 +121,7 @@ struct FResults
 	 * @param ErrorMsg The text of the error
 	 * @param Result Compilation result of the error
 	 */
-	static void LogError(const FUHTExceptionContext& Context, const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
-
-	/**
-	 * Log an error without any source file information
-	 * @param ErrorMsg The text of the error
-	 * @param Result Compilation result of the error
-	 */
-	static void LogError(const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
-
-	/**
-	 * Log a warning.
-	 * @param Filename The filename generating the warning.  If empty, then no file and line number are included in the warning.
-	 * @param Line Line number of the warning
-	 * @param Message Message body of the warning
-	 * @param Result Compilation result of the warning
-	 */
-	static void LogWarning(FString&& Filename, int32 Line, const FString& Message);
+	static void LogError(const FUHTMessageProvider& Context, const TCHAR* ErrorMsg, ECompilationResult::Type Result);
 
 	/**
 	 * Log a warning for the given source file where the type is defined
@@ -259,36 +129,7 @@ struct FResults
 	 * @param ErrorMsg The text of the warning
 	 * @param Result Compilation result of the warning
 	 */
-	static void LogWarning(const FUHTExceptionContext& Context, const TCHAR* ErrorMsg);
-
-	/**
-	 * Invoke the given lambda in a try block catching all supported exception types.
-	 * @param SourceFile The source file being processed
-	 * @param InLambda The code to be executed in the try block
-	 */
-	template<typename Lambda>
-	static void Try(FUnrealSourceFile& SourceFile, Lambda&& InLambda)
-	{
-		if (IsSucceeding())
-		{
-#if !PLATFORM_EXCEPTIONS_DISABLED
-			try
-#endif
-			{
-				InLambda();
-			}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-			catch (const FUHTException& Ex)
-			{
-				LogError(SourceFile, Ex);
-			}
-			catch (const TCHAR* ErrorMsg)
-			{
-				LogError(SourceFile, 1, ErrorMsg);
-			}
-#endif
-		}
-	}
+	static void LogWarning(const FUHTMessageProvider& Context, const TCHAR* ErrorMsg);
 
 	/**
 	 * Invoke the given lambda in a try block catching all supported exception types.
@@ -360,5 +201,155 @@ struct FResults
 	}
 };
 
-#define UE_LOG_WARNING_UHT(Context, Format, ...) { FResults::LogWarning(Context, *FString::Printf(Format, ##__VA_ARGS__)); }
-#define UE_LOG_ERROR_UHT(Context, Format, ...) { FResults::LogError(Context, *FString::Printf(Format, ##__VA_ARGS__)); }
+class FUHTMessageProvider
+{
+public:
+	virtual ~FUHTMessageProvider() = default;
+	virtual FString GetFilename() const = 0;
+	virtual int32 GetLineNumber() const = 0;
+
+	/**
+	 * Generate an exception
+	 * @param InText The text of the error
+	 */
+	UE_NORETURN void Throwf(FString&& InText) const
+	{
+		throw FUHTException(ECompilationResult::OtherCompilationError, *this, MoveTemp(InText));
+	}
+
+	/**
+	 * Generate an exception
+	 * @param InResult Result code to be returned as the overall result of the compilation process
+	 * @param InText The text of the error
+	 */
+	UE_NORETURN void Throwf(ECompilationResult::Type InResult, FString&& InText) const
+	{
+		throw FUHTException(InResult, *this, MoveTemp(InText));
+	}
+
+	/**
+	 * Generate an exception
+	 * @param InFmt The format string
+	 * @param InArgs Arguments supplied to the format string
+	 */
+	template <typename FmtType, typename... Types>
+	UE_NORETURN void VARARGS Throwf(const FmtType& InFmt, Types... InArgs) const
+	{
+		FString ResultString = FString::Printf(InFmt, InArgs ...);
+		throw FUHTException(ECompilationResult::OtherCompilationError, *this, MoveTemp(ResultString));
+	}
+
+	/**
+	 * Generate an exception
+	 * @param InResult Result code to be returned as the overall result of the compilation process
+	 * @param InFmt The format string
+	 * @param InArgs Arguments supplied to the format string
+	 */
+	template <typename FmtType, typename... Types>
+	UE_NORETURN void VARARGS Throwf(ECompilationResult::Type InResult, const FmtType& InFmt, Types... InArgs) const
+	{
+		FString ResultString = FString::Printf(InFmt, InArgs ...);
+		throw FUHTException(InResult, *this, MoveTemp(ResultString));
+	}
+
+	/**
+	 * Log an error
+	 * @param InText The text of the error
+	 */
+	void LogError(const FString& InText) const
+	{
+		FResults::LogError(*this, *InText, ECompilationResult::OtherCompilationError);
+	}
+
+	/**
+	 * Log an error
+	 * @param InResult Result code to be returned as the overall result of the compilation process
+	 * @param InText The text of the error
+	 */
+	void LogError(ECompilationResult::Type InResult, const FString& InText) const
+	{
+		FResults::LogError(*this, *InText, InResult);
+	}
+
+	/**
+	 * Log an error
+	 * @param InFmt The format string
+	 * @param InArgs Arguments supplied to the format string
+	 */
+	template <typename FmtType, typename... Types>
+	void VARARGS LogError(const FmtType& InFmt, Types... InArgs) const
+	{
+		FString ResultString = FString::Printf(InFmt, InArgs ...);
+		FResults::LogError(*this, *ResultString, ECompilationResult::OtherCompilationError);
+	}
+
+	/**
+	 * Log an error
+	 * @param InResult Result code to be returned as the overall result of the compilation process
+	 * @param InFmt The format string
+	 * @param InArgs Arguments supplied to the format string
+	 */
+	template <typename FmtType, typename... Types>
+	void VARARGS LogError(ECompilationResult::Type InResult, const FmtType& InFmt, Types... InArgs) const
+	{
+		FString ResultString = FString::Printf(InFmt, InArgs ...);
+		FResults::LogError(*this, *ResultString, InResult);
+	}
+
+	/**
+	 * Log an warning
+	 * @param InText The text of the warning
+	 */
+	void LogWarning(const FString& InText) const
+	{
+		FResults::LogWarning(*this, *InText);
+	}
+
+	/**
+	 * Log an warning
+	 * @param InFmt The format string
+	 * @param InArgs Arguments supplied to the format string
+	 */
+	template <typename FmtType, typename... Types>
+	void VARARGS LogWarning(const FmtType& InFmt, Types... InArgs) const
+	{
+		FString ResultString = FString::Printf(InFmt, InArgs ...);
+		FResults::LogWarning(*this, *ResultString);
+	}
+};
+
+template <typename T>
+FString GetMessageFilename(const T& Source);
+
+template <>
+inline FString GetMessageFilename<FString>(const FString& Source)
+{
+	return Source;
+}
+
+class FUHTMessage
+	: public FUHTMessageProvider
+{
+public:
+
+	template <typename T>
+	explicit FUHTMessage(const T& Source, int32 InLineNumber = 1)
+		: Filename(GetMessageFilename(Source))
+		, LineNumber(InLineNumber)
+	{
+	}
+
+	virtual FString GetFilename() const override
+	{
+		return Filename;
+	}
+
+	virtual int32 GetLineNumber() const override
+	{
+		return LineNumber;
+	}
+
+private:
+	FString Filename;
+	int32 LineNumber;
+};

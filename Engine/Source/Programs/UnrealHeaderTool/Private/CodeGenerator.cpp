@@ -279,7 +279,7 @@ namespace
 			}
 			else
 			{
-				FUHTException::Throwf(ClassDef, TEXT("Class %s has Net flagged properties and should declare member function: void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override"), ClassCPPName);
+				ClassDef.Throwf(TEXT("Class %s has Net flagged properties and should declare member function: void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override"), ClassCPPName);
 			}
 		}
 
@@ -1648,7 +1648,7 @@ FString GetEventStructParamsName(FUnrealObjectDefinitionInfo& OuterDef, const TC
 	}
 	else
 	{
-		FUHTException::Throwf(OuterDef, TEXT("Unrecognized outer type"));
+		OuterDef.Throwf(TEXT("Unrecognized outer type"));
 	}
 
 	FString Result = FString::Printf(TEXT("%s_event%s_Parms"), *OuterName, FunctionName);
@@ -1923,7 +1923,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			// In a dynamic class the same function signature may be used for a Multi- and a Single-cast delegate.
 			if (!LocalFuncDef->IsDelegateFunction() || !bIsDynamic)
 			{
-				FUHTException::Throwf(*LocalFuncDef, TEXT("The same function linked twice. Function: %s Class: %s"), *LocalFuncDef->GetName(), *ClassDef.GetName());
+				LocalFuncDef->Throwf(TEXT("The same function linked twice. Function: %s Class: %s"), *LocalFuncDef->GetName(), *ClassDef.GetName());
 			}
 			continue;
 		}
@@ -4474,13 +4474,13 @@ void FNativeClassHeaderGenerator::CheckRPCFunctions(FReferenceGatherers& OutRefe
 	if (bNeedsImplementation && !bHasImplementation)
 	{
 		FString FunctionDecl = FString::Printf(TEXT("virtual %s %s::%s(%s) %s"), *FunctionReturnType, *ClassName, *FunctionData.CppImplName, *ParameterString, *ConstModifier);
-		FUHTException::Throwf(FunctionDef, TEXT("%s Declare function %s"), *AssertMessage, *FunctionDecl);
+		FunctionDef.Throwf(TEXT("%s Declare function %s"), *AssertMessage, *FunctionDecl);
 	}
 
 	if (bNeedsValidate && !bHasValidate)
 	{
 		FString FunctionDecl = FString::Printf(TEXT("virtual bool %s::%s(%s) %s"), *ClassName, *FunctionData.CppValidationImplName, *ParameterString, *ConstModifier);
-		FUHTException::Throwf(FunctionDef, TEXT("%s Declare function %s"), *AssertMessage, *FunctionDecl);
+		FunctionDef.Throwf(TEXT("%s Declare function %s"), *AssertMessage, *FunctionDecl);
 	}
 
 	//
@@ -4489,13 +4489,13 @@ void FNativeClassHeaderGenerator::CheckRPCFunctions(FReferenceGatherers& OutRefe
 	if (bNeedsImplementation && bHasImplementation && IsMissingVirtualSpecifier(FileContent, ImplementationPosition))
 	{
 		FString FunctionDecl = FString::Printf(TEXT("%s %s::%s(%s) %s"), *FunctionReturnType, *ClassName, *FunctionData.CppImplName, *ParameterString, *ConstModifier);
-		FUHTException::Throwf(FunctionDef, TEXT("Declared function %sis not marked as virtual."), *FunctionDecl);
+		FunctionDef.Throwf(TEXT("Declared function %sis not marked as virtual."), *FunctionDecl);
 	}
 
 	if (bNeedsValidate && bHasValidate && IsMissingVirtualSpecifier(FileContent, ValidatePosition))
 	{
 		FString FunctionDecl = FString::Printf(TEXT("bool %s::%s(%s) %s"), *ClassName, *FunctionData.CppValidationImplName, *ParameterString, *ConstModifier);
-		FUHTException::Throwf(FunctionDef, TEXT("Declared function %sis not marked as virtual."), *FunctionDecl);
+		FunctionDef.Throwf(TEXT("Declared function %sis not marked as virtual."), *FunctionDecl);
 	}
 }
 
@@ -5465,7 +5465,7 @@ void FNativeClassHeaderGenerator::GenerateSourceFiles(
 
 		auto GenerateSource = [&GeneratedCPP]()
 		{
-			FResults::Try(GeneratedCPP.SourceFile, [&GeneratedCPP]()
+			FResults::Try([&GeneratedCPP]()
 				{
 					FUnrealPackageDefinitionInfo& PackageDefLcl = GeneratedCPP.PackageDef;
 					const FManifestModule& Module = PackageDefLcl.GetModule();
@@ -5561,7 +5561,7 @@ void FNativeClassHeaderGenerator::GenerateSourceFiles(
 
 		auto WriteGenerated = [&GeneratedCPP]()
 		{
-			FResults::Try(GeneratedCPP.SourceFile, [&GeneratedCPP]()
+			FResults::Try([&GeneratedCPP]()
 				{
 					FUnrealPackageDefinitionInfo& PackageDefLcl = GeneratedCPP.PackageDef;
 					const FManifestModule& Module = PackageDefLcl.GetModule();
@@ -6004,7 +6004,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FGeneratedFileInfo& FileIn
 			FFileHelper::SaveStringToFile(InNewHeaderContents, *ConflictPath);
 
 			FResults::SetResult(ECompilationResult::FailedDueToHeaderChange);
-			FUHTException::Throwf(FString(FileInfo.GetFilename()), 1, TEXT("ERROR: '%s': Changes to generated code are not allowed - conflicts written to '%s'"), *HeaderPathStr, *ConflictPath);
+			FUHTMessage(FileInfo.GetFilename()).Throwf(TEXT("ERROR: '%s': Changes to generated code are not allowed - conflicts written to '%s'"), *HeaderPathStr, *ConflictPath);
 		}
 
 		// save the updated version to a tmp file so that the user can see what will be changing
@@ -6016,7 +6016,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FGeneratedFileInfo& FileIn
 			IFileManager::Get().Delete(*TmpHeaderFilename, false, true);
 			if (!FFileHelper::SaveStringToFile(InNewHeaderContents, *TmpHeaderFilename))
 			{
-				FResults::LogWarning(FString(FileInfo.GetFilename()), 1, FString::Printf(TEXT("Failed to save header export preview: '%s'"), *TmpHeaderFilename));
+				FUHTMessage(FileInfo.GetFilename()).LogWarning(TEXT("Failed to save header export preview: '%s'"), *TmpHeaderFilename);
 			}
 		};
 
@@ -6148,7 +6148,7 @@ void ResolveSuperClasses(const TCHAR* PackageName, FUnrealClassDefinitionInfo& C
 				if (FoundBaseClassDef == nullptr)
 				{
 					// Don't know its parent class. Raise error.
-					FUHTException::Throwf(ClassDef, TEXT("Couldn't find parent type for '%s' named '%s' in current module (Package: %s) or any other module parsed so far."), *ClassDef.GetName(), *BaseClassName, PackageName);
+					ClassDef.Throwf(TEXT("Couldn't find parent type for '%s' named '%s' in current module (Package: %s) or any other module parsed so far."), *ClassDef.GetName(), *BaseClassName, PackageName);
 				}
 
 				SuperClassInfo.Struct = FoundBaseClassDef;
@@ -6314,8 +6314,7 @@ void PrepareModules(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const FS
 
 					if (NormalizedFullFilename != NormalizedExistingFilename)
 					{
-						FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*UnrealSourceFile->GetFilename());
-						FResults::LogError(MoveTemp(AbsFilename), 1, FString::Printf(TEXT("Duplicate leaf header name found: %s (original: %s)"), *NormalizedFullFilename, *NormalizedExistingFilename));
+						FUHTMessage(*UnrealSourceFile).LogError(TEXT("Duplicate leaf header name found: %s (original: %s)"), *NormalizedFullFilename, *NormalizedExistingFilename);
 					}
 				}
 
@@ -6382,7 +6381,7 @@ void PreparseSources(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const F
 			// Phase #1: Load the file
 			auto LoadLambda = [&SourceFile = *SourceFile, &ModuleInfoPath]()
 			{
-				FResults::Try(SourceFile, [&SourceFile, &ModuleInfoPath]()
+				FResults::Try([&SourceFile, &ModuleInfoPath]()
 					{
 						FScopedDurationTimer SourceTimer(SourceFile.GetTime(ESourceFileTime::Load));
 
@@ -6391,7 +6390,7 @@ void PreparseSources(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const F
 						FString Content;
 						if (!FFileHelper::LoadFileToString(Content, *FullFilename))
 						{
-							FUHTException::Throwf(SourceFile, 1, TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
+							FUHTMessage(SourceFile).Throwf(TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
 						}
 						SourceFile.SetContent(MoveTemp(Content));
 					}
@@ -6401,7 +6400,7 @@ void PreparseSources(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const F
 			// Phase #2: Perform simplified class parse (can run concurrenrtly)
 			auto PreProcessLambda = [&SourceFile = *SourceFile]()
 			{
-				FResults::Try(SourceFile, [&SourceFile]()
+				FResults::Try([&SourceFile]()
 					{
 						FScopedDurationTimer SourceTimer(SourceFile.GetTime(ESourceFileTime::PreParse));
 
@@ -6432,7 +6431,7 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 
 		for (TSharedRef<FUnrealSourceFile>& SourceFile : PackageDef->GetAllSourceFiles())
 		{
-			FResults::Try(*SourceFile, [PackageDef, &SourceFile = *SourceFile]()
+			FResults::Try([PackageDef, &SourceFile = *SourceFile]()
 			{
 				TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& AllClasses = PackageDef->GetAllClasses();
 				UPackage* Package = PackageDef->GetPackage();
@@ -6643,7 +6642,7 @@ void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 		{
 			FResults::TryAlways([&ParsedCPP]()
 			{
-					FHeaderParser::Parse(ParsedCPP.PackageDef, ParsedCPP.SourceFile);
+				FHeaderParser::Parse(ParsedCPP.PackageDef, ParsedCPP.SourceFile);
 			});
 		};
 
@@ -6977,12 +6976,12 @@ void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 	// All classes must start with a valid unreal prefix
 	if (!FHeaderParser::ClassNameHasValidPrefix(ClassName, ClassNameStripped))
 	{
-		FUHTException::Throwf(ClassDef, TEXT("Invalid class name '%s'. The class name must have an appropriate prefix added (A for Actors, U for other classes)."), *ClassName);
+		ClassDef.Throwf(TEXT("Invalid class name '%s'. The class name must have an appropriate prefix added (A for Actors, U for other classes)."), *ClassName);
 	}
 
 	if(FHeaderParser::IsReservedTypeName(ClassNameStripped))
 	{
-		FUHTException::Throwf(ClassDef, TEXT("Invalid class name '%s'. Cannot use a reserved name ('%s')."), *ClassName, *ClassNameStripped);
+		ClassDef.Throwf(TEXT("Invalid class name '%s'. Cannot use a reserved name ('%s')."), *ClassName, *ClassNameStripped);
 	}
 
 	// Ensure the base class has any valid prefix and exists as a valid class. Checking for the 'correct' prefix will occur during compilation
@@ -6992,7 +6991,7 @@ void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 		BaseClassNameStripped = GetClassNameWithPrefixRemoved(BaseClassName);
 		if (!FHeaderParser::ClassNameHasValidPrefix(BaseClassName, BaseClassNameStripped))
 		{
-			FUHTException::Throwf(ClassDef, TEXT("No prefix or invalid identifier for base class %s.\nClass names must match Unreal prefix specifications (e.g., \"UObject\" or \"AActor\")"), *BaseClassName);
+			ClassDef.Throwf(TEXT("No prefix or invalid identifier for base class %s.\nClass names must match Unreal prefix specifications (e.g., \"UObject\" or \"AActor\")"), *BaseClassName);
 		}
 	}
 
@@ -7000,12 +6999,12 @@ void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 	// Handle failure and non-class headers.
 	if (BaseClassName.IsEmpty() && (ClassName != TEXT("UObject")))
 	{
-		FUHTException::Throwf(ClassDef, TEXT("Class '%s' must inherit UObject or a UObject-derived class"), *ClassName);
+		ClassDef.Throwf(TEXT("Class '%s' must inherit UObject or a UObject-derived class"), *ClassName);
 	}
 
 	if (ClassName == BaseClassName)
 	{
-		FUHTException::Throwf(ClassDef, TEXT("Class '%s' cannot inherit from itself"), *ClassName);
+		ClassDef.Throwf(TEXT("Class '%s' cannot inherit from itself"), *ClassName);
 	}
 
 	UClass* ResultClass = FEngineAPI::FindObject<UClass>(ANY_PACKAGE, *ClassNameStripped);
@@ -7018,7 +7017,7 @@ void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 	{
 		if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*ClassNameStripped))
 		{
-			FUHTException::Throwf(ClassDef, TEXT("Duplicate class name: %s also exists in file %s"), *ClassName, *(*Existing)->GetFilename());
+			ClassDef.Throwf(TEXT("Duplicate class name: %s also exists in file %s"), *ClassName, *(*Existing)->GetFilename());
 		}
 
 		if (bVerboseOutput)
@@ -7040,13 +7039,13 @@ void ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef)
 
 	if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*EnumName))
 	{
-		FUHTException::Throwf(EnumDef, TEXT("Duplicate enum name: %s also exists in file %s"), *EnumName, *(*Existing)->GetFilename());
+		EnumDef.Throwf(TEXT("Duplicate enum name: %s also exists in file %s"), *EnumName, *(*Existing)->GetFilename());
 	}
 
 	// Check if the enum name is using a reserved keyword
 	if (FHeaderParser::IsReservedTypeName(EnumName))
 	{
-		FUHTException::Throwf(EnumDef, TEXT("enum: '%s' uses a reserved type name."), *EnumName);
+		EnumDef.Throwf(TEXT("enum: '%s' uses a reserved type name."), *EnumName);
 	}
 }
 
@@ -7057,12 +7056,12 @@ void ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStructDef)
 
 	if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*StructNameStripped))
 	{
-		FUHTException::Throwf(ScriptStructDef, TEXT("Duplicate struct name: %s also exists in file %s"), *StructNameStripped, *(*Existing)->GetFilename());
+		ScriptStructDef.Throwf(TEXT("Duplicate struct name: %s also exists in file %s"), *StructNameStripped, *(*Existing)->GetFilename());
 	}
 
 	// Check if the enum name is using a reserved keyword
 	if (FHeaderParser::IsReservedTypeName(StructNameStripped))
 	{
-		FUHTException::Throwf(ScriptStructDef, TEXT("struct: '%s' uses a reserved type name."), *StructNameStripped);
+		ScriptStructDef.Throwf(TEXT("struct: '%s' uses a reserved type name."), *StructNameStripped);
 	}
 }

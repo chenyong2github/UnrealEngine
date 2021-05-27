@@ -26,7 +26,7 @@ EBuildModuleType::Type EBuildModuleType::Parse(const TCHAR* Value)
 	int32 TypeIndex = Algo::FindSortedStringCaseInsensitive(Value, AlphabetizedTypes);
 	if (TypeIndex < 0)
 	{
-		FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("Unrecognized EBuildModuleType name: %s"), Value);
+		FUHTMessage(GManifestFilename).Throwf(TEXT("Unrecognized EBuildModuleType name: %s"), Value);
 	}
 
 	static EBuildModuleType::Type AlphabetizedValues[] = {
@@ -60,7 +60,7 @@ EPackageOverrideType::Type EPackageOverrideType::Parse(const TCHAR* Value)
 	int32 TypeIndex = Algo::FindSortedStringCaseInsensitive(Value, AlphabetizedTypes);
 	if (TypeIndex < 0)
 	{
-		FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("Unrecognized EPackageOverrideType name: %s"), Value);
+		FUHTMessage(GManifestFilename).Throwf(TEXT("Unrecognized EPackageOverrideType name: %s"), Value);
 	}
 
 	static EPackageOverrideType::Type AlphabetizedValues[] = {

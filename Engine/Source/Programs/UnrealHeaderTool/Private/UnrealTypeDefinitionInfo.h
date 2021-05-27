@@ -10,7 +10,7 @@
 #include "BaseParser.h"
 #include "ParserHelper.h"
 
-#define UHT_ENABLE_ENGINE_TYPE_CHECKS 1
+#define UHT_ENABLE_ENGINE_TYPE_CHECKS 0
 
 // Forward declarations.
 class FHeaderParser;
@@ -232,7 +232,7 @@ private:
  */
 class FUnrealTypeDefinitionInfo 
 	: public TSharedFromThis<FUnrealTypeDefinitionInfo>
-	, public FUHTExceptionContext
+	, public FUHTMessageProvider
 {
 public:
 	enum class ECreateEngineTypesPhase : uint8
@@ -520,7 +520,7 @@ public:
 	 */
 	virtual void AddMetaData(TMap<FName, FString>&& InMetaData)
 	{
-		FUHTException::Throwf(*this, TEXT("Meta data can not be set for a definition of this type."));
+		Throwf(TEXT("Meta data can not be set for a definition of this type."));
 	}
 
 	/**
@@ -2258,7 +2258,7 @@ public:
 	{
 		if (DefinitionRange.End <= DefinitionRange.Start)
 		{
-			FUHTException::Throwf(*this, TEXT("The class definition range is invalid. Most probably caused by previous parsing error."));
+			Throwf(TEXT("The class definition range is invalid. Most probably caused by previous parsing error."));
 		}
 	}
 

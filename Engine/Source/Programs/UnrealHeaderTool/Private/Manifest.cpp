@@ -30,7 +30,7 @@ namespace
 	{
 		if (JsonValue->Type != TJsonFieldType<T>::Value)
 		{
-			FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("'%s' is the wrong type"), Outer);
+			FUHTMessage(GManifestFilename).Throwf(TEXT("'%s' is the wrong type"), Outer);
 		}
 
 		JsonValue->AsArgumentType(OutVal);
@@ -43,12 +43,12 @@ namespace
 
 		if (!JsonValue)
 		{
-			FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("Unable to find field '%s' in '%s'"), FieldName, Outer);
+			FUHTMessage(GManifestFilename).Throwf(TEXT("Unable to find field '%s' in '%s'"), FieldName, Outer);
 		}
 
 		if ((*JsonValue)->Type != TJsonFieldType<T>::Value)
 		{
-			FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("Field '%s' in '%s' is the wrong type"), Outer);
+			FUHTMessage(GManifestFilename).Throwf(TEXT("Field '%s' in '%s' is the wrong type"), Outer);
 		}
 
 		(*JsonValue)->AsArgumentType(OutVal);
@@ -73,7 +73,7 @@ FManifest FManifest::LoadFromFile(const FString& Filename)
 
 	if (!FFileHelper::LoadFileToString(Json, *Filename))
 	{
-		FUHTException::Throwf(FString(Filename), 1, TEXT("Unable to load manifest: %s"), *Filename);
+		FUHTMessage(Filename).Throwf(TEXT("Unable to load manifest: %s"), *Filename);
 	}
 
 	TSharedPtr<FJsonObject> RootObject = TSharedPtr<FJsonObject>();
@@ -81,7 +81,7 @@ FManifest FManifest::LoadFromFile(const FString& Filename)
 
 	if (!FJsonSerializer::Deserialize(Reader, RootObject))
 	{
-		FUHTException::Throwf(FString(Filename), 1, TEXT("Manifest is malformed: %s"), *Filename);
+		FUHTMessage(Filename).Throwf(TEXT("Manifest is malformed: %s"), *Filename);
 	}
 
 	TArray<TSharedPtr<FJsonValue>> ModulesArray;

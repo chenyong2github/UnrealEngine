@@ -322,12 +322,12 @@ public:
 	/**
 	 * Add an include for a class if required
 	 */
-	void AddClassIncludeIfNeeded(int32 InputLine, const FString& ClassNameWithoutPrefix, const FString& DependencyClassName);
+	void AddClassIncludeIfNeeded(FUHTMessageProvider& Context, const FString& ClassNameWithoutPrefix, const FString& DependencyClassName);
 
 	/**
 	 * Add an include for a script struct if required
 	 */
-	void AddScriptStructIncludeIfNeeded(int32 InputLine, const FString& StructNameWithoutPrefix, const FString& DependencyStructName);
+	void AddScriptStructIncludeIfNeeded(FUHTMessageProvider& Context, const FString& StructNameWithoutPrefix, const FString& DependencyStructName);
 
 	/**
 	 * Add an include for a type definition if required.  TypeDef can be null.
@@ -553,3 +553,9 @@ private:
 	// Collection of all singletons found during code generation
 	TArray<FUnrealFieldDefinitionInfo*> Singletons;
 };
+
+template <>
+inline FString GetMessageFilename<FUnrealSourceFile>(const FUnrealSourceFile& Source)
+{
+	return Source.GetFilename();
+}
