@@ -1918,6 +1918,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		{
 			SimulationParameters.PhysicalMaterialHandle = EnginePhysicalMaterial->GetPhysicsMaterial();
 		}
+		GetInitializationCommands(SimulationParameters.InitializationCommands);
 	}
 
 	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialQueryFilter, InitialSimFilter);
