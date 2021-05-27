@@ -186,16 +186,20 @@ void FOpenColorIOShaderMapId::AppendKeyString(FString& OutKeyString) const
  * Enqueues a compilation for a new shader of this type.
  * @param InColorTransform - The ColorTransform to link the shader with.
  */
-FOpenColorIOShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
+void FOpenColorIOShaderType::BeginCompileShader(
 	uint32 InShaderMapId,
 	const FOpenColorIOTransformResource* InColorTransform,
 	FSharedShaderCompilerEnvironment* InCompilationEnvironment,
 	EShaderPlatform InPlatform,
-	TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>>& OutNewJobs,
+	TArray<FShaderCommonCompileJobPtr>& OutNewJobs,
 	FShaderTarget InTarget
 	)
 {
-	FOpenColorIOShaderCompileJob* NewJob = new FOpenColorIOShaderCompileJob(InShaderMapId, this);
+	FShaderCompileJob* NewJob = GShaderCompilingManager->PrepareShaderCompileJob(InShaderMapId, FShaderCompileJobKey(this), EShaderCompileJobPriority::Normal);
+	if (!NewJob)
+	{
+		return;
+	}
 
 	NewJob->Input.SharedEnvironment = InCompilationEnvironment;
 	NewJob->Input.Target = InTarget;
@@ -203,14 +207,12 @@ FOpenColorIOShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
 	NewJob->Input.VirtualSourceFilePath = TEXT("/Engine/Plugins/Compositing/OpenColorIO/Shaders/Private/OpenColorIOShader.usf");
 	NewJob->Input.EntryPointName = TEXT("MainPS");
 	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/OpenColorIOTransformShader.ush"), InColorTransform->ShaderCode);
-	UE_LOG(LogShaders, Verbose, TEXT("%s"), *InColorTransform->ShaderCode);
-	
+
+	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, InPlatform);
+
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
 
-	UE_LOG(LogShaders, Verbose, TEXT("			%s"), GetName());
-	COOK_STAT(OpenColorIOShaderCookStats::ShadersCompiled++);
-
-	//update ColorTransform shader stats
+	//update InColorTransform shader stats
 	UpdateOpenColorIOShaderCompilingStats(InColorTransform);
 
 	// Allow the shader type to modify the compile environment.
@@ -228,8 +230,7 @@ FOpenColorIOShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
 		NewJob->Input
 	);
 
-	OutNewJobs.Add(FOpenColorIOShaderCompileJobSharedRef(NewJob));
-	return NewJob;
+	OutNewJobs.Add(FShaderCommonCompileJobPtr(NewJob));
 }
 
 /**
@@ -239,9 +240,9 @@ FOpenColorIOShaderCompileJob* FOpenColorIOShaderType::BeginCompileShader(
  */
 FShader* FOpenColorIOShaderType::FinishCompileShader(
 	const FSHAHash& InShaderMapHash,
-	const FOpenColorIOShaderCompileJob& InCurrentJob,
+	const FShaderCompileJob& InCurrentJob,
 	const FString& InDebugDescription
-	)
+	) const
 {
 	check(InCurrentJob.bSucceeded);
 
@@ -295,8 +296,6 @@ void FOpenColorIOShaderMap::LoadFromDerivedDataCache(const FOpenColorIOTransform
 	if (InOutShaderMap != nullptr)
 	{
 		check(InOutShaderMap->GetShaderPlatform() == InPlatform);
-		// If the shader map was non-NULL then it was found in memory but is incomplete, attempt to load the missing entries from memory
-		InOutShaderMap->LoadMissingShadersFromMemory(InColorTransform);
 	}
 	else
 	{
@@ -365,7 +364,7 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 {
 	if (FPlatformProperties::RequiresCookedData())
 	{
-		UE_LOG(LogShaders, Fatal, TEXT("Trying to compile OpenColorIO shader %s at run-time, which is not supported on consoles!"), *InColorTransform->GetFriendlyName() );
+		UE_LOG(LogShaders, Fatal, TEXT("Trying to compile OpenColorIO shader %s at run-time, which is not supported on consoles!"), *InColorTransform->GetFriendlyName());
 	}
 	else
 	{
@@ -373,6 +372,8 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 		// Since it creates a temporary ref counted pointer.
 		check(NumRefs > 0);
   
+		//All access to OpenColorIOShaderMapsBeingCompiled must be done on the game thread!
+		check(IsInGameThread());
 		// Add this shader map and to OpenColorIOShaderMapsBeingCompiled
 		TArray<FOpenColorIOTransformResource*>* CorrespondingTransform = OpenColorIOShaderMapsBeingCompiled.Find(this);
   
@@ -383,13 +384,10 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 		}
 		else
 		{
+			InColorTransform->RemoveOutstandingCompileId(CompilingId);
 			// Assign a unique identifier so that shaders from this shader map can be associated with it after a deferred compile
-			CompilingId = NextCompilingId;
-			UE_LOG(LogShaders, Log, TEXT("CompilingId = %p %d"), InColorTransform, CompilingId);
+			CompilingId = FShaderCommonCompileJob::GetNextJobId();
 			InColorTransform->AddCompileId(CompilingId);
-
-			check(NextCompilingId < UINT_MAX);
-			NextCompilingId++;
   
 			TArray<FOpenColorIOTransformResource*> NewCorrespondingTransforms;
 			NewCorrespondingTransforms.Add(InColorTransform);
@@ -408,34 +406,28 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 			AssignContent(NewContent);
 
 			uint32 NumShaders = 0;
-			TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>> NewJobs;
+			TArray<FShaderCommonCompileJobPtr> NewJobs;
 	
 			// Iterate over all shader types.
-			TMap<FShaderType*, FOpenColorIOShaderCompileJob*> SharedShaderJobs;
 			for(TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList());ShaderTypeIt;ShaderTypeIt.Next())
 			{
 				FOpenColorIOShaderType* ShaderType = ShaderTypeIt->GetOpenColorIOShaderType();
 				if (ShaderType && ShouldCacheOpenColorIOShader(ShaderType, InPlatform, InColorTransform))
 				{
-					// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
-					check(InShaderMapId.ContainsShaderType(ShaderType));
-					
 					// Compile this OpenColorIO shader .
 					TArray<FString> ShaderErrors;
   
 					// Only compile the shader if we don't already have it
 					if (!NewContent->HasShader(ShaderType, /* PermutationId = */ 0))
 					{
-						auto* Job = ShaderType->BeginCompileShader(
+						ShaderType->BeginCompileShader(
 							CompilingId,
 							InColorTransform,
 							InCompilationEnvironment,
 							InPlatform,
 							NewJobs,
 							FShaderTarget(ShaderType->GetFrequency(), GetShaderPlatform())
-							);
-						check(!SharedShaderJobs.Find(ShaderType));
-						SharedShaderJobs.Add(ShaderType, Job);
+						);
 					}
 					NumShaders++;
 				}
@@ -443,7 +435,6 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 				{
 					UE_LOG(LogShaders, Display, TEXT("Skipping compilation of %s as it isn't supported on this target type."), *InColorTransform->GetFriendlyName());
 					InColorTransform->RemoveOutstandingCompileId(CompilingId);
-					InColorTransform->NotifyCompilationFinished();
 				}
 			}
   
@@ -452,7 +443,7 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 				UE_LOG(LogShaders, Log, TEXT("		%u Shaders"), NumShaders);
 			}
 
-			// Register this shader map in the global ColorTransform->shadermap map
+			// Register this shader map in the global script->shadermap map
 			Register(InPlatform);
   
 			// Mark the shader map as not having been finalized with ProcessCompilationResults
@@ -474,26 +465,27 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 	}
 }
 
-FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FOpenColorIOShaderCompileJob& CurrentJob, const FSHAHash& InShaderMapHash)
+FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(const TRefCountPtr<class FShaderCommonCompileJob>& SingleJob, const FSHAHash& InShaderMapHash)
 {
-	check(CurrentJob.Id == CompilingId);
+	FShaderCompileJob* CurrentJob = SingleJob->GetSingleShaderJob();
+	check(CurrentJob->Id == CompilingId);
 
-	GetResourceCode()->AddShaderCompilerOutput(CurrentJob.Output);
+	GetResourceCode()->AddShaderCompilerOutput(CurrentJob->Output);
 
 	FShader* Shader = nullptr;
 
-	FOpenColorIOShaderType* OpenColorIOShaderType = CurrentJob.ShaderType->GetOpenColorIOShaderType();
+	const FOpenColorIOShaderType* OpenColorIOShaderType = CurrentJob->Key.ShaderType->GetOpenColorIOShaderType();
 	check(OpenColorIOShaderType);
-	Shader = OpenColorIOShaderType->FinishCompileShader(InShaderMapHash, CurrentJob, GetContent()->FriendlyName);
-	bCompiledSuccessfully = CurrentJob.bSucceeded;
+	Shader = OpenColorIOShaderType->FinishCompileShader(InShaderMapHash, *CurrentJob, GetContent()->FriendlyName);
+	bCompiledSuccessfully = CurrentJob->bSucceeded;
 
-	FOpenColorIOPixelShader *OpenColorIOShader = static_cast<FOpenColorIOPixelShader*>(Shader);
-	check(Shader);
+	FOpenColorIOPixelShader* OpenColorIOShader = static_cast<FOpenColorIOPixelShader*>(Shader);
+	check(Shader && Shader->GetCodeSize() > 0);
 	check(!GetContent()->HasShader(OpenColorIOShaderType, /* PermutationId = */ 0));
-	return GetMutableContent()->FindOrAddShader(OpenColorIOShaderType->GetHashedName(), 0, Shader);
+	return GetMutableContent()->FindOrAddShader(OpenColorIOShaderType->GetHashedName(), CurrentJob->Key.PermutationId, Shader);
 }
 
-bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& InOutTimeBudget)
+bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<FShaderCommonCompileJobPtr>& InCompilationResults, int32& InOutJobIndex, float& InOutTimeBudget)
 {
 	check(InOutJobIndex < InCompilationResults.Num());
 
@@ -504,7 +496,7 @@ bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FO
 
 	do
 	{
-		ProcessCompilationResultsForSingleJob(StaticCastSharedRef<FOpenColorIOShaderCompileJob>(InCompilationResults[InOutJobIndex]).Get(), ShaderMapHash);
+		ProcessCompilationResultsForSingleJob(InCompilationResults[InOutJobIndex], ShaderMapHash);
 
 		InOutJobIndex++;
 		
@@ -587,41 +579,6 @@ bool FOpenColorIOShaderMap::IsComplete(const FOpenColorIOTransformResource* InCo
 	}
 
 	return true;
-}
-
-void FOpenColorIOShaderMap::LoadMissingShadersFromMemory(const FOpenColorIOTransformResource* InColorTransform)
-{
-#if 0
-	// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
-	// Since it creates a temporary ref counted pointer.
-	check(NumRefs > 0);
-
-	const TArray<FOpenColorIOTransformResource*>* CorrespondingColorTransforms = FOpenColorIOShaderMap::OpenColorIOShaderMapsBeingCompiled.Find(this);
-
-	if (CorrespondingColorTransforms)
-	{
-		check(!bCompilationFinalized);
-		return;
-	}
-
-	FSHAHash ShaderMapHash;
-	ShaderMapId.GetOpenColorIOHash(ShaderMapHash);
-
-	// Try to find necessary FOpenColorIOShaderType's in memory
-	for (TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList());ShaderTypeIt;ShaderTypeIt.Next())
-	{
-		FOpenColorIOShaderType* ShaderType = ShaderTypeIt->GetOpenColorIOShaderType();
-		if (ShaderType && ShouldCacheOpenColorIOShader(ShaderType, Platform, InColorTransform) && !HasShader(ShaderType, /* PermutationId = */ 0))
-		{
-			FShaderKey ShaderKey(ShaderMapHash, nullptr, nullptr, /** PermutationId = */ 0, Platform);
-			FShader* FoundShader = ShaderType->FindShaderByKey(ShaderKey);
-			if (FoundShader)
-			{
-				AddShader(ShaderType, /* PermutationId = */ 0, FoundShader);
-			}
-		}
-	}
-#endif
 }
 
 void FOpenColorIOShaderMap::GetShaderList(TMap<FShaderId, TShaderRef<FShader>>& OutShaders) const
@@ -719,7 +676,6 @@ void FOpenColorIOShaderMap::RemovePendingColorTransform(FOpenColorIOTransformRes
 		if (Result)
 		{
 			InColorTransform->RemoveOutstandingCompileId(It.Key()->CompilingId);
-			InColorTransform->NotifyCompilationFinished();
 		}
 #if DEBUG_INFINITESHADERCOMPILE
 		if ( Result )

@@ -284,16 +284,19 @@ void UOpenColorIOColorTransform::CacheResourceShadersForRendering(bool bRegenera
 				TransformResource->SetupResource(CacheFeatureLevel, ShaderCodeHash, ShaderCode, GetTransformFriendlyName(), AssetPath);
 
 				const bool bApplyCompletedShaderMap = true;
-				const bool bIsCooking = false;
-				CacheShadersForResources(ShaderPlatform, TransformResource, bApplyCompletedShaderMap, bIsCooking);
+
+				// If PIE or -game - we don't want to be doing shader cooking asynchronosly.
+				bool bIsSynchronous = FApp::IsGame();
+				
+				CacheShadersForResources(ShaderPlatform, TransformResource, bApplyCompletedShaderMap, bIsSynchronous);
 			}
 		}
 	}
 }
 
-void UOpenColorIOColorTransform::CacheShadersForResources(EShaderPlatform InShaderPlatform, FOpenColorIOTransformResource* InResourceToCache, bool bApplyCompletedShaderMapForRendering, bool bIsCooking, const ITargetPlatform* TargetPlatform)
+void UOpenColorIOColorTransform::CacheShadersForResources(EShaderPlatform InShaderPlatform, FOpenColorIOTransformResource* InResourceToCache, bool bApplyCompletedShaderMapForRendering, bool bIsSynchronous, const ITargetPlatform* TargetPlatform)
 {
-	const bool bSuccess = InResourceToCache->CacheShaders(InShaderPlatform, TargetPlatform, bApplyCompletedShaderMapForRendering, bIsCooking);
+	const bool bSuccess = InResourceToCache->CacheShaders(InShaderPlatform, TargetPlatform, bApplyCompletedShaderMapForRendering, bIsSynchronous);
 
 	if (!bSuccess)
 	{

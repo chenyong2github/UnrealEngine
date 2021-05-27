@@ -29,7 +29,7 @@ OPENCOLORIO_API FOpenColorIOShaderCompilationManager GOpenColorIOShaderCompilati
 void FOpenColorIOShaderCompilationManager::Tick(float DeltaSeconds)
 {
 #if WITH_EDITOR
-	RunCompileJobs();
+	ProcessAsyncResults();
 #endif
 }
 
@@ -48,138 +48,6 @@ FOpenColorIOShaderCompilationManager::~FOpenColorIOShaderCompilationManager()
 	WorkerInfos.Empty();
 }
 
-void FOpenColorIOShaderCompilationManager::RunCompileJobs()
-{
-#if WITH_EDITOR
-	// If we aren't compiling through workers, so we can just track the serial time here.
-//	COOK_STAT(FScopedDurationTimer CompileTimer(OpenColorIOShaderCookStats::AsyncCompileTimeSec));
-
-	InitWorkerInfo();
-
-	int32 NumActiveThreads = 0;
-
-	for (int32 WorkerIndex = 0; WorkerIndex < WorkerInfos.Num(); WorkerIndex++)
-	{
-		FOpenColorIOShaderCompileWorkerInfo& CurrentWorkerInfo = *WorkerInfos[WorkerIndex];
-
-		// If this worker doesn't have any queued jobs, look for more in the input queue
-		if (CurrentWorkerInfo.QueuedJobs.Num() == 0)
-		{
-			check(!CurrentWorkerInfo.bComplete);
-
-			if (JobQueue.Num() > 0)
-			{
-				bool bAddedLowLatencyTask = false;
-				int32 JobIndex = 0;
-
-				// Try to grab up to MaxShaderJobBatchSize jobs
-				// Don't put more than one low latency task into a batch
-				for (; JobIndex < JobQueue.Num(); JobIndex++)
-				{
-					CurrentWorkerInfo.QueuedJobs.Add(JobQueue[JobIndex]);
-				}
-
-				// Update the worker state as having new tasks that need to be issued					
-				// don't reset worker app ID, because the shadercompilerworkers don't shutdown immediately after finishing a single job queue.
-				CurrentWorkerInfo.bIssuedTasksToWorker = true;
-				CurrentWorkerInfo.bLaunchedWorker = true;
-				CurrentWorkerInfo.StartTime = FPlatformTime::Seconds();
-				JobQueue.RemoveAt(0, JobIndex);
-			}
-		}
-
-		if (CurrentWorkerInfo.bIssuedTasksToWorker && CurrentWorkerInfo.bLaunchedWorker)
-		{
-			NumActiveThreads++;
-		}
-
-		if (CurrentWorkerInfo.QueuedJobs.Num() > 0)
-		{
-			for (int32 JobIndex = 0; JobIndex < CurrentWorkerInfo.QueuedJobs.Num(); JobIndex++)
-			{
-				FOpenColorIOShaderCompileJob& CurrentJob = StaticCastSharedRef<FOpenColorIOShaderCompileJob>(CurrentWorkerInfo.QueuedJobs[JobIndex]).Get();
-
-				check(!CurrentJob.bFinalized);
-				CurrentJob.bFinalized = true;
-
-				static ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-
-				const FName Format = LegacyShaderPlatformToShaderFormat(EShaderPlatform(CurrentJob.Input.Target.Platform));
-				const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
-
-				if (!Compiler)
-				{
-					UE_LOG(LogOpenColorIOShaderCompiler, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
-				}
-				CA_ASSUME(Compiler != nullptr);
-
-				UE_LOG(LogOpenColorIOShaderCompiler, Log, TEXT("Compile Job processing... %s"), *CurrentJob.Input.DebugGroupName);
-
-				CurrentJob.Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / Format.ToString();
-				FPaths::NormalizeDirectoryName(CurrentJob.Input.DumpDebugInfoRootPath);
-				const FShaderCompilingManager::EDumpShaderDebugInfo DumpShaderDebugInfo = GShaderCompilingManager->GetDumpShaderDebugInfo();
-				CurrentJob.Input.DebugExtension.Empty();
-				CurrentJob.Input.DumpDebugInfoRootPath.Empty();
-				if (DumpShaderDebugInfo == FShaderCompilingManager::EDumpShaderDebugInfo::Always)
-				{
-					CurrentJob.Input.DumpDebugInfoRootPath = GShaderCompilingManager->CreateShaderDebugInfoPath(CurrentJob.Input);
-				}
-
-				if (IsValidRef(CurrentJob.Input.SharedEnvironment))
-				{
-					// Merge the shared environment into the per-shader environment before calling into the compile function
-					// Normally this happens in the worker
-					CurrentJob.Input.Environment.Merge(*CurrentJob.Input.SharedEnvironment);
-				}
-
-				// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
-				Compiler->CompileShader(Format, CurrentJob.Input, CurrentJob.Output, FString(FPlatformProcess::ShaderDir()));
-
-				CurrentJob.bSucceeded = CurrentJob.Output.bSucceeded;
-
-				// Recompile the shader to dump debug info if desired
-				if (GShaderCompilingManager->ShouldRecompileToDumpShaderDebugInfo(CurrentJob.Input, CurrentJob.Output, CurrentJob.bSucceeded))
-				{
-					CurrentJob.Input.DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(CurrentJob.Input);
-					Compiler->CompileShader(Format, CurrentJob.Input, CurrentJob.Output, FString(FPlatformProcess::ShaderDir()));
-				}
-
-				if (CurrentJob.Output.bSucceeded)
-				{
-					// Generate a hash of the output and cache it
-					// The shader processing this output will use it to search for existing FShaderResources
-					CurrentJob.Output.GenerateOutputHash();
-					UE_LOG(LogOpenColorIOShaderCompiler, Log, TEXT("GPU shader compile succeeded. Id %d"), CurrentJob.Id);
-				}
-				else
-				{
-					UE_LOG(LogOpenColorIOShaderCompiler, Log, TEXT("ERROR: GPU shader compile failed! Id %d"), CurrentJob.Id);
-				}
-
-				CurrentWorkerInfo.bComplete = true;
-			}
-		}
-	}
-
-	for (int32 WorkerIndex = 0; WorkerIndex < WorkerInfos.Num(); WorkerIndex++)
-	{
-		FOpenColorIOShaderCompileWorkerInfo& CurrentWorkerInfo = *WorkerInfos[WorkerIndex];
-		if (CurrentWorkerInfo.bComplete)
-		{
-			for (int32 JobIndex = 0; JobIndex < CurrentWorkerInfo.QueuedJobs.Num(); JobIndex++)
-			{
-				FOpenColorIOShaderMapCompileResults& ShaderMapResults = OpenColorIOShaderMapJobs.FindChecked(CurrentWorkerInfo.QueuedJobs[JobIndex]->Id);
-				ShaderMapResults.FinishedJobs.Add(CurrentWorkerInfo.QueuedJobs[JobIndex]);
-				ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && CurrentWorkerInfo.QueuedJobs[JobIndex]->bSucceeded;
-			}
-		}
-
-		CurrentWorkerInfo.bComplete = false;
-		CurrentWorkerInfo.QueuedJobs.Empty();
-	}
-#endif
-}
-
 void FOpenColorIOShaderCompilationManager::InitWorkerInfo()
 {
 	if (WorkerInfos.Num() == 0) // Check to see if it has been initialized or not
@@ -195,17 +63,35 @@ void FOpenColorIOShaderCompilationManager::InitWorkerInfo()
 	}	
 }
 
-OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>> InNewJobs)
+OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<FShaderCommonCompileJobPtr> InNewJobs)
 {
 #if WITH_EDITOR
-	for (auto& Job : InNewJobs)
+	check(IsInGameThread());
+	JobQueue.Append(InNewJobs);
+
+	for (FShaderCommonCompileJobPtr& Job : InNewJobs)
 	{
 		FOpenColorIOShaderMapCompileResults& ShaderMapInfo = OpenColorIOShaderMapJobs.FindOrAdd(Job->Id);
-		//@todo : Apply shader map isn't used for now with this compile manager. Should be merged to have a generic shader compiler
 		ShaderMapInfo.NumJobsQueued++;
-	}
 
-	JobQueue.Append(InNewJobs);
+		auto CurrentJob = Job->GetSingleShaderJob();
+
+		// Fast math breaks The ExecGrid layout script because floor(x/y) returns a bad value if x == y. Yay.
+		if (IsMetalPlatform((EShaderPlatform)CurrentJob->Input.Target.Platform))
+		{
+			CurrentJob->Input.Environment.CompilerFlags.Add(CFLAG_NoFastMath);
+		}
+
+		CurrentJob->Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / LegacyShaderPlatformToShaderFormat(EShaderPlatform(CurrentJob->Input.Target.Platform)).ToString();
+		FPaths::NormalizeDirectoryName(CurrentJob->Input.DumpDebugInfoRootPath);
+		CurrentJob->Input.DebugExtension.Empty();
+		CurrentJob->Input.DumpDebugInfoPath.Empty();
+		if (GShaderCompilingManager->GetDumpShaderDebugInfo() == FShaderCompilingManager::EDumpShaderDebugInfo::Always)
+		{
+			CurrentJob->Input.DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(CurrentJob->Input);
+		}
+	}
+	GShaderCompilingManager->SubmitJobs(InNewJobs, FString(), FString());
 #endif
 }
 
@@ -213,10 +99,35 @@ OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<TShare
 void FOpenColorIOShaderCompilationManager::ProcessAsyncResults()
 {
 #if WITH_EDITOR
-	int32 NumCompilingOpenColorIOShaderMaps = 0;
-	TArray<int32> ShaderMapsToRemove;
+	check(IsInGameThread());
 
-	// Get all OpenColorIO shader maps to finalize
+	// Process the results from the shader compile worker
+	for (int32 JobIndex = JobQueue.Num() - 1; JobIndex >= 0; JobIndex--)
+	{
+		auto CurrentJob = JobQueue[JobIndex]->GetSingleShaderJob();
+
+		if (!CurrentJob->bReleased)
+		{
+			continue;
+		}
+
+		CurrentJob->bSucceeded = CurrentJob->Output.bSucceeded;
+		if (CurrentJob->Output.bSucceeded)
+		{
+			UE_LOG(LogShaders, Verbose, TEXT("GPU shader compile succeeded. Id %d"), CurrentJob->Id);
+		}
+		else
+		{
+			UE_LOG(LogShaders, Warning, TEXT("GPU shader compile failed! Id: %d Name: %s"), CurrentJob->Id, *CurrentJob->Input.DebugGroupName);
+		}
+
+		FOpenColorIOShaderMapCompileResults& ShaderMapResults = OpenColorIOShaderMapJobs.FindChecked(CurrentJob->Id);
+		ShaderMapResults.FinishedJobs.Add(JobQueue[JobIndex]);
+		ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && CurrentJob->bSucceeded;
+		JobQueue.RemoveAt(JobIndex);
+	}
+
+	// Get all OCIO shader maps to finalize
 	//
 	for (TMap<int32, FOpenColorIOShaderMapCompileResults>::TIterator It(OpenColorIOShaderMapJobs); It; ++It)
 	{
@@ -224,21 +135,14 @@ void FOpenColorIOShaderCompilationManager::ProcessAsyncResults()
 
 		if (Results.FinishedJobs.Num() == Results.NumJobsQueued)
 		{
-			ShaderMapsToRemove.Add(It.Key());
-			PendingFinalizeOpenColorIOShaderMaps.Add(It.Key(), FOpenColorIOShaderMapFinalizeResults(Results));
+			PendingFinalizeOpenColorIOShaderMaps.Add(It.Key(), FOpenColorIOShaderMapCompileResults(Results));
+			OpenColorIOShaderMapJobs.Remove(It.Key());
 		}
 	}
 
-	for (int32 RemoveIndex = 0; RemoveIndex < ShaderMapsToRemove.Num(); RemoveIndex++)
-	{
-		OpenColorIOShaderMapJobs.Remove(ShaderMapsToRemove[RemoveIndex]);
-	}
-
-	NumCompilingOpenColorIOShaderMaps = OpenColorIOShaderMapJobs.Num();
-
 	if (PendingFinalizeOpenColorIOShaderMaps.Num() > 0)
 	{
-		ProcessCompiledOpenColorIOShaderMaps(PendingFinalizeOpenColorIOShaderMaps, 0.1f);
+		ProcessCompiledOpenColorIOShaderMaps(PendingFinalizeOpenColorIOShaderMaps, 10);
 	}
 #endif
 }
@@ -282,33 +186,33 @@ void FOpenColorIOShaderCompilationManager::ProcessCompiledOpenColorIOShaderMaps(
 
 			for (int32 JobIndex = 0; JobIndex < ResultArray.Num(); JobIndex++)
 			{
-				FOpenColorIOShaderCompileJob& CurrentJob = StaticCastSharedRef<FOpenColorIOShaderCompileJob>(ResultArray[JobIndex]).Get();
-				bSuccess = bSuccess && CurrentJob.bSucceeded;
+				FShaderCompileJob* CurrentJob = ResultArray[JobIndex]->GetSingleShaderJob();
+				bSuccess = bSuccess && CurrentJob->bSucceeded;
 
 				if (bSuccess)
 				{
-					check(CurrentJob.Output.ShaderCode.GetShaderCodeSize() > 0);
+					check(CurrentJob->Output.ShaderCode.GetShaderCodeSize() > 0);
 				}
 
-				if (GShowOpenColorIOShaderWarnings || !CurrentJob.bSucceeded)
+				if (GShowOpenColorIOShaderWarnings || !CurrentJob->bSucceeded)
 				{
-					for (int32 ErrorIndex = 0; ErrorIndex < CurrentJob.Output.Errors.Num(); ErrorIndex++)
+					for (int32 ErrorIndex = 0; ErrorIndex < CurrentJob->Output.Errors.Num(); ErrorIndex++)
 					{
-						Errors.AddUnique(CurrentJob.Output.Errors[ErrorIndex].GetErrorString());
+						Errors.AddUnique(CurrentJob->Output.Errors[ErrorIndex].GetErrorString());
 					}
 
-					if (CurrentJob.Output.Errors.Num())
+					if (CurrentJob->Output.Errors.Num())
 					{
-						UE_LOG(LogShaders, Log, TEXT("There were errors for job \"%s\""), *CurrentJob.Input.DebugGroupName)
-							for (const FShaderCompilerError& Error : CurrentJob.Output.Errors)
-							{
-								UE_LOG(LogShaders, Log, TEXT("Error: %s"), *Error.GetErrorString())
-							}
+						UE_LOG(LogShaders, Log, TEXT("There were errors for job \"%s\""), *CurrentJob->Input.DebugGroupName)
+						for (const FShaderCompilerError& Error : CurrentJob->Output.Errors)
+						{
+							UE_LOG(LogShaders, Log, TEXT("Error: %s"), *Error.GetErrorString())
+						}
 					}
 				}
 				else
 				{
-					UE_LOG(LogShaders, Log, TEXT("There were NO errors for job \"%s\""), *CurrentJob.Input.DebugGroupName);
+					UE_LOG(LogShaders, Log, TEXT("There were NO errors for job \"%s\""), *CurrentJob->Input.DebugGroupName);
 				}
 			}
 
@@ -389,13 +293,6 @@ void FOpenColorIOShaderCompilationManager::ProcessCompiledOpenColorIOShaderMaps(
 							}
 						}
 					}
-					else
-					{
-						if (CompletedShaderMap->IsComplete(ColorTransform, true))
-						{
-							ColorTransform->NotifyCompilationFinished();
-						}
-					}
 				}
 
 				// Cleanup shader jobs and compile tracking structures
@@ -424,9 +321,6 @@ void FOpenColorIOShaderCompilationManager::ProcessCompiledOpenColorIOShaderMaps(
 				{
 					ColorTransform->SetRenderingThreadShaderMap(ShaderMap);
 				});
-
-
-			ColorTransform->NotifyCompilationFinished();
 		}
 	}
 #endif
@@ -437,11 +331,8 @@ void FOpenColorIOShaderCompilationManager::FinishCompilation(const TCHAR* InTran
 {
 #if WITH_EDITOR
 	check(!FPlatformProperties::RequiresCookedData());
-
-	RunCompileJobs();	// since we don't async compile through another process, this will run all oustanding jobs
+	GShaderCompilingManager->FinishCompilation(NULL, ShaderMapIdsToFinishCompiling);
 	ProcessAsyncResults();	// grab compiled shader maps and assign them to their resources
-
-	check(OpenColorIOShaderMapJobs.Num() == 0);
 #endif
 }
 

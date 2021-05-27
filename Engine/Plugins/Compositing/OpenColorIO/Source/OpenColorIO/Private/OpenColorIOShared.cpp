@@ -36,15 +36,10 @@ void FOpenColorIOTransformResource::SetupShaderCompilationEnvironment(EShaderPla
 {
 }
 
-
 OPENCOLORIO_API bool FOpenColorIOTransformResource::ShouldCache(EShaderPlatform InPlatform, const FShaderType* InShaderType) const
 {
 	check(InShaderType->GetOpenColorIOShaderType() )
 	return true;
-}
-
-OPENCOLORIO_API void FOpenColorIOTransformResource::NotifyCompilationFinished()
-{
 }
 
 OPENCOLORIO_API void FOpenColorIOTransformResource::CancelCompilation()

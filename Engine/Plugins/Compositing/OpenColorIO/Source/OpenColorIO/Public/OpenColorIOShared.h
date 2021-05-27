@@ -168,7 +168,7 @@ public:
 		);
 
 	/** Sorts the incoming compiled jobs into the appropriate OCIO shader maps, and finalizes this shader map so that it can be used for rendering. */
-	bool ProcessCompilationResults(const TArray<TSharedRef<FOpenColorIOShaderCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutResultIndex, float& InOutTimeBudget);
+	bool ProcessCompilationResults(const TArray<FShaderCommonCompileJobPtr>& InCompilationResults, int32& InOutResultIndex, float& InOutTimeBudget);
 
 	/**
 	 * Checks whether the shader map is missing any shader types necessary for the given color transform.
@@ -176,9 +176,6 @@ public:
 	 * @return True if the shader map has all of the shader types necessary.
 	 */
 	bool IsComplete(const FOpenColorIOTransformResource* InColorTransform, bool bSilent);
-
-	/** Attempts to load missing shaders from memory. */
-	void LoadMissingShadersFromMemory(const FOpenColorIOTransformResource* InColorTransform);
 
 	/**
 	 * Checks to see if the shader map is already being compiled for another color transform, and if so
@@ -205,9 +202,6 @@ public:
 
 	/** Removes a ColorTransform from OpenColorIOShaderMapsBeingCompiled. */
 	OPENCOLORIO_API static void RemovePendingColorTransform(FOpenColorIOTransformResource* InColorTransform);
-
-	/** Finds a shader map currently being compiled that was enqueued for the given color transform. */
-	static const FOpenColorIOShaderMap* GetShaderMapBeingCompiled(const FOpenColorIOTransformResource* InColorTransform);
 
 	/** Serializes the shader map. */
 	bool Serialize(FArchive& Ar, bool bInlineShaderResources = true);
@@ -282,7 +276,7 @@ private:
 
 	uint32 bHasFrozenContent : 1;
 
-	FShader* ProcessCompilationResultsForSingleJob(FOpenColorIOShaderCompileJob& InSingleJob, const FSHAHash& InShaderMapHash);
+	FShader* ProcessCompilationResultsForSingleJob(const TRefCountPtr<class FShaderCommonCompileJob>& SingleJob, const FSHAHash& InShaderMapHash);
 
 	bool IsOpenColorIOShaderComplete(const FOpenColorIOTransformResource* InColorTransform, const FOpenColorIOShaderType* InShaderType, bool bSilent);
 
@@ -348,11 +342,6 @@ public:
 	 * Should shaders compiled for this color transform be saved to disk?
 	 */
 	virtual bool IsPersistent() const { return true; }
-
-	/**
-	 * Called when compilation finishes, after the GameThreadShaderMap is set and the render command to set the RenderThreadShaderMap is queued
-	 */
-	virtual void NotifyCompilationFinished();
 
 	/**
 	 * Cancels all outstanding compilation jobs
