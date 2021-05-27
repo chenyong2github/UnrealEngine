@@ -198,10 +198,7 @@ const FString* FUHTMetaData::FindMetaDataHelper(const FName& Key) const
 
 	if (Key != NAME_None)
 	{
-		if (TMap<FName, FString>* MetaDataMap = GetMetaDataMap())
-		{
-			Result = MetaDataMap->Find(Key);
-		}
+		Result = GetMetaDataMap().Find(Key);
 	}
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 	CheckFindMetaData(Key, Result);
@@ -211,14 +208,7 @@ const FString* FUHTMetaData::FindMetaDataHelper(const FName& Key) const
 
 void FUHTMetaData::SetMetaDataHelper(const FName& Key, const TCHAR* InValue) 
 {
-	if (TMap<FName, FString>* MetaDataMap = GetMetaDataMap())
-	{
-		MetaDataMap->Add(Key, InValue);
-	}
-	else
-	{
-		checkf(false, TEXT("If GetMetaDataMap can return nullptr, this SetMetaDataHelper must be overridden"));
-	}
+	GetMetaDataMap().Add(Key, InValue);
 }
 
 FName FUHTMetaData::GetMetaDataKey(const TCHAR* Key, int32 NameIndex, EFindName FindName) const
@@ -965,37 +955,37 @@ FString FUnrealObjectDefinitionInfo::GetFullGroupName(bool bStartWithOuter) cons
 	return Obj ? Obj->GetPathName(&GetPackageDef()) : TEXT("");
 }
 
-void FUnrealObjectDefinitionInfo::SetMetaDataHelper(const FName& Key, const TCHAR* InValue)
+void FUnrealObjectDefinitionInfo::AddMetaData(TMap<FName, FString>&& InMetaData)
 {
-	// If we don't have an existing meta data map, then we must be using the meta data off
-	// the object and no values have been set yet.  In that case just set the whole block
-	TMap<FName, FString>* MetaDataMap = GetMetaDataMap();
-	if (MetaDataMap == nullptr)
+	// only add if we have some!
+	if (InMetaData.Num())
 	{
-		UMetaData* MetaData = GetUObjectMetaData();
-		MetaData->SetValue(GetObject(), Key, InValue); // This is valid
-	}
 
-	// Otherwise we are either using the objects meta data and it already exists, or
-	// we are using a UHT private meta data block.  If we have both, then first
-	// set the object followed by the private copy.
-	else
-	{
-		TMap<FName, FString>* UObjectMetaDataMap = GetUObjectMetaDataMap();
-		if (MetaDataMap != UObjectMetaDataMap)
+		if (TMap<FName, FString>* UObjectMetaDataMap = GetUObjectMetaDataMap())
 		{
-			if (UObjectMetaDataMap != nullptr)
-			{
-				UObjectMetaDataMap->Add(Key, InValue);
-			}
-			else if (UMetaData* MetaData = GetUObjectMetaData())
-			{
-				MetaData->SetValue(GetObject(), Key, InValue); // This is valid
-			}
+			UObjectMetaDataMap->Append(InMetaData);
+		}
+		else if (UMetaData* UObjectMetaData = GetUObjectMetaData())
+		{
+			UObjectMetaData->SetObjectValues(GetObject(), InMetaData); // This is valid
 		}
 
-		MetaDataMap->Add(Key, InValue);
+		GetMetaDataMap().Append(MoveTemp(InMetaData));
 	}
+}
+
+void FUnrealObjectDefinitionInfo::SetMetaDataHelper(const FName& Key, const TCHAR* InValue)
+{
+	if (TMap<FName, FString>* UObjectMetaDataMap = GetUObjectMetaDataMap())
+	{
+		UObjectMetaDataMap->Add(Key, InValue);
+	}
+	else if (UMetaData* UObjectMetaData = GetUObjectMetaData())
+	{
+		UObjectMetaData->SetValue(GetObject(), Key, InValue); // This is valid
+	}
+
+	GetMetaDataMap().Add(Key, InValue);
 }
 
 FUnrealPackageDefinitionInfo::FUnrealPackageDefinitionInfo(const FManifestModule& InModule, UPackage* InPackage)
@@ -1127,44 +1117,6 @@ void FUnrealFieldDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCr
 	}
 }
 
-void FUnrealFieldDefinitionInfo::AddMetaData(TMap<FName, FString>&& InMetaData)
-{
-	// only add if we have some!
-	if (InMetaData.Num())
-	{
-
-		// If we don't have an existing meta data map, then we must be using the meta data off
-		// the object and no values have been set yet.  In that case just set the whole block
-		TMap<FName, FString>* MetaDataMap = GetMetaDataMap();
-		if (MetaDataMap == nullptr)
-		{
-			UMetaData* MetaData = GetUObjectMetaData();
-			MetaData->SetObjectValues(GetObject(), MoveTemp(InMetaData)); // This is valid
-		}
-
-		// Otherwise we are either using the objects meta data and it already exists, or
-		// we are using a UHT private meta data block.  If we have both, then first
-		// set the object followed by the private copy.
-		else
-		{
-			TMap<FName, FString>* UObjectMetaDataMap = GetUObjectMetaDataMap();
-			if (MetaDataMap != UObjectMetaDataMap)
-			{
-				if (UObjectMetaDataMap != nullptr)
-				{
-					UObjectMetaDataMap->Append(InMetaData);
-				}
-				else if (UMetaData* MetaData = GetUObjectMetaData())
-				{
-					MetaData->SetObjectValues(GetObject(), InMetaData); // This is valid
-				}
-			}
-
-			MetaDataMap->Append(MoveTemp(InMetaData));
-		}
-	}
-}
-
 bool FUnrealFieldDefinitionInfo::IsDynamic() const
 {
 	return HasMetaData(NAME_ReplaceConverted);
@@ -1194,8 +1146,10 @@ FUnrealClassDefinitionInfo* FUnrealFieldDefinitionInfo::GetOwnerClass() const
 	return nullptr;
 }
 
-FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName)
+FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, UEnum::ECppForm InCppForm, EUnderlyingEnumType InUnderlyingType)
 	: FUnrealFieldDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InName, InSourceFile.GetPackageDef())
+	, UnderlyingType(InUnderlyingType)
+	, CppForm(InCppForm)
 { }
 
 FString FUnrealEnumDefinitionInfo::GenerateEnumPrefix() const
@@ -1453,7 +1407,7 @@ void FUnrealEnumDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineTy
 		UEnum* Enum = new(EC_InternalUseOnlyConstructor, Package, FName(EnumName), RF_Public) UEnum(FObjectInitializer());
 		Enum->SetEnums(Names, CppForm, EnumFlags, false);
 		Enum->CppType = CppType;
-		Enum->GetPackage()->GetMetaData()->SetObjectValues(Enum, MetaData);
+		Enum->GetPackage()->GetMetaData()->SetObjectValues(Enum, GetMetaDataMap());
 		SetObject(Enum);
 		GTypeDefinitionInfoMap.AddObjectLookup(Enum, SharedThis(this));
 		break;
@@ -1653,7 +1607,7 @@ void FUnrealScriptStructDefinitionInfo::CreateUObjectEngineTypesInternal(ECreate
 
 		UScriptStruct* ScriptStruct = new(EC_InternalUseOnlyConstructor, Package, FName(StructNameStripped), RF_Public) UScriptStruct(FObjectInitializer());
 		ScriptStruct->StructFlags = StructFlags;
-		ScriptStruct->GetPackage()->GetMetaData()->SetObjectValues(ScriptStruct, MetaData);
+		ScriptStruct->GetPackage()->GetMetaData()->SetObjectValues(ScriptStruct, GetMetaDataMap());
 		if (FUnrealStructDefinitionInfo* SuperStructDef = GetSuperStruct())
 		{
 			ScriptStruct->SetSuperStruct(SuperStructDef->GetStruct());
@@ -1832,7 +1786,7 @@ void FUnrealClassDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineT
 			Class->ClassConfigName = ClassConfigName;
 			Class->ClassWithin = ClassWithin->GetClassSafe();
 			Class->SetInternalFlags(GetInternalFlags());
-			Class->GetPackage()->GetMetaData()->SetObjectValues(Class, MetaData);
+			Class->GetPackage()->GetMetaData()->SetObjectValues(Class, GetMetaDataMap());
 
 			// Setup the base class
 			if (FUnrealClassDefinitionInfo* SuperClassDef = GetSuperClass())
@@ -2577,7 +2531,7 @@ void FUnrealFunctionDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngi
 		Function->ReturnValueOffset = MAX_uint16;
 		Function->FirstPropertyToInit = nullptr;
 		Function->FunctionFlags |= FunctionData.FunctionFlags;
-		Function->GetPackage()->GetMetaData()->SetObjectValues(Function, MetaData);
+		Function->GetPackage()->GetMetaData()->SetObjectValues(Function, GetMetaDataMap());
 
 		SetObject(Function);
 		GTypeDefinitionInfoMap.Add(Function, SharedThis(this));

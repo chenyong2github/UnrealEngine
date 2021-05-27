@@ -17,6 +17,19 @@ enum class EPointerMemberBehavior
 	AllowAndLog,
 };
 
+enum class EUnderlyingEnumType
+{
+	Unspecified,
+	uint8,
+	uint16,
+	uint32,
+	uint64,
+	int8,
+	int16,
+	int32,
+	int64
+};
+
 using FMetaData = TMap<FName, FString>;
 
 /////////////////////////////////////////////////////
@@ -254,6 +267,11 @@ public:
 	 */
 	template <typename Lambda>
 	void ParseInheritance(const TCHAR* What, Lambda&& InLambda);
+
+	/**
+	 * Parse the underlying enum type
+	 */
+	EUnderlyingEnumType ParseUnderlyingEnumType();
 
 	//////////////
 

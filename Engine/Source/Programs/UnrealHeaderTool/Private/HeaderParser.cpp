@@ -1003,6 +1003,11 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 
 	Scope->AddType(EnumDef);
 
+	if (CppForm != EnumDef.GetCppForm())
+	{
+		Throwf(TEXT("ICE: Mismatch of enum CPP form between pre-parser and parser"));
+	}
+
 	for (const FPropertySpecifier& Specifier : SpecifiersFound)
 	{
 		switch ((EEnumSpecifier)Algo::FindSortedStringCaseInsensitive(*Specifier.Key, GEnumSpecifierStrings))
@@ -1028,57 +1033,11 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	EUnderlyingEnumType UnderlyingType = EUnderlyingEnumType::uint8;
 	if (CppForm == UEnum::ECppForm::EnumClass)
 	{
-		if (MatchSymbol(TEXT(':')))
+		UnderlyingType = ParseUnderlyingEnumType();
+		if (UnderlyingType != EnumDef.GetUnderlyingType())
 		{
-			FToken BaseToken;
-			if (!GetIdentifier(BaseToken))
-			{
-				Throwf(TEXT("Missing enum base") );
-			}
-
-			if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint8")))
-			{
-				UnderlyingType = EUnderlyingEnumType::uint8;
-			}
-			else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint16")))
-			{
-				UnderlyingType = EUnderlyingEnumType::uint16;
-			}
-			else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint32")))
-			{
-				UnderlyingType = EUnderlyingEnumType::uint32;
-			}
-			else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint64")))
-			{
-				UnderlyingType = EUnderlyingEnumType::uint64;
-			}
-			else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int8")))
-			{
-				UnderlyingType = EUnderlyingEnumType::int8;
-			}
-			else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int16")))
-			{
-				UnderlyingType = EUnderlyingEnumType::int16;
-			}
-			else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int32")))
-			{
-				UnderlyingType = EUnderlyingEnumType::int32;
-			}
-			else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int64")))
-			{
-				UnderlyingType = EUnderlyingEnumType::int64;
-			}
-			else
-			{
-				Throwf(TEXT("Unsupported enum class base type: %s"), BaseToken.Identifier);
-			}
+			Throwf(TEXT("ICE: Mismatch of underlying enum type between pre-parser and parser"));
 		}
-		else
-		{
-			UnderlyingType = EUnderlyingEnumType::Unspecified;
-		}
-
-		EnumDef.SetUnderlyingType(UnderlyingType);
 	}
 	else
 	{
@@ -8093,6 +8052,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 
 	// Check enum type. This can be global 'enum', 'namespace' or 'enum class' enums.
 	bool bReadEnumName = false;
+	UEnum::ECppForm CppForm = UEnum::ECppForm::Regular;
 	if (!GetIdentifier(EnumToken))
 	{
 		Throwf(TEXT("Missing identifier after UENUM()"));
@@ -8100,6 +8060,8 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 
 	if (EnumToken.Matches(TEXT("namespace"), ESearchCase::CaseSensitive))
 	{
+		CppForm = UEnum::ECppForm::Namespaced;
+
 		SkipDeprecatedMacroIfNecessary(*this);
 
 		bReadEnumName = GetIdentifier(EnumToken);
@@ -8113,11 +8075,14 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 
 		if (EnumToken.Matches(TEXT("class"), ESearchCase::CaseSensitive) || EnumToken.Matches(TEXT("struct"), ESearchCase::CaseSensitive))
 		{
+			CppForm = UEnum::ECppForm::EnumClass;
 		}
 		else
 		{
 			// Put whatever token we found back so that we can correctly skip below
 			UngetToken(EnumToken);
+
+			CppForm = UEnum::ECppForm::Regular;
 		}
 
 		SkipAlignasAndDeprecatedMacroIfNecessary(*this);
@@ -8135,7 +8100,14 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 		Throwf(TEXT("Missing enumeration name"));
 	}
 
-	TSharedRef<FUnrealEnumDefinitionInfo> EnumDef = MakeShareable(new FUnrealEnumDefinitionInfo(SourceFile, InLineNumber, EnumToken.Identifier, FName(EnumToken.Identifier, FNAME_Add)));
+	// Read base for enum class
+	EUnderlyingEnumType UnderlyingType = EUnderlyingEnumType::uint8;
+	if (CppForm == UEnum::ECppForm::EnumClass)
+	{
+		UnderlyingType = ParseUnderlyingEnumType();
+	}
+
+	TSharedRef<FUnrealEnumDefinitionInfo> EnumDef = MakeShareable(new FUnrealEnumDefinitionInfo(SourceFile, InLineNumber, EnumToken.Identifier, FName(EnumToken.Identifier, FNAME_Add), CppForm, UnderlyingType));
 	return EnumDef;
 }
 

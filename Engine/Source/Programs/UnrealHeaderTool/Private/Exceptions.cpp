@@ -189,7 +189,7 @@ ECompilationResult::Type FResults::GetOverallResults()
 	using namespace UE::UnrealHeaderTool::Exceptions::Private;
 
 	// For some legacy reason, we don't actually return the result
-	if (OverallResults != ECompilationResult::Succeeded || NumFailures > 0)
+	if (OverallResults != ECompilationResult::Succeeded || NumFailures > 0 || (NumWarnings > 0 && GWarn->TreatWarningsAsErrors))
 	{
 		return ECompilationResult::OtherCompilationError;
 	}

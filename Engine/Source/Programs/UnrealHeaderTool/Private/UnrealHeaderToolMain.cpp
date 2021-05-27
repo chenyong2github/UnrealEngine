@@ -19,9 +19,6 @@ IMPLEMENT_APPLICATION(UnrealHeaderTool, "UnrealHeaderTool");
 
 DEFINE_LOG_CATEGORY(LogCompile);
 
-bool GUHTWarningLogged = false;
-bool GUHTErrorLogged = false;
-
 /**
  * Application entry point
  *
@@ -110,12 +107,6 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	extern ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename);
 	ECompilationResult::Type Result = UnrealHeaderTool_Main(ModuleInfoFilename);
-
-	if (Result == ECompilationResult::Succeeded && (GUHTErrorLogged || (GUHTWarningLogged && GWarn->TreatWarningsAsErrors)))
-	{
-		Result = ECompilationResult::OtherCompilationError;
-	}
-
 	return Result;
 }
 
