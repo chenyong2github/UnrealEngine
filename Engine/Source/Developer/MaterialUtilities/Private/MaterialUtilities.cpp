@@ -75,7 +75,7 @@ void FMaterialUtilities::OnPreGarbageCollect()
 
 UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage* OuterPackage, const FString& AssetName, const FBakeOutput& BakeOutput, const FMeshData& MeshData, const FMaterialData& MaterialData, UMaterialOptions* Options)
 {
-	TArray<EMaterialProperty> SRGBDisabledProperties{ MP_Opacity, MP_OpacityMask, MP_Normal, MP_EmissiveColor };
+	TArray<EMaterialProperty> SRGBEnabledProperties{ MP_BaseColor, MP_EmissiveColor, MP_SubsurfaceColor };
 
 	// Certain material properties use differen compression settings
 	TMap<EMaterialProperty, TextureCompressionSettings> SpecialCompressionSettingProperties;
@@ -84,7 +84,7 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 	SpecialCompressionSettingProperties.Add(MP_OpacityMask, TC_Grayscale);
 	SpecialCompressionSettingProperties.Add(MP_AmbientOcclusion, TC_Grayscale);
 
-	UMaterial* BaseMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EngineMaterials/NewBaseFlattenMaterial.NewBaseFlattenMaterial"), nullptr, LOAD_None, nullptr);
+	UMaterial* BaseMaterial = GEngine->DefaultFlattenMaterial;
 	check(BaseMaterial);
 
 	/** Create Proxy material and populate flags */
@@ -119,7 +119,7 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 		if (ColorData.Num() > 1)
 		{
 			TextureCompressionSettings CompressionSettings = SpecialCompressionSettingProperties.Contains(Property) ? SpecialCompressionSettingProperties.FindChecked(Property) : TC_Default;
-			bool bSRGBEnabled = !SRGBDisabledProperties.Contains(Property);
+			bool bSRGBEnabled = SRGBEnabledProperties.Contains(Property);
 			UTexture* Texture = FMaterialUtilities::CreateTexture(OuterPackage, TEXT("T_") + AssetName + TEXT("_") + TrimmedPropertyName, DataSize, ColorData, CompressionSettings, TEXTUREGROUP_HierarchicalLOD, RF_Public | RF_Standalone, bSRGBEnabled);
 
 			// Set texture parameter value on instance material

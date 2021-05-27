@@ -261,7 +261,7 @@ void FMaterialBakingModule::StartupModule()
 	bEmissiveHDR = false;
 
 	// Set which properties should enforce gamma correction
-	SetLinearBake(false);
+	SetLinearBake(true);
 
 	// Set which pixel format should be used for the possible baked out material properties
 	PerPropertyFormat.Add(MP_EmissiveColor, PF_FloatRGBA);
