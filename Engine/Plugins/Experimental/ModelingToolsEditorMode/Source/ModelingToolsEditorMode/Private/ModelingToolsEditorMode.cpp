@@ -305,8 +305,7 @@ void UModelingToolsEditorMode::Enter()
 	StylusStateTracker = MakeUnique<FStylusStateTracker>();
 
 	// register gizmo helper
-	ModelingGizmoHelper = NewObject<UTransformGizmoContextObject>(ToolsContext->ToolManager);
-	ModelingGizmoHelper->RegisterGizmosWithManager(ToolsContext->ToolManager);
+	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(ToolsContext.Get());
 
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
 
@@ -676,7 +675,9 @@ void UModelingToolsEditorMode::Exit()
 
 	StylusStateTracker = nullptr;
 
-	ModelingGizmoHelper->DeregisterGizmosWithManager(ToolsContext->ToolManager);
+	// TODO: cannot deregister currently because if another mode is also registering, it's Enter()
+	// will be called before our Exit()
+	//UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(ToolsContext.Get());
 	
 	FModelingModeActionCommands::UnRegisterCommandBindings(Toolkit->GetToolkitCommands());
 

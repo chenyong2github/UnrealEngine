@@ -3,6 +3,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 
 #include "ContextObjectStore.h"
+#include "InteractiveToolsContext.h"
 #include "InteractiveGizmoManager.h"
 #include "InteractiveToolManager.h"
 
@@ -79,6 +80,48 @@ void UTransformGizmoContextObject::DeregisterGizmosWithManager(UInteractiveToolM
 	GizmoManager->DeregisterGizmoType(CustomThreeAxisTransformBuilderIdentifier);
 	GizmoManager->DeregisterGizmoType(CustomRepositionableThreeAxisTransformBuilderIdentifier);
 	bDefaultGizmosRegistered = false;
+}
+
+
+
+
+bool UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(UInteractiveToolsContext* ToolsContext)
+{
+	if (ensure(ToolsContext))
+	{
+		UTransformGizmoContextObject* Found = ToolsContext->ContextObjectStore->FindContext<UTransformGizmoContextObject>();
+		if (Found == nullptr)
+		{
+			UTransformGizmoContextObject* GizmoHelper = NewObject<UTransformGizmoContextObject>(ToolsContext->ToolManager);
+			if (ensure(GizmoHelper))
+			{
+				GizmoHelper->RegisterGizmosWithManager(ToolsContext->ToolManager);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
+
+bool UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(UInteractiveToolsContext* ToolsContext)
+{
+	if (ensure(ToolsContext))
+	{
+		UTransformGizmoContextObject* Found = ToolsContext->ContextObjectStore->FindContext<UTransformGizmoContextObject>();
+		if (Found != nullptr)
+		{
+			Found->DeregisterGizmosWithManager(ToolsContext->ToolManager);
+			ToolsContext->ContextObjectStore->RemoveContextObject(Found);
+		}
+		return true;
+	}
+	return false;
 }
 
 

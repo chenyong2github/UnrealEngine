@@ -8,6 +8,7 @@
 
 #include "TransformGizmoUtil.generated.h"
 
+class UInteractiveToolsContext;
 class UInteractiveToolManager;
 class UInteractiveGizmoManager;
 class FTransformGizmoActorFactory;
@@ -21,6 +22,20 @@ namespace TransformGizmoUtil
 	// The functions below are helper functions that simplify usage of a UTransformGizmoContextObject 
 	// that is registered as a ContextStoreObject in an InteractiveToolsContext
 	//
+
+	/**
+	 * If one does not already exist, create a new instance of UTransformGizmoContextObject and add it to the
+	 * ToolsContext's ContextObjectStore
+	 * @return true if the ContextObjectStore now has a UTransformGizmoContextObject (whether it already existed, or was created)
+	 */
+	INTERACTIVETOOLSFRAMEWORK_API bool RegisterTransformGizmoContextObject(UInteractiveToolsContext* ToolsContext);
+
+	/**
+	 * Remove any existing UTransformGizmoContextObject from the ToolsContext's ContextObjectStore
+	 * @return true if the ContextObjectStore no longer has a UTransformGizmoContextObject (whether it was removed, or did not exist)
+	 */
+	INTERACTIVETOOLSFRAMEWORK_API bool DeregisterTransformGizmoContextObject(UInteractiveToolsContext* ToolsContext);
+
 
 	/**
 	 * Spawn a new standard 3-axis Transform gizmo (see UTransformGizmoContextObject::Create3AxisTransformGizmo for details)
