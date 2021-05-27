@@ -100,6 +100,10 @@ protected:
 	void ToggleDrawOption(int32 Element);
 	bool IsDrawOptionEnabled(int32 Element) const;
 
+	void OpenDebugHUD();
+	void OpenDebugOutliner();
+	void OpenAttributeSpreadsheet();
+
 	//~ FAssetEditorToolkit interface
 	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const override;
 	virtual void SaveAsset_Execute() override;

@@ -42,6 +42,10 @@ void FNiagaraEditorCommands::RegisterCommands()
 
 	UI_COMMAND(IsolateSelectedEmitters, "Isolate selected emitters", "Isolate all currently selected emitters.", EUserInterfaceActionType::Button, FInputChord(EKeys::S));
 	UI_COMMAND(DisableSelectedEmitters, "Disable selected emitters", "Disables all currently selected emitters and recompiles the system.", EUserInterfaceActionType::Button, FInputChord(EKeys::D));
+	
+	UI_COMMAND(OpenDebugHUD, "Debug HUD", "Open the Niagara Debug HUD.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenDebugOutliner, "FX Outliner", "Open the Niagara FX Outliner.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenAttributeSpreadsheet, "Attribute Spreadsheet", "Open the Niagara Debug Outliner.", EUserInterfaceActionType::Button, FInputChord());
 
 	// todo
 	/*UI_COMMAND(SelectNextEmitter, "Select Next Emitter", "Toggles whether or not simulations auto-play when their asset editor is opened, and when the asset is modified.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::D));

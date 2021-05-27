@@ -56,6 +56,10 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleStatPerformanceModePercent;
 	TSharedPtr<FUICommandInfo> ToggleStatPerformanceModeAbsolute;
 
+	TSharedPtr<FUICommandInfo> OpenDebugHUD;
+	TSharedPtr<FUICommandInfo> OpenDebugOutliner;
+	TSharedPtr<FUICommandInfo> OpenAttributeSpreadsheet;
+
 	TSharedPtr<FUICommandInfo> ToggleAutoPlay;
 	TSharedPtr<FUICommandInfo> ToggleResetSimulationOnChange;
 	TSharedPtr<FUICommandInfo> ToggleResimulateOnChangeWhilePaused;
