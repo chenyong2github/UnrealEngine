@@ -352,7 +352,7 @@ private:
 	TAtomic<EPlayerState>							State;
 	TAtomic<EPlayerStatus>							Status;
 
-	TAtomic<bool>									bCloseInProgress;
+	TAtomic<bool>									bPlayerHasClosed;
 	TAtomic<bool>									bHasPendingError;
 
 	bool											bAllowKillAfterCloseEvent;
