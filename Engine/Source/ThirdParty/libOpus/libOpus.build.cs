@@ -113,7 +113,7 @@ public class libOpus : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(OpusLibraryPath, "bin", "Linux", Target.Architecture, Config, "libopus.a"));
 				PublicAdditionalLibraries.Add(Path.Combine(OpusLibraryPath, "bin", "Linux", Target.Architecture, Config, "libopus_sse41.a"));
 
-				PublicAdditionalLibraries.Add(Path.Combine(OpusLibPath, "Linux", Target.Architecture, "libresampler.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(OpusLibPath, "Linux", Target.Architecture, "libresampler_fPIC.a"));
 			}
 			else
 			{
