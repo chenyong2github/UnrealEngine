@@ -3,33 +3,41 @@
 setlocal
 
 :: this is a tag in the vcpkg repository
-set VCPKG_VERSION=2020.11-1
+set VCPKG_VERSION=2021.05.12
 
-:: enable manifest mode
-set VCPKG_FEATURE_FLAGS=manifests
+:: this is where the artifacts get installed
+set VCPKG_INSTALLED=vcpkg-installed
 
-:: the triplet to build
-set VCPKG_TRIPLET=x64-windows-static-md-v140
+:: cleanup the git repo
+if exist %~dp0vcpkg\ echo:
+if exist %~dp0vcpkg\ echo === Tidying up vcpkg ===
+if exist %~dp0vcpkg\ rmdir /s /q %~dp0vcpkg
+
+:: cleanup the prior artifacts
+if exist %~dp0%VCPKG_INSTALLED%\ echo:
+if exist %~dp0%VCPKG_INSTALLED%\ echo === Tidying up %VCPKG_INSTALLED% ===
+if exist %~dp0%VCPKG_INSTALLED%\ rmdir /s /q %~dp0%VCPKG_INSTALLED%
 
 echo:
-echo === Checking out vcpkg to %~dp0vcpkg ===
-git clone https://github.com/microsoft/vcpkg.git --depth 1 --branch %VCPKG_VERSION% %~dp0vcpkg
+echo === Cloning vcpkg to %~dp0vcpkg ===
+git clone https://github.com/microsoft/vcpkg.git --depth 1 --branch %VCPKG_VERSION% %~dp0vcpkg\
 
 echo:
 echo === Bootstrapping vcpkg ===
-call %~dp0vcpkg\bootstrap-vcpkg.bat
+:: -disableMetrics in important to avoid Malwarebytes quarantine the vcpkg file. 
+call %~dp0vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
-echo:
-echo === Making vcpkg_installed artifacts writeable ===
-attrib -R %~dp0vcpkg_installed\%VCPKG_TRIPLET%\*.* /s
+:: build for each triplet
+for %%x in (overlay-x64-windows overlay-x64-uwp overlay-arm64-uwp) do (
+    echo:
+    echo === Running vcpkg ===
+    %~dp0vcpkg\vcpkg.exe install --x-install-root=%~dp0%VCPKG_INSTALLED% --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=%%x "proj4[core,database]"
+    if ERRORLEVEL 1 exit /b 1
 
-echo:
-echo === Running vcpkg in manifest mode ===
-%~dp0vcpkg\vcpkg.exe install --x-manifest-root=%~dp0 --overlay-triplets=./overlay-triplets --triplet=%VCPKG_TRIPLET%
-
-echo:
-echo === Reconciling vcpkg_installed artifacts ===
-for /f %%f in ("%~dp0vcpkg_installed\%VCPKG_TRIPLET%") do p4 reconcile %%~ff\...
+    echo:
+    echo === Reconciling %VCPKG_INSTALLED% artifacts ===
+    for /f %%f in ("%~dp0%VCPKG_INSTALLED%\%%x") do p4 reconcile %%~ff\...
+)
 
 echo:
 echo === Refreshing PROJ data files ===
@@ -39,7 +47,7 @@ attrib -r %~dp0..\..\Resources\PROJ\*.* /s
 rmdir /s /q %~dp0..\..\Resources\PROJ
 
 :: copy the files
-robocopy /MIR /MT %~dp0vcpkg_installed\%VCPKG_TRIPLET%\share\proj4 %~dp0..\..\Resources\PROJ
+robocopy /MIR /MT %~dp0%VCPKG_INSTALLED%\overlay-x64-windows\share\proj4 %~dp0..\..\Resources\PROJ
 
 :: delete some extra stuff
 del %~dp0..\..\Resources\PROJ\*.cmake

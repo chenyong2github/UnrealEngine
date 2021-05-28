@@ -21,7 +21,8 @@
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Linux",
-				"Win64"
+				"Win64",
+				"HoloLens"
 			]
 		},
 		{
@@ -30,7 +31,8 @@
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Linux",
-				"Win64"
+				"Win64",
+				"HoloLens"
 			]
 		}
 	],
