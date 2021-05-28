@@ -749,6 +749,8 @@ UNiagaraEmitter* UNiagaraEmitter::CreateWithParentAndOwner(UNiagaraEmitter& InPa
 	NewEmitter->ScratchPadScripts.Empty();
 	NewEmitter->SetUniqueEmitterName(InName.GetPlainNameString());
 	NewEmitter->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
+	NewEmitter->BindNotifications();
+
 	return NewEmitter;
 }
 
@@ -765,6 +767,7 @@ UNiagaraEmitter* UNiagaraEmitter::CreateAsDuplicate(const UNiagaraEmitter& InEmi
 	}
 	NewEmitter->SetUniqueEmitterName(InDuplicateName.GetPlainNameString());
 	NewEmitter->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
+	NewEmitter->BindNotifications();
 
 	return NewEmitter;
 }
@@ -1307,47 +1310,7 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 			UpdateChangeId(GenerateNewChangeIdReason);
 		}
 
-		GraphSource->OnChanged().AddUObject(this, &UNiagaraEmitter::GraphSourceChanged);
-
-		EmitterSpawnScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		EmitterUpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-
-		if (SpawnScriptProps.Script)
-		{
-			SpawnScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		}
-	
-		if (UpdateScriptProps.Script)
-		{
-			UpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		}
-
-		for (FNiagaraEventScriptProperties& EventScriptProperties : EventHandlerScriptProps)
-		{
-			EventScriptProperties.Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		}
-
-		for (UNiagaraSimulationStageBase* SimulationStage : SimulationStages)
-		{
-			SimulationStage->OnChanged().AddUObject(this, &UNiagaraEmitter::SimulationStageChanged);
-			SimulationStage->Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
-		}
-
-		for (UNiagaraRendererProperties* Renderer : RendererProperties)
-		{
-			Renderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
-		}
-
-		if (EditorData != nullptr)
-		{
-			EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
-		}
+		BindNotifications();
 	}
 #endif
 
@@ -1530,6 +1493,75 @@ void UNiagaraEmitter::OnPostCompile()
 
 	OnEmitterVMCompiled().Broadcast(this);
 }
+
+void UNiagaraEmitter::BindNotifications()
+{
+	if (GraphSource)
+	{
+		GraphSource->OnChanged().AddUObject(this, &UNiagaraEmitter::GraphSourceChanged);
+	}
+
+	if (EmitterSpawnScriptProps.Script)
+	{
+		EmitterSpawnScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+	}
+
+	if (EmitterUpdateScriptProps.Script)
+	{
+		EmitterUpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+	}
+
+	if (SpawnScriptProps.Script)
+	{
+		SpawnScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+	}
+
+	if (UpdateScriptProps.Script)
+	{
+		UpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+	}
+
+	for (FNiagaraEventScriptProperties& EventScriptProperties : EventHandlerScriptProps)
+	{
+		if (EventScriptProperties.Script)
+		{
+			EventScriptProperties.Script->RapidIterationParameters.AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+		}
+	}
+
+	for (UNiagaraSimulationStageBase* SimulationStage : SimulationStages)
+	{
+		if (SimulationStage)
+		{
+			SimulationStage->OnChanged().AddUObject(this, &UNiagaraEmitter::SimulationStageChanged);
+
+			if (SimulationStage->Script)
+			{
+				SimulationStage->Script->RapidIterationParameters.AddOnChangedHandler(
+					FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+			}
+		}
+	}
+
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if (Renderer)
+		{
+			Renderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
+		}
+	}
+
+	if (EditorData != nullptr)
+	{
+		EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
+	}
+}
+
 #endif
 
 bool UNiagaraEmitter::UsesScript(const UNiagaraScript* Script)const
