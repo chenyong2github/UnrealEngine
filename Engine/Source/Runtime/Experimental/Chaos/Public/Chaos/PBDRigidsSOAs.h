@@ -569,7 +569,7 @@ public:
 		if (Particle->Disabled())
 		{
 			Particle->MoveToSOA(*DynamicDisabledParticles);
-			ActiveParticlesMapArray.Remove(Particle->CastToRigidParticle());
+			RemoveFromActiveArray(Particle->CastToRigidParticle(), /*bStillDirty=*/ false);
 		}
 		else
 		{
@@ -894,7 +894,7 @@ private:
 		if(bStillDirty)
 		{
 			//no longer active, but still dirty
-			ActiveParticlesMapArray.Insert(Particle);
+			TransientDirtyMapArray.Insert(Particle);
 		}
 		else
 		{
