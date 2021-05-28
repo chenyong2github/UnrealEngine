@@ -137,7 +137,9 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OCIOCategory)
 		// TODO: Refactor ICVFX camera OCIO to match the DCRA OCIO refactor
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.OCIO_Configuration)
+		//ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.OCIO_Configuration)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnableInnerFrustumOCIO)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.InnerFrustumOCIOConfigurations)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OverrideCategory)

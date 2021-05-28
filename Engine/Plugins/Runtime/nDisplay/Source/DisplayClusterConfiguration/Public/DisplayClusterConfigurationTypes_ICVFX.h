@@ -11,6 +11,7 @@
 #include "ActorLayerUtilities.h"
 
 #include "DisplayClusterConfigurationTypes_Viewport.h"
+#include "DisplayClusterConfigurationTypes_OCIO.h"
 
 #include "DisplayClusterConfigurationTypes_ICVFX.generated.h"
 
@@ -351,6 +352,12 @@ public:
 	// OCIO Display look configuration 
 	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FOpenColorIODisplayConfiguration OCIO_Configuration;
+
+	UPROPERTY(EditInstanceOnly, Category = "OCIO")
+	bool bEnableInnerFrustumOCIO = true;
+	
+	UPROPERTY(EditInstanceOnly, Category = "OCIO", meta = (DisplayName = "Inner Frustum OCIO Configurations", ConfigurationMode = "ClusterNodes"))
+	TArray<FDisplayClusterConfigurationOCIOProfile> InnerFrustumOCIOConfigurations;
 };
 
 USTRUCT()

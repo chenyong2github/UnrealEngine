@@ -15,9 +15,9 @@
 #include "SceneInterface.h"
 
 #include "DisplayClusterConfigurationStrings.h"
-#include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationTypes_Viewport.h"
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
+#include "DisplayClusterConfigurationTypes_OCIO.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 
