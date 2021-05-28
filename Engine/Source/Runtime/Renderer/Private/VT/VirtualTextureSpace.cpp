@@ -480,7 +480,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 			if (NumUpdates)
 			{
 				auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(PageTableTexture, ERenderTargetLoadAction::ENoAction, Mip);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(PageTableTexture, ERenderTargetLoadAction::ELoad, Mip);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("PageTableUpdate (Mip: %d)", Mip),
