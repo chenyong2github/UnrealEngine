@@ -9,7 +9,7 @@
 #include "DetailLayoutBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GameFramework/PlayerController.h"
-#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformFilemanager.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InputCustomizations.h"
