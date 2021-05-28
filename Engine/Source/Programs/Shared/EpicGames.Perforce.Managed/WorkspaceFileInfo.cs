@@ -121,7 +121,7 @@ namespace EpicGames.Perforce.Managed
 
 		public static int GetSerializedSize(this WorkspaceFileInfo FileInfo)
 		{
-			return FileInfo.Name.GetSerializedSize() + sizeof(long) + sizeof(long) + sizeof(byte) + FileContentId.SerializedSize;
+			return FileInfo.Name.GetSerializedSize() + sizeof(long) + sizeof(long) + sizeof(byte) + FileInfo.ContentId.GetSerializedSize();
 		}
 	}
 }
