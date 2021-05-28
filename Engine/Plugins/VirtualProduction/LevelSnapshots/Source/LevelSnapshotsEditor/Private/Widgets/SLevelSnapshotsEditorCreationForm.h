@@ -3,16 +3,16 @@
 #pragma once
 
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
+#include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
 #include "Dialogs/CustomDialog.h"
-
-class ULevelSnapshotsEditorProjectSettings;
 
 DECLARE_DELEGATE_TwoParams(FCloseCreationFormDelegate, bool, FText)
 
 struct FLevelSnapshotsEditorCreationForm
 {
 	static TSharedRef<SWindow> MakeAndShowCreationWindow(
-		const FCloseCreationFormDelegate& CallOnClose, ULevelSnapshotsEditorProjectSettings* InProjectSettings);
+		const FCloseCreationFormDelegate& CallOnClose, 
+		ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings);
 };
 
 class SLevelSnapshotsEditorCreationForm : public SCustomDialog
@@ -24,9 +24,12 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(
-		const FArguments& InArgs, TWeakPtr< SWindow > InWidgetWindow, const FCloseCreationFormDelegate& CallOnClose, ULevelSnapshotsEditorProjectSettings* InProjectSettings);
+		const FArguments& InArgs, TWeakPtr< SWindow > InWidgetWindow, const FCloseCreationFormDelegate& CallOnClose, 
+		ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings);
 
 	~SLevelSnapshotsEditorCreationForm();
+
+	TSharedRef<SWidget> MakeDataManagementSettingsDetailsWidget() const;
 
 	FText GetNameOverrideText() const;
 
@@ -51,6 +54,7 @@ private:
 	TSharedPtr<SWidget> ResetPathButton;
 
 	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettingsObjectPtr;
+	TWeakObjectPtr<ULevelSnapshotsEditorDataManagementSettings> DataManagementSettingsObjectPtr;
 
 	bool bNameDiffersFromDefault = false;
 	bool bDirDiffersFromDefault = false;

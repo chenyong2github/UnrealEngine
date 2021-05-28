@@ -65,5 +65,6 @@ private:
 	TSharedPtr<FLevelSnapshotsEditorResults> EditorResults;
 
 	TSharedPtr<FLevelSnapshotsEditorContext> EditorContext;
-	
+
+	TSharedPtr<SCheckBox> SettingsButtonPtr;
 };

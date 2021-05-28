@@ -177,7 +177,11 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	FText GetDisplayName() const;
 	void SetDisplayName(const FText InDisplayName);
 
+	const FSlateBrush* GetIconBrush() const;
+	
+	/* bHasGeneratedChildren must be true to get actual children. */
 	const TArray<FLevelSnapshotsEditorResultsRowPtr>& GetChildRows() const;
+	/* bHasGeneratedChildren must be true to get an accurate value. */
 	int32 GetChildCount() const;
 	void SetChildRows(const TArray<FLevelSnapshotsEditorResultsRowPtr>& InChildRows);
 	void AddToChildRows(const FLevelSnapshotsEditorResultsRowPtr& InRow);

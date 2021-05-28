@@ -38,6 +38,8 @@ public class LevelSnapshots : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
+	            "ApplicationCore",
+	            "Core",
                 "CoreUObject",
                 "Engine",
                 "Slate",

@@ -2,6 +2,8 @@
 
 #include "Views/Results/SLevelSnapshotsEditorResults.h"
 
+
+#include "ClassIconFinder.h"
 #include "Data/FilteredResults.h"
 #include "Data/LevelSnapshot.h"
 #include "LevelSnapshotsLog.h"
@@ -25,6 +27,7 @@
 #include "PropertyHandle.h"
 #include "SnapshotRestorability.h"
 #include "Stats/StatsMisc.h"
+#include "Styling/SlateIconFinder.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -823,6 +826,8 @@ bool FLevelSnapshotsEditorResultsRow::DoesRowRepresentObject() const
 		ActorGroup,
 		ComponentGroup,
 		SubObjectGroup,
+		AddedActor,
+		RemovedActor
 	};
 
 	return GroupTypes.Contains(GetRowType());
@@ -906,6 +911,38 @@ FText FLevelSnapshotsEditorResultsRow::GetDisplayName() const
 void FLevelSnapshotsEditorResultsRow::SetDisplayName(const FText InDisplayName)
 {
 	DisplayName = InDisplayName;
+}
+
+const FSlateBrush* FLevelSnapshotsEditorResultsRow::GetIconBrush() const
+{
+	if (RowType == ComponentGroup)
+	{		
+		ELevelSnapshotsObjectType ObjectType;
+		UObject* RowObject = GetFirstValidObject(ObjectType);
+		
+		if (UActorComponent* AsComponent = Cast<UActorComponent>(RowObject))
+		{
+			return FSlateIconFinder::FindIconBrushForClass(AsComponent->GetClass(), TEXT("SCS.Component"));
+		}
+	}
+	else if (RowType == ActorGroup)
+	{		
+		ELevelSnapshotsObjectType ObjectType;
+		UObject* RowObject = GetFirstValidObject(ObjectType);
+		
+		if (AActor* AsActor = Cast<AActor>(RowObject))
+		{
+			FName IconName = AsActor->GetCustomIconName();
+			if (IconName == NAME_None)
+			{
+				IconName = AsActor->GetClass()->GetFName();
+			}
+
+			return FClassIconFinder::FindIconForActor(AsActor);
+		}
+	}
+
+	return nullptr;
 }
 
 const TArray<FLevelSnapshotsEditorResultsRowPtr>& FLevelSnapshotsEditorResultsRow::GetChildRows() const
@@ -1613,7 +1650,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 					.Text(LOCTEXT("LevelSnapshotsEditorResults_NoResults", "No results to show. Try selecting a snapshot, changing your active filters, or clearing any active search."))
 					.Visibility_Lambda([this]()
 						{
-							return this->DoesTreeViewHaveVisibleChildren() ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
+							return DoesTreeViewHaveVisibleChildren() ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
 						})
 				]
 			]
@@ -1636,7 +1673,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 						SAssignNew(InfoTextBox, SVerticalBox)
 						.Visibility_Lambda([this]()
 						{
-							return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot() ? 
+							return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot() && TreeViewRootHeaderObjects.Num() ? 
 								EVisibility::HitTestInvisible : EVisibility::Hidden;
 						})
 
@@ -1667,7 +1704,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 							SNew(SButton)
 							.IsEnabled_Lambda([this]()
 							{
-								return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot();
+								return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot() && TreeViewRootHeaderObjects.Num();
 							})
 							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
 							.ForegroundColor(FSlateColor::UseForeground())
@@ -1722,21 +1759,6 @@ SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 FMenuBuilder SLevelSnapshotsEditorResults::BuildShowOptionsMenu()
 {
 	FMenuBuilder ShowOptionsMenuBuilder = FMenuBuilder(true, nullptr);
-
-	ShowOptionsMenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowFilteredRows", "Show Filtered Rows"),
-		LOCTEXT("ShowFilteredRows_Tooltip", "If false, only displays rows which have passed the applied filter. Refresh Results to apply."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([this]() {
-				SetShowFilteredRows(!GetShowFilteredRows());
-				}),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateSP(this, &SLevelSnapshotsEditorResults::GetShowFilteredRows)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
 
 	ShowOptionsMenuBuilder.AddMenuEntry(
 		LOCTEXT("ShowUnselectedRows", "Show Unselected Rows"),
@@ -2665,6 +2687,21 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 		.IsChecked_Raw(PinnedItem.Get(), &FLevelSnapshotsEditorResultsRow::GetWidgetCheckedState)
 		.OnCheckStateChanged_Raw(PinnedItem.Get(), &FLevelSnapshotsEditorResultsRow::SetWidgetCheckedState, true)
 	];
+
+	if (PinnedItem->DoesRowRepresentObject())
+	{
+		if (const FSlateBrush* RowIcon = PinnedItem->GetIconBrush())
+		{
+			BasicRowWidgets->AddSlot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			.Padding(0.f, 2.f, 5.f, 2.f)
+			[
+				SNew(SImage).Image(RowIcon)
+			];
+		}
+	}
 
 	BasicRowWidgets->AddSlot()
 	.VAlign(VAlign_Center)

@@ -16,14 +16,14 @@
 #include "Widgets/Text/STextBlock.h"
 
 TSharedRef<SWindow> FLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
-	const FCloseCreationFormDelegate& CallOnClose, ULevelSnapshotsEditorProjectSettings* InProjectSettings)
+	const FCloseCreationFormDelegate& CallOnClose, 
+	ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettingss)
 {
 	check(InProjectSettings);
 	
 	// Compute centered window position based on max window size, which include when all categories are expanded
-	const float BaseWidth = 350.0f;
-	const float BaseHeight = 200.0f;
-	const FVector2D BaseWindowSize = FVector2D(BaseWidth, BaseHeight); // Max window size it can get based on current slate
+	const FVector2D LastSize = InProjectSettings->GetLastCreationWindowSize();
+	const FVector2D BaseWindowSize = FVector2D(LastSize.X, LastSize.Y); // Max window size it can get based on current slate
 
 
 	const FSlateRect WorkAreaRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
@@ -34,14 +34,15 @@ TSharedRef<SWindow> FLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow
 
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(NSLOCTEXT("LevelSnapshots", "LevelSnapshots_CreationForm_Title", "Create Level Snapshot"))
-		.SizingRule(ESizingRule::Autosized)
+		.SizingRule(ESizingRule::UserSized)
 		.AutoCenter(EAutoCenter::PrimaryWorkArea)
 		.ClientSize(BaseWindowSize)
+		.AdjustInitialSizeAndPositionForDPIScale(false)
 		.SupportsMinimize(false)
 		.SupportsMaximize(false)
 		.ScreenPosition(WindowPosition);
 
-	const TSharedRef<SLevelSnapshotsEditorCreationForm> CreationForm = SNew(SLevelSnapshotsEditorCreationForm, Window, CallOnClose, InProjectSettings);
+	const TSharedRef<SLevelSnapshotsEditorCreationForm> CreationForm = SNew(SLevelSnapshotsEditorCreationForm, Window, CallOnClose, InProjectSettings, InDataManagementSettingss);
 	
 	Window->SetContent
 	(
@@ -56,17 +57,19 @@ TSharedRef<SWindow> FLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow
 }
 
 void SLevelSnapshotsEditorCreationForm::Construct(
-	const FArguments& InArgs, TWeakPtr< SWindow > InWidgetWindow, const FCloseCreationFormDelegate& CallOnClose, ULevelSnapshotsEditorProjectSettings* InProjectSettings)
+	const FArguments& InArgs, TWeakPtr< SWindow > InWidgetWindow, const FCloseCreationFormDelegate& CallOnClose, 
+	ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings)
 {
 	check(InProjectSettings);
 
 	ProjectSettingsObjectPtr = InProjectSettings;
+	DataManagementSettingsObjectPtr = InDataManagementSettings;
 	
 	WidgetWindow = InWidgetWindow;
 	CallOnCloseDelegate = CallOnClose;
 
-	bNameDiffersFromDefault = ProjectSettingsObjectPtr.Get()->IsNameOverridden();
-	bDirDiffersFromDefault = ProjectSettingsObjectPtr.Get()->IsPathOverridden();
+	bNameDiffersFromDefault = DataManagementSettingsObjectPtr.Get()->IsNameOverridden();
+	bDirDiffersFromDefault = DataManagementSettingsObjectPtr.Get()->IsPathOverridden();
 	
 	ChildSlot
 		[
@@ -77,6 +80,8 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Top)
 				[
 					SNew(STextBlock)
 					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
@@ -85,6 +90,8 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 
 				+ SVerticalBox::Slot()
 				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Top)
 				[
 					SNew(SHorizontalBox)
 
@@ -125,8 +132,8 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 				]
 
 				+SVerticalBox::Slot()
-				.Padding(8, 20, 8, 20)
-				.AutoHeight()
+				.Padding(8.f, 20.f, 8.f, 20.f)
+				.VAlign(VAlign_Fill)
 				[
 					SNew(SMultiLineEditableTextBox)
 					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
@@ -136,10 +143,13 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 					.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_DescriptionHintText", "<description>"))
 					.Text(DescriptionText)
 					.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetDescriptionText)
+					.AllowMultiLine(true)
+					.AutoWrapText(true)
 				]
 				
 				+SVerticalBox::Slot()
 				.AutoHeight()
+				.VAlign(VAlign_Bottom)
 				[
 					SNew(STextBlock)
 					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
@@ -147,47 +157,14 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 				]
 
 				+SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Bottom)
 				[
-					SNew(SHorizontalBox)
-
-					+SHorizontalBox::Slot()
-					[
-						SNew(SEditableTextBox)
-						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
-						.BackgroundColor(FLinearColor::Transparent)
-						.ForegroundColor(FSlateColor::UseForeground())
-						.Justification(ETextJustify::Center)
-						.SelectAllTextWhenFocused(true)
-						.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_SaveDirOverrideHintText", "Override save directory..."))
-						.Text(this, &SLevelSnapshotsEditorCreationForm::GetPathOverrideText)
-						.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetPathOverrideText)
-						.ToolTipText(
-						NSLOCTEXT("LevelSnapshots", "CreationForm_PathOverrideFieldTooltipText", "Override the save directory defined in Project Settings while using the Creation Form."))
-					]
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SButton)
-						.IsFocusable(false)
-						.ToolTipText(
-							NSLOCTEXT("LevelSnapshots", "CreationForm_ResetDirTooltipText", "Reset the overridden save directory to the one defined in Project Settings."))
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-						.ContentPadding(0)
-						.Visibility(this, &SLevelSnapshotsEditorCreationForm::GetDirDiffersFromDefaultAsVisibility)
-						.OnClicked(this, &SLevelSnapshotsEditorCreationForm::OnResetDirClicked)
-						.Content()
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
-						]
-						
-					]
+					MakeDataManagementSettingsDetailsWidget()
 				]
 
 				+SVerticalBox::Slot()
+				.AutoHeight()
 				.VAlign(VAlign_Bottom)
 				.HAlign(HAlign_Right)
 				.Padding(2.f, 5.f)
@@ -207,6 +184,25 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 		];
 }
 
+TSharedRef<SWidget> SLevelSnapshotsEditorCreationForm::MakeDataManagementSettingsDetailsWidget() const
+{
+	check(ProjectSettingsObjectPtr.IsValid());
+	
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	FDetailsViewArgs DetailsViewArgs(false, false, false, FDetailsViewArgs::HideNameArea, true);
+	DetailsViewArgs.bShowScrollBar = false;
+
+	TSharedRef<IDetailsView> Details = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+
+	const TArray<UObject*> ProjectSettingsObjects = {DataManagementSettingsObjectPtr.Get()};
+	
+	Details->SetObjects(ProjectSettingsObjects);
+
+	Details->SetEnabled(true);
+
+	return Details;
+}
+
 SLevelSnapshotsEditorCreationForm::~SLevelSnapshotsEditorCreationForm()
 {
 	CallOnCloseDelegate.Unbind();
@@ -214,47 +210,59 @@ SLevelSnapshotsEditorCreationForm::~SLevelSnapshotsEditorCreationForm()
 
 FText SLevelSnapshotsEditorCreationForm::GetNameOverrideText() const
 {
-	check(ProjectSettingsObjectPtr.IsValid());
+	check(DataManagementSettingsObjectPtr.IsValid());
 
-	return FText::FromString(ProjectSettingsObjectPtr.Get()->GetNameOverride());
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if (!ensure(World && DataManagementSettingsObjectPtr.IsValid()))
+	{
+		return FText::FromString(DataManagementSettingsObjectPtr.Get()->GetNameOverride());
+	}
+
+	return 	ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(FText::FromString(
+		DataManagementSettingsObjectPtr.Get()->GetNameOverride()), World->GetName());
 }
 
 void SLevelSnapshotsEditorCreationForm::SetNameOverrideText(const FText& InNewText, ETextCommit::Type InCommitType)
 {
-	check(ProjectSettingsObjectPtr.IsValid());
+	check(DataManagementSettingsObjectPtr.IsValid());
 
 	FString NameAsString = InNewText.ToString();
-	ULevelSnapshotsEditorProjectSettings::SanitizePathInline(NameAsString, true);
+	ULevelSnapshotsEditorDataManagementSettings::SanitizePathInline(NameAsString, true);
 
-	ProjectSettingsObjectPtr->SetNameOverride(NameAsString);
+	DataManagementSettingsObjectPtr->SetNameOverride(NameAsString);
 
-	bNameDiffersFromDefault = ProjectSettingsObjectPtr.Get()->IsNameOverridden();
+	bNameDiffersFromDefault = DataManagementSettingsObjectPtr.Get()->IsNameOverridden();
 }
 
 void SLevelSnapshotsEditorCreationForm::SetDescriptionText(const FText& InNewText, ETextCommit::Type InCommitType)
 {
-	check(ProjectSettingsObjectPtr.IsValid());
-
 	DescriptionText = InNewText;
 }
 
 FText SLevelSnapshotsEditorCreationForm::GetPathOverrideText() const
 {
-	check(ProjectSettingsObjectPtr.IsValid());
+	check(DataManagementSettingsObjectPtr.IsValid());
 
-	return FText::FromString(ProjectSettingsObjectPtr.Get()->GetSaveDirOverride());
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if (!ensure(World && DataManagementSettingsObjectPtr.IsValid()))
+	{
+		return FText::FromString(DataManagementSettingsObjectPtr.Get()->GetSaveDirOverride());
+	}
+
+	return 	ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(FText::FromString(
+		DataManagementSettingsObjectPtr.Get()->GetSaveDirOverride()), World->GetName());
 }
 
 void SLevelSnapshotsEditorCreationForm::SetPathOverrideText(const FText& InNewText, ETextCommit::Type InCommitType)
 {
-	check(ProjectSettingsObjectPtr.IsValid());
+	check(DataManagementSettingsObjectPtr.IsValid());
 	
 	FString PathAsString = InNewText.ToString();
-	ULevelSnapshotsEditorProjectSettings::SanitizePathInline(PathAsString, true);
+	ULevelSnapshotsEditorDataManagementSettings::SanitizePathInline(PathAsString, true);
 
-	ProjectSettingsObjectPtr->SetSaveDirOverride(PathAsString);
+	DataManagementSettingsObjectPtr->SetSaveDirOverride(PathAsString);
 
-	bDirDiffersFromDefault = ProjectSettingsObjectPtr.Get()->IsPathOverridden();
+	bDirDiffersFromDefault = DataManagementSettingsObjectPtr.Get()->IsPathOverridden();
 }
 
 EVisibility SLevelSnapshotsEditorCreationForm::GetNameDiffersFromDefaultAsVisibility() const
@@ -269,18 +277,18 @@ EVisibility SLevelSnapshotsEditorCreationForm::GetDirDiffersFromDefaultAsVisibil
 
 FReply SLevelSnapshotsEditorCreationForm::OnResetNameClicked()
 {
-	check(ProjectSettingsObjectPtr.IsValid());
+	check(DataManagementSettingsObjectPtr.IsValid());
 
-	SetNameOverrideText(FText::FromString(ProjectSettingsObjectPtr.Get()->DefaultLevelSnapshotName), ETextCommit::OnEnter);
+	SetNameOverrideText(FText::FromString(DataManagementSettingsObjectPtr.Get()->DefaultLevelSnapshotName), ETextCommit::OnEnter);
 
 	return FReply::Handled();
 }
 
 FReply SLevelSnapshotsEditorCreationForm::OnResetDirClicked()
 {
-	check(ProjectSettingsObjectPtr.IsValid());
+	check(DataManagementSettingsObjectPtr.IsValid());
 	
-	SetPathOverrideText(FText::FromString(ProjectSettingsObjectPtr.Get()->LevelSnapshotSaveDir), ETextCommit::OnEnter);
+	SetPathOverrideText(FText::FromString(DataManagementSettingsObjectPtr.Get()->LevelSnapshotSaveDir), ETextCommit::OnEnter);
 
 	return FReply::Handled();
 }
@@ -297,5 +305,13 @@ FReply SLevelSnapshotsEditorCreationForm::OnCreateButtonPressed()
 
 void SLevelSnapshotsEditorCreationForm::OnWindowClosed(const TSharedRef<SWindow>& ParentWindow) const
 {
+	if (ProjectSettingsObjectPtr.IsValid())
+	{
+		const FVector2D WindowSize = ParentWindow->GetClientSizeInScreen();
+		
+		ProjectSettingsObjectPtr->SetLastCreationWindowSize(WindowSize);
+		ProjectSettingsObjectPtr->SaveConfig();
+	}
+	
 	CallOnCloseDelegate.ExecuteIfBound(bWasCreateSnapshotPressed, DescriptionText);
 }

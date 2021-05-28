@@ -50,7 +50,7 @@ const FSlateBrush* FLevelSnapshotsEditorStyle::GetBrush(FName PropertyName, cons
 #define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 
-const FVector2D Icon128x128(40.0f, 40.0f);
+const FVector2D Icon64x64(64.f, 64.f);
 const FVector2D Icon40x40(40.0f, 40.0f);
 const FVector2D Icon20x20(20.0f, 20.0f);
 const FVector2D Icon16x16(16.0f, 16.0f);
@@ -68,7 +68,8 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 	}
 
 	// Toolbar
-	Style->Set("LevelSnapshots.ToolbarButton", new IMAGE_BRUSH("Icon128", Icon128x128));
+	Style->Set("LevelSnapshots.ToolbarButton", new IMAGE_BRUSH("Icons/Icon40", Icon40x40));
+	Style->Set("LevelSnapshots.ToolbarButton.Small", new IMAGE_BRUSH("Icons/Icon20", Icon20x20));
 
 	// Brush
 	Style->Set("LevelSnapshotsEditor.GroupBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
@@ -79,10 +80,6 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 	// Border colors for Results view
 	Style->Set("LevelSnapshotsEditor.HeaderRowBorder", new FSlateColorBrush(FColor::Black));
 	Style->Set("LevelSnapshotsEditor.ActorGroupBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
-	Style->Set("LevelSnapshotsEditor.ComponentGroupBorder", new FSlateColorBrush(FLinearColor::Black * 0.5f));
-	Style->Set("LevelSnapshotsEditor.SubObjectGroupBorder", new FSlateColorBrush(FColor(200, 200, 225, 100)));
-	Style->Set("LevelSnapshotsEditor.StructGroupBorder", new FSlateColorBrush(FColor(200, 255, 200, 100)));
-	Style->Set("LevelSnapshotsEditor.CollectionGroupBorder", new FSlateColorBrush(FColor(255, 200, 200, 100)));
 	Style->Set("LevelSnapshotsEditor.DefaultBorder", new FSlateColorBrush(FColor(0, 0, 0, 0)));
 	Style->Set("LevelSnapshotsEditor.IgnoreFilterBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
 
