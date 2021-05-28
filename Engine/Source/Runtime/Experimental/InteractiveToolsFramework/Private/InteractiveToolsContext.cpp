@@ -9,46 +9,147 @@ UInteractiveToolsContext::UInteractiveToolsContext()
 {
 	InputRouter = nullptr;
 	ToolManager = nullptr;
+	GizmoManager = nullptr;
 	TargetManager = nullptr;
+	ContextObjectStore = nullptr;
 	ToolManagerClass = UInteractiveToolManager::StaticClass();
+
+	SetCreateInputRouterFunc([](const FContextInitInfo& ContextInfo)
+	{
+		UInputRouter* NewInputRouter = NewObject<UInputRouter>(ContextInfo.ToolsContext);
+		NewInputRouter->Initialize(ContextInfo.TransactionsAPI);
+		return NewInputRouter;
+	});
+	SetShutdownInputRouterFunc([](UInputRouter* InputRouterIn)
+	{
+		InputRouterIn->ForceTerminateAll();
+		InputRouterIn->Shutdown();
+	});
+
+	SetCreateToolManagerFunc([this](const FContextInitInfo& ContextInfo)
+	{
+		UInteractiveToolManager* NewToolManager = NewObject<UInteractiveToolManager>(ContextInfo.ToolsContext, this->ToolManagerClass.Get());
+		NewToolManager->Initialize(ContextInfo.QueriesAPI, ContextInfo.TransactionsAPI, ContextInfo.InputRouter);
+		return NewToolManager;
+	});
+	SetShutdownToolManagerFunc([](UInteractiveToolManager* ToolManagerIn)
+	{
+		ToolManagerIn->Shutdown();
+	});
+
+	SetCreateToolTargetManagerFunc([](const FContextInitInfo& ContextInfo)
+	{
+		UToolTargetManager* NewTargetManager = NewObject<UToolTargetManager>(ContextInfo.ToolsContext);
+		NewTargetManager->Initialize();
+		return NewTargetManager;
+	});
+	SetShutdownToolTargetManagerFunc([](UToolTargetManager* TargetManagerIn)
+	{
+	});
+
+	SetCreateGizmoManagerFunc([](const FContextInitInfo& ContextInfo)
+	{
+		UInteractiveGizmoManager* NewGizmoManager = NewObject<UInteractiveGizmoManager>(ContextInfo.ToolsContext);
+		NewGizmoManager->Initialize(ContextInfo.QueriesAPI, ContextInfo.TransactionsAPI, ContextInfo.InputRouter);
+		NewGizmoManager->RegisterDefaultGizmos();
+		return NewGizmoManager;
+	});
+	SetShutdownGizmoManagerFunc([](UInteractiveGizmoManager* GizmoManagerIn)
+	{
+		GizmoManagerIn->Shutdown();
+	});
+
+	SetCreateContextStoreFunc([](const FContextInitInfo& ContextInfo)
+	{
+		UContextObjectStore* NewContextStore = NewObject<UContextObjectStore>(ContextInfo.ToolsContext);
+		return NewContextStore;
+	});
+	SetShutdownContextStoreFunc([](UContextObjectStore* ContextStoreIn)
+	{
+		ContextStoreIn->Shutdown();
+	});
 }
+
+
+void UInteractiveToolsContext::SetCreateInputRouterFunc(TUniqueFunction<UInputRouter* (const FContextInitInfo&)> Func)
+{
+	CreateInputRouterFunc = MoveTemp(Func);
+}
+void UInteractiveToolsContext::SetCreateToolManagerFunc(TUniqueFunction<UInteractiveToolManager* (const FContextInitInfo&)> Func)
+{
+	CreateToolManagerFunc = MoveTemp(Func);
+}
+void UInteractiveToolsContext::SetCreateToolTargetManagerFunc(TUniqueFunction<UToolTargetManager* (const FContextInitInfo&)> Func)
+{
+	CreateToolTargetManagerFunc = MoveTemp(Func);
+}
+void UInteractiveToolsContext::SetCreateGizmoManagerFunc(TUniqueFunction<UInteractiveGizmoManager* (const FContextInitInfo&)> Func)
+{
+	CreateGizmoManagerFunc = MoveTemp(Func);
+}
+void UInteractiveToolsContext::SetCreateContextStoreFunc(TUniqueFunction<UContextObjectStore* (const FContextInitInfo&)> Func)
+{
+	CreateContextStoreFunc = MoveTemp(Func);
+}
+
+
+void UInteractiveToolsContext::SetShutdownInputRouterFunc(TUniqueFunction<void(UInputRouter*)> Func)
+{
+	ShutdownInputRouterFunc = MoveTemp(Func);
+}
+void UInteractiveToolsContext::SetShutdownToolManagerFunc(TUniqueFunction<void(UInteractiveToolManager*)> Func)
+{
+	ShutdownToolManagerFunc = MoveTemp(Func);
+}
+void UInteractiveToolsContext::SetShutdownToolTargetManagerFunc(TUniqueFunction<void(UToolTargetManager*)> Func)
+{
+	ShutdownToolTargetManagerFunc = MoveTemp(Func);
+}
+void UInteractiveToolsContext::SetShutdownGizmoManagerFunc(TUniqueFunction<void(UInteractiveGizmoManager*)> Func)
+{
+	ShutdownGizmoManagerFunc = MoveTemp(Func);
+}
+void UInteractiveToolsContext::SetShutdownContextStoreFunc(TUniqueFunction<void(UContextObjectStore*)> Func)
+{
+	ShutdownContextStoreFunc = MoveTemp(Func);
+}
+
 
 void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI)
 {
-	InputRouter = NewObject<UInputRouter>(this);
-	InputRouter->Initialize(TransactionsAPI);
+	FContextInitInfo InitInfo;
+	InitInfo.ToolsContext = this;
+	InitInfo.QueriesAPI = QueriesAPI;
+	InitInfo.TransactionsAPI = TransactionsAPI;
 
-	ToolManager = NewObject<UInteractiveToolManager>(this, ToolManagerClass.Get());
-	ToolManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
+	InputRouter = CreateInputRouterFunc(InitInfo);
+	InitInfo.InputRouter = InputRouter;
 
-	TargetManager = NewObject<UToolTargetManager>(this);
-	TargetManager->Initialize();
-
-	GizmoManager = NewObject<UInteractiveGizmoManager>(this);
-	GizmoManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
-
-	GizmoManager->RegisterDefaultGizmos();
-
-	ContextObjectStore = NewObject<UContextObjectStore>(this);
+	ToolManager = CreateToolManagerFunc(InitInfo);
+	TargetManager = CreateToolTargetManagerFunc(InitInfo);
+	GizmoManager = CreateGizmoManagerFunc(InitInfo);
+	ContextObjectStore = CreateContextStoreFunc(InitInfo);
 }
 
 
 void UInteractiveToolsContext::Shutdown()
 {
-	// force-terminate any remaining captures/hovers/etc
-	InputRouter->ForceTerminateAll();
-	InputRouter->Shutdown();
+	ShutdownInputRouterFunc(InputRouter);
 	InputRouter = nullptr;
 
-	GizmoManager->Shutdown();
+	ShutdownGizmoManagerFunc(GizmoManager);
 	GizmoManager = nullptr;
 
-	ToolManager->Shutdown();
+	ShutdownToolManagerFunc(ToolManager);
 	ToolManager = nullptr;
 
-	ContextObjectStore->Shutdown();
+	ShutdownToolTargetManagerFunc(TargetManager);
+	TargetManager = nullptr;
+
+	ShutdownContextStoreFunc(ContextObjectStore);
 	ContextObjectStore = nullptr;
 }
+
 
 void UInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType)
 {
