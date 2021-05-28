@@ -4,11 +4,11 @@
 	LumenRadianceCacheCommon.ush
 =============================================================================*/
 
-#include "LumenOctahedralProbe.ush"
-
 #ifndef LUMEN_HARDWARE_RAYTRACING
 #define LUMEN_HARDWARE_RAYTRACING 0
 #endif
+
+#include "../OctahedralCommon.ush"
 
 #define RADIANCE_PROBE_MAX_CLIPMAPS 6
 #define RADIANCE_CACHE_USE_INTERPOLATION 1
@@ -172,7 +172,7 @@ float GetRadianceProbeOcclusionDistanceWithInterpolation(float3 RayOrigin, float
 
 float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection, float MipLevel)
 {
-	float2 ProbeUV = DirectionToOctahedralMap(WorldSpaceDirection);
+	float2 ProbeUV = UnitVectorToOctahedron(WorldSpaceDirection);
 
 #define VISUALIZE_PROBE_DEPTH 0
 #if VISUALIZE_PROBE_DEPTH && RADIANCE_CACHE_STORE_DEPTHS
@@ -228,7 +228,7 @@ float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint Pro
 	{
 		float3 StepPosition = ProbeTraceStart + StepIndex / (NumSamples - 1) * ProbeTraceDirection;
 		float3 ProbeToStepPosition = StepPosition - ProbeWorldPosition;
-		float2 ProbeUV = DirectionToOctahedralMap(ProbeToStepPosition);
+		float2 ProbeUV = UnitVectorToOctahedron(ProbeToStepPosition);
 		float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeUV * RadianceProbeResolution) * InvProbeDepthAtlasResolution;
 		float StepHitDistanceFromProbe = RadianceCacheDepthAtlas.SampleLevel(GlobalPointClampedSampler, ProbeAtlasUV, MipLevel).x;
 		float StepRayDistanceFromProbeSq = dot(ProbeToStepPosition, ProbeToStepPosition);
@@ -317,7 +317,7 @@ void SampleRadianceCacheAndApply(float3 WorldSpacePosition, float3 WorldSpaceDir
 float3 SampleIrradianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection)
 {
 	//@todo - move out of loop
-	float2 ProbeUV = DirectionToOctahedralMap(WorldSpaceDirection);
+	float2 ProbeUV = UnitVectorToOctahedron(WorldSpaceDirection);
 
 	uint FinalIrradianceProbeResolution = IrradianceProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 	uint2 ProbeAtlasCoord = FinalIrradianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
@@ -332,7 +332,7 @@ float3 SampleIrradianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection)
 
 float2 SampleProbeOcclusion(uint ProbeIndex, float3 WorldSpaceDirection)
 {
-	float2 ProbeUV = DirectionToOctahedralMap(WorldSpaceDirection);
+	float2 ProbeUV = UnitVectorToOctahedron(WorldSpaceDirection);
 
 	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 	uint2 ProbeAtlasCoord = FinalOcclusionProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);

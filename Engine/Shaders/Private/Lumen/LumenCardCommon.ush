@@ -4,6 +4,10 @@
 	LumenCardCommon.ush
 =============================================================================*/
 
+#pragma once
+
+#include "../OctahedralCommon.ush"
+
 struct FLumenCardData
 {
 	float3x3 WorldToLocalRotation;
@@ -289,8 +293,5 @@ float2 SamplePositonToCardUV(FLumenCardData Card, float2 LocalSamplePosition)
 // Return decoded world space normal
 float3 DecodeSurfaceCacheNormal(float2 EncodedNormal)
 {
-	float3 WorldSpaceNormal;
-	WorldSpaceNormal.xy = EncodedNormal.xy * 2.0f - 1.0f;
-	WorldSpaceNormal.z = sqrt(max(1.0f - dot(WorldSpaceNormal.xy, WorldSpaceNormal.xy), 0.00001f));
-	return normalize(WorldSpaceNormal);
+	return OctahedronToUnitVector(EncodedNormal);
 }
