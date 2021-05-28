@@ -108,7 +108,10 @@ namespace Metasound
 #endif
 		}
 
-		FLiteral(const FLiteral& Other) = delete;
+		//FLiteral(const FLiteral& Other)
+		//{
+		//	*this = Other.Clone();
+		//}
 		FLiteral(FLiteral&& Other) = default;
 		FLiteral& operator=(FLiteral&& Other) = default;
 
@@ -123,7 +126,6 @@ namespace Metasound
 		ELiteralType GetType() const;
 
 		FLiteral Clone() const;
-
 
 		template<typename ArgType>
 		void Set(ArgType&& Arg)

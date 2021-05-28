@@ -18,6 +18,7 @@ namespace Metasound
 		// Convenience functions to create an INode corresponding to a specific input or output for a metasound graph.
 		// @returns nullptr if the type given wasn't found.
 		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams);
-		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstructorParams& InParams);
+		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructVariableNode(const FName& InVariableType, FVariableNodeConstructorParams&& InParams);
+		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams);
 	}
 }

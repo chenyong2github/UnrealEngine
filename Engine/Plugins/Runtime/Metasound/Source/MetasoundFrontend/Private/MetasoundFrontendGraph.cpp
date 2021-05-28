@@ -14,6 +14,21 @@
 
 namespace Metasound
 {
+	namespace FrontendGraphPrivate
+	{
+		FNodeInitData CreateNodeInitData(const FMetasoundFrontendNode& InNode)
+		{
+			FNodeInitData InitData;
+
+			InitData.InstanceName.Append(InNode.Name);
+			InitData.InstanceName.AppendChar('_');
+			InitData.InstanceName.Append(InNode.ID.ToString());
+
+			InitData.InstanceID = InNode.ID;
+
+			return InitData;
+		}
+	}
 
 	FFrontendGraph::FFrontendGraph(const FString& InInstanceName, const FGuid& InInstanceID)
 	:	FGraph(InInstanceName, InInstanceID)
@@ -143,7 +158,7 @@ namespace Metasound
 		NodeStorage.Add(InNode);
 	}
 
-	TUniquePtr<INode> FFrontendGraphBuilder::CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
+	TUniquePtr<INode> FFrontendGraphBuilder::CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput)
 	{
 		const FMetasoundFrontendLiteral* FrontendLiteral = FindInputLiteralForInputNode(InNode, InClass, InOwningGraphClassInput);
 
@@ -184,7 +199,7 @@ namespace Metasound
 		return TUniquePtr<INode>(nullptr);
 	}
 
-	TUniquePtr<INode> FFrontendGraphBuilder::CreateOutputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass) const
+	TUniquePtr<INode> FFrontendGraphBuilder::CreateOutputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext)
 	{
 		check(InClass.Metadata.Type == EMetasoundFrontendClassType::Output);
 		check(InNode.ClassID == InClass.ID);
@@ -197,27 +212,39 @@ namespace Metasound
 			{
 				InNode.Name,
 				InNode.ID,
-				OutputVertex.Name,
+				OutputVertex.Name
 			};
 
+			{
+				const FNodeInitData InitData = FrontendGraphPrivate::CreateNodeInitData(InNode);
+				TArray<FDefaultVariableData> DefaultVariableData = GetInputDefaultVariableData(InNode, InitData);
+				for (FDefaultVariableData& Data : DefaultVariableData)
+				{
+					FGuid VertexID = Data.DestinationVertexID;
+					InGraphContext.DefaultInputs.Emplace(MoveTemp(VertexID), MoveTemp(Data));
+				}
+			}
+
 			// TODO: create output node using external class definition
-			return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(OutputVertex.TypeName, InitParams);
+			return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(OutputVertex.TypeName, MoveTemp(InitParams));
 		}
 		return TUniquePtr<INode>(nullptr);
 	}
 
-	TUniquePtr<INode> FFrontendGraphBuilder::CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass) const
+	TUniquePtr<INode> FFrontendGraphBuilder::CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext)
 	{
 		check(InClass.Metadata.Type == EMetasoundFrontendClassType::External);
 		check(InNode.ClassID == InClass.ID);
 
-		FNodeInitData InitData;
-
-		InitData.InstanceName.Append(InNode.Name);
-		InitData.InstanceName.AppendChar('_');
-		InitData.InstanceName.Append(InNode.ID.ToString());
-
-		InitData.InstanceID = InNode.ID;
+		const FNodeInitData InitData = FrontendGraphPrivate::CreateNodeInitData(InNode);
+		{
+			TArray<FDefaultVariableData> DefaultVariableData = GetInputDefaultVariableData(InNode, InitData);
+			for (FDefaultVariableData& Data : DefaultVariableData)
+			{
+				FGuid VertexID = Data.DestinationVertexID;
+				InGraphContext.DefaultInputs.Emplace(MoveTemp(VertexID), MoveTemp(Data));
+			}
+		}
 
 		// TODO: handle check to see if node interface conforms to class interface here. 
 		// TODO: check to see if external object supports class interface.
@@ -227,8 +254,7 @@ namespace Metasound
 		return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(Key, InitData);
 	}
 
-
-	const FMetasoundFrontendClassInput* FFrontendGraphBuilder::FindClassInputForInputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InInputNode, int32& OutClassInputIndex) const
+	const FMetasoundFrontendClassInput* FFrontendGraphBuilder::FindClassInputForInputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InInputNode, int32& OutClassInputIndex)
 	{
 		OutClassInputIndex = INDEX_NONE;
 
@@ -251,7 +277,7 @@ namespace Metasound
 		return nullptr;
 	}
 
-	const FMetasoundFrontendClassOutput* FFrontendGraphBuilder::FindClassOutputForOutputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InOutputNode, int32& OutClassOutputIndex) const
+	const FMetasoundFrontendClassOutput* FFrontendGraphBuilder::FindClassOutputForOutputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InOutputNode, int32& OutClassOutputIndex)
 	{
 		OutClassOutputIndex = INDEX_NONE;
 
@@ -274,8 +300,7 @@ namespace Metasound
 		return nullptr;
 	}
 
-
-	const FMetasoundFrontendLiteral* FFrontendGraphBuilder::FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
+	const FMetasoundFrontendLiteral* FFrontendGraphBuilder::FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput)
 	{
 		// Default value priority is:
 		// 1. A value set directly on the node
@@ -328,79 +353,86 @@ namespace Metasound
 	}
 
 	// TODO: add errors here. Most will be a "PromptIfMissing"...
-	void FFrontendGraphBuilder::AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const FDependencyByIDMap& InClasses, const FSharedNodeByIDMap& InSubgraphs, FFrontendGraph& OutGraph) const
+	void FFrontendGraphBuilder::AddNodesToGraph(FBuildGraphContext& InGraphContext)
 	{
-		for (const FMetasoundFrontendNode& Node : InGraphClass.Graph.Nodes)
+		for (const FMetasoundFrontendNode& Node : InGraphContext.GraphClass.Graph.Nodes)
 		{
-			const FMetasoundFrontendClass* NodeClass = InClasses.FindRef(Node.ClassID);
+			const FMetasoundFrontendClass* NodeClass = InGraphContext.BuildContext.FrontendClasses.FindRef(Node.ClassID);
 
 			if (ensure(nullptr != NodeClass))
 			{
 				switch (NodeClass->Metadata.Type)
 				{
 					case EMetasoundFrontendClassType::Input:
+					{
+						int32 InputIndex = INDEX_NONE;
+						const FMetasoundFrontendClassInput* ClassInput = FindClassInputForInputNode(InGraphContext.GraphClass, Node, InputIndex);
+
+						if ((nullptr != ClassInput) && (INDEX_NONE != InputIndex))
 						{
-							int32 InputIndex = INDEX_NONE;
-							const FMetasoundFrontendClassInput* ClassInput = FindClassInputForInputNode(InGraphClass, Node, InputIndex);
-
-							if ((nullptr != ClassInput) && (INDEX_NONE != InputIndex))
-							{
-								TSharedPtr<const INode> InputNode(CreateInputNode(Node, *NodeClass, *ClassInput).Release());
-								OutGraph.AddInputNode(Node.ID, InputIndex, ClassInput->Name, InputNode);
-							}
-							else
-							{
-								UE_LOG(LogMetaSound, Error, TEXT("Failed to match input node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *InGraphClass.ID.ToString());
-							}
+							TSharedPtr<const INode> InputNode(CreateInputNode(Node, *NodeClass, *ClassInput).Release());
+							InGraphContext.Graph->AddInputNode(Node.ID, InputIndex, ClassInput->Name, InputNode);
 						}
-
-						break;
+						else
+						{
+							const FString GraphClassIDString = InGraphContext.GraphClass.ID.ToString();
+							UE_LOG(LogMetaSound, Error, TEXT("Failed to match input node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *GraphClassIDString);
+						}
+					}
+					break;
 
 					case EMetasoundFrontendClassType::Output:
+					{
+						int32 OutputIndex = INDEX_NONE;
+						const FMetasoundFrontendClassOutput* ClassOutput = FindClassOutputForOutputNode(InGraphContext.GraphClass, Node, OutputIndex);
+						if ((nullptr != ClassOutput) && (INDEX_NONE != OutputIndex))
 						{
-							int32 OutputIndex = INDEX_NONE;
-							const FMetasoundFrontendClassOutput* ClassOutput = FindClassOutputForOutputNode(InGraphClass, Node, OutputIndex);
-
-							if ((nullptr != ClassOutput) && (INDEX_NONE != OutputIndex))
-							{
-								TSharedPtr<const INode> OutputNode(CreateOutputNode(Node, *NodeClass).Release());
-								OutGraph.AddOutputNode(Node.ID, OutputIndex, ClassOutput->Name, OutputNode);
-							}
-							else
-							{
-								UE_LOG(LogMetaSound, Error, TEXT("Failed to match output node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *InGraphClass.ID.ToString());
-							}
+							TSharedPtr<const INode> OutputNode(CreateOutputNode(Node, *NodeClass, InGraphContext).Release());
+							InGraphContext.Graph->AddOutputNode(Node.ID, OutputIndex, ClassOutput->Name, OutputNode);
 						}
+						else
+						{
+							const FString GraphClassIDString = InGraphContext.GraphClass.ID.ToString();
+							UE_LOG(LogMetaSound, Error, TEXT("Failed to match output node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *GraphClassIDString);
+						}
+					}
+					break;
 
-						break;
+					case EMetasoundFrontendClassType::Variable:
+					{
+						ensureAlwaysMsgf(false, TEXT("TODO: Implement ability to create variables directly in Frontend"));
+					}
+
+					break;
 
 					case EMetasoundFrontendClassType::Graph:
-						{
-							const TSharedPtr<const INode>* SubgraphPtr = InSubgraphs.Find(Node.ClassID);
+					{
+						const TSharedPtr<const INode> SubgraphPtr = InGraphContext.BuildContext.Graphs.FindRef(Node.ClassID);
 
-							if (nullptr == SubgraphPtr)
-							{
-								UE_LOG(LogMetaSound, Error, TEXT("Failed to find subgraph for node [NodeID:%s, NodeName:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.Name, *Node.ClassID.ToString());
-							}
-							else
-							{
-								OutGraph.AddNode(Node.ID, *SubgraphPtr);
-							}
+						if (SubgraphPtr.IsValid())
+						{
+							InGraphContext.Graph->AddNode(Node.ID, SubgraphPtr);
 						}
-						break;
+						else
+						{
+							UE_LOG(LogMetaSound, Error, TEXT("Failed to find subgraph for node [NodeID:%s, NodeName:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.Name, *Node.ClassID.ToString());
+						}
+					}
+					break;
 
 					case EMetasoundFrontendClassType::External:
 					default:
-						{
-							TSharedPtr<const INode> ExternalNode(CreateExternalNode(Node, *NodeClass).Release());
-							OutGraph.AddNode(Node.ID, ExternalNode);
-						}
+					{
+						TSharedPtr<const INode> ExternalNode(CreateExternalNode(Node, *NodeClass, InGraphContext).Release());
+						InGraphContext.Graph->AddNode(Node.ID, ExternalNode);
+					}
+					break;
 				}
 			}
 		}
 	}
 
-	void FFrontendGraphBuilder::AddEdgesToGraph(const FMetasoundFrontendGraph& InFrontendGraph, FFrontendGraph& OutGraph) const
+	void FFrontendGraphBuilder::AddEdgesToGraph(FBuildGraphContext& InGraphContext)
 	{
 		// Pair of frontend node and core node. The frontend node can be one of
 		// several types.
@@ -416,12 +448,12 @@ namespace Metasound
 		TMap<FNodeIDVertexID, FCoreNodeAndFrontendVertex> NodeDestinationsByID;
 
 		// Add nodes to NodeID/VertexID map
-		for (const FMetasoundFrontendNode& Node : InFrontendGraph.Nodes)
+		for (const FMetasoundFrontendNode& Node : InGraphContext.GraphClass.Graph.Nodes)
 		{
-			const INode* CoreNode = OutGraph.FindNode(Node.ID);
+			const INode* CoreNode = InGraphContext.Graph->FindNode(Node.ID);
 			if (nullptr == CoreNode)
 			{
-				UE_LOG(LogMetaSound, Display, TEXT("Could not find referenced node [NodeID:%s]"), *Node.ID.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Could not find referenced node [Name:%s, NodeID:%s]"), *Node.Name, *Node.ID.ToString());
 				continue;
 			}
 
@@ -435,9 +467,8 @@ namespace Metasound
 				NodeSourcesByID.Add(FNodeIDVertexID(Node.ID, Vertex.VertexID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 			}
 		};
-		
 
-		for (const FMetasoundFrontendEdge& Edge : InFrontendGraph.Edges)
+		for (const FMetasoundFrontendEdge& Edge : InGraphContext.GraphClass.Graph.Edges)
 		{
 			const FNodeIDVertexID DestinationKey(Edge.ToNodeID, Edge.ToVertexID);
 			const FCoreNodeAndFrontendVertex* DestinationNodeAndVertex = NodeDestinationsByID.Find(DestinationKey);
@@ -478,17 +509,106 @@ namespace Metasound
 			const INode* ToNode = DestinationNodeAndVertex->Node;
 			const FVertexKey ToVertexKey = DestinationNodeAndVertex->Vertex->Name;
 
-			bool bSuccess = OutGraph.AddDataEdge(*FromNode, FromVertexKey,  *ToNode, ToVertexKey);
+			bool bSuccess = InGraphContext.Graph->AddDataEdge(*FromNode, FromVertexKey,  *ToNode, ToVertexKey);
 
-			if (!bSuccess)
+			// If succeeded, remove input as viable vertex to construct default variable, as it has been superceded by a connection.
+			if (bSuccess)
+			{
+				InGraphContext.DefaultInputs.Remove(DestinationNodeAndVertex->Vertex->VertexID);
+			}
+			else
 			{
 				UE_LOG(LogMetaSound, Error, TEXT("Failed to connect edge from [NodeID:%s, VertexID:%s] to [NodeID:%s, VertexID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromVertexID.ToString(), *Edge.ToNodeID.ToString(), *Edge.ToVertexID.ToString());
 			}
 		}
 	}
 
+	void FFrontendGraphBuilder::AddDefaultInputVariables(FBuildGraphContext& InGraphContext)
+	{
+		for (const TPair<FGuid, FDefaultVariableData>& Pair : InGraphContext.DefaultInputs)
+		{
+			const FDefaultVariableData& VariableData = Pair.Value;
+			const FGuid VariableNodeID = FGuid::NewGuid();
+
+			// 1. Construct and add the default variable to the graph
+			{
+				FVariableNodeConstructorParams InitParams = VariableData.InitParams.Clone();
+				TUniquePtr<const INode> DefaultVariable = FMetasoundFrontendRegistryContainer::Get()->ConstructVariableNode(VariableData.TypeName, MoveTemp(InitParams));
+				InGraphContext.Graph->AddNode(VariableNodeID, TSharedPtr<const INode>(DefaultVariable.Release()));
+			}
+
+			// 2. Connect the default variable to the expected input
+			const INode* FromNode = InGraphContext.Graph->FindNode(VariableNodeID);
+			if (!ensure(FromNode))
+			{
+				continue;
+			}
+			const FVertexKey& FromVertexKey = VariableData.InitParams.VertexName;
+
+			const INode* ToNode = InGraphContext.Graph->FindNode(VariableData.DestinationNodeID);
+			if (!ensure(ToNode))
+			{
+				continue;
+			}
+			const FVertexKey& ToVertexKey = VariableData.DestinationVertexKey;
+
+			bool bSuccess = InGraphContext.Graph->AddDataEdge(*FromNode, FromVertexKey, *ToNode, ToVertexKey);
+			if (!bSuccess)
+			{
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to connect default variable edge: from '%s' to '%s'"), *FromVertexKey, *ToVertexKey);
+			}
+		}
+	}
+
+	TArray<FFrontendGraphBuilder::FDefaultVariableData> FFrontendGraphBuilder::GetInputDefaultVariableData(const FMetasoundFrontendNode& InNode, const FNodeInitData& InInitData)
+	{
+		TArray<FDefaultVariableData> DefaultVariableData;
+
+		TArray<FMetasoundFrontendVertex> InputVertices = InNode.Interface.Inputs;
+		for (const FMetasoundFrontendVertexLiteral& Literal : InNode.InputLiterals)
+		{
+			FVariableNodeConstructorParams InitParams;
+			FName TypeName;
+
+			FGuid VertexID = Literal.VertexID;
+			FVertexKey DestinationVertexKey;
+			auto RemoveAndBuildParams = [&](const FMetasoundFrontendVertex& Vertex)
+			{
+				if (Vertex.VertexID == VertexID)
+				{
+					InitParams.InitParam = Literal.Value.ToLiteral(Vertex.TypeName);
+					InitParams.InstanceID = FGuid::NewGuid();
+					InitParams.NodeName = InInitData.InstanceName + Vertex.Name + InitParams.InstanceID.ToString();
+					InitParams.VertexName = InitParams.NodeName;
+					TypeName = Vertex.TypeName;
+
+					DestinationVertexKey = Vertex.Name;
+
+					return true;
+				}
+
+				return false;
+			};
+
+			const bool bRemoved = InputVertices.RemoveAllSwap(RemoveAndBuildParams, false /* bAllowShrinking */) > 0;
+			if (ensure(bRemoved))
+			{
+				DefaultVariableData.Emplace(FDefaultVariableData
+				{
+					InNode.ID,
+					VertexID,
+					DestinationVertexKey,
+					TypeName,
+					MoveTemp(InitParams)
+				});
+			}
+		}
+
+		return DefaultVariableData;
+	}
+
 	/** Check that all dependencies are C++ class dependencies. */
-	bool FFrontendGraphBuilder::IsFlat(const FMetasoundFrontendDocument& InDocument) const
+	bool FFrontendGraphBuilder::IsFlat(const FMetasoundFrontendDocument& InDocument)
 	{
 		if (InDocument.Subgraphs.Num() > 0)
 		{
@@ -498,7 +618,7 @@ namespace Metasound
 		return IsFlat(InDocument.RootGraph, InDocument.Dependencies);
 	}
 
-	bool FFrontendGraphBuilder::IsFlat(const FMetasoundFrontendGraphClass& InRoot, const TArray<FMetasoundFrontendClass>& InDependencies) const
+	bool FFrontendGraphBuilder::IsFlat(const FMetasoundFrontendGraphClass& InRoot, const TArray<FMetasoundFrontendClass>& InDependencies)
 	{
 		// All dependencies are external dependencies in a flat graph
 		auto IsClassExternal = [&](const FMetasoundFrontendClass& InDesc) 
@@ -529,7 +649,7 @@ namespace Metasound
 		return bIsEveryDependencyMet;
 	}
 
-	bool FFrontendGraphBuilder::SortSubgraphDependencies(TArray<const FMetasoundFrontendGraphClass*>& Subgraphs) const
+	bool FFrontendGraphBuilder::SortSubgraphDependencies(TArray<const FMetasoundFrontendGraphClass*>& Subgraphs)
 	{
 		// Helper for caching and querying subgraph dependencies
 		struct FSubgraphDependencyLookup
@@ -577,24 +697,28 @@ namespace Metasound
 		return bSuccess;
 	}
 
-	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(FBuildContext& InContext, const FMetasoundFrontendGraphClass& InGraph) const
+	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(FBuildContext& InContext, const FMetasoundFrontendGraphClass& InGraphClass)
 	{
+		const FString GraphName = InGraphClass.Metadata.ClassName.GetFullName().ToString();
 
-		TUniquePtr<FFrontendGraph> MetasoundGraph = MakeUnique<FFrontendGraph>(InGraph.Metadata.ClassName.GetFullName().ToString(), FGuid::NewGuid());
+		FBuildGraphContext BuildGraphContext
+		{
+			MakeUnique<FFrontendGraph>(GraphName, FGuid::NewGuid()),
+			InGraphClass,
+			InContext
+		};
 
 		// TODO: will likely want to bubble up errors here for case where
-		// a datatype or node is not registered. 
-		AddNodesToGraph(InGraph, InContext.FrontendClasses, InContext.Graphs, *MetasoundGraph);
+		// a datatype or node is not registered.
+		AddNodesToGraph(BuildGraphContext);
+		AddEdgesToGraph(BuildGraphContext);
+		AddDefaultInputVariables(BuildGraphContext);
 
-		AddEdgesToGraph(InGraph.Graph, *MetasoundGraph);
-
-		check(MetasoundGraph->OwnsAllReferencedNodes());
-
-		return MoveTemp(MetasoundGraph);
+		check(BuildGraphContext.Graph->OwnsAllReferencedNodes());
+		return MoveTemp(BuildGraphContext.Graph);
 	}
 
-
-	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundFrontendGraphClass& InGraph, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies) const
+	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundFrontendGraphClass& InGraph, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies)
 	{
 		FBuildContext Context;
 
@@ -635,11 +759,11 @@ namespace Metasound
 		}
 
 		// Create parent graph.
-		return CreateGraph(Context, InGraph); 
+		return CreateGraph(Context, InGraph);
 	}
 	
 	/* Metasound document should be inflated by now. */
-	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundFrontendDocument& InDocument) const
+	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundFrontendDocument& InDocument)
 	{
 		return CreateGraph(InDocument.RootGraph, InDocument.Subgraphs, InDocument.Dependencies);
 	}

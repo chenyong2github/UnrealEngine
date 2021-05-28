@@ -334,10 +334,7 @@ TArray<FString> UMetaSoundSource::GetTransmittableInputVertexNames() const
 					Frontend::FConstNodeHandle InputNode = RootGraph->GetNodeWithID(ClassInput->NodeID);
 					if (InputNode->IsValid())
 					{
-						if (EMetasoundFrontendNodeStyleDisplayVisibility::Visible == InputNode->GetNodeStyle().Display.Visibility)
-						{
-							return true;
-						}
+						return true;
 					}
 				}
 			}

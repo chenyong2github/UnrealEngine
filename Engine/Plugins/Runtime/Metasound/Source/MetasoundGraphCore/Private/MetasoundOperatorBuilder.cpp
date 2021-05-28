@@ -177,8 +177,9 @@ namespace Metasound
 		// Sort the nodes in a valid execution order
 		BuildStatus |= DepthFirstTopologicalSort(BuildContext, SortedNodes);
 
-		// Prune unneeded nodes. 
-		BuildStatus |= PruneNodes(BuildContext, SortedNodes);
+		// TODO: Add FindReachableNodesFromVariables in Prune.
+		// Otherwise, subgraphs incorrectly get pruned.
+		// BuildStatus |= PruneNodges(BuildContext, SortedNodes);
 
 		// Check build status in case build routine should be exited early.
 		if (BuildStatus > MaxBuildStatusErrorLevel)

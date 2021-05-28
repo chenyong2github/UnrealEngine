@@ -220,8 +220,14 @@ namespace Metasound
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetDisplayName() const = 0;
 
-			/** Returns the default value of the given input. */
-			virtual const FMetasoundFrontendLiteral* GetDefaultLiteral() const = 0;
+			/** Returns the value for the given input instance if set. */
+			virtual const FMetasoundFrontendLiteral* GetLiteral() const = 0;
+
+			/** Sets the value for the given input instance (effectively overriding the class default). */
+			virtual void SetLiteral(const FMetasoundFrontendLiteral& InLiteral) = 0;
+
+			/** Returns the class default value of the given input. */
+			virtual const FMetasoundFrontendLiteral* GetClassDefaultLiteral() const = 0;
 
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetTooltip() const = 0;
@@ -370,6 +376,15 @@ namespace Metasound
 			virtual bool CanAddOutput(const FString& InVertexName) const = 0;
 			virtual FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
 			virtual bool RemoveOutput(FGuid InVertexID) = 0;
+
+			// Returns an input's default literal if set, null if not.
+			virtual const FMetasoundFrontendLiteral* GetInputLiteral(const FGuid& InVertexID) const = 0;
+
+			// Sets an input's default literal
+			virtual void SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral) = 0;
+
+			// Clears an input's default literal
+			virtual bool ClearInputLiteral(FGuid InVertexID) = 0;
 
 			/** Returns associated node class data */
 			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const = 0;
@@ -700,6 +715,8 @@ namespace Metasound
 			virtual FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const = 0;
 			virtual FConstClassAccessPtr FindClassWithID(FGuid InClassID) const = 0;
 
+			virtual void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) = 0;
+			virtual const FMetasoundFrontendDocumentMetadata& GetMetadata() const = 0;
 
 			/** Returns an existing Metasound class description corresponding to 
 			 * a dependency which matches the provided class information.

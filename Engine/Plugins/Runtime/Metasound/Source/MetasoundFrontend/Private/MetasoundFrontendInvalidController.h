@@ -94,7 +94,9 @@ namespace Metasound
 			const FText& GetDisplayName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
 			const FText& GetTooltip() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
 			const FMetasoundFrontendVertexMetadata& GetMetadata() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendVertexMetadata>(); }
-			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override { return nullptr; }
+			const FMetasoundFrontendLiteral* GetLiteral() const override { return nullptr; }
+			void SetLiteral(const FMetasoundFrontendLiteral& InLiteral) { };
+			const FMetasoundFrontendLiteral* GetClassDefaultLiteral() const override { return nullptr; }
 			FGuid GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
 			TSharedRef<INodeController> GetOwningNode() override;
 			TSharedRef<const INodeController> GetOwningNode() const override;
@@ -155,6 +157,10 @@ namespace Metasound
 			bool CanAddOutput(const FString& InVertexName) const override { return false; }
 			FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return FInvalidInputController::GetInvalid(); }
 			bool RemoveOutput(FGuid InVertexID) override { return false; }
+
+			bool ClearInputLiteral(FGuid InVertexID) override { return false; };
+			const FMetasoundFrontendLiteral* GetInputLiteral(const FGuid& InVertexID) const { return nullptr; }
+			void SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral) override { }
 
 			const FMetasoundFrontendClassInterface& GetClassInterface() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassInterface>(); }
 			const FMetasoundFrontendClassMetadata& GetClassMetadata() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassMetadata>(); }
@@ -338,6 +344,9 @@ namespace Metasound
 				FConstClassAccessPtr FindClass(const FMetasoundFrontendClassMetadata& InMetadata) const override{ return FConstClassAccessPtr(); }
 				FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override{ return FConstClassAccessPtr(); }
 				FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override { return FInvalidGraphController::GetInvalid(); }
+
+				void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override { }
+				const FMetasoundFrontendDocumentMetadata& GetMetadata() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendDocumentMetadata>(); }
 
 				void SynchronizeDependencies() override { }
 

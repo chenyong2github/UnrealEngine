@@ -143,9 +143,8 @@ namespace Metasound
 		 */
 		void SetPendingGraph(FMetasoundGeneratorData&& InData, bool bTriggerGraph);
 
-
 	private:
-		void UpdateGraphIfPending();
+		bool UpdateGraphIfPending();
 		// Internal set graph after checking compatibility.
 		void SetGraph(TUniquePtr<FMetasoundGeneratorData>&& InData, bool bTriggerGraph);
 

@@ -104,6 +104,14 @@ FMetasoundFrontendClassInput::FMetasoundFrontendClassInput(const FMetasoundFront
 	DefaultLiteral.SetType(DefaultType);
 }
 
+FMetasoundFrontendClassVariable::FMetasoundFrontendClassVariable(const FMetasoundFrontendClassVertex& InOther)
+	: FMetasoundFrontendClassVertex(InOther)
+{
+	EMetasoundFrontendLiteralType DefaultType = Metasound::Frontend::GetMetasoundFrontendLiteralType(FMetasoundFrontendRegistryContainer::Get()->GetDesiredLiteralTypeForDataType(InOther.TypeName));
+
+	DefaultLiteral.SetType(DefaultType);
+}
+
 FMetasoundFrontendGraphClass::FMetasoundFrontendGraphClass()
 {
 	Metadata.Type = EMetasoundFrontendClassType::Graph;

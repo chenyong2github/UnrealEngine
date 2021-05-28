@@ -104,46 +104,66 @@ namespace Metasound
 		 *
 		 * @return True if all dependencies are C++ classes. False otherwise.
 		 */
-		bool IsFlat(const FMetasoundFrontendDocument& InDocument) const;
+		static bool IsFlat(const FMetasoundFrontendDocument& InDocument);
 
-		bool IsFlat(const FMetasoundFrontendGraphClass& InRoot, const TArray<FMetasoundFrontendClass>& InDependencies) const;
-
-		/* Metasound document should be in order to create this graph. */
-		TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendDocument& InDocument) const;
+		static bool IsFlat(const FMetasoundFrontendGraphClass& InRoot, const TArray<FMetasoundFrontendClass>& InDependencies);
 
 		/* Metasound document should be in order to create this graph. */
-		TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendGraphClass& InGraph, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies) const;
+		static TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendDocument& InDocument);
 
+		/* Metasound document should be in order to create this graph. */
+		static TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies);
 
 	private:
+		struct FDefaultVariableData
+		{
+			FGuid DestinationNodeID;
+			FGuid DestinationVertexID;
+			FVertexKey DestinationVertexKey;
+			FName TypeName;
+			FVariableNodeConstructorParams InitParams;
+		};
+
+		// Map of Input VertexID to variable data required to construct and connect default variable
 		using FDependencyByIDMap = TMap<FGuid, const FMetasoundFrontendClass*>;
 		using FSharedNodeByIDMap = TMap<FGuid, TSharedPtr<const INode>>;
+		using FDefaultInputByIDMap = TMap<FGuid, FDefaultVariableData>;
 
+		// Context used throughout entire graph build process
+		// (for both a root and nested subgraphs)
 		struct FBuildContext
 		{
 			FDependencyByIDMap FrontendClasses;
 			FSharedNodeByIDMap Graphs;
 		};
 
-		bool SortSubgraphDependencies(TArray<const FMetasoundFrontendGraphClass*>& Subgraphs) const;
+		// Transient context used for building a specific graph
+		struct FBuildGraphContext
+		{
+			TUniquePtr<FFrontendGraph> Graph;
+			const FMetasoundFrontendGraphClass& GraphClass;
+			FBuildContext& BuildContext;
 
-		TUniquePtr<FFrontendGraph> CreateGraph(FBuildContext& InContext, const FMetasoundFrontendGraphClass& InSubgraph) const;
+			FDefaultInputByIDMap DefaultInputs;
+		};
 
-		const FMetasoundFrontendClassInput* FindClassInputForInputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InInputNode, int32& OutClassInputIndex) const;
+		static TArray<FDefaultVariableData> GetInputDefaultVariableData(const FMetasoundFrontendNode& InNode, const FNodeInitData& InInitData);
 
-		const FMetasoundFrontendClassOutput* FindClassOutputForOutputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InOutputNode, int32& OutClassOutputIndex) const;
+		static bool SortSubgraphDependencies(TArray<const FMetasoundFrontendGraphClass*>& Subgraphs);
 
-		const FMetasoundFrontendLiteral* FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const;
+		static TUniquePtr<FFrontendGraph> CreateGraph(FBuildContext& InContext, const FMetasoundFrontendGraphClass& InSubgraph);
 
-		TUniquePtr<INode> CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const;
+		static const FMetasoundFrontendClassInput* FindClassInputForInputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InInputNode, int32& OutClassInputIndex);
+		static const FMetasoundFrontendClassOutput* FindClassOutputForOutputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InOutputNode, int32& OutClassOutputIndex);
+		static const FMetasoundFrontendLiteral* FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput);
 
-		TUniquePtr<INode> CreateOutputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InExternal) const;
-
-		TUniquePtr<INode> CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass) const;
+		static TUniquePtr<INode> CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput);
+		static TUniquePtr<INode> CreateOutputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext);
+		static TUniquePtr<INode> CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext);
 
 		// TODO: add errors here. Most will be a "PromptIfMissing"...
-		void AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const FDependencyByIDMap& InClasses, const FSharedNodeByIDMap& InSubgraphs, FFrontendGraph& OutGraph) const;
-
-		void AddEdgesToGraph(const FMetasoundFrontendGraph& InGraphDescription, FFrontendGraph& OutGraph) const;
+		static void AddNodesToGraph(FBuildGraphContext& InGraphContext);
+		static void AddEdgesToGraph(FBuildGraphContext& InGraphContext);
+		static void AddDefaultInputVariables(FBuildGraphContext& InGraphContext);
 	};
 }

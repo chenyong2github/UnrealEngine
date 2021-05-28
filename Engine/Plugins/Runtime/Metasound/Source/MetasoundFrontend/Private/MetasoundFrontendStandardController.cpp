@@ -462,7 +462,37 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
-		const FMetasoundFrontendLiteral* FBaseInputController::GetDefaultLiteral() const 
+		const FMetasoundFrontendLiteral* FBaseInputController::GetLiteral() const
+		{
+			if (NodeVertexPtr.IsValid() && OwningNode->IsValid())
+			{
+				const FGuid& VertexID = NodeVertexPtr->VertexID;
+				return OwningNode->GetInputLiteral(VertexID);
+			}
+
+			return nullptr;
+		}
+
+		void FBaseInputController::SetLiteral(const FMetasoundFrontendLiteral& InLiteral)
+		{
+			if (NodeVertexPtr.IsValid() && OwningNode->IsValid())
+			{
+				const FGuid& VertexID = NodeVertexPtr->VertexID;
+				if (const FMetasoundFrontendLiteral* ClassLiteral = GetClassDefaultLiteral())
+				{
+					// Clear if equivalent to class default as fallback is the class default
+					if (ClassLiteral->IsEquivalent(InLiteral))
+					{
+						OwningNode->ClearInputLiteral(VertexID);
+						return;
+					}
+				}
+
+				OwningNode->SetInputLiteral(FMetasoundFrontendVertexLiteral{ VertexID, InLiteral });
+			}
+		}
+
+		const FMetasoundFrontendLiteral* FBaseInputController::GetClassDefaultLiteral() const
 		{
 			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
 			{
@@ -671,7 +701,6 @@ namespace Metasound
 			return false;
 		}
 
-
 		const FMetasoundFrontendEdge* FBaseInputController::FindEdge() const
 		{
 			if (GraphPtr.IsValid())
@@ -784,11 +813,6 @@ namespace Metasound
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
-		}
-
-		const FMetasoundFrontendLiteral* FOutputNodeInputController::GetDefaultLiteral() const
-		{
-			return nullptr;
 		}
 
 		FDocumentAccess FOutputNodeInputController::ShareAccess() 
@@ -925,6 +949,68 @@ namespace Metasound
 				return ClassPtr->ID;
 			}
 			return Metasound::FrontendInvalidID;
+		}
+
+		const FMetasoundFrontendLiteral* FBaseNodeController::GetInputLiteral(const FGuid& InVertexID) const
+		{
+			if (NodePtr.IsValid())
+			{
+				for (const FMetasoundFrontendVertexLiteral& VertexLiteral : NodePtr->InputLiterals)
+				{
+					if (VertexLiteral.VertexID == InVertexID)
+					{
+						return &VertexLiteral.Value;
+					}
+				}
+			}
+
+			return nullptr;
+		}
+
+		void FBaseNodeController::SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral)
+		{
+			if (NodePtr.IsValid())
+			{
+				auto IsInputVertex = [InVertexLiteral] (const FMetasoundFrontendVertex& Vertex)
+				{
+					return InVertexLiteral.VertexID == Vertex.VertexID;
+				};
+
+				FMetasoundFrontendNodeInterface& NodeInterface = NodePtr->Interface;
+				if (!ensure(NodeInterface.Inputs.ContainsByPredicate(IsInputVertex)))
+				{
+					return;
+				}
+
+				for (FMetasoundFrontendVertexLiteral& VertexLiteral : NodePtr->InputLiterals)
+				{
+					if (VertexLiteral.VertexID == InVertexLiteral.VertexID)
+					{
+						if (ensure(VertexLiteral.Value.GetType() == InVertexLiteral.Value.GetType()))
+						{
+							VertexLiteral = InVertexLiteral;
+						}
+						return;
+					}
+				}
+
+				NodePtr->InputLiterals.Add(InVertexLiteral);
+			}
+		}
+
+		bool FBaseNodeController::ClearInputLiteral(FGuid InVertexID)
+		{
+			if (NodePtr.IsValid())
+			{
+				auto IsInputVertex = [InVertexID](const FMetasoundFrontendVertexLiteral& VertexLiteral)
+				{
+					return InVertexID == VertexLiteral.VertexID;
+				};
+
+				return NodePtr->InputLiterals.RemoveAllSwap(IsInputVertex, false) > 0;
+			}
+
+			return false;
 		}
 
 		const FMetasoundFrontendClassInterface& FBaseNodeController::GetClassInterface() const
@@ -1901,7 +1987,6 @@ namespace Metasound
 			return Access;
 		}
 
-
 		// 
 		// FGraphController
 		//
@@ -2315,7 +2400,7 @@ namespace Metasound
 							NewOutput.NodeID = Node.ID;
 
 							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
-							return GetNodeHandle(FGraphController::FNodeAndClass{NodePtr, OutputClass});
+							return GetNodeHandle(FGraphController::FNodeAndClass { NodePtr, OutputClass });
 						}
 					}
 					else 
@@ -2561,6 +2646,7 @@ namespace Metasound
 						return RemoveOutput(*Desc);
 					}
 
+					case EMetasoundFrontendClassType::Variable:
 					case EMetasoundFrontendClassType::External:
 					case EMetasoundFrontendClassType::Graph:
 					{
@@ -2570,7 +2656,7 @@ namespace Metasound
 					default:
 					case EMetasoundFrontendClassType::Invalid:
 					{
-						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 4, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
+						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 5, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
 						checkNoEntry();
 					}
 				}
@@ -2626,15 +2712,13 @@ namespace Metasound
 			TArray<FMetasoundFrontendGraphClass> Subgraphs = OwningDocument->GetSubgraphs();
 			TArray<FMetasoundFrontendClass> Dependencies = OwningDocument->GetDependencies();
 
-			FFrontendGraphBuilder GraphBuilder;
-			TUniquePtr<FFrontendGraph> Graph = GraphBuilder.CreateGraph(*GraphClassPtr, Subgraphs, Dependencies);
+			TUniquePtr<FFrontendGraph> Graph = FFrontendGraphBuilder::CreateGraph(*GraphClassPtr, Subgraphs, Dependencies);
 
 			if (!Graph.IsValid())
 			{
 				return TUniquePtr<IOperator>(nullptr);
 			}
 
-			// Step 5: Invoke Operator Builder
 			FOperatorBuilder OperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings());
 			FBuildGraphParams BuildParams{*Graph, InSettings, FDataReferenceCollection{}, InEnvironment};
 			return OperatorBuilder.BuildGraphOperator(BuildParams, OutBuildErrors);
@@ -2661,7 +2745,6 @@ namespace Metasound
 					Node.ID = FGuid::NewGuid();
 
 					FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
-
 					return GetNodeHandle(FGraphController::FNodeAndClass{NodePtr, InExistingDependency});
 				}
 			}
@@ -3380,6 +3463,24 @@ namespace Metasound
 			}
 
 			return MetasoundClass;
+		}
+
+		void FDocumentController::SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata)
+		{
+			if (DocumentPtr.IsValid())
+			{
+				DocumentPtr->Metadata = InMetadata;
+			}
+		}
+
+		const FMetasoundFrontendDocumentMetadata& FDocumentController::GetMetadata() const
+		{
+			if (DocumentPtr.IsValid())
+			{
+				return DocumentPtr->Metadata;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendDocumentMetadata>();
 		}
 
 		FConstClassAccessPtr FDocumentController::FindClass(const FNodeClassInfo& InNodeClass) const

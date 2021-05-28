@@ -135,23 +135,28 @@ namespace Metasound
 				{
 					TDataWriteReference<ToDataType> WriteReference = TDataWriteReferenceFactory<ToDataType>::CreateAny(InParams.OperatorSettings);
 
-					if (!InParams.InputDataReferences.ContainsDataReadReference<FromDataType>(GetInputName()))
+					const FString& InputName = GetInputName();
+					const bool bContainsRef = InParams.InputDataReferences.ContainsDataReadReference<FromDataType>(InputName);
+					if (bContainsRef)
 					{
-						if (ensure(InParams.Node.GetVertexInterface().ContainsInputVertex(GetInputName())))
-						{
-							// There should be something hooked up to the converter node. Report it as an error. 
-							FInputDataDestination Dest(InParams.Node, InParams.Node.GetVertexInterface().GetInputVertex(GetInputName()));
-							AddBuildError<FMissingInputDataReferenceError>(OutErrors, Dest);
-						}
+						TDataReadReference<FromDataType> ReadReference = InParams.InputDataReferences.GetDataReadReference<FromDataType>(InputName);
+						return MakeUnique<FConverterOperator>(ReadReference, WriteReference);
+					}
 
-						// We can still build something even though there is an error. 
+					if constexpr (TIsParsable<FromDataType>::Value)
+					{
 						TDataReadReference<FromDataType> ReadReference = TDataReadReferenceFactory<FromDataType>::CreateAny(InParams.OperatorSettings);
 						return MakeUnique<FConverterOperator>(ReadReference, WriteReference);
 					}
 
-					TDataReadReference<FromDataType> ReadReference = InParams.InputDataReferences.GetDataReadReference<FromDataType>(GetInputName());
+					// Converter node requires parsable reference if input not connected. Report as an error.
+					if (ensure(InParams.Node.GetVertexInterface().ContainsInputVertex(InputName)))
+					{
+						FInputDataDestination Dest(InParams.Node, InParams.Node.GetVertexInterface().GetInputVertex(GetInputName()));
+						AddBuildError<FMissingInputDataReferenceError>(OutErrors, Dest);
+					}
 
-					return MakeUnique<FConverterOperator>(ReadReference, WriteReference);
+					return TUniquePtr<IOperator>(nullptr);
 				}
 		};
 

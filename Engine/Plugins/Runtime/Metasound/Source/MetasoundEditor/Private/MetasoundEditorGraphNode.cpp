@@ -248,9 +248,15 @@ void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 	{
 		GetMetasoundChecked().Modify();
 
-		FNodeHandle NodeHandle = GetNodeHandle();
-		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-		FGraphBuilder::AddOrUpdateLiteralInput(GetMetasoundChecked(), NodeHandle, *Pin);
+		FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
+		if (InputHandle->IsValid())
+		{
+			FMetasoundFrontendLiteral LiteralValue;
+			if (FGraphBuilder::GetPinLiteral(*Pin, LiteralValue))
+			{
+				InputHandle->SetLiteral(LiteralValue);
+			}
+		}
 	}
 }
 
@@ -351,12 +357,15 @@ void UMetasoundEditorGraphNode::PostEditChangeChainProperty(FPropertyChangedChai
 
 void UMetasoundEditorGraphNode::PostEditUndo()
 {
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
 	UEdGraphPin::ResolveAllPinReferences();
 
 	// This can trigger and the handle is no longer valid if transaction
 	// is being undone on a graph node that is orphaned.  If orphaned,
 	// bail early.
-	Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
+	FNodeHandle NodeHandle = GetNodeHandle();
 	if (!NodeHandle->IsValid())
 	{
 		return;
@@ -366,8 +375,7 @@ void UMetasoundEditorGraphNode::PostEditUndo()
 	{
 		if (Pin && Pin->Direction == EGPD_Input)
 		{
-			UObject& Metasound = GetMetasoundChecked();
-			Metasound::Editor::FGraphBuilder::AddOrUpdateLiteralInput(Metasound, NodeHandle, *Pin);
+			FGraphBuilder::SynchronizePinLiteral(*Pin);
 		}
 	}
 }
@@ -651,17 +659,16 @@ UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVe
 			FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(&Pin);
 			if (ConnectionInfo->DataType == InputHandle->GetDataType())
 			{
-				if (ConnectionInfo->PinsLinkedTo.IsEmpty())
+				Pin.DefaultValue = ConnectionInfo->DefaultValue;
+				FMetasoundFrontendLiteral LiteralValue;
+				if (FGraphBuilder::GetPinLiteral(Pin, LiteralValue))
 				{
-					Pin.DefaultValue = ConnectionInfo->DefaultValue;
-					FGraphBuilder::AddOrUpdateLiteralInput(Metasound, InputHandle->GetOwningNode(), Pin, true /* bForcePinValueAsDefault */);
+					InputHandle->SetLiteral(LiteralValue);
 				}
-				else
+
+				for (UEdGraphPin* OutputPin : ConnectionInfo->PinsLinkedTo)
 				{
-					for (UEdGraphPin* OutputPin : ConnectionInfo->PinsLinkedTo)
-					{
-						FGraphBuilder::ConnectNodes(Pin, *OutputPin, true /* bInConnectEdPins */);
-					}
+					FGraphBuilder::ConnectNodes(Pin, *OutputPin, true /* bInConnectEdPins */);
 				}
 			}
 		}

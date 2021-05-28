@@ -22,5 +22,12 @@ namespace Metasound
 			public:
 				bool Transform(FDocumentHandle InDocument) const override;
 		};
+
+		/** Base class for versioning a document. */
+		class METASOUNDFRONTEND_API FVersionDocument : public IDocumentTransform
+		{
+			public:
+				bool Transform(FDocumentHandle InDocument) const;
+		};
 	}
 }

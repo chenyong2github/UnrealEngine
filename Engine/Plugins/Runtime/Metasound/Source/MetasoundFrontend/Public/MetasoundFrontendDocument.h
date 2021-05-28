@@ -35,7 +35,10 @@ enum class EMetasoundFrontendClassType : uint8
 	// The Metasound class is an input into a graph in the containing document.
 	Input,
 
-	// The Metasound class is an input into a graph in the containing document.
+	// The Metasound class is an internal variable of a graph in the containing document.
+	Variable,
+
+	// The Metasound class is an output from a graph in the containing document.
 	Output,
 
 	Invalid UMETA(Hidden)
@@ -201,6 +204,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNodeInterface
 	TArray<FMetasoundFrontendVertex> Environment;
 };
 
+// DEPRECATED in Document Model v1.1
 UENUM()
 enum class EMetasoundFrontendNodeStyleDisplayVisibility : uint8
 {
@@ -213,7 +217,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNodeStyleDisplay
 {
 	GENERATED_BODY()
 
-	// Visibility state of node
+	// DEPRECATED in Document Model v1.1: Visibility state of node
 	UPROPERTY()
 	EMetasoundFrontendNodeStyleDisplayVisibility Visibility = EMetasoundFrontendNodeStyleDisplayVisibility::Visible;
 
@@ -465,6 +469,24 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassInput : public FMetasoundFro
 	FMetasoundFrontendLiteral DefaultLiteral;
 };
 
+// Contains info for variable vertex of a Metasound class.
+USTRUCT() 
+struct METASOUNDFRONTEND_API FMetasoundFrontendClassVariable : public FMetasoundFrontendClassVertex
+{
+	GENERATED_BODY()
+
+	FMetasoundFrontendClassVariable() = default;
+
+	FMetasoundFrontendClassVariable(const FMetasoundFrontendClassVertex& InOther);
+
+	virtual ~FMetasoundFrontendClassVariable() = default;
+
+	// Default value for this variable.
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	FMetasoundFrontendLiteral DefaultLiteral;
+};
+
+// Contains info for output vertex of a Metasound class.
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendClassOutput : public FMetasoundFrontendClassVertex
 {
@@ -734,7 +756,7 @@ struct FMetasoundFrontendDocumentMetadata
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FMetasoundFrontendVersion Format;
+	FMetasoundFrontendVersion Version;
 };
 
 
@@ -790,7 +812,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 
 	UPROPERTY()
 	TArray<FMetasoundFrontendGraphClass> Subgraphs;
-
 
 	UPROPERTY()
 	FMetasoundFrontendEditorData EditorData;

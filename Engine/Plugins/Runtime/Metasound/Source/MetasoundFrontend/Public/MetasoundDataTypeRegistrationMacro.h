@@ -23,6 +23,7 @@
 #include "MetasoundRouter.h"
 #include "MetasoundSendNode.h"
 #include "MetasoundTransmissionRegistration.h"
+#include "MetasoundVariableNode.h"
 
 #include <type_traits>
 
@@ -296,10 +297,10 @@ namespace Metasound
 
 			bAlreadyRegisteredThisDataType = true;
 
-			// Lambdas that generate our template-instantiated input and output nodes:
+			// Lambdas that generate our template-instantiated input, variable, and output nodes:
 			FCreateInputNodeFunction InputNodeConstructor = [](FInputNodeConstructorParams&& InParams) -> TUniquePtr<INode>
 			{
-				return TUniquePtr<INode>(new TInputNode<TDataType>(InParams.InNodeName, InParams.InInstanceID, InParams.InVertexName, MoveTemp(InParams.InitParam)));
+				return TUniquePtr<INode>(new TInputNode<TDataType>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam)));
 			};
 
 			FCreateMetasoundFrontendClassFunction CreateFrontendInputClass = []() -> FMetasoundFrontendClass
@@ -310,15 +311,27 @@ namespace Metasound
 				return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Input);
 			};
 
+			FCreateVariableNodeFunction VariableNodeConstructor = [](FVariableNodeConstructorParams&& InParams) -> TUniquePtr<INode>
+			{
+				return TUniquePtr<INode>(new TGetVariableNode<TDataType>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam)));
+			};
+
+			FCreateMetasoundFrontendClassFunction CreateFrontendVariableClass = []() -> FMetasoundFrontendClass
+			{
+				// Create class info using prototype node
+				static TGetVariableNode<TDataType> Prototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
+				return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
+			};
+
 			FCreateOutputNodeFunction OutputNodeConstructor = [](const FOutputNodeConstructorParams& InParams) -> TUniquePtr<INode>
 			{
-				return TUniquePtr<INode>(new TOutputNode<TDataType>(InParams.InNodeName, InParams.InInstanceID, InParams.InVertexName));
+				return TUniquePtr<INode>(new TOutputNode<TDataType>(InParams.NodeName, InParams.InstanceID, InParams.VertexName));
 			};
 
 			FCreateMetasoundFrontendClassFunction CreateFrontendOutputClass = []() -> FMetasoundFrontendClass
 			{
 				// Create class info using prototype node
-				// TODO: register input nodes with static class info.
+				// TODO: register output nodes with static class info.
 				static TOutputNode<TDataType> Prototype(TEXT(""), FGuid(), TEXT(""));
 				return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Output);
 			};
@@ -360,9 +373,11 @@ namespace Metasound
 			// Pack all of our various constructor lambdas to a single struct.
 			FDataTypeConstructorCallbacks Callbacks = 
 			{ 
-				MoveTemp(InputNodeConstructor), 
+				MoveTemp(InputNodeConstructor),
 				MoveTemp(CreateFrontendInputClass),
-				MoveTemp(OutputNodeConstructor), 
+				MoveTemp(VariableNodeConstructor),
+				MoveTemp(CreateFrontendVariableClass),
+				MoveTemp(OutputNodeConstructor),
 				MoveTemp(CreateFrontendOutputClass),
 				MoveTemp(ProxyGenerator),
 				MoveTemp(CreateDataChannelFunc)

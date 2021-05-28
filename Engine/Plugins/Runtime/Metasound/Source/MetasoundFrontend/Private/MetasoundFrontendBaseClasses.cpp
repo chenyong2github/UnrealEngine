@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundFrontendBaseClasses.h"
+
 #include "MetasoundDataReference.h"
-
 #include "MetasoundFrontendRegistries.h"
-
 
 
 namespace Metasound
@@ -16,9 +15,14 @@ namespace Metasound
 			return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InInputType, MoveTemp(InParams));
 		}
 
-		TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstructorParams& InParams)
+		TUniquePtr<INode> ConstructVariableNode(const FName& InVariableType, FVariableNodeConstructorParams&& InParams)
 		{
-			return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(InOutputType, InParams);
+			return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InVariableType, MoveTemp(InParams));
+		}
+
+		TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams)
+		{
+			return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(InOutputType, MoveTemp(InParams));
 		}
 
 		void RegisterPendingNodes()
@@ -27,5 +31,3 @@ namespace Metasound
 		}
 	}
 }
-
-

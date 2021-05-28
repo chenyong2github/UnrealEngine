@@ -198,7 +198,10 @@ namespace Metasound
 			const FName& GetDataType() const override;
 			const FString& GetName() const override;
 
-			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override;
+			const FMetasoundFrontendLiteral* GetLiteral() const override;
+			void SetLiteral(const FMetasoundFrontendLiteral& InLiteral) override;
+
+			const FMetasoundFrontendLiteral* GetClassDefaultLiteral() const override;
 
 			// Input metadata
 			const FText& GetDisplayName() const override;
@@ -269,8 +272,6 @@ namespace Metasound
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
 			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
-
-			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override;
 
 		protected:
 
@@ -352,6 +353,10 @@ namespace Metasound
 			// Info about this node.
 			FGuid GetID() const override;
 			FGuid GetClassID() const override;
+
+			bool ClearInputLiteral(FGuid InVertexID) override;
+			const FMetasoundFrontendLiteral* GetInputLiteral(const FGuid& InVertexID) const override;
+			void SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral) override;
 
 			const FMetasoundFrontendClassInterface& GetClassInterface() const override;
 			const FMetasoundFrontendClassMetadata& GetClassMetadata() const override;
@@ -637,11 +642,15 @@ namespace Metasound
 			void SetDescription(const FText& InDescription) override;
 			void SetDisplayName(const FText& InText) override;
 
+			// No-ops as inputs do not handle literals the same way as other nodes
+			bool ClearInputLiteral(FGuid InVertexID) override { return false; }
+			const FMetasoundFrontendLiteral* GetInputLiteral(const FGuid& InVertexID) const override { return nullptr; }
+			void SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral) override { }
+
 		protected:
 
 			FDocumentAccess ShareAccess() override;
 			FConstDocumentAccess ShareAccess() const override;
-
 
 
 		private:
@@ -793,11 +802,8 @@ namespace Metasound
 
 		private:
 
-			// Add/remove nodes
 			FNodeHandle AddNode(FConstClassAccessPtr InExistingDependency);
 			bool RemoveNode(const FMetasoundFrontendNode& InDesc);
-
-			// Remove inputs
 			bool RemoveInput(const FMetasoundFrontendNode& InNode);
 			bool RemoveOutput(const FMetasoundFrontendNode& InNode);
 
@@ -908,6 +914,9 @@ namespace Metasound
 			FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override;
 
 			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override;
+
+			void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override;
+			const FMetasoundFrontendDocumentMetadata& GetMetadata() const override;
 
 			void SynchronizeDependencies() override;
 

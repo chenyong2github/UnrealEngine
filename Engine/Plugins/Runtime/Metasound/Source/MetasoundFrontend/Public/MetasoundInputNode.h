@@ -4,16 +4,16 @@
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
 #include "MetasoundDataReference.h"
-#include "MetasoundOperatorInterface.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundOperatorInterface.h"
 #include "MetasoundTrigger.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundGraphCore"
+#define LOCTEXT_NAMESPACE "MetasoundFrontend"
 
 
 namespace Metasound
 {
-	/** TInputOperator supplies a writable input and a readable output. */
+	/** A writable input and a readable output. */
 	template<typename DataType>
 	class TInputOperator : public IOperator
 	{
@@ -88,7 +88,7 @@ namespace Metasound
 				return nullptr;
 			}
 
-		private:
+		protected:
 			FVertexKey DataReferenceName;
 
 			FDataWriteReference InputValue;
@@ -389,4 +389,4 @@ namespace Metasound
 		}
 	}
 } // namespace Metasound
-#undef LOCTEXT_NAMESPACE //MetasoundOutputNode
+#undef LOCTEXT_NAMESPACE // MetasoundFrontend
