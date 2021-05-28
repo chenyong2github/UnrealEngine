@@ -7,6 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Framework/Layout/Overscroll.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SSegmentedControl.h"
 #include "Widgets/Views/SListView.h"

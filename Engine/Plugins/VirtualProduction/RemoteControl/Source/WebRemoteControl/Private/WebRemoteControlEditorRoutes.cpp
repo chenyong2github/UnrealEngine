@@ -31,6 +31,8 @@
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
 
+#include "Styling/SlateBrush.h"
+
 void FWebRemoteControlEditorRoutes::RegisterRoutes(FWebRemoteControlModule* WebRemoteControl)
 {
 	if (FConsoleManager::Get().FindConsoleVariable(TEXT("WebControl.EnableExperimentalRoutes"))->GetBool())

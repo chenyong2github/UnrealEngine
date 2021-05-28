@@ -8,6 +8,7 @@
 #include "Misc/PackageName.h"
 #include "PackageTools.h"
 #include "SourceControlOperations.h"
+#include "UObject/Linker.h"
 #include "UObject/Package.h"
 
 DEFINE_LOG_CATEGORY(LogSourceControlUtils);

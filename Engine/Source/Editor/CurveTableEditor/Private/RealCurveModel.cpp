@@ -4,7 +4,7 @@
 #include "CurveDrawInfo.h"
 
 #include "Curves/RealCurve.h"
-
+#include "Styling/AppStyle.h"
 
 FRealCurveModel::FRealCurveModel(FRealCurve* InRealCurve, UObject* InOwner)
 	: WeakOwner(InOwner)
