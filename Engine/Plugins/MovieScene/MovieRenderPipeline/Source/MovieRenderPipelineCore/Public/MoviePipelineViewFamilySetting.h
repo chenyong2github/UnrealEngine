@@ -15,5 +15,5 @@ public:
 	virtual bool IsValidOnMaster() const override { return true; }
 
 	/** Allows all Output settings to affect the ViewFamily's Render settings before Rendering starts. */
-	virtual void SetupViewFamily(FSceneViewFamily& ViewFamily) PURE_VIRTUAL(UMoviePipelineViewFamilySetting::SetupViewFamily);
+	virtual void SetupViewFamily(FSceneViewFamily& ViewFamily) PURE_VIRTUAL(UMoviePipelineViewFamilySetting::SetupViewFamily, );
 };
