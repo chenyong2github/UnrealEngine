@@ -7,6 +7,7 @@ import { ResolveResult, IntegrationTarget, isExecP4Error, OpenedFileRecord, Perf
 import { convertIntegrateToEdit } from "../common/p4util";
 import { VersionReader } from "../common/version";
 import { IPCControls } from "./bot-interfaces";
+import { PauseState } from "./state-interfaces";
 import { BlockagePauseInfo, ReconsiderArgs } from "./status-types";
 import { AlreadyIntegrated, Branch, ChangeInfo, ConflictingFile, Failure, MergeAction, MergeMode, PendingChange } from "./branch-interfaces";
 import { PersistentConflict } from "./conflict-interfaces";
@@ -900,9 +901,13 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		this.sourceNode.reconsider(instigator, changeCl, {targetBranchName: this.targetBranch.name, ...(additionalArgs || {})})
 	}
 
-	acknowledgeConflict = this.sourceNode.acknowledgeConflict.bind(this.sourceNode)
-	unacknowledgeConflict = this.sourceNode.unacknowledgeConflict.bind(this.sourceNode)
+	acknowledgeConflict(acknowledger: string, changeCl: number, pauseState: PauseState, blockageInfo: BlockagePauseInfo) {
+		return this.sourceNode.acknowledgeConflict(acknowledger, changeCl, pauseState, blockageInfo)
+	}
 
+	unacknowledgeConflict(changeCl: number, pauseState: PauseState, blockageInfo: BlockagePauseInfo) {
+		return this.sourceNode.unacknowledgeConflict(changeCl, pauseState, blockageInfo)
+	}
 }
 
 abstract class EdgeBotEntryPoints implements IPCControls {
