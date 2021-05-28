@@ -46,6 +46,11 @@ void USingleSelectionMeshEditingToolBuilder::InitializeNewTool(USingleSelectionM
 	{
 		NewTool->SetAssetAPI(AssetAPI);
 	}
+
+	if (WantsInputSelectionIfAvailable() && SceneState.StoredToolSelection != nullptr)
+	{
+		NewTool->SetInputSelection(SceneState.StoredToolSelection);
+	}
 }
 
 
