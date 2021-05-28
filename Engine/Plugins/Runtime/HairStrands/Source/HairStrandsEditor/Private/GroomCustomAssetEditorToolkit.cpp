@@ -263,7 +263,7 @@ void FGroomCustomAssetEditorToolkit::InitPreviewComponents()
 #endif
 }
 
-bool FGroomCustomAssetEditorToolkit::OnRequestClose() 
+void FGroomCustomAssetEditorToolkit::OnClose() 
 {
 	//FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(PropertyListenDelegate);
 	if (GroomAsset.IsValid() && PropertyListenDelegate.IsValid())
@@ -284,8 +284,6 @@ bool FGroomCustomAssetEditorToolkit::OnRequestClose()
 #if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	DetailView_PreviewGroomComponent.Reset();
 #endif
-
-	return FAssetEditorToolkit::OnRequestClose();
 }
 
 void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UGroomAsset* InCustomAsset)
