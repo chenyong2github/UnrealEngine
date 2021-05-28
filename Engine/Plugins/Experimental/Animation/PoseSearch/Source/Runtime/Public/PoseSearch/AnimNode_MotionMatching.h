@@ -47,6 +47,12 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category=Debug)
 	bool bDebugDraw = false;
+
+	UPROPERTY(EditAnywhere, Category=Debug)
+	bool bDebugDrawGoal = true;
+
+	UPROPERTY(EditAnywhere, Category=Debug)
+	bool bDebugDrawMatch = true;
 #endif
 
 	// FAnimNode_Base interface

@@ -177,16 +177,24 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 		check(SkeletalMeshComponent);
 
 		UE::PoseSearch::FDebugDrawParams DrawParams;
+		DrawParams.Flags = UE::PoseSearch::EDebugDrawFlags::None;
 		DrawParams.RootTransform = SkeletalMeshComponent->GetComponentTransform();
-		DrawParams.Flags = UE::PoseSearch::EDebugDrawFlags::DrawBest;
 		DrawParams.Database = Database;
 		DrawParams.Query = ComposedQuery.GetValues();
 		DrawParams.World = SkeletalMeshComponent->GetWorld();
 		DrawParams.DefaultLifeTime = 0.0f;
 		DrawParams.HighlightPoseIdx = DbPoseIdx;
-		UE::PoseSearch::Draw(DrawParams);
 
-		DrawParams.Flags = UE::PoseSearch::EDebugDrawFlags::DrawQuery;
+		if (bDebugDrawMatch)
+		{
+			DrawParams.Flags |= UE::PoseSearch::EDebugDrawFlags::DrawBest;
+		}
+
+		if (bDebugDrawGoal)
+		{
+			DrawParams.Flags |= UE::PoseSearch::EDebugDrawFlags::DrawQuery;
+		}
+
 		UE::PoseSearch::Draw(DrawParams);
 	}
 #endif
