@@ -43,6 +43,9 @@ namespace Audio
 		// returns true if the name is running
 		bool IsClockRunning(const FName& InClockName);
 
+		// Returns the duration in seconds of the given Quantization Type, or -1 if the Clock is invalid or nonexistent
+		float GetDurationOfQuantizationTypeInSeconds(const FName& InClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier);
+
 		// remove existing clock
 		// safe to call from AudioThread (uses Audio Render Thread Command)
 		void RemoveClock(const FName& InName);

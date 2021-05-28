@@ -387,6 +387,16 @@ bool UQuartzSubsystem::IsClockRunning(const UObject* WorldContextObject, FName C
 	return ClockManager->IsClockRunning(ClockName);
 }
 
+float UQuartzSubsystem::GetDurationOfQuantizationTypeInSeconds(const UObject* WorldContextObject, FName ClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier)
+{
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
+	if (!ClockManager)
+	{
+		return -1;
+	}
+
+	return ClockManager->GetDurationOfQuantizationTypeInSeconds(ClockName, QuantizationType, Multiplier);
+}
 
 float UQuartzSubsystem::GetGameThreadToAudioRenderThreadAverageLatency(const UObject* WorldContextObject)
 {
