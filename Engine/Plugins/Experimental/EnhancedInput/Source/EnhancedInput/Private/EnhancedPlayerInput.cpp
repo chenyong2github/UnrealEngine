@@ -2,6 +2,7 @@
 
 #include "EnhancedPlayerInput.h"
 #include "EnhancedInputComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "InputModifiers.h"
 #include "InputTriggers.h"
 
@@ -28,6 +29,7 @@ ETriggerEventInternal UEnhancedPlayerInput::GetTriggerStateChangeEvent(ETriggerS
 	// Ongoing	 -> Ongoing		= Ongoing
 	// Ongoing	 -> Triggered	= Triggered
 	// Triggered -> Triggered	= Triggered
+	// Triggered -> Ongoing		= Ongoing
 	// Triggered -> None	    = Completed
 
 	switch (LastTriggerState)
@@ -60,6 +62,10 @@ ETriggerEventInternal UEnhancedPlayerInput::GetTriggerStateChangeEvent(ETriggerS
 		if (NewTriggerState == ETriggerState::Triggered)
 		{
 			return ETriggerEventInternal::Triggered;	// Don't re-raise Started event for multiple completed ticks.
+		}
+		else if (NewTriggerState == ETriggerState::Ongoing)
+		{
+			return ETriggerEventInternal::Ongoing;
 		}
 		else if (NewTriggerState == ETriggerState::None)
 		{
@@ -182,6 +188,11 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 	// Process Action bindings
 	ActionsWithEventsThisTick.Reset();
 
+	// Use non-dilated delta time for processing
+	check(GetOuterAPlayerController());
+	const float Dilation = GetOuterAPlayerController()->GetActorTimeDilation();
+	const float NonDilatedDeltaTime = DeltaTime / Dilation;
+
 	// Handle input devices, applying modifiers and triggers
 	for (FEnhancedActionKeyMapping& Mapping : EnhancedActionMappings)
 	{
@@ -209,7 +220,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		EKeyEvent KeyEvent = bKeyIsHeld ? EKeyEvent::Held : ((bKeyIsDown || bKeyIsReleased) ? EKeyEvent::Actuated : EKeyEvent::None);
 
 		// Perform update
-		ProcessActionMappingEvent(Mapping.Action, DeltaTime, bGamePaused, RawKeyValue, KeyEvent, Mapping.Modifiers, Mapping.Triggers);
+		ProcessActionMappingEvent(Mapping.Action, NonDilatedDeltaTime, bGamePaused, RawKeyValue, KeyEvent, Mapping.Modifiers, Mapping.Triggers);
 	}
 
 
@@ -226,7 +237,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		else if (!InputsInjectedThisTick.Contains(InjectedAction))
 		{
 			// Reset action state by "releasing the key".
-			ProcessActionMappingEvent(InjectedAction, DeltaTime, bGamePaused, FInputActionValue(), EKeyEvent::Actuated, {}, {});
+			ProcessActionMappingEvent(InjectedAction, NonDilatedDeltaTime, bGamePaused, FInputActionValue(), EKeyEvent::Actuated, {}, {});
 			It.RemoveCurrent();
 		}
 	}
@@ -249,7 +260,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		for (FInjectedInput& InjectedInput : InjectedPair.Value.Injected)
 		{
 			// Perform update
-			ProcessActionMappingEvent(InjectedAction, DeltaTime, bGamePaused, InjectedInput.RawValue, KeyEvent, InjectedInput.Modifiers, InjectedInput.Triggers);
+			ProcessActionMappingEvent(InjectedAction, NonDilatedDeltaTime, bGamePaused, InjectedInput.RawValue, KeyEvent, InjectedInput.Modifiers, InjectedInput.Triggers);
 		}
 	}
 	InputsInjectedThisTick.Reset();
@@ -267,10 +278,10 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		if (ActionsWithEventsThisTick.Contains(Action))
 		{
 			// Apply modifiers
-			ActionData.Value = ApplyModifiers(ActionData.Modifiers, ActionData.Value, DeltaTime);
+			ActionData.Value = ApplyModifiers(ActionData.Modifiers, ActionData.Value, NonDilatedDeltaTime);
 
 			// Evaluate triggers
-			TriggerState = CalcTriggerState(ActionData.Triggers, ActionData.Value, DeltaTime);
+			TriggerState = CalcTriggerState(ActionData.Triggers, ActionData.Value, NonDilatedDeltaTime);
 
 			// Any mapping triggers applied should limit the final state.
 			TriggerState = ActionData.bMappingTriggerApplied ? FMath::Min(TriggerState, ActionData.MappingTriggerState) : TriggerState;
@@ -288,8 +299,8 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		ActionData.TriggerEvent = ConvertInternalTriggerEvent(ActionData.TriggerEventInternal);
 		ActionData.LastTriggerState = TriggerState;
 		// Evaluate time per action after establishing the internal trigger state across all mappings
-		ActionData.ElapsedProcessedTime += TriggerState != ETriggerState::None ? DeltaTime : 0.f;
-		ActionData.ElapsedTriggeredTime += (ActionData.TriggerEvent == ETriggerEvent::Triggered) ? DeltaTime : 0.f;
+		ActionData.ElapsedProcessedTime += TriggerState != ETriggerState::None ? NonDilatedDeltaTime : 0.f;
+		ActionData.ElapsedTriggeredTime += (ActionData.TriggerEvent == ETriggerEvent::Triggered) ? NonDilatedDeltaTime : 0.f;
 	}
 
 
@@ -312,6 +323,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		}
 
 		// Trigger bound event delegates
+		static TArray<TUniquePtr<FEnhancedInputActionEventBinding>> TriggeredDelegates;
 		for (const TUniquePtr<FEnhancedInputActionEventBinding>& Binding : IC->GetActionEventBindings())
 		{
 			// PERF: Lots of map lookups! Group EnhancedActionBindings by Action?
@@ -321,10 +333,22 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 				if (ActionData->TriggerEvent == Binding->GetTriggerEvent() ||
 					(Binding->GetTriggerEvent() == ETriggerEvent::Started && ActionData->TriggerEventInternal == ETriggerEventInternal::StartedAndTriggered))	// Triggering in a single tick should also fire the started event.
 				{
-					Binding->Execute(*ActionData);
+					// Record intent to trigger
+					TriggeredDelegates.Add(Binding->Clone());
 				}
 			}
 		}
+
+		// Action all delegates that triggered this tick, in the order in which they triggered.
+		for (TUniquePtr<FEnhancedInputActionEventBinding>& Delegate : TriggeredDelegates)
+		{
+			// Search for the action instance data a second time as a previous delegate call may have deleted it.
+			if (const FInputActionInstance* ActionData = FindActionInstanceData(Delegate->GetAction()))
+			{
+				Delegate->Execute(*ActionData);
+			}
+		}
+		TriggeredDelegates.Reset();
 
 		// Update action value bindings
 		for (const FEnhancedInputActionValueBinding& Binding : IC->GetActionValueBindings())
@@ -342,6 +366,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		// No support for the 'Any Key' concept. Explicit key binds only.
 		// They will always fire, and cannot mask each other or action bindings (i.e. no bConsumeInput option)
 		// Chords are supported, but there is no chord masking protection. Exact chord combinations must be met. So a binding of Ctrl + A will not fire if Ctrl + Alt + A is pressed.
+		static TArray<TUniquePtr<FInputDebugKeyBinding>> TriggeredDebugDelegates;
 		for (const TUniquePtr<FInputDebugKeyBinding>& KeyBinding : IC->GetDebugKeyBindings())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_DebugKeys);
@@ -361,11 +386,19 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 					FKeyState* KeyState = KeyStateMap.Find(KeyBinding->Chord.Key);
 					if (KeyState && KeyState->EventCounts[KeyBinding->KeyEvent].Num() > 0)
 					{
-						KeyBinding->Execute();
+						// Record intent to trigger
+						TriggeredDebugDelegates.Add(KeyBinding->Clone());
 					}
 				}
 			}
 		}
+
+		// Action all debug delegates that triggered this tick, in the order in which they triggered.
+		for (TUniquePtr<FInputDebugKeyBinding>& Delegate : TriggeredDebugDelegates)
+		{
+			Delegate->Execute();
+		}
+		TriggeredDebugDelegates.Reset();
 #endif
 
 
@@ -420,13 +453,13 @@ FInputActionValue UEnhancedPlayerInput::GetActionValue(const UInputAction* ForAc
 }
 
 
-FEnhancedActionKeyMapping& UEnhancedPlayerInput::AddMapping(const FEnhancedActionKeyMapping& Mapping)
+int32 UEnhancedPlayerInput::AddMapping(const FEnhancedActionKeyMapping& Mapping)
 {
 	int32 MappingIndex = EnhancedActionMappings.AddUnique(Mapping);
 	++EnhancedKeyBinds.FindOrAdd(Mapping.Key);
 	bKeyMapsBuilt = false;
 
-	return EnhancedActionMappings[MappingIndex];
+	return MappingIndex;
 }
 
 void UEnhancedPlayerInput::ClearAllMappings()

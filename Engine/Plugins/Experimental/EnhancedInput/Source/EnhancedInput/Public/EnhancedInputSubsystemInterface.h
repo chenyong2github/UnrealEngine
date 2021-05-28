@@ -94,6 +94,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|Mapping Queries")	// TODO: BlueprintPure would be nicer. Move into library?
 	virtual bool HasMappingContext(const UInputMappingContext* MappingContext) const;
 
+	/**
+	 * Returns the keys mapped to the given action in the active input mapping contexts.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|Mapping Queries")
+	virtual TArray<FKey> QueryKeysMappedToAction(const UInputAction* Action) const;
+
 private:
 
 	// Forced actions/keys for debug. These will be applied each tick once set even if zeroed, until removed. 
@@ -103,7 +109,7 @@ private:
 	void RemoveForcedInput(FKey Key);
 	void TickForcedInput(float DeltaTime);
 
-	void InjectChordBlockers(const TMap<struct FEnhancedActionKeyMapping*, int32>& ChordedMappings);
+	void InjectChordBlockers(const TArray<int32>& ChordedMappings);
 	bool HasTriggerWith(TFunctionRef<bool(const class UInputTrigger*)> TestFn, const TArray<class UInputTrigger*>& Triggers);
 
 	/** Reapply all control mappings to players pending a rebuild */

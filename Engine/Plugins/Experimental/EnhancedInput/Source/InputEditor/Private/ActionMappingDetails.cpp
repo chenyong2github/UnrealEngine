@@ -154,7 +154,7 @@ void FActionMappingsNodeBuilder::AddActionMappingButton_OnClick()
 		DelayedGroupExpansionStates.Emplace(nullptr, true);
 		InputContext->MapKey(nullptr, FKey());
 
-		ActionMappingsPropertyHandle->NotifyPostChange();
+		ActionMappingsPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	}
 }
 
@@ -208,7 +208,7 @@ void FActionMappingsNodeBuilder::AddActionMappingToGroupButton_OnClick(const FMa
 		DelayedGroupExpansionStates.Emplace(MappingSet.SharedAction, true);
 		InputContext->MapKey(MappingSet.SharedAction, FKey());
 
-		ActionMappingsPropertyHandle->NotifyPostChange();
+		ActionMappingsPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	}
 }
 

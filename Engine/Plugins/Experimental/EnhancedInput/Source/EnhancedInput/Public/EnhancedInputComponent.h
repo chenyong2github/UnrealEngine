@@ -91,6 +91,8 @@ public:
 };
 
 
+// Used to force clone constructor calls only
+enum class EInputBindingClone : uint8 { ForceClone };
 
 /** A basic binding unique identifier */
 struct FInputBindingHandle
@@ -100,6 +102,7 @@ private:
 
 protected:
 	ENHANCEDINPUT_API FInputBindingHandle();	// Generates a handle
+	FInputBindingHandle(const FInputBindingHandle& CloneFrom, EInputBindingClone) : Handle(CloneFrom.Handle) {}	// Clones a handle
 
 public:
 	virtual ~FInputBindingHandle() = default;
@@ -123,6 +126,10 @@ private:
 	/** Trigger event that raises the delegate */
 	ETriggerEvent TriggerEvent = ETriggerEvent::None;
 
+protected:
+	// Clone constructor
+	FEnhancedInputActionEventBinding(const FEnhancedInputActionEventBinding& CloneFrom, EInputBindingClone Clone) : FInputBindingHandle(CloneFrom, Clone), Action(CloneFrom.Action), TriggerEvent(CloneFrom.TriggerEvent) {}
+
 public:
 	FEnhancedInputActionEventBinding() = default;
 	FEnhancedInputActionEventBinding(const UInputAction* InAction, ETriggerEvent InTriggerEvent) : Action(InAction), TriggerEvent(InTriggerEvent) {}
@@ -131,6 +138,7 @@ public:
 	ETriggerEvent GetTriggerEvent() const { return TriggerEvent; }
 
 	virtual void Execute(const FInputActionInstance& ActionData) const = 0;
+	virtual TUniquePtr<FEnhancedInputActionEventBinding> Clone() const = 0;
 };
 
 /** Binds an action value for later reference. CurrentValue will be kept up to date with the value of the bound action */
@@ -156,6 +164,16 @@ public:
 /** Binds a delegate to an event on a key chord. */
 struct FInputDebugKeyBinding : public FInputBindingHandle
 {
+protected:
+	// Clone constructor
+	FInputDebugKeyBinding(const FInputDebugKeyBinding& CloneFrom, EInputBindingClone Clone)
+		: FInputBindingHandle(CloneFrom, Clone)
+		, KeyEvent(CloneFrom.KeyEvent)
+		, bExecuteWhenPaused(CloneFrom.bExecuteWhenPaused)
+		, Chord(CloneFrom.Chord)
+	{ }
+
+public:
 	/** Key event to bind it to (e.g. pressed, released, double click) */
 	TEnumAsByte<EInputEvent> KeyEvent = EInputEvent::IE_Pressed;
 
@@ -174,6 +192,7 @@ struct FInputDebugKeyBinding : public FInputBindingHandle
 	{ }
 
 	virtual void Execute() const = 0;
+	virtual TUniquePtr<FInputDebugKeyBinding> Clone() const = 0;
 };
 // TODO:: Add FInputDebugKeyValueBinding?
 
@@ -188,11 +207,17 @@ struct FInputDebugKeyBinding : public FInputBindingHandle
 template<typename TSignature>
 struct FEnhancedInputActionEventDelegateBinding : FEnhancedInputActionEventBinding
 {
+private:
+	FEnhancedInputActionEventDelegateBinding(const FEnhancedInputActionEventDelegateBinding<TSignature>& CloneFrom, EInputBindingClone Clone) : FEnhancedInputActionEventBinding(CloneFrom, Clone), Delegate(CloneFrom.Delegate) {}
 public:
 	FEnhancedInputActionEventDelegateBinding(const UInputAction* Action, ETriggerEvent InTriggerEvent) : FEnhancedInputActionEventBinding(Action, InTriggerEvent) {}
 
 	// Implemented below.
 	virtual void Execute(const FInputActionInstance& ActionData) const override;
+	virtual TUniquePtr<FEnhancedInputActionEventBinding> Clone() const override
+	{
+		return TUniquePtr<FEnhancedInputActionEventBinding>(new FEnhancedInputActionEventDelegateBinding<TSignature>(*this, EInputBindingClone::ForceClone));
+	}
 
 	TEnhancedInputUnifiedDelegate<TSignature> Delegate;
 };
@@ -200,12 +225,18 @@ public:
 template<typename TSignature>
 struct FInputDebugKeyDelegateBinding : FInputDebugKeyBinding
 {
+private:
+	FInputDebugKeyDelegateBinding(const FInputDebugKeyDelegateBinding<TSignature>& CloneFrom, EInputBindingClone Clone) : FInputDebugKeyBinding(CloneFrom, Clone), Delegate(CloneFrom.Delegate) {}
 public:
 	FInputDebugKeyDelegateBinding(const FInputChord Chord, const EInputEvent KeyEvent, bool bExecuteWhenPaused) : FInputDebugKeyBinding(Chord, KeyEvent, bExecuteWhenPaused) {}
 
 	virtual void Execute() const override
 	{
-		Delegate.Execute(Chord.Key);	// TODO: Remove FKey param? We don't support AnyKey, so it isn't terribly useful.
+		Delegate.Execute(Chord.Key);	// TODO: Remove FKey param? We don't support AnyKey, so it isn't terribly useful. TODO: Provide key raw value param to support axis keys.
+	}
+	virtual TUniquePtr<FInputDebugKeyBinding> Clone() const override 
+	{
+		return TUniquePtr<FInputDebugKeyBinding>(new FInputDebugKeyDelegateBinding<TSignature>(*this, EInputBindingClone::ForceClone));
 	}
 
 	TEnhancedInputUnifiedDelegate<TSignature> Delegate;
