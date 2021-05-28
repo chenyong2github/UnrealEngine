@@ -708,20 +708,66 @@ inline FVector2D GetMSAASampleOffsets(int32 NumSamples, int32 SampleIndex)
 	return GRHIDefaultMSAASampleOffsets[CalculateMSAASampleArrayIndex(NumSamples, SampleIndex)];
 }
 
+enum class EPixelFormatCapabilities : uint32
+{
+    None             = 0,
+    Texture1D        = 1ull << 1,
+    Texture2D        = 1ull << 2,
+    Texture3D        = 1ull << 3,
+    TextureCube      = 1ull << 4,
+    RenderTarget     = 1ull << 5,
+    DepthStencil     = 1ull << 6,
+	TextureMipmaps   = 1ull << 7,
+	TextureLoad      = 1ull << 8,
+	TextureSample    = 1ull << 9,
+	TextureGather    = 1ull << 10,
+	TextureAtomics   = 1ull << 11,
+	TextureBlendable = 1ull << 12,
+
+	Buffer           = 1ull << 13,
+    VertexBuffer     = 1ull << 14,
+    IndexBuffer      = 1ull << 15,
+	BufferLoad       = 1ull << 16,
+    BufferStore      = 1ull << 17,
+    BufferAtomics    = 1ull << 18,
+
+    TypedUAVLoad     = 1ull << 19,
+    TypedUAVStore    = 1ull << 20,
+
+	AnyTexture = Texture1D | Texture2D | Texture3D | TextureCube,
+};
+ENUM_CLASS_FLAGS(EPixelFormatCapabilities);
+
 /** Information about a pixel format. */
 struct FPixelFormatInfo
 {
-	const TCHAR*	Name;
-	int32			BlockSizeX,
-					BlockSizeY,
-					BlockSizeZ,
-					BlockBytes,
-					NumComponents;
-	/** Platform specific token, e.g. D3DFORMAT with D3DDrv										*/
-	uint32			PlatformFormat;
+	FPixelFormatInfo() = delete;
+	FPixelFormatInfo(
+		EPixelFormat InUnrealFormat,
+		const TCHAR* InName,
+		int32 InBlockSizeX,
+		int32 InBlockSizeY,
+		int32 InBlockSizeZ,
+		int32 InBlockBytes,
+		int32 InNumComponents,
+		bool  InSupported);
+
+	const TCHAR*				Name;
+	EPixelFormat				UnrealFormat;
+	int32						BlockSizeX;
+	int32						BlockSizeY;
+	int32						BlockSizeZ;
+	int32						BlockBytes;
+	int32						NumComponents;
+
+	/** Per platform cabilities for the format */
+	EPixelFormatCapabilities	Capabilities{ EPixelFormatCapabilities::None };
+
+	/** Platform specific converted format */
+	uint32						PlatformFormat{ 0 };
+
 	/** Whether the texture format is supported on the current platform/ rendering combination	*/
-	bool			Supported;
-	EPixelFormat	UnrealFormat;
+	bool						Supported;
 };
 
 extern RHI_API FPixelFormatInfo GPixelFormats[PF_MAX];		// Maps members of EPixelFormat to a FPixelFormatInfo describing the format.
