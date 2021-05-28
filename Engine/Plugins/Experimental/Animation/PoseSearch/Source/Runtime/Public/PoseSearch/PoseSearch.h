@@ -471,7 +471,7 @@ public:
 	TArrayView<const float> GetNormalizedValues() const { return ValuesNormalized; }
 
 	void SetTransform(FPoseSearchFeatureDesc Feature, const FTransform& Transform);
-	void SetTransformDerivative(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
+	void SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetPosition(FPoseSearchFeatureDesc Feature, const FVector& Translation);
 	void SetRotation(FPoseSearchFeatureDesc Feature, const FQuat& Rotation);
 	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
