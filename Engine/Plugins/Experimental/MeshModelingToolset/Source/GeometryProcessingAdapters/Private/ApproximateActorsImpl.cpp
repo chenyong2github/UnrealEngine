@@ -794,6 +794,17 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 			UE::AssetUtils::ConvertToSingleChannel(Texture);
 		}
 
+		// Make sure the texture is a VT if required by the material sampler
+		if (NewMaterial != nullptr)
+		{
+			UTexture* DefaultTexture = nullptr;
+			NewMaterial->GetTextureParameterValue(MaterialParamName, DefaultTexture);
+			if (ensure(DefaultTexture))
+			{
+				Texture->VirtualTextureStreaming = DefaultTexture->VirtualTextureStreaming;
+			}
+		}
+
 		FTexture2DAssetOptions TexOptions;
 		TexOptions.NewAssetPath = BaseTexturePath + TextureTypeSuffix;
 		FTexture2DAssetResults Results;
@@ -865,6 +876,10 @@ UStaticMesh* FApproximateActorsImpl::EmitGeneratedMeshAsset(
 
 	MeshAssetOptions.NewAssetPath = Options.BasePackagePath;
 	MeshAssetOptions.SourceMeshes.DynamicMeshes.Add(FinalMesh);
+
+	MeshAssetOptions.bGenerateNaniteEnabledMesh = Options.bGenerateNaniteEnabledMesh;
+	MeshAssetOptions.NaniteProxyTrianglePercent = Options.NaniteProxyTrianglePercent;
+
 	if (Material)
 	{
 		MeshAssetOptions.AssetMaterials.Add(Material);
@@ -877,11 +892,11 @@ UStaticMesh* FApproximateActorsImpl::EmitGeneratedMeshAsset(
 
 	if (DebugMesh != nullptr)
 	{
-		FStaticMeshAssetOptions DebugMeshAssetOptions;
-		DebugMeshAssetOptions.CollisionType = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
-		DebugMeshAssetOptions.bEnableRecomputeTangents = false;
+		FStaticMeshAssetOptions DebugMeshAssetOptions = MeshAssetOptions;
 		DebugMeshAssetOptions.NewAssetPath = Options.BasePackagePath + TEXT("_DEBUG");
+		DebugMeshAssetOptions.SourceMeshes.DynamicMeshes.Reset(1);
 		DebugMeshAssetOptions.SourceMeshes.DynamicMeshes.Add(DebugMesh);
+
 		FStaticMeshResults DebugMeshAssetOutputs;
 		UE::AssetUtils::CreateStaticMeshAsset(DebugMeshAssetOptions, DebugMeshAssetOutputs);
 	}

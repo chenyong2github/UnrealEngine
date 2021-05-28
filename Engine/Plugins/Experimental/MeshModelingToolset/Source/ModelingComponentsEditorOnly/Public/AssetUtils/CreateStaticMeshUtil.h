@@ -62,6 +62,11 @@ namespace AssetUtils
 		// Controls whether or not the RecomputeTangents option will be enabled on the Asset
 		bool bEnableRecomputeTangents = true;
 
+		// Whether to generate a nanite-enabled mesh
+		bool bGenerateNaniteEnabledMesh = false;
+		// Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh
+		float NaniteProxyTrianglePercent = 100;
+
 		// Controls whether the UBodySetup on the Asset will be created (generally should be true)
 		bool bCreatePhysicsBody = true;
 		// set asset collision type

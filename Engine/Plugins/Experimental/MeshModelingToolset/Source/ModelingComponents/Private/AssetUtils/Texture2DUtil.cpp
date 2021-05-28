@@ -1,6 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "AssetUtils/Texture2DUtil.h"
+#include "EngineModule.h"
+#include "RendererInterface.h"
+#include "RenderUtils.h"
+
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -204,4 +210,136 @@ bool UE::AssetUtils::ConvertToSingleChannel(UTexture2D* TextureMap)
 	return false;
 #endif
 
+}
+
+
+bool UE::AssetUtils::ForceVirtualTexturePrefetch(FImageDimensions ScreenSpaceDimensions, bool bWaitForPrefetchToComplete)
+{
+	// Prefetch all virtual textures so that we have content available
+	if (UseVirtualTexturing(GMaxRHIFeatureLevel))
+	{
+		const FVector2D ScreenSpaceSize(ScreenSpaceDimensions.GetWidth(), ScreenSpaceDimensions.GetHeight());
+
+		ENQUEUE_RENDER_COMMAND(AssetUtils_ForceVirtualTexturePrefetch)(
+			[ScreenSpaceSize](FRHICommandListImmediate& RHICmdList)
+		{
+			GetRendererModule().RequestVirtualTextureTiles(ScreenSpaceSize, -1);
+			GetRendererModule().LoadPendingVirtualTextureTiles(RHICmdList, GMaxRHIFeatureLevel);
+		});
+
+		if (bWaitForPrefetchToComplete)
+		{
+			FlushRenderingCommands();
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+
+
+bool UE::AssetUtils::SaveDebugImage(
+	const TArray<FColor>& Pixels,
+	FImageDimensions Dimensions,
+	FString DebugSubfolder,
+	FString FilenameBase,
+	int32 UseFileCounter)
+{
+	static int32 CaptureIndex = 0;
+#if WITH_EDITOR
+	// Save capture result to a file to ease debugging
+	TRACE_CPUPROFILER_EVENT_SCOPE(AssetUtils_SaveDebugImage);
+
+	FString DirectoryPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir());
+	if (DebugSubfolder.Len() > 0)
+	{
+		DirectoryPath = FPaths::Combine(DirectoryPath, DebugSubfolder);
+	}
+	int32 FileCounter = (UseFileCounter > 0) ? UseFileCounter : CaptureIndex++;
+	FString Filename = FString::Printf(TEXT("%s-%04d.bmp"), *FilenameBase, FileCounter);
+	FString FilePath = FPaths::Combine(DirectoryPath, Filename);
+
+	return FFileHelper::CreateBitmap(*FilePath, Dimensions.GetWidth(), Dimensions.GetHeight(), Pixels.GetData());
+#else
+	return false;
+#endif
+}
+
+
+
+bool UE::AssetUtils::SaveDebugImage(
+	const TArray<FLinearColor>& Pixels,
+	FImageDimensions Dimensions,
+	bool bConvertToSRGB,
+	FString DebugSubfolder,
+	FString FilenameBase,
+	int32 UseFileCounter )
+{
+	static int32 CaptureIndex = 0;
+#if WITH_EDITOR
+	// Save capture result to a file to ease debugging
+	TRACE_CPUPROFILER_EVENT_SCOPE(AssetUtils_SaveDebugImage);
+
+	FString DirectoryPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir()); 
+	if (DebugSubfolder.Len() > 0)
+	{
+		DirectoryPath = FPaths::Combine(DirectoryPath, DebugSubfolder);
+	}
+	int32 FileCounter = (UseFileCounter > 0) ? UseFileCounter : CaptureIndex++;
+	FString Filename = FString::Printf(TEXT("%s-%04d.bmp"), *FilenameBase, FileCounter);
+	FString FilePath = FPaths::Combine(DirectoryPath, Filename);
+
+	TArray<FColor> ConvertedColor;
+	ConvertedColor.Reserve(Pixels.Num());
+	for (const FLinearColor& LinearColor : Pixels)
+	{
+		ConvertedColor.Add(LinearColor.ToFColor(bConvertToSRGB));
+	}
+
+	return FFileHelper::CreateBitmap(*FilePath, Dimensions.GetWidth(), Dimensions.GetHeight(), ConvertedColor.GetData());
+
+#else
+	return false;
+#endif
+}
+
+
+
+bool UE::AssetUtils::SaveDebugImage(
+	const FImageAdapter& Image,
+	bool bConvertToSRGB,
+	FString DebugSubfolder,
+	FString FilenameBase,
+	int32 UseFileCounter)
+{
+	static int32 CaptureIndex = 0;
+#if WITH_EDITOR
+	// Save capture result to a file to ease debugging
+	TRACE_CPUPROFILER_EVENT_SCOPE(AssetUtils_SaveDebugImage);
+
+	FString DirectoryPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir());
+	if (DebugSubfolder.Len() > 0)
+	{
+		DirectoryPath = FPaths::Combine(DirectoryPath, DebugSubfolder);
+	}
+	int32 FileCounter = (UseFileCounter > 0) ? UseFileCounter : CaptureIndex++;
+	FString Filename = FString::Printf(TEXT("%s-%04d.bmp"), *FilenameBase, FileCounter);
+	FString FilePath = FPaths::Combine(DirectoryPath, Filename);
+
+	FImageDimensions Dimensions = Image.GetDimensions();
+	int64 N = Dimensions.Num();
+	TArray<FColor> ConvertedColor;
+	ConvertedColor.Reserve(N);
+	for ( int64 i = 0; i < N; ++i )
+	{
+		FLinearColor LinearColor = (FLinearColor)Image.GetPixel(i);
+		ConvertedColor.Add(LinearColor.ToFColor(bConvertToSRGB));
+	}
+
+	return FFileHelper::CreateBitmap(*FilePath, Dimensions.GetWidth(), Dimensions.GetHeight(), ConvertedColor.GetData());
+#else
+	return false;
+#endif
 }

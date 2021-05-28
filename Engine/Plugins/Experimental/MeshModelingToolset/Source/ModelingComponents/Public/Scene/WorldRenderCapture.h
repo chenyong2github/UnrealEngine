@@ -110,6 +110,13 @@ public:
 		double NearPlaneDist,
 		FImageAdapter& ResultImageOut);
 
+	/**
+	 * Enable debug image write. The captured image will be written to <Project>/Intermediate/<FolderName>/<CaptureType>_<ImageCounter>.bmp
+	 * If FolderName is not specified, "WorldRenderCapture" is used by default.
+	 * If an ImageCounter is not specified, an internal static counter is used that increments on every write
+	 */
+	void SetEnableWriteDebugImage(bool bEnable, int32 ImageCounter = -1, FString FolderName = FString());
+
 protected:
 	UWorld* World;
 
@@ -141,6 +148,11 @@ protected:
 		double HorzFOVDegrees,
 		double NearPlaneDist,
 		FImageAdapter& ResultImageOut);
+
+	bool bWriteDebugImage = false;
+	int32 DebugImageCounter = -1;
+	FString DebugImageFolderName = TEXT("WorldRenderCapture");
+	void WriteDebugImage(const FImageAdapter& ResultImageOut, const FString& ImageTypeName);
 };
 
 

@@ -149,6 +149,11 @@ public:
 		// create a flattened (ie non-instanced) mesh and save it with _DEBUG suffix. Warning often absolutely enormous!
 		bool bWriteDebugMesh = false;
 
+		//
+		// Nanite settings
+		//
+		bool bGenerateNaniteEnabledMesh = false;
+		float NaniteProxyTrianglePercent = 100;
 
 		// todo
 		//   - which texture types to generate (BaseColor, Specular, WorldNormal, etc)

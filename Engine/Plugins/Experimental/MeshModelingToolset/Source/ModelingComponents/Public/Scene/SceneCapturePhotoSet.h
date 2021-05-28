@@ -121,6 +121,13 @@ public:
 	const FSpatialPhotoSet3f& GetWorldNormalPhotoSet() { return WorldNormalPhotoSet; }
 	const FSpatialPhotoSet3f& GetEmissivePhotoSet() { return EmissivePhotoSet; }
 
+	/**
+	 * Enable debug image writing. All captured images will be written to <Project>/Intermediate/<FolderName>.
+	 * If FolderName is not specified, "SceneCapturePhotoSet" is used by default.
+	 * See FWorldRenderCapture::SetEnableWriteDebugImage() for more details
+	 */
+	void SetEnableWriteDebugImages(bool bEnable, FString FolderName = FString());
+
 
 protected:
 	UWorld* TargetWorld = nullptr;
@@ -141,6 +148,9 @@ protected:
 	FSpatialPhotoSet3f PackedMRSPhotoSet;
 	FSpatialPhotoSet3f WorldNormalPhotoSet;
 	FSpatialPhotoSet3f EmissivePhotoSet;
+
+	bool bWriteDebugImages;
+	FString DebugImagesFolderName = TEXT("SceneCapturePhotoSet");
 };
 
 

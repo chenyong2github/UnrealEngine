@@ -310,30 +310,85 @@ public:
 	{
 		switch (ImageType)
 		{
-		case EImageType::Float1:
-			Image1f->SetDimensions(Dimensions); break;
-		case EImageType::Float3:
-			Image3f->SetDimensions(Dimensions); break;
-		case EImageType::Float4:
-			Image4f->SetDimensions(Dimensions); break;
+			case EImageType::Float1:
+				Image1f->SetDimensions(Dimensions); break;
+			case EImageType::Float3:
+				Image3f->SetDimensions(Dimensions); break;
+			case EImageType::Float4:
+				Image4f->SetDimensions(Dimensions); break;
 		}
+	}
+
+	FImageDimensions GetDimensions() const
+	{
+		switch (ImageType)
+		{
+			case EImageType::Float1:
+				return Image1f->GetDimensions();
+			case EImageType::Float3:
+				return Image3f->GetDimensions();
+			case EImageType::Float4:
+				return Image4f->GetDimensions();
+		}
+		return FImageDimensions();
 	}
 
 	void SetPixel(const FVector2i& PixelCoords, const FVector4f& FloatPixel)
 	{
 		switch (ImageType)
 		{
-		case EImageType::Float1:
-			Image1f->SetPixel(PixelCoords, FloatPixel.X); 
-			break;
-		case EImageType::Float3:
-			Image3f->SetPixel(PixelCoords, FVector3f(FloatPixel.X, FloatPixel.Y, FloatPixel.Z)); 
-			break;
-		case EImageType::Float4:
-			Image4f->SetPixel(PixelCoords, FloatPixel); 
-			break;
+			case EImageType::Float1:
+				Image1f->SetPixel(PixelCoords, FloatPixel.X);
+				break;
+			case EImageType::Float3:
+				Image3f->SetPixel(PixelCoords, FVector3f(FloatPixel.X, FloatPixel.Y, FloatPixel.Z));
+				break;
+			case EImageType::Float4:
+				Image4f->SetPixel(PixelCoords, FloatPixel);
+				break;
 		}
 	}
+
+	FVector4f GetPixel(int64 LinearIndex) const
+	{
+		switch (ImageType)
+		{
+			case EImageType::Float1:
+			{
+				float Value = Image1f->GetPixel(LinearIndex);
+				return FVector4f(Value, Value, Value, 1.0f);
+			}
+			case EImageType::Float3:
+			{
+				FVector3f Value = Image3f->GetPixel(LinearIndex);
+				return FVector4f(Value.X, Value.Y, Value.Z, 1.0f);
+			}
+			case EImageType::Float4:
+				return Image4f->GetPixel(LinearIndex);
+		}
+		return FVector4f::One();
+	}
+
+	FVector4f GetPixel(const FVector2i& PixelCoords) const
+	{
+		switch (ImageType)
+		{
+			case EImageType::Float1:
+			{
+				float Value = Image1f->GetPixel(PixelCoords);
+				return FVector4f(Value, Value, Value, 1.0f);
+			}
+			case EImageType::Float3:
+			{
+				FVector3f Value = Image3f->GetPixel(PixelCoords);
+				return FVector4f(Value.X, Value.Y, Value.Z, 1.0f);
+			}
+			case EImageType::Float4:
+				return Image4f->GetPixel(PixelCoords);
+		}
+		return FVector4f::One();
+	}
+
 
 protected:
 	EImageType ImageType;
