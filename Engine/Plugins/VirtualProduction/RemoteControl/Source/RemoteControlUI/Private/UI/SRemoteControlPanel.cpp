@@ -894,10 +894,12 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 				if(Field->GetStruct() == FRemoteControlProperty::StaticStruct())
 				{
 					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlProperty>(Field));
+					FieldType = EExposedFieldType::Property;
 				}
 				else if(Field->GetStruct() == FRemoteControlFunction::StaticStruct())
 				{
 					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlFunction>(Field));
+					FieldType = EExposedFieldType::Function;
 				}
 				else
 				{
