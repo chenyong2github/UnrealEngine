@@ -781,16 +781,8 @@ export enum ReportPlacement {
 	Summary = "Summary"
 }
 
-export enum ReportScope {
-	Job = "Job",
-	Step = "Step"
-}
-
 /**Information about a report associated with a job*/
 export type GetReportResponse = {
-
-	// Report scope
-	scope: ReportScope;
 
 	// Report placement
 	placement: ReportPlacement;
@@ -940,6 +932,9 @@ export type GetStepResponse = {
 
 	/**Time at which the run finished (UTC) */
 	finishTime: Date | string;
+
+	/** List of reports */
+	reports?: GetReportResponse[];
 
 	/**User-defined properties for this jobstep. */
 	properties: { [key: string]: string };

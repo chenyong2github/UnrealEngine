@@ -5,7 +5,7 @@ import { getTheme, mergeStyles, mergeStyleSets } from 'office-ui-fabric-react/li
 import backend from '.';
 import { getBatchInitElapsed, getNiceTime, getStepElapsed, getStepETA, getStepFinishTime, getStepTimingDelta } from '../base/utilities/timeUtils';
 import { getBatchText } from '../components/JobDetailCommon';
-import { AgentData, ArtifactData, BatchData, EventData, GetGroupResponse, GetJobStepRefResponse, GetJobTimingResponse, GetLabelResponse, GetLabelStateResponse, GetLabelTimingInfoResponse, GetTemplateResponse, GroupData, IssueData, JobData, JobStepBatchState, JobStepOutcome, JobStepState, LabelState, NodeData, ReportPlacement, ReportScope, StepData, StreamData, TestData } from './Api';
+import { AgentData, ArtifactData, BatchData, EventData, GetGroupResponse, GetJobStepRefResponse, GetJobTimingResponse, GetLabelResponse, GetLabelStateResponse, GetLabelTimingInfoResponse, GetTemplateResponse, GroupData, IssueData, JobData, JobStepBatchState, JobStepOutcome, JobStepState, LabelState, NodeData, ReportPlacement, StepData, StreamData, TestData } from './Api';
 import { projectStore } from './ProjectStore';
 
 const theme = getTheme();
@@ -633,43 +633,54 @@ export class JobDetails {
         })
     }    
 
-    getReportData(scope: ReportScope, placement: ReportPlacement): string | undefined {
-        
-        // placement and scope not currently returned for reports
+    getReportData(placement: ReportPlacement, stepId?: string): string | undefined {
+                
+        if (stepId) {
 
-        if (scope === ReportScope.Job && placement === ReportPlacement.Summary) {
+            const step = this.stepById(stepId);
+
+            if (!step) {
+                return undefined;
+            }
+
+            const report = step.reports?.find(r => r.placement === placement);
+
+            if (!report) {
+                return undefined;
+            }
+
+            return this.reportData.get(report.artifactId);
+
+        } else {
+
             if (this.jobdata?.reports?.length) {
                 return this.reportData.get(this.jobdata.reports[0].artifactId);
             }
-        }
 
-        return undefined;
-
-        /*
-        const report = this.jobdata?.reports?.find(r => r.placement === placement && r.scope === scope);
-
-        if (!report) {
             return undefined;
+
         }
-        return this.reportData.get(report.artifactId);
-        */
     }
 
     private async queryReports():Promise<void> {
 
-        if (!this.jobdata?.reports?.length) {
-            return;
-        }
+        const artifacts: string[] = [];
 
-        for (let i = 0; i < this.jobdata.reports.length; i++) {
+        this.jobdata?.reports?.forEach(r => artifacts.push(r.artifactId));
+        this.jobdata?.batches?.forEach(b => {
+            b.steps.forEach(s => s.reports?.forEach( r => artifacts.push(r.artifactId)));
+        });
+        
 
-            const report = this.jobdata.reports[i];
+        for (let i = 0; i < artifacts.length; i++) {
 
-            if (!this.reportData.has(report.artifactId)) {
+            const artifactId = artifacts[i];
 
-                const r = await backend.getArtifactDataById(report.artifactId) as unknown as string;
+            if (!this.reportData.has(artifactId)) {
+
+                const r = await backend.getArtifactDataById(artifactId) as unknown as string;
                 
-                this.reportData.set(report.artifactId, r);                                
+                this.reportData.set(artifactId, r);                                
             }
         }
     }
