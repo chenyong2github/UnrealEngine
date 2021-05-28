@@ -57,8 +57,10 @@ void UInteractiveGizmoManager::Shutdown()
 
 void UInteractiveGizmoManager::RegisterGizmoType(const FString& Identifier, UInteractiveGizmoBuilder* Builder)
 {
-	check(GizmoBuilders.Contains(Identifier) == false);
-	GizmoBuilders.Add(Identifier, Builder );
+	if (ensure(GizmoBuilders.Contains(Identifier) == false))
+	{
+		GizmoBuilders.Add(Identifier, Builder);
+	}
 }
 
 
@@ -132,7 +134,10 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 bool UInteractiveGizmoManager::DestroyGizmo(UInteractiveGizmo* Gizmo)
 {
 	auto Pred = [Gizmo](const FActiveGizmo& ActiveGizmo) {return ActiveGizmo.Gizmo == Gizmo; };
-	check(ActiveGizmos.FindByPredicate(Pred));
+	if (!ensure(ActiveGizmos.FindByPredicate(Pred)))
+	{
+		return false;
+	}
 
 	InputRouter->ForceTerminateSource(Gizmo);
 
