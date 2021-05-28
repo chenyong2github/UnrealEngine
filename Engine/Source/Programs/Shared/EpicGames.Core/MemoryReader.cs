@@ -95,6 +95,28 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Reads an int16
+		/// </summary>
+		/// <returns>The value read from the buffer</returns>
+		public short ReadInt16()
+		{
+			short Value = BinaryPrimitives.ReadInt16LittleEndian(Memory.Span.Slice(Offset));
+			Offset += sizeof(short);
+			return Value;
+		}
+
+		/// <summary>
+		/// Reads a uint16
+		/// </summary>
+		/// <returns>The value read from the buffer</returns>
+		public ushort ReadUInt16()
+		{
+			ushort Value = BinaryPrimitives.ReadUInt16LittleEndian(Memory.Span.Slice(Offset));
+			Offset += sizeof(ushort);
+			return Value;
+		}
+
+		/// <summary>
 		/// Reads an int32
 		/// </summary>
 		/// <returns>The value that was read from the buffer</returns>
