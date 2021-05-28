@@ -249,6 +249,8 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 						{
 							URemoteControlUISettings* Settings = GetMutableDefault<URemoteControlUISettings>();
 							Settings->TreeBindingSplitRatio = InNewSize;
+							Settings->PostEditChange();
+							Settings->SaveConfig();
 						}))
 						[
 							// Exposed entities List
