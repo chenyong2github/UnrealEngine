@@ -48,7 +48,10 @@ namespace EpicConfig
 				"testName",
 				"context",
 				"dataPoint",
-				"recordedValue"
+				"recordedValue",
+				"unit",
+				"baseline",
+				"jobLink"
 			};
 		}
 		/// <summary>
@@ -68,7 +71,10 @@ namespace EpicConfig
 				Data.TestName,
 				Data.Context,
 				Data.DataPoint,
-				Data.Measurement.ToString()
+				Data.Measurement.ToString(),
+				Data.Unit,
+				Data.Baseline.ToString(),
+				Context.GetProperty("JobLink").ToString()
 			};
 		}
 	}

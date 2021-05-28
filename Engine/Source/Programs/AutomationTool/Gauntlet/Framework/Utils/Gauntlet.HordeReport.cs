@@ -40,6 +40,22 @@ namespace Gauntlet
 				return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("UE_TESTDATA_DIR"));
 			}
 		}
+		/// <summary>
+		/// Default Job Horde link if running under Horde agent, otherwise return an empty string
+		/// </summary>
+		public static string DefaultHordeJobLink
+		{
+			get
+			{
+				string HordeJobId = Environment.GetEnvironmentVariable("UE_HORDE_JOBID");
+				if (!string.IsNullOrEmpty(HordeJobId))
+				{
+					return string.Format("https://horde.devtools.epicgames.com/job/{0}", HordeJobId);
+				}
+
+				return string.Empty;
+			}
+		}
 
 		public abstract class BaseHordeReport : BaseTestReport
 		{

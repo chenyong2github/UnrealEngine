@@ -51,12 +51,16 @@ namespace Gauntlet
 		public string DataPoint { get; private set; }
 		public double Measurement { get; private set; }
 		public string Context { get; private set; }
-		public TelemetryData(string InTestName, string InDataPoint, double InMeasurement, string InContext = "")
+		public string Unit { get; private set; }
+		public double Baseline { get; private set; }
+		public TelemetryData(string InTestName, string InDataPoint, double InMeasurement, string InContext = "", string InUnit = "", double InBaseline = 0)
 		{
 			TestName = InTestName;
 			DataPoint = InDataPoint;
 			Measurement = InMeasurement;
 			Context = InContext;
+			Unit = InUnit;
+			Baseline = InBaseline;
 		}
 	}
 
@@ -72,8 +76,10 @@ namespace Gauntlet
 		/// <param name="DataPoint"></param>
 		/// <param name="Measurement"></param>
 		/// <param name="Context"></param>
+		/// <param name="Unit"></param>
+		/// <param name="Baseline"></param>
 		/// <returns></returns>
-		void AddTelemetry(string TestName, string DataPoint, double Measurement, string Context = "");
+		void AddTelemetry(string TestName, string DataPoint, double Measurement, string Context = "", string Unit = "", double Baseline = 0);
 
 		/// <summary>
 		/// Return the telemetry data accumulated
@@ -146,15 +152,17 @@ namespace Gauntlet
 		/// <param name="DataPoint"></param>
 		/// <param name="Measurement"></param>
 		/// <param name="Context"></param>
+		/// <param name="Unit"></param>
+		/// <param name="Baseline"></param>
 		/// <returns></returns>
-		public virtual void AddTelemetry(string TestName, string DataPoint, double Measurement, string Context = "")
+		public virtual void AddTelemetry(string TestName, string DataPoint, double Measurement, string Context = "", string Unit = "", double Baseline = 0)
 		{
 			if (TelemetryDataList is null)
 			{
 				TelemetryDataList = new List<TelemetryData>();
 			}
 
-			TelemetryDataList.Add(new TelemetryData(TestName, DataPoint, Measurement, Context));
+			TelemetryDataList.Add(new TelemetryData(TestName, DataPoint, Measurement, Context, Unit, Baseline));
 		}
 
 		/// <summary>
