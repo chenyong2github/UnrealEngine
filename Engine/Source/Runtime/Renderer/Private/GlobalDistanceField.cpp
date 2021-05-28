@@ -949,7 +949,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						Clipmap.UpdateBounds.Add(FClipmapUpdateBounds(ClipmapBounds.GetCenter(), ClipmapBounds.GetExtent(), false));
 					}
 
-					ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds.Reset();
+					ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds.Empty(DistanceField::MinPrimitiveModifiedBoundsAllocation);
 				}
 
 				ClipmapViewState.LastPartialUpdateOriginInPages = PageGridCenter;
