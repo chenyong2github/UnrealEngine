@@ -8,15 +8,15 @@ public class AVEncoder : ModuleRules
 {
 	public AVEncoder(ReadOnlyTargetRules Target) : base(Target)
 	{
-        // Without these two compilation fails on VS2017 with D8049: command line is too long to fit in debug record.
-        bLegacyPublicIncludePaths = false;
-        DefaultBuildSettings = BuildSettingsVersion.V2;
+		// Without these two compilation fails on VS2017 with D8049: command line is too long to fit in debug record.
+		bLegacyPublicIncludePaths = false;
+		DefaultBuildSettings = BuildSettingsVersion.V2;
 
-        // PCHUsage = PCHUsageMode.NoPCHs;
+		// PCHUsage = PCHUsageMode.NoPCHs;
 
-        // PrecompileForTargets = PrecompileTargetsType.None;
+		// PrecompileForTargets = PrecompileTargetsType.None;
 
-        PublicIncludePaths.AddRange(new string[] {
+		PublicIncludePaths.AddRange(new string[] {
 			// ... add public include paths required here ...
 		});
 
@@ -25,9 +25,7 @@ public class AVEncoder : ModuleRules
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
-			"Engine",
-			"nvEncode",
-			"Amf"
+			"Engine"
 		});
 
 		PublicDependencyModuleNames.AddRange(new string[] {
@@ -41,17 +39,23 @@ public class AVEncoder : ModuleRules
 			// ... add any modules that your module loads dynamically here ...
 		});
 
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+		string EngineSourceDirectory = Path.GetFullPath(Target.RelativeEnginePath);
+
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
+			PrivateDependencyModuleNames.AddRange(new string[] {
+				"nvEncode",
+				"Amf"
+			});
+
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 			PrivateIncludePathModuleNames.Add("VulkanRHI");
+
+			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private"));
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 		}
 
-		string EngineSourceDirectory = Path.GetFullPath(Target.RelativeEnginePath);
-		PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private"));
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
-
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.XboxOne)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			PublicDependencyModuleNames.Add("D3D12RHI");
 
@@ -64,11 +68,14 @@ public class AVEncoder : ModuleRules
 				"mfuuid.lib"
 			});
 
-			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
+			if (Target.Platform != UnrealTargetPlatform.XboxOne)
+			{
+				PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
+			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PrivateDependencyModuleNames.Add("CUDA"); 
+			PrivateDependencyModuleNames.Add("CUDA");
 			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
 		}
 

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+
 #include "Amf_Common.h"
 #include "AVEncoder.h"
 
@@ -107,3 +109,5 @@ namespace AVEncoder
         bIsAvailable = true;
     }
 }
+
+#endif  // PLATFORM_DESKTOP && !PLATFORM_APPLE

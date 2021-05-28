@@ -7,21 +7,6 @@
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderInputImpl.h"
 
-THIRD_PARTY_INCLUDES_START
-
-#if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/PreWindowsApi.h"
-#endif
-
-#include <nvEncodeAPI.h> // To get definition of GUID
-
-#if PLATFORM_WINDOWS
-#include "Windows/PostWindowsApi.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
-
-THIRD_PARTY_INCLUDES_END
 
 namespace AVEncoder
 {
@@ -74,7 +59,6 @@ namespace AVEncoder
 
 			FVideoEncoderAmf_H264& Encoder;
 			FAmfCommon& Amf;
-			GUID CodecGUID;
 			uint32 LayerIndex;
 			AMFComponentPtr AmfEncoder;
 			bool bAsyncMode = true;

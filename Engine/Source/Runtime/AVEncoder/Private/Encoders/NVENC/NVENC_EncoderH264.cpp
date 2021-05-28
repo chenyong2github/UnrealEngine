@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+
 #include "NVENC_EncoderH264.h"
 #include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
@@ -1298,3 +1300,5 @@ namespace AVEncoder
 } /* namespace AVEncoder */
 
 #undef MIN_UPDATE_FRAMERATE_SECS
+
+#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE

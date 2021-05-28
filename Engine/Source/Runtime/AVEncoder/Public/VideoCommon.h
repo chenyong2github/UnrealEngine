@@ -16,6 +16,7 @@ THIRD_PARTY_INCLUDES_START
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
 #include <d3d11.h>
+#include <mfobjects.h>
 #include <mftransform.h>
 #include <mfapi.h>
 #include <mferror.h>
@@ -46,6 +47,7 @@ THIRD_PARTY_INCLUDES_START
 #include <d3d11_x.h>
 #include <d3d12_x.h>
 #include <d3dx12_x.h>
+#include <mfobjects.h>
 #include <mftransform.h>
 #include <mfapi.h>
 #include <mferror.h>

@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+
 #include "NVENC_Common.h"
 #include "CoreMinimal.h"
+#include "RHI.h"
 #include "VideoEncoderCommon.h"
 #include "HAL/PlatformProcess.h"
 
@@ -90,3 +93,5 @@ void FNVENCCommon::SetupNVENCFunctions()
 }
 
 } /* namespace AVEncoder */
+
+#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE

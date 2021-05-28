@@ -8,7 +8,9 @@
 #include "Encoders/NVENC/NVENC_EncoderH264.h"
 #endif
 
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 #include "Encoders/Amf/Amf_EncoderH264.h"
+#endif
 
 #include "Encoders/VideoEncoderH264_Dummy.h"
 
@@ -74,7 +76,9 @@ void FVideoEncoderFactory::RegisterDefaultCodecs()
 	FVideoEncoderNVENC_H264::Register(*this);
 #endif
 	
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 	FVideoEncoderAmf_H264::Register(*this);
+#endif
 
 #if defined(AVENCODER_VIDEO_ENCODER_AVAILABLE_H264_DUMMY)
 	FVideoEncoderH264_Dummy::Register(*this);

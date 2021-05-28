@@ -10,7 +10,6 @@ public class CUDA : ModuleRules
 {
 	public CUDA(ReadOnlyTargetRules Target) : base(Target)
 	{
-
 		// This module is pending TPS approval so for now we make it do nothing.
 		PrivateDependencyModuleNames.AddRange(new string[] {"Core"});
 		PublicDefinitions.Add("WITH_CUDA=0");

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+
 #include "Amf_EncoderH264.h"
 #include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
@@ -318,7 +320,6 @@ namespace AVEncoder
 		: FLayer(config)
 		, Encoder(encoder)
 		, Amf(FAmfCommon::Setup())
-		, CodecGUID()
 		, LayerIndex(layerIdx)
 	{
 	}
@@ -804,3 +805,5 @@ namespace AVEncoder
 } /* namespace AVEncoder */
 
 #undef MIN_UPDATE_FRAMERATE_SECS
+
+#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE
