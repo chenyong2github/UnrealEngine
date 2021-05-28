@@ -1243,7 +1243,6 @@ void FOpenGLDynamicRHI::RHIAcquireThreadOwnership()
 	PlatformRenderingContextSetup(PlatformDevice);
 	PlatformRebindResources(PlatformDevice);
 	bIsRenderingContextAcquired = true;
-	FTaskTagScope Scope(ETaskTag::ERenderingThread);
 	VERIFY_GL(RHIAcquireThreadOwnership);
 	{
 		FScopeLock lock(&CustomPresentSection);
