@@ -356,7 +356,8 @@ USoundClass* USynthComponent::GetSoundClass()
 		return SoundClass;
 	}
 
-	if (const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>())
+	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
+	if (ensure(AudioSettings))
 	{
 		return AudioSettings->GetDefaultSoundClass();
 	}
@@ -417,18 +418,6 @@ void USynthComponent::Serialize(FArchive& Ar)
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	if (Ar.IsCooking())
-	{
-		if (!SoundClass)
-		{
-			SoundClass = GetDefault<UAudioSettings>()->GetDefaultSoundClass();
-		}
-
-		if (ConcurrencySet.IsEmpty())
-		{
-			ConcurrencySet.Add(GetDefault<UAudioSettings>()->GetDefaultSoundConcurrency());
-		}
-	}
 }
 
 void USynthComponent::PumpPendingMessages()
