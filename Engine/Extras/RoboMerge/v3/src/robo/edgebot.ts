@@ -169,8 +169,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 	updateLastCl(changesFetched: Change[], changeIndex: number, targetCl?: number) {
 		this.gate.updateLastCl(changesFetched, changeIndex, targetCl)
-
-		this.lastCl = this.gate.lastCl
+		super._forceSetLastCl_NoReset(this.gate.lastCl)
 	}
 
 	private async getPerforceRequestResultFromCL(changelist: number, path?: string, changelistStatus?: ChangelistStatus) : Promise<EdgeIntegrationResult> {
