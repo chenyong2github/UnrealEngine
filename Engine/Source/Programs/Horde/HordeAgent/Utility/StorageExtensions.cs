@@ -9,6 +9,8 @@ using Blake3;
 using Build.Bazel.Remote.Execution.V2;
 using EpicGames.Core;
 using Google.Protobuf;
+
+using Digest = Build.Bazel.Remote.Execution.V2.Digest;
 using ContentAddressableStorageClient = Build.Bazel.Remote.Execution.V2.ContentAddressableStorage.ContentAddressableStorageClient;
 
 namespace HordeAgent.Utility
