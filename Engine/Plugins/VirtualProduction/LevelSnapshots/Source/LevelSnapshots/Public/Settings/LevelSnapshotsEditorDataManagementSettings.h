@@ -33,7 +33,7 @@ public:
 	bool IsPathOverridden() const;
 
 	// Must be a directory in the Game Content folder ("/Game/"). For best results, use the picker.  
-	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots|Saving", meta = (RelativeToGameContentDir, ContentDir))
+	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots", meta = (RelativeToGameContentDir, ContentDir))
 	FDirectoryPath RootLevelSnapshotSaveDir;
 
 	/** The format to use for the resulting filename. Extension will be added automatically. Any tokens of the form {token} will be replaced with the corresponding value:
@@ -45,7 +45,7 @@ public:
 	 * {date}       - The current date from the local computer in the format of {year}-{month}-{day}
 	 * {time}       - The current time from the local computer in the format of hours-minutes-seconds
 	 */
-	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots|Saving")
+	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots")
 	FString LevelSnapshotSaveDir;
 
 	/** The format to use for the resulting filename. Extension will be added automatically. Any tokens of the form {token} will be replaced with the corresponding value:
@@ -57,7 +57,7 @@ public:
 	 * {date}       - The current date from the local computer in the format of {year}-{month}-{day}
 	 * {time}       - The current time from the local computer in the format of hours-minutes-seconds
 	 */
-	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots|Saving")
+	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots")
 	FString DefaultLevelSnapshotName;
 
 private:
