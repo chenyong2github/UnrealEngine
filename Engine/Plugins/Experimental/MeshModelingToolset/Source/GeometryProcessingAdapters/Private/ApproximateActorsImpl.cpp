@@ -320,7 +320,7 @@ static void BakeTexturesFromPhotoCapture(
 		if (Options.bBakeEmissive && EmissiveImage.IsValid())
 		{
 			BuildTexProgress.EnterProgressFrame(1.f);
-			GeneratedTextures.EmissiveMap = FTexture2DBuilder::BuildTextureFromImage(*EmissiveImage, FTexture2DBuilder::ETextureType::ColorLinear, true, false);
+			GeneratedTextures.EmissiveMap = FTexture2DBuilder::BuildTextureFromImage(*EmissiveImage, FTexture2DBuilder::ETextureType::EmissiveHDR, false, false);
 		}
 		if (Options.bBakeNormalMap && NormalImage.IsValid())
 		{
@@ -816,7 +816,7 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 	}
 	if (Options.bBakeEmissive && GeneratedTextures.EmissiveMap)
 	{
-		WriteTextureLambda(GeneratedTextures.EmissiveMap, TEXT("_Emissive"), FTexture2DBuilder::ETextureType::ColorLinear, Options.EmissiveTexParamName);
+		WriteTextureLambda(GeneratedTextures.EmissiveMap, TEXT("_Emissive"), FTexture2DBuilder::ETextureType::EmissiveHDR, Options.EmissiveTexParamName);
 	}
 	if (Options.bBakeNormalMap && GeneratedTextures.NormalMap)
 	{
