@@ -14,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using Action = Build.Bazel.Remote.Execution.V2.Action;
+using Digest = Build.Bazel.Remote.Execution.V2.Digest;
 using Directory = Build.Bazel.Remote.Execution.V2.Directory;
 using RpcCommand = Build.Bazel.Remote.Execution.V2.Command;
 using Status = Google.Rpc.Status;
