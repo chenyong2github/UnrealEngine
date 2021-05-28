@@ -2670,7 +2670,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
-			check(NaniteResources.RootClusterPage.Num() == 0 || NaniteResources.bLZCompressed);
+			check(NaniteResources.RootClusterPage.Num() == 0 || NaniteResources.ResourceFlags.Values.bLZCompressed);
 
 			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
 			{
@@ -2733,7 +2733,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			bLODsShareStaticLighting = Owner->CanLODsShareStaticLighting();
 			FLargeMemoryWriter Ar(0, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
-			check(NaniteResources.RootClusterPage.Num() == 0 || NaniteResources.bLZCompressed);
+			check(NaniteResources.RootClusterPage.Num() == 0 || NaniteResources.ResourceFlags.Values.bLZCompressed);
 
 			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
 			{
@@ -3986,6 +3986,20 @@ void UStaticMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		ComplexityString = LexToString((ECollisionTraceFlag)GetBodySetup()->GetCollisionTraceFlag());
 	}
 
+	int32 NumNaniteTriangles = 0;
+	int32 NumNaniteVertices = 0;
+	if (GetRenderData())
+	{
+		const Nanite::FResources& Resources = GetRenderData()->NaniteResources;
+		if (Resources.RootClusterPage.Num() > 0)
+		{
+			NumNaniteTriangles = Resources.NumInputTriangles;
+			NumNaniteVertices = Resources.NumInputVertices;
+		}
+	}
+
+	OutTags.Add(FAssetRegistryTag("NaniteTriangles", FString::FromInt(NumNaniteTriangles), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("NaniteVertices", FString::FromInt(NumNaniteVertices), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("Triangles", FString::FromInt(NumTriangles), FAssetRegistryTag::TT_Numerical) );
 	OutTags.Add(FAssetRegistryTag("Vertices", FString::FromInt(NumVertices), FAssetRegistryTag::TT_Numerical) );
 	OutTags.Add(FAssetRegistryTag("UVChannels", FString::FromInt(NumUVChannels), FAssetRegistryTag::TT_Numerical) );

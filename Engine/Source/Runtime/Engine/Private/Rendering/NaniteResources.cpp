@@ -155,7 +155,7 @@ bool FResources::ReleaseResources()
 
 static void DecompressPages(FResources& Resources, TArray<uint8>& OutRootClusterPage, FByteBulkData& OutStreamableClusterPages, TArray<FPageStreamingState>& OutPageStreamingStates)
 {
-	check(Resources.bLZCompressed);
+	check(Resources.ResourceFlags.Values.bLZCompressed);
 
 	// Decompress root and streaming pages
 	const uint32 NumPages = Resources.PageStreamingStates.Num();
@@ -223,7 +223,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		
 #if WITH_EDITOR
 		bWantsUncompressedSave = Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HardwareLZDecompression) && RootClusterPage.Num() > 0 && !Ar.IsObjectReferenceCollector();
-		if (bWantsUncompressedSave && bLZCompressed)
+		if (bWantsUncompressedSave && ResourceFlags.Values.bLZCompressed)
 		{
 			// Decompress and serialize, but don't change the state of the resource itself
 			if (!bHasDecompressedData)
@@ -232,8 +232,10 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 				bHasDecompressedData = true;
 			}
 			
-			bool bNewLZCompressed = false;
-			Ar << bNewLZCompressed;
+			FPackedPersistentFlags NewFlags = ResourceFlags;
+			NewFlags.Values.bLZCompressed = false;
+
+			Ar << NewFlags.Packed;
 			Ar << DecompressedRootClusterPage;
 			DecompressedStreamableClusterPages.Serialize(Ar, Owner, 0);
 			Ar << DecompressedPageStreamingStates;
@@ -241,21 +243,25 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		else
 #endif
 		{
-			check(!Ar.IsSaving() || RootClusterPage.Num() == 0 || (bWantsUncompressedSave == !bLZCompressed));
+			check(!Ar.IsSaving() || RootClusterPage.Num() == 0 || (bWantsUncompressedSave == !ResourceFlags.Values.bLZCompressed));
 
-			Ar << bLZCompressed;
+			Ar << ResourceFlags.Packed;
 			Ar << RootClusterPage;
 			StreamableClusterPages.Serialize(Ar, Owner, 0);
 			Ar << PageStreamingStates;
 		}
-		
+
 		Ar << HierarchyNodes;
 		Ar << HierarchyRootOffsets;
 		Ar << PageDependencies;
 		Ar << ImposterAtlas;
 		Ar << PositionPrecision;
-		
-		check(!Ar.IsLoading() || RootClusterPage.Num() == 0 || bLZCompressed == !FPlatformProperties::SupportsHardwareLZDecompression());
+		Ar << NumInputTriangles;
+		Ar << NumInputVertices;
+		Ar << NumInputMeshes;
+		Ar << NumInputTexCoords;
+
+		check(!Ar.IsLoading() || RootClusterPage.Num() == 0 || ResourceFlags.Values.bLZCompressed == !FPlatformProperties::SupportsHardwareLZDecompression());
 
 #if WITH_EDITOR
 		if (Ar.IsLoading() && bHasDecompressedData)

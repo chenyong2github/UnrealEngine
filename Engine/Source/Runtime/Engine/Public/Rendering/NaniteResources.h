@@ -360,15 +360,35 @@ struct FResources
 	TArray< uint32 >				HierarchyRootOffsets;
 	TArray< FPageStreamingState >	PageStreamingStates;
 	TArray< uint32 >				PageDependencies;
-	int32							PositionPrecision = 0;
-	bool	bLZCompressed			= false;
+	int32							PositionPrecision	= 0;
+	uint32							NumInputTriangles	= 0;
+	uint32							NumInputVertices	= 0;
+	uint16							NumInputMeshes		= 0;
+	uint16							NumInputTexCoords	= 0;
+
+	struct FPackedPersistentFlags
+	{
+		union
+		{
+			struct FPersistentFlags
+			{
+				uint8					bHasVertexColor : 1;
+				uint8					bHasImposter    : 1;
+				uint8					bLZCompressed   : 1;
+				uint8					UnusedPadding   : 5;
+			} Values;
+
+			uint8 Packed = 0;
+		};
+	}
+	ResourceFlags;
 
 	// Runtime State
 	uint32	RuntimeResourceID		= 0xFFFFFFFFu;
 	int32	HierarchyOffset			= INDEX_NONE;
 	int32	RootPageIndex			= INDEX_NONE;
 	uint32	NumHierarchyNodes		= 0;
-	
+
 #if WITH_EDITOR
 	// HACK: Need to cache this because Geometry Collection might serialize the same object more than once.
 	// BulkData has to be kept alive for the duration of serialization and you are not allowed to update it more than once.
