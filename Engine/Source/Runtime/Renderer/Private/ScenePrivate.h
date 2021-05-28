@@ -57,7 +57,6 @@
 #include "Lumen/LumenViewState.h"
 #include "VolumetricRenderTargetViewStateData.h"
 #include "GPUScene.h"
-#include "CompositionLighting/PostProcessDeferredDecals.h"
 #include "DynamicBVH.h"
 
 /** Factor by which to grow occlusion tests **/

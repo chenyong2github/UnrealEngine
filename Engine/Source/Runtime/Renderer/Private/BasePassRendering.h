@@ -16,7 +16,7 @@
 #include "SceneManagement.h"
 #include "Materials/Material.h"
 #include "PostProcess/SceneRenderTargets.h"
-#include "CompositionLighting/PostProcessDeferredDecals.h"
+#include "DBufferTextures.h"
 #include "LightMapRendering.h"
 #include "VelocityRendering.h"
 #include "MeshMaterialShaderType.h"
