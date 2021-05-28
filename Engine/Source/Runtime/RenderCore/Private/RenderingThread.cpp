@@ -701,6 +701,7 @@ public:
 
 		if (bAcquireOwnership)
 		{
+			FTaskTagScope Scope(ETaskTag::ERhiThread);
 			GDynamicRHI->RHIAcquireThreadOwnership();
 		}
 		else
@@ -739,15 +740,17 @@ void StartRenderingThread()
 		}
 		DECLARE_CYCLE_STAT(TEXT("Wait For RHIThread"), STAT_WaitForRHIThread, STATGROUP_TaskGraphTasks);
 
-		FGraphEventRef CompletionEvent = TGraphTask<FOwnershipOfRHIThreadTask>::CreateTask(NULL, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(true, GET_STATID(STAT_WaitForRHIThread));
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_StartRenderingThread);
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(CompletionEvent, ENamedThreads::GameThread_Local);
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GRHIThread_InternalUseOnly = FRHIThread::Get().Thread;
 		GRHIThreadId = GRHIThread_InternalUseOnly->GetThreadID();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		GIsRunningRHIInDedicatedThread_InternalUseOnly = true;
 		GIsRunningRHIInSeparateThread_InternalUseOnly = true;
+
+		FGraphEventRef CompletionEvent = TGraphTask<FOwnershipOfRHIThreadTask>::CreateTask(NULL, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(true, GET_STATID(STAT_WaitForRHIThread));
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_StartRenderingThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(CompletionEvent, ENamedThreads::GameThread_Local);
+
 		GRHICommandList.LatchBypass();
 	}
 	else if (GUseRHITaskThreads_InternalUseOnly)
