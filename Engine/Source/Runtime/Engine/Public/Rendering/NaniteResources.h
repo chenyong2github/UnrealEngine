@@ -368,16 +368,17 @@ struct FResources
 
 	struct FPackedPersistentFlags
 	{
+		struct FPersistentFlags
+		{
+			uint8					bHasVertexColor : 1;
+			uint8					bHasImposter : 1;
+			uint8					bLZCompressed : 1;
+			uint8					UnusedPadding : 5;
+		};
+
 		union
 		{
-			struct FPersistentFlags
-			{
-				uint8					bHasVertexColor : 1;
-				uint8					bHasImposter    : 1;
-				uint8					bLZCompressed   : 1;
-				uint8					UnusedPadding   : 5;
-			} Values;
-
+			FPersistentFlags Values;
 			uint8 Packed = 0;
 		};
 	}
