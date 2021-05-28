@@ -225,173 +225,15 @@ UTextureRenderTarget2D* FWorldRenderCapture::GetRenderTexture(bool bLinear)
 
 
 
-bool FWorldRenderCapture::CaptureEmissiveFromPosition(
-	const FFrame3d& ViewFrame,
-	double HorzFOVDegrees,
-	double NearPlaneDist,
-	FImageAdapter& ResultImageOut)
-{
-	// This function is a combination of CaptureFromPosition() and RenderSceneVisualizationToTexture() below,
-	// that attempts to capture Emissive. The difficulty with capturing Emissive is there is no Visualization
-	// Buffer Mode specifically for it, like there is for BaseColor, Specular, WorldNormal, etc. So, the
-	// strategy we take here is basically to disable all scene lights but not disable lighting. This should
-	// result in only Emissive being rendered, ideally without any tone mapping, gamma, bloom, etc, so that we 
-	// directly capture the raw Emissive shader output.
-	//
-	// One known possible issue here is with baked lighting, which may also appear with the current setup.
-	// Currently untested.
-
-	check(this->World);
-	FSceneInterface* Scene = this->World->Scene;
-
-	UTextureRenderTarget2D* RenderTargetTexture = GetRenderTexture(true);
-	if (!ensure(RenderTargetTexture))
-	{
-		return false;
-	}
-	FRenderTarget* RenderTargetResource = RenderTargetTexture->GameThread_GetRenderTargetResource();
-
-	int32 Width = Dimensions.GetWidth();
-	int32 Height = Dimensions.GetHeight();
-
-	FQuat ViewOrientation = (FQuat)ViewFrame.Rotation;
-	FMatrix ViewRotationMatrix = FInverseRotationMatrix(ViewOrientation.Rotator());
-	FVector ViewOrigin = (FVector)ViewFrame.Origin;
-
-	// convert to rendering coordinate system
-	ViewRotationMatrix = ViewRotationMatrix * FMatrix(
-		FPlane(0, 0, 1, 0),
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, 0, 1));
-
-	const float HalfFOVRadians = FMath::DegreesToRadians<float>(HorzFOVDegrees) * 0.5f;
-	static_assert((int32)ERHIZBuffer::IsInverted != 0, "Check NearPlane and Projection Matrix");
-	FMatrix ProjectionMatrix = FReversedZPerspectiveMatrix(HalfFOVRadians, 1.0f, 1.0f, (float)NearPlaneDist);
-
-	EViewModeIndex ViewModeIndex = EViewModeIndex::VMI_Unlit;		// VMI_Lit, VMI_LightingOnly, VMI_VisualizeBuffer
-
-	FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
-	ApplyViewMode(ViewModeIndex, true, ShowFlags);
-
-	// unclear if these flags need to be set before creating ViewFamily
-	ShowFlags.SetAntiAliasing(false);
-	ShowFlags.SetDepthOfField(false);
-	ShowFlags.SetMotionBlur(false);
-	ShowFlags.SetBloom(false);
-	ShowFlags.SetSceneColorFringe(false);
-
-	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
-		RenderTargetResource, Scene, ShowFlags)
-		.SetWorldTimes(0, 0, 0)
-		.SetRealtimeUpdate(false));
-
-	// This set of flags currently seems to work for capturing Emissive. Possibly many are unnecessary or
-	// ignored due to ther rendering config, but it's quite hard to know without extensive A/B testing
-
-	ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
-	ViewFamily.EngineShowFlags.MotionBlur = 0;
-	ViewFamily.EngineShowFlags.LOD = 0;
-
-	ViewFamily.EngineShowFlags.SetTonemapper(false);
-	ViewFamily.EngineShowFlags.SetColorGrading(false);
-	ViewFamily.EngineShowFlags.SetToneCurve(false);
-
-	ViewFamily.EngineShowFlags.SetPostProcessing(false);
-	ViewFamily.EngineShowFlags.SetFog(false);
-	ViewFamily.EngineShowFlags.SetGlobalIllumination(false);
-	ViewFamily.EngineShowFlags.SetEyeAdaptation(false);
-	ViewFamily.EngineShowFlags.SetDirectionalLights(false);
-	ViewFamily.EngineShowFlags.SetPointLights(false);
-	ViewFamily.EngineShowFlags.SetSpotLights(false);
-	ViewFamily.EngineShowFlags.SetRectLights(false);
-
-	ViewFamily.EngineShowFlags.SetDiffuse(false);
-	ViewFamily.EngineShowFlags.SetSpecular(false);
-
-	ViewFamily.EngineShowFlags.SetScreenSpaceReflections(false);
-	ViewFamily.EngineShowFlags.SetLumenReflections(false);
-	ViewFamily.EngineShowFlags.SetRefraction(false);
-	ViewFamily.EngineShowFlags.SetReflectionEnvironment(false);
-
-	ViewFamily.EngineShowFlags.SetDynamicShadows(false);
-	ViewFamily.EngineShowFlags.SetCapsuleShadows(false);
-	ViewFamily.EngineShowFlags.SetContactShadows(false);
-
-	// some of these settings may need to be configured in more complex cases, currently untested
-	//ViewFamily.SceneCaptureSource = SCS_FinalColorHDR;
-	//ViewFamily.bWorldIsPaused = true;
-	//ViewFamily.ViewMode = ViewModeIndex;
-	// since we are capturing actual render we are not using visualize-buffer mode (?)
-	//ViewFamily.EngineShowFlags.SetVisualizeBuffer(false);
-
-	//ViewFamily.EngineShowFlags.SetScreenPercentage(false);
-	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.f, false));
-
-	// This is called in various other places, unclear if we should be doing this too
-	//EngineShowFlagOverride(EShowFlagInitMode::ESFIM_Game, ViewModeIndex, ViewFamily.EngineShowFlags, true);
-
-	FSceneViewInitOptions ViewInitOptions;
-	ViewInitOptions.SetViewRectangle(FIntRect(0, 0, Width, Height));
-	ViewInitOptions.ViewFamily = &ViewFamily;
-	if (VisiblePrimitives.Num() > 0)
-	{
-		ViewInitOptions.ShowOnlyPrimitives = VisiblePrimitives;
-	}
-	ViewInitOptions.ViewOrigin = ViewOrigin;
-	ViewInitOptions.ViewRotationMatrix = ViewRotationMatrix;
-	ViewInitOptions.ProjectionMatrix = ProjectionMatrix;
-	ViewInitOptions.FOV = HorzFOVDegrees;
-
-	FSceneView* NewView = new FSceneView(ViewInitOptions);
-	ViewFamily.Views.Add(NewView);
-
-	NewView->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
-	NewView->EndFinalPostprocessSettings(ViewInitOptions);
-
-	// other FSceneView settings that may need configuring to properly capture Emissive - needs testing
-	//NewView->SetupRayTracedRendering();
-	//NewView->bIsOfflineRender = true;
-	//NewView->bIsSceneCapture = false;
-	//NewView->AntiAliasingMethod = IsAntiAliasingSupported() ? InOutSampleState.AntiAliasingMethod : EAntiAliasingMethod::AAM_None;
-	//NewView->AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
-
-	// can we fully disable auto-exposure?
-	NewView->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-
-	// do we actually need for force SM5 here? the other FCanvas() constructor below does not pass these flags...
-	FCanvas Canvas = FCanvas(RenderTargetResource, nullptr, this->World, ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
-	Canvas.Clear(FLinearColor::Transparent);
-	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
-
-	ReadImageBuffer.SetNumUninitialized(Width * Height);
-	FReadSurfaceDataFlags ReadSurfaceDataFlags;
-	ReadSurfaceDataFlags.SetLinearToGamma(false);
-	RenderTargetResource->ReadLinearColorPixels(ReadImageBuffer, ReadSurfaceDataFlags, FIntRect(0, 0, Width, Height));
-
-	FlushRenderingCommands();
-
-	ResultImageOut.SetDimensions(Dimensions);
-	for (int32 yi = 0; yi < Height; ++yi)
-	{
-		for (int32 xi = 0; xi < Width; ++xi)
-		{
-			FLinearColor PixelColorf = ReadImageBuffer[yi * Width + xi];
-			PixelColorf.A = 1.0f;		// ?
-			ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
-		}
-	}
-
-	return true;
-}
-
-
 
 namespace UE 
 {
 namespace Internal
 {
 
+/**
+ * Reads data from FImagePixelData and stores in an output image, with optional ColorTransformFunc
+ */
 static bool ReadPixelDataToImage(TUniquePtr<FImagePixelData>& PixelData, FImageAdapter& ResultImageOut, bool bLinear)
 {
 	int64 SizeInBytes;
@@ -610,7 +452,7 @@ bool FWorldRenderCapture::CaptureMRSFromPosition(
 	// read back image
 	if (PostProcessPassPixelData.IsValid())
 	{
-		UE::Internal::ReadPixelDataToImage(PostProcessPassPixelData, ResultImageOut, true);
+		UE::Internal::ReadPixelDataToImage(PostProcessPassPixelData, ResultImageOut, true );
 		return true;
 	}
 
@@ -618,6 +460,125 @@ bool FWorldRenderCapture::CaptureMRSFromPosition(
 }
 
 
+
+
+
+bool FWorldRenderCapture::CaptureEmissiveFromPosition(
+	const FFrame3d& Frame,
+	double HorzFOVDegrees,
+	double NearPlaneDist,
+	FImageAdapter& ResultImageOut)
+{
+	UTextureRenderTarget2D* RenderTargetTexture = GetRenderTexture(true);
+	if (ensure(RenderTargetTexture) == false)
+	{
+		return false;
+	}
+	FTextureRenderTargetResource* RenderTargetResource = RenderTargetTexture->GameThread_GetRenderTargetResource();
+
+	int32 Width = Dimensions.GetWidth();
+	int32 Height = Dimensions.GetHeight();
+
+	const FRotator RotationOffsetToViewCenter(0.f, 90.f, 0.f);
+	FQuat ViewOrientation = (FQuat)Frame.Rotation;
+	FMatrix ViewRotationMatrix = FInverseRotationMatrix(ViewOrientation.Rotator());
+	FVector ViewOrigin = (FVector)Frame.Origin;
+
+	// convert to rendering coordinate system
+	ViewRotationMatrix = ViewRotationMatrix * FMatrix(
+		FPlane(0, 0, 1, 0),
+		FPlane(1, 0, 0, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(0, 0, 0, 1));
+
+	const float HalfFOVRadians = FMath::DegreesToRadians<float>(HorzFOVDegrees) * 0.5f;
+	static_assert((int32)ERHIZBuffer::IsInverted != 0, "Check NearPlane and Projection Matrix");
+	FMatrix ProjectionMatrix = FReversedZPerspectiveMatrix(HalfFOVRadians, 1.0f, 1.0f, (float)NearPlaneDist);
+
+	// unclear if these flags need to be set before creating ViewFamily
+	FEngineShowFlags ShowFlags(ESFIM_Game);
+	ShowFlags.SetAntiAliasing(false);
+	ShowFlags.SetDepthOfField(false);
+	ShowFlags.SetMotionBlur(false);
+	ShowFlags.SetBloom(false);
+	ShowFlags.SetSceneColorFringe(false);
+
+	FSceneViewFamilyContext ViewFamily(
+		FSceneViewFamily::ConstructionValues(RenderTargetResource, World->Scene, ShowFlags)
+		.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
+	);
+
+	// To enable visualization mode
+	ViewFamily.EngineShowFlags.SetPostProcessing(true);
+	ViewFamily.EngineShowFlags.SetVisualizeBuffer(true);
+	ViewFamily.EngineShowFlags.SetTonemapper(false);
+	ViewFamily.EngineShowFlags.SetScreenPercentage(false);
+
+	FSceneViewInitOptions ViewInitOptions;
+	ViewInitOptions.SetViewRectangle(FIntRect(0, 0, Width, Height));
+	ViewInitOptions.ViewFamily = &ViewFamily;
+	if (VisiblePrimitives.Num() > 0)
+	{
+		ViewInitOptions.ShowOnlyPrimitives = VisiblePrimitives;
+	}
+	ViewInitOptions.ViewOrigin = ViewOrigin;
+	ViewInitOptions.ViewRotationMatrix = ViewRotationMatrix;
+	ViewInitOptions.ProjectionMatrix = ProjectionMatrix;
+
+	FSceneView* NewView = new FSceneView(ViewInitOptions);
+	NewView->CurrentBufferVisualizationMode = FName("PreTonemapHDRColor");
+	ViewFamily.Views.Add(NewView);
+
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
+
+	ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
+	ViewFamily.EngineShowFlags.LOD = 0;
+
+	ViewFamily.EngineShowFlags.SetFog(false);
+	ViewFamily.EngineShowFlags.SetGlobalIllumination(false);
+	ViewFamily.EngineShowFlags.SetDirectionalLights(false);
+	ViewFamily.EngineShowFlags.SetPointLights(false);
+	ViewFamily.EngineShowFlags.SetSpotLights(false);
+	ViewFamily.EngineShowFlags.SetRectLights(false);
+	ViewFamily.EngineShowFlags.SetSkyLighting(false);
+	//ViewFamily.EngineShowFlags.SetLighting(false);		// this breaks things
+
+	ViewFamily.EngineShowFlags.SetDiffuse(false);
+	ViewFamily.EngineShowFlags.SetSpecular(false);
+
+	ViewFamily.EngineShowFlags.SetRefraction(false);
+	ViewFamily.EngineShowFlags.SetReflectionEnvironment(false);
+
+	ViewFamily.EngineShowFlags.SetDynamicShadows(false);
+	ViewFamily.EngineShowFlags.SetCapsuleShadows(false);
+	ViewFamily.EngineShowFlags.SetContactShadows(false);
+
+	FCanvas Canvas(RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, World->Scene->GetFeatureLevel());
+	Canvas.Clear(FLinearColor::Transparent);
+
+	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
+
+	// Copy the contents of the remote texture to system memory
+	ReadImageBuffer.Reset();
+	ReadImageBuffer.SetNumUninitialized(Width * Height);
+	FReadSurfaceDataFlags ReadSurfaceDataFlags(RCM_MinMax);		// don't normalize buffer values, we want full HDR range
+	ReadSurfaceDataFlags.SetLinearToGamma(false);
+	RenderTargetResource->ReadLinearColorPixels(ReadImageBuffer, ReadSurfaceDataFlags, FIntRect(0, 0, Width, Height));
+
+	FlushRenderingCommands();
+
+	ResultImageOut.SetDimensions(Dimensions);
+	for (int32 yi = 0; yi < Height; ++yi)
+	{
+		for (int32 xi = 0; xi < Width; ++xi)
+		{
+			FLinearColor PixelColorf = ReadImageBuffer[yi * Width + xi];
+			ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+		}
+	}
+
+	return true;
+}
 
 
 /**
@@ -683,6 +644,7 @@ namespace Internal
 
 		// Copy the contents of the remote texture to system memory
 		OutSamples.SetNumUninitialized(Width * Height);
+		//FReadSurfaceDataFlags ReadSurfaceDataFlags(RCM_MinMax);		// should we use MinMax to avoid normalization?
 		FReadSurfaceDataFlags ReadSurfaceDataFlags;
 		ReadSurfaceDataFlags.SetLinearToGamma(false);
 		RenderTargetResource->ReadLinearColorPixels(OutSamples, ReadSurfaceDataFlags, FIntRect(0, 0, Width, Height));
@@ -745,6 +707,7 @@ bool FWorldRenderCapture::CaptureFromPosition(
 	case ERenderCaptureType::Metallic:		CaptureTypeName = FName("Metallic");	break;
 	case ERenderCaptureType::Specular:		CaptureTypeName = FName("Specular");	break;
 	case ERenderCaptureType::BaseColor:		CaptureTypeName = FName("BaseColor");	break;
+	case ERenderCaptureType::Emissive:		CaptureTypeName = FName("PreTonemapHDRColor");	break;
 	}
 
 	ReadImageBuffer.Reset();
