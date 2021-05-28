@@ -589,11 +589,6 @@ void FOpenXRARSystem::AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh)
 		check(FoundTrackedGeometryGroup);
 
 		bIsAdd = true;
-
-		if (SessionConfig != nullptr)
-		{
-			AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
-		}
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
@@ -611,7 +606,10 @@ void FOpenXRARSystem::AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh)
 	// Trigger the proper notification delegate
 	if (bIsAdd)
 	{
-		AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
+		if (SessionConfig != nullptr)
+		{
+			AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
+		}
 	} 
 	else
 	{
