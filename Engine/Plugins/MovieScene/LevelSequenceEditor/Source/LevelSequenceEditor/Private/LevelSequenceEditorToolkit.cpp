@@ -895,7 +895,7 @@ void FLevelSequenceEditorToolkit::BindAnimationInstance(USkeletalMeshComponent* 
 	Sequencer->GetHandleToObject(AnimInstance ? AnimInstance : NewObject<UAnimInstance>(SkeletalComponent));
 }
 
-bool FLevelSequenceEditorToolkit::OnRequestClose()
+void FLevelSequenceEditorToolkit::OnClose()
 {
 	UWorld* World = PlaybackContext->GetPlaybackContext();
 	UVREditorMode* VRMode = Cast<UVREditorMode>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(World)->FindExtension(UVREditorMode::StaticClass()));
@@ -907,7 +907,6 @@ bool FLevelSequenceEditorToolkit::OnRequestClose()
 	OpenToolkits.Remove(this);
 
 	OnClosedEvent.Broadcast();
-	return true;
 }
 
 bool FLevelSequenceEditorToolkit::CanFindInContentBrowser() const
