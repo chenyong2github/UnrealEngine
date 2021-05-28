@@ -586,6 +586,12 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	}
 }
 
+FTransform UTransformGizmo::GetGizmoTransform() const
+{
+	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
+	return GizmoComponent->GetComponentTransform();
+}
+
 void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled)
 {
 	// To update the gizmo location without triggering any callbacks, we temporarily
