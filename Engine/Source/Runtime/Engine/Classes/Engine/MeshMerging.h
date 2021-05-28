@@ -768,7 +768,13 @@ struct FMeshApproximationSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SimplifySettings, meta = (ClampMin = "0.0001", EditCondition = "SimplifyMethod == EMeshApproximationSimplificationPolicy::GeometricTolerance"))
 	float GeometricDeviation = 0.1f;
 
+	/** Whether to generate a nanite-enabled mesh */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	bool bGenerateNaniteEnabledMesh = false;
 
+	/** Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = NaniteSettings, meta = (EditConditionHides, EditCondition = "bGenerateNaniteEnabledMesh", ClampMin = 0, ClampMax = 100))
+	float NaniteProxyTrianglePercent = 100;
 
 	/** If Value is > 1, Multisample output baked textures by this amount in each direction (eg 4 == 16x supersampling) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "4"))
@@ -805,18 +811,26 @@ struct FMeshApproximationSettings
 		return OutputType == Other.OutputType
 			&& ApproximationAccuracy == Other.ApproximationAccuracy
 			&& ClampVoxelDimension == Other.ClampVoxelDimension
+			&& bAttemptAutoThickening == Other.bAttemptAutoThickening
+			&& TargetMinThicknessMultiplier == Other.TargetMinThicknessMultiplier
+			&& BaseCapping == Other.BaseCapping
 			&& WindingThreshold == Other.WindingThreshold
 			&& bFillGaps == Other.bFillGaps
 			&& GapDistance == Other.GapDistance
+			&& OcclusionMethod == Other.OcclusionMethod
 			&& SimplifyMethod == Other.SimplifyMethod
 			&& TargetTriCount == Other.TargetTriCount
 			&& TrianglesPerM == Other.TrianglesPerM
-
-			&& MaterialSettings == Other.MaterialSettings
+			&& GeometricDeviation == Other.GeometricDeviation
+			&& bGenerateNaniteEnabledMesh == Other.bGenerateNaniteEnabledMesh
+			&& NaniteProxyTrianglePercent == Other.NaniteProxyTrianglePercent
 			&& MultiSamplingAA == Other.MultiSamplingAA
+			&& RenderCaptureResolution == Other.RenderCaptureResolution
+			&& MaterialSettings == Other.MaterialSettings
 			&& CaptureFieldOfView == Other.CaptureFieldOfView
 			&& NearPlaneDist == Other.NearPlaneDist
-			&& RenderCaptureResolution == Other.RenderCaptureResolution;
+			&& bPrintDebugMessages == Other.bPrintDebugMessages
+			&& bEmitFullDebugMesh == Other.bEmitFullDebugMesh;
 	}
 
 	/** Inequality. */

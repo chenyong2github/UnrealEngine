@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Scene/WorldRenderCapture.h"
+#include "AssetUtils/Texture2DUtil.h"
 
 #include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -124,12 +125,6 @@ void FWorldRenderCapture::SetVisibleActors(const TArray<AActor*>& Actors)
 	TArray<UActorComponent*> ComponentQueue;
 	for (AActor* Actor : Actors)
 	{
-		FVector ActorOrigin, ActorExtent;
-		Actor->GetActorBounds(false, ActorOrigin, ActorExtent, true);
-		FBoxSphereBounds ActorBounds(ActorOrigin, ActorExtent, ActorExtent.Size());
-		VisibleBounds = (bFirst) ? ActorBounds : (VisibleBounds + ActorBounds);
-		bFirst = false;
-
 		ComponentQueue.Reset();
 		for (UActorComponent* Component : Actor->GetComponents())
 		{
@@ -142,6 +137,11 @@ void FWorldRenderCapture::SetVisibleActors(const TArray<AActor*>& Actors)
 			{
 				UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
 				VisiblePrimitives.Add(PrimitiveComponent->ComponentId);
+
+				// Append bounds of visible components only
+				FBoxSphereBounds ComponentBounds = PrimitiveComponent->Bounds;
+				VisibleBounds = (bFirst) ? ComponentBounds : (VisibleBounds + ComponentBounds);
+				bFirst = false;
 			}
 			else if (Cast<UChildActorComponent>(Component) != nullptr)
 			{
@@ -324,6 +324,9 @@ bool FWorldRenderCapture::CaptureMRSFromPosition(
 	check(this->World);
 	FSceneInterface* Scene = this->World->Scene;
 
+	// Prefetch all virtual textures so that we have content available
+	UE::AssetUtils::ForceVirtualTexturePrefetch(Dimensions);
+
 	UTextureRenderTarget2D* RenderTargetTexture = GetRenderTexture(true);
 	if (!ensure(RenderTargetTexture))
 	{
@@ -469,6 +472,9 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 	double NearPlaneDist,
 	FImageAdapter& ResultImageOut)
 {
+	// Prefetch all virtual textures so that we have content available
+	UE::AssetUtils::ForceVirtualTexturePrefetch(Dimensions);
+
 	UTextureRenderTarget2D* RenderTargetTexture = GetRenderTexture(true);
 	if (ensure(RenderTargetTexture) == false)
 	{
@@ -603,6 +609,9 @@ namespace Internal
 		TArray<FLinearColor>& OutSamples
 	)
 	{
+		// Prefetch all virtual textures so that we have content available
+		UE::AssetUtils::ForceVirtualTexturePrefetch(Dimensions);
+
 		int32 Width = Dimensions.GetWidth();
 		int32 Height = Dimensions.GetHeight();
 		FTextureRenderTargetResource* RenderTargetResource = RenderTargetTexture->GameThread_GetRenderTargetResource();
@@ -665,11 +674,21 @@ bool FWorldRenderCapture::CaptureFromPosition(
 {
 	if (CaptureType == ERenderCaptureType::Emissive)
 	{
-		return CaptureEmissiveFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut);
+		bool bOK = CaptureEmissiveFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut);
+		if (bWriteDebugImage)
+		{
+			WriteDebugImage(ResultImageOut, TEXT("Emissive"));
+		}
+		return bOK;
 	}
 	else if (CaptureType == ERenderCaptureType::CombinedMRS)
 	{
-		return CaptureMRSFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut);
+		bool bOK = CaptureMRSFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut);
+		if (bWriteDebugImage)
+		{
+			WriteDebugImage(ResultImageOut, TEXT("CombinedMRS"));
+		}
+		return bOK;
 	}
 
 	// Roughness visualization is rendered with gamma correction (unclear why)
@@ -725,13 +744,37 @@ bool FWorldRenderCapture::CaptureFromPosition(
 	{
 		for (int32 xi = 0; xi < Width; ++xi)
 		{
-			//FColor PixelColor = OutputImage[yi * Width + xi];
-			//FLinearColor PixelColorf = PixelColor.ReinterpretAsLinear();
 			FLinearColor PixelColorf = ReadImageBuffer[yi * Width + xi];
 			PixelColorf.A = 1.0f;		// ?
 			ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
 		}
 	}
 
+	if (bWriteDebugImage)
+	{
+		WriteDebugImage(ResultImageOut, *CaptureTypeName.ToString());
+	}
+
 	return true;
+}
+
+
+void FWorldRenderCapture::SetEnableWriteDebugImage(bool bEnable, int32 ImageCounter, FString FolderName)
+{
+	bWriteDebugImage = bEnable;
+	if (ImageCounter > 0)
+	{
+		DebugImageCounter = ImageCounter;
+	}
+	if (FolderName.Len() > 0)
+	{
+		DebugImageFolderName = FolderName;
+	}
+}
+
+void FWorldRenderCapture::WriteDebugImage(const FImageAdapter& ResultImageOut, const FString& ImageTypeName)
+{
+	static int32 CaptureIndex = 0;
+	int32 UseCounter = (DebugImageCounter >= 0) ? DebugImageCounter : CaptureIndex++;
+	UE::AssetUtils::SaveDebugImage(ResultImageOut, false, DebugImageFolderName, *ImageTypeName, UseCounter);
 }

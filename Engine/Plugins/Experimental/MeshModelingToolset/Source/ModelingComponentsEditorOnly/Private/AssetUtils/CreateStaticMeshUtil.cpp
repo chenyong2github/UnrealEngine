@@ -119,6 +119,14 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 		}
 	}
 
+	// Nanite options
+	if (Options.bGenerateNaniteEnabledMesh)
+	{
+		NewStaticMesh->NaniteSettings.bEnabled = Options.bGenerateNaniteEnabledMesh;
+		NewStaticMesh->NaniteSettings.PercentTriangles = Options.NaniteProxyTrianglePercent * 0.01f;
+		NewStaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
+	}
+
 	NewStaticMesh->MarkPackageDirty();
 	if (Options.bDeferPostEditChange == false)
 	{

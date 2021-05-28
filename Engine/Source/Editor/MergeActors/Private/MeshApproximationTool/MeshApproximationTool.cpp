@@ -220,6 +220,9 @@ bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<T
 	Options.bVerbose = UseSettings.bPrintDebugMessages;
 	Options.bWriteDebugMesh = UseSettings.bEmitFullDebugMesh;
 
+	Options.bGenerateNaniteEnabledMesh = UseSettings.bGenerateNaniteEnabledMesh;
+	Options.NaniteProxyTrianglePercent = UseSettings.NaniteProxyTrianglePercent;
+
 	// run actor approximation computation
 	IGeometryProcessing_ApproximateActors::FResults Results;
 	ApproxActorsAPI->ApproximateActors(Actors, Options, Results);

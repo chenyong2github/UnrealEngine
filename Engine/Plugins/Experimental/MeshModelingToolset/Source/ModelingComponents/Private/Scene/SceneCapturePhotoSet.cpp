@@ -108,6 +108,10 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 	RenderCapture.SetWorld(TargetWorld);
 	RenderCapture.SetVisibleActors(VisibleActors);
 	RenderCapture.SetDimensions(PhotoDimensions);
+	if (bWriteDebugImages)
+	{
+		RenderCapture.SetEnableWriteDebugImage(true, 0, DebugImagesFolderName);
+	}
 
 	// this tells us origin and radius - could be view-dependent...
 	FSphere RenderSphere = RenderCapture.ComputeContainingRenderSphere(HorizontalFOVDegrees);
@@ -320,4 +324,13 @@ bool FSceneCapturePhotoSet::ComputeSample(
 	}
 
 	return true;
+}
+
+void FSceneCapturePhotoSet::SetEnableWriteDebugImages(bool bEnable, FString FolderName)
+{
+	bWriteDebugImages = bEnable;
+	if (FolderName.Len() > 0)
+	{
+		DebugImagesFolderName = FolderName;
+	}
 }
