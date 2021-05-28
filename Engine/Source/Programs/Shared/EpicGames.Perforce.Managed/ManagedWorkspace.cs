@@ -833,18 +833,15 @@ namespace EpicGames.Perforce.Managed
 				await LogFortniteStatsInfoAsync(Perforce);
 
 				// Update the state of the current stream, if necessary
-				StreamSnapshot Contents;
+				StreamSnapshot? Contents;
 				if(CacheFile == null)
 				{
 					Contents = await FindClientContentsAsync(Perforce, ChangeNumber, bFakeSync, CancellationToken);
 				}
 				else
 				{
-					if(FileReference.Exists(CacheFile))
-					{
-						Contents = await LoadClientContentsAsync(CacheFile, CancellationToken);
-					}
-					else
+					Contents = await TryLoadClientContentsAsync(CacheFile, CancellationToken);
+					if(Contents == null)
 					{
 						Contents = await FindAndSaveClientContentsAsync(Perforce, ChangeNumber, bFakeSync, CacheFile, CancellationToken);
 					}
@@ -1500,15 +1497,18 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="CacheFile">The cache file to read from</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		async Task<StreamSnapshot> LoadClientContentsAsync(FileReference CacheFile, CancellationToken CancellationToken)
+		async Task<StreamSnapshot?> TryLoadClientContentsAsync(FileReference CacheFile, CancellationToken CancellationToken)
 		{
-			StreamSnapshot Contents;
-			using (Trace("ReadMetadata"))
-			using (ILoggerProgress Scope = Logger.BeginProgressScope($"Reading cached metadata from {CacheFile}..."))
+			StreamSnapshot? Contents = null;
+			if (FileReference.Exists(CacheFile))
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
-				Contents = await StreamSnapshotFromMemory.LoadAsync(CacheFile, CancellationToken);
-				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				using (Trace("ReadMetadata"))
+				using (ILoggerProgress Scope = Logger.BeginProgressScope($"Reading cached metadata from {CacheFile}..."))
+				{
+					Stopwatch Timer = Stopwatch.StartNew();
+					Contents = await StreamSnapshotFromMemory.TryLoadAsync(CacheFile, CancellationToken);
+					Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
+				}
 			}
 			return Contents;
 		}
