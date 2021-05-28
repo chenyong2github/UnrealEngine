@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 using HordeServer.Storage.Primitives;
 using HordeServer.Utility;
 
+using Digest = Build.Bazel.Remote.Execution.V2.Digest;
+
 namespace HordeServer.Rpc
 {
 	/// <inheritdoc cref="ActionCache"/>
