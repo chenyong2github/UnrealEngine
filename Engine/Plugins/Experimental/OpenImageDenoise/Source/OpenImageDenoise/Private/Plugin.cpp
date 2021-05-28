@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 #include "Renderer/Public/PathTracingDenoiser.h"
+#include "RHI.h"
 #include "RHIResources.h"
 
 #include "OpenImageDenoise/oidn.hpp"
