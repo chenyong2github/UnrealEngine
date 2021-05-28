@@ -4,6 +4,7 @@
 
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
+#include "InteractiveToolStorableSelection.h"
 #include "SingleSelectionMeshEditingTool.generated.h"
 
 class IAssetGenerationAPI;
@@ -35,8 +36,11 @@ public:
 	/** Called by BuildTool to configure the Tool with the input MeshSource based on the SceneState */
 	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const;
 
-	/** @return true if this tool requires an AssetAPI */
+	/** @return true if this Tool requires an AssetAPI */
 	virtual bool RequiresAssetAPI() const { return false; }
+
+	/** @return true if this Tool would like access to an available Input Selection object */
+	virtual bool WantsInputSelectionIfAvailable() const { return false; }
 
 protected:
 	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
@@ -58,4 +62,42 @@ public:
 protected:
 	UWorld* TargetWorld = nullptr;
 	IAssetGenerationAPI* AssetAPI = nullptr;
+
+
+
+	//
+	// Mesh Selection support
+	//
+
+public:
+	/**
+	 * Set a Selection for the Tool to use. This should be called before tool Setup() (ie in the ToolBuilder) 
+	 * to allow the Tool to configure it's behavior based on the Selection (which may or may-not exist).
+	 * If the Tool requires a Selection, this needs to be handled at the Builder level.
+	 */
+	virtual void SetInputSelection(const UInteractiveToolStorableSelection* StoredToolSelectionIn)
+	{
+		InputSelection = StoredToolSelectionIn;
+	}
+
+	/** @return true if an InputSelection is available */
+	virtual bool HasInputSelection() const
+	{
+		return InputSelection != nullptr;
+	}
+
+	/** @return the input Selection, or nullptr if one was not configured */
+	virtual const UInteractiveToolStorableSelection* GetInputSelection() const
+	{
+		return InputSelection;
+	}
+
+protected:
+
+	/**
+	 * (optional) Stored Selection provided on Tool Input. This should never be modified after the Tool's Setup() is called
+	 */
+	UPROPERTY()
+	const UInteractiveToolStorableSelection* InputSelection = nullptr;
+
 };

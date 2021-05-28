@@ -73,6 +73,9 @@ public:
 	 */
 	void ExtractIntoSelectionObject(const FGroupTopology& TopologyIn, FGroupTopologySelection& SelectionOut) const;
 
+	/** @return selected GroupIDs */
+	const TArray<int32>& GetGroupIDs() const { return GroupIDs; }
+
 	bool IsEmpty() const
 	{
 		return CornerVids.IsEmpty() && GroupEdgeRepresentativeVerts.IsEmpty() && GroupIDs.IsEmpty();
