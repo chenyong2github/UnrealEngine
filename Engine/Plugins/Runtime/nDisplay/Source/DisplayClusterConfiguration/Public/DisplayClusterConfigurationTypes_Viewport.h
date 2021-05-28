@@ -287,7 +287,7 @@ public:
 	bool bAllowRendering = true;
 
 	// @todo: GUI: Toggle visibility of this property: hide for camera projection policy, and show for other
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport", meta = (DisplayName = "View Origin"))
 	FString Camera;
 
 	UPROPERTY(EditDefaultsOnly, Category = "NDisplay Viewport")
