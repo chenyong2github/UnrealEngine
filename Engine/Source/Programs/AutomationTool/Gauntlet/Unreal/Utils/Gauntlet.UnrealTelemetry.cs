@@ -60,6 +60,8 @@ namespace Gauntlet
 			string DataPointKey = CSVColumns.DataPoint.ToString();
 			string MeasurementKey = CSVColumns.Measurement.ToString();
 			string ContextKey = CSVColumns.Context.ToString();
+			string UnitKey = CSVColumns.Unit.ToString();
+			string BaselineKey = CSVColumns.Baseline.ToString();
 			if (Mapping != null)
 			{
 				if (Mapping.ContainsKey(TestNameKey))
@@ -70,6 +72,10 @@ namespace Gauntlet
 					Mapping.TryGetValue(MeasurementKey, out MeasurementKey);
 				if (Mapping.ContainsKey(ContextKey))
 					Mapping.TryGetValue(ContextKey, out ContextKey);
+				if (Mapping.ContainsKey(UnitKey))
+					Mapping.TryGetValue(UnitKey, out UnitKey);
+				if (Mapping.ContainsKey(BaselineKey))
+					Mapping.TryGetValue(BaselineKey, out BaselineKey);
 			}
 			// Populate telemetry report
 			foreach (Dictionary<string, string> Row in CSVData)
@@ -82,6 +88,12 @@ namespace Gauntlet
 				Row.TryGetValue(MeasurementKey, out Measurement);
 				string Context;
 				Row.TryGetValue(ContextKey, out Context);
+				string Unit;
+				Row.TryGetValue(UnitKey, out Unit);
+				string Baseline;
+				Row.TryGetValue(BaselineKey, out Baseline);
+				double BaselineFloat = 0;
+				double.TryParse(Baseline, out BaselineFloat);
 				if (string.IsNullOrEmpty(TestName) || string.IsNullOrEmpty(DataPoint) || string.IsNullOrEmpty(Measurement))
 				{
 					Log.Warning("Telemetry - Missing data in CSV file '{0}':\n TestName='{1}', DataPoint='{2}', Measurement='{3}'", File, TestName, DataPoint, Measurement);
@@ -89,7 +101,7 @@ namespace Gauntlet
 				}
 				try
 				{
-					TelemetryReport.AddTelemetry(TestName, DataPoint, double.Parse(Measurement), Context);
+					TelemetryReport.AddTelemetry(TestName, DataPoint, double.Parse(Measurement), Context, Unit, BaselineFloat);
 				}
 				catch (FormatException)
 				{
@@ -103,7 +115,9 @@ namespace Gauntlet
 			TestName,
 			DataPoint,
 			Measurement,
-			Context
+			Context,
+			Unit,
+			Baseline
 		}
 
 	}
@@ -144,6 +158,7 @@ namespace Gauntlet
 		[Help("Branch", "Target Branch name. Default: Unknown.")]
 		[Help("Changelist", "Target Changelist number. Default: 0.")]
 		[Help("Configuration", "Target Configuration name. Default: Development.")]
+		[Help("JobLink", "Http Link to Build Job. Default: %UE_HORDE_JOBID%")]
 
 		public override ExitCode Execute()
 		{
@@ -158,6 +173,7 @@ namespace Gauntlet
 			string ChangelistString = ParseParamValue("Changelist=", "0");
 			string RoleString = ParseParamValue("Role=", "Editor");
 			string ConfigurationString = ParseParamValue("Configuration=", "Development");
+			string JobLink = ParseParamValue("JobLink=", "");
 
 			if (string.IsNullOrEmpty(CSVDirectory) && string.IsNullOrEmpty(CSVFile))
 			{
@@ -229,6 +245,12 @@ namespace Gauntlet
 
 			Context.SetProperty("Branch", BranchString);
 			Context.SetProperty("Changelist", ChangelistString);
+
+			if (string.IsNullOrEmpty(JobLink))
+			{
+				JobLink = HordeReport.DefaultHordeJobLink;
+			}
+			Context.SetProperty("JobLink", JobLink);
 
 			// Create a report
 			HordeReport.SimpleTestReport Report = new HordeReport.SimpleTestReport();
