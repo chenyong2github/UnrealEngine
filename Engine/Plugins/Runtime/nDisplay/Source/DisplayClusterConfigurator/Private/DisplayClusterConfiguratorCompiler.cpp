@@ -128,7 +128,6 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 
 	bool bAtLeastOneViewportFound = false;
 
-	bool bCameraFound = false;
 	bool bViewOriginFound = false;
 	if (UDisplayClusterBlueprintGeneratedClass* BPGC = DCBlueprint->GetGeneratedClass())
 	{
@@ -137,16 +136,9 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 		{
 			if (UActorComponent* Component = Node->GetActualComponentTemplate(BPGC))
 			{
-				if (Component->IsA<UCameraComponent>())
-				{
-					bCameraFound = true;
-				}
-				else if (Component->IsA<UDisplayClusterCameraComponent>())
+				if (Component->IsA<UDisplayClusterCameraComponent>())
 				{
 					bViewOriginFound = true;
-				}
-				if (bCameraFound && bViewOriginFound)
-				{
 					break;
 				}
 			}
@@ -155,11 +147,6 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 		if (!bViewOriginFound)
 		{
 			MessageLog.Warning(*LOCTEXT("NoViewOriginWarning", "No view origin found. Please add a view origin component.").ToString());
-		}
-		
-		if (!bCameraFound)
-		{
-			MessageLog.Warning(*LOCTEXT("NoCameraWarning", "No camera found. Please add a camera component.").ToString());
 		}
 	}
 	
