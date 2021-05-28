@@ -98,7 +98,7 @@ void FLidarPointCloudViewData::Compute()
 		if (LP && LP->ViewportClient)
 		{
 			FSceneViewProjectionData ProjectionData;
-			if (LP->GetProjectionData(LP->ViewportClient->Viewport, eSSP_FULL, ProjectionData))
+			if (LP->GetProjectionData(LP->ViewportClient->Viewport, GEngine->IsStereoscopic3D() ? eSSP_LEFT_EYE : eSSP_FULL, ProjectionData))
 			{
 				ViewOrigin = ProjectionData.ViewOrigin;
 				FMatrix ViewRotationMatrix = ProjectionData.ViewRotationMatrix;
