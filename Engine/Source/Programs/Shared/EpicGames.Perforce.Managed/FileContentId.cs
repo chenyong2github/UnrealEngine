@@ -14,19 +14,17 @@ namespace EpicGames.Perforce.Managed
 	[DebuggerDisplay("{Digest} ({Type})")]
 	class FileContentId
 	{
-		public static int SerializedSize => Digest<Md5>.Length + FileType.SerializedSize;
-
 		public Digest<Md5> Digest
 		{
 			get;
 		}
 
-		public FileType Type
+		public ReadOnlyUtf8String Type
 		{
 			get;
 		}
 
-		public FileContentId(Digest<Md5> Digest, FileType Type)
+		public FileContentId(Digest<Md5> Digest, ReadOnlyUtf8String Type)
 		{
 			this.Digest = Digest;
 			this.Type = Type;
@@ -48,14 +46,19 @@ namespace EpicGames.Perforce.Managed
 		public static FileContentId ReadFileContentId(this MemoryReader Reader)
 		{
 			Digest<Md5> Digest = Reader.ReadDigest<Md5>();
-			FileType Type = Reader.ReadFileType();
+			ReadOnlyUtf8String Type = Reader.ReadString();
 			return new FileContentId(Digest, Type);
 		}
 
 		public static void WriteFileContentId(this MemoryWriter Writer, FileContentId FileContentId)
 		{
 			Writer.WriteDigest<Md5>(FileContentId.Digest);
-			Writer.WriteFileType(FileContentId.Type);
+			Writer.WriteString(FileContentId.Type);
+		}
+
+		public static int GetSerializedSize(this FileContentId FileContentId)
+		{
+			return Digest<Md5>.Length + FileContentId.Type.GetSerializedSize();
 		}
 	}
 }

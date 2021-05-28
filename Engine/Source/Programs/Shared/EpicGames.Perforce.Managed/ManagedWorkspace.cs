@@ -1470,7 +1470,7 @@ namespace EpicGames.Perforce.Managed
 					}
 
 					byte[] DigestBytes = StringUtils.ParseHexString(Record.Digest.Span);
-					FileContentId ContentId = new FileContentId(DigestBytes, FileType.Parse(Record.HeadType.Span));
+					FileContentId ContentId = new FileContentId(DigestBytes, Record.HeadType);
 
 					// Get the depot file and revision
 					byte[] DepotFileAndRevisionData = new byte[Record.DepotFile.Length + 1 + Record.HaveRev.Length];
