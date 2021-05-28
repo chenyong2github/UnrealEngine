@@ -68,6 +68,7 @@
 #include "FXSystem.h"
 #include "Lumen/Lumen.h"
 #include "Nanite/NaniteRender.h"
+#include "DistanceFieldLightingShared.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -3734,11 +3735,11 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
 			for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
 			{
-				SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Reset();
+				SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Empty(DistanceField::MinPrimitiveModifiedBoundsAllocation);
 			}
 			if (SceneRenderer->Scene->LumenSceneData)
 			{
-				SceneRenderer->Scene->LumenSceneData->PrimitiveModifiedBounds.Reset();
+				SceneRenderer->Scene->LumenSceneData->PrimitiveModifiedBounds.Empty(DistanceField::MinPrimitiveModifiedBoundsAllocation);
 			}
 
 			// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame

@@ -102,6 +102,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 namespace DistanceField
 {
+	constexpr uint32 MinPrimitiveModifiedBoundsAllocation = 1024;
+
 	FDistanceFieldObjectBufferParameters SetupObjectBufferParameters(const FDistanceFieldSceneData& DistanceFieldSceneData);
 	FDistanceFieldAtlasParameters SetupAtlasParameters(const FDistanceFieldSceneData& DistanceFieldSceneData);
 };

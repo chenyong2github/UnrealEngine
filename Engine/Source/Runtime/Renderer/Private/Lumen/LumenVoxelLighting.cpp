@@ -857,7 +857,7 @@ void UpdateVoxelVisBuffer(
 			AddUpdateBoundsForAxis(MovementInTiles, ClipmapBounds, UpdateTileWorldSize[2], 2, UpdateBounds);
 		}
 
-		PrimitiveModifiedBounds.Reset();
+		PrimitiveModifiedBounds.Empty(DistanceField::MinPrimitiveModifiedBoundsAllocation);
 		Clipmap.LastPartialUpdateOriginInTiles = UpdateTileCenter;
 		Clipmap.ScrollOffsetInTiles = Clipmap.LastPartialUpdateOriginInTiles - Clipmap.FullUpdateOriginInTiles;
 		Clipmap.VoxelCoordToUVScale = FVector(1.0f) / FVector(ClipmapResolution);
