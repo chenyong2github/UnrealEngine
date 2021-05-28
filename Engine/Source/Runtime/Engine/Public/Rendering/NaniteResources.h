@@ -350,6 +350,10 @@ struct FInstanceDraw
 	uint32 ViewId;
 };
 
+#define NANITE_RESOURCE_FLAG_HAS_VERTEX_COLOR 0x1
+#define NANITE_RESOURCE_FLAG_HAS_IMPOSTER 0x2
+#define NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION 0x4
+
 struct FResources
 {
 	// Persistent State
@@ -365,24 +369,7 @@ struct FResources
 	uint32							NumInputVertices	= 0;
 	uint16							NumInputMeshes		= 0;
 	uint16							NumInputTexCoords	= 0;
-
-	struct FPackedPersistentFlags
-	{
-		struct FPersistentFlags
-		{
-			uint8					bHasVertexColor : 1;
-			uint8					bHasImposter : 1;
-			uint8					bLZCompressed : 1;
-			uint8					UnusedPadding : 5;
-		};
-
-		union
-		{
-			FPersistentFlags Values;
-			uint8 Packed = 0;
-		};
-	}
-	ResourceFlags;
+	uint32							ResourceFlags		= 0;
 
 	// Runtime State
 	uint32	RuntimeResourceID		= 0xFFFFFFFFu;

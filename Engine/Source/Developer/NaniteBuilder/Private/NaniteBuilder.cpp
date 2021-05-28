@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("0F805ECF-3783-494C-A878-B442DACECE1F")
+#define NANITE_DERIVEDDATA_VER TEXT("6071256D0-4CD4-4A3B-BD28-18BB2F267DE")
 
 namespace Nanite
 {
@@ -513,8 +513,22 @@ static bool BuildNaniteData(
 	Resources.NumInputMeshes	= MeshTriangleCounts.Num();
 	Resources.NumInputTexCoords = NumTexCoords;
 
-	Resources.ResourceFlags.Values.bHasVertexColor	= Channel != 255; // Don't trust any input. We only have color if it isn't all white.
-	Resources.ResourceFlags.Values.bHasImposter		= Resources.NumInputMeshes == 1;
+	// Don't trust any input. We only have color if it isn't all white.
+	const bool bHasVertexColor = Channel != 255;
+
+	const bool bHasImposter = Resources.NumInputMeshes == 1;
+
+	Resources.ResourceFlags = 0x0;
+
+	if (bHasVertexColor)
+	{
+		Resources.ResourceFlags |= NANITE_RESOURCE_FLAG_HAS_VERTEX_COLOR;
+	}
+
+	if (bHasImposter)
+	{
+		Resources.ResourceFlags |= NANITE_RESOURCE_FLAG_HAS_IMPOSTER;
+	}
 
 	TArray< uint32 > ClusterCountPerMesh;
 	TArray< FCluster > Clusters;
@@ -527,7 +541,7 @@ static bool BuildNaniteData(
 			{
 				ClusterTriangles(Verts, TArrayView< const uint32 >( &Indexes[BaseTriangle * 3], NumTriangles * 3 ),
 										TArrayView< const int32 >( &MaterialIndexes[BaseTriangle], NumTriangles ),
-										Clusters, VertexBounds, NumTexCoords, Resources.ResourceFlags.Values.bHasVertexColor);
+										Clusters, VertexBounds, NumTexCoords, bHasVertexColor);
 			}
 			ClusterCountPerMesh.Add(Clusters.Num() - NumClustersBefore);
 			BaseTriangle += NumTriangles;
@@ -613,12 +627,12 @@ static bool BuildNaniteData(
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
 
-	Encode( Resources, Settings, Clusters, Groups, MeshBounds, Resources.NumInputMeshes, NumTexCoords, Resources.ResourceFlags.Values.bHasVertexColor);
+	Encode( Resources, Settings, Clusters, Groups, MeshBounds, Resources.NumInputMeshes, NumTexCoords, bHasVertexColor);
 
 	uint32 EncodeTime1 = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime1 - EncodeTime0 ) / 1000.0f );
 
-	if (Resources.ResourceFlags.Values.bHasImposter)
+	if (bHasImposter)
 	{
 		uint32 ImposterStartTime = FPlatformTime::Cycles();
 		auto& RootChildren = Groups.Last().Children;
