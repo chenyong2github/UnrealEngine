@@ -68,6 +68,6 @@ void Main(
 	EnvBRDFApproxFullyRough(DiffuseColor, SpecularColor);
 
 	OutTarget0 = float4(sqrt(DiffuseColor), Opacity);
-	OutTarget1 = float4(MaterialParameters.WorldNormal * .5f + .5f, 0);
-	OutTarget2 = float4(GetMaterialEmissive(PixelMaterialInputs), 0);
+	OutTarget1 = float4(UnitVectorToOctahedron(MaterialParameters.WorldNormal), 0.0f, 0.0f);
+	OutTarget2 = float4(GetMaterialEmissive(PixelMaterialInputs), 0.0f);
 }

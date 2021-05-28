@@ -195,7 +195,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 					float2 ProbeTexelCenter = float2(0.5, 0.5);
 					float2 ProbeUV = (TexelCoord + ProbeTexelCenter) / (float)ScreenProbeBRDFOctahedronResolution;
-					float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+					float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 					FThreeBandSHVector DirectionSH = SHBasisFunction3(WorldConeDirection);
 					float PDF = max(DotSH3(BRDF, DirectionSH), 0);
@@ -236,7 +236,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 					float2 PDFTexelCoord = float2(TexelCoordX, TexelCoordY);
 					float2 ProbeTexelCenter = float2(0.5, 0.5);
 					float2 ProbeUV = (PDFTexelCoord + ProbeTexelCenter) / (float)ScreenProbeBRDFOctahedronResolution;
-					float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+					float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 					float PDF = 0.0f;
 
@@ -372,7 +372,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 			if (Transparency > 0.0f)
 			{
 #if RADIANCE_CACHE
-				float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+				float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 				float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
 
 				bool bCoveredByRadianceCache = false;
@@ -602,7 +602,7 @@ void ScreenProbeGenerateRaysCS(
 				BRDF.V2.x = BRDFProbabilityDensityFunctionSH[SHBaseIndex + 8];
 
 				float2 ProbeUV = (TexelCoord + float2(.5f, .5f)) / float(MipSize);
-				float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+				float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 				FThreeBandSHVector DirectionSH = SHBasisFunction3(WorldConeDirection);
 				float PDF = max(DotSH3(BRDF, DirectionSH), 0);
 #else

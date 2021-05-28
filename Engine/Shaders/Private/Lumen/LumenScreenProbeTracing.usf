@@ -82,7 +82,7 @@ void ScreenProbeTraceScreenTexturesCS(
 			float ConeHalfAngle;
 			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
-			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 			//@todo - this should be applied with the hit UV, not the origin, but still works for self-shadowing
 			float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
@@ -331,7 +331,7 @@ void TraceMeshSDFs(
 			float ConeHalfAngle;
 			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
-			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 			float3 SamplePosition = WorldPosition + SurfaceBias * WorldConeDirection;
 			SamplePosition += SurfaceBias * SceneNormal;
@@ -431,7 +431,7 @@ void TraceVoxels(
 			float ConeHalfAngle;
 			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
-			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 			float3 SamplePosition = WorldPosition + SurfaceBias * WorldConeDirection;
 			SamplePosition += SurfaceBias * SceneNormal;
@@ -594,7 +594,7 @@ void ScreenProbeSetupVisualizeTraces(
 			float ConeHalfAngle;
 			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
-			WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+			WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 			float BaseAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
 			RefinementRay = 1 - ConeHalfAngle / BaseAngle;

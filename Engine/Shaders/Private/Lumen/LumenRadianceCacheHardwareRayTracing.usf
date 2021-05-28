@@ -13,7 +13,6 @@
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenReflectionCommon.ush"
-#include "LumenOctahedralProbe.ush"
 
 #define TEMP_ATLAS_TRACE_TILE_STRIDE 1024
 
@@ -60,7 +59,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 		{
 			float2 ProbeTexelCenter = float2(0.5, 0.5);
 			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(TraceResolution);
-			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 			float FinalMinTraceDistance = max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex));
 			float FinalMaxTraceDistance = MaxTraceDistance;

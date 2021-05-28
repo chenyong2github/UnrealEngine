@@ -4,7 +4,6 @@
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
-#include "LumenOctahedralProbe.ush"
 #include "LumenScreenProbeCommon.ush"
 #include "../MonteCarlo.ush"
 #include "../ShadingModelsSampling.ush"
@@ -573,7 +572,7 @@ Texture2D<float3> ScreenProbeRadiance;
 float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, uint2 ScreenProbeAtlasCoord[4], float4 InterpolationWeights)
 {
 	float BorderSize = 1 << (uint)ScreenProbeGatherMaxMip;
-	float2 ProbeCoord = DirectionToOctahedralMap(ConeDirection) * ScreenProbeGatherOctahedronResolution;
+	float2 ProbeCoord = UnitVectorToOctahedron(ConeDirection) * ScreenProbeGatherOctahedronResolution;
 					
 	float2 InvBufferSize = 1.0f / (float2)(ScreenProbeGatherOctahedronResolutionWithBorder * ScreenProbeAtlasBufferSize);
 	float2 UVMul = ScreenProbeGatherOctahedronResolutionWithBorder * InvBufferSize;
@@ -869,7 +868,7 @@ void ScreenProbeIndirectCS(
 					{
 						float2 ProbeTexelCenter = float2(0.5, 0.5);
 						float2 ProbeUV = (float2(X, Y) + ProbeTexelCenter) * InvScreenProbeResolution;
-						float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+						float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 						float NdotL = dot(WorldConeDirection, GBufferData.WorldNormal);
 

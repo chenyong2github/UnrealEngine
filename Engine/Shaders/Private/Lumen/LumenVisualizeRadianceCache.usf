@@ -93,7 +93,7 @@ void VisualizeRadianceCachePS(
 
 		#define DEBUG_VISUALIZE_BRDF_PDF 0
 		#if DEBUG_VISUALIZE_BRDF_PDF
-			float2 ProbeUV = DirectionToOctahedralMap(SphereNormal);
+			float2 ProbeUV = UnitVectorToOctahedron(SphereNormal);
 			uint2 ProbeAtlasCoord = 8 * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 			float2 ProbeTexelCoord = ProbeUV * 8;
 			float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) / (8.0f * ProbeAtlasResolutionInProbes);

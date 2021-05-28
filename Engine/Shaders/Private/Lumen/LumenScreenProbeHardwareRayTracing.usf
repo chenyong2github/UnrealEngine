@@ -75,7 +75,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			float2 ProbeUV;
 			float ConeHalfAngle;
 			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
-			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 			RayDesc Ray;
 			Ray.Origin = WorldPosition;
@@ -181,7 +181,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	float2 ProbeUV;
 	float ConeHalfAngle;
 	GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
-	float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+	float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
 
 	RayDesc Ray;
 	Ray.Origin = WorldPosition;
