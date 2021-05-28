@@ -62,16 +62,12 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="InputFile">File to read from</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>New StreamDirectoryInfo object</returns>
-		public static async Task<StreamSnapshotFromMemory> LoadAsync(FileReference InputFile, CancellationToken CancellationToken)
+		public static async Task<StreamSnapshotFromMemory?> TryLoadAsync(FileReference InputFile, CancellationToken CancellationToken)
 		{
 			byte[] Data = await FileReference.ReadAllBytesAsync(InputFile);
-			if (Data.Length < CurrentSignature.Length)
+			if (!Data.AsSpan().StartsWith(CurrentSignature))
 			{
-				throw new InvalidDataException(String.Format("Unable to read signature bytes from {0}", InputFile));
-			}
-			if (!Enumerable.SequenceEqual(Data.Take(CurrentSignature.Length), CurrentSignature))
-			{
-				throw new InvalidDataException(String.Format("Cached stream contents at {0} has incorrect signature", InputFile));
+				return null;
 			}
 
 			MemoryReader Reader = new MemoryReader(Data.AsMemory(CurrentSignature.Length));
