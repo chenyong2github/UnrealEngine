@@ -1011,7 +1011,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				UploadTask.Dst = PageUploader->Add_GetRef(PageStreamingState.PageUncompressedSize, PageOffset);
 				UploadTask.DstSize = PageStreamingState.PageUncompressedSize;
 				UploadTask.Tmp = PendingPageStagingMemoryLZ.GetData() + NumInstalledPages * CLUSTER_PAGE_DISK_SIZE;
-				UploadTask.bLZCompressed = (*Resources)->bLZCompressed;
+				UploadTask.bLZCompressed = (*Resources)->ResourceFlags.Values.bLZCompressed;
 				NumInstalledPages++;
 
 				// Update page headers
@@ -1153,7 +1153,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		uint32 PageOffset = GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
 		uint8* Dst = PageUploader->Add_GetRef(PageStreamingState.PageUncompressedSize, PageOffset);
 		
-		DecompressPage(Dst, PendingPageStagingMemoryLZ.GetData(), PageStreamingState.PageUncompressedSize, Ptr + FixupChunkSize, PageDiskSize, Resources->bLZCompressed);
+		DecompressPage(Dst, PendingPageStagingMemoryLZ.GetData(), PageStreamingState.PageUncompressedSize, Ptr + FixupChunkSize, PageDiskSize, Resources->ResourceFlags.Values.bLZCompressed);
 
 
 		ClusterPageHeaders.UploadBuffer.Add(GPUPageIndex, &NumClusters);

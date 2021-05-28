@@ -829,9 +829,34 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 	FormatOptions.MaximumIntegralDigits = 6;
 	TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "ScreenSize_F", "Current Screen Size:  {0}"), FText::AsNumber(CurrentScreenSize, &FormatOptions)));
 
-	TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Triangles_F", "Triangles:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumTriangles(CurrentLODLevel))));
+	const FText StaticMeshTriangleCount = FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumTriangles(CurrentLODLevel));
+	const FText StaticMeshVertexCount = FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumVertices(CurrentLODLevel));
 
-	TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Vertices_F", "Vertices:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumVertices(CurrentLODLevel))));
+	if (StaticMesh->NaniteSettings.bEnabled)
+	{
+		if (StaticMesh->GetRenderData())
+		{
+			const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
+			if (Resources.RootClusterPage.Num() > 0)
+			{
+				// Nanite Mesh Information
+				const FText NaniteTriangleCount = FText::AsNumber(Resources.NumInputTriangles);
+				const FText NaniteVertexCount = FText::AsNumber(Resources.NumInputVertices);
+
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Nanite_Triangles_F", "Nanite Triangles:  {0}"), NaniteTriangleCount));
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Nanite_Vertices_F", "Nanite Vertices:  {0}"), NaniteVertexCount));
+
+				// Proxy Mesh Information
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Proxy_Triangles_F", "Proxy Triangles:  {0}"), StaticMeshTriangleCount));
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Proxy_Vertices_F", "Proxy Vertices:  {0}"), StaticMeshVertexCount));
+			}
+		}
+	}
+	else
+	{
+		TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Triangles_F", "Triangles:  {0}"), StaticMeshTriangleCount));
+		TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Vertices_F", "Vertices:  {0}"), StaticMeshVertexCount));
+	}
 
 	TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "UVChannels_F", "UV Channels:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumUVChannels(CurrentLODLevel))));
 

@@ -797,7 +797,7 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
 
 			NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 			NaniteData->Serialize(ChaosAr, this);
-			check(NaniteData->NaniteResource.RootClusterPage.Num() == 0 || NaniteData->NaniteResource.bLZCompressed);
+			check(NaniteData->NaniteResource.RootClusterPage.Num() == 0 || NaniteData->NaniteResource.ResourceFlags.Values.bLZCompressed);
 		}
 	}
 }

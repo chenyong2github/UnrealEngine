@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("F65747FB-60B6-42A3-8596-A3D4E975423E")
+#define NANITE_DERIVEDDATA_VER TEXT("0F805ECF-3783-494C-A878-B442DACECE1F")
 
 namespace Nanite
 {
@@ -491,7 +491,10 @@ static bool BuildNaniteData(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::BuildData);
 
-	if (NumTexCoords > MAX_NANITE_UVS) NumTexCoords = MAX_NANITE_UVS;
+	if (NumTexCoords > MAX_NANITE_UVS)
+	{
+		NumTexCoords = MAX_NANITE_UVS;
+	}
 
 	FBounds	VertexBounds;
 	uint32 Channel = 255;
@@ -505,10 +508,13 @@ static bool BuildNaniteData(
 		Channel &= Vert.Color.A;
 	}
 
-	const uint32 NumMeshes = MeshTriangleCounts.Num();
-	
-	// Don't trust any input. We only have color if it isn't all white.
-	bool bHasColors = Channel != 255;
+	Resources.NumInputTriangles	= Indexes.Num() / 3;
+	Resources.NumInputVertices	= Verts.Num();
+	Resources.NumInputMeshes	= MeshTriangleCounts.Num();
+	Resources.NumInputTexCoords = NumTexCoords;
+
+	Resources.ResourceFlags.Values.bHasVertexColor	= Channel != 255; // Don't trust any input. We only have color if it isn't all white.
+	Resources.ResourceFlags.Values.bHasImposter		= Resources.NumInputMeshes == 1;
 
 	TArray< uint32 > ClusterCountPerMesh;
 	TArray< FCluster > Clusters;
@@ -521,15 +527,15 @@ static bool BuildNaniteData(
 			{
 				ClusterTriangles(Verts, TArrayView< const uint32 >( &Indexes[BaseTriangle * 3], NumTriangles * 3 ),
 										TArrayView< const int32 >( &MaterialIndexes[BaseTriangle], NumTriangles ),
-										Clusters, VertexBounds, NumTexCoords, bHasColors);
+										Clusters, VertexBounds, NumTexCoords, Resources.ResourceFlags.Values.bHasVertexColor);
 			}
 			ClusterCountPerMesh.Add(Clusters.Num() - NumClustersBefore);
 			BaseTriangle += NumTriangles;
 		}
 	}
 	
-	const int32 OldTriangleCount = Indexes.Num() / 3;
-	const int32 MinTriCount = 2000;
+	const int32 OldTriangleCount = Resources.NumInputTriangles;
+	const int32 MinTriCount = 2000; // TODO: Should make this configurable
 	// Replace original static mesh data with coarse representation.
 	const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f && OldTriangleCount > MinTriCount;
 
@@ -552,7 +558,7 @@ static bool BuildNaniteData(
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::DAG.Reduce);
 		
 		uint32 ClusterStart = 0;
-		for (uint32 MeshIndex = 0; MeshIndex < NumMeshes; MeshIndex++)
+		for (uint32 MeshIndex = 0; MeshIndex < Resources.NumInputMeshes; MeshIndex++)
 		{
 			uint32 NumClusters = ClusterCountPerMesh[MeshIndex];
 			BuildDAG( Groups, Clusters, ClusterStart, NumClusters, MeshIndex, MeshBounds );
@@ -607,13 +613,12 @@ static bool BuildNaniteData(
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
 
-	Encode( Resources, Settings, Clusters, Groups, MeshBounds, NumMeshes, NumTexCoords, bHasColors );
+	Encode( Resources, Settings, Clusters, Groups, MeshBounds, Resources.NumInputMeshes, NumTexCoords, Resources.ResourceFlags.Values.bHasVertexColor);
 
 	uint32 EncodeTime1 = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime1 - EncodeTime0 ) / 1000.0f );
 
-	const bool bGenerateImposter = (NumMeshes == 1);
-	if (bGenerateImposter)
+	if (Resources.ResourceFlags.Values.bHasImposter)
 	{
 		uint32 ImposterStartTime = FPlatformTime::Cycles();
 		auto& RootChildren = Groups.Last().Children;

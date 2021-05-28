@@ -2105,7 +2105,7 @@ static void WritePages(	FResources& Resources,
 	FMemory::Memcpy(Ptr, StreamableBulkData.GetData(), StreamableBulkData.Num());
 	Resources.StreamableClusterPages.Unlock();
 	Resources.StreamableClusterPages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
-	Resources.bLZCompressed = bLZCompress;
+	Resources.ResourceFlags.Values.bLZCompressed = bLZCompress;
 }
 
 struct FIntermediateNode
