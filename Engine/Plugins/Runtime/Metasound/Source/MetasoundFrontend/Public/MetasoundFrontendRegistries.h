@@ -19,24 +19,38 @@ namespace Metasound
 		using FRegistryTransactionID = int32;
 	}
 
-	// This struct is passed to FInputNodeConstructorCallback and FOutputNodeConstructorCallback.
-	struct FInputNodeConstructorParams
+	// Base implementation for NodeConstructorCallbacks
+	struct FDefaultNodeConstructorParams
 	{
-		// the instance name and name of the specific connection that we should use.
-		const FString& InNodeName;
-		const FGuid& InInstanceID;
-		const FString& InVertexName;
-
-		FLiteral InitParam;
+		// the instance name and name of the specific connection that should be used.
+		FString NodeName;
+		FGuid InstanceID;
+		FString VertexName;
 	};
 
-	struct FOutputNodeConstructorParams
+	struct FDefaultLiteralNodeConstructorParams
 	{
-		// the instance name and name of the specific connection that we should use.
-		const FString& InNodeName;
-		const FGuid& InInstanceID;
-		const FString& InVertexName;
+		// the instance name and name of the specific connection that should be used.
+		FString NodeName;
+		FGuid InstanceID;
+		FString VertexName;
+		FLiteral InitParam = FLiteral::CreateInvalid();
+
+		FDefaultLiteralNodeConstructorParams Clone() const
+		{
+			return
+			{
+				NodeName,
+				InstanceID,
+				VertexName,
+				InitParam.Clone()
+			};
+		}
 	};
+
+	using FOutputNodeConstructorParams = FDefaultNodeConstructorParams;
+	using FVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
+	using FInputNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
 
 	/*
 	class IMetasoundDataTypeRegistryEntry
@@ -62,7 +76,8 @@ namespace Metasound
 	*/
 
 	using FCreateInputNodeFunction = TFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)>;
-	using FCreateOutputNodeFunction = TFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstructorParams&)>;
+	using FCreateVariableNodeFunction = TFunction<TUniquePtr<Metasound::INode>(::Metasound::FVariableNodeConstructorParams&&)>;
+	using FCreateOutputNodeFunction = TFunction<TUniquePtr<Metasound::INode>(::Metasound::FOutputNodeConstructorParams&&)>;
 
 	// This function is used to create a proxy from a datatype's base uclass.
 	using FCreateAudioProxyFunction = TFunction<Audio::IProxyDataPtr(UObject*)> ;
@@ -258,12 +273,17 @@ namespace Metasound
 
 	struct FDataTypeConstructorCallbacks
 	{
-		// This constructs a TInputNode<> with the corresponding datatype.
+		// Constructs a TInputNode<> with the corresponding datatype.
 		FCreateInputNodeFunction CreateInputNode;
 
 		FCreateMetasoundFrontendClassFunction CreateFrontendInputClass;
 
-		// This constructs a TOutputNode<> with the corresponding datatype.
+		// Constructs a TGetVariableNode<> with the corresponding datatype.
+		FCreateVariableNodeFunction CreateVariableNode;
+
+		FCreateMetasoundFrontendClassFunction CreateFrontendVariableClass;
+
+		// Constructs a TOutputNode<> with the corresponding datatype.
 		FCreateOutputNodeFunction CreateOutputNode;
 
 		FCreateMetasoundFrontendClassFunction CreateFrontendOutputClass;
@@ -303,6 +323,7 @@ public:
 	static bool GetRegistryKey(const FNodeRegistryElement& InElement, FNodeRegistryKey& OutKey);
 	static bool GetFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass);
 	static bool GetInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata);
+	static bool GetVariableNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata);
 	static bool GetOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata);
 
 
@@ -346,11 +367,13 @@ public:
 	virtual bool FindFrontendClassFromRegistered(const Metasound::Frontend::FNodeClassInfo& InClassInfo, FMetasoundFrontendClass& OutClass) = 0;
 	virtual bool FindFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass) = 0;
 	virtual bool FindInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata) = 0;
+	virtual bool FindVariableNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata) = 0;
 	virtual bool FindOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata) = 0;
 
 	// Create a new instance of a C++ implemented node from the registry.
 	virtual TUniquePtr<Metasound::INode> ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams) = 0;
-	virtual TUniquePtr<Metasound::INode> ConstructOutputNode(const FName& InOutputType, const Metasound::FOutputNodeConstructorParams& InParams) = 0;
+	virtual TUniquePtr<Metasound::INode> ConstructVariableNode(const FName& InVariableType, Metasound::FVariableNodeConstructorParams&& InParams) = 0;
+	virtual TUniquePtr<Metasound::INode> ConstructOutputNode(const FName& InOutputType, Metasound::FOutputNodeConstructorParams&& InParams) = 0;
 	virtual TUniquePtr<Metasound::INode> ConstructExternalNode(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey, const Metasound::FNodeInitData& InInitData) = 0;
 
 	// Returns a list of possible nodes to use to convert from FromDataType to ToDataType.

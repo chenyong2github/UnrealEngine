@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundBuildError.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
@@ -11,6 +12,26 @@
 
 namespace Metasound
 {
+	/** FMissingOutputNodeInputReferenceError
+	 *
+	 * Caused by Output not being able to generate an IOperator instance due to
+	 * the type requiring an input reference (i.e. it is not default constructable).
+	 */
+	class FMissingOutputNodeInputReferenceError : public FBuildErrorBase
+	{
+	public:
+		FMissingOutputNodeInputReferenceError(const INode& InNode, const FText& InDataType)
+			: FBuildErrorBase(
+				"MetasoundMissingOutputDataReferenceError",
+				FText::Format(LOCTEXT("MissingOutputNodeInputReferenceError", "Missing required output node input reference for type {0}."), InDataType))
+		{
+			AddNode(InNode);
+		}
+
+		virtual ~FMissingOutputNodeInputReferenceError() = default;
+
+	};
+
 	template<typename DataType>
 	class TOutputNode : public FNode
 	{
@@ -55,13 +76,22 @@ namespace Metasound
 
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
-					if (!InParams.InputDataReferences.ContainsDataReadReference<DataType>(DataReferenceName))
+					const bool bContainsRef = InParams.InputDataReferences.ContainsDataReadReference<DataType>(DataReferenceName);
+					if (bContainsRef)
 					{
-						// TODO: Add build error.
-						return TUniquePtr<IOperator>(nullptr);
+						TDataReadReference<DataType> InputReadRef = InParams.InputDataReferences.GetDataReadReference<DataType>(DataReferenceName);
+						return MakeUnique<FOutputOperator>(DataReferenceName, InputReadRef);
 					}
 
-					return MakeUnique<FOutputOperator>(DataReferenceName, InParams.InputDataReferences.GetDataReadReference<DataType>(DataReferenceName));
+					// Only construct default if default construction is supported
+					if constexpr (TIsParsable<DataType>::Value)
+					{
+						TDataReadReference<DataType> DefaultReadRef = TDataReadReferenceFactory<DataType>::CreateAny(InParams.OperatorSettings);
+						return MakeUnique<FOutputOperator>(DataReferenceName, DefaultReadRef);
+					}
+
+					OutErrors.Emplace(MakeUnique<FMissingOutputNodeInputReferenceError>(InParams.Node, GetMetasoundDataTypeDisplayText<DataType>()));
+					return TUniquePtr<IOperator>(nullptr);
 				}
 
 			private:

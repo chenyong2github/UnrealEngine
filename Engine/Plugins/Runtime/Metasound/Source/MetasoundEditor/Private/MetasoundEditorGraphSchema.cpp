@@ -258,15 +258,16 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 
 	const FText& InputName = InputHandle->GetOwningNode()->GetDisplayName();
 	const FText& InputNodeName = InputHandle->GetDisplayName();
-	const FString InputNameBase = FText::Format(LOCTEXT("PromoteInputNameBaseFormat", "{0} {1}"), InputName, InputNodeName).ToString();
-	FString NewNodeName = FGraphBuilder::GenerateUniqueInputName(ParentMetasound, &InputNameBase);
 
 	FMetasoundFrontendLiteral DefaultValue;
-	FGraphBuilder::GetPinDefaultLiteral(*FromPin, DefaultValue);
+	FGraphBuilder::GetPinLiteral(*FromPin, DefaultValue);
 
-	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, NewNodeName, InputHandle->GetDataType(), FText::GetEmpty(), false /* bIsLiteralInput */, &DefaultValue);
+	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, InputHandle->GetDataType(), FText::GetEmpty(), &DefaultValue);
 	if (ensure(NodeHandle->IsValid()))
 	{
+		const FText InputNameBase = FText::Format(LOCTEXT("PromoteInputNameBaseFormat", "{0} {1}"), InputName, InputNodeName);
+		const FText NewNodeName = FGraphBuilder::GenerateUniqueInputDisplayName(ParentMetasound, &InputNameBase);
+		NodeHandle->SetDisplayName(NewNodeName);
 		UMetasoundEditorGraphInput* Input = MetasoundGraph->FindOrAddInput(NodeHandle);
 		if (ensure(Input))
 		{
@@ -741,12 +742,15 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 			}
 		}
 
-		case EMetasoundFrontendClassType::External:
+		case EMetasoundFrontendClassType::Variable:
 		case EMetasoundFrontendClassType::Graph:
+			// TODO: Implement above
+
+		case EMetasoundFrontendClassType::External:
 		case EMetasoundFrontendClassType::Invalid:
 		default:
 		{
-			static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 4, "Possible missing EMetasoundFrontendClassType case coverage");
+			static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 5, "Possible missing EMetasoundFrontendClassType case coverage");
 			return Super::GetPinDisplayName(Pin);
 		}
 	}
@@ -859,15 +863,6 @@ void UMetasoundEditorGraphSchema::GetDataTypeInputNodeActions(FGraphContextMenuB
 	using namespace Metasound::Frontend;
 
 	TArray<FConstNodeHandle> Inputs = InGraphHandle->GetConstInputNodes();
-	for (int32 i = Inputs.Num() - 1; i >= 0; --i)
-	{
-		const FConstNodeHandle& NodeHandle = Inputs[i];
-		if (NodeHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
-		{
-			Inputs.RemoveAtSwap(i, 1, false);
-		}
-	}
-
 	const SchemaPrivate::FDataTypeActionQuery ActionQuery
 	{
 		ActionMenuBuilder,

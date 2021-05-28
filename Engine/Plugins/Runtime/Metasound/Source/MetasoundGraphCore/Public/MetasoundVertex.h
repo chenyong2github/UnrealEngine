@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/SortedMap.h"
+#include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundLiteral.h"
@@ -866,5 +867,15 @@ namespace Metasound
 			FInputVertexInterface InputInterface;
 			FOutputVertexInterface OutputInterface;
 			FEnvironmentVertexInterface EnvironmentInterface;
+	};
+
+	/**
+	 * This struct is used to pass in any arguments required for constructing a single node instance.
+	 * because of this, all FNode implementations have to implement a constructor that takes an FNodeInitData instance.
+	 */
+	struct FNodeInitData
+	{
+		FString InstanceName;
+		FGuid InstanceID;
 	};
 }

@@ -142,7 +142,7 @@ namespace Metasound
 					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(GetSendInputName()))
 					{
 						return MakeUnique<TSendOperator>(InParams.InputDataReferences.GetDataReadReference<TDataType>(GetSendInputName()),
-							InParams.InputDataReferences.GetDataReadReference<FSendAddress>(GetAddressInputName()),
+							InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(GetAddressInputName()),
 							InParams.OperatorSettings
 							);
 					}

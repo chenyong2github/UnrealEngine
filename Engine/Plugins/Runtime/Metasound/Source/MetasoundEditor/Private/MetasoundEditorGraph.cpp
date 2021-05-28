@@ -84,7 +84,6 @@ void UMetasoundEditorGraphVariable::SetDataType(FName InNewType)
 
 	// 2. Cache the old version's Frontend data.
 	FNodeHandle NodeHandle = GetNodeHandle();
-	const FString NodeName = NodeHandle->GetNodeName();
 	const FText NodeDisplayName = NodeHandle->GetDisplayName();
 
 	// 3. Delete the Frontend variable
@@ -92,7 +91,8 @@ void UMetasoundEditorGraphVariable::SetDataType(FName InNewType)
 
 	// 4. Add the new input node with the same identifier data but new datatype.
 	UObject& Metasound = Graph->GetMetasoundChecked();
-	FNodeHandle NewNodeHandle = AddNodeHandle(NodeName, NodeDisplayName, InNewType);
+	FNodeHandle NewNodeHandle = AddNodeHandle(NodeDisplayName, InNewType);
+
 	if (!ensure(NewNodeHandle->IsValid()))
 	{
 		return;
@@ -225,7 +225,7 @@ void UMetasoundEditorGraphInput::UpdatePreviewInstance(const Metasound::FVertexK
 	}
 }
 
-Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const FString& InNodeName, const FText& InNodeDisplayName, FName InDataType)
+Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const FText& InNodeDisplayName, FName InDataType)
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
@@ -233,11 +233,11 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const
 	UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(GetOuter());
 	if (!ensure(Graph))
 	{
-		return Super::AddNodeHandle(InNodeName, InNodeDisplayName, InDataType);
+		return UMetasoundEditorGraphVariable::AddNodeHandle(InNodeDisplayName, InDataType);
 	}
 
 	UObject& Metasound = Graph->GetMetasoundChecked();
-	Metasound::Frontend::FNodeHandle NewNodeHandle = FGraphBuilder::AddInputNodeHandle(Metasound, InNodeName, InDataType, FText::GetEmpty());
+	Metasound::Frontend::FNodeHandle NewNodeHandle = FGraphBuilder::AddInputNodeHandle(Metasound, InDataType, FText::GetEmpty());
 	NewNodeHandle->SetDisplayName(InNodeDisplayName);
 	return NewNodeHandle;
 }
@@ -305,7 +305,7 @@ void UMetasoundEditorGraphInput::OnDataTypeChanged()
 	Literal = NewObject<UMetasoundEditorGraphInputLiteral>(this, InputLiteralClass, FName(), RF_Transactional);
 }
 
-Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(const FString& InNodeName, const FText& InNodeDisplayName, FName InDataType)
+Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(const FText& InNodeDisplayName, FName InDataType)
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
@@ -313,11 +313,11 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(cons
 	UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(GetOuter());
 	if (!ensure(Graph))
 	{
-		return Super::AddNodeHandle(InNodeName, InNodeDisplayName, InDataType);
+		return UMetasoundEditorGraphVariable::AddNodeHandle(InNodeDisplayName, InDataType);
 	}
 
 	UObject& Metasound = Graph->GetMetasoundChecked();
-	Metasound::Frontend::FNodeHandle NewNodeHandle = FGraphBuilder::AddOutputNodeHandle(Metasound, InNodeName, InDataType, FText::GetEmpty());
+	Metasound::Frontend::FNodeHandle NewNodeHandle = FGraphBuilder::AddOutputNodeHandle(Metasound, InDataType, FText::GetEmpty());
 	NewNodeHandle->SetDisplayName(InNodeDisplayName);
 	return NewNodeHandle;
 }

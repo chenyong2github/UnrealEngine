@@ -79,5 +79,97 @@ namespace Metasound
 
 			return bDidEdit;
 		}
+
+		// Versioning Transforms
+		class FVersionDocumentTransform : public IDocumentTransform
+		{
+			protected:
+				virtual FMetasoundFrontendVersionNumber GetTargetVersion() const = 0;
+				virtual void TransformInternal(FDocumentHandle InDocument) const = 0;
+
+			public:
+				bool Transform(FDocumentHandle InDocument) const override
+				{
+					const FMetasoundFrontendDocumentMetadata& Metadata = InDocument->GetMetadata();
+					if (Metadata.Version.Number >= GetTargetVersion())
+					{
+						return false;
+					}
+
+					TransformInternal(InDocument);
+
+					FMetasoundFrontendDocumentMetadata NewMetadata = Metadata;
+					NewMetadata.Version.Number = GetTargetVersion();
+					InDocument->SetMetadata(NewMetadata);
+
+					return true;
+				}
+		};
+
+		/** Versions document from 1.0 to 1.1. */
+		class FVersionDocument_1_1 : public FVersionDocumentTransform
+		{
+		public:
+			FMetasoundFrontendVersionNumber GetTargetVersion() const override
+			{
+				return FMetasoundFrontendVersionNumber { 1, 1 };
+			}
+
+			void TransformInternal(FDocumentHandle InDocument) const override
+			{
+				FGraphHandle GraphHandle = InDocument->GetRootGraph();
+				TArray<FNodeHandle> FrontendNodes = GraphHandle->GetNodes();
+
+				// If was connected to a hidden node, then remove that node and set the literal value accordingly.
+				for (FNodeHandle& NodeHandle : FrontendNodes)
+				{
+					if (NodeHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+					{
+						const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeHandle->GetNodeName());
+						const FMetasoundFrontendLiteral DefaultLiteral = GraphHandle->GetDefaultInput(VertexID);
+
+						TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputs();
+						if (ensure(OutputHandles.Num() == 1))
+						{
+							FOutputHandle OutputHandle = OutputHandles[0];
+							TArray<FInputHandle> Inputs = OutputHandle->GetConnectedInputs();
+							OutputHandle->Disconnect();
+
+							for (FInputHandle& Input : Inputs)
+							{
+								if (const FMetasoundFrontendLiteral* Literal = Input->GetClassDefaultLiteral())
+								{
+									if (!Literal->IsEquivalent(DefaultLiteral))
+									{
+										Input->SetLiteral(DefaultLiteral);
+									}
+								}
+								else
+								{
+									Input->SetLiteral(DefaultLiteral);
+								}
+							}
+
+							GraphHandle->RemoveNode(*NodeHandle);
+						}
+					}
+				}
+			}
+		};
+
+		bool FVersionDocument::Transform(FDocumentHandle InDocument) const
+		{
+			if (!ensure(InDocument->IsValid()))
+			{
+				return false;
+			}
+
+			bool bWasUpdated = false;
+
+			// Add additional transforms here after defining them above, example below.
+			bWasUpdated |= FVersionDocument_1_1().Transform(InDocument);
+
+			return bWasUpdated;
+		}
 	} // namespace Frontend
 } // namespace Metasound

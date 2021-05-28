@@ -125,6 +125,14 @@ namespace Metasound
 				VertexInterface = GetMetadata().DefaultInterface;
 			}
 
+			template<typename OperatorType>
+			FNodeFacade(FNodeInitData&& InInitData, TFacadeOperatorClass<OperatorType> OperatorClass)
+				: FNode(InInitData, OperatorType::GetNodeInfo())
+				, Factory(MakeShared<FFactory, ESPMode::ThreadSafe>(&OperatorType::CreateOperator))
+			{
+				VertexInterface = GetMetadata().DefaultInterface;
+			}
+
 			virtual ~FNodeFacade() = default;
 
 			virtual const FVertexInterface& GetVertexInterface() const override;

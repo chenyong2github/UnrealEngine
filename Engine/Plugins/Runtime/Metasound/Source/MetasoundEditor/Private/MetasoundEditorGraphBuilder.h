@@ -69,10 +69,8 @@ namespace Metasound
 			// Generates FNodeHandle for the given external node data. Does not bind or create EdGraph representation of given node.
 			static Frontend::FNodeHandle AddInputNodeHandle(
 				UObject& InMetasound,
-				const FString& InName,
 				const FName InTypeName,
 				const FText& InToolTip,
-				bool bInIsLiteral = false,
 				const FMetasoundFrontendLiteral* InDefaultValue = nullptr);
 
 			// Adds a corresponding UMetasoundEditorGraphExternalNode for the provided node handle.
@@ -85,14 +83,11 @@ namespace Metasound
 			// Synchronizes node location data
 			static void SynchronizeNodeLocation(FVector2D InLocation, Frontend::FNodeHandle InNodeHandle, UMetasoundEditorGraphNode& InNode);
 
-			// Generates FNodeHandle for the given external node data. Does not bind or create EdGraph representation of given node.
-			static Frontend::FNodeHandle AddExternalNodeHandle(UObject& InMetasound, const FMetasoundFrontendClassMetadata& InMetadata);
-
 			// Adds an output node to the editor graph that corresponds to the provided node handle.
 			static UMetasoundEditorGraphOutputNode* AddOutputNode(UObject& InMetasound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
 			// Generates analogous FNodeHandle for the given internal node data. Does not bind nor create EdGraph representation of given node.
-			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip);
+			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetasound, const FName InTypeName, const FText& InToolTip);
 
 			// Attempts to connect Frontend node counterparts together for provided pins.  Returns true if succeeded,
 			// and breaks pin link and returns false if failed.  If bConnectEdPins is set, will attempt to connect
@@ -105,9 +100,14 @@ namespace Metasound
 			// applicable post disconnection.
 			static void DisconnectPin(UEdGraphPin& InPin, bool bAddLiteralInputs = true);
 
-			static FString GenerateUniqueInputName(const UObject& InMetasound, const FString* InBaseName = nullptr);
+			// Generates a unique input display name for the given MetaSound object
+			static FText GenerateUniqueInputDisplayName(const UObject& InMetaSound, const FText* InBaseName = nullptr);
 
-			static FString GenerateUniqueOutputName(const UObject& InMetasound, const FString* InBaseName = nullptr);
+			// Generates a unique output name for the given MetaSound object
+			static FText GenerateUniqueOutputDisplayName(const UObject& InMetaSound, const FText* InBaseName = nullptr);
+
+			// Generates a unique name by retrieving the provided MetaSound's associated GraphHandle and filtering by the provided function.
+			static FText GenerateUniqueNameByFilter(const UObject& InMetaSound, const FText& InBaseText, TUniqueFunction<bool(const Frontend::FConstGraphHandle&, const FText&)> InIsValidNameFilter);
 
 			static TArray<FString> GetDataTypeNameCategories(const FName& InDataTypeName);
 
@@ -121,16 +121,8 @@ namespace Metasound
 			static Frontend::FOutputHandle GetOutputHandleFromPin(const UEdGraphPin* InPin);
 			static Frontend::FConstOutputHandle GetConstOutputHandleFromPin(const UEdGraphPin* InPin);
 
-			// Returns whether or not the given handle refers to a literal input
-			static bool IsLiteralInput(Frontend::FNodeHandle InNodeHandle);
-
-			// Adds or updates a hidden input that is set to the default literal value.  If the literal input is added, value defaults to
-			// 1. what is set on the input vertex of the node's inputer vertex interface, and if not defined there,
-			// 2. the pin's DataType literal default.
-			static void AddOrUpdateLiteralInput(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, UEdGraphPin& InInputPin, bool bForcePinValueAsDefault = false);
-
 			// Returns the default literal stored on the respective Frontend Node's Input.
-			static bool GetPinDefaultLiteral(UEdGraphPin& InInputPin, FMetasoundFrontendLiteral& OutLiteralDefault);
+			static bool GetPinLiteral(UEdGraphPin& InInputPin, FMetasoundFrontendLiteral& OutLiteralDefault);
 
 			// Deletes Editor Graph Variable's associated Frontend node, as well as any
 			// Editor Graph nodes referencing the given variable.
@@ -139,14 +131,11 @@ namespace Metasound
 			// Retrieves the proper pin color for the given PinType
 			static FLinearColor GetPinCategoryColor(const FEdGraphPinType& PinType);
 
-			// Constructs graph with default inputs & outputs.
-			static void ConstructGraph(UObject& InMetasound);
+			// Initializes MetaSound with default inputs & outputs.
+			static void InitMetaSound(UObject& InMetaSound, const FString& InAuthor);
 
 			// Rebuilds all editor node pins based on the provided node handle's class definition.
 			static void RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode);
-
-			// Removes all literal inputs connected to the given node
-			static void DeleteLiteralInputs(UEdGraphNode& InNode);
 
 			// Deletes both the editor graph & frontend nodes from respective graphs
 			static bool DeleteNode(UEdGraphNode& InNode);
@@ -175,6 +164,9 @@ namespace Metasound
 			//
 			// @return True if the UEdGraph was altered. False otherwise.
 			static bool SynchronizeConnections(UObject& InMetasound);
+
+			// Synchronizes literal for a given input with the EdGraph's pin value.
+			static bool SynchronizePinLiteral(UEdGraphPin& InPin);
 
 			// Synchronizes inputs and outputs for the given Metasound.
 			//

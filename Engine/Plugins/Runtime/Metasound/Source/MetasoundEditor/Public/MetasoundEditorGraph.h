@@ -31,13 +31,15 @@ namespace Metasound
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundNodeNameChanged, FGuid /* NodeID */);
 
+// TODO: Implement for core variables, possibly splitting into two classes, UMetasoundEditorGraphVariableBase
+// & UMetasoundEditorGraphVariable (for actual variables).
 UCLASS(Abstract)
 class METASOUNDEDITOR_API UMetasoundEditorGraphVariable : public UObject
 {
 	GENERATED_BODY()
 
 protected:
-	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FString& InNodeName, const FText& InNodeDisplayName, FName InDataType)
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FText& InNodeDisplayName, FName InDataType)
 	{
 		return Metasound::Frontend::INodeController::GetInvalidHandle();
 	}
@@ -103,10 +105,9 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInput : public UMetasoundEditorGr
 	GENERATED_BODY()
 
 protected:
-	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FString& InNodeName, const FText& InNodeDisplayName, FName InDataType) override;
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FText& InNodeDisplayName, FName InDataType) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Input; }
 	virtual const FText& GetVariableLabel() const override;
-
 public:
 	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
 	UMetasoundEditorGraphInputLiteral* Literal;
@@ -128,7 +129,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphOutput : public UMetasoundEditorG
 	GENERATED_BODY()
 
 protected:
-	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FString& InNodeName, const FText& InNodeDisplayName, FName InDataType) override;
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FText& InNodeDisplayName, FName InDataType) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Output; }
 	virtual const FText& GetVariableLabel() const override;
 };

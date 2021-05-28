@@ -106,6 +106,45 @@ bool FMetasoundFrontendLiteral::IsArray() const
 	}
 }
 
+bool FMetasoundFrontendLiteral::IsEquivalent(const FMetasoundFrontendLiteral& InOther) const
+{
+	if (InOther.GetType() != GetType())
+	{
+		return false;
+	}
+
+	switch (Type)
+	{
+		case EMetasoundFrontendLiteralType::Boolean:
+		case EMetasoundFrontendLiteralType::BooleanArray:
+			return AsBoolean == InOther.AsBoolean;
+
+		case EMetasoundFrontendLiteralType::Float:
+		case EMetasoundFrontendLiteralType::FloatArray:
+			return AsFloat == InOther.AsFloat;
+
+		case EMetasoundFrontendLiteralType::Integer:
+		case EMetasoundFrontendLiteralType::IntegerArray:
+			return AsInteger == InOther.AsInteger;
+
+		case EMetasoundFrontendLiteralType::None:
+		case EMetasoundFrontendLiteralType::NoneArray:
+			return AsNumDefault == InOther.AsNumDefault;
+
+		case EMetasoundFrontendLiteralType::String:
+		case EMetasoundFrontendLiteralType::StringArray:
+			return AsString == InOther.AsString;
+
+		case EMetasoundFrontendLiteralType::UObject:
+		case EMetasoundFrontendLiteralType::UObjectArray:
+			return AsUObject == InOther.AsUObject;
+
+		case EMetasoundFrontendLiteralType::Invalid:
+		default:
+			return true;
+	}
+}
+
 bool FMetasoundFrontendLiteral::IsValid() const
 {
 	return (Type != EMetasoundFrontendLiteralType::Invalid);

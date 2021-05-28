@@ -17,25 +17,6 @@ namespace Metasound
 	static const FText PluginNodeMissingPrompt = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultMissingNodePrompt", "The node was likely removed, renamed, or the Metasound plugin is not loaded.");
 
 	/**
-	 * This struct is used to pass in any arguments required for constructing a single node instance.
-	 * because of this, all FNode implementations have to implement a constructor that takes an FNodeInitData instance.
-	 */
-	struct FNodeInitData
-	{
-		FString InstanceName;
-		FGuid InstanceID;
-		TMap<FName, FLiteral> ParamMap;
-
-		template<typename ParamType>
-		ParamType GetParamValue(FName ParamName)
-		{
-			checkf(ParamMap.Contains(ParamName), TEXT("Tried to use node initialization parameter that didn't exist!"));
-
-			return TDataTypeLiteralFactory<ParamType>::CreateAny(ParamMap[ParamName]);
-		}
-	};
-
-	/**
 	 * Node style data
 	 */
 	struct FNodeDisplayStyle
