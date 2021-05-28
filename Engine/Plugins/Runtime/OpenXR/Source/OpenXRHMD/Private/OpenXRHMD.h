@@ -292,7 +292,6 @@ private:
 	bool					bIsMobileMultiViewEnabled;
 	bool					bSupportsHandTracking;
 	bool					bProjectionLayerAlphaEnabled;
-	bool					bNeedsAcquireOnRHI;
 	bool					bIsStandaloneStereoOnlyDevice;
 	float					WorldToMetersScale = 100.0f;
 

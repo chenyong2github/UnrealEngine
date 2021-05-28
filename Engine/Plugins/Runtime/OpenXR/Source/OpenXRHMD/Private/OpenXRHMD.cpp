@@ -1456,7 +1456,6 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bNeedReBuildOcclusionMesh(true)
 	, bIsMobileMultiViewEnabled(false)
 	, bSupportsHandTracking(false)
-	, bNeedsAcquireOnRHI(false)
 	, bIsStandaloneStereoOnlyDevice(false)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
 	, EnabledExtensions(std::move(InEnabledExtensions))
@@ -1482,7 +1481,6 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME) &&
 		!FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus");
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
-	bNeedsAcquireOnRHI = FApp::GetGraphicsRHI() == "Vulkan";
 
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
@@ -2331,28 +2329,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			}
 		}
 
-		if (bNeedsAcquireOnRHI)
-		{
-			// TODO: Current spec incorrectly requires this function to have access to the Vulkan queue.
-			// Thus we have to synchronize with the RHI thread
-			ExecuteOnRHIThread([this](FRHICommandListImmediate& InRHICmdList)
-			{
-				PipelinedLayerStateRendering.ColorSwapchain->IncrementSwapChainIndex_RHIThread();
-				if (bDepthExtensionSupported && PipelinedLayerStateRendering.DepthSwapchain)
-				{
-					PipelinedLayerStateRendering.DepthSwapchain->IncrementSwapChainIndex_RHIThread();
-				}
-			});
-		}
-		else
-		{
-			PipelinedLayerStateRendering.ColorSwapchain->IncrementSwapChainIndex_RHIThread();
-			if (bDepthExtensionSupported && PipelinedLayerStateRendering.DepthSwapchain)
-			{
-				PipelinedLayerStateRendering.DepthSwapchain->IncrementSwapChainIndex_RHIThread();
-			}
-		}
-
 		RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
 		{
 			OnBeginRendering_RHIThread();
@@ -2570,7 +2546,9 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 void FOpenXRHMD::OnBeginRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
-	check(!bIsRendering);
+
+	// TODO: Add a hook to resolve discarded frames before we start a new frame.
+	checkSlow(!bIsRendering);
 
 	SCOPED_NAMED_EVENT(BeginFrame, FColor::Red);
 
@@ -2593,16 +2571,6 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 	}
 
 	XrResult Result = xrBeginFrame(Session, &BeginInfo);
-	if (!XR_UNQUALIFIED_SUCCESS(Result))
-	{
-		static bool bLoggedBeginFrameFailure = false;
-		if (!bLoggedBeginFrameFailure)
-		{
-			UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
-			bLoggedBeginFrameFailure = true;
-		}
-	}
-
 	if (XR_SUCCEEDED(Result))
 	{
 		// Only the swapchains are valid to pull out of PipelinedLayerStateRendering
@@ -2611,16 +2579,28 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 		PipelinedLayerStateRHI.ColorSwapchain = PipelinedLayerStateRendering.ColorSwapchain;
 		PipelinedLayerStateRHI.DepthSwapchain = PipelinedLayerStateRendering.DepthSwapchain;
 
-		if (PipelinedLayerStateRHI.ColorSwapchain)
+		// We need a new swapchain image unless we've already acquired one for rendering
+		if (!bIsRendering && PipelinedLayerStateRHI.ColorSwapchain)
 		{
+			PipelinedLayerStateRHI.ColorSwapchain->IncrementSwapChainIndex_RHIThread();
 			PipelinedLayerStateRHI.ColorSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
 			if (bDepthExtensionSupported && PipelinedLayerStateRHI.DepthSwapchain)
 			{
+				PipelinedLayerStateRHI.DepthSwapchain->IncrementSwapChainIndex_RHIThread();
 				PipelinedLayerStateRHI.DepthSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
 			}
 		}
 
 		bIsRendering = true;
+	}
+	else
+	{
+		static bool bLoggedBeginFrameFailure = false;
+		if (!bLoggedBeginFrameFailure)
+		{
+			UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
+			bLoggedBeginFrameFailure = true;
+		}
 	}
 }
 
@@ -2830,22 +2810,9 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 
 void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const
 {
-	if (bNeedsAcquireOnRHI)
-	{
-		// TODO: Current spec incorrectly requires this function to have access to the Vulkan queue.
-		// Thus we have to synchronize with the RHI thread
-		ExecuteOnRHIThread([DstSwapChain](FRHICommandListImmediate& InRHICmdList)
-		{
-			DstSwapChain->IncrementSwapChainIndex_RHIThread();
-		});
-	}
-	else
-	{
-		DstSwapChain->IncrementSwapChainIndex_RHIThread();
-	}
-
 	RHICmdList.EnqueueLambda([DstSwapChain](FRHICommandListImmediate& InRHICmdList)
 	{
+		DstSwapChain->IncrementSwapChainIndex_RHIThread();
 		DstSwapChain->WaitCurrentImage_RHIThread();
 	});
 
