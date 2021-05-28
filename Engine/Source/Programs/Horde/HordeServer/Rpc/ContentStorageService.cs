@@ -16,6 +16,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Digest = Build.Bazel.Remote.Execution.V2.Digest;
 using Status = Google.Rpc.Status;
 
 namespace HordeServer.Rpc
