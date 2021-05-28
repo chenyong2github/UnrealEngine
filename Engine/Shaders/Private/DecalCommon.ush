@@ -6,8 +6,13 @@
 
 #include "Common.ush"
 
+#if SHADING_PATH_MOBILE
+#define MobileSceneTextures MobileDecalPass.SceneTextures
+#define EyeAdaptationStruct MobileDecalPass
+#else
 #define SceneTexturesStruct DecalPass.SceneTextures
 #define EyeAdaptationStruct DecalPass
+#endif
 
 #include "DeferredShadingCommon.ush"		// GBufferData
 #include "DBufferDecalShared.ush"
