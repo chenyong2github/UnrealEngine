@@ -1006,12 +1006,14 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				uint32 DataSize = PageStreamingState.BulkSize - FixupChunkSize;
 				check(NumInstalledPages < MaxPageInstallsPerUpdate);
 
+				const bool bLZCompressed = ((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0;
+
 				UploadTask.SrcSize = DataSize;
 				UploadTask.PendingPage = &PendingPage;
 				UploadTask.Dst = PageUploader->Add_GetRef(PageStreamingState.PageUncompressedSize, PageOffset);
 				UploadTask.DstSize = PageStreamingState.PageUncompressedSize;
 				UploadTask.Tmp = PendingPageStagingMemoryLZ.GetData() + NumInstalledPages * CLUSTER_PAGE_DISK_SIZE;
-				UploadTask.bLZCompressed = (*Resources)->ResourceFlags.Values.bLZCompressed;
+				UploadTask.bLZCompressed = bLZCompressed;
 				NumInstalledPages++;
 
 				// Update page headers
@@ -1153,7 +1155,8 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		uint32 PageOffset = GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
 		uint8* Dst = PageUploader->Add_GetRef(PageStreamingState.PageUncompressedSize, PageOffset);
 		
-		DecompressPage(Dst, PendingPageStagingMemoryLZ.GetData(), PageStreamingState.PageUncompressedSize, Ptr + FixupChunkSize, PageDiskSize, Resources->ResourceFlags.Values.bLZCompressed);
+		const bool bLZCompressed = (Resources->ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0;
+		DecompressPage(Dst, PendingPageStagingMemoryLZ.GetData(), PageStreamingState.PageUncompressedSize, Ptr + FixupChunkSize, PageDiskSize, bLZCompressed);
 
 
 		ClusterPageHeaders.UploadBuffer.Add(GPUPageIndex, &NumClusters);

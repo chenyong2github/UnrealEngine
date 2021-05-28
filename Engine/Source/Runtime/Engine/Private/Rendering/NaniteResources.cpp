@@ -155,7 +155,7 @@ bool FResources::ReleaseResources()
 
 static void DecompressPages(FResources& Resources, TArray<uint8>& OutRootClusterPage, FByteBulkData& OutStreamableClusterPages, TArray<FPageStreamingState>& OutPageStreamingStates)
 {
-	check(Resources.ResourceFlags.Values.bLZCompressed);
+	check((Resources.ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0);
 
 	// Decompress root and streaming pages
 	const uint32 NumPages = Resources.PageStreamingStates.Num();
@@ -223,7 +223,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		
 #if WITH_EDITOR
 		bWantsUncompressedSave = Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HardwareLZDecompression) && RootClusterPage.Num() > 0 && !Ar.IsObjectReferenceCollector();
-		if (bWantsUncompressedSave && ResourceFlags.Values.bLZCompressed)
+		if (bWantsUncompressedSave && (ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0)
 		{
 			// Decompress and serialize, but don't change the state of the resource itself
 			if (!bHasDecompressedData)
@@ -232,10 +232,10 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 				bHasDecompressedData = true;
 			}
 			
-			FPackedPersistentFlags NewFlags = ResourceFlags;
-			NewFlags.Values.bLZCompressed = false;
+			uint32 NewFlags = ResourceFlags;
+			NewFlags &= ~NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION;
 
-			Ar << NewFlags.Packed;
+			Ar << NewFlags;
 			Ar << DecompressedRootClusterPage;
 			DecompressedStreamableClusterPages.Serialize(Ar, Owner, 0);
 			Ar << DecompressedPageStreamingStates;
@@ -243,9 +243,10 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		else
 #endif
 		{
-			check(!Ar.IsSaving() || RootClusterPage.Num() == 0 || (bWantsUncompressedSave == !ResourceFlags.Values.bLZCompressed));
 
-			Ar << ResourceFlags.Packed;
+			check(!Ar.IsSaving() || RootClusterPage.Num() == 0 || bWantsUncompressedSave == ((ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) == 0));
+
+			Ar << ResourceFlags;
 			Ar << RootClusterPage;
 			StreamableClusterPages.Serialize(Ar, Owner, 0);
 			Ar << PageStreamingStates;
@@ -261,7 +262,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		Ar << NumInputMeshes;
 		Ar << NumInputTexCoords;
 
-		check(!Ar.IsLoading() || RootClusterPage.Num() == 0 || ResourceFlags.Values.bLZCompressed == !FPlatformProperties::SupportsHardwareLZDecompression());
+		check(!Ar.IsLoading() || RootClusterPage.Num() == 0 || ((ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0) == !FPlatformProperties::SupportsHardwareLZDecompression());
 
 #if WITH_EDITOR
 		if (Ar.IsLoading() && bHasDecompressedData)

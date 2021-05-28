@@ -2105,7 +2105,11 @@ static void WritePages(	FResources& Resources,
 	FMemory::Memcpy(Ptr, StreamableBulkData.GetData(), StreamableBulkData.Num());
 	Resources.StreamableClusterPages.Unlock();
 	Resources.StreamableClusterPages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
-	Resources.ResourceFlags.Values.bLZCompressed = bLZCompress;
+
+	if (bLZCompress)
+	{
+		Resources.ResourceFlags |= NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION;
+	}
 }
 
 struct FIntermediateNode
