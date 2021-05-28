@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -10,21 +11,22 @@ using EpicGames.Core;
 
 namespace EpicGames.Perforce.Managed
 {
+	[DebuggerDisplay("{Digest} ({Type})")]
 	class FileContentId
 	{
-		public const int DigestLength = 16;
+		public static int SerializedSize => Digest<Md5>.Length + FileType.SerializedSize;
 
-		public ReadOnlyMemory<byte> Digest
+		public Digest<Md5> Digest
 		{
 			get;
 		}
 
-		public ReadOnlyUtf8String Type
+		public FileType Type
 		{
 			get;
 		}
 
-		public FileContentId(ReadOnlyMemory<byte> Digest, ReadOnlyUtf8String Type)
+		public FileContentId(Digest<Md5> Digest, FileType Type)
 		{
 			this.Digest = Digest;
 			this.Type = Type;
@@ -32,30 +34,12 @@ namespace EpicGames.Perforce.Managed
 
 		public override bool Equals(object? Other)
 		{
-			FileContentId? OtherContentId = Other as FileContentId;
-			if (OtherContentId == null)
-			{
-				return false;
-			}
-			else
-			{
-				return Digest.Span.SequenceEqual(OtherContentId.Digest.Span) && Type == OtherContentId.Type;
-			}
+			return (Other is FileContentId OtherFile) && Digest == OtherFile.Digest && Type == OtherFile.Type;
 		}
 
 		public override int GetHashCode()
 		{
-			HashCode HashCode = new HashCode();
-			for (int Idx = 0; Idx < Digest.Length; Idx++)
-			{
-				HashCode.Add(Digest.Span[Idx]);
-			}
-			return HashCode.ToHashCode();
-		}
-
-		public override string ToString()
-		{
-			return String.Format("{0} ({1})", StringUtils.FormatHexString(Digest.ToArray()), Type);
+			return HashCode.Combine(Digest.GetHashCode(), Type.GetHashCode());
 		}
 	}
 
@@ -63,20 +47,15 @@ namespace EpicGames.Perforce.Managed
 	{
 		public static FileContentId ReadFileContentId(this MemoryReader Reader)
 		{
-			ReadOnlyMemory<byte> Digest = Reader.ReadFixedLengthBytes(FileContentId.DigestLength);
-			ReadOnlyUtf8String Type = Reader.ReadString();
+			Digest<Md5> Digest = Reader.ReadDigest<Md5>();
+			FileType Type = Reader.ReadFileType();
 			return new FileContentId(Digest, Type);
 		}
 
 		public static void WriteFileContentId(this MemoryWriter Writer, FileContentId FileContentId)
 		{
-			Writer.WriteFixedLengthBytes(FileContentId.Digest.Span);
-			Writer.WriteString(FileContentId.Type);
-		}
-
-		public static int GetSerializedSize(this FileContentId FileContentId)
-		{
-			return FileContentId.Digest.Length + FileContentId.Type.GetSerializedSize();
+			Writer.WriteDigest<Md5>(FileContentId.Digest);
+			Writer.WriteFileType(FileContentId.Type);
 		}
 	}
 }

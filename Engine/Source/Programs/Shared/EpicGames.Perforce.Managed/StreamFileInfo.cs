@@ -19,71 +19,40 @@ using EpicGames.Perforce;
 namespace EpicGames.Perforce.Managed
 {
 	/// <summary>
-	/// Represents a file within a stream
+	/// Metadata for a Perforce file
 	/// </summary>
+	[DebuggerDisplay("{Name}")]
 	class StreamFileInfo
 	{
 		/// <summary>
 		/// Name of this file
 		/// </summary>
-		public readonly ReadOnlyUtf8String Name;
+		public ReadOnlyUtf8String Name { get; }
 
 		/// <summary>
 		/// Length of the file, as reported by the server (actual size on disk may be different due to workspace options).
 		/// </summary>
-		public readonly long Length;
+		public long Length { get; }
 
 		/// <summary>
-		/// Content id for this file
+		/// Unique identifier for the file content
 		/// </summary>
-		public readonly FileContentId ContentId;
+		public FileContentId ContentId { get; }
 
 		/// <summary>
-		/// The parent directory
+		/// Depot path for this file
 		/// </summary>
-		public readonly StreamDirectoryInfo Directory;
-
-		/// <summary>
-		/// The depot file and revision that need to be synced for this file
-		/// </summary>
-		public readonly ReadOnlyUtf8String DepotFileAndRevision;
+		public ReadOnlyUtf8String DepotFileAndRevision { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of this file</param>
-		/// <param name="Length">Length of the file on the server</param>
-		/// <param name="ContentId">Content id for this file</param>
-		/// <param name="Directory">The parent directory</param>
-		/// <param name="DepotFileAndRevision">The depot file and revision that need to be synced for this file</param>
-		public StreamFileInfo(ReadOnlyUtf8String Name, long Length, FileContentId ContentId, StreamDirectoryInfo Directory, ReadOnlyUtf8String DepotFileAndRevision)
+		public StreamFileInfo(ReadOnlyUtf8String Name, long Length, FileContentId ContentId, ReadOnlyUtf8String DepotPathAndRevision)
 		{
 			this.Name = Name;
 			this.Length = Length;
 			this.ContentId = ContentId;
-			this.Directory = Directory;
-			this.DepotFileAndRevision = DepotFileAndRevision;
-		}
-
-		/// <summary>
-		/// Get the path to this file relative to the root of the stream
-		/// </summary>
-		/// <returns>Relative path to the file</returns>
-		public string GetRelativePath()
-		{
-			StringBuilder Builder = new StringBuilder();
-			Directory.AppendPath(Builder);
-			Builder.Append(Name);
-			return Builder.ToString();
-		}
-
-		/// <summary>
-		/// Format the path to the file for the debugger
-		/// </summary>
-		/// <returns>Path to the file</returns>
-		public override string ToString()
-		{
-			return GetRelativePath();
+			this.DepotFileAndRevision = DepotPathAndRevision;
 		}
 	}
 
@@ -96,14 +65,13 @@ namespace EpicGames.Perforce.Managed
 		/// Constructor for reading a file info from disk
 		/// </summary>
 		/// <param name="Reader">Binary reader to read data from</param>
-		/// <param name="Directory">Parent directory</param>
-		public static StreamFileInfo ReadStreamFileInfo(this MemoryReader Reader, StreamDirectoryInfo Directory)
+		public static StreamFileInfo ReadStreamFileInfo(this MemoryReader Reader)
 		{
 			ReadOnlyUtf8String Name = Reader.ReadString();
 			long Length = Reader.ReadInt64();
 			FileContentId ContentId = Reader.ReadFileContentId();
-			ReadOnlyUtf8String DepotFileAndRevision = Reader.ReadString();
-			return new StreamFileInfo(Name, Length, ContentId, Directory, DepotFileAndRevision);
+			ReadOnlyUtf8String DepotPathAndRevision = Reader.ReadString();
+			return new StreamFileInfo(Name, Length, ContentId, DepotPathAndRevision);
 		}
 
 		/// <summary>
@@ -124,7 +92,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		public static int GetSerializedSize(this StreamFileInfo FileInfo)
 		{
-			return FileInfo.Name.GetSerializedSize() + sizeof(long) + FileInfo.ContentId.GetSerializedSize() + FileInfo.DepotFileAndRevision.GetSerializedSize();
+			return FileInfo.Name.GetSerializedSize() + sizeof(long) + FileContentId.SerializedSize + FileInfo.DepotFileAndRevision.GetSerializedSize();
 		}
 	}
 }
