@@ -13,6 +13,10 @@
 #if SHADING_PATH_MOBILE
 	// Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer 
 	#define MobileSceneTextures MobileBasePass.SceneTextures
+	#define EyeAdaptationStruct MobileBasePass
+#else
+	#define SceneTexturesStruct DecalPass.SceneTextures
+	#define EyeAdaptationStruct DecalPass
 #endif
 
 #include "DeferredShadingCommon.ush"

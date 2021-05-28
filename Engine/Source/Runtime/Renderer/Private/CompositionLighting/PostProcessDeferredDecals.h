@@ -3,46 +3,25 @@
 #pragma once
 
 #include "RenderGraph.h"
+#include "SceneTextureParameters.h"
 #include "SceneView.h"
 
 enum class EDecalRenderStage : uint8;
 enum class EDecalRenderTargetMode : uint8;
+struct FDBufferTextures;
 struct FSceneTextures;
 class FViewInfo;
 
 bool IsDBufferEnabled(const FSceneViewFamily& ViewFamily, EShaderPlatform ShaderPlatform);
 
-struct FDBufferTextures
-{
-	bool IsValid() const
-	{
-		check(!DBufferA || (DBufferB && DBufferC));
-		return HasBeenProduced(DBufferA);
-	}
-
-	FRDGTextureRef DBufferA = nullptr;
-	FRDGTextureRef DBufferB = nullptr;
-	FRDGTextureRef DBufferC = nullptr;
-	FRDGTextureRef DBufferMask = nullptr;
-};
-
-FDBufferTextures CreateDBufferTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, EShaderPlatform ShaderPlatform);
-
-BEGIN_SHADER_PARAMETER_STRUCT(FDBufferParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DBufferATexture)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DBufferBTexture)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DBufferCTexture)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DBufferRenderMask)
-	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferATextureSampler)
-	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferBTextureSampler)
-	SHADER_PARAMETER_SAMPLER(SamplerState, DBufferCTextureSampler)
-END_SHADER_PARAMETER_STRUCT()
-
-FDBufferParameters GetDBufferParameters(FRDGBuilder& GraphBuilder, const FDBufferTextures& DBufferTextures, EShaderPlatform ShaderPlatform);
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDecalPassUniformParameters, )
+	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 struct FDeferredDecalPassTextures
 {
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer = nullptr;
+	TRDGUniformBufferRef<FDecalPassUniformParameters> DecalPassUniformBuffer = nullptr;
 
 	// Potential render targets for the decal pass.
 	FRDGTextureMSAA Depth;
@@ -55,7 +34,11 @@ struct FDeferredDecalPassTextures
 	FDBufferTextures* DBufferTextures = nullptr;
 };
 
-FDeferredDecalPassTextures GetDeferredDecalPassTextures(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FDBufferTextures* DBufferTextures);
+FDeferredDecalPassTextures GetDeferredDecalPassTextures(
+	FRDGBuilder& GraphBuilder, 
+	const FSceneView& ViewInfo,
+	const FSceneTextures& SceneTextures, 
+	FDBufferTextures* DBufferTextures);
 
 void AddDeferredDecalPass(
 	FRDGBuilder& GraphBuilder,
@@ -77,7 +60,7 @@ TUniformBufferRef<FDeferredDecalUniformParameters> CreateDeferredDecalUniformBuf
 BEGIN_SHADER_PARAMETER_STRUCT(FDeferredDecalPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FDeferredDecalUniformParameters, DeferredDecal)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDecalPassUniformParameters, DecalPass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 

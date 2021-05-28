@@ -513,7 +513,7 @@ void ProcessBeforeBasePass(
 			// decals are before AmbientOcclusion so the decal can output a normal that AO is affected by
 			if (bDBuffer)
 			{
-				FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, SceneTextures, &DBufferTextures);
+				FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, View, SceneTextures, &DBufferTextures);
 				AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::BeforeBasePass);
 			}
 
@@ -572,7 +572,7 @@ void ProcessAfterBasePass(
 	const bool bDoDecal = ViewFamily.EngineShowFlags.Decals && !ViewFamily.EngineShowFlags.VisualizeLightCulling;
 	const bool bDBuffer = IsUsingDBuffers(View.GetShaderPlatform());
 
-	FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, SceneTextures, nullptr);
+	FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, View, SceneTextures, nullptr);
 
 	if (bDoDecal && !bDBuffer && IsUsingGBuffers(View.GetShaderPlatform()))
 	{
