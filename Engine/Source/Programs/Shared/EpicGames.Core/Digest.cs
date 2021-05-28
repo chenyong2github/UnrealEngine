@@ -239,7 +239,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Length of a hash value
 		/// </summary>
-		public int Length => Traits.Length;
+		public static int Length => Traits.Length;
+
+		/// <summary>
+		/// Zero digest value
+		/// </summary>
+		public static Digest<T> Zero => new Digest<T>(new byte[Traits.Length]);
 
 		/// <summary>
 		/// Memory storing the digest data

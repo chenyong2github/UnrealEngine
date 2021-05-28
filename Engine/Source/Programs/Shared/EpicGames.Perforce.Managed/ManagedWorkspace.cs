@@ -475,7 +475,7 @@ namespace EpicGames.Perforce.Managed
 			using (Logger.BeginIndentScope("  "))
 			{
 				await CleanInternalAsync(true, CancellationToken);
-				await RemoveFilesFromWorkspaceAsync(new StreamDirectoryInfo(), CancellationToken);
+				await RemoveFilesFromWorkspaceAsync(StreamSnapshot.Empty, CancellationToken);
 				await SaveAsync(TransactionState.Clean, CancellationToken);
 			}
 
@@ -618,7 +618,7 @@ namespace EpicGames.Perforce.Managed
 			using (Logger.BeginIndentScope("  "))
 			{
 				// Update the list of files in each stream
-				Tuple<int, StreamDirectoryInfo>[] StreamState = new Tuple<int, StreamDirectoryInfo>[StreamNames.Count];
+				Tuple<int, StreamSnapshot>[] StreamState = new Tuple<int, StreamSnapshot>[StreamNames.Count];
 				for (int Idx = 0; Idx < StreamNames.Count; Idx++)
 				{
 					string StreamName = StreamNames[Idx];
@@ -637,7 +637,7 @@ namespace EpicGames.Perforce.Managed
 						await ClearClientHaveTableAsync(PerforceClient, CancellationToken);
 						await UpdateClientHaveTableAsync(PerforceClient, ChangeNumber, View, CancellationToken);
 
-						StreamDirectoryInfo Contents = await FindClientContentsAsync(PerforceClient, ChangeNumber, false, CancellationToken);
+						StreamSnapshot Contents = await FindClientContentsAsync(PerforceClient, ChangeNumber, false, CancellationToken);
 						StreamState[Idx] = Tuple.Create(ChangeNumber, Contents);
 
 						GC.Collect();
@@ -833,7 +833,7 @@ namespace EpicGames.Perforce.Managed
 				await LogFortniteStatsInfoAsync(Perforce);
 
 				// Update the state of the current stream, if necessary
-				StreamDirectoryInfo Contents;
+				StreamSnapshot Contents;
 				if(CacheFile == null)
 				{
 					Contents = await FindClientContentsAsync(Perforce, ChangeNumber, bFakeSync, CancellationToken);
@@ -927,7 +927,7 @@ namespace EpicGames.Perforce.Managed
 				foreach (WhereRecord WriteFile in WriteFiles)
 				{
 					string Path = Regex.Replace(WriteFile.ClientFile, "^//[^/]+/", "");
-					Workspace.AddFile(new ReadOnlyUtf8String(Path), 0, 0, false, new FileContentId(new byte[FileContentId.DigestLength], ReadOnlyUtf8String.Empty));
+					Workspace.AddFile(new ReadOnlyUtf8String(Path), 0, 0, false, new FileContentId(Digest<Md5>.Zero, default));
 				}
 				await SaveAsync(TransactionState.Clean, CancellationToken.None);
 			}
@@ -985,7 +985,7 @@ namespace EpicGames.Perforce.Managed
 				await CleanAsync(true, CancellationToken);
 
 				// Update the list of files in each stream
-				Tuple<int, StreamDirectoryInfo>[] StreamState = new Tuple<int, StreamDirectoryInfo>[Requests.Count];
+				Tuple<int, StreamSnapshot>[] StreamState = new Tuple<int, StreamSnapshot>[Requests.Count];
 				for(int Idx = 0; Idx < Requests.Count; Idx++)
 				{
 					PopulateRequest Request = Requests[Idx];
@@ -1002,7 +1002,7 @@ namespace EpicGames.Perforce.Managed
 
 						await UpdateClientHaveTableAsync(Request.PerforceClient, ChangeNumber, Request.View, CancellationToken);
 
-						StreamDirectoryInfo Contents = await FindClientContentsAsync(Request.PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
+						StreamSnapshot Contents = await FindClientContentsAsync(Request.PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
 						StreamState[Idx] = Tuple.Create(ChangeNumber, Contents);
 
 						GC.Collect();
@@ -1071,7 +1071,7 @@ namespace EpicGames.Perforce.Managed
 						int ChangeNumber = StreamState[Idx].Item1;
 						await UpdateClientHaveTableAsync(Request.PerforceClient, ChangeNumber, Requests[Idx].View, CancellationToken);
 
-						StreamDirectoryInfo Contents = StreamState[Idx].Item2;
+						StreamSnapshot Contents = StreamState[Idx].Item2;
 						await RemoveFilesFromWorkspaceAsync(Contents, CancellationToken);
 						await AddFilesToWorkspaceAsync(Request.PerforceClient, Contents, bFakeSync, CancellationToken);
 					}
@@ -1374,9 +1374,10 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="ChangeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="bFakeSync">Whether this is for a fake sync. Poisons the file type to ensure that the cache is not corrupted.</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task<StreamDirectoryInfo> FindClientContentsAsync(PerforceClientConnection PerforceClient, int ChangeNumber, bool bFakeSync, CancellationToken CancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindClientContentsAsync(PerforceClientConnection PerforceClient, int ChangeNumber, bool bFakeSync, CancellationToken CancellationToken)
 		{
-			StreamDirectoryInfo Contents = new StreamDirectoryInfo();
+			StreamSnapshotBuilder Builder = new StreamSnapshotBuilder();
+
 			using (Trace("FetchMetadata"))
 			using (ILoggerProgress Scope = Logger.BeginProgressScope("Fetching metadata..."))
 			{
@@ -1387,7 +1388,7 @@ namespace EpicGames.Perforce.Managed
 
 				// List of the last path fragments. Since file records that are returned are typically sorted by their position in the tree, we can save quite a lot of processing by
 				// reusing as many fragemnts as possible.
-				List<(ReadOnlyUtf8String, StreamDirectoryInfo)> Fragments = new List<(ReadOnlyUtf8String, StreamDirectoryInfo)>();
+				List<(ReadOnlyUtf8String, StreamSnapshotBuilder)> Fragments = new List<(ReadOnlyUtf8String, StreamSnapshotBuilder)>();
 
 				// Handler for each returned record
 				FStatIndexedRecord Record = new FStatIndexedRecord();
@@ -1414,7 +1415,7 @@ namespace EpicGames.Perforce.Managed
 					ReadOnlySpan<byte> PathSpan = Record.ClientFile.Span;
 
 					// Parse out the data
-					StreamDirectoryInfo LastStreamDirectory = Contents;
+					StreamSnapshotBuilder LastStreamDirectory = Builder;
 
 					// Try to match up as many fragments from the last file.
 					int FragmentMinIdx = ClientPrefix.Length;
@@ -1453,10 +1454,10 @@ namespace EpicGames.Perforce.Managed
 						{
 							ReadOnlyUtf8String UnescapedFragment = PerforceUtils.UnescapePath(Fragment);
 
-							StreamDirectoryInfo? NextStreamDirectory;
+							StreamSnapshotBuilder? NextStreamDirectory;
 							if (!LastStreamDirectory.NameToSubDirectory.TryGetValue(UnescapedFragment, out NextStreamDirectory))
 							{
-								NextStreamDirectory = new StreamDirectoryInfo(UnescapedFragment, LastStreamDirectory);
+								NextStreamDirectory = new StreamSnapshotBuilder();
 								LastStreamDirectory.NameToSubDirectory.Add(UnescapedFragment, NextStreamDirectory);
 							}
 							LastStreamDirectory = NextStreamDirectory;
@@ -1469,7 +1470,7 @@ namespace EpicGames.Perforce.Managed
 					}
 
 					byte[] DigestBytes = StringUtils.ParseHexString(Record.Digest.Span);
-					FileContentId ContentId = new FileContentId(DigestBytes, Record.HeadType);
+					FileContentId ContentId = new FileContentId(DigestBytes, FileType.Parse(Record.HeadType.Span));
 
 					// Get the depot file and revision
 					byte[] DepotFileAndRevisionData = new byte[Record.DepotFile.Length + 1 + Record.HaveRev.Length];
@@ -1480,7 +1481,7 @@ namespace EpicGames.Perforce.Managed
 
 					// Add a new StreamFileInfo to the last directory object
 					ReadOnlyUtf8String FileName = PerforceUtils.UnescapePath(Record.ClientFile.Slice(FragmentMinIdx));
-					LastStreamDirectory.NameToFile.Add(FileName, new StreamFileInfo(FileName, Record.FileSize, ContentId, LastStreamDirectory, DepotFileAndRevision));
+					LastStreamDirectory.NameToFile.Add(FileName, new StreamFileInfo(FileName, Record.FileSize, ContentId, DepotFileAndRevision));
 				};
 
 				// Create the workspace, and add records for all the files. Exclude deleted files with digest = null.
@@ -1489,7 +1490,8 @@ namespace EpicGames.Perforce.Managed
 				// Output the elapsed time
 				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
 			}
-			return Contents;
+
+			return new StreamSnapshotFromMemory(Builder);
 		}
 
 		/// <summary>
@@ -1498,14 +1500,14 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="CacheFile">The cache file to read from</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		async Task<StreamDirectoryInfo> LoadClientContentsAsync(FileReference CacheFile, CancellationToken CancellationToken)
+		async Task<StreamSnapshot> LoadClientContentsAsync(FileReference CacheFile, CancellationToken CancellationToken)
 		{
-			StreamDirectoryInfo Contents;
+			StreamSnapshot Contents;
 			using (Trace("ReadMetadata"))
 			using (ILoggerProgress Scope = Logger.BeginProgressScope($"Reading cached metadata from {CacheFile}..."))
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
-				Contents = await StreamDirectoryInfo.LoadAsync(CacheFile, CancellationToken);
+				Contents = await StreamSnapshotFromMemory.LoadAsync(CacheFile, CancellationToken);
 				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 			return Contents;
@@ -1520,9 +1522,10 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="CacheFile">Location of the file to save the cached contents</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		private async Task<StreamDirectoryInfo> FindAndSaveClientContentsAsync(PerforceClientConnection PerforceClient, int ChangeNumber, bool bFakeSync, FileReference CacheFile, CancellationToken CancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(PerforceClientConnection PerforceClient, int ChangeNumber, bool bFakeSync, FileReference CacheFile, CancellationToken CancellationToken)
 		{
-			StreamDirectoryInfo Contents = await FindClientContentsAsync(PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
+			StreamSnapshotFromMemory Contents = await FindClientContentsAsync(PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
+
 			using (Trace("WriteMetadata"))
 			using (ILoggerProgress Scope = Logger.BeginProgressScope($"Saving metadata to {CacheFile}..."))
 			{
@@ -1556,7 +1559,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="Contents">Contents of the target stream</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task RemoveFilesFromWorkspaceAsync(StreamDirectoryInfo Contents, CancellationToken CancellationToken)
+		private async Task RemoveFilesFromWorkspaceAsync(StreamSnapshot Contents, CancellationToken CancellationToken)
 		{
 			// Make sure the repair flag is clear before we start
 			await RunOptionalRepairAsync(CancellationToken);
@@ -1682,7 +1685,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="Stream">Contents of the stream</param>
 		/// <param name="bFakeSync">Whether to simulate the sync operation, rather than actually syncing files</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task AddFilesToWorkspaceAsync(PerforceClientConnection Client, StreamDirectoryInfo Stream, bool bFakeSync, CancellationToken CancellationToken)
+		private async Task AddFilesToWorkspaceAsync(PerforceClientConnection Client, StreamSnapshot Stream, bool bFakeSync, CancellationToken CancellationToken)
 		{
 			// Make sure the repair flag is reset
 			await RunOptionalRepairAsync(CancellationToken);
