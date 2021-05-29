@@ -573,7 +573,7 @@ namespace HordeServer.Tasks.Impl
 
 		private async Task<IJob?> SkipBatchAsync(IJob Job, int BatchIdx, IGraph Graph, JobStepBatchError Reason)
 		{
-			Logger.LogInformation("Skipping batch {BatchIdx} for job {JobId}", BatchIdx, Job.Id);
+			Logger.LogInformation("Skipping batch {BatchIdx} for job {JobId} (reason: {Reason})", BatchIdx, Job.Id, Reason);
 
 			IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates = Job.GetLabelStates(Graph);
 			IJob? NewJob = await Jobs.SkipBatchAsync(Job, BatchIdx, Graph, Reason);

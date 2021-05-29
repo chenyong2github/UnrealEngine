@@ -562,6 +562,7 @@ namespace HordeServer.Services
 					// If there aren't any more steps, send a complete message
 					if (StepIdx == Batch.Steps.Count)
 					{
+						Logger.LogDebug("All steps in batch complete");
 						BeginStepResponse Response = new BeginStepResponse();
 						Response.State = BeginStepResponse.Types.Result.Complete;
 						return Response;
@@ -575,6 +576,7 @@ namespace HordeServer.Services
 					}
 					if (Step.State == JobStepState.Waiting)
 					{
+						Logger.LogDebug("Waiting for job {JobId}, batch {BatchId}, step {StepId}")
 						BeginStepResponse Response = new BeginStepResponse();
 						Response.State = BeginStepResponse.Types.Result.Waiting;
 						return Response;
