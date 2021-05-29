@@ -20,7 +20,6 @@
 
 class IElectraPlayerRuntimeModule;
 class FElectraPlayerResourceDelegate;
-class IElectraBinarySample;
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogElectraPlayerPlugin, Log, All);
@@ -165,7 +164,7 @@ private:
 		void OnAudioFlush() override;
 		void PresentVideoFrame(const FVideoDecoderOutputPtr& InVideoFrame) override;
 		void PresentAudioFrame(const IAudioDecoderOutputPtr& InAudioFrame) override;
-		void PresentMetadataSample(const IElectraBinarySampleRef& InMetadataSample) override;
+		void PresentMetadataSample(const IMetaDataDecoderOutputPtr& InMetadataSample) override;
 		bool CanReceiveVideoSamples(int32 NumFrames) override;
 		bool CanReceiveAudioSamples(int32 NumFrames) override;
 		void PrepareForDecoderShutdown() override;

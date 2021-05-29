@@ -9,10 +9,9 @@
 #include "Player/AdaptiveStreamingPlayer.h"
 #include "Renderer/RendererVideo.h"
 #include "Renderer/RendererAudio.h"
+#include "MediaMetaDataDecoderOutput.h"
 #include "VideoDecoderResourceDelegate.h"
 #include "Utilities/Utilities.h"
-
-#include "IElectraMetadataSample.h"
 
 #include "Async/Async.h"
 
@@ -77,15 +76,14 @@ static FString SanitizeMessage(FString InMessage)
 
 //-----------------------------------------------------------------------------
 
-class FElectraBinarySample : public IElectraBinarySample
+class FMetaDataDecoderOutput : public IMetaDataDecoderOutput
 {
 public:
-	virtual ~FElectraBinarySample() = default;
+	virtual ~FMetaDataDecoderOutput() = default;
 	virtual const void* GetData() override						{ return Data.GetData(); }
 	virtual FTimespan GetDuration() const override				{ return Duration; }
 	virtual uint32 GetSize() const override						{ return (uint32) Data.Num(); }
-	virtual FMediaTimeStamp GetTime() const override			{ return PresentationTime; }
-	virtual FGuid GetGUID() const override						{ return IElectraBinarySample::GetSampleTypeGUID(); }
+	virtual FDecoderTimeStamp GetTime() const override			{ return PresentationTime; }
 	virtual EOrigin GetOrigin() const override					{ return Origin; }
 	virtual EDispatchedMode GetDispatchedMode() const override	{ return DispatchedMode; }
 	virtual const FString& GetSchemeIdUri() const override		{ return SchemeIdUri; }
@@ -93,7 +91,7 @@ public:
 	virtual const FString& GetID() const override				{ return ID; }
 
 	TArray<uint8> Data;
-	FMediaTimeStamp PresentationTime;
+	FDecoderTimeStamp PresentationTime;
 	FTimespan Duration;
 	EOrigin Origin;
 	EDispatchedMode DispatchedMode;
@@ -1211,18 +1209,18 @@ void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingP
 	if (PinnedAdapterDelegate.IsValid())
 	{
 		// Create a binary media sample of our extended format and pass it up.
-		TSharedRef<FElectraBinarySample, ESPMode::ThreadSafe> Meta = MakeShared<FElectraBinarySample, ESPMode::ThreadSafe>();
+		TSharedPtr<FMetaDataDecoderOutput, ESPMode::ThreadSafe> Meta = MakeShared<FMetaDataDecoderOutput, ESPMode::ThreadSafe>();
 		switch(InDispatchMode)
 		{
 			default:
 			case IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnReceive:
 			{
-				Meta->DispatchedMode = FElectraBinarySample::EDispatchedMode::OnReceive;
+				Meta->DispatchedMode = FMetaDataDecoderOutput::EDispatchedMode::OnReceive;
 				break;
 			}
 			case IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart:
 			{
-				Meta->DispatchedMode = FElectraBinarySample::EDispatchedMode::OnStart;
+				Meta->DispatchedMode = FMetaDataDecoderOutput::EDispatchedMode::OnStart;
 				break;
 			}
 		}
@@ -1231,17 +1229,17 @@ void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingP
 			default:
 			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::TimedMetadata:		
 			{
-				Meta->Origin = FElectraBinarySample::EOrigin::TimedMetadata;
+				Meta->Origin = FMetaDataDecoderOutput::EOrigin::TimedMetadata;
 				break;
 			}
 			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::EventStream:		
 			{
-				Meta->Origin = FElectraBinarySample::EOrigin::EventStream;
+				Meta->Origin = FMetaDataDecoderOutput::EOrigin::EventStream;
 				break;
 			}
 			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::InbandEventStream:	
 			{
-				Meta->Origin = FElectraBinarySample::EOrigin::InbandEventStream;
+				Meta->Origin = FMetaDataDecoderOutput::EOrigin::InbandEventStream;
 				break;
 			}
 		}
@@ -1250,13 +1248,7 @@ void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingP
 		Meta->Value = InEvent->GetValue();
 		Meta->ID = InEvent->GetID(),
 		Meta->Duration = InEvent->GetDuration().GetAsTimespan();
-		// A zero duration might cause the metadata sample fall through the cracks later
-		// so set it to a short 1ms instead.
-		if (Meta->Duration.IsZero())
-		{
-			Meta->Duration = FTimespan::FromMilliseconds(1);
-		}
-		Meta->PresentationTime = FMediaTimeStamp(InEvent->GetPresentationTime().GetAsTimespan());
+		Meta->PresentationTime = FDecoderTimeStamp(InEvent->GetPresentationTime().GetAsTimespan(), 0);
 		PinnedAdapterDelegate->PresentMetadataSample(Meta);
 	}
 }

@@ -21,9 +21,7 @@ namespace UnrealBuildTool.Rules
 					"HTTP",
 					"WebSockets",
 					"Json",
-					"Media",
 					"ElectraBase",
-					"ElectraSamples",
 					"ElectraCDM",
 					"XmlParser"
 				});
