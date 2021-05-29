@@ -18,6 +18,9 @@
 #define ERRCODE_MANIFEST_MP4_STARTSEGMENT_NOT_FOUND		1
 
 
+DECLARE_CYCLE_STAT(TEXT("FPlayPeriodMP4::FindSegment"), STAT_ElectraPlayer_MP4_FindSegment, STATGROUP_ElectraPlayer);
+DECLARE_CYCLE_STAT(TEXT("FPlayPeriodMP4::GetSegmentInformation"), STAT_ElectraPlayer_MP4_GetSegmentInformation, STATGROUP_ElectraPlayer);
+
 namespace Electra
 {
 
@@ -669,6 +672,9 @@ void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPt
 
 IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, ESearchType SearchType, int64 AtAbsoluteFilePos)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_MP4_FindSegment);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, MP4_FindSegment);
+
 // TODO: If there is a SIDX box we will look in there.
 
 	// Look at the actual tracks. If there is video search there first for a keyframe/IDR frame.
@@ -991,6 +997,9 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetLoopingSegment(TS
 
 void FManifestMP4Internal::FTimelineAssetMP4::GetSegmentInformation(TArray<IManifest::IPlayPeriod::FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_MP4_GetSegmentInformation);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, MP4_GetSegmentInformation);
+
 	// This is not expected to be called. And if it does we return a dummy entry.
 	OutAverageSegmentDuration.SetFromSeconds(60.0);
 	OutSegmentInformation.Empty();

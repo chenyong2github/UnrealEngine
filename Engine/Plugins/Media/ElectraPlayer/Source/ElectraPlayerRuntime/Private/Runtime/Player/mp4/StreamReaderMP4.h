@@ -96,6 +96,7 @@ private:
 	int32 HTTPProgressCallback(const IElectraHttpManager::FRequest* InRequest);
 	void HTTPCompletionCallback(const IElectraHttpManager::FRequest* InRequest);
 	void HTTPUpdateStats(const FTimeValue& CurrentTime, const IElectraHttpManager::FRequest* Request);
+	void HandleRequest();
 
 	bool HasBeenAborted() const;
 	bool HasErrored() const;

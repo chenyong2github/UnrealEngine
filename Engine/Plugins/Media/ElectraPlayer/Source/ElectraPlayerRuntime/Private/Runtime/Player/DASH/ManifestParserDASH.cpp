@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlayerCore.h"
+#include "ElectraPlayerPrivate.h"
 #include "Player/Manifest.h"
 #include "Player/PlaybackTimeline.h"
 
@@ -27,6 +28,8 @@
 #define ERRCODE_DASH_MPD_PARSER_ELEMENT_CANNOT_HAVE_CHILDREN		101
 #define ERRCODE_DASH_MPD_PARSER_BAD_TIME_VALUE						200
 #define ERRCODE_DASH_MPD_PARSER_BAD_ELEMENT_VALUE					201
+
+DECLARE_CYCLE_STAT(TEXT("FManifestParserDASH::BuildFromMPD"), STAT_ElectraPlayer_DASH_BuildFromMPD, STATGROUP_ElectraPlayer);
 
 
 namespace Electra
@@ -494,6 +497,9 @@ void FManifestParserDASH::LogMessage(IInfoLog::ELevel Level, const FString& Mess
 
 FErrorDetail FManifestParserDASH::BuildFromMPD(TCHAR* InOutMPDXML, const TCHAR* InExpectedRootElement)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_BuildFromMPD);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_BuildFromMPD);
+
 	FText ErrorMsg;
 	int32 ErrorLine = 0;
 	const TCHAR* NoFile = TEXT("");

@@ -24,6 +24,7 @@
 #define ERRCODE_HLS_VARIANT_PLAYLIST_DOWNLOAD_FAILED		5
 #define ERRCODE_HLS_VARIANT_PLAYLIST_PARSING_FAILED			6
 
+DECLARE_CYCLE_STAT(TEXT("FPlaylistReaderHLS_WorkerThread"), STAT_ElectraPlayer_HLS_PlaylistWorker, STATGROUP_ElectraPlayer);
 
 
 namespace Electra
@@ -457,7 +458,6 @@ void FPlaylistReaderHLS::CheckForPlaylistUpdate(const FTimeValue& TimeNow)
 void FPlaylistReaderHLS::WorkerThread()
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
-	CSV_SCOPED_TIMING_STAT(ElectraPlayer, PlaylistReaderHLS_Worker);
 
 	Builder = IManifestBuilderHLS::Create(PlayerSessionServices);
 
@@ -475,21 +475,27 @@ void FPlaylistReaderHLS::WorkerThread()
 		{
 			break;
 		}
-		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 
-		// Check for completed static resource requests.
-		// NOTE: This needs to be done first in order to move the completed ones being moved onto the completed list to be
-		//       handled immediately in the following HandleCompletedPlaylistDownloads() call!!
-		HandleStaticRequestCompletions(Now);
+		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_PlaylistWorker);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_PlaylistWorker);
 
-		// Check completed playlist downloads
-		HandleCompletedPlaylistDownloads(Now);
+			FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 
-		// Execute enqueued playlist download requests.
-		HandleEnqueuedPlaylistDownloads(Now);
+			// Check for completed static resource requests.
+			// NOTE: This needs to be done first in order to move the completed ones being moved onto the completed list to be
+			//       handled immediately in the following HandleCompletedPlaylistDownloads() call!!
+			HandleStaticRequestCompletions(Now);
 
-		// Check which playlists need to be reloaded.
-		CheckForPlaylistUpdate(Now);
+			// Check completed playlist downloads
+			HandleCompletedPlaylistDownloads(Now);
+
+			// Execute enqueued playlist download requests.
+			HandleEnqueuedPlaylistDownloads(Now);
+
+			// Check which playlists need to be reloaded.
+			CheckForPlaylistUpdate(Now);
+		}
 	}
 
 

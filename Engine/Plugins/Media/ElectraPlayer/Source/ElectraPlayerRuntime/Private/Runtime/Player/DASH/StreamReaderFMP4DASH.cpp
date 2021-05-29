@@ -21,6 +21,8 @@
 #define INTERNAL_ERROR_INIT_SEGMENT_PARSE_ERROR						2
 
 
+DECLARE_CYCLE_STAT(TEXT("FStreamReaderFMP4DASH::HandleRequest"), STAT_ElectraPlayer_DASH_StreamReader, STATGROUP_ElectraPlayer);
+
 namespace Electra
 {
 
@@ -443,6 +445,9 @@ FErrorDetail FStreamReaderFMP4DASH::FStreamHandler::GetInitSegment(TSharedPtrTS<
 		return CreateError(FString::Printf(TEXT("Init segment download error: %s"),	*ci->StatusInfo.ErrorDetail.GetMessage()), INTERNAL_ERROR_INIT_SEGMENT_DOWNLOAD_ERROR);
 	}
 
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
+
 	FMP4StaticDataReader StaticDataReader;
 	StaticDataReader.SetParseData(LoadReq->Request->GetResponseBuffer());
 	TSharedPtrTS<IParserISO14496_12> Init = IParserISO14496_12::CreateParser();
@@ -482,6 +487,8 @@ FErrorDetail FStreamReaderFMP4DASH::FStreamHandler::GetInitSegment(TSharedPtrTS<
 
 void FStreamReaderFMP4DASH::FStreamHandler::CheckForInbandDASHEvents()
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
 	bool bHasInbandEvent = false;
 	if (!CurrentRequest->bIsEOSSegment)
 	{
@@ -505,6 +512,8 @@ void FStreamReaderFMP4DASH::FStreamHandler::CheckForInbandDASHEvents()
 
 void FStreamReaderFMP4DASH::FStreamHandler::HandleEventMessages()
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
 	// Are there 'emsg' boxes we need to handle?
 	if (MP4Parser->GetNumberOfEventMessages())
 	{
@@ -589,8 +598,6 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleEventMessages()
 
 void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 {
-//CSV_SCOPED_TIMING_STAT(ElectraPlayer, StreamReaderMP4_Worker);
-
 	// Get the request into a local shared pointer to hold on to it.
 	TSharedPtrTS<FStreamSegmentRequestFMP4DASH> Request = CurrentRequest;
 	TSharedPtr<const FPlayerLoopState, ESPMode::ThreadSafe> PlayerLoopState = MakeShared<const FPlayerLoopState, ESPMode::ThreadSafe>(Request->PlayerLoopState);
@@ -767,8 +774,12 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 				UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionService, MP4InitSegment.Get());
 				if (parseError == UEMEDIA_ERROR_OK)
 				{
-					Request->Segment.bSawLMSG = MP4Parser->HasBrand(IParserISO14496_12::BrandType_lmsg);
-					parseError = MP4Parser->PrepareTracks(MP4InitSegment);
+					{
+						SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+						CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
+						Request->Segment.bSawLMSG = MP4Parser->HasBrand(IParserISO14496_12::BrandType_lmsg);
+						parseError = MP4Parser->PrepareTracks(MP4InitSegment);
+					}
 					if (parseError == UEMEDIA_ERROR_OK)
 					{
 						// For the time being we only want to have a single track in the movie segments.
@@ -918,6 +929,8 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 											ElectraCDM::ECDMError DecryptResult = ElectraCDM::ECDMError::Failure;
 											if (Decrypter->GetState() == ElectraCDM::ECDMState::Ready)
 											{
+												SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+												CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
 												DecryptResult = Decrypter->DecryptInPlace((uint8*) AccessUnit->AUData, (int32) AccessUnit->AUSize, SampleEncryptionInfo);
 											}
 											if (DecryptResult != ElectraCDM::ECDMError::Success)
@@ -972,6 +985,8 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									// Shall we pass on any AUs we already read?
 									if (bAllowEarlyEmitting)
 									{
+										SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+										CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
 										while(AccessUnitFIFO.Num() && !HasReadBeenAborted())
 										{
 											FAccessUnit* pNext = AccessUnitFIFO.FrontRef();
@@ -1251,6 +1266,8 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 	{
 		if (SegmentEventsFound.IndexOfByPredicate([](const TSharedPtrTS<DASH::FPlayerEvent>& This){return This->GetSchemeIdUri().Equals(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012);}) == INDEX_NONE)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
 			TSharedPtrTS<DASH::FPlayerEvent> NewEvent = MakeSharedTS<DASH::FPlayerEvent>();
 			NewEvent->SetOrigin(IAdaptiveStreamingPlayerAEMSEvent::EOrigin::InbandEventStream);
 			NewEvent->SetSchemeIdUri(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012);
@@ -1327,6 +1344,8 @@ int64 FStreamReaderFMP4DASH::FStreamHandler::ReadData(void* IntoBuffer, int64 Nu
 				ds.ABRState.ProgressDecision = StreamSelectorDecision;
 				if ((StreamSelectorDecision.Flags & FABRDownloadProgressDecision::EDecisionFlags::eABR_EmitPartialData) != 0)
 				{
+					SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+					CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
 					bAllowEarlyEmitting = true;
 					// Deliver all enqueued AUs right now. Unless the request also gets aborted we could be stuck
 					// in here for a while longer.
@@ -1371,6 +1390,8 @@ int64 FStreamReaderFMP4DASH::FStreamHandler::ReadData(void* IntoBuffer, int64 Nu
 		}
 		else
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
 			SourceBuffer.Lock();
 			if (SourceBuffer.Num() >= ReadBuffer.ParsePos + NumBytesToRead)
 			{

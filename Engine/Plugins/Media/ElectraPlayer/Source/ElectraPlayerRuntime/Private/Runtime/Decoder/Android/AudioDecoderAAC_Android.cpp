@@ -11,8 +11,13 @@
 #include "Utilities/StringHelpers.h"
 #include "DecoderErrors_Android.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ElectraPlayerPrivate.h"
 
 #include "AudioDecoderAAC_JavaWrapper_Android.h"
+
+DECLARE_CYCLE_STAT(TEXT("FAudioDecoderAAC::Decode()"), STAT_ElectraPlayer_AudioAACDecode, STATGROUP_ElectraPlayer);
+DECLARE_CYCLE_STAT(TEXT("FAudioDecoderAAC::ConvertOutput()"), STAT_ElectraPlayer_AudioAACConvertOutput, STATGROUP_ElectraPlayer);
+
 
 namespace Electra
 {
@@ -572,6 +577,8 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 		// Need a new output buffer?
 		if (CurrentOutputBuffer == nullptr)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 			UEMediaError bufResult = Renderer->AcquireBuffer(CurrentOutputBuffer, 0, BufferAcquireOptions);
 			check(bufResult == UEMEDIA_ERROR_OK || bufResult == UEMEDIA_ERROR_INSUFFICIENT_DATA);
 			if (bufResult != UEMEDIA_ERROR_OK && bufResult != UEMEDIA_ERROR_INSUFFICIENT_DATA)
@@ -627,6 +634,8 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 				result = DecoderInstance->DequeueOutputBuffer(OutputBufferInfo, 1000 * 2);
 				if (result == 0)
 				{
+					SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACConvertOutput);
+					CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACConvertOutput);
 					if (OutputBufferInfo.BufferIndex >= 0)
 					{
 						int32 OutputByteCount    = OutputBufferInfo.Size;
@@ -705,6 +714,8 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 			}
 			else
 			{
+				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACConvertOutput);
+				CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACConvertOutput);
 				// Check if we are in dummy decode mode already. If not we need to flush the decoder if we have one.
 				if (!bInDummyDecodeMode)
 				{
@@ -798,6 +809,8 @@ void FAudioDecoderAAC::WorkerThread()
 		// Notify the buffer listener that we will now be needing an AU for our input buffer.
 		if (!bError && InputBufferListener && AccessUnits.Num() == 0)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 			FAccessUnitBufferInfo	sin;
 			IAccessUnitBufferListener::FBufferStats	stats;
 			AccessUnits.GetStats(sin);
@@ -821,7 +834,9 @@ void FAudioDecoderAAC::WorkerThread()
 
 			// Check if the format has changed such that we need to destroy and re-create the decoder.
 			if (CurrentAccessUnit->bTrackChangeDiscontinuity || IsDifferentFormat(CurrentAccessUnit) || (CurrentAccessUnit->bIsDummyData && !bInDummyDecodeMode))
-				{
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+				CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 				if (DecoderInstance.IsValid())
 				{
 					InternalDecoderDestroy();
@@ -835,6 +850,8 @@ void FAudioDecoderAAC::WorkerThread()
 			// Parse the CSD into a configuration record.
 			if (!ConfigRecord.IsValid() && !bError)
 			{
+				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+				CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 				if (CurrentAccessUnit->AUCodecData.IsValid())
 				{
 					CurrentCodecData = CurrentAccessUnit->AUCodecData;
@@ -855,6 +872,8 @@ void FAudioDecoderAAC::WorkerThread()
 				// Need to create a decoder instance?
 				if (!DecoderInstance.IsValid() && !bError)
 				{
+					SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+					CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 					if (!InternalDecoderCreate())
 					{
 						bError = true;
@@ -893,6 +912,8 @@ void FAudioDecoderAAC::WorkerThread()
 		// Flush?
 		if (FlushDecoderSignal.IsSignaled())
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 			ReturnUnusedOutputBuffer();
 			AccessUnits.Flush();
 			FlushDecoder();

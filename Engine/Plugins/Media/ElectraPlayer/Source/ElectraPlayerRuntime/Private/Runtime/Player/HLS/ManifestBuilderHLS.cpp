@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlayerCore.h"
+#include "ElectraPlayerPrivate.h"
 #include "Player/Manifest.h"
 #include "Player/PlaybackTimeline.h"
 
@@ -50,6 +51,7 @@
 #define ERRCODE_HLS_BUILDER_RENDITION_NOT_FOUND_IN_GROUP		19
 #define ERRCODE_HLS_BUILDER_REFERENCED_GROUP_NOT_DEFINED		20
 
+DECLARE_CYCLE_STAT(TEXT("FManifestBuilderHLS::Build"), STAT_ElectraPlayer_FManifestHLS_Build, STATGROUP_ElectraPlayer);
 
 namespace Electra
 {
@@ -209,6 +211,9 @@ void FManifestBuilderHLS::LogMessage(IInfoLog::ELevel Level, const FString& Mess
 
 FErrorDetail FManifestBuilderHLS::BuildFromMasterPlaylist(TSharedPtrTS<FManifestHLSInternal>& OutHLSPlaylist, const HLSPlaylistParser::FPlaylist& Playlist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FManifestHLS_Build);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, FManifestHLS_Build);
+
 	FErrorDetail Error;
 
 	if (Playlist.Type != HLSPlaylistParser::EPlaylistType::Master)
@@ -1275,6 +1280,9 @@ void FManifestBuilderHLS::SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInt
 
 FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManifestHLSInternal> InOutHLSPlaylist, const HLSPlaylistParser::FPlaylist& VariantPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, uint32 ResponseCRC)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FManifestHLS_Build);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, FManifestHLS_Build);
+
 	// Find the variant or rendition this playlist updates.
 	TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> Playlist;
 	InOutHLSPlaylist->LockPlaylists();
