@@ -1862,7 +1862,7 @@ namespace EpicGames.Perforce.Managed
 					}
 				}
 
-				WorkspaceFileToSync? StatsFile = FilesToSync.FirstOrDefault(x => x.StreamFile.Name == StatsFileName);
+				WorkspaceFileToSync? StatsFile = FilesToSync[BeginIdx..EndIdx].FirstOrDefault(x => x.StreamFile.Name == StatsFileName);
 				if(StatsFile != null)
 				{
 					for (int Idx = BeginIdx; Idx < EndIdx; Idx++)
