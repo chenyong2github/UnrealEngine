@@ -11,6 +11,8 @@
 #include "IElectraPlayerPluginModule.h"
 #include "IElectraMetadataSample.h"
 
+#include "MediaMetaDataDecoderOutput.h"
+
 using namespace Electra;
 
 //-----------------------------------------------------------------------------
@@ -94,6 +96,77 @@ FElectraPlayerPlugin::~FElectraPlayerPlugin()
 }
 
 //-----------------------------------------------------------------------------
+
+class FElectraBinarySample : public IElectraBinarySample
+{
+public:
+	virtual ~FElectraBinarySample() = default;
+	virtual const void* GetData() override						{ return Metadata->GetData(); }
+	virtual uint32 GetSize() const override						{ return Metadata->GetSize(); }
+	virtual FGuid GetGUID() const override						{ return IElectraBinarySample::GetSampleTypeGUID(); }
+	virtual const FString& GetSchemeIdUri() const override		{ return Metadata->GetSchemeIdUri(); }
+	virtual const FString& GetValue() const override			{ return Metadata->GetValue(); }
+	virtual const FString& GetID() const override				{ return Metadata->GetID(); }
+
+	virtual EDispatchedMode GetDispatchedMode() const override
+	{
+		switch(Metadata->GetDispatchedMode())
+		{
+			default:
+			case IMetaDataDecoderOutput::EDispatchedMode::OnReceive:
+			{
+				return FElectraBinarySample::EDispatchedMode::OnReceive;
+			}
+			case IMetaDataDecoderOutput::EDispatchedMode::OnStart:
+			{
+				return FElectraBinarySample::EDispatchedMode::OnStart;
+			}
+		}
+	}
+	
+	virtual EOrigin GetOrigin() const override
+	{
+		switch(Metadata->GetOrigin())
+		{
+			default:
+			case IMetaDataDecoderOutput::EOrigin::TimedMetadata:		
+			{
+				return FElectraBinarySample::EOrigin::TimedMetadata;
+			}
+			case IMetaDataDecoderOutput::EOrigin::EventStream:		
+			{
+				return FElectraBinarySample::EOrigin::EventStream;
+			}
+			case IMetaDataDecoderOutput::EOrigin::InbandEventStream:	
+			{
+				return FElectraBinarySample::EOrigin::InbandEventStream;
+			}
+		}
+	}
+
+	virtual FMediaTimeStamp GetTime() const override
+	{ 
+		FDecoderTimeStamp ts = Metadata->GetTime(); 
+		return FMediaTimeStamp(ts.Time, ts.SequenceIndex);
+	}
+	
+	virtual FTimespan GetDuration() const override
+	{
+		FTimespan Duration = Metadata->GetDuration();
+		// A zero duration might cause the metadata sample fall through the cracks later
+		// so set it to a short 1ms instead.
+		if (Duration.IsZero())
+		{
+			Duration = FTimespan::FromMilliseconds(1);
+		}
+		return Duration;
+	}
+
+	IMetaDataDecoderOutputPtr Metadata;
+};
+
+//-----------------------------------------------------------------------------
+
 
 Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOptions(EOptionType Type, const Electra::FVariantValue & Param)
 {
@@ -234,12 +307,15 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentAudioFrame(const IAudi
 	}
 }
 
-void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentMetadataSample(const IElectraBinarySampleRef& InMetadataSample)
+void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentMetadataSample(const IMetaDataDecoderOutputPtr& InMetadataFrame)
 {
 	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
 	if (PinnedHost.IsValid())
 	{
-		PinnedHost->MediaSamples->AddMetadata(InMetadataSample);
+		// Create a binary media sample of our extended format and pass it up.
+		TSharedRef<FElectraBinarySample, ESPMode::ThreadSafe> MetaDataSample = MakeShared<FElectraBinarySample, ESPMode::ThreadSafe>();
+		MetaDataSample->Metadata = InMetadataFrame;
+		PinnedHost->MediaSamples->AddMetadata(MetaDataSample);
 	}
 }
 
