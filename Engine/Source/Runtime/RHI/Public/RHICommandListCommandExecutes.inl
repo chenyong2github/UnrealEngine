@@ -626,6 +626,7 @@ void FRHIResourceUpdateInfo::ReleaseRefs()
 		}
 		break;
 	case UT_BufferSRV:
+	case UT_BufferFormatSRV:
 		BufferSRV.SRV->Release();
 		if (BufferSRV.Buffer)
 		{
