@@ -479,7 +479,7 @@ namespace EpicGames.Perforce.Managed
 				await SaveAsync(TransactionState.Clean, CancellationToken);
 			}
 
-			Logger.LogInformation("Completed in {ElapsedTime:0.0}s", Timer.Elapsed.TotalSeconds);
+			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
@@ -510,7 +510,7 @@ namespace EpicGames.Perforce.Managed
 				}
 			}
 
-			Logger.LogInformation("Completed in {ElapsedTime:0.0}s", Timer.Elapsed.TotalSeconds);
+			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
@@ -552,7 +552,7 @@ namespace EpicGames.Perforce.Managed
 
 			await RevertInternalAsync(PerforceClient, CancellationToken);
 
-			Logger.LogInformation("Completed in {ElapsedTime:0.0}s", Timer.Elapsed.TotalSeconds);
+			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
@@ -856,7 +856,7 @@ namespace EpicGames.Perforce.Managed
 				await LogFortniteStatsInfoAsync(Perforce);
 			}
 
-			Logger.LogInformation("Completed in {ElapsedTime:0.0}s", Timer.Elapsed.TotalSeconds);
+			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
@@ -955,7 +955,7 @@ namespace EpicGames.Perforce.Managed
 				}
 			}
 
-			Logger.LogInformation("Completed in {TimeSeconds:0.0}s", Timer.Elapsed.TotalSeconds);
+			Logger.LogInformation("Completed in {TimeSeconds}s", $"{Timer.Elapsed.TotalSeconds:0.0}");
 		}
 
 		/// <summary>
