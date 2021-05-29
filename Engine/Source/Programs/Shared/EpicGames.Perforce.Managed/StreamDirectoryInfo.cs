@@ -14,7 +14,7 @@ namespace EpicGames.Perforce.Managed
 	/// <summary>
 	/// Information about a directory within a stream
 	/// </summary>
-	class StreamDirectoryInfo
+	public class StreamDirectoryInfo
 	{
 		/// <summary>
 		/// Map of name to file within the directory

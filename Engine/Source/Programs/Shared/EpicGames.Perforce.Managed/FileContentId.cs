@@ -12,7 +12,7 @@ using EpicGames.Core;
 namespace EpicGames.Perforce.Managed
 {
 	[DebuggerDisplay("{Digest} ({Type})")]
-	class FileContentId
+	public class FileContentId
 	{
 		public Digest<Md5> Digest
 		{

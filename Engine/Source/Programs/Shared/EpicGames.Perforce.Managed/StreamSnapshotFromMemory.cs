@@ -11,7 +11,10 @@ using System.Threading.Tasks;
 
 namespace EpicGames.Perforce.Managed
 {
-	class StreamSnapshotFromMemory : StreamSnapshot
+	/// <summary>
+	/// Stores the contents of a stream in memory
+	/// </summary>
+	public class StreamSnapshotFromMemory : StreamSnapshot
 	{
 		/// <summary>
 		/// The current signature for saved directory objects
