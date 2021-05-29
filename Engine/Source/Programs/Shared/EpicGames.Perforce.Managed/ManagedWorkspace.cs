@@ -70,6 +70,22 @@ namespace EpicGames.Perforce.Managed
 	}
 
 	/// <summary>
+	/// Version number for managed workspace cache files
+	/// </summary>
+	enum ManagedWorkspaceVersion
+	{
+		/// <summary>
+		/// Initial version number
+		/// </summary>
+		Initial = 2,
+
+		/// <summary>
+		/// Including stream directory digests in workspace directories
+		/// </summary>
+		AddDigest = 3,
+	}
+
+	/// <summary>
 	/// Represents a repository of streams and cached data
 	/// </summary>
 	public class ManagedWorkspace
@@ -89,9 +105,9 @@ namespace EpicGames.Perforce.Managed
 		const int CurrentSignature = ('W' << 24) | ('T' << 16) | 2;
 
 		/// <summary>
-		/// The current revision number.
+		/// The current revision number for cache archives.
 		/// </summary>
-		const int CurrentRevision = 2;
+		static int CurrentVersion { get; } = Enum.GetValues(typeof(ManagedWorkspaceVersion)).Cast<int>().Max();
 
 		/// <summary>
 		/// Maximum number of threads to sync in parallel
@@ -331,10 +347,10 @@ namespace EpicGames.Perforce.Managed
 			byte[] Data = await FileReference.ReadAllBytesAsync(DataFile, CancellationToken);
 			MemoryReader Reader = new MemoryReader(Data.AsMemory());
 
-			int Revision = Reader.ReadInt32();
-			if(Revision != CurrentRevision)
+			int Version = Reader.ReadInt32();
+			if(Version > CurrentVersion)
 			{
-				throw new FatalErrorException("Unsupported data format (revision {0}, expected {1})", Revision, CurrentRevision);
+				throw new FatalErrorException("Unsupported data format (version {0}, current {1})", Version, CurrentVersion);
 			}
 
 			bool bRequiresRepair = Reader.ReadBoolean();
@@ -351,7 +367,7 @@ namespace EpicGames.Perforce.Managed
 				Repo.CacheEntries.Add(TrackedFile.CacheId);
 			}
 
-			Reader.ReadWorkspaceDirectoryInfo(Repo.Workspace);
+			Reader.ReadWorkspaceDirectoryInfo(Repo.Workspace, (ManagedWorkspaceVersion)Version);
 
 			await Repo.RunOptionalRepairAsync(CancellationToken);
 			return Repo;
@@ -368,7 +384,7 @@ namespace EpicGames.Perforce.Managed
 
 			// Write the data to memory
 			MemoryWriter Writer = new MemoryWriter(Buffer.AsMemory());
-			Writer.WriteInt32(CurrentRevision);
+			Writer.WriteInt32(CurrentVersion);
 			Writer.WriteBoolean(bRequiresRepair || (State != TransactionState.Clean));
 			Writer.WriteUInt32(NextSequenceNumber);
 			Writer.WriteInt32(ContentIdToTrackedFile.Count);
