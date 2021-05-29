@@ -217,9 +217,7 @@ namespace CADLibrary
 		BBox.Min *= ImportParams.ScaleFactor;
 		BBox.Max *= ImportParams.ScaleFactor;
 
-		TVertexAttributesRef<FVector> VertexPositions = MeshDescription.GetVertexPositions();
-
-		FVector Position;
+		TVertexAttributesRef<FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
 
 		TArray<FVector>& VertexArray = Body.VertexArray;
 
