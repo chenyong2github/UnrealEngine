@@ -14,7 +14,7 @@ namespace EpicGames.Perforce.Managed
 	/// <summary>
 	/// Interface for a stream snapshot
 	/// </summary>
-	abstract class StreamSnapshot
+	public abstract class StreamSnapshot
 	{
 		/// <summary>
 		/// Empty snapshot instance

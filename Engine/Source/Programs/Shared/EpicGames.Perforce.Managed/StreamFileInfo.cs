@@ -22,7 +22,7 @@ namespace EpicGames.Perforce.Managed
 	/// Metadata for a Perforce file
 	/// </summary>
 	[DebuggerDisplay("{Name}")]
-	class StreamFileInfo
+	public class StreamFileInfo
 	{
 		/// <summary>
 		/// Name of this file

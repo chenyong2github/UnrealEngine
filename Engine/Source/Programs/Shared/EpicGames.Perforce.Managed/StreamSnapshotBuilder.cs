@@ -10,7 +10,7 @@ namespace EpicGames.Perforce.Managed
 	/// <summary>
 	/// Utility class to build a stream snapshot in memory
 	/// </summary>
-	class StreamSnapshotBuilder
+	public class StreamSnapshotBuilder
 	{
 		/// <summary>
 		/// Map of name to file within the directory
