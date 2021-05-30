@@ -11,9 +11,14 @@ ULevelSnapshotsEditorProjectSettings::ULevelSnapshotsEditorProjectSettings(const
 	
 	const FVector2D DefaultClientSize = FVector2D(400.f, 400.f);
 
-	const FSlateRect WorkAreaRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
-	const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WorkAreaRect.Left, WorkAreaRect.Right);
-	
+	float DPIScale = 1.0f;
+
+	if (FSlateApplicationBase::IsInitialized())
+	{
+		const FSlateRect WorkAreaRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
+		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WorkAreaRect.Left, WorkAreaRect.Right);
+	}
+
 	PreferredCreationFormWindowWidth = DefaultClientSize.X * DPIScale;
 	PreferredCreationFormWindowHeight = DefaultClientSize.Y * DPIScale;
 }
