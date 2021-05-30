@@ -586,14 +586,24 @@ namespace HordeServer.Api
 		Ready = 1,
 
 		/// <summary>
-		/// Currently running
+		/// Preparing to execute work
 		/// </summary>
-		Running = 2,
+		Starting = 2,
+
+		/// <summary>
+		/// Executing work
+		/// </summary>
+		Running = 3,
+
+		/// <summary>
+		/// Preparing to stop
+		/// </summary>
+		Stopping = 4,
 
 		/// <summary>
 		/// All steps have finished executing
 		/// </summary>
-		Complete = 3
+		Complete = 5
 	}
 
 	/// <summary>

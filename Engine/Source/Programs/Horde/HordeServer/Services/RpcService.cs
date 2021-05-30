@@ -499,7 +499,7 @@ namespace HordeServer.Services
 			}
 
 			IJobStepBatch Batch = AuthorizeBatch(Job, Request.BatchId.ToSubResourceId(), Context);
-			if (!await JobService.UpdateBatchAsync(Job, BatchId, null, Api.JobStepBatchState.Running))
+			if (!await JobService.UpdateBatchAsync(Job, BatchId, null, Api.JobStepBatchState.Starting))
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Batch {JobId}:{BatchId} not found for updating", Request.JobId, Request.BatchId);
 			}
@@ -539,89 +539,97 @@ namespace HordeServer.Services
 		/// <returns>Information about the new agent</returns>
 		public async override Task<BeginStepResponse> BeginStep(BeginStepRequest Request, ServerCallContext Context)
 		{
-			// Log file that's allocated for this step. We only need do this once.
-			ILogFile? Log = null;
-
-			// Get the job
+			Boxed<ILogFile?> Log = new Boxed<ILogFile?>();
 			for (; ; )
 			{
-				// Check the job exists and we can access it
-				IJob? Job = await JobService.GetJobAsync(Request.JobId.ToObjectId());
-				if (Job == null)
+				BeginStepResponse? Response = await TryBeginStep(Request, Log, Context);
+				if (Response != null)
 				{
-					throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", Request.JobId);
-				}
-
-				// Find the batch being executed
-				IJobStepBatch Batch = AuthorizeBatch(Job, Request.BatchId.ToSubResourceId(), Context);
-
-				// Figure out which step to execute next
-				IJobStep? Step;
-				for (int StepIdx = 0; ; StepIdx++)
-				{
-					// If there aren't any more steps, send a complete message
-					if (StepIdx == Batch.Steps.Count)
-					{
-						Logger.LogDebug("Job {JobId} batch {BatchId} is complete", Job.Id, Batch.Id);
-						BeginStepResponse Response = new BeginStepResponse();
-						Response.State = BeginStepResponse.Types.Result.Complete;
-						return Response;
-					}
-
-					// Check if this step is ready to be executed
-					Step = Batch.Steps[StepIdx];
-					if (Step.State == JobStepState.Ready)
-					{
-						break;
-					}
-					if (Step.State == JobStepState.Waiting)
-					{
-						Logger.LogDebug("Waiting for job {JobId}, batch {BatchId}, step {StepId}", Job.Id, Batch.Id, Step.Id);
-						BeginStepResponse Response = new BeginStepResponse();
-						Response.State = BeginStepResponse.Types.Result.Waiting;
-						return Response;
-					}
-				}
-
-				// Create a log file if necessary
-				if (Log == null)
-				{
-					Log = await LogFileService.CreateLogFileAsync(Job.Id, Batch.SessionId, Api.LogType.Json);
-				}
-
-				// Get the node for this step
-				IGraph Graph = await JobService.GetGraphAsync(Job);
-				INode Node = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx];
-
-				// Figure out all the credentials for it (and check we can access them)
-				Dictionary<string, string> Credentials = new Dictionary<string, string>();
-				//				if (Node.Credentials != null)
-				//				{
-				//					ClaimsPrincipal Principal = new ClaimsPrincipal(new ClaimsIdentity(Job.Claims.Select(x => new Claim(x.Type, x.Value))));
-				//					if (!await GetCredentialsForStep(Principal, Node, Credentials, Message => FailStep(Job, Batch.Id, Step.Id, Log, Message)))
-				//					{
-				//						Log = null;
-				//						continue;
-				//					}
-				//				}
-
-				// Update the step state
-				if (await JobService.TryUpdateStepAsync(Job, Batch.Id, Step.Id, JobStepState.Running, JobStepOutcome.Unspecified, null, null, Log.Id, null, null, null, null))
-				{
-					BeginStepResponse Response = new BeginStepResponse();
-					Response.State = BeginStepResponse.Types.Result.Ready;
-					Response.LogId = Log.Id.ToString();
-					Response.StepId = Step.Id.ToString();
-					Response.Name = Node.Name;
-					Response.Credentials.Add(Credentials);
-					if (Node.Properties != null)
-					{
-						Response.Properties.Add(Node.Properties);
-					}
-					Response.Warnings = Node.Warnings;
 					return Response;
 				}
 			}
+		}
+
+		async Task<BeginStepResponse?> TryBeginStep(BeginStepRequest Request, Boxed<ILogFile?> Log, ServerCallContext Context)
+		{
+			// Check the job exists and we can access it
+			IJob? Job = await JobService.GetJobAsync(Request.JobId.ToObjectId());
+			if (Job == null)
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", Request.JobId);
+			}
+
+			// Find the batch being executed
+			IJobStepBatch Batch = AuthorizeBatch(Job, Request.BatchId.ToSubResourceId(), Context);
+
+			// Figure out which step to execute next
+			IJobStep? Step;
+			for (int StepIdx = 0; ; StepIdx++)
+			{
+				// If there aren't any more steps, send a complete message
+				if (StepIdx == Batch.Steps.Count)
+				{
+					Logger.LogDebug("Job {JobId} batch {BatchId} is complete", Job.Id, Batch.Id);
+					if (!await JobService.TryUpdateBatchAsync(Job, Batch.Id, NewState: Api.JobStepBatchState.Stopping))
+					{
+						return null;
+					}
+					return new BeginStepResponse { State = BeginStepResponse.Types.Result.Complete };
+				}
+
+				// Check if this step is ready to be executed
+				Step = Batch.Steps[StepIdx];
+				if (Step.State == JobStepState.Ready)
+				{
+					break;
+				}
+				if (Step.State == JobStepState.Waiting)
+				{
+					Logger.LogDebug("Waiting for job {JobId}, batch {BatchId}, step {StepId}", Job.Id, Batch.Id, Step.Id);
+					return new BeginStepResponse { State = BeginStepResponse.Types.Result.Waiting };
+				}
+			}
+
+			// Create a log file if necessary
+			if (Log.Value == null)
+			{
+				Log = await LogFileService.CreateLogFileAsync(Job.Id, Batch.SessionId, Api.LogType.Json);
+			}
+
+			// Get the node for this step
+			IGraph Graph = await JobService.GetGraphAsync(Job);
+			INode Node = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx];
+
+			// Figure out all the credentials for it (and check we can access them)
+			Dictionary<string, string> Credentials = new Dictionary<string, string>();
+			//				if (Node.Credentials != null)
+			//				{
+			//					ClaimsPrincipal Principal = new ClaimsPrincipal(new ClaimsIdentity(Job.Claims.Select(x => new Claim(x.Type, x.Value))));
+			//					if (!await GetCredentialsForStep(Principal, Node, Credentials, Message => FailStep(Job, Batch.Id, Step.Id, Log, Message)))
+			//					{
+			//						Log = null;
+			//						continue;
+			//					}
+			//				}
+
+			// Update the step state
+			if (await JobService.TryUpdateStepAsync(Job, Batch.Id, Step.Id, JobStepState.Running, JobStepOutcome.Unspecified, null, null, Log.Id, null, null, null, null))
+			{
+				BeginStepResponse Response = new BeginStepResponse();
+				Response.State = BeginStepResponse.Types.Result.Ready;
+				Response.LogId = Log.Id.ToString();
+				Response.StepId = Step.Id.ToString();
+				Response.Name = Node.Name;
+				Response.Credentials.Add(Credentials);
+				if (Node.Properties != null)
+				{
+					Response.Properties.Add(Node.Properties);
+				}
+				Response.Warnings = Node.Warnings;
+				return Response;
+			}
+
+			return null;
 		}
 
 		/// <summary>

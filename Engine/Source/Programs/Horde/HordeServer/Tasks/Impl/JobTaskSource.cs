@@ -494,7 +494,7 @@ namespace HordeServer.Tasks.Impl
 				for (int BatchIdx = 0; NewJob != null && BatchIdx < NewJob.Batches.Count; BatchIdx++)
 				{
 					IJobStepBatch Batch = NewJob.Batches[BatchIdx];
-					IsRunning |= (Batch.State == JobStepBatchState.Ready || Batch.State == JobStepBatchState.Running);
+					IsRunning |= (Batch.State == JobStepBatchState.Ready || Batch.State == JobStepBatchState.Starting || Batch.State == JobStepBatchState.Running || Batch.State == JobStepBatchState.Stopping);
 
 					// Skip any batches which aren't ready to execute
 					if (Batch.State == JobStepBatchState.Ready)

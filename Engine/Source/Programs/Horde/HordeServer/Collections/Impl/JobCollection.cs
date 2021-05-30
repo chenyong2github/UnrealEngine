@@ -617,7 +617,7 @@ namespace HordeServer.Collections.Impl
 				Batch.State = NewState.Value;
 				Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].State, Batch.State));
 
-				if (NewState == JobStepBatchState.Running)
+				if (Batch.StartTime == null && NewState >= JobStepBatchState.Starting)
 				{
 					Batch.StartTime = DateTimeOffset.Now;
 					Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].StartTime, Batch.StartTime));
@@ -1264,7 +1264,7 @@ namespace HordeServer.Collections.Impl
 			// Cancel any batches which are still running but are no longer required
 			foreach (JobStepBatchDocument Batch in Job.Batches)
 			{
-				if (Batch.State == JobStepBatchState.Running)
+				if (Batch.State == JobStepBatchState.Starting || Batch.State == JobStepBatchState.Running)
 				{
 					INodeGroup Group = Graph.Groups[Batch.GroupIdx];
 					if (!Batch.Steps.Any(x => NewNodesToExecute.Contains(Group.Nodes[x.NodeIdx])))

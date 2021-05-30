@@ -235,7 +235,7 @@ namespace HordeServer.Services
 
 			if (PreflightChange != null)
 			{
-//PF				ClonedPreflightChange = await CloneShelvedChangeAsync(ClonedPreflightChange ?? PreflightChange.Value);
+				//PF				ClonedPreflightChange = await CloneShelvedChangeAsync(ClonedPreflightChange ?? PreflightChange.Value);
 			}
 
 			Logger.LogInformation("Creating job at CL {Change}, code CL {CodeChange}, preflight CL {PreflightChange}, cloned CL {ClonedPreflightChange}", Change, CodeChange, PreflightChange, ClonedPreflightChange);
@@ -300,7 +300,7 @@ namespace HordeServer.Services
 				if (Job.TemplateHash != NewJob.TemplateHash) continue;
 				if (Job.StartedByUser != NewJob.StartedByUser) continue;
 				if (string.Join(",", Job.Arguments) != string.Join(",", NewJob.Arguments)) continue;
-				
+
 				bool bUpdateSuccessful = await UpdateJobAsync(Job, null, null, null, "horde.duplicated.by.newer.CL", null, null, null);
 				if (!bUpdateSuccessful)
 				{
@@ -308,7 +308,7 @@ namespace HordeServer.Services
 				}
 			}
 		}
-		
+
 		/// <summary>
 		/// Deletes a job
 		/// </summary>
@@ -318,7 +318,7 @@ namespace HordeServer.Services
 			using IDisposable Scope = Logger.BeginScope("DeleteJobAsync({JobId})", Job.Id);
 
 			// Delete the job
-			while(!await Jobs.RemoveAsync(Job))
+			while (!await Jobs.RemoveAsync(Job))
 			{
 				IJob? NewJob = await Jobs.GetAsync(Job.Id);
 				if (NewJob == null)
@@ -371,7 +371,7 @@ namespace HordeServer.Services
 		public async Task<bool> UpdateJobAsync(IJob Job, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, string? AbortedByUser = null, ObjectId? OnCompleteTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("UpdateJobAsync({JobId})", Job.Id);
-			for(; ;)
+			for (; ; )
 			{
 				IGraph Graph = await GetGraphAsync(Job);
 
@@ -385,9 +385,9 @@ namespace HordeServer.Services
 					await JobTaskSource.UpdateUgsBadges(Job, Graph, OldLabelStates);
 
 					// Cancel any leases which are no longer required
-					foreach(IJobStepBatch Batch in Job.Batches)
+					foreach (IJobStepBatch Batch in Job.Batches)
 					{
-						if (Batch.Error == JobStepBatchError.Cancelled && Batch.State == JobStepBatchState.Running && Batch.AgentId != null && Batch.LeaseId != null)
+						if (Batch.Error == JobStepBatchError.Cancelled && (Batch.State == JobStepBatchState.Starting || Batch.State == JobStepBatchState.Running) && Batch.AgentId != null && Batch.LeaseId != null)
 						{
 							await CancelLeaseAsync(Batch.AgentId.Value, Batch.LeaseId.Value);
 						}
@@ -397,7 +397,7 @@ namespace HordeServer.Services
 
 				// Get the new job state
 				IJob? NewJob = await GetJobAsync(Job.Id);
-				if(NewJob == null)
+				if (NewJob == null)
 				{
 					return false;
 				}
@@ -413,7 +413,7 @@ namespace HordeServer.Services
 		/// <returns></returns>
 		async Task CancelLeaseAsync(AgentId AgentId, ObjectId LeaseId)
 		{
-			for(; ;)
+			for (; ; )
 			{
 				IAgent? Agent = await Agents.GetAsync(AgentId);
 				if (Agent == null)
@@ -422,23 +422,23 @@ namespace HordeServer.Services
 				}
 
 				int Index = 0;
-				while(Index < Agent.Leases.Count && Agent.Leases[Index].Id != LeaseId)
+				while (Index < Agent.Leases.Count && Agent.Leases[Index].Id != LeaseId)
 				{
 					Index++;
 				}
-				if(Index == -1)
+				if (Index == -1)
 				{
 					break;
 				}
 
 				AgentLease Lease = Agent.Leases[Index];
-				if(Lease.State != LeaseState.Active)
+				if (Lease.State != LeaseState.Active)
 				{
 					break;
 				}
 
 				IAgent? NewAgent = await Agents.TryCancelLeaseAsync(Agent, Index);
-				if(NewAgent != null)
+				if (NewAgent != null)
 				{
 					JobTaskSource.CancelLongPollForAgent(Agent.Id);
 					break;
@@ -612,12 +612,12 @@ namespace HordeServer.Services
 				if (JobTiming == null)
 				{
 					IJobTiming? NewJobTiming = await JobTimings.TryAddAsync(Job.Id, NewSteps);
-					if(NewJobTiming != null)
+					if (NewJobTiming != null)
 					{
 						return NewJobTiming;
 					}
 				}
-				else if(NewSteps.Count == 0)
+				else if (NewSteps.Count == 0)
 				{
 					return JobTiming;
 				}
@@ -631,7 +631,7 @@ namespace HordeServer.Services
 				}
 
 				// Update the cached list of steps for the next iteration
-				foreach(JobStepTimingData NewStep in NewSteps)
+				foreach (JobStepTimingData NewStep in NewSteps)
 				{
 					CachedNewSteps[NewStep.Name] = NewStep;
 				}
@@ -669,7 +669,7 @@ namespace HordeServer.Services
 			}
 
 			// Compute the averages
-			if(Count == 0)
+			if (Count == 0)
 			{
 				return new JobStepTimingData(NodeName, null, null, null);
 			}
@@ -692,11 +692,11 @@ namespace HordeServer.Services
 			using IDisposable Scope = Logger.BeginScope("UpdateBatchAsync({JobId})", Job.Id);
 
 			bool bCheckForBadAgent = true;
-			for(; ;)
+			for (; ; )
 			{
 				// Find the index of the appropriate batch
 				int BatchIdx = Job.Batches.FindIndex(x => x.Id == BatchId);
-				if(BatchIdx == -1)
+				if (BatchIdx == -1)
 				{
 					break;
 				}
@@ -739,11 +739,8 @@ namespace HordeServer.Services
 					}
 				}
 
-				// Get the graph for this job
-				IGraph Graph = await GetGraphAsync(Job);
-
 				// Update the batch state
-				if (await Jobs.TryUpdateBatchAsync(Job, Graph, BatchId, NewLogId, NewState, NewError))
+				if (await TryUpdateBatchAsync(Job, BatchId, NewLogId, NewState, NewError))
 				{
 					return true;
 				}
@@ -757,6 +754,25 @@ namespace HordeServer.Services
 				Job = NewJob;
 			}
 			return false;
+		}
+
+		/// <summary>
+		/// Attempts to update the state of a batch
+		/// </summary>
+		/// <param name="Job">Job to update</param>
+		/// <param name="BatchId">Unique id of the batch to update</param>
+		/// <param name="NewLogId">The new log file id</param>
+		/// <param name="NewState">New state of the jobstep</param>
+		/// <param name="NewError">New error state</param>
+		/// <returns>The updated job, otherwise null</returns>
+		public async Task<bool> TryUpdateBatchAsync(IJob Job, SubResourceId BatchId, ObjectId? NewLogId = null, JobStepBatchState? NewState = null, JobStepBatchError? NewError = null)
+		{
+			IGraph Graph = await GetGraphAsync(Job);
+			if (!await Jobs.TryUpdateBatchAsync(Job, Graph, BatchId, NewLogId, NewState, NewError))
+			{
+				return false;
+			}
+			return true;
 		}
 
 		/// <summary>
