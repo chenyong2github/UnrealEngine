@@ -513,15 +513,10 @@ export namespace UnrealEngine {
     }
   }
 
-  export async function executeFunction(preset: string, actor: string, func: string): Promise<void> {
+  export async function executeFunction(preset: string, func: string, args: Record<string, any>): Promise<void> {
     try {
-      let url = `/remote/preset/${preset}`;
-      if (actor)
-        url += `/actor/${actor}`;
-      
-      url += `/function/${func}`;
-
-      await put(url, { Parameters: {}, GenerateTransaction: true });
+      const url = `/remote/preset/${preset}/function/${func}`;
+      await put(url, { Parameters: args, GenerateTransaction: true });
     } catch (err) {
       console.log('Failed to set execute function call:', err.message);
     }
@@ -562,7 +557,7 @@ export namespace UnrealEngine {
   }
 
   export async function search(query: string, types: string[], prefix: string, count: number): Promise<IAsset[]> {
-    const ret = await put<UnrealApi.Assets>('/remote/search/assets', { 
+    const ret = await put<UnrealApi.Assets>('/remote/search/assets', {
       Query: query,
       Limit: count,
       Filter: {

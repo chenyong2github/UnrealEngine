@@ -75,16 +75,6 @@ export class WidgetUtilities {
     };
   }
 
-  static isAsset(type: WidgetType): boolean {
-    switch (type) {
-      case WidgetTypes.Level:
-      case WidgetTypes.Sequence:
-        return true;
-    }
-
-    return false;
-  }
-
   static registerWidget(type: string, properties: PropertyType[], render: (props: WidgetProperties) => React.ReactNode): void {
     const custom: CustomWidget = { type, render };
     WidgetUtilities.customWidgets[type] = custom;

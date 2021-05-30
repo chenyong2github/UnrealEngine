@@ -146,24 +146,14 @@ export const _api = {
       const preset = _internal.getPreset();
       _socket.emit('reset', preset, property);
     },
-    execute: (func: string) => {
+    execute: (func: string, args?: Record<string, any>) => {
       const preset = _internal.getPreset();
-      _socket.emit('execute', preset, null, func);
+      _socket.emit('execute', preset, func, args ?? {});
     },
     metadata: (property: string, meta: string, value: string) => {
       const preset = _internal.getPreset();
       _socket.emit('metadata', preset, property, meta, value);
     }
-  },
-  actor: {
-    set: (actor: string, property: string, value: PropertyValue) => {
-      const preset = _internal.getPreset();
-      _socket.emit('actor', preset, actor, property, value);
-    },
-    execute: (actor: string, func: string) => {
-      const preset = _internal.getPreset();
-      _socket.emit('execute', preset, actor, func);
-    },
   },
   assets: {
     search: (q: string, types: string[], prefix: string, count: number = 50): Promise<IAsset[]> => {

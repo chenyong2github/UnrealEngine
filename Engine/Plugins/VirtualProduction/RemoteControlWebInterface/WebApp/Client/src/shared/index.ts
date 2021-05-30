@@ -20,7 +20,6 @@ export enum PropertyType {
   Text =        'FText',
 
   Function =    'Function',
-  Asset =       'Asset',
 }
 
 export enum AssetAction {
@@ -119,7 +118,7 @@ export interface IPreset {
   
   ExposedProperties?: IExposedProperty[];
   ExposedFunctions?: IExposedFunction[];
-  Exposed: Record<string, IExposedProperty | IExposedFunction>;
+  Exposed?: Record<string, IExposedProperty | IExposedFunction>;
 }
 
 export interface IAsset {
@@ -149,9 +148,6 @@ export enum WidgetTypes {
   Vector =          'Vector',
   Spacer =          'Spacer',
   Tabs =            'Tabs',
-  
-  Level =           'Level',
-  Sequence =        'Sequence',
 }
 
 export type WidgetType = keyof typeof WidgetTypes | string;
@@ -211,6 +207,9 @@ export interface ICustomStackProperty {
 
   // Dropdown only
   options?: IDropdownOption[];
+
+  // Function arguments
+  args?: Record<string, any>;
 
   // Space only
   spaces?: number;
