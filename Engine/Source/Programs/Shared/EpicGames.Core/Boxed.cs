@@ -8,19 +8,12 @@ namespace EpicGames.Core
 	/// Explicitly boxes a value type, allowing it to be passed by reference to (and modified in) an async method.
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	public class Boxed<T> where T : struct
+	public class Boxed<T>
 	{
 		/// <summary>
 		/// The struct value
 		/// </summary>
 		public T Value { get; set; }
-
-		/// <summary>
-		/// Default constructor
-		/// </summary>
-		public Boxed()
-		{
-		}
 
 		/// <summary>
 		/// Default constructor
@@ -32,21 +25,9 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Obj)
-		{
-			return Obj is Boxed<T> Boxed && Value.Equals(Boxed.Value);
-		}
-
-		/// <inheritdoc/>
-		public override int GetHashCode()
-		{
-			return Value.GetHashCode();
-		}
-
-		/// <inheritdoc/>
 		public override string? ToString()
 		{
-			return Value.ToString();
+			return Value?.ToString();
 		}
 
 		/// <summary>
