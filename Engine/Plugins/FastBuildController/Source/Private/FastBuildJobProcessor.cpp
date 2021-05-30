@@ -4,6 +4,7 @@
 #include "FastBuildControllerModule.h"
 #include "FastBuildUtilities.h"
 #include "HAL/PlatformFileManager.h"
+#include "Misc/Paths.h"
 
 namespace FastBuildJobProcessorOptions
 {

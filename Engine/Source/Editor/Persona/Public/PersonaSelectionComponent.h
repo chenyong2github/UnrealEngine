@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Components/PrimitiveComponent.h"
+#include "PrimitiveSceneProxy.h"
 #include "PersonaSelectionComponent.generated.h"
 
 class UPersonaSelectionComponent;

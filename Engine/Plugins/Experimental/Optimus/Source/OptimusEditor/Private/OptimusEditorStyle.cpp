@@ -2,8 +2,10 @@
 
 #include "OptimusEditorStyle.h"
 
+#include "Styling/CoreStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateTypes.h"
 
 
 FOptimusEditorStyle::FOptimusEditorStyle() :
