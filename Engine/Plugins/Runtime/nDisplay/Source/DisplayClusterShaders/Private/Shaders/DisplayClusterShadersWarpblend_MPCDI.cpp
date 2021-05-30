@@ -473,7 +473,6 @@ public:
 		PixelShaderType = GetPixelShaderType();
 		if (EMpcdiShaderType::Invalid == PixelShaderType)
 		{
-			//@todo: Handle error
 			return false;
 		}
 

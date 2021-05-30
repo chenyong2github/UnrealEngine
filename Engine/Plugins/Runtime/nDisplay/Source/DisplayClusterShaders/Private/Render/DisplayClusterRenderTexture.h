@@ -16,7 +16,7 @@ public:
 	virtual void InitRHI() override;
 
 public:
-	virtual void CreateTexture(EPixelFormat InPixelFormat, uint32_t InWidth, uint32_t InHeight, void* InTextureData, bool bInHasCPUAccess = false) override;
+	virtual void CreateTexture(EPixelFormat InPixelFormat, uint32_t InWidth, uint32_t InHeight, const void* InTextureData, bool bInHasCPUAccess = false) override;
 
 	virtual void* GetData() const override
 	{ return Data; }

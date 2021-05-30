@@ -2,6 +2,8 @@
 
 #include "DisplayClusterWarpBlendLoader_WarpMap.h"
 
+#include "DisplayClusterShadersLog.h"
+
 THIRD_PARTY_INCLUDES_START
 #include "mpcdiProfile.h"
 #include "mpcdiReader.h"
@@ -51,7 +53,10 @@ bool FDisplayClusterWarpBlendLoader_WarpMap::Load(FLoadedWarpMapData& OutWarpMap
 {
 	check(SourceWarpMap);
 
-	OutWarpMapData.Initialize(SourceWarpMap->GetSizeX(), SourceWarpMap->GetSizeY());
+	if (!OutWarpMapData.Initialize(SourceWarpMap->GetSizeX(), SourceWarpMap->GetSizeY()))
+	{
+		return false;
+	}
 
 	bool bIsProfile2D = true;
 	float UnitToCentemeter = 1.f;
@@ -115,7 +120,11 @@ bool FDisplayClusterWarpBlendLoader_WarpMap::Load(FLoadedWarpMapData& OutWarpMap
 
 bool FDisplayClusterWarpBlendLoader_WarpMap::Load(FLoadedWarpMapData& OutWarpMapData, EDisplayClusterWarpProfileType InProfileType, const TArray<FVector>& InPoints, int WarpX, int WarpY, float WorldScale, bool bIsUnrealGameSpace)
 {
-	OutWarpMapData.Initialize(WarpX, WarpY);
+	if (!OutWarpMapData.Initialize(WarpX, WarpY))
+	{
+		return false;
+	}
+
 	OutWarpMapData.LoadGeometry(InProfileType, InPoints, WorldScale, bIsUnrealGameSpace);
 	return true;
 }
@@ -124,7 +133,10 @@ bool FDisplayClusterWarpBlendLoader_WarpMap::Load(FLoadedWarpMapData& OutWarpMap
 {
 	check(SourcePFM);
 
-	OutWarpMapData.Initialize(SourcePFM->GetSizeX(), SourcePFM->GetSizeY());
+	if (!OutWarpMapData.Initialize(SourcePFM->GetSizeX(), SourcePFM->GetSizeY()))
+	{
+		return false;
+	}
 
 	TArray<FVector> WarpMeshPoints;
 	WarpMeshPoints.Reserve(OutWarpMapData.Width * OutWarpMapData.Height);
@@ -142,6 +154,31 @@ bool FDisplayClusterWarpBlendLoader_WarpMap::Load(FLoadedWarpMapData& OutWarpMap
 
 	OutWarpMapData.LoadGeometry(InProfileType, WarpMeshPoints, PFMScale, bIsUnrealGameSpace);
 	return true;
+}
+
+bool FLoadedWarpMapData::Initialize(int InWidth, int InHeight)
+{
+	if (FMath::Min(InWidth, InHeight) <= 1 || FMath::Max(InWidth, InHeight) >= GMaxTextureDimensions)
+	{
+		UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Invalid PFM warpmap data size '%d x %d'"), InWidth, InHeight);
+
+		return false;
+	}
+
+	Width = InWidth;
+	Height = InHeight;
+	WarpData = new FVector4[Width * Height];
+
+	return true;
+}
+
+FLoadedWarpMapData::~FLoadedWarpMapData()
+{
+	if (WarpData != nullptr)
+	{
+		delete WarpData;
+		WarpData = nullptr;
+	}
 }
 
 void FLoadedWarpMapData::LoadGeometry(EDisplayClusterWarpProfileType ProfileType, const TArray<FVector>& InPoints, float WorldScale, bool bIsUnrealGameSpace)
