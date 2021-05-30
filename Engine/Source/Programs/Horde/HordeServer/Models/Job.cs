@@ -266,15 +266,7 @@ namespace HordeServer.Models
 		/// <returns>True if new steps can be appended to this batch</returns>
 		public static bool CanBeAppendedTo(this IJobStepBatch Batch)
 		{
-			for (int Idx = Batch.Steps.Count - 1; Idx >= 0; Idx--)
-			{
-				IJobStep Step = Batch.Steps[Idx];
-				if (Step.State != JobStepState.Skipped)
-				{
-					return Step.State != JobStepState.Completed && Step.State != JobStepState.Aborted;
-				}
-			}
-			return false;
+			return State <= JobStepBatchState.Running;
 		}
 
 		/// <summary>
@@ -726,7 +718,7 @@ namespace HordeServer.Models
 					}
 					else if (Step.State == JobStepState.Ready || Step.State == JobStepState.Waiting)
 					{
-						if (Batch.State == JobStepBatchState.Running)
+						if (Batch.State == JobStepBatchState.Starting || Batch.State == JobStepBatchState.Running)
 						{
 							return JobState.Running;
 						}
