@@ -266,7 +266,7 @@ namespace HordeServer.Models
 		/// <returns>True if new steps can be appended to this batch</returns>
 		public static bool CanBeAppendedTo(this IJobStepBatch Batch)
 		{
-			return State <= JobStepBatchState.Running;
+			return Batch.State <= JobStepBatchState.Running;
 		}
 
 		/// <summary>
