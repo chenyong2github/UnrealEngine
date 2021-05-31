@@ -29,6 +29,9 @@ TUniquePtr<FIoDispatcher> GIoDispatcher;
 //PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
+CSV_DEFINE_CATEGORY(IoDispatcher, true);
+CSV_DEFINE_STAT(IoDispatcher, PendingIoRequests);
+
 TRACE_DECLARE_INT_COUNTER(PendingIoRequests, TEXT("IoDispatcher/PendingIoRequests"));
 
 template <typename T, uint32 BlockSize = 128>
@@ -153,6 +156,7 @@ public:
 
 	~FIoDispatcherImpl()
 	{
+
 		delete Thread;
 		FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
 	}
@@ -170,6 +174,7 @@ public:
 			Backend->Initialize(BackendContext);
 		}
 		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal, FPlatformAffinity::GetIoDispatcherThreadMask());
+		FFileIoStats::SetThreadIds(FileIoStore.GetThreadId(), Thread ? Thread->GetThreadID() : 0);
 		return true;
 	}
 
@@ -445,6 +450,7 @@ private:
 				--PendingIoRequestsCount;
 				TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
 			}
+			CSV_CUSTOM_STAT_DEFINED(PendingIoRequests, (int32)PendingIoRequestsCount, ECsvCustomStatOp::SetAndHold);
 		}
 	}
 
@@ -603,6 +609,7 @@ private:
 			
 			++PendingIoRequestsCount;
 			TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
+			CSV_CUSTOM_STAT_DEFINED(PendingIoRequests, (int32)PendingIoRequestsCount, ECsvCustomStatOp::SetAndHold);
 			
 			ProcessCompletedRequests();
 		}
