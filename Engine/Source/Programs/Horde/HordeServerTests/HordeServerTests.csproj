@@ -26,7 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HordeAgent\HordeAgent.csproj" />
+    <ProjectReference Include="..\HordeAgent\HordeAgent.csproj" Label="HordeAgent">
+      <Aliases>HordeAgent</Aliases>
+    </ProjectReference>
     <ProjectReference Include="..\HordeServer\HordeServer.csproj" />
   </ItemGroup>
 
