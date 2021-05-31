@@ -24,7 +24,7 @@ enum class ERigElementType : uint8
 	Curve = 0x008,
 	RigidBody = 0x010,
 	Socket = 0x020,
-	All = Bone | Null | Control | Curve | RigidBody | Socket UMETA(Hidden),
+	All = Bone | Null | Control | Curve | RigidBody | Socket,
 };
 
 UENUM(BlueprintType)
