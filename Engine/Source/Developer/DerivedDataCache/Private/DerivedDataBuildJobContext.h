@@ -47,8 +47,8 @@ public:
 	void ResetInputs();
 
 private:
-	FCbObject GetConstant(FStringView Key) const final;
-	FSharedBuffer GetInput(FStringView Key) const final;
+	FCbObject FindConstant(FStringView Key) const final;
+	FSharedBuffer FindInput(FStringView Key) const final;
 
 	void AddPayload(const FPayload& Payload) final;
 	void AddPayload(const FPayloadId& Id, const FCompressedBuffer& Buffer) final;
