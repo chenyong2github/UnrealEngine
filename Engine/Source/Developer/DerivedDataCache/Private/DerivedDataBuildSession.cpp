@@ -65,7 +65,7 @@ FRequest FBuildSessionInternal::Build(
 	EPriority Priority,
 	FOnBuildComplete&& OnComplete)
 {
-	TRequest Job(CreateBuildJob(Cache, BuildSystem, Definition, InputResolver));
+	TRequest Job(CreateBuildJob(Cache, BuildSystem, InputResolver, Definition));
 	FOnBuildJobComplete OnJobComplete;
 	if (OnComplete)
 	{
@@ -85,7 +85,7 @@ FRequest FBuildSessionInternal::BuildAction(
 	EPriority Priority,
 	FOnBuildActionComplete&& OnComplete)
 {
-	TRequest Job(CreateBuildJob(Cache, BuildSystem, Action, Inputs));
+	TRequest Job(CreateBuildJob(Cache, BuildSystem, InputResolver, Action, Inputs));
 	FOnBuildJobComplete OnJobComplete;
 	if (OnComplete)
 	{
@@ -105,7 +105,7 @@ FRequest FBuildSessionInternal::BuildPayload(
 	FOnBuildPayloadComplete&& OnComplete)
 {
 	// This requests the entire output to get one payload. It will be optimized later to request only one payload.
-	TRequest Job(CreateBuildJob(Cache, BuildSystem, PayloadKey.BuildKey, InputResolver));
+	TRequest Job(CreateBuildJob(Cache, BuildSystem, InputResolver, PayloadKey.BuildKey));
 	FOnBuildJobComplete OnJobComplete;
 	if (OnComplete)
 	{
