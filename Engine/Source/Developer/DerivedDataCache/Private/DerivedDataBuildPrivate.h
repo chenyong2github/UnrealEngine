@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "Algo/AllOf.h"
 #include "Containers/StringFwd.h"
 #include "Logging/LogMacros.h"
-#include "Misc/Char.h"
+#include "Misc/AsciiSet.h"
 
 class FCbObject;
 struct FGuid;
@@ -82,7 +81,8 @@ TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInp
 
 inline bool IsValidBuildFunctionName(FStringView Function)
 {
-	return !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum);
+	constexpr FAsciiSet Valid("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+	return !Function.IsEmpty() && FAsciiSet::HasOnly(Function, Valid);
 }
 
 inline void AssertValidBuildFunctionName(FStringView Function, FStringView Name)
