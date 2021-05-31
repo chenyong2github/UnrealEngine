@@ -5,6 +5,7 @@
 #include "ISettingsModule.h"
 #include "RemoteExecutionSettings.h"
 #include "Messages.h"
+#include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FRemoteExecutionModule, EditorConfig);
 

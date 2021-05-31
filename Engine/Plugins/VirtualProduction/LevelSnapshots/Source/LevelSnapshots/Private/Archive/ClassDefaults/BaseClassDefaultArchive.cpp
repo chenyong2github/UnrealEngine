@@ -1,7 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseClassDefaultArchive.h"
-
+#include "GameFramework/Actor.h"
+#include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "WorldSnapshotData.h"
 
 bool FBaseClassDefaultArchive::ShouldSkipProperty(const FProperty* InProperty) const

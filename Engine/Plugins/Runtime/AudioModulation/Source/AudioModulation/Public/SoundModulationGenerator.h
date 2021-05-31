@@ -2,6 +2,7 @@
 #pragma once
 
 #include "AudioDeviceManager.h"
+#include "Containers/Queue.h"
 #include "CoreMinimal.h"
 #include "DSP/LFO.h"
 #include "IAudioModulation.h"
