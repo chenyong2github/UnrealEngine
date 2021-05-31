@@ -699,9 +699,9 @@ public:
 	{
 		// note that this task is the first task run on the thread, before GRHIThread_InternalUseOnly is assigned, so we can't check IsInRHIThread()
 
+		FTaskTagScope Scope(ETaskTag::ERhiThread);
 		if (bAcquireOwnership)
 		{
-			FTaskTagScope Scope(ETaskTag::ERhiThread);
 			GDynamicRHI->RHIAcquireThreadOwnership();
 		}
 		else
