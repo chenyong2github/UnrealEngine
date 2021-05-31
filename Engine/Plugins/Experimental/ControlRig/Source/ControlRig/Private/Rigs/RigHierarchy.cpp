@@ -311,12 +311,9 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 			bHasFilteredChildren = ResetPoseHasFilteredChildren[ElementIndex];
 		}
 		
-		if(bHasFilteredChildren)
+		if(!Elements[ElementIndex]->IsTypeOf(InTypeFilter))
 		{
-			if(!Elements[ElementIndex]->IsTypeOf(InTypeFilter))
-			{
-				continue;
-			}
+			continue;
 		}
 
 		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Elements[ElementIndex]))
