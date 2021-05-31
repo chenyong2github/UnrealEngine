@@ -32,6 +32,7 @@ public:
 	, bTransactingForTransformChange(false)
 	, bIsInteracting(false)
 	, bSuspendNotifications(false)
+	, ResetPoseHash(INDEX_NONE)
 	{
 		Reset();
 	}
@@ -2235,6 +2236,9 @@ private:
 
 	TMap<FRigElementKey, FRigElementKey> PreviousParentMap;
 	TMap<FRigElementKey, FRigElementKey> PreviousNameMap;
+
+	int32 ResetPoseHash;
+	TArray<bool> ResetPoseHasFilteredChildren;
 	
 	friend class URigHierarchyController;
 	friend class UControlRig;
