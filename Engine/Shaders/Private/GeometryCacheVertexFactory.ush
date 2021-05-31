@@ -82,8 +82,15 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
     Input.MotionBlurData.z = GeomCacheMVF.MotionBlurData[VertexId * 3 + 2];
 	
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
-	Input.TexCoords[0].x = GeomCacheMVF.TexCoords[VertexId * 2 + 0];
-	Input.TexCoords[0].y = GeomCacheMVF.TexCoords[VertexId * 2 + 1];
+	float TexCoordX = GeomCacheMVF.TexCoords[VertexId * 2 + 0];
+	float TexCoordY = GeomCacheMVF.TexCoords[VertexId * 2 + 1];
+
+	UNROLL
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)
+	{
+		Input.TexCoords[CoordinateIndex].x = TexCoordX;
+		Input.TexCoords[CoordinateIndex].y = TexCoordY;
+	}
 #endif
 
 	return Input;
