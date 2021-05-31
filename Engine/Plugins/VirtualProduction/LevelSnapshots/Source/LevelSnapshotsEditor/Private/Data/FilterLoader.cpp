@@ -11,17 +11,18 @@
 
 void UFilterLoader::OverwriteExisting()
 {
-	if (!ensure(AssetLastSavedOrLoaded.IsSet()))
+	const TOptional<FAssetData> AssetData = GetAssetLastSavedOrLoaded();
+	if (!ensure(AssetData.IsSet()))
 	{
 		return;
 	}
 
 	// duplicate asset at destination
-	const UObject* AssetDuplicatedAtCorrectPath = [this]()
+	UObject* AssetDuplicatedAtCorrectPath = [this, &AssetData]()
 	{
-		const FString NewPackageName = *AssetLastSavedOrLoaded->PackageName.ToString();
+		const FString NewPackageName = *AssetData->PackageName.ToString();
 		UPackage* DuplicatedPackage = CreatePackage(*NewPackageName);
-		UObject* DuplicatedAsset = StaticDuplicateObject(AssetBeingEdited, DuplicatedPackage, *AssetLastSavedOrLoaded->AssetName.ToString());
+		UObject* DuplicatedAsset = StaticDuplicateObject(AssetBeingEdited, DuplicatedPackage, *AssetData->AssetName.ToString());
 
 		if (DuplicatedAsset != nullptr)
 		{
@@ -55,8 +56,12 @@ void UFilterLoader::OverwriteExisting()
 	
 	TArray<UObject*> SavedAssets;
 	FEditorFileUtils::PromptForCheckoutAndSave({ AssetDuplicatedAtCorrectPath->GetOutermost() }, true, false);
-	
-	OnSaveOrLoadAssetOnDisk(AssetDuplicatedAtCorrectPath);
+
+	UDisjunctiveNormalFormFilter* Filter = Cast<UDisjunctiveNormalFormFilter>(AssetDuplicatedAtCorrectPath);
+	if (ensure(Filter))
+	{
+		OnSaveOrLoadAssetOnDisk(Filter);
+	}
 }
 
 void UFilterLoader::SaveAs()
@@ -69,7 +74,7 @@ void UFilterLoader::SaveAs()
 	if (bSavedSuccessfully)
 	{
 		UObject* SavedAssetOnDisk = SavedAssets[0];
-		OnSaveOrLoadAssetOnDisk(SavedAssetOnDisk);
+		OnSaveOrLoadAssetOnDisk(Cast<UDisjunctiveNormalFormFilter>(SavedAssetOnDisk));
 	}
 }
 
@@ -81,12 +86,29 @@ void UFilterLoader::LoadAsset(const FAssetData& PickedAsset)
 		return;
 	}
 	
-	OnSaveOrLoadAssetOnDisk(PickedAsset);
+	UDisjunctiveNormalFormFilter* Filter = Cast<UDisjunctiveNormalFormFilter>(LoadedAsset);
+	if (ensure(Filter))
+	{
+		FScopedTransaction Transaction(FText::FromString("Load filter preset"));
+		Modify();
+		OnSaveOrLoadAssetOnDisk(Filter);
+	}
 }
 
 TOptional<FAssetData> UFilterLoader::GetAssetLastSavedOrLoaded() const
 {
-	return AssetLastSavedOrLoaded;
+	UObject* Result = AssetLastSavedOrLoaded.TryLoad();
+	return Result ? FAssetData(Result) : TOptional<FAssetData>();
+}
+
+void UFilterLoader::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	Super::PostTransacted(TransactionEvent);
+
+	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
+	{
+		OnFilterChanged.Broadcast(AssetBeingEdited);
+	}
 }
 
 void UFilterLoader::SetAssetBeingEdited(UDisjunctiveNormalFormFilter* NewAssetBeingEdited)
@@ -94,19 +116,20 @@ void UFilterLoader::SetAssetBeingEdited(UDisjunctiveNormalFormFilter* NewAssetBe
 	AssetBeingEdited = NewAssetBeingEdited;
 }
 
-void UFilterLoader::OnSaveOrLoadAssetOnDisk(const FAssetData& AssetOnDisk)
+void UFilterLoader::OnSaveOrLoadAssetOnDisk(UDisjunctiveNormalFormFilter* AssetOnDisk)
 {
 	SetAssetLastSavedOrLoaded(AssetOnDisk);
-
-	UDisjunctiveNormalFormFilter* FilterToUse = Cast<UDisjunctiveNormalFormFilter>(AssetOnDisk.GetAsset());
+	
 	// Duplicate to avoid referencing asset on disk: if user deletes the asset, this will leave editor with nulled references
-	UDisjunctiveNormalFormFilter* DuplicatedFilter = DuplicateObject<UDisjunctiveNormalFormFilter>(FilterToUse, GetOutermost());
+	UDisjunctiveNormalFormFilter* DuplicatedFilter = DuplicateObject<UDisjunctiveNormalFormFilter>(AssetOnDisk, GetOutermost());
 	// If user does Save as again later, this prevents FEditorFileUtils::SaveAssetsAs from suggesting an invalid file path to a transient package
 	DuplicatedFilter->SetFlags(RF_Transient);
-	OnUserSelectedLoadedFilters.Broadcast(DuplicatedFilter);
+
+	SetAssetBeingEdited(DuplicatedFilter);
+	OnFilterChanged.Broadcast(DuplicatedFilter);
 }
 
-void UFilterLoader::SetAssetLastSavedOrLoaded(const FAssetData& NewSavedAsset)
+void UFilterLoader::SetAssetLastSavedOrLoaded(UDisjunctiveNormalFormFilter* NewSavedAsset)
 {
 	AssetLastSavedOrLoaded = NewSavedAsset;
 	OnFilterWasSavedOrLoaded.Broadcast();

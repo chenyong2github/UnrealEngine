@@ -8,8 +8,10 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
+enum class EFilterChangeType : uint8;
 class FLevelSnapshotsEditorFilters;
 class SFavoriteFilterList;
+class SLevelSnapshotsEditorFilterRowGroup;
 class SMasterFilterIndicatorButton;
 class SCustomSplitter;
 class ULevelSnapshotsEditorData;
@@ -40,10 +42,9 @@ public:
 
 private:
 
+	void OnFilterModified(EFilterChangeType FilterChangeType);
 	FReply OnClickUpdateResultsView();
 	
-	/** Generates a tree row. */
-	TSharedRef<ITableRow> OnGenerateRow(UConjunctionFilter* InManagedFilter, const TSharedRef<STableViewBase>& OwnerTable);
 	/** Generate the groups using the preset's layout data. */
 	void RefreshGroups();
 
@@ -51,9 +52,10 @@ private:
 
 	FDelegateHandle OnUserDefinedFiltersChangedHandle;
 	FDelegateHandle OnEditedFilterChangedHandle;
+	FDelegateHandle OnFilterModifiedHandle;
 	
 	TSharedPtr<SFavoriteFilterList> FavoriteList;
-	TSharedPtr<STreeView<UConjunctionFilter*>> FilterRowsList;
+	TSharedPtr<SVerticalBox> FilterRowsList;
 
 	/** Filter input details view */
 	TSharedPtr<IDetailsView> FilterDetailsView;

@@ -13,6 +13,7 @@
 class SFilterCheckBox;
 class SClickableText;
 class FLevelSnapshotsEditorFilters;
+class ULevelSnapshotsEditorData;
 
 enum class ECheckBoxState : uint8;
 
@@ -32,7 +33,7 @@ public:
 		SLATE_EVENT(FIsParentFilterIgnored, IsParentFilterIgnored)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
+	void Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, ULevelSnapshotsEditorData* InEditorData);
 
 	const TWeakObjectPtr<UNegatableFilter>& GetSnapshotFilter() const;
 
@@ -69,6 +70,4 @@ private:
 	/* Filter managed by this widget */
 	TWeakObjectPtr<UNegatableFilter> SnapshotFilter;
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorData;
-	/* Used to set the filter to edit */
-	TWeakPtr<FLevelSnapshotsEditorFilters> FiltersModelPtr;
 };

@@ -18,6 +18,10 @@ class UConjunctionFilter : public ULevelSnapshotFilter
 	GENERATED_BODY()
 public:
 
+	static FName GetChildrenMemberName();
+	
+	void MarkTransactional();
+	
 	/** Creates a new instance of FilterClass and places it in a new negatable filter.
 	 * The resulting negatable filter is added as child.
 	 */
@@ -26,10 +30,11 @@ public:
 	void RemoveChild(UNegatableFilter* Child);
 	const TArray<UNegatableFilter*>& GetChildren() const;
 
-	void SetIsIgnored(bool Value) { bIgnoreFilter = Value; }
+	void SetIsIgnored(bool Value);
 	bool IsIgnored() const { return bIgnoreFilter; }
 	
 	void OnRemoved();
+
 	
 	//~ Begin ULevelSnapshotFilter Interface
 	virtual EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NegatableFilter.h"
+#include "ScopedTransaction.h"
 
 namespace
 {
@@ -25,14 +26,31 @@ UNegatableFilter* UNegatableFilter::CreateNegatableFilter(ULevelSnapshotFilter* 
 	}
 	
 	UObject* NewFilterOuter = Outer.Get(ChildFilter->GetOuter());
-	UNegatableFilter* Result = NewObject<UNegatableFilter>(NewFilterOuter);
+	UNegatableFilter* Result = NewObject<UNegatableFilter>(NewFilterOuter, StaticClass(), NAME_None, RF_Transactional);
 	Result->ChildFilter = ChildFilter;
 	return Result;
 }
 
 void UNegatableFilter::SetFilterBehaviour(EFilterBehavior NewFilterBehavior)
 {
-	FilterBehavior = NewFilterBehavior;
+	if (NewFilterBehavior != FilterBehavior)
+	{
+		FScopedTransaction Transaction(FText::FromString("Change negation behavior"));
+		Modify();
+		
+		FilterBehavior = NewFilterBehavior;
+	}
+}
+
+void UNegatableFilter::SetIsIgnored(bool Value)
+{
+	if (Value != bIgnoreFilter)
+	{
+		FScopedTransaction Transaction(FText::FromString("Change ignore filter"));
+		Modify();
+
+		bIgnoreFilter = Value;
+	}
 }
 
 void UNegatableFilter::OnRemoved()

@@ -3,8 +3,6 @@
 #include "Widgets/SLevelSnapshotsEditorFilterList.h"
 
 #include "ConjunctionFilter.h"
-#include "ILevelSnapshotsEditorView.h"
-#include "LevelSnapshotsEditorFilters.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "SCreateNewFilterWidget.h"
 #include "SLevelSnapshotsEditorFilter.h"
@@ -14,20 +12,10 @@
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
-
-SLevelSnapshotsEditorFilterList::~SLevelSnapshotsEditorFilterList()
+void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs, UConjunctionFilter* InManagedAndCondition, ULevelSnapshotsEditorData* InEditorData)
 {
-	if (ensure(ManagedAndCondition.IsValid()))
-	{
-		ManagedAndCondition->OnChildAdded.Remove(AddDelegateHandle);
-	}
-}
-
-void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs, UConjunctionFilter* InManagedAndCondition, const TSharedRef<FLevelSnapshotsEditorFilters>& InEditorFilterModel)
-{
+	EditorData = InEditorData;
 	ManagedAndCondition = InManagedAndCondition;
-
-	AddDelegateHandle = InManagedAndCondition->OnChildAdded.AddRaw(this, &SLevelSnapshotsEditorFilterList::AddChild, InEditorFilterModel, false);
 
 	ChildSlot
 	[
@@ -35,57 +23,34 @@ void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs, UConju
 			.UseAllottedSize(true)
 	];
 
-	TSharedPtr<FLevelSnapshotsEditorViewBuilder> ViewBuilder = InEditorFilterModel->GetBuilder();
+	SAssignNew(AddFilterWidget, SCreateNewFilterWidget, InEditorData->GetFavoriteFilters(), InManagedAndCondition);
 
-	if (ensureMsgf(ViewBuilder.IsValid(), TEXT("Invalid Editor View Builder")))
+	Rebuild();
+}
+
+void SLevelSnapshotsEditorFilterList::Rebuild()
+{
+	FilterBox->ClearChildren();
+	
+	if (!AddTutorialTextAndCreateFilterWidgetIfEmpty())
 	{
-		SAssignNew(AddFilterWidget, SCreateNewFilterWidget, ViewBuilder->EditorDataPtr->GetFavoriteFilters(), InManagedAndCondition);
-
-		if (!AddTutorialTextAndCreateFilterWidgetIfEmpty())
+		bool bSkipAnd = true;
+		for (UNegatableFilter* Filter : ManagedAndCondition->GetChildren())
 		{
-			bool bSkipAnd = true;
-			for (UNegatableFilter* Filter : InManagedAndCondition->GetChildren())
-			{
-				AddChild(Filter, InEditorFilterModel, bSkipAnd);
-				bSkipAnd = false;
-			}
+			AddChild(Filter, bSkipAnd);
+			bSkipAnd = false;
 		}
 	}
 }
 
 void SLevelSnapshotsEditorFilterList::OnClickRemoveFilter(TSharedRef<SLevelSnapshotsEditorFilter> RemovedFilterWidget) const
 {
-	const TWeakObjectPtr<UNegatableFilter> RemovedFilter = RemovedFilterWidget->GetSnapshotFilter();
-	if (!ensure(FilterBox.IsValid()) || !ensure(ManagedAndCondition.IsValid() || !ensure(RemovedFilter.IsValid())))
-	{
-		return;
-	}
-
-	const int32 RemovedSlotIndex = FilterBox->RemoveSlot(RemovedFilterWidget);
-	FChildren* FilterChildren = FilterBox->GetChildren();
-	if (RemovedSlotIndex != INDEX_NONE && FilterChildren->Num() > 1)
-	{
-		const bool bRemovedLastWidgetInList = FilterChildren->Num() - 1 == RemovedSlotIndex;
-		const int32 IndexToRemove = bRemovedLastWidgetInList ?  RemovedSlotIndex - 1 : RemovedSlotIndex;
-		
-		TSharedRef<SWidget> AndText = FilterChildren->GetChildAt(IndexToRemove);
-		FilterBox->RemoveSlot(AndText);
-	}
 	ManagedAndCondition->RemoveChild(RemovedFilterWidget->GetSnapshotFilter().Get());
-
-	// We remove last item; avoid adding AddFilterWidget twice. 
-	const bool bHasNoFilters = ManagedAndCondition->GetChildren().Num() == 0; 
-	if (bHasNoFilters)
-	{
-		FilterBox->RemoveSlot(AddFilterWidget.ToSharedRef());
-	}
-	
-	AddTutorialTextAndCreateFilterWidgetIfEmpty();
 }
 
 bool SLevelSnapshotsEditorFilterList::AddTutorialTextAndCreateFilterWidgetIfEmpty() const
 {
-	if (!ensure(ManagedAndCondition.IsValid()))
+	if (!ManagedAndCondition.IsValid())
 	{
 		return false;
 	}
@@ -118,9 +83,9 @@ bool SLevelSnapshotsEditorFilterList::AddTutorialTextAndCreateFilterWidgetIfEmpt
 	return bHasNoFilters;
 }
 
-void SLevelSnapshotsEditorFilterList::AddChild(UNegatableFilter* AddedFilter, TSharedRef<FLevelSnapshotsEditorFilters> InEditorFilterModel, bool bSkipAnd) const
+void SLevelSnapshotsEditorFilterList::AddChild(UNegatableFilter* AddedFilter, bool bSkipAnd) const
 {
-	if (!ensure(ManagedAndCondition.IsValid()))
+	if (!ManagedAndCondition.IsValid())
 	{
 		return;
 	}
@@ -148,7 +113,7 @@ void SLevelSnapshotsEditorFilterList::AddChild(UNegatableFilter* AddedFilter, TS
 	FilterBox->AddSlot()
 		.Padding(3, 3)
 		[
-			SNew(SLevelSnapshotsEditorFilter, AddedFilter, InEditorFilterModel)
+			SNew(SLevelSnapshotsEditorFilter, AddedFilter, EditorData.Get())
 				.OnClickRemoveFilter(SLevelSnapshotsEditorFilter::FOnClickRemoveFilter::CreateSP(this, &SLevelSnapshotsEditorFilterList::OnClickRemoveFilter))
 				.IsParentFilterIgnored_Lambda([this]() { return ManagedAndCondition->IsIgnored(); })
 		];

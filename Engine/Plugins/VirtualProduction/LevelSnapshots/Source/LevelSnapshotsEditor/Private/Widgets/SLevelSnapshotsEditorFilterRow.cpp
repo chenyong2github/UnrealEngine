@@ -2,29 +2,23 @@
 
 #include "Widgets/SLevelSnapshotsEditorFilterRow.h"
 
-#include "ConjunctionFilter.h"
-#include "FavoriteFilterDragDrop.h"
+#include "Data/Filters/ConjunctionFilter.h"
+#include "Data/DragDrop/FavoriteFilterDragDrop.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "SLevelSnapshotsEditorFilterList.h"
-#include "SLevelSnapshotsEditorFilters.h"
-
-#include "EditorStyleSet.h"
 #include "SHoverableFilterActions.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
 void SLevelSnapshotsEditorFilterRow::Construct(
 	const FArguments& InArgs, 
-	const TSharedRef<SLevelSnapshotsEditorFilters>& InEditorFilters,
+	ULevelSnapshotsEditorData* InEditorData,
 	UConjunctionFilter* InManagedFilter,
 	const bool bShouldShowOrInFront
 )
 {
-	EditorFiltersWidgetWeakPtr = InEditorFilters;
 	OnClickRemoveRow = InArgs._OnClickRemoveRow;
 	ManagedFilterWeakPtr = InManagedFilter;
 
@@ -69,8 +63,8 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 			SNew(SBorder)
 			.Padding(FMargin(5.0f, 5.f))
 			.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
-			.BorderBackgroundColor_Lambda([this](){ return ManagedFilterWeakPtr->IsIgnored() ? FSlateColor(FLinearColor(0.45f, 0.45f, 0.45f, 1.f)) : FSlateColor(FLinearColor(1,1,1,1)); })
-			.ColorAndOpacity_Lambda([this](){ return ManagedFilterWeakPtr->IsIgnored() ? FLinearColor(0.35f, 0.35f, 0.35f, 1.f) : FLinearColor(1,1,1,1); })
+			.BorderBackgroundColor_Lambda([this](){ return ManagedFilterWeakPtr.IsValid() && ManagedFilterWeakPtr->IsIgnored() ? FSlateColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.f)) : FSlateColor(FLinearColor(1,1,1,1)); })
+			.ColorAndOpacity_Lambda([this](){ return ManagedFilterWeakPtr.IsValid() && ManagedFilterWeakPtr->IsIgnored() ? FLinearColor(0.4f, 0.4f, 0.4f, 1.f) : FLinearColor(1,1,1,1); })
 			[
 				SNew(SHorizontalBox)
 
@@ -80,7 +74,7 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 				.Padding(5.f, 5.f)
 				.FillWidth(1.f)
 				[
-					SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorFilters->GetFiltersModel().ToSharedRef())
+					SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorData)
 				]
 
 				+ SHorizontalBox::Slot()
@@ -88,8 +82,14 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 				.AutoWidth()
 				[
 					SNew(SHoverableFilterActions, SharedThis(this))
-					.IsFilterIgnored_Lambda([this](){ return ManagedFilterWeakPtr->IsIgnored(); })
-					.OnChangeFilterIgnored_Lambda([this](bool bNewValue) { ManagedFilterWeakPtr->SetIsIgnored(bNewValue); })
+					.IsFilterIgnored_Lambda([this](){ return ManagedFilterWeakPtr.IsValid() ? ManagedFilterWeakPtr->IsIgnored() : true; })
+					.OnChangeFilterIgnored_Lambda([this](bool bNewValue)
+					{
+						if (ManagedFilterWeakPtr.IsValid())
+						{
+							ManagedFilterWeakPtr->SetIsIgnored(bNewValue);
+						}
+					})
 					.OnPressDelete_Lambda([this](){ OnClickRemoveRow.ExecuteIfBound(SharedThis(this)); })
 				]
 			]

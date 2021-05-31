@@ -30,7 +30,7 @@ public:
 	void SetFilterBehaviour(EFilterBehavior NewFilterBehavior);
 	EFilterBehavior GetFilterBehavior() const { return FilterBehavior; }
 	
-	void SetIsIgnored(bool Value) { bIgnoreFilter = Value; }
+	void SetIsIgnored(bool Value);
 	bool IsIgnored() const { return bIgnoreFilter; }
 
 	void OnRemoved();
@@ -61,7 +61,7 @@ private:
 	EFilterBehavior FilterBehavior = EFilterBehavior::DoNotNegate;
 
 	/* Whether this filter should be ignored */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Filter")
 	bool bIgnoreFilter = false;
 	
 	UPROPERTY()

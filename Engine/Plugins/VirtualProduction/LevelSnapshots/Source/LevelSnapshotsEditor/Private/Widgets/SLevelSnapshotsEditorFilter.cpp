@@ -44,8 +44,7 @@ private:
 
 SLevelSnapshotsEditorFilter::~SLevelSnapshotsEditorFilter()
 {
-	TSharedPtr<FLevelSnapshotsEditorFilters> FilterModel =  FiltersModelPtr.Pin();
-	if (ensure(FilterModel))
+	if (ensure(EditorData.IsValid()))
 	{
 		EditorData->OnEditedFiterChanged.Remove(ActiveFilterChangedDelegateHandle);
 	}
@@ -56,7 +55,7 @@ SLevelSnapshotsEditorFilter::~SLevelSnapshotsEditorFilter()
 	}
 }
 
-void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
+void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, ULevelSnapshotsEditorData* InEditorData)
 {
 	if (!ensure(InFilter.IsValid() && InArgs._OnClickRemoveFilter.IsBound() && InArgs._IsParentFilterIgnored.IsBound()))
 	{
@@ -64,8 +63,7 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 	}
 	
 	SnapshotFilter = InFilter;
-	EditorData = InFilters->GetBuilder()->EditorDataPtr;
-	FiltersModelPtr = InFilters;
+	EditorData = InEditorData;
 	OnClickRemoveFilter = InArgs._OnClickRemoveFilter;
 	IsParentFilterIgnored = InArgs._IsParentFilterIgnored;
 
@@ -80,7 +78,7 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 			.Padding(0)
 			.BorderBackgroundColor( FLinearColor(0.2f, 0.2f, 0.2f, 0.2f) )
 			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterButtonBorder"))
-			.ColorAndOpacity_Lambda([this](){ return SnapshotFilter->IsIgnored() ? FLinearColor(0.15f, 0.15f, 0.15f, 1.f) : FLinearColor(1,1,1,1); })
+			.ColorAndOpacity_Lambda([this](){ return SnapshotFilter.IsValid() && SnapshotFilter->IsIgnored() ? FLinearColor(0.175f, 0.175f, 0.175f, 1.f) : FLinearColor(1,1,1,1); })
 			[
 				SAssignNew(ToggleButtonPtr, SFilterCheckBox) 
 				.ToolTipText(this, &SLevelSnapshotsEditorFilter::GetFilterTooltip)
@@ -110,8 +108,14 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 		[
 			SNew(SHoverableFilterActions, SharedThis(this))
 			.Visibility(EVisibility::SelfHitTestInvisible)
-			.IsFilterIgnored_Lambda([this](){ return SnapshotFilter->IsIgnored(); })
-			.OnChangeFilterIgnored_Lambda([this](bool bNewValue) { SnapshotFilter->SetIsIgnored(bNewValue); })
+			.IsFilterIgnored_Lambda([this](){ return SnapshotFilter.IsValid() ? SnapshotFilter->IsIgnored() : true; })
+			.OnChangeFilterIgnored_Lambda([this](bool bNewValue)
+			{
+				if (SnapshotFilter.IsValid())
+				{
+					SnapshotFilter->SetIsIgnored(bNewValue);
+				}
+			})
 			.OnPressDelete_Lambda([this](){ OnRemoveFilter(); })
 			.BackgroundHoverColor(FSlateColor(FLinearColor(0.f, 0.f, 0.f, 0.4f)))
 		]
@@ -120,10 +124,10 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 	// Hightlight & unhighlight filter when being edited
 	FilterNamePtr->SetOnClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnSelectFilterForEdit));
 	
-	ActiveFilterChangedDelegateHandle = InFilters->GetBuilder()->EditorDataPtr.Get()->OnEditedFiterChanged.AddRaw(this, &SLevelSnapshotsEditorFilter::OnActiveFilterChanged);
+	ActiveFilterChangedDelegateHandle = InEditorData->OnEditedFiterChanged.AddRaw(this, &SLevelSnapshotsEditorFilter::OnActiveFilterChanged);
 	OnFilterDestroyedDelegateHandle = InFilter->OnFilterDestroyed.AddLambda([this](UNegatableFilter* Filter)
 	{
-		if (ensure(EditorData.IsValid()) && EditorData->IsEditingFilter(Filter))
+		if (EditorData.IsValid() && EditorData->IsEditingFilter(Filter))
 		{
 			return EditorData->SetEditedFilter({});
 		}
@@ -175,7 +179,7 @@ FText SLevelSnapshotsEditorFilter::GetFilterTooltip() const
 
 FSlateColor SLevelSnapshotsEditorFilter::GetFilterColor() const
 {
-	if (!ensure(SnapshotFilter.IsValid()))
+	if (!SnapshotFilter.IsValid())
 	{
 		return FLinearColor::Black;
 	}
@@ -236,10 +240,10 @@ FReply SLevelSnapshotsEditorFilter::OnRemoveFilter()
 
 void SLevelSnapshotsEditorFilter::OnActiveFilterChanged(const TOptional<UNegatableFilter*>& NewFilter)
 {
-	if (!SnapshotFilter.IsValid() || !FiltersModelPtr.IsValid()) // This can actually become stale after a save: UI rebuilds next tick but object was already destroyed.
-		{
+	if (!SnapshotFilter.IsValid()) // This can actually become stale after a save: UI rebuilds next tick but object was already destroyed.
+	{
 		return;
-		}
+	}
 	bShouldHighlightFilter = NewFilter.IsSet() && *NewFilter == SnapshotFilter.Get();
 }
 

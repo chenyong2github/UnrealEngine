@@ -43,16 +43,17 @@ public:
 	}
 };
 
-class SLevelSnapshotsEditorFilterRowGroup : public STableRow<UConjunctionFilter*>
+class SLevelSnapshotsEditorFilterRowGroup : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorFilterRowGroup)
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedRef<SLevelSnapshotsEditorFilters>& InOwnerPanel, UConjunctionFilter* InManagedFilter)
+	void Construct(const FArguments& InArgs, const TSharedRef<SLevelSnapshotsEditorFilters>& InOwnerPanel, UConjunctionFilter* InManagedFilter)
 	{
-		const bool bIsFirstAndRow = InOwnerPanel->GetEditorData()->GetUserDefinedFilters()->GetChildren().Find(InManagedFilter) == 0;
+		ULevelSnapshotsEditorData* EditorData = InOwnerPanel->GetEditorData();
+		const bool bIsFirstAndRow = EditorData->GetUserDefinedFilters()->GetChildren().Find(InManagedFilter) == 0;
 		const bool bShouldShowOrTextInFrontOfRow = !bIsFirstAndRow;
 		
 		ChildSlot
@@ -61,19 +62,13 @@ public:
 			+ SHorizontalBox::Slot()
 			.Padding(FMargin(3.0f, 2.0f))
 			[
-				SNew(SLevelSnapshotsEditorFilterRow, InOwnerPanel, InManagedFilter, bShouldShowOrTextInFrontOfRow)
+				SNew(SLevelSnapshotsEditorFilterRow, EditorData, InManagedFilter, bShouldShowOrTextInFrontOfRow)
 					.OnClickRemoveRow_Lambda([InOwnerPanel, InManagedFilter](auto)
 					{
 						InOwnerPanel->RemoveFilter(InManagedFilter);
 					})
 			]
 		];
-
-		STableRow<UConjunctionFilter*>::ConstructInternal(
-			STableRow::FArguments()
-			.ShowSelection(false),
-			InOwnerTableView
-		);
 	}
 };
 
@@ -83,6 +78,7 @@ SLevelSnapshotsEditorFilters::~SLevelSnapshotsEditorFilters()
 	{
 		Data->OnUserDefinedFiltersChanged.Remove(OnUserDefinedFiltersChangedHandle);
 		Data->OnEditedFiterChanged.Remove(OnEditedFilterChangedHandle);
+		Data->GetUserDefinedFilters()->OnFilterModified.Remove(OnFilterModifiedHandle);
 	}
 }
 
@@ -140,7 +136,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 		);
 
 
-	
+	TSharedPtr<SScrollBar> ScrollBar;
 	const TArray<UConjunctionFilter*>* AndFilters = &GetEditorData()->GetUserDefinedFilters()->GetChildren();
 	ChildSlot
 	[
@@ -217,12 +213,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
                     + SVerticalBox::Slot()
                     .AutoHeight()
                     [
-                        SAssignNew(FilterRowsList, STreeView<UConjunctionFilter*>)
-                        .TreeItemsSource(AndFilters)
-                        .ItemHeight(24.0f)
-                        .OnGenerateRow(this, &SLevelSnapshotsEditorFilters::OnGenerateRow)
-                        .OnGetChildren_Lambda([](auto, auto){})
-                        .ClearSelectionOnClick(false)
+                        SAssignNew(FilterRowsList, SVerticalBox)
                     ]
 
                     // Add button
@@ -258,22 +249,26 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 		]
 	];
 
-	OnUserDefinedFiltersChangedHandle = GetEditorData()->OnUserDefinedFiltersChanged.AddLambda([this]()
+	// Set Delegates
+	OnUserDefinedFiltersChangedHandle = GetEditorData()->OnUserDefinedFiltersChanged.AddLambda([this](UDisjunctiveNormalFormFilter* NewFilter, UDisjunctiveNormalFormFilter* OldFilter)
 	{
-		UDisjunctiveNormalFormFilter* UserDefinedFilters = GetEditorData()->GetUserDefinedFilters();
-
-		const TArray<UConjunctionFilter*>* AndFilters = &UserDefinedFilters->GetChildren();
-		FilterRowsList->SetTreeItemsSource(AndFilters);
+		if (IsValid(OldFilter) && OnFilterModifiedHandle.IsValid())
+		{
+			OldFilter->OnFilterModified.Remove(OnFilterModifiedHandle);
+		}
+		OnFilterModifiedHandle = NewFilter->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
 		
 		GetEditorData()->SetEditedFilter(TOptional<UNegatableFilter*>());
+		RefreshGroups();
 	});
-	RefreshGroups();
 
-	// Set Delegates
 	OnEditedFilterChangedHandle = GetEditorData()->OnEditedFiterChanged.AddLambda([this](const TOptional<UNegatableFilter*>& ActiveFilter)
 	{
 		FilterDetailsView->SetObject(ActiveFilter.IsSet() ? ActiveFilter.GetValue() : nullptr);
 	});
+	OnFilterModifiedHandle = GetEditorData()->GetUserDefinedFilters()->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
+	
+	RefreshGroups();
 }
 
 ULevelSnapshotsEditorData* SLevelSnapshotsEditorFilters::GetEditorData() const
@@ -300,8 +295,14 @@ void SLevelSnapshotsEditorFilters::RemoveFilter(UConjunctionFilter* FilterToRemo
 {
 	UDisjunctiveNormalFormFilter* UserDefinedFilters = GetEditorData()->GetUserDefinedFilters();
 	UserDefinedFilters->RemoveConjunction(FilterToRemove);
+}
 
-	RefreshGroups();
+void SLevelSnapshotsEditorFilters::OnFilterModified(EFilterChangeType FilterChangeType)
+{
+	if (FilterChangeType != EFilterChangeType::FilterPropertyModified)
+	{
+		RefreshGroups();
+	}
 }
 
 FReply SLevelSnapshotsEditorFilters::OnClickUpdateResultsView()
@@ -326,22 +327,25 @@ FReply SLevelSnapshotsEditorFilters::OnClickUpdateResultsView()
 	return FReply::Handled();
 }
 
-TSharedRef<ITableRow> SLevelSnapshotsEditorFilters::OnGenerateRow(UConjunctionFilter* InManagedFilter, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return SNew(SLevelSnapshotsEditorFilterRowGroup, OwnerTable, SharedThis<SLevelSnapshotsEditorFilters>(this), InManagedFilter);
-}
-
 void SLevelSnapshotsEditorFilters::RefreshGroups()
 {
-	FilterRowsList->RequestTreeRefresh();
+	FilterRowsList->ClearChildren();
+	const TArray<UConjunctionFilter*>& AllAndRows = GetEditorData()->GetUserDefinedFilters()->GetChildren(); 
+	for (UConjunctionFilter* Row : AllAndRows)
+	{
+		FilterRowsList->AddSlot()
+		[
+			SNew(SLevelSnapshotsEditorFilterRowGroup, SharedThis<SLevelSnapshotsEditorFilters>(this), Row)
+		];
+	}
 }
 
 FReply SLevelSnapshotsEditorFilters::AddFilterClick()
 {
 	if (ULevelSnapshotsEditorData* EditorData = GetEditorData())
 	{
-		GetEditorData()->GetUserDefinedFilters()->CreateChild();
-		RefreshGroups();
+		// This will trigger the filter's OnFilterModified, which will refresh this UI
+		EditorData->GetUserDefinedFilters()->CreateChild();
 	}
 
 	return FReply::Handled();

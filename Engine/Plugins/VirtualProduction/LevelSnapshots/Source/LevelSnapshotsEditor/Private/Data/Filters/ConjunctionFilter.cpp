@@ -4,6 +4,7 @@
 
 #include "NegatableFilter.h"
 #include "Templates/SubclassOf.h"
+#include "ScopedTransaction.h"
 
 namespace
 {
@@ -41,6 +42,22 @@ namespace
 	}
 }
 
+FName UConjunctionFilter::GetChildrenMemberName()
+{
+	return GET_MEMBER_NAME_CHECKED(UConjunctionFilter, Children);
+}
+
+void UConjunctionFilter::MarkTransactional()
+{
+	SetFlags(RF_Transactional);
+
+	for (UNegatableFilter* Child : Children)
+	{
+		Child->SetFlags(RF_Transactional);
+		Child->GetChildFilter()->SetFlags(RF_Transactional);
+	}
+}
+
 UNegatableFilter* UConjunctionFilter::CreateChild(const TSubclassOf<ULevelSnapshotFilter>& FilterClass)
 {
 	if (!ensure(FilterClass.Get()))
@@ -48,7 +65,10 @@ UNegatableFilter* UConjunctionFilter::CreateChild(const TSubclassOf<ULevelSnapsh
 		return nullptr;
 	}
 
-	ULevelSnapshotFilter* FilterImplementation = NewObject<ULevelSnapshotFilter>(this, FilterClass.Get());
+	FScopedTransaction Transaction(FText::FromString("Add filter to row"));
+	Modify();
+
+	ULevelSnapshotFilter* FilterImplementation = NewObject<ULevelSnapshotFilter>(this, FilterClass.Get(), NAME_None, RF_Transactional);
 	UNegatableFilter* Child = UNegatableFilter::CreateNegatableFilter(FilterImplementation, this);
 
 	Children.Add(Child);
@@ -63,6 +83,9 @@ void UConjunctionFilter::RemoveChild(UNegatableFilter* Child)
 	{
 		return;
 	}
+
+	FScopedTransaction Transaction(FText::FromString("Remove filter from row"));
+	Modify();
 	
 	const bool bRemovedChild = Children.RemoveSingle(Child) != 0;
 	check(bRemovedChild);
@@ -76,6 +99,17 @@ void UConjunctionFilter::RemoveChild(UNegatableFilter* Child)
 const TArray<UNegatableFilter*>& UConjunctionFilter::GetChildren() const
 {
 	return Children;
+}
+
+void UConjunctionFilter::SetIsIgnored(bool Value)
+{
+	if (Value != bIgnoreFilter)
+	{
+		FScopedTransaction Transaction(FText::FromString("Change ignore row"));
+		Modify();
+
+		bIgnoreFilter = Value;
+	}
 }
 
 void UConjunctionFilter::OnRemoved()
