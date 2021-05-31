@@ -7,13 +7,10 @@ namespace Chaos
 {
 	FJointConstraint::FJointConstraint()
 		: FConstraintBase(EConstraintType::JointConstraintType)
-		, JointTransforms({ FTransform::Identity, FTransform::Identity })
 		, UserData(nullptr)
 		, KinematicEndPoint(nullptr)
 	{
 	}
-
-	FJointConstraint::FTransformPair FJointConstraint::GetJointTransforms() { return JointTransforms; }
 
 	void FJointConstraint::SetKinematicEndPoint(FSingleParticlePhysicsProxy* InDummyParticle, FPBDRigidsSolver* Solver)
 	{
@@ -22,11 +19,12 @@ namespace Chaos
 		Solver->RegisterObject(KinematicEndPoint);
 	}
 
-	const FJointConstraint::FTransformPair FJointConstraint::GetJointTransforms() const { return JointTransforms; }
+	const FJointConstraint::FTransformPair FJointConstraint::GetJointTransforms() const { return JointSettings.ConnectorTransforms; }
 	void FJointConstraint::SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointTransforms)
 	{
-		JointTransforms[0] = InJointTransforms[0];
-		JointTransforms[1] = InJointTransforms[1];
+		JointSettings.ConnectorTransforms = InJointTransforms;
+		MDirtyFlags.MarkDirty(EJointConstraintFlags::JointTransforms);
+		SetProxy(Proxy);
 	}
 
 	void FJointConstraint::SetLinearPositionDriveEnabled(TVector<bool,3> Enabled)

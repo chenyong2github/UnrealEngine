@@ -14,7 +14,7 @@ namespace Chaos
 
 	enum class EJointConstraintFlags : uint64_t
 	{
-		Position                    = 0,
+		JointTransforms             = static_cast<uint64_t>(1) << 0,
 		CollisionEnabled            = static_cast<uint64_t>(1) << 1,
 		Projection                  = static_cast<uint64_t>(1) << 2,
 		ParentInvMassScale          = static_cast<uint64_t>(1) << 3,
@@ -38,7 +38,6 @@ namespace Chaos
 		typedef FPBDJointSettings FData;
 		typedef FPBDJointConstraintHandle FHandle;
 		typedef TVector<FTransform, 2> FTransformPair;
-		friend FData;
 
 		friend class FPBDRigidsSolver; // friend so we can call ReleaseKinematicEndPoint when unregistering joint.
 
@@ -49,14 +48,14 @@ namespace Chaos
 		bool IsDirty(const EJointConstraintFlags CheckBits) const { return MDirtyFlags.IsDirty(CheckBits); }
 		void ClearDirtyFlags() { MDirtyFlags.Clear(); }
 
-		void SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJoinTransforms);
-		const FTransformPair GetJointTransforms() const;
-		FTransformPair GetJointTransforms();
-
 		const FData& GetJointSettings()const { return JointSettings; }
 
 		// If we created particle to serve as kinematic endpoint, track so we can release later. This will add particle to solver.
 		void SetKinematicEndPoint(FSingleParticlePhysicsProxy* InParticle, FPBDRigidsSolver* Solver);
+
+		//CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, JointTransforms, EJointConstraintFlags::Position, JointSettings.ConnectorTransforms);
+		void SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointTransforms);
+		const FTransformPair GetJointTransforms() const;
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, CollisionEnabled, EJointConstraintFlags::CollisionEnabled, JointSettings.bCollisionEnabled);
 		//void SetCollisionEnabled(bool InValue);
@@ -312,7 +311,6 @@ namespace Chaos
 		FJointConstraintDirtyFlags MDirtyFlags;
 		FData JointSettings;
 
-		FTransformPair JointTransforms;
 		void* UserData;
 		FOutputData Output;
 

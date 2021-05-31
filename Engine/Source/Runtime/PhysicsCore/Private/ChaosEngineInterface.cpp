@@ -1296,7 +1296,22 @@ void FChaosEngineInterface::SetPlasticityLimits_AssumesLocked(const FPhysicsCons
 
 void FChaosEngineInterface::SetLocalPose(const FPhysicsConstraintHandle& InConstraintRef,const FTransform& InPose,EConstraintFrame::Type InFrame)
 {
-	// @todo(chaos) :  Joint Constraints : Motors
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
+	{
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
+		{
+			Chaos::FJointConstraint::FTransformPair JointTransforms = Constraint->GetJointTransforms();
+			if (InFrame == EConstraintFrame::Frame1)
+			{
+				JointTransforms[0] = InPose;
+			}
+			else
+			{
+				JointTransforms[1] = InPose;
+			}
+			Constraint->SetJointTransforms(JointTransforms);
+		}
+	}
 }
 
 void FChaosEngineInterface::SetDrivePosition(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InPosition)
