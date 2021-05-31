@@ -555,7 +555,9 @@ private:
 		typename TAttribute<FText>::FGetter::template TConstMethodPtr<STraceListRow> InValueTextFn,
 		typename TAttribute<EVisibility>::FGetter::template TConstMethodPtr<STraceListRow> InVisibilityFn = nullptr) const
 	{
-		SGridPanel::FSlot& Slot0 = Grid->AddSlot(0, Row)
+		SGridPanel::FSlot* Slot0 = nullptr;
+		Grid->AddSlot(0, Row)
+			.Expose(Slot0)
 			.Padding(2.0f)
 			.HAlign(HAlign_Right)
 			[
@@ -565,7 +567,9 @@ private:
 				.ColorAndOpacity(FLinearColor::Gray)
 			];
 
-		SGridPanel::FSlot& Slot1 = Grid->AddSlot(1, Row)
+		SGridPanel::FSlot* Slot1 = nullptr;
+		Grid->AddSlot(1, Row)
+			.Expose(Slot1)
 			.Padding(2.0f)
 			.HAlign(HAlign_Left)
 			[
@@ -578,14 +582,14 @@ private:
 
 		if (InVisibilityFn)
 		{
-			Slot0.GetWidget()->SetVisibility(MakeAttributeSP(this, InVisibilityFn));
-			Slot1.GetWidget()->SetVisibility(MakeAttributeSP(this, InVisibilityFn));
+			Slot0->GetWidget()->SetVisibility(MakeAttributeSP(this, InVisibilityFn));
+			Slot1->GetWidget()->SetVisibility(MakeAttributeSP(this, InVisibilityFn));
 		}
 		else
 		{
 			auto Fn = MakeAttributeSP(this, InValueTextFn);
-			Slot0.GetWidget()->SetVisibility(MakeAttributeLambda([this, Fn]() { return Fn.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }));
-			Slot1.GetWidget()->SetVisibility(MakeAttributeLambda([this, Fn]() { return Fn.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }));
+			Slot0->GetWidget()->SetVisibility(MakeAttributeLambda([this, Fn]() { return Fn.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }));
+			Slot1->GetWidget()->SetVisibility(MakeAttributeLambda([this, Fn]() { return Fn.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }));
 		}
 	}
 
