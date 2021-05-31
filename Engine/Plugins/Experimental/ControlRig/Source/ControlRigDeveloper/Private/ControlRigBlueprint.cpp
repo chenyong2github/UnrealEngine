@@ -238,7 +238,7 @@ void UControlRigBlueprint::PostLoad()
 
 #if WITH_EDITOR
 
-	if (!IsInAsyncLoadingThread() || IsRunningCommandlet())
+	if (ensure(IsInGameThread()))
 	{
 		Controller->DetachLinksFromPinObjects();
 		TArray<URigVMNode*> Nodes = Model->GetNodes();

@@ -4690,7 +4690,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 		{
 			for (URigVMInjectionInfo* InjectionInfo : InjectionPair.Value)
 			{
-				InjectionInfo->Rename(nullptr, Pin);
+				InjectionInfo->Rename(nullptr, Pin, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 				InjectionInfo->InputPin = InjectionInfo->StructNode->FindPin(InjectionInfo->InputPin->GetName());
 				InjectionInfo->OutputPin = InjectionInfo->StructNode->FindPin(InjectionInfo->OutputPin->GetName());
 				Pin->InjectionInfos.Add(InjectionInfo);
@@ -4700,7 +4700,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 		{
 			for (URigVMInjectionInfo* InjectionInfo : InjectionPair.Value)
 			{
-				InjectionInfo->StructNode->Rename(nullptr, InNode->GetGraph());
+				InjectionInfo->StructNode->Rename(nullptr, InNode->GetGraph(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 				DestroyObject(InjectionInfo);
 			}
 		}
