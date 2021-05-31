@@ -1005,7 +1005,8 @@ uint64 PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(FGraphicsPipelin
 
 FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader)
 {	
-	bool DoAsyncCompile = IsAsyncCompilationAllowed(RHICmdList);
+	// TODO: add async compute PSO compilation support
+	bool DoAsyncCompile = false;//IsAsyncCompilationAllowed(RHICmdList);
 
 	FComputePipelineState* OutCachedState = nullptr;
 
