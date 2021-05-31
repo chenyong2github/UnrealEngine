@@ -265,15 +265,16 @@ namespace RemoteControlTypeUtilities
 		}
 		else if(InProperty->IsFloatingPoint())
 		{
+			// Special case for floats where min value isn't precisely 0.0
 			if(PropertyTypeName == NAME_FloatProperty)
 			{
 				using T = float;
-				InOutValue = FMath::Clamp<T>(InOutValue, TNumericLimits<T>::Min(), TNumericLimits<T>::Max());
+				InOutValue = FMath::Clamp<T>(InOutValue, TNumericLimits<T>::Lowest(), TNumericLimits<T>::Max());
 			}
 			else if(PropertyTypeName == NAME_DoubleProperty)
 			{
 				using T = double;
-				InOutValue = FMath::Clamp<T>(InOutValue, TNumericLimits<T>::Min(), TNumericLimits<T>::Max());
+				InOutValue = FMath::Clamp<T>(InOutValue, TNumericLimits<T>::Lowest(), TNumericLimits<T>::Max());
 			}
 		}
 
@@ -293,17 +294,17 @@ namespace RemoteControlTypeUtilities
 
 		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
-			return IsSupportedRangeType(ArrayProperty->Inner);
+			return TRemoteControlPropertyTypeTraits<FArrayProperty>::IsSupportedRangeType() && IsSupportedRangeType(ArrayProperty->Inner);
 		}
 		
 		if(const FSetProperty* SetProperty = CastField<FSetProperty>(InProperty))
 		{
-			return IsSupportedRangeType(SetProperty->ElementProp);
+			return TRemoteControlPropertyTypeTraits<FArrayProperty>::IsSupportedRangeType() && IsSupportedRangeType(SetProperty->ElementProp);
 		}
 		
 		if(const FMapProperty* MapProperty = CastField<FMapProperty>(InProperty))
 		{
-			return IsSupportedRangeType(MapProperty->KeyProp);
+			return TRemoteControlPropertyTypeTraits<FArrayProperty>::IsSupportedRangeType() && IsSupportedRangeType(MapProperty->KeyProp);
 		}
 
 		FOREACH_CAST_PROPERTY(InProperty, TRemoteControlPropertyTypeTraits<CastPropertyType>::IsSupportedRangeType())
@@ -323,17 +324,17 @@ namespace RemoteControlTypeUtilities
 
 		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
-			return IsSupportedMappingType(ArrayProperty->Inner);
+			return TRemoteControlPropertyTypeTraits<FArrayProperty>::IsSupportedMappingType() && IsSupportedMappingType(ArrayProperty->Inner);
 		}
 		
 		if(const FSetProperty* SetProperty = CastField<FSetProperty>(InProperty))
 		{
-			return IsSupportedMappingType(SetProperty->ElementProp);
+			return TRemoteControlPropertyTypeTraits<FSetProperty>::IsSupportedMappingType() && IsSupportedMappingType(SetProperty->ElementProp);
 		}
 		
 		if(const FMapProperty* MapProperty = CastField<FMapProperty>(InProperty))
 		{
-			return IsSupportedMappingType(MapProperty->ValueProp);
+			return TRemoteControlPropertyTypeTraits<FMapProperty>::IsSupportedMappingType() &&  IsSupportedMappingType(MapProperty->ValueProp);
 		}
 
 		FOREACH_CAST_PROPERTY(InProperty, TRemoteControlPropertyTypeTraits<CastPropertyType>::IsSupportedMappingType())

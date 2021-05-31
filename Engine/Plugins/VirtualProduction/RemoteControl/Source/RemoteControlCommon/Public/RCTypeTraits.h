@@ -29,7 +29,14 @@ namespace RemoteControlTypeTraits
 		{
 			template <typename PropertyType, typename ValueType>
 			auto Requires() -> decltype(TIsDerivedFrom<PropertyType, TProperty<ValueType, PropertyType>>::Value);
-		};	
+		};
+
+		/** Concept to check if PropertyType has a TCppType */
+		struct CPropertyHasTCppType
+		{
+			template <typename PropertyType>
+			auto Requires() -> decltype(TIsSame<typename PropertyType::TCppType, void>::Value);
+		};
 	}
 
 	/** Catch-all for string-like property types */
@@ -54,6 +61,28 @@ namespace RemoteControlTypeTraits
 		};
 	};
 
+	/** Catch-all for string-like value types */
+	template <typename ValueType, typename Enable = void>
+	struct TIsStringLikeValue
+	{
+		enum { Value = false };
+	};
+
+	template <typename ValueType>
+	struct TIsStringLikeValue<
+			ValueType,
+			typename TEnableIf<
+				TOr<
+					TIsSame<ValueType, FString>,
+					TIsSame<ValueType, FName>,
+					TIsSame<ValueType, FText>>::Value>::Type>
+	{
+		enum
+		{
+			Value = true
+		};
+	};
+
 	/** Ensures ValueType is a numeric type. */
 	template <typename ValueType>
 	using TNumericValueConstraint = TAnd<TModels<RemoteControlTypeTraits::Concepts::CNumerical, ValueType>>;
@@ -64,7 +93,7 @@ template <typename ValueType, typename Enable = void>
 struct TRemoteControlTypeTraits;
 
 /** Various RemoteControl property type traits */
-template <typename PropertyType, typename Enable = void>
+template <typename InPropertyType, typename Enable = void>
 struct TRemoteControlPropertyTypeTraits;
 
 #pragma region Numeric Types
@@ -112,13 +141,13 @@ struct TRemoteControlTypeTraits<ValueType,
 	/** Is ValueType supported as a mapping (property output) value? */
 	static constexpr bool IsSupportedMappingType() { return true; }
 
-	static constexpr Type DefaultRangeValueMin() { return static_cast<Type>(0.0f); }
+	static constexpr Type DefaultRangeValueMin() { return static_cast<Type>(0.0); }
 
-	static constexpr Type DefaultRangeValueMax() { return static_cast<Type>(1.0f); }
+	static constexpr Type DefaultRangeValueMax() { return static_cast<Type>(1.0); }
 
-	static constexpr Type DefaultMappingValueMin() { return static_cast<Type>(0.0f); }
+	static constexpr Type DefaultMappingValueMin() { return static_cast<Type>(0.0); }
 
-	static constexpr Type DefaultMappingValueMax() { return static_cast<Type>(1.0f); }
+	static constexpr Type DefaultMappingValueMax() { return static_cast<Type>(1.0); }
 };
 
 /**
@@ -129,6 +158,7 @@ template <>
 struct TRemoteControlPropertyTypeTraits<FNumericProperty>
 {
 	using PropertyType = FNumericProperty;
+	using ValueType = void;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return true; }
@@ -137,9 +167,10 @@ struct TRemoteControlPropertyTypeTraits<FNumericProperty>
 	static constexpr bool IsSupportedMappingType() { return true; }
 };
 
+/** RemoteControlPropertyTypeTraits for any property with a TCppType  */
 template <typename InPropertyType>
 struct TRemoteControlPropertyTypeTraits<InPropertyType,
-	typename TEnableIf<TIsDerivedFrom<InPropertyType, FNumericProperty>::Value, void>::Type>
+	typename TEnableIf<TModels<RemoteControlTypeTraits::Concepts::CPropertyHasTCppType, InPropertyType>::Value, void>::Type>
 {
 	using PropertyType = InPropertyType;
 	using ValueType = typename InPropertyType::TCppType;
@@ -364,13 +395,13 @@ template <>
 struct TRemoteControlPropertyTypeTraits<FArrayProperty>
 {
 	using PropertyType = FArrayProperty;
-	using ValueType = uint8*;
+	using ValueType = TArray<uint8>;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return false; }
 
 	/** Is ValueType supported as a mapping (property output) value? */
-	static constexpr bool IsSupportedMappingType() { return true; }
+	static constexpr bool IsSupportedMappingType() { return false; }
 };
 
 /** RemoteControlPropertyTypeTraits for FSetProperty */
@@ -378,13 +409,13 @@ template <>
 struct TRemoteControlPropertyTypeTraits<FSetProperty>
 {
 	using PropertyType = FSetProperty;
-	using ValueType = uint8*;
+	using ValueType = TArray<uint8>;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return false; }
 
 	/** Is ValueType supported as a mapping (property output) value? */
-	static constexpr bool IsSupportedMappingType() { return true; }
+	static constexpr bool IsSupportedMappingType() { return false; }
 };
 
 /** RemoteControlPropertyTypeTraits for FMapProperty */
@@ -392,13 +423,13 @@ template <>
 struct TRemoteControlPropertyTypeTraits<FMapProperty>
 {
 	using PropertyType = FMapProperty;
-	using ValueType = uint8*;
+	using ValueType = TArray<uint8>;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return false; }
 
 	/** Is ValueType supported as a mapping (property output) value? */
-	static constexpr bool IsSupportedMappingType() { return true; }
+	static constexpr bool IsSupportedMappingType() { return false; }
 };
 
 #pragma region Structs (Built-in)
@@ -407,8 +438,8 @@ struct TRemoteControlPropertyTypeTraits<FMapProperty>
 template <>
 struct TRemoteControlPropertyTypeTraits<FStructProperty>
 {
-	using PropertyType = FNameProperty;
-	using ValueType = uint8*;
+	using PropertyType = FStructProperty;
+	using ValueType = void;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return false; }
@@ -691,3 +722,56 @@ struct TRemoteControlTypeTraits<FLinearColor>
 };
 
 #pragma endregion Structs (Built-in)
+
+#pragma region Name to Type
+
+template <int16 TypeName>
+struct TRCTypeNameToType { using Type = void; };
+
+template <> struct TRCTypeNameToType<NAME_Int8Property> { using Type = int8; };
+template <> struct TRCTypeNameToType<NAME_ByteProperty> { using Type = uint8; };
+template <> struct TRCTypeNameToType<NAME_Int16Property> { using Type = int16; };
+template <> struct TRCTypeNameToType<NAME_UInt16Property> { using Type = uint16; };
+template <> struct TRCTypeNameToType<NAME_IntProperty> { using Type = int32; };
+template <> struct TRCTypeNameToType<NAME_Int32Property> { using Type = int32; };
+template <> struct TRCTypeNameToType<NAME_UInt32Property> { using Type = uint32; };
+template <> struct TRCTypeNameToType<NAME_Int64Property> { using Type = int64; };
+template <> struct TRCTypeNameToType<NAME_UInt64Property> { using Type = uint64; };
+
+template <> struct TRCTypeNameToType<NAME_FloatProperty> { using Type = float; };
+template <> struct TRCTypeNameToType<NAME_DoubleProperty> { using Type = double; };
+template <> struct TRCTypeNameToType<NAME_Double> { using Type = double; };
+
+template <> struct TRCTypeNameToType<NAME_BoolProperty> { using Type = bool; };
+template <> struct TRCTypeNameToType<NAME_EnumProperty> { using Type = UEnum; };
+
+template <> struct TRCTypeNameToType<NAME_StrProperty> { using Type = FString; };
+template <> struct TRCTypeNameToType<NAME_NameProperty> { using Type = FName; };
+template <> struct TRCTypeNameToType<NAME_Name> { using Type = FName; };
+template <> struct TRCTypeNameToType<NAME_TextProperty> { using Type = FText; };
+
+template <> struct TRCTypeNameToType<NAME_ArrayProperty> { using Type = FScriptArray; };
+template <> struct TRCTypeNameToType<NAME_SetProperty> { using Type = FScriptSet; };
+template <> struct TRCTypeNameToType<NAME_MapProperty> { using Type = FScriptMap; };
+
+template <> struct TRCTypeNameToType<NAME_StructProperty> { using Type = UScriptStruct; };
+template <> struct TRCTypeNameToType<NAME_VectorProperty> { using Type = FVector; };
+template <> struct TRCTypeNameToType<NAME_Vector> { using Type = FVector; };
+template <> struct TRCTypeNameToType<NAME_Vector2D> { using Type = FVector2D; };
+template <> struct TRCTypeNameToType<NAME_RotatorProperty> { using Type = FRotator; };
+template <> struct TRCTypeNameToType<NAME_Rotator> { using Type = FRotator; };
+template <> struct TRCTypeNameToType<NAME_ObjectProperty> { using Type = UObject; };
+template <> struct TRCTypeNameToType<NAME_Box> { using Type = FBox; };
+template <> struct TRCTypeNameToType<NAME_BoxSphereBounds> { using Type = FBoxSphereBounds; };
+template <> struct TRCTypeNameToType<NAME_Color> { using Type = FColor; };
+template <> struct TRCTypeNameToType<NAME_IntPoint> { using Type = FIntPoint; };
+template <> struct TRCTypeNameToType<NAME_IntRect> { using Type = FIntRect; };
+template <> struct TRCTypeNameToType<NAME_LinearColor> { using Type = FLinearColor; };
+template <> struct TRCTypeNameToType<NAME_Matrix> { using Type = FMatrix; };
+template <> struct TRCTypeNameToType<NAME_Plane> { using Type = FPlane; };
+template <> struct TRCTypeNameToType<NAME_Quat> { using Type = FQuat; };
+template <> struct TRCTypeNameToType<NAME_Sphere> { using Type = FSphere; };
+template <> struct TRCTypeNameToType<NAME_Transform> { using Type = FTransform; };
+template <> struct TRCTypeNameToType<NAME_Vector4> { using Type = FVector4; };
+
+#pragma endregion Name to Type

@@ -10,20 +10,22 @@
 
 #if WITH_EDITOR
 
+
+
 template <>
-bool RemoteControlPropertyUtilities::FromBinary<FProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
+bool RemoteControlPropertyUtilities::Deserialize<FProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 {
 	const FProperty* Property = OutDst.GetProperty();
-	FOREACH_CAST_PROPERTY(Property, FromBinary<CastPropertyType>(InSrc, OutDst))
+	FOREACH_CAST_PROPERTY(Property, Deserialize<CastPropertyType>(InSrc, OutDst))
 
 	return true;
 }
 
 template <>
-bool RemoteControlPropertyUtilities::ToBinary<FProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
+bool RemoteControlPropertyUtilities::Serialize<FProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 {
 	const FProperty* Property = InSrc.GetProperty();
-	FOREACH_CAST_PROPERTY(Property, ToBinary<CastPropertyType>(InSrc, OutDst))
+	FOREACH_CAST_PROPERTY(Property, Serialize<CastPropertyType>(InSrc, OutDst))
 
 	return true;
 }
