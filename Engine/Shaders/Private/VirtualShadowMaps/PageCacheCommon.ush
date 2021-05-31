@@ -18,6 +18,7 @@ struct FShadowMapCacheData
 	int2 SmPageOffset;
 	// ID of the corresponding virtual SM in the chached data 
 	int VirtualShadowMapId;
+	int Padding;
 };
 
 struct FCachedPageInfo
