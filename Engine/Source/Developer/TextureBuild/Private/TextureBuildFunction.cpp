@@ -153,7 +153,7 @@ static ERawImageFormat::Type ComputeRawImageFormat(ETextureSourceFormat SourceFo
 static void ReadTextureSourceFromCompactBinary(const FCbObject& Object, UE::DerivedData::FBuildContext& Context, TArray<FImage>& OutMips)
 {
 	FAnsiStringView InputKey = Object.FindView("Input").AsString();
-	FSharedBuffer InputBuffer = Context.GetInput(FUTF8ToTCHAR(InputKey));
+	FSharedBuffer InputBuffer = Context.FindInput(FUTF8ToTCHAR(InputKey));
 
 	ETextureSourceCompressionFormat CompressionFormat = (ETextureSourceCompressionFormat)Object.FindView("CompressionFormat").AsUInt8();
 	ETextureSourceFormat SourceFormat = (ETextureSourceFormat)Object.FindView("SourceFormat").AsUInt8();
@@ -236,18 +236,18 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 {
 	ITextureCompressorModule& Compressor = FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
 
-	const FCbObject BuildSettingsCbObj = Context.GetConstant(TEXT("TextureBuildSettings"));
+	const FCbObject BuildSettingsCbObj = Context.FindConstant(TEXT("TextureBuildSettings"));
 	FTextureBuildSettings BuildSettings;
-	ReadBuildSettingsFromCompactBinary(Context.GetConstant(TEXT("TextureBuildSettings")), BuildSettings);
+	ReadBuildSettingsFromCompactBinary(Context.FindConstant(TEXT("TextureBuildSettings")), BuildSettings);
 	int32 NumInlineMips;
 	FString MipKeyPrefix;
-	ReadOutputSettingsFromCompactBinary(Context.GetConstant(TEXT("TextureOutputSettings")), NumInlineMips, MipKeyPrefix);
+	ReadOutputSettingsFromCompactBinary(Context.FindConstant(TEXT("TextureOutputSettings")), NumInlineMips, MipKeyPrefix);
 
 	TArray<FImage> SourceMips;
-	ReadTextureSourceFromCompactBinary(Context.GetConstant(TEXT("TextureSource")), Context, SourceMips);
+	ReadTextureSourceFromCompactBinary(Context.FindConstant(TEXT("TextureSource")), Context, SourceMips);
 
 	TArray<FImage> AssociatedNormalSourceMips;
-	const FCbObject AssociatedNormalSourceMipsCbObj = Context.GetConstant(TEXT("CompositeTextureSource"));
+	const FCbObject AssociatedNormalSourceMipsCbObj = Context.FindConstant(TEXT("CompositeTextureSource"));
 	if (AssociatedNormalSourceMipsCbObj)
 	{
 		ReadTextureSourceFromCompactBinary(AssociatedNormalSourceMipsCbObj, Context, AssociatedNormalSourceMips);

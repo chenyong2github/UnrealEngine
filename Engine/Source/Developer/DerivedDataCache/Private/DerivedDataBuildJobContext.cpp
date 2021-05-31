@@ -47,7 +47,7 @@ void FBuildJobContext::ResetInputs()
 	Inputs.Empty();
 }
 
-FCbObject FBuildJobContext::GetConstant(FStringView Key) const
+FCbObject FBuildJobContext::FindConstant(FStringView Key) const
 {
 	if (const FCbObject* Object = Constants.FindByHash(GetTypeHash(Key), Key))
 	{
@@ -56,7 +56,7 @@ FCbObject FBuildJobContext::GetConstant(FStringView Key) const
 	return FCbObject();
 }
 
-FSharedBuffer FBuildJobContext::GetInput(FStringView Key) const
+FSharedBuffer FBuildJobContext::FindInput(FStringView Key) const
 {
 	if (const FCompressedBuffer* Input = Inputs.FindByHash(GetTypeHash(Key), Key))
 	{

@@ -82,10 +82,10 @@ public:
 	virtual ~FBuildContext() = default;
 
 	/** Returns the constant with the matching key, or an object with no fields if not found. */
-	virtual FCbObject GetConstant(FStringView Key) const = 0;
+	virtual FCbObject FindConstant(FStringView Key) const = 0;
 
 	/** Returns the input with the matching key, or a null buffer if not found. */
-	virtual FSharedBuffer GetInput(FStringView Key) const = 0;
+	virtual FSharedBuffer FindInput(FStringView Key) const = 0;
 
 	/** Adds a payload to the build output. Must have a non-null buffer and a unique ID. */
 	virtual void AddPayload(const FPayload& Payload) = 0;
@@ -125,7 +125,7 @@ public:
 	virtual ~FBuildConfigContext() = default;
 
 	/** Returns the constant with the matching key, or an object with no fields if not found. */
-	virtual FCbObject GetConstant(FStringView Key) const = 0;
+	virtual FCbObject FindConstant(FStringView Key) const = 0;
 
 	/** Overrides the cache bucket used when reading or writing this build in the cache. */
 	virtual void SetCacheBucket(FCacheBucket Bucket) = 0;
