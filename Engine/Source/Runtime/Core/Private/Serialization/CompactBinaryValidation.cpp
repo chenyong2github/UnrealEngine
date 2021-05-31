@@ -346,7 +346,7 @@ static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECb
 	case ECbFieldType::Float64:
 		ValidateCbFloat64(View, Mode, Error);
 		break;
-	case ECbFieldType::CompactBinaryAttachment:
+	case ECbFieldType::ObjectAttachment:
 	case ECbFieldType::BinaryAttachment:
 	case ECbFieldType::Hash:
 		ValidateCbFixedPayload(View, Mode, Error, 20);

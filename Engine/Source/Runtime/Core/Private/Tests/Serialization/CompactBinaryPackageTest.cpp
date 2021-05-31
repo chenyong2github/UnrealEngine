@@ -372,7 +372,7 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 		TCbWriter<256> Writer;
 		Writer.SetName("Level3");
 		Writer.BeginArray();
-		Writer.AddCompactBinaryAttachment(Level3Hash);
+		Writer.AddObjectAttachment(Level3Hash);
 		Writer.EndArray();
 		Level2 = Writer.Save().AsArray();
 	}
@@ -382,7 +382,7 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 	{
 		TCbWriter<256> Writer;
 		Writer.BeginObject();
-		Writer.SetName("Level2").AddCompactBinaryAttachment(Level2Hash);
+		Writer.SetName("Level2").AddObjectAttachment(Level2Hash);
 		Writer.EndObject();
 		Level1 = Writer.Save().AsObject();
 	}
@@ -453,13 +453,13 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 	{
 		TCbWriter<384> Writer;
 		Writer.AddBinary(Level2.GetBuffer());
-		Writer.AddCompactBinaryAttachment(Level2Hash);
+		Writer.AddObjectAttachment(Level2Hash);
 		Writer.AddBinary(Level4);
 		Writer.AddBinaryAttachment(Level4Hash);
 		Writer.AddObject(Level1);
-		Writer.AddCompactBinaryAttachment(Level1Hash);
+		Writer.AddObjectAttachment(Level1Hash);
 		Writer.AddBinary(Level3.GetBuffer());
-		Writer.AddCompactBinaryAttachment(Level3Hash);
+		Writer.AddObjectAttachment(Level3Hash);
 		Writer.AddNull();
 
 		FCbFieldIterator Fields = Writer.Save();
@@ -507,15 +507,15 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 		FCbFieldIterator Saved = Writer.Save();
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Save()->Level1"), Saved.AsObject().Equals(Level1));
 		++Saved;
-		TestEqual(TEXT("FCbPackage(OutOfOrder).Save()->Level1Hash"), Saved.AsCompactBinaryAttachment(), Level1Hash);
+		TestEqual(TEXT("FCbPackage(OutOfOrder).Save()->Level1Hash"), Saved.AsObjectAttachment(), Level1Hash);
 		++Saved;
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Save()->Level2"), Saved.AsBinaryView().EqualBytes(Level2.GetView()));
 		++Saved;
-		TestEqual(TEXT("FCbPackage(OutOfOrder).Save()->Level2Hash"), Saved.AsCompactBinaryAttachment(), Level2Hash);
+		TestEqual(TEXT("FCbPackage(OutOfOrder).Save()->Level2Hash"), Saved.AsObjectAttachment(), Level2Hash);
 		++Saved;
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Save()->Level3"), Saved.AsBinaryView().EqualBytes(Level3.GetView()));
 		++Saved;
-		TestEqual(TEXT("FCbPackage(OutOfOrder).Save()->Level3Hash"), Saved.AsCompactBinaryAttachment(), Level3Hash);
+		TestEqual(TEXT("FCbPackage(OutOfOrder).Save()->Level3Hash"), Saved.AsObjectAttachment(), Level3Hash);
 		++Saved;
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Save()->Level4"), Saved.AsBinaryView().EqualBytes(Level4.GetView()));
 		++Saved;

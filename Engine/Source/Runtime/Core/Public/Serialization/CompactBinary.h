@@ -147,11 +147,11 @@ enum class ECbFieldType : uint8
 	BoolTrue                         = 0x0d,
 
 	/**
-	 * CompactBinaryAttachment is a reference to a compact binary attachment stored externally.
+	 * ObjectAttachment is a reference to a compact binary object attachment stored externally.
 	 *
-	 * Payload is a 160-bit hash digest of the referenced compact binary data.
+	 * Payload is a 160-bit hash digest of the referenced compact binary object data.
 	 */
-	CompactBinaryAttachment          = 0x0e,
+	ObjectAttachment          = 0x0e,
 	/**
 	 * BinaryAttachment is a reference to a binary attachment stored externally.
 	 *
@@ -268,9 +268,9 @@ public:
 	static constexpr inline bool IsFloat(ECbFieldType Type)      { return (Type & FloatMask) == FloatBase; }
 	static constexpr inline bool IsBool(ECbFieldType Type)       { return (Type & BoolMask) == BoolBase; }
 
-	static constexpr inline bool IsCompactBinaryAttachment(ECbFieldType Type) { return GetType(Type) == ECbFieldType::CompactBinaryAttachment; }
-	static constexpr inline bool IsBinaryAttachment(ECbFieldType Type)        { return GetType(Type) == ECbFieldType::BinaryAttachment; }
-	static constexpr inline bool IsAttachment(ECbFieldType Type)              { return (Type & AttachmentMask) == AttachmentBase; }
+	static constexpr inline bool IsObjectAttachment(ECbFieldType Type) { return GetType(Type) == ECbFieldType::ObjectAttachment; }
+	static constexpr inline bool IsBinaryAttachment(ECbFieldType Type) { return GetType(Type) == ECbFieldType::BinaryAttachment; }
+	static constexpr inline bool IsAttachment(ECbFieldType Type)       { return (Type & AttachmentMask) == AttachmentBase; }
 
 	static constexpr inline bool IsHash(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Hash || IsAttachment(Type); }
 	static constexpr inline bool IsUuid(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Uuid; }
@@ -610,8 +610,8 @@ public:
 	/** Access the field as a bool. Returns the provided default on error. */
 	CORE_API bool AsBool(bool bDefault = false);
 
-	/** Access the field as a hash referencing a compact binary attachment. Returns the provided default on error. */
-	CORE_API FIoHash AsCompactBinaryAttachment(const FIoHash& Default = FIoHash());
+	/** Access the field as a hash referencing an object attachment. Returns the provided default on error. */
+	CORE_API FIoHash AsObjectAttachment(const FIoHash& Default = FIoHash());
 	/** Access the field as a hash referencing a binary attachment. Returns the provided default on error. */
 	CORE_API FIoHash AsBinaryAttachment(const FIoHash& Default = FIoHash());
 	/** Access the field as a hash referencing an attachment. Returns the provided default on error. */
@@ -671,9 +671,9 @@ public:
 	constexpr inline bool IsFloat() const           { return FCbFieldType::IsFloat(Type); }
 	constexpr inline bool IsBool() const            { return FCbFieldType::IsBool(Type); }
 
-	constexpr inline bool IsCompactBinaryAttachment() const { return FCbFieldType::IsCompactBinaryAttachment(Type); }
-	constexpr inline bool IsBinaryAttachment() const        { return FCbFieldType::IsBinaryAttachment(Type); }
-	constexpr inline bool IsAttachment() const              { return FCbFieldType::IsAttachment(Type); }
+	constexpr inline bool IsObjectAttachment() const { return FCbFieldType::IsObjectAttachment(Type); }
+	constexpr inline bool IsBinaryAttachment() const { return FCbFieldType::IsBinaryAttachment(Type); }
+	constexpr inline bool IsAttachment() const       { return FCbFieldType::IsAttachment(Type); }
 
 	constexpr inline bool IsHash() const            { return FCbFieldType::IsHash(Type); }
 	constexpr inline bool IsUuid() const            { return FCbFieldType::IsUuid(Type); }
