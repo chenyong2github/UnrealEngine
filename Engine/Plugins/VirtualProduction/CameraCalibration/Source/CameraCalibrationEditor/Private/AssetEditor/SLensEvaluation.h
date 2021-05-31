@@ -88,6 +88,7 @@ private:
 	//~ Cached data taken from LiveLink subject and LensFile
 	FCachedFIZData CachedLiveLinkData;
 	FDistortionInfo CachedDistortionInfo;
-	FIntrinsicParameters CachedIntrinsics;
+	FFocalLengthInfo CachedFocalLengthInfo;
+	FImageCenterInfo CachedImageCenter;
 	FNodalPointOffset CachedNodalOffset;
 };

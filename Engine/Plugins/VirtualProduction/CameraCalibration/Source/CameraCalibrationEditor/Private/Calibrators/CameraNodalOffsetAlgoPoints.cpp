@@ -534,11 +534,11 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 	//  0  Fy  Cy
 	//  0   0   1
 
-	CameraMatrix.at<double>(0, 0) = DistortionState.DistortionInfo.FxFy.X;
-	CameraMatrix.at<double>(1, 1) = DistortionState.DistortionInfo.FxFy.Y;
+	CameraMatrix.at<double>(0, 0) = DistortionState.FocalLengthInfo.FxFy.X;
+	CameraMatrix.at<double>(1, 1) = DistortionState.FocalLengthInfo.FxFy.Y;
 
-	CameraMatrix.at<double>(0, 2) = DistortionState.PrincipalPoint.X;
-	CameraMatrix.at<double>(1, 2) = DistortionState.PrincipalPoint.Y;
+	CameraMatrix.at<double>(0, 2) = DistortionState.ImageCenter.PrincipalPoint.X;
+	CameraMatrix.at<double>(1, 2) = DistortionState.ImageCenter.PrincipalPoint.Y;
 
 	// Populate distortion coefficients
 	// Note: solvePnP expects k1, k2, p1, p2, k3

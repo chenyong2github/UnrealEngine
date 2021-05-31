@@ -20,9 +20,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	FDistortionInfo DistortionInfo;
 
+	/** Normalized focal fength in both dimensions */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
+	FFocalLengthInfo FocalLengthInfo;
+	
 	/** Normalized center of the image, in the range [0.0f, 1.0f] */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (DisplayName = "Image Center"))
-	FVector2D PrincipalPoint = FVector2D(0.5f, 0.5f);
+	FImageCenterInfo ImageCenter;
 
 public:
 	bool operator==(const FLensDistortionState& Other) const;
@@ -83,10 +87,10 @@ public:
 	void SetDisplayName(FString InDisplayName) { DisplayName = InDisplayName; }
 
 	/** Get the normalized center of projection of the image, in the range [0.0f, 1.0f] */
-	FVector2D GetPrincipalPoint() const { return CurrentState.PrincipalPoint; }
+	FVector2D GetPrincipalPoint() const { return CurrentState.ImageCenter.PrincipalPoint; }
 
 	/** Get the normalized focal length (unitless) */
-	FVector2D GetFxFy() const { return CurrentState.DistortionInfo.FxFy; }
+	FVector2D GetFxFy() const { return CurrentState.FocalLengthInfo.FxFy; }
 
 	/** Updates overscan factor and applies to material instances */
 	void SetOverscanFactor(float OverscanFactor);

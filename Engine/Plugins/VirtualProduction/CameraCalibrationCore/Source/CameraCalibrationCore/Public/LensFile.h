@@ -2,22 +2,26 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Tickable.h"
+#include "UObject/Object.h"
 
-#include "Curves/RichCurve.h"
+#include "CoreTypes.h"
 #include "Engine/Texture.h"
 #include "ICalibratedMapProcessor.h"
 #include "LensData.h"
 #include "Misc/Optional.h"
+#include "Tables/DistortionParametersTable.h"
+#include "Tables/EncodersTable.h"
+#include "Tables/FocalLengthTable.h"
+#include "Tables/ImageCenterTable.h"
+#include "Tables/NodalOffsetTable.h"
+#include "Tables/STMapTable.h"
 #include "Templates/UniquePtr.h"
-#include "Tickable.h"
-#include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
 #include "LensFile.generated.h"
 
 
-class FLensFilePreComputeDataProcessor;
 class UCineCameraComponent;
 class ULensDistortionModelHandlerBase;
 
@@ -30,211 +34,17 @@ enum class ELensDataMode : uint8
 	STMap = 1
 };
 
-/**
- * Distortion data evaluated for given FZ pair based on lens parameters
- */
-USTRUCT(BlueprintType)
-struct CAMERACALIBRATIONCORE_API FDistortionData
+/** Data categories manipulated in the camera calibration tools */
+enum class ELensDataCategory : uint8
 {
-	GENERATED_BODY()
-
-public:
-
-	UPROPERTY(VisibleAnywhere, Category = "Distortion")
-	TArray<FVector2D> DistortedUVs;
-
-	/** Estimated overscan factor based on distortion to have distorted cg covering full size */
-	UPROPERTY(EditAnywhere, Category = "Distortion")
-	float OverscanFactor = 1.0f;
+	Focus,
+	Iris,
+	Zoom,
+	Distortion,
+	ImageCenter,
+	STMap,
+	NodalOffset,
 };
-
-/**
- * Encoder mapping
- */
-USTRUCT(BlueprintType)
-struct CAMERACALIBRATIONCORE_API FEncoderMapping
-{
-	GENERATED_BODY()
-
-public:
-
-	/** Focus curve from encoder values to nominal values */
-	UPROPERTY()
-	FRichCurve Focus;
-
-	/** Iris curve from encoder values to nominal values */
-	UPROPERTY()
-	FRichCurve Iris;
-
-	/** 
-	 * Zoom curve from encoder values to nominal values 
-	 * @note To be removed and use only Fx/Fy calibrated values
-	 */
-	UPROPERTY()
-	FRichCurve Zoom;
-};
-
-/**
- * Derived data computed from parameters or stmap
- */
-USTRUCT(BlueprintType)
-struct CAMERACALIBRATIONCORE_API FDerivedDistortionData
-{
-	GENERATED_BODY()
-
-	/** Precomputed data about distortion */
-	UPROPERTY(VisibleAnywhere, Category = "Distortion")
-	FDistortionData DistortionData;
-
-	/** Computed displacement map based on undistortion data */
-	UPROPERTY(Transient, VisibleAnywhere, Category = "Distortion")
-	UTextureRenderTarget2D* UndistortionDisplacementMap = nullptr;
-
-	/** Computed displacement map based on distortion data */
-	UPROPERTY(Transient, VisibleAnywhere, Category = "Distortion")
-	UTextureRenderTarget2D* DistortionDisplacementMap = nullptr;
-
-	/** When dirty, derived data needs to be recomputed */
-	bool bIsDirty = true;
-};
-
-/**
- * A data point associating focus and zoom to lens parameters
- */
-USTRUCT(BlueprintType)
-struct CAMERACALIBRATIONCORE_API FDistortionMapPoint
-{
-	GENERATED_BODY()
-
-public:
-	FDistortionMapPoint()
-    : Identifier(FGuid::NewGuid())
-	{}
-
-	const FGuid& GetIdentifier() const { return Identifier; }
-
-	/** Returns whether this point is considered valid */
-	bool IsValid() const { return true; }
-
-
-public:
-
-	UPROPERTY(EditAnywhere, Category = "Distortion")
-	float Focus = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Distortion")
-	float Zoom = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Distortion")
-	FDistortionInfo DistortionInfo;
-
-private:
-
-	/** Unique identifier for this map point to associate it with derived data */
-	FGuid Identifier;
-};
-
-
-/**
-* A data point associating focus and zoom to precalibrated STMap
-*/
-USTRUCT(BlueprintType)
-struct CAMERACALIBRATIONCORE_API FCalibratedMapPoint
-{
-	GENERATED_BODY()
-
-public:
-
-	FCalibratedMapPoint()
-		: Identifier(FGuid::NewGuid())
-	{}
-
-	/** Returns the identifier of this point */
-	const FGuid& GetIdentifier() const { return Identifier; }
-
-	/** Returns whether this point is considered valid */
-	bool IsValid() const 
-	{ 
-		return (DistortionMap != nullptr 
-			&& DerivedDistortionData.UndistortionDisplacementMap != nullptr
-			&& DerivedDistortionData.DistortionDisplacementMap != nullptr
-			&& DerivedDistortionData.bIsDirty == false);
-	}
-
-public:
-	UPROPERTY(EditAnywhere, Category = "Distortion")
-	float Focus = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Distortion")
-	float Zoom = 0.0f;
-
-	/** Pre calibrated UVMap/STMap
-	 * RG channels are expected to have undistortion map (from distorted to undistorted)
-	 * BA channels are expected to have distortion map (from undistorted (CG) to distorted)
-	 */
-	UPROPERTY(EditAnywhere, Category = "Distortion")
-	UTexture* DistortionMap = nullptr;
-
-	/** Derived distortion data associated with this point */
-	UPROPERTY(Transient)
-	FDerivedDistortionData DerivedDistortionData;
-
-private:
-
-	/** Unique identifier for this map point to associate it with derived data */
-	FGuid Identifier;
-};
-
-/**
- * A data point associating focus and zoom to the principal point (image center)
- */
-USTRUCT(BlueprintType)
-struct CAMERACALIBRATIONCORE_API FIntrinsicMapPoint
-{
-	GENERATED_BODY()
-
-public:
-
-	/** Returns whether this point is considered valid */
-	bool IsValid() const { return true; }
-
-public:
-
-	UPROPERTY(EditAnywhere, Category = "Center shift")
-	float Focus = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Center shift")
-	float Zoom = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Center shift")
-	FIntrinsicParameters Parameters;
-};
-
-/**
- * A data point associating focus and zoom to Nodal offset
- */
-USTRUCT(BlueprintType)
-struct CAMERACALIBRATIONCORE_API FNodalOffsetMapPoint
-{
-	GENERATED_BODY()
-
-public:
-
-	/** Returns whether this point is considered valid */
-	bool IsValid() const { return true; }
-
-public:
-
-	UPROPERTY(EditAnywhere, Category = "Nodal Point")
-	float Focus = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Nodal Point")
-	float Zoom = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Nodal Point")
-	FNodalPointOffset NodalOffset;
-};
-
 
 
 /**
@@ -264,11 +74,14 @@ public:
 	virtual TStatId GetStatId() const override;
 	//~ End FTickableGameObject
 	
-	/** Returns interpolated distortion parameters based on input focus and zoom */
+	/** Returns interpolated distortion parameters */
 	bool EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue) const;
 
-	/** Returns interpolated intrinsic parameters based on input focus and zoom */
-	bool EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue) const;
+	/** Returns interpolated focal length */
+	bool EvaluateFocalLength(float InFocus, float InZoom, FFocalLengthInfo& OutEvaluatedValue) const;
+
+	/** Returns interpolated image center parameters based on input focus and zoom */
+	bool EvaluateImageCenterParameters(float InFocus, float InZoom, FImageCenterInfo& OutEvaluatedValue) const;
 
 	/** Draws the distortion map based on evaluation point*/
 	bool EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const;
@@ -280,28 +93,45 @@ public:
 	bool HasFocusEncoderMapping() const;
 
 	/** Returns interpolated focus based on input normalized value and mapping */
-	float EvaluateNormalizedFocus(float InNormalizedValue);
+	float EvaluateNormalizedFocus(float InNormalizedValue) const;
 
 	/** Whether iris encoder mapping is configured */
 	bool HasIrisEncoderMapping() const;
 
 	/** Returns interpolated iris based on input normalized value and mapping */
-	float EvaluateNormalizedIris(float InNormalizedValue);
-
-	/** Whether zoom encoder mapping is configured */
-	bool HasZoomEncoderMapping() const;
-
-	/** Returns interpolated zoom based on input normalized value and mapping */
-	float EvaluateNormalizedZoom(float InNormalizedValue);
+	float EvaluateNormalizedIris(float InNormalizedValue) const;
 
 	/** Callbacked when stmap derived data has completed */
 	void OnDistortionDerivedDataJobCompleted(const FDerivedDistortionDataJobOutput& JobOutput);
 
 	/** Whether the sensor dimensions in the lens file will be compatible with the sensor dimensions of the input CineCameraComponent */
-	bool IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent);
+	bool IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent) const;
 
+	/** Adds a distortion point in our map. If a point already exist at the location, it is updated */
+	void AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewPoint, const FFocalLengthInfo& NewFocalLength);
+
+	/** Adds a focal length point in our map. If a point already exist at the location, it is updated */
+	void AddFocalLengthPoint(float NewFocus, float NewZoom, const FFocalLengthInfo& NewFocalLength);
+
+	/** Adds an ImageCenter point in our map. If a point already exist at the location, it is updated */
+	void AddImageCenterPoint(float NewFocus, float NewZoom, const FImageCenterInfo& NewPoint);
+
+	/** Adds an NodalOffset point in our map. If a point already exist at the location, it is updated */
+	void AddNodalOffsetPoint(float NewFocus, float NewZoom, const FNodalPointOffset& NewPoint);
+
+	/** Adds an STMap point in our map. If a point already exist at the location, it is updated */
+	void AddSTMapPoint(float NewFocus, float NewZoom, const FSTMapInfo& NewPoint);
+
+	/** Removes a focus point */
+	void RemoveFocusPoint(ELensDataCategory InDataCategory, float InFocus);
+
+	/** Removes a zoom point */
+	void RemoveZoomPoint(ELensDataCategory InDataCategory, float InFocus, float InZoom);
+
+	/** Removes all points in lens files */
+	void ClearAll();
+	
 protected:
-
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
 	void UpdateDerivedData();
 
@@ -324,33 +154,40 @@ public:
 	FLensInfo LensInfo;
 
 	/** Type of data used for lens mapping */
-	UPROPERTY(EditAnywhere, Category="Lens mapping")
+	UPROPERTY(EditAnywhere, Category = "Lens mapping")
 	ELensDataMode DataMode = ELensDataMode::Parameters;
-	
-	/** Mapping between FIZ data and distortion parameters (k1, k2...) */
-	UPROPERTY(EditAnywhere, Category="FIZ map", meta = (EditCondition = "DataMode == ELensDataMode::Parameters"))
-	TArray<FDistortionMapPoint> DistortionMapping;
-
-	/** Mapping between FIZ data and intrinsic parameters (fx/fy and principal point) */
-	UPROPERTY(EditAnywhere, Category="FIZ map")
-	TArray<FIntrinsicMapPoint> IntrinsicMapping;
-
-	/** Precomputed data associated to a calibration point */
-	UPROPERTY(EditAnywhere, Category="FIZ map", meta = (EditCondition = "DataMode == ELensDataMode::STMap"))
-	TArray<FCalibratedMapPoint> CalibratedMapPoints;
-	
-	/** Mapping between FIZ data and nodal point */
-	UPROPERTY(EditAnywhere, Category = "FIZ map")
-	TArray<FNodalOffsetMapPoint> NodalOffsetMapping;
 
 	/** Metadata user could enter for its lens */
 	UPROPERTY(EditAnywhere, Category = "Metadata")
 	TMap<FString, FString> UserMetadata;
 
-	/** Encoder mapping from normalized value to values in physical units */
-	UPROPERTY(EditAnywhere, Category = "Encoder", AdvancedDisplay)
-	FEncoderMapping EncoderMapping;
+	/** Encoder mapping table */
+	UPROPERTY()
+	FEncodersTable EncodersTable;
 
+	/** Distortion parameters table mapping to input focus/zoom  */
+	UPROPERTY()
+	FDistortionTable DistortionTable;
+
+	/** Focal length table mapping to input focus/zoom  */
+	UPROPERTY()
+	FFocalLengthTable FocalLengthTable;
+
+	/** Image center table mapping to input focus/zoom  */
+	UPROPERTY()
+	FImageCenterTable ImageCenterTable;
+
+	/** Nodal offset table mapping to input focus/zoom  */
+	UPROPERTY()
+	FNodalOffsetTable NodalOffsetTable;
+
+	/** STMap table mapping to input focus/zoom  */
+	UPROPERTY()
+	FSTMapTable STMapTable;
+	
+	/** Tolerance used to consider input focus or zoom to be identical */
+	static constexpr float InputTolerance = 0.001f;
+	
 protected:
 
 	/** Derived data compute jobs we are waiting on */

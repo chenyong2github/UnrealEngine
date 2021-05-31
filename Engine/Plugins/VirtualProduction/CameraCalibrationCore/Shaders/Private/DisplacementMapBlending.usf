@@ -6,12 +6,17 @@
 
 #include "/Engine/Private/Common.ush"
 
-float BlendFactor;
-float MainCoefficient;
-float DeltaMinX;
-float DeltaMaxX;
-float DeltaMinY;
-float DeltaMaxY;
+float EvalTime;
+float Curve0Key0Time;
+float Curve0Key1Time;
+float Curve0Key0Tangent;
+float Curve0Key1Tangent;
+float Curve1Key0Time;
+float Curve1Key1Time;
+float Curve1Key0Tangent;
+float Curve1Key1Tangent;
+float FocusBlendFactor;
+
 float2 FxFyScale;
 float2 PrincipalPoint;
 uint2 OutputTextureExtent;
@@ -21,6 +26,17 @@ Texture2D SourceTextureThree;
 Texture2D SourceTextureFour;
 SamplerState SourceTextureSampler;
 
+float4 BezierInterp(float4 P0, float4 P1, float4 P2, float4 P3, float Alpha)
+{
+	float4 P01 = lerp(P0, P1, Alpha);
+	float4 P12 = lerp(P1, P2, Alpha);
+	float4 P23 = lerp(P2, P3, Alpha);
+	float4 P012 = lerp(P01, P12, Alpha);
+	float4 P123 = lerp(P12, P23, Alpha);
+	float4 P0123 = lerp(P012, P123, Alpha);
+
+	return P0123;
+}
 
 void BlendPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
@@ -30,18 +46,78 @@ void BlendPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 	float4 TexOneColor = Texture2DSampleLevel(SourceTextureOne, SourceTextureSampler, UV, 0);
 	float4 BlendedColor;
 
+// Case - 2 Focus Curves, 1 Zoom Point Each - Just Lerp
 #if BLEND_TYPE == 1
 	
 	float4 TexTwoColor = Texture2DSampleLevel(SourceTextureTwo, SourceTextureSampler, UV, 0);
-	BlendedColor = lerp(TexOneColor, TexTwoColor, BlendFactor);
-	
+	BlendedColor = lerp(TexOneColor, TexTwoColor, FocusBlendFactor);
+
+// Case - 1 Focus Curve, 2 Zoom Points - One Bezier Interp
 #elif BLEND_TYPE == 2
+
+	float4 TexTwoColor = Texture2DSampleLevel(SourceTextureTwo, SourceTextureSampler, UV, 0);
+
+	float OneThird = 1.0f / 3.0f;
+
+	// Bezier Interp Curve0
+	float Curve0Diff = Curve0Key1Time - Curve0Key0Time;
+	float Curve0Alpha = (EvalTime - Curve0Key0Time) / Curve0Diff;
+
+	float4 DeltaColor0 = TexTwoColor - TexOneColor;
+	float4 Delta0 = DeltaColor0 / Curve0Diff;
+	float4 Curve0Tan0 = Curve0Key0Tangent * Delta0;
+	float4 Curve0Tan1 = Curve0Key1Tangent * Delta0;
+
+	float4 Curve0P0 = TexOneColor;
+	float4 Curve0P3 = TexTwoColor;
+	float4 Curve0P1 = Curve0P0 + (Curve0Tan0 * Curve0Diff * OneThird);
+	float4 Curve0P2 = Curve0P3 - (Curve0Tan1 * Curve0Diff * OneThird);
+
+	BlendedColor = BezierInterp(Curve0P0, Curve0P1, Curve0P2, Curve0P3, Curve0Alpha);
+	
+// Case - 2 Focus Curves, 2 Zoom Points Each - Two Bezier Interps, then Lerp
+#elif BLEND_TYPE == 3
 
 	float4 TexTwoColor = Texture2DSampleLevel(SourceTextureTwo, SourceTextureSampler, UV, 0);
 	float4 TexThreeColor = Texture2DSampleLevel(SourceTextureThree, SourceTextureSampler, UV, 0);
 	float4 TexFourColor = Texture2DSampleLevel(SourceTextureFour, SourceTextureSampler, UV, 0);
 
-	BlendedColor = MainCoefficient * (TexOneColor * DeltaMaxX * DeltaMaxY + TexTwoColor * DeltaMaxX * DeltaMinY + TexThreeColor * DeltaMinX * DeltaMaxY + TexFourColor * DeltaMinX * DeltaMinY);
+	float OneThird = 1.0f / 3.0f;
+
+	// Bezier Interp Curve0
+	float Curve0Diff = Curve0Key1Time - Curve0Key0Time;
+	float Curve0Alpha = (EvalTime - Curve0Key0Time) / Curve0Diff;
+	
+	float4 DeltaColor0 = TexTwoColor - TexOneColor;
+	float4 Delta0 = DeltaColor0 / Curve0Diff;
+	float4 Curve0Tan0 = Curve0Key0Tangent * Delta0;
+	float4 Curve0Tan1 = Curve0Key1Tangent * Delta0;
+
+	float4 Curve0P0 = TexOneColor;
+	float4 Curve0P3 = TexTwoColor;
+	float4 Curve0P1 = Curve0P0 + (Curve0Tan0 * Curve0Diff * OneThird);
+	float4 Curve0P2 = Curve0P3 - (Curve0Tan1 * Curve0Diff * OneThird);
+
+	float4 Curve0BlendedColor = BezierInterp(Curve0P0, Curve0P1, Curve0P2, Curve0P3, Curve0Alpha);
+
+	// Bezier Interp Curve1
+	float Curve1Diff = Curve1Key1Time - Curve1Key0Time;
+	float Curve1Alpha = (EvalTime - Curve1Key0Time) / Curve1Diff;
+
+	float4 DeltaColor1 = TexFourColor - TexThreeColor;
+	float4 Delta1 = DeltaColor1 / Curve1Diff;
+	float4 Curve1Tan0 = Curve1Key0Tangent * Delta1;
+	float4 Curve1Tan1 = Curve1Key1Tangent * Delta1;
+
+	float4 Curve1P0 = TexThreeColor;
+	float4 Curve1P3 = TexFourColor;
+	float4 Curve1P1 = Curve1P0 + (Curve1Tan0 * Curve1Diff * OneThird);
+	float4 Curve1P2 = Curve1P3 - (Curve1Tan1 * Curve1Diff * OneThird);
+
+	float4 Curve1BlendedColor = BezierInterp(Curve1P0, Curve1P1, Curve1P2, Curve1P3, Curve1Alpha);
+
+	//Lerp across focus curves
+	BlendedColor = lerp(Curve0BlendedColor, Curve1BlendedColor, FocusBlendFactor);
 
 #else
 	

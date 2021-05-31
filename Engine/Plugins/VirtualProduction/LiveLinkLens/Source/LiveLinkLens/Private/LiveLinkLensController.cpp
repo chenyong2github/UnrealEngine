@@ -43,8 +43,8 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 				FLensDistortionState DistortionState;
 
 				DistortionState.DistortionInfo.Parameters = FrameData->DistortionInfo.Parameters;
-				DistortionState.DistortionInfo.FxFy = FrameData->DistortionInfo.FxFy;
-				DistortionState.PrincipalPoint = FrameData->PrincipalPoint;
+				DistortionState.FocalLengthInfo.FxFy = FrameData->FocalLengthInfo.FxFy;
+				DistortionState.ImageCenter.PrincipalPoint = FrameData->PrincipalPoint;
 
 				//Update the distortion state based on incoming LL data.
 				LensDistortionHandler->SetDistortionState(DistortionState);

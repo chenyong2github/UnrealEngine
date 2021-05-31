@@ -151,9 +151,11 @@ void SLensEvaluation::CacheLiveLinkData()
 						if (StaticData->bIsFocalLengthSupported)
 						{
 							CachedLiveLinkData.NormalizedZoom = FrameData->FocalLength;
-							if (LensFile->HasZoomEncoderMapping())
+
+							FFocalLengthInfo FocalLength;
+							if (LensFile->EvaluateFocalLength(FrameData->FocusDistance, FrameData->FocalLength, FocalLength))
 							{
-								CachedLiveLinkData.Zoom = LensFile->EvaluateNormalizedZoom(FrameData->FocalLength);
+								CachedLiveLinkData.Zoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
 							}
 						}
 					}
@@ -182,14 +184,12 @@ void SLensEvaluation::CacheLiveLinkData()
 
 void SLensEvaluation::CacheLensFileData()
 {
-	if (CachedLiveLinkData.Focus.IsSet() && CachedLiveLinkData.Zoom.IsSet())
-	{
-		const float Focus = CachedLiveLinkData.Focus.GetValue();
-		const float Zoom = CachedLiveLinkData.Zoom.GetValue();
-		LensFile->EvaluateDistortionParameters(Focus, Zoom, CachedDistortionInfo);
-		LensFile->EvaluateIntrinsicParameters(Focus, Zoom, CachedIntrinsics);
-		LensFile->EvaluateNodalPointOffset(Focus, Zoom, CachedNodalOffset);
-	}
+	const float Focus = CachedLiveLinkData.NormalizedFocus.IsSet() ? CachedLiveLinkData.NormalizedFocus.GetValue() : CachedLiveLinkData.Focus.IsSet() ? CachedLiveLinkData.Focus.GetValue() : 0.0f;
+	const float Zoom = CachedLiveLinkData.NormalizedZoom.IsSet() ? CachedLiveLinkData.NormalizedZoom.GetValue() : CachedLiveLinkData.Zoom.IsSet() ? CachedLiveLinkData.Zoom.GetValue() : 0.0f;
+	LensFile->EvaluateDistortionParameters(Focus, Zoom, CachedDistortionInfo);
+	LensFile->EvaluateFocalLength(Focus, Zoom, CachedFocalLengthInfo);
+	LensFile->EvaluateImageCenterParameters(Focus, Zoom, CachedImageCenter);
+	LensFile->EvaluateNodalPointOffset(Focus, Zoom, CachedNodalOffset);
 }
 
 TSharedRef<SWidget> SLensEvaluation::MakeTrackingWidget()
@@ -479,7 +479,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedIntrinsics.PrincipalPoint.X);
+					return FText::AsNumber(CachedImageCenter.PrincipalPoint.X);
 				}))
 			]
 			+ SGridPanel::Slot(0, 1)
@@ -494,7 +494,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedIntrinsics.PrincipalPoint.Y);
+					return FText::AsNumber(CachedImageCenter.PrincipalPoint.Y);
 				}))
 			]
 			+ SGridPanel::Slot(0, 2)
@@ -509,7 +509,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedDistortionInfo.FxFy.X);
+					return FText::AsNumber(CachedFocalLengthInfo.FxFy.X);
 				}))
 			]
 			+ SGridPanel::Slot(0, 3)
@@ -524,7 +524,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedDistortionInfo.FxFy.Y);
+					return FText::AsNumber(CachedFocalLengthInfo.FxFy.Y);
 				}))
 			]
 		];
@@ -532,6 +532,8 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 
 TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 {
+	const FRotator CachedRotationOffset = CachedNodalOffset.RotationOffset.Rotator();
+
 	return
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -598,7 +600,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				.MinDesiredWidth(15.0f)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedNodalOffset.RotationOffset.X);
+					return FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::X));
 				}))
 			]
 			+ SGridPanel::Slot(2, 1)
@@ -607,7 +609,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				.MinDesiredWidth(15.0f)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedNodalOffset.RotationOffset.Y);
+					return FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::Y));
 				}))
 			]
 			+ SGridPanel::Slot(3, 1)
@@ -616,7 +618,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				.MinDesiredWidth(15.0f)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedNodalOffset.RotationOffset.Z);
+					return FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::Z));
 				}))
 			]
 		];

@@ -5,13 +5,23 @@
 #include "SCameraCalibrationCurveEditorPanel.h"
 
 #include "CurveEditor.h"
+#include "Curves/LensDataCurveModel.h"
+#include "Curves/LensEncodersCurveModel.h"
+#include "Curves/LensDistortionParametersCurveModel.h"
+#include "Curves/LensFocalLengthCurveModel.h"
+#include "Curves/LensImageCenterCurveModel.h"
+#include "Curves/LensNodalOffsetCurveModel.h"
+#include "Curves/LensSTMapCurveModel.h"
 #include "ICurveEditorModule.h"
 #include "ISinglePropertyView.h"
 #include "LensFile.h"
 #include "RichCurveEditorModel.h"
+#include "SLensDataCategoryListItem.h"
+#include "SLensDataListItem.h"
 #include "SLensDataPointDialog.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
+
 
 #define LOCTEXT_NAMESPACE "LensDataViewer"
 
@@ -20,7 +30,7 @@ namespace LensDataUtils
 	const FName EncoderCategoryLabel(TEXT("Encoders"));
 	const FName EncoderFocusLabel(TEXT("Focus"));
 	const FName EncoderIrisLabel(TEXT("Iris"));
-	const FName EncoderZoomLabel(TEXT("Zoom"));
+	const FName EncoderZoomLabel(TEXT("Focal Length"));
 	const FName DistortionCategoryLabel(TEXT("Distortion"));
 	const FName FxLabel(TEXT("Fx"));
 	const FName FyLabel(TEXT("Fy"));
@@ -32,99 +42,29 @@ namespace LensDataUtils
 	const FName LocationXLabel(TEXT("Location - X"));
 	const FName LocationYLabel(TEXT("Location - Y"));
 	const FName LocationZLabel(TEXT("Location - Z"));
-	const FName RotationXLabel(TEXT("Rotation - X"));
-	const FName RotationYLabel(TEXT("Rotation - Y"));
-	const FName RotationZLabel(TEXT("Rotation - Z"));
+	const FName RotationXLabel(TEXT("Yaw"));
+	const FName RotationYLabel(TEXT("Pitch"));
+	const FName RotationZLabel(TEXT("Roll"));
 
-	template<typename Type>
-	void FindFocusPoints(const TArray<Type>&SourceData, TArray<TSharedPtr<FLensDataItem>>& OutDataItems)
+	template<typename TFocusPoint>
+	void MakeFocusEntries(ULensFile* InLensFile, ELensDataCategory InCategory, int32 InSubCategoryIndex, TConstArrayView<TFocusPoint> FocusPoints, TArray<TSharedPtr<FLensDataListItem>>& OutDataItems, FOnDataRemoved InDataRemovedCallback)
 	{
-		TSet<float> FocusPoints;
-		FocusPoints.Reserve(SourceData.Num());
-		OutDataItems.Reserve(SourceData.Num());
-		for (const Type& Point : SourceData)
+		OutDataItems.Reserve(FocusPoints.Num());
+		for (const TFocusPoint& Point : FocusPoints)
 		{
-			if (FocusPoints.Contains(Point.Focus) == false)
+			//Add entry for focus
+			TSharedPtr<FFocusDataListItem> CurrentFocus = MakeShared<FFocusDataListItem>(InLensFile, InCategory, InSubCategoryIndex, Point.Focus, InDataRemovedCallback);
+			OutDataItems.Add(CurrentFocus);
+
+			for(int32 Index = 0; Index < Point.GetNumPoints(); ++Index)
 			{
-				FocusPoints.Emplace(Point.Focus);
-				OutDataItems.Add(MakeShared<FLensDataItem>(Point.Focus));
+				//Add zoom points for this focus
+				TSharedPtr<FZoomDataListItem> ZoomItem = MakeShared<FZoomDataListItem>(InLensFile, InCategory, InSubCategoryIndex, CurrentFocus.ToSharedRef(),Point.GetZoom(Index), InDataRemovedCallback);
+				CurrentFocus->Children.Add(ZoomItem);
 			}
 		}
 	}
 }
-
-FLensDataItem::FLensDataItem(float InFocus)
-	: Focus(InFocus)
-{
-
-}
-
-TSharedRef<ITableRow> FLensDataItem::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable)
-{
-	return SNew(SLensDataItem, InOwnerTable, AsShared());
-}
-
-void SLensDataItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FLensDataItem> InItemData)
-{
-	WeakItem = InItemData;
-
-	STableRow<TSharedPtr<FLensDataItem>>::Construct(
-		STableRow<TSharedPtr<FLensDataItem>>::FArguments()
-		.Content()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(5.0f, 5.0f)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("FocusLabel", "Focus: "))
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(5.0f, 5.0f)
-			[
-				SNew(STextBlock)
-				.Text(this, &SLensDataItem::GetLabelText)
-			]
-		], OwnerTable);
-}
-
-FText SLensDataItem::GetLabelText() const
-{
-	return (FText::AsNumber(WeakItem.Pin()->Focus));
-}
-
-FLensDataCategoryItem::FLensDataCategoryItem(TWeakPtr<FLensDataCategoryItem> InParent, EDataCategories InCategory, FName InLabel)
-	: Category(InCategory)
-	, Label(InLabel)
-	, Parent(InParent)
-{
-
-}
-
-TSharedRef<ITableRow> FLensDataCategoryItem::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable)
-{
-	return SNew(SLensDataCategoryItem, InOwnerTable, AsShared());
-}
-
-void SLensDataCategoryItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FLensDataCategoryItem> InItemData)
-{
-	WeakItem = InItemData;
-
-	STableRow<TSharedPtr<FLensDataCategoryItem>>::Construct(
-		STableRow<TSharedPtr<FLensDataCategoryItem>>::FArguments()
-		.Content()
-		[
-			SNew(STextBlock)
-			.Text(this, &SLensDataCategoryItem::GetLabelText)
-		], OwnerTable);
-}
-
-FText SLensDataCategoryItem::GetLabelText() const
-{
-	return (FText::FromName(WeakItem.Pin()->Label));
-}
-
 
 void SLensDataViewer::Construct(const FArguments& InArgs, ULensFile* InLensFile)
 {
@@ -211,9 +151,9 @@ void SLensDataViewer::OnDataCategorySelectionChanged(TSharedPtr<FLensDataCategor
 	RefreshDataEntriesTree();
 }
 
-TSharedPtr<FLensDataItem> SLensDataViewer::GetSelectedDataEntry() const
+TSharedPtr<FLensDataListItem> SLensDataViewer::GetSelectedDataEntry() const
 {
-	TArray<TSharedPtr<FLensDataItem>> SelectedNodes;
+	TArray<TSharedPtr<FLensDataListItem>> SelectedNodes;
 	DataEntriesTree->GetSelectedItems(SelectedNodes);
 	if (SelectedNodes.Num())
 	{
@@ -222,20 +162,20 @@ TSharedPtr<FLensDataItem> SLensDataViewer::GetSelectedDataEntry() const
 	return nullptr;
 }
 
-TSharedRef<ITableRow> SLensDataViewer::OnGenerateDataEntryRow(TSharedPtr<FLensDataItem> Node, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SLensDataViewer::OnGenerateDataEntryRow(TSharedPtr<FLensDataListItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return Node->MakeTreeRowWidget(OwnerTable);
+	return Item->MakeTreeRowWidget(OwnerTable);
 }
 
-void SLensDataViewer::OnGetDataEntryChildren(TSharedPtr<FLensDataItem> Node, TArray<TSharedPtr<FLensDataItem>>& OutNodes)
+void SLensDataViewer::OnGetDataEntryChildren(TSharedPtr<FLensDataListItem> Item, TArray<TSharedPtr<FLensDataListItem>>& OutItems)
 {
-	if (Node.IsValid())
+	if (Item.IsValid())
 	{
-		OutNodes = Node->Children;
+		OutItems = Item->Children;
 	}
 }
 
-void SLensDataViewer::OnDataEntrySelectionChanged(TSharedPtr<FLensDataItem> Node, ESelectInfo::Type SelectInfo)
+void SLensDataViewer::OnDataEntrySelectionChanged(TSharedPtr<FLensDataListItem> Node, ESelectInfo::Type SelectInfo)
 {
 	RefreshCurve();
 }
@@ -302,7 +242,7 @@ TSharedRef<SWidget> SLensDataViewer::MakeLensDataWidget()
 				]
 				+ SVerticalBox::Slot()
 				[
-					SAssignNew(DataEntriesTree, STreeView<TSharedPtr<FLensDataItem>>)
+					SAssignNew(DataEntriesTree, STreeView<TSharedPtr<FLensDataListItem>>)
 					.TreeItemsSource(&DataEntries)
 					.ItemHeight(24.0f)
 					.OnGenerateRow(this, &SLensDataViewer::OnGenerateDataEntryRow)
@@ -321,21 +261,30 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 	ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 	ToolBarBuilder.BeginSection("Asset");
 	
-	auto GetButtonWidget = [this]()
-	{
-		return SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-				.OnClicked(this, &SLensDataViewer::OnAddDataPointClicked)
-				.IsEnabled(MakeAttributeLambda([this] { return true; }))
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-					.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-					.ColorAndOpacity(FLinearColor::White)
-				];
-	}; 
+	TSharedRef<SWidget> AddPointButton =
+			 SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.OnClicked(this, &SLensDataViewer::OnAddDataPointClicked)
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+				.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
+				.ColorAndOpacity(FLinearColor::White)
+			];
 
-	ToolBarBuilder.AddWidget(GetButtonWidget());
+	TSharedRef<SWidget> ClearAllButton =
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.OnClicked(this, &SLensDataViewer::OnClearLensFileClicked)
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+				.Text(FText::FromString(FString(TEXT("\xf1f8"))) /*fa-trash*/)
+				.ColorAndOpacity(FLinearColor::White)
+			];
+
+	ToolBarBuilder.AddWidget(AddPointButton);
+	ToolBarBuilder.AddWidget(ClearAllButton);
 		
 	ToolBarBuilder.EndSection();
 
@@ -349,7 +298,25 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 FReply SLensDataViewer::OnAddDataPointClicked()
 {
 	const FSimpleDelegate OnDataPointAdded = FSimpleDelegate::CreateSP(this, &SLensDataViewer::OnLensDataPointAdded);
-	SLensDataPointDialog::OpenDialog(LensFile.Get(), CachedFIZ, OnDataPointAdded);
+
+	ELensDataCategory InitialCategory = ELensDataCategory::Distortion;
+	if (TSharedPtr<FLensDataCategoryItem> CategoryItem = GetDataCategorySelection())
+	{
+		InitialCategory = CategoryItem->Category;
+	}
+
+	SLensDataPointDialog::OpenDialog(LensFile.Get(), InitialCategory, CachedFIZ, OnDataPointAdded);
+	return FReply::Handled();
+}
+
+FReply SLensDataViewer::OnClearLensFileClicked()
+{
+	FScopedTransaction Transaction(LOCTEXT("LensFileClearAll", "Cleared LensFile"));
+	LensFile->Modify();
+
+	LensFile->ClearAll();
+	RefreshDataEntriesTree();
+
 	return FReply::Handled();
 }
 
@@ -370,13 +337,18 @@ void SLensDataViewer::RefreshDataCategoriesTree()
 	
 	DataCategories.Reset();
 
-	DataCategories.Add(MakeShared<FLensDataCategoryItem>(nullptr, EDataCategories::Focus,  LensDataUtils::EncoderFocusLabel));
-	DataCategories.Add(MakeShared<FLensDataCategoryItem>(nullptr, EDataCategories::Iris, LensDataUtils::EncoderIrisLabel));
-	DataCategories.Add(MakeShared<FLensDataCategoryItem>(nullptr, EDataCategories::Zoom, LensDataUtils::EncoderZoomLabel));
+	DataCategories.Add(MakeShared<FLensDataCategoryItem>(LensFile.Get(), nullptr, ELensDataCategory::Focus,  LensDataUtils::EncoderFocusLabel));
+	DataCategories.Add(MakeShared<FLensDataCategoryItem>(LensFile.Get(), nullptr, ELensDataCategory::Iris, LensDataUtils::EncoderIrisLabel));
+
+	TSharedPtr<FLensDataCategoryItem> FocalLengthCategory = MakeShared<FLensDataCategoryItem>(LensFile.Get(), nullptr, ELensDataCategory::Zoom, LensDataUtils::EncoderZoomLabel);
+	FocalLengthCategory->Children.Add(MakeShared<FFocalLengthCategoryItem>(LensFile.Get(), FocalLengthCategory, ELensDataCategory::Zoom, LensDataUtils::FxLabel, 0));
+	FocalLengthCategory->Children.Add(MakeShared<FFocalLengthCategoryItem>(LensFile.Get(), FocalLengthCategory, ELensDataCategory::Zoom, LensDataUtils::FyLabel, 1));
+	DataCategories.Add(FocalLengthCategory);
+
 	
 	if (LensFile->DataMode == ELensDataMode::Parameters)
 	{
-		TSharedPtr<FLensDataCategoryItem> DistortionEntry = MakeShared<FLensDataCategoryItem>(nullptr, EDataCategories::Distortion, LensDataUtils::DistortionCategoryLabel);
+		TSharedPtr<FLensDataCategoryItem> DistortionEntry = MakeShared<FLensDataCategoryItem>(LensFile.Get(), nullptr, ELensDataCategory::Distortion, LensDataUtils::DistortionCategoryLabel);
 		DataCategories.Add(DistortionEntry);
 
 		TArray<FText> Parameters;
@@ -385,34 +357,31 @@ void SLensDataViewer::RefreshDataCategoriesTree()
 			Parameters = LensFile->LensInfo.LensModel.GetDefaultObject()->GetParameterDisplayNames();
 		}
 
-		for (const FText& Parameter : Parameters)
+		for (int32 Index = 0; Index< Parameters.Num(); ++Index)
 		{
-			DistortionEntry->Children.Add(MakeShared<FLensDataCategoryItem>(DistortionEntry, EDataCategories::Distortion, *Parameter.ToString()));
+			const FText& Parameter = Parameters[Index];
+			DistortionEntry->Children.Add(MakeShared<FDistortionParametersCategoryItem>(LensFile.Get(), DistortionEntry, ELensDataCategory::Distortion, *Parameter.ToString(), Index));
 		}
-
-		DistortionEntry->Children.Add(MakeShared<FLensDataCategoryItem>(DistortionEntry, EDataCategories::Distortion, LensDataUtils::FxLabel));
-		DistortionEntry->Children.Add(MakeShared<FLensDataCategoryItem>(DistortionEntry, EDataCategories::Distortion, LensDataUtils::FyLabel));
 	}
 	else
 	{
-		DataCategories.Add(MakeShared<FLensDataCategoryItem>(nullptr, EDataCategories::STMap, LensDataUtils::MapsCategoryLabel));
+		DataCategories.Add(MakeShared<FLensDataCategoryItem>(LensFile.Get(), nullptr, ELensDataCategory::STMap, LensDataUtils::MapsCategoryLabel));
 	}
 
-	
-	TSharedPtr<FLensDataCategoryItem> ImageCenterEntry = MakeShared<FLensDataCategoryItem>(nullptr, EDataCategories::ImageCenter, LensDataUtils::ImageCenterCategory);
+	TSharedPtr<FLensDataCategoryItem> ImageCenterEntry = MakeShared<FLensDataCategoryItem>(LensFile.Get(), nullptr, ELensDataCategory::ImageCenter, LensDataUtils::ImageCenterCategory);
 	DataCategories.Add(ImageCenterEntry);
-	ImageCenterEntry->Children.Add(MakeShared<FLensDataCategoryItem>(ImageCenterEntry, EDataCategories::ImageCenter, LensDataUtils::CxLabel));
-	ImageCenterEntry->Children.Add(MakeShared<FLensDataCategoryItem>(ImageCenterEntry, EDataCategories::ImageCenter, LensDataUtils::CyLabel));
+	ImageCenterEntry->Children.Add(MakeShared<FImageCenterCategoryItem>(LensFile.Get(), ImageCenterEntry, ELensDataCategory::ImageCenter, LensDataUtils::CxLabel, 0));
+	ImageCenterEntry->Children.Add(MakeShared<FImageCenterCategoryItem>(LensFile.Get(), ImageCenterEntry, ELensDataCategory::ImageCenter, LensDataUtils::CyLabel, 1));
 
-	TSharedPtr<FLensDataCategoryItem> NodalOffsetCategory = MakeShared<FLensDataCategoryItem>(nullptr, EDataCategories::NodalOffset, LensDataUtils::NodalOffsetCategoryLabel);
+	TSharedPtr<FLensDataCategoryItem> NodalOffsetCategory = MakeShared<FLensDataCategoryItem>(LensFile.Get(), nullptr, ELensDataCategory::NodalOffset, LensDataUtils::NodalOffsetCategoryLabel);
 	DataCategories.Add(NodalOffsetCategory);
 
-	NodalOffsetCategory->Children.Add(MakeShared<FLensDataCategoryItem>(NodalOffsetCategory, EDataCategories::NodalOffset, LensDataUtils::LocationXLabel));
-	NodalOffsetCategory->Children.Add(MakeShared<FLensDataCategoryItem>(NodalOffsetCategory, EDataCategories::NodalOffset, LensDataUtils::LocationYLabel));
-	NodalOffsetCategory->Children.Add(MakeShared<FLensDataCategoryItem>(NodalOffsetCategory, EDataCategories::NodalOffset, LensDataUtils::LocationZLabel));
-	NodalOffsetCategory->Children.Add(MakeShared<FLensDataCategoryItem>(NodalOffsetCategory, EDataCategories::NodalOffset, LensDataUtils::RotationXLabel));
-	NodalOffsetCategory->Children.Add(MakeShared<FLensDataCategoryItem>(NodalOffsetCategory, EDataCategories::NodalOffset, LensDataUtils::RotationYLabel));
-	NodalOffsetCategory->Children.Add(MakeShared<FLensDataCategoryItem>(NodalOffsetCategory, EDataCategories::NodalOffset, LensDataUtils::RotationZLabel));
+	NodalOffsetCategory->Children.Add(MakeShared<FNodalOffsetCategoryItem>(LensFile.Get(), NodalOffsetCategory, ELensDataCategory::NodalOffset, LensDataUtils::LocationXLabel, 0, EAxis::X));
+	NodalOffsetCategory->Children.Add(MakeShared<FNodalOffsetCategoryItem>(LensFile.Get(), NodalOffsetCategory, ELensDataCategory::NodalOffset, LensDataUtils::LocationYLabel, 0, EAxis::Y));
+	NodalOffsetCategory->Children.Add(MakeShared<FNodalOffsetCategoryItem>(LensFile.Get(), NodalOffsetCategory, ELensDataCategory::NodalOffset, LensDataUtils::LocationZLabel, 0, EAxis::Z));
+	NodalOffsetCategory->Children.Add(MakeShared<FNodalOffsetCategoryItem>(LensFile.Get(), NodalOffsetCategory, ELensDataCategory::NodalOffset, LensDataUtils::RotationXLabel, 1, EAxis::X));
+	NodalOffsetCategory->Children.Add(MakeShared<FNodalOffsetCategoryItem>(LensFile.Get(), NodalOffsetCategory, ELensDataCategory::NodalOffset, LensDataUtils::RotationYLabel, 1, EAxis::Y));
+	NodalOffsetCategory->Children.Add(MakeShared<FNodalOffsetCategoryItem>(LensFile.Get(), NodalOffsetCategory, ELensDataCategory::NodalOffset, LensDataUtils::RotationZLabel, 1, EAxis::Z));
 
 	TreeView->RequestTreeRefresh();
 }
@@ -425,30 +394,54 @@ void SLensDataViewer::RefreshDataEntriesTree()
 	{
 		DataEntryNameWidget->SetText(FText::FromName(CategoryItem->Label));
 
+		FOnDataRemoved DataRemovedCallback = FOnDataRemoved::CreateSP(this, &SLensDataViewer::OnDataPointRemoved);
+
 		switch (CategoryItem->Category)
 		{
-			case EDataCategories::Distortion:
+			case ELensDataCategory::Focus:
 			{
-				LensDataUtils::FindFocusPoints<FDistortionMapPoint>(LensFile->DistortionMapping, DataEntries);
+				for (int32 Index = 0; Index <LensFile->EncodersTable.GetNumFocusPoints(); ++Index)
+				{
+					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetFocusInput(Index), Index));
+				}
 				break;
 			}
-			case EDataCategories::ImageCenter:
+			case ELensDataCategory::Iris:
 			{
-				LensDataUtils::FindFocusPoints<FIntrinsicMapPoint>(LensFile->IntrinsicMapping, DataEntries);
+				for (int32 Index = 0; Index <LensFile->EncodersTable.GetNumIrisPoints(); ++Index)
+				{
+					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetIrisInput(Index), Index));
+				}
 				break;
 			}
-			case EDataCategories::NodalOffset:
+			case ELensDataCategory::Zoom:
 			{
-				LensDataUtils::FindFocusPoints<FNodalOffsetMapPoint>(LensFile->NodalOffsetMapping, DataEntries);
+				const TConstArrayView<FFocalLengthFocusPoint> FocusPoints = LensFile->FocalLengthTable.GetFocusPoints();
+				LensDataUtils::MakeFocusEntries(LensFile.Get(), CategoryItem->Category, CategoryItem->GetParameterIndex(), FocusPoints, DataEntries, DataRemovedCallback);
 				break;
 			}
-			case EDataCategories::STMap:
+			case ELensDataCategory::Distortion:
 			{
-				LensDataUtils::FindFocusPoints<FCalibratedMapPoint>(LensFile->CalibratedMapPoints, DataEntries);
+				const TConstArrayView<FDistortionFocusPoint> FocusPoints = LensFile->DistortionTable.GetFocusPoints();
+				LensDataUtils::MakeFocusEntries(LensFile.Get(), CategoryItem->Category, CategoryItem->GetParameterIndex(), FocusPoints, DataEntries, DataRemovedCallback);
 				break;
 			}
-			default:
+			case ELensDataCategory::ImageCenter:
 			{
+				const TConstArrayView<FImageCenterFocusPoint> FocusPoints = LensFile->ImageCenterTable.GetFocusPoints();
+				LensDataUtils::MakeFocusEntries(LensFile.Get(), CategoryItem->Category, CategoryItem->GetParameterIndex(), FocusPoints, DataEntries, DataRemovedCallback);
+				break;
+			}
+			case ELensDataCategory::NodalOffset:
+			{
+				const TConstArrayView<FNodalOffsetFocusPoint> Points = LensFile->NodalOffsetTable.GetFocusPoints();
+				LensDataUtils::MakeFocusEntries(LensFile.Get(), CategoryItem->Category, CategoryItem->GetParameterIndex(), Points, DataEntries, DataRemovedCallback);
+				break;
+			}
+			case ELensDataCategory::STMap:
+			{
+				const TConstArrayView<FSTMapFocusPoint> Points = LensFile->STMapTable.GetFocusPoints();
+				LensDataUtils::MakeFocusEntries(LensFile.Get(), CategoryItem->Category, CategoryItem->GetParameterIndex(), Points, DataEntries, DataRemovedCallback);
 				break;
 			}
 		}
@@ -471,48 +464,93 @@ void SLensDataViewer::RefreshDataEntriesTree()
 	}
 }
 
-void SLensDataViewer::RefreshCurve()
+void SLensDataViewer::RefreshCurve() const
 {
 	CurveEditor->RemoveAllCurves();
-	TUniquePtr<FRichCurveEditorModelRaw> NewCurve;
+	TUniquePtr<FLensDataCurveModel> NewCurve;
 
 	TSharedPtr<FLensDataCategoryItem> CategoryItem = GetDataCategorySelection();
 	if (CategoryItem.IsValid())
 	{
+		const TSharedPtr<FLensDataListItem> CurrentDataItem = GetSelectedDataEntry();
 		switch (CategoryItem->Category)
 		{
-			case EDataCategories::Focus:
+			case ELensDataCategory::Focus:
 			{
-				NewCurve = MakeUnique<FRichCurveEditorModelRaw>(&LensFile->EncoderMapping.Focus, LensFile.Get());
+				NewCurve = MakeUnique<FLensEncodersCurveModel>(LensFile.Get(), EEncoderType::Focus);
 				break;
 			}
-			case EDataCategories::Iris:
+			case ELensDataCategory::Iris:
 			{
-				NewCurve = MakeUnique<FRichCurveEditorModelRaw>(&LensFile->EncoderMapping.Iris, LensFile.Get());
+				NewCurve = MakeUnique<FLensEncodersCurveModel>(LensFile.Get(), EEncoderType::Iris);
 				break;
 			}
-			case EDataCategories::Zoom:
+			case ELensDataCategory::Zoom:
 			{
-				NewCurve = MakeUnique<FRichCurveEditorModelRaw>(&LensFile->EncoderMapping.Zoom, LensFile.Get());
+				if (CurrentDataItem)
+				{
+					const TOptional<float> Focus = CurrentDataItem->GetFocus();
+					if(Focus.IsSet())
+					{
+						const int32 ParameterIndex = CategoryItem->GetParameterIndex();
+						NewCurve = MakeUnique<FLensFocalLengthCurveModel>(LensFile.Get(), Focus.GetValue(), ParameterIndex);
+					}
+				}
 				break;
 			}
-			case EDataCategories::Distortion:
+			case ELensDataCategory::Distortion:
 			{
+				if (CurrentDataItem)
+				{
+					const TOptional<float> Focus = CurrentDataItem->GetFocus();
+					if(Focus.IsSet())
+					{
+						const int32 ParameterIndex = CategoryItem->GetParameterIndex();
+						NewCurve = MakeUnique<FLensDistortionParametersCurveModel>(LensFile.Get(), Focus.GetValue(), ParameterIndex);
+					}
+				}
 				break;
 			}
-			case EDataCategories::ImageCenter:
+			case ELensDataCategory::ImageCenter:
 			{
+				if (CurrentDataItem)
+				{
+					const TOptional<float> Focus = CurrentDataItem->GetFocus();
+					const int32 ParameterIndex = CategoryItem->GetParameterIndex();
+					if(Focus.IsSet() && ParameterIndex != INDEX_NONE)
+					{
+						NewCurve = MakeUnique<FLensImageCenterCurveModel>(LensFile.Get(), Focus.GetValue(), ParameterIndex);
+					}
+				}
 				break;
 			}
-			case EDataCategories::NodalOffset:
+			case ELensDataCategory::NodalOffset:
 			{
+				if (CurrentDataItem)
+				{
+					TSharedPtr<FNodalOffsetCategoryItem> NodalCategory = StaticCastSharedPtr<FNodalOffsetCategoryItem>(CategoryItem);
+					const TOptional<float> Focus = CurrentDataItem->GetFocus();
+					const int32 ParameterIndex = CategoryItem->GetParameterIndex();
+					if(Focus.IsSet() && ParameterIndex != INDEX_NONE)
+					{
+						NewCurve = MakeUnique<FLensNodalOffsetCurveModel>(LensFile.Get(), Focus.GetValue(), ParameterIndex, NodalCategory->Axis);
+					}
+				}
 				break;
 			}
-			case EDataCategories::STMap:
+			case ELensDataCategory::STMap:
 			{
+					if (CurrentDataItem)
+					{
+						const TOptional<float> Focus = CurrentDataItem->GetFocus();
+						if(Focus.IsSet())
+						{
+							NewCurve = MakeUnique<FLensSTMapCurveModel>(LensFile.Get(), Focus.GetValue());
+						}
+					}
 				break;
 			}
-		default:
+			default:
 			{
 				break;
 			}
@@ -532,6 +570,22 @@ void SLensDataViewer::RefreshCurve()
 void SLensDataViewer::OnLensDataPointAdded()
 {
 	RefreshDataEntriesTree();
+}
+
+void SLensDataViewer::OnDataPointRemoved(float InFocus, TOptional<float> InZoom)
+{
+	RefreshDataEntriesTree();
+}
+
+void SLensDataViewer::OnDataTablePointsUpdated(ELensDataCategory InCategory)
+{
+	if (TSharedPtr<FLensDataCategoryItem> CategoryItem = GetDataCategorySelection())
+	{
+		if (CategoryItem->Category == InCategory)
+		{
+			RefreshDataEntriesTree();
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE /* LensDataViewer */

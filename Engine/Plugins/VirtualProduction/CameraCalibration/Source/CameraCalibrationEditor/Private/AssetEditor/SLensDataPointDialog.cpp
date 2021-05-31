@@ -13,6 +13,7 @@
 #include "Models/LensModel.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyHandle.h"
+#include "ScopedTransaction.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -110,11 +111,18 @@ private:
 	TSubclassOf<ULensModel> CurrentLensModel;
 };
 
-void SLensDataPointDialog::Construct(const FArguments& InArgs, ULensFile* InLensFile)
+void SLensDataPointDialog::Construct(const FArguments& InArgs, ULensFile* InLensFile, ELensDataCategory InitialDataCategory)
 {
 	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
 	CachedFIZ = InArgs._CachedFIZData;
 	OnDataPointAdded = InArgs._OnDataPointAdded;
+
+	//Initialize different data structure we'll use to store data
+	FocalLengthData = MakeShared<TStructOnScope<FFocalLengthInfo>>();
+	DistortionInfoData = MakeShared<TStructOnScope<FDistortionInfoContainer>>();
+	ImageCenterData = MakeShared<TStructOnScope<FImageCenterInfo>>();
+	NodalOffsetData = MakeShared<TStructOnScope<FNodalPointOffset>>();
+	STMapData = MakeShared<TStructOnScope<FSTMapInfo>>();
 
 	ChildSlot
 	[
@@ -143,13 +151,13 @@ void SLensDataPointDialog::Construct(const FArguments& InArgs, ULensFile* InLens
 					{
 							switch (SelectedCategory)
 							{
-								case EDataCategories::Focus: return LOCTEXT("FocusCategory", "Encoder - Focus");
-								case EDataCategories::Iris: return LOCTEXT("IrisCategory", "Encoder - Iris");
-								case EDataCategories::Zoom: return LOCTEXT("ZoomCategory", "Encoder - Zoom");
-								case EDataCategories::Distortion: return LOCTEXT("DistortionCategory", "Distortion Parameters");
-								case EDataCategories::ImageCenter: return LOCTEXT("ImageCenterCategory", "Image Center");
-								case EDataCategories::NodalOffset: return LOCTEXT("NodalOffsetCategory", "Nodal offset");
-								case EDataCategories::STMap: return LOCTEXT("STMapCategory", "STMap");
+								case ELensDataCategory::Focus: return LOCTEXT("FocusCategory", "Encoder - Focus");
+								case ELensDataCategory::Iris: return LOCTEXT("IrisCategory", "Encoder - Iris");
+								case ELensDataCategory::Zoom: return LOCTEXT("ZoomCategory", "Focal Length");
+								case ELensDataCategory::Distortion: return LOCTEXT("DistortionCategory", "Distortion Parameters");
+								case ELensDataCategory::ImageCenter: return LOCTEXT("ImageCenterCategory", "Image Center");
+								case ELensDataCategory::NodalOffset: return LOCTEXT("NodalOffsetCategory", "Nodal offset");
+								case ELensDataCategory::STMap: return LOCTEXT("STMapCategory", "STMap");
 								default: return LOCTEXT("InvalidCategory", "Invalid");
 							}
 					}))
@@ -196,7 +204,7 @@ void SLensDataPointDialog::Construct(const FArguments& InArgs, ULensFile* InLens
 		]
 	];
 	
-	SetDataCategory(EDataCategories::Focus);
+	SetDataCategory(InitialDataCategory);
 }
 
 void SLensDataPointDialog::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -205,7 +213,7 @@ void SLensDataPointDialog::Tick(const FGeometry& AllottedGeometry, const double 
 	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
-void SLensDataPointDialog::OpenDialog(ULensFile* InLensFile, TAttribute<FCachedFIZData> InCachedFIZData, const FSimpleDelegate& InOnDataPointAdded)
+void SLensDataPointDialog::OpenDialog(ULensFile* InLensFile, ELensDataCategory InitialDataCategory, TAttribute<FCachedFIZData> InCachedFIZData, const FSimpleDelegate& InOnDataPointAdded)
 {
 	TSharedPtr<SWindow> ExistingWindowPin = ExistingWindow.Pin();
 	if (ExistingWindowPin.IsValid())
@@ -225,7 +233,7 @@ void SLensDataPointDialog::OpenDialog(ULensFile* InLensFile, TAttribute<FCachedF
 	}
 
 	TSharedPtr<SLensDataPointDialog> AddPointDialog = 
-		SNew(SLensDataPointDialog, InLensFile)
+		SNew(SLensDataPointDialog, InLensFile, InitialDataCategory)
 		.CachedFIZData(MoveTemp(InCachedFIZData))
 		.OnDataPointAdded(InOnDataPointAdded);
 
@@ -235,6 +243,9 @@ void SLensDataPointDialog::OpenDialog(ULensFile* InLensFile, TAttribute<FCachedF
 
 FReply SLensDataPointDialog::OnAddDataPointClicked()
 {
+	const FScopedTransaction MapPointAdded(LOCTEXT("MapPointAdded", "Map Point Added"));
+	LensFile->Modify();
+
 	AddDataToLensFile();
 
 	OnDataPointAdded.ExecuteIfBound();
@@ -283,25 +294,21 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeTrackingDataWidget()
 	//Based on category, either have one tracking input or two
 	switch (SelectedCategory)
 	{
-		case EDataCategories::Focus:
+		case ELensDataCategory::Focus:
 		{
 			TrackingWidget = MakeRowWidget(TEXT("Input Focus"), 0);
 			break;
 		}
-		case EDataCategories::Iris:
+		case ELensDataCategory::Iris:
 		{
 			TrackingWidget = MakeRowWidget(TEXT("Input Iris"), 0);
 			break;
 		}
-		case EDataCategories::Zoom:
-		{
-			TrackingWidget = MakeRowWidget(TEXT("Input Zoom"), 0);
-			break;
-		}
-		case EDataCategories::Distortion:
-		case EDataCategories::ImageCenter:
-		case EDataCategories::NodalOffset:
-		case EDataCategories::STMap:
+		case ELensDataCategory::Zoom:
+		case ELensDataCategory::Distortion:
+		case ELensDataCategory::ImageCenter:
+		case ELensDataCategory::NodalOffset:
+		case ELensDataCategory::STMap:
 		default:
 		{
 			TrackingWidget = 
@@ -328,54 +335,69 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeLensDataWidget()
 	FStructureDetailsViewArgs StructureViewArgs;
 	FDetailsViewArgs DetailArgs;
 	DetailArgs.bAllowSearch = false;
-	DetailArgs.bShowScrollBar = false;
+	DetailArgs.bShowScrollBar = true;
 
 	FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 	TSharedPtr<SWidget> LensDataWidget = SNullWidget::NullWidget;
 	
-	TSharedPtr<IStructureDetailsView> StructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, TSharedPtr<FStructOnScope>());
-	
-	LensData.Reset();
-	
 	switch (SelectedCategory)
 	{
-		case EDataCategories::Focus:
-		case EDataCategories::Iris:
-		case EDataCategories::Zoom:
+		case ELensDataCategory::Focus:
+		case ELensDataCategory::Iris:
 		{
 			LensDataWidget = MakeEncoderMappingWidget();
 			break;
 		}
-		case EDataCategories::Distortion:
+		case ELensDataCategory::Zoom:
 		{
-			LensData = MakeShared<FStructOnScope>(FDistortionInfoContainer::StaticStruct());
-			StructureDetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout(FDistortionInfo::StaticStruct()->GetFName(),
+			FocalLengthData->InitializeAs<FFocalLengthInfo>();
+			TSharedPtr<IStructureDetailsView> FocalLengthStructDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, FocalLengthData);
+			LensDataWidget = FocalLengthStructDetailsView->GetWidget();
+			break;
+		}
+		case ELensDataCategory::Distortion:
+		{
+			DistortionInfoData->InitializeAs<FDistortionInfoContainer>();
+			TSharedPtr<IStructureDetailsView> DistortionDataStructDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, TSharedPtr<FStructOnScope>());
+			DistortionDataStructDetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout(FDistortionInfo::StaticStruct()->GetFName(),
 				FOnGetPropertyTypeCustomizationInstance::CreateLambda([this]() { return MakeShared<FDistortionInfoCustomization>(LensFile->LensInfo.LensModel); })
 			);
+			DistortionDataStructDetailsView->SetStructureData(DistortionInfoData);
+				
+			FocalLengthData->InitializeAs<FFocalLengthInfo>();
+			TSharedPtr<IStructureDetailsView> FocalLengthStructDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, FocalLengthData);
 
-			StructureDetailsView->SetStructureData(LensData);
-			LensDataWidget = StructureDetailsView->GetWidget();
+			LensDataWidget =
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				[
+					DistortionDataStructDetailsView->GetWidget().ToSharedRef()
+				]
+				+ SVerticalBox::Slot()
+				[
+					FocalLengthStructDetailsView->GetWidget().ToSharedRef()
+				];
 
 			break;
 		}
-		case EDataCategories::ImageCenter:
+		case ELensDataCategory::ImageCenter:
 		{
-			LensData = MakeShared<FStructOnScope>(FIntrinsicParameters::StaticStruct());
-			StructureDetailsView->SetStructureData(LensData);
+			ImageCenterData->InitializeAs<FImageCenterInfo>();
+			TSharedPtr<IStructureDetailsView> StructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, ImageCenterData);
 			LensDataWidget = StructureDetailsView->GetWidget();
 			break;
 		}
-		case EDataCategories::NodalOffset:
+		case ELensDataCategory::NodalOffset:
 		{
-			LensData = MakeShared<FStructOnScope>(FNodalPointOffset::StaticStruct());
-			StructureDetailsView->SetStructureData(LensData);
+			NodalOffsetData->InitializeAs<FNodalPointOffset>();
+			TSharedPtr<IStructureDetailsView> StructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, NodalOffsetData);
 			LensDataWidget = StructureDetailsView->GetWidget();
 			break;
 		}
-		case EDataCategories::STMap:
+		case ELensDataCategory::STMap:
 		{
-			LensData = MakeShared<FStructOnScope>(FCalibratedMapInfo::StaticStruct());
-			StructureDetailsView->SetStructureData(LensData);
+			STMapData->InitializeAs<FSTMapInfo>();
+			TSharedPtr<IStructureDetailsView> StructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, STMapData);
 			LensDataWidget = StructureDetailsView->GetWidget();
 			break;
 		}
@@ -416,7 +438,7 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeDataCategoryMenuWidget()
 
 	MenuBuilder.BeginSection("LensDataCategories", LOCTEXT("LensDataCategories", "Lens data categories"));
 	{
-		const auto AddMenuEntryFn = [&MenuBuilder, this](const FString& Label, EDataCategories Category)
+		const auto AddMenuEntryFn = [&MenuBuilder, this](const FString& Label, ELensDataCategory Category)
 		{
 			MenuBuilder.AddMenuEntry
 			(
@@ -435,12 +457,13 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeDataCategoryMenuWidget()
 		};
 		
 		//Add different categories that we support
-		AddMenuEntryFn(TEXT("Focus"), EDataCategories::Focus);
-		AddMenuEntryFn(TEXT("Iris"), EDataCategories::Iris);
-		AddMenuEntryFn(TEXT("Distortion Parameters"), EDataCategories::Distortion);
-		AddMenuEntryFn(TEXT("Image Center"), EDataCategories::ImageCenter);
-		AddMenuEntryFn(TEXT("Nodal Offset"), EDataCategories::NodalOffset);
-		AddMenuEntryFn(TEXT("STMap"), EDataCategories::STMap);
+		AddMenuEntryFn(TEXT("Focus"), ELensDataCategory::Focus);
+		AddMenuEntryFn(TEXT("Iris"), ELensDataCategory::Iris);
+		AddMenuEntryFn(TEXT("Focal Length"), ELensDataCategory::Zoom);
+		AddMenuEntryFn(TEXT("Distortion Parameters"), ELensDataCategory::Distortion);
+		AddMenuEntryFn(TEXT("Image Center"), ELensDataCategory::ImageCenter);
+		AddMenuEntryFn(TEXT("Nodal Offset"), ELensDataCategory::NodalOffset);
+		AddMenuEntryFn(TEXT("STMap"), ELensDataCategory::STMap);
 	}
 	MenuBuilder.EndSection();
 
@@ -480,7 +503,7 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeEncoderMappingWidget()
 		];
 }
 
-void SLensDataPointDialog::SetDataCategory(EDataCategories NewCategory)
+void SLensDataPointDialog::SetDataCategory(ELensDataCategory NewCategory)
 {
 	if (NewCategory != SelectedCategory)
 	{
@@ -548,7 +571,7 @@ void SLensDataPointDialog::RefreshEvaluationData()
 	
 	switch (SelectedCategory)
 	{
-		case EDataCategories::Focus:
+		case ELensDataCategory::Focus:
 		{
 			if (IsTrackingDataOverrided(0) == false)
 			{
@@ -556,7 +579,7 @@ void SLensDataPointDialog::RefreshEvaluationData()
 			}
 			break;
 		}
-		case EDataCategories::Iris:
+		case ELensDataCategory::Iris:
 		{
 			if (IsTrackingDataOverrided(0) == false)
 			{
@@ -565,19 +588,10 @@ void SLensDataPointDialog::RefreshEvaluationData()
 			break;
 		}
 		break;
-		case EDataCategories::Zoom:
-		{
-			if (IsTrackingDataOverrided(0) == false)
-			{
-				TrackingInputData[0].Value = Zoom;
-			}
-			break;
-		}
-		break;
-		case EDataCategories::Distortion:
-		case EDataCategories::ImageCenter:
-		case EDataCategories::NodalOffset:
-		case EDataCategories::STMap:
+		case ELensDataCategory::Distortion:
+		case ELensDataCategory::ImageCenter:
+		case ELensDataCategory::NodalOffset:
+		case ELensDataCategory::STMap:
 		default:
 		{
 			if (IsTrackingDataOverrided(0) == false)
@@ -593,42 +607,43 @@ void SLensDataPointDialog::RefreshEvaluationData()
 	}
 }
 
-void SLensDataPointDialog::AddDataToLensFile()
+void SLensDataPointDialog::AddDataToLensFile() const
 {
-	//Logic to add points to LensFile is still todo. Requires updating LensFile API
 	switch (SelectedCategory)
 	{
-		case EDataCategories::Focus:
+		case ELensDataCategory::Focus:
 		{
-			LensFile->EncoderMapping.Focus.AddKey(TrackingInputData[0].Value, EncoderMappingValue);
+			LensFile->EncodersTable.Focus.AddKey(TrackingInputData[0].Value, EncoderMappingValue);
 			break;
 		}
-		case EDataCategories::Iris:
+		case ELensDataCategory::Iris:
 		{
-			LensFile->EncoderMapping.Iris.AddKey(TrackingInputData[0].Value, EncoderMappingValue);
+			LensFile->EncodersTable.Iris.AddKey(TrackingInputData[0].Value, EncoderMappingValue);
 			break;
 		}
-		break;
-		case EDataCategories::Zoom:
+		case ELensDataCategory::Zoom:
 		{
-			LensFile->EncoderMapping.Zoom.AddKey(TrackingInputData[0].Value, EncoderMappingValue);
-			break;
-		}
-		break;
-		case EDataCategories::Distortion:
-		{
+			LensFile->AddFocalLengthPoint(TrackingInputData[0].Value, TrackingInputData[1].Value, *FocalLengthData->Get());
 			break;
 		}	
-		case EDataCategories::ImageCenter:
+		case ELensDataCategory::Distortion:
 		{
+			LensFile->AddDistortionPoint(TrackingInputData[0].Value, TrackingInputData[1].Value, DistortionInfoData->Get()->DistortionInfo, *FocalLengthData->Get());
+			break;
+		}	
+		case ELensDataCategory::ImageCenter:
+		{
+			LensFile->AddImageCenterPoint(TrackingInputData[0].Value, TrackingInputData[1].Value, *ImageCenterData->Get());
 			break;
 		}
-		case EDataCategories::NodalOffset:
+		case ELensDataCategory::NodalOffset:
 		{
+			LensFile->AddNodalOffsetPoint(TrackingInputData[0].Value, TrackingInputData[1].Value, *NodalOffsetData->Get());
 			break;
 		}
-		case EDataCategories::STMap:
+		case ELensDataCategory::STMap:
 		{
+			LensFile->AddSTMapPoint(TrackingInputData[0].Value, TrackingInputData[1].Value, *STMapData->Get());
 			break;
 		}
 		default:

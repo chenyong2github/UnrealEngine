@@ -1,0 +1,129 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+
+#include "Tables/STMapTable.h"
+
+#include "LensTableUtils.h"
+
+
+int32 FSTMapFocusPoint::GetNumPoints() const
+{
+	return MapBlendingCurve.GetNumKeys();
+}
+
+float FSTMapFocusPoint::GetZoom(int32 Index) const
+{
+	return MapBlendingCurve.Keys[Index].Time;
+}
+
+const FSTMapZoomPoint* FSTMapFocusPoint::GetZoomPoint(float InZoom) const
+{
+	return ZoomPoints.FindByPredicate([InZoom](const FSTMapZoomPoint& Point) { return FMath::IsNearlyEqual(Point.Zoom, InZoom); });
+}
+
+FSTMapZoomPoint* FSTMapFocusPoint::GetZoomPoint(float InZoom)
+{
+	return ZoomPoints.FindByPredicate([InZoom](const FSTMapZoomPoint& Point) { return FMath::IsNearlyEqual(Point.Zoom, InZoom); });
+}
+
+bool FSTMapFocusPoint::AddPoint(float InZoom, const FSTMapInfo& InData, float InputTolerance, bool bIsCalibrationPoint)
+{
+	const FKeyHandle Handle = MapBlendingCurve.FindKey(InZoom, InputTolerance);
+	if(Handle != FKeyHandle::Invalid())
+	{
+		const int32 PointIndex = MapBlendingCurve.GetIndexSafe(Handle);
+		if(ensure(ZoomPoints.IsValidIndex(PointIndex)))
+		{
+			//No need to update map curve since x == y
+			ZoomPoints[PointIndex].STMapInfo = InData;
+			ZoomPoints[PointIndex].DerivedDistortionData.bIsDirty = true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		//Add new zoom point
+		const FKeyHandle NewKeyHandle = MapBlendingCurve.AddKey(InZoom, InZoom);
+		MapBlendingCurve.SetKeyTangentMode(NewKeyHandle, ERichCurveTangentMode::RCTM_Auto);
+		MapBlendingCurve.SetKeyInterpMode(NewKeyHandle, RCIM_Cubic);
+
+		const int32 KeyIndex = MapBlendingCurve.GetIndexSafe(NewKeyHandle);
+		FSTMapZoomPoint NewZoomPoint;
+		NewZoomPoint.Zoom = InZoom;
+		NewZoomPoint.STMapInfo = InData;
+		NewZoomPoint.bIsCalibrationPoint = bIsCalibrationPoint;
+		ZoomPoints.Insert(MoveTemp(NewZoomPoint), KeyIndex);
+	}
+
+	return true;
+}
+
+void FSTMapFocusPoint::RemovePoint(float InZoomValue)
+{
+	const int32 FoundIndex = ZoomPoints.IndexOfByPredicate([InZoomValue](const FSTMapZoomPoint& Point) { return FMath::IsNearlyEqual(Point.Zoom, InZoomValue); });
+	if(FoundIndex != INDEX_NONE)
+	{
+		ZoomPoints.RemoveAt(FoundIndex);
+	}
+
+	const FKeyHandle KeyHandle = MapBlendingCurve.FindKey(InZoomValue);
+	if(KeyHandle != FKeyHandle::Invalid())
+	{
+		MapBlendingCurve.DeleteKey(KeyHandle);
+	}
+}
+
+bool FSTMapFocusPoint::IsEmpty() const
+{
+	return MapBlendingCurve.IsEmpty();
+}
+
+bool FSTMapTable::BuildMapBlendingCurve(float InFocus, FRichCurve& OutCurve)
+{
+	if(FSTMapFocusPoint* FocusPoint = GetFocusPoint(InFocus))
+	{
+		OutCurve = FocusPoint->MapBlendingCurve;
+		return true;
+	}
+
+	return false;
+}
+
+const FSTMapFocusPoint* FSTMapTable::GetFocusPoint(float InFocus) const
+{
+	return FocusPoints.FindByPredicate([InFocus](const FSTMapFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+}
+
+FSTMapFocusPoint* FSTMapTable::GetFocusPoint(float InFocus)
+{
+	return FocusPoints.FindByPredicate([InFocus](const FSTMapFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+}
+
+TConstArrayView<FSTMapFocusPoint> FSTMapTable::GetFocusPoints() const
+{
+	return FocusPoints;
+}
+
+TArrayView<FSTMapFocusPoint> FSTMapTable::GetFocusPoints()
+{
+	return FocusPoints;
+}
+
+void FSTMapTable::RemoveFocusPoint(float InFocus)
+{
+	LensDataTableUtils::RemoveFocusPoint(FocusPoints, InFocus);
+}
+
+void FSTMapTable::RemoveZoomPoint(float InFocus, float InZoom)
+{
+	LensDataTableUtils::RemoveZoomPoint(FocusPoints, InFocus, InZoom);
+}
+
+bool FSTMapTable::AddPoint(float InFocus, float InZoom, const FSTMapInfo& InData, float InputTolerance,
+	bool bIsCalibrationPoint)
+{
+	return LensDataTableUtils::AddPoint(FocusPoints, InFocus, InZoom, InData, InputTolerance, bIsCalibrationPoint);
+}

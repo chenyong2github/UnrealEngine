@@ -26,8 +26,11 @@ enum class EDerivedDistortionDataResult : uint8
  */
 struct FDerivedDistortionDataJobArgs
 {
-	/** Identifier of the source/destination point */
-	FGuid Identifier;
+	/** Focus point this is associated with */
+	float Focus = 0.0f;
+	
+	/** Zoom point this is associated with */
+	float Zoom = 0.0f;
 
 	/** Source calibrated map */
 	//When coefficient route is supported, we might look at how we can have a mutual interface
@@ -63,8 +66,11 @@ struct FDerivedDistortionDataJobOutput
 	/** Result of that job */
 	EDerivedDistortionDataResult Result = EDerivedDistortionDataResult::Error;
 
-	/** Identifier that we were given in job arguments */
-	FGuid Identifier;
+	/** Focus point this is associated with */
+	float Focus = -1.0f;
+	
+	/** Zoom point this is associated with */
+	float Zoom = -1.0f;
 
 	/** Distorted UVs we found at the 8 edge points */
 	static constexpr int32 EdgePointCount = 8;

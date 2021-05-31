@@ -785,16 +785,18 @@ void FNodalOffsetTool::OnSaveCurrentNodalOffset()
 
 	FText ErrorMessage;
 
-	FNodalOffsetMapPoint NodalOffsetMapPoint;
+	float Focus = 0.0f;
+	float Zoom = 0.0f;
+	FNodalPointOffset NodalOffset;
 	float ReprojectionError;
 
-	if (!Algo->GetNodalOffset(NodalOffsetMapPoint.NodalOffset, NodalOffsetMapPoint.Focus, NodalOffsetMapPoint.Zoom, ReprojectionError, ErrorMessage))
+	if (!Algo->GetNodalOffset(NodalOffset, Focus, Zoom, ReprojectionError, ErrorMessage))
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
 		return;
 	}
 
-	LensFile->NodalOffsetMapping.Add(NodalOffsetMapPoint);
+	LensFile->AddNodalOffsetPoint(Focus, Zoom, NodalOffset);
 
 	// Force bApplyNodalOffset in the LiveLinkCameraController so that we can see the effect right away
 	if (ULiveLinkCameraController* LiveLinkCameraController = FindLiveLinkCameraControllerWithLens(Camera.Get(), LensFile.Get()))

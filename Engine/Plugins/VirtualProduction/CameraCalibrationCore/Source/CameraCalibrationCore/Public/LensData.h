@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 
 #include "Engine/EngineTypes.h"
+#include "Engine/Texture.h"
 #include "Models/LensModel.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -51,6 +52,19 @@ public:
 	/** Generic array of floating-point lens distortion parameters */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	TArray<float> Parameters;
+};
+
+/**
+ * Normalized focal length information for both width and height dimension
+ * If focal length is in pixel, normalize using pixel dimensions
+ * If focal length is in mm, normalize using sensor dimensions
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FFocalLengthInfo
+{
+	GENERATED_BODY()
+
+public:
 
 	/** Value expected to be normalized (unitless) */
 	UPROPERTY(EditAnywhere, Category = "Camera")
@@ -58,10 +72,28 @@ public:
 };
 
 /**
- * Lens camera parameters
+ * Pre generate STMap and normalized focal length information
  */
 USTRUCT(BlueprintType)
-struct CAMERACALIBRATIONCORE_API FIntrinsicParameters
+struct CAMERACALIBRATIONCORE_API FSTMapInfo
+{
+	GENERATED_BODY()
+
+public:
+	/** 
+	 * Pre calibrated UVMap/STMap
+	 * RG channels are expected to have undistortion map (from distorted to undistorted)
+	 * BA channels are expected to have distortion map (from undistorted (CG) to distorted)
+	 */
+	UPROPERTY(EditAnywhere, Category = "Distortion")
+	UTexture* DistortionMap = nullptr;
+};
+
+/**
+ * Lens camera image center parameters
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FImageCenterInfo
 {
 	GENERATED_BODY()
 
@@ -86,6 +118,24 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Nodal point")
 	FQuat RotationOffset = FQuat::Identity;
+};
+
+/**
+* Distortion data evaluated for given FZ pair based on lens parameters
+*/
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FDistortionData
+{
+	GENERATED_BODY()
+
+	public:
+
+	UPROPERTY(VisibleAnywhere, Category = "Distortion")
+	TArray<FVector2D> DistortedUVs;
+
+	/** Estimated overscan factor based on distortion to have distorted cg covering full size */
+	UPROPERTY(EditAnywhere, Category = "Distortion")
+	float OverscanFactor = 1.0f;
 };
 
 

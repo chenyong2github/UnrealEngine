@@ -14,6 +14,7 @@
 #include "LensFileRendering.h"
 #include "LensInterpolationUtils.h"
 #include "Models/SphericalLensModel.h"
+#include "Tables/LensTableUtils.h"
 
 
 namespace LensFileUtils
@@ -43,15 +44,6 @@ namespace LensFileUtils
 
 		return NewRenderTarget2D;
 	}	
-
-
-	int32 GDistortionParametersBlendMode = 0;
-	static FAutoConsoleVariableRef CVarDistortionParametersBlendMode(
-		TEXT("Lens.DistortionParametersBlendMode"),
-		GDistortionParametersBlendMode,
-		TEXT("Integer value specifying how to blend distortion parameters: (0 - Default) Blend parameters based on blend type, (1 - Blend DisplacementMap) Run distortion equation and blend the resulting maps"),
-		ECVF_Default
-	);
 }
 
 const TArray<FVector2D> ULensFile::UndistortedUVs =
@@ -83,45 +75,33 @@ void ULensFile::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& P
 	if(PropertyChangedEvent.Property != nullptr)
 	{
 		const FName PropertyName = PropertyChangedEvent.Property->GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(FCalibratedMapPoint, DistortionMap))
+		FName ActiveMemberName;
+		FProperty* ActiveMemberProperty = nullptr;
+		if (PropertyChangedEvent.PropertyChain.GetActiveMemberNode() && PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue())
+		{
+			ActiveMemberProperty = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue();
+			ActiveMemberName = ActiveMemberProperty->GetFName();
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(FSTMapInfo, DistortionMap))
 		{
 			//When the distortion map (stmap) changes, flag associated derived data as dirty to update it
-			check(PropertyChangedEvent.PropertyChain.GetActiveMemberNode() && PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue());
-
-			const FName MemberPropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();
-			const int32 ModifiedIndex = PropertyChangedEvent.GetArrayIndex(MemberPropertyName.ToString());
-			check(CalibratedMapPoints.IsValidIndex(ModifiedIndex));
-
-			FCalibratedMapPoint& MapPoint = CalibratedMapPoints[ModifiedIndex];
-			MapPoint.DerivedDistortionData.bIsDirty = true;
+			if (ActiveMemberProperty)
+			{
+				//@todo Find out which map was changed and set it dirty
+			}
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensInfo, LensModel))
 		{
-			uint32 NumDistortionParameters = 0;
-			if (LensInfo.LensModel)
-			{
-				NumDistortionParameters = LensInfo.LensModel.GetDefaultObject()->GetNumParameters();
-			}
-
-			for (FDistortionMapPoint& MapPoint : DistortionMapping)
-			{
-				MapPoint.DistortionInfo.Parameters.Empty();
-				MapPoint.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
-			}
+			//LensModel has changed, clear distortion and focal length tables
+			LensDataTableUtils::EmptyTable(DistortionTable);
+			LensDataTableUtils::EmptyTable(FocalLengthTable);
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensFile, DistortionMapping))
+		else if (ActiveMemberName == GET_MEMBER_NAME_CHECKED(ULensFile, LensInfo))
 		{
-			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
-			{
-				uint32 NumDistortionParameters = 0;
-				if (LensInfo.LensModel)
-				{
-					NumDistortionParameters = LensInfo.LensModel.GetDefaultObject()->GetNumParameters();
-				}
-
-				FDistortionMapPoint& MapPoint = DistortionMapping.Last();
-				MapPoint.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
-			}
+			//Make sure sensor dimensions have valid values
+			LensInfo.SensorDimensions.X = FMath::Max(LensInfo.SensorDimensions.X, 1.0f);
+			LensInfo.SensorDimensions.Y = FMath::Max(LensInfo.SensorDimensions.Y, 1.0f);
 		}
 	}
 	
@@ -132,52 +112,143 @@ void ULensFile::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& P
 
 bool ULensFile::EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue) const
 {
-	if (DistortionMapping.Num() <= 0)
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluateDistortionParameters);
+
+	if (DistortionTable.GetFocusPoints().Num() <= 0)
 	{
 		return false;
 	}
 
-	if (DistortionMapping.Num() == 1)
+	const LensDataTableUtils::FPointNeighbors Neighbors = LensDataTableUtils::FindFocusPoints(InFocus, DistortionTable.GetFocusPoints());
+	const FDistortionFocusPoint& PreviousPoint = DistortionTable.GetFocusPoints()[Neighbors.PreviousIndex];
+	const FDistortionFocusPoint& NextPoint = DistortionTable.GetFocusPoints()[Neighbors.NextIndex];
+	if (Neighbors.NextIndex == Neighbors.PreviousIndex)
 	{
-		OutEvaluatedValue = DistortionMapping[0].DistortionInfo;
-		return true;
+		const LensDataTableUtils::FPointNeighbors ZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, PreviousPoint.ZoomPoints);
+		const FDistortionZoomPoint& PreviousZoomPoint = PreviousPoint.ZoomPoints[ZoomNeighbors.PreviousIndex];
+		const FDistortionZoomPoint& NextZoomPoint = PreviousPoint.ZoomPoints[ZoomNeighbors.NextIndex];
+		if (ZoomNeighbors.NextIndex == ZoomNeighbors.PreviousIndex)
+		{
+			//Exactly on one point
+			OutEvaluatedValue = PreviousZoomPoint.DistortionInfo;
+		}
+		else
+		{
+			//Linear blend between two zoom points
+			const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousZoomPoint.Zoom, NextZoomPoint.Zoom);
+			LensInterpolationUtils::Interpolate(BlendFactor, &PreviousZoomPoint.DistortionInfo, &NextZoomPoint.DistortionInfo, &OutEvaluatedValue);
+		}
+	}
+	else
+	{
+		//Previous Focus two zoom points
+		const LensDataTableUtils::FPointNeighbors PreviousFocusZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, PreviousPoint.ZoomPoints);
+		const FDistortionZoomPoint& PreviousFocusPreviousZoomPoint = PreviousPoint.ZoomPoints[PreviousFocusZoomNeighbors.PreviousIndex];
+		const FDistortionZoomPoint& PreviousFocusNextZoomPoint = PreviousPoint.ZoomPoints[PreviousFocusZoomNeighbors.NextIndex];
+
+		//Next focus two zoom points
+		const LensDataTableUtils::FPointNeighbors NextFocusZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, NextPoint.ZoomPoints);
+		const FDistortionZoomPoint NextFocusPreviousZoomPoint = NextPoint.ZoomPoints[NextFocusZoomNeighbors.PreviousIndex];
+		const FDistortionZoomPoint& NextFocusNextZoomPoint = NextPoint.ZoomPoints[NextFocusZoomNeighbors.NextIndex];
+
+		//Linear blend between each zoom point pair and then both results linearly according to focus
+		FDistortionInfo PreviousFocusBlendResult;
+		FDistortionInfo NextFocusBlendResult;
+		const float PreviousFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousFocusPreviousZoomPoint.Zoom, PreviousFocusNextZoomPoint.Zoom);
+		LensInterpolationUtils::Interpolate(PreviousFocusZoomBlendFactor, &PreviousFocusPreviousZoomPoint.DistortionInfo, &PreviousFocusNextZoomPoint.DistortionInfo, &PreviousFocusBlendResult);
+
+		const float NextFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, NextFocusPreviousZoomPoint.Zoom, NextFocusNextZoomPoint.Zoom);
+		LensInterpolationUtils::Interpolate(NextFocusZoomBlendFactor, &NextFocusPreviousZoomPoint.DistortionInfo, &NextFocusNextZoomPoint.DistortionInfo, &NextFocusBlendResult);
+
+		const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
+		LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusBlendResult, &NextFocusBlendResult, &OutEvaluatedValue);
 	}
 
-	FDistortionMapPoint InterpPoint;
-	const bool bSuccess = LensInterpolationUtils::FIZMappingBilinearInterpolation<FDistortionMapPoint>(InFocus, InZoom, DistortionMapping, InterpPoint);
-	if (bSuccess)
-	{
-		OutEvaluatedValue = MoveTemp(InterpPoint.DistortionInfo);
-	}
-
-	return bSuccess;
+	return true;
 }
 
-bool ULensFile::EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue) const
+bool ULensFile::EvaluateFocalLength(float InFocus, float InZoom, FFocalLengthInfo& OutEvaluatedValue) const
 {
-	if (IntrinsicMapping.Num() <= 0)
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluateFocalLength);
+
+	if (FocalLengthTable.FocusPoints.Num() <= 0)
 	{
 		return false;
 	}
 
-	if (IntrinsicMapping.Num() == 1)
+	if (FocalLengthTable.FocusPoints.Num() == 1)
 	{
-		OutEvaluatedValue = IntrinsicMapping[0].Parameters;
+		OutEvaluatedValue.FxFy.X = FocalLengthTable.FocusPoints[0].Fx.Eval(InZoom);
+		OutEvaluatedValue.FxFy.Y = FocalLengthTable.FocusPoints[0].Fy.Eval(InZoom);
 		return true;
 	}
 
-	FIntrinsicMapPoint InterpPoint;
-	const bool bSuccess = LensInterpolationUtils::FIZMappingBilinearInterpolation<FIntrinsicMapPoint>(InFocus, InZoom, IntrinsicMapping, InterpPoint);
-	if (bSuccess)
+	const LensDataTableUtils::FPointNeighbors Neighbors = LensDataTableUtils::FindFocusPoints(InFocus, FocalLengthTable.GetFocusPoints());
+	if (Neighbors.NextIndex == Neighbors.PreviousIndex)
 	{
-		OutEvaluatedValue = MoveTemp(InterpPoint.Parameters);
+		OutEvaluatedValue.FxFy.X = FocalLengthTable.FocusPoints[Neighbors.PreviousIndex].Fx.Eval(InZoom);
+		OutEvaluatedValue.FxFy.Y = FocalLengthTable.FocusPoints[Neighbors.PreviousIndex].Fy.Eval(InZoom);
+	}
+	else
+	{
+		FVector2D PreviousValue;
+		PreviousValue.X = FocalLengthTable.FocusPoints[Neighbors.PreviousIndex].Fx.Eval(InZoom);
+		PreviousValue.Y = FocalLengthTable.FocusPoints[Neighbors.PreviousIndex].Fy.Eval(InZoom);
+		FVector2D NextValue;
+		NextValue.X = FocalLengthTable.FocusPoints[Neighbors.NextIndex].Fx.Eval(InZoom);
+		NextValue.Y = FocalLengthTable.FocusPoints[Neighbors.NextIndex].Fy.Eval(InZoom);
+
+		//Blend result between focus
+		const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, FocalLengthTable.FocusPoints[Neighbors.PreviousIndex].Focus, FocalLengthTable.FocusPoints[Neighbors.NextIndex].Focus);
+		OutEvaluatedValue.FxFy = LensInterpolationUtils::BlendValue(BlendFactor, PreviousValue, NextValue);
 	}
 
-	return bSuccess;
+	return true;
+}
+
+bool ULensFile::EvaluateImageCenterParameters(float InFocus, float InZoom, FImageCenterInfo& OutEvaluatedValue) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluateImageCenterParameters);
+
+	if (ImageCenterTable.FocusPoints.Num() <= 0)
+	{
+		return false;
+	}
+
+	if (ImageCenterTable.FocusPoints.Num() == 1)
+	{
+		OutEvaluatedValue.PrincipalPoint.X = ImageCenterTable.FocusPoints[0].Cx.Eval(InZoom);
+		OutEvaluatedValue.PrincipalPoint.Y = ImageCenterTable.FocusPoints[0].Cy.Eval(InZoom);
+		return true;
+	}
+
+	const LensDataTableUtils::FPointNeighbors Neighbors = LensDataTableUtils::FindFocusPoints(InFocus, ImageCenterTable.GetFocusPoints());
+	if (Neighbors.NextIndex == Neighbors.PreviousIndex)
+	{
+		OutEvaluatedValue.PrincipalPoint.X = ImageCenterTable.FocusPoints[Neighbors.PreviousIndex].Cx.Eval(InZoom);
+		OutEvaluatedValue.PrincipalPoint.Y = ImageCenterTable.FocusPoints[Neighbors.PreviousIndex].Cy.Eval(InZoom);
+	}
+	else
+	{
+		FVector2D PreviousValue;
+		PreviousValue.X = ImageCenterTable.FocusPoints[Neighbors.PreviousIndex].Cx.Eval(InZoom);
+		PreviousValue.Y = ImageCenterTable.FocusPoints[Neighbors.PreviousIndex].Cy.Eval(InZoom);
+		FVector2D NextValue;
+		NextValue.X = ImageCenterTable.FocusPoints[Neighbors.NextIndex].Cx.Eval(InZoom);
+		NextValue.Y = ImageCenterTable.FocusPoints[Neighbors.NextIndex].Cy.Eval(InZoom);
+
+		//Blend result between focus
+		const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, ImageCenterTable.FocusPoints[Neighbors.PreviousIndex].Focus, ImageCenterTable.FocusPoints[Neighbors.NextIndex].Focus);
+		OutEvaluatedValue.PrincipalPoint = LensInterpolationUtils::BlendValue(BlendFactor, PreviousValue, NextValue);
+	}
+
+	return true;
 }
 
 bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
 {	
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluateDistortionData);
+
 	if (InLensHandler == nullptr)
 	{
 		UE_LOG(LogCameraCalibrationCore, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid Lens Handler"), *GetName());
@@ -259,25 +330,30 @@ void ULensFile::SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHan
 
 bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
 {
-	//Parameter blending mode or no parameters to blend
-	if (LensFileUtils::GDistortionParametersBlendMode == 0
-		|| DistortionMapping.Num() <= 0)
+	//ImageCenter is always required
+	FImageCenterInfo ImageCenter;
+	EvaluateImageCenterParameters(InFocus, InZoom, ImageCenter);
+
+	//No distortion parameters case. Still process to have center shift
+	if (DistortionTable.GetFocusPoints().Num() <= 0)
 	{
+		//Initialize all distortion parameters with 0
 		FDistortionInfo DistortionPoint;
 		DistortionPoint.Parameters.SetNumZeroed(LensInfo.LensModel.GetDefaultObject()->GetNumParameters());
-		FIntrinsicParameters Intrinsic;
-		EvaluateDistortionParameters(InFocus, InZoom, DistortionPoint);
-		EvaluateIntrinsicParameters(InFocus, InZoom, Intrinsic);
+		
+		//Evaluate Focal Length
+		FFocalLengthInfo FocalLength;
+		EvaluateFocalLength(InFocus, InZoom, FocalLength);
 
 		//Setup handler state based on evaluated parameters. If none were found, no distortion will be returned
 		FLensDistortionState State;
 		State.DistortionInfo.Parameters = MoveTemp(DistortionPoint.Parameters);
 
 		const FVector2D FxFyScale = FVector2D(LensInfo.SensorDimensions.X / InFilmback.X, LensInfo.SensorDimensions.Y / InFilmback.Y);
+		State.FocalLengthInfo.FxFy = FocalLength.FxFy * FxFyScale;
+		State.ImageCenter.PrincipalPoint = ImageCenter.PrincipalPoint;
 
-		State.DistortionInfo.FxFy = DistortionPoint.FxFy * FxFyScale;
-		State.PrincipalPoint = Intrinsic.PrincipalPoint;
-		
+		//Updates handler state
 		InLensHandler->SetDistortionState(State);
 
 		OutDistortionData.OverscanFactor = InLensHandler->ComputeOverscanFactor();
@@ -286,157 +362,178 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 		//Draw displacement map associated with the new state
 		InLensHandler->ProcessCurrentDistortion();
 	}
-	else //DisplacementMap blending
+	else
 	{
-		int32 MinMinIndex = 0;
-		int32 MinMaxIndex = 0;
-		int32 MaxMinIndex = 0;
-		int32 MaxMaxIndex = 0;
+		FDistortionData BlendedData;
+		BlendedData.DistortedUVs.SetNumZeroed(UndistortedUVs.Num());
 
-		if(LensInterpolationUtils::FindBilinearInterpIndices<FDistortionMapPoint>(InFocus, InZoom, DistortionMapping, MinMinIndex, MinMaxIndex, MaxMinIndex, MaxMaxIndex))
+		FLensDistortionState State;
+		State.ImageCenter.PrincipalPoint = ImageCenter.PrincipalPoint;
+
+		FDisplacementMapBlendingParams Params;
+
+		//Helper function to compute the current distortion state
+		const auto ProcessDistortionState = [this, &State, InFilmback, InLensHandler](const FDistortionInfo& DistortionInfo, const FFocalLengthInfo& FocalLength, UTextureRenderTarget2D* UndistortionRenderTarget, UTextureRenderTarget2D* DistortionRenderTarget, FDistortionData& OutDistortionData)
 		{
-			if(!ensure(DistortionMapping.IsValidIndex(MinMinIndex)
-			&& DistortionMapping.IsValidIndex(MinMaxIndex)
-			&& DistortionMapping.IsValidIndex(MaxMinIndex)
-			&& DistortionMapping.IsValidIndex(MaxMaxIndex)))
+			State.DistortionInfo.Parameters = DistortionInfo.Parameters;
+
+			const FVector2D FxFyScale = FVector2D(LensInfo.SensorDimensions.X / InFilmback.X, LensInfo.SensorDimensions.Y / InFilmback.Y);
+			State.FocalLengthInfo.FxFy = FocalLength.FxFy * FxFyScale;
+
+			InLensHandler->SetDistortionState(State);
+			InLensHandler->DrawUndistortionDisplacementMap(UndistortionRenderTarget);
+			InLensHandler->DrawDistortionDisplacementMap(DistortionRenderTarget);
+
+			OutDistortionData.DistortedUVs = InLensHandler->GetDistortedUVs(UndistortedUVs);
+			OutDistortionData.OverscanFactor = InLensHandler->ComputeOverscanFactor();
+		};
+
+		//Find focuses in play
+		const LensDataTableUtils::FPointNeighbors Neighbors = LensDataTableUtils::FindFocusPoints(InFocus, DistortionTable.GetFocusPoints());
+		const FDistortionFocusPoint& PreviousPoint = DistortionTable.GetFocusPoints()[Neighbors.PreviousIndex];
+		const FDistortionFocusPoint& NextPoint = DistortionTable.GetFocusPoints()[Neighbors.NextIndex];
+		if (Neighbors.NextIndex == Neighbors.PreviousIndex)
+		{
+			const LensDataTableUtils::FPointNeighbors ZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, PreviousPoint.ZoomPoints);
+			const FDistortionZoomPoint& PreviousZoomPoint = PreviousPoint.ZoomPoints[ZoomNeighbors.PreviousIndex];
+			const FDistortionZoomPoint& NextZoomPoint = NextPoint.ZoomPoints[ZoomNeighbors.NextIndex];
+
+			//Get FocalLength points
+			FFocalLengthInfo PreviousZoomPointFocalLength;
+			FFocalLengthInfo NextZoomPointFocalLength;
+			LensDataTableUtils::GetPointValue(PreviousPoint.Focus, PreviousZoomPoint.Zoom, FocalLengthTable.GetFocusPoints(), PreviousZoomPointFocalLength);
+			LensDataTableUtils::GetPointValue(PreviousPoint.Focus, NextZoomPoint.Zoom, FocalLengthTable.GetFocusPoints(), NextZoomPointFocalLength);
+
+			if (ZoomNeighbors.NextIndex == ZoomNeighbors.PreviousIndex)
 			{
-				SetupNoDistortionOutput(InLensHandler, OutDistortionData);
-				return false;	
-			}
-
-			const FDistortionMapPoint& MinMinPoint = DistortionMapping[MinMinIndex];
-			const FDistortionMapPoint& MinMaxPoint = DistortionMapping[MinMaxIndex];
-			const FDistortionMapPoint& MaxMinPoint = DistortionMapping[MaxMinIndex];
-			const FDistortionMapPoint& MaxMaxPoint = DistortionMapping[MaxMaxIndex];
-
-			FDistortionData BlendedData;
-			BlendedData.DistortedUVs.SetNumZeroed(UndistortedUVs.Num());
-
-			FDisplacementMapBlendingParams Params;
-
-			//Compute blended center shift 
-			//This will be the value used for all possible distortion points to compute the resulting displacement map
-			FIntrinsicMapPoint InterpPoint;
-			LensInterpolationUtils::FIZMappingBilinearInterpolation<FIntrinsicMapPoint>(InFocus, InZoom, IntrinsicMapping, InterpPoint);
-
-			//Common info for distortion state
-			FLensDistortionState State;
-			State.PrincipalPoint = InterpPoint.Parameters.PrincipalPoint;
-
-			//Helper function to compute the current distortion state
-			const auto GetDistortionData = [this, &State, InFilmback, InLensHandler](const FDistortionMapPoint& MapPoint, UTextureRenderTarget2D* UndistortionRenderTarget, UTextureRenderTarget2D* DistortionRenderTarget, FDistortionData& OutDistortionData)
-			{
-				State.DistortionInfo.Parameters = MapPoint.DistortionInfo.Parameters;
-
-				const FVector2D FxFyScale = FVector2D(LensInfo.SensorDimensions.X / InFilmback.X, LensInfo.SensorDimensions.Y / InFilmback.Y);
-				State.DistortionInfo.FxFy = MapPoint.DistortionInfo.FxFy * FxFyScale;
-
-				InLensHandler->SetDistortionState(State);
-				InLensHandler->DrawUndistortionDisplacementMap(UndistortionRenderTarget);
-				InLensHandler->DrawDistortionDisplacementMap(DistortionRenderTarget);
-
-				OutDistortionData.DistortedUVs = InLensHandler->GetDistortedUVs(UndistortedUVs);
-				OutDistortionData.OverscanFactor = InLensHandler->ComputeOverscanFactor();	
-			};
-
-			//Single point case
-			if (MinMinIndex == MaxMinIndex
-				&& MaxMinIndex == MinMaxIndex
-				&& MinMaxIndex == MaxMaxIndex)
-			{
-				Params.BlendType = EDisplacementMapBlendType::Passthrough;
-
-				GetDistortionData(MinMinPoint, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], BlendedData);
-			}
-			else if (MinMinIndex == MaxMinIndex && MinMaxIndex == MaxMaxIndex)
-			{
-				//Fixed focus 
-				Params.BlendType = EDisplacementMapBlendType::Linear;
-				Params.LinearBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, MinMinPoint.Zoom, MaxMaxPoint.Zoom);
-
-				FDistortionData DistortionData[2];
-				GetDistortionData(MinMinPoint, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
-				GetDistortionData(MaxMaxPoint, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
-
-				LensInterpolationUtils::Interpolate<FDistortionData>(Params.LinearBlendFactor, &DistortionData[0], &DistortionData[1], &BlendedData);
-			}
-			else if (MinMinIndex == MinMaxIndex && MaxMinIndex == MaxMaxIndex)
-			{
-				//Fixed zoom	
-				Params.BlendType = EDisplacementMapBlendType::Linear;
-				Params.LinearBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, MinMinPoint.Focus, MaxMaxPoint.Focus);
-
-				FDistortionData DistortionData[2];
-				GetDistortionData(MinMinPoint, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
-				GetDistortionData(MaxMaxPoint, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
-				
-				LensInterpolationUtils::Interpolate<FDistortionData>(Params.LinearBlendFactor, &DistortionData[0], &DistortionData[1], &BlendedData);
+				//Exactly on one point
+				Params.BlendType = EDisplacementMapBlendType::OneFocusOneZoom;
+				ProcessDistortionState(PreviousZoomPoint.DistortionInfo, PreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], BlendedData);
 			}
 			else
 			{
-				//The current grid finder doesn't always yield points around the sample
-				const float X2X1 = MaxMinPoint.Focus - MinMinPoint.Focus;
-				const float Y2Y1 = MaxMaxPoint.Zoom - MinMinPoint.Zoom;
-				const float Divider = X2X1 * Y2Y1;
+				//Blend between two zoom points following map blend curve
+				Params.BlendType = EDisplacementMapBlendType::OneFocusTwoZoom;
+				float BlendFactor0 = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousZoomPoint.Zoom, NextZoomPoint.Zoom);
 
-				if (!FMath::IsNearlyZero(Divider))
-				{
-					Params.BlendType = EDisplacementMapBlendType::Bilinear;
-					Params.DeltaMinX = InFocus - MinMinPoint.Focus;
-					Params.DeltaMaxX = MaxMinPoint.Focus - InFocus;
-					Params.DeltaMinY = InZoom - MinMinPoint.Zoom;
-					Params.DeltaMaxY = MaxMaxPoint.Zoom - InZoom;
-					Params.MainCoefficient = 1.0f / Divider;
+				const TArray<FRichCurveKey>& PreviousPointsKeys = PreviousPoint.MapBlendingCurve.GetConstRefOfKeys();
+				const FRichCurveKey Curve0Key0 = PreviousPointsKeys[ZoomNeighbors.PreviousIndex];
+				const FRichCurveKey Curve0Key1 = PreviousPointsKeys[ZoomNeighbors.NextIndex];
 
-					FDistortionData DistortionData[4];
-					GetDistortionData(MinMinPoint, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
-					GetDistortionData(MinMaxPoint, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
-					GetDistortionData(MaxMinPoint, UndistortionDisplacementMapHolders[2], DistortionDisplacementMapHolders[2], DistortionData[2]);
-					GetDistortionData(MaxMaxPoint, UndistortionDisplacementMapHolders[3], DistortionDisplacementMapHolders[3], DistortionData[3]);
+				Params.EvalTime = InZoom;
+				Params.Curve0Key0Time = Curve0Key0.Time;
+				Params.Curve0Key1Time = Curve0Key1.Time;
+				Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
+				Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
 
-					LensInterpolationUtils::BilinearInterpolate<FDistortionData>(Params.MainCoefficient
-						, Params.DeltaMinX
-						, Params.DeltaMaxX
-						, Params.DeltaMinY
-						, Params.DeltaMaxY
-						, &DistortionData[0]
-						, &DistortionData[1]
-						, &DistortionData[2]
-						, &DistortionData[3]
-						, &BlendedData);
-				}
-				else
-				{
-					UE_LOG(LogCameraCalibrationCore, Warning, TEXT("Could not interpolate data for Focus = '%0.2f' and Zoom = '%0.2f' on LensFile '%s'"), InFocus, InZoom, *GetName());
-					return false;
-				}
+				FDistortionData DistortionData[2];
+				ProcessDistortionState(PreviousZoomPoint.DistortionInfo, PreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
+				ProcessDistortionState(NextZoomPoint.DistortionInfo, NextZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
+
+				LensInterpolationUtils::Interpolate<FDistortionData>(BlendFactor0, &DistortionData[0], &DistortionData[1], &BlendedData);
 			}
-
-			//Draw resulting undistortion displacement map for evaluation point
-			LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetUndistortionDisplacementMap()
-				, Params
-				, UndistortionDisplacementMapHolders[0]
-				, UndistortionDisplacementMapHolders[1]
-				, UndistortionDisplacementMapHolders[2]
-				, UndistortionDisplacementMapHolders[3]);
-
-			//Draw resulting distortion displacement map for evaluation point
-			LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetDistortionDisplacementMap()
-				, Params
-				, DistortionDisplacementMapHolders[0]
-				, DistortionDisplacementMapHolders[1]
-				, DistortionDisplacementMapHolders[2]
-				, DistortionDisplacementMapHolders[3]);
-
-			OutDistortionData = MoveTemp(BlendedData);
-			InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 		}
 		else
 		{
-			UE_LOG(LogCameraCalibrationCore, Verbose, TEXT("Could not find distortion data for Focus = '%0.2f' and Zoom = '%0.2f' on LensFile '%s'"), InFocus, InZoom, *GetName());
-			SetupNoDistortionOutput(InLensHandler, OutDistortionData);
-			return false;
+			//Previous Focus two zoom points
+			const LensDataTableUtils::FPointNeighbors PreviousFocusZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, PreviousPoint.ZoomPoints);
+			const FDistortionZoomPoint& PreviousFocusPreviousZoomPoint = PreviousPoint.ZoomPoints[PreviousFocusZoomNeighbors.PreviousIndex];
+			const FDistortionZoomPoint& PreviousFocusNextZoomPoint = PreviousPoint.ZoomPoints[PreviousFocusZoomNeighbors.NextIndex];
+			FFocalLengthInfo PreviousFocusPreviousZoomPointFocalLength;
+			FFocalLengthInfo PreviousFocusNextZoomPointFocalLength;
+			LensDataTableUtils::GetPointValue<FFocalLengthFocusPoint>(PreviousPoint.Focus, PreviousFocusPreviousZoomPoint.Zoom, FocalLengthTable.FocusPoints, PreviousFocusPreviousZoomPointFocalLength);
+			LensDataTableUtils::GetPointValue<FFocalLengthFocusPoint>(PreviousPoint.Focus, PreviousFocusNextZoomPoint.Zoom, FocalLengthTable.FocusPoints, PreviousFocusNextZoomPointFocalLength);
+
+			//Next focus two zoom points
+			const LensDataTableUtils::FPointNeighbors NextFocusZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, NextPoint.ZoomPoints);
+			const FDistortionZoomPoint& NextFocusPreviousZoomPoint = NextPoint.ZoomPoints[NextFocusZoomNeighbors.PreviousIndex];
+			const FDistortionZoomPoint& NextFocusNextZoomPoint = NextPoint.ZoomPoints[NextFocusZoomNeighbors.NextIndex];
+			FFocalLengthInfo NextFocusPreviousZoomPointFocalLength;
+			FFocalLengthInfo NextFocusNextZoomPointFocalLength;
+			LensDataTableUtils::GetPointValue<FFocalLengthFocusPoint>(NextPoint.Focus, NextFocusPreviousZoomPoint.Zoom, FocalLengthTable.FocusPoints, NextFocusPreviousZoomPointFocalLength);
+			LensDataTableUtils::GetPointValue<FFocalLengthFocusPoint>(NextPoint.Focus, NextFocusNextZoomPoint.Zoom, FocalLengthTable.FocusPoints, NextFocusNextZoomPointFocalLength);
+
+			//Verify if we are dealing with one zoom point on each focus. If that's the case, we are doing simple lerp across the focus curves
+			if(PreviousFocusZoomNeighbors.NextIndex == PreviousFocusZoomNeighbors.PreviousIndex
+				&& NextFocusZoomNeighbors.NextIndex == NextFocusZoomNeighbors.PreviousIndex)
+			{
+				//Generate two maps
+				FDistortionData DistortionData[2];
+				ProcessDistortionState(PreviousFocusPreviousZoomPoint.DistortionInfo, PreviousFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
+				ProcessDistortionState(NextFocusPreviousZoomPoint.DistortionInfo, NextFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
+
+				//Linear blend between each zoom point pair and then both results linearly according to focus
+				const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
+				LensInterpolationUtils::Interpolate(FocusBlendFactor, &DistortionData[0], &DistortionData[1], &BlendedData);
+
+				Params.BlendType = EDisplacementMapBlendType::TwoFocusOneZoom;
+				Params.FocusBlendFactor = FocusBlendFactor;
+			}
+			else
+			{
+				//Generate four maps
+				FDistortionData DistortionData[4];
+				ProcessDistortionState(PreviousFocusPreviousZoomPoint.DistortionInfo, PreviousFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
+				ProcessDistortionState(PreviousFocusNextZoomPoint.DistortionInfo, PreviousFocusNextZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
+				ProcessDistortionState(NextFocusPreviousZoomPoint.DistortionInfo, NextFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[2], DistortionDisplacementMapHolders[2], DistortionData[2]);
+				ProcessDistortionState(NextFocusNextZoomPoint.DistortionInfo, NextFocusNextZoomPointFocalLength, UndistortionDisplacementMapHolders[3], DistortionDisplacementMapHolders[3], DistortionData[3]);
+
+				//Linear blend between each zoom point pair and then both results linearly according to focus
+				FDistortionData PreviousFocusBlendResult;
+				FDistortionData NextFocusBlendResult;
+				const float PreviousFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousFocusPreviousZoomPoint.Zoom, PreviousFocusNextZoomPoint.Zoom);
+				LensInterpolationUtils::Interpolate(PreviousFocusZoomBlendFactor, &DistortionData[0], &DistortionData[1], &PreviousFocusBlendResult);
+
+				const float NextFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, NextFocusPreviousZoomPoint.Zoom, NextFocusNextZoomPoint.Zoom);
+				LensInterpolationUtils::Interpolate(NextFocusZoomBlendFactor, &DistortionData[2], &DistortionData[3], &NextFocusBlendResult);
+
+				const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
+				LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusBlendResult, &NextFocusBlendResult, &BlendedData);
+
+				Params.BlendType = EDisplacementMapBlendType::TwoFocusTwoZoom;
+
+				Params.EvalTime = InZoom;
+
+				const TArray<FRichCurveKey>& Curve0Keys = PreviousPoint.MapBlendingCurve.GetConstRefOfKeys();
+				FRichCurveKey Curve0Key0 = Curve0Keys[PreviousFocusZoomNeighbors.PreviousIndex];
+				FRichCurveKey Curve0Key1 = Curve0Keys[PreviousFocusZoomNeighbors.NextIndex];
+
+				Params.Curve0Key0Time = Curve0Key0.Time;
+				Params.Curve0Key1Time = Curve0Key1.Time;
+				Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
+				Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
+
+				const TArray<FRichCurveKey>& Curve1Keys = NextPoint.MapBlendingCurve.GetConstRefOfKeys();
+				FRichCurveKey Curve1Key0 = Curve1Keys[NextFocusZoomNeighbors.PreviousIndex];
+				FRichCurveKey Curve1Key1 = Curve1Keys[NextFocusZoomNeighbors.NextIndex];
+
+				Params.Curve1Key0Time = Curve1Key0.Time;
+				Params.Curve1Key1Time = Curve1Key1.Time;
+				Params.Curve1Key0Tangent = Curve1Key0.LeaveTangent;
+				Params.Curve1Key1Tangent = Curve1Key1.ArriveTangent;
+
+				Params.FocusBlendFactor = FocusBlendFactor;
+			}
 		}
+
+		//Draw resulting undistortion displacement map for evaluation point
+		LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetUndistortionDisplacementMap()
+			, Params
+			, UndistortionDisplacementMapHolders[0]
+			, UndistortionDisplacementMapHolders[1]
+			, UndistortionDisplacementMapHolders[2]
+			, UndistortionDisplacementMapHolders[3]);
+
+		//Draw resulting distortion displacement map for evaluation point
+		LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetDistortionDisplacementMap()
+			, Params
+			, DistortionDisplacementMapHolders[0]
+			, DistortionDisplacementMapHolders[1]
+			, DistortionDisplacementMapHolders[2]
+			, DistortionDisplacementMapHolders[3]);
+
+		OutDistortionData = MoveTemp(BlendedData);
+		InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 	}
 	
 	return true;
@@ -444,6 +541,8 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 
 bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluteDistortionForSTMaps);
+
 	if(DerivedDataInFlightCount > 0)
 	{
 		UE_LOG(LogCameraCalibrationCore, Verbose, TEXT("Can't evaluate LensFile '%s' - %d data points still being computed. Clearing render target for no distortion"), *GetName(), DerivedDataInFlightCount);
@@ -451,231 +550,271 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2
 		return true;
 	}
 
-	if(CalibratedMapPoints.Num() <= 0)
+	if(STMapTable.FocusPoints.Num() <= 0)
 	{
 		UE_LOG(LogCameraCalibrationCore, Verbose, TEXT("Can't evaluate LensFile '%s' - No calibrated maps"), *GetName());
 		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 		return true;
 	}
 
-	int32 MinMinIndex = 0;
-	int32 MinMaxIndex = 0;
-	int32 MaxMinIndex = 0;
-	int32 MaxMaxIndex = 0;
+	FDistortionData BlendedData;
+	BlendedData.DistortedUVs.SetNumZeroed(UndistortedUVs.Num());
 
-	if(LensInterpolationUtils::FindBilinearInterpIndices<FCalibratedMapPoint>(InFocus, InZoom, CalibratedMapPoints, MinMinIndex, MinMaxIndex, MaxMinIndex, MaxMaxIndex))
+	FDisplacementMapBlendingParams Params;
+
+	TArray<UTextureRenderTarget2D*, TInlineAllocator<4>> UndistortionMapSource;
+	UndistortionMapSource.AddZeroed(4);
+	TArray<UTextureRenderTarget2D*, TInlineAllocator<4>> DistortionMapSource;
+	DistortionMapSource.AddZeroed(4);
+
+	//When dealing with STMaps, FxFy was not a calibrated value. We can interpolate our curve directly for desired point
+	FFocalLengthInfo FocalLength;
+	EvaluateFocalLength(InFocus, InZoom, FocalLength);
+
+	FImageCenterInfo ImageCenter;
+	EvaluateImageCenterParameters(InFocus, InZoom, ImageCenter);
+
+	//Find focuses in play
+	const LensDataTableUtils::FPointNeighbors Neighbors = LensDataTableUtils::FindFocusPoints(InFocus, STMapTable.GetFocusPoints());
+	const FSTMapFocusPoint& PreviousPoint = STMapTable.FocusPoints[Neighbors.PreviousIndex];
+	const FSTMapFocusPoint& NextPoint = STMapTable.FocusPoints[Neighbors.NextIndex];
+	if (Neighbors.NextIndex == Neighbors.PreviousIndex)
 	{
-		if(!ensure(CalibratedMapPoints.IsValidIndex(MinMinIndex)
-		&& CalibratedMapPoints.IsValidIndex(MinMaxIndex)
-		&& CalibratedMapPoints.IsValidIndex(MaxMinIndex)
-		&& CalibratedMapPoints.IsValidIndex(MaxMaxIndex)))
-		{
-			SetupNoDistortionOutput(InLensHandler, OutDistortionData);
-			return false;	
-		}
+		const LensDataTableUtils::FPointNeighbors ZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, PreviousPoint.ZoomPoints);
+		const FSTMapZoomPoint& PreviousZoomPoint = PreviousPoint.ZoomPoints[ZoomNeighbors.PreviousIndex];
+		const FSTMapZoomPoint& NextZoomPoint = PreviousPoint.ZoomPoints[ZoomNeighbors.NextIndex];
 
-		const FCalibratedMapPoint& MinMinPoint = CalibratedMapPoints[MinMinIndex];
-		const FCalibratedMapPoint& MinMaxPoint = CalibratedMapPoints[MinMaxIndex];
-		const FCalibratedMapPoint& MaxMinPoint = CalibratedMapPoints[MaxMinIndex];
-		const FCalibratedMapPoint& MaxMaxPoint = CalibratedMapPoints[MaxMaxIndex];
+		if (ZoomNeighbors.NextIndex == ZoomNeighbors.PreviousIndex)
+		{
+			//Exactly on one point
+			Params.BlendType = EDisplacementMapBlendType::OneFocusOneZoom;
 
-		FDistortionData BlendedData;
-		BlendedData.DistortedUVs.SetNumZeroed(UndistortedUVs.Num());
-		
-		FDisplacementMapBlendingParams Params;
-		UTextureRenderTarget2D* UndistortionTextureOne = nullptr;
-		UTextureRenderTarget2D* UndistortionTextureTwo = nullptr;
-		UTextureRenderTarget2D* UndistortionTextureThree = nullptr;
-		UTextureRenderTarget2D* UndistortionTextureFour = nullptr;
-		UTextureRenderTarget2D* DistortionTextureOne = nullptr;
-		UTextureRenderTarget2D* DistortionTextureTwo = nullptr;
-		UTextureRenderTarget2D* DistortionTextureThree = nullptr;
-		UTextureRenderTarget2D* DistortionTextureFour = nullptr;
-
-		//Single point case
-		if (MinMinIndex == MaxMinIndex
-			&& MaxMinIndex == MinMaxIndex
-			&& MinMaxIndex == MaxMaxIndex)
-		{
-			Params.BlendType = EDisplacementMapBlendType::Passthrough;
-			UndistortionTextureOne = MinMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
-			DistortionTextureOne = MinMinPoint.DerivedDistortionData.DistortionDisplacementMap;
-			BlendedData = MinMinPoint.DerivedDistortionData.DistortionData;
-		}
-		else if (MinMinIndex == MaxMinIndex && MinMaxIndex == MaxMaxIndex)
-		{
-			//Fixed focus 
-			Params.BlendType = EDisplacementMapBlendType::Linear;
-			Params.LinearBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, MinMinPoint.Zoom, MaxMaxPoint.Zoom);
-			UndistortionTextureOne = MinMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
-			UndistortionTextureTwo = MaxMaxPoint.DerivedDistortionData.UndistortionDisplacementMap;
-			DistortionTextureOne = MinMinPoint.DerivedDistortionData.DistortionDisplacementMap;
-			DistortionTextureTwo = MaxMaxPoint.DerivedDistortionData.DistortionDisplacementMap;
-			LensInterpolationUtils::Interpolate<FDistortionData>(Params.LinearBlendFactor, &MinMinPoint.DerivedDistortionData.DistortionData, &MaxMaxPoint.DerivedDistortionData.DistortionData, &BlendedData);
-		}
-		else if (MinMinIndex == MinMaxIndex && MaxMinIndex == MaxMaxIndex)
-		{
-			//Fixed zoom	
-			Params.BlendType = EDisplacementMapBlendType::Linear;
-			Params.LinearBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, MinMinPoint.Focus, MaxMaxPoint.Focus);
-			UndistortionTextureOne = MinMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
-			UndistortionTextureTwo = MaxMaxPoint.DerivedDistortionData.UndistortionDisplacementMap;
-			DistortionTextureOne = MinMinPoint.DerivedDistortionData.DistortionDisplacementMap;
-			DistortionTextureTwo = MaxMaxPoint.DerivedDistortionData.DistortionDisplacementMap;
-			LensInterpolationUtils::Interpolate<FDistortionData>(Params.LinearBlendFactor, &MinMinPoint.DerivedDistortionData.DistortionData, &MaxMaxPoint.DerivedDistortionData.DistortionData, &BlendedData);
+			UndistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			BlendedData = PreviousZoomPoint.DerivedDistortionData.DistortionData;
 		}
 		else
 		{
-			//The current grid finder doesn't always yield points around the sample
-			const float X2X1 = MaxMinPoint.Focus - MinMinPoint.Focus;
-			const float Y2Y1 = MaxMaxPoint.Zoom - MinMinPoint.Zoom;
-			const float Divider = X2X1 * Y2Y1;
+			//Blend between two zoom points following map blend curve
+			Params.BlendType = EDisplacementMapBlendType::OneFocusTwoZoom;
+			const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousZoomPoint.Zoom, NextZoomPoint.Zoom);
 
-			if (!FMath::IsNearlyZero(Divider))
-			{
-				Params.BlendType = EDisplacementMapBlendType::Bilinear;
-				Params.DeltaMinX = InFocus - MinMinPoint.Focus;
-				Params.DeltaMaxX = MaxMinPoint.Focus - InFocus;
-				Params.DeltaMinY = InZoom - MinMinPoint.Zoom;
-				Params.DeltaMaxY = MaxMaxPoint.Zoom - InZoom;
-				Params.MainCoefficient = 1.0f / Divider;
-				UndistortionTextureOne = MinMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
-				UndistortionTextureTwo = MinMaxPoint.DerivedDistortionData.UndistortionDisplacementMap;
-				UndistortionTextureThree = MaxMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
-				UndistortionTextureFour = MaxMaxPoint.DerivedDistortionData.UndistortionDisplacementMap;
-				DistortionTextureOne = MinMinPoint.DerivedDistortionData.DistortionDisplacementMap;
-				DistortionTextureTwo = MinMaxPoint.DerivedDistortionData.DistortionDisplacementMap;
-				DistortionTextureThree = MaxMinPoint.DerivedDistortionData.DistortionDisplacementMap;
-				DistortionTextureFour = MaxMaxPoint.DerivedDistortionData.DistortionDisplacementMap;
-				LensInterpolationUtils::BilinearInterpolate<FDistortionData>(Params.MainCoefficient
-				, Params.DeltaMinX
-				, Params.DeltaMaxX
-				, Params.DeltaMinY
-				, Params.DeltaMaxY
-				, &MinMinPoint.DerivedDistortionData.DistortionData
-				, &MinMaxPoint.DerivedDistortionData.DistortionData
-				, &MaxMaxPoint.DerivedDistortionData.DistortionData
-				, &MaxMaxPoint.DerivedDistortionData.DistortionData
-				, &BlendedData);
-			}
-			else
-			{
-				UE_LOG(LogCameraCalibrationCore, Warning, TEXT("Could not interpolate data for Focus = '%0.2f' and Zoom = '%0.2f' on LensFile '%s'"), InFocus, InZoom, *GetName());
-				return false;
-			}
-		}
+			const TArray<FRichCurveKey>& PreviousPointsKeys = PreviousPoint.MapBlendingCurve.GetConstRefOfKeys();
+			const FRichCurveKey Curve0Key0 = PreviousPointsKeys[ZoomNeighbors.PreviousIndex];
+			const FRichCurveKey Curve0Key1 = PreviousPointsKeys[ZoomNeighbors.NextIndex];
 
-		//Compute blended principal point to apply on top of blended displacement map
-		FIntrinsicMapPoint InterpPoint;
-		LensInterpolationUtils::FIZMappingBilinearInterpolation<FIntrinsicMapPoint>(InFocus, InZoom, IntrinsicMapping, InterpPoint);
+			Params.BlendType = EDisplacementMapBlendType::OneFocusTwoZoom;
+			Params.EvalTime = InZoom;
+			Params.Curve0Key0Time = Curve0Key0.Time;
+			Params.Curve0Key1Time = Curve0Key1.Time;
+			Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
+			Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
 
-		// Compute a scale factor to scale the UVs in the blended displacement map
-		Params.FxFyScale = FVector2D(InFilmback.X / LensInfo.SensorDimensions.X, InFilmback.Y / LensInfo.SensorDimensions.Y);
-		Params.PrincipalPoint = InterpPoint.Parameters.PrincipalPoint;
-
-		//Draw resulting undistortion displacement map for evaluation point
-		LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetUndistortionDisplacementMap()
-			, Params
-			, UndistortionTextureOne
-			, UndistortionTextureTwo
-			, UndistortionTextureThree
-			, UndistortionTextureFour);
-
-		//Draw resulting displacement map for evaluation point
-		if(LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetDistortionDisplacementMap()
-			, Params
-			, DistortionTextureOne
-			, DistortionTextureTwo
-			, DistortionTextureThree
-			, DistortionTextureFour))
-		{
-			OutDistortionData.OverscanFactor = ComputeOverscan(BlendedData, Params.PrincipalPoint);
-			InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
+			UndistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			UndistortionMapSource[1] = NextZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[1] = NextZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			LensInterpolationUtils::Interpolate<FDistortionData>(BlendFactor, &PreviousZoomPoint.DerivedDistortionData.DistortionData, &NextZoomPoint.DerivedDistortionData.DistortionData, &BlendedData);
 		}
 	}
 	else
 	{
-		UE_LOG(LogCameraCalibrationCore, Verbose, TEXT("Could not find distortion data for Focus = '%0.2f' and Zoom = '%0.2f' on LensFile '%s'"), InFocus, InZoom, *GetName());
-		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
-		return false;
+		//Previous Focus two zoom points
+		const LensDataTableUtils::FPointNeighbors PreviousFocusZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, PreviousPoint.ZoomPoints);
+		const FSTMapZoomPoint& PreviousFocusPreviousZoomPoint = PreviousPoint.ZoomPoints[PreviousFocusZoomNeighbors.PreviousIndex];
+		const FSTMapZoomPoint& PreviousFocusNextZoomPoint = PreviousPoint.ZoomPoints[PreviousFocusZoomNeighbors.NextIndex];
+
+		//Next focus two zoom points
+		const LensDataTableUtils::FPointNeighbors NextFocusZoomNeighbors = LensDataTableUtils::FindZoomPoints(InZoom, NextPoint.ZoomPoints);
+		const FSTMapZoomPoint NextFocusPreviousZoomPoint = NextPoint.ZoomPoints[NextFocusZoomNeighbors.PreviousIndex];
+		const FSTMapZoomPoint& NextFocusNextZoomPoint = NextPoint.ZoomPoints[NextFocusZoomNeighbors.NextIndex];
+		
+		//Verify if we are dealing with one zoom point on each focus. If that's the case, we are doing simple lerp across the focus curves
+		if(PreviousFocusZoomNeighbors.NextIndex == PreviousFocusZoomNeighbors.PreviousIndex
+			&& NextFocusZoomNeighbors.NextIndex == NextFocusZoomNeighbors.PreviousIndex)
+		{
+			//Grab 2 maps
+			UndistortionMapSource[0] = PreviousFocusPreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[0] = PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			UndistortionMapSource[1] = NextFocusPreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[1] = NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			
+			//Linear blend between each zoom point pair and then both results linearly according to focus
+			const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
+			LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, &NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, &BlendedData);
+
+			//Setup blend params
+			Params.BlendType = EDisplacementMapBlendType::TwoFocusOneZoom;
+			Params.FocusBlendFactor = FocusBlendFactor;
+		}
+		else
+		{
+			//Grab 4 maps
+			UndistortionMapSource[0] = PreviousFocusPreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[0] = PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			UndistortionMapSource[1] = PreviousFocusNextZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[1] = PreviousFocusNextZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			UndistortionMapSource[2] = NextFocusPreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[2] = NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			UndistortionMapSource[3] = NextFocusNextZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[3] = NextFocusNextZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			
+			//Linear blend between each zoom point pair and then both results linearly according to focus
+			//Linear blend between each zoom point pair and then both results linearly according to focus
+			FDistortionData PreviousFocusBlendResult;
+			FDistortionData NextFocusBlendResult;
+			const float PreviousFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousFocusPreviousZoomPoint.Zoom, PreviousFocusNextZoomPoint.Zoom);
+			LensInterpolationUtils::Interpolate(PreviousFocusZoomBlendFactor, &PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, &PreviousFocusNextZoomPoint.DerivedDistortionData.DistortionData, &PreviousFocusBlendResult);
+
+			const float NextFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, NextFocusPreviousZoomPoint.Zoom, NextFocusNextZoomPoint.Zoom);
+			LensInterpolationUtils::Interpolate(NextFocusZoomBlendFactor, &NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, &NextFocusNextZoomPoint.DerivedDistortionData.DistortionData, &NextFocusBlendResult);
+
+			const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
+			LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusBlendResult, &NextFocusBlendResult, &BlendedData);
+
+			//Setup blend params
+			Params.BlendType = EDisplacementMapBlendType::TwoFocusTwoZoom;
+			Params.EvalTime = InZoom;
+
+			const TArray<FRichCurveKey>& Curve0Keys = PreviousPoint.MapBlendingCurve.GetConstRefOfKeys();
+			const FRichCurveKey Curve0Key0 = Curve0Keys[PreviousFocusZoomNeighbors.PreviousIndex];
+			const FRichCurveKey Curve0Key1 = Curve0Keys[PreviousFocusZoomNeighbors.NextIndex];
+
+			Params.Curve0Key0Time = Curve0Key0.Time;
+			Params.Curve0Key1Time = Curve0Key1.Time;
+			Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
+			Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
+
+			const TArray<FRichCurveKey>& Curve1Keys = NextPoint.MapBlendingCurve.GetConstRefOfKeys();
+			const FRichCurveKey Curve1Key0 = Curve1Keys[NextFocusZoomNeighbors.PreviousIndex];
+			const FRichCurveKey Curve1Key1 = Curve1Keys[NextFocusZoomNeighbors.NextIndex];
+
+			Params.Curve1Key0Time = Curve1Key0.Time;
+			Params.Curve1Key1Time = Curve1Key1.Time;
+			Params.Curve1Key0Tangent = Curve1Key0.LeaveTangent;
+			Params.Curve1Key1Tangent = Curve1Key1.ArriveTangent;
+
+			Params.FocusBlendFactor = FocusBlendFactor;
+		}
 	}
+
+	// Compute a scale factor to scale the UVs in the blended displacement map
+	Params.FxFyScale = FVector2D(InFilmback.X / LensInfo.SensorDimensions.X, InFilmback.Y / LensInfo.SensorDimensions.Y);
+	Params.PrincipalPoint = ImageCenter.PrincipalPoint;
+
+	//Draw resulting undistortion displacement map for evaluation point
+	LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetUndistortionDisplacementMap()
+		, Params
+		, UndistortionMapSource[0]
+		, UndistortionMapSource[1]
+		, UndistortionMapSource[2]
+		, UndistortionMapSource[3]);
+
+	//Draw resulting distortion displacement map for evaluation point
+	LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetDistortionDisplacementMap()
+		, Params
+		, DistortionMapSource[0]
+		, DistortionMapSource[1]
+		, DistortionMapSource[2]
+		, DistortionMapSource[3]);
+
+	OutDistortionData = MoveTemp(BlendedData);
+	InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 
 	return true;
 }
 
 bool ULensFile::EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue) const
 {
-	if (NodalOffsetMapping.Num() <= 0)
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluateNodalPointOffset);
+
+	if (NodalOffsetTable.GetFocusPoints().Num() <= 0)
 	{
 		return false;
 	}
 
-	if (NodalOffsetMapping.Num() == 1)
+	const auto EvaluateNodalOffset = [this](int32 FocusIndex,float Zoom, FNodalPointOffset& OutNodalOffset)
 	{
-		OutEvaluatedValue = NodalOffsetMapping[0].NodalOffset;
+		FRotator RotationOffset;
+		constexpr int32 RotationDimensions = 3;
+		for(int32 AxisIndex = 0; AxisIndex < RotationDimensions; ++AxisIndex)
+		{
+			const EAxis::Type Axis = static_cast<EAxis::Type>(AxisIndex + 1);
+			OutNodalOffset.LocationOffset.SetComponentForAxis(Axis, NodalOffsetTable.FocusPoints[FocusIndex].LocationOffset[AxisIndex].Eval(Zoom));
+			RotationOffset.SetComponentForAxis(Axis, NodalOffsetTable.FocusPoints[FocusIndex].RotationOffset[AxisIndex].Eval(Zoom));
+		}
+		
+		OutNodalOffset.RotationOffset = FQuat(RotationOffset);	
+	};
+
+	if (NodalOffsetTable.GetFocusPoints().Num() == 1)
+	{
+		EvaluateNodalOffset(0, InZoom, OutEvaluatedValue);
 		return true;
 	}
-
-	FNodalOffsetMapPoint InterpPoint;
-	const bool bSuccess = LensInterpolationUtils::FIZMappingBilinearInterpolation<FNodalOffsetMapPoint>(InFocus, InZoom, NodalOffsetMapping, InterpPoint);
-	if (bSuccess)
+	
+	const LensDataTableUtils::FPointNeighbors Neighbors = LensDataTableUtils::FindFocusPoints(InFocus, NodalOffsetTable.GetFocusPoints());
+	if (Neighbors.NextIndex == Neighbors.PreviousIndex)
 	{
-		OutEvaluatedValue = MoveTemp(InterpPoint.NodalOffset);
+		EvaluateNodalOffset(Neighbors.PreviousIndex, InZoom, OutEvaluatedValue);
+	}
+	else
+	{
+		FNodalPointOffset PreviousValue;
+		EvaluateNodalOffset(Neighbors.PreviousIndex, InZoom, PreviousValue);
+		FNodalPointOffset NextValue;
+		EvaluateNodalOffset(Neighbors.NextIndex, InZoom, NextValue);
+	
+		//Blend result between focus
+		const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, FocalLengthTable.FocusPoints[Neighbors.PreviousIndex].Focus, FocalLengthTable.FocusPoints[Neighbors.NextIndex].Focus);
+		LensInterpolationUtils::Interpolate(BlendFactor, &PreviousValue, &NextValue, &OutEvaluatedValue);
 	}
 
-	return bSuccess;
+	return true;
 }
 
 bool ULensFile::HasFocusEncoderMapping() const
 {
-	return EncoderMapping.Focus.GetNumKeys() > 0;
+	return EncodersTable.Focus.GetNumKeys() > 0;
 }
 
-float ULensFile::EvaluateNormalizedFocus(float InNormalizedValue)
+float ULensFile::EvaluateNormalizedFocus(float InNormalizedValue) const
 {
-	return EncoderMapping.Focus.Eval(InNormalizedValue);
+	return EncodersTable.Focus.Eval(InNormalizedValue);
 }
 
 bool ULensFile::HasIrisEncoderMapping() const
 {
-	return EncoderMapping.Iris.GetNumKeys() > 0;
+	return EncodersTable.Iris.GetNumKeys() > 0;
 }
 
-float ULensFile::EvaluateNormalizedIris(float InNormalizedValue)
+float ULensFile::EvaluateNormalizedIris(float InNormalizedValue) const
 {
-	return EncoderMapping.Iris.Eval(InNormalizedValue);
-}
-
-bool ULensFile::HasZoomEncoderMapping() const
-{
-	return EncoderMapping.Zoom.GetNumKeys() > 0;
-}
-
-float ULensFile::EvaluateNormalizedZoom(float InNormalizedValue)
-{
-	return EncoderMapping.Zoom.Eval(InNormalizedValue);
+	return EncodersTable.Iris.Eval(InNormalizedValue);
 }
 
 void ULensFile::OnDistortionDerivedDataJobCompleted(const FDerivedDistortionDataJobOutput& JobOutput)
 {
 	//Keep track of jobs being processed
 	--DerivedDataInFlightCount;
-	
-	const FGuid PointIdentifier = JobOutput.Identifier;
-	if(FCalibratedMapPoint* AssociatedPoint = CalibratedMapPoints.FindByPredicate([PointIdentifier](const FCalibratedMapPoint& Other){ return Other.GetIdentifier() == PointIdentifier; }))
+
+	if(FSTMapFocusPoint* FocusPoint = STMapTable.GetFocusPoint(JobOutput.Focus))
 	{
-		if (JobOutput.Result == EDerivedDistortionDataResult::Success)
+		if(FSTMapZoomPoint* ZoomPoint = FocusPoint->GetZoomPoint(JobOutput.Zoom))
 		{
-			AssociatedPoint->DerivedDistortionData.DistortionData.DistortedUVs = JobOutput.EdgePointsDistortedUVs;
-		}
-		else
-		{
-			UE_LOG(LogCameraCalibrationCore, Warning, TEXT("Could not derive distortion data for calibrated map point with Focus = '%0.2f' and Zoom = '%0.2f' on LensFile '%s'"), AssociatedPoint->Focus, AssociatedPoint->Zoom, *GetName());
+			if (JobOutput.Result == EDerivedDistortionDataResult::Success)
+			{
+				ZoomPoint->DerivedDistortionData.DistortionData.DistortedUVs = JobOutput.EdgePointsDistortedUVs;	
+			}
+			else
+			{
+				UE_LOG(LogCameraCalibrationCore, Warning, TEXT("Could not derive distortion data for calibrated map point with Focus = '%0.2f' and Zoom = '%0.2f' on LensFile '%s'"), FocusPoint->Focus, ZoomPoint->Zoom, *GetName());
+			}
 		}
 	}
 }
 
-bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent)
+bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent) const
 {
 	if (!CineCameraComponent)
 	{ 
@@ -694,6 +833,112 @@ bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraCom
 	return true;
 }
 
+void ULensFile::AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewDistortionPoint, const FFocalLengthInfo& NewFocalLength)
+{
+	const bool bPointAdded = DistortionTable.AddPoint(NewFocus, NewZoom, NewDistortionPoint, InputTolerance, false);
+	FocalLengthTable.AddPoint(NewFocus, NewZoom, NewFocalLength, InputTolerance, bPointAdded);
+}
+
+void ULensFile::AddFocalLengthPoint(float NewFocus, float NewZoom, const FFocalLengthInfo& NewFocalLength)
+{
+	FocalLengthTable.AddPoint(NewFocus, NewZoom, NewFocalLength, InputTolerance, false);
+}
+
+void ULensFile::AddImageCenterPoint(float NewFocus, float NewZoom, const FImageCenterInfo& NewImageCenterPoint)
+{
+	ImageCenterTable.AddPoint(NewFocus, NewZoom, NewImageCenterPoint, InputTolerance, false);
+}
+
+void ULensFile::AddNodalOffsetPoint(float NewFocus, float NewZoom, const FNodalPointOffset& NewNodalOffsetPoint)
+{
+	NodalOffsetTable.AddPoint(NewFocus, NewZoom, NewNodalOffsetPoint, InputTolerance, false);
+}
+
+void ULensFile::AddSTMapPoint(float NewFocus, float NewZoom, const FSTMapInfo& NewPoint)
+{
+	STMapTable.AddPoint(NewFocus, NewZoom, NewPoint, InputTolerance, false);
+}
+
+void ULensFile::RemoveFocusPoint(ELensDataCategory InDataCategory, float InFocus)
+{
+	switch(InDataCategory)
+	{
+		case ELensDataCategory::Distortion:
+		{
+			DistortionTable.RemoveFocusPoint(InFocus);
+			break;
+		}
+		case ELensDataCategory::ImageCenter:
+		{
+			ImageCenterTable.RemoveFocusPoint(InFocus);
+			break;
+		}
+		case ELensDataCategory::Zoom:
+		{
+			FocalLengthTable.RemoveFocusPoint(InFocus);
+			break;
+		}
+		case ELensDataCategory::STMap:
+		{
+			STMapTable.RemoveFocusPoint(InFocus);
+			break;
+		}
+		case ELensDataCategory::NodalOffset:
+		{
+			NodalOffsetTable.RemoveFocusPoint(InFocus);
+			break;
+		}
+		case ELensDataCategory::Focus:
+		case ELensDataCategory::Iris:
+		default:
+		{}
+	}
+}
+
+void ULensFile::RemoveZoomPoint(ELensDataCategory InDataCategory, float InFocus, float InZoom)
+{
+	switch(InDataCategory)
+	{
+		case ELensDataCategory::Distortion:
+		{
+			DistortionTable.RemoveZoomPoint(InFocus, InZoom);
+			break;
+		}
+		case ELensDataCategory::ImageCenter:
+		{
+			ImageCenterTable.RemoveZoomPoint(InFocus, InZoom);
+			break;
+		}
+		case ELensDataCategory::Zoom:
+		{
+			FocalLengthTable.RemoveZoomPoint(InFocus, InZoom);
+			break;
+		}
+		case ELensDataCategory::STMap:
+		{
+			STMapTable.RemoveZoomPoint(InFocus, InZoom);
+			break;
+		}
+		case ELensDataCategory::NodalOffset:
+		{
+			NodalOffsetTable.RemoveZoomPoint(InFocus, InZoom);
+			break;
+		}
+		case ELensDataCategory::Focus:
+		case ELensDataCategory::Iris:
+		default:
+		{}
+	}
+}
+
+void ULensFile::ClearAll()
+{
+	LensDataTableUtils::EmptyTable(DistortionTable);
+	LensDataTableUtils::EmptyTable(FocalLengthTable);
+	LensDataTableUtils::EmptyTable(STMapTable);
+	LensDataTableUtils::EmptyTable(ImageCenterTable);
+	LensDataTableUtils::EmptyTable(NodalOffsetTable);
+}
 
 void ULensFile::PostInitProperties()
 {
@@ -729,37 +974,49 @@ void ULensFile::UpdateDerivedData()
 {
 	if(DataMode == ELensDataMode::STMap)
 	{
-		for(FCalibratedMapPoint& MapPoint : CalibratedMapPoints)
+		for(FSTMapFocusPoint& FocusPoint : STMapTable.GetFocusPoints())
 		{
-			if (MapPoint.DerivedDistortionData.bIsDirty)
+			for (FSTMapZoomPoint& ZoomPoint : FocusPoint.ZoomPoints)
 			{
-				//Create required undistortion texture for newly added points
-				if(MapPoint.DerivedDistortionData.UndistortionDisplacementMap == nullptr)
+				if (ZoomPoint.DerivedDistortionData.bIsDirty)
 				{
-					MapPoint.DerivedDistortionData.UndistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
-				}
+					//Early exit if source data is invalid
+					if (ZoomPoint.STMapInfo.DistortionMap == nullptr)
+					{
+						ZoomPoint.DerivedDistortionData.bIsDirty = false;
+						continue;
+					}
 
-				//Create required distortion texture for newly added points
-				if (MapPoint.DerivedDistortionData.DistortionDisplacementMap == nullptr)
-				{
-					MapPoint.DerivedDistortionData.DistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
-				}
+					//Create required undistortion texture for newly added points
+					if (ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap == nullptr)
+					{
+						ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
+					}
 
-				check(MapPoint.DerivedDistortionData.UndistortionDisplacementMap);
-				check(MapPoint.DerivedDistortionData.DistortionDisplacementMap);
+					//Create required distortion texture for newly added points
+					if (ZoomPoint.DerivedDistortionData.DistortionDisplacementMap == nullptr)
+					{
+						ZoomPoint.DerivedDistortionData.DistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
+					}
 
-				FDerivedDistortionDataJobArgs JobArgs;
-				JobArgs.Identifier = MapPoint.GetIdentifier();
-				JobArgs.SourceDistortionMap = MapPoint.DistortionMap;
-				JobArgs.OutputUndistortionDisplacementMap = MapPoint.DerivedDistortionData.UndistortionDisplacementMap;
-				JobArgs.OutputDistortionDisplacementMap = MapPoint.DerivedDistortionData.DistortionDisplacementMap;
-				JobArgs.JobCompletedCallback.BindUObject(this, &ULensFile::OnDistortionDerivedDataJobCompleted);
-				if (CalibratedMapProcessor->PushDerivedDistortionDataJob(MoveTemp(JobArgs)))
-				{
-					++DerivedDataInFlightCount;
-					MapPoint.DerivedDistortionData.bIsDirty = false;
+					check(ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap);
+					check(ZoomPoint.DerivedDistortionData.DistortionDisplacementMap);
+
+					FDerivedDistortionDataJobArgs JobArgs;
+					JobArgs.Focus = FocusPoint.Focus;
+					JobArgs.Zoom = ZoomPoint.Zoom;
+					JobArgs.SourceDistortionMap = ZoomPoint.STMapInfo.DistortionMap;
+					JobArgs.OutputUndistortionDisplacementMap = ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+					JobArgs.OutputDistortionDisplacementMap = ZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+					JobArgs.JobCompletedCallback.BindUObject(this, &ULensFile::OnDistortionDerivedDataJobCompleted);
+					if (CalibratedMapProcessor->PushDerivedDistortionDataJob(MoveTemp(JobArgs)))
+					{
+						++DerivedDataInFlightCount;
+						ZoomPoint.DerivedDistortionData.bIsDirty = false;
+					}
 				}
 			}
+		
 		}
 	}
 }

@@ -1,0 +1,104 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Curves/RichCurve.h"
+#include "Engine/EngineTypes.h"
+#include "LensData.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
+
+#include "NodalOffsetTable.generated.h"
+
+
+
+/**
+ * Focus point for nodal offset curves
+ */
+USTRUCT()
+struct CAMERACALIBRATIONCORE_API FNodalOffsetFocusPoint
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Returns number of zoom points */
+	int32 GetNumPoints() const;
+
+	/** Returns zoom value for a given index */
+	float GetZoom(int32 Index) const;
+
+	/** Adds a new point at InZoom. Updates existing one if tolerance is met */
+	bool AddPoint(float InZoom, const FNodalPointOffset& InData, float InputTolerance, bool bIsCalibrationPoint);
+	
+	/** Removes a point corresponding to specified zoom */
+	void RemovePoint(float InZoomValue);
+
+	/** Returns true if there are no points */
+	bool IsEmpty() const;
+
+public:
+
+	/** Dimensions of our location offset curves */
+	static constexpr uint32 LocationDimension = 3;
+	
+	/** Dimensions of our rotation offset curves */
+	static constexpr uint32 RotationDimension = 3;
+
+	/** Input focus for this point */
+	UPROPERTY()
+	float Focus = 0.0f;
+
+	/** XYZ offsets curves mapped to zoom */
+	UPROPERTY()
+	FRichCurve LocationOffset[LocationDimension];
+
+	/** Yaw, Pitch and Roll offset curves mapped to zoom */
+	UPROPERTY()
+	FRichCurve RotationOffset[RotationDimension];
+};
+
+/**
+ * Table containing nodal offset mapping to focus and zoom
+ */
+USTRUCT()
+struct CAMERACALIBRATIONCORE_API FNodalOffsetTable
+{
+	GENERATED_BODY()
+	
+public:
+
+	/** 
+	* Fills OutCurve with all points contained in the given focus 
+	* Returns false if FocusIdentifier is not found or ParameterIndex isn't valid
+	*/
+	bool BuildParameterCurve(float InFocus, int32 ParameterIndex, EAxis::Type InAxis, FRichCurve& OutCurve) const;
+
+	/** Returns const point for a given focus */
+	const FNodalOffsetFocusPoint* GetFocusPoint(float InFocus) const;
+
+	/** Returns point for a given focus */
+	FNodalOffsetFocusPoint* GetFocusPoint(float InFocus);
+
+	/** Returns all focus points */
+	TConstArrayView<FNodalOffsetFocusPoint> GetFocusPoints() const;
+
+	/** Returns all focus points */
+	TArray<FNodalOffsetFocusPoint>& GetFocusPoints();
+
+	/** Removes a focus point identified as InFocusIdentifier */
+	void RemoveFocusPoint(float InFocus);
+
+	/** Removes a focus point identified as InFocusIdentifier */
+	void RemoveZoomPoint(float InFocus, float InZoom);
+
+	/** Adds a new point in the table */
+	bool AddPoint(float InFocus, float InZoom, const FNodalPointOffset& InData,  float InputTolerance, bool bIsCalibrationPoint);
+	
+public:
+
+	/** Lists of focus points */
+	UPROPERTY()
+	TArray<FNodalOffsetFocusPoint> FocusPoints;
+};
+

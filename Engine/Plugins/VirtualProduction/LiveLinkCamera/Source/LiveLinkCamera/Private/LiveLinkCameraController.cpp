@@ -296,11 +296,31 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 
 			if (LensFileEvalData.Input.Zoom.IsSet() && UpdateFlags.bApplyFocalLength)
 			{
-				if (LensFile->HasZoomEncoderMapping())
+				//To evaluate focal length, we need F/Z pair. If focus is not available default to 0
+				bool bHasValidFxFy = false;
+				const float FocusValue = LensFileEvalData.Input.Focus.IsSet() ? LensFileEvalData.Input.Focus.GetValue() : 0.0f;
+				FFocalLengthInfo FocalLengthInfo;
+				if (LensFile->EvaluateFocalLength(FocusValue, LensFileEvalData.Input.Zoom.GetValue(), FocalLengthInfo))
 				{
-					CineCameraComponent->SetCurrentFocalLength(LensFile->EvaluateNormalizedZoom(*LensFileEvalData.Input.Zoom));
+					if ((FocalLengthInfo.FxFy[0] > KINDA_SMALL_NUMBER) && (FocalLengthInfo.FxFy[1] > KINDA_SMALL_NUMBER))
+					{
+						// This is how field of view, filmback, and focal length are related:
+						//
+						// FOVx = 2*atan(1/(2*Fx)) = 2*atan(FilmbackX / (2*FocalLength))
+						// => FocalLength = Fx*FilmbackX
+						// 
+						// FOVy = 2*atan(1/(2*Fy)) = 2*atan(FilmbackY / (2*FocalLength))
+						// => FilmbackY = FocalLength / Fy
+
+						// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
+						const float NewFocalLength = CineCameraComponent->CurrentFocalLength = FocalLengthInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
+						CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / FocalLengthInfo.FxFy[1];
+						CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
+						bHasValidFxFy = true;
+					}
 				}
-				else
+				
+				if(bHasValidFxFy == false)
 				{
 					UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("'%s' could not evaluate raw zoom value '%0.3f' using LensFile '%s'"), *GetName(), FrameData->FocalLength, *LensFile->GetName())
 				}
@@ -443,32 +463,6 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 
 		if (LensDistortionHandler)
 		{
-			// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
-			{
-				FDistortionInfo DistortionInfo;
-				DistortionInfo.Parameters.SetNumZeroed(LensFile->LensInfo.LensModel.GetDefaultObject()->GetNumParameters());
-
-				const bool bGotFxFy = LensFile->EvaluateDistortionParameters(
-					LensFileEvalData.Input.Focus.IsSet() ? *LensFileEvalData.Input.Focus : CineCameraComponent->CurrentFocusDistance,
-					LensFileEvalData.Input.Zoom.IsSet() ? *LensFileEvalData.Input.Zoom : CineCameraComponent->CurrentFocalLength,
-					DistortionInfo
-				);
-
-				if (bGotFxFy && (DistortionInfo.FxFy[0] > KINDA_SMALL_NUMBER) && (DistortionInfo.FxFy[1] > KINDA_SMALL_NUMBER))
-				{
-					// This is how field of view, filmback, and focal length are related:
-					//
-					// FOVx = 2*atan(1/(2*Fx)) = 2*atan(FilmbackX / (2*FocalLength))
-					// => FocalLength = Fx*FilmbackX
-					// 
-					// FOVy = 2*atan(1/(2*Fy)) = 2*atan(FilmbackY / (2*FocalLength))
-					// => FilmbackY = FocalLength / Fy
-
-					CineCameraComponent->CurrentFocalLength = DistortionInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
-					CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / DistortionInfo.FxFy[1];
-				}
-			}
-
 			//Go through the lens file to get distortion data based on FIZ
 			//Our handler's displacement map will get updated
 			FDistortionData DistortionData;

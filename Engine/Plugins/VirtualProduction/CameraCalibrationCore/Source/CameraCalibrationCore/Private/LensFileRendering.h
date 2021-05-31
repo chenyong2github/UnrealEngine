@@ -10,26 +10,32 @@ class UTextureRenderTarget2D;
 /** Types of blending used which drives permutation */
 enum class EDisplacementMapBlendType :uint8
 {
-	Passthrough,
-	Linear,
-	Bilinear,
+	OneFocusOneZoom, //no blending
+	OneFocusTwoZoom, //Bezier interp between two zoom points
+	TwoFocusOneZoom, //Linear interp between two focus points
+	TwoFocusTwoZoom, //Two Besier interp between each pair of zoom points and one linear interp across focus
 };
 
 /** Single struct containing blending params for all types */
 struct FDisplacementMapBlendingParams
 {
 	/** Active type of blending */
-	EDisplacementMapBlendType BlendType = EDisplacementMapBlendType::Passthrough;
+	EDisplacementMapBlendType BlendType = EDisplacementMapBlendType::OneFocusOneZoom;
 
-	/** Linear blend parameter */
-	float LinearBlendFactor = 0.0f;
+	/** Bezier blend parameters */
+	float EvalTime = 0.0f;
 
-	/** Bilinear blend parameters */
-	float MainCoefficient = 0.0f;
-	float DeltaMinX = 0.0f;
-	float DeltaMaxX = 0.0f;
-	float DeltaMinY = 0.0f;
-	float DeltaMaxY = 0.0f;
+	float Curve0Key0Time = 0.0f;
+	float Curve0Key1Time = 0.0f;
+	float Curve0Key0Tangent = 0.0f;
+	float Curve0Key1Tangent = 0.0f;
+
+	float Curve1Key0Time = 0.0f;
+	float Curve1Key1Time = 0.0f;
+	float Curve1Key0Tangent = 0.0f;
+	float Curve1Key1Tangent = 0.0f;
+
+	float FocusBlendFactor = 0.0f;
 
 	/** Scale parameter that allows displacement maps for one sensor size to be applied to camera's with a different sensor size */
 	FVector2D FxFyScale = { 1.0f, 1.0f };

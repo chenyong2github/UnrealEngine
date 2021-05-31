@@ -90,7 +90,8 @@ void FCalibratedMapProcessor::Update()
 			check(PendingJobs.Dequeue(PendingJob));
 
 			NewJob->Output.Reset();
-			NewJob->Output.Identifier = PendingJob.Identifier;
+			NewJob->Output.Focus = PendingJob.Focus;
+			NewJob->Output.Zoom = PendingJob.Zoom;
 			NewJob->JobArgs = MoveTemp(PendingJob);
 			ExecuteJob(MoveTemp(NewJob));
 		}
@@ -123,7 +124,8 @@ bool FCalibratedMapProcessor::PushDerivedDistortionDataJob(FDerivedDistortionDat
 	if (AvailableJobs.Dequeue(NewJob))
 	{
 		NewJob->Output.Reset();
-		NewJob->Output.Identifier = JobArgs.Identifier;
+		NewJob->Output.Focus = JobArgs.Focus;
+		NewJob->Output.Zoom = JobArgs.Zoom;
 		NewJob->JobArgs = MoveTemp(JobArgs);
 		ExecuteJob(NewJob);
 	}
@@ -172,15 +174,15 @@ void FCalibratedMapProcessor::ExecuteJob(TSharedPtr<FDerivedDistortionDataJob> J
         {
             FRDGBuilder GraphBuilder(RHICmdList);
 
-			FRDGTextureRef SourceSTMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceDistortionMap->TextureRHI, TEXT("SourceSTMap")));
-			FRDGTextureRef UndistortionDisplacementMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationUndistortionDisplacementMap->TextureRHI, TEXT("UndistortionDestinationDisplacementMap")));
-			FRDGTextureRef DistortionDisplacementMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationDistortionDisplacementMap->TextureRHI, TEXT("DistortionDestinationDisplacementMap")));
+            const FRDGTextureRef SourceSTMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceDistortionMap->TextureRHI, TEXT("SourceSTMap")));
+            const FRDGTextureRef UndistortionDisplacementMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationUndistortionDisplacementMap->TextureRHI, TEXT("UndistortionDestinationDisplacementMap")));
+            const FRDGTextureRef DistortionDisplacementMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationDistortionDisplacementMap->TextureRHI, TEXT("DistortionDestinationDisplacementMap")));
 
 			const int32 EntriesCount = Job->Output.EdgePointCount;
 			const int32 ReadbackDataByteCount = Job->Output.EdgePointsDistortedUVs.GetTypeSize();
 			FRDGBufferDesc EdgePointsDistortedUVDesc = FRDGBufferDesc::CreateBufferDesc(ReadbackDataByteCount, EntriesCount);
-			EdgePointsDistortedUVDesc.Usage = EBufferUsageFlags(EdgePointsDistortedUVDesc.Usage | BUF_SourceCopy);
-			FRDGBufferRef EdgePointsBuffer = GraphBuilder.CreateBuffer(EdgePointsDistortedUVDesc, TEXT("EdgePointsBuffer"));
+			EdgePointsDistortedUVDesc.Usage = static_cast<EBufferUsageFlags>(EdgePointsDistortedUVDesc.Usage | BUF_SourceCopy);
+            const FRDGBufferRef EdgePointsBuffer = GraphBuilder.CreateBuffer(EdgePointsDistortedUVDesc, TEXT("EdgePointsBuffer"));
            	
 			FCalibratedMapDerivedDataCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCalibratedMapDerivedDataCS::FParameters>();
             Parameters->DistortionSTMap = SourceSTMap;

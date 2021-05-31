@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 #include "CameraCalibrationEditorCommon.h"
+#include "LensFile.h"
 #include "SLensEvaluation.h"
 #include "UObject/StrongObjectPtr.h"
 
@@ -29,12 +30,12 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, ULensFile* InLensFile);
+	void Construct(const FArguments& InArgs, ULensFile* InLensFile, ELensDataCategory InitialDataCategory);
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** Finds currently opened dialog or spawns a new one */
-	static void OpenDialog(ULensFile* InLensFile, TAttribute<FCachedFIZData> InCachedFIZData, const FSimpleDelegate& InOnDataPointAdded);
+	static void OpenDialog(ULensFile* InLensFile, ELensDataCategory InitialDataCategory, TAttribute<FCachedFIZData> InCachedFIZData, const FSimpleDelegate& InOnDataPointAdded);
 
 private:
 
@@ -52,7 +53,7 @@ private:
 	TSharedRef<SWidget> MakeEncoderMappingWidget();
 
 	/** Updates the desired data category */
-	void SetDataCategory(EDataCategories NewCategory);
+	void SetDataCategory(ELensDataCategory NewCategory);
 
 	/** Closes this dialog */
 	void CloseDialog();
@@ -73,7 +74,7 @@ private:
 	void RefreshEvaluationData();
 	
 	/** Called when ready to add data to LensFile */
-	void AddDataToLensFile();
+	void AddDataToLensFile() const;
 
 private:
 
@@ -103,14 +104,26 @@ private:
 	TSharedPtr<SBorder> LensDataContainer;
 	
 	/** Category of data being added */
-	EDataCategories SelectedCategory = EDataCategories::NodalOffset;
+	ELensDataCategory SelectedCategory = ELensDataCategory::NodalOffset;
 
 	/** When adding an encoder mapping value, float holding the current one */
 	float EncoderMappingValue = 0.0f;
 
-	/** LensData currently being added */
-	TSharedPtr<FStructOnScope> LensData;
+	/** ImageCenterData, valid for image center category */
+	TSharedPtr<TStructOnScope<FImageCenterInfo>> ImageCenterData;
 
+	/** FocalLengthInfo, valid for distortion or focal length category */
+	TSharedPtr<TStructOnScope<FFocalLengthInfo>> FocalLengthData;
+
+	/** DistortionInfo, valid for distortion category */
+	TSharedPtr<TStructOnScope<FDistortionInfoContainer>> DistortionInfoData;
+
+	/** NodalOffset, valid for nodal offset category */
+	TSharedPtr<TStructOnScope<FNodalPointOffset>> NodalOffsetData;
+	
+	/** STMapInfo, valid for STMap category */
+	TSharedPtr<TStructOnScope<FSTMapInfo>> STMapData;
+	
 	/** Evaluated FIZ for the current frame */
 	TAttribute<FCachedFIZData> CachedFIZ;
 
