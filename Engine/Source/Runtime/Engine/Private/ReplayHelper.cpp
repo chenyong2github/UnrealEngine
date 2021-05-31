@@ -138,7 +138,8 @@ void FReplayHelper::StartRecording(UNetConnection* Connection)
 {
 	World = Connection ? Connection->GetWorld() : nullptr;
 
-	bHasLevelStreamingFixes = !!CVarWithLevelStreamingFixes.GetValueOnAnyThread();
+	// World Partition needs bHasLevelStreamingFixes to be true
+	bHasLevelStreamingFixes = !!CVarWithLevelStreamingFixes.GetValueOnAnyThread() || (World->GetWorldPartition() != nullptr);
 	bHasDeltaCheckpoints = !!CVarWithDeltaCheckpoints.GetValueOnAnyThread() && ReplayStreamer->IsCheckpointTypeSupported(EReplayCheckpointType::Delta);
 	bHasGameSpecificFrameData = !!CVarWithGameSpecificFrameData.GetValueOnAnyThread();
 
