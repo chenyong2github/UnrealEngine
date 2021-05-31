@@ -204,7 +204,7 @@ void FTagTrace::AnnounceGenericTags()
 	#define TRACE_TAG_SPEC(Enum,Str,Stat,Group,ParentTag)\
 	{\
 		const uint32 DisplayLen = FCStringAnsi::Strlen(Str);\
-		UE_TRACE_LOG(Memory, TagSpec, MemAllocChannel, DisplayLen * sizeof(ANSICHAR))\
+		UE_TRACE_LOG(Memory, TagSpec, MemAllocChannel)\
 			<< TagSpec.Tag((int32) ELLMTag::Enum)\
 			<< TagSpec.Parent((int32) ParentTag)\
 			<< TagSpec.Display(Str, DisplayLen);\
