@@ -429,8 +429,6 @@ FSkyAtmosphereSceneProxy::FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent
 	TraceSampleCountScale = InComponent->TraceSampleCountScale;
 
 	InComponent->GetOverrideLightStatus(OverrideAtmosphericLight, OverrideAtmosphericLightDirection);
-
-	TransmittanceAtZenith = AtmosphereSetup.GetTransmittanceAtGroundLevel(FVector(0.0f, 0.0f, 1.0f));
 }
 
 FSkyAtmosphereSceneProxy::~FSkyAtmosphereSceneProxy()

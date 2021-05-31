@@ -1294,8 +1294,6 @@ void FViewInfo::SetupUniformBufferParameters(
 		check(Index < NUM_ATMOSPHERE_LIGHTS);
 		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(1.0f);
 		ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = FLinearColor::Black;
-		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[Index] = FLinearColor::Black;
-		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[Index].A = 0.0f;
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index] = FLinearColor::Black;
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index].A = 0.0f;
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[Index] = FLinearColor::Black;
@@ -1317,17 +1315,16 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.DirectionalLightDirection = FVector::ZeroVector;
 		}
 
-		// Atmospheric fog parameters
+		// Set default atmosphere lights parameters
 		FLightSceneInfo* SunLight = Scene->AtmosphereLights[0];	// Atmospheric fog only takes into account the a single sun light with index 0.
 		const float SunLightDiskHalfApexAngleRadian = SunLight ? SunLight->Proxy->GetSunLightHalfApexAngleRadian() : FLightSceneProxy::GetSunOnEarthHalfApexAngleRadian();
 
 		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[0] = FVector4(FMath::Cos(SunLightDiskHalfApexAngleRadian));
 		//Added check so atmospheric light color and vector can use a directional light without needing an atmospheric fog actor in the scene
 		ViewUniformShaderParameters.AtmosphereLightDiscLuminance[0] = SunLight ? SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::Black;
-		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0] = SunLight ? SunLight->Proxy->GetColor() : FLinearColor::Black;
-		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0].A = 1.0f;
-		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0] = ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0];
+		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0] = SunLight ? SunLight->Proxy->GetColor() : FLinearColor::Black;
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].A = 0.0f;
+		ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0] = ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0];
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0].A = 0.0f;
 		ViewUniformShaderParameters.AtmosphereLightDirection[0] = SunLight ? -SunLight->Proxy->GetDirection() : DefaultSunDirection;
 
@@ -1404,8 +1401,6 @@ void FViewInfo::SetupUniformBufferParameters(
 			{
 				ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(FMath::Cos(Light->Proxy->GetSunLightHalfApexAngleRadian()));
 				ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = Light->Proxy->GetOuterSpaceLuminance();
-				ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[Index] = Light->Proxy->GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance();
-				ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[Index].A = 1.0f;
 				ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index] = Light->Proxy->GetSunIlluminanceOnGroundPostTransmittance();
 				ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index].A = 1.0f; // interactions with HeightFogComponent
 				ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[Index] = Light->Proxy->GetOuterSpaceIlluminance();
@@ -1456,11 +1451,10 @@ void FViewInfo::SetupUniformBufferParameters(
 				{
 					ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(1.0f);
 					ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = FLinearColor::Black;
-					ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[Index] = Light->Proxy->GetColor();
-					ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[Index].A = 1.0f;
 					ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index] = Light->Proxy->GetColor();
 					ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index].A = 0.0f; // no interactions with HeightFogComponent
 					ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[Index] = Light->Proxy->GetColor();
+					ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0].A = 0.0f;
 					ViewUniformShaderParameters.AtmosphereLightDirection[Index] = -Light->Proxy->GetDirection();
 				}
 				else

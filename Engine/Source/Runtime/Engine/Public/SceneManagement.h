@@ -1162,7 +1162,6 @@ public:
 	~FSkyAtmosphereSceneProxy();
 
 	FLinearColor GetSkyLuminanceFactor() const { return SkyLuminanceFactor; }
-	FLinearColor GetTransmittanceAtZenith() const { return TransmittanceAtZenith; };
 	float GetAerialPespectiveViewDistanceScale() const { return AerialPespectiveViewDistanceScale; }
 	float GetHeightFogContribution() const { return HeightFogContribution; }
 	float GetAerialPerspectiveStartDepthKm() const { return AerialPerspectiveStartDepthKm; }
@@ -1181,7 +1180,6 @@ private:
 
 	FAtmosphereSetup AtmosphereSetup;
 
-	FLinearColor TransmittanceAtZenith;
 	FLinearColor SkyLuminanceFactor;
 	float AerialPespectiveViewDistanceScale;
 	float HeightFogContribution;
@@ -1515,7 +1513,7 @@ public:
 	inline bool IsUsedAsAtmosphereSunLight() const { return bUsedAsAtmosphereSunLight; }
 	inline uint8 GetAtmosphereSunLightIndex() const { return AtmosphereSunLightIndex; }
 	inline FLinearColor GetAtmosphereSunDiskColorScale() const { return AtmosphereSunDiskColorScale; }
-	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceTowardSun, FLinearColor SunOuterSpaceIlluminance, FLinearColor SunOuterSpaceLuminance, bool bPerPixelTransmittanceEnabled) {}
+	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceTowardSunIn, FLinearColor SunDiscOuterSpaceLuminanceIn) {}
 	virtual FLinearColor GetOuterSpaceLuminance() const { return FLinearColor::White; }
 	virtual FLinearColor GetOuterSpaceIlluminance() const { return GetColor(); }
 	virtual FLinearColor GetAtmosphereTransmittanceTowardSun() const { return FLinearColor::White; }

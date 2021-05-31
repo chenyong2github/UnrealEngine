@@ -225,11 +225,6 @@ public:
 	FLinearColor SunDiscOuterSpaceLuminance;
 
 	/**
-	 * The light outer space illuminance used to feed the SkyAtmosphere simulation
-	 */
-	FLinearColor SunOuterSpaceIlluminance;
-
-	/**
 	 * The atmosphere transmittance from ground to current light direction.
 	 */
 	FLinearColor TransmittanceTowardSun;
@@ -296,9 +291,8 @@ public:
 		OcclusionMaskDarkness(Component->OcclusionMaskDarkness),
 		OcclusionDepthRange(Component->OcclusionDepthRange),
 		LightShaftOverrideDirection(Component->LightShaftOverrideDirection),
-		bPerPixelTransmittanceEnabled(false),
+		bPerPixelTransmittanceEnabled(Component->bPerPixelAtmosphereTransmittance),
 		SunDiscOuterSpaceLuminance(FLinearColor::White),
-		SunOuterSpaceIlluminance(FLinearColor::White),
 		TransmittanceTowardSun(FLinearColor::White),
 		DynamicShadowCascades(Component->DynamicShadowCascades > 0 ? Component->DynamicShadowCascades : 0),
 		CascadeDistributionExponent(Component->CascadeDistributionExponent),
@@ -537,12 +531,10 @@ public:
 		return DoesPlatformSupportDistanceFieldShadowing(GShaderPlatformForFeatureLevel[InFeatureLevel]) && (bCreateWithCSM || bCreateWithoutCSM);
 	}
 
-	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceTowardSunIn, FLinearColor SunOuterSpaceIlluminanceIn, FLinearColor SunOuterSpaceLuminance, bool bPerPixelTransmittanceEnabledIn) override
+	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceTowardSunIn, FLinearColor SunDiscOuterSpaceLuminanceIn) override
 	{
 		TransmittanceTowardSun = TransmittanceTowardSunIn;
-		SunDiscOuterSpaceLuminance = SunOuterSpaceLuminance;
-		SunOuterSpaceIlluminance = SunOuterSpaceIlluminanceIn;
-		bPerPixelTransmittanceEnabled = bPerPixelTransmittanceEnabledIn;
+		SunDiscOuterSpaceLuminance = SunDiscOuterSpaceLuminanceIn;
 	}
 
 	virtual FLinearColor GetOuterSpaceLuminance() const override
