@@ -133,8 +133,7 @@ namespace DatasmithSketchUp
 		FExportContext& Context,
 		FExtractedMaterial& InMaterial,
 		TCHAR const* InMaterialName,
-		FTexture* Texture,
-		bool bInScaleTexture
+		bool         bInScaleTexture
 	)
 	{
 		// Create a Datasmith material element for the material definition.
@@ -151,8 +150,12 @@ namespace DatasmithSketchUp
 		DatasmithMaterialElementPtr->SetTwoSided(false);// todo: consider this
 
 		bool bTranslucent = InMaterial.bSourceColorAlphaUsed;
-		if (Texture)
+		if (SUIsValid(InMaterial.TextureRef))
 		{
+			FTexture* Texture = (InMaterial.SourceType == SUMaterialType::SUMaterialType_ColorizedTexture)
+				? Context.Textures.AddColorizedTexture(InMaterial.TextureRef, InMaterial.SketchupSourceName)
+				: Context.Textures.AddTexture(InMaterial.TextureRef, InMaterial.SketchupSourceName);
+
 			IDatasmithMaterialExpressionTexture* ExpressionTexture = DatasmithMaterialElementPtr->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
 			ExpressionTexture->SetName(TEXT("Texture"));
 			ExpressionTexture->SetTexturePathName(Texture->GetDatasmithElementName());
@@ -274,7 +277,6 @@ void FMaterial::Remove(FExportContext& Context)
 		Context.DatasmithScene->RemoveMaterial(MaterialInheritedByNodes->DatasmithElement);
 	}
 
-	Context.Textures.UnregisterMaterial(this);
 }
 
 void FMaterial::Update(FExportContext& Context)
@@ -282,22 +284,9 @@ void FMaterial::Update(FExportContext& Context)
 	FExtractedMaterial ExtractedMaterial(Context, MaterialRef);
 	EntityId = ExtractedMaterial.SketchupSourceID.EntityID;
 
-	if (Texture)
-	{
-		Context.Textures.UnregisterMaterial(this);
-		Texture = nullptr;
-	}
-
-	if (SUIsValid(ExtractedMaterial.TextureRef))
-	{
-		Texture = (ExtractedMaterial.SourceType == SUMaterialType::SUMaterialType_ColorizedTexture)
-			? Context.Textures.AddColorizedTexture(ExtractedMaterial.TextureRef, ExtractedMaterial.SketchupSourceName)
-			: Context.Textures.AddTexture(ExtractedMaterial.TextureRef, ExtractedMaterial.SketchupSourceName);
-		Context.Textures.RegisterMaterial(this);
-	}
 
 	{
-		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.LocalizedMaterialName, Texture, false);
+		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.LocalizedMaterialName, false);
 
 		if (MaterialDirectlyAppliedToMeshes)
 		{
@@ -311,7 +300,7 @@ void FMaterial::Update(FExportContext& Context)
 	}
 
 	{
-		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.InheritedMaterialName, Texture, true);
+		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.InheritedMaterialName, true);
 
 		if (MaterialInheritedByNodes)
 		{
