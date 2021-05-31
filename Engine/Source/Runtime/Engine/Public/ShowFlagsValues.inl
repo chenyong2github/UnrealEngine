@@ -309,8 +309,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeGlobalDistanceField, SFG_Visualize, NSLOC
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeLumenScene, SFG_Visualize, NSLOCTEXT("UnrealEd", "LumenSceneSF", "Lumen Scene"))
 /** Visualization of Lumen indirect diffuse */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeLumenIndirectDiffuse, SFG_Visualize, NSLOCTEXT("UnrealEd", "LumenIndirectDiffuseSF", "Lumen Global Illumination"))
-/** Enable the debug visualisation of indirect diffuse and specular lighting using probes */
-SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeIndirectLighting, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeIndirectLightingSF", "Visualize Indirect Lighting"))
+/** Enable the debug visualization of diffuse/specular lighting (direct and indirect) using probes */
+SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeLightingOnProbes, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeLightingOnProbesSF", "Visualize Lighting on Probes"))
 /** Screen space AO, for now SHOWFLAG_ALWAYS_ACCESSIBLE because r.GBuffer need that */
 SHOWFLAG_ALWAYS_ACCESSIBLE(ScreenSpaceAO, SFG_LightingFeatures, NSLOCTEXT("UnrealEd", "ScreenSpaceAOSF", "Screen Space Ambient Occlusion"))
 /** Distance field AO, for now SHOWFLAG_ALWAYS_ACCESSIBLE because it's exposed in SceneCapture */
