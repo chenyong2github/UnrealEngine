@@ -1580,7 +1580,7 @@ void SSceneOutliner::OnItemExpansionChanged(FSceneOutlinerTreeItemPtr TreeItem, 
 	for (auto WeakChild : TreeItem->GetChildren())
 	{
 		auto Child = WeakChild.Pin();
-		if (Child->Flags.bIsExpanded)
+		if (Child.IsValid() && Child->Flags.bIsExpanded)
 		{
 			OutlinerTreeView->SetItemExpansion(Child, true);
 		}

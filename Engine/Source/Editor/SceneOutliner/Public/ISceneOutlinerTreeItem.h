@@ -87,7 +87,7 @@ public:
 		}
 	}
 
-	/** Get this item's children, if any. Although we store as weak pointers, they are guaranteed to be valid. */
+	/** Get this item's children, if any. */
 	FORCEINLINE const TSet<TWeakPtr<ISceneOutlinerTreeItem>>& GetChildren() const
 	{
 		return Children;
