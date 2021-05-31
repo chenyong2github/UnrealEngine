@@ -118,6 +118,8 @@ public:
 	virtual uint32 Run() override;
 	virtual void Stop() override;
 
+	uint32 GetThreadId() const { return Thread ? Thread->GetThreadID() : 0; }
+
 private:
 	class FDecompressAsyncTask
 	{

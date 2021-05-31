@@ -66,6 +66,11 @@
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
+TRACE_DECLARE_MEMORY_COUNTER(AsyncLoadingPendingIoRequestsSize, TEXT("AsyncLoading/PendingIoRequestsSize"));
+CSV_DEFINE_CATEGORY(AsyncLoading, true);
+CSV_DEFINE_STAT(AsyncLoading, PendingIoRequestsSizeMB);
+CSV_DEFINE_STAT(AsyncLoading, FrameCompletedBundleLoadsKB);
+
 int32 GAsyncLoadingMaxPendingRequestsSizeMB = 256;
 static FAutoConsoleVariableRef CVar_AsyncLoadingMaxPendingRequestsSizeMB(
 	TEXT("s.AsyncLoadingMaxPendingRequestsSizeMB"),
@@ -2593,6 +2598,9 @@ void FAsyncLoadingThread2::BundleIoRequestCompleted(FAsyncPackage2* Package)
 {
 	check(PendingBundleIoRequestsTotalSize >= Package->ExportBundlesSize)
 	PendingBundleIoRequestsTotalSize -= Package->ExportBundlesSize;
+	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequestsSize, PendingBundleIoRequestsTotalSize);
+	CSV_CUSTOM_STAT_DEFINED(PendingIoRequestsSizeMB, float((double)PendingBundleIoRequestsTotalSize / 1024.0 / 1024.0), ECsvCustomStatOp::SetAndHold);
+	CSV_CUSTOM_STAT_DEFINED(FrameCompletedBundleLoadsKB, float((double)Package->ExportBundlesSize / 1024.0), ECsvCustomStatOp::Accumulate);
 	if (WaitingIoRequests.Num())
 	{
 		StartBundleIoRequests();
@@ -2638,6 +2646,9 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 		});
 	}
 	IoBatch.Issue();
+
+	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequestsSize, PendingBundleIoRequestsTotalSize);
+	CSV_CUSTOM_STAT_DEFINED(PendingIoRequestsSizeMB, float((double)PendingBundleIoRequestsTotalSize / 1024.0 / 1024.0), ECsvCustomStatOp::SetAndHold);
 }
 
 FEventLoadNode2::FEventLoadNode2(const FAsyncLoadEventSpec* InSpec, FAsyncPackage2* InPackage, int32 InImportOrExportIndex, int32 InBarrierCount)

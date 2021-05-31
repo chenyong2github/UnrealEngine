@@ -4,6 +4,10 @@
 
 #include "IO/IoStore.h"
 #include "IO/IoDispatcherBackend.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CountersTrace.h"
+
+#define IO_DISPATCHER_FILE_STATS (COUNTERSTRACE_ENABLED || CSV_PROFILER)
 
 struct FFileIoStoreCompressionContext;
 
@@ -836,4 +840,70 @@ private:
 
 	friend class FFileIoStore;
 	friend class FFileIoStoreRequestTracker;
+};
+
+
+// Wrapper for sending stats to both insights and csv profiling from any platform-specific dispatcher.
+struct FFileIoStats
+{
+#if CSV_PROFILER
+	static uint64 QueuedFilesystemReadBytes;
+	static uint64 QueuedFilesystemReads;
+
+	static uint64 QueuedUncompressBytesIn;
+	static uint64 QueuedUncompressBytesOut;
+	static uint64 QueuedUncompressBlocks;
+#endif
+
+#if IO_DISPATCHER_FILE_STATS
+	// Used for seek tracking 
+	static uint64 LastHandle;
+	static uint64 LastOffset;
+
+	static uint32 FileIoStoreThreadId;
+	static uint32 IoDispatcherThreadId;
+#endif
+
+	static float BytesToApproxMB(uint64 Bytes) {
+		return float(double(Bytes) / 1024.0 / 1024.0);
+	}
+	static float BytesToApproxKB(uint64 Bytes) {
+		return float(double(Bytes) / 1024.0);
+	}
+
+	static bool IsInIoDispatcherThread();
+	static bool IsInFileIoStoreThread();
+	static void SetThreadIds(uint32 InIoDispatcherThreadId, uint32 InFileIoStoreThreadId);
+
+	// Adds an underlying filesystem read to the queue to track num reads/bytes in the queue
+	// There is currently no separate stat for in-flight reads, those are still counted in the queued stat
+	static void OnFilesystemReadsQueued(const FFileIoStoreReadRequestList& Requests);
+	static void OnFilesystemReadsQueued(uint64 NumBytes, int32 NumReads);
+	// Called when the backend commits to the next read to check for estimated seek tracking
+	static void OnFilesystemReadStarted(uint64 Handle, uint64 Offset, uint64 NumBytes);
+	// Underlying filesystem read complete, BytesRead is bytes returned from filesystem, possibly already decompressed on some systems
+	static void OnFilesystemReadsComplete(const FFileIoStoreReadRequestList& CompletedRequests);
+	static void OnFilesystemReadsComplete(int64 BytesRead, int32 NumReads=1);
+	// Backend read complete, BytesRead is bytes returned from either block cache or filesystem
+	static void OnReadComplete(int64 BytesRead);
+	// NumBytes of data passed the decompression stage, even if the compression method was none
+	static void OnDecompressQueued(int64 CompressedBytes, int64 UncompressedBytes);
+	static void OnDecompressComplete(int64 CompressedBytes, int64 UncompressedBytes);
+
+	// Bytes were copied into the buffer provided to users of the io system
+	static void OnBytesScattered(int64 BytesScattered);
+	// Record stats for block cache hit/miss rate & data throughput
+	static void OnBlockCacheStore(uint64 NumBytes);
+	static void OnBlockCacheHit(uint64 NumBytes);
+	static void OnBlockCacheMiss(uint64 NumBytes);
+
+	static void OnCloseHandle(uint64 Handle);
+
+private:
+	// A read was started which the backend considers sequential
+	static void OnSequentialRead();
+	// A read was started which the backend considers a forward or reverse seek
+	static void OnSeek(uint64 LastOffset, uint64 NewOffset);
+	// A read was started from a different file handle from the last one we used
+	static void OnHandleChangeSeek();
 };

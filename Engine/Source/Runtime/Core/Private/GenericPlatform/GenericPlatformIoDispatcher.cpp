@@ -12,10 +12,6 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
-TRACE_DECLARE_INT_COUNTER(IoDispatcherSequentialReads, TEXT("IoDispatcher/SequentialReads"));
-TRACE_DECLARE_INT_COUNTER(IoDispatcherForwardSeeks, TEXT("IoDispatcher/ForwardSeeks"));
-TRACE_DECLARE_INT_COUNTER(IoDispatcherBackwardSeeks, TEXT("IoDispatcher/BackwardSeeks"));
-TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalSeekDistance, TEXT("IoDispatcher/TotalSeekDistance"));
 
 FGenericFileIoStoreEventQueue::FGenericFileIoStoreEventQueue()
 	: ServiceEvent(FPlatformProcess::GetSynchEventFromPool())
@@ -69,6 +65,7 @@ bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint
 void FGenericFileIoStoreImpl::CloseContainer(uint64 ContainerFileHandle)
 {
 	check(ContainerFileHandle);
+	FFileIoStats::OnCloseHandle(ContainerFileHandle);
 	IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(ContainerFileHandle);
 	delete FileHandle;
 }
@@ -110,22 +107,8 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 	if (!BlockCache.Read(NextRequest))
 	{
 		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(NextRequest->FileHandle));
-		if (FileHandle->Tell() != NextRequest->Offset)
-		{
-			if (uint64(FileHandle->Tell()) > NextRequest->Offset)
-			{
-				TRACE_COUNTER_INCREMENT(IoDispatcherBackwardSeeks);
-			}
-			else
-			{
-				TRACE_COUNTER_INCREMENT(IoDispatcherForwardSeeks);
-			}
-			TRACE_COUNTER_ADD(IoDispatcherTotalSeekDistance, FMath::Abs(FileHandle->Tell() - int64(NextRequest->Offset)));
-		}
-		else
-		{
-			TRACE_COUNTER_INCREMENT(IoDispatcherSequentialReads);
-		}
+		 
+		FFileIoStats::OnFilesystemReadStarted(NextRequest->FileHandle, NextRequest->Offset, NextRequest->Size);
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ReadBlockFromFile);
 			NextRequest->bFailed = true;
@@ -147,6 +130,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 				break;
 			}
 		}
+		FFileIoStats::OnFilesystemReadsComplete(NextRequest->Size);
 	}
 	{
 		FScopeLock _(&CompletedRequestsCritical);
