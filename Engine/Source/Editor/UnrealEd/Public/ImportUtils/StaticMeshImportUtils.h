@@ -19,6 +19,11 @@ class UThumbnailInfo;
 class UModel;
 class UBodySetup;
 
+namespace UnFbx
+{
+	struct FBXImportOptions;
+}
+
 // LOD data to copy over
 struct FExistingLODMeshData
 {
