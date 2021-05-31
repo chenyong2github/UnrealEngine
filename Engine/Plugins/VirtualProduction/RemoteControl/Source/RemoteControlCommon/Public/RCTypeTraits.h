@@ -8,6 +8,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Templates/IsArithmetic.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
 
 namespace RemoteControlTypeTraits
@@ -725,7 +726,7 @@ struct TRemoteControlTypeTraits<FLinearColor>
 
 #pragma region Name to Type
 
-template <int16 TypeName>
+template <EName TypeName>
 struct TRCTypeNameToType { using Type = void; };
 
 template <> struct TRCTypeNameToType<NAME_Int8Property> { using Type = int8; };
