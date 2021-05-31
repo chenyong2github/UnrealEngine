@@ -182,7 +182,7 @@ const FResponse& FStoreCborClient::GetResponse() const
 ////////////////////////////////////////////////////////////////////////////////
 bool FStoreCborClient::Connect(const TCHAR* Host, uint16 Port)
 {
-	Port = (Port == 0) ? 1989 : Port;
+	Port = (Port == 0) ? 1988 : Port;
 
 	FTCHARToUTF8 HostUtf8(Host);
 	char PortString[8];
