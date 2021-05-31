@@ -229,6 +229,9 @@ void Writer_TailAppend(uint32 ThreadId, uint8* __restrict Data, uint32 Size, boo
 		Packet->ThreadId = uint16(ThreadId);
 		::memcpy(Packet->Data, Data, Size);
 
+		// If we're already sending data then the partial flag serves no purpose.
+		Packet->ThreadId &= ~FTidPacketBase::PartialMarker;
+
 		Writer_SendDataRaw(Packet, Packet->PacketSize);
 		return;
 	}
@@ -243,6 +246,9 @@ void Writer_TailAppend(uint32 ThreadId, uint8* __restrict Data, uint32 Size, boo
 	uint32 BackUp = EncodeMaxSize - EncodeSize;
 	GPacketRing.BackUp(BackUp);
 	Packet->PacketSize -= uint16(BackUp);
+
+	// If we're already sending data then the partial flag serves no purpose.
+	Packet->ThreadId &= ~FTidPacketBase::PartialMarker;
 
 	return Writer_SendDataRaw(Packet, Packet->PacketSize);
 }
