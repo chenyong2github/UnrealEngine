@@ -1,14 +1,25 @@
-
-
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DeferredShadingCommon.ush"
 #include "VelocityCommon.ush"
+
+#if PROJECT_STRATA
+#include "Strata/Strata.ush"
+RWByteAddressBuffer MaterialLobesBufferUAV;
+uint MaxBytesPerPixel;
+#endif
+int DebugProbesMode;
 
 
 
 #define PROBE_MODE_SPECULAR	0
 #define PROBE_MODE_DIFFUSE	1
 #define PROBE_MODE_BOTH		2
+
+// Must match DebugProbeRendering.usf
+#define RENDER_DEPTHPREPASS	0
+#define RENDER_BASEPASS		1
+#define RENDER_VELOCITYPASS	2
 
 
 
@@ -39,14 +50,10 @@ void DebugSphereIntersection(
 
 
 
-int DebugProbesMode;
-
-
-
 void MainPS(
 	  in  float4 SvPosition		: SV_Position
 	, out float4 OutColor		: SV_Target0
-#if PERMUTATION_RENDERVELOCITY == 0
+#if PERMUTATION_PASS == RENDER_BASEPASS
 	, out float4 OutGBufferA	: SV_Target1
 	, out float4 OutGBufferB	: SV_Target2
 	, out float4 OutGBufferC	: SV_Target3
@@ -200,7 +207,7 @@ void MainPS(
 	}
 
 
-#if PERMUTATION_RENDERVELOCITY
+#if PERMUTATION_PASS == RENDER_VELOCITYPASS
 
 	float3 Velocity = 0.0f;
 
@@ -213,20 +220,62 @@ void MainPS(
 
 	OutColor = EncodeVelocityToTexture(Velocity);
 
-#else
+#elif PERMUTATION_PASS == RENDER_BASEPASS
 
 	const float PerObjectGBufferData = 0.0f;
 	const float SelectiveOutputMask = 0.0f;
 
 	const float3 BaseColor = 1.0f;
-	const float  Metallic  = ProbeMode == PROBE_MODE_DIFFUSE ? 0.0f : 1.0f;
-	const float  Specular  = ProbeMode == PROBE_MODE_DIFFUSE ? 0.0f : 1.0f;
+	const float  Metallic = ProbeMode == PROBE_MODE_DIFFUSE ? 0.0f : 1.0f;
+	const float  Specular = ProbeMode == PROBE_MODE_DIFFUSE ? 0.0f : 1.0f;
 	const float  Roughness = 0.01f;
 	const float  IndirectIrradianceAndAO = 0.0f;
 
-	// We write all outputs, the rasterizer will discard what is not bound. That is fine since we do not care that much about performance for this debug view.
+#if PROJECT_STRATA
 
-	OutColor = 0.0f;
+	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+
+	uint SharedLocalBasisIndex = 0;
+	StrataPixelHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = normalize(Normal);
+	StrataPixelHeader.SharedLocalBases.Count = 1;
+
+	FStrataData StrataData = GetStrataSlabBSDF(
+		/*float UseMetalness					*/true,
+		/*float3 BaseColor						*/BaseColor, 
+		/*float3 EdgeColor						*/1.0f, 
+		/*float Specular						*/Specular, 
+		/*float Metallic						*/Metallic,
+		/*float3 DiffuseAlbedo					*/0.0f, 
+		/*float3 F0								*/0.0f, 
+		/*float3 F90							*/0.0f,
+		/*float Roughness						*/Roughness, 
+		/*float Anisotropy						*/0.0f,
+		/*float SSSProfileID					*/0.0f, 
+		/*float3 SSSDMFP						*/0.0f, 
+		/*float SSSDMFPScale					*/0.0f,
+		/*float3 Emissive						*/0.0f, 
+		/*float Haziness						*/0.0f, 
+		/*float ThinFilmThickness				*/0.0f,
+		/*float FuzzAmount						*/0.0f, 
+		/*float3 FuzzColor						*/0.0f,
+		/*float Thickness						*/0.0f, 
+		/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,
+		/*inout uint SharedLocalBasisTypes		*/StrataPixelHeader.SharedLocalBases.Types);
+
+	StrataPixelHeader.MaterialAO = 1.0f - IndirectIrradianceAndAO; 
+	StrataPixelHeader.BSDFCount = 1;
+
+	float3 EmissiveLuminance = 0.0f;
+	bool bStrataSubsurfaceEnable = false; 
+	const float Dither = 0.0f;
+	PackStrataOut(
+		MaterialLobesBufferUAV, Dither,
+		GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel),
+		StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance);
+	
+#else // PROJECT_STRATA
+
+	// We write all outputs, the rasterizer will discard what is not bound. That is fine since we do not care that much about performance for this debug view.
 
 	OutGBufferA = float4(
 		EncodeNormal(Normal), 
@@ -242,9 +291,11 @@ void MainPS(
 	OutGBufferD = float4(0.0f, 0.0f, 0.0f, 0.0f);	// custom data
 	OutGBufferE = float4(1.0f, 1.0f, 1.0f, 1.0f);	// Pre computed shadow factor
 
-	// Not writting to the velocity buffer
+#endif // PROJECT_STRATA
 
-#endif
+	OutColor = 0.0f;
+
+#endif // PERMUTATION_PASS
 
 	OutDepth = DeviceZ;
 

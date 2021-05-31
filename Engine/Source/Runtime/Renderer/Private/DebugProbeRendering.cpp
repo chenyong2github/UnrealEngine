@@ -3,6 +3,8 @@
 #include "DebugProbeRendering.h"
 #include "PixelShaderUtils.h"
 #include "ShaderParameterStruct.h"
+#include "SceneRendering.h"
+#include "Strata/Strata.h"
 
 
 // Changing this causes a full shader recompile
@@ -21,16 +23,24 @@ static TAutoConsoleVariable<int32> CVarVisualizeLightingOnProbes(
 DECLARE_GPU_STAT(StampDeferredDebugProbe);
 
 
+// Must match DebugProbes.usf
+#define RENDER_DEPTHPREPASS  0
+#define RENDER_BASEPASS	     1
+#define RENDER_VELOCITYPASS  2
+
+
 class FStampDeferredDebugProbePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FStampDeferredDebugProbePS);
 	SHADER_USE_PARAMETER_STRUCT(FStampDeferredDebugProbePS, FGlobalShader);
 
-	class FRenderVelocity : SHADER_PERMUTATION_BOOL("PERMUTATION_RENDERVELOCITY");
-	using FPermutationDomain = TShaderPermutationDomain<FRenderVelocity>;
+	class FRenderPass : SHADER_PERMUTATION_RANGE_INT("PERMUTATION_PASS", 0, 3);
+	using FPermutationDomain = TShaderPermutationDomain<FRenderPass>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, MaterialLobesBufferUAV)
+		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 		SHADER_PARAMETER(int32, DebugProbesMode)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -60,13 +70,15 @@ static void CommonStampDeferredDebugProbeDrawCall(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	FStampDeferredDebugProbePS::FParameters* PassParameters,
-	bool bRenderVelocity = false)
+	int32 RenderPass)
 {
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	PassParameters->MaterialLobesBufferUAV = View.StrataSceneData->MaterialLobesBufferUAV;
+	PassParameters->MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
 	PassParameters->DebugProbesMode = View.Family->EngineShowFlags.VisualizeLightingOnProbes ? 3 : FMath::Clamp(CVarVisualizeLightingOnProbes.GetValueOnRenderThread(), 0, 3);
 		
 	FStampDeferredDebugProbePS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FStampDeferredDebugProbePS::FRenderVelocity>(bRenderVelocity);
+	PermutationVector.Set<FStampDeferredDebugProbePS::FRenderPass>(RenderPass);
 	TShaderMapRef<FStampDeferredDebugProbePS> PixelShader(View.ShaderMap, PermutationVector);
 
 	FPixelShaderUtils::AddFullscreenPass<FStampDeferredDebugProbePS>(
@@ -94,10 +106,9 @@ void StampDeferredDebugProbeDepthPS(
 		}
 
 		FStampDeferredDebugProbePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStampDeferredDebugProbePS::FParameters>();
-		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
-		CommonStampDeferredDebugProbeDrawCall<true>(GraphBuilder, View, PassParameters);
+		CommonStampDeferredDebugProbeDrawCall<true>(GraphBuilder, View, PassParameters, RENDER_DEPTHPREPASS);
 	}
 }
 
@@ -120,7 +131,7 @@ void StampDeferredDebugProbeMaterialPS(
 		FStampDeferredDebugProbePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStampDeferredDebugProbePS::FParameters>();
 		PassParameters->RenderTargets = BasePassRenderTargets;
 
-		CommonStampDeferredDebugProbeDrawCall<false>(GraphBuilder, View, PassParameters);
+		CommonStampDeferredDebugProbeDrawCall<false>(GraphBuilder, View, PassParameters, RENDER_BASEPASS);
 	}
 }
 
@@ -144,7 +155,7 @@ void StampDeferredDebugProbeVelocityPS(
 		PassParameters->RenderTargets = BasePassRenderTargets;
 
 		const bool bRenderVelocity = true;
-		CommonStampDeferredDebugProbeDrawCall<false>(GraphBuilder, View, PassParameters, bRenderVelocity);
+		CommonStampDeferredDebugProbeDrawCall<false>(GraphBuilder, View, PassParameters, RENDER_VELOCITYPASS);
 	}
 }
 
