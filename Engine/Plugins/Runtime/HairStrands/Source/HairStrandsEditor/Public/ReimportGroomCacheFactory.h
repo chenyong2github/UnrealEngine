@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "HairStrandsFactory.h"
 #include "EditorReimportHandler.h"
+#include "HairStrandsFactory.h"
 
-#include "ReimportHairStrandsFactory.generated.h"
+#include "ReimportGroomCacheFactory.generated.h"
 
 UCLASS(hidecategories = Object)
-class UReimportHairStrandsFactory : public UHairStrandsFactory, public FReimportHandler
+class UReimportGroomCacheFactory : public UHairStrandsFactory, public FReimportHandler
 {
 	GENERATED_UCLASS_BODY()
 
@@ -17,7 +17,7 @@ public:
 	virtual bool FactoryCanImport(const FString& Filename) override;
 	//~ End UFactory Interface
 
-	//~ FReimportHandler interface
+	//~ FReimportHandler Interface
 	virtual int32 GetPriority() const override;
 	virtual bool CanReimport(UObject* Obj, TArray<FString>& OutFilenames) override;
 	virtual void SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths) override;
