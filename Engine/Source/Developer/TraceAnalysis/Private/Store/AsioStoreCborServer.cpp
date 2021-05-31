@@ -23,7 +23,6 @@ public:
 
 protected:
 	void					OnPayload();
-	void					OnConnect();
 	void					OnSessionCount();
 	void					OnSessionInfo();
 	void					OnStatus();
@@ -72,14 +71,6 @@ bool FAsioStoreCborPeer::IsOpen() const
 void FAsioStoreCborPeer::Close()
 {
 	Socket.Close();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAsioStoreCborPeer::OnConnect()
-{
-	TPayloadBuilder<> Builder(EStatusCode::Success);
-	Builder.AddInteger("version", int32(EStoreVersion::Value));
-	SendResponse(Builder.Done());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -237,13 +228,12 @@ void FAsioStoreCborPeer::OnPayload()
 		uint32	Hash;
 		void	(FAsioStoreCborPeer::*Func)();
 	} const DispatchTable[] = {
-		{ QuickStoreHash("connect"),		&FAsioStoreCborPeer::OnConnect },
-		{ QuickStoreHash("session/count"),	&FAsioStoreCborPeer::OnSessionCount },
-		{ QuickStoreHash("session/info"),	&FAsioStoreCborPeer::OnSessionInfo },
-		{ QuickStoreHash("status"),			&FAsioStoreCborPeer::OnStatus },
-		{ QuickStoreHash("trace/count"),	&FAsioStoreCborPeer::OnTraceCount },
-		{ QuickStoreHash("trace/info"),		&FAsioStoreCborPeer::OnTraceInfo },
-		{ QuickStoreHash("trace/read"),		&FAsioStoreCborPeer::OnTraceRead },
+		{ QuickStoreHash("v1/session/count"),	&FAsioStoreCborPeer::OnSessionCount },
+		{ QuickStoreHash("v1/session/info"),	&FAsioStoreCborPeer::OnSessionInfo },
+		{ QuickStoreHash("v1/status"),			&FAsioStoreCborPeer::OnStatus },
+		{ QuickStoreHash("v1/trace/count"),		&FAsioStoreCborPeer::OnTraceCount },
+		{ QuickStoreHash("v1/trace/info"),		&FAsioStoreCborPeer::OnTraceInfo },
+		{ QuickStoreHash("v1/trace/read"),		&FAsioStoreCborPeer::OnTraceRead },
 	};
 
 	uint32 MethodHash = QuickStoreHash(Method);
