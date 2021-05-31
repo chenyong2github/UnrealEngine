@@ -2464,7 +2464,7 @@ void UControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMes
 		FMemMark Mark(FMemStack::Get());
 		FCompactPose OutPose;
 		OutPose.ResetToRefPose(InSkelMeshComp->GetAnimInstance()->GetRequiredBones());
-		if(!OutPose.GetBoneContainer().IsValid())
+		if(!OutPose.IsValid())
 		{
 			return;
 		}
