@@ -1,37 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Misc/Guid.h"
+#include "IKRigDefinition.h"
 #include "IKRigDataTypes.generated.h"
 
-struct FIKRigEffectorGoal;
-struct FIKRigHierarchy;
-
-USTRUCT()
-struct IKRIG_API FIKRigEffectorGoal
-{
-	GENERATED_BODY()
-
-	FIKRigEffectorGoal()
-        : Goal("DefaultGoal"),
-          Bone(NAME_None)
-	{
-	}
-
-	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
-	FName Goal;
-
-	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
-	FName Bone;
-
-	bool operator==(const FIKRigEffectorGoal& Other) const { return Goal == Other.Goal; }
-};
+class UIKRigEffectorGoal;
 
 USTRUCT(Blueprintable)
 struct IKRIG_API FIKRigGoal
@@ -96,6 +71,15 @@ struct IKRIG_API FIKRigGoal
 		  FinalBlendedPosition(Position),
 		  FinalBlendedRotation(Rotation){}
 
+	FIKRigGoal(const UIKRigEffectorGoal* InGoal)
+		: Name(InGoal->GoalName),
+		Position(InGoal->CurrentTransform.GetTranslation()),
+		Rotation(InGoal->CurrentTransform.Rotator()),
+		PositionAlpha(InGoal->PositionAlpha),
+        RotationAlpha(InGoal->RotationAlpha),
+        FinalBlendedPosition(ForceInitToZero),
+        FinalBlendedRotation(FQuat::Identity){}
+
 	FString ToString() const
 	{
 		return FString::Printf(TEXT("Name=%s, Pos=(%s, Alpha=%3.3f), Rot=(%s, Alpha=%3.3f)"),
@@ -113,11 +97,15 @@ struct IKRIG_API FIKRigGoalContainer
 public:
 	
 	/** Pre-load all the names of goals (optional, you can just call SetIKGoal to add as needed) */
-	void InitializeGoalsFromNames(const TArray<FIKRigEffectorGoal>& InGoalNames);
+	void InitializeFromGoals(const TArray<UIKRigEffectorGoal*>& InGoals);
 
 	/** Set an IK goal to go to a specific location and rotation (in component space) blended by alpha.
 	 * Will ADD the goal if none exist with the input name. */
 	void SetIKGoal(const FIKRigGoal& InGoal);
+
+	/** Set an IK goal to go to a specific location and rotation (in component space) blended by alpha.
+	* Will ADD the goal if none exist with the input name. */
+	void SetIKGoal(const UIKRigEffectorGoal* InEffectorGoal);
 
 	/** Get an IK goal with the given name. Returns false if no goal is found in the container with the name. */
 	bool GetGoalByName(const FName& InGoalName, FIKRigGoal& OutGoal) const;

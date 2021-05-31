@@ -11,28 +11,37 @@ namespace UnrealBuildTool.Rules
             PublicDependencyModuleNames.AddRange(
                 new string[]
                 {
+	                "Core",
+	                "AdvancedPreviewScene",
                 }
             );
 
 			PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "Core",
+                    "InputCore",
+                    "EditorFramework",
+                    "UnrealEd",
+                    "ToolMenus",
                     "CoreUObject",
                     "Engine",
-					"UnrealEd",
-					"IKRig",
-					"IKRigDeveloper",
-					"AssetTools",
-					"SlateCore",
-					"Slate",
-					"InputCore",
+                    "Slate",
+                    "SlateCore",
+                    "AssetTools",
+                    "EditorWidgets",
+                    "Kismet",
+                    "KismetWidgets",
+                    "EditorStyle",
+                    "Persona",
+                    "SkeletonEditor",
+                    
 					"PropertyEditor",
-					"EditorStyle",
-					"EditorFramework",
 					"BlueprintGraph",
 					"AnimGraph",
-					"EditorWidgets"
+					"AnimGraphRuntime",
+					
+					"IKRig",
+					"IKRigDeveloper",					
 				}
             );
 

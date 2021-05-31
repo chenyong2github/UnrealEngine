@@ -9,7 +9,6 @@
 // UAnimGraphNode_IKRig 
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_IKRig"
-const FName UAnimGraphNode_IKRig::AnimModeName(TEXT("IKRig.IKRigEditor.IKRigEditMode"));
 
 void UAnimGraphNode_IKRig::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const
 {
@@ -30,11 +29,6 @@ FText UAnimGraphNode_IKRig::GetNodeTitle(ENodeTitleType::Type TitleType) const
 void UAnimGraphNode_IKRig::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode)
 {
 	FAnimNode_IKRig* IKRigNode = static_cast<FAnimNode_IKRig*>(InPreviewNode);
-}
-
-FEditorModeID UAnimGraphNode_IKRig::GetEditorMode() const
-{
-	return AnimModeName;
 }
 
 void UAnimGraphNode_IKRig::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

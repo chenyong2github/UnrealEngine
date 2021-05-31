@@ -15,12 +15,15 @@ public class IKRig : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"AnimationCore", 
-				"AnimGraphRuntime",
-				
+				"AnimationCore",
 				"PBIK"
 			}
 			);
+
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]

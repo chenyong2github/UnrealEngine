@@ -30,70 +30,95 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 		Output.ResetToRefPose();
 	}
 
-	if (!IKRigProcessor)
-	{
-		return;
-	}
-	
-	if (!IKRigProcessor->IsInitialized())
+	if (!RigDefinitionAsset)
 	{
 		return;
 	}
 
-	FCompactPose& OutPose = Output.Pose;
-	FIKRigSkeleton& IKRigSkeleton = IKRigProcessor->GetSkeleton();
+	if (IKRigProcessor.NeedsInitialized(RigDefinitionAsset))
+	{
+		return;
+	}
+
+	// copy input pose to solver stack
+	CopyInputPoseToSolver(Output.Pose);
+	// update target goal transforms
+	AssignGoalTargets();
+	// run stack of solvers, 
+	IKRigProcessor.Solve();
+	// updates transforms with new pose
+	CopyOutputPoseToAnimGraph(Output.Pose);
 	
+	// debug drawing
+	QueueDrawInterface(Output.AnimInstanceProxy, Output.AnimInstanceProxy->GetComponentTransform());
+}
+
+void FAnimNode_IKRig::CopyInputPoseToSolver(FCompactPose& InputPose)
+{
+	// start Solve() from REFERENCE pose
 	if (bStartFromRefPose)
 	{
-		// start Solve() from REFERENCE pose
-		IKRigProcessor->SetInputPoseToRefPose();
-	}else
-	{
-		// start Solve() from INPUT pose
-
-		// copy local bone transforms into IKRigProcessor skeleton
-		for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
-		{
-			int32* Index = CompactPoseToRigIndices.Find(CPIndex);
-			if (Index)
-			{
-				IKRigSkeleton.CurrentPoseLocal[*Index] = OutPose[CPIndex];
-			}
-		}
-		// update global pose in IK Rig
-		IKRigSkeleton.UpdateAllGlobalTransformFromLocal();
+		IKRigProcessor.SetInputPoseToRefPose();
+		return;
 	}
-
-	// update goal transforms before solve
-	for (const FIKRigGoal& Goal : Goals)
-	{
-		IKRigProcessor->SetIKGoal(Goal);
-	}
-
-	// goals from goal creator components will override any goals that were manually set (they take precedence)
-	for (const TPair<FName, FIKRigGoal>& GoalPair : GoalsFromGoalCreators)
-	{
-		IKRigProcessor->SetIKGoal(GoalPair.Value);
-	}
-
-	// run stack of solvers, updates global transforms with new pose
-	IKRigProcessor->Solve();
-
-	// update local transforms of current IKRig pose
-	IKRigSkeleton.UpdateAllLocalTransformFromGlobal();
-
-	// copy local transforms to output pose
-	for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
+	
+	// start Solve() from INPUT pose
+	// copy local bone transforms into IKRigProcessor skeleton
+	FIKRigSkeleton& IKRigSkeleton = IKRigProcessor.GetSkeleton();
+	for (FCompactPoseBoneIndex CPIndex : InputPose.ForEachBoneIndex())
 	{
 		int32* Index = CompactPoseToRigIndices.Find(CPIndex);
 		if (Index)
 		{
-			Output.Pose[CPIndex] = IKRigSkeleton.CurrentPoseLocal[*Index];
+			IKRigSkeleton.CurrentPoseLocal[*Index] = InputPose[CPIndex];
 		}
 	}
+	// update global pose in IK Rig
+	IKRigSkeleton.UpdateAllGlobalTransformFromLocal();
+}
 
-	// draw the interface
-	QueueDrawInterface(Output.AnimInstanceProxy, Output.AnimInstanceProxy->GetComponentTransform());
+void FAnimNode_IKRig::AssignGoalTargets()
+{
+	// update goal transforms before solve
+	// these transforms can come from a few different sources, handled here...
+
+	// use the goal transforms from the source asset itself
+	// this is used to live preview results from the IK Rig editor
+	if (bDriveWithSourceAsset)
+	{
+		IKRigProcessor.CopyAllInputsFromSourceAssetAtRuntime(RigDefinitionAsset);
+		return;
+	}
+	
+	// copy transforms from this anim node's goal pins from blueprint
+	for (const FIKRigGoal& Goal : Goals)
+	{
+		IKRigProcessor.SetIKGoal(Goal);
+	}
+
+	// override any goals that were manually set with goals from goal creator components (they take precedence)
+	for (const TPair<FName, FIKRigGoal>& GoalPair : GoalsFromGoalCreators)
+	{
+		IKRigProcessor.SetIKGoal(GoalPair.Value);
+	}
+}
+
+void FAnimNode_IKRig::CopyOutputPoseToAnimGraph(FCompactPose& OutputPose)
+{
+	FIKRigSkeleton& IKRigSkeleton = IKRigProcessor.GetSkeleton();
+	
+	// update local transforms of current IKRig pose
+	IKRigSkeleton.UpdateAllLocalTransformFromGlobal();
+
+	// copy local transforms to output pose
+	for (FCompactPoseBoneIndex CPIndex : OutputPose.ForEachBoneIndex())
+	{
+		int32* Index = CompactPoseToRigIndices.Find(CPIndex);
+		if (Index)
+		{
+			OutputPose[CPIndex] = IKRigSkeleton.CurrentPoseLocal[*Index];
+		}
+	}
 }
 
 void FAnimNode_IKRig::GatherDebugData(FNodeDebugData& DebugData)
@@ -123,26 +148,25 @@ void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Co
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	FAnimNode_Base::Initialize_AnyThread(Context);
 	Source.Initialize(Context);
-	
-	// get the retargeted local ref pose to initialize the IK with
-	const FReferenceSkeleton& RefSkeleton = Context.AnimInstanceProxy->GetSkelMeshComponent()->SkeletalMesh->GetRefSkeleton();
-	// initialize the IK Rig
-	IKRigProcessor->Initialize(RigDefinitionAsset, RefSkeleton);
 }
 
-void FAnimNode_IKRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
+void FAnimNode_IKRig::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	FAnimNode_Base::OnInitializeAnimInstance(InProxy, InAnimInstance);
-	
-	if (RigDefinitionAsset && !IKRigProcessor)
-	{
-		IKRigProcessor = UIKRigProcessor::MakeNewIKRigProcessor(InAnimInstance->GetOwningComponent());
-	}
+	GetEvaluateGraphExposedInputs().Execute(Context);
+	FAnimNode_Base::Update_AnyThread(Context);
+	Source.Update(Context);
 }
 
 void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 {
+	if (IKRigProcessor.NeedsInitialized(RigDefinitionAsset))
+	{
+		// get the retargeted local ref pose to initialize the IK with
+		const FReferenceSkeleton& RefSkeleton = InAnimInstance->CurrentSkeleton->GetReferenceSkeleton();
+		// initialize the IK Rig (will only try once on the current version of the rig asset)
+		IKRigProcessor.Initialize(RigDefinitionAsset, RefSkeleton, InAnimInstance->GetSkelMeshComponent());
+	}
+	
 	// cache list of goal creator components on the actor
 	// TODO tried doing this in Initialize_AnyThread but it would miss some GoalCreator components
 	// so it was moved here to be more robust, but we need to profile this and make sure it's not hurting perf
@@ -176,37 +200,41 @@ bool FAnimNode_IKRig::RebuildGoalList()
 	{
 		return false;
 	}
-	
-	const TArray<FIKRigEffectorGoal>& AllGoalNamesInIKRig = RigDefinitionAsset->GetEffectorGoals();
-	const int32 NumGoalsInRig = AllGoalNamesInIKRig.Num();
+
+	// number of goals changed
+	const int32 NumGoalsInRig = RigDefinitionAsset->Goals.Num();
 	if (Goals.Num() != NumGoalsInRig)
 	{
 		Goals.SetNum(NumGoalsInRig);
 		for (int32 i=0; i<NumGoalsInRig; ++i)
 		{
-			Goals[i].Name = AllGoalNamesInIKRig[i].Goal;
+			Goals[i].Name = RigDefinitionAsset->Goals[i]->GoalName;
 		}
 		return true;
 	}
 
-	return false;
+	// potentially number of goals remains identical, but only names changed
+	bool bNameUpdated = false;
+	for (int32 i=0; i<NumGoalsInRig; ++i)
+	{
+		if (Goals[i].Name != RigDefinitionAsset->Goals[i]->GoalName)
+		{
+			Goals[i].Name = RigDefinitionAsset->Goals[i]->GoalName;
+			bNameUpdated = true;
+		}
+	}
+
+	return bNameUpdated;
 }
 
 FName FAnimNode_IKRig::GetGoalName(int32 Index) const
 {
-	if (RigDefinitionAsset)
+	if (RigDefinitionAsset && RigDefinitionAsset->Goals.IsValidIndex(Index))
 	{
-		return RigDefinitionAsset->GetGoalName(Index);
+		return RigDefinitionAsset->Goals[Index]->GoalName;	
 	}
 
 	return NAME_None;
-}
-
-void FAnimNode_IKRig::Update_AnyThread(const FAnimationUpdateContext& Context)
-{
-	GetEvaluateGraphExposedInputs().Execute(Context);
-	FAnimNode_Base::Update_AnyThread(Context);
-	Source.Update(Context);
 }
 
 void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -246,9 +274,10 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 
 void FAnimNode_IKRig::QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld) const
 {
-	check (IKRigProcessor);
 	check (AnimProxy);
 
+	/*
+	 *TODO implement basic drawing interface for IKRig solvers
 	for (const FControlRigDrawInstruction& Instruction : IKRigProcessor->GetDrawInterface())
 	{
 		if (!Instruction.IsValid())
@@ -295,10 +324,10 @@ void FAnimNode_IKRig::QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FT
 // 			FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
 // 			MeshBuilder.AddVertices(Instruction.MeshVerts);
 // 			MeshBuilder.AddTriangles(Instruction.MeshIndices);
-// 			MeshBuilder.Draw(PDI, InstructionTransform.ToMatrixWithScale(), Instruction.MaterialRenderProxy, SDPG_World/*SDPG_Foreground*/);
+// 			MeshBuilder.Draw(PDI, InstructionTransform.ToMatrixWithScale(), Instruction.MaterialRenderProxy, SDPG_World);
 			break;
 		}
 
 		}
-	}
+	}*/
 }

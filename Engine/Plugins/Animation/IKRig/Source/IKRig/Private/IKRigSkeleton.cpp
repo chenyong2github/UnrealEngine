@@ -4,11 +4,8 @@
 
 void FIKRigSkeleton::Initialize(const FReferenceSkeleton& RefSkeleton)
 {
-	BoneNames.Reset();
-	ParentIndices.Reset();
-	CurrentPoseGlobal.Reset();
-	CurrentPoseLocal.Reset();
-	RefPoseGlobal.Reset();
+	// reset all containers
+	Reset();
 	
 	// copy names and parent indices into local storage
 	TArray<FMeshBoneInfo> RawBoneInfo = RefSkeleton.GetRawRefBoneInfo();
@@ -20,6 +17,15 @@ void FIKRigSkeleton::Initialize(const FReferenceSkeleton& RefSkeleton)
 
 	// copy all the poses out of the ref skeleton
 	CopyPosesFromRefSkeleton(RefSkeleton);
+}
+
+void FIKRigSkeleton::Reset()
+{
+	BoneNames.Reset();
+	ParentIndices.Reset();
+	CurrentPoseGlobal.Reset();
+	CurrentPoseLocal.Reset();
+	RefPoseGlobal.Reset();
 }
 
 int32 FIKRigSkeleton::GetBoneIndexFromName(const FName InName) const
@@ -150,6 +156,33 @@ void FIKRigSkeleton::PropagateGlobalPoseBelowBone(const int32 StartBoneIndex)
 		UpdateGlobalTransformFromLocal(BoneIndex);
 		UpdateLocalTransformFromGlobal(BoneIndex);
 	}
+}
+
+bool FIKRigSkeleton::IsBoneInDirectLineage(const FName& Child, const FName& PotentialParent) const
+{
+	const int32 ChildIndex = GetBoneIndexFromName(Child);
+	if (ChildIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	const int32 PotentialParentIndex = GetBoneIndexFromName(PotentialParent);
+	if (PotentialParentIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	int32 NextParentIndex = ChildIndex;
+	while(NextParentIndex != INDEX_NONE)
+	{
+		if (NextParentIndex == PotentialParentIndex)
+		{
+			return true;
+		}
+		NextParentIndex = ParentIndices[NextParentIndex];
+	}
+
+	return false;
 }
 
 void FIKRigSkeleton::NormalizeRotations(TArray<FTransform>& Transforms)

@@ -3,18 +3,32 @@
 #include "IKRigDataTypes.h"
 #include "IKRigSolver.h"
 
-void FIKRigGoalContainer::InitializeGoalsFromNames(const TArray<FIKRigEffectorGoal>& InGoalNames)
+void FIKRigGoalContainer::InitializeFromGoals(const TArray<UIKRigEffectorGoal*>& InGoals)
 {
-	Goals.Empty(InGoalNames.Num());
-	for (const FIKRigEffectorGoal& GoalNames : InGoalNames)
+	Goals.Empty(InGoals.Num());
+	for (const UIKRigEffectorGoal* Goal : InGoals)
 	{
-		Goals.Emplace(GoalNames.Goal, GoalNames.Goal);
+		Goals.Emplace(Goal->GoalName, Goal);
 	}
 }
 
 void FIKRigGoalContainer::SetIKGoal(const FIKRigGoal& InGoal)
 {
 	Goals.Add(InGoal.Name, InGoal);
+}
+
+void FIKRigGoalContainer::SetIKGoal(const UIKRigEffectorGoal* InEffectorGoal)
+{
+	if (FIKRigGoal* Goal = Goals.Find(InEffectorGoal->GoalName))
+	{
+		Goal->Position = InEffectorGoal->CurrentTransform.GetTranslation();
+        Goal->Rotation = InEffectorGoal->CurrentTransform.Rotator();
+        Goal->PositionAlpha = InEffectorGoal->PositionAlpha;
+        Goal->RotationAlpha = InEffectorGoal->RotationAlpha;
+	}else
+	{
+		Goals.Emplace(InEffectorGoal->GoalName, InEffectorGoal);
+	}
 }
 
 bool FIKRigGoalContainer::GetGoalByName(const FName& InGoalName, FIKRigGoal& OutGoal) const

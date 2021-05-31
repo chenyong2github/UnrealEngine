@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IKRigDefinition.h"
-#include "IKRigSolver.h"
+#include "Engine/SkeletalMesh.h"
 
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
+
+#define LOCTEXT_NAMESPACE	"IKRigDefinition"
 
 FBoneChain* FRetargetDefinition::GetBoneChainByName(FName ChainName)
 {
@@ -17,69 +22,68 @@ FBoneChain* FRetargetDefinition::GetBoneChainByName(FName ChainName)
 	return nullptr;
 }
 
-TArray<FIKRigEffectorGoal>& UIKRigDefinition::GetEffectorGoals()
+void UIKRigDefinition::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty)
 {
-	UpdateGoalNameArray();
-	return EffectorGoals;
+	#if WITH_EDITOR
+	if (bMarkAsDirty)
+	{
+		FScopedTransaction Transaction(LOCTEXT("SetPreviewMesh_Label", "Set Preview Mesh"));
+		Modify();
+		PreviewSkeletalMesh = PreviewMesh;
+		return;
+	}
+	#endif
+	
+	PreviewSkeletalMesh = PreviewMesh;
+}
+
+USkeletalMesh* UIKRigDefinition::GetPreviewMesh() const
+{
+	return PreviewSkeletalMesh.Get();
 }
 
 #if WITH_EDITOR
-void UIKRigDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+bool UIKRigDefinition::Modify(bool bAlwaysMarkDirty /*=true*/)
 {
-	// update list of goal names whenever a solver is modified
-	const FName PropertyName = (PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None);
-	if ((PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UIKRigDefinition, Solvers)))
+	const bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
+	if (bSavedToTransactionBuffer)
 	{
-		bEffectorGoalsDirty = true;
+		AssetVersion++; // inform any runtime/editor systems they should copy-up modifications	
 	}
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	return bSavedToTransactionBuffer;
 }
 #endif
 
-FName UIKRigDefinition::GetBoneNameForGoal(const FName& GoalName)
+void UIKRigDefinition::PostLoad()
 {
-	UpdateGoalNameArray();
-	
-	for (const FIKRigEffectorGoal& EffectorGoal : EffectorGoals)
-	{
-		if (EffectorGoal.Goal == GoalName)
-		{
-			return EffectorGoal.Bone;
-		}
-	}
-	
-	return NAME_None;
+	Super::PostLoad();
+	ResetGoalTransforms();
 }
 
-FName UIKRigDefinition::GetGoalName(int32 GoalIndex)
+void UIKRigDefinition::ResetGoalTransforms() const
 {
-	UpdateGoalNameArray();
-	
-	if (!EffectorGoals.IsValidIndex(GoalIndex))
+	for (UIKRigEffectorGoal* Goal : Goals)
 	{
-		return NAME_None;
-	}
-
-	return EffectorGoals[GoalIndex].Goal;
+		const FTransform InitialTransform =  GetGoalInitialTransform(Goal);
+		Goal->InitialTransform = InitialTransform;
+		Goal->CurrentTransform = InitialTransform;
+	}	
 }
 
-void UIKRigDefinition::UpdateGoalNameArray()
+FTransform UIKRigDefinition::GetGoalInitialTransform(UIKRigEffectorGoal* Goal) const
 {
-	if (!bEffectorGoalsDirty)
+	if (!Goal)
 	{
-		return;	
-	}
-	
-	EffectorGoals.Reset();
-	for (UIKRigSolver* Solver : Solvers)
-	{
-		if (Solver)
-		{
-			Solver->AddGoalsInSolver(EffectorGoals);
-		}
+		return FTransform::Identity; // null
 	}
 
-	bEffectorGoalsDirty = false;
+	const int32 BoneIndex = Skeleton.GetBoneIndexFromName(Goal->BoneName);
+	if (BoneIndex == INDEX_NONE)
+	{
+		return FTransform::Identity; // goal references unknown bone
+	}
+
+	return Skeleton.RefPoseGlobal[BoneIndex];
 }
 
+#undef LOCTEXT_NAMESPACE

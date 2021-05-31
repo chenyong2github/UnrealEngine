@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BoneControllers/AnimNode_SkeletalControlBase.h"
+
+#include "Animation/AnimNodeBase.h"
 #include "Retargeter/IKRetargeter.h"
 #include "AnimNode_IKRetargeter.generated.h"
 

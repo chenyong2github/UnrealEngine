@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-class IKRIGEDITOR_API FIKRigEditor : public IModuleInterface 
+class IKRIGEDITOR_API FIKRigEditor : public IModuleInterface
 {
 public:
 	void StartupModule() override;
