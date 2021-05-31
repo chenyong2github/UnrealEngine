@@ -1392,6 +1392,14 @@ public:
 		DrawList.Add(NewVisibleMeshDrawCommand);
 	}
 
+	/**
+	 * Use to add pre-built (cached) draw commands to a dynamic context. 
+	 */
+	FORCEINLINE void AddVisibleMeshDrawCommand(const FVisibleMeshDrawCommand& VisibleMeshDrawCommand)
+	{
+		DrawList.Add(VisibleMeshDrawCommand);
+	}
+
 private:
 	FDynamicMeshDrawCommandStorage& DrawListStorage;
 	FMeshCommandOneFrameArray& DrawList;
