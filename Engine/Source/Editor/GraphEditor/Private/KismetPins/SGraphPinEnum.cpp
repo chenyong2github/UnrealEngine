@@ -52,6 +52,18 @@ void SPinComboBox::Construct( const FArguments& InArgs )
 	];
 }
 
+void SPinComboBox::RemoveItemByIndex(int32 InIndexToRemove)
+{
+	for(int32 Index=0;Index<ComboItemList.Num();Index++)
+	{
+		if(*ComboItemList[Index] == InIndexToRemove)
+		{
+			ComboItemList.RemoveAt(Index);
+			break;
+		}
+	}
+}
+
 //Function to set the newly selected item
 void SPinComboBox::OnSelectionChangedInternal( TSharedPtr<int32> NewSelection, ESelectInfo::Type SelectInfo )
 {

@@ -39,6 +39,9 @@ public:
 	{
 		return CurrentSelection.Pin();
 	}
+
+	void RemoveItemByIndex(int32 InIndexToRemove);
+	
 private:
 
 	//Function to set the newly selected item

@@ -10,6 +10,7 @@
 #include "Graph/SControlRigGraphPinParameterName.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "KismetPins/SGraphPinExec.h"
+#include "SGraphPinComboBox.h"
 #include "ControlRig.h"
 #include "NodeFactory.h"
 #include "EdGraphSchema_K2.h"
@@ -108,6 +109,20 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 	TSharedPtr<SGraphPin> K2PinWidget = FNodeFactory::CreateK2PinWidget(InPin);
 	if(K2PinWidget.IsValid())
 	{
+		// if we are an enum pin - and we are inside a RigElementKey,
+		// let's remove the "all" entry.
+		if(InPin->PinType.PinSubCategoryObject == StaticEnum<ERigElementType>())
+		{
+			if(InPin->ParentPin)
+			{
+				if(InPin->ParentPin->PinType.PinSubCategoryObject == FRigElementKey::StaticStruct())
+				{
+					TSharedPtr<SPinComboBox> EnumCombo = StaticCastSharedRef<SPinComboBox>(K2PinWidget->GetValueWidget());
+					EnumCombo->RemoveItemByIndex(StaticEnum<ERigElementType>()->GetIndexByValue((int64)ERigElementType::All));
+				}
+			}
+		}
+
 		return K2PinWidget;
 	}
 
