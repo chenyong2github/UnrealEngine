@@ -179,6 +179,12 @@ namespace DatasmithRuntime
 		FSceneGraphId GetId() const { return (FSceneGraphId)ElementId; }
 	};
 
+	FORCEINLINE bool operator==(const FReferencer& Lhs, const FReferencer& Rhs)
+	{
+		return Lhs.ElementId == Rhs.ElementId && Lhs.Slot == Rhs.Slot;
+	}
+
+
 	typedef std::atomic<EAssetState> FDataState;
 
 	/**
@@ -623,7 +629,7 @@ namespace DatasmithRuntime
 			++QueuedTaskCount;
 			if (ActionTask.GetAssetId() != DirectLink::InvalidId)
 			{
-				AssetDataList[ActionTask.GetAssetId()].Referencers.Add(ActionTask.GetReferencer());
+				AssetDataList[ActionTask.GetAssetId()].Referencers.AddUnique(ActionTask.GetReferencer());
 			}
 			ActionQueues[WhichQueue].Enqueue(MoveTemp(ActionTask));
 		}
