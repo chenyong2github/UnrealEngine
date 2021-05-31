@@ -4,6 +4,7 @@
 #include "Layout/ArrangedChildren.h"
 #include "Rendering/DrawElements.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SSplitter::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 {
 	TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
@@ -833,6 +834,7 @@ int32 SSplitter::GetHandleBeingResizedFromMousePosition( float InPhysicalSplitte
 
 	return INDEX_NONE;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /********************************************************************
 * SSplitter2x2														*

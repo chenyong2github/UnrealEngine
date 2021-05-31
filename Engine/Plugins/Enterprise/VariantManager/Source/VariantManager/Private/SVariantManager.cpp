@@ -436,7 +436,7 @@ SVariantManager::~SVariantManager()
 		if (MainSlots->Num() > 0)
 		{
 			FSplitterValues Values;
-			Values.VariantColumn = MainSplitter->SlotAt(0).SizeValue.Get();
+			Values.VariantColumn = MainSplitter->SlotAt(0).GetSizeValue();
 			Values.ActorColumn = OnGetPropertiesActorColumnWidth();;
 			Values.PropertyNameColumn = OnGetPropertiesNameColumnWidth();
 			Values.DependenciesVariantSetsColumn = OnGetDependenciesVariantSetColumnWidth();

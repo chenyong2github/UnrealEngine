@@ -100,7 +100,7 @@ void TEditorViewportLayoutTwoPanes<TOrientation>::SaveLayoutString(const FString
 	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
 
 	check(SplitterWidget->GetChildren()->Num() == 2);
-	float Percentage = SplitterWidget->SlotAt(0).SizeValue.Get();
+	float Percentage = SplitterWidget->SlotAt(0).GetSizeValue();
 
 	GConfig->SetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage")), *TTypeToString<float>::ToString(Percentage), GEditorPerProjectIni);
 }

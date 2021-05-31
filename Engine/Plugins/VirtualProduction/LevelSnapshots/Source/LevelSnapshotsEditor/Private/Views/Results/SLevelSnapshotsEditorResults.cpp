@@ -2649,6 +2649,8 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 				.HitDetectionSplitterHandleSize(5.0f)
 
 				+ SSplitter::Slot()
+				.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetNameColumnSize)
+				.Value(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 0)
 				[
 					SNew(SHorizontalBox)
 
@@ -2678,12 +2680,6 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 
 	// Create value widgets
 
-	// Splitter Slot 0
-	SplitterPtr->SlotAt(0).OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetNameColumnSize);
-
-	const auto SlotDelegate0 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 0);;
-	SplitterPtr->SlotAt(0).SizeValue.Bind(SlotDelegate0);
-		
 	// Splitter Slot 1
 	TSharedPtr<SWidget> SnapshotChildWidget;
 	
@@ -2760,13 +2756,13 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 	}
 
 	SplitterPtr->AddSlot()
+	.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize)
+	.Value(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 1)
 	[
 		FinalSnapshotWidget.ToSharedRef()
-	].OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize);
+	];
 
-	const auto SlotDelegate1 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 1);;
-	SplitterPtr->SlotAt(1).SizeValue.Bind(SlotDelegate1);
-
+	
 	// Splitter Slot 2
 	TSharedPtr<SWidget> WorldChildWidget;
 
@@ -2843,12 +2839,11 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 	}
 
 	SplitterPtr->AddSlot()
+	.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetWorldObjectColumnSize)
+	.Value(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 2)
 	[
 		FinalWorldWidget.ToSharedRef()
-	].OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetWorldObjectColumnSize);
-
-	const auto SlotDelegate2 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 2);;
-	SplitterPtr->SlotAt(2).SizeValue.Bind(SlotDelegate2);
+	];
 }
 
 SLevelSnapshotsEditorResultsRow::~SLevelSnapshotsEditorResultsRow()
@@ -2860,7 +2855,7 @@ SLevelSnapshotsEditorResultsRow::~SLevelSnapshotsEditorResultsRow()
 	{
 		for (int32 SplitterSlotCount = 0; SplitterSlotCount < SplitterPtr->GetChildren()->Num(); SplitterSlotCount++)
 		{
-			SplitterPtr->SlotAt(SplitterSlotCount).OnSlotResized_Handler.Unbind();
+			SplitterPtr->SlotAt(SplitterSlotCount).OnSlotResized().Unbind();
 		}
 	}
 

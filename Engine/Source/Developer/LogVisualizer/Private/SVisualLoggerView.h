@@ -35,7 +35,7 @@ public:
 		SSplitter::FSlot const& LeftSplitterSlot = SearchSplitter->SlotAt(0);
 		SSplitter::FSlot const& RightSplitterSlot = SearchSplitter->SlotAt(1);
 
-		return LeftSplitterSlot.SizeValue.Get()/ RightSplitterSlot.SizeValue.Get();
+		return LeftSplitterSlot.GetSizeValue()/ RightSplitterSlot.GetSizeValue();
 	}
 	void SetAnimationOutlinerFillPercentage(float FillPercentage);
 
