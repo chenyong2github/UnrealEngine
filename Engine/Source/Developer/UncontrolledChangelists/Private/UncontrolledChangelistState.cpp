@@ -114,7 +114,7 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 		for (FSourceControlStateRef FileState : FileStates)
 		{
 			bool bIsCheckoutCompliant = (!bCheckCheckout) || (!FileState->IsCheckedOut());
-			bool bIsStatusCompliant = (!bCheckStatus) || FileState->IsModified();
+			bool bIsStatusCompliant = (!bCheckStatus) || FileState->IsModified() || (!FileState->IsSourceControlled());
 
 			if (bIsCheckoutCompliant && bIsStatusCompliant)
 			{
