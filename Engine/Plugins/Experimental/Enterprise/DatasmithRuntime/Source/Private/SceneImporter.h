@@ -521,6 +521,9 @@ namespace DatasmithRuntime
 		/** Delete the asset created from the given FAssetData */
 		bool DeleteAsset(FAssetData& AssetData);
 
+		/** Remove given referencer from the list of referencers of the asset */
+		void RemoveFromReferencer(FSceneGraphId* AssetIdPtr, FSceneGraphId ReferencerId);
+
 		/**
 		 * Creates the FAssetData and FActorData required to import the associated Datasmith scene
 		 * This is the first task  after StartImport has been called

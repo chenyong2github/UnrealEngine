@@ -77,6 +77,12 @@ namespace DatasmithRuntime
 
 	bool FSceneImporter::DeleteComponent(FActorData& ActorData)
 	{
+		// Remove actor from the asset's list of referencers
+		if (ActorData.AssetId != INDEX_NONE && AssetDataList.Contains(ActorData.AssetId))
+		{
+			RemoveFromReferencer(&AssetDataList[ActorData.AssetId].ElementId, ActorData.ElementId);
+		}
+
 		if (USceneComponent* SceneComponent = ActorData.GetObject<USceneComponent>())
 		{
 			if (ImportOptions.BuildHierarchy !=  EBuildHierarchyMethod::None)
@@ -119,6 +125,8 @@ namespace DatasmithRuntime
 			}
 
 			ActorData.Object.Reset();
+
+			TasksToComplete |= EWorkerTask::GarbageCollect;
 
 			return true;
 		}
