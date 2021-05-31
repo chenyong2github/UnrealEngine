@@ -70,11 +70,14 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 	Reducer.GroupBoundaryConstraint = GroupBoundaryConstraint;
 	Reducer.MaterialBoundaryConstraint = MaterialBoundaryConstraint;
 	
-	// MinimalPlanar is a special path that ignores the collapse mode (and quadric error ), so don't bother setting it.
-	if (TargetMode != ESimplifyTargetType::MinimalPlanar)
+	if (TargetMode == ESimplifyTargetType::MinimalPlanar)
+	{
+		Reducer.CollapseMode = SimplificationType::ESimplificationCollapseModes::AverageVertexPosition;
+		GeometricTolerance = 0;		// MinimalPlanar does not allow vertices to move off the input surface
+	}
+	else
 	{
 		Reducer.CollapseMode = CollapseMode;
-		GeometricTolerance = 0;		// MinimalPlanar does not allow vertices to move off the input surface
 	}
 
 	// use projection target if we are reprojecting or doing geometric error checking
