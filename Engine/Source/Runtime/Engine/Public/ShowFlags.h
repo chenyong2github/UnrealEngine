@@ -439,7 +439,7 @@ private:
 		SetVisualizeGlobalDistanceField(false);
 		SetVisualizeLumenScene(false);
 		SetVisualizeLumenIndirectDiffuse(false);
-		SetVisualizeIndirectLighting(false);
+		SetVisualizeLightingOnProbes(false);
 		SetVisualizeDistanceFieldAO(false);
 		SetVisualizeSSR(false);
 		SetVisualizeSSS(false);
