@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LevelSnapshotFilters.h"
+#include "ActorSelector/ActorSelectorFilter.h"
 #include "ActorChangedTransformFilter.generated.h"
 
 UENUM()
@@ -18,9 +18,12 @@ namespace ETransformReturnType
 	};
 }
 
-/* Allows an actor depending on whether the actors' transforms have changed. */
+/**
+ * Allows an actor depending on whether the actors' transforms have changed.
+ * Use case: You want detect whether an actor has changed its transform.
+ */
 UCLASS(meta = (CommonSnapshotFilter))
-class LEVELSNAPSHOTFILTERS_API UActorChangedTransformFilter : public ULevelSnapshotFilter
+class LEVELSNAPSHOTFILTERS_API UActorChangedTransformFilter : public UActorSelectorFilter
 {
 	GENERATED_BODY()
 public:

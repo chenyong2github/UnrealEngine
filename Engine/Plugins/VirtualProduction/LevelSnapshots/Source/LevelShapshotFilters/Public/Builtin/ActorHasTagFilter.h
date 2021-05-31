@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LevelSnapshotFilters.h"
+#include "ActorSelector/ActorSelectorFilter.h"
 #include "ActorHasTagFilter.generated.h"
 
 UENUM()
@@ -34,7 +34,7 @@ namespace ETagCheckingBehavior
 
 /* Allows an actor if it has all or any of the specified tags. */
 UCLASS(meta = (CommonSnapshotFilter))
-class LEVELSNAPSHOTFILTERS_API UActorHasTagFilter : public ULevelSnapshotFilter
+class LEVELSNAPSHOTFILTERS_API UActorHasTagFilter : public UActorSelectorFilter
 {
 	GENERATED_BODY()
 public:
@@ -54,7 +54,7 @@ private:
 	TSet<FName> AllowedTags;
 
 	/* Which of the actors we should check the tags on. */
-	UPROPERTY(EditAnywhere, Category = "Config|Optional")
+	UPROPERTY(EditAnywhere, Category = "Config")
 	TEnumAsByte<EActorToCheck::Type> ActorToCheck;
 	
 };

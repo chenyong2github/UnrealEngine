@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LevelSnapshotFilters.h"
+#include "PropertySelector/PropertySelectorFilter.h"
 #include "PropertyHasNameFilter.generated.h"
 
 UENUM()
@@ -22,9 +22,12 @@ namespace ENameMatchingRule
 	};
 }
 
-/* Allows a property when is has a certain name */
+/**
+ * Allows a property when is has a certain name
+ * Use case: You only want to allow properties named "MyPropertyName"
+ */
 UCLASS(meta = (CommonSnapshotFilter))
-class LEVELSNAPSHOTFILTERS_API UPropertyHasNameFilter : public ULevelSnapshotFilter
+class LEVELSNAPSHOTFILTERS_API UPropertyHasNameFilter : public UPropertySelectorFilter
 {
 	GENERATED_BODY()
 public:
