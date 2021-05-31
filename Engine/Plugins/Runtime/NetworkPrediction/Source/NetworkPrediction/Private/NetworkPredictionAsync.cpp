@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionAsync.h"
+#include "Components/PrimitiveComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
