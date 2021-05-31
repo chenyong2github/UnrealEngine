@@ -55,6 +55,7 @@ protected:
 		FVector PivotOffset = FVector(ForceInitToZero);
 		ENiagaraMeshPivotOffsetSpace PivotOffsetSpace = ENiagaraMeshPivotOffsetSpace::Mesh;
 		FVector Scale = FVector(1.0f, 1.0f, 1.0f);
+		FBox LocalBounds = FBox(ForceInitToZero);
 		FSphere LocalCullingSphere = FSphere(ForceInitToZero);
 		TArray<uint32, TInlineAllocator<4>> MaterialRemapTable;
 	};
@@ -130,6 +131,7 @@ protected:
 		FVertexFactory& VertexFactory,
 		FMaterialRenderProxy& MaterialProxy,
 		const FNiagaraSceneProxy& SceneProxy,
+		const FMeshData& MeshData,
 		const FStaticMeshLODResources& LODModel,
 		const FStaticMeshSection& Section,
 		const FSceneView& View,

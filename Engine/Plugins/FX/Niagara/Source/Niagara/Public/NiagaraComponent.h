@@ -728,7 +728,7 @@ public:
 
 	FORCEINLINE const FMatrix& GetLocalToWorldInverse() const { return LocalToWorldInverse; }
 
-	FRHIUniformBuffer* GetUniformBufferNoVelocity() const;
+	FRHIUniformBuffer* GetCustomUniformBuffer(bool bHasVelocity, const FBox& PreSkinnedBounds = FBox(ForceInitToZero)) const;
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
@@ -759,8 +759,8 @@ private:
 	uint32 GetAllocatedSize() const;
 
 private:
-	/** Uniform Buffer with Velocity writes disabled.  Mutable as it is updated during GetDynamicMeshElements is required. */
-	mutable TUniformBuffer<FPrimitiveUniformShaderParameters> UniformBufferNoVelocity;
+	/** Custom Uniform Buffers, allows us to have renderer specific data packed inside such as pre-skinned bounds. */
+	mutable TMap<uint64, TUniformBuffer<FPrimitiveUniformShaderParameters>> CustomUniformBuffers;
 
 	/** The data required to render a single instance of a NiagaraSystem */
 	FNiagaraSystemRenderData* RenderData = nullptr;
