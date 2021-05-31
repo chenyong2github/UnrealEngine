@@ -52,8 +52,7 @@ public:
 		, bHasDiagnostics(false)
 	{
 		checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
-		checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
-			TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
+		AssertValidBuildFunctionName(Function, Name);
 		DiagnosticsWriter.BeginArray();
 	}
 
@@ -142,8 +141,7 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 {
 	bOutIsValid = false;
 	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
-	checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
-		TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
+	AssertValidBuildFunctionName(Function, Name);
 	Meta = InOutput["Meta"_ASV].AsObject();
 	Meta.MakeOwned();
 	for (FCbFieldView PayloadField : InOutput["Payloads"_ASV])
@@ -169,8 +167,7 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	, Payloads(InOutput.GetAttachmentPayloads())
 {
 	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
-	checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
-		TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
+	AssertValidBuildFunctionName(Function, Name);
 	if (FSharedBuffer Buffer = InOutput.GetValue())
 	{
 		Diagnostics = FCbObject(MoveTemp(Buffer))["Diagnostics"_ASV];
@@ -258,7 +255,7 @@ void FBuildOutputInternal::Save(FCacheRecordBuilder& RecordBuilder) const
 
 bool FBuildOutputInternal::IsValid() const
 {
-	return !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum)
+	return IsValidBuildFunctionName(Function)
 		&& Algo::AllOf(Payloads, [](const FPayload& Payload) { return !Payload.GetRawHash().IsZero(); })
 		&& (!Diagnostics || Diagnostics.IsArray())
 		&& Algo::AllOf(Diagnostics.CreateViewIterator(), [](FCbFieldView Field)

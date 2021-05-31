@@ -34,8 +34,7 @@ public:
 		, BuildSystemVersion(InBuildSystemVersion)
 	{
 		checkf(!Name.IsEmpty(), TEXT("A build action requires a non-empty name."));
-		checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
-			TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
+		AssertValidBuildFunctionName(Function, Name);
 	}
 
 	~FBuildActionBuilderInternal() final = default;
@@ -197,7 +196,7 @@ FBuildActionInternal::FBuildActionInternal(FStringView InName, FCbObject&& InAct
 	checkf(!Name.IsEmpty(), TEXT("A build action requires a non-empty name."));
 	Action.MakeOwned();
 	bOutIsValid = Action
-		&& !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum)
+		&& IsValidBuildFunctionName(Function)
 		&& FunctionVersion.IsValid()
 		&& BuildSystemVersion.IsValid()
 		&& Algo::AllOf(Action.FindView("Constants"_ASV),
