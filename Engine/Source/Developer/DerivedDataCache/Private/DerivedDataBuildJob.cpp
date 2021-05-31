@@ -145,10 +145,10 @@ private:
 	void BeginExecuteLocal() final;
 	void BeginCacheStore() final;
 
-	void EndResolveKey(FBuildDefinitionResolvedParams&& Params);
-	void EndResolveInputMeta(FBuildInputResolvedParams&& Params);
+	void EndResolveKey(FBuildKeyResolvedParams&& Params);
+	void EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params);
 	void EndCacheQuery(FCacheGetCompleteParams&& Params);
-	void EndResolveInputData(FBuildInputResolvedParams&& Params);
+	void EndResolveInputData(FBuildInputDataResolvedParams&& Params);
 	void EndExecuteRemote(FBuildWorkerActionCompleteParams&& Params);
 	void EndExecuteLocal();
 	void EndCacheStore(FCachePutCompleteParams&& Params);
@@ -159,7 +159,7 @@ private:
 	void SetOutput(const FBuildOutput& Output) final;
 	void SetOutputNoCheck(FBuildOutput&& Output);
 
-	void CreateAction(TConstArrayView<FBuildInputByKey> InputMeta);
+	void CreateAction(TConstArrayView<FBuildInputMetaByKey> InputMeta);
 
 	/** Terminate the job and send the error to the output complete callback. */
 	void CompleteWithError(FStringView Error);
@@ -494,12 +494,12 @@ void FBuildJob::BeginResolveKey()
 {
 	if (CanExecuteState(EBuildJobState::ResolveKey))
 	{
-		return AdvanceToState(EBuildJobState::ResolveKeyWait, InputResolver->GetDefinition(DefinitionKey,
-			[this](FBuildDefinitionResolvedParams&& Params) { EndResolveKey(MoveTemp(Params)); }));
+		return AdvanceToState(EBuildJobState::ResolveKeyWait, InputResolver->ResolveKey(DefinitionKey,
+			[this](FBuildKeyResolvedParams&& Params) { EndResolveKey(MoveTemp(Params)); }));
 	}
 }
 
-void FBuildJob::EndResolveKey(FBuildDefinitionResolvedParams&& Params)
+void FBuildJob::EndResolveKey(FBuildKeyResolvedParams&& Params)
 {
 	if (CanExecuteState(EBuildJobState::ResolveKeyWait))
 	{
@@ -546,12 +546,12 @@ void FBuildJob::BeginResolveInputMeta()
 {
 	if (CanExecuteState(EBuildJobState::ResolveInputMeta))
 	{
-		return AdvanceToState(EBuildJobState::ResolveInputMetaWait, InputResolver->GetMeta(Definition.Get(), Priority,
-			[this](FBuildInputResolvedParams&& Params) { EndResolveInputMeta(MoveTemp(Params)); }));
+		return AdvanceToState(EBuildJobState::ResolveInputMetaWait, InputResolver->ResolveInputMeta(Definition.Get(),
+			Priority, [this](FBuildInputMetaResolvedParams&& Params) { EndResolveInputMeta(MoveTemp(Params)); }));
 	}
 }
 
-void FBuildJob::EndResolveInputMeta(FBuildInputResolvedParams&& Params)
+void FBuildJob::EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params)
 {
 	if (CanExecuteState(EBuildJobState::ResolveInputMetaWait))
 	{
@@ -566,7 +566,7 @@ void FBuildJob::EndResolveInputMeta(FBuildInputResolvedParams&& Params)
 	}
 }
 
-void FBuildJob::CreateAction(TConstArrayView<FBuildInputByKey> InputMeta)
+void FBuildJob::CreateAction(TConstArrayView<FBuildInputMetaByKey> InputMeta)
 {
 	const FBuildDefinition& LocalDefinition = Definition.Get();
 	FBuildActionBuilder Builder = BuildSystem.CreateAction(Name, FunctionName);
@@ -574,9 +574,9 @@ void FBuildJob::CreateAction(TConstArrayView<FBuildInputByKey> InputMeta)
 	{
 		Builder.AddConstant(Key, Value);
 	});
-	for (const FBuildInputByKey& InputByKey : InputMeta)
+	for (const FBuildInputMetaByKey& Input : InputMeta)
 	{
-		Builder.AddInput(InputByKey.Key, InputByKey.Meta.RawHash, InputByKey.Meta.RawSize);
+		Builder.AddInput(Input.Key, Input.RawHash, Input.RawSize);
 	}
 	SetAction(Builder.Build());
 }
@@ -715,22 +715,22 @@ void FBuildJob::BeginResolveInputData()
 {
 	if (CanExecuteState(EBuildJobState::ResolveInputData))
 	{
-		return AdvanceToState(GetNextState(State), InputResolver->GetData(Definition.Get(), Priority,
-			[this](FBuildInputResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
+		return AdvanceToState(GetNextState(State), InputResolver->ResolveInputData(Definition.Get(), Priority,
+			[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
 			[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); }));
 	}
 }
 
-void FBuildJob::EndResolveInputData(FBuildInputResolvedParams&& Params)
+void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 {
 	if (CanExecuteState(EBuildJobState::ResolveInputDataWait))
 	{
 		if (Params.Status == EStatus::Ok)
 		{
 			FBuildInputsBuilder Builder = BuildSystem.CreateInputs(Name);
-			for (const FBuildInputByKey& InputByKey : Params.Inputs)
+			for (const FBuildInputDataByKey& Input : Params.Inputs)
 			{
-				Builder.AddInput(InputByKey.Key, InputByKey.Data);
+				Builder.AddInput(Input.Key, Input.Data);
 			}
 			if (Inputs)
 			{
