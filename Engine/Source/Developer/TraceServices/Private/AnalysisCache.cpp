@@ -6,6 +6,7 @@
 #include "Algo/Find.h"
 #include "Async/MappedFileHandle.h"
 #include "Containers/StringView.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Logging/LogMacros.h"
 #include "Memory/SharedBuffer.h"
