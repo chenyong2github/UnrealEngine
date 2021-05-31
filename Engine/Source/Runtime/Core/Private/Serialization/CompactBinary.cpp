@@ -66,8 +66,8 @@ void FCbFieldType::StaticAssertTypeConstants()
 	static_assert(!(BoolMask & (BoolBase ^ ECbFieldType::BoolTrue)), "BoolMask or BoolBase is invalid!");
 	static_assert(TypeMask == (BoolMask | (BoolBase ^ ECbFieldType::BoolTrue)), "BoolMask or BoolBase is invalid!");
 
-	static_assert(AttachmentBase == ECbFieldType::CompactBinaryAttachment, "AttachmentBase is invalid!");
-	static_assert((AttachmentMask & (AllFlags | ECbFieldType::BinaryAttachment)) == ECbFieldType::CompactBinaryAttachment, "AttachmentMask is invalid!");
+	static_assert(AttachmentBase == ECbFieldType::ObjectAttachment, "AttachmentBase is invalid!");
+	static_assert((AttachmentMask & (AllFlags | ECbFieldType::BinaryAttachment)) == ECbFieldType::ObjectAttachment, "AttachmentMask is invalid!");
 	static_assert(!(AttachmentMask & (AttachmentBase ^ ECbFieldType::BinaryAttachment)), "AttachmentMask or AttachmentBase is invalid!");
 	static_assert(TypeMask == (AttachmentMask | (AttachmentBase ^ ECbFieldType::BinaryAttachment)), "AttachmentMask or AttachmentBase is invalid!");
 }
@@ -274,9 +274,9 @@ bool FCbFieldView::AsBool(const bool bDefault)
 	return (uint8(bIsBool) & uint8(LocalType) & 1) | ((!bIsBool) & bDefault);
 }
 
-FIoHash FCbFieldView::AsCompactBinaryAttachment(const FIoHash& Default)
+FIoHash FCbFieldView::AsObjectAttachment(const FIoHash& Default)
 {
-	if (FCbFieldType::IsCompactBinaryAttachment(Type))
+	if (FCbFieldType::IsObjectAttachment(Type))
 	{
 		Error = ECbFieldError::None;
 		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Payload));
@@ -532,7 +532,7 @@ uint64 FCbFieldView::GetPayloadSize() const
 	case ECbFieldType::BoolFalse:
 	case ECbFieldType::BoolTrue:
 		return 0;
-	case ECbFieldType::CompactBinaryAttachment:
+	case ECbFieldType::ObjectAttachment:
 	case ECbFieldType::BinaryAttachment:
 	case ECbFieldType::Hash:
 		return 20;
@@ -597,7 +597,7 @@ void FCbFieldView::IterateAttachments(FCbFieldVisitor Visitor) const
 	case ECbFieldType::Array:
 	case ECbFieldType::UniformArray:
 		return FCbArrayView::FromFieldNoCheck(*this).IterateAttachments(Visitor);
-	case ECbFieldType::CompactBinaryAttachment:
+	case ECbFieldType::ObjectAttachment:
 	case ECbFieldType::BinaryAttachment:
 		return Visitor(*this);
 	default:

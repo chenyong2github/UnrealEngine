@@ -189,9 +189,9 @@ public:
 	inline void AddBool(FAnsiStringView Name, bool bValue) { SetName(Name); AddBool(bValue); }
 	CORE_API void AddBool(bool bValue);
 
-	/** Write a field referencing a compact binary attachment by its hash. */
-	inline void AddCompactBinaryAttachment(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddCompactBinaryAttachment(Value); }
-	CORE_API void AddCompactBinaryAttachment(const FIoHash& Value);
+	/** Write a field referencing an object attachment by its hash. */
+	inline void AddObjectAttachment(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddObjectAttachment(Value); }
+	CORE_API void AddObjectAttachment(const FIoHash& Value);
 	/** Write a field referencing a binary attachment by its hash. */
 	inline void AddBinaryAttachment(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddBinaryAttachment(Value); }
 	CORE_API void AddBinaryAttachment(const FIoHash& Value);

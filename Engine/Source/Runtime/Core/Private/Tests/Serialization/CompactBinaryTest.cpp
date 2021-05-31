@@ -59,7 +59,7 @@ UE_CBFIELD_TYPE_ACCESSOR(Float32, IsFloat, AsFloat, float);
 UE_CBFIELD_TYPE_ACCESSOR(Float64, IsFloat, AsDouble, double);
 UE_CBFIELD_TYPE_ACCESSOR(BoolFalse, IsBool, AsBool, bool);
 UE_CBFIELD_TYPE_ACCESSOR(BoolTrue, IsBool, AsBool, bool);
-UE_CBFIELD_TYPE_ACCESSOR_EX(CompactBinaryAttachment, IsCompactBinaryAttachment, AsCompactBinaryAttachment, FIoHash, const FIoHash&);
+UE_CBFIELD_TYPE_ACCESSOR_EX(ObjectAttachment, IsObjectAttachment, AsObjectAttachment, FIoHash, const FIoHash&);
 UE_CBFIELD_TYPE_ACCESSOR_EX(BinaryAttachment, IsBinaryAttachment, AsBinaryAttachment, FIoHash, const FIoHash&);
 UE_CBFIELD_TYPE_ACCESSOR_EX(Hash, IsHash, AsHash, FIoHash, const FIoHash&);
 UE_CBFIELD_TYPE_ACCESSOR_EX(Uuid, IsUuid, AsUuid, FGuid, const FGuid&);
@@ -978,28 +978,28 @@ bool FCbFieldBoolTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldCompactBinaryAttachmentTest, FCbFieldTestBase, "System.Core.Serialization.CbField.CompactBinaryAttachment", CompactBinaryTestFlags)
-bool FCbFieldCompactBinaryAttachmentTest::RunTest(const FString& Parameters)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldObjectAttachmentTest, FCbFieldTestBase, "System.Core.Serialization.CbField.ObjectAttachment", CompactBinaryTestFlags)
+bool FCbFieldObjectAttachmentTest::RunTest(const FString& Parameters)
 {
 	const FIoHash::ByteArray ZeroBytes{};
 	const FIoHash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
-	// Test FCbFieldView(CompactBinaryAttachment, Zero)
-	TestField<ECbFieldType::CompactBinaryAttachment>(TEXT("CompactBinaryAttachment, Zero"), ZeroBytes);
+	// Test FCbFieldView(ObjectAttachment, Zero)
+	TestField<ECbFieldType::ObjectAttachment>(TEXT("ObjectAttachment, Zero"), ZeroBytes);
 
-	// Test FCbFieldView(CompactBinaryAttachment, NonZero)
-	TestField<ECbFieldType::CompactBinaryAttachment>(TEXT("CompactBinaryAttachment, NonZero"), SequentialBytes, FIoHash(SequentialBytes));
+	// Test FCbFieldView(ObjectAttachment, NonZero)
+	TestField<ECbFieldType::ObjectAttachment>(TEXT("ObjectAttachment, NonZero"), SequentialBytes, FIoHash(SequentialBytes));
 
-	// Test FCbFieldView(CompactBinaryAttachment, NonZero) AsAttachment
+	// Test FCbFieldView(ObjectAttachment, NonZero) AsAttachment
 	{
-		FCbFieldView Field(SequentialBytes, ECbFieldType::CompactBinaryAttachment);
-		TestField<ECbFieldType::CompactBinaryAttachment>(TEXT("CompactBinaryAttachment, NonZero, AsAttachment"), Field, FIoHash(SequentialBytes), FIoHash(), ECbFieldError::None, FCbAttachmentAccessors());
+		FCbFieldView Field(SequentialBytes, ECbFieldType::ObjectAttachment);
+		TestField<ECbFieldType::ObjectAttachment>(TEXT("ObjectAttachment, NonZero, AsAttachment"), Field, FIoHash(SequentialBytes), FIoHash(), ECbFieldError::None, FCbAttachmentAccessors());
 	}
 
-	// Test FCbFieldView(None) as CompactBinaryAttachment
+	// Test FCbFieldView(None) as ObjectAttachment
 	{
 		FCbFieldView DefaultField;
-		TestFieldError<ECbFieldType::CompactBinaryAttachment>(TEXT("CompactBinaryAttachment, None"), DefaultField, ECbFieldError::TypeError, FIoHash(SequentialBytes));
+		TestFieldError<ECbFieldType::ObjectAttachment>(TEXT("ObjectAttachment, None"), DefaultField, ECbFieldError::TypeError, FIoHash(SequentialBytes));
 	}
 
 	return true;
@@ -1050,10 +1050,10 @@ bool FCbFieldHashTest::RunTest(const FString& Parameters)
 		TestFieldError<ECbFieldType::Hash>(TEXT("Hash, None"), DefaultField, ECbFieldError::TypeError, FIoHash(SequentialBytes));
 	}
 
-	// Test FCbFieldView(CompactBinaryAttachment) as Hash
+	// Test FCbFieldView(ObjectAttachment) as Hash
 	{
-		FCbFieldView Field(SequentialBytes, ECbFieldType::CompactBinaryAttachment);
-		TestField<ECbFieldType::Hash>(TEXT("CompactBinaryAttachment, NonZero, AsHash"), Field, FIoHash(SequentialBytes));
+		FCbFieldView Field(SequentialBytes, ECbFieldType::ObjectAttachment);
+		TestField<ECbFieldType::Hash>(TEXT("ObjectAttachment, NonZero, AsHash"), Field, FIoHash(SequentialBytes));
 	}
 
 	// Test FCbFieldView(BinaryAttachment) as Hash
@@ -1279,9 +1279,9 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 		FCbWriter Writer;
 
 		Writer.SetName("IgnoredTypeInRoot").AddHash(MakeTestHash(100));
-		Writer.AddCompactBinaryAttachment(MakeTestHash(0));
+		Writer.AddObjectAttachment(MakeTestHash(0));
 		Writer.AddBinaryAttachment(MakeTestHash(1));
-		Writer.SetName("CbAttachmentInRoot").AddCompactBinaryAttachment(MakeTestHash(2));
+		Writer.SetName("ObjAttachmentInRoot").AddObjectAttachment(MakeTestHash(2));
 		Writer.SetName("BinAttachmentInRoot").AddBinaryAttachment(MakeTestHash(3));
 
 		// Uniform array of type to ignore.
@@ -1319,7 +1319,7 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 			Writer << false;
 			Writer.EndArray();
 			Writer.BeginArray();
-			Writer.AddCompactBinaryAttachment(MakeTestHash(10));
+			Writer.AddObjectAttachment(MakeTestHash(10));
 			Writer << false;
 			Writer.EndArray();
 		}
@@ -1328,12 +1328,12 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 		Writer.BeginArray();
 		{
 			Writer.BeginObject();
-			Writer.SetName("CbAttachmentInUniObjInUniObj1").AddCompactBinaryAttachment(MakeTestHash(11));
-			Writer.SetName("CbAttachmentInUniObjInUniObj2").AddCompactBinaryAttachment(MakeTestHash(12));
+			Writer.SetName("ObjAttachmentInUniObjInUniObj1").AddObjectAttachment(MakeTestHash(11));
+			Writer.SetName("ObjAttachmentInUniObjInUniObj2").AddObjectAttachment(MakeTestHash(12));
 			Writer.EndObject();
 			Writer.BeginObject();
-			Writer.SetName("CbAttachmentInUniObjInUniObj3").AddCompactBinaryAttachment(MakeTestHash(13));
-			Writer.SetName("CbAttachmentInUniObjInUniObj4").AddCompactBinaryAttachment(MakeTestHash(14));
+			Writer.SetName("ObjAttachmentInUniObjInUniObj3").AddObjectAttachment(MakeTestHash(13));
+			Writer.SetName("ObjAttachmentInUniObjInUniObj4").AddObjectAttachment(MakeTestHash(14));
 			Writer.EndObject();
 		}
 		Writer.EndArray();
@@ -1345,7 +1345,7 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 			Writer << "Bool" << false;
 			Writer.EndObject();
 			Writer.BeginObject();
-			Writer.SetName("CbAttachmentInNonUniObjInUniObj").AddCompactBinaryAttachment(MakeTestHash(15));
+			Writer.SetName("ObjAttachmentInNonUniObjInUniObj").AddObjectAttachment(MakeTestHash(15));
 			Writer << "Bool" << false;
 			Writer.EndObject();
 		}
@@ -1390,7 +1390,7 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 			Writer.EndArray();
 			Writer.SetName("Array2");
 			Writer.BeginArray();
-			Writer.AddCompactBinaryAttachment(MakeTestHash(22));
+			Writer.AddObjectAttachment(MakeTestHash(22));
 			Writer << false;
 			Writer.EndArray();
 		}
@@ -1400,13 +1400,13 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 		{
 			Writer.SetName("Object1");
 			Writer.BeginObject();
-			Writer.SetName("CbAttachmentInUniObjInUniObj1").AddCompactBinaryAttachment(MakeTestHash(23));
-			Writer.SetName("CbAttachmentInUniObjInUniObj2").AddCompactBinaryAttachment(MakeTestHash(24));
+			Writer.SetName("ObjAttachmentInUniObjInUniObj1").AddObjectAttachment(MakeTestHash(23));
+			Writer.SetName("ObjAttachmentInUniObjInUniObj2").AddObjectAttachment(MakeTestHash(24));
 			Writer.EndObject();
 			Writer.SetName("Object2");
 			Writer.BeginObject();
-			Writer.SetName("CbAttachmentInUniObjInUniObj3").AddCompactBinaryAttachment(MakeTestHash(25));
-			Writer.SetName("CbAttachmentInUniObjInUniObj4").AddCompactBinaryAttachment(MakeTestHash(26));
+			Writer.SetName("ObjAttachmentInUniObjInUniObj3").AddObjectAttachment(MakeTestHash(25));
+			Writer.SetName("ObjAttachmentInUniObjInUniObj4").AddObjectAttachment(MakeTestHash(26));
 			Writer.EndObject();
 		}
 		Writer.EndObject();
@@ -1420,7 +1420,7 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 			Writer.EndObject();
 			Writer.SetName("Object2");
 			Writer.BeginObject();
-			Writer.SetName("CbAttachmentInNonUniObjInUniObj").AddCompactBinaryAttachment(MakeTestHash(27));
+			Writer.SetName("ObjAttachmentInNonUniObjInUniObj").AddObjectAttachment(MakeTestHash(27));
 			Writer << "Bool" << false;
 			Writer.EndObject();
 		}

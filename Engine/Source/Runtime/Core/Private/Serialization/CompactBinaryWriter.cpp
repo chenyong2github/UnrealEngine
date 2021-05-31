@@ -485,11 +485,11 @@ void FCbWriter::AddBool(const bool bValue)
 	EndField(bValue ? ECbFieldType::BoolTrue : ECbFieldType::BoolFalse);
 }
 
-void FCbWriter::AddCompactBinaryAttachment(const FIoHash& Value)
+void FCbWriter::AddObjectAttachment(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
-	EndField(ECbFieldType::CompactBinaryAttachment);
+	EndField(ECbFieldType::ObjectAttachment);
 }
 
 void FCbWriter::AddBinaryAttachment(const FIoHash& Value)

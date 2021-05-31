@@ -95,7 +95,7 @@ void FCbAttachment::Load(FCbFieldIterator& Fields)
 		++Fields;
 		Hash = Fields.AsAttachment();
 		checkf(!Fields.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
-		if (Fields.IsCompactBinaryAttachment())
+		if (Fields.IsObjectAttachment())
 		{
 			CompactBinary = FCbFieldViewIterator::MakeRange(Buffer);
 		}
@@ -129,7 +129,7 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 			});
 		Hash = HashField.AsAttachment();
 		checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
-		if (HashField.IsCompactBinaryAttachment())
+		if (HashField.IsObjectAttachment())
 		{
 			CompactBinary = FCbFieldViewIterator::MakeRange(Buffer);
 		}
@@ -155,7 +155,7 @@ void FCbAttachment::Save(FCbWriter& Writer) const
 		{
 			Writer.AddBinary(AsBinaryView());
 		}
-		Writer.AddCompactBinaryAttachment(Hash);
+		Writer.AddObjectAttachment(Hash);
 	}
 	else if (Buffer.GetSize())
 	{
@@ -258,7 +258,7 @@ void FCbPackage::GatherAttachments(const FCbFieldViewIterator& Fields, FAttachme
 			const FIoHash& Hash = Field.AsAttachment();
 			if (FSharedBuffer Buffer = Resolver(Hash))
 			{
-				if (Field.IsCompactBinaryAttachment())
+				if (Field.IsObjectAttachment())
 				{
 					AddAttachment(FCbAttachment(FCbFieldIterator::MakeRange(MoveTemp(Buffer)), Hash), &Resolver);
 				}
@@ -294,8 +294,8 @@ void FCbPackage::Load(FCbFieldIterator& Fields)
 			++Fields;
 			if (Object)
 			{
-				ObjectHash = Fields.AsCompactBinaryAttachment();
-				checkf(!Fields.HasError(), TEXT("Object must be followed by a CompactBinaryAttachment with the object hash."));
+				ObjectHash = Fields.AsObjectAttachment();
+				checkf(!Fields.HasError(), TEXT("Object must be followed by an ObjectAttachment with the object hash."));
 				++Fields;
 			}
 			else
@@ -331,7 +331,7 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 				FCbField HashField = LoadCompactBinary(Ar, StackAllocator);
 				const FIoHash& Hash = HashField.AsAttachment();
 				checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
-				if (HashField.IsCompactBinaryAttachment())
+				if (HashField.IsObjectAttachment())
 				{
 					AddAttachment(FCbAttachment(FCbFieldIterator::MakeRange(MoveTemp(Buffer)), Hash));
 				}
@@ -349,8 +349,8 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 			if (Object)
 			{
 				FCbField HashField = LoadCompactBinary(Ar, StackAllocator);
-				ObjectHash = HashField.AsCompactBinaryAttachment();
-				checkf(!HashField.HasError(), TEXT("Object must be followed by a CompactBinaryAttachment with the object hash."));
+				ObjectHash = HashField.AsObjectAttachment();
+				checkf(!HashField.HasError(), TEXT("Object must be followed by an ObjectAttachment with the object hash."));
 			}
 			else
 			{
@@ -365,7 +365,7 @@ void FCbPackage::Save(FCbWriter& Writer) const
 	if (Object)
 	{
 		Writer.AddObject(Object);
-		Writer.AddCompactBinaryAttachment(ObjectHash);
+		Writer.AddObjectAttachment(ObjectHash);
 	}
 	for (const FCbAttachment& Attachment : Attachments)
 	{
