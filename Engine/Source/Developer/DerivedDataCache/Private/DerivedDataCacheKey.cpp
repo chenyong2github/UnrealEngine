@@ -4,6 +4,7 @@
 
 #include "Algo/AllOf.h"
 #include "Containers/Set.h"
+#include "DerivedDataCachePrivate.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ScopeRWLock.h"
 
@@ -97,10 +98,7 @@ inline FCacheBucket FCacheBuckets::FindOrAdd(FStringView Name)
 		return *Bucket;
 	}
 
-	checkf(FCString::IsPureAnsi(Name.GetData(), Name.Len()) && Algo::AllOf(Name, FChar::IsAlnum) &&
-		!Name.IsEmpty() && Name.Len() < 256,
-		TEXT("Invalid cache bucket name '%.*s' must be alphanumeric, non-empty, and contain fewer than 256 code units."),
-		Name.Len(), Name.GetData());
+	AssertValidCacheBucketName(Name);
 
 	FCacheBucketOwner LocalBucket(Name);
 	FWriteScopeLock WriteLock(Lock);

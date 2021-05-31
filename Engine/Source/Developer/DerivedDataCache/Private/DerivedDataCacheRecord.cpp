@@ -327,8 +327,7 @@ FOptionalCacheRecord LoadCacheRecord(const FCbPackage& Package)
 	FCbObjectView KeyObject = RecordObject["Key"_ASV].AsObjectView();
 	auto TrySetBucketName = [](FStringView Name, FCacheKey& Key)
 	{
-		if (FCString::IsPureAnsi(Name.GetData(), Name.Len())
-			&& Algo::AllOf(Name, FChar::IsAlnum) && !Name.IsEmpty() && Name.Len() < 256)
+		if (IsValidCacheBucketName(Name))
 		{
 			Key.Bucket = CreateCacheBucket(Name);
 			return true;
