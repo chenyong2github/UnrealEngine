@@ -16,6 +16,7 @@
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
+#include "NiagaraGenerateMips.h"
 #include "NiagaraStats.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
@@ -803,15 +804,7 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& R
 		if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostStage))
 		{
 			ProxyData->bWasWrittenTo = false;
-
-			check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
-
-			FMemMark MemMark(FMemStack::Get());
-			FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
-			TRefCountPtr<IPooledRenderTarget> PoolRenderTarget = CreateRenderTarget(ProxyData->TextureRHI, TEXT("NiagaraRenderTarget2D"));
-			FRDGTextureRef MipOutputTexture = GraphBuilder.RegisterExternalTexture(PoolRenderTarget);
-			FGenerateMips::Execute(GraphBuilder, MipOutputTexture);
-			GraphBuilder.Execute();
+			NiagaraGenerateMips::GenerateMips(RHICmdList, ProxyData->TextureRHI);
 		}
 	}
 }
@@ -823,15 +816,7 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList
 		if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostSimulate))
 		{
 			ProxyData->bWasWrittenTo = false;
-
-			check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
-
-			FMemMark MemMark(FMemStack::Get());
-			FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
-			TRefCountPtr<IPooledRenderTarget> PoolRenderTarget = CreateRenderTarget(ProxyData->TextureRHI, TEXT("NiagaraRenderTarget2D"));
-			FRDGTextureRef MipOutputTexture = GraphBuilder.RegisterExternalTexture(PoolRenderTarget);
-			FGenerateMips::Execute(GraphBuilder, MipOutputTexture);
-			GraphBuilder.Execute();
+			NiagaraGenerateMips::GenerateMips(RHICmdList, ProxyData->TextureRHI);
 		}
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
