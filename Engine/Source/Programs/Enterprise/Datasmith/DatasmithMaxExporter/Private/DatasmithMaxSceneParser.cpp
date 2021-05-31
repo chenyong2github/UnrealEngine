@@ -60,10 +60,14 @@ private:
 
 //***************************************************************************
 // IInstanceMgr::GetInstanceMgr()->GetInstances() functions is finding
-// any object references this function returns actual instances :)
+// any object references. This function collects actual instances :)
+// returns whether multiple instances are found
 //***************************************************************************
-bool FDatasmithMaxSceneParser::GetActualInstances(INode *pINode, INodeTab* OnlyInstance)
+bool FDatasmithMaxSceneParser::GetActualInstances(INode* pINode, INodeTab* OnlyInstance)
 {
+	check(pINode);
+	check(OnlyInstance);
+
 	Object* Obj = pINode->GetObjOrWSMRef();
 	INodeTab InstanceAndRef;
 	if (IInstanceMgr::GetInstanceMgr()->GetInstances(*pINode, InstanceAndRef) < 2)
@@ -71,7 +75,6 @@ bool FDatasmithMaxSceneParser::GetActualInstances(INode *pINode, INodeTab* OnlyI
 		OnlyInstance->AppendNode(pINode);
 		return false;
 	}
-
 
 	for (int k = 0; k < InstanceAndRef.Count(); k++)
 	{
@@ -81,14 +84,7 @@ bool FDatasmithMaxSceneParser::GetActualInstances(INode *pINode, INodeTab* OnlyI
 		}
 	}
 
-	if (OnlyInstance->Count() < 2)
-	{
-		return false;
-	}
-	else
-	{
-		return true;
-	}
+	return OnlyInstance->Count() >= 2;
 }
 
 EMaxLightClass FDatasmithMaxSceneParser::GetLightClass(INode* Node)
@@ -588,12 +584,17 @@ void FDatasmithMaxSceneParser::NodeEnum(INode* Node, bool bSelectedOnly, TShared
 	if (ObjState.obj == NULL)
 	{
 		int NumChildren = Node->NumberOfChildren();
+		int LastDisplayedProgress = -1;
 		for (int ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 		{
-			int Progress = ChildIndex / float(NumChildren);
-			FString Msg = FString::Printf(TEXT("%d%%"), Progress * 100).Left(255);
-			// Show progress bar without the Cancel button
-			ProgressManager->ProgressEvent(Progress, *Msg);
+			int Progress = (ChildIndex * 100) / NumChildren;
+			if (Progress != LastDisplayedProgress)
+			{
+				LastDisplayedProgress = Progress;
+				FString Msg = FString::Printf(TEXT("%d%%"), Progress).Left(255);
+				// Show progress bar without the Cancel button
+				ProgressManager->ProgressEvent(Progress * 0.01f, *Msg);
+			}
 
 			NodeEnum(Node->GetChildNode(ChildIndex), bSelectedOnly, ProgressManager);
 		}
@@ -752,7 +753,8 @@ void FDatasmithMaxSceneParser::NodeEnumInstanceClean()
 				{
 					if (RenderableNode.Instances.Contains(RenderableNodes[h].Node))
 					{
-						RenderableNodes.RemoveAtSwap(h);
+						bool bAllowShrink = false; // As we keep references on elements of this array, we cannot allow a realloc.
+						RenderableNodes.RemoveAtSwap(h, 1, bAllowShrink);
 					}
 				}
 			}
@@ -883,7 +885,6 @@ void FDatasmithMaxSceneParser::ParseRailcloneNode(INode* RailCloneNode)
 			}
 		}
 	}
-
 
 	RCInterface->IRCClearInstances();
 	RCInterface->IRCClearMeshes();
