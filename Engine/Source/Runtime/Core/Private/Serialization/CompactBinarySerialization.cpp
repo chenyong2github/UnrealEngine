@@ -173,7 +173,11 @@ FCbField LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 		{
 			break;
 		}
-		checkf(FieldSize > 0, TEXT("Failed to load from invalid compact binary data."), FieldSize);
+		if (FieldSize == 0)
+		{
+			Ar.SetError();
+			return FCbField();
+		}
 	}
 
 	// Allocate the buffer, copy the header, and read the remainder of the field.
