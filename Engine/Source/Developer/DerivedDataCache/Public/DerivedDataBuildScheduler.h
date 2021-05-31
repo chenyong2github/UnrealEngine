@@ -36,8 +36,8 @@ public:
 	virtual void DispatchCacheQuery(IBuildJob* Job) { Job->BeginCacheQuery(); }
 	virtual void DispatchCacheStore(IBuildJob* Job) { Job->BeginCacheStore(); }
 	virtual void DispatchResolveKey(IBuildJob* Job) { Job->BeginResolveKey(); }
-	virtual void DispatchResolveAction(IBuildJob* Job) { Job->BeginResolveAction(); }
-	virtual void DispatchResolveInputs(IBuildJob* Job) { Job->BeginResolveInputs(); }
+	virtual void DispatchResolveInputMeta(IBuildJob* Job) { Job->BeginResolveInputMeta(); }
+	virtual void DispatchResolveInputData(IBuildJob* Job) { Job->BeginResolveInputData(); }
 	virtual void DispatchExecuteRemote(IBuildJob* Job) { Job->BeginExecuteRemote(); }
 	virtual void DispatchExecuteLocal(IBuildJob* Job) { Job->BeginExecuteLocal(); }
 

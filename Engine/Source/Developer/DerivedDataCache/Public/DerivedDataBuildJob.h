@@ -56,8 +56,8 @@ public:
 	virtual void BeginCacheQuery() = 0;
 	virtual void BeginCacheStore() = 0;
 	virtual void BeginResolveKey() = 0;
-	virtual void BeginResolveAction() = 0;
-	virtual void BeginResolveInputs() = 0;
+	virtual void BeginResolveInputMeta() = 0;
+	virtual void BeginResolveInputData() = 0;
 	virtual void BeginExecuteRemote() = 0;
 	virtual void BeginExecuteLocal() = 0;
 
