@@ -165,8 +165,17 @@ void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* Wo
 		InOutView.bAllowCrossGPUTransfer = (Contexts[ContextNum].bAllowGPUTransferOptimization == false);
 	}
 
-	// Apply visibility settigns to view
-	VisibilitySettings.SetupSceneView(World, InOutView);
+	if (RenderSettings.bSkipRendering)
+	{
+		//@todo: research better way to disable viewport rendering
+		// now just set showOnly=[]
+		InOutView.ShowOnlyPrimitives.Emplace();
+	}
+	else
+	{
+		// Apply visibility settigns to view
+		VisibilitySettings.SetupSceneView(World, InOutView);
+	}
 
 	// Handle Motion blur parameters
 	CameraMotionBlur.SetupSceneView(Contexts[ContextNum], InOutView);
@@ -184,18 +193,24 @@ FIntRect FDisplayClusterViewport::GetValidRect(const FIntRect& InRect, const TCH
 {
 	// The target always needs be within GMaxTextureDimensions, larger dimensions are not supported by the engine
 	static const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
+	static const int32 MinTextureSize = 16;
+
+	int Width  = FMath::Max(MinTextureSize, InRect.Width());
+	int Height = FMath::Max(MinTextureSize, InRect.Height());
+
+	FIntRect OutRect(InRect.Min, InRect.Min + FIntPoint(Width, Height));
 
 	float RectScale = 1;
 
 	// Make sure the rect doesn't exceed the maximum resolution, and preserve its aspect ratio if it needs to be clamped
-	int RectMaxSize = InRect.Max.GetMax();
+	int RectMaxSize = OutRect.Max.GetMax();
 	if (RectMaxSize > MaxTextureSize)
 	{
 		RectScale = float(MaxTextureSize) / RectMaxSize;
 		UE_LOG(LogDisplayClusterViewport, Error, TEXT("The viewport '%s' rect '%s' size %dx%d clamped: max texture dimensions is %d"), *GetId(), (DbgSourceName==nullptr) ? TEXT("none") : DbgSourceName, InRect.Max.X, InRect.Max.Y, MaxTextureSize);
 	}
 
-	FIntRect OutRect = InRect;
+
 	OutRect.Min.X = FMath::Min(OutRect.Min.X, MaxTextureSize);
 	OutRect.Min.Y = FMath::Min(OutRect.Min.Y, MaxTextureSize);
 
@@ -288,8 +303,16 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 
 	FIntPoint DesiredContextSize = FrameTargetRect.Size();
 
+	float ClusterRenderTargetRatioMult = InFrameSettings.ClusterRenderTargetRatioMult;
+
+	// Support Outer viewport cluster rtt multiplier
+	if ((RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXTarget) != 0)
+	{
+		ClusterRenderTargetRatioMult *= InFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult;
+	}
+
 	// Cluster mult downscale in range 0..1
-	float ClusterRTTMult = FMath::Clamp(InFrameSettings.ClusterRenderTargetRatioMult, 0.f, 1.f);
+	float ClusterRTTMult = FMath::Clamp(ClusterRenderTargetRatioMult, 0.f, 1.f);
 
 	// Scale context for rendering
 	float ViewportContextSizeMult = FMath::Max(RenderSettings.RenderTargetRatio * ClusterRTTMult, 0.f);
@@ -312,11 +335,7 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 
 	// Support override feature
 	bool bDisableRender = PostRenderSettings.Override.IsEnabled();
-	if (RenderSettings.OverrideViewportId.IsEmpty() == false)
-	{
-		// map to override at UpdateFrameContexts()
-		bDisableRender = true;
-	}
+	
 	
 	//Add new contexts
 	for (uint32 ContextIt = 0; ContextIt < ViewportContextAmmount; ++ContextIt)

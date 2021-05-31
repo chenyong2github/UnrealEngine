@@ -118,26 +118,33 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraMotionBlur)
 
 		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.RenderOrder)
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.FrameSize)
+		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.CustomFrameSize)
 		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.PostprocessBlur)
 		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips)
 		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings)
+
+		BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Camera"))
+			ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.ActorLayers)
+			ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.Actors)
+		END_GROUP();
+
+	END_CATEGORY();
+
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.bUseCameraComponentPostprocess)
+		ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PostProcessSettings)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ChromaKeyCategory)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CustomChromakey.bEnable)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CustomChromakey.Chromakey.Source)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CustomChromakey.Chromakey.ChromakeyColor)
-		ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CustomChromakey.Chromakey.ChromakeyMarkers)
-		// TODO: Custom chromakey should be refactored to better match desired UI
-		BEGIN_GROUP(TEXT("CustomChromakeyGroup"), LOCTEXT("CustomChromakeyGroupLabel", "Custom Chromakey"))
-			ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CustomChromakey.Chromakey.ChromakeyRenderTexture)
-		END_GROUP();
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.bEnable)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyColor)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyRenderTexture)
+		ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyMarkers)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OCIOCategory)
 		// TODO: Refactor ICVFX camera OCIO to match the DCRA OCIO refactor
-		//ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.OCIO_Configuration)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.OCIO_Configuration)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnableInnerFrustumOCIO)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.InnerFrustumOCIOConfigurations)
 	END_CATEGORY();

@@ -20,10 +20,14 @@ class FDisplayClusterRenderFrameManager;
 class FDisplayClusterViewportProxyData;
 class FDisplayClusterViewportProxy;
 struct FDisplayClusterRenderFrameSettings;
-class DisplayClusterViewportConfigurationHelpers;
 class FDisplayClusterViewportConfigurationCameraViewport;
 class FDisplayClusterViewportConfigurationCameraICVFX;
 class FDisplayClusterViewportConfigurationICVFX;
+
+class FDisplayClusterViewportConfigurationHelpers;
+class FDisplayClusterViewportConfigurationHelpers_ICVFX;
+
+struct FDisplayClusterViewportConfigurationProjectionPolicy;
 
 /**
  * Rendering viewport (sub-region of the main viewport)
@@ -132,6 +136,18 @@ public:
 	bool HandleStartScene();
 	void HandleEndScene();
 
+	void ResetRuntimeParameters()
+	{
+		// Reset runtim flags from prev frame:
+		RenderSettings.BeginUpdateSettings();
+		RenderSettingsICVFX.BeginUpdateSettings();
+		PostRenderSettings.BeginUpdateSettings();
+		VisibilitySettings.ResetConfiguration();
+		CameraMotionBlur.ResetConfiguration();
+		OverscanRendering.ResetConfiguration();
+	}
+
+
 	// Active view extension for this viewport
 	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(FViewport* InViewport) const;
 
@@ -168,10 +184,14 @@ protected:
 	friend FDisplayClusterViewportManager;
 	friend FDisplayClusterRenderTargetManager;
 	friend FDisplayClusterRenderFrameManager;
-	friend DisplayClusterViewportConfigurationHelpers;
 	friend FDisplayClusterViewportConfigurationCameraViewport;
 	friend FDisplayClusterViewportConfigurationCameraICVFX;
+
 	friend FDisplayClusterViewportConfigurationICVFX;
+
+	friend FDisplayClusterViewportConfigurationHelpers;
+	friend FDisplayClusterViewportConfigurationHelpers_ICVFX;
+	friend FDisplayClusterViewportConfigurationProjectionPolicy;
 
 	// viewport render thread data
 	FDisplayClusterViewportProxy* ViewportProxy = nullptr;

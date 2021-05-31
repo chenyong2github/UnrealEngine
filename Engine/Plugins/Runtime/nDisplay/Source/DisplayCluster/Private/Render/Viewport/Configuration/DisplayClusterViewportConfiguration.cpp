@@ -5,6 +5,7 @@
 #include "DisplayClusterConfigurationStrings.h"
 #include "DisplayClusterViewportConfigurationBase.h"
 #include "DisplayClusterViewportConfigurationICVFX.h"
+#include "DisplayClusterViewportConfigurationProjectionPolicy.h"
 
 #include "DisplayClusterRootActor.h"
 
@@ -19,6 +20,7 @@
 
 #include "Render/IPDisplayClusterRenderManager.h"
 #include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 ///////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfiguration
@@ -29,7 +31,7 @@ bool FDisplayClusterViewportConfiguration::SetRootActor(ADisplayClusterRootActor
 	check(IsInGameThread());
 	check(InRootActorPtr);
 
-	if (GetRootActor() != InRootActorPtr)
+	if (!RootActorRef.IsDefinedSceneActor() || GetRootActor() != InRootActorPtr)
 	{
 		// Update root actor reference:
 		RootActorRef.ResetSceneActor();
@@ -69,8 +71,15 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 			TArray<FString> RenderNodes;
 			RenderNodes.Add(InClusterNodeId);
 
-			ImplUpdateConfiguration(RenderNodes, *RootActor, *ConfigurationData);
-			ImplUpdateConfigurationICVFX(*RootActor, *ConfigurationData);
+			FDisplayClusterViewportConfigurationBase ConfigurationBase(ViewportManager, *RootActor, *ConfigurationData);
+			FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(*RootActor);
+			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(ViewportManager, *RootActor, *ConfigurationData);
+
+			ConfigurationBase.Update(RenderNodes);
+			ConfigurationICVFX.Update();
+			ConfigurationProjectionPolicy.Update();
+			ConfigurationICVFX.PostUpdate();
+
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
 			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
 
@@ -84,20 +93,6 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 	}
 
 	return false;
-}
-
-void FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(const TArray<FString>& InClusterNodeIds, ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationData& ConfigurationData)
-{
-	// Update and create Base viewports
-	FDisplayClusterViewportConfigurationBase BaseViewports(ViewportManager, RootActor, ConfigurationData);
-	BaseViewports.Update(InClusterNodeIds);
-}
-
-void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationICVFX(ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationData& ConfigurationData)
-{
-	// Update ICBFX internal viewports and resources
-	FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(ViewportManager, RootActor, ConfigurationData);
-	ConfigurationICVFX.Update();
 }
 
 void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationData& ConfigurationData)
@@ -121,7 +116,10 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 	// Multiply all downscale ratio inside all viewports settings for whole cluster
 	RenderFrameSettings.ClusterRenderTargetRatioMult = InRenderFrameConfiguration.ClusterRenderTargetRatioMult;
 
-	// Multiply all buffer ratios for whole cluster by this value
+	// Multiply all downscale ratio inside all viewports settings for whole cluster
+	RenderFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult = InRenderFrameConfiguration.ClusterICVFXOuterViewportRenderTargetRatioMult;
+
+	// Multiply all downscale ratio inside icvfx outer viewports settings for whole cluster
 	RenderFrameSettings.ClusterBufferRatioMult = InRenderFrameConfiguration.ClusterBufferRatioMult;
 
 	// Allow warpblend render
@@ -236,9 +234,15 @@ bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(const FDis
 				RenderNodes.Add(InPreviewConfiguration.PreviewNodeId);
 			}
 
-			ImplUpdateConfiguration(RenderNodes, *RootActor, *ConfigurationData);
+			FDisplayClusterViewportConfigurationBase ConfigurationBase(ViewportManager, *RootActor, *ConfigurationData);
+			FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(*RootActor);
+			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(ViewportManager, *RootActor, *ConfigurationData);
 
-			ImplUpdateConfigurationICVFX(*RootActor, *ConfigurationData);
+			ConfigurationBase.Update(RenderNodes);
+			ConfigurationICVFX.Update();
+			ConfigurationProjectionPolicy.Update();
+			ConfigurationICVFX.PostUpdate();
+
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
 			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
 

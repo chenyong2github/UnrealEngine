@@ -216,12 +216,6 @@ bool FDisplayClusterViewportManager::BeginNewFrame(class FViewport* InViewport, 
 	ImplUpdatePreviewRTTResources();
 #endif /*WITH_EDITOR*/
 
-	// Send render frame settings to rendering thread
-	ViewportManagerProxy->ImplUpdateRenderFrameSettings(Configuration->GetRenderFrameSettings());
-
-	// Send updated viewports data to render thread proxy
-	ViewportManagerProxy->ImplUpdateViewports(Viewports);
-
 	return true;
 }
 
@@ -232,8 +226,23 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 	// When all viewports processed, we remove all single frame custom postprocess
 	for (FDisplayClusterViewport* Viewport : Viewports)
 	{
-		Viewport->CustomPostProcessSettings.FinalizeFrame();
+		if (Viewport)
+		{
+			Viewport->CustomPostProcessSettings.FinalizeFrame();
+
+			// update projection policy proxy data
+			if (Viewport->ProjectionPolicy.IsValid())
+			{
+				Viewport->ProjectionPolicy->UpdateProxyData(Viewport);
+			}
+		}
 	}
+
+	// Send render frame settings to rendering thread
+	ViewportManagerProxy->ImplUpdateRenderFrameSettings(Configuration->GetRenderFrameSettings());
+
+	// Send updated viewports data to render thread proxy
+	ViewportManagerProxy->ImplUpdateViewports(Viewports);
 }
 
 void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& ViewFamily)
@@ -307,8 +316,12 @@ bool FDisplayClusterViewportManager::CreateViewport(const FString& InViewportId,
 		FDisplayClusterViewport* NewViewport = ImplCreateViewport(InViewportId, NewProjectionPolicy);
 		if (NewViewport != nullptr)
 		{
-			FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(*this, NewViewport, ConfigurationViewport);
-			return true;
+			ADisplayClusterRootActor* RootActorPtr = GetRootActor();
+			if (RootActorPtr)
+			{
+				FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(*this, *RootActorPtr, NewViewport, ConfigurationViewport);
+				return true;
+			}
 		}
 	}
 

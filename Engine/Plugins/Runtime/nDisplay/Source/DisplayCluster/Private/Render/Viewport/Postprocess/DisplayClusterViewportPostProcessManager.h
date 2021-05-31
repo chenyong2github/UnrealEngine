@@ -43,6 +43,4 @@ private:
 
 	virtual bool ShouldUseAdditionalFrameTargetableResource() const override final
 	{ return true; }
-
-private:
 };

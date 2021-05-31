@@ -62,10 +62,10 @@ namespace IcvfxShaderPermutation
 
 	class FIcvfxShaderInnerCamera      : SHADER_PERMUTATION_BOOL("INNER_CAMERA");
 
-	class FIcvfxShaderChromakey        : SHADER_PERMUTATION_BOOL("CHROMAKEY");
+	class FIcvfxShaderChromakey           : SHADER_PERMUTATION_BOOL("CHROMAKEY");
 	class FIcvfxShaderChromakeyFrameColor : SHADER_PERMUTATION_BOOL("CHROMAKEYFRAMECOLOR");
-	class FIcvfxShaderChromakeyMarker  : SHADER_PERMUTATION_BOOL("CHROMAKEY_MARKER");
 
+	class FIcvfxShaderChromakeyMarker  : SHADER_PERMUTATION_BOOL("CHROMAKEY_MARKER");
 
 	class FIcvfxShaderAlphaMapBlending : SHADER_PERMUTATION_BOOL("ALPHAMAP_BLENDING");
 	class FIcvfxShaderBetaMapBlending  : SHADER_PERMUTATION_BOOL("BETAMAP_BLENDING");
@@ -187,7 +187,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 	SHADER_PARAMETER(float, AlphaEmbeddedGamma)
 
 	SHADER_PARAMETER(FVector4, InnerCameraSoftEdge)
-	SHADER_PARAMETER(FVector4, ChromakeyFrameColor)
+
+	SHADER_PARAMETER(FVector4, ChromakeyColor)
+	SHADER_PARAMETER(FVector4, ChromakeyMarkerColor)
 
 	SHADER_PARAMETER(float, ChromakeyMarkerScale)
 	SHADER_PARAMETER(float, ChromakeyMarkerDistance)
@@ -555,6 +557,7 @@ public:
 		{
 		case EDisplayClusterShaderParametersICVFX_ChromakeySource::ChromakeyLayers:
 		{
+			RenderPassData.PSParameters.ChromakeyColor = Camera.ChromakeyColor;
 			RenderPassData.PSParameters.ChromakeyCameraTexture = Camera.Chromakey.Texture;
 			RenderPassData.PSParameters.ChromakeyCameraSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
@@ -565,8 +568,7 @@ public:
 
 		case EDisplayClusterShaderParametersICVFX_ChromakeySource::FrameColor:
 		{
-			RenderPassData.PSParameters.ChromakeyFrameColor = Camera.ChromakeyColor;
-
+			RenderPassData.PSParameters.ChromakeyColor = Camera.ChromakeyColor;
 			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderChromakeyFrameColor>(true);
 
 			return true;
@@ -587,6 +589,8 @@ public:
 
 		if (Camera.IsChromakeyMarkerUsed())
 		{
+			RenderPassData.PSParameters.ChromakeyMarkerColor = Camera.ChromakeyMarkersColor;
+
 			RenderPassData.PSParameters.ChromakeyMarkerTexture = Camera.ChromakeMarkerTextureRHI;
 			RenderPassData.PSParameters.ChromakeyMarkerSampler = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 
@@ -793,7 +797,6 @@ public:
 		PixelShaderType = GetPixelShaderType();
 		if (EIcvfxShaderType::Invalid == PixelShaderType)
 		{
-			//@todo: handle error
 			return false;
 		}
 

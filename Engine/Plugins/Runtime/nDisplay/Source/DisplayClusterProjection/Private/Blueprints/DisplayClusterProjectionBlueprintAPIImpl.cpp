@@ -21,9 +21,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 void UDisplayClusterProjectionBlueprintAPIImpl::CameraPolicySetCamera(const FString& ViewportId, UCameraComponent* NewCamera, float FOVMultiplier)
 {
-	check(NewCamera);
-	check(FOVMultiplier >= 0.1f);
-
 	IDisplayClusterRenderManager* RenderManager = IDisplayCluster::Get().GetRenderMgr();
 	if (RenderManager && RenderManager->GetViewportManager())
 	{

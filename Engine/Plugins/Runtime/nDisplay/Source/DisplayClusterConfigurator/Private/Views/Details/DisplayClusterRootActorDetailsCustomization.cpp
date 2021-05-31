@@ -126,6 +126,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 
 				ADD_PROPERTY(ADisplayClusterRootActor, InnerFrustumPriority);
 				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterRenderTargetRatioMult)
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult)
 				
 				TArray<TSharedPtr<IPropertyHandle>> ScreenPercentageHandles;
 				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.BufferRatio"), ScreenPercentageHandles);
@@ -147,10 +148,6 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			END_GROUP();
 		END_CATEGORY();
 
-		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ChromaKeyCategory)
-			ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Chromakey)
-		END_CATEGORY();
-		
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::LightcardCategory)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode)

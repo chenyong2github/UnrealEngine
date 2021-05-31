@@ -26,6 +26,9 @@
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
+#include "Render/Viewport/Configuration/DisplayClusterViewportConfigurationHelpers_Postprocess.h"
+
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewport
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -38,9 +41,6 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 	const float MaxViewDistance = 1000000;
 	const bool bUseSceneColorTexture = false;
 	const float LODDistanceFactor = 1.0f;
-
-	static FPostProcessSettings PostProcessSettings;
-	float PostProcessBlendWeight = 1.0f;
 
 	const AActor* ViewOwner = nullptr;
 
@@ -101,7 +101,36 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 		InOutViewFamily.Views.Add(View);
 
 		View->StartFinalPostprocessSettings(ViewLocation);
-		View->OverridePostProcessSettings(PostProcessSettings, PostProcessBlendWeight);
+
+		FPostProcessSettings* FinalPostProcessingSettings = &View->FinalPostProcessSettings;
+		// Support start PPS for preview
+		GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Start, FinalPostProcessingSettings);
+
+		// Support override PPS for preview
+		FPostProcessSettings OverridePostProcessingSettings;
+		float OverridePostProcessBlendWeight = 1.0f;
+		GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override, &OverridePostProcessingSettings, &OverridePostProcessBlendWeight);
+
+		View->OverridePostProcessSettings(OverridePostProcessingSettings, OverridePostProcessBlendWeight);
+
+		// Support final PPS for preview
+		GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Final, FinalPostProcessingSettings);
+
+		FPostProcessSettings RequestedFinalPerViewportPPS;
+		// Get the final overall cluster + per-viewport PPS from nDisplay
+		if (GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport, &RequestedFinalPerViewportPPS))
+		{
+			FDisplayClusterConfigurationViewport_PerViewportSettings InPPSnDisplay;
+			FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStructConditional(&InPPSnDisplay, &RequestedFinalPerViewportPPS);
+
+			// Get the passed-in cumulative PPS from the game/viewport (includes all PPVs affecting this viewport)
+			FDisplayClusterConfigurationViewport_PerViewportSettings InPPSCumulative;
+			FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStruct(&InPPSCumulative, FinalPostProcessingSettings);
+
+			// Blend both together with our custom math instead of the default PPS blending
+			FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(*FinalPostProcessingSettings, InPPSCumulative, InPPSnDisplay);
+		}
+
 		View->EndFinalPostprocessSettings(ViewInitOptions);
 
 		// Setup view extension for this view
@@ -138,7 +167,7 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	ADisplayClusterRootActor* const RootActor = GetOwner().GetRootActor();
 	if (!RootActor)
 	{
-		UE_LOG(LogDisplayClusterViewport, Warning, TEXT("No root actor found in game manager"));
+		// No root actor found in game manager.
 		return false;
 	}
 
@@ -153,10 +182,15 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 
 	// Get camera component assigned to the viewport (or default camera if nothing assigned)
 	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ? RootActor->GetDefaultCamera() : RootActor->GetCameraById(CameraId));
-	if (!ViewCamera)
+	if (ViewCamera)
+	{
+		// View base location
+		ViewLocation = ViewCamera->GetComponentLocation();
+		ViewRotation = ViewCamera->GetComponentRotation();
+	}
+	else
 	{
 		UE_LOG(LogDisplayClusterViewport, Warning, TEXT("No camera found for viewport '%s'"), *GetId());
-		return false;
 	}
 
 	if (CameraId.Len() > 0)
@@ -165,11 +199,11 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	}
 
 	// Get the actual camera settings
-	const float CfgEyeDist = ViewCamera->GetInterpupillaryDistance();
-	const bool  bCfgEyeSwap = ViewCamera->GetSwapEyes();
+	const float CfgEyeDist = ViewCamera ? ViewCamera->GetInterpupillaryDistance() : 0.064f;
+	const bool  bCfgEyeSwap = ViewCamera ? ViewCamera->GetSwapEyes() : false;
 	const float CfgNCP = 1.f;
 
-	const EDisplayClusterEyeStereoOffset CfgEyeOffset = ViewCamera->GetStereoOffset();
+	const EDisplayClusterEyeStereoOffset CfgEyeOffset = ViewCamera ? ViewCamera->GetStereoOffset() : EDisplayClusterEyeStereoOffset::None;
 
 	// Calculate eye offset considering the world scale
 	const float ScaledEyeDist = CfgEyeDist * WorldToMeters;
@@ -220,16 +254,11 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	}
 
 	FVector ViewOffset = FVector::ZeroVector;
-	if (ViewCamera)
-	{
-		// View base location
-		ViewLocation = ViewCamera->GetComponentLocation();
-		ViewRotation = ViewCamera->GetComponentRotation();
-		// Apply computed offset to the view location
-		const FQuat EyeQuat = ViewRotation.Quaternion();
-		ViewOffset = EyeQuat.RotateVector(FVector(0.0f, PassOffsetSwap, 0.0f));
-		ViewLocation += ViewOffset;
-	}
+
+	// Apply computed offset to the view location
+	const FQuat EyeQuat = ViewRotation.Quaternion();
+	ViewOffset = EyeQuat.RotateVector(FVector(0.0f, PassOffsetSwap, 0.0f));
+	ViewLocation += ViewOffset;
 
 	// Perform view calculations on a policy side
 	if (!CalculateView(InContextNum, ViewLocation, ViewRotation, ViewOffset, WorldToMeters, CfgNCP, CfgNCP))

@@ -45,19 +45,6 @@ static void GetPrimitiveComponentsFromLayers(UWorld* World, const TArray<FName>&
 	}
 }
 
-static void AppendComponents(TSet<FPrimitiveComponentId>& InOutPrimitives, const TArray<UActorComponent*>& InComponents)
-{
-}
-
-void FDisplayClusterViewport_VisibilitySettings::SetActorLayers(const TArray<FActorLayer>& InActorLayers)
-{
-	ActorLayers.Empty();
-	for (const FActorLayer& ActorLayerIt : InActorLayers)
-	{
-		ActorLayers.Add(ActorLayerIt.Name);
-	}
-}
-
 void FDisplayClusterViewport_VisibilitySettings::SetupSceneView(class UWorld* World, FSceneView& InOutView) const
 {
 	check(World);

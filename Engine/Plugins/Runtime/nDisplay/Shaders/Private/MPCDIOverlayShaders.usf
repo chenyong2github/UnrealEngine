@@ -83,11 +83,13 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 
 #if CHROMAKEYFRAMECOLOR || CHROMAKEY
 	// Use frame color by default
-	float4 ChromakeyColor = float4(ChromakeyFrameColor.xyz,0);
+	float4 OverlayChromakeyColor = float4(ChromakeyColor.xyz,0);
 
 #if CHROMAKEY
-	// Get from chromakey sampler
-	ChromakeyColor = ChromakeyCameraTexture.Sample(ChromakeyCameraSampler, CameraUV);
+	float4 ChromakeyCameraTextureColor = ChromakeyCameraTexture.Sample(ChromakeyCameraSampler, CameraUV);
+
+	// Get alpha from chromakey rtt frame
+	OverlayChromakeyColor.w = ChromakeyCameraTextureColor.w;
 #endif
 
 #if CHROMAKEY_MARKER
@@ -99,11 +101,14 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 	{
 		ChromakeyAlphaMult = 0.f;
 	}
-	float4 ChromakeyMarkerColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV);
-	ChromakeyColor.xyz = lerp(ChromakeyColor.xyz, ChromakeyMarkerColor.xyz, ChromakeyMarkerColor.w * ChromakeyAlphaMult);
+	float4 ChromakeyMarkerTextureColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV);
+	
+	float4 OverlayChromakeyMarkerColor = float4(ChromakeyMarkerColor.xyz, ChromakeyMarkerTextureColor.w);
+	
+	OverlayChromakeyColor.xyz = lerp(OverlayChromakeyColor.xyz, OverlayChromakeyMarkerColor.xyz, OverlayChromakeyMarkerColor.w * ChromakeyAlphaMult);
 #endif
 
-	CameraColor.xyz = lerp(CameraColor.xyz, ChromakeyColor.xyz, 1-ChromakeyColor.w);
+	CameraColor.xyz = lerp(CameraColor.xyz, OverlayChromakeyColor.xyz, 1-OverlayChromakeyColor.w);
 #endif
 
 	return CameraColor;

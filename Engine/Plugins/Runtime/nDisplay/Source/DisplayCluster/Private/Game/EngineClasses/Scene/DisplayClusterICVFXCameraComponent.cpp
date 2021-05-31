@@ -6,6 +6,16 @@
 #include "Components/DisplayClusterCameraComponent.h"
 #include "DisplayClusterRootActor.h"
 
+void UDisplayClusterICVFXCameraComponent::GetDesiredView(FMinimalViewInfo& DesiredView)
+{
+	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
+	{
+		UCineCameraComponent* CineCameraComponent = ExternalCameraActor.IsValid() ? ExternalCameraActor->GetCineCameraComponent() : static_cast<UCineCameraComponent*>(this);
+
+		float DeltaTime = RootActor->GetWorldDeltaSeconds();
+		CineCameraComponent->GetCameraView(DeltaTime, DesiredView);
+	}
+}
 
 UCameraComponent* UDisplayClusterICVFXCameraComponent::GetCameraComponent()
 {

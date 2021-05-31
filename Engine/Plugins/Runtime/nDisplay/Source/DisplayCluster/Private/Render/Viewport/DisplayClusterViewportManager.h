@@ -92,7 +92,7 @@ public:
 
 	FDisplayClusterViewport* ImplFindViewport(const FString& InViewportId) const;
 
-	TSharedPtr<IDisplayClusterProjectionPolicy> CreateProjectionPolicy(const FString& InViewportId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
+	static TSharedPtr<IDisplayClusterProjectionPolicy> CreateProjectionPolicy(const FString& InViewportId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 
 	const FDisplayClusterViewportManagerProxy& ImplGetProxy() const
 	{

@@ -24,6 +24,9 @@ struct FDisplayClusterRenderFrameSettings
 	// Multiply all downscale ratio inside all viewports settings for whole cluster
 	float ClusterRenderTargetRatioMult = 1.f;
 
+	// Multiply all downscale ratio inside all viewports settings for whole cluster
+	float ClusterICVFXOuterViewportRenderTargetRatioMult = 1.f;
+
 	// Multiply all buffer ratios for whole cluster by this value
 	float ClusterBufferRatioMult = 1.f;
 

@@ -213,6 +213,8 @@ private:
 
 	bool bHasRerunConstructionScripts = false;
 
+	float LastDeltaSecondsValue = 0.f;
+
 private:
 	template <typename TComp>
 	void GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames = nullptr, bool bCollectChildrenVisualizationComponent = true) const;
@@ -239,6 +241,22 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "OCIO", meta = (DisplayName = "Outer Viewport OCIO Configurations", ConfigurationMode = "Viewports"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> OuterViewportOCIOConfigurations;
 	
+public:
+
+	bool IsInnerFrustumEnabled(const FString& InnerFrustumID) const;
+
+	// Return inner frustum priority by InnerFrustum name (from InnerFrustumPriority property)
+	// return -1, if not defined
+	int GetInnerFrustumPriority(const FString& InnerFrustumID) const;
+
+	// Return OCIO profile by viewport name (from OuterViewportOCIOConfigurations property)
+	const FOpenColorIODisplayConfiguration* GetViewportOCIO(const FString& ViewportID) const;
+
+	float GetWorldDeltaSeconds() const
+	{
+		return LastDeltaSecondsValue;
+	}
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // EDITOR STUFF
 //////////////////////////////////////////////////////////////////////////////////////////////

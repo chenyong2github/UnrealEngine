@@ -5,7 +5,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
-
+#include "Misc/DisplayClusterLog.h"
 
 namespace ObjMeshStrings
 {
@@ -156,15 +156,22 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::CreateFromFile(const FString& FullPa
 		{
 			bool bResult = true;
 
+			int LineIdx = 0;
 			// Parse each line from config
 			for (FString Line : data)
 			{
+				LineIdx++;
 				Line.TrimStartAndEndInline();
 				if (!ParseLine(Line))
 				{
-					// Handle error
+					UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: Invalid line %d: '%s'"), LineIdx , *Line);
 					bResult = false;
 				}
+			}
+
+			if (!bResult)
+			{
+				UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: Can't load mesh geometry from file '%s'"), *FullPathFileName);
 			}
 
 			return bResult;

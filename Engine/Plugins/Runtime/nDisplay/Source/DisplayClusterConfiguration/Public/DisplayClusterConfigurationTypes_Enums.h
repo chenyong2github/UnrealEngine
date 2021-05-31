@@ -124,16 +124,6 @@ enum class EDisplayClusterConfigurationViewport_StereoMode : uint8
 };
 
 UENUM()
-enum class EDisplayClusterConfigurationICVFX_CameraFrameSizeSource: uint8
-{
-	// Use default ICVFX camera size from StageSettings
-	Default     UMETA(DisplayName = "Default value from StageSettings"),
-
-	// Unique camera frame size
-	Custom      UMETA(DisplayName = "Custom size value"),
-};
-
-UENUM()
 enum class EDisplayClusterConfigurationRenderFamilyMode : uint8
 {
 	// Render all viewports to unique RenderTargets

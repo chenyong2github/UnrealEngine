@@ -132,7 +132,6 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 }
 
 FDisplayClusterConfigurationICVFX_StageSettings::FDisplayClusterConfigurationICVFX_StageSettings()
-	: DefaultFrameSize(2560, 1440)
 {
 }
 

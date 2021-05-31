@@ -39,12 +39,7 @@ public:
 		PolicyOriginComponentRef.SetSceneComponent(OriginComp);
 	}
 
-	TMap<FString, FString>& GetParameters()
-	{
-		return Parameters;
-	}
-
-	const TMap<FString, FString>& GetParameters() const
+	virtual const TMap<FString, FString>& GetParameters() const override
 	{
 		return Parameters;
 	}

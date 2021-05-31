@@ -12,9 +12,8 @@
 
 #include "DisplayClusterICVFXCameraComponent.generated.h"
 
-
+struct FMinimalViewInfo;
 class UCameraComponent;
-
 
 /**
  * ICVFX camera with configuration
@@ -44,6 +43,7 @@ public:
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
 
+
 	bool IsICVFXEnabled() const
 	{
 		return CameraSettings.bEnable;
@@ -58,4 +58,5 @@ public:
 	}
 
 	UCameraComponent* GetCameraComponent();
+	void GetDesiredView(FMinimalViewInfo& DesiredView);
 };
