@@ -534,7 +534,52 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	Session.UpdateDurationSeconds(InTime);
 }
 
-void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 InMeshId, double InTime, uint16 InLodIndex, uint16 InFrameCounter, const FTransform& InComponentToWorld, const TArrayView<const FTransform>& InPose, const TArrayView<const uint32>& InCurveIds, const TArrayView<const float>& InCurveValues)
+// support for deserializing LWC/non LWC Transforms from builds with non-matching LWC setting
+static FTransform ConvertTransform(int TransformSize, const float* TransformFloats)
+{
+	FQuat Rotation;
+	FVector Translation;
+	FVector Scale3D;
+
+	static const int LWCSize = 4 + 8 * 2; // 4 floats + 8 doubles
+	static const int NonLWCSize = 12; // 12 floats
+
+	check (TransformSize == NonLWCSize || TransformSize == LWCSize);
+
+	if (TransformSize == NonLWCSize)
+	{
+		// non LWC (rotation/translation/scale, all floats)
+		Rotation.X = TransformFloats[0];
+		Rotation.Y = TransformFloats[1];
+		Rotation.Z = TransformFloats[2];
+		Rotation.W = TransformFloats[3];
+		Translation.X = TransformFloats[4];
+		Translation.Y = TransformFloats[5];
+		Translation.Z = TransformFloats[6];
+		Scale3D.X = TransformFloats[8];
+		Scale3D.Y = TransformFloats[9];
+		Scale3D.Z = TransformFloats[10];
+	}
+	if (TransformSize == LWCSize)
+	{
+		// LWC (rotation in floats translation/scale in doubles)
+		Rotation.X = TransformFloats[0];
+		Rotation.Y = TransformFloats[1];
+		Rotation.Z = TransformFloats[2];
+		Rotation.W = TransformFloats[3];
+		const double* TransformDoubles = reinterpret_cast<const double*>(TransformFloats + 4);
+		Translation.X = TransformDoubles[0];
+		Translation.Y = TransformDoubles[1];
+		Translation.Z = TransformDoubles[2];
+		Scale3D.X = TransformDoubles[4];
+		Scale3D.Y = TransformDoubles[5];
+		Scale3D.Z = TransformDoubles[6];
+	}
+
+	return FTransform(Rotation, Translation, Scale3D);
+}
+
+void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 InMeshId, double InTime, uint16 InLodIndex, uint16 InFrameCounter, const TArrayView<const float>& InComponentToWorldRaw, const TArrayView<const float>& InPoseRaw, const TArrayView<const uint32>& InCurveIds, const TArrayView<const float>& InCurveValues)
 {
 	Session.WriteAccessCheck();
 
@@ -564,23 +609,49 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 
 	const int32 NumCurves = InCurveIds.Num();
 
+	const int CaptureTransformSize = InComponentToWorldRaw.Num();
+	const int LocalTransformSize = sizeof (FTransform) / sizeof(float);
+
+	FTransform ComponentToWorld;
+
+	if (CaptureTransformSize == LocalTransformSize)
+	{
+	 	FMemory::Memcpy(&ComponentToWorld, &InComponentToWorldRaw[0], sizeof(FTransform));
+	}
+	else
+	{
+	 	ComponentToWorld = ConvertTransform(CaptureTransformSize, &InComponentToWorldRaw[0]);
+	}
+
+	const int PoseTransformCount = InPoseRaw.Num()/CaptureTransformSize;
+
 	FSkeletalMeshPoseMessage Message;
-	Message.ComponentToWorld = InComponentToWorld;
+	Message.ComponentToWorld = ComponentToWorld;
 	Message.TransformStartIndex = SkeletalMeshPoseTransforms.Num();
 	Message.CurveStartIndex = SkeletalMeshCurves.Num();
 	Message.ComponentId = InObjectId;
 	Message.MeshId = InMeshId;
 	Message.MeshName = GameplayProvider.GetObjectInfo(Message.MeshId).Name;
-	Message.NumTransforms = (uint16)InPose.Num();
+	Message.NumTransforms = (uint16)PoseTransformCount;
 	Message.NumCurves = (uint16)NumCurves;
 	Message.LodIndex = InLodIndex;
 	Message.FrameCounter = InFrameCounter;
 
 	TimelineStorage->Timeline->AppendBeginEvent(InTime, Message);
 
-	for(const FTransform& Transform : InPose)
+	if (CaptureTransformSize == LocalTransformSize)
 	{
-		SkeletalMeshPoseTransforms.PushBack() = Transform;
+		for(int i=0; i<PoseTransformCount; i++)
+		{
+			FMemory::Memcpy(&SkeletalMeshPoseTransforms.PushBack(), &InPoseRaw[CaptureTransformSize * i], sizeof(FTransform));
+		}
+	}
+	else
+	{
+		for(int i=0; i<PoseTransformCount; i++)
+		{
+			SkeletalMeshPoseTransforms.PushBack() = ConvertTransform(CaptureTransformSize, &InPoseRaw[CaptureTransformSize * i]);
+		}
 	}
 
 	for(int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
