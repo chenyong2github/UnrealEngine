@@ -35,7 +35,7 @@ public:
 	inline FStringView GetHostPlatform() const final { return HostPlatform; }
 	inline FGuid GetBuildSystemVersion() const final { return BuildSystemVersion; }
 
-	FRequest GetFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) const final;
+	FRequest FindFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) const final;
 
 	void IterateFunctions(TFunctionRef<void (FStringView WorkerName, const FGuid& Version)> Visitor) const final;
 	void IterateFiles(TFunctionRef<void (FStringView WorkerPath, const FIoHash& RawHash, uint64 RawSize)> Visitor) const final;
@@ -73,9 +73,9 @@ void FBuildWorkerInternal::Build()
 	Environment.Sort();
 }
 
-FRequest FBuildWorkerInternal::GetFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) const
+FRequest FBuildWorkerInternal::FindFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) const
 {
-	return Factory->GetFileData(RawHashes, Priority, MoveTemp(OnComplete));
+	return Factory->FindFileData(RawHashes, Priority, MoveTemp(OnComplete));
 }
 
 void FBuildWorkerInternal::IterateFunctions(TFunctionRef<void (FStringView Name, const FGuid& Version)> Visitor) const
