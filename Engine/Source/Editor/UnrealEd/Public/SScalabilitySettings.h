@@ -61,7 +61,7 @@ private:
 	FReply OnAutoClicked();
 
 	// Create a gridslot for the group quality level with all the required formatting
-	SGridPanel::FSlot& MakeGridSlot(int32 InCol, int32 InRow, int32 InColSpan = 1, int32 InRowSpan = 1);
+	SGridPanel::FSlot::FSlotArguments MakeGridSlot(int32 InCol, int32 InRow, int32 InColSpan = 1, int32 InRowSpan = 1);
 
 	/** Called to get the "Show notification" check box state */
 	ECheckBoxState IsMonitoringPerformance() const;

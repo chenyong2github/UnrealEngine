@@ -137,14 +137,14 @@ FReply SScalabilitySettings::OnAutoClicked()
 	return FReply::Handled();
 }
 
-SGridPanel::FSlot& SScalabilitySettings::MakeGridSlot(int32 InCol, int32 InRow, int32 InColSpan /*= 1*/, int32 InRowSpan /*= 1*/)
+SGridPanel::FSlot::FSlotArguments SScalabilitySettings::MakeGridSlot(int32 InCol, int32 InRow, int32 InColSpan /*= 1*/, int32 InRowSpan /*= 1*/)
 {
 	float PaddingH = 2.0f;
 	float PaddingV = InRow == 0 ? 8.0f : 2.0f;
-	return SGridPanel::Slot(InCol, InRow)
+	return MoveTemp(SGridPanel::Slot(InCol, InRow)
 		.Padding(PaddingH, PaddingV)
 		.RowSpan(InRowSpan)
-		.ColumnSpan(InColSpan);
+		.ColumnSpan(InColSpan));
 }
 
 ECheckBoxState SScalabilitySettings::IsMonitoringPerformance() const
