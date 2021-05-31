@@ -91,7 +91,7 @@ public:
 	FSlateInvalidationWidgetList(FSlateInvalidationRootHandle Owner, const FArguments& Args);
 
 	/** Build the widget list from the root widget. */
-	void BuildWidgetList(TSharedRef<SWidget> Root);
+	void BuildWidgetList(const TSharedRef<SWidget>& Root);
 
 	/** Get the root the widget list was built with. */
 	TWeakPtr<SWidget> GetRoot() { return Root; };
@@ -157,7 +157,7 @@ public:
 				SWidget* Widget = ElementList[ElementIndex].GetWidget();
 				if (Widget)
 				{
-					Pred(Widget);
+					Pred(*Widget);
 				}
 			}
 
@@ -334,15 +334,15 @@ public:
 public:
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 	/** For testing purposes. Return the InvalidationWidgetIndex of the Widget within the InvalidationWidgetList. */
-	FSlateInvalidationWidgetIndex FindWidget(const TSharedRef<SWidget> Widget) const;
+	FSlateInvalidationWidgetIndex FindWidget(const SWidget& Widget) const;
 
 	/** For testing purposes. Use ProcessChildOrderInvalidation. */
 	void RemoveWidget(const FSlateInvalidationWidgetIndex ToRemove);
 	/** For testing purposes. Use ProcessChildOrderInvalidation. */
-	void RemoveWidget(const TSharedRef<SWidget> WidgetToRemove);
+	void RemoveWidget(const SWidget& WidgetToRemove);
 
 	/** For testing purposes. Use to test ProcessChildOrderInvalidation */
-	UE_NODISCARD TArray<TSharedPtr<SWidget>> FindChildren(const TSharedRef<SWidget> Widget) const;
+	UE_NODISCARD TArray<TSharedPtr<SWidget>> FindChildren(const SWidget& Widget) const;
 
 	/**
 	 * For testing purposes.
@@ -369,41 +369,41 @@ public:
 #endif
 
 public:
-	bool ShouldDoRecursion(const SWidget* Widget) const
+	bool ShouldDoRecursion(const SWidget& Widget) const
 	{
-		return !Widget->Advanced_IsInvalidationRoot() || IsEmpty();
+		return !Widget.Advanced_IsInvalidationRoot() || IsEmpty();
 	}
-	bool ShouldDoRecursion(const TSharedRef<SWidget>& Widget) const
+	bool ShouldDoRecursion(const TSharedRef<const SWidget>& Widget) const
 	{
-		return !Widget->Advanced_IsInvalidationRoot() || IsEmpty();
+		return ShouldDoRecursion(Widget.Get());
 	}
-	static bool ShouldBeAdded(const SWidget* Widget)
+	static bool ShouldBeAdded(const SWidget& Widget)
 	{
-		return Widget != &(SNullWidget::NullWidget.Get());
+		return &Widget != &(SNullWidget::NullWidget.Get());
 	}
-	static bool ShouldBeAdded(const TSharedRef<SWidget>& Widget)
+	static bool ShouldBeAdded(const TSharedRef<const SWidget>& Widget)
 	{
 		return Widget != SNullWidget::NullWidget;
 	}
-	static bool ShouldBeAddedToAttributeList(const SWidget* Widget)
+	static bool ShouldBeAddedToAttributeList(const SWidget& Widget)
 	{
-		return Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
+		return Widget.HasRegisteredSlateAttribute() && Widget.IsAttributesUpdatesEnabled();
 	}
-	static bool ShouldBeAddedToAttributeList(const TSharedRef<SWidget>& Widget)
+	static bool ShouldBeAddedToAttributeList(const TSharedRef<const SWidget>& Widget)
 	{
-		return Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
+		return ShouldBeAddedToAttributeList(Widget.Get());
 	}
 	static bool HasVolatileUpdateFlags(EWidgetUpdateFlags UpdateFlags)
 	{
 		return EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsTick | EWidgetUpdateFlags::NeedsActiveTimerUpdate | EWidgetUpdateFlags::NeedsVolatilePaint | EWidgetUpdateFlags::NeedsVolatilePrepass);
 	}
-	static bool ShouldBeAddedToVolatileUpdateList(const SWidget* Widget)
+	static bool ShouldBeAddedToVolatileUpdateList(const SWidget& Widget)
 	{
-		return Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick | EWidgetUpdateFlags::NeedsActiveTimerUpdate | EWidgetUpdateFlags::NeedsVolatilePaint | EWidgetUpdateFlags::NeedsVolatilePrepass);
+		return Widget.HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick | EWidgetUpdateFlags::NeedsActiveTimerUpdate | EWidgetUpdateFlags::NeedsVolatilePaint | EWidgetUpdateFlags::NeedsVolatilePrepass);
 	}
-	static bool ShouldBeAddedToVolatileUpdateList(const TSharedRef<SWidget>& Widget)
+	static bool ShouldBeAddedToVolatileUpdateList(const TSharedRef<const SWidget>& Widget)
 	{
-		return ShouldBeAddedToVolatileUpdateList(&Widget.Get());
+		return ShouldBeAddedToVolatileUpdateList(Widget.Get());
 	}
 
 private:
@@ -440,8 +440,8 @@ private:
 	FCutResult CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
 
 private:
-	FSlateInvalidationWidgetIndex Internal_BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, FSlateInvalidationWidgetVisibility ParentVisibility, bool bParentVolatile);
-	void Internal_RebuildWidgetListTree(TSharedRef<SWidget> Widget, int32 ChildAtIndex);
+	FSlateInvalidationWidgetIndex Internal_BuildWidgetList_Recursive(SWidget& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, FSlateInvalidationWidgetVisibility ParentVisibility, bool bParentVolatile);
+	void Internal_RebuildWidgetListTree(SWidget& Widget, int32 ChildAtIndex);
 	using FFindChildrenElement = TPair<SWidget*, FSlateInvalidationWidgetIndex>;
 	void Internal_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const;
 	void Internal_RemoveRangeFromSameParent(const FIndexRange Range);

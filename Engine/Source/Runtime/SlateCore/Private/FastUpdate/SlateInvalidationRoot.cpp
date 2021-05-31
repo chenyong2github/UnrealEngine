@@ -483,13 +483,13 @@ void FSlateInvalidationRoot::AdjustWidgetsDesktopGeometry(FVector2D WindowToDesk
 {
 	FSlateLayoutTransform WindowToDesktop(WindowToDesktopTransform);
 
-	FastWidgetPathList->ForEachWidget([WindowToDesktopTransform, &WindowToDesktop](SWidget* Widget)
+	FastWidgetPathList->ForEachWidget([WindowToDesktopTransform, &WindowToDesktop](SWidget& Widget)
 		{
-			Widget->PersistentState.DesktopGeometry.AppendTransform(WindowToDesktop);
+			Widget.PersistentState.DesktopGeometry.AppendTransform(WindowToDesktop);
 		});
 }
 
-void FSlateInvalidationRoot::BuildFastPathWidgetList(TSharedRef<SWidget> RootWidget)
+void FSlateInvalidationRoot::BuildFastPathWidgetList(const TSharedRef<SWidget>& RootWidget)
 {
 	TGuardValue<bool> Tmp(bBuildingWidgetList, true);
 
@@ -699,7 +699,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 
 							// This element was removed or added, seek will assign the correct widget to be ticked next.
 							AttributeItt.Seek(InvalidationWidget.Index);
-							if (FastWidgetPathList->ShouldBeAddedToAttributeList(WidgetPtr))
+							if (FastWidgetPathList->ShouldBeAddedToAttributeList(*WidgetPtr))
 							{
 								// Do we still need to update this element, if not, then remove it from the update list.
 								if (!Slate::EInvalidateWidgetReason_HasPreUpdateFlag(InvalidationWidget.CurrentInvalidateReason))
@@ -958,12 +958,12 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 
 void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediately)
 {
-	FastWidgetPathList->ForEachWidget([bClearResourcesImmediately](SWidget* Widget)
+	FastWidgetPathList->ForEachWidget([bClearResourcesImmediately](SWidget& Widget)
 		{
-			Widget->PersistentState.CachedElementHandle = FSlateCachedElementsHandle::Invalid;
+			Widget.PersistentState.CachedElementHandle = FSlateCachedElementsHandle::Invalid;
 			if (bClearResourcesImmediately)
 			{
-				Widget->FastPathProxyHandle = FWidgetProxyHandle();
+				Widget.FastPathProxyHandle = FWidgetProxyHandle();
 			}
 		});
 	FastWidgetPathList->Reset();
@@ -1178,14 +1178,14 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 
 	FSlateInvalidationWidgetSortOrder PreviousSecondarySort;
 	const SWidget* LastWidget = nullptr;
-	WidgetList.ForEachWidget([&HittestGridSortDatas, &PreviousSecondarySort, &LastWidget](const SWidget* Widget)
+	WidgetList.ForEachWidget([&HittestGridSortDatas, &PreviousSecondarySort, &LastWidget](const SWidget& Widget)
 		{
-			if (Widget && Widget->GetVisibility().IsHitTestVisible())
+			if (Widget.GetVisibility().IsHitTestVisible())
 			{
 				// Is the widget in the hittestgrid
-				const int32 FoundHittestIndex = HittestGridSortDatas.IndexOfByPredicate([Widget](const FHittestWidgetSortData& HittestGrid)
+				const int32 FoundHittestIndex = HittestGridSortDatas.IndexOfByPredicate([&Widget](const FHittestWidgetSortData& HittestGrid)
 					{
-						return HittestGrid.Widget == Widget;
+						return HittestGrid.Widget == &Widget;
 					});
 				const bool bHasFoundWidget = HittestGridSortDatas.IsValidIndex(FoundHittestIndex);
 				if (!bHasFoundWidget)
@@ -1193,12 +1193,12 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 					return;
 				}
 
-				UE_SLATE_LOG_ERROR_IF_FALSE(Widget->GetProxyHandle().GetWidgetSortOrder() == HittestGridSortDatas[FoundHittestIndex].SecondarySort
+				UE_SLATE_LOG_ERROR_IF_FALSE(Widget.GetProxyHandle().GetWidgetSortOrder() == HittestGridSortDatas[FoundHittestIndex].SecondarySort
 					, GSlateInvalidationRootVerifyHittestGrid
 					, TEXT("The SecondarySort of widget '%s' doesn't match the SecondarySort inside the hittestgrid.")
 					, *FReflectionMetaData::GetWidgetPath(Widget));
 
-				LastWidget = Widget;
+				LastWidget = &Widget;
 				PreviousSecondarySort = HittestGridSortDatas[FoundHittestIndex].SecondarySort;
 
 				HittestGridSortDatas.RemoveAtSwap(FoundHittestIndex);
@@ -1296,21 +1296,22 @@ void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)
 void VerifyWidgetVolatile(FSlateInvalidationWidgetList& WidgetList, TArray<FSlateInvalidationWidgetIndex>& FinalUpdateList)
 {
 	SWidget* Root = WidgetList.GetRoot().Pin().Get();
-	WidgetList.ForEachWidget([Root, &FinalUpdateList](SWidget* Widget)
+	check(Root);
+	WidgetList.ForEachWidget([Root, &FinalUpdateList](SWidget& Widget)
 		{
-			if (Widget != Root && GSlateInvalidationRootVerifyWidgetVolatile)
+			if (&Widget != Root && GSlateInvalidationRootVerifyWidgetVolatile)
 			{
 				{
-					const bool bWasVolatile = Widget->IsVolatile();
-					Widget->CacheVolatility();
-					const bool bIsVolatile = Widget->IsVolatile();
+					const bool bWasVolatile = Widget.IsVolatile();
+					Widget.CacheVolatility();
+					const bool bIsVolatile = Widget.IsVolatile();
 					UE_SLATE_LOG_ERROR_IF_FALSE(bWasVolatile == bIsVolatile
 						, GSlateInvalidationRootVerifyWidgetVolatile
 						, TEXT("Widget '%s' volatily changed without an invalidation.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 				}
 
-				const TSharedPtr<const SWidget> ParentWidget = Widget->GetParentWidget();
+				const TSharedPtr<const SWidget> ParentWidget = Widget.GetParentWidget();
 				UE_SLATE_LOG_ERROR_IF_FALSE(ParentWidget
 					, GSlateInvalidationRootVerifyWidgetVolatile
 					, TEXT("Parent widget of widget '%s' is invalid.")
@@ -1318,24 +1319,24 @@ void VerifyWidgetVolatile(FSlateInvalidationWidgetList& WidgetList, TArray<FSlat
 
 				{
 					const bool bShouldBeVolatileIndirectly = ParentWidget->IsVolatileIndirectly() || ParentWidget->IsVolatile();
-					UE_SLATE_LOG_ERROR_IF_FALSE(Widget->IsVolatileIndirectly() == bShouldBeVolatileIndirectly
+					UE_SLATE_LOG_ERROR_IF_FALSE(Widget.IsVolatileIndirectly() == bShouldBeVolatileIndirectly
 					, GSlateInvalidationRootVerifyWidgetVolatile
 					, TEXT("Widget '%s' should be set as %s.")
 					, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
 					, (bShouldBeVolatileIndirectly ? TEXT("volatile indirectly") : TEXT("not volatile indirectly")));
 				}
 
-				if (Widget->IsVolatile() && !Widget->IsVolatileIndirectly())
+				if (Widget.IsVolatile() && !Widget.IsVolatileIndirectly())
 				{
-					UE_SLATE_LOG_ERROR_IF_FALSE(Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint)
+					UE_SLATE_LOG_ERROR_IF_FALSE(Widget.HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint)
 						, GSlateInvalidationRootVerifyWidgetVolatile
 						, TEXT("Widget '%s' is volatile but doesn't have the update flag NeedsVolatilePaint.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 
-					if (Widget->GetProxyHandle().IsValid(Widget))
+					if (Widget.GetProxyHandle().IsValid(Widget))
 					{
-						const bool bIsVisible = Widget->GetProxyHandle().GetProxy().Visibility.IsVisible();
-						const bool bIsContains = FinalUpdateList.Contains(Widget->GetProxyHandle().GetWidgetIndex());
+						const bool bIsVisible = Widget.GetProxyHandle().GetProxy().Visibility.IsVisible();
+						const bool bIsContains = FinalUpdateList.Contains(Widget.GetProxyHandle().GetWidgetIndex());
 						UE_SLATE_LOG_ERROR_IF_FALSE(bIsContains || !bIsVisible
 							, GSlateInvalidationRootVerifyWidgetVolatile
 							, TEXT("Widget '%s' is volatile but is not in the update list.")

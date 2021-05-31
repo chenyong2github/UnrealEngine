@@ -853,13 +853,10 @@ void SWidget::UpdateFastPathVisibility(FSlateInvalidationWidgetVisibility Parent
 	PersistentState.CachedElementHandle.ClearCachedElements();
 
 	// Loop through children
-	FChildren* MyChildren = GetAllChildren();
-	const int32 NumChildren = MyChildren->Num();
-	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-	{
-		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-		Child->UpdateFastPathVisibility(NewVisibility, HittestGridToRemoveFrom);
-	}
+	GetAllChildren()->ForEachWidget([NewVisibility, HittestGridToRemoveFrom](SWidget& Child)
+		{
+			Child.UpdateFastPathVisibility(NewVisibility, HittestGridToRemoveFrom);
+		});
 }
 
 void SWidget::UpdateFastPathWidgetRemoved(FHittestGrid* ParentHittestGrid)
@@ -881,13 +878,10 @@ void SWidget::UpdateFastPathWidgetRemoved(FHittestGrid* ParentHittestGrid)
 	PersistentState.CachedElementHandle.RemoveFromCache();
 
 	// Loop through children
-	FChildren* MyChildren = GetAllChildren();
-	const int32 NumChildren = MyChildren->Num();
-	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-	{
-		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-		Child->UpdateFastPathWidgetRemoved(HittestGridToRemoveFrom);
-	}
+	GetAllChildren()->ForEachWidget([HittestGridToRemoveFrom](SWidget& Child)
+		{
+			Child.UpdateFastPathWidgetRemoved(HittestGridToRemoveFrom);
+		});
 }
 
 void SWidget::UpdateFastPathVolatility(bool bParentVolatile)
@@ -903,13 +897,11 @@ void SWidget::UpdateFastPathVolatility(bool bParentVolatile)
 		RemoveUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
 	}
 
-	FChildren* MyChildren = GetAllChildren();
-	const int32 NumChildren = MyChildren->Num();
-	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-	{
-		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-		Child->UpdateFastPathVolatility(bParentVolatile || IsVolatile());
-	}
+	const bool bNewParentVolatility = bParentVolatile || IsVolatile();
+	GetAllChildren()->ForEachWidget([bNewParentVolatility](SWidget& Child)
+		{
+			Child.UpdateFastPathVolatility(bNewParentVolatility);
+		});
 }
 
 void SWidget::CacheDesiredSize(float InLayoutScaleMultiplier)
@@ -1367,7 +1359,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	const EWidgetUpdateFlags PreviousUpdateFlag = UpdateFlags;
 
 	// TODO, Maybe we should just make Paint non-const and keep OnPaint const.
-	TSharedRef<SWidget> MutableThis = ConstCastSharedRef<SWidget>(AsShared());
+	SWidget* MutableThis = const_cast<SWidget*>(this);
 
 	INC_DWORD_STAT(STAT_SlateNumPaintedWidgets);
 	UE_TRACE_SCOPED_SLATE_WIDGET_PAINT(this);
@@ -1451,12 +1443,6 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	FPaintArgs UpdatedArgs = Args.WithNewParent(this);
 	UpdatedArgs.SetInheritedHittestability(bOutgoingHittestability);
 
-
-#if 0
-	// test ensure that we are not the last thing holding this widget together
-	ensure(!MutableThis.IsUnique());
-#endif
-
 #if WITH_SLATE_DEBUGGING
 	if (FastPathProxyHandle.IsValid(this) && PersistentState.CachedElementHandle.IsValid())
 	{
@@ -1468,7 +1454,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 
 	if (bOutgoingHittestability)
 	{
-		Args.GetHittestGrid().AddWidget(MutableThis, 0, LayerId, FastPathProxyHandle.GetWidgetSortOrder());
+		Args.GetHittestGrid().AddWidget(MutableThis->AsShared(), 0, LayerId, FastPathProxyHandle.GetWidgetSortOrder());
 	}
 
 	if (bClipToBounds)
@@ -1499,16 +1485,13 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 		// of rules apply to those widgets.
 		if (!IsVolatile() && !IsVolatileIndirectly() && !Advanced_IsInvalidationRoot())
 		{
-			const FChildren* MyChildren = MutableThis->GetChildren();
-			const int32 NumChildren = MyChildren->Num();
-			for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
-			{
-				TSharedRef<const SWidget> Child = MyChildren->GetChildAt(ChildIndex);
-				if (Child->GetVisibility().IsVisible())
+			MutableThis->GetChildren()->ForEachWidget([&DebugChildWidgetsToPaint](const SWidget& Child)
 				{
-					DebugChildWidgetsToPaint.Add(Child);
-				}
-			}
+					if (Child.GetVisibility().IsVisible())
+					{
+						DebugChildWidgetsToPaint.Add(Child.AsShared());
+					}
+				});
 		}
 	}
 #endif
@@ -1664,42 +1647,41 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 
 void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChildren)
 {
-	const int32 NumChildren = MyChildren->Num();
-	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-	{
-		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-
-		const bool bUpdateAttributes = Child->HasRegisteredSlateAttribute() && Child->IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation;
-		if (bUpdateAttributes)
+	int32 ChildIndex = 0;
+	MyChildren->ForEachWidget([this, &ChildIndex, InLayoutScaleMultiplier](SWidget& Child)
 		{
-			FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(Child.Get(), FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
-		}
-
-		if (Child->GetVisibility() != EVisibility::Collapsed)
-		{
+			const bool bUpdateAttributes = Child.HasRegisteredSlateAttribute() && Child.IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation;
 			if (bUpdateAttributes)
 			{
-				FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Child.Get(), FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+				FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(Child, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
 			}
 
-			const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
-				? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
-				: InLayoutScaleMultiplier;
+			if (Child.GetVisibility() != EVisibility::Collapsed)
+			{
+				if (bUpdateAttributes)
+				{
+					FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Child, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+				}
 
-			// Recur: Descend down the widget tree.
-			Child->Prepass_Internal(ChildLayoutScaleMultiplier);
-		}
-		else
-		{
-			// If the child widget is collapsed, we need to store the new layout scale it will have when 
-			// it is finally visible and invalidate it's prepass so that it gets that when its visibility
-			// is finally invalidated.
-			Child->MarkPrepassAsDirty();
-			Child->PrepassLayoutScaleMultiplier = bHasRelativeLayoutScale
-				? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
-				: InLayoutScaleMultiplier;
-		}
-	}
+				const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
+					? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
+					: InLayoutScaleMultiplier;
+
+				// Recur: Descend down the widget tree.
+				Child.Prepass_Internal(ChildLayoutScaleMultiplier);
+			}
+			else
+			{
+				// If the child widget is collapsed, we need to store the new layout scale it will have when 
+				// it is finally visible and invalidate it's prepass so that it gets that when its visibility
+				// is finally invalidated.
+				Child.MarkPrepassAsDirty();
+				Child.PrepassLayoutScaleMultiplier = bHasRelativeLayoutScale
+					? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
+					: InLayoutScaleMultiplier;
+			}
+			++ChildIndex;
+		});
 }
 
 TSharedRef<FActiveTimerHandle> SWidget::RegisterActiveTimer(float TickPeriod, FWidgetActiveTimerDelegate TickFunction)
@@ -1810,8 +1792,8 @@ void SWidget::AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe)
 	if (AddMe->IsOfType<FReflectionMetaData>())
 	{
 #if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
-		TSharedRef<FReflectionMetaData> Reflection = StaticCastSharedRef<FReflectionMetaData>(AddMe);
-		if (Reflection->Name == FindWidgetMetaData::WidgeName && Reflection->Asset.Get() && Reflection->Asset.Get()->GetFName() == FindWidgetMetaData::AssetName)
+		FReflectionMetaData& Reflection = static_cast<FReflectionMetaData&>(AddMe.Get());
+		if (Reflection.Name == FindWidgetMetaData::WidgeName && Reflection.Asset.Get() && Reflection.Asset.Get()->GetFName() == FindWidgetMetaData::AssetName)
 		{
 			FindWidgetMetaData::FoundWidget = this;
 		}

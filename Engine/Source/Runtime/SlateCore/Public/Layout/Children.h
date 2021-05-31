@@ -38,13 +38,119 @@ public:
 	/** @return const pointer to the Widget at the specified Index. */
 	virtual TSharedRef<const SWidget> GetChildAt( int32 Index ) const = 0;
 
+	/** @return the SWidget that own the FChildren */
 	SWidget& GetOwner() const { return *Owner; }
+
+	/** Applies the predicate to all the widgets contained by the FChildren. */
+	template<typename Predicate>
+	void ForEachWidget(Predicate Pred)
+	{
+		int32 WidgetCount = Num();
+		for (int32 Index = 0; Index < WidgetCount; ++Index)
+		{
+			Pred(GetChildRefAt(Index).GetWidget());
+		}
+	}
+
+	/** Applies the predicate to all the widgets contained by the FChildren. */
+	template<typename Predicate>
+	void ForEachWidget(Predicate Pred) const
+	{
+		int32 WidgetCount = Num();
+		for (int32 Index = 0; Index < WidgetCount; ++Index)
+		{
+			Pred(GetChildRefAt(Index).GetWidget());
+		}
+	}
 
 protected:
 	friend class SWidget;
 	friend class FCombinedChildren;
+	template<typename T>
+	friend class TOneDynamicChild;
+
+	enum ECopyConstruct { CopyConstruct };
+	enum ERefConstruct { ReferenceConstruct };
+
+	struct FWidgetRef
+	{
+	private:
+		TOptional<TSharedRef<SWidget>> WidgetCopy;
+		const TSharedRef<SWidget>& WidgetReference;
+
+	public:
+		FWidgetRef(ECopyConstruct, TSharedRef<SWidget> InWidgetCopy)
+			: WidgetCopy(MoveTemp(InWidgetCopy))
+			, WidgetReference(WidgetCopy.GetValue())
+		{}
+		FWidgetRef(ERefConstruct, const TSharedRef<SWidget>& InWidgetRef)
+			: WidgetCopy()
+			, WidgetReference(InWidgetRef)
+		{}
+		FWidgetRef(const FWidgetRef& Other)
+			: WidgetCopy(Other.WidgetCopy)
+			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue() : Other.WidgetReference)
+		{}
+		FWidgetRef(FWidgetRef&& Other)
+			: WidgetCopy(MoveTemp(Other.WidgetCopy))
+			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue() : Other.WidgetReference)
+		{}
+		FWidgetRef& operator=(const FWidgetRef&) = delete;
+		FWidgetRef& operator=(FWidgetRef&&) = delete;
+		const TSharedRef<SWidget>& GetWidgetRef() const
+		{
+			return WidgetReference;
+		}
+		SWidget& GetWidget() const
+		{
+			return WidgetReference.Get();
+		}
+	};
+
+	struct FConstWidgetRef
+	{
+	private:
+		TOptional<TSharedRef<const SWidget>> WidgetCopy;
+		const TSharedRef<const SWidget>& WidgetReference;
+
+	public:
+		FConstWidgetRef(ECopyConstruct, TSharedRef<const SWidget> InWidgetCopy)
+			: WidgetCopy(MoveTemp(InWidgetCopy))
+			, WidgetReference(WidgetCopy.GetValue())
+		{}
+		FConstWidgetRef(ERefConstruct, const TSharedRef<const SWidget>& InWidgetRef)
+			: WidgetCopy()
+			, WidgetReference(InWidgetRef)
+		{}
+		FConstWidgetRef(const FConstWidgetRef& Other)
+			: WidgetCopy(Other.WidgetCopy)
+			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue() : Other.WidgetReference)
+		{}
+		FConstWidgetRef(FConstWidgetRef&& Other)
+			: WidgetCopy(MoveTemp(Other.WidgetCopy))
+			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue() : Other.WidgetReference)
+		{}
+		FConstWidgetRef& operator=(const FConstWidgetRef&) = delete;
+		FConstWidgetRef& operator=(FConstWidgetRef&&) = delete;
+		const TSharedRef<const SWidget>& GetWidgetRef() const
+		{
+			return WidgetReference;
+		}
+		const SWidget& GetWidget() const
+		{
+			return WidgetReference.Get();
+		}
+	};
+
+	/** @return the number of slot the children has. */
+	virtual int32 NumSlot() const { return Num(); }
 	/** @return the const reference to the slot at the specified Index */
 	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const = 0;
+	/** @return ref to the Widget at the specified Index. */
+	virtual FWidgetRef GetChildRefAt(int32 Index) = 0;
+	/** @return ref to the Widget at the specified Index. */
+	virtual FConstWidgetRef GetChildRefAt(int32 Index) const = 0;
+
 
 protected:
 	virtual ~FChildren(){}
@@ -85,21 +191,32 @@ public:
 
 	virtual TSharedRef<SWidget> GetChildAt(int32 Index) override
 	{
-		return GetSlotAt(Index).GetWidget();
+		return GetChildRefAt(Index).GetWidgetRef();
 	}
 
 	virtual TSharedRef<const SWidget> GetChildAt(int32 Index) const override
 	{
-		return GetSlotAt(Index).GetWidget();
+		return GetChildRefAt(Index).GetWidgetRef();
 	}
 
 protected:
+	virtual int32 NumSlot() const override
+	{
+		int32 TotalNum = 0;
+		for (const FChildren* Children : LinkedChildren)
+		{
+			TotalNum += Children->NumSlot();
+		}
+
+		return TotalNum;
+	}
+
 	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override
 	{
 		int32 TotalNum = 0;
 		for (const FChildren* Children : LinkedChildren)
 		{
-			const int32 NewTotal = TotalNum + Children->Num();
+			const int32 NewTotal = TotalNum + Children->NumSlot();
 			if (NewTotal > ChildIndex)
 			{
 				return Children->GetSlotAt(ChildIndex - TotalNum);
@@ -108,7 +225,43 @@ protected:
 		}
 
 		// This result should never occur users should always access a valid index for child slots.
-		static FSlotBase NullSlot; check(false); return NullSlot;
+		check(false);
+		static FSlotBase NullSlot;
+		return NullSlot;
+	}
+
+	virtual FWidgetRef GetChildRefAt(int32 Index) override
+	{
+		int32 TotalNum = 0;
+		for (FChildren* Children : LinkedChildren)
+		{
+			const int32 NewTotal = TotalNum + Children->Num();
+			if (NewTotal > Index)
+			{
+				return Children->GetChildRefAt(Index - TotalNum);
+			}
+			TotalNum = NewTotal;
+		}
+		// This result should never occur users should always access a valid index for child slots.
+		check(false);
+		return FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+	}
+
+	virtual FConstWidgetRef GetChildRefAt(int32 Index) const override
+	{
+		int32 TotalNum = 0;
+		for (const FChildren* Children : LinkedChildren)
+		{
+			const int32 NewTotal = TotalNum + Children->Num();
+			if (NewTotal > Index)
+			{
+				return Children->GetChildRefAt(Index - TotalNum);
+			}
+			TotalNum = NewTotal;
+		}
+		// This result should never occur users should always access a valid index for child slots.
+		check(false);
+		return FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
 	}
 
 protected:
@@ -160,6 +313,18 @@ private:
 		static FSlotBase NullSlot;
 		return NullSlot;
 	}
+
+	virtual FWidgetRef GetChildRefAt(int32 Index) override
+	{
+		check(false);
+		return FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+	}
+	
+	virtual FConstWidgetRef GetChildRefAt(int32 Index) const override
+	{
+		check(false);
+		return FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+	}
 };
 
 
@@ -194,7 +359,22 @@ public:
 	}
 
 private:
-	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override { check(ChildIndex == 0); return *this; }
+	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override
+	{
+		check(ChildIndex == 0);
+		return *this;
+	}
+
+	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
+	{
+		check(ChildIndex == 0);
+		return FWidgetRef(ReferenceConstruct, FSlotBase::GetWidget());
+	}
+	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
+	{
+		check(ChildIndex == 0);
+		return FConstWidgetRef(ReferenceConstruct, FSlotBase::GetWidget());
+	}
 };
 
 
@@ -209,7 +389,10 @@ class TWeakChild : public FChildren
 public:
 	using FChildren::FChildren;
 
-	virtual int32 Num() const override { return WidgetPtr.IsValid() ? 1 : 0 ; }
+	virtual int32 Num() const override
+	{
+		return WidgetPtr.IsValid() ? 1 : 0 ;
+	}
 
 	virtual TSharedRef<SWidget> GetChildAt( int32 ChildIndex ) override
 	{
@@ -224,7 +407,30 @@ public:
 	}
 
 private:
-	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override { static FSlotBase NullSlot; check(ChildIndex == 0); return NullSlot; }
+	virtual int32 NumSlot() const override
+	{
+		return 0;
+	}
+
+	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override
+	{
+		static FSlotBase NullSlot;
+		check(ChildIndex == 0);
+		return NullSlot;
+	}
+
+	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
+	{
+		check(ChildIndex == 0);
+		TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
+		return (Widget.IsValid()) ? FWidgetRef(CopyConstruct, Widget.ToSharedRef()) : FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+	}
+	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
+	{
+		check(ChildIndex == 0);
+		TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
+		return (Widget.IsValid()) ? FConstWidgetRef(CopyConstruct, Widget.ToSharedRef()) : FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+	}
 
 public:
 	void AttachWidget(const TSharedPtr<SWidget>& InWidget)
@@ -240,10 +446,8 @@ public:
 
 	void DetachWidget()
 	{
-		if (WidgetPtr.IsValid())
+		if (TSharedPtr<SWidget> Widget = WidgetPtr.Pin())
 		{
-			TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
-
 			if (Widget != SNullWidget::NullWidget)
 			{
 				Widget->ConditionallyDetatchParentWidget(&GetOwner());
@@ -258,14 +462,6 @@ public:
 		ensure(Num() > 0);
 		TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
 		return (Widget.IsValid()) ? Widget.ToSharedRef() : SNullWidget::NullWidget;
-	}
-
-private:
-	SWidget& GetWidgetRef() const
-	{
-		ensure(Num() > 0);
-		SWidget* Widget = WidgetPtr.Pin().Get();
-		return Widget ? *Widget : SNullWidget::NullWidget.Get();
 	}
 
 private:
@@ -365,6 +561,17 @@ private:
 		check(ChildIndex == 0);
 		return *this;
 	}
+
+	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
+	{
+		check(ChildIndex == 0);
+		return FWidgetRef(ReferenceConstruct, this->GetWidget());
+	}
+	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
+	{
+		check(ChildIndex == 0);
+		return FConstWidgetRef(ReferenceConstruct, this->GetWidget());
+	}
 };
 
 
@@ -432,9 +639,20 @@ class TPanelChildren : public FChildren
 private:
 	TArray<TUniquePtr<SlotType>> Children;
 
+protected:
 	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override
 	{
 		return *Children[ChildIndex];
+	}
+
+	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
+	{
+		return FWidgetRef(ReferenceConstruct, Children[ChildIndex]->GetWidget());
+	}
+
+	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
+	{
+		return FConstWidgetRef(ReferenceConstruct, Children[ChildIndex]->GetWidget());
 	}
 
 public:
@@ -455,6 +673,7 @@ public:
 		return Children[Index]->GetWidget();
 	}
 
+public:
 	int32 Add( SlotType* Slot )
 	{
 		int32 Index = Children.Add(TUniquePtr<SlotType>(Slot));
@@ -772,11 +991,27 @@ class TSlotlessChildren : public FChildren
 private:
 	TArray<TSharedRef<ChildType>> Children;
 
+	virtual int32 NumSlot() const override
+	{
+		return 0;
+	}
+
 	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override
 	{
 		// @todo slate : slotless children should be removed altogether; for now they return a fake slot.
 		static FSlotBase NullSlot;
+		check(false);
 		return NullSlot;
+	}
+
+	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
+	{
+		return FWidgetRef(ReferenceConstruct, Children[ChildIndex]);
+	}
+	
+	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
+	{
+		return FConstWidgetRef(ReferenceConstruct, Children[ChildIndex]);
 	}
 
 public:
@@ -1034,7 +1269,8 @@ public:
 
 	virtual TSharedRef<SWidget> GetChildAt(int32 Index) override
 	{
-		check(Index == 0); return AllChildren->GetChildAt(WidgetIndex->Get());
+		check(Index == 0);
+		return AllChildren->GetChildAt(WidgetIndex->Get());
 	}
 
 	virtual TSharedRef<const SWidget> GetChildAt(int32 Index) const override
@@ -1044,8 +1280,22 @@ public:
 	}
 
 private:
+	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override
+	{
+		return (*AllChildren)[ChildIndex];
+	}
 
-	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override { return (*AllChildren)[ChildIndex]; }
+	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
+	{
+		check(ChildIndex == 0);
+		return static_cast<FChildren*>(AllChildren)->GetChildRefAt(WidgetIndex->Get());
+	}
+	
+	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
+	{
+		check(ChildIndex == 0);
+		return static_cast<const FChildren*>(AllChildren)->GetChildRefAt(WidgetIndex->Get());
+	}
 
 	TPanelChildren<SlotType>* AllChildren;
 	const TAttribute<int32>* WidgetIndex;

@@ -111,7 +111,7 @@ static_assert(sizeof(FSlateInvalidationWidgetVisibility) == sizeof(uint8), "FSla
 class FWidgetProxy
 {
 public:
-	FWidgetProxy(TSharedRef<SWidget>& InWidget);
+	FWidgetProxy(SWidget& InWidget);
 
 	int32 Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements);
 
@@ -257,6 +257,7 @@ public:
 	{}
 
 	/** @returns true if it has a valid InvalidationRoot and Index. */
+	SLATECORE_API bool IsValid(const SWidget& Widget) const;
 	SLATECORE_API bool IsValid(const SWidget* Widget) const;
 
 	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }

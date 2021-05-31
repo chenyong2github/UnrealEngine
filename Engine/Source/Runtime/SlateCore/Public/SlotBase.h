@@ -117,7 +117,7 @@ private:
 #if WITH_EDITORONLY_DATA
 protected:
 	/** The parent and owner of the slot. */
-	UE_DEPRECATED(5.0, "RawParentPtr is not used anymore. Use get Owner Widget.")
+	UE_DEPRECATED(5.0, "RawParentPtr is not used anymore. Use GetOwnerWidget.")
 	SWidget* RawParentPtr;
 #endif
 };
@@ -184,7 +184,7 @@ public:
 		}
 
 		/** @return the child widget that will be owned by the slot. */
-		TSharedPtr<SWidget> GetAttachedWidget() const { return ChildWidget; }
+		const TSharedPtr<SWidget>& GetAttachedWidget() const { return ChildWidget; }
 
 		/** @return the slot that is being constructed. */
 		SlotType* GetSlot() const { return Slot.Get(); }
