@@ -9,6 +9,7 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
+#include "IO/DMXPortManager.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -55,7 +56,7 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 		}
 		else if (!FixtureType->Modes.IsValidIndex(ActiveMode))
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("Recorded Mode '%s' no longer exists in '%s'. Channel Removed from Sequencer."), *FixtureType->Modes[ActiveMode].ModeName, *FixtureType->GetDisplayName());
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Recorded referenced Mode no longer exists in '%s'. Channel Removed from Sequencer."), *FixtureType->GetDisplayName());
 			bValidPatchChannel = false;
 		}
 	}
@@ -107,9 +108,6 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 
 	if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(Mode.FixtureMatrixConfig, Mode, PatchChannelOffset))
 	{
-		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-		check(DMXSubsystem);
-
 		int32 NumXCells = Mode.FixtureMatrixConfig.XCells;
 		int32 NumYCells = Mode.FixtureMatrixConfig.YCells;
 
@@ -323,24 +321,56 @@ void FDMXCachedFunctionChannelInfo::GetMatrixCellChannelsAbsoluteNoSorting(UDMXE
 UMovieSceneDMXLibrarySection::UMovieSceneDMXLibrarySection()
 	: bUseNormalizedValues(true)
 	, bIsRecording(false)
-	, bNeedsInitialization(true)
+	, bNeedsSendChannelsToInitialize(true)
 {
 	BlendType = EMovieSceneBlendType::Absolute;
-	UpdateChannelProxy();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FDMXPortManager::Get().OnPortsChanged.AddUObject(this, &UMovieSceneDMXLibrarySection::RebuildPlaybackCache);
+	}
 }
 
 void UMovieSceneDMXLibrarySection::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FDMXRuntimeObjectVersion::GUID);
 	if (Ar.IsLoading())
 	{
-		UpdateChannelProxy();
-
 		if (Ar.CustomVer(FDMXRuntimeObjectVersion::GUID) < FDMXRuntimeObjectVersion::DefaultToNormalizedValuesInDMXLibrarySection)
 		{
 			// For assets created before normalized values were supported, use absolute values
 			bUseNormalizedValues = false;
 		}
+
+		if (Ar.CustomVer(FDMXRuntimeObjectVersion::GUID) < FDMXRuntimeObjectVersion::ReplaceWeakWithStrongFixturePatchReferncesInLibrarySection)
+		{
+			// Add a library reference if possible. In cases where this is serialized before the section's library is loaded, this is not possible programaticalle.
+			// This is expected to be a rare case (as it wouldn't prevent the sequence from playing before 4.27). For these cases, provide detailed steps to the user how to upgrade in logs.
+			for (FDMXFixturePatchChannel& Channel : FixturePatchChannels)
+			{
+				if (UDMXEntityFixturePatch* FixturePatch = Channel.Reference.GetFixturePatch())
+				{
+					Channel.DMXLibrary = FixturePatch->GetParentLibrary();
+				}
+				else
+				{
+					static const bool bIssueLogged = false;
+					if (!bIssueLogged)
+					{
+						UE_LOG(LogDMXRuntime, Error, TEXT("Found Fixture Patch being used in a dynamically created sequence, e.g. a level sequence player in a blueprint. This caused a issues in 4.26, the sequence would not play."));
+						UE_LOG(LogDMXRuntime, Error, TEXT("To restore functionality, please follow these steps:"));
+						UE_LOG(LogDMXRuntime, Error, TEXT("1. Remove the blueprint that uses the sequence player from the level andd save the level."));
+						UE_LOG(LogDMXRuntime, Error, TEXT("2. Restart the engine:		This message should no longer appear. Resave your sequence."));
+						UE_LOG(LogDMXRuntime, Error, TEXT("3. Restart the engine again. Now add the blueprint back to the level, save the level."));
+						UE_LOG(LogDMXRuntime, Error, TEXT("From hereon the sequence should play fine. These steps will not be required with newly recorded sequences from 4.27 on. We appologize for the inconveniences."));
+					}
+				}
+			}
+		}
+
+		UpdateChannelProxy();
 	}
 }
 
@@ -413,6 +443,7 @@ void UMovieSceneDMXLibrarySection::RemoveFixturePatch(const FName& InPatchName)
 			if (Patch->GetDisplayName().Equals(TargetPatchName))
 			{
 				RemoveFixturePatch(Patch);
+				UpdateChannelProxy();
 				break;
 			}
 		}
@@ -602,7 +633,7 @@ void UMovieSceneDMXLibrarySection::RebuildPlaybackCache() const
 	CachedOutputPorts.Reset();
 	CachedChannelsToEvaluate.Reset();
 	CachedChannelsToInitialize.Reset();
-	
+
 	// Cache channel data to streamline performance
 	for (int32 IndexPatchChannel = 0; IndexPatchChannel < FixturePatchChannels.Num(); IndexPatchChannel++)
 	{
@@ -633,14 +664,17 @@ void UMovieSceneDMXLibrarySection::RebuildPlaybackCache() const
 			}
 		}
 	}
+
+	bNeedsSendChannelsToInitialize = true;
 }
 
 void UMovieSceneDMXLibrarySection::EvaluateAndSendDMX(const FFrameTime& FrameTime) const
 {
-	if (bNeedsInitialization)
+	// Send channels to initialize if required
+	if (bNeedsSendChannelsToInitialize)
 	{
-		bNeedsInitialization = false;
 		SendDMXForChannelsToInitialize();
+		bNeedsSendChannelsToInitialize = false;
 	}
 
 	UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
@@ -746,12 +780,17 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 	int32 PatchChannelIndex = 0; // Safer because the ranged for ensures the array length isn't changed
 	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
+		if (!IsValid(PatchChannel.DMXLibrary))
+		{
+			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Missing library for sequence section."), __FUNCTION__);
+		}
+
 		PatchChannel.UpdateNumberOfChannels(bResetDefaultChannelValues);
 
 		const UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == nullptr || !Patch->IsValidLowLevelFast())
 		{
-			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Removing a null Patch"), __FUNCTION__);
+			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Ignoring null Patch. Presumably the library changed and patches were removed or changed. This is not supported."), __FUNCTION__);
 			InvalidPatchChannelIndices.Add(PatchChannelIndex);
 			continue;
 		}
@@ -798,7 +837,6 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 				continue;
 			}
 
-
 #if WITH_EDITOR
 			FString AttributeName = FunctionChannel.AttributeName.ToString();
 
@@ -814,7 +852,7 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 				// Tabulator cosmetics
 				if (ChannelDisplayNameString.Len() < 10)
 				{
-					ChannelDisplayNameString = 
+					ChannelDisplayNameString =
 						ChannelDisplayNameString +
 						TCString<TCHAR>::Tab(4);
 				}
@@ -848,18 +886,8 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 
 		++PatchChannelIndex;
 	}
-	
+
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(ChannelProxyData));
 
-	// Remove Patches that can't be seen by users because they don't have any functions
-	// or represent an invalid Patch object
-	for (const int32& InvalidPatchChannelIndex : InvalidPatchChannelIndices)
-	{
-		FixturePatchChannels.RemoveAt(InvalidPatchChannelIndex);
-	}
-
-	/** Rebuild the playback cache */
 	RebuildPlaybackCache();
-
-	bNeedsInitialization = true;
 }

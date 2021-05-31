@@ -9,10 +9,26 @@
 
 #include "DMXInputPortConfig.generated.h"
 
+struct FDMXInputPortConfig;
 class FDMXPort;
 
 struct FGuid;
 
+
+/** Data to create a new input port config with related constructor. */
+struct DMXPROTOCOL_API FDMXInputPortConfigParams
+{
+	FDMXInputPortConfigParams() = default;
+	FDMXInputPortConfigParams(const FDMXInputPortConfig& InputPortConfig);
+
+	FString PortName;
+	FName ProtocolName;
+	EDMXCommunicationType CommunicationType;
+	FString DeviceAddress; 
+	int32 LocalUniverseStart;
+	int32 NumUniverses;
+	int32 ExternUniverseStart;
+};
 
 /** 
  * Blueprint Configuration of a Port, used in DXM Settings to specify inputs and outputs.
@@ -25,11 +41,35 @@ struct DMXPROTOCOL_API FDMXInputPortConfig
 	GENERATED_BODY()
 
 public:
+	/** Default constructor, only for CDOs */
 	FDMXInputPortConfig() = default;
 
 	/** Constructs a config from the guid */
 	explicit FDMXInputPortConfig(const FGuid& InPortGuid);
 
+	/** Constructs a config from the guid and given initialization data */
+	FDMXInputPortConfig(const FGuid& InPortGuid, const FDMXInputPortConfigParams& InitializationData);
+
+	/** Changes members to result in a valid config */
+	void MakeValid();
+
+	FORCEINLINE const FString& GetPortName() const { return PortName; }
+	FORCEINLINE const FName& GetProtocolName() const { return ProtocolName; }
+	FORCEINLINE EDMXCommunicationType GetCommunicationType() const { return CommunicationType; }
+	FORCEINLINE const FString& GetDeviceAddress() const { return DeviceAddress; }
+	FORCEINLINE int32 GetLocalUniverseStart() const { return LocalUniverseStart; }
+	FORCEINLINE int32 GetNumUniverses() const { return NumUniverses; }
+	FORCEINLINE int32 GetExternUniverseStart() const { return ExternUniverseStart; }
+	FORCEINLINE const FGuid& GetPortGuid() const { return PortGuid; }
+
+#if WITH_EDITOR
+	static FName GetProtocolNamePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, ProtocolName); }
+	static FName GetCommunicationTypePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, CommunicationType); }
+	static FName GetDeviceAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, DeviceAddress); }
+	static FName GetPortGuidPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, PortGuid); }
+#endif // WITH_EDITOR
+
+protected:
 	/** The name displayed wherever the port can be displayed */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
 	FString PortName;
@@ -44,7 +84,7 @@ public:
 
 	/** The Network Interface Card's IP Adress, over which DMX is received */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
-	FString DeviceAddress; // Invariant of networking, may be a USB device in the future 
+	FString DeviceAddress; 
 
 	/** Local Start Universe */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
@@ -61,28 +101,9 @@ public:
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
 	int32 ExternUniverseStart;
 
-	/** Returns the port Guid. Should not be called before a port guid was assigned by the port, i.e. GetPort().IsValid() */
-	const FGuid& GetPortGuid() const;
-
-	/** Expose the protected PortGuid property name */
-	static FName GetPortGuidPropertyName() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, PortGuid); }
-
-	/**
-	 * FDMXInputPortConfig relies on its property type customization to initialize the device address (see SDMXLocalAdapterAddressComboBox).
-	 * That alike the device adresses can be sanetized when the struct is loaded and rebuilding ports while ArrayAdd property changes are ongoing can be avoided.
-	 * The function returns true when the IPAdress field is properly initialized.
-	 */
-	bool IsDeviceAddressInitialized() const;
-
 protected:
-	/** Sets a valid port name if the name is empty */
-	void SanetizePortName();
-
-	/** Sets a valid protocol name if the name is invalid */
-	void SanetizeProtocolName();
-
-	/** Sets a valid communication type if the default one is not supported */
-	void SanetizeCommunicationType();
+	/** Generates a unique port name (unique for those stored in project settings) */
+	void GenerateUniquePortName();
 	
 	/** 
 	 * Unique identifier, shared with the port instance.

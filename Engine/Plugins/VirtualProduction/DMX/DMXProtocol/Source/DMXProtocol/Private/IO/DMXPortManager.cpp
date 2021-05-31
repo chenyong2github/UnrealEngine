@@ -244,7 +244,7 @@ void FDMXPortManager::SuspendProtocols()
 	bProtocolsSuspended = true;
 }
 
-FDMXInputPortSharedRef FDMXPortManager::GetOrCreateInputPortFromConfig(const FDMXInputPortConfig& InputPortConfig)
+FDMXInputPortSharedRef FDMXPortManager::GetOrCreateInputPortFromConfig(FDMXInputPortConfig& InputPortConfig)
 {
 	// The config needs a valid guid
 	check(InputPortConfig.GetPortGuid().IsValid());
@@ -269,7 +269,7 @@ void FDMXPortManager::RemoveInputPortChecked(const FGuid& PortGuid)
 	InputPorts.Remove(InputPort);
 }
 
-FDMXOutputPortSharedRef FDMXPortManager::GetOrCreateOutputPortFromConfig(const FDMXOutputPortConfig& OutputPortConfig)
+FDMXOutputPortSharedRef FDMXPortManager::GetOrCreateOutputPortFromConfig(FDMXOutputPortConfig& OutputPortConfig)
 {
 	// The config needs a valid guid
 	check(OutputPortConfig.GetPortGuid().IsValid());
@@ -300,8 +300,6 @@ void FDMXPortManager::StartupManager()
 
 	check(!CurrentManager.IsValid());
 	CurrentManager = MakeUnique<FDMXPortManager>();
-
-	FDMXPortManager::Get().UpdateFromProtocolSettings();
 }
 
 void FDMXPortManager::ShutdownManager()

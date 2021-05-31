@@ -115,13 +115,13 @@ public:
 
 private:
 	/** Gets the input port that corresponds to the input port config or creates a new one. Note, the config needs be in the DMXProtocolSetting input ports array. */
-	FDMXInputPortSharedRef GetOrCreateInputPortFromConfig(const FDMXInputPortConfig& InputPortConfig);
+	FDMXInputPortSharedRef GetOrCreateInputPortFromConfig(FDMXInputPortConfig& InputPortConfig);
 
 	/** Removes the input port. Checks that it exists. */
 	void RemoveInputPortChecked(const FGuid& PortGuid);
 
 	/** Gets the output port that corresponds to the input port config or creates a new one. Note, the config needs be in the DMXProtocolSetting input ports array. */
-	FDMXOutputPortSharedRef GetOrCreateOutputPortFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
+	FDMXOutputPortSharedRef GetOrCreateOutputPortFromConfig(FDMXOutputPortConfig& OutputPortConfig);
 
 	/** Removes the output port. Checks that it exists. */
 	void RemoveOutputPortChecked(const FGuid& PortGuid);

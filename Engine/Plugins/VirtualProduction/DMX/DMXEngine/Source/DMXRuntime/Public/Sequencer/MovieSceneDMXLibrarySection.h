@@ -62,6 +62,10 @@ struct FDMXFixturePatchChannel
 		: ActiveMode(INDEX_NONE)
 	{}
 
+	/** The outer library of the channel */
+	UPROPERTY()
+	UDMXLibrary* DMXLibrary;
+
 	/** Points to the Fixture Patch */
 	UPROPERTY()
 	FDMXEntityFixturePatchRef Reference;
@@ -156,13 +160,11 @@ public:
 	UMovieSceneDMXLibrarySection();
 
 public:
-
 	// Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
 	// ~End UObject interface
 
-public:
 	/** Refreshes the channels. Useful e.g. when underlying DMX Library changes */
 	void RefreshChannels();
 
@@ -248,7 +250,7 @@ public:
 	void RebuildPlaybackCache() const;
 
 	/** Evaluates DMX at given fame time and sends it */
-	void EvaluateAndSendDMX(const FFrameTime& FrameTime) const;
+	void EvaluateAndSendDMX(const FFrameTime& InFrameTime) const;
 
 protected:
 	/** Sends DMX for channels that need initialization (one time evaluation) only */
@@ -270,8 +272,8 @@ protected:
 	//////////////////////
 	// Cache
 private:	
-	/** If true, dmx for channels that need initialization needs be sent */
-	mutable bool bNeedsInitialization;
+	/** True if the cache was updated */
+	mutable bool bNeedsSendChannelsToInitialize;
 
 	/** Cached channel info for functions that need initialization (one time evaluation) only */
 	mutable TArray<FDMXCachedFunctionChannelInfo> CachedChannelsToInitialize;

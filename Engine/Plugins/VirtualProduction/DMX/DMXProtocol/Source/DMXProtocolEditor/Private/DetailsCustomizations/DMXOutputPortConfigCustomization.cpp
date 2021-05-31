@@ -45,22 +45,22 @@ void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 
 FName FDMXOutputPortConfigCustomization::GetProtocolNamePropertyNameChecked() const
 {
-	return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, ProtocolName);
+	return FDMXOutputPortConfig::GetProtocolNamePropertyNameChecked();
 }
 
 FName FDMXOutputPortConfigCustomization::GetCommunicationTypePropertyNameChecked() const
 {
-	return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, CommunicationType);
+	return FDMXOutputPortConfig::GetCommunicationTypePropertyNameChecked();
 }
 
 FName FDMXOutputPortConfigCustomization::GetDeviceAddressPropertyNameChecked() const
 {
-	return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DeviceAddress);
+	return FDMXOutputPortConfig::GetDeviceAddressPropertyNameChecked();
 }
 
 FName FDMXOutputPortConfigCustomization::GetPortGuidPropertyNameChecked() const
 {
-	return FDMXOutputPortConfig::GetPortGuidPropertyName();
+	return FDMXOutputPortConfig::GetPortGuidPropertyNameChecked();
 }
 
 const TArray<EDMXCommunicationType> FDMXOutputPortConfigCustomization::GetSupportedCommunicationTypes() const
@@ -72,23 +72,18 @@ void FDMXOutputPortConfigCustomization::UpdatePort()
 {
 	check(StructPropertyHandle.IsValid());
 
-	TArray<void*> RawData;
-	StructPropertyHandle->AccessRawData(RawData);
+	TArray<void*> RawDataArray;
+	StructPropertyHandle->AccessRawData(RawDataArray);
 
-	// Multiediting is not supported, may fire if this is used in a blueprint way that would support it
-	if (ensureAlwaysMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
+	for (void* RawData : RawDataArray)
 	{
-		FDMXOutputPortConfig* PortConfigPtr = reinterpret_cast<FDMXOutputPortConfig*>(RawData[0]);
+		FDMXOutputPortConfig* PortConfigPtr = reinterpret_cast<FDMXOutputPortConfig*>(RawData);
 		if (ensureAlways(PortConfigPtr))
 		{
 			FDMXOutputPortSharedPtr OutputPort = FDMXPortManager::Get().FindOutputPortByGuid(PortConfigPtr->GetPortGuid());
 			if (OutputPort.IsValid())
 			{
 				OutputPort->UpdateFromConfig(*PortConfigPtr);
-			}
-			else
-			{
-				PortConfigPtr->PortName = FString(TEXT("Invalid Port Config"));
 			}
 		}
 	}

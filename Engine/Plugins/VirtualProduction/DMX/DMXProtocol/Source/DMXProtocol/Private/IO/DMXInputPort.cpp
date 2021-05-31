@@ -16,7 +16,7 @@ DECLARE_CYCLE_STAT(TEXT("Input Port Tick"), STAT_DMXInputPortTick, STATGROUP_DMX
 #define LOCTEXT_NAMESPACE "DMXInputPort"
 
 
-FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(const FDMXInputPortConfig& InputPortConfig)
+FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(FDMXInputPortConfig& InputPortConfig)
 {
 	// Port Configs are expected to have a valid guid always
 	check(InputPortConfig.GetPortGuid().IsValid());
@@ -52,20 +52,10 @@ FDMXInputPort::~FDMXInputPort()
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed input port %s"), *PortName);
 }
 
-void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
+void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 {
-	// Skip updating while the config has not yet initialized its device address 
-	if (!InputPortConfig.IsDeviceAddressInitialized())
-	{
-		return;
-	}
-
-	// Can only use configs that are in project settings
-	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
-	const bool bConfigIsInProjectSettings = ProtocolSettings->InputPortConfigs.ContainsByPredicate([&InputPortConfig](const FDMXInputPortConfig& Other) {
-		return InputPortConfig.GetPortGuid() == Other.GetPortGuid();
-		});
-	checkf(bConfigIsInProjectSettings, TEXT("Can only use configs that are in project settings"));
+	// Need a valid config for the port
+	InputPortConfig.MakeValid();
 
 	// Find if the port needs update its registration with the protocol
 	const bool bNeedsUpdateRegistration = [this, &InputPortConfig]()
@@ -82,9 +72,9 @@ void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
 
 		FName ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
 
-		if (ProtocolName == InputPortConfig.ProtocolName &&
-			DeviceAddress == InputPortConfig.DeviceAddress &&
-			CommunicationType == InputPortConfig.CommunicationType)
+		if (ProtocolName == InputPortConfig.GetProtocolName() &&
+			DeviceAddress == InputPortConfig.GetDeviceAddress() &&
+			CommunicationType == InputPortConfig.GetCommunicationType())
 		{
 			return false;
 		}
@@ -98,16 +88,16 @@ void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
 		Unregister();
 	}
 
-	Protocol = IDMXProtocol::Get(InputPortConfig.ProtocolName);
+	Protocol = IDMXProtocol::Get(InputPortConfig.GetProtocolName());
 
 	// Copy properties from the config into the base class
 	PortGuid = InputPortConfig.GetPortGuid();
-	CommunicationType = InputPortConfig.CommunicationType;
-	ExternUniverseStart = InputPortConfig.ExternUniverseStart;
-	DeviceAddress = InputPortConfig.DeviceAddress;
-	LocalUniverseStart = InputPortConfig.LocalUniverseStart;
-	NumUniverses = InputPortConfig.NumUniverses;
-	PortName = InputPortConfig.PortName;
+	CommunicationType = InputPortConfig.GetCommunicationType();
+	ExternUniverseStart = InputPortConfig.GetExternUniverseStart();
+	DeviceAddress = InputPortConfig.GetDeviceAddress();
+	LocalUniverseStart = InputPortConfig.GetLocalUniverseStart();
+	NumUniverses = InputPortConfig.GetNumUniverses();
+	PortName = InputPortConfig.GetPortName();
 
 	// Re-register the port if required
 	if (bNeedsUpdateRegistration)
@@ -298,11 +288,11 @@ void FDMXInputPort::OnSetReceiveDMXEnabled(bool bEnabled)
 	UpdateFromConfig(*FindInputPortConfigChecked());
 }
 
-const FDMXInputPortConfig* FDMXInputPort::FindInputPortConfigChecked() const
+FDMXInputPortConfig* FDMXInputPort::FindInputPortConfigChecked() const
 {
-	const UDMXProtocolSettings* ProjectSettings = GetDefault<UDMXProtocolSettings>();
+	UDMXProtocolSettings* ProjectSettings = GetMutableDefault<UDMXProtocolSettings>();
 
-	for (const FDMXInputPortConfig& InputPortConfig : ProjectSettings->InputPortConfigs)
+	for (FDMXInputPortConfig& InputPortConfig : ProjectSettings->InputPortConfigs)
 	{
 		if (InputPortConfig.GetPortGuid() == PortGuid)
 		{

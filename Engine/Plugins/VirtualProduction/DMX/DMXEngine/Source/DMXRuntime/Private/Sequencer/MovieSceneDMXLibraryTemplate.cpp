@@ -6,7 +6,6 @@
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolCommon.h"
 #include "DMXStats.h"
-#include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXOutputPort.h"
 #include "Library/DMXLibrary.h"
@@ -98,16 +97,13 @@ namespace
 				const FDMXFixtureMatrix& FixtureMatrix = Mode.FixtureMatrixConfig;
 				if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(FixtureMatrix, Mode, PatchChannelOffset))
 				{
-					UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-					check(DMXSubsystem);
-
 					TArray<FDMXCell> Cells;
-					DMXSubsystem->GetAllMatrixCells(FixturePatch, Cells);
+					FixturePatch->GetAllMatrixCells(Cells);
 
 					for (const FDMXCell& Cell : Cells)
 					{
 						TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-						DMXSubsystem->GetMatrixCellChannelsAbsolute(FixturePatch, Cell.Coordinate, AttributeNameChannelMap);
+						FixturePatch->GetMatrixCellChannelsAbsolute(Cell.Coordinate, AttributeNameChannelMap);
 
 						bool bLoggedMissingAttribute = false;
 						for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
@@ -171,13 +167,9 @@ namespace
 	};
 }
 
-/** 
- * Token executed each tick during playback 
- */
 struct FDMXLibraryExecutionToken 
 	: IMovieSceneExecutionToken
 {
-	/** Constructor, called at begin of playback */
 	FDMXLibraryExecutionToken(const UMovieSceneDMXLibrarySection* InSection)
 		: Section(InSection) 
 	{}
@@ -208,18 +200,21 @@ FMovieSceneDMXLibraryTemplate::FMovieSceneDMXLibraryTemplate(const UMovieSceneDM
 	check(IsValid(Section));
 }
 
+void FMovieSceneDMXLibraryTemplate::Setup(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
+{
+	Section->RebuildPlaybackCache();
+}
+
 void FMovieSceneDMXLibraryTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_DMXSequencerCreateExecutionTokens);
-
-	check(Section && Section->IsValidLowLevelFast());
 
 	// Don't evaluate while recording to prevent conflicts between sent DMX data and incoming recorded data
 	if (Section->GetIsRecording())
 	{
 		return;
 	}
-
+	
 	FDMXLibraryExecutionToken ExecutionToken(Section);
 	ExecutionTokens.Add(MoveTemp(ExecutionToken));
 }

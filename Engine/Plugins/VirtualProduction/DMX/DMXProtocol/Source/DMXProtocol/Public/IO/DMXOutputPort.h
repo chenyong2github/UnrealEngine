@@ -68,7 +68,7 @@ private:
 class DMXPROTOCOL_API FDMXOutputPort
 	: public FDMXPort
 {
-	// Friend DMXPortManager so it can create instances and  unregister void instances
+	// Friend DMXPortManager so it can create instances and unregister void instances
 	friend FDMXPortManager;
 
 	// Friend Raw Listener so it can add and remove itself to the port
@@ -76,13 +76,13 @@ class DMXPROTOCOL_API FDMXOutputPort
 
 protected:
 	/** Creates an output port tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
-	static FDMXOutputPortSharedRef CreateFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
+	static FDMXOutputPortSharedRef CreateFromConfig(FDMXOutputPortConfig& OutputPortConfig);
 
 public:
 	virtual ~FDMXOutputPort();
 
 	/** Updates the Port to use the config of the OutputPortConfig */
-	void UpdateFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
+	void UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig);
 
 public:
 	// ~Begin DMXPort Interface 
@@ -173,7 +173,7 @@ private:
 
 private:
 	/** Returns the port config that corresponds to the guid of this port. */
-	const FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
+	FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;

@@ -26,7 +26,7 @@ TSharedRef<FDMXPortSelectorItem> FDMXPortSelectorItem::CreateItem(const FDMXInpu
 {
 	TSharedRef<FDMXPortSelectorItem> NewItem = MakeShared<FDMXPortSelectorItem>();
 
-	NewItem->ItemName = InInputPortConfig.PortName;
+	NewItem->ItemName = InInputPortConfig.GetPortName();
 	NewItem->PortGuid = InInputPortConfig.GetPortGuid();
 	NewItem->Type = EDMXPortSelectorItemType::Input;
 
@@ -38,7 +38,7 @@ TSharedRef<FDMXPortSelectorItem> FDMXPortSelectorItem::CreateItem(const FDMXOutp
 {
 	TSharedRef<FDMXPortSelectorItem> NewItem = MakeShared<FDMXPortSelectorItem>();
 
-	NewItem->ItemName = InOutputPortConfig.PortName;
+	NewItem->ItemName = InOutputPortConfig.GetPortName();
 	NewItem->PortGuid = InOutputPortConfig.GetPortGuid();
 	NewItem->Type = EDMXPortSelectorItemType::Output;
 

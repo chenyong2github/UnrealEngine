@@ -219,16 +219,17 @@ uint32 FDMXProtocolSACNSender::Run()
 	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
 	check(DMXSettings);
 	
-	float SendDeltaTime = 1.f / DMXSettings->SendingRefreshRate;
+	// Fixed rate delta time
+	const double SendDeltaTime = 1.f / DMXSettings->SendingRefreshRate;
 
 	while (!bStopping)
 	{
-		double StartTime = FPlatformTime::Seconds();
+		const double StartTime = FPlatformTime::Seconds();
 
 		Update();
 
-		double EndTime = FPlatformTime::Seconds();
-		double WaitTime = SendDeltaTime - EndTime - StartTime;
+		const double EndTime = FPlatformTime::Seconds();
+		const double WaitTime = SendDeltaTime - (EndTime - StartTime);
 
 		if (WaitTime > 0.f)
 		{

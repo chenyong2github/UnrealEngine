@@ -2,7 +2,6 @@
 
 #include "DMXProtocolEditorModule.h"
 
-#include "DMXProtocolModule.h"
 #include "DMXProtocolSettings.h"
 #include "IO/DMXInputPortReference.h"
 #include "IO/DMXOutputPortReference.h"
@@ -12,7 +11,8 @@
 #include "DetailsCustomizations/DMXOutputPortReferenceCustomization.h"
 
 #include "PropertyEditorModule.h"
-#include "Modules/ModuleManager.h"
+#include "Misc/CoreDelegates.h"
+
 
 IMPLEMENT_MODULE( FDMXProtocolEditorModule, DMXProtocolEditor );
 
@@ -21,14 +21,12 @@ IMPLEMENT_MODULE( FDMXProtocolEditorModule, DMXProtocolEditor );
 
 void FDMXProtocolEditorModule::StartupModule()
 {
-	FDMXProtocolModule& ProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	ProtocolModule.OnProtocolsRegistered.AddRaw(this, &FDMXProtocolEditorModule::OnProtocolsRegistered);
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FDMXProtocolEditorModule::RegisterDetailsCustomizations);
 }
 
 void FDMXProtocolEditorModule::ShutdownModule()
 {
-	FDMXProtocolModule& ProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	ProtocolModule.OnProtocolsRegistered.RemoveAll(this);
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 
 	UnregisterDetailsCustomizations();
 }
@@ -36,11 +34,6 @@ void FDMXProtocolEditorModule::ShutdownModule()
 FDMXProtocolEditorModule& FDMXProtocolEditorModule::Get()
 {
 	return FModuleManager::GetModuleChecked<FDMXProtocolEditorModule>("DMXProtocolEditor");
-}
-
-void FDMXProtocolEditorModule::OnProtocolsRegistered()
-{
-	RegisterDetailsCustomizations();
 }
 
 void FDMXProtocolEditorModule::RegisterDetailsCustomizations()

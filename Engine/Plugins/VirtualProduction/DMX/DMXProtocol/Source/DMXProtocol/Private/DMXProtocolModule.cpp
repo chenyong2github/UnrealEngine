@@ -12,73 +12,49 @@
 #include "ISettingsModule.h"
 #endif // WITH_EDITOR
 
-IMPLEMENT_MODULE( FDMXProtocolModule, DMXProtocol );
 
+IMPLEMENT_MODULE( FDMXProtocolModule, DMXProtocol );
 
 #define LOCTEXT_NAMESPACE "DMXProtocolModule"
 
-
-const int32 FDMXProtocolModule::NumProtocols = 2;
-
-FDMXProtocolModule::FDMXProtocolModule()
-	: NumRegisteredProtocols(0)
-{}
-
-void FDMXProtocolModule::RegisterProtocol(const FName& FactoryName, IDMXProtocolFactory* Factory)
+void FDMXProtocolModule::RegisterProtocol(const FName& ProtocolName, IDMXProtocolFactory* Factory)
 {
-	if (!DMXProtocolFactories.Contains(FactoryName))
+	if (!DMXProtocolFactories.Contains(ProtocolName))
 	{
-		// Increment registred protocol counter
-		NumRegisteredProtocols++;
-
-		// If this check is, please change the NumProtocols variable to match the number of protocol implementations
-		check(NumRegisteredProtocols <= NumProtocols);
-
 		// Add a factory for the protocol
-		DMXProtocolFactories.Add(FactoryName, Factory);
+		DMXProtocolFactories.Add(ProtocolName, Factory);
 	}
 	else
 	{
-		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Trying to add existing protocol %s"), *FactoryName.ToString());
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Trying to add existing protocol %s"), *ProtocolName.ToString());
 	}
 
-	// Broadcast protocol registered when all protocols are registered
-	if (NumRegisteredProtocols == NumProtocols)
+	IDMXProtocolPtr NewProtocol = Factory->CreateProtocol(ProtocolName);
+	if (NewProtocol.IsValid())
 	{
-		// Create instances of all protocol implementations
-		for (const TTuple<FName, IDMXProtocolFactory*>& ProtocolNameToFactoryPair : DMXProtocolFactories)
-		{
-			IDMXProtocolPtr NewProtocol = ProtocolNameToFactoryPair.Value->CreateProtocol(ProtocolNameToFactoryPair.Key);
-			if (NewProtocol.IsValid())
-			{
-				DMXProtocols.Add(ProtocolNameToFactoryPair.Key, NewProtocol);
+		DMXProtocols.Add(ProtocolName, NewProtocol);
 
-				UE_LOG_DMXPROTOCOL(Log, TEXT("Creating protocol instance for: %s"), *ProtocolNameToFactoryPair.Key.ToString());
-			}
-			else
-			{
-				UE_LOG_DMXPROTOCOL(Verbose, TEXT("Unable to create Protocol %s"), *ProtocolNameToFactoryPair.Key.ToString());
-			}
-		}
-
-		OnProtocolsRegistered.Broadcast();
+		UE_LOG_DMXPROTOCOL(Log, TEXT("Creating protocol instance for: %s"), *ProtocolName.ToString());
 	}
+	else
+	{
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Unable to create Protocol %s"), *ProtocolName.ToString());
+	}
+
+	OnProtocolRegistered.Broadcast();
 }
 
-void FDMXProtocolModule::UnregisterProtocol(const FName& FactoryName)
+void FDMXProtocolModule::UnregisterProtocol(const FName& ProtocolName)
 {
-	if (DMXProtocolFactories.Contains(FactoryName))
+	if (DMXProtocolFactories.Contains(ProtocolName))
 	{
-		// Decrement the registered protocol counter
-		NumRegisteredProtocols--;
-
 		// Destroy the factory and shut down the protocol
-		DMXProtocolFactories.Remove(FactoryName);
-		ShutdownDMXProtocol(FactoryName);
+		DMXProtocolFactories.Remove(ProtocolName);
+		ShutdownDMXProtocol(ProtocolName);
 	}
 	else
 	{
-		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Trying to remove unexisting protocol %s"), *FactoryName.ToString());
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Trying to remove unexisting protocol %s"), *ProtocolName.ToString());
 	}
 }
 
@@ -106,31 +82,6 @@ const TMap<FName, IDMXProtocolPtr>& FDMXProtocolModule::GetProtocols() const
 
 void FDMXProtocolModule::StartupModule()
 {
-	// Deffer initialization to after all protocols begin registered
-	OnProtocolsRegistered.AddRaw(this, &FDMXProtocolModule::HandleProtocolsRegistered);
-}
-
-void FDMXProtocolModule::ShutdownModule()
-{
-	OnProtocolsRegistered.RemoveAll(this);
-
-	FDMXPortManager::ShutdownManager();
-
-	// Now Shutdown the protocols
-	ShutdownAllDMXProtocols();
-
-#if WITH_EDITOR
-	// Unregister DMX Protocol global settings
-	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-	if (SettingsModule)
-	{
-		SettingsModule->UnregisterSettings("Project", "Plugins", "DMX Protocol");
-	}
-#endif // WITH_EDITOR
-}
-
-void FDMXProtocolModule::HandleProtocolsRegistered()
-{
 #if WITH_EDITOR
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 
@@ -144,9 +95,23 @@ void FDMXProtocolModule::HandleProtocolsRegistered()
 		);
 	}
 #endif // WITH_EDITOR
+}
 
-	// Start the port manager after settings are registered, so it can create its default ports from that
-	FDMXPortManager::StartupManager();
+void FDMXProtocolModule::ShutdownModule()
+{
+	FDMXPortManager::ShutdownManager();
+
+	// Now Shutdown the protocols
+	ShutdownAllDMXProtocols();
+
+#if WITH_EDITOR
+	// Unregister DMX Protocol global settings
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule)
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "DMX Protocol");
+	}
+#endif // WITH_EDITOR
 }
 
 void FDMXProtocolModule::ShutdownDMXProtocol(const FName& ProtocolName)

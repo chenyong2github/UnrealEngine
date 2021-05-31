@@ -18,9 +18,6 @@ public:
 	static FDMXProtocolEditorModule& Get();
 
 private:
-	/** Called when all protocols are registered */
-	void OnProtocolsRegistered();
-
 	/** Registers details customizations */
 	void RegisterDetailsCustomizations();
 

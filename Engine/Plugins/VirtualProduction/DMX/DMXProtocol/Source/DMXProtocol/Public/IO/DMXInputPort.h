@@ -35,14 +35,14 @@ class DMXPROTOCOL_API FDMXInputPort
 	friend FDMXRawListener;
 
 protected:
-	/** Creates an output port tied to a specific config */
-	static FDMXInputPortSharedRef CreateFromConfig(const FDMXInputPortConfig& InputPortConfig);
+	/** Creates an output port tied to a specific config. Makes the config valid if it's invalid. */
+	static FDMXInputPortSharedRef CreateFromConfig(FDMXInputPortConfig& InputPortConfig);
 
 public:
 	virtual ~FDMXInputPort();
 
-	/** Updates the Port to use the config of the InputPortConfig */
-	void UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig);
+	/** Updates the Port to use the config of the InputPortConfig. Makes the config valid if it's invalid. */
+	void UpdateFromConfig(FDMXInputPortConfig& InputPortConfig);
 
 public:
 	// ~Begin DMXPort Interface 
@@ -144,7 +144,7 @@ private:
 
 private:
 	/** Returns the port config that corresponds to the guid of this port. */
-	const FDMXInputPortConfig* FindInputPortConfigChecked() const;
+	FDMXInputPortConfig* FindInputPortConfigChecked() const;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;
