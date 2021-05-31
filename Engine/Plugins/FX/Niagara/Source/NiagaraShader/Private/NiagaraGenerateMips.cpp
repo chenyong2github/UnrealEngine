@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGenerateMips.h"
+#include "GlobalShader.h"
 #include "RenderGraphUtils.h"
 
 class FNiagaraGenerateMipsCS : public FGlobalShader
