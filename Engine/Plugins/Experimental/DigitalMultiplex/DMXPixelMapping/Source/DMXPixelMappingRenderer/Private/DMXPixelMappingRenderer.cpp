@@ -215,7 +215,7 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 				RHICmdList.CopyToResolveTarget(ResolveRenderTarget, RenderTargetRef, FResolveParams());
 
 				// Read the contents of a texture to an output CPU buffer
-				TArray<FColor> ColorArray;
+				TArray<FLinearColor> ColorArray;
 				const FIntRect Rect(0, 0, OutputTextureSize.X, OutputTextureSize.Y);
 
 				// Read surface without flush rendering thread
@@ -256,7 +256,7 @@ void FDMXPixelMappingRenderer::RenderPreview(const FTextureResource* TextureReso
 			TransitionRenderPassTargets(RHICmdList, RPInfo);
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearCanvas"));
 			RHICmdList.SetViewport(0.f, 0.f, 0.f, OutputTextureSize.X, OutputTextureSize.Y, 1.f);
-			DrawClearQuad(RHICmdList, FColor::Black);
+			DrawClearQuad(RHICmdList, FLinearColor::Black);
 			RHICmdList.EndRenderPass();
 		}
 
