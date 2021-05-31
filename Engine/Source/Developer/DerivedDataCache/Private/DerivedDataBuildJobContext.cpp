@@ -4,7 +4,7 @@
 
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildOutput.h"
-#include "DerivedDataBuildSession.h"
+#include "DerivedDataBuildPolicy.h"
 #include "DerivedDataCache.h"
 #include "Misc/StringBuilder.h"
 #include "UObject/NameTypes.h"
