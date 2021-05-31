@@ -87,16 +87,11 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 					FVector ViewLocation;
 					FRotator ViewRotation;
 					Player->PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
-
-					//@todo_ow: this test is to cover cases where GetPlayerViewPoint returns (0,0,0) when invalid. It should probably return a bool
-					//          to indicate that the returned position is invalid.
-					if (!ViewLocation.IsZero())
-					{
-						// Transform to Local
-						ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
-						ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
-						StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated));
-					}
+					
+					// Transform to Local
+					ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
+					ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
+					StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated));
 				}
 			}
 		}

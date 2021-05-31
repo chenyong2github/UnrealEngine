@@ -20,7 +20,8 @@ class ENGINE_API AWorldDataLayers : public AInfo
 
 public:
 	virtual void PostLoad() override;
-	
+	virtual void RewindForReplay() override;
+	virtual void BeginPlay() override;
 #if WITH_EDITOR
 	static AWorldDataLayers* Create(UWorld* World);
 	UDataLayer* CreateDataLayer(FName InName = TEXT("DataLayer"), EObjectFlags InObjectFlags = RF_NoFlags);
@@ -54,6 +55,7 @@ public:
 
 protected:
 	void InitializeDataLayerStates();
+	void ResetDataLayerStates();
 
 	UFUNCTION()
 	void OnRep_ActiveDataLayerNames();

@@ -22,6 +22,10 @@ AWorldDataLayers::AWorldDataLayers(const FObjectInitializer& ObjectInitializer)
 {
 	bAlwaysRelevant = true;
 	bReplicates = true;
+
+	// Avoid actor from being Destroyed/Recreated when scrubbing a replay
+	// instead AWorldDataLayers::RewindForReplay() gets called to reset this actors state
+	bReplayRewindable = true;
 }
 
 void AWorldDataLayers::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
@@ -32,8 +36,30 @@ void AWorldDataLayers::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& O
 	DOREPLIFETIME(AWorldDataLayers, RepActiveDataLayerNames);
 }
 
+void AWorldDataLayers::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// When running a Replay we want to reset our state to CDO (empty) and rely on the Replay/Replication.
+	// Unfortunately this can't be tested in the PostLoad as the World doesn't have a demo driver yet.
+	if (GetWorld()->IsPlayingReplay())
+	{
+		ResetDataLayerStates();
+	}
+}
+
+void AWorldDataLayers::RewindForReplay()
+{
+	Super::RewindForReplay();
+
+	// Same as BeginPlay when rewinding we want to reset our state to CDO (empty) and rely on Replay/Replication.
+	ResetDataLayerStates();
+}
+
 void AWorldDataLayers::InitializeDataLayerStates()
 {
+	check(ActiveDataLayerNames.IsEmpty() && LoadedDataLayerNames.IsEmpty());
+
 	if (GetWorld()->IsGameWorld())
 	{
 		ForEachDataLayer([this](class UDataLayer* DataLayer)
@@ -55,6 +81,14 @@ void AWorldDataLayers::InitializeDataLayerStates()
 		RepActiveDataLayerNames = ActiveDataLayerNames.Array();
 		RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
 	}
+}
+
+void AWorldDataLayers::ResetDataLayerStates()
+{
+	ActiveDataLayerNames.Reset();
+	LoadedDataLayerNames.Reset();
+	RepActiveDataLayerNames.Reset();
+	RepLoadedDataLayerNames.Reset();
 }
 
 void AWorldDataLayers::SetDataLayerState(FActorDataLayer InDataLayer, EDataLayerState InState)
