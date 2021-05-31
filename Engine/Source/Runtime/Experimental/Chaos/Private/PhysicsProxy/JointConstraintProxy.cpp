@@ -116,6 +116,12 @@ void FJointConstraintPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSolver
 	{
 		if (Constraint->IsDirty())
 		{
+			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::JointTransforms))
+			{
+				JointSettingsBuffer.ConnectorTransforms = Constraint->GetJointTransforms();
+				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::JointTransforms);
+			}
+
 			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::CollisionEnabled))
 			{
 				JointSettingsBuffer.bCollisionEnabled = Constraint->GetCollisionEnabled();
@@ -240,6 +246,11 @@ void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(Chaos::FPBDRigidsSol
 		if (DirtyFlagsBuffer.IsDirty())
 		{
 			FConstraintData ConstraintSettings = Handle->GetSettings();
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::JointTransforms))
+			{
+				ConstraintSettings.ConnectorTransforms = JointSettingsBuffer.ConnectorTransforms;
+			}
 
 			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::CollisionEnabled))
 			{

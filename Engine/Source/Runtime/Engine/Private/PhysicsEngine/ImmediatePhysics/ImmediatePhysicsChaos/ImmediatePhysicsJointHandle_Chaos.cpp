@@ -152,23 +152,22 @@ namespace ImmediatePhysics_Chaos
 		using namespace Chaos;
 
 		FPBDJointSettings ConstraintSettings;
-		TVec2<FRigidTransform3> ConstraintFrames;
 
 		if (ConstraintInstance != nullptr)
 		{
 			// BodyInstance/PhysX has the constraint locations in actor-space, but we need them in Center-of-Mass space
-			ConstraintFrames[0] = FParticleUtilities::ActorLocalToParticleLocal(FGenericParticleHandle(Actor1->GetParticle()), ConstraintInstance->GetRefFrame(EConstraintFrame::Frame1));
-			ConstraintFrames[1] = FParticleUtilities::ActorLocalToParticleLocal(FGenericParticleHandle(Actor2->GetParticle()), ConstraintInstance->GetRefFrame(EConstraintFrame::Frame2));
-			FReal JointScale = ConstraintInstance->GetLastKnownScale();
-			ConstraintFrames[0].ScaleTranslation(JointScale);
-			ConstraintFrames[1].ScaleTranslation(JointScale);
 			TransferJointSettings(ConstraintInstance, ConstraintSettings);
+			FReal JointScale = ConstraintInstance->GetLastKnownScale();
+			ConstraintSettings.ConnectorTransforms[0] = FParticleUtilities::ActorLocalToParticleLocal(FGenericParticleHandle(Actor1->GetParticle()), ConstraintInstance->GetRefFrame(EConstraintFrame::Frame1));
+			ConstraintSettings.ConnectorTransforms[1] = FParticleUtilities::ActorLocalToParticleLocal(FGenericParticleHandle(Actor2->GetParticle()), ConstraintInstance->GetRefFrame(EConstraintFrame::Frame2));
+			ConstraintSettings.ConnectorTransforms[0].ScaleTranslation(JointScale);
+			ConstraintSettings.ConnectorTransforms[1].ScaleTranslation(JointScale);
 		}
 		else
 		{
 			// TEMP: all creation with null ConstraintIndex for PhAt handles
-			ConstraintFrames[0] = Actor2->GetWorldTransform().GetRelativeTransform(Actor1->GetWorldTransform());
-			ConstraintFrames[1] = FRigidTransform3();
+			ConstraintSettings.ConnectorTransforms[0] = Actor2->GetWorldTransform().GetRelativeTransform(Actor1->GetWorldTransform());
+			ConstraintSettings.ConnectorTransforms[1] = FRigidTransform3();
 			ConstraintSettings.LinearMotionTypes = { EJointMotionType::Limited, EJointMotionType::Limited, EJointMotionType::Limited };
 			ConstraintSettings.LinearLimit = 0.1f;
 			ConstraintSettings.SoftLinearStiffness = 500.0f;
@@ -181,7 +180,7 @@ namespace ImmediatePhysics_Chaos
 
 		ConstraintSettings.Sanitize();
 
-		ConstraintHandle = Constraints->AddConstraint({ Actor1->ParticleHandle, Actor2->ParticleHandle }, ConstraintFrames, ConstraintSettings);
+		ConstraintHandle = Constraints->AddConstraint({ Actor1->ParticleHandle, Actor2->ParticleHandle }, ConstraintSettings);
 	}
 
 	FJointHandle::~FJointHandle()
