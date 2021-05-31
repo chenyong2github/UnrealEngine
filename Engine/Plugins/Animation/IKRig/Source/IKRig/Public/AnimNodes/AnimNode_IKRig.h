@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "IKRigDataTypes.h"
-#include "UObject/ObjectMacros.h"
+#include "IKRigProcessor.h"
 #include "Animation/AnimNodeBase.h"
 #include "AnimNode_IKRig.generated.h"
 
@@ -34,6 +34,9 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, Category = Solver)
 	bool bStartFromRefPose = false;
 
+	/** when true, goals will use the current transforms stored in the IK Rig Definition asset itself */
+	bool bDriveWithSourceAsset = false;
+
 #if WITH_EDITORONLY_DATA
 	/** Toggle drawing of axes to debug joint rotation*/
 	UPROPERTY(EditAnywhere, Category = Solver)
@@ -41,9 +44,10 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 #endif
 
 private:
-	
+
+	/** IK Rig runtime processor */
 	UPROPERTY(Transient)
-	UIKRigProcessor* IKRigProcessor = nullptr;
+	FIKRigProcessor IKRigProcessor;
 
 	/** a cached list of components on the owning actor that implement the goal creator interface */
 	TArray<IIKGoalCreatorInterface*> GoalCreators;
@@ -58,20 +62,20 @@ public:
 	// FAnimNode_Base interface
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)  override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 	virtual bool HasPreUpdate() const override { return true; }
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
 
 private:
+	void CopyInputPoseToSolver(FCompactPose& InputPose);
+	void AssignGoalTargets();
+	void CopyOutputPoseToAnimGraph(FCompactPose& OutputPose);
+	
 	bool RebuildGoalList();
 	FName GetGoalName(int32 Index) const;
-
 	void QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld) const;
-
 	friend class UAnimGraphNode_IKRig;
 };

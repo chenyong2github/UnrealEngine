@@ -2,10 +2,30 @@
 
 #pragma once
 
+#include "IKRigDefinition.h"
 #include "IKRigSolver.h"
 
 #include "IKRig_SetTransform.generated.h"
 
+UCLASS()
+class IKRIG_API UIKRig_SetTransformEffector : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	/** If true, Goal will drive the translation of the target bone. Default is true. */
+	UPROPERTY(EditAnywhere, Category = "Set Transform Effector")
+	bool bEnablePosition = true;
+
+	/** If true, Goal will drive the rotation of the target bone. Default is true. */
+	UPROPERTY(EditAnywhere, Category = "Set Transform Effector")
+	bool bEnableRotation = true;
+
+	/** Blend the effector on/off. Range is 0-1. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = "Set Transform Effector", meta = (ClampMin = "0", ClampMa = "1", UIMin = "0.0", UIMax = "1.0"))
+	float Alpha = 1.0f;
+};
 
 UCLASS(EditInlineNew)
 class IKRIG_API UIKRig_SetTransform : public UIKRigSolver
@@ -14,26 +34,32 @@ class IKRIG_API UIKRig_SetTransform : public UIKRigSolver
 
 public:
 	
-	UPROPERTY(EditAnywhere, Category = "Solver")
-	FIKRigEffectorGoal Effector;
-	
-	UPROPERTY(EditAnywhere, Category = "Solver")
-	bool bEnablePosition = true;
+	UIKRig_SetTransform();
 
-	UPROPERTY(EditAnywhere, Category = "Solver")
-	bool bEnableRotation = true;
+	UPROPERTY(VisibleAnywhere, Category = "Set Transform Settings")
+	FName Goal;
 
-protected:
+	UPROPERTY(VisibleAnywhere, Category = "Set Transform Settings")
+	FName Bone;
 	
+	UPROPERTY(Transient)
+	UIKRig_SetTransformEffector* Effector;
+
+	/** UIKRigSolver interface */
 	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) override;
-	virtual void Solve(
-		FIKRigSkeleton& IKRigSkeleton, 
-		const FIKRigGoalContainer& Goals,
-		FControlRigDrawInterface* InOutDrawInterface) override;
-	virtual void AddGoalsInSolver(TArray<FIKRigEffectorGoal>& OutGoals) const override;
+	virtual void Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals) override;
+	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
+	virtual void AddGoal(const UIKRigEffectorGoal& NewGoal) override;
+	virtual void RemoveGoal(const FName& GoalName) override;
+	virtual void RenameGoal(const FName& OldName, const FName& NewName) override;
+	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) override;
+	virtual bool IsGoalConnected(const FName& GoalName) const override;
+	virtual UObject* GetEffectorWithGoal(const FName& GoalName) override;
+	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const override;
+	/** END UIKRigSolver interface */
 
 private:
-	
+
 	int32 BoneIndex;
 };
 
