@@ -1034,6 +1034,7 @@ void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InCo
 	}
 
 	Thread = FRunnableThread::Create(this, TEXT("IoService"), 0, TPri_AboveNormal);
+	FFileIoStats::SetFileIoStoreThreadId(Thread ? Thread->GetThreadID() : 0);
 }
 
 TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
@@ -1921,11 +1922,17 @@ bool FFileIoStats::IsInFileIoStoreThread()
 	return true;
 }
 
-void FFileIoStats::SetThreadIds(uint32 InFileIoStoreThreadId, uint32 InIoDispatcherThreadId)
+void FFileIoStats::SetDispatcherThreadId(uint32 InIoDispatcherThreadId)
+{
+#if IO_DISPATCHER_FILE_STATS
+	IoDispatcherThreadId = InIoDispatcherThreadId;
+#endif
+}
+
+void FFileIoStats::SetFileIoStoreThreadId(uint32 InFileIoStoreThreadId)
 {
 #if IO_DISPATCHER_FILE_STATS
 	FileIoStoreThreadId = InFileIoStoreThreadId;
-	IoDispatcherThreadId = InIoDispatcherThreadId;
 #endif
 }
 

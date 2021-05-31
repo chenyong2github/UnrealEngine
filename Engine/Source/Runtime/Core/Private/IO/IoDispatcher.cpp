@@ -17,6 +17,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "IO/IoDispatcherBackend.h"
+#include "IO/IoDispatcherFileBackendTypes.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
@@ -174,7 +175,7 @@ public:
 			Backend->Initialize(BackendContext);
 		}
 		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal, FPlatformAffinity::GetIoDispatcherThreadMask());
-		FFileIoStats::SetThreadIds(FileIoStore.GetThreadId(), Thread ? Thread->GetThreadID() : 0);
+		FFileIoStats::SetDispatcherThreadId(Thread ? Thread->GetThreadID() : 0);
 		return true;
 	}
 
