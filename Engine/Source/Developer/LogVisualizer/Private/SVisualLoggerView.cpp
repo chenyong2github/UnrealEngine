@@ -264,7 +264,7 @@ void SVisualLoggerView::Construct(const FArguments& InArgs, const TSharedRef<FUI
 			SSplitter::FSlot const& LeftSplitterSlot = SearchSplitter->SlotAt(0);
 			SSplitter::FSlot const& RightSplitterSlot = SearchSplitter->SlotAt(1);
 
-			return LeftSplitterSlot.SizeValue.Get() / RightSplitterSlot.SizeValue.Get();
+			return LeftSplitterSlot.GetSizeValue() / RightSplitterSlot.GetSizeValue();
 	});
 
 	OnSearchSplitterResized();
@@ -294,7 +294,7 @@ void SVisualLoggerView::OnSearchSplitterResized()
 	SSplitter::FSlot const& LeftSplitterSlot = SearchSplitter->SlotAt(0);
 	SSplitter::FSlot const& RightSplitterSlot = SearchSplitter->SlotAt(1);
 
-	const float NewAnimationOutlinerFillPercentage = LeftSplitterSlot.SizeValue.Get() / RightSplitterSlot.SizeValue.Get();
+	const float NewAnimationOutlinerFillPercentage = LeftSplitterSlot.GetSizeValue() / RightSplitterSlot.GetSizeValue();
 	SetAnimationOutlinerFillPercentage(NewAnimationOutlinerFillPercentage);
 
 	FLogVisualizer::Get().SetAnimationOutlinerFillPercentage(NewAnimationOutlinerFillPercentage);

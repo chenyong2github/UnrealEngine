@@ -97,10 +97,10 @@ void FEditorViewportLayoutFourPanes::SaveLayoutString(const FString& SpecificLay
 	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
 
 	check(PrimarySplitterWidget->GetChildren()->Num() == 2);
-	float PrimaryPercentage = PrimarySplitterWidget->SlotAt(0).SizeValue.Get();
+	float PrimaryPercentage = PrimarySplitterWidget->SlotAt(0).GetSizeValue();
 	check(SecondarySplitterWidget->GetChildren()->Num() == 3);
-	float SecondaryPercentage0 = SecondarySplitterWidget->SlotAt(0).SizeValue.Get();
-	float SecondaryPercentage1 = SecondarySplitterWidget->SlotAt(1).SizeValue.Get();
+	float SecondaryPercentage0 = SecondarySplitterWidget->SlotAt(0).GetSizeValue();
+	float SecondaryPercentage1 = SecondarySplitterWidget->SlotAt(1).GetSizeValue();
 
 	GConfig->SetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage0")), *TTypeToString<float>::ToString(PrimaryPercentage), GEditorPerProjectIni);
 	GConfig->SetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage1")), *TTypeToString<float>::ToString(SecondaryPercentage0), GEditorPerProjectIni);
