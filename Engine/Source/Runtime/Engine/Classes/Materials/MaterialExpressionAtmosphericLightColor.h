@@ -8,7 +8,7 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionAtmosphericLightColor.generated.h"
 
-UCLASS()
+UCLASS(collapsecategories, hidecategories = Object, DisplayName = "Atmosphere Sun Light Illuminance On Ground")
 class UMaterialExpressionAtmosphericLightColor : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

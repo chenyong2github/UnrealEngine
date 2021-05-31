@@ -18079,7 +18079,7 @@ int32 UMaterialExpressionAtmosphericFogColor::Compile(class FMaterialCompiler* C
 
 void UMaterialExpressionAtmosphericFogColor::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Atmospheric Fog Color"));
+	OutCaptions.Add(TEXT("Atmospheric Fog Color (deprecated)"));
 }
 #endif // WITH_EDITOR
 
@@ -18563,7 +18563,7 @@ int32 UMaterialExpressionAtmosphericLightVector::Compile(class FMaterialCompiler
 
 void UMaterialExpressionAtmosphericLightVector::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("AtmosphericLightVector"));
+	OutCaptions.Add(TEXT("Atmosphere Sun Light Vector"));
 }
 #endif // WITH_EDITOR
 
@@ -18598,7 +18598,7 @@ int32 UMaterialExpressionAtmosphericLightColor::Compile(class FMaterialCompiler*
 
 void UMaterialExpressionAtmosphericLightColor::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("AtmosphericLightColor"));
+	OutCaptions.Add(TEXT("Atmosphere Sun Light Illuminance On Ground (not per pixel)"));
 }
 #endif // WITH_EDITOR
 

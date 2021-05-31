@@ -407,32 +407,23 @@ static void CopyAtmosphereSetupToUniformShaderParameters(FAtmosphereUniformShade
 #undef COPYMACRO
 }
 
-static FLinearColor GetLightDiskLuminance(FLightSceneInfo& Light, FLinearColor LightIlluminance)
+static FLinearColor GetLightDiskLuminance(FLightSceneInfo& Light)
 {
-	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(Light.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
-	return  Light.Proxy->GetAtmosphereSunDiskColorScale() * LightIlluminance / SunSolidAngle; // approximation
+	
+	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(Light.Proxy->GetSunLightHalfApexAngleRadian()));			// Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
+	return  Light.Proxy->GetAtmosphereSunDiskColorScale() * Light.Proxy->GetOuterSpaceIlluminance() / SunSolidAngle;	// approximation
 }
 
 void PrepareSunLightProxy(const FSkyAtmosphereRenderSceneInfo& SkyAtmosphere, uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight)
 {
 	// See explanation in "Physically Based Sky, Atmosphere	and Cloud Rendering in Frostbite" page 26
-	const bool bAtmosphereAffectsSunIlluminance = true;
 	const FSkyAtmosphereSceneProxy& SkyAtmosphereProxy = SkyAtmosphere.GetSkyAtmosphereSceneProxy();
 	const FVector AtmosphereLightDirection = SkyAtmosphereProxy.GetAtmosphereLightDirection(AtmosphereLightIndex, -AtmosphereLight.Proxy->GetDirection());
-	const FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? SkyAtmosphereProxy.GetAtmosphereSetup().GetTransmittanceAtGroundLevel(AtmosphereLightDirection) : FLinearColor(FLinearColor::White);
+	const FLinearColor TransmittanceTowardSun = SkyAtmosphereProxy.GetAtmosphereSetup().GetTransmittanceAtGroundLevel(AtmosphereLightDirection);
 
-	// TODO: when the AtmosphericFog is gone, we hsould be able to remove this, as well as TransmittanceAtZenith on the SkyAtmosphereProxy.
-	const FLinearColor TransmittanceAtZenithFinal = bAtmosphereAffectsSunIlluminance ? SkyAtmosphereProxy.GetTransmittanceAtZenith() : FLinearColor(FLinearColor::White);
+	const FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(AtmosphereLight);
 
-	const FLinearColor SunZenithIlluminanceOnGround = AtmosphereLight.Proxy->GetColor();
-	const FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminanceOnGround / TransmittanceAtZenithFinal;
-	const FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(AtmosphereLight, SunOuterSpaceIlluminance);
-
-	// We always set the transmittance on the proxy. Shaders using atmospheric light color then have to decide which sun illuminance to use (without or with transmittance).
-	// We also set whether or not the light should apply the simple transmittance computed on CPU during lighting pass. If per pixel transmittance is enabled, it should not be done.
-	const bool bPerPixelTransmittanceEnabled = AtmosphereLight.Proxy->GetUsePerPixelAtmosphereTransmittance();
-
-	AtmosphereLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun, SunOuterSpaceIlluminance, SunDiskOuterSpaceLuminance, bPerPixelTransmittanceEnabled);
+	AtmosphereLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun, SunDiskOuterSpaceLuminance);
 }
 
 
@@ -535,9 +526,8 @@ void FScene::ResetAtmosphereLightsProperties()
 		FLightSceneInfo* Light = AtmosphereLights[LightIndex];
 		if (Light)
 		{
-			FLinearColor LightZenithIlluminance = Light->Proxy->GetColor();
-			const bool bPerPixelTransmittanceEnabled = false;
-			Light->Proxy->SetAtmosphereRelatedProperties(FLinearColor::White, LightZenithIlluminance, GetLightDiskLuminance(*Light, LightZenithIlluminance), bPerPixelTransmittanceEnabled);
+			const FLinearColor TransmittanceTowardSun = FLinearColor::White;
+			Light->Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun, GetLightDiskLuminance(*Light));
 		}
 	}
 }

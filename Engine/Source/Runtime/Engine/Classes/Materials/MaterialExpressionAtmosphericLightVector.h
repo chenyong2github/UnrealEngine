@@ -8,12 +8,10 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionAtmosphericLightVector.generated.h"
 
-UCLASS()
+UCLASS(collapsecategories, hidecategories = Object, DisplayName = "Atmosphere Sun Light Vector")
 class UMaterialExpressionAtmosphericLightVector : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
-
-
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
