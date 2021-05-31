@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+extern alias HordeAgent;
 
 using EpicGames.Core;
-using HordeAgent.Parser;
-using HordeAgent.Utility;
+using HordeAgent::HordeAgent.Parser;
+using HordeAgent::HordeAgent.Utility;
 using HordeCommon;
 using HordeServer;
 using HordeServer.Collections;
