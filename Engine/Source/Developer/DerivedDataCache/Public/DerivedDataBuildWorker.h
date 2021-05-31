@@ -38,7 +38,7 @@ public:
 	virtual FStringView GetPath() const = 0;
 	virtual FStringView GetHostPlatform() const = 0;
 	virtual FGuid GetBuildSystemVersion() const = 0;
-	virtual FRequest GetFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) const = 0;
+	virtual FRequest FindFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) const = 0;
 	virtual void IterateFunctions(TFunctionRef<void (FStringView Name, const FGuid& Version)> Visitor) const = 0;
 	virtual void IterateFiles(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
 	virtual void IterateExecutables(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
@@ -65,7 +65,7 @@ public:
 	virtual ~IBuildWorkerFactory() = default;
 
 	virtual void Build(FBuildWorkerBuilder& Builder) = 0;
-	virtual FRequest GetFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) = 0;
+	virtual FRequest FindFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) = 0;
 
 	/** Returns the name of the build worker factory modular feature. */
 	static FName GetFeatureName()
