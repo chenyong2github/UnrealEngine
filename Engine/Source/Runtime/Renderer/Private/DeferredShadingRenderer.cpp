@@ -2059,6 +2059,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	// Strata initialisation is always run even when not enabled.
+	const bool bStrataEnabled = Strata::IsStrataEnabled();
+	Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
+
 	if (DepthPass.IsComputeStencilDitherEnabled())
 	{
 		AddDitheredStencilFillPass(GraphBuilder, Views, SceneTextures.Depth.Target, DepthPass);
@@ -2403,10 +2407,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		FViewInfo& MainView = Views[0];
 		Scene->AllocateAndCaptureFrameSkyEnvMap(GraphBuilder, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud, InstanceCullingManager);
 	}
-
-	// Strata initialisation is always run even when not enabled.
-	const bool bStrataEnabled = Strata::IsStrataEnabled();
-	Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
 
 	const ECustomDepthPassLocation CustomDepthPassLocation = GetCustomDepthPassLocation(ShaderPlatform);
 	if (CustomDepthPassLocation == ECustomDepthPassLocation::BeforeBasePass)
