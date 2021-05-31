@@ -2,4 +2,4 @@
 LIBRARY
 
 EXPORTS
-	Init_DatasmithSketchUpRuby
+	Init_DatasmithSketchUp
