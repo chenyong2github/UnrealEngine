@@ -228,6 +228,25 @@ ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeOp::GetNumericOutputTypeSelec
 	}
 }
 
+bool UNiagaraNodeOp::GenerateCompileHashForClassMembers(const UClass* InClass, FNiagaraCompileHashVisitor* InVisitor) const
+{
+	if (InClass == UNiagaraNodeOp::StaticClass())
+	{
+		const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
+
+		if(OpInfo)
+		{
+			InVisitor->UpdateReference(TEXT("OpInfo"), OpInfo);
+		}
+		
+		return true;
+	}
+	else
+	{
+		return Super::GenerateCompileHashForClassMembers(InClass, InVisitor);
+	}
+}
+
 bool UNiagaraNodeOp::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const
 {
 	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
