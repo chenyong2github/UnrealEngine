@@ -200,16 +200,33 @@ reducer
     const presetsMap = _.keyBy(presets, 'Name');
     state = dotProp.set(state, 'presets', presetsMap);
 
-    let preset = localStorage.getItem('preset');
-    if (!preset || !presetsMap[preset])
-      preset = presets[0]?.Name;
+    let { preset } = state;
 
-    if (!state.preset && preset) {
+    // Is loaded preset still available?
+    if (preset && !presetsMap[preset])
+      preset = undefined;
+
+    // If there isn't a loaded preset
+    if (!preset) {
+      // 1. Load the preset name specified in the url
+      const params = new URLSearchParams(window.location.search);
+      preset = params.get('preset');
+
+      // 2. Load last used preset
+      if (!preset || !presetsMap[preset])
+        preset = localStorage.getItem('preset');
+
+      // 3. Load first preset
+      if (!preset || !presetsMap[preset])
+        preset = presets[0]?.Name;
+
+      // No available preset
+      if (!preset)
+        return { ...state, preset: undefined, view: { tabs: null }, payload: {} };
+
       _api.views.get(preset);
       _api.payload.get(preset);
       return { ...state, preset, view: { tabs: [] }, payload: {} };
-    } else if (state.preset && !presets.length) {
-      return { ...state, preset: undefined, view: { tabs: null }, payload: {} };
     }
 
     return state;
