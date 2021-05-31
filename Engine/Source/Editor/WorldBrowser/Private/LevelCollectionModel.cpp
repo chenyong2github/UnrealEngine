@@ -627,6 +627,12 @@ void FLevelCollectionModel::SaveLevels(const FLevelModelList& InLevelList)
 		{
 			FEditorFileUtils::SaveLevel(*It);
 		}
+
+		// Add all files that needs to be marked for add in one command, if any
+		if (GEditor)
+		{
+			GEditor->RunDeferredMarkForAddFiles();
+		}
 	}
 	else if (PackagesNotNeedingCheckout.Num() > 0)
 	{
