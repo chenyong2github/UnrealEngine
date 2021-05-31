@@ -14,6 +14,7 @@
 #include "Rendering/SkyAtmosphereCommonData.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Components/DirectionalLightComponent.h"
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
@@ -356,6 +357,19 @@ SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(OtherAbsorption);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(SkyLuminanceFactor);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AerialPespectiveViewDistanceScale);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, HeightFogContribution);
+
+FLinearColor USkyAtmosphereComponent::GetAtmosphereTransmitanceOnGroundAtPlanetTop(UDirectionalLightComponent* DirectionalLight)
+{
+	if(DirectionalLight != nullptr)
+	{
+		FAtmosphereSetup AtmosphereSetup(*this);
+		const FLinearColor TransmittanceAtZenith = AtmosphereSetup.GetTransmittanceAtGroundLevel(FVector(0.0f, 0.0f, 1.0f));
+		const FLinearColor TransmittanceAtDirLight = AtmosphereSetup.GetTransmittanceAtGroundLevel(-DirectionalLight->GetDirection());
+		// In 4.27, transmittance is the ratio of transmittance at zenith and current position (for the sun illuminance to be what artist species when at zenith).
+		return TransmittanceAtDirLight / TransmittanceAtZenith;
+	}
+	return FLinearColor::White;
+}
 
 /*=============================================================================
 	ASkyAtmosphere implementation.
