@@ -607,7 +607,7 @@ void FShaderResourceViewInitializer::InitType()
 			Type = EType::VertexBufferSRV;
 		}
 		else if (Usage & BUF_IndexBuffer)
-	{
+		{
 			Type = EType::IndexBufferSRV;
 		}
 		else if (Usage & BUF_AccelerationStructure)
@@ -618,9 +618,5 @@ void FShaderResourceViewInitializer::InitType()
 		{
 			Type = EType::StructuredBufferSRV;
 		}
-	}
-	else
-	{
-		Type = EType::StructuredBufferSRV;
 	}
 }
