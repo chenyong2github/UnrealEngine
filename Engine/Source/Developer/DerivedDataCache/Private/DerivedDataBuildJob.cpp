@@ -704,10 +704,6 @@ void FBuildJob::EnterResolveInputData()
 	{
 		return CompleteWithError(TEXT("Failed to resolve input data due to null input resolver."_SV));
 	}
-	if (!Definition)
-	{
-		return CompleteWithError(TEXT("Failed to resolve input data due to null definition."_SV));
-	}
 	Scheduler->DispatchResolveInputData(this);
 }
 
@@ -715,9 +711,18 @@ void FBuildJob::BeginResolveInputData()
 {
 	if (CanExecuteState(EBuildJobState::ResolveInputData))
 	{
-		return AdvanceToState(GetNextState(State), InputResolver->ResolveInputData(Definition.Get(), Priority,
-			[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
-			[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); }));
+		if (Definition)
+		{
+			return AdvanceToState(GetNextState(State), InputResolver->ResolveInputData(Definition.Get(), Priority,
+				[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
+				[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); }));
+		}
+		else
+		{
+			return AdvanceToState(GetNextState(State), InputResolver->ResolveInputData(Action.Get(), Priority,
+				[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
+				[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); }));
+		}
 	}
 }
 
@@ -1126,21 +1131,15 @@ void FBuildJob::ExecuteTransition(EBuildJobState OldState, EBuildJobState NewSta
 		Worker = nullptr;
 		WorkerExecutor = nullptr;
 	}
-	if (OldState < EBuildJobState::ResolveInputDataWait && EBuildJobState::ResolveInputDataWait <= NewState)
-	{
-		Definition.Reset();
-	}
 	if (OldState <= EBuildJobState::ResolveInputDataWait && EBuildJobState::ResolveInputDataWait < NewState)
 	{
 		MissingInputs.Empty();
-	}
-	if (OldState < EBuildJobState::ExecuteLocalWait && EBuildJobState::ExecuteLocalWait <= NewState)
-	{
-		Action.Reset();
-		Inputs.Reset();
+		Definition.Reset();
 	}
 	if (OldState <= EBuildJobState::ExecuteLocalWait && EBuildJobState::ExecuteLocalWait < NewState && !Output)
 	{
+		Action.Reset();
+		Inputs.Reset();
 		SetOutputNoCheck(OutputBuilder.Build());
 	}
 	if (OldState < EBuildJobState::CacheStore && EBuildJobState::CacheStore <= NewState)
