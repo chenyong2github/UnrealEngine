@@ -24,7 +24,9 @@
 #include "UObject/StructOnScope.h"
 
 #if WITH_EDITOR
+#include "AnalyticsEventAttribute.h"
 #include "Editor.h"
+#include "EngineAnalytics.h"
 #include "Engine/Blueprint.h"
 #include "TimerManager.h"
 #endif
@@ -806,6 +808,16 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 TSharedPtr<FRemoteControlEntity> URemoteControlPreset::Expose(FRemoteControlEntity&& Entity, UScriptStruct* EntityType, const FGuid& GroupId)
 {
 	Registry->Modify();
+
+#if WITH_EDITOR
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		check(EntityType);
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ExposedEntityType"), EntityType->GetName()));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("RemoteControl.EntityExposed"), EventAttributes);	
+	}
+#endif
 	
 	TSharedPtr<FRemoteControlEntity> RCEntity = Registry->AddExposedEntity(MoveTemp(Entity), EntityType);
 	InitializeEntityMetadata(RCEntity);

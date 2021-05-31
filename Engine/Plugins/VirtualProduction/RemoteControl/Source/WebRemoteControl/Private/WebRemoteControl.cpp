@@ -697,7 +697,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 		{
 			FMemoryReader Reader(DeserializedRequest.TCHARBody);
 			Reader.Seek(PropertyValueDelimiters.BlockStart);
-			Reader.SetLimitSize(PropertyValueDelimiters.BlockEnd + 1);
+			Reader.SetLimitSize(PropertyValueDelimiters.BlockEnd);
 			FRCJsonStructDeserializerBackend DeserializerBackend(Reader);
 			// Set a ERCPayloadType and TCHARBody in order to follow the replication path
 			if (IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend, ERCPayloadType::Json, DeserializedRequest.TCHARBody))

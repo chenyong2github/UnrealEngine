@@ -4,8 +4,12 @@
 
 #include "RemoteControlPreset.h"
 #include "RemoteControlProtocol.h"
-
 #include "Misc/CommandLine.h"
+
+#if WITH_EDITOR
+#include "AnalyticsEventAttribute.h"
+#include "EngineAnalytics.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogRemoteControlProtocol);
 
@@ -54,7 +58,20 @@ bool FRemoteControlProtocolModule::AddProtocol(FName InProtocolName, TSharedRef<
 	{
 		return false;
 	}
-
+	
+#if WITH_EDITOR
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		if (UScriptStruct* ScriptStruct = InProtocol->GetProtocolScriptStruct())
+		{
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ProtocolType"), ScriptStruct->GetName()));
+		}
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ProtocolName"), InProtocolName.ToString()));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("RemoteControl.AddProtocol"), EventAttributes);	
+	}
+#endif
+	
 	InProtocol->Init();
 
 	// Check for presence of required RangeInputTemplate property

@@ -15,6 +15,7 @@ public class RemoteControlProtocol : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"Engine",
 				"RemoteControl",
 			}
 		);
