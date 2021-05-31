@@ -873,7 +873,8 @@ struct FFileIoStats
 
 	static bool IsInIoDispatcherThread();
 	static bool IsInFileIoStoreThread();
-	static void SetThreadIds(uint32 InIoDispatcherThreadId, uint32 InFileIoStoreThreadId);
+	static void SetDispatcherThreadId(uint32 InIoDispatcherThreadId);
+	static void SetFileIoStoreThreadId(uint32 InFileIoStoreThreadId);
 
 	// Adds an underlying filesystem read to the queue to track num reads/bytes in the queue
 	// There is currently no separate stat for in-flight reads, those are still counted in the queued stat
