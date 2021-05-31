@@ -1,0 +1,30 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/GammaCorrectionCommon.ush"
+
+float2 TexelSize;
+
+Texture2D MipInSRV;
+SamplerState MipInSampler;
+
+int2 MipOutSize;
+RWTexture2D<float4> MipOutUAV;
+
+[numthreads(THREADGROUPSIZE, THREADGROUPSIZE, 1)]
+void MainCS(uint3 ThreadID : SV_DispatchThreadID)
+{
+	if ( any(int2(ThreadID.xy) >= MipOutSize) )
+	{
+		return;
+	}
+
+	float2 SrcUV = (float2(ThreadID.xy) + 0.5f) * TexelSize;
+    float4 OutColor = MipInSRV.SampleLevel(MipInSampler, SrcUV, 0);
+
+#if GENMIPS_SRGB
+    OutColor.rgb = LinearToSrgb(OutColor.rgb);
+#endif
+
+    MipOutUAV[ThreadID.xy] = OutColor;
+}
