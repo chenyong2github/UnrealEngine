@@ -437,6 +437,9 @@ void FVulkanResourceMultiBuffer::Unlock(bool bFromRenderingThread)
 void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
 {
 	FRHIBuffer::Swap(Other);
+
+	// FDeviceChild
+	::Swap(Device, Other.Device);
 	
 	::Swap(UEUsage, Other.UEUsage);
 	::Swap(BufferUsageFlags, Other.BufferUsageFlags);
