@@ -8,7 +8,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "../ParticipatingMediaCommon.ush"
 #include "../ThinFilmBSDF.ush"
-
+ 
 #include "/Engine/Shared/StrataDefinitions.h"
 
 
