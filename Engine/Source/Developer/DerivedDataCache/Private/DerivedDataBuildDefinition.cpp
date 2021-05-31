@@ -26,8 +26,7 @@ public:
 		, Function(InFunction)
 	{
 		checkf(!Name.IsEmpty(), TEXT("A build definition requires a non-empty name."));
-		checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
-			TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
+		AssertValidBuildFunctionName(Function, Name);
 	}
 
 	~FBuildDefinitionBuilderInternal() final = default;
@@ -261,7 +260,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FStringView InName, FCbObject
 	checkf(!Name.IsEmpty(), TEXT("A build definition requires a non-empty name."));
 	Definition.MakeOwned();
 	bOutIsValid = Definition
-		&& !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum)
+		&& IsValidBuildFunctionName(Function)
 		&& Algo::AllOf(Definition.FindView("Constants"_ASV),
 			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsObject(); })
 		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Builds"_ASV), [](FCbFieldView Field)

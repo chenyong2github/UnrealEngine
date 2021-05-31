@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Algo/AllOf.h"
 #include "Containers/StringFwd.h"
 #include "Logging/LogMacros.h"
+#include "Misc/Char.h"
 
 class FCbObject;
 struct FGuid;
@@ -75,5 +77,19 @@ FBuildSession CreateBuildSession(
 TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildKey& Key);
 TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildDefinition& Definition);
 TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildAction& Action, const FOptionalBuildInputs& Inputs);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline bool IsValidBuildFunctionName(FStringView Function)
+{
+	return !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum);
+}
+
+inline void AssertValidBuildFunctionName(FStringView Function, FStringView Name)
+{
+	checkf(IsValidBuildFunctionName(Function),
+		TEXT("A build function name must be alphanumeric and non-empty for build of '%.*s' by '%.*s'."),
+		Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+}
 
 } // UE::DerivedData::Private
