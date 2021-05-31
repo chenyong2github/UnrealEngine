@@ -29,18 +29,18 @@ FSlateAttributeMetaData* FSlateAttributeMetaData::FindMetaData(const SWidget& Ow
 	if (OwningWidget.HasRegisteredSlateAttribute())
 	{
 		check(OwningWidget.MetaData.Num() > 0);
-		TSharedRef<ISlateMetaData> SlateMetaData = OwningWidget.MetaData[0];
+		const TSharedRef<ISlateMetaData>& SlateMetaData = OwningWidget.MetaData[0];
 		check(SlateMetaData->IsOfType<FSlateAttributeMetaData>());
-		return &(StaticCastSharedRef<FSlateAttributeMetaData>(SlateMetaData).Get());
+		return &(static_cast<FSlateAttributeMetaData&>(SlateMetaData.Get()));
 	}
 #if WITH_SLATE_DEBUGGING
 	else if (OwningWidget.MetaData.Num() > 0)
 	{
-		TSharedRef<ISlateMetaData> SlateMetaData = OwningWidget.MetaData[0];
+		const TSharedRef<ISlateMetaData>& SlateMetaData = OwningWidget.MetaData[0];
 		if (SlateMetaData->IsOfType<FSlateAttributeMetaData>())
 		{
 			ensureMsgf(false, TEXT("bHasRegisteredSlateAttribute should be set on the SWidget '%s'"), *FReflectionMetaData::GetWidgetDebugInfo(OwningWidget));
-			return &(StaticCastSharedRef<FSlateAttributeMetaData>(SlateMetaData).Get());
+			return &(static_cast<FSlateAttributeMetaData&>(SlateMetaData.Get()));
 		}
 	}
 #endif
@@ -356,17 +356,14 @@ void FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(SWidget& OwningWi
 
 void FSlateAttributeMetaData::UpdateChildrenOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, bool bRecursive)
 {
-	FChildren* Children = OwningWidget.GetChildren();
-	const int32 NumChildren = Children->Num();
-	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-	{
-		const TSharedRef<SWidget>& Child = Children->GetChildAt(ChildIndex);
-		UpdateOnlyVisibilityAttributes(Child.Get(), InvalidationStyle);
-		if (bRecursive)
+	OwningWidget.GetChildren()->ForEachWidget([InvalidationStyle, bRecursive](SWidget& Child)
 		{
-			UpdateChildrenOnlyVisibilityAttributes(Child.Get(), InvalidationStyle, bRecursive);
-		}
-	}
+			UpdateOnlyVisibilityAttributes(Child, InvalidationStyle);
+			if (bRecursive)
+			{
+				UpdateChildrenOnlyVisibilityAttributes(Child, InvalidationStyle, bRecursive);
+			}
+		});
 }
 
 

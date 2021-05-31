@@ -408,14 +408,14 @@ FSlateInvalidationWidgetList::FSlateInvalidationWidgetList(FSlateInvalidationRoo
 }
 
 
-FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, FSlateInvalidationWidgetVisibility ParentVisibility, bool bParentVolatile)
+FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidgetList_Recursive(SWidget& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, FSlateInvalidationWidgetVisibility ParentVisibility, bool bParentVolatile)
 {
 	const bool bIsEmpty = IsEmpty();
 	const FSlateInvalidationWidgetIndex NewIndex = EmplaceInsertAfter(LastestIndex, Widget);
 	LastestIndex = NewIndex.ArrayIndex;
 
 	FSlateInvalidationWidgetIndex LeafMostChildIndex = NewIndex;
-	FSlateInvalidationWidgetVisibility NewVisibility {ParentVisibility, Widget->GetVisibility()};
+	FSlateInvalidationWidgetVisibility NewVisibility {ParentVisibility, Widget.GetVisibility()};
 
 	bool bUpdateSlateAttribute = false;
 	if (ShouldBeAddedToAttributeList(Widget))
@@ -427,13 +427,13 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 		{
 			if (!NewVisibility.IsCollapseIndirectly())
 			{
-				FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(Widget.Get(), FSlateAttributeMetaData::EInvalidationPermission::DenyAndClearDelayedInvalidation);
-				NewVisibility.SetVisibility(ParentVisibility, Widget->GetVisibility());
+				FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(Widget, FSlateAttributeMetaData::EInvalidationPermission::DenyAndClearDelayedInvalidation);
+				NewVisibility.SetVisibility(ParentVisibility, Widget.GetVisibility());
 
 				if (!NewVisibility.IsCollapsed())
 				{
-					FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Widget.Get(), FSlateAttributeMetaData::EInvalidationPermission::DenyAndClearDelayedInvalidation);
-					NewVisibility.SetVisibility(ParentVisibility, Widget->GetVisibility());
+					FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Widget, FSlateAttributeMetaData::EInvalidationPermission::DenyAndClearDelayedInvalidation);
+					NewVisibility.SetVisibility(ParentVisibility, Widget.GetVisibility());
 					bUpdateSlateAttribute = true;
 				}
 			}
@@ -445,7 +445,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 		Data[LastestIndex].ElementIndexList_VolatileUpdateWidget.AddUnsorted(NewIndex.ElementIndex);
 	}
 
-	const bool bIsInvalidationRoot = Widget->Advanced_IsInvalidationRoot();
+	const bool bIsInvalidationRoot = Widget.Advanced_IsInvalidationRoot();
 
 	{
 		InvalidationWidgetType& WidgetProxy = (*this)[NewIndex];
@@ -454,7 +454,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 		WidgetProxy.LeafMostChildIndex = LeafMostChildIndex;
 		WidgetProxy.Visibility = NewVisibility;
 		WidgetProxy.bIsInvalidationRoot = bIsInvalidationRoot;
-		WidgetProxy.bIsVolatilePrepass = Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass);
+		WidgetProxy.bIsVolatilePrepass = Widget.HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass);
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 		WidgetProxy.bDebug_AttributeUpdated = bUpdateSlateAttribute;
 #endif
@@ -465,29 +465,25 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 #endif
 	{
 		const FSlateInvalidationWidgetSortOrder SortIndex = { *this, NewIndex };
-		Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewIndex, SortIndex }, NewVisibility, bParentVolatile);
+		Widget.SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewIndex, SortIndex }, NewVisibility, bParentVolatile);
 	}
 
-	const bool bParentOrSelfVolatile = bParentVolatile || Widget->IsVolatile();
+	const bool bParentOrSelfVolatile = bParentVolatile || Widget.IsVolatile();
 
 	// N.B. The SInvalidationBox needs a valid Proxy to decide if he's a root or not.
 	//const bool bDoRecursion = ShouldDoRecursion(Widget);
 	const bool bDoRecursion = !bIsInvalidationRoot || bIsEmpty;
 	if (bDoRecursion)
 	{
-		FChildren* Children = Widget->GetAllChildren();
-		int32 NumChildren = Children->Num();
-		for (int32 Index = 0; Index < NumChildren; ++Index)
-		{
-			TSharedRef<SWidget> NewWidget = Children->GetChildAt(Index);
-
-			const bool bShouldAdd = ShouldBeAdded(NewWidget);
-			if (bShouldAdd)
+		Widget.GetAllChildren()->ForEachWidget([&, this](SWidget& NewWidget)
 			{
-				check(NewWidget->GetParentWidget() == Widget);
-				LeafMostChildIndex = Internal_BuildWidgetList_Recursive(NewWidget, NewIndex, LastestIndex, NewVisibility, bParentOrSelfVolatile);
-			}
-		}
+				const bool bShouldAdd = ShouldBeAdded(NewWidget);
+				if (bShouldAdd)
+				{
+					check(NewWidget.GetParentWidget().Get() == &Widget);
+					LeafMostChildIndex = Internal_BuildWidgetList_Recursive(NewWidget, NewIndex, LastestIndex, NewVisibility, bParentOrSelfVolatile);
+				}
+			});
 
 		InvalidationWidgetType& WidgetProxy = (*this)[NewIndex];
 		WidgetProxy.LeafMostChildIndex = LeafMostChildIndex;
@@ -497,7 +493,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 }
 
 
-void FSlateInvalidationWidgetList::BuildWidgetList(TSharedRef<SWidget> InRoot)
+void FSlateInvalidationWidgetList::BuildWidgetList(const TSharedRef<SWidget>& InRoot)
 {
 	SCOPED_NAMED_EVENT(Slate_InvalidationList_ProcessBuild, FColorList::Blue);
 
@@ -513,21 +509,21 @@ void FSlateInvalidationWidgetList::BuildWidgetList(TSharedRef<SWidget> InRoot)
 		}
 		const bool bParentVolatile = false;
 		IndexType LatestArrayIndex = FSlateInvalidationWidgetIndex::Invalid.ArrayIndex;
-		Internal_BuildWidgetList_Recursive(InRoot, FSlateInvalidationWidgetIndex::Invalid, LatestArrayIndex, ParentVisibility, bParentVolatile);
+		Internal_BuildWidgetList_Recursive(InRoot.Get(), FSlateInvalidationWidgetIndex::Invalid, LatestArrayIndex, ParentVisibility, bParentVolatile);
 	}
 }
 
 
-void FSlateInvalidationWidgetList::Internal_RebuildWidgetListTree(TSharedRef<SWidget> Widget, int32 ChildAtIndex)
+void FSlateInvalidationWidgetList::Internal_RebuildWidgetListTree(SWidget& Widget, int32 ChildAtIndex)
 {
 	const bool bShouldAddWidget = ShouldBeAdded(Widget);
-	FChildren* ParentChildren = Widget->GetAllChildren();
-	const FSlateInvalidationWidgetIndex WidgetIndex = Widget->GetProxyHandle().GetWidgetIndex();
+	FChildren* ParentChildren = Widget.GetAllChildren();
+	const FSlateInvalidationWidgetIndex WidgetIndex = Widget.GetProxyHandle().GetWidgetIndex();
 	if (bShouldAddWidget && ChildAtIndex < ParentChildren->Num() && WidgetIndex != FSlateInvalidationWidgetIndex::Invalid)
 	{
 		// Since we are going to add item, the array may get invalidated. Do not use after Internal_BuildWidgetList_Recursive
 		const InvalidationWidgetType& CurrentInvalidationWidget = (*this)[WidgetIndex];
-		ensure(CurrentInvalidationWidget.GetWidget() == &Widget.Get());
+		ensure(CurrentInvalidationWidget.GetWidget() == &Widget);
 		FSlateInvalidationWidgetIndex PreviousLeafIndex = CurrentInvalidationWidget.LeafMostChildIndex;
 		FSlateInvalidationWidgetIndex NewLeafIndex = PreviousLeafIndex;
 		IndexType LastestArrayIndex = PreviousLeafIndex.ArrayIndex;
@@ -535,18 +531,16 @@ void FSlateInvalidationWidgetList::Internal_RebuildWidgetListTree(TSharedRef<SWi
 		if (bDoRecursion)
 		{
 			const FSlateInvalidationWidgetVisibility CurrentVisibility = CurrentInvalidationWidget.Visibility;
-			const bool bParentVolatile = Widget->IsVolatileIndirectly() || Widget->IsVolatile();
-			int32 NumChildren = ParentChildren->Num();
-			for (int32 Index = ChildAtIndex; Index < NumChildren; ++Index)
-			{
-				TSharedRef<SWidget> ChildWidget = ParentChildren->GetChildAt(Index);
-				const bool bShouldAddChild = ShouldBeAdded(ChildWidget);
-				if (bShouldAddChild)
+			const bool bParentVolatile = Widget.IsVolatileIndirectly() || Widget.IsVolatile();
+			ParentChildren->ForEachWidget([&, this](SWidget& ChildWidget)
 				{
-					check(ChildWidget->GetParentWidget() == Widget);
-					NewLeafIndex = Internal_BuildWidgetList_Recursive(ChildWidget, WidgetIndex, LastestArrayIndex, CurrentVisibility, bParentVolatile);
-				}
-			}
+					const bool bShouldAddChild = ShouldBeAdded(ChildWidget);
+					if (bShouldAddChild)
+					{
+						check(ChildWidget.GetParentWidget().Get() == &Widget);
+						NewLeafIndex = Internal_BuildWidgetList_Recursive(ChildWidget, WidgetIndex, LastestArrayIndex, CurrentVisibility, bParentVolatile);
+					}
+				});
 		}
 
 		if (NewLeafIndex != PreviousLeafIndex)
@@ -585,7 +579,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 		FIndexRange ChildToRemoveRange;
 
 		// Was added, but it should not be there anymore
-		if (!ShouldBeAdded(WidgetPtr))
+		if (!ShouldBeAdded(*WidgetPtr))
 		{
 			// This proxy will not be valid after this call
 			bIsInvalidationWidgetStillValid = false;
@@ -596,7 +590,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 			//Result.ChildBuilt
 		}
 		// If it is not supposed to had child, but had some, them remove them
-		else if (!ShouldDoRecursion(WidgetPtr))
+		else if (!ShouldDoRecursion(*WidgetPtr))
 		{
 			if (InvalidationWidget.Index != InvalidationWidget.LeafMostChildIndex)
 			{
@@ -702,7 +696,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 				SCOPED_NAMED_EVENT(Slate_InvalidationList_ProcessRebuild, FColorList::Blue);
 				FSlateInvalidationWidgetIndex PreviousWidgetIndex = WidgetPtr->GetProxyHandle().GetWidgetIndex();
 				FSlateInvalidationWidgetIndex PreviousLeafMostChildIndex = InvalidationWidget.LeafMostChildIndex;
-				Internal_RebuildWidgetListTree(WidgetPtr->AsShared(), StartChildIndex);
+				Internal_RebuildWidgetListTree(*WidgetPtr, StartChildIndex);
 
 
 				const InvalidationWidgetType& NewInvalidationWidget = (*this)[PreviousWidgetIndex];
@@ -726,7 +720,7 @@ void FSlateInvalidationWidgetList::ProcessAttributeRegistrationInvalidation(cons
 	SWidget* WidgetPtr = InvalidationWidget.GetWidget();
 	check(WidgetPtr);
 
-	if (ShouldBeAddedToAttributeList(WidgetPtr))
+	if (ShouldBeAddedToAttributeList(*WidgetPtr))
 	{
 		Data[InvalidationWidget.Index.ArrayIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.InsertUnique(InvalidationWidget.Index.ElementIndex);
 	}
@@ -742,7 +736,7 @@ void FSlateInvalidationWidgetList::ProcessVolatileUpdateInvalidation(Invalidatio
 	SWidget* WidgetPtr = InvalidationWidget.GetWidget();
 	check(WidgetPtr);
 
-	if (ShouldBeAddedToVolatileUpdateList(WidgetPtr))
+	if (ShouldBeAddedToVolatileUpdateList(*WidgetPtr))
 	{
 		Data[InvalidationWidget.Index.ArrayIndex].ElementIndexList_VolatileUpdateWidget.InsertUnique(InvalidationWidget.Index.ElementIndex);
 	}
@@ -1438,11 +1432,11 @@ FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::Internal_
 				Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewWidgetIndex, SortIndex });
 
 				// Check for ElementIndexList
-				if (ShouldBeAddedToAttributeList(Widget))
+				if (ShouldBeAddedToAttributeList(*Widget))
 				{
 					Data[NewArrayIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.AddUnsorted(NewElementIndex);
 				}
-				if (ShouldBeAddedToVolatileUpdateList(Widget))
+				if (ShouldBeAddedToVolatileUpdateList(*Widget))
 				{
 					Data[NewArrayIndex].ElementIndexList_VolatileUpdateWidget.AddUnsorted(NewElementIndex);
 				}
@@ -1476,9 +1470,9 @@ FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::Internal_
 }
 
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
-FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::FindWidget(const TSharedRef<SWidget> WidgetToFind) const
+FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::FindWidget(const SWidget& WidgetToFind) const
 {
-	SWidget* WidgetToFindPtr = &WidgetToFind.Get();
+	const SWidget* WidgetToFindPtr = &WidgetToFind;
 	for (FSlateInvalidationWidgetIndex Index = FirstIndex(); Index != FSlateInvalidationWidgetIndex::Invalid; Index = IncrementIndex(Index))
 	{
 		if (WidgetToFindPtr == (*this)[Index].GetWidget())
@@ -1502,11 +1496,11 @@ void FSlateInvalidationWidgetList::RemoveWidget(const FSlateInvalidationWidgetIn
 }
 
 
-void FSlateInvalidationWidgetList::RemoveWidget(const TSharedRef<SWidget> WidgetToRemove)
+void FSlateInvalidationWidgetList::RemoveWidget(const SWidget& WidgetToRemove)
 {
-	if (ensure(WidgetToRemove->GetProxyHandle().GetInvalidationRootHandle().GetUniqueId() == Owner.GetUniqueId()))
+	if (ensure(WidgetToRemove.GetProxyHandle().GetInvalidationRootHandle().GetUniqueId() == Owner.GetUniqueId()))
 	{
-		FSlateInvalidationWidgetIndex WidgetIndex = WidgetToRemove->GetProxyHandle().GetWidgetIndex();
+		FSlateInvalidationWidgetIndex WidgetIndex = WidgetToRemove.GetProxyHandle().GetWidgetIndex();
 		if (WidgetIndex != FSlateInvalidationWidgetIndex::Invalid)
 		{
 			const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
@@ -1518,12 +1512,12 @@ void FSlateInvalidationWidgetList::RemoveWidget(const TSharedRef<SWidget> Widget
 }
 
 
-TArray<TSharedPtr<SWidget>> FSlateInvalidationWidgetList::FindChildren(const TSharedRef<SWidget> Widget) const
+TArray<TSharedPtr<SWidget>> FSlateInvalidationWidgetList::FindChildren(const SWidget& Widget) const
 {
 	TArray<TSharedPtr<SWidget>> Result;
-	if (ensure(Widget->GetProxyHandle().GetInvalidationRootHandle().GetUniqueId() == Owner.GetUniqueId()))
+	if (ensure(Widget.GetProxyHandle().GetInvalidationRootHandle().GetUniqueId() == Owner.GetUniqueId()))
 	{
-		FSlateInvalidationWidgetIndex WidgetIndex = Widget->GetProxyHandle().GetWidgetIndex();
+		FSlateInvalidationWidgetIndex WidgetIndex = Widget.GetProxyHandle().GetWidgetIndex();
 		if (WidgetIndex == FSlateInvalidationWidgetIndex::Invalid)
 		{
 			return Result;
@@ -1758,11 +1752,11 @@ bool FSlateInvalidationWidgetList::VerifyElementIndexList() const
 		TArray<const SWidget*> WidgetListWithForEachWidget;
 		WidgetListWithForEachWidget.Reset(WidgetListWithIterator.Num());
 		int32 Index = 0;
-		const_cast<FSlateInvalidationWidgetList*>(this)->ForEachWidget([&](const SWidget* Widget)
+		const_cast<FSlateInvalidationWidgetList*>(this)->ForEachWidget([&](const SWidget& Widget)
 			{
 				if (ShouldBeAddedToAttributeList(Widget))
 				{
-					WidgetListWithForEachWidget.Add(Widget);
+					WidgetListWithForEachWidget.Add(&Widget);
 				}
 			});
 

@@ -195,35 +195,35 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 			AddErrorIfFalse(List.VerifyWidgetsIndex(), TEXT("The widget list integrity has failed."));
 
 			{
-				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetA.ToSharedRef());
+				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetA.ToSharedRef().Get());
 				if (ChildOfWidgetA != FoundChildren)
 				{
 					AddError(TEXT("Was not able to find the child of VerticalBox A."));
 				}
 			}
 			{
-				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetB.ToSharedRef());
+				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetB.ToSharedRef().Get());
 				if (ChildOfWidgetB != FoundChildren)
 				{
 					AddError(TEXT("Was not able to find the child of VerticalBox B."));
 				}
 			}
 			{
-				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetC.ToSharedRef());
+				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetC.ToSharedRef().Get());
 				if (ChildOfWidgetC != FoundChildren)
 				{
 					AddError(TEXT("Was not able to find the child of VerticalBox C."));
 				}
 			}
 			{
-				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetD.ToSharedRef());
+				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetD.ToSharedRef().Get());
 				if (ChildOfWidgetD != FoundChildren)
 				{
 					AddError(TEXT("Was not able to find the child of VerticalBox D."));
 				}
 			}
 			{
-				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetH.ToSharedRef());
+				TArray<TSharedPtr<SWidget>> FoundChildren = List.FindChildren(WidgetH.ToSharedRef().Get());
 				if (ChildOfWidgetH != FoundChildren)
 				{
 					AddError(TEXT("Was not able to find the child of VerticalBox H."));
@@ -241,7 +241,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 
 			// Remove Second child of F
 			{
-				List.RemoveWidget(WidgetF->GetAllChildren()->GetChildAt(1));
+				List.RemoveWidget(WidgetF->GetAllChildren()->GetChildAt(1).Get());
 				WidgetF->RemoveSlot(WidgetF->GetAllChildren()->GetChildAt(1));
 				{
 					FSlateInvalidationWidgetList::FArguments ArgsWithoutAssign = Args;
@@ -258,7 +258,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 			// Remove C and F
 			{
 				{
-					const FSlateInvalidationWidgetIndex WidgetIndexF = List.FindWidget(WidgetF.ToSharedRef());
+					const FSlateInvalidationWidgetIndex WidgetIndexF = List.FindWidget(WidgetF.ToSharedRef().Get());
 					if (!List.IsValidIndex(WidgetIndexF) || List[WidgetIndexF].GetWidget() != WidgetF.Get())
 					{
 						AddError(TEXT("The index of F is not valid anymore."));
@@ -266,7 +266,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 					List.RemoveWidget(WidgetIndexF);
 				}
 				{
-					const FSlateInvalidationWidgetIndex WidgetIndexC = List.FindWidget(WidgetC.ToSharedRef());
+					const FSlateInvalidationWidgetIndex WidgetIndexC = List.FindWidget(WidgetC.ToSharedRef().Get());
 					if (!List.IsValidIndex(WidgetIndexC) || List[WidgetIndexC].GetWidget() != WidgetC.Get())
 					{
 						AddError(TEXT("The index of C is not valid anymore."));
@@ -291,7 +291,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 				int32 ToRemoveIndex = RootChildOrder->GetAllChildren()->Num() - 1;
 				TSharedRef<SWidget> RemovedWidget = RootChildOrder->GetAllChildren()->GetChildAt(ToRemoveIndex);
 				RootChildOrder->RemoveSlot(RemovedWidget);
-				List.RemoveWidget(List.FindWidget(RemovedWidget));
+				List.RemoveWidget(List.FindWidget(RemovedWidget.Get()));
 
 				{
 					FSlateInvalidationWidgetList::FArguments ArgsWithoutAssign = Args;

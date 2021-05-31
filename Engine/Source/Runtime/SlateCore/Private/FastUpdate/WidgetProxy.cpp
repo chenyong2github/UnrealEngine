@@ -14,11 +14,11 @@
 
 const FSlateWidgetPersistentState FSlateWidgetPersistentState::NoState;
 
-FWidgetProxy::FWidgetProxy(TSharedRef<SWidget>& InWidget)
+FWidgetProxy::FWidgetProxy(SWidget& InWidget)
 #if UE_SLATE_WITH_WIDGETPROXY_WEAKPTR
-	: Widget(InWidget)
+	: Widget(InWidget.AsShared())
 #else
-	: Widget(&InWidget.Get())
+	: Widget(&InWidget)
 #endif
 	, Index(FSlateInvalidationWidgetIndex::Invalid)
 	, ParentIndex(FSlateInvalidationWidgetIndex::Invalid)
@@ -261,12 +261,18 @@ FWidgetProxyHandle::FWidgetProxyHandle(FSlateInvalidationWidgetIndex InIndex)
 {
 }
 
-bool FWidgetProxyHandle::IsValid(const SWidget* Widget) const
+bool FWidgetProxyHandle::IsValid(const SWidget& Widget) const
 {
 	FSlateInvalidationRoot* InvalidationRoot = InvalidationRootHandle.GetInvalidationRoot();
 	return InvalidationRoot
 		&& InvalidationRoot->GetFastPathWidgetList().IsValidIndex(WidgetIndex)
-		&& InvalidationRoot->GetFastPathWidgetList()[WidgetIndex].GetWidget() == Widget;
+		&& InvalidationRoot->GetFastPathWidgetList()[WidgetIndex].GetWidget() == &Widget;
+}
+
+bool FWidgetProxyHandle::IsValid(const SWidget* Widget) const
+{
+	check(Widget);
+	return IsValid(*Widget);
 }
 
 FSlateInvalidationWidgetVisibility FWidgetProxyHandle::GetWidgetVisibility(const SWidget* Widget) const

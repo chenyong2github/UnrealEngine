@@ -145,7 +145,7 @@ private:
 	/** Call when an invalidation occurred. */
 	void InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWidgetReason InvalidateReason);
 
-	void BuildFastPathWidgetList(TSharedRef<SWidget> RootWidget);
+	void BuildFastPathWidgetList(const TSharedRef<SWidget>& RootWidget);
 	void AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform);
 
 	/** Update child order and slate attribute */
