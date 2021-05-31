@@ -816,10 +816,25 @@ void FHairStrandsClusterCullingBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	ClusterVertexIds.SetBulkDataFlags(BulkFlags);
 	PackedClusterInfos.SetBulkDataFlags(BulkFlags);
 
-	ClusterLODInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	VertexToClusterIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	ClusterVertexIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	PackedClusterInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	if (ClusterLODCount)
+	{
+		ClusterLODInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	}
+
+	if (VertexCount)
+	{
+		VertexToClusterIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	}
+
+	if (VertexLODCount)
+	{
+		ClusterVertexIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	}
+
+	if (ClusterCount)
+	{
+		PackedClusterInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1077,10 +1092,13 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairStrandsRootBulk
 	LOD.RestRootTrianglePosition2Buffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 
 	Ar << LOD.SampleCount;
-	LOD.MeshInterpolationWeightsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	LOD.MeshSampleIndicesBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	LOD.RestSamplePositionsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	LOD.ValidSectionIndices.BulkSerialize(Ar);
+	if (LOD.SampleCount)
+	{
+		LOD.MeshInterpolationWeightsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		LOD.MeshSampleIndicesBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		LOD.RestSamplePositionsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	}
+		LOD.ValidSectionIndices.BulkSerialize(Ar);
 }
 
 static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairStrandsRootBulkData::FMeshProjectionLOD>& LODs)
