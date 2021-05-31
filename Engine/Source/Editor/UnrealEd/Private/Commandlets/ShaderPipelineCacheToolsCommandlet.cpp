@@ -28,6 +28,15 @@ const int32  STABLE_COMPRESSED_VER = 3;
 const int64  STABLE_MAX_CHUNK_SIZE = MAX_int32 - 100 * 1024 * 1024;
 const TCHAR* ShaderStableKeysFileExt = TEXT("shk");
 
+int32 GShaderPipelineCacheTools_ComputePSOInclusionMode = 2;
+static FAutoConsoleVariableRef CVarShaderPipelineCacheDoNotPrecompileComputePSO(
+	TEXT("r.ShaderPipelineCacheTools.IncludeComputePSODuringCook"),
+	GShaderPipelineCacheTools_ComputePSOInclusionMode,
+	TEXT("0 disables cook-time addition, 1 enables cook-time addition, 2 adds only Niagara PSOs."),
+	ECVF_Default
+);
+
+
 struct FSCDataChunk
 {
 	FSCDataChunk() : UncomressedOutputLines(), OutputLinesAr(UncomressedOutputLines) {}
@@ -1812,13 +1821,25 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 /** Adds compute PSOs directly from the stable shader map of this build */
 void AddComputePSOs(TSet<FPipelineCacheFileFormatPSO>& OutPSOs, const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableShaderMap)
 {
+	if (GShaderPipelineCacheTools_ComputePSOInclusionMode < 1)
+	{
+		return;
+	}
+
 	static FName NAME_SF_Compute("SF_Compute");
+	static FName NAME_NiagaraShader("FNiagaraShader");
 
 	for (TMultiMap<FStableShaderKeyAndValue, FSHAHash>::TConstIterator Iter(StableShaderMap); Iter; ++Iter)
 	{
 		if (Iter.Key().TargetFrequency == NAME_SF_Compute)
 		{
 			// add a new Compute PSO
+			// Check if we are only allowed to add Niagara PSOs
+			if (GShaderPipelineCacheTools_ComputePSOInclusionMode == 2 && Iter.Key().ShaderType != NAME_NiagaraShader)
+			{
+				continue;
+			}
+
 			FPipelineCacheFileFormatPSO NewPso;
 			NewPso.Type = FPipelineCacheFileFormatPSO::DescriptorType::Compute;
 			NewPso.ComputeDesc.ComputeShader = Iter.Value();
