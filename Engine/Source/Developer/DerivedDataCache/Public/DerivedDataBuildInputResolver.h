@@ -5,6 +5,7 @@
 #include "Compression/CompressedBuffer.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
+#include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataRequest.h"
 #include "IO/IoHash.h"
@@ -12,8 +13,7 @@
 
 struct FGuid;
 
-namespace UE::DerivedData { class FBuildDefinition; }
-namespace UE::DerivedData { class FOptionalBuildDefinition; }
+namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { struct FBuildInputDataResolvedParams; }
 namespace UE::DerivedData { struct FBuildInputMetaResolvedParams; }
 namespace UE::DerivedData { struct FBuildKeyResolvedParams; }
@@ -25,49 +25,6 @@ using FBuildInputFilter = TUniqueFunction<bool (FStringView Key)>;
 using FOnBuildInputDataResolved = TUniqueFunction<void (FBuildInputDataResolvedParams&& Params)>;
 using FOnBuildInputMetaResolved = TUniqueFunction<void (FBuildInputMetaResolvedParams&& Params)>;
 using FOnBuildKeyResolved = TUniqueFunction<void (FBuildKeyResolvedParams&& Params)>;
-
-/** Interface to resolve references to build inputs. */
-class IBuildInputResolver
-{
-public:
-	virtual ~IBuildInputResolver() = default;
-
-	/**
-	 * Asynchronous request to resolve a definition from a key.
-	 *
-	 * @param Key          The key of the definition to resolve.
-	 * @param OnResolved   A callback invoked when resolving completes or is canceled.
-	 */
-	virtual FRequest ResolveKey(
-		const FBuildKey& Key,
-		FOnBuildKeyResolved&& OnResolved) = 0;
-
-	/**
-	 * Asynchronous request to resolve metadata for the inputs from the definition.
-	 *
-	 * @param Definition   The definition to resolve input metadata for.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
-	 * @param OnResolved   A callback invoked when resolving completes or is canceled.
-	 */
-	virtual FRequest ResolveInputMeta(
-		const FBuildDefinition& Definition,
-		EPriority Priority,
-		FOnBuildInputMetaResolved&& OnResolved) = 0;
-
-	/**
-	 * Asynchronous request to resolve data for the inputs from the definition.
-	 *
-	 * @param Definition   The definition to resolve input data for.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
-	 * @param OnResolved   A callback invoked when resolving completes or is canceled.
-	 * @param Filter       An optional predicate to filter which input keys have data resolved.
-	 */
-	virtual FRequest ResolveInputData(
-		const FBuildDefinition& Definition,
-		EPriority Priority,
-		FOnBuildInputDataResolved&& OnResolved,
-		FBuildInputFilter&& Filter = FBuildInputFilter()) = 0;
-};
 
 /** Metadata for build inputs with the input key. */
 struct FBuildInputMetaByKey
@@ -120,6 +77,79 @@ struct FBuildInputDataResolvedParams
 
 	/** Status of the input request. */
 	EStatus Status = EStatus::Error;
+};
+
+/** Interface to resolve references to build inputs. */
+class IBuildInputResolver
+{
+public:
+	virtual ~IBuildInputResolver() = default;
+
+	/**
+	 * Asynchronous request to resolve a definition from a key.
+	 *
+	 * @param Key          The key of the definition to resolve.
+	 * @param OnResolved   A required callback invoked when resolving completes or is canceled.
+	 */
+	virtual FRequest ResolveKey(
+		const FBuildKey& Key,
+		FOnBuildKeyResolved&& OnResolved)
+	{
+		OnResolved({Key, {}, EStatus::Error});
+		return FRequest();
+	}
+
+	/**
+	 * Asynchronous request to resolve metadata for the inputs from the definition.
+	 *
+	 * @param Definition   The definition to resolve input metadata for.
+	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param OnResolved   A required callback invoked when resolving completes or is canceled.
+	 */
+	virtual FRequest ResolveInputMeta(
+		const FBuildDefinition& Definition,
+		EPriority Priority,
+		FOnBuildInputMetaResolved&& OnResolved)
+	{
+		OnResolved({{}, EStatus::Error});
+		return FRequest();
+	}
+
+	/**
+	 * Asynchronous request to resolve data for the inputs from the definition.
+	 *
+	 * @param Definition   The definition to resolve input data for.
+	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param OnResolved   A required callback invoked when resolving completes or is canceled.
+	 * @param Filter       An optional predicate to filter which input keys have data resolved.
+	 */
+	virtual FRequest ResolveInputData(
+		const FBuildDefinition& Definition,
+		EPriority Priority,
+		FOnBuildInputDataResolved&& OnResolved,
+		FBuildInputFilter&& Filter = FBuildInputFilter())
+	{
+		OnResolved({{}, EStatus::Error});
+		return FRequest();
+	}
+
+	/**
+	 * Asynchronous request to resolve data for the inputs from the action.
+	 *
+	 * @param Action       The action to resolve input data for.
+	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param OnResolved   A required callback invoked when resolving completes or is canceled.
+	 * @param Filter       An optional predicate to filter which input keys have data resolved.
+	 */
+	virtual FRequest ResolveInputData(
+		const FBuildAction& Action,
+		EPriority Priority,
+		FOnBuildInputDataResolved&& OnResolved,
+		FBuildInputFilter&& Filter = FBuildInputFilter())
+	{
+		OnResolved({{}, EStatus::Error});
+		return FRequest();
+	}
 };
 
 } // UE::DerivedData
