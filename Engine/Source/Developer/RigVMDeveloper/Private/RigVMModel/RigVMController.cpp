@@ -2906,6 +2906,10 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 
 	if (ContainedNodes.Num() == 0)
 	{
+		if (bSetupUndoRedo)
+		{
+			ActionStack->CancelAction(ExpandAction);
+		}
 		return TArray<URigVMNode*>();
 	}
 
