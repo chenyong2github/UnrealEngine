@@ -820,7 +820,7 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	MeshElement.NumInstances = FMath::Max(0, NumInstances);	//->VertexData.Num();
 	MeshElement.MinVertexIndex = 0;
 	MeshElement.MaxVertexIndex = 0;// MeshElement.NumInstances * 4 - 1;
-	MeshElement.PrimitiveUniformBuffer = IsMotionBlurEnabled() ? SceneProxy->GetUniformBuffer() : SceneProxy->GetUniformBufferNoVelocity();
+	MeshElement.PrimitiveUniformBuffer = SceneProxy->GetCustomUniformBuffer(IsMotionBlurEnabled());
 	if (IndirectDraw.IsValid())
 	{
 		MeshElement.IndirectArgsBuffer = IndirectDraw.Buffer;

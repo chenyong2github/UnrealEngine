@@ -191,7 +191,13 @@ void FNiagaraSceneProxy::DestroyRenderState_Concurrent()
 FNiagaraSceneProxy::~FNiagaraSceneProxy()
 {
 	check(IsInRenderingThread());
-	UniformBufferNoVelocity.ReleaseResource();
+
+	for ( auto& CustomUB : CustomUniformBuffers)
+	{
+		CustomUB.Value.ReleaseResource();
+	}
+	CustomUniformBuffers.Empty();
+
 	delete RenderData;
 }
 
@@ -201,7 +207,11 @@ void FNiagaraSceneProxy::ReleaseRenderThreadResources()
 	{
 		RenderData->ReleaseRenderThreadResources();
 	}
-	UniformBufferNoVelocity.ReleaseResource();
+
+	for (auto& CustomUB : CustomUniformBuffers)
+	{
+		CustomUB.Value.ReleaseResource();
+	}
 }
 
 // FPrimitiveSceneProxy interface.
@@ -217,7 +227,11 @@ void FNiagaraSceneProxy::CreateRenderThreadResources()
 void FNiagaraSceneProxy::OnTransformChanged()
 {
 	LocalToWorldInverse = GetLocalToWorld().Inverse();
-	UniformBufferNoVelocity.ReleaseResource();
+
+	for (auto& CustomUB : CustomUniformBuffers)
+	{
+		CustomUB.Value.ReleaseResource();
+	}
 }
 
 FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* View) const
@@ -244,51 +258,68 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 	return Relevance;
 }
 
-FRHIUniformBuffer* FNiagaraSceneProxy::GetUniformBufferNoVelocity() const
+FRHIUniformBuffer* FNiagaraSceneProxy::GetCustomUniformBuffer(bool bHasVelocity, const FBox& PreSkinnedBounds) const
 {
-	if ( !UniformBufferNoVelocity.IsInitialized() )
+	// Default UB we create for the primitive
+	if (bHasVelocity && !PreSkinnedBounds.IsValid)
+	{
+		return GetUniformBuffer();
+	}
+
+	// Custom UB we need to create
+	uint64 KeyHash = HashCombine(bHasVelocity, PreSkinnedBounds.IsValid);
+	if ( PreSkinnedBounds.IsValid )
+	{
+		KeyHash = HashCombine(KeyHash, PreSkinnedBounds.Min.X);
+		KeyHash = HashCombine(KeyHash, PreSkinnedBounds.Min.Y);
+		KeyHash = HashCombine(KeyHash, PreSkinnedBounds.Min.Z);
+		KeyHash = HashCombine(KeyHash, PreSkinnedBounds.Max.X);
+		KeyHash = HashCombine(KeyHash, PreSkinnedBounds.Max.Y);
+		KeyHash = HashCombine(KeyHash, PreSkinnedBounds.Max.Z);
+	}
+
+	TUniformBuffer<FPrimitiveUniformShaderParameters>& CustomUB = CustomUniformBuffers.FindOrAdd(KeyHash);
+	if (!CustomUB.IsInitialized())
 	{
 		bool bHasPrecomputedVolumetricLightmap;
 		FMatrix PreviousLocalToWorld;
 		int32 SingleCaptureIndex;
 		bool bOutputVelocity;
 		FPrimitiveSceneInfo* LocalPrimitiveSceneInfo = GetPrimitiveSceneInfo();
-		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(
-			LocalPrimitiveSceneInfo,
-			bHasPrecomputedVolumetricLightmap,
-			PreviousLocalToWorld,
-			SingleCaptureIndex,
-			bOutputVelocity
-		);
+		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(LocalPrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
-		UniformBufferNoVelocity.SetContents(
-			FPrimitiveUniformShaderParametersBuilder{}
-			.Defaults()
-				.LocalToWorld(GetLocalToWorld())
-				.PreviousLocalToWorld(PreviousLocalToWorld)
-				.ActorWorldPosition(GetActorPosition())
-				.WorldBounds(GetBounds())
-				.LocalBounds(GetLocalBounds())
-				.CustomPrimitiveData(GetCustomPrimitiveData())
-				.LightingChannelMask(GetLightingChannelMask())
-				.LightmapDataIndex(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetLightmapDataOffset() : 0)
-				.LightmapUVIndex(GetLightMapCoordinateIndex())
-				.SingleCaptureIndex(SingleCaptureIndex)
-				.InstanceDataOffset(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE)
-				.NumInstanceDataEntries(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetNumInstanceDataEntries() : 0)
-				.ReceivesDecals(ReceivesDecals())
-				.DrawsVelocity(DrawsVelocity())
-				.OutputVelocity(bOutputVelocity)
-				.CastContactShadow(CastsContactShadow())
-				.CastShadow(CastsDynamicShadow())
-				.HasCapsuleRepresentation(HasDynamicIndirectShadowCasterRepresentation())
-				.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
-				.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights())
-			.Build()
-		);
-		UniformBufferNoVelocity.InitResource();
+		FPrimitiveUniformShaderParametersBuilder UBBuilder;
+		UBBuilder.Defaults();
+		UBBuilder.LocalToWorld(GetLocalToWorld());
+		UBBuilder.PreviousLocalToWorld(PreviousLocalToWorld);
+		UBBuilder.ActorWorldPosition(GetActorPosition());
+		UBBuilder.WorldBounds(GetBounds());
+		UBBuilder.LocalBounds(GetLocalBounds());
+		UBBuilder.CustomPrimitiveData(GetCustomPrimitiveData());
+		UBBuilder.LightingChannelMask(GetLightingChannelMask());
+		UBBuilder.LightmapDataIndex(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetLightmapDataOffset() : 0);
+		UBBuilder.LightmapUVIndex(GetLightMapCoordinateIndex());
+		UBBuilder.SingleCaptureIndex(SingleCaptureIndex);
+		UBBuilder.InstanceDataOffset(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE);
+		UBBuilder.NumInstanceDataEntries(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetNumInstanceDataEntries() : 0);
+		UBBuilder.ReceivesDecals(ReceivesDecals());
+		UBBuilder.DrawsVelocity(DrawsVelocity());
+		UBBuilder.OutputVelocity(bOutputVelocity);
+		UBBuilder.CastContactShadow(CastsContactShadow());
+		UBBuilder.CastShadow(CastsDynamicShadow());
+		UBBuilder.HasCapsuleRepresentation(HasDynamicIndirectShadowCasterRepresentation());
+		UBBuilder.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap);
+		UBBuilder.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights());
+		if ( PreSkinnedBounds.IsValid )
+		{
+			UBBuilder.PreSkinnedLocalBounds(PreSkinnedBounds);
+		}
+
+		CustomUB.SetContents(UBBuilder.Build());
+		CustomUB.InitResource();
 	}
-	return UniformBufferNoVelocity.GetUniformBufferRHI();
+
+	return CustomUB.GetUniformBufferRHI();
 }
 
 uint32 FNiagaraSceneProxy::GetMemoryFootprint() const
