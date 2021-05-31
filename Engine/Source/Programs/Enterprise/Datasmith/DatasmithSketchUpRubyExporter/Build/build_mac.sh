@@ -29,12 +29,13 @@ BuildSketchUpPlugin() {
     SUSDKVERSION=${2}
 
     # Compile plugin bundle
-    BuildDir="$PluginSrcPath/.build/$SUVERSION"
+    # BuildDir="$PluginSrcPath/.build/$SUVERSION"
+    BuildDir="$EnginePath/Binaries/Mac/SketchUp/$SUVERSION"
     rm -rf "$BuildDir"
     mkdir -p "$BuildDir"
     #DEBUG_BUILD_SCRIPT="--no-compile --verbose"
     DEBUG_BUILD_SCRIPT="--verbose"
-    python3 build_mac.py --multithread --sdks-root="$UE_SDKS_ROOT" --sketchup-version=$SUVERSION --sketchup-sdk-version=$SUSDKVERSION --output-path="$BuildDir" --datasmithsdk-lib="$Dylibs/DatasmithSDK.dylib" $DEBUG_BUILD_SCRIPT
+    python3 "$PluginSrcPath/Build/build_mac.py" --multithread --sdks-root="$UE_SDKS_ROOT" --sketchup-version=$SUVERSION --sketchup-sdk-version=$SUSDKVERSION --output-path="$BuildDir" --datasmithsdk-lib="$Dylibs/DatasmithSDK.dylib" $DEBUG_BUILD_SCRIPT
 
     # Copy plugin files as they should b ein the plugin folder:
     # ruby code
@@ -43,6 +44,9 @@ BuildSketchUpPlugin() {
     cp -r "$Dylibs" "$BuildDir/Plugin/UnrealDatasmithSketchUp"
     # plugin bundle
     cp "$BuildDir/bin/DatasmithSketchUp.bundle" "$BuildDir/Plugin/UnrealDatasmithSketchUp"
+
+    #version file
+    python3 "$PluginSrcPath/Build/create_version_file.py" "$EnginePath" "$BuildDir/Plugin/UnrealDatasmithSketchUp/version"
 }
 
 BuildSketchUpPlugin 2019 SDK_Mac_2019-3-252
