@@ -98,6 +98,18 @@ namespace UnrealGameSync
 			return Path.Combine(ToolsDir, ToolName, "Current");
 		}
 
+		public string GetToolName(Guid ToolId)
+		{
+			foreach (ToolDefinition Tool in Tools)
+			{
+				if(Tool.Id == ToolId)
+				{
+					return Tool.Name;
+				}
+			}
+			return null;
+		}
+
 		public string GetToolPath(string ToolName)
 		{
 			if (GetToolChange(ToolName) != 0)

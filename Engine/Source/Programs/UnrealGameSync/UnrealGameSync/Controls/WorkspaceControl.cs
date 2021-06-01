@@ -5076,10 +5076,10 @@ namespace UnrealGameSync
 					List<BuildStep> UserSteps = GetUserBuildSteps(ProjectBuildStepObjects);
 					foreach (BuildStep Step in UserSteps)
 					{
-						if (Step.bShowAsTool)
+						if (Step.bShowAsTool && (Step.ToolId == Guid.Empty || Settings.EnabledTools.Contains(Step.ToolId)))
 						{
 							ToolStripMenuItem NewMenuItem = new ToolStripMenuItem(Step.Description.Replace("&", "&&"));
-							NewMenuItem.Click += new EventHandler((sender, e) => { RunCustomTool(Step.UniqueId); });
+							NewMenuItem.Click += new EventHandler((sender, e) => { RunCustomTool(Step); });
 							CustomToolMenuItems.Add(NewMenuItem);
 							MoreToolsContextMenu.Items.Insert(InsertIdx++, NewMenuItem);
 						}
@@ -5091,7 +5091,7 @@ namespace UnrealGameSync
 			MoreActionsContextMenu_CustomToolSeparator.Visible = (CustomToolMenuItems.Count > 0);
 		}
 
-		private void RunCustomTool(Guid UniqueId)
+		private void RunCustomTool(BuildStep Step)
 		{
 			if (Workspace != null)
 			{
@@ -5101,7 +5101,17 @@ namespace UnrealGameSync
 				}
 				else
 				{
-					WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, null, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, new HashSet<Guid> { UniqueId }, GetWorkspaceVariables(Workspace.CurrentChangeNumber));
+					Dictionary<string, string> Variables = GetWorkspaceVariables(Workspace.CurrentChangeNumber);
+					if (Step.ToolId != Guid.Empty)
+					{
+						string ToolName = Owner.ToolUpdateMonitor.GetToolName(Step.ToolId);
+						if (ToolName != null)
+						{
+							Variables["ToolDir"] = Owner.ToolUpdateMonitor.GetToolPath(ToolName);
+						}
+					}
+
+					WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, null, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, new HashSet<Guid> { Step.UniqueId }, Variables);
 					StartWorkspaceUpdate(Context, null);
 				}
 			}
