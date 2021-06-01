@@ -1780,13 +1780,10 @@ FRDGPass* FRDGBuilder::SetupPass(FRDGPass* Pass)
 		Buffer->bProduced |= bWritableAccess;
 	});
 
+	Pass->UniformBuffers.Reserve(PassParameters.GetUniformBufferParameterCount());
 	PassParameters.EnumerateUniformBuffers([&](FRDGUniformBufferBinding UniformBuffer)
 	{
-		if (!UniformBuffer->bQueuedForCreate)
-		{
-			UniformBuffersToCreate.Emplace(UniformBuffer->Handle);
-			UniformBuffer->bQueuedForCreate = true;
-		}
+		Pass->UniformBuffers.Emplace(UniformBuffer.GetUniformBuffer()->Handle);
 	});
 
 	Pass->bRenderPassOnlyWrites = bRenderPassOnlyWrites;
@@ -2108,6 +2105,15 @@ void FRDGBuilder::BeginResourcesRHI(FRDGPass* ResourcePass, FRDGPassHandle Execu
 		for (const auto& PassState : PassToBegin->BufferStates)
 		{
 			BeginResourceRHI(ExecutePassHandle, PassState.Buffer);
+		}
+
+		for (FRDGUniformBufferHandle UniformBufferHandle : PassToBegin->UniformBuffers)
+		{
+			if (FRDGUniformBuffer* UniformBuffer = UniformBuffers[UniformBufferHandle]; !UniformBuffer->bQueuedForCreate)
+			{
+				UniformBuffer->bQueuedForCreate = true;
+				UniformBuffersToCreate.Add(UniformBufferHandle);
+			}
 		}
 
 		for (FRDGViewHandle ViewHandle : PassToBegin->Views)
