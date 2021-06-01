@@ -1,4 +1,6 @@
-﻿extern alias HordeAgent;
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+extern alias HordeAgent;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
