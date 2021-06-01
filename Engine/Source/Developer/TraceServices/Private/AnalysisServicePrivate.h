@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "AnalysisCache.h"
 #include "TraceServices/AnalysisService.h"
-#include "Async/AsyncWork.h"
 #include "Containers/HashTable.h"
 #include "Misc/ScopeLock.h"
 #include "Common/StringStore.h"
@@ -49,6 +49,8 @@ public:
 	virtual const TCHAR* StoreString(const TCHAR* String) override { return StringStore.Store(String); }
 	virtual const TCHAR* StoreString(const FStringView& String) override { return StringStore.Store(String); }
 
+	virtual IAnalysisCache& GetCache() override { return Cache; }
+
 	virtual void BeginRead() const override { Lock.BeginRead(); }
 	virtual void EndRead() const override { Lock.EndRead(); }
 
@@ -73,6 +75,7 @@ private:
 	double DurationSeconds = 0.0;
 	FSlabAllocator Allocator;
 	FStringStore StringStore;
+	FAnalysisCache Cache;
 	TArray<UE::Trace::IAnalyzer*> Analyzers;
 	TArray<IProvider*> Providers;
 	TMap<FName, IProvider*> ProvidersMap;

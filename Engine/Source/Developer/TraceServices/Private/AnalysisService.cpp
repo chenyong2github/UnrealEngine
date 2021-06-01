@@ -84,6 +84,7 @@ FAnalysisSession::FAnalysisSession(const TCHAR* SessionName, TUniquePtr<UE::Trac
 	, DurationSeconds(0.0)
 	, Allocator(32 << 20)
 	, StringStore(Allocator)
+	, Cache(*Name)
 	, DataStream(MoveTemp(InDataStream))
 {
 }
