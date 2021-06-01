@@ -19,7 +19,7 @@ class FMallocMimalloc final
 {
 public:
 	// FMalloc interface.
-	
+	FMallocMimalloc();
 	virtual void* Malloc(SIZE_T Size, uint32 Alignment) override;
 	virtual void* TryMalloc(SIZE_T Size, uint32 Alignment) override;
 	virtual void* Realloc(void* Ptr, SIZE_T NewSize, uint32 Alignment) override;

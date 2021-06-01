@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	MallocTTB.cpp: IntelTTB Malloc
+	MallocMimalloc.cpp: MiMalloc
 =============================================================================*/
 
 #include "HAL/MallocMimalloc.h"
@@ -21,9 +21,9 @@ THIRD_PARTY_INCLUDES_START
 #include <mimalloc.h>
 THIRD_PARTY_INCLUDES_END
 
-/**
-* Bump after updating mimalloc-static.lib to force-compile Core: 0AEBC50F
-*/
+FMallocMimalloc::FMallocMimalloc()
+{
+}
 
 void* FMallocMimalloc::TryMalloc( SIZE_T Size, uint32 Alignment )
 {
@@ -100,10 +100,9 @@ void* FMallocMimalloc::TryRealloc(void* Ptr, SIZE_T NewSize, uint32 Alignment)
 	}
 
 #if PLATFORM_MAC
-#error TODO
-	// macOS expects all allocations to be aligned to 16 bytes, but TBBs default alignment is 8, so on Mac we always have to use scalable_aligned_realloc
+	// macOS expects all allocations to be aligned to 16 bytes, so on Mac we always have to use mi_realloc_aligned
 	Alignment = AlignArbitrary(FMath::Max((uint32)16, Alignment), (uint32)16);
-	NewPtr	= scalable_aligned_realloc(Ptr, NewSize, Alignment);
+	NewPtr	= mi_realloc_aligned(Ptr, NewSize, Alignment);
 #else
 	if (Alignment != DEFAULT_ALIGNMENT)
 	{
@@ -159,5 +158,8 @@ void FMallocMimalloc::Trim(bool bTrimThreadCaches)
 {
 	mi_collect(bTrimThreadCaches);
 }
+
+#undef DEBUG_FILL_FREED
+#undef DEBUG_FILL_NEW
 
 #endif

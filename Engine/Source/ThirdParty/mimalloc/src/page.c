@@ -631,7 +631,9 @@ static void mi_page_init(mi_heap_t* heap, mi_page_t* page, size_t block_size, mi
   mi_assert_internal(page_size <= page->slice_count*MI_SEGMENT_SLICE_SIZE);
   mi_assert_internal(page_size / block_size < (1L<<16));
   page->reserved = (uint16_t)(page_size / block_size);
-  #ifdef MI_ENCODE_FREELIST
+  // BEGIN EPIC MOD - Check for MI_ENCODE_FREELIST definition before using it
+  #if (defined(MI_ENCODE_FREELIST) && MI_ENCODE_FREELIST)
+  // END EPIC MOD
   page->keys[0] = _mi_heap_random_next(heap);
   page->keys[1] = _mi_heap_random_next(heap);
   #endif
@@ -647,7 +649,9 @@ static void mi_page_init(mi_heap_t* heap, mi_page_t* page, size_t block_size, mi
   mi_assert_internal(page->prev == NULL);
   mi_assert_internal(page->retire_expire == 0);
   mi_assert_internal(!mi_page_has_aligned(page));
-  #if (MI_ENCODE_FREELIST)
+  // BEGIN EPIC MOD - Check for MI_ENCODE_FREELIST definition before using it
+  #if (defined(MI_ENCODE_FREELIST) && MI_ENCODE_FREELIST)
+  // END EPIC MOD
   mi_assert_internal(page->keys[0] != 0);
   mi_assert_internal(page->keys[1] != 0);
   #endif

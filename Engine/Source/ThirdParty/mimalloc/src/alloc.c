@@ -165,7 +165,9 @@ mi_decl_restrict void* mi_zalloc(size_t size) mi_attr_noexcept {
 // This is somewhat expensive so only enabled for secure mode 4
 // ------------------------------------------------------
 
-#if (MI_ENCODE_FREELIST && (MI_SECURE>=4 || MI_DEBUG!=0))
+// BEGIN EPIC MOD - Check for MI_ENCODE_FREELIST definition before using it
+#if (defined(MI_ENCODE_FREELIST) && MI_ENCODE_FREELIST && (MI_SECURE>=4 || MI_DEBUG!=0))
+// END EPIC MOD
 // linear check if the free list contains a specific element
 static bool mi_list_contains(const mi_page_t* page, const mi_block_t* list, const mi_block_t* elem) {
   while (list != NULL) {

@@ -15,6 +15,7 @@
 #include "Containers/UnrealString.h"
 #include "Logging/LogMacros.h"
 #include "HAL/MallocAnsi.h"
+#include "HAL/MallocMimalloc.h"
 #include "HAL/MallocJemalloc.h"
 #include "HAL/MallocBinned.h"
 #include "HAL/MallocBinned2.h"
@@ -174,6 +175,14 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 					break;
 				}
 
+#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+				if (FCStringAnsi::Stricmp(Arg, "-mimalloc"))
+				{
+					AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
+					break;
+				}
+#endif
+
 				if (FCStringAnsi::Stricmp(Arg, "-binnedmalloc2") == 0)
 				{
 					AllocatorToUse = EMemoryAllocatorToUse::Binned2;
@@ -285,6 +294,12 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 		Allocator = new FMallocJemalloc();
 		break;
 #endif // PLATFORM_SUPPORTS_JEMALLOC
+
+#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+	case EMemoryAllocatorToUse::Mimalloc:
+		Allocator = new FMallocMimalloc();
+		break;
+#endif
 
 	case EMemoryAllocatorToUse::Binned2:
 		Allocator = new FMallocBinned2();
