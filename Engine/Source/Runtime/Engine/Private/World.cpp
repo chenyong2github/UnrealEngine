@@ -2728,7 +2728,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 				Level->ClearActorsSeamlessTraveledFlag();
 			}
 
-			const float PreventNextStepTimeLimit = 0.0; // We will always run route actor initialize in its own frame if we are using a time limit
+			const float PreventNextStepTimeLimit = GLevelStreamingForceRouteActorInitializeNextFrame ? 0.0f : TimeLimit;
 			bExecuteNextStep = (!bConsiderTimeLimit || !IsTimeLimitExceeded( TEXT("initializing network actors"), StartTime, Level, PreventNextStepTimeLimit ));
 		}
 

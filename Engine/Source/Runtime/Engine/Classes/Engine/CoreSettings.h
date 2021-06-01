@@ -146,7 +146,8 @@ extern ENGINE_API int32 GLevelStreamingAllowLevelRequestsWhileAsyncLoadingInMatc
 extern ENGINE_API int32 GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch;
 /** Whether to force a verification of objects residing in a GC'ed level package (ignored in shipping builds). */
 extern ENGINE_API int32 GLevelStreamingForceVerifyLevelsGotRemovedByGC;
-
+/** Whether to force routing actor initialize phase in its own frame. */
+extern ENGINE_API int32 GLevelStreamingForceRouteActorInitializeNextFrame;
 
 /**
 * Implements the settings for garbage collection.
