@@ -183,18 +183,19 @@ TAutoConsoleVariable<int32> CVarPathTracingLightGridVisualize(
 	0,
 	TEXT("Enables a visualization mode of the light grid density where red indicates the maximum light count has been reached (default = 0)\n")
 	TEXT("0: off (default)\n")
-	TEXT("1: light count heatmap (red - close to overflow, increase r.PathTracing.LightGridMaxCount)")
-	TEXT("2: unique light lists (colors are a function of which lights occupy each cell)")
-	TEXT("3: area light visualization (green: point light sources only, blue: some area light sources)"),
+	TEXT("1: light count heatmap (red - close to overflow, increase r.PathTracing.LightGridMaxCount)\n")
+	TEXT("2: unique light lists (colors are a function of which lights occupy each cell)\n")
+	TEXT("3: area light visualization (green: point light sources only, blue: some area light sources)\n"),
 	ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarPathTracingDenoiser(
 	TEXT("r.PathTracing.Denoiser"),
-	0,
-	TEXT("Enable denoising of the path traced output (default = 0)\n")
-	TEXT("0: off (default)")
-	TEXT("1: enabled (if a denoiser plugin is active)"),
+	-1,
+	TEXT("Enable denoising of the path traced output (if a denoiser plugin is active) (default = -1 (driven by postprocesing volume))\n")
+	TEXT("-1: inherit from PostProcessVolume\n")
+	TEXT("0: disable denoiser\n")
+	TEXT("1: enable denoiser (if a denoiser plugin is active)\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -228,6 +229,7 @@ struct FPathTracingConfig
 	bool VisibleLights;
 	bool UseMISCompensation;
 	bool LockedSamplingPattern;
+	int DenoiserMode; // NOTE: does not require path tracing invalidation
 
 	bool IsDifferent(const FPathTracingConfig& Other) const
 	{
@@ -1393,9 +1395,12 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	}
 
 	FRDGTexture* DenoisedRadianceTexture = nullptr;
-	const int DenoiserMode = CVarPathTracingDenoiser.GetValueOnRenderThread();
+	int DenoiserMode = CVarPathTracingDenoiser.GetValueOnRenderThread();
+	if (DenoiserMode < 0)
+	{
+		DenoiserMode = View.FinalPostProcessSettings.PathTracingEnableDenoiser;
+	}
 	const bool IsDenoiserEnabled = DenoiserMode != 0 && GPathTracingDenoiserFunc != nullptr;
-	static int PrevDenoiserMode = DenoiserMode;
 	if (IsDenoiserEnabled)
 	{
 		// request denoise if this is the last sample
@@ -1404,7 +1409,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		if (!bNeedsMoreRays)
 		{
 			// we aren't currently rendering, run the denoiser if we just turned it on
-			NeedsDenoise |= DenoiserMode != PrevDenoiserMode;
+			NeedsDenoise |= DenoiserMode != View.ViewState->PathTracingLastConfig->DenoiserMode;
 		}
 
 		if (View.ViewState->PathTracingRadianceDenoisedRT)
@@ -1445,7 +1450,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			GraphBuilder.QueueTextureExtraction(DenoisedRadianceTexture, &View.ViewState->PathTracingRadianceDenoisedRT);
 		}
 	}
-	PrevDenoiserMode = DenoiserMode;
+	View.ViewState->PathTracingLastConfig->DenoiserMode = DenoiserMode;
 
 	// now add a pixel shader pass to display our Radiance buffer
 
