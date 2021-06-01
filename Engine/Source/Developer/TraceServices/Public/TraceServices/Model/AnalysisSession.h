@@ -19,7 +19,8 @@ namespace TraceServices
 {
 
 class ILinearAllocator;
-
+class IAnalysisCache;
+	
 class IProvider
 {
 public:
@@ -49,6 +50,8 @@ public:
 	virtual ILinearAllocator& GetLinearAllocator() = 0;
 	virtual const TCHAR* StoreString(const TCHAR* String) = 0;
 	virtual const TCHAR* StoreString(const FStringView& String) = 0;
+
+	virtual IAnalysisCache& GetCache() = 0;
 	
 	virtual void AddAnalyzer(UE::Trace::IAnalyzer* Analyzer) = 0;
 

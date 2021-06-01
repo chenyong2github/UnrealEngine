@@ -8,6 +8,7 @@
 #include "Delegates/Delegate.h"
 #include "Trace/DataStream.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/AnalysisCache.h"
 #include "TraceServices/Model/Log.h"
 #include "TraceServices/Model/Bookmarks.h"
 #include "TraceServices/Model/Frames.h"
