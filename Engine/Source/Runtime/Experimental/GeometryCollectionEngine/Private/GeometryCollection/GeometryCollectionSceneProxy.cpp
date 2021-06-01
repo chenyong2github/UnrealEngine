@@ -92,6 +92,7 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 	, bShowBoneColors(Component->GetShowBoneColors())
 	, bEnableBoneSelection(Component->GetEnableBoneSelection())
 	, BoneSelectionMaterialID(Component->GetBoneSelectedMaterialID())
+	, bUseFullPrecisionUVs(Component->GetRestCollection()->bUseFullPrecisionUVs)
 	, TransformVertexBuffersContainsOriginalMesh(false)
 {
 	Materials.Empty();
@@ -214,6 +215,8 @@ void FGeometryCollectionSceneProxy::InitResources()
 
 	// get vertex factory data
 	FGeometryCollectionVertexFactory::FDataType Data;
+
+	VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(bUseFullPrecisionUVs);
 	
 	// Init buffers
 	VertexBuffers.PositionVertexBuffer.Init(NumVertices);

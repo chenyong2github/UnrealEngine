@@ -263,6 +263,8 @@ class FGeometryCollectionSceneProxy final : public FPrimitiveSceneProxy
 	bool bEnableBoneSelection;
 	int BoneSelectionMaterialID;
 
+	bool bUseFullPrecisionUVs = false;
+
 	bool TransformVertexBuffersContainsOriginalMesh;
 
 public:

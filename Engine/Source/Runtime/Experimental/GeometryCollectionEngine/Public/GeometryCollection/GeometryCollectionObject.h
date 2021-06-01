@@ -415,12 +415,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = "EmbeddedGeometry")
 	TArray<FGeometryCollectionEmbeddedExemplar> EmbeddedGeometryExemplar;
 
+	/** Whether to use full precision UVs when rendering this geometry. (Does not apply to Nanite rendering) */
+	UPROPERTY(EditAnywhere, Category = "Rendering")
+	bool bUseFullPrecisionUVs = false;
+
 	/**
-	* Enable support for Nanite.
-	*/
+	 * Strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Nanite")
 	bool bStripOnCook;
 
+	/**
+	 * Enable support for Nanite.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Nanite")
 	bool EnableNanite;
 
