@@ -20,7 +20,8 @@ void StampDeferredDebugProbeDepthPS(
 void StampDeferredDebugProbeMaterialPS(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	const FRenderTargetBindingSlots& BasePassRenderTargets);
+	const FRenderTargetBindingSlots& BasePassRenderTargets,
+	const FMinimalSceneTextures& SceneTextures);
 
 
 void StampDeferredDebugProbeVelocityPS(

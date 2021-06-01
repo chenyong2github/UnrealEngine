@@ -913,7 +913,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 #if !(UE_BUILD_SHIPPING)
 	if (!bForwardShadingEnabled)
 	{
-		StampDeferredDebugProbeMaterialPS(GraphBuilder, Views, BasePassRenderTargets);
+		StampDeferredDebugProbeMaterialPS(GraphBuilder, Views, BasePassRenderTargets, SceneTextures);
 	}
 #endif
 }

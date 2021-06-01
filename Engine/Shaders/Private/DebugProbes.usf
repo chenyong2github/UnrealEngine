@@ -4,6 +4,7 @@
 #include "VelocityCommon.ush"
 
 #if PROJECT_STRATA
+#include "SceneTexturesCommon.ush"
 #include "Strata/Strata.ush"
 RWByteAddressBuffer MaterialLobesBufferUAV;
 uint MaxBytesPerPixel;
@@ -233,45 +234,53 @@ void MainPS(
 
 #if PROJECT_STRATA
 
-	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+	// EarlyDepthStencil does not work because we render a simple quad on screen with custom OutDepth.
+	// We cannot rely on late depth test because pixel shader would have already operated the write to strata buffer.
+	// So we must execute a manual depth test in shader (fine because basepass does not write depth)
+	float2 UvBuffer = SvPosition.xy * View.BufferSizeAndInvSize.zw;	// Uv for depth buffer read (size can be larger than viewport)
+	const float DepthBufferDeviceZ = LookupDeviceZ(UvBuffer);
+	if (DepthBufferDeviceZ < (DeviceZ+0.000001))
+	{
+		FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
 
-	uint SharedLocalBasisIndex = 0;
-	StrataPixelHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = normalize(Normal);
-	StrataPixelHeader.SharedLocalBases.Count = 1;
+		uint SharedLocalBasisIndex = 0;
+		StrataPixelHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = normalize(Normal);
+		StrataPixelHeader.SharedLocalBases.Count = 1;
 
-	FStrataData StrataData = GetStrataSlabBSDF(
-		/*float UseMetalness					*/true,
-		/*float3 BaseColor						*/BaseColor, 
-		/*float3 EdgeColor						*/1.0f, 
-		/*float Specular						*/Specular, 
-		/*float Metallic						*/Metallic,
-		/*float3 DiffuseAlbedo					*/0.0f, 
-		/*float3 F0								*/0.0f, 
-		/*float3 F90							*/0.0f,
-		/*float Roughness						*/Roughness, 
-		/*float Anisotropy						*/0.0f,
-		/*float SSSProfileID					*/0.0f, 
-		/*float3 SSSDMFP						*/0.0f, 
-		/*float SSSDMFPScale					*/0.0f,
-		/*float3 Emissive						*/0.0f, 
-		/*float Haziness						*/0.0f, 
-		/*float ThinFilmThickness				*/0.0f,
-		/*float FuzzAmount						*/0.0f, 
-		/*float3 FuzzColor						*/0.0f,
-		/*float Thickness						*/0.0f, 
-		/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,
-		/*inout uint SharedLocalBasisTypes		*/StrataPixelHeader.SharedLocalBases.Types);
+		FStrataData StrataData = GetStrataSlabBSDF(
+			/*float UseMetalness					*/true,
+			/*float3 BaseColor						*/BaseColor,
+			/*float3 EdgeColor						*/1.0f,
+			/*float Specular						*/Specular,
+			/*float Metallic						*/Metallic,
+			/*float3 DiffuseAlbedo					*/0.0f,
+			/*float3 F0								*/0.0f,
+			/*float3 F90							*/0.0f,
+			/*float Roughness						*/Roughness,
+			/*float Anisotropy						*/0.0f,
+			/*float SSSProfileID					*/0.0f,
+			/*float3 SSSDMFP						*/0.0f,
+			/*float SSSDMFPScale					*/0.0f,
+			/*float3 Emissive						*/0.0f,
+			/*float Haziness						*/0.0f,
+			/*float ThinFilmThickness				*/0.0f,
+			/*float FuzzAmount						*/0.0f,
+			/*float3 FuzzColor						*/0.0f,
+			/*float Thickness						*/0.0f,
+			/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,
+			/*inout uint SharedLocalBasisTypes		*/StrataPixelHeader.SharedLocalBases.Types);
 
-	StrataPixelHeader.MaterialAO = 1.0f - IndirectIrradianceAndAO; 
-	StrataPixelHeader.BSDFCount = 1;
+		StrataPixelHeader.MaterialAO = 1.0f - IndirectIrradianceAndAO;
+		StrataPixelHeader.BSDFCount = 1;
 
-	float3 EmissiveLuminance = 0.0f;
-	bool bStrataSubsurfaceEnable = false; 
-	const float Dither = 0.0f;
-	PackStrataOut(
-		MaterialLobesBufferUAV, Dither,
-		GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel),
-		StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance);
+		float3 EmissiveLuminance = 0.0f;
+		bool bStrataSubsurfaceEnable = false;
+		const float Dither = 0.0f;
+		PackStrataOut(
+			MaterialLobesBufferUAV, Dither,
+			GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel),
+			StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance);
+	}
 	
 #else // PROJECT_STRATA
 
@@ -297,6 +306,11 @@ void MainPS(
 
 #endif // PERMUTATION_PASS
 
+
+
+#if PERMUTATION_PASS == RENDER_VELOCITYPASS || PERMUTATION_PASS == RENDER_DEPTHPREPASS || (PERMUTATION_PASS == RENDER_BASEPASS && PROJECT_STRATA == 0)
+	// Base pass with strata cannot write to depth because it is going to execute in shader depth testing
 	OutDepth = DeviceZ;
+#endif
 
 }

@@ -4,6 +4,8 @@
 #include "PixelShaderUtils.h"
 #include "ShaderParameterStruct.h"
 #include "SceneRendering.h"
+#include "SceneTextures.h"
+#include "SceneTextureParameters.h"
 #include "Strata/Strata.h"
 
 
@@ -41,6 +43,7 @@ class FStampDeferredDebugProbePS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, MaterialLobesBufferUAV)
 		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER(int32, DebugProbesMode)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -65,7 +68,7 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FStampDeferredDebugProbePS, "/Engine/Private/DebugProbes.usf", "MainPS", SF_Pixel);
 
  
-template<bool bEnableDepthWrite>
+template<bool bEnableDepthWrite, ECompareFunction CompareFunction>
 static void CommonStampDeferredDebugProbeDrawCall(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
@@ -86,7 +89,7 @@ static void CommonStampDeferredDebugProbeDrawCall(
 		PixelShader, PassParameters, View.ViewRect,
 		TStaticBlendState<>::GetRHI(),
 		TStaticRasterizerState<FM_Solid, CM_None>::GetRHI(),
-		TStaticDepthStencilState<bEnableDepthWrite, CF_DepthNearOrEqual>::GetRHI());
+		TStaticDepthStencilState<bEnableDepthWrite, CompareFunction>::GetRHI());
 }
 
 void StampDeferredDebugProbeDepthPS(
@@ -108,14 +111,15 @@ void StampDeferredDebugProbeDepthPS(
 		FStampDeferredDebugProbePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStampDeferredDebugProbePS::FParameters>();
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
-		CommonStampDeferredDebugProbeDrawCall<true>(GraphBuilder, View, PassParameters, RENDER_DEPTHPREPASS);
+		CommonStampDeferredDebugProbeDrawCall<true, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_DEPTHPREPASS);
 	}
 }
 
 void StampDeferredDebugProbeMaterialPS(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	const FRenderTargetBindingSlots& BasePassRenderTargets)
+	const FRenderTargetBindingSlots& BasePassRenderTargets,
+	const FMinimalSceneTextures& SceneTextures)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "StampDeferredDebugProbeMaterial");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, StampDeferredDebugProbe);
@@ -130,8 +134,19 @@ void StampDeferredDebugProbeMaterialPS(
 
 		FStampDeferredDebugProbePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStampDeferredDebugProbePS::FParameters>();
 		PassParameters->RenderTargets = BasePassRenderTargets;
+		if (Strata::IsStrataEnabled())
+		{
+			// Make sure we do not write depth so that we can safely read it from texture parameters
+			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding();
+			PassParameters->SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, View.GetFeatureLevel(), ESceneTextureSetupMode::SceneDepth);
 
-		CommonStampDeferredDebugProbeDrawCall<false>(GraphBuilder, View, PassParameters, RENDER_BASEPASS);
+			CommonStampDeferredDebugProbeDrawCall<false, CF_Always>(GraphBuilder, View, PassParameters, RENDER_BASEPASS);
+		}
+		else
+		{
+			CommonStampDeferredDebugProbeDrawCall<false, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_BASEPASS);
+		}
+
 	}
 }
 
@@ -155,7 +170,7 @@ void StampDeferredDebugProbeVelocityPS(
 		PassParameters->RenderTargets = BasePassRenderTargets;
 
 		const bool bRenderVelocity = true;
-		CommonStampDeferredDebugProbeDrawCall<false>(GraphBuilder, View, PassParameters, RENDER_VELOCITYPASS);
+		CommonStampDeferredDebugProbeDrawCall<false, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_VELOCITYPASS);
 	}
 }
 
