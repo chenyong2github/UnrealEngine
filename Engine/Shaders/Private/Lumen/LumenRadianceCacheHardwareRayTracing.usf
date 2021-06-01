@@ -114,6 +114,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 #endif // LUMEN_HARDWARE_RAYTRACING
 
 Texture2D<float4> RadianceAndHitDistanceTexture;
+uint2 RadianceAndHitDistanceTextureSize;
 
 
 [numthreads(RADIANCE_CACHE_TRACE_TILE_SIZE_2D, RADIANCE_CACHE_TRACE_TILE_SIZE_2D, 1)]
@@ -152,6 +153,12 @@ void SplatRadianceCacheIntoAtlasCS(
 		float4 Data = RadianceAndHitDistanceTexture[RadianceAndHitDistanceTextureIndex];
 		float3 Lighting = Data.rgb;
 
+		if (any(RadianceAndHitDistanceTextureIndex >= RadianceAndHitDistanceTextureSize))
+		{
+			// Visual assert on overflow due to r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor
+			Lighting = float3(0, 10000, 0) * View.PreExposure;
+		}
+
 		for (uint Y = 0; Y < UpsampleFactor; Y++)
 		for (uint X = 0; X < UpsampleFactor; X++)
 		{
@@ -182,6 +189,12 @@ void SplatRadianceCacheIntoAtlasCS(
 			{
 				uint2 RadianceAndHitDistanceTextureIndex = WrappedTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.xy * DownsampleFactor + uint2(X, Y);
 				Lighting += RadianceAndHitDistanceTexture[RadianceAndHitDistanceTextureIndex].rgb;
+
+				if (any(RadianceAndHitDistanceTextureIndex >= RadianceAndHitDistanceTextureSize))
+				{
+					// Visual assert on overflow due to r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor
+					Lighting += float3(0, 10000, 0) * View.PreExposure;
+				}
 			}
 
 			ProbeAtlasBaseCoord += WriteTileSize * TraceTileCoord + GroupThreadId.xy;
