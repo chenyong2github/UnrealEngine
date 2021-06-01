@@ -63,7 +63,8 @@ public class Core : ModuleRules
 				"IntelVTune"
 				);
 
-			PrivateDependencyModuleNames.Add("mimalloc");
+			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc//include"));
+			PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");
 
 			if (Target.WindowsPlatform.bUseBundledDbgHelp)
 			{
@@ -102,7 +103,10 @@ public class Core : ModuleRules
 				"rd_route"
 				);
 			PublicFrameworks.AddRange(new string[] { "Cocoa", "Carbon", "IOKit", "Security" });
-			
+
+			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc//include"));
+			PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");
+
 			if (Target.bBuildEditor == true)
 			{
 				string SDKROOT = Utils.RunLocalProcessAndReturnStdOut("/usr/bin/xcrun", "--sdk macosx --show-sdk-path");
@@ -151,6 +155,9 @@ public class Core : ModuleRules
 
 			// Core uses dlopen()
 			PublicSystemLibraries.Add("dl");
+
+			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc//include"));
+			PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");
 		}
 
 		if (Target.bCompileICU == true)

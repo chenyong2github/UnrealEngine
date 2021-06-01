@@ -8,6 +8,7 @@
 #include "HAL/PlatformMemory.h"
 #include "HAL/MallocTBB.h"
 #include "HAL/MallocAnsi.h"
+#include "HAL/MallocMimalloc.h"
 #include "HAL/MallocBinned.h"
 #include "HAL/MallocBinned2.h"
 #include "HAL/MallocStomp.h"
@@ -69,19 +70,6 @@ FMalloc* FMacPlatformMemory::BaseAllocator()
 #endif // UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 #endif // PLATFORM_MAC_X86
 
-	bool bIsMavericks = false;
-
-	char OSRelease[PATH_MAX] = {};
-	size_t OSReleaseBufferSize = PATH_MAX;
-	if (sysctlbyname("kern.osrelease", OSRelease, &OSReleaseBufferSize, NULL, 0) == 0)
-	{
-		int32 OSVersionMajor = 0;
-		if (sscanf(OSRelease, "%d", &OSVersionMajor) == 1)
-		{
-			bIsMavericks = OSVersionMajor <= 13;
-		}
-	}
-
 	if (FORCE_ANSI_ALLOCATOR || IS_PROGRAM)
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
@@ -99,33 +87,41 @@ FMalloc* FMacPlatformMemory::BaseAllocator()
 		AllocatorToUse = EMemoryAllocatorToUse::Binned;
 	}
 
-	// Force ansi malloc in some cases
-	if(getenv("UE4_FORCE_MALLOC_ANSI") != nullptr || bIsMavericks)
+	// Force ANSI malloc per user preference.
+	if(getenv("UE4_FORCE_MALLOC_ANSI") != nullptr)
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
 	}
+#if WITH_MALLOC_STOMP || (PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED)
+	else
+	{
+		NSArray *Args = [[NSProcessInfo processInfo] arguments];
+		[Args enumerateObjectsUsingBlock:^(id object, NSUInteger idx, BOOL *stop)
+		{
+#if WITH_MALLOC_STOMP
+			if ([object isEqual:@"-stompmalloc"])
+			{
+				AllocatorToUse = EMemoryAllocatorToUse::Stomp;
+				*stop = YES;
+			}
+#endif // WITH_MALLOC_STOMP
 
+#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+			if ([object isEqual:@"-mimalloc"])
+			{
+				AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
+				*stop = YES;
+			}
+#endif // PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+		}];
+	}
+#endif // WITH_MALLOC_STOMP || (PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED)
+
+	// Force ANSI malloc with TSAN
 #if defined(__has_feature)
 	#if __has_feature(thread_sanitizer)
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
 	#endif
-#endif
-
-#if WITH_MALLOC_STOMP
-	if (_NSGetArgc() && _NSGetArgv())
-	{
-		int Argc = *_NSGetArgc();
-		char** Argv = *_NSGetArgv();
-		for (int i = 1; i < Argc; ++i)
-		{
-			const char* Arg = Argv[i];
-			if (FCStringAnsi::Stricmp(Arg, "-stompmalloc") == 0)
-			{
-				AllocatorToUse = EMemoryAllocatorToUse::Stomp;
-				break;
-			}
-		}
-	}
 #endif
 
 	switch (AllocatorToUse)
@@ -139,6 +135,10 @@ FMalloc* FMacPlatformMemory::BaseAllocator()
 #if TBB_ALLOCATOR_ALLOWED
 	case EMemoryAllocatorToUse::TBB:
 		return new FMallocTBB();
+#endif
+#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+	case EMemoryAllocatorToUse::Mimalloc:
+		return new FMallocMimalloc();
 #endif
 	case EMemoryAllocatorToUse::Binned2:
 		return new FMallocBinned2();

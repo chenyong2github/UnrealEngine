@@ -19,14 +19,18 @@ const mi_page_t _mi_page_empty = {
   false,   // is_zero
   0,       // retire_expire
   NULL,    // free
-  #if MI_ENCODE_FREELIST
+  // BEGIN EPIC MOD - Check for MI_ENCODE_FREELIST definition before using it
+  #if (defined(MI_ENCODE_FREELIST) && MI_ENCODE_FREELIST)
+  // END EPIC MOD
   { 0, 0 },
   #endif
   0,       // used
   0,       // xblock_size
   NULL,    // local_free
-  ATOMIC_VAR_INIT(0), // xthread_free
-  ATOMIC_VAR_INIT(0), // xheap
+// BEGIN EPIC MOD  - Fix compilation on Clang 10
+  ATOMIC_VAR_INIT((uintptr_t)0), // xthread_free
+  ATOMIC_VAR_INIT((uintptr_t)0), // xheap
+// END EPIC MOD
   NULL, NULL
   #if MI_INTPTR_SIZE==8
   , { 0 }  // padding

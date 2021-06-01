@@ -551,8 +551,9 @@ static void* mi_os_mem_alloc_aligned(size_t size, size_t alignment, bool commit,
     mi_os_mem_free(p, size, commit, stats);
     if (size >= (SIZE_MAX - alignment)) return NULL; // overflow
     size_t over_size = size + alignment;
-
-#if _WIN32
+// BEGIN EPIC MOD - Fix incorrect definition check of _WIN32
+#ifdef _WIN32
+// END EPIC MOD
     // over-allocate and than re-allocate exactly at an aligned address in there.
     // this may fail due to threads allocating at the same time so we
     // retry this at most 3 times before giving up.
