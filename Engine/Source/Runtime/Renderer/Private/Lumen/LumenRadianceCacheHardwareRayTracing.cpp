@@ -46,6 +46,13 @@ static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingPersi
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenRadianceCacheTemporaryBufferAllocationDownsampleFactor(
+	TEXT("r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor"),
+	16,
+	TEXT("Downsample factor on the temporary buffer used by Hardware Ray Tracing Radiance Cache.  Higher downsample factors save more transient allocator memory, but may cause overflow and artifacts."),
+	ECVF_RenderThreadSafe
+);
+
 #endif // RHI_RAYTRACING
 
 namespace Lumen
@@ -128,6 +135,7 @@ class FSplatRadianceCacheIntoAtlasCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceTileAllocator)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		RDG_BUFFER_ACCESS(TraceProbesIndirectArgs, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER(FIntPoint, RadianceAndHitDistanceTextureSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
@@ -220,8 +228,10 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 
 	// Must match usf
 	const int32 TempAtlasTraceTileStride = 1024;
+	extern int32 GRadianceCacheForceFullUpdate;
 	// Overflow is possible however unlikely - only nearby probes trace at max resolution
-	const int32 TempAtlasNumTraceTiles = MaxProbeTraceTileResolution * MaxProbeTraceTileResolution / 4;
+	const int32 TemporaryBufferAllocationDownsampleFactor = GRadianceCacheForceFullUpdate ? 4 : CVarLumenRadianceCacheTemporaryBufferAllocationDownsampleFactor.GetValueOnRenderThread();
+	const int32 TempAtlasNumTraceTiles = FMath::DivideAndRoundUp(MaxProbeTraceTileResolution * MaxProbeTraceTileResolution, TemporaryBufferAllocationDownsampleFactor);
 	const FIntPoint WrappedTraceTileLayout(
 		TempAtlasTraceTileStride, 
 		FMath::DivideAndRoundUp(MaxNumProbes * TempAtlasNumTraceTiles, TempAtlasTraceTileStride));
@@ -300,6 +310,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 		PassParameters->ProbeTraceTileAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceTileAllocator, PF_R32_UINT));
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		PassParameters->TraceProbesIndirectArgs = TraceProbesIndirectArgs;
+		PassParameters->RadianceAndHitDistanceTextureSize = TraceTileRadianceAndHitDistanceTextureSize;
 
 		FSplatRadianceCacheIntoAtlasCS::FPermutationDomain PermutationVector;
 		auto ComputeShader = View.ShaderMap->GetShader<FSplatRadianceCacheIntoAtlasCS>(PermutationVector);
