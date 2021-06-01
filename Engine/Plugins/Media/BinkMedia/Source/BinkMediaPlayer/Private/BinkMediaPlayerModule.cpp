@@ -9,7 +9,6 @@ TSharedPtr<FBinkMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
 #if BINKPLUGIN_UE4_EDITOR
 class UFactory;
 #include "ISettingsModule.h"
-#include "EditorStyle.h"
 #include "PropertyEditorModule.h"
 #include "PropertyCustomizationHelpers.h"
 #include "DetailCategoryBuilder.h"
