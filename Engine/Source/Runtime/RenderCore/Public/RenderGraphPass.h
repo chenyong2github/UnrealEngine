@@ -395,6 +395,7 @@ protected:
 	TArray<FTextureState, FRDGArrayAllocator> TextureStates;
 	TArray<FBufferState, FRDGArrayAllocator> BufferStates;
 	TArray<FRDGViewHandle, FRDGArrayAllocator> Views;
+	TArray<FRDGUniformBufferHandle, FRDGArrayAllocator> UniformBuffers;
 
 	/** Lists of pass parameters scheduled for begin during execution of this pass. */
 	TArray<FRDGPass*, TInlineAllocator<1, FRDGArrayAllocator>> ResourcesToBegin;
