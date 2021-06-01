@@ -394,7 +394,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
 		ConsoleVariable = "r.RayTracing.Shadows", DisplayName = "Ray Tracing Shadows",
-		ToolTip = "Enables hardware ray-traced shadows."))
+		ToolTip = "Enables hardware ray-traced shadows. Requires Hardware Ray Tracing to be enabled."))
 		uint32 bEnableRayTracingShadows : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
@@ -405,7 +405,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
 		ConsoleVariable = "r.PathTracing", DisplayName = "Path Tracing",
-		ToolTip = "Support Path Tracing renderer. This enables additional material permutations.",
+		ToolTip = "Enables the Path Tracing renderer. This enables additional material permutations. Requires Hardware Ray Tracing to be enabled.",
 		ConfigRestartRequired = true))
 		uint32 bEnablePathTracing : 1;
 
