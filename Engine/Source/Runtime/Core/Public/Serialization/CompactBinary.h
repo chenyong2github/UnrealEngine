@@ -397,7 +397,7 @@ public:
 	 */
 	inline bool TryGetSerializedRangeView(FMemoryView& OutView) const
 	{
-		if (FCbFieldType::HasFieldType(FieldType::GetType()))
+		if (FCbFieldType::HasFieldType(FieldType::GetTypeWithFlags()))
 		{
 			OutView = GetRangeView();
 			return true;
@@ -655,36 +655,36 @@ public:
 	CORE_API FMemoryView AsCustom(FAnsiStringView Name, FMemoryView Default = FMemoryView());
 
 	/** True if the field has a name. */
-	constexpr inline bool HasName() const           { return FCbFieldType::HasFieldName(Type); }
+	constexpr inline bool HasName() const           { return FCbFieldType::HasFieldName(TypeWithFlags); }
 
-	constexpr inline bool IsNull() const            { return FCbFieldType::IsNull(Type); }
+	constexpr inline bool IsNull() const            { return FCbFieldType::IsNull(TypeWithFlags); }
 
-	constexpr inline bool IsObject() const          { return FCbFieldType::IsObject(Type); }
-	constexpr inline bool IsArray() const           { return FCbFieldType::IsArray(Type); }
+	constexpr inline bool IsObject() const          { return FCbFieldType::IsObject(TypeWithFlags); }
+	constexpr inline bool IsArray() const           { return FCbFieldType::IsArray(TypeWithFlags); }
 
-	constexpr inline bool IsBinary() const          { return FCbFieldType::IsBinary(Type); }
-	constexpr inline bool IsString() const          { return FCbFieldType::IsString(Type); }
+	constexpr inline bool IsBinary() const          { return FCbFieldType::IsBinary(TypeWithFlags); }
+	constexpr inline bool IsString() const          { return FCbFieldType::IsString(TypeWithFlags); }
 
 	/** Whether the field is an integer of unspecified range and sign. */
-	constexpr inline bool IsInteger() const         { return FCbFieldType::IsInteger(Type); }
+	constexpr inline bool IsInteger() const         { return FCbFieldType::IsInteger(TypeWithFlags); }
 	/** Whether the field is a float, or integer that supports implicit conversion. */
-	constexpr inline bool IsFloat() const           { return FCbFieldType::IsFloat(Type); }
-	constexpr inline bool IsBool() const            { return FCbFieldType::IsBool(Type); }
+	constexpr inline bool IsFloat() const           { return FCbFieldType::IsFloat(TypeWithFlags); }
+	constexpr inline bool IsBool() const            { return FCbFieldType::IsBool(TypeWithFlags); }
 
-	constexpr inline bool IsObjectAttachment() const { return FCbFieldType::IsObjectAttachment(Type); }
-	constexpr inline bool IsBinaryAttachment() const { return FCbFieldType::IsBinaryAttachment(Type); }
-	constexpr inline bool IsAttachment() const       { return FCbFieldType::IsAttachment(Type); }
+	constexpr inline bool IsObjectAttachment() const { return FCbFieldType::IsObjectAttachment(TypeWithFlags); }
+	constexpr inline bool IsBinaryAttachment() const { return FCbFieldType::IsBinaryAttachment(TypeWithFlags); }
+	constexpr inline bool IsAttachment() const       { return FCbFieldType::IsAttachment(TypeWithFlags); }
 
-	constexpr inline bool IsHash() const            { return FCbFieldType::IsHash(Type); }
-	constexpr inline bool IsUuid() const            { return FCbFieldType::IsUuid(Type); }
+	constexpr inline bool IsHash() const            { return FCbFieldType::IsHash(TypeWithFlags); }
+	constexpr inline bool IsUuid() const            { return FCbFieldType::IsUuid(TypeWithFlags); }
 
-	constexpr inline bool IsDateTime() const        { return FCbFieldType::IsDateTime(Type); }
-	constexpr inline bool IsTimeSpan() const        { return FCbFieldType::IsTimeSpan(Type); }
+	constexpr inline bool IsDateTime() const        { return FCbFieldType::IsDateTime(TypeWithFlags); }
+	constexpr inline bool IsTimeSpan() const        { return FCbFieldType::IsTimeSpan(TypeWithFlags); }
 
-	constexpr inline bool IsObjectId() const        { return FCbFieldType::IsObjectId(Type); }
+	constexpr inline bool IsObjectId() const        { return FCbFieldType::IsObjectId(TypeWithFlags); }
 
-	constexpr inline bool IsCustomById() const      { return FCbFieldType::IsCustomById(Type); }
-	constexpr inline bool IsCustomByName() const    { return FCbFieldType::IsCustomByName(Type); }
+	constexpr inline bool IsCustomById() const      { return FCbFieldType::IsCustomById(TypeWithFlags); }
+	constexpr inline bool IsCustomByName() const    { return FCbFieldType::IsCustomByName(TypeWithFlags); }
 
 	/** Whether the field has a value. */
 	constexpr inline explicit operator bool() const { return HasValue(); }
@@ -695,7 +695,7 @@ public:
 	 * All fields in a valid object or array have a value. A field with no value is returned when
 	 * finding a field by name fails or when accessing an iterator past the end.
 	 */
-	constexpr inline bool HasValue() const          { return !FCbFieldType::IsNone(Type); };
+	constexpr inline bool HasValue() const          { return !FCbFieldType::IsNone(TypeWithFlags); };
 
 	/** Whether the last field access encountered an error. */
 	constexpr inline bool HasError() const          { return Error != ECbFieldError::None; }
@@ -742,7 +742,7 @@ public:
 	 */
 	inline bool TryGetSerializedView(FMemoryView& OutView) const
 	{
-		if (FCbFieldType::HasFieldType(Type))
+		if (FCbFieldType::HasFieldType(TypeWithFlags))
 		{
 			OutView = GetView();
 			return true;
@@ -764,8 +764,11 @@ protected:
 	/** Returns a view of the value payload, which excludes the type and name. */
 	inline FMemoryView GetPayloadView() const { return MakeMemoryView(Payload, GetPayloadSize()); }
 
+	/** Returns the type of the field excluding flags. */
+	constexpr inline ECbFieldType GetType() const { return FCbFieldType::GetType(TypeWithFlags); }
+
 	/** Returns the type of the field including flags. */
-	constexpr inline ECbFieldType GetType() const { return Type; }
+	constexpr inline ECbFieldType GetTypeWithFlags() const { return TypeWithFlags; }
 
 	/** Returns the start of the value payload. */
 	constexpr inline const void* GetPayload() const { return Payload; }
@@ -819,7 +822,7 @@ private:
 
 private:
 	/** The field type, with the transient HasFieldType flag if the field contains its type. */
-	ECbFieldType Type = ECbFieldType::None;
+	ECbFieldType TypeWithFlags = ECbFieldType::None;
 	/** The error (if any) that occurred on the last field access. */
 	ECbFieldError Error = ECbFieldError::None;
 	/** The number of bytes for the name stored before the payload. */
