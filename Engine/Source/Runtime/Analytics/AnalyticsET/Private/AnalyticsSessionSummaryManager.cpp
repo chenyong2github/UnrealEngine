@@ -51,7 +51,6 @@ namespace AnalyticsSessionUtils
 {
 	static const FTimespan OrphanSessionCheckPeriod = FTimespan::FromMinutes(5);
 	static const FTimespan ProcessGroupDeathGracePeriod = FTimespan::FromHours(1);
-	static const FTimespan ProcessGroupExpiration = FTimespan::FromDays(30.0);
 
 	static const FString OrphanSessionsOwnerCriticalSectionName = TEXT("UE_AnalyticsSessionSummaryManager_OrphanOwner");
 	static const FString OrphanSessionsOwnerFilename            = TEXT("8E1D46DBC38F4A789939D781E1B91520"); // A randomly generated GUID.
@@ -413,7 +412,7 @@ void FAnalyticsSessionSummaryManager::ProcessSummary(const FString& InProcessGro
 			}
 
 			// If the principal file is expired, expire the entire group.
-			if (InProcessGroup.PrincipalProcessId == PropertyFileInfo.ProcessId && FileAgeSecs > AnalyticsSessionUtils::ProcessGroupExpiration.GetTotalSeconds())
+			if (InProcessGroup.PrincipalProcessId == PropertyFileInfo.ProcessId && FileAgeSecs > GetSessionExpirationAge().GetTotalSeconds())
 			{
 				bExpired = true;
 				break;
@@ -608,7 +607,9 @@ void FAnalyticsSessionSummaryManager::CleanupExpiredFiles(const FString& SavedDi
 		{
 			// Time since the last file modification.
 			double FileAgeSecs = IFileManager::Get().GetFileAgeSeconds(Pathname);
-			if (FileAgeSecs > AnalyticsSessionUtils::ProcessGroupExpiration.GetTotalSeconds() + FTimespan::FromDays(1.0).GetTotalSeconds())
+
+			// Add up an extra day to the normal expiration delay so that we never clean up files that are on the edge.
+			if (FileAgeSecs > GetSessionExpirationAge().GetTotalSeconds() + FTimespan::FromDays(1.0).GetTotalSeconds())
 			{
 				IFileManager::Get().Delete(Pathname);
 			}
