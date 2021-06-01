@@ -74,6 +74,7 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bEnableRayTracing = 0;
 	bUseHardwareRayTracingForLumen = 0;
 	bEnableRayTracingShadows = 0;
+	bEnablePathTracing = 0;
 	bEnableRayTracingTextureLOD = 0;
 	MaxSkinBones = FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones;
 }
@@ -250,20 +251,31 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 {
-	const bool ParentVal = Super::CanEditChange(InProperty);
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
 
 	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSupportSkinCacheShaders)))
 	{
 		//only allow DISABLE of skincache shaders if raytracing is also disabled as skincache is a dependency of raytracing.
-		return ParentVal && (!bSupportSkinCacheShaders || !bEnableRayTracing);
+		return !bSupportSkinCacheShaders || !bEnableRayTracing;
+	}
+
+	// the following settings can only be edited if ray tracing is enabled
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnablePathTracing)) ||
+		(InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableRayTracingShadows)) ||
+		(InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableRayTracingTextureLOD)))
+	{
+		return bEnableRayTracing;
 	}
 
 	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSupportSkyAtmosphereAffectsHeightFog)))
 	{
-		return ParentVal && bSupportSkyAtmosphere;
+		return bSupportSkyAtmosphere;
 	}
 
-	return ParentVal;
+	return true;
 }
 #endif // #if WITH_EDITOR
 
