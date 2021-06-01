@@ -37,9 +37,10 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			string? ClientName = Environment.GetEnvironmentVariable("P4CLIENT");
+			PerforceConnection Perforce = new PerforceConnection(null, null, ClientName, Logger);
 
-			ClientRecord Client = await Perforce.GetClientAsync(null, CancellationToken.None);
+			ClientRecord Client = await Perforce.GetClientAsync(ClientName, CancellationToken.None);
 			if(Client.Stream == null)
 			{
 				Logger.LogError("Not being run from a stream client");
