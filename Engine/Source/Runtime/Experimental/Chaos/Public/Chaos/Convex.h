@@ -139,6 +139,12 @@ namespace Chaos
 			return *this;
 		}
 
+		virtual TUniquePtr<FImplicitObject> Copy() const
+		{
+			return TUniquePtr<FImplicitObject>(new FConvex(GetVertices(), GetMargin()));
+		}
+
+
 		void MovePlanesAndRebuild(FReal InDelta);
 
 	private:

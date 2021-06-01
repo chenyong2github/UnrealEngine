@@ -4,6 +4,7 @@
 #include "ChaosLog.h"
 #include "Chaos/Box.h"
 #include "Chaos/ErrorReporter.h"
+#include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/Particles.h"
 #include "Chaos/Sphere.h"
@@ -243,6 +244,35 @@ FCollisionStructureManager::NewImplicitSphere(
 	Chaos::FImplicitObject* Implicit = new Chaos::TSphere<Chaos::FReal, 3>(Chaos::FVec3(0), Radius * (1 - CollisionObjectReduction / 100.f));
 	UpdateImplicitFlags(Implicit, CollisionType);
 	return Implicit;
+}
+
+FCollisionStructureManager::FImplicit*
+FCollisionStructureManager::NewImplicitConvex(
+	const TArray<int32>& ConvexIndices,
+	const TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry,
+	const ECollisionTypeEnum CollisionType)
+{
+	if (ConvexIndices.Num())
+	{
+		TArray<TUniquePtr<Chaos::FImplicitObject>> Implicits;
+		for (auto& Index : ConvexIndices)
+		{
+			Chaos::FImplicitObject* Implicit = new Chaos::FConvex((*ConvexGeometry)[Index]->GetVertices(), (*ConvexGeometry)[Index]->GetMargin());
+			UpdateImplicitFlags(Implicit, CollisionType);
+			Implicits.Add(TUniquePtr<Chaos::FImplicitObject>(Implicit));
+		}
+
+		if (Implicits.Num() == 1)
+		{
+			return Implicits[0].Release();
+		}
+		else
+		{
+			Chaos::FImplicitObjectUnion* ImplicitUnion = new Chaos::FImplicitObjectUnion(MoveTemp(Implicits));
+			return ImplicitUnion;
+		}
+	}
+	return nullptr;
 }
 
 FCollisionStructureManager::FImplicit*

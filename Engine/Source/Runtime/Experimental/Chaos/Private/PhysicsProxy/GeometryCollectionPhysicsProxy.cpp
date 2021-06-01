@@ -1813,6 +1813,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 		RestCollection.AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(
 			FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 
+	TManagedArray<TSet<int32>>* TransformToConvexIndices = RestCollection.FindAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
+	TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry = RestCollection.FindAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
+
+
 	// @todo(chaos_transforms) : do we still use this?
 	TManagedArray<FTransform>& CollectionMassToLocal =
 		RestCollection.AddAttribute<FTransform>(
@@ -2147,6 +2151,17 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 							SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
 							SizeSpecificData.CollisionShapesData[0].CollisionType));
 				}
+				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Convex)
+				{
+					if (ConvexGeometry && TransformToConvexIndices)
+					{
+						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+								FCollisionStructureManager::NewImplicitConvex(
+									(*TransformToConvexIndices)[TransformGroupIndex].Array(),
+									ConvexGeometry,
+									SizeSpecificData.CollisionShapesData[0].CollisionType));
+					}
+				}
 				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
 				{
 					const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
@@ -2411,6 +2426,17 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
 						FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
 						SharedParams.MaximumCollisionParticleCount));
+				}
+				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Convex)
+				{
+					if (ConvexGeometry && TransformToConvexIndices)
+					{
+						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+							FCollisionStructureManager::NewImplicitConvex(
+								(*TransformToConvexIndices)[TransformGroupIndex].Array(),
+								ConvexGeometry,
+								SizeSpecificData.CollisionShapesData[0].CollisionType));
+					}
 				}
 				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
 				{

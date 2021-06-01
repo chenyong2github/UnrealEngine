@@ -23,6 +23,7 @@ enum class EImplicitTypeEnum : uint8
 	Chaos_Implicit_Capsule UMETA(DisplayName = "Capsule"),
 	Chaos_Implicit_LevelSet UMETA(DisplayName = "Level Set"),
 	Chaos_Implicit_None UMETA(DisplayName = "None"),
+	Chaos_Implicit_Convex UMETA(DisplayName = "Convex"),
 	//
 	Chaos_Max                UMETA(Hidden)
 };
