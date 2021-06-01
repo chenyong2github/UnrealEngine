@@ -271,6 +271,7 @@ namespace HordeServer
 			// The Connect() is sync as AddSingleton() does not support async operations.
 			// This *should* be fine as this is only established once during startup (reconnects happen async)
 			RedisConMux = ConnectionMultiplexer.Connect(Settings.RedisConnectionConfig);
+			Services.AddSingleton<ConnectionMultiplexer>(RedisConMux);
 			Services.AddSingleton<IDatabase>(Sp => RedisConMux.GetDatabase());
 			Services.AddSingleton(new RedisConnectionPool(20, Settings.RedisConnectionConfig));
 			
