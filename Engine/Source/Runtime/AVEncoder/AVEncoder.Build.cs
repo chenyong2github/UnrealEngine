@@ -55,7 +55,7 @@ public class AVEncoder : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 		}
 
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.XboxOne)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			PublicDependencyModuleNames.Add("D3D12RHI");
 
