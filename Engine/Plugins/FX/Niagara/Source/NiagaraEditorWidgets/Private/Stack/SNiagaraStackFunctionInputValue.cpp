@@ -985,8 +985,20 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 		for (const FName& AvailableNamespace : AvailableNamespaces)
 		{
 			FNiagaraParameterHandle HandleToRead(AvailableNamespace, InputName);
-			bool bCanExecute = AvailableHandles.Contains(HandleToRead) == false;
+			bool bIsContained = AvailableHandles.Contains(HandleToRead);
 
+			if(bIsContained)
+			{
+				TSet<FName> ExistingNames;
+				for(const FNiagaraParameterHandle& Handle : AvailableHandles)
+				{
+					ExistingNames.Add(Handle.GetName());
+				}
+
+				// let's get a unique name as the previous parameter already existed
+				HandleToRead = FNiagaraParameterHandle(AvailableNamespace, FNiagaraUtilities::GetUniqueName(InputName, ExistingNames));
+			}
+			
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("AvailableNamespace"), FText::FromName(AvailableNamespace));
 
@@ -994,8 +1006,7 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 			const FText Tooltip = FText::Format(LOCTEXT("ReadToolTipFormat", "Read this input from a new parameter in the {AvailableNamespace} namespace."), Args);
 
 			TSharedPtr<FNiagaraMenuAction_Generic> MakeAction(new FNiagaraMenuAction_Generic(
-				FNiagaraMenuAction_Generic::FOnExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputValue::ParameterHandleSelected, HandleToRead),
-                FNiagaraMenuAction_Generic::FCanExecuteAction::CreateLambda([=]() { return bCanExecute; }),
+				FNiagaraMenuAction_Generic::FOnExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputValue::ParameterHandleSelected, HandleToRead),         
 		        DisplayName, ENiagaraMenuSections::General, {CategoryName.ToString()}, Tooltip, FText()));
 
 			MakeAction->SourceData = NiagaraSourceData;
