@@ -5,6 +5,32 @@
 #include "Layout/ArrangedChildren.h"
 #include "SlateSettings.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void SConstraintCanvas::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+{
+	TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+	if (InArgs._Offset.IsSet())
+	{
+		OffsetAttr = MoveTemp(InArgs._Offset);
+	}
+	if (InArgs._Anchors.IsSet())
+	{
+		AnchorsAttr = MoveTemp(InArgs._Anchors);
+	}
+	if (InArgs._Alignment.IsSet())
+	{
+		AlignmentAttr = MoveTemp(InArgs._Alignment);
+	}
+	if (InArgs._AutoSize.IsSet())
+	{
+		AutoSizeAttr = MoveTemp(InArgs._AutoSize);
+	}
+	if (InArgs._ZOrder.IsSet())
+	{
+		ZOrderAttr = MoveTemp(InArgs._ZOrder);
+	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /* SConstraintCanvas interface
  *****************************************************************************/
@@ -18,20 +44,22 @@ SConstraintCanvas::SConstraintCanvas()
 
 void SConstraintCanvas::Construct( const SConstraintCanvas::FArguments& InArgs )
 {
-	const int32 NumSlots = InArgs.Slots.Num();
-	for ( int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex )
-	{
-		Children.Add( InArgs.Slots[SlotIndex] );
-	}
+	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
+}
+
+SConstraintCanvas::FSlot::FSlotArguments SConstraintCanvas::Slot()
+{
+	return FSlot::FSlotArguments(MakeUnique<FSlot>());
+}
+
+SConstraintCanvas::FScopedWidgetSlotArguments SConstraintCanvas::AddSlot()
+{
+	return FScopedWidgetSlotArguments { MakeUnique<FSlot>(), this->Children, INDEX_NONE };
 }
 
 void SConstraintCanvas::ClearChildren()
 {
-	if ( Children.Num() )
-	{
-		Invalidate(EInvalidateWidget::Layout);
-		Children.Empty();
-	}
+	Children.Empty();
 }
 
 int32 SConstraintCanvas::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
@@ -95,7 +123,7 @@ void SConstraintCanvas::ArrangeLayeredChildren(const FGeometry& AllottedGeometry
 
 			FChildZOrder Order;
 			Order.ChildIndex = ChildIndex;
-			Order.ZOrder = CurChild.ZOrderAttr.Get();
+			Order.ZOrder = CurChild.GetZOrder();
 			SlotOrder.Add(Order);
 		}
 
@@ -112,11 +140,11 @@ void SConstraintCanvas::ArrangeLayeredChildren(const FGeometry& AllottedGeometry
 			const EVisibility ChildVisibility = CurWidget->GetVisibility();
 			if (ArrangedChildren.Accepts(ChildVisibility))
 			{
-				const FMargin Offset = CurChild.OffsetAttr.Get();
-				const FVector2D Alignment = CurChild.AlignmentAttr.Get();
-				const FAnchors Anchors = CurChild.AnchorsAttr.Get();
+				const FMargin Offset = CurChild.GetOffset();
+				const FVector2D Alignment = CurChild.GetAlignment();
+				const FAnchors Anchors = CurChild.GetAnchors();
 
-				const bool AutoSize = CurChild.AutoSizeAttr.Get();
+				const bool AutoSize = CurChild.GetAutoSize();
 
 				const FMargin AnchorPixels =
 					FMargin(Anchors.Minimum.X * AllottedGeometry.GetLocalSize().X,
@@ -248,13 +276,13 @@ FVector2D SConstraintCanvas::ComputeDesiredSize( float ) const
 		// As long as the widgets are not collapsed, they should contribute to the desired size.
 		if ( ChildVisibilty != EVisibility::Collapsed )
 		{
-			const FMargin Offset = CurChild.OffsetAttr.Get();
-			const FVector2D Alignment = CurChild.AlignmentAttr.Get();
-			const FAnchors Anchors = CurChild.AnchorsAttr.Get();
+			const FMargin Offset = CurChild.GetOffset();
+			const FVector2D Alignment = CurChild.GetAlignment();
+			const FAnchors Anchors = CurChild.GetAnchors();
 
 			const FVector2D SlotSize = FVector2D(Offset.Right, Offset.Bottom);
 
-			const bool AutoSize = CurChild.AutoSizeAttr.Get();
+			const bool AutoSize = CurChild.GetAutoSize();
 
 			const FVector2D Size = AutoSize ? Widget->GetDesiredSize() : SlotSize;
 

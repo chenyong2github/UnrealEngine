@@ -147,26 +147,26 @@ void SWorldWidgetScreenLayer::Tick(const FGeometry& AllottedGeometry, const doub
 								FVector2D ComponentDrawSize = Entry.WidgetComponent->GetDrawSize();
 								FVector2D ComponentPivot = Entry.WidgetComponent->GetPivot();
 								
-								CanvasSlot->AutoSize(ComponentDrawSize.IsZero() || Entry.WidgetComponent->GetDrawAtDesiredSize());
-								CanvasSlot->Offset(FMargin(LocalPosition.X, LocalPosition.Y, ComponentDrawSize.X, ComponentDrawSize.Y));
-								CanvasSlot->Anchors(FAnchors(0, 0, 0, 0));
-								CanvasSlot->Alignment(ComponentPivot);
+								CanvasSlot->SetAutoSize(ComponentDrawSize.IsZero() || Entry.WidgetComponent->GetDrawAtDesiredSize());
+								CanvasSlot->SetOffset(FMargin(LocalPosition.X, LocalPosition.Y, ComponentDrawSize.X, ComponentDrawSize.Y));
+								CanvasSlot->SetAnchors(FAnchors(0, 0, 0, 0));
+								CanvasSlot->SetAlignment(ComponentPivot);
 								
 								if (GSlateWorldWidgetZOrder != 0)
 								{
-									CanvasSlot->ZOrder(-ViewportPosition.Z);
+									CanvasSlot->SetZOrder(-ViewportPosition.Z);
 								}
 							}
 							else
 							{
-								CanvasSlot->AutoSize(DrawSize.IsZero());
-								CanvasSlot->Offset(FMargin(LocalPosition.X, LocalPosition.Y, DrawSize.X, DrawSize.Y));
-								CanvasSlot->Anchors(FAnchors(0, 0, 0, 0));
-								CanvasSlot->Alignment(Pivot);
+								CanvasSlot->SetAutoSize(DrawSize.IsZero());
+								CanvasSlot->SetOffset(FMargin(LocalPosition.X, LocalPosition.Y, DrawSize.X, DrawSize.Y));
+								CanvasSlot->SetAnchors(FAnchors(0, 0, 0, 0));
+								CanvasSlot->SetAlignment(Pivot);
 
 								if (GSlateWorldWidgetZOrder != 0)
 								{
-									CanvasSlot->ZOrder(-ViewportPosition.Z);
+									CanvasSlot->SetZOrder(-ViewportPosition.Z);
 								}
 							}
 						}

@@ -188,7 +188,7 @@ public:
 
 	FVector2D GetSoftwareCursorPosition() const
 	{
-		return FVector2D( DragSlot->OffsetAttr.Get(FMargin()).Left + TrackCursorOffset.X, TrackCursorOffset.Y);
+		return FVector2D( DragSlot->GetOffset().Left + TrackCursorOffset.X, TrackCursorOffset.Y);
 	}
 
 	FVector2D GetAbsoluteSoftwareCursorPosition() const
@@ -209,8 +209,8 @@ public:
 	{
 		DragIndicatorIndex = INDEX_NONE;
 
-		FMargin SlotOffset = ActionSlots[SlotCount]->OffsetAttr.Get(FMargin());
-		TrackSlots[SlotCount]->OffsetAttr.Set( FMargin(SlotOffset.Left + SDataprepGraphActionNode::DefaultWidth * 0.5f - 16.f, LineTopPadding + TrackSlotTopOffset, 32, 32));
+		FMargin SlotOffset = ActionSlots[SlotCount]->GetOffset();
+		TrackSlots[SlotCount]->SetOffset( FMargin(SlotOffset.Left + SDataprepGraphActionNode::DefaultWidth * 0.5f - 16.f, LineTopPadding + TrackSlotTopOffset, 32, 32));
 		TrackSlots[SlotCount]->AttachWidget(SNullWidget::NullWidget);
 
 		UpdateLine(SlotCount-1);
@@ -218,7 +218,7 @@ public:
 
 	FVector2D UpdateActionSlot(FMargin& SlotOffset, int32 SlotIndex, const TSharedRef<SWidget>& ActionNode, bool bIsEmpty = false)
 	{
-		DropSlots[SlotIndex]->OffsetAttr.Set(SlotOffset);
+		DropSlots[SlotIndex]->SetOffset(SlotOffset);
 		SlotOffset.Left += InterSlotSpacing;
 
 		const float NodeTopPadding = LineTopPadding + NodeTopOffset;
@@ -228,10 +228,10 @@ public:
 
 		FVector2D Size = GetNodeSize(ActionNode);
 
-		ActionSlot->OffsetAttr.Set(FMargin(SlotOffset.Left, NodeTopPadding, Size.X, Size.Y));
+		ActionSlot->SetOffset(FMargin(SlotOffset.Left, NodeTopPadding, Size.X, Size.Y));
 		ActionSlot->AttachWidget(bIsEmpty ? SNew(SColorBlock).Color(FLinearColor::Transparent).Size( Size ) : ActionNode);
 
-		TrackSlots[SlotIndex]->OffsetAttr.Set( FMargin(SlotOffset.Left + Size.X * 0.5f - 16.f, TrackSlotTopPadding, 32, 32));
+		TrackSlots[SlotIndex]->SetOffset( FMargin(SlotOffset.Left + Size.X * 0.5f - 16.f, TrackSlotTopPadding, 32, 32));
 		TrackSlots[SlotIndex]->AttachWidget(SlotIndex == IndexHovered ? TrackSlotDrop.ToSharedRef() : TrackSlotRegular.ToSharedRef());
 
 		SlotOffset.Left += Size.X;
@@ -693,7 +693,7 @@ FSlateRect SDataprepGraphTrackNode::Update()
 				CanvasOffset.Bottom = TargetSize.Y;
 			}
 
-			TrackWidgetPtr->CanvasSlot->OffsetAttr.Set(CanvasOffset);
+			TrackWidgetPtr->CanvasSlot->SetOffset(CanvasOffset);
 		}
 
 		WorkingArea = FSlateRect(FVector2D::ZeroVector, WorkingSize + TrackPosition);
@@ -1152,24 +1152,26 @@ void SDataprepGraphTrackWidget::Construct(const FArguments& InArgs, TSharedPtr<S
 
 	const FLinearColor TrackColor = FDataprepEditorStyle::GetColor( "DataprepAction.BackgroundColor" );
 
-	CanvasSlot = &AddSlot()
+	AddSlot()
 	.Anchors( FAnchors( 0.f, 0.f, 0.f, 0.f ) )
 	.Offset( FMargin(-25.f, -25.f, 0.f, 0.f) )
 	.AutoSize(false)
 	.Alignment(FVector2D::ZeroVector)
 	.ZOrder(0)
+	.Expose(CanvasSlot)
 	[
 		SNew(SColorBlock)
 		.Color( FDataprepEditorStyle::GetColor("Dataprep.Background.Black") )
 		.Size( TAttribute<FVector2D>::Create(TAttribute<FVector2D>::FGetter::CreateSP( this, &SDataprepGraphTrackWidget::GetCanvasArea ) ) )
 	];
 
-	LineSlot = &AddSlot()
+	AddSlot()
 	.Anchors( FAnchors( 0.f, 0.f, 0.f, 0.f ) )
 	.Offset( FMargin(InterSlotSpacing +  3.f, LineTopPadding - 2.f, 0.f, 0.f) )
 	.AutoSize(true)
 	.Alignment(FVector2D::ZeroVector)
 	.ZOrder(0)
+	.Expose(LineSlot)
 	[
 		SNew(SColorBlock)
 		.Color( TrackColor )
@@ -1218,15 +1220,17 @@ void SDataprepGraphTrackWidget::Construct(const FArguments& InArgs, TSharedPtr<S
 		{
 			// Add drop slot ahead of action node
 			{
-				SConstraintCanvas::FSlot& Slot = AddSlot()
+				SConstraintCanvas::FSlot* Slot = nullptr;
+				AddSlot()
 				.Anchors( FAnchors( 0., 0.f, 0.f, 0.f ) )
 				.Offset( FMargin(LeftOffset, NodeTopPadding + 5.f, InterSlotSpacing, TrackDesiredHeight ) )
 				.Alignment(FVector2D::ZeroVector)
 				.ZOrder(2)
+				.Expose(Slot)
 				[
 					DropFiller.ToSharedRef()
 				];
-				DropSlots.Add( &Slot );
+				DropSlots.Add( Slot );
 			}
 			LeftOffset += InterSlotSpacing;
 
@@ -1236,30 +1240,34 @@ void SDataprepGraphTrackWidget::Construct(const FArguments& InArgs, TSharedPtr<S
 			{
 				TSharedRef<SWidget>& ActionNode = ActionNodes.Add_GetRef(InActionNodes[Index].IsValid() ? InActionNodes[Index]->AsShared() : NullNode->AsShared());
 
-				SConstraintCanvas::FSlot& Slot = AddSlot()
+				SConstraintCanvas::FSlot* Slot = nullptr;
+				AddSlot()
 				.Anchors( FAnchors( 0., 0.f, 0.f, 0.f ) )
 				.Offset( FMargin(LeftOffset, NodeTopPadding, Size.X, Size.Y ) )
 				.Alignment(FVector2D::ZeroVector)
 				.AutoSize(true)
 				.ZOrder(2)
+				.Expose(Slot)
 				[
 					ActionNode
 				];
-				ActionSlots.Add( &Slot );
+				ActionSlots.Add( Slot );
 			}
 
 			// Add track slot which is at the middle of the corresponding action
 			{
-				SConstraintCanvas::FSlot& Slot = AddSlot()
+				SConstraintCanvas::FSlot* Slot = nullptr;
+				AddSlot()
 				.Anchors( FAnchors( 0., 0.f, 0.f, 0.f ) )
 				.Offset( FMargin(LeftOffset + SDataprepGraphActionNode::DefaultWidth * 0.5f + 16.f, TrackSlotTopPadding, 32, 32 ) )
 				.Alignment(FVector2D::ZeroVector)
 				.AutoSize(true)
 				.ZOrder(2)
+				.Expose(Slot)
 				[
 					TrackSlotRegular.ToSharedRef()
 				];
-				TrackSlots.Add( &Slot );
+				TrackSlots.Add( Slot );
 			}
 			LeftOffset += Size.X;
 
@@ -1273,68 +1281,77 @@ void SDataprepGraphTrackWidget::Construct(const FArguments& InArgs, TSharedPtr<S
 
 	// Add drop slot at end of track
 	{
-		SConstraintCanvas::FSlot& Slot = AddSlot()
+		SConstraintCanvas::FSlot* Slot = nullptr;
+		AddSlot()
 		.Anchors( FAnchors( 0., 0.f, 0.f, 0.f ) )
 		.Offset( FMargin(LeftOffset, NodeTopPadding + 5.f, InterSlotSpacing, TrackDesiredHeight ) )
 		.Alignment(FVector2D::ZeroVector)
 		.ZOrder(2)
+		.Expose(Slot)
 		[
 			SNullWidget::NullWidget
 		];
-		DropSlots.Add( &Slot );
+		DropSlots.Add( Slot );
 		LeftOffset += InterSlotSpacing;
 	}
 
 	// Add dummy action slot at end of track
 	{
-		SConstraintCanvas::FSlot& Slot = AddSlot()
+		SConstraintCanvas::FSlot* Slot = nullptr;
+		AddSlot()
 		.Anchors( FAnchors( 0., 0.f, 0.f, 0.f ) )
 		.Offset( FMargin(LeftOffset, TrackDesiredHeight, SDataprepGraphActionNode::DefaultWidth, SDataprepGraphActionNode::DefaultWidth ) )
 		.Alignment(FVector2D::ZeroVector)
 		.AutoSize(true)
 		.ZOrder(2)
+		.Expose(Slot)
 		[
 			SNullWidget::NullWidget
 		];
-		ActionSlots.Add( &Slot );
+		ActionSlots.Add( Slot );
 	}
 
 	// Add track slot which is at the middle of the corresponding action
 	{
-		SConstraintCanvas::FSlot& Slot = AddSlot()
+		SConstraintCanvas::FSlot* Slot = nullptr;
+		AddSlot()
 		.Anchors( FAnchors( 0., 0.f, 0.f, 0.f ) )
 		.Offset( FMargin(LeftOffset + SDataprepGraphActionNode::DefaultWidth * 0.5f + 16.f, TrackSlotTopPadding, 32, 32 ) )
 		.Alignment(FVector2D::ZeroVector)
 		.AutoSize(true)
 		.ZOrder(2)
+		.Expose(Slot)
 		[
 			SNullWidget::NullWidget
 		];
-		TrackSlots.Add( &Slot );
+		TrackSlots.Add( Slot );
 	}
 	LeftOffset += SDataprepGraphActionNode::DefaultWidth;
 
 	// Add drop slot at end of track
 	{
-		SConstraintCanvas::FSlot& Slot = AddSlot()
+		SConstraintCanvas::FSlot* Slot = nullptr;
+		AddSlot()
 		.Anchors( FAnchors( 0., 0.f, 0.f, 0.f ) )
 		.Offset( FMargin(LeftOffset, NodeTopPadding + 5.f, InterSlotSpacing, TrackDesiredHeight ) )
 		.Alignment(FVector2D::ZeroVector)
 		.ZOrder(2)
+		.Expose(Slot)
 		[
 			SNullWidget::NullWidget
 		];
-		DropSlots.Add( &Slot );
+		DropSlots.Add( Slot );
 		LeftOffset += InterSlotSpacing;
 	}
 
 	// Add slot to host dragged node???
-	DragSlot = &AddSlot()
+	AddSlot()
 	.Anchors( FAnchors( 0., 0.f, 0.f, 0.f ) )
 	.Offset( FMargin(LeftOffset, 0.f, SDataprepGraphActionNode::DefaultWidth, SDataprepGraphActionNode::DefaultWidth ) )
 	.Alignment(FVector2D::ZeroVector)
 	.AutoSize(true)
 	.ZOrder(3)
+	.Expose(DragSlot)
 	[
 		SNullWidget::NullWidget
 	];
@@ -1416,9 +1433,9 @@ int32 SDataprepGraphTrackWidget::GetHoveredActionNode(float LeftCorner, float Wi
 	// Compute origin abscissa of last action node on track
 	for(int32 Index = 0; Index < SlotCount; ++Index)
 	{
-		const FMargin SlotOffset = DropSlots[Index]->OffsetAttr.Get(FMargin());
+		const FMargin SlotOffset = DropSlots[Index]->GetOffset();
 		const float RelativeAbscissa = CenterAbscissa - (SlotOffset.Left + SlotOffset.Right);
-		const float ActionSlotWidth = ActionSlots[Index]->OffsetAttr.Get(FMargin()).Right;
+		const float ActionSlotWidth = ActionSlots[Index]->GetOffset().Right;
 		if(RelativeAbscissa > -SlotOffset.Right && RelativeAbscissa <= ActionSlotWidth)
 		{
 			return Index;
@@ -1446,7 +1463,7 @@ void SDataprepGraphTrackWidget::RefreshLayout()
 
 	LineSize = FVector2D::ZeroVector;
 	WorkingSize = FVector2D(SDataprepGraphActionNode::DefaultWidth, SDataprepGraphActionNode::DefaultHeight);
-	FMargin DropSlotOffset = DropSlots[0]->OffsetAttr.Get(FMargin());
+	FMargin DropSlotOffset = DropSlots[0]->GetOffset();
 
 	float MaxWidth = SDataprepGraphActionNode::DefaultWidth;
 
@@ -1470,14 +1487,14 @@ void SDataprepGraphTrackWidget::RefreshLayout()
 		}
 	}
 
-	DropSlots[SlotCount]->OffsetAttr.Set(DropSlotOffset);
+	DropSlots[SlotCount]->SetOffset(DropSlotOffset);
 	DropSlots[SlotCount]->AttachWidget(SNullWidget::NullWidget);
 	DropSlotOffset.Left += InterSlotSpacing;
 
-	ActionSlots[SlotCount]->OffsetAttr.Set( FMargin(DropSlotOffset.Left, NodeTopPadding, 0., 0.));
+	ActionSlots[SlotCount]->SetOffset( FMargin(DropSlotOffset.Left, NodeTopPadding, 0., 0.));
 	ActionSlots[SlotCount]->AttachWidget(SNullWidget::NullWidget);
 
-	TrackSlots[SlotCount]->OffsetAttr.Set( FMargin(DropSlotOffset.Left + SDataprepGraphActionNode::DefaultWidth * 0.5f - 16.f, LineTopPadding + TrackSlotTopOffset, 32, 32));
+	TrackSlots[SlotCount]->SetOffset( FMargin(DropSlotOffset.Left + SDataprepGraphActionNode::DefaultWidth * 0.5f - 16.f, LineTopPadding + TrackSlotTopOffset, 32, 32));
 	TrackSlots[SlotCount]->AttachWidget(SNullWidget::NullWidget);
 
 	WorkingSize.X = DropSlotOffset.Left + SDataprepGraphActionNode::DefaultWidth + InterSlotSpacing;
@@ -1490,7 +1507,7 @@ void SDataprepGraphTrackWidget::RefreshLayout()
 
 void SDataprepGraphTrackWidget::UpdateLayoutOnDrag()
 {
-	FMargin SlotOffset = DropSlots[0]->OffsetAttr.Get(FMargin());
+	FMargin SlotOffset = DropSlots[0]->GetOffset();
 
 	if(bIsCopying)
 	{
@@ -1545,13 +1562,13 @@ void SDataprepGraphTrackWidget::UpdateLayoutOnDrag()
 		}
 	}
 
-	const FMargin DragSlotOffset = DragSlot->OffsetAttr.Get(FMargin());
-	const FMargin HoveredDropSlotOffset = DropSlots[IndexHovered]->OffsetAttr.Get(FMargin());
+	const FMargin DragSlotOffset = DragSlot->GetOffset();
+	const FMargin HoveredDropSlotOffset = DropSlots[IndexHovered]->GetOffset();
 
 	if(IndexHovered > 0 && DragSlotOffset.Left < HoveredDropSlotOffset.Left)
 	{
 		SConstraintCanvas::FSlot* OverlappedSlot = ActionSlots[IndexHovered-1];
-		FMargin OverlappedSlotOffset = OverlappedSlot->OffsetAttr.Get(FMargin());
+		FMargin OverlappedSlotOffset = OverlappedSlot->GetOffset();
 
 		const float OverlappedActionSlotLeft = HoveredDropSlotOffset.Left - OverlappedSlotOffset.Right;
 		const float Delta =  HoveredDropSlotOffset.Left - DragSlotOffset.Left;
@@ -1562,14 +1579,14 @@ void SDataprepGraphTrackWidget::UpdateLayoutOnDrag()
 		if(NewLeftOffset < MaximalLeftOffset)
 		{
 			OverlappedSlotOffset.Left = NewLeftOffset;
-			OverlappedSlot->OffsetAttr.Set(OverlappedSlotOffset);
+			OverlappedSlot->SetOffset(OverlappedSlotOffset);
 		}
 	}
 	else if(IndexHovered < (SlotCount-1) && DragSlotOffset.Left > (HoveredDropSlotOffset.Left + HoveredDropSlotOffset.Right) )
 	{
 		SConstraintCanvas::FSlot* OverlappedSlot = ActionSlots[IndexHovered+1];
-		FMargin OverlappedSlotOffset = OverlappedSlot->OffsetAttr.Get(FMargin());
-		FMargin OverlappedDropSlotOffset = DropSlots[IndexHovered+1]->OffsetAttr.Get(FMargin());
+		FMargin OverlappedSlotOffset = OverlappedSlot->GetOffset();
+		FMargin OverlappedDropSlotOffset = DropSlots[IndexHovered+1]->GetOffset();
 
 		const float OverlappedActionSlotLeft = OverlappedDropSlotOffset.Left + OverlappedDropSlotOffset.Right;
 		const float MinimalLeftOffset = HoveredDropSlotOffset.Left + HoveredDropSlotOffset.Right;
@@ -1579,7 +1596,7 @@ void SDataprepGraphTrackWidget::UpdateLayoutOnDrag()
 		if(NewLeftOffset > MinimalLeftOffset)
 		{
 			OverlappedSlotOffset.Left = NewLeftOffset;
-			OverlappedSlot->OffsetAttr.Set(OverlappedSlotOffset);
+			OverlappedSlot->SetOffset(OverlappedSlotOffset);
 		}
 	}
 
@@ -1603,14 +1620,14 @@ void SDataprepGraphTrackWidget::OnStartNodeDrag(int32 InIndexDragged)
 	IndexHovered = InIndexDragged;
 	DragIndicatorIndex = INDEX_NONE;
 
-	FMargin Offset = ActionSlots[IndexDragged]->OffsetAttr.Get(FMargin());
-	DragSlot->OffsetAttr.Set(Offset);
+	FMargin Offset = ActionSlots[IndexDragged]->GetOffset();
+	DragSlot->SetOffset(Offset);
 	DragSlot->AttachWidget(ActionNodes[IndexDragged]);
 
 	const FVector2D LocalCursorPosition = GetTickSpaceGeometry().AbsoluteToLocal(FSlateApplication::Get().GetCursorPos());
 	TrackCursorOffset = FVector2D(LocalCursorPosition.X - Offset.Left, LocalCursorPosition.Y);
 
-	AbscissaRange.X = ActionSlots[0]->OffsetAttr.Get(FMargin()).Left;
+	AbscissaRange.X = ActionSlots[0]->GetOffset().Left;
 	// AbscissaRange.Y will be properly update in the call to OnControlKeyDown
 	AbscissaRange.Y = AbscissaRange.X;
 
@@ -1631,7 +1648,7 @@ void SDataprepGraphTrackWidget::OnNodeDragged(float DragDelta, DragCallback Comp
 		return;
 	}
 
-	FMargin DragSlotOffset = DragSlot->OffsetAttr.Get(FMargin());
+	FMargin DragSlotOffset = DragSlot->GetOffset();
 
 	const float DesiredAbscissa = DragSlotOffset.Left + DragDelta;
 	 
@@ -1666,7 +1683,7 @@ void SDataprepGraphTrackWidget::OnNodeDragged(float DragDelta, DragCallback Comp
 
 			// Update drag slot
 			DragSlotOffset.Left = NodeNewAbscissa;
-			DragSlot->OffsetAttr.Set(DragSlotOffset);
+			DragSlot->SetOffset(DragSlotOffset);
 
 			// Check if center of dragged widget is over a neighboring widget by at least half its size
 			IndexHovered = GetHoveredActionNode(DragSlotOffset.Left, DragSlotOffset.Right);
@@ -1699,7 +1716,7 @@ void SDataprepGraphTrackWidget::OnEndNodeDrag(FVector2D& OutScreenSpacePosition,
 
 	SlotCount = ActionNodes.Num();
 
-	DragSlot->OffsetAttr.Set(FVector2D(-100., -10.f));
+	DragSlot->SetOffset(FVector2D(-100., -10.f));
 	DragSlot->AttachWidget(SNullWidget::NullWidget);
 
 	DropSlots[SlotCount]->AttachWidget(SNullWidget::NullWidget);
@@ -1721,7 +1738,7 @@ void SDataprepGraphTrackWidget::UpdateDragIndicator(FVector2D MousePosition)
 	int32 NewDragIndicatorIndex = INDEX_NONE;
 
 	const float LocalAbscissa = GetTickSpaceGeometry().AbsoluteToLocal(MousePosition).X - 1.f;
-	FMargin SlotOffset = ActionSlots[0]->OffsetAttr.Get(FMargin());
+	FMargin SlotOffset = ActionSlots[0]->GetOffset();
 	float MaxAbscissa = SlotOffset.Left + (SlotOffset.Right * 0.25f);
 
 	if(LocalAbscissa < MaxAbscissa)
@@ -1732,7 +1749,7 @@ void SDataprepGraphTrackWidget::UpdateDragIndicator(FVector2D MousePosition)
 	{
 		for(int32 Index = 0; Index <= SlotCount; ++Index)
 		{
-			SlotOffset = ActionSlots[Index]->OffsetAttr.Get(FMargin());
+			SlotOffset = ActionSlots[Index]->GetOffset();
 			if(LocalAbscissa < (SlotOffset.Left + SlotOffset.Right + 1.f))
 			{
 				NewDragIndicatorIndex = Index;
@@ -1759,18 +1776,18 @@ void SDataprepGraphTrackWidget::UpdateDragIndicator(FVector2D MousePosition)
 
 	if(NewDragIndicatorIndex == SlotCount)
 	{
-		float TrackLeftOffset = ActionSlots[SlotCount]->OffsetAttr.Get(FMargin()).Left + (SDataprepGraphActionNode::DefaultWidth * 0.5f) - 16.f;
+		float TrackLeftOffset = ActionSlots[SlotCount]->GetOffset().Left + (SDataprepGraphActionNode::DefaultWidth * 0.5f) - 16.f;
 
-		SlotOffset = TrackSlots[0]->OffsetAttr.Get(FMargin());
+		SlotOffset = TrackSlots[0]->GetOffset();
 
-		TrackSlot->OffsetAttr.Set(FMargin(TrackLeftOffset, SlotOffset.Top, SlotOffset.Right, SlotOffset.Bottom));
+		TrackSlot->SetOffset(FMargin(TrackLeftOffset, SlotOffset.Top, SlotOffset.Right, SlotOffset.Bottom));
 		TrackSlot->AttachWidget(TrackSlotDrop.ToSharedRef());
 
 		UpdateLine(SlotCount);
 	}
 	else
 	{
-		TrackSlot->OffsetAttr.Set(TrackSlots[DragIndicatorIndex]->OffsetAttr.Get(FMargin()));
+		TrackSlot->SetOffset(TrackSlots[DragIndicatorIndex]->GetOffset());
 		TrackSlot->AttachWidget(TrackSlotDrop.ToSharedRef());
 	}
 }
@@ -1794,7 +1811,7 @@ void SDataprepGraphTrackWidget::OnControlKeyDown(bool bCtrlDown, FVector2D& OutS
 
 	SlotCount = ActionNodes.Num();
 
-	FMargin DragSlotOffset = DragSlot->OffsetAttr.Get(FMargin());
+	FMargin DragSlotOffset = DragSlot->GetOffset();
 	IndexHovered = GetHoveredActionNode(DragSlotOffset.Left, DragSlotOffset.Right);
 
 	for(int32 Index = 0; Index < SlotCount; ++Index)
@@ -1810,7 +1827,7 @@ void SDataprepGraphTrackWidget::OnControlKeyDown(bool bCtrlDown, FVector2D& OutS
 
 		// Set the maximum move on the right and new working size
 		const FVector2D DragSize = GetNodeSize(DragSlot->GetWidget());
-		const FMargin SlotOffset = TrackSlots[SlotCount]->OffsetAttr.Get(FMargin());
+		const FMargin SlotOffset = TrackSlots[SlotCount]->GetOffset();
 
 		AbscissaRange.Y = SlotOffset.Left - (DragSize.X * 0.5f) + InterSlotSpacing + 1.f;
 		WorkingSize.X = AbscissaRange.Y + DragSize.X + 1.f;
@@ -1819,17 +1836,17 @@ void SDataprepGraphTrackWidget::OnControlKeyDown(bool bCtrlDown, FVector2D& OutS
 	}
 	else
 	{
-		FMargin SlotOffset = DropSlots[SlotCount - 1]->OffsetAttr.Get(FMargin());
+		FMargin SlotOffset = DropSlots[SlotCount - 1]->GetOffset();
 		AbscissaRange.Y = SlotOffset.Left + SlotOffset.Right;
 
-		WorkingSize.X = DropSlots[SlotCount]->OffsetAttr.Get(FMargin()).Left + SDataprepGraphActionNode::DefaultWidth + InterSlotSpacing;
+		WorkingSize.X = DropSlots[SlotCount]->GetOffset().Left + SDataprepGraphActionNode::DefaultWidth + InterSlotSpacing;
 
 		if(DragSlotOffset.Left > AbscissaRange.Y)
 		{
 			OutScreenSpacePosition = GetAbsoluteSoftwareCursorPosition();
 
 			DragSlotOffset.Left = AbscissaRange.Y;
-			DragSlot->OffsetAttr.Set(DragSlotOffset);
+			DragSlot->SetOffset(DragSlotOffset);
 
 			IndexHovered = GetHoveredActionNode(DragSlotOffset.Left, DragSlotOffset.Right);
 		}
@@ -1866,14 +1883,14 @@ void SDataprepGraphTrackWidget::UpdateLine(int32 LastIndex)
 
 	if(SlotCount > 1)
 	{
-		FMargin OffsetDiff = TrackSlots[LastIndex]->OffsetAttr.Get(FMargin()) - TrackSlots[0]->OffsetAttr.Get(FMargin());
-		FMargin LineOffset = LineSlot->OffsetAttr.Get(FMargin());
+		FMargin OffsetDiff = TrackSlots[LastIndex]->GetOffset() - TrackSlots[0]->GetOffset();
+		FMargin LineOffset = LineSlot->GetOffset();
 
-		LineOffset.Left = TrackSlots[0]->OffsetAttr.Get(FMargin()).Left + 16.f;
+		LineOffset.Left = TrackSlots[0]->GetOffset().Left + 16.f;
 		LineOffset.Right = OffsetDiff.Left;
 		LineSize.X = OffsetDiff.Left;
 
-		LineSlot->OffsetAttr.Set(LineOffset);
+		LineSlot->SetOffset(LineOffset);
 	}
 }
 
