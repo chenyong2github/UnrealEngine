@@ -2,30 +2,23 @@
 
 #include "UVProjectionTool.h"
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
-
-#include "ToolSetupUtil.h"
-
-#include "DynamicMesh3.h"
-#include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
-#include "Selection/SelectClickedAction.h"
-
-#include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshToMeshDescription.h"
-#include "Materials/MaterialInstanceDynamic.h"
-
 #include "InteractiveGizmoManager.h"
-
-#include "AssetGenerationUtil.h"
-
-#include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmoUtil.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
+#include "BaseBehaviors/SingleClickBehavior.h"
+
+#include "BaseGizmos/TransformGizmoUtil.h"
+#include "ModelingToolTargetUtil.h"
+#include "Selection/StoredMeshSelectionUtil.h"
+
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "DynamicMesh/MeshIndexUtil.h"
+#include "MeshRegionBoundaryLoops.h"
+#include "Parameterization/DynamicMeshUVEditor.h"
+#include "Operations/MeshConvexHull.h"
+#include "MinVolumeBox3.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -36,35 +29,21 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-
-const FToolTargetTypeRequirements& UUVProjectionToolBuilder::GetTargetRequirements() const
+USingleSelectionMeshEditingTool* UUVProjectionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMaterialProvider::StaticClass(),
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
+	return NewObject<UUVProjectionTool>(SceneState.ToolManager);
 }
 
-bool UUVProjectionToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+/*
+ * Propert Sets
+ */
+
+void UUVProjectionToolEditActions::PostAction(EUVProjectionToolActions Action)
 {
-	// note most of the code is written to support working on any number > 0, but that seems maybe confusing UI-wise and is not fully tested, so I've limited it to acting on one for now
-	// TODO: if enable tool working on multiple components, figure out what to do if we have multiple component targets that point to the same underlying mesh data?
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
-}
-
-UInteractiveTool* UUVProjectionToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UUVProjectionTool* NewTool = NewObject<UUVProjectionTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
-	NewTool->SetAssetAPI(AssetAPI);
-
-	return NewTool;
+	if (ParentTool.IsValid())
+	{
+		ParentTool->RequestAction(Action);
+	}
 }
 
 
@@ -74,184 +53,277 @@ UInteractiveTool* UUVProjectionToolBuilder::BuildTool(const FToolBuilderState& S
  * Tool
  */
 
-UUVProjectionToolProperties::UUVProjectionToolProperties()
-{
-	UVProjectionMethod = EUVProjectionMethod::Cube;
-	ProjectionPrimitiveScale = FVector::OneVector;
-	UVScale = FVector2D::UnitVector;
-	UVOffset = FVector2D::ZeroVector;
-}
-
-UUVProjectionAdvancedProperties::UUVProjectionAdvancedProperties()
-{
-}
-
-
-UUVProjectionTool::UUVProjectionTool()
-{
-}
-
-void UUVProjectionTool::SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManagerIn)
-{
-	this->TargetWorld = World;
-	this->GizmoManager = GizmoManagerIn;
-}
-
 void UUVProjectionTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	// hide input StaticMeshComponent
-	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
-	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(false);
-	}
+	UE::ToolTarget::HideSourceObject(Target);
 
-	BasicProperties = NewObject<UUVProjectionToolProperties>(this, TEXT("UV Projection Settings"));
+	BasicProperties = NewObject<UUVProjectionToolProperties>(this);
 	BasicProperties->RestoreProperties(this);
-	AdvancedProperties = NewObject<UUVProjectionAdvancedProperties>(this, TEXT("Advanced Settings"));
+	BasicProperties->GetOnModified().AddLambda([this](UObject*, FProperty*)	{ Preview->InvalidateResult(); });
+	BasicProperties->WatchProperty(BasicProperties->ProjectionType, [this](EUVProjectionMethod) { OnProjectionTypeChanged(); });
 
-	// initialize our properties
-	AddToolPropertySource(BasicProperties);
-	AddToolPropertySource(AdvancedProperties);
+	ExpMapProperties = NewObject<UUVProjectionToolExpMapProperties>(this);
+	ExpMapProperties->RestoreProperties(this);
+	ExpMapProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { Preview->InvalidateResult();	});
 
-	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
-	MaterialSettings->RestoreProperties(this);
+	CylinderProperties = NewObject<UUVProjectionToolCylinderProperties>(this);
+	CylinderProperties->RestoreProperties(this);
+	CylinderProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { Preview->InvalidateResult();	});
 
-	AddToolPropertySource(MaterialSettings);
+	// initialize input mesh
+	InitializeMesh();
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	UpdateNumPreviews();
+
+	UVChannelProperties = NewObject<UMeshUVChannelProperties>(this);
+	UVChannelProperties->RestoreProperties(this);
+	UVChannelProperties->Initialize(InputMesh.Get(), false);
+	UVChannelProperties->ValidateSelection(true);
+	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue)
+	{
+		MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+		Preview->InvalidateResult();
+		OnMaterialSettingsChanged();
+	});
+
+	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
+	MaterialSettings->RestoreProperties(this);
+	MaterialSettings->GetOnModified().AddLambda([this](UObject*, FProperty*)
+	{
+		OnMaterialSettingsChanged();
+	});
+
+	EditActions = NewObject<UUVProjectionToolEditActions>(this);
+	EditActions->Initialize(this);
+
+	AddToolPropertySource(UVChannelProperties);
+	AddToolPropertySource(BasicProperties);
+	AddToolPropertySource(ExpMapProperties);
+	AddToolPropertySource(CylinderProperties);
+	AddToolPropertySource(EditActions);
+	AddToolPropertySource(MaterialSettings);
+	
+	OnMaterialSettingsChanged();
+	OnProjectionTypeChanged();
 
 	// set up visualizers
 	ProjectionShapeVisualizer.LineColor = FLinearColor::Red;
 	ProjectionShapeVisualizer.LineThickness = 2.0;
 
+	// initialize Gizmo
+	FTransform3d GizmoPositionWorld(WorldBounds.Center());
+	TransformProxy = NewObject<UTransformProxy>(this);
+	TransformProxy->SetTransform((FTransform)GizmoPositionWorld);
+	TransformProxy->OnTransformChanged.AddUObject(this, &UUVProjectionTool::TransformChanged);
+
+	TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(
+		GetToolManager(), ETransformGizmoSubElements::StandardTranslateRotate, this);
+	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
+
+	InitialDimensions = BasicProperties->Dimensions;
+	InitialTransform = TransformGizmo->GetGizmoTransform();
 	
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	ApplyInitializationMode();
+
+	// start watching for dimensions changes
+	DimensionsWatcher = BasicProperties->WatchProperty(BasicProperties->Dimensions, [this](FVector) { bTransformModified = true; });
+	BasicProperties->WatchProperty(BasicProperties->Initialization, [this](EUVProjectionToolInitializationMode NewMode) { OnInitializationModeChanged(); });
+	bTransformModified = false;
+	BasicProperties->SilentUpdateWatched();
+
+	// click to set plane behavior
+	SetPlaneCtrlClickBehaviorTarget = MakeUnique<FSelectClickedAction>();
+	SetPlaneCtrlClickBehaviorTarget->World = this->TargetWorld;
+	SetPlaneCtrlClickBehaviorTarget->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
-		Preview->InvalidateResult();
-	}
-	UpdateVisualization();
+		UpdatePlaneFromClick(FVector3d(Hit.ImpactPoint), FVector3d(Hit.ImpactNormal), SetPlaneCtrlClickBehaviorTarget->bShiftModifierToggle);
+	};
+	SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(UE::ToolTarget::GetTargetComponent(Target));
+	ClickToSetPlaneBehavior = NewObject<USingleClickInputBehavior>();
+	ClickToSetPlaneBehavior->ModifierCheckFunc = FInputDeviceState::IsCtrlKeyDown;
+	ClickToSetPlaneBehavior->Modifiers.RegisterModifier(FSelectClickedAction::ShiftModifier, FInputDeviceState::IsShiftKeyDown);
+	ClickToSetPlaneBehavior->Initialize(SetPlaneCtrlClickBehaviorTarget.Get());
+	AddInputBehavior(ClickToSetPlaneBehavior);
+
+	// probably already done
+	Preview->InvalidateResult();
 
 	SetToolDisplayName(LOCTEXT("ToolName", "UV Projection"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("UVProjectionToolDescription", "Generate UVs for a Mesh by projecting onto simple geometric shapes."),
+		LOCTEXT("UVProjectionToolDescription", "Generate UVs for a Mesh by projecting onto simple geometric shapes. Ctrl+click to reposition shape. Face selections can be made in the PolyEdit and TriEdit Tools."),
 		EToolMessageLevel::UserNotification);
 }
 
 
 void UUVProjectionTool::UpdateNumPreviews()
 {
-	int32 CurrentNumPreview = Previews.Num();
-	int32 TargetNumPreview = Targets.Num();
-	if (TargetNumPreview < CurrentNumPreview)
+	OperatorFactory = NewObject<UUVProjectionOperatorFactory>();
+	OperatorFactory->Tool = this;
+
+	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(OperatorFactory);
+	Preview->Setup(this->TargetWorld, OperatorFactory);
+	Preview->OnMeshUpdated.AddUObject(this, &UUVProjectionTool::OnMeshUpdated);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target, false);
+	Preview->ConfigureMaterials(MaterialSet.Materials,
+		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
+	);
+	Preview->PreviewMesh->UpdatePreview(InputMesh.Get());
+	Preview->PreviewMesh->SetTransform((FTransform)WorldTransform);
+
+	Preview->SetVisibility(true);
+
+	EdgeRenderer = NewObject<UPreviewGeometry>(this);
+	EdgeRenderer->CreateInWorld(this->TargetWorld, (FTransform)WorldTransform);
+
+	// if we have an ROI, show its borders
+	if (TriangleROI->Num() > 0)
 	{
-		for (int32 PreviewIdx = CurrentNumPreview - 1; PreviewIdx >= TargetNumPreview; PreviewIdx--)
+		FDynamicMesh3* UseMesh = InputMesh.Get();
+		FMeshRegionBoundaryLoops BoundaryLoops(UseMesh, *TriangleROI, true);
+		TSet<int32> BorderEdges;
+		for (const FEdgeLoop& Loop : BoundaryLoops.GetLoops())
 		{
-			Previews[PreviewIdx]->Cancel();
-			GizmoManager->DestroyGizmo(TransformGizmos[PreviewIdx]);
+			BorderEdges.Append(Loop.Edges);
 		}
-		Previews.SetNum(TargetNumPreview);
-		TransformGizmos.SetNum(TargetNumPreview);
-		TransformProxies.SetNum(TargetNumPreview);
-		OriginalDynamicMeshes.SetNum(TargetNumPreview);
-	}
-	else
-	{
-		OriginalDynamicMeshes.SetNum(TargetNumPreview);
-		for (int32 PreviewIdx = CurrentNumPreview; PreviewIdx < TargetNumPreview; PreviewIdx++)
-		{
-			UUVProjectionOperatorFactory *OpFactory = NewObject<UUVProjectionOperatorFactory>();
-			OpFactory->Tool = this;
-			OpFactory->ComponentIndex = PreviewIdx;
-			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
-			FMeshDescriptionToDynamicMesh Converter;
-			Converter.Convert(TargetMeshProviderInterface(PreviewIdx)->GetMeshDescription(), *OriginalDynamicMeshes[PreviewIdx]);
 
-			FVector Center, Extents;
-			FBoxSphereBounds Bounds = TargetComponentInterface(PreviewIdx)->GetOwnerComponent()->CalcLocalBounds();
-			
-			FTransform LocalXF(Bounds.Origin);
-			LocalXF.SetScale3D(Bounds.BoxExtent);
-
-			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
-			Preview->Setup(this->TargetWorld, OpFactory);
-			Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
-
-			FComponentMaterialSet MaterialSet;
-			TargetMaterialInterface(PreviewIdx)->GetMaterialSet(MaterialSet);
-			Preview->ConfigureMaterials(MaterialSet.Materials,
-				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-			);
-			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
-			Preview->PreviewMesh->SetTransform(TargetComponentInterface(PreviewIdx)->GetWorldTransform());
-
-			Preview->SetVisibility(true);
-
-			UTransformProxy* TransformProxy = TransformProxies.Add_GetRef(NewObject<UTransformProxy>(this));
-			TransformProxy->SetTransform(LocalXF * TargetComponentInterface(PreviewIdx)->GetWorldTransform());
-			TransformProxy->OnTransformChanged.AddUObject(this, &UUVProjectionTool::TransformChanged);
-
-			UTransformGizmo* TransformGizmo = TransformGizmos.Add_GetRef(UE::TransformGizmoUtil::Create3AxisTransformGizmo(GizmoManager, this));
-			TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
-		}
-		check(TransformProxies.Num() == TargetNumPreview);
-		check(TransformGizmos.Num() == TargetNumPreview);
+		const FColor ROIBorderColor(240, 15, 240);
+		const float ROIBorderThickness = 4.0f;
+		const float ROIBorderDepthBias = 0.1f * (float)(WorldBounds.DiagonalLength() * 0.01);
+		EdgeRenderer->CreateOrUpdateLineSet(TEXT("ROIBorders"), UseMesh->MaxEdgeID(), [&](int32 eid, TArray<FRenderableLine>& LinesOut) {
+			if (BorderEdges.Contains(eid))
+			{
+				FVector3d A, B;
+				UseMesh->GetEdgeV(eid, A, B);
+				LinesOut.Add(FRenderableLine((FVector)A, (FVector)B, ROIBorderColor, ROIBorderThickness, ROIBorderDepthBias));
+			}
+		}, 1);
 	}
 }
 
 
 void UUVProjectionTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	UVChannelProperties->SaveProperties(this);
+	BasicProperties->SavedDimensions = BasicProperties->Dimensions;
+	BasicProperties->SavedTransform = TransformGizmo->GetGizmoTransform();
 	BasicProperties->SaveProperties(this);
+	ExpMapProperties->SaveProperties(this);
+	CylinderProperties->SaveProperties(this);
 	MaterialSettings->SaveProperties(this);
 
-	// Restore (unhide) the source meshes
-	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
-	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
-	}
+	EdgeRenderer->Disconnect();
 
-	TArray<FDynamicMeshOpResult> Results;
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Results.Emplace(Preview->Shutdown());
-	}
+	// Restore (unhide) the source meshes
+	UE::ToolTarget::ShowSourceObject(Target);
+
+	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		GenerateAsset(Results);
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("UVProjectionToolTransactionName", "Project UVs"));
+		FDynamicMesh3* NewDynamicMesh = Result.Mesh.Get();
+		if (ensure(NewDynamicMesh))
+		{
+			UE::ToolTarget::CommitDynamicMeshUVUpdate(Target, NewDynamicMesh);
+		}
+		GetToolManager()->EndUndoTransaction();
 	}
 
-	GizmoManager->DestroyAllGizmosByOwner(this);
-	TransformGizmos.Empty();
+	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+	TransformGizmo = nullptr;
+	TransformProxy = nullptr;
 }
 
-void UUVProjectionTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
+
+void UUVProjectionTool::RequestAction(EUVProjectionToolActions ActionType)
 {
-	this->AssetAPI = AssetAPIIn;
+	if (bHavePendingAction)
+	{
+		return;
+	}
+	PendingAction = ActionType;
+	bHavePendingAction = true;
 }
+
+
 
 TUniquePtr<FDynamicMeshOperator> UUVProjectionOperatorFactory::MakeNewOperator()
 {
 	TUniquePtr<FUVProjectionOp> Op = MakeUnique<FUVProjectionOp>();
-	Op->ProjectionMethod = Tool->BasicProperties->UVProjectionMethod;
+	Op->ProjectionMethod = Tool->BasicProperties->ProjectionType;
 
-	// TODO: de-dupe this logic (it's also in Render, below)
-	FTransform LocalScale = FTransform::Identity;
-	LocalScale.SetScale3D(Tool->BasicProperties->ProjectionPrimitiveScale);
-	Op->ProjectionTransform = LocalScale * Tool->TransformProxies[ComponentIndex]->GetTransform();
-	Op->CylinderProjectToTopOrBottomAngleThreshold = Tool->BasicProperties->CylinderProjectToTopOrBottomAngleThreshold;
+	Op->MeshToProjectionSpace = Tool->WorldTransform;
+	Op->ProjectionBox = Tool->GetProjectionBox();
+	if (Tool->BasicProperties->DimensionMode == EUVProjectionToolDimensionMode::UseFirst)
+	{
+		double UseDim = Op->ProjectionBox.Extents.X;
+		Op->ProjectionBox.Extents = FVector3d(UseDim, UseDim, UseDim);
+	}
+	Op->CylinderSplitAngle = Tool->CylinderProperties->SplitAngle;
+	Op->BlendWeight = Tool->ExpMapProperties->NormalBlending;
+	Op->SmoothingRounds = Tool->ExpMapProperties->SmoothingRounds;
+	Op->SmoothingAlpha = Tool->ExpMapProperties->SmoothingAlpha;
+
+	Op->UVRotationAngleDeg = Tool->BasicProperties->UVRotation;
 	Op->UVScale = (FVector2f)Tool->BasicProperties->UVScale;
-	Op->UVOffset = (FVector2f)Tool->BasicProperties->UVOffset;
-	Op->bWorldSpaceUVScale = Tool->BasicProperties->bWorldSpaceUVScale;
+	Op->UVTranslate = (FVector2f)Tool->BasicProperties->UVTranslate;
 
-	FTransform LocalToWorld = Tool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
-	Op->OriginalMesh = Tool->OriginalDynamicMeshes[ComponentIndex];
-	
-	Op->SetTransform(LocalToWorld);
+	Op->OriginalMesh = Tool->InputMesh;
+	Op->TriangleROI = Tool->TriangleROI;
+	Op->UseUVLayer = Tool->UVChannelProperties->GetSelectedChannelIndex(true);
+		
+	Op->SetResultTransform(Tool->WorldTransform);
 
 	return Op;
+}
+
+
+
+
+void UUVProjectionTool::InitializeMesh()
+{
+	InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
+	*InputMesh = UE::ToolTarget::GetDynamicMeshCopy(Target);
+	WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+
+	// initialize triangle ROI if one exists
+	TriangleROI = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();
+	if (HasInputSelection())
+	{
+		GetStoredSelectionAsTriangles(GetInputSelection(), *InputMesh, *TriangleROI);
+		TriangleROISet.Append(*TriangleROI);
+	}
+	VertexROI = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();
+	UE::Geometry::TriangleToVertexIDs(InputMesh.Get(), *TriangleROI, *VertexROI);
+
+	InputMeshROISpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(InputMesh.Get(), false);
+	if (TriangleROI->Num() > 0)
+	{
+		InputMeshROISpatial->Build(*TriangleROI);
+	}
+	else
+	{
+		InputMeshROISpatial->Build();
+	}
+
+	WorldBounds = (VertexROI->Num() > 0) ?
+		FAxisAlignedBox3d::MakeBoundsFromIndices(*VertexROI, [this](int32 Index) { return WorldTransform.TransformPosition(InputMesh->GetVertex(Index)); })
+		: FAxisAlignedBox3d::MakeBoundsFromIndices(InputMesh->VertexIndicesItr(), [this](int32 Index) { return WorldTransform.TransformPosition(InputMesh->GetVertex(Index)); });
+
+	BasicProperties->Dimensions = (FVector)WorldBounds.Diagonal();
+}
+
+
+
+FOrientedBox3d UUVProjectionTool::GetProjectionBox()
+{
+	FFrame3d BoxFrame(TransformProxy->GetTransform());
+	FVector3d BoxDimensions = 0.5 * (FVector3d)BasicProperties->Dimensions;
+	return FOrientedBox3d(BoxFrame, BoxDimensions);
 }
 
 
@@ -260,24 +332,35 @@ void UUVProjectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	ProjectionShapeVisualizer.bDepthTested = false;
 	ProjectionShapeVisualizer.BeginFrame(RenderAPI, CameraState);
-	FTransform LocalScale = FTransform::Identity;
-	LocalScale.SetScale3D(BasicProperties->ProjectionPrimitiveScale);
-	for (UTransformProxy* TransformProxy : TransformProxies)
-	{
-		ProjectionShapeVisualizer.SetTransform(LocalScale * TransformProxy->GetTransform());
 
-		switch (BasicProperties->UVProjectionMethod)
-		{
-		case EUVProjectionMethod::Cube:
-			ProjectionShapeVisualizer.DrawWireBox(FBox(FVector(-1, -1, -1), FVector(1, 1, 1)));
-			break;
-		case EUVProjectionMethod::Cylinder:
-			ProjectionShapeVisualizer.DrawWireCylinder(FVector(0, 0, -1), FVector(0, 0, 1), 1, 2, 20);
-			break;
-		case EUVProjectionMethod::Plane:
-			ProjectionShapeVisualizer.DrawSquare(FVector(0, 0, 0), FVector(2, 0, 0), FVector(0, 2, 0));
-			break;
-		}
+	FOrientedBox3d PrimBox = GetProjectionBox();
+	FVector MinCorner = (FVector)-PrimBox.Extents;
+	FVector MaxCorner = (FVector)PrimBox.Extents;
+	float Width = MaxCorner.X - MinCorner.X;
+	float Depth = MaxCorner.Y - MinCorner.Y;
+	float Height = MaxCorner.Z - MinCorner.Z;
+
+	FTransform UseTransform = PrimBox.Frame.ToFTransform();
+	if (BasicProperties->ProjectionType == EUVProjectionMethod::Cylinder)
+	{
+		UseTransform.SetScale3D(FVector(Width, Depth, 1.0f));
+	}
+	ProjectionShapeVisualizer.SetTransform(UseTransform);
+
+	switch (BasicProperties->ProjectionType)
+	{
+	case EUVProjectionMethod::Box:
+		ProjectionShapeVisualizer.DrawWireBox(FBox(MinCorner, MaxCorner));
+		break;
+	case EUVProjectionMethod::Cylinder:
+		ProjectionShapeVisualizer.DrawWireCylinder(FVector(0, 0, -Height*0.5f), FVector(0, 0, 1), 0.5f, Height, 16);
+		break;
+	case EUVProjectionMethod::Plane:
+		ProjectionShapeVisualizer.DrawSquare(FVector(0, 0, 0), FVector(Width, 0, 0), FVector(0, Depth, 0));
+		break;
+	case EUVProjectionMethod::ExpMap:
+		ProjectionShapeVisualizer.DrawSquare(FVector(0, 0, 0), FVector(Width, 0, 0), FVector(0, Depth, 0));
+		break;
 	}
 	
 	ProjectionShapeVisualizer.EndFrame();
@@ -285,104 +368,246 @@ void UUVProjectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UUVProjectionTool::OnTick(float DeltaTime)
 {
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	if (bHavePendingAction)
 	{
-		Preview->Tick(DeltaTime);
+		ApplyAction(PendingAction);
+		bHavePendingAction = false;
+		PendingAction = EUVProjectionToolActions::NoAction;
 	}
+
+	Preview->Tick(DeltaTime);
 }
 
 
 
-#if WITH_EDITOR
-void UUVProjectionTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	UpdateNumPreviews();
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Preview->InvalidateResult();
-	}
-}
-#endif
-
-void UUVProjectionTool::UpdateVisualization()
+void UUVProjectionTool::OnMaterialSettingsChanged()
 {
 	MaterialSettings->UpdateMaterials();
-	for (int PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
-	{
-		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[PreviewIdx];
-		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
-	}
 
-	UpdateNumPreviews();
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	UMaterialInterface* OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
+	if (OverrideMaterial != nullptr)
 	{
-		Preview->InvalidateResult();
+		Preview->OverrideMaterial = OverrideMaterial;
+	}
+	else
+	{
+		Preview->OverrideMaterial = nullptr;
 	}
 }
 
-void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+
+void UUVProjectionTool::OnProjectionTypeChanged()
 {
-	UpdateVisualization();
+	SetToolPropertySourceEnabled(ExpMapProperties, BasicProperties->ProjectionType == EUVProjectionMethod::ExpMap);
+	SetToolPropertySourceEnabled(CylinderProperties, BasicProperties->ProjectionType == EUVProjectionMethod::Cylinder);
+}
+
+
+void UUVProjectionTool::OnMeshUpdated(UMeshOpPreviewWithBackgroundCompute* PreviewCompute)
+{
+	const FColor UVSeamColor(15, 240, 15);
+	const float UVSeamThickness = 2.0f;
+	const float UVSeamDepthBias = 0.1f * (float)(WorldBounds.DiagonalLength() * 0.01);
+
+	const FDynamicMesh3* UseMesh = Preview->PreviewMesh->GetMesh();
+	const FDynamicMeshUVOverlay* UVOverlay = UseMesh->Attributes()->GetUVLayer(UVChannelProperties->GetSelectedChannelIndex(true));
+	auto AppendSeamEdge = [UseMesh, UVOverlay, UVSeamColor, UVSeamThickness, UVSeamDepthBias](int32 eid, TArray<FRenderableLine>& LinesOut) {
+		FVector3d A, B;
+		UseMesh->GetEdgeV(eid, A, B);
+		LinesOut.Add(FRenderableLine((FVector)A, (FVector)B, UVSeamColor, UVSeamThickness, UVSeamDepthBias));
+	};
+	if (TriangleROI->Num() > 0)
+	{
+		EdgeRenderer->CreateOrUpdateLineSet(TEXT("UVSeams"), UseMesh->MaxEdgeID(), [&](int32 eid, TArray<FRenderableLine>& LinesOut) {
+			FIndex2i EdgeT = UseMesh->GetEdgeT(eid);
+			if (TriangleROISet.Contains(EdgeT.A) && TriangleROISet.Contains(EdgeT.B) && UVOverlay->IsSeamEdge(eid))
+			{
+				AppendSeamEdge(eid, LinesOut);
+			}
+		}, 1);
+	}
+	else
+	{
+		EdgeRenderer->CreateOrUpdateLineSet(TEXT("UVSeams"), UseMesh->MaxEdgeID(), [&](int32 eid, TArray<FRenderableLine>& LinesOut) {
+			if (UVOverlay->IsSeamEdge(eid))
+			{
+				AppendSeamEdge(eid, LinesOut);
+			}
+		}, 1);
+	}
+}
+
+
+void UUVProjectionTool::UpdatePlaneFromClick(const FVector3d& Position, const FVector3d& Normal, bool bTransationOnly)
+{
+	FFrame3d CurrentFrame(TransformProxy->GetTransform());
+	CurrentFrame.Origin = Position;
+	if (bTransationOnly == false)
+	{
+		CurrentFrame.AlignAxis(2, Normal);
+	}
+	TransformGizmo->SetNewGizmoTransform(CurrentFrame.ToFTransform());
+	Preview->InvalidateResult();
+	bTransformModified = true;
 }
 
 
 void UUVProjectionTool::TransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
-	// TODO: if multi-select is re-enabled, only invalidate the preview that actually needs it?
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Preview->InvalidateResult();
-	}
+	Preview->InvalidateResult();
+	bTransformModified = true;
 }
 
 
 bool UUVProjectionTool::CanAccept() const
 {
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	if (!Preview->HaveValidResult())
 	{
-		if (!Preview->HaveValidResult())
-		{
-			return false;
-		}
+		return false;
 	}
 	return Super::CanAccept();
 }
 
 
-void UUVProjectionTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
+
+void UUVProjectionTool::OnInitializationModeChanged()
 {
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("UVProjectionToolTransactionName", "UV Projection Tool"));
-
-	check(Results.Num() == Targets.Num());
-	
-	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
+	bool bWasTransformModified = bTransformModified;
+	if (!bTransformModified)
 	{
-		check(Results[ComponentIdx].Mesh.Get() != nullptr);
-		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&Results, &ComponentIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			FDynamicMesh3* DynamicMesh = Results[ComponentIdx].Mesh.Get();
-			FMeshDescription* MeshDescription = CommitParams.MeshDescriptionOut;
-
-			bool bVerticesOnly = false;
-			bool bAttributesOnly = true;
-			if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(DynamicMesh, MeshDescription, bVerticesOnly, bAttributesOnly))
-			{
-				FDynamicMeshToMeshDescription Converter;
-				Converter.UpdateAttributes(DynamicMesh, *MeshDescription, false, false, true/*update uvs*/);
-			}
-			else
-			{
-				// must have been duplicate tris in the mesh description; we can't count on 1-to-1 mapping of TriangleIDs.  Just convert 
-				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMesh, *MeshDescription);
-			}
-		});
+		ApplyInitializationMode();
+		bTransformModified = bWasTransformModified;
 	}
-
-	GetToolManager()->EndUndoTransaction();
 }
 
 
+void UUVProjectionTool::ApplyInitializationMode()
+{
+
+	switch (BasicProperties->Initialization)
+	{
+	case EUVProjectionToolInitializationMode::Default:
+		BasicProperties->Dimensions = InitialDimensions;
+		TransformGizmo->SetNewGizmoTransform(InitialTransform);
+		break;
+
+	case EUVProjectionToolInitializationMode::UsePrevious:
+		{
+			bool bHavePrevious = (BasicProperties->SavedDimensions != FVector::ZeroVector);
+			BasicProperties->Dimensions = (bHavePrevious) ? BasicProperties->SavedDimensions : InitialDimensions;
+			TransformGizmo->SetNewGizmoTransform( (bHavePrevious) ? BasicProperties->SavedTransform : InitialTransform);
+		}
+		break;
+
+	case EUVProjectionToolInitializationMode::AutoFit:
+		ApplyAction_AutoFit(false);
+		break;
+
+	case EUVProjectionToolInitializationMode::AutoFitAlign:
+		ApplyAction_AutoFit(true);
+		break;
+	}
+}
+
+
+
+void UUVProjectionTool::ApplyAction(EUVProjectionToolActions ActionType)
+{
+	switch (ActionType)
+	{
+		case EUVProjectionToolActions::AutoFit:
+			ApplyAction_AutoFit(false);
+			break;
+		case EUVProjectionToolActions::AutoFitAlign:
+			ApplyAction_AutoFit(true);
+			break;
+		case EUVProjectionToolActions::Reset:
+			ApplyAction_Reset();
+			break;
+	}
+}
+
+
+void UUVProjectionTool::ApplyAction_AutoFit(bool bAlign)
+{
+	// get current transform
+	FFrame3d AlignFrame(TransformGizmo->GetGizmoTransform());
+
+	TArray<FVector3d> Points;
+	if (VertexROI->Num() > 0)
+	{
+		CollectVertexPositions(*InputMesh, *VertexROI, Points);
+	}
+	else
+	{
+		CollectVertexPositions(*InputMesh, InputMesh->VertexIndicesItr(), Points);
+	}
+
+	// auto-compute orientation if desired
+	if (bAlign)
+	{
+		if (BasicProperties->ProjectionType == EUVProjectionMethod::Plane || BasicProperties->ProjectionType == EUVProjectionMethod::Box || BasicProperties->ProjectionType == EUVProjectionMethod::Cylinder)
+		{
+			// compute min-volume box
+			FOrientedBox3d MinBoundingBox;
+			FMinVolumeBox3d MinBoxCalc;
+			bool bMinBoxOK = MinBoxCalc.SolveSubsample(Points.Num(), 1000,
+				[&](int32 Index) { return WorldTransform.TransformPosition(Points[Index]); }, false, nullptr);
+			if (bMinBoxOK && MinBoxCalc.IsSolutionAvailable())
+			{
+				MinBoxCalc.GetResult(MinBoundingBox);
+			}
+			else
+			{
+				MinBoundingBox = FOrientedBox3d(WorldBounds);
+			}
+
+			AlignFrame = MinBoundingBox.Frame;
+		}
+		else if (BasicProperties->ProjectionType == EUVProjectionMethod::ExpMap)
+		{
+			int32 VertexID;
+			if (TriangleROI->Num() > 0)
+			{
+				FDynamicMeshUVEditor::EstimateGeodesicCenterFrameVertex(*InputMesh, *TriangleROI, AlignFrame, VertexID);
+				AlignFrame.Transform(WorldTransform);
+			}
+			else
+			{
+				FDynamicMeshUVEditor::EstimateGeodesicCenterFrameVertex(*InputMesh, AlignFrame, VertexID);
+				AlignFrame.Transform(WorldTransform);
+			}
+		}
+	}
+
+	// fit bounds to current frame
+	FAxisAlignedBox3d FitBounds = FAxisAlignedBox3d::MakeBoundsFromIndices(Points.Num(), [this, &Points, &AlignFrame](int32 Index) 
+	{ 
+		return AlignFrame.ToFramePoint(WorldTransform.TransformPosition(Points[Index])); }
+	);
+	if (BasicProperties->ProjectionType == EUVProjectionMethod::Plane || BasicProperties->ProjectionType == EUVProjectionMethod::Box || BasicProperties->ProjectionType == EUVProjectionMethod::Cylinder)
+	{
+		FVector3d ShiftCenter = AlignFrame.FromFramePoint(FitBounds.Center());
+		AlignFrame.Origin = ShiftCenter;
+	}
+	BasicProperties->Dimensions = 2.0f * (FVector)FitBounds.Extents();
+	if (DimensionsWatcher >= 0)
+	{
+		BasicProperties->SilentUpdateWatcherAtIndex(DimensionsWatcher);
+	}
+
+	// update Gizmo
+	TransformGizmo->SetNewGizmoTransform(AlignFrame.ToFTransform());
+}
+
+
+
+void UUVProjectionTool::ApplyAction_Reset()
+{
+	bool bWasTransformModified = bTransformModified;
+	ApplyInitializationMode();
+	bTransformModified = bWasTransformModified;
+}
 
 
 #undef LOCTEXT_NAMESPACE

@@ -866,6 +866,7 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromCylinderProjection(
 	TFunctionRef<FVector3d(const FVector3d&)> PointTransform, 
 	const FFrame3d& BoxFrame, 
 	const FVector3d& BoxDimensions, 
+	float CylinderSplitAngle,
 	FUVEditResult* Result)
 {
 	if (ensure(UVOverlay) == false) return;
@@ -890,11 +891,10 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromCylinderProjection(
 	double ScaleZ = (FMathd::Abs(BoxDimensions.Z) > FMathf::ZeroTolerance) ? (1.0 / BoxDimensions.Z) : 1.0;
 	FVector3d Scale(ScaleX, ScaleY, ScaleZ);
 
-	double w = FMathd::Sqrt(BoxDimensions.X*BoxDimensions.X + BoxDimensions.Y*BoxDimensions.Y);
-	double h = BoxDimensions.Z;
-	double Angle = FMathd::Atan2(h, w);
-	double DotThresholdRejectFromPlane = FMathd::Cos(Angle);
+	double DotThresholdRejectFromPlane = FMathd::Cos(CylinderSplitAngle * FMathf::DegToRad);
 
+	// sort triangles into buckets based on normal. 1/0 is +/-Z, and 3/4 is negative/positive angle around the cylinder,
+	// where angles range from [-180,180]. Currently we split at 0 so the 3=[-180,0] and 4=[0,180] spans get their own UV islands
 	TArray<FVector3d> TriNormals;
 	TArray<FIndex2i> TriangleCylinderAssignments;
 	TriNormals.SetNum(NumTriangles);
@@ -960,16 +960,16 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromCylinderProjection(
 				}
 				else
 				{
-					double VAngle = FMathd::Atan2Positive(BoxPos.Y, BoxPos.X);
-					if (Bucket == 4 && VAngle < FMathd::HalfPi)
+					double VAngle = FMathd::Atan2(BoxPos.Y, BoxPos.X);
+					if (Bucket == 4 && VAngle < -FMathd::HalfPi)				// 4 = [0, 180]
 					{
 						VAngle += FMathd::TwoPi;
 					}
-					else if (Bucket == 3 && VAngle > FMathd::HalfPi)
+					else if (Bucket == 3 && VAngle > FMathd::HalfPi)		// 3=[-180,0]
 					{
 						VAngle -= FMathd::TwoPi;
 					}
-					UV = FVector2f(-(float(VAngle) * FMathf::InvPi - 1.0f), -float(BoxPos.Z));
+					UV = FVector2f( -(float(VAngle) * FMathf::InvPi - 1.0f), -float(BoxPos.Z));
 				}
 
 				ElemTri[j] = UVOverlay->AppendElement(UV);

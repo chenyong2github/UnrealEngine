@@ -138,11 +138,11 @@ public:
 
 
 	/**
-	 * Set UVs by box projection. Triangles will be grouped to "best" box face
+	 * Set UVs by cylinder projection. Triangles will be grouped to cylinder endcaps or side based on CylinderSplitAngle.
 	 * PointTransform is applied to points before projectiong onto ProjectionFrame X/Y axes
 	 * Projected U/V coordinates are divided by Dimensions.X/Y
 	 */
-	void SetTriangleUVsFromCylinderProjection(const TArray<int32>& Triangles, TFunctionRef<FVector3d(const FVector3d&)> PointTransform, const FFrame3d& CylFrame, const FVector3d& CylDimensions, FUVEditResult* Result = nullptr);
+	void SetTriangleUVsFromCylinderProjection(const TArray<int32>& Triangles, TFunctionRef<FVector3d(const FVector3d&)> PointTransform, const FFrame3d& CylFrame, const FVector3d& CylDimensions, float CylinderSplitAngle, FUVEditResult* Result = nullptr);
 
 
 
