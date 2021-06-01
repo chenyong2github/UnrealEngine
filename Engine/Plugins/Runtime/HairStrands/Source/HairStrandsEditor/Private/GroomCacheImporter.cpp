@@ -7,7 +7,7 @@
 #include "GroomImportOptions.h"
 #include "HairStrandsImporter.h"
 #include "HairStrandsTranslator.h"
-#include "Misc\ScopedSlowTask.h"
+#include "Misc/ScopedSlowTask.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 
