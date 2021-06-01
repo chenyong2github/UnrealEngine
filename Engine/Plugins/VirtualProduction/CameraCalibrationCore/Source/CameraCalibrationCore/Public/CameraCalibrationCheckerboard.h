@@ -20,10 +20,6 @@ class CAMERACALIBRATIONCORE_API ACameraCalibrationCheckerboard : public AActor
 {
 	GENERATED_BODY()
 
-private:
-
-	using Super = AActor;
-
 public:
 
 	ACameraCalibrationCheckerboard();

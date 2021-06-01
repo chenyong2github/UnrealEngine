@@ -111,7 +111,8 @@ namespace CameraLensDistortionAlgoCheckerboard
 		TSharedPtr<FCalibrationRowData> CalibrationRowData;
 	};
 
-	static bool ReadPixels(cv::Mat& CvFrame, FCameraCalibrationStepsController* StepsController, FText& OutErrorMessage)
+#if WITH_OPENCV
+	static bool ReadMediaPixels(cv::Mat& CvFrame, FCameraCalibrationStepsController* StepsController, FText& OutErrorMessage)
 	{
 		if (!ensure(StepsController))
 		{
@@ -167,6 +168,7 @@ namespace CameraLensDistortionAlgoCheckerboard
 
 		return true;
 	}
+#endif //WITH_OPENCV
 };
 
 void UCameraLensDistortionAlgoCheckerboard::Initialize(ULensDistortionTool* InTool)
@@ -290,7 +292,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 	// Read pixels
 	cv::Mat CvFrame;
 
-	if (!ReadPixels(CvFrame, StepsController, OutErrorMessage))
+	if (!ReadMediaPixels(CvFrame, StepsController, OutErrorMessage))
 	{
 		return false;
 	}
