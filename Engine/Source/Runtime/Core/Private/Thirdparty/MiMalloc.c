@@ -10,8 +10,15 @@
 #define TARGET_IOS_IPHONE 0
 #define TARGET_IOS_SIMULATOR 0
 
-#pragma warning(disable:4668)
-#include "ThirdParty/mimalloc/src/static.c"
-#pragma warning(default:4668)
-
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4668) // Avoid undefined __cplusplus warnings in older versions
 #endif
+
+#include "ThirdParty/mimalloc/src/static.c"
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
+#endif // PLATFORM_BUILDS_MIMALLOC
