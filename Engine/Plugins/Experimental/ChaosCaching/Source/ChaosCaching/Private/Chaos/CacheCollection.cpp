@@ -5,6 +5,25 @@
 #include "Algo/Find.h"
 #include "Async/ParallelFor.h"
 
+void UChaosCacheCollection::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+#if WITH_EDITOR
+	int32 NumCaches = Caches.Num();
+
+	OutTags.Add(FAssetRegistryTag(TEXT("Number of Observed Components"), FString::FromInt(NumCaches), FAssetRegistryTag::TT_Numerical));
+
+	float Duration = 0.0;
+	for (int32 CacheIdx = 0; CacheIdx < NumCaches; ++CacheIdx)
+	{
+		UChaosCache* Cache = Caches[CacheIdx];
+		Duration = FMath::Max(Duration, Cache->RecordedDuration);
+	}	
+	OutTags.Add(FAssetRegistryTag(TEXT("Recorded Duration"), FString::Printf(TEXT("%.2f"), Duration), FAssetRegistryTag::TT_Numerical));
+#endif
+
+	Super::GetAssetRegistryTags(OutTags);
+}
+
 UChaosCache* UChaosCacheCollection::FindCache(const FName& CacheName) const
 {
 	UChaosCache* const* ExistingCache = Algo::FindByPredicate(Caches, [&CacheName](const UChaosCache* Test)
