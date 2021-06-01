@@ -67,15 +67,18 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 			else if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ModelNode))
 			{
-				UPackage* ReferencedPackage = FunctionReferenceNode->GetReferencedNode()->GetOutermost();
-				if(ReferencedPackage != ModelNode->GetOutermost())
+				if(URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->GetReferencedNode())
 				{
-					SubTitle = FString::Printf(TEXT("From %s"), *ReferencedPackage->GetName());
-				}
-				else
-				{
-					static const FString LocalFunctionString = TEXT("Local Function");
-					SubTitle = LocalFunctionString;
+					UPackage* ReferencedPackage = ReferencedNode->GetOutermost();
+					if(ReferencedPackage != ModelNode->GetOutermost())
+					{
+						SubTitle = FString::Printf(TEXT("From %s"), *ReferencedPackage->GetName());
+					}
+					else
+					{
+						static const FString LocalFunctionString = TEXT("Local Function");
+						SubTitle = LocalFunctionString;
+					}
 				}
 			}
 

@@ -7465,7 +7465,10 @@ FString URigVMController::GetValidNodeName(const FString& InPrefix)
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	return GetUniqueName(*InPrefix, [&](const FName& InName) {
+	FString SanitizedPrefix = InPrefix;
+	SanitizeName(SanitizedPrefix);
+
+	return GetUniqueName(*SanitizedPrefix, [&](const FName& InName) {
 		return Graph->IsNameAvailable(InName.ToString());
 	}).ToString();
 }
@@ -9502,5 +9505,29 @@ void URigVMController::RefreshFunctionReferences(URigVMLibraryNode* InFunctionDe
 			TGuardValue<bool> ReportGuard(bReportWarningsAndErrors, false);
 			ReattachLinksToPinObjects(false, &Links, true);
 		});
+	}
+}
+
+void URigVMController::SanitizeName(FString& InOutName)
+{
+	// Sanitize the name
+	for (int32 i = 0; i < InOutName.Len(); ++i)
+	{
+		TCHAR& C = InOutName[i];
+
+		const bool bGoodChar =
+			((C >= 'A') && (C <= 'Z')) || ((C >= 'a') && (C <= 'z')) ||		// A-Z (upper and lowercase) anytime
+			(C == '_') || (C == '-') || (C == '.') || (C == ' ') ||			// _  - . and space anytime
+			((i > 0) && (C >= '0') && (C <= '9'));							// 0-9 after the first character
+
+		if (!bGoodChar)
+		{
+			C = '_';
+		}
+	}
+
+	if (InOutName.Len() > GetMaxNameLength())
+	{
+		InOutName.LeftChopInline(InOutName.Len() - GetMaxNameLength());
 	}
 }

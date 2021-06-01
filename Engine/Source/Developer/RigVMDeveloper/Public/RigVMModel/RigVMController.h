@@ -775,6 +775,9 @@ private:
 
 	void RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo);
 
+	static int32 GetMaxNameLength() { return 100; }
+	static void SanitizeName(FString& InOutName);
+	
 	UPROPERTY(transient)
 	TArray<URigVMGraph*> Graphs;
 
