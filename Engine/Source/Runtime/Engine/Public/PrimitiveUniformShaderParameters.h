@@ -119,7 +119,6 @@ public:
 
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(const FVector3f&,	ActorWorldPosition);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(const FMatrix44f&,	LocalToWorld);
-	PRIMITIVE_UNIFORM_BUILDER_METHOD(const FMatrix44f&,	PreviousLocalToWorld);
 
 #undef PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD
 #undef PRIMITIVE_UNIFORM_BUILDER_METHOD
@@ -159,6 +158,13 @@ public:
 		bHasPreSkinnedLocalBounds = true;
 		Parameters.PreSkinnedLocalBoundsMin = InPreSkinnedLocalBounds.GetBoxExtrema(0); // 0 == minimum
 		Parameters.PreSkinnedLocalBoundsMax = InPreSkinnedLocalBounds.GetBoxExtrema(1); // 1 == maximum
+		return *this;
+	}
+
+	inline FPrimitiveUniformShaderParametersBuilder& PreviousLocalToWorld(const FMatrix44f& InPreviousLocalToWorld)
+	{
+		bHasPreviousLocalToWorld = true;
+		Parameters.PreviousLocalToWorld = InPreviousLocalToWorld;
 		return *this;
 	}
 
