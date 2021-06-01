@@ -31,10 +31,7 @@ public:
 		FMemory::Memzero(BufferData, Size);
 		RHIUnlockBuffer(VertexBufferRHI);
 
-		if (GSupportsResourceView)
-		{
-			VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
-		}
+		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
 	}
 	
 	virtual void ReleaseRHI() override

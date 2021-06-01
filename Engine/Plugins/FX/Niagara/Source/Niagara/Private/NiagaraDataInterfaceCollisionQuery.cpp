@@ -954,11 +954,6 @@ bool UNiagaraDataInterfaceCollisionQuery::CopyToInternal(UNiagaraDataInterface* 
 
 void UNiagaraDataInterfaceCollisionQuery::PushToRenderThreadImpl()
 {
-	if (!GSupportsResourceView)
-	{
-		return;
-	}
-
 	FNiagaraDataIntefaceProxyCollisionQuery* RT_Proxy = GetProxyAs<FNiagaraDataIntefaceProxyCollisionQuery>();
 
 	// Push Updates to Proxy, first release any resources

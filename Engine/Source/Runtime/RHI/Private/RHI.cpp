@@ -1193,7 +1193,6 @@ bool GRHINeedsUnatlasedCSMDepthsWorkaround = false;
 bool GSupportsTexture3D = true;
 bool GSupportsMobileMultiView = false;
 bool GSupportsImageExternal = false;
-bool GSupportsResourceView = true;
 bool GRHISupportsDrawIndirect = true;
 bool GRHISupportsMultithreading = false;
 bool GRHISupportsUpdateFromBufferTexture = false;

@@ -564,8 +564,6 @@ struct FLuminOpenGL4 : public FOpenGL4
 	// whether NV_bindless_texture is supported
 	static bool bSupportsBindlessTexture;
 
-	static FORCEINLINE bool SupportsResourceView() { return true; }
-
 	static FORCEINLINE void TexBuffer(GLenum Target, GLenum InternalFormat, GLuint Buffer)
 	{
 		glTexBuffer(Target, InternalFormat, Buffer);
