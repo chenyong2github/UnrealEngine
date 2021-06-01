@@ -1236,8 +1236,6 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 	// with the loading thread.
 	FScopeLock ScopeLock(Renderer->GetResourceCriticalSection());
 
-	FMemMark Mark(FMemStack::Get());
-
 	FWidgetPath WidgetsToVisualizeUnderCursor;
 	
 #if SLATE_HAS_WIDGET_REFLECTOR

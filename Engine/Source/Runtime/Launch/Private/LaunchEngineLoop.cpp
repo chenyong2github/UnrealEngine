@@ -4853,9 +4853,6 @@ void FEngineLoop::Tick()
 {
 	SCOPE_STALL_COUNTER(FEngineLoop::Tick, 2.0);
 
-	// make sure to catch any FMemStack uses outside of UWorld::Tick
-	FMemMark MemStackMark(FMemStack::Get());
-
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST && MALLOC_GT_HOOKS
 	FScopedSampleMallocChurn ChurnTracker;
 #endif
