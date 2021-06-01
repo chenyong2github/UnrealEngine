@@ -10,6 +10,8 @@
 #define TARGET_IOS_IPHONE 0
 #define TARGET_IOS_SIMULATOR 0
 
+#pragma warning(disable:4668)
 #include "ThirdParty/mimalloc/src/static.c"
+#pragma warning(default:4668)
 
 #endif
