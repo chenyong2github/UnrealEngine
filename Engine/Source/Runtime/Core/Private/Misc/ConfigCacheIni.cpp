@@ -4949,6 +4949,9 @@ CORE_API void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, cons
 		// this is important for variables created in external modules, such as the game module
 		IConsoleManager::Get().RegisterConsoleVariable(Key, Value, TEXT("IAmNoRealVariable"),
 			(uint32)ECVF_Unregistered | (uint32)ECVF_CreatedFromIni | SetBy);
+#if !UE_BUILD_SHIPPING
+		UE_LOG(LogConfig, Log, TEXT("CVar [[%s:%s]] deferred - dummy variable created"), Key, Value);
+#endif //!UE_BUILD_SHIPPING
 	}
 }
 
