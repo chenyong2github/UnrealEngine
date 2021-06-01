@@ -71,6 +71,104 @@ namespace FBXFileImporterImpl
 		UnrealQuat.W = -Quaternion[3];
 		return UnrealQuat;
 	}
+
+	// Copied from FbxMainImport.cpp
+	FString GetFbxPropertyStringValue( const FbxProperty& Property )
+	{
+		FString ValueStr( TEXT( "Unsupported type" ) );
+
+		FbxDataType DataType = Property.GetPropertyDataType();
+		switch ( DataType.GetType() )
+		{
+		case eFbxBool:
+		{
+			FbxBool BoolValue = Property.Get<FbxBool>();
+			ValueStr = LexToString( BoolValue );
+		}
+		break;
+		case eFbxChar:
+		{
+			FbxChar CharValue = Property.Get<FbxChar>();
+			ValueStr = LexToString( CharValue );
+		}
+		break;
+		case eFbxUChar:
+		{
+			FbxUChar UCharValue = Property.Get<FbxUChar>();
+			ValueStr = LexToString( UCharValue );
+		}
+		break;
+		case eFbxShort:
+		{
+			FbxShort ShortValue = Property.Get<FbxShort>();
+			ValueStr = LexToString( ShortValue );
+		}
+		break;
+		case eFbxUShort:
+		{
+			FbxUShort UShortValue = Property.Get<FbxUShort>();
+			ValueStr = LexToString( UShortValue );
+		}
+		break;
+		case eFbxInt:
+		{
+			FbxInt IntValue = Property.Get<FbxInt>();
+			ValueStr = LexToString( IntValue );
+		}
+		break;
+		case eFbxUInt:
+		{
+			FbxUInt UIntValue = Property.Get<FbxUInt>();
+			ValueStr = LexToString( UIntValue );
+		}
+		break;
+		case eFbxEnum:
+		{
+			FbxEnum EnumValue = Property.Get<FbxEnum>();
+			ValueStr = LexToString( EnumValue );
+		}
+		break;
+		case eFbxFloat:
+		{
+			FbxFloat FloatValue = Property.Get<FbxFloat>();
+			ValueStr = LexToString( FloatValue );
+		}
+		break;
+		case eFbxDouble:
+		{
+			FbxDouble DoubleValue = Property.Get<FbxDouble>();
+			ValueStr = LexToString( DoubleValue );
+		}
+		break;
+		case eFbxDouble2:
+		{
+			FbxDouble2 Vec = Property.Get<FbxDouble2>();
+			ValueStr = FString::Printf( TEXT( "(%f, %f, %f, %f)" ), Vec[ 0 ], Vec[ 1 ] );
+		}
+		break;
+		case eFbxDouble3:
+		{
+			FbxDouble3 Vec = Property.Get<FbxDouble3>();
+			ValueStr = FString::Printf( TEXT( "(%f, %f, %f)" ), Vec[ 0 ], Vec[ 1 ], Vec[ 2 ] );
+		}
+		break;
+		case eFbxDouble4:
+		{
+			FbxDouble4 Vec = Property.Get<FbxDouble4>();
+			ValueStr = FString::Printf( TEXT( "(%f, %f, %f, %f)" ), Vec[ 0 ], Vec[ 1 ], Vec[ 2 ], Vec[ 3 ] );
+		}
+		break;
+		case eFbxString:
+		{
+			FbxString StringValue = Property.Get<FbxString>();
+			ValueStr = UTF8_TO_TCHAR( StringValue.Buffer() );
+		}
+		break;
+		default:
+			break;
+		}
+		return ValueStr;
+	}
 }
 
 FDatasmithFBXFileImporter::FDatasmithFBXFileImporter(FbxScene* InFbxScene, FDatasmithFBXScene* InScene, const UDatasmithFBXImportOptions* InOptions, const FDatasmithImportBaseOptions* InBaseOptions)
@@ -473,6 +571,20 @@ void FDatasmithFBXFileImporter::TraverseHierarchyNodeRecursively(FbxNode* Parent
 					}
 				}
 			}
+		}
+
+		// Import all custom user-defined FBX properties from the FBX node to the object metadata
+		FbxProperty CurrentProperty = ChildNode->GetFirstProperty();
+		while ( CurrentProperty.IsValid() )
+		{
+			if ( CurrentProperty.GetFlag( FbxPropertyFlags::eUserDefined ) )
+			{
+				FString MetadataTag = UTF8_TO_TCHAR( CurrentProperty.GetName() );
+				FString MetadataValue = FBXFileImporterImpl::GetFbxPropertyStringValue( CurrentProperty );
+
+				ChildInfo->Metadata.Add( MetadataTag, MetadataValue );
+			}
+			CurrentProperty = ChildNode->GetNextProperty( CurrentProperty );
 		}
 
 		// Process hierarchy

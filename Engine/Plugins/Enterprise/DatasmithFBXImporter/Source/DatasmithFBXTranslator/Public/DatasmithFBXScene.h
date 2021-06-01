@@ -259,6 +259,8 @@ struct DATASMITHFBXTRANSLATOR_API FDatasmithFBXSceneNode : public TSharedFromThi
 	// Camera data
 	TSharedPtr<FDatasmithFBXSceneCamera> Camera;
 
+	TMap<FString, FString> Metadata;
+
 	FTransform GetTransformRelativeToParent(TSharedPtr<FDatasmithFBXSceneNode>& InParent) const;
 
 	ENodeType GetNodeType() const

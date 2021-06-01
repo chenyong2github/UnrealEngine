@@ -460,6 +460,24 @@ TSharedPtr<IDatasmithActorElement> FDatasmithDeltaGenImporter::ConvertNode(const
 		}
 	}
 
+	if ( Node->Metadata.Num() > 0 )
+	{
+		TSharedPtr<IDatasmithMetaDataElement> Metadata = FDatasmithSceneFactory::CreateMetaData( ActorElement->GetName() );
+		Metadata->SetAssociatedElement( ActorElement );
+		DatasmithScene->AddMetaData( Metadata );
+
+		for ( const TPair<FString, FString>& Pair : Node->Metadata )
+		{
+			const FString& Key = Pair.Key;
+			const FString& Value = Pair.Value;
+
+			TSharedPtr<IDatasmithKeyValueProperty> MetadataPropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty( *Key );
+			MetadataPropertyPtr->SetPropertyType( EDatasmithKeyValuePropertyType::String );
+			MetadataPropertyPtr->SetValue( *Value );
+			Metadata->AddProperty( MetadataPropertyPtr );
+		}
+	}
+
 	ActorElement->AddTag(*Node->OriginalName);
 	ActorElement->AddTag(*FString::FromInt(Node->SplitNodeID));
 
