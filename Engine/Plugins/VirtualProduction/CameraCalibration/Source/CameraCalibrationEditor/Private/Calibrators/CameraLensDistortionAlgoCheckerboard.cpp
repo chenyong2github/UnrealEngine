@@ -261,6 +261,7 @@ FCameraCalibrationStepsController* UCameraLensDistortionAlgoCheckerboard::GetSte
 
 bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMessage)
 {
+#if WITH_OPENCV
 	using namespace CameraLensDistortionAlgoCheckerboard;
 
 	if (!Tool.IsValid())
@@ -408,6 +409,10 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 	}
 
 	return true;
+#endif //WITH_OPENCV
+
+	OutErrorMessage = LOCTEXT("OpenCVRequired", "OpenCV is required");
+	return false;
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildUI()

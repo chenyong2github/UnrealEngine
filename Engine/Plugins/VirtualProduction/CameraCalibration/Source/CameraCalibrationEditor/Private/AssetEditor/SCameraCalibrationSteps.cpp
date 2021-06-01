@@ -40,7 +40,7 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 	{
 		StepWidgetSwitcher = SNew(SWidgetSwitcher);
 
-		for (TStrongObjectPtr<UCameraCalibrationStep> Step: CalibrationStepsController.Pin()->GetCalibrationSteps())
+		for (const TStrongObjectPtr<UCameraCalibrationStep>& Step: CalibrationStepsController.Pin()->GetCalibrationSteps())
 		{
 			StepWidgetSwitcher->AddSlot()
 				[Step->BuildUI()];
@@ -93,7 +93,7 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 	];
 
 	// Select the first step
-	for (const TStrongObjectPtr<UCameraCalibrationStep> Step : CalibrationStepsController.Pin()->GetCalibrationSteps())
+	for (const TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationStepsController.Pin()->GetCalibrationSteps())
 	{
 		if (!Step.IsValid())
 		{
@@ -229,7 +229,7 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildStepSelectionWidget()
 
 	TSharedPtr<SHorizontalBox> ButtonsBox = SNew(SHorizontalBox);
 
-	for (const TStrongObjectPtr<UCameraCalibrationStep> Step : CalibrationStepsController.Pin()->GetCalibrationSteps())
+	for (const TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationStepsController.Pin()->GetCalibrationSteps())
 	{
 		if (!Step.IsValid())
 		{
@@ -280,7 +280,7 @@ void SCameraCalibrationSteps::SelectStep(const FName& StepName)
 
 	int32 StepIdx = 0;
 
-	for (const TStrongObjectPtr<UCameraCalibrationStep> Step: CalibrationStepsController.Pin()->GetCalibrationSteps())
+	for (const TStrongObjectPtr<UCameraCalibrationStep>& Step: CalibrationStepsController.Pin()->GetCalibrationSteps())
 	{
 		if (!Step.IsValid())
 		{
