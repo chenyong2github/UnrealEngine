@@ -104,6 +104,8 @@ namespace Chaos
 
 		/**
 		 * Add a constraint with particle-space constraint offsets.
+		 * @todo(chaos): clean up this set of functions (now that ConnectorTransforms is in the settings, calling AddConstraint then SetSettings leads 
+		 * to unexpected behaviour - overwriting the ConnectorTransforms with Identity)
 		 */
 		FConstraintContainerHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FRigidTransform3& WorldConstraintFrame);
 		FConstraintContainerHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& ConnectorTransforms);

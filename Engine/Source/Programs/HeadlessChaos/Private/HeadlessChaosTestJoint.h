@@ -38,6 +38,10 @@ namespace ChaosTest
 		{
 			FPBDJointConstraintHandle* Joint = Joints.AddConstraint(InConstrainedParticleIndices, FRigidTransform3(JointPositions[JointIndex], FRotation3::FromIdentity()));
 
+			// @todo(chaos): this indicates we need to change the AddConstraint API (since ConnectorTransforms were added to Settings). 
+			// Calling AddConstraint followed by SetSettings will overwrite the ConnectorTransforms
+			JointSettings[JointIndex].ConnectorTransforms = Joint->GetSettings().ConnectorTransforms;
+
 			if (JointIndex < JointSettings.Num())
 			{
 				Joint->SetSettings(JointSettings[JointIndex]);
