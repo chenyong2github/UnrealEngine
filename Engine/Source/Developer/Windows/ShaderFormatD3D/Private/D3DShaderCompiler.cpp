@@ -650,6 +650,14 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 					ExceptionInfo.Base
 				)
 			);
+
+			// Dump input shader source on exception to be able to investigate issue through logs on CIS servers
+			FString DumpedSource;
+			DumpedSource = PreprocessedShaderSource;
+			DumpedSource += TEXT("\n#if 0 /*DIRECT COMPILE*/\n");
+			DumpedSource += CreateShaderCompilerWorkerDirectCommandLine(Input);
+			DumpedSource += TEXT("\n#endif /*DIRECT COMPILE*/\n");
+			Output.OptionalPreprocessedShaderSource = MoveTemp(DumpedSource);
 		}
 	}
 	else
