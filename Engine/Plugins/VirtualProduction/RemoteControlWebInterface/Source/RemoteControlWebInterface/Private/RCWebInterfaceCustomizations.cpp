@@ -33,65 +33,69 @@ namespace RCWebInterface
 {
 	static const FName MetadataKeyName_Widget = FName("Widget");
 	static const FText MetadataKey_Widget = LOCTEXT("Widget", "Widget");
-	
+	static const FName MetadataKeyName_Description = FName("Description");
+	static const FText MetadataKey_Description = LOCTEXT("Description", "Description");
+
 	TArray<FString> GetSupportedWidgets(FProperty* Property)
 	{
-		TArray<FString> Widgets;
-		
-		if (Property)
+		if (!Property)
 		{
-			if (Property->IsA<FNumericProperty>() && !Property->IsA<FByteProperty>())
-			{
-				Widgets = { TEXT("Slider"), TEXT("Dial") };
-			}
-			else if (Property->IsA<FBoolProperty>())
-			{
-				Widgets = { TEXT("Toggle") };
-			}
-			else if (Property->IsA<FTextProperty>() || Property->IsA<FNameProperty>() || Property->IsA<FStrProperty>() )
-			{
-				Widgets = { TEXT("Text") };
-			}
-			else if(Property->IsA<FByteProperty>())
-			{
-				FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
-				if (ByteProperty->IsEnum())
-				{
-					Widgets = { TEXT("Dropdown") };
-				}
-				else
-				{
-					Widgets = { TEXT("Slider"), TEXT("Dial") };
-				}
-			}
-			else if (Property->IsA<FEnumProperty>())
+			return TArray<FString>();
+		}
+
+		TArray<FString> Widgets;
+		if (Property->IsA<FNumericProperty>() && !Property->IsA<FByteProperty>())
+		{
+			Widgets = { TEXT("Slider"), TEXT("Dial") };
+		}
+		else if (Property->IsA<FBoolProperty>())
+		{
+			Widgets = { TEXT("Toggle") };
+		}
+		else if (Property->IsA<FTextProperty>() || Property->IsA<FNameProperty>() || Property->IsA<FStrProperty>())
+		{
+			Widgets = { TEXT("Text") };
+		}
+		else if (Property->IsA<FByteProperty>())
+		{
+			FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
+			if (ByteProperty->IsEnum())
 			{
 				Widgets = { TEXT("Dropdown") };
 			}
-			else if (Property->IsA<FStructProperty>())
+			else
 			{
-				FStructProperty* StructProperty = CastField<FStructProperty>(Property);
-				if (UStruct* Struct = StructProperty->Struct)
+				Widgets = { TEXT("Slider"), TEXT("Dial") };
+			}
+		}
+		else if (Property->IsA<FEnumProperty>())
+		{
+			Widgets = { TEXT("Dropdown") };
+		}
+		else if (Property->IsA<FStructProperty>())
+		{
+			FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+			if (UStruct* Struct = StructProperty->Struct)
+			{
+				if (Struct->IsChildOf(TBaseStructure<FVector>::Get()))
 				{
-					if (Struct->IsChildOf(TBaseStructure<FVector>::Get()))
-					{
-						Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Dials"), TEXT("Sliders") };
-					}
-					else if (Struct->IsChildOf(TBaseStructure<FVector2D>::Get()))
-					{
-						Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Dials"), TEXT("Sliders") };
-					}
-					else if (Struct->IsChildOf(TBaseStructure<FRotator>::Get()))
-					{
-						Widgets = { TEXT("Vector"), TEXT("Dials"), TEXT("Sliders") };
-					}
-					else if (Struct->IsChildOf(TBaseStructure<FVector4>::Get()) || Struct->IsChildOf(TBaseStructure<FColor>::Get()) || Struct->IsChildOf(TBaseStructure<FLinearColor>::Get()))
-					{
-						Widgets = { TEXT("Color Picker") };
-					}
+					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Dials"), TEXT("Sliders") };
+				}
+				else if (Struct->IsChildOf(TBaseStructure<FVector2D>::Get()))
+				{
+					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Dials"), TEXT("Sliders") };
+				}
+				else if (Struct->IsChildOf(TBaseStructure<FRotator>::Get()))
+				{
+					Widgets = { TEXT("Vector"), TEXT("Dials"), TEXT("Sliders") };
+				}
+				else if (Struct->IsChildOf(TBaseStructure<FVector4>::Get()) || Struct->IsChildOf(TBaseStructure<FColor>::Get()) || Struct->IsChildOf(TBaseStructure<FLinearColor>::Get()))
+				{
+					Widgets = { TEXT("Color Picker") };
 				}
 			}
 		}
+
 		return Widgets;
 	}
 
@@ -262,6 +266,7 @@ void FRCWebInterfaceCustomizations::RegisterExposedEntityCallback() const
 {
 	IRemoteControlModule& RemoteControlModule = FModuleManager::LoadModuleChecked<IRemoteControlModule>("RemoteControl");
 	RemoteControlModule.RegisterDefaultEntityMetadata(RCWebInterface::MetadataKeyName_Widget, FEntityMetadataInitializer::CreateRaw(this, &FRCWebInterfaceCustomizations::OnInitializeWidgetMetadata));
+	RemoteControlModule.RegisterDefaultEntityMetadata(RCWebInterface::MetadataKeyName_Description, FEntityMetadataInitializer::CreateLambda([](URemoteControlPreset* Preset, const FGuid& EntityId) { return FString(""); }));
 }
 
 void FRCWebInterfaceCustomizations::UnregisterExposedEntityCallback() const
@@ -269,6 +274,7 @@ void FRCWebInterfaceCustomizations::UnregisterExposedEntityCallback() const
 	if (IRemoteControlModule* RemoteControlModule = FModuleManager::GetModulePtr<IRemoteControlModule>("RemoteControl"))
 	{
 		RemoteControlModule->UnregisterDefaultEntityMetadata(RCWebInterface::MetadataKeyName_Widget);
+		RemoteControlModule->UnregisterDefaultEntityMetadata(RCWebInterface::MetadataKeyName_Description);
 	}
 }
 
@@ -276,7 +282,8 @@ void FRCWebInterfaceCustomizations::RegisterPanelMetadataCustomization()
 {
 	if (IRemoteControlUIModule* UIModule = FModuleManager::GetModulePtr<IRemoteControlUIModule>("RemoteControlUI"))
 	{
-		UIModule->RegisterMetadataCustomization(RCWebInterface::MetadataKeyName_Widget, FOnCustomizeMetadataEntry::CreateRaw(this, &FRCWebInterfaceCustomizations::CustomizeWidgetMetadata));
+		UIModule->RegisterMetadataCustomization(RCWebInterface::MetadataKeyName_Widget, FOnCustomizeMetadataEntry::CreateRaw(this, &FRCWebInterfaceCustomizations::CustomizeWidgetTypeMetadata));
+		UIModule->RegisterMetadataCustomization(RCWebInterface::MetadataKeyName_Description, FOnCustomizeMetadataEntry::CreateRaw(this, &FRCWebInterfaceCustomizations::CustomizeWidgetDescriptionMetadata));
 	}
 }
 
@@ -285,60 +292,96 @@ void FRCWebInterfaceCustomizations::UnregisterPanelMetadataCustomization()
 	if (IRemoteControlUIModule* UIModule = FModuleManager::GetModulePtr<IRemoteControlUIModule>("RemoteControlUI"))
 	{
 		UIModule->UnregisterMetadataCustomization(RCWebInterface::MetadataKeyName_Widget);
+		UIModule->UnregisterMetadataCustomization(RCWebInterface::MetadataKeyName_Description);
 	}
 }
 
-void FRCWebInterfaceCustomizations::CustomizeWidgetMetadata(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder)
+void FRCWebInterfaceCustomizations::CustomizeWidgetTypeMetadata(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder)
 {
 	const FSlateFontInfo FontInfo = LayoutBuilder.GetDetailFont();
 	check(Preset);
+
 	TWeakPtr<FRemoteControlEntity> WeakEntity = Preset->GetExposedEntity<FRemoteControlEntity>(DisplayedEntityId);
 	EntityBeingDisplayed = WeakEntity;
-	FString InitialContent = EntityBeingDisplayed.IsValid() ? EntityBeingDisplayed.Pin()->GetMetadata().FindChecked(RCWebInterface::MetadataKeyName_Widget) : TEXT("");
+	
+	FString InitialWidgetTypeContent = EntityBeingDisplayed.IsValid() ? EntityBeingDisplayed.Pin()->GetMetadata().FindChecked(RCWebInterface::MetadataKeyName_Widget) : TEXT("");
 
 	WidgetTypes.Reset();
-	Algo::Transform(RCWebInterface::GetSupportedWidgets(Preset, DisplayedEntityId), WidgetTypes, [](const FString& InWidget) { return MakeShared<FString>(InWidget);} );
+	Algo::Transform(RCWebInterface::GetSupportedWidgets(Preset, DisplayedEntityId), WidgetTypes, [](const FString& InWidget) { return MakeShared<FString>(InWidget); });
 
-	if (!WidgetTypes.Num())
+	if (WidgetTypes.Num())
 	{
-		return;
+		FDetailWidgetRow& WidgetTypeRow = CategoryBuilder.AddCustomRow( RCWebInterface::MetadataKey_Widget)
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(FontInfo)
+			.Text(RCWebInterface::MetadataKey_Widget)
+		]
+		.ValueContent()
+		[
+    		SAssignNew(SearchableBox, SSearchableComboBox)
+    		.OnSelectionChanged_Raw(this, &FRCWebInterfaceCustomizations::OnWidgetSelectionChanged)
+    		.OnGenerateWidget_Lambda([](const TSharedPtr<FString>& InItem)
+    		{
+    			return SNew(STextBlock)
+    				.Text(InItem ? FText::FromString(*InItem) : FText::GetEmpty());
+    		})
+    		.OptionsSource(&WidgetTypes)
+    		.InitiallySelectedItem(MakeShared<FString>(MoveTemp(InitialWidgetTypeContent)))
+    		.Content()
+    		[
+				SNew(STextBlock)
+				.Text_Lambda([WeakEntity]()
+				{
+					FText EntryText = FText::GetEmpty();
+					if (TSharedPtr<FRemoteControlEntity> Entity = WeakEntity.Pin())
+					{
+						if (const FString* WidgetEntry = Entity->GetMetadata().Find(RCWebInterface::MetadataKeyName_Widget))
+						{
+							EntryText = FText::FromString(*WidgetEntry);
+						}
+					}
+					return EntryText;
+				})
+    		]
+		];
 	}
 	
-	FDetailWidgetRow& Row = CategoryBuilder.AddCustomRow( RCWebInterface::MetadataKey_Widget)
-    .NameContent()
-    [
-        SNew(STextBlock)
-        .Font(FontInfo)
-        .Text(RCWebInterface::MetadataKey_Widget)
-    ]
-    .ValueContent()
-    [
-    	SAssignNew(SearchableBox, SSearchableComboBox)
-    	.OnSelectionChanged_Raw(this, &FRCWebInterfaceCustomizations::OnWidgetSelectionChanged)
-    	.OnGenerateWidget_Lambda([](const TSharedPtr<FString>& InItem)
-    	{
-    		return SNew(STextBlock)
-    			.Text(InItem ? FText::FromString(*InItem) : FText::GetEmpty());
-    	})
-    	.OptionsSource(&WidgetTypes)
-    	.InitiallySelectedItem(MakeShared<FString>(MoveTemp(InitialContent)))
-    	.Content()
-    	[
-			SNew(STextBlock)
-			.Text_Lambda([WeakEntity]()
+}
+
+void FRCWebInterfaceCustomizations::CustomizeWidgetDescriptionMetadata(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder)
+{
+	const FSlateFontInfo FontInfo = LayoutBuilder.GetDetailFont();
+	check(Preset);
+
+	TWeakPtr<FRemoteControlEntity> WeakEntity = Preset->GetExposedEntity<FRemoteControlEntity>(DisplayedEntityId);
+	EntityBeingDisplayed = WeakEntity;
+	
+	FDetailWidgetRow& DescriptionRow = CategoryBuilder.AddCustomRow( RCWebInterface::MetadataKey_Description)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(FontInfo)
+		.Text(RCWebInterface::MetadataKey_Description)
+	]
+	.ValueContent()
+	[
+    	SAssignNew(DescriptionBox, SEditableTextBox)
+    	.OnTextCommitted_Raw(this, &FRCWebInterfaceCustomizations::OnWidgetDescriptionChanged)
+		.Text_Lambda([WeakEntity]()
 			{
 				FText EntryText = FText::GetEmpty();
 				if (TSharedPtr<FRemoteControlEntity> Entity = WeakEntity.Pin())
 				{
-					if (const FString* WidgetEntry = Entity->GetMetadata().Find(RCWebInterface::MetadataKeyName_Widget))
+					if (const FString* WidgetEntry = Entity->GetMetadata().Find(RCWebInterface::MetadataKeyName_Description))
 					{
 						EntryText = FText::FromString(*WidgetEntry);
 					}
 				}
 				return EntryText;
 			})
-    	]
-    ];
+	];
 }
 
 void FRCWebInterfaceCustomizations::OnWidgetSelectionChanged(TSharedPtr<FString> InItem, ESelectInfo::Type) const
@@ -353,6 +396,19 @@ void FRCWebInterfaceCustomizations::OnWidgetSelectionChanged(TSharedPtr<FString>
 				Owner->Modify();
 				Entity->SetMetadataValue(RCWebInterface::MetadataKeyName_Widget, *InItem);
 			}
+		}
+	}
+}
+
+void FRCWebInterfaceCustomizations::OnWidgetDescriptionChanged(const FText& InDescription, ETextCommit::Type) const
+{
+	if (TSharedPtr<FRemoteControlEntity> Entity = EntityBeingDisplayed.Pin())
+	{
+		if (URemoteControlPreset* Owner = Entity->GetOwner())
+		{
+			FScopedTransaction Transaction(LOCTEXT("ModifyEntityMetadata", "Modify exposed entity metadata"));
+			Owner->Modify();
+			Entity->SetMetadataValue(RCWebInterface::MetadataKeyName_Description, InDescription.ToString());
 		}
 	}
 }

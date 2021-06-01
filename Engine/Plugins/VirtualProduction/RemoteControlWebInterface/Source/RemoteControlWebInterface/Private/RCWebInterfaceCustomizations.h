@@ -44,11 +44,17 @@ private:
 	void RegisterPanelMetadataCustomization();
 	void UnregisterPanelMetadataCustomization();
 
-	/** Handles customizing the Widget metadata entry. */
-	void CustomizeWidgetMetadata(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder);
+	/** Handles customizing the widget type metadata entry. */
+	void CustomizeWidgetTypeMetadata(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder);
+
+	/** Handles customizing the widget description metadata entry. */
+	void CustomizeWidgetDescriptionMetadata(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder);
 
 	/** Handles selecting a different widget representation for an entity. */
 	void OnWidgetSelectionChanged(TSharedPtr<FString> InItem, ESelectInfo::Type) const;
+
+	/** Handles widget description change. */
+	void OnWidgetDescriptionChanged(const FText& InDescription, ETextCommit::Type) const;
 
 	/** Handles initializing the widget metadata for entities. */
 	FString OnInitializeWidgetMetadata(URemoteControlPreset* Preset, const FGuid& EntityId) const;
@@ -66,6 +72,8 @@ private:
 	/** Holds the searchable box used for picking a widget for a given entity. */
 	TSharedPtr<SSearchableComboBox> SearchableBox;
 
+	/** Holds the textbox used for specifying the description for a given entity. */
+	TSharedPtr<SEditableTextBox> DescriptionBox;
 };
 
 #else
