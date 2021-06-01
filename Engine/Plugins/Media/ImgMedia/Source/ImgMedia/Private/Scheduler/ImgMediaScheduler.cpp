@@ -212,6 +212,10 @@ IQueuedWork* FImgMediaScheduler::GetWorkOrReturnToPool(FImgMediaSchedulerThread*
 #if WITH_EDITOR
 			// If there are too many workers then delete this one.
 			int32 NumWorkers = GetDefault<UImgMediaSettings>()->CacheThreads;
+			if (NumWorkers <= 0)
+			{
+				NumWorkers = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
+			}
 			if (NumWorkers < AllThreads.Num())
 			{
 				AllThreads.Remove(Thread);
