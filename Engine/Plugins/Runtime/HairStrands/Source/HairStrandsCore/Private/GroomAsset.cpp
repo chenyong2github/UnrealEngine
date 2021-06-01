@@ -71,7 +71,9 @@ static bool IsHairLODSimulationEnabled(const int32 LODIndex) { return (LODIndex 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Asset dump function
 
+void DumpLoadedGroomData(IConsoleVariable* InCVarPakTesterEnabled);
 void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled);
+void DumpLoadedGroomComponent(IConsoleVariable* InCVarPakTesterEnabled);
 void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled);
 
 int32 GHairStrandsDump_GroomAsset = 0;
@@ -87,6 +89,13 @@ static FAutoConsoleVariableRef CVarHairStrandsDump_GroomBindingAsset(
 	GHairStrandsDump_GroomBindingAsset,
 	TEXT("Dump information of all the loaded groom binding assets."),
 	FConsoleVariableDelegate::CreateStatic(DumpLoadedGroomBindingAssets));
+
+int32 GHairStrandsDump_All = 0;
+static FAutoConsoleVariableRef CVarHairStrandsDump_All(
+	TEXT("r.HairStrands.Dump"),
+	GHairStrandsDump_All,
+	TEXT("Dump all the loaded groom assets, groom binding assets, and instanciated groom components."),
+	FConsoleVariableDelegate::CreateStatic(DumpLoadedGroomData));
 
 uint32 FHairGroupData::FStrands::GetDataSize() const
 {
@@ -345,6 +354,14 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 		Total_GPUMemorySize_Strands * ToMb,
 		Total_GPUMemorySize_Cards * ToMb);
 }
+
+void DumpLoadedGroomData(IConsoleVariable* InCVarPakTesterEnabled)
+{
+	DumpLoadedGroomAssets(InCVarPakTesterEnabled);
+	DumpLoadedGroomBindingAssets(InCVarPakTesterEnabled);
+	DumpLoadedGroomComponent(InCVarPakTesterEnabled);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 void UpdateHairStrandsLogVerbosity()
