@@ -609,7 +609,7 @@ namespace HordeServer.Services
 			Listener.Dispose();
 		}
 
-		class AgentEventListener : IDisposable
+		internal class AgentEventListener : IDisposable
 		{
 			object LockObject = new object();
 			AgentService AgentService;
@@ -630,9 +630,9 @@ namespace HordeServer.Services
 			{
 				if (Timer != null)
 				{
-					BeginUpdate(Array.Empty<ObjectId>());
 					Timer.Dispose();
 					Timer = null;
+					BeginUpdate(Array.Empty<ObjectId>());
 				}
 			}
 
