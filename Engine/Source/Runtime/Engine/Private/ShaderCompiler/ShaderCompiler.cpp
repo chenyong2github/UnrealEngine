@@ -125,6 +125,9 @@ static FAutoConsoleVariableRef CVarShaderCompilerAllowDistributedCompilation(
 	ECVF_Default
 );
 
+/** Maximum number of preprocessed shaders to dump to the log on a crash. Replace with CVar if needed. */
+static constexpr uint32 GMaxNumDumpedShaderSources = 10;
+
 /** Helper functions for logging more debug info */
 namespace ShaderCompiler
 {
@@ -1709,45 +1712,50 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 	}
 }
 
-static bool CheckSingleJob(FShaderCompileJob* SingleJob, TArray<FString>& Errors)
+static bool CheckSingleJob(const FShaderCompileJob& SingleJob, TArray<FString>& OutErrors, FString* OutDumpedSource)
 {
-	if (SingleJob->bSucceeded)
+	if (SingleJob.bSucceeded)
 	{
-		check(SingleJob->Output.ShaderCode.GetShaderCodeSize() > 0);
+		check(SingleJob.Output.ShaderCode.GetShaderCodeSize() > 0);
 	}
 
-	if (GShowShaderWarnings || !SingleJob->bSucceeded)
+	if (GShowShaderWarnings || !SingleJob.bSucceeded)
 	{
-		for (int32 ErrorIndex = 0; ErrorIndex < SingleJob->Output.Errors.Num(); ErrorIndex++)
+		for (int32 ErrorIndex = 0; ErrorIndex < SingleJob.Output.Errors.Num(); ErrorIndex++)
 		{
-			const FShaderCompilerError& InError = SingleJob->Output.Errors[ErrorIndex];
-			Errors.AddUnique(InError.GetErrorStringWithLineMarker());
+			const FShaderCompilerError& InError = SingleJob.Output.Errors[ErrorIndex];
+			OutErrors.AddUnique(InError.GetErrorStringWithLineMarker());
 		}
 	}
 
-	bool bSucceeded = SingleJob->bSucceeded;
+	bool bSucceeded = SingleJob.bSucceeded;
 
-	if (SingleJob->Key.ShaderType)
+	if (SingleJob.Key.ShaderType)
 	{
 		// Allow the shader validation to fail the compile if it sees any parameters bound that aren't supported.
-		const bool bValidationResult = SingleJob->Key.ShaderType->ValidateCompiledResult(
-			(EShaderPlatform)SingleJob->Input.Target.Platform,
-			SingleJob->Output.ParameterMap,
-			Errors);
+		const bool bValidationResult = SingleJob.Key.ShaderType->ValidateCompiledResult(
+			(EShaderPlatform)SingleJob.Input.Target.Platform,
+			SingleJob.Output.ParameterMap,
+			OutErrors);
 		bSucceeded = bValidationResult && bSucceeded;
 	}
 
-	if (SingleJob->Key.VFType)
+	if (SingleJob.Key.VFType)
 	{
-		const int32 OriginalNumErrors = Errors.Num();
+		const int32 OriginalNumErrors = OutErrors.Num();
 
 		// Allow the vertex factory to fail the compile if it sees any parameters bound that aren't supported
-		SingleJob->Key.VFType->ValidateCompiledResult((EShaderPlatform)SingleJob->Input.Target.Platform, SingleJob->Output.ParameterMap, Errors);
+		SingleJob.Key.VFType->ValidateCompiledResult((EShaderPlatform)SingleJob.Input.Target.Platform, SingleJob.Output.ParameterMap, OutErrors);
 
-		if (Errors.Num() > OriginalNumErrors)
+		if (OutErrors.Num() > OriginalNumErrors)
 		{
 			bSucceeded = false;
 		}
+	}
+
+	if (!bSucceeded && OutDumpedSource != nullptr)
+	{
+		*OutDumpedSource = SingleJob.Output.OptionalPreprocessedShaderSource;
 	}
 
 	return bSucceeded;
@@ -2813,6 +2821,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	bCompilingDuringGame(false),
 	NumExternalJobs(0),
 	NumSingleThreadedRunsBeforeRetry(GSingleThreadedRunsIdle),
+	NumDumpedShaderSources(0),
 #if PLATFORM_MAC
 	ShaderCompileWorkerName(FPaths::EngineDir() / TEXT("Binaries/Mac/ShaderCompileWorker")),
 #elif PLATFORM_LINUX
@@ -3709,6 +3718,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			TArray<TRefCountPtr<FMaterial>>& MaterialDependencies = CompilingShaderMap->CompilingMaterialDependencies;
 
 			TArray<FString> Errors;
+			FString DumpedSource;
 			TArray<FShaderCommonCompileJobPtr>& ResultArray = CompileResults.FinishedJobs;
 
 			bool bSuccess = true;
@@ -3716,18 +3726,17 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			{
 				FShaderCommonCompileJob& CurrentJob = *ResultArray[JobIndex];
 
-				auto* SingleJob = CurrentJob.GetSingleShaderJob();
-				if (SingleJob)
+				if (FShaderCompileJob* SingleJob = CurrentJob.GetSingleShaderJob())
 				{
-					const bool bCheckSucceeded = CheckSingleJob(SingleJob, Errors);
+					const bool bCheckSucceeded = CheckSingleJob(*SingleJob, Errors, (NumDumpedShaderSources < GMaxNumDumpedShaderSources ? &DumpedSource : nullptr));
 					bSuccess = bCheckSucceeded && bSuccess;
 				}
 				else
 				{
-					auto* PipelineJob = CurrentJob.GetShaderPipelineJob();
+					FShaderPipelineCompileJob* PipelineJob = CurrentJob.GetShaderPipelineJob();
 					for (int32 Index = 0; Index < PipelineJob->StageJobs.Num(); ++Index)
 					{
-						const bool bCheckSucceeded = CheckSingleJob(PipelineJob->StageJobs[Index], Errors);
+						const bool bCheckSucceeded = CheckSingleJob(*PipelineJob->StageJobs[Index], Errors, (NumDumpedShaderSources < GMaxNumDumpedShaderSources ? &DumpedSource : nullptr));
 						bSuccess = PipelineJob->StageJobs[Index]->bSucceeded && bCheckSucceeded && bSuccess;
 					}
 				}
@@ -3816,6 +3825,24 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 					Material->CompileErrors = Errors;
 
 					MaterialsToUpdate.Add(Material, nullptr);
+
+					if (!DumpedSource.IsEmpty() && NumDumpedShaderSources < GMaxNumDumpedShaderSources)
+					{
+						// Log dumped shader source line by line as message lengths in UE_LOG are limited.
+						TArray<FString> DumpedSourceLines;
+						DumpedSource.ParseIntoArrayLines(DumpedSourceLines, /*bCullEmpty:*/ false);
+
+						TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
+						GLog->Serialize(TEXT("\n======================= DUMPED SHADER BEGIN =======================\n"), ELogVerbosity::Log, NAME_None);
+						for (const FString& Line : DumpedSourceLines)
+						{
+							GLog->Serialize(*Line, ELogVerbosity::Log, NAME_None);
+						}
+						GLog->Serialize(TEXT("\n======================= DUMPED SHADER END =======================\n"), ELogVerbosity::Log, NAME_None);
+
+						// Limit number of preprocessed shaders to dump to the log as they are quite large
+						++NumDumpedShaderSources;
+					}
 
 					if (Material->IsDefaultMaterial())
 					{
