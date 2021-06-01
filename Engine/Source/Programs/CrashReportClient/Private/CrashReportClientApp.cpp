@@ -779,6 +779,15 @@ static void DeleteTempCrashContextFile(uint64 ProcessID)
 	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*SessionContextFile);
 }
 
+static void DeleteExpiredTempCrashContext(const FTimespan& ExpirationAge)
+{
+	// Clean up old temp context that were likely left over by crashed/killed CRC (unless the process that wrote it is still alive).
+	// If by any chances a CRC instance deletes the context that was produced for another CRC instance that is still running after the
+	// expiration delay, then we may lose the analytics session and not spoof an abnormal shutdown. In general, the consequences are none
+	// to meaningless, so we are better keeping the user disk clean.
+	FGenericCrashContext::CleanupTempSessionContextFiles(ExpirationAge);
+}
+
 #if CRASH_REPORT_WITH_MTBF
 
 template <typename Type>
@@ -1121,6 +1130,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 		// Clean up the context file
 		DeleteTempCrashContextFile(MonitorPid);
+
+		// Clean up left-over context files that weren't cleaned up properly by previous instance(s) (because it was killed, it crashed or user logged out).
+		DeleteExpiredTempCrashContext(FTimespan::FromDays(30));
 
 		FPlatformProcess::CloseProc(MonitoredProcess);
 	}
