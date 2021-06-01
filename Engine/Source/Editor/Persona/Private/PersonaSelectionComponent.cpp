@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PersonaSelectionComponent.h"
+#include "Materials/Material.h"
 
 IMPLEMENT_HIT_PROXY(HPersonaSelectionHitProxy, HHitProxy)
 
