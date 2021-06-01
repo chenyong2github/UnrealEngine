@@ -12,6 +12,7 @@ using HordeServer.Services;
 using Microsoft.AspNetCore.Mvc;
 using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
 using HordeServer.Utilities;
+using MongoDB.Bson;
 
 namespace HordeServerTests
 {
@@ -48,6 +49,16 @@ namespace HordeServerTests
 	        Assert.IsTrue(AgentService.AuthorizeSession(Agent, GetUser(Agent)));
 	        TestSetup.Clock.Advance(TimeSpan.FromMinutes(20));
 	        Assert.IsFalse(AgentService.AuthorizeSession(Agent, GetUser(Agent)));
+        }
+
+        [TestMethod]
+        public async Task AgentListenerDispose()
+        {
+	        // Test created to verify dispose bug with AgentEventListener
+	        TestSetup TestSetup = await GetTestSetup();
+	        AgentService AgentService = TestSetup.AgentService;
+	        AgentService.AgentEventListener Listener = new AgentService.AgentEventListener(AgentService, new AgentId("test"), ObjectId.GenerateNewId(), () => { });
+	        Listener.Dispose();
         }
 
         private ClaimsPrincipal GetUser(IAgent Agent)
