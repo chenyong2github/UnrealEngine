@@ -29,7 +29,7 @@ void SDMXPixelMappingDesignerCanvas::ArrangeLayeredChildren(const FGeometry& All
 			const SConstraintCanvas::FSlot& CurChild = Children[ChildIndex];
 			FChildZOrder Order;
 			Order.ChildIndex = ChildIndex;
-			Order.ZOrder = CurChild.ZOrderAttr.Get();
+			Order.ZOrder = CurChild.GetZOrder();
 			SlotOrder.Add(Order);
 		}
 		SlotOrder.Sort(FSortSlotsByZOrder());
@@ -43,10 +43,10 @@ void SDMXPixelMappingDesignerCanvas::ArrangeLayeredChildren(const FGeometry& All
 			const EVisibility ChildVisibility = CurWidget->GetVisibility();
 			if (ArrangedChildren.Accepts(ChildVisibility))
 			{
-				const FMargin Offset = CurChild.OffsetAttr.Get();
-				const FVector2D Alignment = CurChild.AlignmentAttr.Get();
-				const FAnchors Anchors = CurChild.AnchorsAttr.Get();
-				const bool AutoSize = CurChild.AutoSizeAttr.Get();
+				const FMargin Offset = CurChild.GetOffset();
+				const FVector2D Alignment = CurChild.GetAlignment();
+				const FAnchors Anchors = CurChild.GetAnchors();
+				const bool AutoSize = CurChild.GetAutoSize();
 				const FMargin AnchorPixels =
 					FMargin(Anchors.Minimum.X * AllottedGeometry.GetLocalSize().X,
 					Anchors.Minimum.Y * AllottedGeometry.GetLocalSize().Y,

@@ -29,81 +29,113 @@ public:
 	/**
 	 * ConstraintCanvas slots allow child widgets to be positioned and sized
 	 */
-	class FSlot : public TSlotBase<FSlot>
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	class SLATE_API FSlot : public TSlotBase<FSlot>
 	{
-	public:		
-		FSlot& Offset( const TAttribute<FMargin>& InOffset )
+	public:
+		/** Default values for a slot. */
+		FSlot()
+			: TSlotBase<FSlot>()
+			, OffsetAttr(FMargin(0, 0, 1, 1))
+			, AnchorsAttr(FAnchors(0.0f, 0.0f))
+			, AlignmentAttr(FVector2D(0.5f, 0.5f))
+			, AutoSizeAttr(false)
+			, ZOrderAttr(0)
+		{ }
+
+		SLATE_SLOT_BEGIN_ARGS(FSlot, TSlotBase<FSlot>)
+			SLATE_ATTRIBUTE(FMargin, Offset)
+			SLATE_ATTRIBUTE(FAnchors, Anchors)
+			SLATE_ATTRIBUTE(FVector2D, Alignment)
+			SLATE_ATTRIBUTE(bool, AutoSize)
+			SLATE_ATTRIBUTE(float, ZOrder)
+		SLATE_SLOT_END_ARGS()
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
+
+		void SetOffset( const TAttribute<FMargin>& InOffset )
 		{
 			SetAttribute(OffsetAttr, InOffset, EInvalidateWidgetReason::Layout);
-			return *this;
 		}
 
-		FSlot& Anchors( const TAttribute<FAnchors>& InAnchors )
+		FMargin GetOffset() const
+		{
+			return OffsetAttr.Get();
+		}
+
+		void SetAnchors( const TAttribute<FAnchors>& InAnchors )
 		{
 			SetAttribute(AnchorsAttr, InAnchors, EInvalidateWidgetReason::Layout);
-			return *this;
 		}
 
-		FSlot& Alignment(const TAttribute<FVector2D>& InAlignment)
+		FAnchors GetAnchors() const
+		{
+			return AnchorsAttr.Get();
+		}
+
+		void SetAlignment(const TAttribute<FVector2D>& InAlignment)
 		{
 			SetAttribute(AlignmentAttr, InAlignment, EInvalidateWidgetReason::Layout);
-			return *this;
 		}
 
-		FSlot& AutoSize(const TAttribute<bool>& InAutoSize)
+		FVector2D GetAlignment() const
+		{
+			return AlignmentAttr.Get();
+		}
+
+		void SetAutoSize(const TAttribute<bool>& InAutoSize)
 		{
 			SetAttribute(AutoSizeAttr, InAutoSize, EInvalidateWidgetReason::Layout);
-			return *this;
 		}
 
-		FSlot& ZOrder(const TAttribute<float>& InZOrder)
+		bool GetAutoSize() const
+		{
+			return AutoSizeAttr.Get();
+		}
+
+		void SetZOrder(const TAttribute<float>& InZOrder)
 		{
 			// Layout isn't entirely correct here, but Paint wouldn't be either.
 			// We need the parent to redraw the children because the logical order didn't change
 			// but the paint order may have if ZOrder changed, so the painted elements need to
 			// be resorted.
 			SetAttribute(ZOrderAttr, InZOrder, EInvalidateWidgetReason::Layout);
-			return *this;
 		}
 
-		FSlot& Expose( FSlot*& OutVarToInit )
+		float GetZOrder() const
 		{
-			OutVarToInit = this;
-			return *this;
+			return ZOrderAttr.Get();
 		}
 
+	public:
 		/** Offset */
+		UE_DEPRECATED(5.0, "Direct access to OffsetAttr is now deprecated. Use the getter or setter.")
 		TAttribute<FMargin> OffsetAttr;
 
 		/** Anchors */
+		UE_DEPRECATED(5.0, "Direct access to AnchorsAttr is now deprecated. Use the getter or setter.")
 		TAttribute<FAnchors> AnchorsAttr;
 
 		/** Size */
+		UE_DEPRECATED(5.0, "Direct access to AlignmentAttr is now deprecated. Use the getter or setter.")
 		TAttribute<FVector2D> AlignmentAttr;
 
 		/** Auto-Size */
+		UE_DEPRECATED(5.0, "Direct access to AutoSizeAttr is now deprecated. Use the getter or setter.")
 		TAttribute<bool> AutoSizeAttr;
 
 		/** Z-Order */
+		UE_DEPRECATED(5.0, "Direct access to ZOrderAttr is now deprecated. Use the getter or setter.")
 		TAttribute<float> ZOrderAttr;
-
-		/** Default values for a slot. */
-		FSlot()
-			: TSlotBase<FSlot>()
-			, OffsetAttr( FMargin( 0, 0, 1, 1 ) )
-			, AnchorsAttr( FAnchors( 0.0f, 0.0f ) )
-			, AlignmentAttr( FVector2D( 0.5f, 0.5f ) )
-			, AutoSizeAttr( false )
-			, ZOrderAttr( 0 )
-		{ }
 	};
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SLATE_BEGIN_ARGS( SConstraintCanvas )
 		{
 			_Visibility = EVisibility::SelfHitTestInvisible;
 		}
 
-		SLATE_SUPPORTS_SLOT( SConstraintCanvas::FSlot )
+		SLATE_SLOT_ARGUMENT( FSlot, Slots)
 
 	SLATE_END_ARGS()
 
@@ -116,24 +148,15 @@ public:
 	 */
 	void Construct( const FArguments& InArgs );
 
-	static FSlot& Slot()
-	{
-		return *(new FSlot());
-	}
+	static FSlot::FSlotArguments Slot();
 
+	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/**
 	 * Adds a content slot.
 	 *
 	 * @return The added slot.
 	 */
-	FSlot& AddSlot()
-	{
-		Invalidate(EInvalidateWidget::Layout);
-
-		SConstraintCanvas::FSlot& NewSlot = *(new FSlot());
-		this->Children.Add( &NewSlot );
-		return NewSlot;
-	}
+	FScopedWidgetSlotArguments AddSlot();
 
 	/**
 	 * Removes a particular content slot.

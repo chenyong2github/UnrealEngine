@@ -140,9 +140,9 @@ void UCanvasPanelSlot::SetLayout(const FAnchorData& InLayoutData)
 
 	if ( Slot )
 	{
-		Slot->Offset(LayoutData.Offsets);
-		Slot->Anchors(LayoutData.Anchors);
-		Slot->Alignment(LayoutData.Alignment);
+		Slot->SetOffset(LayoutData.Offsets);
+		Slot->SetAnchors(LayoutData.Anchors);
+		Slot->SetAlignment(LayoutData.Alignment);
 	}
 }
 
@@ -158,7 +158,7 @@ void UCanvasPanelSlot::SetPosition(FVector2D InPosition)
 
 	if ( Slot )
 	{
-		Slot->Offset(LayoutData.Offsets);
+		Slot->SetOffset(LayoutData.Offsets);
 	}
 }
 
@@ -166,7 +166,7 @@ FVector2D UCanvasPanelSlot::GetPosition() const
 {
 	if ( Slot )
 	{
-		FMargin Offsets = Slot->OffsetAttr.Get();
+		FMargin Offsets = Slot->GetOffset();
 		return FVector2D(Offsets.Left, Offsets.Top);
 	}
 
@@ -180,7 +180,7 @@ void UCanvasPanelSlot::SetSize(FVector2D InSize)
 
 	if ( Slot )
 	{
-		Slot->Offset(LayoutData.Offsets);
+		Slot->SetOffset(LayoutData.Offsets);
 	}
 }
 
@@ -188,7 +188,7 @@ FVector2D UCanvasPanelSlot::GetSize() const
 {
 	if ( Slot )
 	{
-		FMargin Offsets = Slot->OffsetAttr.Get();
+		FMargin Offsets = Slot->GetOffset();
 		return FVector2D(Offsets.Right, Offsets.Bottom);
 	}
 
@@ -200,7 +200,7 @@ void UCanvasPanelSlot::SetOffsets(FMargin InOffset)
 	LayoutData.Offsets = InOffset;
 	if ( Slot )
 	{
-		Slot->Offset(InOffset);
+		Slot->SetOffset(InOffset);
 	}
 }
 
@@ -208,7 +208,7 @@ FMargin UCanvasPanelSlot::GetOffsets() const
 {
 	if ( Slot )
 	{
-		return Slot->OffsetAttr.Get();
+		return Slot->GetOffset();
 	}
 
 	return LayoutData.Offsets;
@@ -219,7 +219,7 @@ void UCanvasPanelSlot::SetAnchors(FAnchors InAnchors)
 	LayoutData.Anchors = InAnchors;
 	if ( Slot )
 	{
-		Slot->Anchors(InAnchors);
+		Slot->SetAnchors(InAnchors);
 	}
 }
 
@@ -227,7 +227,7 @@ FAnchors UCanvasPanelSlot::GetAnchors() const
 {
 	if ( Slot )
 	{
-		return Slot->AnchorsAttr.Get();
+		return Slot->GetAnchors();
 	}
 
 	return LayoutData.Anchors;
@@ -238,7 +238,7 @@ void UCanvasPanelSlot::SetAlignment(FVector2D InAlignment)
 	LayoutData.Alignment = InAlignment;
 	if ( Slot )
 	{
-		Slot->Alignment(InAlignment);
+		Slot->SetAlignment(InAlignment);
 	}
 }
 
@@ -246,7 +246,7 @@ FVector2D UCanvasPanelSlot::GetAlignment() const
 {
 	if ( Slot )
 	{
-		return Slot->AlignmentAttr.Get();
+		return Slot->GetAlignment();
 	}
 
 	return LayoutData.Alignment;
@@ -257,7 +257,7 @@ void UCanvasPanelSlot::SetAutoSize(bool InbAutoSize)
 	bAutoSize = InbAutoSize;
 	if ( Slot )
 	{
-		Slot->AutoSize(InbAutoSize);
+		Slot->SetAutoSize(InbAutoSize);
 	}
 }
 
@@ -265,7 +265,7 @@ bool UCanvasPanelSlot::GetAutoSize() const
 {
 	if ( Slot )
 	{
-		return Slot->AutoSizeAttr.Get();
+		return Slot->GetAutoSize();
 	}
 
 	return bAutoSize;
@@ -276,7 +276,7 @@ void UCanvasPanelSlot::SetZOrder(int32 InZOrder)
 	ZOrder = InZOrder;
 	if ( Slot )
 	{
-		Slot->ZOrder(InZOrder);
+		Slot->SetZOrder(InZOrder);
 	}
 }
 
@@ -284,7 +284,7 @@ int32 UCanvasPanelSlot::GetZOrder() const
 {
 	if ( Slot )
 	{
-		return Slot->ZOrderAttr.Get();
+		return Slot->GetZOrder();
 	}
 
 	return ZOrder;
@@ -295,7 +295,7 @@ void UCanvasPanelSlot::SetMinimum(FVector2D InMinimumAnchors)
 	LayoutData.Anchors.Minimum = InMinimumAnchors;
 	if ( Slot )
 	{
-		Slot->Anchors(LayoutData.Anchors);
+		Slot->SetAnchors(LayoutData.Anchors);
 	}
 }
 
@@ -304,7 +304,7 @@ void UCanvasPanelSlot::SetMaximum(FVector2D InMaximumAnchors)
 	LayoutData.Anchors.Maximum = InMaximumAnchors;
 	if ( Slot )
 	{
-		Slot->Anchors(LayoutData.Anchors);
+		Slot->SetAnchors(LayoutData.Anchors);
 	}
 }
 

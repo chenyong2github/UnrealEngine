@@ -98,7 +98,7 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionX) ||
 			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionY))
 		{
-			Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
+			Slot->SetOffset(FMargin(PositionX, PositionY, 0.f, 0.f));
 		}
 
 		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeX) ||
@@ -143,11 +143,11 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConst
 		.HeightOverride(SizeX)
 		.WidthOverride(SizeY);
 
-	Slot = 
-		&InCanvas->AddSlot()
+	InCanvas->AddSlot()
 		.AutoSize(true)
 		.Alignment(FVector2D::ZeroVector)
 		.ZOrder(ZOrder)
+		.Expose(Slot)
 		[
 			CachedWidget.ToSharedRef()
 		];
@@ -157,7 +157,7 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConst
 	Brush.TintColor = GetEditorColor(false);
 	Brush.Margin = FMargin(1.f);
 
-	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
+	Slot->SetOffset(FMargin(PositionX, PositionY, 0.f, 0.f));
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
 
@@ -561,7 +561,7 @@ void UDMXPixelMappingScreenComponent::SetPosition(const FVector2D& InPosition)
 #if WITH_EDITOR
 	if (Slot != nullptr)
 	{
-		Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
+		Slot->SetOffset(FMargin(PositionX, PositionY, 0.f, 0.f));
 	}
 #endif // WITH_EDITOR
 }

@@ -39,11 +39,11 @@ TSharedRef<SWidget> UDMXPixelMappingOutputComponent::BuildSlot(TSharedRef<SConst
 {
 	ensureMsgf(false, TEXT("You must implement RebuildWidget() in your child class"));
 
-	Slot = 
-		&InCanvas->AddSlot()
+	 InCanvas->AddSlot()
 		.AutoSize(true)
 		.Alignment(FVector2D::ZeroVector)
 		.ZOrder(ZOrder)
+		.Expose(Slot)
 		[
 			CachedWidget.ToSharedRef()
 		];
@@ -68,7 +68,7 @@ void UDMXPixelMappingOutputComponent::SetZOrder(int32 NewZOrder)
 
 	if (Slot != nullptr && CachedWidget.IsValid())
 	{
-		Slot->ZOrder(NewZOrder);
+		Slot->SetZOrder(NewZOrder);
 	}
 }
 
