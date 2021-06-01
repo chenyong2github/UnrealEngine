@@ -12,7 +12,7 @@ struct FNodalPointOffset;
 struct FPointerEvent;
 struct FTransform;
 
-class FNodalOffsetTool;
+class UNodalOffsetTool;
 class SWidget;
 
 /**
@@ -26,22 +26,8 @@ class CAMERACALIBRATIONCORE_API UCameraNodalOffsetAlgo : public UObject
 
 public:
 
-	/** Structure with the camera information needed by the algorithm */
-	struct FCameraData
-	{
-		FTransform Pose;
-		uint32 CameraId;
-		float Zoom;
-		float Focus;
-		float FilmbackX;
-		float FilmbackY;
-		bool bValid;
-	};
-
-public:
-
 	/** Make sure you initialize before using the object */
-	virtual void Initialize(TWeakPtr<FNodalOffsetTool> InNodalOffsetTool) {};
+	virtual void Initialize(UNodalOffsetTool* InNodalOffsetTool) {};
 
 	/** Clean up resources and don't use NodalOffsetTool anymore */
 	virtual void Shutdown() {};

@@ -7,22 +7,19 @@
 #include "Engine/World.h"
 #include "CameraCalibrationStep.h"
 
-#include "NodalOffsetTool.generated.h"
+#include "LensDistortionTool.generated.h"
 
 struct FGeometry;
 struct FLensFileEvalData;
 struct FPointerEvent;
 
-class UCameraNodalOffsetAlgo;
+class UCameraLensDistortionAlgo;
 
 /**
- * FNodalOffsetTool is the controller for the nodal offset tool panel.
- * It has the logic to bridge user input like selection of nodal offset algorithm or CG camera
- * with the actions that follow. It houses convenience functions used to generate the data
- * of what is presented to the user, and holds pointers to the relevant objects and structures.
+ * ULensDistortionTool is the controller for the lens distortion panel.
  */
 UCLASS()
-class UNodalOffsetTool : public UCameraCalibrationStep
+class ULensDistortionTool : public UCameraCalibrationStep
 {
 	GENERATED_BODY()
 
@@ -34,7 +31,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual TSharedRef<SWidget> BuildUI() override;
-	virtual FName FriendlyName() const  override { return TEXT("Nodal Offset"); };
+	virtual FName FriendlyName() const  override { return TEXT("Lens Distortion"); };
 	virtual bool DependsOnStep(UCameraCalibrationStep* Step) const override;
 	virtual void Activate() override;
 	virtual void Deactivate() override;
@@ -44,25 +41,32 @@ public:
 
 public:
 
-	/** Selects the nodal offset algorithm by name */
-	void SetNodalOffsetAlgo(const FName& AlgoName);
+	/** Selects the algorithm by name */
+	void SetAlgo(const FName& AlgoName);
 
-	/** Returns the currently selected nodal offset algorithm */
-	UCameraNodalOffsetAlgo* GetNodalOffsetAlgo() const;
+	/** Returns the currently selected algorithm */
+	UCameraLensDistortionAlgo* GetAlgo() const;
+
+	/** Returns available algorithm names */
+	TArray<FName> GetAlgos() const;
 
 public:
 
-	/** Called by the UI when the user wants to save the nodal offset that the current algorithm is providing */
-	void OnSaveCurrentNodalOffset();
+	/** Called by the UI when the user wants to save the calibration data that the current algorithm is providing */
+	void OnSaveCurrentCalibrationData();
 
 private:
 
 	/** Pointer to the calibration steps controller */
 	TWeakPtr<FCameraCalibrationStepsController> CameraCalibrationStepsController;
 
-	/** The currently selected nodal offset algorithm */
-	UPROPERTY()
-	UCameraNodalOffsetAlgo* NodalOffsetAlgo;
+	/** The currently selected algorithm */
+	UPROPERTY(Transient)
+	UCameraLensDistortionAlgo* CurrentAlgo;
+
+	/** Holds the registered camera nodal offset algos */
+	UPROPERTY(Transient)
+	TMap<FName, TSubclassOf<UCameraLensDistortionAlgo>> AlgosMap;
 
 	/** True if this tool is the active one in the panel */
 	bool bIsActive = false;

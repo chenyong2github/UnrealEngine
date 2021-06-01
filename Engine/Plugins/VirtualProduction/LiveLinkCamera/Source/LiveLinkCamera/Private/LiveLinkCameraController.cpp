@@ -425,18 +425,17 @@ void ULiveLinkCameraController::ApplyNodalOffset(ULensFile* SelectedLensFile, UC
 		{
 			FNodalPointOffset Offset;
 
-			if (SelectedLensFile->EvaluateNodalPointOffset(
-				LensFileEvalData.Input.Focus.IsSet() ? *LensFileEvalData.Input.Focus : CineCameraComponent->CurrentFocusDistance, 
+			SelectedLensFile->EvaluateNodalPointOffset(
+				LensFileEvalData.Input.Focus.IsSet() ? *LensFileEvalData.Input.Focus : CineCameraComponent->CurrentFocusDistance,
 				LensFileEvalData.Input.Zoom.IsSet() ? *LensFileEvalData.Input.Zoom : CineCameraComponent->CurrentFocalLength,
-				Offset))
-			{
-				LensFileEvalData.NodalOffset.bWasApplied = true;
+				Offset);
 
-				CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
-				CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
-				CineCameraComponent->AddLocalOffset(Offset.LocationOffset);
-				CineCameraComponent->AddLocalRotation(Offset.RotationOffset);
-			}
+			LensFileEvalData.NodalOffset.bWasApplied = true;
+
+			CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
+			CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
+			CineCameraComponent->AddLocalOffset(Offset.LocationOffset);
+			CineCameraComponent->AddLocalRotation(Offset.RotationOffset);
 		}
 
 		LastLocation = CineCameraComponent->GetRelativeLocation();

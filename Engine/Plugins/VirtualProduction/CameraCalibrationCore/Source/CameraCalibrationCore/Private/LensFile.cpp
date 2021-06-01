@@ -833,6 +833,11 @@ bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraCom
 	return true;
 }
 
+int32 ULensFile::NumDistortionSamples() const
+{
+	return DistortionTable.FocusPoints.Num();
+}
+
 void ULensFile::AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewDistortionPoint, const FFocalLengthInfo& NewFocalLength)
 {
 	const bool bPointAdded = DistortionTable.AddPoint(NewFocus, NewZoom, NewDistortionPoint, InputTolerance, false);

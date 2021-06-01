@@ -24,7 +24,7 @@ class CAMERACALIBRATIONCORE_API UCameraCalibrationStep : public UObject
 public:
 
 	/** Make sure you initialize before using the object */
-	virtual void Initialize(FCameraCalibrationStepsController* InCameraCalibrationStepController) {};
+	virtual void Initialize(TWeakPtr<FCameraCalibrationStepsController> InCameraCalibrationStepController) {};
 
 	/** Clean up resources and don't use CameraCalibrationStepController anymore */
 	virtual void Shutdown() {};
@@ -50,4 +50,9 @@ public:
 	/** Called when this step is no longer the active step in the UI */
 	virtual void Deactivate() {};
 
+	/** Returns true if the step is active */
+	virtual bool IsActive() const { return false; };
+
+	/** Returns the parent camera calibration steps controller */
+	virtual FCameraCalibrationStepsController* GetCameraCalibrationStepsController() const { return nullptr; };
 };

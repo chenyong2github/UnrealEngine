@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
+#include "CoreMinimal.h"
+
+#include "Fonts/SlateFontInfo.h"
 
 class SWidget;
 class FText;
@@ -18,4 +20,13 @@ public:
 
 	/** Stores the default row height used throughout the Camera Calibration UI */
 	static const int32 DefaultRowHeight;
+
+	/** Selection Box/Button colors */
+	static const FLinearColor SelectedBoxForegroundColor;
+	static const FLinearColor SelectedBoxBackgroundColor;
+	static const FLinearColor UnselectedBoxForegroundColor;
+	static const FLinearColor UnselectedBoxBackgroundColor;
+
+	/** Font for titles */
+	static const FSlateFontInfo TitleFontInfo;
 };

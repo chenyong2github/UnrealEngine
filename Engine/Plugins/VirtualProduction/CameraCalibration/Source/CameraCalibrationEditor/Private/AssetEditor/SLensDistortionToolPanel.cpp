@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SNodalOffsetToolPanel.h"
+#include "SLensDistortionToolPanel.h"
 
 #include "AssetRegistry/AssetData.h"
 #include "CameraCalibrationSubsystem.h"
-#include "CameraNodalOffsetAlgo.h"
+#include "CameraLensDistortionAlgo.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
+#include "LensDistortionTool.h"
 #include "LensFile.h"
-#include "NodalOffsetTool.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
@@ -20,15 +20,15 @@
 #include "Widgets/Views/STreeView.h"
 
 
-#define LOCTEXT_NAMESPACE "NodalOffsetTool"
+#define LOCTEXT_NAMESPACE "LensDistortionTool"
 
 
-void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool* InNodalOffsetTool)
+void SLensDistortionToolPanel::Construct(const FArguments& InArgs, ULensDistortionTool* InTool)
 {
-	NodalOffsetTool = InNodalOffsetTool;
+	Tool = InTool;
 
 	// This will be the widget wrapper of the custom algo UI.
-	NodalOffsetUI = SNew(SVerticalBox);
+	UI = SNew(SVerticalBox);
 
 	ChildSlot
 	[
@@ -41,24 +41,24 @@ void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool
 
 			+ SVerticalBox::Slot() // Algo picker
 			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-			[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("NodalOffsetAlgo", "Nodal Offset Algo"), BuildNodalOffsetAlgoPickerWidget())]
+			[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("LensDistortionAlgo", "Lens Distortion Algo"), BuildAlgoPickerWidget())]
 
 			+ SVerticalBox::Slot() // Algo UI
 			.AutoHeight()
-			[ BuildNodalOffsetUIWrapper() ]
+			[ BuildUIWrapper() ]
 
 			+ SVerticalBox::Slot() // Save Offset
 			.AutoHeight()
 			.Padding(0, 20)
 			[
-				SNew(SButton).Text(LOCTEXT("AddToNodalOffsetLUT", "Add To Nodal Offset LUT"))
+				SNew(SButton).Text(LOCTEXT("AddToLUT", "Add To LUT"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked_Lambda([&]() -> FReply
 				{
-					if (NodalOffsetTool.IsValid())
+					if (Tool.IsValid())
 					{
-						NodalOffsetTool->OnSaveCurrentNodalOffset();
+						Tool->OnSaveCurrentCalibrationData();
 					}
 					return FReply::Handled();
 				})
@@ -67,11 +67,11 @@ void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool
 	];
 }
 
-TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetUIWrapper()
+TSharedRef<SWidget> SLensDistortionToolPanel::BuildUIWrapper()
 {
-	const UCameraNodalOffsetAlgo* Algo = NodalOffsetTool->GetNodalOffsetAlgo();
+	const UCameraLensDistortionAlgo* Algo = Tool->GetAlgo();
 
-	NodalOffsetUITitle = SNew(STextBlock)
+	UITitle = SNew(STextBlock)
 		.Font(FCameraCalibrationWidgetHelpers::TitleFontInfo)
 		.Text(Algo ? FText::FromName(Algo->FriendlyName()) : LOCTEXT("None", "None"))
 		.Justification(ETextJustify::Center);
@@ -81,26 +81,26 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetUIWrapper()
 		+ SVerticalBox::Slot() // Title
 		.AutoHeight()
 		.Padding(0,10)
-		[ NodalOffsetUITitle.ToSharedRef() ]
+		[ UITitle.ToSharedRef() ]
 
 		+ SVerticalBox::Slot() // Algo's Widget
 		.AutoHeight()
-		[ NodalOffsetUI.ToSharedRef() ];
+		[ UI.ToSharedRef() ];
 }
 
-void SNodalOffsetToolPanel::UpdateNodalOffsetUI()
+void SLensDistortionToolPanel::UpdateUI()
 {
 	check(AlgosComboBox.IsValid());
 
 	// Get current algo to later compare with new one
-	const UCameraNodalOffsetAlgo* OldAlgo = NodalOffsetTool->GetNodalOffsetAlgo();
+	const UCameraLensDistortionAlgo* OldAlgo = Tool->GetAlgo();
 
 	// Set new algo by name
 	const FName AlgoName(*AlgosComboBox->GetSelectedItem());
-	NodalOffsetTool->SetNodalOffsetAlgo(AlgoName);
+	Tool->SetAlgo(AlgoName);
 
 	// Get the new algo
-	UCameraNodalOffsetAlgo* Algo = NodalOffsetTool->GetNodalOffsetAlgo();
+	UCameraLensDistortionAlgo* Algo = Tool->GetAlgo();
 
 	// nullptr may indicate that it was unregistered, so refresh combobox options.
 	if (!Algo)
@@ -116,38 +116,40 @@ void SNodalOffsetToolPanel::UpdateNodalOffsetUI()
 	}
 
 	// Remove old UI
-	check(NodalOffsetUI.IsValid());
-	NodalOffsetUI->ClearChildren();
+	check(UI.IsValid());
+	UI->ClearChildren();
 
 	// Assign GUI
-	NodalOffsetUI->AddSlot() [Algo->BuildUI()];
+	UI->AddSlot() [Algo->BuildUI()];
 
 	// Update Title
-	if (NodalOffsetUITitle.IsValid())
+	if (UITitle.IsValid())
 	{
-		NodalOffsetUITitle->SetText(FText::FromName(Algo->FriendlyName()));
+		UITitle->SetText(FText::FromName(Algo->FriendlyName()));
 	}
 }
 
-void SNodalOffsetToolPanel::UpdateAlgosOptions()
+void SLensDistortionToolPanel::UpdateAlgosOptions()
 {
 	CurrentAlgos.Empty();
 
-	// Ask the subsystem for the list of registered Algos
+	// Ask the Tool for the list of registered Algos
 
-	UCameraCalibrationSubsystem* Subsystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-	check(Subsystem);
-
-	for (FName& Name : Subsystem->GetCameraNodalOffsetAlgos())
+	if (!Tool.IsValid())
 	{
-		CurrentAlgos.Add(MakeShareable(new FString(Name.ToString())));
+		return;
+	}
+
+	for (FName& AlgoName : Tool->GetAlgos())
+	{
+		CurrentAlgos.Add(MakeShareable(new FString(AlgoName.ToString())));
 	}
 
 	// Ask the ComboBox to refresh its options from its source (that we just updated)
 	AlgosComboBox->RefreshOptions();
 }
 
-TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
+TSharedRef<SWidget> SLensDistortionToolPanel::BuildAlgoPickerWidget()
 {
 	// Create ComboBox widget
 
@@ -156,7 +158,7 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
 		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> NewValue, ESelectInfo::Type Type) -> void
 		{
 			// Replace the custom algo widget
-			UpdateNodalOffsetUI();
+			UpdateUI();
 		})
 		.OnGenerateWidget_Lambda([&](TSharedPtr<FString> InOption) -> TSharedRef<SWidget>
 		{

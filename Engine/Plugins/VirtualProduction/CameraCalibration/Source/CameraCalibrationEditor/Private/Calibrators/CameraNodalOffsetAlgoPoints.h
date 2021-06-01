@@ -8,22 +8,18 @@
 
 #include "CameraNodalOffsetAlgoPoints.generated.h"
 
-struct FGeometry;
-struct FPointerEvent;
-
-class FNodalOffsetTool;
-
 template <typename ItemType>
 class SListView;
 
-class SWidget;
 class UCalibrationPointComponent;
-class UMediaTexture;
-class UWorld;
 
 template<typename OptionType>
 class SComboBox;
 
+namespace CameraNodalOffsetAlgoPoints
+{
+	class SCalibrationRowGenerator;
+};
 
 /** 
  * Implements a nodal offset calibration algorithm. It uses 3d points (UCalibrationPointComponent) 
@@ -43,7 +39,7 @@ class UCameraNodalOffsetAlgoPoints : public UCameraNodalOffsetAlgo
 public:
 
 	//~ Begin CalibPointsNodalOffsetAlgo
-	virtual void Initialize(TWeakPtr<FNodalOffsetTool> InNodalOffsetTool) override;
+	virtual void Initialize(UNodalOffsetTool* InNodalOffsetTool) override;
 	virtual void Shutdown() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -56,7 +52,7 @@ public:
 private:
 
 	// SCalibrationRowGenerator will need access to the row structures below.
-	friend class SCalibrationRowGenerator;
+	friend class CameraNodalOffsetAlgoPoints::SCalibrationRowGenerator;
 
 	/** Holds item information a given calibrator point in the calibrator model */
 	struct FCalibratorPointData
@@ -114,7 +110,7 @@ private:
 private:
 
 	/** The nodal offset tool controller */
-	TWeakPtr<FNodalOffsetTool> NodalOffsetTool;
+	TWeakObjectPtr<UNodalOffsetTool> NodalOffsetTool;
 
 	/** The currently selected calibrator object. It is expected to contain one or more UCalibrationPointComponent in it */
 	TWeakObjectPtr<AActor> Calibrator;
@@ -132,7 +128,7 @@ private:
 	TSharedPtr<SListView<TSharedPtr<FCalibrationRowData>>> CalibrationListView;
 
 	/** Caches the last calibrator point 3d location.  Will hold last value before the nodal offset tool is paused */
-	FCalibratorPointCache LastCalibratorPoint;
+	TArray<FCalibratorPointCache> LastCalibratorPoints;
 
 	/** Caches the last camera data.  Will hold last value before the nodal offset tool is paused */
 	FCameraDataCache LastCameraData;
@@ -153,9 +149,6 @@ private:
 
 private:
 
-	/** Retrieves the world that should be used for the referenced and spawned object */
-	UWorld* GetWorld() const;
-
 	/** Returns the first calibrator object in the scene that it can find */
 	AActor* FindFirstCalibrator() const;
 
@@ -174,11 +167,8 @@ private:
 	/** Returns the world 3d location of the currently selected */
 	bool GetCurrentCalibratorPointLocation(FVector& OutLocation);
 
-	/** Selects the next available UCalibrationPointComponent of the currently selected calibrator object */
-	void AdvanceCalibratorPoint();
-
-	/** Calculates the normalized (0~1) coordinates in the simulcam viewport of the given mouse click */
-	bool CalculateNormalizedMouseClickPosition(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FVector2D& OutPosition) const;
+	/** Selects the next available UCalibrationPointComponent of the currently selected calibrator object. Returns true when it wraps around */
+	bool AdvanceCalibratorPoint();
 
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
 	bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;

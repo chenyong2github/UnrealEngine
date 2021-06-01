@@ -130,6 +130,9 @@ public:
 
 	/** Removes all points in lens files */
 	void ClearAll();
+
+	/** Returns number of samples in the distortion table */
+	int32 NumDistortionSamples () const;
 	
 protected:
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */

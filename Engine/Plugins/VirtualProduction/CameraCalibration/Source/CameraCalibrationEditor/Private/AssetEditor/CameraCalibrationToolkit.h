@@ -14,6 +14,7 @@ class SLensFilePanel;
 class SNodalOffsetToolPanel;
 class SLensEvaluation;
 class ULensFile;
+class FCameraCalibrationStepsController;
 
 /** Toolkit to do camera calibration */
 class FCameraCalibrationToolkit : public FAssetEditorToolkit
@@ -70,9 +71,12 @@ private:
 	/** Lens editor tab to do manual adjustments */
 	TSharedPtr<SLensFilePanel> LensEditorTab;
 
-	/** Placeholder tab to have camera calibration tools */
-	TSharedPtr<SNodalOffsetToolPanel> NodalOffsetToolTab;
+	/** Camera calibration tools */
+	TSharedPtr<SWidget> CalibrationStepsTab;
 
 	/** Data displaying evaluated data based on LiveLink inputs */
 	TSharedPtr<SLensEvaluation> LensEvaluationWidget;
+
+	/** Calibration Steps Controller */
+	TSharedPtr<FCameraCalibrationStepsController> CalibrationStepsController;
 };
