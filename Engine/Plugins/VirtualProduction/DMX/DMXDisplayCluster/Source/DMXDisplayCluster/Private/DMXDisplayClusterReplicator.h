@@ -22,6 +22,9 @@ public:
 	virtual ~FDMXDisplayClusterReplicator();
 
 private:
+	/** Initalizes the replicator */
+	void Initialize();
+
 	/** Called whena cluster event was received */
 	void OnClusterEventReceived(const FDisplayClusterClusterEventBinary& Event);
 

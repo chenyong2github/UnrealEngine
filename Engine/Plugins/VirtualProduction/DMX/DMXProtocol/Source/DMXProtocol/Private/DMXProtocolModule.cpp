@@ -95,6 +95,8 @@ void FDMXProtocolModule::StartupModule()
 		);
 	}
 #endif // WITH_EDITOR
+
+	FDMXPortManager::StartupManager();
 }
 
 void FDMXProtocolModule::ShutdownModule()

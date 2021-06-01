@@ -215,6 +215,5 @@ void UDMXProtocolSettings::OnPostEngineInit()
 		Config.MakeValid();
 	}
 
-	FDMXPortManager::StartupManager();
 	FDMXPortManager::Get().UpdateFromProtocolSettings();
 }
