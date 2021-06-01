@@ -294,7 +294,7 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
  * in order to add support for slots with the construct pattern.
  */
 #define SLATE_SLOT_ARGUMENT( SlotType, SlotName ) \
-		TArray<SlotType::FSlotArguments> _##SlotName; \
+		TArray<typename SlotType::FSlotArguments> _##SlotName; \
 		WidgetArgsType& operator + (typename SlotType::FSlotArguments& SlotToAdd) \
 		{ \
 			_##SlotName.Add( MoveTemp(SlotToAdd) ); \
