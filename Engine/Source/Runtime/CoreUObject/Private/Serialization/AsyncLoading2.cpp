@@ -66,6 +66,7 @@
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
+
 TRACE_DECLARE_MEMORY_COUNTER(AsyncLoadingPendingIoRequestsSize, TEXT("AsyncLoading/PendingIoRequestsSize"));
 CSV_DEFINE_CATEGORY(AsyncLoading, true);
 CSV_DEFINE_STAT(AsyncLoading, PendingIoRequestsSizeMB);
