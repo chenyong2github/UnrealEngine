@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Interfaces/IAnalyticsPropertyStore.h"
 #include "AnalyticsEventAttribute.h"
+#include "Misc/Timespan.h"
 
 class IAnalyticsSessionSummarySender;
 
@@ -110,6 +111,12 @@ public:
 	 * @param SavedDir The directory used to save the analytic files. If unspecified, use the internal default.
 	 */
 	static void CleanupExpiredFiles(const FString& SavedDir = TEXT(""));
+
+	/**
+	 * Returns the age at which a session is considered expired and shouldn't be sent anymore.
+	 * @return The expiration delay.
+	 */
+	static FTimespan GetSessionExpirationAge() { return FTimespan::FromDays(30); }
 
 private:
 	/** Information about a property store used by a process. */

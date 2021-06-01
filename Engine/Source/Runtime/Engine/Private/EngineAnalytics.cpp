@@ -202,11 +202,7 @@ void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 	}
 
 	// Clean up the outdated sessions created by the deprecated system. If an older compabile Editor is launched, it can still send them up before they get expired.
-	if (FEditorAnalyticsSession::TryLock())
-	{
-		FEditorAnalyticsSession::CleanupOutdatedIncompatibleSessions(FTimespan::FromDays(30));
-		FEditorAnalyticsSession::Unlock();
-	}
+	CleanupDeprecatedAnalyticSessions(FAnalyticsSessionSummaryManager::GetSessionExpirationAge());
 #endif
 
 	bIsInitialized = false;
