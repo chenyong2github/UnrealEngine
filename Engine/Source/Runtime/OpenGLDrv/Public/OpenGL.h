@@ -102,7 +102,6 @@ public:
 	static FORCEINLINE bool SupportsTextureLODBias()					{ return true; }
 	static FORCEINLINE bool SupportsTextureCompare()					{ return true; }
 	static FORCEINLINE bool SupportsDrawIndexOffset()					{ return true; }
-	static FORCEINLINE bool SupportsResourceView()						{ return true; }
 	static FORCEINLINE bool SupportsDiscardFrameBuffer()				{ return false; }
 	static FORCEINLINE bool SupportsIndexedExtensions()					{ return true; }
 	static FORCEINLINE bool SupportsColorBufferFloat()					{ return true; }

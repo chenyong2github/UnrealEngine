@@ -389,11 +389,6 @@ bool UNiagaraDataInterfaceCurveBase::GetExposedVariableValue(const FNiagaraVaria
 
 void UNiagaraDataInterfaceCurveBase::PushToRenderThreadImpl()
 {
-	if (!GSupportsResourceView)
-	{
-		return;
-	}
-
 	FNiagaraDataInterfaceProxyCurveBase* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyCurveBase>();
 
 	const float rtLUTMinTime = this->LUTMinTime;

@@ -80,9 +80,6 @@ extern RHI_API bool GSupportsRenderDepthTargetableShaderResources;
 extern RHI_API ERHIFeatureLevel::Type GMaxRHIFeatureLevel;
 extern RHI_API EShaderPlatform GMaxRHIShaderPlatform;
 
-/** true if the RHI supports SRVs */
-extern RHI_API bool GSupportsResourceView;
-
 /** true if the RHI supports Draw Indirect */
 extern RHI_API bool GRHISupportsDrawIndirect;
 

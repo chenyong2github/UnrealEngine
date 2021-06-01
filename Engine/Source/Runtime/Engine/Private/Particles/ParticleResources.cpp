@@ -137,17 +137,11 @@ TGlobalResource<FSixTriangleParticleIndexBuffer> GSixTriangleParticleIndexBuffer
 void FParticleScratchVertexBuffer::InitRHI()
 {
 	// Create a scratch vertex buffer for injecting particles and rendering tiles.
-	uint32 Flags = BUF_Volatile;
-	if (GSupportsResourceView)
-	{
-		Flags |= BUF_ShaderResource;
-	}
+	uint32 Flags = BUF_Volatile | BUF_ShaderResource;
+
 	FRHIResourceCreateInfo CreateInfo(TEXT("FParticleScratchVertexBuffer"));
 	VertexBufferRHI = RHICreateVertexBuffer(GParticleScratchVertexBufferSize, Flags, CreateInfo);
-	if (GSupportsResourceView)
-	{
-		VertexBufferSRV_G32R32F = RHICreateShaderResourceView(VertexBufferRHI, /*Stride=*/ sizeof(FVector2D), PF_G32R32F);
-	}
+	VertexBufferSRV_G32R32F = RHICreateShaderResourceView(VertexBufferRHI, /*Stride=*/ sizeof(FVector2D), PF_G32R32F);
 }
 
 FParticleShaderParamRef FParticleScratchVertexBuffer::GetShaderParam()

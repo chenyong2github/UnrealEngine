@@ -196,7 +196,6 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool SupportsTextureLODBias() { return false; }
 	static FORCEINLINE bool SupportsTextureCompare() { return false; }
 	static FORCEINLINE bool SupportsDrawIndexOffset() { return false; }
-	static FORCEINLINE bool SupportsResourceView() { return glTexBufferEXT != nullptr; }
 	static FORCEINLINE bool SupportsDiscardFrameBuffer() { return true; }
 	static FORCEINLINE bool SupportsIndexedExtensions() { return false; }
 	static FORCEINLINE bool SupportsColorBufferFloat() { return bSupportsColorBufferFloat; }

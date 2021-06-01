@@ -106,8 +106,7 @@ inline bool RHISupportsGPUParticles()
 	return FXConsoleVariables::bAllowGPUParticles
 		&& GSupportsWideMRT
 		&& GPixelFormats[PF_G32R32F].Supported 
-		&& GSupportsTexture3D 
-		&& GSupportsResourceView;
+		&& GSupportsTexture3D;
 }
 
 class FFXSystemInterface;

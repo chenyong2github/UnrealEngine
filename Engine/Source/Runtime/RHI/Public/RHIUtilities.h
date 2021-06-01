@@ -87,14 +87,6 @@ static bool IsFloatFormat(EPixelFormat Format)
 	return false;
 }
 
-inline bool RHISupportsTextureBuffers(const FStaticShaderPlatform Platform)
-{
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
-		|| IsVulkanPlatform(Platform)
-		|| IsMetalPlatform(Platform)
-		|| (GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1 && GSupportsResourceView);
-}
-
 /** Get the best default resource state for the given texture creation flags */
 extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData);
 
@@ -123,8 +115,6 @@ struct FTextureRWBuffer2D
 	static constexpr ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource | TexCreate_UAV;
 	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
-		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
-
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
@@ -185,8 +175,6 @@ struct FTextureRWBuffer3D
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
 	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format)
 	{
-		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
-
 		NumBytes = SizeX * SizeY * SizeZ * BytesPerElement;
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
@@ -284,8 +272,6 @@ struct FRWBuffer
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
 	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, ERHIAccess InResourceState, uint32 AdditionalUsage = 0, FResourceArrayInterface *InResourceArray = nullptr)	
 	{
-		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
-
 		// Provide a debug name if using Fast VRAM so the allocators diagnostics will work
 		ensure(!((AdditionalUsage & BUF_FastVRAM) && !InDebugName));
 		NumBytes = BytesPerElement * NumElements;
@@ -346,8 +332,6 @@ struct FTextureReadBuffer2D
 	const static ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource;
 	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag, FResourceBulkDataInterface* InBulkData = nullptr)
 	{
-		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
-
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
@@ -398,7 +382,6 @@ struct FReadBuffer
 
 	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, FResourceArrayInterface* InResourceArray = nullptr)
 	{
-		check(GSupportsResourceView);
 		NumBytes = BytesPerElement * NumElements;
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		CreateInfo.ResourceArray = InResourceArray;
