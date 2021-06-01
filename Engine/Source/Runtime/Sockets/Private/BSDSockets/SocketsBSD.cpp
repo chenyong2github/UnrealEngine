@@ -225,7 +225,90 @@ bool FSocketBSD::RecvFrom(uint8* Data, int32 BufferSize, int32& BytesRead, FInte
 
 bool FSocketBSD::RecvFromWithPktInfo(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, FInternetAddr& Destination, ESocketReceiveFlags::Type Flags)
 {
+#if defined(IP_PKTINFO) && (PLATFORM_LINUX || PLATFORM_MAC)
+#if PLATFORM_HAS_BSD_IPV6_SOCKETS
+	if (GetProtocol() == FNetworkProtocolTypes::IPv6)
+	{
+		// Invalid combination
+		const FInternetAddrBSD& BSDAddr = static_cast<const FInternetAddrBSD&>(Destination);
+		if (BSDAddr.GetProtocolType() != FNetworkProtocolTypes::IPv6)
+		{
+			return false;
+		}
+	}
+#endif // PLATFORM_HAS_BSD_IPV6_SOCKETS
+	bool bSuccess = false;
+	const bool bStreamSocket = (SocketType == SOCKTYPE_Streaming);
+	const int TranslatedFlags = TranslateFlags(Flags);
+	FInternetAddrBSD& BSDAddr = static_cast<FInternetAddrBSD&>(Source);
+	const SOCKLEN Size = sizeof(sockaddr_storage);
+	sockaddr* Addr = (sockaddr*)BSDAddr.GetRawAddr();
+	constexpr int32 ControlMsgSize = 1024;
+	char ControlMsg[ControlMsgSize];
+	iovec IOBuf;
+	IOBuf.iov_base = Data;
+	IOBuf.iov_len = static_cast<size_t>(BufferSize);
+	msghdr Msg = {};
+	Msg.msg_name = Addr;
+	Msg.msg_namelen = Size;
+	Msg.msg_iov = &IOBuf;
+	Msg.msg_iovlen = 1;
+	Msg.msg_control = ControlMsg;
+	Msg.msg_controllen = ControlMsgSize;
+	const ssize_t Result = recvmsg(Socket, &Msg, TranslatedFlags);
+	if (Result >= 0)
+	{
+		BytesRead = static_cast<int32>(Result);
+		// iterate each message searching for IP_PKTINFO
+		for (cmsghdr* CMsg = CMSG_FIRSTHDR(&Msg); CMsg != nullptr; CMsg = CMSG_NXTHDR(&Msg, CMsg))
+		{
+			if (CMsg->cmsg_type != IP_PKTINFO)
+			{
+				continue;
+			}
+#if PLATFORM_HAS_BSD_IPV6_SOCKETS
+			if (GetProtocol() == FNetworkProtocolTypes::IPv6)
+			{
+				in6_pktinfo* PktInfo = (in6_pktinfo*)CMSG_DATA(CMsg);
+				uint8* DestinationAddr = (uint8*)&PktInfo->ipi6_addr;
+				constexpr int32 DestinationAddrSize = 16;
+				TArray<uint8> DestinationAddrRaw;
+				DestinationAddrRaw.AddUninitialized(DestinationAddrSize);
+				for (int32 ByteIndex = 0; ByteIndex < DestinationAddrSize; ++ByteIndex)
+				{
+					DestinationAddrRaw[ByteIndex] = DestinationAddr[ByteIndex];
+				}
+				Destination.SetRawIp(DestinationAddrRaw);
+			}
+			else
+			{
+#endif // PLATFORM_HAS_BSD_IPV6_SOCKETS
+				in_pktinfo* PktInfo = (in_pktinfo*)CMSG_DATA(CMsg);
+				uint8* DestinationAddr = (uint8*)&PktInfo->ipi_addr;
+				TArray<uint8> DestinationAddrRaw = { DestinationAddr[0], DestinationAddr[1], DestinationAddr[2], DestinationAddr[3] };
+				Destination.SetRawIp(DestinationAddrRaw);
+#if PLATFORM_HAS_BSD_IPV6_SOCKETS
+			}
+#endif // PLATFORM_HAS_BSD_IPV6_SOCKETS
+			break;
+		}
+		// For Streaming sockets, 0 indicates a graceful failure
+		bSuccess = !bStreamSocket || (BytesRead > 0);
+	}
+	else
+	{
+		// For Streaming sockets, don't treat SE_EWOULDBLOCK as an error as we will potentially retry later
+		bSuccess = bStreamSocket && (SocketSubsystem->TranslateErrorCode(Result) == SE_EWOULDBLOCK);
+		BytesRead = 0;
+	}
+	if (bSuccess)
+	{
+		LastActivityTime = FPlatformTime::Seconds();
+	}
+	return bSuccess;
+#else
 	return false;
+#endif // defined(IP_PKTINFO) && (PLATFORM_LINUX || PLATFORM_MAC)
 }
 
 bool FSocketBSD::Recv(uint8* Data, int32 BufferSize, int32& BytesRead, ESocketReceiveFlags::Type Flags)
