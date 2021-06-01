@@ -108,16 +108,28 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 		TSharedPtr<SGraphPin> K2PinWidget = FNodeFactory::CreateK2PinWidget(InPin);
 		if(K2PinWidget.IsValid())
 		{
-			// if we are an enum pin - and we are inside a RigElementKey,
-			// let's remove the "all" entry.
-			if(InPin->PinType.PinSubCategoryObject == StaticEnum<ERigElementType>())
+			if(InPin->Direction == EEdGraphPinDirection::EGPD_Input)
 			{
-				if(InPin->ParentPin)
+				// if we are an enum pin - and we are inside a RigElementKey,
+				// let's remove the "all" entry.
+				if(InPin->PinType.PinSubCategoryObject == StaticEnum<ERigElementType>())
 				{
-					if(InPin->ParentPin->PinType.PinSubCategoryObject == FRigElementKey::StaticStruct())
+					if(InPin->ParentPin)
 					{
-						TSharedPtr<SPinComboBox> EnumCombo = StaticCastSharedRef<SPinComboBox>(K2PinWidget->GetValueWidget());
-						EnumCombo->RemoveItemByIndex(StaticEnum<ERigElementType>()->GetIndexByValue((int64)ERigElementType::All));
+						if(InPin->ParentPin->PinType.PinSubCategoryObject == FRigElementKey::StaticStruct())
+						{
+							TSharedPtr<SWidget> ValueWidget = K2PinWidget->GetValueWidget();
+							if(ValueWidget.IsValid())
+							{
+								if(TSharedPtr<SPinComboBox> EnumCombo = StaticCastSharedPtr<SPinComboBox>(ValueWidget))
+								{
+									if(EnumCombo.IsValid())
+									{
+										EnumCombo->RemoveItemByIndex(StaticEnum<ERigElementType>()->GetIndexByValue((int64)ERigElementType::All));
+									}
+								}
+							}
+						}
 					}
 				}
 			}
