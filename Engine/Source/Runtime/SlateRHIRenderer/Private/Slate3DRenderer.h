@@ -50,4 +50,7 @@ private:
 
 	/** The depth buffer texture if any */
 	FTexture2DRHIRef DepthStencil;
+
+	/** Set to true when the render target was cleared and prevent another clear to be called for nothing.**/
+	bool bRenderTargetWasCleared;
 };
