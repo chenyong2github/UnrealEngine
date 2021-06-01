@@ -37,6 +37,7 @@ namespace UnrealGameSync
 		public bool bNormalSync;
 		public bool bScheduledSync;
 		public bool bShowAsTool;
+		public Guid ToolId;
 
 		public BuildStep(Guid InUniqueId, int InOrderIndex, string InDescription, string InStatusText, int InEstimatedDuration, string InFileName, string InArguments, string InWorkingDir, bool bInUseLogWindow)
 		{
@@ -116,6 +117,10 @@ namespace UnrealGameSync
 			{
 				bShowAsTool = false;
 			}
+			if (!Guid.TryParse(Object.GetValue("Tool", ""), out ToolId))
+			{
+				ToolId = Guid.Empty;
+			}
 		}
 
 		public bool IsValid()
@@ -180,6 +185,10 @@ namespace UnrealGameSync
 			Result["bNormalSync"] = bNormalSync.ToString();
 			Result["bScheduledSync"] = bScheduledSync.ToString();
 			Result["bShowAsTool"] = bShowAsTool.ToString();
+			if (ToolId != Guid.Empty)
+			{
+				Result["Tool"] = ToolId.ToString();
+			}
 			return Result;
 		}
 
