@@ -422,7 +422,7 @@ namespace UnrealBuildTool
 					foreach (ProjectTarget ProjectTarget in ProjectTargets)
 					{
 						string TargetName = ProjectTargets[0].TargetRules.Name;
-						if (TargetName == "ShaderCompileWorker" || TargetName == "UnrealLightmass")
+						if (TargetName == "ShaderCompileWorker" || TargetName == "UnrealLightmass" || TargetName == "InterchangeWorker")
 						{
 							MatchingProjectTargets.Add(ProjectTarget);
 							break;
@@ -1660,6 +1660,7 @@ namespace UnrealBuildTool
 						if (TargetRulesObject.Type == TargetType.Editor && Settings.bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
 						{
 							ExtraTargets.Add("ShaderCompileWorker Win64 Development");
+							ExtraTargets.Add("InterchangeWorker Win64 Development");
 						}
 						if (TargetRulesObject.bWithLiveCoding && Settings.bBuildLiveCodingConsole && !UnrealBuildTool.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
 						{

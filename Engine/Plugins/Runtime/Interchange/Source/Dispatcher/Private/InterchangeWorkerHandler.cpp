@@ -29,14 +29,25 @@ namespace UE
 				Path = FPaths::Combine(Path, TEXT("Linux/InterchangeWorker"));
 #elif PLATFORM_WINDOWS
 #if UE_BUILD_DEBUG
-				Path = FPaths::Combine(Path, TEXT("Win64/InterchangeWorker-Win64-Debug.exe"));
+				{
+					FString DebugPath = FPaths::Combine(Path, TEXT("Win64/InterchangeWorker-Win64-Debug.exe"));
+					if (!FPaths::FileExists(DebugPath))
+					{
+						//Try the development build if we cannot find the debug build
+						Path = FPaths::Combine(Path, TEXT("Win64/InterchangeWorker.exe"));
+					}
+					else
+					{
+						Path = MoveTemp(DebugPath);
+					}
+				}
 #else //#if UE_BUILD_DEBUG
 				Path = FPaths::Combine(Path, TEXT("Win64/InterchangeWorker.exe"));
 #endif //#else UE_BUILD_DEBUG
 #endif //#elif PLATFORM_WINDOWS
 				if (!FPaths::FileExists(Path))
 				{
-					UE_LOG(LogInterchangeDispatcher, Warning, TEXT("InterchangeWorker executable not found. Expected location: %s"), *FPaths::ConvertRelativePathToFull(ProcessorPath));
+					UE_LOG(LogInterchangeDispatcher, Warning, TEXT("InterchangeWorker executable not found. Expected location: %s"), *FPaths::ConvertRelativePathToFull(Path));
 				}
 				return Path;
 			}();
