@@ -12,6 +12,10 @@ class CHAOSCACHING_API UChaosCacheCollection : public UObject
 	GENERATED_BODY()
 public:
 
+	//~ Begin UObject Interface
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	//~ End UObject Interface
+	
 	UChaosCache* FindCache(const FName& CacheName) const;
 	UChaosCache* FindOrAddCache(const FName& CacheName);
 
