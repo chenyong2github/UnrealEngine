@@ -1002,6 +1002,13 @@ bool FPBDConstraintGraph::DebugCheckGraph() const
 		for (int32 EdgeIndex : IslandEdges)
 		{
 			const FGraphEdge& Edge = Edges[EdgeIndex];
+
+			if (Edge.SecondNode == INDEX_NONE)
+			{
+				// We add "edges" for single-particle constraints as well. In this case, they have no second node
+				continue;
+			}
+
 			const FGraphNode& Node0 = Nodes[Edge.FirstNode];
 			const FGraphNode& Node1 = Nodes[Edge.SecondNode];
 			if ((Node0.Particle != nullptr) && (Node1.Particle != nullptr) && FConstGenericParticleHandle(Node0.Particle)->IsDynamic() && FConstGenericParticleHandle(Node1.Particle)->IsDynamic())
