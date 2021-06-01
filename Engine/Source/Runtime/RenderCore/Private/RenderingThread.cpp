@@ -1292,6 +1292,8 @@ void FlushRenderingCommands()
 	ENQUEUE_RENDER_COMMAND(FlushPendingDeleteRHIResourcesCmd)([](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+		//double flush to flush out the deferred deletions queued into the ImmediateCmdList
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	});
 
 	// Find the objects which may be cleaned up once the rendering thread command queue has been flushed.
