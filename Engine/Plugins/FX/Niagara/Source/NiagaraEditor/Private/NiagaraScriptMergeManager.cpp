@@ -1341,6 +1341,7 @@ void FNiagaraScriptMergeManager::UpdateModuleVersions(UNiagaraEmitter& Instance,
 		SystemOptions.bCanModifyEmittersFromTimeline = false;
 		SystemOptions.bCanSimulate = false;
 		SystemOptions.bCanAutoCompile = false;
+		SystemOptions.bIsForDataProcessingOnly = true;
 		SystemOptions.EditMode = ENiagaraSystemViewModelEditMode::EmitterDuringMerge;
 		SystemOptions.MessageLogGuid = System->GetAssetGuid();
 		SystemViewModel->Initialize(*System, SystemOptions);

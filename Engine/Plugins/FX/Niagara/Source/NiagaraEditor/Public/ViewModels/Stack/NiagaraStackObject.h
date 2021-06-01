@@ -68,4 +68,5 @@ private:
 	TArray<FRegisteredClassCustomization> RegisteredClassCustomizations;
 	TArray<FRegisteredPropertyCustomization> RegisteredPropertyCustomizations;
 	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
+	bool bIsRefresingDataInterfaceErrors;
 };

@@ -67,6 +67,7 @@ template<> TMap<UNiagaraSystem*, TArray<FNiagaraSystemViewModel*>> TNiagaraViewM
 FNiagaraSystemViewModelOptions::FNiagaraSystemViewModelOptions()
 	: bCanAutoCompile(true)
 	, bCanSimulate(true)
+	, bIsForDataProcessingOnly(false)
 {
 }
 
@@ -102,8 +103,9 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	bCanSimulate = InOptions.bCanSimulate;
 	EditMode = InOptions.EditMode;
 	OnGetSequencerAddMenuContent = InOptions.OnGetSequencerAddMenuContent;
-	SystemMessageLogGuidKey = InOptions.MessageLogGuid;	
-	
+	SystemMessageLogGuidKey = InOptions.MessageLogGuid;
+	bIsForDataProcessingOnly = InOptions.bIsForDataProcessingOnly;
+
 	SystemChangedDelegateHandle = System->OnSystemPostEditChange().AddSP(this, &FNiagaraSystemViewModel::SystemChanged);
 
 	SelectionViewModel = NewObject<UNiagaraSystemSelectionViewModel>(GetTransientPackage());
@@ -872,6 +874,11 @@ TStatId FNiagaraSystemViewModel::GetStatId() const
 TSharedRef<FNiagaraPlaceholderDataInterfaceManager> FNiagaraSystemViewModel::GetPlaceholderDataInterfaceManager()
 {
 	return PlaceholderDataInterfaceManager.ToSharedRef();
+}
+
+bool FNiagaraSystemViewModel::GetIsForDataProcessingOnly() const
+{
+	return bIsForDataProcessingOnly;
 }
 
 void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const

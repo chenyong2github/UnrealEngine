@@ -2,6 +2,7 @@
 
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "ViewModels/Stack/NiagaraStackPropertyRow.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraNode.h"
 #include "NiagaraEditorModule.h"
 
@@ -25,6 +26,7 @@ void UNiagaraStackObject::Initialize(FRequiredEntryData InRequiredEntryData, UOb
 	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, ObjectStackEditorDataKey);
 	Object = InObject;
 	OwningNiagaraNode = InOwningNiagaraNode;
+	bIsRefresingDataInterfaceErrors = false;
 }
 
 void UNiagaraStackObject::SetOnSelectRootNodes(FOnSelectRootNodes OnSelectRootNodes)
@@ -143,7 +145,7 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 
 	GatherIssueFromProperties((uint8*)Object, Object->GetClass(), true);
 
-	if (PropertyRowGenerator.IsValid() == false)
+	if (GetSystemViewModel()->GetIsForDataProcessingOnly() == false && PropertyRowGenerator.IsValid() == false)
 	{
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		FPropertyRowGeneratorArgs Args;
@@ -191,11 +193,11 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 	if (DataInterfaceObject != nullptr)
 	{
 		// First we need to refresh the errors on the data interface so that the rows in the property row generator 
-		// are correct.  We need to remove the delegate handler first so that we don't cause a reentrant refresh.
-		// This can be updated to use a guard value post 4.25.
-		PropertyRowGenerator->OnRowsRefreshed().RemoveAll(this);
-		DataInterfaceObject->RefreshErrors();
-		PropertyRowGenerator->OnRowsRefreshed().AddUObject(this, &UNiagaraStackObject::PropertyRowsRefreshed);
+		// are correct.
+		{
+			TGuardValue<bool> RefreGuard(bIsRefresingDataInterfaceErrors, true);
+			DataInterfaceObject->RefreshErrors();
+		}
 
 		// Generate the summary stack issue for any errors which are generated.
 		TArray<FNiagaraDataInterfaceError> Errors;
@@ -221,35 +223,37 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 		}
 	}
 
-
-	TArray<TSharedRef<IDetailTreeNode>> DefaultRootTreeNodes = PropertyRowGenerator->GetRootTreeNodes();
-	TArray<TSharedRef<IDetailTreeNode>> RootTreeNodes;
-	if (OnSelectRootNodesDelegate.IsBound())
+	if(PropertyRowGenerator.IsValid())
 	{
-		OnSelectRootNodesDelegate.Execute(DefaultRootTreeNodes, &RootTreeNodes);
-	}
-	else
-	{
-		RootTreeNodes = DefaultRootTreeNodes;
-	}
-
-	for (TSharedRef<IDetailTreeNode> RootTreeNode : RootTreeNodes)
-	{
-		if (RootTreeNode->GetNodeType() == EDetailNodeType::Advanced)
+		TArray<TSharedRef<IDetailTreeNode>> DefaultRootTreeNodes = PropertyRowGenerator->GetRootTreeNodes();
+		TArray<TSharedRef<IDetailTreeNode>> RootTreeNodes;
+		if (OnSelectRootNodesDelegate.IsBound())
 		{
-			continue;
+			OnSelectRootNodesDelegate.Execute(DefaultRootTreeNodes, &RootTreeNodes);
+		}
+		else
+		{
+			RootTreeNodes = DefaultRootTreeNodes;
 		}
 
-		UNiagaraStackPropertyRow* ChildRow = FindCurrentChildOfTypeByPredicate<UNiagaraStackPropertyRow>(CurrentChildren,
-			[=](UNiagaraStackPropertyRow* CurrentChild) { return CurrentChild->GetDetailTreeNode() == RootTreeNode; });
-
-		if (ChildRow == nullptr)
+		for (TSharedRef<IDetailTreeNode> RootTreeNode : RootTreeNodes)
 		{
-			ChildRow = NewObject<UNiagaraStackPropertyRow>(this);
-			ChildRow->Initialize(CreateDefaultChildRequiredData(), RootTreeNode, GetOwnerStackItemEditorDataKey(), GetOwnerStackItemEditorDataKey(), OwningNiagaraNode);
-		}
+			if (RootTreeNode->GetNodeType() == EDetailNodeType::Advanced)
+			{
+				continue;
+			}
 
-		NewChildren.Add(ChildRow);
+			UNiagaraStackPropertyRow* ChildRow = FindCurrentChildOfTypeByPredicate<UNiagaraStackPropertyRow>(CurrentChildren,
+				[=](UNiagaraStackPropertyRow* CurrentChild) { return CurrentChild->GetDetailTreeNode() == RootTreeNode; });
+
+			if (ChildRow == nullptr)
+			{
+				ChildRow = NewObject<UNiagaraStackPropertyRow>(this);
+				ChildRow->Initialize(CreateDefaultChildRequiredData(), RootTreeNode, GetOwnerStackItemEditorDataKey(), GetOwnerStackItemEditorDataKey(), OwningNiagaraNode);
+			}
+
+			NewChildren.Add(ChildRow);
+		}
 	}
 }
 
@@ -260,5 +264,8 @@ void UNiagaraStackObject::PostRefreshChildrenInternal()
 
 void UNiagaraStackObject::PropertyRowsRefreshed()
 {
-	RefreshChildren();
+	if(bIsRefresingDataInterfaceErrors == false)
+	{
+		RefreshChildren();
+	}
 }
