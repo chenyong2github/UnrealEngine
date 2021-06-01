@@ -24,6 +24,7 @@ int32 GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = 1;
 int32 GLevelStreamingAllowLevelRequestsWhileAsyncLoadingInMatch = 1;
 int32 GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch = 0;
 int32 GLevelStreamingForceVerifyLevelsGotRemovedByGC = 0;
+int32 GLevelStreamingForceRouteActorInitializeNextFrame = 0;
 
 static FAutoConsoleVariableRef CVarUseBackgroundLevelStreaming(
 	TEXT("s.UseBackgroundLevelStreaming"),
@@ -99,6 +100,13 @@ static FAutoConsoleVariableRef CVarForceVerifyLevelsGotRemovedByGC(
 	TEXT("s.ForceVerifyLevelsGotRemovedByGC"),
 	GLevelStreamingForceVerifyLevelsGotRemovedByGC,
 	TEXT("Whether to force a verification of objects residing in a GC'ed level package (ignored in shipping builds)."),
+	ECVF_Default
+);
+
+static FAutoConsoleVariableRef CVarForceRouteActorInitializeNextFrame(
+	TEXT("s.ForceRouteActorInitializeNextFrame"),
+	GLevelStreamingForceRouteActorInitializeNextFrame,
+	TEXT("Whether to force routing actor initialize phase in its own frame."),
 	ECVF_Default
 );
 
