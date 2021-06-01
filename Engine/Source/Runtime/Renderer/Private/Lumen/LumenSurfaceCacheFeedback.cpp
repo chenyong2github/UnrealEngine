@@ -31,6 +31,10 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackResLevelBias(
 	TEXT("r.LumenScene.SurfaceCache.Feedback.ResLevelBias"),
 	GLumenSurfaceCacheFeedbackResLevelBias,
 	TEXT("Bias resolution of on demand surface cache pages."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+		{
+			Lumen::DebugResetSurfaceCache();
+		}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 

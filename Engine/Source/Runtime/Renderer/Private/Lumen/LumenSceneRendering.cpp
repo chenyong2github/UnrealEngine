@@ -155,13 +155,9 @@ FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewRaster(
 	GLumenSceneNaniteMultiViewRaster,
 	TEXT("Toggle multi view Lumen Nanite Card rasterization for debugging."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		extern int32 GLumenSceneSurfaceCacheReset;
-		if (GLumenSceneSurfaceCacheReset <= 0)
 		{
-			GLumenSceneSurfaceCacheReset = 1;
-		}
-	}),
+			Lumen::DebugResetSurfaceCache();
+		}),
 	ECVF_RenderThreadSafe
 );
 
@@ -171,13 +167,9 @@ FAutoConsoleVariableRef CVarLumenSceneNaniteMultiViewCapture(
 	GLumenSceneNaniteMultiViewCapture,
 	TEXT("Toggle multi view Lumen Nanite Card capture for debugging."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		extern int32 GLumenSceneSurfaceCacheReset;
-		if (GLumenSceneSurfaceCacheReset <= 0)
 		{
-			GLumenSceneSurfaceCacheReset = 1;
-		}
-	}),
+			Lumen::DebugResetSurfaceCache();
+		}),
 	ECVF_RenderThreadSafe
 );
 
@@ -207,6 +199,13 @@ LLM_DEFINE_TAG(Lumen, NAME_None, NAME_None, GET_STATFNAME(STAT_LumenLLM), GET_ST
 extern int32 GAllowLumenDiffuseIndirect;
 extern int32 GAllowLumenReflections;
 
+void Lumen::DebugResetSurfaceCache()
+{
+	if (GLumenSceneSurfaceCacheReset < 2)
+	{
+		GLumenSceneSurfaceCacheReset = 1;
+	}
+}
 
 namespace Lumen
 {

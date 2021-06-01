@@ -31,6 +31,7 @@ namespace Lumen
 		MAX
 	};
 
+	void DebugResetSurfaceCache();
 	float GetDistanceSceneNaniteLODScaleFactor();
 	bool UseMeshSDFTracing();
 	float GetMaxTraceDistance();
