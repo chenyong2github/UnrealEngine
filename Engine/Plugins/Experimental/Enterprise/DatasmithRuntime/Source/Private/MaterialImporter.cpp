@@ -261,31 +261,31 @@ namespace DatasmithRuntime
 			{
 				MaterialUpdateContext.AddMaterialInstance( MaterialInstance );
 
-#if WITH_EDITOR
-				// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
-				if ( MaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
-				{
-					MaterialInstance->ForceRecompileForRendering();
-				}
-				else
-				{
-					// If a switch is overridden, we need to recompile
-					FStaticParameterSet StaticParameters;
-					MaterialInstance->GetStaticParameterValues( StaticParameters );
-
-					for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
-					{
-						if ( Switch.bOverride )
-						{
-							MaterialInstance->ForceRecompileForRendering();
-							break;
-						}
-					}
-				}
-
-				MaterialInstance->PreEditChange( nullptr );
-				MaterialInstance->PostEditChange();
-#endif
+//#if WITH_EDITOR
+//				// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
+//				if ( MaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
+//				{
+//					MaterialInstance->ForceRecompileForRendering();
+//				}
+//				else
+//				{
+//					// If a switch is overridden, we need to recompile
+//					FStaticParameterSet StaticParameters;
+//					MaterialInstance->GetStaticParameterValues( StaticParameters );
+//
+//					for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
+//					{
+//						if ( Switch.bOverride )
+//						{
+//							MaterialInstance->ForceRecompileForRendering();
+//							break;
+//						}
+//					}
+//				}
+//
+//				MaterialInstance->PreEditChange( nullptr );
+//				MaterialInstance->PostEditChange();
+//#endif
 			}
 		}
 	}
