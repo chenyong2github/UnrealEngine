@@ -18,6 +18,49 @@
 
 #define LOCTEXT_NAMESPACE "LevelVariantSets"
 
+namespace UE
+{
+	namespace LevelVariantSets
+	{
+		namespace Private
+		{
+			/** Makes it so that all others variants that depend on a variant of 'VariantSet' have those particular dependencies deleted */
+			void ResetVariantSetDependents( UVariantSet* VariantSet )
+			{
+				if ( !VariantSet )
+				{
+					return;
+				}
+
+				ULevelVariantSets* LevelVariantSets = VariantSet->GetTypedOuter<ULevelVariantSets>();
+				if ( !LevelVariantSets )
+				{
+					return;
+				}
+
+				for ( UVariant* Variant : VariantSet->GetVariants() )
+				{
+					const bool bOnlyEnabledDependencies = false;
+					for ( UVariant* Dependent : Variant->GetDependents( LevelVariantSets, bOnlyEnabledDependencies ) )
+					{
+						for ( int32 DependencyIndex = Dependent->GetNumDependencies() - 1; DependencyIndex >= 0; --DependencyIndex )
+						{
+							FVariantDependency& Dependency = Dependent->GetDependency( DependencyIndex );
+							UVariant* TargetVariant = Dependency.Variant.Get();
+							if ( TargetVariant == Variant )
+							{
+								// Delete the entire dependency because we can't leave a dependency without a valid Variant selected or
+								// we may run into minor slightly awkward states (i.e. not being able to pick *any* variant)
+								Dependent->DeleteDependency( DependencyIndex );
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 ULevelVariantSets::ULevelVariantSets(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -156,6 +199,7 @@ void ULevelVariantSets::RemoveVariantSets(const TArray<UVariantSet*> InVariantSe
 	for (UVariantSet* VariantSet : InVariantSets)
 	{
 		VariantSets.Remove(VariantSet);
+		UE::LevelVariantSets::Private::ResetVariantSetDependents( VariantSet );
 		VariantSet->Rename(nullptr, GetTransientPackage());
 	}
 }
