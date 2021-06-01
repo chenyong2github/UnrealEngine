@@ -13,6 +13,7 @@
 #include "Misc/Guid.h"
 #include "Misc/SecureHash.h"
 #include "Containers/Ticker.h"
+#include "Containers/StringFwd.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
@@ -24,6 +25,7 @@
 #include "Internationalization/Regex.h"
 #include "Internationalization/TextLocalizationManager.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
+#include "HAL/FileManager.h"
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
@@ -471,6 +473,56 @@ FGenericCrashContext::FGenericCrashContext(ECrashContextType InType, const TCHAR
 FString FGenericCrashContext::GetTempSessionContextFilePath(uint64 ProcessID)
 {
 	return FPlatformProcess::UserTempDir() / FString::Printf(TEXT("UECrashContext-%u.xml"), ProcessID);
+}
+
+void FGenericCrashContext::CleanupTempSessionContextFiles(const FTimespan& ExpirationAge)
+{
+	const FString BasePathname = FPlatformProcess::UserTempDir() / FString::Printf(TEXT("UECrashContext-"));
+	IFileManager::Get().IterateDirectory(FPlatformProcess::UserTempDir(), [&BasePathname, &ExpirationAge](const TCHAR* Pathname, bool bIsDirectory) -> bool
+	{
+		if (bIsDirectory)
+		{
+			return true; // Looking for files, continue.
+		}
+
+		FStringView PathnameView(Pathname);
+		if (PathnameView.EndsWith(TEXT(".xml")) && PathnameView.StartsWith(BasePathname))
+		{
+			if (IFileManager::Get().GetFileAgeSeconds(Pathname) > ExpirationAge.GetTotalSeconds())
+			{
+				// Extract the process ID from the pathname view.
+				static_assert(sizeof(decltype(FPlatformProcess::GetCurrentProcessId())) == 4, "The code below assumes the process ID is 4 bytes");
+				constexpr uint32 MaxPidStrLen = 10; // std::numeric_limit<uint32>::max() is 4294967295 -> 10 characters.
+				TCHAR PidStr[MaxPidStrLen + 1]; // +1 for null terminator.
+				int32 CharIndex = 0;
+				PathnameView.FindLastChar(TEXT('-'), CharIndex);
+				PathnameView.RemovePrefix(CharIndex + 1); // Remove everything up to the last '-'.
+				PathnameView.FindLastChar(TEXT('.'), CharIndex);
+				PathnameView.RemoveSuffix(PathnameView.Len() - CharIndex); // Remove the trailing '.xml'
+
+				if (PathnameView.Len() <= MaxPidStrLen)
+				{
+					// Put back what we expect to be the PID into a null terminated string.
+					PathnameView.CopyString(PidStr, PathnameView.Len());
+					PidStr[PathnameView.Len()] = TEXT('\0');
+
+					// Converts the PID string, validating it only contained digits.
+					TCHAR* End = nullptr;
+					int64 ProcessId = FCString::Strtoi64(PidStr, &End, 10);
+					if (End == PidStr + PathnameView.Len())
+					{
+						// Ensure the process that created this context file is not running anymore before deleting it.
+						if (!FPlatformProcess::IsApplicationRunning(static_cast<uint32>(ProcessId)))
+						{
+							IFileManager::Get().Delete(Pathname);
+						}
+					}
+				}
+			}
+		}
+
+		return true; // Iterate to next file.
+	});
 }
 
 TOptional<int32> FGenericCrashContext::GetOutOfProcessCrashReporterExitCode()

@@ -333,6 +333,9 @@ public:
 	/** Get the file path to the temporary session context file that we create for the given process. */
 	static FString GetTempSessionContextFilePath(uint64 ProcessID);
 
+	/** Clean up expired context files that were left-over on the user disks (because the consumer crashed and/or failed to delete it). */
+	static void CleanupTempSessionContextFiles(const FTimespan& ExpirationAge);
+
 	/** Serializes all data to the buffer. */
 	void SerializeContentToBuffer() const;
 
