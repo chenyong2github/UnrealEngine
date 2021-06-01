@@ -62,6 +62,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MaxClusterLevel(100)
 	, DamageThreshold({ 250.0 })
 	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_PointImplicit)
+	, bUseFullPrecisionUVs(false)
 	, bStripOnCook(false)
 	, EnableNanite(false)
 #if WITH_EDITORONLY_DATA
@@ -1090,6 +1091,10 @@ void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		{
 			InvalidateCollection();
 			EnsureDataIsCooked();
+		}
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, bUseFullPrecisionUVs))
+		{
+			InvalidateCollection();
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, SizeSpecificData))
 		{
