@@ -14,6 +14,7 @@ namespace DatasmithSketchUp
 	class FExportContext;
 	class FTexture;
 	class FTextureImageFile;
+	class FMaterial;
 
 	class FTextureImageFile
 	{
@@ -22,12 +23,19 @@ namespace DatasmithSketchUp
 
 		FString TextureName;
 		FString TextureFileName;
+
+		FTexture* Texture;
+
 		TSharedPtr<IDatasmithTextureElement> TextureElement; // Texture element is created once per texture image file
 
-		TSet<TSharedPtr<FTexture>> Textures;  // textures, using this image
 		static TSharedPtr<FTextureImageFile> Create(TSharedPtr<FTexture> Texture);
 
 		void Update(FExportContext& Context);
+
+		void Invalidate()
+		{
+			bInvalidated = true;
+		}
 
 		uint8 bInvalidated:1;
 	};
@@ -37,7 +45,7 @@ namespace DatasmithSketchUp
 	class FTexture
 	{
 	public:
-		FTexture(SUTextureRef InTextureRef) : TextureRef(InTextureRef) {}
+		FTexture(SUTextureRef InTextureRef, FTextureIDType InTextureId) : TextureRef(InTextureRef), TextureId(InTextureId) {}
 
 		bool GetTextureUseAlphaChannel();
 
@@ -45,8 +53,11 @@ namespace DatasmithSketchUp
 
 		const TCHAR* GetDatasmithElementName();
 
+		void Invalidate();
+
 		// Sketchup reference
 		SUTextureRef TextureRef;
+		FTextureIDType TextureId;
 
 		FString SourceTextureFileName;
 		FString TextureBaseName;
@@ -54,6 +65,8 @@ namespace DatasmithSketchUp
 
 		// Extracted from Sketchup
 		FVector2D TextureScale;
+
+		TSet<FMaterial*> Materials; // Materials using this texture
 	};
 }
 
