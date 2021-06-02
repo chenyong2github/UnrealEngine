@@ -94,9 +94,6 @@ void UDMXProtocolSettings::PostInitProperties()
 		UE_LOG(LogDMXProtocol, Log, TEXT("Overridden Default Receive DMX Enabled from command line, set to %s."), bDefaultReceiveDMXEnabled ? TEXT("True") : TEXT("False"));
 	}
 	OverrideReceiveDMXEnabled(bDefaultReceiveDMXEnabled);	
-
-	// Deffer further initialization to post engine init, when protocols and port manager are fully loaded.
-	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UDMXProtocolSettings::OnPostEngineInit);
 }
 
 #if WITH_EDITOR
@@ -200,20 +197,4 @@ void UDMXProtocolSettings::OverrideReceiveDMXEnabled(bool bEnabled)
 	bOverrideReceiveDMXEnabled = bEnabled; 
 
 	OnSetReceiveDMXEnabled.Broadcast(bEnabled);
-}
-
-void UDMXProtocolSettings::OnPostEngineInit()
-{
-	// Make valid port configs, in case the ini was edited, then let the port manager update
-	for (FDMXInputPortConfig& Config : InputPortConfigs)
-	{
-		Config.MakeValid();
-	}
-
-	for (FDMXOutputPortConfig& Config : OutputPortConfigs)
-	{
-		Config.MakeValid();
-	}
-
-	FDMXPortManager::Get().UpdateFromProtocolSettings();
 }

@@ -17,6 +17,8 @@ IMPLEMENT_MODULE( FDMXProtocolModule, DMXProtocol );
 
 #define LOCTEXT_NAMESPACE "DMXProtocolModule"
 
+int32 FDMXProtocolModule::NumProtocolsInPlugin = 2;
+
 void FDMXProtocolModule::RegisterProtocol(const FName& ProtocolName, IDMXProtocolFactory* Factory)
 {
 	if (!DMXProtocolFactories.Contains(ProtocolName))
@@ -41,7 +43,10 @@ void FDMXProtocolModule::RegisterProtocol(const FName& ProtocolName, IDMXProtoco
 		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Unable to create Protocol %s"), *ProtocolName.ToString());
 	}
 
-	OnProtocolRegistered.Broadcast();
+	if (DMXProtocols.Num() == NumProtocolsInPlugin)
+	{
+		OnProtocolsInPluginRegistered();
+	}
 }
 
 void FDMXProtocolModule::UnregisterProtocol(const FName& ProtocolName)
@@ -95,8 +100,6 @@ void FDMXProtocolModule::StartupModule()
 		);
 	}
 #endif // WITH_EDITOR
-
-	FDMXPortManager::StartupManager();
 }
 
 void FDMXProtocolModule::ShutdownModule()
@@ -114,6 +117,11 @@ void FDMXProtocolModule::ShutdownModule()
 		SettingsModule->UnregisterSettings("Project", "Plugins", "DMX Protocol");
 	}
 #endif // WITH_EDITOR
+}
+
+void FDMXProtocolModule::OnProtocolsInPluginRegistered()
+{
+	FDMXPortManager::StartupManager();
 }
 
 void FDMXProtocolModule::ShutdownDMXProtocol(const FName& ProtocolName)

@@ -98,13 +98,7 @@ public:
 	/** Overrides if send DMX is enabled at runtime */
 	void OverrideReceiveDMXEnabled(bool bEnabled);
 
-	/** Updates ports from settings */
-	void UpdatePortsFromSettings();
-
 private:
-	/** Called when the engine was fully intialized */
-	void OnPostEngineInit();
-
 	/** Whether DMX is received from the network. Recalled whenever editor or game starts. */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
 	bool bDefaultSendDMXEnabled;

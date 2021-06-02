@@ -19,9 +19,6 @@ public:
 
 	void UnregisterProtocol(const FName& ProtocolName);
 
-	/** Delegate called when a protocols was registered */
-	FSimpleMulticastDelegate OnProtocolRegistered;
-
 public:
 	/** Get the instance of this module. */
 	static FDMXProtocolModule& Get();
@@ -46,8 +43,13 @@ public:
 	//~ End IModuleInterface implementation
 
 private:
+	/** Called when all protocols in the plugin are registered */
+	void OnProtocolsInPluginRegistered();
+
 	void ShutdownDMXProtocol(const FName& ProtocolName);
 	void ShutdownAllDMXProtocols();
+
+	static int32 NumProtocolsInPlugin;
 
 private:
 	TMap<FName, IDMXProtocolFactory*> DMXProtocolFactories;

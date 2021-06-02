@@ -59,7 +59,8 @@ struct FDMXFixturePatchChannel
 	GENERATED_BODY()
 
 	FDMXFixturePatchChannel()
-		: ActiveMode(INDEX_NONE)
+		: DMXLibrary(nullptr)
+		, ActiveMode(INDEX_NONE)
 	{}
 
 	/** The outer library of the channel */

@@ -52,45 +52,12 @@ namespace
 }
 
 
-
 FDMXDisplayClusterReplicator::FDMXDisplayClusterReplicator()
 	: bForceMaster(false)
 	, bForceSlave(false)
 	, bClusterEventEmitter(false)
 	, TickType(ETickableTickType::Never)
 {
-	if (FDMXPortManager::Get().AreIOsAvailable())
-	{
-		Initialize();
-	}
-	else
-	{
-		FDMXPortManager::Get().OnIOsAvailable.AddRaw(this, &FDMXDisplayClusterReplicator::Initialize);
-	}
-}
-
-
-FDMXDisplayClusterReplicator::~FDMXDisplayClusterReplicator()
-{
-	// Release raw listeners
-	for (const TSharedPtr<FDMXRawListener>& RawListener : RawListeners)
-	{
-		RawListener->Stop();
-	}
-
-	// Release binary listeners
-	if (IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr())
-	{
-		if (BinaryListener.IsBound())
-		{
-			ClusterManager->RemoveClusterEventBinaryListener(BinaryListener);
-		}
-	}
-}
-
-void FDMXDisplayClusterReplicator::Initialize()
-{
-	FDMXPortManager::Get().OnIOsAvailable.RemoveAll(this);
 
 	// Only supported when running in cluster mode without editor.
 	check(IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster);
@@ -148,6 +115,24 @@ void FDMXDisplayClusterReplicator::Initialize()
 			// If this is not an emitter, suspend receiving from protocols to not get any data from the network.
 			// This also allows to inject data into the ports - This is the single producer now.
 			FDMXPortManager::Get().SuspendProtocols();
+		}
+	}
+}
+
+FDMXDisplayClusterReplicator::~FDMXDisplayClusterReplicator()
+{
+	// Release raw listeners
+	for (const TSharedPtr<FDMXRawListener>& RawListener : RawListeners)
+	{
+		RawListener->Stop();
+	}
+
+	// Release binary listeners
+	if (IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr())
+	{
+		if (BinaryListener.IsBound())
+		{
+			ClusterManager->RemoveClusterEventBinaryListener(BinaryListener);
 		}
 	}
 }

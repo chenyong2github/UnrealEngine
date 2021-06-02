@@ -225,14 +225,6 @@ void FDMXPortManager::UpdateFromProtocolSettings()
 		PortGuidsFromProtocolSettings.AddUnique(OutputPort->GetPortGuid());
 	}
 
-	if (OnIOsAvailable.IsBound())
-	{
-		bIOsAvailable = true;
-
-		// Broadcast only once.
-		OnIOsAvailable.Broadcast();
-		OnIOsAvailable.Clear();
-	}
 	OnPortsChanged.Broadcast();
 }
 
@@ -308,6 +300,8 @@ void FDMXPortManager::StartupManager()
 
 	check(!CurrentManager.IsValid());
 	CurrentManager = MakeUnique<FDMXPortManager>();
+
+	CurrentManager->UpdateFromProtocolSettings();
 }
 
 void FDMXPortManager::ShutdownManager()
