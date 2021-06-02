@@ -9,8 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -28,6 +30,7 @@ namespace HordeServer.Controllers
 		{
 			public string? Name { get; set; }
 			public string? Description { get; set; }
+			public string[]? FileMatch { get; set; }
 			public Uri? Url { get; set; }
 		}
 
@@ -61,10 +64,19 @@ namespace HordeServer.Controllers
 			}
 
 			CatalogRoot Root = new CatalogRoot();
-			foreach (SchemaInfo Schema in Program.ConfigSchemas)
+			foreach (Type SchemaType in Program.ConfigSchemas)
 			{
-				Uri Url = new Uri($"https://{Host}/api/v1/schema/types/{Schema.Type.Name}.json");
-				Root.Schemas.Add(new CatalogItem { Name = Schema.Name, Description = Schema.Description, Url = Url });
+				JsonSchemaAttribute? SchemaAttribute = SchemaType.GetCustomAttribute<JsonSchemaAttribute>();
+				if (SchemaAttribute != null)
+				{
+					JsonSchemaCatalogAttribute? CatalogAttribute = SchemaType.GetCustomAttribute<JsonSchemaCatalogAttribute>();
+					if (CatalogAttribute != null)
+					{
+						Uri Url = new Uri($"https://{Host}/api/v1/schema/types/{SchemaType.Name}.json");
+						Root.Schemas.Add(new CatalogItem { Name = CatalogAttribute.Name, Description = CatalogAttribute.Description, FileMatch = new[] { "globals.json" }, Url = new Uri(SchemaAttribute.Id) });
+						break;
+					}
+				}
 			}
 			return Ok(Root);
 		}
@@ -78,11 +90,18 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/schema/types/{TypeName}.json")]
 		public ActionResult GetSchema(string TypeName)
 		{
-			foreach (SchemaInfo Schema in Program.ConfigSchemas)
+			foreach (Type SchemaType in Program.ConfigSchemas)
 			{
-				if (Schema.Type.Name.Equals(TypeName, StringComparison.OrdinalIgnoreCase))
+				if (SchemaType.Name.Equals(TypeName, StringComparison.OrdinalIgnoreCase))
 				{
-					return Ok(Schemas.CreateSchema(Schema.Id, Schema.Type));
+					JsonSchema Schema = Schemas.CreateSchema(SchemaType);
+
+					using MemoryStream Stream = new MemoryStream();
+					using Utf8JsonWriter Writer = new Utf8JsonWriter(Stream);
+					JsonSerializer.Serialize(Writer, Schema, new JsonSerializerOptions());
+					Writer.Flush();
+
+					return new FileContentResult(Stream.ToArray(), "application/json");
 				}
 			}
 			return NotFound();

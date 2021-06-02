@@ -61,12 +61,20 @@ namespace HordeServer
 	{
 		public static DirectoryReference AppDir { get; } = new FileReference(Assembly.GetExecutingAssembly().Location).Directory;
 
-		public static SchemaInfo[] ConfigSchemas =
+		public static Type[] ConfigSchemas = FindSchemaTypes();
+
+		static Type[] FindSchemaTypes()
 		{
-			new SchemaInfo("https://unrealengine.com/horde/global", "Horde Globals", "Horde root configuration file", typeof(GlobalConfig)),
-			new SchemaInfo("https://unrealengine.com/horde/project", "Horde Project", "Horde project configuration file", typeof(ProjectConfig)),
-			new SchemaInfo("https://unrealengine.com/horde/stream", "Horde Stream", "Horde stream configuration file", typeof(StreamConfig))
-		};
+			List<Type> SchemaTypes = new List<Type>();
+			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
+			{
+				if (Type.GetCustomAttribute<JsonSchemaAttribute>() != null)
+				{
+					SchemaTypes.Add(Type);
+				}
+			}
+			return SchemaTypes.ToArray();
+		}
 
 		public static void Main(string[] Args)
 		{
@@ -111,10 +119,10 @@ namespace HordeServer
 				Arguments.CheckAllArgumentsUsed();
 
 				DirectoryReference.CreateDirectory(SchemaDir);
-				foreach (SchemaInfo Schema in ConfigSchemas)
+				foreach (Type SchemaType in ConfigSchemas)
 				{
-					FileReference OutputFile = FileReference.Combine(SchemaDir, $"{Schema.Type.Name}.json");
-					Schemas.WriteSchema(Schema.Id, Schema.Type, OutputFile);
+					FileReference OutputFile = FileReference.Combine(SchemaDir, $"{SchemaType.Name}.json");
+					Schemas.WriteSchema(SchemaType, OutputFile);
 				}
 				return;
 			}
