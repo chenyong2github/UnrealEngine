@@ -22,12 +22,7 @@ void SUniformWrapPanel::Construct( const FArguments& InArgs )
 	EvenRowDistribution =  InArgs._EvenRowDistribution.Get();
 	HAlign = InArgs._HAlign.Get();
 
-	Children.Reserve( InArgs.Slots.Num() );
-	for (int32 ChildIndex=0; ChildIndex < InArgs.Slots.Num(); ChildIndex++)
-	{
-		FSlot* ChildSlot = InArgs.Slots[ChildIndex];
-		Children.Add( ChildSlot );
-	}
+	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 }
 
 void SUniformWrapPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
@@ -214,13 +209,9 @@ void SUniformWrapPanel::SetEvenRowDistribution(TAttribute<bool> InEvenRowDistrib
 	EvenRowDistribution = InEvenRowDistribution;
 }
 
-SUniformWrapPanel::FSlot& SUniformWrapPanel::AddSlot()
+SUniformWrapPanel::FScopedWidgetSlotArguments SUniformWrapPanel::AddSlot()
 {
-	FSlot& NewSlot = *(new FSlot());
-
-	Children.Add( &NewSlot );
-
-	return NewSlot;
+	return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), this->Children, INDEX_NONE };
 }
 
 bool SUniformWrapPanel::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )

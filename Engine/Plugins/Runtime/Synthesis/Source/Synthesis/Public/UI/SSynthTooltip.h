@@ -20,7 +20,7 @@ class SSynthTooltip : public SOverlay
 public:
 	SLATE_BEGIN_ARGS(SSynthTooltip)
 	{}
-	SLATE_SUPPORTS_SLOT(SOverlay::FOverlaySlot)
+		SLATE_SLOT_ARGUMENT(SOverlay::FOverlaySlot, Slots)
 	SLATE_END_ARGS()
 
 	~SSynthTooltip();
