@@ -17,6 +17,7 @@
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "CommonMovieSceneTools.h"
+#include "Styling/StyleColors.h"
 
 FTrackAreaSlot::FTrackAreaSlot(const TSharedPtr<SSequencerTrackLane>& InSlotContent)
 	: TAlignmentWidgetSlotMixin<FTrackAreaSlot>(HAlign_Fill, VAlign_Top)
@@ -202,7 +203,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 			
 			FGeometry NodeGeometry = TrackLane.Get()->GetCachedGeometry();
 
-			FLinearColor DashColor = bAllowDrop ? FLinearColor::Green: FLinearColor::Red;
+			FSlateColor DashColor = bAllowDrop ? FStyleColors::AccentBlue : FStyleColors::Error;
 
 			const FSlateBrush* HorizontalBrush = FEditorStyle::GetBrush("WideDash.Horizontal");
 			const FSlateBrush* VerticalBrush = FEditorStyle::GetBrush("WideDash.Vertical");
@@ -226,7 +227,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 				AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackLane.Get()->GetPhysicalPosition()), FVector2D(DropMaxX-DropMinX, HorizontalBrush->ImageSize.Y)),
 				HorizontalBrush,
 				ESlateDrawEffect::None,
-				DashColor);
+				DashColor.GetSpecifiedColor());
 
 			// Bottom
 			FSlateDrawElement::MakeBox(
@@ -235,7 +236,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 				AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackLane.Get()->GetPhysicalPosition() + (TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y - HorizontalBrush->ImageSize.Y)), FVector2D(DropMaxX-DropMinX, HorizontalBrush->ImageSize.Y)),
 				HorizontalBrush,
 				ESlateDrawEffect::None,
-				DashColor);
+				DashColor.GetSpecifiedColor());
 
 			// Left
 			FSlateDrawElement::MakeBox(
@@ -244,7 +245,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 				AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackLane.Get()->GetPhysicalPosition()), FVector2D(VerticalBrush->ImageSize.X, TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y)),
 				VerticalBrush,
 				ESlateDrawEffect::None,
-				DashColor);
+				DashColor.GetSpecifiedColor());
 
 			// Right
 			FSlateDrawElement::MakeBox(
@@ -253,7 +254,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 				AllottedGeometry.ToPaintGeometry(FVector2D(DropMaxX - VerticalBrush->ImageSize.X, TrackLane.Get()->GetPhysicalPosition()), FVector2D(VerticalBrush->ImageSize.X, TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y)),
 				VerticalBrush,
 				ESlateDrawEffect::None,
-				DashColor);
+				DashColor.GetSpecifiedColor());
 		}
 	}
 

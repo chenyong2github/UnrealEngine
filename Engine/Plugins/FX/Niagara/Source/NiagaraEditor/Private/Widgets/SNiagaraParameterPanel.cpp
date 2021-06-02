@@ -147,10 +147,6 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 			SNew(SDropTarget)
 			.OnDrop(this, &SNiagaraParameterPanel::HandleDragDropOperation)
 			.OnAllowDrop(this, &SNiagaraParameterPanel::GetCanHandleDragDropOperation)
-			.HorizontalImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.DropTarget.BorderHorizontal"))
-			.VerticalImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.DropTarget.BorderVertical"))
-			.BackgroundColor(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.DropTarget.BackgroundColor"))
-			.BackgroundColorHover(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.DropTarget.BackgroundColorHover"))
 			.Content()
 			[
 				ItemSelector.ToSharedRef()

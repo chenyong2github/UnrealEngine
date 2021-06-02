@@ -23,16 +23,13 @@ void SDropTarget::Construct(const FArguments& InArgs)
 	ValidColor = InArgs._ValidColor;
 	InvalidColor = InArgs._InvalidColor;
 
-	BackgroundColor = InArgs._BackgroundColor;
-	BackgroundColorHover = InArgs._BackgroundColorHover;
-
 	VerticalImage = InArgs._VerticalImage;
 	HorizontalImage = InArgs._HorizontalImage;
 
 	ChildSlot
 	[
 		SNew(SOverlay)
-			
+		.Clipping(EWidgetClipping::ClipToBounds)
 		+ SOverlay::Slot()
 		[
 			InArgs._Content.Widget
@@ -40,20 +37,17 @@ void SDropTarget::Construct(const FArguments& InArgs)
 
 		+ SOverlay::Slot()
 		[
-			SNew(SBox)
+			SNew(SBorder)
 			.Visibility(this, &SDropTarget::GetDragOverlayVisibility)
-			[
-				SNew(SBorder)
-				.BorderImage(InArgs._BackgroundImage)
-				.BorderBackgroundColor(this, &SDropTarget::GetBackgroundBrightness)
-			]
+			.BorderImage(InArgs._BackgroundImage)
+			.BorderBackgroundColor(this, &SDropTarget::GetBackgroundBrightness)
 		]
 	];
 }
 
 FSlateColor SDropTarget::GetBackgroundBrightness() const
 {
-	return ( bIsDragOver ) ? BackgroundColorHover : BackgroundColor;
+	return bAllowDrop ? ValidColor : InvalidColor;
 }
 
 EVisibility SDropTarget::GetDragOverlayVisibility() const
@@ -151,45 +145,47 @@ int32 SDropTarget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	{
 		if ( bIsDragEventRecognized )
 		{
-			FLinearColor DashColor = bAllowDrop ? ValidColor : InvalidColor;
+			FSlateColor DashColor = bAllowDrop ? ValidColor : InvalidColor;
 
 			int32 DashLayer = LayerId + 1;
+			
+			const float Inset = 3.0f;
 
 			// Top
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(0, 0), FVector2D(AllottedGeometry.GetLocalSize().X, HorizontalImage->ImageSize.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(Inset, 0), FVector2D(AllottedGeometry.GetLocalSize().X-Inset*2, HorizontalImage->ImageSize.Y)),
 				HorizontalImage,
 				ESlateDrawEffect::None,
-				DashColor);
+				DashColor.GetColor(InWidgetStyle));
 
 			// Bottom
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(0, AllottedGeometry.GetLocalSize().Y - HorizontalImage->ImageSize.Y), FVector2D(AllottedGeometry.Size.X, HorizontalImage->ImageSize.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(Inset, AllottedGeometry.GetLocalSize().Y - HorizontalImage->ImageSize.Y), FVector2D(AllottedGeometry.Size.X-Inset * 2, HorizontalImage->ImageSize.Y)),
 				HorizontalImage,
 				ESlateDrawEffect::None,
-				DashColor);
+				DashColor.GetColor(InWidgetStyle));
 
 			// Left
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(0, 0), FVector2D(VerticalImage->ImageSize.X, AllottedGeometry.GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(0, Inset), FVector2D(VerticalImage->ImageSize.X, AllottedGeometry.GetLocalSize().Y-Inset * 2)),
 				VerticalImage,
 				ESlateDrawEffect::None,
-				DashColor);
+				DashColor.GetColor(InWidgetStyle));
 
 			// Right
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(AllottedGeometry.GetLocalSize().X - VerticalImage->ImageSize.X, 0), FVector2D(VerticalImage->ImageSize.X, AllottedGeometry.GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(AllottedGeometry.GetLocalSize().X - VerticalImage->ImageSize.X, Inset), FVector2D(VerticalImage->ImageSize.X, AllottedGeometry.GetLocalSize().Y-Inset * 2)),
 				VerticalImage,
 				ESlateDrawEffect::None,
-				DashColor);
+				DashColor.GetColor(InWidgetStyle));
 
 			return DashLayer;
 		}
