@@ -2353,7 +2353,8 @@ static uint32 BuildHierarchyTopDown(TArray<FIntermediateNode>& Nodes, TArrayView
 	for (uint32 i = 0; i < MAX_BVH_NODE_FANOUT; i++)
 	{
 		uint32 ChildSize = ChildSizes[i];
-		Nodes[NewRootIndex].Children.Add(BuildHierarchyTopDown(Nodes, NodeIndices.Slice(Offset, ChildSize), bSort));
+		uint32 NodeIndex = BuildHierarchyTopDown(Nodes, NodeIndices.Slice(Offset, ChildSize), bSort);	// Needs to be separated from next statement with sequence point to order access to Nodes array.
+		Nodes[NewRootIndex].Children.Add(NodeIndex);
 		Offset += ChildSize;
 	}
 
