@@ -52,8 +52,17 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 	NewStaticMesh->SetNumSourceModels(UseNumSourceModels);
 	for (int32 k = 0; k < UseNumSourceModels; ++k)
 	{
-		NewStaticMesh->GetSourceModel(k).BuildSettings.bRecomputeNormals = Options.bEnableRecomputeNormals;
-		NewStaticMesh->GetSourceModel(k).BuildSettings.bRecomputeTangents = Options.bEnableRecomputeTangents;
+		FMeshBuildSettings& BuildSettings = NewStaticMesh->GetSourceModel(k).BuildSettings;
+
+		BuildSettings.bRecomputeNormals = Options.bEnableRecomputeNormals;
+		BuildSettings.bRecomputeTangents = Options.bEnableRecomputeTangents;
+		BuildSettings.bGenerateLightmapUVs = Options.bGenerateLightmapUVs;
+
+		if (!Options.bAllowDistanceField)
+		{
+			BuildSettings.DistanceFieldResolutionScale = 0.0f;
+		}
+
 		NewStaticMesh->CreateMeshDescription(k);
 	}
 
@@ -126,6 +135,12 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 		NewStaticMesh->NaniteSettings.PercentTriangles = Options.NaniteProxyTrianglePercent * 0.01f;
 		NewStaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
 	}
+
+	// Ray tracing
+	NewStaticMesh->bSupportRayTracing = Options.bSupportRayTracing;
+
+	// Distance field
+	NewStaticMesh->bGenerateMeshDistanceField = Options.bAllowDistanceField;
 
 	NewStaticMesh->MarkPackageDirty();
 	if (Options.bDeferPostEditChange == false)

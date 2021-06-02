@@ -32,6 +32,8 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 
+#include "Engine/MeshMerging.h"
+
 #include "Async/Async.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RenderCaptureInterface.h"
@@ -643,6 +645,77 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 }
 
 
+IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::ConstructOptions(const FMeshApproximationSettings& UseSettings)
+{
+	//
+	// Construct options for ApproximateActors operation
+	//
+	FOptions Options;
+
+	Options.BasePolicy = (UseSettings.OutputType == EMeshApproximationType::MeshShapeOnly) ?
+		IGeometryProcessing_ApproximateActors::EApproximationPolicy::CollisionMesh :
+		IGeometryProcessing_ApproximateActors::EApproximationPolicy::MeshAndGeneratedMaterial;
+	Options.WorldSpaceApproximationAccuracyMeters = UseSettings.ApproximationAccuracy;
+
+	Options.bAutoThickenThinParts = UseSettings.bAttemptAutoThickening;
+	Options.AutoThickenThicknessMeters = UseSettings.TargetMinThicknessMultiplier * UseSettings.ApproximationAccuracy;
+
+	Options.BaseCappingPolicy = IGeometryProcessing_ApproximateActors::EBaseCappingPolicy::NoBaseCapping;
+	if (UseSettings.BaseCapping == EMeshApproximationBaseCappingType::ConvexPolygon)
+	{
+		Options.BaseCappingPolicy = IGeometryProcessing_ApproximateActors::EBaseCappingPolicy::ConvexPolygon;
+	}
+	else if (UseSettings.BaseCapping == EMeshApproximationBaseCappingType::ConvexSolid)
+	{
+		Options.BaseCappingPolicy = IGeometryProcessing_ApproximateActors::EBaseCappingPolicy::ConvexSolid;
+	}
+
+	Options.ClampVoxelDimension = UseSettings.ClampVoxelDimension;
+	Options.WindingThreshold = UseSettings.WindingThreshold;
+	Options.bApplyMorphology = UseSettings.bFillGaps;
+	Options.MorphologyDistanceMeters = UseSettings.GapDistance;
+
+	Options.OcclusionPolicy = (UseSettings.OcclusionMethod == EOccludedGeometryFilteringPolicy::VisibilityBasedFiltering) ?
+		IGeometryProcessing_ApproximateActors::EOcclusionPolicy::VisibilityBased : IGeometryProcessing_ApproximateActors::EOcclusionPolicy::None;
+	Options.FixedTriangleCount = UseSettings.TargetTriCount;
+	if (UseSettings.SimplifyMethod == EMeshApproximationSimplificationPolicy::TrianglesPerArea)
+	{
+		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::TrianglesPerUnitSqMeter;
+		Options.SimplificationTargetMetric = UseSettings.TrianglesPerM;
+	}
+	else if (UseSettings.SimplifyMethod == EMeshApproximationSimplificationPolicy::GeometricTolerance)
+	{
+		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::GeometricTolerance;
+		Options.SimplificationTargetMetric = UseSettings.GeometricDeviation;
+	}
+	else
+	{
+		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::FixedTriangleCount;
+	}
+
+	Options.TextureImageSize = UseSettings.MaterialSettings.TextureSize.X;
+	Options.AntiAliasMultiSampling = FMath::Max(1, UseSettings.MultiSamplingAA);
+
+	Options.RenderCaptureImageSize = (UseSettings.RenderCaptureResolution == 0) ?
+		Options.TextureImageSize : UseSettings.RenderCaptureResolution;
+	Options.FieldOfViewDegrees = UseSettings.CaptureFieldOfView;
+	Options.NearPlaneDist = UseSettings.NearPlaneDist;
+
+	Options.bVerbose = UseSettings.bPrintDebugMessages;
+	Options.bWriteDebugMesh = UseSettings.bEmitFullDebugMesh;
+
+	// Nanite settings
+	Options.bGenerateNaniteEnabledMesh = UseSettings.bGenerateNaniteEnabledMesh;
+	Options.NaniteProxyTrianglePercent = UseSettings.NaniteProxyTrianglePercent;
+
+	// Distance field
+	Options.bAllowDistanceField = UseSettings.bAllowDistanceField;
+
+	// Ray tracing
+	Options.bSupportRayTracing = UseSettings.bSupportRayTracing;
+
+	return Options;
+}
 
 
 void FApproximateActorsImpl::ApproximateActors(const TArray<AActor*>& Actors, const FOptions& Options, FResults& ResultsOut)
@@ -879,6 +952,11 @@ UStaticMesh* FApproximateActorsImpl::EmitGeneratedMeshAsset(
 
 	MeshAssetOptions.bGenerateNaniteEnabledMesh = Options.bGenerateNaniteEnabledMesh;
 	MeshAssetOptions.NaniteProxyTrianglePercent = Options.NaniteProxyTrianglePercent;
+
+	MeshAssetOptions.bSupportRayTracing = Options.bSupportRayTracing;
+	MeshAssetOptions.bAllowDistanceField = Options.bAllowDistanceField;
+	MeshAssetOptions.bGenerateLightmapUVs = Options.bGenerateLightmapUVs;
+	MeshAssetOptions.bCreatePhysicsBody = Options.bCreatePhysicsBody;
 
 	if (Material)
 	{

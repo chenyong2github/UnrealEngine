@@ -10,6 +10,7 @@ class UStaticMesh;
 class UMaterial;
 class UMaterialInterface;
 class UTexture2D;
+struct FMeshApproximationSettings;
 
 
 /**
@@ -140,6 +141,29 @@ public:
 
 
 		//
+		// Mesh settings
+		//
+
+		// Whether to generate a nanite-enabled mesh
+		bool bGenerateNaniteEnabledMesh = false;
+
+		// Percentage of triangles to retain for the nanite coarse mesh
+		float NaniteProxyTrianglePercent = 100;
+
+		// Whether ray tracing will be supported on this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance
+		bool bSupportRayTracing = true;
+
+		// Whether to allow distance field to be computed for this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance
+		bool bAllowDistanceField = true;
+
+		// Whether to generate lightmap uvs for the merged mesh
+		bool bGenerateLightmapUVs = false;
+
+		// Whether the UBodySetup on the Asset will be created
+		bool bCreatePhysicsBody = true;
+
+
+		//
 		// Debug settings
 		//
 
@@ -148,12 +172,6 @@ public:
 
 		// create a flattened (ie non-instanced) mesh and save it with _DEBUG suffix. Warning often absolutely enormous!
 		bool bWriteDebugMesh = false;
-
-		//
-		// Nanite settings
-		//
-		bool bGenerateNaniteEnabledMesh = false;
-		float NaniteProxyTrianglePercent = 100;
 
 		// todo
 		//   - which texture types to generate (BaseColor, Specular, WorldNormal, etc)
@@ -184,6 +202,15 @@ public:
 
 		// todo
 	};
+
+	/**
+	 * Construct an FOptions from the provided FMeshApproximationSettings.
+	 */
+	virtual FOptions ConstructOptions(const FMeshApproximationSettings& MeshApproximationSettings)
+	{
+		check(false);		// not implemented in base class
+		return FOptions();
+	}
 
 	/**
 	 * Top-level driver function that clients call to generate the approximation for a set of input Actors.

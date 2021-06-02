@@ -769,12 +769,20 @@ struct FMeshApproximationSettings
 	float GeometricDeviation = 0.1f;
 
 	/** Whether to generate a nanite-enabled mesh */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MeshSettings)
 	bool bGenerateNaniteEnabledMesh = false;
 
 	/** Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = NaniteSettings, meta = (EditConditionHides, EditCondition = "bGenerateNaniteEnabledMesh", ClampMin = 0, ClampMax = 100))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = MeshSettings, meta = (EditConditionHides, EditCondition = "bGenerateNaniteEnabledMesh", ClampMin = 0, ClampMax = 100))
 	float NaniteProxyTrianglePercent = 100;
+
+	/** Whether ray tracing will be supported on this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MeshSettings)
+	bool bSupportRayTracing = true;
+
+	/** Whether to allow distance field to be computed for this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MeshSettings)
+	bool bAllowDistanceField = true;
 
 	/** If Value is > 1, Multisample output baked textures by this amount in each direction (eg 4 == 16x supersampling) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "4"))
@@ -824,6 +832,8 @@ struct FMeshApproximationSettings
 			&& GeometricDeviation == Other.GeometricDeviation
 			&& bGenerateNaniteEnabledMesh == Other.bGenerateNaniteEnabledMesh
 			&& NaniteProxyTrianglePercent == Other.NaniteProxyTrianglePercent
+			&& bSupportRayTracing == Other.bSupportRayTracing
+			&& bAllowDistanceField == Other.bAllowDistanceField
 			&& MultiSamplingAA == Other.MultiSamplingAA
 			&& RenderCaptureResolution == Other.RenderCaptureResolution
 			&& MaterialSettings == Other.MaterialSettings

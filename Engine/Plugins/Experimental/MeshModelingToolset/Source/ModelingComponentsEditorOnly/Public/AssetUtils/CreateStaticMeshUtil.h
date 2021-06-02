@@ -67,6 +67,15 @@ namespace AssetUtils
 		// Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh
 		float NaniteProxyTrianglePercent = 100;
 
+		// Whether ray tracing will be supported on this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance
+		bool bSupportRayTracing = true;
+
+		// Whether to allow distance field to be computed for this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance
+		bool bAllowDistanceField = true;
+
+		// Whether to generate lightmap uvs for the generated mesh
+		bool bGenerateLightmapUVs = false;
+
 		// Controls whether the UBodySetup on the Asset will be created (generally should be true)
 		bool bCreatePhysicsBody = true;
 		// set asset collision type
