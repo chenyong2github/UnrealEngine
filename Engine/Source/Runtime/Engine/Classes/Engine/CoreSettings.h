@@ -122,6 +122,8 @@ protected:
 extern ENGINE_API int32 GUseBackgroundLevelStreaming;
 /** Maximum amount of time to spend doing asynchronous loading (ms per frame). */
 extern ENGINE_API float GAsyncLoadingTimeLimit;
+/** Multiplifer for the maximum amount of time to spend doing asynchronous loading when in PIE. */
+extern ENGINE_API float GAsyncLoadingTimeLimitPIEMultiplier;
 /** Whether to use the entire time limit even if blocked on I/O. */
 extern ENGINE_API int32 GAsyncLoadingUseFullTimeLimit;
 /** Additional time to spend asynchronous loading during a high priority load. */
