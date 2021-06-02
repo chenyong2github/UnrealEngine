@@ -461,7 +461,7 @@ static void SetHDRMonitorModeAMD(uint32 IHVDisplayIndex, bool bEnableHDR, EDispl
 	const AGSDeviceInfo& DeviceInfo = AmdInfo.AmdGpuInfo.devices[AmdHDRDeviceIndex];
 	const AGSDisplayInfo& DisplayInfo = DeviceInfo.displays[AmdHDRDisplayIndex];
 
-	if (DisplayInfo.displayFlags & (AGS_DISPLAYFLAG_HDR10 | AGS_DISPLAYFLAG_DOLBYVISION))
+	if (DisplayInfo.HDR10 != 0 || DisplayInfo.dolbyVision != 0)
 	{
 		AGSDisplaySettings HDRDisplaySettings;
 		FMemory::Memzero(&HDRDisplaySettings, sizeof(HDRDisplaySettings));
@@ -662,7 +662,7 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 					{
 						// AGS has flags for HDR10 and Dolby Vision instead of a flag for the ST2084 transfer function.
 						// Both HDR10 and Dolby Vision use the ST2084 EOTF.
-						if (DisplayInfo.displayFlags & (AGS_DISPLAYFLAG_HDR10 | AGS_DISPLAYFLAG_DOLBYVISION))
+						if (DisplayInfo.HDR10 != 0 || DisplayInfo.dolbyVision != 0)
 						{
 							UE_LOG(LogD3D11RHI, Log, TEXT("HDR output is supported on display %i (AMD Device: 0x%x, Display: 0x%x)."), DisplayIndex, AMDDeviceIndex, AMDDisplayIndex);
 							D3DRHI->SetHDRDetectedDisplayIndices(DisplayIndex, (uint32)(AMDDeviceIndex << 16) | (uint32)AMDDisplayIndex);
@@ -1781,10 +1781,10 @@ void FD3D11DynamicRHI::InitD3DDevice()
 #ifdef AMD_AGS_API
 		if (IsRHIDeviceAMD() && bAllowVendorDevice)
 		{
-			check(AmdAgsContext == NULL);
+			check(AmdAgsContext == nullptr);
 
 			// agsInit should be called before D3D device creation
-			if (agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdInfo.AmdGpuInfo) == AGS_SUCCESS)
+			if (agsInitialize(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdInfo.AmdGpuInfo) == AGS_SUCCESS)
 			{
 				AmdInfo.AmdAgsContext = AmdAgsContext;
 				bool bFoundMatchingDevice = false;
@@ -1807,7 +1807,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				FMemory::Memzero(&AmdInfo, sizeof(AmdInfo));
 				// If agsInit returns anything but AGS_SUCCESS, the context pointer should be
 				// guaranteed to be NULL, but we'll set it here explicitly, just to be safe.
-				AmdAgsContext = NULL;
+				AmdAgsContext = nullptr;
 			}
 		}
 		else
@@ -1823,11 +1823,12 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			DeviceFlags &= ~D3D11_CREATE_DEVICE_SINGLETHREADED;
 		}
 
-		uint32 AmdSupportedExtensionFlags = 0;
 		bool bDeviceCreated = false;
 #ifdef AMD_AGS_API
 		if (IsRHIDeviceAMD() && AmdAgsContext && bAllowVendorDevice)
 		{
+			uint32 AmdSupportedExtensionFlags = 0;
+
 			AGSDX11DeviceCreationParams DeviceCreationParams = 
 			{
 				Adapter,
@@ -1837,7 +1838,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				&FeatureLevel,
 				1,
 				D3D11_SDK_VERSION,
-				NULL
+				nullptr
 			};
 
 			// Engine registration can be disabled via console var. Also disable automatically if ShaderDevelopmentMode is on.
@@ -1866,6 +1867,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			AmdExtensionParams.appVersion = AGS_UNSPECIFIED_VERSION;
 
 			AGSDX11ReturnedParams DeviceCreationReturnedParams;
+			FMemory::Memzero(&DeviceCreationReturnedParams, sizeof(DeviceCreationReturnedParams));
 			AGSReturnCode DeviceCreation =
 				agsDriverExtensionsDX11_CreateDevice(
 					AmdAgsContext,
@@ -1876,24 +1878,24 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			if (DeviceCreation == AGS_SUCCESS)
 			{
 				Direct3DDevice = DeviceCreationReturnedParams.pDevice;
-				ActualFeatureLevel = DeviceCreationReturnedParams.FeatureLevel;
+				ActualFeatureLevel = DeviceCreationReturnedParams.featureLevel;
 				Direct3DDeviceIMContext = DeviceCreationReturnedParams.pImmediateContext;
-				AmdSupportedExtensionFlags = DeviceCreationReturnedParams.extensionsSupported;
+				AmdSupportedExtensionFlags = *(uint32*)&DeviceCreationReturnedParams.extensionsSupported;
 				bDeviceCreated = true;
 				UE_LOG(LogD3D11RHI, Log, TEXT("Created device via AGS, feature level %s, supported extensions %x."), GetFeatureLevelString(ActualFeatureLevel), AmdSupportedExtensionFlags);
 			}
 			else
 			{
-				agsDeInit(AmdAgsContext);
-				AmdAgsContext = NULL;
+				agsDeInitialize(AmdAgsContext);
+				AmdAgsContext = nullptr;
 				AmdSupportedExtensionFlags = 0;
 				FMemory::Memzero(&AmdInfo, sizeof(AmdInfo));
 				GRHIDeviceIsAMDPreGCNArchitecture = false;
 				UE_LOG(LogD3D11RHI, Warning, TEXT("Failed to create device via AGS, code %d."), DeviceCreation);
 			}
 
-			GRHISupportsAtomicUInt64 = (AmdSupportedExtensionFlags & AGS_DX11_EXTENSION_INTRINSIC_ATOMIC_U64) != 0;
-			GSupportsDepthBoundsTest = (AmdSupportedExtensionFlags & AGS_DX11_EXTENSION_DEPTH_BOUNDS_TEST) != 0;
+			GRHISupportsAtomicUInt64 = DeviceCreationReturnedParams.extensionsSupported.intrinsics19 != 0;  // "intrinsics19" includes AtomicU64
+			GSupportsDepthBoundsTest = DeviceCreationReturnedParams.extensionsSupported.depthBoundsTest != 0;
 		}
 #endif //AMD_AGS_API
 

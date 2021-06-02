@@ -463,6 +463,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 		AGSDX12ExtensionParams AmdExtensionParams;
 		FMemory::Memzero(&AmdExtensionParams, sizeof(AmdExtensionParams));
+
 		// Register the engine name with the AMD driver, e.g. "UnrealEngine4.19", unless disabled
 		// (note: to specify nothing for pEngineName below, you need to pass an empty string, not a null pointer)
 		FString EngineName = FApp::GetEpicProductIdentifier() + FEngineVersion::Current().ToString(EVersionComponent::Minor);
@@ -481,12 +482,23 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		AmdExtensionParams.uavSlot = 0;
 
 		AGSDX12ReturnedParams DeviceCreationReturnedParams;
-		AGSReturnCode DeviceCreation = agsDriverExtensionsDX12_CreateDevice(OwningRHI->GetAmdAgsContext(), &AmdDeviceCreationParams, &AmdExtensionParams, &DeviceCreationReturnedParams);
+		FMemory::Memzero(&DeviceCreationReturnedParams, sizeof(DeviceCreationReturnedParams));
+		AGSReturnCode DeviceCreation = agsDriverExtensionsDX12_CreateDevice(
+			OwningRHI->GetAmdAgsContext(),
+			&AmdDeviceCreationParams,
+			&AmdExtensionParams,
+			&DeviceCreationReturnedParams
+		);
 
 		if (DeviceCreation == AGS_SUCCESS)
 		{
 			RootDevice = DeviceCreationReturnedParams.pDevice;
-			OwningRHI->SetAmdSupportedExtensionFlags(DeviceCreationReturnedParams.extensionsSupported);
+			{
+				static_assert(sizeof(AGSDX12ReturnedParams::ExtensionsSupported) == sizeof(uint32));
+				uint32 AMDSupportedExtensionFlags;
+				FMemory::Memcpy(&AMDSupportedExtensionFlags, &DeviceCreationReturnedParams.extensionsSupported, sizeof(uint32));
+				OwningRHI->SetAmdSupportedExtensionFlags(AMDSupportedExtensionFlags);
+			}
 			bDeviceCreated = true;
 		}
 	}

@@ -822,7 +822,7 @@ void FD3D12DynamicRHI::Init()
 		check(AmdSupportedExtensionFlags == 0);
 
 		// agsInit should be called before D3D device creation
-		agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdAgsGpuInfo);
+		agsInitialize(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdAgsGpuInfo);
 	}
 #endif
 
@@ -837,22 +837,26 @@ void FD3D12DynamicRHI::Init()
 #if AMD_API_ENABLE
 	// Warn if we are trying to use RGP frame markers but are either running on a non-AMD device
 	// or using an older AMD driver without RGP marker support
-	if (GEmitRgpFrameMarkers && !IsRHIDeviceAMD())
+	if (IsRHIDeviceAMD())
 	{
-		UE_LOG(LogD3D12RHI, Warning, TEXT("Attempting to use RGP frame markers on a non-AMD device."));
-	}
-	if (IsRHIDeviceAMD() && bAllowVendorDevice)
-	{
-		if (GEmitRgpFrameMarkers && (AmdSupportedExtensionFlags & AGS_DX12_EXTENSION_USER_MARKERS) == 0)
+		if (bAllowVendorDevice)
 		{
-			UE_LOG(LogD3D12RHI, Warning, TEXT("Attempting to use RGP frame markers without driver support. Update AMD driver."));
+			static_assert(sizeof(AGSDX12ReturnedParams::ExtensionsSupported) == sizeof(uint32));
+			AGSDX12ReturnedParams::ExtensionsSupported AMDSupportedExtensions;
+			FMemory::Memcpy(&AMDSupportedExtensions, &AmdSupportedExtensionFlags, sizeof(uint32));
+
+			if (GEmitRgpFrameMarkers && AMDSupportedExtensions.userMarkers == 0)
+		    {
+			    UE_LOG(LogD3D12RHI, Warning, TEXT("Attempting to use RGP frame markers without driver support. Update AMD driver."));
+		    }
+
+			GRHISupportsAtomicUInt64 = AMDSupportedExtensions.intrinsics19 != 0;  // "intrinsics19" includes AtomicU64
+			GRHISupportsAtomicUInt64 = GRHISupportsAtomicUInt64 && AMDSupportedExtensions.UAVBindSlot != 0;
 		}
 	}
-
-	if (IsRHIDeviceAMD() && bAllowVendorDevice)
+	else if (GEmitRgpFrameMarkers)
 	{
-		GRHISupportsAtomicUInt64 = (AmdSupportedExtensionFlags & AGS_DX12_EXTENSION_INTRINSIC_ATOMIC_U64) != 0;
-		GRHISupportsAtomicUInt64 = GRHISupportsAtomicUInt64 && (AmdSupportedExtensionFlags & AGS_DX12_EXTENSION_INTRINSIC_UAV_BIND_SLOT) != 0;
+		UE_LOG(LogD3D12RHI, Warning, TEXT("Attempting to use RGP frame markers on a non-AMD device."));
 	}
 #endif
 
@@ -956,7 +960,11 @@ void FD3D12DynamicRHI::Init()
 
 		if (GRHISupportsRayTracing)
 		{
-			GRHISupportsRayTracingAMDHitToken = (GetAmdSupportedExtensionFlags() & AGS_DX12_EXTENSION_INTRINSIC_RAY_TRACE_HIT_TOKEN) != 0;
+			static_assert(sizeof(AGSDX12ReturnedParams::ExtensionsSupported) == sizeof(uint32));
+			AGSDX12ReturnedParams::ExtensionsSupported AMDSupportedExtensions;
+			FMemory::Memcpy(&AMDSupportedExtensions, &AmdSupportedExtensionFlags, sizeof(uint32));
+
+			GRHISupportsRayTracingAMDHitToken = AMDSupportedExtensions.rayHitToken;
 			UE_LOG(LogD3D12RHI, Log, TEXT("AMD hit token extension is %s"), GRHISupportsRayTracingAMDHitToken ? TEXT("supported") : TEXT("not supported"));
 		}
 	}
