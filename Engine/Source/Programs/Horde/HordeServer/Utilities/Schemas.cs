@@ -10,11 +10,61 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace HordeServer.Utilities
 {
+	/// <summary>
+	/// Attribute setting the identifier for a schema
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class)]
+	class JsonSchemaAttribute : Attribute
+	{
+		/// <summary>
+		/// The schema identifier
+		/// </summary>
+		public string Id { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Id"></param>
+		public JsonSchemaAttribute(string Id)
+		{
+			this.Id = Id;
+		}
+	}
+
+	/// <summary>
+	/// Attribute setting catalog entries for a schema
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class)]
+	public class JsonSchemaCatalogAttribute : Attribute
+	{
+		/// <summary>
+		/// The schema name
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// Description of the schema
+		/// </summary>
+		public string Description { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="Description"></param>
+		public JsonSchemaCatalogAttribute(string Name, string Description)
+		{
+			this.Name = Name;
+			this.Description = Description;
+		}
+	}
+
 	/// <summary>
 	/// Information about a type to generate a schema for
 	/// </summary>
@@ -61,6 +111,27 @@ namespace HordeServer.Utilities
 	/// </summary>
 	static class Schemas
 	{
+		class NoAdditionalPropertiesIntent : ISchemaKeywordIntent
+		{
+			public void Apply(JsonSchemaBuilder builder)
+			{
+				builder.AdditionalProperties(false);
+			}
+		}
+
+		class NoAdditionalPropertiesRefiner : ISchemaRefiner
+		{
+			public void Run(SchemaGeneratorContext Context)
+			{
+				Context.Intents.Add(new NoAdditionalPropertiesIntent());
+			}
+
+			public bool ShouldRun(SchemaGeneratorContext Context)
+			{
+				return Context.Intents.OfType<PropertiesIntent>().Any();
+			}
+		}
+
 		class CamelCaseSchemaRefiner : ISchemaRefiner
 		{
 			public void Run(SchemaGeneratorContext Context)
@@ -85,28 +156,36 @@ namespace HordeServer.Utilities
 			}
 		}
 
-		static ConcurrentDictionary<(string, Type), JsonSchema> CachedSchemas = new ConcurrentDictionary<(string, Type), JsonSchema>();
+		/// <summary>
+		/// Cache of generated schemas
+		/// </summary>
+		static ConcurrentDictionary<Type, JsonSchema> CachedSchemas = new ConcurrentDictionary<Type, JsonSchema>();
 
 		/// <summary>
 		/// Creates a schema for the given type
 		/// </summary>
-		/// <param name="Id"></param>
 		/// <param name="Type"></param>
 		/// <returns></returns>
-		public static JsonSchema CreateSchema(string Id, Type Type)
+		public static JsonSchema CreateSchema(Type Type)
 		{
 			JsonSchema? Schema;
-			if (!CachedSchemas.TryGetValue((Id, Type), out Schema))
+			if (!CachedSchemas.TryGetValue(Type, out Schema))
 			{
+				JsonSchemaAttribute SchemaAttribute = Type.GetCustomAttribute<JsonSchemaAttribute>()!;
+
 				SchemaGeneratorConfiguration Config = new SchemaGeneratorConfiguration();
 				Config.PropertyOrder = PropertyOrder.AsDeclared;
+				Config.Generators.Add(new StringIdSchemaGenerator());
 				Config.Refiners.Add(new CamelCaseSchemaRefiner());
+				Config.Refiners.Add(new NoAdditionalPropertiesRefiner());
 
-				JsonSchemaBuilder Builder = new JsonSchemaBuilder().FromType(Type, Config);
-				Builder.Id(Id);
+				Schema = new JsonSchemaBuilder()
+					.Schema(MetaSchemas.Draft7Id)
+					.Id(SchemaAttribute.Id)
+					.FromType(Type, Config)
+					.Build();
 
-				Schema = Builder.Build();
-				CachedSchemas.TryAdd((Id, Type), Schema);
+				CachedSchemas.TryAdd(Type, Schema);
 			}
 			return Schema;
 		}
@@ -114,12 +193,11 @@ namespace HordeServer.Utilities
 		/// <summary>
 		/// Writes a schema to a source file
 		/// </summary>
-		/// <param name="Id"></param>
 		/// <param name="Type"></param>
 		/// <param name="OutputFile"></param>
-		public static void WriteSchema(string Id, Type Type, FileReference OutputFile)
+		public static void WriteSchema(Type Type, FileReference OutputFile)
 		{
-			JsonSchema Schema = CreateSchema(Id, Type);
+			JsonSchema Schema = CreateSchema(Type);
 
 			JsonSerializerOptions Options = new JsonSerializerOptions();
 			Options.WriteIndented = true;

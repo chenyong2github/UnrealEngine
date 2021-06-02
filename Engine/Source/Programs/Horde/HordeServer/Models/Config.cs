@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Api;
+using HordeServer.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -15,6 +16,8 @@ namespace HordeServer.Models
 	/// <summary>
 	/// Global configuration
 	/// </summary>
+	[JsonSchema("https://unrealengine.com/horde/global")]
+	[JsonSchemaCatalog("Horde Globals", "Horde global configuration file")]
 	public class GlobalConfig
 	{
 		/// <summary>
@@ -69,6 +72,8 @@ namespace HordeServer.Models
 	/// <summary>
 	/// Stores configuration for a project
 	/// </summary>
+	[JsonSchema("https://unrealengine.com/horde/project")]
+	[JsonSchemaCatalog("Horde Project", "Horde project configuration file")]
 	public class ProjectConfig
 	{
 		/// <summary>
@@ -119,6 +124,8 @@ namespace HordeServer.Models
 	/// <summary>
 	/// Config for a stream
 	/// </summary>
+	[JsonSchema("https://unrealengine.com/horde/stream")]
+	[JsonSchemaCatalog("Horde Stream", "Horde stream configuration file")]
 	public class StreamConfig
 	{
 		/// <summary>
