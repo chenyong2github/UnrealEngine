@@ -124,6 +124,9 @@ public:
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A16B16G16R16);
+
+		// We support velocity on thin trnaslucent only with masking, and only if the material is only made of thin translucent shading model.
+		OutEnvironment.SetDefine(TEXT("VELOCITY_THIN_TRANSLUCENT_MODE"), Parameters.MaterialParameters.ShadingModels.HasOnlyShadingModel(MSM_ThinTranslucent));
 	}
 
 	FVelocityPS() = default;
