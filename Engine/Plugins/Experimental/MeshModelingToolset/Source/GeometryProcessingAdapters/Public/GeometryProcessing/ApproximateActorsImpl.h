@@ -19,8 +19,9 @@ class FDynamicMesh3;
  */
 class GEOMETRYPROCESSINGADAPTERS_API FApproximateActorsImpl : public IGeometryProcessing_ApproximateActors
 {
-public:	
-	
+public:
+	virtual FOptions ConstructOptions(const FMeshApproximationSettings& MeshApproximationSettings) override;
+
 	virtual void ApproximateActors(const TArray<AActor*>& Actors, const FOptions& Options, FResults& ResultsOut) override;
 	
 
