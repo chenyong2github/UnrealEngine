@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorAnalyticsSession.h"
-#include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "Internationalization/Regex.h"
 #include "Containers/UnrealString.h"

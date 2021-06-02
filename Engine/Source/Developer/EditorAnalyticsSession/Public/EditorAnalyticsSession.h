@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Misc/CoreMiscDefines.h"
+#include "CoreMinimal.h"
 #include "Misc/Timespan.h"
 #include "Modules/ModuleInterface.h"
 

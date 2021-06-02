@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Misc/CoreMiscDefines.h"
+#include "CoreMinimal.h"
 
 class UE_DEPRECATED(5.0, "Deprecated. This class was replaced by FAnalyticsSessionSummarySender") FEditorSessionSummarySender;
 class EDITORANALYTICSSESSION_API FEditorSessionSummarySender
