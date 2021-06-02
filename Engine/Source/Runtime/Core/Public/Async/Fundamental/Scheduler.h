@@ -87,7 +87,39 @@ namespace LowLevelTasks
 		}
 	};
 
-	class FScheduler
+	class FSchedulerTls
+	{
+	protected: 
+		enum class EWorkerType
+		{
+			None,
+			Background,
+			Foreground,
+		};
+
+		static thread_local FTask* ActiveTask;
+		static thread_local FSchedulerTls* ActiveScheduler;
+		static thread_local EWorkerType WorkerType;
+
+	public:
+		CORE_API bool IsWorkerThread() const;
+
+		//get the active task if any
+		CORE_API static const FTask* GetActiveTask();
+
+	protected:
+		inline static bool PermitBackgroundWork()
+		{
+			return ActiveTask && ActiveTask->IsBackgroundTask();
+		}
+
+		inline static bool IsBackgroundWorker()
+		{
+			return WorkerType == EWorkerType::Background;
+		}
+	};
+
+	class FScheduler final : public FSchedulerTls
 	{
 		UE_NONCOPYABLE(FScheduler);
 		static constexpr uint32 WorkerSpinCycles = 53;
@@ -136,27 +168,22 @@ namespace LowLevelTasks
 
 		//tries to do some work until the Task is completed
 		template<typename TaskType>
-		inline void BusyWait(const TaskType& Task);
+		inline void BusyWait(const TaskType& Task, bool ForceAllowBackgroundWork = false);
 
 		//tries to do some work until the Conditional return true
 		template<typename Conditional>
-		inline void BusyWaitUntil(Conditional&& Cond);
+		inline void BusyWaitUntil(Conditional&& Cond, bool ForceAllowBackgroundWork = false);
 
 		//tries to do some work until all the Tasks are completed
 		//the template parameter can be any Type that has a const conversion operator to FTask
 		template<typename TaskType>
-		inline void BusyWait(const TArrayView<const TaskType>& Tasks);
+		inline void BusyWait(const TArrayView<const TaskType>& Tasks, bool ForceAllowBackgroundWork = false);
 
 		// returns true if the current thread execution is in the context of busy-waiting
 		inline static bool IsBusyWaiting();
 
 		//number of instantiated workers
 		inline uint32 GetNumWorkers() const;
-
-		//get the active task if any
-		CORE_API static const FTask* GetActiveTask();
-
-		CORE_API bool IsWorkerThread() const;
 
 	private: //Private Interface of the Scheduler	
 		enum class ESleepState
@@ -183,7 +210,7 @@ namespace LowLevelTasks
 		TUniquePtr<FThread> CreateWorker(FLocalQueueType* ExternalWorkerLocalQueue = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal, bool bPermitBackgroundWork = false, bool bIsForkable = false);
 		void WorkerMain(struct FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork);
 		CORE_API void LaunchInternal(FTask& Task, EQueuePreference QueuePreference, bool bWakeUpWorker);
-		CORE_API void BusyWaitInternal(const FConditional& Conditional);
+		CORE_API void BusyWaitInternal(const FConditional& Conditional, bool ForceAllowBackgroundWork);
 		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, bool& Drowsing, bool bBackgroundWorker);
 		inline bool WakeUpWorker(bool bBackgroundWorker);
 
@@ -205,21 +232,21 @@ namespace LowLevelTasks
 		return FScheduler::Get().TryLaunch(Task, QueuePreference, bWakeUpWorker);
 	}
 
-	FORCEINLINE_DEBUGGABLE void BusyWaitForTask(const FTask& Task)
+	FORCEINLINE_DEBUGGABLE void BusyWaitForTask(const FTask& Task, bool ForceAllowBackgroundWork = false)
 	{
-		FScheduler::Get().BusyWait(Task);
+		FScheduler::Get().BusyWait(Task, ForceAllowBackgroundWork);
 	}
 
 	template<typename Conditional>
-	FORCEINLINE_DEBUGGABLE void BusyWaitUntil(Conditional&& Cond)
+	FORCEINLINE_DEBUGGABLE void BusyWaitUntil(Conditional&& Cond, bool ForceAllowBackgroundWork = false)
 	{
-		FScheduler::Get().BusyWaitUntil<Conditional>(Forward<Conditional>(Cond));
+		FScheduler::Get().BusyWaitUntil<Conditional>(Forward<Conditional>(Cond), ForceAllowBackgroundWork);
 	}
 
 	template<typename TaskType>
-	FORCEINLINE_DEBUGGABLE void BusyWaitForTasks(const TArrayView<const TaskType>& Tasks)
+	FORCEINLINE_DEBUGGABLE void BusyWaitForTasks(const TArrayView<const TaskType>& Tasks, bool ForceAllowBackgroundWork = false)
 	{
-		FScheduler::Get().BusyWait<TaskType>(Tasks);
+		FScheduler::Get().BusyWait<TaskType>(Tasks, ForceAllowBackgroundWork);
 	}
 
    /******************
@@ -241,17 +268,17 @@ namespace LowLevelTasks
 	}
 
 	template<typename TaskType>
-	inline void FScheduler::BusyWait(const TaskType& Task)
+	inline void FScheduler::BusyWait(const TaskType& Task, bool ForceAllowBackgroundWork)
 	{
 		if(!Task.IsCompleted())
 		{
 			FLocalQueueInstaller Installer(*this);
-			FScheduler::BusyWaitInternal([&Task](){ return Task.IsCompleted(); });
+			FScheduler::BusyWaitInternal([&Task](){ return Task.IsCompleted(); }, ForceAllowBackgroundWork);
 		}
 	}
 
 	template<typename Conditional>
-	inline void FScheduler::BusyWaitUntil(Conditional&& Cond)
+	inline void FScheduler::BusyWaitUntil(Conditional&& Cond, bool ForceAllowBackgroundWork)
 	{
 		static_assert(TIsInvocable<Conditional>::Value, "Conditional is not invocable");
 		static_assert(TIsSame<decltype(Cond()), bool>::Value, "Conditional must return a boolean");
@@ -259,12 +286,12 @@ namespace LowLevelTasks
 		if(!Cond())
 		{
 			FLocalQueueInstaller Installer(*this);
-			FScheduler::BusyWaitInternal(Forward<Conditional>(Cond));
+			FScheduler::BusyWaitInternal(Forward<Conditional>(Cond), ForceAllowBackgroundWork);
 		}
 	}
 
 	template<typename TaskType>
-	inline void FScheduler::BusyWait(const TArrayView<const TaskType>& Tasks)
+	inline void FScheduler::BusyWait(const TArrayView<const TaskType>& Tasks, bool ForceAllowBackgroundWork)
 	{
 		auto AllTasksCompleted = [Index(0), &Tasks]() mutable
 		{
@@ -282,7 +309,7 @@ namespace LowLevelTasks
 		if (!AllTasksCompleted())
 		{
 			FLocalQueueInstaller Installer(*this);
-			FScheduler::BusyWaitInternal([&AllTasksCompleted](){ return AllTasksCompleted(); });
+			FScheduler::BusyWaitInternal([&AllTasksCompleted](){ return AllTasksCompleted(); }, ForceAllowBackgroundWork);
 		}
 	}
 
