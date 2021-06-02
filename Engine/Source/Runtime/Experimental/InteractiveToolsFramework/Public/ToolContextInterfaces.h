@@ -13,7 +13,6 @@ class UWorld;
 class AActor;
 class UActorComponent;
 class FToolCommandChange;
-class UPackage;
 class FPrimitiveDrawInterface;
 class FSceneView;
 class FViewport;
@@ -21,7 +20,6 @@ class UInteractiveToolManager;
 class UInteractiveGizmoManager;
 class UToolTargetManager;
 struct FMeshDescription;
-class UTexture2D;
 class UInteractiveToolStorableSelection;
 struct FTypedElementHandle;
 class UTypedElementSelectionSet;
@@ -413,70 +411,5 @@ public:
 
 	/** @return Current interaction state of the view to render */
 	virtual EViewInteractionState GetViewInteractionState() = 0;
-};
-
-
-/**
- * FGeneratedStaticMeshAssetConfig is passed to IToolsContextAssetAPI::GenerateStaticMeshActor() to
- * provide the underlying mesh, materials, and configuration settings. Note that all implementations
- * may not use/respect all settings.
- */
-struct FGeneratedStaticMeshAssetConfig
-{
-	INTERACTIVETOOLSFRAMEWORK_API ~FGeneratedStaticMeshAssetConfig();
-
-	TUniquePtr<FMeshDescription> MeshDescription;
-	TArray<UMaterialInterface*> Materials; // Materials for the component (and asset if no AssetMaterials)
-	TArray<UMaterialInterface*> AssetMaterials; // Optional, for the asset only
-
-	bool bEnableRecomputeNormals = false;
-	bool bEnableRecomputeTangents = false;
-
-	bool bEnablePhysics = true;
-	bool bEnableComplexAsSimpleCollision = true;
-};
-
-
-/**
- * Users of the Tools Framework need to provide an IToolsContextAssetAPI implementation
- * that allows Packages and Assets to be created/saved. Note that this is not strictly
- * necessary, for example a trivial implementation could just store things in the Transient
- * package and not do any saving.
- */
-class IToolsContextAssetAPI
-{
-public:
-	virtual ~IToolsContextAssetAPI() {}
-
-	/** 
-	 * Get a path to save assets in that is relative to the given UWorld. 
-	 */
-	virtual FString GetWorldRelativeAssetRootPath(const UWorld* World) = 0;
-
-	/** 
-	 * Get a "currently-visible/selected" location to save assets in. For example the currently-visible path in the Editor Content Browser.
-	 */
-	virtual FString GetActiveAssetFolderPath() = 0;
-
-	/** Allow the user to select a path and filename for an asset using a modal dialog */
-	virtual FString InteractiveSelectAssetPath(const FString& DefaultAssetName, const FText& DialogTitleMessage) = 0;
-
-	/**
-	 * Creates a new package for an asset
-	 * @param FolderPath path for new package
-	 * @param AssetBaseName base name for asset
-	 * @param UniqueAssetNameOut unique name in form of AssetBaseName##, where ## is a unqiue index
-	 * @return new package
-	 */
-	virtual UPackage* MakeNewAssetPackage(const FString& FolderPath, const FString& AssetBaseName, FString& UniqueAssetNameOut) = 0;
-
-	/** Request saving of asset to persistent storage via something like an interactive popup dialog */
-	virtual void InteractiveSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) = 0;
-
-	/** Autosave asset to persistent storage */
-	virtual void AutoSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) = 0;
-
-	/** Notify that asset has been created and is dirty */
-	virtual void NotifyGeneratedAssetModified(UObject* Asset, UPackage* AssetPackage) = 0;
 };
 
