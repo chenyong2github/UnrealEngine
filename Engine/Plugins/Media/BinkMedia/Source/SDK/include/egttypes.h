@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 //===============================================
 // (C) Copyright 1994-2021 Epic Games Tools, LLC  
 //===============================================
