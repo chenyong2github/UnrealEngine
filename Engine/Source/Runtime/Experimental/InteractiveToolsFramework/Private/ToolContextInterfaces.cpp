@@ -4,6 +4,3 @@
 #include "MeshDescription.h"
 
 
-FGeneratedStaticMeshAssetConfig::~FGeneratedStaticMeshAssetConfig()
-{
-}

@@ -24,7 +24,6 @@
 #include "Components/StaticMeshComponent.h"
 
 #include "ToolContextInterfaces.h"
-#include "Tools/EditorToolAssetAPI.h"
 #include "InteractiveToolObjects.h"
 #include "InteractiveToolsSelectionStoreSubsystem.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
@@ -535,7 +534,6 @@ UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 {
 	QueriesAPI = nullptr;
 	TransactionAPI = nullptr;
-	AssetAPI = nullptr;
 }
 
 
@@ -596,21 +594,19 @@ void UEdModeInteractiveToolsContext::Shutdown()
 	}
 }
 
-void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* EditorModeIn, IToolsContextAssetAPI* UseAssetAPI)
+void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* EditorModeIn)
 {
 	check(EditorModeIn);
-	InitializeContextWithEditorModeManager(EditorModeIn->GetModeManager(), UseAssetAPI);
+	InitializeContextWithEditorModeManager(EditorModeIn->GetModeManager());
 }
 
-void UEdModeInteractiveToolsContext::InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,
-	IToolsContextAssetAPI* UseAssetAPI)
+void UEdModeInteractiveToolsContext::InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager)
 {
 	check(InEditorModeManager);
 	EditorModeManager = InEditorModeManager;
 
 	this->TransactionAPI = new FEdModeToolsContextTransactionImpl(this, InEditorModeManager);
 	this->QueriesAPI = new FEdModeToolsContextQueriesImpl(this, InEditorModeManager);
-	this->AssetAPI = (UseAssetAPI != nullptr) ? UseAssetAPI: new FEditorToolAssetAPI();
 
 	Initialize(QueriesAPI, TransactionAPI);
 
@@ -640,12 +636,6 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 	{
 		delete TransactionAPI;
 		TransactionAPI = nullptr;
-	}
-
-	if (AssetAPI != nullptr)
-	{
-		delete AssetAPI;
-		AssetAPI = nullptr;
 	}
 }
 

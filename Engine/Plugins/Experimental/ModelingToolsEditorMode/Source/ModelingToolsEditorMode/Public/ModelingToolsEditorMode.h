@@ -13,7 +13,6 @@
 #include "ModelingToolsEditorMode.generated.h"
 
 class FEditorComponentSourceFactory;
-class FEditorToolAssetAPI;
 class FUICommandList;
 class FStylusStateTracker;		// for stylus events
 

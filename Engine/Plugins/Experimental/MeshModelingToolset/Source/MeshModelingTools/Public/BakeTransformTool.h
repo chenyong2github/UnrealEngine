@@ -26,8 +26,6 @@ class MESHMODELINGTOOLS_API UBakeTransformToolBuilder : public UInteractiveToolB
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 

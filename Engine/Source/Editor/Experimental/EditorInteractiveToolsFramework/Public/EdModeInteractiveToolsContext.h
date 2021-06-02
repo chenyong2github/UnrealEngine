@@ -34,10 +34,8 @@ public:
 	UEdModeInteractiveToolsContext();
 
 	UE_DEPRECATED(5.0, "You should no longer create your own EdModeInteractiveToolsContext; use the one in the FEditorModeTools::GetInteractiveToolsContext instead.")
-	void InitializeContextFromEdMode(FEdMode* EditorModeIn,
-		IToolsContextAssetAPI* UseAssetAPI = nullptr);
-	void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,
-		IToolsContextAssetAPI* UseAssetAPI = nullptr);
+	void InitializeContextFromEdMode(FEdMode* EditorModeIn);
+	void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager);
 	void ShutdownContext();
 
 	// default behavior is to accept active tool
@@ -51,7 +49,6 @@ public:
 
 	IToolsContextQueriesAPI* GetQueriesAPI() const { return QueriesAPI; }
 	IToolsContextTransactionsAPI* GetTransactionAPI() const { return TransactionAPI; }
-	IToolsContextAssetAPI* GetAssetAPI() const { return AssetAPI; }
 
 	void PostInvalidation();
 
@@ -116,7 +113,6 @@ protected:
 	// EdMode implementation of InteractiveToolFramework APIs - see ToolContextInterfaces.h
 	IToolsContextQueriesAPI* QueriesAPI;
 	IToolsContextTransactionsAPI* TransactionAPI;
-	IToolsContextAssetAPI* AssetAPI;
 
 	// Tools need to be able to Invalidate the view, in case it is not Realtime.
 	// Currently we do this very aggressively, and also force Realtime to be on, but in general we should be able to rely on Invalidation.
