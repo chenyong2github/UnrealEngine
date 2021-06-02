@@ -207,14 +207,34 @@ UE::Shader::EValueType UE::Shader::MakeArithmeticResultType(EValueType Lhs, EVal
 		{
 			return Lhs;
 		}
+
+		EValueComponentType ComponentType = EValueComponentType::Void;
 		if (LhsDesc.ComponentType == RhsDesc.ComponentType)
+		{
+			ComponentType = LhsDesc.ComponentType;
+		}
+		else if (LhsDesc.ComponentType == EValueComponentType::Float || RhsDesc.ComponentType == EValueComponentType::Float)
+		{
+			ComponentType = EValueComponentType::Float;
+		}
+		else
+		{
+			ComponentType = EValueComponentType::Int;
+		}
+
+		if (ComponentType != EValueComponentType::Void)
 		{
 			if (LhsDesc.NumComponents == 1 || RhsDesc.NumComponents == 1)
 			{
 				// single component type is valid to combine with other type
-				return MakeValueType(LhsDesc.ComponentType, FMath::Max(LhsDesc.NumComponents, RhsDesc.NumComponents));
+				return MakeValueType(ComponentType, FMath::Max(LhsDesc.NumComponents, RhsDesc.NumComponents));
+			}
+			else if (LhsDesc.NumComponents == RhsDesc.NumComponents)
+			{
+				return MakeValueType(ComponentType, LhsDesc.NumComponents);
 			}
 		}
+
 		OutErrorMessage = FString::Printf(TEXT("Arithmetic between types %s and %s are undefined"), LhsDesc.Name, RhsDesc.Name);
 	}
 	else
