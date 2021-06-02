@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -201,7 +201,7 @@ namespace RemoteControlPropertyUtilities
 
 				if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(SrcVariant->GetProperty()))
 				{
-					FScriptArrayHelper Helper(ArrayProperty, InOtherProperty->GetPropertyData());
+					FScriptArrayHelper Helper(ArrayProperty, SrcVariant->GetPropertyData());
 					NumElements = Helper.Num();
 					return;
 				}
