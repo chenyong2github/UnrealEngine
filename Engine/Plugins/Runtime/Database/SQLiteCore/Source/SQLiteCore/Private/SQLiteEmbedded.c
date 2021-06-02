@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/** Needed to define USING_CODE_ANALYSIS */
+/** Needed to define USING_CODE_ANALYSIS, and allow direct access to the SQLite API from outside this module */
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformCodeAnalysis.h"
-// This is a temporary fix to directly access SQLite API from outside this module.
-// DLLEXPORT and DLLImport are the ones to remove
 #define DLLEXPORT __declspec(dllexport)
 #define DLLIMPORT __declspec(dllimport)
 #elif defined(__clang__)
 #include "Clang/ClangPlatformCodeAnalysis.h"
-// This is a fix to directly access SQLite API from outside this module. 
-// DLLEXPORT and DLLImport are the ones to remove
 #define DLLEXPORT __attribute__((visibility("default")))
 #define DLLIMPORT __attribute__((visibility("default")))
 #endif
