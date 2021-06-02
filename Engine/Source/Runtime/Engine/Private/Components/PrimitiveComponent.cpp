@@ -1537,6 +1537,7 @@ void UPrimitiveComponent::PushSelectionToProxy()
 	if (SceneProxy)
 	{
 		SceneProxy->SetSelection_GameThread(ShouldRenderSelected(), IsComponentIndividuallySelected());
+		MarkRenderStateDirty();
 	}
 }
 
