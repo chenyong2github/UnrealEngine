@@ -9,9 +9,14 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using HordeServer.Models;
+using HordeServer.Utilities;
+using Json.Schema;
+using Json.Schema.Generation;
+using Json.Schema.Generation.Intents;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
@@ -56,8 +61,17 @@ namespace HordeServer
 	{
 		public static DirectoryReference AppDir { get; } = new FileReference(Assembly.GetExecutingAssembly().Location).Directory;
 
+		public static SchemaInfo[] ConfigSchemas =
+		{
+			new SchemaInfo("https://unrealengine.com/horde/global", "Horde root configuration file", typeof(GlobalConfig)),
+			new SchemaInfo("https://unrealengine.com/horde/project", "Horde project configuration file", typeof(ProjectConfig)),
+			new SchemaInfo("https://unrealengine.com/horde/stream", "Horde stream configuration file", typeof(StreamConfig))
+		};
+
 		public static void Main(string[] Args)
 		{
+			CommandLineArguments Arguments = new CommandLineArguments(Args);
+
 			IConfiguration Config = new ConfigurationBuilder()
 				.SetBasePath(AppDir.FullName)
 				.AddJsonFile("appsettings.json", optional: false)
@@ -85,6 +99,25 @@ namespace HordeServer
 				.WriteTo.File(Path.Combine(AppDir.FullName, "Log.txt"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception} [{SourceContext}]", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
 				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(AppDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
 				.CreateLogger();
+
+			if (Arguments.HasOption("-UpdateSchemas"))
+			{
+				DirectoryReference? SchemaDir = Arguments.GetDirectoryReferenceOrDefault("-SchemaDir=", null);
+				if (SchemaDir == null)
+				{
+					SchemaDir = new DirectoryReference("Schemas");
+				}
+
+				Arguments.CheckAllArgumentsUsed();
+
+				DirectoryReference.CreateDirectory(SchemaDir);
+				foreach (SchemaInfo Schema in ConfigSchemas)
+				{
+					FileReference OutputFile = FileReference.Combine(SchemaDir, $"{Schema.Type.Name}.json");
+					Schemas.WriteSchema(Schema.Id, Schema.Type, OutputFile);
+				}
+				return;
+			}
 
 			try
 			{
