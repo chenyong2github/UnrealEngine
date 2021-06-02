@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2m");
+	return TEXT("2n");
 }
 
 namespace FHairStrandsDecimation
@@ -2564,6 +2564,9 @@ static void BuildClusterBulkData(
 		for (const FHairClusterInfo& Info : In.ClusterInfos)
 		{
 			FHairClusterInfo::Packed& PackedInfo = PackedClusterInfos.AddDefaulted_GetRef();
+			// Sanity check
+			check(Info.LODCount <= 8);
+
 			PackedInfo.LODCount = FMath::Clamp(Info.LODCount, 0u, 0xFFu);
 			PackedInfo.LODInfoOffset = FMath::Clamp(Info.LODInfoOffset, 0u, (1u << 24u) - 1u);
 			PackedInfo.LOD_ScreenSize_0 = to10Bits(Info.ScreenSize[0]);
@@ -2586,6 +2589,8 @@ static void BuildClusterBulkData(
 			PackedInfo.Pad0 = 0;
 			PackedInfo.Pad1 = 0;
 			PackedInfo.Pad2 = 0;
+
+			static_assert(sizeof(FHairClusterInfo::Packed) == sizeof(FHairClusterInfo::BulkType));
 		}
 
 		HairStrandsBuilder::CopyToBulkData<FHairClusterInfoFormat>(Out.PackedClusterInfos, PackedClusterInfos);
