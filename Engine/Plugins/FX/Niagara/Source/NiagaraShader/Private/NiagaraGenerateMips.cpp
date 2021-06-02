@@ -3,6 +3,7 @@
 #include "NiagaraGenerateMips.h"
 #include "GlobalShader.h"
 #include "RenderGraphUtils.h"
+#include "RHIStaticStates.h"
 
 class FNiagaraGenerateMipsCS : public FGlobalShader
 {
