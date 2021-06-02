@@ -137,7 +137,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 
 	ComponentsBox = SNew(SBox)
 		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
-		.Visibility(this, &SActorDetails::GetComponentsBoxVisibility);
+		.Visibility(this, &SActorDetails::GetComponentEditorVisibility);
 
 	FModuleManager::LoadModuleChecked<FSubobjectEditorModule>("SubobjectEditor");
 	
@@ -151,6 +151,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	ComponentsBox->SetContent(SubobjectEditor.ToSharedRef());
 
 	TSharedRef<SWidget> ButtonBox = SubobjectEditor->GetToolButtonsBox().ToSharedRef();
+	ButtonBox->SetVisibility(MakeAttributeSP(this, &SActorDetails::GetComponentEditorVisibility));
 	DetailsView->SetNameAreaCustomContent( ButtonBox );
 
 	ChildSlot
@@ -709,7 +710,7 @@ void SActorDetails::OnNativeComponentWarningHyperlinkClicked(const FSlateHyperli
 	}
 }
 
-EVisibility SActorDetails::GetComponentsBoxVisibility() const
+EVisibility SActorDetails::GetComponentEditorVisibility() const
 {
 	return GetActorContext() ? EVisibility::Visible : EVisibility::Collapsed;
 }
