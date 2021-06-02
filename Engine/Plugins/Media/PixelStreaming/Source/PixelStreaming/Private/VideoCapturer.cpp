@@ -3,12 +3,17 @@
 #include "VideoCapturer.h"
 #include "Utils.h"
 
+#include "CommonRenderResources.h"
+#include "GlobalShader.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/Timespan.h"
+#include "Modules/ModuleManager.h"
 #include "PixelStreamingFrameBuffer.h"
 #include "PixelStreamingSettings.h"
 #include "ClearQuad.h"
 #include "LatencyTester.h"
+#include "RHIStaticStates.h"
+#include "ScreenRendering.h"
 
 #if PLATFORM_LINUX
 #include "CudaModule.h"

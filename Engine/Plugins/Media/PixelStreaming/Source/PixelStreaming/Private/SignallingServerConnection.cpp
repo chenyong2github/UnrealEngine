@@ -6,6 +6,7 @@
 #include "WebSocketsModule.h"
 #include "IWebSocket.h"
 #include "Dom/JsonObject.h"
+#include "Engine/World.h"
 #include "Serialization/JsonSerializer.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Misc/AssertionMacros.h"
