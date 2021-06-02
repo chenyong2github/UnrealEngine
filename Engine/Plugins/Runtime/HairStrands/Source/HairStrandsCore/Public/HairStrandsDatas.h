@@ -650,6 +650,7 @@ struct FHairClusterInfo
 		uint32 LOD_bIsVisible : 8;
 		uint32 Pad2 : 4;
 	};
+	typedef FUintVector4 BulkType;
 
 	FHairClusterInfo()
 	{
