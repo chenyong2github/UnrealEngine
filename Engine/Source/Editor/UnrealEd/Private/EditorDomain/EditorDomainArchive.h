@@ -48,6 +48,7 @@ public:
 	virtual void Flush() override;
 	virtual void FlushCache() override;
 	virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
+	virtual bool NeedsEngineVersionChecks() const override { return false; }
 
 private:
 	enum class ESource : uint8
