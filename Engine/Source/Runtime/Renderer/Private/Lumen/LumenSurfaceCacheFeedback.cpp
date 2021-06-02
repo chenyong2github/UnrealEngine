@@ -26,7 +26,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackTileSize(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSurfaceCacheFeedbackResLevelBias = -1.0f;
+float GLumenSurfaceCacheFeedbackResLevelBias = -0.5f;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackResLevelBias(
 	TEXT("r.LumenScene.SurfaceCache.Feedback.ResLevelBias"),
 	GLumenSurfaceCacheFeedbackResLevelBias,
