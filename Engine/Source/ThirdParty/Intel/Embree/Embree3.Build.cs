@@ -19,6 +19,8 @@ public class Embree3 : ModuleRules
 			PublicAdditionalLibraries.Add(SDKDir + "lib/tbb.lib");
 			RuntimeDependencies.Add("$(TargetOutputDir)/embree3.dll", SDKDir + "lib/embree3.dll");
 			RuntimeDependencies.Add("$(TargetOutputDir)/tbb12.dll", SDKDir + "lib/tbb12.dll");
+			PublicDelayLoadDLLs.Add("embree3.dll");
+			PublicDelayLoadDLLs.Add("tbb12.dll");
 			PublicDefinitions.Add("USE_EMBREE=1");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
