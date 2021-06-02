@@ -25,6 +25,9 @@ public:
 	/** Construct a null ID. */
 	FPayloadId() = default;
 
+	/** Construct an ID from an array of 12 bytes. */
+	inline explicit FPayloadId(const ByteArray& Id);
+
 	/** Construct an ID from a view of 12 bytes. */
 	inline explicit FPayloadId(FMemoryView Id);
 
@@ -37,6 +40,7 @@ public:
 
 	/** Returns a reference to the raw byte array for the ID. */
 	inline const ByteArray& GetBytes() const { return Bytes; }
+	inline operator const ByteArray&() const { return Bytes; }
 
 	/** Returns a view of the raw byte array for the ID. */
 	inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
@@ -121,11 +125,16 @@ inline const FPayload FPayload::Null;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline FPayloadId::FPayloadId(const FMemoryView InId)
+inline FPayloadId::FPayloadId(const ByteArray& Id)
 {
-	checkf(InId.GetSize() == sizeof(ByteArray),
-		TEXT("FPayloadId cannot be constructed from a view of %" UINT64_FMT " bytes."), InId.GetSize());
-	FMemory::Memcpy(Bytes, InId.GetData(), sizeof(ByteArray));
+	FMemory::Memcpy(Bytes, Id, sizeof(ByteArray));
+}
+
+inline FPayloadId::FPayloadId(const FMemoryView Id)
+{
+	checkf(Id.GetSize() == sizeof(ByteArray),
+		TEXT("FPayloadId cannot be constructed from a view of %" UINT64_FMT " bytes."), Id.GetSize());
+	FMemory::Memcpy(Bytes, Id.GetData(), sizeof(ByteArray));
 }
 
 inline FPayloadId FPayloadId::FromHash(const FIoHash& Hash)

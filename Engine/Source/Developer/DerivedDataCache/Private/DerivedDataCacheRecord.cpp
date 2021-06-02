@@ -305,7 +305,7 @@ FCbPackage SaveCacheRecord(const FCacheRecord& Record)
 	auto SavePayload = [&Package, &Writer](const FPayload& Payload)
 	{
 		Writer.BeginObject();
-		Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId().GetView()));
+		Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId()));
 		Writer.AddHash("RawHash"_ASV, Payload.GetRawHash());
 		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 		const FCompositeBuffer CompressedBuffer = Payload.GetData().GetCompressed();
@@ -362,7 +362,7 @@ FOptionalCacheRecord LoadCacheRecord(const FCbPackage& Package)
 
 	auto LoadPayload = [&Package](const FCbObjectView& PayloadObject)
 	{
-		const FPayloadId PayloadId(PayloadObject["Id"].AsObjectId().GetView());
+		const FPayloadId PayloadId(PayloadObject["Id"].AsObjectId());
 		if (PayloadId.IsNull())
 		{
 			return FPayload();

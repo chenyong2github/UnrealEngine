@@ -195,7 +195,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 				const FBuildPayloadKey& PayloadKey = Pair.Value.Get<FBuildPayloadKey>();
 				Writer.BeginObject(FTCHARToUTF8(Pair.Key));
 				Writer.AddHash("Build"_ASV, PayloadKey.BuildKey.Hash);
-				Writer.AddObjectId("Payload"_ASV, FCbObjectId(PayloadKey.Id.GetView()));
+				Writer.AddObjectId("Payload"_ASV, FCbObjectId(PayloadKey.Id));
 				Writer.EndObject();
 			}
 		}
@@ -301,7 +301,7 @@ void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FStringView
 	{
 		FCbObjectView Build = Field.AsObjectView();
 		const FBuildKey BuildKey{Build["Build"_ASV].AsHash()};
-		const FPayloadId Id = FPayloadId(Build["Payload"_ASV].AsObjectId().GetView());
+		const FPayloadId Id = FPayloadId(Build["Payload"_ASV].AsObjectId());
 		Visitor(FUTF8ToTCHAR(Field.GetName()), FBuildPayloadKey{BuildKey, Id});
 	}
 }
