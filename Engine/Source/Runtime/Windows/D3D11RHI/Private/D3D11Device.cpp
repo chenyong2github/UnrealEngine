@@ -686,6 +686,11 @@ void* FD3D11DynamicRHI::RHIGetNativeInstance()
 	return nullptr;
 }
 
+void* FD3D11DynamicRHI::RHIGetNativeCommandBuffer()
+{
+	return (void*)Direct3DDeviceIMContext.GetReference();
+}
+
 static bool CanFormatBeDisplayed(const FD3D11DynamicRHI* InD3DRHI, EPixelFormat InPixelFormat)
 {
 	const DXGI_FORMAT DxgiFormat = FD3D11Viewport::GetRenderTargetFormat(InPixelFormat);
