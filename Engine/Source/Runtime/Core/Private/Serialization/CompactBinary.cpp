@@ -4,6 +4,7 @@
 
 #include "Hash/Blake3.h"
 #include "Math/UnrealMathUtility.h"
+#include "Memory/CompositeBuffer.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
@@ -800,7 +801,7 @@ template <typename FieldType>
 uint64 TCbFieldIterator<FieldType>::GetRangeSize() const
 {
 	FMemoryView View;
-	if (TryGetSerializedRangeView(View))
+	if (TryGetRangeView(View))
 	{
 		return View.GetSize();
 	}
@@ -827,7 +828,7 @@ template <typename FieldType>
 void TCbFieldIterator<FieldType>::AppendRangeHash(FBlake3& Builder) const
 {
 	FMemoryView View;
-	if (TryGetSerializedRangeView(View))
+	if (TryGetRangeView(View))
 	{
 		Builder.Update(View);
 	}
@@ -844,7 +845,7 @@ template <typename FieldType>
 void TCbFieldIterator<FieldType>::CopyRangeTo(FMutableMemoryView InBuffer) const
 {
 	FMemoryView Source;
-	if (TryGetSerializedRangeView(Source))
+	if (TryGetRangeView(Source))
 	{
 		checkf(InBuffer.GetSize() == Source.GetSize(),
 			TEXT("Buffer is %" UINT64_FMT " bytes but %" UINT64_FMT " is required."),
@@ -867,7 +868,7 @@ void TCbFieldIterator<FieldType>::CopyRangeTo(FArchive& Ar) const
 {
 	check(Ar.IsSaving());
 	FMemoryView Source;
-	if (TryGetSerializedRangeView(Source))
+	if (TryGetRangeView(Source))
 	{
 		Ar.Serialize(const_cast<void*>(Source.GetData()), static_cast<int64>(Source.GetSize()));
 	}
@@ -915,7 +916,7 @@ template class TCbFieldIterator<FCbField>;
 FCbFieldIterator FCbFieldIterator::CloneRange(const FCbFieldViewIterator& It)
 {
 	FMemoryView View;
-	if (It.TryGetSerializedRangeView(View))
+	if (It.TryGetRangeView(View))
 	{
 		return MakeRange(FSharedBuffer::Clone(View));
 	}
@@ -927,11 +928,49 @@ FCbFieldIterator FCbFieldIterator::CloneRange(const FCbFieldViewIterator& It)
 	}
 }
 
-FSharedBuffer FCbFieldIterator::GetRangeBuffer() const
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FCompositeBuffer FCbField::GetBuffer() const
 {
-	const FMemoryView RangeView = GetRangeView();
-	const FSharedBuffer& OuterBuffer = GetOuterBuffer();
-	return OuterBuffer.GetView() == RangeView ? OuterBuffer : FSharedBuffer::MakeView(RangeView, OuterBuffer);
+	FMemoryView View;
+	if (TryGetView(View))
+	{
+		return FCompositeBuffer(FSharedBuffer::MakeView(View, GetOuterBuffer()));
+	}
+	else
+	{
+		const ECbFieldType SerializedType = FCbFieldType::GetSerializedType(GetTypeWithFlags());
+		return FCompositeBuffer(MakeSharedBufferFromArray(TArray<ECbFieldType, TInlineAllocator<1>>{SerializedType}),
+			FSharedBuffer::MakeView(GetViewNoType(), GetOuterBuffer()));
+	}
+}
+
+FCompositeBuffer FCbArray::GetBuffer() const
+{
+	FMemoryView View;
+	if (TryGetView(View))
+	{
+		return FCompositeBuffer(FSharedBuffer::MakeView(View, GetOuterBuffer()));
+	}
+	else
+	{
+		return FCompositeBuffer(MakeSharedBufferFromArray(TArray<ECbFieldType, TInlineAllocator<1>>{GetType()}),
+			FSharedBuffer::MakeView(GetPayloadView(), GetOuterBuffer()));
+	}
+}
+
+FCompositeBuffer FCbObject::GetBuffer() const
+{
+	FMemoryView View;
+	if (TryGetView(View))
+	{
+		return FCompositeBuffer(FSharedBuffer::MakeView(View, GetOuterBuffer()));
+	}
+	else
+	{
+		return FCompositeBuffer(MakeSharedBufferFromArray(TArray<ECbFieldType, TInlineAllocator<1>>{GetType()}),
+			FSharedBuffer::MakeView(GetPayloadView(), GetOuterBuffer()));
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

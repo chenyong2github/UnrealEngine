@@ -156,7 +156,7 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 			{
 				FMemoryReader ReadAr(WriteAr);
 				FCbField Field = LoadCompactBinary(ReadAr);
-				TestTrue(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetView()));
+				TestTrue(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetOuterBuffer().GetView()));
 			}
 		}
 		{
@@ -167,7 +167,7 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 			{
 				FMemoryReader ReadAr(WriteAr);
 				ReadAr << Value;
-				TestTrue(FString::Printf(TEXT("Ar << CompactBinary Load(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Value.GetView()));
+				TestTrue(FString::Printf(TEXT("Ar << CompactBinary Load(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Value.GetOuterBuffer().GetView()));
 			}
 		}
 	};

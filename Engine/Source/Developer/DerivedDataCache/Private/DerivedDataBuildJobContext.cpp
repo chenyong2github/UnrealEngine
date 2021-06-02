@@ -99,15 +99,7 @@ void FBuildJobContext::AddPayload(const FPayloadId& Id, const FSharedBuffer& Buf
 
 void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCbObject& Object)
 {
-	FMemoryView SerializedView;
-	if (Object.TryGetSerializedView(SerializedView))
-	{
-		AddPayload(FPayload(Id, FCompressedBuffer::Compress(NAME_Default, Object.GetBuffer())));
-	}
-	else
-	{
-		AddPayload(FPayload(Id, FCompressedBuffer::Compress(NAME_Default, FCbObject::Clone(Object).GetBuffer())));
-	}
+	AddPayload(FPayload(Id, FCompressedBuffer::Compress(NAME_Default, Object.GetBuffer())));
 }
 
 void FBuildJobContext::BeginAsyncBuild()

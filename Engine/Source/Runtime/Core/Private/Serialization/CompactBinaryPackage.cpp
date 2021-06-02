@@ -3,6 +3,7 @@
 #include "Serialization/CompactBinaryPackage.h"
 
 #include "Algo/BinarySearch.h"
+#include "Memory/CompositeBuffer.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
 
@@ -11,13 +12,13 @@
 FCbAttachment::FCbAttachment(FCbObject InValue, const FIoHash* const InHash)
 {
 	FMemoryView View;
-	if (!InValue.IsOwned() || !InValue.TryGetSerializedView(View))
+	if (!InValue.IsOwned() || !InValue.TryGetView(View))
 	{
 		InValue = FCbObject::Clone(InValue);
 	}
 
 	Object = InValue.AsFieldView();
-	Buffer = MoveTemp(InValue).GetBuffer();
+	Buffer = MoveTemp(InValue).GetBuffer().Flatten();
 
 	if (InHash)
 	{

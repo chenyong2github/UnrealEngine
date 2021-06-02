@@ -6,6 +6,7 @@
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "IO/IoHash.h"
+#include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/EnumClassFlags.h"
@@ -383,23 +384,18 @@ public:
 	/** Invoke the visitor for every attachment in the field range. */
 	CORE_API void IterateRangeAttachments(FCbFieldVisitor Visitor) const;
 
-	/** Create a view of every field in the range. */
-	inline FMemoryView GetRangeView() const
-	{
-		return MakeMemoryView(FieldType::GetView().GetData(), FieldsEnd);
-	}
-
 	/**
 	 * Try to get a view of every field in the range as they would be serialized.
 	 *
-	 * A serialized view is not available if the underlying fields have an externally-provided type.
-	 * Access the serialized form of such ranges using FCbFieldIterator::CloneRange.
+	 * A view is available if each field contains its type. Access the equivalent for other field
+	 * ranges through FCbFieldIterator::CloneRange or CopyRangeTo.
 	 */
-	inline bool TryGetSerializedRangeView(FMemoryView& OutView) const
+	inline bool TryGetRangeView(FMemoryView& OutView) const
 	{
-		if (FCbFieldType::HasFieldType(FieldType::GetTypeWithFlags()))
+		FMemoryView View;
+		if (FieldType::TryGetView(View))
 		{
-			OutView = GetRangeView();
+			OutView = MakeMemoryView(View.GetData(), FieldsEnd);
 			return true;
 		}
 		return false;
@@ -731,16 +727,13 @@ public:
 	/** Invoke the visitor for every attachment in the field. */
 	CORE_API void IterateAttachments(FCbFieldVisitor Visitor) const;
 
-	/** Returns a view of the field, including the type and name when present. */
-	CORE_API FMemoryView GetView() const;
-
 	/**
 	 * Try to get a view of the field as it would be serialized, such as by CopyTo.
 	 *
-	 * A serialized view is not available if the field has an externally-provided type.
-	 * Access the serialized form of such fields using CopyTo or FCbField::Clone.
+	 * A view is available if the field contains its type. Access the equivalent for other fields
+	 * through FCbField::GetBuffer, FCbField::Clone, or CopyTo.
 	 */
-	inline bool TryGetSerializedView(FMemoryView& OutView) const
+	inline bool TryGetView(FMemoryView& OutView) const
 	{
 		if (FCbFieldType::HasFieldType(TypeWithFlags))
 		{
@@ -758,6 +751,9 @@ public:
 	constexpr inline FCbIteratorSentinel end() const { return FCbIteratorSentinel(); }
 
 protected:
+	/** Returns a view of the field, including the type and name when present. */
+	CORE_API FMemoryView GetView() const;
+
 	/** Returns a view of the name and value payload, which excludes the type. */
 	CORE_API FMemoryView GetViewNoType() const;
 
@@ -935,18 +931,15 @@ public:
 	/** Invoke the visitor for every attachment in the array. */
 	inline void IterateAttachments(FCbFieldVisitor Visitor) const { CreateViewIterator().IterateRangeAttachments(Visitor); }
 
-	/** Returns a view of the array, including the type and name when present. */
-	using FCbFieldView::GetView;
-
 	/**
 	 * Try to get a view of the array as it would be serialized, such as by CopyTo.
 	 *
-	 * A serialized view is not available if the underlying field has an externally-provided type or
-	 * a name. Access the serialized form of such arrays using CopyTo or FCbArray::Clone.
+	 * A view is available if the array contains its type and has no name. Access the equivalent
+	 * for other arrays through FCbArray::GetBuffer, FCbArray::Clone, or CopyTo.
 	 */
-	inline bool TryGetSerializedView(FMemoryView& OutView) const
+	inline bool TryGetView(FMemoryView& OutView) const
 	{
-		return !FCbFieldView::HasName() && FCbFieldView::TryGetSerializedView(OutView);
+		return !FCbFieldView::HasName() && FCbFieldView::TryGetView(OutView);
 	}
 
 	/** @see FCbFieldView::CreateViewIterator */
@@ -1035,18 +1028,15 @@ public:
 	/** Invoke the visitor for every attachment in the object. */
 	inline void IterateAttachments(FCbFieldVisitor Visitor) const { CreateViewIterator().IterateRangeAttachments(Visitor); }
 
-	/** Returns a view of the object, including the type and name when present. */
-	using FCbFieldView::GetView;
-
 	/**
 	 * Try to get a view of the object as it would be serialized, such as by CopyTo.
 	 *
-	 * A serialized view is not available if the underlying field has an externally-provided type or
-	 * a name. Access the serialized form of such objects using CopyTo or FCbObject::Clone.
+	 * A view is available if the object contains its type and has no name. Access the equivalent
+	 * for other objects through FCbObject::GetBuffer, FCbObject::Clone, or CopyTo.
 	 */
-	inline bool TryGetSerializedView(FMemoryView& OutView) const
+	inline bool TryGetView(FMemoryView& OutView) const
 	{
-		return !FCbFieldView::HasName() && FCbFieldView::TryGetSerializedView(OutView);
+		return !FCbFieldView::HasName() && FCbFieldView::TryGetView(OutView);
 	}
 
 	/** @see FCbFieldView::CreateViewIterator */
@@ -1128,15 +1118,12 @@ public:
 		}
 	}
 
-	/** Returns a buffer that exactly contains this value. */
-	inline FSharedBuffer GetBuffer() const
-	{
-		const FMemoryView View = ViewType::GetView();
-		const FSharedBuffer& OuterBuffer = GetOuterBuffer();
-		return View == OuterBuffer.GetView() ? OuterBuffer : FSharedBuffer::MakeView(View, OuterBuffer);
-	}
-
-	/** Returns the outer buffer (if any) that contains this value. */
+	/**
+	 * Returns the outer buffer (if any) that contains this value.
+	 *
+	 * The outer buffer might contain other data before and/or after this value. Use GetBuffer to
+	 * request a buffer that exactly contains this value, or TryGetView for a contiguous view.
+	 */
 	inline const FSharedBuffer& GetOuterBuffer() const & { return Buffer; }
 	inline FSharedBuffer GetOuterBuffer() && { return MoveTemp(Buffer); }
 
@@ -1222,6 +1209,9 @@ public:
 	/** Access the field as binary. Returns the provided default on error. */
 	inline FSharedBuffer AsBinary(const FSharedBuffer& Default = FSharedBuffer()) &;
 	inline FSharedBuffer AsBinary(const FSharedBuffer& Default = FSharedBuffer()) &&;
+
+	/** Returns a buffer that contains the field as it would be serialized by CopyTo. */
+	CORE_API FCompositeBuffer GetBuffer() const;
 };
 
 /**
@@ -1281,9 +1271,6 @@ public:
 		}
 	}
 
-	/** Returns a buffer that exactly contains the field range. */
-	CORE_API FSharedBuffer GetRangeBuffer() const;
-
 private:
 	using TCbFieldIterator::TCbFieldIterator;
 };
@@ -1314,16 +1301,11 @@ public:
 	using TCbBuffer::TCbBuffer;
 
 	/** Access the array as an array field. */
-	inline FCbField AsField() const &
-	{
-		return FCbField(FCbArrayView::AsFieldView(), *this);
-	}
+	inline FCbField AsField() const & { return FCbField(FCbArrayView::AsFieldView(), *this); }
+	inline FCbField AsField() && { return FCbField(FCbArrayView::AsFieldView(), MoveTemp(*this)); }
 
-	/** Access the array as an array field. */
-	inline FCbField AsField() &&
-	{
-		return FCbField(FCbArrayView::AsFieldView(), MoveTemp(*this));
-	}
+	/** Returns a buffer that contains the array as it would be serialized by CopyTo. */
+	CORE_API FCompositeBuffer GetBuffer() const;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1363,16 +1345,11 @@ public:
 	inline FCbField operator[](FAnsiStringView Name) const { return Find(Name); }
 
 	/** Access the object as an object field. */
-	inline FCbField AsField() const &
-	{
-		return FCbField(FCbObjectView::AsFieldView(), *this);
-	}
+	inline FCbField AsField() const & { return FCbField(FCbObjectView::AsFieldView(), *this); }
+	inline FCbField AsField() && { return FCbField(FCbObjectView::AsFieldView(), MoveTemp(*this)); }
 
-	/** Access the object as an object field. */
-	inline FCbField AsField() &&
-	{
-		return FCbField(FCbObjectView::AsFieldView(), MoveTemp(*this));
-	}
+	/** Returns a buffer that contains the object as it would be serialized by CopyTo. */
+	CORE_API FCompositeBuffer GetBuffer() const;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
