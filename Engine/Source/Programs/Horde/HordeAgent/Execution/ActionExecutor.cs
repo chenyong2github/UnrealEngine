@@ -145,6 +145,10 @@ namespace HordeAgent
 					Result.StdoutDigest = await Storage.PutBulkDataAsync(InstanceName, StdOutData);
 					Result.StderrDigest = await Storage.PutBulkDataAsync(InstanceName, StdErrData);
 					Result.ExitCode = Process.ExitCode;
+					Result.ExecutionMetadata = new ExecutedActionMetadata
+					{
+						Worker = System.Net.Dns.GetHostName()
+					};
 
 					foreach (string Line in Encoding.UTF8.GetString(StdOutData).Split('\n'))
 					{
