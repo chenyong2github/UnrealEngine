@@ -317,25 +317,30 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				PrimitiveUniformShaderParameters.LightmapDataIndex = LightmapSceneDataStartOffsets[InstanceIndex];
 				PrimitiveUniformShaderParameters.LightmapUVIndex = 0; // TODO: LightmapUVIndex
 				PrimitiveUniformShaderParameters.InstanceDataOffset = InstanceIndex;
-				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
 				PrimitiveUniformShaderParameters.NumInstanceDataEntries = 1;
 				PrimitiveSceneData[InstanceIndex] = FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters);
-				InstanceSceneData[InstanceIndex] = FInstanceSceneShaderData(
-					GetInstanceUniformShaderParameters(
-						PrimitiveUniformShaderParameters.LocalToWorld, 
+
+				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
+
+				uint32 InstanceSceneDataFlags = INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS;
+				InstanceSceneDataFlags |= (PrimitiveUniformShaderParameters.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
+
+				InstanceSceneData[InstanceIndex]  = FInstanceSceneShaderData(
+					ConstructPrimitiveInstance(
+						PrimitiveUniformShaderParameters.LocalToWorld,
 						PrimitiveUniformShaderParameters.PreviousLocalToWorld,
-						(PrimitiveUniformShaderParameters.LocalObjectBoundsMin + PrimitiveUniformShaderParameters.LocalObjectBoundsMax) * 0.5f,
-						PrimitiveUniformShaderParameters.LocalObjectBoundsMax - PrimitiveUniformShaderParameters.LocalObjectBoundsMin,
+						PrimitiveUniformShaderParameters.LocalObjectBoundsMin,
+						PrimitiveUniformShaderParameters.LocalObjectBoundsMax,
 						PrimitiveUniformShaderParameters.NonUniformScale,
 						PrimitiveUniformShaderParameters.InvNonUniformScale,
-						(PrimitiveUniformShaderParameters.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? -1.0f : 1.0f,
 						FVector4(ForceInitToZero),
 						FNaniteInfo(),
+						InstanceSceneDataFlags,
 						InstanceIndex,
 						0xFFFFFFFFu,
-						0.0f,
-						true
-					));
+						0.0f
+					)
+				);
 
 				for (int32 LODIndex = 0; LODIndex < Instance.LODLightmapRenderStates.Num(); LODIndex++)
 				{
@@ -465,22 +470,25 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				LightmapSceneData[LightmapSceneDataStartOffsets[PrimitiveId] + LODIndex] = FLightmapSceneShaderData(LightmapParams);
 			}
 
+			uint32 InstanceSceneDataFlags = INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS;
+			InstanceSceneDataFlags |= (PrimitiveUniformShaderParameters.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
+
 			InstanceSceneData.Add(FInstanceSceneShaderData(
-				GetInstanceUniformShaderParameters(
+				ConstructPrimitiveInstance(
 					PrimitiveUniformShaderParameters.LocalToWorld,
 					PrimitiveUniformShaderParameters.PreviousLocalToWorld,
-					(PrimitiveUniformShaderParameters.LocalObjectBoundsMin + PrimitiveUniformShaderParameters.LocalObjectBoundsMax) * 0.5f,
-					PrimitiveUniformShaderParameters.LocalObjectBoundsMax - PrimitiveUniformShaderParameters.LocalObjectBoundsMin,
+					PrimitiveUniformShaderParameters.LocalObjectBoundsMin,
+					PrimitiveUniformShaderParameters.LocalObjectBoundsMax,
 					PrimitiveUniformShaderParameters.NonUniformScale,
 					PrimitiveUniformShaderParameters.InvNonUniformScale,
-					(PrimitiveUniformShaderParameters.Flags& PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? -1.0f : 1.0f,
 					FVector4(ForceInitToZero),
 					FNaniteInfo(),
+					InstanceSceneDataFlags,
 					PrimitiveId,
 					0xFFFFFFFFu,
-					0.0f,
-					true
-				)));
+					0.0f
+				)
+			));
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));
 

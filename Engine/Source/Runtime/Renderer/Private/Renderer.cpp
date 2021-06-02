@@ -167,20 +167,27 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
 				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
 
+				uint32 InstanceFlags = INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS;
+				if (PrimitiveParams.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN)
+				{
+					InstanceFlags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
+				}
+
 				// Also fill out correct single-primitive instance data, derived from the primitive.
 				SinglePrimitiveStructured.InstanceSceneData = FInstanceSceneShaderData(
-					GetInstanceUniformShaderParameters(PrimitiveParams.LocalToWorld, PrimitiveParams.PreviousLocalToWorld, 
-						(PrimitiveParams.LocalObjectBoundsMin + PrimitiveParams.LocalObjectBoundsMax) * 0.5f, 
-						PrimitiveParams.LocalObjectBoundsMax - PrimitiveParams.LocalObjectBoundsMin,
+					ConstructPrimitiveInstance(
+						PrimitiveParams.LocalToWorld,
+						PrimitiveParams.PreviousLocalToWorld,
+						PrimitiveParams.LocalObjectBoundsMin,
+						PrimitiveParams.LocalObjectBoundsMax,
 						PrimitiveParams.NonUniformScale,
 						PrimitiveParams.InvNonUniformScale,
-						(PrimitiveParams.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? -1.0f : 1.0f,
 						FVector4(ForceInitToZero),
 						FNaniteInfo(),
+						InstanceFlags,
 						0,
 						0xFFFFFFFFu,
-						0.0f,
-						true
+						0.0f
 					));
 
 				// Set up the parameters for the LightmapSceneData from the given LCI data 

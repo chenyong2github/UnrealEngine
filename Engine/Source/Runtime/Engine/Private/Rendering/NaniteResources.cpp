@@ -632,6 +632,14 @@ void FSceneProxy::CreateRenderThreadResources()
 	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 	{
 		Instances[InstanceIndex].NaniteInfo = NaniteInfo;
+		if (bHasImposter)
+		{
+			Instances[InstanceIndex].Flags |= INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;
+		}
+		else
+		{
+			Instances[InstanceIndex].Flags &= ~INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;
+		}
 	}
 }
 

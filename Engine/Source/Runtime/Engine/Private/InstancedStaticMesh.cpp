@@ -1340,7 +1340,12 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 					LocalToPrimitiveTransform.M[3][2] = InstanceOrigin.Z;
 					LocalToPrimitiveTransform.M[3][3] = 1.f;
 
-					SetupPrimitiveInstance(Instances[InstanceIndex], LocalToPrimitiveTransform, StaticMeshBounds, InstanceLightMapAndShadowMapUVBias, /*PerInstanceRandom */InstanceOrigin.W);
+					FPrimitiveInstance& PrimitiveInstance = Instances[InstanceIndex];
+					PrimitiveInstance.InstanceToLocal = LocalToPrimitiveTransform;
+					PrimitiveInstance.RenderBounds = StaticMeshBounds;
+					PrimitiveInstance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
+					PrimitiveInstance.PerInstanceRandom = InstanceOrigin.W;
+					PrimitiveInstance.NaniteInfo = FNaniteInfo();
 				}
 			}
 		}
