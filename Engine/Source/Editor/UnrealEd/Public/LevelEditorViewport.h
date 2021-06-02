@@ -889,6 +889,9 @@ public:
 	/** true if the viewport needs to restore the flag when tracking ends */
 	bool					bNeedToRestoreComponentBeingMovedFlag;
 
+	/** true if gizmo manipulation was started from a tracking event */
+	bool					bHasBegunGizmoManipulation;
+
 	/** Whether this viewport recently received focus. Used to determine whether component selection is permissible. */
 	bool bReceivedFocusRecently;
 

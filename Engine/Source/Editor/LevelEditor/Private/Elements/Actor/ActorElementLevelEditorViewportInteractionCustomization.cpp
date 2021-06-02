@@ -97,9 +97,15 @@ void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulation
 	GetMutableLevelEditorViewportClient()->UpdateLockedActorViewports(Actor, true);
 }
 
-void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
+void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const ETypedElementViewportInteractionGizmoManipulationType InManipulationType)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
+
+	if (InManipulationType != ETypedElementViewportInteractionGizmoManipulationType::Drag)
+	{
+		// Don't trigger an update if nothing actually moved, to preserve the old gizmo behavior
+		return;
+	}
 
 	// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
 	if (FProperty* TransformProperty = FComponentElementLevelEditorViewportInteractionCustomization::GetEditTransformProperty(InWidgetMode))

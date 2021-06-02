@@ -111,9 +111,15 @@ void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipula
 	}
 }
 
-void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
+void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const ETypedElementViewportInteractionGizmoManipulationType InManipulationType)
 {
 	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
+
+	if (InManipulationType != ETypedElementViewportInteractionGizmoManipulationType::Drag)
+	{
+		// Don't trigger an update if nothing actually moved, to preserve the old gizmo behavior
+		return;
+	}
 
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{
