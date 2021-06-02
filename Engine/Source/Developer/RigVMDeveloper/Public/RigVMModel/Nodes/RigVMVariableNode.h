@@ -93,6 +93,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMVariableNode)
 	bool IsGetter() const;
 
+	// Returns true if this variable is a local variable
+	UFUNCTION(BlueprintCallable, Category = RigVMVariableNode)
+	bool IsLocalVariable() const;
+
 	// Returns the C++ data type of the variable
 	UFUNCTION(BlueprintCallable, Category = RigVMVariableNode)
 	FString GetCPPType() const;

@@ -129,7 +129,7 @@ public:
 
 	TArray<FRigVMExternalVariable> GetExternalVariables() const;
 
-	TArray<FRigVMGraphVariableDescription> GetLocalVariables() const { return LocalVariables; }
+	const TArray<FRigVMGraphVariableDescription>& GetLocalVariables() const { return LocalVariables; }
 
 	// Returns the modified event, which can be used to 
 	// subscribe to changes happening within the Graph.

@@ -88,6 +88,47 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 				SubTitle = CollapseNodeString;
 			}
 
+			else if(URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(ModelNode))
+			{
+				if(VariableNode->IsLocalVariable())
+				{
+					static const FString LocalVariableString = TEXT("Local Variable");
+					const FString DefaultValue = VariableNode->GetVariableDescription().DefaultValue;
+					if(DefaultValue.IsEmpty())
+					{
+						SubTitle = LocalVariableString;
+					}
+					else
+					{
+						SubTitle = FString::Printf(TEXT("%s\nDefault %s"), *LocalVariableString, *DefaultValue);
+					}
+				}
+				else
+				{
+					if(UBlueprint* Blueprint = GetBlueprint())
+					{
+						const FName VariableName = VariableNode->GetVariableName();
+						for(const FBPVariableDescription& NewVariable : Blueprint->NewVariables)
+						{
+							if(NewVariable.VarName == VariableName)
+							{
+								const FString DefaultValue = NewVariable.DefaultValue;
+								if(DefaultValue.IsEmpty())
+								{
+									static const FString VariableString = TEXT("Variable");
+									SubTitle = VariableString;
+								}
+								else
+								{
+									SubTitle = FString::Printf(TEXT("Default %s"), *DefaultValue);
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
+
 			if (NodeTitle.IsEmpty())
 			{
 				NodeTitle = FText::FromString(ModelNode->GetNodeTitle());

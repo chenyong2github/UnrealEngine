@@ -319,10 +319,9 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	CommonInitialization(ControlRigBlueprints, false);
 
-	for (UBlueprint* Blueprint : ControlRigBlueprints)
 	{
 		TArray<UEdGraph*> EdGraphs;
-		Blueprint->GetAllGraphs(EdGraphs);
+		InControlRigBlueprint->GetAllGraphs(EdGraphs);
 
 		for (UEdGraph* Graph : EdGraphs)
 		{
@@ -428,6 +427,11 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 						if (TabsForEdGraph.Num() > 0)
 						{
 							OpenedTabNodePaths.Add(RigGraph->ModelNodePath);
+
+							if(RigGraph->bIsFunctionDefinition)
+							{
+								CloseDocumentTab(RigGraph);
+							}
 						}
 					}
 				}
@@ -1667,6 +1671,49 @@ void FControlRigEditor::Compile()
 			if (DebugObject.NameOverride == LastDebuggedObjectName)
 			{
 				RigBlueprint->SetObjectBeingDebugged(DebugObject.Object);
+			}
+		}
+
+		// invalidate all node titles
+		TArray<UEdGraph*> EdGraphs;
+		RigBlueprint->GetAllGraphs(EdGraphs);
+		for (UEdGraph* EdGraph : EdGraphs)
+		{
+			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph);
+			if (RigGraph == nullptr)
+			{
+				continue;
+			}
+
+			for (UEdGraphNode* EdNode : RigGraph->Nodes)
+			{
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+				{
+					RigNode->InvalidateNodeTitle();
+				}
+			}
+		}
+
+		// store the defaults from the CDO back on the new variables list
+		for(FBPVariableDescription& NewVariable : RigBlueprint->NewVariables)
+		{
+			UClass* GeneratedClass = RigBlueprint->GeneratedClass;
+			UObject* GeneratedCDO = GeneratedClass->GetDefaultObject();
+			FProperty* TargetProperty = FindFProperty<FProperty>(GeneratedClass, NewVariable.VarName);
+
+			if (TargetProperty)
+			{
+				// Grab the address of where the property is actually stored (UObject* base, plus the offset defined in the property)
+				void* OldPropertyAddr = TargetProperty->ContainerPtrToValuePtr<void>(GeneratedCDO);
+				if (OldPropertyAddr)
+				{
+					FString NewDefaultValue;
+					TargetProperty->ExportTextItem(NewDefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
+					if(NewDefaultValue.Len() < 80)
+					{
+						NewVariable.DefaultValue = NewDefaultValue;
+					}
+				}
 			}
 		}
 

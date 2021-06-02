@@ -194,6 +194,27 @@ FName URigVMFunctionReferenceNode::GetOuterVariableName(const FName& InInnerVari
 	return NAME_None;
 }
 
+FText URigVMFunctionReferenceNode::GetToolTipTextForPin(const URigVMPin* InPin) const
+{
+	check(InPin);
+	
+	if(URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	{
+		if(URigVMPin* ReferencedPin = ReferencedNode->FindPin(InPin->GetSegmentPath(true)))
+		{
+			const FString DefaultValue = ReferencedPin->GetDefaultValue();
+			if(!DefaultValue.IsEmpty())
+			{
+				return FText::FromString(FString::Printf(TEXT("%s\nDefault %s"),
+					*ReferencedPin->GetToolTipText().ToString(),
+					*DefaultValue));
+			}
+		}
+	}
+
+	return Super::GetToolTipTextForPin(InPin);
+}
+
 URigVMLibraryNode* URigVMFunctionReferenceNode::GetReferencedNode() const
 {
 	if (!ReferencedNodePtr.IsValid())

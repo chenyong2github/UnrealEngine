@@ -1019,6 +1019,22 @@ URigVMGraph* UControlRigBlueprint::GetModel(const FString& InNodePath) const
 		{
 			return LibraryNode->GetContainedGraph();
 		}
+
+		if(FunctionLibrary)
+		{
+			FString Left, Right;
+			if(URigVMNode::SplitNodePathAtStart(InNodePath, Left, Right))
+			{
+				if(Left == FunctionLibrary->GetNodePath())
+				{
+					if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(FunctionLibrary->FindNode(Right)))
+					{
+						return LibraryNode->GetContainedGraph();
+					}
+				}
+			}
+		}
+		
 		return nullptr;
 	}
 	return Model;

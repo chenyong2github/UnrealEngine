@@ -206,18 +206,24 @@ FString URigVMPin::GetPinPath(bool bUseNodePath) const
 	return PinPath;
 }
 
-FString URigVMPin::GetSegmentPath() const
+FString URigVMPin::GetSegmentPath(bool bIncludeRootPin) const
 {
 	URigVMPin* ParentPin = GetParentPin();
 	if (ParentPin)
 	{
-		FString ParentSegmentPath = ParentPin->GetSegmentPath();
+		FString ParentSegmentPath = ParentPin->GetSegmentPath(bIncludeRootPin);
 		if (ParentSegmentPath.IsEmpty())
 		{
 			return GetName();
 		}
 		return FString::Printf(TEXT("%s.%s"), *ParentSegmentPath, *GetName());
 	}
+
+	if(bIncludeRootPin)
+	{
+		return GetName();
+	}
+	
 	return FString();
 }
 
