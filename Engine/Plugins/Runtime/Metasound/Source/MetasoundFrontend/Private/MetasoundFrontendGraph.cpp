@@ -220,8 +220,7 @@ namespace Metasound
 				TArray<FDefaultVariableData> DefaultVariableData = GetInputDefaultVariableData(InNode, InitData);
 				for (FDefaultVariableData& Data : DefaultVariableData)
 				{
-					FGuid VertexID = Data.DestinationVertexID;
-					InGraphContext.DefaultInputs.Emplace(MoveTemp(VertexID), MoveTemp(Data));
+					InGraphContext.DefaultInputs.Emplace(FNodeIDVertexID { InNode.ID, Data.DestinationVertexID }, MoveTemp(Data));
 				}
 			}
 
@@ -241,8 +240,7 @@ namespace Metasound
 			TArray<FDefaultVariableData> DefaultVariableData = GetInputDefaultVariableData(InNode, InitData);
 			for (FDefaultVariableData& Data : DefaultVariableData)
 			{
-				FGuid VertexID = Data.DestinationVertexID;
-				InGraphContext.DefaultInputs.Emplace(MoveTemp(VertexID), MoveTemp(Data));
+				InGraphContext.DefaultInputs.Emplace(FNodeIDVertexID { InNode.ID, Data.DestinationVertexID }, MoveTemp(Data));
 			}
 		}
 
@@ -442,8 +440,6 @@ namespace Metasound
 			const FMetasoundFrontendVertex* Vertex = nullptr;
 		};
 
-		typedef TTuple<FGuid, FGuid> FNodeIDVertexID;
-
 		TMap<FNodeIDVertexID, FCoreNodeAndFrontendVertex> NodeSourcesByID;
 		TMap<FNodeIDVertexID, FCoreNodeAndFrontendVertex> NodeDestinationsByID;
 
@@ -514,7 +510,8 @@ namespace Metasound
 			// If succeeded, remove input as viable vertex to construct default variable, as it has been superceded by a connection.
 			if (bSuccess)
 			{
-				InGraphContext.DefaultInputs.Remove(DestinationNodeAndVertex->Vertex->VertexID);
+				FNodeIDVertexID DestinationPair { ToNode->GetInstanceID(), DestinationNodeAndVertex->Vertex->VertexID };
+				InGraphContext.DefaultInputs.Remove(DestinationPair);
 			}
 			else
 			{
@@ -525,7 +522,7 @@ namespace Metasound
 
 	void FFrontendGraphBuilder::AddDefaultInputVariables(FBuildGraphContext& InGraphContext)
 	{
-		for (const TPair<FGuid, FDefaultVariableData>& Pair : InGraphContext.DefaultInputs)
+		for (const TPair<FNodeIDVertexID, FDefaultVariableData>& Pair : InGraphContext.DefaultInputs)
 		{
 			const FDefaultVariableData& VariableData = Pair.Value;
 			const FGuid VariableNodeID = FGuid::NewGuid();

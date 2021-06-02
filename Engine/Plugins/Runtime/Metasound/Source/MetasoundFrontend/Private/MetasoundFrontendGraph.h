@@ -125,9 +125,10 @@ namespace Metasound
 		};
 
 		// Map of Input VertexID to variable data required to construct and connect default variable
+		using FNodeIDVertexID = TTuple<FGuid, FGuid>;
 		using FDependencyByIDMap = TMap<FGuid, const FMetasoundFrontendClass*>;
 		using FSharedNodeByIDMap = TMap<FGuid, TSharedPtr<const INode>>;
-		using FDefaultInputByIDMap = TMap<FGuid, FDefaultVariableData>;
+		using FDefaultInputByIDMap = TMap<FNodeIDVertexID, FDefaultVariableData>;
 
 		// Context used throughout entire graph build process
 		// (for both a root and nested subgraphs)

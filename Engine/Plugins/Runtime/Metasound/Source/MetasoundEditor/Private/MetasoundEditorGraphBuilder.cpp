@@ -1175,7 +1175,7 @@ namespace Metasound
 			// after initial setup if necessary.
 			if (!MetasoundAsset->GetGraph())
 			{
-				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(&InMetasound, FName(), RF_Transient | RF_Transactional);
+				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(&InMetasound, FName(), RF_Transactional);
 				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
 				MetasoundAsset->SetGraph(Graph);
 			}
