@@ -791,6 +791,7 @@ private:
 	friend class FPrimitiveSceneInfo;
 
 public:
+	int32 GetRayTracingGroupId() const;
 
 	/**
 	 * Returns true if this component has been rendered "recently", with a tolerance in seconds to define what "recent" means.

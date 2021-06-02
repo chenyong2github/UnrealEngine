@@ -749,6 +749,13 @@ public:
 	/** Specify in which HLOD layer this actor should be included. */
 	void SetHLODLayer(class UHLODLayer* InHLODLayer);
 #endif
+	/** Specify a RayTracingGroupId for this actors. Components with invalid RayTracingGroupId will inherit the actors. */
+	UFUNCTION(BlueprintCallable, Category = RayTracing)
+	void SetRayTracingGroupId(int32 InRaytracingGroupId);
+	
+	/** Return the RayTracingGroupId for this actor. */
+	UFUNCTION(BlueprintCallable, Category = RayTracing)
+	int32 GetRayTracingGroupId() const;
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -756,6 +763,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = HLOD, meta = (DisplayName = "HLOD Layer"))
 	TObjectPtr<class UHLODLayer> HLODLayer;
 #endif
+
+	/** The RayTracingGroupId this actor and its components belong to. (For components that did not specify any) */
+	UPROPERTY()
+	int32 RayTracingGroupId;
 
 public:
 	/** Return the value of bAllowReceiveTickEventOnDedicatedServer, indicating whether the Blueprint ReceiveTick() event will occur on dedicated servers. */
