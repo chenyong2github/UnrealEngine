@@ -53,10 +53,10 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 		FCbAttachment Attachment;
 		TestTrue(TEXT("FCbAttachment(Null).IsNull()"), Attachment.IsNull());
 		TestFalse(TEXT("FCbAttachment(Null) as bool"), bool(Attachment));
-		TestFalse(TEXT("FCbAttachment(Null).AsBinaryView()"), bool(Attachment.AsBinaryView()));
-		TestFalse(TEXT("FCbAttachment(Null).AsCompactBinary()"), Attachment.AsCompactBinary().HasValue());
+		TestFalse(TEXT("FCbAttachment(Null).AsBinary()"), bool(Attachment.AsBinary()));
+		TestFalse(TEXT("FCbAttachment(Null).AsObject()"), bool(Attachment.AsObject()));
 		TestFalse(TEXT("FCbAttachment(Null).IsBinary()"), Attachment.IsBinary());
-		TestFalse(TEXT("FCbAttachment(Null).IsCompactBinary()"), Attachment.IsCompactBinary());
+		TestFalse(TEXT("FCbAttachment(Null).IsObject()"), Attachment.IsObject());
 		TestEqual(TEXT("FCbAttachment(Null).GetHash()"), Attachment.GetHash(), FIoHash());
 		TestSaveLoadValidate(TEXT("Null"), Attachment);
 	}
@@ -67,28 +67,30 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 		FCbAttachment Attachment(Buffer);
 		TestFalse(TEXT("FCbAttachment(Binary).IsNull()"), Attachment.IsNull());
 		TestTrue(TEXT("FCbAttachment(Binary) as bool"), bool(Attachment));
-		TestEqual(TEXT("FCbAttachment(Binary).AsBinaryView()"), Attachment.AsBinaryView(), Buffer);
-		TestFalse(TEXT("FCbAttachment(Binary).AsCompactBinary()"), Attachment.AsCompactBinary().HasValue());
+		TestEqual(TEXT("FCbAttachment(Binary).AsBinary()"), Attachment.AsBinary(), Buffer);
+		TestFalse(TEXT("FCbAttachment(Binary).AsObject()"), bool(Attachment.AsObject()));
 		TestTrue(TEXT("FCbAttachment(Binary).IsBinary()"), Attachment.IsBinary());
-		TestFalse(TEXT("FCbAttachment(Binary).IsCompactBinary()"), Attachment.IsCompactBinary());
+		TestFalse(TEXT("FCbAttachment(Binary).IsObject()"), Attachment.IsObject());
 		TestEqual(TEXT("FCbAttachment(Binary).GetHash()"), Attachment.GetHash(), FIoHash::HashBuffer(Buffer));
 		TestSaveLoadValidate(TEXT("Binary"), Attachment);
 	}
 
-	// Compact Binary Attachment
+	// Object Attachment
 	{
 		FCbWriter Writer;
+		Writer.BeginObject();
 		Writer << "Name"_ASV << 42;
-		FCbFieldIterator Fields = Writer.Save();
-		FCbAttachment Attachment(Fields);
-		TestFalse(TEXT("FCbAttachment(CompactBinary).IsNull()"), Attachment.IsNull());
-		TestTrue(TEXT("FCbAttachment(CompactBinary) as bool"), bool(Attachment));
-		TestEqual(TEXT("FCbAttachment(CompactBinary).AsBinaryView()"), Attachment.AsBinaryView(), Fields.GetRangeBuffer());
-		TestEqual(TEXT("FCbAttachment(CompactBinary).AsCompactBinary()"), Attachment.AsCompactBinary(), Fields);
-		TestTrue(TEXT("FCbAttachment(CompactBinary).IsBinary()"), Attachment.IsBinary());
-		TestTrue(TEXT("FCbAttachment(CompactBinary).IsCompactBinary()"), Attachment.IsCompactBinary());
-		TestEqual(TEXT("FCbAttachment(CompactBinary).GetHash()"), Attachment.GetHash(), FIoHash(Fields.GetRangeHash()));
-		TestSaveLoadValidate(TEXT("CompactBinary"), Attachment);
+		Writer.EndObject();
+		FCbObject Object = Writer.Save().AsObject();
+		FCbAttachment Attachment(Object);
+		TestFalse(TEXT("FCbAttachment(Object).IsNull()"), Attachment.IsNull());
+		TestTrue(TEXT("FCbAttachment(Object) as bool"), bool(Attachment));
+		TestEqual(TEXT("FCbAttachment(Object).AsBinary()"), Attachment.AsBinary(), Object.GetBuffer());
+		TestTrue(TEXT("FCbAttachment(Object).AsObject()"), Attachment.AsObject().Equals(Object));
+		TestTrue(TEXT("FCbAttachment(Object).IsBinary()"), Attachment.IsBinary());
+		TestTrue(TEXT("FCbAttachment(Object).IsObject()"), Attachment.IsObject());
+		TestEqual(TEXT("FCbAttachment(Object).GetHash()"), Attachment.GetHash(), FIoHash(Object.GetHash()));
+		TestSaveLoadValidate(TEXT("Object"), Attachment);
 	}
 
 	// Binary View
@@ -98,32 +100,30 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 		FCbAttachment Attachment(Buffer);
 		TestFalse(TEXT("FCbAttachment(BinaryView).IsNull()"), Attachment.IsNull());
 		TestTrue(TEXT("FCbAttachment(BinaryView) as bool"), bool(Attachment));
-		TestNotEqual(TEXT("FCbAttachment(BinaryView).AsBinaryView()"), Attachment.AsBinaryView(), Buffer);
-		TestTrue(TEXT("FCbAttachment(BinaryView).AsBinaryView()"),
-			Attachment.AsBinaryView().GetView().EqualBytes(Buffer.GetView()));
-		TestFalse(TEXT("FCbAttachment(BinaryView).AsCompactBinary()"), Attachment.AsCompactBinary().HasValue());
+		TestNotEqual(TEXT("FCbAttachment(BinaryView).AsBinary()"), Attachment.AsBinary(), Buffer);
+		TestTrue(TEXT("FCbAttachment(BinaryView).AsBinary()"), Attachment.AsBinary().GetView().EqualBytes(Buffer.GetView()));
+		TestFalse(TEXT("FCbAttachment(BinaryView).AsObject()"), bool(Attachment.AsObject()));
 		TestTrue(TEXT("FCbAttachment(BinaryView).IsBinary()"), Attachment.IsBinary());
-		TestFalse(TEXT("FCbAttachment(BinaryView).IsCompactBinary()"), Attachment.IsCompactBinary());
-		TestEqual(TEXT("FCbAttachment(BinaryView).GetHash()"),
-			Attachment.GetHash(), FIoHash::HashBuffer(Buffer));
+		TestFalse(TEXT("FCbAttachment(BinaryView).IsObject()"), Attachment.IsObject());
+		TestEqual(TEXT("FCbAttachment(BinaryView).GetHash()"), Attachment.GetHash(), FIoHash::HashBuffer(Buffer));
 	}
 
-	// Compact Binary View
+	// Object View
 	{
 		FCbWriter Writer;
+		Writer.BeginObject();
 		Writer << "Name"_ASV << 42;
-		FCbFieldIterator Fields = Writer.Save();
-		FCbFieldIterator FieldsView = FCbFieldIterator::MakeRangeView(FCbFieldViewIterator(Fields));
-		FCbAttachment Attachment(FieldsView);
-		TestFalse(TEXT("FCbAttachment(CompactBinaryView).IsNull()"), Attachment.IsNull());
-		TestTrue(TEXT("FCbAttachment(CompactBinaryView) as bool"), bool(Attachment));
-		TestNotEqual(TEXT("FCbAttachment(CompactBinaryView).AsBinaryView()"),
-			Attachment.AsBinaryView(), FieldsView.GetRangeBuffer());
-		TestTrue(TEXT("FCbAttachment(CompactBinaryView).AsCompactBinary()"),
-			Attachment.AsCompactBinary().GetRangeView().EqualBytes(Fields.GetRangeView()));
-		TestTrue(TEXT("FCbAttachment(CompactBinaryView).IsBinary()"), Attachment.IsBinary());
-		TestTrue(TEXT("FCbAttachment(CompactBinaryView).IsCompactBinary()"), Attachment.IsCompactBinary());
-		TestEqual(TEXT("FCbAttachment(CompactBinaryView).GetHash()"), Attachment.GetHash(), FIoHash(Fields.GetRangeHash()));
+		Writer.EndObject();
+		FCbObject Object = Writer.Save().AsObject();
+		FCbObject ObjectView = FCbObject::MakeView(Object);
+		FCbAttachment Attachment(ObjectView);
+		TestFalse(TEXT("FCbAttachment(ObjectView).IsNull()"), Attachment.IsNull());
+		TestTrue(TEXT("FCbAttachment(ObjectView) as bool"), bool(Attachment));
+		TestNotEqual(TEXT("FCbAttachment(ObjectView).AsBinary()"), Attachment.AsBinary(), ObjectView.GetBuffer());
+		TestTrue(TEXT("FCbAttachment(ObjectView).AsObject()"), Attachment.AsObject().Equals(Object));
+		TestTrue(TEXT("FCbAttachment(ObjectView).IsBinary()"), Attachment.IsBinary());
+		TestTrue(TEXT("FCbAttachment(ObjectView).IsObject()"), Attachment.IsObject());
+		TestEqual(TEXT("FCbAttachment(ObjectView).GetHash()"), Attachment.GetHash(), FIoHash(Object.GetHash()));
 	}
 
 	// Binary Load from View
@@ -140,24 +140,26 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 		Attachment.Load(FieldsView);
 		TestFalse(TEXT("FCbAttachment(LoadBinaryView).IsNull()"), Attachment.IsNull());
 		TestTrue(TEXT("FCbAttachment(LoadBinaryView) as bool"), bool(Attachment));
-		TestFalse(TEXT("FCbAttachment(LoadBinaryView).AsBinaryView()->!InView"),
-			FieldsView.GetRangeBuffer().GetView().Contains(Attachment.AsBinaryView().GetView()));
-		TestTrue(TEXT("FCbAttachment(LoadBinaryView).AsBinaryView()->EqualBytes"),
-			Attachment.AsBinaryView().GetView().EqualBytes(Buffer.GetView()));
-		TestFalse(TEXT("FCbAttachment(LoadBinaryView).AsCompactBinary()"), Attachment.AsCompactBinary().HasValue());
+		TestFalse(TEXT("FCbAttachment(LoadBinaryView).AsBinary()->!InView"),
+			FieldsView.GetRangeBuffer().GetView().Contains(Attachment.AsBinary().GetView()));
+		TestTrue(TEXT("FCbAttachment(LoadBinaryView).AsBinary()->EqualBytes"),
+			Attachment.AsBinary().GetView().EqualBytes(Buffer.GetView()));
+		TestFalse(TEXT("FCbAttachment(LoadBinaryView).AsObject()"), bool(Attachment.AsObject()));
 		TestTrue(TEXT("FCbAttachment(LoadBinaryView).IsBinary()"), Attachment.IsBinary());
-		TestFalse(TEXT("FCbAttachment(LoadBinaryView).IsCompactBinary()"), Attachment.IsCompactBinary());
+		TestFalse(TEXT("FCbAttachment(LoadBinaryView).IsObject()"), Attachment.IsObject());
 		TestEqual(TEXT("FCbAttachment(LoadBinaryView).GetHash()"),
 			Attachment.GetHash(), FIoHash::HashBuffer(MakeMemoryView(Value)));
 	}
 
-	// Compact Binary Load from View
+	// Object Load from View
 	{
 		FCbWriter ValueWriter;
+		ValueWriter.BeginObject();
 		ValueWriter << "Name"_ASV << 42;
-		const FCbFieldIterator Value = ValueWriter.Save();
-		TestEqual(TEXT("FCbAttachment(LoadCompactBinaryView).Validate"),
-			ValidateCompactBinaryRange(Value.GetRangeView(), ECbValidateMode::All), ECbValidateError::None);
+		ValueWriter.EndObject();
+		const FCbObject Value = ValueWriter.Save().AsObject();
+		TestEqual(TEXT("FCbAttachment(LoadObjectView).Validate"),
+			ValidateCompactBinaryRange(Value.GetView(), ECbValidateMode::All), ECbValidateError::None);
 		FCbAttachment Attachment(Value);
 
 		FCbWriter Writer;
@@ -166,34 +168,15 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 		FCbFieldIterator FieldsView = FCbFieldIterator::MakeRangeView(FCbFieldViewIterator(Fields));
 
 		Attachment.Load(FieldsView);
-		TestFalse(TEXT("FCbAttachment(LoadCompactBinaryView).IsNull()"), Attachment.IsNull());
-		TestTrue(TEXT("FCbAttachment(LoadCompactBinaryView) as bool"), bool(Attachment));
-		TestTrue(TEXT("FCbAttachment(LoadCompactBinaryView).AsBinaryView()->EqualBytes"),
-			Attachment.AsBinaryView().GetView().EqualBytes(Value.GetRangeView()));
-		TestFalse(TEXT("FCbAttachment(LoadCompactBinaryView).AsCompactBinary()->!InView"),
-			FieldsView.GetRangeBuffer().GetView().Contains(Attachment.AsCompactBinary().GetRangeBuffer().GetView()));
-		TestTrue(TEXT("FCbAttachment(LoadCompactBinaryView).IsBinary()"), Attachment.IsBinary());
-		TestTrue(TEXT("FCbAttachment(LoadCompactBinaryView).IsCompactBinary()"), Attachment.IsCompactBinary());
-		TestEqual(TEXT("FCbAttachment(LoadCompactBinaryView).GetHash()"), Attachment.GetHash(), FIoHash(Value.GetRangeHash()));
-	}
-
-	// Compact Binary Uniform Sub-View
-	{
-		const FSharedBuffer Buffer = FSharedBuffer::Clone(MakeMemoryView<uint8>({0, 1, 2, 3}));
-		const FCbFieldViewIterator FieldViews = FCbFieldViewIterator::MakeRange(Buffer.GetView().RightChop(2), ECbFieldType::IntegerPositive);
-		const FCbFieldIterator SavedFields = FCbFieldIterator::CloneRange(FieldViews);
-		FCbFieldIterator Fields = FCbFieldIterator::MakeRangeView(FieldViews, Buffer);
-		FCbAttachment Attachment(Fields);
-		const FSharedBuffer Binary = Attachment.AsBinaryView();
-		TestEqual(TEXT("FCbAttachment(CompactBinaryUniformSubView).AsCompactBinary()->Equals()"),
-			Attachment.AsCompactBinary(), Fields);
-		TestEqual(TEXT("FCbAttachment(CompactBinaryUniformSubView).AsBinaryView()->GetSize()"),
-			Binary.GetSize(), SavedFields.GetRangeSize());
-		TestTrue(TEXT("FCbAttachment(CompactBinaryUniformSubView).AsBinaryView()->EqualBytes()"),
-			Binary.GetView().EqualBytes(SavedFields.GetRangeView()));
-		TestEqual(TEXT("FCbAttachment(CompactBinaryUniformSubView).GetHash()"),
-			Attachment.GetHash(), FIoHash(SavedFields.GetRangeHash()));
-		TestSaveLoadValidate(TEXT("CompactBinaryUniformSubView"), Attachment);
+		TestFalse(TEXT("FCbAttachment(LoadObjectView).IsNull()"), Attachment.IsNull());
+		TestTrue(TEXT("FCbAttachment(LoadObjectView) as bool"), bool(Attachment));
+		TestTrue(TEXT("FCbAttachment(LoadObjectView).AsBinary()->EqualBytes"),
+			Attachment.AsBinary().GetView().EqualBytes(Value.GetView()));
+		TestFalse(TEXT("FCbAttachment(LoadObjectView).AsObject()->!InView"),
+			FieldsView.GetRangeBuffer().GetView().Contains(Attachment.AsObject().GetView()));
+		TestTrue(TEXT("FCbAttachment(LoadObjectView).IsBinary()"), Attachment.IsBinary());
+		TestTrue(TEXT("FCbAttachment(LoadObjectView).IsObject()"), Attachment.IsObject());
+		TestEqual(TEXT("FCbAttachment(LoadObjectView).GetHash()"), Attachment.GetHash(), FIoHash(Value.GetHash()));
 	}
 
 	// Binary Null
@@ -201,26 +184,26 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 		const FCbAttachment Attachment(FSharedBuffer{});
 		TestTrue(TEXT("FCbAttachment(BinaryNull).IsNull()"), Attachment.IsNull());
 		TestFalse(TEXT("FCbAttachment(BinaryNull).IsBinary()"), Attachment.IsBinary());
-		TestFalse(TEXT("FCbAttachment(BinaryNull).IsCompactBinary()"), Attachment.IsCompactBinary());
-		TestEqual(TEXT("FCbAttachment(BinaryNull).GetHash()"), Attachment.GetHash(), FIoHash());
+		TestFalse(TEXT("FCbAttachment(BinaryNull).IsObject()"), Attachment.IsObject());
+		TestEqual(TEXT("FCbAttachment(BinaryNull).GetHash()"), Attachment.GetHash(), FIoHash::HashBuffer(FSharedBuffer{}));
 	}
 
 	// Binary Empty
 	{
 		const FCbAttachment Attachment(FUniqueBuffer::Alloc(0).MoveToShared());
-		TestTrue(TEXT("FCbAttachment(BinaryEmpty).IsNull()"), Attachment.IsNull());
-		TestFalse(TEXT("FCbAttachment(BinaryEmpty).IsBinary()"), Attachment.IsBinary());
-		TestFalse(TEXT("FCbAttachment(BinaryEmpty).IsCompactBinary()"), Attachment.IsCompactBinary());
-		TestEqual(TEXT("FCbAttachment(BinaryEmpty).GetHash()"), Attachment.GetHash(), FIoHash());
+		TestFalse(TEXT("FCbAttachment(BinaryEmpty).IsNull()"), Attachment.IsNull());
+		TestTrue(TEXT("FCbAttachment(BinaryEmpty).IsBinary()"), Attachment.IsBinary());
+		TestFalse(TEXT("FCbAttachment(BinaryEmpty).IsObject()"), Attachment.IsObject());
+		TestEqual(TEXT("FCbAttachment(BinaryEmpty).GetHash()"), Attachment.GetHash(), FIoHash::HashBuffer(FSharedBuffer{}));
 	}
 
-	// Compact Binary Empty
+	// Object Empty
 	{
-		const FCbAttachment Attachment(FCbFieldIterator{});
-		TestTrue(TEXT("FCbAttachment(CompactBinaryEmpty).IsNull()"), Attachment.IsNull());
-		TestFalse(TEXT("FCbAttachment(CompactBinaryEmpty).IsBinary()"), Attachment.IsBinary());
-		TestFalse(TEXT("FCbAttachment(CompactBinaryEmpty).IsCompactBinary()"), Attachment.IsCompactBinary());
-		TestEqual(TEXT("FCbAttachment(CompactBinaryEmpty).GetHash()"), Attachment.GetHash(), FIoHash());
+		const FCbAttachment Attachment(FCbObject{});
+		TestFalse(TEXT("FCbAttachment(ObjectEmpty).IsNull()"), Attachment.IsNull());
+		TestTrue(TEXT("FCbAttachment(ObjectEmpty).IsBinary()"), Attachment.IsBinary());
+		TestTrue(TEXT("FCbAttachment(ObjectEmpty).IsObject()"), Attachment.IsObject());
+		TestEqual(TEXT("FCbAttachment(ObjectEmpty).GetHash()"), Attachment.GetHash(), FIoHash(FCbObject().GetHash()));
 	}
 
 	return true;
@@ -303,19 +286,26 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 
 	// Attachment Only
 	{
-		FCbObject Object;
+		FCbObject Object1;
 		{
 			TCbWriter<256> Writer;
 			Writer.BeginObject();
-			Writer << "Field" << 42;
+			Writer << "Field1" << 42;
 			Writer.EndObject();
-			Object = Writer.Save().AsObject();
+			Object1 = Writer.Save().AsObject();
 		}
-		FCbField Field = FCbField::Clone(Object["Field"]);
+		FCbObject Object2;
+		{
+			TCbWriter<256> Writer;
+			Writer.BeginObject();
+			Writer << "Field2" << 42;
+			Writer.EndObject();
+			Object2 = Writer.Save().AsObject();
+		}
 
 		FCbPackage Package;
-		Package.AddAttachment(FCbAttachment(FCbFieldIterator::MakeSingle(Object.AsField())));
-		Package.AddAttachment(FCbAttachment(Field.GetBuffer()));
+		Package.AddAttachment(FCbAttachment(Object1));
+		Package.AddAttachment(FCbAttachment(Object2.GetBuffer()));
 
 		TestFalse(TEXT("FCbPackage(Attachments).IsNull()"), Package.IsNull());
 		TestTrue(TEXT("FCbPackage(Attachments) as bool"), bool(Package));
@@ -324,31 +314,31 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbPackage(Attachments).GetObjectHash()"), Package.GetObjectHash(), FIoHash());
 		TestSaveLoadValidate(TEXT("Attachments"), Package);
 
-		const FCbAttachment* const ObjectAttachment = Package.FindAttachment(Object.GetHash());
-		const FCbAttachment* const FieldAttachment = Package.FindAttachment(Field.GetHash());
+		const FCbAttachment* const Object1Attachment = Package.FindAttachment(Object1.GetHash());
+		const FCbAttachment* const Object2Attachment = Package.FindAttachment(Object2.GetHash());
 
-		TestTrue(TEXT("FCbPackage(Attachments).FindAttachment(Object)"),
-			ObjectAttachment && ObjectAttachment->AsCompactBinary().AsObject().Equals(Object));
-		TestTrue(TEXT("FCbPackage(Attachments).FindAttachment(Field)"),
-			FieldAttachment && FieldAttachment->AsBinaryView() == Field.GetBuffer());
+		TestTrue(TEXT("FCbPackage(Attachments).FindAttachment(Object1)"),
+			Object1Attachment && Object1Attachment->AsObject().Equals(Object1));
+		TestTrue(TEXT("FCbPackage(Attachments).FindAttachment(Object2)"),
+			Object2Attachment && Object2Attachment->AsBinary() == Object2.GetBuffer());
 
-		Package.AddAttachment(FCbAttachment(FSharedBuffer::Clone(Object.GetView())));
-		Package.AddAttachment(FCbAttachment(FCbFieldIterator::CloneRange(FCbFieldViewIterator::MakeSingle(Field))));
+		Package.AddAttachment(FCbAttachment(FSharedBuffer::Clone(Object1.GetView())));
+		Package.AddAttachment(FCbAttachment(FCbObject::Clone(Object2)));
 
 		TestEqual(TEXT("FCbPackage(Attachments).GetAttachments()"), Package.GetAttachments().Num(), 2);
-		TestEqual(TEXT("FCbPackage(Attachments).FindAttachment(Object, Re-Add)"),
-			Package.FindAttachment(Object.GetHash()), ObjectAttachment);
-		TestEqual(TEXT("FCbPackage(Attachments).FindAttachment(Field, Re-Add)"),
-			Package.FindAttachment(Field.GetHash()), FieldAttachment);
+		TestEqual(TEXT("FCbPackage(Attachments).FindAttachment(Object1, Re-Add)"),
+			Package.FindAttachment(Object1.GetHash()), Object1Attachment);
+		TestEqual(TEXT("FCbPackage(Attachments).FindAttachment(Object2, Re-Add)"),
+			Package.FindAttachment(Object2.GetHash()), Object2Attachment);
 
 		TestTrue(TEXT("FCbPackage(Attachments).FindAttachment(ObjectAsObject)"),
-			ObjectAttachment && ObjectAttachment->AsCompactBinary().AsObject().Equals(Object));
+			Object1Attachment && Object1Attachment->AsObject().Equals(Object1));
 		TestTrue(TEXT("FCbPackage(Attachments).FindAttachment(ObjectAsBinary)"),
-			ObjectAttachment && ObjectAttachment->AsBinaryView() == Object.GetBuffer());
+			Object1Attachment && Object1Attachment->AsBinary() == Object1.GetBuffer());
 		TestTrue(TEXT("FCbPackage(Attachments).FindAttachment(FieldAsField)"),
-			FieldAttachment && FieldAttachment->AsCompactBinary().Equals(Field));
+			Object2Attachment && Object2Attachment->AsObject().Equals(Object2));
 		TestTrue(TEXT("FCbPackage(Attachments).FindAttachment(FieldAsBinary)"),
-			FieldAttachment && FieldAttachment->AsBinaryView() == Field.GetBuffer());
+			Object2Attachment && Object2Attachment->AsBinary() == Object2.GetBuffer());
 
 		TestTrue(TEXT("FCbPackage(Attachments).GetAttachments()->Sorted"),
 			Algo::IsSorted(Package.GetAttachments()));
@@ -359,34 +349,35 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 	FSharedBuffer Level4 = FSharedBuffer::MakeView(MakeMemoryView(Level4Values));
 	const FIoHash Level4Hash = FIoHash::HashBuffer(Level4);
 
-	FCbField Level3;
+	FCbObject Level3;
 	{
 		TCbWriter<256> Writer;
-		Writer.SetName("Level4").AddBinaryAttachment(Level4Hash);
-		Level3 = Writer.Save();
+		Writer.BeginObject();
+		Writer.AddBinaryAttachment("Level4", Level4Hash);
+		Writer.EndObject();
+		Level3 = Writer.Save().AsObject();
 	}
 	const FIoHash Level3Hash = Level3.GetHash();
 
-	FCbArray Level2;
+	FCbObject Level2;
 	{
 		TCbWriter<256> Writer;
-		Writer.SetName("Level3");
-		Writer.BeginArray();
-		Writer.AddObjectAttachment(Level3Hash);
-		Writer.EndArray();
-		Level2 = Writer.Save().AsArray();
+		Writer.BeginObject();
+		Writer.AddObjectAttachment("Level3", Level3Hash);
+		Writer.EndObject();
+		Level2 = Writer.Save().AsObject();
 	}
-	const FIoHash Level2Hash = Level2.AsFieldView().GetHash();
+	const FIoHash Level2Hash = Level2.GetHash();
 
 	FCbObject Level1;
 	{
 		TCbWriter<256> Writer;
 		Writer.BeginObject();
-		Writer.SetName("Level2").AddObjectAttachment(Level2Hash);
+		Writer.AddObjectAttachment("Level2", Level2Hash);
 		Writer.EndObject();
 		Level1 = Writer.Save().AsObject();
 	}
-	const FIoHash Level1Hash = Level1.AsFieldView().GetHash();
+	const FIoHash Level1Hash = Level1.GetHash();
 
 	const auto Resolver = [&Level2, &Level2Hash, &Level3, &Level3Hash, &Level4, &Level4Hash]
 		(const FIoHash& Hash) -> FSharedBuffer
@@ -415,13 +406,13 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 		const FCbAttachment* const Level3Attachment = Package.FindAttachment(Level3Hash);
 		const FCbAttachment* const Level4Attachment = Package.FindAttachment(Level4Hash);
 		TestTrue(TEXT("FCbPackage(Object+Attachments).FindAttachment(Level2)"),
-			Level2Attachment && Level2Attachment->AsCompactBinary().AsArray().Equals(Level2));
+			Level2Attachment && Level2Attachment->AsObject().Equals(Level2));
 		TestTrue(TEXT("FCbPackage(Object+Attachments).FindAttachment(Level3)"),
-			Level3Attachment && Level3Attachment->AsCompactBinary().Equals(Level3));
+			Level3Attachment && Level3Attachment->AsObject().Equals(Level3));
 		TestTrue(TEXT("FCbPackage(Object+Attachments).FindAttachment(Level4)"),
 			Level4Attachment &&
-			Level4Attachment->AsBinaryView() != Level4 &&
-			Level4Attachment->AsBinaryView().GetView().EqualBytes(Level4.GetView()));
+			Level4Attachment->AsBinary() != Level4 &&
+			Level4Attachment->AsBinary().GetView().EqualBytes(Level4.GetView()));
 
 		TestTrue(TEXT("FCbPackage(Object+Attachments).GetAttachments()->Sorted"),
 			Algo::IsSorted(Package.GetAttachments()));
@@ -476,23 +467,23 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbPackage(OutOfOrder).Load()->Level1Hash"), FromFields.GetObjectHash(), Level1Hash);
 
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level2"),
-			Level2Attachment && Level2Attachment->AsCompactBinary().AsArray().Equals(Level2));
+			Level2Attachment && Level2Attachment->AsObject().Equals(Level2));
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level2Buffer"),
-			Level2Attachment && Fields.GetOuterBuffer().GetView().Contains(Level2Attachment->AsBinaryView().GetView()));
+			Level2Attachment && Fields.GetOuterBuffer().GetView().Contains(Level2Attachment->AsBinary().GetView()));
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level2Hash"),
 			Level2Attachment && Level2Attachment->GetHash() == Level2Hash);
 
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level3"),
-			Level3Attachment && Level3Attachment->AsCompactBinary().Equals(Level3));
+			Level3Attachment && Level3Attachment->AsObject().Equals(Level3));
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level3Buffer"),
-			Level3Attachment && Fields.GetOuterBuffer().GetView().Contains(Level3Attachment->AsBinaryView().GetView()));
+			Level3Attachment && Fields.GetOuterBuffer().GetView().Contains(Level3Attachment->AsBinary().GetView()));
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level3Hash"),
 			Level3Attachment && Level3Attachment->GetHash() == Level3Hash);
 
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level4"),
-			Level4Attachment && Level4Attachment->AsBinaryView().GetView().EqualBytes(Level4.GetView()));
+			Level4Attachment && Level4Attachment->AsBinary().GetView().EqualBytes(Level4.GetView()));
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level4Buffer"),
-			Level4Attachment && Fields.GetOuterBuffer().GetView().Contains(Level4Attachment->AsBinaryView().GetView()));
+			Level4Attachment && Fields.GetOuterBuffer().GetView().Contains(Level4Attachment->AsBinary().GetView()));
 		TestTrue(TEXT("FCbPackage(OutOfOrder).Load()->Level4Hash"),
 			Level4Attachment && Level4Attachment->GetHash() == Level4Hash);
 
@@ -542,7 +533,7 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 		bool bResolved = false;
 		FCbPackage Package;
 		Package.AddAttachment(FCbAttachment(Level3.GetBuffer()));
-		Package.AddAttachment(FCbAttachment(FCbFieldIterator::MakeSingle(Level3)),
+		Package.AddAttachment(FCbAttachment(Level3),
 			[&bResolved](const FIoHash& Hash) -> FSharedBuffer
 			{
 				bResolved = true;

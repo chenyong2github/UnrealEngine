@@ -354,7 +354,7 @@ FOptionalCacheRecord LoadCacheRecord(const FCbPackage& Package)
 
 		if (const FCbAttachment* Attachment = Package.FindAttachment(PayloadObject["CompressedHash"].AsHash()))
 		{
-			if (FCompressedBuffer Compressed = FCompressedBuffer::FromCompressed(Attachment->AsBinaryView()))
+			if (FCompressedBuffer Compressed = FCompressedBuffer::FromCompressed(Attachment->AsBinary()))
 			{
 				return FPayload(PayloadId, Compressed);
 			}
