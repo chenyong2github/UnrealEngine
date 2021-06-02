@@ -99,8 +99,8 @@ fi
 
 # cleanup the prior artifacts
 [ -d "$DIR/$VCPKG_INSTALLED" ] && echo
-[ -d "$DIR/$VCPKG_INSTALLED" ] && echo === Tidying up $VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM ===
-[ -d "$DIR/$VCPKG_INSTALLED" ] && rm -rf "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM"
+[ -d "$DIR/$VCPKG_INSTALLED" ] && echo === Tidying up $VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM and $VCPKG_INSTALLED/vcpkg ===
+[ -d "$DIR/$VCPKG_INSTALLED" ] && rm -rf "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM" "$DIR/$VCPKG_INSTALLED/vcpkg/"{info,updates}
 
 echo
 echo === Checking out vcpkg to $DIR/vcpkg ===
@@ -110,9 +110,9 @@ echo
 echo === Bootstrapping vcpkg ===
 $DIR/vcpkg/bootstrap-vcpkg.sh
 
-echo
-echo === Making $VCPKG_INSTALLED artifacts writeable ===
-chmod -R u+w $DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM
+[ -d "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM" ] && echo
+[ -d "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM" ] && echo === Making $VCPKG_INSTALLED artifacts writeable ===
+[ -d "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM" ] && chmod -R u+w $DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM
 
 echo
 echo === Running vcpkg in manifest mode ===
