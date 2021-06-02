@@ -71,6 +71,14 @@ public:
 	void OnSoftObjectPathLoaded(const struct FSoftObjectPath& InPath, FArchive* InArchive);
 
 	/**
+	 * Called at the end of Package Save to record soft package references that might have been created by save transformations
+	 * @param ReferencingPackage The package on which we are recording the references
+	 * @param PackageNames List of of soft package references needed by the referencing package
+	 * @param bEditorOnlyReferences if the PackageNames list are references made by editor only properties
+	 */
+	void CollectSavedSoftPackageReferences(FName ReferencingPackage, const TSet<FName>& PackageNames, bool bEditorOnlyReferences);
+
+	/**
 	 * Load all soft object paths to resolve them, add that to the remap table, and empty the array
 	 * @param FilterPackage If set, only load references that were created by FilterPackage. If empty, resolve  all of them
 	 */

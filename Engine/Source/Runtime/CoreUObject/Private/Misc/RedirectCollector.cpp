@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/RedirectCollector.h"
+#include "Algo/Transform.h"
 #include "Misc/CoreDelegates.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -45,6 +46,18 @@ void FRedirectCollector::OnSoftObjectPathLoaded(const FSoftObjectPath& InPath, F
 	FScopeLock ScopeLock(&CriticalSection);
 
 	SoftObjectPathMap.FindOrAdd(PackageName).Add(SoftObjectPathProperty);
+}
+
+void FRedirectCollector::CollectSavedSoftPackageReferences(FName ReferencingPackage, const TSet<FName>& PackageNames, bool bEditorOnlyReferences)
+{
+	TArray<FSoftObjectPathProperty, TInlineAllocator<4>> SoftObjectPathArray;
+	Algo::Transform(PackageNames, SoftObjectPathArray, [ReferencingPackage, bEditorOnlyReferences](const FName& PackageName)
+		{
+			return FSoftObjectPathProperty(PackageName, NAME_None, bEditorOnlyReferences);
+		});
+
+	FScopeLock ScopeLock(&CriticalSection);
+	SoftObjectPathMap.FindOrAdd(ReferencingPackage).Append(SoftObjectPathArray);
 }
 
 void FRedirectCollector::ResolveAllSoftObjectPaths(FName FilterPackage)

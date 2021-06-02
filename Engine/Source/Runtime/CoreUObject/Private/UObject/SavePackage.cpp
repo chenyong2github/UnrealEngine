@@ -19,6 +19,7 @@
 #include "Serialization/BufferArchive.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/FeedbackContext.h"
+#include "Misc/RedirectCollector.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ObjectThumbnail.h"
 #include "UObject/ObjectMacros.h"
@@ -2264,6 +2265,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		// structure to track what every export needs to import (native only)
 		TMap<UObject*, TArray<UObject*> > NativeObjectDependencies;
 
+		// Used for the asset registry and the redirect collector
+		TSet<FName> SoftPackagesUsedInGame;
+
 		// Size of serialized out package in bytes. This is before compression.
 		int32 PackageSize = INDEX_NONE;
 		TPimplPtr<FLinkerSave> Linker = nullptr;
@@ -2581,7 +2585,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Import objects & names.
 				TSet<UPackage*> PrestreamPackages;
 				TSet<UObject*> ImportsUsedInGame;
-				TSet<FName> SoftPackagesUsedInGame;
 				{
 					SCOPED_SAVETIMER(UPackage_Save_TagImports);
 					
@@ -4684,6 +4687,15 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		{
 			// Package has been save, so unmark NewlyCreated flag.
 			InOuter->ClearPackageFlags(PKG_NewlyCreated);
+
+			// Notify the soft reference collector about our harvested soft references during save. 
+			// This is currently needed only for cooking which does not require editor-only references 
+#if WITH_EDITOR
+			if (bIsCooking)
+			{
+				GRedirectCollector.CollectSavedSoftPackageReferences(InOuter->GetFName(), SoftPackagesUsedInGame, false);
+			}
+#endif
 
 			if (Linker != nullptr)
 			{
