@@ -8,6 +8,9 @@ set VCPKG_VERSION=2021.05.12
 :: this is where the artifacts get installed
 set VCPKG_INSTALLED=vcpkg-installed
 
+:: setup by Engine\Android\SetupAndroid.bat
+set ANDROID_NDK_HOME=%NDKROOT%
+
 :: cleanup the git repo
 if exist %~dp0vcpkg\ echo:
 if exist %~dp0vcpkg\ echo === Tidying up vcpkg ===
@@ -28,7 +31,7 @@ echo === Bootstrapping vcpkg ===
 call %~dp0vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
 :: build for each triplet
-for %%x in (overlay-x64-windows overlay-x64-uwp overlay-arm64-uwp) do (
+for %%x in (overlay-x64-windows overlay-x64-uwp overlay-arm64-uwp x86-android x64-android arm-android arm64-android) do (
     echo:
     echo === Running vcpkg ===
     %~dp0vcpkg\vcpkg.exe install --x-install-root=%~dp0%VCPKG_INSTALLED% --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=%%x "proj4[core,database]"

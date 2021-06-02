@@ -50,5 +50,25 @@ public class PROJ : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libsqlite3.a"));
 		}
+		else if(Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
+		{
+			// we use the windows include because the triplet folders will be removed because they have arch-specific path components
+			PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-windows", "include"));
+
+			string[] Triplets = new string[] {
+				"arm-android",
+				"arm64-android",
+				"x86-android",
+				"x64-android",
+			};
+ 
+			// ubt will remove libraries with arch-specific path components, so inject all the libs for all the archs
+			foreach(var Triplet in Triplets)
+			{
+				string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, Triplet, "lib");
+				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libsqlite3.a"));
+			}
+		}
 	}
 }

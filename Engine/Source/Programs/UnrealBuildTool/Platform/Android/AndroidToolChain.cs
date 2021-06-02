@@ -91,11 +91,12 @@ namespace UnrealBuildTool
 		// whether to enable NEON support for armv7 builds
 		private bool bUseNEONForArmV7 = false;
 
+		// the "-android" suffix paths here are vcpkg triplets for the android platform
 		static private Dictionary<string, string[]> AllArchNames = new Dictionary<string, string[]> {
-			{ "-armv7", new string[] { "armv7", "armeabi-v7a", } },
-			{ "-arm64", new string[] { "arm64", "arm64-v8a", } },
-			{ "-x86",   new string[] { "x86", } },
-			{ "-x64",   new string[] { "x64", "x86_64", } },
+			{ "-armv7", new string[] { "armv7", "armeabi-v7a", "arm-android" } },
+			{ "-arm64", new string[] { "arm64", "arm64-v8a", "arm64-android" } },
+			{ "-x86",   new string[] { "x86", "x86-android" } },
+			{ "-x64",   new string[] { "x64", "x86_64", "x64-android" } },
 		};
 
 		static private Dictionary<string, string[]> LibrariesToSkip = new Dictionary<string, string[]> {
