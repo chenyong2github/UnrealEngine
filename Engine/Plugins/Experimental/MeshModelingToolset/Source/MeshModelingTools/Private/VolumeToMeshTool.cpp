@@ -11,7 +11,7 @@
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "CompGeom/PolygonTriangulation.h"
@@ -39,8 +39,6 @@ UInteractiveTool* UVolumeToMeshToolBuilder::BuildTool(const FToolBuilderState& S
 	UVolumeToMeshTool* NewTool = NewObject<UVolumeToMeshTool>(SceneState.ToolManager);
 
 	NewTool->SetWorld(SceneState.World);
-	check(AssetAPI);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	AVolume* Volume = ToolBuilderUtil::FindFirstActorOfType<AVolume>(SceneState);
 	check(Volume != nullptr);
@@ -126,12 +124,16 @@ void UVolumeToMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("CreateMeshVolume", "Volume To Mesh"));
 
-		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-			AssetAPI, TargetWorld,
-			&CurrentMesh, Transform, NewName, UseMaterial);
-		if (NewActor != nullptr)
+		FCreateMeshObjectParams NewMeshObjectParams;
+		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.Transform = (FTransform)Transform;
+		NewMeshObjectParams.BaseName = NewName;
+		NewMeshObjectParams.Materials.Add(UseMaterial);
+		NewMeshObjectParams.SetMesh(&CurrentMesh);
+		FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+		if (Result.IsOK() && Result.NewActor != nullptr)
 		{
-			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 		}
 
 		GetToolManager()->EndUndoTransaction();

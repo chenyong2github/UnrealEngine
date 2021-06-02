@@ -40,7 +40,7 @@ public:
 	// transform from Mesh into space of Projection Geometry
 	FTransform3d MeshToProjectionSpace;
 
-	EUVProjectionMethod ProjectionMethod;
+	EUVProjectionMethod ProjectionMethod = EUVProjectionMethod::Box;
 	FOrientedBox3d ProjectionBox;
 	float CylinderSplitAngle = 45.0f;
 
@@ -49,7 +49,7 @@ public:
 	int32 SmoothingRounds = 0;
 	double SmoothingAlpha = 0.5;
 
-	float CylinderProjectToTopOrBottomAngleThreshold;
+	float CylinderProjectToTopOrBottomAngleThreshold = 45.0f;
 
 	// position to use as UV origin
 	FVector2f UVOrigin = FVector2f(0.5f,0.5f);

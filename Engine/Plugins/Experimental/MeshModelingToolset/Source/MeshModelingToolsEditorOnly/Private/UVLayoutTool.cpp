@@ -16,8 +16,6 @@
 
 #include "ParameterizationOps/UVLayoutOp.h"
 
-#include "AssetGenerationUtil.h"
-
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -57,7 +55,6 @@ UInteractiveTool* UUVLayoutToolBuilder::BuildTool(const FToolBuilderState& Scene
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -214,11 +211,6 @@ void UUVLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		GenerateAsset(Results);
 	}
-}
-
-void UUVLayoutTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()

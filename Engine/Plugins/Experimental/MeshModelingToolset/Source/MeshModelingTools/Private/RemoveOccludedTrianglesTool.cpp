@@ -16,8 +16,6 @@
 
 #include "InteractiveGizmoManager.h"
 
-#include "AssetGenerationUtil.h"
-
 #include "Misc/MessageDialog.h"
 
 
@@ -66,7 +64,6 @@ UInteractiveTool* URemoveOccludedTrianglesToolBuilder::BuildTool(const FToolBuil
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -355,11 +352,6 @@ void URemoveOccludedTrianglesTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		GenerateAsset(Results);
 	}
-}
-
-void URemoveOccludedTrianglesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNewOperator()

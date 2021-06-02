@@ -14,7 +14,7 @@
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "Generators/RectangleMeshGenerator.h"
 #include "Distance/DistLine3Line3.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "MeshTransforms.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "Operations/ExtrudeMesh.h"
@@ -150,14 +150,13 @@ namespace
  */
 bool UDrawPolyPathToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return (this->AssetAPI != nullptr);
+	return true;
 }
 
 UInteractiveTool* UDrawPolyPathToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UDrawPolyPathTool* NewTool = NewObject<UDrawPolyPathTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
 }
 
@@ -168,12 +167,6 @@ void UDrawPolyPathTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
-
-void UDrawPolyPathTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
 
 void UDrawPolyPathTool::Setup()
 {
@@ -775,12 +768,16 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("CreatePolyPath", "Create PolyPath"));
 
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		&PathMesh, MeshTransform.ToTransform(), TEXT("Path"), MaterialProperties->Material.Get());
-	if (NewActor != nullptr)
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = MeshTransform.ToFTransform();
+	NewMeshObjectParams.BaseName = TEXT("Path");
+	NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());
+	NewMeshObjectParams.SetMesh(&PathMesh);
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() && Result.NewActor != nullptr)
 	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 	}
 
 	GetToolManager()->EndUndoTransaction();

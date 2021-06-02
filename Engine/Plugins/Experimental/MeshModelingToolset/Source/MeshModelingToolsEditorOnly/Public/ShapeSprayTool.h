@@ -3,12 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "InteractiveToolBuilder.h"
 #include "DynamicMeshBrushTool.h"
 #include "ShapeSprayTool.generated.h"
-
-class IAssetGenerationAPI;
 
 /**
  * UMeshSurfacePointToolBuilder override for UShapeSprayTool
@@ -19,8 +16,6 @@ class MESHMODELINGTOOLSEDITORONLY_API UShapeSprayToolBuilder : public UMeshSurfa
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
@@ -71,7 +66,6 @@ public:
 	UShapeSprayTool();
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	// UInteractiveTool API
 
@@ -100,7 +94,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	UE::Geometry::FDynamicMesh3 ShapeMesh;
 	void UpdateShapeMesh();

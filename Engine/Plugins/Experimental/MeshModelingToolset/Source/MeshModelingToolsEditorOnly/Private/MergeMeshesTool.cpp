@@ -4,7 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 
 #include "DynamicMesh3.h"
@@ -37,10 +37,9 @@ const FToolTargetTypeRequirements& UMergeMeshesToolBuilder::GetTargetRequirement
 
 bool UMergeMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	const bool bHasBuildAPI = (this->AssetAPI != nullptr);
 	const int32 MinRequiredComponents = 1;
 	const bool bHasComponents = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= MinRequiredComponents;
-	return ( bHasBuildAPI && bHasComponents );
+	return ( bHasComponents );
 }
 
 UInteractiveTool* UMergeMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -50,7 +49,6 @@ UInteractiveTool* UMergeMeshesToolBuilder::BuildTool(const FToolBuilderState& Sc
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -70,12 +68,6 @@ void UMergeMeshesTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
-
-void UMergeMeshesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
 
 
 void UMergeMeshesTool::Setup()
@@ -224,20 +216,22 @@ void UMergeMeshesTool::CreateLowQualityPreview()
 }
 
 
-void UMergeMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+void UMergeMeshesTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 {
-	check(Result.Mesh.Get() != nullptr);
-
+	check(OpResult.Mesh.Get() != nullptr);
 	
-
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), Result.Transform, TEXT("MergedMesh"));
-	if (NewActor != nullptr)
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = (FTransform)OpResult.Transform;
+	NewMeshObjectParams.BaseName = TEXT("MergedMesh");
+	NewMeshObjectParams.Materials.Add(ToolSetupUtil::GetDefaultMaterial());
+	NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() && Result.NewActor != nullptr)
 	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 	}
-	
+
 }
 
 

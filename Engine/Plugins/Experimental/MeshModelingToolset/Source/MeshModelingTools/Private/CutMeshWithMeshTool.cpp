@@ -5,7 +5,7 @@
 #include "ToolSetupUtil.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "DynamicMesh3.h"
 #include "MeshTransforms.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -330,7 +330,7 @@ void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	HandleSourcesProperties->SaveProperties(this);
 	TransformProperties->SaveProperties(this);
 
-	FDynamicMeshOpResult Result = Preview->Shutdown();
+	FDynamicMeshOpResult OpResult = Preview->Shutdown();
 	// Restore (unhide) the source meshes
 	for ( int32 ci = 0; ci < Targets.Num(); ++ci)
 	{
@@ -350,14 +350,14 @@ void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		IPrimitiveComponentBackedTarget* UpdateTarget = TargetComponentInterface(0);
 		FTransform3d TargetToWorld = (FTransform3d)UpdateTarget->GetWorldTransform();
 		{
-			if (Result.Mesh->TriangleCount() > 0)
+			if (OpResult.Mesh->TriangleCount() > 0)
 			{
-				MeshTransforms::ApplyTransform(*Result.Mesh, Result.Transform);
-				MeshTransforms::ApplyTransformInverse(*Result.Mesh, TargetToWorld);
+				MeshTransforms::ApplyTransform(*OpResult.Mesh, OpResult.Transform);
+				MeshTransforms::ApplyTransformInverse(*OpResult.Mesh, TargetToWorld);
 				TargetMeshCommitterInterface(0)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 				{
 					FDynamicMeshToMeshDescription Converter;
-					Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescriptionOut);
+					Converter.Convert(OpResult.Mesh.Get(), *CommitParams.MeshDescriptionOut);
 				});
 				TargetMaterialInterface(0)->CommitMaterialSetUpdate(MaterialSet, true);
 			}
@@ -367,26 +367,29 @@ void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		// create intersection asset
 		if ( IntersectionMesh.TriangleCount() > 0)
 		{
-			MeshTransforms::ApplyTransform(IntersectionMesh, Result.Transform);
+			MeshTransforms::ApplyTransform(IntersectionMesh, OpResult.Transform);
 			MeshTransforms::ApplyTransformInverse(IntersectionMesh, TargetToWorld);
 			FTransform3d NewTransform = TargetToWorld;
 
-			FString CurName = AssetGenerationUtil::GetComponentAssetBaseName(UpdateTarget->GetOwnerComponent());
+			FString CurName = UE::Modeling::GetComponentAssetBaseName(UpdateTarget->GetOwnerComponent());
 			FString UseBaseName = FString::Printf(TEXT("%s_%s"), *CurName, TEXT("CutPart") );
 
-			TArray<UMaterialInterface*> Materials = GetOutputMaterials();
-			AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor( AssetAPI, TargetWorld,
-				&IntersectionMesh, NewTransform, UseBaseName, Materials);
-			if (NewActor != nullptr)
+			FCreateMeshObjectParams NewMeshObjectParams;
+			NewMeshObjectParams.TargetWorld = TargetWorld;
+			NewMeshObjectParams.Transform = (FTransform)NewTransform;
+			NewMeshObjectParams.BaseName = UseBaseName;
+			NewMeshObjectParams.Materials = GetOutputMaterials();
+			NewMeshObjectParams.SetMesh(&IntersectionMesh);
+			FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+			if (Result.IsOK() && Result.NewActor != nullptr)
 			{
-				SelectActors.Add(NewActor);
+				SelectActors.Add(Result.NewActor);
 			}
 		}
 
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), SelectActors);
 		GetToolManager()->EndUndoTransaction();
 	}
-
 
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
 	GizmoManager->DestroyAllGizmosByOwner(this);

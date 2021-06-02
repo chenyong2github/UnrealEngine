@@ -22,7 +22,7 @@
 #include "BaseGizmos/TransformGizmo.h"
 
 #include "Drawing/MeshDebugDrawing.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 
 #include "Changes/ToolCommandChangeSequence.h"
 
@@ -60,7 +60,7 @@ const FToolTargetTypeRequirements& UPlaneCutToolBuilder::GetTargetRequirements()
 
 bool UPlaneCutToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
 }
 
 UInteractiveTool* UPlaneCutToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -70,7 +70,6 @@ UInteractiveTool* UPlaneCutToolBuilder::BuildTool(const FToolBuilderState& Scene
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -300,11 +299,6 @@ void UPlaneCutTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		GenerateAsset(Results);
 	}
-}
-
-void UPlaneCutTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 TUniquePtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
@@ -552,12 +546,17 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			// add all the additional meshes
 			for (int AddMeshIdx = 1; AddMeshIdx < SplitMeshes.Num(); AddMeshIdx++)
 			{
-				AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-					AssetAPI, TargetWorld,
-					&SplitMeshes[AddMeshIdx], Results[OrigMeshIdx].Transform, TEXT("PlaneCutOtherPart"), ComponentMaterialSet.Materials, AssetMaterialSet.Materials);
-				if (NewActor != nullptr)
+				FCreateMeshObjectParams NewMeshObjectParams;
+				NewMeshObjectParams.TargetWorld = TargetWorld;
+				NewMeshObjectParams.Transform = (FTransform)Results[OrigMeshIdx].Transform;
+				NewMeshObjectParams.BaseName = TEXT("PlaneCutOtherPart");
+				NewMeshObjectParams.Materials = ComponentMaterialSet.Materials;
+				NewMeshObjectParams.AssetMaterials = AssetMaterialSet.Materials;
+				NewMeshObjectParams.SetMesh(&SplitMeshes[AddMeshIdx]);
+				FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+				if (Result.IsOK() && Result.NewActor != nullptr)
 				{
-					NewSelection.Actors.Add(NewActor);
+					NewSelection.Actors.Add(Result.NewActor);
 				}
 			}
 		}

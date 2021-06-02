@@ -11,8 +11,6 @@
 #include "Drawing/LineSetComponent.h"
 #include "VolumeToMeshTool.generated.h"
 
-class IAssetGenerationAPI;
-
 /**
  *
  */
@@ -21,8 +19,6 @@ class MESHMODELINGTOOLS_API UVolumeToMeshToolBuilder : public UInteractiveToolBu
 {
 	GENERATED_BODY()
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
@@ -74,7 +70,6 @@ public:
 	UVolumeToMeshTool();
 
 	virtual void SetWorld(UWorld* World) { this->TargetWorld = World; }
-	virtual void SetAssetAPI(IAssetGenerationAPI* InAssetAPI) { this->AssetAPI = InAssetAPI; }
 	virtual void SetSelection(AVolume* Volume);
 
 	virtual void Setup() override;
@@ -103,7 +98,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld = nullptr;
-	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	UE::Geometry::FDynamicMesh3 CurrentMesh;
 

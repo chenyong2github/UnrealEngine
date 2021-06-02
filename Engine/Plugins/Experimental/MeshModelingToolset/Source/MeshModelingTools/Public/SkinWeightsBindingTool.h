@@ -16,8 +16,6 @@ class UMeshOpPreviewWithBackgroundCompute;
 struct FDynamicMeshOpResult;
 struct FMeshDescription;
 class IMeshDescriptionCommitter;
-
-
 struct FOccupancyGrid;
 
 /**
@@ -27,12 +25,8 @@ UCLASS()
 class MESHMODELINGTOOLS_API USkinWeightsBindingToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
-
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
 	bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-
 	UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 

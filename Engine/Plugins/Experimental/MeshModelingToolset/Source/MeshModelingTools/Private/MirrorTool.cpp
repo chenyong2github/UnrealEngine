@@ -2,7 +2,7 @@
 
 #include "MirrorTool.h"
 
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "CompositionOps/MirrorOp.h"
@@ -43,7 +43,7 @@ const FToolTargetTypeRequirements& UMirrorToolBuilder::GetTargetRequirements() c
 
 bool UMirrorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
 }
 
 UInteractiveTool* UMirrorToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -53,7 +53,6 @@ UInteractiveTool* UMirrorToolBuilder::BuildTool(const FToolBuilderState& SceneSt
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -130,11 +129,6 @@ bool UMirrorTool::CanAccept() const
 void UMirrorTool::SetWorld(UWorld* World)
 {
 	TargetWorld = World;
-}
-
-void UMirrorTool::SetAssetAPI(IAssetGenerationAPI* NewAssetApi)
-{
-	AssetAPI = NewAssetApi;
 }
 
 void UMirrorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
@@ -480,12 +474,16 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 				Materials.Add(TargetMaterial->GetMaterial(MaterialIdx));
 			}
 
-			// Create the new actor
-			AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-				AssetAPI, TargetWorld, Mesh, Results[OrigMeshIdx].Transform, TEXT("MirrorResult"), Materials);
-			if (NewActor != nullptr)
+			FCreateMeshObjectParams NewMeshObjectParams;
+			NewMeshObjectParams.TargetWorld = TargetWorld;
+			NewMeshObjectParams.Transform = (FTransform)Results[OrigMeshIdx].Transform;
+			NewMeshObjectParams.BaseName = TEXT("Mirror");
+			NewMeshObjectParams.Materials = Materials;
+			NewMeshObjectParams.SetMesh(Mesh);
+			FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+			if (Result.IsOK() && Result.NewActor != nullptr)
 			{
-				NewSelection.Actors.Add(NewActor);
+				NewSelection.Actors.Add(Result.NewActor);
 			}
 
 			// Remove the original actor

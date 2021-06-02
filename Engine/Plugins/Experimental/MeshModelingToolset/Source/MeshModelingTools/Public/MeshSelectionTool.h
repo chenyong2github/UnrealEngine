@@ -9,8 +9,6 @@
 #include "DynamicMeshOctree3.h"
 #include "MeshSelectionTool.generated.h"
 
-class IAssetGenerationAPI;
-
 /**
  *
  */
@@ -20,8 +18,6 @@ class MESHMODELINGTOOLS_API UMeshSelectionToolBuilder : public UMeshSurfacePoint
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
@@ -271,7 +267,6 @@ public:
 	UMeshSelectionTool();
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
@@ -326,7 +321,6 @@ protected:
 	TArray<AActor*> SpawnedActors;
 
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	// note: ideally this octree would be part of PreviewMesh!
 	TUniquePtr<UE::Geometry::FDynamicMeshOctree3> Octree;

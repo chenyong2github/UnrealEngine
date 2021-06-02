@@ -15,7 +15,6 @@
 
 #include "InteractiveGizmoManager.h"
 
-#include "AssetGenerationUtil.h"
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "Engine/Classes/Engine/StaticMesh.h"
 #include "Engine/Classes/Components/StaticMeshComponent.h"
@@ -57,7 +56,6 @@ UInteractiveTool* UEditNormalsToolBuilder::BuildTool(const FToolBuilderState& Sc
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -192,11 +190,6 @@ void UEditNormalsTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		GenerateAsset(Results);
 	}
-}
-
-void UEditNormalsTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 TUniquePtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()

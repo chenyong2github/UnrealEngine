@@ -16,7 +16,6 @@ class FEditorComponentSourceFactory;
 class FEditorToolAssetAPI;
 class FUICommandList;
 class FStylusStateTracker;		// for stylus events
-class FModelingModeAssetAPI;
 
 UCLASS(Transient)
 class UModelingToolsEditorMode : public UBaseLegacyWidgetEdMode
@@ -64,7 +63,8 @@ protected:
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 
-	TSharedPtr<FModelingModeAssetAPI> ModelingModeAssetGenerationAPI;
+	FDelegateHandle MeshCreatedEventHandle;
+	FDelegateHandle TextureCreatedEventHandle;
 
 	TUniquePtr<FStylusStateTracker> StylusStateTracker;
 

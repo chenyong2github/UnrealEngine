@@ -2,7 +2,8 @@
 
 #include "BspConversionTool.h"
 
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
+#include "Selection/ToolSelectionUtil.h"
 #include "AssetSelection.h"
 #include "ComponentSourceInterfaces.h"
 #include "DynamicMesh3.h"
@@ -49,15 +50,13 @@ bool UBspConversionToolBuilder::CanBuildTool(const FToolBuilderState& SceneState
 {
 	// We allow the tool to be built even if nothing is selected because the tool has a "select all" option.
 	// We just need to be able to get the place to save assets.
-	return AssetAPI != nullptr;
+	return true;
 }
 
 UInteractiveTool* UBspConversionToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UBspConversionTool* NewTool = NewObject<UBspConversionTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
-
 	return NewTool;
 }
 
@@ -212,19 +211,16 @@ void UBspConversionTool::Shutdown(EToolShutdownType ShutdownType)
 			TArray<UMaterialInterface*> Materials;
 			PreviewMesh->GetMaterials(Materials);
 
-			// Create the final actor
-			AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-				AssetAPI, TargetWorld,
-				PreviewMesh->GetMesh(), (UE::Geometry::FTransform3d)PreviewMesh->GetTransform(),
-				TEXT("BspConvertedToStaticMesh"), Materials);
-
-			if (NewActor)
+			FCreateMeshObjectParams NewMeshObjectParams;
+			NewMeshObjectParams.TargetWorld = TargetWorld;
+			NewMeshObjectParams.Transform = PreviewMesh->GetTransform();
+			NewMeshObjectParams.BaseName = TEXT("BspMesh");
+			NewMeshObjectParams.Materials = Materials;
+			NewMeshObjectParams.SetMesh(PreviewMesh->GetMesh());
+			FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+			if (Result.IsOK() && Result.NewActor != nullptr)
 			{
-				// Select the final result
-				FSelectedOjectsChangeList NewSelection;
-				NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
-				NewSelection.Actors.Add(NewActor);
-				GetToolManager()->RequestSelectionChange(NewSelection);
+				ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 			}
 		}
 

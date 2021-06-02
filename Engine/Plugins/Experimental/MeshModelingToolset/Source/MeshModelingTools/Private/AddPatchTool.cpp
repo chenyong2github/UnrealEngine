@@ -5,7 +5,7 @@
 #include "InteractiveToolManager.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "ToolSceneQueriesUtil.h"
 
 #include "MeshDescriptionBuilder.h"
@@ -28,14 +28,13 @@ using namespace UE::Geometry;
  */
 bool UAddPatchToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return (this->AssetAPI != nullptr);
+	return true;
 }
 
 UInteractiveTool* UAddPatchToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UAddPatchTool* NewTool = NewObject<UAddPatchTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
 }
 
@@ -54,12 +53,6 @@ void UAddPatchTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
-
-void UAddPatchTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
 
 void UAddPatchTool::Setup()
 {
@@ -298,26 +291,25 @@ void UAddPatchTool::GeneratePreviewBaseMesh()
 
 void UAddPatchTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 {
-#if WITH_EDITOR
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
 	UE::Geometry::FTransform3d CurTransform(PreviewMesh->GetTransform());
 	UMaterialInterface* Material = PreviewMesh->GetMaterial();
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPatchToolTransactionName", "Add Patch Mesh"));
 
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		CurMesh, CurTransform, TEXT("Patch"), Material );
-
-	// select newly-created object
-	if (NewActor != nullptr)
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = (FTransform)CurTransform;
+	NewMeshObjectParams.BaseName = TEXT("Patch");
+	NewMeshObjectParams.Materials.Add(Material);
+	NewMeshObjectParams.SetMesh(CurMesh);
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() && Result.NewActor != nullptr)
 	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		// select newly-created object
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 	}
 
 	GetToolManager()->EndUndoTransaction();
-#else
-	checkNoEntry();
-#endif
 }
 
 

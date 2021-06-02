@@ -13,7 +13,7 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -46,7 +46,7 @@ const FToolTargetTypeRequirements& UBaseCreateFromSelectedToolBuilder::GetTarget
 bool UBaseCreateFromSelectedToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	int32 ComponentCount = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements());
-	return AssetAPI != nullptr && ComponentCount >= MinComponentsSupported() && (!MaxComponentsSupported().IsSet() || ComponentCount <= MaxComponentsSupported().GetValue());
+	return ComponentCount >= MinComponentsSupported() && (!MaxComponentsSupported().IsSet() || ComponentCount <= MaxComponentsSupported().GetValue());
 }
 
 
@@ -57,7 +57,6 @@ UInteractiveTool* UBaseCreateFromSelectedToolBuilder::BuildTool(const FToolBuild
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -117,7 +116,7 @@ void UBaseCreateFromSelectedTool::Setup()
 		else
 		{
 			int32 Index = (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : Targets.Num() - 1;
-			HandleSourcesProperties->OutputAsset = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponentInterface(Index)->GetOwnerComponent(), false);
+			HandleSourcesProperties->OutputAsset = UE::Modeling::GetComponentAssetBaseName(TargetComponentInterface(Index)->GetOwnerComponent(), false);
 
 			// Reset the hidden gizmo to its initial position
 			FTransform ComponentTransform = TargetComponentInterface(Index)->GetWorldTransform();
@@ -146,12 +145,6 @@ int32 UBaseCreateFromSelectedTool::GetHiddenGizmoIndex() const
 void UBaseCreateFromSelectedTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
-}
-
-
-void UBaseCreateFromSelectedTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 
@@ -212,25 +205,25 @@ TArray<UMaterialInterface*> UBaseCreateFromSelectedTool::GetOutputMaterials() co
 }
 
 
-void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 {
-	check(Result.Mesh.Get() != nullptr);
+	if (OpResult.Mesh.Get() == nullptr) return;
 
 	FTransform3d NewTransform;
 	if (Targets.Num() == 1) // in the single-selection case, shove the result back into the original component space
 	{
 		FTransform3d ToSourceComponentSpace = (FTransform3d)TargetComponentInterface(0)->GetWorldTransform().Inverse();
-		MeshTransforms::ApplyTransform(*Result.Mesh, ToSourceComponentSpace);
+		MeshTransforms::ApplyTransform(*OpResult.Mesh, ToSourceComponentSpace);
 		NewTransform = (FTransform3d)TargetComponentInterface(0)->GetWorldTransform();
 	}
 	else // in the multi-selection case, center the pivot for the combined result
 	{
-		FVector3d Center = Result.Mesh->GetCachedBounds().Center();
-		double Rescale = Result.Transform.GetScale().X;
+		FVector3d Center = OpResult.Mesh->GetCachedBounds().Center();
+		double Rescale = OpResult.Transform.GetScale().X;
 		FTransform3d LocalTransform(-Center * Rescale);
 		LocalTransform.SetScale(FVector3d(Rescale, Rescale, Rescale));
-		MeshTransforms::ApplyTransform(*Result.Mesh, LocalTransform);
-		NewTransform = Result.Transform;
+		MeshTransforms::ApplyTransform(*OpResult.Mesh, LocalTransform);
+		NewTransform = OpResult.Transform;
 		NewTransform.SetScale(FVector3d::One());
 		NewTransform.SetTranslation(NewTransform.GetTranslation() + NewTransform.TransformVector(Center * Rescale));
 	}
@@ -242,13 +235,16 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& Resu
 		UseBaseName = PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName());
 	}
 
-	TArray<UMaterialInterface*> Materials = GetOutputMaterials();
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), NewTransform, UseBaseName, Materials);
-	if (NewActor != nullptr)
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = (FTransform)NewTransform;
+	NewMeshObjectParams.BaseName = UseBaseName;
+	NewMeshObjectParams.Materials = GetOutputMaterials();
+	NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() && Result.NewActor != nullptr)
 	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 	}
 }
 
@@ -284,7 +280,7 @@ FString UBaseCreateFromSelectedTool::PrefixWithSourceNameIfSingleSelection(const
 {
 	if (Targets.Num() == 1)
 	{
-		FString CurName = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponentInterface(0)->GetOwnerComponent());
+		FString CurName = UE::Modeling::GetComponentAssetBaseName(TargetComponentInterface(0)->GetOwnerComponent());
 		return FString::Printf(TEXT("%s_%s"), *CurName, *AssetName);
 	}
 	else

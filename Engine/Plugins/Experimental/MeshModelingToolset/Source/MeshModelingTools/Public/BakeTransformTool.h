@@ -17,9 +17,6 @@ struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 
 
-
-
-
 /**
  *
  */
@@ -89,7 +86,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -101,7 +97,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
 
 	TArray<int> MapToFirstOccurrences;
 

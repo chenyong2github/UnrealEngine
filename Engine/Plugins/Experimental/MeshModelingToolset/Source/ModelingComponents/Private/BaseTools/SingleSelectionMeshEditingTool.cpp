@@ -11,7 +11,6 @@
 /*
  * ToolBuilder
  */
-
 const FToolTargetTypeRequirements& USingleSelectionMeshEditingToolBuilder::GetTargetRequirements() const
 {
 	static FToolTargetTypeRequirements TypeRequirements({
@@ -25,8 +24,7 @@ const FToolTargetTypeRequirements& USingleSelectionMeshEditingToolBuilder::GetTa
 
 bool USingleSelectionMeshEditingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	bool bValidAssetAPI = (RequiresAssetAPI() ? AssetAPI != nullptr : true);
-	return bValidAssetAPI && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
 }
 
 UInteractiveTool* USingleSelectionMeshEditingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -42,10 +40,6 @@ void USingleSelectionMeshEditingToolBuilder::InitializeNewTool(USingleSelectionM
 	check(Target);
 	NewTool->SetTarget(Target);
 	NewTool->SetWorld(SceneState.World);
-	if (RequiresAssetAPI())
-	{
-		NewTool->SetAssetAPI(AssetAPI);
-	}
 
 	if (WantsInputSelectionIfAvailable() && SceneState.StoredToolSelection != nullptr)
 	{

@@ -4,7 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "Util/ColorConstants.h"
@@ -130,12 +130,16 @@ void UExtractCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("CreateCollisionMesh", "Collision To Mesh"));
 
-		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-			AssetAPI, TargetWorld,
-			&CurrentMesh, Transform, NewName, UseMaterial);
-		if (NewActor != nullptr)
+		FCreateMeshObjectParams NewMeshObjectParams;
+		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.Transform = (FTransform)Transform;
+		NewMeshObjectParams.BaseName = NewName;
+		NewMeshObjectParams.Materials.Add(UseMaterial);
+		NewMeshObjectParams.SetMesh(&CurrentMesh);
+		FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+		if (Result.IsOK() && Result.NewActor != nullptr)
 		{
-			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 		}
 
 		GetToolManager()->EndUndoTransaction();

@@ -18,8 +18,6 @@ class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorToolBuilder : public UInte
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 

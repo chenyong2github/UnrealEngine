@@ -14,8 +14,6 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "AssetUtils/MeshDescriptionUtil.h"
 
-#include "AssetGenerationUtil.h"
-
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
 #include "TargetInterfaces/MaterialProvider.h"

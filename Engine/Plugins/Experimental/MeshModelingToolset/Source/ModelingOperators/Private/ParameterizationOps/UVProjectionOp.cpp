@@ -2,13 +2,6 @@
 
 #include "ParameterizationOps/UVProjectionOp.h"
 
-#include "Engine/StaticMesh.h"
-
-#include "MeshDescriptionToDynamicMesh.h"
-#include "MeshSimplification.h"
-#include "MeshConstraintsUtil.h"
-#include "MatrixTypes.h"
-#include "Async/ParallelFor.h"
 #include "MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "Parameterization/DynamicMeshUVEditor.h"

@@ -2,7 +2,6 @@
 
 #include "UVProjectionTool.h"
 #include "InteractiveToolManager.h"
-#include "InteractiveGizmoManager.h"
 #include "ToolTargetManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"

@@ -2,7 +2,6 @@
 
 #include "DrawAndRevolveTool.h"
 
-#include "AssetGenerationUtil.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
@@ -12,6 +11,7 @@
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "Mechanics/CurveControlPointsMechanic.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
@@ -29,7 +29,7 @@ const FText EditModeMessage = LOCTEXT("CurveEditing", "Click points to select th
 
 bool UDrawAndRevolveToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return (this->AssetAPI != nullptr);
+	return true;
 }
 
 UInteractiveTool* UDrawAndRevolveToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -37,7 +37,6 @@ UInteractiveTool* UDrawAndRevolveToolBuilder::BuildTool(const FToolBuilderState&
 	UDrawAndRevolveTool* NewTool = NewObject<UDrawAndRevolveTool>(SceneState.ToolManager);
 
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
 }
 
@@ -229,21 +228,25 @@ void UDrawAndRevolveTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-void UDrawAndRevolveTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+void UDrawAndRevolveTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 {
-	if (Result.Mesh->TriangleCount() <= 0)
+	if (OpResult.Mesh->TriangleCount() <= 0)
 	{
 		return;
 	}
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveToolTransactionName", "Revolve Tool"));
 
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveResult"), MaterialProperties->Material.Get());
-
-	if (NewActor != nullptr)
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = (FTransform)OpResult.Transform;
+	NewMeshObjectParams.BaseName = TEXT("Revolve");
+	NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());
+	NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() && Result.NewActor != nullptr)
 	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 	}
 
 	GetToolManager()->EndUndoTransaction();

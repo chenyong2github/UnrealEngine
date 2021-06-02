@@ -16,8 +16,6 @@
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "MeshToVolumeTool.generated.h"
 
-class IAssetGenerationAPI;
-
 /**
  *
  */

@@ -14,7 +14,6 @@
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "AssetGenerationUtil.h"
 #include "MeshTransforms.h"
 #include "DynamicMeshEditor.h"
 #include "DynamicMeshChangeTracker.h"
@@ -47,7 +46,6 @@ UMeshSurfacePointTool* UGroomCardsEditorToolBuilder::CreateNewTool(const FToolBu
 {
 	UGroomCardsEditorTool* NewTool = NewObject<UGroomCardsEditorTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
 }
 

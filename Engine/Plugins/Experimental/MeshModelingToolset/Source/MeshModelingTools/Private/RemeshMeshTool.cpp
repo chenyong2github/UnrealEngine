@@ -13,8 +13,6 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
-#include "AssetGenerationUtil.h"
-
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
 #include "TargetInterfaces/MaterialProvider.h"
@@ -54,7 +52,6 @@ UInteractiveTool* URemeshMeshToolBuilder::BuildTool(const FToolBuilderState& Sce
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -95,11 +92,6 @@ URemeshMeshTool::URemeshMeshTool(const FObjectInitializer&)
 void URemeshMeshTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
-}
-
-void URemeshMeshTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 void URemeshMeshTool::Setup()

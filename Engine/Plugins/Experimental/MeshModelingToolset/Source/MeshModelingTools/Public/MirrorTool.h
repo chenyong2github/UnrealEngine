@@ -17,16 +17,12 @@
 
 class UTransformGizmo;
 class UTransformProxy;
-class IAssetGenerationAPI;
 
 UCLASS()
 class MESHMODELINGTOOLS_API UMirrorToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
-
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -198,7 +194,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -231,7 +226,6 @@ protected:
 	FVector3d MirrorPlaneNormal = FVector3d::UnitZ();
 
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	// flags used to identify modifier keys/buttons
 	static const int SnappingToggleModifierId = 1;

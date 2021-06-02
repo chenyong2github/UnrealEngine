@@ -15,10 +15,6 @@
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "GenerateLODMeshesTool.generated.h"
 
-
-class IAssetGenerationAPI;
-
-
 /**
  *
  */
@@ -26,10 +22,8 @@ UCLASS()
 class MESHMODELINGTOOLSEDITORONLY_API UGenerateLODMeshesToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
-
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-	virtual bool RequiresAssetAPI() const override { return true; }
 };
 
 

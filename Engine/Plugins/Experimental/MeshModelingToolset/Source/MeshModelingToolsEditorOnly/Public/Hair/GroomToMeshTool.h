@@ -13,7 +13,6 @@
 
 class AGroomActor;
 class AStaticMeshActor;
-class IAssetGenerationAPI;
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
@@ -24,8 +23,6 @@ class MESHMODELINGTOOLSEDITORONLY_API UGroomToMeshToolBuilder : public UInteract
 {
 	GENERATED_BODY()
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
@@ -126,7 +123,6 @@ public:
 	UGroomToMeshTool();
 
 	virtual void SetWorld(UWorld* World) { this->TargetWorld = World; }
-	virtual void SetAssetAPI(IAssetGenerationAPI* InAssetAPI) { this->AssetAPI = InAssetAPI; }
 	virtual void SetSelection(AGroomActor* Groom);
 
 	virtual void Setup() override;
@@ -161,7 +157,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld = nullptr;
-	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	FDynamicMesh3 CurrentMesh;
 

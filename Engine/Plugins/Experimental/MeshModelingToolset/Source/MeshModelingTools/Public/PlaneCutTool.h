@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "InteractiveGizmo.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
@@ -18,9 +17,6 @@
 // predeclarations
 class UTransformGizmo;
 class UTransformProxy;
-class IAssetGenerationAPI;
-
-
 
 
 /**
@@ -32,8 +28,6 @@ class MESHMODELINGTOOLS_API UPlaneCutToolBuilder : public UInteractiveToolBuilde
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -149,7 +143,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
@@ -215,7 +208,6 @@ protected:
 	TArray<float> MeshUVScaleFactor;
 
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	FViewCameraState CameraState;
 

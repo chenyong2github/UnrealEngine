@@ -4,7 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 
 #include "DynamicMesh3.h"
@@ -38,9 +38,7 @@ const FToolTargetTypeRequirements& UVoxelCSGMeshesToolBuilder::GetTargetRequirem
 
 bool UVoxelCSGMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	bool bHasBuildAPI = (this->AssetAPI != nullptr);
-	bool bHasComponents = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 2;
-	return (bHasBuildAPI && bHasComponents);
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 2;
 }
 
 UInteractiveTool* UVoxelCSGMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -50,7 +48,6 @@ UInteractiveTool* UVoxelCSGMeshesToolBuilder::BuildTool(const FToolBuilderState&
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -67,13 +64,6 @@ void UVoxelCSGMeshesTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
-
-void UVoxelCSGMeshesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
-
 
 void UVoxelCSGMeshesTool::Setup()
 {
@@ -221,16 +211,21 @@ void UVoxelCSGMeshesTool::CreateLowQualityPreview()
 	Preview->SetVisibility(true);
 }
 
-void UVoxelCSGMeshesTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+void UVoxelCSGMeshesTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 {
-	check(Result.Mesh.Get() != nullptr);
-
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), Result.Transform, TEXT("CSGMesh"));
-	if (NewActor != nullptr)
+	if (ensure(OpResult.Mesh.Get() != nullptr))
 	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		FCreateMeshObjectParams NewMeshObjectParams;
+		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.Transform = (FTransform)OpResult.Transform;
+		NewMeshObjectParams.BaseName = TEXT("CSGMesh");
+		NewMeshObjectParams.Materials.Add(ToolSetupUtil::GetDefaultMaterial());
+		NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+		FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+		if (Result.IsOK() && Result.NewActor != nullptr)
+		{
+			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
+		}
 	}
 }
 
