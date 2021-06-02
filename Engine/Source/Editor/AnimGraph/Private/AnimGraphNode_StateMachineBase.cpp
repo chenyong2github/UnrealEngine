@@ -52,6 +52,25 @@ public:
 				Names.Add(Node->GetStateMachineName());
 			}
 		}
+
+		// Include the name of animation layers
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(StateMachine);
+
+		if (Blueprint)
+		{
+			UClass* TargetClass = *Blueprint->SkeletonGeneratedClass;
+			if (TargetClass)
+			{
+				IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
+				for (const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
+				{
+					if (AnimBlueprintFunction.Name != UEdGraphSchema_K2::GN_AnimGraph)
+					{
+						Names.Add(AnimBlueprintFunction.Name.ToString());
+					}
+				}
+			}
+		}
 	}
 };
 
