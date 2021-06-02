@@ -61,7 +61,12 @@ public class BinkMediaPlayer : ModuleRules
 				PublicDependencyModuleNames.Add("MetalRHI");
 				PublicFrameworks.Add("AudioToolbox");
 			}
-			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Apple))
+            else if (Target.Platform == UnrealTargetPlatform.IOS)
+            {
+                Lib = "libBinkUnreal" + Platform + ".a";
+                PublicDependencyModuleNames.Add("MetalRHI");
+            }
+            else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Apple))
 			{
 				Lib = "BinkUnreal" + Platform + ".a";
 				PublicDependencyModuleNames.Add("MetalRHI");
