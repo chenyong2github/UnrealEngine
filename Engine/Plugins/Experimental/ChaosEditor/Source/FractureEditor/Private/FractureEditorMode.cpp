@@ -24,36 +24,43 @@
 #include "EditorViewportClient.h"
 #include "ScopedTransaction.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
+#include "EdModeInteractiveToolsContext.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
+
+
+#include "UnrealEdGlobals.h"
+#include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "FFractureEditorModeToolkit"
 
-const FEditorModeID FFractureEditorMode::EM_FractureEditorModeId = TEXT("EM_FractureEditorMode");
+const FEditorModeID UFractureEditorMode::EM_FractureEditorModeId = TEXT("EM_FractureEditorMode");
 
-FFractureEditorMode::FFractureEditorMode()
+UFractureEditorMode::UFractureEditorMode()
 {
+	Info = FEditorModeInfo(
+		EM_FractureEditorModeId,
+		LOCTEXT("FractureToolsEditorModeName", "Fracture"),
+		FSlateIcon("FractureEditorStyle", "LevelEditor.FractureMode", "LevelEditor.FractureMode.Small"),
+		true);
 }
 
-FFractureEditorMode::~FFractureEditorMode()
+UFractureEditorMode::~UFractureEditorMode()
 {
 
 }
 
-void FFractureEditorMode::Enter()
+void UFractureEditorMode::Enter()
 {
-	FEdMode::Enter();
+	Super::Enter();
 
 	GEditor->RegisterForUndo(this);
 
-	if (!Toolkit.IsValid() && UsesToolkits())
-	{
-		Toolkit = MakeShareable(new FFractureEditorModeToolkit);
-		Toolkit->Init(Owner->GetToolkitHost());
-	}
-
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditorModule.OnActorSelectionChanged().AddRaw(this, &FFractureEditorMode::OnActorSelectionChanged);
+	LevelEditorModule.OnActorSelectionChanged().AddUObject(this, &UFractureEditorMode::OnActorSelectionChanged);
 
-	FCoreUObjectDelegates::OnPackageReloaded.AddSP(this, &FFractureEditorMode::HandlePackageReloaded);
+	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &UFractureEditorMode::HandlePackageReloaded);
+
+	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(ToolsContext.Get());
 	
 	// Get initial geometry component selection from currently selected actors when we enter the mode
 	USelection* SelectedActors = GEditor->GetSelectedActors();
@@ -70,9 +77,13 @@ void FFractureEditorMode::Enter()
 
 }
 
-void FFractureEditorMode::Exit()
+void UFractureEditorMode::Exit()
 {
 	GEditor->UnregisterForUndo(this);
+
+	// TODO: cannot deregister currently because if another mode is also registering, its Enter()
+	// will be called before our Exit(); add the below line back after this bug is fixed
+	//FractureGizmoHelper->DeregisterGizmosWithManager(ToolsContext->ToolManager);
 
 	// Empty the geometry component selection set
 	TArray<UObject*> SelectedObjects;
@@ -80,6 +91,7 @@ void FFractureEditorMode::Exit()
 
 	if (Toolkit.IsValid())
 	{
+		static_cast<FFractureEditorModeToolkit*>(Toolkit.Get())->Shutdown();
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
@@ -92,15 +104,10 @@ void FFractureEditorMode::Exit()
 	}
 
 	// Call base Exit method to ensure proper cleanup
-	FEdMode::Exit();
+	Super::Exit();
 }
 
-void FFractureEditorMode::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObjects(SelectedGeometryComponents);
-}
-
-bool FFractureEditorMode::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject *, FTransactionObjectEvent>>& TransactionObjectContexts) const
+bool UFractureEditorMode::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject *, FTransactionObjectEvent>>& TransactionObjectContexts) const
 {
 	if (InContext.Context == FractureTransactionContexts::SelectBoneContext)
 	{
@@ -110,19 +117,19 @@ bool FFractureEditorMode::MatchesContext(const FTransactionContext& InContext, c
 	return false;
 }
 
-void FFractureEditorMode::PostUndo(bool bSuccess)
+void UFractureEditorMode::PostUndo(bool bSuccess)
 {
 	OnUndoRedo();
 }
 
-void FFractureEditorMode::PostRedo(bool bSuccess)
+void UFractureEditorMode::PostRedo(bool bSuccess)
 {
 	OnUndoRedo();
 }
 
-void FFractureEditorMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+void UFractureEditorMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	FEdMode::Render(View, Viewport, PDI);
+	Super::Render(View, Viewport, PDI);
 
 	FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
  
@@ -135,12 +142,21 @@ void FFractureEditorMode::Render(const FSceneView* View, FViewport* Viewport, FP
 
 }
 
-bool FFractureEditorMode::UsesToolkits() const
+
+void UFractureEditorMode::CreateToolkit()
+{
+	if (!Toolkit.IsValid() && UsesToolkits())
+	{
+		Toolkit = MakeShareable(new FFractureEditorModeToolkit);
+	}
+}
+
+bool UFractureEditorMode::UsesToolkits() const
 {
 	return true;
 }
 
-bool FFractureEditorMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
+bool UFractureEditorMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
 
 	bool bHandled = false;
@@ -153,7 +169,7 @@ bool FFractureEditorMode::InputKey(FEditorViewportClient* ViewportClient, FViewp
 	return bHandled;
 }
 
-bool FFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
+bool UFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
 	if (HitProxy && HitProxy->IsA(HGeometryCollectionBone::StaticGetType()))
 	{
@@ -181,13 +197,13 @@ bool FFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 }
 
-bool FFractureEditorMode::BoxSelect(FBox& InBox, bool InSelect /*= true*/)
+bool UFractureEditorMode::BoxSelect(FBox& InBox, bool InSelect /*= true*/)
 {
 	FConvexVolume BoxVolume(GetVolumeFromBox(InBox));
 	return FrustumSelect(BoxVolume, nullptr, InSelect);
 }
 
-bool FFractureEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect /*= true*/)
+bool UFractureEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect /*= true*/)
 {
 	bool bStrictDragSelection = GetDefault<ULevelEditorViewportSettings>()->bStrictBoxSelection;
 	bool bSelectedBones = false;
@@ -255,7 +271,7 @@ bool FFractureEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 	return bSelectedBones;
 }
 
-bool FFractureEditorMode::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const
+bool UFractureEditorMode::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const
 {
 	UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent);
 	if (GeometryCollectionComponent && GeometryCollectionComponent->GetSelectedBones().Num() > 0 && SelectedGeometryComponents.Contains(GeometryCollectionComponent))
@@ -281,7 +297,7 @@ bool FFractureEditorMode::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPri
 	return false;
 }
 
-bool FFractureEditorMode::GetPivotForOrbit(FVector& OutPivot) const
+bool UFractureEditorMode::GetPivotForOrbit(FVector& OutPivot) const
 {
 	if (CustomOrbitPivot.IsSet())
 	{
@@ -291,7 +307,7 @@ bool FFractureEditorMode::GetPivotForOrbit(FVector& OutPivot) const
 	return CustomOrbitPivot.IsSet();
 }
 
-void FFractureEditorMode::OnUndoRedo()
+void UFractureEditorMode::OnUndoRedo()
 {
 	for (UGeometryCollectionComponent* SelectedComp : SelectedGeometryComponents)
 	{
@@ -301,7 +317,7 @@ void FFractureEditorMode::OnUndoRedo()
 	}
 }
 
-void FFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)
+void UFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)
 {
 	CustomOrbitPivot.Reset();
 	TSet<UGeometryCollectionComponent*> NewGeomSelection;
@@ -357,7 +373,7 @@ void FFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 	}
 }
 
-void FFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionComponent*> GeometryComponents, TMap<int32, FBox> &BoundsToBone) const
+void UFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionComponent*> GeometryComponents, TMap<int32, FBox> &BoundsToBone) const
 {
 	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeometryComponents)
 	{
@@ -404,12 +420,12 @@ void FFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionCom
 	}
 }
 
-void FFractureEditorMode::SelectionStateChanged()
+void UFractureEditorMode::SelectionStateChanged()
 {
 
 }
 
-void FFractureEditorMode::HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
+void UFractureEditorMode::HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
 {
 	if (InPackageReloadPhase == EPackageReloadPhase::PostPackageFixup)
 	{
@@ -438,7 +454,7 @@ void FFractureEditorMode::HandlePackageReloaded(const EPackageReloadPhase InPack
 	}
 }
 
-FConvexVolume FFractureEditorMode::TranformFrustum(const FConvexVolume& InFrustum, const FMatrix& InMatrix)
+FConvexVolume UFractureEditorMode::TranformFrustum(const FConvexVolume& InFrustum, const FMatrix& InMatrix)
 {
 	FConvexVolume NewFrustum;
 	NewFrustum.Planes.Empty(6);
@@ -453,7 +469,7 @@ FConvexVolume FFractureEditorMode::TranformFrustum(const FConvexVolume& InFrustu
 	return NewFrustum;
 }
 
-FConvexVolume FFractureEditorMode::GetVolumeFromBox(const FBox &InBox)
+FConvexVolume UFractureEditorMode::GetVolumeFromBox(const FBox &InBox)
 {
 	FConvexVolume ConvexVolume;
 	ConvexVolume.Planes.Empty(6);

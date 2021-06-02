@@ -4,6 +4,9 @@
 
 #include "FractureTool.h"
 
+#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformProxy.h"
+
 #include "FractureToolCutter.generated.h"
 
 class FFractureToolContext;
@@ -38,8 +41,12 @@ public:
 	float ChanceToFracture;
 
 	/** Generate a fracture pattern across all selected meshes.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Group Fracture"))
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (EditCondition = "bGroupFractureToggleEnabled", HideEditConditionToggle, EditConditionHides, DisplayName = "Group Fracture"))
 	bool bGroupFracture;
+
+	// This flag allows tools to disable the above bGroupFracture option if/when it is not applicable
+	UPROPERTY()
+	bool bGroupFractureToggleEnabled = true;
 
 	/** Generate a fracture pattern across all selected meshes.  */
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Draw Sites"))
@@ -107,6 +114,17 @@ public:
 		UpdateDefaultRandomSeed();
 	}
 
+	FBox GetCombinedBounds(const TArray<FFractureToolContext>& Contexts) const;
+
+	void SetMandateGroupFracture(bool bMandateGroupFracture)
+	{
+		CutterSettings->bGroupFractureToggleEnabled = !bMandateGroupFracture;
+		if (bMandateGroupFracture)
+		{
+			CutterSettings->bGroupFracture = true;
+		}
+	}
+
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureCutterSettings> CutterSettings;
@@ -143,5 +161,55 @@ private:
 	TArray<TTuple<FVector, FVector>> VoronoiEdges;
 	TArray<FVector> VoronoiSites;
 	TArray<FLinearColor> Colors;
+};
+
+
+/// This helps create a 3D transform gizmo that can be used to adjust fracture placement
+// Note it is tailored to UFractureToolCutterBase, and expects Setup(), Shutdown()
+// and ResetGizmo() to be called on tool setup, shutdown, and selection change respectively
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureTransformGizmoSettings : public UFractureToolSettings
+{
+public:
+	GENERATED_BODY()
+
+	UFractureTransformGizmoSettings(const FObjectInitializer & ObjInit);
+
+	void Setup(UFractureToolCutterBase* Cutter);
+	void Shutdown();
+
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
+
+	void ResetGizmo(bool bResetRotation = false);
+
+	bool IsGizmoEnabled()
+	{
+		return bUseGizmo;
+	}
+
+	FTransform GetTransform()
+	{
+		return TransformProxy->GetTransform();
+	}
+
+	/** Use a 3D rigid transform gizmo to place the fracture pattern.  Only supports grouped fracture. */
+	UPROPERTY(EditAnywhere, Category = PlacementControls)
+	bool bUseGizmo = true;
+
+	/** Recenter the gizmo to the center of the selection when selection changes */
+	UPROPERTY(EditAnywhere, Category = PlacementControls, meta = (EditCondition = "bUseGizmo"))
+	bool bCenterOnSelection = true;
+
+	UPROPERTY()
+	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
+
+protected:
+
+	TObjectPtr<UFractureToolCutterBase> AttachedCutter = nullptr;
 };
 

@@ -13,6 +13,19 @@ UFractureToolRadial::UFractureToolRadial(const FObjectInitializer& ObjInit)
 {
 	RadialSettings = NewObject<UFractureRadialSettings>(GetTransientPackage(), UFractureRadialSettings::StaticClass());
 	RadialSettings->OwnerTool = this;
+	GizmoSettings = NewObject<UFractureTransformGizmoSettings>(GetTransientPackage(), UFractureTransformGizmoSettings::StaticClass());
+	GizmoSettings->OwnerTool = this;
+}
+
+void UFractureToolRadial::Setup()
+{
+	GizmoSettings->Setup(this);
+}
+
+
+void UFractureToolRadial::Shutdown()
+{
+	GizmoSettings->Shutdown();
 }
 
 FText UFractureToolRadial::GetDisplayText() const
@@ -40,6 +53,7 @@ TArray<UObject*> UFractureToolRadial::GetSettingsObjects() const
 { 
 	TArray<UObject*> Settings; 
 	Settings.Add(CutterSettings);
+	Settings.Add(GizmoSettings);
 	Settings.Add(CollisionSettings);
 	Settings.Add(RadialSettings);
 	return Settings;
@@ -51,13 +65,22 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureToolContext& Conte
 	const FVector::FReal AngularStep = 2 * PI / RadialSettings->AngularSteps;
 
 	FBox Bounds = Context.GetWorldBounds();
-	const FVector Center(Bounds.GetCenter() + RadialSettings->Center);
+	FVector Center(Bounds.GetCenter() + RadialSettings->Center);
 
 	FRandomStream RandStream(Context.GetSeed());
 	FVector UpVector(RadialSettings->Normal);
 	UpVector.Normalize();
 	FVector BasisX, BasisY;
 	UpVector.FindBestAxisVectors(BasisX, BasisY);
+
+	if (GizmoSettings->IsGizmoEnabled())
+	{
+		const FTransform& Transform = GizmoSettings->GetTransform();
+		UpVector = Transform.GetUnitAxis(EAxis::Z);
+		BasisX = Transform.GetUnitAxis(EAxis::X);
+		BasisY = Transform.GetUnitAxis(EAxis::Y);
+		Center = Transform.GetTranslation();
+	}
 
 	FVector::FReal Len = RadialStep * .5;
 	for (int32 ii = 0; ii < RadialSettings->RadialSteps; ++ii, Len += RadialStep)
@@ -70,5 +93,12 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureToolContext& Conte
 		}
 	}
 }
+
+void UFractureToolRadial::SelectedBonesChanged()
+{
+	GizmoSettings->ResetGizmo();
+	Super::SelectedBonesChanged();
+}
+
 
 #undef LOCTEXT_NAMESPACE

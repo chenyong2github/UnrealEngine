@@ -26,7 +26,9 @@ public class FractureEditor : ModuleRules
 			new string[]
 			{
 				"Core",
-                "Voronoi"
+                "Voronoi",
+				"InteractiveToolsFramework",
+				"EditorInteractiveToolsFramework"
 
 				// ... add other public dependencies that you statically link with here ...
 			}
