@@ -272,6 +272,7 @@
 #include "UObject/UObjectMarks.h"
 #include "UObject/Class.h"
 #include "UObject/GarbageCollection.h"
+#include "UObject/GeneratedCppIncludes.h"
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/CoreNative.h"
 #include "UObject/WeakObjectPtr.h"

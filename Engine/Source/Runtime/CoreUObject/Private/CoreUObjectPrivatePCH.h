@@ -224,6 +224,7 @@
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/Class.h"
 #include "UObject/GarbageCollection.h"
+#include "UObject/GeneratedCppIncludes.h"
 #include "UObject/CoreNative.h"
 #include "Templates/Casts.h"
 #include "UObject/WeakObjectPtr.h"

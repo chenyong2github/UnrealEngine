@@ -159,6 +159,7 @@
 #include "Math/Quat.h"
 #include "Internationalization/Culture.h"
 #include "Math/Transform.h"
+#include "CoreMinimal.h"
 #include "Math/IntRect.h"
 #include "Misc/MemStack.h"
 #include "Containers/LockFreeFixedSizeAllocator.h"
