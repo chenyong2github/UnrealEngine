@@ -27,6 +27,7 @@ namespace HordeServer.Controllers
 		class CatalogItem
 		{
 			public string? Name { get; set; }
+			public string? Description { get; set; }
 			public Uri? Url { get; set; }
 		}
 
@@ -63,7 +64,7 @@ namespace HordeServer.Controllers
 			foreach (SchemaInfo Schema in Program.ConfigSchemas)
 			{
 				Uri Url = new Uri($"https://{Host}/api/v1/schema/types/{Schema.Type.Name}.json");
-				Root.Items.Add(new CatalogItem { Name = Schema.Name, Url = Url });
+				Root.Items.Add(new CatalogItem { Name = Schema.Name, Description = Schema.Description, Url = Url });
 			}
 			return Ok(Root);
 		}

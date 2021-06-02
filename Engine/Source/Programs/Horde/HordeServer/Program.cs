@@ -63,9 +63,9 @@ namespace HordeServer
 
 		public static SchemaInfo[] ConfigSchemas =
 		{
-			new SchemaInfo("https://unrealengine.com/horde/global", "Horde root configuration file", typeof(GlobalConfig)),
-			new SchemaInfo("https://unrealengine.com/horde/project", "Horde project configuration file", typeof(ProjectConfig)),
-			new SchemaInfo("https://unrealengine.com/horde/stream", "Horde stream configuration file", typeof(StreamConfig))
+			new SchemaInfo("https://unrealengine.com/horde/global", "Horde Globals", "Horde root configuration file", typeof(GlobalConfig)),
+			new SchemaInfo("https://unrealengine.com/horde/project", "Horde Project", "Horde project configuration file", typeof(ProjectConfig)),
+			new SchemaInfo("https://unrealengine.com/horde/stream", "Horde Stream", "Horde stream configuration file", typeof(StreamConfig))
 		};
 
 		public static void Main(string[] Args)

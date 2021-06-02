@@ -31,6 +31,11 @@ namespace HordeServer.Utilities
 		public string Name { get; set; }
 
 		/// <summary>
+		/// Description of the schema
+		/// </summary>
+		public string Description { get; set; }
+
+		/// <summary>
 		/// The type to generate a schema for
 		/// </summary>
 		public Type Type { get; set; }
@@ -40,11 +45,13 @@ namespace HordeServer.Utilities
 		/// </summary>
 		/// <param name="Id"></param>
 		/// <param name="Name"></param>
+		/// <param name="Description"></param>
 		/// <param name="Type"></param>
-		public SchemaInfo(string Id, string Name, Type Type)
+		public SchemaInfo(string Id, string Name, string Description, Type Type)
 		{
 			this.Id = Id;
 			this.Name = Name;
+			this.Description = Description;
 			this.Type = Type;
 		}
 	}
