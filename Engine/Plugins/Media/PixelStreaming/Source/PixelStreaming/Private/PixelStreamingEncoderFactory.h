@@ -2,7 +2,7 @@
 #pragma once
 
 #include "WebRTCIncludes.h"
-
+#include "Containers/Queue.h"
 
 class FPlayerSession;
 class FPixelStreamingVideoEncoderFactory;

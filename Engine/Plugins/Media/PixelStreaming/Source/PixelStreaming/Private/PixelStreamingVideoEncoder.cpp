@@ -7,6 +7,7 @@
 #include "PlayerSession.h"
 #include "HUDStats.h"
 #include "UnrealEngine.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "PixelStreamingSettings.h"
 #include "LatencyTester.h"
