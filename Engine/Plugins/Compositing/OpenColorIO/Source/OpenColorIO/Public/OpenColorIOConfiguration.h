@@ -20,7 +20,7 @@ class FOpenColorIOTransformResource;
 class FTextureResource;
 class UOpenColorIOColorTransform;
 struct FFileChangeData;
-
+class SNotificationItem;
 
 /**
  * Asset to manage whitelisted OpenColorIO color spaces. This will create required transform objects.

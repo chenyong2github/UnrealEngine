@@ -13,6 +13,7 @@ class FReply;
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
 class SSearchableComboBox;
+class SEditableTextBox;
 class SWidget;
 class URemoteControlPreset;
 

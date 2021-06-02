@@ -5,6 +5,7 @@
 #include "MoviePipelineSetting.h"
 #include "MoviePipelineViewFamilySetting.generated.h"
 
+class FSceneViewFamily;
 
 UCLASS(Blueprintable, Abstract)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineViewFamilySetting : public UMoviePipelineSetting
