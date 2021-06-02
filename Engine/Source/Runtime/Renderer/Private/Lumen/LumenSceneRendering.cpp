@@ -125,11 +125,19 @@ FAutoConsoleVariableRef CVarLumenSceneCardMaxTexelDensity(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneMaxQuadResolution = 512;
-FAutoConsoleVariableRef CVarLumenSceneMaxQuadResolution(
+int32 GLumenSceneCardMinResolution = 4;
+FAutoConsoleVariableRef CVarLumenSceneCardMinResolution(
+	TEXT("r.LumenScene.SurfaceCache.CardMinResolution"),
+	GLumenSceneCardMinResolution,
+	TEXT("Minimum mesh card size resolution to be visible in Lumen Scene"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenSceneCardMaxResolution = 512;
+FAutoConsoleVariableRef CVarLumenSceneCardMaxResolution(
 	TEXT("r.LumenScene.SurfaceCache.CardMaxResolution"),
-	GLumenSceneMaxQuadResolution,
-	TEXT(""),
+	GLumenSceneCardMaxResolution,
+	TEXT("Maximum card resolution in Lumen Scene"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -188,7 +196,6 @@ FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
-
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenLLM, STATGROUP_LLMFULL);
@@ -288,10 +295,10 @@ int32 GetCardMaxResolution()
 {
 	if (GLumenFastCameraMode)
 	{
-		return GLumenSceneMaxQuadResolution / 2;
+		return GLumenSceneCardMaxResolution / 2;
 	}
 
-	return GLumenSceneMaxQuadResolution;
+	return GLumenSceneCardMaxResolution;
 }
 
 int32 GetMaxLumenSceneCardCapturesPerFrame()
@@ -1109,6 +1116,7 @@ public:
 	{
 		const int32 LastLumenMeshCardsIndex = FMath::Min(FirstMeshCardsIndex + NumMeshCardsPerPacket, LumenMeshCards.Num());
 		const float MaxDistanceSquared = MaxDistanceFromCamera * MaxDistanceFromCamera;
+		const int32 MinCardResolution = FMath::Clamp(GLumenSceneCardMinResolution, 1, 1024);
 
 		for (int32 MeshCardsIndex = FirstMeshCardsIndex; MeshCardsIndex < LastLumenMeshCardsIndex; ++MeshCardsIndex)
 		{
@@ -1135,9 +1143,8 @@ public:
 					}
 
 					const int32 MaxSnappedRes = FMath::RoundUpToPowerOfTwo(FMath::Min(FMath::TruncToInt(MaxProjectedSize), GetCardMaxResolution()));
-					const int32 ResLevel = FMath::FloorLog2(MaxSnappedRes);
-
-					const bool bVisible = ViewerDistance < MaxDistanceFromCamera && MaxSnappedRes >= Lumen::MinCardResolution;
+					const bool bVisible = ViewerDistance < MaxDistanceFromCamera && MaxSnappedRes >= MinCardResolution;
+					const int32 ResLevel = FMath::FloorLog2(FMath::Max<uint32>(MaxSnappedRes, Lumen::MinCardResolution));
 
 					if (!bVisible && LumenCard.bVisible)
 					{

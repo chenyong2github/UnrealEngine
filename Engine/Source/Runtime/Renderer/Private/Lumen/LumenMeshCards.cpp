@@ -14,7 +14,7 @@ float GLumenMeshCardsMinSize = 30.0f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMinSize(
 	TEXT("r.LumenScene.SurfaceCache.MeshCardsMinSize"),
 	GLumenMeshCardsMinSize,
-	TEXT("Minimum mesh card size to be captured by Lumen Scene."),
+	TEXT("Minimum mesh cards world space size to be included in Lumen Scene."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
 	{
 		FGlobalComponentRecreateRenderStateContext Context;
