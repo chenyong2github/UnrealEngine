@@ -179,6 +179,10 @@ struct PROJECTS_API FModuleDescriptor
 	/** List of additional dependencies for building this module. */
 	TArray<FString> AdditionalDependencies;
 
+	/** When true, empty WhitelistPlatforms are interpeted as 'no platforms' with the expectation that explict platforms will be added in plugin extensions */
+	bool bHasExplicitPlatforms;
+
+
 	/** Normal constructor */
 	FModuleDescriptor(const FName InName = NAME_None, EHostType::Type InType = EHostType::Runtime, ELoadingPhase::Type InLoadingPhase = ELoadingPhase::Default);
 

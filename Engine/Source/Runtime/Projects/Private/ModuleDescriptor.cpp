@@ -152,6 +152,7 @@ FModuleDescriptor::FModuleDescriptor(const FName InName, EHostType::Type InType,
 	: Name(InName)
 	, Type(InType)
 	, LoadingPhase(InLoadingPhase)
+	, bHasExplicitPlatforms(false)
 {
 }
 
@@ -195,6 +196,7 @@ bool FModuleDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 	// Read the whitelisted and blacklisted platforms
 	Object.TryGetStringArrayField(TEXT("WhitelistPlatforms"), WhitelistPlatforms);
 	Object.TryGetStringArrayField(TEXT("BlacklistPlatforms"), BlacklistPlatforms);
+	Object.TryGetBoolField(TEXT("HasExplicitPlatforms"), bHasExplicitPlatforms);
 
 	// Read the whitelisted and blacklisted targets
 	Object.TryGetEnumArrayField(TEXT("WhitelistTargets"), WhitelistTargets);
@@ -387,6 +389,16 @@ void FModuleDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	{
 		JsonObject.RemoveField(TEXT("AdditionalDependencies"));
 	}
+
+	if (bHasExplicitPlatforms)
+	{
+		JsonObject.SetBoolField(TEXT("HasExplicitPlatforms"), bHasExplicitPlatforms);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("HasExplicitPlatforms"));
+	}
+
 }
 
 void FModuleDescriptor::WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules)
@@ -416,7 +428,7 @@ void FModuleDescriptor::UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayN
 bool FModuleDescriptor::IsCompiledInConfiguration(const FString& Platform, EBuildConfiguration Configuration, const FString& TargetName, EBuildTargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData) const
 {
 	// Check the platform is whitelisted
-	if (WhitelistPlatforms.Num() > 0 && !WhitelistPlatforms.Contains(Platform))
+	if ((bHasExplicitPlatforms || WhitelistPlatforms.Num() > 0) && !WhitelistPlatforms.Contains(Platform))
 	{
 		return false;
 	}

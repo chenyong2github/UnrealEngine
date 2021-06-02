@@ -31,6 +31,7 @@ FPluginReferenceDescriptor::FPluginReferenceDescriptor( const FString& InName, b
 	: Name(InName)
 	, bEnabled(bInEnabled)
 	, bOptional(false)
+	, bHasExplicitPlatforms(false)
 { }
 
 
@@ -43,7 +44,7 @@ bool FPluginReferenceDescriptor::IsEnabledForPlatform( const FString& Platform )
 	}
 
 	// If there is a list of whitelisted platforms, and this isn't one of them, return false
-	if(WhitelistPlatforms.Num() > 0 && !WhitelistPlatforms.Contains(Platform))
+	if( (bHasExplicitPlatforms || WhitelistPlatforms.Num() > 0) && !WhitelistPlatforms.Contains(Platform))
 	{
 		return false;
 	}
@@ -105,7 +106,14 @@ bool FPluginReferenceDescriptor::IsEnabledForTargetConfiguration(EBuildConfigura
 
 bool FPluginReferenceDescriptor::IsSupportedTargetPlatform(const FString& Platform) const
 {
-	return SupportedTargetPlatforms.Num() == 0 || SupportedTargetPlatforms.Contains(Platform);
+	if (bHasExplicitPlatforms)
+	{
+		return SupportedTargetPlatforms.Contains(Platform);
+	}
+	else
+	{
+		return SupportedTargetPlatforms.Num() == 0 || SupportedTargetPlatforms.Contains(Platform);
+	}
 }
 
 bool FPluginReferenceDescriptor::Read( const FJsonObject& Object, FText& OutFailReason )
@@ -145,6 +153,7 @@ bool FPluginReferenceDescriptor::Read( const FJsonObject& Object, FText& OutFail
 
 	// Get the supported platform list
 	Object.TryGetStringArrayField(TEXT("SupportedTargetPlatforms"), SupportedTargetPlatforms);
+	Object.TryGetBoolField(TEXT("HasExplicitPlatforms"), bHasExplicitPlatforms);
 
 	return true;
 }
@@ -314,6 +323,15 @@ void FPluginReferenceDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	else
 	{
 		JsonObject.RemoveField(TEXT("SupportedTargetPlatforms"));
+	}
+
+	if (bHasExplicitPlatforms)
+	{
+		JsonObject.SetBoolField(TEXT("HasExplicitPlatforms"), bHasExplicitPlatforms);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("HasExplicitPlatforms"));
 	}
 }
 

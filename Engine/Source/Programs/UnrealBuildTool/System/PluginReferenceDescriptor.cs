@@ -77,6 +77,12 @@ namespace UnrealBuildTool
 		public string[]? SupportedTargetPlatforms;
 
 		/// <summary>
+		/// When true, empty SupportedTargetPlatforms and WhitelistPlatforms are interpeted as 'no platforms' with the expectation that explict platforms will be added in plugin platform extensions
+		/// </summary>
+		public bool bHasExplicitPlatforms;
+
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="InName">Name of the plugin</param>
@@ -137,6 +143,10 @@ namespace UnrealBuildTool
 			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Length > 0)
 			{
 				Writer.WriteStringArrayField("SupportedTargetPlatforms", SupportedTargetPlatforms.Select(x => x.ToString()).ToArray());
+			}
+			if(bHasExplicitPlatforms)
+			{
+				Writer.WriteValue("HasExplicitPlatforms",bHasExplicitPlatforms);
 			}
 			Writer.WriteObjectEnd();
 		}
@@ -201,6 +211,7 @@ namespace UnrealBuildTool
 				RawObject.TryGetEnumArrayField<TargetType>("WhitelistTargets", out Descriptor.WhitelistTargets);
 				RawObject.TryGetEnumArrayField<TargetType>("BlacklistTargets", out Descriptor.BlacklistTargets);
 				RawObject.TryGetStringArrayField("SupportedTargetPlatforms", out Descriptor.SupportedTargetPlatforms);
+				RawObject.TryGetBoolField("HasExplicitPlatforms", out Descriptor.bHasExplicitPlatforms);
 
 				Descriptor.VerifyPlatformNames(Descriptor.WhitelistPlatforms);
 				Descriptor.VerifyPlatformNames(Descriptor.BlacklistPlatforms);
@@ -221,7 +232,14 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
-			if (WhitelistPlatforms != null && WhitelistPlatforms.Length > 0 && !WhitelistPlatforms.Contains(Platform.ToString()))
+			if (bHasExplicitPlatforms)
+			{
+				if (WhitelistPlatforms == null || !WhitelistPlatforms.Contains(Platform.ToString()))
+				{
+					return false;
+				}
+			}
+			else if (WhitelistPlatforms != null && WhitelistPlatforms.Length > 0 && !WhitelistPlatforms.Contains(Platform.ToString()))
 			{
 				return false;
 			}
@@ -283,7 +301,14 @@ namespace UnrealBuildTool
 		/// <returns>True if the plugin for this target platform</returns>
 		public bool IsSupportedTargetPlatform(UnrealTargetPlatform Platform)
 		{
-			return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Length == 0 || SupportedTargetPlatforms.Contains(Platform.ToString());
+			if (bHasExplicitPlatforms)
+			{
+				return SupportedTargetPlatforms != null && SupportedTargetPlatforms.Contains(Platform.ToString());
+			}
+			else
+			{
+				return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Length == 0 || SupportedTargetPlatforms.Contains(Platform.ToString());
+			}
 		}
 	}
 }

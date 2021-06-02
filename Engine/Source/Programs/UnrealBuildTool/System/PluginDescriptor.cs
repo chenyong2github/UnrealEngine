@@ -175,6 +175,11 @@ namespace UnrealBuildTool
 		public bool bExplicitlyLoaded;
 
 		/// <summary>
+		/// When true, an empty SupportedTargetPlatforms is interpeted as 'no platforms' with the expectation that explict platforms will be added in plugin platform extensions
+		/// </summary>
+		public bool bHasExplicitPlatforms;
+
+		/// <summary>
 		/// Set of pre-build steps to execute, keyed by host platform name.
 		/// </summary>
 		public CustomBuildSteps? PreBuildSteps;
@@ -297,6 +302,7 @@ namespace UnrealBuildTool
 
 			RawObject.TryGetBoolField("RequiresBuildPlatform", out bRequiresBuildPlatform);
 			RawObject.TryGetBoolField("ExplicitlyLoaded", out bExplicitlyLoaded);
+			RawObject.TryGetBoolField("HasExplicitPlatforms", out bHasExplicitPlatforms);
 
 			CustomBuildSteps.TryRead(RawObject, "PreBuildSteps", out PreBuildSteps);
 			CustomBuildSteps.TryRead(RawObject, "PostBuildSteps", out PostBuildSteps);
@@ -397,6 +403,11 @@ namespace UnrealBuildTool
 				Writer.WriteValue("ExplicitlyLoaded", bExplicitlyLoaded);
 			}
 
+			if (bHasExplicitPlatforms)
+			{
+				Writer.WriteValue("HasExplicitPlatforms", bHasExplicitPlatforms);
+			}
+
 			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Count > 0)
 			{
 				Writer.WriteStringArrayField("SupportedTargetPlatforms", SupportedTargetPlatforms.Select<UnrealTargetPlatform, string>(x => x.ToString()).ToArray());
@@ -441,7 +452,14 @@ namespace UnrealBuildTool
 		/// <returns>True if the plugin should be enabled</returns>
 		public bool SupportsTargetPlatform(UnrealTargetPlatform Platform)
 		{
-			return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Count == 0 || SupportedTargetPlatforms.Contains(Platform);
+			if (bHasExplicitPlatforms)
+			{
+				return SupportedTargetPlatforms != null && SupportedTargetPlatforms.Contains(Platform);
+			}
+			else
+			{
+				return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Count == 0 || SupportedTargetPlatforms.Contains(Platform);
+			}
 		}
 
 		/// <summary>

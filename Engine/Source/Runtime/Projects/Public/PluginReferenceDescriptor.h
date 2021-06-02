@@ -48,6 +48,10 @@ struct PROJECTS_API FPluginReferenceDescriptor
 	/** The list of supported target platforms for this plugin. This field is copied from the plugin descriptor, and supplements the user's whitelisted and blacklisted platforms. */
 	TArray<FString> SupportedTargetPlatforms;
 
+	/** When true, empty SupportedTargetPlatforms and WhitelistPlatforms are interpeted as 'no platforms' with the expectation that explict platforms will be added in plugin platform extensions */
+	bool bHasExplicitPlatforms;
+
+
 	/** Constructor */
 	FPluginReferenceDescriptor(const FString& InName = TEXT(""), bool bInEnabled = false);
 
