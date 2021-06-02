@@ -1021,7 +1021,7 @@ void SScrollBox::OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const
 {
 	if (ScrollWhenFocusChanges != EScrollWhenFocusChanges::NoScroll)
 	{
-		if (NewWidgetPath.IsValid() && NewWidgetPath.ContainsWidget(SharedThis(this)))
+		if (NewWidgetPath.IsValid() && NewWidgetPath.ContainsWidget(this))
 		{
 			ScrollDescendantIntoView(NewWidgetPath.GetLastWidget(), ScrollWhenFocusChanges == EScrollWhenFocusChanges::AnimatedScroll ? true : false, NavigationDestination, NavigationScrollPadding);
 		}

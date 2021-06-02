@@ -621,6 +621,11 @@ TSharedPtr<struct FVirtualPointerPosition> SWidget::TranslateMouseCoordinateForC
 	return nullptr;
 }
 
+TOptional<FVirtualPointerPosition> SWidget::TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const
+{
+	return TOptional<FVirtualPointerPosition>();
+}
+
 void SWidget::OnFinishedPointerInput()
 {
 
@@ -793,7 +798,7 @@ void SWidget::SetFastPathSortOrder(const FSlateInvalidationWidgetSortOrder InSor
 		{
 			if (FHittestGrid* HittestGrid = Root->GetHittestGrid())
 			{
-				HittestGrid->UpdateWidget(AsShared(), InSortOrder);
+				HittestGrid->UpdateWidget(this, InSortOrder);
 			}
 		}
 
@@ -847,7 +852,7 @@ void SWidget::UpdateFastPathVisibility(FSlateInvalidationWidgetVisibility Parent
 
 	if (HittestGridToRemoveFrom)
 	{
-		HittestGridToRemoveFrom->RemoveWidget(SharedThis(this));
+		HittestGridToRemoveFrom->RemoveWidget(this);
 	}
 
 	PersistentState.CachedElementHandle.ClearCachedElements();
@@ -872,7 +877,7 @@ void SWidget::UpdateFastPathWidgetRemoved(FHittestGrid* ParentHittestGrid)
 
 	if (HittestGridToRemoveFrom)
 	{
-		HittestGridToRemoveFrom->RemoveWidget(SharedThis(this));
+		HittestGridToRemoveFrom->RemoveWidget(this);
 	}
 
 	PersistentState.CachedElementHandle.RemoveFromCache();
@@ -1454,7 +1459,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 
 	if (bOutgoingHittestability)
 	{
-		Args.GetHittestGrid().AddWidget(MutableThis->AsShared(), 0, LayerId, FastPathProxyHandle.GetWidgetSortOrder());
+		Args.GetHittestGrid().AddWidget(MutableThis, 0, LayerId, FastPathProxyHandle.GetWidgetSortOrder());
 	}
 
 	if (bClipToBounds)

@@ -461,7 +461,7 @@ void SDockingTabStack::OnFocusChanging( const FWeakWidgetPath& PreviousFocusPath
 	const TSharedPtr<SDockTab> ForegroundTab = TabWell->GetForegroundTab();
 	if ( ForegroundTab.IsValid() )
 	{
-		const bool bIsForegroundTabActive = NewWidgetPath.ContainsWidget( SharedThis(this) );
+		const bool bIsForegroundTabActive = NewWidgetPath.ContainsWidget( this );
 	
 		if (bIsForegroundTabActive)
 		{

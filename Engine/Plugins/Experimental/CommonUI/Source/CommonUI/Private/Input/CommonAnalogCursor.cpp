@@ -346,7 +346,7 @@ bool FCommonAnalogCursor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp
 				//		Mousing over to a web browser and clicking the back button, for example, will shift OS focus to the browser
 				//			Within the Slate app, clicking back will transfer focus just like LMB would
 				const FWidgetPath WidgetsUnderCursor = SlateApp.LocateWindowUnderMouse(PointerEvent.GetScreenSpacePosition(), SlateApp.GetInteractiveTopLevelWindows());
-				if (WidgetsUnderCursor.ContainsWidget(ViewportWidget.ToSharedRef()))
+				if (WidgetsUnderCursor.ContainsWidget(ViewportWidget.Get()))
 				{
 					//@todo DanH: Do we need to go through the whole process here of generating a false key down event?
 					//		All we really want to do here is allow UI input bindings to mouse buttons right?

@@ -21,7 +21,10 @@ public:
 
 	virtual void ArrangeCustomHitTestChildren( FArrangedChildren& ArrangedChildren ) const = 0;
 
-	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const = 0;
+	UE_DEPRECATED(5.0, "TranslateMouseCoordinateForCustomHitTestChild that returns a shared ptr is deprecated.")
+	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const { return TSharedPtr<struct FVirtualPointerPosition>(); }
+
+	virtual TOptional<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const = 0;
 };
 
 class SLATECORE_API FHittestGrid : public FNoncopyable
@@ -47,7 +50,11 @@ public:
 	bool SetHittestArea(const FVector2D& HittestPositionInDesktop, const FVector2D& HittestDimensions, const FVector2D& HitestOffsetInWindow = FVector2D::ZeroVector);
 
 	/** Insert custom hit test data for a widget already in the grid */
+	UE_DEPRECATED(5.0, "Deprecated. Use the InsertCustomHitTestPath with a pointer.")
 	void InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath);
+
+	/** Insert custom hit test data for a widget already in the grid */
+	void InsertCustomHitTestPath(const SWidget* InWidget, const TSharedRef<ICustomHitTestPath>& CustomHitTestPath);
 
 	/** Sets the current slate user index that should be associated with any added widgets */
 	void SetUserIndex(int32 UserIndex) { CurrentUserIndex = UserIndex; }
@@ -83,16 +90,25 @@ public:
 	void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort);
 
 	/** Add SWidget from the HitTest Grid */
+	UE_DEPRECATED(5.0, "Deprecated. Use the AddWidget with a pointer.")
 	void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort);
 
+	/** Add SWidget from the HitTest Grid */
+	void AddWidget(const SWidget* InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort);
+
 	/** Remove SWidget from the HitTest Grid */
+	UE_DEPRECATED(5.0, "Deprecated. Use the RemoveWidget with a pointer.")
 	void RemoveWidget(const TSharedRef<SWidget>& InWidget);
 
 	/** Remove SWidget from the HitTest Grid */
 	void RemoveWidget(const SWidget* InWidget);
 
 	/** Update the widget SecondarySort without removing it and readding it again. */
+	UE_DEPRECATED(5.0, "Deprecated. Use the UpdateWidget with a pointer.")
 	void UpdateWidget(const TSharedRef<SWidget>& InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort);
+	
+	/** Update the widget SecondarySort without removing it and readding it again. */
+	void UpdateWidget(const SWidget* InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort);
 
 	/** Append an already existing grid that occupy the same space. */
 	UE_DEPRECATED(4.26, "Deprecated. Use the FHittestGrid::AddGrid method instead")
@@ -158,7 +174,7 @@ private:
 	 */
 	struct FWidgetData
 	{
-		FWidgetData(TSharedRef<SWidget> InWidget, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, FSlateInvalidationWidgetSortOrder InSecondarySort, int32 InUserIndex)
+		FWidgetData(const TWeakPtr<SWidget>& InWidget, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, FSlateInvalidationWidgetSortOrder InSecondarySort, int32 InUserIndex)
 			: WeakWidget(InWidget)
 			, UpperLeftCell(InUpperLeftCell)
 			, LowerRightCell(InLowerRightCell)
@@ -252,7 +268,7 @@ private:
 	FIndexAndDistance GetHitIndexFromCellIndex(const FGridTestingParams& Params) const;
 
 	/** @returns true if the child is a paint descendant of the provided Parent. */
-	bool IsDescendantOf(const TSharedRef<SWidget> Parent, const FWidgetData& ChildData) const;
+	bool IsDescendantOf(const SWidget* Parent, const FWidgetData& ChildData) const;
 
 	/** Utility function for searching for the next focusable widget. */
 	template<typename TCompareFunc, typename TSourceSideFunc, typename TDestSideFunc>

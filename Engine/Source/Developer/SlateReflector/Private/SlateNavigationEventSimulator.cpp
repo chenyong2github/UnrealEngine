@@ -349,7 +349,7 @@ FSlateNavigationEventSimulator::FSimulationResult FSlateNavigationEventSimulator
 			{
 				if (TSharedPtr<SWidget> ViewportWidget = Viewport->GetWidget().Pin())
 				{
-					if (NavigationSource.ContainsWidget(ViewportWidget.ToSharedRef()))
+					if (NavigationSource.ContainsWidget(ViewportWidget.Get()))
 					{
 						TOptional<FWidgetPath> ViewportResult = OnViewportHandleNavigation.Execute(NavigationEvent.GetUserIndex(), Result.WidgetThatShouldReceivedFocus);
 						Result.bHandledByViewport = ViewportResult.IsSet();

@@ -194,7 +194,7 @@ TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoor
 					FGeometry DesktopSpaceGeometry = CurWidget->GetPaintSpaceGeometry();
 					DesktopSpaceGeometry.AppendTransform(FSlateLayoutTransform(GridOrigin - GridWindowOrigin));
 
-					Path.Emplace(FArrangedWidget(CurWidget.ToSharedRef(), DesktopSpaceGeometry), TSharedPtr<FVirtualPointerPosition>());
+					Path.Emplace(FArrangedWidget(CurWidget.ToSharedRef(), DesktopSpaceGeometry));
 					CurWidget = CurWidget->Advanced_GetPaintParentWidget();
 				}
 
@@ -277,16 +277,14 @@ void FHittestGrid::ClearInternal(int32 TotalCells)
 	AppendedGridArray.Reset();
 }
 
-bool FHittestGrid::IsDescendantOf(const TSharedRef<SWidget> Parent, const FWidgetData& ChildData) const
+bool FHittestGrid::IsDescendantOf(const SWidget* ParentWidget, const FWidgetData& ChildData) const
 {
 	const TSharedPtr<SWidget> ChildWidgetPtr = ChildData.GetWidget();
-	if (ChildWidgetPtr == Parent)
+	const SWidget* CurWidget = ChildWidgetPtr.Get();
+	if (CurWidget == ParentWidget)
 	{
 		return false;
 	}
-
-	const SWidget* ParentWidget = &Parent.Get();
-	const SWidget* CurWidget = ChildWidgetPtr.Get();
 
 	while (CurWidget)
 	{
@@ -397,7 +395,7 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 				// If we have a non escape boundary condition and this widget isn't a descendant of our boundary condition widget then it's invalid so we keep looking.
 				if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape
 					&& NavigationReply.GetHandler().IsValid()
-					&& !IsDescendantOf(NavigationReply.GetHandler().ToSharedRef(), TestCandidate))
+					&& !IsDescendantOf(NavigationReply.GetHandler().Get(), TestCandidate))
 				{
 					AddToNextFocusableWidgetCondidateDebugResults(TestWidget, HittestGridDebuggingText::NotADescendant);
 					continue;
@@ -676,11 +674,17 @@ bool FHittestGrid::SameSize(const FHittestGrid* OtherGrid) const
 
 void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort)
 {
-	AddWidget(InWidget, InBatchPriorityGroup, InLayerId, FSlateInvalidationWidgetSortOrder());
+	AddWidget(&(InWidget.Get()), InBatchPriorityGroup, InLayerId, FSlateInvalidationWidgetSortOrder());
 }
 
 void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort)
 {
+	AddWidget(&(InWidget.Get()), InBatchPriorityGroup, InLayerId, InSecondarySort);
+}
+
+void FHittestGrid::AddWidget(const SWidget* InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort)
+{
+	check(InWidget);
 	if (!InWidget->GetVisibility().IsHitTestVisible())
 	{
 		return;
@@ -704,7 +708,7 @@ void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchP
 	const int64 PrimarySort = (((int64)InBatchPriorityGroup << 32) | InLayerId);
 
 	bool bAddWidget = true;
-	if (int32* FoundIndex = WidgetMap.Find(&*InWidget))
+	if (int32* FoundIndex = WidgetMap.Find(InWidget))
 	{
 		FWidgetData& WidgetData = WidgetArray[*FoundIndex];
 		if (WidgetData.UpperLeftCell != UpperLeftCell || WidgetData.LowerRightCell != LowerRightCell)
@@ -724,8 +728,8 @@ void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchP
 
 	if (bAddWidget)
 	{
-		int32& WidgetIndex = WidgetMap.Add(&*InWidget);
-		WidgetIndex = WidgetArray.Emplace(InWidget, UpperLeftCell, LowerRightCell, PrimarySort, InSecondarySort, CurrentUserIndex);
+		int32& WidgetIndex = WidgetMap.Add(InWidget);
+		WidgetIndex = WidgetArray.Emplace(const_cast<SWidget*>(InWidget)->AsShared(), UpperLeftCell, LowerRightCell, PrimarySort, InSecondarySort, CurrentUserIndex);
 		for (int32 XIndex = UpperLeftCell.X; XIndex <= LowerRightCell.X; ++XIndex)
 		{
 			for (int32 YIndex = UpperLeftCell.Y; YIndex <= LowerRightCell.Y; ++YIndex)
@@ -776,7 +780,13 @@ void FHittestGrid::RemoveWidget(const SWidget* InWidget)
 
 void FHittestGrid::UpdateWidget(const TSharedRef<SWidget>& InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort)
 {
-	if (int32* FoundWidgetIndex = WidgetMap.Find(&*InWidget))
+	UpdateWidget(&(InWidget.Get()), InSecondarySort);
+}
+
+void FHittestGrid::UpdateWidget(const SWidget* InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort)
+{
+	check(InWidget);
+	if (int32* FoundWidgetIndex = WidgetMap.Find(InWidget))
 	{
 		WidgetArray[*FoundWidgetIndex].SecondarySort = InSecondarySort;
 	}
@@ -784,7 +794,12 @@ void FHittestGrid::UpdateWidget(const TSharedRef<SWidget>& InWidget, FSlateInval
 
 void FHittestGrid::InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath)
 {
-	int32 WidgetIndex = WidgetMap.FindChecked(&*InWidget);
+	InsertCustomHitTestPath(&InWidget.Get(), CustomHitTestPath);
+}
+
+void FHittestGrid::InsertCustomHitTestPath(const SWidget* InWidget, const TSharedRef<ICustomHitTestPath>& CustomHitTestPath)
+{
+	int32 WidgetIndex = WidgetMap.FindChecked(InWidget);
 	FWidgetData& WidgetData = WidgetArray[WidgetIndex];
 	WidgetData.CustomPath = CustomHitTestPath;
 }

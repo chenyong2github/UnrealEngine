@@ -202,7 +202,7 @@ public:
 		}
 	}
 
-	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const override
+	virtual TOptional<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const override
 	{
 		if ( World.IsValid() && ensure(World->IsGameWorld()) )
 		{
@@ -216,7 +216,7 @@ public:
 				{
 					UWidgetComponent* WidgetComponent = Component.Get();
 					// Check if visible;
-					if ( WidgetComponent && WidgetComponent->GetSlateWindow() == ChildWidget )
+					if ( WidgetComponent && WidgetComponent->GetSlateWindow().Get() == &ChildWidget )
 					{
 						if ( UPrimitiveComponent* HitComponent = GetHitResultAtScreenPositionAndCache(TargetPlayer->PlayerController, LocalMouseCoordinate) )
 						{
@@ -226,15 +226,9 @@ public:
 								{
 									if ( WidgetComponent == HitComponent )
 									{
-										TSharedPtr<FVirtualPointerPosition> VirtualCursorPos = MakeShareable(new FVirtualPointerPosition);
-
 										FVector2D LocalHitLocation;
 										WidgetComponent->GetLocalHitLocation(CachedHitResult.Location, LocalHitLocation);
-
-										VirtualCursorPos->CurrentCursorPosition = LocalHitLocation;
-										VirtualCursorPos->LastCursorPosition = LocalHitLocation;
-
-										return VirtualCursorPos;
+										return FVirtualPointerPosition(LocalHitLocation, LocalHitLocation);
 									}
 								}
 							}
@@ -244,7 +238,7 @@ public:
 			}
 		}
 
-		return nullptr;
+		return TOptional<FVirtualPointerPosition>();
 	}
 	// End ICustomHitTestPath
 
@@ -1991,12 +1985,8 @@ TArray<FWidgetAndPointer> UWidgetComponent::GetHitWidgetPath(FVector WorldHitLoc
 
 TArray<FWidgetAndPointer> UWidgetComponent::GetHitWidgetPath(FVector2D WidgetSpaceHitCoordinate, bool bIgnoreEnabledStatus, float CursorRadius /*= 0.0f*/)
 {
-	TSharedRef<FVirtualPointerPosition> VirtualMouseCoordinate = MakeShareable(new FVirtualPointerPosition);
-
 	const FVector2D& LocalHitLocation = WidgetSpaceHitCoordinate;
-
-	VirtualMouseCoordinate->CurrentCursorPosition = LocalHitLocation;
-	VirtualMouseCoordinate->LastCursorPosition = LastLocalHitLocation;
+	const FVirtualPointerPosition VirtualMouseCoordinate(LocalHitLocation, LastLocalHitLocation);
 
 	// Cache the location of the hit
 	LastLocalHitLocation = LocalHitLocation;
@@ -2010,7 +2000,7 @@ TArray<FWidgetAndPointer> UWidgetComponent::GetHitWidgetPath(FVector2D WidgetSpa
 
 		for( FWidgetAndPointer& ArrangedWidget : ArrangedWidgets )
 		{
-			ArrangedWidget.PointerPosition = VirtualMouseCoordinate;
+			ArrangedWidget.SetPointerPosition(VirtualMouseCoordinate);
 		}
 	}
 

@@ -241,7 +241,7 @@ public:
 		FWidgetAndPointer GetWidget() const
 		{
 			const int32 WidgetIndex = RoutingPath.Widgets.Num()-1;
-			return FWidgetAndPointer(RoutingPath.Widgets[WidgetIndex], RoutingPath.VirtualPointerPositions[WidgetIndex]);
+			return FWidgetAndPointer(RoutingPath.Widgets[WidgetIndex], RoutingPath.GetVirtualPointerPosition(WidgetIndex));
 		}
 
 		const FWidgetPath& GetRoutingPath() const
@@ -282,7 +282,7 @@ public:
 
 		FWidgetAndPointer GetWidget() const
 		{
-			return FWidgetAndPointer(RoutingPath.Widgets[WidgetIndex], RoutingPath.VirtualPointerPositions[WidgetIndex]);
+			return FWidgetAndPointer(RoutingPath.Widgets[WidgetIndex], RoutingPath.GetVirtualPointerPosition(WidgetIndex));
 		}
 		
 		const FWidgetPath& GetRoutingPath() const
@@ -323,7 +323,7 @@ public:
 
 		FWidgetAndPointer GetWidget() const
 		{
-			return FWidgetAndPointer(RoutingPath.Widgets[WidgetIndex], RoutingPath.VirtualPointerPositions[WidgetIndex]);
+			return FWidgetAndPointer(RoutingPath.Widgets[WidgetIndex], RoutingPath.GetVirtualPointerPosition(WidgetIndex));
 		}
 
 		const FWidgetPath& GetRoutingPath() const
@@ -377,7 +377,7 @@ public:
 #if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 			if constexpr (Translate<EventType>::TranslationNeeded())
 			{
-				const EventType TranslatedEvent = Translate<EventType>::PointerEvent(ArrangedWidget.PointerPosition, EventCopy);
+				const EventType TranslatedEvent = Translate<EventType>::PointerEvent(ArrangedWidget, EventCopy);
 				Reply = Lambda(ArrangedWidget, TranslatedEvent).SetHandler(ArrangedWidget.Widget);
 				ProcessReply(ThisApplication, RoutingPath, Reply, WidgetsUnderCursor, &TranslatedEvent);
 			}
@@ -387,7 +387,7 @@ public:
 				ProcessReply(ThisApplication, RoutingPath, Reply, WidgetsUnderCursor, &EventCopy);
 			}
 #else
-			const EventType TranslatedEvent = Translate<EventType>::PointerEvent(ArrangedWidget.PointerPosition, EventCopy);
+			const EventType TranslatedEvent = Translate<EventType>::PointerEvent(ArrangedWidget, EventCopy);
 			Reply = Lambda(ArrangedWidget, TranslatedEvent).SetHandler(ArrangedWidget.Widget);
 			ProcessReply(ThisApplication, RoutingPath, Reply, WidgetsUnderCursor, &TranslatedEvent);
 #endif
@@ -418,7 +418,7 @@ public:
 	struct Translate
 	{
 		static constexpr bool TranslationNeeded() { return false; }
-		static EventType PointerEvent( const TSharedPtr<FVirtualPointerPosition>& InPosition, const EventType& InEvent )
+		static EventType PointerEvent( const FWidgetAndPointer& InPosition, const EventType& InEvent )
 		{
 			// Most events do not do any coordinate translation.
 			return InEvent;
@@ -436,16 +436,16 @@ template<>
 struct FEventRouter::Translate<FPointerEvent>
 {
 	static constexpr bool TranslationNeeded() { return true; }
-	static  FPointerEvent PointerEvent( const TSharedPtr<FVirtualPointerPosition>& InPosition, const FPointerEvent& InEvent )
+	static  FPointerEvent PointerEvent( const FWidgetAndPointer& InPosition, const FPointerEvent& InEvent )
 	{
 		// Pointer events are translated into the virtual window space. For 3D Widget Components this means
-		if ( !InPosition.IsValid() )
+		if ( !InPosition.GetPointerPosition().IsSet() )
 		{
 			return InEvent;
 		}
 		else
 		{
-			return FPointerEvent::MakeTranslatedEvent<FPointerEvent>( InEvent, *InPosition );
+			return FPointerEvent::MakeTranslatedEvent<FPointerEvent>( InEvent, InPosition.GetPointerPosition().GetValue() );
 		}
 	}
 };
@@ -2841,10 +2841,10 @@ void FSlateApplication::SetAllUserFocus(const FWidgetPath& InFocusPath, const EF
 
 void FSlateApplication::SetAllUserFocusAllowingDescendantFocus(const FWidgetPath& InFocusPath, const EFocusCause InCause)
 {
-	TSharedRef<SWidget> FocusWidget = InFocusPath.Widgets.Last().Widget;
+	const TSharedRef<SWidget>& FocusWidget = InFocusPath.Widgets.Last().Widget;
 
 	ForEachUser([&] (FSlateUser& User) {
-		if (!User.GetWeakFocusPath().ContainsWidget(FocusWidget))
+		if (!User.GetWeakFocusPath().ContainsWidget(&FocusWidget.Get()))
 		{
 			SetUserFocus(User, InFocusPath, InCause);
 		}
@@ -5045,7 +5045,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 						else
 						{
 							// Only fire mouse leave events for widgets inside the captor path, or whoever if there is no captor path.
-							if (MouseCaptorPath.IsValid() == false || MouseCaptorPath.ContainsWidget(SomeWidgetPreviouslyUnderCursor.ToSharedRef()))
+							if (MouseCaptorPath.IsValid() == false || MouseCaptorPath.ContainsWidget(SomeWidgetPreviouslyUnderCursor.Get()))
 							{
 								// Note that the event's pointer position is not translated.
 								SomeWidgetPreviouslyUnderCursor->OnMouseLeave(PointerEvent);
@@ -5067,9 +5067,9 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 
 		FEventRouter::Route<FNoReply>(this, FEventRouter::FBubblePolicy(WidgetsUnderPointer), PointerEvent, [&MouseCaptorPath, &LastWidgetsUnderPointer](const FArrangedWidget& WidgetUnderCursor, const FPointerEvent& Event)
 			{
-				if (!LastWidgetsUnderPointer.ContainsWidget(WidgetUnderCursor.Widget))
+				if (!LastWidgetsUnderPointer.ContainsWidget(WidgetUnderCursor.GetWidgetPtr()))
 				{
-					if (MouseCaptorPath.ContainsWidget(WidgetUnderCursor.Widget))
+					if (MouseCaptorPath.ContainsWidget(WidgetUnderCursor.GetWidgetPtr()))
 					{
 						WidgetUnderCursor.Widget->OnMouseEnter(WidgetUnderCursor.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
@@ -5139,7 +5139,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 			FDragDropEvent DragDropEvent(PointerEvent, DragDropContent);
 			FEventRouter::Route<FNoReply>(this, FEventRouter::FBubblePolicy(WidgetsUnderPointer), DragDropEvent, [&LastWidgetsUnderPointer](const FArrangedWidget& WidgetUnderCursor, const FDragDropEvent& InDragDropEvent)
 			{
-				if (!LastWidgetsUnderPointer.ContainsWidget(WidgetUnderCursor.Widget))
+				if (!LastWidgetsUnderPointer.ContainsWidget(WidgetUnderCursor.GetWidgetPtr()))
 				{
 					WidgetUnderCursor.Widget->OnDragEnter(WidgetUnderCursor.Geometry, InDragDropEvent);
 #if WITH_SLATE_DEBUGGING
@@ -5153,7 +5153,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 		{
 			FEventRouter::Route<FNoReply>(this, FEventRouter::FBubblePolicy(WidgetsUnderPointer), PointerEvent, [&LastWidgetsUnderPointer](const FArrangedWidget& WidgetUnderCursor, const FPointerEvent& Event)
 			{
-				if (!LastWidgetsUnderPointer.ContainsWidget(WidgetUnderCursor.Widget))
+				if (!LastWidgetsUnderPointer.ContainsWidget(WidgetUnderCursor.GetWidgetPtr()))
 				{
 					WidgetUnderCursor.Widget->OnMouseEnter(WidgetUnderCursor.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
@@ -5749,7 +5749,7 @@ bool FSlateApplication::ExecuteNavigation(const FWidgetPath& NavigationSource, T
 		TSharedPtr<SWidget> ViewportWidget = Viewport->GetWidget().Pin();
 		if (ViewportWidget.IsValid())
 		{
-			if (NavigationSource.ContainsWidget(ViewportWidget.ToSharedRef()))
+			if (NavigationSource.ContainsWidget(ViewportWidget.Get()))
 			{
 				bHandled = Viewport->HandleNavigation(UserIndex, DestinationWidget);
 			}

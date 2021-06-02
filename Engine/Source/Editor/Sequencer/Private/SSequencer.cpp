@@ -3211,7 +3211,7 @@ FReply SSequencer::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKe
 
 void SSequencer::OnFocusChanging( const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent )
 {
-	if (NewWidgetPath.ContainsWidget(AsShared()))
+	if (NewWidgetPath.ContainsWidget(this))
 	{
 		OnReceivedFocus.ExecuteIfBound();
 	}

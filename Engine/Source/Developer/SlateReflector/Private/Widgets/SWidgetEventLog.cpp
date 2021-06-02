@@ -520,7 +520,7 @@ bool SWidgetEventLog::IsInsideWidgetReflector(const FWidgetPath& WidgetPath) con
 {
 	if (TSharedPtr<const SWidget> PinnedReflectorWidget = ReflectorWidget.Pin())
 	{
-		return WidgetPath.ContainsWidget(PinnedReflectorWidget.ToSharedRef());
+		return WidgetPath.ContainsWidget(PinnedReflectorWidget.Get());
 	}
 	return false;
 }
@@ -529,7 +529,7 @@ bool SWidgetEventLog::IsInsideWidgetReflector(const FWeakWidgetPath& WidgetPath)
 {
 	if (TSharedPtr<const SWidget> PinnedReflectorWidget = ReflectorWidget.Pin())
 	{
-		return WidgetPath.ContainsWidget(PinnedReflectorWidget.ToSharedRef());
+		return WidgetPath.ContainsWidget(PinnedReflectorWidget.Get());
 	}
 	return false;
 }

@@ -31,6 +31,7 @@ struct FWidgetMatcher
  * The window is needed for its ability to determine its own geometry, from which the geometries of the rest
  * of the widget can be determined.
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class SLATECORE_API FWidgetPath
 {
 public:
@@ -38,7 +39,7 @@ public:
 
 	FWidgetPath( TSharedPtr<SWindow> InTopLevelWindow, const FArrangedChildren& InWidgetPath );
 
-	FWidgetPath( TArray<FWidgetAndPointer> InWidgetsAndPointers );
+	FWidgetPath( TArrayView<FWidgetAndPointer> InWidgetsAndPointers );
 
 	/**
 	 * @param MarkerWidget Copy the path up to and including this widget 
@@ -48,10 +49,23 @@ public:
 	FWidgetPath GetPathDownTo( TSharedRef<const SWidget> MarkerWidget ) const;
 	
 	/** Get the widget and associated virtual cursor at a given index. */
-	const TSharedPtr<FVirtualPointerPosition>& GetCursorAt( int32 Index ) const;
+	UE_DEPRECATED(5.0, "GetCursorAt is deprecated. Use GetVirtualPointerPosition instead.")
+	const TSharedPtr<const FVirtualPointerPosition>& GetCursorAt( int32 Index ) const;
+
+	/** Get the virtual representation of the mouse at each level in the widget path. */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TOptional<FVirtualPointerPosition> GetVirtualPointerPosition(int32 Index) const
+	{
+		return VirtualPointerPositions[Index];
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** @return true if the WidgetToFind is in this WidgetPath, false otherwise. */
+	UE_DEPRECATED(5.0, "ContainsWidget that takes a shared ptr is deprecated.")
 	bool ContainsWidget( TSharedRef<const SWidget> WidgetToFind ) const;
+	
+	/** @return true if the WidgetToFind is in this WidgetPath, false otherwise. */
+	bool ContainsWidget( const SWidget* WidgetToFind ) const;
 
 	TOptional<FArrangedWidget> FindArrangedWidget( TSharedRef<const SWidget> WidgetToFind ) const;
 
@@ -161,7 +175,8 @@ public:
 	TSharedPtr< SWindow > TopLevelWindow;
 
 	/** The virtual representation of the mouse at each level in the widget path.  Due to 3D widgets, the space you transition to can be completely arbitrary as you traverse the tree. */
-	TArray< TSharedPtr<FVirtualPointerPosition> > VirtualPointerPositions;
+	UE_DEPRECATED(5.0, "Direct access to VirtualPointerPositions is now deprecated. Use the getter.")
+	TArray< TOptional<FVirtualPointerPosition> > VirtualPointerPositions;
 
 private:
 
@@ -182,7 +197,7 @@ private:
 	template<typename MatchRuleType>
 	static bool SearchForWidgetRecursively_Reverse( const MatchRuleType& MatchRule, const FArrangedWidget& InCandidate, FArrangedChildren& OutReversedPath, EVisibility VisibilityFilter = EVisibility::Visible );
 };
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /**
  * Just like a WidgetPath, but uses weak pointers and does not store geometry.
@@ -225,6 +240,15 @@ public:
 			Truncated
 		};
 	};
+
+
+	/** @return true if the WidgetToFind is in this WidgetPath, false otherwise. */
+	UE_DEPRECATED(5.0, "ContainsWidget that takes a shared ptr is deprecated.")
+	bool ContainsWidget(const TSharedRef<const SWidget>& WidgetToFind) const;
+
+	/** @return true if the WidgetToFind is in this WidgetPath, false otherwise. */
+	bool ContainsWidget(const SWidget* WidgetToFind) const;
+
 	/**
 	 * Make a non-weak WidgetPath out of this WeakWidgetPath. Do this by computing all the relevant geometries and converting the weak pointers to TSharedPtr.
 	 *
@@ -233,8 +257,6 @@ public:
 	 * @return Whether the path is truncated or live - a live path refers to a widget that is currently active and visible, a widget with a truncated path is not.
 	 */
 	EPathResolutionResult::Result ToWidgetPath( FWidgetPath& WidgetPath, EInterruptedPathHandling::Type InterruptedPathHandling = EInterruptedPathHandling::Truncate, const FPointerEvent* PointerEvent = nullptr, const EVisibility VisibilityFilter = EVisibility::Visible) const;
-
-	bool ContainsWidget( const TSharedRef< const SWidget >& SomeWidget ) const;
 
 	/**
 	 * @param NavigationType      Direction in which to move the focus (only for use with EUINavigation::Next and EUINavigation::Previous).
