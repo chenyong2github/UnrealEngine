@@ -805,9 +805,10 @@ struct FSurfaceCacheSample
 // Must match Lumen::PhysicalPageSize and Lumen::VirtualPageSize in Lumen.h
 #define VIRTUAL_PAGE_SIZE			127
 #define PHYSICAL_PAGE_SIZE			128
-#define MIN_RES_LEVEL				2
+#define MIN_CARD_RESOLUTION			8
+#define MIN_RES_LEVEL				3	// 2^3 = MinCardResolution
 #define MAX_RES_LEVEL				11
-#define SUB_ALLOCATION_RES_LEVEL	7		// = log2(PHYSICAL_PAGE_SIZE)
+#define SUB_ALLOCATION_RES_LEVEL	7	// = log2(PHYSICAL_PAGE_SIZE)
 
 uint2 ResLevelXYToSizeInPages(uint2 ResLevelXY)
 {
@@ -841,8 +842,8 @@ FSurfaceCacheSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardInde
 	const uint PageTableValue = LumenCardScene.PageTableBuffer.Load(4 * PageTableIndex);
 
 	uint2 AtlasBias;
-	AtlasBias.x = ((PageTableValue >> 0) & 0xFFF) * 4.0f;
-	AtlasBias.y = ((PageTableValue >> 12) & 0xFFF) * 4.0f;
+	AtlasBias.x = ((PageTableValue >> 0) & 0xFFF) * MIN_CARD_RESOLUTION;
+	AtlasBias.y = ((PageTableValue >> 12) & 0xFFF) * MIN_CARD_RESOLUTION;
 
 	uint2 ResLevelXY;
 	ResLevelXY.x = (PageTableValue >> 24) & 0xF;
