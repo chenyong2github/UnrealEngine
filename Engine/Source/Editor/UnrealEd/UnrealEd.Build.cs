@@ -67,6 +67,7 @@ public class UnrealEd : ModuleRules
 				"NavigationSystem",
 				"Media",
 				"VirtualTexturingEditor",
+				"RemoteExecution"
 			}
 		);
 
@@ -201,6 +202,7 @@ public class UnrealEd : ModuleRules
 				"AnimationModifiers",
 				"AnimationBlueprintLibrary",
 				"MaterialBaking",
+				"BazelExecutor",
 			}
 		);
 
