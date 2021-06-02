@@ -12,6 +12,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogCoreSettings, Log, All);
 
 int32 GUseBackgroundLevelStreaming = 1;
 float GAsyncLoadingTimeLimit = 5.0f;
+float GAsyncLoadingTimeLimitPIEMultiplier = 1.0f;
 int32 GAsyncLoadingUseFullTimeLimit = 0;
 float GPriorityAsyncLoadingExtraTime = 15.0f;
 float GLevelStreamingActorsUpdateTimeLimit = 5.0f;
@@ -37,6 +38,13 @@ static FAutoConsoleVariableRef CVarAsyncLoadingTimeLimit(
 	TEXT("s.AsyncLoadingTimeLimit"),
 	GAsyncLoadingTimeLimit,
 	TEXT("Maximum amount of time to spend doing asynchronous loading (ms per frame)."),
+	ECVF_Default
+	);
+
+static FAutoConsoleVariableRef CVarAsyncLoadingTimeLimitPIEMultiplier(
+	TEXT("s.AsyncLoadingTimeLimitPIEMultiplier"),
+	GAsyncLoadingTimeLimitPIEMultiplier,
+	TEXT("Multiplifer for the maximum amount of time to spend doing asynchronous loading when in PIE."),
 	ECVF_Default
 	);
 
