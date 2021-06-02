@@ -15,6 +15,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
+#include "Misc/RedirectCollector.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/SecureHash.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -48,6 +49,9 @@ COREUOBJECT_API extern bool GOutputCookingWarnings;
 
 // bring the UObectGlobal declaration visible to non editor
 bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks);
+
+namespace
+{
 
 ESavePackageResult ReturnSuccessOrCancel()
 {
@@ -1951,6 +1955,16 @@ void PostSavePackage(FSaveContext& SaveContext)
 	// Package has been saved, so unmark the NewlyCreated flag.
 	Package->ClearPackageFlags(PKG_NewlyCreated);
 
+	// Notify the soft reference collector about our harvested soft references during save. 
+	// This is currently needed only for cooking which does not require editor-only references 
+#if WITH_EDITOR
+	if (SaveContext.IsCooking())
+	{
+		GRedirectCollector.CollectSavedSoftPackageReferences(Package->GetFName(), SaveContext.GetSoftPackagesUsedInGame(), false);
+	}
+#endif
+
+	// Call the linker post save callbacks
 	if (SaveContext.Linker != nullptr)
 	{
 		SaveContext.Linker->OnPostSave(SaveContext.GetTargetPackagePath(), FObjectPostSaveContext(SaveContext.GetObjectSaveContext()));
@@ -2179,6 +2193,8 @@ FText GetSlowTaskStatusMessage(const FSaveContext& SaveContext)
 	Args.Add(TEXT("CleanFilename"), FText::FromString(CleanFilename));
 	return FText::Format(NSLOCTEXT("Core", "SavingFile", "Saving file: {CleanFilename}..."), Args);
 }
+
+} // end namespace
 
 FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, FSavePackageArgs& SaveArgs)
 {

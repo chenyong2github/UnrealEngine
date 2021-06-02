@@ -4218,40 +4218,6 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 		}
 	}
 
-	// Don't resolve, just add to request list as needed
-	TSet<FName> SoftObjectPackages;
-
-	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
-	{
-		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
-
-		for (FName SoftObjectPackage : SoftObjectPackages)
-		{
-			TMap<FName, FName> RedirectedPaths;
-
-			// If this is a redirector, extract destination from asset registry
-			if (ContainsRedirector(SoftObjectPackage, RedirectedPaths))
-			{
-				for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
-				{
-					GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
-				}
-			}
-
-			// Verify package actually exists
-
-			if (IsCookByTheBookMode())
-			{
-				UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
-				if (SoftObjectPackageData)
-				{
-					bool bIsUrgent = false;
-					SoftObjectPackageData->UpdateRequestData(PackageData.GetRequestedPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
-				}
-			}
-		}
-	}
-
 	if (Filename.Len() != 0 )
 	{
 		if (Package->HasAnyPackageFlags(PKG_ReloadingForCooker))
@@ -4436,6 +4402,38 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 		for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
 		{
 			SavePackageResults.Add(FSavePackageResultStruct(ESavePackageResult::MissingFile));
+		}
+	}
+
+	// Don't resolve, just add to request list as needed, do this after save to catch save permutations
+	TSet<FName> SoftObjectPackages;
+	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
+	{
+		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
+
+		for (FName SoftObjectPackage : SoftObjectPackages)
+		{
+			TMap<FName, FName> RedirectedPaths;
+
+			// If this is a redirector, extract destination from asset registry
+			if (ContainsRedirector(SoftObjectPackage, RedirectedPaths))
+			{
+				for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
+				{
+					GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
+				}
+			}
+
+			// Verify package actually exists
+			if (IsCookByTheBookMode())
+			{
+				UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
+				if (SoftObjectPackageData)
+				{
+					bool bIsUrgent = false;
+					SoftObjectPackageData->UpdateRequestData(PackageData.GetRequestedPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
+				}
+			}
 		}
 	}
 
