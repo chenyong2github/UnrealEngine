@@ -1871,12 +1871,18 @@ public:
 	 *
 	 * @return true if dependency has been added, false if Archive does not support them
 	 */
-	virtual bool AttachExternalReadDependency(FExternalReadCallback& ReadCallback) { return false; };
+	virtual bool AttachExternalReadDependency(FExternalReadCallback& ReadCallback) { return false; }
 
 	/**
 	 * Returns whether the Event Driven Loader is enabled or not.
 	 */
 	virtual bool IsUsingEventDrivenLoader() const;
+
+	/**
+	 * Used by LinkerLoad to decide whether it needs to check its Loader for FEngineVersion::Current().IsCompatibleWith.
+	 * EditorDomain Loaders are selected based on CustomVersions and Schema and do not need to check minor version changes.
+	 */
+	virtual bool NeedsEngineVersionChecks() const { return true; }
 
 #if USE_STABLE_LOCALIZATION_KEYS
 	using FArchiveState::SetLocalizationNamespace;
