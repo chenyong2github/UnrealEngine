@@ -35,7 +35,7 @@ class SLATECORE_API FArrangedChildren
 	}
 
 	// @todo hittest2.0 : we should get rid of this eventually.
-	static FArrangedChildren Hittest2_FromArray(const TArray<FWidgetAndPointer>& InWidgets)
+	static FArrangedChildren Hittest2_FromArray(const TArrayView<FWidgetAndPointer> InWidgets)
 	{
 		FArrangedChildren Temp( EVisibility::All );
 		Temp.Array.Reserve(InWidgets.Num());

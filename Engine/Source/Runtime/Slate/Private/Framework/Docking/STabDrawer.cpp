@@ -358,7 +358,7 @@ static bool IsLegalWidgetFocused(const FWidgetPath& FocusPath, const TArrayView<
 {
 	for (const TSharedRef<SWidget>& Widget : LegalFocusWidgets)
 	{
-		if (FocusPath.ContainsWidget(Widget))
+		if (FocusPath.ContainsWidget(&Widget.Get()))
 		{
 			return true;
 		}
@@ -398,7 +398,7 @@ void STabDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 
 						// See if the menu being opened is owned by the drawer contents and if so the menu should not be dismissed
 						FSlateApplication::Get().GeneratePathToWidgetUnchecked(MenuHost.ToSharedRef(), MenuHostPath);
-						if (!MenuHostPath.ContainsWidget(ChildSlot.GetWidget()))
+						if (!MenuHostPath.ContainsWidget(&ChildSlot.GetWidget().Get()))
 						{
 							bShouldLoseFocus = true;
 						}

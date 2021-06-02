@@ -78,15 +78,13 @@ public:
 			float CursorRadius = 0.f;
 			ArrangedWidgets = SlateWindowPin->GetHittestGrid().GetBubblePath(LocalMouseCoordinate, CursorRadius, bIgnoreEnabledStatus);
 
-			TSharedRef<FVirtualPointerPosition> VirtualMouseCoordinate = MakeShared<FVirtualPointerPosition>();
-			VirtualMouseCoordinate->CurrentCursorPosition = LocalMouseCoordinate;
-			VirtualMouseCoordinate->LastCursorPosition = LastLocalHitLocation;
+			FVirtualPointerPosition VirtualMouseCoordinate(LocalMouseCoordinate, LastLocalHitLocation);
 
 			LastLocalHitLocation = LocalMouseCoordinate;
 
 			for (FWidgetAndPointer& ArrangedWidget : ArrangedWidgets)
 			{
-				ArrangedWidget.PointerPosition = VirtualMouseCoordinate;
+				ArrangedWidget.SetPointerPosition(VirtualMouseCoordinate);
 			}
 		}
 
@@ -103,9 +101,9 @@ public:
 		}
 	}
 
-	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const override
+	virtual TOptional<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const override
 	{
-		return nullptr;
+		return TOptional<FVirtualPointerPosition>();
 	}
 
 	void SetWidgetDrawSize(FIntPoint NewWidgetDrawSize)

@@ -134,7 +134,7 @@ namespace MenuStackInternal
 		virtual void OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent) override
 		{
 			// if focus changed and this menu content had focus (or one of its children did) then inform the stack via the OnMenuLostFocus event
-			if (OnMenuLostFocus.IsBound() && PreviousFocusPath.ContainsWidget(AsShared()))
+			if (OnMenuLostFocus.IsBound() && PreviousFocusPath.ContainsWidget(this))
 			{
 				return OnMenuLostFocus.Execute(NewWidgetPath);
 			}
@@ -633,7 +633,7 @@ void FMenuStack::SetHostPath(const FWidgetPath& InOwnerPath)
 
 	if ( HostPopupLayer.IsValid() )
 	{
-		if ( !InOwnerPath.ContainsWidget(HostPopupLayer->GetHost()) )
+		if ( !InOwnerPath.ContainsWidget(&HostPopupLayer->GetHost().Get()) )
 		{
 			HostPopupLayer->Remove();
 			HostPopupLayer.Reset();

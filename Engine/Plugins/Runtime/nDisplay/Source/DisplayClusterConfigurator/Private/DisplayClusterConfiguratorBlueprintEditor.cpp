@@ -730,7 +730,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnFocusChanged(const FFocusEven
 		// If the SCSEditor or the Cluster View are being focused, update the property inspector to show the items currently selected in the respective tree view.
 		// This ensures that if any item as selected as part of an ancillary selection, the user can still "select" it and have its properties show up in the
 		// inspector, since already selected items don't fire a OnSelectionChanged event where we would normally update the property inspector
-		if (NewFocusedWidgetPath.ContainsWidget(SubobjectEditor.ToSharedRef()))
+		if (NewFocusedWidgetPath.ContainsWidget(SubobjectEditor.Get()))
 		{
 			TArray<FSubobjectEditorTreeNodePtrType> SelectedNodes = SubobjectEditor->GetSelectedNodes();
 			if (Inspector.IsValid())
@@ -777,7 +777,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnFocusChanged(const FFocusEven
 				Inspector->ShowDetailsForObjects(InspectorObjects, Options);
 			}
 		}
-		else if (NewFocusedWidgetPath.ContainsWidget(ViewCluster->GetWidget()))
+		else if (NewFocusedWidgetPath.ContainsWidget(&ViewCluster->GetWidget().Get()))
 		{
 			TArray<UObject*> SelectedClusterObjects;
 			ViewCluster->GetSelectedObjects(SelectedClusterObjects);

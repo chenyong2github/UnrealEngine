@@ -19,11 +19,24 @@ FString FArrangedWidget::ToString( ) const
 
 
 FWidgetAndPointer::FWidgetAndPointer()
-: FArrangedWidget(FArrangedWidget::GetNullWidget())
-, PointerPosition(TSharedPtr<FVirtualPointerPosition>())
+	: FArrangedWidget(FArrangedWidget::GetNullWidget())
 {}
 
-FWidgetAndPointer::FWidgetAndPointer( const FArrangedWidget& InWidget, const TSharedPtr<FVirtualPointerPosition>& InPosition )
-: FArrangedWidget(InWidget)
-, PointerPosition(InPosition)
+FWidgetAndPointer::FWidgetAndPointer( const FArrangedWidget& InWidget, const TSharedPtr<const FVirtualPointerPosition>& InPosition )
+	: FArrangedWidget(InWidget)
+{
+	if (InPosition)
+	{
+		OptionalPointerPosition = *InPosition.Get();
+	}
+}
+
+FWidgetAndPointer::FWidgetAndPointer(const FArrangedWidget& InWidget)
+	: FArrangedWidget(InWidget)
+	, OptionalPointerPosition()
+{}
+
+FWidgetAndPointer::FWidgetAndPointer(const FArrangedWidget& InWidget, TOptional<FVirtualPointerPosition> InPosition)
+	: FArrangedWidget(InWidget)
+	, OptionalPointerPosition(InPosition)
 {}

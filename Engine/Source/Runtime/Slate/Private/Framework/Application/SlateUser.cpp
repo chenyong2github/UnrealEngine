@@ -129,12 +129,12 @@ bool FSlateUser::ShouldShowFocus(TSharedPtr<const SWidget> Widget) const
 
 bool FSlateUser::HasFocusedDescendants(TSharedRef<const SWidget> Widget) const
 {
-	return WeakFocusPath.IsValid() && WeakFocusPath.GetLastWidget().Pin() != Widget && WeakFocusPath.ContainsWidget(Widget);
+	return WeakFocusPath.IsValid() && WeakFocusPath.GetLastWidget().Pin() != Widget && WeakFocusPath.ContainsWidget(&Widget.Get());
 }
 
 bool FSlateUser::IsWidgetInFocusPath(TSharedPtr<const SWidget> Widget) const
 {
-	return Widget && WeakFocusPath.IsValid() && WeakFocusPath.ContainsWidget(Widget.ToSharedRef());
+	return Widget && WeakFocusPath.IsValid() && WeakFocusPath.ContainsWidget(Widget.Get());
 }
 
 bool FSlateUser::SetFocus(const TSharedRef<SWidget>& WidgetToFocus, EFocusCause ReasonFocusIsChanging)
@@ -406,7 +406,7 @@ bool FSlateUser::IsWidgetUnderCursor(TSharedPtr<const SWidget> Widget) const
 bool FSlateUser::IsWidgetUnderPointer(TSharedPtr<const SWidget> Widget, uint32 PointerIndex) const
 {
 	const FWeakWidgetPath* WidgetsUnderPointer = WidgetsUnderPointerLastEventByIndex.Find(PointerIndex);
-	return Widget && WidgetsUnderPointer && WidgetsUnderPointer->ContainsWidget(Widget.ToSharedRef());
+	return Widget && WidgetsUnderPointer && WidgetsUnderPointer->ContainsWidget(Widget.Get());
 }
 
 bool FSlateUser::IsWidgetUnderAnyPointer(TSharedPtr<const SWidget> Widget) const
@@ -415,7 +415,7 @@ bool FSlateUser::IsWidgetUnderAnyPointer(TSharedPtr<const SWidget> Widget) const
 	{
 		for (const auto& IndexPathPair : WidgetsUnderPointerLastEventByIndex)
 		{
-			if (IndexPathPair.Value.ContainsWidget(Widget.ToSharedRef()))
+			if (IndexPathPair.Value.ContainsWidget(Widget.Get()))
 			{
 				return true;
 			}
