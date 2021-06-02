@@ -237,6 +237,7 @@
 #include "Engine/TextureCube.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
+#include "DerivedDataBuildRemoteExecutor.h"
 
 #if WITH_CHAOS
 #include "ChaosSolversModule.h"
@@ -626,6 +627,10 @@ static bool GetDisplayMultiboxHooks()
 
 void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 {
+	// Allow remote execution of derived data builds from this point
+	// TODO: This needs to be enabled earlier to allow early data builds to be remote executed.
+	InitDerivedDataBuildRemoteExecutor();
+
 	// Call base.
 	UEngine::Init(InEngineLoop);
 
