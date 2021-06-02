@@ -5,6 +5,7 @@
 #include "Containers/UnrealString.h"
 #include "HAL/UnrealMemory.h"
 #include "Memory/SharedBuffer.h"
+#include "Templates/Tuple.h"
 #include "TraceServices/Model/AnalysisCache.h"
 
 namespace TraceServices
