@@ -209,7 +209,7 @@ FD3D11Texture2D* FD3D11Viewport::GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, E
 
 FD3D11Viewport::~FD3D11Viewport()
 {
-	check(IsInRenderingThread());
+	check(IsInRHIThread() || IsInRenderingThread());
 
 	// Turn off HDR display mode
 	D3DRHI->ShutdownHDR();
