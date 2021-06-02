@@ -699,7 +699,6 @@ public:
 		{
 			AddSlot(MoveTemp(Arg));
 		}
-		SlotArguments.Reset();
 	}
 
 	void RemoveAt( int32 Index )

@@ -22,10 +22,17 @@ public:
 	struct FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
 	{
 		FSlot()
-		: TSlotBase<FSlot>()
-		, TAlignmentWidgetSlotMixin<FSlot>(HAlign_Fill, VAlign_Fill)
-		{
+			: TSlotBase<FSlot>()
+			, TAlignmentWidgetSlotMixin<FSlot>(HAlign_Fill, VAlign_Fill)
+		{ }
 
+		SLATE_SLOT_BEGIN_ARGS_OneMixin(FSlot, TSlotBase<FSlot>, TAlignmentWidgetSlotMixin<FSlot>)
+		SLATE_SLOT_END_ARGS()
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+		{
+			TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+			TAlignmentWidgetSlotMixin<FSlot>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
 		}
 	};
 
@@ -34,9 +41,9 @@ public:
 	/**
 	 * Used by declarative syntax to create a Slot.
 	 */
-	static FSlot& Slot()
+	static FSlot::FSlotArguments Slot()
 	{
-		return *(new FSlot());
+		return FSlot::FSlotArguments(MakeUnique<FSlot>());
 	}
 
 	SLATE_BEGIN_ARGS( SUniformWrapPanel )
@@ -52,7 +59,7 @@ public:
 		}
 
 		/** Slot type supported by this panel */
-		SLATE_SUPPORTS_SLOT(FSlot)
+		SLATE_SLOT_ARGUMENT(FSlot, Slots)
 		
 		/** Padding given to each slot */
 		SLATE_ATTRIBUTE(FMargin, SlotPadding)
@@ -107,7 +114,8 @@ public:
 	void SetEvenRowDistribution(TAttribute<bool> InEvenRowDistribution);
 	bool GetEvenRowDistribution() { return EvenRowDistribution.Get(); }
 
-	FSlot& AddSlot();
+	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
+	FScopedWidgetSlotArguments AddSlot();
 	
 	/**
 	 * Removes a slot from this panel which contains the specified SWidget

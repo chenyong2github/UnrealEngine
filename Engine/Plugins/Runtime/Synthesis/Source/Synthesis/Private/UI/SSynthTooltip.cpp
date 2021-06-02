@@ -30,11 +30,8 @@ void SSynthTooltip::Construct(const FArguments& InArgs)
 			TooltipText.ToSharedRef()
 		]);
 
-	const int32 NumSlots = InArgs.Slots.Num();
-	for (int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex)
-	{
-		Children.Add(InArgs.Slots[SlotIndex]);
-	}
+
+	Children.AddSlots(MoveTemp(const_cast<TArray<SOverlay::FOverlaySlot::FSlotArguments>&>(InArgs._Slots)));
 
 	bIsVisible = false;
 }
