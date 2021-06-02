@@ -143,6 +143,10 @@ void MainVertexShader(
  * Pixel Shader
  *============================================================================*/
 
+#ifndef VELOCITY_THIN_TRANSLUCENT_MODE
+#define VELOCITY_THIN_TRANSLUCENT_MODE 0
+#endif
+
 void MainPixelShader(
 	in INPUT_POSITION_QUALIFIERS float4 SvPosition : SV_Position,
 	FVelocityInterpsVSToPS Input
@@ -164,7 +168,7 @@ void MainPixelShader(
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Input.FactoryInterpolants, SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace);
-	GetMaterialClippingVelocity(MaterialParameters, PixelMaterialInputs);
+	GetMaterialClippingVelocity(MaterialParameters, PixelMaterialInputs, VELOCITY_THIN_TRANSLUCENT_MODE > 0);
 
 #if OUTPUT_PIXEL_DEPTH_OFFSET
 	ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);

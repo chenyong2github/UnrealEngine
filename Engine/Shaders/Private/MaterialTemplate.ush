@@ -2742,7 +2742,9 @@ void GetMaterialClippingShadowDepth(FMaterialPixelParameters Parameters, FPixelM
 	#endif
 }
 
-void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs)
+// The material blending mode alone is not enough information. We also need to know if the material is ThinTranslucent because in this case we should never clip.
+// Indeed, ThinTranslucent surfaces always have a coverage of 1 and opacity represent the coverage of the opaque lit material sitting on top of the translucent one.
+void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs, bool bIsThinTranslucent)
 {
 	ClipLODTransition(Parameters);
 	#if MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK
@@ -2750,7 +2752,7 @@ void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMate
 	#elif MATERIALBLENDING_MASKED
 		clip(GetMaterialMask(PixelMaterialInputs)); 
 	#elif MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
-		clip(GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
+		clip(bIsThinTranslucent ? 1.0f : GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
 	#endif
 }
 
