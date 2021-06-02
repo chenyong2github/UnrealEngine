@@ -10,10 +10,6 @@
 #include "../FastMath.ush"
 #include "../SceneTextureParameters.ush"
 
-Texture2D<float> ClosestHZBTexture;
-float2 HZBBaseTexelSize;
-float4 HZBUVToScreenUVScaleBias;
-
 // HZB mip 0 is half res scene depth. To do accurate traces we need to traverse all the way down to full res scene depth, but this adds an incoherent branch on the inner tracing loop.
 #ifndef HZB_TRACE_INCLUDE_FULL_RES_DEPTH
 #define HZB_TRACE_INCLUDE_FULL_RES_DEPTH 0
@@ -26,7 +22,11 @@ float4 HZBUVToScreenUVScaleBias;
  * OutScreenUV gives either the hit screen UV or the screen UV of the furthest unoccluded position along the ray, which can be plugged into ComputeRayHitSqrDistance.  
  * OutScreenUV can sometimes be further than MaxWorldTraceDistance should have allowed.
  */
-void TraceScreen(
+void InternalTraceScreen(
+	Texture2D InSceneDepthTexture,
+	Texture2D InClosestHZBTexture,
+	float2 InHZBBaseTexelSize,
+	float4 InHZBUVToScreenUVScaleBias,
 	float3 RayTranslatedWorldOrigin, 
 	float3 RayWorldDirection,
 	float MaxWorldTraceDistance,
@@ -72,7 +72,7 @@ void TraceScreen(
 
 	if (bStepOutOfCurrentTile)
 	{
-		float2 HZBTileSize = exp2(MipLevel) * HZBBaseTexelSize;
+		float2 HZBTileSize = exp2(MipLevel) * InHZBBaseTexelSize;
 		float2 BiasedUV = RayStartScreenUV.xy;
 		float3 HZBTileMin = float3(floor(BiasedUV.xy / HZBTileSize) * HZBTileSize, 0.0f);
 		float3 HZBTileMax = float3(HZBTileMin.xy + HZBTileSize, 1);
@@ -95,7 +95,7 @@ void TraceScreen(
 	// Stackless HZB traversal
 	while (MipLevel >= BaseMipLevel && NumIterations < MaxIterations)
 	{
-		float2 HZBTileSize = exp2(MipLevel) * HZBBaseTexelSize;
+		float2 HZBTileSize = exp2(MipLevel) * InHZBBaseTexelSize;
 		// RayScreenUV is on a tile boundary due to bStepOutOfCurrentTile
 		// Offset the UV along the ray direction so it always quantizes to the next tile
 		float2 BiasedUV = RayScreenUV.xy + .01f * RayDirectionScreenUV.xy * HZBTileSize;
@@ -110,12 +110,12 @@ void TraceScreen(
 #if HZB_TRACE_INCLUDE_FULL_RES_DEPTH
 		if (MipLevel < 0)
 		{
-			TileZ = SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, BiasedUV * HZBUVToScreenUVScaleBias.xy + HZBUVToScreenUVScaleBias.zw, 0).x;
+			TileZ = InSceneDepthTexture.SampleLevel(GlobalPointClampedSampler, BiasedUV * InHZBUVToScreenUVScaleBias.xy + InHZBUVToScreenUVScaleBias.zw, 0).r;
 		}
 		else
 #endif
 		{
-			TileZ = ClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, BiasedUV, MipLevel).x;
+			TileZ = InClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, BiasedUV, MipLevel).x;
 			// Heuristic to avoid incorrect self-intersection because HZB mip 0 is actually the closest of the 2x2 depths, and because HZB is only 16 bit fp
 			AvoidSelfIntersectionZScale = lerp(.99f, 1.0f, saturate(TileIntersections.y * 10.0f));
 		}
@@ -155,7 +155,7 @@ void TraceScreen(
 	{
 		float ThicknessSearchMipLevel = 0.0f;
 		float MipNumTexels = exp2(ThicknessSearchMipLevel);
-		float2 HZBTileSize = MipNumTexels * HZBBaseTexelSize;
+		float2 HZBTileSize = MipNumTexels * InHZBBaseTexelSize;
 		float NumSteps = NumThicknessStepsToDetermineCertainty / MipNumTexels;
 		float ThicknessSearchEndTime = min(length(RayDirectionScreenUV * HZBTileSize * NumSteps) / length(RayEndScreenUV.xy - RayScreenUV.xy), 1.0f);
 
@@ -165,7 +165,7 @@ void TraceScreen(
 
 			if (all(SampleUV.xy > 0 && SampleUV.xy < HZBUvFactorAndInvFactor.xy))
 			{
-				float SampleTileZ = ClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, SampleUV.xy, ThicknessSearchMipLevel).x;
+				float SampleTileZ = InClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, SampleUV.xy, ThicknessSearchMipLevel).x;
 
 				if (SampleUV.z > SampleTileZ)
 				{
@@ -180,6 +180,39 @@ void TraceScreen(
 	//bHit = bUncertain;
 
 	// Output in GBuffer SceneUV space for xy
-	OutScreenUV.xy = RayScreenUV.xy * HZBUVToScreenUVScaleBias.xy + HZBUVToScreenUVScaleBias.zw;
+	OutScreenUV.xy = RayScreenUV.xy * InHZBUVToScreenUVScaleBias.xy + InHZBUVToScreenUVScaleBias.zw;
 	OutScreenUV.z = RayScreenUV.z;
 }
+
+Texture2D ClosestHZBTexture;
+float2 HZBBaseTexelSize;
+float4 HZBUVToScreenUVScaleBias;
+
+void TraceScreen(
+	float3 RayTranslatedWorldOrigin,
+	float3 RayWorldDirection,
+	float MaxWorldTraceDistance,
+	float4 HZBUvFactorAndInvFactor,
+	float MaxIterations,
+	float UncertainTraceRelativeDepthThreshold,
+	float NumThicknessStepsToDetermineCertainty,
+	inout bool bHit,
+	inout bool bUncertain,
+	inout float3 OutScreenUV)
+{
+	InternalTraceScreen(
+		SceneDepthTexture,
+		ClosestHZBTexture,
+		HZBBaseTexelSize,
+		HZBUVToScreenUVScaleBias,
+		RayTranslatedWorldOrigin,
+		RayWorldDirection,
+		MaxWorldTraceDistance,
+		HZBUvFactorAndInvFactor,
+		MaxIterations,
+		UncertainTraceRelativeDepthThreshold,
+		NumThicknessStepsToDetermineCertainty,
+		bHit,
+		bUncertain,
+		OutScreenUV);
+} 
