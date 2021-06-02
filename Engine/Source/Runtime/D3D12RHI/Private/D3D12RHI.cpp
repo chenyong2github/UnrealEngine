@@ -230,7 +230,7 @@ void FD3D12DynamicRHI::Shutdown()
 	if (AmdAgsContext)
 	{
 		// Clean up the AMD extensions and shut down the AMD AGS utility library
-		agsDeInit(AmdAgsContext);
+		agsDeInitialize(AmdAgsContext);
 		AmdAgsContext = nullptr;
 	}
 #endif

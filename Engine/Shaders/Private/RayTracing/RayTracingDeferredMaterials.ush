@@ -15,6 +15,10 @@ struct FRayIntersectionBookmark
 
 #if DIM_AMD_HIT_TOKEN
 
+#ifndef AGS_RAY_HIT_TOKEN
+#define AGS_RAY_HIT_TOKEN 1
+#endif
+
 #include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx12.h"
 
 #define TraceDeferredMaterialGatherRay(TLAS, RayFlags, InstanceInclusionMask, Ray, OutBookmark, InOutPayload){\
