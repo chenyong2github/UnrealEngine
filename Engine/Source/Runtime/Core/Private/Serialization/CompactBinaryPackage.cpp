@@ -8,34 +8,25 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCbAttachment::FCbAttachment(FCbFieldIterator InValue, const FIoHash* const InHash)
+FCbAttachment::FCbAttachment(FCbObject InValue, const FIoHash* const InHash)
 {
-	if (InValue)
+	FMemoryView View;
+	if (!InValue.IsOwned() || !InValue.TryGetSerializedView(View))
 	{
-		if (!InValue.IsOwned())
-		{
-			InValue = FCbFieldIterator::CloneRange(InValue);
-		}
-
-		CompactBinary = FCbFieldViewIterator(InValue);
-		Buffer = MoveTemp(InValue).GetOuterBuffer();
+		InValue = FCbObject::Clone(InValue);
 	}
+
+	Object = InValue.AsFieldView();
+	Buffer = MoveTemp(InValue).GetBuffer();
 
 	if (InHash)
 	{
 		Hash = *InHash;
-		if (CompactBinary)
-		{
-			checkSlow(Hash == CompactBinary.GetRangeHash());
-		}
-		else
-		{
-			checkfSlow(Hash.IsZero(), TEXT("A null or empty field range must use a hash of zero."));
-		}
+		checkSlow(Hash == FIoHash::HashBuffer(Buffer));
 	}
-	else if (CompactBinary)
+	else
 	{
-		Hash = CompactBinary.GetRangeHash();
+		Hash = FIoHash::HashBuffer(Buffer);
 	}
 }
 
@@ -45,44 +36,12 @@ FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FIoHash* const InHash
 	if (InHash)
 	{
 		Hash = *InHash;
-		if (Buffer.GetSize())
-		{
-			checkSlow(Hash == FIoHash::HashBuffer(Buffer));
-		}
-		else
-		{
-			checkfSlow(Hash.IsZero(), TEXT("A null or empty buffer must use a hash of zero."));
-		}
-	}
-	else if (Buffer.GetSize())
-	{
-		Hash = FIoHash::HashBuffer(Buffer);
+		checkSlow(Hash == FIoHash::HashBuffer(Buffer));
 	}
 	else
 	{
-		Buffer.Reset();
+		Hash = FIoHash::HashBuffer(Buffer);
 	}
-}
-
-FSharedBuffer FCbAttachment::AsBinaryView() const
-{
-	if (!CompactBinary)
-	{
-		return Buffer;
-	}
-
-	FMemoryView SerializedView;
-	if (CompactBinary.TryGetSerializedRangeView(SerializedView))
-	{
-		return SerializedView == Buffer.GetView() ? Buffer : FSharedBuffer::MakeView(SerializedView, Buffer);
-	}
-
-	return FCbFieldIterator::CloneRange(CompactBinary).GetRangeBuffer();
-}
-
-FCbFieldIterator FCbAttachment::AsCompactBinary() const
-{
-	return CompactBinary ? FCbFieldIterator::MakeRangeView(CompactBinary, Buffer) : FCbFieldIterator();
 }
 
 void FCbAttachment::Load(FCbFieldIterator& Fields)
@@ -92,12 +51,14 @@ void FCbAttachment::Load(FCbFieldIterator& Fields)
 	if (View.GetSize() > 0)
 	{
 		Buffer = FSharedBuffer::MakeView(View, Fields.GetOuterBuffer()).MakeOwned();
+		Object = FCbFieldView();
 		++Fields;
+
 		Hash = Fields.AsAttachment();
 		checkf(!Fields.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
 		if (Fields.IsObjectAttachment())
 		{
-			CompactBinary = FCbFieldViewIterator::MakeRange(Buffer);
+			Object = FCbFieldView(Buffer.GetData());
 		}
 		++Fields;
 	}
@@ -105,7 +66,7 @@ void FCbAttachment::Load(FCbFieldIterator& Fields)
 	{
 		++Fields;
 		Buffer.Reset();
-		CompactBinary.Reset();
+		Object = FCbFieldView();
 		Hash.Reset();
 	}
 }
@@ -118,7 +79,7 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 	if (View.GetSize() > 0)
 	{
 		Buffer = FSharedBuffer::MakeView(View, BufferField.GetOuterBuffer()).MakeOwned();
-		CompactBinary = FCbFieldViewIterator();
+		Object = FCbFieldView();
 
 		TArray<uint8, TInlineAllocator<64>> HashBuffer;
 		FCbField HashField = LoadCompactBinary(Ar,
@@ -131,31 +92,26 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 		checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
 		if (HashField.IsObjectAttachment())
 		{
-			CompactBinary = FCbFieldViewIterator::MakeRange(Buffer);
+			Object = FCbFieldView(Buffer.GetData());
 		}
 	}
 	else
 	{
 		Buffer.Reset();
-		CompactBinary.Reset();
+		Object = FCbFieldView();
 		Hash.Reset();
 	}
 }
 
 void FCbAttachment::Save(FCbWriter& Writer) const
 {
-	if (CompactBinary)
+	if (Object.IsObject())
 	{
-		FMemoryView SerializedView;
-		if (CompactBinary.TryGetSerializedRangeView(SerializedView))
+		Writer.AddBinary(Buffer);
+		if (FCbFieldView(Object).AsObjectView())
 		{
-			Writer.AddBinary(SerializedView);
+			Writer.AddObjectAttachment(Hash);
 		}
-		else
-		{
-			Writer.AddBinary(AsBinaryView());
-		}
-		Writer.AddObjectAttachment(Hash);
 	}
 	else if (Buffer.GetSize())
 	{
@@ -193,7 +149,7 @@ void FCbPackage::SetObject(FCbObject InObject, const FIoHash* InObjectHash, FAtt
 		}
 		if (InResolver)
 		{
-			GatherAttachments(Object.CreateViewIterator(), *InResolver);
+			GatherAttachments(Object, *InResolver);
 		}
 	}
 	else
@@ -211,18 +167,18 @@ void FCbPackage::AddAttachment(const FCbAttachment& Attachment, FAttachmentResol
 		if (Attachments.IsValidIndex(Index) && Attachments[Index] == Attachment)
 		{
 			FCbAttachment& Existing = Attachments[Index];
-			if (Attachment.IsCompactBinary() && !Existing.IsCompactBinary())
+			if (Attachment.IsObject() && !Existing.IsObject())
 			{
-				Existing = FCbAttachment(FCbFieldIterator::MakeRange(Existing.AsBinaryView()));
+				Existing = FCbAttachment(FCbObject(Existing.AsBinary()), Existing.GetHash());
 			}
 		}
 		else
 		{
 			Attachments.Insert(Attachment, Index);
 		}
-		if (Attachment.IsCompactBinary() && Resolver)
+		if (Attachment.IsObject() && Resolver)
 		{
-			GatherAttachments(Attachment.AsCompactBinary(), *Resolver);
+			GatherAttachments(Attachment.AsObject(), *Resolver);
 		}
 	}
 }
@@ -251,16 +207,16 @@ const FCbAttachment* FCbPackage::FindAttachment(const FIoHash& Hash) const
 	return Attachments.IsValidIndex(Index) ? &Attachments[Index] : nullptr;
 }
 
-void FCbPackage::GatherAttachments(const FCbFieldViewIterator& Fields, FAttachmentResolver Resolver)
+void FCbPackage::GatherAttachments(const FCbObject& Value, FAttachmentResolver Resolver)
 {
-	Fields.IterateRangeAttachments([this, &Resolver](FCbFieldView Field)
+	Value.IterateAttachments([this, &Resolver](FCbFieldView Field)
 		{
 			const FIoHash& Hash = Field.AsAttachment();
 			if (FSharedBuffer Buffer = Resolver(Hash))
 			{
 				if (Field.IsObjectAttachment())
 				{
-					AddAttachment(FCbAttachment(FCbFieldIterator::MakeRange(MoveTemp(Buffer)), Hash), &Resolver);
+					AddAttachment(FCbAttachment(FCbObject(MoveTemp(Buffer)), Hash), &Resolver);
 				}
 				else
 				{
@@ -333,7 +289,7 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 				checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
 				if (HashField.IsObjectAttachment())
 				{
-					AddAttachment(FCbAttachment(FCbFieldIterator::MakeRange(MoveTemp(Buffer)), Hash));
+					AddAttachment(FCbAttachment(FCbObject(MoveTemp(Buffer)), Hash));
 				}
 				else
 				{

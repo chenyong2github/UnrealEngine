@@ -15,9 +15,9 @@ template <typename FuncType> class TFunctionRef;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * An attachment is either binary or compact binary and is identified by its hash.
+ * An attachment is either binary or object and is identified by its hash.
  *
- * A compact binary attachment is also a valid binary attachment and may be accessed as binary.
+ * An object attachment is also a valid binary attachment and may be accessed as binary.
  *
  * Attachments are serialized as one or two compact binary fields with no name. A Binary field is
  * written first with its content. The content hash is omitted when the content size is zero, and
@@ -29,14 +29,14 @@ public:
 	/** Construct a null attachment. */
 	FCbAttachment() = default;
 
-	/** Construct a compact binary attachment. Value is cloned if not owned. */
-	inline explicit FCbAttachment(FCbFieldIterator Value)
+	/** Construct an object attachment. Value is cloned if not owned. */
+	inline explicit FCbAttachment(FCbObject Value)
 		: FCbAttachment(MoveTemp(Value), nullptr)
 	{
 	}
 
-	/** Construct a compact binary attachment. Value is cloned if not owned. Hash must match Value. */
-	inline explicit FCbAttachment(FCbFieldIterator Value, const FIoHash& Hash)
+	/** Construct an object attachment. Value is cloned if not owned. Hash must match Value. */
+	inline explicit FCbAttachment(FCbObject Value, const FIoHash& Hash)
 		: FCbAttachment(MoveTemp(Value), &Hash)
 	{
 	}
@@ -62,17 +62,17 @@ public:
 	/** Whether the attachment has a value. */
 	inline bool IsNull() const { return !Buffer; }
 
-	/** Access the attachment as binary. Defaults to a null buffer on error. */
-	CORE_API FSharedBuffer AsBinaryView() const;
+	/** Access the attachment as binary. Defaults to a null buffer if the attachment is null. */
+	inline FSharedBuffer AsBinary() const { return Buffer; }
 
-	/** Access the attachment as compact binary. Defaults to a field iterator with no value on error. */
-	CORE_API FCbFieldIterator AsCompactBinary() const;
+	/** Access the attachment as an object. Defaults to an empty object on error. */
+	inline FCbObject AsObject() const { return Object ? FCbObject(FCbFieldView(Object).AsObjectView(), Buffer) : FCbObject(); }
 
-	/** Returns whether the attachment is binary or compact binary. */
+	/** Returns whether the attachment is binary or an object. */
 	inline bool IsBinary() const { return !Buffer.IsNull(); }
 
-	/** Returns whether the attachment is compact binary. */
-	inline bool IsCompactBinary() const { return CompactBinary.HasValue(); }
+	/** Returns whether the attachment is an object. */
+	inline bool IsObject() const { return Object.IsObject(); }
 
 	/** Returns the hash of the attachment value. */
 	inline const FIoHash& GetHash() const { return Hash; }
@@ -108,13 +108,13 @@ public:
 	CORE_API void Save(FArchive& Ar) const;
 
 private:
-	CORE_API FCbAttachment(FCbFieldIterator Value, const FIoHash* Hash);
+	CORE_API FCbAttachment(FCbObject Value, const FIoHash* Hash);
 	CORE_API FCbAttachment(FSharedBuffer Value, const FIoHash* Hash);
 
-	/** An owned buffer containing the binary or compact binary data. */
+	/** An owned buffer containing the binary or object data. */
 	FSharedBuffer Buffer;
-	/** A field iterator that is valid only for compact binary attachments. */
-	FCbFieldViewIterator CompactBinary;
+	/** A field that is valid only for object attachments. */
+	FCbFieldView Object;
 	/** A hash of the attachment value. */
 	FIoHash Hash;
 };
@@ -128,16 +128,16 @@ inline uint32 GetTypeHash(const FCbAttachment& Attachment)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * A package is a compact binary object with attachments for its external references.
+ * A package is an object with a tree of referenced attachments.
  *
- * A package is basically a Merkle tree with compact binary as its root and other non-leaf nodes,
- * and either binary or compact binary as its leaf nodes. A node references its child nodes using
- * BinaryHash or FieldHash fields in its compact binary representation.
+ * A package is a Merkle tree with an object as its root and non-leaf nodes, and either binary or
+ * objects as its leaf nodes. Nodes reference their children from fields of type BinaryAttachment
+ * or ObjectAttachment, which store the hash of the referenced data.
  *
  * It is invalid for a package to include attachments that are not referenced by its object or by
- * one of its referenced compact binary attachments. When attachments are added explicitly, it is
- * the responsibility of the package creator to follow this requirement. Attachments that are not
- * referenced may not survive a round-trip through certain storage systems.
+ * one of its referenced object attachments. This invariant needs to be maintained if attachments
+ * are added explicitly instead of being discovered by the attachment resolver. If any attachment
+ * is not referenced, it may not survive a round-trip through certain storage systems.
  *
  * It is valid for a package to exclude referenced attachments, but then it is the responsibility
  * of the package consumer to have a mechanism for resolving those references when necessary.
@@ -216,10 +216,10 @@ public:
 	/** Whether the package has an empty object and no attachments. */
 	inline bool IsNull() const { return !Object && Attachments.IsEmpty(); }
 
-	/** Returns the compact binary object for the package. */
+	/** Returns the object for the package. */
 	inline const FCbObject& GetObject() const { return Object; }
 
-	/** Returns the has of the compact binary object for the package. */
+	/** Returns the hash of the object for the package. */
 	inline const FIoHash& GetObjectHash() const { return ObjectHash; }
 
 	/**
@@ -338,7 +338,7 @@ private:
 	CORE_API void SetObject(FCbObject Object, const FIoHash* Hash, FAttachmentResolver* Resolver);
 	CORE_API void AddAttachment(const FCbAttachment& Attachment, FAttachmentResolver* Resolver);
 
-	void GatherAttachments(const FCbFieldViewIterator& Fields, FAttachmentResolver Resolver);
+	void GatherAttachments(const FCbObject& Object, FAttachmentResolver Resolver);
 
 	/** Attachments ordered by their hash. */
 	TArray<FCbAttachment> Attachments;
