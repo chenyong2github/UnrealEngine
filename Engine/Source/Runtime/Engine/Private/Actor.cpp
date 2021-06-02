@@ -51,6 +51,7 @@
 #include "Components/DecalComponent.h"
 #include "GameFramework/InputSettings.h"
 #include "Algo/AnyOf.h"
+#include "PrimitiveSceneProxy.h"
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"
@@ -143,6 +144,7 @@ void AActor::InitializeDefaults()
 	bAllowReceiveTickEventOnDedicatedServer = true;
 	bRelevantForNetworkReplays = true;
 	bRelevantForLevelBounds = true;
+	RayTracingGroupId = FPrimitiveSceneProxy::InvalidRayTracingGroupId;
 
 	// Overlap collision settings
 	bGenerateOverlapEventsDuringLevelStreaming = false;
@@ -5558,6 +5560,26 @@ void AActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDi
 	}
 }
 
+void AActor::SetRayTracingGroupId(int32 InRaytracingGroupId)
+{
+	if (RayTracingGroupId != InRaytracingGroupId)
+	{
+		Modify();
+		RayTracingGroupId = InRaytracingGroupId;
+		MarkComponentsRenderStateDirty();
+	}
+}
+
+int32 AActor::GetRayTracingGroupId() const
+{
+	// Support for ChildActorComponents 
+	if(RayTracingGroupId == FPrimitiveSceneProxy::InvalidRayTracingGroupId && GetParentActor() != nullptr)
+	{
+		return GetParentActor()->GetRayTracingGroupId();
+	}
+	
+	return RayTracingGroupId;
+}
 
 void AActor::SetHidden(bool bInHidden)
 {

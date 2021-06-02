@@ -662,7 +662,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 				// First try to merge components
 				extern int32 GLumenMeshCardsMergeComponents;
-				if (GLumenMeshCardsMergeComponents != 0 && ScenePrimitiveInfo->Proxy->GetRayTracingGroupId() >= 0)
+				if (GLumenMeshCardsMergeComponents != 0 && ScenePrimitiveInfo->Proxy->GetRayTracingGroupId() != FPrimitiveSceneProxy::InvalidRayTracingGroupId)
 				{
 					const Experimental::FHashElementId RayTracingGroupMapElementId = LumenSceneData.RayTracingGroups.FindOrAddId(ScenePrimitiveInfo->Proxy->GetRayTracingGroupId(), -1);
 					int32& PrimitiveGroupIndex = LumenSceneData.RayTracingGroups.GetByElementId(RayTracingGroupMapElementId).Value;

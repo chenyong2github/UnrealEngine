@@ -622,6 +622,8 @@ public:
 	inline int32 GetRayTracingGroupId() const { return RayTracingGroupId; }
 	inline uint8 GetRayTracingGroupCullingPriority() const { return RayTracingGroupCullingPriority; }
 
+	static constexpr int32 InvalidRayTracingGroupId = -1;
+
 	/** Returns whether draws velocity in base pass. */
 	inline bool DrawsVelocity() const
 	{

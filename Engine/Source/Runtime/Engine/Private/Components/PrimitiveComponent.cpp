@@ -326,7 +326,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	ComponentId.PrimIDValue = NextComponentId.Increment();
 	CustomDepthStencilValue = 0;
 	CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
-	RayTracingGroupId = -1;
+	RayTracingGroupId = FPrimitiveSceneProxy::InvalidRayTracingGroupId;
 	RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_4_DEFAULT;
 
 	LDMaxDrawDistance = 0.f;
@@ -3880,6 +3880,16 @@ void UPrimitiveComponent::SetCustomNavigableGeometry(const EHasCustomNavigableGe
 	bHasCustomNavigableGeometry = InType;
 }
  
+int32 UPrimitiveComponent::GetRayTracingGroupId() const
+{
+	if (RayTracingGroupId == FPrimitiveSceneProxy::InvalidRayTracingGroupId && GetOwner() != nullptr)
+	{
+		return GetOwner()->GetRayTracingGroupId();
+	}
+			
+	return RayTracingGroupId;
+}
+
 bool UPrimitiveComponent::WasRecentlyRendered(float Tolerance /*= 0.2*/) const
 {
 	if (const UWorld* const World = GetWorld())
