@@ -66,8 +66,10 @@ bool FMaterialHLSLGenerator::Finalize()
 	}
 
 	// Resolve values for any PHI nodes that were generated
-	for (UE::HLSLTree::FExpressionLocalPHI* Expression : PHIExpressions)
+	// Resolving a PHI may produce additional PHIs
+	while(PHIExpressions.Num() > 0)
 	{
+		UE::HLSLTree::FExpressionLocalPHI* Expression = PHIExpressions.Pop(false);
 		for (int32 i = 0; i < Expression->NumValues; ++i)
 		{
 			Expression->Values[i] = InternalAcquireLocalValue(*Expression->Scopes[i], Expression->LocalName);
@@ -134,7 +136,7 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 				DefaultValue.NumComponents = UE::Shader::GetValueTypeDescription(InputDescription.Type).NumComponents;
 				if (InputDescription.ConstantValue != DefaultValue)
 				{
-					Expression = Generator.NewConstant(Scope, InputDescription.ConstantValue);
+					Expression = Generator.NewConstant(InputDescription.ConstantValue);
 				}
 			}
 			else
@@ -237,9 +239,9 @@ UE::HLSLTree::FScope* FMaterialHLSLGenerator::NewJoinedScope(UE::HLSLTree::FScop
 	return NewScope;
 }
 
-UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value)
+UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(const UE::Shader::FValue& Value)
 {
-	UE::HLSLTree::FExpressionConstant* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionConstant>(Scope, Value);
+	UE::HLSLTree::FExpressionConstant* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionConstant>(HLSLTree->GetRootScope(), Value);
 	return Expression;
 }
 
@@ -468,6 +470,20 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 	}
 
 	return bResult;
+}
+
+void FMaterialHLSLGenerator::InternalRegisterExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression, void* Data)
+{
+	const FExpressionDataKey Key(Type, MaterialExpression);
+	check(!ExpressionDataMap.Contains(Key));
+	ExpressionDataMap.Add(Key, Data);
+}
+
+void* FMaterialHLSLGenerator::InternalFindExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression)
+{
+	const FExpressionDataKey Key(Type, MaterialExpression);
+	void** Result = ExpressionDataMap.Find(Key);
+	return Result ? *Result : nullptr;
 }
 
 #endif // WITH_EDITOR

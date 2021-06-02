@@ -45,6 +45,12 @@ enum class EMaterialNewScopeFlag : uint8
 };
 ENUM_CLASS_FLAGS(EMaterialNewScopeFlag);
 
+template<typename T>
+struct TMaterialHLSLGeneratorType;
+
+#define DECLARE_MATERIAL_HLSLGENERATOR_DATA(T) \
+	template<> struct TMaterialHLSLGeneratorType<T> { static const FName& GetTypeName() { static const FName Name(TEXT(#T)); return Name; } }
+
 /**
  * MaterialHLSLGenerator is a bridge between a material, and HLSLTree.  It facilitates generating HLSL source code for a given material, using HLSLTree
  */
@@ -79,7 +85,7 @@ public:
 
 	UE::HLSLTree::FScope* NewJoinedScope(UE::HLSLTree::FScope& Scope);
 
-	UE::HLSLTree::FExpressionConstant* NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value);
+	UE::HLSLTree::FExpressionConstant* NewConstant(const UE::Shader::FValue& Value);
 	UE::HLSLTree::FExpressionExternalInput* NewTexCoord(UE::HLSLTree::FScope& Scope, int32 Index);
 	UE::HLSLTree::FExpressionSwizzle* NewSwizzle(UE::HLSLTree::FScope& Scope, const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input);
 	UE::HLSLTree::FExpression* NewCast(UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type, UE::HLSLTree::FExpression* Input, UE::HLSLTree::ECastFlags Flags = UE::HLSLTree::ECastFlags::None);
@@ -107,6 +113,32 @@ public:
 	UE::HLSLTree::FExpression* AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureDeclaration(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
+
+	template<typename T, typename... ArgTypes>
+	T* NewExpressionData(const UMaterialExpression* MaterialExpression, ArgTypes... Args)
+	{
+		T* Data = new T(Forward<ArgTypes>(Args)...);
+		InternalRegisterExpressionData(TMaterialHLSLGeneratorType<T>::GetTypeName(), MaterialExpression, Data);
+		return Data;
+	}
+
+	template<typename T>
+	T* FindExpressionData(const UMaterialExpression* MaterialExpression)
+	{
+		return static_cast<T*>(InternalFindExpressionData(TMaterialHLSLGeneratorType<T>::GetTypeName(), MaterialExpression));
+	}
+
+	template<typename T>
+	T* AcquireGlobalData()
+	{
+		T* Data = static_cast<T*>(InternalFindExpressionData(TMaterialHLSLGeneratorType<T>::GetTypeName(), nullptr));
+		if (!Data)
+		{
+			Data = new T();
+			InternalRegisterExpressionData(TMaterialHLSLGeneratorType<T>::GetTypeName(), nullptr, Data);
+		}
+		return Data;
+	}
 
 private:
 	static constexpr int32 MaxNumPreviousScopes = UE::HLSLTree::MaxNumPreviousScopes;
@@ -162,6 +194,24 @@ private:
 		}
 	};
 
+	struct FExpressionDataKey
+	{
+		FExpressionDataKey(const FName& InTypeName, const UMaterialExpression* InMaterialExpression) : MaterialExpression(InMaterialExpression), TypeName(InTypeName) {}
+
+		const UMaterialExpression* MaterialExpression;
+		FName TypeName;
+
+		friend inline uint32 GetTypeHash(const FExpressionDataKey& Value)
+		{
+			return HashCombine(GetTypeHash(Value.MaterialExpression), GetTypeHash(Value.TypeName));
+		}
+
+		friend inline bool operator==(const FExpressionDataKey& Lhs, const FExpressionDataKey& Rhs)
+		{
+			return Lhs.MaterialExpression == Rhs.MaterialExpression && Lhs.TypeName == Rhs.TypeName;
+		}
+	};
+
 	struct FStatementEntry
 	{
 		UE::HLSLTree::FScope* PreviousScope[MaxNumPreviousScopes];
@@ -169,6 +219,9 @@ private:
 	};
 
 	UE::HLSLTree::FExpression* InternalAcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName);
+
+	void InternalRegisterExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression, void* Data);
+	void* InternalFindExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression);
 
 	const FMaterialCompileTargetParameters& CompileTarget;
 	UMaterial* TargetMaterial;
@@ -187,6 +240,7 @@ private:
 	TMap<FLocalKey, UE::HLSLTree::FExpression*> LocalMap;
 	TMap<FExpressionKey, UE::HLSLTree::FExpression*> ExpressionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
+	TMap<FExpressionDataKey, void*> ExpressionDataMap;
 	bool bGeneratedResult;
 };
 

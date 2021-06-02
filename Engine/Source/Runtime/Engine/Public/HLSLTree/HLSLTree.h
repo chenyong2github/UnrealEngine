@@ -135,7 +135,6 @@ public:
 	FEmitScopeLink* LastLink = nullptr;
 	const FScope* SourceScope = nullptr;
 	TMap<FSHAHash, const TCHAR*> ExpressionMap;
-	bool bFinalized = false;
 };
 
 class FEmitValue
@@ -189,7 +188,6 @@ public:
 
 	FEmitScope* FindScope(const FScope& Scope);
 	FEmitScope* AcquireScope(const FScope& Scope);
-	void FinalizeScope(FEmitScope& EmitScope);
 
 	FEmitScope& GetCurrentScope();
 
@@ -242,7 +240,7 @@ public:
 
 	bool WriteAssignment(FEmitScope& EmitScope, const TCHAR* Declaration, FExpression* Expression, Shader::EValueType& InOutType);
 
-	void Finalize();
+	bool FinalizeScope(FEmitScope& EmitScope);
 
 	struct FDeclarationEntry
 	{
@@ -268,6 +266,7 @@ public:
 
 	TArray<FFunctionStackEntry> FunctionStack;
 	TArray<Shader::FPreshaderData*> TempPreshaders;
+	TSet<const FExpression*> PendingEmitValueExpressions;
 	FMemStackBase* Allocator = nullptr;
 	const FMaterial* Material = nullptr; // TODO - remove preshader material dependency
 	const FStaticParameterSet* StaticParameters = nullptr;
@@ -444,6 +443,8 @@ public:
 		return MakeArrayView(const_cast<FScope*>(this)->PreviousScope, NumPreviousScopes);
 	}
 
+	bool HasParentScope(const FScope& ParentScope) const;
+
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 	bool EmitHLSL(FEmitContext& Context, FEmitScope& Scope) const;
 
@@ -497,7 +498,6 @@ public:
 	}
 
 	FScope* NewScope(FScope& Scope);
-
 	FParameterDeclaration* NewParameterDeclaration(FScope& Scope, const FName& Name, const Shader::FValue& DefaultValue);
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(FScope& Scope, const FName& Name, const FTextureDescription& DefaultValue);
 

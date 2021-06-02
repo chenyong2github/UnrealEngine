@@ -364,6 +364,7 @@ bool UE::HLSLTree::FExpressionBinaryOp::EmitCode(FEmitContext& Context, FExpress
 		switch (Op)
 		{
 		case UE::HLSLTree::EBinaryOp::Add: Opcode = Shader::EPreshaderOpcode::Add; break;
+		case UE::HLSLTree::EBinaryOp::Mul: Opcode = Shader::EPreshaderOpcode::Mul; break;
 		default: break;
 		}
 	}
@@ -377,6 +378,7 @@ bool UE::HLSLTree::FExpressionBinaryOp::EmitCode(FEmitContext& Context, FExpress
 		switch (Op)
 		{
 		case EBinaryOp::Add: OutResult.Writer.Writef(TEXT("(%s + %s)"), LhsCode, RhsCode); break;
+		case EBinaryOp::Mul: OutResult.Writer.Writef(TEXT("(%s * %s)"), LhsCode, RhsCode); break;
 		case EBinaryOp::Less: OutResult.Writer.Writef(TEXT("(%s < %s)"), LhsCode, RhsCode); break;
 		default: checkNoEntry(); break;
 		}
@@ -424,6 +426,44 @@ bool UE::HLSLTree::FExpressionSwizzle::EmitCode(FEmitContext& Context, FExpressi
 			.Write((uint8)Parameters.ComponentIndex[1])
 			.Write((uint8)Parameters.ComponentIndex[2])
 			.Write((uint8)Parameters.ComponentIndex[3]);
+	}
+	return true;
+}
+
+bool UE::HLSLTree::FExpressionAppend::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
+{
+	const FEmitValue* LhsValue = Context.AcquireValue(Lhs);
+	const FEmitValue* RhsValue = Context.AcquireValue(Rhs);
+	if (!LhsValue || !RhsValue)
+	{
+		return false;
+	}
+
+	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsValue->GetExpressionType());
+	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsValue->GetExpressionType());
+	if (LhsTypeDesc.ComponentType != RhsTypeDesc.ComponentType)
+	{
+		return false;
+	}
+
+	const int32 NumComponents = LhsTypeDesc.NumComponents + RhsTypeDesc.NumComponents;
+	if (NumComponents > 4)
+	{
+		return false;
+	}
+
+	OutResult.EvaluationType = CombineEvaluationTypes(LhsValue->GetEvaluationType(), RhsValue->GetEvaluationType());
+	OutResult.Type = Shader::MakeValueType(LhsTypeDesc.ComponentType, NumComponents);
+	if (OutResult.EvaluationType == EExpressionEvaluationType::Shader)
+	{
+		const Shader::FValueTypeDescription ResultTypeDesc = Shader::GetValueTypeDescription(OutResult.Type);
+		OutResult.Writer.Writef(TEXT("%s(%s, %s)"), ResultTypeDesc.Name, Context.GetCode(LhsValue), Context.GetCode(RhsValue));
+	}
+	else
+	{
+		Context.AppendPreshader(LhsValue, OutResult.Preshader);
+		Context.AppendPreshader(RhsValue, OutResult.Preshader);
+		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::AppendVector);
 	}
 	return true;
 }
@@ -575,26 +615,4 @@ bool UE::HLSLTree::FStatementLoop::EmitHLSL(FEmitContext& Context) const
 {
 	Context.WriteScopef(*LoopScope, TEXT("while (true)"));
 	return Context.WriteScope(*NextScope);
-}
-
-bool UE::HLSLTree::FStatementFor::EmitHLSL(FEmitContext& Context) const
-{
-	/*const FEmitValue* StartExpressionValue = Context.AcquireValue(StartExpression);
-	const FEmitValue* EndExpressionValue = Context.AcquireValue(StartExpression);
-	if (!!StartExpressionValue || !EndExpressionValue)
-	{
-		return false;
-	}
-
-	const TCHAR* DeclarationCode = TEXT("");
-
-	FEmitCode* LoopScopeCode = Context.AppendHLSLf(Scope, TEXT("for (%s = %s; %s < %s; %s++"),
-		DeclarationCode,
-		Context.GetCode(StartExpressionValue),
-		DeclarationCode,
-		Context.GetCode(EndExpressionValue),
-		DeclarationCode);
-	LoopScope->EmitHLSL(Context, *LoopScopeCode);
-	return NextScope->EmitHLSL(Context, Scope);*/
-	return false;
 }

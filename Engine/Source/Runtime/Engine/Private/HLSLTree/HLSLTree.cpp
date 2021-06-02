@@ -193,22 +193,6 @@ UE::HLSLTree::FEmitScope* UE::HLSLTree::FEmitContext::AcquireScope(const FScope&
 	return EmitScope;
 }
 
-void UE::HLSLTree::FEmitContext::FinalizeScope(FEmitScope& EmitScope)
-{
-	check(!EmitScope.bFinalized);
-
-	FEmitAssignment::TConstIterator It(EmitScope.FirstAssignment);
-	while (It)
-	{
-		const FEmitAssignment& EmitAssignment = *It;
-		const FEmitValue* Value = AcquireValue(EmitAssignment.Expression);
-		WriteStatementToScopef(EmitScope, TEXT("%s = %s;"), EmitAssignment.Declaration, GetCode(Value));
-		It.Next();
-	}
-
-	EmitScope.bFinalized = true;
-}
-
 UE::HLSLTree::FEmitScope& UE::HLSLTree::FEmitContext::GetCurrentScope()
 {
 	return *ScopeStack.Last();
@@ -245,7 +229,19 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 		FLocalHLSLCodeWriter LocalWriter;
 		Shader::FPreshaderData LocalPreshader;
 		FExpressionEmitResult EmitResult(LocalWriter, LocalPreshader);
-		if (Expression->EmitCode(*this, EmitResult))
+
+		bool bEmitResult = false;
+		{
+			bool bAlreadyPending = false;
+			const FSetElementId Id = PendingEmitValueExpressions.Add(Expression, &bAlreadyPending);
+			if (!bAlreadyPending)
+			{
+				bEmitResult = Expression->EmitCode(*this, EmitResult);
+				PendingEmitValueExpressions.Remove(Id);
+			}
+		}
+
+		if (bEmitResult)
 		{
 			check(EmitResult.EvaluationType != EExpressionEvaluationType::None);
 			check(EmitResult.Type != Shader::EValueType::Void);
@@ -495,8 +491,6 @@ bool UE::HLSLTree::FEmitContext::InternalWriteScope(const FScope& Scope, FString
 		return false;
 	}
 
-	FinalizeScope(*EmitScope);
-
 	FEmitScopeLink* Link = InternalWriteScopeLink(InternedCode);
 	Link->NextScope = EmitScope;
 	return true;
@@ -530,9 +524,9 @@ void UE::HLSLTree::FEmitContext::WriteDeclaration(FEmitScope& EmitScope, Shader:
 
 bool UE::HLSLTree::FEmitContext::WriteAssignment(FEmitScope& EmitScope, const TCHAR* Declaration, FExpression* Expression, Shader::EValueType& InOutType)
 {
-	if (EmitScope.bFinalized)
+	const FEmitValue* Value = AcquireValue(Expression);
+	if (Value)
 	{
-		const FEmitValue* Value = AcquireValue(Expression);
 		const Shader::EValueType ValueType = Value->GetExpressionType();
 		if (InOutType == Shader::EValueType::Void)
 		{
@@ -542,7 +536,6 @@ bool UE::HLSLTree::FEmitContext::WriteAssignment(FEmitScope& EmitScope, const TC
 		{
 			return false;
 		}
-
 		WriteStatementToScopef(EmitScope, TEXT("%s = %s;"), Declaration, GetCode(Value));
 	}
 	else
@@ -556,8 +549,40 @@ bool UE::HLSLTree::FEmitContext::WriteAssignment(FEmitScope& EmitScope, const TC
 	return true;
 }
 
-void UE::HLSLTree::FEmitContext::Finalize()
+bool UE::HLSLTree::FEmitContext::FinalizeScope(FEmitScope& EmitScope)
 {
+	if (EmitScope.FirstAssignment)
+	{
+		// Scope has pending assigmnets, flush all of them, then restart finalization
+		// (Since flushing pending assignments may generate additional pending assignments)
+		FEmitAssignment::TConstIterator It(EmitScope.FirstAssignment);
+		while (It)
+		{
+			const FEmitAssignment& EmitAssignment = *It;
+			const FEmitValue* Value = AcquireValue(EmitAssignment.Expression);
+			WriteStatementToScopef(EmitScope, TEXT("%s = %s;"), EmitAssignment.Declaration, GetCode(Value));
+			It.Next();
+		}
+		EmitScope.FirstAssignment = nullptr;
+		return false;
+	}
+
+	UE::HLSLTree::FEmitScopeLink::TConstIterator It(EmitScope.FirstLink);
+	while (It)
+	{
+		const UE::HLSLTree::FEmitScopeLink& EmitLink = *It;
+		if (EmitLink.NextScope)
+		{
+			if (!FinalizeScope(*EmitLink.NextScope))
+			{
+				return false;
+			}
+		}
+
+		It.Next();
+	}
+
+	return true;
 }
 
 UE::HLSLTree::FScope* UE::HLSLTree::FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
@@ -719,6 +744,20 @@ bool UE::HLSLTree::FScope::EmitHLSL(FEmitContext& Context, FEmitScope& Scope) co
 	return bResult;
 }
 
+bool UE::HLSLTree::FScope::HasParentScope(const FScope& InParentScope) const
+{
+	const FScope* CurrentScope = this;
+	while (CurrentScope)
+	{
+		if (CurrentScope == &InParentScope)
+		{
+			return true;
+		}
+		CurrentScope = CurrentScope->ParentScope;
+	}
+	return false;
+}
+
 void UE::HLSLTree::FScope::AddPreviousScope(FScope& Scope)
 {
 	check(NumPreviousScopes < MaxNumPreviousScopes);
@@ -836,8 +875,6 @@ static void WriteIndent(int32 IndentLevel, FStringBuilderBase& InOutString)
 
 static void WriteScope(const UE::HLSLTree::FEmitScope& EmitScope, int32 IndentLevel, FStringBuilderBase& InOutString)
 {
-	check(EmitScope.bFinalized);
-
 	{
 		UE::HLSLTree::FEmitDeclaration::TConstIterator It(EmitScope.FirstDeclaration);
 		while (It)
@@ -900,8 +937,13 @@ bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FCodeWri
 	FEmitScope* EmitRootScope = Context.AcquireScope(*RootScope);
 	if (RootScope->EmitHLSL(Context, *EmitRootScope))
 	{
-		Context.FinalizeScope(*EmitRootScope);
-		Context.Finalize();
+		// Need to continue iterating FinalizeScope until it succeeds
+		bool bFinalizeResult = false;
+		while (!bFinalizeResult)
+		{
+			bFinalizeResult = Context.FinalizeScope(*EmitRootScope);
+		}
+
 		WriteScope(*EmitRootScope, 0, *Writer.StringBuilder);
 		return true;
 	}

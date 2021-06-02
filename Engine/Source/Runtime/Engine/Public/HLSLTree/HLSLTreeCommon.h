@@ -49,7 +49,7 @@ public:
 class FExpressionParameter : public FExpression
 {
 public:
-	FExpressionParameter(FParameterDeclaration* InDeclaration)
+	explicit FExpressionParameter(FParameterDeclaration* InDeclaration)
 		: Declaration(InDeclaration)
 	{}
 
@@ -248,6 +248,31 @@ public:
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
+class FExpressionAppend : public FExpression
+{
+public:
+	FExpressionAppend(FExpression* InLhs, FExpression* InRhs)
+		: Lhs(InLhs)
+		, Rhs(InRhs)
+	{}
+
+	FExpression* Lhs;
+	FExpression* Rhs;
+
+	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
+	{
+		const ENodeVisitResult Result = FExpression::Visit(Visitor);
+		if (ShouldVisitDependentNodes(Result))
+		{
+			Visitor.VisitNode(Lhs);
+			Visitor.VisitNode(Rhs);
+		}
+		return Result;
+	}
+
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+};
+
 class FExpressionCast : public FExpression
 {
 public:
@@ -397,30 +422,6 @@ public:
 		const ENodeVisitResult Result = FStatement::Visit(Visitor);
 		if (ShouldVisitDependentNodes(Result))
 		{
-			Visitor.VisitNode(LoopScope);
-			Visitor.VisitNode(NextScope);
-		}
-		return Result;
-	}
-
-	virtual bool EmitHLSL(FEmitContext& Context) const override;
-};
-
-class FStatementFor : public FStatement
-{
-public:
-	FExpression* StartExpression;
-	FExpression* EndExpression;
-	FScope* LoopScope;
-	FScope* NextScope;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FStatement::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(StartExpression);
-			Visitor.VisitNode(EndExpression);
 			Visitor.VisitNode(LoopScope);
 			Visitor.VisitNode(NextScope);
 		}
