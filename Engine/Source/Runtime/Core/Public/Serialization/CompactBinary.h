@@ -463,8 +463,13 @@ enum class ECbFieldError : uint8
 class FCbObjectId
 {
 public:
+	using ByteArray = uint8[12];
+
 	/** Construct an ObjectId with every byte initialized to zero. */
 	FCbObjectId() = default;
+
+	/** Construct an ObjectId from an array of 12 bytes. */
+	inline explicit FCbObjectId(const ByteArray& ObjectId);
 
 	/** Construct an ObjectId from a view of 12 bytes. */
 	CORE_API explicit FCbObjectId(FMemoryView ObjectId);
@@ -473,12 +478,21 @@ public:
 	CORE_API void ToString(FAnsiStringBuilderBase& Builder) const;
 	CORE_API void ToString(FWideStringBuilderBase& Builder) const;
 
+	/** Returns a reference to the raw byte array for the ObjectId. */
+	inline const ByteArray& GetBytes() const { return Bytes; }
+	inline operator const ByteArray&() const { return Bytes; }
+
 	/** Returns a view of the raw byte array for the ObjectId. */
 	constexpr inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
 
 private:
-	alignas(uint32) uint8 Bytes[12]{};
+	alignas(uint32) ByteArray Bytes{};
 };
+
+inline FCbObjectId::FCbObjectId(const ByteArray& ObjectId)
+{
+	FMemory::Memcpy(Bytes, ObjectId, sizeof(ByteArray));
+}
 
 inline bool operator==(const FCbObjectId& A, const FCbObjectId& B)
 {
