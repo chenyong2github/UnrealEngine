@@ -7,7 +7,6 @@
 #include "InteractiveToolStorableSelection.h"
 #include "SingleSelectionMeshEditingTool.generated.h"
 
-class IAssetGenerationAPI;
 class USingleSelectionMeshEditingTool;
 
 /**
@@ -21,9 +20,6 @@ class MODELINGCOMPONENTS_API USingleSelectionMeshEditingToolBuilder : public UIn
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
-public:
 	/** @return true if a single mesh source can be found in the active selection */
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -35,9 +31,6 @@ public:
 
 	/** Called by BuildTool to configure the Tool with the input MeshSource based on the SceneState */
 	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const;
-
-	/** @return true if this Tool requires an AssetAPI */
-	virtual bool RequiresAssetAPI() const { return false; }
 
 	/** @return true if this Tool would like access to an available Input Selection object */
 	virtual bool WantsInputSelectionIfAvailable() const { return false; }
@@ -57,13 +50,9 @@ class MODELINGCOMPONENTS_API USingleSelectionMeshEditingTool : public USingleSel
 
 public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPIIn) { AssetAPI = AssetAPIIn; }
 
 protected:
 	UWorld* TargetWorld = nullptr;
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
-
 
 	//
 	// Mesh Selection support

@@ -12,7 +12,7 @@
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "MeshTransforms.h"
 #include "Selections/MeshFaceSelection.h"
 #include "Selections/MeshVertexSelection.h"
@@ -68,9 +68,6 @@ UInteractiveTool* UGroomToMeshToolBuilder::BuildTool(const FToolBuilderState& Sc
 	UGroomToMeshTool* NewTool = NewObject<UGroomToMeshTool>(SceneState.ToolManager);
 
 	NewTool->SetWorld(SceneState.World);
-	check(AssetAPI);
-	NewTool->SetAssetAPI(AssetAPI);
-
 	AGroomActor* Groom = ToolBuilderUtil::FindFirstActorOfType<AGroomActor>(SceneState);
 	check(Groom != nullptr);
 	NewTool->SetSelection(Groom);
@@ -171,12 +168,16 @@ void UGroomToMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("CreateMeshGroom", "Groom To Mesh"));
 
-		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-			AssetAPI, TargetWorld,
-			&CurrentMesh, Transform, NewName, UseMaterial);
-		if (NewActor != nullptr)
+		FCreateMeshObjectParams NewMeshObjectParams;
+		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.Transform = (FTransform)Transform;
+		NewMeshObjectParams.BaseName = NewName;
+		NewMeshObjectParams.Materials.Add(UseMaterial);
+		NewMeshObjectParams.SetMesh(&CurrentMesh);
+		FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+		if (Result.IsOK() && Result.NewActor != nullptr)
 		{
-			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 		}
 
 		GetToolManager()->EndUndoTransaction();

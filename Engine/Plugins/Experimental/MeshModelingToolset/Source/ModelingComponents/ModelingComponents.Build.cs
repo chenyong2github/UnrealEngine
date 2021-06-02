@@ -26,7 +26,8 @@ public class ModelingComponents : ModuleRules
 			new string[]
 			{
 				"Core",
-                "InteractiveToolsFramework",
+				"PhysicsCore",
+				"InteractiveToolsFramework",
                 "MeshDescription",
 				"StaticMeshDescription",
 				"GeometryCore",

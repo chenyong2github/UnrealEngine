@@ -12,7 +12,6 @@
 
 class UPreviewGeometry;
 class UPreviewMesh;
-class IAssetGenerationAPI;
 
 UCLASS()
 class MESHMODELINGTOOLS_API UExtractCollisionGeometryToolBuilder : public USingleSelectionMeshEditingToolBuilder
@@ -21,7 +20,6 @@ class MESHMODELINGTOOLS_API UExtractCollisionGeometryToolBuilder : public USingl
 
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-	virtual bool RequiresAssetAPI() const override { return true; }
 
 protected:
 	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;

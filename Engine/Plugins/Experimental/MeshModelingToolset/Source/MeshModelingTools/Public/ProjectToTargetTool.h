@@ -13,12 +13,8 @@ UCLASS()
 class MESHMODELINGTOOLS_API UProjectToTargetToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
-
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
 protected:

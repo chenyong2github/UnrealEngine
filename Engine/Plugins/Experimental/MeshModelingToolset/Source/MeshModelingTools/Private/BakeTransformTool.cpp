@@ -16,7 +16,6 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
-#include "AssetGenerationUtil.h"
 #include "Physics/ComponentCollisionUtil.h"
 
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -58,7 +57,6 @@ UInteractiveTool* UBakeTransformToolBuilder::BuildTool(const FToolBuilderState& 
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -132,12 +130,6 @@ void UBakeTransformTool::Shutdown(EToolShutdownType ShutdownType)
 		UpdateAssets();
 	}
 }
-
-void UBakeTransformTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
 
 
 

@@ -85,10 +85,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API UMeshAttributePaintToolBuilder : public UMeshSurfacePointToolBuilder
 {
 	GENERATED_BODY()
-
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
 	/** Optional color map customization */
 	TUniqueFunction<TUniquePtr<FFloatAttributeColorMapper>()> ColorMapFactory;
 
@@ -193,7 +190,6 @@ class MESHMODELINGTOOLS_API UMeshAttributePaintTool : public UDynamicMeshBrushTo
 
 public:
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
@@ -245,7 +241,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
 
 	bool bInRemoveStroke = false;
 	bool bInSmoothStroke = false;

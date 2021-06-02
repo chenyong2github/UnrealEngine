@@ -20,8 +20,6 @@
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmo.h"
 
-#include "AssetGenerationUtil.h"
-
 #include "CompositionOps/VoxelBlendMeshesOp.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)

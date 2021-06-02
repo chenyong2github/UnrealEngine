@@ -11,6 +11,7 @@
 #include "Properties/MeshUVChannelProperties.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "Selection/SelectClickedAction.h"
+#include "OrientedBoxTypes.h"
 
 #include "UVProjectionTool.generated.h"
 
@@ -21,7 +22,6 @@ class USimpleDynamicMeshComponent;
 class UTransformGizmo;
 class UTransformProxy;
 class USingleClickInputBehavior;
-class IAssetGenerationAPI;
 
 /**
  *
@@ -30,7 +30,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UUVProjectionToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
-
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 

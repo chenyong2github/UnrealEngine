@@ -47,6 +47,7 @@ public class ModelingComponentsEditorOnly : ModuleRules
 				"Engine",
 				"InputCore",
                 "RenderCore",
+				"PhysicsCore",
                 "RHI",
 
 				"AssetTools",

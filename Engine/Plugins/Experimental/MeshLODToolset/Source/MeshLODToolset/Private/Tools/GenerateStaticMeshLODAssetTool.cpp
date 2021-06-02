@@ -18,7 +18,6 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
-#include "AssetGenerationUtil.h"
 #include "Selection/ToolSelectionUtil.h"
 
 #include "Physics/PhysicsDataCollection.h"
@@ -164,7 +163,7 @@ const FToolTargetTypeRequirements& UGenerateStaticMeshLODAssetToolBuilder::GetTa
 bool UGenerateStaticMeshLODAssetToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	// hack to make multi-tool look like single-tool
-	return (AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1);
+	return (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1);
 }
 
 UInteractiveTool* UGenerateStaticMeshLODAssetToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -174,7 +173,6 @@ UInteractiveTool* UGenerateStaticMeshLODAssetToolBuilder::BuildTool(const FToolB
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -366,11 +364,6 @@ void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	FDynamicMeshOpResult Result = PreviewWithBackgroundCompute->Shutdown();
-}
-
-void UGenerateStaticMeshLODAssetTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 

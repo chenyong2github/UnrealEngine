@@ -14,7 +14,6 @@
 #include "AddPrimitiveTool.generated.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
-class IAssetGenerationAPI;
 
 /**
  * Builder
@@ -38,12 +37,6 @@ public:
 		Stairs
 	};
 
-	IAssetGenerationAPI* AssetAPI;
-
-	UAddPrimitiveToolBuilder()
-	{
-		AssetAPI = nullptr;
-	}
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -460,7 +453,6 @@ public:
 	UAddPrimitiveTool(const FObjectInitializer&);
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -520,7 +512,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	void UpdatePreviewPosition(const FInputDeviceRay& ClickPos);
 	UE::Geometry::FFrame3f ShapeFrame;

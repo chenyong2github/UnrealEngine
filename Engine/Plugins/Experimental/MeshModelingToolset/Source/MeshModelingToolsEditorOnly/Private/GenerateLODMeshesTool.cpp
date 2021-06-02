@@ -13,7 +13,8 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
+#include "Selection/ToolSelectionUtil.h"
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
@@ -381,8 +382,8 @@ void UGenerateLODMeshesTool::GenerateAssets()
 	{
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[k];
 
-		FDynamicMeshOpResult Result = Preview->Shutdown();
-		if (Result.Mesh->TriangleCount() == 0)
+		FDynamicMeshOpResult OpResult = Preview->Shutdown();
+		if (OpResult.Mesh->TriangleCount() == 0)
 		{
 			continue;		// failed!
 		}
@@ -390,12 +391,20 @@ void UGenerateLODMeshesTool::GenerateAssets()
 		FComponentMaterialSet MaterialSet;
 		Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 
-		FString BaseName = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponent->GetOwnerComponent());
+		FString BaseName = UE::Modeling::GetComponentAssetBaseName(TargetComponent->GetOwnerComponent());
 		FString Name = FString::Printf( TEXT("%s_LOD%d"), *BaseName, (SimplifyProperties->NameIndexBase+k) );
 
-		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-			AssetAPI, TargetWorld,
-			Result.Mesh.Get(), UE::Geometry::FTransform3d(Transform), Name, MaterialSet.Materials);
+		FCreateMeshObjectParams NewMeshObjectParams;
+		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.Transform = Transform;
+		NewMeshObjectParams.BaseName = Name;
+		NewMeshObjectParams.Materials = MaterialSet.Materials;
+		NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+		FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+		if (Result.IsOK() && Result.NewActor != nullptr)
+		{
+			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
+		}
 	}
 
 	GetToolManager()->EndUndoTransaction();

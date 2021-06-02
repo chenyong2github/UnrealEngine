@@ -56,7 +56,6 @@ void USampleToolsEditorMode::Enter()
 	const FSampleToolsEditorModeCommands& SampleToolCommands = FSampleToolsEditorModeCommands::Get();
 
 	auto CreateActorSampleToolBuilder = NewObject< UCreateActorSampleToolBuilder>(this);
-	CreateActorSampleToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterTool(SampleToolCommands.CreateActorTool, TEXT("CreateActorSampleTool"), CreateActorSampleToolBuilder);
 
 	RegisterTool(SampleToolCommands.DrawCurveOnMeshTool, TEXT("DrawCurveOnMeshSampleTool"), NewObject<UDrawCurveOnMeshSampleToolBuilder>(this));

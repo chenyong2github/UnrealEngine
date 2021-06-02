@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/SingleClickTool.h"
 #include "CreateActorSampleTool.generated.h"
@@ -18,14 +17,7 @@ class SAMPLETOOLSEDITORMODE_API UCreateActorSampleToolBuilder : public UInteract
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI;
-
-	UCreateActorSampleToolBuilder() 
-	{
-		AssetAPI = nullptr;
-	}
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override { return true; }
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
@@ -68,7 +60,6 @@ public:
 	UCreateActorSampleTool();
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
 	virtual void Setup() override;
 
@@ -83,7 +74,4 @@ protected:
 protected:
 	/** target World we will raycast into and create Actor in */
 	UWorld* TargetWorld;
-
-	/** Access to the ToolContext's Asset Creation API. This is not currently used, but can be used to (eg) add Components, etc*/
-	IToolsContextAssetAPI* AssetAPI;
 };

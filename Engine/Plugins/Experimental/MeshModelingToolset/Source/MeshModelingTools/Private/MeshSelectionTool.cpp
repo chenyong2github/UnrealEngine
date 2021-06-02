@@ -12,7 +12,7 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicMesh/MeshIndexUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "ToolSetupUtil.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Selections/MeshFaceSelection.h"
@@ -35,7 +35,6 @@ UMeshSurfacePointTool* UMeshSelectionToolBuilder::CreateNewTool(const FToolBuild
 {
 	UMeshSelectionTool* SelectionTool = NewObject<UMeshSelectionTool>(SceneState.ToolManager);
 	SelectionTool->SetWorld(SceneState.World);
-	SelectionTool->SetAssetAPI(AssetAPI);
 	return SelectionTool;
 }
 
@@ -61,13 +60,6 @@ void UMeshSelectionTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
-
-void UMeshSelectionTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
-
 
 void UMeshSelectionTool::Setup()
 {
@@ -1394,12 +1386,20 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 	{
 		Materials.Add(TargetMaterial->GetMaterial(MaterialIdx));
 	}
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld, &SeparatedMesh, Transform, TEXT("Submesh"), Materials);
-	SpawnedActors.Add(NewActor);
-	GetToolManager()->EndUndoTransaction();
 
-	// todo: undo won't remove this asset...
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = (FTransform)Transform;
+	NewMeshObjectParams.BaseName = TEXT("Submesh");
+	NewMeshObjectParams.Materials = Materials;
+	NewMeshObjectParams.SetMesh(&SeparatedMesh);
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() && Result.NewActor != nullptr)
+	{
+		SpawnedActors.Add(Result.NewActor);
+	}
+
+	GetToolManager()->EndUndoTransaction();
 
 	// delete selected triangles from this mesh
 	DeleteSelectedTriangles();

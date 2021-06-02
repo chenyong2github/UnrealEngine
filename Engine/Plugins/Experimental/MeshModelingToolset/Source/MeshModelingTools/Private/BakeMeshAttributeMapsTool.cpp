@@ -23,7 +23,7 @@
 
 #include "AssetUtils/Texture2DBuilder.h"
 #include "AssetUtils/MeshDescriptionUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -67,7 +67,6 @@ UInteractiveTool* UBakeMeshAttributeMapsToolBuilder::BuildTool(const FToolBuilde
 
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetAssetAPI(AssetAPI);
 
 	return NewTool;
 }
@@ -345,11 +344,6 @@ public:
  * Tool
  */
 
-void UBakeMeshAttributeMapsTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	AssetAPI = AssetAPIIn;
-}
-
 void UBakeMeshAttributeMapsTool::Setup()
 {
 	UInteractiveTool::Setup();
@@ -615,74 +609,70 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 			check(StaticMeshAsset);
 			FString BaseName = TargetComponent->GetOwnerActor()->GetName();
 
-			if (AssetAPI != nullptr)
+			bool bCreatedAssetOK = false;
+			switch (Settings->MapType)
 			{
-				bool bCreatedAssetOK = false;
-				switch (Settings->MapType)
-				{
-				default:
-					check(false);
-					break;
+			default:
+				check(false);
+				break;
 
-				case EBakeMapType::TangentSpaceNormalMap:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::NormalMap);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-						FString::Printf(TEXT("%s_Normals"), *BaseName), StaticMeshAsset);
-					break;
+			case EBakeMapType::TangentSpaceNormalMap:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::NormalMap);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_Normals"), *BaseName), Settings->Result[0] }).IsOK();
+				break;
 
-				case EBakeMapType::Occlusion:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::AmbientOcclusion);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-						FString::Printf(TEXT("%s_Occlusion"), *BaseName), StaticMeshAsset);
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[1], FTexture2DBuilder::ETextureType::NormalMap);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[1],
-						FString::Printf(TEXT("%s_BentNormal"), *BaseName), StaticMeshAsset);
-					break;
+			case EBakeMapType::Occlusion:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::AmbientOcclusion);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_Occlusion"), *BaseName), Settings->Result[0] }).IsOK();
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[1], FTexture2DBuilder::ETextureType::NormalMap);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_BentNormal"), *BaseName), Settings->Result[1] }).IsOK();
+				break;
 
-				case EBakeMapType::Curvature:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-						FString::Printf(TEXT("%s_Curvature"), *BaseName), StaticMeshAsset);
-					break;
+			case EBakeMapType::Curvature:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_Curvature"), *BaseName), Settings->Result[0] }).IsOK();
+				break;
 
-				case EBakeMapType::NormalImage:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-						FString::Printf(TEXT("%s_NormalImg"), *BaseName), StaticMeshAsset);
-					break;
+			case EBakeMapType::NormalImage:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_NormalImg"), *BaseName), Settings->Result[0] }).IsOK();
+				break;
 
-				case EBakeMapType::FaceNormalImage:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-						FString::Printf(TEXT("%s_FaceNormalImg"), *BaseName), StaticMeshAsset);
-					break;
-				case EBakeMapType::MaterialID:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-																				  FString::Printf(TEXT("%s_MaterialIDImg"), *BaseName), StaticMeshAsset);
-					break;
-				case EBakeMapType::PositionImage:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-						FString::Printf(TEXT("%s_PositionImg"), *BaseName), StaticMeshAsset);
-					break;
+			case EBakeMapType::FaceNormalImage:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_FaceNormalImg"), *BaseName), Settings->Result[0] }).IsOK();
+				break;
+			case EBakeMapType::MaterialID:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_MaterialIDImg"), *BaseName), Settings->Result[0] }).IsOK();
+				break;
+			case EBakeMapType::PositionImage:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_PositionImg"), *BaseName), Settings->Result[0] }).IsOK();
+				break;
 
-				case EBakeMapType::Texture2DImage:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-						FString::Printf(TEXT("%s_TextureImg"), *BaseName), StaticMeshAsset);
-					break;
+			case EBakeMapType::Texture2DImage:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_TextureImg"), *BaseName), Settings->Result[0] }).IsOK();
+				break;
 
-				case EBakeMapType::MultiTexture:
-					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
-					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result[0],
-																				  FString::Printf(TEXT("%s_MultiTextureImg"), *BaseName), StaticMeshAsset);
-					break;
+			case EBakeMapType::MultiTexture:
+				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[0], FTexture2DBuilder::ETextureType::Color);
+				bCreatedAssetOK = UE::Modeling::CreateTextureObject(GetToolManager(),
+					FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, FString::Printf(TEXT("%s_MultiTextureImg"), *BaseName), Settings->Result[0] }).IsOK();
+				break;
 
-				}
-				ensure(bCreatedAssetOK);
 			}
-
+			ensure(bCreatedAssetOK);
 		}
 
 		DynamicMeshComponent->UnregisterComponent();

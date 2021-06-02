@@ -16,8 +16,6 @@
 // predeclarations
 struct FMeshDescription;
 class USimpleDynamicMeshComponent;
-class IAssetGenerationAPI;
-
 class IPrimitiveComponentBackedTarget;
 class IMeshDescriptionCommitter;
 class IMeshDescriptionProvider;
@@ -34,7 +32,6 @@ class MESHMODELINGTOOLS_API UCombineMeshesToolBuilder : public UInteractiveToolB
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
 	bool bIsDuplicateTool = false;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
@@ -100,7 +97,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -115,7 +111,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	bool bDuplicateMode;
 

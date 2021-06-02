@@ -123,7 +123,6 @@ UMeshSurfacePointTool* UMeshAttributePaintToolBuilder::CreateNewTool(const FTool
 {
 	UMeshAttributePaintTool* SelectionTool = NewObject<UMeshAttributePaintTool>(SceneState.ToolManager);
 	SelectionTool->SetWorld(SceneState.World);
-	SelectionTool->SetAssetAPI(AssetAPI);
 
 	if (ColorMapFactory)
 	{
@@ -141,10 +140,6 @@ void UMeshAttributePaintTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UMeshAttributePaintTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
 
 
 void UMeshAttributePaintTool::Setup()

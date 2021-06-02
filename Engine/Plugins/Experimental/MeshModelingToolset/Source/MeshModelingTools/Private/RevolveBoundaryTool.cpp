@@ -2,7 +2,7 @@
 
 #include "RevolveBoundaryTool.h"
 
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "CoreMinimal.h"
 #include "CompositionOps/CurveSweepOp.h"
@@ -272,21 +272,25 @@ void URevolveBoundaryTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-void URevolveBoundaryTool::GenerateAsset(const FDynamicMeshOpResult& Result)
+void URevolveBoundaryTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 {
-	if (Result.Mesh->TriangleCount() <= 0)
+	if (OpResult.Mesh->TriangleCount() <= 0)
 	{
 		return;
 	}
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveBoundaryToolTransactionName", "Revolve Tool"));
 
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveBoundaryResult"), MaterialProperties->Material.Get());
-
-	if (NewActor != nullptr)
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = (FTransform)OpResult.Transform;
+	NewMeshObjectParams.BaseName = TEXT("Revolve");
+	NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());
+	NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() && Result.NewActor != nullptr)
 	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 	}
 
 	GetToolManager()->EndUndoTransaction();

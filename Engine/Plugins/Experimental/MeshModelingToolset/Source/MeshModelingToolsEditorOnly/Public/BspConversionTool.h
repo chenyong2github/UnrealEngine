@@ -14,7 +14,6 @@
 
 #include "BspConversionTool.generated.h"
 
-class IAssetGenerationAPI;
 
 /**
  * Builder for UBspConversionTool.
@@ -23,10 +22,7 @@ UCLASS()
 class MESHMODELINGTOOLSEDITORONLY_API UBspConversionToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
-
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
@@ -141,7 +137,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World) { this->TargetWorld = World; }
-	virtual void SetAssetAPI(IAssetGenerationAPI* InAssetAPI) { this->AssetAPI = InAssetAPI; }
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -164,7 +159,6 @@ protected:
 	bool bCanAccept = false;
 
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 	EBspConversionToolAction PendingAction;
 
 	UPROPERTY()

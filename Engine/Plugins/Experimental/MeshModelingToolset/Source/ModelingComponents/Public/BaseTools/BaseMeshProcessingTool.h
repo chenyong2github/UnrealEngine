@@ -194,7 +194,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld = nullptr;
-	IToolsContextAssetAPI* AssetAPI = nullptr;
 
 	// Preview object holds temporary Actor with preview mesh component
 	UPROPERTY()

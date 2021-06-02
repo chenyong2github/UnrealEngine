@@ -19,8 +19,6 @@
 
 #include "RevolveBoundaryTool.generated.h"
 
-class IAssetGenerationAPI;
-
 // Tool Builder
 
 UCLASS()
@@ -30,7 +28,6 @@ class MESHMODELINGTOOLS_API URevolveBoundaryToolBuilder : public USingleSelectio
 
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-	virtual bool RequiresAssetAPI() const override { return true; }
 };
 
 UCLASS()

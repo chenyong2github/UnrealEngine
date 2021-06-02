@@ -12,7 +12,6 @@
 #include "LODManagerTool.generated.h"
 
 // predeclarations
-class IAssetGenerationAPI;
 class UMaterialInterface;
 
 /**
@@ -24,8 +23,6 @@ class MESHLODTOOLSET_API ULODManagerToolBuilder : public UInteractiveToolBuilder
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 

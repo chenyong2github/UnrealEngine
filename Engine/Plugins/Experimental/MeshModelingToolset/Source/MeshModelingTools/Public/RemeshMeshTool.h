@@ -24,8 +24,6 @@ class MESHMODELINGTOOLS_API URemeshMeshToolBuilder : public UInteractiveToolBuil
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
 	/** 
 	 * Return true if we have one object selected. URemeshMeshTool is a UMultiSelectionTool, however we currently 
 	 * only ever apply it to a single mesh. (See comment at URemeshMeshTool definition below.)
@@ -122,7 +120,6 @@ public:
 	URemeshMeshTool(const FObjectInitializer&);
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -151,7 +148,6 @@ public:
 protected:
 
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;

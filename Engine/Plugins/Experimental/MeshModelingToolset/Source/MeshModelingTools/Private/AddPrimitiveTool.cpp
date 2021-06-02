@@ -5,7 +5,7 @@
 #include "InteractiveToolManager.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "ToolSceneQueriesUtil.h"
 
 #include "Components/StaticMeshComponent.h"
@@ -38,7 +38,7 @@ using namespace UE::Geometry;
  */
 bool UAddPrimitiveToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return (this->AssetAPI != nullptr);
+	return true;
 }
 
 UInteractiveTool* UAddPrimitiveToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -77,7 +77,6 @@ UInteractiveTool* UAddPrimitiveToolBuilder::BuildTool(const FToolBuilderState& S
 		break;
 	}
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
 }
 
@@ -107,11 +106,6 @@ UProceduralShapeToolProperties::IsEquivalent( const UProceduralShapeToolProperti
 void UAddPrimitiveTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
-}
-
-void UAddPrimitiveTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
 }
 
 UAddPrimitiveTool::UAddPrimitiveTool(const FObjectInitializer&)
@@ -316,10 +310,9 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 
 void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 {
-#if WITH_EDITOR
 	UMaterialInterface* Material = PreviewMesh->GetMaterial();
 
-	if (ShapeSettings->bInstanceIfPossible && IsEquivalentLastGeneratedAsset())
+	if (ShapeSettings->bInstanceIfPossible && LastGenerated != nullptr && IsEquivalentLastGeneratedAsset())
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
 		FActorSpawnParameters SpawnParameters;
@@ -331,39 +324,51 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 		CloneActor->GetStaticMeshComponent()->SetWorldTransform(PreviewMesh->GetTransform());
 		CloneActor->GetStaticMeshComponent()->SetStaticMesh(LastGenerated->StaticMesh);
 		CloneActor->GetStaticMeshComponent()->SetMaterial(0, Material);
+#if WITH_EDITOR
 		CloneActor->SetActorLabel(LastGenerated->Label);
+#endif
 		// select newly-created object
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), CloneActor);
 		GetToolManager()->EndUndoTransaction();
 
 		return;
 	}
+	LastGenerated = nullptr;
 
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
 	UE::Geometry::FTransform3d CurTransform(PreviewMesh->GetTransform());
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
 
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		CurMesh, CurTransform, AssetName, Material);
-	if (NewActor != nullptr)
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = (FTransform)CurTransform;
+	NewMeshObjectParams.BaseName = AssetName;
+	NewMeshObjectParams.Materials.Add(Material);
+	NewMeshObjectParams.SetMesh(CurMesh);
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() )
 	{
-		LastGenerated = NewObject<ULastActorInfo>(this);
-		LastGenerated->ShapeSettings = DuplicateObject(ShapeSettings, nullptr);
-		LastGenerated->MaterialProperties = DuplicateObject(MaterialProperties, nullptr);
-		LastGenerated->Actor = NewActor;
-		LastGenerated->StaticMesh = CastChecked<AStaticMeshActor>(LastGenerated->Actor)->GetStaticMeshComponent()->GetStaticMesh();
-		LastGenerated->Label = LastGenerated->Actor->GetActorLabel();
+		if (Result.NewActor != nullptr)
+		{
+			if (Cast<AStaticMeshActor>(Result.NewActor) != nullptr)
+			{
+				LastGenerated = NewObject<ULastActorInfo>(this);
+				LastGenerated->ShapeSettings = DuplicateObject(ShapeSettings, nullptr);
+				LastGenerated->MaterialProperties = DuplicateObject(MaterialProperties, nullptr);
+				LastGenerated->Actor = Result.NewActor;
+				LastGenerated->StaticMesh = CastChecked<AStaticMeshActor>(LastGenerated->Actor)->GetStaticMeshComponent()->GetStaticMesh();
+#if WITH_EDITOR
+				LastGenerated->Label = LastGenerated->Actor->GetActorLabel();
+#endif
+			}
 
-		// select newly-created object
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), LastGenerated->Actor);
+			// select newly-created object
+			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
+		}
 	}
 
 	GetToolManager()->EndUndoTransaction();
-#else
-	checkNoEntry();
-#endif
 }
 
 

@@ -18,7 +18,6 @@
 class UCollectSurfacePathMechanic;
 class UConstructionPlaneMechanic;
 class UCurveControlPointsMechanic;
-class IAssetGenerationAPI;
 
 UCLASS()
 class MESHMODELINGTOOLS_API UDrawAndRevolveToolBuilder : public UInteractiveToolBuilder
@@ -26,8 +25,6 @@ class MESHMODELINGTOOLS_API UDrawAndRevolveToolBuilder : public UInteractiveTool
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
@@ -90,7 +87,6 @@ class MESHMODELINGTOOLS_API UDrawAndRevolveTool : public UInteractiveTool
 
 public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-	virtual void SetAssetAPI(IAssetGenerationAPI* NewAssetApi) { AssetAPI = NewAssetApi; }
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 	virtual void OnPointDeletionKeyPress();
@@ -110,7 +106,6 @@ public:
 protected:
 
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	FViewCameraState CameraState;
 

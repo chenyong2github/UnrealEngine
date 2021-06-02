@@ -15,7 +15,6 @@
 
 #include "RemoveOccludedTrianglesTool.generated.h"
 
-class IAssetGenerationAPI;
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
@@ -27,8 +26,6 @@ class MESHMODELINGTOOLS_API URemoveOccludedTrianglesToolBuilder : public UIntera
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -170,7 +167,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void OnTick(float DeltaTime) override;
 
@@ -222,7 +218,6 @@ protected:
 	TArray<int32> OccludedGroupLayers;
 
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	FViewCameraState CameraState;
 

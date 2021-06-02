@@ -33,8 +33,6 @@ class MESHMODELINGTOOLSEDITORONLY_API UGroomCardsEditorToolBuilder : public UMes
 {
 	GENERATED_BODY()
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
@@ -151,7 +149,6 @@ public:
 	UGroomCardsEditorTool();
 
 	virtual void SetWorld(UWorld* World) { this->TargetWorld = World; }
-	virtual void SetAssetAPI(IToolsContextAssetAPI* InAssetAPI) { this->AssetAPI = InAssetAPI; }
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -225,7 +222,6 @@ protected:		// mechanics
 
 protected:
 	UWorld* TargetWorld = nullptr;
-	IToolsContextAssetAPI* AssetAPI = nullptr;
 
 	TPimplPtr<FEditableGroomCardSet> EditableCardSet;
 

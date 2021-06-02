@@ -12,7 +12,6 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicMesh/MeshIndexUtil.h"
-#include "AssetGenerationUtil.h"
 #include "ToolSetupUtil.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
@@ -41,7 +40,6 @@ UMeshSurfacePointTool* UEditMeshMaterialsToolBuilder::CreateNewTool(const FToolB
 {
 	UEditMeshMaterialsTool* SelectionTool = NewObject<UEditMeshMaterialsTool>(SceneState.ToolManager);
 	SelectionTool->SetWorld(SceneState.World);
-	SelectionTool->SetAssetAPI(AssetAPI);
 	return SelectionTool;
 }
 

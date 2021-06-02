@@ -15,7 +15,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
-#include "AssetGenerationUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "Physics/ComponentCollisionUtil.h"
 #include "ShapeApproximation/SimpleShapeSet3.h"
@@ -57,8 +57,8 @@ const FToolTargetTypeRequirements& UCombineMeshesToolBuilder::GetTargetRequireme
 bool UCombineMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return (bIsDuplicateTool) ?
-		  (AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1)
-		: (AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 1);
+		  (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1)
+		: (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 1);
 }
 
 UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -68,7 +68,6 @@ UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& 
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	NewTool->SetDuplicateMode(bIsDuplicateTool);
 
 	return NewTool;
@@ -109,14 +108,14 @@ void UCombineMeshesTool::Setup()
 		else
 		{
 			int32 Index = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : Targets.Num() - 1;
-			BasicProperties->OutputAsset = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponentInterface(Index)->GetOwnerComponent(), false);
+			BasicProperties->OutputAsset = UE::Modeling::GetComponentAssetBaseName(TargetComponentInterface(Index)->GetOwnerComponent(), false);
 		}
 	});
 
 	if (bDuplicateMode)
 	{
 		SetToolDisplayName(LOCTEXT("DuplicateMeshesToolName", "Duplicate"));
-		BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponentInterface(0)->GetOwnerComponent());
+		BasicProperties->OutputName = UE::Modeling::GetComponentAssetBaseName(TargetComponentInterface(0)->GetOwnerComponent());
 	}
 	else
 	{
@@ -164,13 +163,6 @@ void UCombineMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-void UCombineMeshesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
-
-
 void UCombineMeshesTool::CreateNewAsset()
 {
 	// Make sure mesh descriptions are deserialized before we open transaction.
@@ -189,8 +181,6 @@ void UCombineMeshesTool::CreateNewAsset()
 
 	// note there is a MergeMeshUtilities.h w/ a very feature-filled mesh merging class, but for simplicity (and to fit modeling tool needs)
 	// this tool currently converts things through dynamic mesh instead
-
-#if WITH_EDITOR
 	FBox Box(ForceInit);
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
@@ -237,16 +227,20 @@ void UCombineMeshesTool::CreateNewAsset()
 	UE::Geometry::FComponentCollisionSettings CollisionSettings;
 
 	{
+#if WITH_EDITOR
 		FScopedSlowTask SlowTask(Targets.Num()+1, 
 			bDuplicateMode ? 
 			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
 			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
 		SlowTask.MakeDialog();
+#endif
 		bool bNeedColorAttr = false;
 		int MatIndexBase = 0;
 		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
+#if WITH_EDITOR
 			SlowTask.EnterProgressFrame(1);
+#endif
 			IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
 			IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(ComponentIdx);
 
@@ -298,7 +292,9 @@ void UCombineMeshesTool::CreateNewAsset()
 			AccumulateDMesh.Attributes()->DisablePrimaryColors();
 		}
 
+#if WITH_EDITOR
 		SlowTask.EnterProgressFrame(1);
+#endif
 
 		if (bDuplicateMode)
 		{
@@ -313,32 +309,40 @@ void UCombineMeshesTool::CreateNewAsset()
 		{
 			UseBaseName = (bDuplicateMode) ? TEXT("Duplicate") : TEXT("Combined");
 		}
-		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-			AssetAPI, TargetWorld,
-			&AccumulateDMesh, (UE::Geometry::FTransform3d)AccumToWorld, UseBaseName, AllMaterials);
-		if (NewActor != nullptr)
+
+		FCreateMeshObjectParams NewMeshObjectParams;
+		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.Transform = AccumToWorld;
+		NewMeshObjectParams.BaseName = UseBaseName;
+		NewMeshObjectParams.Materials = AllMaterials;
+		NewMeshObjectParams.SetMesh(&AccumulateDMesh);
+		FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+		if (Result.IsOK() && Result.NewActor != nullptr)
 		{
 			// copy the component materials onto the new static mesh asset too
 			// (note: GenerateStaticMeshActor defaults to just putting blank slots on the asset)
-			UStaticMeshComponent* NewMeshComponent = NewActor->FindComponentByClass<UStaticMeshComponent>();
-			UStaticMesh* NewMesh = NewMeshComponent->GetStaticMesh();
-			for (int32 MatIdx = 0; MatIdx < AllMaterials.Num(); MatIdx++)
+			UStaticMeshComponent* NewMeshComponent = Result.NewActor->FindComponentByClass<UStaticMeshComponent>();
+			if (NewMeshComponent)
 			{
-				NewMesh->SetMaterial(MatIdx, AllMaterials[MatIdx]);
-			}
+				UStaticMesh* NewMesh = NewMeshComponent->GetStaticMesh();
+#if WITH_EDITOR
+				for (int32 MatIdx = 0; MatIdx < AllMaterials.Num(); MatIdx++)
+				{
+					NewMesh->SetMaterial(MatIdx, AllMaterials[MatIdx]);
+				}
+#endif
 
-			// if any inputs have Simple Collision geometry we will forward it to new mesh.
-			if (SimpleCollision.TotalElementsNum() > 0)
-			{
-				UE::Geometry::SetSimpleCollision(NewMeshComponent, &SimpleCollision, CollisionSettings);
+				// if any inputs have Simple Collision geometry we will forward it to new mesh.
+				if (SimpleCollision.TotalElementsNum() > 0)
+				{
+					UE::Geometry::SetSimpleCollision(NewMeshComponent, &SimpleCollision, CollisionSettings);
+				}
 			}
 
 			// select the new actor
-			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 		}
 	}
-#endif
-
 	
 	TArray<AActor*> Actors;
 	for (int32 Idx = 0; Idx < Targets.Num(); Idx++)
@@ -375,8 +379,6 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	// this tool currently converts things through dynamic mesh instead
 
 	AActor* SkipActor = nullptr;
-
-#if WITH_EDITOR
 
 	bool bMergeSameMaterials = true;
 	TArray<UMaterialInterface*> AllMaterials;
@@ -427,16 +429,20 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	Transforms.SetNum(2);
 
 	{
+#if WITH_EDITOR
 		FScopedSlowTask SlowTask(Targets.Num()+1, 
 			bDuplicateMode ? 
 			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
 			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
 		SlowTask.MakeDialog();
+#endif
 		bool bNeedColorAttr = false;
 		int MatIndexBase = 0;
 		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
+#if WITH_EDITOR
 			SlowTask.EnterProgressFrame(1);
+#endif
 
 			IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
 
@@ -486,7 +492,9 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			AccumulateDMesh.Attributes()->DisablePrimaryColors();
 		}
 
+#if WITH_EDITOR
 		SlowTask.EnterProgressFrame(1);
+#endif
 
 		UpdateTargetCommitter->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
@@ -503,7 +511,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 		// select the new actor
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), SkipActor);
 	}
-#endif
+
 
 	
 	TArray<AActor*> Actors;

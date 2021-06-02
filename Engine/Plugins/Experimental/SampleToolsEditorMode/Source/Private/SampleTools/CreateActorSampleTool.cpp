@@ -14,16 +14,10 @@
  */
 
 
-bool UCreateActorSampleToolBuilder::CanBuildTool(const FToolBuilderState & SceneState) const
-{
-	return (this->AssetAPI != nullptr);
-}
-
 UInteractiveTool* UCreateActorSampleToolBuilder::BuildTool(const FToolBuilderState & SceneState) const
 {
 	UCreateActorSampleTool* NewTool = NewObject<UCreateActorSampleTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
 }
 
@@ -50,12 +44,6 @@ void UCreateActorSampleTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
-
-void UCreateActorSampleTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
 
 void UCreateActorSampleTool::Setup()
 {

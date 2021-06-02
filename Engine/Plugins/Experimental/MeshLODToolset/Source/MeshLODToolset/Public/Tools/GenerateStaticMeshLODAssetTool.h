@@ -18,7 +18,6 @@
 // predeclarations
 struct FMeshDescription;
 class USimpleDynamicMeshComponent;
-class IAssetGenerationAPI;
 class UMeshOpPreviewWithBackgroundCompute;
 class UGenerateStaticMeshLODAssetTool;
 namespace GenerateStaticMeshLODAssetLocals
@@ -43,8 +42,6 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolBuilder : public UIntera
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI = nullptr;
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -144,7 +141,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void OnTick(float DeltaTime);
 
@@ -185,7 +181,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	UPROPERTY()
 	UGenerateStaticMeshLODProcess* GenerateProcess;

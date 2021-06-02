@@ -6,9 +6,15 @@
 #include "Features/IModularFeature.h"
 
 class UInteractiveToolsContext;
-class FModelingModeAssetAPI;
 class FUICommandInfo;
 class UInteractiveToolBuilder;
+
+
+// dummy class for extension API below
+class FModelingModeAssetAPI
+{
+public:
+};
 
 
 /**

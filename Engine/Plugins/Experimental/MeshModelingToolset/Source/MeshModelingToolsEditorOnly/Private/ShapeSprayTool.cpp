@@ -3,9 +3,10 @@
 #include "ShapeSprayTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
+#include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "AssetGenerationUtil.h"
 #include "MeshNormals.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
@@ -25,7 +26,6 @@ UMeshSurfacePointTool* UShapeSprayToolBuilder::CreateNewTool(const FToolBuilderS
 {
 	UShapeSprayTool* NewTool = NewObject<UShapeSprayTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
 }
 
@@ -54,12 +54,6 @@ void UShapeSprayTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
 }
-
-void UShapeSprayTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
-{
-	this->AssetAPI = AssetAPIIn;
-}
-
 
 
 void UShapeSprayTool::Setup()
@@ -239,12 +233,16 @@ void UShapeSprayTool::EmitResult()
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("EmitShapeSpray", "Create ShapeSpray"));
 
-	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld,
-		Mesh, UseTransform, TEXT("Polygon"));
-	if (NewActor != nullptr)
+	FCreateMeshObjectParams NewMeshObjectParams;
+	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.Transform = (FTransform)UseTransform;
+	NewMeshObjectParams.BaseName = TEXT("Spray");
+	NewMeshObjectParams.Materials.Add( ToolSetupUtil::GetDefaultMaterial() );
+	NewMeshObjectParams.SetMesh(Mesh);
+	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+	if (Result.IsOK() && Result.NewActor != nullptr)
 	{
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 	}
 
 	GetToolManager()->EndUndoTransaction();

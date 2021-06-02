@@ -18,7 +18,6 @@
 
 class UTransformGizmo;
 class UTransformProxy;
-class IAssetGenerationAPI;
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
@@ -30,13 +29,6 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolBuilder : public UInteractiveToolBui
 	GENERATED_BODY()
 
 public:
-	IAssetGenerationAPI* AssetAPI;
-
-	UDrawPolygonToolBuilder() 
-	{
-		AssetAPI = nullptr;
-	}
-
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
@@ -174,7 +166,6 @@ public:
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -247,7 +238,6 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
 
 	FViewCameraState CameraState;
 
