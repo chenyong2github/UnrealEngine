@@ -213,6 +213,11 @@ namespace UnrealBuildTool
 		public string[]? AdditionalDependencies;
 
 		/// <summary>
+		/// When true, empty WhitelistPlatforms are interpeted as 'no platforms' with the expectation that explict platforms will be added in plugin extensions */
+		/// </summary>
+		public bool bHasExplicitPlatforms;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="InName">Name of the module</param>
@@ -327,6 +332,12 @@ namespace UnrealBuildTool
 				Module.AdditionalDependencies = AdditionalDependencies;
 			}
 
+			bool bHasExplicitPlatforms;
+			if (InObject.TryGetBoolField("HasExplicitPlatforms", out bHasExplicitPlatforms))
+			{
+				Module.bHasExplicitPlatforms = bHasExplicitPlatforms;
+			}
+
 			return Module;
 		}
 
@@ -414,6 +425,10 @@ namespace UnrealBuildTool
 				}
 				Writer.WriteArrayEnd();
 			}
+			if (bHasExplicitPlatforms)
+			{
+				Writer.WriteValue("HasExplicitPlatforms", bHasExplicitPlatforms);
+			}
 			Writer.WriteObjectEnd();
 		}
 
@@ -463,7 +478,8 @@ namespace UnrealBuildTool
 			// Check the platform is whitelisted
 			// important note: we don't check the length of the whitelist platforms, because if an unknown platform was read in, but was not valid, the 
 			// list will exist but be empty. In this case, we need to disallow all platforms from building, otherwise, build errors will occur when
-			// it starts compiling for _all_ platforms
+			// it starts compiling for _all_ platforms. This means we don't need to check bHasExplicitPlatforms either
+			
 			if (WhitelistPlatforms != null && !WhitelistPlatforms.Contains(Platform))
 			{
 				return false;

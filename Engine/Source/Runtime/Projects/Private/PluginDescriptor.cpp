@@ -76,6 +76,7 @@ FPluginDescriptor::FPluginDescriptor()
 	, bRequiresBuildPlatform(false)
 	, bIsHidden(false)
 	, bExplicitlyLoaded(false)
+	, bHasExplicitPlatforms(false)
 	, bIsPluginExtension(false)
 {
 }
@@ -198,6 +199,7 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 	Object.TryGetBoolField(TEXT("RequiresBuildPlatform"), bRequiresBuildPlatform);
 	Object.TryGetBoolField(TEXT("Hidden"), bIsHidden);
 	Object.TryGetBoolField(TEXT("ExplicitlyLoaded"), bExplicitlyLoaded);
+	Object.TryGetBoolField(TEXT("HasExplicitPlatforms"), bHasExplicitPlatforms);
 
 	bool bCanBeUsedWithUnrealHeaderTool;
 	if(Object.TryGetBoolField("CanBeUsedWithUnrealHeaderTool", bCanBeUsedWithUnrealHeaderTool) && bCanBeUsedWithUnrealHeaderTool)
@@ -365,6 +367,15 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 		JsonObject.RemoveField(TEXT("ExplicitlyLoaded"));
 	}
 
+	if (bHasExplicitPlatforms)
+	{
+		JsonObject.SetBoolField(TEXT("HasExplicitPlatforms"), bHasExplicitPlatforms);
+	}
+	else
+	{
+		JsonObject.RemoveField("HasExplicitPlatforms");
+	}
+
 	PreBuildSteps.UpdateJson(JsonObject, TEXT("PreBuildSteps"));
 	PostBuildSteps.UpdateJson(JsonObject, TEXT("PostBuildSteps"));
 
@@ -421,7 +432,14 @@ bool FPluginDescriptor::UpdatePluginFile(const FString& FileName, FText& OutFail
 
 bool FPluginDescriptor::SupportsTargetPlatform(const FString& Platform) const
 {
-	return SupportedTargetPlatforms.Num() == 0 || SupportedTargetPlatforms.Contains(Platform);
+	if (bHasExplicitPlatforms)
+	{
+		return SupportedTargetPlatforms.Contains(Platform);
+	}
+	else
+	{
+		return SupportedTargetPlatforms.Num() == 0 || SupportedTargetPlatforms.Contains(Platform);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

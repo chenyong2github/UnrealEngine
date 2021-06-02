@@ -7454,7 +7454,7 @@ void UCookOnTheFlyServer::DiscoverPlatformSpecificNeverCookPackages(
 		const FPluginDescriptor& Descriptor = Plugin->GetDescriptor();
 
 		// we are only interested in plugins that does not support all platforms
-		if (Descriptor.SupportedTargetPlatforms.Num() == 0)
+		if (Descriptor.SupportedTargetPlatforms.Num() == 0 && !Descriptor.bHasExplicitPlatforms)
 		{
 			continue;
 		}
