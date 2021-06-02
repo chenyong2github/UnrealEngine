@@ -395,16 +395,21 @@ struct FDynamicVertexBufferPool
 	TIndirectArray<FDynamicVertexBuffer> VertexBuffers;
 	/** The current buffer from which allocations are being made. */
 	FDynamicVertexBuffer* CurrentVertexBuffer;
+	/** */
+	TMap<int32, FDynamicVertexBuffer*> VertexBuffersUsedForInstancingBatch;
 
 	/** Default constructor. */
 	FDynamicVertexBufferPool()
 		: CurrentVertexBuffer(NULL)
 	{
+		VertexBuffersUsedForInstancingBatch.Empty();
 	}
 
 	/** Destructor. */
 	~FDynamicVertexBufferPool()
 	{
+		VertexBuffersUsedForInstancingBatch.Empty();
+
 		int32 NumVertexBuffers = VertexBuffers.Num();
 		for (int32 BufferIndex = 0; BufferIndex < NumVertexBuffers; ++BufferIndex)
 		{
@@ -443,6 +448,23 @@ FGlobalDynamicVertexBuffer::FAllocation FGlobalDynamicVertexBuffer::Allocate(uin
 		for (int32 BufferIndex = 0, NumBuffers = Pool->VertexBuffers.Num(); BufferIndex < NumBuffers; ++BufferIndex)
 		{
 			FDynamicVertexBuffer& VertexBufferToCheck = Pool->VertexBuffers[BufferIndex];
+
+			// Exclude the vertex buffer used for instancing batch
+			bool bUsedForInstancingBatch = false;
+			for (TPair<int32, FDynamicVertexBuffer*>& Pair : Pool->VertexBuffersUsedForInstancingBatch)
+			{
+				if (Pair.Value == &VertexBufferToCheck)
+				{
+					bUsedForInstancingBatch = true;
+					break;
+				}
+			}
+
+			if (bUsedForInstancingBatch)
+			{
+				continue;
+			}
+
 			if (VertexBufferToCheck.AllocatedByteCount + SizeInBytes <= VertexBufferToCheck.BufferSize)
 			{
 				VertexBuffer = &VertexBufferToCheck;
@@ -478,6 +500,64 @@ FGlobalDynamicVertexBuffer::FAllocation FGlobalDynamicVertexBuffer::Allocate(uin
 	return Allocation;
 }
 
+FGlobalDynamicVertexBuffer::FAllocation FGlobalDynamicVertexBuffer::Allocate(uint32 SizeInBytes, uint32& InOutInstancingBatchId)
+{
+	if (InOutInstancingBatchId <= 0)
+	{
+		return Allocate(SizeInBytes);
+	}
+
+	FDynamicVertexBuffer* VertexBuffer = NULL;
+		
+	if (Pool->VertexBuffersUsedForInstancingBatch.Contains(InOutInstancingBatchId))
+	{
+		VertexBuffer = Pool->VertexBuffersUsedForInstancingBatch[InOutInstancingBatchId];
+	}
+
+	if (VertexBuffer && VertexBuffer->AllocatedByteCount + SizeInBytes > VertexBuffer->BufferSize)
+	{
+		UE_LOG(LogRendererCore, Warning, TEXT("The VertexBuffer for batch instancing was exceeded the limit: %d"), InOutInstancingBatchId);
+
+		InOutInstancingBatchId = 0;
+
+		// Fallback to allocate with no InstancingBatchId
+		return Allocate(SizeInBytes);
+	}
+
+	if (VertexBuffer == NULL)
+	{
+		VertexBuffer = new FDynamicVertexBuffer(SizeInBytes);
+		Pool->VertexBuffers.Add(VertexBuffer);
+		VertexBuffer->InitResource();
+			
+		Pool->VertexBuffersUsedForInstancingBatch.Add(InOutInstancingBatchId, VertexBuffer);
+		UE_LOG(LogRendererCore, Warning, TEXT("A new VertexBuffer was created for batch instancing: %d"), InOutInstancingBatchId);
+	}
+
+	// Lock the buffer if needed.
+	if (VertexBuffer->MappedBuffer == NULL)
+	{
+		VertexBuffer->Lock();
+	}
+
+	check(VertexBuffer != NULL);
+	checkf(VertexBuffer->AllocatedByteCount + SizeInBytes <= VertexBuffer->BufferSize, TEXT("Global vertex buffer allocation failed: BufferSize=%d AllocatedByteCount=%d SizeInBytes=%d"), VertexBuffer->BufferSize, VertexBuffer->AllocatedByteCount, SizeInBytes);
+
+	TotalAllocatedSinceLastCommit += SizeInBytes;
+	if (IsRenderAlarmLoggingEnabled())
+	{
+		UE_LOG(LogRendererCore, Warning, TEXT("FGlobalDynamicVertexBuffer::Allocate(%u), will have allocated %u total this frame"), SizeInBytes, TotalAllocatedSinceLastCommit);
+	}
+
+	FAllocation Allocation;
+	Allocation.Buffer = VertexBuffer->MappedBuffer + VertexBuffer->AllocatedByteCount;
+	Allocation.VertexBuffer = VertexBuffer;
+	Allocation.VertexOffset = VertexBuffer->AllocatedByteCount;
+	VertexBuffer->AllocatedByteCount += SizeInBytes;
+
+	return Allocation;
+}
+
 bool FGlobalDynamicVertexBuffer::IsRenderAlarmLoggingEnabled() const
 {
 	return GMaxVertexBytesAllocatedPerFrame > 0 && TotalAllocatedSinceLastCommit >= (size_t)GMaxVertexBytesAllocatedPerFrame;
@@ -497,6 +577,17 @@ void FGlobalDynamicVertexBuffer::Commit()
 			++VertexBuffer.NumFramesUnused;
 			if (VertexBuffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold)
 			{
+				// Set the vertex buffer used for instancing batch to NULL, just like weak ptr.
+				for (TPair<int32, FDynamicVertexBuffer*>& Pair : Pool->VertexBuffersUsedForInstancingBatch)
+				{
+					if (Pair.Value == &VertexBuffer)
+					{
+						Pair.Value = NULL;
+
+						UE_LOG(LogRendererCore, Warning, TEXT("The VertexBuffer was released for batch instancing: %d"), Pair.Key);
+					}
+				}
+
 				// Remove the buffer, assumes they are unordered.
 				VertexBuffer.ReleaseResource();
 				Pool->VertexBuffers.RemoveAtSwap(BufferIndex);

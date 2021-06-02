@@ -376,6 +376,143 @@ void UpdateMobileBasePassMeshSortKeys(
 	}
 }
 
+void BatchInstancingMeshDrawCommands_Internal(
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
+	FMeshCommandOneFrameArray& TempVisibleMeshDrawCommands,
+	int32 BatchBeginIdx,
+	int32 BatchEndIdx)
+{
+	check(BatchBeginIdx >= 0 && BatchBeginIdx < VisibleMeshDrawCommands.Num());
+	check(BatchEndIdx >= 0 && BatchEndIdx < VisibleMeshDrawCommands.Num());
+
+	const FVisibleMeshDrawCommand* RESTRICT PassVisibleMeshDrawCommands = VisibleMeshDrawCommands.GetData();
+	const FVisibleMeshDrawCommand& RESTRICT VisibleMeshDrawCommand = PassVisibleMeshDrawCommands[BatchBeginIdx];
+
+	// At least two elements, do a batch
+	if (BatchEndIdx - BatchBeginIdx > 0) 
+	{	
+		int32 InstancingBatchVertexStreamIndex = VisibleMeshDrawCommand.MeshDrawCommand->InstancingBatchVertexStreamIndex;
+		check(InstancingBatchVertexStreamIndex != 0xF && InstancingBatchVertexStreamIndex < VisibleMeshDrawCommand.MeshDrawCommand->VertexStreams.Num());
+
+		uint32 BatchVertexStreamOffset = VisibleMeshDrawCommand.MeshDrawCommand->VertexStreams[InstancingBatchVertexStreamIndex].Offset;
+		uint32 BatchNumInstances = 0;
+		for (int Idx = BatchBeginIdx; Idx <= BatchEndIdx; Idx++)
+		{
+			const FVisibleMeshDrawCommand& RESTRICT PassVisibleMeshDrawCommand = PassVisibleMeshDrawCommands[Idx];
+
+			int32 VertexStreamIndex = PassVisibleMeshDrawCommand.MeshDrawCommand->InstancingBatchVertexStreamIndex;
+			if (VertexStreamIndex == InstancingBatchVertexStreamIndex)
+			{
+				BatchVertexStreamOffset = FMath::Min(BatchVertexStreamOffset, PassVisibleMeshDrawCommand.MeshDrawCommand->VertexStreams[VertexStreamIndex].Offset);
+				BatchNumInstances += PassVisibleMeshDrawCommand.MeshDrawCommand->NumInstances;
+			}
+			else
+			{
+				//check(0);
+				UE_LOG(LogRenderer, Warning, TEXT("Try to batch instancing MeshDrawCommands with different VertexStreamIndex."));
+			}
+		}
+
+		const int32 Index = MeshDrawCommandStorage.MeshDrawCommands.AddElement(*VisibleMeshDrawCommand.MeshDrawCommand);
+		FMeshDrawCommand& NewMeshDrawCommand = MeshDrawCommandStorage.MeshDrawCommands[Index];
+
+		NewMeshDrawCommand.VertexStreams[InstancingBatchVertexStreamIndex].Offset = BatchVertexStreamOffset;
+		NewMeshDrawCommand.NumInstances = BatchNumInstances;
+
+		FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
+		NewVisibleMeshDrawCommand.Setup(
+			&NewMeshDrawCommand,
+			VisibleMeshDrawCommand.DrawPrimitiveId,
+			VisibleMeshDrawCommand.ScenePrimitiveId,
+			VisibleMeshDrawCommand.StateBucketId,
+			VisibleMeshDrawCommand.MeshFillMode,
+			VisibleMeshDrawCommand.MeshCullMode,
+			VisibleMeshDrawCommand.SortKey);
+
+		TempVisibleMeshDrawCommands.Emplace(MoveTemp(NewVisibleMeshDrawCommand));
+	}
+	else
+	{
+		FVisibleMeshDrawCommand NewVisibleMeshDrawCommand = VisibleMeshDrawCommand;
+		TempVisibleMeshDrawCommands.Emplace(MoveTemp(NewVisibleMeshDrawCommand));
+	}
+}
+
+void BatchInstancingMeshDrawCommands(
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
+	FMeshCommandOneFrameArray& TempVisibleMeshDrawCommands,
+	int32& VisibleMeshDrawCommandsNum,
+	int32& NewPassVisibleMeshDrawCommandsNum
+	)
+{
+	const FVisibleMeshDrawCommand* RESTRICT PassVisibleMeshDrawCommands = VisibleMeshDrawCommands.GetData();
+	const int32 NumDrawCommands = VisibleMeshDrawCommands.Num();
+	check(VisibleMeshDrawCommands.Num() <= TempVisibleMeshDrawCommands.Max() && TempVisibleMeshDrawCommands.Num() == 0);
+
+	uint32 CurrentInstancingBatchId = 0;
+	int32 InstancingBatchBeginIdx = -1;
+
+	for (int32 DrawCommandIndex = 0; DrawCommandIndex < NumDrawCommands; DrawCommandIndex++)
+	{
+		const FVisibleMeshDrawCommand& RESTRICT VisibleMeshDrawCommand = PassVisibleMeshDrawCommands[DrawCommandIndex];
+
+		if (VisibleMeshDrawCommand.MeshDrawCommand->InstancingBatchId > 0)
+		{
+			if (VisibleMeshDrawCommand.MeshDrawCommand->InstancingBatchId != CurrentInstancingBatchId)
+			{
+				if (InstancingBatchBeginIdx != -1)
+				{
+					BatchInstancingMeshDrawCommands_Internal(VisibleMeshDrawCommands, MeshDrawCommandStorage, TempVisibleMeshDrawCommands, InstancingBatchBeginIdx, DrawCommandIndex - 1);
+				}
+
+				CurrentInstancingBatchId = VisibleMeshDrawCommand.MeshDrawCommand->InstancingBatchId;
+				InstancingBatchBeginIdx = DrawCommandIndex;
+
+				if (DrawCommandIndex >= NumDrawCommands - 1) //Tail array element
+				{
+					FVisibleMeshDrawCommand NewVisibleMeshDrawCommand = VisibleMeshDrawCommand;
+					TempVisibleMeshDrawCommands.Emplace(MoveTemp(NewVisibleMeshDrawCommand));
+				}
+			}
+			else
+			{
+				if (DrawCommandIndex >= NumDrawCommands - 1) //Tail array element
+				{
+					if (InstancingBatchBeginIdx != -1)
+					{
+						BatchInstancingMeshDrawCommands_Internal(VisibleMeshDrawCommands, MeshDrawCommandStorage, TempVisibleMeshDrawCommands, InstancingBatchBeginIdx, DrawCommandIndex);
+
+						CurrentInstancingBatchId = 0;
+						InstancingBatchBeginIdx = -1;
+					}
+				}
+			}
+		}
+		else
+		{
+			if (InstancingBatchBeginIdx != -1)
+			{
+				BatchInstancingMeshDrawCommands_Internal(VisibleMeshDrawCommands, MeshDrawCommandStorage, TempVisibleMeshDrawCommands, InstancingBatchBeginIdx, DrawCommandIndex - 1);
+
+				CurrentInstancingBatchId = 0;
+				InstancingBatchBeginIdx = -1;
+			}
+
+			FVisibleMeshDrawCommand NewVisibleMeshDrawCommand = VisibleMeshDrawCommand;
+			TempVisibleMeshDrawCommands.Emplace(MoveTemp(NewVisibleMeshDrawCommand));
+		}
+	}
+
+	VisibleMeshDrawCommandsNum = VisibleMeshDrawCommands.Num();
+	NewPassVisibleMeshDrawCommandsNum = TempVisibleMeshDrawCommands.Num();
+
+	// Replace VisibleMeshDrawCommands
+	FMemory::Memswap(&VisibleMeshDrawCommands, &TempVisibleMeshDrawCommands, sizeof(TempVisibleMeshDrawCommands));
+	TempVisibleMeshDrawCommands.Reset();
+}
+
 /**
  * Build mesh draw command primitive Id buffer for instancing.
  * TempVisibleMeshDrawCommands must be presized for NewPassVisibleMeshDrawCommands.
@@ -875,6 +1012,17 @@ public:
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_SortVisibleMeshDrawCommands);
 				Context.MeshDrawCommands.Sort(FCompareFMeshDrawCommands());
+			}
+
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_BatchInstancingMeshDrawCommands);
+				BatchInstancingMeshDrawCommands(
+					Context.MeshDrawCommands,
+					Context.MeshDrawCommandStorage,
+					Context.TempVisibleMeshDrawCommands,
+					Context.VisibleMeshDrawCommandsNum,
+					Context.NewPassVisibleMeshDrawCommandsNum
+				);
 			}
 
 			if (Context.bUseGPUScene)

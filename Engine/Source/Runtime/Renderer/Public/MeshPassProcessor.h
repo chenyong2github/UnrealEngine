@@ -877,6 +877,9 @@ public:
 	uint32 NumPrimitives;
 	uint32 NumInstances;
 
+	uint16 InstancingBatchId : 12;
+	uint16 InstancingBatchVertexStreamIndex : 4;
+
 	union
 	{
 		struct 
