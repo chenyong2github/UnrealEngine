@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
 #include "LumenCardCommon.ush"
@@ -12,6 +14,7 @@
 #include "../SHCommon.ush"
 #define HZB_TRACE_INCLUDE_FULL_RES_DEPTH 1
 #include "LumenScreenTracing.ush"
+#include "LumenHairTracing.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 0
@@ -75,6 +78,34 @@ void ReflectionTraceScreenTexturesCS(
 				bHit,
 				bUncertain,
 				HitUVz);
+
+			#if USE_HAIRSTRANDS_SCREEN
+			if (!bHit)
+			{
+				bool   Hair_bHit;
+				bool   Hair_bUncertain;
+				float3 Hair_HitUVz;
+
+				TraceHairScreen(
+					WorldPosition + View.PreViewTranslation,
+					RayData.Direction,
+					TraceDistance,
+					HZBUvFactorAndInvFactor,
+					MaxHierarchicalScreenTraceIterations,
+					UncertainTraceRelativeDepthThreshold,
+					0,
+					Hair_bHit,
+					Hair_bUncertain,
+					Hair_HitUVz);
+
+				if (Hair_bHit && !Hair_bUncertain)
+				{
+					bHit = Hair_bHit;
+					HitUVz = Hair_HitUVz;
+					bUncertain = Hair_bUncertain;
+				}
+			}
+			#endif
 
 			bHit = bHit && !bUncertain;
 
@@ -235,6 +266,15 @@ void TraceMeshSDFs(
 	FConeTraceResult TraceResult;
 	ConeTraceLumenSceneCards(TraceInput, TraceResult);
 
+	// Trace against hair voxel structure, if enabled and not already done by other tracing method
+	#if USE_HAIRSTRANDS_VOXEL
+	{
+		// Use WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+		// the voxel structure does not cause any self shadowing issue
+		TraceHairVoxels(ReflectionTracingCoord, SceneDepth, WorldPosition, RayData.Direction, TraceHitDistance, true, TraceResult);
+	}
+	#endif
+
 	float3 Lighting = TraceResult.Lighting * View.PreExposure;
 	float Transparency = TraceResult.Transparency;
 	float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
@@ -313,6 +353,15 @@ void TraceVoxels(
 	TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 
 	ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+
+	// Trace against hair voxel structure, if enabled and not already done by other tracing method
+	#if USE_HAIRSTRANDS_VOXEL
+	{
+		// Use WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+		// the voxel structure does not cause any self shadowing issue
+		TraceHairVoxels(ReflectionTracingCoord, SceneDepth, WorldPosition, RayData.Direction, TraceDistance, true, TraceResult);
+	}
+	#endif
 
 	if (TraceResult.Transparency <= .5f)
 	{

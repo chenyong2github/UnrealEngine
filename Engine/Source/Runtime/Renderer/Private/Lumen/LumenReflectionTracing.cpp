@@ -13,6 +13,7 @@
 #include "ReflectionEnvironment.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "LumenReflections.h"
+#include "HairStrands/HairStrandsData.h"
 
 int32 GLumenReflectionScreenTraces = 1;
 FAutoConsoleVariableRef CVarLumenReflectionScreenTraces(
@@ -35,6 +36,22 @@ FAutoConsoleVariableRef GVarLumenReflectionHierarchicalScreenTraceRelativeDepthT
 	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.UncertainTraceRelativeDepthThreshold"),
 	GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold,
 	TEXT("Determines depth thickness of objects hit by HZB tracing, as a relative depth threshold."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenReflectionHairStrands_VoxelTrace = 1;
+FAutoConsoleVariableRef GVarLumenReflectionHairStrands_VoxelTrace(
+	TEXT("r.Lumen.Reflections.HairStrands.VoxelTrace"),
+	GLumenReflectionHairStrands_VoxelTrace,
+	TEXT("Whether to trace against hair voxel structure for hair casting shadow onto opaques."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenReflectionHairStrands_ScreenTrace = 1;
+FAutoConsoleVariableRef GVarLumenReflectionHairStrands_ScreenTrace(
+	TEXT("r.Lumen.Reflections.HairStrands.ScreenTrace"),
+	GLumenReflectionHairStrands_ScreenTrace,
+	TEXT("Whether to trace against hair depth for hair casting shadow onto opaques."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -81,9 +98,11 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 	END_SHADER_PARAMETER_STRUCT()
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_SCREEN");
+	using FPermutationDomain = TShaderPermutationDomain<FHairStrands>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -160,10 +179,12 @@ class FReflectionTraceMeshSDFsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 		
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
+	using FPermutationDomain = TShaderPermutationDomain<FHairStrands>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -190,11 +211,13 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
-	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight>;
+	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FHairStrands>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -395,18 +418,26 @@ void TraceReflections(
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 
+		const bool bHasHairStrands = HairStrands::HasViewHairStrandsData(View) && GLumenReflectionHairStrands_ScreenTrace > 0;
+		if (bHasHairStrands)
+		{
+			PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
+		}
+
 		FReflectionTraceScreenTexturesCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set< FReflectionTraceScreenTexturesCS::FHairStrands>(bHasHairStrands);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceScreenTexturesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TraceScreen"),
+			RDG_EVENT_NAME("TraceScreen(%s)", bHasHairStrands ? TEXT("Scene, HairStrands") : TEXT("Scene")),
 			ComputeShader,
 			PassParameters,
 			ReflectionTileParameters.TracingIndirectArgs,
 			0);
 	}
 	
+	bool bNeedTraceHairVoxel = HairStrands::HasViewHairStrandsVoxelData(View) && GLumenReflectionHairStrands_VoxelTrace > 0;
 	if (Lumen::UseHardwareRayTracedReflections())
 	{
 		FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
@@ -459,17 +490,23 @@ void TraceReflections(
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+				if (bNeedTraceHairVoxel)
+				{
+					PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+				}
 
 				FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set< FReflectionTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
 				auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					RDG_EVENT_NAME("TraceMeshSDFs"),
+					RDG_EVENT_NAME("TraceMeshSDFs(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
 					ComputeShader,
 					PassParameters,
 					CompactedTraceParameters.IndirectArgs,
 					0);
+				bNeedTraceHairVoxel = false;
 			}
 		}
 	}
@@ -490,17 +527,23 @@ void TraceReflections(
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+		if (bNeedTraceHairVoxel)
+		{
+			PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+		}
 
 		FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FReflectionTraceVoxelsCS::FDynamicSkyLight >(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
+		PermutationVector.Set< FReflectionTraceVoxelsCS::FHairStrands >(bNeedTraceHairVoxel);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceVoxelsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TraceVoxels"),
+			RDG_EVENT_NAME("TraceVoxels(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
 			ComputeShader,
 			PassParameters,
 			CompactedTraceParameters.IndirectArgs,
 			0);
+		bNeedTraceHairVoxel = false;
 	}
 }

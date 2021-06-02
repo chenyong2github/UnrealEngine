@@ -13,6 +13,7 @@
 #include "PixelShaderUtils.h"
 #include "ReflectionEnvironment.h"
 #include "DistanceFieldAmbientOcclusion.h"
+#include "HairStrands/HairStrandsData.h"
 
 int32 GLumenScreenProbeGatherScreenTraces = 1;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherScreenTraces(
@@ -70,6 +71,22 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherVisualizeTracesFreeze(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenProbeGatherHairStrands_VoxelTrace = 1;
+FAutoConsoleVariableRef GVarLumenScreenProbeGatherHairStrands_VoxelTrace(
+	TEXT("r.Lumen.ScreenProbeGather.HairStrands.VoxelTrace"),
+	GLumenScreenProbeGatherHairStrands_VoxelTrace,
+	TEXT("Whether to trace against hair voxel structure for hair casting shadow onto opaques."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenScreenProbeGatherHairStrands_ScreenTrace = 1;
+FAutoConsoleVariableRef GVarLumenScreenProbeGatherHairStrands_ScreenTrace(
+	TEXT("r.Lumen.ScreenProbeGather.HairStrands.ScreenTrace"),
+	GLumenScreenProbeGatherHairStrands_ScreenTrace,
+	TEXT("Whether to trace against hair depth for hair casting shadow onto opaques."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 class FClearTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearTracesCS)
@@ -111,12 +128,14 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 	class FHierarchicalScreenTracing : SHADER_PERMUTATION_BOOL("HIERARCHICAL_SCREEN_TRACING");
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHierarchicalScreenTracing, FRadianceCache>;
+	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_SCREEN");
+	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHierarchicalScreenTracing, FRadianceCache, FHairStrands>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -191,11 +210,13 @@ class FScreenProbeTraceMeshSDFsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 		
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling>;
+	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
+	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHairStrands>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -224,6 +245,7 @@ class FScreenProbeTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -231,7 +253,8 @@ class FScreenProbeTraceVoxelsCS : public FGlobalShader
 	class FTraceDistantScene : SHADER_PERMUTATION_BOOL("TRACE_DISTANT_SCENE");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FTraceDistantScene, FRadianceCache, FStructuredImportanceSampling>;
+	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FTraceDistantScene, FRadianceCache, FStructuredImportanceSampling, FHairStrands>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -588,21 +611,29 @@ void TraceScreenProbes(
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 
+		const bool bHasHairStrands = HairStrands::HasViewHairStrandsData(View) && GLumenScreenProbeGatherHairStrands_ScreenTrace > 0;
+		if (bHasHairStrands)
+		{
+			PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
+		}
+
 		FScreenProbeTraceScreenTexturesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FRadianceCache >(LumenScreenProbeGather::UseRadianceCache(View));
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FHierarchicalScreenTracing >(GLumenScreenProbeGatherHierarchicalScreenTraces != 0);
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
+		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FHairStrands>(bHasHairStrands);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceScreenTexturesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TraceScreen"),
+			RDG_EVENT_NAME("TraceScreen(%s)", bHasHairStrands ? TEXT("Scene, HairStrands") : TEXT("Scene")),
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
 			(uint32)EScreenProbeIndirectArgs::ThreadPerTrace * sizeof(FRHIDispatchIndirectParameters));
 	}
 
+	bool bNeedTraceHairVoxel = HairStrands::HasViewHairStrandsVoxelData(View) && GLumenScreenProbeGatherHairStrands_VoxelTrace > 0;
 	if (Lumen::UseHardwareRayTracedScreenProbeGather())
 	{
 		FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
@@ -648,18 +679,24 @@ void TraceScreenProbes(
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 				PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
 				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+				if (bNeedTraceHairVoxel)
+				{
+					PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+				}
 
 				FScreenProbeTraceMeshSDFsCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
+				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
 				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					RDG_EVENT_NAME("TraceMeshSDFs"),
+					RDG_EVENT_NAME("TraceMeshSDFs(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
 					ComputeShader,
 					PassParameters,
 					CompactedTraceParameters.IndirectArgs,
 					0);
+				bNeedTraceHairVoxel = false;
 			}
 		}
 	}
@@ -673,6 +710,8 @@ void TraceScreenProbes(
 		IndirectTracingParameters.MaxTraceDistance + 1);
 
 	{
+		const bool bRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);
+
 		FScreenProbeTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceVoxelsCS::FParameters>();
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
@@ -680,23 +719,27 @@ void TraceScreenProbes(
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 		PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
-
-		const bool bRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);
+		if (bNeedTraceHairVoxel)
+		{
+			PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+		}
 
 		FScreenProbeTraceVoxelsCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FDynamicSkyLight >(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FRadianceCache >(bRadianceCache);
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
+		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FHairStrands>(bNeedTraceHairVoxel);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceVoxelsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TraceVoxels"),
+			RDG_EVENT_NAME("TraceVoxels(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
 			ComputeShader,
 			PassParameters,
 			CompactedTraceParameters.IndirectArgs,
 			0);
+		bNeedTraceHairVoxel = false;
 	}
 
 	if (GLumenScreenProbeGatherVisualizeTraces)

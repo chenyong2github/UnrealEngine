@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
 #include "LumenCardCommon.ush"
@@ -13,6 +15,7 @@
 #include "../SHCommon.ush"
 
 #include "LumenScreenTracing.ush"
+#include "LumenHairTracing.ush"
 #include "../SceneTextureParameters.ush"
 
 #ifndef THREADGROUP_SIZE
@@ -114,6 +117,34 @@ void ScreenProbeTraceScreenTexturesCS(
 					bUncertain,
 					HitUVz);
 				
+				#if USE_HAIRSTRANDS_SCREEN
+				if (!bHit)
+				{
+					bool   Hair_bHit;
+					bool   Hair_bUncertain;
+					float3 Hair_HitUVz;
+
+					TraceHairScreen(
+						WorldPosition + View.PreViewTranslation,
+						WorldConeDirection,
+						TraceDistance,
+						HZBUvFactorAndInvFactor,
+						MaxHierarchicalScreenTraceIterations,
+						UncertainTraceRelativeDepthThreshold * DepthThresholdScale,
+						NumThicknessStepsToDetermineCertainty,
+						Hair_bHit,
+						Hair_bUncertain,
+						Hair_HitUVz);
+
+					if (Hair_bHit && !Hair_bUncertain)
+					{
+						bHit		= Hair_bHit;
+						HitUVz		= Hair_HitUVz;
+						bUncertain	= Hair_bUncertain;
+					}
+				}
+				#endif
+
 				float Level = 1;
 				bool bWriteDepthOnMiss = true;
 #else
@@ -162,6 +193,38 @@ void ScreenProbeTraceScreenTexturesCS(
 					/* out */ Level,
 					/* out */ bHit,
 					/* out */ bUncertain);
+
+				#if USE_HAIRSTRANDS_SCREEN
+				if (!bHit)
+				{
+					float3 Hair_DebugOutput;
+					float3 Hair_HitUVz;
+					float Hair_Level;
+					bool Hair_bHit = false;
+					bool Hair_bUncertain = bUncertain;
+
+					CastScreenSpaceRay(
+						HairStrands.HairOnlyDepthFurthestHZBTexture, FurthestHZBTextureSampler,
+						StartMipLevel,
+						CastSettings,
+						Ray, RayRoughness, NumSteps, StepOffset,
+						HZBUvFactorAndInvFactor, false,
+						/* out */ Hair_DebugOutput,
+						/* out */ Hair_HitUVz,
+						/* out */ Hair_Level,
+						/* out */ Hair_bHit,
+						/* out */ Hair_bUncertain);
+
+					if (Hair_bHit && !Hair_bUncertain)
+					{
+						DebugOutput = Hair_DebugOutput;
+						HitUVz	    = Hair_HitUVz;
+						Level	    = Hair_Level;
+						bHit	    = Hair_bHit;
+						bUncertain  = Hair_bUncertain;
+					}
+				}
+				#endif
 
 				// CastScreenSpaceRay skips Mesh SDF tracing in a lot of places where it shouldn't, in particular missing thin occluders due to low NumSteps.  
 				bool bWriteDepthOnMiss = !bUncertain;
@@ -352,6 +415,15 @@ void TraceMeshSDFs(
 			FConeTraceResult TraceResult;
 			ConeTraceLumenSceneCards(TraceInput, TraceResult);
 
+			// Trace against hair voxel structure, if enabled and not already done by other tracing method
+			#if USE_HAIRSTRANDS_VOXEL
+			{
+				// Use WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+				// the voxel structure does not cause any self shadowing issue
+				TraceHairVoxels(ScreenProbeScreenPosition, SceneDepth, WorldPosition, WorldConeDirection, TraceInput.MaxTraceDistance, false, TraceResult);
+			}
+			#endif
+
 			float3 Lighting = TraceResult.Lighting;
 			float Transparency = TraceResult.Transparency;
 			float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
@@ -454,6 +526,15 @@ void TraceVoxels(
 			TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 
 			ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+
+			// Trace against hair voxel structure, if enabled and not already done by other tracing method
+			#if USE_HAIRSTRANDS_VOXEL
+			{
+				// Use WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+				// the voxel structure does not cause any self shadowing issue
+				TraceHairVoxels(ScreenProbeScreenPosition, SceneDepth, WorldPosition, WorldConeDirection, TraceDistance, false, TraceResult);
+			}
+			#endif
 
 			if (TraceResult.Transparency <= .5f)
 			{
