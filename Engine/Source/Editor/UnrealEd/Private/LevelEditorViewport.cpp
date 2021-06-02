@@ -1717,6 +1717,7 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	, bOnlyMovedPivot(false)
 	, bLockedCameraView(true)
 	, bNeedToRestoreComponentBeingMovedFlag(false)
+	, bHasBegunGizmoManipulation(false)
 	, bReceivedFocusRecently(false)
 	, bAlwaysShowModeWidgetAfterSelectionChanges(true)
 	, CachedElementsToManipulate(UTypedElementRegistry::GetInstance()->CreateElementList())
@@ -2145,6 +2146,16 @@ void FLevelEditorViewportClient::LostFocus(FViewport* InViewport)
 void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
 	UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>();
+
+	// We may have started gizmo manipulation if hot-keys were pressed when we started this click
+	// If so, we need to end that now before we potentially update the selection below, 
+	// otherwise the usual call in TrackingStopped would include the newly selected element
+	if (bHasBegunGizmoManipulation)
+	{
+		const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+		ViewportInteraction->EndGizmoManipulation(ElementsToManipulate, GetWidgetMode(), ETypedElementViewportInteractionGizmoManipulationType::Click);
+		bHasBegunGizmoManipulation = false;
+	}
 
 	const FViewportClick Click(&View,this,Key,Event,HitX,HitY);
 	if (Click.GetKey() == EKeys::MiddleMouseButton && !Click.IsAltDown() && !Click.IsShiftDown())
@@ -2612,6 +2623,13 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 								// Exclusively select the new elements, so that future gizmo interaction manipulates those items instead
 								if (DuplicatedElements.Num() > 0)
 								{
+									// We need to end the gizmo manipulation on the current selection, as they won't be moved again this drag...
+									if (bHasBegunGizmoManipulation)
+									{
+										ViewportInteraction->EndGizmoManipulation(ElementsToManipulate, GetWidgetMode(), ETypedElementViewportInteractionGizmoManipulationType::Click);
+										// Note: We don't reset bHasBegunGizmoManipulation here, as we test it again below to begin manipulating the duplicated selection
+									}
+
 									UTypedElementSelectionSet* SelectionSet = GetMutableSelectionSet();
 
 									const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
@@ -2621,6 +2639,13 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 
 									// Force the cached manipulation list to update, as we don't notify about the change above
 									ResetElementsToManipulate();
+
+									// We need to start gizmo manipulation on the duplicated selection, as they may continue to move as part of this drag duplicate
+									if (bHasBegunGizmoManipulation)
+									{
+										ElementsToManipulate = GetElementsToManipulate();
+										ViewportInteraction->BeginGizmoManipulation(ElementsToManipulate, GetWidgetMode());
+									}
 								}
 
 								RedrawAllViewportsIntoThisScene();
@@ -2942,6 +2967,7 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 
 	bOnlyMovedPivot = false;
 	bNeedToRestoreComponentBeingMovedFlag = false;
+	bHasBegunGizmoManipulation = false;
 
 	PreDragActorTransforms.Empty();
 
@@ -2963,6 +2989,7 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 
 		const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
 		ViewportInteraction->BeginGizmoManipulation(ElementsToManipulate, GetWidgetMode());
+		bHasBegunGizmoManipulation = true;
 
 		if (!bDuplicateActorsInProgress)
 		{
@@ -3082,12 +3109,17 @@ void FLevelEditorViewportClient::TrackingStopped()
 
 	// Notify the selected actors that they have been moved.
 	// Don't do this if AddDelta was never called.
-	if( bDidAnythingActuallyChange && MouseDeltaTracker->HasReceivedDelta() )
 	{
-		const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
-		ViewportInteraction->EndGizmoManipulation(ElementsToManipulate, GetWidgetMode());
+		const bool bDidMove = bDidAnythingActuallyChange && MouseDeltaTracker->HasReceivedDelta();
 
-		if (!GUnrealEd->IsPivotMovedIndependently())
+		if (bHasBegunGizmoManipulation)
+		{
+			const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+			ViewportInteraction->EndGizmoManipulation(ElementsToManipulate, GetWidgetMode(), bDidMove ? ETypedElementViewportInteractionGizmoManipulationType::Drag : ETypedElementViewportInteractionGizmoManipulationType::Click);
+			bHasBegunGizmoManipulation = false;
+		}
+
+		if (bDidMove && !GUnrealEd->IsPivotMovedIndependently())
 		{
 			GUnrealEd->UpdatePivotLocationForSelection();
 		}

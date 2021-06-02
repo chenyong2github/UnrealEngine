@@ -77,7 +77,7 @@ void FTypedElementViewportInteractionCustomization::GizmoManipulationDeltaUpdate
 	}
 }
 
-void FTypedElementViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
+void FTypedElementViewportInteractionCustomization::GizmoManipulationStopped(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const ETypedElementViewportInteractionGizmoManipulationType InManipulationType)
 {
 	InElementWorldHandle.NotifyMovementEnded();
 }
@@ -192,14 +192,14 @@ void UTypedElementViewportInteraction::UpdateGizmoManipulation(const UTypedEleme
 	});
 }
 
-void UTypedElementViewportInteraction::EndGizmoManipulation(const UTypedElementList* InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode)
+void UTypedElementViewportInteraction::EndGizmoManipulation(const UTypedElementList* InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode, const ETypedElementViewportInteractionGizmoManipulationType InManipulationType)
 {
-	InElementsToMove->ForEachElementHandle([this, InWidgetMode](const FTypedElementHandle& InElementToMove)
+	InElementsToMove->ForEachElementHandle([this, InWidgetMode, InManipulationType](const FTypedElementHandle& InElementToMove)
 	{
 		FTypedElementViewportInteractionElement ViewportInteractionElement = ResolveViewportInteractionElement(InElementToMove);
 		if (ViewportInteractionElement)
 		{
-			ViewportInteractionElement.GizmoManipulationStopped(InWidgetMode);
+			ViewportInteractionElement.GizmoManipulationStopped(InWidgetMode, InManipulationType);
 		}
 		return true;
 	});
