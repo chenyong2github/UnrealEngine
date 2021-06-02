@@ -940,9 +940,9 @@ void FBlueprintEditor::OnSelectionUpdated(const TArray<TSharedPtr<FSubobjectEdit
 		InspectorObjects.Empty(SelectedNodes.Num());
 		for (FSubobjectEditorTreeNodePtrType NodePtr : SelectedNodes)
 		{
-			if (NodePtr.IsValid())
+			const FSubobjectData* NodeData = NodePtr ? NodePtr->GetDataSource() : nullptr;
+			if (NodeData)
 			{
-				const FSubobjectData* NodeData = NodePtr->GetDataSource();
 				if (const AActor* Actor = NodeData->GetObject<AActor>())
 				{
 					if (const AActor* DefaultActor = NodeData->GetObjectForBlueprint<AActor>(GetBlueprintObj()))
