@@ -66,27 +66,6 @@ DECLARE_LLM_MEMORY_STAT(TEXT("GPUScene"), STAT_GPUSceneLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("GPUScene"), STAT_GPUSceneSummaryLLM, STATGROUP_LLM);
 LLM_DEFINE_TAG(GPUScene, NAME_None, NAME_None, GET_STATFNAME(STAT_GPUSceneLLM), GET_STATFNAME(STAT_GPUSceneSummaryLLM));
 
-FVector OrthonormalizeTransform(FMatrix& Matrix)
-{
-	FVector X, Y, Z, Origin;
-	Matrix.GetScaledAxes(X, Y, Z);
-	Origin = Matrix.GetOrigin();
-
-	// Modified Gram-Schmidt orthogonalization
-	Y -= (Y | X) / (X | X) * X;
-	Z -= (Z | X) / (X | X) * X;
-	Z -= (Z | Y) / (Y | Y) * Y;
-
-	Matrix = FMatrix(X, Y, Z, Origin);
-
-	// Extract per axis scales
-	FVector Scale;
-	Scale.X = X.Size();
-	Scale.Y = Y.Size();
-	Scale.Z = Z.Size();
-	return Scale;
-}
-
 static int32 GetMaxPrimitivesUpdate(uint32 NumUploads, uint32 InStrideInFloat4s)
 {
 	return FMath::Min((uint32)(GetMaxBufferDimension() / InStrideInFloat4s), NumUploads);
@@ -215,20 +194,16 @@ inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const F
 	// TODO: This should be propagated from the Primitive, or not exist?
 	PrimitiveInstance.Flags = 0;
 
-	// Remove shear
-	FVector Scale = OrthonormalizeTransform(PrimitiveInstance.LocalToWorld);
-					OrthonormalizeTransform(PrimitiveInstance.PrevLocalToWorld);
+	if (PrimitiveInstance.LocalToWorld.RotDeterminant() < 0.0f)
+	{
+		PrimitiveInstance.Flags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
+	}
+	else
+	{
+		PrimitiveInstance.Flags &= ~INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
+	}
 
-	PrimitiveInstance.NonUniformScale = FVector4(
-		Scale.X, Scale.Y, Scale.Z,
-		FMath::Max3(FMath::Abs(Scale.X), FMath::Abs(Scale.Y), FMath::Abs(Scale.Z))
-	);
-
-	PrimitiveInstance.InvNonUniformScale = FVector3f(
-		Scale.X > KINDA_SMALL_NUMBER ? 1.0f / Scale.X : 0.0f,
-		Scale.Y > KINDA_SMALL_NUMBER ? 1.0f / Scale.Y : 0.0f,
-		Scale.Z > KINDA_SMALL_NUMBER ? 1.0f / Scale.Z : 0.0f);
-	PrimitiveInstance.DeterminantSign = FMath::FloatSelect(PrimitiveInstance.LocalToWorld.RotDeterminant(), (FMatrix::FReal)1.0, (FMatrix::FReal)-1.0);
+	PrimitiveInstance.OrthonormalizeAndUpdateScale();
 }
 
 inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const FPrimitiveTransforms& PrimitiveTransforms, const FBoxSphereBounds& LocalBounds, int32 PrimitiveID, uint32 SceneFrameNumber)
@@ -242,11 +217,10 @@ inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const 
 	DummyInstance.PrevLocalToWorld = FMatrix::Identity;
 	DummyInstance.NonUniformScale = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 	DummyInstance.InvNonUniformScale = FVector3f(1.0f, 1.0f, 1.0f);
-	DummyInstance.DeterminantSign = 1.0f;
 	DummyInstance.RenderBounds = LocalBounds;
 	DummyInstance.LocalBounds = LocalBounds;
-const bool bHasPreviousInstanceTransforms = false;
-	
+
+	const bool bHasPreviousInstanceTransforms = false;
 	InitPrimitiveInstance(DummyInstance, PrimitiveTransforms, PrimitiveID, SceneFrameNumber, bHasPreviousInstanceTransforms);
 }
 
@@ -948,28 +922,15 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 				int32 RangeCount = PartitionUpdateRanges(ParallelRanges, InstancesToClear.Num(), bExecuteInParallel);
 
+				const FInstanceSceneShaderData& ClearedShaderData = GetDummyInstanceSceneShaderData();
+
 				// Reset any instance slots marked for clearing.
 				ParallelFor(RangeCount,
-					[this, &InstancesToClear, &ParallelRanges, RangeCount, InstanceDataNumArrays, &BufferState](int32 RangeIndex)
+					[this, &InstancesToClear, &ParallelRanges, RangeCount, InstanceDataNumArrays, &ClearedShaderData , &BufferState](int32 RangeIndex)
 					{
 						for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
 						{
 							const int32 Index = InstancesToClear[ItemIndex];
-							FInstanceSceneShaderData InstanceSceneData(GetInstanceUniformShaderParameters(
-								FMatrix::Identity,
-								FMatrix::Identity,
-								FVector::ZeroVector,
-								FVector::ZeroVector,
-								FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-								FVector3f(1.0f, 1.0f, 1.0f),
-								1.0f,
-								FVector4(ForceInitToZero),
-								FNaniteInfo(),
-								~(uint32)0,
-								0,
-								0.0f,
-								false
-							));
 
 							void* DstRefs[FInstanceSceneShaderData::InstanceDataStrideInFloat4s];
 							if (RangeCount > 1)
@@ -987,10 +948,11 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 								PrimitiveUploadBufferCS.Unlock();
 							}
 
+							// TODO: This is silly, use a custom shader to splat the identity shader data over multiple output locations - way more efficient bandwidth and memory usage.
 							for (uint32 RefIndex = 0; RefIndex < InstanceDataNumArrays; ++RefIndex) //TODO: make a SOA version of InstanceUploadBuffer.Add
 							{
 								FVector4* DstVector = static_cast<FVector4*>(DstRefs[RefIndex]);
-								*DstVector = InstanceSceneData.Data[RefIndex];
+								*DstVector = ClearedShaderData.Data[RefIndex];
 							}
 						}
 					},
