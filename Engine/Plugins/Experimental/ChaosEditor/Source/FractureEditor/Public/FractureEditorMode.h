@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EdMode.h"
+#include "Tools/LegacyEdModeWidgetHelpers.h"
 #include "EditorUndoClient.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
+
+#include "FractureEditorMode.generated.h"
 
 class UGeometryCollectionComponent;
 
@@ -14,39 +16,44 @@ namespace FractureTransactionContexts
 	static const TCHAR SelectBoneContext[] = TEXT("SelectGeometryCollectionBone");
 };
 
-class FFractureEditorMode : public FEdMode, public FEditorUndoClient
+UCLASS(Transient)
+class UFractureEditorMode : public UBaseLegacyWidgetEdMode, public FEditorUndoClient, public ILegacyEdModeSelectInterface
 {
+	GENERATED_BODY()
 public:
 	const static FEditorModeID EM_FractureEditorModeId;
-public:
-	FFractureEditorMode();
-	virtual ~FFractureEditorMode();
 
-	using FEdMode::PostUndo;
+	UFractureEditorMode();
+	virtual ~UFractureEditorMode();
+
+	using UEdMode::PostUndo;
 	using FEditorUndoClient::PostUndo;
 
-	// FEdMode interface 
+	// UEdMode interface
 	virtual void Enter() override;
 	virtual void Exit() override;
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
-	// FEditorUndoClient interface
-	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject *, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
-	virtual void PostUndo(bool bSuccess) override; 
-	virtual void PostRedo(bool bSuccess) override;
 
 	//virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
+	virtual void CreateToolkit() override;
 	bool UsesToolkits() const override;
 	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) override;
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
 
-	virtual bool BoxSelect(FBox& InBox, bool InSelect = true) override;
-	virtual bool FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect) override;
 	virtual bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const;
 	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
-	// End of FEdMode interface
+	// End of UEdMode interface
+
+	// ILegacyEdModeSelectInterface
+	virtual bool BoxSelect(FBox& InBox, bool InSelect = true) override;
+	virtual bool FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect) override;
+
+	// FEditorUndoClient interface
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+
 private:
 	void OnUndoRedo();
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);

@@ -10,6 +10,8 @@
 #include "FractureEditorCommands.h"
 #include "FractureEditorModeToolkit.h"
 
+#include "EdModeInteractiveToolsContext.h"
+
 #include "FractureTool.generated.h"
 
 class UGeometryCollection;
@@ -107,6 +109,15 @@ public:
 
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void FractureContextChanged() {}
+	
+	// Called when the selection changes, and when the modal tool is entered
+	virtual void SelectedBonesChanged() {}
+
+	// Called when the modal tool is entered
+	virtual void Setup() {}
+
+	// Called when the modal tool is exited (on switching to a new modal tool or exiting the fracture editor mode)
+	virtual void Shutdown() {}
 
 };
 

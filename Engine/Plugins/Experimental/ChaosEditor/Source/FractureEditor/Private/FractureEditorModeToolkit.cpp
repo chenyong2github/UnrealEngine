@@ -184,6 +184,11 @@ FFractureEditorModeToolkit::~FFractureEditorModeToolkit()
 
 void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 {
+	Init(InitToolkitHost, TWeakObjectPtr<UEdMode>());
+}
+
+void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
+{
 	FFractureEditorModule& FractureModule = FModuleManager::GetModuleChecked<FFractureEditorModule>("FractureEditor");
 
 	const FFractureEditorCommands& Commands = FFractureEditorCommands::Get();
@@ -411,7 +416,7 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	// Bind Chaos Commands;
 	BindCommands();
 
-	FModeToolkit::Init(InitToolkitHost);
+	FModeToolkit::Init(InitToolkitHost, InOwningMode);
 
 }
 
@@ -626,7 +631,7 @@ FText FFractureEditorModeToolkit::GetBaseToolkitName() const
 
 class FEdMode* FFractureEditorModeToolkit::GetEditorMode() const
 {
-	return GLevelEditorModeTools().GetActiveMode(FFractureEditorMode::EM_FractureEditorModeId);
+	return GLevelEditorModeTools().GetActiveMode(UFractureEditorMode::EM_FractureEditorModeId);
 }
 
 void FFractureEditorModeToolkit::AddReferencedObjects(FReferenceCollector& Collector)
@@ -863,6 +868,11 @@ bool FFractureEditorModeToolkit::CanExecuteAction(UFractureActionTool* InActionT
 
 void FFractureEditorModeToolkit::SetActiveTool(UFractureModalTool* InActiveTool)
 {
+	if (ActiveTool)
+	{
+		ActiveTool->Shutdown();
+	}
+
 	ActiveTool = InActiveTool;
 
 	UFractureToolSettings* ToolSettings = GetMutableDefault<UFractureToolSettings>();
@@ -873,12 +883,23 @@ void FFractureEditorModeToolkit::SetActiveTool(UFractureModalTool* InActiveTool)
 
 	if (ActiveTool != nullptr)
 	{
+		ActiveTool->Setup();
+
 		Settings.Append(ActiveTool->GetSettingsObjects());
 
+		ActiveTool->SelectedBonesChanged();
 		ActiveTool->FractureContextChanged();
 	}
 
 	DetailsView->SetObjects(Settings);
+}
+
+void FFractureEditorModeToolkit::Shutdown()
+{
+	if (ActiveTool)
+	{
+		ActiveTool->Shutdown();
+	}
 }
 
 
@@ -943,6 +964,7 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 
 	if (ActiveTool != nullptr)
 	{
+		ActiveTool->SelectedBonesChanged();
 		ActiveTool->FractureContextChanged();
 	}
 }
@@ -953,6 +975,7 @@ void FFractureEditorModeToolkit::SetBoneSelection(UGeometryCollectionComponent* 
 	
 	if (ActiveTool != nullptr)
 	{
+		ActiveTool->SelectedBonesChanged();
 		ActiveTool->FractureContextChanged();
 	}
 }
@@ -1335,6 +1358,7 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 
 		if (ActiveTool != nullptr)
 		{
+			ActiveTool->SelectedBonesChanged();
 			ActiveTool->FractureContextChanged();
 		}
 

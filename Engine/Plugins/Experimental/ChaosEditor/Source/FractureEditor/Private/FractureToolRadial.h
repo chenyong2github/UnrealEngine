@@ -69,12 +69,19 @@ public:
 	virtual FText GetTooltipText() const override;
 	virtual FSlateIcon GetToolIcon() const override;
 	virtual TArray<UObject*> GetSettingsObjects() const override;
+	virtual void SelectedBonesChanged() override;
 
 	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext ) override;
 
 	// Radial Voronoi Fracture Input Settings
 	UPROPERTY(EditAnywhere, Category = Uniform)
 	TObjectPtr<UFractureRadialSettings> RadialSettings;
+
+	UPROPERTY(EditAnywhere, Category = Uniform)
+	TObjectPtr<UFractureTransformGizmoSettings> GizmoSettings;
+
+	virtual void Setup() override;
+	virtual void Shutdown() override;
 
 protected:
 	void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) override;

@@ -3,6 +3,8 @@
 #include "FractureToolCutter.h"
 
 #include "FractureToolContext.h"
+#include "InteractiveToolsContext.h"
+#include "EditorModeManager.h"
 
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -13,6 +15,86 @@
 
 #define LOCTEXT_NAMESPACE "FractureToolCutter"
 
+
+UFractureTransformGizmoSettings::UFractureTransformGizmoSettings(const FObjectInitializer& ObjInit) : Super(ObjInit)
+{
+
+}
+
+void UFractureTransformGizmoSettings::ResetGizmo(bool bResetRotation)
+{
+	if (!TransformGizmo || !TransformProxy)
+	{
+		return;
+	}
+	if (AttachedCutter)
+	{
+		AttachedCutter->SetMandateGroupFracture(bUseGizmo);
+	}
+	if (!bUseGizmo || !AttachedCutter)
+	{
+		TransformGizmo->SetVisibility(false);
+		return;
+	}
+	FBox CombinedBounds = AttachedCutter->GetCombinedBounds(AttachedCutter->GetFractureToolContexts());
+	TransformGizmo->SetVisibility((bool)CombinedBounds.IsValid);
+	if (CombinedBounds.IsValid)
+	{
+		if (bCenterOnSelection)
+		{
+			FTransform Transform = TransformProxy->GetTransform();
+			Transform.SetTranslation(CombinedBounds.GetCenter());
+			if (bResetRotation)
+			{
+				Transform.SetRotation(FQuat::Identity);
+			}
+			TransformGizmo->SetNewGizmoTransform(Transform);
+		}
+	}
+}
+
+void UFractureTransformGizmoSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFractureTransformGizmoSettings, bUseGizmo))
+	{
+		if (AttachedCutter)
+		{
+			ResetGizmo();
+		}
+	}
+}
+
+void UFractureTransformGizmoSettings::TransformChanged(UTransformProxy* Proxy, FTransform Transform)
+{
+	if (bUseGizmo && AttachedCutter)
+	{
+		AttachedCutter->FractureContextChanged();
+	}
+}
+
+void UFractureTransformGizmoSettings::Setup(UFractureToolCutterBase* Cutter)
+{
+	AttachedCutter = Cutter;
+	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
+	if (ensure(Context && AttachedCutter))
+	{
+		UInteractiveGizmoManager* GizmoManager = Context->GizmoManager;
+		TransformProxy = NewObject<UTransformProxy>(this);
+		TransformGizmo = GizmoManager->CreateCustomTransformGizmo(ETransformGizmoSubElements::StandardTranslateRotate, this);
+		TransformGizmo->SetActiveTarget(TransformProxy);
+		TransformProxy->OnTransformChanged.AddUObject(this, &UFractureTransformGizmoSettings::TransformChanged);
+		ResetGizmo();
+	}
+}
+
+void UFractureTransformGizmoSettings::Shutdown()
+{
+	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
+	if (Context)
+	{
+		Context->GizmoManager->DestroyAllGizmosByOwner(this);
+	}
+}
 
 UFractureToolCutterBase::UFractureToolCutterBase(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -103,6 +185,17 @@ TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() 
 	}
 
 	return Contexts;
+}
+
+
+FBox UFractureToolCutterBase::GetCombinedBounds(const TArray<FFractureToolContext>& Contexts) const
+{
+	FBox CombinedBounds(EForceInit::ForceInit);
+	for (const FFractureToolContext& FractureContext : Contexts)
+	{
+		CombinedBounds += FractureContext.GetWorldBounds();
+	}
+	return CombinedBounds;
 }
 
 
