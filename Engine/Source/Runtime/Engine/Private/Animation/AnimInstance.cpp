@@ -1795,7 +1795,9 @@ void UAnimInstance::TriggerMontageEndedEvent(const FQueuedMontageEndedEvent& Mon
 
 				if (ActiveAnimNotifyState.IsValidIndex(Index))
 				{
+					check(ActiveAnimNotifyState.Num() == ActiveAnimNotifyEventReference.Num());
 					ActiveAnimNotifyState.RemoveAtSwap(Index);
+					ActiveAnimNotifyEventReference.RemoveAtSwap(Index);
 				}
 				else
 				{
