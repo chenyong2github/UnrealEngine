@@ -340,6 +340,9 @@ struct FMetasoundFrontendGraphStyle
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
+	bool bIsGraphEditable = true;
+
 	// Edge styles for graph.
 	UPROPERTY()
 	TArray<FMetasoundFrontendStyleEdgeClass> EdgeStyles;
@@ -757,6 +760,11 @@ struct FMetasoundFrontendDocumentMetadata
 
 	UPROPERTY()
 	FMetasoundFrontendVersion Version;
+
+	FMetasoundFrontendDocumentMetadata()
+	{
+		Version.Number = { 1, 1 };
+	}
 };
 
 
