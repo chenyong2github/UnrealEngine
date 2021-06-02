@@ -215,47 +215,45 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 	}
 
 	// Draw selected cells
-	if (SelectBox.GetVolume() > 0)
+	TMap<uint32, FCellDesc2D> UniqueCells2D;
+
+	const FBox VisibleSelectBox = SelectBox.Overlap(VisibleGridRectWorld);
+
+	if (VisibleSelectBox.IsValid)
 	{
-		const FBox VisibleSelectBox = SelectBox.Overlap(VisibleGridRectWorld);
-
-		if (VisibleSelectBox.GetVolume() > 0)
+		WorldPartition->EditorHash->ForEachIntersectingCell(VisibleSelectBox, [&](UWorldPartitionEditorCell* Cell)
 		{
-			TMap<uint32, FCellDesc2D> UniqueCells2D;
-			WorldPartition->EditorHash->ForEachIntersectingCell(VisibleSelectBox, [&](UWorldPartitionEditorCell* Cell)
-			{
-				UWorldPartitionEditorSpatialHash::FCellCoord CellCoord = EditorSpatialHash->GetCellCoords(Cell->Bounds.GetCenter(), 0);
+			UWorldPartitionEditorSpatialHash::FCellCoord CellCoord = EditorSpatialHash->GetCellCoords(Cell->Bounds.GetCenter(), 0);
 
-				FHashBuilder HashBuilder;
-				HashBuilder << CellCoord.X << CellCoord.Y;
-				uint32 CellHash2D = HashBuilder.GetHash();
+			FHashBuilder HashBuilder;
+			HashBuilder << CellCoord.X << CellCoord.Y;
+			uint32 CellHash2D = HashBuilder.GetHash();
 
-				FCellDesc2D& CellDesc2D = UniqueCells2D.Add(CellHash2D);
+			FCellDesc2D& CellDesc2D = UniqueCells2D.Add(CellHash2D);
 
-				CellDesc2D.Bounds = FBox2D(FVector2D(Cell->Bounds.Min), FVector2D(Cell->Bounds.Max));
-			});
+			CellDesc2D.Bounds = FBox2D(FVector2D(Cell->Bounds.Min), FVector2D(Cell->Bounds.Max));
+		});
 
-			for(auto& UniqueCell: UniqueCells2D)
-			{
-				const FCellDesc2D& Cell = UniqueCell.Value;
+		for (auto& UniqueCell : UniqueCells2D)
+		{
+			const FCellDesc2D& Cell = UniqueCell.Value;
 
-				FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
-					WorldToScreen.TransformPoint(Cell.Bounds.Min),
-					WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
-				);
+			FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
+				WorldToScreen.TransformPoint(Cell.Bounds.Min),
+				WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
+			);
 
-				FSlateColorBrush CellBrush(FLinearColor::White);
-				FLinearColor CellColor(1, 1, 1, 0.25f);
+			FSlateColorBrush CellBrush(FLinearColor::White);
+			FLinearColor CellColor(1, 1, 1, 0.25f);
 
-				FSlateDrawElement::MakeBox(
-					OutDrawElements,
-					++LayerId,
-					CellGeometry,
-					&CellBrush,
-					ESlateDrawEffect::None,
-					CellColor
-				);
-			}
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				++LayerId,
+				CellGeometry,
+				&CellBrush,
+				ESlateDrawEffect::None,
+				CellColor
+			);
 		}
 	}
 

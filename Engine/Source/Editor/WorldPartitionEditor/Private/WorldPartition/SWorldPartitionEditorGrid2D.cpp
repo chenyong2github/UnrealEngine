@@ -151,7 +151,14 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 
 	auto CanLoadOrUnloadCells = [this]()
 	{
-		return GLevelEditorModeTools().IsDefaultModeActive() && SelectBox.GetVolume() > 0;
+		TArray<UWorldPartitionEditorCell*> Cells;
+		
+		if (WorldPartition == nullptr)
+		{
+			return false;
+		}
+
+		return GLevelEditorModeTools().IsDefaultModeActive() && (WorldPartition->EditorHash->GetIntersectingCells(SelectBox, Cells) > 0);
 	};
 
 	ActionList.MapAction(Commands.LoadSelectedCells, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::LoadSelectedCells), FCanExecuteAction::CreateLambda(CanLoadOrUnloadCells));
@@ -733,10 +740,8 @@ void SWorldPartitionEditorGrid2D::UpdateSelection()
 	);
 
 	const FBox2D SelectBox2D(FVector2D(SelectionBox.Min), FVector2D(SelectionBox.Max));
-	if(!FMath::IsNearlyZero(SelectBox2D.GetArea()))
-	{
-		SelectBox = SelectionBox;
-	}
+
+	SelectBox = SelectionBox;
 }
 
 #undef LOCTEXT_NAMESPACE
