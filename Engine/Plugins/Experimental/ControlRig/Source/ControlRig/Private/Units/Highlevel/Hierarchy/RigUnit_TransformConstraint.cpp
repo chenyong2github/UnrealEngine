@@ -167,6 +167,11 @@ void FRigUnit_TransformConstraintPerItem::AddConstraintData(const FRigVMFixedArr
 
 FRigUnit_ParentConstraint_Execute()
  {
+	if (Weight < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+	
  	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;	
 	if (Hierarchy)
 	{
@@ -322,14 +327,19 @@ FRigUnit_ParentConstraint_Execute()
 			FTransform FilteredMixedLocalTransform(FControlRigMathLibrary::QuatFromEuler(FilteredEulerRotation, AdvancedSettings.RotationOrderForFilter), FilteredTranslation, FilteredScale);
 
 			FTransform FinalLocalTransform = FilteredMixedLocalTransform;
+
+			if (Weight < 1.0f - KINDA_SMALL_NUMBER)
+			{
+				FinalLocalTransform = FControlRigMathLibrary::LerpTransform(ChildCurrentLocalTransform, FinalLocalTransform, Weight);
+			}
 			
 			if (Child.Type == ERigElementType::Control)
 			{
 				// need to convert back to offset space for the actual control value
-				FinalLocalTransform = FilteredMixedLocalTransform.GetRelativeTransform(AdditionalOffsetTransform);
+				FinalLocalTransform = FinalLocalTransform.GetRelativeTransform(AdditionalOffsetTransform);
 				FinalLocalTransform.NormalizeRotation();
 			}
-			
+
 			Hierarchy->SetLocalTransform(Child, FinalLocalTransform);
 		}
 	} 
@@ -408,6 +418,11 @@ FRigUnit_ParentConstraint_Execute()
 
 FRigUnit_PositionConstraint_Execute()
 {
+	if (Weight < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+	
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;	
 	if (Hierarchy)
 	{
@@ -503,11 +518,16 @@ FRigUnit_PositionConstraint_Execute()
 			FilteredMixedLocalTransform.SetTranslation(FilteredPosition); 
 
 			FTransform FinalLocalTransform = FilteredMixedLocalTransform;
-
+			
+			if (Weight < 1.0f - KINDA_SMALL_NUMBER)
+			{
+				FinalLocalTransform = FControlRigMathLibrary::LerpTransform(ChildCurrentLocalTransform, FinalLocalTransform, Weight);
+			}
+			
 			if (Child.Type == ERigElementType::Control)
 			{
 				// need to convert back to offset space for the actual control value
-				FinalLocalTransform = FilteredMixedLocalTransform.GetRelativeTransform(AdditionalOffsetTransform);
+				FinalLocalTransform = FinalLocalTransform.GetRelativeTransform(AdditionalOffsetTransform);
 				FinalLocalTransform.NormalizeRotation();
 			}
 
@@ -557,6 +577,11 @@ FRigUnit_PositionConstraint_Execute()
 
 FRigUnit_RotationConstraint_Execute()
 {
+	if (Weight < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+	
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;	
 	if (Hierarchy)
 	{
@@ -693,14 +718,19 @@ FRigUnit_RotationConstraint_Execute()
 
 			FTransform FinalLocalTransform = FilteredMixedLocalTransform;
 
+			if (Weight < 1.0f - KINDA_SMALL_NUMBER)
+			{
+				FinalLocalTransform = FControlRigMathLibrary::LerpTransform(ChildCurrentLocalTransform, FinalLocalTransform, Weight);
+			}
+
 			if (Child.Type == ERigElementType::Control)
 			{
 				// need to convert back to offset space for the actual control value
-				FinalLocalTransform = FilteredMixedLocalTransform.GetRelativeTransform(AdditionalOffsetTransform);
+				FinalLocalTransform = FinalLocalTransform.GetRelativeTransform(AdditionalOffsetTransform);
 				FinalLocalTransform.NormalizeRotation();
 			}
-
-			Hierarchy->SetLocalTransform(Child, FinalLocalTransform); 
+			
+			Hierarchy->SetLocalTransform(Child, FinalLocalTransform);
 		}
 	} 	
 }
@@ -806,6 +836,11 @@ FRigUnit_ScaleConstraint_Execute()
        	
        	return NonZeroScale;	
 	});
+
+	if (Weight < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
 	
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;	
 	if (Hierarchy)
@@ -912,14 +947,19 @@ FRigUnit_ScaleConstraint_Execute()
 
 			FTransform FinalLocalTransform = FilteredMixedLocalTransform;
 
+			if (Weight < 1.0f - KINDA_SMALL_NUMBER)
+			{
+				FinalLocalTransform = FControlRigMathLibrary::LerpTransform(ChildCurrentLocalTransform, FinalLocalTransform, Weight);
+			}
+			
 			if (Child.Type == ERigElementType::Control)
 			{
 				// need to convert back to offset space for the actual control value
-				FinalLocalTransform = FilteredMixedLocalTransform.GetRelativeTransform(AdditionalOffsetTransform);
+				FinalLocalTransform = FinalLocalTransform.GetRelativeTransform(AdditionalOffsetTransform);
 				FinalLocalTransform.NormalizeRotation();
 			}
 
-			Hierarchy->SetLocalTransform(Child, FinalLocalTransform); 
+			Hierarchy->SetLocalTransform(Child, FinalLocalTransform);
 		}
 	}
 }

@@ -209,6 +209,7 @@ enum class EConstraintInterpType : uint8
 	Average UMETA(DisplayName="Average(Order Independent)"),
    /** Perform Quaternion Slerp in Sequence, Different Orders of Parents can Produce Different Results */ 
     Shortest UMETA(DisplayName="Shortest(Order Dependent)"),
+	
     Max UMETA(Hidden),
 };
 
@@ -244,9 +245,11 @@ struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
 	GENERATED_BODY()
 
 	FRigUnit_ParentConstraint()
-        :Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+        : Child(FRigElementKey(NAME_None, ERigElementType::Bone))
         , bMaintainOffset(true)
+		, Weight(1.0f)
 	{
+		Parents.Add(FConstraintParent());
 	}
 	
 	RIGVM_METHOD()
@@ -261,11 +264,14 @@ struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
 	FTransformFilter Filter;
 	
-	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
-	FRigUnit_ParentConstraint_AdvancedSettings AdvancedSettings;
-	
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
 	TArray<FConstraintParent> Parents;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FRigUnit_ParentConstraint_AdvancedSettings AdvancedSettings;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	float Weight;	
 };
 
 /**
@@ -277,9 +283,11 @@ struct FRigUnit_PositionConstraint : public FRigUnit_HighlevelBaseMutable
 	GENERATED_BODY()
 
 	FRigUnit_PositionConstraint()
-        :Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+        : Child(FRigElementKey(NAME_None, ERigElementType::Bone))
         , bMaintainOffset(true)
+		, Weight(1.0f)
 	{
+		Parents.Add(FConstraintParent());
 	}
 	
 	RIGVM_METHOD()
@@ -296,6 +304,9 @@ struct FRigUnit_PositionConstraint : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
 	TArray<FConstraintParent> Parents;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	float Weight;
 };
 
 USTRUCT()
@@ -330,9 +341,11 @@ struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
 	GENERATED_BODY()
 
 	FRigUnit_RotationConstraint()
-        :Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+        : Child(FRigElementKey(NAME_None, ERigElementType::Bone))
         , bMaintainOffset(true)
+		, Weight(1.0f)
 	{
+		Parents.Add(FConstraintParent());
 	}
 	
 	RIGVM_METHOD()
@@ -347,11 +360,14 @@ struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
 	FFilterOptionPerAxis Filter;
 
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
+	
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
 	FRigUnit_RotationConstraint_AdvancedSettings AdvancedSettings;
 
-	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
-	TArray<FConstraintParent> Parents;
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	float Weight;
 };
 
 /**
@@ -365,7 +381,9 @@ struct FRigUnit_ScaleConstraint : public FRigUnit_HighlevelBaseMutable
 	FRigUnit_ScaleConstraint()
         : Child(FRigElementKey(NAME_None, ERigElementType::Bone))
         , bMaintainOffset(true)
+		, Weight(1.0f)
 	{
+		Parents.Add(FConstraintParent());
 	}
 	
 	RIGVM_METHOD()
@@ -382,4 +400,7 @@ struct FRigUnit_ScaleConstraint : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
 	TArray<FConstraintParent> Parents;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	float Weight;
 };
