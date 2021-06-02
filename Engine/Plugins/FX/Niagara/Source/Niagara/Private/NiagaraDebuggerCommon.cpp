@@ -2,6 +2,12 @@
 
 #include "NiagaraDebuggerCommon.h"
 
+FNiagaraOutlinerSystemInstanceData::FNiagaraOutlinerSystemInstanceData()
+{
+	bPendingKill = false;
+	PoolMethod = ENCPoolMethod::None;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 FNiagaraDebugHUDSettingsData::FNiagaraDebugHUDSettingsData()

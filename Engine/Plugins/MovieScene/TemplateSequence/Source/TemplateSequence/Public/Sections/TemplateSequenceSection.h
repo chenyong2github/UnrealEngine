@@ -41,7 +41,7 @@ struct FTemplateSectionPropertyScale
 	FMovieScenePropertyBinding PropertyBinding;
 
 	UPROPERTY()
-	ETemplateSectionPropertyScaleType PropertyScaleType;
+	ETemplateSectionPropertyScaleType PropertyScaleType = ETemplateSectionPropertyScaleType::FloatProperty;
 
 	UPROPERTY()
 	FMovieSceneFloatChannel FloatChannel;

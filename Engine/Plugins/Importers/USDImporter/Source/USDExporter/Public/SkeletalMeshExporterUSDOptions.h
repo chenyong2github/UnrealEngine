@@ -24,7 +24,7 @@ struct USDEXPORTER_API FSkeletalMeshExporterUSDInnerOptions
 
 	/** If true, the mesh data is exported to yet another "payload" file, and referenced via a payload composition arc */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings )
-	bool bUsePayload;
+	bool bUsePayload = false;
 
 	/** USD format to use for exported payload files */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings, meta = ( EditCondition = "bUsePayload", GetOptions = "USDExporter.LevelExporterUSDOptions.GetUsdExtensions" ) )
