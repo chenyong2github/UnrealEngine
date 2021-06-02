@@ -44,8 +44,10 @@ class ICacheRecordBuilderInternal
 public:
 	virtual ~ICacheRecordBuilderInternal() = default;
 	virtual void SetMeta(FCbObject&& Meta) = 0;
+	virtual FPayloadId SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id) = 0;
 	virtual FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
 	virtual FPayloadId SetValue(const FPayload& Payload) = 0;
+	virtual FPayloadId AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id) = 0;
 	virtual FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
 	virtual FPayloadId AddAttachment(const FPayload& Payload) = 0;
 	virtual FCacheRecord Build() = 0;
@@ -148,6 +150,10 @@ public:
 	 *                 the buffer will be hashed to create an ID.
 	 * @return The ID that was provided or created.
 	 */
+	inline FPayloadId SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id = FPayloadId())
+	{
+		return RecordBuilder->SetValue(Buffer, Id);
+	}
 	inline FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
 	{
 		return RecordBuilder->SetValue(Buffer, Id);
@@ -172,6 +178,10 @@ public:
 	 *                 the buffer will be hashed to create an ID.
 	 * @return The ID that was provided or created.
 	 */
+	inline FPayloadId AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id = FPayloadId())
+	{
+		return RecordBuilder->AddAttachment(Buffer, Id);
+	}
 	inline FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
 	{
 		return RecordBuilder->AddAttachment(Buffer, Id);
