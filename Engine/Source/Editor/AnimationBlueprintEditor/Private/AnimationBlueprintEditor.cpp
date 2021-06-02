@@ -1583,7 +1583,9 @@ void FAnimationBlueprintEditor::OnBlueprintPreCompile(UBlueprint* BlueprintToCom
 				if(Event.NotifyStateClass->GetClass() == BlueprintToCompile->GeneratedClass)
 				{
 					Event.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(Event.NotifyStateClass->GetOuter()), EventReference);
+					check(Instance->ActiveAnimNotifyState.Num() == Instance->ActiveAnimNotifyEventReference.Num());
 					Instance->ActiveAnimNotifyState.RemoveAt(Idx);
+					Instance->ActiveAnimNotifyEventReference.RemoveAt(Idx);
 				}
 			}
 		}
