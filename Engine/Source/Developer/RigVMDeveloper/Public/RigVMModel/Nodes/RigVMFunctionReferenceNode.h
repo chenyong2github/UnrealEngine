@@ -44,6 +44,7 @@ public:
 
 private:
 
+	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
 	bool RequiresVariableRemappingInternal(TArray<FRigVMExternalVariable>& InnerVariables) const;
 
 	void SetReferencedNode(URigVMLibraryNode* InReferenceNode);

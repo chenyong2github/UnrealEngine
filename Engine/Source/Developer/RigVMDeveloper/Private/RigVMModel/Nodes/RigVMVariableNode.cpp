@@ -2,6 +2,8 @@
 
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 
+#include "RigVMModel/RigVMGraph.h"
+
 const FString URigVMVariableNode::VariableName = TEXT("Variable");
 const FString URigVMVariableNode::ValueName = TEXT("Value");
 
@@ -36,6 +38,24 @@ bool URigVMVariableNode::IsGetter() const
 		return false;
 	}
 	return ValuePin->GetDirection() == ERigVMPinDirection::Output;
+}
+
+bool URigVMVariableNode::IsLocalVariable() const
+{
+	const FName CurrentVariableName = GetVariableName();
+	
+	if(URigVMGraph* Graph = GetGraph())
+	{
+		const TArray<FRigVMGraphVariableDescription>& LocalVariables = Graph->GetLocalVariables();
+		for (const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
+		{
+			if(LocalVariable.Name == CurrentVariableName)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 FString URigVMVariableNode::GetCPPType() const

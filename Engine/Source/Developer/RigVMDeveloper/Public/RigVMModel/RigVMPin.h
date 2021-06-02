@@ -128,7 +128,7 @@ public:
 	// corresponding SegmentPath is "Translation.X", since the transform is the
 	// storage / memory.
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
-	FString GetSegmentPath() const;
+	FString GetSegmentPath(bool bIncludeRootPin = false) const;
 
 	// Populates an array of pins which will be reduced to the same operand in the
 	// VM. This includes Source-Target pins in different nodes, pins in collapse and

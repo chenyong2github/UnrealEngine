@@ -1357,39 +1357,31 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 		{
 			FName VariableName = VariableNode->GetVariableName();
 
-			// Figure out if it is a local variable
+			if(VariableNode->IsLocalVariable())
 			{
-				URigVMGraph* RootGraph = InPin->GetNode()->GetGraph();
-				TArray<FRigVMGraphVariableDescription>& LocalVariables = RootGraph->LocalVariables;
-				for (const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
+				if (bIsLiteral)
 				{
-					if (LocalVariable.Name == VariableName)
+					// Literal values will be reused for all instance of local variables
+					return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *Node->GetGraph()->GetGraphName(), *VariableName.ToString(), *Suffix);
+				}
+				else
+				{
+					if(InVarExpr)
 					{
-						if (bIsLiteral)
+						FRigVMASTProxy ParentProxy = InVarExpr->GetProxy();
+						while(ParentProxy.GetCallstack().Num() > 1)
 						{
-							// Literal values will be reused for all instance of local variables
-							return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *RootGraph->GetGraphName(), *VariableName.ToString(), *Suffix);
-						}
-						else
-						{
-							if(InVarExpr)
+							ParentProxy = ParentProxy.GetParent();
+
+							if(URigVMLibraryNode* LibraryNode = ParentProxy.GetSubject<URigVMLibraryNode>())
 							{
-								FRigVMASTProxy ParentProxy = InVarExpr->GetProxy();
-								while(ParentProxy.GetCallstack().Num() > 1)
-								{
-									ParentProxy = ParentProxy.GetParent();
-
-									if(URigVMLibraryNode* LibraryNode = ParentProxy.GetSubject<URigVMLibraryNode>())
-									{
-										// Local variables for non-root graphs are in the format "LocalVariable::PathToGraph|VariableName"
-										return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *LibraryNode->GetNodePath(true), *VariableName.ToString(), *Suffix);
-									}
-								}
-
-								// Local variables for root graphs are in the format "LocalVariable::VariableName"
-								return FString::Printf(TEXT("%sLocalVariable::%s%s"), *Prefix, *VariableName.ToString(), *Suffix);
+								// Local variables for non-root graphs are in the format "LocalVariable::PathToGraph|VariableName"
+								return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *LibraryNode->GetNodePath(true), *VariableName.ToString(), *Suffix);
 							}
 						}
+
+						// Local variables for root graphs are in the format "LocalVariable::VariableName"
+						return FString::Printf(TEXT("%sLocalVariable::%s%s"), *Prefix, *VariableName.ToString(), *Suffix);
 					}
 				}
 			}
