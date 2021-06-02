@@ -41,6 +41,7 @@ public:
 			if (FParse::Value(CommandLine, TEXT("-CONCERTVERSION="), VersionString))
 			{
 				FEngineVersion EngineVersion;
+				UE_LOG(LogConcert, Warning, TEXT("CONCERTVERSION command line flag is deprecated and will be removed in a future version."));
 				if (FEngineVersion::Parse(VersionString, EngineVersion))
 				{
 					ServerConfig->DefaultVersionInfo.EngineVersion.Initialize(EngineVersion);
