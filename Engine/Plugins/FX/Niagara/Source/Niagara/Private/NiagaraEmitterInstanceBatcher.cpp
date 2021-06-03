@@ -1367,7 +1367,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteTicks(FRHICommandList& RHICmdList, FR
 				check(FinalData);
 
 				CurrentData->SwapGPU(FinalData);
-
+				ComputeContext->SetTranslucentDataToRender(nullptr);
 				ComputeContext->SetDataToRender(CurrentData);
 #if WITH_MGPU
 				AddTemporalEffectBuffers(CurrentData);
