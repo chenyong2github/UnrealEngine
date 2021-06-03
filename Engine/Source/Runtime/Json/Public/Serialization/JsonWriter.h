@@ -360,7 +360,7 @@ protected:
 
 	FORCEINLINE EJsonToken WriteValueOnly(float Value)
 	{
-		PrintPolicy::WriteString(Stream, FString::Printf(TEXT("%g"), Value));
+		PrintPolicy::WriteFloat(Stream, Value);
 		return EJsonToken::Number;
 	}
 
@@ -368,7 +368,7 @@ protected:
 	{
 		// Specify 17 significant digits, the most that can ever be useful from a double
 		// In particular, this ensures large integers are written correctly
-		PrintPolicy::WriteString(Stream, FString::Printf(TEXT("%.17g"), Value));
+		PrintPolicy::WriteDouble(Stream, Value);
 		return EJsonToken::Number;
 	}
 

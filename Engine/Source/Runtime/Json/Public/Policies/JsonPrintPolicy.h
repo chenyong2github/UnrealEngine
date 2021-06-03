@@ -38,6 +38,30 @@ struct TJsonPrintPolicy
 			WriteChar(Stream, *CharPtr);
 		}
 	}
+
+	/**
+	 * Writes a float to the output stream.
+	 *
+	 * @param Stream The stream to write to.
+	 * @param Value The float to write.
+	 */
+	static inline void WriteFloat( FArchive* Stream, float Value )
+	{
+		WriteString(Stream, FString::Printf(TEXT("%g"), Value));
+	}
+
+	/**
+	 * Writes a double to the output stream.
+	 *
+	 * @param Stream The stream to write to.
+	 * @param Value The double to write.
+	 */
+	static inline void WriteDouble(  FArchive* Stream, double Value )
+	{
+		// Specify 17 significant digits, the most that can ever be useful from a double
+		// In particular, this ensures large integers are written correctly
+		WriteString(Stream, FString::Printf(TEXT("%.17g"), Value));
+	}
 };
 
 
