@@ -24,16 +24,12 @@ public:
 	virtual uint32 Run(void) override;
 
 private:
-	bool StartDSCommander();
-
-private:
 	// > 0 if we've been asked to abort work in progress at the next opportunity
 	FThreadSafeCounter	StopTaskCounter;
 	
 	FTargetDeviceId		DeviceId;
 	FOutputDevice*		Output;
 	TQueue<FString>		OutputQueue;
-	FTcpDSCommander*	DSCommander;
 };
 
 /**
@@ -43,8 +39,6 @@ class FIOSTargetDeviceOutput : public ITargetDeviceOutput
 {
 public:
 	bool Init(const FIOSTargetDevice& TargetDevice, FOutputDevice* Output);
-
-	static int ExecuteDSCommand(const char *CommandLine, FString* OutStdOut);
 	
 private:
 	TUniquePtr<FRunnableThread>						DeviceOutputThread;

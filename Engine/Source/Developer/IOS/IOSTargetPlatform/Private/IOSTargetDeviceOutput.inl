@@ -17,39 +17,18 @@ inline FIOSDeviceOutputReaderRunnable::FIOSDeviceOutputReaderRunnable(const FTar
 	: StopTaskCounter(0)
 	, DeviceId(InDeviceId)
 	, Output(InOutput)
-	, DSCommander(nullptr)
 {
 }
 
-inline bool FIOSDeviceOutputReaderRunnable::StartDSCommander()
-{
-	if (DSCommander)
-	{
-		DSCommander->Stop();
-		delete DSCommander;
-	}
-	Output->Serialize(TEXT("Starting listening ....."), ELogVerbosity::Log, NAME_None);
-	Output->Serialize(*DeviceId.GetDeviceName(), ELogVerbosity::Log, NAME_None);
-	FString Command = FString::Printf(TEXT("listentodevice -device %s"), *DeviceId.GetDeviceName());
-	uint8* DSCommand = (uint8*)TCHAR_TO_UTF8(*Command);
-	DSCommander = new FTcpDSCommander(DSCommand, strlen((const char*)DSCommand), OutputQueue);
-	return DSCommander->IsValid();
-}
 
 inline bool FIOSDeviceOutputReaderRunnable::Init(void) 
 { 
-	return StartDSCommander();
+	return true;
 }
 
 inline void FIOSDeviceOutputReaderRunnable::Exit(void) 
 {
 	StopTaskCounter.Increment();
-	if (DSCommander)
-	{
-		DSCommander->Stop();
-		delete DSCommander;
-		DSCommander = nullptr;
-	}
 }
 
 inline void FIOSDeviceOutputReaderRunnable::Stop(void)
@@ -60,36 +39,19 @@ inline void FIOSDeviceOutputReaderRunnable::Stop(void)
 inline uint32 FIOSDeviceOutputReaderRunnable::Run(void)
 {
 	Output->Serialize(TEXT("Starting Output"), ELogVerbosity::Log, NAME_None);
-	while (StopTaskCounter.GetValue() == 0 && DSCommander->IsValid())
+	while (StopTaskCounter.GetValue() == 0)
 	{
-		if (DSCommander->IsStopped() || !DSCommander->IsValid())
+		FString Text;
+		if (OutputQueue.Dequeue(Text))
 		{
-			// When user plugs out USB cable DS process stops
-			// Keep trying to restore DS connection until code that uses this object will not kill us
-			Output->Serialize(TEXT("Trying to restore connection to device..."), ELogVerbosity::Log, NAME_None);
-			if (StartDSCommander())
+			if (Text.Contains(TEXT("[UE]"), ESearchCase::CaseSensitive))
 			{
-				FPlatformProcess::Sleep(5.0f);
-			}
-			else
-			{
-				Output->Serialize(TEXT("Failed to start DS commander"), ELogVerbosity::Log, NAME_None);
+				Output->Serialize(*Text, ELogVerbosity::Log, NAME_None);
 			}
 		}
 		else
 		{
-			FString Text;
-			if (OutputQueue.Dequeue(Text))
-			{
-				if (Text.Contains(TEXT("[UE]"), ESearchCase::CaseSensitive))
-				{
-					Output->Serialize(*Text, ELogVerbosity::Log, NAME_None);
-				}
-			}
-			else
-			{
-				FPlatformProcess::Sleep(0.1f);
-			}
+			FPlatformProcess::Sleep(0.1f);
 		}
 	}
 
