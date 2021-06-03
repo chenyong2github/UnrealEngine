@@ -3033,6 +3033,9 @@ public:
 	/** Update render states that possibly cached inside renderer, like mesh draw commands. More lightweight than re-registering the scene proxy. */
 	virtual void UpdateCachedRenderStates(FPrimitiveSceneProxy* SceneProxy) override;
 
+	/** Updates PrimitivesSelected array for this PrimitiveSceneInfo */
+	virtual void UpdatePrimitiveSelectedState_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsSelected) override;
+
 	virtual void Release() override;
 	virtual UWorld* GetWorld() const override { return World; }
 
