@@ -162,6 +162,34 @@ EDataLayerState AWorldDataLayers::GetDataLayerStateByName(FName InDataLayerName)
 }
 
 #if WITH_EDITOR
+void AWorldDataLayers::OverwriteDataLayerStates(TArray<FActorDataLayer>* InActiveDataLayers, TArray<FActorDataLayer>* InLoadedDataLayers)
+{
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		// This should get called before game starts. It doesn't send out events
+		check(!GetWorld()->bMatchStarted);
+		if (InActiveDataLayers)
+		{
+			ActiveDataLayerNames.Empty(InActiveDataLayers->Num());
+			for (const FActorDataLayer& DataLayer : *InActiveDataLayers)
+			{
+				ActiveDataLayerNames.Add(DataLayer.Name);
+			}
+			RepActiveDataLayerNames = ActiveDataLayerNames.Array();
+		}
+
+		if (InLoadedDataLayers)
+		{
+			LoadedDataLayerNames.Empty(InLoadedDataLayers->Num());
+			for (const FActorDataLayer& DataLayer : *InLoadedDataLayers)
+			{
+				LoadedDataLayerNames.Add(DataLayer.Name);
+			}
+			RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
+		}
+	}
+}
+
 AWorldDataLayers* AWorldDataLayers::Create(UWorld* World)
 {
 	check(World);
