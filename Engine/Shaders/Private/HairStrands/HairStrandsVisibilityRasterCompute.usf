@@ -2,6 +2,7 @@
 
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
+#include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
@@ -262,16 +263,16 @@ uint2 Rasterize(uint2 PixelCoord, bool bIsSteep, float FracY, float RatioScale, 
 //////////////////////////////////////////////////////////////////////////////////////////
 
 // These number need to match HairStrandsClusterCulling.usf
+// TODO
 #define GROUP_SIZE 32
-#define GROUP_COUNT_X 16
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
+void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 {
 #if PERMUTATION_CULLING
-	uint VertexIndex0 = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * GROUP_COUNT_X;
+	uint VertexIndex0 = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadID, GROUP_SIZE);
 #else
-	uint VertexIndex0 = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * DispatchCountX;
+	uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadID, GROUP_SIZE, DispatchCountX);
 #endif
 
 	uint VertexIndex1 = min(VertexIndex0 + 1, HairStrandsVF_VertexCount - 1);

@@ -634,7 +634,7 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// 0. Indirect dispatch buffer preparation for compute raster visibility pass
+/// 0. Indirect dispatch buffer preparation for compute raster visibility/voxel pass
 #ifdef SHADER_PREPAREINDIRECTDISPATCH
 
 RWBuffer<uint> DrawIndirectBuffer; 
@@ -649,15 +649,14 @@ void MainClusterCullingPrepareIndirectDispatchCS(
 	if (GroupId.x == 0 && GroupThreadId.x == 0)
 	{
 		// See HairStrandsVisibilityRasterCompute.usf
-		const uint RasterComputeGroupSize = 32;
-		const uint RasterComputeGroupCountX = 16;
+		const uint RasterComputeGroupSize = 32; // TODO change this so that we can have dispatch for different GroupSize
 
 		// DrawIndirectBuffer contains the total number of vertex count needed for drawing quad triangle strips, so 6 vertices per quad / control point
 		const uint VertexCount    = DrawIndirectBuffer[0];
 		const uint ControlPoint   = VertexCount / 6;
 		const uint DispatchCount  = DivideAndRoundUp(ControlPoint, RasterComputeGroupSize);
-		const uint DispatchCountX = DispatchCount >= RasterComputeGroupCountX ? RasterComputeGroupCountX : (DispatchCount % RasterComputeGroupCountX);
-		const uint DispatchCountY = DivideAndRoundUp(DispatchCount, RasterComputeGroupCountX);
+		const uint DispatchCountX = DispatchCount >= INDIRECT_GROUP_COUNT_X ? INDIRECT_GROUP_COUNT_X : (DispatchCount % INDIRECT_GROUP_COUNT_X);
+		const uint DispatchCountY = DivideAndRoundUp(DispatchCount, INDIRECT_GROUP_COUNT_X);
 
 		DispatchIndirectBuffer[0] = DispatchCountX;
 		DispatchIndirectBuffer[1] = DispatchCountY;

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush" 
+#include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 
 uint VertexCount;
@@ -75,7 +76,7 @@ void SetInvalidSegment(uint InVertexIndex)
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint VertexIndex0 = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 	uint VertexIndex1 = VertexIndex0 + 1;
 	float LodRadiusScale0 = 1;
 	float LodRadiusScale1 = 1;
@@ -84,14 +85,13 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (HairStrandsVF_bIsCullingEnable)
 	{
 		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
-		uint FetchIndex0 = VertexIndex0;
-		uint FetchIndex1 = VertexIndex1;
+		uint FetchIndex0 = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadId, GROUP_SIZE);
 		if (FetchIndex0 >= VertexCountAfterCulling)
 		{
 			SetInvalidSegment(VertexIndex0);
 			return;
 		}
-		FetchIndex1 = min(FetchIndex0 + 1, VertexCountAfterCulling - 1);
+		uint FetchIndex1 = min(FetchIndex0 + 1, VertexCountAfterCulling - 1);
 
 		VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
 		LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex0];
