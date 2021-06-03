@@ -44,6 +44,30 @@ public:
 	virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) = 0;
 
 	/**
+	 * Notify that the given static mesh instance is about to be moved.
+	 * @note This gives the manager a chance to start a move operation, to avoid performing repeated work until the move is finished.
+	 */
+	virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) = 0;
+
+	/**
+	 * Notify that the given static mesh instance is currently being moved.
+	 * @note This gives the manager a chance to update a move operation.
+	 */
+	virtual void NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId) = 0;
+
+	/**
+	 * Notify that the given static mesh instance is done being moved.
+	 * @note This gives the manager a chance to end a move operation.
+	 */
+	virtual void NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId) = 0;
+
+	/**
+	 * Notify that the given static mesh instance selection state has changed.
+	 * @note This gives the manager a chance to sync any internal selection state.
+	 */
+	virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) = 0;
+
+	/**
 	 * Can the given static mesh instance be deleted?
 	 * @return True if it can be deleted, false otherwise.
 	 */
@@ -93,7 +117,7 @@ public:
 	 * Attempt to get the instance manager associated with the given static mesh instance, if any.
 	 * @return The instance manager, or null if there is no instance manager associated with the given instance.
 	 */
-	virtual TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId) const = 0;
+	virtual TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId) = 0;
 };
 
 /**
@@ -142,6 +166,10 @@ public:
 	bool CanEditSMInstance() const { return InstanceManager->CanEditSMInstance(InstanceId); }
 	bool GetSMInstanceTransform(FTransform& OutInstanceTransform, bool bWorldSpace = false) const { return InstanceManager->GetSMInstanceTransform(InstanceId, OutInstanceTransform, bWorldSpace); }
 	bool SetSMInstanceTransform(const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) const { return InstanceManager->SetSMInstanceTransform(InstanceId, InstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport); }
+	void NotifySMInstanceMovementStarted() { return InstanceManager->NotifySMInstanceMovementStarted(InstanceId); }
+	void NotifySMInstanceMovementOngoing() { return InstanceManager->NotifySMInstanceMovementOngoing(InstanceId); }
+	void NotifySMInstanceMovementEnded() { return InstanceManager->NotifySMInstanceMovementEnded(InstanceId); }
+	void NotifySMInstanceSelectionChanged(const bool bIsSelected) { return InstanceManager->NotifySMInstanceSelectionChanged(InstanceId, bIsSelected); }
 	bool CanDeleteSMInstance() const { return InstanceManager->CanDeleteSMInstance(InstanceId); }
 	bool DeleteSMInstance() const { return InstanceManager->DeleteSMInstances(MakeArrayView(&InstanceId, 1)); }
 	bool CanDuplicateSMInstance() const { return InstanceManager->CanDuplicateSMInstance(InstanceId); }

@@ -1942,12 +1942,13 @@ void FEdModeFoliage::PostTransformSelectedInstances(UWorld* InWorld)
 
 void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& InDrag, const FRotator& InRot, const FVector& InScale, bool bDuplicate)
 {
+	bool bDidMoveFoliage = false;
 	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
 	{
 		AInstancedFoliageActor* IFA = *It;
 		bool bFoundSelection = false;
 
-		IFA->ForEachFoliageInfo([this, IFA, &bFoundSelection, InDrag, InRot, InScale, bDuplicate](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
+		IFA->ForEachFoliageInfo([this, IFA, &bDidMoveFoliage, &bFoundSelection, InDrag, InRot, InScale, bDuplicate](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 		{
 			TArray<int32> SelectedIndices = FoliageInfo.SelectedIndices.Array();
 
@@ -1966,8 +1967,11 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 					OnInstanceCountUpdated(FoliageType);
 				}
 
-				bMoving = true;
-				FoliageInfo.PreMoveInstances(SelectedIndices);
+				if (!bMoving)
+				{
+					FoliageInfo.PreMoveInstances(SelectedIndices);
+				}
+				bDidMoveFoliage = true;
 
 				for (int32 SelectedInstanceIdx : SelectedIndices)
 				{
@@ -1978,8 +1982,8 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 					Instance.DrawScale3D += InScale;
 				}
 
-				const bool bFinished = false;
-				FoliageInfo.PostMoveInstances(SelectedIndices, bFinished);
+				FoliageInfo.PostMoveInstances(SelectedIndices, /*bFinished*/false);
+				FoliageInfo.PreMoveInstances(SelectedIndices);
 			}
 			return true; // continue iteration
 		});
@@ -1988,6 +1992,11 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 		{
 			IFA->MarkComponentsRenderStateDirty();
 		}
+	}
+
+	if (bDidMoveFoliage)
+	{
+		bMoving = true;
 	}
 }
 

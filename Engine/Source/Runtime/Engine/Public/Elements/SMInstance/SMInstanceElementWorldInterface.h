@@ -20,4 +20,7 @@ public:
 	virtual bool SetWorldTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) override;
 	virtual bool GetRelativeTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform) override;
 	virtual bool SetRelativeTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) override;
+	virtual void NotifyMovementStarted(const FTypedElementHandle& InElementHandle) override;
+	virtual void NotifyMovementOngoing(const FTypedElementHandle& InElementHandle) override;
+	virtual void NotifyMovementEnded(const FTypedElementHandle& InElementHandle) override;
 };

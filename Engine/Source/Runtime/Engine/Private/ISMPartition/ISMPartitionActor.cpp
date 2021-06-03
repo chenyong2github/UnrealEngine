@@ -651,7 +651,7 @@ void AISMPartitionActor::GetClientComponents(const FISMClientHandle& Handle, TAr
 
 #endif
 
-TScriptInterface<ISMInstanceManager> AISMPartitionActor::GetSMInstanceManager(const FSMInstanceId& InstanceId) const
+TScriptInterface<ISMInstanceManager> AISMPartitionActor::GetSMInstanceManager(const FSMInstanceId& InstanceId)
 {
 	// Disable per-instance editing for now...
 	return nullptr;

@@ -86,3 +86,27 @@ bool USMInstanceElementWorldInterface::SetRelativeTransform(const FTypedElementH
 	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
 	return SMInstance && SMInstance.SetSMInstanceTransform(InTransform, /*bWorldSpace*/false, /*bMarkRenderStateDirty*/true);
 }
+
+void USMInstanceElementWorldInterface::NotifyMovementStarted(const FTypedElementHandle& InElementHandle)
+{
+	if (FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	{
+		SMInstance.NotifySMInstanceMovementStarted();
+	}
+}
+
+void USMInstanceElementWorldInterface::NotifyMovementOngoing(const FTypedElementHandle& InElementHandle)
+{
+	if (FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	{
+		SMInstance.NotifySMInstanceMovementOngoing();
+	}
+}
+
+void USMInstanceElementWorldInterface::NotifyMovementEnded(const FTypedElementHandle& InElementHandle)
+{
+	if (FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	{
+		SMInstance.NotifySMInstanceMovementEnded();
+	}
+}

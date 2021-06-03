@@ -232,6 +232,38 @@ bool ALightWeightInstanceStaticMeshManager::SetSMInstanceTransform(const FSMInst
 	return false;
 }
 
+void ALightWeightInstanceStaticMeshManager::NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId)
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	ISMInstanceManager* InstanceManager = InstancedStaticMeshComponent;
+	InstanceManager->NotifySMInstanceMovementStarted(InstanceId);
+}
+
+void ALightWeightInstanceStaticMeshManager::NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId)
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	ISMInstanceManager* InstanceManager = InstancedStaticMeshComponent;
+	InstanceManager->NotifySMInstanceMovementOngoing(InstanceId);
+}
+
+void ALightWeightInstanceStaticMeshManager::NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId)
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	ISMInstanceManager* InstanceManager = InstancedStaticMeshComponent;
+	InstanceManager->NotifySMInstanceMovementEnded(InstanceId);
+}
+
+void ALightWeightInstanceStaticMeshManager::NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected)
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	ISMInstanceManager* InstanceManager = InstancedStaticMeshComponent;
+	InstanceManager->NotifySMInstanceSelectionChanged(InstanceId, bIsSelected);
+}
+
 bool ALightWeightInstanceStaticMeshManager::DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds)
 {
 	TArray<int32> DataIndices;

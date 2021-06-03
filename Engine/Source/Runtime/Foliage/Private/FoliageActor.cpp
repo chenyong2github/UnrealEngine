@@ -254,7 +254,7 @@ void FFoliageActor::PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType
 	UpdateActorTransforms(Info->Instances);
 }
 
-void FFoliageActor::PreMoveInstances(const TArray<int32>& InInstancesMoved)
+void FFoliageActor::PreMoveInstances(TArrayView<const int32> InInstancesMoved)
 {
 	for (int32 Index : InInstancesMoved)
 	{
@@ -265,7 +265,7 @@ void FFoliageActor::PreMoveInstances(const TArray<int32>& InInstancesMoved)
 	}
 }
 
-void FFoliageActor::PostMoveInstances(const TArray<int32>& InInstancesMoved, bool bFinished)
+void FFoliageActor::PostMoveInstances(TArrayView<const int32> InInstancesMoved, bool bFinished)
 {
 	// Copy because moving actors might remove them from ActorInstances
 	TArray<AActor*> MovedActors;
