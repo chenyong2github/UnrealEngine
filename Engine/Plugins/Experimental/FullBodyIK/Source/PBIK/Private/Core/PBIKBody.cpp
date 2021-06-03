@@ -84,7 +84,8 @@ void FRigidBody::UpdateFromInputs(const FPBIKSolverSettings& Settings)
 
 	// Body.Length used as rough approximation of the mass of the body
 	// for fork joints (multiple solved children) we sum lengths to all children (see Initialize)
-	InvMass = 1.0f / ( Length * ((Settings.MassMultiplier * GLOBAL_UNITS) + 0.5f));
+	MaxInvMass = 1.0f / ( Length * ((Settings.MassMultiplier * GLOBAL_UNITS) + 0.5f));
+	MinInvMass = 1.0f / ( Length * ((Settings.MinMassMultiplier * GLOBAL_UNITS) + 0.5f));
 }
 
 int FRigidBody::GetNumBonesToRoot() const

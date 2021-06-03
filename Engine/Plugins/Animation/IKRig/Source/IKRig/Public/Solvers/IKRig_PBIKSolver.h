@@ -170,7 +170,6 @@ public:
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) override;
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) override;
 	virtual bool IsGoalConnected(const FName& GoalName) const override;
-	virtual void SetRootBone(const FName& RootBoneName) override;
 	virtual UObject* GetEffectorWithGoal(const FName& GoalName) override;
 	// bone settings
 	virtual void AddBoneSetting(const FName& BoneName) override;
@@ -180,6 +179,7 @@ public:
 	virtual void DrawBoneSettings(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton, FPrimitiveDrawInterface* PDI) const override;
 	// root bone can be set on this solver
 	virtual bool CanSetRootBone() const override { return true; };
+	virtual void SetRootBone(const FName& RootBoneName) override;
 	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const override;
 	/** END UIKRigSolver interface */
 

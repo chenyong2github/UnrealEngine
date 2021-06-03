@@ -85,6 +85,8 @@ struct FRigidBody
 	TArray<FVector> ChildLocalPositions;
 
 	float InvMass = 0.0f;
+	float MaxInvMass = 0.0f;
+	float MinInvMass = 0.0f;
 	float Length;
 	
 private:

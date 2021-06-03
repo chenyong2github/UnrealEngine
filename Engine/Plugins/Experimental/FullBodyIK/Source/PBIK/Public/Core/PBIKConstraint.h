@@ -71,6 +71,8 @@ private:
 		FVector CurVec,
 		FVector RefVec) const;
 
+	void RotateToAlignAxes(const FVector& AxisA, const FVector& AxisB) const;
+
 	void UpdateLocalRotateAxes(bool bX, bool bY, bool bZ);
 
 	void DecomposeRotationAngles();
