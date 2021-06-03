@@ -235,6 +235,7 @@ void UAudioSettings::LoadDefaultObjects()
 	if (UObject* MediaSoundClassObject = DefaultMediaSoundClassName.TryLoad())
 	{
 		DefaultMediaSoundClass = CastChecked<USoundClass>(MediaSoundClassObject);
+		DefaultMediaSoundClass->AddToRoot();
 	}
 	else
 	{
