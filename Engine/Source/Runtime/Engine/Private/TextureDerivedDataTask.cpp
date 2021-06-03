@@ -25,6 +25,8 @@
 
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildAction.h"
+#include "DerivedDataBuildInputResolver.h"
+#include "DerivedDataBuildInputs.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataCacheInterface.h"
@@ -430,26 +432,90 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 		{
 			using namespace UE::DerivedData;
 			// Compress the texture by calling the DDC2 build function.  May be executed locally or remotely.
-			// The FBuildAction built here will be superceded by an FBuildDefinition in the future that will
-			// replace both the cache query/fill as well as execution.
+			// The FBuildDefinition in the future will replace both the cache get/put as well as execution.
 			IBuild& Build = GetDerivedDataBuildRef();
 			FString TexturePath = Texture.GetPathName();
-			FBuildActionBuilder ActionBuilder = Build.CreateAction(TexturePath, BuildFunctionName);
+			FBuildDefinitionBuilder DefinitionBuilder = Build.CreateDefinition(TexturePath, BuildFunctionName);
 
 			ComposeTextureBuildFunctionConstants(KeySuffix, Texture, BuildSettingsPerLayer[0], 0, NUM_INLINE_DERIVED_MIPS, 
-				[&ActionBuilder] (FStringView Key, const FCbObject& Value)
+				[&DefinitionBuilder] (FStringView Key, const FCbObject& Value)
 				{
-					ActionBuilder.AddConstant(Key, Value);
+					DefinitionBuilder.AddConstant(Key, Value);
 				});
 
 			for (const FBuildInputRecord& InputRecord : BuildInputRecords)
 			{
-				ActionBuilder.AddInput(InputRecord.Id, InputRecord.RawHash, InputRecord.RawSize);
+				DefinitionBuilder.AddInputBulkData(InputRecord.Id.ToString(), InputRecord.Id);
 			}
 
-			FBuildSession Session = Build.CreateSession(TexturePath, nullptr);
-			Session.BuildAction(ActionBuilder.Build(), InputsBuilder.Build(), EBuildPolicy::Default, EPriority::Blocking,
-				[this, &TexturePath, bReplaceExistingDDC] (FBuildActionCompleteParams&& Params)
+			class FTextureBuildInputResolver final : public IBuildInputResolver
+			{
+			public:
+				explicit FTextureBuildInputResolver(TConstArrayView<FBuildInputRecord> InRecords)
+					: Records(InRecords)
+				{
+				}
+
+				FRequest ResolveInputMeta(
+					const FBuildDefinition& Definition,
+					EPriority Priority,
+					FOnBuildInputMetaResolved&& OnResolved) final
+				{
+					EStatus Status = EStatus::Ok;
+					TArray<FString> InputKeys;
+					TArray<FBuildInputMetaByKey> Inputs;
+					Definition.IterateInputBulkData([this, &Status, &InputKeys, &Inputs](FStringView Key, const FGuid& BulkDataId)
+					{
+						if (const FBuildInputRecord* Match = Algo::FindBy(Records, BulkDataId, &FBuildInputRecord::Id))
+						{
+							InputKeys.Emplace(Key);
+							Inputs.Add({InputKeys.Last(), Match->Data.GetRawHash(), Match->Data.GetRawSize()});
+						}
+						else
+						{
+							Status = EStatus::Error;
+						}
+					});
+					OnResolved({Inputs, Status});
+					return FRequest();
+				}
+
+				FRequest ResolveInputData(
+					const FBuildDefinition& Definition,
+					EPriority Priority,
+					FOnBuildInputDataResolved&& OnResolved,
+					FBuildInputFilter&& Filter) final
+				{
+					EStatus Status = EStatus::Ok;
+					TArray<FString> InputKeys;
+					TArray<FBuildInputDataByKey> Inputs;
+					Definition.IterateInputBulkData([this, &Filter, &Status, &InputKeys, &Inputs](FStringView Key, const FGuid& BulkDataId)
+					{
+						if (!Filter || Filter(Key))
+						{
+							if (const FBuildInputRecord* Match = Algo::FindBy(Records, BulkDataId, &FBuildInputRecord::Id))
+							{
+								InputKeys.Emplace(Key);
+								Inputs.Add({InputKeys.Last(), Match->Data});
+							}
+							else
+							{
+								Status = EStatus::Error;
+							}
+						}
+					});
+					OnResolved({Inputs, Status});
+					return FRequest();
+				}
+
+			private:
+				TConstArrayView<FBuildInputRecord> Records;
+			};
+
+			FTextureBuildInputResolver InputResolver(BuildInputRecords);
+			FBuildSession Session = Build.CreateSession(TexturePath, &InputResolver);
+			Session.Build(DefinitionBuilder.Build(), EBuildPolicy::Default, EPriority::Blocking,
+				[this, &TexturePath, bReplaceExistingDDC] (FBuildCompleteParams&& Params)
 				{
 					#if !NO_LOGGING
 					Params.Output.IterateDiagnostics([this, &TexturePath] (const FBuildDiagnostic& Diagnostic)
@@ -552,7 +618,6 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	, ImageWrapper(nullptr)
 	, DerivedData(InDerivedData)
 	, Texture(*InTexture)
-	, InputsBuilder(GetDerivedDataBuildRef().CreateInputs(InTexture->GetPathName()))
 	, CacheFlags(InCacheFlags)
 	, RequiredMemoryEstimate(InTexture->GetBuildRequiredMemory())
 	, bSucceeded(false)

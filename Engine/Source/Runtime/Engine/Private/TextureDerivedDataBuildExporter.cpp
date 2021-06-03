@@ -173,10 +173,10 @@ void FTextureDerivedDataBuildExporter::ExportTextureBuild(const UTexture& Textur
 			ActionBuilder.AddConstant(Key, Value);
 		});
 
-	ActionBuilder.AddInput(Texture.Source.GetIdString(), ExportedTextureBulkDataHash, ExportedTextureBulkDataSize);
+	ActionBuilder.AddInput(Texture.Source.GetId().ToString(), ExportedTextureBulkDataHash, ExportedTextureBulkDataSize);
 	if ((bool)Texture.CompositeTexture && !ExportedCompositeTextureBulkDataHash.IsZero())
 	{
-		ActionBuilder.AddInput(Texture.CompositeTexture->Source.GetIdString(), ExportedCompositeTextureBulkDataHash, ExportedCompositeTextureBulkDataSize);
+		ActionBuilder.AddInput(Texture.CompositeTexture->Source.GetId().ToString(), ExportedCompositeTextureBulkDataHash, ExportedCompositeTextureBulkDataSize);
 	}
 
 	if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*(ExportRoot / TEXT("build.uddba")))})

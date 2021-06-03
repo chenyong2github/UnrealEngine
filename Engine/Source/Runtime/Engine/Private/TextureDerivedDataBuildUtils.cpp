@@ -158,7 +158,7 @@ static FCbObject WriteTextureSourceToCompactBinary(const FTextureSource& Texture
 	FCbWriter Writer;
 	Writer.BeginObject();
 
-	Writer.AddString("Input", TextureSource.GetIdString());
+	Writer.AddString("Input", TextureSource.GetId().ToString());
 	Writer.AddInteger("CompressionFormat", TextureSource.GetSourceCompression());
 	Writer.AddInteger("SourceFormat", TextureSource.GetFormat());
 	Writer.AddInteger("GammaSpace", (int32)GammaSpace);

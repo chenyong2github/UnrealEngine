@@ -11,7 +11,6 @@
 #if WITH_EDITOR
 
 #include "Async/AsyncWork.h"
-#include "DerivedDataBuildInputs.h"
 #include "Engine/Texture2D.h"
 #include "IImageWrapperModule.h"
 #include "ImageCore.h"
@@ -111,9 +110,8 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 {
 	struct FBuildInputRecord
 	{
-		FString Id;
-		FIoHash RawHash;
-		uint64 RawSize;
+		FGuid Id;
+		FCompressedBuffer Data;
 	};
 
 	/** Texture compressor module, must be loaded in the game thread. see FModuleManager::WarnIfItWasntSafeToLoadHere() */
@@ -134,10 +132,8 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	FTextureSourceData CompositeTextureData;
 	/** DDC2 build function name to use to build this texture (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
 	FString BuildFunctionName;
-	/** DDC2 build input recrods for putting on the action (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
+	/** DDC2 build input records for putting on the action (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
 	TArray<FBuildInputRecord> BuildInputRecords;
-	/** DDC2 build inputs builder that accumulates input blobs and their associated key (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
-	UE::DerivedData::FBuildInputsBuilder InputsBuilder;
 	/** Exporter that can optionally write out build actions and reference outputs for the purpose of testing remote execution of builds */
 	FTextureDerivedDataBuildExporter BuildExporter;
 	/** Texture cache flags. */
@@ -159,19 +155,17 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	{
 		if (!BuildFunctionName.IsEmpty())
 		{
-			Source.OperateOnLoadedBulkData([this, &Source] (const FSharedBuffer& BulkDataBuffer) 
+			FBuildInputRecord& NewRef = BuildInputRecords.AddDefaulted_GetRef();
+			NewRef.Id = Source.GetId();
+			Source.OperateOnLoadedBulkData([&NewRef](const FSharedBuffer& BulkDataBuffer)
 			{
-				FCompressedBuffer InputBuffer = FCompressedBuffer::Compress(NAME_Default, BulkDataBuffer);
-				FBuildInputRecord& NewRef = BuildInputRecords.AddDefaulted_GetRef();
-				NewRef.Id = Source.GetIdString();
-				NewRef.RawHash = InputBuffer.GetRawHash();
-				NewRef.RawSize = InputBuffer.GetRawSize();
-				InputsBuilder.AddInput(Source.GetIdString(), InputBuffer);
+				NewRef.Data = FCompressedBuffer::Compress(NAME_None, BulkDataBuffer);
 			});
 		}
 	}
 
 	void ConsumeBuildFunctionOutput(const UE::DerivedData::FBuildOutput& BuildOutput, const FString& TexturePath, bool bReplaceExistingDDC);
+
 public:
 
 	/** Initialization constructor. */
