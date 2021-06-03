@@ -376,6 +376,13 @@ namespace UE {
 namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
+FAnsiStringView FStoreClient::FStatus::GetStoreDir() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetString("store_dir", "");
+}
+
+////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::FStatus::GetRecorderPort() const
 {
 	const auto* Response = (const FResponse*)this;
