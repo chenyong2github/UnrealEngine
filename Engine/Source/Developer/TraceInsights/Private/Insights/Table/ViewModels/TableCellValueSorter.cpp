@@ -534,17 +534,18 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
-		const TCHAR* ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().CString : nullptr;
-		const TCHAR* ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().CString : nullptr;
+		const TCHAR* ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().CString : TEXT("");
+		const TCHAR* ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().CString : TEXT("");
 
-		if (ValueA == ValueB)
+		const int32 Compare = FCString::Strcmp(ValueA, ValueB);
+		if (Compare == 0)
 		{
 			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 		}
 		else
 		{
 			// Sort by value (ascending).
-			return FCString::Strcmp(ValueA, ValueB) < 0;
+			return Compare < 0;
 		}
 	};
 
@@ -553,17 +554,18 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
-		const TCHAR* ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().CString : nullptr;
-		const TCHAR* ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().CString : nullptr;
+		const TCHAR* ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().CString : TEXT("");
+		const TCHAR* ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().CString : TEXT("");
 
-		if (ValueA == ValueB)
+		const int32 Compare = FCString::Strcmp(ValueA, ValueB);
+		if (Compare == 0)
 		{
 			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 		}
 		else
 		{
 			// Sort by value (descending).
-			return FCString::Strcmp(ValueB, ValueA) < 0;
+			return Compare > 0;
 		}
 	};
 }
@@ -625,14 +627,15 @@ FSorterByTextValue::FSorterByTextValue(TSharedRef<FTableColumn> InColumnRef)
 		const FText& ValueA = OptionalValueA.GetValue().GetText();
 		const FText& ValueB = OptionalValueB.GetValue().GetText();
 
-		if (ValueA.EqualTo(ValueB))
+		const int32 Compare = ValueA.CompareTo(ValueB);
+		if (Compare == 0)
 		{
 			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 		}
 		else
 		{
 			// Sort by value (descending).
-			return ValueB.CompareTo(ValueA) < 0;
+			return Compare > 0;
 		}
 	};
 }
