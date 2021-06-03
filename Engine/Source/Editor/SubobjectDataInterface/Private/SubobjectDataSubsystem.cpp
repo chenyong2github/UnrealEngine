@@ -574,25 +574,51 @@ UClass* USubobjectDataSubsystem::CreateNewCPPComponent(TSubclassOf<UActorCompone
 UClass* USubobjectDataSubsystem::CreateNewBPComponent(TSubclassOf<UActorComponent> ComponentClass, const FString& NewClassPath, const FString& NewClassName)
 {
 	UClass* NewClass = nullptr;
-	if (ComponentClass && !NewClassName.IsEmpty() && !NewClassPath.IsEmpty())
+
+	if(ComponentClass)
 	{
-		const FString PackagePath = NewClassPath / NewClassName;
-
-		if (UPackage* Package = CreatePackage(*PackagePath))
+		// Ensure that the class is a blueprint type
+		if(!FKismetEditorUtilities::CanCreateBlueprintOfClass(ComponentClass))
 		{
-			// Create and init a new Blueprint
-			UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(ComponentClass, Package, FName(*NewClassName), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
-			if (NewBP)
-			{
-				// Notify the asset registry
-				FAssetRegistryModule::AssetCreated(NewBP);
+			UE_LOG(LogSubobjectSubsystem, Warning, TEXT("Failed to Create new BP Component: '%s' is not a blueprintable class!"), *ComponentClass->GetDisplayNameText().ToString());
+			return nullptr;
+		}
+		
+		if (!NewClassName.IsEmpty() && !NewClassPath.IsEmpty())
+		{
+			const FString PackagePath = NewClassPath / NewClassName;
 
-				// Mark the package dirty...
-				Package->MarkPackageDirty();
-				NewClass = NewBP->GeneratedClass;
+			// Check for an existing object
+			if(UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), ANY_PACKAGE, *PackagePath))
+			{
+				UE_LOG(LogSubobjectSubsystem, Warning, TEXT("Failed to Create new BP Component: A class with a name '%s' already exists!"), *PackagePath);
+				return nullptr;
+			}
+		
+			if (UPackage* Package = CreatePackage(*PackagePath))
+			{
+				// Create and init a new Blueprint			
+				if (UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(ComponentClass, Package, FName(*NewClassName), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass()))
+				{
+					// Notify the asset registry
+					FAssetRegistryModule::AssetCreated(NewBP);
+
+					// Mark the package dirty...
+					Package->MarkPackageDirty();
+					NewClass = NewBP->GeneratedClass;
+				}
 			}
 		}
+		else
+		{
+			UE_LOG(LogSubobjectSubsystem, Warning, TEXT("Failed to Create new BP Component: An invalid class path was given!"));
+		}
 	}
+	else
+	{
+		UE_LOG(LogSubobjectSubsystem, Warning, TEXT("Failed to Create new BP Component: ComponentClass is required!"));
+	}
+	
 	return NewClass;
 }
 
