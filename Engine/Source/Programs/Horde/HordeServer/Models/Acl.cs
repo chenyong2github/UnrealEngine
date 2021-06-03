@@ -410,6 +410,19 @@ namespace HordeServer.Models
 		/// Ability to subscribe to notifications
 		/// </summary>
 		CreateSubscription,
+
+		//// DEVICES ////
+		
+		/// <summary>
+		/// Ability to read devices
+		/// </summary>
+		DeviceRead,
+
+		/// <summary>
+		/// Ability to write devices
+		/// </summary>
+		DeviceWrite
+
 	}
 
 	/// <summary>

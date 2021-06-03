@@ -2690,3 +2690,158 @@ export type GetPerforceServerStatusResponse = {
 	status: string;
 	detail: string;
 }
+
+/** Get object response which describes a device platform */
+export type GetDevicePlatformResponse = {
+	
+	/** Unique id of device platform */	
+	id: string;
+	
+	/** Friendly name of device platform */
+	name:string;
+
+	/** Platform vendor models */
+	modelIds:string[];
+}
+
+
+/** Device pool response object */
+export type GetDevicePoolResponse = {
+	
+	/**  Id of  the device pool */
+	id: string;
+
+	/**  Name of the device pool */
+	name: string;
+
+}
+
+
+export type CreateDeviceRequest = {
+
+	/**  The platform of the device */
+	platformId: string;
+
+	/**  The pool to assign the device */
+	poolId: string;
+
+	/**  The friendly name of the device */
+	name: string;
+
+	/**  Whether to create the device in enabled state */
+	enabled?: boolean;
+
+	/**  The network address of the device */
+	address?: string;
+
+	/**  The vendor model id of the device */
+	modelId?: string;
+}
+
+export type CreateDeviceResponse = {
+
+	/** id of created device */
+	id: string;
+
+}
+	
+/** Get response object which describes a device */
+export type GetDeviceResponse = {
+	
+	/** The unique id of the device */
+	id: string;
+	
+	/** The platform of the device */
+	platformId: string;
+	
+	/** The pool the device belongs to */
+	poolId: string;
+	
+	/** The friendly name of the device */
+	name: string;
+	
+	/** Whether the device is currently enabled */
+	enabled: boolean;
+	
+	/**  The address of the device (if it allows network connections) */
+	address?: string;
+	
+	/** The vendor model id of the device */
+	modelId?: string;
+
+	/** Any notes provided for the device */
+	notes? : string;	
+	
+	/** The UTC time when a device problem was reported */		
+	problemTime?: Date | string;
+
+	/** The UTC time when a device was set for maintenance */		
+	maintenanceTime?: Date | string;
+	
+}
+
+/** Request object for updating a device */		
+export type UpdateDeviceRequest = {
+
+	/** The pool to assign device to */
+	poolId?: string;
+
+	/** The new name of the device */
+	name?: string;
+
+	/** Whether the device is enabled */
+	enabled?: boolean;
+
+	/** Whether to clear any problem state */ 
+	problem?:boolean;
+
+	/** Whether the device should be put into maintenance mode */
+	maintenance?:boolean;
+
+	/** New address or hostname of device */
+	address?: string;
+
+	/** The new model id of device */
+	modelId?: string;
+
+	/** Markdown notes */
+	notes?: string;
+}
+
+	
+/** A reservation containing one or more devices */
+
+export type GetDeviceReservationResponse = {
+		
+	/** Randomly generated unique id for this reservation */
+	id: string;
+
+	/** Which device pool the reservation is in	*/
+	poolId: string;
+	
+	/** The reserved device ids	*/
+	devices:string[];
+	
+	/** JobID holding reservation */		
+	jobId?: string;
+	
+	/** Job step id holding reservation	*/
+	stepId?: string;
+	
+	/** Reservations held by a user	*/
+	userId?: string;
+	
+	/** The hostname of machine holding reservation	*/
+	hostname?:string;
+
+	/** The optional details of the reservation	*/
+	reservationDetails?:string;
+	
+	/** The UTC time when the reservation was created */		
+	createTimeUtc: Date | string;
+	
+	/** The legacy reservation system guid, to be removed once can update Gauntlet client in all streams */
+	legacyGuid: string;
+}
+
+
