@@ -3097,6 +3097,8 @@ void FStaticMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 		NextCachedRenderData->GetResourceSizeEx(CumulativeResourceSize);
 	}
 #endif // #if WITH_EDITORONLY_DATA
+
+	NaniteResources.GetResourceSizeEx(CumulativeResourceSize);
 }
 
 SIZE_T FStaticMeshRenderData::GetCPUAccessMemoryOverhead() const

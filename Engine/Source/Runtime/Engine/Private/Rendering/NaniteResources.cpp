@@ -277,6 +277,21 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 	}
 }
 
+void FResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
+{
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(sizeof(*this));
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RootClusterPage.GetAllocatedSize());
+	if (StreamableClusterPages.IsBulkDataLoaded())
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(StreamableClusterPages.GetBulkDataSize());
+	}
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(ImposterAtlas.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HierarchyNodes.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HierarchyRootOffsets.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(PageStreamingStates.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(PageDependencies.GetAllocatedSize());
+}
+
 class FVertexFactory : public ::FVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FVertexFactory);
