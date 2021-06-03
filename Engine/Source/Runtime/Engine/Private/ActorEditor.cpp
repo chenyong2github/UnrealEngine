@@ -809,6 +809,11 @@ EActorGridPlacement AActor::GetDefaultGridPlacement() const
 	return EActorGridPlacement::None;
 }
 
+void AActor::OnPlayFromHere()
+{
+	check(bCanPlayFromHere);
+}
+
 TUniquePtr<FWorldPartitionActorDesc> AActor::CreateClassActorDesc() const
 {
 	return TUniquePtr<FWorldPartitionActorDesc>(new FWorldPartitionActorDesc());

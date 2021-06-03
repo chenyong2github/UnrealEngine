@@ -29,6 +29,7 @@
 #include "Engine/Light.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#include "Kismet2/DebuggerCommands.h"
 #include "Engine/Selection.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectIterator.h"
@@ -1309,6 +1310,31 @@ void FLevelEditorActionCallbacks::CreateNewOutlinerFolder_Clicked()
 {
 	const FName NewFolderName = FActorFolders::Get().GetDefaultFolderNameForSelection(*GetWorld());
 	FActorFolders::Get().CreateFolderContainingSelection(*GetWorld(), NewFolderName);
+}
+
+void FLevelEditorActionCallbacks::PlayFromHere_Clicked()
+{
+	if (GEditor->GetSelectedActorCount() == 1)
+	{
+		if (AActor* Actor = Cast<AActor>(*GEditor->GetSelectedActorIterator()))
+		{
+			Actor->GetWorld()->PersistentLevel->PlayFromHereActor = Actor;
+			FPlayWorldCommandCallbacks::StartPlayFromHere(Actor->GetActorLocation(), Actor->GetActorRotation());
+		}
+	}
+}
+
+bool FLevelEditorActionCallbacks::PlayFromHere_IsVisible()
+{
+	if (GEditor->GetSelectedActorCount() == 1)
+	{
+		if (AActor* Actor = Cast<AActor>(*GEditor->GetSelectedActorIterator()))
+		{
+			return Actor->CanPlayFromHere();
+		}
+	}
+
+	return false;
 }
 
 void FLevelEditorActionCallbacks::GoHere_Clicked( const FVector* Point )
@@ -3320,6 +3346,7 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( EditAssetNoConfirmMultiple, "Edit Asset", "Edits the asset associated with the selected actor", EUserInterfaceActionType::Button, FInputChord( EKeys::E, EModifierKey::Control | EModifierKey::Shift ) );
 
 	UI_COMMAND( GoHere, "Go Here", "Moves the camera to the current mouse position", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( PlayFromHere, "Play From Here", "Start PIE session from this actor", EUserInterfaceActionType::Button, FInputChord()) ;
 
 	UI_COMMAND( SnapCameraToObject, "Snap View to Object", "Snaps the view to the selected object", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( SnapObjectToCamera, "Snap Object to View", "Snaps the selected object to the view", EUserInterfaceActionType::Button, FInputChord() );

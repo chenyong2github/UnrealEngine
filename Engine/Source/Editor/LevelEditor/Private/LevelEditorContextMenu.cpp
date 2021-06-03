@@ -217,6 +217,7 @@ void FLevelEditorContextMenu::RegisterComponentContextMenu()
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GoHere);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapCameraToObject);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapObjectToCamera);
+			Section.AddMenuEntry(FLevelEditorCommands::Get().PlayFromHere);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().CopyActorFilePathtoClipboard);
 
 			FLevelEditorContextMenuImpl::AddSourceControlMenu(Section);
@@ -305,6 +306,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GoHere);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapCameraToObject);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapObjectToCamera);
+			Section.AddMenuEntry(FLevelEditorCommands::Get().PlayFromHere);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().CopyActorFilePathtoClipboard);
 			
 			FLevelEditorContextMenuImpl::AddSourceControlMenu(Section);
@@ -767,17 +769,21 @@ void FLevelEditorContextMenu::SummonMenu(const TSharedRef< SLevelEditor >& Level
 	{
 		static void ExtendMenu( FMenuBuilder& MenuBuilder )
 		{
-			// one extra entry when summoning the menu this way
-			MenuBuilder.BeginSection("ActorPreview", LOCTEXT("PreviewHeading", "Preview") );
+			// Only extend if other PlayFromHere option isn't available
+			if (!FLevelEditorActionCallbacks::PlayFromHere_IsVisible())
 			{
-				// Note: not using a command for play from here since it requires a mouse click
-				FUIAction PlayFromHereAction( 
-					FExecuteAction::CreateStatic( &FPlayWorldCommandCallbacks::StartPlayFromHere ) );
+				// one extra entry when summoning the menu this way
+				MenuBuilder.BeginSection("ActorPreview", LOCTEXT("PreviewHeading", "Preview"));
+				{
+					// Note: not using a command for play from here since it requires a mouse click
+					FUIAction PlayFromHereAction(
+						FExecuteAction::CreateStatic(&FPlayWorldCommandCallbacks::StartPlayFromHere));
 
-				const FText PlayFromHereLabel = GEditor->OnlyLoadEditorVisibleLevelsInPIE() ? LOCTEXT("PlayFromHereVisible", "Play From Here (visible levels)") : LOCTEXT("PlayFromHere", "Play From Here");
-				MenuBuilder.AddMenuEntry( PlayFromHereLabel, LOCTEXT("PlayFromHere_ToolTip", "Starts a game preview from the clicked location"),FSlateIcon(), PlayFromHereAction );
+					const FText PlayFromHereLabel = GEditor->OnlyLoadEditorVisibleLevelsInPIE() ? LOCTEXT("PlayFromHereVisible", "Play From Here (visible levels)") : LOCTEXT("PlayFromHere", "Play From Here");
+					MenuBuilder.AddMenuEntry(PlayFromHereLabel, LOCTEXT("PlayFromHere_ToolTip", "Starts a game preview from the clicked location"), FSlateIcon(), PlayFromHereAction);
+				}
+				MenuBuilder.EndSection();
 			}
-			MenuBuilder.EndSection();
 		}
 	};
 	

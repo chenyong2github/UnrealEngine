@@ -452,6 +452,8 @@ public:
 	TArray<AActor*> ActorsForGC;
 
 #if WITH_EDITORONLY_DATA
+	AActor* PlayFromHereActor;
+
 	/** List of modified, unsaved actors that needs to be duplicated for PIE */
 	UPROPERTY(NonPIEDuplicateTransient)
 	TMap<FName, AActor*> ActorsModifiedForPIE;
