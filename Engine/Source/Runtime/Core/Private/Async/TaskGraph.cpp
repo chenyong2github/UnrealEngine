@@ -1967,6 +1967,7 @@ private:
 				Task->Execute(NewTasks, InThreadToExecuteOn, false);
 			});
 	
+			bWakeUpWorker |= LowLevelTasks::FSchedulerTls::IsBusyWaiting();
 			verifySlow(LowLevelTasks::TryLaunch(Task->TaskHandle, bWakeUpWorker ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference, bWakeUpWorker));
 			return;
 		}
