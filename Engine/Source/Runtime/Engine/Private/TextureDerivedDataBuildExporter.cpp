@@ -16,7 +16,6 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/FileHelper.h"
 #include "Misc/StringBuilder.h"
-#include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "TextureDerivedDataBuildUtils.h"
 #include "TextureDerivedDataTask.h"
