@@ -233,6 +233,19 @@ public:
 	 * returns the occlusion frame counter 
 	 */
 	virtual uint32 GetOcclusionFrameCounter() const = 0;
+
+#if RHI_RAYTRACING
+	/**
+	* returns the path tracer sample index
+	*/
+	virtual uint32 GetPathTracingSampleIndex() const = 0;
+
+	/**
+	* returns the path tracer sample count
+	*/
+	virtual uint32 GetPathTracingSampleCount() const = 0;
+#endif
+
 protected:
 	// Don't allow direct deletion of the view state, Destroy should be called instead.
 	virtual ~FSceneViewStateInterface() {}
