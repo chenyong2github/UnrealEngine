@@ -390,6 +390,8 @@ struct FResources
 	ENGINE_API bool ReleaseResources();
 
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
+
+	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 };
 
 /*
