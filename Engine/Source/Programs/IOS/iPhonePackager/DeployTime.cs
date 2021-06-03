@@ -37,7 +37,6 @@ namespace iPhonePackager
 		}
 	}
 
-	// Implementation of DeploymentServer -> Application interface
 	[Serializable]
 	class DeployTimeReporter
 	{
