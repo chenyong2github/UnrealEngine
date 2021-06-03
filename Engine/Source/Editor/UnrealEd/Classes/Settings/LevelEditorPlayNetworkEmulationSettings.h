@@ -99,6 +99,12 @@ public:
 
 	bool HandleAreSettingsEnabled() const;
 
+	/*
+	 * Checks to see if separate server was launched, the number of player clients
+	 *	is greater than one, or if the current net play mode is not standalone
+	 */
+	bool IsNetworkEmulationAvailable() const;
+
 private:
 
 	// Property Handles
