@@ -11,6 +11,11 @@
 #include "VideoDecoderAllocationTypes.h"
 #include "VideoDecoderUtilities.h"
 
+#include "Containers/Queue.h"
+#include "Misc/ScopeLock.h"
+#include "Templates/RefCounting.h"
+
+
 #define VERIFY_HR(FNcall,...)						\
 Result = FNcall;									\
 if (FAILED(Result))									\

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "NVENC_Common.h"
+#include "HAL/Platform.h"
+
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 
-#include "NVENC_Common.h"
 #include "CoreMinimal.h"
 #include "RHI.h"
 #include "VideoEncoderCommon.h"

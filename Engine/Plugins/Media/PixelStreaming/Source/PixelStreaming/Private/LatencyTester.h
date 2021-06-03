@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include <atomic>
 
 // Performs a latency test of one frame passing through Pixel Streaming
 // from capture, to encode, to transmit

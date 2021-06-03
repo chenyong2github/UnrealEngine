@@ -4,6 +4,7 @@
 
 #include "WebRTCIncludes.h"
 #include "VideoEncoderInput.h"
+#include "RHI.h"
 
 class FPixelStreamingFrameBuffer : public webrtc::VideoFrameBuffer
 {

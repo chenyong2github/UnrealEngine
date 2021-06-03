@@ -2,7 +2,8 @@
 #pragma once
 
 #include "WebRTCIncludes.h"
-
+#include "VideoEncoder.h"
+#include "Containers/Queue.h"
 
 class FPlayerSession;
 class FPixelStreamingVideoEncoderFactory;
@@ -11,7 +12,7 @@ class FPixelStreamingVideoEncoder;
 struct FEncoderContext
 {
 	FPixelStreamingVideoEncoderFactory* Factory;
-	TUniquePtr<FVideoEncoder> Encoder;
+	TUniquePtr<AVEncoder::FVideoEncoder> Encoder;
 };
 
 class FPixelStreamingVideoEncoderFactory : public webrtc::VideoEncoderFactory

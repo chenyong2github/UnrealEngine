@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Amf_EncoderH264.h"
+#include "HAL/Platform.h"
+
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 
-#include "Amf_EncoderH264.h"
 #include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
 #include "AVEncoderDebug.h"

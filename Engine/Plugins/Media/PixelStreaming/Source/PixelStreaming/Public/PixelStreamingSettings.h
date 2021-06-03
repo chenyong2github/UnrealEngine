@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
+#include "Misc/CommandLine.h"
+#include "VideoEncoder.h"
+#include "WebRTCIncludes.h"
 #include "PixelStreamingSettings.generated.h"
 
 // Console variables (CVars)

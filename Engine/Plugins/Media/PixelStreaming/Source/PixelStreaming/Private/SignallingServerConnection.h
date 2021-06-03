@@ -10,6 +10,7 @@
 #include "Containers/Map.h"
 #include "Dom/JsonObject.h"
 #include "Delegates/IDelegateInstance.h"
+#include "Engine/EngineTypes.h"
 
 class IWebSocket;
 
