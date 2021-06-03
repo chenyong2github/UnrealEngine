@@ -541,7 +541,7 @@ public:
 
 	void SetDebugInfo(FRigVMDebugInfo* InDebugInfo) { DebugInfo = InDebugInfo; }
 
-	int32 GetHaltedAtInstruction() const { return HaltedAtInstruction; }
+	TSharedPtr<FRigVMBreakpoint> GetHaltedAtBreakpoint() const { return HaltedAtBreakpoint; }
 
 	void SetBreakpointAction(const ERigVMBreakpointAction& Action) { CurrentBreakpointAction = Action; }
 #endif
@@ -562,8 +562,8 @@ private:
 
 #if WITH_EDITOR
 	FRigVMDebugInfo* DebugInfo;
-	int32 HaltedAtInstruction;
-	int32 HaltedAtInstructionHit;
+	TSharedPtr<FRigVMBreakpoint> HaltedAtBreakpoint;
+	int32 HaltedAtBreakpointHit;
 	ERigVMBreakpointAction CurrentBreakpointAction;
 
 	bool ShouldHaltAtInstruction(const uint16 InstructionIndex);

@@ -1006,7 +1006,7 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 #if WITH_EDITOR
 			if(URigVM* SnapShotVM = GetSnapshotVM(false)) // don't create it for normal runs
 			{
-				if (VM->GetHaltedAtInstruction() != INDEX_NONE)
+				if (VM->GetHaltedAtBreakpoint() != nullptr)
 				{
 					VM->CopyFrom(SnapShotVM, false, false, false, true, true);	
 				}
@@ -2433,14 +2433,14 @@ URigVM* UControlRig::GetSnapshotVM(bool bCreateIfNeeded)
 #endif
 }
 
-void UControlRig::AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode)
+void UControlRig::AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode, uint16 InDepth)
 {
-	DebugInfo.AddBreakpoint(InstructionIndex, InNode);
+	DebugInfo.AddBreakpoint(InstructionIndex, InNode, InDepth);
 }
 
 bool UControlRig::ExecuteBreakpointAction(const ERigVMBreakpointAction BreakpointAction)
 {
-	if (VM->GetHaltedAtInstruction() != INDEX_NONE)
+	if (VM->GetHaltedAtBreakpoint() != nullptr)
 	{
 		VM->SetBreakpointAction(BreakpointAction);
 		return true;

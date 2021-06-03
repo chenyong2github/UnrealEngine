@@ -847,7 +847,7 @@ bool UControlRigBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNod
 				if (!AddedCallpaths.Contains(BreakpointCallPath))
 				{
 					AddedCallpaths.Add(BreakpointCallPath);
-					CDO->AddBreakpoint(i, InBreakpointNode);
+					CDO->AddBreakpoint(i, InBreakpointNode, BreakpointProxy.GetCallstack().Num());
 				}
 			}
 		}

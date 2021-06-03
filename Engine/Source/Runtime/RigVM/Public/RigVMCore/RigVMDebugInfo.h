@@ -16,14 +16,16 @@ struct RIGVM_API FRigVMBreakpoint
 	: bIsActive(true)
 	, InstructionIndex(INDEX_NONE)
 	, Subject(nullptr)
+	, Depth(0)
 	{
 
 	}
 	
-	FRigVMBreakpoint(const uint16 InInstructionIndex, UObject* InNode)
+	FRigVMBreakpoint(const uint16 InInstructionIndex, UObject* InNode, const uint16 InDepth)
 	: bIsActive(true)
 	, InstructionIndex(InInstructionIndex)
 	, Subject(InNode)
+	, Depth(InDepth)
 	{
 
 	}
@@ -33,11 +35,18 @@ struct RIGVM_API FRigVMBreakpoint
 		bIsActive = true;
 		InstructionIndex = INDEX_NONE;
 		Subject = nullptr;
+		Depth = 0;
 	}
 
 	bool bIsActive;
 	uint16 InstructionIndex;
 	UObject* Subject;
+	uint16 Depth;
+
+	bool operator==(const FRigVMBreakpoint& Other) const
+	{
+		return InstructionIndex == Other.InstructionIndex && Subject == Other.Subject;
+	}
 };
 
 USTRUCT()
@@ -46,7 +55,8 @@ struct RIGVM_API FRigVMDebugInfo
 	GENERATED_BODY()
 
 	FORCEINLINE FRigVMDebugInfo()
-		: SteppingOriginBreakpoint(nullptr)
+		: TemporaryBreakpoint(nullptr)
+	, CurrentActiveBreakpoint(nullptr)		
 	{
 	}
 
@@ -60,46 +70,51 @@ struct RIGVM_API FRigVMDebugInfo
 		// Do not remove state
 	}
 
-	FRigVMBreakpoint* FindBreakpoint(const uint16 InstructionIndex);
+	TSharedPtr<FRigVMBreakpoint> FindBreakpoint(const uint16 InInstructionIndex, const UObject* InSubject);
+	TArray<TSharedPtr<FRigVMBreakpoint>> FindBreakpointsAtInstruction(const uint16 InInstructionIndex);
 	
-	FRigVMBreakpoint* AddBreakpoint(const uint16 InstructionIndex, UObject* InNode, const bool bIsTemporary = false);
+	TSharedPtr<FRigVMBreakpoint> AddBreakpoint(const uint16 InstructionIndex, UObject* InNode, const uint16 InDepth, const bool bIsTemporary = false);
 
-	bool RemoveBreakpoint(const uint16 InstructionIndex);
+	bool RemoveBreakpoint(const TSharedPtr<FRigVMBreakpoint> Breakpoint);
 
-	TMap<uint16 , FRigVMBreakpoint> GetBreakpoints() const { return Breakpoints; }
+	TArray<TSharedRef<FRigVMBreakpoint>> GetBreakpoints() const { return Breakpoints; }
 
-	void SetBreakpoints(const TMap<uint16 , FRigVMBreakpoint>& InBreakpoints)
+	void SetBreakpoints(const TArray<TSharedRef<FRigVMBreakpoint>>& InBreakpoints)
 	{
 		Breakpoints = InBreakpoints;
 	}
 
-	bool IsTemporaryBreakpoint(FRigVMBreakpoint* Breakpoint) const
+	bool IsTemporaryBreakpoint(TSharedPtr<FRigVMBreakpoint> Breakpoint) const
 	{
-		return Breakpoint == &TemporaryBreakpoint;
+		if (Breakpoint.IsValid())
+		{
+			return Breakpoint == TemporaryBreakpoint;
+		}
+		return false;
 	}
 
-	bool IsActive(const uint16 InstructionIndex) const;
+	bool IsActive(const TSharedPtr<FRigVMBreakpoint> InBreakpoint) const;
 
-	void HitBreakpoint(const uint16 InstructionIndex);
+	void HitBreakpoint(const TSharedPtr<FRigVMBreakpoint> InBreakpoint);
 
-	void IncrementBreakpointActivationOnHit(const uint16 InstructionIndex);
+	void IncrementBreakpointActivationOnHit(const TSharedPtr<FRigVMBreakpoint> InBreakpoint);
 
-	uint16 GetBreakpointHits(const uint16 InstructionIndex) const;
+	uint16 GetBreakpointHits(const TSharedPtr<FRigVMBreakpoint> InBreakpoint) const;
 
-	FRigVMBreakpoint* GetSteppingOriginBreakpoint() const { return SteppingOriginBreakpoint; }
+	TSharedPtr<FRigVMBreakpoint> GetCurrentActiveBreakpoint() const { return CurrentActiveBreakpoint; }
 
-	void SetSteppingOriginBreakpoint(FRigVMBreakpoint* Breakpoint) { SteppingOriginBreakpoint = Breakpoint; }
+	void SetCurrentActiveBreakpoint(TSharedPtr<FRigVMBreakpoint> Breakpoint) { CurrentActiveBreakpoint = Breakpoint; }
 
-	TArray<UObject*>& GetSteppingOriginBreakpointCallstack() { return SteppingOriginBreakpointCallstack; }
+	TArray<UObject*>& GetCurrentActiveBreakpointCallstack() { return CurrentActiveBreakpointCallstack; }
 
-	void SetSteppingOriginBreakpointCallstack(TArray<UObject*> Callstack) { SteppingOriginBreakpointCallstack = Callstack; }
+	void SetCurrentActiveBreakpointCallstack(TArray<UObject*> Callstack) { CurrentActiveBreakpointCallstack = Callstack; }
 
 private:
-	TMap<uint16 , FRigVMBreakpoint> Breakpoints;
-	FRigVMBreakpoint TemporaryBreakpoint;
-	TMap<uint16 , uint16> BreakpointActivationOnHit; // After how many instruction executions, this breakpoint becomes active
-	TMap<uint16 , uint16> BreakpointHits; // How many times this instruction has been executed
+	TArray<TSharedRef<FRigVMBreakpoint>> Breakpoints;
+	TSharedPtr<FRigVMBreakpoint> TemporaryBreakpoint;
+	TMap<TSharedPtr<FRigVMBreakpoint> , uint16> BreakpointActivationOnHit; // After how many instruction executions, this breakpoint becomes active
+	TMap<TSharedPtr<FRigVMBreakpoint> , uint16> BreakpointHits; // How many times this instruction has been executed
 
-	FRigVMBreakpoint* SteppingOriginBreakpoint;
-	TArray<UObject*> SteppingOriginBreakpointCallstack;
+	TSharedPtr<FRigVMBreakpoint> CurrentActiveBreakpoint;
+	TArray<UObject*> CurrentActiveBreakpointCallstack;
 };

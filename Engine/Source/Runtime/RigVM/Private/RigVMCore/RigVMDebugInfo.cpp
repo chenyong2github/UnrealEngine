@@ -6,78 +6,121 @@ void FRigVMDebugInfo::ResetState()
 {
 	BreakpointHits.Empty();
 	BreakpointActivationOnHit.Empty();
-	TemporaryBreakpoint.Clear();
+	TemporaryBreakpoint = nullptr;
 }
 
 void FRigVMDebugInfo::StartExecution()
 {
 	BreakpointHits.Empty();
-	SteppingOriginBreakpoint = nullptr;
-	SteppingOriginBreakpointCallstack.Empty();
+	CurrentActiveBreakpoint = nullptr;
+	CurrentActiveBreakpointCallstack.Empty();
 }
 
-FRigVMBreakpoint* FRigVMDebugInfo::FindBreakpoint(const uint16 InstructionIndex) 
+TSharedPtr<FRigVMBreakpoint> FRigVMDebugInfo::FindBreakpoint(const uint16 InInstructionIndex, const UObject* InSubject)
 {
-	if (FRigVMBreakpoint* Found = Breakpoints.Find(InstructionIndex))
+	TArray<TSharedPtr<FRigVMBreakpoint>> BreakpointAtInstruction = FindBreakpointsAtInstruction(InInstructionIndex);
+	for (TSharedPtr<FRigVMBreakpoint> BP : BreakpointAtInstruction)
 	{
-		return Found;
-	}
-	if (TemporaryBreakpoint.InstructionIndex == InstructionIndex)
-	{
-		return &TemporaryBreakpoint;
-	}
-	return nullptr;
-}
-
-FRigVMBreakpoint* FRigVMDebugInfo::AddBreakpoint(const uint16 InstructionIndex, UObject* InNode, const bool bIsTemporary)
-{
-	if (!Breakpoints.Contains(InstructionIndex))
-	{
-		if (bIsTemporary)
+		if (BP->Subject == InSubject)
 		{
-			TemporaryBreakpoint = FRigVMBreakpoint(InstructionIndex, InNode);
-				
-			// Do not override the state if it already exists
-			BreakpointActivationOnHit.FindOrAdd(InstructionIndex, 0);
-			BreakpointHits.FindOrAdd(InstructionIndex, 0);
-			return &TemporaryBreakpoint;
-		}
-		else if (FRigVMBreakpoint* NewBP = &Breakpoints.Add(InstructionIndex, FRigVMBreakpoint(InstructionIndex, InNode)))
-		{
-			// Do not override the state if it already exists
-			BreakpointActivationOnHit.FindOrAdd(InstructionIndex, 0);
-			BreakpointHits.FindOrAdd(InstructionIndex, 0);
-			return NewBP;
+			return BP;
 		}
 	}
 	return nullptr;
 }
 
-bool FRigVMDebugInfo::RemoveBreakpoint(const uint16 InstructionIndex)
+TArray<TSharedPtr<FRigVMBreakpoint>> FRigVMDebugInfo::FindBreakpointsAtInstruction(const uint16 InInstructionIndex) 
 {
-	if (FRigVMBreakpoint* Found = Breakpoints.Find(InstructionIndex))
+	TArray<TSharedPtr<FRigVMBreakpoint>> Result;
+	for (TSharedPtr<FRigVMBreakpoint> BP : Breakpoints)
 	{
-		Breakpoints.Remove(InstructionIndex);
-		BreakpointHits.Remove(InstructionIndex);
-		BreakpointActivationOnHit.Remove(InstructionIndex);
-		return true;
+		if (BP->InstructionIndex == InInstructionIndex)
+		{
+			Result.Add(BP);
+		}
 	}
-	if (TemporaryBreakpoint.InstructionIndex == InstructionIndex)
+
+	if (TemporaryBreakpoint.IsValid() && TemporaryBreakpoint->InstructionIndex == InInstructionIndex)
 	{
-		TemporaryBreakpoint.Clear();
-		BreakpointHits.Remove(InstructionIndex);
-		BreakpointActivationOnHit.Remove(InstructionIndex);
-		return true;
+		Result.Add(TemporaryBreakpoint);
 	}
-	return false;
+	return Result;
 }
 
-bool FRigVMDebugInfo::IsActive(const uint16 InstructionIndex) const
+TSharedPtr<FRigVMBreakpoint> FRigVMDebugInfo::AddBreakpoint(const uint16 InstructionIndex, UObject* InNode, const uint16 InDepth,
+	const bool bIsTemporary)
 {
-	const FRigVMBreakpoint* Breakpoint = Breakpoints.Find(InstructionIndex);
-	if (!Breakpoint && TemporaryBreakpoint.InstructionIndex == InstructionIndex)
+	for (const TSharedPtr<FRigVMBreakpoint> BP : FindBreakpointsAtInstruction(InstructionIndex))
 	{
-		Breakpoint = &TemporaryBreakpoint;
+		if (BP->Subject == InNode)
+		{
+			return nullptr;
+		}
+	}
+	
+	
+	if (bIsTemporary)
+	{
+		TemporaryBreakpoint = MakeShared<FRigVMBreakpoint>(InstructionIndex, InNode, 0);
+			
+		// Do not override the state if it already exists
+		BreakpointActivationOnHit.FindOrAdd(TemporaryBreakpoint, 0);
+		BreakpointHits.FindOrAdd(TemporaryBreakpoint, 0);
+		return TemporaryBreakpoint;
+	}
+	else
+	{
+		// Breakpoints are sorted by instruction index and callstack depth
+		int32 Index = 0;
+		for(; Index<Breakpoints.Num(); ++Index)
+		{
+			if (InstructionIndex < Breakpoints[Index]->InstructionIndex ||
+				(InstructionIndex == Breakpoints[Index]->InstructionIndex && InDepth < Breakpoints[Index]->Depth))
+			{
+				break;
+			}
+		}
+		TSharedRef<FRigVMBreakpoint> NewBP = MakeShared<FRigVMBreakpoint>(InstructionIndex, InNode, InDepth);
+		Breakpoints.Insert(NewBP, Index);
+		
+		// Do not override the state if it already exists
+		BreakpointActivationOnHit.FindOrAdd(NewBP, 0);
+		BreakpointHits.FindOrAdd(NewBP, 0);
+		return NewBP;
+	}
+	
+	return nullptr;
+}
+
+bool FRigVMDebugInfo::RemoveBreakpoint(const TSharedPtr<FRigVMBreakpoint> InBreakpoint)
+{
+	TSharedRef<FRigVMBreakpoint> BreakpointRef = InBreakpoint.ToSharedRef();
+
+	bool Found = false;
+	int32 Index = Breakpoints.Find(BreakpointRef);
+	if (Index != INDEX_NONE)
+	{
+		BreakpointHits.Remove(BreakpointRef);
+		BreakpointActivationOnHit.Remove(BreakpointRef);
+		Breakpoints.RemoveAt(Index);
+		Found = true;
+	}
+	if (TemporaryBreakpoint.IsValid() && InBreakpoint == TemporaryBreakpoint)
+	{
+		BreakpointHits.Remove(TemporaryBreakpoint);
+		BreakpointActivationOnHit.Remove(TemporaryBreakpoint);
+		TemporaryBreakpoint = nullptr;
+		Found = true;
+	}
+	return Found;
+}
+
+bool FRigVMDebugInfo::IsActive(const TSharedPtr<FRigVMBreakpoint> InBreakpoint) const
+{
+	TSharedPtr<FRigVMBreakpoint> Breakpoint = InBreakpoint;
+	if (!Breakpoint && TemporaryBreakpoint.IsValid() && TemporaryBreakpoint == InBreakpoint)
+	{
+		Breakpoint = TemporaryBreakpoint;
 	}
 	if (Breakpoint)
 	{
@@ -85,13 +128,13 @@ bool FRigVMDebugInfo::IsActive(const uint16 InstructionIndex) const
 		{
 			uint16 Hits = 0;
 			uint16 OnHit = 0;
-			if (BreakpointHits.Contains(InstructionIndex))
+			if (BreakpointHits.Contains(Breakpoint))
 			{
-				Hits = BreakpointHits.FindChecked(InstructionIndex);
+				Hits = BreakpointHits.FindChecked(Breakpoint);
 			}
-			if (BreakpointActivationOnHit.Contains(InstructionIndex))
+			if (BreakpointActivationOnHit.Contains(Breakpoint))
 			{
-				OnHit = BreakpointActivationOnHit.FindChecked(InstructionIndex);
+				OnHit = BreakpointActivationOnHit.FindChecked(Breakpoint);
 			}
 			return Hits == OnHit;
 		}				
@@ -99,35 +142,35 @@ bool FRigVMDebugInfo::IsActive(const uint16 InstructionIndex) const
 	return false;		
 }
 
-void FRigVMDebugInfo::HitBreakpoint(const uint16 InstructionIndex)
+void FRigVMDebugInfo::HitBreakpoint(const TSharedPtr<FRigVMBreakpoint> InBreakpoint)
 {
-	if (BreakpointHits.Contains(InstructionIndex))
+	if (BreakpointHits.Contains(InBreakpoint))
 	{
-		BreakpointHits[InstructionIndex]++;
+		BreakpointHits[InBreakpoint]++;
 	}
 	else
 	{
-		BreakpointHits.Add(InstructionIndex, 1);
+		BreakpointHits.Add(InBreakpoint, 1);
 	}
 }
 
-void FRigVMDebugInfo::IncrementBreakpointActivationOnHit(const uint16 InstructionIndex)
+void FRigVMDebugInfo::IncrementBreakpointActivationOnHit(const TSharedPtr<FRigVMBreakpoint> InBreakpoint)
 {
-	if (BreakpointActivationOnHit.Contains(InstructionIndex))
+	if (BreakpointActivationOnHit.Contains(InBreakpoint))
 	{
-		BreakpointActivationOnHit[InstructionIndex]++;
+		BreakpointActivationOnHit[InBreakpoint]++;
 	}
 	else
 	{
-		BreakpointActivationOnHit.Add(InstructionIndex, 1);
+		BreakpointActivationOnHit.Add(InBreakpoint, 1);
 	}
 }
 
-uint16 FRigVMDebugInfo::GetBreakpointHits(const uint16 InstructionIndex) const
+uint16 FRigVMDebugInfo::GetBreakpointHits(const TSharedPtr<FRigVMBreakpoint> InBreakpoint) const
 {
-	if (BreakpointActivationOnHit.Contains(InstructionIndex))
+	if (BreakpointActivationOnHit.Contains(InBreakpoint))
 	{
-		return BreakpointActivationOnHit[InstructionIndex];
+		return BreakpointActivationOnHit[InBreakpoint];
 	}
 	return 0;
 }

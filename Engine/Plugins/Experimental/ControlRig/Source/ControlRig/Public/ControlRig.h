@@ -664,8 +664,8 @@ public:
 
 	void SetIsInDebugMode(const bool bValue) { bIsInDebugMode = bValue; }
 	
-	/** Adds a breakpoint in the VM at the InstructionIndex */
-	void AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode);
+	/** Adds a breakpoint in the VM at the InstructionIndex for the Node */
+	void AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode, uint16 InDepth);
 
 	/** If the VM is halted at a breakpoint, it sets a breakpoint action so that
 	 *  it is applied on the next VM execution */
