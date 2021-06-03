@@ -14,6 +14,7 @@
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectAnnotation.h"
+#include "UObject/UObjectIterator.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineGlobals.h"
 #include "Materials/MaterialInterface.h"

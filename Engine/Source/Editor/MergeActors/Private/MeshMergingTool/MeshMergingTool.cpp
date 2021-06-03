@@ -20,7 +20,7 @@
 #include "AssetRegistryModule.h"
 #include "ScopedTransaction.h"
 #include "MeshMergeModule.h"
-
+#include "ComponentReregisterContext.h"
 
 #define LOCTEXT_NAMESPACE "MeshMergingTool"
 
