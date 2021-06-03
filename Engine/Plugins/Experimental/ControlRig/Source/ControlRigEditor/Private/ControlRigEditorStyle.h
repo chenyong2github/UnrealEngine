@@ -24,7 +24,9 @@ public:
 		const FVector2D Icon24x24(24.0f, 24.0f);
 		const FVector2D Icon32x32(32.0f, 32.0f);
 		const FVector2D Icon40x40(40.0f, 40.0f);
-		SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Experimental/ControlRig/Content"));
+		const FString PluginContentDir = FPaths::EnginePluginsDir() / TEXT("Experimental/ControlRig/Content");
+		const FString EngineEditorSlateDir = FPaths::EngineContentDir() / TEXT("Editor/Slate");
+		SetContentRoot(PluginContentDir);
 
 		const FSlateColor DefaultForeground(FLinearColor(0.72f, 0.72f, 0.72f, 1.f));
 
@@ -97,6 +99,16 @@ public:
 			Set( "ControlRig.StepOut", new IMAGE_BRUSH("Slate/icon_DebugStepOut_40x", Icon40x40));
 			Set( "ControlRig.StepInto", new IMAGE_BRUSH( "Slate/icon_DebugStepIn_40x", Icon40x40 ) );
 			Set( "ControlRig.StepOver", new IMAGE_BRUSH( "Slate/icon_DebugStepOver_40x", Icon40x40 ) );
+
+			{
+				const FString PreviousContentRoot = GetContentRootDir();
+				// Common/RoundedSelection_16x lives in the editor slate folder, change the root temporarily
+				SetContentRoot(EngineEditorSlateDir);
+				// similar style to "LevelViewport.StartingPlayInEditorBorder"
+				Set( "ControlRig.Viewport.Border", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f, FLinearColor(1.0f,1.0f,1.0f,1.0f) ) );
+				// restore the previous content root
+				SetContentRoot(PreviousContentRoot);
+			}
 		}
 
 		// Graph styles
