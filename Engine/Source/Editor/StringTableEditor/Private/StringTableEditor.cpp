@@ -662,7 +662,7 @@ FReply FStringTableEditor::OnImportFromCSVClicked()
 			LOCTEXT("ImportStringTableTitle", "Choose a string table CSV file...").ToString(),
 			DefaultPath,
 			TEXT(""),
-			TEXT("String Table CSV (*.csv, *.csv)"),
+			TEXT("String Table CSV (*.csv)"),
 			EFileDialogFlags::None,
 			OutFiles
 			))
