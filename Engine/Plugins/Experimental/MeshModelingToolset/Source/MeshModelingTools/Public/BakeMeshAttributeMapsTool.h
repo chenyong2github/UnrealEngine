@@ -51,19 +51,24 @@ protected:
 
 
 
-UENUM()
+UENUM(meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class EBakeMapType
 {
-	TangentSpaceNormalMap,
-	Occlusion,
-	Curvature,
-	Texture2DImage,
-	NormalImage,
-	FaceNormalImage,
-	PositionImage,
-	MaterialID,
-	MultiTexture
+	None                   = 0 UMETA(Hidden),
+	TangentSpaceNormalMap  = 1 << 0,
+	AmbientOcclusion       = 1 << 1,
+	BentNormal             = 1 << 2,
+	Curvature              = 1 << 3,
+	Texture2DImage         = 1 << 4,
+	NormalImage            = 1 << 5,
+	FaceNormalImage        = 1 << 6,
+	PositionImage          = 1 << 7,
+	MaterialID             = 1 << 8,
+	MultiTexture           = 1 << 9,
+	Occlusion              = (AmbientOcclusion | BentNormal) UMETA(Hidden),
+	All                    = 0x3FF UMETA(Hidden)
 };
+ENUM_CLASS_FLAGS(EBakeMapType);
 
 
 UENUM()
@@ -99,9 +104,13 @@ class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsToolProperties : public UInter
 	GENERATED_BODY()
 
 public:
-	/** The type of map to generate */
-	UPROPERTY(EditAnywhere, Category = MapSettings)
-	EBakeMapType MapType = EBakeMapType::TangentSpaceNormalMap;
+	/** The map types to generate */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(Bitmask, BitmaskEnum=EBakeMapType))
+	int32 MapTypes = (int32) EBakeMapType::TangentSpaceNormalMap;
+
+	/** The map type index to preview */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(ArrayClamp="Result"))
+	int MapPreview = 0;
 
 	/** The pixel resolution of the generated map */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
@@ -161,25 +170,12 @@ enum class EOcclusionMapDistribution
 	Cosine UMETA(DisplayName = "Cosine")
 };
 
-UENUM()
-enum class EOcclusionMapPreview
-{
-	/** Ambient Occlusion */
-	AmbientOcclusion UMETA(DisplayName = "Ambient Occlusion"),
-	/** Bent Normal */
-	BentNormal UMETA(DisplayName = "Bent Normal")
-};
-
 
 UCLASS()
 class MESHMODELINGTOOLS_API UBakedOcclusionMapToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
-	/** Occlusion map output to preview */
-	UPROPERTY(EditAnywhere, Category = OcclusionMap)
-	EOcclusionMapPreview Preview = EOcclusionMapPreview::AmbientOcclusion;
-
 	/** Number of occlusion rays */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
 	int32 OcclusionRays = 16;
@@ -340,6 +336,13 @@ public:
 };
 
 
+enum class EBakeOpState
+{
+	Complete = 0,		// Inputs valid & Result is valid - no-op.
+	Evaluate = 1 << 0,	// Inputs valid & Result is invalid - re-evaluate.
+	Invalid	 = 1 << 1	// Inputs invalid - pause eval.
+};
+ENUM_CLASS_FLAGS(EBakeOpState);
 
 /**
  * Detail Map Baking Tool
@@ -391,7 +394,6 @@ protected:
 	UBakedOcclusionMapVisualizationProperties* VisualizationProps;
 
 
-
 protected:
 	friend class FBakeMapBaseOp;
 	friend class FBakeNormalMapOp;
@@ -400,7 +402,6 @@ protected:
 	friend class FBakeTexture2DImageMapOp;
 	friend class FBakeMeshPropertyMapOp;
 	friend class FBakeMultiTextureOp;
-
 	friend class FMeshMapBakerOp;
 
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
@@ -437,8 +438,13 @@ protected:
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshMapBaker>> Compute = nullptr;
 	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult);
 
+	/** @return A single bitfield of map types from an array of map types. */
+	EBakeMapType GetMapTypes(const int32& MapTypes) const;
+	TArray<EBakeMapType> GetMapTypesArray(const int32& MapTypes) const;
+
 	struct FBakeCacheSettings
 	{
+		EBakeMapType BakeMapTypes = EBakeMapType::None;
 		FImageDimensions Dimensions;
 		int32 UVLayer;
 		int32 DetailTimestamp;
@@ -447,18 +453,21 @@ protected:
 
 		bool operator==(const FBakeCacheSettings& Other) const
 		{
-			return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp && Thickness == Other.Thickness && Multisampling == Other.Multisampling;
+			return BakeMapTypes == Other.BakeMapTypes && Dimensions == Other.Dimensions &&
+				UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp &&
+				Thickness == Other.Thickness && Multisampling == Other.Multisampling;
 		}
 	};
 	FBakeCacheSettings CachedBakeCacheSettings;
+	TArray<EBakeMapType> ResultTypes;
 
-	enum class EOpState
-	{
-		Complete,	// Inputs valid & Result is valid - no-op.
-		Evaluate,	// Inputs valid & Result is invalid - re-evaluate.
-		Invalid		// Inputs invalid - pause eval.
-	};
-	EOpState OpState = EOpState::Evaluate;
+	EBakeOpState OpState = EBakeOpState::Evaluate;
+
+	UPROPERTY()
+	TArray<UTexture2D*> CachedMaps;
+	using CachedMapIndex = TMap<EBakeMapType, int32>;
+	CachedMapIndex CachedMapIndices;
+
 
 	struct FNormalMapSettings
 	{
@@ -470,11 +479,7 @@ protected:
 		}
 	};
 	FNormalMapSettings CachedNormalMapSettings;
-	UPROPERTY()
-	UTexture2D* CachedNormalMap;
-
-	EOpState UpdateResult_Normal();
-
+	EBakeOpState UpdateResult_Normal();
 
 
 	struct FOcclusionMapSettings
@@ -501,13 +506,7 @@ protected:
 		}
 	};
 	FOcclusionMapSettings CachedOcclusionMapSettings;
-	UPROPERTY()
-	UTexture2D* CachedOcclusionMap;
-	UPROPERTY()
-	UTexture2D* CachedBentNormalMap;
-
-	EOpState UpdateResult_Occlusion();
-
+	EBakeOpState UpdateResult_Occlusion();
 
 
 	struct FCurvatureMapSettings
@@ -528,31 +527,20 @@ protected:
 		}
 	};
 	FCurvatureMapSettings CachedCurvatureMapSettings;
-	UPROPERTY()
-	UTexture2D* CachedCurvatureMap;
-
-	EOpState UpdateResult_Curvature();
-
-
+	EBakeOpState UpdateResult_Curvature();
 
 
 	struct FMeshPropertyMapSettings
 	{
 		FImageDimensions Dimensions;
-		int32 PropertyTypeIndex;
 
 		bool operator==(const FMeshPropertyMapSettings& Other) const
 		{
-			return Dimensions == Other.Dimensions && PropertyTypeIndex == Other.PropertyTypeIndex;
+			return Dimensions == Other.Dimensions;
 		}
 	};
 	FMeshPropertyMapSettings CachedMeshPropertyMapSettings;
-	UPROPERTY()
-	UTexture2D* CachedMeshPropertyMap;
-
-	EOpState UpdateResult_MeshProperty();
-
-
+	EBakeOpState UpdateResult_MeshProperty();
 
 
 	struct FTexture2DImageSettings
@@ -567,19 +555,14 @@ protected:
 	};
 	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedTextureImage;
 	FTexture2DImageSettings CachedTexture2DImageSettings;
-	UPROPERTY()
-	UTexture2D* CachedTexture2DImageMap;
-
-	EOpState UpdateResult_Texture2DImage();
+	EBakeOpState UpdateResult_Texture2DImage();
 
 
 	TMap<int32, TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> CachedMultiTextures;
-	EOpState UpdateResult_MultiTexture();
-
+	EBakeOpState UpdateResult_MultiTexture();
 
 
 	// empty maps are shown when nothing is computed
-
 	UPROPERTY()
 	UTexture2D* EmptyNormalMap;
 
