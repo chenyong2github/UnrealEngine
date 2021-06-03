@@ -144,9 +144,8 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	AssertValidBuildFunctionName(Function, Name);
 	Meta = InOutput["Meta"_ASV].AsObject();
 	Meta.MakeOwned();
-	for (FCbFieldView PayloadField : InOutput["Payloads"_ASV])
+	for (FCbFieldView Payload : InOutput["Payloads"_ASV])
 	{
-		const FCbObjectView Payload = PayloadField.AsObjectView();
 		const FPayloadId Id(Payload["Id"_ASV].AsObjectId());
 		const FIoHash& RawHash = Payload["RawHash"_ASV].AsAttachment();
 		if (Id.IsNull() || RawHash.IsZero() || !Payload["RawSize"_ASV].IsInteger())
@@ -157,7 +156,7 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	}
 	Diagnostics = InOutput["Diagnostics"_ASV];
 	Diagnostics.MakeOwned();
-	bOutIsValid = IsValid() && (!InOutput.FindView("Meta"_ASV) || InOutput.FindView("Meta"_ASV).IsObject());
+	bOutIsValid = IsValid() && (!InOutput.AsView()["Meta"_ASV] || InOutput.AsView()["Meta"_ASV].IsObject());
 }
 
 FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCacheRecord& InOutput, bool& bOutIsValid)
@@ -183,10 +182,9 @@ const FPayload& FBuildOutputInternal::GetPayload(const FPayloadId& Id) const
 
 void FBuildOutputInternal::IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const
 {
-	for (FCbFieldView Field : Diagnostics.CreateViewIterator())
+	for (FCbFieldView Diagnostic : Diagnostics.CreateViewIterator())
 	{
 		EBuildDiagnosticLevel Level;
-		const FCbObjectView Diagnostic = Field.AsObjectView();
 		LexFromString(Level, Diagnostic["Level"_ASV].AsString());
 		const FAnsiStringView Category = Diagnostic["Category"_ASV].AsString();
 		const FAnsiStringView Message = Diagnostic["Message"_ASV].AsString();
@@ -261,9 +259,9 @@ bool FBuildOutputInternal::IsValid() const
 		&& Algo::AllOf(Diagnostics.CreateViewIterator(), [](FCbFieldView Field)
 			{
 				return Field.IsObject()
-					&& Field.AsObjectView()["Level"_ASV].AsString().Len() > 0
-					&& Field.AsObjectView()["Category"_ASV].AsString().Len() > 0
-					&& Field.AsObjectView()["Message"_ASV].AsString().Len() > 0;
+					&& Field["Level"_ASV].AsString().Len() > 0
+					&& Field["Category"_ASV].AsString().Len() > 0
+					&& Field["Message"_ASV].AsString().Len() > 0;
 			});
 }
 
