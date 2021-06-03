@@ -5191,7 +5191,7 @@ bool FControlRigEditor::IsHaltedAtBreakpoint() const
 {
 	if (ControlRig && ControlRig->GetVM())
 	{
-		return ControlRig->GetVM()->GetHaltedAtInstruction() != INDEX_NONE;
+		return ControlRig->GetVM()->GetHaltedAtBreakpoint() != nullptr;
 	}
 	return false;
 }
