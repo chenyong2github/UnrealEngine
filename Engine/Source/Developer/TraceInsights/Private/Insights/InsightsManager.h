@@ -100,7 +100,7 @@ public:
 	void SetStoreDir(const FString& InStoreDir) { StoreDir = InStoreDir; }
 	const FString& GetStoreDir() const { return StoreDir; }
 
-	bool ConnectToStore(const TCHAR* Host, uint32 Port);
+	bool ConnectToStore(const TCHAR* Host, uint32 Port=0);
 	UE::Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
 
 	/** @return an instance of the trace analysis session. */

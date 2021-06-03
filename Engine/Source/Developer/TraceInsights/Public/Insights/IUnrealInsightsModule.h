@@ -201,7 +201,7 @@ public:
 	 * @param InStorePort The port of the store to connect to.
 	 * @return If connected succesfully or not.
 	 */
-	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) = 0;
+	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort=0) = 0;
 
 	//////////////////////////////////////////////////
 

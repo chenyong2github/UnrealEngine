@@ -41,7 +41,7 @@ public:
 	virtual void CreateDefaultStore() override;
 
 	virtual UE::Trace::FStoreClient* GetStoreClient() override;
-	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) override;
+	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort=0) override;
 
 	virtual void CreateSessionBrowser(const FCreateSessionBrowserParams& Params) override;
 	virtual void CreateSessionViewer(bool bAllowDebugTools = false) override;
