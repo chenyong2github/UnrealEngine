@@ -1422,6 +1422,19 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 	}
 }
 
+void FScene::UpdatePrimitiveSelectedState_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsSelected)
+{
+	check(IsInRenderingThread());
+
+	if (PrimitiveSceneInfo)
+	{
+		if (PrimitiveSceneInfo->GetIndex() != INDEX_NONE)
+		{
+			PrimitivesSelected[PrimitiveSceneInfo->GetIndex()] = bIsSelected;
+		}
+	}
+}
+
 void FScene::UpdatePrimitiveLightingAttachmentRoot(UPrimitiveComponent* Primitive)
 {
 	const UPrimitiveComponent* NewLightingAttachmentRoot = Primitive->GetLightingAttachmentRoot();

@@ -231,6 +231,9 @@ public:
 
 	/** Update render states that possibly cached inside renderer, like mesh draw commands. More lightweight than re-registering the scene proxy. */
 	virtual void UpdateCachedRenderStates(class FPrimitiveSceneProxy* SceneProxy) {}
+	
+	/** Updates the selected state values that might be cached inside the renderer */
+	virtual void UpdatePrimitiveSelectedState_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsSelected) {}
 
 	/** 
 	 * Adds a new exponential height fog component to the scene

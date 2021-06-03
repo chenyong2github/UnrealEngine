@@ -530,8 +530,18 @@ void FPrimitiveSceneProxy::SetDebugMassData(const TArray<FDebugMassData>& InDebu
 void FPrimitiveSceneProxy::SetSelection_RenderThread(const bool bInParentSelected, const bool bInIndividuallySelected)
 {
 	check(IsInRenderingThread());
+
+	const bool bWasSelected = IsSelected();
 	bParentSelected = bInParentSelected;
 	bIndividuallySelected = bInIndividuallySelected;
+	const bool bIsSelected = IsSelected();
+
+	// The renderer may have cached the selected state, let it know that this primitive is updated
+	if ((bWasSelected && !bIsSelected) || 
+		(bIsSelected && !bWasSelected))
+	{
+		GetScene().UpdatePrimitiveSelectedState_RenderThread(GetPrimitiveSceneInfo(), bIsSelected);
+	}
 }
 
 /**
