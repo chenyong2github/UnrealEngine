@@ -3,6 +3,7 @@
 #include "NormalFlowRemesher.h"
 #include "Async/ParallelFor.h"
 #include "InfoTypes.h"
+#include "Async/ParallelTransformReduce.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -361,16 +362,20 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved, bo
 
 
 	// Return the maximum distance moved by a vertex
-	MaxDistanceMoved = 0.0;
-	for (int VertexID = 0; VertexID < Mesh->MaxVertexID(); ++VertexID)
+	MaxDistanceMoved = ParallelTransformReduce(Mesh->MaxVertexID(), 0.0, [&](int32 VID) -> double
 	{
-		if (TempFlagBuffer[VertexID] && Mesh->IsVertex(VertexID))
+		if (TempFlagBuffer[VID] && Mesh->IsVertex(VID))
 		{
-			const FVector3d& CurrentPosition = Mesh->GetVertex(VertexID);
-			const FVector3d& ProjectedPosition = TempPosBuffer[VertexID];
-			MaxDistanceMoved = FMath::Max(MaxDistanceMoved, Distance(CurrentPosition, ProjectedPosition));
+			const FVector3d& CurrentPosition = Mesh->GetVertex(VID);
+			return Distance(CurrentPosition, TempPosBuffer[VID]);
 		}
-	}
+		return 0.0;
+	},
+													   [](double A, double B) -> double
+	{
+		return FMath::Max(A, B);
+	},
+		32);
 
 	// Update vertices
 	constexpr bool bUpdateParallel = true;
