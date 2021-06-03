@@ -1966,9 +1966,10 @@ bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 #if !UE_BUILD_SHIPPING
 	auto ParseAudioExecCmd = [](const TCHAR** InCmd, const TCHAR* InMatch)
 	{
+		const TCHAR* PreParseCmd = *InCmd;
 		if (FParse::Command(InCmd, InMatch))
 		{
-			UE_LOG(LogAudio, Warning, TEXT("The Exec command '%s' is deprecated. Use 'au.Debug.%s' instead"), InCmd);
+			UE_LOG(LogAudio, Warning, TEXT("The Exec command '%s' is deprecated. Use 'au.Debug.%s' instead"), PreParseCmd, InMatch);
 			return true;
 		}
 
