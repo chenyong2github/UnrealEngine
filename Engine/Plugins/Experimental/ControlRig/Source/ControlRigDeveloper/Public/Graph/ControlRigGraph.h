@@ -148,6 +148,7 @@ private:
 	void HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM);
 
 	static TArray<TSharedPtr<FString>> EmptyElementNameList;
+	TMap<FName, UEdGraphNode*> ModelNodePathToEdNode;
 	
 	friend class UControlRigUnitNodeSpawner;
 	friend class UControlRigVariableNodeSpawner;
