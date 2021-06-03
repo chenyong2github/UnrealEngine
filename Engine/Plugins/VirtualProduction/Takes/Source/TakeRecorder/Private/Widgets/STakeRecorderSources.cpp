@@ -400,7 +400,7 @@ void STakeRecorderSources::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SDropTarget)
-		.OnDrop(this, &STakeRecorderSources::OnDragDropTarget)
+		.OnDropped(this, &STakeRecorderSources::OnDragDropTarget)
 		.OnAllowDrop(this, &STakeRecorderSources::CanDragDropTarget)
 		.OnIsRecognized(this, &STakeRecorderSources::CanDragDropTarget)
 		[
@@ -597,16 +597,22 @@ void STakeRecorderSources::OnGetChildren(TSharedPtr<ITakeRecorderSourceTreeItem>
 	}
 }
 
-FReply STakeRecorderSources::OnDragDropTarget(TSharedPtr<FDragDropOperation> InOperation)
+FReply STakeRecorderSources::OnDragDropTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
+	TSharedPtr<FDragDropOperation> DragDropOperation = InDragDropEvent.GetOperation();
+	if (!DragDropOperation)
+	{
+		return FReply::Unhandled();
+	}
+
 	UTakeRecorderSources* Sources = WeakSources.Get();
 	if (Sources)
 	{
 		for (ITakeRecorderDropHandler* Handler : ITakeRecorderDropHandler::GetDropHandlers())
 		{
-			if (Handler->CanHandleOperation(InOperation, Sources))
+			if (Handler->CanHandleOperation(DragDropOperation, Sources))
 			{
-				Handler->HandleOperation(InOperation, Sources);
+				Handler->HandleOperation(DragDropOperation, Sources);
 				return FReply::Handled();
 			}
 		}

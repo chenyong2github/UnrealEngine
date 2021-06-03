@@ -36,7 +36,7 @@ void FActorLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyH
 	.MaxDesiredWidth(TOptional<float>())
 	[
 		SNew(SDropTarget)
-		.OnDrop(this, &FActorLayerPropertyTypeCustomization::OnDrop)
+		.OnDropped(this, &FActorLayerPropertyTypeCustomization::OnDrop)
 		.OnAllowDrop(this, &FActorLayerPropertyTypeCustomization::OnVerifyDrag)
 		.OnIsRecognized(this, &FActorLayerPropertyTypeCustomization::OnVerifyDrag)
 		[
@@ -205,11 +205,12 @@ void FActorLayerPropertyTypeCustomization::OpenLayerBrowser()
 	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("LevelEditorLayerBrowser"));
 }
 
-FReply FActorLayerPropertyTypeCustomization::OnDrop(TSharedPtr<FDragDropOperation> InDragDrop)
+FReply FActorLayerPropertyTypeCustomization::OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
-	if (InDragDrop.IsValid() && InDragDrop->IsOfType<FLayersDragDropOp>())
+	TSharedPtr<FLayersDragDropOp> LayersDragDropOp = InDragDropEvent.GetOperationAs<FLayersDragDropOp>();
+	if (LayersDragDropOp)
 	{
-		const TArray<FName>& LayerNames = StaticCastSharedPtr<FLayersDragDropOp>(InDragDrop)->Layers;
+		const TArray<FName>& LayerNames = LayersDragDropOp->Layers;
 		if (ensure(LayerNames.Num() == 1))
 		{
 			AssignLayer(LayerNames[0]);

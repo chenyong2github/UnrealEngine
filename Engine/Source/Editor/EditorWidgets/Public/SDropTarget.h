@@ -6,6 +6,7 @@
 #include "Styling/SlateColor.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
+#include "Framework/SlateDelegates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "EditorStyleSet.h"
@@ -20,10 +21,8 @@ class FSlateWindowElementList;
 class EDITORWIDGETS_API SDropTarget : public SCompoundWidget
 {
 public:
-	/** Called when a valid asset is dropped */
-	DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnDrop, TSharedPtr<FDragDropOperation>);
-
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FVerifyDrag, TSharedPtr<FDragDropOperation>);
+	DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnDropDeprecated, TSharedPtr<FDragDropOperation>);
 
 	SLATE_BEGIN_ARGS(SDropTarget)
 		: _ValidColor(FStyleColors::AccentBlue)
@@ -57,11 +56,25 @@ public:
 		/** The background image that is applied after the surface. */
 		SLATE_ATTRIBUTE(const FSlateBrush*, BackgroundImage)
 		/** Called when a valid asset is dropped */
-		SLATE_EVENT(FOnDrop, OnDrop)
+		SLATE_EVENT(FOnDrop, OnDropped)
 		/** Called to check if an asset is acceptable for dropping */
 		SLATE_EVENT(FVerifyDrag, OnAllowDrop)
 		/** Called to check if an asset is acceptable for dropping */
 		SLATE_EVENT(FVerifyDrag, OnIsRecognized)
+
+		FOnDrop ConvertOnDropFn(const FOnDropDeprecated& LegacyDelegate)
+		{
+			return FOnDrop::CreateLambda([LegacyDelegate](const FGeometry&, const FDragDropEvent& DragDropEvent)
+			{
+				if (LegacyDelegate.IsBound())
+				{
+					return LegacyDelegate.Execute(DragDropEvent.GetOperation());
+				}
+
+				return FReply::Unhandled();
+			});
+		}
+		SLATE_EVENT_DEPRECATED(5.0, "Use OnDropped instead.", FOnDropDeprecated, OnDrop, OnDropped, ConvertOnDropFn)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs );

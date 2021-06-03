@@ -344,7 +344,7 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::AddContainerForRowWidgets(TSharedRe
 
 	return SNew(SDropTarget)
 	.OnAllowDrop(this, &SNiagaraStackModuleItem::OnModuleItemAllowDrop)
-	.OnDrop(this, &SNiagaraStackModuleItem::OnModuleItemDrop)
+	.OnDropped(this, &SNiagaraStackModuleItem::OnModuleItemDrop)
 	.HorizontalImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.DropTarget.BorderHorizontal"))
 	.VerticalImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.DropTarget.BorderVertical"))
 	.Content()
@@ -517,11 +517,17 @@ FReply SNiagaraStackModuleItem::RefreshClicked()
 	return FReply::Handled();
 }
 
-FReply SNiagaraStackModuleItem::OnModuleItemDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+FReply SNiagaraStackModuleItem::OnModuleItemDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
-	UNiagaraStackEntry::FDropRequest DropRequest(DragDropOperation.ToSharedRef(), EItemDropZone::OntoItem, UNiagaraStackEntry::EDragOptions::None, UNiagaraStackEntry::EDropOptions::None);
-	TOptional<UNiagaraStackEntry::FDropRequestResponse> DropResponse = ModuleItem->Drop(DropRequest);
-	return DropResponse.IsSet() && DropResponse->DropZone == EItemDropZone::OntoItem ? FReply::Handled() : FReply::Unhandled();
+	TSharedPtr<FDragDropOperation> DragDropOperation = InDragDropEvent.GetOperation();
+	if (DragDropOperation)
+	{
+		UNiagaraStackEntry::FDropRequest DropRequest(DragDropOperation.ToSharedRef(), EItemDropZone::OntoItem, UNiagaraStackEntry::EDragOptions::None, UNiagaraStackEntry::EDropOptions::None);
+		TOptional<UNiagaraStackEntry::FDropRequestResponse> DropResponse = ModuleItem->Drop(DropRequest);
+		return (DropResponse.IsSet() && (DropResponse->DropZone == EItemDropZone::OntoItem)) ? FReply::Handled() : FReply::Unhandled();
+	}
+
+	return FReply::Unhandled();
 }
 
 bool SNiagaraStackModuleItem::OnModuleItemAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)

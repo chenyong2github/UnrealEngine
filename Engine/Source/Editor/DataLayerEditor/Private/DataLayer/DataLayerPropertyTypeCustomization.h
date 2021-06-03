@@ -28,7 +28,7 @@ private:
 
 	TSharedRef<SWidget> OnGetDataLayerMenu();
 	FReply OnSelectDataLayer();
-	FReply OnDrop(TSharedPtr<FDragDropOperation> InDragDrop);
+	FReply OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 	bool OnVerifyDrag(TSharedPtr<FDragDropOperation> InDragDrop);
 	TSharedPtr<const FDataLayerDragDropOp> GetDataLayerDragDropOp(TSharedPtr<FDragDropOperation> InDragDrop);
 

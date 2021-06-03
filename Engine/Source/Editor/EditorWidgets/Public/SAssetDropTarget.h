@@ -37,7 +37,7 @@ public:
 	void Construct(const FArguments& InArgs );
 
 protected:
-	FReply OnDropped(TSharedPtr<FDragDropOperation> DragDropOperation);
+	FReply OnDropped(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 	virtual bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
 	virtual bool OnIsRecognized(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;

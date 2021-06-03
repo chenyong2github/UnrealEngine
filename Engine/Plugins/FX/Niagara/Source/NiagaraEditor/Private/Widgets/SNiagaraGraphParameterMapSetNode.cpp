@@ -30,7 +30,7 @@ TSharedRef<SWidget> SNiagaraGraphParameterMapSetNode::CreateNodeContentArea()
 	TSharedRef<SWidget> ExistingContent = SNiagaraGraphNode::CreateNodeContentArea();
 	// NODE CONTENT AREA
 	return 	SNew(SDropTarget)
-		.OnDrop(this, &SNiagaraGraphParameterMapSetNode::OnDroppedOnTarget)
+		.OnDropped(this, &SNiagaraGraphParameterMapSetNode::OnDroppedOnTarget)
 		.OnAllowDrop(this, &SNiagaraGraphParameterMapSetNode::OnAllowDrop)
 		.Content()
 		[
@@ -45,12 +45,16 @@ TSharedRef<SWidget> SNiagaraGraphParameterMapSetNode::CreateNodeContentArea()
 		];
 }
 
-FReply SNiagaraGraphParameterMapSetNode::OnDroppedOnTarget(TSharedPtr<FDragDropOperation> DropOperation)
+FReply SNiagaraGraphParameterMapSetNode::OnDroppedOnTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
-	UNiagaraNodeParameterMapBase* MapNode = Cast<UNiagaraNodeParameterMapBase>(GraphNode);
-	if (MapNode != nullptr && MapNode->HandleDropOperation(DropOperation))
+	TSharedPtr<FDragDropOperation> DragDropOperation = InDragDropEvent.GetOperation();
+	if (DragDropOperation)
 	{
-		return FReply::Handled();
+		UNiagaraNodeParameterMapBase* MapNode = Cast<UNiagaraNodeParameterMapBase>(GraphNode);
+		if (MapNode != nullptr && MapNode->HandleDropOperation(DragDropOperation))
+		{
+			return FReply::Handled();
+		}
 	}
 	return FReply::Unhandled();
 }

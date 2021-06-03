@@ -30,7 +30,7 @@ private:
 
 	void OpenLayerBrowser();
 
-	FReply OnDrop(TSharedPtr<FDragDropOperation> InDragDrop);
+	FReply OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 	bool OnVerifyDrag(TSharedPtr<FDragDropOperation> InDragDrop);
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;

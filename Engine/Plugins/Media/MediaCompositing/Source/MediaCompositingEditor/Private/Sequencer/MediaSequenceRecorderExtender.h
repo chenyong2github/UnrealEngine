@@ -58,7 +58,7 @@ private:
 	void OnMediaPlayerListSelectionChanged(USequenceRecordingBase* Recording, ESelectInfo::Type SelectionType);
 	EVisibility GetRecordMediaPlayerVisible() const;
 	bool OnRecordingMediaPlayerListAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
-	FReply OnRecordingMediaPlayerListDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
+	FReply OnRecordingMediaPlayerListDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 
 private:
 	bool bInsideSelectionChanged;

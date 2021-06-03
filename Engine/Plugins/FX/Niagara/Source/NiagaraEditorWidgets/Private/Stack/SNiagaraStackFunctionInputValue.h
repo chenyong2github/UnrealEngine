@@ -133,7 +133,7 @@ private:
 
 	FSlateColor GetInputIconColor() const;
 
-	FReply OnFunctionInputDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
+	FReply OnFunctionInputDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 
 	bool OnFunctionInputAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
 

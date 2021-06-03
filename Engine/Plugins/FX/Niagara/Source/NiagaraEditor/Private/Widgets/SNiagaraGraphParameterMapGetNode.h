@@ -18,7 +18,7 @@ public:
 protected:
 	FReply OnBorderMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 InWhichPin);
 	const FSlateBrush* GetBackgroundBrush(TSharedPtr<SWidget> Border) const;
-	FReply OnDroppedOnTarget(TSharedPtr<FDragDropOperation> DropOperation);
+	FReply OnDroppedOnTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
 	TSharedPtr<SVerticalBox> PinContainerRoot;
 

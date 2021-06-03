@@ -889,7 +889,7 @@ void SMoviePipelineQueueEditor::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SDropTarget)
-		.OnDrop(this, &SMoviePipelineQueueEditor::OnDragDropTarget)
+		.OnDropped(this, &SMoviePipelineQueueEditor::OnDragDropTarget)
 		.OnAllowDrop(this, &SMoviePipelineQueueEditor::CanDragDropTarget)
 		.OnIsRecognized(this, &SMoviePipelineQueueEditor::CanDragDropTarget)
 		[
@@ -1159,22 +1159,18 @@ void SMoviePipelineQueueEditor::OnGetChildren(TSharedPtr<IMoviePipelineQueueTree
 	}
 }
 
-FReply SMoviePipelineQueueEditor::OnDragDropTarget(TSharedPtr<FDragDropOperation> InOperation)
+FReply SMoviePipelineQueueEditor::OnDragDropTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
-	if (InOperation)
+	if (TSharedPtr<FAssetDragDropOp> AssetDragDrop = InDragDropEvent.GetOperationAs<FAssetDragDropOp>())
 	{
-		if (InOperation->IsOfType<FAssetDragDropOp>())
+		FScopedTransaction Transaction(FText::Format(LOCTEXT("CreateJob_Transaction", "Add {0}|plural(one=Job, other=Jobs)"), AssetDragDrop->GetAssets().Num()));
+
+		for (const FAssetData& Asset : AssetDragDrop->GetAssets())
 		{
-			TSharedPtr<FAssetDragDropOp> AssetDragDrop = StaticCastSharedPtr<FAssetDragDropOp>(InOperation);
-			FScopedTransaction Transaction(FText::Format(LOCTEXT("CreateJob_Transaction", "Add {0}|plural(one=Job, other=Jobs)"), AssetDragDrop->GetAssets().Num()));
-
-			for (const FAssetData& Asset : AssetDragDrop->GetAssets())
-			{
-				OnCreateJobFromAsset(Asset);
-			}
-
-			return FReply::Handled();
+			OnCreateJobFromAsset(Asset);
 		}
+
+		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();

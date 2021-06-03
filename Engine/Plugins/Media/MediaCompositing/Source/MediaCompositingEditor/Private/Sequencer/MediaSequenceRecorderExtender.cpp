@@ -197,7 +197,7 @@ TSharedPtr<SWidget> FMediaSequenceRecorderExtender::MakeListWidget(TSharedPtr<SL
 		[
 			SNew(SDropTarget)
 			.OnAllowDrop(this, &FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListAllowDrop)
-			.OnDrop(this, &FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListDrop)
+			.OnDropped(this, &FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListDrop)
 			.Content()
 			[
 				SAssignNew(MediaPlayerListView, SListView<USequenceRecordingBase*>)
@@ -347,12 +347,11 @@ bool FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListAllowDrop(TShared
 }
 
 
- FReply FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+ FReply FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
-	if (DragDropOperation->IsOfType<FAssetDragDropOp>())
+	TSharedPtr<FAssetDragDropOp> AssetDragDropOperation = InDragDropEvent.GetOperationAs<FAssetDragDropOp>();
+	if (AssetDragDropOperation)
 	{
-		TSharedPtr<FAssetDragDropOp> AssetDragDropOperation = StaticCastSharedPtr<FAssetDragDropOp>(DragDropOperation);
-
 		for (const FAssetData& AssetData : AssetDragDropOperation->GetAssets())
 		{
 			if (AssetData.IsValid() && AssetData.GetClass()->IsChildOf<UMediaPlayer>())

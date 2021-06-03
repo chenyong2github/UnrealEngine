@@ -145,7 +145,7 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 		[
 			// Drop target
 			SNew(SDropTarget)
-			.OnDrop(this, &SNiagaraParameterPanel::HandleDragDropOperation)
+			.OnDropped(this, &SNiagaraParameterPanel::HandleDragDropOperation)
 			.OnAllowDrop(this, &SNiagaraParameterPanel::GetCanHandleDragDropOperation)
 			.Content()
 			[
@@ -703,9 +703,15 @@ TSharedRef<SWidget> SNiagaraParameterPanel::GetViewOptionsMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-FReply SNiagaraParameterPanel::HandleDragDropOperation(TSharedPtr<FDragDropOperation> DropOperation)
+FReply SNiagaraParameterPanel::HandleDragDropOperation(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
-	return ParameterPanelViewModel->HandleDragDropOperation(DropOperation);
+	TSharedPtr<FDragDropOperation> DragDropOperation = InDragDropEvent.GetOperation();
+	if (DragDropOperation)
+	{
+		return ParameterPanelViewModel->HandleDragDropOperation(DragDropOperation);
+	}
+
+	return FReply::Unhandled();
 }
 
 bool SNiagaraParameterPanel::GetCanHandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation)

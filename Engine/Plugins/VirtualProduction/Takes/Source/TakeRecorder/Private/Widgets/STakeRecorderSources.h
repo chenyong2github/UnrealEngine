@@ -52,7 +52,7 @@ private:
 
 	void OnGetChildren(TSharedPtr<ITakeRecorderSourceTreeItem> Item, TArray<TSharedPtr<ITakeRecorderSourceTreeItem>>& OutChildItems);
 
-	FReply OnDragDropTarget(TSharedPtr<FDragDropOperation> InOperation);
+	FReply OnDragDropTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 
 	bool CanDragDropTarget(TSharedPtr<FDragDropOperation> InOperation);
 

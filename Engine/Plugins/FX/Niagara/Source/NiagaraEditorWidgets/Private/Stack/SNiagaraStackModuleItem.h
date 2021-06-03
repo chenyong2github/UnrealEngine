@@ -54,7 +54,7 @@ private:
 
 	FReply RefreshClicked();
 
-	FReply OnModuleItemDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
+	FReply OnModuleItemDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 
 	FSlateColor GetVersionSelectorColor() const;
 
