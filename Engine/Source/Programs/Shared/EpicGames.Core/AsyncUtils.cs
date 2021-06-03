@@ -18,12 +18,18 @@ namespace EpicGames.Core
 		/// <param name="Tasks">List of tasks to remove tasks from</param>
 		public static void RemoveCompleteTasks(this List<Task> Tasks)
 		{
+			List<Exception> Exceptions = new List<Exception>();
+
 			int OutIdx = 0;
 			for (int Idx = 0; Idx < Tasks.Count; Idx++)
 			{
 				if (Tasks[Idx].IsCompleted)
 				{
-					Tasks[Idx].Wait();
+					AggregateException? Exception = Tasks[Idx].Exception;
+					if(Exception != null)
+					{
+						Exceptions.AddRange(Exception.InnerExceptions);
+					}
 				}
 				else
 				{
@@ -35,6 +41,11 @@ namespace EpicGames.Core
 				}
 			}
 			Tasks.RemoveRange(OutIdx, Tasks.Count - OutIdx);
+
+			if(Exceptions.Count > 0)
+			{
+				throw new AggregateException(Exceptions);
+			}
 		}
 
 		/// <summary>

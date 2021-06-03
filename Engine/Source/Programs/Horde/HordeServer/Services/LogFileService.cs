@@ -991,7 +991,14 @@ namespace HordeServer.Services
 		{
 			lock (WriteLock)
 			{
-				WriteTasks.RemoveCompleteTasks();
+				try
+				{
+					WriteTasks.RemoveCompleteTasks();
+				}
+				catch (Exception Ex)
+				{
+					Logger.LogError(Ex, "Exception while waiting for write tasks to complete");
+				}
 			}
 			await IncrementalFlush();
 		}
