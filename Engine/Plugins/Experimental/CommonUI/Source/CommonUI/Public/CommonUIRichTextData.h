@@ -26,7 +26,7 @@ struct COMMONUI_API FRichTextIconData : public FTableRowBase
 /* Derive from this class for rich text data per game
  * it is referenced in Common UI Settings, found in project settings UI
  */
-UCLASS(Blueprintable, meta = (Category = "Common UI"))
+UCLASS(Abstract, Blueprintable, meta = (Category = "Common UI"))
 class COMMONUI_API UCommonUIRichTextData : public UObject
 {
 	GENERATED_BODY()
