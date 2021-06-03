@@ -6,7 +6,11 @@
 #include "Tickable.h"
 #include "Delegates/DelegateCombinations.h"
 #include "RHI.h"
+
+#define BUILDING_FOR_UNREAL_ONLY
+#define BINKPLUGIN_API BINKMEDIAPLAYER_API
 #include "binkplugin.h"
+
 #include "BinkMediaPlayer.generated.h"
 
 extern BINKMEDIAPLAYER_API unsigned bink_gpu_api;
