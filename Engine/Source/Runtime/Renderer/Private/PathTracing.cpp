@@ -1214,6 +1214,20 @@ void FSceneViewState::PathTracingInvalidate()
 	PathTracingSampleIndex = 0;
 }
 
+uint32 FSceneViewState::GetPathTracingSampleIndex() const {
+	return PathTracingSampleIndex;
+}
+
+uint32 FSceneViewState::GetPathTracingSampleCount() const {
+	FPathTracingConfig* LastConfig = PathTracingLastConfig.Get();
+	if (LastConfig)
+	{
+		return LastConfig->PathTracingData.MaxSamples;
+	}
+	return 0;
+}
+
+
 BEGIN_SHADER_PARAMETER_STRUCT(FDenoiseTextureParameters, )
 	RDG_TEXTURE_ACCESS(InputTexture, ERHIAccess::CopySrc)
 	RDG_TEXTURE_ACCESS(InputAlbedo, ERHIAccess::CopySrc)
@@ -1392,6 +1406,9 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		GraphBuilder.QueueTextureExtraction(AlbedoTexture  , &View.ViewState->PathTracingAlbedoRT  );
 		GraphBuilder.QueueTextureExtraction(NormalTexture  , &View.ViewState->PathTracingNormalRT  );
 
+		// Bump counters for next frame
+		++View.ViewState->PathTracingSampleIndex;
+		++View.ViewState->PathTracingFrameIndex;
 	}
 
 	FRDGTexture* DenoisedRadianceTexture = nullptr;
@@ -1482,10 +1499,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PixelShader,
 		DisplayParameters
 	);
-
-	// Bump counters for next frame
-	++View.ViewState->PathTracingSampleIndex;
-	++View.ViewState->PathTracingFrameIndex;
 }
 
 #endif
