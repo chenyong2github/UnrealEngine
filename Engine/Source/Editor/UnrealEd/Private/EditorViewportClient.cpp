@@ -5969,7 +5969,14 @@ const TArray<FString>* FEditorViewportClient::GetEnabledStats() const
 
 void FEditorViewportClient::SetEnabledStats(const TArray<FString>& InEnabledStats)
 {
+	HandleViewportStatDisableAll(true);
+
 	EnabledStats = InEnabledStats;
+	if (EnabledStats.Num())
+	{
+		SetShowStats(true);
+		AddRealtimeOverride(true, LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
+	}
 
 #if ENABLE_AUDIO_DEBUG
 	if (GEngine)
