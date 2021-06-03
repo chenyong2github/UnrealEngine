@@ -14,7 +14,8 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"DatasmithCore"
+					"DatasmithCore",
+					"DirectLink",
 				}
 			);
 
