@@ -962,7 +962,7 @@ FDerivedDataBackendInterface::ESpeedClass FS3DerivedDataBackend::GetSpeedClass()
 
 bool FS3DerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
-	return false;
+	return GetSpeedClass() >= ESpeedClass::Fast && CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
 }
 
 bool FS3DerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)

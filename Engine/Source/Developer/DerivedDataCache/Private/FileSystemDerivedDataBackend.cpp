@@ -871,7 +871,7 @@ public:
 
 	bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
-		return false;
+		return GetSpeedClass() >= ESpeedClass::Fast && CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
 	}
 
 	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override
