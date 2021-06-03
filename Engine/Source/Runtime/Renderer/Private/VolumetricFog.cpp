@@ -133,6 +133,14 @@ FAutoConsoleVariableRef CVarVolumetricFogLightFunction(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLightScatteringSampleJitterMultiplier = 0;
+FAutoConsoleVariableRef CVarLightScatteringSampleJitterMultiplier(
+	TEXT("r.VolumetricFog.LightScatteringSampleJitterMultiplier"),
+	GLightScatteringSampleJitterMultiplier,
+	TEXT("Multiplier for random offset value used to jitter each world sample position when generating the 3D fog volume. Enable/disable with r.VolumetricFog.Jitter"),
+	ECVF_RenderThreadSafe | ECVF_Scalability
+);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumetricFogGlobalData, "VolumetricFog");
 
 DECLARE_GPU_STAT(VolumetricFog);
@@ -857,6 +865,7 @@ public:
 		UseDirectionalLightShadowing.Bind(Initializer.ParameterMap, TEXT("UseDirectionalLightShadowing"));
 		AOParameters.Bind(Initializer.ParameterMap);
 		GlobalDistanceFieldParameters.Bind(Initializer.ParameterMap);
+		LightScatteringSampleJitterMultiplier.Bind(Initializer.ParameterMap, TEXT("LightScatteringSampleJitterMultiplier"));
 
 		CloudShadowmapTexture.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapTexture"));
 		CloudShadowmapSampler.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapSampler"));
@@ -992,6 +1001,8 @@ public:
 				CloudShadowmapStrength,
 				CloudShadowmap_Strength);
 		}
+
+		SetShaderValue(RHICmdList, ShaderRHI, LightScatteringSampleJitterMultiplier, GVolumetricFogJitter ? GLightScatteringSampleJitterMultiplier : 0);
 	}
 
 private:
@@ -1021,6 +1032,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, PrevConservativeDepthTexture);
 	LAYOUT_FIELD(FShaderParameter, PrevConservativeDepthTextureSize);
 	LAYOUT_FIELD(FShaderParameter, UseConservativeDepthTexture);
+	LAYOUT_FIELD(FShaderParameter, LightScatteringSampleJitterMultiplier)
 };
 
 IMPLEMENT_GLOBAL_SHADER(TVolumetricFogLightScatteringCS, "/Engine/Private/VolumetricFog.usf", "LightScatteringCS", SF_Compute);
