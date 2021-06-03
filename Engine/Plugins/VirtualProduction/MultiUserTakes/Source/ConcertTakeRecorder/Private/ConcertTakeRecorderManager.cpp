@@ -148,7 +148,7 @@ void UnregisterObjectCustomizations()
 
 void FConcertTakeRecorderManager::Register(TSharedRef<IConcertClientSession> InSession)
 {
-	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multiuser Take Recorder Session Startup: %s"), *InSession->GetSessionInfo().SessionName);
+	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multi-user Take Recorder Session Startup: %s"), *InSession->GetSessionInfo().SessionName);
 	WeakSession = nullptr;
 
 	if (bConcertUseTakePresetPathForRecord == 0)
@@ -190,7 +190,7 @@ void FConcertTakeRecorderManager::Register(TSharedRef<IConcertClientSession> InS
 
 void FConcertTakeRecorderManager::Unregister(TSharedRef<IConcertClientSession> InSession)
 {
-	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multiuser Take Recorder Session Shutdown: %s"), *InSession->GetSessionInfo().SessionName);
+	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multi-user Take Recorder Session Shutdown: %s"), *InSession->GetSessionInfo().SessionName);
 
 	if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin())
 	{
@@ -650,7 +650,7 @@ void FConcertTakeRecorderManager::DisconnectFromSession()
 
 void FConcertTakeRecorderManager::ConnectToSession(IConcertClientSession& InSession)
 {
-	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multiuser Take Recorder Connected to Session: %s"), *InSession.GetSessionInfo().SessionName);
+	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multi-user Take Recorder Connected to Session: %s"), *InSession.GetSessionInfo().SessionName);
 
 	ClientChangeDelegate = InSession.OnSessionClientChanged().AddRaw(this, &FConcertTakeRecorderManager::OnSessionClientChanged);
 
@@ -668,7 +668,7 @@ void FConcertTakeRecorderManager::OnSessionConnectionChanged(IConcertClientSessi
 	}
 	else if (ConnectionStatus == EConcertConnectionStatus::Disconnecting)
 	{
-		UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multiuser Take Recorder Disconnecting from Session: %s"), *InSession.GetSessionInfo().SessionName);
+		UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multi-user Take Recorder Disconnecting from Session: %s"), *InSession.GetSessionInfo().SessionName);
 		DisconnectFromSession();
 	}
 }

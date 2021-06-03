@@ -49,7 +49,7 @@ public:
 	void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override
 	{
 		// Pop the take recorder category to the top
-		IDetailCategoryBuilder& TakeSync = DetailLayout.EditCategory("Multiuser Take Synchronization");
+		IDetailCategoryBuilder& TakeSync = DetailLayout.EditCategory("Multi-user Take Synchronization");
 
 		TSharedPtr<IPropertyHandle> SyncTakeRecordingProperty = DetailLayout.GetProperty(
 			GET_MEMBER_NAME_CHECKED(UConcertTakeSynchronization, bSyncTakeRecordingTransactions));

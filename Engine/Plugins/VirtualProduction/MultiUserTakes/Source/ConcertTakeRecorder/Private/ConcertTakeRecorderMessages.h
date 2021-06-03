@@ -10,13 +10,13 @@
 #include "ConcertMessageData.h"
 #include "ConcertTakeRecorderMessages.generated.h"
 
-UCLASS(config=Engine, DisplayName="Multiuser Take Synchronization")
+UCLASS(config=Engine, DisplayName="Multi-user Take Synchronization")
 class UConcertTakeSynchronization : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	UPROPERTY(config,EditAnywhere,BlueprintReadWrite,Category="Multiuser Take Synchronization",DisplayName="Synchronize Take Recorder Transactions")
+	UPROPERTY(config,EditAnywhere,BlueprintReadWrite,Category="Multi-user Take Synchronization",DisplayName="Synchronize Take Recorder Transactions")
 	bool bSyncTakeRecordingTransactions = true;
 };
 
@@ -25,10 +25,10 @@ struct FTakeRecordSettings
 {
 	GENERATED_BODY();
 
-	UPROPERTY(config,EditAnywhere,Category="Multiuser Client Record Settings")
+	UPROPERTY(config,EditAnywhere,Category="Multi-user Client Record Settings")
 	bool bRecordOnClient = true;
 
-	UPROPERTY(config,EditAnywhere,Category="Multiuser Client Record Settings")
+	UPROPERTY(config,EditAnywhere,Category="Multi-user Client Record Settings")
 	bool bTransactSources = false;
 };
 
@@ -47,16 +47,16 @@ struct FConcertClientRecordSetting
 	FTakeRecordSettings Settings;
 };
 
-UCLASS(config=Engine, DisplayName="Multiuser Client Record Settings")
+UCLASS(config=Engine, DisplayName="Multi-user Client Record Settings")
 class UConcertSessionRecordSettings : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	UPROPERTY(config,EditAnywhere,Category="Multiuser Client Record Settings")
+	UPROPERTY(config,EditAnywhere,Category="Multi-user Client Record Settings")
 	FTakeRecordSettings LocalSettings;
 
-	UPROPERTY(Transient,EditAnywhere,Category="Multiuser Client Record Settings")
+	UPROPERTY(Transient,EditAnywhere,Category="Multi-user Client Record Settings")
 	TArray<FConcertClientRecordSetting> RemoteSettings;
 };
 
