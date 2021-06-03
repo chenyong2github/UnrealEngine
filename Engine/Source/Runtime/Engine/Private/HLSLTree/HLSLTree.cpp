@@ -182,10 +182,9 @@ UE::HLSLTree::FEmitScope* UE::HLSLTree::FEmitContext::AcquireScope(const FScope&
 	else
 	{
 		EmitScope = new(*Allocator) FEmitScope();
-		EmitScope->SourceScope = &Scope;
-		if (Scope.ParentScope)
+		if (Scope.GetParentScope())
 		{
-			EmitScope->ParentScope = AcquireScope(*Scope.ParentScope);
+			EmitScope->ParentScope = AcquireScope(*Scope.GetParentScope());
 		}
 		ScopeMap.Add(&Scope, EmitScope);
 	}
@@ -712,35 +711,20 @@ UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(FNodeVisitor& Visitor
 	const ENodeVisitResult Result = Visitor.OnScope(*this);
 	if (ShouldVisitDependentNodes(Result))
 	{
-		FStatement* Statement = FirstStatement;
-		while (Statement)
-		{
-			Visitor.VisitNode(Statement);
-			Statement = Statement->NextStatement;
-		}
+		Visitor.VisitNode(Statement);
 	}
 	return Result;
 }
 
 bool UE::HLSLTree::FScope::EmitHLSL(FEmitContext& Context, FEmitScope& Scope) const
 {
-	const FStatement* Statement = FirstStatement;
 	bool bResult = true;
-	
-	Context.ScopeStack.Add(&Scope);
-	
-	while (Statement)
+	if (Statement)
 	{
-		if (!Statement->EmitHLSL(Context))
-		{
-			bResult = false;
-			break;
-		}
-		Statement = Statement->NextStatement;
+		Context.ScopeStack.Add(&Scope);
+		bResult = Statement->EmitHLSL(Context);
+		verify(Context.ScopeStack.Pop(false) == &Scope);
 	}
-
-	verify(Context.ScopeStack.Pop(false) == &Scope);
-
 	return bResult;
 }
 
@@ -764,17 +748,6 @@ void UE::HLSLTree::FScope::AddPreviousScope(FScope& Scope)
 	PreviousScope[NumPreviousScopes++] = &Scope;
 }
 
-void UE::HLSLTree::FScope::AddExpression(FExpression* Expression)
-{
-	check(!Expression->ParentScope);
-	Expression->ParentScope = this;
-}
-
-void UE::HLSLTree::FScope::UseNode(FNode* Node)
-{
-	Node->ParentScope = FScope::FindSharedParent(this, Node->ParentScope);
-}
-
 namespace UE
 {
 namespace HLSLTree
@@ -793,13 +766,13 @@ public:
 
 	virtual ENodeVisitResult OnExpression(FExpression& InExpression) override
 	{
-		Scope->UseNode(&InExpression);
+		InExpression.ParentScope = FScope::FindSharedParent(Scope, InExpression.ParentScope);
 		return ENodeVisitResult::VisitDependentNodes;
 	}
 
 	virtual ENodeVisitResult OnFunctionCall(FFunctionCall& InFunctionCall) override
 	{
-		Scope->UseNode(&InFunctionCall);
+		InFunctionCall.ParentScope = FScope::FindSharedParent(Scope, InFunctionCall.ParentScope);
 		return ENodeVisitResult::VisitDependentNodes;
 	}
 
@@ -819,25 +792,6 @@ void UE::HLSLTree::FScope::UseFunctionCall(FFunctionCall* FunctionCall)
 {
 	FNodeVisitor_MoveToScope Visitor(this);
 	Visitor.VisitNode(FunctionCall);
-}
-
-void UE::HLSLTree::FScope::AddStatement(FStatement* Statement)
-{
-	check(!Statement->ParentScope);
-	check(!Statement->NextStatement);
-
-	Statement->ParentScope = this;
-	if (!FirstStatement)
-	{
-		check(!LastStatement);
-		FirstStatement = Statement;
-		LastStatement = Statement;
-	}
-	else
-	{
-		check(LastStatement);
-		LastStatement->NextStatement = Statement;
-	}
 }
 
 UE::HLSLTree::FTree* UE::HLSLTree::FTree::Create(FMemStackBase& Allocator)
@@ -950,6 +904,20 @@ bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FCodeWri
 	return false;
 }
 
+void UE::HLSLTree::FTree::RegisterExpression(FScope& Scope, FExpression* Expression)
+{
+	check(!Expression->ParentScope);
+	Expression->ParentScope = &Scope;
+}
+
+void UE::HLSLTree::FTree::RegisterStatement(FScope& Scope, FStatement* Statement)
+{
+	check(!Scope.Statement)
+	check(!Statement->ParentScope);
+	Statement->ParentScope = &Scope;
+	Scope.Statement = Statement;
+}
+
 UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewScope(FScope& Scope)
 {
 	FScope* NewScope = NewNode<FScope>();
@@ -959,17 +927,15 @@ UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewScope(FScope& Scope)
 	return NewScope;
 }
 
-UE::HLSLTree::FParameterDeclaration* UE::HLSLTree::FTree::NewParameterDeclaration(FScope& Scope, const FName& Name, const Shader::FValue& DefaultValue)
+UE::HLSLTree::FParameterDeclaration* UE::HLSLTree::FTree::NewParameterDeclaration(const FName& Name, const Shader::FValue& DefaultValue)
 {
 	FParameterDeclaration* Declaration = NewNode<FParameterDeclaration>(Name, DefaultValue);
-	Declaration->ParentScope = &Scope;
 	return Declaration;
 }
 
-UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParameterDeclaration(FScope& Scope, const FName& Name, const FTextureDescription& DefaultValue)
+UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue)
 {
 	FTextureParameterDeclaration* Declaration = NewNode<FTextureParameterDeclaration>(Name, DefaultValue);
-	Declaration->ParentScope = &Scope;
 	return Declaration;
 }
 

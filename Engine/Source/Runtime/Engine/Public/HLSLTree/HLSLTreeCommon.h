@@ -345,24 +345,6 @@ public:
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
-class FStatementNestedScope : public FStatement
-{
-public:
-	FScope* NextScope;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FStatement::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(NextScope);
-		}
-		return Result;
-	}
-
-	virtual bool EmitHLSL(FEmitContext& Context) const override;
-};
-
 class FStatementReturn : public FStatement
 {
 public:

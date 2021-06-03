@@ -568,11 +568,6 @@ bool UE::HLSLTree::FExpressionFunctionOutput::EmitCode(FEmitContext& Context, FE
 	return true;
 }
 
-bool UE::HLSLTree::FStatementNestedScope::EmitHLSL(FEmitContext& Context) const
-{
-	return Context.WriteScope(*NextScope);
-}
-
 bool UE::HLSLTree::FStatementBreak::EmitHLSL(FEmitContext& Context) const
 {
 	Context.WriteScopeTerminatorf(TEXT("break;"));

@@ -133,7 +133,6 @@ public:
 	FEmitStatement* LastStatement = nullptr;
 	FEmitScopeLink* FirstLink = nullptr;
 	FEmitScopeLink* LastLink = nullptr;
-	const FScope* SourceScope = nullptr;
 	TMap<FSHAHash, const TCHAR*> ExpressionMap;
 };
 
@@ -327,7 +326,6 @@ public:
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) = 0;
 
-	FScope* ParentScope = nullptr;
 	FNode* NextNode = nullptr;
 };
 
@@ -344,7 +342,7 @@ public:
 	/** Emits HLSL code for the statement. The generated code should include any required semi-colons and newlines */
 	virtual bool EmitHLSL(FEmitContext& Context) const = 0;
 
-	FStatement* NextStatement = nullptr;
+	FScope* ParentScope = nullptr;
 };
 
 /**
@@ -361,6 +359,8 @@ public:
 
 	/** Emits code for the given expression, either HLSL code or preshader bytecode */
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
+
+	FScope* ParentScope = nullptr;
 };
 
 /**
@@ -415,6 +415,8 @@ class FFunctionCall final : public FNode
 public:
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
+	FScope* ParentScope = nullptr;
+
 	/** Root scope of the function to call. Note that this scope will be from a separate (external) tree */
 	const FScope* FunctionScope;
 
@@ -429,13 +431,14 @@ public:
 };
 
 /**
- * Represents an HLSL scope.  This is an ordered list of statements (enclosed by an {} pair in HLSL)
- * All HLSL nodes track which scopes they are accessed from
+ * Represents an HLSL scope.  A scope contains a single statement, along with any expressions required by that statement
  */
 class FScope final : public FNode
 {
 public:
 	static FScope* FindSharedParent(FScope* Lhs, FScope* Rhs);
+
+	inline FScope* GetParentScope() const { return ParentScope; }
 
 	inline TArrayView<FScope*> GetPreviousScopes() const
 	{
@@ -450,20 +453,16 @@ public:
 
 	void AddPreviousScope(FScope& Scope);
 
-	void AddExpression(FExpression* Expression);
-	void AddStatement(FStatement* Statement);
-
 	void UseFunctionCall(FFunctionCall* FunctionCall);
 	void UseExpression(FExpression* Expression);
+
 private:
 	friend class FTree;
 	friend class FNodeVisitor_MoveToScope;
 
-	void UseNode(FNode* Node);
-
+	FScope* ParentScope = nullptr;
+	FStatement* Statement = nullptr;
 	FScope* PreviousScope[MaxNumPreviousScopes];
-	FStatement* FirstStatement = nullptr;
-	FStatement* LastStatement = nullptr;
 	int32 NumPreviousScopes = 0;
 	int32 NestedLevel = 0;
 };
@@ -485,7 +484,7 @@ public:
 	inline T* NewExpression(FScope& Scope, ArgTypes&&... Args)
 	{
 		T* Expression = NewNode<T>(Forward<ArgTypes>(Args)...);
-		Scope.AddExpression(Expression);
+		RegisterExpression(Scope, Expression);
 		return Expression;
 	}
 
@@ -493,13 +492,13 @@ public:
 	inline T* NewStatement(FScope& Scope, ArgTypes&&... Args)
 	{
 		T* Statement = NewNode<T>(Forward<ArgTypes>(Args)...);
-		Scope.AddStatement(Statement);
+		RegisterStatement(Scope, Statement);
 		return Statement;
 	}
 
 	FScope* NewScope(FScope& Scope);
-	FParameterDeclaration* NewParameterDeclaration(FScope& Scope, const FName& Name, const Shader::FValue& DefaultValue);
-	FTextureParameterDeclaration* NewTextureParameterDeclaration(FScope& Scope, const FName& Name, const FTextureDescription& DefaultValue);
+	FParameterDeclaration* NewParameterDeclaration(const FName& Name, const Shader::FValue& DefaultValue);
+	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
 
 	FFunctionCall* NewFunctionCall(FScope& Scope,
 		const FScope& FunctionScope,
@@ -517,6 +516,9 @@ private:
 		Nodes = Node;
 		return Node;
 	}
+
+	void RegisterExpression(FScope& Scope, FExpression* Expression);
+	void RegisterStatement(FScope& Scope, FStatement* Statement);
 
 	FMemStackBase* Allocator;
 	FNode* Nodes;
