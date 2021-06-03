@@ -50,13 +50,6 @@ static TAutoConsoleVariable<float> CVarUpsampleJitterMultiplier(
 	TEXT("Multiplier for random offset value used to jitter the sample position of the 3D fog volume to hide fog pixelization due to sampling from a lower resolution texture."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-float GLightScatteringSampleJitterMultiplier = 0;
-FAutoConsoleVariableRef CVarLightScatteringSampleJitterMultiplier(
-	TEXT("r.VolumetricFog.LightScatteringSampleJitterMultiplier"),
-	GLightScatteringSampleJitterMultiplier,
-	TEXT("Multiplier for random offset value used to jitter each world sample position when generating the 3D fog volume. Enable/disable with r.VolumetricFog.Jitter"),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FFogUniformParameters, "FogStruct");
 
 struct FHeightFogRenderingParameters
