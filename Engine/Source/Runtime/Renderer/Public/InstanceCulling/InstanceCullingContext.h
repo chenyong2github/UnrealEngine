@@ -51,10 +51,18 @@ struct FInstanceCullingRdgParams
 	FRDGBufferRef PrimitiveCullingCommands = nullptr;
 };
 
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceCullingGlobalUniforms, RENDERER_API)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, InstanceIdsBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageInfoBuffer)
+	SHADER_PARAMETER(uint32, BufferCapacity)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FInstanceCullingDrawParams, )
 	RDG_BUFFER_ACCESS(DrawIndirectArgsBuffer, ERHIAccess::IndirectArgs)
 	RDG_BUFFER_ACCESS(InstanceIdOffsetBuffer, ERHIAccess::VertexOrIndexBuffer)
 	SHADER_PARAMETER(uint32, DrawCommandDataOffset)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)	
 END_SHADER_PARAMETER_STRUCT()
 
 
@@ -75,6 +83,8 @@ public:
 	FInstanceCullingContext() {}
 
 	FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal, bool bInDrawOnlyVSMInvalidatingGeometry = false);
+
+	static RENDERER_API const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> CreateDummyInstanceCullingUniformBuffer(FRDGBuilder& GraphBuilder);
 
 	struct FPrimCullingCommand
 	{
@@ -102,7 +112,7 @@ public:
 	 * Command that is executed in the per-view, post-cull pass to gather up the instances belonging to this primitive.
 	 * Multiple commands may add to the same slot, ordering is not preserved.
 	 */
-	void AddPrimitiveToCullingCommand(int32 ScenePrimitiveId);
+	void AddPrimitiveToCullingCommand(int32 ScenePrimitiveId, uint32 NumInstances);
 
 	/**
 	 * Command that is executed in the per-view, post-cull pass to gather up the instances belonging to this primitive.
@@ -150,5 +160,7 @@ public:
 	bool bIsEnabled = false;
 	EInstanceCullingMode InstanceCullingMode = EInstanceCullingMode::Normal;
 	bool bDrawOnlyVSMInvalidatingGeometry = false;
+
+	uint32 TotalInstances = 0U;
 };
 

@@ -380,11 +380,10 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 	}
 	else
 	{
-		// TODO: move InstanceIdsBuffer out of view and into some global Scene structure?
-		Intermediates.InstanceId = View.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] & ((1U << 28U) - 1);
+		Intermediates.InstanceId = InstanceCulling.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] & ((1U << 28U) - 1);
 		// We store the view index (which can be used for instanced stereo or other multi-view in the top four bits of the instance ID)
 		// Note: this is an index of views for this render pass, not the view ID in the culling manager.
-		Intermediates.ViewIndex = View.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] >> 28U;
+		Intermediates.ViewIndex = InstanceCulling.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] >> 28U;
 	}
 
 	Intermediates.InstanceData = GetInstanceData(Intermediates.InstanceId, View.InstanceDataSOAStride);

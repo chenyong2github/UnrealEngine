@@ -1875,7 +1875,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Find the visible primitives.
 	GraphBuilder.RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources, Scene->GPUScene.IsEnabled());
+	FInstanceCullingManager InstanceCullingManager(Scene->GPUScene.IsEnabled());
 
 	bool bDoInitViewAftersPrepass = false;
 	{

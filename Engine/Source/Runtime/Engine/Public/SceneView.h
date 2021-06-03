@@ -853,9 +853,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 
 	SHADER_PARAMETER_SRV(Buffer<float>, PhysicsFieldClipmapBuffer)
 
-	SHADER_PARAMETER_SRV(Buffer<uint>, InstanceIdsBuffer)
-	SHADER_PARAMETER_SRV(Buffer<uint>, PageInfoBuffer)
-
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /** Copy of the view uniform shader parameters associated with a view for instanced stereo. */

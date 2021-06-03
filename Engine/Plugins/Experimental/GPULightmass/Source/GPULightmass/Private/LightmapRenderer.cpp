@@ -549,25 +549,6 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 			InstanceSceneDataSOAStride = InstanceSceneData.Num();
 		}
 
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(InstanceIdsIdentityBuffer);
-
-			TResourceArray<uint32> InstanceIdsIdentity;
-			for (int32 Index = 0; Index < InstanceSceneData.Num(); Index++)
-			{
-				InstanceIdsIdentity.Add(Index);
-			}
-
-			FRHIResourceCreateInfo CreateInfo(TEXT("InstanceIdsIdentityBuffer"), &InstanceIdsIdentity);
-			if (InstanceIdsIdentity.GetResourceDataSize() == 0)
-			{
-				InstanceIdsIdentity.Add(0);
-			}
-
-			InstanceIdsIdentityBufferRHI = RHICreateStructuredBuffer(sizeof(uint32), InstanceIdsIdentity.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-			InstanceIdsIdentityBufferSRV = RHICreateShaderResourceView(InstanceIdsIdentityBufferRHI);
-		}
-
 		FViewUniformShaderParameters ViewUniformBufferParameters;
 		CachedViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	}
@@ -842,7 +823,6 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				*View.CachedViewUniformShaderParameters);
 
 			View.CachedViewUniformShaderParameters->InstanceDataSOAStride = CachedRayTracingScene->InstanceSceneDataSOAStride;
-			View.CachedViewUniformShaderParameters->InstanceIdsBuffer = CachedRayTracingScene->InstanceIdsIdentityBufferSRV;
 
 			if (LightSceneRenderState.SkyLight.IsSet())
 			{
@@ -1204,6 +1184,7 @@ void FSceneRenderState::CalculateDistributionPrefixSumForAllLightmaps()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightmapGBufferPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLightmapGBufferParams, PassUniformBuffer)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -1922,6 +1903,29 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 		PassUniformBuffer = GraphBuilder.CreateUniformBuffer(LightmapGBufferParameters);
 	}
 
+	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> InstanceCullingUniformBuffer = nullptr;
+	{
+		FRDGBufferRef InstanceIdsIdentityBuffer = nullptr;
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(InstanceIdsIdentityBuffer);
+
+			TArray<uint32, SceneRenderingAllocator> InstanceIdsIdentity;
+			for (uint32 Index = 0U; Index < FMath::Max(1U, Scene->CachedRayTracingScene->InstanceSceneDataSOAStride); ++Index)
+			{
+				InstanceIdsIdentity.Add(Index);
+			}
+
+			InstanceIdsIdentityBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceIdsIdentityBuffer"), InstanceIdsIdentity, ERDGInitialDataFlags::NoCopy);
+		}
+		FInstanceCullingGlobalUniforms* InstanceCullingUniforms = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
+
+		InstanceCullingUniforms->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsIdentityBuffer);
+		// Note redundant, but must have non-null reference even if not used it would seem
+		InstanceCullingUniforms->PageInfoBuffer = GraphBuilder.CreateSRV(InstanceIdsIdentityBuffer);
+		InstanceCullingUniforms->BufferCapacity = 0;
+		InstanceCullingUniformBuffer = GraphBuilder.CreateUniformBuffer(InstanceCullingUniforms);
+	}
+
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::GPU0());
 
 	IPooledRenderTarget* OutputRenderTargets[3] = { nullptr, nullptr, nullptr };
@@ -2101,6 +2105,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 							auto* PassParameters = GraphBuilder.AllocParameters<FLightmapGBufferPassParameters>();
 							PassParameters->PassUniformBuffer = PassUniformBuffer;
+							PassParameters->InstanceCulling = InstanceCullingUniformBuffer;
 
 							GraphBuilder.AddPass(
 								RDG_EVENT_NAME("LightmapGBuffer"),
@@ -2534,6 +2539,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					{
 						auto* PassParameters = GraphBuilder.AllocParameters<FLightmapGBufferPassParameters>();
 						PassParameters->PassUniformBuffer = PassUniformBuffer;
+						PassParameters->InstanceCulling = InstanceCullingUniformBuffer;
 
 						GraphBuilder.AddPass(
 							RDG_EVENT_NAME("LightmapGBuffer"),
