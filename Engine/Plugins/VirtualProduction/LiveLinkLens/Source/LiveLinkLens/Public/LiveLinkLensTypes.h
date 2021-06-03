@@ -32,11 +32,11 @@ struct LIVELINKLENS_API FLiveLinkLensFrameData : public FLiveLinkCameraFrameData
 
 	/** Parameters used by the distortion model */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp)
-	FDistortionInfo DistortionInfo;
+	TArray<float> DistortionParameters;
 
 	/** Normalized focal length used by the distortion model */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp)
-	FFocalLengthInfo FocalLengthInfo;
+	FVector2D FxFy = FVector2D(1.0f, (16.0f / 9.0f));
 	
 	/** Normalized center of the image, in the range [0.0f, 1.0f] */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp, meta = (DisplayName = "Image Center"))
