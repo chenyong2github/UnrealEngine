@@ -193,8 +193,11 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 
 void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InRawConfigHash, const FString& InFriendlyName, const FName& InAssetPath)
 {
-	check(!InShaderCodeHash.IsEmpty());
-	check(!InRawConfigHash.IsEmpty());
+	// When this happens we assume that shader was cooked and we don't need to do anything. 
+	if (InShaderCodeHash.IsEmpty() && InRawConfigHash.IsEmpty())
+	{
+		return;
+	}
 
 	FString FullShaderCodeHash;
 	FullShaderCodeHash.Reserve(InShaderCodeHash.Len());
