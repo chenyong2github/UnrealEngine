@@ -33,7 +33,9 @@
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usdLux/tokens.h"
 
-#include "pxr/usd/usd/collectionAPI.h" 
+#include "pxr/usd/usd/collectionAPI.h"
+#include "pxr/usd/usdShade/input.h"
+#include "pxr/usd/usdShade/output.h" 
 
 #include "pxr/base/vt/value.h"
 
@@ -66,11 +68,6 @@ class SdfAssetPath;
 /// 
 /// Linking is specified as a collection (UsdCollectionAPI) which can
 /// be accessed via GetFilterLinkCollection().
-/// Note however that there are extra semantics in how UsdLuxLightFilter
-/// uses its collection: if a collection is empty, the filter is treated
-/// as linked to <i>all</i> geometry for the respective purpose.
-/// UsdCollectionAPI and UsdCollectionAPI::MembershipQuery are unaware
-/// of this filter-specific interpretation.
 /// 
 ///
 class UsdLuxLightFilter : public UsdGeomXformable
@@ -78,8 +75,13 @@ class UsdLuxLightFilter : public UsdGeomXformable
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaType
-    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
+    /// \sa UsdSchemaKind
+    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
+
+    /// \deprecated
+    /// Same as schemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
 
     /// Construct a UsdLuxLightFilter on UsdPrim \p prim .
     /// Equivalent to UsdLuxLightFilter::Get(prim.GetStage(), prim.GetPath())
@@ -149,11 +151,17 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the type of schema this class belongs to.
+    /// Returns the kind of schema this class belongs to.
     ///
-    /// \sa UsdSchemaType
+    /// \sa UsdSchemaKind
     USDLUX_API
-    UsdSchemaType _GetSchemaType() const override;
+    UsdSchemaKind _GetSchemaKind() const override;
+
+    /// \deprecated
+    /// Same as _GetSchemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    USDLUX_API
+    UsdSchemaKind _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -178,6 +186,94 @@ public:
     //  - Close the include guard with #endif
     // ===================================================================== //
     // --(BEGIN CUSTOM CODE)--
+
+    // -------------------------------------------------------------------------
+    /// \name Conversion to and from UsdShadeConnectableAPI
+    /// 
+    /// @{
+
+    /// Constructor that takes a ConnectableAPI object.
+    /// Allow implicit conversion of UsdShadeConnectableAPI to
+    /// UsdLuxLightFilter.
+    USDLUX_API
+    UsdLuxLightFilter(const UsdShadeConnectableAPI &connectable);
+
+    /// Contructs and returns a UsdShadeConnectableAPI object with this light
+    /// filter.
+    ///
+    /// Note that most tasks can be accomplished without explicitly constructing 
+    /// a UsdShadeConnectable API, since connection-related API such as
+    /// UsdShadeConnectableAPI::ConnectToSource() are static methods, and 
+    /// UsdLuxLightFilter will auto-convert to a UsdShadeConnectableAPI when 
+    /// passed to functions that want to act generically on a connectable
+    /// UsdShadeConnectableAPI object.
+    USDLUX_API
+    UsdShadeConnectableAPI ConnectableAPI() const;
+
+    /// @}
+
+    // -------------------------------------------------------------------------
+    /// \name Outputs API
+    ///
+    /// Outputs represent a typed attribute on a light filter whose value is 
+    /// computed externally. 
+    /// 
+    /// @{
+
+    /// Create an output which can either have a value or can be connected.
+    /// The attribute representing the output is created in the "outputs:" 
+    /// namespace. Outputs on a light filter cannot be connected, as their 
+    /// value is assumed to be computed externally.
+    /// 
+    USDLUX_API
+    UsdShadeOutput CreateOutput(const TfToken& name,
+                                const SdfValueTypeName& typeName);
+
+    /// Return the requested output if it exists.
+    /// 
+    USDLUX_API
+    UsdShadeOutput GetOutput(const TfToken &name) const;
+
+    /// Outputs are represented by attributes in the "outputs:" namespace.
+    /// If \p onlyAuthored is true (the default), then only return authored
+    /// attributes; otherwise, this also returns un-authored builtins.
+    /// 
+    USDLUX_API
+    std::vector<UsdShadeOutput> GetOutputs(bool onlyAuthored=true) const;
+
+    /// @}
+
+    // ------------------------------------------------------------------------- 
+
+    /// \name Inputs API
+    ///
+    /// Inputs are connectable attribute with a typed value. 
+    /// 
+    /// Light filter parameters are encoded as inputs. 
+    /// 
+    /// @{
+
+    /// Create an input which can either have a value or can be connected.
+    /// The attribute representing the input is created in the "inputs:" 
+    /// namespace. Inputs on light filters are connectable.
+    /// 
+    USDLUX_API
+    UsdShadeInput CreateInput(const TfToken& name,
+                              const SdfValueTypeName& typeName);
+
+    /// Return the requested input if it exists.
+    /// 
+    USDLUX_API
+    UsdShadeInput GetInput(const TfToken &name) const;
+
+    /// Inputs are represented by attributes in the "inputs:" namespace.
+    /// If \p onlyAuthored is true (the default), then only return authored
+    /// attributes; otherwise, this also returns un-authored builtins.
+    /// 
+    USDLUX_API
+    std::vector<UsdShadeInput> GetInputs(bool onlyAuthored=true) const;
+
+    /// @}
 
     /// Return the UsdCollectionAPI interface used for examining and
     /// modifying the filter-linking of this light filter.  Linking

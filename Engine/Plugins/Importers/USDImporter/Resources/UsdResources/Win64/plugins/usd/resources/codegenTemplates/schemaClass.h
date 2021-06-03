@@ -79,8 +79,13 @@ class {{ cls.cppClassName }} : public {{ cls.parentCppClassName }}
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaType
-    static const UsdSchemaType schemaType = {{cls.schemaType }};
+    /// \sa UsdSchemaKind
+    static const UsdSchemaKind schemaKind = {{cls.schemaKindEnumValue }};
+
+    /// \deprecated
+    /// Same as schemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    static const UsdSchemaKind schemaType = {{cls.schemaKindEnumValue }};
 
 {% if cls.isMultipleApply %}
     /// Construct a {{ cls.cppClassName }} on UsdPrim \p prim with
@@ -246,9 +251,6 @@ public:
     static bool
     Is{{ cls.usdPrimTypeName }}Path(const SdfPath &path, TfToken *name);
 {% endif %}
-{% if cls.isPrivateApply %}
-private:
-{% endif %}
 {% if cls.isAppliedAPISchema and not cls.isMultipleApply %}
 
     /// Applies this <b>single-apply</b> API schema to the given \p prim.
@@ -257,21 +259,19 @@ private:
     /// 
     /// \return A valid {{ cls.cppClassName }} object is returned upon success. 
     /// An invalid (or empty) {{ cls.cppClassName }} object is returned upon 
-    /// failure. See \ref UsdAPISchemaBase::_ApplyAPISchema() for conditions 
+    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
     /// resulting in failure. 
     /// 
     /// \sa UsdPrim::GetAppliedSchemas()
     /// \sa UsdPrim::HasAPI()
+    /// \sa UsdPrim::ApplyAPI()
+    /// \sa UsdPrim::RemoveAPI()
     ///
-    {% if useExportAPI and not cls.isPrivateApply -%}
+    {% if useExportAPI -%}
     {{ Upper(libraryName) }}_API
     {% endif -%}
     static {{ cls.cppClassName }} 
-{% if cls.isPrivateApply %}
-    _Apply(const UsdPrim &prim);
-{% else %}
     Apply(const UsdPrim &prim);
-{% endif %}
 {% endif %}
 {% if cls.isAppliedAPISchema and cls.isMultipleApply %}
 
@@ -285,31 +285,37 @@ private:
     /// 
     /// \return A valid {{ cls.cppClassName }} object is returned upon success. 
     /// An invalid (or empty) {{ cls.cppClassName }} object is returned upon 
-    /// failure. See \ref UsdAPISchemaBase::_MultipleApplyAPISchema() for 
+    /// failure. See \ref UsdPrim::ApplyAPI() for 
     /// conditions resulting in failure. 
     /// 
     /// \sa UsdPrim::GetAppliedSchemas()
     /// \sa UsdPrim::HasAPI()
+    /// \sa UsdPrim::ApplyAPI()
+    /// \sa UsdPrim::RemoveAPI()
     ///
-    {% if useExportAPI and not cls.isPrivateApply -%}
-    {{ Upper(libraryName) }}_API
-    {% endif -%}
-    static {{ cls.cppClassName }} 
-{% if cls.isPrivateApply %}
-    _Apply(const UsdPrim &prim, const TfToken &name);
-{% else %}
-    Apply(const UsdPrim &prim, const TfToken &name);
-{% endif %}
-{% endif %}
-
-protected:
-    /// Returns the type of schema this class belongs to.
-    ///
-    /// \sa UsdSchemaType
     {% if useExportAPI -%}
     {{ Upper(libraryName) }}_API
     {% endif -%}
-    UsdSchemaType _GetSchemaType() const override;
+    static {{ cls.cppClassName }} 
+    Apply(const UsdPrim &prim, const TfToken &name);
+{% endif %}
+
+protected:
+    /// Returns the kind of schema this class belongs to.
+    ///
+    /// \sa UsdSchemaKind
+    {% if useExportAPI -%}
+    {{ Upper(libraryName) }}_API
+    {% endif -%}
+    UsdSchemaKind _GetSchemaKind() const override;
+
+    /// \deprecated
+    /// Same as _GetSchemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    {% if useExportAPI -%}
+    {{ Upper(libraryName) }}_API
+    {% endif -%}
+    UsdSchemaKind _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.

@@ -52,7 +52,10 @@ class SdfAssetPath;
 
 /// \class UsdRiPxrBarnLightFilter
 ///
+/// 
+/// \deprecated This schema will be replaced in a future release.
 /// Simulated geometric barn doors that control the spread of light.
+/// 
 ///
 /// For any described attribute \em Fallback \em Value or \em Allowed \em Values below
 /// that are text/tokens, the actual token is published and defined in \ref UsdRiTokens.
@@ -64,8 +67,13 @@ class UsdRiPxrBarnLightFilter : public UsdLuxLightFilter
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaType
-    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
+    /// \sa UsdSchemaKind
+    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
+
+    /// \deprecated
+    /// Same as schemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
 
     /// Construct a UsdRiPxrBarnLightFilter on UsdPrim \p prim .
     /// Equivalent to UsdRiPxrBarnLightFilter::Get(prim.GetStage(), prim.GetPath())
@@ -135,11 +143,17 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the type of schema this class belongs to.
+    /// Returns the kind of schema this class belongs to.
     ///
-    /// \sa UsdSchemaType
+    /// \sa UsdSchemaKind
     USDRI_API
-    UsdSchemaType _GetSchemaType() const override;
+    UsdSchemaKind _GetSchemaKind() const override;
+
+    /// \deprecated
+    /// Same as _GetSchemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    USDRI_API
+    UsdSchemaKind _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.

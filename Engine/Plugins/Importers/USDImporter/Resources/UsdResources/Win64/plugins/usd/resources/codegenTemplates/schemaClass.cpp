@@ -164,34 +164,51 @@ bool
 {% endif %}
 
 /* virtual */
-UsdSchemaType {{ cls.cppClassName }}::_GetSchemaType() const {
+UsdSchemaKind {{ cls.cppClassName }}::_GetSchemaKind() const {
+    return {{ cls.cppClassName }}::schemaKind;
+}
+
+/* virtual */
+UsdSchemaKind {{ cls.cppClassName }}::_GetSchemaType() const {
     return {{ cls.cppClassName }}::schemaType;
 }
 {% if cls.isAppliedAPISchema %}
 
 /* static */
 {{ cls.cppClassName }}
-{% if cls.isPrivateApply %}
-{% if not cls.isMultipleApply %}
-{{ cls.cppClassName }}::_Apply(const UsdPrim &prim)
-{% else %}
-{{ cls.cppClassName }}::_Apply(const UsdPrim &prim, const TfToken &name)
-{% endif %}
-{% else %}
 {% if not cls.isMultipleApply %}
 {{ cls.cppClassName }}::Apply(const UsdPrim &prim)
 {% else %}
 {{ cls.cppClassName }}::Apply(const UsdPrim &prim, const TfToken &name)
 {% endif %}
-{% endif %}
 {
 {% if cls.isMultipleApply %}
-    return UsdAPISchemaBase::_MultipleApplyAPISchema<{{ cls.cppClassName }}>(
-            prim, _schemaTokens->{{ cls.primName }}, name);
+    // Ensure that the instance name is valid.
+    TfTokenVector tokens = SdfPath::TokenizeIdentifierAsTokens(name);
+
+    if (tokens.empty()) {
+        TF_CODING_ERROR("Invalid {{ cls.usdPrimTypeName }} name '%s'.", 
+                        name.GetText());
+        return {{ cls.cppClassName }}();
+    }
+
+    const TfToken &baseName = tokens.back();
+    if (IsSchemaPropertyBaseName(baseName)) {
+        TF_CODING_ERROR("Invalid {{ cls.usdPrimTypeName }} name '%s'. "
+                        "The base-name '%s' is a schema property name.", 
+                        name.GetText(), baseName.GetText());
+        return {{ cls.cppClassName }}();
+    }
+
+    if (prim.ApplyAPI<{{ cls.cppClassName }}>(name)) {
+        return {{ cls.cppClassName }}(prim, name);
+    }
 {% else %}
-    return UsdAPISchemaBase::_ApplyAPISchema<{{ cls.cppClassName }}>(
-            prim, _schemaTokens->{{ cls.primName }});
+    if (prim.ApplyAPI<{{ cls.cppClassName }}>()) {
+        return {{ cls.cppClassName }}(prim);
+    }
 {% endif %}
+    return {{ cls.cppClassName }}();
 }
 {% endif %}
 
