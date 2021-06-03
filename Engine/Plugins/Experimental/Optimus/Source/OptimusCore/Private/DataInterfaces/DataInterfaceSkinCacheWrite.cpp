@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaceSkinCacheWrite.h"
+#include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"

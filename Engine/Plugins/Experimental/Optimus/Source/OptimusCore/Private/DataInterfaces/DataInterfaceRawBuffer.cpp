@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaceRawBuffer.h"
+#include "DataInterfaces/DataInterfaceRawBuffer.h"
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "RenderGraphBuilder.h"

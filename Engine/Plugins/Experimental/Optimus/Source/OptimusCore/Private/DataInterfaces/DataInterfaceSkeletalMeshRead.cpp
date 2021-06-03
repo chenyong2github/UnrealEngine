@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaceSkeletalMeshRead.h"
+#include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataInterfaceScene.h"
+#include "DataInterfaces/DataInterfaceScene.h"
 
 #include "Components/SceneComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"

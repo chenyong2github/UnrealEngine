@@ -12,7 +12,7 @@ class USkeletalMeshComponent;
 
 /** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
-class USkeletalMeshSkinCacheDataInterface : public UComputeDataInterface
+class OPTIMUSCORE_API USkeletalMeshSkinCacheDataInterface : public UComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -26,7 +26,7 @@ public:
 
 /** Compute Framework Data Provider for reading skeletal mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class USkeletalMeshSkinCacheDataProvider : public UComputeDataProvider
+class OPTIMUSCORE_API USkeletalMeshSkinCacheDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
