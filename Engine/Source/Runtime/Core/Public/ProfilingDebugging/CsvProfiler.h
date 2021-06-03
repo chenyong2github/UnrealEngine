@@ -146,7 +146,6 @@ class FName;
 enum class ECsvCustomStatOp : uint8
 {
 	Set,
-	SetAndHold,
 	Min,
 	Max,
 	Accumulate,
