@@ -181,13 +181,11 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		Record << SA_VALUE(TEXT("FolderName"), Sum.FolderName);
 		Record << SA_VALUE(TEXT("PackageFlags"), Sum.PackageFlags);
 
-#if WITH_EDITOR
 		if (BaseArchive.IsLoading())
 		{
-			// This flag should never be saved and its reused, so we need to make sure it hasn't been loaded.
-			Sum.PackageFlags &= ~PKG_NewlyCreated;
+			// Transient flags should be set to false when saving or loading
+			Sum.PackageFlags &= ~PKG_TransientFlags;
 		}
-#endif // WITH_EDITOR
 
 		if (Sum.PackageFlags & PKG_FilterEditorOnly)
 		{
@@ -404,6 +402,6 @@ void FPackageFileSummary::SetCustomVersionContainer(const FCustomVersionContaine
 
 void FPackageFileSummary::SetPackageFlags(uint32 InPackageFlags)
 {
-	// Package summary flags cannot contain the 'NewlyCreated' nor the 'IsSaving' flag
-	PackageFlags = InPackageFlags & ~(PKG_NewlyCreated | PKG_IsSaving);
+	// Package summary flags should be set to false for all transient flags
+	PackageFlags = InPackageFlags & ~(PKG_TransientFlags);
 }
