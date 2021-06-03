@@ -15,6 +15,7 @@
 #include "Modules/DiagnosticsModule.h"
 #include "Modules/PlatformEventsModule.h"
 #include "Modules/TasksModule.h"
+#include "Stats/StatsTrace.h"
 
 class FTraceServicesModule
 	: public ITraceServicesModule

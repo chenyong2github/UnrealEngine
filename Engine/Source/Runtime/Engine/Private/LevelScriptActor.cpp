@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/InputDelegateBinding.h"
 #include "Engine/LevelScriptBlueprint.h"
+#include "UObject/UObjectHash.h"
 
 
 //////////////////////////////////////////////////////////////////////////
