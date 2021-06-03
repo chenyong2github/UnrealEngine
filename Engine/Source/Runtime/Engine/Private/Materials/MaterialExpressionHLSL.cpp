@@ -117,21 +117,21 @@ EMaterialGenerateHLSLStatus UMaterialExpressionGetLocal::GenerateHLSLExpression(
 
 EMaterialGenerateHLSLStatus UMaterialExpressionVectorParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::HLSLTree::FParameterDeclaration* Declaration = Generator.AcquireParameterDeclaration(Scope, ParameterName, DefaultValue);
+	UE::HLSLTree::FParameterDeclaration* Declaration = Generator.AcquireParameterDeclaration(ParameterName, DefaultValue);
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionParameter>(Scope, Declaration);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
 EMaterialGenerateHLSLStatus UMaterialExpressionScalarParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::HLSLTree::FParameterDeclaration* Declaration = Generator.AcquireParameterDeclaration(Scope, ParameterName, DefaultValue);
+	UE::HLSLTree::FParameterDeclaration* Declaration = Generator.AcquireParameterDeclaration(ParameterName, DefaultValue);
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionParameter>(Scope, Declaration);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
 EMaterialGenerateHLSLStatus UMaterialExpressionStaticBoolParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::HLSLTree::FParameterDeclaration* Declaration = Generator.AcquireParameterDeclaration(Scope, ParameterName, (bool)DefaultValue);
+	UE::HLSLTree::FParameterDeclaration* Declaration = Generator.AcquireParameterDeclaration(ParameterName, (bool)DefaultValue);
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionParameter>(Scope, Declaration);
 	return EMaterialGenerateHLSLStatus::Success;
 }
@@ -146,14 +146,14 @@ EMaterialGenerateHLSLStatus UMaterialExpressionTextureCoordinate::GenerateHLSLEx
 EMaterialGenerateHLSLStatus UMaterialExpressionTextureObject::GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture)
 {
 	const UE::HLSLTree::FTextureDescription TextureDesc(Texture, SamplerType);
-	OutTexture = Generator.AcquireTextureDeclaration(Scope, TextureDesc);
+	OutTexture = Generator.AcquireTextureDeclaration(TextureDesc);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
 EMaterialGenerateHLSLStatus UMaterialExpressionTextureObjectParameter::GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture)
 {
 	const UE::HLSLTree::FTextureDescription TextureDesc(Texture, SamplerType);
-	OutTexture = Generator.AcquireTextureParameterDeclaration(Scope, ParameterName, TextureDesc);
+	OutTexture = Generator.AcquireTextureParameterDeclaration(ParameterName, TextureDesc);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
@@ -182,7 +182,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionTextureSample::GenerateHLSLExpres
 	else if (Texture)
 	{
 		const UE::HLSLTree::FTextureDescription TextureDesc(Texture, SamplerType);
-		TextureDeclaration = Generator.AcquireTextureDeclaration(Scope, TextureDesc);
+		TextureDeclaration = Generator.AcquireTextureDeclaration(TextureDesc);
 	}
 
 	return GenerateHLSLExpressionBase(Generator, Scope, TextureDeclaration, OutExpression);
@@ -198,7 +198,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionTextureSampleParameter::GenerateH
 	else if (Texture)
 	{
 		const UE::HLSLTree::FTextureDescription TextureDesc(Texture, SamplerType);
-		TextureDeclaration = Generator.AcquireTextureParameterDeclaration(Scope, ParameterName, TextureDesc);
+		TextureDeclaration = Generator.AcquireTextureParameterDeclaration(ParameterName, TextureDesc);
 	}
 
 	return GenerateHLSLExpressionBase(Generator, Scope, TextureDeclaration, OutExpression);
