@@ -25,11 +25,11 @@ public:
 
 	/** Blend-in time for this shake. Zero or less means no blend-in. */
 	UPROPERTY(EditAnywhere, Category=Timing)
-	float BlendInTime = 1.f;
+	float BlendInTime = 0.2f;
 
 	/** Blend-out time for this shake. Zero or less means no blend-out. */
 	UPROPERTY(EditAnywhere, Category=Timing)
-	float BlendOutTime = 1.f;
+	float BlendOutTime = 0.2f;
 
 private:
 
