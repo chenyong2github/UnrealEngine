@@ -4,8 +4,6 @@
 #include "Core/PBIKSolver.h"
 #include "Math/UnrealMathUtility.h"
 
-//#pragma optimize("", off)
-
 namespace PBIK
 {
 	
@@ -125,43 +123,17 @@ void FJointConstraint::UpdateJointLimits()
 	if (bXHinge)
 	{
 		UpdateLocalRotateAxes(true, false, false);
-		const FVector CrossProd = FVector::CrossProduct(XA, XB);
-		const FQuat PureRotA = FQuat(CrossProd.X, CrossProd.Y, CrossProd.Z, 0.0f);
-		ApplyRotationCorrection(PureRotA, PureRotA);
+		RotateToAlignAxes(XA, XB);
 	}
 	else if (bYHinge)
 	{
 		UpdateLocalRotateAxes(false, true, false);
-		const FVector CrossProd = FVector::CrossProduct(YA, YB);
-		const FQuat PureRotA = FQuat(CrossProd.X, CrossProd.Y, CrossProd.Z, 0.0f);
-		ApplyRotationCorrection(PureRotA, PureRotA);
+		RotateToAlignAxes(YA, YB);
 	}
 	else if (bZHinge)
 	{
 		UpdateLocalRotateAxes(false, false, true);
-		const FVector CrossProd = FVector::CrossProduct(ZA, ZB);
-		const FQuat PureRotA = FQuat(CrossProd.X, CrossProd.Y, CrossProd.Z, 0.0f);
-		ApplyRotationCorrection(PureRotA, PureRotA);
-	}
-
-	if (bLockX || bLockY || bLockZ)
-	{
-		DecomposeRotationAngles(); // TODO don't strictly need to update everything in here
-	}
-
-	if (bLockX)
-	{
-		RotateWithinLimits(0, 0, AngleX, XA, ZBProjOnX, ZA);
-	}
-
-	if (bLockY)
-	{
-		RotateWithinLimits(0, 0, AngleY, YA, ZBProjOnY, ZA);
-	}
-
-	if (bLockZ)
-	{
-		RotateWithinLimits(0, 0, AngleZ, ZA, YBProjOnZ, YA);
+		RotateToAlignAxes(ZA, ZB);
 	}
 
 	// enforce min/max angles
@@ -189,6 +161,23 @@ void FJointConstraint::UpdateJointLimits()
 	}
 }
 
+void FJointConstraint::RotateToAlignAxes(const FVector& AxisA, const FVector& AxisB) const
+{
+	const FVector ACrossB = FVector::CrossProduct(AxisA, AxisB);
+	FVector Axis;
+	float Magnitude;
+	ACrossB.ToDirectionAndLength(Axis, Magnitude);
+	const float EffectiveInvMass = FVector::DotProduct(Axis, Axis);
+	if (EffectiveInvMass < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+	const float DeltaLambda = Magnitude / EffectiveInvMass;
+	const FVector Push = Axis * DeltaLambda;
+	const FQuat PureRotA = FQuat(Push.X, Push.Y, Push.Z, 0.0f);
+	ApplyRotationCorrection(PureRotA, PureRotA);
+}
+
 void FJointConstraint::RotateWithinLimits(
 	float MinAngle,
 	float MaxAngle,
@@ -199,15 +188,14 @@ void FJointConstraint::RotateWithinLimits(
 {
 	const bool bBeyondMin = CurrentAngle < MinAngle;
 	const bool bBeyondMax = CurrentAngle > MaxAngle;
-	if (bBeyondMin || bBeyondMax)
+	if (!(bBeyondMin || bBeyondMax))
 	{
-		const float TgtAngle = bBeyondMin ? MinAngle : MaxAngle;
-		const FQuat TgtRot = FQuat(RotAxis, FMath::DegreesToRadians(TgtAngle));
-		const FVector TgtVec = TgtRot * RefVec;
-		const FVector TgtCross = FVector::CrossProduct(TgtVec, CurVec);
-		const FQuat PureRot = FQuat(TgtCross.X, TgtCross.Y, TgtCross.Z, 0.0f);
-		ApplyRotationCorrection(PureRot, PureRot);
+		return;
 	}
+	const float TgtAngle = bBeyondMin ? MinAngle : MaxAngle;
+	const FQuat TgtRot = FQuat(RotAxis, FMath::DegreesToRadians(TgtAngle));
+	const FVector TgtVec = TgtRot * RefVec;
+	RotateToAlignAxes(TgtVec, CurVec);
 }
 
 void FJointConstraint::UpdateLocalRotateAxes(bool bX, bool bY, bool bZ)

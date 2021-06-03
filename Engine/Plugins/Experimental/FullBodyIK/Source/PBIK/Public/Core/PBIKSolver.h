@@ -15,6 +15,11 @@ namespace PBIK
 
 static float GLOBAL_UNITS = 100.0f; // (1.0f = meters), (100.0f = centimeters)
 
+// A long tail ease out function. Input range, 0-1. 
+FORCEINLINE static void QuarticEaseOut(float& InOut){ InOut = (FMath::Pow(InOut-1.0f, 4.0f) * -1.0f) + 1.0f; };
+// An ease out function. Input range, 0-1.
+FORCEINLINE static void SquaredEaseOut(float& InOut){ InOut = (FMath::Pow(InOut-1.0f, 2.0f) * -1.0f) + 1.0f; };
+
 struct FRigidBody;
 
 struct FEffector
@@ -46,7 +51,7 @@ struct FEffector
 
 	void UpdateFromInputs();
 
-	void SquashSubRoots();
+	void ApplyPreferredAngles();
 };
 
 } // namespace
@@ -63,6 +68,10 @@ struct PBIK_API FPBIKSolverSettings
 	/** A global mass multiplier; higher values will make the joints more stiff, but require more iterations. Typical range is 0.0 to 10.0. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
 	float MassMultiplier = 1.0f;
+
+	/** Set this as low as possible while keeping the solve stable. Lower values improve convergence of effector targets. Default is 0.2. */
+	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
+	float MinMassMultiplier = 0.2f;
 
 	/** If true, joints will translate to reach the effectors; causing bones to lengthen if necessary. Good for cartoon effects. Default is false. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)

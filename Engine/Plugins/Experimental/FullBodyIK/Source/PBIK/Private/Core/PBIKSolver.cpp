@@ -47,7 +47,7 @@ namespace PBIK
 		}
 	}
 
-	void FEffector::SquashSubRoots()
+	void FEffector::ApplyPreferredAngles()
 	{
 		// optionally apply a preferred angle to give solver a hint which direction to favor
 		// apply amount of preferred angle proportional to the amount this sub-limb is squashed
@@ -76,12 +76,13 @@ namespace PBIK
 		}
 
 		// shrink distance to reach full blend to preferred angle
-		const float ScaledDistOrig = LengthOfChainInInputPose * 0.3f;
+		const float ScaledDistOrig = LengthOfChainInInputPose;// * 0.3f;
 		// amount squashed (clamped to scaled original length)
 		float DeltaSquash = LengthOfChainInInputPose - DistToParentSubRoot;
 		DeltaSquash = DeltaSquash > ScaledDistOrig ? ScaledDistOrig : DeltaSquash;
-		const float SquashPercent = DeltaSquash / ScaledDistOrig;
-		if (SquashPercent < 0.01f)
+		float SquashPercent = DeltaSquash / ScaledDistOrig;
+		PBIK::QuarticEaseOut(SquashPercent);
+		if (SquashPercent < 0.0001f)
 		{
 			return; // limb not squashed enough
 		}
@@ -158,19 +159,27 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 	// squash sub-roots to apply preferred angles
 	for (FEffector& Effector : Effectors)
 	{
-		Effector.SquashSubRoots();
+		Effector.ApplyPreferredAngles();
 	}
 
 	// run constraint iterations while allowing stretch, just to get reaching pose
 	for (int32  I = 0; I < Settings.Iterations; ++I)
 	{
+		// gradually ramp down mass of bodies
+		float IterPercent = Settings.Iterations == 1 ? 0 : (static_cast<float>(I) / static_cast<float>(Settings.Iterations - 1));
+		PBIK::SquaredEaseOut(IterPercent);
+		for (FRigidBody& Body : Bodies)
+		{
+			Body.InvMass = FMath::Lerp(Body.MaxInvMass, Body.MinInvMass, IterPercent);
+		}
+		
 		const bool bMoveSubRoots = true;
 		for (auto Constraint : Constraints)
 		{
 			Constraint->Solve(bMoveSubRoots);
 		}
 	}
-
+	
 	if (!Settings.bAllowStretch)
 	{
 		for (int32 C = Constraints.Num() - 1; C >= 0; --C)
@@ -180,11 +189,19 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 
 		for (FEffector& Effector : Effectors)
 		{
-			Effector.SquashSubRoots(); // update squashing once again
+			Effector.ApplyPreferredAngles(); // update squashing once again
 		}
 
 		for (int32  I = 0; I < Settings.Iterations; ++I)
 		{
+			// gradually ramp down mass of bodies
+			float IterPercent = Settings.Iterations == 1 ? 0 : (static_cast<float>(I) / static_cast<float>(Settings.Iterations - 1));
+			PBIK::SquaredEaseOut(IterPercent);
+			for (FRigidBody& Body : Bodies)
+			{
+				Body.InvMass = FMath::Lerp(Body.MaxInvMass, Body.MinInvMass, IterPercent);
+			}
+			
 			const bool bMoveSubRoots = false;
 			for (auto Constraint : Constraints)
 			{
