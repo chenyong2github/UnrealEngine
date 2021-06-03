@@ -151,7 +151,7 @@ FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
 		);
 	}
 	
-	if(CachedBoundShaderStateLink)
+	if(CachedBoundShaderStateLink && CachedBoundShaderStateLink->BoundShaderState->IsValid())
 	{
 		// If we've already created a bound shader state with these parameters, reuse it.
 		return CachedBoundShaderStateLink->BoundShaderState;
