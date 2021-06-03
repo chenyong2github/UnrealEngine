@@ -166,12 +166,10 @@ static mtlpp::SizeAndAlign TextureSizeAndAlign(mtlpp::TextureType TextureType, u
 			SizeAlign.Size = RHICalcTextureCubePlatformSize(Width, MetalToRHIPixelFormat(Format), MipCount, TexCreate_None, CreateInfo, Align);
 			SizeAlign.Align = Align;
 			break;
-#if PLATFORM_MAC || __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000
 		case mtlpp::TextureType::TextureCubeArray:
 			SizeAlign.Size = RHICalcTextureCubePlatformSize(Width, MetalToRHIPixelFormat(Format), MipCount, TexCreate_None, CreateInfo, Align) * ArrayCount;
 			SizeAlign.Align = Align;
 			break;
-#endif
 		case mtlpp::TextureType::Texture3D:
 			SizeAlign.Size = RHICalcTexture3DPlatformSize(Width, Height, Depth, MetalToRHIPixelFormat(Format), MipCount, TexCreate_None, CreateInfo, Align);
 			SizeAlign.Align = Align;
@@ -189,15 +187,9 @@ static mtlpp::SizeAndAlign TextureSizeAndAlign(mtlpp::TextureType TextureType, u
 void MetalLLM::LogAllocTexture(mtlpp::Device& Device, mtlpp::TextureDescriptor const& Desc, mtlpp::Texture const& Texture)
 {
 	mtlpp::SizeAndAlign SizeAlign;
-#if PLATFORM_MAC || __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000
 	if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesGPUCaptureManager))
 	{
 		SizeAlign = Device.HeapTextureSizeAndAlign(Desc);
-	}
-	else
-#endif
-	{
-		SizeAlign = TextureSizeAndAlign(Desc.GetTextureType(), Desc.GetWidth(), Desc.GetHeight(), Desc.GetDepth(), Desc.GetPixelFormat(), Desc.GetMipmapLevelCount(), Desc.GetSampleCount(), Desc.GetArrayLength());
 	}
 	
 	void* Ptr = (void*)Texture.GetPtr();

@@ -14,11 +14,7 @@
 #import <Foundation/Foundation.h>
 
 #if ONLINESUBSYSTEMAPPLE_IDENTITY_ENABLE_SIWA
-	#if defined(__MAC_10_15) || (defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0) || (defined(__TVOS_13_0) && __TV_OS_VERSION_MAX_ALLOWED >= __TVOS_13_0)
-		#define SIWA_SUPPORTED 1
-	#else
-		#define SIWA_SUPPORTED 0
-	#endif
+	#define SIWA_SUPPORTED 1
 #else
 	#define SIWA_SUPPORTED 0
 #endif

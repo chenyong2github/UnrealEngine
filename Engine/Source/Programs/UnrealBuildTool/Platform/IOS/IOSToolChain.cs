@@ -184,12 +184,14 @@ namespace UnrealBuildTool
 					FileReference AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "AssetCatalog", "Assets.car");
 					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
 				}
-				else if (Target.Platform == UnrealTargetPlatform.IOS && Settings.Value.IOSSDKVersionFloat >= 13.0f)
+				else if (Target.Platform == UnrealTargetPlatform.IOS)
 				{
 					int Index = Binary.OutputFilePath.GetFileNameWithoutExtension().IndexOf("-");
 					string OutputFile = Binary.OutputFilePath.GetFileNameWithoutExtension().Substring(0, Index > 0 ? Index : Binary.OutputFilePath.GetFileNameWithoutExtension().Length);
 					FileReference AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "Assets.car");
 					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
+
+					// Default AppIcons need to be copied as is in the Payload's root, even when using an asset catalog.
 					AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "AppIcon60x60@2x.png");
 					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
 					AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "AppIcon76x76@2x~ipad.png");
@@ -1000,7 +1002,7 @@ namespace UnrealBuildTool
 				Arguments.Append(" --launch-image \"Launch Image\"");
 				Arguments.Append(" --filter-for-device-model AppleTV5,3");
 				Arguments.Append(" --target-device tv");
-				Arguments.Append(" --minimum-deployment-target 12.0");
+				Arguments.Append(" --minimum-deployment-target 13.0");
 				Arguments.Append(" --platform appletvos");
 			}
 			else
@@ -1009,7 +1011,7 @@ namespace UnrealBuildTool
 				Arguments.Append(" --product-type com.apple.product-type.application");
 				Arguments.Append(" --target-device iphone");
 				Arguments.Append(" --target-device ipad");
-				Arguments.Append(" --minimum-deployment-target 12.0");
+				Arguments.Append(" --minimum-deployment-target 13.0");
 				Arguments.Append(" --platform iphoneos");
 			}
 			Arguments.Append(" --enable-on-demand-resources YES");
@@ -1367,23 +1369,19 @@ namespace UnrealBuildTool
 				}
 				// copy the icons from the game directory if it has any
 				string[][] Images = {
-					new string []{ "IPhoneIcon20@2x.png", "Icon20@2x.png", "Icon40.png" },
-					new string []{ "IPhoneIcon20@3x.png", "Icon20@3x.png", "Icon60.png" },
-					new string []{ "IPhoneIcon29@2x.png", "Icon29@2x.png", "Icon58.png" },
-					new string []{ "IPhoneIcon29@3x.png", "Icon29@3x.png", "Icon87.png" },
-					new string []{ "IPhoneIcon40@2x.png", "Icon40@2x.png", "Icon80.png" },
-					new string []{ "IPhoneIcon40@3x.png", "Icon40@3x.png", "Icon60@2x.png", "Icon120.png" },
-					new string []{ "IPhoneIcon60@2x.png", "Icon60@2x.png", "Icon40@3x.png", "Icon120.png" },
-					new string []{ "IPhoneIcon60@3x.png", "Icon60@3x.png", "Icon180.png" },
-					new string []{ "IPadIcon20.png", "Icon20.png" },
-					new string []{ "IPadIcon20@2x.png", "Icon20@2x.png", "Icon40.png" },
-					new string []{ "IPadIcon29.png", "Icon29.png" },
-					new string []{ "IPadIcon29@2x.png", "Icon29@2x.png", "Icon58.png" },
-					new string []{ "IPadIcon40.png", "Icon40.png", "Icon20@2x.png" },
-					new string []{ "IPadIcon40@2x.png", "Icon80.png", "Icon40@2x.png" },
-					new string []{ "IPadIcon76.png", "Icon76.png" },
-					new string []{ "IPadIcon76@2x.png", "Icon76@2x.png", "Icon152.png" },
-					new string []{ "IPadIcon83.5@2x.png", "Icon83.5@2x.png", "Icon167.png" },
+					new string []{ "IPhoneIcon20@2x.png", "Icon20@2x.png" },
+					new string []{ "IPhoneIcon20@3x.png", "Icon20@3x.png" },
+					new string []{ "IPhoneIcon29@2x.png", "Icon29@2x.png" },
+					new string []{ "IPhoneIcon29@3x.png", "Icon29@3x.png" },
+					new string []{ "IPhoneIcon40@2x.png", "Icon40@2x.png" },
+					new string []{ "IPhoneIcon40@3x.png", "Icon40@3x.png" },
+					new string []{ "IPhoneIcon60@2x.png", "Icon60@2x.png" },
+					new string []{ "IPhoneIcon60@3x.png", "Icon60@3x.png" },
+					new string []{ "IPadIcon20@2x.png", "Icon20@2x.png"},
+					new string []{ "IPadIcon29@2x.png", "Icon29@2x.png"},
+					new string []{ "IPadIcon40@2x.png", "Icon40@2x.png" },
+					new string []{ "IPadIcon76@2x.png", "Icon76@2x.png"},
+					new string []{ "IPadIcon83.5@2x.png", "Icon83.5@2x.png"},
 					new string []{ "Icon1024.png", "Icon1024.png" },
 				};
 				Dir = Path.Combine(IntermediateDir, "Resources", "Assets.xcassets", "AppIcon.appiconset");
@@ -1392,14 +1390,6 @@ namespace UnrealBuildTool
 				for (int Index = 0; Index < Images.Length; ++Index)
 				{
 					string Image = Path.Combine((Directory.Exists(Path.Combine(BuildDir, "Resources", "Graphics")) ? (BuildDir) : (Path.Combine(EngineDir, "Build", "IOS"))), "Resources", "Graphics", Images[Index][1]);
-					if (!File.Exists(Image) && Images[Index].Length > 2)
-					{
-						Image = Path.Combine((Directory.Exists(Path.Combine(BuildDir, "Resources", "Graphics")) ? (BuildDir) : (Path.Combine(EngineDir, "Build", "IOS"))), "Resources", "Graphics", Images[Index][2]);
-					}
-					if (!File.Exists(Image) && Images[Index].Length > 3)
-					{
-						Image = Path.Combine((Directory.Exists(Path.Combine(BuildDir, "Resources", "Graphics")) ? (BuildDir) : (Path.Combine(EngineDir, "Build", "IOS"))), "Resources", "Graphics", Images[Index][3]);
-					}
 					if (File.Exists(Image))
 					{
 						bUserImagesExist |= Image.StartsWith(BuildResourcesGraphicsDir);
