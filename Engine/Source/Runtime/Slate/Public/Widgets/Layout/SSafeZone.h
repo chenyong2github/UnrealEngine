@@ -119,7 +119,7 @@ public:
 
 private:
 
-	void UpdateSafeMargin() const;
+	void UpdateSafeMargin();
 	FMargin ComputeScaledSafeMargin(float Scale) const;
 
 	/** Cached values from the args */
