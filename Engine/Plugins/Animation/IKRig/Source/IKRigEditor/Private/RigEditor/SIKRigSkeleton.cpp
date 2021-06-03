@@ -71,7 +71,7 @@ void SIKRigSkeletonItem::Construct(
 	}
 		
 	// determine which icon to use for tree element
-	const FSlateBrush* Brush;
+	const FSlateBrush* Brush = FAppStyle::Get().GetBrush("SkeletonTree.Bone");
 	switch(InRigTreeElement->ElementType)
 	{
 		case IKRigTreeElementType::BONE:

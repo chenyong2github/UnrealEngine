@@ -241,7 +241,7 @@ void UIKRigPBIKSolver::AddBoneSetting(const FName& BoneName)
 
 void UIKRigPBIKSolver::RemoveBoneSetting(const FName& BoneName)
 {
-	UIKRig_PBIKBoneSettings* BoneSettingToRemove; 
+	UIKRig_PBIKBoneSettings* BoneSettingToRemove = nullptr; 
 	for (UIKRig_PBIKBoneSettings* BoneSetting : BoneSettings)
 	{
 		if (BoneSetting->Bone == BoneName)
@@ -251,7 +251,10 @@ void UIKRigPBIKSolver::RemoveBoneSetting(const FName& BoneName)
 		}
 	}
 
-	BoneSettings.Remove(BoneSettingToRemove);
+	if (BoneSettingToRemove)
+	{
+		BoneSettings.Remove(BoneSettingToRemove);
+	}
 }
 
 UObject* UIKRigPBIKSolver::GetBoneSetting(const FName& BoneName) const
