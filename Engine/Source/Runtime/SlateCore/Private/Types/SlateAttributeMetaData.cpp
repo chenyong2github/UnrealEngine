@@ -60,7 +60,7 @@ void FSlateAttributeMetaData::RegisterAttribute(SWidget& OwningWidget, FSlateAtt
 		NewAttributeMetaData->RegisterAttributeImpl(OwningWidget, Attribute, AttributeType, MoveTemp(Wrapper));
 		OwningWidget.bHasRegisteredSlateAttribute = true;
 		OwningWidget.MetaData.Insert(NewAttributeMetaData, 0);
-		if (OwningWidget.IsConstructionCompleted() && OwningWidget.IsAttributesUpdatesEnabled())
+		if (OwningWidget.IsConstructed() && OwningWidget.IsAttributesUpdatesEnabled())
 		{
 			OwningWidget.Invalidate(EInvalidateWidgetReason::AttributeRegistration);
 		}
@@ -145,7 +145,7 @@ bool FSlateAttributeMetaData::UnregisterAttribute(SWidget& OwningWidget, const F
 			check(bResult); // if the num is 0 then we should have remove an item.
 			OwningWidget.bHasRegisteredSlateAttribute = false;
 			OwningWidget.MetaData.RemoveAtSwap(0);
-			if (OwningWidget.IsConstructionCompleted() && OwningWidget.IsAttributesUpdatesEnabled())
+			if (OwningWidget.IsConstructed() && OwningWidget.IsAttributesUpdatesEnabled())
 			{
 				OwningWidget.Invalidate(EInvalidateWidgetReason::AttributeRegistration);
 			}
@@ -221,7 +221,7 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 	//N.B. no needs to set the bUpatedManually in this case because
 	//	1. they are in construction, so they will all be called anyway
 	//	2. they are in WidgetList, so the SlateAttribute.Set will not be called
-	if (!OwningWidget.IsConstructionCompleted())
+	if (!OwningWidget.IsConstructed())
 	{
 		return;
 	}
@@ -369,7 +369,7 @@ void FSlateAttributeMetaData::UpdateChildrenOnlyVisibilityAttributes(SWidget& Ow
 
 void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, int32 StartIndex, int32 IndexNum)
 {
-	const bool bInvalidateIfNeeded = (InvalidationStyle == EInvalidationPermission::AllowInvalidation) || (InvalidationStyle == EInvalidationPermission::AllowInvalidationIfConstructed && OwningWidget.IsConstructionCompleted());
+	const bool bInvalidateIfNeeded = (InvalidationStyle == EInvalidationPermission::AllowInvalidation) || (InvalidationStyle == EInvalidationPermission::AllowInvalidationIfConstructed && OwningWidget.IsConstructed());
 	const bool bAllowInvalidation = bInvalidateIfNeeded || InvalidationStyle == EInvalidationPermission::DelayInvalidation;
 	EInvalidateWidgetReason InvalidationReason = EInvalidateWidgetReason::None;
 	for (int32 Index = StartIndex; Index < IndexNum; ++Index)
@@ -441,7 +441,7 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 			ISlateAttributeGetter::FUpdateAttributeResult Result = GetterItem.Getter->UpdateAttribute(OwningWidget);
 			if (Result.bInvalidationRequested)
 			{
-				if (OwningWidget.IsConstructionCompleted())
+				if (OwningWidget.IsConstructed())
 				{
 					EInvalidateWidgetReason Reason = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
 					OwningWidget.Invalidate(Reason | AttributeMetaData->CachedInvalidationReason);

@@ -1204,7 +1204,7 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
 	SLATE_CROSS_THREAD_CHECK();
 
-	if (InvalidateReason == EInvalidateWidgetReason::None || !IsConstructionCompleted())
+	if (InvalidateReason == EInvalidateWidgetReason::None || !IsConstructed())
 	{
 		return;
 	}
