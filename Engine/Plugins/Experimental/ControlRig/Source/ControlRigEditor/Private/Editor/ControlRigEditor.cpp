@@ -2934,6 +2934,46 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 		}
 	));
 
+	auto GetBorderColorAndOpacity = [this]()
+	{
+		FLinearColor Color = FLinearColor::Transparent;
+		switch (GetEventQueue())
+		{
+			case EControlRigEditorEventQueue::Setup:
+				Color = UControlRigSettings::Get()->SetupEventBorderColor;
+				break;
+			case EControlRigEditorEventQueue::Inverse:
+				Color = UControlRigSettings::Get()->BackwardsSolveBorderColor;
+				break;
+			case EControlRigEditorEventQueue::InverseAndUpdate:
+				Color = UControlRigSettings::Get()->BackwardsAndForwardsBorderColor;
+				break;
+			default:
+				Color = FLinearColor::Transparent;
+				break;
+		}
+		return Color;
+	};
+
+	auto GetBorderVisibility = [this]()
+	{
+		EVisibility Visibility = EVisibility::Collapsed;
+		if (GetEventQueue() != EControlRigEditorEventQueue::Update)
+		{
+			Visibility = EVisibility::HitTestInvisible;
+		}
+		return Visibility;
+	};
+	
+	InViewport->AddOverlayWidget(
+		SNew(SBorder)
+        .BorderImage(FControlRigEditorStyle::Get().GetBrush( "ControlRig.Viewport.Border"))
+        .BorderBackgroundColor_Lambda(GetBorderColorAndOpacity)
+        .Visibility_Lambda(GetBorderVisibility)
+        .Padding(0.0f)
+        .ShowEffectWhenDisabled(false)
+	);
+	
 	InViewport->GetKeyDownDelegate().BindLambda([&](const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) -> FReply {
 		if (OnKeyDownDelegate.IsBound())
 		{

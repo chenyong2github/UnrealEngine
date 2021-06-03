@@ -58,6 +58,24 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category = NodeGraph)
 	TMap<FString, FControlRigSettingsPerPinBool> RigUnitPinExpansion;
+	
+	/**
+	 * The border color of the viewport when entering "Setup Event" mode
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Viewport)
+	FLinearColor SetupEventBorderColor;
+	
+	/**
+	 * The border color of the viewport when entering "Backwards Solve" mode
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Viewport)
+	FLinearColor BackwardsSolveBorderColor;
+	
+	/**
+	 * The border color of the viewport when entering "Backwards And Forwards" mode
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Viewport)
+	FLinearColor BackwardsAndForwardsBorderColor;
 #endif
 
 	static UControlRigSettings * Get() { return CastChecked<UControlRigSettings>(UControlRigSettings::StaticClass()->GetDefaultObject()); }
