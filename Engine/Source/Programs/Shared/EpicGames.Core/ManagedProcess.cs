@@ -263,6 +263,11 @@ namespace EpicGames.Core
 		const int ERROR_ACCESS_DENIED = 5;
 
 		/// <summary>
+		/// The process id
+		/// </summary>
+		public int Id { get; private set; }
+
+		/// <summary>
 		/// Handle for the child process.
 		/// </summary>
 		SafeFileHandle? ProcessHandle;
@@ -493,6 +498,9 @@ namespace EpicGames.Core
 
 								Thread.Sleep(RetryDelay[AttemptIdx]);
 							}
+
+							// Save the process id
+							Id = (int)ProcessInfo.dwProcessId;
 						}
 						finally
 						{
@@ -620,6 +628,7 @@ namespace EpicGames.Core
 
 			}
 
+			Id = FrameworkProcess.Id;
 			StdIn = FrameworkProcess.StandardInput.BaseStream;
 			StdOut = FrameworkProcess.StandardOutput.BaseStream;
 		}
