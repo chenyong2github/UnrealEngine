@@ -71,9 +71,9 @@ enum EMTLTextureType
 };
 
 // This is the right VERSION check, see Availability.h in the SDK
-#define METAL_SUPPORTS_INDIRECT_ARGUMENT_BUFFERS ((PLATFORM_MAC && __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300) || (!PLATFORM_MAC && __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000)) && (__clang_major__ >= 9)
-#define METAL_SUPPORTS_CAPTURE_MANAGER (PLATFORM_MAC && __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300) || (!PLATFORM_MAC && __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000) && (__clang_major__ >= 9)
-#define METAL_SUPPORTS_TILE_SHADERS (!PLATFORM_MAC && !PLATFORM_TVOS && __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000) && (__clang_major__ >= 9)
+#define METAL_SUPPORTS_INDIRECT_ARGUMENT_BUFFERS 1
+#define METAL_SUPPORTS_CAPTURE_MANAGER 1
+#define METAL_SUPPORTS_TILE_SHADERS 1
 // In addition to compile-time SDK checks we also need a way to check if these are available on runtime
 extern bool GAGXSupportsCaptureManager;
 
