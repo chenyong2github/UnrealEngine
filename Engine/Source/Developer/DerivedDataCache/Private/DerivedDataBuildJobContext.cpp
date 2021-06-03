@@ -119,6 +119,11 @@ void FBuildJobContext::EndAsyncBuild()
 	OnEndAsyncBuild();
 }
 
+FCacheBucket FBuildJobContext::CreateCacheBucket(FStringView Name) const
+{
+	return Job.GetCache().CreateBucket(Name);
+}
+
 void FBuildJobContext::SetCacheBucket(FCacheBucket Bucket)
 {
 	checkf(!Bucket.IsNull(), TEXT("Null cache bucket not allowed for build of '%s' by %s. ")

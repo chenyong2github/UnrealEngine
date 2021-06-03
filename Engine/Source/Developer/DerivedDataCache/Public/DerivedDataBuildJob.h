@@ -11,7 +11,9 @@ class FEvent;
 template <typename FuncType> class TUniqueFunction;
 
 namespace UE::DerivedData { class FBuildOutput; }
+namespace UE::DerivedData { class IBuild; }
 namespace UE::DerivedData { class IBuildScheduler; }
+namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { struct FBuildJobCompleteParams; }
 namespace UE::DerivedData { struct FBuildActionKey; }
 namespace UE::DerivedData { struct FBuildKey; }
@@ -48,6 +50,11 @@ public:
 	virtual const FBuildKey& GetKey() const = 0;
 	/** Returns the action key, or null if the action has not been resolved yet. */
 	virtual const FBuildActionKey& GetActionKey() const = 0;
+
+	/** Returns the cache associated with this job. */
+	virtual ICache& GetCache() const = 0;
+	/** Returns the build system associated with this job. */
+	virtual IBuild& GetBuild() const = 0;
 
 	/** Start the build by dispatching it to the scheduler. */
 	virtual void Schedule(IBuildScheduler& Scheduler, EBuildPolicy Policy, EPriority Priority, FOnBuildJobComplete&& OnComplete) = 0;

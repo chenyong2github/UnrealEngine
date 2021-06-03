@@ -113,6 +113,9 @@ public:
 	inline const FBuildKey& GetKey() const final { return DefinitionKey; }
 	inline const FBuildActionKey& GetActionKey() const final { return ActionKey; }
 
+	inline ICache& GetCache() const final { return Cache; }
+	inline IBuild& GetBuild() const final { return BuildSystem; }
+
 	void Schedule(IBuildScheduler& Scheduler, EBuildPolicy Policy, EPriority Priority, FOnBuildJobComplete&& OnComplete) final;
 
 	// IRequest Interface

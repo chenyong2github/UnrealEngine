@@ -127,6 +127,9 @@ public:
 	/** Returns the constant with the matching key, or an object with no fields if not found. */
 	virtual FCbObject FindConstant(FStringView Key) const = 0;
 
+	/** Create a cache bucket from a name. See ICacheFactory::CreateBucket. */
+	virtual FCacheBucket CreateCacheBucket(FStringView Name) const = 0;
+
 	/** Overrides the cache bucket used when reading or writing this build in the cache. */
 	virtual void SetCacheBucket(FCacheBucket Bucket) = 0;
 
