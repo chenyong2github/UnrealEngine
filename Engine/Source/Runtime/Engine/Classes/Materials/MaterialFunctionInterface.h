@@ -37,6 +37,9 @@ class UMaterialFunctionInterface : public UObject
 
 	//~ Begin UObject Interface.
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	//~ End UObject Interface.
 
 	/** Used by materials using this function to know when to recompile. */

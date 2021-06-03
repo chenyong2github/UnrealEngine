@@ -11458,6 +11458,40 @@ void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>&
 #endif
 }
 
+#if WITH_EDITOR
+void UMaterialFunctionInterface::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Go through all materials in memory and recompile them if they use this function
+	FMaterialUpdateContext UpdateContext;
+	for (TObjectIterator<UMaterial> It; It; ++It)
+	{
+		UMaterial* CurrentMaterial = *It;
+
+		bool bRecompile = false;
+		for (const FMaterialFunctionInfo& FunctionInfo : CurrentMaterial->GetCachedExpressionData().FunctionInfos)
+		{
+			if (FunctionInfo.Function == this)
+			{
+				bRecompile = true;
+				break;
+			}
+		}
+
+		if (bRecompile)
+		{
+			UpdateContext.AddMaterial(CurrentMaterial);
+
+			// Propagate the change to this material
+			CurrentMaterial->PreEditChange(nullptr);
+			CurrentMaterial->PostEditChange();
+			CurrentMaterial->MarkPackageDirty();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif // WITH_EDITOR
+
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialFunctionMaterialLayer
 ///////////////////////////////////////////////////////////////////////////////
