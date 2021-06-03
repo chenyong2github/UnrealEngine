@@ -738,7 +738,7 @@ namespace UnrealBuildTool
 				{
 					ParsedCompilerOptions["InputFile"] = Token;
 					ProcessedTokens.RemoveAt(i);
-					break;
+					i--;
 				}
 			}
 
