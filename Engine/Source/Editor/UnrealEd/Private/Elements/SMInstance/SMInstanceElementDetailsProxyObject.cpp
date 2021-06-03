@@ -43,9 +43,32 @@ void USMInstanceElementDetailsProxyObject::PostEditChangeChainProperty(FProperty
 		{
 			if (FSMInstanceManager SMInstance = GetSMInstance())
 			{
+				if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+				{
+					if (!bIsWithinInteractiveTransformEdit)
+					{
+						SMInstance.NotifySMInstanceMovementStarted();
+					}
+					bIsWithinInteractiveTransformEdit = true;
+				}
+
 				// TODO: Need flag for local/world space, like FComponentTransformDetails
 				SMInstance.SetSMInstanceTransform(Transform, /*bWorldSpace*/false, /*bMarkRenderStateDirty*/true);
 				
+				if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+				{
+					check(bIsWithinInteractiveTransformEdit);
+					SMInstance.NotifySMInstanceMovementOngoing();
+				}
+				else
+				{
+					if (bIsWithinInteractiveTransformEdit)
+					{
+						SMInstance.NotifySMInstanceMovementEnded();
+					}
+					bIsWithinInteractiveTransformEdit = false;
+				}
+
 				GUnrealEd->UpdatePivotLocationForSelection();
 				GUnrealEd->RedrawLevelEditingViewports();
 			}

@@ -30,4 +30,5 @@ private:
 	uint64 ISMInstanceId = 0;
 
 	FDelegateHandle TickHandle;
+	bool bIsWithinInteractiveTransformEdit = false;
 };

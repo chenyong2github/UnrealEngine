@@ -75,16 +75,16 @@ FTypedElementHandle AcquireEditorTypedElementHandle(const ObjectClass* Object, T
 }
 
 template <typename ObjectClass>
-TArray<TTuple<const ObjectClass*, const ObjectClass*>> CalculatePotentialObjectReplacements(const TMap<UObject*, UObject*>& ReplacementObjects)
+TMap<const ObjectClass*, const ObjectClass*> CalculatePotentialObjectReplacements(const TMap<UObject*, UObject*>& ReplacementObjects)
 {
-	TArray<TTuple<const ObjectClass*, const ObjectClass*>> PotentialObjectReplacements;
+	TMap<const ObjectClass*, const ObjectClass*> PotentialObjectReplacements;
 
 	for (const TTuple<UObject*, UObject*>& ReplacementObjectPair : ReplacementObjects)
 	{
 		if (const ObjectClass* OldObject = Cast<ObjectClass>(ReplacementObjectPair.Key))
 		{
 			const ObjectClass* NewObject = Cast<ObjectClass>(ReplacementObjectPair.Value);
-			PotentialObjectReplacements.Add(MakeTuple(OldObject, NewObject));
+			PotentialObjectReplacements.Add(OldObject, NewObject);
 		}
 	}
 
@@ -92,7 +92,7 @@ TArray<TTuple<const ObjectClass*, const ObjectClass*>> CalculatePotentialObjectR
 }
 
 template <typename ElementDataType, typename KeyDataType>
-void ReplaceEditorTypedElementHandles(TArray<FTypedElementHandle>& OutUpdatedElements, const TArray<TTuple<KeyDataType, KeyDataType>>& ReplacementKeys, TTypedElementOwnerStore<ElementDataType, KeyDataType>& ElementOwnerStore, TFunctionRef<void(KeyDataType, TTypedElementOwner<ElementDataType>&)> UpdateElement, TFunctionRef<void(KeyDataType, TTypedElementOwner<ElementDataType>&)> DestroyElement)
+void ReplaceEditorTypedElementHandles(TArray<FTypedElementHandle>& OutUpdatedElements, const TMap<KeyDataType, KeyDataType>& ReplacementKeys, TTypedElementOwnerStore<ElementDataType, KeyDataType>& ElementOwnerStore, TFunctionRef<void(KeyDataType, TTypedElementOwner<ElementDataType>&)> UpdateElement, TFunctionRef<void(KeyDataType, TTypedElementOwner<ElementDataType>&)> DestroyElement)
 {
 	for (const TTuple<KeyDataType, KeyDataType>& ReplacementKeyPair : ReplacementKeys)
 	{
@@ -176,31 +176,22 @@ void UEngineElementsLibrary::OnObjectsReplaced(const TMap<UObject*, UObject*>& I
 	TArray<FTypedElementHandle> UpdatedElements;
 
 	{
-		const TArray<TTuple<const UObject*, const UObject*>> PotentialObjectReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<UObject>(InReplacementObjects);
-		EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FObjectElementData, const UObject*>(UpdatedElements, PotentialObjectReplacements, GObjectElementOwnerStore, [](const UObject* InObject, TTypedElementOwner<FObjectElementData>& InOutObjectElement)
-		{
-			InOutObjectElement.GetDataChecked().Object = const_cast<UObject*>(InObject);
-		}, &UEngineElementsLibrary::DestroyObjectElement);
+		const TMap<const UObject*, const UObject*> PotentialObjectReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<UObject>(InReplacementObjects);
+		ReplaceEditorObjectElementHandlesImpl(PotentialObjectReplacements, UpdatedElements);
 	}
 
 	{
-		const TArray<TTuple<const AActor*, const AActor*>> PotentialActorReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<AActor>(InReplacementObjects);
-		EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FActorElementData, const AActor*>(UpdatedElements, PotentialActorReplacements, GActorElementOwnerStore, [](const AActor* InActor, TTypedElementOwner<FActorElementData>& InOutActorElement)
-		{
-			InOutActorElement.GetDataChecked().Actor = const_cast<AActor*>(InActor);
-		}, &UEngineElementsLibrary::DestroyActorElement);
+		const TMap<const AActor*, const AActor*> PotentialActorReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<AActor>(InReplacementObjects);
+		ReplaceEditorActorElementHandlesImpl(PotentialActorReplacements, UpdatedElements);
 	}
 
 	{
-		const TArray<TTuple<const UActorComponent*, const UActorComponent*>> PotentialComponentReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<UActorComponent>(InReplacementObjects);
-		EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FComponentElementData, const UActorComponent*>(UpdatedElements, PotentialComponentReplacements, GComponentElementOwnerStore, [](const UActorComponent* InComponent, TTypedElementOwner<FComponentElementData>& InOutComponentElement)
-		{
-			InOutComponentElement.GetDataChecked().Component = const_cast<UActorComponent*>(InComponent);
-		}, &UEngineElementsLibrary::DestroyComponentElement);
+		const TMap<const UActorComponent*, const UActorComponent*> PotentialComponentReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<UActorComponent>(InReplacementObjects);
+		ReplaceEditorComponentElementHandlesImpl(PotentialComponentReplacements, UpdatedElements);
 	}
 
 	{
-		TArray<TTuple<FSMInstanceElementId, FSMInstanceElementId>> PotentialSMInstanceReplacements;
+		TMap<FSMInstanceElementId, FSMInstanceElementId> PotentialSMInstanceReplacements;
 
 		FSMInstanceElementIdMap& SMInstanceElementIdMap = FSMInstanceElementIdMap::Get();
 		for (const TTuple<UObject*, UObject*>& ReplacementObjectPair : InReplacementObjects)
@@ -231,16 +222,45 @@ void UEngineElementsLibrary::OnObjectsReplaced(const TMap<UObject*, UObject*>& I
 			}
 		}
 
-		EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FSMInstanceElementData, FSMInstanceElementId>(UpdatedElements, PotentialSMInstanceReplacements, GSMInstanceElementOwnerStore, [](FSMInstanceElementId InSMInstanceElementId, TTypedElementOwner<FSMInstanceElementData>& InOutSMInstanceElement)
-		{
-			InOutSMInstanceElement.GetDataChecked().InstanceElementId = InSMInstanceElementId;
-		}, &UEngineElementsLibrary::DestroySMInstanceElement);
+		ReplaceEditorSMInstanceElementHandlesImpl(PotentialSMInstanceReplacements, UpdatedElements);
 	}
 
 	if (UpdatedElements.Num() > 0)
 	{
 		UTypedElementRegistry::GetInstance()->OnElementUpdated().Broadcast(UpdatedElements);
 	}
+}
+
+void UEngineElementsLibrary::ReplaceEditorObjectElementHandlesImpl(const TMap<const UObject*, const UObject*>& ReplacementObjects, TArray<FTypedElementHandle>& OutUpdatedElements)
+{
+	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FObjectElementData, const UObject*>(OutUpdatedElements, ReplacementObjects, GObjectElementOwnerStore, [](const UObject* InObject, TTypedElementOwner<FObjectElementData>& InOutObjectElement)
+	{
+		InOutObjectElement.GetDataChecked().Object = const_cast<UObject*>(InObject);
+	}, &UEngineElementsLibrary::DestroyObjectElement);
+}
+
+void UEngineElementsLibrary::ReplaceEditorActorElementHandlesImpl(const TMap<const AActor*, const AActor*>& ReplacementActors, TArray<FTypedElementHandle>& OutUpdatedElements)
+{
+	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FActorElementData, const AActor*>(OutUpdatedElements, ReplacementActors, GActorElementOwnerStore, [](const AActor* InActor, TTypedElementOwner<FActorElementData>& InOutActorElement)
+	{
+		InOutActorElement.GetDataChecked().Actor = const_cast<AActor*>(InActor);
+	}, &UEngineElementsLibrary::DestroyActorElement);
+}
+
+void UEngineElementsLibrary::ReplaceEditorComponentElementHandlesImpl(const TMap<const UActorComponent*, const UActorComponent*>& ReplacementComponents, TArray<FTypedElementHandle>& OutUpdatedElements)
+{
+	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FComponentElementData, const UActorComponent*>(OutUpdatedElements, ReplacementComponents, GComponentElementOwnerStore, [](const UActorComponent* InComponent, TTypedElementOwner<FComponentElementData>& InOutComponentElement)
+	{
+		InOutComponentElement.GetDataChecked().Component = const_cast<UActorComponent*>(InComponent);
+	}, &UEngineElementsLibrary::DestroyComponentElement);
+}
+
+void UEngineElementsLibrary::ReplaceEditorSMInstanceElementHandlesImpl(const TMap<FSMInstanceElementId, FSMInstanceElementId>& ReplacementSMInstanceIds, TArray<FTypedElementHandle>& OutUpdatedElements)
+{
+	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FSMInstanceElementData, FSMInstanceElementId>(OutUpdatedElements, ReplacementSMInstanceIds, GSMInstanceElementOwnerStore, [](FSMInstanceElementId InSMInstanceElementId, TTypedElementOwner<FSMInstanceElementData>& InOutSMInstanceElement)
+	{
+		InOutSMInstanceElement.GetDataChecked().InstanceElementId = InSMInstanceElementId;
+	}, &UEngineElementsLibrary::DestroySMInstanceElement);
 }
 #endif
 
@@ -300,6 +320,16 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorObjectElementHandle(con
 {
 	return EngineElementsLibraryUtil::AcquireEditorTypedElementHandle<UObject, FObjectElementData>(Object, GObjectElementOwnerStore, &UEngineElementsLibrary::CreateObjectElement, bAllowCreate);
 }
+
+void UEngineElementsLibrary::ReplaceEditorObjectElementHandles(const TMap<const UObject*, const UObject*>& ReplacementObjects)
+{
+	TArray<FTypedElementHandle> UpdatedElements;
+	ReplaceEditorObjectElementHandlesImpl(ReplacementObjects, UpdatedElements);
+	if (UpdatedElements.Num() > 0)
+	{
+		UTypedElementRegistry::GetInstance()->OnElementUpdated().Broadcast(UpdatedElements);
+	}
+}
 #endif
 
 TTypedElementOwner<FActorElementData> UEngineElementsLibrary::CreateActorElement(const AActor* InActor)
@@ -336,6 +366,16 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorActorElementHandle(cons
 {
 	return EngineElementsLibraryUtil::AcquireEditorTypedElementHandle<AActor, FActorElementData>(Actor, GActorElementOwnerStore, &UEngineElementsLibrary::CreateActorElement, bAllowCreate);
 }
+
+void UEngineElementsLibrary::ReplaceEditorActorElementHandles(const TMap<const AActor*, const AActor*>& ReplacementActors)
+{
+	TArray<FTypedElementHandle> UpdatedElements;
+	ReplaceEditorActorElementHandlesImpl(ReplacementActors, UpdatedElements);
+	if (UpdatedElements.Num() > 0)
+	{
+		UTypedElementRegistry::GetInstance()->OnElementUpdated().Broadcast(UpdatedElements);
+	}
+}
 #endif
 
 TTypedElementOwner<FComponentElementData> UEngineElementsLibrary::CreateComponentElement(const UActorComponent* InComponent)
@@ -371,6 +411,16 @@ void UEngineElementsLibrary::DestroyEditorComponentElement(const UActorComponent
 FTypedElementHandle UEngineElementsLibrary::AcquireEditorComponentElementHandle(const UActorComponent* Component, const bool bAllowCreate)
 {
 	return EngineElementsLibraryUtil::AcquireEditorTypedElementHandle<UActorComponent, FComponentElementData>(Component, GComponentElementOwnerStore, &UEngineElementsLibrary::CreateComponentElement, bAllowCreate);
+}
+
+void UEngineElementsLibrary::ReplaceEditorComponentElementHandles(const TMap<const UActorComponent*, const UActorComponent*>& ReplacementComponents)
+{
+	TArray<FTypedElementHandle> UpdatedElements;
+	ReplaceEditorComponentElementHandlesImpl(ReplacementComponents, UpdatedElements);
+	if (UpdatedElements.Num() > 0)
+	{
+		UTypedElementRegistry::GetInstance()->OnElementUpdated().Broadcast(UpdatedElements);
+	}
 }
 #endif
 
@@ -451,5 +501,29 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle
 	}
 
 	return FTypedElementHandle();
+}
+
+void UEngineElementsLibrary::ReplaceEditorSMInstanceElementHandles(const TMap<FSMInstanceId, FSMInstanceId>& ReplacementSMInstanceIds)
+{
+	TMap<FSMInstanceElementId, FSMInstanceElementId> PotentialSMInstanceReplacements;
+	PotentialSMInstanceReplacements.Reserve(ReplacementSMInstanceIds.Num());
+
+	FSMInstanceElementIdMap& SMInstanceElementIdMap = FSMInstanceElementIdMap::Get();
+	for (const TTuple<FSMInstanceId, FSMInstanceId>& ReplacementSMInstanceIdPair : ReplacementSMInstanceIds)
+	{
+		// Find, but don't create, the element ID for the source instance, as no element can exist if the element ID has no mapping
+		if (FSMInstanceElementId OldSMInstanceElementId = SMInstanceElementIdMap.GetSMInstanceElementIdFromSMInstanceId(ReplacementSMInstanceIdPair.Key, /*bAllowCreate*/false))
+		{
+			FSMInstanceElementId NewSMInstanceElementId = SMInstanceElementIdMap.GetSMInstanceElementIdFromSMInstanceId(ReplacementSMInstanceIdPair.Value, /*bAllowCreate*/true);
+			PotentialSMInstanceReplacements.Add(MoveTemp(OldSMInstanceElementId), MoveTemp(NewSMInstanceElementId));
+		}
+	}
+
+	TArray<FTypedElementHandle> UpdatedElements;
+	ReplaceEditorSMInstanceElementHandlesImpl(PotentialSMInstanceReplacements, UpdatedElements);
+	if (UpdatedElements.Num() > 0)
+	{
+		UTypedElementRegistry::GetInstance()->OnElementUpdated().Broadcast(UpdatedElements);
+	}
 }
 #endif

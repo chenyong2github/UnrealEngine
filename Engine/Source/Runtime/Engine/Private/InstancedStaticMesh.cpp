@@ -3936,6 +3936,27 @@ bool UInstancedStaticMeshComponent::SetSMInstanceTransform(const FSMInstanceId& 
 	return UpdateInstanceTransform(InstanceId.InstanceIndex, InstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport);
 }
 
+void UInstancedStaticMeshComponent::NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId)
+{
+	check(InstanceId.ISMComponent == this);
+}
+
+void UInstancedStaticMeshComponent::NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId)
+{
+	check(InstanceId.ISMComponent == this);
+}
+
+void UInstancedStaticMeshComponent::NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId)
+{
+	check(InstanceId.ISMComponent == this);
+}
+
+void UInstancedStaticMeshComponent::NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected)
+{
+	check(InstanceId.ISMComponent == this);
+	SelectInstance(bIsSelected, InstanceId.InstanceIndex);
+}
+
 bool UInstancedStaticMeshComponent::DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds)
 {
 	TArray<int32> InstanceIndices;

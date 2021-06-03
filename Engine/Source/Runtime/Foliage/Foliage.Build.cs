@@ -11,6 +11,7 @@ public class Foliage: ModuleRules
 				"Core",
 				"CoreUObject",
                 "Engine",
+				"TypedElementFramework",
 				"RenderCore",
 				"RHI"
 			}

@@ -8,6 +8,7 @@ InstancedFoliage.h: Instanced foliage type definitions.
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
 #include "Misc/HashBuilder.h"
+#include "Containers/ArrayView.h"
 #include "FoliageInstanceBase.h"
 
 class AInstancedFoliageActor;
@@ -87,6 +88,13 @@ struct FFoliageInstance : public FFoliageInstancePlacementInfo
 	FTransform GetInstanceWorldTransform() const
 	{
 		return FTransform(Rotation, Location, DrawScale3D);
+	}
+
+	void SetInstanceWorldTransform(const FTransform& Transform)
+	{
+		Location = Transform.GetTranslation();
+		Rotation = Transform.Rotator();
+		DrawScale3D = Transform.GetScale3D();
 	}
 
 	void AlignToNormal(const FVector& InNormal, float AlignMaxAngle = 0.f)
@@ -206,8 +214,8 @@ struct FFoliageImpl
 	virtual void SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport) = 0;
 	virtual FTransform GetInstanceWorldTransform(int32 InstanceIndex) const = 0;
 	virtual void PostUpdateInstances() {}
-	virtual void PreMoveInstances(const TArray<int32>& InInstancesMoved) {}
-	virtual void PostMoveInstances(const TArray<int32>& InInstancesMoved, bool bFinished) {}
+	virtual void PreMoveInstances(TArrayView<const int32> InInstancesMoved) {}
+	virtual void PostMoveInstances(TArrayView<const int32> InInstancesMoved, bool bFinished) {}
 	virtual bool IsOwnedComponent(const UPrimitiveComponent* PrimitiveComponent) const = 0;
 	
 	virtual void SelectAllInstances(bool bSelect) = 0;
@@ -268,7 +276,7 @@ struct FFoliageInfo
 	TSet<int32> SelectedIndices;
 
 	// Moving instances
-	bool bMovingInstances;
+	TSet<int32> MovingInstances;
 #endif
 
 	FOLIAGE_API FFoliageInfo();
@@ -309,15 +317,15 @@ struct FFoliageInfo
 	FOLIAGE_API void AddInstances(const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances);
 	FOLIAGE_API void ReserveAdditionalInstances(const UFoliageType* InSettings, uint32 ReserveNum);
 
-	FOLIAGE_API void RemoveInstances(const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree);
+	FOLIAGE_API void RemoveInstances(TArrayView<const int32> InInstancesToRemove, bool RebuildFoliageTree);
 
 	FOLIAGE_API void MoveInstances(AInstancedFoliageActor* InToIFA, const TSet<int32>& InInstancesToMove, bool bKeepSelection);
 
 	// Apply changes in the FoliageType to the component
-	FOLIAGE_API void PreMoveInstances(const TArray<int32>& InInstancesToMove);
-	FOLIAGE_API void PostMoveInstances(const TArray<int32>& InInstancesMoved, bool bFinished = false);
-	FOLIAGE_API void PostUpdateInstances(const TArray<int32>& InInstancesUpdated, bool bReAddToHash = false, bool InUpdateSelection = false);
-	FOLIAGE_API void DuplicateInstances(UFoliageType* InSettings, const TArray<int32>& InInstancesToDuplicate);
+	FOLIAGE_API void PreMoveInstances(TArrayView<const int32> InInstancesMoved);
+	FOLIAGE_API void PostMoveInstances(TArrayView<const int32> InInstancesMoved, bool bFinished = false);
+	FOLIAGE_API void PostUpdateInstances(TArrayView<const int32>, bool bReAddToHash = false, bool InUpdateSelection = false);
+	FOLIAGE_API void DuplicateInstances(UFoliageType* InSettings, TArrayView<const int32> InInstancesToDuplicate);
 	FOLIAGE_API void GetInstancesInsideBounds(const FBox& Box, TArray<int32>& OutInstances) const;
 	FOLIAGE_API void GetInstancesInsideSphere(const FSphere& Sphere, TArray<int32>& OutInstances) const;
 	FOLIAGE_API void GetInstanceAtLocation(const FVector& Location, int32& OutInstance, bool& bOutSucess) const;
@@ -328,7 +336,7 @@ struct FFoliageInfo
 	// Destroy existing clusters and reassign all instances to new clusters
 	FOLIAGE_API void ReallocateClusters(UFoliageType* InSettings);
 
-	FOLIAGE_API void SelectInstances(bool bSelect, TArray<int32>& Instances);
+	FOLIAGE_API void SelectInstances(bool bSelect, TArrayView<const int32> Instances);
 
 	FOLIAGE_API void SelectInstances(bool bSelect);
 
@@ -370,7 +378,7 @@ private:
 	void AddInstanceImpl(const FFoliageInstance& InNewInstance, FAddImplementationFunc ImplementationFunc);
 
 	using FRemoveImplementationFunc = TFunctionRef<void(FFoliageImpl*, int32)>;
-	void RemoveInstancesImpl(const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree, FRemoveImplementationFunc ImplementationFunc);
+	void RemoveInstancesImpl(TArrayView<const int32> InInstancesToRemove, bool RebuildFoliageTree, FRemoveImplementationFunc ImplementationFunc);
 };
 
 

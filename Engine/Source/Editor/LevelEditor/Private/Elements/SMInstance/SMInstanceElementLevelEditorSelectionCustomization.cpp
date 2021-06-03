@@ -47,9 +47,6 @@ bool FSMInstanceElementLevelEditorSelectionCustomization::SelectElement(const TT
 	}
 
 	UE_LOG(LogSMInstanceLevelEditorSelection, Verbose, TEXT("Selected SMInstance: %s (%s), Index %d"), *SMInstance.GetISMComponent()->GetPathName(), *SMInstance.GetISMComponent()->GetClass()->GetName(), SMInstance.GetISMInstanceIndex());
-
-	// Update the internal selection state for viewport selection rendering
-	SMInstance.GetISMComponent()->SelectInstance(/*bIsSelected*/true, SMInstance.GetISMInstanceIndex());
 	
 	return true;
 }
@@ -68,9 +65,6 @@ bool FSMInstanceElementLevelEditorSelectionCustomization::DeselectElement(const 
 	}
 
 	UE_LOG(LogSMInstanceLevelEditorSelection, Verbose, TEXT("Deselected SMInstance: %s (%s), Index %d"), *SMInstance.GetISMComponent()->GetPathName(), *SMInstance.GetISMComponent()->GetClass()->GetName(), SMInstance.GetISMInstanceIndex());
-
-	// Update the internal selection state for viewport selection rendering
-	SMInstance.GetISMComponent()->SelectInstance(/*bIsSelected*/false, SMInstance.GetISMInstanceIndex());
 
 	return true;
 }

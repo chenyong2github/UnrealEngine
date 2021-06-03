@@ -49,6 +49,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "FoliageISMActor.h"
 #include "LevelUtils.h"
 #include "FoliageHelper.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 #include "Algo/Transform.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Misc/CoreMisc.h"
@@ -74,6 +75,23 @@ static TAutoConsoleVariable<int32> CVarFoliageDiscardDataOnLoad(
 const FGuid FFoliageCustomVersion::GUID(0x430C4D19, 0x71544970, 0x87699B69, 0xDF90B0E5);
 // Register the custom version with core
 FCustomVersionRegistration GRegisterFoliageCustomVersion(FFoliageCustomVersion::GUID, FFoliageCustomVersion::LatestVersion, TEXT("FoliageVer"));
+
+namespace FoliageElementUtil
+{
+
+static int32 GEnableFoliageInstanceElements = 0;
+static FAutoConsoleVariableRef CVarEnableFoliageInstanceElements(
+	TEXT("TypedElements.EnableFoliageInstanceElements"),
+	GEnableFoliageInstanceElements,
+	TEXT("Is support for static mesh instance elements enabled for foliage owned instances?")
+	);
+
+bool FoliageInstanceElementsEnabled()
+{
+	return GEnableFoliageInstanceElements != 0;
+}
+
+}
 
 ///
 /// FFoliageStaticMesh
@@ -1647,20 +1665,43 @@ void FFoliageStaticMesh::Reapply(const UFoliageType* FoliageType)
 
 		const bool bWasRegistered = Component->IsRegistered();
 		Component->UnregisterComponent();
-		Component->ClearInstances();
 		Component->InitPerInstanceRenderData(false);
 
 		Component->bAutoRebuildTreeOnInstanceChanges = false;
 
-		TArray<FTransform> InstanceTransforms;
-		Algo::Transform(Info->Instances, InstanceTransforms, &FFoliageInstance::GetInstanceWorldTransform);
-		Component->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
+		// Update the instance transforms, attempting to re-use existing instances where possible
+		const int32 NumInstancesToUpdate = FMath::Min(Component->GetInstanceCount(), Info->Instances.Num());
+		if (Component->GetInstanceCount() < Info->Instances.Num())
+		{
+			// Add any missing instances
+			TArray<FTransform> InstanceTransforms;
+			Algo::Transform(MakeArrayView(Info->Instances.GetData() + Component->GetInstanceCount(), Info->Instances.Num() - Component->GetInstanceCount()), InstanceTransforms, &FFoliageInstance::GetInstanceWorldTransform);
+			Component->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
+		}
+		else if (Component->GetInstanceCount() > Info->Instances.Num())
+		{
+			// Remove any redundant instances
+			TArray<int32> InstancesToRemove;
+			for (int32 InstanceIndex = Info->Instances.Num(); InstanceIndex < Component->GetInstanceCount(); ++InstanceIndex)
+			{
+				InstancesToRemove.Add(InstanceIndex);
+			}
+			Component->RemoveInstances(InstancesToRemove);
+		}
+		check(Component->GetInstanceCount() == Info->Instances.Num());
+		if (NumInstancesToUpdate > 0)
+		{
+			// Update any existing instances
+			TArray<FTransform> InstanceTransforms;
+			Algo::Transform(MakeArrayView(Info->Instances.GetData(), NumInstancesToUpdate), InstanceTransforms, &FFoliageInstance::GetInstanceWorldTransform);
+			Component->BatchUpdateInstancesTransforms(0, InstanceTransforms, /*bWorldSpace*/true, /*bMarkRenderStateDirty*/true, /*bTeleport*/true);
+		}
 
 		Component->bAutoRebuildTreeOnInstanceChanges = true;
 		Component->BuildTreeIfOutdated(true, true);
 
+		// Update the selection state of the instances
 		Component->ClearInstanceSelection();
-
 		if (Info->SelectedIndices.Num())
 		{
 			for (int32 i : Info->SelectedIndices)
@@ -1692,7 +1733,6 @@ FFoliageInfo::FFoliageInfo()
 	, IFA(nullptr)
 	  // This will cover cases of running in editor or as editor with -game.  We do not want this during cooking.
 	, InstanceHash(GIsEditor || IsRunningGame() ? new FFoliageInstanceHash() : nullptr)
-	, bMovingInstances(false)
 #endif
 { }
 
@@ -2049,12 +2089,12 @@ void FFoliageInfo::MoveInstances(AInstancedFoliageActor* InToIFA, const TSet<int
 	}
 }
 
-void FFoliageInfo::RemoveInstances(const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree)
+void FFoliageInfo::RemoveInstances(TArrayView<const int32> InInstancesToRemove, bool RebuildFoliageTree)
 {
 	RemoveInstancesImpl(InInstancesToRemove, RebuildFoliageTree, [](FFoliageImpl* Impl, int32 Index) { Impl->RemoveInstance(Index); });
 }
 
-void FFoliageInfo::RemoveInstancesImpl(const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree, FFoliageInfo::FRemoveImplementationFunc ImplementationFunc)
+void FFoliageInfo::RemoveInstancesImpl(TArrayView<const int32> InInstancesToRemove, bool RebuildFoliageTree, FFoliageInfo::FRemoveImplementationFunc ImplementationFunc)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliageRemoveInstance);
 
@@ -2069,7 +2109,11 @@ void FFoliageInfo::RemoveInstancesImpl(const TArray<int32>& InInstancesToRemove,
 	Implementation->BeginUpdate();
 
 	TSet<int32> InstancesToRemove;
-	InstancesToRemove.Append(InInstancesToRemove);
+	InstancesToRemove.Reserve(InInstancesToRemove.Num());
+	for (int32 InstanceToRemove : InInstancesToRemove)
+	{
+		InstancesToRemove.Add(InstanceToRemove);
+	}
 
 	while (InstancesToRemove.Num() > 0)
 	{
@@ -2141,31 +2185,29 @@ void FFoliageInfo::RemoveInstancesImpl(const TArray<int32>& InInstancesToRemove,
 	CheckValid();
 }
 
-void FFoliageInfo::PreMoveInstances(const TArray<int32>& InInstancesToMove)
+void FFoliageInfo::PreMoveInstances(TArrayView<const int32> InInstancesMoved)
 {
-	bMovingInstances = true;
-
 	// Remove instances from the hash
-	for (TArray<int32>::TConstIterator It(InInstancesToMove); It; ++It)
+	for (int32 InstanceIndex : InInstancesMoved)
 	{
-		int32 InstanceIndex = *It;
+		checkf(!MovingInstances.Contains(InstanceIndex), TEXT("PreMoveInstances has already been called for index %d!"), InstanceIndex);
+		MovingInstances.Add(InstanceIndex);
+
 		const FFoliageInstance& Instance = Instances[InstanceIndex];
 		InstanceHash->RemoveInstance(Instance.Location, InstanceIndex);
 	}
 
-	Implementation->PreMoveInstances(InInstancesToMove);
+	Implementation->PreMoveInstances(InInstancesMoved);
 }
 
-
-void FFoliageInfo::PostUpdateInstances(const TArray<int32>& InInstancesUpdated, bool bReAddToHash, bool InUpdateSelection)
+void FFoliageInfo::PostUpdateInstances(TArrayView<const int32> InInstancesUpdated, bool bReAddToHash, bool InUpdateSelection)
 {
 	if (InInstancesUpdated.Num())
 	{
 		TSet<int32> UpdateSelectedIndices;
 		UpdateSelectedIndices.Reserve(InInstancesUpdated.Num());
-		for (TArray<int32>::TConstIterator It(InInstancesUpdated); It; ++It)
+		for (int32 InstanceIndex : InInstancesUpdated)
 		{
-			int32 InstanceIndex = *It;
 			const FFoliageInstance& Instance = Instances[InstanceIndex];
 
 			FTransform InstanceToWorld = Instance.GetInstanceWorldTransform();
@@ -2194,14 +2236,19 @@ void FFoliageInfo::PostUpdateInstances(const TArray<int32>& InInstancesUpdated, 
 	}
 }
 
-void FFoliageInfo::PostMoveInstances(const TArray<int32>& InInstancesMoved, bool bFinished)
+void FFoliageInfo::PostMoveInstances(TArrayView<const int32> InInstancesMoved, bool bFinished)
 {
-	PostUpdateInstances(InInstancesMoved, true, true);
+	PostUpdateInstances(InInstancesMoved, /*bReAddToHash*/true, /*UpdateSelection*/true);
 	Implementation->PostMoveInstances(InInstancesMoved, bFinished);
-	bMovingInstances = false;
+
+	for (int32 InstanceIndex : InInstancesMoved)
+	{
+		checkf(MovingInstances.Contains(InstanceIndex), TEXT("PostMoveInstances has already been called for index %d, or a call to PreMoveInstances is missing!"), InstanceIndex);
+		MovingInstances.Remove(InstanceIndex);
+	}
 }
 
-void FFoliageInfo::DuplicateInstances(UFoliageType* InSettings, const TArray<int32>& InInstancesToDuplicate)
+void FFoliageInfo::DuplicateInstances(UFoliageType* InSettings, TArrayView<const int32> InInstancesToDuplicate)
 {
 	Implementation->BeginUpdate();
 
@@ -2395,14 +2442,17 @@ FBox FFoliageInfo::GetSelectionBoundingBox() const
 	return Implementation->GetSelectionBoundingBox(SelectedIndices);
 }
 
-void FFoliageInfo::SelectInstances(bool bSelect, TArray<int32>& InInstances)
+void FFoliageInfo::SelectInstances(bool bSelect, TArrayView<const int32> InInstances)
 {
 	if (InInstances.Num())
 	{
 		TSet<int32> ModifiedSelection;
 		ModifiedSelection.Reserve(InInstances.Num());
 		check(Implementation->IsInitialized());
-		IFA->Modify(false);
+		if (IFA)
+		{
+			IFA->Modify(false);
+		}
 		if (bSelect)
 		{
 			SelectedIndices.Reserve(InInstances.Num());
@@ -2801,7 +2851,7 @@ void AInstancedFoliageActor::MoveInstancesForMovedOwnedActors(AActor* InActor)
 	for (auto& Pair : FoliageInfos)
 	{
 		// Source of movement is the Foliage
-		if (Pair.Value->bMovingInstances)
+		if (Pair.Value->MovingInstances.Num() > 0)
 		{
 			continue;
 		}
@@ -5101,6 +5151,283 @@ float AInstancedFoliageActor::InternalTakeRadialDamage(float Damage, struct FRad
 	// Radial damage scaling needs to be applied per instance so we don't do anything here
 	return Damage;
 }
+
+TScriptInterface<ISMInstanceManager> AInstancedFoliageActor::GetSMInstanceManager(const FSMInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	if (const FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId))
+	{
+		if (FoliageElementUtil::FoliageInstanceElementsEnabled())
+		{
+			// Allow foliage instance editing
+			return this;
+		}
+
+		// Disable foliage instance editing
+		return nullptr;
+	}
+	// GetFoliageInfoForSMInstance currently only returns StaticMesh foliage, but we need to disable editing for ISMActor foliage until it's a supported workflow
+	for (auto& Pair : FoliageInfos)
+	{
+		if (Pair.Value->Type == EFoliageImplType::ISMActor && Pair.Value->Implementation->IsOwnedComponent(InstanceId.ISMComponent))
+		{
+			return nullptr;
+		}
+	}
+#endif
+
+	// This component isn't managed by the foliage actor
+	return InstanceId.ISMComponent;
+}
+
+bool AInstancedFoliageActor::CanEditSMInstance(const FSMInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	const FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId);
+	check(FoliageInfo);
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool AInstancedFoliageActor::GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const
+{
+#if WITH_EDITOR
+	const FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId);
+	check(FoliageInfo);
+
+	const FFoliageInstance& FoliageInstance = FoliageInfo->Instances[InstanceId.InstanceIndex];
+	OutInstanceTransform = FoliageInstance.GetInstanceWorldTransform();
+	if (!bWorldSpace)
+	{
+		OutInstanceTransform = OutInstanceTransform.GetRelativeTransform(InstanceId.ISMComponent->GetComponentTransform());
+	}
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool AInstancedFoliageActor::SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+#if WITH_EDITOR
+	UFoliageType* FoliageType = nullptr;
+	FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId, &FoliageType);
+	check(FoliageInfo && FoliageType);
+
+	Modify();
+
+	const bool bNeedsLocalMove = !FoliageInfo->MovingInstances.Contains(InstanceId.InstanceIndex);
+	if (bNeedsLocalMove)
+	{
+		HandleSMInstancePreMove(InstanceId, *FoliageInfo);
+	}
+
+	FTransform WorldTransform = bWorldSpace ? InstanceTransform : InstanceTransform * InstanceId.ISMComponent->GetComponentTransform();
+	FFoliageInstance& FoliageInstance = FoliageInfo->Instances[InstanceId.InstanceIndex];
+	FoliageInstance.SetInstanceWorldTransform(WorldTransform);
+	FoliageInfo->SetInstanceWorldTransform(InstanceId.InstanceIndex, WorldTransform, bTeleport);
+
+	if (bNeedsLocalMove)
+	{
+		HandleSMInstancePostMove(InstanceId, *FoliageInfo, FoliageType);
+	}
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+void AInstancedFoliageActor::NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId);
+	check(FoliageInfo);
+
+	HandleSMInstancePreMove(InstanceId, *FoliageInfo);
+#endif
+}
+
+void AInstancedFoliageActor::NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId);
+	check(FoliageInfo);
+
+	FoliageInfo->PostMoveInstances(MakeArrayView(&InstanceId.InstanceIndex, 1), /*bFinished*/false);
+	FoliageInfo->PreMoveInstances(MakeArrayView(&InstanceId.InstanceIndex, 1));
+#endif
+}
+
+void AInstancedFoliageActor::NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	UFoliageType* FoliageType = nullptr;
+	FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId, &FoliageType);
+	check(FoliageInfo && FoliageType);
+
+	HandleSMInstancePostMove(InstanceId, *FoliageInfo, FoliageType);
+#endif
+}
+
+void AInstancedFoliageActor::NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected)
+{
+#if WITH_EDITOR
+	FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId);
+	check(FoliageInfo);
+
+	FoliageInfo->SelectInstances(bIsSelected, MakeArrayView(&InstanceId.InstanceIndex, 1));
+#endif
+}
+
+bool AInstancedFoliageActor::DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds)
+{
+#if WITH_EDITOR
+	TMap<FFoliageInfo*, TArray<int32>> FoliageInfoToIndices;
+	for (const FSMInstanceId& InstanceId : InstanceIds)
+	{
+		FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId);
+		check(FoliageInfo);
+
+		TArray<int32>& FoliageInstanceIndices = FoliageInfoToIndices.FindOrAdd(FoliageInfo);
+		FoliageInstanceIndices.Add(InstanceId.InstanceIndex);
+	}
+
+	for (const TPair<FFoliageInfo*, TArray<int32>>& FoliageInfoPair : FoliageInfoToIndices)
+	{
+		FFoliageInfo* FoliageInfo = FoliageInfoPair.Key;
+		const TArray<int32>& FoliageInstanceIndices = FoliageInfoPair.Value;
+
+		FoliageInfo->RemoveInstances(FoliageInstanceIndices, /*bRebuildFoliageTree*/true);
+	}
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool AInstancedFoliageActor::DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds)
+{
+#if WITH_EDITOR
+	struct FDuplicateFoliageInstanceData
+	{
+		UFoliageType* FoliageType = nullptr;
+		TArray<int32> InstanceIndices;
+	};
+
+	TMap<FFoliageInfo*, FDuplicateFoliageInstanceData> FoliageInfoToDuplicationData;
+	for (const FSMInstanceId& InstanceId : InstanceIds)
+	{
+		UFoliageType* FoliageType = nullptr;
+		FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId, &FoliageType);
+		check(FoliageInfo && FoliageType);
+
+		FDuplicateFoliageInstanceData& DuplicationData = FoliageInfoToDuplicationData.FindOrAdd(FoliageInfo);
+		DuplicationData.FoliageType = FoliageType;
+		DuplicationData.InstanceIndices.Add(InstanceId.InstanceIndex);
+	}
+
+	OutNewInstanceIds.Reset();
+	for (const TPair<FFoliageInfo*, FDuplicateFoliageInstanceData>& FoliageInfoPair : FoliageInfoToDuplicationData)
+	{
+		FFoliageInfo* FoliageInfo = FoliageInfoPair.Key;
+		const FDuplicateFoliageInstanceData& DuplicationData = FoliageInfoPair.Value;
+
+		const int32 PrevNumInstances = FoliageInfo->Instances.Num();
+		FoliageInfo->DuplicateInstances(DuplicationData.FoliageType, DuplicationData.InstanceIndices);
+		check(FoliageInfo->Instances.Num() == PrevNumInstances + DuplicationData.InstanceIndices.Num());
+
+		OutNewInstanceIds.Reserve(OutNewInstanceIds.Num() + DuplicationData.InstanceIndices.Num());
+		for (int32 InstanceIndex = PrevNumInstances; InstanceIndex < FoliageInfo->Instances.Num(); ++InstanceIndex)
+		{
+			OutNewInstanceIds.Add(FSMInstanceId{ FoliageInfo->GetComponent(), InstanceIndex });
+		}
+	}
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+#if WITH_EDITOR
+void AInstancedFoliageActor::HandleSMInstancePreMove(const FSMInstanceId& InstanceId, FFoliageInfo& FoliageInfo)
+{
+	FoliageInfo.PreMoveInstances(MakeArrayView(&InstanceId.InstanceIndex, 1));
+}
+
+void AInstancedFoliageActor::HandleSMInstancePostMove(const FSMInstanceId& InstanceId, FFoliageInfo& FoliageInfo, UFoliageType* FoliageType)
+{
+	FoliageInfo.PostMoveInstances(MakeArrayView(&InstanceId.InstanceIndex, 1), /*bFinished*/true);
+
+	// This instance may be been moved into a new world partition
+	// Verify, and re-instance any existing typed elements if required
+	{
+		const FFoliageInstance& FoliageInstance = FoliageInfo.Instances[InstanceId.InstanceIndex];
+		AInstancedFoliageActor* TargetIFA = AInstancedFoliageActor::Get(GetWorld(), /*bCreateIfNone*/true, GetLevel(), FoliageInstance.Location);
+		if (TargetIFA != this)
+		{
+			// Add the new instance first, as we need both instances available for the re-instance to work
+			// Note: TargetIFA can be null if the target is an unloaded cell, in which case we'll re-instance against a null handle and the existing instance will be removed
+			FSMInstanceId NewInstanceId;
+			if (TargetIFA)
+			{
+				TargetIFA->Modify();
+
+				FFoliageInfo* NewFoliageInfo = nullptr;
+				UFoliageType* NewFoliageType = TargetIFA->AddFoliageType(FoliageType, &NewFoliageInfo);
+
+				NewFoliageInfo->AddInstance(NewFoliageType, FoliageInstance, GetBaseComponentFromBaseId(FoliageInstance.BaseId));
+				NewFoliageInfo->Refresh(true, true);
+
+				NewInstanceId = FSMInstanceId{ NewFoliageInfo->GetComponent(), NewFoliageInfo->Instances.Num() - 1 };
+			}
+
+			// Re-instance this existing element to the new element
+			{
+				TMap<FSMInstanceId, FSMInstanceId> ReplacementSMInstanceIds;
+				ReplacementSMInstanceIds.Add(InstanceId, NewInstanceId);
+				UEngineElementsLibrary::ReplaceEditorSMInstanceElementHandles(ReplacementSMInstanceIds);
+			}
+
+			// Now remove the existing instance
+			FoliageInfo.RemoveInstances(MakeArrayView(&InstanceId.InstanceIndex, 1), /*bRebuildFoliageTree*/true);
+		}
+	}
+}
+
+FFoliageInfo* AInstancedFoliageActor::GetFoliageInfoForSMInstance(const FSMInstanceId& InstanceId, UFoliageType** OutFoliageType)
+{
+	for (auto& Pair : FoliageInfos)
+	{
+		// TODO: Support ISMActor foliage
+		// TOOD: Update GetSMInstanceManager when ISMActor is supported
+		if (Pair.Value->Type == EFoliageImplType::StaticMesh && Pair.Value->Implementation->IsOwnedComponent(InstanceId.ISMComponent))
+		{
+			if (OutFoliageType)
+			{
+				*OutFoliageType = Pair.Key;
+			}
+			return &Pair.Value.Get();
+		}
+	}
+
+	if (OutFoliageType)
+	{
+		*OutFoliageType = nullptr;
+	}
+	return nullptr;
+}
+
+const FFoliageInfo* AInstancedFoliageActor::GetFoliageInfoForSMInstance(const FSMInstanceId& InstanceId, UFoliageType** OutFoliageType) const
+{
+	return const_cast<AInstancedFoliageActor*>(this)->GetFoliageInfoForSMInstance(InstanceId, OutFoliageType);
+}
+#endif
 
 UFoliageInstancedStaticMeshComponent::UFoliageInstancedStaticMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
