@@ -5,6 +5,10 @@
 #include "SignallingServerConnection.h"
 #include "ProtocolDefs.h"
 
+#include "RHI.h"
+#include "HAL/Thread.h"
+
+
 class FVideoCapturer;
 class FPlayerSession;
 class FPixelStreamingVideoEncoderFactory;

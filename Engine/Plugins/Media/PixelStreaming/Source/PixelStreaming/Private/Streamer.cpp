@@ -8,6 +8,10 @@
 #include "PixelStreamerDelegates.h"
 #include "PixelStreamingEncoderFactory.h"
 #include "PixelStreamingSettings.h"
+#include "WebRTCLogging.h"
+
+#include "WebSocketsModule.h"
+
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
 

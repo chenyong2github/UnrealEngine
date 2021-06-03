@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Amf_Common.h"
+#include "HAL/Platform.h"
+
 #include "AVEncoder.h"
 
 #include "RHI.h"
