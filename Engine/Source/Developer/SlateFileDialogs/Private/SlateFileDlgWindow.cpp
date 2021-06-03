@@ -770,12 +770,23 @@ void SSlateFileOpenDlg::Construct(const FArguments& InArgs)
 							.MaxDesiredWidth(200.0f)
 							.Padding(FMargin(0.0f))
 							[
-								SAssignNew(FilterCombo, STextComboBox)
+								SAssignNew(FilterCombo, SComboBox<TSharedPtr<FString>>)
 								.ContentPadding(FMargin(4.0f, 2.0f))
-								//.MaxListHeight(100.0f)
 								.OptionsSource(&FilterNameArray)
-								.Font(StyleSet->GetFontStyle("SlateFileDialogs.Dialog"))
+								.OnGenerateWidget_Lambda([this](TSharedPtr<FString> Item)
+								{ 
+									return SNew(SBox)
+										.MaxDesiredWidth(600.0f)
+										[
+											SNew(STextBlock)
+											.Text(FText::FromString(*Item))
+											.Font(StyleSet->GetFontStyle("SlateFileDialogs.Dialog"))
+										];
+								} )	
 								.OnSelectionChanged(this, &SSlateFileOpenDlg::OnFilterChanged)
+								[
+									SAssignNew(FilterComboBoxTitleBlock, STextBlock)
+								]
 							]
 						]
 					]
@@ -1538,7 +1549,7 @@ void SSlateFileOpenDlg::ParseFilters()
 				}
 			}
 
-			FilterCombo->SetSelectedItem(FilterNameArray[FilterIndex]);
+			FilterComboBoxTitleBlock->SetText(FText::FromString(*FilterNameArray[FilterIndex]));
 		}
 		else
 		{
