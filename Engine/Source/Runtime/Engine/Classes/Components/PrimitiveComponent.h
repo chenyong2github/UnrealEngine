@@ -1634,6 +1634,10 @@ public:
 	/** Sets bRenderInMainPass property and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	void SetRenderInMainPass(bool bValue);
+	
+	/** Sets bRenderInDepthPass property and marks the render state dirty. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetRenderInDepthPass(bool bValue);
 
 	/** Sets bVisibleInSceneCaptureOnly property and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
