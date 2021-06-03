@@ -176,6 +176,8 @@ public:
 
 	void PrepareParallelFromBase(const FVulkanCommandListContext& BaseContext);
 
+	void ReleasePendingState();
+
 	void* Hotfix = nullptr;
 
 protected:

@@ -176,6 +176,15 @@ FVulkanCommandListContext::FVulkanCommandListContext(FVulkanDynamicRHI* InRHI, F
 	GlobalUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
 }
 
+void FVulkanCommandListContext::ReleasePendingState()
+{
+	delete PendingGfxState;
+	PendingGfxState = nullptr;
+	
+	delete PendingComputeState;
+	PendingComputeState = nullptr;
+}
+
 FVulkanCommandListContext::~FVulkanCommandListContext()
 {
 	if (FVulkanPlatform::SupportsTimestampRenderQueries())
