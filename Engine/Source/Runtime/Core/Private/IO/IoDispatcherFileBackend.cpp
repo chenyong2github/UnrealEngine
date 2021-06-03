@@ -16,6 +16,7 @@
 #include "Algo/IsSorted.h"
 #include "Algo/MinElement.h"
 #include "Templates/Greater.h"
+#include "Containers/Ticker.h"
 
 TRACE_DECLARE_INT_COUNTER(IoDispatcherLatencyCircuitBreaks, TEXT("IoDispatcher/LatencyCircuitBreaks"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherSeekDistanceCircuitBreaks, TEXT("IoDispatcher/SeekDistanceCircuitBreaks"));
@@ -1780,11 +1781,13 @@ void FFileIoStore::UpdateAsyncIOMinimumPriority()
 
 bool FFileIoStore::Init()
 {
+	FFileIoStats::Init();
 	return true;
 }
 
 void FFileIoStore::Stop()
 {
+	FFileIoStats::Shutdown();
 	bStopRequested = true;
 	EventQueue.ServiceNotify();
 }
@@ -1898,7 +1901,37 @@ uint64 FFileIoStats::LastOffset = 0;
 
 uint32 FFileIoStats::FileIoStoreThreadId = 0;
 uint32 FFileIoStats::IoDispatcherThreadId = 0;
+
+FDelegateHandle FFileIoStats::TickerHandle;
 #endif
+
+void FFileIoStats::Init()
+{
+#if CSV_PROFILER
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FFileIoStats::CsvTick));
+#endif
+}
+
+void FFileIoStats::Shutdown()
+{
+#if CSV_PROFILER
+	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+#endif
+}
+
+bool FFileIoStats::CsvTick(float DeltaTime)
+{
+#if CSV_PROFILER
+	CSV_CUSTOM_STAT_DEFINED(QueuedFilesystemReadMB, BytesToApproxMB(QueuedFilesystemReadBytes), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_DEFINED(QueuedFilesystemReads, (int32)QueuedFilesystemReads, ECsvCustomStatOp::Set);
+
+	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressBlocks, int32(QueuedUncompressBlocks), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressInMB, BytesToApproxMB(QueuedUncompressBytesIn), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressOutMB, BytesToApproxMB(QueuedUncompressBytesOut), ECsvCustomStatOp::Set);
+#endif
+
+	return true;
+}
 
 bool FFileIoStats::IsInIoDispatcherThread()
 {
@@ -1966,11 +1999,8 @@ void FFileIoStats::OnFilesystemReadsQueued(uint64 BytesToRead, int32 NumReads)
 	checkSlow(IsInIoDispatcherThread());
 
 #if CSV_PROFILER
-	uint64 LocalQueuedFilesystemReadBytes = QueuedFilesystemReadBytes += BytesToRead;
-	CSV_CUSTOM_STAT_DEFINED(QueuedFilesystemReadMB, BytesToApproxMB(LocalQueuedFilesystemReadBytes), ECsvCustomStatOp::SetAndHold);
-
-	uint64 LocalQueuedFilesystemReads = QueuedFilesystemReads += NumReads;
-	CSV_CUSTOM_STAT_DEFINED(QueuedFilesystemReads, (int32)LocalQueuedFilesystemReads, ECsvCustomStatOp::SetAndHold);
+	QueuedFilesystemReadBytes += BytesToRead;
+	QueuedFilesystemReads += NumReads;
 #endif
 
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendQueuedFilesystemReadBytes, BytesToRead);
@@ -2032,11 +2062,8 @@ void FFileIoStats::OnReadComplete(int64 BytesRead)
 #if IO_DISPATCHER_FILE_STATS
 	checkSlow(IsInIoDispatcherThread());
 #if CSV_PROFILER
-	uint64 LocalQueuedFilesystemReadBytes = QueuedFilesystemReadBytes -= BytesRead;
-	CSV_CUSTOM_STAT_DEFINED(QueuedFilesystemReadMB, BytesToApproxMB(LocalQueuedFilesystemReadBytes), ECsvCustomStatOp::SetAndHold);
-
-	uint64 LocalQueuedFilesystemReads = --QueuedFilesystemReads;
-	CSV_CUSTOM_STAT_DEFINED(QueuedFilesystemReads, (int32)LocalQueuedFilesystemReads, ECsvCustomStatOp::SetAndHold);
+	QueuedFilesystemReadBytes -= BytesRead;
+	--QueuedFilesystemReads;
 #endif
 
 	CSV_CUSTOM_STAT_DEFINED(FrameBytesReadKB, BytesToApproxKB(BytesRead), ECsvCustomStatOp::Accumulate);
@@ -2051,13 +2078,9 @@ void FFileIoStats::OnDecompressQueued(int64 CompressedBytes, int64 UncompressedB
 #if IO_DISPATCHER_FILE_STATS
 	checkSlow(IsInIoDispatcherThread());
 #if CSV_PROFILER
-	uint64 QueuedBlocks = ++QueuedUncompressBlocks;
-	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressBlocks, int32(QueuedBlocks), ECsvCustomStatOp::SetAndHold);
-
-	uint64 QueuedBytesIn = QueuedUncompressBytesIn += CompressedBytes;
-	uint64 QueuedBytesOut = QueuedUncompressBytesOut += UncompressedBytes;
-	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressInMB, BytesToApproxMB(QueuedBytesIn), ECsvCustomStatOp::SetAndHold);
-	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressOutMB, BytesToApproxMB(QueuedBytesOut), ECsvCustomStatOp::SetAndHold);
+	++QueuedUncompressBlocks;
+	QueuedUncompressBytesIn += CompressedBytes;
+	QueuedUncompressBytesOut += UncompressedBytes;
 #endif
 #endif
 }
@@ -2067,13 +2090,9 @@ void FFileIoStats::OnDecompressComplete(int64 CompressedBytes, int64 Uncompresse
 #if IO_DISPATCHER_FILE_STATS
 	checkSlow(IsInIoDispatcherThread());
 #if CSV_PROFILER
-	uint64 QueuedBlocks = --QueuedUncompressBlocks;
-	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressBlocks, int32(QueuedBlocks), ECsvCustomStatOp::SetAndHold);
-
-	uint64 QueuedBytesIn = QueuedUncompressBytesIn -= CompressedBytes;
-	uint64 QueuedBytesOut = QueuedUncompressBytesOut -= UncompressedBytes;
-	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressInMB, BytesToApproxMB(QueuedBytesIn), ECsvCustomStatOp::SetAndHold);
-	CSV_CUSTOM_STAT_DEFINED(QueuedUncompressOutMB, BytesToApproxMB(QueuedBytesOut), ECsvCustomStatOp::SetAndHold);
+	--QueuedUncompressBlocks;
+	QueuedUncompressBytesIn -= CompressedBytes;
+	QueuedUncompressBytesOut -= UncompressedBytes;
 #endif
 
 	CSV_CUSTOM_STAT_DEFINED(FrameBytesUncompressedInKB, BytesToApproxKB(CompressedBytes), ECsvCustomStatOp::Accumulate);

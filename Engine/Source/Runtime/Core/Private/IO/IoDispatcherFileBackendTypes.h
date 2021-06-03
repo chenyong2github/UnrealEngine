@@ -862,6 +862,8 @@ struct FFileIoStats
 
 	static uint32 FileIoStoreThreadId;
 	static uint32 IoDispatcherThreadId;
+
+	static FDelegateHandle TickerHandle;
 #endif
 
 	static float BytesToApproxMB(uint64 Bytes) {
@@ -870,6 +872,10 @@ struct FFileIoStats
 	static float BytesToApproxKB(uint64 Bytes) {
 		return float(double(Bytes) / 1024.0);
 	}
+
+	static void Init();
+	static void Shutdown();
+	static bool CsvTick(float DeltaTime);
 
 	static bool IsInIoDispatcherThread();
 	static bool IsInFileIoStoreThread();

@@ -16,6 +16,7 @@
 #include "Async/MappedFileHandle.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Containers/Ticker.h"
 #include "IO/IoDispatcherBackend.h"
 #include "IO/IoDispatcherFileBackendTypes.h"
 
@@ -153,11 +154,16 @@ public:
 			RequestAllocator.Trim();
 			BatchAllocator.Trim();
 		});
+#if CSV_PROFILER
+		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIoDispatcherImpl::TickCsv));
+#endif
 	}
 
 	~FIoDispatcherImpl()
 	{
-
+#if CSV_PROFILER
+		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+#endif
 		delete Thread;
 		FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
 	}
@@ -451,7 +457,6 @@ private:
 				--PendingIoRequestsCount;
 				TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
 			}
-			CSV_CUSTOM_STAT_DEFINED(PendingIoRequests, (int32)PendingIoRequestsCount, ECsvCustomStatOp::SetAndHold);
 		}
 	}
 
@@ -609,9 +614,7 @@ private:
 			}
 			
 			++PendingIoRequestsCount;
-			TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
-			CSV_CUSTOM_STAT_DEFINED(PendingIoRequests, (int32)PendingIoRequestsCount, ECsvCustomStatOp::SetAndHold);
-			
+			TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);	
 			ProcessCompletedRequests();
 		}
 	}
@@ -647,6 +650,14 @@ private:
 		DispatcherEvent->Trigger();
 	}
 
+#if CSV_PROFILER
+	bool TickCsv(float DeltaTime)
+	{
+		CSV_CUSTOM_STAT_DEFINED(PendingIoRequests, (int32)PendingIoRequestsCount, ECsvCustomStatOp::Set);
+		return true; // Keep ticking
+	}
+#endif
+
 	using FRequestAllocator = TBlockAllocator<FIoRequestImpl, 4096>;
 	using FBatchAllocator = TBlockAllocator<FIoBatchImpl, 4096>;
 
@@ -666,6 +677,9 @@ private:
 	FIoDispatcher::FIoContainerUnmountedEvent ContainerUnmountedEvent;
 	uint64 PendingIoRequestsCount = 0;
 	int64 TotalLoaded = 0;
+#if CSV_PROFILER
+	FDelegateHandle TickerHandle;
+#endif
 };
 
 FIoDispatcher::FIoDispatcher()
