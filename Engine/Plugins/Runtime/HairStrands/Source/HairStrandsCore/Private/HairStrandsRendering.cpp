@@ -89,11 +89,6 @@ inline uint32 ComputeGroupSize()
 	return GroupSize;
 }
 
-inline uint32 GetGroupSizePermutation(uint32 GroupSize)
-{
-	return GroupSize == 64 ? 0 : (GroupSize == 32 ? 1 : 2);
-}
-
 enum class EDeformationType : uint8
 {
 	Simulation,		// Use the output of the hair simulation
@@ -242,7 +237,7 @@ class FDeformGuideCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FDeformGuideCS);
 	SHADER_USE_PARAMETER_STRUCT(FDeformGuideCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
+	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FDeformationType : SHADER_PERMUTATION_INT("PERMUTATION_DEFORMATION", 4);
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDeformationType>;
 
@@ -371,7 +366,7 @@ static void AddDeformSimHairStrandsPass(
 	}
 
 	FDeformGuideCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FDeformGuideCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
+	PermutationVector.Set<FDeformGuideCS::FGroupSize>(GroupSize);
 	PermutationVector.Set<FDeformGuideCS::FDeformationType>(InternalDeformationType);
 
 	TShaderMapRef<FDeformGuideCS> ComputeShader(ShaderMap, PermutationVector);
@@ -880,7 +875,7 @@ class FHairCardsDeformationCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairCardsDeformationCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairCardsDeformationCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
+	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 2);
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDynamicGeometry>;
 
@@ -985,7 +980,7 @@ static void AddHairCardsDeformationPass(
 	const uint32 GroupSize = ComputeGroupSize();
 	FHairCardsDeformationCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairCardsDeformationCS::FDynamicGeometry>(bSupportDynamicMesh ? 1 : 0);
-	PermutationVector.Set<FHairCardsDeformationCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
+	PermutationVector.Set<FHairCardsDeformationCS::FGroupSize>(GroupSize);
 
 	TShaderMapRef<FHairCardsDeformationCS> ComputeShader(ShaderMap, PermutationVector);
 
@@ -1007,7 +1002,7 @@ class FHairTangentCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairTangentCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairTangentCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
+	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FCulling : SHADER_PERMUTATION_INT("PERMUTATION_CULLING", 2);
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCulling>;
 
@@ -1048,7 +1043,7 @@ void AddHairTangentPass(
 	Parameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
 
 	FHairTangentCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairTangentCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
+	PermutationVector.Set<FHairTangentCS::FGroupSize>(GroupSize);
 	PermutationVector.Set<FHairTangentCS::FCulling>(bCullingEnable ? 1 : 0);
 
 	TShaderMapRef<FHairTangentCS> ComputeShader(ShaderMap, PermutationVector);
@@ -1087,7 +1082,7 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairRaytracingGeometryCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairRaytracingGeometryCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
+	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FCulling : SHADER_PERMUTATION_INT("PERMUTATION_CULLING", 2);
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCulling>;
 
@@ -1151,7 +1146,7 @@ static void AddGenerateRaytracingGeometryPass(
 	}
 
 	FHairRaytracingGeometryCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairRaytracingGeometryCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
+	PermutationVector.Set<FHairRaytracingGeometryCS::FGroupSize>(GroupSize);
 	PermutationVector.Set<FHairRaytracingGeometryCS::FCulling>(bCullingEnable ? 1 : 0);
 
 	TShaderMapRef<FHairRaytracingGeometryCS> ComputeShader(ShaderMap, PermutationVector);

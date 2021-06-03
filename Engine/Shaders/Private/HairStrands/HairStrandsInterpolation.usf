@@ -555,11 +555,11 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if SHADER_CLUSTERAABB
 
 #if PERMUTATION_GROUP_SIZE == 64
-#define GROUP_SIZE 64
+	#define GROUP_SIZE 64
 #elif PERMUTATION_GROUP_SIZE == 32
-#define GROUP_SIZE 32
+	#define GROUP_SIZE 32
 #else
-#error Unknown group size	
+	#error Unknown group size	
 #endif
 
 float3 CPUBoundMin;

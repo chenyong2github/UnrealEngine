@@ -5,12 +5,14 @@
 #include "../Common.ush"
 #include "HairStrandsVisibilityCommon.ush" 
 
-#if PERMUTATION_GROUPSIZE == 0
-#define TILE_PIXEL_SIZE_X 8
-#define TILE_PIXEL_SIZE_Y 4
+#if PERMUTATION_GROUPSIZE ==32
+	#define TILE_PIXEL_SIZE_X 8
+	#define TILE_PIXEL_SIZE_Y 4
+#elif PERMUTATION_GROUPSIZE == 64
+	#define TILE_PIXEL_SIZE_X 8
+	#define TILE_PIXEL_SIZE_Y 8
 #else
-#define TILE_PIXEL_SIZE_X 8
-#define TILE_PIXEL_SIZE_Y 8
+	#error Unknown group size	
 #endif
 
 int2 OutputResolution;

@@ -12,15 +12,13 @@ Buffer<float4> SimDeformedOffsetBuffer;
 Buffer<uint4> SimRestPosePositionBuffer;
 RWBuffer<uint4> OutSimDeformedPositionBuffer;
 
-
-#if PERMUTATION_GROUP_SIZE == 0
-#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 1
-#define GROUP_SIZE 32
+#if PERMUTATION_GROUP_SIZE == 64
+	#define GROUP_SIZE 64
+#elif PERMUTATION_GROUP_SIZE == 32
+	#define GROUP_SIZE 32
 #else
-#error Unknown group size	
+	#error Unknown group size	
 #endif
-
 
 #define DEFORMATION_BYPASS 0
 #define DEFORMATION_OFFSET_GUIDE 1
