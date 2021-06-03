@@ -95,7 +95,7 @@ void FTexture2DArrayResource::CreateTexture()
 	}
 		
 	SliceMipDataViews.Empty();
-	InitialMipData.Release();
+	InitialMipData.Reset();
 }
 
 void FTexture2DArrayResource::CreatePartiallyResidentTexture()
