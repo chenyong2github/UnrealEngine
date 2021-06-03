@@ -1022,16 +1022,11 @@ void FRHIResource::FlushPendingDeletes(FRHICommandListImmediate& RHICmdList)
 
 		for (FRHIResource* Resource : DeletedResources)
 		{
-			check(Resource->MarkedForDelete.load(std::memory_order_relaxed) == 1);
-			if (Resource->NumRefs.load(std::memory_order_acquire) == 0) // caches can bring dead objects back to life
+			if (Resource->AtomicFlags.Deleteing())
 			{
 				FRHIResource::CurrentlyDeleting = Resource;
 				delete Resource;
 			}
-			else
-			{
-				verify(Resource->MarkedForDelete.exchange(0, std::memory_order_release) == 1);	
-			}	
 		}
 	});
 }
