@@ -2,6 +2,7 @@
 
 #include "TextureBuildFunction.h"
 
+#include "DerivedDataCache.h"
 #include "DerivedDataPayload.h"
 #include "Engine/TextureDefines.h"
 #include "IImageWrapper.h"
@@ -230,6 +231,11 @@ static void ReadTextureSourceFromCompactBinary(const FCbObject& Object, UE::Deri
 		MipSizeY = FMath::Max(MipSizeY / 2, 1);
 	}
 
+}
+
+void FTextureBuildFunction::Configure(UE::DerivedData::FBuildConfigContext& Context) const
+{
+	Context.SetCacheBucket(Context.CreateCacheBucket(TEXT("Texture")));
 }
 
 void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
