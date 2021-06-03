@@ -6,25 +6,45 @@
 
 #include "Common.ush"
 
-#ifndef USE_TRANSFORM
-	#define USE_TRANSFORM 1
-#endif
-
-#if USE_TRANSFORM
-	float4 StencilingGeometryPosAndScale;
-#endif
-
-void Main(
+void ShadowProjectionNoTransformVS(
 	in float4 InPosition : ATTRIBUTE0,
-	out float4 OutPosition : SV_POSITION
-	)
+	out float4 OutPosition : SV_POSITION)
 {
-	#if USE_TRANSFORM
-		// Transform geometry to clip space
-		float3 WorldPosition = InPosition.xyz * StencilingGeometryPosAndScale.w + StencilingGeometryPosAndScale.xyz;
-		OutPosition = mul(float4(WorldPosition,1),View.TranslatedWorldToClip);
-	#else
-		// Pass position straight through, as geometry is defined in clip space already.
-		OutPosition = float4(InPosition.xyz, 1);
-	#endif
+	OutPosition = float4(InPosition.xyz, 1);
+}
+
+
+float4 StencilingGeometryPosAndScale;
+float4x4 InvReceiverInnerMatrix;
+float4 PreShadowToPreViewTranslation;
+
+void ShadowVolumeBoundProjectionVS(
+	in float4 InPosition : ATTRIBUTE0,
+	out float4 OutPosition : SV_POSITION)
+{
+	float4 UnprojectedVertex = mul(float4(InPosition.xyz, 1), InvReceiverInnerMatrix);
+	float3 OutVertex = UnprojectedVertex.xyz / UnprojectedVertex.w + PreShadowToPreViewTranslation.xyz;
+
+	float3 WorldPosition = OutVertex.xyz * StencilingGeometryPosAndScale.w + StencilingGeometryPosAndScale.xyz;
+	OutPosition = mul(float4(WorldPosition, 1), View.TranslatedWorldToClip);
+}
+
+
+float4 ClipZValues;
+
+void WholeSceneDirectionalShadowStencilVS(
+	in float4 InPosition : ATTRIBUTE0,
+	in uint VertexID : SV_VertexID,
+	out float4 OutPosition : SV_POSITION)
+{
+	uint IndexInTriangle = VertexID % 3;
+	bool FirstTriangle = VertexID < 3;
+
+	OutPosition.x = IndexInTriangle == 1 ? 3.0f : -1.0f;
+	OutPosition.y = IndexInTriangle == 2 ? 3.0f : -1.0f;
+	OutPosition.z = FirstTriangle ? ClipZValues.x : ClipZValues.y;
+	OutPosition.w = 1.0f;
+
+	// Flip facing of second triangle
+	OutPosition.x = FirstTriangle ? OutPosition.x : -OutPosition.x;
 }

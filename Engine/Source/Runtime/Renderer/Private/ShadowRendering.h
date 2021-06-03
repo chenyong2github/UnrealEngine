@@ -852,88 +852,51 @@ private:
 	friend class FShadowProjectionPS;
 };
 
-/**
-* A generic vertex shader for projecting a shadow depth buffer onto the scene.
-*/
-class FShadowProjectionVertexShaderInterface : public FGlobalShader
+enum class EShadowProjectionVertexShaderFlags
 {
-	DECLARE_TYPE_LAYOUT(FShadowProjectionVertexShaderInterface, NonVirtual);
-public:
-	FShadowProjectionVertexShaderInterface() {}
-	FShadowProjectionVertexShaderInterface(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{ }
-
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo) {}
-
-	
-	
+	None,
+	DrawingFrustum  = 0x01
 };
+ENUM_CLASS_FLAGS(EShadowProjectionVertexShaderFlags)
 
 /**
 * A vertex shader for projecting a shadow depth buffer onto the scene.
 */
-class FShadowVolumeBoundProjectionVS : public FShadowProjectionVertexShaderInterface
+class FShadowVolumeBoundProjectionVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FShadowVolumeBoundProjectionVS,Global);
 public:
 
 	FShadowVolumeBoundProjectionVS() {}
 	FShadowVolumeBoundProjectionVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FShadowProjectionVertexShaderInterface(Initializer) 
+		: FGlobalShader(Initializer) 
 	{
-		StencilingGeometryParameters.Bind(Initializer.ParameterMap);
+		const FShaderParameterMap& ParameterMap = Initializer.ParameterMap;
+
+		StencilingGeometryParameters.Bind(ParameterMap);
+		InvReceiverInnerMatrix.Bind(ParameterMap, TEXT("InvReceiverInnerMatrix"));
+		PreShadowToPreViewTranslation.Bind(ParameterMap, TEXT("PreShadowToPreViewTranslation"));
 	}
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
-	
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FShadowProjectionVertexShaderInterface::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("USE_TRANSFORM"), (uint32)1);
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo);
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View,	const FProjectedShadowInfo* ShadowInfo, EShadowProjectionVertexShaderFlags Flags);
 
 private:
 	LAYOUT_FIELD(FStencilingGeometryShaderParameters, StencilingGeometryParameters);
+	LAYOUT_FIELD(FShaderParameter, InvReceiverInnerMatrix);
+	LAYOUT_FIELD(FShaderParameter, PreShadowToPreViewTranslation);
 };
 
-class FShadowProjectionNoTransformVS : public FShadowProjectionVertexShaderInterface
+class FShadowProjectionNoTransformVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FShadowProjectionNoTransformVS,Global);
 public:
 	FShadowProjectionNoTransformVS() {}
 	FShadowProjectionNoTransformVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FShadowProjectionVertexShaderInterface(Initializer) 
+		: FGlobalShader(Initializer) 
 	{
 	}
 
-	/**
-	 * Add any defines required by the shader
-	 * @param OutEnvironment - shader environment to modify
-	 */
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FShadowProjectionVertexShaderInterface::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("USE_TRANSFORM"), (uint32)0);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer)
-	{
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo*)
-	{
-	}
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo, EShadowProjectionVertexShaderFlags Flags) {}
 };
 
 /**
