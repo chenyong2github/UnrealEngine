@@ -970,64 +970,81 @@ FORCENOINLINE void TestVectorSwizzle()
 	// Unfortunately it can't be done in a loop because it uses a #define and compile-time constants for the VectorSwizzle() 'function'.
 	// Many of these were selected to also stress the specializations in certain implementations.
 
+	SwizzleTest(V0, 0, 1, 2, 3); // Identity
+
 	SwizzleTest(V0, 0, 0, 0, 0); // Replicate 0
 	SwizzleTest(V0, 1, 1, 1, 1); // Replicate 1
 	SwizzleTest(V0, 2, 2, 2, 2); // Replicate 2
 	SwizzleTest(V0, 3, 3, 3, 3); // Replicate 3
 
-	SwizzleTest(V0, 0, 1, 2, 3); // Identity
 	SwizzleTest(V0, 1, 2, 3, 0); // Rotate << 1
 	SwizzleTest(V0, 2, 3, 0, 1); // Rotate << 2
 	SwizzleTest(V0, 3, 0, 1, 2); // Rotate << 3
 	
-	SwizzleTest(V0, 0, 2, 0, 2);
+	// Lane swaps
+	SwizzleTest(V0, 0, 1, 2, 3); // lane 0, lane 1
+	SwizzleTest(V0, 2, 3, 0, 1); // lane 1, lane 0
+	SwizzleTest(V0, 0, 1, 0, 1); // lane 0, lane 0
+	SwizzleTest(V0, 2, 3, 2, 3); // lane 1, lane 1
 
-	SwizzleTest(V0, 1, 0, 1, 0);
-	SwizzleTest(V0, 1, 2, 0, 1);
+	// Lane swaps with two in-lane permutes
+	SwizzleTest(V0, 1, 0, 3, 2); // lane 0, lane 1
+	SwizzleTest(V0, 3, 2, 1, 0); // lane 1, lane 0
+	SwizzleTest(V0, 1, 0, 1, 0); // lane 0, lane 0
+	SwizzleTest(V0, 3, 2, 3, 2); // lane 1, lane 1
 
-	SwizzleTest(V0, 0, 3, 1, 2);
-	SwizzleTest(V0, 0, 3, 2, 1);
-	SwizzleTest(V0, 1, 0, 3, 2);
-	SwizzleTest(V0, 1, 0, 2, 3);
-	SwizzleTest(V0, 2, 1, 3, 1);
-	SwizzleTest(V0, 2, 1, 1, 3);
-	SwizzleTest(V0, 3, 2, 0, 1);
-	SwizzleTest(V0, 3, 2, 1, 0);
+	// Lane swaps with one in-lane permute (first lane)
+	SwizzleTest(V0, 1, 0, 2, 3); // lane 0, lane 1
+	SwizzleTest(V0, 3, 2, 0, 1); // lane 1, lane 0
+	SwizzleTest(V0, 1, 0, 0, 1); // lane 0, lane 0
+	SwizzleTest(V0, 3, 2, 2, 3); // lane 1, lane 1
 
-	SwizzleTest(V0, 3, 0, 3, 0);
-	SwizzleTest(V0, 0, 3, 0, 3);
+	// Lane swaps with one in-lane permute (second lane)
+	SwizzleTest(V0, 0, 1, 3, 2); // lane 0, lane 1
+	SwizzleTest(V0, 2, 3, 1, 0); // lane 1, lane 0
+	SwizzleTest(V0, 0, 1, 1, 0); // lane 0, lane 0
+	SwizzleTest(V0, 2, 3, 3, 2); // lane 1, lane 1
 
-	SwizzleTest(V0, 2, 2, 0, 1);
-	SwizzleTest(V0, 3, 3, 1, 0);
-	SwizzleTest(V0, 2, 2, 0, 2);
-	SwizzleTest(V0, 3, 3, 1, 3);
+	// Lane swaps with a cross-lane permute
+	SwizzleTest(V0, 0, 1, 0, 3); // lane 0, lane X
+	SwizzleTest(V0, 2, 3, 0, 3); // lane 1, lane X
+	SwizzleTest(V0, 0, 1, 2, 1); // lane 0, lane X
+	SwizzleTest(V0, 2, 3, 1, 2); // lane 1, lane X
 
-	// Common specializations
-	SwizzleTest(V0, 0, 1, 2, 2);
-	SwizzleTest(V0, 0, 1, 3, 3);
-	SwizzleTest(V0, 0, 1, 3, 2);
+	SwizzleTest(V0, 3, 0, 3, 2); // lane X, lane 1
+	SwizzleTest(V0, 2, 0, 1, 0); // lane X, lane 0
+	SwizzleTest(V0, 1, 2, 1, 0); // lane X, lane 0
+	SwizzleTest(V0, 2, 1, 3, 2); // lane X, lane 1
 
-	SwizzleTest(V0, 0, 0, 2, 3);
-	SwizzleTest(V0, 0, 0, 2, 2);
-	SwizzleTest(V0, 0, 0, 3, 3);
-	SwizzleTest(V0, 0, 0, 3, 2);
+	// In-lane permute with a cross-lane permute
+	SwizzleTest(V0, 1, 0, 3, 0); // lane 0, lane X
+	SwizzleTest(V0, 3, 2, 0, 3); // lane 1, lane X
+	SwizzleTest(V0, 1, 0, 2, 1); // lane 0, lane X
+	SwizzleTest(V0, 3, 2, 1, 2); // lane 1, lane X
 
-	SwizzleTest(V0, 1, 0, 2, 3);
-	SwizzleTest(V0, 1, 0, 2, 2);
-	SwizzleTest(V0, 1, 0, 3, 3);
-	SwizzleTest(V0, 1, 0, 3, 2);
+	SwizzleTest(V0, 3, 0, 3, 2); // lane X, lane 1
+	SwizzleTest(V0, 0, 3, 1, 0); // lane X, lane 0
+	SwizzleTest(V0, 1, 2, 1, 0); // lane X, lane 0
+	SwizzleTest(V0, 2, 1, 3, 2); // lane X, lane 1
 
-	SwizzleTest(V0, 1, 1, 2, 3);
-	SwizzleTest(V0, 1, 1, 2, 2);
-	SwizzleTest(V0, 1, 1, 3, 3);
-	SwizzleTest(V0, 1, 1, 3, 2);
+	// Two cross-lane permutes
+	SwizzleTest(V0, 3, 0, 0, 3); // lane X, lane X
+	SwizzleTest(V0, 1, 2, 2, 1); // lane X, lane X
+	SwizzleTest(V0, 3, 0, 2, 1); // lane X, lane X
+	SwizzleTest(V0, 1, 2, 0, 3); // lane X, lane X
+	SwizzleTest(V0, 0, 2, 0, 2); // lane X, lane X
+	SwizzleTest(V0, 2, 0, 0, 2); // lane X, lane X
 
-	SwizzleTest(V0, 0, 1, 0, 1);
-	SwizzleTest(V0, 2, 3, 2, 3);
+	// Common specializations or uses
 	SwizzleTest(V0, 0, 0, 1, 1);
-	SwizzleTest(V0, 2, 2, 3, 3);
 	SwizzleTest(V0, 0, 0, 2, 2);
+	SwizzleTest(V0, 0, 1, 2, 2);
+	SwizzleTest(V0, 0, 2, 2, 3);
 	SwizzleTest(V0, 1, 1, 3, 3);
+	SwizzleTest(V0, 1, 3, 1, 3);
+	SwizzleTest(V0, 1, 0, 3, 0);
+	SwizzleTest(V0, 2, 2, 3, 3);
+	SwizzleTest(V0, 2, 0, 3, 0);
 
 #undef SwizzleTest
 }
@@ -1049,37 +1066,82 @@ FORCENOINLINE void TestVectorShuffle()
 	// This is not an exhaustive list because it would be 4*4*4*4 = 256 entries, but it tries to test a lot of common permutations.
 	// Unfortunately it can't be done in a loop because it uses a #define and compile-time constants for the VectorShuffle() 'function'.
 	// Many of these were selected to also stress the specializations in certain implementations.
-	ShuffleTest(V0, V1, 0, 0, 0, 0);
-	ShuffleTest(V0, V1, 1, 1, 1, 1);
-	ShuffleTest(V0, V1, 2, 2, 2, 2);
-	ShuffleTest(V0, V1, 3, 3, 3, 3);
+	
+	ShuffleTest(V0, V1, 0, 1, 2, 3); // Identity
 
-	ShuffleTest(V0, V1, 0, 1, 2, 3);
-	ShuffleTest(V0, V1, 1, 2, 3, 0);
-	ShuffleTest(V0, V1, 2, 3, 0, 1);
-	ShuffleTest(V0, V1, 3, 0, 1, 2);
+	ShuffleTest(V0, V1, 0, 0, 0, 0); // Replicate 0
+	ShuffleTest(V0, V1, 1, 1, 1, 1); // Replicate 1
+	ShuffleTest(V0, V1, 2, 2, 2, 2); // Replicate 2
+	ShuffleTest(V0, V1, 3, 3, 3, 3); // Replicate 3
 
-	ShuffleTest(V0, V1, 3, 2, 1, 0);
+	ShuffleTest(V0, V1, 1, 2, 3, 0); // Rotate << 1
+	ShuffleTest(V0, V1, 2, 3, 0, 1); // Rotate << 2
+	ShuffleTest(V0, V1, 3, 0, 1, 2); // Rotate << 3
 
-	ShuffleTest(V0, V1, 0, 1, 0, 1);
-	ShuffleTest(V0, V1, 0, 2, 0, 2);
-	ShuffleTest(V0, V1, 0, 3, 0, 3);
+	// Lane swaps
+	ShuffleTest(V0, V1, 0, 1, 2, 3); // lane 0, lane 1
+	ShuffleTest(V0, V1, 2, 3, 0, 1); // lane 1, lane 0
+	ShuffleTest(V0, V1, 0, 1, 0, 1); // lane 0, lane 0
+	ShuffleTest(V0, V1, 2, 3, 2, 3); // lane 1, lane 1
 
-	ShuffleTest(V0, V1, 1, 0, 1, 0);
-	ShuffleTest(V0, V1, 2, 0, 2, 0);
-	ShuffleTest(V0, V1, 3, 0, 3, 0);
+	// Lane swaps with two in-lane permutes
+	ShuffleTest(V0, V1, 1, 0, 3, 2); // lane 0, lane 1
+	ShuffleTest(V0, V1, 3, 2, 1, 0); // lane 1, lane 0
+	ShuffleTest(V0, V1, 1, 0, 1, 0); // lane 0, lane 0
+	ShuffleTest(V0, V1, 3, 2, 3, 2); // lane 1, lane 1
 
+	// Lane swaps with one in-lane permute (first lane)
+	ShuffleTest(V0, V1, 1, 0, 2, 3); // lane 0, lane 1
+	ShuffleTest(V0, V1, 3, 2, 0, 1); // lane 1, lane 0
+	ShuffleTest(V0, V1, 1, 0, 0, 1); // lane 0, lane 0
+	ShuffleTest(V0, V1, 3, 2, 2, 3); // lane 1, lane 1
+
+	// Lane swaps with one in-lane permute (second lane)
+	ShuffleTest(V0, V1, 0, 1, 3, 2); // lane 0, lane 1
+	ShuffleTest(V0, V1, 2, 3, 1, 0); // lane 1, lane 0
+	ShuffleTest(V0, V1, 0, 1, 1, 0); // lane 0, lane 0
+	ShuffleTest(V0, V1, 2, 3, 3, 2); // lane 1, lane 1
+
+	// Lane swaps with a cross-lane permute
+	ShuffleTest(V0, V1, 0, 1, 0, 3); // lane 0, lane X
+	ShuffleTest(V0, V1, 2, 3, 0, 3); // lane 1, lane X
+	ShuffleTest(V0, V1, 0, 1, 2, 1); // lane 0, lane X
+	ShuffleTest(V0, V1, 2, 3, 1, 2); // lane 1, lane X
+
+	ShuffleTest(V0, V1, 3, 0, 3, 2); // lane X, lane 1
+	ShuffleTest(V0, V1, 2, 0, 1, 0); // lane X, lane 0
+	ShuffleTest(V0, V1, 1, 2, 1, 0); // lane X, lane 0
+	ShuffleTest(V0, V1, 2, 1, 3, 2); // lane X, lane 1
+
+	// In-lane permute with a cross-lane permute
+	ShuffleTest(V0, V1, 1, 0, 3, 0); // lane 0, lane X
+	ShuffleTest(V0, V1, 3, 2, 0, 3); // lane 1, lane X
+	ShuffleTest(V0, V1, 1, 0, 2, 1); // lane 0, lane X
+	ShuffleTest(V0, V1, 3, 2, 1, 2); // lane 1, lane X
+
+	ShuffleTest(V0, V1, 3, 0, 3, 2); // lane X, lane 1
+	ShuffleTest(V0, V1, 0, 3, 1, 0); // lane X, lane 0
+	ShuffleTest(V0, V1, 1, 2, 1, 0); // lane X, lane 0
+	ShuffleTest(V0, V1, 2, 1, 3, 2); // lane X, lane 1
+
+	// Two cross-lane permutes
+	ShuffleTest(V0, V1, 3, 0, 0, 3); // lane X, lane X
+	ShuffleTest(V0, V1, 1, 2, 2, 1); // lane X, lane X
+	ShuffleTest(V0, V1, 3, 0, 2, 1); // lane X, lane X
+	ShuffleTest(V0, V1, 1, 2, 0, 3); // lane X, lane X
+	ShuffleTest(V0, V1, 0, 2, 0, 2); // lane X, lane X
+	ShuffleTest(V0, V1, 2, 0, 0, 2); // lane X, lane X
+
+	// Common specializations or uses
 	ShuffleTest(V0, V1, 0, 0, 1, 1);
 	ShuffleTest(V0, V1, 0, 0, 2, 2);
+	ShuffleTest(V0, V1, 0, 1, 2, 2);
+	ShuffleTest(V0, V1, 0, 2, 2, 3);
 	ShuffleTest(V0, V1, 1, 1, 3, 3);
+	ShuffleTest(V0, V1, 1, 3, 1, 3);
+	ShuffleTest(V0, V1, 1, 0, 3, 0);
 	ShuffleTest(V0, V1, 2, 2, 3, 3);
-	ShuffleTest(V0, V1, 2, 3, 0, 1);
-	ShuffleTest(V0, V1, 2, 3, 2, 3);
-
-	ShuffleTest(V0, V1, 3, 1, 3, 0);
-	ShuffleTest(V0, V1, 2, 2, 0, 1);
-	ShuffleTest(V0, V1, 0, 1, 3, 2);
-	ShuffleTest(V0, V1, 1, 3, 0, 3);
+	ShuffleTest(V0, V1, 2, 0, 3, 0);
 
 #undef ShuffleTest
 }
