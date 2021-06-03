@@ -1167,6 +1167,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 		return true;
 	}
 
+	// changes to the layout of memory array should be reflected in GetContainerIndex()
 	FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr, DebugMemoryPtr }; 
 	if (Memory.Num() == 0)
 	{
@@ -1993,7 +1994,7 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FStrin
 void URigVM::ClearDebugMemory()
 {
 #if WITH_EDITOR
-	FRigVMMemoryContainer* DebugMemory = CachedMemory[(int32)ERigVMMemoryType::Debug];
+	FRigVMMemoryContainer* DebugMemory = CachedMemory[GetContainerIndex(ERigVMMemoryType::Debug)];
 	if (DebugMemory)
 	{ 
 		for (int32 RegisterIndex = 0; RegisterIndex < DebugMemory->Num(); RegisterIndex++)
@@ -2142,6 +2143,7 @@ void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigV
 		default:
 		{
 			// the default pass for any complex memory
+			// changes to the layout of memory array should be reflected in GetContainerIndex()
 			FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr, DebugMemoryPtr };
 			DebugMemoryPtr->Copy(InArg, InDebugOperand, LocalMemory[InArg.GetContainerIndex()]);
 			break;
@@ -2170,6 +2172,7 @@ TPair<ERigVMRegisterType, uint16> URigVM::GetCopyInfoForOperand(const FRigVMOper
 {
 	if(CachedMemory.IsEmpty())
 	{
+		// changes to the layout of memory array should be reflected in GetContainerIndex()
 		CachedMemory.Add(WorkMemoryPtr);
 		CachedMemory.Add(LiteralMemoryPtr);
 		CachedMemory.Add(DebugMemoryPtr);

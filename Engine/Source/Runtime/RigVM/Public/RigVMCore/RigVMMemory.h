@@ -23,6 +23,8 @@
 	#define UE_LOG_RIGVMMEMORY(Format, ...)
 #endif
 
+// The ERigVMMemoryType maps to memory container index in RigVM through
+// FRigVMOperand::GetContainerIndex() or URigVM::GetContainerIndex(...) 
 /**
  * The type of memory used. Typically we differentiate between
  * Work (Mutable) and Literal (Constant) memory.
@@ -30,10 +32,10 @@
 UENUM()
 enum class ERigVMMemoryType: uint8
 {
-	Work, // Mutable state
-	Literal, // Const / fixed state
-	Debug, // Owned memory used for debug watches
-	External, // Unowned external memory
+	Work = 0, // Mutable state
+	Literal = 1, // Const / fixed state
+	External = 2, // Unowned external memory
+	Debug = 3, // Owned memory used for debug watches
 	Invalid
 };
 
@@ -87,11 +89,17 @@ public:
 	FORCEINLINE_DEBUGGABLE ERigVMMemoryType GetMemoryType() const { return MemoryType; }
 
 	// returns the index of the container of this argument
+	// this function should be kept in sync with URigVM::GetContainerIndex()
 	FORCEINLINE_DEBUGGABLE int32 GetContainerIndex() const
 	{
 		if(MemoryType == ERigVMMemoryType::External)
 		{
-			return (int)ERigVMMemoryType::Work;
+			return (int32)ERigVMMemoryType::Work;
+		}
+		
+		if(MemoryType == ERigVMMemoryType::Debug)
+		{
+			return 2;
 		}
 		return (int32)MemoryType;
 	}
