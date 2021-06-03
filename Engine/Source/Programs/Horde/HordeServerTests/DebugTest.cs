@@ -47,15 +47,13 @@ namespace HordeServerTests
 	        Ss.DatabaseName = "Horde";
 	        Ss.DatabaseConnectionString = $"mongodb://{DebugSettings.DbUsername}:{DebugSettings.DbPassword}@{DebugSettings.DbHostname}:27017/?ssl=true&replicaSet=rs0";
 	        Ss.DatabaseReadOnlyMode = true;
-	        TestOptionsMonitor<ServerSettings> SsMonitor = new TestOptionsMonitor<ServerSettings>(Ss);
             
 	        ILoggerFactory LoggerFactory = new LoggerFactory();
 	        ConsoleLoggerOptions LoggerOptions = new ConsoleLoggerOptions();
 	        TestOptionsMonitor<ConsoleLoggerOptions> LoggerOptionsMon = new TestOptionsMonitor<ConsoleLoggerOptions>(LoggerOptions);
 	        LoggerFactory.AddProvider(new ConsoleLoggerProvider(LoggerOptionsMon));
-	        ILogger<DatabaseService> Logger = LoggerFactory.CreateLogger<DatabaseService>();
 
-	        DatabaseService DatabaseService = new DatabaseService(SsMonitor, Logger);
+	        DatabaseService DatabaseService = new DatabaseService(Options.Create(Ss), LoggerFactory);
 	        return DatabaseService;
         }
         

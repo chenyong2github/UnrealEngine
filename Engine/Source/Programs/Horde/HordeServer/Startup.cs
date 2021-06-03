@@ -242,8 +242,6 @@ namespace HordeServer
 
 		ServerSettings Settings { get; set; } = new ServerSettings();
 
-		private ConnectionMultiplexer? RedisConMux = null;
-
 		// This method gets called by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection Services)
 		{
@@ -261,21 +259,12 @@ namespace HordeServer
 				ThreadPool.SetMinThreads(Min, Min);
 			}
 
-			if (String.IsNullOrEmpty(Settings.RedisConnectionConfig))
-			{
-				// FIXME: Debug why [Required] annotation is not working in ServerSettings.
-				// This is just a crude fix to avoid a cryptic startup message.
-				throw new Exception("Redis not configured in settings!");
-			}
-			
-			// The Connect() is sync as AddSingleton() does not support async operations.
-			// This *should* be fine as this is only established once during startup (reconnects happen async)
-			RedisConMux = ConnectionMultiplexer.Connect(Settings.RedisConnectionConfig);
-			Services.AddSingleton<ConnectionMultiplexer>(RedisConMux);
-			Services.AddSingleton<IDatabase>(Sp => RedisConMux.GetDatabase());
-			Services.AddSingleton(new RedisConnectionPool(20, Settings.RedisConnectionConfig));
-			
-			Services.AddDataProtection().PersistKeysToStackExchangeRedis(RedisConMux, "aspnet-data-protection");
+#pragma warning disable CA2000 // Dispose objects before losing scope
+			RedisService RedisService = new RedisService(Settings);
+#pragma warning restore CA2000 // Dispose objects before losing scope
+			Services.AddSingleton<RedisService>(SP => RedisService);
+			Services.AddSingleton<ConnectionMultiplexer>(SP => RedisService.Multiplexer);
+			Services.AddDataProtection().PersistKeysToStackExchangeRedis(() => RedisService.Database, "aspnet-data-protection");
 
 			if (Settings.CorsEnabled)
 			{
@@ -599,14 +588,14 @@ namespace HordeServer
 		{
 			Services.AddSingleton<ILogBuilder>(Provider =>
 			{
-				RedisConnectionPool? RedisConnectionPool = Provider.GetService<RedisConnectionPool>();
-				if(RedisConnectionPool == null)
+				RedisService? RedisService = Provider.GetService<RedisService>();
+				if(RedisService == null)
 				{
 					return new LocalLogBuilder();
 				}
 				else
 				{
-					return new RedisLogBuilder(RedisConnectionPool, Provider.GetRequiredService<ILogger<RedisLogBuilder>>());
+					return new RedisLogBuilder(RedisService.ConnectionPool, Provider.GetRequiredService<ILogger<RedisLogBuilder>>());
 				}
 			});
 			Services.AddSingleton<ILogStorage>(Provider =>
