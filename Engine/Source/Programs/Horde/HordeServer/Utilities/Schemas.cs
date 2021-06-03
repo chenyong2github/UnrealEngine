@@ -274,7 +274,7 @@ namespace HordeServer.Utilities
 				Config.Refiners.Add(new CamelCaseRefiner());
 
 				Schema = new JsonSchemaBuilder()
-					.Schema(MetaSchemas.Draft7Id)
+					.Schema("http://json-schema.org/draft-04/schema#")
 					.Id(SchemaAttribute.Id)
 					.FromType(Type, Config)
 					.Build();
