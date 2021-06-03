@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NVENC_Common.h"
+#include "HAL/Platform.h"
+
 #include "CoreMinimal.h"
 #include "VideoEncoderCommon.h"
 #include "HAL/PlatformProcess.h"

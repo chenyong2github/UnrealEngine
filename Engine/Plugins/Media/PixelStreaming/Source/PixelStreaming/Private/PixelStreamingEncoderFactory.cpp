@@ -4,10 +4,9 @@
 #include "PlayerSession.h"
 #include "PixelStreamingVideoEncoder.h"
 #include "PixelStreamingSettings.h"
+#include "Utils.h"
 #include "absl/strings/match.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
-
-using namespace webrtc;
 
 FPixelStreamingVideoEncoderFactory::FPixelStreamingVideoEncoderFactory()
 {
@@ -23,19 +22,19 @@ void FPixelStreamingVideoEncoderFactory::AddSession(FPlayerSession& PlayerSessio
 	PendingPlayerSessions.Enqueue(&PlayerSession);
 }
 
-std::vector<SdpVideoFormat> FPixelStreamingVideoEncoderFactory::GetSupportedFormats() const
+std::vector<webrtc::SdpVideoFormat> FPixelStreamingVideoEncoderFactory::GetSupportedFormats() const
 {
 	const bool bForceVP8 = PixelStreamingSettings::IsForceVP8();
 
 	std::vector<webrtc::SdpVideoFormat> video_formats;
 	if (bForceVP8)
-		video_formats.push_back(SdpVideoFormat(cricket::kVp8CodecName));
+		video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
 	else
 		video_formats.push_back(CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
 	return video_formats;
 }
 
-FPixelStreamingVideoEncoderFactory::CodecInfo FPixelStreamingVideoEncoderFactory::QueryVideoEncoder(const SdpVideoFormat& format) const
+FPixelStreamingVideoEncoderFactory::CodecInfo FPixelStreamingVideoEncoderFactory::QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const
 {
 	CodecInfo codec_info = { false, false };
 	codec_info.is_hardware_accelerated = true;
@@ -43,10 +42,10 @@ FPixelStreamingVideoEncoderFactory::CodecInfo FPixelStreamingVideoEncoderFactory
 	return codec_info;
 }
 
-std::unique_ptr<VideoEncoder> FPixelStreamingVideoEncoderFactory::CreateVideoEncoder(const SdpVideoFormat& format)
+std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat& format)
 {
 	if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName))
-		return VP8Encoder::Create();
+		return webrtc::VP8Encoder::Create();
 	else
 	{
 		FPlayerSession* Session;
