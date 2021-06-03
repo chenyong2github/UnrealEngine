@@ -665,19 +665,22 @@ FScopedEvent::FScopedEvent()
 
 bool FScopedEvent::IsReady()
 {
-	if ( Event->Wait(1) )
+	if ( Event && Event->Wait(1) )
 	{
 		TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().ReturnRawEvent(Event);
 		Event = nullptr;
 		return true;
 	}
-	return false;
+	return Event == nullptr;
 }
 
 FScopedEvent::~FScopedEvent()
 {
-	Event->Wait();
-	TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().ReturnRawEvent(Event);
+	if(Event)
+	{
+		Event->Wait();
+		TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().ReturnRawEvent(Event);
+	}
 }
 
 
