@@ -22,9 +22,9 @@ Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
 Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
 #endif
 
-#if PERMUTATION_GROUP_SIZE == 0
+#if PERMUTATION_GROUP_SIZE == 64
 	#define GROUP_SIZE 64
-#elif PERMUTATION_GROUP_SIZE == 1
+#elif PERMUTATION_GROUP_SIZE == 32
 	#define GROUP_SIZE 32
 #else
 	#error Unknown group size	
