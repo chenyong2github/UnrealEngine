@@ -188,6 +188,23 @@ namespace HordeServer
 				return new X509Certificate2(FileReference.ReadAllBytes(FileReference.Combine(AppDir, HordeSettings.ServerPrivateCert)));
 			}
 		}
+
+		/// <summary>
+		/// Gets the default directory for storing application data
+		/// </summary>
+		/// <returns>The default data directory</returns>
+		public static DirectoryReference GetDefaultDataDir()
+		{
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				DirectoryReference? Dir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.CommonApplicationData);
+				if (Dir != null)
+				{
+					return DirectoryReference.Combine(Dir, "Horde");
+				}
+			}
+			return DirectoryReference.Combine(AppDir, "Data");
+		}
 	}
 }
 

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeServer.Services;
 using HordeServer.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using TimeZoneConverter;
 
@@ -100,14 +102,12 @@ namespace HordeServer
 		/// <summary>
 		/// MongoDB connection string
 		/// </summary>
-		[Required]
-		public string DatabaseConnectionString { get; set; } = null!;
+		public string? DatabaseConnectionString { get; set; }
 
 		/// <summary>
 		/// MongoDB database name
 		/// </summary>
-		[Required]
-		public string DatabaseName { get; set; } = null!;
+		public string DatabaseName { get; set; } = "Horde";
 
 		/// <summary>
 		/// The claim type for administrators
@@ -226,9 +226,24 @@ namespace HordeServer
 		public StorageProviderType ExternalStorageProviderType { get; set; } = StorageProviderType.FileSystem;
 
 		/// <summary>
-		/// local log file storage directory, if using type filesystem
+		/// Local log/artifact storage directory, if using type filesystem
 		/// </summary>
-		public string LocalStorageDir { get; set; } = "D:\\HordeLogs";
+		public string LocalLogsDir { get; set; } = "Logs";
+
+		/// <summary>
+		/// Gets the full path referred to by LocalStorageDir
+		/// </summary>
+		public DirectoryReference LocalLogsDirRef => DirectoryReference.Combine(Program.GetDefaultDataDir(), LocalLogsDir);
+
+		/// <summary>
+		/// Local artifact storage directory, if using type filesystem
+		/// </summary>
+		public string LocalArtifactsDir { get; set; } = "Artifacts";
+
+		/// <summary>
+		/// Gets the full path referred to by LocalStorageDir
+		/// </summary>
+		public DirectoryReference LocalArtifactsDirRef => DirectoryReference.Combine(Program.GetDefaultDataDir(), LocalArtifactsDir);
 
 		/// <summary>
 		/// S3 bucket region for logfile storage

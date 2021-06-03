@@ -27,7 +27,7 @@ namespace HordeServer.Storage.Impl
 		public FileSystemStorageBackend(IOptionsMonitor<ServerSettings> Settings)
 		{
 			ServerSettings CurrentSettings = Settings.CurrentValue;
-			BaseDir = new DirectoryReference(CurrentSettings.LocalStorageDir);
+			BaseDir = CurrentSettings.LocalLogsDirRef;
 			DirectoryReference.CreateDirectory(BaseDir);
 		}
 

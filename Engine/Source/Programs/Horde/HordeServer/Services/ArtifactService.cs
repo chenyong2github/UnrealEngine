@@ -72,7 +72,7 @@ namespace HordeServer.Services
 		public FSExternalArtifactStorage(ServerSettings CurrentSettings, ILogger<ArtifactService> Logger)
 		{
 			this.Logger = Logger;
-			this.BaseDir = new DirectoryInfo(CurrentSettings.LocalStorageDir);
+			this.BaseDir = new DirectoryInfo(CurrentSettings.LocalArtifactsDirRef.FullName);
 
 			Directory.CreateDirectory(this.BaseDir.FullName);
 		}
