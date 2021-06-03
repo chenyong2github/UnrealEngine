@@ -1385,7 +1385,12 @@ bool USubobjectDataSubsystem::MakeNewSceneRoot(const FSubobjectDataHandle& Conte
 			// If the thing we replaced was the default scene root, then just delete it
 			if(bWasDefaultSceneRoot)
 			{
-				DeleteSubobject(Context, OldSceneRoot, Blueprint);
+				// Destroy the old root component instance
+				UActorComponent* OldRootInstance = OldSceneRoot.GetData()->GetMutableComponentTemplate();
+				OldRootInstance->Modify();
+				OldRootInstance->DestroyComponent(!bWasDefaultSceneRoot);
+
+				// Set the new root component
 				AActor* ActorContext = Context.GetData()->GetMutableActorContext();
 				ActorContext->SetRootComponent(CastChecked<USceneComponent>(DroppedNewSceneRootData->GetMutableComponentTemplate()));
 			}
