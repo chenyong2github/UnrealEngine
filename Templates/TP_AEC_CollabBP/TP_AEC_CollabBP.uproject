@@ -74,10 +74,6 @@
 			]
 		},
 		{
-			"Name": "DatasmithRuntime",
-			"Enabled": true
-		},
-		{
 			"Name": "SteamVR",
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
@@ -85,6 +81,10 @@
 				"Win64",
 				"Linux"
 			]
+		},
+		{
+			"Name": "DatasmithRuntime",
+			"Enabled": true
 		},
 		{
 			"Name": "OpenXR",
@@ -100,6 +100,15 @@
 		{
 			"Name": "OculusVR",
 			"Enabled": false,
+			"SupportedTargetPlatforms": [
+				"Win32",
+				"Win64",
+				"Android"
+			]
+		},
+		{
+			"Name": "OculusOpenXR",
+			"Enabled": true,
 			"SupportedTargetPlatforms": [
 				"Win32",
 				"Win64",
