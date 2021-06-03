@@ -10,15 +10,160 @@
 #include "Utils/3DElement2String.h"
 #include "Utils/Element2String.h"
 
-#include "DatasmithUtils.h"
-#include "IDirectLinkUI.h"
-#include "IDatasmithExporterUIModule.h"
-
 #include "ModelMeshBody.hpp"
 #include "Light.hpp"
 #include "AttributeIndex.hpp"
 
+#undef TicksPerSecond
+
+DISABLE_SDK_WARNINGS_START
+
+#include "DatasmithUtils.h"
+#include "IDirectLinkUI.h"
+#include "IDatasmithExporterUIModule.h"
+#include "FileManager.h"
+#include "Paths.h"
+
+DISABLE_SDK_WARNINGS_END
+
 BEGIN_NAMESPACE_UE_AC
+
+FMeshCacheIndexor::FMeshCacheIndexor(const TCHAR* InIndexFilePath)
+	: IndexFilePath(InIndexFilePath)
+	, AccessCondition(AccessControl)
+{
+}
+
+FMeshCacheIndexor::~FMeshCacheIndexor()
+{
+	if (bChanged)
+	{
+		UE_AC_VerboseF("FMeshCacheIndexor::~FMeshCacheIndexor - Cache hasn't been saved \"%s\"\n",
+					   TCHAR_TO_UTF8(*IndexFilePath));
+	}
+}
+
+const FMeshDimensions* FMeshCacheIndexor::FindMesh(const TCHAR* InMeshName) const
+{
+	const FMeshDimensions* Dimensions = nullptr;
+
+	GS::Guard< GS::Lock >				 Lock(AccessControl);
+	const TUniquePtr< FMeshDimensions >* Found = Name2Dimensions.Find(InMeshName);
+	if (Found != nullptr)
+	{
+		Dimensions = Found->Get();
+	}
+	return Dimensions;
+};
+
+void FMeshCacheIndexor::AddMesh(const IDatasmithMeshElement& InMesh)
+{
+	GS::Guard< GS::Lock > Lock(AccessControl);
+	if (Name2Dimensions.Find(InMesh.GetName()) == nullptr)
+	{
+		Name2Dimensions.Add(InMesh.GetName(), MakeUnique< FMeshDimensions >(InMesh));
+		bChanged = true;
+	}
+}
+
+#define NoErrorCall(Err, Call) \
+	{                          \
+		if (Err == NoError)    \
+			Err = Call;        \
+	}
+
+void FMeshCacheIndexor::SaveToFile()
+{
+	GS::Guard< GS::Lock > Lock(AccessControl);
+	if (bChanged)
+	{
+		IO::File  Writer(IO::Location(UEToGSString(*IndexFilePath)), IO::File::Create);
+		GSErrCode GSErr = Writer.Open(IO::File::WriteMode);
+		NoErrorCall(GSErr, Writer.GetStatus());
+		if (GSErr == NoError)
+		{
+			int32 NbEntries = Name2Dimensions.Num();
+			UE_AC_VerboseF("FMeshCacheIndexor::SaveToFile - Save %d entries to \"%s\"\n", NbEntries,
+						   TCHAR_TO_UTF8(*IndexFilePath));
+			GSErr = Writer.Write(NbEntries);
+			for (const MapName2Dimensions::ElementType& ItName2Dimensions : Name2Dimensions)
+			{
+				utf8_string MeshName(TCHAR_TO_UTF8(*ItName2Dimensions.Key));
+				GS::USize	MeshNameSize = (GS::USize)MeshName.size();
+				NoErrorCall(GSErr, Writer.Write(MeshName.size()));
+				NoErrorCall(GSErr, Writer.WriteBin(MeshName.c_str(), MeshNameSize));
+				NoErrorCall(GSErr, Writer.Write(ItName2Dimensions.Value->Area));
+				NoErrorCall(GSErr, Writer.Write(ItName2Dimensions.Value->Depth));
+				NoErrorCall(GSErr, Writer.Write(ItName2Dimensions.Value->Height));
+				NoErrorCall(GSErr, Writer.Write(ItName2Dimensions.Value->Width));
+				int32 Mark = 0x600DF00D;
+				NoErrorCall(GSErr, Writer.Write(Mark));
+			}
+		}
+		if (GSErr == NoError)
+		{
+			bChanged = false;
+		}
+		else
+		{
+			UE_AC_DebugF("FMeshCacheIndexor::SaveToFile - \"%s\" Error %s\n", TCHAR_TO_UTF8(*IndexFilePath),
+						 GetErrorName(GSErr));
+		}
+	}
+}
+
+void FMeshCacheIndexor::ReadFromFile()
+{
+	GS::Guard< GS::Lock > Lock(AccessControl);
+	bChanged = false;
+	IO::File  Reader(IO::Location(UEToGSString(*IndexFilePath)), IO::File::Fail);
+	GSErrCode GSErr = Reader.Open(IO::File::ReadMode);
+	NoErrorCall(GSErr, Reader.GetStatus());
+	int32 NbEntries = 0;
+	NoErrorCall(GSErr, Reader.Read(NbEntries));
+	if (GSErr == NoError)
+	{
+		UE_AC_VerboseF("FMeshCacheIndexor::ReadFromFile - Read %d entries from \"%s\"\n", NbEntries,
+					   TCHAR_TO_UTF8(*IndexFilePath));
+		for (int32 Index = 0; Index < NbEntries && GSErr == NoError; ++Index)
+		{
+			utf8_string MeshName;
+			GS::USize	MeshNameSize = 0;
+			NoErrorCall(GSErr, Reader.Read(MeshNameSize));
+			if (GSErr == NoError)
+			{
+				MeshName.resize(MeshNameSize);
+				NoErrorCall(GSErr, Reader.ReadBin(const_cast< char* >(MeshName.c_str()), MeshNameSize));
+			}
+			NoErrorCall(GSErr, strlen(MeshName.c_str()) == MeshNameSize ? NoError : ErrIO);
+
+			TUniquePtr< FMeshDimensions > Dimensions = MakeUnique< FMeshDimensions >();
+			NoErrorCall(GSErr, Reader.Read(Dimensions->Area));
+			NoErrorCall(GSErr, Reader.Read(Dimensions->Depth));
+			NoErrorCall(GSErr, Reader.Read(Dimensions->Height));
+			NoErrorCall(GSErr, Reader.Read(Dimensions->Width));
+			int32 Mark = 0;
+			NoErrorCall(GSErr, Reader.Read(Mark));
+			NoErrorCall(GSErr, Mark == 0x600DF00D ? NoError : ErrIO);
+
+			if (GSErr == NoError)
+			{
+				Name2Dimensions.Add(UTF8_TO_TCHAR(MeshName.c_str()), std::move(Dimensions));
+			}
+		}
+	}
+	if (GSErr == NoError)
+	{
+		bChanged = false;
+	}
+	else
+	{
+		// On any errors, we reset our index, will be automatically rebuild.
+		Name2Dimensions.Empty();
+		UE_AC_DebugF("FMeshCacheIndexor::ReadFromFile - \"%s\" Error %s\n", TCHAR_TO_UTF8(*IndexFilePath),
+					 GetErrorName(GSErr));
+	}
+}
 
 #if defined(DEBUG) && 0
 	#define UE_AC_DO_TRACE 1
@@ -33,8 +178,10 @@ FSyncDatabase::FSyncDatabase(const TCHAR* InSceneName, const TCHAR* InSceneLabel
 	, AssetsFolderPath(InAssetsPath)
 	, MaterialsDatabase(new FMaterialsDatabase())
 	, TexturesCache(new FTexturesCache(InAssetsCache))
+	, MeshIndexor(*FPaths::Combine(InAssetsPath, TEXT("Meshes.CacheIndex")))
 {
 	Scene->SetLabel(InSceneLabel);
+	MeshIndexor.ReadFromFile();
 }
 
 // Destructor
@@ -230,6 +377,17 @@ bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
 	return true;
 }
 
+FInstance* FSyncDatabase::GetInstance(GS::ULong InHash) const
+{
+	const TUniquePtr< FInstance >* Ptr = Instances.GetPtr(InHash);
+	return Ptr == nullptr ? nullptr : Ptr->Get();
+}
+
+void FSyncDatabase::AddInstance(GS::ULong InHash, TUniquePtr< FInstance >&& InInstance)
+{
+	Instances.Add(InHash, std::move(InInstance));
+}
+
 // Return the libpart from it's index
 FLibPartInfo* FSyncDatabase::GetLibPartInfo(GS::Int32 InIndex)
 {
@@ -260,8 +418,7 @@ FLibPartInfo* FSyncDatabase::GetLibPartInfo(const char* InUnID)
 	FLibPartInfo** LibPartInfoPtr = UnIdToLibPart.Find(UnID);
 	if (LibPartInfoPtr == nullptr)
 	{
-		API_LibPart LibPart;
-		Zap(&LibPart);
+		FAuto_API_LibPart LibPart;
 		strncpy(LibPart.ownUnID, InUnID, sizeof(LibPart.ownUnID));
 		GSErrCode err = ACAPI_LibPart_Search(&LibPart, false);
 		if (err != NoError)
@@ -311,11 +468,52 @@ void FSyncDatabase::SetSceneInfo()
 	TheScene.SetProductVersion(UTF8_TO_TCHAR(UE_AC_STRINGIZE(AC_VERSION)));
 }
 
+void FSyncDatabase::ResetInstances()
+{
+	for (auto& IterInstance : Instances)
+	{
+		FInstance& Instance = **IterInstance.value;
+		Instance.InstancesCount = 0;
+		Instance.TransformCount = 0;
+	}
+}
+
+void FSyncDatabase::ReportInstances() const
+{
+#if defined(DEBUG) && 1
+	for (const auto& IterInstance : Instances)
+	{
+		const FInstance& Instance = **IterInstance.value;
+		if (Instance.InstancesCount > 1)
+		{
+			if (Instance.InstancesCount != Instance.TransformCount)
+			{
+				UE_AC_TraceF("FSynchronizer::ScanElements - %u instances of %s for hash %u, TransfoCount=%u\n",
+							 Instance.InstancesCount, FElementID::GetTypeName(Instance.ElementType), Instance.Hash,
+							 Instance.TransformCount);
+			}
+			else
+			{
+				UE_AC_VerboseF("FSynchronizer::ScanElements - %u instances of %s for hash %u\n",
+							   Instance.InstancesCount, FElementID::GetTypeName(Instance.ElementType), Instance.Hash);
+			}
+		}
+		else if (Instance.InstancesCount == 1 && Instance.TransformCount == 1)
+		{
+			UE_AC_VerboseF("FSynchronizer::ScanElements - %s for hash %u has transform\n",
+						   FElementID::GetTypeName(Instance.ElementType), Instance.Hash);
+		}
+	}
+#endif
+}
+
 // Scan all elements, to determine if they need to be synchronized
 UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 {
 	// We create this objects here to not construct/destroy at each iteration
 	FElementID ElementID(InSyncContext);
+
+	ResetInstances();
 
 	// Loop on all 3D elements
 	UInt32	  ModifiedCount = 0;
@@ -381,6 +579,8 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 
 		UE_AC_STAT(InSyncContext.Stats.TotalElementsWithGeometry++);
 
+		ElementID.GetInstance(); // Not needed here, now it's just for statistics
+
 		// Get sync data for this element (Create or reuse already existing)
 		FSyncData*& SyncData = GetSyncData(APIGuid2GSGuid(ElementID.GetHeader().guid));
 		if (SyncData == nullptr)
@@ -405,6 +605,8 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 
 	InSyncContext.NewCurrentValue(NbElements);
 
+	ReportInstances();
+
 	return ModifiedCount;
 }
 
@@ -415,7 +617,7 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 #endif
 
 // Scan all lights of this element
-void FSyncDatabase::ScanLights(const FElementID& InElementID)
+void FSyncDatabase::ScanLights(FElementID& InElementID)
 {
 	GS::Int32 LightsCount = InElementID.GetElement3D().GetLightCount();
 	if (LightsCount > 0)
@@ -426,39 +628,18 @@ void FSyncDatabase::ScanLights(const FElementID& InElementID)
 		UE_AC_TraceF("%s", FElement2String::GetParametersAsString(Header.guid).c_str());
 		UE_AC_TraceF("%s", F3DElement2String::ElementLight2String(InElementID.Element3D).c_str());
 #endif
-		double		  Intensity = 1.0;
-		bool		  bUseIES = false;
-		GS::UniString IESFileName;
-		FAutoMemo	  AutoMemo(Header.guid, APIMemoMask_AddPars);
-		if (AutoMemo.GSErr == NoError)
-		{
-			if (AutoMemo.Memo.params) // Can be null
-			{
-				double value;
-				if (GetParameter(AutoMemo.Memo.params, "gs_light_intensity", &value))
-				{
-					Intensity = value / 100.0;
-				}
-				if (GetParameter(AutoMemo.Memo.params, "c4dPhoPhotometric", &value))
-				{
-					bUseIES = value != 0;
-				}
-				GetParameter(AutoMemo.Memo.params, "c4dPhoIESFile", &IESFileName);
-			}
-		}
-		else
-		{
-			UE_AC_DebugF("FSyncDatabase::ScanLights - Error=%d when getting element memo\n", AutoMemo.GSErr);
-		}
+		FSyncData::FLight::FLightGDLParameters LightGDLParameters(Header.guid);
 
 		ModelerAPI::Light Light;
 
 		for (GS::Int32 LightIndex = 1; LightIndex <= LightsCount; ++LightIndex)
 		{
 			InElementID.GetElement3D().GetLight(LightIndex, &Light);
-			ModelerAPI::Light::Type LightType = Light.GetType();
-			if (LightType == ModelerAPI::Light::DirectionLight || LightType == ModelerAPI::Light::SpotLight ||
-				LightType == ModelerAPI::Light::PointLight)
+			FSyncData::FLight::FLightData LightData(Light);
+
+			if (LightData.LightType == ModelerAPI::Light::DirectionLight ||
+				LightData.LightType == ModelerAPI::Light::SpotLight ||
+				LightData.LightType == ModelerAPI::Light::PointLight)
 			{
 				API_Guid	LightId = CombineGuid(Header.guid, GuidFromMD5(LightIndex));
 				FSyncData*& SyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(LightId));
@@ -471,14 +652,18 @@ void FSyncDatabase::ScanLights(const FElementID& InElementID)
 				FSyncData::FLight& LightSyncData = static_cast< FSyncData::FLight& >(*SyncData);
 				LightSyncData.MarkAsExisting();
 
-				const float	 InnerConeAngle = float(Light.GetFalloffAngle1() * 180.0f / PI);
-				const float	 OuterConeAngle = float(Light.GetFalloffAngle2() * 180.0f / PI);
-				FLinearColor LightColor = ACRGBColorToUELinearColor(Light.GetColor());
-
-				LightSyncData.SetValues(LightType, InnerConeAngle, OuterConeAngle, LightColor);
-				LightSyncData.SetValuesFromParameters(Intensity, bUseIES, IESFileName);
-				LightSyncData.Placement(FGeometryUtil::GetTranslationVector(Light.GetPosition()),
-										FGeometryUtil::GetRotationQuat(Light.GetDirection()));
+				LightSyncData.SetLightData(LightData);
+				LightSyncData.SetValuesFromParameters(LightGDLParameters);
+			}
+			else
+			{
+				static std::set< ModelerAPI::Light::Type > SignaledTypes;
+				if (SignaledTypes.find(LightData.LightType) == SignaledTypes.end())
+				{
+					SignaledTypes.insert(LightData.LightType);
+					UE_AC_DebugF("FSyncDatabase::ScanLights - Unhandled LightType=%d, %s", LightData.LightType,
+								 InElementID.GetElementName());
+				}
 			}
 		}
 	}

@@ -48,6 +48,7 @@
 #define kDlgAboutOf 340
 #define kDlgPalette 341
 #define kDlgReport 342
+#define kDlgConnections 343
 
 #if AUTO_SYNC
 	#define X3 62

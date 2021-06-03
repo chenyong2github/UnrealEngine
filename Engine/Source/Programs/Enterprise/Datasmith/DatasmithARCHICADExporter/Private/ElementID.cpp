@@ -2,6 +2,9 @@
 
 #include "ElementID.h"
 
+#include "GSProcessControl.hpp"
+#include "Transformation.hpp"
+
 #include <stdexcept>
 
 BEGIN_NAMESPACE_UE_AC
@@ -71,6 +74,7 @@ FElementID::FElementID(const FSyncContext& InSyncContext)
 	: SyncContext(InSyncContext)
 	, Index3D(0)
 	, SyncData(nullptr)
+	, Instance(nullptr)
 	, LibPartInfo(nullptr)
 	, bFullElementFetched(false)
 	, bLibPartInfoFetched(false)
@@ -84,8 +88,10 @@ void FElementID::InitElement(GS::Int32 InIndex3d)
 	SyncContext.GetModel().GetElement(Index3D, &Element3D);
 	APIElement.header.guid = APINULLGuid;
 	bFullElementFetched = false;
+	Instance = nullptr;
 	LibPartInfo = nullptr;
 	bLibPartInfoFetched = false;
+	ElementName.clear();
 }
 
 // Initialize with sync data
@@ -99,6 +105,7 @@ void FElementID::InitElement(FSyncData* IOSyncdata)
 		SyncContext.GetModel().GetElement(Index3D, &Element3D);
 	}
 	bFullElementFetched = false;
+	Instance = nullptr;
 	LibPartInfo = nullptr;
 	bLibPartInfoFetched = false;
 }
@@ -144,6 +151,52 @@ const API_Element& FElementID::GetAPIElement()
 	return APIElement;
 }
 
+FInstance* FElementID::GetInstance()
+{
+	if (Instance == nullptr && Index3D != 0)
+	{
+		ModelerAPI::BaseElemId			   BaseElemId;
+		GS::NonInterruptibleProcessControl processControl;
+		Element3D.GetBaseElemId(&BaseElemId, processControl, ModelerAPI::Element::EdgeColorInBaseElemId::NotIncluded,
+								ModelerAPI::Element::PolygonAndFaceTextureMappingInBaseElemId::NotIncluded,
+								ModelerAPI::Element::BodyTextureMappingInBaseElemId::NotIncluded,
+								ModelerAPI::Element::EliminationInfoInBaseElemId::NotIncluded);
+#if AC_VERSION < 24
+		GS::HashValue OldHashValue = BaseElemId;
+		GS::ULong	  HashValue = OldHashValue.hashValue;
+#else
+		GS::ULong HashValue = BaseElemId.GenerateHashValue();
+#endif
+		Instance = SyncContext.GetSyncDatabase().GetInstance(HashValue);
+		bool bTransformed = (Element3D.GetElemLocalToWorldTransformation().status & TR_IDENT) != 0;
+		if (Instance == nullptr)
+		{
+			TUniquePtr< FInstance > NewInstance = MakeUnique< FInstance >();
+			Instance = NewInstance.Get();
+			Instance->Hash = HashValue;
+			Instance->InstancesCount = 1;
+			Instance->ElementType = Element3D.GetType();
+			Instance->TransformCount = bTransformed ? 0 : 1;
+			SyncContext.GetSyncDatabase().AddInstance(HashValue, std::move(NewInstance));
+			UE_AC_VerboseF("FSynchronizer::ScanElements - First instance %u {%s}\n", Instance->Hash,
+						   APIGuidToString(ElementGuid).ToUtf8());
+		}
+		else
+		{
+			if (Instance->ElementType != Element3D.GetType())
+			{
+				UE_AC_DebugF("FSynchronizer::ScanElements - Instance Hash %u colision Type %s != %s\n", Instance->Hash,
+							 GetTypeName(Instance->ElementType), GetTypeName());
+			}
+			++Instance->InstancesCount;
+			Instance->TransformCount += bTransformed ? 0 : 1;
+			UE_AC_VerboseF("FSynchronizer::ScanElements - Reuse instance %u {%s}\n", Instance->Hash,
+						   APIGuidToString(ElementGuid).ToUtf8());
+		}
+	}
+	return Instance;
+}
+
 // If this element is related to a lib part ?
 const FLibPartInfo* FElementID::GetLibPartInfo()
 {
@@ -165,6 +218,27 @@ const FLibPartInfo* FElementID::GetLibPartInfo()
 	}
 
 	return LibPartInfo;
+}
+
+// Get the name of the element (For debugging trace)
+const utf8_t* FElementID::GetElementName()
+{
+	if (ElementName.size() == 0)
+	{
+		GS::UniString InfoStringID;
+		GSErrCode GSErr = ACAPI_Database(APIDb_GetElementInfoStringID, (void*)&APIElement.header.guid, &InfoStringID);
+		if (GSErr == NoError)
+		{
+			ElementName = Utf8StringFormat("{%s}:\"%s\"", APIGuidToString(APIElement.header.guid).ToUtf8(),
+										   InfoStringID.ToUtf8());
+		}
+		else
+		{
+			ElementName = Utf8StringFormat("{%s}:Error=%s", APIGuidToString(APIElement.header.guid).ToUtf8(),
+										   GetErrorName(GSErr));
+		}
+	}
+	return ElementName.c_str();
 }
 
 void FElementID::CollectDependantElementsType(API_ElemTypeID TypeID) const

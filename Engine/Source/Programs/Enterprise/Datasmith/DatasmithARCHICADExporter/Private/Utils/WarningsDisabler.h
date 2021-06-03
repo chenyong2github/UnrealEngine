@@ -26,15 +26,20 @@
 
 #else
 
-#define DISABLE_SDK_WARNINGS_START \
+#define DISABLE_SDK_WARNINGS_START_OLD \
     _Pragma( "clang diagnostic push" ) \
     _Pragma( "clang diagnostic ignored \"-Wdeprecated-declarations\"" ) \
     _Pragma( "clang diagnostic ignored \"-Wunused-parameter\"" ) \
     _Pragma( "clang diagnostic ignored \"-Wdocumentation\"" ) \
 	_Pragma( "clang diagnostic ignored \"-Wshorten-64-to-32\"" ) \
 	_Pragma( "clang diagnostic ignored \"-Wdefaulted-function-deleted\"" ) \
-	_Pragma( "clang diagnostic ignored \"-Wcomma\"" ) \
-	_Pragma( "clang diagnostic ignored \"-Wnon-c-typedef-for-linkage\"" )
+	_Pragma( "clang diagnostic ignored \"-Wcomma\"" )
+
+#if (__clang_major__ > 12) || (__clang_major__ == 12 && __clang_minor__ == 0 && __clang_patchlevel__ > 4)
+	#define DISABLE_SDK_WARNINGS_START DISABLE_SDK_WARNINGS_START_OLD _Pragma( "clang diagnostic ignored \"-Wnon-c-typedef-for-linkage\"" )
+#else
+	#define DISABLE_SDK_WARNINGS_START DISABLE_SDK_WARNINGS_START_OLD
+#endif
 
 #define DISABLE_SDK_WARNINGS_END \
     _Pragma( "clang diagnostic pop" )

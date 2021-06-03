@@ -12,6 +12,16 @@
 
 BEGIN_NAMESPACE_UE_AC
 
+class FInstance
+{
+  public:
+	GS::ULong				  Hash;
+	GS::UniString			  MeshName;
+	GS::UInt32				  InstancesCount;
+	ModelerAPI::Element::Type ElementType;
+	GS::UInt32				  TransformCount;
+};
+
 // Class that contain element id and related
 class FElementID
 {
@@ -73,11 +83,15 @@ class FElementID
 	// Return the complete element
 	const API_Element& GetAPIElement();
 
+	FInstance* GetInstance();
+
 	// Return the lib part info if this element come from it
 	const FLibPartInfo* GetLibPartInfo();
 
 	// Current synchronisation context
 	const FSyncContext& SyncContext;
+
+	const utf8_t* GetElementName();
 
   private:
 	void CollectDependantElementsType(API_ElemTypeID TypeID) const;
@@ -95,10 +109,14 @@ class FElementID
 	// Sync data associated to the current element
 	FSyncData* SyncData;
 
+	FInstance* Instance;
+
 	// Lib part info have been fetched
 	bool bLibPartInfoFetched;
 	// LibPartInfo != nullptr if element come from it
 	const FLibPartInfo* LibPartInfo;
+
+	utf8_string ElementName;
 };
 
 class FSyncData::FProcessInfo

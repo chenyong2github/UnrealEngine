@@ -75,8 +75,7 @@ void FLibPartInfo::Initialize(GS::Int32 InIndex)
 		return;
 	}
 	Index = InIndex;
-	API_LibPart LibPart;
-	Zap(&LibPart);
+	FAuto_API_LibPart LibPart;
 	LibPart.index = InIndex;
 	GSErrCode err = ACAPI_LibPart_Get(&LibPart);
 	if (err == APIERR_MISSINGDEF)
@@ -112,6 +111,11 @@ const API_AddParType* GetParameter(API_AddParType** InParameters, const char* In
 		const API_AddParType* Parameter = *InParameters + j;
 		if (strncmp(Parameter->name, InParameterName, API_NameLen) == 0)
 		{
+			// Parameter found
+			if (Parameter->flags & API_ParFlg_Disabled)
+			{
+				break; // But declared as disabled
+			}
 			return Parameter;
 		}
 	}
@@ -159,6 +163,17 @@ bool GetParameter(API_AddParType** InParameters, const char* InParameterName, do
 	}
 
 	*OutValue = Parameter->value.real;
+	return true;
+}
+
+bool GetParameter(API_AddParType** InParameters, const char* InParameterName, bool* OutFlag)
+{
+	double Value = 0.0;
+	if (!GetParameter(InParameters, InParameterName, &Value))
+	{
+		return false;
+	}
+	*OutFlag = Value != 0;
 	return true;
 }
 

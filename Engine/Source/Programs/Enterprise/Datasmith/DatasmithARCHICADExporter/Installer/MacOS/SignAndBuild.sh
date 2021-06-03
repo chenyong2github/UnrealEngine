@@ -37,4 +37,4 @@ do
 	/usr/bin/codesign --force --deep --sign "$DevIdApplication" --timestamp=none "../../../../../../../../Engine/Binaries/Mac/DatasmithArchiCADExporter/DatasmithARCHICAD${i}Exporter.bundle"
 done
 
-packagesbuild --keychain "$DevIdInstaller" "Datasmith DirectLink for ARCHICAD.pkgproj"
+packagesbuild --keychain "$DevIdInstaller" "DatasmithArchiCADExporter.pkgproj"

@@ -148,6 +148,7 @@ enum ENames
 	kName_StartAutoSync,
 	kName_PauseAutoSync,
 	kName_Undefined,
+	kName_CacheDirectory,
 	kName_NBNames
 };
 const utf8_t*		 GetStdName(ENames InStrIndex);

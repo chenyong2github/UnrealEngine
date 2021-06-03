@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TexturesCache.h"
+#include "Utils/LibPartInfo.h"
 
 #include "ModelMaterial.hpp"
 #include "Texture.hpp"
@@ -8,6 +9,7 @@
 #include "GXImage.hpp"
 #include "Graphics2D.h"
 #include "Folder.hpp"
+#include "FileSystem.hpp"
 
 #include "Paths.h"
 #include "DatasmithUtils.h"
@@ -229,6 +231,46 @@ GS::UniString FTexturesCache::CopyIESFile(const GS::UniString& InIESFileName)
 	// Create the texture folder if it's not present
 	IO::Folder IESTexturesFolder(IESTexturesLocation, IO::Folder::Create);
 
+#if 1
+	// Check if the file is already in the destination folder
+	bool	  bFileInDestination = false;
+	GSErrCode GSErr = IESTexturesFolder.Contains(IESFileName, &bFileInDestination);
+	if (GSErr != NoError)
+	{
+		UE_AC_DebugF("FTexturesCache::CopyIESFile - IESTexturesFolder.Contains return error %s\n", GetErrorName(GSErr));
+	}
+	if (!bFileInDestination)
+	{
+		FAuto_API_LibPart LibPart;
+		USize			  Lenght = InIESFileName.GetLength() + 1;
+		if (Lenght > API_UniLongNameLen)
+		{
+			Lenght = API_UniLongNameLen;
+		}
+		memcpy(LibPart.file_UName, InIESFileName.ToUStr().Get(), Lenght * sizeof(GS::uchar_t));
+		GSErr = ACAPI_LibPart_Search(&LibPart, false);
+		if (GSErr == NoError && LibPart.location != nullptr)
+		{
+			// Try to copy the file
+			GSErr = IO::fileSystem.Copy(*LibPart.location, IESTextureLocation);
+			if (GSErr != NoError)
+			{
+				UE_AC_ReportF("FTexturesCache::CopyIESFile - Cannot copy IES File \"%s\"", InIESFileName.ToUtf8());
+				UE_AC_DebugF("FTexturesCache::CopyIESFile - Cannot copy IES File \"%s\", error=%s\n",
+							 InIESFileName.ToUtf8(), GetErrorName(GSErr));
+			}
+		}
+		else
+		{
+			UE_AC_ReportF("FTexturesCache::CopyIESFile - Cannot find IES File \"%s\"\n", InIESFileName.ToUtf8());
+			if (GSErr != NoError)
+			{
+				UE_AC_DebugF("FTexturesCache::CopyIESFile - ACAPI_LibPart_Search error %s for IES File \"%s\"\n",
+							 GetErrorName(GSErr), InIESFileName.ToUtf8());
+			}
+		}
+	}
+#else
 	// Search the IES file and copy it in the cache
 	FSearchAndCopyFile SearchAndCopyIESFile(IESTexturesFolder, IESFileName);
 	if (!SearchAndCopyIESFile.IsFileInDestination())
@@ -256,6 +298,7 @@ GS::UniString FTexturesCache::CopyIESFile(const GS::UniString& InIESFileName)
 	{
 		UE_AC_ReportF("FTexturesCache::CopyIESFile - Cannot find IES File \"%s\"\n", InIESFileName.ToUtf8());
 	}
+#endif
 
 	return IESTexturePath;
 }

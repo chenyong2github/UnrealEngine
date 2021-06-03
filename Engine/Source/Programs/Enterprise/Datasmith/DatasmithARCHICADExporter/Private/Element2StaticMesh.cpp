@@ -43,7 +43,8 @@ class FElement2StaticMesh::FVertex
 	{
 	}
 
-	ModelerAPI::Vertex Vertex; // The vertex
+	ModelerAPI::Vertex LocalVertex; // The vertex in local coordinates
+	ModelerAPI::Vertex WorldVertex; // The vertex in world coordinates
 	union
 	{
 		bool Used; // Used flag
@@ -190,7 +191,20 @@ void FElement2StaticMesh::AddVertex(GS::Int32 InBodyVertex, const Geometry::Vect
 	if (!vertex.Used)
 	{
 		// Not already used, get value from body
-		CurrentBody.GetVertex(InBodyVertex, &vertex.Vertex);
+		CurrentBody.GetVertex(InBodyVertex, &vertex.LocalVertex, ModelerAPI::CoordinateSystem::ElemLocal);
+		if (!bIsIdentity)
+		{
+			Geometry::Point3D WorldPt = Vertex2Point3D(vertex.LocalVertex);
+			Geometry::Point3D LocalPt = World2Local.Apply(WorldPt);
+			vertex.LocalVertex.x = LocalPt.x;
+			vertex.LocalVertex.y = LocalPt.y;
+			vertex.LocalVertex.z = LocalPt.z;
+		}
+		vertex.LocalVertex.x *= SyncContext.ScaleLength;
+		vertex.LocalVertex.y *= SyncContext.ScaleLength;
+		vertex.LocalVertex.z *= SyncContext.ScaleLength;
+
+		CurrentBody.GetVertex(InBodyVertex, &vertex.WorldVertex, ModelerAPI::CoordinateSystem::World);
 		vertex.Used = true;
 	}
 
@@ -204,7 +218,7 @@ void FElement2StaticMesh::AddVertex(GS::Int32 InBodyVertex, const Geometry::Vect
 		ModelerAPI::TextureCoordinate AcUV;
 		try
 		{
-			CurrentPolygon.GetTextureCoordinate(&vertex.Vertex, &AcUV);
+			CurrentPolygon.GetTextureCoordinate(&vertex.WorldVertex, &AcUV);
 		}
 		catch (...)
 		{
@@ -382,7 +396,8 @@ void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element&		   InMo
 						for (GS::Int32 j = 1; j <= NbVerts; j++)
 						{
 							AddVertex(ConvexPolygon.GetVertexIndex(j),
-									  Vertor2Vector3D(ConvexPolygon.GetNormalVectorByVertex(j)));
+									  Vertor2Vector3D(ConvexPolygon.GetNormalVectorByVertex(
+										  j, ModelerAPI::CoordinateSystem::ElemLocal)));
 						}
 					}
 				}
@@ -393,7 +408,8 @@ void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element&		   InMo
 					for (GS::Int32 IndexPedg = 1; IndexPedg <= NbEdges; IndexPedg++)
 					{
 						AddVertex(CurrentPolygon.GetVertexIndex(IndexPedg),
-								  Vertor2Vector3D(CurrentPolygon.GetNormalVectorByVertex(IndexPedg)));
+								  Vertor2Vector3D(CurrentPolygon.GetNormalVectorByVertex(
+									  IndexPedg, ModelerAPI::CoordinateSystem::ElemLocal)));
 					}
 				}
 			}
@@ -434,16 +450,8 @@ void FElement2StaticMesh::FillMesh(FDatasmithMesh* OutMesh)
 		FVertex& vertex = Vertices[IndexVertex];
 		if (vertex.Index != FVertex::kInvalidVertex)
 		{
-			Geometry::Point3D WorldPt = Vertex2Point3D(vertex.Vertex) - SyncContext.ModelOrigin;
-
-			if (!bIsIdentity)
-			{
-				WorldPt = World2Local.Apply(WorldPt);
-			}
-
-			WorldPt *= SyncContext.ScaleLength;
-
-			OutMesh->SetVertex(vertex.Index, (float)WorldPt.x, -(float)WorldPt.y, (float)WorldPt.z);
+			OutMesh->SetVertex(vertex.Index, (float)vertex.LocalVertex.x, -(float)vertex.LocalVertex.y,
+							   (float)vertex.LocalVertex.z);
 		}
 	}
 
@@ -509,6 +517,8 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 	FMD5Hash MeshHash = MeshHasher.GetHashValue();
 	Mesh.SetName(*LexToString(MeshHash));
 
+	const FMeshDimensions* Dimensions = SyncContext.GetSyncDatabase().GetMeshIndexor().FindMesh(Mesh.GetName());
+
 	FString MeshElementName = ComputeMeshElementName(Mesh.GetName());
 
 #if DUMP_GEOMETRY
@@ -522,7 +532,7 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 
 	// If mesh already exist ?
 	FString FullPath(FPaths::Combine(OutputPath, FPaths::SetExtension(Mesh.GetName(), TEXT("udsmesh"))));
-	if (!FPaths::FileExists(FullPath))
+	if (Dimensions == nullptr || !FPaths::FileExists(FullPath))
 	{
 		// Create a new mesh file
 		UE_AC_STAT(SyncContext.Stats.TotalMeshesCreated++);
@@ -531,6 +541,7 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 			MeshExporter.ExportToUObject(*OutputPath, Mesh.GetName(), Mesh, nullptr, EDSExportLightmapUV::Never);
 		MeshElement->SetName(*MeshElementName);
 		MeshElement->SetFileHash(MeshHash);
+		SyncContext.GetSyncDatabase().GetMeshIndexor().AddMesh(*MeshElement);
 	}
 	else
 	{
@@ -539,7 +550,7 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 		MeshElement = FDatasmithSceneFactory::CreateMesh(*MeshElementName);
 		MeshElement->SetFile(*FullPath);
 		MeshElement->SetFileHash(MeshHash);
-		// Currently, no need to set Dimensions, Area, Width, we dont use them
+		MeshElement->SetDimensions(Dimensions->Area, Dimensions->Width, Dimensions->Height, Dimensions->Depth);
 	}
 
 	if (MeshElement.IsValid())

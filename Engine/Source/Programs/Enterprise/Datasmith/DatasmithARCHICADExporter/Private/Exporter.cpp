@@ -130,6 +130,7 @@ void FExporter::DoExport(const ModelerAPI::Model& InModel, const IO::Location& I
 	DoExportSyncEnd.PrintDiff("Synchronization", DoExportStart);
 	DoExportEnd.PrintDiff("Scene Export", DoExportSyncEnd);
 	DoExportEnd.PrintDiff("Total DoExport", DoExportStart);
+	SyncDatabase.GetMeshIndexor().SaveToFile();
 }
 
 // Export the AC model in the specified file
