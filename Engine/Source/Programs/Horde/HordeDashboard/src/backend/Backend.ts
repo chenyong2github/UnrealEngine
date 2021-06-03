@@ -3,7 +3,7 @@
 import { configure } from "mobx";
 import { isNumber } from 'util';
 import templateCache from '../backend/TemplateCache';
-import { AgentData, ArtifactData, BatchUpdatePoolRequest, ChangeSummaryData, CreateJobRequest, CreateJobResponse, CreatePoolRequest, CreateSoftwareResponse, CreateSubscriptionRequest, CreateSubscriptionResponse, DashboardPreference, EventData, GetArtifactZipRequest, GetUserResponse, GetGraphResponse, GetIssueStreamResponse, GetJobStepRefResponse, GetJobStepTraceResponse, GetJobTimingResponse, GetLogEventResponse, GetNotificationResponse, GetSoftwareResponse, GetSubscriptionResponse, IssueData, IssueQuery, JobData, JobQuery, LeaseData, LogData, LogLineData, PoolData, ProjectData, ScheduleData, ScheduleQuery, SearchLogFileResponse, SessionData, StreamData, TemplateData, TestData, UpdateAgentRequest, UpdateIssueRequest, UpdateJobRequest, UpdateNotificationsRequest, UpdatePoolRequest, UpdateStepRequest, UpdateStepResponse, UpdateUserRequest, GetUtilizationTelemetryResponse, TabType, GetJobsTabResponse, JobsTabColumnType, GetPerforceServerStatusResponse } from './Api';
+import { AgentData, ArtifactData, BatchUpdatePoolRequest, ChangeSummaryData, CreateJobRequest, CreateJobResponse, CreatePoolRequest, CreateSoftwareResponse, CreateSubscriptionRequest, CreateSubscriptionResponse, DashboardPreference, EventData, GetArtifactZipRequest, GetUserResponse, GetGraphResponse, GetIssueStreamResponse, GetJobStepRefResponse, GetJobStepTraceResponse, GetJobTimingResponse, GetLogEventResponse, GetNotificationResponse, GetSoftwareResponse, GetSubscriptionResponse, IssueData, IssueQuery, JobData, JobQuery, LeaseData, LogData, LogLineData, PoolData, ProjectData, ScheduleData, ScheduleQuery, SearchLogFileResponse, SessionData, StreamData, TemplateData, TestData, UpdateAgentRequest, UpdateIssueRequest, UpdateJobRequest, UpdateNotificationsRequest, UpdatePoolRequest, UpdateStepRequest, UpdateStepResponse, UpdateUserRequest, GetUtilizationTelemetryResponse, TabType, GetJobsTabResponse, JobsTabColumnType, GetPerforceServerStatusResponse, GetDeviceResponse, GetDevicePlatformResponse, CreateDeviceResponse, CreateDeviceRequest, UpdateDeviceRequest, GetDevicePoolResponse, GetDeviceReservationResponse } from './Api';
 import dashboard from './Dashboard';
 import { ChallengeStatus, Fetch } from './Fetch';
 import graphCache, { GraphQuery } from './GraphCache';
@@ -1071,6 +1071,84 @@ export class Backend {
         return new Promise<GetPerforceServerStatusResponse[]>((resolve, reject) => {
             this.backend.get(`/api/v1/perforce/status`).then((value) => {
                 resolve(value.data as GetPerforceServerStatusResponse[]);
+            }).catch(reason => {
+                reject(reason);
+            });
+        });
+        
+    }
+
+    getDevices(): Promise<GetDeviceResponse[]> {
+
+        return new Promise<GetDeviceResponse[]>((resolve, reject) => {
+            this.backend.get(`/api/v2/devices`).then((value) => {
+                resolve(value.data as GetDeviceResponse[]);
+            }).catch(reason => {
+                reject(reason);
+            });
+        });        
+    }
+
+    addDevice(request: CreateDeviceRequest): Promise<CreateDeviceResponse> {
+        return new Promise<CreateDeviceResponse>((resolve, reject) => {
+            this.backend.post(`/api/v2/devices`, request).then((value) => {
+                resolve(value.data as CreateDeviceResponse);
+            }).catch(reason => {
+                reject(reason);
+            });
+        });        
+    }
+
+    modifyDevice(deviceId: string, request: UpdateDeviceRequest): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            this.backend.put(`/api/v2/devices/${deviceId}`, request).then((value) => {
+                resolve();
+            }).catch(reason => {
+                reject(reason);
+            });
+        });        
+    }
+
+
+    deleteDevice(deviceId: string): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            this.backend.delete(`/api/v2/devices/${deviceId}`).then((response) => {
+                resolve();
+            }).catch(reason => {
+                reject(reason);
+            });
+        });        
+    }
+
+    getDevicePlatforms(): Promise<GetDevicePlatformResponse[]> {
+
+        return new Promise<GetDevicePlatformResponse[]>((resolve, reject) => {
+            this.backend.get(`/api/v2/devices/platforms`).then((value) => {
+                resolve(value.data as GetDevicePlatformResponse[]);
+            }).catch(reason => {
+                reject(reason);
+            });
+        });
+        
+    }
+
+    getDevicePools(): Promise<GetDevicePoolResponse[]> {
+
+        return new Promise<GetDevicePoolResponse[]>((resolve, reject) => {
+            this.backend.get(`/api/v2/devices/pools`).then((value) => {
+                resolve(value.data as GetDevicePoolResponse[]);
+            }).catch(reason => {
+                reject(reason);
+            });
+        });
+        
+    }
+
+    getDeviceReservations(): Promise<GetDeviceReservationResponse[]> {
+
+        return new Promise<GetDeviceReservationResponse[]>((resolve, reject) => {
+            this.backend.get(`/api/v2/devices/reservations`).then((value) => {
+                resolve(value.data as GetDeviceReservationResponse[]);
             }).catch(reason => {
                 reject(reason);
             });

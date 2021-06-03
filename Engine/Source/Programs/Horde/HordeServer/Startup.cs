@@ -321,6 +321,7 @@ namespace HordeServer
 			Services.AddSingleton<ITelemetryCollection, TelemetryCollection>();
 			Services.AddSingleton<IUgsMetadataCollection, UgsMetadataCollection>();
 			Services.AddSingleton<IUserCollection, UserCollectionV2>();
+			Services.AddSingleton<IDeviceCollection, DeviceCollection>();
 
 			Services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
@@ -410,6 +411,8 @@ namespace HordeServer
 
 			Services.AddSingleton<FileSystemStorageBackend>();
 			Services.AddSingleton<IStorageService, SimpleStorageService>(SP => new SimpleStorageService(SP.GetRequiredService<FileSystemStorageBackend>()));
+
+			Services.AddSingleton<DeviceService>();
 
 			ConfigureStorageProvider(Services, Settings);
 			ConfigureLogStorage(Services);
@@ -514,6 +517,7 @@ namespace HordeServer
 			Services.AddHostedService(Provider => Provider.GetRequiredService<SlackNotificationSink>());
 			Services.AddHostedService<ConfigService>();
 			Services.AddHostedService<TelemetryService>();
+			Services.AddHostedService(Provider => Provider.GetRequiredService<DeviceService>());
 
 			// Task sources. Order of registration is important here; it dictates the order in which sources are served.
 			Services.AddSingleton<JobTaskSource>();
