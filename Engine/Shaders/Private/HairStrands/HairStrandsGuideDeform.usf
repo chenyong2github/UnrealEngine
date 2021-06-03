@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "HairStrandsClusterCommon.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
 #include "HairStrandsMeshRBF.ush"
 
@@ -93,7 +94,7 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos)
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint VertexIndex = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	const uint VertexIndex = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 	if (VertexIndex < VertexCount)
 	{
 		const uint4  Data 				= SimRestPosePositionBuffer[VertexIndex];

@@ -2,7 +2,32 @@
 
 #include "../Common.ush"
 
+////////////////////////////////////////////////////////////////////////////////
+// Defines
+
+// Define the Group count along X, when the 1D number of groups exceed the 65k limits. 
+// In such a case, the 1D dispatch is wrapped into a 2D dispatch, whose the X dimention 
+// has a size of INDIRECT_GROUP_COUNT_X, with a total of INDIRECT_GROUP_COUNT_X * GROUP_SIZE 
+// thread per line
+#define INDIRECT_GROUP_COUNT_X 16
+
+// Max number of discrete LOD that a hair group can have
 #define MAX_HAIR_LOD 8
+
+////////////////////////////////////////////////////////////////////////////////
+// Utils
+
+// When culling is disabled: return the vertex index at which the control point should be fetched.
+uint GetHairStrandsVertexFetchIndex(uint2 InDispatchThreadId, uint InGroupSize, uint InGroupCountX)
+{
+	return InDispatchThreadId.x + InDispatchThreadId.y * InGroupSize * InGroupCountX;
+}
+
+// When culling is enabled: return the vertex index at which the control point should be fetched.
+uint GetHairStrandsVertexFetchIndex_Culled(uint2 InDispatchThreadId, uint InGroupSize)
+{
+	return InDispatchThreadId.x + InDispatchThreadId.y * InGroupSize * INDIRECT_GROUP_COUNT_X;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Store info about all LODS of a cluster (total LOD count, screen size, ...)

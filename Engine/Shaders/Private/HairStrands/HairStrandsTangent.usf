@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "HairStrandsClusterCommon.ush"
 
 uint VertexCount;
 uint DispatchCountX;
@@ -9,9 +10,6 @@ Buffer<uint4>  	 PositionBuffer;
 RWBuffer<float4> OutputTangentBuffer;
 
 uint			HairStrandsVF_bIsCullingEnable;
-
-// These number need to match HairStrandsClusterCulling.usf
-#define GROUP_COUNT_X 16
 
 #if PERMUTATION_CULLING == 1
 Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
@@ -36,14 +34,14 @@ float4 PackNormal(float3 V, uint A)
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const int MaxVertexCount = int(VertexCount);
-	int IndexCurr = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	int IndexCurr = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 	int IndexPrev = clamp(IndexCurr-1, 0, MaxVertexCount-1);
 	int IndexNext = clamp(IndexCurr+1, 0, MaxVertexCount-1);
 	bool bValid = IndexCurr < MaxVertexCount;
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bIsCullingEnable)
 	{
-		const int FetchIndex = DispatchThreadId.x + DispatchThreadId.y * GROUP_SIZE * GROUP_COUNT_X;
+		const int FetchIndex = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadId, GROUP_SIZE);
 		const int VertexCountAfterCulling = clamp((int)HairStrandsVF_CullingIndirectBuffer[3], 0, MaxVertexCount);
 		bValid = false;
 		if (FetchIndex < VertexCountAfterCulling)

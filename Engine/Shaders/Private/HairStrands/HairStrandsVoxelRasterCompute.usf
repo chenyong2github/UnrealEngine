@@ -3,6 +3,7 @@
 #include "HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 
+#include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush" 
 
@@ -53,19 +54,18 @@ float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
 #define JITTER_ENABLE 0
 
 // These number need to match HairStrandsClusterCulling.usf
+// TODO: create permutation for different group size
 #define GROUP_SIZE 32
-#define GROUP_COUNT_X 16
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
+void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 {
 #if PERMUTATION_CULLING == 1
-	uint VertexIndex0 = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * GROUP_COUNT_X;
+	uint VertexIndex0 = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadID, GROUP_SIZE);
 #else
-	uint VertexIndex0 = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * DispatchCountX;
+	uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadID, GROUP_SIZE, DispatchCountX);
 #endif
 
-	//const uint VertexIndex = DispatchThreadID.x + DispatchThreadID.y * GROUP_SIZE * DispatchCountX;
 	uint VertexIndex1 = min(VertexIndex0 + 1, HairStrandsVF_VertexCount - 1);
 	if (VertexIndex0 >= HairStrandsVF_VertexCount)
 		return;

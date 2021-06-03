@@ -10,9 +10,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Common
 
-// These number need to match HairStrandsClusterCulling.usf
-#define GROUP_COUNT_X 16
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair interpolation 
 
@@ -185,11 +182,11 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float3 SimHairPositionOffset = OutSimHairPositionOffsetBuffer[0].xyz;
 	const float3 OutRenHairPositionOffset = OutRenHairPositionOffsetBuffer[0].xyz;
 
-	uint VertexIndex = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	uint VertexIndex = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bIsCullingEnable)
 	{
-		const uint FetchIndex = DispatchThreadId.x + DispatchThreadId.y * GROUP_SIZE * GROUP_COUNT_X;
+		const uint FetchIndex = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadId, GROUP_SIZE);
 		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 		if (FetchIndex >= VertexCountAfterCulling)
 		{
@@ -724,10 +721,9 @@ RWBuffer<uint4> OutBuffer;
 
 #define GROUP_SIZE 64
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(
-	uint3 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint Index = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	const uint Index = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 	if (Index >= ElementCount)
 	{
 		return;
@@ -749,10 +745,9 @@ RWBuffer<uint4> OutDeformedBuffer;
 
 #define GROUP_SIZE 64
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(
-	uint3 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint Index = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	const uint Index = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 	if (Index >= ElementCount)
 	{
 		return;
