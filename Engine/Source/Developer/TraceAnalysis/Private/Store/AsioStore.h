@@ -51,6 +51,7 @@ public:
 						FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir);
 						~FAsioStore();
 	void				Close();
+	const TCHAR*		GetStoreDir() const;
 	uint32				GetChangeSerial() const;
 	uint32				GetTraceCount() const;
 	const FTrace*		GetTraceInfo(uint32 Index) const;

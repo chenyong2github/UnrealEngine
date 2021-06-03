@@ -133,6 +133,7 @@ void FAsioStoreCborPeer::OnSessionInfo()
 void FAsioStoreCborPeer::OnStatus()
 {
 	TPayloadBuilder<> Builder(EStatusCode::Success);
+	Builder.AddString("store_dir", TCHAR_TO_UTF8(Store.GetStoreDir()));
 	Builder.AddInteger("recorder_port", Recorder.GetPort());
 	Builder.AddInteger("change_serial", Store.GetChangeSerial());
 	SendResponse(Builder.Done());
