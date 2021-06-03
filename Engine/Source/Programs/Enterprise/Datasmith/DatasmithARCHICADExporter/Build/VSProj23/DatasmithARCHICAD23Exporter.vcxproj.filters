@@ -315,4 +315,7 @@
       <Filter>Resources</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STATD.lib" />
+  </ItemGroup>
 </Project>

@@ -10,6 +10,7 @@
 	__pragma(warning(push)) \
 	__pragma(warning(disable: 4996)) \
 	__pragma(warning(disable: 5038)) \
+	__pragma(warning(disable: 5040)) \
 	__pragma(warning(disable: 5208)) \
 	__pragma(warning(disable: 26495)) \
 	__pragma(warning(disable: 26451)) \
