@@ -6,6 +6,7 @@
 #include "Rendering/ShaderResourceManager.h"
 #include "SlateD3DTextures.h"
 
+class FSlateVectorGraphicsCache;
 class ISlateStyle;
 
 /**
@@ -37,11 +38,9 @@ public:
 	/**
 	 * Returns a texture with the passed in name or NULL if it cannot be found.
 	 */
-	virtual FSlateShaderResourceProxy* GetShaderResource( const FSlateBrush& InBrush ) override;
+	virtual FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale) override;
 
 	virtual ISlateAtlasProvider* GetTextureAtlasProvider() override;
-
-	void CreateTextureNoAtlas( const FSlateBrush& InBrush );
 
 	/**
 	 * Creates a 1x1 texture of the specified color
@@ -60,6 +59,8 @@ public:
 	 */
 	void ReleaseDynamicTextureResource( const FSlateBrush& InBrush );
 
+	void UpdateCache();
+	void ConditionalFlushCache();
 private:
 	/** 
 	 * Gets a dynamic texture resource
@@ -67,6 +68,15 @@ private:
 	 * @param InBrush	The brush to with texture to get
 	 */
 	FSlateShaderResourceProxy* GetDynamicTextureResource( const FSlateBrush& InBrush );
+
+	/** 
+	 * Gets a vector graphics resource (may generate it internally)
+	 * 
+	 * @param InBrush	The brush to with texture to get
+	 * @param LocalSize	The unscaled local size of the final image
+	 * @param DrawScale	Any scaling applied to the final image
+	 */
+	FSlateShaderResourceProxy* GetVectorResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale);
 
 	/** 
 	 * Creates textures from files on disk and atlases them if possible
@@ -100,8 +110,11 @@ private:
 	TMap<FName, TSharedPtr<FDynamicTextureResource> > DynamicTextureMap;
 
 	/** Static texture atlases */
-	TArray<FSlateTextureAtlasD3D*> TextureAtlases;
+	TArray<TUniquePtr<FSlateTextureAtlasD3D>> PrecachedTextureAtlases;
 	
 	/** Static non atlased textures */
-	TArray<FSlateD3DTexture*> NonAtlasedTextures;
+	TArray<TUniquePtr<FSlateD3DTexture>> NonAtlasedTextures;
+
+	/** Cache for vector graphic atlases */
+	TUniquePtr<FSlateVectorGraphicsCache> VectorGraphicsCache;
 };

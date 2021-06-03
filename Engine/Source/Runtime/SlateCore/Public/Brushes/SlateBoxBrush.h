@@ -159,3 +159,18 @@ struct SLATECORE_API FSlateBoxBrush
 		: FSlateBrush(ESlateBrushDrawType::Box, NAME_None, InMargin, ESlateBrushTileType::NoTile, InImageType, ImageSize, InColorAndOpacity, InResourceObject)
 	{ }
 };
+
+
+struct SLATECORE_API FSlateVectorBoxBrush
+	: public FSlateBoxBrush
+{
+	FSlateVectorBoxBrush(const FString& InImageName, const FVector2D& ImageSize, const FMargin& InMargin, const FLinearColor& InColorAndOpacity = FLinearColor(1, 1, 1, 1))
+		: FSlateBoxBrush(InImageName, ImageSize, InMargin, InColorAndOpacity, ESlateBrushImageType::Vector)
+	{ }
+
+
+	FSlateVectorBoxBrush(const FString& InImageName, const FMargin& InMargin, const FLinearColor& InColorAndOpacity = FLinearColor(1, 1, 1, 1))
+		: FSlateBoxBrush(InImageName, InMargin, InColorAndOpacity, ESlateBrushImageType::Vector)
+	{ }
+};
+

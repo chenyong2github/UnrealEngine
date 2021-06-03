@@ -58,6 +58,7 @@ void SDeviceManager::Construct(const FArguments& InArgs, const TSharedRef<ITarge
 	// create & initialize tab manager
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
 	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("DeviceManagerMenuGroupName", "Device Manager"));
+	TabManager->SetAllowWindowMenuBar(true);
 
 	TabManager->RegisterTabSpawner(DeviceBrowserTabId, FOnSpawnTab::CreateRaw(this, &SDeviceManager::HandleTabManagerSpawnTab, DeviceBrowserTabId))
 		.SetDisplayName(LOCTEXT("DeviceBrowserTabTitle", "Device Browser"))
@@ -134,26 +135,16 @@ void SDeviceManager::Construct(const FArguments& InArgs, const TSharedRef<ITarge
 		"Window"
 	);
 
+	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
+
 	// construct children
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				MenuBarBuilder.MakeWidget()
-			]
-	
-		+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			[
-				TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
-			]
+		TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
 	];
 
 	// Tell tab-manager about the multi-box for platforms with a global menu bar
-	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox());
+	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MenuWidget);
 }
 
 

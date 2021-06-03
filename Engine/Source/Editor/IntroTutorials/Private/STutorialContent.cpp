@@ -292,8 +292,8 @@ int32 STutorialContent::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 		FLinearColor BorderTint;
 		GetAnimationValues(AlphaFactor, PulseFactor, ShadowTint, BorderTint);
 
-		const FSlateBrush* ShadowBrush = FCoreStyle::Get().GetBrush(TEXT("Tutorials.Shadow"));
-		const FSlateBrush* BorderBrush = FCoreStyle::Get().GetBrush(TEXT("Tutorials.Border"));
+		const FSlateBrush* ShadowBrush = FEditorStyle::Get().GetBrush(TEXT("Tutorials.Shadow"));
+		const FSlateBrush* BorderBrush = FEditorStyle::Get().GetBrush(TEXT("Tutorials.Border"));
 					
 		const FGeometry& WidgetGeometry = CachedGeometry;
 		const FVector2D WindowSize = OutDrawElements.GetPaintWindow()->GetSizeInScreen();

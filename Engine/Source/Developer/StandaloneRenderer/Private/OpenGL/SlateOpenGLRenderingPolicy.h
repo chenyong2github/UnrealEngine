@@ -62,7 +62,7 @@ private:
 	/** Index buffer for accessing vertices of elements */
 	FSlateOpenGLIndexBuffer IndexBuffer;
 	/** A default white texture to use if no other texture can be found */
-	FSlateOpenGLTexture* WhiteTexture;
+	FSlateShaderResource* WhiteTexture;
 	/** Texture manager for accessing OpenGL textures */
 	TSharedPtr<FSlateOpenGLTextureManager> TextureManager;
 	/** True if the rendering policy has been initialized */

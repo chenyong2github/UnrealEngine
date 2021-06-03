@@ -18,24 +18,16 @@ class SClippingHorizontalBox : public SHorizontalBox
 {
 public:
 	SLATE_BEGIN_ARGS(SClippingHorizontalBox) 
-		: _BackgroundBrush(NULL)
-		, _StyleSet(&FCoreStyle::Get())
+		: _StyleSet(&FCoreStyle::Get())
 		, _StyleName(NAME_None)
 		{ }
 
-		SLATE_ARGUMENT(const FSlateBrush*, BackgroundBrush)
 		SLATE_ARGUMENT(FOnGetContent, OnWrapButtonClicked)
 		SLATE_ARGUMENT(const ISlateStyle*, StyleSet)
 		SLATE_ARGUMENT(FName, StyleName)
 	SLATE_END_ARGS()
 
-	FORCENOINLINE SClippingHorizontalBox() 
-	{
-		SetCanTick(true);
-	}
-
 	/** SWidget interface */
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
 
@@ -52,20 +44,24 @@ public:
 	int32 GetClippedIndex() { return ClippedIdx; }
 
 private:
+	void OnWrapButtonOpenChanged(bool bIsOpen);
+	EActiveTimerReturnType UpdateWrapButtonStatus(double CurrentTime, float DeltaTime);
+private:
 	/** The button that is displayed when a toolbar or menubar is clipped */
 	TSharedPtr<SComboButton> WrapButton;
-
-	/** Brush used for drawing the custom border */
-	const FSlateBrush* BackgroundBrush;
 
 	/** Callback for when the wrap button is clicked */
 	FOnGetContent OnWrapButtonClicked;
 
 	/** Index of the first clipped child/block */
-	int32 ClippedIdx;
+	mutable int32 ClippedIdx;
+
+	mutable int32 LastClippedIdx;
 
 	/** Number of clipped children not including the wrap button */
 	mutable int32 NumClippedChildren;
+
+	TSharedPtr<FActiveTimerHandle> WrapButtonOpenTimer;
 
 	/** The style to use */
 	const ISlateStyle* StyleSet;

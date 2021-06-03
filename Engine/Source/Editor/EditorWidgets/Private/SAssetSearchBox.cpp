@@ -281,7 +281,7 @@ TSharedRef<ITableRow> SAssetSearchBox::MakeSuggestionListItemWidget(TSharedPtr<F
 		.AutoHeight()
 		[
 			SNew(STextBlock)
-			.Text(Suggestion->DisplayName)
+			.Text(Suggestion->DisplayName.ToUpper())
 			.TextStyle(FEditorStyle::Get(), "Menu.Heading")
 		];
 

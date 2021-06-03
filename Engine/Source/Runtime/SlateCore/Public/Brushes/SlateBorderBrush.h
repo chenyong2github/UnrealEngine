@@ -116,3 +116,12 @@ struct SLATECORE_API FSlateBorderBrush
 	}
 
 };
+
+struct SLATECORE_API FSlateVectorBorderBrush
+	: public FSlateBorderBrush
+{
+	FSlateVectorBorderBrush(const FString& InImageName, const FMargin& InMargin, const FLinearColor& InColorAndOpacity = FLinearColor(1, 1, 1, 1))
+		: FSlateBorderBrush(InImageName, InMargin, InColorAndOpacity, ESlateBrushImageType::Vector)
+	{
+	}
+};

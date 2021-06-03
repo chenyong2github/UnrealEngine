@@ -115,7 +115,7 @@ public:
 	/**
 	 * Returns the texture resource used by Slate
 	 */
-	virtual class FSlateShaderResource* GetSlateTexture() = 0;
+	virtual class FSlateShaderResource* GetSlateTexture() const = 0;
 
 	/**
 	 * Returns the texture resource used the Engine
@@ -130,7 +130,7 @@ public:
 	/**
 	 * Releases rendering resources of this texture
 	 */
-	virtual void ReleaseResources() {}
+	virtual void ReleaseRenderingResources() = 0;
 };
 
 /** 
@@ -144,6 +144,8 @@ public:
 
 	//~ ISlateFontTexture interface
 	virtual bool IsGrayscale() const override final;
+	virtual FSlateShaderResource* GetAtlasTexture() const override { return GetSlateTexture(); }
+	virtual void ReleaseRenderingResources() { ReleaseResources(); }
 
 	/**
 	 * Flushes all cached data.

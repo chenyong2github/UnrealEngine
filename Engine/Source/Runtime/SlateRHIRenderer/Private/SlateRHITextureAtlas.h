@@ -37,16 +37,10 @@ public:
 	 *
 	 * @return The texture resource.
 	 */
-	FSlateTexture2DRHIRef* GetAtlasTexture( ) const
-	{
-		return AtlasTexture;
-	}
+	virtual FSlateShaderResource* GetAtlasTexture() const override;
 
-	/**
-	 * Releases rendering resources from the texture.
-	 */	
-	void ReleaseAtlasTexture( );
-	
+	virtual void ReleaseResources() override;
+
 	/**
 	 * Updates the texture on the render thread.
 	 *
