@@ -33,7 +33,14 @@ public class FDatasmithFacadeDirectLink : global::System.IDisposable {
     global::System.GC.SuppressFinalize(this);
   }
 
-  protected virtual void Dispose(bool disposing) {
+  protected virtual void Dispose(bool disposing) 
+  {
+    // Unregistering all observers in managed code before disposing of the C# object.
+	for (int ObserverIndex = RegisteredObservers.Count - 1; ObserverIndex >= 0; --ObserverIndex)
+	{
+		RemoveEndpointObserver(RegisteredObservers[ObserverIndex]);
+	}
+
     lock(this) {
       if (swigCPtr.Handle != global::System.IntPtr.Zero) {
         if (swigCMemOwn) {
@@ -44,6 +51,9 @@ public class FDatasmithFacadeDirectLink : global::System.IDisposable {
       }
     }
   }
+
+
+  private System.Collections.Generic.List<FDatasmithFacadeEndpointObserver> RegisteredObservers = new System.Collections.Generic.List<FDatasmithFacadeEndpointObserver>();
 
   public static bool Init() {
     bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeDirectLink_Init__SWIG_0();
@@ -74,6 +84,19 @@ public class FDatasmithFacadeDirectLink : global::System.IDisposable {
     bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeDirectLink_UpdateScene(swigCPtr, FDatasmithFacadeScene.getCPtr(FacadeScene));
     return ret;
   }
+
+  public void AddEndpointObserver(FDatasmithFacadeEndpointObserver Observer) {
+    if (!RegisteredObservers.Contains(Observer))
+    {
+      DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeDirectLink_AddEndpointObserver(swigCPtr, FDatasmithFacadeEndpointObserver.getCPtr(Observer));
+      RegisteredObservers.Add(Observer);
+    }
+}
+
+  public void RemoveEndpointObserver(FDatasmithFacadeEndpointObserver Observer) {
+	DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeDirectLink_RemoveEndpointObserver(swigCPtr, FDatasmithFacadeEndpointObserver.getCPtr(Observer));
+	RegisteredObservers.Remove(Observer);
+}
 
   public FDatasmithFacadeDirectLink() : this(DatasmithFacadeCSharpPINVOKE.new_FDatasmithFacadeDirectLink(), true) {
   }
