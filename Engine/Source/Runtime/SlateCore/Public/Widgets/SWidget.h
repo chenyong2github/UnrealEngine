@@ -1525,8 +1525,8 @@ protected:
 	/** Construct a SWidget based on initial parameters. */
 	void SWidgetConstruct(const FSlateBaseNamedArgs& Args);
 
-	/** Is the widget construction is completed (did we called completed the Construct() function) */
-	bool IsConstructionCompleted() const { return bIsDeclarativeSyntaxConstructionCompleted; }
+	/** Is the widget construction completed (did we called and returned from the Construct() function) */
+	bool IsConstructed() const { return bIsDeclarativeSyntaxConstructionCompleted; }
 
 	/** 
 	 * Find the geometry of a descendant widget. This method assumes that WidgetsToFind are a descendants of this widget.

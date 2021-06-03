@@ -12,7 +12,7 @@ namespace SlateAttributePrivate
 	void TestAttributeAddress(const SWidget& OwningWidget, const FSlateAttributeImpl& Attribute, ESlateAttributeType AttributeType)
 	{
 #if STATS && DO_CHECK
-		//@TODO: DarenC - Using allocsize as proxy for 'IsConstructionCompleted' due to encapsulation.
+		//@TODO: DarenC - Using allocsize as proxy for 'IsConstructed' due to encapsulation.
 		if (AttributeType == ESlateAttributeType::Member && OwningWidget.GetAllocSize() > 0)
 		{
 			UPTRINT SlateAttributePtr = (UPTRINT)&Attribute;
