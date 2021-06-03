@@ -59,6 +59,10 @@ namespace HordeServer
 
 	class Program
 	{
+		public static DirectoryReference DataDir = GetDefaultDataDir();
+
+		public static FileReference UserConfigFile { get; } = FileReference.Combine(GetDefaultDataDir(), "Horde.json");
+
 		public static DirectoryReference AppDir { get; } = new FileReference(Assembly.GetExecutingAssembly().Location).Directory;
 
 		public static Type[] ConfigSchemas = FindSchemaTypes();
@@ -85,6 +89,7 @@ namespace HordeServer
 				.AddJsonFile("appsettings.json", optional: false)
 				.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
 				.AddJsonFile("appsettings.User.json", optional: true)
+				.AddJsonFile(UserConfigFile.FullName, optional: true)
 				.AddEnvironmentVariables()
 				.Build();
 
@@ -94,6 +99,7 @@ namespace HordeServer
 			Serilog.Log.Logger = new LoggerConfiguration()
 				.MinimumLevel.Debug()
 //				.MinimumLevel.Override("HordeServer.Services.DatabaseService", LogEventLevel.Verbose) // For MongoDB query tracing
+				.MinimumLevel.Override("MongoDB", LogEventLevel.Warning) // For bundled MongoDB output
 				.MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
 				.MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
 				.MinimumLevel.Override("HordeServer.Authentication.OktaHandler", LogEventLevel.Warning)
@@ -193,7 +199,7 @@ namespace HordeServer
 		/// Gets the default directory for storing application data
 		/// </summary>
 		/// <returns>The default data directory</returns>
-		public static DirectoryReference GetDefaultDataDir()
+		static DirectoryReference GetDefaultDataDir()
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{

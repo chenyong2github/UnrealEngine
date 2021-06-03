@@ -233,7 +233,7 @@ namespace HordeServer
 		/// <summary>
 		/// Gets the full path referred to by LocalStorageDir
 		/// </summary>
-		public DirectoryReference LocalLogsDirRef => DirectoryReference.Combine(Program.GetDefaultDataDir(), LocalLogsDir);
+		public DirectoryReference LocalLogsDirRef => DirectoryReference.Combine(Program.DataDir, LocalLogsDir);
 
 		/// <summary>
 		/// Local artifact storage directory, if using type filesystem
@@ -243,7 +243,7 @@ namespace HordeServer
 		/// <summary>
 		/// Gets the full path referred to by LocalStorageDir
 		/// </summary>
-		public DirectoryReference LocalArtifactsDirRef => DirectoryReference.Combine(Program.GetDefaultDataDir(), LocalArtifactsDir);
+		public DirectoryReference LocalArtifactsDirRef => DirectoryReference.Combine(Program.DataDir, LocalArtifactsDir);
 
 		/// <summary>
 		/// S3 bucket region for logfile storage
