@@ -96,22 +96,18 @@ namespace HordeServer
 			ServerSettings HordeSettings = new ServerSettings();
 			Config.GetSection("Horde").Bind(HordeSettings);
 
+			DirectoryReference LogDir = AppDir;
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				LogDir = DirectoryReference.Combine(DataDir);
+			}
+
 			Serilog.Log.Logger = new LoggerConfiguration()
-				.MinimumLevel.Debug()
-//				.MinimumLevel.Override("HordeServer.Services.DatabaseService", LogEventLevel.Verbose) // For MongoDB query tracing
-				.MinimumLevel.Override("MongoDB", LogEventLevel.Warning) // For bundled MongoDB output
-				.MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-				.MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-				.MinimumLevel.Override("HordeServer.Authentication.OktaHandler", LogEventLevel.Warning)
-				.MinimumLevel.Override("HordeServer.Authentication.OktaViaJwtHandler", LogEventLevel.Warning)
-				.MinimumLevel.Override("HordeServer.Authentication.HordeJwtBearerHandler", LogEventLevel.Warning)
-				.MinimumLevel.Override("HordeServer.Authentication.ServiceAccountAuthHandler", LogEventLevel.Warning)
-				.MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
-				.MinimumLevel.Override("Grpc", LogEventLevel.Warning)
 				.Enrich.FromLogContext()
 				.WriteTo.Console(HordeSettings)
-				.WriteTo.File(Path.Combine(AppDir.FullName, "Log.txt"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception} [{SourceContext}]", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
-				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(AppDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
+				.WriteTo.File(Path.Combine(LogDir.FullName, "Log.txt"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception} [{SourceContext}]", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
+				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(LogDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
+				.ReadFrom.Configuration(Config)
 				.CreateLogger();
 
 			if (Arguments.HasOption("-UpdateSchemas"))
