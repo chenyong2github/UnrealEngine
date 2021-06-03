@@ -193,7 +193,8 @@ private:
 	TArray<TSharedPtr<FFileEntry>> FilesArray;
 	TArray<TSharedPtr<FFileEntry>> LineItemArray;	
 
-	TSharedPtr<STextComboBox> FilterCombo;
+	TSharedPtr<SComboBox<TSharedPtr<FString>>> FilterCombo;
+	TSharedPtr<STextBlock> FilterComboBoxTitleBlock;
 	TSharedPtr<SHorizontalBox> FilterHBox;
 	TSharedPtr<SInlineEditableTextBlock> SaveFilenameEditBox;
 	TSharedPtr<SInlineEditableTextBlock> NewDirectoryEditBox;
