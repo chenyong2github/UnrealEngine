@@ -33,6 +33,9 @@ public:
 	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FActorDataLayer>& DataLayers) const;
 	TArray<FName> GetDataLayerNames(const TArray<FActorDataLayer>& DataLayers) const;
 	//~ End Helper Functions
+
+	// Allows overriding of DataLayers with PlayFromHere
+	void OverwriteDataLayerStates(TArray<FActorDataLayer>* InActiveDataLayers = nullptr, TArray<FActorDataLayer>* InLoadedDataLayers = nullptr);
 #endif
 	
 	bool ContainsDataLayer(const UDataLayer* InDataLayer) const;
@@ -42,7 +45,7 @@ public:
 	void ForEachDataLayer(TFunctionRef<bool(class UDataLayer*)> Func) const;
 
 	void SetDataLayerState(FActorDataLayer InDataLayer, EDataLayerState InState);
-
+	
 	UFUNCTION(NetMulticast, Reliable)
 	void OnDataLayerStateChanged(const UDataLayer* InDataLayer, EDataLayerState InState);
 
