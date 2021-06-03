@@ -15,7 +15,6 @@
 #include "RewindDebuggerCommands.h"
 #include "SRewindDebugger.h"
 #include "SSCSEditorMenuContext.h"
-#include "SSCSEditor.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
