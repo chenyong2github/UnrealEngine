@@ -1423,9 +1423,13 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Checking out %d actor packages."), PackagesToSave.Num());
 			for(UPackage* Package: PackagesToSave)
 			{
-				if (!PackageHelper.Checkout(Package))
+				FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
+				if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*PackageFileName))
 				{
-					return 1;
+					if (!PackageHelper.Checkout(Package))
+					{
+						return 1;
+					}
 				}
 			}
 		}
