@@ -219,11 +219,11 @@ void FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::DoWork()
 /////////////////////////////////////////////////////////////////////
 
 
-void ID3D12ResourceAllocator::AllocateTexture(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EPixelFormat InUEFormat, ED3D12ResourceStateMode InResourceStateMode,
+void ID3D12ResourceAllocator::AllocateTexture(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const FD3D12ResourceDesc& InDesc, EPixelFormat InUEFormat, ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation)
 {
 	// Check if texture can be 4K aligned
-	D3D12_RESOURCE_DESC Desc = InDesc;
+	FD3D12ResourceDesc Desc = InDesc;
 	bool b4KAligment = TextureCanBe4KAligned(Desc, InUEFormat);
 	Desc.Alignment = b4KAligment ? D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
@@ -246,7 +246,7 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	FRHIGPUMask VisibleNodes,
 	ID3D12Resource* InResource,
 	D3D12_RESOURCE_STATES InInitialState,
-	D3D12_RESOURCE_DESC const& InDesc,
+	const FD3D12ResourceDesc& InDesc,
 	const D3D12_CLEAR_VALUE* InClearValue,
 	FD3D12Heap* InHeap,
 	D3D12_HEAP_TYPE InHeapType) : 
@@ -260,7 +260,7 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	D3D12_RESOURCE_STATES InInitialState,
 	ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InDefaultResourceState,
-	D3D12_RESOURCE_DESC const& InDesc,
+	const FD3D12ResourceDesc& InDesc,
 	const D3D12_CLEAR_VALUE* InClearValue,
 	FD3D12Heap* InHeap,
 	D3D12_HEAP_TYPE InHeapType)
@@ -478,7 +478,7 @@ void FD3D12Heap::BeginTrackingResidency(uint64 Size)
 //	FD3D12 Adapter
 /////////////////////////////////////////////////////////////////////
 
-HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc, FRHIGPUMask CreationNode, const D3D12_HEAP_PROPERTIES& HeapProps, D3D12_RESOURCE_STATES InInitialState,
+HRESULT FD3D12Adapter::CreateCommittedResource(const FD3D12ResourceDesc& InDesc, FRHIGPUMask CreationNode, const D3D12_HEAP_PROPERTIES& HeapProps, D3D12_RESOURCE_STATES InInitialState,
 	ED3D12ResourceStateMode InResourceStateMode, D3D12_RESOURCE_STATES InDefaultState, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
 {
 	if (!ppOutResource)
@@ -498,7 +498,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 		HeapFlags |= D3D12_HEAP_FLAG_SHARED;
 	}
 
-	D3D12_RESOURCE_DESC LocalDesc = InDesc;
+	FD3D12ResourceDesc LocalDesc = InDesc;
 
 #if D3D12_RHI_RAYTRACING
 	if (InDefaultState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
@@ -532,7 +532,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 	return hr;
 }
 
-HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, FD3D12Heap* BackingHeap, uint64 HeapOffset, D3D12_RESOURCE_STATES InInitialState, ED3D12ResourceStateMode InResourceStateMode, 
+HRESULT FD3D12Adapter::CreatePlacedResource(const FD3D12ResourceDesc& InDesc, FD3D12Heap* BackingHeap, uint64 HeapOffset, D3D12_RESOURCE_STATES InInitialState, ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InDefaultState, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
 {
 	if (!ppOutResource)

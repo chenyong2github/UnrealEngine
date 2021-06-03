@@ -8,18 +8,43 @@ D3D12Texture.h: Implementation of D3D12 Texture
 /** If true, guard texture creates with SEH to log more information about a driver crash we are seeing during texture streaming. */
 #define GUARDED_TEXTURE_CREATES (PLATFORM_WINDOWS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST || PLATFORM_COMPILER_CLANG))
 
+static bool TextureCanBe4KAligned(const FD3D12ResourceDesc& Desc, EPixelFormat UEFormat)
+{
+	// 4KB alignment is only available for read only textures
+	if (!EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) &&
+		!Desc.NeedsUAVAliasWorkarounds() && // UAV aliased resources are secretly writable.
+		Desc.SampleDesc.Count == 1)
+	{
+		D3D12_TILE_SHAPE Tile = {};
+		Get4KTileShape(&Tile, Desc.Format, UEFormat, Desc.Dimension, Desc.SampleDesc.Count);
+
+		uint32 TilesNeeded = GetTilesNeeded(Desc.Width, Desc.Height, Desc.DepthOrArraySize, Tile);
+
+		constexpr uint32 NUM_4K_BLOCKS_PER_64K_PAGE = 16;
+		return TilesNeeded <= NUM_4K_BLOCKS_PER_64K_PAGE;
+	}
+	else
+	{
+		return false;
+	}
+}
 
 void SafeCreateTexture2D(FD3D12Device* pDevice, 
 	FD3D12Adapter* Adapter,
-	const D3D12_RESOURCE_DESC& TextureDesc,
+	const FD3D12ResourceDesc& TextureDesc,
 	const D3D12_CLEAR_VALUE* ClearValue, 
 	FD3D12ResourceLocation* OutTexture2D,
 	FD3D12BaseShaderResource* Owner,
-	uint8 Format, 
+	EPixelFormat Format,
 	ETextureCreateFlags Flags,
 	D3D12_RESOURCE_STATES InitialState,
 	const TCHAR* Name);
 
+void CreateUAVAliasResource(
+	FD3D12Adapter* Adapter,
+	D3D12_CLEAR_VALUE* ClearValuePtr,
+	const TCHAR* DebugName,
+	FD3D12ResourceLocation& Location);
 
 /** Texture base class. */
 class FD3D12TextureBase : public FD3D12BaseShaderResource, public FD3D12LinkedAdapterObject<FD3D12TextureBase>
@@ -592,9 +617,9 @@ class FD3D12TextureStats
 {
 public:
 
-	static bool ShouldCountAsTextureMemory(uint32 MiscFlags);
+	static bool ShouldCountAsTextureMemory(D3D12_RESOURCE_FLAGS MiscFlags);
 	// @param b3D true:3D, false:2D or cube map
-	static TStatId GetD3D12StatEnum(uint32 MiscFlags, bool bCubeMap, bool b3D);
+	static TStatId GetD3D12StatEnum(D3D12_RESOURCE_FLAGS MiscFlags, bool bCubeMap, bool b3D);
 
 	// Note: This function can be called from many different threads
 	// @param TextureSize >0 to allocate, <0 to deallocate

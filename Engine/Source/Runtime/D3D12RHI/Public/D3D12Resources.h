@@ -93,7 +93,7 @@ public:
 	FD3D12Heap(FD3D12Device* Parent, FRHIGPUMask VisibleNodes);
 	~FD3D12Heap();
 
-	inline ID3D12Heap* GetHeap() { return Heap.GetReference(); }
+	inline ID3D12Heap* GetHeap() const { return Heap.GetReference(); }
 	void SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bTrack = true);
 
 	void UpdateResidency(FD3D12CommandListHandle& CommandList);
@@ -114,16 +114,42 @@ private:
 	FD3D12ResidencyHandle ResidencyHandle;
 };
 
+struct FD3D12ResourceDesc : public D3D12_RESOURCE_DESC
+{
+	FD3D12ResourceDesc() = default;
+	FD3D12ResourceDesc(const CD3DX12_RESOURCE_DESC& Other)
+		: D3D12_RESOURCE_DESC(Other)
+	{
+	}
+	
+	// TODO: use this type everywhere and disallow implicit conversion
+	/*explicit*/ FD3D12ResourceDesc(const D3D12_RESOURCE_DESC& Other)
+		: D3D12_RESOURCE_DESC(Other)
+	{
+	}
+
+	EPixelFormat PixelFormat{ PF_Unknown };
+	// PixelFormat for the Resource that aliases our current resource.
+	EPixelFormat UAVAliasPixelFormat{ PF_Unknown };
+
+	// Used primarily to help treat this resource description as writable.
+	inline bool NeedsUAVAliasWorkarounds() const { return UAVAliasPixelFormat != PF_Unknown; }
+};
+
 class FD3D12Resource : public FD3D12RefCount, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
 {
 private:
 	TRefCountPtr<ID3D12Resource> Resource;
+	// Since certain formats cannot be aliased in D3D12, we have to create a separate ID3D12Resource that aliases the
+	// resource's memory and use this separate resource to create the UAV.
+	// TODO: UE-116727: request better DX12 API support and clean this up.
+	TRefCountPtr<ID3D12Resource> UAVAccessResource;
 	TRefCountPtr<FD3D12Heap> Heap;
 
 	FD3D12ResidencyHandle ResidencyHandle;
 
 	D3D12_CLEAR_VALUE ClearValue;
-	D3D12_RESOURCE_DESC Desc;
+	const FD3D12ResourceDesc Desc;
 	uint8 PlaneCount;
 	uint16 SubresourceCount;
 	CResourceState ResourceState;
@@ -133,6 +159,7 @@ private:
 #ifdef PLATFORM_SUPPORTS_RESOURCE_COMPRESSION
 	D3D12_RESOURCE_STATES CompressedState;
 #endif
+	D3D12_RESOURCE_STATES UAVHiddenResourceState{ D3D12_RESOURCE_STATE_CORRUPT };
 
 	bool bRequiresResourceStateTracking : 1;
 	bool bDepthStencil : 1;
@@ -158,7 +185,7 @@ public:
 		FRHIGPUMask VisibleNodes,
 		ID3D12Resource* InResource,
 		D3D12_RESOURCE_STATES InInitialResourceState,
-		D3D12_RESOURCE_DESC const& InDesc,
+		FD3D12ResourceDesc const& InDesc,
 		const D3D12_CLEAR_VALUE* InClearValue = nullptr,
 		FD3D12Heap* InHeap = nullptr,
 		D3D12_HEAP_TYPE InHeapType = D3D12_HEAP_TYPE_DEFAULT);
@@ -169,7 +196,7 @@ public:
 		D3D12_RESOURCE_STATES InInitialResourceState,
 		ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InDefaultResourceState,
-		D3D12_RESOURCE_DESC const& InDesc,
+		FD3D12ResourceDesc const& InDesc,
 		const D3D12_CLEAR_VALUE* InClearValue,
 		FD3D12Heap* InHeap,
 		D3D12_HEAP_TYPE InHeapType);
@@ -177,7 +204,13 @@ public:
 	virtual ~FD3D12Resource();
 
 	operator ID3D12Resource&() { return *Resource; }
+
 	ID3D12Resource* GetResource() const { return Resource.GetReference(); }
+	ID3D12Resource* GetUAVAccessResource() const { return UAVAccessResource.GetReference(); }
+	void SetUAVAccessResource(ID3D12Resource* InUAVAccessResource) { UAVAccessResource = InUAVAccessResource; }
+
+	inline D3D12_RESOURCE_STATES GetUAVHiddenResourceState() const { return UAVHiddenResourceState; }
+	void SetUAVHiddenResourceState(D3D12_RESOURCE_STATES InUAVHiddenResourceState) { UAVHiddenResourceState = InUAVHiddenResourceState; }
 
 	inline void* Map(const D3D12_RANGE* ReadRange = nullptr)
 	{
@@ -198,7 +231,7 @@ public:
 	}
 
 	ID3D12Pageable* GetPageable();
-	D3D12_RESOURCE_DESC const& GetDesc() const { return Desc; }
+	const FD3D12ResourceDesc& GetDesc() const { return Desc; }
 	D3D12_CLEAR_VALUE const& GetClearValue() const { return ClearValue; }
 	D3D12_HEAP_TYPE GetHeapType() const { return HeapType; }
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
@@ -261,11 +294,11 @@ public:
 
 	struct FD3D12ResourceTypeHelper
 	{
-		FD3D12ResourceTypeHelper(const D3D12_RESOURCE_DESC& Desc, D3D12_HEAP_TYPE HeapType) :
-			bSRV((Desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0),
-			bDSV((Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0),
-			bRTV((Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0),
-			bUAV((Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0),
+		FD3D12ResourceTypeHelper(const FD3D12ResourceDesc& Desc, D3D12_HEAP_TYPE HeapType) :
+			bSRV(!EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE)),
+			bDSV(EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)),
+			bRTV(EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)),
+			bUAV(EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) || Desc.NeedsUAVAliasWorkarounds()),
 			bWritable(bDSV || bRTV || bUAV),
 			bSRVOnly(bSRV && !bWritable),
 			bBuffer(Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER),
@@ -657,11 +690,11 @@ private:
 struct ID3D12ResourceAllocator
 {
 	// Helper function for textures to compute the correct size and alignment
-	void AllocateTexture(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EPixelFormat InUEFormat, ED3D12ResourceStateMode InResourceStateMode,
+	void AllocateTexture(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const FD3D12ResourceDesc& InDesc, EPixelFormat InUEFormat, ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation);
 
 	// Actual pure virtual resource allocation function
-	virtual void AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
+	virtual void AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const FD3D12ResourceDesc& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation) = 0;
 };
 
@@ -968,6 +1001,43 @@ public:
 
 class FD3D12ShaderResourceView;
 
+template<typename InAllocatorType>
+inline void AddTransitionBarrier(TArray<D3D12_RESOURCE_BARRIER, InAllocatorType>& BarrierList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
+{
+	BarrierList.Add(CD3DX12_RESOURCE_BARRIER::Transition(pResource->GetResource(), Before, After, Subresource));
+}
+
+template<typename InAllocatorType>
+inline void AddTransitionBarrierWithUAVAccessOverrides(TArray<D3D12_RESOURCE_BARRIER, InAllocatorType>& BarrierList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
+{
+	if (pResource->GetUAVAccessResource() && EnumHasAnyFlags(Before | After, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+	{
+		// inject an aliasing barrier
+		const bool bFromUAV = EnumHasAnyFlags(Before, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		const bool bToUAV = EnumHasAnyFlags(After, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		check(bFromUAV != bToUAV);
+
+		BarrierList.Add(CD3DX12_RESOURCE_BARRIER::Aliasing(
+			bFromUAV ? pResource->GetUAVAccessResource() : pResource->GetResource(),
+			bToUAV ? pResource->GetUAVAccessResource() : pResource->GetResource()
+		));
+
+		if (bToUAV)
+		{
+			pResource->SetUAVHiddenResourceState(Before);
+		}
+		else if (D3D12_RESOURCE_STATES HiddenState = pResource->GetUAVHiddenResourceState(); HiddenState != After && HiddenState != D3D12_RESOURCE_STATE_CORRUPT)
+		{
+			AddTransitionBarrier(BarrierList, pResource, HiddenState, After, Subresource);
+		}
+	}
+	else
+	{
+		AddTransitionBarrier(BarrierList, pResource, Before, After, Subresource);
+	}
+}
+
 class FD3D12ResourceBarrierBatcher : public FNoncopyable
 {
 public:
@@ -1009,26 +1079,17 @@ public:
 
 		check(IsValidD3D12ResourceState(Before) && IsValidD3D12ResourceState(After));
 
-		D3D12_RESOURCE_BARRIER* Barrier = nullptr;
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-		if (pResource->IsBackBuffer() && (After & BackBufferBarrierWriteTransitionTargets))
+		if (pResource->IsBackBuffer() && EnumHasAnyFlags(After, BackBufferBarrierWriteTransitionTargets))
 		{
-			BackBufferBarriers.AddUninitialized();
-			Barrier = &BackBufferBarriers.Last();
+			AddTransitionBarrier(BackBufferBarriers, pResource, Before, After, Subresource);
 		}
 		else
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+#endif
 		{
-			Barriers.AddUninitialized();
-			Barrier = &Barriers.Last();
+			AddTransitionBarrierWithUAVAccessOverrides(Barriers, pResource, Before, After, Subresource);
 		}
 
-		Barrier->Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		Barrier->Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		Barrier->Transition.StateBefore = Before;
-		Barrier->Transition.StateAfter = After;
-		Barrier->Transition.Subresource = Subresource;
-		Barrier->Transition.pResource = pResource->GetResource();
 		return 1;
 	}
 

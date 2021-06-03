@@ -65,6 +65,25 @@ static inline bool IsBlockCompressedFormat(EPixelFormat Format)
 	return false;
 }
 
+static inline EPixelFormat GetBlockCompressedFormatUAVAliasFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_DXT1:
+	case PF_BC4:
+		return PF_R32G32_UINT;
+
+	case PF_DXT3:
+	case PF_DXT5:
+	case PF_BC5:
+	case PF_BC6H:
+	case PF_BC7:
+		return PF_R32G32B32A32_UINT;
+	}
+
+	return Format;
+}
+
 static bool IsFloatFormat(EPixelFormat Format)
 {
 	switch (Format)

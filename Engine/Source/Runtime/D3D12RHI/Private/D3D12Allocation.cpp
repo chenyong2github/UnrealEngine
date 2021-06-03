@@ -1595,9 +1595,9 @@ void FD3D12TextureAllocatorPool::Destroy()
 }
 
 HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
-	D3D12_RESOURCE_DESC Desc,
+	FD3D12ResourceDesc Desc,
 	const D3D12_CLEAR_VALUE* ClearValue,
-	uint8 UEFormat,
+	EPixelFormat UEFormat,
 	FD3D12ResourceLocation& TextureLocation,
 	const D3D12_RESOURCE_STATES InitialState,
 	const TCHAR* Name)
@@ -1607,11 +1607,9 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 	Desc.Alignment = b4KAligment ?	D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : (Desc.SampleDesc.Count > 1 ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
 	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 
-	bool bIsReadOnly = !(Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||
-						 Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL ||
-						 Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	bool bIsRenderTarget = (Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||
-						 Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	const bool bIsRenderTarget = EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	const bool bIsReadOnly = !bIsRenderTarget && !EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) && !Desc.NeedsUAVAliasWorkarounds();
+
 	ED3D12ResourceStateMode ResourceStateMode = bIsReadOnly ? ED3D12ResourceStateMode::Default : ED3D12ResourceStateMode::MultiState;
 	EPoolType PoolType = bIsReadOnly ? (b4KAligment ? EPoolType::ReadOnly4K : EPoolType::ReadOnly) : (bIsRenderTarget ? EPoolType::RenderTarget : EPoolType::UAV);
 	PoolAllocators[(int)PoolType]->AllocateResource(GetParentDevice()->GetGPUIndex(), D3D12_HEAP_TYPE_DEFAULT, Desc, Info.SizeInBytes, Info.Alignment, ResourceStateMode, InitialState, ClearValue, Name, TextureLocation);
@@ -1694,9 +1692,9 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 }
 
 HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
-	D3D12_RESOURCE_DESC Desc,
+	FD3D12ResourceDesc Desc,
 	const D3D12_CLEAR_VALUE* ClearValue,
-	uint8 UEFormat,
+	EPixelFormat UEFormat,
 	FD3D12ResourceLocation& TextureLocation,
 	const D3D12_RESOURCE_STATES InitialState,
 	const TCHAR* Name)
@@ -1708,9 +1706,8 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 
 	TextureLocation.Clear();
 
-	if (!(Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||
-		Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL ||
-		Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) &&
+	if (!EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET|D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL|D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) &&
+		!Desc.NeedsUAVAliasWorkarounds() &&
 		Desc.SampleDesc.Count == 1)
 	{
 		// The top mip level must be less than 64 KB to use 4 KB alignment
@@ -1776,7 +1773,7 @@ FD3D12TextureAllocator::~FD3D12TextureAllocator()
 {
 }
 
-HRESULT FD3D12TextureAllocator::AllocateTexture(D3D12_RESOURCE_DESC Desc, const D3D12_CLEAR_VALUE* ClearValue, FD3D12ResourceLocation& TextureLocation, const D3D12_RESOURCE_STATES InitialState, const TCHAR* Name)
+HRESULT FD3D12TextureAllocator::AllocateTexture(FD3D12ResourceDesc Desc, const D3D12_CLEAR_VALUE* ClearValue, FD3D12ResourceLocation& TextureLocation, const D3D12_RESOURCE_STATES InitialState, const TCHAR* Name)
 {
 	FD3D12Device* Device = GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
@@ -1821,12 +1818,11 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 	ReadOnlyTexturePool(Device, VisibilityNode, FString(L"Small Read-Only Texture allocator"), TEXTURE_POOL_SIZE, D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES)
 {};
 
-HRESULT FD3D12TextureAllocatorPool::AllocateTexture(D3D12_RESOURCE_DESC Desc, const D3D12_CLEAR_VALUE* ClearValue, uint8 UEFormat, FD3D12ResourceLocation& TextureLocation, const D3D12_RESOURCE_STATES InitialState, const TCHAR* Name)
+HRESULT FD3D12TextureAllocatorPool::AllocateTexture(FD3D12ResourceDesc Desc, const D3D12_CLEAR_VALUE* ClearValue, EPixelFormat UEFormat, FD3D12ResourceLocation& TextureLocation, const D3D12_RESOURCE_STATES InitialState, const TCHAR* Name)
 {
 	// 4KB alignment is only available for read only textures
-	if ((Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||
-		Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL ||
-		Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == false &&
+	if (!EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET|D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL|D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) &&
+		!Desc.NeedsUAVAliasWorkarounds() &&
 		Desc.SampleDesc.Count == 1)// Multi-Sample texures have much larger alignment requirements (4MB vs 64KB)
 	{
 		// The top mip level must be less than 64k
@@ -1841,6 +1837,39 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(D3D12_RESOURCE_DESC Desc, co
 	FD3D12Resource* Resource = nullptr;
 
 	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
+
+	// UAV Aliasing needs a Heap to create the aliased resource in.
+	if (Desc.NeedsUAVAliasWorkarounds())
+	{
+		const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
+
+		D3D12_HEAP_DESC HeapDesc{};
+		HeapDesc.SizeInBytes = Info.SizeInBytes;
+		HeapDesc.Properties = HeapProps;
+		HeapDesc.Alignment = Desc.SampleDesc.Count > 1 ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT : 0;
+		HeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+		if (Adapter->IsHeapNotZeroedSupported())
+		{
+			HeapDesc.Flags |= FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED;
+		}
+
+		ID3D12Heap* Heap = nullptr;
+		VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&HeapDesc, IID_PPV_ARGS(&Heap)));
+		TRefCountPtr<FD3D12Heap> BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
+		bool bTrack = false;
+		BackingHeap->SetHeap(Heap, Name, bTrack);
+
+		HRESULT hr = Adapter->CreatePlacedResource(Desc, BackingHeap, 0, InitialState, ED3D12ResourceStateMode::MultiState, InitialState, ClearValue, &Resource, Name);
+
+		if (SUCCEEDED(hr))
+		{
+			TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
+			TextureLocation.SetResource(Resource);
+		}
+
+		return hr;
+	}
+
 	HRESULT hr = Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InitialState, ClearValue, &Resource, Name, false);
 
 	if (SUCCEEDED(hr))

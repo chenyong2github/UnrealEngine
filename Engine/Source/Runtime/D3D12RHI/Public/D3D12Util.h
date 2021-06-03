@@ -775,29 +775,6 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT DXGIFormat,
 	}
 }
 
-#define NUM_4K_BLOCKS_PER_64K_PAGE (16)
-
-static bool TextureCanBe4KAligned(D3D12_RESOURCE_DESC& Desc, EPixelFormat UEFormat)
-{
-	// 4KB alignment is only available for read only textures
-	if (!(Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||
-		Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL ||
-		Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) &&
-		Desc.SampleDesc.Count == 1)
-	{
-		D3D12_TILE_SHAPE Tile = {};
-		Get4KTileShape(&Tile, Desc.Format, UEFormat, Desc.Dimension, Desc.SampleDesc.Count);
-
-		uint32 TilesNeeded = GetTilesNeeded(Desc.Width, Desc.Height, Desc.DepthOrArraySize, Tile);
-
-		return TilesNeeded <= NUM_4K_BLOCKS_PER_64K_PAGE;
-	}
-	else
-	{
-		return false;
-	}
-}
-
 template <class TView>
 class FD3D12View;
 class CViewSubresourceSubset;

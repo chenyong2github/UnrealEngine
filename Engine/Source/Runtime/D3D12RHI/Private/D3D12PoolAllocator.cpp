@@ -211,7 +211,7 @@ bool FD3D12PoolAllocator::SupportsAllocation(D3D12_HEAP_TYPE InHeapType, D3D12_R
 }
 
 
-void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode,
+void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const FD3D12ResourceDesc& InDesc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState, uint32 InAllocationAlignment, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation)
 {
 #if DO_CHECK
@@ -258,7 +258,7 @@ void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const
 }
 
 
-void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
+void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const FD3D12ResourceDesc& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AllocatePoolResource);
@@ -340,7 +340,7 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 		{
 			check(ResourceLocation.GetResource() == nullptr);
 			
-			D3D12_RESOURCE_DESC Desc = InDesc;
+			FD3D12ResourceDesc Desc = InDesc;
 			Desc.Alignment = AllocationAlignment;
 
 			FD3D12Resource* NewResource = CreatePlacedResource(AllocationData, Desc, InCreateState, InResourceStateMode, InClearValue, InName);
@@ -354,11 +354,12 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 	{
 		FD3D12Resource* NewResource = nullptr;
 		const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InHeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
-		D3D12_RESOURCE_DESC Desc = InDesc;
+		FD3D12ResourceDesc Desc = InDesc;
 		Desc.Alignment = 0;
 
 		// If we are tracking all allocation data and allocating a standalone texture, then first create a heap so we can retrieve the GPU virtual address as well
-		if (Adapter->IsTrackingAllAllocations() && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
+		// UAV Aliasing needs a Heap to create the aliased resource in.
+		if (InDesc.NeedsUAVAliasWorkarounds() || (Adapter->IsTrackingAllAllocations() && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER))
 		{
 			D3D12_HEAP_DESC HeapDesc = {};
 			HeapDesc.SizeInBytes = InSize;
@@ -402,7 +403,7 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 
 FD3D12Resource* FD3D12PoolAllocator::CreatePlacedResource(
 	const FRHIPoolAllocationData& InAllocationData,
-	const D3D12_RESOURCE_DESC& InDesc, 
+	const FD3D12ResourceDesc& InDesc,
 	D3D12_RESOURCE_STATES InCreateState, 
 	ED3D12ResourceStateMode InResourceStateMode, 
 	const D3D12_CLEAR_VALUE* InClearValue, 

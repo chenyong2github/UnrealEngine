@@ -668,10 +668,9 @@ typedef TD3D12ViewDescriptorHandle<D3D12_UNORDERED_ACCESS_VIEW_DESC>	FD3D12Descr
 template <typename TDesc>
 class FD3D12View : public FD3D12ShaderResourceRenameListener
 {
-private:
+protected:
 	TD3D12ViewDescriptorHandle<TDesc> Descriptor;
 
-protected:
 	ViewSubresourceSubsetFlags Flags;
 	FD3D12BaseShaderResource* BaseShaderResource;
 	FD3D12ResourceLocation* ResourceLocation;
@@ -705,7 +704,7 @@ protected:
 #endif
 	}
 
-private:
+protected:
 	void InitializeInternal(const TDesc& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation)
 	{
 		check(InBaseShaderResource);
@@ -743,7 +742,6 @@ private:
 #endif
 	}
 
-protected:
 	void CreateView(const TDesc& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation)
 	{
 		InitializeInternal(InDesc, InBaseShaderResource, InResourceLocation);
@@ -752,18 +750,6 @@ protected:
 		{
 			ID3D12Resource* D3DResource = ResourceLocation->GetResource()->GetResource();
 			Descriptor.CreateView(Desc, D3DResource);
-		}
-	}
-
-	void CreateViewWithCounter(const TDesc& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource)
-	{
-		InitializeInternal(InDesc, InBaseShaderResource, InResourceLocation);
-
-		if (ResourceLocation->GetResource())
-		{
-			ID3D12Resource* D3DResource = ResourceLocation->GetResource()->GetResource();
-			ID3D12Resource* D3DCounterResource = InCounterResource ? InCounterResource->GetResource() : nullptr;
-			Descriptor.CreateViewWithCounter(Desc, D3DResource, D3DCounterResource);
 		}
 	}
 
@@ -981,6 +967,19 @@ public:
 		check(CounterResource == nullptr);
 		check(ResourceLocation->GetOffsetFromBaseOfResource() == 0);
 		Initialize(Desc, BaseShaderResource, *ResourceLocation);
+	}
+
+protected:
+	void CreateViewWithCounter(const D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource)
+	{
+		InitializeInternal(InDesc, InBaseShaderResource, InResourceLocation);
+
+		if (Resource)
+		{
+			ID3D12Resource* D3DResource = Resource->GetUAVAccessResource() ? Resource->GetUAVAccessResource() : Resource->GetResource();
+			ID3D12Resource* D3DCounterResource = InCounterResource ? InCounterResource->GetResource() : nullptr;
+			Descriptor.CreateViewWithCounter(Desc, D3DResource, D3DCounterResource);
+		}
 	}
 };
 

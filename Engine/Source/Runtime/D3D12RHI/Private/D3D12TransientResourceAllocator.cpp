@@ -152,7 +152,7 @@ FRHITransientTexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHI
 }
 
 void FD3D12TransientResourceAllocator::FResourceAllocatorAdapter::AllocateResource(
-	uint32 GPUIndex, D3D12_HEAP_TYPE, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32, ED3D12ResourceStateMode InResourceStateMode,
+	uint32 GPUIndex, D3D12_HEAP_TYPE, const FD3D12ResourceDesc& InDesc, uint64 InSize, uint32, ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation)
 {
 	// The D3D12_RESOURCE_DESC's are built in two different functions right now. This checks that they actually match what we expect.
