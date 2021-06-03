@@ -18,6 +18,7 @@ class TRACEANALYSIS_API FStoreClient
 public:
 	struct TRACEANALYSIS_API FStatus
 	{
+		FAnsiStringView	GetStoreDir() const;
 		uint32			GetRecorderPort() const;
 		uint32			GetChangeSerial() const;
 	};
