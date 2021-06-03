@@ -95,7 +95,7 @@ public:
 			_Clipping = EWidgetClipping::ClipToBounds;
 		}
 		
-		SLATE_SUPPORTS_SLOT( FSlot )
+		SLATE_SLOT_ARGUMENT( FSlot, Slots )
 
 		/** Style used to draw this scrollbox */
 		SLATE_STYLE_ARGUMENT( FScrollBoxStyle, Style )
@@ -149,12 +149,13 @@ public:
 	SScrollBox();
 
 	/** @return a new slot. Slots contain children for SScrollBox */
-	static FSlot& Slot();
+	static FSlot::FSlotArguments Slot();
 
 	void Construct( const FArguments& InArgs );
 
+	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/** Adds a slot to SScrollBox */
-	SScrollBox::FSlot& AddSlot();
+	FScopedWidgetSlotArguments AddSlot();
 
 	/** Removes a slot at the specified location */
 	void RemoveSlot( const TSharedRef<SWidget>& WidgetToRemove );
@@ -435,7 +436,10 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.0, "Direct construction of FSlot is deprecated")
 	void Construct(const FArguments& InArgs, const TArray<SScrollBox::FSlot*>& InSlots);
+
+	void Construct(const FArguments& InArgs, TArray<SScrollBox::FSlot::FSlotArguments> InSlots);
 
 public:
 

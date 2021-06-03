@@ -10,9 +10,9 @@
 #include "Widgets/Images/SImage.h"
 
 
-SScrollBox::FSlot& SScrollBox::Slot()
+SScrollBox::FSlot::FSlotArguments SScrollBox::Slot()
 {
-	return *(new SScrollBox::FSlot());
+	return FSlot::FSlotArguments(MakeUnique<FSlot>());
 }
 
 void SScrollPanel::Construct(const FArguments& InArgs, const TArray<SScrollBox::FSlot*>& InSlots)
@@ -23,6 +23,16 @@ void SScrollPanel::Construct(const FArguments& InArgs, const TArray<SScrollBox::
 	{
 		Children.Add(InSlots[SlotIndex]);
 	}
+	Orientation = InArgs._Orientation;
+	BackPadScrolling = InArgs._BackPadScrolling;
+	FrontPadScrolling = InArgs._FrontPadScrolling;
+}
+
+
+void SScrollPanel::Construct(const FArguments& InArgs, TArray<SScrollBox::FSlot::FSlotArguments> InSlots)
+{
+	PhysicalOffset = 0;
+	Children.AddSlots(MoveTemp(InSlots));
 	Orientation = InArgs._Orientation;
 	BackPadScrolling = InArgs._BackPadScrolling;
 	FrontPadScrolling = InArgs._FrontPadScrolling;
@@ -167,7 +177,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 		bScrollBarIsExternal = false;
 	}
 
-	SAssignNew(ScrollPanel, SScrollPanel, InArgs.Slots)
+	SAssignNew(ScrollPanel, SScrollPanel, MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)))
 		.Clipping(InArgs._Clipping)
 		.Orientation(Orientation)
 		.BackPadScrolling(BackPadScrolling)
@@ -305,12 +315,9 @@ void SScrollBox::ConstructHorizontalLayout()
 }
 
 /** Adds a slot to SScrollBox */
-SScrollBox::FSlot& SScrollBox::AddSlot()
+SScrollBox::FScopedWidgetSlotArguments SScrollBox::AddSlot()
 {
-	SScrollBox::FSlot& NewSlot = *new SScrollBox::FSlot();
-	ScrollPanel->Children.Add( &NewSlot );
-
-	return NewSlot;
+	return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), ScrollPanel->Children, INDEX_NONE };
 }
 
 /** Removes a slot at the specified location */
