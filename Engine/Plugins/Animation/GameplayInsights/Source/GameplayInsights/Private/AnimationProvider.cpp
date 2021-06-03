@@ -567,7 +567,7 @@ static FTransform ConvertTransform(int TransformSize, const float* TransformFloa
 		Rotation.Y = TransformFloats[1];
 		Rotation.Z = TransformFloats[2];
 		Rotation.W = TransformFloats[3];
-		const double* TransformDoubles = reinterpret_cast<const double*>(TransformFloats + 4);
+		const double* TransformDoubles = reinterpret_cast<const double*>((void*)(TransformFloats + 4));
 		Translation.X = TransformDoubles[0];
 		Translation.Y = TransformDoubles[1];
 		Translation.Z = TransformDoubles[2];

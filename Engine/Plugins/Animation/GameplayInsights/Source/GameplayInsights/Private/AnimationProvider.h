@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "IAnimationProvider.h"
 #include "Common/PagedArray.h"
 #include "Model/IntervalTimeline.h"
