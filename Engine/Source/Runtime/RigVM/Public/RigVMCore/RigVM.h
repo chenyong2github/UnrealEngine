@@ -588,9 +588,25 @@ private:
 
 	TArray<uint32> FirstHandleForInstruction;
 	TArray<FRigVMMemoryHandle> CachedMemoryHandles;
+	// changes to the layout of cached memory array should be reflected in GetContainerIndex()
 	TArray<FRigVMMemoryContainer*> CachedMemory;
 	TArray<FRigVMExternalVariable> ExternalVariables;
 
+	// this function should be kept in sync with FRigVMOperand::GetContainerIndex()
+	static int32 GetContainerIndex(ERigVMMemoryType InType)
+	{
+		if(InType == ERigVMMemoryType::External)
+		{
+			return (int32)ERigVMMemoryType::Work;
+		}
+		
+		if(InType == ERigVMMemoryType::Debug)
+		{
+			return 2;
+		}
+		return (int32)InType;
+	}
+	
 #if WITH_EDITOR
 	// stores the number of times each instruction was visited
 	TArray<int32> InstructionVisitedDuringLastRun;
