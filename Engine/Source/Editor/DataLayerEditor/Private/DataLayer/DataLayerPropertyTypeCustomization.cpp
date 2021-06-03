@@ -36,7 +36,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	.MaxDesiredWidth(TOptional<float>())
 	[
 		SNew(SDropTarget)
-		.OnDrop(this, &FDataLayerPropertyTypeCustomization::OnDrop)
+		.OnDropped(this, &FDataLayerPropertyTypeCustomization::OnDrop)
 		.OnAllowDrop(this, &FDataLayerPropertyTypeCustomization::OnVerifyDrag)
 		.OnIsRecognized(this, &FDataLayerPropertyTypeCustomization::OnVerifyDrag)
 		[
@@ -148,9 +148,9 @@ void FDataLayerPropertyTypeCustomization::AssignDataLayer(const UDataLayer* InDa
 	}
 }
 
-FReply FDataLayerPropertyTypeCustomization::OnDrop(TSharedPtr<FDragDropOperation> InDragDrop)
+FReply FDataLayerPropertyTypeCustomization::OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
-	TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = GetDataLayerDragDropOp(InDragDrop);
+	TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = GetDataLayerDragDropOp(InDragDropEvent.GetOperation());
 	if (DataLayerDragDropOp.IsValid())
 	{
 		const TArray<FName>& DataLayerLabels = DataLayerDragDropOp->DataLayerLabels;

@@ -449,7 +449,7 @@ void SSequenceRecorder::Construct(const FArguments& Args)
 						[
 							SNew( SDropTarget )
 							.OnAllowDrop( this, &SSequenceRecorder::OnRecordingActorListAllowDrop )
-							.OnDrop( this, &SSequenceRecorder::OnRecordingActorListDrop )
+							.OnDropped( this, &SSequenceRecorder::OnRecordingActorListDrop )
 							.Content()
 							[
 								SAssignNew(ActorListView, SListView<UActorRecording*>)
@@ -986,12 +986,11 @@ bool SSequenceRecorder::OnRecordingActorListAllowDrop( TSharedPtr<FDragDropOpera
 	return DragDropOperation->IsOfType<FActorDragDropOp>();
 }
 
-FReply SSequenceRecorder::OnRecordingActorListDrop( TSharedPtr<FDragDropOperation> DragDropOperation )
+FReply SSequenceRecorder::OnRecordingActorListDrop( const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent )
 {
-	if ( DragDropOperation->IsOfType<FActorDragDropOp>() )
+	TSharedPtr<FActorDragDropOp> ActorDragDropOperation = InDragDropEvent.GetOperationAs<FActorDragDropOp>();
+	if ( ActorDragDropOperation )
 	{
-		TSharedPtr<FActorDragDropOp> ActorDragDropOperation = StaticCastSharedPtr<FActorDragDropOp>( DragDropOperation );
-
 		for (auto Actor : ActorDragDropOperation->Actors)
 		{
 			if (Actor.IsValid())

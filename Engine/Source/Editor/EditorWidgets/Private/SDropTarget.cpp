@@ -12,7 +12,7 @@
 
 void SDropTarget::Construct(const FArguments& InArgs)
 {
-	DroppedEvent = InArgs._OnDrop;
+	DroppedEvent = InArgs._OnDropped;
 	AllowDropEvent = InArgs._OnAllowDrop;
 	IsRecognizedEvent = InArgs._OnIsRecognized;
 
@@ -111,7 +111,7 @@ FReply SDropTarget::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& Dr
 	{
 		if ( DroppedEvent.IsBound() )
 		{
-			return DroppedEvent.Execute(DragDropEvent.GetOperation());
+			return DroppedEvent.Execute(MyGeometry, DragDropEvent);
 		}
 
 		return FReply::Handled();

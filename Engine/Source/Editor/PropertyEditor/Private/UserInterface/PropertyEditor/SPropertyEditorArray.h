@@ -46,7 +46,7 @@ public:
 		.Padding( 0.0f, 0.0f, 2.0f, 0.0f )
 		[
 			SNew(SDropTarget)
-			.OnDrop(this, &SPropertyEditorArray::OnDragDropTarget)
+			.OnDropped(this, &SPropertyEditorArray::OnDragDropTarget)
 			.OnAllowDrop(this, &SPropertyEditorArray::WillAddValidElements)
 			.OnIsRecognized(this, &SPropertyEditorArray::IsValidAssetDropOp)
 			.Content()
@@ -92,7 +92,7 @@ private:
 		return PropertyEditor.IsValid() ? !PropertyEditor->IsEditConst() : true;
 	}
 
-	FReply OnDragDropTarget(TSharedPtr<FDragDropOperation> InOperation)
+	FReply OnDragDropTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 	{
 		FObjectProperty* ObjectProperty = nullptr;
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(PropertyEditor->GetProperty()))
@@ -101,9 +101,10 @@ private:
 		}
 
 		// Only try to add entries if we are dropping on an asset array
-		if (ObjectProperty && InOperation->IsOfType<FAssetDragDropOp>())
+		TSharedPtr<FDragDropOperation> DragOperation = InDragDropEvent.GetOperation();
+		if (ObjectProperty && DragOperation && DragOperation->IsOfType<FAssetDragDropOp>())
 		{
-			TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(InOperation);
+			TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(DragOperation);
 			if (DragDropOp.IsValid())
 			{
 				for (FAssetData AssetData : DragDropOp->GetAssets())

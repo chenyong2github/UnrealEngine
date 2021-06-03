@@ -37,7 +37,7 @@ private:
 	FText GetVisibilityToolTip() const;
 
 	bool OnAllowDrop( TSharedPtr<FDragDropOperation> DragDropOperation );
-	FReply OnDrop( TSharedPtr<FDragDropOperation> DragDropOperation );
+	FReply OnDrop( const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent );
 
 private:
 

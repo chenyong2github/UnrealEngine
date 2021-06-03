@@ -13,7 +13,7 @@ public:
 	virtual TSharedRef<SWidget> CreateNodeContentArea();
 
 protected:
-	FReply OnDroppedOnTarget(TSharedPtr<FDragDropOperation> DropOperation);
+	FReply OnDroppedOnTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
 
 };

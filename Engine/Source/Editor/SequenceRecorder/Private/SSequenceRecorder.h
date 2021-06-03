@@ -105,7 +105,7 @@ private:
 
 	FText GetTargetSequenceName() const;
 
-	FReply OnRecordingActorListDrop( TSharedPtr<FDragDropOperation> DragDropOperation );
+	FReply OnRecordingActorListDrop( const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent );
 
 	bool OnRecordingActorListAllowDrop( TSharedPtr<FDragDropOperation> DragDropOperation );
 

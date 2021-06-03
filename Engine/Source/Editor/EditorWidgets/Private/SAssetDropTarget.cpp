@@ -17,16 +17,16 @@ void SAssetDropTarget::Construct(const FArguments& InArgs )
 
 	SDropTarget::Construct(
 		SDropTarget::FArguments()
-		.OnDrop(this, &SAssetDropTarget::OnDropped)
+		.OnDropped(this, &SAssetDropTarget::OnDropped)
 		[
 			InArgs._Content.Widget
 		]);
 }
 
-FReply SAssetDropTarget::OnDropped(TSharedPtr<FDragDropOperation> DragDropOperation)
+FReply SAssetDropTarget::OnDropped(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
 	bool bUnused;
-	UObject* Object = GetDroppedObject(DragDropOperation, bUnused);
+	UObject* Object = GetDroppedObject(InDragDropEvent.GetOperation(), bUnused);
 
 	if ( Object )
 	{
@@ -105,7 +105,12 @@ void SAssetDropTarget::OnDragLeave(const FDragDropEvent& DragDropEvent)
 UObject* SAssetDropTarget::GetDroppedObject(TSharedPtr<FDragDropOperation> DragDropOperation, bool& bOutRecognizedEvent) const
 {
 	bOutRecognizedEvent = false;
-	UObject* DroppedObject = NULL;
+	UObject* DroppedObject = nullptr;
+
+	if (!DragDropOperation)
+	{
+		return DroppedObject;
+	}
 
 	// Asset being dragged from content browser
 	if ( DragDropOperation->IsOfType<FAssetDragDropOp>() )

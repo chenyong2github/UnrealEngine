@@ -61,7 +61,7 @@ private:
 
 	void OnGetChildren(TSharedPtr<IMoviePipelineQueueTreeItem> Item, TArray<TSharedPtr<IMoviePipelineQueueTreeItem>>& OutChildItems);
 
-	FReply OnDragDropTarget(TSharedPtr<FDragDropOperation> InOperation);
+	FReply OnDragDropTarget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 
 	bool CanDragDropTarget(TSharedPtr<FDragDropOperation> InOperation);
 

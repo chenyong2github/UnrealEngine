@@ -34,7 +34,7 @@ TSharedRef<SWidget> FLevelVisibilitySection::GenerateSectionWidget()
 	return
 		SNew( SDropTarget )
 		.OnAllowDrop( this, &FLevelVisibilitySection::OnAllowDrop )
-		.OnDrop( this, &FLevelVisibilitySection::OnDrop )
+		.OnDropped( this, &FLevelVisibilitySection::OnDrop )
 		.Content()
 		[
 			SNew( SBorder )
@@ -111,11 +111,11 @@ bool FLevelVisibilitySection::OnAllowDrop( TSharedPtr<FDragDropOperation> DragDr
 }
 
 
-FReply FLevelVisibilitySection::OnDrop( TSharedPtr<FDragDropOperation> DragDropOperation )
+FReply FLevelVisibilitySection::OnDrop( const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent )
 {
-	if ( DragDropOperation->IsOfType<FLevelDragDropOp>() )
+	TSharedPtr<FLevelDragDropOp> LevelDragDropOperation = InDragDropEvent.GetOperationAs<FLevelDragDropOp>();
+	if ( LevelDragDropOperation )
 	{
-		TSharedPtr<FLevelDragDropOp> LevelDragDropOperation = StaticCastSharedPtr<FLevelDragDropOp>( DragDropOperation );
 		if ( LevelDragDropOperation->StreamingLevelsToDrop.Num() > 0 )
 		{
 			FScopedTransaction Transaction(NSLOCTEXT("LevelVisibilitySection", "TransactionText", "Add Level(s) to Level Visibility Section"));

@@ -61,7 +61,7 @@ void FMovieSceneObjectBindingIDCustomization::CustomizeHeader(TSharedRef<IProper
 		+ SHorizontalBox::Slot()
 		[
 			SNew(SDropTarget)
-			.OnDrop(this, &FMovieSceneObjectBindingIDCustomization::OnDrop)
+			.OnDropped(this, &FMovieSceneObjectBindingIDCustomization::OnDrop)
 			.OnAllowDrop_Static(IsAcceptable)
 			.OnIsRecognized_Static(IsAcceptable)
 			[
@@ -88,9 +88,9 @@ void FMovieSceneObjectBindingIDCustomization::CustomizeHeader(TSharedRef<IProper
 	];
 }
 
-FReply FMovieSceneObjectBindingIDCustomization::OnDrop(TSharedPtr<FDragDropOperation> InOperation)
+FReply FMovieSceneObjectBindingIDCustomization::OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
-	FSequencerObjectBindingDragDropOp* SequencerOp = InOperation->IsOfType<FSequencerObjectBindingDragDropOp>() ? static_cast<FSequencerObjectBindingDragDropOp*>(InOperation.Get()) : nullptr;
+	TSharedPtr<FSequencerObjectBindingDragDropOp> SequencerOp = InDragDropEvent.GetOperationAs<FSequencerObjectBindingDragDropOp>();
 	if (SequencerOp)
 	{
 		TArray<UE::MovieScene::FFixedObjectBindingID> Bindings = SequencerOp->GetDraggedBindings();

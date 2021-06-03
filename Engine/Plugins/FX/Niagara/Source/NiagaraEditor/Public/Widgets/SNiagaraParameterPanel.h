@@ -120,7 +120,7 @@ private:
 
 	TSharedRef<SWidget> GetViewOptionsMenu();
 
-	FReply HandleDragDropOperation(TSharedPtr<FDragDropOperation> DropOperation);
+	FReply HandleDragDropOperation(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 	
 	bool GetCanHandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation);
 

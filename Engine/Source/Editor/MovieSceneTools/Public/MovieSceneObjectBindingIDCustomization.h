@@ -50,7 +50,7 @@ private:
 
 	virtual bool HasMultipleValues() const override;
 
-	FReply OnDrop(TSharedPtr<FDragDropOperation> InOperation);
+	FReply OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 
 	TSharedPtr<IPropertyHandle> StructProperty;
 };
