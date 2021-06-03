@@ -3785,6 +3785,15 @@ void UPrimitiveComponent::SetRenderInMainPass(bool bValue)
 	}
 }
 
+void UPrimitiveComponent::SetRenderInDepthPass(bool bValue)
+{
+	if (bRenderInDepthPass != bValue)
+	{
+		bRenderInDepthPass = bValue;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetVisibleInSceneCaptureOnly(bool bValue)
 {
 	if (bVisibleInSceneCaptureOnly != bValue)
