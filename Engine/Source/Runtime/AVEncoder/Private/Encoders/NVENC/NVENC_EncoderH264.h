@@ -4,6 +4,8 @@
 
 #include "NVENC_Common.h"
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderInputImpl.h"
 
@@ -137,3 +139,4 @@ namespace AVEncoder
     };
 
 }
+#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE
