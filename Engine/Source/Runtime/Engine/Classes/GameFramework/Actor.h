@@ -853,6 +853,10 @@ public:
 	/** Set the bLockLocation flag */
 	void SetLockLocation(bool bInLockLocation) { bLockLocation = bInLockLocation; }
 
+	/** Called on actor which initiated the PIE session */
+	virtual void OnPlayFromHere();
+
+	bool CanPlayFromHere() const { return bCanPlayFromHere; }
 private:
 	friend class FActorDescList;
 	friend class UActorDescContainer;
@@ -938,6 +942,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category=Cooking, meta=(DisplayName="Generate Optimized Blueprint Component Data"))
 	uint8 bOptimizeBPComponentData:1;
 
+	/** Whether the actor can be used as a PlayFromHere origin (OnPlayFromHere() will be called on that actor) */
+	UPROPERTY()
+	uint8 bCanPlayFromHere : 1;
 private:
 	/** Whether this actor is temporarily hidden within the editor; used for show/hide/etc functionality w/o dirtying the actor. */
 	UPROPERTY(Transient)

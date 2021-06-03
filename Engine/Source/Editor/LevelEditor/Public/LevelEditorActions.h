@@ -125,6 +125,9 @@ public:
 	/** Moves the camera to the current mouse position */
 	TSharedPtr< FUICommandInfo > GoHere;
 
+	/** Play from here on selected actor. */
+	TSharedPtr< FUICommandInfo > PlayFromHere;
+
 	/** Snaps the camera to the selected object. */
 	TSharedPtr< FUICommandInfo > SnapCameraToObject;
 
@@ -923,6 +926,10 @@ public:
 	 * @param Point	- Specified point to go to.  If null, a point will be calculated from current mouse position
 	 */
 	static void GoHere_Clicked( const FVector* Point );
+
+	/** Called when selected actor can be used to start a play session */
+	static void PlayFromHere_Clicked();
+	static bool PlayFromHere_IsVisible();
 
 	/** Called when 'Go to Code for Actor' is clicked */
 	static void GoToCodeForActor_Clicked();

@@ -871,6 +871,26 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 
 void FPlayWorldCommandCallbacks::StartPlayFromHere()
 {
+	// Figure out the start location of the player
+	UClass* const PlayerStartClass = GUnrealEd->PlayFromHerePlayerStartClass ? (UClass*)GUnrealEd->PlayFromHerePlayerStartClass : APlayerStart::StaticClass();
+	UCapsuleComponent* DefaultCollisionComponent = CastChecked<UCapsuleComponent>(PlayerStartClass->GetDefaultObject<AActor>()->GetRootComponent());
+	FVector	CollisionExtent = FVector(DefaultCollisionComponent->GetScaledCapsuleRadius(), DefaultCollisionComponent->GetScaledCapsuleRadius(), DefaultCollisionComponent->GetScaledCapsuleHalfHeight());
+	FVector StartLocation = GEditor->UnsnappedClickLocation + GEditor->ClickPlane * (FVector::BoxPushOut(GEditor->ClickPlane, CollisionExtent) + 0.1f);
+	TOptional<FRotator> StartRotation;
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+
+	if (ActiveLevelViewport.IsValid() && ActiveLevelViewport->GetAssetViewportClient().IsPerspective())
+	{
+		StartRotation = ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
+	}
+
+	StartPlayFromHere(StartLocation, StartRotation);
+}
+
+void FPlayWorldCommandCallbacks::StartPlayFromHere(const TOptional<FVector>& Location, const TOptional<FRotator>& Rotation)
+{
 	// Is a PIE session already running?  If so we close it first
 	if (GUnrealEd->PlayWorld != NULL)
 	{
@@ -878,24 +898,17 @@ void FPlayWorldCommandCallbacks::StartPlayFromHere()
 	}
 
 	FRequestPlaySessionParams SessionParams;
-
-	UClass* const PlayerStartClass = GUnrealEd->PlayFromHerePlayerStartClass ? (UClass*)GUnrealEd->PlayFromHerePlayerStartClass : APlayerStart::StaticClass();
-
-	// Figure out the start location of the player
-	UCapsuleComponent*	DefaultCollisionComponent = CastChecked<UCapsuleComponent>(PlayerStartClass->GetDefaultObject<AActor>()->GetRootComponent());
-	FVector	CollisionExtent = FVector(DefaultCollisionComponent->GetScaledCapsuleRadius(), DefaultCollisionComponent->GetScaledCapsuleRadius(), DefaultCollisionComponent->GetScaledCapsuleHalfHeight());
-	SessionParams.StartLocation = GEditor->UnsnappedClickLocation + GEditor->ClickPlane * (FVector::BoxPushOut(GEditor->ClickPlane, CollisionExtent) + 0.1f);
+	SessionParams.StartLocation = Location;
+	SessionParams.StartRotation = Rotation;
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 
 	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
-
 	if (ActiveLevelViewport.IsValid() && ActiveLevelViewport->GetAssetViewportClient().IsPerspective())
 	{
 		// If there is no level viewport, a new window will be spawned to play in.
 		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
-		SessionParams.StartRotation = ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
 	}
 
 	GUnrealEd->RequestPlaySession(SessionParams);

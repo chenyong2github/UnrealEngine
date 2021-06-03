@@ -138,6 +138,7 @@ public:
 	 * Called from the context menu to start previewing the game at the clicked location                   
 	 */
 	static void StartPlayFromHere();
+	static void StartPlayFromHere(const TOptional<FVector>& Location, const TOptional<FRotator>& Rotation);
 
 	static void ResumePlaySession_Clicked();
 	static void PausePlaySession_Clicked();

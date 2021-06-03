@@ -1391,6 +1391,12 @@ bool UEditorEngine::SpawnPlayFromHereStart( UWorld* World, AActor*& PlayerStart,
 		NavPlayerStart->bIsPIEPlayerStart = true;
 	}
 
+	// If PlayFromHere originated from a specific actor
+	if (World->PersistentLevel->PlayFromHereActor)
+	{
+		World->PersistentLevel->PlayFromHereActor->OnPlayFromHere();
+	}
+
 	return true;
 }
 

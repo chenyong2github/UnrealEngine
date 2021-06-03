@@ -330,6 +330,7 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	FixupOverrideVertexColorsCount = 0;
 	bUseExternalActors = false;
 	bContainsStableActorGUIDs = true;
+	PlayFromHereActor = nullptr;
 #endif	
 	bActorClusterCreated = false;
 	bIsPartitioned = false;
@@ -590,6 +591,17 @@ void ULevel::Serialize( FArchive& Ar )
 		FWorldTileInfo Info;
 		Ar << Info;
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
+	{
+		Ar << PlayFromHereActor;
+		if (Ar.IsSaving())
+		{
+			PlayFromHereActor = nullptr;
+		}
+	}
+#endif
 }
 
 void ULevel::CreateReplicatedDestructionInfo(AActor* const Actor)
