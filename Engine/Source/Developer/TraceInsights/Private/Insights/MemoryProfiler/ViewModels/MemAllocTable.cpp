@@ -555,7 +555,7 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(550.0f);
 
-		Column.SetDataType(ETableCellDataType::CString);
+		Column.SetDataType(ETableCellDataType::Text);
 
 		Column.SetIsDynamic(true);
 
@@ -633,7 +633,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FunctionValueFormatter>();
 		Column.SetValueFormatter(Formatter);
 
-		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
 		AddColumn(ColumnRef);
