@@ -151,6 +151,7 @@ UVolumeTexture* UTextureRenderTargetVolume::ConstructTextureVolume(UObject* ObjO
 	switch (PixelFormat)
 	{
 		case PF_R32_FLOAT:
+		case PF_FloatRGBA:
 			TextureFormat = TSF_RGBA16F;
 			break;
 	}
