@@ -2180,31 +2180,6 @@ private:
 };
 
 
-class FInstanceCullingManagerResources : public FRenderResource
-{
-public:
-	/**
-	 */
-	static constexpr uint32 MaxIndirectInstances = 1024 * 1024;
-
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-
-	FRHIBuffer* GetInstancesIdBuffer() const { return InstanceIdsBuffer.Buffer; }
-
-	FRHIShaderResourceView* GetInstancesIdBufferSrv() const { return InstanceIdsBuffer.SRV.GetReference(); }
-	FRHIShaderResourceView* GetPageInfoBufferSrv() const { return PageInfoBuffer.SRV.GetReference(); }
-
-	FUnorderedAccessViewRHIRef GetInstancesIdBufferUav() const { return InstanceIdsBuffer.UAV; }
-	FUnorderedAccessViewRHIRef GetPageInfoBufferUav() const { return PageInfoBuffer.UAV; }
-
-private:
-	FRWBuffer PageInfoBuffer;
-	FRWBuffer InstanceIdsBuffer;
-};
-
-extern ENGINE_API TGlobalResource<FInstanceCullingManagerResources> GInstanceCullingManagerResources;
-
 /** 
  * Base class for a resource allocated from a FMeshElementCollector with AllocateOneFrameResource, which the collector releases.
  * This is useful for per-frame structures which are referenced by a mesh batch given to the FMeshElementCollector.

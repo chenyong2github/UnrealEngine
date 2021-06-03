@@ -391,7 +391,7 @@ void Main(
 	{
 		// Get the offset from which we loaded the instance ID
 		uint InstanceIdIndex = VertexFactoryGetInstanceIdLoadIndex(VFIntermediates);
-		FPageInfo PageInfo = UnPackPageInfo(View.PageInfoBuffer[InstanceIdIndex]);
+		FPageInfo PageInfo = UnPackPageInfo(InstanceCulling.PageInfoBuffer[InstanceIdIndex]);
 
 		TransformToVirtualSmPage(OutPosition, OutVirtualSmPageClip, PageInfo, WorldPos.xyz);
 		
@@ -518,7 +518,7 @@ void PositionOnlyMain(
 		uint InstanceIdIndex = VertexFactoryGetInstanceIdLoadIndex(Input);
 		// TODO: Maybe offset index to local buffer for this? We may not want to use a global since most passes are not supporting this
 		//       Or perhaps both are different, as they are managed somewhat differently anyway, maybe.
-		FPageInfo PageInfo = UnPackPageInfo(View.PageInfoBuffer[InstanceIdIndex]);
+		FPageInfo PageInfo = UnPackPageInfo(InstanceCulling.PageInfoBuffer[InstanceIdIndex]);
 		TransformToVirtualSmPage(OutPosition, OutVirtualSmPageClip, PageInfo, WorldPos.xyz);
 
 		ViewId = PageInfo.ViewId;

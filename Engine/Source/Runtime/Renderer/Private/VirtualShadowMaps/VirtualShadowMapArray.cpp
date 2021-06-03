@@ -1590,8 +1590,8 @@ public:
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer< uint>, InstanceIdsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer< uint>, DrawCommandIdsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint>, InstanceIdsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint>, DrawCommandIdsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, NumInstanceIdsBuffer)
 		SHADER_PARAMETER(int32, FirstPrimaryView)
 		SHADER_PARAMETER(int32, NumPrimaryViews)
@@ -1676,8 +1676,8 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVisibleInstanceCmd >, VisibleInstances)
-		SHADER_PARAMETER_UAV(RWBuffer<uint>, InstanceIdsBufferLegacyOut)
-		SHADER_PARAMETER_UAV(RWBuffer<uint>, PageInfoBufferLegacyOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, InstanceIdsBufferOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, PageInfoBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, TmpInstanceIdOffsetBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VisibleInstanceCountBuffer)
 
@@ -1819,26 +1819,16 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			//if (IsClipMap())
 			// AddPageRenderCommandPass(GraphBuilder, GPUScene, InstanceIdBuffer, InstanceCountBuffer, ShadowMapViews);
 			// 2.1. Pass to perform the culling & replication to each page, store 
-			const uint32 MaxNumInstancesPerPass = NumDrawCommands * FInstanceCullingManager::MaxAverageInstanceFactor * 64u;
+
+			// TODO: This is both not right, and also over conservative when running with the atomic path
+			const uint32 MaxNumInstancesPerPass = MeshCommandPass.GetInstanceCullingContext()->TotalInstances * 64u;
 			FRDGBufferRef VisibleInstancesRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstances"), sizeof(FVisibleInstanceCmd), MaxNumInstancesPerPass, nullptr, 0);
 
-			TArray<uint32> NullArray;
+			TArray<uint32, TInlineAllocator<1> > NullArray;
 			NullArray.AddZeroed(1);
 			FRDGBufferRef VisibleInstanceWriteOffsetRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstanceWriteOffset"), NullArray);
 			FRDGBufferRef OutputOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.OutputOffsetBuffer"), NullArray);
 			FRDGBufferRef VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);
-
-			// TODO: Remove this when everything is properly RDG'd
-			AddPass(GraphBuilder, [](FRHICommandList& RHICmdList)
-			{
-				FRHITransitionInfo 	Transitions[2] =
-				{
-					FRHITransitionInfo(GInstanceCullingManagerResources.GetInstancesIdBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(GInstanceCullingManagerResources.GetPageInfoBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-				};
-
-				RHICmdList.Transition(Transitions);
-			});
 
 			{
 				FRDGBufferRef IndirectArgs = AddIndirectArgsSetupCsPass1D(GraphBuilder, Params.InstanceIdWriteOffsetBuffer, 1, FCullPerPageDrawCommandsCs::NumThreadsPerGroup);
@@ -1851,8 +1841,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 				PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
 				PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
-				PassParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdsBuffer, PF_R32_UINT);
-				PassParameters->DrawCommandIdsBuffer = GraphBuilder.CreateSRV(Params.DrawCommandIdsBuffer, PF_R32_UINT);
+				PassParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdsBuffer);
+				PassParameters->DrawCommandIdsBuffer = GraphBuilder.CreateSRV(Params.DrawCommandIdsBuffer);
 				PassParameters->NumInstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdWriteOffsetBuffer);
 				PassParameters->FirstPrimaryView = 0;
 				PassParameters->NumPrimaryViews = NumPrimaryViews;
@@ -1884,8 +1874,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			{
 				FAllocateCommandInstanceOutputSpaceCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FAllocateCommandInstanceOutputSpaceCs::FParameters>();
 
-				// get this in a neater way
-				FRDGBufferRef InstanceIdOutOffsetBufferRDG = MeshCommandPass.GetInstanceCullingContext()->InstanceCullingManager->CullingIntermediate.InstanceIdOutOffsetBuffer;
+				FRDGBufferRef InstanceIdOutOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.OutputOffsetBufferOut"), NullArray);
 
 				PassParameters->NumDrawCommands = NumDrawCommands;
 				PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(Params.DrawIndirectArgs, PF_R32_UINT);
@@ -1906,14 +1895,17 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 			}
 			// 2.3. Perform final pass to re-shuffle the instance ID's to their final resting places
+			FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxNumInstancesPerPass), TEXT("Shadow.Virtual.InstanceIdsBuffer"));
+			FRDGBufferRef PageInfoBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxNumInstancesPerPass), TEXT("Shadow.Virtual.PageInfoBuffer"));
+
 			{
 				FRDGBufferRef IndirectArgs = AddIndirectArgsSetupCsPass1D(GraphBuilder, VisibleInstanceWriteOffsetRDG, 1, FOutputCommandInstanceListsCs::NumThreadsPerGroup);
 
 				FOutputCommandInstanceListsCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FOutputCommandInstanceListsCs::FParameters>();
 
 				PassParameters->VisibleInstances = GraphBuilder.CreateSRV(VisibleInstancesRdg);
-				PassParameters->PageInfoBufferLegacyOut = GInstanceCullingManagerResources.GetPageInfoBufferUav();
-				PassParameters->InstanceIdsBufferLegacyOut = GInstanceCullingManagerResources.GetInstancesIdBufferUav();
+				PassParameters->PageInfoBufferOut = GraphBuilder.CreateUAV(PageInfoBuffer);
+				PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBuffer);
 				PassParameters->TmpInstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(TmpInstanceIdOffsetBufferRDG);
 				PassParameters->VisibleInstanceCountBuffer = GraphBuilder.CreateSRV(VisibleInstanceWriteOffsetRDG);
 				PassParameters->IndirectArgs = IndirectArgs;
@@ -1972,22 +1964,17 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			FInstanceCullingResult InstanceCullingResult;
 			InstanceCullingResult.DrawIndirectArgsBuffer = Params.DrawIndirectArgs;
 			InstanceCullingResult.InstanceIdOffsetBuffer = Params.InstanceIdStartOffsetBuffer;
+
+			FInstanceCullingGlobalUniforms* InstanceCullingGlobalUniforms = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
+			InstanceCullingGlobalUniforms->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+			InstanceCullingGlobalUniforms->PageInfoBuffer = GraphBuilder.CreateSRV(PageInfoBuffer);
+			InstanceCullingGlobalUniforms->BufferCapacity = MaxNumInstancesPerPass;
+			InstanceCullingResult.UniformBuffer = GraphBuilder.CreateUniformBuffer(InstanceCullingGlobalUniforms);
+
 			InstanceCullingResult.GetDrawParameters(PassParameters->InstanceCullingDrawParams);
 
 			FIntRect ViewRect;
 			ViewRect.Max = bAtomicWrites ? FVirtualShadowMap::VirtualMaxResolutionXY : GetPhysicalPoolSize();
-
-			// TODO: Remove this when everything is properly RDG'd
-			AddPass(GraphBuilder, [](FRHICommandList& RHICmdList)
-			{
-				FRHITransitionInfo 	Transitions[2] =
-				{
-					FRHITransitionInfo(GInstanceCullingManagerResources.GetInstancesIdBufferUav(), ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics),
-					FRHITransitionInfo(GInstanceCullingManagerResources.GetPageInfoBufferUav(), ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics)
-				};
-
-				RHICmdList.Transition(Transitions);
-			});
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("RenderVirtualShadowMapsHw"),

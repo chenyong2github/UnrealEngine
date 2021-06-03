@@ -26,12 +26,9 @@ struct FBatchInfo
 };
 
 
-#if OUTPUT_COMMAND_IDS
-RWBuffer<uint> InstanceIdsBufferOut;
-RWBuffer<uint> DrawCommandIdsBufferOut;
-#else
-RWBuffer<uint> InstanceIdsBufferLegacyOut;
-#endif
+RWStructuredBuffer<uint> InstanceIdsBufferOut;
+RWStructuredBuffer<uint> DrawCommandIdsBufferOut;
+
 RWBuffer<uint> DrawIndirectArgsBufferOut;
 RWBuffer<uint> InstanceIdOffsetBufferOut;
 RWStructuredBuffer<uint> OutputOffsetBufferOut;
@@ -110,11 +107,9 @@ bool TestInstanceVisibilityBit(uint InstanceId, uint ViewId)
 void WriteInstanceId(uint Offset, uint InstanceId, uint ViewIdIndex, uint DrawCommandId)
 {
 	uint PackedId = InstanceId | (ViewIdIndex << 28U);
-#if OUTPUT_COMMAND_IDS
 	InstanceIdsBufferOut[Offset] = PackedId;
+#if OUTPUT_COMMAND_IDS
 	DrawCommandIdsBufferOut[Offset] = DrawCommandId;
-#else
-	InstanceIdsBufferLegacyOut[Offset] = PackedId;
 #endif
 }
 

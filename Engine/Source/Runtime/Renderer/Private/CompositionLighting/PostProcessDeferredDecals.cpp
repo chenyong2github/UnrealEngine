@@ -83,6 +83,7 @@ FDeferredDecalPassTextures GetDeferredDecalPassTextures(
 }
 
 void GetDeferredDecalPassParameters(
+	FRDGBuilder &GraphBuilder,
 	const FViewInfo& View,
 	const FDeferredDecalPassTextures& Textures,
 	EDecalRenderTargetMode RenderTargetMode,
@@ -91,6 +92,9 @@ void GetDeferredDecalPassParameters(
 	PassParameters.View = View.GetShaderParameters();
 	PassParameters.DeferredDecal = CreateDeferredDecalUniformBuffer(View);
 	PassParameters.DecalPass = Textures.DecalPassUniformBuffer;
+	
+	// TODO: hook up to instance culling manager and convert to simple mesh pass.
+	PassParameters.InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 
 	FRDGTextureRef DepthTexture = Textures.Depth.Target;
 
@@ -456,7 +460,7 @@ void AddDeferredDecalPass(
 	const auto RenderDecals = [&](uint32 DecalIndexBegin, uint32 DecalIndexEnd, EDecalRenderTargetMode RenderTargetMode)
 	{
 		auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
-		GetDeferredDecalPassParameters(View, PassTextures, RenderTargetMode, *PassParameters);
+		GetDeferredDecalPassParameters(GraphBuilder, View, PassTextures, RenderTargetMode, *PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Batch [%d, %d]", DecalIndexBegin, DecalIndexEnd - 1),

@@ -597,7 +597,7 @@ void SetupGPUInstancedDraws(
 			}
 			else
 			{
-				InstanceCullingContext.AddPrimitiveToCullingCommand(VisibleMeshDrawCommand.DrawPrimitiveId);
+				InstanceCullingContext.AddPrimitiveToCullingCommand(VisibleMeshDrawCommand.DrawPrimitiveId, VisibleMeshDrawCommand.MeshDrawCommand->NumInstances);
 			}
 		}
 	}
@@ -1417,13 +1417,10 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuil
 			return;
 		}
 		WaitForMeshPassSetupTask();
-		if (MaxNumDraws > 0 && TaskContext.InstanceCullingContext.HasCullingCommands())
-		{
-			// 2. Run finalize culling commands pass
-			TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange(), TaskContext.InstanceCullingResult);
-			TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
-			return;
-		}
+		// 2. Run finalize culling commands pass
+		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange(), TaskContext.InstanceCullingResult);
+		TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
+		return;
 	}
 	OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
 	OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;

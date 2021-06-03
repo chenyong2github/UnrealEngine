@@ -37,8 +37,8 @@ uint PackPageInfo(FPageInfo PageInfo)
 
 
 RWStructuredBuffer<FVisibleInstanceCmd> VisibleInstancesOut;
-Buffer<uint> InstanceIdsBuffer;
-Buffer<uint> DrawCommandIdsBuffer;
+StructuredBuffer<uint> InstanceIdsBuffer;
+StructuredBuffer<uint> DrawCommandIdsBuffer;
 StructuredBuffer<uint> NumInstanceIdsBuffer;
 uint FirstPrimaryView;
 uint NumPrimaryViews;
@@ -469,8 +469,8 @@ void AllocateCommandInstanceOutputSpaceCs(uint DrawCommandId : SV_DispatchThread
 StructuredBuffer<FVisibleInstanceCmd> VisibleInstances;
 StructuredBuffer <uint> VisibleInstanceCountBuffer;
 //RWStructuredBuffer<uint> TmpInstanceIdOffsetBufferOut;
-RWBuffer<uint> InstanceIdsBufferLegacyOut;
-RWBuffer<uint> PageInfoBufferLegacyOut;
+RWStructuredBuffer<uint> InstanceIdsBufferOut;
+RWStructuredBuffer<uint> PageInfoBufferOut;
 
 
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
@@ -486,7 +486,7 @@ void OutputCommandInstanceListsCs(uint VisibleInstanceIndex : SV_DispatchThreadI
 		uint InstanceIdOutputOffset = 0;
 		InterlockedAdd(TmpInstanceIdOffsetBufferOut[VisibleInstanceCmd.DrawCommandId], 1U, InstanceIdOutputOffset);
 		// TODO: maybe repack as uint2 since that might be better for these type of presumably scalar loads.
-		InstanceIdsBufferLegacyOut[InstanceIdOutputOffset] = VisibleInstanceCmd.InstanceId;
-		PageInfoBufferLegacyOut[InstanceIdOutputOffset] = VisibleInstanceCmd.PackedPageInfo;
+		InstanceIdsBufferOut[InstanceIdOutputOffset] = VisibleInstanceCmd.InstanceId;
+		PageInfoBufferOut[InstanceIdOutputOffset] = VisibleInstanceCmd.PackedPageInfo;
 	}
 }

@@ -14,6 +14,8 @@
 
 #define ENABLE_DETERMINISTIC_INSTANCE_CULLING 0
 
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(InstanceCullingUbSlot);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FInstanceCullingGlobalUniforms, "InstanceCulling", InstanceCullingUbSlot);
 
 struct FBatchInfo
 {
@@ -45,6 +47,7 @@ void FInstanceCullingContext::ResetCommands(int32 MaxNumCommands)
 	CullingCommands.Empty(MaxNumCommands);
 	InstanceRuns.Reset();
 	PrimitiveIds.Reset();
+	TotalInstances = 0U;
 }
 
 void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives, bool bInMaterialMayModifyPosition)
@@ -80,8 +83,9 @@ void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint
 	}
 }
 
-void FInstanceCullingContext::AddPrimitiveToCullingCommand(int32 ScenePrimitiveId)
+void FInstanceCullingContext::AddPrimitiveToCullingCommand(int32 ScenePrimitiveId, uint32 NumInstances)
 {
+	TotalInstances += NumInstances;
 	PrimitiveIds.Add(ScenePrimitiveId);
 }
 
@@ -90,7 +94,10 @@ void FInstanceCullingContext::AddInstanceRunToCullingCommand(int32 ScenePrimitiv
 	//InstanceRuns.AddDefaulted(NumRuns);
 	for (uint32 Index = 0; Index < NumRuns; ++Index)
 	{
-		InstanceRuns.Add(FInstanceRun{ Runs[Index * 2], Runs[Index * 2 + 1], ScenePrimitiveId });
+		uint32 RunStart = Runs[Index * 2];
+		uint32 RunEndIncl = Runs[Index * 2 + 1];
+		TotalInstances += (RunEndIncl + 1U) - RunStart;
+		InstanceRuns.Add(FInstanceRun{ RunStart, RunEndIncl, ScenePrimitiveId });
 	}
 }
 
@@ -231,7 +238,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, InstanceIdsBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawCommandIdsBufferOut)
 		// Using the wrong kind of buffer for RDG...
-		SHADER_PARAMETER_UAV(RWBuffer<uint>, InstanceIdsBufferLegacyOut)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, InstanceIdsBufferOut)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
 		SHADER_PARAMETER(int32, NumPrimitiveIds)
@@ -305,10 +312,8 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutputOffsetBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, InstanceIdOffsetBufferOut)
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, InstanceIdsBufferOut)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawCommandIdsBufferOut)
-		// Using the wrong kind of buffer for RDG...
-		SHADER_PARAMETER_UAV(RWBuffer<uint>, InstanceIdsBufferLegacyOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, InstanceIdsBufferOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, DrawCommandIdsBufferOut)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
 		SHADER_PARAMETER(int32, NumPrimitiveIds)
@@ -326,11 +331,25 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs, "/Engine/Private/InstanceCulling/BuildInstanceDrawCommands.usf", "BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs", SF_Compute);
 
+const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(FRDGBuilder& GraphBuilder)
+{
+	FInstanceCullingGlobalUniforms* InstanceCullingGlobalUniforms = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
+	FRDGBufferRef DummyBuffer = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 4);
+	InstanceCullingGlobalUniforms->InstanceIdsBuffer = GraphBuilder.CreateSRV(DummyBuffer);
+	InstanceCullingGlobalUniforms->PageInfoBuffer = GraphBuilder.CreateSRV(DummyBuffer);
+	InstanceCullingGlobalUniforms->BufferCapacity = 0;
+	return GraphBuilder.CreateUniformBuffer(InstanceCullingGlobalUniforms);
+}
+
 void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const TRange<int32>& DynamicPrimitiveIdRange, FInstanceCullingResult& Results) const
 {
 	Results = FInstanceCullingResult();
-	if (CullingCommands.Num() == 0)
+	if (CullingCommands.Num() == 0 || TotalInstances == 0)
 	{
+		if (InstanceCullingManager)
+		{
+			Results.UniformBuffer = InstanceCullingManager->GetDummyInstanceCullingUniformBuffer();
+		}
 		return;
 	}
 
@@ -342,9 +361,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	// Note: use start at zero offset if there is no instance culling manager, this means each build rendering commands pass will overwrite the same ID range. Which is only ok assuming correct barriers (should be erring on this side by default).
-	TArray<uint32> NullArray;
+	TArray<uint32, TInlineAllocator<1> > NullArray;
 	NullArray.AddZeroed(1);
-	FRDGBufferRef InstanceIdOutOffsetBufferRDG = InstanceCullingManager ? InstanceCullingManager->CullingIntermediate.InstanceIdOutOffsetBuffer : CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.OutputOffsetBufferOutTransient"), NullArray);
+	FRDGBufferRef InstanceIdOutOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.OutputOffsetBufferOut"), NullArray);
 	// If there is no manager, then there is no data on culling, so set flag to skip that and ignore buffers.
 	FRDGBufferRef VisibleInstanceFlagsRDG = InstanceCullingManager != nullptr ? InstanceCullingManager->CullingIntermediate.VisibleInstanceFlags : nullptr;
 	const bool bCullInstances = InstanceCullingManager != nullptr;
@@ -359,6 +378,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	FRDGBufferRef PrimitiveIdsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.PrimitiveIds"), PrimitiveIds);
 	FRDGBufferRef PrimitiveInstanceRunsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.InstanceRuns"), InstanceRuns);
 	FRDGBufferRef ViewIdsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.ViewIds"), ViewIds);
+
+	const uint32 InstanceIdBufferSize = TotalInstances * ViewIds.Num();
+	FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
 
 #if ENABLE_DETERMINISTIC_INSTANCE_CULLING
 	// 1. Compute output sizes for all commands
@@ -460,15 +482,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 		PassParameters->ViewIds = GraphBuilder.CreateSRV(ViewIdsBuffer);
 		PassParameters->NumViewIds = ViewIds.Num();
 
-		// TODO: Remove this when everything is properly RDG'd
-		AddPass(GraphBuilder, [&GraphBuilder](FRHICommandList& RHICmdList)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(GInstanceCullingManagerResources.GetInstancesIdBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		});
-
 		//PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBufferRDG, PF_R32_UINT);
 		// TODO: Access resources through manager rather than global
-		PassParameters->InstanceIdsBufferLegacyOut = GInstanceCullingManagerResources.GetInstancesIdBufferUav();
+		PassParameters->InstanceIdsBufferOut = GInstanceCullingManagerResources.GetInstancesIdBufferUav();
 		PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DrawIndirectArgsRDG, PF_R32_UINT);
 		PassParameters->NumPrimitiveIds = PrimitiveIds.Num();
 		PassParameters->NumInstanceRuns = InstanceRuns.Num();
@@ -480,7 +496,6 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 		PassParameters->NumCulledInstances = uint32(NumCulledInstances);
 
 		FOutputInstanceIdsAtOffsetCs::FPermutationDomain PermutationVector;
-		// NOTE: this also switches between legacy buffer and RDG for Id output
 		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FOutputCommandIdDim>(0);
 		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FCullInstancesDim>(bCullInstances);
 		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
@@ -520,22 +535,13 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 
 	FRDGBufferRef DrawIndirectArgsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(IndirectArgsNumWords * CullingCommands.Num()), TEXT("InstanceCulling.DrawIndirectArgsBuffer"));
 	// not using structured buffer as we want/have toget at it as a vertex buffer 
-	//FRDGBufferRef InstanceIdsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), PrimitiveIds.Num() * FInstanceCullingManager::MaxAverageInstanceFactor), TEXT("InstanceCulling.InstanceIdsBuffer"));
 	FRDGBufferRef InstanceIdOffsetBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), CullingCommands.Num()), TEXT("InstanceCulling.InstanceIdOffsetBuffer"));
 
 	PassParameters->ViewIds = GraphBuilder.CreateSRV(ViewIdsBuffer);
 	PassParameters->NumViewIds = ViewIds.Num();
 	PassParameters->bDrawOnlyVSMInvalidatingGeometry = bDrawOnlyVSMInvalidatingGeometry;
 
-	// TODO: Remove this when everything is properly RDG'd
-	AddPass(GraphBuilder, [&GraphBuilder](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.Transition(FRHITransitionInfo(GInstanceCullingManagerResources.GetInstancesIdBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-	});
-
-	//PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBufferRDG, PF_R32_UINT);
-	// TODO: Access resources through manager rather than global
-	PassParameters->InstanceIdsBufferLegacyOut = GInstanceCullingManagerResources.GetInstancesIdBufferUav();
+	PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBuffer);
 	PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DrawIndirectArgsRDG, PF_R32_UINT);
 	PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOffsetBufferRDG, PF_R32_UINT);
 	PassParameters->NumPrimitiveIds = PrimitiveIds.Num();
@@ -548,7 +554,6 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	PassParameters->NumCulledViews = NumCulledViews;
 
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;
-	// NOTE: this also switches between legacy buffer and RDG for Id output
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOutputCommandIdDim>(0);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(bCullInstances);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
@@ -568,18 +573,13 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 #endif // ENABLE_DETERMINISTIC_INSTANCE_CULLING
 
 	Results.DrawIndirectArgsBuffer = DrawIndirectArgsRDG;
-	//ConvertToExternalBuffer(GraphBuilder, DrawIndirectArgsRDG, Results.DrawIndirectArgsBuffer);
-	//GraphBuilder.QueueBufferExtraction(InstanceIdsBufferRDG, &Results.InstanceIdsBuffer);
 	Results.InstanceIdOffsetBuffer = InstanceIdOffsetBufferRDG;
-	//ConvertToExternalBuffer(GraphBuilder, InstanceIdOffsetBufferRDG, Results.InstanceIdOffsetBuffer);
-	//GraphBuilder.Transition(FRHITransitionInfo(GInstanceCullingManagerResources.GetInstancesIdBufferUav(), ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 
-	// TODO: Remove this when everything is properly RDG'd
-	AddPass(GraphBuilder, [&GraphBuilder](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.Transition(FRHITransitionInfo(GInstanceCullingManagerResources.GetInstancesIdBufferUav(), ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));
-		RHICmdList.Transition(FRHITransitionInfo(GInstanceCullingManagerResources.GetPageInfoBufferUav(), ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
-	});
+	FInstanceCullingGlobalUniforms* UniformParameters = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
+	UniformParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+	UniformParameters->PageInfoBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+	UniformParameters->BufferCapacity = InstanceIdBufferSize;
+	Results.UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
 }
 
 void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, const TRange<int32>& DynamicPrimitiveIdRange, FInstanceCullingRdgParams& Params) const
@@ -616,13 +616,12 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	PassParameters->InstanceRuns = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.InstanceRuns"), InstanceRuns));
 
 
-	FRDGBufferRef InstanceIdOutOffsetBufferRDG = Intermediate.InstanceIdOutOffsetBuffer;
 	FRDGBufferRef VisibleInstanceFlagsRDG = Intermediate.VisibleInstanceFlags;
 
 	// Create and initialize if not allocated
 	if (Params.InstanceIdWriteOffsetBuffer == nullptr)
 	{
-		TArray<uint32> NullArray;
+		TArray<uint32, TInlineAllocator<1> > NullArray;
 		NullArray.AddZeroed(1);
 		Params.InstanceIdWriteOffsetBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.InstanceIdWriteOffsetBuffer"), NullArray);
 	}
@@ -631,7 +630,6 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 
 	Params.DrawIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(IndirectArgsNumWords * CullingCommands.Num()), TEXT("InstanceCulling.DrawIndirectArgsBuffer"));
 	// not using structured buffer as we want/have to get at it as a vertex buffer 
-	//FRDGBufferRef InstanceIdsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), PrimitiveIds.Num() * FInstanceCullingManager::MaxAverageInstanceFactor), TEXT("InstanceIdsBuffer"));
 	Params.InstanceIdStartOffsetBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), CullingCommands.Num()), TEXT("InstanceCulling.InstanceIdOffsetBuffer"));
 
 	PassParameters->ViewIds = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.ViewIds"), ViewIds));
@@ -639,7 +637,6 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	PassParameters->bDrawOnlyVSMInvalidatingGeometry = 0;
 
 
-	//PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBufferRDG, PF_R32_UINT);
 	// TODO: Access resources through manager rather than global
 	PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(Params.DrawIndirectArgs, PF_R32_UINT);
 	PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(Params.InstanceIdStartOffsetBuffer, PF_R32_UINT);
@@ -651,14 +648,14 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	if (Params.InstanceIdsBuffer == nullptr)
 	{
 		// TODO: we could compute the max instance count from the MDCs.
-		const int32 InstanceIdBufferSize = CullingCommands.Num() * FInstanceCullingManager::MaxAverageInstanceFactor * 64;
-		Params.InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
-		Params.DrawCommandIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), InstanceIdBufferSize), TEXT("InstanceCulling.DrawCommandIdsBuffer"));
+		const int32 InstanceIdBufferSize = TotalInstances * ViewIds.Num();
+		Params.InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
+		Params.DrawCommandIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), InstanceIdBufferSize), TEXT("InstanceCulling.DrawCommandIdsBuffer"));
 
 	}
 	
-	PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(Params.InstanceIdsBuffer, PF_R32_UINT);
-	PassParameters->DrawCommandIdsBufferOut = GraphBuilder.CreateUAV(Params.DrawCommandIdsBuffer, PF_R32_UINT);
+	PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(Params.InstanceIdsBuffer);
+	PassParameters->DrawCommandIdsBufferOut = GraphBuilder.CreateUAV(Params.DrawCommandIdsBuffer);
 
 	int32 NumInstanceFlagWords = FMath::DivideAndRoundUp(Intermediate.NumInstances, int32(sizeof(uint32) * 8));
 	PassParameters->NumInstanceFlagWords = uint32(NumInstanceFlagWords);
@@ -667,7 +664,6 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 
 
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;
-	// NOTE: this also switches between legacy buffer and RDG for Id output
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOutputCommandIdDim>(1);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(false);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FStereoModeDim>(false);
@@ -705,7 +701,7 @@ void FInstanceCullingContext::BuildRenderingCommandsBatched(FRDGBuilder& GraphBu
 	TArray<int32, SceneRenderingAllocator> ViewIdsAll;
 	TArray<FBatchInfo, SceneRenderingAllocator> BatchInfos;
 	BatchInfos.AddDefaulted(Batches.Num());
-
+	uint32 InstanceIdBufferSize = 0U;
 	// Index that maps from each command to the corresponding batch - maybe not the utmost efficiency
 	TArray<int32, SceneRenderingAllocator> BatchIndsAll;
 	for (int32 BatchIndex = 0; BatchIndex < Batches.Num(); ++BatchIndex)
@@ -748,6 +744,8 @@ void FInstanceCullingContext::BuildRenderingCommandsBatched(FRDGBuilder& GraphBu
 		{
 			BatchIndsAll[Index] = BatchIndex;
 		}
+
+		InstanceIdBufferSize += InstanceCullingContext.TotalInstances * InstanceCullingContext.ViewIds.Num();
 	}
 
 	FRDGBufferRef CullingCommandsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("CullingCommandsAll"), CullingCommandsAll);
@@ -757,12 +755,14 @@ void FInstanceCullingContext::BuildRenderingCommandsBatched(FRDGBuilder& GraphBu
 	FRDGBufferRef BatchInfosRDG = CreateStructuredBuffer(GraphBuilder, TEXT("BatchInfos"), BatchInfos);
 	FRDGBufferRef BatchIndsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("BatchIndsAll"), BatchIndsAll);
 
+	FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
+
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters>();
 
 	// Note: use start at zero offset if there is no instance culling manager, this means each build rendering commands pass will overwrite the same ID range. Which is only ok assuming correct barriers (should be erring on this side by default).
-	TArray<uint32> NullArray;
+	TArray<uint32, TInlineAllocator<1> > NullArray;
 	NullArray.AddZeroed(1);
-	FRDGBufferRef InstanceIdOutOffsetBufferRDG = InstanceCullingManager ? InstanceCullingManager->CullingIntermediate.InstanceIdOutOffsetBuffer : CreateStructuredBuffer(GraphBuilder, TEXT("OutputOffsetBufferOutTransient"), NullArray);
+	FRDGBufferRef InstanceIdOutOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.OutputOffsetBufferOut"), NullArray);
 	// If there is no manager, then there is no data on culling, so set flag to skip that and ignore buffers.
 	FRDGBufferRef VisibleInstanceFlagsRDG = InstanceCullingManager != nullptr ? InstanceCullingManager->CullingIntermediate.VisibleInstanceFlags : nullptr;
 	const bool bCullInstances = InstanceCullingManager != nullptr;
@@ -794,15 +794,7 @@ void FInstanceCullingContext::BuildRenderingCommandsBatched(FRDGBuilder& GraphBu
 	PassParameters->ViewIds = GraphBuilder.CreateSRV(ViewIdsRDG);
 	PassParameters->NumViewIds = ViewIdsAll.Num();
 
-	// TODO: Remove this when everything is properly RDG'd
-	AddPass(GraphBuilder, [&GraphBuilder](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.Transition(FRHITransitionInfo(GInstanceCullingManagerResources.GetInstancesIdBufferUav(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-	});
-
-	//PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBufferRDG, PF_R32_UINT);
-	// TODO: Access resources through manager rather than global
-	PassParameters->InstanceIdsBufferLegacyOut = GInstanceCullingManagerResources.GetInstancesIdBufferUav();
+	PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBuffer);
 	PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DrawIndirectArgsRDG, PF_R32_UINT);
 	PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOffsetBufferRDG, PF_R32_UINT);
 	PassParameters->NumPrimitiveIds = PrimitiveIdsAll.Num();
@@ -815,7 +807,6 @@ void FInstanceCullingContext::BuildRenderingCommandsBatched(FRDGBuilder& GraphBu
 	PassParameters->NumCulledViews = NumCulledViews;
 
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;
-	// NOTE: this also switches between legacy buffer and RDG for Id output
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOutputCommandIdDim>(0);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(bCullInstances);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FBatchedDim>(true);
@@ -829,12 +820,11 @@ void FInstanceCullingContext::BuildRenderingCommandsBatched(FRDGBuilder& GraphBu
 		PassParameters,
 		FIntVector(CullingCommandsAll.Num(), 1, 1)
 	);
-
-	// TODO: Remove this when everything is properly RDG'd
-	AddPass(GraphBuilder, [&GraphBuilder](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.Transition(FRHITransitionInfo(GInstanceCullingManagerResources.GetInstancesIdBufferUav(), ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));
-	});
+	FInstanceCullingGlobalUniforms* UniformParameters = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
+	UniformParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+	UniformParameters->PageInfoBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+	UniformParameters->BufferCapacity = InstanceIdBufferSize;
+	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
 
 
 	for (int32 BatchIndex = 0; BatchIndex < Batches.Num(); ++BatchIndex)
@@ -847,6 +837,7 @@ void FInstanceCullingContext::BuildRenderingCommandsBatched(FRDGBuilder& GraphBu
 		Result.DrawIndirectArgsBuffer = DrawIndirectArgsRDG;
 		Result.InstanceIdOffsetBuffer = InstanceIdOffsetBufferRDG;
 		Result.DrawCommandDataOffset = BatchInfo.CullingCommandsOffset;
+		Result.UniformBuffer = UniformBuffer;
 	}	
 }
 

@@ -19,13 +19,10 @@ public:
 	 */
 	FRDGBufferRef VisibleInstanceFlags = nullptr;
 	
-	/**
-	 * Write offset used by all the instance ID expand passes to allocate space in the global instance Id buffer.
-	 * Initialized to zero by CullInstances.
-	 */
-	FRDGBufferRef InstanceIdOutOffsetBuffer = nullptr;
 	int32 NumInstances = 0;
 	int32 NumViews = 0;
+
+	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> DummyUniformBuffer;
 };
 
 struct FInstanceCullingResult
@@ -35,6 +32,7 @@ struct FInstanceCullingResult
 	FRDGBufferRef InstanceIdOffsetBuffer = nullptr;
 	// Offset (in items, not bytes or something) for both buffers to start fetching data at, used when batching multiple culling jobs in the same buffer
 	uint32 DrawCommandDataOffset = 0U;
+	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
 
 	//FRHIBuffer* GetDrawIndirectArgsBufferRHI() const { return DrawIndirectArgsBuffer.IsValid() ? DrawIndirectArgsBuffer->GetVertexBufferRHI() : nullptr; }
 	//FRHIBuffer* GetInstanceIdOffsetBufferRHI() const { return InstanceIdOffsetBuffer.IsValid() ? InstanceIdOffsetBuffer->GetVertexBufferRHI() : nullptr; }
@@ -44,6 +42,7 @@ struct FInstanceCullingResult
 		OutParams.DrawIndirectArgsBuffer = DrawIndirectArgsBuffer;
 		OutParams.InstanceIdOffsetBuffer = InstanceIdOffsetBuffer;
 		OutParams.DrawCommandDataOffset = DrawCommandDataOffset;
+		OutParams.InstanceCulling = UniformBuffer;
 	}
 
 	static void CondGetDrawParameters(const FInstanceCullingResult* InstanceCullingResult, FInstanceCullingDrawParams& OutParams)
@@ -57,6 +56,7 @@ struct FInstanceCullingResult
 			OutParams.DrawIndirectArgsBuffer = nullptr;
 			OutParams.InstanceIdOffsetBuffer = nullptr;
 			OutParams.DrawCommandDataOffset = 0U;
+			OutParams.InstanceCulling = nullptr;
 		}
 	}
 };
@@ -70,9 +70,6 @@ public:
 	~FInstanceCullingManager();
 
 	bool IsEnabled() const { return bIsEnabled; }
-
-	// Max average number of instances that primitives are expanded to. GPUCULL_TODO: Not very robust
-	static constexpr uint32 MaxAverageInstanceFactor = 128;
 
 	// Register a view for culling, returns integer ID of the view.
 	int32 RegisterView(const Nanite::FPackedViewParams& Params);
@@ -88,12 +85,12 @@ public:
 	 */
 	void CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene);
 
-	FInstanceCullingManager(FInstanceCullingManagerResources& InResources, bool bInIsEnabled)
-	: Resources(InResources),
-		bIsEnabled(bInIsEnabled)
+	FInstanceCullingManager(bool bInIsEnabled)
+	: bIsEnabled(bInIsEnabled)
 	{
 	}
-
+	const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> GetDummyInstanceCullingUniformBuffer() const { return CullingIntermediate.DummyUniformBuffer; }
+	
 	// Populated by CullInstances, used when performing final culling & rendering 
 	FInstanceCullingIntermediate CullingIntermediate;
 
@@ -101,7 +98,6 @@ private:
 	FInstanceCullingManager() = delete;
 	FInstanceCullingManager(FInstanceCullingManager &) = delete;
 
-	FInstanceCullingManagerResources& Resources;
 	TArray<Nanite::FPackedView> CullingViews;
 	bool bIsEnabled;
 };

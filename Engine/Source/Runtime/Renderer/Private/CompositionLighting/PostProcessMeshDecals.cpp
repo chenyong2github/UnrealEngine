@@ -311,7 +311,7 @@ void DrawDecalMeshCommands(
 	EDecalRenderTargetMode RenderTargetMode)
 {
 	auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
-	GetDeferredDecalPassParameters(View, DecalPassTextures, RenderTargetMode, *PassParameters);
+	GetDeferredDecalPassParameters(GraphBuilder, View, DecalPassTextures, RenderTargetMode, *PassParameters);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("MeshDecals"),
