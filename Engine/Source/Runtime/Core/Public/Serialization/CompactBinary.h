@@ -65,6 +65,8 @@
 class FArchive;
 class FBlake3;
 class FCbArrayView;
+class FCbField;
+class FCbFieldIterator;
 class FCbFieldView;
 class FCbFieldViewIterator;
 class FCbObjectId;
@@ -73,6 +75,9 @@ struct FDateTime;
 struct FGuid;
 struct FTimespan;
 template <typename FuncType> class TFunctionRef;
+
+/** A reference to a function that is used to allocate buffers for compact binary data. */
+using FCbBufferAllocator = TFunctionRef<FUniqueBuffer (uint64 Size)>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -757,6 +762,9 @@ public:
 		return false;
 	}
 
+	/** Find a field of an object by case-sensitive name comparison, otherwise a field with no value. */
+	CORE_API FCbFieldView operator[](FAnsiStringView Name) const;
+
 	/** Create an iterator for the fields of an array or object, otherwise an empty iterator. */
 	CORE_API FCbFieldViewIterator CreateViewIterator() const;
 
@@ -1065,13 +1073,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FCbFieldIterator;
-
-/** A reference to a function that is used to allocate buffers for compact binary data. */
-using FCbBufferAllocator = TFunctionRef<FUniqueBuffer (uint64 Size)>;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /** A wrapper that holds a reference to the buffer that contains its compact binary value. */
 template <typename ViewType>
 class TCbBuffer : public ViewType
@@ -1132,6 +1133,9 @@ public:
 		}
 	}
 
+	/** Returns the value as a view. */
+	inline const ViewType& AsView() const { return *this; }
+
 	/**
 	 * Returns the outer buffer (if any) that contains this value.
 	 *
@@ -1140,6 +1144,9 @@ public:
 	 */
 	inline const FSharedBuffer& GetOuterBuffer() const & { return Buffer; }
 	inline FSharedBuffer GetOuterBuffer() && { return MoveTemp(Buffer); }
+
+	/** Find a field of an object by case-sensitive name comparison, otherwise a field with no value. */
+	inline FCbField operator[](FAnsiStringView Name) const;
 
 	/** Create an iterator for the fields of an array or object, otherwise an empty iterator. */
 	inline FCbFieldIterator CreateIterator() const;
@@ -1227,6 +1234,12 @@ public:
 	/** Returns a buffer that contains the field as it would be serialized by CopyTo. */
 	CORE_API FCompositeBuffer GetBuffer() const;
 };
+
+template <typename ViewType>
+inline FCbField TCbBuffer<ViewType>::operator[](FAnsiStringView Name) const
+{
+	return FCbField::MakeView(ViewType::operator[](Name), GetOuterBuffer());
+}
 
 /**
  * Iterator for FCbField.

@@ -621,6 +621,18 @@ FMemoryView FCbFieldView::GetViewNoType() const
 	return MakeMemoryView(static_cast<const uint8*>(Payload) - NameSize, NameSize + PayloadSize);
 }
 
+FCbFieldView FCbFieldView::operator[](FAnsiStringView Name) const
+{
+	switch (GetType())
+	{
+	case ECbFieldType::Object:
+	case ECbFieldType::UniformObject:
+		return FCbObjectView::FromFieldNoCheck(*this).FindView(Name);
+	default:
+		return FCbFieldView();
+	}
+}
+
 FCbFieldViewIterator FCbFieldView::CreateViewIterator() const
 {
 	const ECbFieldType LocalTypeWithFlags = TypeWithFlags;
