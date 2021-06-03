@@ -7,6 +7,7 @@
 #include "AnimStateNodeBase.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "Animation/AnimBlueprint.h"
+#include "Animation/AnimClassInterface.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "AnimationStateMachineGraph.h"
 #include "AnimationStateMachineSchema.h"
