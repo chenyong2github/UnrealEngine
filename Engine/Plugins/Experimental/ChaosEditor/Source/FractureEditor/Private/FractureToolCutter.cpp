@@ -248,9 +248,10 @@ void UFractureToolVoronoiCutterBase::FractureContextChanged()
 	{
 		// Move the local bounds to the actor so we we'll draw in the correct location
 		GenerateVoronoiSites(FractureContext, VoronoiSites);
+		FBox VoronoiBounds = GetVoronoiBounds(FractureContext, VoronoiSites);
 		if (CutterSettings->bDrawDiagram)
 		{
-			GetVoronoiEdges(VoronoiSites, FractureContext.GetWorldBounds(), VoronoiEdges, CellMember);
+			GetVoronoiEdges(VoronoiSites, VoronoiBounds, VoronoiEdges, CellMember);
 		}
 	}
 }
@@ -261,10 +262,7 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 	{
 		TArray<FVector> Sites;
 		GenerateVoronoiSites(FractureContext, Sites);
-		FBox VoronoiBounds = FractureContext.GetWorldBounds();
-			
-		// expand bounds to make sure noise-perturbed voronoi cells still contain the whole input mesh
-		VoronoiBounds = VoronoiBounds.ExpandBy(CutterSettings->Amplitude + CutterSettings->Grout);
+		FBox VoronoiBounds = GetVoronoiBounds(FractureContext, Sites);
 			
 		FVoronoiDiagram Voronoi(Sites, VoronoiBounds, .1f);
 
@@ -287,6 +285,14 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 	}
 
 	return INDEX_NONE;
+}
+
+FBox UFractureToolVoronoiCutterBase::GetVoronoiBounds(const FFractureToolContext& FractureContext, const TArray<FVector>& Sites) const
+{
+	FBox VoronoiBounds(Sites);
+	VoronoiBounds += FractureContext.GetWorldBounds();
+	VoronoiBounds.ExpandBy(CutterSettings->Amplitude + CutterSettings->Grout + KINDA_SMALL_NUMBER);
+	return VoronoiBounds;
 }
 
 #undef LOCTEXT_NAMESPACE
