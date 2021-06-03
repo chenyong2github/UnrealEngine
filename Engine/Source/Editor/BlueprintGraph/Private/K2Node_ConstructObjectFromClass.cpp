@@ -13,12 +13,12 @@ struct FK2Node_ConstructObjectFromClassHelper
 {
 	static FName WorldContextPinName;
 	static FName ClassPinName;
-	static FName OuterPinName;
+	static FName OuterPinFriendlyName;
 };
 
 FName FK2Node_ConstructObjectFromClassHelper::WorldContextPinName(TEXT("WorldContextObject"));
 FName FK2Node_ConstructObjectFromClassHelper::ClassPinName(TEXT("Class"));
-FName FK2Node_ConstructObjectFromClassHelper::OuterPinName(TEXT("Outer"));
+FName FK2Node_ConstructObjectFromClassHelper::OuterPinFriendlyName(TEXT("Outer"));
 
 #define LOCTEXT_NAMESPACE "K2Node_ConstructObjectFromClass"
 
@@ -58,9 +58,11 @@ void UK2Node_ConstructObjectFromClass::AllocateDefaultPins()
 	// Result pin
 	UEdGraphPin* ResultPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, GetClassPinBaseClass(), UEdGraphSchema_K2::PN_ReturnValue);
 	
+	// Outer pin
 	if (UseOuter())
 	{
-		UEdGraphPin* OuterPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UObject::StaticClass(), FK2Node_ConstructObjectFromClassHelper::OuterPinName);
+		UEdGraphPin* OuterPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UEdGraphSchema_K2::PSC_Self, nullptr, UEdGraphSchema_K2::PN_Self);
+		OuterPin->PinFriendlyName = FText::FromName(FK2Node_ConstructObjectFromClassHelper::OuterPinFriendlyName);
 	}
 
 	Super::AllocateDefaultPins();
@@ -68,7 +70,8 @@ void UK2Node_ConstructObjectFromClass::AllocateDefaultPins()
 
 UEdGraphPin* UK2Node_ConstructObjectFromClass::GetOuterPin() const
 {
-	UEdGraphPin* Pin = FindPin(FK2Node_ConstructObjectFromClassHelper::OuterPinName);
+	// the pin is named self now because it's a "default to self" type pin
+	UEdGraphPin* Pin = FindPin(UEdGraphSchema_K2::PN_Self);
 	ensure(nullptr == Pin || Pin->Direction == EGPD_Input);
 	return Pin;
 }
@@ -195,7 +198,7 @@ bool UK2Node_ConstructObjectFromClass::IsSpawnVarPin(UEdGraphPin* Pin) const
 			Pin->PinName != UEdGraphSchema_K2::PN_ReturnValue &&
 			Pin->PinName != FK2Node_ConstructObjectFromClassHelper::ClassPinName &&
 			Pin->PinName != FK2Node_ConstructObjectFromClassHelper::WorldContextPinName &&
-			Pin->PinName != FK2Node_ConstructObjectFromClassHelper::OuterPinName);
+			Pin->PinName != FK2Node_ConstructObjectFromClassHelper::OuterPinFriendlyName);
 }
 
 void UK2Node_ConstructObjectFromClass::OnClassPinChanged()

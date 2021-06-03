@@ -3,6 +3,7 @@
 #include "K2Node_GenericCreateObject.h"
 #include "Kismet/GameplayStatics.h"
 #include "K2Node_CallFunction.h"
+#include "K2Node_Self.h"
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
 
@@ -72,10 +73,13 @@ void UK2Node_GenericCreateObject::ExpandNode(class FKismetCompilerContext& Compi
 	CallCreateNode->FunctionReference.SetExternalMember(GET_FUNCTION_NAME_CHECKED(UGameplayStatics, SpawnObject), UGameplayStatics::StaticClass());
 	CallCreateNode->AllocateDefaultPins();
 
+	bool bSucceeded = true;
+
+	// connect GenericCreateObject's self pin to the self node
+	bSucceeded &= ExpandDefaultToSelfPin(CompilerContext, SourceGraph, CallCreateNode);
+
 	// store off the class to spawn before we mutate pin connections:
 	UClass* ClassToSpawn = GetClassToSpawn();
-	
-	bool bSucceeded = true;
 	//connect exe
 	{
 		UEdGraphPin* SpawnExecPin = GetExecPin();
@@ -96,7 +100,6 @@ void UK2Node_GenericCreateObject::ExpandNode(class FKismetCompilerContext& Compi
 		UEdGraphPin* CallOuterPin = CallCreateNode->FindPin(TEXT("Outer"));
 		bSucceeded &= SpawnOuterPin && CallOuterPin && CompilerContext.MovePinLinksToIntermediate(*SpawnOuterPin, *CallOuterPin).CanSafeConnect();
 	}
-
 	UEdGraphPin* CallResultPin = nullptr;
 	//connect result
 	{
@@ -136,17 +139,44 @@ void UK2Node_GenericCreateObject::EarlyValidation(class FCompilerResultsLog& Mes
 	{
 		MessageLog.Error(*FText::Format(LOCTEXT("GenericCreateObject_WrongClassFmt", "Cannot construct objects of type '{0}' in @@"), FText::FromString(GetPathNameSafe(ClassToSpawn))).ToString(), this);
 	}
-
-	UEdGraphPin* OuterPin = GetOuterPin();
-	if (!OuterPin || (!OuterPin->DefaultObject && !OuterPin->LinkedTo.Num()))
-	{
-		MessageLog.Error(*LOCTEXT("GenericCreateObject_NoOuter", "Outer object is required in @@").ToString(), this);
-	}
 }
 
 bool UK2Node_GenericCreateObject::IsCompatibleWithGraph(const UEdGraph* TargetGraph) const
 {
 	return UK2Node::IsCompatibleWithGraph(TargetGraph);
+}
+
+bool UK2Node_GenericCreateObject::ExpandDefaultToSelfPin(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UK2Node_CallFunction* CallCreateNode)
+{
+	// ensure valid input
+	if (!SourceGraph || !CallCreateNode)
+	{
+		return false;
+	}
+
+	// Connect a self reference pin if there is a TScriptInterface default to self
+	if (const UFunction* TargetFunc = CallCreateNode->GetTargetFunction())
+	{
+		const FString& MetaData = TargetFunc->GetMetaData(FBlueprintMetadata::MD_DefaultToSelf);
+		if (!MetaData.IsEmpty())
+		{
+			// Get the Self Pin from this so we can default it correctly
+			const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
+			if (UEdGraphPin* DefaultToSelfPin = Schema->FindSelfPin(*this, EGPD_Input))
+			{
+				// If it has no links then spawn a new self node here
+				if (DefaultToSelfPin->LinkedTo.IsEmpty())
+				{
+					UK2Node_Self* SelfNode = CompilerContext.SpawnIntermediateNode<UK2Node_Self>(this, SourceGraph);
+					SelfNode->AllocateDefaultPins();
+					UEdGraphPin* SelfPin = SelfNode->FindPinChecked(UEdGraphSchema_K2::PSC_Self);
+					// Make a connection from this intermediate self pin to here
+					return Schema->TryCreateConnection(DefaultToSelfPin, SelfPin);
+				}
+			}
+		}
+	}
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

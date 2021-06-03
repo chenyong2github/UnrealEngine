@@ -50,7 +50,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	GENERATED_UCLASS_BODY()
 
 	// --- Create Object
-	UFUNCTION(BlueprintCallable, Category = "Spawning", meta = (BlueprintInternalUseOnly = "true"))
+	UFUNCTION(BlueprintCallable, Category = "Spawning", meta = (BlueprintInternalUseOnly = "true", DefaultToSelf = "Outer"))
 	static UObject* SpawnObject(TSubclassOf<UObject> ObjectClass, UObject* Outer);
 
 	// --- Spawning functions ------------------------------
