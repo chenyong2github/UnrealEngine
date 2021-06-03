@@ -261,14 +261,14 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 // Texture Stats
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-bool FD3D12TextureStats::ShouldCountAsTextureMemory(uint32 MiscFlags)
+bool FD3D12TextureStats::ShouldCountAsTextureMemory(D3D12_RESOURCE_FLAGS MiscFlags)
 {
 	// Shouldn't be used for DEPTH, RENDER TARGET, or UNORDERED ACCESS
-	return (0 == (MiscFlags & (D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)));
+	return !EnumHasAnyFlags(MiscFlags, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
 // @param b3D true:3D, false:2D or cube map
-TStatId FD3D12TextureStats::GetD3D12StatEnum(uint32 MiscFlags, bool bCubeMap, bool b3D)
+TStatId FD3D12TextureStats::GetD3D12StatEnum(D3D12_RESOURCE_FLAGS MiscFlags, bool bCubeMap, bool b3D)
 {
 #if STATS
 	if (ShouldCountAsTextureMemory(MiscFlags))
@@ -679,11 +679,11 @@ bool FD3D12DynamicRHI::RHIGetTextureMemoryVisualizeData(FColor* /*TextureData*/,
  */
 void SafeCreateTexture2D(FD3D12Device* pDevice, 
 	FD3D12Adapter* Adapter,
-	const D3D12_RESOURCE_DESC& TextureDesc,
+	const FD3D12ResourceDesc& TextureDesc,
 	const D3D12_CLEAR_VALUE* ClearValue, 
 	FD3D12ResourceLocation* OutTexture2D, 
 	FD3D12BaseShaderResource* Owner,
-	uint8 Format, 
+	EPixelFormat Format,
 	ETextureCreateFlags Flags,
 	D3D12_RESOURCE_STATES InitialState,
 	const TCHAR* Name)
@@ -742,6 +742,50 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 #endif // #if GUARDED_TEXTURE_CREATES
 }
 
+void CreateUAVAliasResource(FD3D12Adapter* Adapter, D3D12_CLEAR_VALUE* ClearValuePtr, const TCHAR* DebugName, FD3D12ResourceLocation& Location)
+{
+	FD3D12Resource* SourceResource = Location.GetResource();
+
+	const FD3D12ResourceDesc& SourceDesc = SourceResource->GetDesc();
+	const FD3D12Heap* const ResourceHeap = SourceResource->GetHeap();
+
+	const EPixelFormat SourceFormat = SourceDesc.PixelFormat;
+	const EPixelFormat AliasTextureFormat = SourceDesc.UAVAliasPixelFormat;
+
+	if (ensure(ResourceHeap != nullptr) && ensure(SourceFormat != PF_Unknown) && SourceFormat != AliasTextureFormat)
+	{
+		const uint64 SourceOffset = Location.GetOffsetFromBaseOfResource();
+
+		FD3D12ResourceDesc AliasTextureDesc = SourceDesc;
+		AliasTextureDesc.Format = (DXGI_FORMAT)GPixelFormats[AliasTextureFormat].PlatformFormat;
+		AliasTextureDesc.Width = SourceDesc.Width / GPixelFormats[SourceFormat].BlockSizeX;
+		AliasTextureDesc.Height = SourceDesc.Height / GPixelFormats[SourceFormat].BlockSizeY;
+		EnumAddFlags(AliasTextureDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+		AliasTextureDesc.UAVAliasPixelFormat = PF_Unknown;
+
+		TRefCountPtr<ID3D12Resource> pAliasResource;
+		HRESULT AliasHR = Adapter->GetD3DDevice()->CreatePlacedResource(
+			ResourceHeap->GetHeap(),
+			SourceOffset,
+			&AliasTextureDesc,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			ClearValuePtr,
+			IID_PPV_ARGS(pAliasResource.GetInitReference()));
+
+		if (pAliasResource && DebugName)
+		{
+			TCHAR NameBuffer[512]{};
+			FCString::Snprintf(NameBuffer, UE_ARRAY_COUNT(NameBuffer), TEXT("%s UAVAlias"), DebugName);
+			SetName(pAliasResource, NameBuffer);
+		}
+
+		if (SUCCEEDED(AliasHR))
+		{
+			SourceResource->SetUAVAccessResource(pAliasResource);
+		}
+	}
+}
 
 static void DetermineTexture2DResourceFlagsAndLayout(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, EPixelFormat Format, D3D12_RESOURCE_FLAGS& OutResourceFlags, D3D12_TEXTURE_LAYOUT& OutLayout, bool& bOutCreateRTV, bool& bOutCreateDSV, bool& bOutCreateSRV)
 {
@@ -857,7 +901,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 	const bool bIsMultisampled = ActualMSAACount > 1;
 
 	// Describe the texture.
-	D3D12_RESOURCE_DESC TextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+	FD3D12ResourceDesc TextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
 		PlatformResourceFormat,
 		SizeX,
 		SizeY,
@@ -866,6 +910,15 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		ActualMSAACount,
 		ActualMSAAQuality,
 		D3D12_RESOURCE_FLAG_NONE);  // Add misc flags later
+
+	TextureDesc.PixelFormat = Format;
+
+	bool bBCTextureNeedsUAVAlias = EnumHasAnyFlags(Flags, TexCreate_UAV) && IsBlockCompressedFormat(Format);
+	if (bBCTextureNeedsUAVAlias)
+	{
+		EnumRemoveFlags(Flags, TexCreate_UAV);
+		TextureDesc.UAVAliasPixelFormat = GetBlockCompressedFormatUAVAliasFormat(Format);
+	}
 
 	// Set up the texture bind flags.
 	bool bCreateRTV;
@@ -944,6 +997,11 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		}
 
 		check(Location.IsValid());
+
+		if (bBCTextureNeedsUAVAlias)
+		{
+			CreateUAVAliasResource(Adapter, ClearValuePtr, CreateInfo.DebugName, Location);
+		}
 
 		uint32 RTVIndex = 0;
 
@@ -1209,7 +1267,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 
 		if (ResourceAllocator)
 		{
-			ResourceAllocator->AllocateTexture(Device->GetGPUIndex(), D3D12_HEAP_TYPE_DEFAULT, TextureDesc, (EPixelFormat)Format, ED3D12ResourceStateMode::Default, InitialState, ClearValuePtr, CreateInfo.DebugName, Texture3D->ResourceLocation);
+			ResourceAllocator->AllocateTexture(Device->GetGPUIndex(), D3D12_HEAP_TYPE_DEFAULT, TextureDesc, Format, ED3D12ResourceStateMode::Default, InitialState, ClearValuePtr, CreateInfo.DebugName, Texture3D->ResourceLocation);
 		}
 		else
 		{
@@ -1394,7 +1452,7 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 			nullptr,
 			&NewTexture->ResourceLocation,
 			NewTexture,
-			Format,
+			(EPixelFormat)Format,
 			Flags,
 			InitialState,
 			nullptr);

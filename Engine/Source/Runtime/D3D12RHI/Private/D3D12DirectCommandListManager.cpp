@@ -955,10 +955,6 @@ uint32 FD3D12CommandListManager::CollectInitialResourceBarriersAndUpdateFinalSta
 		// Reserve space for the descs
 		BarrierDescInfo.BarrierDescs.Reserve(NumPendingResourceBarriers);
 
-		// Fill out the descs
-		D3D12_RESOURCE_BARRIER Desc = {};
-		Desc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-
 		for (uint32 i = 0; i < NumPendingResourceBarriers; ++i)
 		{
 			const FD3D12PendingResourceBarrier& PRB = PendingResourceBarriers[i];
@@ -968,8 +964,7 @@ uint32 FD3D12CommandListManager::CollectInitialResourceBarriersAndUpdateFinalSta
 
 			CResourceState& ResourceState = PRB.Resource->GetResourceState();
 
-			Desc.Transition.Subresource = PRB.SubResource;
-			const D3D12_RESOURCE_STATES Before = ResourceState.GetSubresourceState(Desc.Transition.Subresource);
+			const D3D12_RESOURCE_STATES Before = ResourceState.GetSubresourceState(PRB.SubResource);
 
 			// If state unknown then we don't enqueue a transition - only want to update the end state on the resource
 			// and not really enqueue a transition
@@ -978,33 +973,28 @@ uint32 FD3D12CommandListManager::CollectInitialResourceBarriersAndUpdateFinalSta
 			check(Before != D3D12_RESOURCE_STATE_TBD && Before != D3D12_RESOURCE_STATE_CORRUPT);
 			if (Before != After)
 			{
-				Desc.Transition.pResource = PRB.Resource->GetResource();
-				Desc.Transition.StateBefore = Before;
-				Desc.Transition.StateAfter = After;
-
 				if (IsDirectQueueExclusiveD3D12State(Before) || IsDirectQueueExclusiveD3D12State(After))
 				{
 					BarrierDescInfo.bHasGraphicStates = true;
 				}
 
-				// Add the desc
-				if (PRB.Resource->IsBackBuffer() && (After & BackBufferBarrierWriteTransitionTargets))
+				if (PRB.Resource->IsBackBuffer() && EnumHasAnyFlags(After, BackBufferBarrierWriteTransitionTargets))
 				{
-					BarrierDescInfo.BackBufferBarrierDescs.Add(Desc);
+					AddTransitionBarrier(BarrierDescInfo.BackBufferBarrierDescs, PRB.Resource, Before, After, PRB.SubResource);
 				}
 				else
 				{
-					BarrierDescInfo.BarrierDescs.Add(Desc);
+					AddTransitionBarrierWithUAVAccessOverrides(BarrierDescInfo.BarrierDescs, PRB.Resource, Before, After, PRB.SubResource);
 				}
 			}
 
 			// Update the state to the what it will be after hList executes
-			const D3D12_RESOURCE_STATES CommandListState = InCommandListHandle.GetResourceState(PRB.Resource).GetSubresourceState(Desc.Transition.Subresource);
+			const D3D12_RESOURCE_STATES CommandListState = InCommandListHandle.GetResourceState(PRB.Resource).GetSubresourceState(PRB.SubResource);
 			const D3D12_RESOURCE_STATES LastState = (CommandListState != D3D12_RESOURCE_STATE_TBD) ? CommandListState : After;
 
 			if (Before != LastState)
 			{
-				ResourceState.SetSubresourceState(Desc.Transition.Subresource, LastState);
+				ResourceState.SetSubresourceState(PRB.SubResource, LastState);
 			}
 
 #if ENABLE_RESIDENCY_MANAGEMENT

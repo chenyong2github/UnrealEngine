@@ -234,7 +234,7 @@ public:
 	void EndFrame();
 
 	// Resource Creation
-	HRESULT CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc,
+	HRESULT CreateCommittedResource(const FD3D12ResourceDesc& InDesc,
 		FRHIGPUMask CreationNode,
 		const D3D12_HEAP_PROPERTIES& HeapProps,
 		D3D12_RESOURCE_STATES InInitialState,
@@ -246,7 +246,7 @@ public:
 		return CreateCommittedResource(InDesc, CreationNode, HeapProps, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, ClearValue, ppOutResource, Name, bVerifyHResult);
 	}
 
-	HRESULT CreateCommittedResource(const D3D12_RESOURCE_DESC& Desc,
+	HRESULT CreateCommittedResource(const FD3D12ResourceDesc& Desc,
 		FRHIGPUMask CreationNode,
 		const D3D12_HEAP_PROPERTIES& HeapProps,
 		D3D12_RESOURCE_STATES InInitialState,
@@ -257,7 +257,7 @@ public:
 		const TCHAR* Name,
 		bool bVerifyHResult = true);
 
-	HRESULT CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc,
+	HRESULT CreatePlacedResource(const FD3D12ResourceDesc& InDesc,
 		FD3D12Heap* BackingHeap,
 		uint64 HeapOffset,
 		D3D12_RESOURCE_STATES InInitialState,
@@ -269,7 +269,7 @@ public:
 		return CreatePlacedResource(InDesc, BackingHeap, HeapOffset, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, ClearValue, ppOutResource, Name, bVerifyHResult);
 	}
 
-	HRESULT CreatePlacedResource(const D3D12_RESOURCE_DESC& Desc,
+	HRESULT CreatePlacedResource(const FD3D12ResourceDesc& Desc,
 		FD3D12Heap* BackingHeap,
 		uint64 HeapOffset,
 		D3D12_RESOURCE_STATES InInitialState,

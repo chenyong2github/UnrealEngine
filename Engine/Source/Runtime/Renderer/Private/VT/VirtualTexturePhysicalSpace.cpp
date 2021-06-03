@@ -56,21 +56,13 @@ FVirtualTexturePhysicalSpace::~FVirtualTexturePhysicalSpace()
 {
 }
 
-EPixelFormat GetUnorderedAccessViewFormat(EPixelFormat InFormat)
+static EPixelFormat GetUnorderedAccessViewFormat(EPixelFormat InFormat)
 {
 	// Use alias formats for compressed textures on APIs where that is possible
 	// This allows us to compress runtime data directly to the physical texture
-	const bool bUAVAliasForCompressedTextures = GRHISupportsUAVFormatAliasing;
-
-	switch (InFormat)
+	if (IsBlockCompressedFormat(InFormat))
 	{
-	case PF_DXT1: 
-	case PF_BC4: 
-		return bUAVAliasForCompressedTextures ? PF_R32G32_UINT : PF_Unknown;
-	case PF_DXT3: 
-	case PF_DXT5: 
-	case PF_BC5: 
-		return bUAVAliasForCompressedTextures ? PF_R32G32B32A32_UINT : PF_Unknown;
+		return GRHISupportsUAVFormatAliasing ? GetBlockCompressedFormatUAVAliasFormat(InFormat) : PF_Unknown;
 	}
 
 	return InFormat;
