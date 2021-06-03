@@ -54,7 +54,7 @@ private:
 	TSoftObjectPtr<UMaterialInterface> DefaultThrobberMaterial;
 
 	/** The Default Data for rich text to show inline icon and others. */
-	UPROPERTY(config, EditAnywhere, Category = "RichText")
+	UPROPERTY(config, EditAnywhere, Category = "RichText", meta=(AllowAbstract=false))
 	TSoftClassPtr<UCommonUIRichTextData> DefaultRichTextDataClass;
 
 private:
