@@ -806,6 +806,8 @@ private:
 	
 	bool ShouldRenderDistanceFieldAO() const;
 
+	bool IsNaniteEnabled() const;
+
 	void CopySceneCaptureComponentToTarget(
 		FRDGBuilder& GraphBuilder,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,

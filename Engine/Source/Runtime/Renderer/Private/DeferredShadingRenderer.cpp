@@ -382,9 +382,13 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTex
 				View.HZB = FurthestHZBTexture;
 
 				// Extract furthest HZB texture.
-				if (View.ViewState)
+				if (View.ViewState && IsNaniteEnabled())
 				{
 					GraphBuilder.QueueTextureExtraction(FurthestHZBTexture, &View.ViewState->PrevFrameViewInfo.HZB);
+				}
+				else
+				{
+					View.ViewState->PrevFrameViewInfo.HZB = nullptr;
 				}
 
 				// Extract closest HZB texture.
@@ -1740,9 +1744,14 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 	} 
 }
 
+bool FDeferredShadingSceneRenderer::IsNaniteEnabled() const
+{
+	return UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
+}
+
 void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
-	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
+	const bool bNaniteEnabled = IsNaniteEnabled();
 
 #if RHI_RAYTRACING
 	{
