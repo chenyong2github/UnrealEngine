@@ -70,6 +70,7 @@
 #include "Elements/SMInstance/SMInstanceElementId.h"
 #include "Elements/SMInstance/SMInstanceElementLevelEditorSelectionCustomization.h"
 #include "DDC/SDDCStatusIndicator.h"
+#include "Virtualization/SVirtualizationStatusIndicator.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 
@@ -1936,7 +1937,13 @@ void SLevelEditor::RegisterStatusBarTools()
 		FToolMenuEntry::InitWidget("DDCStatusIndicator", SNew(SDDCStatusIndicator), FText::GetEmpty(), true, false)
 	);
 
+	TSharedPtr<SWidget> VirtualizationWidget = UE::Virtualization::GetVirtualizationStatusIndicator();
+	if (VirtualizationWidget)
+	{
+		FToolMenuSection& MirageSection = Menu->AddSection("Mirage", FText::GetEmpty(), FToolMenuInsert("DDC", EToolMenuInsertType::Before));
 
+		MirageSection.AddEntry(FToolMenuEntry::InitWidget("VirtualizationStatusIndicator", VirtualizationWidget.ToSharedRef(), FText::GetEmpty(), true, false));
+	}	
 }
 
 void SLevelEditor::AddStandaloneLevelViewport( const TSharedRef<SLevelViewport>& LevelViewport )

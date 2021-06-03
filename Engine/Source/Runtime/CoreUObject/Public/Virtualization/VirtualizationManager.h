@@ -74,6 +74,15 @@ namespace UE::Virtualization
 class IVirtualizationBackend;
 class IVirtualizationBackendFactory;
 
+/** Profiling data containing all activity relating to payloads. */
+struct FPayloadActivityInfo
+{
+	int64 PayloadsPulled = 0;
+	int64 PayloadsPushed = 0;
+
+	int64 TotalSizePulled = 0;
+	int64 TotalSizePushed = 0;
+};
 
 /** This is used as a wrapper around the various potential back end implementations. 
 	The calling code shouldn't need to care about which back ends are actually in use. */
@@ -86,22 +95,34 @@ public:
 	FVirtualizationManager();
 	~FVirtualizationManager();
 
+	/** Poll to see if content virtualization is enabled or not. */
+	bool IsEnabled() const;
+
 	/** 
 	 * Push a payload to the virtualization backends.
 	 * 
-	 * @param Id
-	 * @param Payload
-	 * @returns
+	 * @param	Id The identifier of the payload being pushed.
+	 * @param	Payload The payload itself in FCompressedBuffer form, it is assumed
+	 *			that if the buffer is to be compressed that it will have been done
+	 *			by the caller.
+	 * @return	True if at least one backend now contains the payload, otherwise false.
 	 */
 	bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload);
 
 	/** 
 	 * Pull a payload from the virtualization backends.
 	 *
-	 * @param Id
-	 * @returns
+	 * @param	Id The identifier of the payload being pulled.
+	 * @return	The payload in the form of a FCompressedBuffer. No decompression will
+	 *			be applied to the payload, it is up to the caller if they want to 
+	 *			retain the payload in compressed or uncompressed format.
+	 *			If no backend contained the payload then an empty invalid FCompressedBuffer
+	 *			will be returned.
 	 */
 	FCompressedBuffer PullData(const FPayloadId& Id);
+
+	/** Access profiling info relating to payload activity. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
+	FPayloadActivityInfo GetPayloadActivityInfo() const;
 
 private:
 
@@ -114,6 +135,9 @@ private:
 	bool CreateBackend(const TCHAR* GraphName, const FString& ConfigEntryName, TMap<FName, IVirtualizationBackendFactory*>& FactoryLookupTable);
 
 	void AddBackend(class IVirtualizationBackend* Backend);
+
+	bool TryPushDataToBackend(class IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
+	FCompressedBuffer PullDataFromBackend(class IVirtualizationBackend& Backend, const FPayloadId& Id);
 
 	/** Are payloads allowed to be virtualized. Defaults to true. */
 	bool bEnablePayloadPushing;

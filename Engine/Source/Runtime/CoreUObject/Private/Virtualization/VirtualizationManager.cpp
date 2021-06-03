@@ -2,11 +2,16 @@
 
 #include "Virtualization/VirtualizationManager.h"
 
+#include "HAL/PlatformTime.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
 #include "Virtualization/IVirtualizationBackend.h"
+
+#include "ProfilingDebugging/CookStats.h"
+#include "Misc/CoreDelegates.h"
 
 namespace UE::Virtualization
 {
@@ -92,6 +97,83 @@ TArray<FString> ParseEntries(const FString& Data)
 	return Entries;
 }
 
+/**
+ * Profiling data allowing us to track how payloads are being push/pulled during the lifespan of the process. Note that as all backends are
+ * created at the same time, we don't need to add locked when accessing the maps. In addition FCookStats is thread safe when adding hits/misses
+ * so we don't hasve to worry about that either.
+ * We keep the FCookStats here rather than as a member of IVirtualizationBackend to try and avoid the backends needing to be aware of the data that
+ * we are gathering at all. This way all profiling code is kept to this cpp.
+ */
+namespace Profiling
+{
+#if ENABLE_COOK_STATS
+	TMap<FString, FCookStats::CallStats> PushStats;
+	TMap<FString, FCookStats::CallStats> PullStats;
+
+	void CreateStats(const IVirtualizationBackend& Backend)
+	{
+		PushStats.Add(Backend.GetDebugString());
+		PullStats.Add(Backend.GetDebugString());
+	}
+
+	FCookStats::CallStats& GetPushStats(const IVirtualizationBackend& Backend)
+	{
+		return *PushStats.Find(Backend.GetDebugString());
+	}
+
+	FCookStats::CallStats& GetPullStats(const IVirtualizationBackend& Backend)
+	{
+		return *PullStats.Find(Backend.GetDebugString());
+	}
+
+	void LogStats()
+	{
+		if (PushStats.IsEmpty() && PullStats.IsEmpty())
+		{
+			return; // Early out if we have no data to show at all
+		}
+
+		UE_LOG(LogVirtualization, Log, TEXT("Virtualization ProfileData"));
+
+		if (PushStats.Num() > 0)
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Pushing Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
+
+			for (const auto& Iterator : PushStats)
+			{
+				const double Time = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles) * FPlatformTime::GetSecondsPerCycle();
+				const int64 DataSizeMB = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes) / (1024 * 1024);
+				const double MBPerSecond = DataSizeMB / Time;
+
+				UE_LOG(LogVirtualization, Log, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
+					*Iterator.Key,
+					DataSizeMB,
+					Time,
+					MBPerSecond);
+			}
+		}
+
+		if (PullStats.Num() > 0)
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Pulling Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
+
+			for (const auto& Iterator : PullStats)
+			{
+				const double Time = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles) * FPlatformTime::GetSecondsPerCycle();
+				const int64 DataSizeMB = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes) / (1024 * 1024);
+				const double MBPerSecond = DataSizeMB / Time;
+
+				UE_LOG(LogVirtualization, Log, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
+					*Iterator.Key,
+					DataSizeMB,
+					Time,
+					MBPerSecond);
+			}
+		}
+	}
+#endif // ENABLE_COOK_STATS
+} //namespace Profiling
+
 FVirtualizationManager& FVirtualizationManager::Get()
 {
 	// TODO: Do we really need to make this a singleton? Easier for prototyping.
@@ -108,6 +190,11 @@ FVirtualizationManager::FVirtualizationManager()
 	, bValidateAfterPushOperation(false)
 {
 	UE_LOG(LogVirtualization, Log, TEXT("Virtualization manager created"));
+
+	// Allows us to log the profiling data on process exit. 
+	// TODO: We should just be able to call the logging in the destructor, but 
+	// we need to fix the startup/shutdown ordering of Mirage first.
+	COOK_STAT(FCoreDelegates::OnExit.AddStatic(Profiling::LogStats));
 
 	FConfigFile PlatformEngineIni;
 	if (FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true))
@@ -139,6 +226,11 @@ FVirtualizationManager::~FVirtualizationManager()
 	PushEnabledBackendsArray.Empty();
 
 	UE_LOG(LogVirtualization, Log, TEXT("Virtualization manager destroyed"));
+}
+
+bool FVirtualizationManager::IsEnabled() const
+{
+	return !PushEnabledBackendsArray.IsEmpty();
 }
 
 bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload)
@@ -185,7 +277,7 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 	bool bWasPayloadPushed = false;
 	for (IVirtualizationBackend* Backend : PushEnabledBackendsArray)
 	{
-		const EPushResult Result = Backend->PushData(Id, Payload);
+		const EPushResult Result = TryPushDataToBackend(*Backend, Id, Payload) ? EPushResult::Success : EPushResult::Failed;
 
 		UE_CLOG(Result != EPushResult::Failed, LogVirtualization, Verbose, TEXT("[%s] Pushed the payload '%s'"), *Backend->GetDebugString(), *Id.ToString());
 		UE_CLOG(Result == EPushResult::Failed, LogVirtualization, Error, TEXT("[%s] Failed to push the payload '%s'"), *Backend->GetDebugString(), *Id.ToString());
@@ -199,7 +291,7 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 		// that the pulled payload is the same as the original
 		if (bValidateAfterPushOperation && Result != EPushResult::Failed && Backend->SupportsPullOperations())
 		{
-			FCompressedBuffer PulledPayload = Backend->PullData(Id);
+			FCompressedBuffer PulledPayload = PullDataFromBackend(*Backend, Id);
 			checkf(Payload.GetRawHash() == PulledPayload.GetRawHash(), TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"), 
 				*Backend->GetDebugString(), *Id.ToString());
 		}
@@ -240,7 +332,7 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 	// (a local cache might want to replicate the data for example)
 	for (IVirtualizationBackend* Backend : PullEnabledBackendsArray)
 	{
-		FCompressedBuffer Payload = Backend->PullData(Id);
+		FCompressedBuffer Payload = PullDataFromBackend(*Backend, Id);
 		if (Payload)
 		{
 			return Payload;
@@ -254,6 +346,27 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 	UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled from any backend'"), *Id.ToString());
 
 	return FCompressedBuffer();
+}
+
+FPayloadActivityInfo FVirtualizationManager::GetPayloadActivityInfo() const
+{
+	FPayloadActivityInfo Info;
+
+#if ENABLE_COOK_STATS
+	for (const auto& Iterator : Profiling::PushStats)
+	{
+		Info.PayloadsPushed += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+		Info.TotalSizePushed += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes) / (1024 * 1024);
+	}
+
+	for (const auto& Iterator : Profiling::PullStats)
+	{
+		Info.PayloadsPulled += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+		Info.TotalSizePulled += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes) / (1024 * 1024);
+	}
+#endif // ENABLE_COOK_STATS
+
+	return Info;
 }
 
 void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& PlatformEngineIni)
@@ -451,7 +564,35 @@ void FVirtualizationManager::AddBackend(IVirtualizationBackend* Backend)
 		PushEnabledBackendsArray.Add(Backend);
 	}
 
+	COOK_STAT(Profiling::CreateStats(*Backend));
+
 	UE_LOG(LogVirtualization, Log, TEXT("Mounted backend: %s"), *Backend->GetDebugString());
+}
+
+bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload)
+{
+	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetPushStats(Backend)));
+	const EPushResult Result = Backend.PushData(Id, Payload);
+
+	if (Result == EPushResult::Success)
+	{
+		COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
+	}
+
+	return Result != EPushResult::Failed;
+}
+
+FCompressedBuffer FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id)
+{
+	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetPullStats(Backend)));
+	FCompressedBuffer Payload = Backend.PullData(Id);
+	
+	if (!Payload.IsNull())
+	{
+		COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
+	}
+	
+	return Payload;
 }
 
 } // namespace UE::Virtualization
