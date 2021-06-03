@@ -1246,14 +1246,14 @@ bool FTexturePlatformData::AreDerivedMipsAvailable() const
 	for (const FTexture2DMipMap& Mip : Mips)
 	{
 		if (!Mip.DerivedDataKey.IsEmpty())
-	{
+		{
 			MipKeys.Add(Mip.DerivedDataKey);
 		}
 	}
 	if (IsInGameThread())
-		{
+	{
 		return GetDerivedDataCacheRef().AllCachedDataProbablyExists(MipKeys);
-		}
+	}
 	else
 	{
 		// When using a shared DDC and performing async loading, 
@@ -1271,14 +1271,14 @@ bool FTexturePlatformData::AreDerivedVTChunksAvailable() const
 	for (const FVirtualTextureDataChunk& Chunk : VTData->Chunks)
 	{
 		if (!Chunk.DerivedDataKey.IsEmpty())
-	{
+		{
 			ChunkKeys.Add(Chunk.DerivedDataKey);
 		}
 	}
 	if (IsInGameThread())
-		{
+	{
 		return GetDerivedDataCacheRef().AllCachedDataProbablyExists(ChunkKeys);
-		}
+	}
 	else
 	{
 		// When using a shared DDC and performing async loading, 
