@@ -199,13 +199,13 @@ FBuildActionInternal::FBuildActionInternal(FStringView InName, FCbObject&& InAct
 		&& IsValidBuildFunctionName(Function)
 		&& FunctionVersion.IsValid()
 		&& BuildSystemVersion.IsValid()
-		&& Algo::AllOf(Action.FindView("Constants"_ASV),
+		&& Algo::AllOf(Action.AsView()["Constants"_ASV],
 			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsObject(); })
-		&& Algo::AllOf(Action.FindView("Inputs"_ASV), [](FCbFieldView Field)
+		&& Algo::AllOf(Action.AsView()["Inputs"_ASV], [](FCbFieldView Field)
 			{
 				return Field.GetName().Len() > 0 && Field.IsObject()
-					&& Field.AsObjectView()["RawHash"_ASV].IsBinaryAttachment()
-					&& Field.AsObjectView()["RawSize"_ASV].IsInteger();
+					&& Field["RawHash"_ASV].IsBinaryAttachment()
+					&& Field["RawSize"_ASV].IsInteger();
 			});
 }
 
@@ -229,10 +229,9 @@ void FBuildActionInternal::IterateConstants(TFunctionRef<void (FStringView Key, 
 
 void FBuildActionInternal::IterateInputs(TFunctionRef<void (FStringView Key, const FIoHash& RawHash, uint64 RawSize)> Visitor) const
 {
-	for (FCbFieldView Field : Action.FindView("Inputs"_ASV))
+	for (FCbFieldView Field : Action.AsView()["Inputs"_ASV])
 	{
-		FCbObjectView Input = Field.AsObjectView();
-		Visitor(FUTF8ToTCHAR(Field.GetName()), Input["RawHash"_ASV].AsHash(), Input["RawSize"_ASV].AsUInt64());
+		Visitor(FUTF8ToTCHAR(Field.GetName()), Field["RawHash"_ASV].AsHash(), Field["RawSize"_ASV].AsUInt64());
 	}
 }
 

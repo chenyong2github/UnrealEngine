@@ -261,19 +261,19 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FStringView InName, FCbObject
 	Definition.MakeOwned();
 	bOutIsValid = Definition
 		&& IsValidBuildFunctionName(Function)
-		&& Algo::AllOf(Definition.FindView("Constants"_ASV),
+		&& Algo::AllOf(Definition.AsView()["Constants"_ASV],
 			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsObject(); })
-		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Builds"_ASV), [](FCbFieldView Field)
+		&& Algo::AllOf(Definition.AsView()["Inputs"_ASV]["Builds"_ASV], [](FCbFieldView Field)
 			{
 				return Field.GetName().Len() > 0 && Field.IsObject()
-					&& Field.AsObjectView()["Build"_ASV].IsHash()
-					&& Field.AsObjectView()["Payload"_ASV].IsObjectId();
+					&& Field["Build"_ASV].IsHash()
+					&& Field["Payload"_ASV].IsObjectId();
 			})
-		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("BulkData"_ASV),
+		&& Algo::AllOf(Definition.AsView()["Inputs"_ASV]["BulkData"_ASV],
 			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsUuid(); })
-		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Files"_ASV),
+		&& Algo::AllOf(Definition.AsView()["Inputs"_ASV]["Files"_ASV],
 			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.AsString().Len() > 0; })
-		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Hashes"_ASV),
+		&& Algo::AllOf(Definition.AsView()["Inputs"_ASV]["Hashes"_ASV],
 			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsBinaryAttachment(); });
 }
 
@@ -297,18 +297,17 @@ void FBuildDefinitionInternal::IterateConstants(TFunctionRef<void (FStringView K
 
 void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildPayloadKey& PayloadKey)> Visitor) const
 {
-	for (FCbFieldView Field : Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Builds"_ASV))
+	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["Builds"_ASV])
 	{
-		FCbObjectView Build = Field.AsObjectView();
-		const FBuildKey BuildKey{Build["Build"_ASV].AsHash()};
-		const FPayloadId Id = FPayloadId(Build["Payload"_ASV].AsObjectId());
+		const FBuildKey BuildKey{Field["Build"_ASV].AsHash()};
+		const FPayloadId Id = FPayloadId(Field["Payload"_ASV].AsObjectId());
 		Visitor(FUTF8ToTCHAR(Field.GetName()), FBuildPayloadKey{BuildKey, Id});
 	}
 }
 
 void FBuildDefinitionInternal::IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const
 {
-	for (FCbFieldView Field : Definition.FindView("Inputs"_ASV).AsObjectView().FindView("BulkData"_ASV))
+	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["BulkData"_ASV])
 	{
 		Visitor(FUTF8ToTCHAR(Field.GetName()), Field.AsUuid());
 	}
@@ -316,7 +315,7 @@ void FBuildDefinitionInternal::IterateInputBulkData(TFunctionRef<void (FStringVi
 
 void FBuildDefinitionInternal::IterateInputFiles(TFunctionRef<void (FStringView Key, FStringView Path)> Visitor) const
 {
-	for (FCbFieldView Field : Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Files"_ASV))
+	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["Files"_ASV])
 	{
 		Visitor(FUTF8ToTCHAR(Field.GetName()), FUTF8ToTCHAR(Field.AsString()));
 	}
@@ -324,7 +323,7 @@ void FBuildDefinitionInternal::IterateInputFiles(TFunctionRef<void (FStringView 
 
 void FBuildDefinitionInternal::IterateInputHashes(TFunctionRef<void (FStringView Key, const FIoHash& RawHash)> Visitor) const
 {
-	for (FCbFieldView Field : Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Hashes"_ASV))
+	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["Hashes"_ASV])
 	{
 		Visitor(FUTF8ToTCHAR(Field.GetName()), Field.AsBinaryAttachment());
 	}
