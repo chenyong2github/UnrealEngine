@@ -71,9 +71,9 @@ class UNREALED_API SAssetEditorViewportsOverlay : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS(SAssetEditorViewportsOverlay) {}
-	SLATE_DEFAULT_SLOT(FArguments, Content)
+		SLATE_DEFAULT_SLOT(FArguments, Content)
 		SLATE_ARGUMENT(TSharedPtr<FViewportTabContent>, ViewportTab)
-		SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
 		void Construct(const FArguments& InArgs);
 
