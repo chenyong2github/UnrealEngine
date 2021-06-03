@@ -306,6 +306,7 @@ private:
 			FQueuedWorkInternalData* QueuedWork = Dequeue();
 			if (QueuedWork)
 			{
+				bWakeUpWorker |= LowLevelTasks::FSchedulerTls::IsBusyWaiting();
 				verifySlow(Scheduler->TryLaunch(QueuedWork->Task, bWakeUpWorker ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference, bWakeUpWorker));
 				TaskCount.fetch_add(1, std::memory_order_acquire);
 				bWakeUpWorker = true;
