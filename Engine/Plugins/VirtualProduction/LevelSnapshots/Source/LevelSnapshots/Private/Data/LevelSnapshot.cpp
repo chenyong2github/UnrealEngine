@@ -87,7 +87,7 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 	
 	if (MapPath != FSoftObjectPath(TargetWorld))
 	{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_EDITOR
 		if (TargetWorld->IsPlayInEditor())
 		{
 			FMessageLog("PIE").Warning(
@@ -97,7 +97,7 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 				)
 			);
 		}
-#endif
+#endif // WITH_EDITOR
 		UE_LOG(LogLevelSnapshots, Error, TEXT("This snapshot was taken for world '%s' and cannot be applied to world '%s': snapshots currently only support applying to the world they were taken in. "), *MapPath.ToString(), *TargetWorld->GetPathName());
 		return;
 	}
@@ -120,14 +120,14 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 
 	if (TargetWorld->WorldType != EWorldType::Editor)
 	{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_EDITOR
 		if (TargetWorld->IsPlayInEditor())
 		{
 			FMessageLog("PIE").Warning(
 			NSLOCTEXT("LevelSnapshots", "IncompatibleWorlds", "Taking snapshots in PIE is an experimental feature. The snapshot will work in the same PIE session but may no longer work when you start a new PIE session.")
 			);
 		}
-#endif
+#endif // WITH_EDITOR
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Level snapshots currently only support editors. Snapshots taken in other world types are experimental any may not function as expected."));
 	}
 	
