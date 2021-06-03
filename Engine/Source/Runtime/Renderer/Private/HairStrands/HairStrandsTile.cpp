@@ -18,9 +18,14 @@
 
 FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In)
 {
+	return GetHairStrandsTileParameters(In, In.Resolution);
+}
+
+FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In, const FIntPoint& InOutputResolution)
+{
 	FHairStrandsTilePassVS::FParameters Out;
 	Out.bRectPrimitive			= In.bRectPrimitive ? 1 : 0;
-	Out.TileOutputResolution	= In.Resolution;
+	Out.TileOutputResolution	= InOutputResolution;
 	Out.TileDataBuffer			= In.TileDataSRV;
 	Out.TileIndirectBuffer		= In.TileIndirectDrawBuffer;
 	return Out;
@@ -216,8 +221,8 @@ void AddHairStrandsDebugTilePass(
 	const FIntPoint OutputResolution = View.ViewRect.Size();
 	
 	FHairStrandsTileDebugPassPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsTileDebugPassPS::FParameters>();
-	PassParameters->TileParameters = GetHairStrandsTileParameters(TileData);
-	PassParameters->OutputResolution = OutputResolution;
+	PassParameters->TileParameters = GetHairStrandsTileParameters(TileData, OutputResolution);
+	PassParameters->OutputResolution = OutputResolution; // Use the Original Buffer for 
 
 	TShaderMapRef<FHairStrandsTilePassVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FHairStrandsTileDebugPassPS> PixelShader(View.ShaderMap);
