@@ -1201,9 +1201,9 @@ static FVector ComputeWSCubeDirectionAtTexelCenter(uint32 CubemapFace, uint32 x,
 	return DirectionWS;
 }
 
-static int32 ComputeLongLatCubemapExtents(const FImage& SrcImage, const int32 MaxCubemapTextureResolution)
+static uint32 ComputeLongLatCubemapExtents(const FImage& SrcImage, const uint32 MaxCubemapTextureResolution)
 {
-	return FMath::Clamp(1 << FMath::FloorLog2(SrcImage.SizeX / 2), 32, MaxCubemapTextureResolution);
+	return FMath::Clamp(1U << FMath::FloorLog2(SrcImage.SizeX / 2), 32U, MaxCubemapTextureResolution);
 }
 
 void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const int32 MaxCubemapTextureResolution)
@@ -1213,16 +1213,16 @@ void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage
 	FImageViewLongLat LongLatView(LongLatImage);
 
 	// TODO_TEXTURE: Expose target size to user.
-	int32 Extent = ComputeLongLatCubemapExtents(LongLatImage, MaxCubemapTextureResolution);
+	uint32 Extent = ComputeLongLatCubemapExtents(LongLatImage, MaxCubemapTextureResolution);
 	float InvExtent = 1.0f / Extent;
 	OutMip->Init(Extent, Extent, 6, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 
 	for(uint32 Face = 0; Face < 6; ++Face)
 	{
 		FImageView2D MipView(*OutMip, Face);
-		for(int32 y = 0; y < Extent; ++y)
+		for(uint32 y = 0; y < Extent; ++y)
 		{
-			for(int32 x = 0; x < Extent; ++x)
+			for(uint32 x = 0; x < Extent; ++x)
 			{
 				FVector DirectionWS = ComputeWSCubeDirectionAtTexelCenter(Face, x, y, InvExtent);
 				MipView.Access(x, y) = LongLatView.LookupLongLat(DirectionWS);
@@ -2585,15 +2585,7 @@ private:
 		// Generate any missing mips in the chain.
 		if (NumOutputMips > OutMipChain.Num())
 		{
-			// Do angular filtering of cubemaps if requested.
-			if (BuildSettings.bCubemap)
-			{
-				GenerateAngularFilteredMips(OutMipChain, NumOutputMips, BuildSettings.DiffuseConvolveMipLevel);
-			}
-			else
-			{
-				GenerateMipChain(BuildSettings, OutMipChain.Last(), OutMipChain);
-			}
+			GenerateMipChain(BuildSettings, OutMipChain.Last(), OutMipChain);
 		}
 		check(OutMipChain.Num() == NumOutputMips);
 
