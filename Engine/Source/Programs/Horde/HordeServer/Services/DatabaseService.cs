@@ -192,7 +192,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="SettingsSnapshot">The settings instance</param>
 		/// <param name="LoggerFactory">Instance of the logger for this service</param>
-		public DatabaseService(IOptionsSnapshot<ServerSettings> SettingsSnapshot, ILoggerFactory LoggerFactory)
+		public DatabaseService(IOptions<ServerSettings> SettingsSnapshot, ILoggerFactory LoggerFactory)
 		{
 			this.Settings = SettingsSnapshot.Value;
 			this.Logger = LoggerFactory.CreateLogger<DatabaseService>();

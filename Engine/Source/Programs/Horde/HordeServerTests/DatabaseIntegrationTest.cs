@@ -70,12 +70,10 @@ namespace HordeServerTests
                 ServerSettings Ss = new ServerSettings();
                 Ss.DatabaseName = MongoDbDatabaseName;
                 Ss.DatabaseConnectionString = _mongoDbRunner.GetConnectionString();
-                TestOptionsMonitor<ServerSettings> SsMonitor = new TestOptionsMonitor<ServerSettings>(Ss);
             
                 ILoggerFactory LoggerFactory = new LoggerFactory();
-                ILogger<DatabaseService> Logger = LoggerFactory.CreateLogger<DatabaseService>();
 
-                _databaseService = new DatabaseService(SsMonitor, Logger);
+                _databaseService = new DatabaseService(Options.Create(Ss), LoggerFactory);
                 _databaseService.Database.Client.DropDatabase(Ss.DatabaseName);
             }
 

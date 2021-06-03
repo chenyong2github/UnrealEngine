@@ -210,8 +210,7 @@ namespace HordeServer
 		/// Setting it to null will disable Redis use and connection
 		/// See format at https://stackexchange.github.io/StackExchange.Redis/Configuration.html
 		/// </summary>
-		[Required]
-		public string RedisConnectionConfig { get; set; } = null!;
+		public string? RedisConnectionConfig { get; set; }
 		
 		/// <summary>
 		/// Type of write cache to use in log service
