@@ -53,6 +53,7 @@ public:
 		UnjitteredPrevWorldToClip.Bind(ParameterMap, TEXT("UnjitteredPrevWorldToClip")); 
 		FrameJitterOffsets.Bind(ParameterMap, TEXT("FrameJitterOffsets")); 
 		HistoryWeight.Bind(ParameterMap, TEXT("HistoryWeight")); 
+		LightScatteringSampleJitterMultiplier.Bind(ParameterMap, TEXT("LightScatteringSampleJitterMultiplier"));
 		HistoryMissSuperSampleCount.Bind(ParameterMap, TEXT("HistoryMissSuperSampleCount")); 
 	}
 
@@ -90,6 +91,10 @@ public:
 		extern float GVolumetricFogHistoryWeight;
 		SetShaderValue(RHICmdList, ShaderRHI, HistoryWeight, IntegrationData.bTemporalHistoryIsValid ? GVolumetricFogHistoryWeight : 0.0f);
 
+		extern float GLightScatteringSampleJitterMultiplier;
+		extern int32 GVolumetricFogJitter;
+		SetShaderValue(RHICmdList, ShaderRHI, LightScatteringSampleJitterMultiplier, GVolumetricFogJitter ? GLightScatteringSampleJitterMultiplier : 0);
+
 		extern int32 GVolumetricFogHistoryMissSupersampleCount;
 		SetShaderValue(RHICmdList, ShaderRHI, HistoryMissSuperSampleCount, FMath::Clamp(GVolumetricFogHistoryMissSupersampleCount, 1, 16));
 	}
@@ -122,6 +127,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, UnjitteredPrevWorldToClip)
 	LAYOUT_FIELD(FShaderParameter, FrameJitterOffsets)
 	LAYOUT_FIELD(FShaderParameter, HistoryWeight)
+	LAYOUT_FIELD(FShaderParameter, LightScatteringSampleJitterMultiplier)
 	LAYOUT_FIELD(FShaderParameter, HistoryMissSuperSampleCount)
 };
 

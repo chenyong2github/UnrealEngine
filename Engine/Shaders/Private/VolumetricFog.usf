@@ -16,6 +16,7 @@
 #include "ForwardShadowingCommon.ush"
 #include "ParticipatingMediaCommon.ush"
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
+#include "Random.ush"
 
 #if VIRTUAL_SHADOW_MAP
 #include "VirtualShadowMaps/ProjectionCommon.ush"
@@ -192,6 +193,7 @@ void WriteToBoundingSphereVS(
 }
 
 float HistoryWeight;
+float LightScatteringSampleJitterMultiplier;
 float4 FrameJitterOffsets[16]; 
 uint HistoryMissSuperSampleCount;
 float PhaseG;
@@ -568,8 +570,10 @@ void LightScatteringCS(
 
 	for (uint SampleIndex = 0; SampleIndex < NumSuperSamples; SampleIndex++)
 	{
-		float3 CellOffset = FrameJitterOffsets[SampleIndex].xyz;
-		//float CellOffset = .5f;
+		uint3 Rand32Bits = Rand4DPCG32(int4(GridCoordinate.xyz, View.StateFrameIndexMod8 + 8 * SampleIndex)).xyz;
+		float3 Rand3D = (float3(Rand32Bits) / float(uint(0xffffffff))) * 2.0f - 1.0f;
+		float3 CellOffset = FrameJitterOffsets[SampleIndex].xyz + LightScatteringSampleJitterMultiplier * Rand3D;
+		//CellOffset = 0.5f;
 
 		float SceneDepth;
 		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, CellOffset, SceneDepth);
