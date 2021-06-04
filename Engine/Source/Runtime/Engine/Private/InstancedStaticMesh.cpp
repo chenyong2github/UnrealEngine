@@ -1439,14 +1439,14 @@ void FInstancedStaticMeshSceneProxy::GetDistanceFieldInstanceData(TArray<FRender
 		const TArray<FRenderTransform>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
 		for (const FRenderTransform& InstanceToLocal : PerInstanceTransforms)
 		{
-			ObjectLocalToWorldTransforms.Add(InstanceToLocal.ToMatrix() * GetLocalToWorld());
+			ObjectLocalToWorldTransforms.Add(InstanceToLocal * (FMatrix44f)GetLocalToWorld());
 		}
 	}
 }
 
 HHitProxy* FInstancedStaticMeshSceneProxy::CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies)
 {
-	if(InstancedRenderData.PerInstanceRenderData.IsValid() && InstancedRenderData.PerInstanceRenderData->HitProxies.Num() )
+	if (InstancedRenderData.PerInstanceRenderData.IsValid() && InstancedRenderData.PerInstanceRenderData->HitProxies.Num())
 	{
 		// Add any per-instance hit proxies.
 		OutHitProxies += InstancedRenderData.PerInstanceRenderData->HitProxies;

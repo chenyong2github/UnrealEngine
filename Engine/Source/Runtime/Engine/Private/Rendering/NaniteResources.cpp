@@ -1100,7 +1100,7 @@ void FSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectL
 		}
 		else
 		{
-			ObjectLocalToWorldTransforms.Add(GetLocalToWorld());
+			ObjectLocalToWorldTransforms.Add((FMatrix44f)GetLocalToWorld());
 		}
 	}
 }
