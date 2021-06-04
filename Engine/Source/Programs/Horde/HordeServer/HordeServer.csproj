@@ -97,7 +97,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Defaults\project-ue5.png">
+    <Content Include="Defaults\ue5.project.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
