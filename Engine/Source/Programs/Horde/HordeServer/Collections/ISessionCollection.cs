@@ -12,8 +12,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-
 namespace HordeServer.Collections
 {
 	/// <summary>
@@ -29,7 +27,7 @@ namespace HordeServer.Collections
 		/// <param name="StartTime">Start time of this session</param>
 		/// <param name="Capabilities">Properties of this agent at the time the session started</param>
 		/// <param name="Version">Version of the agent software</param>
-		Task<ISession> AddAsync(ObjectId Id, AgentId AgentId, DateTime StartTime, AgentCapabilities? Capabilities, AgentSoftwareVersion? Version);
+		Task<ISession> AddAsync(ObjectId Id, AgentId AgentId, DateTime StartTime, AgentCapabilities? Capabilities, string? Version);
 
 		/// <summary>
 		/// Gets information about a particular session

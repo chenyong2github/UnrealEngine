@@ -15,8 +15,12 @@ using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
 using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
+using Microsoft.Extensions.Options;
+using System.IO.Compression;
 
 namespace HordeServer.Services
 {
@@ -43,7 +47,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// The software revision number
 		/// </summary>
-		public AgentSoftwareVersion Version { get; set; }
+		public string Version { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Private constructor for serialization
@@ -78,6 +82,22 @@ namespace HordeServer.Services
 		/// List of channels
 		/// </summary>
 		public List<AgentSoftwareChannel> Channels { get; set; } = new List<AgentSoftwareChannel>();
+
+		/// <summary>
+		/// Finds an existing channel by the given name, or adds a new one
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <returns></returns>
+		public AgentSoftwareChannel FindOrAddChannel(AgentSoftwareChannelName Name)
+		{
+			AgentSoftwareChannel? Channel = Channels.FirstOrDefault(x => x.Name == Name);
+			if (Channel == null)
+			{
+				Channel = new AgentSoftwareChannel(Name);
+				Channels.Add(Channel);
+			}
+			return Channel;
+		}
 	}
 
 	/// <summary>
@@ -165,7 +185,7 @@ namespace HordeServer.Services
 					break;
 				}
 
-				AgentSoftwareVersion Version = Current.Channels[ChannelIdx].Version;
+				string Version = Current.Channels[ChannelIdx].Version;
 				Current.Channels.RemoveAt(ChannelIdx);
 
 				if (await Singleton.TryUpdateAsync(Current))
@@ -180,29 +200,46 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
+		/// Reads the version number from an archive
+		/// </summary>
+		/// <param name="Data">The archive data</param>
+		/// <returns></returns>
+		static string ReadVersion(byte[] Data)
+		{
+			MemoryStream InputStream = new MemoryStream(Data);
+			using (ZipArchive InputArchive = new ZipArchive(InputStream, ZipArchiveMode.Read, true))
+			{
+				foreach (ZipArchiveEntry InputEntry in InputArchive.Entries)
+				{
+					if (InputEntry.FullName.Equals("HordeAgent.dll", StringComparison.OrdinalIgnoreCase))
+					{
+						string TempFile = Path.GetTempFileName();
+						try
+						{
+							InputEntry.ExtractToFile(TempFile);
+							return FileVersionInfo.GetVersionInfo(TempFile).ProductVersion;
+						}
+						finally
+						{
+							File.Delete(TempFile);
+						}
+					}
+				}
+			}
+			throw new Exception("Unable to find HordeAgent.dll in archive");
+		}
+
+		/// <summary>
 		/// Updates a new software revision
 		/// </summary>
 		/// <param name="Name">Name of the channel</param>
 		/// <param name="Author">Name of the user uploading this file</param>
 		/// <param name="Data">The input data stream. This should be a zip archive containing the HordeAgent executable.</param>
 		/// <returns>Unique id for the file</returns>
-		public async Task<AgentSoftwareVersion> SetArchiveAsync(AgentSoftwareChannelName Name, string? Author, byte[] Data)
+		public async Task<string> SetArchiveAsync(AgentSoftwareChannelName Name, string? Author, byte[] Data)
 		{
-			// Allocate a new version number
-			int VersionNumber;
-			for(; ;)
-			{
-				AgentSoftwareChannels Instance = await Singleton.GetAsync();
-				VersionNumber = Instance.NextVersion++;
-
-				if(await Singleton.TryUpdateAsync(Instance))
-				{
-					break;
-				}
-			}
-
 			// Upload the software
-			AgentSoftwareVersion Version = new AgentSoftwareVersion($"r{VersionNumber}");
+			string Version = ReadVersion(Data);
 			await Collection.AddAsync(Version, Data);
 
 			// Update the channel
@@ -210,13 +247,7 @@ namespace HordeServer.Services
 			{
 				AgentSoftwareChannels Instance = await Singleton.GetAsync();
 
-				AgentSoftwareChannel? Channel = Instance.Channels.FirstOrDefault(x => x.Name == Name);
-				if (Channel == null)
-				{
-					Channel = new AgentSoftwareChannel(Name);
-					Instance.Channels.Add(Channel);
-				}
-
+				AgentSoftwareChannel Channel = Instance.FindOrAddChannel(Name);
 				Channel.ModifiedBy = Author;
 				Channel.ModifiedTime = DateTime.UtcNow;
 				Channel.Version = Version;
@@ -230,7 +261,7 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
-		/// Gets the zip file with a given version number
+		/// Gets the zip file for a given channel
 		/// </summary>
 		/// <param name="Name">The channel name</param>
 		/// <returns>Data for the given archive</returns>
@@ -254,7 +285,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="Version">The version</param>
 		/// <returns>Data for the given archive</returns>
-		public Task<byte[]?> GetArchiveAsync(AgentSoftwareVersion Version)
+		public Task<byte[]?> GetArchiveAsync(string Version)
 		{
 			return Collection.GetAsync(Version);
 		}

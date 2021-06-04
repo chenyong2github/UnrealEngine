@@ -448,7 +448,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Version of the software running on this agent
 		/// </summary>
-		public AgentSoftwareVersion? Version { get; }
+		public string? Version { get; }
 
 		/// <summary>
 		/// Channel for the software running on this agent. Uses <see cref="AgentSoftwareService.DefaultChannelName"/> if not specified

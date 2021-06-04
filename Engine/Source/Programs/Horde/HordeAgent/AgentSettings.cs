@@ -157,11 +157,6 @@ namespace HordeAgent
 		public string Server { get; set; } = null!;
 
 		/// <summary>
-		/// The unique version identifier for this client. This is inserted into the appsettings.json file when a client is uploaded to the server.
-		/// </summary>
-		public string? Version { get; set; }
-
-		/// <summary>
 		/// The executor to use for jobs. Defaults to the Perforce executor.
 		/// </summary>
 		public ExecutorType Executor { get; set; } = ExecutorType.Perforce;

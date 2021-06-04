@@ -40,7 +40,7 @@ namespace HordeAgent
 		/// <summary>
 		/// Path to the root application directory
 		/// </summary>
-		public static readonly string AppDir = Path.GetFullPath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
+		public static string AppDir { get; } = Path.GetFullPath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
 
 		/// <summary>
 		/// Name of the saved application data directory
@@ -50,12 +50,17 @@ namespace HordeAgent
 		/// <summary>
 		/// Path to the saved application data directory
 		/// </summary>
-		public static readonly string SavedDir = Path.Combine(AppDir, SavedDirName);
+		public static string SavedDir { get; } = Path.Combine(AppDir, SavedDirName);
 
 		/// <summary>
 		/// The launch arguments
 		/// </summary>
 		public static string[] Args { get; private set; } = null!;
+
+		/// <summary>
+		/// The current application version
+		/// </summary>
+		public static string Version { get; } = GetVersion();
 
 		/// <summary>
 		/// Width to use for printing out help
@@ -236,6 +241,22 @@ namespace HordeAgent
 				Commands.Add(new KeyValuePair<string, string>(String.Join(" ", Attribute.Names), Attribute.Description));
 			}
 			HelpUtils.PrintTable(Commands.OrderBy(x => x.Key).ToList(), 4, 20, HelpWidth, Logger);
+		}
+
+		/// <summary>
+		/// Gets the version of the current assembly
+		/// </summary>
+		/// <returns></returns>
+		static string GetVersion()
+		{
+			try
+			{
+				return FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).ProductVersion;
+			}
+			catch
+			{
+				return "unknown";
+			}
 		}
 	}
 }

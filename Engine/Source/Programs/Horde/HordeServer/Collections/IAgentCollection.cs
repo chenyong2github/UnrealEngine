@@ -17,7 +17,6 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
 using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
 
 namespace HordeServer.Collections
@@ -112,7 +111,7 @@ namespace HordeServer.Collections
 		/// <param name="Capabilities">Capabilities for the agent</param>
 		/// <param name="Version">Current version of the agent software</param>
 		/// <returns>New agent state</returns>
-		Task<IAgent?> TryStartSessionAsync(IAgent Agent, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, AgentCapabilities Capabilities, AgentSoftwareVersion? Version);
+		Task<IAgent?> TryStartSessionAsync(IAgent Agent, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, AgentCapabilities Capabilities, string? Version);
 
 		/// <summary>
 		/// Attempt to update the agent state

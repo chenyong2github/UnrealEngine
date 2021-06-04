@@ -324,7 +324,7 @@ namespace HordeServer.Services
 			}
 
 			// Create a new session
-			Agent = await AgentService.CreateSessionAsync(Agent, Request.Status, new AgentCapabilities(Request.Capabilities), AgentSoftwareVersion.FromNullable(Request.Version));
+			Agent = await AgentService.CreateSessionAsync(Agent, Request.Status, new AgentCapabilities(Request.Capabilities), Request.Version);
 			if (Agent == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Agent {AgentId} not found", Request.Name);
@@ -886,10 +886,10 @@ namespace HordeServer.Services
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access to software is forbidden");
 			}
 
-			AgentSoftwareVersion Version = await AgentSoftwareService.SetArchiveAsync(new AgentSoftwareChannelName(Request.Channel), null, Request.Data.ToArray());
+			string Version = await AgentSoftwareService.SetArchiveAsync(new AgentSoftwareChannelName(Request.Channel), null, Request.Data.ToArray());
 
 			UploadSoftwareResponse Response = new UploadSoftwareResponse();
-			Response.Version = Version.ToString();
+			Response.Version = Version;
 			return Response;
 		}
 
@@ -907,9 +907,7 @@ namespace HordeServer.Services
 				throw new StructuredRpcException(StatusCode.NotFound, "Access to software is forbidden");
 			}
 
-			AgentSoftwareVersion Version = new AgentSoftwareVersion(Request.Version);
-
-			byte[]? Data = await AgentSoftwareService.GetArchiveAsync(Version);
+			byte[]? Data = await AgentSoftwareService.GetArchiveAsync(Request.Version);
 			if (Data == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Missing version {Version}");

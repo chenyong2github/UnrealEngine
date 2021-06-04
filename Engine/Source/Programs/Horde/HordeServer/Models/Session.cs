@@ -9,8 +9,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-
 namespace HordeServer.Models
 {
 	/// <summary>
@@ -46,6 +44,6 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Version of the agent software
 		/// </summary>
-		public AgentSoftwareVersion? Version { get; }
+		public string? Version { get; }
 	}
 }

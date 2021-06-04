@@ -41,6 +41,6 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The software version number
 		/// </summary>
-		public AgentSoftwareVersion Version { get; set; }
+		public string Version { get; set; }
 	}
 }

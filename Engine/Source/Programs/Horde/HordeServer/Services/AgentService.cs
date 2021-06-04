@@ -268,7 +268,7 @@ namespace HordeServer.Services
 		/// <param name="Capabilities">Capabilities of the agent software</param>
 		/// <param name="Version">Version of the software that's running</param>
 		/// <returns>New agent state</returns>
-		public async Task<IAgent> CreateSessionAsync(IAgent Agent, AgentStatus Status, AgentCapabilities Capabilities, AgentSoftwareVersion? Version)
+		public async Task<IAgent> CreateSessionAsync(IAgent Agent, AgentStatus Status, AgentCapabilities Capabilities, string? Version)
 		{
 			for (; ; )
 			{

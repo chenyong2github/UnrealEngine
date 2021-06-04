@@ -12,8 +12,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-
 namespace HordeServer.Collections.Impl
 {
 	/// <summary>
@@ -35,14 +33,14 @@ namespace HordeServer.Collections.Impl
 			public DateTime StartTime { get; set; }
 			public DateTime? FinishTime { get; set; }
 			public AgentCapabilities? Capabilities { get; set; }
-			public AgentSoftwareVersion? Version { get; set; }
+			public string? Version { get; set; }
 
 			[BsonConstructor]
 			private SessionDocument()
 			{
 			}
 
-			public SessionDocument(ObjectId Id, AgentId AgentId, DateTime StartTime, AgentCapabilities? Capabilities, AgentSoftwareVersion? Version)
+			public SessionDocument(ObjectId Id, AgentId AgentId, DateTime StartTime, AgentCapabilities? Capabilities, string? Version)
 			{
 				this.Id = Id;
 				this.AgentId = AgentId;
@@ -74,7 +72,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ISession> AddAsync(ObjectId Id, AgentId AgentId, DateTime StartTime, AgentCapabilities? Capabilities, AgentSoftwareVersion? Version)
+		public async Task<ISession> AddAsync(ObjectId Id, AgentId AgentId, DateTime StartTime, AgentCapabilities? Capabilities, string? Version)
 		{
 			SessionDocument NewSession = new SessionDocument(Id, AgentId, StartTime, Capabilities, Version);
 			await Sessions.InsertOneAsync(NewSession);

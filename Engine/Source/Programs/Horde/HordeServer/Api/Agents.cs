@@ -260,7 +260,7 @@ namespace HordeServer.Api
 			this.StartTime = Session.StartTime;
 			this.FinishTime = Session.FinishTime;
 			this.Capabilities = (Session.Capabilities != null)? new GetAgentCapabilitiesResponse(Session.Capabilities) : null;
-			this.Version = Session.Version.ToString();
+			this.Version = Session.Version?.ToString();
 		}
 	}
 
@@ -474,7 +474,7 @@ namespace HordeServer.Api
 			{
 				this.Version += $" ({Agent.Channel})";
 			}
-			this.Version = Agent.Version.ToString();
+			this.Version = Agent.Version?.ToString();
 			this.Channel = Agent.Channel?.ToString();
 			this.UpdateTime = Agent.UpdateTime;
 			this.Pools = Pools.Select(x => x.ToString()).ToList();

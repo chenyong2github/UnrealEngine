@@ -103,9 +103,9 @@ namespace HordeAgent.Modes.Service
 					ConfigSection.Bind(Settings);
 
 					ServerProfile ServerProfile = Settings.GetCurrentServerProfile();
-					ConfigureTracing(ServerProfile.Environment, Settings.Version ?? "unknown");
-					
-					Logging.Version = Settings.Version ?? "";
+					ConfigureTracing(ServerProfile.Environment, Program.Version);
+
+					Logging.Version = Program.Version;
 
 					Services.AddHttpClient(Program.HordeServerClientName, Config =>
 					{
