@@ -4,11 +4,11 @@
 #include "VideoEncoderInputImpl.h"
 #include "RHI.h"
 
-#if PLATFORM_WINDOWS || WITH_CUDA
+#if (PLATFORM_WINDOWS && PLATFORM_DESKTOP) || WITH_CUDA
 #include "Encoders/NVENC/NVENC_EncoderH264.h"
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 #include "Encoders/Amf/Amf_EncoderH264.h"
 #endif
 
@@ -72,11 +72,11 @@ void FVideoEncoderFactory::Register(const FVideoEncoderInfo& InInfo, const Creat
 void FVideoEncoderFactory::RegisterDefaultCodecs()
 {
 
-#if PLATFORM_WINDOWS || (PLATFORM_LINUX && WITH_CUDA)
+#if defined(AVENCODER_VIDEO_ENCODER_AVAILABLE_NVENC_H264)
 	FVideoEncoderNVENC_H264::Register(*this);
 #endif
 	
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
+#if defined(AVENCODER_VIDEO_ENCODER_AVAILABLE_AMF_H264)
 	FVideoEncoderAmf_H264::Register(*this);
 #endif
 

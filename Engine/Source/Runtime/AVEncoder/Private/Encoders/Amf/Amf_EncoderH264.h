@@ -9,6 +9,7 @@
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderInputImpl.h"
 
+#define AVENCODER_VIDEO_ENCODER_AVAILABLE_AMF_H264
 
 namespace AVEncoder
 {

@@ -9,6 +9,8 @@
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderInputImpl.h"
 
+#define AVENCODER_VIDEO_ENCODER_AVAILABLE_NVENC_H264
+
 namespace AVEncoder
 {
     class FVideoEncoderNVENC_H264 : public FVideoEncoder
