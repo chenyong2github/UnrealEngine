@@ -719,7 +719,22 @@ void FTextureCacheDerivedDataWorker::DoWork()
 
 	TArray<uint8> RawDerivedData;
 
-	if (!bForceRebuild && GetDerivedDataCacheRef().GetSynchronous(*DerivedData->DerivedDataKey, RawDerivedData, Texture.GetPathName()))
+	if (!bForceRebuild)
+	{
+		// First try to load a texture generated for the shipping build from the cache.
+		// FTexturePlatformData::ShippingDerivedDataKey is set when we are running a build in the Editor.
+		// This allows to preview how the texture will look in the final build and avoid rebuilding texture locally using fast cooking.
+		if (!DerivedData->ShippingDerivedDataKey.IsEmpty() && DerivedData->ShippingDerivedDataKey != DerivedData->DerivedDataKey)
+		{
+			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*DerivedData->ShippingDerivedDataKey, RawDerivedData, Texture.GetPathName());
+		}
+		if (!bLoadedFromDDC)
+		{
+			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*DerivedData->DerivedDataKey, RawDerivedData, Texture.GetPathName());
+		}
+	}
+
+	if (bLoadedFromDDC)
 	{
 		const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
 		const bool bForDDC = (CacheFlags & ETextureCacheFlags::ForDDCBuild) != 0;
@@ -793,7 +808,6 @@ void FTextureCacheDerivedDataWorker::DoWork()
 				}
 			}
 		}
-		bLoadedFromDDC = true;
 
 		if (bSucceeded && bForVirtualTextureStreamingBuild && CVarVTValidateCompressionOnLoad.GetValueOnAnyThread())
 		{

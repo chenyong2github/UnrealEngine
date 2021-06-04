@@ -733,6 +733,23 @@ void FTexturePlatformData::Cache(
 	bool bAsync = !bForDDC && (Flags & ETextureCacheFlags::Async) != 0;
 	GetTextureDerivedDataKey(InTexture, InSettingsPerLayer, DerivedDataKey);
 
+	if (!bForDDC && !bForceRebuild && InSettingsPerLayer[0].bHasEditorOnlyData)
+	{
+		// If we are running in the Editor, generate a shipping derived data key, which can be used to load
+		// a texture cooked for the shipping build from the cache, if available.
+		// Specifically, FTextureBuildSettings::bHasEditorOnlyData controls the usage of Oodle RDO when building textures.
+		// In cases when an RDO-processed texture is present in the cache, we can use it instead of building or loading a non-RDO texture.
+		const int32 NumLayers = InTexture.Source.GetNumLayers();
+		TArray<FTextureBuildSettings> ShippingBuildSettingsPerLayer;
+		ShippingBuildSettingsPerLayer.SetNum(NumLayers);
+		for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+		{
+			ShippingBuildSettingsPerLayer[LayerIndex] = InSettingsPerLayer[LayerIndex];
+			ShippingBuildSettingsPerLayer[LayerIndex].bHasEditorOnlyData = false;
+		}
+		GetTextureDerivedDataKey(InTexture, ShippingBuildSettingsPerLayer.GetData(), ShippingDerivedDataKey);
+	}
+
 	if (!Compressor)
 	{
 		Compressor = &FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
