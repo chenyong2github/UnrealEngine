@@ -85,7 +85,7 @@ namespace HordeAgent.Commands.Utilities
 
 			// Read the application settings
 			IConfigurationRoot Config = new ConfigurationBuilder()
-				.SetBasePath(Program.AppDir)
+				.SetBasePath(Program.AppDir.FullName)
 				.AddJsonFile("appsettings.json", true)
 				.AddJsonFile("appsettings.Production.json", true)
 				.Build();
