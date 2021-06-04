@@ -2,7 +2,10 @@
 
 #include "FilterBlueprintFunctionLibrary.h"
 
-ULevelSnapshotFilter* UFilterBlueprintFunctionLibrary::CreateFilterByClass(TSubclassOf<ULevelSnapshotFilter> Class, FName Name, UObject* Outer)
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+
+ULevelSnapshotFilter* UFilterBlueprintFunctionLibrary::CreateFilterByClass(const TSubclassOf<ULevelSnapshotFilter>& Class, FName Name, UObject* Outer)
 {
 	if (IsValid(Outer))
 	{

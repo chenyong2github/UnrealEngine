@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LevelSnapshotFilters.h"
+#include "Templates/SubclassOf.h"
 #include "NegationFilter.generated.h"
 
 /* Returns the results of a child filter optionally negated.
@@ -24,7 +25,7 @@ public:
 	 * If you intend to save this filter, you should use this function instead of SetExternalChild;
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Snapshots")
-	ULevelSnapshotFilter* CreateChild(TSubclassOf<ULevelSnapshotFilter> ChildClass);
+	ULevelSnapshotFilter* CreateChild(const TSubclassOf<ULevelSnapshotFilter>& ChildClass);
 
 	/**
 	* Creates an instanced child.

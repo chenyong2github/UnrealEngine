@@ -2,6 +2,7 @@
 
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
 
+#include "Application/SlateApplicationBase.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 ULevelSnapshotsEditorProjectSettings::ULevelSnapshotsEditorProjectSettings(const FObjectInitializer& ObjectInitializer)

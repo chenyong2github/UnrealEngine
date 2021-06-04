@@ -4,6 +4,10 @@
 
 #include "WorldSnapshotData.h"
 
+#include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
+#include "Serialization/ArchiveSerializedPropertyChain.h"
+
 bool FBaseClassDefaultArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
 	const bool bSuperWantsToSkip = Super::ShouldSkipProperty(InProperty);

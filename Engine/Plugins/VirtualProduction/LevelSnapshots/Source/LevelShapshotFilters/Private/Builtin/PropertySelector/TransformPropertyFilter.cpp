@@ -2,6 +2,8 @@
 
 #include "Builtin/PropertySelector/TransformPropertyFilter.h"
 
+#include "Components/SceneComponent.h"
+
 namespace
 {
 	FName Name_RelativeLocation = USceneComponent::GetRelativeLocationPropertyName();

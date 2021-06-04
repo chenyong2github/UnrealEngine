@@ -3,15 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "Toolkits/AssetEditorToolkit.h"
-
-class ULevelSnapshotsEditorData;
 
 class FLevelSnapshotsEditorInput;
 class FLevelSnapshotsEditorFilters;
 class FLevelSnapshotsEditorResults;
 class FLevelSnapshotsEditorContext;
+class SCheckBox;
+class SDockTab;
+class ULevelSnapshotsEditorData;
+
 struct FLevelSnapshotsEditorViewBuilder;
 
 class ULevelSnapshot;

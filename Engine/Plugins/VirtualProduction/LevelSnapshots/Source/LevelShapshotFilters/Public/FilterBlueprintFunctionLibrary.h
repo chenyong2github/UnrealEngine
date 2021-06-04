@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "LevelSnapshotFilters.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Templates/SubclassOf.h"
 #include "FilterBlueprintFunctionLibrary.generated.h"
 
 UCLASS()
@@ -15,6 +15,6 @@ class LEVELSNAPSHOTFILTERS_API UFilterBlueprintFunctionLibrary : public UBluepri
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "Level Snapshots")
-	static ULevelSnapshotFilter* CreateFilterByClass(TSubclassOf<ULevelSnapshotFilter> Class, FName Name = NAME_None, UObject* Outer = nullptr);
+	static ULevelSnapshotFilter* CreateFilterByClass(const TSubclassOf<ULevelSnapshotFilter>& Class, FName Name = NAME_None, UObject* Outer = nullptr);
 	
 };

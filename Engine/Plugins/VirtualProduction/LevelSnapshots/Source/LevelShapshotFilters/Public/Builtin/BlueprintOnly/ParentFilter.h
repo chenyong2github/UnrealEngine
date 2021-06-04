@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LevelSnapshotFilters.h"
+#include "Templates/SubclassOf.h"
 #include "ParentFilter.generated.h"
 
 UCLASS(meta = (InternalSnapshotFilter))
@@ -29,7 +30,7 @@ public:
 	 * If you intend to save your filter, add children using this function.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Snapshots")
-	ULevelSnapshotFilter* CreateChild(TSubclassOf<ULevelSnapshotFilter> Class);
+	ULevelSnapshotFilter* CreateChild(const TSubclassOf<ULevelSnapshotFilter>& Class);
 
 	/* Gets the children in this filter */
 	UFUNCTION(BlueprintPure, Category = "Level Snapshots")

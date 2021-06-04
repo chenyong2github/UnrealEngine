@@ -7,6 +7,9 @@
 #include "LevelSnapshotsEditorStyle.h"
 #include "SLevelSnapshotsEditorFilterList.h"
 #include "SHoverableFilterActions.h"
+
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 

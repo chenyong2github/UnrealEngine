@@ -38,9 +38,9 @@ bool UParentFilter::RemovedChild(ULevelSnapshotFilter* Filter)
 	return false;
 }
 
-ULevelSnapshotFilter* UParentFilter::CreateChild(TSubclassOf<ULevelSnapshotFilter> Class)
+ULevelSnapshotFilter* UParentFilter::CreateChild(const TSubclassOf<ULevelSnapshotFilter>& Class)
 {
-	ULevelSnapshotFilter* InstancedChild = NewObject<ULevelSnapshotFilter>(this, Class);
+	ULevelSnapshotFilter* InstancedChild = NewObject<ULevelSnapshotFilter>(this, Class.Get());
 	InstancedChildren.Add(InstancedChild);
 	return InstancedChild;
 }

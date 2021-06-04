@@ -2,9 +2,9 @@
 
 #include "Builtin/BlueprintOnly/NegationFilter.h"
 
-ULevelSnapshotFilter* UNegationFilter::CreateChild(TSubclassOf<ULevelSnapshotFilter> ChildClass)
+ULevelSnapshotFilter* UNegationFilter::CreateChild(const TSubclassOf<ULevelSnapshotFilter>& ChildClass)
 {
-	InstancedChild = NewObject<ULevelSnapshotFilter>(this, ChildClass);
+	InstancedChild = NewObject<ULevelSnapshotFilter>(this, ChildClass.Get());
 	return InstancedChild;
 }
 

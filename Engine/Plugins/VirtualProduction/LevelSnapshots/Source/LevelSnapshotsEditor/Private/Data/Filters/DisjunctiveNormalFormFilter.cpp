@@ -3,8 +3,8 @@
 #include "DisjunctiveNormalFormFilter.h"
 
 #include "Data/Filters/ConjunctionFilter.h"
-#include "Data/Filters/NegatableFilter.h"
 
+#include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 #include "UObject/UObjectGlobals.h"
 

@@ -3,11 +3,13 @@
 #include "FilterLoader.h"
 
 #include "DisjunctiveNormalFormFilter.h"
-#include "EditorDirectories.h"
 
-#include "FileHelpers.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "EditorDirectories.h"
+#include "FileHelpers.h"
 #include "Misc/Paths.h"
+#include "Misc/ITransaction.h"
+#include "ScopedTransaction.h"
 
 void UFilterLoader::OverwriteExisting()
 {

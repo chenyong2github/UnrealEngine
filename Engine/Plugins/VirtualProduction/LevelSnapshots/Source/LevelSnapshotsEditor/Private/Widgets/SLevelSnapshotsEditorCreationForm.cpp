@@ -3,16 +3,21 @@
 #include "SLevelSnapshotsEditorCreationForm.h"
 
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
+#include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
 #include "LevelSnapshotsEditorStyle.h"
 
-#include "CoreMinimal.h"
-#include "Dialogs/CustomDialog.h"
+#include "Editor.h"
 #include "EditorStyleSet.h"
+#include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "IDetailsView.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/SWindow.h"
 #include "Widgets/Text/STextBlock.h"
 
 TSharedRef<SWindow> FLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
@@ -198,11 +203,8 @@ TSharedRef<SWidget> SLevelSnapshotsEditorCreationForm::MakeDataManagementSetting
 	DetailsViewArgs.bShowScrollBar = false;
 
 	TSharedRef<IDetailsView> Details = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-
 	const TArray<UObject*> ProjectSettingsObjects = {DataManagementSettingsObjectPtr.Get()};
-	
 	Details->SetObjects(ProjectSettingsObjects);
-
 	Details->SetEnabled(true);
 
 	return Details;

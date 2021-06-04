@@ -2,11 +2,16 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
 #include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
 #include "Dialogs/CustomDialog.h"
 
 DECLARE_DELEGATE_TwoParams(FCloseCreationFormDelegate, bool, FText)
+
+class ULevelSnapshotsEditorProjectSettings;
+class ULevelSnapshotsEditorDataManagementSettings;
+class SWindow;
 
 struct FLevelSnapshotsEditorCreationForm
 {
