@@ -1,5 +1,4 @@
 {
-	"$schema": "http://unrealengine.com/horde/ProjectConfig",
 	"name": "UE5",
 	"logo": "project-ue5.png",
 	"streams": [
