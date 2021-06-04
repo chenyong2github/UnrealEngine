@@ -213,7 +213,7 @@ void UTemplateSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)
 {
 	Super::GetAssetRegistryTags(OutTags);
 
-	if (BoundActorClass != nullptr)
+	if (BoundActorClass.IsValid())
 	{
 		FAssetRegistryTag Tag("BoundActorClass", BoundActorClass->GetName(), FAssetRegistryTag::TT_Alphabetical);
 		OutTags.Add(Tag);
