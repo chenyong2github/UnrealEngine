@@ -8,6 +8,7 @@
 
 #include "Engine/World.h"
 #include "UObject/LazyObjectPtr.h"
+#include "Components/InstancedStaticMeshComponent.h"
 
 class FFixupLazyObjectPtrForPIEArchive : public FArchiveUObject
 {
