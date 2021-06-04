@@ -216,7 +216,7 @@ namespace HordeServer.Services
 						string TempFile = Path.GetTempFileName();
 						try
 						{
-							InputEntry.ExtractToFile(TempFile);
+							InputEntry.ExtractToFile(TempFile, true);
 							return FileVersionInfo.GetVersionInfo(TempFile).ProductVersion;
 						}
 						finally
