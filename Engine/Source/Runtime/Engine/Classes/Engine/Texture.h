@@ -596,6 +596,16 @@ struct FTexturePlatformData
 #if WITH_EDITORONLY_DATA
 	/** The key associated with this derived data. */
 	FString DerivedDataKey;
+	/** 
+	* The key associated with the derived data generated for the shipping build.
+	* In order to save developer's time when running a build in the Editor,
+	* cooking a texture for the Editor build normally involves less complicated processing
+	* than cooking a texture for the shipping build. However, in many cases a fully cooked
+	* texture is already available in the cache when the project is opened on the developer's machine.
+	* This key allows to load the texture generated for the shipping build from the cache, if available,
+	* instead of building a new texture locally using fast cooking.
+	*/
+	FString ShippingDerivedDataKey;
 	/** Async cache task if one is outstanding. */
 	struct FTextureAsyncCacheDerivedDataTask* AsyncTask;
 #endif
