@@ -69,6 +69,8 @@ using StatsdClient;
 using Status = Grpc.Core.Status;
 using HordeServer.Notifications.Impl;
 using HordeServer.Notifications;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using System.Runtime.InteropServices;
 
 namespace HordeServer
 {
@@ -657,7 +659,7 @@ namespace HordeServer
 		}
 
 		// This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-		public void Configure(IApplicationBuilder App, IWebHostEnvironment Env)
+		public void Configure(IApplicationBuilder App, IWebHostEnvironment Env, Microsoft.Extensions.Hosting.IHostApplicationLifetime Lifetime)
 		{
 			App.UseForwardedHeaders();
 
@@ -717,6 +719,20 @@ namespace HordeServer
 
 				Endpoints.MapControllers();
 			});
+
+			if (Settings.OpenBrowser && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				Lifetime.ApplicationStarted.Register(() => LaunchBrowser(App));
+			}
+		}
+
+		static void LaunchBrowser(IApplicationBuilder App)
+		{
+			IServerAddressesFeature Feature = App.ServerFeatures.Get<IServerAddressesFeature>();
+			if (Feature.Addresses.Count > 0)
+			{
+				Process.Start(new ProcessStartInfo { FileName = Feature.Addresses.First(), UseShellExecute = true });
+			}
 		}
 	}
 }

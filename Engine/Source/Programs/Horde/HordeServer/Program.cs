@@ -91,6 +91,7 @@ namespace HordeServer
 				.AddJsonFile("appsettings.User.json", optional: true)
 				.AddJsonFile(UserConfigFile.FullName, optional: true)
 				.AddEnvironmentVariables()
+				.AddCommandLine(Args)
 				.Build();
 
 			ServerSettings HordeSettings = new ServerSettings();

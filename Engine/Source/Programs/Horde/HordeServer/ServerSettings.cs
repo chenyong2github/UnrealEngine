@@ -426,6 +426,11 @@ namespace HordeServer
 		private TimeZoneInfo? CachedTimeZoneInfo;
 
 		/// <summary>
+		/// Whether to open a browser on startup
+		/// </summary>
+		public bool OpenBrowser { get; set; } = false;
+
+		/// <summary>
 		/// Check if Helix Swarm is enabled
 		/// </summary>
 		/// <returns>True if enabled</returns>

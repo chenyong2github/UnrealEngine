@@ -6,6 +6,7 @@
     <Deterministic>true</Deterministic>
     <AssemblyName>HordeServer</AssemblyName>
     <DocumentationFile>HordeServer.xml</DocumentationFile>
+    <ApplicationIcon>HordeServer.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
