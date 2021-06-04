@@ -98,6 +98,44 @@ namespace CameraNodalOffsetAlgoPoints
 	private:
 		TSharedPtr<FCalibrationRowData> CalibrationRowData;
 	};
+
+	bool GetStepsControllerAndLensFile(
+		const TWeakObjectPtr<UNodalOffsetTool>& NodalOffsetTool, 
+		const FCameraCalibrationStepsController** OutStepsController,
+		const ULensFile** OutLensFile)
+	{
+		if (!NodalOffsetTool.IsValid())
+		{
+			return false;
+		}
+
+		if (OutStepsController)
+		{
+			*OutStepsController = NodalOffsetTool->GetCameraCalibrationStepsController();
+
+			if (!*OutStepsController)
+			{
+				return false;
+			}
+		}
+
+		if (OutLensFile)
+		{
+			if (!OutStepsController)
+			{
+				return false;
+			}
+
+			*OutLensFile = (*OutStepsController)->GetLensFile();
+
+			if (!*OutLensFile)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
 };
 
 void UCameraNodalOffsetAlgoPoints::Initialize(UNodalOffsetTool* InNodalOffsetTool)
@@ -189,6 +227,29 @@ void UCameraNodalOffsetAlgoPoints::Tick(float DeltaTime)
 			LastCameraData.Pose = CameraComponent->GetComponentToWorld();
 			LastCameraData.UniqueId = Camera->GetUniqueID();
 			LastCameraData.LensFileEvalData = *LensFileEvalData;
+
+			const AActor* ParentActor = Camera->GetAttachParentActor();
+
+			if (ParentActor)
+			{
+				LastCameraData.ParentPose = ParentActor->GetTransform();
+				LastCameraData.ParentUniqueId = ParentActor->GetUniqueID();
+			}
+			else
+			{
+				LastCameraData.ParentUniqueId = INDEX_NONE;
+			}
+
+			if (Calibrator.IsValid())
+			{
+				LastCameraData.CalibratorPose = Calibrator->GetTransform();
+				LastCameraData.CalibratorUniqueId = Calibrator->GetUniqueID();
+			}
+			else
+			{
+				LastCameraData.CalibratorUniqueId = INDEX_NONE;
+			}
+
 			LastCameraData.bIsValid = true;
 
 		} while (0);
@@ -361,9 +422,13 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildUI()
 
 bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const
 {
-	if (!CalibrationRows.Num())
+	const FCameraCalibrationStepsController* StepsController;
+	const ULensFile* LensFile;
+
+	if (!ensure(CameraNodalOffsetAlgoPoints::GetStepsControllerAndLensFile(NodalOffsetTool, &StepsController, &LensFile)))
 	{
-		return true;
+		OutErrorMessage = LOCTEXT("ToolNotFound", "Tool not found");
+		return false;
 	}
 
 	if (!Row.IsValid())
@@ -372,24 +437,9 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 		return false;
 	}
 
-	if (!NodalOffsetTool.IsValid())
+	if (!CalibrationRows.Num())
 	{
-		return false;
-	}
-
-	FCameraCalibrationStepsController* StepsController = NodalOffsetTool->GetCameraCalibrationStepsController();
-
-	if (!StepsController)
-	{
-		return false;
-	}
-
-	const ULensFile* LensFile = StepsController->GetLensFile();
-
-	if (!LensFile)
-	{
-		OutErrorMessage = LOCTEXT("LensFileNotFound", "LensFile not found");
-		return false;
+		return true;
 	}
 
 	// Same LensFile
@@ -426,6 +476,14 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 		return false;
 	}
 
+	// Same parent as before
+
+	if (FirstRow->CameraData.ParentUniqueId != Row->CameraData.ParentUniqueId)
+	{
+		OutErrorMessage = LOCTEXT("CameraParentChangedDuringTheTest", "Camera parent changed during the test");
+		return false;
+	}
+
 	// Camera did not move much
 	{
 		// Location check
@@ -449,15 +507,15 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 		// Rotation check
 
 		const float AngularDistanceRadians = FirstRow->CameraData.Pose.GetRotation().AngularDistance(Row->CameraData.Pose.GetRotation());
-		const float MaxAngularDistanceRadians = 2 * (180 / PI);
+		const float MaxAngularDistanceRadians = 2.0f * (PI / 180.f);
 
 		if (AngularDistanceRadians > MaxAngularDistanceRadians)
 		{
 			FFormatOrderedArguments Arguments;
-			Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), MaxAngularDistanceRadians)));
-			Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), AngularDistanceRadians)));
+			Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), MaxAngularDistanceRadians * (180.f / PI))));
+			Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), AngularDistanceRadians * (180.f / PI))));
 
-			OutErrorMessage = FText::Format(LOCTEXT("CameraMovedRotation", "Camera moved more than {0} radians during the calibration ({1} radians)"), Arguments);
+			OutErrorMessage = FText::Format(LOCTEXT("CameraMovedRotation", "Camera moved more than {0} degrees during the calibration ({1} degrees)"), Arguments);
 
 			return false;
 		}
@@ -486,8 +544,17 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 	return true;
 }
 
-bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOffset, float& OutFocus, float& OutZoom, float& OutError, FText& OutErrorMessage)
+bool UCameraNodalOffsetAlgoPoints::BasicCalibrationChecksPass(FText& OutErrorMessage) const
 {
+	const FCameraCalibrationStepsController* StepsController;
+	const ULensFile* LensFile;
+
+	if (!ensure(CameraNodalOffsetAlgoPoints::GetStepsControllerAndLensFile(NodalOffsetTool, &StepsController, &LensFile)))
+	{
+		OutErrorMessage = LOCTEXT("ToolNotFound", "Tool not found");
+		return false;
+	}
+
 	// Sanity checks
 	//
 
@@ -505,26 +572,6 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 		{
 			return false;
 		}
-	}
-
-	if (!ensure(NodalOffsetTool.IsValid()))
-	{
-		return false;
-	}
-
-	FCameraCalibrationStepsController* StepsController = NodalOffsetTool->GetCameraCalibrationStepsController();
-
-	if (!ensure(StepsController))
-	{
-		return false;
-	}
-
-	const ULensFile* LensFile = StepsController->GetLensFile();
-
-	if (!ensure(LensFile))
-	{
-		OutErrorMessage = LOCTEXT("LensFileNotFound", "LensFile not found");
-		return false;
 	}
 
 	// Get camera.
@@ -558,9 +605,31 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 		return false;
 	}
 
-	//@todo Should cache the distortion instead of getting it live, since the user may have changed it.
+	// Only parameters data mode supported at the moment.
+	if (LensFile->DataMode != ELensDataMode::Parameters)
+	{
+		OutErrorMessage = LOCTEXT("OnlyParametersDataModeSupported", "Only Parameters Data Mode supported");
+		return false;
+	}
 
-	// Only spherical lens distortion is currently supported at the moment.
+	return true;
+}
+
+bool UCameraNodalOffsetAlgoPoints::CalculatedOptimalCameraComponentPose(FTransform& OutDesiredCameraTransform, FText& OutErrorMessage) const
+{
+	if (!BasicCalibrationChecksPass(OutErrorMessage))
+	{
+		return false;
+	}
+
+	const FCameraCalibrationStepsController* StepsController;
+	const ULensFile* LensFile;
+
+	if (!ensure(CameraNodalOffsetAlgoPoints::GetStepsControllerAndLensFile(NodalOffsetTool, &StepsController, &LensFile)))
+	{
+		OutErrorMessage = LOCTEXT("ToolNotFound", "Tool not found");
+		return false;
+	}
 
 	const USphericalLensDistortionModelHandler* SphericalHandler = Cast<USphericalLensDistortionModelHandler>(StepsController->GetDistortionHandler());
 
@@ -576,13 +645,6 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 	// Extract named distortion parameters
 	FSphericalDistortionParameters SphericalParameters;
 	USphericalLensModel::StaticClass()->GetDefaultObject<ULensModel>()->FromArray(DistortionState.DistortionInfo.Parameters, SphericalParameters);
-
-#if !WITH_OPENCV
-	{
-		OutErrorMessage = LOCTEXT("OpenCVRequired", "OpenCV is required");
-		return false;
-	}
-#endif
 
 #if WITH_OPENCV
 
@@ -605,8 +667,8 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 
 		// Calibrator 3d points
 		Points3d.push_back(cv::Point3f(
-			Transform.GetLocation().X, 
-			Transform.GetLocation().Y, 
+			Transform.GetLocation().X,
+			Transform.GetLocation().Y,
 			Transform.GetLocation().Z));
 
 		// Image 2d points
@@ -691,8 +753,8 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 	for (int32 Column = 0; Column < 3; ++Column)
 	{
 		M.SetColumn(Column, FVector(
-			Rcam.at<double>(Column, 0), 
-			Rcam.at<double>(Column, 1), 
+			Rcam.at<double>(Column, 0),
+			Rcam.at<double>(Column, 1),
 			Rcam.at<double>(Column, 2))
 		);
 	}
@@ -702,10 +764,35 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 	M.M[3][1] = Tcam.at<double>(1);
 	M.M[3][2] = Tcam.at<double>(2);
 
-	FTransform DesiredCameraTransform;
-	DesiredCameraTransform.SetFromMatrix(M);
+	OutDesiredCameraTransform.SetFromMatrix(M);
+	FCameraCalibrationUtils::ConvertOpenCVToUnreal(OutDesiredCameraTransform);
 
-	FCameraCalibrationUtils::ConvertOpenCVToUnreal(DesiredCameraTransform);
+	return true;
+
+#else
+	{
+		OutErrorMessage = LOCTEXT("OpenCVRequired", "OpenCV is required");
+		return false;
+	}
+#endif //WITH_OPENCV
+}
+
+bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOffset, float& OutFocus, float& OutZoom, float& OutError, FText& OutErrorMessage)
+{
+	const FCameraCalibrationStepsController* StepsController; 
+	const ULensFile* LensFile;
+
+	if (!ensure(CameraNodalOffsetAlgoPoints::GetStepsControllerAndLensFile(NodalOffsetTool, &StepsController, &LensFile)))
+	{
+		OutErrorMessage = LOCTEXT("LensNotFound", "Lens not found");
+		return false;
+	}
+
+	FTransform DesiredCameraTransform;
+	if (!CalculatedOptimalCameraComponentPose(DesiredCameraTransform, OutErrorMessage))
+	{
+		return false;
+	}
 
 	// This is how we update the offset even when the camera is evaluating the current
 	// nodal offset curve in the Lens File:
@@ -721,6 +808,8 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 	// Evaluate nodal offset
 
 	// Determine the input values to the LUT (focus and zoom)
+
+	const TSharedPtr<FCalibrationRowData>& FirstRow = CalibrationRows[0];
 
 	checkSlow(FirstRow->CameraData.LensFileEvalData.Input.Focus.IsSet());
 	checkSlow(FirstRow->CameraData.LensFileEvalData.Input.Zoom.IsSet());
@@ -749,11 +838,6 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 	OutNodalOffset.RotationOffset = DesiredOffset.GetRotation();
 
 	return true;
-
-#endif //WITH_OPENCV
-
-	OutErrorMessage = LOCTEXT("OpenCVNotAvailable", "OpenCV was not available");
-	return false;
 }
 
 TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationDevicePickerWidget()
@@ -781,44 +865,267 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationDevicePickerWi
 
 TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons()
 {
-	return SNew(SHorizontalBox)
+	return SNew(SVerticalBox)
 
-		+ SHorizontalBox::Slot() // Button to remove last row
-		.AutoWidth()
+		+ SVerticalBox::Slot() // Row manipulation
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot() // Button to remove last row
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("RemoveLast", "Remove Last"))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([&]() -> FReply
+				{
+					if (CalibrationRows.Num())
+					{
+						CalibrationRows.RemoveAt(CalibrationRows.Num() - 1);
+						if (CalibrationListView.IsValid())
+						{
+							CalibrationListView->RequestListRefresh();
+						}
+					}
+
+					return FReply::Handled();
+				})
+			]
+
+			+ SHorizontalBox::Slot() // Button to clear all rows
+			.AutoWidth()
+			[ 
+				SNew(SButton)
+				.Text(LOCTEXT("ClearAll", "Clear All"))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([&]() -> FReply
+				{
+					ClearCalibrationRows();
+					return FReply::Handled();
+				})
+			]
+		]
+		+ SVerticalBox::Slot() // Spacer
+		[
+			SNew(SBox)
+			.MinDesiredHeight(0.5 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+			.MaxDesiredHeight(0.5 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		]
+		+ SVerticalBox::Slot() // Apply To Calibrator
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("RemoveLast", "Remove Last"))
+			.Text(LOCTEXT("ApplyToCalibrator", "Apply To Calibrator"))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([&]() -> FReply
 			{
-				if (CalibrationRows.Num())
-				{
-					CalibrationRows.RemoveAt(CalibrationRows.Num() - 1);
-					if (CalibrationListView.IsValid())
-					{
-						CalibrationListView->RequestListRefresh();
-					}
-				}
-
+				ApplyNodalOffsetToCalibrator();
 				return FReply::Handled();
 			})
 		]
-
-		+ SHorizontalBox::Slot() // Button to clear all rows
-		.AutoWidth()
-		[ 
+		+ SVerticalBox::Slot() // Apply To Camera Parent
+		[
 			SNew(SButton)
-			.Text(LOCTEXT("ClearAll", "Clear All"))
+			.Text(LOCTEXT("ApplyToTrackingOrigin", "Apply To Camera Parent"))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([&]() -> FReply
 			{
-				ClearCalibrationRows();
+				ApplyNodalOffsetToTrackingOrigin();
 				return FReply::Handled();
 			})
 		]
 		;
+}
+
+bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibrator()
+{
+	// Get the desired camera component world pose
+
+	FText ErrorMessage;
+	const FText TitleError = LOCTEXT("CalibrationError", "CalibrationError");
+
+	FTransform DesiredCameraPose;
+
+	if (!CalculatedOptimalCameraComponentPose(DesiredCameraPose, ErrorMessage))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		return false;
+	}
+
+	// Get the calibrator
+
+	if (!Calibrator.IsValid())
+	{
+		ErrorMessage = LOCTEXT("MissingCalibrator", "Missing Calibrator");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		return false;
+	}
+
+	// All calibration points should correspond to the same calibrator
+
+	for (const TSharedPtr<FCalibrationRowData>& Row : CalibrationRows)
+	{
+		check(Row.IsValid());
+
+		if (Row->CameraData.CalibratorUniqueId != Calibrator->GetUniqueID())
+		{
+			ErrorMessage = LOCTEXT("WrongCalibrator", "All rows must belong to the same calibrator");
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+			return false;
+		}
+	}
+
+	check(CalibrationRows.Num());
+
+	const TSharedPtr<FCalibrationRowData>& LastRow = CalibrationRows[CalibrationRows.Num() - 1];
+	check(LastRow.IsValid());
+
+
+	// Verify that calibrator did not move much for all the samples
+	for (const TSharedPtr<FCalibrationRowData>& Row : CalibrationRows)
+	{
+		check(Row.IsValid()); // this should have been validated already
+
+		// Location check
+
+		const FVector LocationDelta = Row->CameraData.CalibratorPose.GetLocation() - LastRow->CameraData.CalibratorPose.GetLocation();
+
+		const float MaxLocationDeltaInCm = 2;
+		const float LocationDeltaInCm = LocationDelta.Size();
+
+		if (LocationDeltaInCm > MaxLocationDeltaInCm)
+		{
+			FFormatOrderedArguments Arguments;
+			Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), MaxLocationDeltaInCm)));
+			Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), LocationDeltaInCm)));
+
+			ErrorMessage = FText::Format(LOCTEXT("CalibratorMovedLocation", "Calibrator moved more than {0} cm during the calibration ({1} cm)"), Arguments);
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+			return false;
+		}
+
+		// Rotation check
+
+		const float AngularDistanceRadians = LastRow->CameraData.CalibratorPose.GetRotation().AngularDistance(Row->CameraData.CalibratorPose.GetRotation());
+		const float MaxAngularDistanceRadians = 2.0f * (PI / 180.0f);
+
+		if (AngularDistanceRadians > MaxAngularDistanceRadians)
+		{
+			FFormatOrderedArguments Arguments;
+			Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), MaxAngularDistanceRadians * (180.0f / PI))));
+			Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), AngularDistanceRadians * (180.0f / PI))));
+
+			ErrorMessage = FText::Format(LOCTEXT("CalibratorMovedRotation", "Calibrator moved more than {0} degrees during the calibration ({1} degrees)"), Arguments);
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+			return false;
+		}
+	}
+	
+	// Calculate the offset
+	// 
+	// Calibrator = DesiredCalibratorToCamera * DesiredCamera
+	// => DesiredCalibratorToCamera = Calibrator * DesiredCamera'
+	// 
+	// DesiredCalibrator = DesiredCalibratorToCamera * Camera
+	// => DesiredCalibrator = Calibrator * DesiredCamera' * Camera
+
+	const FTransform DesiredCalibratorPose = LastRow->CameraData.CalibratorPose * DesiredCameraPose.Inverse() * LastRow->CameraData.Pose;
+
+	// apply the new calibrator transform
+	Calibrator->SetActorTransform(DesiredCalibratorPose);
+
+	// Since the offset was applied, there is no further use for the current samples.
+	ClearCalibrationRows();
+
+	return true;
+
+}
+
+bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToTrackingOrigin()
+{
+	// Here we are assuming that the camera parent is the tracking origin.
+
+	// Get the desired camera component world pose
+
+	FText ErrorMessage;
+	const FText TitleError = LOCTEXT("CalibrationError", "CalibrationError");
+
+	FTransform DesiredCameraPose;
+
+	if (!CalculatedOptimalCameraComponentPose(DesiredCameraPose, ErrorMessage))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		return false;
+	}
+
+	// get camera
+
+	const FCameraCalibrationStepsController* StepsController;
+	const ULensFile* LensFile;
+
+	if (!ensure(CameraNodalOffsetAlgoPoints::GetStepsControllerAndLensFile(NodalOffsetTool, &StepsController, &LensFile)))
+	{
+		ErrorMessage = LOCTEXT("ToolNotFound", "Tool not found");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		return false;
+	}
+
+	const ACameraActor* Camera = StepsController->GetCamera();
+
+	if (!Camera)
+	{
+		ErrorMessage = LOCTEXT("CameraNotFound", "Camera Not Found");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		return false;
+	}
+
+	// Get the parent transform
+
+	AActor* ParentActor = Camera->GetAttachParentActor();
+
+	if (!ParentActor)
+	{
+		ErrorMessage = LOCTEXT("CameraParentNotFound", "Camera Parent not found");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		return false;
+	}
+
+	check(CalibrationRows.Num());
+
+	const TSharedPtr<FCalibrationRowData>& LastRow = CalibrationRows[CalibrationRows.Num()-1];
+	check(LastRow.IsValid());
+
+	if (LastRow->CameraData.ParentUniqueId != ParentActor->GetUniqueID())
+	{
+		ErrorMessage = LOCTEXT("ParentChanged", "Parent changed");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		return false;
+	}
+
+	// calculate the new parent transform
+
+	// CameraPose = RelativeCameraPose * ParentPose
+	// => RelativeCameraPose = CameraPose * ParentPose'
+	// 
+	// DesiredCameraPose = RelativeCameraPose * DesiredParentPose
+	// => DesiredParentPose = RelativeCameraPose' * DesiredCameraPose
+	// => DesiredParentPose = (CameraPose * ParentPose')' * DesiredCameraPose
+	// => DesiredParentPose = ParentPose * CameraPose' * DesiredCameraPose
+
+	const FTransform DesiredParentPose = LastRow->CameraData.ParentPose * LastRow->CameraData.Pose.Inverse() * DesiredCameraPose;
+
+	// apply the new parent transform
+	ParentActor->SetActorTransform(DesiredParentPose);
+
+	// Since the offset was applied, there is no further use for the current samples.
+	ClearCalibrationRows();
+
+	return true;
 }
 
 TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationPointsComboBox()

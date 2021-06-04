@@ -593,6 +593,13 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 
 	const TSharedPtr<FCalibrationRowData>& LastRow = CalibrationRows.Last();
 
+	// Only parameters data mode supported at the moment
+	if (LensFile->DataMode != ELensDataMode::Parameters)
+	{
+		OutErrorMessage = LOCTEXT("OnlyParametersDataModeSupported", "Only Parameters Data Mode supported");
+		return false;
+	}
+
 	// Only spherical lens distortion is currently supported at the moment.
 
 	const USphericalLensDistortionModelHandler* SphericalHandler = Cast<USphericalLensDistortionModelHandler>(StepsController->GetDistortionHandler());

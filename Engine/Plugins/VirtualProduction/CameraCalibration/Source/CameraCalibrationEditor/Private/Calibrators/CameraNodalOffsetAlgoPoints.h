@@ -92,6 +92,18 @@ private:
 
 		// The data used to evaluate the lens data in the camera for this sample
 		FLensFileEvalData LensFileEvalData;
+
+		// The parent pose (expected to be the tracker origin)
+		FTransform ParentPose;
+
+		// The parent unique id
+		uint32 ParentUniqueId;
+
+		// Calibrator Pose
+		FTransform CalibratorPose;
+
+		// Calibrator unique id
+		uint32 CalibratorUniqueId;
 	};
 
 	/** Holds information of the calibrator 3d point for a given sample of a 2d-3d correlation */
@@ -172,4 +184,16 @@ private:
 
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
 	bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
+
+	/** Applies the nodal offset to the calibrator */
+	bool ApplyNodalOffsetToCalibrator();
+
+	/** Applies the nodal offset to the tracker origin (normally the camera parent) */
+	bool ApplyNodalOffsetToTrackingOrigin();
+
+	/** Does basic checks on the data before performing the actual calibration */
+	bool BasicCalibrationChecksPass(FText& OutErrorMessage) const;
+
+	/** Calculates the optimal camera component pose that minimizes the reprojection error */
+	bool CalculatedOptimalCameraComponentPose(FTransform& OutDesiredCameraTransform, FText& OutErrorMessage) const;
 };
