@@ -254,7 +254,7 @@ public:
 	/** Destructor */
 	virtual ~FOpenXRHMD();
 
-	void OnBeginRendering_RHIThread();
+	void OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameState, FXRSwapChainPtr ColorSwapchain, FXRSwapChainPtr DepthSwapchain);
 	void OnFinishRendering_RHIThread();
 
 	/** @return	True if the HMD was initialized OK */

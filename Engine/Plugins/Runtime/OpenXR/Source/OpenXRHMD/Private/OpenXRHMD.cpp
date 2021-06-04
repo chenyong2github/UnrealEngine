@@ -1253,9 +1253,9 @@ void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const en
 		Projection.next = Module->OnBeginProjectionView(Session, 0, ViewIndex, Projection.next);
 	}
 
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+	RHICmdList.EnqueueLambda([this, LayerState = PipelinedLayerStateRendering](FRHICommandListImmediate& InRHICmdList)
 	{
-		PipelinedLayerStateRHI = PipelinedLayerStateRendering;
+		PipelinedLayerStateRHI = LayerState;
 	});
 }
 
@@ -2329,9 +2329,11 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			}
 		}
 
-		RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+		FXRSwapChainPtr ColorSwapchain = PipelinedLayerStateRendering.ColorSwapchain;
+		FXRSwapChainPtr DepthSwapchain = PipelinedLayerStateRendering.DepthSwapchain;
+		RHICmdList.EnqueueLambda([this, FrameState = PipelinedFrameStateRendering, ColorSwapchain, DepthSwapchain](FRHICommandListImmediate& InRHICmdList)
 		{
-			OnBeginRendering_RHIThread();
+			OnBeginRendering_RHIThread(FrameState, ColorSwapchain, DepthSwapchain);
 		});
 	}
 
@@ -2357,9 +2359,9 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHIC
 		Projection.pose = ToXrPose(NewRelativePoseTransform, GetWorldToMetersScale());
 	}
 
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+	RHICmdList.EnqueueLambda([this, ProjectionLayers = PipelinedLayerStateRendering.ProjectionLayers](FRHICommandListImmediate& InRHICmdList)
 	{
-		PipelinedLayerStateRHI.ProjectionLayers = PipelinedLayerStateRendering.ProjectionLayers;
+		PipelinedLayerStateRHI.ProjectionLayers = ProjectionLayers;
 	});
 }
 
@@ -2543,7 +2545,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 	return true;
 }
 
-void FOpenXRHMD::OnBeginRendering_RHIThread()
+void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameState, FXRSwapChainPtr ColorSwapchain, FXRSwapChainPtr DepthSwapchain)
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
 
@@ -2559,12 +2561,12 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 	}
 
 	// The layer state will be copied after SetFinalViewRect
-	PipelinedFrameStateRHI = PipelinedFrameStateRendering;
+	PipelinedFrameStateRHI = InFrameState;
 
 	XrFrameBeginInfo BeginInfo;
 	BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
 	BeginInfo.next = nullptr;
-	XrTime DisplayTime = PipelinedFrameStateRendering.FrameState.predictedDisplayTime;
+	XrTime DisplayTime = InFrameState.FrameState.predictedDisplayTime;
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
 		BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
@@ -2576,18 +2578,18 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 		// Only the swapchains are valid to pull out of PipelinedLayerStateRendering
 		// Full population is deferred until SetFinalViewRect.
 		// TODO Possibly move these Waits to SetFinalViewRect??
-		PipelinedLayerStateRHI.ColorSwapchain = PipelinedLayerStateRendering.ColorSwapchain;
-		PipelinedLayerStateRHI.DepthSwapchain = PipelinedLayerStateRendering.DepthSwapchain;
+		PipelinedLayerStateRHI.ColorSwapchain = ColorSwapchain;
+		PipelinedLayerStateRHI.DepthSwapchain = DepthSwapchain;
 
 		// We need a new swapchain image unless we've already acquired one for rendering
-		if (!bIsRendering && PipelinedLayerStateRHI.ColorSwapchain)
+		if (!bIsRendering && ColorSwapchain)
 		{
-			PipelinedLayerStateRHI.ColorSwapchain->IncrementSwapChainIndex_RHIThread();
-			PipelinedLayerStateRHI.ColorSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
-			if (bDepthExtensionSupported && PipelinedLayerStateRHI.DepthSwapchain)
+			ColorSwapchain->IncrementSwapChainIndex_RHIThread();
+			ColorSwapchain->WaitCurrentImage_RHIThread(InFrameState.FrameState.predictedDisplayPeriod);
+			if (bDepthExtensionSupported && DepthSwapchain)
 			{
-				PipelinedLayerStateRHI.DepthSwapchain->IncrementSwapChainIndex_RHIThread();
-				PipelinedLayerStateRHI.DepthSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+				DepthSwapchain->IncrementSwapChainIndex_RHIThread();
+				DepthSwapchain->WaitCurrentImage_RHIThread(InFrameState.FrameState.predictedDisplayPeriod);
 			}
 		}
 
