@@ -286,8 +286,7 @@ void FShadowVolumeBoundProjectionVS::SetParameters(
 	}
 	else
 	{
-		FMatrix Identity = FMatrix::Identity;
-		SetShaderValue(RHICmdList, ShaderRHI, InvReceiverInnerMatrix, Identity);
+		SetShaderValue(RHICmdList, ShaderRHI, InvReceiverInnerMatrix, FMatrix44f::Identity);
 		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4(0, 0, 0, 0));
 	}
 }
@@ -1524,11 +1523,11 @@ void FProjectedShadowInfo::RenderFrustumWireframe(FPrimitiveDrawInterface* PDI) 
 		SubjectPrimitiveId = DynamicSubjectPrimitives[0]->GetIndex();
 	}
 
-	const FMatrix InvShadowTransform = (bWholeSceneShadow || bPreShadow) ? TranslatedWorldToClipInnerMatrix.InverseFast() : InvReceiverInnerMatrix;
+	const FMatrix44f InvShadowTransform = (bWholeSceneShadow || bPreShadow) ? TranslatedWorldToClipInnerMatrix.InverseFast() : InvReceiverInnerMatrix;
 
 	FColor Color;
 
-	if(IsWholeSceneDirectionalShadow())
+	if (IsWholeSceneDirectionalShadow())
 	{
 		Color = FColor::White;
 		switch(CascadeSettings.ShadowSplitIndex)
