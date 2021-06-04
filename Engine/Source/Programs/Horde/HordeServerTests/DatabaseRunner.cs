@@ -9,6 +9,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Castle.Core.Internal;
+using EpicGames.Core;
 
 namespace HordeServerTests
 {
@@ -117,30 +118,9 @@ namespace HordeServerTests
 		
 		private string GetBinaryPath()
 		{
-			// Slightly sketchy way of grabbing hold of binaries in repo
-			
-			string File = (new Uri(Assembly.GetExecutingAssembly().CodeBase!)).LocalPath;
-			string BinPath = "";
-
-			List<string> TempPath = new List<string>();
-			foreach (string Part in File.Replace("\\", "/").Split("/"))
-			{
-				TempPath.Add(Part);
-				if (Part == "HordeServerTests")
-				{
-					TempPath.Add("ThirdParty");
-					TempPath.Add(BinName);
-					BinPath = string.Join("/", TempPath.ToArray());
-					break;
-				}
-			}
-
-			if (BinPath.IsNullOrEmpty())
-			{
-				throw new Exception("Failed locating directory containing third-party binaries for testing!");
-			}
-
-			return BinPath;
+			FileReference File = new FileReference(new Uri(Assembly.GetExecutingAssembly().CodeBase!).LocalPath);
+			FileReference BinPath = FileReference.Combine(File.Directory, BinName);
+			return BinPath.FullName;
 		}
 		
 		private string GetTemporaryDirectory()
@@ -198,7 +178,7 @@ namespace HordeServerTests
 	{
 		private readonly string DatabaseName;
 		
-		public MongoDbRunnerLocal(string DatabaseName) : base("mongodb", "mongod.exe", 27017, true)
+		public MongoDbRunnerLocal(string DatabaseName) : base("mongodb", "ThirdParty/Mongo/mongod.exe", 27017, true)
 		{
 			this.DatabaseName = DatabaseName;
 		}
@@ -217,7 +197,7 @@ namespace HordeServerTests
 	
 	public class RedisRunner : DatabaseRunner
 	{
-		public RedisRunner() : base("redis", "redis-server.exe", 6379, true)
+		public RedisRunner() : base("redis", "ThirdParty/Redis/redis-server.exe", 6379, true)
 		{
 		}
 
