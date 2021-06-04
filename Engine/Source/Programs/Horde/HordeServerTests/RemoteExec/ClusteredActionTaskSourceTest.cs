@@ -27,7 +27,7 @@ namespace HordeServerTests.RemoteExec
 		public string? Comment { get; set; }
 		public bool Ephemeral { get; set; }
 		public bool Deleted { get; set; }
-		public StringId<IAgentSoftwareCollection>? Version { get; set; }
+		public string? Version { get; set; }
 		public StringId<AgentSoftwareChannels>? Channel { get; set; }
 		public string? LastUpgradeVersion { get; set; }
 		public DateTime? LastUpgradeTime { get; set; }
