@@ -7,6 +7,9 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "AnimCustomInstanceHelper.h"
 
+// CVar to disable control rig execution within a component
+static TAutoConsoleVariable<int32> CVarControlRigDisableExecutionComponent(TEXT("ControlRig.DisableExecutionInComponent"), 0, TEXT("if nonzero we disable the execution of Control Rigs inside a ControlRigComponent."));
+
 FControlRigAnimInstanceProxy* FControlRigComponentMappedElement::GetAnimProxyOnGameThread() const
 {
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
@@ -225,6 +228,21 @@ UControlRig* UControlRigComponent::GetControlRig()
 	return SetupControlRigIfRequired();
 }
 
+bool UControlRigComponent::CanExecute()
+{
+	if(CVarControlRigDisableExecutionComponent->GetInt() != 0)
+	{
+		return false;
+	}
+	
+	if(UControlRig* CR = GetControlRig())
+	{
+		return CR->CanExecute();
+	}
+	
+	return false;
+}
+
 float UControlRigComponent::GetAbsoluteTime() const
 {
 	if(ControlRig)
@@ -283,6 +301,11 @@ void UControlRigComponent::Update(float DeltaTime)
 {
 	if(UControlRig* CR = SetupControlRigIfRequired())
 	{
+		if(!CanExecute())
+		{
+			return;
+		}
+		
 		if (CR->IsExecuting() || CR->IsInitializing())
 		{
 			ReportError(TEXT("Update is being called recursively."));
@@ -301,6 +324,15 @@ void UControlRigComponent::Update(float DeltaTime)
 			}
 
 #if WITH_EDITOR
+			// if we are recording any change - let's clear the undo stack
+			if(URigHierarchy* Hierarchy = CR->GetHierarchy())
+			{
+				if(Hierarchy->IsTracingChanges())
+				{
+					Hierarchy->ResetTransformStack();
+				}
+			}
+
 			if (bUpdateInEditor)
 			{
 				FEditorScriptExecutionGuard AllowScripts;
@@ -312,7 +344,27 @@ void UControlRigComponent::Update(float DeltaTime)
 				OnPreUpdate(this);
 			}
 
+#if WITH_EDITOR
+			if(URigHierarchy* Hierarchy = CR->GetHierarchy())
+			{
+				if(Hierarchy->IsTracingChanges())
+				{
+					Hierarchy->StorePoseForTrace(TEXT("UControlRigComponent::BeforeEvaluate"));
+				}
+			}
+#endif
+
 			CR->Evaluate_AnyThread();
+
+#if WITH_EDITOR
+			if(URigHierarchy* Hierarchy = CR->GetHierarchy())
+			{
+				if(Hierarchy->IsTracingChanges())
+				{
+					Hierarchy->StorePoseForTrace(TEXT("UControlRigComponent::AfterEvaluate"));
+				}
+			}
+#endif
 		} 
 
 		if (bShowDebugDrawing)
@@ -322,6 +374,17 @@ void UControlRigComponent::Update(float DeltaTime)
 				MarkRenderStateDirty();
 			}
 		}
+
+#if WITH_EDITOR
+		// if we are recording any change - dump the trace to file
+		if(URigHierarchy* Hierarchy = CR->GetHierarchy())
+		{
+			if(Hierarchy->IsTracingChanges())
+			{
+				Hierarchy->DumpTransformStackToFile();
+			}
+		}
+#endif
 	} 
 }
 
@@ -1225,6 +1288,15 @@ void UControlRigComponent::TransferInputs()
 			ConvertTransformToRigSpace(Transform, MappedElement.Space);
 			ControlRig->GetHierarchy()->SetGlobalTransform(MappedElement.ElementIndex, Transform);
 		}
+#if WITH_EDITOR
+		if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+		{
+			if(Hierarchy->IsTracingChanges())
+			{
+				Hierarchy->StorePoseForTrace(TEXT("UControlRigComponent::TransferInputs"));
+			}
+		}
+#endif
 	}
 }
 
@@ -1352,6 +1424,16 @@ void UControlRigComponent::TransferOutputs()
 				}
 			}
 		}
+
+#if WITH_EDITOR
+		if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+		{
+			if(Hierarchy->IsTracingChanges())
+			{
+				Hierarchy->StorePoseForTrace(TEXT("UControlRigComponent::TransferOutputs"));
+			}
+		}
+#endif
 	}
 }
 

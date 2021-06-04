@@ -43,6 +43,9 @@ static TAutoConsoleVariable<int32> CVarControlRigCreateFloatControlsForCurves(
 	TEXT("If nonzero we create a float control for each curve in the curve container, useful for debugging low level controls."),
 	ECVF_Default);
 
+// CVar to disable all control rig execution 
+static TAutoConsoleVariable<int32> CVarControlRigDisableExecutionAll(TEXT("ControlRig.DisableExecutionAll"), 0, TEXT("if nonzero we disable all execution of Control Rigs."));
+
 UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DeltaTime(0.0f)
@@ -459,6 +462,11 @@ void UControlRig::InstantiateVMFromCDO()
 
 void UControlRig::Execute(const EControlRigState InState, const FName& InEventName)
 {
+	if(!CanExecute())
+	{
+		return;
+	}
+	
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Execute);
 	
@@ -1131,7 +1139,13 @@ void UControlRig::PostEditUndo()
 {
 	Super::PostEditUndo();
 }
+
 #endif // WITH_EDITOR
+
+bool UControlRig::CanExecute() const
+{
+	return CVarControlRigDisableExecutionAll->GetInt() == 0;
+}
 
 void UControlRig::Serialize(FArchive& Ar)
 {

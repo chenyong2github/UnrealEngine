@@ -12,6 +12,9 @@
 TAutoConsoleVariable<int32> CVarAnimNodeControlRigDebug(TEXT("a.AnimNode.ControlRig.Debug"), 0, TEXT("Set to 1 to turn on debug drawing for AnimNode_ControlRigBase"));
 #endif
 
+// CVar to disable control rig execution within an anim node
+static TAutoConsoleVariable<int32> CVarControlRigDisableExecutionAnimNode(TEXT("ControlRig.DisableExecutionInAnimNode"), 0, TEXT("if nonzero we disable the execution of Control Rigs inside an anim node."));
+
 FAnimNode_ControlRigBase::FAnimNode_ControlRigBase()
 	: FAnimNode_CustomProperty()
 	, InputSettings(FControlRigIOSettings())
@@ -84,8 +87,39 @@ void FAnimNode_ControlRigBase::Update_AnyThread(const FAnimationUpdateContext& C
 	}
 }
 
+bool FAnimNode_ControlRigBase::CanExecute()
+{
+	if(CVarControlRigDisableExecutionAnimNode->GetInt() != 0)
+	{
+		return false;
+	}
+
+	if (UControlRig* ControlRig = GetControlRig())
+	{
+		return ControlRig->CanExecute(); 
+	}
+
+	return false;
+}
+
 void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseContext& InOutput)
 {
+	if(!CanExecute())
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	// if we are recording any change - let's clear the undo stack
+	if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+	{
+		if(Hierarchy->IsTracingChanges())
+		{
+			Hierarchy->ResetTransformStack();
+		}
+	}
+#endif
+
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	if (InputSettings.bUpdatePose)
@@ -137,10 +171,25 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 			ControlRig->GetHierarchy()->SetCurveValue(Key, InOutput.Curve.Get(Index));
 		}
 	}
+
+#if WITH_EDITOR
+	if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+	{
+		if(Hierarchy->IsTracingChanges())
+		{
+			Hierarchy->StorePoseForTrace(TEXT("FAnimNode_ControlRigBase::UpdateInput"));
+		}
+	}
+#endif
 }
 
 void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput)
 {
+	if(!CanExecute())
+	{
+		return;
+	}
+
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	if (OutputSettings.bUpdatePose)
@@ -188,10 +237,21 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 			{
 				// this causes a side effect of marking the curve as "valid"
 				// so only apply it for curves that have really changed
-			InOutput.Curve.Set(Index, Value);
+				InOutput.Curve.Set(Index, Value);
+			}
 		}
 	}
-}
+
+#if WITH_EDITOR
+	if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+	{
+		if(Hierarchy->IsTracingChanges())
+		{
+			Hierarchy->StorePoseForTrace(TEXT("FAnimNode_ControlRigBase::UpdateOutput"));
+			Hierarchy->DumpTransformStackToFile();
+		}
+	}
+#endif
 }
 
 void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
@@ -210,7 +270,7 @@ void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
 		SourcePose.ResetToRefPose();
 	}
 
-	if (FAnimWeight::IsRelevant(InternalBlendAlpha))
+	if (CanExecute() && FAnimWeight::IsRelevant(InternalBlendAlpha) && GetControlRig())
 	{
 		if (FAnimWeight::IsFullWeight(InternalBlendAlpha))
 		{
@@ -251,6 +311,16 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 
 		if (bExecute)
 		{
+#if WITH_EDITOR
+			if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+			{
+				if(Hierarchy->IsTracingChanges())
+				{
+					Hierarchy->StorePoseForTrace(TEXT("FAnimNode_ControlRigBase::BeforeEvaluate"));
+				}
+			}
+#endif
+
 			// first evaluate control rig
 			ControlRig->Evaluate_AnyThread();
 
@@ -261,6 +331,16 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 			if (bShowDebug)
 			{ 
 				QueueControlRigDrawInstructions(ControlRig, InOutput.AnimInstanceProxy);
+			}
+#endif
+
+#if WITH_EDITOR
+			if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+			{
+				if(Hierarchy->IsTracingChanges())
+				{
+					Hierarchy->StorePoseForTrace(TEXT("FAnimNode_ControlRigBase::AfterEvaluate"));
+				}
 			}
 #endif
 		}
