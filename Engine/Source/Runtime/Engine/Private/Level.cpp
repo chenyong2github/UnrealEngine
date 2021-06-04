@@ -52,6 +52,7 @@ Level.cpp: Level-related functions
 #include "UnrealEngine.h"
 #include "Misc/ArchiveMD5.h"
 #if WITH_EDITOR
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Algo/AnyOf.h"
@@ -2713,6 +2714,11 @@ void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftOb
 			this->ArShouldSkipBulkData = true;
 		}
 
+		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
+		{
+			return InProperty->IsA<FMulticastDelegateProperty>() || FArchiveUObject::ShouldSkipProperty(InProperty);
+		}
+
 		FArchive& operator<<(FSoftObjectPath& Value)
 		{
 			Value.FixupForPIE(PIEInstanceID, CustomFixupFunction);
@@ -2730,7 +2736,11 @@ void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftOb
 
 	for (UObject* Object : SubObjects)
 	{
-		Object->Serialize(FixupSerializer);
+		// Skip instanced static mesh component as their impact on serialization is enormous and they don't contain soft ptrs.
+		if (!Cast<UInstancedStaticMeshComponent>(Object))
+		{
+			Object->Serialize(FixupSerializer);
+		}
 	}
 }
 
