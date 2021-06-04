@@ -1135,9 +1135,6 @@ namespace ChaosTest {
 		FChaosEngineInterface::SetKinematicTarget_AssumesLocked(Proxy, FTransform(CurrentX));
 		FChaosEngineInterface::SetGlobalPose_AssumesLocked(Proxy, FTransform(CurrentX));
 
-		// Test if KinematicTarget is cleared
-		EXPECT_EQ(Particle.IsKinematicTargetDirty(), false);
-
 		Callback->GetProducerInputData_External()->CorrectX = CurrentX;
 		AdvanceFrameAndRunTest(CurrentX, CurrentV);
 
