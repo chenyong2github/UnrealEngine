@@ -2321,7 +2321,31 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 		{
 			if (SourceDelegateFunctionDef->HasAnyFunctionFlags( FUNC_MulticastDelegate ))
 			{
-				PropertyDef->SetDelegateFunctionSignature(*SourceDelegateFunctionDef);
+				DelegatePropertyBase.FunctionDef = SourceDelegateFunctionDef;
+
+				if (PropertyDef->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable))
+				{
+					for (TSharedRef<FUnrealPropertyDefinitionInfo> FuncParamDef : SourceDelegateFunctionDef->GetProperties())
+					{
+						if (!FPropertyTraits::IsSupportedByBlueprint(*FuncParamDef, false))
+						{
+							FString ExtendedCPPType;
+							FString CPPType = FuncParamDef->GetCPPType(&ExtendedCPPType);
+							LogError(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *SourceDelegateFunctionDef->GetName(), *FuncParamDef->GetName());
+						}
+
+						if(FuncParamDef->HasAllPropertyFlags(CPF_OutParm) && !FuncParamDef->HasAllPropertyFlags(CPF_ConstParm)  )
+						{
+							const bool bClassGeneratedFromBP = StructDef.IsDynamic();
+							const bool bAllowedArrayRefFromBP = bClassGeneratedFromBP && FuncParamDef->IsDynamicArray();
+							if (!bAllowedArrayRefFromBP)
+							{
+								LogError(TEXT("BlueprintAssignable delegates do not support non-const references at the moment. Function: %s Parameter: '%s'"), *SourceDelegateFunctionDef->GetName(), *FuncParamDef->GetName());
+							}
+						}
+					}
+				}
+
 			}
 			else
 			{
@@ -2761,8 +2785,8 @@ void FHeaderParser::GetVarType(
 	FScope*                         Scope,
 	FPropertyBase&                  VarProperty,
 	EPropertyFlags                  Disallow,
-	EUHTPropertyType				OuterPropertyType,
-	EPropertyFlags					OuterPropertyFlags,
+	const FToken*                   OuterPropertyType,
+	const EPropertyFlags*			OuterPropertyFlags,
 	EPropertyDeclarationStyle::Type PropertyDeclarationStyle,
 	EVariableCategory               VariableCategory,
 	FIndexRange*                    ParsedVarIndexRange,
@@ -2801,7 +2825,7 @@ void FHeaderParser::GetVarType(
 	const bool bIsParamList = (VariableCategory != EVariableCategory::Member) && MatchIdentifier(TEXT("UPARAM"), ESearchCase::CaseSensitive);
 
 	// No specifiers are allowed inside a TArray
-	if (OuterPropertyType != EUHTPropertyType::DynamicArray)
+	if ((OuterPropertyType == NULL) || !OuterPropertyType->Matches(TEXT("TArray"), ESearchCase::CaseSensitive))
 	{
 		// New-style UPROPERTY() syntax 
 		if (PropertyDeclarationStyle == EPropertyDeclarationStyle::UPROPERTY || bIsParamList)
@@ -3487,7 +3511,9 @@ void FHeaderParser::GetVarType(
 	{
 		RequireSymbol( TEXT('<'), TEXT("'tarray'") );
 
-		GetVarType(Scope, VarProperty, Disallow, EUHTPropertyType::DynamicArray, Flags, EPropertyDeclarationStyle::None, VariableCategory);
+		EPropertyFlags VarTypePropertyFlags = Flags;
+
+		GetVarType(Scope, VarProperty, Disallow, &VarType, &VarTypePropertyFlags, EPropertyDeclarationStyle::None, VariableCategory);
 		if (VarProperty.IsContainer())
 		{
 			Throwf(TEXT("Nested containers are not supported.") );
@@ -3499,6 +3525,7 @@ void FHeaderParser::GetVarType(
 			bNativeConstTemplateArg = true;
 		}
 
+		VarTypePropertyFlags = VarProperty.PropertyFlags & (CPF_ContainsInstancedReference | CPF_InstancedReference); // propagate these to the array, we will fix them later
 		VarProperty.ArrayType = EArrayType::Dynamic;
 
 		FToken CloseTemplateToken;
@@ -3573,8 +3600,10 @@ void FHeaderParser::GetVarType(
 	{
 		RequireSymbol( TEXT('<'), TEXT("'tmap'") );
 
+		EPropertyFlags VarTypePropertyFlags = Flags;
+
 		FPropertyBase MapKeyType(CPT_None);
-		GetVarType(Scope, MapKeyType, Disallow, EUHTPropertyType::Map, Flags, EPropertyDeclarationStyle::None, VariableCategory);
+		GetVarType(Scope, MapKeyType, Disallow, &VarType, &VarTypePropertyFlags, EPropertyDeclarationStyle::None, VariableCategory);
 		if (MapKeyType.IsContainer())
 		{
 			Throwf(TEXT("Nested containers are not supported.") );
@@ -3602,15 +3631,17 @@ void FHeaderParser::GetVarType(
 			Throwf(TEXT("Missing value type while parsing TMap."));
 		}
 
-		GetVarType(Scope, VarProperty, Disallow, EUHTPropertyType::Map, Flags, EPropertyDeclarationStyle::None, VariableCategory);
+		GetVarType(Scope, VarProperty, Disallow, &VarType, &VarTypePropertyFlags, EPropertyDeclarationStyle::None, VariableCategory);
 		if (VarProperty.IsContainer())
 		{
 			Throwf(TEXT("Nested containers are not supported.") );
 		}
 		// TODO: Prevent sparse delegate types from being used in a container
-		MapKeyType.PropertyFlags = (MapKeyType.PropertyFlags & CPF_UObjectWrapper); // Make sure the 'UObjectWrapper' flag is maintained so that 'TMap<TSubclassOf<...>, ...>' works
+
+		EPropertyFlags InnerFlags = (MapKeyType.PropertyFlags | VarProperty.PropertyFlags) & (CPF_ContainsInstancedReference | CPF_InstancedReference); // propagate these to the map value, we will fix them later
+		VarTypePropertyFlags = InnerFlags;
 		VarProperty.MapKeyProp = MakeShared<FPropertyBase>(MoveTemp(MapKeyType));
-		VarProperty.MapKeyProp->DisallowFlags = ~(CPF_ContainsInstancedReference | CPF_InstancedReference | CPF_UObjectWrapper);
+		VarProperty.MapKeyProp->PropertyFlags = InnerFlags | (VarProperty.MapKeyProp->PropertyFlags & CPF_UObjectWrapper); // Make sure the 'UObjectWrapper' flag is maintained so that 'TMap<TSubclassOf<...>, ...>' works
 
 		FToken CloseTemplateToken;
 		if (!GetToken(CloseTemplateToken, /*bNoConsts=*/ true, ESymbolParseOption::CloseTemplateBracket))
@@ -3654,7 +3685,9 @@ void FHeaderParser::GetVarType(
 	{
 		RequireSymbol( TEXT('<'), TEXT("'tset'") );
 
-		GetVarType(Scope, VarProperty, Disallow, EUHTPropertyType::Set, Flags, EPropertyDeclarationStyle::None, VariableCategory);
+		EPropertyFlags VarTypePropertyFlags = Flags;
+
+		GetVarType(Scope, VarProperty, Disallow, &VarType, &VarTypePropertyFlags, EPropertyDeclarationStyle::None, VariableCategory);
 		if (VarProperty.IsContainer())
 		{
 			Throwf(TEXT("Nested containers are not supported.") );
@@ -3676,6 +3709,7 @@ void FHeaderParser::GetVarType(
 			LogError(TEXT("Replicated sets are not supported."));
 		}
 
+		VarTypePropertyFlags = VarProperty.PropertyFlags & (CPF_ContainsInstancedReference | CPF_InstancedReference); // propagate these to the set, we will fix them later
 		VarProperty.ArrayType = EArrayType::Set;
 
 		FToken CloseTemplateToken;
@@ -3845,6 +3879,11 @@ void FHeaderParser::GetVarType(
 			VarProperty = FPropertyBase(InFunctionDef.HasAnyFunctionFlags(FUNC_MulticastDelegate) ? CPT_MulticastDelegate : CPT_Delegate);
 			VarProperty.DelegateName = *InIdentifierStripped;
 			VarProperty.FunctionDef = &InFunctionDef;
+
+			if (!(Disallow & CPF_InstancedReference))
+			{
+				Flags |= CPF_InstancedReference;
+			}
 		};
 
 		if (!StructDef && MatchSymbol(TEXT("::")))
@@ -3894,7 +3933,10 @@ void FHeaderParser::GetVarType(
 			bHandledType = true;
 
 			VarProperty = FPropertyBase(*StructDef);
-
+			if (StructDef->HasAnyStructFlags(STRUCT_HasInstancedReference) && !(Disallow & CPF_ContainsInstancedReference))
+			{
+				Flags |= CPF_ContainsInstancedReference;
+			}
 			// Struct keyword in front of a struct is legal, we 'consume' it
 			bUnconsumedStructKeyword = false;
 		}
@@ -4065,6 +4107,12 @@ void FHeaderParser::GetVarType(
 						}
 					}
 
+					// Inherit instancing flags
+					if (TempClassDef->HierarchyHasAnyClassFlags(CLASS_DefaultToInstanced))
+					{
+						Flags |= ((CPF_InstancedReference | CPF_ExportObject) & (~Disallow));
+					}
+
 					// Eat the star that indicates this is a pointer to the UObject
 					if (!(Flags & CPF_UObjectWrapper))
 					{
@@ -4210,11 +4258,11 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
+	VarProperty.PropertyExportFlags = ExportFlags;
+
 	// Set FPropertyBase info.
 	VarProperty.PropertyFlags        |= Flags | ImpliedFlags;
 	VarProperty.ImpliedPropertyFlags |= ImpliedFlags;
-	VarProperty.PropertyExportFlags = ExportFlags;
-	VarProperty.DisallowFlags = Disallow;
 
 	// Set the RepNotify name, if the variable needs it
 	if( VarProperty.PropertyFlags & CPF_RepNotify )
@@ -4268,7 +4316,7 @@ void FHeaderParser::GetVarType(
 	if (VariableCategory != EVariableCategory::Member)
 	{
 		// These conditions are checked externally for struct/member variables where the flag can be inferred later on from the variable name itself
-		ValidatePropertyIsDeprecatedIfNecessary(VarProperty, OuterPropertyType, OuterPropertyFlags);
+		ValidatePropertyIsDeprecatedIfNecessary(VarProperty, OuterPropertyFlags);
 	}
 
 	// Check for invalid transients
@@ -5119,22 +5167,34 @@ FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& De
  */
 void PostParsingClassSetup(FUnrealClassDefinitionInfo& ClassDef)
 {
-	//@TODO: Move to post parse finalization?
-
-	// Since this flag is computed in this method, we have to re-propagate the flag from the super
+	// Since these two flags are computed in this method, we have to re-propagate these flags from the super
 	// just in case they were defined in this source file.
 	if (FUnrealClassDefinitionInfo* SuperClassDef = ClassDef.GetSuperClass())
 	{
-		ClassDef.SetClassFlags(SuperClassDef->GetClassFlags() & CLASS_Config);
+		ClassDef.SetClassFlags(SuperClassDef->GetClassFlags() & (CLASS_Config | CLASS_HasInstancedReference));
 	}
 
-	// Set the class config flag if any properties have config
-	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : ClassDef.GetProperties())
+	// Set all optimization ClassFlags based on property types
+	auto HasAllOptimizationClassFlags = [&ClassDef]()
 	{
-		if (PropertyDef->HasAnyPropertyFlags(CPF_Config))
+		return (ClassDef.HasAllClassFlags(CLASS_Config | CLASS_HasInstancedReference));
+	};
+
+	if (!HasAllOptimizationClassFlags())
+	{
+		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : ClassDef.GetProperties())
 		{
-			ClassDef.SetClassFlags(CLASS_Config);
-			break;
+			if (PropertyDef->HasAnyPropertyFlags(CPF_Config))
+			{
+				ClassDef.SetClassFlags(CLASS_Config);
+				if (HasAllOptimizationClassFlags()) break;
+			}
+
+			if (PropertyDef->ContainsInstancedObjectProperty())
+			{
+				ClassDef.SetClassFlags(CLASS_HasInstancedReference);
+				if (HasAllOptimizationClassFlags()) break;
+			}
 		}
 	}
 
@@ -5668,7 +5728,7 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 		// Get parameter type.
 		FPropertyBase Property(CPT_None);
 		EVariableCategory VariableCategory = FunctionDef.HasAnyFunctionFlags(FUNC_Net) ? EVariableCategory::ReplicatedParameter : EVariableCategory::RegularParameter;
-		GetVarType(GetCurrentScope(), Property, ~(CPF_ParmFlags | CPF_AutoWeak | CPF_RepSkip | CPF_UObjectWrapper | CPF_NativeAccessSpecifiers), EUHTPropertyType::None, CPF_None, EPropertyDeclarationStyle::None, VariableCategory);
+		GetVarType(GetCurrentScope(), Property, ~(CPF_ParmFlags | CPF_AutoWeak | CPF_RepSkip | CPF_UObjectWrapper | CPF_NativeAccessSpecifiers), nullptr, nullptr, EPropertyDeclarationStyle::None, VariableCategory);
 		Property.PropertyFlags |= CPF_Parm;
 
 		if (bExpectCommaBeforeName)
@@ -5921,7 +5981,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 
 	if (bHasReturnValue)
 	{
-		GetVarType(GetCurrentScope(), ReturnType, CPF_None, EUHTPropertyType::None, CPF_None, EPropertyDeclarationStyle::None, EVariableCategory::Return);
+		GetVarType(GetCurrentScope(), ReturnType, CPF_None, nullptr, nullptr, EPropertyDeclarationStyle::None, EVariableCategory::Return);
 		RequireSymbol(TEXT(','), CurrentScopeName);
 	}
 
@@ -6299,7 +6359,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	FPropertyBase ReturnType( CPT_None );
 
 	// C++ style functions always have a return value type, even if it's void
-	GetVarType(GetCurrentScope(), ReturnType, CPF_None, EUHTPropertyType::None, CPF_None, EPropertyDeclarationStyle::None, EVariableCategory::Return);
+	GetVarType(GetCurrentScope(), ReturnType, CPF_None, nullptr, nullptr, EPropertyDeclarationStyle::None, EVariableCategory::Return);
 	bool bHasReturnValue = ReturnType.Type != CPT_None;
 
 	// Skip whitespaces to get InputPos exactly on beginning of function name.
@@ -6494,6 +6554,24 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 		Throwf(TEXT("Function '%s': Base implementation of RPCs cannot be in a state. Add a stub outside state scope."), *FuncDef.GetName());
 	}
 
+	if (FuncDef.HasAnyFunctionFlags(FUNC_BlueprintCallable | FUNC_BlueprintEvent))
+	{
+		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : FuncDef.GetProperties())
+		{
+			if (PropertyDef->IsStaticArray())
+			{
+				Throwf(TEXT("Static array cannot be exposed to blueprint. Function: %s Parameter %s\n"), *FuncDef.GetName(), *PropertyDef->GetName());
+			}
+
+			if (!FPropertyTraits::IsSupportedByBlueprint(*PropertyDef, false))
+			{
+				FString ExtendedCPPType;
+				FString CPPType = PropertyDef->GetCPPType(&ExtendedCPPType);
+				LogError(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *FuncDef.GetName(), *PropertyDef->GetName());
+			}
+		}
+	}
+
 	// Just declaring a function, so end the nesting.
 	PostPopFunctionDeclaration(FuncDef);
 
@@ -6637,10 +6715,10 @@ bool FHeaderParser::IsBitfieldProperty(ELayoutMacroType LayoutMacroType)
 	return bIsBitfield;
 }
 
-void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, EUHTPropertyType OuterPropertyType, EPropertyFlags OuterPropertyFlags)
+void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const EPropertyFlags* OuterPropertyFlags)
 {
-	// If the property is in a container that has been deprecated, then we don't need to do any further tests 
-	if (OuterPropertyType != EUHTPropertyType::None && (OuterPropertyFlags & CPF_Deprecated) != 0)
+	// If the property is in an array that has been deprecated, then we don't need to do any further tests 
+	if (OuterPropertyFlags != nullptr && (*OuterPropertyFlags & CPF_Deprecated) != 0)
 	{
 		return;
 	}
@@ -6764,7 +6842,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	FPropertyBase OriginalPropertyBase(CPT_None);
 	FIndexRange TypeRange;
 	ELayoutMacroType LayoutMacroType = ELayoutMacroType::None;
-	GetVarType(&*StructDef.GetScope(), OriginalPropertyBase, DisallowFlags, EUHTPropertyType::None, CPF_None, EPropertyDeclarationStyle::UPROPERTY, EVariableCategory::Member, &TypeRange, &LayoutMacroType);
+	GetVarType(&*StructDef.GetScope(), OriginalPropertyBase, DisallowFlags, /*OuterPropertyType=*/ nullptr, nullptr, EPropertyDeclarationStyle::UPROPERTY, EVariableCategory::Member, &TypeRange, &LayoutMacroType);
 	OriginalPropertyBase.PropertyFlags |= EdFlags;
 
 	FString* Category = OriginalPropertyBase.MetaData.Find(NAME_Category);
@@ -6856,7 +6934,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 		}
 
 		// Deprecation validation
-		ValidatePropertyIsDeprecatedIfNecessary(PropertyBase, EUHTPropertyType::None, CPF_None);
+		ValidatePropertyIsDeprecatedIfNecessary(PropertyBase, NULL);
 
 		if (TopNest->NestType != ENestType::FunctionDeclaration)
 		{
@@ -6870,6 +6948,34 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 
 		// we'll need any metadata tags we parsed later on when we call ConvertEOLCommentToTooltip() so the tags aren't clobbered
 		OriginalPropertyBase.MetaData = PropertyBase.MetaData;
+
+		if (ScriptStructDef != nullptr)
+		{
+			if (NewPropDef.ContainsInstancedObjectProperty())
+			{
+				ScriptStructDef->SetStructFlags(STRUCT_HasInstancedReference);
+			}
+		}
+
+		if (NewPropDef.HasAnyPropertyFlags(CPF_BlueprintVisible))
+		{
+			if (ScriptStructDef != nullptr && !StructDef.GetBoolMetaDataHierarchical(FHeaderParserNames::NAME_BlueprintType))
+			{
+				LogError(TEXT("Cannot expose property to blueprints in a struct that is not a BlueprintType. %s.%s"), *StructDef.GetName(), *NewPropDef.GetName());
+			}
+
+			if (NewPropDef.IsStaticArray())
+			{
+				LogError(TEXT("Static array cannot be exposed to blueprint %s.%s"), *StructDef.GetName(), *NewPropDef.GetName());
+			}
+
+			if (!FPropertyTraits::IsSupportedByBlueprint(NewPropDef, true))
+			{
+				FString ExtendedCPPType;
+				FString CPPType = NewPropDef.GetCPPType(&ExtendedCPPType);
+				LogError(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *StructDef.GetName(), *NewPropDef.GetName());
+			}
+		}
 
 		if (LayoutMacroType != ELayoutMacroType::None || !MatchSymbol(TEXT(',')))
 		{
