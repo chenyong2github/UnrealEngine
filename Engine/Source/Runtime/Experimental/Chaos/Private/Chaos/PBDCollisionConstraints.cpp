@@ -25,6 +25,7 @@
 #include "ChaosStats.h"
 #include "Containers/Queue.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Algo/Sort.h"
 
 #if INTEL_ISPC
@@ -526,6 +527,7 @@ namespace Chaos
 	bool FPBDCollisionConstraints::Apply(const FReal Dt, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
+		CSV_SCOPED_TIMING_STAT(Chaos, ApplyCollisionConstraints);
 
 		bool bNeedsAnotherIteration = false;
 		if (MApplyPairIterations > 0)
@@ -620,6 +622,7 @@ namespace Chaos
 	bool FPBDCollisionConstraints::Apply(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
+		CSV_SCOPED_TIMING_STAT(Chaos, ApplyCollisionConstraints);
 
 		TAtomic<bool> bNeedsAnotherIterationAtomic;
 		bNeedsAnotherIterationAtomic.Store(false);

@@ -11,6 +11,7 @@
 #include "Chaos/Utilities.h"
 #include "ChaosLog.h"
 #include "ChaosStats.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #include "HAL/IConsoleManager.h"
 
@@ -870,6 +871,8 @@ namespace Chaos
 
 	bool FPBDJointConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
 	{
+		CSV_SCOPED_TIMING_STAT(Chaos, ApplyJointConstraints);
+
 		if (PreApplyCallback != nullptr)
 		{
 			PreApplyCallback(Dt, Handles);
@@ -956,6 +959,7 @@ namespace Chaos
 	bool FPBDJointConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
+		CSV_SCOPED_TIMING_STAT(Chaos, ApplyJointConstraints);
 
 		// @todo(ccaulfield): make sorting optional
 		// @todo(ccaulfield): handles should be sorted by level by the constraint rule/graph
