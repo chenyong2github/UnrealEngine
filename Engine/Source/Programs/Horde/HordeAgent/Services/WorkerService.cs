@@ -251,7 +251,7 @@ namespace HordeAgent.Services
 			Logger.LogInformation("Arguments: {Arguments}", Environment.CommandLine);
 
 			// Show the current client id
-			string Version = Settings.Version ?? "(unknown)";
+			string Version = Program.Version;
 			Logger.LogInformation("Version: {Version}", Version);
 
 			// Keep trying to start an agent session with the server
@@ -372,7 +372,7 @@ namespace HordeAgent.Services
 				SessionRequest.Name = Environment.MachineName;
 				SessionRequest.Status = AgentStatus.Ok;
 				SessionRequest.Capabilities = Capabilities;
-				SessionRequest.Version = Settings.Version ?? "";
+				SessionRequest.Version = Program.Version;
 
 				// Create a session
 				CreateSessionResponse = await RpcClient.CreateSessionAsync(SessionRequest, null, null, StoppingToken);
@@ -1134,9 +1134,9 @@ namespace HordeAgent.Services
 			string RequiredVersion = UpgradeTask.SoftwareId;
 
 			// Check if we're running the right version
-			if (RequiredVersion != null && RequiredVersion != Settings.Version)
+			if (RequiredVersion != null && RequiredVersion != Program.Version)
 			{
-				Logger.LogInformation("Upgrading from {CurrentVersion} to {TargetVersion}", String.IsNullOrEmpty(Settings.Version)? "(unknown)" : Settings.Version, RequiredVersion);
+				Logger.LogInformation("Upgrading from {CurrentVersion} to {TargetVersion}", Program.Version, RequiredVersion);
 
 				// Clear out the working directory
 				DirectoryReference UpgradeDir = DirectoryReference.Combine(WorkingDir, "Upgrade");

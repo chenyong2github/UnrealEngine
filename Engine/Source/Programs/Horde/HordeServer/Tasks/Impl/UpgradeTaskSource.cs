@@ -14,7 +14,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
 using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
 
 namespace HordeServer.Tasks.Impl
@@ -36,7 +35,7 @@ namespace HordeServer.Tasks.Impl
 
 		public async Task<ITaskListener?> SubscribeAsync(IAgent Agent)
 		{
-			AgentSoftwareVersion? RequiredVersion = await GetRequiredSoftwareVersion(Agent);
+			string? RequiredVersion = await GetRequiredSoftwareVersion(Agent);
 			if (RequiredVersion != null && Agent.Version != RequiredVersion)
 			{
 				AgentLease? Lease = null;
@@ -67,7 +66,7 @@ namespace HordeServer.Tasks.Impl
 		/// </summary>
 		/// <param name="Agent">The agent instance</param>
 		/// <returns>Unique id of the client version this agent should be running</returns>
-		public async Task<AgentSoftwareVersion?> GetRequiredSoftwareVersion(IAgent Agent)
+		public async Task<string?> GetRequiredSoftwareVersion(IAgent Agent)
 		{
 			AgentSoftwareChannelName ChannelName = Agent.Channel ?? AgentSoftwareService.DefaultChannelName;
 			IAgentSoftwareChannel? Channel = await AgentSoftwareService.GetCachedChannelAsync(ChannelName);

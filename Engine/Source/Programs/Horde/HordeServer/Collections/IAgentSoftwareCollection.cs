@@ -16,8 +16,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-
 namespace HordeServer.Collections
 {
 	/// <summary>
@@ -31,19 +29,26 @@ namespace HordeServer.Collections
 		/// <param name="Version">The version number</param>
 		/// <param name="Data">Zip file containing the new software</param>
 		/// <returns>New software instance</returns>
-		Task AddAsync(AgentSoftwareVersion Version, byte[] Data);
+		Task<bool> AddAsync(string Version, byte[] Data);
+
+		/// <summary>
+		/// Tests whether a given version exists
+		/// </summary>
+		/// <param name="Version">Version of the software</param>
+		/// <returns>True if it exists, false otherwise</returns>
+		Task<bool> ExistsAsync(string Version);
 
 		/// <summary>
 		/// Removes a software archive 
 		/// </summary>
 		/// <param name="Version">Version of the software to delete</param>
-		Task<bool> RemoveAsync(AgentSoftwareVersion Version);
+		Task<bool> RemoveAsync(string Version);
 
 		/// <summary>
 		/// Downloads software of a given revision
 		/// </summary>
 		/// <param name="Version">Version of the software</param>
 		/// <returns>Data for the given software</returns>
-		Task<byte[]?> GetAsync(AgentSoftwareVersion Version);
+		Task<byte[]?> GetAsync(string Version);
 	}
 }

@@ -17,7 +17,6 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
 using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
 
 namespace HordeServer.Collections.Impl
@@ -51,7 +50,7 @@ namespace HordeServer.Collections.Impl
 			public bool Deleted { get; set; }
 
 			[BsonElement("Version2")]
-			public AgentSoftwareVersion? Version { get; set; }
+			public string? Version { get; set; }
 
 			[BsonIgnoreIfNull]
 			public AgentSoftwareChannelName? Channel { get; set; }
@@ -415,7 +414,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent?> TryStartSessionAsync(IAgent AgentInterface, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, AgentCapabilities Capabilities, AgentSoftwareVersion? Version)
+		public async Task<IAgent?> TryStartSessionAsync(IAgent AgentInterface, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, AgentCapabilities Capabilities, string? Version)
 		{
 			AgentDocument Agent = (AgentDocument)AgentInterface;
 
