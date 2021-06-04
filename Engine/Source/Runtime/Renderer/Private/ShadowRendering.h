@@ -266,10 +266,10 @@ public:
 	 * Matrix used for rendering the shadow depth buffer.  
 	 * Note that this does not necessarily contain all of the shadow casters with CSM, since the vertex shader flattens them onto the near plane of the projection.
 	 */
-	FMatrix TranslatedWorldToClipInnerMatrix;
-	FMatrix TranslatedWorldToClipOuterMatrix;
+	FMatrix44f TranslatedWorldToClipInnerMatrix;
+	FMatrix44f TranslatedWorldToClipOuterMatrix;
 
-	FMatrix InvReceiverInnerMatrix;
+	FMatrix44f InvReceiverInnerMatrix;
 
 	float InvMaxSubjectDepth;
 
