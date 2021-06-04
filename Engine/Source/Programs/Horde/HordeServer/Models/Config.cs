@@ -17,7 +17,7 @@ namespace HordeServer.Models
 	/// Global configuration
 	/// </summary>
 	[JsonSchema("https://unrealengine.com/horde/global")]
-	[JsonSchemaCatalog("Horde Globals", "Horde global configuration file")]
+	[JsonSchemaCatalog("Horde Globals", "Horde global configuration file", "globals.json")]
 	public class GlobalConfig
 	{
 		/// <summary>
@@ -73,7 +73,7 @@ namespace HordeServer.Models
 	/// Stores configuration for a project
 	/// </summary>
 	[JsonSchema("https://unrealengine.com/horde/project")]
-	[JsonSchemaCatalog("Horde Project", "Horde project configuration file")]
+	[JsonSchemaCatalog("Horde Project", "Horde project configuration file", "*.project.json")]
 	public class ProjectConfig
 	{
 		/// <summary>
@@ -125,7 +125,7 @@ namespace HordeServer.Models
 	/// Config for a stream
 	/// </summary>
 	[JsonSchema("https://unrealengine.com/horde/stream")]
-	[JsonSchemaCatalog("Horde Stream", "Horde stream configuration file")]
+	[JsonSchemaCatalog("Horde Stream", "Horde stream configuration file", "*.stream.json")]
 	public class StreamConfig
 	{
 		/// <summary>
