@@ -184,6 +184,7 @@ public:
 	{
 		Success,
 		MeshGenerationFailed,
+		MaterialGenerationFailed,
 		UnknownError
 	};
 
