@@ -27,6 +27,14 @@ public class PROJ : ModuleRules
             PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
             PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libsqlite3.a"));
         }
+        else if (Target.Platform == UnrealTargetPlatform.IOS)
+        {
+            PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-arm64-ios", "include"));
+
+            string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-arm64-ios", "lib");
+            PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
+            PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libsqlite3.a"));
+        }
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64) // emulation target, bBuildForEmulation

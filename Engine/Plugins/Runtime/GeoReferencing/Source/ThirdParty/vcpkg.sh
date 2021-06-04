@@ -8,9 +8,11 @@ VCPKG_VERSION=2021.05.12
 # this is where the artifacts get installed
 VCPKG_INSTALLED=vcpkg-installed
 
+VCPKG_TRIPLETS=()
+
 # deduce vcpkg nomenclature for this system
 if [ `uname` == "Linux" ]; then
-	VCPKG_SYSTEM=linux
+  VCPKG_TRIPLETS+=( overlay-x64-linux )
 
   # Engine/Source/ThirdParty location
   THIRD_PARTY=$(cd "${DIR}/../../../../../Source/ThirdParty" ; pwd)
@@ -89,18 +91,14 @@ _EOF_
 ) > /tmp/__cmake_toolchain.cmake
 
 elif [ `uname` == "Darwin" ]; then
-	VCPKG_SYSTEM=osx
+  VCPKG_TRIPLETS+=( overlay-x64-osx )
+  VCPKG_TRIPLETS+=( overlay-arm64-ios )
 fi
 
 # cleanup the git repo
 [ -d "$DIR/vcpkg" ] && echo
-[ -d "$DIR/vcpkg" ] && echo === Tidying up vcpkg ===
-[ -d "$DIR/vcpkg" ] && rm -rf "$DIR/vcpkg"
-
-# cleanup the prior artifacts
-[ -d "$DIR/$VCPKG_INSTALLED" ] && echo
-[ -d "$DIR/$VCPKG_INSTALLED" ] && echo === Tidying up $VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM and $VCPKG_INSTALLED/vcpkg ===
-[ -d "$DIR/$VCPKG_INSTALLED" ] && rm -rf "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM" "$DIR/$VCPKG_INSTALLED/vcpkg/"{info,updates}
+[ -d "$DIR/vcpkg" ] && echo === Tidying up vcpkg and $VCPKG_INSTALLED/vcpkg ===
+[ -d "$DIR/vcpkg" ] && rm -rf "$DIR/vcpkg" "$DIR/$VCPKG_INSTALLED/vcpkg"
 
 echo
 echo === Checking out vcpkg to $DIR/vcpkg ===
@@ -110,18 +108,27 @@ echo
 echo === Bootstrapping vcpkg ===
 $DIR/vcpkg/bootstrap-vcpkg.sh
 
-[ -d "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM" ] && echo
-[ -d "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM" ] && echo === Making $VCPKG_INSTALLED artifacts writeable ===
-[ -d "$DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM" ] && chmod -R u+w $DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM
+for VCPKG_TRIPLET in ${VCPKG_TRIPLETS[@]}
+do
+  # cleanup the prior artifacts
+  [ -d "$DIR/$VCPKG_INSTALLED" ] && echo
+  [ -d "$DIR/$VCPKG_INSTALLED" ] && echo === Tidying up $VCPKG_INSTALLED/$VCPKG_TRIPLET ===
+  [ -d "$DIR/$VCPKG_INSTALLED" ] && rm -rf "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET" 
 
-echo
-echo === Running vcpkg in manifest mode ===
-# --overlay-ports tells it to resolve a named port via additional paths outside vcpkg/, PWD relative
-# --overlay-triplets tells it to resolve a named triplet via additional paths outside vcpkg/, PWD relative
-# --triplet names the triplet to configure the build with, our custom triplet file w/o .cmake extentions
-# --debug will provide extra information to stdout
-$DIR/vcpkg/vcpkg install --x-install-root=$DIR/$VCPKG_INSTALLED --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=overlay-x64-$VCPKG_SYSTEM "proj4[core,database]"
+  [ -d "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET" ] && echo
+  [ -d "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET" ] && echo === Making $VCPKG_INSTALLED/$VCPKG_TRIPLET artifacts writeable ===
+  [ -d "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET" ] && chmod -R u+w $DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET
 
-echo
-echo === Reconciling $VCPKG_INSTALLED artifacts ===
-p4 reconcile $DIR/$VCPKG_INSTALLED/overlay-x64-$VCPKG_SYSTEM/...
+  echo
+  echo === Running vcpkg in manifest mode ===
+  # --overlay-ports tells it to resolve a named port via additional paths outside vcpkg/, PWD relative
+  # --overlay-triplets tells it to resolve a named triplet via additional paths outside vcpkg/, PWD relative
+  # --triplet names the triplet to configure the build with, our custom triplet file w/o .cmake extentions
+  # --debug will provide extra information to stdout
+  $DIR/vcpkg/vcpkg install --x-install-root=$DIR/$VCPKG_INSTALLED --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=$VCPKG_TRIPLET "proj4[core,database]"
+
+  echo
+  echo === Reconciling $VCPKG_INSTALLED artifacts ===
+  p4 reconcile $DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET/...
+done
+  
