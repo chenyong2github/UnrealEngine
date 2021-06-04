@@ -766,8 +766,8 @@ void AftermathGpuCrashDumpCallback(const void* CrashDump, const uint32 CrashDump
 				// Step 2: Allocate a buffer and fetch the generated JSON.
 				TArray<ANSICHAR> Json;
 				Json.AddZeroed(JsonSize);
-				GFSDK_Aftermath_Result Result2 = GFSDK_Aftermath_GpuCrashDump_GetJSON(Decoder, (uint32)Json.Num(), Json.GetData());
-				if (Result2 == GFSDK_Aftermath_Result_Success)
+				GFSDK_Aftermath_Result ResultJson = GFSDK_Aftermath_GpuCrashDump_GetJSON(Decoder, (uint32)Json.Num(), Json.GetData());
+				if (ResultJson == GFSDK_Aftermath_Result_Success)
 				{
 					FString Filename = FPaths::ProjectLogDir() / TEXT("vulkan.nv-gpudmp.json");
 					FArchive* Writer = IFileManager::Get().CreateFileWriter(*Filename);
@@ -800,8 +800,9 @@ void AftermathCrashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDe
 	// the actual GPU crash dump callback. The provided data is included in the crash dump and can be
 	// retrieved using GFSDK_Aftermath_GpuCrashDump_GetDescription().
 	FTCHARToUTF8 ProjectNameConverter(FApp::GetProjectName());
+	FTCHARToUTF8 VersionConverter(FApp::GetBuildVersion());
 	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_ApplicationName, ProjectNameConverter.Get());
-	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_ApplicationVersion, "v1.0");
+	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_ApplicationVersion, VersionConverter.Get());
 	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_UserDefined, "Vulkan GPU crash");
 }
 #endif

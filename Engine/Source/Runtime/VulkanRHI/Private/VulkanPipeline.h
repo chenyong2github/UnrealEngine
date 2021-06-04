@@ -717,8 +717,8 @@ public:
 
 
 	FVulkanRHIGraphicsPipelineStateLRUNode* LRUNode = nullptr;
-	uint32 LRUFrame;
-	uint32 PipelineCacheSize;
+	uint32 LRUFrame = UINT32_MAX;
+	uint32 PipelineCacheSize = UINT32_MAX;
 	FVulkanPSOKey							VulkanKey;
 
 
