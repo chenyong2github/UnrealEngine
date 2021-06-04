@@ -269,12 +269,10 @@ AActor* FWorldPartitionActorDesc::Load() const
 		}
 
 		Package = LoadPackage(Package, *ActorPackage.ToString(), LOAD_None, nullptr, InstancingContext);
+		check(Package);
 
-		if (Package)
-		{
-			ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
-			check(ActorPtr.IsValid());
-		}
+		ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
+		check(ActorPtr.IsValid());
 	}
 
 	return ActorPtr.Get();
