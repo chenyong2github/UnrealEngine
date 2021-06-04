@@ -460,7 +460,6 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params)
 {
 	// @todo(GCCollisionShapes) : add support for multiple shapes, currently just one. 
-	ensure(Params.Shared.SizeSpecificData[0].CollisionShapesData.Num());
 
 	// 
 	// This function will use the rest collection to populate the dynamic collection. 
@@ -491,6 +490,7 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 		static const bool bAnalyticsDisabled = (AnalyticDisableCVar && AnalyticDisableCVar->GetBool());
 
 		if (RestCollection.HasAttribute(DynamicCollection.SimplicialsAttribute, FTransformCollection::TransformGroup)
+			&& Params.Shared.SizeSpecificData[0].CollisionShapesData.Num()
 			&& (Params.Shared.SizeSpecificData[0].CollisionShapesData[0].CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric || bAnalyticsDisabled))
 		{
 			const auto& RestSimplicials = RestCollection.GetAttribute<TUniquePtr<FSimplicial>>(
@@ -1763,7 +1763,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	FGeometryCollection& RestCollection,
 	const FSharedSimulationParameters& SharedParams)
 {
-	check(SharedParams.SizeSpecificData.Num() && SharedParams.SizeSpecificData[0].CollisionShapesData.Num());
+	check(SharedParams.SizeSpecificData.Num());
 
 	FString BaseErrorPrefix = ErrorReporter.GetPrefix();
 
@@ -2092,41 +2092,60 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			const int32 SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, InstanceBoundingBox);
 			const FSharedSimulationSizeSpecificData& SizeSpecificData = SharedParams.SizeSpecificData[SizeSpecificIdx];
 
-			//
-			//  Build the simplicial for the rest collection. This will be used later in the DynamicCollection to 
-			//  populate the collision structures of the simulation. 
-			//
-			if (ensureMsgf(TriMesh, TEXT("No Triangle representation")))
+			if (SizeSpecificData.CollisionShapesData.Num())
 			{
-				Chaos::FBVHParticles* Simplicial =
-					FCollisionStructureManager::NewSimplicial(
-						MassSpaceParticles,
-						BoneMap,
-						SizeSpecificData.CollisionShapesData[0].CollisionType,
-						*TriMesh,
-						SizeSpecificData.CollisionShapesData[0].CollisionParticleData.CollisionParticlesFraction);
-				CollectionSimplicials[TransformGroupIndex] = TUniquePtr<FSimplicial>(Simplicial); // CollectionSimplicials is in the TransformGroup
-				//ensureMsgf(CollectionSimplicials[TransformGroupIndex], TEXT("No simplicial representation."));
-				if (!CollectionSimplicials[TransformGroupIndex]->Size())
+				//
+				//  Build the simplicial for the rest collection. This will be used later in the DynamicCollection to 
+				//  populate the collision structures of the simulation. 
+				//
+				if (ensureMsgf(TriMesh, TEXT("No Triangle representation")))
 				{
-					ensureMsgf(false, TEXT("Simplicial is empty."));
-				}
-
-				if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
-				{
-					LocalErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
-					CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-						FCollisionStructureManager::NewImplicitLevelset(
-							LocalErrorReporter,
+					Chaos::FBVHParticles* Simplicial =
+						FCollisionStructureManager::NewSimplicial(
 							MassSpaceParticles,
+							BoneMap,
+							SizeSpecificData.CollisionShapesData[0].CollisionType,
 							*TriMesh,
-							InstanceBoundingBox,
-							SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution,
-							SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution,
-							SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-							SizeSpecificData.CollisionShapesData[0].CollisionType));
-					// Fall back on sphere if level set rasterization failed.
-					if (!CollectionImplicits[TransformGroupIndex])
+							SizeSpecificData.CollisionShapesData[0].CollisionParticleData.CollisionParticlesFraction);
+					CollectionSimplicials[TransformGroupIndex] = TUniquePtr<FSimplicial>(Simplicial); // CollectionSimplicials is in the TransformGroup
+					//ensureMsgf(CollectionSimplicials[TransformGroupIndex], TEXT("No simplicial representation."));
+					if (!CollectionSimplicials[TransformGroupIndex]->Size())
+					{
+						ensureMsgf(false, TEXT("Simplicial is empty."));
+					}
+
+					if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
+					{
+						LocalErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
+						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+							FCollisionStructureManager::NewImplicitLevelset(
+								LocalErrorReporter,
+								MassSpaceParticles,
+								*TriMesh,
+								InstanceBoundingBox,
+								SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution,
+								SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution,
+								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+								SizeSpecificData.CollisionShapesData[0].CollisionType));
+						// Fall back on sphere if level set rasterization failed.
+						if (!CollectionImplicits[TransformGroupIndex])
+						{
+							CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+								FCollisionStructureManager::NewImplicitSphere(
+									InnerRadius[GeometryIndex],
+									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+									SizeSpecificData.CollisionShapesData[0].CollisionType));
+						}
+					}
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
+					{
+						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+							FCollisionStructureManager::NewImplicitBox(
+								InstanceBoundingBox,
+								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+								SizeSpecificData.CollisionShapesData[0].CollisionType));
+					}
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 					{
 						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
 							FCollisionStructureManager::NewImplicitSphere(
@@ -2134,74 +2153,58 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
 								SizeSpecificData.CollisionShapesData[0].CollisionType));
 					}
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
-				{
-					CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-						FCollisionStructureManager::NewImplicitBox(
-							InstanceBoundingBox,
-							SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-							SizeSpecificData.CollisionShapesData[0].CollisionType));
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
-				{
-					CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-						FCollisionStructureManager::NewImplicitSphere(
-							InnerRadius[GeometryIndex],
-							SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-							SizeSpecificData.CollisionShapesData[0].CollisionType));
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Convex)
-				{
-					if (ConvexGeometry && TransformToConvexIndices)
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Convex)
 					{
-						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-								FCollisionStructureManager::NewImplicitConvex(
-									(*TransformToConvexIndices)[TransformGroupIndex].Array(),
-									ConvexGeometry,
-									SizeSpecificData.CollisionShapesData[0].CollisionType));
+						if (ConvexGeometry && TransformToConvexIndices)
+						{
+							CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+									FCollisionStructureManager::NewImplicitConvex(
+										(*TransformToConvexIndices)[TransformGroupIndex].Array(),
+										ConvexGeometry,
+										SizeSpecificData.CollisionShapesData[0].CollisionType));
+						}
 					}
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
-				{
-					const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
-					const Chaos::FReal Radius = BBoxExtent.GetAbsMin();
-					const Chaos::FReal Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
-
-					if (Length < SMALL_NUMBER)
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
 					{
-						// make a more optimized shape : sphere
-						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-							FCollisionStructureManager::NewImplicitSphere(
-								Radius,
-								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-								SizeSpecificData.CollisionShapesData[0].CollisionType));
+						const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
+						const Chaos::FReal Radius = BBoxExtent.GetAbsMin();
+						const Chaos::FReal Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
+
+						if (Length < SMALL_NUMBER)
+						{
+							// make a more optimized shape : sphere
+							CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+								FCollisionStructureManager::NewImplicitSphere(
+									Radius,
+									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+									SizeSpecificData.CollisionShapesData[0].CollisionType));
+						}
+						else
+						{
+							CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+								FCollisionStructureManager::NewImplicitCapsule(
+									Radius,
+									Length,
+									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+									SizeSpecificData.CollisionShapesData[0].CollisionType));
+						}
+					}
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_None)
+					{
+						CollectionImplicits[TransformGroupIndex] = nullptr;
 					}
 					else
 					{
-						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-							FCollisionStructureManager::NewImplicitCapsule(
-								Radius,
-								Length,
-								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-								SizeSpecificData.CollisionShapesData[0].CollisionType));
+						ensure(false); // unsupported implicit type!
 					}
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_None)
-				{
-					CollectionImplicits[TransformGroupIndex] = nullptr;
-				}
-				else
-				{
-					ensure(false); // unsupported implicit type!
-				}
 
-				if (CollectionImplicits[TransformGroupIndex] && CollectionImplicits[TransformGroupIndex]->HasBoundingBox())
-				{
-					const auto Implicit = CollectionImplicits[TransformGroupIndex];
-					const auto BBox = Implicit->BoundingBox();
-					const FVec3 Extents = BBox.Extents(); // Chaos::FAABB3::Extents() is Max - Min
-					MaxChildBounds = MaxChildBounds.ComponentwiseMax(Extents);
+					if (CollectionImplicits[TransformGroupIndex] && CollectionImplicits[TransformGroupIndex]->HasBoundingBox())
+					{
+						const auto Implicit = CollectionImplicits[TransformGroupIndex];
+						const auto BBox = Implicit->BoundingBox();
+						const FVec3 Extents = BBox.Extents(); // Chaos::FAABB3::Extents() is Max - Min
+						MaxChildBounds = MaxChildBounds.ComponentwiseMax(Extents);
+					}
 				}
 			}
 		}
@@ -2361,115 +2364,118 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				const int32 SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, InstanceBoundingBox);
 				const FSharedSimulationSizeSpecificData& SizeSpecificData = SharedParams.SizeSpecificData[SizeSpecificIdx];
 
-				if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
+				if (SizeSpecificData.CollisionShapesData.Num())
 				{
-					const FVec3 Scale = 2 * InstanceBoundingBox.GetExtent() / MaxChildBounds; // FBox's extents are 1/2 (Max - Min)
-					const FReal ScaleMax = Scale.GetAbsMax();
-					const FReal ScaleMin = Scale.GetAbsMin();
+					if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
+					{
+						const FVec3 Scale = 2 * InstanceBoundingBox.GetExtent() / MaxChildBounds; // FBox's extents are 1/2 (Max - Min)
+						const FReal ScaleMax = Scale.GetAbsMax();
+						const FReal ScaleMin = Scale.GetAbsMin();
 
-					FReal MinResolution = ScaleMin * (FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution;
-					MinResolution = FMath::Clamp(MinResolution,
-						(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution,
-						(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinClusterLevelSetResolution);
+						FReal MinResolution = ScaleMin * (FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution;
+						MinResolution = FMath::Clamp(MinResolution,
+							(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution,
+							(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinClusterLevelSetResolution);
 
-					FReal MaxResolution = ScaleMax * (FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution;
-					MaxResolution = FMath::Clamp(MaxResolution,
-						(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution,
-						(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxClusterLevelSetResolution);
+						FReal MaxResolution = ScaleMax * (FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution;
+						MaxResolution = FMath::Clamp(MaxResolution,
+							(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution,
+							(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxClusterLevelSetResolution);
 
-					//don't support non level-set serialization
-					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
-					CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
-						FCollisionStructureManager::NewImplicitLevelset(
-							ErrorReporter,
-							MassSpaceParticles,
-							*UnionMesh,
-							InstanceBoundingBox,
-							FMath::FloorToInt(MinResolution),
-							FMath::FloorToInt(MaxResolution),
-							SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-							SizeSpecificData.CollisionShapesData[0].CollisionType));
-					// Fall back on sphere if level set rasterization failed.
-					if (!CollectionImplicits[ClusterTransformIdx])
+						//don't support non level-set serialization
+						ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
+						CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
+							FCollisionStructureManager::NewImplicitLevelset(
+								ErrorReporter,
+								MassSpaceParticles,
+								*UnionMesh,
+								InstanceBoundingBox,
+								FMath::FloorToInt(MinResolution),
+								FMath::FloorToInt(MaxResolution),
+								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+								SizeSpecificData.CollisionShapesData[0].CollisionType));
+						// Fall back on sphere if level set rasterization failed.
+						if (!CollectionImplicits[ClusterTransformIdx])
+						{
+							CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
+								FCollisionStructureManager::NewImplicitSphere(
+									InstanceBoundingBox.GetExtent().GetAbsMin(), // FBox's extents are 1/2 (Max - Min)
+									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+									SizeSpecificData.CollisionShapesData[0].CollisionType));
+						}
+
+						CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
+							FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
+							SharedParams.MaximumCollisionParticleCount));
+					}
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
+					{
+						CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
+							FCollisionStructureManager::NewImplicitBox(
+								InstanceBoundingBox,
+								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+								SizeSpecificData.CollisionShapesData[0].CollisionType));
+
+						CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
+							FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
+							SharedParams.MaximumCollisionParticleCount));
+					}
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 					{
 						CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
 							FCollisionStructureManager::NewImplicitSphere(
 								InstanceBoundingBox.GetExtent().GetAbsMin(), // FBox's extents are 1/2 (Max - Min)
 								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
 								SizeSpecificData.CollisionShapesData[0].CollisionType));
-					}
 
-					CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
-						FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
-						SharedParams.MaximumCollisionParticleCount));
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
-				{
-					CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
-						FCollisionStructureManager::NewImplicitBox(
-							InstanceBoundingBox,
-							SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-							SizeSpecificData.CollisionShapesData[0].CollisionType));
-
-					CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
-						FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
-						SharedParams.MaximumCollisionParticleCount));
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
-				{
- 					CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
-						FCollisionStructureManager::NewImplicitSphere(
-							InstanceBoundingBox.GetExtent().GetAbsMin(), // FBox's extents are 1/2 (Max - Min)
-							SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-							SizeSpecificData.CollisionShapesData[0].CollisionType));
-
-					CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
-						FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
-						SharedParams.MaximumCollisionParticleCount));
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Convex)
-				{
-					if (ConvexGeometry && TransformToConvexIndices)
-					{
-						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-							FCollisionStructureManager::NewImplicitConvex(
-								(*TransformToConvexIndices)[TransformGroupIndex].Array(),
-								ConvexGeometry,
-								SizeSpecificData.CollisionShapesData[0].CollisionType));
-					}
-				}
-				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
-				{
-					const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
-					const FReal Radius = BBoxExtent.GetAbsMin();
-					const FReal Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
-
-					if (Length < SMALL_NUMBER)
-					{
-						// make a more optimized shape : sphere
-						CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
-							FCollisionStructureManager::NewImplicitSphere(
-								Radius, 
-								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-								SizeSpecificData.CollisionShapesData[0].CollisionType));
-					}
-					else
-					{
-						CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
-							FCollisionStructureManager::NewImplicitCapsule(
-								Radius,
-								Length,
-								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-								SizeSpecificData.CollisionShapesData[0].CollisionType));
-					}
-					CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
-						FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
+						CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
+							FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
 							SharedParams.MaximumCollisionParticleCount));
-				}
-				else // Assume it's a union???
-				{
-					CollectionImplicits[ClusterTransformIdx].Reset();	//union so just set as null
-					CollectionSimplicials[ClusterTransformIdx].Reset();
+					}
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Convex)
+					{
+						if (ConvexGeometry && TransformToConvexIndices)
+						{
+							CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+								FCollisionStructureManager::NewImplicitConvex(
+									(*TransformToConvexIndices)[TransformGroupIndex].Array(),
+									ConvexGeometry,
+									SizeSpecificData.CollisionShapesData[0].CollisionType));
+						}
+					}
+					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
+					{
+						const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
+						const FReal Radius = BBoxExtent.GetAbsMin();
+						const FReal Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
+
+						if (Length < SMALL_NUMBER)
+						{
+							// make a more optimized shape : sphere
+							CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
+								FCollisionStructureManager::NewImplicitSphere(
+									Radius, 
+									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+									SizeSpecificData.CollisionShapesData[0].CollisionType));
+						}
+						else
+						{
+							CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
+								FCollisionStructureManager::NewImplicitCapsule(
+									Radius,
+									Length,
+									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+									SizeSpecificData.CollisionShapesData[0].CollisionType));
+						}
+						CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
+							FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
+								SharedParams.MaximumCollisionParticleCount));
+					}
+					else // Assume it's a union???
+					{
+						CollectionImplicits[ClusterTransformIdx].Reset();	//union so just set as null
+						CollectionSimplicials[ClusterTransformIdx].Reset();
+					}
 				}
 
 				TriangleMeshesArray[ClusterTransformIdx] = MoveTemp(UnionMesh);
