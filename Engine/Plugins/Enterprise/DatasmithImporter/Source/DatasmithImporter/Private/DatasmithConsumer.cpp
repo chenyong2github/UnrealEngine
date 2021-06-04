@@ -132,7 +132,7 @@ namespace DatasmithConsumerUtils
 	}
 
 	template<class AssetClass>
-	TArray<UPackage*> ApplyFolderDirective(TMap<FName, TSoftObjectPtr< AssetClass >>& AssetMap, const FString& RootPackagePath, TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap, TFunction<void(ELogVerbosity::Type, FText)> ReportCallback)
+	TArray<UPackage*> ApplyFolderDirective(TMap<FName, TSoftObjectPtr< AssetClass >>& AssetMap, const FString& RootPackagePath, TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap, TFunction<void(ELogVerbosity::Type, FText)> ReportCallback, TSet<FString>& OutFolderOverrides)
 	{
 		auto CanMoveAsset = [&ReportCallback](UObject* Source, UObject* Target) -> bool
 		{
@@ -178,10 +178,11 @@ namespace DatasmithConsumerUtils
 				const FString& OutputFolder = GetMarker(Asset, UDataprepContentConsumer::RelativeOutput);
 				if(OutputFolder.Len() > 0)
 				{
+					OutFolderOverrides.Add(FPaths::Combine(RootPackagePath, OutputFolder));
+
 					UPackage* SourcePackage = Entry.Value->GetOutermost();
 					FString TargetPackagePath = FPaths::Combine(RootPackagePath, OutputFolder, Asset->GetName());
-
-
+				
 					if( ensure(SourcePackage) && SourcePackage->GetPathName() != TargetPackagePath)
 					{
 						FString PackageFilename;
@@ -439,28 +440,103 @@ bool UDatasmithConsumer::Run()
 	// Table of remapping to contain moved assets
 	TMap<FSoftObjectPath, FSoftObjectPath> AssetRedirectorMap;
 
+	// Gether all the output overrides to be able to later delete empty folder in them
+	TSet<FString> OutputFolderOverrides;
+
 	DatasmithConsumerUtils::SetMarker(SceneAsset->Textures, UDatasmithConsumer::ConsumerMarkerID, UniqueID);
-	DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->Textures, TargetContentFolder, AssetRedirectorMap, ReportFunc );
+	DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->Textures, TargetContentFolder, AssetRedirectorMap, ReportFunc, OutputFolderOverrides);
 
 	DatasmithConsumerUtils::SetMarker(SceneAsset->StaticMeshes, UDatasmithConsumer::ConsumerMarkerID, UniqueID);
-	DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->StaticMeshes, TargetContentFolder, AssetRedirectorMap, ReportFunc );
+	DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->StaticMeshes, TargetContentFolder, AssetRedirectorMap, ReportFunc, OutputFolderOverrides);
 
 	DatasmithConsumerUtils::SetMarker(SceneAsset->Materials, UDatasmithConsumer::ConsumerMarkerID, UniqueID);
-	PackagesToCheck.Append(DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->Materials, TargetContentFolder, AssetRedirectorMap, ReportFunc ));
+	PackagesToCheck.Append(DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->Materials, TargetContentFolder, AssetRedirectorMap, ReportFunc, OutputFolderOverrides));
 
 	DatasmithConsumerUtils::SetMarker(SceneAsset->MaterialFunctions, UDatasmithConsumer::ConsumerMarkerID, UniqueID);
-	DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->MaterialFunctions, TargetContentFolder, AssetRedirectorMap, ReportFunc );
+	DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->MaterialFunctions, TargetContentFolder, AssetRedirectorMap, ReportFunc, OutputFolderOverrides);
 
 	DatasmithConsumerUtils::SetMarker(SceneAsset->LevelSequences, UDatasmithConsumer::ConsumerMarkerID, UniqueID);
-	PackagesToFix.Append(DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->LevelSequences, TargetContentFolder, AssetRedirectorMap, ReportFunc ));
+	PackagesToFix.Append(DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->LevelSequences, TargetContentFolder, AssetRedirectorMap, ReportFunc, OutputFolderOverrides));
 
 	DatasmithConsumerUtils::SetMarker(SceneAsset->LevelVariantSets, UDatasmithConsumer::ConsumerMarkerID, UniqueID);
-	PackagesToFix.Append(DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->LevelVariantSets, TargetContentFolder, AssetRedirectorMap, ReportFunc ));
+	PackagesToFix.Append(DatasmithConsumerUtils::ApplyFolderDirective(SceneAsset->LevelVariantSets, TargetContentFolder, AssetRedirectorMap, ReportFunc, OutputFolderOverrides));
 
 	if(AssetRedirectorMap.Num() > 0 && PackagesToCheck.Num() > 0)
 	{
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 		AssetTools.RenameReferencingSoftObjectPaths(PackagesToCheck, AssetRedirectorMap);
+	}
+
+	// Remove empty output folders
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	TFunction<void(const FString&)> DeleteFolder = [&AssetRegistryModule](const FString& InFolderPath)
+	{
+		struct FEmptyFolderVisitor : public IPlatformFile::FDirectoryVisitor
+		{
+			bool bIsEmpty;
+
+			FEmptyFolderVisitor()
+				: bIsEmpty(true)
+			{
+			}
+
+			virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory) override
+			{
+				if (!bIsDirectory)
+				{
+					bIsEmpty = false;
+					return false; // abort searching
+				}
+
+				return true; // continue searching
+			}
+		};
+
+		bool bFolderWasRemoved = false;
+
+		FString PathToDeleteOnDisk;
+		if (FPackageName::TryConvertLongPackageNameToFilename(InFolderPath, PathToDeleteOnDisk))
+		{
+			// Look for files on disk in case the folder contains things not tracked by the asset registry
+			FEmptyFolderVisitor EmptyFolderVisitor;
+			IFileManager::Get().IterateDirectoryRecursively(*PathToDeleteOnDisk, EmptyFolderVisitor);
+
+			if (EmptyFolderVisitor.bIsEmpty)
+			{
+				bFolderWasRemoved = IFileManager::Get().DeleteDirectory(*PathToDeleteOnDisk, false, true);
+			}
+		}
+
+		if (bFolderWasRemoved)
+		{
+			AssetRegistryModule.Get().RemovePath(InFolderPath);
+		}
+	};
+
+	TArray<FString> SubPaths;
+
+	for (const FString& OuputFolder : OutputFolderOverrides)
+	{
+		SubPaths.Empty();
+		AssetRegistryModule.Get().GetSubPaths(OuputFolder, SubPaths, true);
+
+		// Sort to start from deeper folders first
+		SubPaths.Sort([](const FString& A, const FString& B) -> bool
+		{
+			return A.Len() > B.Len();
+		});
+
+		for(auto SubPathIt(SubPaths.CreateConstIterator()); SubPathIt; SubPathIt++)	
+		{
+			TArray<FAssetData> AssetsInFolder;
+			AssetRegistryModule.Get().GetAssetsByPath(FName(*SubPathIt), AssetsInFolder, true);
+			if (AssetsInFolder.Num() == 0)
+			{
+				DeleteFolder(*SubPathIt);
+			}
+		}
 	}
 
 	return true;
