@@ -24,6 +24,11 @@ public:
 		ArIgnoreArchetypeRef = true;
 	}
 
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
+	{
+		return InProperty->IsA<FMulticastDelegateProperty>() || FArchiveUObject::ShouldSkipProperty(InProperty);
+	}
+
 	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override
 	{
 		FArchive& Ar = *this;
@@ -44,7 +49,11 @@ public:
 			UPackage* Outermost = Object->GetOutermost();
 			if (!Outermost || Outermost->HasAnyPackageFlags(PKG_PlayInEditor))
 			{
-				Object->Serialize(*this);
+				// Skip instanced static mesh component as their impact on serialization is enormous and they don't contain lazy ptrs.
+				if (!Cast<UInstancedStaticMeshComponent>(Object))
+				{
+					Object->Serialize(*this);
+				}
 			}
 		}
 		return *this;
