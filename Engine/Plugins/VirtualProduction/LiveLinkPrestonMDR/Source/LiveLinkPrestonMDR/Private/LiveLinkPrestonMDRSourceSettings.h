@@ -23,6 +23,13 @@ struct FEncoderRange
 	uint16 Max = 0xFFFF;
 };
 
+UENUM()
+enum class EFIZDataMode : uint8
+{
+	EncoderData = 0,
+	CalibratedData = 1
+};
+
 UCLASS()
 class LIVELINKPRESTONMDR_API ULiveLinkPrestonMDRSourceSettings : public ULiveLinkSourceSettings
 {
@@ -31,7 +38,7 @@ public:
 
 	/** The mode in which the Preston MDR is configured to send FIZ data (pre-calibrated or raw encoder positions) */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	ECameraFIZMode IncomingDataMode = ECameraFIZMode::EncoderData;
+	EFIZDataMode IncomingDataMode = EFIZDataMode::EncoderData;
 
 	/** Raw focus encoder range */
 	UPROPERTY(EditAnywhere, Category = "Source")

@@ -128,11 +128,14 @@ public:
 	/** Removes a zoom point */
 	void RemoveZoomPoint(ELensDataCategory InDataCategory, float InFocus, float InZoom);
 
-	/** Removes all points in lens files */
+	/** Removes all points of all tables */
 	void ClearAll();
 
-	/** Returns number of samples in the distortion table */
-	int32 NumDistortionSamples () const;
+	/** Removes table associated to data category */
+	void ClearData(ELensDataCategory InDataCategory);
+
+	/** Returns whether a category has data samples */
+	bool HasSamples(ELensDataCategory InDataCategory) const;
 	
 protected:
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
@@ -215,7 +218,7 @@ protected:
 
 
 /**
- * Wrapper to facilitate default lensfile vs picker
+ * Wrapper to facilitate default LensFile vs picker
  */
 USTRUCT(BlueprintType)
 struct CAMERACALIBRATIONCORE_API FLensFilePicker
@@ -228,11 +231,12 @@ public:
 	ULensFile* GetLensFile() const;
 
 public:
-	/** You can override lens file to use if the default one is not desired */
-	UPROPERTY(BlueprintReadWrite, Category = "Lens File")
-	bool bOverrideDefaultLensFile = false;
+	/** If true, default LensFile will be used, if one is set */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens File")
+	bool bUseDefaultLensFile = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens File", Meta = (EditCondition = "bOverrideDefaultLensFile"))
+	/** LensFile asset to use if DefaultLensFile is not desired */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens File", Meta = (EditCondition = "!bUseDefaultLensFile"))
 	ULensFile* LensFile = nullptr;
 };
 

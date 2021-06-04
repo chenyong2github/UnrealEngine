@@ -79,9 +79,6 @@ public:
 #endif	
 	//~ End UObject interface
 
-	/** Returns true if encoder mapping is required for FIZ data */
-	bool IsEncoderMappingNeeded() const { return bIsEncoderMappingNeeded; }
-
 	/** Returns a const reference to input data used to evaluate the lens file */
 	const FLensFileEvalData& GetLensFileEvalDataRef() const;
 
@@ -110,15 +107,17 @@ public:
 	FLiveLinkTransformControllerData TransformData_DEPRECATED;
 #endif
 
-	/** Should encoder mapping (normalized to physical units) be done using lens file or camera component range */
+	/**
+	 * Should LiveLink inputs be remapped (i.e normalized to physical units) using camera component range
+	 */
 	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
-	bool bUseLensFileForEncoderMapping = true;
+	bool bUseCameraRange = false;
 
 	/** Asset containing encoder and fiz mapping */
 	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
 	FLensFilePicker LensFilePicker;
 
-	/** Apply nodel offset from lens file if enabled */
+	/** Apply nodal offset from lens file if enabled */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera Calibration")
 	bool bApplyNodalOffset = true;
 
@@ -155,12 +154,6 @@ protected:
 	FLensFileEvalData LensFileEvalData;
 
 private:
-	/** Whether incoming data requires encoder mapping */
-	bool bIsEncoderMappingNeeded = false;
-
-	/** Timestamp when we made the last warning log. Intervals to avoid log spamming */
-	double LastInvalidLoggingLoggedTimestamp = 0.0f;
-	static constexpr float TimeBetweenLoggingSeconds = 10.0f;
 
 	//Last values used to detect changes made by the user and update our original caches
 	FCameraFilmbackSettings LastFilmback;

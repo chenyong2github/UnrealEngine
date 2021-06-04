@@ -1,19 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkCameraControllerCustomization.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Images/SImage.h"
-#include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
+
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "../../LiveLinkCamera/Public/LiveLinkCameraController.h"
+#include "DetailWidgetRow.h"
+#include "EditorStyleSet.h"
+#include "IDetailPropertyRow.h"
+#include "LiveLinkCameraController.h"
 #include "LiveLinkComponents/Public/LiveLinkComponentController.h"
+#include "Modules/ModuleManager.h"
 #include "Roles/LiveLinkCameraRole.h"
+#include "Styling/CoreStyle.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "FFileMediaSourceCustomization"
@@ -82,33 +83,6 @@ void FLiveLinkCameraControllerCustomization::CustomizeDetails(IDetailLayoutBuild
 	}
 #endif
 
-}
-
-
-/* FFileMediaSourceCustomization callbacks
- *****************************************************************************/
-
-EVisibility FLiveLinkCameraControllerCustomization::HandleEncoderMappingWarningIconVisibility() const
-{
-	EVisibility NewVisibility = EVisibility::Hidden;
-	if (ULiveLinkComponentController* Component = EditedObject.Get())
-	{
-		if (ULiveLinkControllerBase** BasePtr = Component->ControllerMap.Find(ULiveLinkCameraRole::StaticClass()))
-		{
-			if (ULiveLinkCameraController* CameraController = Cast<ULiveLinkCameraController>(*BasePtr))
-			{
-				if (CameraController->IsEncoderMappingNeeded())
-				{
-					if (CameraController->LensFilePicker.GetLensFile() == nullptr)
-					{
-						NewVisibility = EVisibility::Visible;
-					}
-				}
-			}
-		}
-	}
-	
-	return NewVisibility;
 }
 
 

@@ -265,8 +265,6 @@ void FLiveLinkPrestonMDRSource::UpdateStaticData_AnyThread()
 	FLiveLinkStaticDataStruct PrestonMDRStaticDataStruct(FLiveLinkPrestonMDRStaticData::StaticStruct());
 	FLiveLinkPrestonMDRStaticData* PrestonMDRStaticData = PrestonMDRStaticDataStruct.Cast<FLiveLinkPrestonMDRStaticData>();
 
-	PrestonMDRStaticData->FIZDataMode = SavedSourceSettings->IncomingDataMode;
-
 	PrestonMDRStaticData->bIsFocalLengthSupported = LatestMDRStatus.bIsZoomMotorSet;
 	PrestonMDRStaticData->bIsApertureSupported = LatestMDRStatus.bIsIrisMotorSet;
 	PrestonMDRStaticData->bIsFocusDistanceSupported = LatestMDRStatus.bIsFocusMotorSet;
@@ -289,7 +287,7 @@ void FLiveLinkPrestonMDRSource::OnFrameDataReady_AnyThread(FLensDataPacket InDat
 	LensFrameData->WorldTime = LastTimeDataReceived.load();
 	LensFrameData->MetaData.SceneTime = InData.FrameTime;
 
-	if (SavedSourceSettings->IncomingDataMode == ECameraFIZMode::PreConvertedData)
+	if (SavedSourceSettings->IncomingDataMode == EFIZDataMode::CalibratedData)
 	{
 		LensFrameData->RawFocusEncoderValue = 0;
 		LensFrameData->RawIrisEncoderValue = 0;

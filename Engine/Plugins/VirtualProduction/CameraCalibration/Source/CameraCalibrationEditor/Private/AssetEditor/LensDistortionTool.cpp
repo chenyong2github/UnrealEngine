@@ -6,6 +6,7 @@
 #include "CameraCalibrationTypes.h"
 #include "CameraLensDistortionAlgo.h"
 #include "LensFile.h"
+#include "LensInfoStep.h"
 #include "Misc/MessageDialog.h"
 #include "Models/SphericalLensModel.h"
 #include "SLensDistortionToolPanel.h"
@@ -70,7 +71,7 @@ TSharedRef<SWidget> ULensDistortionTool::BuildUI()
 
 bool ULensDistortionTool::DependsOnStep(UCameraCalibrationStep* Step) const
 {
-	return false;
+	return Cast<ULensInfoStep>(Step) != nullptr;
 }
 
 void ULensDistortionTool::Activate()
@@ -203,7 +204,7 @@ void ULensDistortionTool::OnSaveCurrentCalibrationData()
 		}
 	}
 
-	if (LensFile->NumDistortionSamples() && LensFile->LensInfo.LensModel != LensModel)
+	if (LensFile->HasSamples(ELensDataCategory::Distortion) && LensFile->LensInfo.LensModel != LensModel)
 	{
 		const FText ErrorMessage = LOCTEXT("LensDistortionModelMismatch", "There is a distortion model mismatch between the new and existing samples");
 		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);

@@ -29,18 +29,14 @@ void UCameraCalibrationSubsystem::SetDefaultLensFile(ULensFile* NewDefaultLensFi
 
 ULensFile* UCameraCalibrationSubsystem::GetLensFile(const FLensFilePicker& Picker) const
 {
-	ULensFile* ReturnedLens = nullptr;
-
-	if (Picker.bOverrideDefaultLensFile)
+	if (Picker.bUseDefaultLensFile)
 	{
-		ReturnedLens = Picker.LensFile;
+		return GetDefaultLensFile();
 	}
 	else
 	{
-		ReturnedLens = GetDefaultLensFile();
+		return Picker.LensFile;
 	}
-
-	return ReturnedLens;
 }
 
 TArray<ULensDistortionModelHandlerBase*> UCameraCalibrationSubsystem::GetDistortionModelHandlers(UCineCameraComponent* Component)

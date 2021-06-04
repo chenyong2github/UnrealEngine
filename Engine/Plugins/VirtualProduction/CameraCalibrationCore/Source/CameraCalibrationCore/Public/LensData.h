@@ -22,6 +22,15 @@ struct CAMERACALIBRATIONCORE_API FLensInfo
 	GENERATED_BODY()
 
 public:
+	bool operator==(const FLensInfo& Other) const
+	{
+		return LensModelName == Other.LensModelName
+			&& LensSerialNumber == Other.LensSerialNumber
+			&& LensModel == Other.LensModel
+			&& SensorDimensions == Other.SensorDimensions;
+	}
+	
+public:
 
 	/** Model name of the lens */
 	UPROPERTY(EditAnywhere, Category = "Lens Info")

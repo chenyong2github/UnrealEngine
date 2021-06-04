@@ -35,7 +35,7 @@ void FPrestonMDRMessageThread::SetSocket_AnyThread(FSocket* InSocket)
 	LastTimeDataReceived = FPlatformTime::Seconds();
 }
 
-void FPrestonMDRMessageThread::SetIncomingDataMode_AnyThread(ECameraFIZMode InDataMode)
+void FPrestonMDRMessageThread::SetIncomingDataMode_AnyThread(EFIZDataMode InDataMode)
 {
 	DataDescriptionSettings.LensDataMode = InDataMode;
 	UpdateDataDescriptionMessage_AnyThread();
@@ -671,7 +671,7 @@ uint8 FPrestonMDRMessageThread::GetDataDescritionSettings()
 {
 	uint8 Result = 0;
 	Result = DataDescriptionSettings.bContainsMDRStatus ? Result | static_cast<uint8>(EDataMessageBitmask::Status) : Result;
-	Result = (DataDescriptionSettings.LensDataMode == ECameraFIZMode::EncoderData) ? Result | static_cast<uint8>(EDataMessageBitmask::Mode) : Result;
+	Result = (DataDescriptionSettings.LensDataMode == EFIZDataMode::EncoderData) ? Result | static_cast<uint8>(EDataMessageBitmask::Mode) : Result;
 	Result = DataDescriptionSettings.bContainsDistance ? Result | static_cast<uint8>(EDataMessageBitmask::Distance) : Result;
 	Result = DataDescriptionSettings.bContainsSpeed ? Result | static_cast<uint8>(EDataMessageBitmask::Speed) : Result;
 	Result = DataDescriptionSettings.bContainsAux ? Result | static_cast<uint8>(EDataMessageBitmask::AUX) : Result;
