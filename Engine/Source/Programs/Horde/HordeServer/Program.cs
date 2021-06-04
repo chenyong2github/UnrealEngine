@@ -59,11 +59,11 @@ namespace HordeServer
 
 	class Program
 	{
-		public static DirectoryReference DataDir = GetDefaultDataDir();
+		public static DirectoryReference AppDir { get; } = GetAppDir();
+
+		public static DirectoryReference DataDir { get; } = GetDefaultDataDir();
 
 		public static FileReference UserConfigFile { get; } = FileReference.Combine(GetDefaultDataDir(), "Horde.json");
-
-		public static DirectoryReference AppDir { get; } = new FileReference(Assembly.GetExecutingAssembly().Location).Directory;
 
 		public static Type[] ConfigSchemas = FindSchemaTypes();
 
@@ -192,6 +192,15 @@ namespace HordeServer
 		}
 
 		/// <summary>
+		/// Get the application directory
+		/// </summary>
+		/// <returns></returns>
+		static DirectoryReference GetAppDir()
+		{
+			return new FileReference(Assembly.GetExecutingAssembly().Location).Directory;
+		}
+
+		/// <summary>
 		/// Gets the default directory for storing application data
 		/// </summary>
 		/// <returns>The default data directory</returns>
@@ -205,7 +214,7 @@ namespace HordeServer
 					return DirectoryReference.Combine(Dir, "Horde");
 				}
 			}
-			return DirectoryReference.Combine(AppDir, "Data");
+			return DirectoryReference.Combine(GetAppDir(), "Data");
 		}
 	}
 }
