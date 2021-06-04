@@ -388,6 +388,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
 	
+	const bool bSingleView = (Views.Num() == 1);
 	for (FViewInfo& View : Views)
 	{
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
@@ -395,9 +396,9 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		// TODO: enum cvar. 
 		const bool bApplyRTGI = ShouldRenderRayTracingGlobalIllumination(View);
 		const bool bApplyPluginGI = CVarGlobalIlluminationExperimentalPluginEnable.GetValueOnRenderThread();
-		const bool bApplySSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
+		const bool bApplySSGI = ShouldRenderScreenSpaceDiffuseIndirect(View) && bSingleView; // TODO: support multiple view SSGI
 		const bool bApplySSAO = SceneContext.bScreenSpaceAOIsValid;
-		const bool bApplyRTAO = ShouldRenderRayTracingAmbientOcclusion(View) && Views.Num() == 1; //#dxr_todo: enable RTAO in multiview mode
+		const bool bApplyRTAO = ShouldRenderRayTracingAmbientOcclusion(View) && bSingleView; //#dxr_todo: enable RTAO in multiview mode
 
 		int32 DenoiseMode = CVarDiffuseIndirectDenoiser.GetValueOnRenderThread();
 
@@ -503,7 +504,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		if (DenoiserOutputs.AmbientOcclusionMask)
 		{
 			//ensureMsgf(!bApplySSAO, TEXT("Looks like SSAO has been computed for this view but is being overridden."));
-			ensureMsgf(Views.Num() == 1, TEXT("Need to add support for one AO texture per view in FSceneRenderTargets")); // TODO.
+			ensureMsgf(bSingleView, TEXT("Need to add support for one AO texture per view in FSceneRenderTargets")); // TODO.
 
 			ConvertToExternalTexture(GraphBuilder, DenoiserOutputs.AmbientOcclusionMask, SceneContext.ScreenSpaceAO);
 			SceneContext.bScreenSpaceAOIsValid = true;
