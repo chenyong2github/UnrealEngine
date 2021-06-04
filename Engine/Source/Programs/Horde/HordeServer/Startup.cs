@@ -263,6 +263,7 @@ namespace HordeServer
 			RedisService RedisService = new RedisService(Settings);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 			Services.AddSingleton<RedisService>(SP => RedisService);
+			Services.AddSingleton<IDatabase>(RedisService.Database);
 			Services.AddSingleton<ConnectionMultiplexer>(SP => RedisService.Multiplexer);
 			Services.AddDataProtection().PersistKeysToStackExchangeRedis(() => RedisService.Database, "aspnet-data-protection");
 
