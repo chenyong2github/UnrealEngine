@@ -6,6 +6,7 @@
 #include "Engine/EngineTypes.h"
 #include "SceneTypes.h"
 #include "RenderResource.h"
+#include "RenderTransform.h"
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
 #include "Containers/StaticArray.h"
@@ -36,49 +37,28 @@ public:
 	}
 };
 
-FORCEINLINE FVector3f OrthonormalizeTransform(FMatrix44f& Matrix)
-{
-	FVector3f X, Y, Z, Origin;
-	Matrix.GetScaledAxes(X, Y, Z);
-	Origin = Matrix.GetOrigin();
-
-	// Modified Gram-Schmidt orthogonalization
-	Y -= (Y | X) / (X | X) * X;
-	Z -= (Z | X) / (X | X) * X;
-	Z -= (Z | Y) / (Y | Y) * Y;
-
-	Matrix = FMatrix44f(X, Y, Z, Origin);
-
-	// Extract per axis scales
-	FVector3f Scale;
-	Scale.X = X.Size();
-	Scale.Y = Y.Size();
-	Scale.Z = Z.Size();
-	return Scale;
-}
-
 struct FPrimitiveInstance
 {
-	FMatrix44f			InstanceToLocal; 
-	FMatrix44f			PrevInstanceToLocal;
-	FMatrix44f			LocalToWorld;
-	FMatrix44f			PrevLocalToWorld;
-	FVector4			NonUniformScale;
-	FVector3f			InvNonUniformScale;
-	FBoxSphereBounds	RenderBounds;
-	uint32				LastUpdateSceneFrameNumber;
-	FBoxSphereBounds	LocalBounds;
-	float				PerInstanceRandom;
-	FVector4			LightMapAndShadowMapUVBias;
-	FNaniteInfo			NaniteInfo;
-	uint32				PrimitiveId;
-	uint32				Flags;
+	FRenderTransform		InstanceToLocal;
+	FRenderTransform		PrevInstanceToLocal;
+	FRenderTransform		LocalToWorld;
+	FRenderTransform		PrevLocalToWorld;
+	FVector4				NonUniformScale;
+	FVector3f				InvNonUniformScale;
+	FBoxSphereBounds		RenderBounds;
+	uint32					LastUpdateSceneFrameNumber;
+	FBoxSphereBounds		LocalBounds;
+	float					PerInstanceRandom;
+	FVector4				LightMapAndShadowMapUVBias;
+	FNaniteInfo				NaniteInfo;
+	uint32					PrimitiveId;
+	uint32					Flags;
 
 	FORCEINLINE void OrthonormalizeAndUpdateScale()
 	{
 		// Remove shear
-		const FVector3f Scale = OrthonormalizeTransform(LocalToWorld);
-		OrthonormalizeTransform(PrevLocalToWorld);
+		const FVector3f Scale = LocalToWorld.Orthonormalize();
+		PrevLocalToWorld.Orthonormalize();
 
 		NonUniformScale = FVector4(
 			Scale.X, Scale.Y, Scale.Z,
@@ -91,7 +71,7 @@ struct FPrimitiveInstance
 			Scale.Z > KINDA_SMALL_NUMBER ? 1.0f / Scale.Z : 0.0f
 		);
 
-		if (LocalToWorld.RotDeterminant() < 0.0)
+		if (LocalToWorld.RotDeterminant() < 0.0f)
 		{
 			Flags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
 		}
@@ -102,16 +82,11 @@ struct FPrimitiveInstance
 	}
 };
 
-FORCEINLINE uint32 GetDeterminantSignFlag(float DeterminantSign)
-{
-	return DeterminantSign < 0.0f ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
-}
-
 FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
-	const FMatrix& LocalToWorld,
-	const FMatrix& PrevLocalToWorld,
-	const FVector& LocalObjectBoundsMin,
-	const FVector& LocalObjectBoundsMax,
+	const FRenderTransform& LocalToWorld,
+	const FRenderTransform& PrevLocalToWorld,
+	const FVector3f& LocalObjectBoundsMin,
+	const FVector3f& LocalObjectBoundsMax,
 	const FVector4& NonUniformScale,
 	const FVector3f& InvNonUniformScale,
 	const FVector4& LightMapAndShadowMapUVBias,
@@ -125,8 +100,8 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 	const FBox LocalObjectBounds = FBox(LocalObjectBoundsMin, LocalObjectBoundsMax);
 
 	FPrimitiveInstance Result;
-	Result.LocalToWorld							= (FMatrix44f)LocalToWorld;
-	Result.PrevLocalToWorld						= (FMatrix44f)PrevLocalToWorld;
+	Result.LocalToWorld							= LocalToWorld;
+	Result.PrevLocalToWorld						= PrevLocalToWorld;
 	Result.NonUniformScale						= NonUniformScale;
 	Result.InvNonUniformScale					= InvNonUniformScale;
 	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
@@ -152,10 +127,10 @@ struct FInstanceSceneShaderData
 		: Data(InPlace, NoInit)
 	{
 		Setup(ConstructPrimitiveInstance(
-			FMatrix::Identity,
-			FMatrix::Identity,
-			FVector::ZeroVector,
-			FVector::ZeroVector,
+			FRenderTransform::Identity,
+			FRenderTransform::Identity,
+			FVector3f::ZeroVector,
+			FVector3f::ZeroVector,
 			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
 			FVector3f(1.0f, 1.0f, 1.0f),
 			FVector4(ForceInitToZero),

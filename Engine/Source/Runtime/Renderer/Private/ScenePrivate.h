@@ -1703,14 +1703,15 @@ class FPrimitiveAndInstance
 {
 public:
 
-	FPrimitiveAndInstance(const FMatrix& InLocalToWorld, const FBox& InWorldBounds, FPrimitiveSceneInfo* InPrimitive, int32 InInstanceIndex) :
-		LocalToWorld(InLocalToWorld),
-		WorldBounds(InWorldBounds),
-		InstanceIndex(InInstanceIndex),
-		Primitive(InPrimitive)
-	{}
+	FPrimitiveAndInstance(const FRenderTransform& InLocalToWorld, const FBox& InWorldBounds, FPrimitiveSceneInfo* InPrimitive, int32 InInstanceIndex)
+	: LocalToWorld(InLocalToWorld)
+	, WorldBounds(InWorldBounds)
+	, InstanceIndex(InInstanceIndex)
+	, Primitive(InPrimitive)
+	{
+	}
 
-	FMatrix LocalToWorld;
+	FRenderTransform LocalToWorld;
 	FBox WorldBounds;
 	int32 InstanceIndex;
 	FPrimitiveSceneInfo* Primitive;
@@ -1719,13 +1720,13 @@ public:
 class FPrimitiveRemoveInfo
 {
 public:
-	FPrimitiveRemoveInfo(const FPrimitiveSceneInfo* InPrimitive) :
-		Primitive(InPrimitive),
-		bOftenMoving(InPrimitive->Proxy->IsOftenMoving()),
-		DistanceFieldInstanceIndices(Primitive->DistanceFieldInstanceIndices)
+	FPrimitiveRemoveInfo(const FPrimitiveSceneInfo* InPrimitive)
+	: Primitive(InPrimitive)
+	, bOftenMoving(InPrimitive->Proxy->IsOftenMoving())
+	, DistanceFieldInstanceIndices(Primitive->DistanceFieldInstanceIndices)
 	{
 		float SelfShadowBias;
-		InPrimitive->Proxy->GetDistancefieldAtlasData(DistanceFieldData, SelfShadowBias);
+		InPrimitive->Proxy->GetDistanceFieldAtlasData(DistanceFieldData, SelfShadowBias);
 	}
 
 	/** 

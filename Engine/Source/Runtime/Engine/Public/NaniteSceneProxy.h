@@ -118,8 +118,8 @@ public:
 		LCIs.Add(LCI);
 	}
 
-	virtual void GetDistancefieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
-	virtual void GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const override;
+	virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
+	virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectLocalToWorldTransforms) const override;
 	virtual bool HasDistanceFieldRepresentation() const override;
 
 	virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;

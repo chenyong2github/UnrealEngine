@@ -408,10 +408,10 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 			for (int32 InstanceIdx = 0; InstanceIdx < NumInstancesThisGroup; InstanceIdx++)
 			{
-				FMatrix Transform;
+				FRenderTransform Transform;
 				InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
-				Transform.M[3][3] = 1.0f;
-				FMatrix InstanceTransform = Transform * InstanceGroup.LocalToWorld;
+
+				FRenderTransform InstanceTransform = Transform * InstanceGroup.LocalToWorld;
 
 				FPrimitiveInstance Instance;
 				Instance.PrimitiveId = PrimitiveId;
@@ -420,7 +420,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				Instance.LocalToWorld = InstanceTransform;
 				Instance.PrevLocalToWorld = InstanceTransform;
 				Instance.RenderBounds = InstanceGroup.RenderData->Bounds;
-				Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+				Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
 
 				InstanceSceneData.Add(FInstanceSceneShaderData(Instance));
 			}
@@ -665,12 +665,10 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 					for (int32 InstanceIdx = 0; InstanceIdx < NumInstances; InstanceIdx++)
 					{
-						FMatrix Transform;
+						FRenderTransform Transform;
 						InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
-						Transform.M[3][3] = 1.0f; // GPUCULL_TODO: GetInstanceTransform currently sets this to 0 due to *reasons*
 
-						FMatrix InstanceTransform = Transform * InstanceGroup.LocalToWorld;
-
+						FMatrix InstanceTransform = Transform.ToMatrix() * InstanceGroup.LocalToWorld;
 						NewTransforms[InstanceIdx] = InstanceTransform;
 					}
 

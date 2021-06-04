@@ -3296,9 +3296,9 @@ static void GatherInstanceTransformsInArea(const UHierarchicalInstancedStaticMes
 						if (Component.PerInstanceRenderData->InstanceBuffer.RequireCPUAccess)
 						{
 							// if there's no PerInstanceSMData (e.g. for grass), we'll go get the transform from the render buffer
-							FMatrix XformMat;
+							FRenderTransform XformMat;
 							Component.PerInstanceRenderData->InstanceBuffer_GameThread->GetInstanceTransform(i, XformMat);
-							InstanceToComponent = FTransform(XformMat);
+							InstanceToComponent = FTransform(XformMat.ToMatrix());
 						}
 						else
 						{

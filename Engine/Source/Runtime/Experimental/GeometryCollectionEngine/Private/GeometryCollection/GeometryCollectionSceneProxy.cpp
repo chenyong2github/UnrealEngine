@@ -1294,7 +1294,7 @@ void FNaniteGeometryCollectionSceneProxy::OnTransformChanged()
 	}
 
 	// Primitive has moved, so update all instance transforms
-	const FMatrix ParentLocalToWorld = GetLocalToWorld();
+	const FMatrix& ParentLocalToWorld = GetLocalToWorld();
 	if (bCurrentlyInMotion)
 	{
 		for (FPrimitiveInstance& Instance : Instances)
@@ -1341,7 +1341,7 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 		Instance.PrevLocalToWorld		= Instance.LocalToWorld;
 		Instance.PrimitiveId			= NaniteData.PrimitiveId;
 		Instance.RenderBounds			= NaniteData.RenderBounds;
-		Instance.LocalBounds			= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+		Instance.LocalBounds			= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
 		Instance.NaniteInfo				= NaniteData.NaniteInfo;
 	}
 
@@ -1412,7 +1412,7 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 			}
 			
 			Instance.LocalToWorld				= Instance.InstanceToLocal * ParentLocalToWorld;
-			Instance.LocalBounds				= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+			Instance.LocalBounds				= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
 			Instance.PrimitiveId				= NaniteData.PrimitiveId;
 			Instance.RenderBounds				= NaniteData.RenderBounds;
 			Instance.NaniteInfo					= NaniteData.NaniteInfo;

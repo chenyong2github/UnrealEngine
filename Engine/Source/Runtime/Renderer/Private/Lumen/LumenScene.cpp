@@ -645,7 +645,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					{
 						const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
 						LocalBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
-						LocalToWorld = PrimitiveInstance.InstanceToLocal * PrimitiveLocalToWorld;
+						LocalToWorld = PrimitiveInstance.InstanceToLocal.ToMatrix() * PrimitiveLocalToWorld;
 					}
 
 					if (TrackPrimitiveInstanceForLumenScene(LocalToWorld, LocalBoundingBox))
@@ -723,7 +723,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 							{
 								const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
-								const FBox InstanceLocalBounds = Instance.RenderBounds.GetBox().TransformBy(Instance.InstanceToLocal);
+								const FBox InstanceLocalBounds = Instance.RenderBounds.GetBox().TransformBy(Instance.InstanceToLocal.ToMatrix());
 								LocalBounds += InstanceLocalBounds;
 								const double InstanceSurfaceArea = BoxSurfaceArea(InstanceLocalBounds.GetExtent());
 								TotalInstanceSurfaceArea += InstanceSurfaceArea;
@@ -779,7 +779,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
 								PrimitiveGroup.PrimitiveInstanceIndex = InstanceIndex;
 								PrimitiveGroup.CardResolutionScale = 1.0f;
-								PrimitiveGroup.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.InstanceToLocal * LocalToWorld);
+								PrimitiveGroup.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.InstanceToLocal.ToMatrix() * LocalToWorld);
 								PrimitiveGroup.MeshCardsIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.Primitives.Reset();
@@ -832,7 +832,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						if (PrimitiveInstances && PrimitiveGroup.PrimitiveInstanceIndex < PrimitiveInstances->Num())
 						{
 							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[PrimitiveGroup.PrimitiveInstanceIndex];
-							WorldSpaceBoundingBox = PrimitiveInstance.RenderBounds.GetBox().TransformBy(PrimitiveInstance.InstanceToLocal * PrimitiveLocalToWorld);
+							WorldSpaceBoundingBox = PrimitiveInstance.RenderBounds.GetBox().TransformBy(PrimitiveInstance.InstanceToLocal.ToMatrix() * PrimitiveLocalToWorld);
 						}
 
 						PrimitiveGroup.WorldSpaceBoundingBox = WorldSpaceBoundingBox;

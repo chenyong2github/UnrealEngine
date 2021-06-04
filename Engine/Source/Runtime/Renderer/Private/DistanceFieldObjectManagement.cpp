@@ -361,7 +361,7 @@ bool ProcessPrimitiveUpdate(
 	bool bIsAddOperation,
 	FScene* Scene,
 	FPrimitiveSceneInfo* PrimitiveSceneInfo,
-	TArray<FMatrix>& ObjectLocalToWorldTransforms,
+	TArray<FRenderTransform>& ObjectLocalToWorldTransforms,
 	TArray<int32>& IndicesToUpdateInObjectBuffers, 
 	TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetAdds,
 	TArray<FSetElementId>& DistanceFieldAssetRemoves)
@@ -372,8 +372,8 @@ bool ProcessPrimitiveUpdate(
 
 	const FDistanceFieldVolumeData* DistanceFieldData = nullptr;
 	float SelfShadowBias;
-	PrimitiveSceneInfo->Proxy->GetDistancefieldAtlasData(DistanceFieldData, SelfShadowBias);
-	PrimitiveSceneInfo->Proxy->GetDistancefieldInstanceData(ObjectLocalToWorldTransforms);	
+	PrimitiveSceneInfo->Proxy->GetDistanceFieldAtlasData(DistanceFieldData, SelfShadowBias);
+	PrimitiveSceneInfo->Proxy->GetDistanceFieldInstanceData(ObjectLocalToWorldTransforms);	
 
 	if (DistanceFieldData && DistanceFieldData->Mips[0].IndirectionDimensions.GetMax() > 0 && ObjectLocalToWorldTransforms.Num() > 0)
 	{
@@ -412,7 +412,9 @@ bool ProcessPrimitiveUpdate(
 
 			for (int32 TransformIndex = 0; TransformIndex < ObjectLocalToWorldTransforms.Num(); TransformIndex++)
 			{
-				const FMatrix& LocalToWorld = ObjectLocalToWorldTransforms[TransformIndex];
+				const FRenderTransform& LocalToWorldTransform = ObjectLocalToWorldTransforms[TransformIndex];
+				const FMatrix LocalToWorld = LocalToWorldTransform.ToMatrix();
+
 				const float MaxScale = LocalToWorld.GetMaximumAxisScale();
 
 				// Skip degenerate primitives
@@ -453,7 +455,7 @@ bool ProcessPrimitiveUpdate(
 
 							// Filter out global distance field updates which were too small
 							if (!Mapping.WorldBounds.GetExtent().Equals(WorldBounds.GetExtent(), 0.01f)
-								|| !Mapping.LocalToWorld.Equals(LocalToWorld, 0.01f))
+								|| !Mapping.LocalToWorld.Equals(LocalToWorldTransform, 0.01f))
 							{
 								// decide if we want to make a single global distance field update or two updates for large movement (teleport) case
 								const FBox MergedBounds = Mapping.WorldBounds + WorldBounds;
@@ -571,7 +573,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 		if ((PendingAddOperations.Num() > 0 || PendingUpdateOperations.Num() > 0) && GDFReverseAtlasAllocationOrder == GDFPreviousReverseAtlasAllocationOrder)
 		{
-			TArray<FMatrix> ObjectLocalToWorldTransforms;
+			TArray<FRenderTransform> ObjectLocalToWorldTransforms;
 
 			int32 OriginalNumObjects = NumObjectsInBuffer;
 			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PendingAddOperations)
@@ -669,11 +671,11 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									const FDistanceFieldVolumeData* DistanceFieldData = nullptr;
 									float SelfShadowBias;
-									PrimitiveSceneProxy->GetDistancefieldAtlasData(DistanceFieldData, SelfShadowBias);
+									PrimitiveSceneProxy->GetDistanceFieldAtlasData(DistanceFieldData, SelfShadowBias);
 
 									const FBox LocalSpaceMeshBounds = DistanceFieldData->LocalSpaceMeshBounds;
 			
-									const FMatrix LocalToWorld = PrimAndInst.LocalToWorld;
+									const FMatrix LocalToWorld = PrimAndInst.LocalToWorld.ToMatrix();
 									const FBox WorldSpaceMeshBounds = LocalSpaceMeshBounds.TransformBy(LocalToWorld);
 
 									const FVector4 ObjectBoundingSphere(WorldSpaceMeshBounds.GetCenter(), WorldSpaceMeshBounds.GetExtent().Size());
