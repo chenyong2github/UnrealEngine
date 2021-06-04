@@ -53,14 +53,32 @@ namespace HordeServer.Utilities
 		public string Description { get; set; }
 
 		/// <summary>
+		/// File patterns to match
+		/// </summary>
+		public string[]? FileMatch { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Name"></param>
 		/// <param name="Description"></param>
-		public JsonSchemaCatalogAttribute(string Name, string Description)
+		/// <param name="FileMatch">File patterns to match</param>
+		public JsonSchemaCatalogAttribute(string Name, string Description, string? FileMatch)
+			: this(Name, Description, (FileMatch == null) ? (string[]?)null : new[] { FileMatch })
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="Description"></param>
+		/// <param name="FileMatch">File patterns to match</param>
+		public JsonSchemaCatalogAttribute(string Name, string Description, string[]? FileMatch)
 		{
 			this.Name = Name;
 			this.Description = Description;
+			this.FileMatch = FileMatch;
 		}
 	}
 
