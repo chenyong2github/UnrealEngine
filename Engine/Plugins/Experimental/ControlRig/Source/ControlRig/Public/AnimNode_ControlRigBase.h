@@ -92,6 +92,7 @@ protected:
 	// The below is alpha value support for control rig
 	float InternalBlendAlpha;
 
+	virtual bool CanExecute();
 	// update input/output to control rig
 	virtual void UpdateInput(UControlRig* ControlRig, const FPoseContext& InOutput);
 	virtual void UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput);

@@ -84,6 +84,10 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
+
+	/** Is valid for execution */
+	UFUNCTION(BlueprintPure, Category="Control Rig")
+	virtual bool CanExecute() const;
 	
 	/** Set the current delta time */
 	UFUNCTION(BlueprintCallable, Category="Control Rig")

@@ -24,17 +24,21 @@ friend FORCEINLINE T* Cast(ElementType* InElement) \
    return Cast<T>((FRigBaseElement*) InElement); \
 }
 
+UENUM()
 namespace ERigTransformType
 {
 	enum Type
 	{
 		InitialLocal,
-        CurrentLocal,
-        InitialGlobal,
-        CurrentGlobal,
+		CurrentLocal,
+		InitialGlobal,
+		CurrentGlobal,
 		NumTransformTypes
 	};
+}
 
+namespace ERigTransformType
+{
 	FORCEINLINE ERigTransformType::Type SwapCurrentAndInitial(const Type InTransformType)
 	{
 		switch(InTransformType)

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigHierarchy.h"
+#include "ControlRig.h"
+
 #include "Rigs/RigHierarchyElements.h"
 #include "Rigs/RigHierarchyController.h"
 #include "Units/RigUnitContext.h"
@@ -10,7 +12,63 @@
 #include "Serialization/MemoryWriter.h"
 
 #if WITH_EDITOR
-	#include "ScopedTransaction.h"
+
+#include "ScopedTransaction.h"
+#include "HAL/PlatformStackWalk.h"
+#include "HAL/PlatformFileManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "JsonObjectConverter.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+
+static FCriticalSection GRigHierarchyStackTraceMutex;
+static char GRigHierarchyStackTrace[65536];
+static void RigHierarchyCaptureCallStack(FString& OutCallstack, uint32 NumCallsToIgnore)
+{
+	FScopeLock ScopeLock(&GRigHierarchyStackTraceMutex);
+	GRigHierarchyStackTrace[0] = 0;
+	FPlatformStackWalk::StackWalkAndDump(GRigHierarchyStackTrace, 65535, 1 + NumCallsToIgnore);
+	OutCallstack = ANSI_TO_TCHAR(GRigHierarchyStackTrace);
+}
+
+// CVar to record all transform changes 
+static TAutoConsoleVariable<int32> CVarControlRigHierarchyTraceAlways(TEXT("ControlRig.Hierarchy.TraceAlways"), 0, TEXT("if nonzero we will record all transform changes."));
+static TAutoConsoleVariable<int32> CVarControlRigHierarchyTraceCallstack(TEXT("ControlRig.Hierarchy.TraceCallstack"), 0, TEXT("if nonzero we will record the callstack for any trace entry.\nOnly works if(ControlRig.Hierarchy.TraceEnabled != 0)"));
+
+// A console command to trace a single frame / single execution for a control rig anim node / control rig component
+FAutoConsoleCommandWithWorldAndArgs FCmdControlRigHierarchyTraceFrames
+(
+	TEXT("ControlRig.Hierarchy.Trace"),
+	TEXT("Traces changes in a hierarchy for a provided number of executions (defaults to 1).\nYou can use ControlRig.Hierarchy.TraceCallstack to enable callstack tracing as part of this."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& InParams, UWorld* InWorld)
+	{
+		int32 NumFrames = 1;
+		if(InParams.Num() > 0)
+		{
+			NumFrames = FCString::Atoi(*InParams[0]);
+		}
+		
+		TArray<UObject*> Instances;
+		URigHierarchy::StaticClass()->GetDefaultObject()->GetArchetypeInstances(Instances);
+
+		for(UObject* Instance : Instances)
+		{
+			if (Instance->HasAnyFlags(RF_ClassDefaultObject))
+			{
+				continue;
+			}
+			
+			// we'll just trace all of them for now
+			//if(Instance->GetWorld() == InWorld)
+			if(Instance->GetTypedOuter<UControlRig>() != nullptr)
+			{
+				CastChecked<URigHierarchy>(Instance)->TraceFrames(NumFrames);
+			}
+		}
+	})
+);
+
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -920,7 +978,7 @@ bool URigHierarchy::Undo()
 		return false;
 	}
 
-	const FTransformStackEntry Entry = TransformUndoStack.Pop();
+	const FRigTransformStackEntry Entry = TransformUndoStack.Pop();
 	ApplyTransformFromStack(Entry, true);
 	UndoRedoEvent.Broadcast(this, Entry.Key, Entry.TransformType, Entry.OldTransform, true);
 	TransformRedoStack.Push(Entry);
@@ -943,7 +1001,7 @@ bool URigHierarchy::Redo()
 		return false;
 	}
 
-	const FTransformStackEntry Entry = TransformRedoStack.Pop();
+	const FRigTransformStackEntry Entry = TransformRedoStack.Pop();
 	ApplyTransformFromStack(Entry, false);
 	UndoRedoEvent.Broadcast(this, Entry.Key, Entry.TransformType, Entry.NewTransform, false);
 	TransformUndoStack.Push(Entry);
@@ -1259,15 +1317,16 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 	}
 
 #if WITH_EDITOR
-	if(bSetupUndo)
+	if(bSetupUndo || IsTracingChanges())
 	{
 		PushTransformToStack(
 			InTransformElement->GetKey(),
-			ETransformStackEntryType::TransformPose,
+			ERigTransformStackEntryType::TransformPose,
 			InTransformType,
 			PreviousTransform,
 			InTransformElement->Pose.Get(InTransformType),
-			bAffectChildren);
+			bAffectChildren,
+			bSetupUndo);
 	}
 #endif
 }
@@ -1328,15 +1387,16 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 	InControlElement->Gizmo.MarkDirty(MakeGlobal(InTransformType));
 
 #if WITH_EDITOR
-	if(bSetupUndo)
+	if(bSetupUndo || IsTracingChanges())
 	{
 		PushTransformToStack(
             InControlElement->GetKey(),
-            ETransformStackEntryType::ControlOffset,
+            ERigTransformStackEntryType::ControlOffset,
             InTransformType,
             PreviousTransform,
             InControlElement->Offset.Get(InTransformType),
-            bAffectChildren);
+            bAffectChildren,
+            bSetupUndo);
 	}
 #endif
 }
@@ -1391,15 +1451,16 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 	InControlElement->Gizmo.MarkDirty(OpposedType);
 
 #if WITH_EDITOR
-	if(bSetupUndo)
+	if(bSetupUndo || IsTracingChanges())
 	{
 		PushTransformToStack(
             InControlElement->GetKey(),
-            ETransformStackEntryType::ControlGizmo,
+            ERigTransformStackEntryType::ControlGizmo,
             InTransformType,
             PreviousTransform,
             InControlElement->Gizmo.Get(InTransformType),
-            false);
+            false,
+            bSetupUndo);
 	}
 #endif
 
@@ -1736,9 +1797,9 @@ void URigHierarchy::SetCurveValue(FRigCurveElement* InCurveElement, float InValu
 	InCurveElement->Value = InValue;
 
 #if WITH_EDITOR
-	if(bSetupUndo)
+	if(bSetupUndo || IsTracingChanges())
 	{
-		PushCurveToStack(InCurveElement->GetKey(), PreviousValue, InCurveElement->Value);
+		PushCurveToStack(InCurveElement->GetKey(), PreviousValue, InCurveElement->Value, bSetupUndo);
 	}
 #endif
 }
@@ -1794,6 +1855,123 @@ bool URigHierarchy::IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InPa
 
 	return false;
 }
+
+bool URigHierarchy::IsTracingChanges() const
+{
+#if WITH_EDITOR
+	return (CVarControlRigHierarchyTraceAlways->GetInt() != 0) || (TraceFramesLeft > 0);
+#else
+	return false;
+#endif
+}
+
+#if WITH_EDITOR
+
+void URigHierarchy::ResetTransformStack()
+{
+	TransformUndoStack.Reset();
+	TransformRedoStack.Reset();
+	TransformStackIndex = TransformUndoStack.Num();
+
+	if(IsTracingChanges())
+	{
+		TracePoses.Reset();
+		StorePoseForTrace(TEXT("BeginOfFrame"));
+	}
+}
+
+void URigHierarchy::StorePoseForTrace(const FString& InPrefix)
+{
+	check(!InPrefix.IsEmpty());
+	
+	FName InitialKey = *FString::Printf(TEXT("%s_Initial"), *InPrefix);
+	FName CurrentKey = *FString::Printf(TEXT("%s_Current"), *InPrefix);
+	TracePoses.FindOrAdd(InitialKey) = GetPose(true);
+	TracePoses.FindOrAdd(CurrentKey) = GetPose(false);
+}
+
+template <class CharType>
+struct TRigHierarchyJsonPrintPolicy
+	: public TPrettyJsonPrintPolicy<CharType>
+{
+	static inline void WriteDouble(  FArchive* Stream, double Value )
+	{
+		TJsonPrintPolicy<CharType>::WriteString(Stream, FString::Printf(TEXT("%.3f"), Value));
+	}
+};
+
+void URigHierarchy::DumpTransformStackToFile(FString* OutFilePath)
+{
+	if(IsTracingChanges())
+	{
+		StorePoseForTrace(TEXT("EndOfFrame"));
+	}
+
+	FString PathName = GetPathName();
+	PathName.Split(TEXT(":"), nullptr, &PathName);
+	PathName.ReplaceCharInline('.', '/');
+
+	FString Suffix;
+	if(TraceFramesLeft > 0)
+	{
+		Suffix = FString::Printf(TEXT("_Trace_%03d"), TraceFramesCaptured);
+	}
+
+	FString FileName = FString::Printf(TEXT("%sControlRig/%s%s.json"), *FPaths::ProjectLogDir(), *PathName, *Suffix);
+	FString FullFilename = FPlatformFileManager::Get().GetPlatformFile().ConvertToAbsolutePathForExternalAppForWrite(*FileName);
+
+	TSharedPtr<FJsonObject> JsonData = MakeShareable(new FJsonObject);
+	JsonData->SetStringField(TEXT("PathName"), GetPathName());
+
+	TSharedRef<FJsonObject> JsonTracedPoses = MakeShareable(new FJsonObject);
+	for(const TPair<FName, FRigPose>& Pair : TracePoses)
+	{
+		TSharedRef<FJsonObject> JsonTracedPose = MakeShareable(new FJsonObject);
+		if (FJsonObjectConverter::UStructToJsonObject(FRigPose::StaticStruct(), &Pair.Value, JsonTracedPose, 0, 0))
+		{
+			JsonTracedPoses->SetObjectField(Pair.Key.ToString(), JsonTracedPose);
+		}
+	}
+	JsonData->SetObjectField(TEXT("TracedPoses"), JsonTracedPoses);
+
+	TArray<TSharedPtr<FJsonValue>> JsonTransformStack;
+	for (const FRigTransformStackEntry& TransformStackEntry : TransformUndoStack)
+	{
+		TSharedRef<FJsonObject> JsonTransformStackEntry = MakeShareable(new FJsonObject);
+		if (FJsonObjectConverter::UStructToJsonObject(FRigTransformStackEntry::StaticStruct(), &TransformStackEntry, JsonTransformStackEntry, 0, 0))
+		{
+			JsonTransformStack.Add(MakeShareable(new FJsonValueObject(JsonTransformStackEntry)));
+		}
+	}
+	JsonData->SetArrayField(TEXT("TransformStack"), JsonTransformStack);
+
+	FString JsonText;
+	const TSharedRef< TJsonWriter< TCHAR, TRigHierarchyJsonPrintPolicy<TCHAR> > > JsonWriter = TJsonWriterFactory< TCHAR, TRigHierarchyJsonPrintPolicy<TCHAR> >::Create(&JsonText);
+	if (FJsonSerializer::Serialize(JsonData.ToSharedRef(), JsonWriter))
+	{
+		if ( FFileHelper::SaveStringToFile(JsonText, *FullFilename) )
+		{
+			UE_LOG(LogControlRig, Display, TEXT("Saved hierarchy trace to %s"), *FullFilename);
+
+			if(OutFilePath)
+			{
+				*OutFilePath = FullFilename;
+			}
+		}
+	}
+
+	TraceFramesLeft = FMath::Max(0, TraceFramesLeft - 1);
+	TraceFramesCaptured++;
+}
+
+void URigHierarchy::TraceFrames(int32 InNumFramesToTrace)
+{
+	TraceFramesLeft = InNumFramesToTrace;
+	TraceFramesCaptured = 0;
+	ResetTransformStack();
+}
+
+#endif
 
 bool URigHierarchy::IsSelected(const FRigBaseElement* InElement) const
 {
@@ -2055,9 +2233,9 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 	}
 }
 
-void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ETransformStackEntryType InEntryType,
+void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ERigTransformStackEntryType InEntryType,
 	ERigTransformType::Type InTransformType, const FTransform& InOldTransform, const FTransform& InNewTransform,
-	bool bAffectChildren)
+	bool bAffectChildren, bool bModify)
 {
 #if WITH_EDITOR
 
@@ -2074,22 +2252,22 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ETransform
 	FText Title;
 	switch(InEntryType)
 	{
-		case ETransformStackEntryType::TransformPose:
+		case ERigTransformStackEntryType::TransformPose:
 		{
 			Title = TransformPoseTitle;
 			break;
 		}
-		case ETransformStackEntryType::ControlOffset:
+		case ERigTransformStackEntryType::ControlOffset:
 		{
 			Title = TransformPoseTitle;
 			break;
 		}
-		case ETransformStackEntryType::ControlGizmo:
+		case ERigTransformStackEntryType::ControlGizmo:
 		{
 			Title = TransformPoseTitle;
 			break;
 		}
-		case ETransformStackEntryType::CurveValue:
+		case ERigTransformStackEntryType::CurveValue:
 		{
 			Title = TransformPoseTitle;
 			break;
@@ -2098,11 +2276,15 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ETransform
 
 	TGuardValue<bool> TransactingGuard(bTransactingForTransformChange, true);
 
-	FScopedTransaction Transaction(Title);
+	TSharedPtr<FScopedTransaction> TransactionPtr;
+	if(bModify)
+	{
+		TransactionPtr = MakeShareable(new FScopedTransaction(Title));
+	}
 
 	if(bIsInteracting)
 	{
-		FTransformStackEntry LastEntry;
+		FRigTransformStackEntry LastEntry;
 		if(!TransformUndoStack.IsEmpty())
 		{
 			LastEntry = TransformUndoStack.Last();
@@ -2112,14 +2294,14 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ETransform
 		{
 			// merge the entries on the stack
 			TransformUndoStack.Last() = 
-                FTransformStackEntry(InKey, InEntryType, InTransformType, LastEntry.OldTransform, InNewTransform, bAffectChildren);
+                FRigTransformStackEntry(InKey, InEntryType, InTransformType, LastEntry.OldTransform, InNewTransform, bAffectChildren);
 		}
 		else
 		{
 			Modify();
 
 			TransformUndoStack.Add(
-                FTransformStackEntry(InKey, InEntryType, InTransformType, InOldTransform, InNewTransform, bAffectChildren));
+                FRigTransformStackEntry(InKey, InEntryType, InTransformType, InOldTransform, InNewTransform, bAffectChildren));
 			TransformStackIndex = TransformUndoStack.Num();
 		}
 
@@ -2127,10 +2309,40 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ETransform
 		return;
 	}
 
-	Modify();
+	if(bModify)
+	{
+		Modify();
+	}
+
+	TArray<FString> Callstack;
+	if(IsTracingChanges() && (CVarControlRigHierarchyTraceCallstack->GetInt() != 0))
+	{
+		FString JoinedCallStack;
+		RigHierarchyCaptureCallStack(JoinedCallStack, 1);
+		JoinedCallStack.ReplaceInline(TEXT("\r"), TEXT(""));
+
+		FString Left, Right;
+		do
+		{
+			if(!JoinedCallStack.Split(TEXT("\n"), &Left, &Right))
+			{
+				Left = JoinedCallStack;
+				Right.Empty();
+			}
+
+			Left.TrimStartAndEndInline();
+			if(Left.StartsWith(TEXT("0x")))
+			{
+				Left.Split(TEXT(" "), nullptr, &Left);
+			}
+			Callstack.Add(Left);
+			JoinedCallStack = Right;
+		}
+		while(!JoinedCallStack.IsEmpty());
+	}
 
 	TransformUndoStack.Add(
-		FTransformStackEntry(InKey, InEntryType, InTransformType, InOldTransform, InNewTransform, bAffectChildren));
+		FRigTransformStackEntry(InKey, InEntryType, InTransformType, InOldTransform, InNewTransform, bAffectChildren, Callstack));
 	TransformStackIndex = TransformUndoStack.Num();
 
 	TransformRedoStack.Reset();
@@ -2138,7 +2350,7 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ETransform
 #endif
 }
 
-void URigHierarchy::PushCurveToStack(const FRigElementKey& InKey, float InOldCurveValue, float InNewCurveValue)
+void URigHierarchy::PushCurveToStack(const FRigElementKey& InKey, float InOldCurveValue, float InNewCurveValue, bool bModify)
 {
 #if WITH_EDITOR
 
@@ -2148,12 +2360,12 @@ void URigHierarchy::PushCurveToStack(const FRigElementKey& InKey, float InOldCur
 	OldTransform.SetTranslation(FVector(InOldCurveValue, 0.f, 0.f));
 	NewTransform.SetTranslation(FVector(InNewCurveValue, 0.f, 0.f));
 
-	PushTransformToStack(InKey, ETransformStackEntryType::CurveValue, ERigTransformType::CurrentLocal, OldTransform, NewTransform, false);
+	PushTransformToStack(InKey, ERigTransformStackEntryType::CurveValue, ERigTransformType::CurrentLocal, OldTransform, NewTransform, false, bModify);
 
 #endif
 }
 
-bool URigHierarchy::ApplyTransformFromStack(const FTransformStackEntry& InEntry, bool bUndo)
+bool URigHierarchy::ApplyTransformFromStack(const FRigTransformStackEntry& InEntry, bool bUndo)
 {
 #if WITH_EDITOR
 	
@@ -2167,22 +2379,22 @@ bool URigHierarchy::ApplyTransformFromStack(const FTransformStackEntry& InEntry,
 	
 	switch(InEntry.EntryType)
 	{
-		case ETransformStackEntryType::TransformPose:
+		case ERigTransformStackEntryType::TransformPose:
 		{
 			SetTransform(Cast<FRigTransformElement>(Element), Transform, InEntry.TransformType, InEntry.bAffectChildren, false); 
 			break;
 		}
-		case ETransformStackEntryType::ControlOffset:
+		case ERigTransformStackEntryType::ControlOffset:
 		{
 			SetControlOffsetTransform(Cast<FRigControlElement>(Element), Transform, InEntry.TransformType, InEntry.bAffectChildren, false); 
 			break;
 		}
-		case ETransformStackEntryType::ControlGizmo:
+		case ERigTransformStackEntryType::ControlGizmo:
 		{
 			SetControlGizmoTransform(Cast<FRigControlElement>(Element), Transform, InEntry.TransformType, false); 
 			break;
 		}
-		case ETransformStackEntryType::CurveValue:
+		case ERigTransformStackEntryType::CurveValue:
 		{
 			const float CurveValue = Transform.GetTranslation().X;
 			SetCurveValue(Cast<FRigCurveElement>(Element), CurveValue, false);

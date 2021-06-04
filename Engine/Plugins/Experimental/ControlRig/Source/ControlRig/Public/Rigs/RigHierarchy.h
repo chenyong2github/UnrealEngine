@@ -16,6 +16,69 @@ class URigHierarchyController;
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyModifiedEvent, ERigHierarchyNotification /* type */, URigHierarchy* /* hierarchy */, const FRigBaseElement* /* element */);
 DECLARE_EVENT_FiveParams(URigHierarchy, FRigHierarchyUndoRedoTransformEvent, URigHierarchy*, const FRigElementKey&, ERigTransformType::Type, const FTransform&, bool /* bUndo */);
 
+UENUM()
+enum ERigTransformStackEntryType
+{
+	TransformPose,
+	ControlOffset,
+	ControlGizmo,
+	CurveValue
+};
+
+USTRUCT()
+struct FRigTransformStackEntry
+{
+	GENERATED_BODY()
+
+	FORCEINLINE FRigTransformStackEntry()
+		: Key()
+		, EntryType(ERigTransformStackEntryType::TransformPose)
+		, TransformType(ERigTransformType::CurrentLocal)
+		, OldTransform(FTransform::Identity)
+		, NewTransform(FTransform::Identity)
+		, bAffectChildren(true)
+		, Callstack() 
+	{}
+
+	FORCEINLINE FRigTransformStackEntry(
+		const FRigElementKey& InKey,
+		ERigTransformStackEntryType InEntryType,
+		ERigTransformType::Type InTransformType,
+		const FTransform& InOldTransform,
+		const FTransform& InNewTransform,
+		bool bInAffectChildren,
+		const TArray<FString>& InCallstack =  TArray<FString>())
+		: Key(InKey)
+		, EntryType(InEntryType)
+		, TransformType(InTransformType)
+		, OldTransform(InOldTransform)
+		, NewTransform(InNewTransform)
+		, bAffectChildren(bInAffectChildren)
+		, Callstack(InCallstack)
+	{}
+
+	UPROPERTY()
+	FRigElementKey Key;
+
+	UPROPERTY()
+	TEnumAsByte<ERigTransformStackEntryType> EntryType;
+
+	UPROPERTY()
+	TEnumAsByte<ERigTransformType::Type> TransformType;
+	
+	UPROPERTY()
+	FTransform OldTransform;
+
+	UPROPERTY()
+	FTransform NewTransform;
+
+	UPROPERTY()
+	bool bAffectChildren;
+
+	UPROPERTY()
+	TArray<FString> Callstack;
+};
+
 UCLASS(BlueprintType)
 class CONTROLRIG_API URigHierarchy : public UObject
 {
@@ -33,6 +96,10 @@ public:
 	, bIsInteracting(false)
 	, bSuspendNotifications(false)
 	, ResetPoseHash(INDEX_NONE)
+#if WITH_EDITOR
+	, TraceFramesLeft(0)
+	, TraceFramesCaptured(0)
+#endif
 	{
 		Reset();
 	}
@@ -2042,10 +2109,39 @@ public:
 	/**
 	 * Returns a reference to the suspend notifications flag
 	 */
-	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendNotifications; } 
+	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendNotifications; }
+
+	/*
+	 * Returns true if a hierarchy will record any change.
+	 * This is used for debugging purposes.
+	 */
+	bool IsTracingChanges() const;
+
+#if WITH_EDITOR
+
+	/**
+	 * Clears the undo / redo stack of this hierarchy
+	 */
+	void ResetTransformStack();
+
+	/**
+	 * Stores the current pose for tracing
+	 */
+	void StorePoseForTrace(const FString& InPrefix);
+
+	/**
+	 * Dumps the content of the transform stack to a string
+	 */
+	void DumpTransformStackToFile(FString* OutFilePath = nullptr);
+
+	/**
+	 * Tells this hierarchy to trace a series of frames
+	 */
+	void TraceFrames(int32 InNumFramesToTrace);
+	
+#endif
 
 private:
-
 
 	/**
 	 * Returns true if a given element is selected
@@ -2118,48 +2214,6 @@ private:
 	/// Undo redo related
 	///////////////////////////////////////////////
 
-	enum ETransformStackEntryType
-	{
-		TransformPose,
-		ControlOffset,
-		ControlGizmo,
-		CurveValue
-	};
-
-	struct FTransformStackEntry
-	{
-		FORCEINLINE FTransformStackEntry()
-			: Key()
-			, EntryType(ETransformStackEntryType::TransformPose)
-			, TransformType(ERigTransformType::CurrentLocal)
-			, OldTransform(FTransform::Identity)
-			, NewTransform(FTransform::Identity)
-			, bAffectChildren(true)
-		{}
-
-		FORCEINLINE FTransformStackEntry(
-			const FRigElementKey& InKey,
-			ETransformStackEntryType InEntryType,
-			ERigTransformType::Type InTransformType,
-			const FTransform& InOldTransform,
-			const FTransform& InNewTransform,
-			bool bInAffectChildren)
-			: Key(InKey)
-			, EntryType(InEntryType)
-			, TransformType(InTransformType)
-			, OldTransform(InOldTransform)
-			, NewTransform(InNewTransform)
-			, bAffectChildren(bInAffectChildren)
-		{}
-
-		FRigElementKey Key;
-		ETransformStackEntryType EntryType;
-		ERigTransformType::Type TransformType;
-		FTransform OldTransform;
-		FTransform NewTransform;
-		bool bAffectChildren;
-	};
-
 	/**
 	 * The index identifying where we stand with the stack
 	 */
@@ -2172,14 +2226,15 @@ private:
 	bool bTransactingForTransformChange;
 	
 	/**
-	 * The stack of actions to undo
+	 * The stack of actions to undo.
+	 * Note: This is also used when performing traces on the hierarchy.
 	 */
-	TArray<FTransformStackEntry> TransformUndoStack;
+	TArray<FRigTransformStackEntry> TransformUndoStack;
 
 	/**
 	 * The stack of actions to undo
 	 */
-	TArray<FTransformStackEntry> TransformRedoStack;
+	TArray<FRigTransformStackEntry> TransformRedoStack;
 
 	/**
 	 * Sets the transform stack index - which in turns performs a series of undos / redos
@@ -2192,11 +2247,12 @@ private:
 	 */
 	void PushTransformToStack(
 			const FRigElementKey& InKey,
-            ETransformStackEntryType InEntryType,
+            ERigTransformStackEntryType InEntryType,
             ERigTransformType::Type InTransformType,
             const FTransform& InOldTransform,
             const FTransform& InNewTransform,
-            bool bAffectChildren);
+            bool bAffectChildren,
+            bool bModify);
 
 	/**
 	 * Stores a curve value on the stack
@@ -2204,12 +2260,13 @@ private:
 	void PushCurveToStack(
             const FRigElementKey& InKey,
             float InOldCurveValue,
-            float InNewCurveValue);
+            float InNewCurveValue,
+            bool bModify);
 
 	/**
 	 * Restores a transform on the stack
 	 */
-	bool ApplyTransformFromStack(const FTransformStackEntry& InEntry, bool bUndo);
+	bool ApplyTransformFromStack(const FRigTransformStackEntry& InEntry, bool bUndo);
 
 	/**
 	 * Computes all parts of the pose
@@ -2239,6 +2296,16 @@ private:
 
 	int32 ResetPoseHash;
 	TArray<bool> ResetPoseHasFilteredChildren;
+
+#if WITH_EDITOR
+
+protected:
+	
+	int32 TraceFramesLeft;
+	int32 TraceFramesCaptured;
+	TMap<FName, FRigPose> TracePoses;
+
+#endif
 	
 	friend class URigHierarchyController;
 	friend class UControlRig;

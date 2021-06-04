@@ -46,6 +46,9 @@ namespace UnrealBuildTool.Rules
 						"EditorStyle",
 						"RigVMDeveloper",
                         "AnimGraph",
+                        "Json",
+                        "Serialization",
+                        "JsonUtilities",
                     }
                 );
 

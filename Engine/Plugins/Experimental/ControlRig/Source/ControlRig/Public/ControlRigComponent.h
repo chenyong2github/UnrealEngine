@@ -225,6 +225,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ControlRig")
 	UControlRig* GetControlRig();
 
+	/** Returns true if the Component can execute its Control Rig */
+	UFUNCTION(BlueprintPure, Category = "ControlRig")
+	bool CanExecute();
+
 	/** Get the ControlRig's local time in seconds since its last initialize */
 	UFUNCTION(BlueprintPure, Category = "ControlRig")
 	float GetAbsoluteTime() const;
