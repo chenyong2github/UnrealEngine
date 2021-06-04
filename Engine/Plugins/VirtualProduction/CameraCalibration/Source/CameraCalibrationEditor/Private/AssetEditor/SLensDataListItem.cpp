@@ -2,11 +2,11 @@
 
 #include "SLensDataListItem.h"
 
-#include "IStructureDetailsView.h"
 #include "LensFile.h"
 #include "ScopedTransaction.h"
+#include "SLensDataEditPointDialog.h"
+#include "UI/CameraCalibrationEditorStyle.h"
 #include "Widgets/Input/SButton.h"
-
 
 #define LOCTEXT_NAMESPACE "LensDataListItem"
 
@@ -50,7 +50,7 @@ TSharedRef<ITableRow> FFocusDataListItem::MakeTreeRowWidget(const TSharedRef<STa
 	return SNew(SLensDataItem, InOwnerTable, AsShared())
 		.EntryLabel(LOCTEXT("FocusLabel", "Focus: "))
 		.EntryValue(Focus)
-		.AllowRemoval(SubCategoryIndex == INDEX_NONE);	
+		.AllowRemoval(SubCategoryIndex == INDEX_NONE);
 }
 
 void FFocusDataListItem::OnRemoveRequested() const
@@ -74,10 +74,12 @@ FZoomDataListItem::FZoomDataListItem(ULensFile* InLensFile, ELensDataCategory In
 
 TSharedRef<ITableRow> FZoomDataListItem::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable)
 {
-	return SNew(SLensDataItem, InOwnerTable, AsShared())
+	return SNew(SLensDataItem, InOwnerTable, SharedThis(this))
 		.EntryLabel(LOCTEXT("ZoomLabel", "Zoom: "))
 		.EntryValue(Zoom)
-		.AllowRemoval(SubCategoryIndex == INDEX_NONE);	
+		.AllowRemoval(SubCategoryIndex == INDEX_NONE )
+		.EditPointVisibility(EVisibility::Visible)
+		.AllowEditPoint(MakeAttributeLambda([this]() { return SubCategoryIndex == INDEX_NONE; }));
 }
 
 void FZoomDataListItem::OnRemoveRequested() const
@@ -102,6 +104,49 @@ TOptional<float> FZoomDataListItem::GetFocus() const
 	}
 
 	return TOptional<float>();
+}
+
+void FZoomDataListItem::EditItem()
+{
+	ULensFile* LensFilePtr = WeakLensFile.Get();
+	if (!ensure(LensFilePtr))
+	{
+		return;
+	}
+
+	if (!ensure(GetFocus().IsSet()))
+	{
+		return;
+	}
+	
+	switch (Category)
+	{
+		case ELensDataCategory::Zoom:
+		{
+			LensDataEditPointDialog::OpenDialog<FFocalLengthInfo>(LensFilePtr, GetFocus().GetValue(), Zoom, LensFilePtr->FocalLengthTable);
+			break;
+		}
+		case ELensDataCategory::ImageCenter:
+		{
+			LensDataEditPointDialog::OpenDialog<FImageCenterInfo>(LensFilePtr, GetFocus().GetValue(), Zoom, LensFilePtr->ImageCenterTable);
+			break;
+		}
+		case ELensDataCategory::Distortion:
+		{
+			LensDataEditPointDialog::OpenDialog<FDistortionInfo>(LensFilePtr, GetFocus().GetValue(), Zoom, LensFilePtr->DistortionTable);
+			break;
+		}
+		case ELensDataCategory::NodalOffset:
+		{
+			LensDataEditPointDialog::OpenDialog<FNodalPointOffset>(LensFilePtr, GetFocus().GetValue(), Zoom, LensFilePtr->NodalOffsetTable);
+			break;
+		}
+		case ELensDataCategory::STMap:
+		{
+			LensDataEditPointDialog::OpenDialog<FSTMapInfo>(LensFilePtr, GetFocus().GetValue(), Zoom, LensFilePtr->STMapTable);
+			break;
+		}
+	}
 }
 
 void SLensDataItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, const TSharedRef<FLensDataListItem> InItemData)
@@ -134,10 +179,27 @@ void SLensDataItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.IsEnabled(InArgs._AllowRemoval)
-				.OnClicked(this, &SLensDataItem::OnRemovePointClicked)
+				.OnClicked(this, &SLensDataItem::OnEditPointClicked)
+				.IsEnabled(InArgs._AllowEditPoint)
+				.Visibility(InArgs._EditPointVisibility)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
 				[
 					SNew(STextBlock)
+					.TextStyle(FCameraCalibrationEditorStyle::Get(), "CameraCalibration.Button.TextStyle")
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Text(FText::FromString(FString(TEXT("\xf044"))) /*fa-edit*/)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.IsEnabled(InArgs._AllowRemoval)
+				.OnClicked(this, &SLensDataItem::OnRemovePointClicked)
+				.ButtonStyle(FCameraCalibrationEditorStyle::Get(), "CameraCalibration.RemoveButton")
+				[
+					SNew(STextBlock)
+					.TextStyle(FCameraCalibrationEditorStyle::Get(), "CameraCalibration.Button.TextStyle")
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
 					.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
 				]
@@ -155,7 +217,16 @@ FReply SLensDataItem::OnRemovePointClicked() const
 	return FReply::Handled();
 }
 
+FReply SLensDataItem::OnEditPointClicked() const
+{
+	if (TSharedPtr<FLensDataListItem> Item = WeakItem.Pin())
+	{
+		Item->EditItem();
+	}
 
+	return FReply::Handled();
+}
+ 
 #undef LOCTEXT_NAMESPACE /* LensDataListItem */
 
 

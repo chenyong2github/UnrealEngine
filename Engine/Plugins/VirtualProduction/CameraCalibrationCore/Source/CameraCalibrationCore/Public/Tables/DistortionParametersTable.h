@@ -46,8 +46,14 @@ public:
 	/** Returns zoom value for a given index */
 	float GetZoom(int32 Index) const;
 
+	/** Returns data type copy value for a given float */
+	bool GetPoint(float InZoom, FDistortionInfo& OutData, float InputTolerance = KINDA_SMALL_NUMBER) const;
+
 	/** Adds a new point at InZoom. Updates existing one if tolerance is met */
 	bool AddPoint(float InZoom, const FDistortionInfo& InData, float InputTolerance, bool bIsCalibrationPoint);
+
+	/** Sets an existing point at InZoom. Updates existing one if tolerance is met */
+	bool SetPoint(float InZoom, const FDistortionInfo& InData, float InputTolerance = KINDA_SMALL_NUMBER);
 	
 	/** Removes a point corresponding to specified zoom */
 	void RemovePoint(float InZoomValue);
@@ -80,6 +86,8 @@ struct CAMERACALIBRATIONCORE_API FDistortionTable
 {
 	GENERATED_BODY()
 
+	using FocusPointType = FDistortionFocusPoint;
+
 public:
 
 	/** 
@@ -108,6 +116,12 @@ public:
 
 	/** Adds a new point in the table */
 	bool AddPoint(float InFocus, float InZoom, const FDistortionInfo& InData, float InputTolerance, bool bIsCalibrationPoint);
+
+	/** Get the point from the table */
+	bool GetPoint(const float InFocus, const float InZoom, FDistortionInfo& OutData, float InputTolerance = KINDA_SMALL_NUMBER) const;
+
+	/** Set a new point into the table */
+	bool SetPoint(float InFocus, float InZoom, const FDistortionInfo& InData, float InputTolerance = KINDA_SMALL_NUMBER);
 
 public:
 

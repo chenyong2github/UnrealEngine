@@ -63,6 +63,21 @@ namespace LensDataTableUtils
 
 		return bSuccess;
 	}
+	
+	template<typename TableType, typename DataType>
+	bool SetPoint(TableType& InTable, float InFocus, float InZoom, const DataType& InData, float InputTolerance = KINDA_SMALL_NUMBER)
+	{
+		for (int32 PointIndex = 0; PointIndex < InTable.FocusPoints.Num() && InTable.FocusPoints[PointIndex].Focus <= InFocus; ++PointIndex)
+		{
+			typename TableType::FocusPointType& FocusPoint = InTable.FocusPoints[PointIndex];
+			if (FMath::IsNearlyEqual(FocusPoint.Focus, InFocus, InputTolerance))
+			{
+				return FocusPoint.SetPoint(InZoom, InData);
+			}
+		}
+
+		return false;
+	}
 
 	/** Clears content of a table */
 	template<typename Type>

@@ -3,8 +3,10 @@
 #include "UI/CameraCalibrationEditorStyle.h"
 
 #include "Brushes/SlateImageBrush.h"
+#include "EditorStyleSet.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateTypes.h"
 
 namespace CameraCalibrationEditorStyle
 {
@@ -28,6 +30,18 @@ void FCameraCalibrationEditorStyle::Register()
 	CameraCalibrationEditorStyle::StyleInstance->Set("ClassThumbnail.LensFile", new IMAGE_BRUSH("LensFileIcon_64x", CameraCalibrationEditorStyle::Icon64x64));
 	CameraCalibrationEditorStyle::StyleInstance->Set("ClassIcon.LensFile", new IMAGE_BRUSH("LensFileIcon_20x", CameraCalibrationEditorStyle::Icon20x20));
 
+	FTextBlockStyle ButtonTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("ContentBrowser.TopBar.Font");
+	FLinearColor ButtonTextColor = ButtonTextStyle.ColorAndOpacity.GetSpecifiedColor();
+	ButtonTextColor.A /= 2;
+	ButtonTextStyle.ColorAndOpacity = ButtonTextColor;
+	ButtonTextStyle.ShadowColorAndOpacity.A /= 2;
+	CameraCalibrationEditorStyle::StyleInstance->Set("CameraCalibration.Button.TextStyle", ButtonTextStyle);
+
+	FButtonStyle RemoveButtonStyle = FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton");
+	RemoveButtonStyle.Normal = FSlateNoResource();
+	RemoveButtonStyle.NormalPadding = FMargin(0, 1.5f);
+	RemoveButtonStyle.PressedPadding = FMargin(0, 1.5f);
+	CameraCalibrationEditorStyle::StyleInstance->Set("CameraCalibration.RemoveButton", RemoveButtonStyle);
 
 	FSlateStyleRegistry::RegisterSlateStyle(*CameraCalibrationEditorStyle::StyleInstance.Get());
 }

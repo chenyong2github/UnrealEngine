@@ -2,16 +2,11 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableRow.h"
 
 #include "CameraCalibrationEditorCommon.h"
 #include "LensFile.h"
-#include "SLensFilePanel.h"
-#include "UObject/StrongObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/STreeView.h"
-
-
 
 DECLARE_DELEGATE_TwoParams(FOnDataRemoved, float /** Focus */, TOptional<float> /** Possible Zoom */);
 
@@ -29,6 +24,7 @@ public:
 	virtual TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable) = 0;
 	virtual TOptional<float> GetFocus() const { return TOptional<float>(); }
 	virtual int32 GetIndex() const { return INDEX_NONE; }
+	virtual void EditItem() {};
 
 	/** Lens data category of that entry */
 	ELensDataCategory Category;
@@ -92,6 +88,7 @@ public:
 	virtual TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable) override;
 	virtual void OnRemoveRequested() const override;
 	virtual TOptional<float> GetFocus() const override;
+	virtual void EditItem() override;
 	//~ End FLensDataListItem interface
 
 	/** Zoom value of this item */
@@ -106,18 +103,34 @@ public:
  */
 class SLensDataItem : public STableRow<TSharedPtr<FLensDataListItem>>
 {
-	SLATE_BEGIN_ARGS(SLensDataItem) {}
+	SLATE_BEGIN_ARGS(SLensDataItem)
+		:  _EntryLabel(FText::GetEmpty())
+		,  _EntryValue(0.f)
+		, _AllowRemoval(false)
+		, _EditPointVisibility(EVisibility::Collapsed)
+		, _AllowEditPoint(false)
+		{}
 
 		SLATE_ARGUMENT(FText, EntryLabel)
 
 		SLATE_ARGUMENT(float, EntryValue)
 
 		SLATE_ARGUMENT(bool, AllowRemoval)
+
+		/** Whether Item point Visible */
+		SLATE_ARGUMENT(EVisibility, EditPointVisibility)
+
+		/** Whether Item point editable */
+		SLATE_ATTRIBUTE(bool, AllowEditPoint)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, const TSharedRef<FLensDataListItem> InItemData);
 
 private:
+	/** Edit Button Handler */
+	FReply OnEditPointClicked() const;
+
+	/** Remove Button Handler */
 	FReply OnRemovePointClicked() const;
 
 private:
@@ -125,24 +138,3 @@ private:
 	/** WeakPtr to source data item */
 	TWeakPtr<FLensDataListItem> WeakItem;
 };
-
-/**
- * Widget representing a zoom data entry row
- */
-class SZoomDataItem : public STableRow<TSharedPtr<FZoomDataListItem>>
-{
-	SLATE_BEGIN_ARGS(SZoomDataItem) {}
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, const TSharedRef<FZoomDataListItem> InItemData);
-
-private:
-	FReply OnRemovePointClicked();
-
-private:
-
-	/** WeakPtr to source data item */
-	TWeakPtr<FZoomDataListItem> WeakItem;
-};
-
-

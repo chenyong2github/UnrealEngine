@@ -5,20 +5,20 @@
 #include "SCameraCalibrationCurveEditorPanel.h"
 
 #include "CurveEditor.h"
-#include "Curves/LensDataCurveModel.h"
-#include "Curves/LensEncodersCurveModel.h"
-#include "Curves/LensDistortionParametersCurveModel.h"
-#include "Curves/LensFocalLengthCurveModel.h"
-#include "Curves/LensImageCenterCurveModel.h"
-#include "Curves/LensNodalOffsetCurveModel.h"
-#include "Curves/LensSTMapCurveModel.h"
 #include "ICurveEditorModule.h"
 #include "ISinglePropertyView.h"
 #include "LensFile.h"
 #include "RichCurveEditorModel.h"
 #include "SLensDataCategoryListItem.h"
 #include "SLensDataListItem.h"
-#include "SLensDataPointDialog.h"
+#include "SLensDataAddPointDialog.h"
+#include "Curves/LensDataCurveModel.h"
+#include "Curves/LensDistortionParametersCurveModel.h"
+#include "Curves/LensEncodersCurveModel.h"
+#include "Curves/LensFocalLengthCurveModel.h"
+#include "Curves/LensImageCenterCurveModel.h"
+#include "Curves/LensNodalOffsetCurveModel.h"
+#include "Curves/LensSTMapCurveModel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 
@@ -335,7 +335,7 @@ FReply SLensDataViewer::OnAddDataPointClicked()
 		InitialCategory = CategoryItem->Category;
 	}
 
-	SLensDataPointDialog::OpenDialog(LensFile.Get(), InitialCategory, CachedFIZ, OnDataPointAdded);
+	SLensDataAddPointDialog::OpenDialog(LensFile.Get(), InitialCategory, CachedFIZ, OnDataPointAdded);
 	return FReply::Handled();
 }
 

@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SLensDataPointDialog.h"
+#include "SLensDataAddPointDialog.h"
 
+#include "CameraCalibrationToolkit.h"
 #include "Curves/RichCurve.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -18,10 +19,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 
-
-#define LOCTEXT_NAMESPACE "LensDataPointDialog"
-
-TWeakPtr<SWindow> SLensDataPointDialog::ExistingWindow;
+#define LOCTEXT_NAMESPACE "LensDataAddPointDialog"
 
 /**
  * Instanced customization used to display the distortion parameters
@@ -111,7 +109,7 @@ private:
 	TSubclassOf<ULensModel> CurrentLensModel;
 };
 
-void SLensDataPointDialog::Construct(const FArguments& InArgs, ULensFile* InLensFile, ELensDataCategory InitialDataCategory)
+void SLensDataAddPointDialog::Construct(const FArguments& InArgs, ULensFile* InLensFile, ELensDataCategory InitialDataCategory)
 {
 	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
 	CachedFIZ = InArgs._CachedFIZData;
@@ -167,7 +165,7 @@ void SLensDataPointDialog::Construct(const FArguments& InArgs, ULensFile* InLens
 				.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 				[
 					SNew(SComboButton)
-					.OnGetMenuContent(this, &SLensDataPointDialog::MakeDataCategoryMenuWidget)
+					.OnGetMenuContent(this, &SLensDataAddPointDialog::MakeDataCategoryMenuWidget)
 					.ContentPadding(FMargin(4.0, 2.0))
 				]
 			]
@@ -207,41 +205,25 @@ void SLensDataPointDialog::Construct(const FArguments& InArgs, ULensFile* InLens
 	SetDataCategory(InitialDataCategory);
 }
 
-void SLensDataPointDialog::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SLensDataAddPointDialog::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	RefreshEvaluationData();
 	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
-void SLensDataPointDialog::OpenDialog(ULensFile* InLensFile, ELensDataCategory InitialDataCategory, TAttribute<FCachedFIZData> InCachedFIZData, const FSimpleDelegate& InOnDataPointAdded)
+void SLensDataAddPointDialog::OpenDialog(ULensFile* InLensFile, ELensDataCategory InitialDataCategory, TAttribute<FCachedFIZData> InCachedFIZData, const FSimpleDelegate& InOnDataPointAdded)
 {
-	TSharedPtr<SWindow> ExistingWindowPin = ExistingWindow.Pin();
-	if (ExistingWindowPin.IsValid())
-	{
-		ExistingWindowPin->BringToFront();
-	}
-	else
-	{
-		ExistingWindowPin = SNew(SWindow)
-			.Title(LOCTEXT("LensEditorAddPointDialog", "Add Lens Data Point"))
-			.HasCloseButton(true)
-			.SupportsMaximize(false)
-			.SupportsMinimize(false)
-			.ClientSize(FVector2D(480, 360));
+	TSharedPtr<SWindow> PopupWindow = FCameraCalibrationToolkit::OpenPopupWindow(LOCTEXT("LensEditorAddPointDialog", "Add Lens Data Point"));
 
-		FSlateApplication::Get().AddWindow(ExistingWindowPin.ToSharedRef());
-	}
-
-	TSharedPtr<SLensDataPointDialog> AddPointDialog = 
-		SNew(SLensDataPointDialog, InLensFile, InitialDataCategory)
+	TSharedPtr<SLensDataAddPointDialog> AddPointDialog = 
+		SNew(SLensDataAddPointDialog, InLensFile, InitialDataCategory)
 		.CachedFIZData(MoveTemp(InCachedFIZData))
 		.OnDataPointAdded(InOnDataPointAdded);
 
-	ExistingWindowPin->SetContent(AddPointDialog.ToSharedRef());
-	ExistingWindow = ExistingWindowPin;
+	PopupWindow->SetContent(AddPointDialog.ToSharedRef());
 }
 
-FReply SLensDataPointDialog::OnAddDataPointClicked()
+FReply SLensDataAddPointDialog::OnAddDataPointClicked()
 {
 	const FScopedTransaction MapPointAdded(LOCTEXT("MapPointAdded", "Map Point Added"));
 	LensFile->Modify();
@@ -254,13 +236,13 @@ FReply SLensDataPointDialog::OnAddDataPointClicked()
 	return FReply::Handled();
 }
 
-FReply SLensDataPointDialog::OnCancelDataPointClicked()
+FReply SLensDataAddPointDialog::OnCancelDataPointClicked()
 {
 	CloseDialog();
 	return FReply::Handled();
 }
 
-TSharedRef<SWidget> SLensDataPointDialog::MakeTrackingDataWidget()
+TSharedRef<SWidget> SLensDataAddPointDialog::MakeTrackingDataWidget()
 {
 	TSharedPtr<SWidget> TrackingWidget = SNullWidget::NullWidget;
 
@@ -273,7 +255,7 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeTrackingDataWidget()
 			[
 				SNew(SCheckBox)
 				.IsChecked(MakeAttributeLambda([this, Index]() { return IsTrackingDataOverrided(Index) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
-				.OnCheckStateChanged(this, &SLensDataPointDialog::OnOverrideTrackingData, Index)
+				.OnCheckStateChanged(this, &SLensDataAddPointDialog::OnOverrideTrackingData, Index)
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(0.2f)
@@ -287,7 +269,7 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeTrackingDataWidget()
 				SNew(SNumericEntryBox<float>)
 				.IsEnabled(MakeAttributeLambda([this, Index]() { return IsTrackingDataOverrided(Index); }))
 				.Value(MakeAttributeLambda([this, Index]() { return TOptional<float>(GetTrackingData(Index)); }))
-				.OnValueChanged(this, &SLensDataPointDialog::SetTrackingData, Index)
+				.OnValueChanged(this, &SLensDataAddPointDialog::SetTrackingData, Index)
 			];
 	};
 
@@ -330,7 +312,7 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeTrackingDataWidget()
 	return TrackingWidget.ToSharedRef();
 }
 
-TSharedRef<SWidget> SLensDataPointDialog::MakeLensDataWidget()
+TSharedRef<SWidget> SLensDataAddPointDialog::MakeLensDataWidget()
 {
 	FStructureDetailsViewArgs StructureViewArgs;
 	FDetailsViewArgs DetailArgs;
@@ -410,14 +392,14 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeLensDataWidget()
 	return LensDataWidget.ToSharedRef();
 }
 
-TSharedRef<SWidget> SLensDataPointDialog::MakeButtonsWidget()
+TSharedRef<SWidget> SLensDataAddPointDialog::MakeButtonsWidget()
 {
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		[
 			SNew(SButton)
 			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
-			.OnClicked(this, &SLensDataPointDialog::OnAddDataPointClicked)
+			.OnClicked(this, &SLensDataAddPointDialog::OnAddDataPointClicked)
 			.HAlign(HAlign_Center)
 			.Text(LOCTEXT("AddDataPoint", "Add"))
 		]
@@ -425,13 +407,13 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeButtonsWidget()
 		[
 			SNew(SButton)
 			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
-			.OnClicked(this, &SLensDataPointDialog::OnCancelDataPointClicked)
+			.OnClicked(this, &SLensDataAddPointDialog::OnCancelDataPointClicked)
 			.HAlign(HAlign_Center)
 			.Text(LOCTEXT("CancelAddingDataPoint", "Cancel"))
 		];
 }
 
-TSharedRef<SWidget> SLensDataPointDialog::MakeDataCategoryMenuWidget()
+TSharedRef<SWidget> SLensDataAddPointDialog::MakeDataCategoryMenuWidget()
 {
 	constexpr bool bShouldCloseWindowAfterClosing = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
@@ -470,7 +452,7 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeDataCategoryMenuWidget()
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedRef<SWidget> SLensDataPointDialog::MakeEncoderMappingWidget()
+TSharedRef<SWidget> SLensDataAddPointDialog::MakeEncoderMappingWidget()
 {
 	return 
 		SNew(SVerticalBox)
@@ -518,7 +500,7 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeEncoderMappingWidget()
 		];
 }
 
-void SLensDataPointDialog::SetDataCategory(ELensDataCategory NewCategory)
+void SLensDataAddPointDialog::SetDataCategory(ELensDataCategory NewCategory)
 {
 	if (NewCategory != SelectedCategory)
 	{
@@ -531,17 +513,12 @@ void SLensDataPointDialog::SetDataCategory(ELensDataCategory NewCategory)
 	LensDataContainer->SetContent(MakeLensDataWidget());
 }
 
-void SLensDataPointDialog::CloseDialog()
+void SLensDataAddPointDialog::CloseDialog()
 {
-	TSharedPtr<SWindow> ExistingWindowPin = ExistingWindow.Pin();
-	if (ExistingWindowPin.IsValid())
-	{
-		ExistingWindowPin->RequestDestroyWindow();
-		ExistingWindowPin = nullptr;
-	}
+	FCameraCalibrationToolkit::DestroyPopupWindow();
 }
 
-bool SLensDataPointDialog::IsTrackingDataOverrided(int32 Index) const
+bool SLensDataAddPointDialog::IsTrackingDataOverrided(int32 Index) const
 {
 	if (ensure(Index >= 0 && Index <= 1))
 	{
@@ -550,7 +527,7 @@ bool SLensDataPointDialog::IsTrackingDataOverrided(int32 Index) const
 
 	return false;
 }
-void SLensDataPointDialog::OnOverrideTrackingData(ECheckBoxState NewState, int32 Index)
+void SLensDataAddPointDialog::OnOverrideTrackingData(ECheckBoxState NewState, int32 Index)
 {
 	if (ensure(Index >= 0 && Index <= 1))
 	{
@@ -558,7 +535,7 @@ void SLensDataPointDialog::OnOverrideTrackingData(ECheckBoxState NewState, int32
 	}
 }
 
-float SLensDataPointDialog::GetTrackingData(int32 Index) const
+float SLensDataAddPointDialog::GetTrackingData(int32 Index) const
 {
 	if (ensure(Index >= 0 && Index <= 1))
 	{
@@ -568,7 +545,7 @@ float SLensDataPointDialog::GetTrackingData(int32 Index) const
 	return 0.0f;
 }
 
-void SLensDataPointDialog::SetTrackingData(float Value, int32 Index)
+void SLensDataAddPointDialog::SetTrackingData(float Value, int32 Index)
 {
 	if (ensure(Index >= 0 && Index <= 1))
 	{
@@ -576,7 +553,7 @@ void SLensDataPointDialog::SetTrackingData(float Value, int32 Index)
 	}
 }
 
-void SLensDataPointDialog::RefreshEvaluationData()
+void SLensDataAddPointDialog::RefreshEvaluationData()
 {
 	//Get FIZ coming from LiveLink. If normalized values are available, take them. Otherwise, look for precalibrated values or default to 0.0f
 	const FCachedFIZData& CachedData = CachedFIZ.Get();
@@ -622,7 +599,7 @@ void SLensDataPointDialog::RefreshEvaluationData()
 	}
 }
 
-void SLensDataPointDialog::AddDataToLensFile() const
+void SLensDataAddPointDialog::AddDataToLensFile() const
 {
 	switch (SelectedCategory)
 	{

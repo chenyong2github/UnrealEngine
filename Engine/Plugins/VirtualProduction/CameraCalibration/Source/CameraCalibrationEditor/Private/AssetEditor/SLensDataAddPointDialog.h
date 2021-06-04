@@ -9,17 +9,14 @@
 #include "SLensEvaluation.h"
 #include "UObject/StrongObjectPtr.h"
 
-class SWindow;
-class ULensFile;
-
-class SLensDataPointDialog : public SCompoundWidget
+class SLensDataAddPointDialog : public SCompoundWidget
 {
 private:
 	using Super = SCompoundWidget;
 
 public:
 
-	SLATE_BEGIN_ARGS(SLensDataPointDialog)
+	SLATE_BEGIN_ARGS(SLensDataAddPointDialog)
 	{}
 
 		/** FIZ data */
@@ -34,7 +31,7 @@ public:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	/** Finds currently opened dialog or spawns a new one */
+	/** Finds currently opened dialog window or spawns a new one */
 	static void OpenDialog(ULensFile* InLensFile, ELensDataCategory InitialDataCategory, TAttribute<FCachedFIZData> InCachedFIZData, const FSimpleDelegate& InOnDataPointAdded);
 
 private:
@@ -93,9 +90,6 @@ private:
 
 	/** LensFile being edited */
 	TStrongObjectPtr<ULensFile> LensFile;
-
-	/** Singleton for the pop-up window. */
-	static TWeakPtr<SWindow> ExistingWindow;
 
 	/** Container for tracking inputs */
 	TSharedPtr<SBorder> TrackingDataContainer;

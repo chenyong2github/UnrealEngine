@@ -5,7 +5,6 @@
 
 #include "LensTableUtils.h"
 
-
 int32 FDistortionFocusPoint::GetNumPoints() const
 {
 	return MapBlendingCurve.GetNumKeys();
@@ -16,7 +15,46 @@ float FDistortionFocusPoint::GetZoom(int32 Index) const
 	return MapBlendingCurve.Keys[Index].Time;
 }
 
-bool FDistortionFocusPoint::AddPoint(float InZoom, const FDistortionInfo& InData, float InputTolerance, bool bIsCalibrationPoint)
+bool FDistortionFocusPoint::GetPoint(float InZoom, FDistortionInfo& OutData, float InputTolerance) const
+{
+	const FKeyHandle Handle = MapBlendingCurve.FindKey(InZoom, InputTolerance);
+	if(Handle != FKeyHandle::Invalid())
+	{
+		const int32 PointIndex = MapBlendingCurve.GetIndexSafe(Handle);
+		check(ZoomPoints.IsValidIndex(PointIndex));
+
+		OutData = ZoomPoints[PointIndex].DistortionInfo;
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FDistortionFocusPoint::AddPoint(float InZoom, const FDistortionInfo& InData, float InputTolerance, bool /*bIsCalibrationPoint*/)
+{
+	if (SetPoint(InZoom, InData, InputTolerance))
+	{
+		return true;
+	}
+
+	//Add new zoom point
+	const FKeyHandle NewKeyHandle = MapBlendingCurve.AddKey(InZoom, InZoom);
+	MapBlendingCurve.SetKeyTangentMode(NewKeyHandle, ERichCurveTangentMode::RCTM_Auto);
+	MapBlendingCurve.SetKeyInterpMode(NewKeyHandle, RCIM_Cubic);
+
+	//Insert point at the same index as the curve key
+	const int32 KeyIndex = MapBlendingCurve.GetIndexSafe(NewKeyHandle);
+	FDistortionZoomPoint NewZoomPoint;
+	NewZoomPoint.Zoom = InZoom;
+	NewZoomPoint.DistortionInfo = InData;
+	ZoomPoints.Insert(MoveTemp(NewZoomPoint), KeyIndex);
+
+	// The function return true all the time
+	return true;
+}
+
+bool FDistortionFocusPoint::SetPoint(float InZoom, const FDistortionInfo& InData, float InputTolerance)
 {
 	const FKeyHandle Handle = MapBlendingCurve.FindKey(InZoom, InputTolerance);
 	if(Handle != FKeyHandle::Invalid())
@@ -26,23 +64,11 @@ bool FDistortionFocusPoint::AddPoint(float InZoom, const FDistortionInfo& InData
 
 		//No need to update map curve since x == y
 		ZoomPoints[PointIndex].DistortionInfo = InData;
-	}
-	else
-	{
-		//Add new zoom point
-		const FKeyHandle NewKeyHandle = MapBlendingCurve.AddKey(InZoom, InZoom);
-		MapBlendingCurve.SetKeyTangentMode(NewKeyHandle, ERichCurveTangentMode::RCTM_Auto);
-		MapBlendingCurve.SetKeyInterpMode(NewKeyHandle, RCIM_Cubic);
 
-		//Insert point at the same index as the curve key
-		const int32 KeyIndex = MapBlendingCurve.GetIndexSafe(NewKeyHandle);
-		FDistortionZoomPoint NewZoomPoint;
-		NewZoomPoint.Zoom = InZoom;
-		NewZoomPoint.DistortionInfo = InData;
-		ZoomPoints.Insert(MoveTemp(NewZoomPoint), KeyIndex);
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 void FDistortionFocusPoint::RemovePoint(float InZoomValue)
@@ -135,6 +161,27 @@ void FDistortionTable::RemoveZoomPoint(float InFocus, float InZoom)
 bool FDistortionTable::AddPoint(float InFocus, float InZoom, const FDistortionInfo& InData, float InputTolerance, bool bIsCalibrationPoint)
 {
 	return LensDataTableUtils::AddPoint(FocusPoints, InFocus, InZoom, InData, InputTolerance, bIsCalibrationPoint);
+}
+
+bool FDistortionTable::GetPoint(const float InFocus, const float InZoom, FDistortionInfo& OutData, float InputTolerance) const
+{
+	if (const FDistortionFocusPoint* DistortionFocusPoint = GetFocusPoint(InFocus))
+	{
+		FDistortionInfo DistortionInfo;
+		if (DistortionFocusPoint->GetPoint(InZoom, DistortionInfo, InputTolerance))
+		{
+			// Copy struct to outer
+			OutData = DistortionInfo;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool FDistortionTable::SetPoint(float InFocus, float InZoom, const FDistortionInfo& InData, float InputTolerance)
+{
+	return LensDataTableUtils::SetPoint(*this, InFocus, InZoom, InData, InputTolerance);
 }
 
 

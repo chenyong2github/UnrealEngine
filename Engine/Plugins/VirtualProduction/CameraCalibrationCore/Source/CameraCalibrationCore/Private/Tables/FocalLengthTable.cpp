@@ -5,7 +5,6 @@
 
 #include "LensTableUtils.h"
 
-
 int32 FFocalLengthFocusPoint::GetNumPoints() const
 {
 	return Fx.GetNumKeys();
@@ -16,7 +15,53 @@ float FFocalLengthFocusPoint::GetZoom(int32 Index) const
 	return Fx.Keys[Index].Time;
 }
 
+bool FFocalLengthFocusPoint::GetPoint(float InZoom, FFocalLengthZoomPoint& OutZoomPont, float InputTolerance) const
+{
+	const FKeyHandle FxHandle = Fx.FindKey(InZoom, InputTolerance);
+	if(FxHandle != FKeyHandle::Invalid())
+	{
+		const FKeyHandle FyHandle = Fy.FindKey(InZoom, InputTolerance);
+		const int32 PointIndex = Fx.GetIndexSafe(FxHandle);
+		check(FyHandle != FKeyHandle::Invalid() && ZoomPoints.IsValidIndex(PointIndex))
+
+		OutZoomPont.FocalLengthInfo.FxFy.X = Fx.GetKeyValue(FxHandle);
+		OutZoomPont.FocalLengthInfo.FxFy.Y = Fy.GetKeyValue(FyHandle);
+		OutZoomPont.bIsCalibrationPoint = ZoomPoints[PointIndex].bIsCalibrationPoint;
+
+		return true;
+	}
+
+	return false;
+}
+
 bool FFocalLengthFocusPoint::AddPoint(float InZoom, const FFocalLengthInfo& InData, float InputTolerance, bool bIsCalibrationPoint)
+{
+	if (SetPoint(InZoom, InData, InputTolerance))
+	{
+		return true;
+	}
+	
+	//Add new zoom point
+	const FKeyHandle NewKeyHandle = Fx.AddKey(InZoom, InData.FxFy.X);
+	Fx.SetKeyTangentMode(NewKeyHandle, ERichCurveTangentMode::RCTM_Auto);
+	Fx.SetKeyInterpMode(NewKeyHandle, RCIM_Cubic);
+
+	Fy.AddKey(InZoom, InData.FxFy.Y, false, NewKeyHandle);
+	Fy.SetKeyTangentMode(NewKeyHandle, ERichCurveTangentMode::RCTM_Auto);
+	Fy.SetKeyInterpMode(NewKeyHandle, RCIM_Cubic);
+	
+	const int32 KeyIndex = Fx.GetIndexSafe(NewKeyHandle);
+	FFocalLengthZoomPoint NewFocalLengthPoint;
+	NewFocalLengthPoint.Zoom = InZoom;
+	NewFocalLengthPoint.bIsCalibrationPoint = bIsCalibrationPoint;
+	NewFocalLengthPoint.FocalLengthInfo.FxFy = InData.FxFy;
+	ZoomPoints.Insert(MoveTemp(NewFocalLengthPoint), KeyIndex);
+
+	// The function return true all the time
+	return true;
+}
+
+bool FFocalLengthFocusPoint::SetPoint(float InZoom, const FFocalLengthInfo& InData, float InputTolerance)
 {
 	const FKeyHandle FxHandle = Fx.FindKey(InZoom, InputTolerance);
 	if(FxHandle != FKeyHandle::Invalid())
@@ -28,28 +73,11 @@ bool FFocalLengthFocusPoint::AddPoint(float InZoom, const FFocalLengthInfo& InDa
 		Fx.SetKeyValue(FxHandle, InData.FxFy.X);
 		Fy.SetKeyValue(FyHandle, InData.FxFy.Y);
 		ZoomPoints[PointIndex].FocalLengthInfo = InData;
-		ZoomPoints[PointIndex].bIsCalibrationPoint = bIsCalibrationPoint;
-	}
-	else
-	{
-		//Add new zoom point
-		const FKeyHandle NewKeyHandle = Fx.AddKey(InZoom, InData.FxFy.X);
-		Fx.SetKeyTangentMode(NewKeyHandle, ERichCurveTangentMode::RCTM_Auto);
-		Fx.SetKeyInterpMode(NewKeyHandle, RCIM_Cubic);
 
-		Fy.AddKey(InZoom, InData.FxFy.Y, false, NewKeyHandle);
-		Fy.SetKeyTangentMode(NewKeyHandle, ERichCurveTangentMode::RCTM_Auto);
-		Fy.SetKeyInterpMode(NewKeyHandle, RCIM_Cubic);
-		
-		const int32 KeyIndex = Fx.GetIndexSafe(NewKeyHandle);
-		FFocalLengthZoomPoint NewFocalLengthPoint;
-		NewFocalLengthPoint.Zoom = InZoom;
-		NewFocalLengthPoint.bIsCalibrationPoint = bIsCalibrationPoint;
-		NewFocalLengthPoint.FocalLengthInfo.FxFy = InData.FxFy;
-		ZoomPoints.Insert(MoveTemp(NewFocalLengthPoint), KeyIndex);
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 bool FFocalLengthFocusPoint::GetValue(int32 Index, FFocalLengthInfo& OutData) const
@@ -137,4 +165,25 @@ void FFocalLengthTable::RemoveZoomPoint(float InFocus, float InZoom)
 bool FFocalLengthTable::AddPoint(float InFocus, float InZoom, const FFocalLengthInfo& InData, float InputTolerance, bool bIsCalibrationPoint)
 {
 	return LensDataTableUtils::AddPoint(FocusPoints, InFocus, InZoom, InData, InputTolerance, bIsCalibrationPoint);
+}
+
+bool FFocalLengthTable::GetPoint(const float InFocus, const float InZoom, FFocalLengthInfo& OutData, float InputTolerance) const
+{
+	if (const FFocalLengthFocusPoint* FocalLengthFocusPoint = GetFocusPoint(InFocus))
+	{
+		FFocalLengthZoomPoint ZoomPont;
+		if (FocalLengthFocusPoint->GetPoint(InZoom, ZoomPont, InputTolerance))
+		{
+			// Copy struct to outer
+			OutData = ZoomPont.FocalLengthInfo;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool FFocalLengthTable::SetPoint(float InFocus, float InZoom, const FFocalLengthInfo& InData, float InputTolerance)
+{
+	return LensDataTableUtils::SetPoint(*this, InFocus, InZoom, InData, InputTolerance);
 }

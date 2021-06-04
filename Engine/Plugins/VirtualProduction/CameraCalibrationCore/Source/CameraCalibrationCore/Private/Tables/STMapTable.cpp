@@ -5,7 +5,6 @@
 
 #include "LensTableUtils.h"
 
-
 int32 FSTMapFocusPoint::GetNumPoints() const
 {
 	return MapBlendingCurve.GetNumKeys();
@@ -24,6 +23,17 @@ const FSTMapZoomPoint* FSTMapFocusPoint::GetZoomPoint(float InZoom) const
 FSTMapZoomPoint* FSTMapFocusPoint::GetZoomPoint(float InZoom)
 {
 	return ZoomPoints.FindByPredicate([InZoom](const FSTMapZoomPoint& Point) { return FMath::IsNearlyEqual(Point.Zoom, InZoom); });
+}
+
+bool FSTMapFocusPoint::GetPoint(float InZoom, FSTMapInfo& OutData, float /*InputTolerance*/) const
+{
+	if (const FSTMapZoomPoint* STMapZoomPoint = GetZoomPoint(InZoom))
+	{
+		OutData = STMapZoomPoint->STMapInfo;
+		return true;
+	}
+
+	return false;
 }
 
 bool FSTMapFocusPoint::AddPoint(float InZoom, const FSTMapInfo& InData, float InputTolerance, bool bIsCalibrationPoint)
@@ -59,6 +69,24 @@ bool FSTMapFocusPoint::AddPoint(float InZoom, const FSTMapInfo& InData, float In
 	}
 
 	return true;
+}
+
+bool FSTMapFocusPoint::SetPoint(float InZoom, const FSTMapInfo& InData, float InputTolerance)
+{
+	const FKeyHandle Handle = MapBlendingCurve.FindKey(InZoom, InputTolerance);
+	if(Handle != FKeyHandle::Invalid())
+	{
+		const int32 PointIndex = MapBlendingCurve.GetIndexSafe(Handle);
+		if(ensure(ZoomPoints.IsValidIndex(PointIndex)))
+		{
+			//No need to update map curve since x == y
+			ZoomPoints[PointIndex].STMapInfo = InData;
+			ZoomPoints[PointIndex].DerivedDistortionData.bIsDirty = true;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void FSTMapFocusPoint::RemovePoint(float InZoomValue)
@@ -127,3 +155,25 @@ bool FSTMapTable::AddPoint(float InFocus, float InZoom, const FSTMapInfo& InData
 {
 	return LensDataTableUtils::AddPoint(FocusPoints, InFocus, InZoom, InData, InputTolerance, bIsCalibrationPoint);
 }
+
+bool FSTMapTable::GetPoint(const float InFocus, const float InZoom, FSTMapInfo& OutData, float InputTolerance) const
+{
+	if (const FSTMapFocusPoint* STMapFocusPoint = GetFocusPoint(InFocus))
+	{
+		FSTMapInfo SMapInfo;
+		if (STMapFocusPoint->GetPoint(InZoom, SMapInfo, InputTolerance))
+		{
+			// Copy struct to outer
+			OutData = SMapInfo;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool FSTMapTable::SetPoint(float InFocus, float InZoom, const FSTMapInfo& InData, float InputTolerance)
+{
+	return LensDataTableUtils::SetPoint(*this, InFocus, InZoom, InData, InputTolerance);
+}
+

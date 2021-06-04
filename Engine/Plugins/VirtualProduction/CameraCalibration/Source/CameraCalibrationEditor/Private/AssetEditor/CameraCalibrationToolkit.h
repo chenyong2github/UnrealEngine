@@ -15,6 +15,7 @@ class SNodalOffsetToolPanel;
 class SLensEvaluation;
 class ULensFile;
 class FCameraCalibrationStepsController;
+class SWindow;
 
 /** Toolkit to do camera calibration */
 class FCameraCalibrationToolkit : public FAssetEditorToolkit
@@ -33,6 +34,16 @@ public:
 	 * @param	InLensFile				The LensFile asset to edit
 	 */
 	void InitCameraCalibrationTool(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, ULensFile* InLensFile);
+
+	/**
+	 * Creates Popup Toolkit Window or bring it to front if window does exists
+	 *
+	 * @param	InTitle	Window Title
+	 */
+	static TSharedPtr<SWindow> OpenPopupWindow(const FText& InTitle);
+
+	/** Close the window and release the pointer */
+	static void DestroyPopupWindow();
 
 protected:
 
@@ -79,4 +90,7 @@ private:
 
 	/** Calibration Steps Controller */
 	TSharedPtr<FCameraCalibrationStepsController> CalibrationStepsController;
+
+	/** Singleton for the toolkit pop-up window. */
+	static TWeakPtr<SWindow> PopupWindow;
 };

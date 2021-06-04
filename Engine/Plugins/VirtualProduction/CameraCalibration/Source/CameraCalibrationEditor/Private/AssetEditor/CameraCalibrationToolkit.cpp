@@ -4,17 +4,16 @@
 
 #include "CameraCalibrationStepsController.h"
 #include "LensFile.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "SLensEvaluation.h"
 #include "SLensFilePanel.h"
-#include "SNodalOffsetToolPanel.h"
-#include "UI/CameraCalibrationEditorStyle.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/SWindow.h"
 #include "Widgets/Docking/SDockTab.h"
-
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationToolkit"
 
+TWeakPtr<SWindow> FCameraCalibrationToolkit::PopupWindow;
 
 namespace CameraCalibrationToolkitUtils
 {
@@ -98,6 +97,41 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 		bUseSmallIcons);
 
 	RegenerateMenusAndToolbars();
+}
+
+TSharedPtr<SWindow> FCameraCalibrationToolkit::OpenPopupWindow(const FText& InTitle)
+{
+	TSharedPtr<SWindow> PopupWindowPin = PopupWindow.Pin();
+	if (PopupWindowPin.IsValid())
+	{
+		PopupWindowPin->BringToFront();
+	}
+	else
+	{
+		PopupWindowPin = SNew(SWindow)
+			.HasCloseButton(true)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false)
+			.ClientSize(FVector2D(480, 360));
+
+		FSlateApplication::Get().AddWindow(PopupWindowPin.ToSharedRef());
+	}
+
+	PopupWindow = PopupWindowPin;
+	PopupWindowPin->SetTitle(InTitle);
+
+	return PopupWindowPin;
+
+}
+
+void FCameraCalibrationToolkit::DestroyPopupWindow()
+{
+	TSharedPtr<SWindow> ExistingWindowPin = PopupWindow.Pin();
+	if (ExistingWindowPin.IsValid())
+	{
+		ExistingWindowPin->RequestDestroyWindow();
+		ExistingWindowPin = nullptr;
+	}
 }
 
 void FCameraCalibrationToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
