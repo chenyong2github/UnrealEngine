@@ -132,6 +132,17 @@ bool UStaticMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMat
 {
 	if (!ensure(IsValid())) return false;
 
+	// filter out any Engine materials that we don't want to be permanently assigning
+	TArray<UMaterialInterface*> FilteredMaterials = MaterialSet.Materials;
+	for (int32 k = 0; k < FilteredMaterials.Num(); ++k)
+	{
+		FString AssetPath = FilteredMaterials[k]->GetPathName();
+		if (AssetPath.StartsWith(TEXT("/MeshModelingToolset/")))
+		{
+			FilteredMaterials[k] = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+	}
+
 	if (bApplyToAsset)
 	{
 		UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
@@ -153,16 +164,16 @@ bool UStaticMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMat
 
 		StaticMesh->Modify();
 
-		int NewNumMaterials = MaterialSet.Materials.Num();
+		int NewNumMaterials = FilteredMaterials.Num();
 		if (NewNumMaterials != StaticMesh->GetStaticMaterials().Num())
 		{
 			StaticMesh->GetStaticMaterials().SetNum(NewNumMaterials);
 		}
 		for (int k = 0; k < NewNumMaterials; ++k)
 		{
-			if (StaticMesh->GetMaterial(k) != MaterialSet.Materials[k])
+			if (StaticMesh->GetMaterial(k) != FilteredMaterials[k])
 			{
-				StaticMesh->SetMaterial(k, MaterialSet.Materials[k]);
+				StaticMesh->SetMaterial(k, FilteredMaterials[k]);
 			}
 		}
 
@@ -171,7 +182,7 @@ bool UStaticMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMat
 	else
 	{
 		int32 NumMaterialsNeeded = Component->GetNumMaterials();
-		int32 NumMaterialsGiven = MaterialSet.Materials.Num();
+		int32 NumMaterialsGiven = FilteredMaterials.Num();
 
 		// We wrote the below code to support a mismatch in the number of materials.
 		// However, it is not yet clear whether this might be desirable, and we don't
@@ -184,7 +195,7 @@ bool UStaticMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMat
 		for (int32 i = 0; i < NumMaterialsNeeded; ++i)
 		{
 			int32 MaterialToUseIndex = FMath::Min(i, NumMaterialsGiven - 1);
-			Component->SetMaterial(i, MaterialSet.Materials[MaterialToUseIndex]);
+			Component->SetMaterial(i, FilteredMaterials[MaterialToUseIndex]);
 		}
 	}
 

@@ -14,7 +14,7 @@
  * A tool target backed by AVolume
  */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UVolumeMeshDescriptionToolTarget : public UVolumeDynamicMeshToolTarget,
+class MODELINGCOMPONENTSEDITORONLY_API UVolumeMeshDescriptionToolTarget : public UVolumeDynamicMeshToolTarget,
 	public IMeshDescriptionCommitter, public IMeshDescriptionProvider
 {
 	GENERATED_BODY()
@@ -38,7 +38,7 @@ protected:
 
 /** Factory for UVolumeMeshDescriptionToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UVolumeMeshDescriptionToolTargetFactory : public UToolTargetFactory
+class MODELINGCOMPONENTSEDITORONLY_API UVolumeMeshDescriptionToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 

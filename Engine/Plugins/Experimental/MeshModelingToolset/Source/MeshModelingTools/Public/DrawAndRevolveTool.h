@@ -11,6 +11,7 @@
 #include "InteractiveToolChange.h" //FToolCommandChange
 #include "MeshOpPreviewHelpers.h" //FDynamicMeshOpResult
 #include "Properties/MeshMaterialProperties.h"
+#include "Properties/CreateMeshObjectTypeProperties.h"
 #include "Properties/RevolveProperties.h"
 
 #include "DrawAndRevolveTool.generated.h"
@@ -123,6 +124,10 @@ protected:
 
 	UPROPERTY()
 	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
+
+	/** Property set for type of output object (StaticMesh, Volume, etc) */
+	UPROPERTY()
+	UCreateMeshObjectTypeProperties* OutputTypeProperties;
 
 	UPROPERTY()
 	URevolveToolProperties* Settings = nullptr;

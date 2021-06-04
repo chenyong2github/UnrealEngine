@@ -28,6 +28,7 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 #if WITH_EDITOR
 #include "Misc/ScopedSlowTask.h"
@@ -273,15 +274,21 @@ void UCombineMeshesTool::CreateNewAsset()
 			if (bDuplicateMode) // no transform if duplicating
 			{
 				Editor.AppendMesh(&ComponentDMesh, IndexMapping);
-				CollisionSettings = UE::Geometry::GetCollisionSettings(TargetComponent->GetOwnerComponent());
-				UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, UE::Geometry::FTransform3d::Identity());
+				if (UE::Geometry::ComponentTypeSupportsCollision(TargetComponent->GetOwnerComponent()))
+				{
+					CollisionSettings = UE::Geometry::GetCollisionSettings(TargetComponent->GetOwnerComponent());
+					UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, UE::Geometry::FTransform3d::Identity());
+				}
 			}
 			else
 			{
 				Editor.AppendMesh(&ComponentDMesh, IndexMapping,
 					[&XF](int Unused, const FVector3d P) { return XF.TransformPosition(P); },
 					[&XF](int Unused, const FVector3d N) { return XF.TransformNormal(N); });
-				UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, XF);
+				if (UE::Geometry::ComponentTypeSupportsCollision(TargetComponent->GetOwnerComponent()))
+				{
+					UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, XF);
+				}
 			}
 
 			MatIndexBase += TargetMaterialInterface(ComponentIdx)->GetNumMaterials();
@@ -316,27 +323,14 @@ void UCombineMeshesTool::CreateNewAsset()
 		NewMeshObjectParams.BaseName = UseBaseName;
 		NewMeshObjectParams.Materials = AllMaterials;
 		NewMeshObjectParams.SetMesh(&AccumulateDMesh);
+		UE::ToolTarget::ConfigureCreateMeshObjectParams(Targets[0], NewMeshObjectParams);
 		FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 		if (Result.IsOK() && Result.NewActor != nullptr)
 		{
-			// copy the component materials onto the new static mesh asset too
-			// (note: GenerateStaticMeshActor defaults to just putting blank slots on the asset)
-			UStaticMeshComponent* NewMeshComponent = Result.NewActor->FindComponentByClass<UStaticMeshComponent>();
-			if (NewMeshComponent)
+			// if any inputs have Simple Collision geometry we will forward it to new mesh.
+			if (UE::Geometry::ComponentTypeSupportsCollision(Result.NewComponent) && SimpleCollision.TotalElementsNum() > 0)
 			{
-				UStaticMesh* NewMesh = NewMeshComponent->GetStaticMesh();
-#if WITH_EDITOR
-				for (int32 MatIdx = 0; MatIdx < AllMaterials.Num(); MatIdx++)
-				{
-					NewMesh->SetMaterial(MatIdx, AllMaterials[MatIdx]);
-				}
-#endif
-
-				// if any inputs have Simple Collision geometry we will forward it to new mesh.
-				if (SimpleCollision.TotalElementsNum() > 0)
-				{
-					UE::Geometry::SetSimpleCollision(NewMeshComponent, &SimpleCollision, CollisionSettings);
-				}
+				UE::Geometry::SetSimpleCollision(Result.NewComponent, &SimpleCollision, CollisionSettings);
 			}
 
 			// select the new actor
@@ -424,7 +418,12 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	UE::Geometry::FTransform3d WorldToTarget = TargetToWorld.Inverse();
 
 	FSimpleShapeSet3d SimpleCollision;
-	UE::Geometry::FComponentCollisionSettings CollisionSettings = UE::Geometry::GetCollisionSettings(UpdateTarget->GetOwnerComponent());
+	UE::Geometry::FComponentCollisionSettings CollisionSettings;
+	bool bSupportsCollision = UE::Geometry::ComponentTypeSupportsCollision(UpdateTarget->GetOwnerComponent());
+	if (bSupportsCollision)
+	{
+		CollisionSettings = UE::Geometry::GetCollisionSettings(UpdateTarget->GetOwnerComponent());
+	}
 	TArray<UE::Geometry::FTransform3d> Transforms;
 	Transforms.SetNum(2);
 
@@ -475,11 +474,17 @@ void UCombineMeshesTool::UpdateExistingAsset()
 				}
 				Transforms[0] = ComponentToWorld;
 				Transforms[1] = WorldToTarget;
-				UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, Transforms);
+				if (bSupportsCollision)
+				{
+					UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, Transforms);
+				}
 			}
 			else
 			{
-				UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, UE::Geometry::FTransform3d::Identity());
+				if (bSupportsCollision)
+				{
+					UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, UE::Geometry::FTransform3d::Identity());
+				}
 			}
 
 			FDynamicMeshEditor Editor(&AccumulateDMesh);
@@ -502,7 +507,10 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			Converter.Convert(&AccumulateDMesh, *CommitParams.MeshDescriptionOut);
 		});
 
-		UE::Geometry::SetSimpleCollision(UpdateTarget->GetOwnerComponent(), &SimpleCollision, CollisionSettings);
+		if (bSupportsCollision)
+		{
+			UE::Geometry::SetSimpleCollision(UpdateTarget->GetOwnerComponent(), &SimpleCollision, CollisionSettings);
+		}
 
 		FComponentMaterialSet MaterialSet;
 		MaterialSet.Materials = AllMaterials;

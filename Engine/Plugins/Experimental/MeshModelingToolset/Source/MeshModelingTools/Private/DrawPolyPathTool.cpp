@@ -193,6 +193,12 @@ void UDrawPolyPathTool::Setup()
 		UpdateSurfacePathPlane();
 	});
 
+	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
+	OutputTypeProperties->RestoreProperties(this);
+	OutputTypeProperties->InitializeDefault();
+	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
+	AddToolPropertySource(OutputTypeProperties);
+
 	// add properties
 	TransformProps = NewObject<UDrawPolyPathProperties>(this);
 	TransformProps->RestoreProperties(this);
@@ -222,6 +228,7 @@ void UDrawPolyPathTool::Shutdown(EToolShutdownType ShutdownType)
 	PlaneMechanic->Shutdown();
 	PlaneMechanic = nullptr;
 
+	OutputTypeProperties->SaveProperties(this);
 	TransformProps->SaveProperties(this);
 	ExtrudeProperties->SaveProperties(this);
 	MaterialProperties->SaveProperties(this);
@@ -774,6 +781,7 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
 	NewMeshObjectParams.BaseName = TEXT("Path");
 	NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());
 	NewMeshObjectParams.SetMesh(&PathMesh);
+	OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
 	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 	if (Result.IsOK() && Result.NewActor != nullptr)
 	{

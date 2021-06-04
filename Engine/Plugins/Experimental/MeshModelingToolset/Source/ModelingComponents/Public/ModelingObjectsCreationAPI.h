@@ -87,6 +87,10 @@ struct MODELINGCOMPONENTS_API FCreateMeshObjectParams
 	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
 	ECreateObjectTypeHint TypeHint = ECreateObjectTypeHint::Undefined;
 
+	/** A suggested UClass type for the newly-created Object (possibly ignored) */
+	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
+	TObjectPtr<UClass> TypeHintClass = nullptr;
+
 	/** An arbitrary integer that can be used to pass data to an API implementation */
 	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
 	int32 TypeHintExtended = 0;

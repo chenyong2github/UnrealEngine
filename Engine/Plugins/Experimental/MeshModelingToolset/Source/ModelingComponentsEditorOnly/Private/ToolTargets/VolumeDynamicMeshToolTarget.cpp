@@ -18,6 +18,13 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
+
+TAutoConsoleVariable<int32> CVarModelingMaxVolumeTriangleCount(
+	TEXT("modeling.VolumeMaxTriCount"),
+	500,
+	TEXT("Limit on triangle count for Volumes that will be emitted by modeling tools. Meshes above this limit will be auto-simplified."));
+
+
 UVolumeDynamicMeshToolTarget::UVolumeDynamicMeshToolTarget()
 {
 	// TODO: These should be user-configurable somewhere
@@ -93,7 +100,11 @@ void UVolumeDynamicMeshToolTarget::CommitDynamicMesh(const UE::Geometry::FDynami
 	check(Volume);
 
 	FTransform Transform = GetWorldTransform();
-	UE::Conversion::DynamicMeshToVolume(Mesh, Volume);
+
+	UE::Conversion::FMeshToVolumeOptions ConversionOptions;
+	ConversionOptions.bAutoSimplify = true;
+	ConversionOptions.MaxTriangles = FMath::Max(1, CVarModelingMaxVolumeTriangleCount.GetValueOnGameThread());
+	UE::Conversion::DynamicMeshToVolume(Mesh, Volume, ConversionOptions);
 
 	Volume->SetActorTransform(Transform);
 	Volume->PostEditChange();

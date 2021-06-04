@@ -24,6 +24,6 @@ struct FVolumeToMeshOptions
 /**
  * Converts a volume to a dynamic mesh. Does not initialize normals and does not delete the volume.
  */
-void MESHMODELINGTOOLS_API VolumeToDynamicMesh(AVolume* Volume, UE::Geometry::FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options);
+void MODELINGCOMPONENTS_API VolumeToDynamicMesh(AVolume* Volume, UE::Geometry::FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options);
 
 }}//end namespace UE::Conversion

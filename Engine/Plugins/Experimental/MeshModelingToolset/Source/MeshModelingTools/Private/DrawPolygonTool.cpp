@@ -110,8 +110,12 @@ void UDrawPolygonTool::Setup()
 	//AKeyBehavior->Initialize(this, AngleSnapModifier, EKeys::A);
 	//AddInputBehavior(AKeyBehavior);
 
+	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
+	OutputTypeProperties->RestoreProperties(this);
+	OutputTypeProperties->InitializeDefault();
+	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
 
-	PolygonProperties = NewObject<UDrawPolygonToolStandardProperties>(this, TEXT("Polygon Settings"));
+	PolygonProperties = NewObject<UDrawPolygonToolStandardProperties>(this);
 	PolygonProperties->RestoreProperties(this);
 	PolygonProperties->WatchProperty(PolygonProperties->bShowGizmo,
 									 [this](bool bNewValue) { this->UpdateShowGizmoState(bNewValue); });
@@ -132,7 +136,7 @@ void UDrawPolygonTool::Setup()
 	MaterialProperties->bShowExtendedOptions = true;
 
 	// create preview mesh object
-	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("DrawPolygonPreviewMesh"));
+	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(this->TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
 	{
@@ -152,10 +156,14 @@ void UDrawPolygonTool::Setup()
 	};
 	SnapEngine.Plane = FFrame3d(DrawPlaneOrigin, DrawPlaneOrientation);
 
-	SnapProperties = NewObject<UDrawPolygonToolSnapProperties>(this, TEXT("Snapping"));
+	SnapProperties = NewObject<UDrawPolygonToolSnapProperties>(this);
 	SnapProperties->RestoreProperties(this);
 
 	// register tool properties
+	if (OutputTypeProperties->ShouldShowPropertySet())
+	{
+		AddToolPropertySource(OutputTypeProperties);
+	}
 	AddToolPropertySource(PolygonProperties);
 	AddToolPropertySource(SnapProperties);
 	AddToolPropertySource(MaterialProperties);
@@ -176,6 +184,7 @@ void UDrawPolygonTool::Shutdown(EToolShutdownType ShutdownType)
 
 	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 
+	OutputTypeProperties->SaveProperties(this);
 	PolygonProperties->SaveProperties(this);
 	SnapProperties->SaveProperties(this);
 	MaterialProperties->SaveProperties(this);
@@ -1014,6 +1023,7 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 	NewMeshObjectParams.BaseName = BaseName;
 	NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());
 	NewMeshObjectParams.SetMesh(&Mesh);
+	OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
 	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 	if (Result.IsOK() && Result.NewActor != nullptr)
 	{

@@ -22,6 +22,7 @@
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 #define LOCTEXT_NAMESPACE "UBaseCreateFromSelectedTool"
 
@@ -37,8 +38,7 @@ const FToolTargetTypeRequirements& UBaseCreateFromSelectedToolBuilder::GetTarget
 		UMeshDescriptionCommitter::StaticClass(),
 		UMeshDescriptionProvider::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass(),
-		UMaterialProvider::StaticClass(),
-		UAssetBackedTarget::StaticClass()
+		UMaterialProvider::StaticClass()
 		});
 	return TypeRequirements;
 }
@@ -241,6 +241,7 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& OpRe
 	NewMeshObjectParams.BaseName = UseBaseName;
 	NewMeshObjectParams.Materials = GetOutputMaterials();
 	NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+	UE::ToolTarget::ConfigureCreateMeshObjectParams(Targets[0], NewMeshObjectParams);
 	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 	if (Result.IsOK() && Result.NewActor != nullptr)
 	{

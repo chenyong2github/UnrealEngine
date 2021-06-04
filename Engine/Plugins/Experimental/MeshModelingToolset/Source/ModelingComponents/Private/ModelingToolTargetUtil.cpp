@@ -8,12 +8,27 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
+#include "ModelingObjectsCreationAPI.h"
+
 #include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "GameFramework/Volume.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
 using namespace UE::Geometry;
+
+AActor* UE::ToolTarget::GetTargetActor(UToolTarget* Target)
+{
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	if (TargetComponent)
+	{
+		return TargetComponent->GetOwnerActor();
+	}
+	ensure(false);
+	return nullptr;
+}
 
 UPrimitiveComponent* UE::ToolTarget::GetTargetComponent(UToolTarget* Target)
 {
@@ -132,4 +147,28 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUVUpda
 		}
 	});
 	return Result;
+}
+
+
+
+bool UE::ToolTarget::ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, FCreateMeshObjectParams& DerivedParamsOut)
+{
+	IPrimitiveComponentBackedTarget* ComponentTarget = Cast<IPrimitiveComponentBackedTarget>(SourceTarget);
+	if (ComponentTarget)
+	{
+		if (Cast<UStaticMeshComponent>(ComponentTarget->GetOwnerComponent()) != nullptr)
+		{
+			DerivedParamsOut.TypeHint = ECreateObjectTypeHint::StaticMesh;
+			return true;
+		}
+
+		AVolume* VolumeActor = Cast<AVolume>(ComponentTarget->GetOwnerActor());
+		if (VolumeActor != nullptr)
+		{
+			DerivedParamsOut.TypeHint = ECreateObjectTypeHint::Volume;
+			DerivedParamsOut.TypeHintClass = VolumeActor->GetClass();
+			return true;
+		}
+	}
+	return false;
 }

@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingComponentsEditorOnlyModule.h"
+#include "ToolTargets/VolumeComponentTarget.h"
 
 #define LOCTEXT_NAMESPACE "FModelingComponentsEditorOnlyModule"
 
 void FModelingComponentsEditorOnlyModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	AddComponentTargetFactory(TUniquePtr<FComponentTargetFactory>{new FVolumeComponentTargetFactory{} });
 }
 
 void FModelingComponentsEditorOnlyModule::ShutdownModule()

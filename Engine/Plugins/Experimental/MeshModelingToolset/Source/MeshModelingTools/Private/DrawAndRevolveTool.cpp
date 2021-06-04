@@ -115,6 +115,12 @@ void UDrawAndRevolveTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "Revolve PolyPath"));
 	GetToolManager()->DisplayMessage(InitializationModeMessage, EToolMessageLevel::UserNotification);
 
+	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
+	OutputTypeProperties->RestoreProperties(this);
+	OutputTypeProperties->InitializeDefault();
+	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
+	AddToolPropertySource(OutputTypeProperties);
+
 	Settings = NewObject<URevolveToolProperties>(this, TEXT("Revolve Tool Settings"));
 	Settings->RestoreProperties(this);
 	Settings->bAllowedToEditDrawPlane = true;
@@ -209,6 +215,7 @@ void UDrawAndRevolveTool::UpdateRevolutionAxis()
 
 void UDrawAndRevolveTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	OutputTypeProperties->SaveProperties(this);
 	Settings->SaveProperties(this);
 	MaterialProperties->SaveProperties(this);
 
@@ -243,6 +250,7 @@ void UDrawAndRevolveTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 	NewMeshObjectParams.BaseName = TEXT("Revolve");
 	NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());
 	NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+	OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
 	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 	if (Result.IsOK() && Result.NewActor != nullptr)
 	{

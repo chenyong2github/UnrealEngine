@@ -316,12 +316,18 @@ void UModelingToolsEditorMode::Enter()
 			return UE::Modeling::GetNewAssetPathName(BaseName, TargetWorld, SuggestedFolder);
 		});
 		MeshCreatedEventHandle = ModelCreationAPI->OnModelingMeshCreated.AddLambda([](const FCreateMeshObjectResult& CreatedInfo) 
-		{ 
-			UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+		{
+			if (CreatedInfo.NewAsset != nullptr)
+			{
+				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+			}
 		});
 		TextureCreatedEventHandle = ModelCreationAPI->OnModelingTextureCreated.AddLambda([](const FCreateTextureObjectResult& CreatedInfo)
 		{
-			UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+			if (CreatedInfo.NewAsset != nullptr)
+			{
+				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+			}
 		});
 	}
 

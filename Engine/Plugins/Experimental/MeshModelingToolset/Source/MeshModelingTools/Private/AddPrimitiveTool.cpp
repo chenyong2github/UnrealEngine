@@ -123,6 +123,12 @@ void UAddPrimitiveTool::Setup()
 	HoverBehavior->Initialize(this);
 	AddInputBehavior(HoverBehavior);
 
+	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
+	OutputTypeProperties->RestoreProperties(this);
+	OutputTypeProperties->InitializeDefault();
+	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
+	AddToolPropertySource(OutputTypeProperties);
+
 	AddToolPropertySource(ShapeSettings);
 	ShapeSettings->RestoreProperties(this);
 
@@ -151,6 +157,7 @@ void UAddPrimitiveTool::Shutdown(EToolShutdownType ShutdownType)
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
 
+	OutputTypeProperties->SaveProperties(this);
 	ShapeSettings->SaveProperties(this);
 	MaterialProperties->SaveProperties(this);	
 }
@@ -346,6 +353,7 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 	NewMeshObjectParams.BaseName = AssetName;
 	NewMeshObjectParams.Materials.Add(Material);
 	NewMeshObjectParams.SetMesh(CurMesh);
+	OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
 	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 	if (Result.IsOK() )
 	{

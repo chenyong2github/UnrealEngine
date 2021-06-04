@@ -12,6 +12,7 @@
 #include "Snapping/PointPlanarSnapSolver.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "Properties/CreateMeshObjectTypeProperties.h"
 #include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "DrawPolygonTool.generated.h"
 
@@ -210,6 +211,10 @@ protected:
 
 protected:
 
+	/** Property set for type of output object (StaticMesh, Volume, etc) */
+	UPROPERTY()
+	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+
 	/** Properties that control polygon generation exposed to user via detailsview */
 	UPROPERTY()
 	UDrawPolygonToolStandardProperties* PolygonProperties;
@@ -263,7 +268,6 @@ protected:
 	virtual void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal);
 
 	void UpdateShowGizmoState(bool bNewVisibility);
-
 
 	// polygon drawing
 

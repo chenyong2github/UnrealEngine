@@ -30,11 +30,11 @@
 
 #include "Misc/MessageDialog.h"
 
+#include "ModelingToolTargetUtil.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -52,8 +52,7 @@ const FToolTargetTypeRequirements& UPlaneCutToolBuilder::GetTargetRequirements()
 		UMaterialProvider::StaticClass(),
 		UMeshDescriptionCommitter::StaticClass(),
 		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass(),
-		UAssetBackedTarget::StaticClass()
+		UPrimitiveComponentBackedTarget::StaticClass()
 		});
 	return TypeRequirements;
 }
@@ -553,6 +552,7 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 				NewMeshObjectParams.Materials = ComponentMaterialSet.Materials;
 				NewMeshObjectParams.AssetMaterials = AssetMaterialSet.Materials;
 				NewMeshObjectParams.SetMesh(&SplitMeshes[AddMeshIdx]);
+				UE::ToolTarget::ConfigureCreateMeshObjectParams(Targets[OrigMeshIdx], NewMeshObjectParams);
 				FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 				if (Result.IsOK() && Result.NewActor != nullptr)
 				{
