@@ -698,6 +698,7 @@ namespace HordeServer
 				App.UseMiddleware<RequestTrackerMiddleware>();	
 			}
 
+			App.UseDefaultFiles();
 			App.UseStaticFiles();
 			App.UseRouting();
 
