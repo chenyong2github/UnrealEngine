@@ -155,7 +155,15 @@ UMoviePipelineExecutorJob* UMoviePipelineEditorBlueprintLibrary::CreateJobFromSe
 
 	TArray<FString> AssociatedMaps = FSequencerUtilities::GetAssociatedMapPackages(InSequence);
 	FSoftObjectPath CurrentWorld;
-	if (AssociatedMaps.Num() > 0)
+
+	UWorld* EditorWorld = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+
+	// We'll assume they went to render from the current world if it's been saved.
+	if (EditorWorld && (!EditorWorld->GetOutermost()->GetPathName().StartsWith(TEXT("/Temp/Untitled")) || AssociatedMaps.Num() == 0))
+	{
+		CurrentWorld = FSoftObjectPath(EditorWorld);
+	}
+	else if (AssociatedMaps.Num() > 0)
 	{
 		// So associated maps are only packages and not assets, but FSoftObjectPath needs assets.
 		// We know that they are map packages, and map packages should be /Game/Foo.Foo, so we can
@@ -164,11 +172,6 @@ UMoviePipelineExecutorJob* UMoviePipelineEditorBlueprintLibrary::CreateJobFromSe
 		MapPackage = FString::Printf(TEXT("%s.%s"), *MapPackage, *FPackageName::GetShortName(MapPackage));
 
 		CurrentWorld = FSoftObjectPath(MapPackage);
-	}
-	else
-	{
-		// We'll assume they went to render from the current world - they can always override it later.
-		CurrentWorld = GEditor ? FSoftObjectPath(GEditor->GetEditorWorldContext().World()) : FSoftObjectPath();
 	}
 
 	FSoftObjectPath Sequence(InSequence);
