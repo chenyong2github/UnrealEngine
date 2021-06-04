@@ -22,6 +22,11 @@ class FLensEncodersCurveModel : public FLensDataCurveModel
 public:
 
 	FLensEncodersCurveModel(ULensFile* InOwner, EEncoderType InType);
+
+	//~ Begin FRichCurveEditorModel
+	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified) override;
+	//~ End FRichCurveEditorModel
+
 	
 protected:
 	void OnCurveModifiedCallback() const;

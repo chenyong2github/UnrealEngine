@@ -143,12 +143,19 @@ void SLensDataViewer::OnGetDataCategoryItemChildren(TSharedPtr<FLensDataCategory
 
 void SLensDataViewer::OnDataCategorySelectionChanged(TSharedPtr<FLensDataCategoryItem> Item, ESelectInfo::Type SelectInfo)
 {
-	if (!Item || SelectInfo != ESelectInfo::OnMouseClick)
+	//Don't filter based on SelectInfo. We want to update on arrow key usage
+	if((Item.IsValid() == false)
+		|| (CachedSelectedCategoryItem.IsValid() == false)
+		|| (CachedSelectedCategoryItem->Category != Item->Category))
 	{
-		return;
+		RefreshDataEntriesTree();
+	}
+	else
+	{
+		RefreshCurve();
 	}
 
-	RefreshDataEntriesTree();
+	CachedSelectedCategoryItem = Item;
 }
 
 TSharedPtr<FLensDataListItem> SLensDataViewer::GetSelectedDataEntry() const
@@ -178,6 +185,18 @@ void SLensDataViewer::OnGetDataEntryChildren(TSharedPtr<FLensDataListItem> Item,
 void SLensDataViewer::OnDataEntrySelectionChanged(TSharedPtr<FLensDataListItem> Node, ESelectInfo::Type SelectInfo)
 {
 	RefreshCurve();
+}
+
+void SLensDataViewer::PostUndo(bool bSuccess)
+{
+	//Items in category could have changed
+	RefreshDataEntriesTree();	
+}
+
+void SLensDataViewer::PostRedo(bool bSuccess)
+{
+	//Items in category could have changed
+	RefreshDataEntriesTree();
 }
 
 TSharedRef<SWidget> SLensDataViewer::MakeLensDataWidget()
@@ -238,10 +257,21 @@ TSharedRef<SWidget> SLensDataViewer::MakeLensDataWidget()
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SAssignNew(DataEntryNameWidget, STextBlock)
+					SNew(STextBlock)
+					.Text_Lambda([this]()
+					{
+						if(const TSharedPtr<FLensDataCategoryItem> CategoryItem = GetDataCategorySelection())
+						{
+							return FText::FromName(CategoryItem->Label);
+						}
+						else
+						{
+							return LOCTEXT("NoCategorySelected", "Select a category");
+						}
+					})
 				]
-				+ SVerticalBox::Slot()
-				[
+			+ SVerticalBox::Slot()
+			[
 					SAssignNew(DataEntriesTree, STreeView<TSharedPtr<FLensDataListItem>>)
 					.TreeItemsSource(&DataEntries)
 					.ItemHeight(24.0f)
@@ -392,8 +422,6 @@ void SLensDataViewer::RefreshDataEntriesTree()
 
 	if (TSharedPtr<FLensDataCategoryItem> CategoryItem = GetDataCategorySelection())
 	{
-		DataEntryNameWidget->SetText(FText::FromName(CategoryItem->Label));
-
 		FOnDataRemoved DataRemovedCallback = FOnDataRemoved::CreateSP(this, &SLensDataViewer::OnDataPointRemoved);
 
 		switch (CategoryItem->Category)
@@ -445,10 +473,6 @@ void SLensDataViewer::RefreshDataEntriesTree()
 				break;
 			}
 		}
-	}
-	else
-	{
-		DataEntryNameWidget->SetText(LOCTEXT("NoCategorySelected", "Select a category"));
 	}
 
 	//When data entries have been repopulated, refresh the tree and select first item

@@ -128,52 +128,33 @@ void SLensEvaluation::CacheLiveLinkData()
 				{
 					FLiveLinkCameraStaticData* StaticData = SubjectData.StaticData.Cast<FLiveLinkCameraStaticData>();
 					FLiveLinkCameraFrameData* FrameData = SubjectData.FrameData.Cast<FLiveLinkCameraFrameData>();
-					if (StaticData->FIZDataMode == ECameraFIZMode::EncoderData)
+
+					if (StaticData->bIsFocusDistanceSupported)
 					{
-						if (StaticData->bIsFocusDistanceSupported)
+						CachedLiveLinkData.NormalizedFocus = FrameData->FocusDistance;
+						if (LensFile->HasFocusEncoderMapping())
 						{
-							CachedLiveLinkData.NormalizedFocus = FrameData->FocusDistance;
-							if (LensFile->HasFocusEncoderMapping())
-							{
-								CachedLiveLinkData.Focus = LensFile->EvaluateNormalizedFocus(FrameData->FocusDistance);
-							}
-						}
-
-						if (StaticData->bIsApertureSupported)
-						{
-							CachedLiveLinkData.NormalizedIris = FrameData->Aperture;
-							if (LensFile->HasIrisEncoderMapping())
-							{
-								CachedLiveLinkData.Iris = LensFile->EvaluateNormalizedIris(FrameData->Aperture);
-							}
-						}
-
-						if (StaticData->bIsFocalLengthSupported)
-						{
-							CachedLiveLinkData.NormalizedZoom = FrameData->FocalLength;
-
-							FFocalLengthInfo FocalLength;
-							if (LensFile->EvaluateFocalLength(FrameData->FocusDistance, FrameData->FocalLength, FocalLength))
-							{
-								CachedLiveLinkData.Zoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
-							}
+							CachedLiveLinkData.Focus = LensFile->EvaluateNormalizedFocus(FrameData->FocusDistance);
 						}
 					}
-					else
+
+					if (StaticData->bIsApertureSupported)
 					{
-						if (StaticData->bIsFocusDistanceSupported)
+						CachedLiveLinkData.NormalizedIris = FrameData->Aperture;
+						if (LensFile->HasIrisEncoderMapping())
 						{
-							CachedLiveLinkData.Focus = FrameData->FocusDistance;
+							CachedLiveLinkData.Iris = LensFile->EvaluateNormalizedIris(FrameData->Aperture);
 						}
+					}
 
-						if (StaticData->bIsApertureSupported)
-						{
-							CachedLiveLinkData.Iris = FrameData->Aperture;
-						}
+					if (StaticData->bIsFocalLengthSupported)
+					{
+						CachedLiveLinkData.NormalizedZoom = FrameData->FocalLength;
 
-						if (StaticData->bIsFocalLengthSupported)
+						FFocalLengthInfo FocalLength;
+						if (LensFile->EvaluateFocalLength(FrameData->FocusDistance, FrameData->FocalLength, FocalLength))
 						{
-							CachedLiveLinkData.Zoom = FrameData->FocalLength;
+							CachedLiveLinkData.Zoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
 						}
 					}
 				}
@@ -254,13 +235,13 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 			+ SGridPanel::Slot(1, 0)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("EncodersLabel", "Encoders"))
+				.Text(LOCTEXT("RawInputLabel", "Raw"))
 				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(2, 0)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("PhysicalLabel", "Physicals"))
+				.Text(LOCTEXT("PhysicalLabel", "Physicals units"))
 				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 
@@ -327,7 +308,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 				{
 					if (CachedLiveLinkData.Focus.IsSet())
 					{
-						return FText::AsNumber(CachedLiveLinkData.Focus.GetValue());
+						return FText::Format(LOCTEXT("PhysicalUnitsFocusValue", "{0} cm"), CachedLiveLinkData.Focus.GetValue());
 					}
 					return LOCTEXT("UndefinedFocus", "N/A");
 				}))
@@ -339,7 +320,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 				{
 					if (CachedLiveLinkData.Iris.IsSet())
 					{
-						return FText::AsNumber(CachedLiveLinkData.Iris.GetValue());
+						return FText::Format(LOCTEXT("PhysicalUnitsIrisValue", "{0} F-Stop"), CachedLiveLinkData.Iris.GetValue());
 					}
 					return LOCTEXT("UndefinedIris", "N/A");
 				}))
@@ -351,7 +332,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 				{
 					if (CachedLiveLinkData.Zoom.IsSet())
 					{
-						return FText::AsNumber(CachedLiveLinkData.Zoom.GetValue());
+						return FText::Format(LOCTEXT("PhysicalUnitsZoomValue", "{0} mm"), CachedLiveLinkData.Zoom.GetValue());
 					}
 					return LOCTEXT("UndefinedZoom", "N/A");
 				}))

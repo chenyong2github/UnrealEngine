@@ -46,4 +46,40 @@ void FLensImageCenterCurveModel::SetKeyPositions(TArrayView<const FKeyHandle> In
 	}
 }
 
+void FLensImageCenterCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType)
+{
+	//Applies attributes to copied curve
+	FRichCurveEditorModel::SetKeyAttributes(InKeys, InAttributes, ChangeType);
+
+	if (FImageCenterFocusPoint* Point = LensFile->ImageCenterTable.GetFocusPoint(Focus))
+	{
+		FRichCurve* ActiveCurve = nullptr;
+		if(ParameterIndex == 0)
+		{
+			ActiveCurve = &Point->Cx;
+		}
+		else
+		{
+			ActiveCurve = &Point->Cy;
+		}
+		
+		for (int32 Index = 0; Index < InKeys.Num(); ++Index)
+		{
+			const FKeyHandle Handle = InKeys[Index];
+			const int32 KeyIndex = CurrentCurve.GetIndexSafe(Handle);
+			
+			//We can't move keys on the time axis so our indices should match
+			//Copy over the tangent attributes
+			if(ensure(ActiveCurve->Keys.IsValidIndex(KeyIndex)))
+			{
+				const FRichCurveKey& Key = CurrentCurve.GetKey(Handle);
+				ActiveCurve->Keys[KeyIndex].InterpMode = Key.InterpMode;
+				ActiveCurve->Keys[KeyIndex].ArriveTangent = Key.ArriveTangent;
+				ActiveCurve->Keys[KeyIndex].LeaveTangent = Key.LeaveTangent;
+				ActiveCurve->Keys[KeyIndex].TangentMode = Key.TangentMode;
+			}
+		}
+	}
+}
+
 

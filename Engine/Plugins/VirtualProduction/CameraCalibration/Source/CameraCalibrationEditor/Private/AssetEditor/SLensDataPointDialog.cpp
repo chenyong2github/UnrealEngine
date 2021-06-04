@@ -490,6 +490,21 @@ TSharedRef<SWidget> SLensDataPointDialog::MakeEncoderMappingWidget()
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("EncoderMappingValueLabel", "Encoder mapping :"))
+					.ToolTipText_Lambda([this]()
+					{
+						if(SelectedCategory == ELensDataCategory::Focus)
+						{
+							return LOCTEXT("FocusEncoderTooltip", "Focus in cm");
+						}
+						else if(SelectedCategory == ELensDataCategory::Iris)
+						{
+							return LOCTEXT("IrisEncoderTooltip", "Aperture in FStop");
+						}
+						else
+						{
+							return LOCTEXT("InvalidEncoderType", "Invalid Encoder Type");
+						}
+					})
 				]
 			]
 			+ SSplitter::Slot()

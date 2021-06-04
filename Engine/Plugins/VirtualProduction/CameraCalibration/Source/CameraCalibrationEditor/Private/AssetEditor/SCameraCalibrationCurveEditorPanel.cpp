@@ -66,56 +66,6 @@ TSharedRef<SWidget> SCameraCalibrationCurveEditorPanel::MakeCurveEditorCurveView
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedRef<SWidget> SCameraCalibrationCurveEditorPanel::MakeTimeSnapMenu()
-{
-	struct FPresetValue
-	{
-		FPresetValue(const int32 InPercentage, const FText& InText, const FText& InDescription)
-			: Percentage(InPercentage)
-			, Text(InText)
-			, Description(InDescription)
-		{}
-		
-		int32 Percentage = 0;
-		FText Text;
-		FText Description;
-	};
-
-	// Test Values before full implementation
-	TArray<FPresetValue> PresetValues;
-	PresetValues.Add({0, LOCTEXT("Snap_Input_Zero", "0%"), LOCTEXT("Snap_Input_Description_Zero", "Snap time values to 0%")});
-	PresetValues.Add({25, LOCTEXT("Snap_Input_TwentyFive", "25%"), LOCTEXT("Snap_Input_Description_TwentyFive", "Snap time values to 25%")});
-	PresetValues.Add({50, LOCTEXT("Snap_Input_Fifty", "50%"), LOCTEXT("Snap_Input_Description_Fifty", "Snap time values to50%")});
-	PresetValues.Add({100, LOCTEXT("Snap_Input_OneHundred", "100%"), LOCTEXT("Snap_Input_Description_OneHundred", "Snap time values to 100%")});
-
-	return SNew(SComboButton)
-		.OnGetMenuContent_Lambda([this, PresetValues]()-> TSharedRef<SWidget>// copy PresetValues for testing
-		{
-			FMenuBuilder MenuBuilder(true, nullptr);
-
-			for (const FPresetValue& PresetValue : PresetValues)
-			{
-				// No action for now
-				FUIAction MenuAction;
-				MenuBuilder.AddMenuEntry(
-					PresetValue.Text,
-					PresetValue.Description,
-					FSlateIcon(),
-					MenuAction,
-					NAME_None,
-					EUserInterfaceActionType::RadioButton
-				);
-			}
-			
-			return MenuBuilder.MakeWidget();
-		})
-		.ButtonContent()
-		[
-			SNew(STextBlock)
-			.Text(PresetValues[0].Text)// First Value for now
-		];
-}
-
 TSharedRef<SWidget> SCameraCalibrationCurveEditorPanel::MakeGridSpacingMenu()
 {
 	const TSharedPtr<FCurveEditor> CurveEditorPtr = CurveEditorWeakPtr.Pin();
@@ -148,11 +98,13 @@ TSharedPtr<FExtender> SCameraCalibrationCurveEditorPanel::GetToolbarExtender()
 	// We're going to create a new Extender and add the main Curve Editor icons to it.
 	// We combine this with the extender provided by the Curve Editor Module as that extender has been extended by tools
 	ICurveEditorModule& CurveEditorModule = FModuleManager::Get().LoadModuleChecked<ICurveEditorModule>("CurveEditor");
+	//We can create our own toolbar extender for our usage of curve editing.
+	//For now, don't add any of the external ones 
 	TArray<TSharedPtr<FExtender>> ToolbarExtenders;
-	for (ICurveEditorModule::FCurveEditorMenuExtender& ExtenderCallback : CurveEditorModule.GetAllToolBarMenuExtenders())
-	{
-		ToolbarExtenders.Add(ExtenderCallback.Execute(GetCommands().ToSharedRef()));
-	}
+	// for (ICurveEditorModule::FCurveEditorMenuExtender& ExtenderCallback : CurveEditorModule.GetAllToolBarMenuExtenders())
+	// {
+	//  	ToolbarExtenders.Add(ExtenderCallback.Execute(GetCommands().ToSharedRef()));
+	// }
 	TSharedPtr<FExtender> Extender = FExtender::Combine(ToolbarExtenders);
 
 	struct Local
@@ -220,19 +172,6 @@ TSharedPtr<FExtender> SCameraCalibrationCurveEditorPanel::GetToolbarExtender()
 	
 			ToolBarBuilder.BeginSection("Adjustment");
 			{
-				// Toggle Button for Time Snapping
-				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().ToggleInputSnapping);
-				
-				// Dropdown Menu to choose the snapping scale.
-				const FUIAction TimeSnapMenuAction;
-				ToolBarBuilder.AddComboButton(
-					TimeSnapMenuAction,
-					FOnGetContent::CreateSP(InEditorPanel, &SCameraCalibrationCurveEditorPanel::MakeTimeSnapMenu),
-					LOCTEXT("TimeSnappingOptions", "Time Snapping"),
-				    LOCTEXT("TimeSnappingOptionsToolTip", "Choose what precision the Time axis is snapped to while moving keys."),
-					TAttribute<FSlateIcon>(),
-					true);
-				
 				// Toggle Button for Value Snapping
 				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().ToggleOutputSnapping);
 				
@@ -253,15 +192,6 @@ TSharedPtr<FExtender> SCameraCalibrationCurveEditorPanel::GetToolbarExtender()
 				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationCubicBreak);
 				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationLinear);
 				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationConstant);
-				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationToggleWeighted);
-			}
-			ToolBarBuilder.EndSection();
-
-			ToolBarBuilder.BeginSection("Filters");
-			{
-				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().FlattenTangents);
-				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().StraightenTangents);
-				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
 			}
 			ToolBarBuilder.EndSection();
 		}

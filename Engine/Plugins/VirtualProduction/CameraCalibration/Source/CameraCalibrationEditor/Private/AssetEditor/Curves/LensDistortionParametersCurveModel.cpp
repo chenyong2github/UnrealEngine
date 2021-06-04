@@ -29,22 +29,22 @@ void FLensDistortionParametersCurveModel::SetKeyPositions(TArrayView<const FKeyH
 
 	FRichCurveEditorModel::SetKeyPositions(InKeys, InKeyPositions, ChangeType);
 
-	for (int32 Index = 0; Index < InKeys.Num(); ++Index)
+	if (FDistortionFocusPoint* Points = LensFile->DistortionTable.GetFocusPoint(Focus))
 	{
-		const FKeyHandle Handle = InKeys[Index];
-		const int32 KeyIndex = CurrentCurve.GetIndexSafe(Handle);
-		if (KeyIndex != INDEX_NONE)
+		for (int32 Index = 0; Index < InKeys.Num(); ++Index)
 		{
-			if (FDistortionFocusPoint* Points = LensFile->DistortionTable.GetFocusPoint(Focus))
+			const FKeyHandle Handle = InKeys[Index];
+			const int32 KeyIndex = CurrentCurve.GetIndexSafe(Handle);
+			if (KeyIndex != INDEX_NONE)
 			{
 				//We can't move keys on the time axis so our indices should match
 				const FRichCurveKey& Key = CurrentCurve.GetKey(Handle);
 				Points->SetParameterValue(KeyIndex, Key.Time, ParameterIndex, Key.Value);
 			}
-		}
-		else
-		{
-			UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find distortion parameter curve key for focus '%0.2f' and zoom '%0.2f' in '%s'"), Focus, InKeyPositions[Index].InputValue, *LensFile->GetName());
+			else
+			{
+				UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find distortion parameter curve key for focus '%0.2f' and zoom '%0.2f' in '%s'"), Focus, InKeyPositions[Index].InputValue, *LensFile->GetName());
+			}
 		}
 	}
 }

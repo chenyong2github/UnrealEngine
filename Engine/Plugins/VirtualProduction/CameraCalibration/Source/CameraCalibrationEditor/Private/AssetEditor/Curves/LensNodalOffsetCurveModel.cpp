@@ -47,4 +47,40 @@ void FLensNodalOffsetCurveModel::SetKeyPositions(TArrayView<const FKeyHandle> In
 	}
 }
 
+void FLensNodalOffsetCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType)
+{
+	//Applies attributes to copied curve
+	FRichCurveEditorModel::SetKeyAttributes(InKeys, InAttributes, ChangeType);
+
+	if (FNodalOffsetFocusPoint* Point = LensFile->NodalOffsetTable.GetFocusPoint(Focus))
+	{
+		FRichCurve* ActiveCurve = nullptr;
+		if(ParameterIndex == 0)
+		{
+			ActiveCurve = &Point->LocationOffset[static_cast<uint8>(Axis) - 1];
+		}
+		else
+		{
+			ActiveCurve = &Point->RotationOffset[static_cast<uint8>(Axis) - 1];
+		}
+		
+		for (int32 Index = 0; Index < InKeys.Num(); ++Index)
+		{
+			const FKeyHandle Handle = InKeys[Index];
+			const int32 KeyIndex = CurrentCurve.GetIndexSafe(Handle);
+			
+			//We can't move keys on the time axis so our indices should match
+			//Copy over the tangent attributes
+			if(ensure(ActiveCurve->Keys.IsValidIndex(KeyIndex)))
+			{
+				const FRichCurveKey& Key = CurrentCurve.GetKey(Handle);
+				ActiveCurve->Keys[KeyIndex].InterpMode = Key.InterpMode;
+				ActiveCurve->Keys[KeyIndex].ArriveTangent = Key.ArriveTangent;
+				ActiveCurve->Keys[KeyIndex].LeaveTangent = Key.LeaveTangent;
+				ActiveCurve->Keys[KeyIndex].TangentMode = Key.TangentMode;
+			}
+		}
+	}
+}
+
 

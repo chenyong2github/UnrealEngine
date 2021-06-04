@@ -12,185 +12,144 @@ FLensFocalLengthCurveModel::FLensFocalLengthCurveModel(ULensFile* InOwner, float
 	, Focus(InFocus)
 	, ParameterIndex(InParameterIndex)
 {
-	if(ParameterIndex != INDEX_NONE)
+	if(ParameterIndex == INDEX_NONE)
 	{
-		LensFile->FocalLengthTable.BuildParameterCurve(Focus, ParameterIndex, CurrentCurve);
-	}
-	else
-	{
-		if (FFocalLengthFocusPoint* Points = LensFile->FocalLengthTable.GetFocusPoint(Focus))
+		if (FFocalLengthFocusPoint* Point = LensFile->FocalLengthTable.GetFocusPoint(Focus))
 		{
-			auto Iterator = Points->Fx.GetKeyHandleIterator();
-			for (const FRichCurveKey& Key : Points->Fx.GetConstRefOfKeys())
+			FRichCurve* ActiveCurve = &Point->Fx;
+			auto Iterator = ActiveCurve->GetKeyHandleIterator();
+			for (const FRichCurveKey& Key : ActiveCurve->GetConstRefOfKeys())
 			{
-				CurrentCurve.AddKey(Key.Time, Key.Value * LensFile->LensInfo.SensorDimensions.X, false, *Iterator);
-				CurrentCurve.SetKeyInterpMode(*Iterator, RCIM_Cubic);
-				CurrentCurve.SetKeyTangentMode(*Iterator, ERichCurveTangentMode::RCTM_Auto);
+				const float Scale = LensFile->LensInfo.SensorDimensions.X;
+				const FKeyHandle NewHandle = CurrentCurve.AddKey(Key.Time, Key.Value * Scale, false, *Iterator);
+
+				FRichCurveKey& NewKey = CurrentCurve.GetKey(*Iterator);
+				NewKey.TangentMode = Key.TangentMode;
+				NewKey.InterpMode = Key.InterpMode;
+				NewKey.ArriveTangent = Key.ArriveTangent * Scale;
+				NewKey.LeaveTangent = Key.LeaveTangent * Scale;
 				++Iterator;
 			}
 		}
-	}
-	
-	bIsCurveValid = true;
-}
 
-void FLensFocalLengthCurveModel::AddKeys(TArrayView<const FKeyPosition> InKeyPositions, TArrayView<const FKeyAttributes> InAttributes, TArrayView<TOptional<FKeyHandle>>* OutKeyHandles)
-{
-	//Support add keys only for focal length curve
-	if(ParameterIndex != INDEX_NONE)
-	{
-		return;
+		bIsCurveValid = true;
 	}
-	
-	FRichCurveEditorModel::AddKeys(InKeyPositions, InAttributes, OutKeyHandles);
-
-	if (OutKeyHandles == nullptr)
+	else if(ParameterIndex >= 0 && ParameterIndex < 2)
 	{
-		return;
-	}
-
-	if (FFocalLengthFocusPoint* Points = LensFile->FocalLengthTable.GetFocusPoint(Focus))
-	{
-		for (const TOptional<FKeyHandle>& OptionalHandle : *OutKeyHandles)
+		if (FFocalLengthFocusPoint* Point = LensFile->FocalLengthTable.GetFocusPoint(Focus))
 		{
-			if (OptionalHandle.IsSet())
-			{
-				//Evaluate FxFy at the new point location to get interpolated aspect ratio
-				//Adjust Fx directly base don focal length but fix Fy using the interpolated aspect ratio
-				const FKeyHandle NewKeyHandle = OptionalHandle.GetValue();
-				const FRichCurveKey& NewKey = CurrentCurve.GetKey(NewKeyHandle);
-				const float EvalFx = Points->Fx.Eval(NewKey.Time);
-				const float EvalFy = Points->Fy.Eval(NewKey.Time);
-
-				float AspectRatio = LensFile->LensInfo.SensorDimensions.Y / LensFile->LensInfo.SensorDimensions.X;
-				if(ensure(FMath::IsNearlyZero(EvalFx) == false))
-				{
-					AspectRatio	= EvalFy / EvalFx;
-				}
-
-				const float NewFx = NewKey.Value / LensFile->LensInfo.SensorDimensions.X;
-				const float NewFy = NewFx * AspectRatio;
-
-				FFocalLengthInfo Info;
-				Info.FxFy = FVector2D(NewFx, NewFy);
-				Points->AddPoint(NewKey.Time, Info, ULensFile::InputTolerance, false);
-				Points->Fx.AddKey(NewKey.Time, NewFx, false, NewKeyHandle);
-				Points->Fx.SetKeyTangentMode(NewKeyHandle, NewKey.TangentMode);
-				Points->Fx.SetKeyInterpMode(NewKeyHandle, NewKey.InterpMode);
-				Points->Fy.AddKey(NewKey.Time, NewFy, false, NewKeyHandle);
-				Points->Fy.SetKeyTangentMode(NewKeyHandle, NewKey.TangentMode);
-				Points->Fy.SetKeyInterpMode(NewKeyHandle, NewKey.InterpMode);
-			}
+			bIsCurveValid = LensFile->FocalLengthTable.BuildParameterCurve(Focus, ParameterIndex, CurrentCurve);
 		}
 	}
-}
-
-void FLensFocalLengthCurveModel::RemoveKeys(TArrayView<const FKeyHandle> InKeys)
-{
-	//Support remove keys only for focal length curve
-	if(ParameterIndex != INDEX_NONE)
-	{
-		return;
-	}
 	
-	TArray<FKeyHandle> FilteredHandles;
-	FilteredHandles.Reserve(InKeys.Num());
-
-	for (const FKeyHandle& Handle : InKeys)
-	{
-		if (IsKeyProtected(Handle) == false)
-		{
-			FilteredHandles.Add(Handle);
-		}
-	}
-
-	FRichCurveEditorModel::RemoveKeys(FilteredHandles);
-
-	if (FFocalLengthFocusPoint* Point = LensFile->FocalLengthTable.GetFocusPoint(Focus))
-	{
-		for(const FKeyHandle& Handle : FilteredHandles)
-		{
-			const FRichCurveKey& TouchedKey = CurrentCurve.GetKey(Handle);
-			const FKeyHandle FxHandle = Point->Fx.FindKey(TouchedKey.Time);
-			Point->Fx.DeleteKey(FxHandle);
-			const FKeyHandle FyHandle = Point->Fy.FindKey(TouchedKey.Time);
-			Point->Fy.DeleteKey(FxHandle);
-		}
-	}
 }
 
 void FLensFocalLengthCurveModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType)
 {
-	FRichCurveEditorModel::SetKeyPositions(InKeys, InKeyPositions, ChangeType);
+	//Reject anything below 1mm
+	const double MinimumFocalLength = (ParameterIndex == INDEX_NONE) ? 1.0 : (1.0 / LensFile->LensInfo.SensorDimensions[ParameterIndex]);
 
-	//When modifying the focal length curve, update the underlying fxfy
-	if (ParameterIndex == INDEX_NONE)
+	TArray<FKeyHandle> FilteredHandles;
+	TArray<FKeyPosition> FilteredPosition;
+	FilteredHandles.Reserve(InKeys.Num());
+	FilteredPosition.Reserve(InKeys.Num());
+	for(int32 Index = 0; Index < InKeys.Num(); ++Index)
 	{
+		if(InKeyPositions[Index].OutputValue >= MinimumFocalLength)
+		{
+			FilteredHandles.Add(InKeys[Index]);
+			FilteredPosition.Add(InKeyPositions[Index]);
+		}
+	}
+	
+	FRichCurveEditorModel::SetKeyPositions(FilteredHandles, FilteredPosition, ChangeType);
+
+	if (FFocalLengthFocusPoint* Point = LensFile->FocalLengthTable.GetFocusPoint(Focus))
+	{
+		FRichCurve* ActiveCurve = nullptr;
+		float Scale = 1.0f;
+		int32 FxFyIndex = ParameterIndex;
+		if(ParameterIndex == INDEX_NONE)
+		{
+			ActiveCurve = &Point->Fx;
+			Scale = 1.0f / LensFile->LensInfo.SensorDimensions.X;
+			FxFyIndex = 0; //mm focal length curve changes Fx
+		}
+		else
+		{
+			ActiveCurve = GetRichCurveForParameterIndex(*Point);
+		}
+		
 		for (int32 Index = 0; Index < InKeys.Num(); ++Index)
 		{
 			const FKeyHandle Handle = InKeys[Index];
 			const int32 KeyIndex = CurrentCurve.GetIndexSafe(Handle);
 			if (KeyIndex != INDEX_NONE)
 			{
-				if (FFocalLengthFocusPoint* Point = LensFile->FocalLengthTable.GetFocusPoint(Focus))
+				if(ensure(ActiveCurve->Keys.IsValidIndex(KeyIndex)
+					&& Point->ZoomPoints.IsValidIndex(KeyIndex)))
 				{
-					//Convert focal length new value to fx fy
-					float AspectRatio = LensFile->LensInfo.SensorDimensions.Y / LensFile->LensInfo.SensorDimensions.X;
-					const float CurrentFx = Point->Fx.GetKeyValue(Handle);
-					const FKeyHandle FyHandle = Point->Fy.FindKey(Point->Fx.GetKeyTime(Handle));
-					const float CurrentFy = Point->Fy.GetKeyValue(FyHandle);
-					if(FMath::IsNearlyZero(CurrentFx) == false)
-					{
-						AspectRatio = CurrentFy / CurrentFx;
-					}
-
-					const float NewFx = CurrentCurve.GetKeyValue(Handle) / LensFile->LensInfo.SensorDimensions.X;
-					Point->Fx.SetKeyValue(Handle, NewFx);
-					Point->Fy.SetKeyValue(FyHandle, NewFx * AspectRatio);
+					const float NewNormalizedFocalLength = CurrentCurve.GetKeyValue(Handle) * Scale;
+					ActiveCurve->Keys[KeyIndex].Value = NewNormalizedFocalLength;
+					Point->ZoomPoints[KeyIndex].FocalLengthInfo.FxFy[FxFyIndex] = NewNormalizedFocalLength;
 				}
 			}
+		}	
+
+		ActiveCurve->AutoSetTangents();
+	}
+}
+
+void FLensFocalLengthCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType)
+{
+	//Applies attributes to copied curve
+	FRichCurveEditorModel::SetKeyAttributes(InKeys, InAttributes, ChangeType);
+
+	if (FFocalLengthFocusPoint* Point = LensFile->FocalLengthTable.GetFocusPoint(Focus))
+	{
+		FRichCurve* ActiveCurve = nullptr;
+		float Scale = 1.0f;
+		int32 FxFyIndex = ParameterIndex;
+		if(ParameterIndex == INDEX_NONE)
+		{
+			ActiveCurve = &Point->Fx;
+			Scale = 1.0f / LensFile->LensInfo.SensorDimensions.X;
+			FxFyIndex = 0; //mm focal length curve changes Fx
 		}
+		else
+		{
+			ActiveCurve = GetRichCurveForParameterIndex(*Point);
+		}
+		
+		for (int32 Index = 0; Index < InKeys.Num(); ++Index)
+		{
+			const FKeyHandle Handle = InKeys[Index];
+			const int32 KeyIndex = CurrentCurve.GetIndexSafe(Handle);
+			if (KeyIndex != INDEX_NONE)
+			{
+				if(ensure(ActiveCurve->Keys.IsValidIndex(KeyIndex)))
+				{
+					const FRichCurveKey& Key = CurrentCurve.GetKey(Handle);
+					FRichCurveKey& DestinationKey = ActiveCurve->Keys[KeyIndex];
+					DestinationKey.InterpMode = Key.InterpMode;
+					DestinationKey.ArriveTangent = Key.ArriveTangent * Scale;
+					DestinationKey.LeaveTangent = Key.LeaveTangent * Scale;
+					DestinationKey.TangentMode = Key.TangentMode;
+				}
+			}
+		}	
+	}
+
+}
+
+FRichCurve* FLensFocalLengthCurveModel::GetRichCurveForParameterIndex(FFocalLengthFocusPoint& InFocusPoint) const
+{
+	if(ParameterIndex == 0)
+	{
+		return &InFocusPoint.Fx;
 	}
 	else
 	{
-		if (FFocalLengthFocusPoint* Point = LensFile->FocalLengthTable.GetFocusPoint(Focus))
-		{
-			FRichCurve* ActiveCurve = nullptr;
-			if(ParameterIndex == 0)
-			{
-				ActiveCurve = &Point->Fx;
-			}
-			else
-			{
-				ActiveCurve = &Point->Fy;
-			}
-			
-			for (int32 Index = 0; Index < InKeys.Num(); ++Index)
-			{
-				const FKeyHandle Handle = InKeys[Index];
-				const int32 KeyIndex = CurrentCurve.GetIndexSafe(Handle);
-				if (KeyIndex != INDEX_NONE)
-				{
-					ActiveCurve->Keys[KeyIndex] = CurrentCurve.GetKey(Handle);
-				}
-			}
-
-			ActiveCurve->AutoSetTangents();
-		}
+		return &InFocusPoint.Fy;
 	}
 }
-
-bool FLensFocalLengthCurveModel::IsKeyProtected(FKeyHandle InHandle) const
-{
-	if (FFocalLengthFocusPoint* Points = LensFile->FocalLengthTable.GetFocusPoint(Focus))
-	{
-		const int32 FxIndex = Points->Fx.GetIndexSafe(InHandle);
-		if (ensure(Points->ZoomPoints.IsValidIndex(FxIndex)))
-		{
-			return Points->ZoomPoints[FxIndex].bIsCalibrationPoint;
-		}
-	}
-
-	return false;
-}
-

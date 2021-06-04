@@ -14,6 +14,7 @@ public:
 
 	//~ Begin FRichCurveEditorModel interface
 	virtual void SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType) override;
+	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType) override;
 	//~ End FRichCurveEditorModel interface
 
 private:

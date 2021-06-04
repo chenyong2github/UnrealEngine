@@ -5,6 +5,7 @@
 
 #include "Curves/RichCurve.h"
 
+struct FFocalLengthFocusPoint;
 /**
  * Handles focal length curves to be displayed
  */
@@ -15,15 +16,12 @@ public:
 	FLensFocalLengthCurveModel(ULensFile* InOwner, float InFocus, int32 InParameterIndex);
 
 	//~ Begin FRichCurveEditorModel interface
-	virtual void AddKeys(TArrayView<const FKeyPosition> InKeyPositions, TArrayView<const FKeyAttributes> InAttributes, TArrayView<TOptional<FKeyHandle>>* OutKeyHandles) override;
-	virtual void RemoveKeys(TArrayView<const FKeyHandle> InKeys) override;
 	virtual void SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType) override;
+	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType) override;
 	//~ End FRichCurveEditorModel interface
 
 protected:
-
-	/** Whether a key is protected or not. If it was added with calibration data, it is. */
-	bool IsKeyProtected(FKeyHandle InHandle) const;
+	FRichCurve* GetRichCurveForParameterIndex(FFocalLengthFocusPoint& InFocusPoint) const;
 
 private:
 

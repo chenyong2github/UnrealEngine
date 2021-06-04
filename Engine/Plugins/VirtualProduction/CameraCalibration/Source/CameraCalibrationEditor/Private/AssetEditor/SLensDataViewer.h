@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 #include "CameraCalibrationEditorCommon.h"
+#include "EditorUndoClient.h"
 #include "LensFile.h"
 #include "SLensFilePanel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -18,7 +19,7 @@ class SCameraCalibrationCurveEditorPanel;
 
 
 /** Widget used to display data from the LensFile */
-class SLensDataViewer : public SCompoundWidget
+class SLensDataViewer : public SCompoundWidget, public FSelfRegisteringEditorUndoClient
 {
 public:
 
@@ -55,6 +56,11 @@ public:
 
 	/** Triggered when data entry selection has changed */
 	void OnDataEntrySelectionChanged(TSharedPtr<FLensDataListItem> Node, ESelectInfo::Type SelectInfo);
+
+	//~ Begin FSelfRegisteringEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~ End FSelfRegisteringEditorUndoClient interface
 
 private:
 
@@ -101,6 +107,12 @@ private:
 
 	/** List of data category items */
 	TArray<TSharedPtr<FLensDataCategoryItem>> DataCategories;
+
+	/**
+	 * Cached selected item to detect category change
+	 * If category hasn't changed, don't recreate data entries
+	 */
+	TSharedPtr<FLensDataCategoryItem> CachedSelectedCategoryItem;
 
 	/** Data items associated with selected data category TreeView */
 	TSharedPtr<STreeView<TSharedPtr<FLensDataListItem>>> DataEntriesTree;
