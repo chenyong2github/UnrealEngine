@@ -4,6 +4,7 @@
 #include "Chaos/Collision/CollisionDetector.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 namespace Chaos
 {
@@ -22,6 +23,7 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_Detect);
 			CHAOS_SCOPED_TIMER(DetectCollisions);
+			CSV_SCOPED_TIMING_STAT(Chaos, DetectCollisions);
 
 			if (!GetCollisionContainer().GetCollisionsEnabled())
 			{

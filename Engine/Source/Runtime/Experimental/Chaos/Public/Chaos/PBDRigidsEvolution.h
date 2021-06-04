@@ -17,6 +17,7 @@
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "Chaos/Defines.h"
 #include "Chaos/PendingSpatialData.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 
 extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
@@ -614,6 +615,8 @@ public:
 
 	void UpdateAccelerationStructures(int32 Island)
 	{
+		CSV_SCOPED_TIMING_STAT(Chaos, UpdateAccelerationStructures);
+
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->UpdateAccelerationStructures(Island);
@@ -624,19 +627,23 @@ public:
 	{
 		UpdateAccelerationStructures(Island);
 
-		int32 LocalNumIterations = ChaosNumContactIterationsOverride >= 0 ? ChaosNumContactIterationsOverride : NumIterations;
-		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
-		for (int i = 0; i < LocalNumIterations; ++i)
 		{
-			bool bNeedsAnotherIteration = false;
-			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
-			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, Island, i, LocalNumIterations);
-			}
+			CSV_SCOPED_TIMING_STAT(Chaos, ApplyConstraints);
 
-			if (ChaosRigidsEvolutionApplyAllowEarlyOutCVar && !bNeedsAnotherIteration)
+			int32 LocalNumIterations = ChaosNumContactIterationsOverride >= 0 ? ChaosNumContactIterationsOverride : NumIterations;
+			// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
+			for (int i = 0; i < LocalNumIterations; ++i)
 			{
-				break;
+				bool bNeedsAnotherIteration = false;
+				for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
+				{
+					bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, Island, i, LocalNumIterations);
+				}
+
+				if (ChaosRigidsEvolutionApplyAllowEarlyOutCVar && !bNeedsAnotherIteration)
+				{
+					break;
+				}
 			}
 		}
 	}
