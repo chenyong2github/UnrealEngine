@@ -22,7 +22,7 @@ class UStaticMesh;
  * description.
  */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UStaticMeshComponentToolTarget : public UPrimitiveComponentToolTarget,
+class MODELINGCOMPONENTSEDITORONLY_API UStaticMeshComponentToolTarget : public UPrimitiveComponentToolTarget,
 	public IMeshDescriptionCommitter, public IMeshDescriptionProvider, public IMaterialProvider, public IStaticMeshBackedTarget,
 	public IDynamicMeshProvider, public IDynamicMeshCommitter
 {
@@ -79,7 +79,7 @@ protected:
 
 /** Factory for UStaticMeshComponentToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UStaticMeshComponentToolTargetFactory : public UToolTargetFactory
+class MODELINGCOMPONENTSEDITORONLY_API UStaticMeshComponentToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 

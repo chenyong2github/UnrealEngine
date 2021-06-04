@@ -8,9 +8,20 @@
 #include "AssetUtils/CreateStaticMeshUtil.h"
 #include "AssetUtils/CreateTexture2DUtil.h"
 
+#include "ConversionUtils/DynamicMeshToVolume.h"
+#include "MeshDescriptionToDynamicMesh.h"
+
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
+
+#include "ToolTargets/VolumeDynamicMeshToolTarget.h"  // for CVarModelingMaxVolumeTriangleCount
+
+#include "Engine/BlockingVolume.h"
+#include "Components/BrushComponent.h"
+#include "Engine/Polys.h"
+#include "Model.h"
+#include "BSPOps.h"		// in UnrealEd
 
 using namespace UE::Geometry;
 
@@ -80,6 +91,97 @@ FCreateTextureObjectResult UEditorModelingObjectsCreationAPI::CreateTextureObjec
 
 FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateMeshObject(FCreateMeshObjectParams&& CreateMeshParams)
 {
+	FCreateMeshObjectResult ResultOut;
+	if (CreateMeshParams.TypeHint == ECreateObjectTypeHint::Volume)
+	{
+		ResultOut = CreateVolume(MoveTemp(CreateMeshParams));
+	}
+	else
+	{
+		ResultOut = CreateStaticMeshAsset(MoveTemp(CreateMeshParams));
+	}
+
+	if (ResultOut.IsOK())
+	{
+		OnModelingMeshCreated.Broadcast(ResultOut);
+	}
+
+	return ResultOut;
+}
+
+
+TArray<UMaterialInterface*> UEditorModelingObjectsCreationAPI::FilterMaterials(const TArray<UMaterialInterface*>& MaterialsIn)
+{
+	TArray<UMaterialInterface*> OutputMaterials = MaterialsIn;
+	for (int32 k = 0; k < OutputMaterials.Num(); ++k)
+	{
+		FString AssetPath = OutputMaterials[k]->GetPathName();
+		if (AssetPath.StartsWith(TEXT("/MeshModelingToolset/")))
+		{
+			OutputMaterials[k] = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+	}
+	return OutputMaterials;
+}
+
+
+FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateVolume(FCreateMeshObjectParams&& CreateMeshParams)
+{
+	// spawn new actor
+	FRotator Rotation(0.0f, 0.0f, 0.0f);
+	FActorSpawnParameters SpawnInfo;
+	FTransform NewActorTransform = FTransform::Identity;
+	UClass* VolumeClass = ABlockingVolume::StaticClass();
+	if (CreateMeshParams.TypeHintClass.IsNull() == false
+		&& Cast<AVolume>(CreateMeshParams.TypeHintClass.Get()->GetDefaultObject(false)) != nullptr )
+	{
+		VolumeClass = CreateMeshParams.TypeHintClass;
+	}
+
+	AVolume* NewVolumeActor = (AVolume*)CreateMeshParams.TargetWorld->SpawnActor(VolumeClass, &NewActorTransform, SpawnInfo);
+
+	NewVolumeActor->BrushType = EBrushType::Brush_Add;
+	UModel* Model = NewObject<UModel>(NewVolumeActor);
+	NewVolumeActor->Brush = Model;
+	NewVolumeActor->GetBrushComponent()->Brush = NewVolumeActor->Brush;
+
+	UE::Conversion::FMeshToVolumeOptions Options;
+	Options.bAutoSimplify = true;
+	Options.MaxTriangles = FMath::Max(1, CVarModelingMaxVolumeTriangleCount.GetValueOnGameThread());
+	if (CreateMeshParams.MeshType == ECreateMeshObjectSourceMeshType::DynamicMesh)
+	{
+		UE::Conversion::DynamicMeshToVolume(CreateMeshParams.DynamicMesh.GetValue(), NewVolumeActor, Options);
+	}
+	else if (CreateMeshParams.MeshType == ECreateMeshObjectSourceMeshType::MeshDescription)
+	{
+		FMeshDescriptionToDynamicMesh Converter;
+		FMeshDescription* MeshDescription = &CreateMeshParams.MeshDescription.GetValue();
+		FDynamicMesh3 ConvertedMesh;
+		Converter.Convert(MeshDescription, ConvertedMesh);
+		UE::Conversion::DynamicMeshToVolume(ConvertedMesh, NewVolumeActor, Options);
+	}
+	else
+	{
+		return FCreateMeshObjectResult{ ECreateModelingObjectResult::Failed_InvalidMesh };
+	}
+
+	NewVolumeActor->SetActorTransform(CreateMeshParams.Transform);
+	NewVolumeActor->PostEditChange();
+	
+	// emit result
+	FCreateMeshObjectResult ResultOut;
+	ResultOut.ResultCode = ECreateModelingObjectResult::Ok;
+	ResultOut.NewActor = NewVolumeActor;
+	ResultOut.NewComponent = NewVolumeActor->GetBrushComponent();
+	ResultOut.NewAsset = nullptr;
+	return ResultOut;
+}
+
+
+
+
+FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateStaticMeshAsset(FCreateMeshObjectParams&& CreateMeshParams)
+{
 	if (!ensure(CreateMeshParams.TargetWorld)) { return FCreateMeshObjectResult{ ECreateModelingObjectResult::Failed_InvalidWorld }; }
 
 	UE::AssetUtils::FStaticMeshAssetOptions AssetOptions;
@@ -100,7 +202,7 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateMeshObject(FCre
 	AssetOptions.NumSourceModels = 1;
 	AssetOptions.NumMaterialSlots = CreateMeshParams.Materials.Num();
 	AssetOptions.AssetMaterials = (CreateMeshParams.AssetMaterials.Num() == AssetOptions.NumMaterialSlots) ?
-		CreateMeshParams.AssetMaterials : CreateMeshParams.Materials;
+		FilterMaterials(CreateMeshParams.AssetMaterials) : FilterMaterials(CreateMeshParams.Materials);
 
 	AssetOptions.bEnableRecomputeNormals = CreateMeshParams.bEnableRecomputeNormals;
 	AssetOptions.bEnableRecomputeTangents = CreateMeshParams.bEnableRecomputeTangents;
@@ -154,9 +256,10 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateMeshObject(FCre
 	StaticMeshComponent->SetStaticMesh(NewStaticMesh);
 
 	// set materials
-	for (int32 k = 0; k < CreateMeshParams.Materials.Num(); ++k)
+	TArray<UMaterialInterface*> ComponentMaterials = FilterMaterials(CreateMeshParams.Materials);
+	for (int32 k = 0; k < ComponentMaterials.Num(); ++k)
 	{
-		StaticMeshComponent->SetMaterial(k, CreateMeshParams.Materials[k]);
+		StaticMeshComponent->SetMaterial(k, ComponentMaterials[k]);
 	}
 
 	// re-connect the component (?)
@@ -175,9 +278,6 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateMeshObject(FCre
 	ResultOut.NewActor = StaticMeshActor;
 	ResultOut.NewComponent = StaticMeshComponent;
 	ResultOut.NewAsset = NewStaticMesh;
-
-	OnModelingMeshCreated.Broadcast(ResultOut);
-
 	return ResultOut;
 }
 

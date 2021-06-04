@@ -19,11 +19,20 @@
 
 using namespace UE::Geometry;
 
+bool UE::Geometry::ComponentTypeSupportsCollision(
+	const UPrimitiveComponent* Component)
+{
+	// currently only supporting StaticMeshComponent
+	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+	return (StaticMeshComponent != nullptr);
+}
+
+
 FComponentCollisionSettings UE::Geometry::GetCollisionSettings(const UPrimitiveComponent* Component)
 {
 	FComponentCollisionSettings Settings;
 
-	const UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(Component);
+	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 	if (ensure(StaticMeshComponent))
 	{
 		const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();

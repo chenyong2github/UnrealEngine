@@ -12,12 +12,12 @@
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 UINTERFACE()
-class MESHMODELINGTOOLS_API UDynamicMeshProvider : public UInterface
+class MODELINGCOMPONENTS_API UDynamicMeshProvider : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class MESHMODELINGTOOLS_API IDynamicMeshProvider
+class MODELINGCOMPONENTS_API IDynamicMeshProvider
 {
 	GENERATED_BODY()
 

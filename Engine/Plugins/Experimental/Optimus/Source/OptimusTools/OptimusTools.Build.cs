@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 					"UnrealEd",
 					"InputCore",
+					"ModelingComponentsEditorOnly",
 					"MeshModelingTools",
 					"MeshModelingToolsEditorOnly",
 					"ModelingToolsEditorMode",

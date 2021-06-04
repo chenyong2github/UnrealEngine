@@ -8,8 +8,9 @@
 
 class UToolTarget;
 class UPrimitiveComponent;
+class AActor;
 struct FMeshDescription;
-
+struct FCreateMeshObjectParams;
 
 //
 // UE::ToolTarget:: namespace contains utility/helper functions for interacting with UToolTargets.
@@ -24,6 +25,11 @@ namespace UE
 {
 namespace ToolTarget
 {
+
+/**
+ * @return the AActor backing a ToolTarget, or nullptr if there is no such Actor
+ */
+MODELINGCOMPONENTS_API AActor* GetTargetActor(UToolTarget* Target);
 
 /**
  * @return the UPrimitiveComponent backing a ToolTarget, or nullptr if there is no such Component
@@ -89,6 +95,17 @@ enum class EDynamicMeshUpdateResult
  * @return EDynamicMeshUpdateResult::Ok on success, or Ok_ForcedFullUpdate if any dependent mesh topology was modified
  */
 MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshUVUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh);
+
+
+/**
+ * FCreateMeshObjectParams::TypeHint is used by the ModelingObjectsCreationAPI to suggest what type of mesh object to create
+ * inside various Tools. This should often be derived from the input mesh object type (eg if you plane-cut a Volume, the output
+ * should be Volumes). This function interrogates the ToolTarget to try to determine this information
+ * @return true if a known type was detected and configured in FCreateMeshObjectParams::TypeHint (and possibly FCreateMeshObjectParams::TypeHintClass)
+ */
+MODELINGCOMPONENTS_API bool ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, FCreateMeshObjectParams& DerivedParamsOut);
+
+
 
 
 }  // end namespace ToolTarget

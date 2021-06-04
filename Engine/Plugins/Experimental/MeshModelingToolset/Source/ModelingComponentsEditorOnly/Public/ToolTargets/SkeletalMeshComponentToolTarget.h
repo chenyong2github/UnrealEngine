@@ -22,7 +22,7 @@ class USkeletalMesh;
  * description.
  */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API USkeletalMeshComponentToolTarget :
+class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentToolTarget :
 	public UPrimitiveComponentToolTarget,
 	public IMeshDescriptionCommitter,
 	public IMeshDescriptionProvider,
@@ -69,7 +69,7 @@ private:
 
 /** Factory for USkeletalMeshComponentToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API USkeletalMeshComponentToolTargetFactory : public UToolTargetFactory
+class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 

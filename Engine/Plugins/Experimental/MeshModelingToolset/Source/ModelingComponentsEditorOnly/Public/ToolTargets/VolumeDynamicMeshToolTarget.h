@@ -12,13 +12,23 @@
 
 #include "VolumeDynamicMeshToolTarget.generated.h"
 
+/**
+ * The CVar "modeling.VolumeMaxTriCount" is used as a cap on triangles that the various Modeling Mode
+ * Tools will allow an output AVolume to have. If this triangle count is exceeded, the mesh used to
+ * create/update the AVolume will be auto-simplified. This is necessary because all AVolume process is
+ * done on the game thread, and a large Volume (eg with 100k faces) will hang the editor for a long time
+ * when it is created. The default is set to 500.
+ */
+extern MODELINGCOMPONENTSEDITORONLY_API TAutoConsoleVariable<int32> CVarModelingMaxVolumeTriangleCount;
+
+
 struct FMeshDescription;
 
 /**
  * A tool target backed by AVolume
  */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UVolumeDynamicMeshToolTarget : public UPrimitiveComponentToolTarget,
+class MODELINGCOMPONENTSEDITORONLY_API UVolumeDynamicMeshToolTarget : public UPrimitiveComponentToolTarget,
 	public IDynamicMeshCommitter, public IDynamicMeshProvider, public IMaterialProvider
 {
 	GENERATED_BODY()
@@ -55,7 +65,7 @@ protected:
 
 /** Factory for UVolumeDynamicMeshToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UVolumeDynamicMeshToolTargetFactory : public UToolTargetFactory
+class MODELINGCOMPONENTSEDITORONLY_API UVolumeDynamicMeshToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 

@@ -10,6 +10,7 @@
 #include "Mechanics/CollectSurfacePathMechanic.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "Drawing/PolyEditPreviewMesh.h"
+#include "Properties/CreateMeshObjectTypeProperties.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "DrawPolyPathTool.generated.h"
 
@@ -156,6 +157,10 @@ public:
 
 protected:
 	UWorld* TargetWorld;
+
+	/** Property set for type of output object (StaticMesh, Volume, etc) */
+	UPROPERTY()
+	UCreateMeshObjectTypeProperties* OutputTypeProperties;
 
 	UPROPERTY()
 	UDrawPolyPathProperties* TransformProps;

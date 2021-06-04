@@ -26,6 +26,12 @@ struct FComponentCollisionSettings
 	bool bIsGeneratedCollision = true;
 };
 
+/**
+ * @return true if the component type supports collision settings
+ */
+MODELINGCOMPONENTS_API bool ComponentTypeSupportsCollision(
+	const UPrimitiveComponent* Component);
+
 
 /**
  * @return current Component collision settings

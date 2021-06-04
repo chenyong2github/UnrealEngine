@@ -8,7 +8,7 @@
 #include "ConversionUtils/VolumeToDynamicMesh.h"
 #include "MeshDescription.h"
 
-class MESHMODELINGTOOLSEDITORONLY_API FVolumeComponentTargetFactory : public FComponentTargetFactory
+class MODELINGCOMPONENTSEDITORONLY_API FVolumeComponentTargetFactory : public FComponentTargetFactory
 {
 public:
 	bool CanBuild(UActorComponent* Candidate) override;
@@ -16,7 +16,7 @@ public:
 };
 
 /** Deprecated. Use the tool target instead. */
-class MESHMODELINGTOOLSEDITORONLY_API FVolumeComponentTarget : public FPrimitiveComponentTarget
+class MODELINGCOMPONENTSEDITORONLY_API FVolumeComponentTarget : public FPrimitiveComponentTarget
 {
 public:
 

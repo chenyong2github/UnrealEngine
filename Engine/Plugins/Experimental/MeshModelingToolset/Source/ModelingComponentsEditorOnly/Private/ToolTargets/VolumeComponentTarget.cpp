@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ConversionUtils/VolumeComponentTarget.h"
+#include "ToolTargets/VolumeComponentTarget.h"
 
 #include "Components/BrushComponent.h"
 #include "ConversionUtils/VolumeToDynamicMesh.h"

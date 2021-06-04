@@ -69,4 +69,14 @@ public:
 	static UEditorModelingObjectsCreationAPI* Register(UInteractiveToolsContext* ToolsContext);
 	static UEditorModelingObjectsCreationAPI* Find(UInteractiveToolsContext* ToolsContext);
 	static bool Deregister(UInteractiveToolsContext* ToolsContext);
+
+
+
+	//
+	// internal implementations called by public functions
+	//
+	FCreateMeshObjectResult CreateStaticMeshAsset(FCreateMeshObjectParams&& CreateMeshParams);
+	FCreateMeshObjectResult CreateVolume(FCreateMeshObjectParams&& CreateMeshParams);
+
+	TArray<UMaterialInterface*> FilterMaterials(const TArray<UMaterialInterface*>& MaterialsIn);
 };
