@@ -277,21 +277,24 @@ void FSceneRenderer::RenderVelocities(
 
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
+			bool bIsParallelVelocity = IsParallelVelocity();
+
+			// Clear velocity render target explicitly when velocity rendering in parallel or no draw but force to.
+			// Avoid adding a separate clear pass in non parallel rendering.
+			bool bExplicitlyClearVelicty = (VelocityLoadAction == ERenderTargetLoadAction::EClear) && (bIsParallelVelocity || (bForceVelocity && !bHasAnyDraw));
+
+			if (bExplicitlyClearVelicty)
+			{
+				AddClearRenderTargetPass(GraphBuilder, VelocityTexture);
+
+				// Parallel render need to use Load action in any case.
+				VelocityLoadAction = ERenderTargetLoadAction::ELoad;
+			}
+
 			bVelocityRendered = true;
 
-			// Avoid adding a separate clear pass, clear it in the velocity pass if it is possible.
-			if (bForceVelocity && !bHasAnyDraw)
+			if (!bHasAnyDraw)
 			{
-				if (VelocityLoadAction == ERenderTargetLoadAction::EClear)
-				{
-					AddClearRenderTargetPass(GraphBuilder, VelocityTexture);
-
-					if (!View.Family->bMultiGPUForkAndJoin)
-					{
-						VelocityLoadAction = ERenderTargetLoadAction::ELoad;
-					}
-				}
-
 				continue;
 			}
 
@@ -307,7 +310,7 @@ void FSceneRenderer::RenderVelocities(
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(VelocityTexture, VelocityLoadAction);
 
-			if (IsParallelVelocity())
+			if (bIsParallelVelocity)
 			{
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("VelocityParallel"),
