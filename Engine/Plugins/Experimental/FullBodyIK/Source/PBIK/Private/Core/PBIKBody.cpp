@@ -118,11 +118,6 @@ void FRigidBody::ApplyPushToRotateBody(const FVector& Push, const FVector& Offse
 
 void FRigidBody::ApplyPushToPosition(const FVector& Push)
 {
-	if (Pin && Pin->bEnabled)
-	{
-		return; // pins are locked
-	}
-
 	Position += Push * (1.0f - J.PositionStiffness);
 }
 
