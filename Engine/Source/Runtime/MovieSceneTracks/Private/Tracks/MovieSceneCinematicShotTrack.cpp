@@ -134,7 +134,7 @@ bool UMovieSceneCinematicShotTrack::PopulateEvaluationTree(TMovieSceneEvaluation
 
 int8 UMovieSceneCinematicShotTrack::GetEvaluationFieldVersion() const
 {
-	return 1;
+	return 2;
 }
 
 #if WITH_EDITOR
