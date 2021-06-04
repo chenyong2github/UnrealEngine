@@ -581,7 +581,7 @@ namespace HordeServer.Collections.Impl
 			if (Reserves.Count > 0)
 			{
 				DeleteResult Result = await Reservations.DeleteManyAsync(Builders<DeviceReservationDocument>.Filter.In(x => x.Id, Reserves.Select(y => y.Id)));
-				return (Result.DeletedCount > 9);
+				return (Result.DeletedCount > 0);
 			}			
 
 			return false;
