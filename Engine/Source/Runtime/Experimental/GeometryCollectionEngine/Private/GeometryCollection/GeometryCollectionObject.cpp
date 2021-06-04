@@ -751,12 +751,6 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GeometryCollectionUserDefinedCollisionShapes)
-	{
-		InvalidateCollection();
-		bCreateSimulationData = true;
-	}
-
 	if (bCreateSimulationData)
 	{
 		CreateSimulationData();
