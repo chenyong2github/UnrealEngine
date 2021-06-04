@@ -7,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -153,8 +154,7 @@ namespace HordeAgent
 		/// <summary>
 		/// The default server, unless overridden from the command line
 		/// </summary>
-		[Required]
-		public string Server { get; set; } = null!;
+		public string? Server { get; set; }
 
 		/// <summary>
 		/// The executor to use for jobs. Defaults to the Perforce executor.
@@ -174,7 +174,7 @@ namespace HordeAgent
 		/// <summary>
 		/// Working directory
 		/// </summary>
-		public string? WorkingDir { get; set; }
+		public string? WorkingDir { get; set; } = Program.DataDir.FullName;
 
 		/// <summary>
 		/// List of network shares to mount

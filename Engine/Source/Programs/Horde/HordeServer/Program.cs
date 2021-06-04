@@ -212,7 +212,7 @@ namespace HordeServer
 				DirectoryReference? Dir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.CommonApplicationData);
 				if (Dir != null)
 				{
-					return DirectoryReference.Combine(Dir, "Horde");
+					return DirectoryReference.Combine(Dir, "HordeServer");
 				}
 			}
 			return DirectoryReference.Combine(GetAppDir(), "Data");

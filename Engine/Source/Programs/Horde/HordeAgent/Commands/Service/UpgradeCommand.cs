@@ -67,10 +67,10 @@ namespace HordeAgent.Commands
 				TargetFiles.ExceptWith(SourceFiles);
 
 				// Ignore any files that are in the saved directory
-				string SourceDataDir = Path.Combine(SourceDir.FullName, Program.SavedDirName) + Path.DirectorySeparatorChar;
+				string SourceDataDir = Path.Combine(SourceDir.FullName, "Saved") + Path.DirectorySeparatorChar;
 				SourceFiles.RemoveWhere(x => x.StartsWith(SourceDataDir, StringComparison.OrdinalIgnoreCase));
 
-				string TargetDataDir = Path.Combine(TargetDir.FullName, Program.SavedDirName) + Path.DirectorySeparatorChar;
+				string TargetDataDir = Path.Combine(TargetDir.FullName, "Saved") + Path.DirectorySeparatorChar;
 				TargetFiles.RemoveWhere(x => x.StartsWith(TargetDataDir, StringComparison.OrdinalIgnoreCase));
 
 				// Copy all the files into the target directory

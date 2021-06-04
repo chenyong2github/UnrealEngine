@@ -40,17 +40,12 @@ namespace HordeAgent
 		/// <summary>
 		/// Path to the root application directory
 		/// </summary>
-		public static string AppDir { get; } = Path.GetFullPath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
+		public static DirectoryReference AppDir { get; } = GetAppDir();
 
 		/// <summary>
-		/// Name of the saved application data directory
+		/// Path to the default data directory
 		/// </summary>
-		public const string SavedDirName = "Saved";
-
-		/// <summary>
-		/// Path to the saved application data directory
-		/// </summary>
-		public static string SavedDir { get; } = Path.Combine(AppDir, SavedDirName);
+		public static DirectoryReference DataDir { get; } = GetDataDir();
 
 		/// <summary>
 		/// The launch arguments
@@ -257,6 +252,32 @@ namespace HordeAgent
 			{
 				return "unknown";
 			}
+		}
+
+		/// <summary>
+		/// Gets the application directory
+		/// </summary>
+		/// <returns></returns>
+		static DirectoryReference GetAppDir()
+		{
+			return new DirectoryReference(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
+		}
+
+		/// <summary>
+		/// Gets the default data directory
+		/// </summary>
+		/// <returns></returns>
+		static DirectoryReference GetDataDir()
+		{
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				DirectoryReference? ProgramDataDir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.CommonApplicationData);
+				if (ProgramDataDir != null)
+				{
+					return DirectoryReference.Combine(ProgramDataDir, "HordeAgent");
+				}
+			}
+			return GetAppDir();
 		}
 	}
 }
