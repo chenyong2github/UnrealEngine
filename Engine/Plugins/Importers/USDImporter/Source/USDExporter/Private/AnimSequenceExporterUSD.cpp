@@ -78,7 +78,10 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 		FString ExtensionPart;
 		FPaths::Split( PayloadFilename, PathPart, FilenamePart, ExtensionPart );
 
-		ExtensionPart = Options->PreviewMeshOptions.PayloadFormat;
+		if ( FormatExtension.Contains( Options->PreviewMeshOptions.PayloadFormat ) )
+		{
+			ExtensionPart = Options->PreviewMeshOptions.PayloadFormat;
+		}
 
 		PayloadFilename = FPaths::Combine( PathPart, FilenamePart + TEXT( "_payload." ) + ExtensionPart );
 	}
