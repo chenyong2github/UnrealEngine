@@ -1301,11 +1301,18 @@ void UEditMeshPolygonsTool::ApplyExtrude(bool bIsOffset)
 
 	// construct new selection
 	FGroupTopologySelection NewSelection;
-	for (const FOffsetMeshRegion::FOffsetInfo& Info : Extruder.OffsetRegions)
+	if (!bTriangleMode)
 	{
-		for (int32 gid : Info.OffsetGroups)
+		for (const FOffsetMeshRegion::FOffsetInfo& Info : Extruder.OffsetRegions)
 		{
-			NewSelection.SelectedGroupIDs.Add(gid);
+			NewSelection.SelectedGroupIDs.Append(Info.OffsetGroups);
+		}
+	}
+	else
+	{
+		for (const FOffsetMeshRegion::FOffsetInfo& Info : Extruder.OffsetRegions)
+		{
+			NewSelection.SelectedGroupIDs.Append(Info.InitialTriangles);
 		}
 	}
 
@@ -1509,9 +1516,20 @@ void UEditMeshPolygonsTool::ApplyCutFaces()
 	Cut.EdgeFilterFunc = [&](int EdgeID) { return Edges.IsSelected(EdgeID); };
 	if (Cut.SplitEdgesOnly(true))
 	{
-		for (FMeshPlaneCut::FCutResultRegion& Region : Cut.ResultRegions)
+		if (!bTriangleMode)
 		{
-			OutputSelection.SelectedGroupIDs.Add(Region.GroupID);
+			for (FMeshPlaneCut::FCutResultRegion& Region : Cut.ResultRegions)
+			{
+				OutputSelection.SelectedGroupIDs.Add(Region.GroupID);
+			}
+		}
+		else
+		{
+			// Retain the selection along the cut. ResultSeedTriangles does not
+			// contain selected tris that are not cut, so re-add the original selected
+			// tris.
+			OutputSelection.SelectedGroupIDs.Append(Cut.ResultSeedTriangles);
+			OutputSelection.SelectedGroupIDs.Append(ActiveTriangleSelection);
 		}
 	}
 
@@ -1923,10 +1941,7 @@ void UEditMeshPolygonsTool::ApplyDuplicate()
 	Editor.DuplicateTriangles(AllTriangles, Mappings, EditResult);
 
 	FGroupTopologySelection NewSelection;
-	for ( int NewGroupID : EditResult.NewGroups )
-	{ 
-		NewSelection.SelectedGroupIDs.Add(NewGroupID);
-	}
+	NewSelection.SelectedGroupIDs.Append(bTriangleMode ? EditResult.NewTriangles : EditResult.NewGroups);
 
 	TUniquePtr<FMeshChange> MeshChange = MakeUnique<FMeshChange>(ChangeTracker.EndChange());
 	CompleteMeshEditChange(LOCTEXT("PolyMeshDisconnectChange", "Disconnect"), MoveTemp(MeshChange), NewSelection);

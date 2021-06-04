@@ -20,7 +20,13 @@ using namespace UE::Geometry;
 
 void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, bool bDeleteTrisOnPlane)
 {
-	Signs.Reset(); ZeroEdges.Reset(); OnCutEdges.Reset();
+	TSet<int> OnSplitEdges;
+	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges, OnSplitEdges, bDeleteTrisOnPlane);
+}
+
+void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, TSet<int>& OnSplitEdges, bool bDeleteTrisOnPlane)
+{
+	Signs.Reset(); ZeroEdges.Reset(); OnCutEdges.Reset(); OnSplitEdges.Reset();
 	OnCutVertices.Reset();
 
 	double InvalidDist = -FMathd::MaxReal;
@@ -152,7 +158,8 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 			continue; // edge split really shouldn't fail; skip the edge if it somehow does
 		}
 
-		NewEdges.Add(splitInfo.NewEdges.A);
+		OnSplitEdges.Add(EID);
+		NewEdges.Add(splitInfo.NewEdges.A); OnSplitEdges.Add(splitInfo.NewEdges.A);
 		NewEdges.Add(splitInfo.NewEdges.B); OnCutEdges.Add(splitInfo.NewEdges.B);
 		if (splitInfo.NewEdges.C != FDynamicMesh3::InvalidID)
 		{
@@ -383,8 +390,8 @@ bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
 {
 	// split edges with current plane
 	TArray<double> Signs;
-	TSet<int32> ZeroEdges, OnCutEdges;
-	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges, false);
+	TSet<int32> ZeroEdges, OnCutEdges, OnSplitEdges;
+	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges, OnSplitEdges, false);
 
 	if (bAssignNewGroups == false)
 	{
@@ -453,6 +460,46 @@ bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
 		Result.Triangles = MoveTemp(Component.Indices);
 	}
 
+	// Compute the set of triangle IDs in the cut mesh that represent
+	// the original/seed triangle selection along the cut. This assumes
+	// that the edge filter function contains edges that originate
+	// from source triangles.
+	ResultSeedTriangles.Reset();
+	for (int tid : CutEdgeTriangles)
+	{
+		// TODO: We currently assume that all cut edges are on the interior of
+		// our seed triangles, thus all tris adjacent to the cut edge are seed
+		// triangles. This assumption fails in the following edge case.
+		//
+		//    o---o---o
+		//    |xx/ \xx|
+		//    |x/   \x| <---> Cut plane   
+		//    |/     \|
+		//    o-------o    x = Seed tris
+		//
+		// CutEdges filters the OnCutEdges list by checking if both ends of the edge
+		// are OnCutVertices. In this scenario, the edge introduced across the non
+		// seed triangle on the bottom is included.
+		ResultSeedTriangles.Add(tid);
+
+		// Walk the edges of the CutEdgeTriangles, skipping seed, split & cut edges,
+		// to identify extra interior edges. Both triangles along that interior
+		// edge are also seed triangles.
+		FIndex3i TriEdges = Mesh->GetTriEdges(tid);
+		for (int j = 0; j < 3; j++)
+		{
+			int eid = TriEdges[j];
+			FIndex2i ev = Mesh->GetEdgeV(eid);
+			bool bIsSeedEdge = (EdgeFilterFunc && EdgeFilterFunc(eid));
+			if (bIsSeedEdge || CutEdges.Contains(eid) || OnSplitEdges.Contains(eid))
+			{
+				continue;
+			}
+			FIndex2i EdgeTris = Mesh->GetEdgeT(eid);
+			ResultSeedTriangles.Add(EdgeTris.A);
+			ResultSeedTriangles.Add(EdgeTris.B);
+		}
+	}
 	return true;
 }
 
