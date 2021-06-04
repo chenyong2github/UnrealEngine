@@ -56,7 +56,7 @@
 				{
 					"type": "Text",
 					"label": "Script",
-					"argument": "-Script="
+					"argument": "-Script=",
 					"default": "Foo.xml"
 				},
 				{
