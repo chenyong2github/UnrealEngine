@@ -94,29 +94,6 @@ namespace
 {
 	static const FName NAME_ArraySizeEnum(TEXT("ArraySizeEnum"));
 
-	struct FPropertyFlagsChanges
-	{
-		EPropertyFlags Added;
-		EPropertyFlags Removed;
-	};
-
-	struct FPropertyFlagsChangeDetector
-	{
-		FPropertyFlagsChangeDetector(FUnrealPropertyDefinitionInfo& InPropDef)
-			: PropDef(InPropDef)
-			, OldFlags(InPropDef.GetPropertyFlags())
-		{}
-
-		FPropertyFlagsChanges Changes()
-		{
-			EPropertyFlags NewFlags = PropDef.GetPropertyFlags();
-			return FPropertyFlagsChanges{ NewFlags & ~OldFlags, OldFlags & ~NewFlags };
-		}
-
-		FUnrealPropertyDefinitionInfo& PropDef;
-		EPropertyFlags OldFlags;
-	};
-
 	void PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(EPropertyFlags& DestFlags, const TMap<FName, FString>& InMetaData, FUnrealPropertyDefinitionInfo& InnerDef)
 	{
 		// Copy some of the property flags to the container property.
@@ -326,15 +303,6 @@ namespace
 		}
 	};
 
-	template<typename TraitsType>
-	struct PostParseFinalizeDispatch
-	{
-		FPropertyFlagsChanges operator()(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-		{
-			return TraitsType::PostParseFinalize(PropDef, AddedFlags);
-		}
-	};
-
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
 	// Helper Methods
@@ -356,12 +324,6 @@ namespace
 	bool IsSupportedByBlueprintSansContainers(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		return PropertyTypeDispatch<IsSupportedByBlueprintDispatch, false, bool>(PropDef, bMemberVariable);
-	}
-
-	template <bool bHandleContainers>
-	FPropertyFlagsChanges PostParseFinalizeHelper(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		return PropertyTypeDispatch<PostParseFinalizeDispatch, bHandleContainers, FPropertyFlagsChanges>(PropDef, AddedFlags);
 	}
 }
 
@@ -431,18 +393,6 @@ struct FPropertyTypeTraitsBase
 	//static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags);
 
 	//static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef);
-
-	/**
-	 * Handle any final initialization after parsing has completed
-	 *
-	 * @param PropDef The property in question
-	 * @param AddedFlags Flags added to the property that need to be propagated to the map key type
-	 * @return Collection of properties added and removed
-	 */
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		return FPropertyFlagsChanges{ CPF_None, CPF_None };
-	}
 };
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -474,14 +424,9 @@ struct FPropertyTypeTraitsByte : public FPropertyTypeTraitsNumericBase
 
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.EnumDef);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(PropDef.GetPropertyBase().EnumDef);
 #endif
-		if (VarProperty.EnumDef)
-		{
-			VarProperty.EnumDef->AddReferencingProperty(PropDef);
-		}
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -1038,8 +983,6 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 			return FPropertyTypeTraitsByte::CreateProperty(PropDef);
 		}
 
-		VarProperty.EnumDef->AddReferencingProperty(PropDef);
-
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.EnumDef);
 #endif
@@ -1171,41 +1114,19 @@ struct FPropertyTypeTraitsObjectBase : public FPropertyTypeTraitsBase
 		}
 		return bIsNull; // always return as null is the only the processing we can do for object defaults
 	}
-
-	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
-	{
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.ClassDef);
-		VarProperty.ClassDef->AddReferencingProperty(PropDef);
-
-#if UHT_ENABLE_PTR_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
-#endif
-	}
-
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		// Inherit instancing flags
-		if (VarProperty.ClassDef->HierarchyHasAnyClassFlags(CLASS_DefaultToInstanced))
-		{
-			VarProperty.PropertyFlags |= (CPF_InstancedReference | CPF_ExportObject) & (~VarProperty.DisallowFlags);
-		}
-		AddedFlags |= Detector.Changes().Added;
-		return Detector.Changes();
-	}
 };
 
 struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 {
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyTypeTraitsObjectBase::PostParseFinalize(PropDef, AddedFlags);
-
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+
+#if UHT_ENABLE_PTR_PROPERTY_TAG
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
+#endif
+
 		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 		}
@@ -1217,7 +1138,6 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 				AddEditInlineMetaData(VarProperty.MetaData);
 			}
 		}
-		return Detector.Changes();
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -1296,6 +1216,15 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 
 struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObjectBase
 {
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+#if UHT_ENABLE_PTR_PROPERTY_TAG
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
+#endif
+	}
+
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
@@ -1337,6 +1266,15 @@ struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObject
 
 struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObjectBase
 {
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+#if UHT_ENABLE_PTR_PROPERTY_TAG
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
+#endif
+	}
+
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
@@ -1368,12 +1306,15 @@ struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObject
 
 struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectBase
 {
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyTypeTraitsObjectBase::PostParseFinalize(PropDef, AddedFlags);
-
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+
+#if UHT_ENABLE_PTR_PROPERTY_TAG
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
+#endif
+
 		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 		}
@@ -1385,7 +1326,6 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 				AddEditInlineMetaData(VarProperty.MetaData);
 			}
 		}
-		return Detector.Changes();
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -1457,6 +1397,15 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 
 struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObjectBase
 {
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+#if UHT_ENABLE_PTR_PROPERTY_TAG
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
+#endif
+	}
+
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
@@ -1530,12 +1479,13 @@ struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 {
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		FPropertyTypeTraitsObjectBase::CreateProperty(PropDef);
-	}
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		check(VarProperty.ClassDef->HasAnyClassFlags(CLASS_Interface));
 
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		return FPropertyTypeTraitsObjectBase::PostParseFinalize(PropDef, AddedFlags);
+#if UHT_ENABLE_PTR_PROPERTY_TAG
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
+#endif
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -1964,25 +1914,15 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FUnrealScriptStructDefinitionInfo* ScriptStructDef = VarProperty.ScriptStructDef;
-		ScriptStructDef->AddReferencingProperty(PropDef);
 
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(ScriptStructDef);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ScriptStructDef);
 #endif
-	}
 
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		// We always add regardless of disallow
-		if (VarProperty.ScriptStructDef->HasAnyStructFlags(STRUCT_HasInstancedReference))
+		if (ScriptStructDef->HasAnyStructFlags(STRUCT_HasInstancedReference))
 		{
 			VarProperty.PropertyFlags |= CPF_ContainsInstancedReference;
 		}
-		AddedFlags |= Detector.Changes().Added;
-		return Detector.Changes();
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -2006,7 +1946,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
-		return FString::Printf(TEXT("F%s"), *PropDef.GetPropertyBase().ScriptStructDef->GetName());
+		return FString::Printf(TEXT("F%s"), *PropDef.GetPropertyBase().ClassDef->GetName());
 	}
 
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
@@ -2018,7 +1958,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 			return FString();
 		}
 			
-		return FString::Printf(TEXT("struct F%s;"), *PropDef.GetPropertyBase().ScriptStructDef->GetName());
+		return FString::Printf(TEXT("struct F%s;"), *PropDef.GetPropertyBase().ClassDef->GetName());
 	}
 };
 
@@ -2028,22 +1968,17 @@ struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 	{
 	}
 
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		VarProperty.PropertyFlags |= CPF_InstancedReference & (~VarProperty.DisallowFlags);
-		AddedFlags |= Detector.Changes().Added;
-		return Detector.Changes();
-	}
-
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.FunctionDef);
 
 		FDelegateProperty* Result = new FDelegateProperty(Scope, Name, ObjectFlags);
-		Result->SignatureFunction = VarProperty.FunctionDef->GetFunction();
+
+		// Once we fully transition to post parse engine type creation, this should always be set.
+		if (VarProperty.FunctionDef != nullptr)
+		{
+			Result->SignatureFunction = VarProperty.FunctionDef->GetFunction();
+		}
 		return Result;
 	}
 
@@ -2108,15 +2043,6 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 {
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-	}
-
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		VarProperty.PropertyFlags |= CPF_InstancedReference & (~VarProperty.DisallowFlags);
-		AddedFlags |= Detector.Changes().Added;
-		return Detector.Changes();
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -2267,11 +2193,6 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 		CreatePropertyHelper<false>(PropDef);
 	}
 
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		return PostParseFinalizeHelper<false>(PropDef, AddedFlags);
-	}
-
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 
@@ -2376,26 +2297,16 @@ struct FPropertyTypeTraitsDynamicArray : public FPropertyTypeTraitsBase
 		InnerVarProperty.MetaData.Empty();
 		PropDef.SetValuePropDef(FPropertyTraits::CreateProperty(InnerVarProperty, PropDef, PropDef.GetFName(), 
 			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
+		FUnrealPropertyDefinitionInfo& InnerPropDef = PropDef.GetValuePropDef();
 
-		FUnrealPropertyDefinitionInfo& ValuePropDef = PropDef.GetValuePropDef();
-		VarProperty.PropertyFlags = ValuePropDef.GetPropertyBase().PropertyFlags;
-		ValuePropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToArrayInner;
-	}
-
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FUnrealPropertyDefinitionInfo& ValuePropDef = PropDef.GetValuePropDef();
-
-		EPropertyFlags ValueAddedFlags = CPF_None;
-		VarProperty.PropertyFlags |= PostParseFinalizeHelper<true>(ValuePropDef, ValueAddedFlags).Added;
-
-		VarProperty.MetaData.Append(MoveTemp(ValuePropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
+		VarProperty.PropertyFlags = InnerPropDef.GetPropertyBase().PropertyFlags;
+		VarProperty.MetaData.Append(MoveTemp(InnerPropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
 		PropDef.SetAllocatorType(VarProperty.AllocatorType);
 
-		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, ValuePropDef);
-		return Detector.Changes();
+		// Propagate flags
+		InnerPropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToArrayInner;
+
+		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, InnerPropDef);
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -2457,25 +2368,15 @@ struct FPropertyTypeTraitsSet : public FPropertyTypeTraitsBase
 		InnerVarProperty.MetaData.Empty();
 		PropDef.SetValuePropDef(FPropertyTraits::CreateProperty(InnerVarProperty, PropDef, PropDef.GetFName(),
 			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
+		FUnrealPropertyDefinitionInfo& InnerPropDef = PropDef.GetValuePropDef();
 
-		FUnrealPropertyDefinitionInfo& ValuePropDef = PropDef.GetValuePropDef();
-		VarProperty.PropertyFlags = ValuePropDef.GetPropertyBase().PropertyFlags;
-		ValuePropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToSetElement;
-	}
+		VarProperty.PropertyFlags = InnerPropDef.GetPropertyBase().PropertyFlags;
+		VarProperty.MetaData.Append(MoveTemp(InnerPropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
 
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FUnrealPropertyDefinitionInfo& ValuePropDef = PropDef.GetValuePropDef();
+		// Propagate flags
+		InnerPropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToSetElement;
 
-		EPropertyFlags ValueAddedFlags = CPF_None;
-		VarProperty.PropertyFlags |= PostParseFinalizeHelper<true>(ValuePropDef, ValueAddedFlags).Added;
-
-		VarProperty.MetaData.Append(MoveTemp(ValuePropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
-
-		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, ValuePropDef);
-		return Detector.Changes();
+		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, InnerPropDef);
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -2535,6 +2436,7 @@ struct FPropertyTypeTraitsMap : public FPropertyTypeTraitsBase
 		PropDef.SetKeyPropDef(FPropertyTraits::CreateProperty(*PropDef.GetPropertyBase().MapKeyProp, PropDef, *(PropDef.GetFName().ToString() + TEXT("_Key")), 
 			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
 		FUnrealPropertyDefinitionInfo& KeyPropDef = PropDef.GetKeyPropDef();
+		KeyPropDef.GetPropertyBase().MetaData.Empty();
 
 		FPropertyBase ValueVarProperty = PropDef.GetPropertyBase();
 		ValueVarProperty.ArrayType = EArrayType::None;
@@ -2546,32 +2448,15 @@ struct FPropertyTypeTraitsMap : public FPropertyTypeTraitsBase
 		FUnrealPropertyDefinitionInfo& ValuePropDef = PropDef.GetValuePropDef();
 
 		VarProperty.PropertyFlags = ValuePropDef.GetPropertyBase().PropertyFlags;
+		VarProperty.MetaData.Append(MoveTemp(ValuePropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
+		PropDef.SetAllocatorType(VarProperty.AllocatorType);//@TODO - This is a duplicate now
+
+		// Propagate flags
 		KeyPropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToMapKey;
 		ValuePropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToMapValue;
 
-		PropDef.SetAllocatorType(VarProperty.AllocatorType);//@TODO - This is a duplicate now
-	}
-
-	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
-	{
-		FPropertyFlagsChangeDetector Detector(PropDef);
-		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		FUnrealPropertyDefinitionInfo& KeyPropDef = PropDef.GetKeyPropDef();
-		FUnrealPropertyDefinitionInfo& ValuePropDef = PropDef.GetValuePropDef();
-
-		EPropertyFlags KeyAddedFlags = CPF_None;
-		PostParseFinalizeHelper<true>(KeyPropDef, KeyAddedFlags);
-		KeyPropDef.GetPropertyBase().MetaData.Empty();
-
-		EPropertyFlags ValueAddedFlags = CPF_None;
-		VarProperty.PropertyFlags |= PostParseFinalizeHelper<true>(ValuePropDef, ValueAddedFlags).Added;
-		KeyPropDef.GetPropertyBase().PropertyFlags |= ValueAddedFlags;
-
-		VarProperty.MetaData.Append(MoveTemp(ValuePropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
-
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MapKeyProp->MetaData, KeyPropDef);
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, ValuePropDef);
-		return Detector.Changes();
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
@@ -2806,13 +2691,3 @@ bool FPropertyTraits::IsValidFieldClass(FName FieldClassName)
 
 	return FFieldClass::GetNameToFieldClassMap().Find(FieldClassName) != nullptr;
 }
-
-void FPropertyTraits::PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef)
-{
-	EPropertyFlags AddedFlags = CPF_None;
-	if (PostParseFinalizeHelper<true>(PropDef, AddedFlags).Added != CPF_None)
-	{
-		PropDef.GetOuter()->OnPostParsePropertyFlagsChanged(PropDef);
-	}
-}
-

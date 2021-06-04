@@ -84,11 +84,4 @@ struct FPropertyTraits
 	 * Tests to see if the given field class name is valid
 	 */
 	static bool IsValidFieldClass(FName FieldClassName);
-
-	/**
-	 * Handle any final initialization after parsing has completed
-	 *
-	 * @param PropDef The property in question
-	 */
-	static void PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef);
 };
