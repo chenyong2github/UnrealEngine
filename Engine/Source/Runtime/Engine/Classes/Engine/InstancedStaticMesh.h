@@ -83,7 +83,7 @@ public:
 		return InstanceData->GetNumInstances();
 	}
 
-	FORCEINLINE  void GetInstanceTransform(int32 InstanceIndex, FMatrix& Transform) const
+	FORCEINLINE  void GetInstanceTransform(int32 InstanceIndex, FRenderTransform& Transform) const
 	{
 		InstanceData->GetInstanceTransform(InstanceIndex, Transform);
 	}
@@ -409,8 +409,9 @@ struct FPerInstanceRenderData
 
 	/** Get data for culling ray tracing instances */
 	const TArray<FVector4>& GetPerInstanceBounds();
+
 	/** Get cached CPU-friendly instance transforms */
-	const TArray<FMatrix>& GetPerInstanceTransforms();
+	const TArray<FRenderTransform>& GetPerInstanceTransforms();
 
 private:
 	/**
@@ -421,7 +422,7 @@ private:
 	void EnsureInstanceDataUpdated();
 
 	TArray<FVector4> PerInstanceBounds;
-	TArray<FMatrix> PerInstanceTransforms;
+	TArray<FRenderTransform> PerInstanceTransforms;
 	FGraphEventRef UpdateBoundsTask;
 	const FBox InstanceLocalBounds;
 	const bool bTrackBounds;
@@ -589,13 +590,13 @@ public:
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
 	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const override;
 
-	virtual void GetDistancefieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
-	virtual void GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const override;
+	virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
+	virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectLocalToWorldTransforms) const override;
 
 	/**
 	 * Creates the hit proxies are used when DrawDynamicElements is called.
 	 * Called in the game thread.
-	 * @param OutHitProxies - Hit proxes which are created should be added to this array.
+	 * @param OutHitProxies - Hit proxies which are created should be added to this array.
 	 * @return The hit proxy to use by default for elements drawn by DrawDynamicElements.
 	 */
 	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;

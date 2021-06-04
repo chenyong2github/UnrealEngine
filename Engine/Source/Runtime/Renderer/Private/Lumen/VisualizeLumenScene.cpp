@@ -677,7 +677,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 									{
 										const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
 										LocalBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
-										LocalToWorld = PrimitiveInstance.InstanceToLocal * PrimitiveLocalToWorld;
+										LocalToWorld = PrimitiveInstance.InstanceToLocal.ToMatrix() * PrimitiveLocalToWorld;
 									}
 
 									DrawWireBox(&ViewPDI, LocalToWorld, LocalBoundingBox, CardColor, DepthPriority);

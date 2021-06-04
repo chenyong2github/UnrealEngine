@@ -162,8 +162,8 @@ struct FInstanceUploadInfo
 
 struct FPrimitiveTransforms
 {
-	FMatrix LocalToWorld;
-	FMatrix PreviousLocalToWorld;
+	FRenderTransform LocalToWorld;
+	FRenderTransform PreviousLocalToWorld;
 };
 
 inline FPrimitiveTransforms InitPrimitiveTransforms(const FScene& Scene, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FPrimitiveSceneInfo* PrimitiveSceneInfo)
@@ -175,7 +175,10 @@ inline FPrimitiveTransforms InitPrimitiveTransforms(const FScene& Scene, const F
 		bool bHasPrecomputedVolumetricLightmap{};
 		bool bOutputVelocity{};
 		int32 SingleCaptureIndex{};
-		Scene.GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, Transforms.PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+
+		FMatrix PreviousLocalToWorld;
+		Scene.GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+		Transforms.PreviousLocalToWorld = PreviousLocalToWorld;
 	}
 
 	return Transforms;
@@ -183,7 +186,7 @@ inline FPrimitiveTransforms InitPrimitiveTransforms(const FScene& Scene, const F
 
 inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const FPrimitiveTransforms& PrimitiveTransforms, int32 PrimitiveID, uint32 SceneFrameNumber, bool bHasPreviousInstanceTransforms)
 {
-	const FMatrix& PreviousInstanceToLocal = bHasPreviousInstanceTransforms ? PrimitiveInstance.PrevInstanceToLocal : PrimitiveInstance.InstanceToLocal;
+	const FRenderTransform& PreviousInstanceToLocal = bHasPreviousInstanceTransforms ? PrimitiveInstance.PrevInstanceToLocal : PrimitiveInstance.InstanceToLocal;
 
 	PrimitiveInstance.PrimitiveId = PrimitiveID;
 	PrimitiveInstance.LastUpdateSceneFrameNumber = SceneFrameNumber;
@@ -211,10 +214,10 @@ inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const 
 	// We always create an instance to ensure that we can always use the same code paths in the shader
 	// In the future we should remove redundant data from the primitive, and then the instances should be
 	// provided by the proxy. However, this is a lot of work before we can just enable it in the base proxy class.
-	DummyInstance.InstanceToLocal = FMatrix::Identity;
-	DummyInstance.PrevInstanceToLocal = FMatrix::Identity;
-	DummyInstance.LocalToWorld = FMatrix::Identity;
-	DummyInstance.PrevLocalToWorld = FMatrix::Identity;
+	DummyInstance.InstanceToLocal.SetIdentity();
+	DummyInstance.PrevInstanceToLocal.SetIdentity();
+	DummyInstance.LocalToWorld.SetIdentity();
+	DummyInstance.PrevLocalToWorld.SetIdentity();
 	DummyInstance.NonUniformScale = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 	DummyInstance.InvNonUniformScale = FVector3f(1.0f, 1.0f, 1.0f);
 	DummyInstance.RenderBounds = LocalBounds;

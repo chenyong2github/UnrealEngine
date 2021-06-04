@@ -583,7 +583,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 
 		Instance.LocalToWorld = Instance.InstanceToLocal;
 		Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
-		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
 		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 		Instance.PerInstanceRandom = 0.0f;
 		Instance.Flags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
@@ -1009,7 +1009,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 		{
 			const FPrimitiveInstance& Instance = Instances[InstanceIndex];
-			CachedRayTracingInstanceTransforms[InstanceIndex] = Instance.InstanceToLocal * GetLocalToWorld();
+			CachedRayTracingInstanceTransforms[InstanceIndex] = Instance.InstanceToLocal.ToMatrix() * GetLocalToWorld();
 		}
 		bCachedRayTracingInstanceTransformsValid = true;
 	}
@@ -1045,7 +1045,7 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	{
 		const FPrimitiveInstance& Instance = Instances[InstanceIndex];
 		// LocalToWorld multiplication will be done when added to FScene, and re-done when doing UpdatePrimitiveTransform
-		RayTracingInstance.InstanceTransforms[InstanceIndex] = Instance.InstanceToLocal;
+		RayTracingInstance.InstanceTransforms[InstanceIndex] = Instance.InstanceToLocal.ToMatrix();
 	}
 	RayTracingInstance.NumTransforms = InstanceCount;
 
@@ -1078,13 +1078,13 @@ const FCardRepresentationData* FSceneProxy::GetMeshCardRepresentation() const
 	return CardRepresentationData;
 }
 
-void FSceneProxy::GetDistancefieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const
+void FSceneProxy::GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const
 {
 	OutDistanceFieldData = DistanceFieldData;
 	SelfShadowBias = DistanceFieldSelfShadowBias;
 }
 
-void FSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const
+void FSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectLocalToWorldTransforms) const
 {
 	if (DistanceFieldData)
 	{
@@ -1094,7 +1094,7 @@ void FSceneProxy::GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWor
 			for (int32 InstanceIndex = 0; InstanceIndex < PrimitiveInstances->Num(); ++InstanceIndex)
 			{
 				// FPrimitiveInstance LocalToWorld is actually InstanceToWorld
-				const FMatrix& InstanceToWorld = (*PrimitiveInstances)[InstanceIndex].LocalToWorld;
+				const FRenderTransform& InstanceToWorld = (*PrimitiveInstances)[InstanceIndex].LocalToWorld;
 				ObjectLocalToWorldTransforms.Add(InstanceToWorld);
 			}
 		}

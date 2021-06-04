@@ -17,33 +17,33 @@ void FInstanceSceneShaderData::Setup(const FPrimitiveInstance& Instance)
 	// TODO: Could remove LightMapAndShadowMapUVBias if r.AllowStaticLighting=false.
 	// This is a read-only setting that will cause all shaders to recompile if changed.
 
-	Data[0].X  = *(const    float*)&Instance.Flags;
-	Data[0].Y  = *(const    float*)&Instance.PrimitiveId;
-	Data[0].Z  = *(const    float*)&Instance.NaniteInfo.RuntimeResourceID;
-	Data[0].W  = *(const    float*)&Instance.LastUpdateSceneFrameNumber;
+	Data[0].X  = *(const     float*)&Instance.Flags;
+	Data[0].Y  = *(const     float*)&Instance.PrimitiveId;
+	Data[0].Z  = *(const     float*)&Instance.NaniteInfo.RuntimeResourceID;
+	Data[0].W  = *(const     float*)&Instance.LastUpdateSceneFrameNumber;
 
 	Instance.LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
 	Instance.PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
 	
-	Data[7]    = *(const  FVector3f*)&Instance.LocalBounds.Origin;
-	Data[7].W  = *(const    float*)&Instance.LocalBounds.BoxExtent.X;
+	Data[7]    = *(const FVector3f*)&Instance.LocalBounds.Origin;
+	Data[7].W  = *(const     float*)&Instance.LocalBounds.BoxExtent.X;
 	
-	Data[8].X  = *(const    float*)&Instance.LocalBounds.BoxExtent.Y;
-	Data[8].Y  = *(const    float*)&Instance.LocalBounds.BoxExtent.Z;
-	Data[8].Z  = *(const    float*)&Instance.NaniteInfo.HierarchyOffset;
-	Data[8].W  = *(const    float*)&Instance.PerInstanceRandom;
+	Data[8].X  = *(const     float*)&Instance.LocalBounds.BoxExtent.Y;
+	Data[8].Y  = *(const     float*)&Instance.LocalBounds.BoxExtent.Z;
+	Data[8].Z  = *(const     float*)&Instance.NaniteInfo.HierarchyOffset;
+	Data[8].W  = *(const     float*)&Instance.PerInstanceRandom;
 
-	Data[9]    = *(const FVector4*)&Instance.LightMapAndShadowMapUVBias;
+	Data[9]    = *(const  FVector4*)&Instance.LightMapAndShadowMapUVBias;
 }
 
 static FPrimitiveInstance DummyInstance =
 	ConstructPrimitiveInstance(
-		FMatrix::Identity,
-		FMatrix::Identity,
-		FVector::ZeroVector,
-		FVector::ZeroVector,
+		FRenderTransform::Identity,
+		FRenderTransform::Identity,
+		FVector3f::ZeroVector,
+		FVector3f::ZeroVector,
 		FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-		FVector4(1.0f, 1.0f, 1.0f, 1.0f),
+		FVector3f(1.0f, 1.0f, 1.0f),
 		FVector4(ForceInitToZero),
 		FNaniteInfo(),
 		0u, /* Instance Flags */

@@ -32,6 +32,7 @@
 #include "Rendering/PositionVertexBuffer.h"
 #include "Rendering/StaticMeshVertexDataInterface.h"
 #include "Rendering/NaniteResources.h"
+#include "RenderTransform.h"
 #include "Templates/UniquePtr.h"
 #include "WeightedRandomSampler.h"
 #include "PerPlatformProperties.h"
@@ -949,8 +950,8 @@ public:
 	virtual bool CanBeOccluded() const override;
 	virtual bool IsUsingDistanceCullFade() const override;
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
-	virtual void GetDistancefieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
-	virtual void GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const override;
+	virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
+	virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectLocalToWorldTransforms) const override;
 	virtual bool HasDistanceFieldRepresentation() const override;
 	virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
 	virtual uint32 GetMemoryFootprint( void ) const override { return( sizeof( *this ) + GetAllocatedSize() ); }
@@ -1248,7 +1249,7 @@ public:
 		return InstanceOriginData->IsValidIndex(Index);
 	}
 
-	FORCEINLINE_DEBUGGABLE void GetInstanceTransform(int32 InstanceIndex, FMatrix& Transform) const
+	FORCEINLINE_DEBUGGABLE void GetInstanceTransform(int32 InstanceIndex, FRenderTransform& Transform) const
 	{
 		FVector4 TransformVec[3];
 		if (bUseHalfFloat)
@@ -1260,28 +1261,13 @@ public:
 			GetInstanceTransformInternal<float>(InstanceIndex, TransformVec);
 		}
 
-		Transform.M[0][0] = TransformVec[0][0];
-		Transform.M[0][1] = TransformVec[0][1];
-		Transform.M[0][2] = TransformVec[0][2];
-		Transform.M[0][3] = 0.f;
-
-		Transform.M[1][0] = TransformVec[1][0];
-		Transform.M[1][1] = TransformVec[1][1];
-		Transform.M[1][2] = TransformVec[1][2];
-		Transform.M[1][3] = 0.f;
-
-		Transform.M[2][0] = TransformVec[2][0];
-		Transform.M[2][1] = TransformVec[2][1];
-		Transform.M[2][2] = TransformVec[2][2];
-		Transform.M[2][3] = 0.f;
+		Transform.TransformRows[0] = FVector3f(TransformVec[0].X, TransformVec[0].Y, TransformVec[0].Z);
+		Transform.TransformRows[1] = FVector3f(TransformVec[1].X, TransformVec[1].Y, TransformVec[1].Z);
+		Transform.TransformRows[2] = FVector3f(TransformVec[2].X, TransformVec[2].Y, TransformVec[2].Z);
 
 		FVector4 Origin;
 		GetInstanceOriginInternal(InstanceIndex, Origin);
-
-		Transform.M[3][0] = Origin.X;
-		Transform.M[3][1] = Origin.Y;
-		Transform.M[3][2] = Origin.Z;
-		Transform.M[3][3] = 0.f;
+		Transform.Origin = FVector3f(Origin.X, Origin.Y, Origin.Z);
 	}
 
 	FORCEINLINE_DEBUGGABLE void GetInstanceShaderValues(int32 InstanceIndex, FVector4 (&InstanceTransform)[3], FVector4& InstanceLightmapAndShadowMapUVBias, FVector4& InstanceOrigin) const
@@ -1302,35 +1288,8 @@ public:
 	{
 		GetInstanceCustomDataInternal(InstanceIndex, CustomData);
 	}
-
-	FORCEINLINE_DEBUGGABLE void SetInstance(int32 InstanceIndex, const FMatrix& Transform, float RandomInstanceID)
-	{
-		FVector4 Origin(Transform.M[3][0], Transform.M[3][1], Transform.M[3][2], RandomInstanceID);
-		SetInstanceOriginInternal(InstanceIndex, Origin);
-
-		FVector4 InstanceTransform[3];
-		InstanceTransform[0] = FVector4(Transform.M[0][0], Transform.M[0][1], Transform.M[0][2], 0.0f);
-		InstanceTransform[1] = FVector4(Transform.M[1][0], Transform.M[1][1], Transform.M[1][2], 0.0f);
-		InstanceTransform[2] = FVector4(Transform.M[2][0], Transform.M[2][1], Transform.M[2][2], 0.0f);
-
-		if (bUseHalfFloat)
-		{
-			SetInstanceTransformInternal<FFloat16>(InstanceIndex, InstanceTransform);
-		}
-		else
-		{
-			SetInstanceTransformInternal<float>(InstanceIndex, InstanceTransform);
-		}
-
-		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(0, 0, 0, 0));
-
-		for (int32 i = 0; i < NumCustomDataFloats; ++i)
-		{
-			SetInstanceCustomDataInternal(InstanceIndex, i, 0);
-		}
-	}
 	
-	FORCEINLINE_DEBUGGABLE void SetInstance(int32 InstanceIndex, const FMatrix& Transform, float RandomInstanceID, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
+	FORCEINLINE_DEBUGGABLE void SetInstance(int32 InstanceIndex, const FMatrix44f& Transform, float RandomInstanceID, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
 	{
 		FVector4 Origin(Transform.M[3][0], Transform.M[3][1], Transform.M[3][2], RandomInstanceID);
 		SetInstanceOriginInternal(InstanceIndex, Origin);
@@ -1357,7 +1316,14 @@ public:
 		}
 	}
 
-	FORCEINLINE void SetInstance(int32 InstanceIndex, const FMatrix& Transform, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
+	FORCEINLINE_DEBUGGABLE void SetInstance(int32 InstanceIndex, const FMatrix44f& Transform, float RandomInstanceID)
+	{
+		const FVector2D& LightmapUVBias  = FVector2D::ZeroVector;
+		const FVector2D& ShadowmapUVBias = FVector2D::ZeroVector;
+		SetInstance(InstanceIndex, Transform, RandomInstanceID, LightmapUVBias, ShadowmapUVBias);
+	}
+
+	FORCEINLINE void SetInstance(int32 InstanceIndex, const FMatrix44f& Transform, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
 	{
 		FVector4 OldOrigin;
 		GetInstanceOriginInternal(InstanceIndex, OldOrigin);
