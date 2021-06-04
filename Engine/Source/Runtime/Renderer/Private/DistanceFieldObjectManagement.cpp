@@ -413,7 +413,7 @@ bool ProcessPrimitiveUpdate(
 			for (int32 TransformIndex = 0; TransformIndex < ObjectLocalToWorldTransforms.Num(); TransformIndex++)
 			{
 				const FRenderTransform& LocalToWorldTransform = ObjectLocalToWorldTransforms[TransformIndex];
-				const FMatrix LocalToWorld = LocalToWorldTransform.ToMatrix();
+				const FMatrix44f LocalToWorld = LocalToWorldTransform.ToMatrix();
 
 				const float MaxScale = LocalToWorld.GetMaximumAxisScale();
 
@@ -675,7 +675,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									const FBox LocalSpaceMeshBounds = DistanceFieldData->LocalSpaceMeshBounds;
 			
-									const FMatrix LocalToWorld = PrimAndInst.LocalToWorld.ToMatrix();
+									const FMatrix44f LocalToWorld = PrimAndInst.LocalToWorld.ToMatrix44f();
 									const FBox WorldSpaceMeshBounds = LocalSpaceMeshBounds.TransformBy(LocalToWorld);
 
 									const FVector4 ObjectBoundingSphere(WorldSpaceMeshBounds.GetCenter(), WorldSpaceMeshBounds.GetExtent().Size());
@@ -692,14 +692,14 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									// This is mirrored in the SDF encoding
 									const float LocalToVolumeScale = 1.0f / LocalSpaceMeshBounds.GetExtent().GetMax();
 
-									const FMatrix VolumeToWorld = 
+									const FMatrix44f VolumeToWorld = 
 										FScaleMatrix(1.0f / LocalToVolumeScale)
 										* FTranslationMatrix(LocalSpaceMeshBounds.GetCenter())
 										* LocalToWorld;
 
 									const FVector VolumePositionExtent = LocalSpaceMeshBounds.GetExtent() * LocalToVolumeScale;
 
-									const FMatrix WorldToVolumeT = VolumeToWorld.Inverse().GetTransposed();
+									const FMatrix44f WorldToVolumeT = VolumeToWorld.Inverse().GetTransposed();
 									// WorldToVolumeT
 									UploadObjectData[0] = (*(FVector4*)&WorldToVolumeT.M[0]);
 									UploadObjectData[1] = (*(FVector4*)&WorldToVolumeT.M[1]);

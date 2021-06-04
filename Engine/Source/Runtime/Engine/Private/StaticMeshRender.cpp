@@ -1947,7 +1947,7 @@ void FStaticMeshSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform
 {
 	if (DistanceFieldData)
 	{
-		ObjectLocalToWorldTransforms.Add(GetLocalToWorld());
+		ObjectLocalToWorldTransforms.Add((FMatrix44f)GetLocalToWorld());
 	}
 }
 

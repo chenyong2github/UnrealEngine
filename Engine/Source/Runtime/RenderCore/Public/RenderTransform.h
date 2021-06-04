@@ -123,12 +123,14 @@ struct FRenderTransform
 
 	FORCEINLINE FRenderTransform Inverse() const
 	{
-		return ToMatrix().Inverse();
+		// Use vectorized 4x4 implementation
+		return ToMatrix44f().Inverse();
 	}
 
 	FORCEINLINE FRenderTransform InverseFast() const
 	{
-		return ToMatrix().InverseFast();
+		// Use vectorized 4x4 implementation
+		return ToMatrix44f().InverseFast();
 	}
 
 	FORCEINLINE FVector3f Orthonormalize()
