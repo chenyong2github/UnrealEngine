@@ -101,6 +101,7 @@ struct FGatheredPathData
 	FGatheredPathData() = default;
 	FGatheredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp);
 	explicit FGatheredPathData(const FDiscoveredPathData& DiscoveredData);
+	explicit FGatheredPathData(FDiscoveredPathData&& DiscoveredData);
 	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp);
 	void Assign(const FDiscoveredPathData& DiscoveredData);
 
@@ -109,6 +110,133 @@ struct FGatheredPathData
 	 * Used for performance metrics.
 	 */
 	uint32 GetAllocatedSize() const;
+};
+
+/** A container to efficiently receive files from discovery and search the container to raise priority of a path */
+class FFilesToSearch
+{
+public:
+	/** Add the given FilePath as a single file with blocking priority. */
+	void AddPriorityFile(FGatheredPathData&& FilePath);
+	/** Add the given directory and its discovered direct Files. */
+	void AddDirectory(FString&& DirAbsPath, TArray<FGatheredPathData>&& FilePaths);
+	/** Re-add a file from PopFront that we didn't have time to process. */
+	void AddFileAgainAfterTimeout(FGatheredPathData&& FilePath);
+	/** Re-add a file from PopFront that uses a not-yet-loaded class for later retry. */
+	void AddFileForLaterRetry(FGatheredPathData&& FilePath);
+
+	/** In coarse priority order, pop the given number of files out of the container. */
+	template <typename AllocatorType>
+	void PopFront(TArray<FGatheredPathData, AllocatorType>& Out, int32 NumToPop);
+
+	/** Search the container for all files with the given directory and set their priority. */
+	void PrioritizeDirectory(FStringView DirAbsPath, EPriority Priority);
+	/**
+	 * Search the container for all files with the given Path and set their priority.
+	 * Path may be BaseNameWithPath or the full BaseNameWithPath.Extension.
+	 */
+	void PrioritizeFile(FStringView FileAbsPathExtOptional, EPriority Priority);
+	/** How many files with blocking priority are in the container. */
+	int32 NumBlockingFiles() const;
+
+	/** Reduce memory used in buffers. */
+	void Shrink();
+	/** How many files are in the container. */
+	int32 Num() const;
+	/** How much memory is used by the container, not counting sizeof(*this). */
+	uint32 GetAllocatedSize() const;
+private:
+	/** A directory-search-tree structure; each node has a list of direct files and subdirectories. */
+	struct FTreeNode
+	{
+		FTreeNode() = default;
+		explicit FTreeNode(FStringView InRelPath);
+
+		/** The name of the directory relative to its parent. */
+		FStringView GetRelPath() const;
+
+		/**
+		 * Recursively search the tree to find the given relative directory name,
+		 * adding nodes for the directory and its parents if required.
+		 */
+		FTreeNode& FindOrAddNode(FStringView InRelPath);
+		/**
+		 * Recursively search the tree to find the given relative directory name;
+		 * return nullptr if the node or any parent is not found.
+		 */
+		FTreeNode* FindNode(FStringView InRelPath);
+
+		/** Add the given FilePaths as direct file children of the Node's directory. */
+		void AddFiles(TArray<FGatheredPathData>&& FilePaths);
+		/** Add the given FilePath as a direct file child of the Node's directory. */
+		void AddFile(FGatheredPathData&& FilePath);
+
+		/** Pop the given number of files out of this node and its children and decrement NumToPop by how many were popped. */
+		template <typename RangeType>
+		void PopFiles(RangeType& Out, int32& NumToPop);
+		/** Pop all files out of this node and its children. */
+		template <typename RangeType>
+		void PopAllFiles(RangeType& Out);
+		/** Pop files out of *this but not children, if they match the given full path or BaseNameWithPath. */
+		template <typename RangeType>
+		void PopMatchingDirectFiles(RangeType& Out, FStringView FileAbsPathExtOptional);
+
+		/** Delete the given child node if it is empty. */
+		void PruneEmptyChild(FStringView SubDirBaseName);
+		/** Return true if this node has no files or subdirs. */
+		bool IsEmpty() const;
+		/** Reduce memory used in buffers. */
+		void Shrink();
+		/** How much memory is used by *this, not counting sizeof(*this). */
+		uint32 GetAllocatedSize() const;
+		/** Number of files in *this and its child nodes. */
+		int32 NumFiles() const;
+	private:
+		/** Search direct SubDirs for the given BaseName and add a node for it if not existing. */
+		FTreeNode& FindOrAddSubDir(FStringView SubDirBaseName);
+		/** Search direct SubDirs for the given BaseName and return nullptr if not existing. */
+		FTreeNode* FindSubDir(FStringView SubDirBaseName);
+		/** Find the index of the subdir with the given Relative path. */
+		int32 FindLowerBoundSubDir(FStringView SubDirBaseName);
+
+		FString RelPath;
+		TArray<FGatheredPathData> Files; // Not sorted
+		TArray<TUniquePtr<FTreeNode>> SubDirs; // Sorted
+	};
+	FTreeNode Root;
+	TRingBuffer<UE::AssetDataGather::Private::FGatheredPathData> BlockingFiles;
+	TRingBuffer<UE::AssetDataGather::Private::FGatheredPathData> LaterRetryFiles;
+};
+
+
+/** Stores a LocalAbsPath and its existence information. A file system query is issued the first time the data is needed. */
+struct FPathExistence
+{
+	/** What kind of thing we found at the given path */
+	enum EType
+	{
+		Directory,
+		File,
+		MissingButDirExists,
+		MissingParentDir,
+	};
+
+	explicit FPathExistence(FStringView InLocalAbsPath);
+	const FString& GetLocalAbsPath() const;
+	EType GetType();
+	FDateTime GetModificationTime();
+
+	/** If the path is a directory or file, return the path. Otherwise return the parent directory, if it exists. */
+	FStringView GetLowestExistingPath();
+
+	/** Issue the file system query if not already done. */
+	void LoadExistenceData();
+
+private:
+	FString LocalAbsPath;
+	FDateTime ModificationTime;
+	EType PathType = EType::MissingParentDir;
+	bool bHasExistenceData = false;
 };
 
 /**
@@ -449,11 +577,11 @@ public:
 	// Receiving Results and reading properties (possibly while tick is running)
 	/** Gets search results from the file discovery. */
 	void GetAndTrimSearchResults(bool& bOutIsComplete, TArray<FString>& OutDiscoveredPaths,
-		TRingBuffer<FGatheredPathData>& OutDiscoveredFiles, int32& OutNumPathsToSearch);
+		FFilesToSearch& OutFilesToSearch, int32& OutNumPathsToSearch);
 	/** Wait (joining in on the tick) until all currently monitored paths have been scanned. */
 	void WaitForIdle();
 	/** Optionally set some scan properties for the given path and then wait for the scan of it to finish. */
-	void SetPropertiesAndWait(const FString& LocalAbsPath, bool bAddToWhitelist, bool bForceRescan,
+	void SetPropertiesAndWait(FPathExistence& QueryPath, bool bAddToWhitelist, bool bForceRescan,
 		bool bIgnoreBlackListScanFilters);
 	/** Return whether the given path is whitelisted due to e.g. TrySetDirectoryProperties with IsWhitelisted. */
 	bool IsWhitelisted(FStringView LocalAbsPath) const;
@@ -504,7 +632,10 @@ private:
 	void SetIsIdle(bool bInIdle);
 
 	/** Store the given discovered files and directories in the results. */
-	void AddDiscovered(TConstArrayView<FDiscoveredPathData> SubDirs, TConstArrayView<FDiscoveredPathData> Files);
+	void AddDiscovered(FStringView DirAbsPath, TConstArrayView<FDiscoveredPathData> SubDirs, TConstArrayView<FDiscoveredPathData> Files);
+	/** Store the given specially reported single file in the results. */
+	void AddDiscoveredFile(FDiscoveredPathData&& File);
+
 	/**
 	 * Return whether a directory with the given LongPackageName should be reported to the AssetRegistry
 	 * We do not report some directories because they are paths that should not enter the AssetRegistry list of paths if empty,
@@ -600,8 +731,17 @@ private:
 
 	/** Directories found in the scan; may be empty. Read/writable only within ResultsLock. */
 	TArray<FString> DiscoveredDirectories;
+
 	/** Files found found in the scan. Read/writable only within ResultsLock. */
-	TArray<FGatheredPathData> DiscoveredFiles;
+	struct FDirectoryResult
+	{
+		FDirectoryResult(FStringView InDirAbsPath, TConstArrayView<FDiscoveredPathData> InFiles);
+		FString DirAbsPath;
+		TArray<FGatheredPathData> Files;
+		uint32 GetAllocatedSize() const;
+	};
+	TArray<FDirectoryResult> DiscoveredFiles;
+	TArray<FGatheredPathData> DiscoveredSingleFiles;
 	/**
 	 * Time at which the scan was started or last resumed from idle. Used for logging.
 	 * Read/writable only within ResultsLock.

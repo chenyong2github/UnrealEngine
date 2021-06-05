@@ -28,17 +28,14 @@ class FDiskCachedAssetData;
 class FAssetRegistryReader;
 class FAssetRegistryWriter; // Not defined if !ALLOW_NAME_BATCH_SAVING
 class FPackageReader;
-namespace UE
-{
-namespace AssetDataGather
-{
-namespace Private
+namespace UE::AssetDataGather::Private
 {
 class FAssetDataDiscovery;
+class FFilesToSearch;
 struct FGatheredPathData;
+struct FPathExistence;
 struct FSetPathProperties;
-}
-}
+enum class EPriority : uint8;
 }
 
 #if DO_CHECK
@@ -199,11 +196,16 @@ private:
 	 */
 	void SetDirectoryProperties(FStringView LocalPath, const UE::AssetDataGather::Private::FSetPathProperties& Properties);
 
-	/** Wait for all monitored assets under the given path to be added to search results. Returns immediately if the given path are not monitored. */
-	void WaitOnPathsInternal(TConstArrayView<FString> LocalAbsPaths, const FString& SaveCacheFilename, const TArray<FString>& SaveCacheFilterDirs);
+	/**
+	 * Wait for all monitored assets under the given path to be added to search results.
+	 * Returns immediately if the given path are not monitored.
+	 */
+	void WaitOnPathsInternal(TArrayView<UE::AssetDataGather::Private::FPathExistence> QueryPaths,
+		const FString& SaveCacheFilename, const TArray<FString>& SaveCacheFilterDirs);
 
-	/** Sort the pending list of discovered asset filepaths so that assets under the given directory/filename are processed first. */
-	void SortPathsByPriority(TConstArrayView<FString> LocalAbsPaths, int32& OutNumPaths);
+	/** Sort the pending list of filepaths so that assets under the given directory/filename are processed first. */
+	void SortPathsByPriority(TArrayView<UE::AssetDataGather::Private::FPathExistence> QueryPaths,
+		UE::AssetDataGather::Private::EPriority Priority, int32& OutNumPaths);
 	/**
 	 * Reads FAssetData information out of a file
 	 *
@@ -317,7 +319,8 @@ private:
 	// Variable section for variables that are read/writable only within ResultsLock.
 
 	/** List of files that need to be processed by the search. Read/writable only within ResultsLock. */
-	TRingBuffer<UE::AssetDataGather::Private::FGatheredPathData> FilesToSearch;
+	TUniquePtr<UE::AssetDataGather::Private::FFilesToSearch> FilesToSearch;
+
 	/** The asset data gathered from the searched files. Read/writable only within ResultsLock. */
 	TArray<FAssetData*> AssetResults;
 	/** Dependency data gathered from the searched files packages. Read/writable only within ResultsLock. */
