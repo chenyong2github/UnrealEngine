@@ -320,6 +320,19 @@ public:
 		SetComplete();
 	}
 
+	virtual ~FAsyncReadRequestConstant()
+	{
+		if (Memory)
+		{
+			// this can happen with a race on cancel, it is ok, they didn't take the memory, free it now
+			if (!bUserSuppliedMemory)
+			{
+				FMemory::Free(Memory);
+			}
+			Memory = nullptr;
+		}
+	}
+
 protected:
 	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
 	{
