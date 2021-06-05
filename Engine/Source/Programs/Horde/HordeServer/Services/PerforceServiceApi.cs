@@ -33,7 +33,18 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Object used for controlling access to the access user tickets
 		/// </summary>
-		object TicketLock = new object();
+		static object TicketLock = new object();
+
+		/// <summary>
+		/// Object used for controlling access to the p4 command output
+		/// </summary>
+		static object P4LogLock = new object();
+
+		/// <summary>
+		/// Native -> managed debug logging callback
+		/// </summary>
+		P4.P4CallBacks.LogMessageDelegate LogBridgeDelegate;
+
 
 		Dictionary<string, P4.Credential> UserTickets = new Dictionary<string, P4.Credential>();
 
@@ -47,27 +58,10 @@ namespace HordeServer.Services
 
 			Server = new P4.Server(new P4.ServerAddress(Settings.CurrentValue.P4BridgeServer));
 
-			P4.LogFile.SetLoggingFunction((int LogLevel, String Source, String Message) =>
-			{
+			LogBridgeDelegate = new P4.P4CallBacks.LogMessageDelegate(LogBridgeMessage);
+			P4.P4Debugging.SetBridgeLogFunction(LogBridgeDelegate);
 
-				switch (LogLevel)
-				{
-					case 0:
-					case 1:
-						Serilog.Log.Error("Perforce (Error): {Message} {Source} : ", Message, Source);
-						break;
-					case 2:
-						Serilog.Log.Warning("Perforce (Warning): {Message} {Source} : ", Message, Source);
-						break;
-					case 3:
-						Serilog.Log.Information("Perforce: {Message} {Source} : ", Message, Source);
-						break;
-					default:
-						// Serilog.Log.Debug("Perforce (Debug): {Message} {Source} : ", Message, Source);
-						break;
-				};
-
-			});
+			P4.LogFile.SetLoggingFunction(LogPerforce);
 		}
 
 
@@ -166,7 +160,7 @@ namespace HordeServer.Services
 			// this might be able to be reused and would be threaded internally
 			P4.Repository Repository = new P4.Repository(Server);
 
-			P4.Connection Connection = Repository.Connection;
+			P4.Connection Connection = Repository.Connection;			
 			Connection.UserName = ImpersonateUser;
 
 			P4.Options Options = new P4.Options();
@@ -258,7 +252,7 @@ namespace HordeServer.Services
 				throw new Exception($"Unable to get connection for Stream:{Stream} Username:{Username} ReadOnly:{ReadOnly} CreateChange:{CreateChange} ClientFromChange:{ClientFromChange} UseClientFromChange:{UseClientFromChange} UsePortFromChange:{UsePortFromChange}");
 			}
 
-			Repository.Connection.CommandEcho += (Data) => { Serilog.Log.Information("Perforce: " + Data); };
+			Repository.Connection.CommandEcho += LogPerforceCommand;
 
 			return Repository;
 
@@ -374,6 +368,62 @@ namespace HordeServer.Services
 			return Client;
 
 		}
+
+		/// <summary>
+		/// Logs perforce commands 
+		/// </summary>
+		/// <param name="Log">The p4 command log info</param>
+		static void LogPerforceCommand(string Log)
+		{
+			lock (P4LogLock)
+			{
+				Serilog.Log.Information("Perforce: " + Log);
+			}
+			
+		}
+
+		/// <summary>
+		/// Perforce logging funcion
+		/// </summary>
+		/// <param name="LogLevel">The level whether error, warning, message, or debug</param>
+		/// <param name="Source">The log source</param>
+		/// <param name="Message">The log message</param>
+		static void LogPerforce(int LogLevel, String Source, String Message)
+		{
+			lock (P4LogLock)
+			{
+				switch (LogLevel)
+				{
+					case 0:
+					case 1:
+						Serilog.Log.Error("Perforce (Error): {Message} {Source} : ", Message, Source);
+						break;
+					case 2:
+						Serilog.Log.Warning("Perforce (Warning): {Message} {Source} : ", Message, Source);
+						break;
+					case 3:
+						Serilog.Log.Information("Perforce: {Message} {Source} : ", Message, Source);
+						break;
+					default:
+						Serilog.Log.Debug("Perforce (Debug): {Message} {Source} : ", Message, Source);
+						break;
+				};
+			}
+		}
+
+		static void LogBridgeMessage(int LogLevel, String Filename, int Line, String Message)
+		{
+
+			// Note, we do not get log level 4 unless it is defined in native code as it is very, very spammy (P4BridgeServer.cpp)
+			
+			// remove the full path to the source, keep just the file name
+			String fileName = Path.GetFileName(Filename);
+
+			string category = String.Format(CultureInfo.CurrentCulture, "P4Bridge({0}:{1})", fileName, Line);
+
+			P4.LogFile.LogMessage(LogLevel, category, Message);
+		}
+
 
 		/// <inheritdoc/>
 		public override async Task<List<ChangeSummary>> GetChangesAsync(string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser)
@@ -1008,4 +1058,3 @@ namespace HordeServer.Services
 	}
 
 }
-

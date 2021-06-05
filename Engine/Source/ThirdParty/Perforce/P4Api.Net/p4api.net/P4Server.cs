@@ -189,7 +189,8 @@ namespace Perforce.P4
         private string _prog_ver;
         private string _cwd;
 
-        private P4CallBacks.LogMessageDelegate logfn = null;
+        // EPIC: this isn't thread safe in native code, so we use a static logging functon
+        // private P4CallBacks.LogMessageDelegate logfn = null;
 
         /// <summary>
         /// Create a P4BridgeServer used to connect to the specified P4Server
@@ -266,11 +267,15 @@ namespace Perforce.P4
             // we can determine if the target server is Unicode enabled or not, so we
             // can use the correct encoding for those parameters
 
+            // EPIC: removing logfn as it is not thread safe
+            /*
             if (logfn == null)
             {
                 logfn = new P4CallBacks.LogMessageDelegate(LogBridgeMessage);
             }
-            pServer = P4Bridge.ConnectA(server, _user, null, null, logfn);
+            */
+            pServer = P4Bridge.ConnectA(server, _user, null, null, null /*logfn*/);
+            
 
             if (pServer != IntPtr.Zero)
             {
@@ -399,8 +404,11 @@ namespace Perforce.P4
 
             CurrentEncodeing = P4Encoding.ASCII;
 
+            // EPIC: Another broken logfn, this guy gets GC'd and is also not thread safe, so it is gone
+            /*
             P4CallBacks.LogMessageDelegate logfn =
                 new P4CallBacks.LogMessageDelegate(LogBridgeMessage);
+            */
 
             // encode the username, password, and workspace name in UTF-8, we
             // won't know if the client supports Unicode until after connect 
@@ -408,11 +416,14 @@ namespace Perforce.P4
             using (PinnedByteArray pUser = MarshalStringToIntPtr(user),
                                    pClient = MarshalStringToIntPtr(ws_client))
             {
+                // Epic: see comment above
+                /* 
                 IntPtr pLogFn = IntPtr.Zero;
                 if (logfn != null)
                     pLogFn = Marshal.GetFunctionPointerForDelegate(logfn);
+                */
 
-                pServer = P4Bridge.TrustedConnectW(server, pUser, IntPtr.Zero, pClient, trust_flag, fingerprint, pLogFn);
+                pServer = P4Bridge.TrustedConnectW(server, pUser, IntPtr.Zero, pClient, trust_flag, fingerprint, IntPtr.Zero /*pLogFn*/);
 
             }
 
@@ -636,8 +647,11 @@ namespace Perforce.P4
             }
             CurrentEncodeing = P4Encoding.ASCII;
 
+            // EPIC: This is GC'd and not thread safe
+            /*
             P4CallBacks.LogMessageDelegate logfn =
                 new P4CallBacks.LogMessageDelegate(LogBridgeMessage);
+            */
 
             // encode the username, password, and workspace name in UTF-8, we
             // won't know if the client supports Unicode until after connect 
@@ -646,11 +660,13 @@ namespace Perforce.P4
                                    pPass = MarshalStringToIntPtr(_pass),
                                    pClient = MarshalStringToIntPtr(_ws_client))
             {
+                /*
                 IntPtr pLogFn = IntPtr.Zero;
                 if (logfn != null)
                     pLogFn = Marshal.GetFunctionPointerForDelegate(logfn);
+                */
 
-                pServer = P4Bridge.ConnectW(_server, pUser, pPass, pClient, pLogFn);
+                pServer = P4Bridge.ConnectW(_server, pUser, pPass, pClient, IntPtr.Zero /*pLogFn*/);
 
             }
 
