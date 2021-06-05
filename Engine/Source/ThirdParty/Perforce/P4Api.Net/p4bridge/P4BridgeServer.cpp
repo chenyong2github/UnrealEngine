@@ -58,6 +58,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HANDLE_EXCEPTION_NOSTR() HandleException(__FILE__, __LINE__, __FUNCTION__, GetExceptionCode(), GetExceptionInformation(), NULL)
 #pragma comment(lib,"Version.lib")
 
+// Epic: Only define for local debugging as it is very, very spammy
+// #define EPIC_DEBUG_SPAM_LOG 1
+
+
 bool CheckErrorId(const ErrorId &eid, const ErrorId &tgt)
 {
     return eid.Subsystem() == tgt.Subsystem() && eid.SubCode() == tgt.SubCode();
@@ -103,6 +107,14 @@ int HandleException_Static(unsigned int c, struct _EXCEPTION_POINTERS *e)
 ******************************************************************************/
 int P4BridgeServer::LogMessageNoArgs(int log_level, const char * file, int line, const char * message)
 {
+
+#ifndef EPIC_DEBUG_SPAM_LOG
+	if (log_level == 4)
+	{
+		return 0;
+	}
+#endif
+
 	if (!pLogFn)
 		return 0;
 
@@ -132,6 +144,13 @@ int P4BridgeServer::LogMessageNoArgs(int log_level, const char * file, int line,
 ******************************************************************************/
 int P4BridgeServer::LogMessage(int log_level, const char * file, int line, const char * message, ...)
 {
+#ifndef EPIC_DEBUG_SPAM_LOG
+	if (log_level == 4)
+	{
+		return 0;
+	}
+#endif
+
 	if (pLogFn)
 	{
 		va_list args;

@@ -341,14 +341,18 @@ extern "C"
 													const char *ws_client,
 													LogCallbackFn *log_fn)
 	{
-		LogCallbackFn *orig = P4BridgeServer::SetLogCallFn(log_fn);
+		// EPIC: This is broken, we set a single static logging function (which happens to be thread safe)
+		// LogCallbackFn *orig = P4BridgeServer::SetLogCallFn(log_fn);
 
 		//Connect to the server
 		P4BridgeServer* pServer = new P4BridgeServer(   server, 
 														user, 
 														pass,
 														ws_client);
-		P4BridgeServer::SetLogCallFn(orig);
+
+		// EPIC: see above comment
+		// P4BridgeServer::SetLogCallFn(orig);
+
 		if (ServerConnect( pServer ) )
 		{
 			return pServer;
@@ -409,9 +413,14 @@ extern "C"
 														user, 
 														pass,
 														ws_client);
-		LogCallbackFn* orig = P4BridgeServer::SetLogCallFn(log_fn); 
+
+		// EPIC, we use a static thread-safe logging callback 
+		// LogCallbackFn* orig = P4BridgeServer::SetLogCallFn(log_fn); 
+		
 		bool ok = ServerConnectTrust( pServer, trust_flag, fingerprint ) != 0;
-		P4BridgeServer::SetLogCallFn(orig);
+		
+		// EPIC
+		//P4BridgeServer::SetLogCallFn(orig);
 
 		if (ok)
 		{
