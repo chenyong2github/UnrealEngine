@@ -60,9 +60,16 @@ namespace HordeAgent.Services
 		/// Create a GRPC channel with the given bearer token
 		/// </summary>
 		/// <returns>New grpc channel</returns>
-		public GrpcChannel CreateGrpcChannel(string BearerToken)
+		public GrpcChannel CreateGrpcChannel(string? BearerToken)
 		{
-			return CreateGrpcChannel(ServerProfile.Url, new AuthenticationHeaderValue("Bearer", BearerToken));
+			if (BearerToken == null)
+			{
+				return CreateGrpcChannel(ServerProfile.Url, null);
+			}
+			else
+			{
+				return CreateGrpcChannel(ServerProfile.Url, new AuthenticationHeaderValue("Bearer", BearerToken));
+			}
 		}
 
 		/// <summary>

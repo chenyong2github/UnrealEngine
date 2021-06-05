@@ -77,8 +77,7 @@ namespace HordeAgent
 		/// <summary>
 		/// Bearer token to use to initiate the connection
 		/// </summary>
-		[Required]
-		public string Token { get; set; } = null!;
+		public string? Token { get; set; }
 
 		/// <summary>
 		/// Thumbprint of a certificate to trust. Allows using self-signed certs for the server.
