@@ -1802,7 +1802,7 @@ void FAssetDataDiscovery::SetPropertiesAndWait(FPathExistence& QueryPath, bool b
 					{
 						break;
 					}
-					if ((bScanEntireTree && ScanDir->IsComplete()) || (!bScanEntireTree && ScanDir->HasScanned()))
+					if (ScanDir->IsComplete() || (!bScanEntireTree && ScanDir->HasScanned()))
 					{
 						break;
 					}
