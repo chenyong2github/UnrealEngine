@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/Material.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "RenderingThread.h"
 #include "AssetUtils/MeshDescriptionUtil.h"
