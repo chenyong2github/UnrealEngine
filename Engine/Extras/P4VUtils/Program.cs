@@ -50,6 +50,8 @@ namespace P4VUtils
 			["preflight"] = new PreflightCommand(),
 			["preflightandsubmit"] = new PreflightAndSubmitCommand(),
 			["findlastedit"] = new FindLastEditCommand(),
+			["snapshot"] = new SnapshotCommand(),
+			["backout"] = new BackoutCommand(),
 		};
 
 		static void PrintHelp(ILogger Logger)
@@ -124,7 +126,7 @@ namespace P4VUtils
 				return await Command.Execute(Args, ConfigValues, Logger);
 			}
 			else
-			{
+		{
 				Console.WriteLine("Unknown command: {0}", Args[0]);
 				PrintHelp(Logger);
 				return 1;
