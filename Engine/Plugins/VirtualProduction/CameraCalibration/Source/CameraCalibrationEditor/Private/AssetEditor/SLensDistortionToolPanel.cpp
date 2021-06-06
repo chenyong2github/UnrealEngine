@@ -69,19 +69,7 @@ void SLensDistortionToolPanel::Construct(const FArguments& InArgs, ULensDistorti
 
 TSharedRef<SWidget> SLensDistortionToolPanel::BuildUIWrapper()
 {
-	const UCameraLensDistortionAlgo* Algo = Tool->GetAlgo();
-
-	UITitle = SNew(STextBlock)
-		.Font(FCameraCalibrationWidgetHelpers::TitleFontInfo)
-		.Text(Algo ? FText::FromName(Algo->FriendlyName()) : LOCTEXT("None", "None"))
-		.Justification(ETextJustify::Center);
-
 	return SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot() // Title
-		.AutoHeight()
-		.Padding(0,10)
-		[ UITitle.ToSharedRef() ]
 
 		+ SVerticalBox::Slot() // Algo's Widget
 		.AutoHeight()
@@ -121,12 +109,6 @@ void SLensDistortionToolPanel::UpdateUI()
 
 	// Assign GUI
 	UI->AddSlot() [Algo->BuildUI()];
-
-	// Update Title
-	if (UITitle.IsValid())
-	{
-		UITitle->SetText(FText::FromName(Algo->FriendlyName()));
-	}
 }
 
 void SLensDistortionToolPanel::UpdateAlgosOptions()

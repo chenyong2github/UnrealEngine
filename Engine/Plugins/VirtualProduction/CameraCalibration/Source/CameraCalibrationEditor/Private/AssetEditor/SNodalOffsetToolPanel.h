@@ -49,9 +49,6 @@ private:
 
 	/** The box containing the UI given by the selected nodal offset algorithm */
 	TSharedPtr<class SVerticalBox> NodalOffsetUI;
-
-	/** Displays the title of the nodal offset UI */
-	TSharedPtr<class STextBlock> NodalOffsetUITitle;
 	
 private:
 

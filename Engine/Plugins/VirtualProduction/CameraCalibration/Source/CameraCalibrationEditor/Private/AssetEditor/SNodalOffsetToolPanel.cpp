@@ -69,19 +69,7 @@ void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool
 
 TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetUIWrapper()
 {
-	const UCameraNodalOffsetAlgo* Algo = NodalOffsetTool->GetNodalOffsetAlgo();
-
-	NodalOffsetUITitle = SNew(STextBlock)
-		.Font(FCameraCalibrationWidgetHelpers::TitleFontInfo)
-		.Text(Algo ? FText::FromName(Algo->FriendlyName()) : LOCTEXT("None", "None"))
-		.Justification(ETextJustify::Center);
-
 	return SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot() // Title
-		.AutoHeight()
-		.Padding(0,10)
-		[ NodalOffsetUITitle.ToSharedRef() ]
 
 		+ SVerticalBox::Slot() // Algo's Widget
 		.AutoHeight()
@@ -121,12 +109,6 @@ void SNodalOffsetToolPanel::UpdateNodalOffsetUI()
 
 	// Assign GUI
 	NodalOffsetUI->AddSlot() [Algo->BuildUI()];
-
-	// Update Title
-	if (NodalOffsetUITitle.IsValid())
-	{
-		NodalOffsetUITitle->SetText(FText::FromName(Algo->FriendlyName()));
-	}
 }
 
 void SNodalOffsetToolPanel::UpdateAlgosOptions()

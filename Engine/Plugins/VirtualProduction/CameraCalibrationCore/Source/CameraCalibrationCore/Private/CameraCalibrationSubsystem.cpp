@@ -248,7 +248,8 @@ void UCameraCalibrationSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 			{
 				if (AlgoIt->IsChildOf(UCameraNodalOffsetAlgo::StaticClass()) && !AlgoIt->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
 				{
-					CameraNodalOffsetAlgosMap.Add(AlgoIt->GetFName(), TSubclassOf<UCameraNodalOffsetAlgo>(*AlgoIt));
+					const UCameraNodalOffsetAlgo* Algo = CastChecked<UCameraNodalOffsetAlgo>(AlgoIt->GetDefaultObject());
+					CameraNodalOffsetAlgosMap.Add(Algo->FriendlyName(), TSubclassOf<UCameraNodalOffsetAlgo>(*AlgoIt));
 				}
 			}
 		}

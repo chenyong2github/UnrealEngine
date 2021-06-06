@@ -48,9 +48,6 @@ private:
 
 	/** The box containing the UI given by the selected algorithm */
 	TSharedPtr<class SVerticalBox> UI;
-
-	/** Displays the title of the current algo UI */
-	TSharedPtr<class STextBlock> UITitle;
 	
 private:
 

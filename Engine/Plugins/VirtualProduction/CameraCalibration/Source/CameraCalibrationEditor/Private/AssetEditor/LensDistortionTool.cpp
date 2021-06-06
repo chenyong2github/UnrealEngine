@@ -27,7 +27,8 @@ void ULensDistortionTool::Initialize(TWeakPtr<FCameraCalibrationStepsController>
 	{
 		if (AlgoIt->IsChildOf(UCameraLensDistortionAlgo::StaticClass()) && !AlgoIt->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
 		{
-			AlgosMap.Add(AlgoIt->GetFName(), TSubclassOf<UCameraLensDistortionAlgo>(*AlgoIt));
+			const UCameraLensDistortionAlgo* Algo = CastChecked<UCameraLensDistortionAlgo>(AlgoIt->GetDefaultObject());
+			AlgosMap.Add(Algo->FriendlyName(), TSubclassOf<UCameraLensDistortionAlgo>(*AlgoIt));
 		}
 	}
 }

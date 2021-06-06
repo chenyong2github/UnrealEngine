@@ -19,12 +19,14 @@
 #include "Styling/SlateStyle.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STreeView.h"
 
@@ -46,7 +48,7 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 				[Step->BuildUI()];
 		}
 	}
-
+	
 	ChildSlot
 	[		
 		SNew(SHorizontalBox)
@@ -74,17 +76,71 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 		[ 
 			SNew(SVerticalBox)
 
+			+ SVerticalBox::Slot() // Viewport Title
+			.Padding(0, 5)
+			.AutoHeight()
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			[
+				SNew(SBox)
+				.MinDesiredHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+				.MaxDesiredHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+				[
+					SNew(SBorder) // Background color for title
+					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
+					.VAlign(EVerticalAlignment::VAlign_Center)
+					[
+						SNew(SOverlay) 
+						+ SOverlay::Slot() // Used to add left padding to the title
+						.Padding(5,0,0,0)
+						[
+							SNew(STextBlock) // Title text
+							.Text(LOCTEXT("ViewportSettings", "Viewport Settings"))
+							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+							.ShadowOffset(FVector2D(1.0f, 1.0f))
+						]
+					]
+				]
+			]
+
 			+ SVerticalBox::Slot() // Wiper
 			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 			[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Transparency", "Transparency"), BuildSimulcamWiperWidget())]
-
+				
 			+ SVerticalBox::Slot() // Camera picker
 			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 			[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Camera", "Camera"), BuildCameraPickerWidget())]
-
+				
 			+ SVerticalBox::Slot() // Media Source picker
 			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 			[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("MediaSource", "Media Source"), BuildMediaSourceWidget())]
+
+			+ SVerticalBox::Slot() // Step Title
+			.Padding(0, 5)
+			.AutoHeight()
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			[
+				SNew(SBox) // Constrain the height
+				.MinDesiredHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+				.MaxDesiredHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+				[
+					SNew(SBorder) // Background color of title
+					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
+					.VAlign(EVerticalAlignment::VAlign_Center)
+					[
+						SNew(SOverlay) 
+						+ SOverlay::Slot() // Used to add left padding to the title
+						.Padding(5, 0, 0, 0)
+						[
+							SNew(STextBlock) // Title text
+							.Text(LOCTEXT("StepSettings", "Step"))
+							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+							.ShadowOffset(FVector2D(1.0f, 1.0f))
+						]
+					]
+				]
+			]
 
 			+ SVerticalBox::Slot() // Step UI
 			.AutoHeight()
@@ -225,9 +281,9 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildStepSelectionWidget()
 		return SNew(SHorizontalBox);
 	}
 
-	StepButtons.Empty();
+	StepToggles.Empty();
 
-	TSharedPtr<SHorizontalBox> ButtonsBox = SNew(SHorizontalBox);
+	TSharedPtr<SHorizontalBox> ToggleButtonsBox = SNew(SHorizontalBox);
 
 	for (const TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationStepsController.Pin()->GetCalibrationSteps())
 	{
@@ -238,31 +294,93 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildStepSelectionWidget()
 	
 		const FName StepName = Step->FriendlyName();
 
-		TSharedPtr<SButton> Button = SNew(SButton)
-			.Text(FText::FromName(Step->FriendlyName()))
-			.HAlign(EHorizontalAlignment::HAlign_Center)
-			.VAlign(EVerticalAlignment::VAlign_Center)
-			.OnClicked_Lambda([&, StepName]()->FReply
+		TSharedPtr<SCheckBox> ToggleButton = SNew(SCheckBox) // Toggle buttons are implemented as checkboxes
+			.Style(FEditorStyle::Get(), "PlacementBrowser.Tab")
+			.OnCheckStateChanged_Lambda([&, StepName](ECheckBoxState CheckState)->void
 			{
 				SelectStep(StepName);
-				return FReply::Handled();
+			})
+			.IsChecked_Lambda([&, StepName]() -> ECheckBoxState
+			{
+				// Note: This will be called every tick
+
+				if (!CalibrationStepsController.IsValid())
+				{
+					return ECheckBoxState::Unchecked;
+				}
+
+				// Return checked state only for the active step
+				for (const TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationStepsController.Pin()->GetCalibrationSteps())
+				{
+					if (!Step.IsValid())
+					{
+						continue;
+					}
+
+					if (Step->FriendlyName() == StepName)
+					{
+						return Step->IsActive() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					}
+				}
+
+				return ECheckBoxState::Unchecked;
 			})
 			[
-				SNew(STextBlock)
-				.Text(FText::FromName(Step->FriendlyName()))
-				.Font(FCameraCalibrationWidgetHelpers::TitleFontInfo)
+				SNew(SOverlay)
+
+				+ SOverlay::Slot()
+				.Padding(FMargin(6, 0, 0, 0))
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), TEXT("PlacementBrowser.Tab.Text"))
+					.Text(FText::FromName(Step->FriendlyName()))
+				]
+
+				+ SOverlay::Slot()
+				.VAlign(VAlign_Bottom)
+				.HAlign(HAlign_Fill)
+				.Padding(0,0,0,5) // This separates the line from the bottom and makes it more discernible against unpredictable media plate colors.
+				[
+					SNew(SImage) // Draws line that enforces the indication of the selected step
+					.Image_Lambda([&, StepName]() -> const FSlateBrush*
+					{
+						// Note: This will be called every tick
+
+						if (!CalibrationStepsController.IsValid())
+						{
+								return nullptr;
+						}
+
+						for (const TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationStepsController.Pin()->GetCalibrationSteps())
+						{
+							if (!Step.IsValid())
+							{
+								continue;
+							}
+
+							if (Step->FriendlyName() == StepName)
+							{
+								return Step->IsActive() ? FEditorStyle::GetBrush(TEXT("PlacementBrowser.ActiveTabBar")) : nullptr;
+							}
+						}
+
+						return nullptr;
+					})
+				]
 			];
 
-		StepButtons.Add(StepName, Button);
+		StepToggles.Add(StepName, ToggleButton);
 
-		ButtonsBox->AddSlot()
-		[ Button.ToSharedRef() ];
+		ToggleButtonsBox->AddSlot()
+		[ToggleButton.ToSharedRef() ];
 	}
 
 	return SNew(SBox)
-		.MinDesiredHeight(2 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-		.MaxDesiredHeight(2 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-		[ButtonsBox.ToSharedRef()];
+		.MinDesiredHeight(1.5 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		.MaxDesiredHeight(1.5 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		[ToggleButtonsBox.ToSharedRef()];
 }
 
 void SCameraCalibrationSteps::SelectStep(const FName& StepName)
@@ -294,26 +412,6 @@ void SCameraCalibrationSteps::SelectStep(const FName& StepName)
 		}
 
 		StepIdx++;
-	}
-
-	// Update button appearances to indicate selection
-	for (const TPair<FName, TSharedPtr<SButton>>& NameButtonPair : StepButtons)
-	{
-		if (!NameButtonPair.Value.IsValid())
-		{
-			continue;
-		}
-
-		if (NameButtonPair.Key == StepName)
-		{
-			NameButtonPair.Value->SetBorderBackgroundColor(FCameraCalibrationWidgetHelpers::SelectedBoxBackgroundColor);
-			NameButtonPair.Value->SetForegroundColor(FCameraCalibrationWidgetHelpers::SelectedBoxForegroundColor);
-		}
-		else
-		{
-			NameButtonPair.Value->SetBorderBackgroundColor(FCameraCalibrationWidgetHelpers::UnselectedBoxBackgroundColor);
-			NameButtonPair.Value->SetForegroundColor(FCameraCalibrationWidgetHelpers::UnselectedBoxForegroundColor);
-		}
 	}
 }
 

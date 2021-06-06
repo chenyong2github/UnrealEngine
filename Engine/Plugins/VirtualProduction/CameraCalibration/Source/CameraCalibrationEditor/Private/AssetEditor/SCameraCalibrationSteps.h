@@ -9,7 +9,7 @@
 #include "UObject/StrongObjectPtr.h"
 
 class FString;
-class SButton;
+class SCheckBox;
 
 template<typename OptionType>
 class SComboBox;
@@ -65,5 +65,5 @@ private:
 	TSharedPtr<SWidgetSwitcher> StepWidgetSwitcher;
 
 	/** Step selection buttons */
-	TMap<FName, TSharedPtr<SButton>> StepButtons;
+	TMap<FName, TSharedPtr<SCheckBox>> StepToggles;
 };
