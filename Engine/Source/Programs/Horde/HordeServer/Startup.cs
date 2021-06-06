@@ -410,85 +410,88 @@ namespace HordeServer
 			ConfigureLogStorage(Services);
 			//			ConfigureLogFileWriteCache(Services, Settings);
 
+			AuthenticationBuilder AuthBuilder = Services.AddAuthentication(Options =>
+				{
+					// If an authentication cookie is present, use it to get authentication information
+					Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+					Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+
+					// If authentication is required, and no cookie is present, use OIDC to sign in
+					if (Settings.DisableAuth)
+					{
+						Options.DefaultChallengeScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
+					}
+					else
+					{
+						Options.DefaultChallengeScheme = OktaDefaults.AuthenticationScheme;
+					}
+				});
+
+			List<string> Schemes = new List<string>();
+
+			AuthBuilder.AddCookie(Options =>
+				 {
+					 Options.Events.OnValidatePrincipal = Context =>
+					 {
+						 if (Context.Principal.FindFirst(HordeClaimTypes.UserId) == null)
+						 {
+							 Context.RejectPrincipal();
+						 }
+						 return Task.CompletedTask;
+					 };
+
+					 Options.Events.OnRedirectToAccessDenied = Context =>
+					 {
+						 Context.Response.StatusCode = StatusCodes.Status403Forbidden;
+						 return Context.Response.CompleteAsync();
+					 };
+				 });
+			Schemes.Add(CookieAuthenticationDefaults.AuthenticationScheme);
+
+			AuthBuilder.AddServiceAccount(Options => { });
+			Schemes.Add(ServiceAccountAuthHandler.AuthenticationScheme);
+
 			if (Settings.DisableAuth)
 			{
-				var Scheme = AnonymousAuthenticationHandler.AuthenticationScheme;
-				Services.AddAuthentication(Scheme)
-					.AddScheme<AnonymousAuthenticationOptions, AnonymousAuthenticationHandler>(Scheme, Options =>
-					{
-						Options.AdminClaimType = Settings.AdminClaimType;
-						Options.AdminClaimValue = Settings.AdminClaimValue;
-					});
-			}
-			else
-			{
-				AuthenticationBuilder AuthBuilder = Services.AddAuthentication(Options =>
-					{
-						// If an authentication cookie is present, use it to get authentication information
-						Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-						Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-
-						// If authentication is required, and no cookie is present, use OIDC to sign in
-						Options.DefaultChallengeScheme = OktaDefaults.AuthenticationScheme;
-					})
-					.AddCookie(Options =>
-					{
-						Options.Events.OnValidatePrincipal = Context =>
-						{
-							if (Context.Principal.FindFirst(HordeClaimTypes.UserId) == null)
-							{
-								Context.RejectPrincipal();
-							}
-							return Task.CompletedTask;
-						};
-
-						Options.Events.OnRedirectToAccessDenied = Context => 
-						{ 
-							Context.Response.StatusCode = StatusCodes.Status403Forbidden; 
-							return Context.Response.CompleteAsync(); 
-						};
-					});
-
-				List<string> AuthSchemes = new List<string>();
-				AuthSchemes.Add(CookieAuthenticationDefaults.AuthenticationScheme);
-
-				AuthBuilder.AddScheme<ServiceAccountAuthOptions, ServiceAccountAuthHandler>(
-					ServiceAccountAuthHandler.AuthenticationScheme, Options => { });
-				AuthSchemes.Add(ServiceAccountAuthHandler.AuthenticationScheme);
-
-				if (Settings.OidcClientId != null && Settings.OidcAuthority != null)
+				AuthBuilder.AddAnonymous(Options =>
 				{
-					AuthBuilder.AddOkta(OktaDefaults.AuthenticationScheme, OpenIdConnectDefaults.DisplayName, 
-						Options =>
-						{
-							Options.Authority = Settings.OidcAuthority;
-							Options.ClientId = Settings.OidcClientId;
-
-							if (!String.IsNullOrEmpty(Settings.OidcSigninRedirect))
-							{
-								Options.Events = new OpenIdConnectEvents
-								{
-									OnRedirectToIdentityProvider = async RedirectContext =>
-									{
-										RedirectContext.ProtocolMessage.RedirectUri = Settings.OidcSigninRedirect;
-										await Task.CompletedTask;
-									}
-								};
-							}
-						});
-					AuthSchemes.Add(OktaDefaults.AuthenticationScheme);
-				}
-
-				AuthBuilder.AddScheme<JwtBearerOptions, HordeJwtBearerHandler>(HordeJwtBearerHandler.AuthenticationScheme, Options => { });
-				AuthSchemes.Add(HordeJwtBearerHandler.AuthenticationScheme);
-
-				Services.AddAuthorization(Options =>
-					{
-						Options.DefaultPolicy = new AuthorizationPolicyBuilder(AuthSchemes.ToArray())
-							.RequireAuthenticatedUser()							
-							.Build();
-					});
+					Options.AdminClaimType = Settings.AdminClaimType;
+					Options.AdminClaimValue = Settings.AdminClaimValue;
+				});
+				Schemes.Add(AnonymousAuthenticationHandler.AuthenticationScheme);
 			}
+			else if (Settings.OidcClientId != null && Settings.OidcAuthority != null)
+			{
+				AuthBuilder.AddOkta(OktaDefaults.AuthenticationScheme, OpenIdConnectDefaults.DisplayName, 
+					Options =>
+					{
+						Options.Authority = Settings.OidcAuthority;
+						Options.ClientId = Settings.OidcClientId;
+
+						if (!String.IsNullOrEmpty(Settings.OidcSigninRedirect))
+						{
+							Options.Events = new OpenIdConnectEvents
+							{
+								OnRedirectToIdentityProvider = async RedirectContext =>
+								{
+									RedirectContext.ProtocolMessage.RedirectUri = Settings.OidcSigninRedirect;
+									await Task.CompletedTask;
+								}
+							};
+						}
+					});
+				Schemes.Add(OktaDefaults.AuthenticationScheme);
+			}
+
+			AuthBuilder.AddScheme<JwtBearerOptions, HordeJwtBearerHandler>(HordeJwtBearerHandler.AuthenticationScheme, Options => { });
+			Schemes.Add(HordeJwtBearerHandler.AuthenticationScheme);
+
+			Services.AddAuthorization(Options =>
+				{
+					Options.DefaultPolicy = new AuthorizationPolicyBuilder(Schemes.ToArray())
+						.RequireAuthenticatedUser()							
+						.Build();
+				});
 
 			Services.AddHostedService(Provider => Provider.GetRequiredService<AgentService>());
 			Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleService>());

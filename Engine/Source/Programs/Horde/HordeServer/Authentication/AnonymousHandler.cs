@@ -54,4 +54,12 @@ namespace HordeServer.Authentication
 			return AuthenticateResult.Success(Ticket);
 		}
 	}
+
+	static class AnonymousExtensions
+	{
+		public static AuthenticationBuilder AddAnonymous(this AuthenticationBuilder Builder, Action<AnonymousAuthenticationOptions> Configure)
+		{
+			return Builder.AddScheme<AnonymousAuthenticationOptions, AnonymousAuthenticationHandler>(AnonymousAuthenticationHandler.AuthenticationScheme, Configure);
+		}
+	}
 }
