@@ -15,9 +15,9 @@ RENDERER_API const FScreenTransform FScreenTransform::ViewportUVToScreenPos(FVec
 
 const FTextureRHIRef& GetMiniFontTexture()
 {
-	if (GEngine->MiniFontTexture)
+	if (GSystemTextures.AsciiTexture)
 	{
-		return GEngine->MiniFontTexture->GetResource()->TextureRHI;
+		return GSystemTextures.AsciiTexture->GetRenderTargetItem().TargetableTexture;
 	}
 	else
 	{

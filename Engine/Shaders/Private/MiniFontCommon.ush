@@ -10,55 +10,57 @@ Texture2D MiniFontTexture;
 
 #define NATIVE_CHARACTER_RES 8
 
-// CharacterIDs for the MiniFont
-#define _0_ 0
-#define _1_ 1
-#define _2_ 2
-#define _3_ 3
-#define _4_ 4
-#define _5_ 5
-#define _6_ 6
-#define _7_ 7
-#define _8_ 8
-#define _9_ 9
-#define _A_ 10
-#define _B_ 11
-#define _C_ 12
-#define _D_ 13
-#define _E_ 14
-#define _F_ 15
-#define _G_ 16
-#define _H_ 17
-#define _I_ 18
-#define _J_ 19
-#define _K_ 20
-#define _L_ 21
-#define _M_ 22
-#define _N_ 23
-#define _O_ 24
-#define _P_ 25
-#define _Q_ 26
-#define _R_ 27
-#define _S_ 28
-#define _T_ 29
-#define _U_ 30
-#define _V_ 31
-#define _W_ 32
-#define _X_ 33
-#define _Y_ 34
-#define _Z_ 35
-#define _MINUS_ 59
-#define _COMMA_ 60
-#define _DOT_ 61
-#define _PLUS_ 62
-#define _SPC_ 63
+// Sub-set of ASCII characters for writing withing shader
+#define _0_ 48
+#define _1_ 49
+#define _2_ 50
+#define _3_ 51
+#define _4_ 52
+#define _5_ 53
+#define _6_ 54
+#define _7_ 55
+#define _8_ 56
+#define _9_ 57
+#define _A_ 65
+#define _B_ 66
+#define _C_ 67
+#define _D_ 68
+#define _E_ 69
+#define _F_ 70
+#define _G_ 71
+#define _H_ 72
+#define _I_ 73
+#define _J_ 74
+#define _K_ 75
+#define _L_ 76
+#define _M_ 77
+#define _N_ 78
+#define _O_ 79
+#define _P_ 80
+#define _Q_ 81
+#define _R_ 82
+#define _S_ 83
+#define _T_ 84
+#define _U_ 85
+#define _V_ 86
+#define _W_ 87
+#define _X_ 88
+#define _Y_ 89
+#define _Z_ 90
+#define _MINUS_ 45
+#define _COMMA_ 44
+#define _DOT_ 46
+#define _PLUS_ 43
+#define _SPC_ 32
 
 // sample from the MiniFont texture
 // @param CharacterID - the character to print
 // @param Position - the position within the 8x8 character
-float SampleMiniFont(int CharacterID, uint2 Position)
+float SampleMiniFont(int InAsciiCode, uint2 Position)
 {
-	return MiniFontTexture.Load(int3(CharacterID * 8 + Position.x, Position.y, 0)).r;
+	// Limit ASCII character to the Standard character set (32 - 127)
+	const uint TextureCode = clamp(InAsciiCode, 32, 127) - 32;
+	return MiniFontTexture.Load(int3(TextureCode * NATIVE_CHARACTER_RES + Position.x, Position.y, 0)).r;
 }
 
 // for printf debugging in the shader
