@@ -12,9 +12,8 @@
 
 #include "PropertyEditorModule.h"
 #include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
 
-
-IMPLEMENT_MODULE( FDMXProtocolEditorModule, DMXProtocolEditor );
 
 
 #define LOCTEXT_NAMESPACE "DMXProtocolEditorModule"
@@ -59,5 +58,7 @@ void FDMXProtocolEditorModule::UnregisterDetailsCustomizations()
 	PropertyModule.UnregisterCustomPropertyTypeLayout(FDMXInputPortReference::StaticStruct()->GetFName());
 	PropertyModule.UnregisterCustomPropertyTypeLayout(FDMXOutputPortReference::StaticStruct()->GetFName());
 }
+
+IMPLEMENT_MODULE(FDMXProtocolEditorModule, DMXProtocolEditor);
 
 #undef LOCTEXT_NAMESPACE
