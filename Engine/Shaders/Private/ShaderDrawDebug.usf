@@ -6,12 +6,7 @@
 #include "ShaderDrawDebug.ush"
 
 // The shader used to render the debug element on view
-
-#if PERMUTATION_INPUT_TYPE == 0 
 StructuredBuffer<FPackedShaderDrawElement>	ShaderDrawDebugPrimitive;
-#else
-StructuredBuffer<FPackedShaderDrawElement>	LockedShaderDrawDebugPrimitive;
-#endif
 
 Texture2D<float> DepthTexture;
 int2 DepthTextureResolution;
@@ -25,11 +20,7 @@ void ShaderDrawDebugVS(
 	out float4 Position : SV_POSITION,
 	out float4 ColorAlpha : TEXCOORD0)
 {
-#if PERMUTATION_INPUT_TYPE == 0
 	FPackedShaderDrawElement PackedLine = ShaderDrawDebugPrimitive[InstanceId];
-#else
-	FPackedShaderDrawElement PackedLine = LockedShaderDrawDebugPrimitive[InstanceId];
-#endif
 	FShaderDrawElement Line = UnpackShaderElement(PackedLine);
 
 	float4 VertexPosition = float4(VertexId == 0 ? Line.Pos0 : Line.Pos1, 1.0f);
@@ -72,36 +63,4 @@ void ShaderDrawDebugClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	IndirectBuffer[2] = 0;
 	IndirectBuffer[3] = 0;
 }
-#endif
-
-#if GPU_DEBUG_RENDERING_COPY_CS
-
-	#if PERMUTATION_BUFFER_TYPE == 0
-	uint NumElements;
-	StructuredBuffer<FPackedShaderDrawElement>	InStructuredBuffer;
-	RWStructuredBuffer<FPackedShaderDrawElement>	OutStructuredBuffer;
-	[numthreads(1024, 1, 1)]
-	void ShaderDrawDebugCopyCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-	{
-		const uint Index = DispatchThreadId.x;
-		if (Index < NumElements)
-		{
-			OutStructuredBuffer[Index] = InStructuredBuffer[Index];
-		}
-	}
-	#endif
-
-	#if PERMUTATION_BUFFER_TYPE == 1
-	Buffer<uint> InBuffer;
-	RWBuffer<uint> OutBuffer;
-	[numthreads(1, 1, 1)]
-	void ShaderDrawDebugCopyCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-	{
-		OutBuffer[0] = InBuffer[0];
-		OutBuffer[1] = InBuffer[1];
-		OutBuffer[2] = InBuffer[2];
-		OutBuffer[3] = InBuffer[3];
-	}
-	#endif
-
 #endif
