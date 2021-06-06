@@ -2,7 +2,7 @@
 	"projects": [
 		{
 			"id": "ue5",
-			"path": "project-ue5.json"
+			"path": "ue5.project.json"
 		}
 	]
 }

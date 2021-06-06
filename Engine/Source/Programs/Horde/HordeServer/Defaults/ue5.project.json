@@ -1,10 +1,10 @@
 {
 	"name": "UE5",
-	"logo": "project-ue5.png",
+	"logo": "ue5.project.png",
 	"streams": [
 		{
 		  "id": "ue5-main",
-		  "path": "stream-ue5-main.json"
+		  "path": "ue5-main.stream.json"
 		}
 	],
 	"categories": [
