@@ -2980,5 +2980,35 @@ namespace EpicGames.Perforce
 		}
 
 		#endregion
+
+		#region p4 undo
+		/// <summary>
+		/// perform undo on a changelist (p4 undo -c <targetCL> //...@undoCL)
+		/// </summary>
+		/// <param name="ChangeNumberToUndo">Changelist number to undo</param>
+		/// <param name="ChangeNumber">Changelist number to receive the changes</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task UndoChangeAsync(int ChangeNumberToUndo, int ChangeNumber, CancellationToken CancellationToken)
+		{
+			(await TryUndoChangeAsync(ChangeNumberToUndo, ChangeNumber, CancellationToken))[0].EnsureSuccess();
+		}
+
+		/// <summary>
+		/// perform undo on a changelist (p4 undo -c <targetCL> //...@undoCL)
+		/// </summary>
+		/// <param name="ChangeNumberToUndo">Changelist number to undo</param>
+		/// <param name="ChangeNumber">Changelist number to receive the changes</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<UndoRecord>> TryUndoChangeAsync(int ChangeNumberToUndo, int ChangeNumber, CancellationToken CancellationToken)
+		{
+			StringBuilder Arguments = new StringBuilder("undo -c");
+			
+			Arguments.AppendFormat(" {0} //...@{1}", ChangeNumber, ChangeNumberToUndo);
+
+			return CommandAsync<UndoRecord>(Arguments.ToString(), null, CancellationToken);
+		}
+		#endregion
 	}
 }
