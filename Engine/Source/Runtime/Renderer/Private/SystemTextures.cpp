@@ -273,6 +273,69 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		HairLUT2 = HairLUT0;
 	}
 
+	// ASCII texture
+	{
+		EPixelFormat Format = PF_R8;
+		const uint32 BytesPerPixel	= 1;
+		const uint32 CharacterCount = 96u;
+		const uint32 CharacterRes	= 8u;
+		const uint32 CharacterStride= CharacterRes * BytesPerPixel;
+
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(CharacterCount * CharacterRes, CharacterRes), Format, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource, false));
+		
+		const uint32 Characters[] =
+		{
+			0x00000000,0x00000000,0x0c1e1e0c,0x000c000c,0x00363636,0x00000000,0x367f3636,0x0036367f,
+			0x1e033e0c,0x000c1f30,0x18336300,0x0063660c,0x6e1c361c,0x006e333b,0x00030606,0x00000000,
+			0x06060c18,0x00180c06,0x18180c06,0x00060c18,0xff3c6600,0x0000663c,0x3f0c0c00,0x00000c0c,
+			0x00000000,0x060c0e00,0x3f000000,0x00000000,0x00000000,0x000c0c00,0x0c183060,0x00010306,
+			0x3f3b331e,0x001e3337,0x0c0c0f0c,0x003f0c0c,0x1c30331e,0x003f3306,0x1c30331e,0x001e3330,
+			0x33363c38,0x0030307f,0x301f033f,0x001e3330,0x1f03061c,0x001e3333,0x1830333f,0x0006060c,
+			0x1e33331e,0x001e3333,0x3e33331e,0x000e1830,0x0c0c0000,0x000c0c00,0x0c0c0000,0x060c0e00,
+			0x03060c18,0x00180c06,0x003f0000,0x0000003f,0x30180c06,0x00060c18,0x1830331e,0x000c000c,
+			0x7b7b633e,0x001e037b,0x33331e0c,0x0033333f,0x3e66663f,0x003f6666,0x0303663c,0x003c6603,
+			0x6666363f,0x003f3666,0x1e16467f,0x007f4616,0x1e16467f,0x000f0616,0x0303663c,0x007c6673,
+			0x3f333333,0x00333333,0x0c0c0c1e,0x001e0c0c,0x30303078,0x001e3333,0x1e366667,0x00676636,
+			0x0606060f,0x007f6646,0x6b7f7763,0x00636363,0x7b6f6763,0x00636373,0x6363361c,0x001c3663,
+			0x3e66663f,0x000f0606,0x3333331e,0x00381e3b,0x3e66663f,0x0067361e,0x1c07331e,0x001e3338,
+			0x0c0c2d3f,0x001e0c0c,0x33333333,0x003f3333,0x33333333,0x000c1e33,0x6b636363,0x0063777f,
+			0x1c366363,0x00636336,0x1e333333,0x001e0c0c,0x0c19337f,0x007f6346,0x0606061e,0x001e0606,
+			0x180c0603,0x00406030,0x1818181e,0x001e1818,0x63361c08,0x00000000,0x00000000,0xff000000,
+			0x00180c0c,0x00000000,0x301e0000,0x006e333e,0x663e0607,0x003d6666,0x331e0000,0x001e3303,
+			0x3e303038,0x006e3333,0x331e0000,0x001e033f,0x0f06361c,0x000f0606,0x336e0000,0x1f303e33,
+			0x6e360607,0x00676666,0x0c0e000c,0x001e0c0c,0x181e0018,0x0e1b1818,0x36660607,0x0067361e,
+			0x0c0c0c0e,0x001e0c0c,0x7f370000,0x0063636b,0x331f0000,0x00333333,0x331e0000,0x001e3333,
+			0x663b0000,0x0f063e66,0x336e0000,0x78303e33,0x361b0000,0x000f0636,0x033e0000,0x001f301e,
+			0x0c3e0c08,0x00182c0c,0x33330000,0x006e3333,0x33330000,0x000c1e33,0x63630000,0x00367f6b,
+			0x36630000,0x0063361c,0x33330000,0x1f303e33,0x193f0000,0x003f260c,0x070c0c38,0x00380c0c,
+			0x00181818,0x00181818,0x380c0c07,0x00070c0c,0x00003b6e,0x00000000,0x00000000,0x00000000
+		};
+
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, AsciiTexture, TEXT("AsciiTexture"), ERenderTargetTransience::NonTransient);
+		uint32 DestStride;
+		uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)AsciiTexture->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+
+		for (int32 c = 0; c < CharacterCount; c++)
+		{
+			const uint32 Hi = Characters[c * 2];
+			const uint32 Lo = Characters[c * 2 + 1];
+
+			for (int32 y = 0; y < CharacterRes; y++)
+			for (int32 x = 0; x < CharacterRes; x++)
+			{
+				uint8* Dest = (uint8*)(DestBuffer + x * BytesPerPixel + (c * CharacterStride) +  y * DestStride);
+
+				const uint32 C = y < CharacterRes/2 ? Hi : Lo;
+				const bool bFilled = (C & (1u << ((y * CharacterRes + x) & 31u)));
+				Dest[0] = bFilled ? 0xFF : 0x0;
+				Dest[1] = bFilled ? 0xFF : 0x0;
+				Dest[2] = bFilled ? 0xFF : 0x0;
+				Dest[3] = bFilled ? 0xFF : 0x0;
+			}
+		}
+		RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)AsciiTexture->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+	}
+
 	// The PreintegratedGF maybe used on forward shading inluding mobile platorm, intialize it anyway.
 	{
 		// for testing, with 128x128 R8G8 we are very close to the reference (if lower res is needed we might have to add an offset to counter the 0.5f texel shift)

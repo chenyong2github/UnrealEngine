@@ -144,6 +144,9 @@ public:
 	// SRV for StencilDummy Texture.
 	TRefCountPtr<FRHIShaderResourceView> StencilDummySRV;
 
+	// ASCII Standard character set - IBM code page 437 (character 32-127)
+	TRefCountPtr<IPooledRenderTarget> AsciiTexture;
+
 	// Create simple default texture
 	FRDGTextureRef GetWhiteDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetBlackDummy(FRDGBuilder& GraphBuilder) const;
