@@ -8,6 +8,8 @@
 
 Texture2D MiniFontTexture;
 
+#define NATIVE_CHARACTER_RES 8
+
 // CharacterIDs for the MiniFont
 #define _0_ 0
 #define _1_ 1
@@ -65,12 +67,12 @@ void PrintCharacter(int2 PixelPos, inout float3 OutColor, float3 FontColor, inou
 {
 	uint2 Rel = (uint2)(PixelPos - LeftTop);
 
-	FLATTEN if (Rel.x < 8 && Rel.y < 8)
+	FLATTEN if (Rel.x < NATIVE_CHARACTER_RES && Rel.y < NATIVE_CHARACTER_RES)
 	{
 		OutColor = lerp(OutColor, FontColor, SampleMiniFont(CharacterID, Rel));
 	}
 
-	LeftTop.x += 8;
+	LeftTop.x += NATIVE_CHARACTER_RES;
 }
 
 // only for positive numbers
@@ -78,7 +80,7 @@ void PrintCharacter(int2 PixelPos, inout float3 OutColor, float3 FontColor, inou
 uint ExtractDigitFromFloat(float Number, float DigitValue)
 {
 	uint Temp = (uint)(Number / DigitValue);
-	return Temp % 10;
+	return (Temp % 10) + _0_;
 }
 
 // for printf debugging in the shader, has to be positive
