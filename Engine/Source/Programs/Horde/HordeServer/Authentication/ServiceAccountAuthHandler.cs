@@ -69,4 +69,12 @@ namespace HordeServer.Authentication
 			return AuthenticateResult.Success(Ticket);
 		}
 	}
+
+	static class ServiceAccountExtensions
+	{
+		public static AuthenticationBuilder AddServiceAccount(this AuthenticationBuilder Builder, Action<ServiceAccountAuthOptions> Config)
+		{
+			return Builder.AddScheme<ServiceAccountAuthOptions, ServiceAccountAuthHandler>(ServiceAccountAuthHandler.AuthenticationScheme, Config);
+		}
+	}
 }
