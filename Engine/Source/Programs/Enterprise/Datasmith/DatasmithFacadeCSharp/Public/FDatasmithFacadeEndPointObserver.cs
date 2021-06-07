@@ -57,8 +57,13 @@ public class FDatasmithFacadeEndpointObserver : global::System.IDisposable {
   private NotifyStateChangeNativeEvent NotifyStateChangedEvent;
   private System.Object ObjectLock = new System.Object();
 
-  private System.EventHandler<FDatasmithFacadeRawInfo> OnStateChangeInternal;
-  public event System.EventHandler<FDatasmithFacadeRawInfo> OnStateChangedEvent
+  public class FDatasmithFacadeRawInfoEventArgs
+  {
+    public FDatasmithFacadeRawInfo RawInfo;
+  }
+
+  private System.EventHandler<FDatasmithFacadeRawInfoEventArgs> OnStateChangeInternal;
+  public event System.EventHandler<FDatasmithFacadeRawInfoEventArgs> OnStateChangedEvent
   {
     add
     {
@@ -92,7 +97,9 @@ public class FDatasmithFacadeEndpointObserver : global::System.IDisposable {
   {
     // Create C# wrapper around FDatasmithFacadeRawInfo pointer.
     FDatasmithFacadeRawInfo RawInfo = new FDatasmithFacadeRawInfo(NewRawInfoPtr, true);
-    OnStateChangeInternal?.Invoke(this, RawInfo);
+	FDatasmithFacadeRawInfoEventArgs EventArgs = new FDatasmithFacadeRawInfoEventArgs();
+	EventArgs.RawInfo = RawInfo;
+    OnStateChangeInternal?.Invoke(this, EventArgs);
 	OnStateChanged(RawInfo);
   }
 

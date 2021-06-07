@@ -193,9 +193,10 @@ namespace DatasmithRhino.Commands
 				}
 			}
 
-			private void OnStateChange(object sender, FDatasmithFacadeRawInfo RawInfo)
+			private void OnStateChange(object sender, FDatasmithFacadeEndpointObserver.FDatasmithFacadeRawInfoEventArgs RawInfoArgs)
 			{
 				List<ConnectionDisplayInfo> StreamIdSourceDestinationTuples = new List<ConnectionDisplayInfo>();
+				FDatasmithFacadeRawInfo RawInfo = RawInfoArgs.RawInfo;
 
 				for (int StreamIndex = 0, StreamNum = RawInfo.GetNumberOfStreamsInfo(); StreamIndex < StreamNum; StreamIndex++)
 				{
