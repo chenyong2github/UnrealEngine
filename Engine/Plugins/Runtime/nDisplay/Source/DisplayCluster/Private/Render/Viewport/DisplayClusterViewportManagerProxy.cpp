@@ -238,7 +238,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 				// Iterate over visible viewports:
 				if (ViewportProxy->GetRenderSettings_RenderThread().bVisible)
 				{
-					const TSharedPtr<class IDisplayClusterProjectionPolicy>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
+					const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
 					if (bWarpBlendEnabled && PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported())
 					{
 						WarpBlendViewports.Add(ViewportProxy);
@@ -263,7 +263,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 		{
 			for (IDisplayClusterViewportProxy* ViewportProxy : WarpBlendViewports)
 			{
-				const TSharedPtr<class IDisplayClusterProjectionPolicy>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
+				const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
 				switch (WarpPass)
 				{
 				case 0:

@@ -22,17 +22,11 @@ FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const F
 {
 }
 
-FDisplayClusterProjectionMeshPolicy::~FDisplayClusterProjectionMeshPolicy()
-{
-	WarpBlendInterface.Reset();
-	WarpBlendInterface_Proxy.Reset();
-}
-
 bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
-	if (WarpBlendInterface == nullptr)
+	if (WarpBlendInterface.IsValid() == false)
 	{
 		FDisplayClusterWarpBlendConstruct::FAssignWarpMesh CreateParameters;
 		if (GetWarpMeshAndOrigin(InViewport, CreateParameters.MeshComponent, CreateParameters.OriginComponent))

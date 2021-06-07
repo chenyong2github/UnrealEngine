@@ -38,19 +38,17 @@ FDisplayClusterProjectionMPCDIPolicy::FDisplayClusterProjectionMPCDIPolicy(const
 
 FDisplayClusterProjectionMPCDIPolicy::~FDisplayClusterProjectionMPCDIPolicy()
 {
-	WarpBlendInterface.Reset();
-	WarpBlendInterface_Proxy.Reset();
 }
 
 void FDisplayClusterProjectionMPCDIPolicy::UpdateProxyData(IDisplayClusterViewport* InViewport)
 {
 	check(InViewport);
 
-	const TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicyPtr = InViewport->GetProjectionPolicy();
-	TSharedPtr<IDisplayClusterWarpBlend> WarpAPI= WarpBlendInterface;
+	const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjectionPolicyPtr = InViewport->GetProjectionPolicy();
+	const TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlendInterfacePtr = WarpBlendInterface;
 
 	ENQUEUE_RENDER_COMMAND(DisplayClusterProjectionMPCDIPolicy_UpdateProxyData)(
-		[ProjectionPolicyPtr, WarpAPI, Contexts = WarpBlendContexts](FRHICommandListImmediate& RHICmdList)
+		[ProjectionPolicyPtr, WarpBlendInterfacePtr, Contexts = WarpBlendContexts](FRHICommandListImmediate& RHICmdList)
 	{
 		IDisplayClusterProjectionPolicy* ProjectionPolicy = ProjectionPolicyPtr.Get();
 		if (ProjectionPolicy)
@@ -58,12 +56,11 @@ void FDisplayClusterProjectionMPCDIPolicy::UpdateProxyData(IDisplayClusterViewpo
 			FDisplayClusterProjectionMPCDIPolicy* MPCDIPolicy = static_cast<FDisplayClusterProjectionMPCDIPolicy*>(ProjectionPolicy);
 			if (MPCDIPolicy)
 			{
-				MPCDIPolicy->WarpBlendInterface_Proxy = WarpAPI;
+				MPCDIPolicy->WarpBlendInterface_Proxy = WarpBlendInterfacePtr;
 				MPCDIPolicy->WarpBlendContexts_Proxy = Contexts;
 			}
 		}
 	});
-
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,7 +78,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewp
 	// Find origin component if it exists
 	InitializeOriginComponent(InViewport, OriginCompId);
 
-	if (WarpBlendInterface == nullptr && !CreateWarpBlendFromConfig())
+	if (WarpBlendInterface.IsValid() == false && !CreateWarpBlendFromConfig())
 	{
 		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI config for viewport '%s'"), *InViewport->GetId());
 		return false;
@@ -107,7 +104,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(IDisplayClusterViewport
 {
 	check(IsInGameThread());
 
-	if (WarpBlendInterface == nullptr || WarpBlendContexts.Num() == 0)
+	if (WarpBlendInterface.IsValid() == false || WarpBlendContexts.Num() == 0)
 	{
 		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Invalid warp data for viewport '%s'"), *InViewport->GetId());
 		return false;
@@ -174,7 +171,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 {
 	check(IsInRenderingThread());
 
-	if (WarpBlendInterface_Proxy == nullptr || WarpBlendContexts_Proxy.Num() == 0)
+	if (WarpBlendInterface_Proxy.IsValid() == false || WarpBlendContexts_Proxy.Num() == 0)
 	{
 		return;
 	}
@@ -313,7 +310,7 @@ UMeshComponent* FDisplayClusterProjectionMPCDIPolicy::GetOrCreatePreviewMeshComp
 {
 	check(IsInGameThread());
 
-	if (WarpBlendInterface == nullptr)
+	if (WarpBlendInterface.IsValid() == false)
 	{
 		return nullptr;
 	}

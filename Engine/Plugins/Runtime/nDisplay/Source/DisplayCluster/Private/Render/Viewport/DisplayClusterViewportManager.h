@@ -78,10 +78,10 @@ public:
 
 	// internal use only
 	bool CreateViewport(const FString& ViewportId, const class UDisplayClusterConfigurationViewport* ConfigurationViewport);
-	IDisplayClusterViewport* CreateViewport(const FString& ViewportId, TSharedPtr<class IDisplayClusterProjectionPolicy> InProjectionPolicy);
+	IDisplayClusterViewport* CreateViewport(const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);
 	bool                     DeleteViewport(const FString& ViewportId);
 
-	FDisplayClusterViewport* ImplCreateViewport(const FString& ViewportId, TSharedPtr<IDisplayClusterProjectionPolicy> InProjectionPolicy);
+	FDisplayClusterViewport* ImplCreateViewport(const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);
 	void ImplDeleteViewport(FDisplayClusterViewport* Viewport);
 
 	const TArray<FDisplayClusterViewport*>& ImplGetViewports() const
@@ -92,7 +92,7 @@ public:
 
 	FDisplayClusterViewport* ImplFindViewport(const FString& InViewportId) const;
 
-	static TSharedPtr<IDisplayClusterProjectionPolicy> CreateProjectionPolicy(const FString& InViewportId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
+	static TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> CreateProjectionPolicy(const FString& InViewportId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 
 	const FDisplayClusterViewportManagerProxy& ImplGetProxy() const
 	{
@@ -106,8 +106,8 @@ protected:
 	friend FDisplayClusterViewportManagerProxy;
 	friend FDisplayClusterViewportConfiguration;
 
-	TSharedPtr<FDisplayClusterRenderTargetManager>        RenderTargetManager;
-	TSharedPtr<FDisplayClusterViewportPostProcessManager> PostProcessManager;
+	TSharedPtr<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>        RenderTargetManager;
+	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PostProcessManager;
 
 public:
 	TUniquePtr<FDisplayClusterViewportConfiguration> Configuration;

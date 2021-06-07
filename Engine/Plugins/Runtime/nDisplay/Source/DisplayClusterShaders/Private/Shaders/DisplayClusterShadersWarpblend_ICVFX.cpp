@@ -367,7 +367,7 @@ private:
 
 	EIcvfxShaderType GetPixelShaderType()
 	{
-		if (WarpBlendParameters.WarpInterface)
+		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
 			switch (WarpBlendParameters.WarpInterface->GetWarpProfileType())
 			{
@@ -419,7 +419,7 @@ public:
 	{
 		RenderPassData.PSParameters.ViewportTextureProjectionMatrix = LocalUVMatrix * GetStereoMatrix();
 
-		if (WarpBlendParameters.WarpInterface)
+		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
 			switch (WarpBlendParameters.WarpInterface->GetWarpGeometryType())
 			{
@@ -448,33 +448,40 @@ public:
 					break;
 				}
 			}
+
+			return true;
 		}
 
-		return true;
+		return false;
 	}
 
 	bool GetWarpBlendParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		FRHITexture* AlphaMap = WarpBlendParameters.WarpInterface->GetTexture(EDisplayClusterWarpBlendTextureType::AlphaMap);
-		if (AlphaMap)
+		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
-			RenderPassData.PSParameters.AlphaMapTexture = AlphaMap;
-			RenderPassData.PSParameters.AlphaMapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			RenderPassData.PSParameters.AlphaEmbeddedGamma = WarpBlendParameters.WarpInterface->GetAlphaMapEmbeddedGamma();
+			FRHITexture* AlphaMap = WarpBlendParameters.WarpInterface->GetTexture(EDisplayClusterWarpBlendTextureType::AlphaMap);
+			if (AlphaMap)
+			{
+				RenderPassData.PSParameters.AlphaMapTexture = AlphaMap;
+				RenderPassData.PSParameters.AlphaMapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+				RenderPassData.PSParameters.AlphaEmbeddedGamma = WarpBlendParameters.WarpInterface->GetAlphaMapEmbeddedGamma();
 
-			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderAlphaMapBlending>(true);
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderAlphaMapBlending>(true);
+			}
+
+			FRHITexture* BetaMap = WarpBlendParameters.WarpInterface->GetTexture(EDisplayClusterWarpBlendTextureType::BetaMap);
+			if (BetaMap)
+			{
+				RenderPassData.PSParameters.BetaMapTexture = BetaMap;
+				RenderPassData.PSParameters.BetaMapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderBetaMapBlending>(true);
+			}
+
+			return true;
 		}
 
-		FRHITexture* BetaMap = WarpBlendParameters.WarpInterface->GetTexture(EDisplayClusterWarpBlendTextureType::BetaMap);
-		if (BetaMap)
-		{
-			RenderPassData.PSParameters.BetaMapTexture = BetaMap;
-			RenderPassData.PSParameters.BetaMapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderBetaMapBlending>(true);
-		}
-
-		return true;
+		return false;
 	}
 
 	bool GetOverlayParameters(FIcvfxRenderPassData& RenderPassData)
@@ -610,7 +617,7 @@ public:
 		GetViewportParameters(RenderPassData);
 
 		// Configure mutable pixel shader:
-		if (WarpBlendParameters.WarpInterface)
+		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
 			GetWarpMapParameters(RenderPassData);
 
@@ -618,10 +625,7 @@ public:
 			{
 				GetWarpBlendParameters(RenderPassData);
 			}
-		}
 
-		if (WarpBlendParameters.WarpInterface)
-		{
 			GetOverlayParameters(RenderPassData);
 			if (GetCameraParameters(RenderPassData))
 			{
@@ -637,23 +641,26 @@ public:
 
 	bool ImplBeginRenderPass(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit) const
 	{
-		switch (WarpBlendParameters.WarpInterface->GetWarpGeometryType())
+		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
-		case EDisplayClusterWarpGeometryType::WarpMap:
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			return true;
-			
-		case EDisplayClusterWarpGeometryType::WarpMesh:
-		{
-			const FDisplayClusterRender_MeshComponentProxy* WarpMesh = WarpBlendParameters.WarpInterface->GetWarpMesh();
-			if (WarpMesh)
+			switch (WarpBlendParameters.WarpInterface->GetWarpGeometryType())
 			{
-				return WarpMesh->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit);
+			case EDisplayClusterWarpGeometryType::WarpMap:
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				return true;
+
+			case EDisplayClusterWarpGeometryType::WarpMesh:
+			{
+				const FDisplayClusterRender_MeshComponentProxy* WarpMesh = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				if (WarpMesh)
+				{
+					return WarpMesh->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit);
+				}
+				break;
 			}
-			break;
-		}
-		default:
-			break;
+			default:
+				break;
+			}
 		}
 
 		return false;
@@ -661,24 +668,27 @@ public:
 
 	bool ImplFinishRenderPass(FRHICommandListImmediate& RHICmdList) const
 	{
-		switch (WarpBlendParameters.WarpInterface->GetWarpGeometryType())
+		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
-		case EDisplayClusterWarpGeometryType::WarpMap:
-			// Render quad
-			FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
-			return true;
-
-		case EDisplayClusterWarpGeometryType::WarpMesh:
-		{
-			const FDisplayClusterRender_MeshComponentProxy* WarpMesh = WarpBlendParameters.WarpInterface->GetWarpMesh();
-			if (WarpMesh)
+			switch (WarpBlendParameters.WarpInterface->GetWarpGeometryType())
 			{
-				return WarpMesh->FinishRender_RenderThread(RHICmdList);
+			case EDisplayClusterWarpGeometryType::WarpMap:
+				// Render quad
+				FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
+				return true;
+
+			case EDisplayClusterWarpGeometryType::WarpMesh:
+			{
+				const FDisplayClusterRender_MeshComponentProxy* WarpMesh = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				if (WarpMesh)
+				{
+					return WarpMesh->FinishRender_RenderThread(RHICmdList);
+				}
+				break;
 			}
-			break;
-		}
-		default:
-			break;
+			default:
+				break;
+			}
 		}
 
 		return false;
@@ -686,7 +696,7 @@ public:
 	
 	bool RenderPassthrough(FRHICommandListImmediate& RHICmdList, FIcvfxRenderPassData& RenderPassData)
 	{
-		if (WarpBlendParameters.WarpInterface == nullptr)
+		if (WarpBlendParameters.WarpInterface.IsValid() == false)
 		{
 			return false;
 		}
@@ -729,7 +739,7 @@ public:
 
 	bool RenderCurentPass(FRHICommandListImmediate& RHICmdList, FIcvfxRenderPassData& RenderPassData)
 	{
-		if (WarpBlendParameters.WarpInterface == nullptr)
+		if (WarpBlendParameters.WarpInterface.IsValid() == false)
 		{
 			return false;
 		}
@@ -788,7 +798,7 @@ public:
 
 	bool Initialize()
 	{
-		if (WarpBlendParameters.WarpInterface == nullptr)
+		if (WarpBlendParameters.WarpInterface.IsValid() == false)
 		{
 			return false;
 		}

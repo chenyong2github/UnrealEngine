@@ -14,7 +14,7 @@ class FDisplayClusterProjectionMeshPolicy
 {
 public:
 	FDisplayClusterProjectionMeshPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
-	virtual ~FDisplayClusterProjectionMeshPolicy();
+	virtual ~FDisplayClusterProjectionMeshPolicy() = default;
 
 	virtual const FString GetTypeId() const
 	{ return DisplayClusterProjectionStrings::projection::Mesh; }

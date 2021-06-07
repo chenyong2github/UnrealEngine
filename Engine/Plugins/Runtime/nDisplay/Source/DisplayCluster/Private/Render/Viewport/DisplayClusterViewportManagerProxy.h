@@ -72,8 +72,8 @@ public:
 	void ImplRenderFrame(FViewport* InViewport);
 
 private:
-	TSharedPtr<FDisplayClusterRenderTargetManager>        RenderTargetManager;
-	TSharedPtr<FDisplayClusterViewportPostProcessManager> PostProcessManager;
+	TSharedPtr<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>        RenderTargetManager;
+	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PostProcessManager;
 
 	FDisplayClusterRenderFrameSettings RenderFrameSettings;
 

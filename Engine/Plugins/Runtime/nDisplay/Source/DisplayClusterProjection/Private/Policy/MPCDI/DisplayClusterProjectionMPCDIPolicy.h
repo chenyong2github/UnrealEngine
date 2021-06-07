@@ -66,10 +66,10 @@ protected:
 protected:
 	FString OriginCompId;
 	
-	TSharedPtr<IDisplayClusterWarpBlend> WarpBlendInterface;
+	TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlendInterface;
 	TArray<FDisplayClusterWarpContext> WarpBlendContexts;
 
-	TSharedPtr<IDisplayClusterWarpBlend> WarpBlendInterface_Proxy;
+	TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlendInterface_Proxy;
 	TArray<FDisplayClusterWarpContext> WarpBlendContexts_Proxy;
 
 #if WITH_EDITOR

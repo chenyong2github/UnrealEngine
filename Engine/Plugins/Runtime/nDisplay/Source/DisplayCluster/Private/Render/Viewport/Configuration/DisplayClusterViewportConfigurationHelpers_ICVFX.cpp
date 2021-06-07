@@ -35,7 +35,7 @@
 #include "Misc/DisplayClusterLog.h"
 
 // Initialize camera policy with camera component and settings
-static bool ImplUpdateCameraProjectionSettings(TSharedPtr<IDisplayClusterProjectionPolicy>& InOutCameraProjection, const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings, UCameraComponent* const CameraComponent)
+static bool ImplUpdateCameraProjectionSettings(TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InOutCameraProjection, const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings, UCameraComponent* const CameraComponent)
 {
 	FDisplayClusterProjectionCameraPolicySettings PolicyCameraSettings;
 	PolicyCameraSettings.FOVMultiplier = CameraSettings.FieldOfViewMultiplier;
@@ -65,7 +65,7 @@ static FDisplayClusterViewport* ImplFindViewport(ADisplayClusterRootActor& RootA
 	return nullptr;
 }
 
-static bool ImplCreateProjectionPolicy(const FString& InViewportId, const FString& InResourceId, bool bIsCameraProjection, TSharedPtr<class IDisplayClusterProjectionPolicy>& OutProjPolicy)
+static bool ImplCreateProjectionPolicy(const FString& InViewportId, const FString& InResourceId, bool bIsCameraProjection, TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& OutProjPolicy)
 {
 	FDisplayClusterConfigurationProjection CameraProjectionPolicyConfig;
 	CameraProjectionPolicyConfig.Type = bIsCameraProjection ? DisplayClusterProjectionStrings::projection::Camera : DisplayClusterProjectionStrings::projection::Link;
@@ -86,7 +86,7 @@ static bool ImplCreateProjectionPolicy(const FString& InViewportId, const FStrin
 //                FDisplayClusterViewportConfigurationHelpers_ICVFX
 //------------------------------------------------------------------------------------------
 
-FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::ImplCreateViewport(ADisplayClusterRootActor& RootActor, const FString& InViewportId, const FString& InResourceId, TSharedPtr<IDisplayClusterProjectionPolicy>& InProjectionPolicy)
+FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::ImplCreateViewport(ADisplayClusterRootActor& RootActor, const FString& InViewportId, const FString& InResourceId, TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy)
 {
 	check(InProjectionPolicy.IsValid());
 
@@ -148,7 +148,7 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetO
 	// Create new camera viewport
 	if (CameraViewport == nullptr)
 	{
-		TSharedPtr<IDisplayClusterProjectionPolicy> CameraProjectionPolicy;
+		TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> CameraProjectionPolicy;
 		if (!ImplCreateProjectionPolicy(CameraId, DisplayClusterViewportStrings::icvfx::camera, true, CameraProjectionPolicy))
 		{
 			return nullptr;
@@ -179,7 +179,7 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetO
 	// Create new chromakey viewport
 	if (ChromakeyViewport == nullptr)
 	{
-		TSharedPtr<IDisplayClusterProjectionPolicy> ChromakeyProjectionPolicy;
+		TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ChromakeyProjectionPolicy;
 		if (!ImplCreateProjectionPolicy(CameraId, DisplayClusterViewportStrings::icvfx::chromakey, false, ChromakeyProjectionPolicy))
 		{
 			return nullptr;
@@ -213,7 +213,7 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetO
 	FDisplayClusterViewport* LightcardViewport = ImplFindViewport(RootActor, BaseViewport.GetId(), ResourceId);
 	if (LightcardViewport == nullptr)
 	{
-		TSharedPtr<IDisplayClusterProjectionPolicy> LightcardProjectionPolicy;
+		TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> LightcardProjectionPolicy;
 		if (!ImplCreateProjectionPolicy(BaseViewport.GetId(), ResourceId, false, LightcardProjectionPolicy))
 		{
 			return nullptr;
@@ -282,7 +282,7 @@ bool FDisplayClusterViewportConfigurationHelpers_ICVFX::GetCameraContext(UDispla
 	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
 
 	// Create new camera projection policy for camera viewport
-	TSharedPtr<IDisplayClusterProjectionPolicy> CameraProjectionPolicy;
+	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> CameraProjectionPolicy;
 	if (!ImplCreateProjectionPolicy(InCameraComponent.GetCameraUniqueId(), DisplayClusterViewportStrings::icvfx::camera, true, CameraProjectionPolicy))
 	{
 		return false;

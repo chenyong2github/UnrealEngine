@@ -37,7 +37,7 @@ class FDisplayClusterViewport
 	: public IDisplayClusterViewport
 {
 public:
-	FDisplayClusterViewport(FDisplayClusterViewportManager& Owner, const FString& ViewportId, TSharedPtr<IDisplayClusterProjectionPolicy> InProjectionPolicy);
+	FDisplayClusterViewport(FDisplayClusterViewportManager& Owner, const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);
 	
 	virtual ~FDisplayClusterViewport();
 
@@ -74,7 +74,7 @@ public:
 		return PostRenderSettings;
 	}
 
-	virtual const TSharedPtr<IDisplayClusterProjectionPolicy>& GetProjectionPolicy() const override
+	virtual const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& GetProjectionPolicy() const override
 	{
 		check(IsInGameThread());
 		return ProjectionPolicy;
@@ -167,8 +167,8 @@ public:
 
 public:
 	// Projection policy instance that serves this viewport
-	TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy;
-	TSharedPtr<IDisplayClusterProjectionPolicy> UninitializedProjectionPolicy;
+	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjectionPolicy;
+	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> UninitializedProjectionPolicy;
 
 	// Game thread only settings:
 	FDisplayClusterViewport_CustomPostProcessSettings CustomPostProcessSettings;

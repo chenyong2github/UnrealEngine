@@ -12,7 +12,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionMPCDIPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayClusterProjectionMPCDIPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 {
 	check(InConfigurationProjectionPolicy != nullptr);
 
@@ -20,13 +20,13 @@ TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionMPCDIPolicy
 
 	if (InConfigurationProjectionPolicy->Type.Equals(DisplayClusterProjectionStrings::projection::MPCDI, ESearchCase::IgnoreCase))
 	{
-		return MakeShared<FDisplayClusterProjectionMPCDIPolicy>(ProjectionPolicyId, InConfigurationProjectionPolicy);
+		return MakeShared<FDisplayClusterProjectionMPCDIPolicy, ESPMode::ThreadSafe>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 	}
 
 	if (InConfigurationProjectionPolicy->Type.Equals(DisplayClusterProjectionStrings::projection::Mesh, ESearchCase::IgnoreCase))
 	{
-		return MakeShared<FDisplayClusterProjectionMeshPolicy>(ProjectionPolicyId, InConfigurationProjectionPolicy);
+		return MakeShared<FDisplayClusterProjectionMeshPolicy, ESPMode::ThreadSafe>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 	}
 
-	return MakeShared<FDisplayClusterProjectionMPCDIPolicy>(ProjectionPolicyId, InConfigurationProjectionPolicy);
+	return MakeShared<FDisplayClusterProjectionMPCDIPolicy, ESPMode::ThreadSafe>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 };

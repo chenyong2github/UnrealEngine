@@ -45,9 +45,9 @@ struct FWarpRegion
 	IDisplayClusterRenderTexture* AlphaMap = nullptr;
 	IDisplayClusterRenderTexture* BetaMap = nullptr;
 
-	bool CreateWarpBlendInterface(TSharedPtr<IDisplayClusterWarpBlend>& OutWarpBlend)
+	bool CreateWarpBlendInterface(TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
 	{
-		TSharedPtr<FDisplayClusterWarpBlend> WarpBlend = MakeShared<FDisplayClusterWarpBlend>();
+		TSharedPtr<FDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlend = MakeShared<FDisplayClusterWarpBlend, ESPMode::ThreadSafe>();
 
 		WarpBlend->GeometryContext.GeometryProxy.GeometryType = EDisplayClusterWarpGeometryType::WarpMap;
 		WarpBlend->GeometryContext.ProfileType = ProfileType;
@@ -148,7 +148,7 @@ bool ImplLoadRegion(EDisplayClusterWarpProfileType ProfileType, mpcdi::Region* m
 	return false;
 }
 
-bool FDisplayClusterWarpBlendLoader_MPCDI::Load(const FDisplayClusterWarpBlendConstruct::FLoadMPCDIFile& InParameters, TSharedPtr<IDisplayClusterWarpBlend>& OutWarpBlend)
+bool FDisplayClusterWarpBlendLoader_MPCDI::Load(const FDisplayClusterWarpBlendConstruct::FLoadMPCDIFile& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
 {
 	FString MPCIDIFileFullPath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(InParameters.MPCDIFileName);
 
@@ -212,7 +212,7 @@ bool FDisplayClusterWarpBlendLoader_MPCDI::Load(const FDisplayClusterWarpBlendCo
 	return false;
 }
 
-bool FDisplayClusterWarpBlendLoader_MPCDI::Load(const FDisplayClusterWarpBlendConstruct::FLoadPFMFile& InParameters, TSharedPtr<IDisplayClusterWarpBlend>& OutWarpBlend)
+bool FDisplayClusterWarpBlendLoader_MPCDI::Load(const FDisplayClusterWarpBlendConstruct::FLoadPFMFile& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
 {
 	FWarpRegion RegionResources;
 	RegionResources.ProfileType = InParameters.ProfileType;
