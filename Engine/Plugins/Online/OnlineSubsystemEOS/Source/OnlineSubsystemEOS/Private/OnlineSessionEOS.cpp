@@ -1191,7 +1191,9 @@ uint32 FOnlineSessionEOS::CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineS
 	// If we are not a dedicated server and are using p2p sockets, then we need to add a custom URL for connecting
 	if (!bIsDedicatedServer && bIsUsingP2PSockets)
 	{
-		FInternetAddrEOS TempAddr(MakeStringFromProductUserId(Options.LocalUserId), GetDefault<UNetDriverEOS>()->NetDriverName.ToString(), FURL::UrlConfig.DefaultPort);
+		// Because some platforms remap ports, we will use the ID of the name of the net driver to be our port instead
+		FName NetDriverName = GetDefault<UNetDriverEOS>()->NetDriverName;
+		FInternetAddrEOS TempAddr(MakeStringFromProductUserId(Options.LocalUserId), NetDriverName.ToString(), GetTypeHash(NetDriverName.ToString()));
 		HostAddr = TempAddr.ToString(true);
 		char HostAddrAnsi[EOS_OSS_STRING_BUFFER_LENGTH];
 		FCStringAnsi::Strncpy(HostAddrAnsi, TCHAR_TO_UTF8(*HostAddr), EOS_OSS_STRING_BUFFER_LENGTH);
@@ -3102,7 +3104,9 @@ uint32 FOnlineSessionEOS::CreateLobbySession(int32 HostingPlayerNum, FNamedOnlin
 
 				Session->SessionState = EOnlineSessionState::Pending;
 
-				FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LocalUserId), GetDefault<UNetDriverEOS>()->NetDriverName.ToString(), FURL::UrlConfig.DefaultPort);
+				// Because some platforms remap ports, we will use the ID of the name of the net driver to be our port instead
+				FName NetDriverName = GetDefault<UNetDriverEOS>()->NetDriverName;
+				FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LocalUserId), NetDriverName.ToString(), GetTypeHash(NetDriverName.ToString()));
 				FString HostAddr = TempAddr.ToString(true);
 
 				Session->SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, Data->LobbyId, nullptr));
@@ -3650,7 +3654,9 @@ void FOnlineSessionEOS::AddLobbySearchResult(EOS_HLobbyDetails LobbyDetailsHandl
 		SearchResult.PingInMs = static_cast<int32>((FPlatformTime::Seconds() - SessionSearchStartInSeconds) * 1000);
 		
 		// This will set the host address and port
-		FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LobbyDetailsInfo->LobbyOwnerUserId), GetDefault<UNetDriverEOS>()->NetDriverName.ToString(), FURL::UrlConfig.DefaultPort);
+		// Because some platforms remap ports, we will use the ID of the name of the net driver to be our port instead
+		FName NetDriverName = GetDefault<UNetDriverEOS>()->NetDriverName;
+		FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LobbyDetailsInfo->LobbyOwnerUserId), NetDriverName.ToString(), GetTypeHash(NetDriverName.ToString()));
 		FString HostAddr = TempAddr.ToString(true);
 
 		SearchResult.Session.SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, LobbyDetailsInfo->LobbyId, nullptr));

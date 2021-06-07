@@ -72,7 +72,8 @@ bool UNetDriverEOS::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const
 
 	// Store our local address and set our port
 	TSharedRef<FInternetAddrEOS> EOSLocalAddress = StaticCastSharedRef<FInternetAddrEOS>(LocalAddress);
-	EOSLocalAddress->SetChannel(bInitAsClient ? GetClientPort() : URL.Port);
+	// Because some platforms remap ports, we will use the ID of the name of the net driver to be our channel
+	EOSLocalAddress->SetChannel(GetTypeHash(NetDriverName.ToString()));
 	// Set our net driver name so we don't accept connections across net driver types
 	EOSLocalAddress->SetSocketName(NetDriverName.ToString());
 
