@@ -23,5 +23,5 @@ const TCHAR* ToString(ELogVerbosity::Type Verbosity)
 	case ELogVerbosity::VeryVerbose:
 		return TEXT("VeryVerbose");
 	}
-	return TEXT("UknownVerbosity");
+	return TEXT("UnknownVerbosity");
 }

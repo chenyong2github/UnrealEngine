@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SFilterWidget.h"
-#include "Logging/LogVerbosity.h"
 #include "Misc/OutputDeviceHelper.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
