@@ -31,23 +31,23 @@ public:
 
 	/** Axis for the analysis function */
 	UPROPERTY(EditAnywhere, DisplayName = "Axis", Category = AnalysisProperties)
-		EAnalysisLocomotionAxis FunctionAxis = EAnalysisLocomotionAxis::Speed;
+	EAnalysisLocomotionAxis FunctionAxis = EAnalysisLocomotionAxis::Speed;
 
 	/** The primary bone or socket used for analysis */
 	UPROPERTY(EditAnywhere, DisplayName = "Bone/Socket 1", Category = AnalysisProperties)
-		FBoneSocketTarget PrimaryBoneSocket;
+	FBoneSocketTarget PrimaryBoneSocket;
 
 	/** The secondary bone or socket used for analysis */
 	UPROPERTY(EditAnywhere, DisplayName = "Bone/Socket 2", Category = AnalysisProperties)
-		FBoneSocketTarget SecondaryBoneSocket;
+	FBoneSocketTarget SecondaryBoneSocket;
 
 	/** World or bone/socket axis that specifies the character's facing direction */
 	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
-		EAnalysisLinearAxis CharacterFacingAxis = EAnalysisLinearAxis::Y;
+	EAnalysisLinearAxis CharacterFacingAxis = EAnalysisLinearAxis::Y;
 
 	/** World or bone/socket axis that specifies the character's up direction */
 	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
-		EAnalysisLinearAxis CharacterUpAxis = EAnalysisLinearAxis::Z;
+	EAnalysisLinearAxis CharacterUpAxis = EAnalysisLinearAxis::Z;
 };
 
 //======================================================================================================================
