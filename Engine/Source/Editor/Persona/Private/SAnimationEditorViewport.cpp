@@ -1643,6 +1643,7 @@ void SAnimationEditorViewportTabBody::UpdateScrubPanel(UAnimationAsset* AnimAsse
 					.ViewInputMin(this, &SAnimationEditorViewportTabBody::GetViewMinInput)
 					.ViewInputMax(this, &SAnimationEditorViewportTabBody::GetViewMaxInput)
 					.bAllowZoom(true)
+					.bDisplayAnimScrubBarEditing(false)
 				];
 		}
 	}
