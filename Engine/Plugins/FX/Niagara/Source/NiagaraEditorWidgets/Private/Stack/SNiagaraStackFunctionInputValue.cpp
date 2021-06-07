@@ -591,25 +591,20 @@ TSharedRef<SExpanderArrow> SNiagaraStackFunctionInputValue::CreateCustomNiagaraF
 
 TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 {
-	TSharedPtr<SNiagaraLibraryOnlyToggleHeader> LibraryOnlyToggle;
-
-	SAssignNew(FilterBox, SNiagaraSourceFilterBox)
-    .OnFiltersChanged(this, &SNiagaraStackFunctionInputValue::TriggerRefresh);
+	SNiagaraFilterBox::FFilterOptions FilterOptions;
+	FilterOptions.SetAddLibraryFilter(true);
+	FilterOptions.SetAddSourceFilter(true);
+	
+	SAssignNew(FilterBox, SNiagaraFilterBox, FilterOptions)
+	.bLibraryOnly(this, &SNiagaraStackFunctionInputValue::GetLibraryOnly)
+	.OnLibraryOnlyChanged(this, &SNiagaraStackFunctionInputValue::SetLibraryOnly)
+    .OnSourceFiltersChanged(this, &SNiagaraStackFunctionInputValue::TriggerRefresh);
 	
 	TSharedRef<SBorder> MenuWidget = SNew(SBorder)
 	.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 	.Padding(5)
 	[
 		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.Padding(1.0f)
-		.AutoHeight()
-		[
-			SAssignNew(LibraryOnlyToggle, SNiagaraLibraryOnlyToggleHeader)
-			.HeaderLabelText(LOCTEXT("FunctionInputValueTitle", "Edit value"))
-			.LibraryOnly(this, &SNiagaraStackFunctionInputValue::GetLibraryOnly)
-			.LibraryOnlyChanged(this, &SNiagaraStackFunctionInputValue::SetLibraryOnly)
-		]
 		+SVerticalBox::Slot()
 		.AutoHeight()
         [
@@ -805,21 +800,20 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 
 void SNiagaraStackFunctionInputValue::ShowReassignDynamicInputScriptMenu()
 {
-	TSharedPtr<SNiagaraLibraryOnlyToggleHeader> LibraryOnlyToggle;
-
+	SNiagaraFilterBox::FFilterOptions FilterOptions;
+	FilterOptions.SetAddLibraryFilter(true);
+	FilterOptions.SetAddSourceFilter(true);
+	
+	SAssignNew(FilterBox, SNiagaraFilterBox, FilterOptions)
+	.bLibraryOnly(this, &SNiagaraStackFunctionInputValue::GetLibraryOnly)
+	.OnLibraryOnlyChanged(this, &SNiagaraStackFunctionInputValue::SetLibraryOnly)
+	.OnSourceFiltersChanged(this, &SNiagaraStackFunctionInputValue::TriggerRefresh);
+	
 	TSharedRef<SBorder> MenuWidget = SNew(SBorder)
 	.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 	.Padding(5)
 	[
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.Padding(1.0f)
-		[
-			SAssignNew(LibraryOnlyToggle, SNiagaraLibraryOnlyToggleHeader)
-			.HeaderLabelText(LOCTEXT("ReassignDynamicInputLabel", "Select a new dynamic input"))
-			.LibraryOnly(this, &SNiagaraStackFunctionInputValue::GetLibraryOnly)
-			.LibraryOnlyChanged(this, &SNiagaraStackFunctionInputValue::SetLibraryOnly)
-		]
+		SNew(SVerticalBox)		
 		+SVerticalBox::Slot()
 		.AutoHeight()
         [
@@ -935,6 +929,7 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 			
 			DynamicInputAction->SourceData = FNiagaraActionSourceData(Source.Key, Source.Value, true);
 			DynamicInputAction->bIsExperimental = ScriptData->bExperimental;
+			DynamicInputAction->bIsInLibrary = bIsInLibrary;
 			OutAllActions.Add(DynamicInputAction);
 		}
 	}
@@ -1150,7 +1145,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGenerateWidgetForItem(
 bool SNiagaraStackFunctionInputValue::DoesItemPassCustomFilter(const TSharedPtr<FNiagaraMenuAction_Generic>& Item)
 {
 	bool bLibraryConditionFulfilled = (bLibraryOnly && Item->bIsInLibrary) || !bLibraryOnly;
-	return FilterBox->IsFilterActive(Item->SourceData.Source) && bLibraryConditionFulfilled;
+	return FilterBox->IsSourceFilterActive(Item->SourceData.Source) && bLibraryConditionFulfilled;
 }
 
 void SNiagaraStackFunctionInputValue::OnItemActivated(const TSharedPtr<FNiagaraMenuAction_Generic>& Item)

@@ -14,9 +14,6 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SItemSelector.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/SNiagaraScriptSourceFilter.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraGraphActionMenu"
 
@@ -35,8 +32,10 @@ void SNiagaraGraphActionMenu::Construct( const FArguments& InArgs )
 	this->OnClosedCallback = InArgs._OnClosedCallback;
 	this->AutoExpandActionMenu = InArgs._AutoExpandActionMenu;
 
-	SAssignNew(FilterBox, SNiagaraSourceFilterBox)
-    .OnFiltersChanged(this, &SNiagaraGraphActionMenu::TriggerRefresh);
+	SAssignNew(FilterBox, SNiagaraFilterBox, SNiagaraFilterBox::FFilterOptions())
+	.bLibraryOnly(this, &SNiagaraGraphActionMenu::GetLibraryOnly)
+	.OnLibraryOnlyChanged(this, &SNiagaraGraphActionMenu::SetLibraryOnly)
+	.OnSourceFiltersChanged(this, &SNiagaraGraphActionMenu::TriggerRefresh);
 	
 	// Build the widget layout
 	SBorder::Construct( SBorder::FArguments()
@@ -44,20 +43,12 @@ void SNiagaraGraphActionMenu::Construct( const FArguments& InArgs )
 		.Padding(5)
 		[
 			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
+			+ SVerticalBox::Slot()
 	        .Padding(1.0f)
 	        .AutoHeight()
 	        [
-	            SAssignNew(LibraryOnlyToggle, SNiagaraLibraryOnlyToggleHeader)
-	            .HeaderLabelText(LOCTEXT("LibraryOnlyTitle", "Edit value"))
-	            .LibraryOnly(this, &SNiagaraGraphActionMenu::GetLibraryOnly)
-	            .LibraryOnlyChanged(this, &SNiagaraGraphActionMenu::SetLibraryOnly)
+	        	FilterBox.ToSharedRef()
 	        ]
-            + SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                FilterBox.ToSharedRef()
-            ]
             + SVerticalBox::Slot()
             [   
 				// Achieving fixed width by nesting items within a fixed width box.
@@ -229,7 +220,7 @@ void SNiagaraGraphActionMenu::SetLibraryOnly(bool bInIsLibraryOnly)
 bool SNiagaraGraphActionMenu::DoesItemPassCustomFilter(const TSharedPtr<FNiagaraAction_NewNode>& Item)
 {
 	bool bLibraryConditionFulfilled = (bLibraryOnly && Item->bIsInLibrary) || !bLibraryOnly;
-	return FilterBox->IsFilterActive(Item->SourceData.Source) && bLibraryConditionFulfilled;
+	return FilterBox->IsSourceFilterActive(Item->SourceData.Source) && bLibraryConditionFulfilled;
 }
 
 bool SNiagaraGraphActionMenu::DoesSectionPassCustomFilter(const ENiagaraMenuSections& Section)

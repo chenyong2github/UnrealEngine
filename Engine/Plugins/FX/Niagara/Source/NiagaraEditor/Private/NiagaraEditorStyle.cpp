@@ -146,7 +146,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
         .SetColorAndOpacity(FSlateColor::UseForeground())
 		.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
 		.SetShadowOffset(FVector2D(1.f, 1.f))
-        .SetFont(DEFAULT_FONT("Bold", 8));
+        .SetFont(DEFAULT_FONT("Bold", 9));
         
 	FTextBlockStyle TemplateTabText = FTextBlockStyle(NormalText)
 		.SetColorAndOpacity(FSlateColor::UseForeground())

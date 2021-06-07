@@ -354,6 +354,9 @@ private:
 		return NewAssignmentModule;
 	}
 
+	virtual bool SupportsLibraryFilter() const override { return true; }
+	virtual bool SupportsSourceFilter() const override { return true; }
+
 private:
 	UNiagaraNodeOutput* OutputNode;
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;

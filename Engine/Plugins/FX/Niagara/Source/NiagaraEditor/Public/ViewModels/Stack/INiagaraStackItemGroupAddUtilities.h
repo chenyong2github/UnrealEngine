@@ -82,6 +82,12 @@ public:
 	/** Executes the specified add action. */
 	virtual void ExecuteAddAction(TSharedRef<INiagaraStackItemGroupAddAction> AddAction, int32 TargetIndex) = 0;
 
+	/** Should we add a library filter to the add menu? */
+	virtual bool SupportsLibraryFilter() const = 0;
+
+	/** Should we add a source filter to the add menu? */
+	virtual bool SupportsSourceFilter() const = 0;
+
 	virtual ~INiagaraStackItemGroupAddUtilities() { }
 };
 
@@ -98,6 +104,9 @@ public:
 	virtual FText GetAddItemName() const override { return AddItemName; }
 	virtual bool GetAutoExpandAddActions() const override { return bAutoExpandAddActions; }
 	virtual EAddMode GetAddMode() const override { return AddMode; }
+
+	virtual bool SupportsLibraryFilter() const override { return false; }
+	virtual bool SupportsSourceFilter() const override { return false; }
 
 protected:
 	FText AddItemName;

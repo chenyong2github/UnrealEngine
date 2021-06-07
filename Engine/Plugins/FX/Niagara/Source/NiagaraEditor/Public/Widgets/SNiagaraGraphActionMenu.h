@@ -8,7 +8,7 @@
 #include "NiagaraActions.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "SItemSelector.h"
-#include "SNiagaraLibraryOnlyToggleHeader.h"
+#include "SNiagaraFilterBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraph/EdGraphSchema.h"
@@ -63,9 +63,8 @@ protected:
 
 	SGraphEditor::FActionMenuClosed OnClosedCallback;
 
-	TSharedPtr<SNiagaraLibraryOnlyToggleHeader> LibraryOnlyToggle;
+	TSharedPtr<SNiagaraFilterBox> FilterBox;
 	TSharedPtr<SNiagaraMenuActionSelector> ActionSelector;
-	TSharedPtr<class SNiagaraSourceFilterBox> FilterBox;
 
 	TArray<TSharedPtr<FNiagaraAction_NewNode>> CollectAllActions();
 	

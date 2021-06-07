@@ -17,10 +17,12 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraLibraryOnlyToggleHeader)
 		: _LibraryOnly(true)
 		, _HeaderLabelText(NSLOCTEXT("LibraryOnlyToggle", "DefaultHeader", "Select Item"))
+		, _bShowHeaderLabel(true)
 		{}
 		SLATE_ATTRIBUTE(bool, LibraryOnly)
 		SLATE_EVENT(FOnLibraryOnlyChanged, LibraryOnlyChanged)
 		SLATE_ARGUMENT(FText, HeaderLabelText)
+		SLATE_ARGUMENT(bool, bShowHeaderLabel)
 	SLATE_END_ARGS();
 
 	NIAGARAEDITOR_API void Construct(const FArguments& InArgs);

@@ -56,5 +56,5 @@ private:
 
 	TSharedPtr<SNiagaraAssetPickerList> EmitterAssetPicker;
 
-	TSharedPtr<SNiagaraAssetPickerList> SystemAssetPicker;
+	TSharedPtr<SNiagaraAssetPickerList> CopySystemAssetPicker;
 };
