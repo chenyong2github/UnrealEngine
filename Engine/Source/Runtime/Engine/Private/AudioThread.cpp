@@ -203,6 +203,7 @@ static int32 AudioThreadSuspendCount = 0;
 
 void FAudioThread::SuspendAudioThread()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SuspendAudioThread);
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
 	check(!GIsAudioThreadSuspended || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
 	if (IsAudioThreadRunning())

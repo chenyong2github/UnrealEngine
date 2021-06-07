@@ -1061,6 +1061,7 @@ const TCHAR* FMallocBinned2::GetDescriptiveName()
 void FMallocBinned2::FlushCurrentThreadCache()
 {
 	double StartTimeInner = FPlatformTime::Seconds();
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMallocBinned2::FlushCurrentThreadCache);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_FlushCurrentThreadCache);
 	FPerThreadFreeBlockLists* Lists = FPerThreadFreeBlockLists::Get();
 

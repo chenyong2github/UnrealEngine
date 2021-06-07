@@ -1314,6 +1314,7 @@ static FAutoConsoleVariableRef CVarIncrementalGCTimePerFrame(
 
 void UEngine::PreGarbageCollect()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEngine::PreGarbageCollect);
 	ForEachObjectOfClass(UWorld::StaticClass(), [](UObject* WorldObj)
 	{
 		UWorld* World = CastChecked<UWorld>(WorldObj);

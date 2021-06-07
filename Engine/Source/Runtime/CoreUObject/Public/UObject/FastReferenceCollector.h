@@ -191,6 +191,7 @@ public:
 	 */
 	void ClearWeakReferences(bool bClearPools)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ClearWeakReferences);
 		TArray<FGCArrayStruct*> AllArrays;
 		Pool.PopAll(AllArrays);
 		int32 Index = 0;
@@ -398,6 +399,7 @@ private:
 					}
 					else
 					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(FCollectorTaskQueue::WaitEvent);
 						check(WaitEvent);
 						WaitEvent->Wait();
 						FPlatformProcess::ReturnSynchEventToPool(WaitEvent);
