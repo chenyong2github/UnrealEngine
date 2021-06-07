@@ -918,7 +918,10 @@ void AActor::ProcessUserConstructionScript()
 
 void AActor::FinishAndRegisterComponent(UActorComponent* Component)
 {
-	Component->RegisterComponent();
+	if (GetWorld()->bIsWorldInitialized)
+	{
+		Component->RegisterComponent();
+	}
 	BlueprintCreatedComponents.Add(Component);
 }
 
