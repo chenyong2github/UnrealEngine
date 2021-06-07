@@ -88,6 +88,7 @@ void FTaskTimingSharedState::OnEndSession(Insights::ITimingViewSession& InSessio
 		return;
 	}
 
+	FTaskGraphProfilerManager::Get()->ClearTaskRelations();
 	TaskTrack = nullptr;
 }
 
