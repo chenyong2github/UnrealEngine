@@ -224,6 +224,7 @@ struct FPointLightRenderState : public FLocalLightRenderState
 	float SourceLength;
 	float FalloffExponent;
 	bool IsInverseSquared;
+	FTexture* IESTexture;
 
 	virtual FLightShaderParameters GetLightShaderParameters() const override;
 };
@@ -245,6 +246,7 @@ struct FSpotLightRenderState : public FLocalLightRenderState
 	float SourceLength;
 	float FalloffExponent;
 	bool IsInverseSquared;
+	FTexture* IESTexture;
 
 
 	virtual FLightShaderParameters GetLightShaderParameters() const override;
@@ -265,6 +267,7 @@ struct FRectLightRenderState : public FLocalLightRenderState
 	float SourceHeight;
 	float BarnDoorAngle;
 	float BarnDoorLength;
+	FTexture* IESTexture;
 
 	virtual FLightShaderParameters GetLightShaderParameters() const override;
 };

@@ -5,6 +5,8 @@
 #include "RayTracingDefinitions.h"
 #include "PathTracingDefinitions.h"
 
+RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder);
+
 template<typename PassParameterType>
 void SetupPathTracingLightParameters(
 	const GPULightmass::FLightSceneRenderState& LightScene,
@@ -66,6 +68,8 @@ void SetupPathTracingLightParameters(
 		}
 	}
 
+	TMap<FTexture*, int> IESLightProfilesMap;
+
 	for (auto Light : LightScene.PointLights.Elements)
 	{
 		if (LightCount < MaxLightCount)
@@ -81,7 +85,15 @@ void SetupPathTracingLightParameters(
 			DestLight.Dimensions = FVector(Light.SourceRadius, Light.SourceSoftRadius, Light.SourceLength);
 			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
 			DestLight.FalloffExponent = Light.FalloffExponent;
-			DestLight.IESTextureSlice = -1;
+
+			if (Light.IESTexture)
+			{
+				DestLight.IESTextureSlice = IESLightProfilesMap.FindOrAdd(Light.IESTexture, IESLightProfilesMap.Num());
+			}
+			else
+			{
+				DestLight.IESTextureSlice = INDEX_NONE;
+			}
 
 			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
 			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
@@ -107,7 +119,15 @@ void SetupPathTracingLightParameters(
 			DestLight.Shaping = Light.SpotAngles;
 			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
 			DestLight.FalloffExponent = Light.FalloffExponent;
-			DestLight.IESTextureSlice = -1;
+
+			if (Light.IESTexture)
+			{
+				DestLight.IESTextureSlice = IESLightProfilesMap.FindOrAdd(Light.IESTexture, IESLightProfilesMap.Num());
+			}
+			else
+			{
+				DestLight.IESTextureSlice = INDEX_NONE;
+			}
 
 			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
 			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
@@ -137,7 +157,14 @@ void SetupPathTracingLightParameters(
 			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
 			DestLight.Shaping = FVector2D(FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle)), Light.BarnDoorLength);
 
-			DestLight.IESTextureSlice = -1;
+			if (Light.IESTexture)
+			{
+				DestLight.IESTextureSlice = IESLightProfilesMap.FindOrAdd(Light.IESTexture, IESLightProfilesMap.Num());
+			}
+			else
+			{
+				DestLight.IESTextureSlice = INDEX_NONE;
+			}
 
 			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
 			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
@@ -152,5 +179,14 @@ void SetupPathTracingLightParameters(
 		size_t DataSize = sizeof(FPathTracingLight) * FMath::Max(LightCount, 1u);
 		PassParameters->SceneLights = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("PathTracingLightsBuffer"), sizeof(FPathTracingLight), FMath::Max(LightCount, 1u), Lights, DataSize)));
 		PassParameters->SceneLightCount = LightCount;
+	}
+
+	if (IESLightProfilesMap.Num() > 0)
+	{
+		PassParameters->IESTexture = PrepareIESAtlas(IESLightProfilesMap, GraphBuilder);
+	}
+	else
+	{
+		PassParameters->IESTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
 	}
 }

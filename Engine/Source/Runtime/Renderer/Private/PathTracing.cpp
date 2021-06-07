@@ -612,6 +612,50 @@ RENDERER_API void PrepareSkyTexture_Internal(
 	}
 }
 
+RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder)
+{
+	// We found some IES profiles to use -- upload them into a single atlas so we can access them easily in HLSL
+
+	// TODO: This is redundant because all the IES textures are already on the GPU. Handling IES profiles via Miss shaders
+	// would be cleaner.
+	
+	// TODO: This is also redundant with the logic in RayTracingLighting.cpp, but the latter is limitted to 1D profiles and 
+	// does not consider the same set of lights as the path tracer. Longer term we should aim to unify the representation of lights
+	// across both passes
+	
+	// TODO: This process is repeated every frame! More motivation to move to a Miss shader based implementation
+	
+	// This size matches the import resolution of light profiles (see FIESLoader::GetWidth)
+	const int kIESAtlasSize = 256;
+	const int NumSlices = InIESLightProfilesMap.Num();
+	FRDGTextureDesc IESTextureDesc = FRDGTextureDesc::Create2DArray(
+		FIntPoint(kIESAtlasSize, kIESAtlasSize),
+		PF_R32_FLOAT,
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV,
+		NumSlices);
+	FRDGTexture* IESTexture = GraphBuilder.CreateTexture(IESTextureDesc, TEXT("PathTracer.IESAtlas"), ERDGTextureFlags::None);
+
+	for (auto&& Entry : InIESLightProfilesMap)
+	{
+		FPathTracingIESAtlasCS::FParameters* AtlasPassParameters = GraphBuilder.AllocParameters<FPathTracingIESAtlasCS::FParameters>();
+		const int Slice = Entry.Value;
+		AtlasPassParameters->IESTexture = Entry.Key->TextureRHI;
+		AtlasPassParameters->IESSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		AtlasPassParameters->IESAtlas = GraphBuilder.CreateUAV(IESTexture);
+		AtlasPassParameters->IESAtlasSlice = Slice;
+		TShaderMapRef<FPathTracingIESAtlasCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Path Tracing IES Atlas (Slice=%d)", Slice),
+			ComputeShader,
+			AtlasPassParameters,
+			FComputeShaderUtils::GetGroupCount(FIntPoint(kIESAtlasSize, kIESAtlasSize), FComputeShaderUtils::kGolden2DGroupSize));
+	}
+
+	return IESTexture;
+}
+
 RDG_REGISTER_BLACKBOARD_STRUCT(FPathTracingSkylight)
 
 bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, FPathTracingSkylight* SkylightParameters)
@@ -1059,46 +1103,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 	if (IESLightProfilesMap.Num() > 0)
 	{
-		// We found some IES profiles to use -- upload them into a single atlas so we can access them easily in HLSL
-
-		// TODO: This is redundant because all the IES textures are already on the GPU. Handling IES profiles via Miss shaders
-		// would be cleaner.
-
-		// TODO: This is also redundant with the logic in RayTracingLighting.cpp, but the latter is limitted to 1D profiles and 
-		// does not consider the same set of lights as the path tracer. Longer term we should aim to unify the representation of lights
-		// across both passes
-
-		// TODO: This process is repeated every frame! More motivation to move to a Miss shader based implementation
-
-		// This size matches the import resolution of light profiles (see FIESLoader::GetWidth)
-		const int kIESAtlasSize = 256;
-		const int NumSlices = IESLightProfilesMap.Num();
-		FRDGTextureDesc IESTextureDesc = FRDGTextureDesc::Create2DArray(
-			FIntPoint(kIESAtlasSize, kIESAtlasSize),
-			PF_R32_FLOAT,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV,
-			NumSlices);
-		FRDGTexture* IESTexture = GraphBuilder.CreateTexture(IESTextureDesc, TEXT("PathTracer.IESAtlas"), ERDGTextureFlags::None);
-
-		for (auto&& Entry : IESLightProfilesMap)
-		{
-			FPathTracingIESAtlasCS::FParameters* AtlasPassParameters = GraphBuilder.AllocParameters<FPathTracingIESAtlasCS::FParameters>();
-			const int Slice = Entry.Value;
-			AtlasPassParameters->IESTexture = Entry.Key->TextureRHI;
-			AtlasPassParameters->IESSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			AtlasPassParameters->IESAtlas = GraphBuilder.CreateUAV(IESTexture);
-			AtlasPassParameters->IESAtlasSlice = Slice;
-			TShaderMapRef<FPathTracingIESAtlasCS> ComputeShader(View.ShaderMap);
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("Path Tracing IES Atlas (Slice=%d)", Slice),
-				ComputeShader,
-				AtlasPassParameters,
-				FComputeShaderUtils::GetGroupCount(FIntPoint(kIESAtlasSize, kIESAtlasSize), FComputeShaderUtils::kGolden2DGroupSize));
-		}
-
-		PassParameters->IESTexture = IESTexture;
+		PassParameters->IESTexture = PrepareIESAtlas(IESLightProfilesMap, GraphBuilder);
 	}
 	else
 	{
