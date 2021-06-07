@@ -116,6 +116,12 @@ void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 				const float OverscanFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * OriginalFocalLength)));
 				CineCameraComponent->SetFieldOfView(OverscanFOV);
 
+				if (CineCameraComponent->CurrentFocalLength < CineCameraComponent->LensSettings.MinFocalLength)
+				{
+					LensDistortionHandler->SetOverscanFactor(OverscanFactor * (CineCameraComponent->CurrentFocalLength / CineCameraComponent->LensSettings.MinFocalLength));
+					CineCameraComponent->CurrentFocalLength = CineCameraComponent->LensSettings.MinFocalLength;
+				}
+
 				SubSystem->UpdateOverscanFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
 
 				bIsDistortionSetup = true;
