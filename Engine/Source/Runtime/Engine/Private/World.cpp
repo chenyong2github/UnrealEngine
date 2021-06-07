@@ -3569,6 +3569,8 @@ void FStreamingLevelsToConsider::AddReferencedObjects(UObject* InThis, FReferenc
 
 void UWorld::BlockTillLevelStreamingCompleted()
 {
+	const double StartTime = FPlatformTime::Seconds();
+
 	bool bWorkToDo = false;
 	do
 	{
@@ -3595,6 +3597,8 @@ void UWorld::BlockTillLevelStreamingCompleted()
 			}
 		}
 	} while (bWorkToDo);
+	const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
+	UE_LOG(LogWorld, Log, TEXT("BlockTillLevelStreamingCompleted took %s seconds (MatchStarted %d)"), *FText::AsNumber(ElapsedTime).ToString(), bMatchStarted);
 }
 
 void UWorld::InternalUpdateStreamingState()
