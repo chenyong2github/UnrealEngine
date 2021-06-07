@@ -251,6 +251,7 @@ void UNiagaraStackRendererItem::Delete()
 	Emitter->RemoveRenderer(Renderer);
 	if (UNiagaraEmitterEditorData* Data = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()))
 	{
+		Data->GetStackEditorData().Modify();
 		Data->GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), FText());
 	}
 
