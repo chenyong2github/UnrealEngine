@@ -671,16 +671,16 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 	{
 		SlowTask.EnterProgressFrame();
 		
-		if (FrameCount == 0)
-		{
-			InitialInvParentTransform = Actor->GetRootComponent()->GetComponentTransform().Inverse();
-		}
-
 		int32 LocalFrame = LocalStartFrame + FrameCount;
 		float SampleTime = (StartFrame + FrameCount) / FrameRate;
 
 		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
 		AnimTrackAdapter.UpdateAnimation(LocalFrame);
+
+		if (FrameCount == 0)
+		{
+			InitialInvParentTransform = Actor->GetRootComponent()->GetComponentTransform().Inverse();
+		}
 
 		// This will retrieve the currently active anim sequence (topmost) for custom attributes
 		const UAnimSequence* AnimSeq = AnimTrackAdapter.GetAnimSequence(LocalFrame);
