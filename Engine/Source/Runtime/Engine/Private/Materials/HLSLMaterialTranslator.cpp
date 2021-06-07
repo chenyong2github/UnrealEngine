@@ -4795,6 +4795,10 @@ int32 FHLSLMaterialTranslator::PixelDepth()
 	{
 		return Errorf(TEXT("Invalid node used in hull/domain shader input!"));
 	}
+	if (Material->IsTranslucencyWritingVelocity())
+	{
+		return Errorf(TEXT("Translucenct material with 'Output Velocity' enabled will write to depth buffer, therefore cannot read from depth buffer at the same time."));
+	}
 	return AddInlinedCodeChunk(MCT_Float, TEXT("GetPixelDepth(Parameters)"));
 }
 

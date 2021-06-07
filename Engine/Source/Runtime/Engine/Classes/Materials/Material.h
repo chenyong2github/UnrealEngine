@@ -882,7 +882,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=Translucency)
 	uint8 bComputeFogPerPixel : 1;
 
-	/** When true, translucent materials will output motion vectors in velocity pass. */
+	/** When true, translucent materials will output motion vectors and write to depth buffer in velocity pass. */
 	UPROPERTY(EditAnywhere, Category = Translucency, meta = (DisplayName = "Output Velocity"))
 	uint8 bOutputTranslucentVelocity : 1;
 
