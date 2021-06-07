@@ -343,6 +343,9 @@ void FCurveEditor::BindCommands()
 	CommandList->MapAction(FCurveEditorCommands::Get().ToggleExpandCollapseNodes, FExecuteAction::CreateSP(this, &FCurveEditor::ToggleExpandCollapseNodes, false));
 	CommandList->MapAction(FCurveEditorCommands::Get().ToggleExpandCollapseNodesAndDescendants, FExecuteAction::CreateSP(this, &FCurveEditor::ToggleExpandCollapseNodes, true));
 
+	CommandList->MapAction(FCurveEditorCommands::Get().TranslateSelectedKeysLeft, FExecuteAction::CreateSP(this, &FCurveEditor::TranslateSelectedKeysLeft));
+	CommandList->MapAction(FCurveEditorCommands::Get().TranslateSelectedKeysRight, FExecuteAction::CreateSP(this, &FCurveEditor::TranslateSelectedKeysRight));
+
 	CommandList->MapAction(FCurveEditorCommands::Get().StepToNextKey, FExecuteAction::CreateSP(this, &FCurveEditor::StepToNextKey));
 	CommandList->MapAction(FCurveEditorCommands::Get().StepToPreviousKey, FExecuteAction::CreateSP(this, &FCurveEditor::StepToPreviousKey));
 	CommandList->MapAction(FCurveEditorCommands::Get().StepForward, FExecuteAction::CreateSP(this, &FCurveEditor::StepForward), EUIActionRepeatMode::RepeatEnabled);
@@ -618,6 +621,53 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 
 		View->SetOutputBounds(OutputMin, OutputMax);
 	}
+}
+
+void FCurveEditor::TranslateSelectedKeys(double SecondsToAdd)
+{
+	
+	if (Selection.Count() > 0)
+	{
+		for (const TTuple<FCurveModelID, FKeyHandleSet>& Pair : Selection.GetAll())
+		{
+			if (FCurveModel* Curve = FindCurve(Pair.Key))
+			{
+				int32 NumKeys = Pair.Value.Num();
+
+				if (NumKeys > 0)
+				{
+					TArrayView<const FKeyHandle> KeyHandles = Pair.Value.AsArray();
+					TArray<FKeyPosition> KeyPositions;
+					KeyPositions.SetNum(KeyHandles.Num());
+
+					Curve->GetKeyPositions(KeyHandles, KeyPositions);
+
+					for (int KeyIndex = 0; KeyIndex < KeyPositions.Num(); ++KeyIndex)
+					{
+						KeyPositions[KeyIndex].InputValue += SecondsToAdd;
+					}
+					Curve->SetKeyPositions(KeyHandles, KeyPositions);
+				}
+			}
+		}
+	}
+}
+
+void FCurveEditor::TranslateSelectedKeysLeft()
+{
+	FScopedTransaction Transaction(LOCTEXT("TranslateKeysLeft", "Translate Keys Left"));
+	FFrameRate FrameRate = WeakTimeSliderController.Pin()->GetDisplayRate();
+	double SecondsToAdd =  -FrameRate.AsInterval();
+	TranslateSelectedKeys(SecondsToAdd);
+}
+
+void FCurveEditor::TranslateSelectedKeysRight()
+{
+	FScopedTransaction Transaction(LOCTEXT("TranslateKeyRight", "Translate Keys Right"));
+	FFrameRate FrameRate = WeakTimeSliderController.Pin()->GetDisplayRate();
+	double SecondsToAdd = FrameRate.AsInterval();
+
+	TranslateSelectedKeys(SecondsToAdd);
 }
 
 void FCurveEditor::StepToNextKey()

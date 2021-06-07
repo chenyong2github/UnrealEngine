@@ -89,6 +89,10 @@ public:
 	TSharedPtr<FUICommandInfo> SetAxisSnappingHorizontal;
 	TSharedPtr<FUICommandInfo> SetAxisSnappingVertical;
 
+	//Key Movement
+	TSharedPtr<FUICommandInfo> TranslateSelectedKeysLeft;
+	TSharedPtr<FUICommandInfo> TranslateSelectedKeysRight;
+
 	// Time Management
 	TSharedPtr<FUICommandInfo> StepToNextKey;
 	TSharedPtr<FUICommandInfo> StepToPreviousKey;
