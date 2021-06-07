@@ -928,6 +928,17 @@ void UNiagaraEmitter::HandleVariableRenamed(const FNiagaraVariable& InOldVariabl
 		Prop->RenameVariable(InOldVariable, InNewVariable, this);
 	}
 
+	// Rename any simulation stage iteration sources
+	for (UNiagaraSimulationStageBase* SimStage : SimulationStages)
+	{
+		UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage);
+		if (GenericStage && GenericStage->DataInterface.BoundVariable.GetName() == InOldVariable.GetName())
+		{
+			GenericStage->Modify(false);
+			GenericStage->DataInterface.BoundVariable = InNewVariable;
+		}
+	}
+
 	if (bUpdateContexts)
 	{
 		FNiagaraSystemUpdateContext UpdateCtx(this, true);
