@@ -27,7 +27,8 @@ SamplerState D3DStaticTrilinearClampedSampler   : register(s5, space1000);
 
 #endif // PLATFORM_SUPPORTS_STATIC_SAMPLERS
 
-#if PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER
+// TODO: Add support for the UEDiagnosticBuffer to other shader types
+#if PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER && (PIXELSHADER || COMPUTESHADER)
 
 // Diagnostic buffer which will be automatically bound by the RHI as a root parameter
 // Counterpart to FD3D12DiagnosticBufferData in D3D12DirectCommandListManager.h
@@ -54,6 +55,8 @@ void UEReportAssertWithPayload(uint AssertID, uint4 Payload)
 		UEDiagnosticBuffer[0xFFFFFFFF] = 0;
 	}
 }
+
+#define PLATFORM_BREAK() UEReportAssertWithPayload(0xCECC, uint4(__LINE__, 0, 0, 0))
 
 #define PLATFORM_ASSERT(condition, assert_id)              { if (!(condition)) UEReportAssertWithPayload(assert_id, uint4(0, 0, 0, 0)); }
 #define PLATFORM_ASSERT1(condition, assert_id, a)          { if (!(condition)) UEReportAssertWithPayload(assert_id, uint4(a, 0, 0, 0));  }

@@ -128,6 +128,14 @@ static FAutoConsoleVariableRef CVarShaderCompilerAllowDistributedCompilation(
 /** Maximum number of preprocessed shaders to dump to the log on a crash. Replace with CVar if needed. */
 static constexpr uint32 GMaxNumDumpedShaderSources = 10;
 
+int32 GSShaderCheckLevel = 1;
+static FAutoConsoleVariableRef CVarGSShaderCheckLevel(
+	TEXT("r.Shaders.CheckLevel"),
+	GSShaderCheckLevel,
+	TEXT("0 => DO_CHECK=0, DO_GUARD_SLOW=0, 1 => DO_CHECK=1, DO_GUARD_SLOW=0, 2 => DO_CHECK=1, DO_GUARD_SLOW=1 for all shaders."),
+	ECVF_Default
+);
+
 /** Helper functions for logging more debug info */
 namespace ShaderCompiler
 {
@@ -4955,6 +4963,11 @@ void GlobalBeginCompileShader(
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_SkipValidation);
 		}
+	}
+
+	{
+		Input.Environment.SetDefine(TEXT("DO_CHECK"), GSShaderCheckLevel > 0 ? 1 : 0);
+		Input.Environment.SetDefine(TEXT("DO_GUARD_SLOW"), GSShaderCheckLevel > 1 ? 1 : 0);
 	}
 
 	if (CVarShaderWarningsAsErrors.GetValueOnAnyThread())
