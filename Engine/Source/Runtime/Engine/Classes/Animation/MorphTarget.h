@@ -106,6 +106,12 @@ struct FMorphTargetLODModel
 		// this makes it clear to clear up later
 		bGeneratedByEngine = true;
 	}
+
+	void DiscardCPUBuffers()
+	{
+		Vertices.Empty();
+		SectionIndices.Empty();
+	}
 };
 
 
@@ -131,6 +137,9 @@ public:
 	ENGINE_API bool HasDataForLOD(int32 LODIndex);
 	/** return true if this morphtarget contains valid vertices */
 	ENGINE_API bool HasValidData() const;
+
+	/** Discard CPU Buffers after render resources have been created. */
+	ENGINE_API void DiscardCPUBuffers();
 
 #if WITH_EDITOR
 	/** Populates the given morph target LOD model with the provided deltas */
