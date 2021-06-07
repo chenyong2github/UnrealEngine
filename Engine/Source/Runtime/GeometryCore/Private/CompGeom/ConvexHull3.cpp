@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Adaptation/Port of "ThirdParty/GTEngine/Mathematics/GteConvexHull3.h"
+// Adaptation/Port of GTEngine's ConvexHull3 algorithm;
+// ref: Engine\Plugins\Experimental\GeometryProcessing\Source\GeometryAlgorithms\Private\ThirdParty\GTEngine\Mathematics\GteConvexHull3.h
 
-#include "ConvexHull3.h"
-#include "ExactPredicates.h"
+#include "CompGeom/ConvexHull3.h"
+#include "CompGeom/ExactPredicates.h"
 
 #include "Async/ParallelFor.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
-using namespace UE::Geometry;
-
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Helper class to find the dimensions spanned by a point cloud
@@ -658,11 +660,6 @@ bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealTy
 	return true;
 }
 
-
-namespace UE
-{
-namespace Geometry
-{
 
 template class TConvexHull3<float>;
 template class TConvexHull3<double>;

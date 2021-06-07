@@ -14,7 +14,7 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "Operations/OffsetMeshRegion.h"
 #include "DynamicMeshEditor.h"
-#include "ConvexHull2.h"
+#include "CompGeom/ConvexHull2.h"
 #include "Generators/PlanarPolygonMeshGenerator.h"
 #include "Spatial/SparseDynamicOctree3.h"
 

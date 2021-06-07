@@ -4,7 +4,7 @@
 #include "Solvers/MeshLinearization.h"
 #include "MeshSimplification.h"
 #include "MeshNormals.h"
-#include "ConvexHull3.h"
+#include "CompGeom/ConvexHull3.h"
 #include "Util/GridIndexing3.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
