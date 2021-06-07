@@ -2944,6 +2944,7 @@ namespace AutomationTool
 			Extensions.Add(".so");
 			Extensions.Add(".app");
 			Extensions.Add(".framework");
+			Extensions.Add(".bundle");
 
 			bool bIsExecutable = bIgnoreExtension || (!bIsDirectory && Path.GetExtension(InPath) == "" && !InPath.EndsWith("PkgInfo"));
 
