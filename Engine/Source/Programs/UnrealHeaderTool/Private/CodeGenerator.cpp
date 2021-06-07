@@ -6589,8 +6589,7 @@ void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 	// Disable loading of objects outside of this package (or more exactly, objects which aren't UFields, CDO, or templates)
 	TGuardValue<bool> AutoRestoreVerifyObjectRefsFlag(GVerifyObjectReferencesOnly, true);
 
-// Concurrent parsing disabled
-#if 0 
+#if UHT_ENABLE_CONCURRENT_PARSING
 	/**
 	 * For every FUnrealSourceFile being processed, an instance of this class represents the data associated with generating the new output.
 	 */
@@ -6682,11 +6681,26 @@ void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 
 void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 {
+	// Until we fix the issue with types not having sources, we need to do this
+	TArray<FUnrealTypeDefinitionInfo*> NoSourceTypeDefs;
+	GTypeDefinitionInfoMap.ForAllTypesByName([&NoSourceTypeDefs](FUnrealTypeDefinitionInfo& TypeDef)
+	{
+		if (!TypeDef.HasSource())
+		{
+			NoSourceTypeDefs.Add(&TypeDef);
+		}
+	});
+
+	for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
+	{
+		TypeDef->PostParseFinalize(EPostParseFinalizePhase::PreCreateEngineTypes);
+	}
+
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 	{
 		FResults::Try([PackageDef]()
 		{
-			PackageDef->CreateUObjectEngineTypes(FUnrealTypeDefinitionInfo::ECreateEngineTypesPhase::Phase1);
+			PackageDef->PostParseFinalize(EPostParseFinalizePhase::PreCreateEngineTypes);
 		});
 	}
 
@@ -6694,7 +6708,7 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	{
 		FResults::Try([PackageDef]()
 		{
-			PackageDef->CreateUObjectEngineTypes(FUnrealTypeDefinitionInfo::ECreateEngineTypesPhase::Phase2);
+			PackageDef->CreateUObjectEngineTypes(ECreateEngineTypesPhase::Phase1);
 		});
 	}
 
@@ -6702,23 +6716,31 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	{
 		FResults::Try([PackageDef]()
 		{
-			PackageDef->PostParseFinalize();
+			PackageDef->CreateUObjectEngineTypes(ECreateEngineTypesPhase::Phase2);
+		});
+	}
+
+	for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
+	{
+		TypeDef->PostParseFinalize(EPostParseFinalizePhase::PostCreateEngineTypes);
+	}
+
+	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
+	{
+		FResults::Try([PackageDef]()
+		{
+			PackageDef->PostParseFinalize(EPostParseFinalizePhase::PostCreateEngineTypes);
 		});
 	}
 	FResults::WaitForErrorTasks();
 
-	// Until we fix the issue with types not having sources, we need to do this
-	GTypeDefinitionInfoMap.ForAllTypesByName([](FUnrealTypeDefinitionInfo& TypeDef)
+	for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
 	{
-		if (!TypeDef.HasSource())
-		{
-			TypeDef.PostParseFinalize();
-		}
 		if (FUnrealObjectDefinitionInfo* ObjectDef = UHTCast<FUnrealObjectDefinitionInfo>(TypeDef))
 		{
 			check(ObjectDef->GetObject());
 		}
-	});
+	}
 }
 
 void Export(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, TArray<FUnrealSourceFile*>& OrderedSourceFiles)

@@ -357,14 +357,15 @@ void FUnrealTypeDefinitionInfo::CreateUObjectEngineTypes(ECreateEngineTypesPhase
 	}
 }
 
-void FUnrealTypeDefinitionInfo::PostParseFinalize()
+void FUnrealTypeDefinitionInfo::PostParseFinalize(EPostParseFinalizePhase Phase)
 {
-	switch (PostParseFinalizeState)
+	EFinalizeState& FinalizeState = PostParseFinalizeState[uint8(Phase)];
+	switch (FinalizeState)
 	{
 	case EFinalizeState::None:
-		PostParseFinalizeState = EFinalizeState::InProgress;
-		PostParseFinalizeInternal();
-		PostParseFinalizeState = EFinalizeState::Finished;
+		FinalizeState = EFinalizeState::InProgress;
+		PostParseFinalizeInternal(Phase);
+		FinalizeState = EFinalizeState::Finished;
 		break;
 	case EFinalizeState::InProgress:
 		checkf(false, TEXT("Recursive call to PostParseFinalize detected"))
@@ -558,13 +559,77 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 	}
 }
 
-void FUnrealPropertyDefinitionInfo::PostParseFinalizeInternal()
+void FUnrealPropertyDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePhase Phase)
 {
-	if (GetPropertySafe() == nullptr)
+	switch (Phase)
 	{
-		FPropertyTraits::CreateEngineType(SharedThis(this));
+	case EPostParseFinalizePhase::PreCreateEngineTypes:
+		FPropertyTraits::PostParseFinalize(*this);
+		break;
+
+	case EPostParseFinalizePhase::PostCreateEngineTypes:
+
+		// Due to structures not being fully parsed at parse time, we have to do blueprint checks here
+		if (HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable) && GetPropertyBase().IsMulticastDelegateOrMulticastDelegateStaticArray())
+		{
+			if (FUnrealFunctionDefinitionInfo* SourceDelegateFunctionDef = GetPropertyBase().FunctionDef) // should be set...
+			{
+				FUnrealStructDefinitionInfo* StructDef = GetOwnerStruct();
+				for (TSharedRef<FUnrealPropertyDefinitionInfo> FuncParamDef : SourceDelegateFunctionDef->GetProperties())
+				{
+					if (!FPropertyTraits::IsSupportedByBlueprint(*FuncParamDef, false))
+					{
+						FString ExtendedCPPType;
+						FString CPPType = FuncParamDef->GetCPPType(&ExtendedCPPType);
+						LogError(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *SourceDelegateFunctionDef->GetName(), *FuncParamDef->GetName());
+					}
+
+					if (FuncParamDef->HasAllPropertyFlags(CPF_OutParm) && !FuncParamDef->HasAllPropertyFlags(CPF_ConstParm))
+					{
+						const bool bClassGeneratedFromBP = StructDef != nullptr && StructDef->IsDynamic();
+						const bool bAllowedArrayRefFromBP = bClassGeneratedFromBP && FuncParamDef->IsDynamicArray();
+						if (!bAllowedArrayRefFromBP)
+						{
+							LogError(TEXT("BlueprintAssignable delegates do not support non-const references at the moment. Function: %s Parameter: '%s'"), *SourceDelegateFunctionDef->GetName(), *FuncParamDef->GetName());
+						}
+					}
+				}
+			}
+		}
+		else if (HasAnyPropertyFlags(CPF_BlueprintVisible))
+		{
+			FUnrealStructDefinitionInfo* StructDef = GetOwnerStruct();
+			FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(StructDef);
+			FUnrealScriptStructDefinitionInfo* ScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(StructDef);
+			if (ClassDef != nullptr || ScriptStructDef != nullptr)
+			{
+				if (ScriptStructDef != nullptr && !StructDef->GetBoolMetaDataHierarchical(FHeaderParserNames::NAME_BlueprintType))
+				{
+					LogError(TEXT("Cannot expose property to blueprints in a struct that is not a BlueprintType. %s.%s"), *StructDef->GetName(), *GetName());
+				}
+
+				if (IsStaticArray())
+				{
+					LogError(TEXT("Static array cannot be exposed to blueprint %s.%s"), *StructDef->GetName(), *GetName());
+				}
+
+				if (!FPropertyTraits::IsSupportedByBlueprint(*this, true))
+				{
+					FString ExtendedCPPType;
+					FString CPPType = GetCPPType(&ExtendedCPPType);
+					LogError(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *StructDef->GetName(), *GetName());
+				}
+			}
+		}
+
+		//@TODO: The creation of engine type should be part of the engine type creation system
+		if (GetPropertySafe() == nullptr)
+		{
+			FPropertyTraits::CreateEngineType(SharedThis(this));
+		}
+		TypePackageName = GetTypePackageNameHelper(*this);
+		break;
 	}
-	TypePackageName = GetTypePackageNameHelper(*this);
 }
 
 bool FUnrealPropertyDefinitionInfo::IsDynamic() const
@@ -596,6 +661,13 @@ void FUnrealPropertyDefinitionInfo::SetDelegateFunctionSignature(FUnrealFunction
 		DelegateProperty->SignatureFunction = DelegateFunctionDef.GetFunction();
 	}
 	PropertyBase.FunctionDef = &DelegateFunctionDef;
+
+	// This can be invoked multiple times.  Just add the first instance.
+	if (!bSignatureSet)
+	{
+		bSignatureSet = true;
+		DelegateFunctionDef.AddReferencingProperty(*this);
+	}
 }
 
 FString FUnrealPropertyDefinitionInfo::GetEngineClassName() const
@@ -1007,22 +1079,34 @@ void FUnrealPackageDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngin
 	}
 }
 
-void FUnrealPackageDefinitionInfo::PostParseFinalizeInternal()
+void FUnrealPackageDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePhase Phase)
 {
-	UPackage* Package = GetPackage();
+	FUnrealObjectDefinitionInfo::PostParseFinalizeInternal(Phase);
 
-	FString PackageName = Package->GetName();
-	PackageName.ReplaceInline(TEXT("/"), TEXT("_"), ESearchCase::CaseSensitive);
+	switch (Phase)
+	{
+	case EPostParseFinalizePhase::PreCreateEngineTypes:
+		break;
 
-	SingletonName.Appendf(TEXT("Z_Construct_UPackage_%s()"), *PackageName);
-	SingletonNameChopped = SingletonName.LeftChop(2);
-	ExternDecl.Appendf(TEXT("\tUPackage* %s;\r\n"), *SingletonName);
+	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	{
+		UPackage* Package = GetPackage();
+
+		FString PackageName = Package->GetName();
+		PackageName.ReplaceInline(TEXT("/"), TEXT("_"), ESearchCase::CaseSensitive);
+
+		SingletonName.Appendf(TEXT("Z_Construct_UPackage_%s()"), *PackageName);
+		SingletonNameChopped = SingletonName.LeftChop(2);
+		ExternDecl.Appendf(TEXT("\tUPackage* %s;\r\n"), *SingletonName);
+		break;
+	}
+	}
 
 	for (TSharedRef<FUnrealSourceFile>& LocalSourceFile : GetAllSourceFiles())
 	{
 		for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : LocalSourceFile->GetDefinedTypes())
 		{
-			TypeDef->PostParseFinalize();
+			TypeDef->PostParseFinalize(Phase);
 		}
 	}
 }
@@ -1035,24 +1119,36 @@ void FUnrealPackageDefinitionInfo::AddCrossModuleReference(TSet<FString>* Unique
 	}
 }
 
-void FUnrealFieldDefinitionInfo::PostParseFinalizeInternal()
+void FUnrealFieldDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePhase Phase)
 {
-	const FString& ClassName = GetEngineClassName(true);
-	const FString& PackageShortName = GetPackageDef().GetShortUpperName();
+	FUnrealObjectDefinitionInfo::PostParseFinalizeInternal(Phase);
 
-	FUHTStringBuilder Out;
-	GenerateSingletonName(Out, this, false);
-	ExternDecl[0].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
-	SingletonName[0] = Out;
-	SingletonNameChopped[0] = SingletonName[0].LeftChop(2);
+	switch (Phase)
+	{
+	case EPostParseFinalizePhase::PreCreateEngineTypes:
+		break;
 
-	Out.Reset();
-	GenerateSingletonName(Out, this, true);
-	ExternDecl[1].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
-	SingletonName[1] = Out;
-	SingletonNameChopped[1] = SingletonName[1].LeftChop(2);
+	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	{
+		const FString& ClassName = GetEngineClassName(true);
+		const FString& PackageShortName = GetPackageDef().GetShortUpperName();
 
-	TypePackageName = GetTypePackageNameHelper(*this);
+		FUHTStringBuilder Out;
+		GenerateSingletonName(Out, this, false);
+		ExternDecl[0].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
+		SingletonName[0] = Out;
+		SingletonNameChopped[0] = SingletonName[0].LeftChop(2);
+
+		Out.Reset();
+		GenerateSingletonName(Out, this, true);
+		ExternDecl[1].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
+		SingletonName[1] = Out;
+		SingletonNameChopped[1] = SingletonName[1].LeftChop(2);
+
+		TypePackageName = GetTypePackageNameHelper(*this);
+		break;
+	}
+	}
 }
 
 FText FUnrealFieldDefinitionInfo::GetToolTipText(bool bShortTooltip) const
@@ -1144,6 +1240,39 @@ FUnrealClassDefinitionInfo* FUnrealFieldDefinitionInfo::GetOwnerClass() const
 		}
 	}
 	return nullptr;
+}
+
+void FUnrealFieldDefinitionInfo::AddReferencingProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
+{
+	check(PropertyDef.NextReferencingProperty == nullptr);
+	for (FUnrealPropertyDefinitionInfo* Tail = ReferencingProperties.load(std::memory_order_relaxed);;)
+	{
+		PropertyDef.NextReferencingProperty = Tail;
+		if (ReferencingProperties.compare_exchange_weak(Tail, &PropertyDef, std::memory_order_release, std::memory_order_relaxed))
+		{
+			return;
+		}
+	}
+}
+
+FUnrealPropertyDefinitionInfo* FUnrealFieldDefinitionInfo::GetFirstReferencingProperty()
+{
+	return ReferencingProperties.load(std::memory_order_acquire);
+}
+
+void FUnrealFieldDefinitionInfo::PostParseFinalizeReferencedProperties()
+{
+	for (FUnrealPropertyDefinitionInfo* PropDef = GetFirstReferencingProperty(); PropDef; PropDef = PropDef->NextReferencingProperty)
+	{
+		// A referencing property might be the child property of another property.  We invoke PostParseFinalize on the outermost 
+		// property.
+		FUnrealPropertyDefinitionInfo* OuterPropDef = PropDef;
+		while (FUnrealPropertyDefinitionInfo* NextPropDef = UHTCast<FUnrealPropertyDefinitionInfo>(OuterPropDef->GetOuter()))
+		{
+			OuterPropDef = NextPropDef;
+		}
+		FPropertyTraits::PostParseFinalize(*OuterPropDef);
+	}
 }
 
 FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, UEnum::ECppForm InCppForm, EUnderlyingEnumType InUnderlyingType)
@@ -1495,42 +1624,53 @@ void FUnrealStructDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngine
 	}
 }
 
-void FUnrealStructDefinitionInfo::PostParseFinalizeInternal()
+void FUnrealStructDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePhase Phase)
 {
-	FUnrealFieldDefinitionInfo::PostParseFinalizeInternal();
+	FUnrealFieldDefinitionInfo::PostParseFinalizeInternal(Phase);
 
 	if (SuperStructInfo.Struct)
 	{
-		SuperStructInfo.Struct->PostParseFinalize();
+		SuperStructInfo.Struct->PostParseFinalize(Phase);
 	}
 
 	for (const FBaseStructInfo& Info : BaseStructInfos)
 	{
 		if (Info.Struct)
 		{
-			Info.Struct->PostParseFinalize();
+			Info.Struct->PostParseFinalize(Phase);
 		}
 	}
 
 	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : Functions)
 	{
-		FunctionDef->PostParseFinalize();
+		FunctionDef->PostParseFinalize(Phase);
 	}
 
 	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : Properties)
 	{
-		PropertyDef->PostParseFinalize();
+		PropertyDef->PostParseFinalize(Phase);
 	}
 
-	GetStruct()->Bind();
-
-	// Internals will assert of we are relinking an intrinsic 
-	bool bRelinkExistingProperties = true;
-	if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(this))
+	switch (Phase)
 	{
-		bRelinkExistingProperties = !ClassDef->HasAnyClassFlags(CLASS_Intrinsic);
+	case EPostParseFinalizePhase::PreCreateEngineTypes:
+		break;
+
+	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	{
+
+		GetStruct()->Bind();
+
+		// Internals will assert of we are relinking an intrinsic 
+		bool bRelinkExistingProperties = true;
+		if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(this))
+		{
+			bRelinkExistingProperties = !ClassDef->HasAnyClassFlags(CLASS_Intrinsic);
+		}
+		GetStruct()->StaticLink(bRelinkExistingProperties);
+		break;
 	}
-	GetStruct()->StaticLink(bRelinkExistingProperties);
+	}
 }
 
 void FUnrealStructDefinitionInfo::CreatePropertyEngineTypes()
@@ -1581,6 +1721,11 @@ FUnrealScriptStructDefinitionInfo::FUnrealScriptStructDefinitionInfo(FUnrealSour
 	: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InName, InSourceFile.GetPackageDef())
 { }
 
+FUnrealScriptStructDefinitionInfo* FUnrealScriptStructDefinitionInfo::GetSuperScriptStruct() const
+{
+	return UHTCast<FUnrealScriptStructDefinitionInfo>(GetSuperStruct());
+}
+
 uint32 FUnrealScriptStructDefinitionInfo::GetHash(bool bIncludeNoExport) const
 {
 	if (!bIncludeNoExport)
@@ -1625,9 +1770,56 @@ void FUnrealScriptStructDefinitionInfo::CreateUObjectEngineTypesInternal(ECreate
 	}
 }
 
-void FUnrealScriptStructDefinitionInfo::PostParseFinalizeInternal()
+void FUnrealScriptStructDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePhase Phase)
 {
-	FUnrealStructDefinitionInfo::PostParseFinalizeInternal();
+	FUnrealStructDefinitionInfo::PostParseFinalizeInternal(Phase);
+
+	switch (Phase)
+	{
+	case EPostParseFinalizePhase::PreCreateEngineTypes:
+		// Collect the instanced reference state for the structure and propagate it to any
+		// property that references the structure.
+		if (FUnrealScriptStructDefinitionInfo* Base = GetSuperScriptStruct())
+		{
+			if (Base->HasAnyStructFlags(STRUCT_HasInstancedReference))
+			{
+				SetHasInstancedReference();
+			}
+		}
+		if (!HasAnyStructFlags(STRUCT_HasInstancedReference))
+		{
+			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+			{
+				if (PropertyDef->ContainsInstancedObjectProperty())
+				{
+					// Invoke this method to make sure we forward
+					OnPostParsePropertyFlagsChanged(*PropertyDef);
+					break;
+				}
+			}
+		}
+		break;
+
+	case EPostParseFinalizePhase::PostCreateEngineTypes:
+		break;
+	}
+}
+
+void FUnrealScriptStructDefinitionInfo::OnPostParsePropertyFlagsChanged(FUnrealPropertyDefinitionInfo& PropertyDef)
+{
+	if (!HasAnyStructFlags(STRUCT_HasInstancedReference))
+	{
+		if (PropertyDef.ContainsInstancedObjectProperty())
+		{
+			SetHasInstancedReference();
+		}
+	}
+}
+
+void FUnrealScriptStructDefinitionInfo::SetHasInstancedReference()
+{
+	SetStructFlags(STRUCT_HasInstancedReference);
+	PostParseFinalizeReferencedProperties();
 }
 
 FUnrealClassDefinitionInfo::FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, bool bInIsInterface)
@@ -1818,66 +2010,96 @@ void FUnrealClassDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineT
 	}
 }
 
-void FUnrealClassDefinitionInfo::PostParseFinalizeInternal()
+void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePhase Phase)
 {
-	FUnrealStructDefinitionInfo::PostParseFinalizeInternal();
+	FUnrealStructDefinitionInfo::PostParseFinalizeInternal(Phase);
 
-	if (IsInterface() && GetStructMetaData().ParsedInterface == EParsedInterface::ParsedUInterface)
+	switch (Phase)
 	{
-		FString UName = GetNameCPP();
-		FString IName = TEXT("I") + UName.RightChop(1);
-		Throwf(TEXT("UInterface '%s' parsed without a corresponding '%s'"), *UName, *IName);
-	}
+	case EPostParseFinalizePhase::PreCreateEngineTypes:
+		break;
 
-	FHeaderParser::CheckSparseClassData(*this);
+	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	{
 
-	// Collect the class replication properties
-	if (FUnrealClassDefinitionInfo* SuperClassDef = GetSuperClass())
-	{
-		ClassReps = SuperClassDef->GetClassReps();
-		FirstOwnedClassRep = ClassReps.Num();
-	}
-	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
-	{
-		if (PropertyDef->HasAnyPropertyFlags(CPF_Net))
+		// Pick up any newly set flags from the super class (i.e. HasInstancedReference)
+		if (FUnrealClassDefinitionInfo* SuperClassDef = GetSuperClass())
 		{
-			ClassReps.Add(&*PropertyDef);
+			SetClassFlags(SuperClassDef->GetClassFlags() & CLASS_ScriptInherit);
 		}
+
+		// Check to see if we have any instances referenced
+		if (!HasAnyClassFlags(CLASS_HasInstancedReference))
+		{
+			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+			{
+				if (PropertyDef->ContainsInstancedObjectProperty())
+				{
+					SetClassFlags(CLASS_HasInstancedReference);
+					break;
+				}
+			}
+		}
+
+		if (IsInterface() && GetStructMetaData().ParsedInterface == EParsedInterface::ParsedUInterface)
+		{
+			FString UName = GetNameCPP();
+			FString IName = TEXT("I") + UName.RightChop(1);
+			Throwf(TEXT("UInterface '%s' parsed without a corresponding '%s'"), *UName, *IName);
+		}
+
+		FHeaderParser::CheckSparseClassData(*this);
+
+		// Collect the class replication properties
+		if (FUnrealClassDefinitionInfo* SuperClassDef = GetSuperClass())
+		{
+			ClassReps = SuperClassDef->GetClassReps();
+			FirstOwnedClassRep = ClassReps.Num();
+		}
+		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+		{
+			if (PropertyDef->HasAnyPropertyFlags(CPF_Net))
+			{
+				ClassReps.Add(&*PropertyDef);
+			}
+		}
+
+		// Initialize the class object
+		UClass* Class = GetClass();
+
+		// Clear the property size
+		Class->PropertiesSize = 0;
+
+		// Make the visible to the package
+		Class->ClearFlags(RF_Transient);
+		check(Class->HasAnyFlags(RF_Public));
+		check(Class->HasAnyFlags(RF_Standalone));
+
+		// Finalize all of the children introduced in this class
+		for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : GetFunctions())
+		{
+			UFunction* Function = FunctionDef->GetFunction();
+			Class->AddFunctionToFunctionMap(Function, Function->GetFName());
+		}
+
+		if (!HasAnyClassFlags(CLASS_Native))
+		{
+			//Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
+		}
+		else if (!HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic))
+		{
+			GetPackageDef().SetWriteClassesH(true);
+			//Class->UnMark(OBJECTMARK_TagImp);
+			//Class->Mark(OBJECTMARK_TagExp);
+		}
+
+		// This needs to be done outside of parallel blocks because it will modify UClass memory.
+		// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
+		// they will see the memory has already been set up, and just return the parent pointer.
+		Class->SetUpUhtReplicationData();
+		break;
 	}
-
-	// Initialize the class object
-	UClass* Class = GetClass();
-
-	// Clear the property size
-	Class->PropertiesSize = 0;
-
-	// Make the visible to the package
-	Class->ClearFlags(RF_Transient);
-	check(Class->HasAnyFlags(RF_Public));
-	check(Class->HasAnyFlags(RF_Standalone));
-
-	// Finalize all of the children introduced in this class
-	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : GetFunctions())
-	{
-		UFunction* Function = FunctionDef->GetFunction();
-		Class->AddFunctionToFunctionMap(Function, Function->GetFName());
 	}
-
-	if (!HasAnyClassFlags(CLASS_Native))
-	{
-		//Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
-	}
-	else if (!HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic))
-	{
-		GetPackageDef().SetWriteClassesH(true);
-		//Class->UnMark(OBJECTMARK_TagImp);
-		//Class->Mark(OBJECTMARK_TagExp);
-	}
-
-	// This needs to be done outside of parallel blocks because it will modify UClass memory.
-	// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
-	// they will see the memory has already been set up, and just return the parent pointer.
-	Class->SetUpUhtReplicationData();
 }
 
 bool FUnrealClassDefinitionInfo::ImplementsInterface(const FUnrealClassDefinitionInfo& SomeInterface) const
@@ -2549,53 +2771,68 @@ void FUnrealFunctionDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngi
 	}
 }
 
-void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal()
+void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePhase Phase)
 {
 	// Invoke the base class finalization
-	FUnrealStructDefinitionInfo::PostParseFinalizeInternal();
+	FUnrealStructDefinitionInfo::PostParseFinalizeInternal(Phase);
 
-	UFunction* Function = GetFunction();
+	switch (Phase)
+	{
+	case EPostParseFinalizePhase::PreCreateEngineTypes:
+		break;
 
-	// The following code is only performed on functions in a class.  
-	if (UHTCast<FUnrealClassDefinitionInfo>(GetOuter()) != nullptr)
+	case EPostParseFinalizePhase::PostCreateEngineTypes:
 	{
 
-		// Fix up any structs that were used as a parameter in a delegate before being defined
-		if (HasAnyFunctionFlags(FUNC_Delegate))
+		// Due to structures that might not be fully parsed at parse time, do blueprint validation here
+		if (GetFunctionType() == EFunctionType::Function && HasAnyFunctionFlags(FUNC_BlueprintCallable | FUNC_BlueprintEvent))
 		{
 			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
 			{
+				if (PropertyDef->IsStaticArray())
+				{
+					Throwf(TEXT("Static array cannot be exposed to blueprint. Function: %s Parameter %s\n"), *GetName(), *PropertyDef->GetName());
+				}
+
+				if (!FPropertyTraits::IsSupportedByBlueprint(*PropertyDef, false))
+				{
+					FPropertyTraits::IsSupportedByBlueprint(*PropertyDef, false);
+					FString ExtendedCPPType;
+					FString CPPType = PropertyDef->GetCPPType(&ExtendedCPPType);
+					LogError(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *GetName(), *PropertyDef->GetName());
+				}
+			}
+		}
+
+		UFunction* Function = GetFunction();
+
+		// The following code is only performed on functions in a class.  
+		if (UHTCast<FUnrealClassDefinitionInfo>(GetOuter()) != nullptr)
+		{
+
+			Function->StaticLink(true);
+
+			// Compute the function parameter size, propagate some flags to the outer function, and save the return offset
+			// Must be done in a second phase, as StaticLink resets various fields again!
+			Function->ParmsSize = 0;
+			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+			{
+				if (PropertyDef->HasSpecificPropertyFlags(CPF_ReturnParm | CPF_OutParm, CPF_OutParm))
+				{
+					SetFunctionFlags(FUNC_HasOutParms);
+				}
+
 				if (PropertyDef->IsStructOrStructStaticArray())
 				{
 					FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
-					if (StructDef.HasAnyStructFlags(STRUCT_HasInstancedReference))
+					if (StructDef.HasDefaults())
 					{
-						PropertyDef->SetPropertyFlags(CPF_ContainsInstancedReference);
+						SetFunctionFlags(FUNC_HasDefaults);
 					}
 				}
 			}
 		}
-
-		Function->StaticLink(true);
-
-		// Compute the function parameter size, propagate some flags to the outer function, and save the return offset
-		// Must be done in a second phase, as StaticLink resets various fields again!
-		Function->ParmsSize = 0;
-		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
-		{
-			if (PropertyDef->HasSpecificPropertyFlags(CPF_ReturnParm | CPF_OutParm, CPF_OutParm))
-			{
-				SetFunctionFlags(FUNC_HasOutParms);
-			}
-
-			if (PropertyDef->IsStructOrStructStaticArray())
-			{
-				FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
-				if (StructDef.HasDefaults())
-				{
-					SetFunctionFlags(FUNC_HasDefaults);
-				}
-			}
-		}
+		break;
+	}
 	}
 }

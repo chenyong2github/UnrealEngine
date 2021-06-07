@@ -437,7 +437,8 @@ protected:
 	 * @param   Scope                     struct to create the property in
 	 * @param   VarProperty               will be filled in with type and property flag data for the property declaration that was parsed
 	 * @param   Disallow                  contains a mask of variable modifiers that are disallowed in this context
-	 * @param   OuterPropertyType         only specified when compiling the inner properties for arrays or maps.  corresponds to the FToken for the outer property declaration.
+	 * @param   OuterPropertyType         only specified when compiling the inner properties for arrays or maps.
+	 * @param	OuterPropertyFlags		  flags associated with the outer property being compiled.
 	 * @param   PropertyDeclarationStyle  if the variable is defined with a UPROPERTY
 	 * @param   VariableCategory          what kind of variable is being parsed
 	 * @param   ParsedVarIndexRange       The source text [Start, End) index range for the parsed type.
@@ -446,8 +447,8 @@ protected:
 		FScope*							Scope,
 		FPropertyBase&                  VarProperty,
 		EPropertyFlags                  Disallow,
-		const FToken*                   OuterPropertyType,
-		const EPropertyFlags*			OuterPropertyFlags,
+		EUHTPropertyType				OuterPropertyType,
+		EPropertyFlags					OuterPropertyFlags,
 		EPropertyDeclarationStyle::Type PropertyDeclarationStyle,
 		EVariableCategory               VariableCategory,
 		FIndexRange*                    ParsedVarIndexRange = nullptr,
@@ -547,7 +548,7 @@ protected:
 	void InitScriptLocation( FScriptLocation& Retry );
 	void ReturnToLocation( const FScriptLocation& Retry, bool Binary=1, bool Text=1 );
 
-	void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const EPropertyFlags* OuterPropertyFlags);
+	void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, EUHTPropertyType OuterPropertyType, EPropertyFlags OuterPropertyFlags);
 
 	// Cache of ScriptStructs that have been validated for Net Replication and RPC
 	TSet<FUnrealScriptStructDefinitionInfo*> ScriptStructsValidForNet;

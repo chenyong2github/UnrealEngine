@@ -10,6 +10,9 @@
 // we might never need this tracking since it is always by pointer.
 #define UHT_ENABLE_PTR_PROPERTY_TAG 0
 
+// Enable concurrent parsing of header files
+#define UHT_ENABLE_CONCURRENT_PARSING 1
+
 struct FHeaderParserNames
 {
 	static const FName NAME_IsConversionRoot;

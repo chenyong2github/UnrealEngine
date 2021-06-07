@@ -173,6 +173,7 @@ public:
 	EAllocatorType      AllocatorType = EAllocatorType::Default;
 	EPropertyFlags      PropertyFlags = CPF_None;
 	EPropertyFlags      ImpliedPropertyFlags = CPF_None;
+	EPropertyFlags		DisallowFlags = ~CPF_None; 
 	ERefQualifier::Type RefQualifier = ERefQualifier::None; // This is needed because of legacy stuff - FString mangles the flags for reasons that have become lost in time but we need this info for testing for invalid replicated function signatures.
 
 	TSharedPtr<FPropertyBase> MapKeyProp;

@@ -71,6 +71,20 @@ enum class EFunctionType
 	SparseDelegate,
 };
 
+enum class ECreateEngineTypesPhase : uint8
+{
+	Phase1,				// Create the Class, ScriptStruct, and Enum types
+	Phase2,				// Create the functions and properties
+	MAX_Phases,
+};
+
+enum class EPostParseFinalizePhase : uint8
+{
+	PreCreateEngineTypes,
+	PostCreateEngineTypes,
+	MAX_Phases,
+};
+
 /**
  * UHT Specific implementation of meta data support
  */
@@ -219,14 +233,6 @@ class FUnrealTypeDefinitionInfo
 	: public TSharedFromThis<FUnrealTypeDefinitionInfo>
 	, public FUHTMessageProvider
 {
-public:
-	enum class ECreateEngineTypesPhase : uint8
-	{
-		Phase1,				// Create the Class, ScriptStruct, and Enum types
-		Phase2,				// Create the functions and properties
-		MAX_Phases,
-	};
-
 private:
 	enum class EFinalizeState : uint8
 	{
@@ -392,6 +398,11 @@ public:
 	}
 
 	/**
+	 * Handles the propagation of property flags
+	 */
+	virtual void OnPostParsePropertyFlagsChanged(FUnrealPropertyDefinitionInfo& PropertyDef) {}
+
+	/**
 	 * Create UObject engine types.
 	 */
 	void CreateUObjectEngineTypes(ECreateEngineTypesPhase Phase);
@@ -399,7 +410,7 @@ public:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	void PostParseFinalize();
+	void PostParseFinalize(EPostParseFinalizePhase Phase);
 
 	/**
 	 * Return the compilation scope associated with this object
@@ -584,7 +595,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal() {}
+	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) {}
 
 private:
 	FString NameCPP;
@@ -593,7 +604,7 @@ private:
 	int32 LineNumber = 0;
 	std::atomic<uint32> Hash = 0;
 	EFinalizeState CreateUObectEngineTypesState[uint8(ECreateEngineTypesPhase::MAX_Phases)] = { EFinalizeState::None, EFinalizeState::None };
-	EFinalizeState PostParseFinalizeState = EFinalizeState::None;
+	EFinalizeState PostParseFinalizeState[uint8(EPostParseFinalizePhase::MAX_Phases)] = { EFinalizeState::None, EFinalizeState::None };
 };
 
 /**
@@ -1208,6 +1219,9 @@ public:
 	FUnrealObjectDefinitionInfo* GetOwnerObject() const;
 	FUnrealStructDefinitionInfo* GetOwnerStruct() const;
 
+	/** Linked list of properties referencing a specific field */
+	FUnrealPropertyDefinitionInfo* NextReferencingProperty = nullptr;
+
 protected:
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const
@@ -1223,7 +1237,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal() override;
+	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) override;
 
 private:
 	FName Name;
@@ -1238,6 +1252,7 @@ private:
 	EAccessSpecifier AccessSpecifier = ACCESS_Public;
 	EAllocatorType AllocatorType = EAllocatorType::Default;
 	bool bUnsized = false;
+	bool bSignatureSet = false; // temporary flag to know if we have set the signature
 };
 
 /**
@@ -1618,7 +1633,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal() override;
+	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) override;
 
 private:
 	const FManifestModule& Module;
@@ -1734,17 +1749,35 @@ public:
 	 */
 	FUnrealClassDefinitionInfo* GetOwnerClass() const;
 
+	/**
+	 * Add a referencing property
+	 */
+	void AddReferencingProperty(FUnrealPropertyDefinitionInfo& PropertyDef);
+
+	/**
+	 * Return the first property that references this field
+	 */
+	FUnrealPropertyDefinitionInfo* GetFirstReferencingProperty();
+
+	/**
+	 * Invoke the post parse finalize method on all referenced properties
+	 */
+	void PostParseFinalizeReferencedProperties();
+
 protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal() override;
+	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) override;
 
 private:
 	FString SingletonName[2];
 	FString SingletonNameChopped[2];
 	FString ExternDecl[2];
 	FString TypePackageName;
+
+	/** Linked list of all properties that reference this field */
+	std::atomic<FUnrealPropertyDefinitionInfo*> ReferencingProperties = nullptr;
 };
 
 /**
@@ -2254,7 +2287,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal() override;
+	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) override;
 
 private:
 	TSharedPtr<FScope> StructScope;
@@ -2321,6 +2354,11 @@ public:
 	{
 		return static_cast<UScriptStruct*>(GetObjectSafe());
 	}
+
+	/**
+	 * Return the super script struct
+	 */
+	FUnrealScriptStructDefinitionInfo* GetSuperScriptStruct() const;
 
 	/**
 	 * Return the struct flags
@@ -2418,6 +2456,11 @@ public:
 		MacroDeclaredLineNumber = InMacroDeclaredLineNumber;
 	}
 
+	/**
+	 * Handles the propagation of property flags
+	 */
+	virtual void OnPostParsePropertyFlagsChanged(FUnrealPropertyDefinitionInfo& PropertyDef) override;
+
 protected:
 	/**
 	 * Create UObject engine types
@@ -2427,9 +2470,12 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal() override;
+	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) override;
 
 private:
+
+	void SetHasInstancedReference();
+
 	int32 MacroDeclaredLineNumber = INDEX_NONE;
 	EStructFlags StructFlags = STRUCT_NoFlags;
 };
@@ -2635,7 +2681,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal() override;
+	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) override;
 
 private:
 
@@ -3082,7 +3128,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal() override;
+	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) override;
 
 private:
 	/** Merges all 'show' categories */
