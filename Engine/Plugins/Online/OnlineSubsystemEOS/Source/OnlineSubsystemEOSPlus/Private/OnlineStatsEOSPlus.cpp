@@ -49,15 +49,44 @@ void FOnlineStatsEOSPlus::UpdateStats(const FUniqueNetIdRef LocalUserId, const T
 		IOnlineStatsPtr Stats = EOSPlus->BaseOSS->GetStatsInterface();
 		if (Stats.IsValid())
 		{
-			Stats->UpdateStats(LocalUserId, UpdatedUserStats, Delegate);
+			// We send a processed copy of the updated stats to the base interface, with the corresponding base user ids
+			TArray<FOnlineStatsUserUpdatedStats> BaseUpdatedUserStats;
+
+			for (const FOnlineStatsUserUpdatedStats& UserStat : UpdatedUserStats)
+			{
+				FUniqueNetIdEOSPlusPtr UserStatNetIdPlus = GetNetIdPlus(UserStat.Account->ToString());
+				if (UserStatNetIdPlus.IsValid())
+				{
+					FOnlineStatsUserUpdatedStats& BaseUpdatedStats = BaseUpdatedUserStats.Emplace_GetRef(UserStatNetIdPlus->GetBaseNetId().ToSharedRef());
+					BaseUpdatedStats.Stats = UserStat.Stats;
+				}
+			}
+
+			Stats->UpdateStats(NetIdPlus->GetBaseNetId().ToSharedRef(), BaseUpdatedUserStats, Delegate);
 		}
-		if (GetDefault<UEOSSettings>()->bMirrorStatsToEOS)
+
+		const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
+		if (EOSSettings.bMirrorStatsToEOS)
 		{
 			// Also write the data to EOS
 			IOnlineStatsPtr EOSStats = EOSPlus->EosOSS->GetStatsInterface();
 			if (EOSStats.IsValid())
 			{
-				EOSStats->UpdateStats(LocalUserId, UpdatedUserStats, IgnoredStatsComplete);
+				// We send a processed copy of the updated stats to the EOS interface, with the corresponding EOS user ids
+				TArray<FOnlineStatsUserUpdatedStats> EOSUpdatedUserStats;
+
+				for (const FOnlineStatsUserUpdatedStats& UserStat : UpdatedUserStats)
+				{
+					FUniqueNetIdEOSPlusPtr UserStatNetIdPlus = GetNetIdPlus(UserStat.Account->ToString());
+
+					if (UserStatNetIdPlus.IsValid())
+					{
+						FOnlineStatsUserUpdatedStats& EOSUpdatedStats = EOSUpdatedUserStats.Emplace_GetRef(UserStatNetIdPlus->GetEOSNetId().ToSharedRef());
+						EOSUpdatedStats.Stats = UserStat.Stats;
+					}
+				}
+
+				EOSStats->UpdateStats(NetIdPlus->GetEOSNetId().ToSharedRef(), EOSUpdatedUserStats, IgnoredStatsComplete);
 			}
 		}
 	}
