@@ -74,7 +74,7 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 			if (PoseHistoryProvider)
 			{
 				UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-				ComposedQuery.SetPoseFeatures(&History);
+				ComposedQuery.TrySetPoseFeatures(&History);
 			}
 		}
 
@@ -217,7 +217,7 @@ void FAnimNode_MotionMatching::ComposeQuery(const FAnimationBaseContext& Context
 	if (PoseHistoryProvider)
 	{
 		UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-		ComposedQuery.SetPastTrajectoryFeatures(&History);
+		ComposedQuery.TrySetPastTrajectoryFeatures(&History);
 	}
 
 	// Merge goal features into the query vector
