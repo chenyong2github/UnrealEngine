@@ -420,6 +420,8 @@ namespace Cook
 			TArray<FName> Dependencies;
 			FPackageData* PackageData = nullptr;
 			bool bCreateAsMap = false;
+			bool bHasCreatedPackage = false;
+			bool bHasSaved = false;
 		};
 
 		/** Store the provided CookPackageSplitter and prepare the packages to generate. */
@@ -472,18 +474,19 @@ namespace Cook
 		void SetQueuedGeneratedPackages() { bQueuedGeneratedPackages = true; }
 		int32& GetNextPopulateIndex() { return NextPopulateIndex; }
 
-		/**
-		 * Records whether GC occurred after creating the placeholder packages.
-		 * If GC has occurred, we expect to no longer find the placeholder packages in memory,
-		 * and if we do find them its an error because we no longer know which objects are in the packages.
-		 */
-		bool HasGCOccurredAfterGenerate() const { return bGCOccurredAfterGenerate; }
-
 		/** Callback during garbage collection */
 		void PostGarbageCollect();
 
-		/** Call CreatePackage and set PackageData correctly for deterministic generated packages */
-		UPackage* CreateGeneratedUPackage(const UPackage* OwnerPackage, const TCHAR* GeneratedPackageName);
+		/** Get/Clear whether the Owner was garbage collected since the previous call to TryPopulatePackage */
+		bool GetWasOwnerReloaded() const { return bWasOwnerReloaded; }
+		void ClearWasOwnerReloaded() { bWasOwnerReloaded = false; }
+		/** Call CreatePackage and set PackageData correctly for deterministic generated packages, and update status. */
+		UPackage* CreateGeneratedUPackage(FGeneratedStruct& GeneratedStruct,
+			const UPackage* OwnerPackage, const TCHAR* GeneratedPackageName);
+		/** Mark that the generated package has been populated, to keep track of when this GeneratorPackage is no longer needed. */
+		void SetGeneratedSaved(FPackageData& PackageData);
+		/** Return whether list has been generated and all generated packages have been populated */
+		bool IsComplete() const;
 
 	private:
 		/** PackageData for the package that is being split */
@@ -495,16 +498,13 @@ namespace Cook
 		/** Recorded list of packages to generate from the splitter, and data we need about them */
 		TArray<FGeneratedStruct> PackagesToGenerate;
 
-		/** State variables for reentrant SplitPackage calls */
 		int32 NextPopulateIndex = 0;
+		int32 RemainingToPopulate = 0;
 		bool bGeneratedList = false;
 		bool bClearedOldPackages = false;
 		bool bClearedOldPackagesWithGC = false;
 		bool bQueuedGeneratedPackages = false;
-
-		/** Records whether GC occurred after creating the placeholder packages. */
-		bool bGCOccurredAfterGenerate = false;
-
+		bool bWasOwnerReloaded = false;
 	};
 
 

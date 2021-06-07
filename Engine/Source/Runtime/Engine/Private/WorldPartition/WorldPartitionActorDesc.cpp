@@ -285,16 +285,20 @@ void FWorldPartitionActorDesc::Unload()
 {
 	if (AActor* Actor = GetActor())
 	{
-		check(Actor->IsPackageExternal());
-
-		ForEachObjectWithPackage(Actor->GetPackage(), [](UObject* Object)
+		// @todo_ow: FWorldPartitionCookPackageSplitter should mark each FWorldPartitionActorDesc as moved, which we would assert on here rather than asserting IsRunningCookCommandlet
+		// and the splitter should take responsbility for calling ClearFlags on every object in the package when it does the move
+		check(Actor->IsPackageExternal() || IsRunningCookCommandlet());
+		if (Actor->IsPackageExternal())
 		{
-			if (Object->HasAnyFlags(RF_Public | RF_Standalone))
+			ForEachObjectWithPackage(Actor->GetPackage(), [](UObject* Object)
 			{
-				CastChecked<UMetaData>(Object)->ClearFlags(RF_Public | RF_Standalone);
-			}
-			return true;
-		}, false);
+				if (Object->HasAnyFlags(RF_Public | RF_Standalone))
+				{
+					CastChecked<UMetaData>(Object)->ClearFlags(RF_Public | RF_Standalone);
+				}
+				return true;
+			}, false);
+		}
 
 		ActorPtr = nullptr;
 	}

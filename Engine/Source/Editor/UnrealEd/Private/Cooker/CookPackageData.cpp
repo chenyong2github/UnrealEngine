@@ -15,6 +15,7 @@
 #include "ShaderCompiler.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 
@@ -1027,6 +1028,7 @@ namespace Cook
 			check(PackageData.GetGeneratedOwner() == nullptr); 
 			PackageData.SetGeneratedOwner(this);
 		}
+		RemainingToPopulate = GeneratorDatas.Num();
 		return true;
 	}
 
@@ -1057,22 +1059,95 @@ namespace Cook
 
 	void FGeneratorPackage::PostGarbageCollect()
 	{
-		if (Owner.HasCompletedGeneration())
+		if (!bGeneratedList)
 		{
-			bGCOccurredAfterGenerate = true;
+			return;
+		}
+		if (Owner.GetState() == EPackageState::Save)
+		{
+			// UCookOnTheFlyServer::PreCollectGarbage adds references for the Generator package and all its public objects, so it should still be loaded
+			if (!Owner.GetPackage() || !FindSplitDataObject())
+			{
+				UE_LOG(LogCook, Error, TEXT("PackageSplitter object was deleted by garbage collection while generation was still ongoing. This will break the generation.")
+					TEXT("\n\tSplitter=%s."), *GetSplitDataObjectName().ToString());
+			}
+		}
+		else
+		{
+			// After the Generator Package is saved, we drop its referenced and it can be garbage collected
+			// If we have any packages left to populate, our splitter contract requires that it be garbage collected;
+			// we promise that the package is not partially GC'd during calls to TryPopulateGeneratedPackage
+			// The splitter can opt-out of this contract and keep it referenced itself if it desires.
+			UPackage* OwnerPackage = FindObject<UPackage>(nullptr, *Owner.GetPackageName().ToString());
+			if (OwnerPackage)
+			{
+				if (RemainingToPopulate > 0 && !CookPackageSplitterInstance->UseInternalReferenceToAvoidGarbageCollect())
+				{
+					UE_LOG(LogCook, Error, TEXT("PackageSplitter found the Generator package still in memory after it should have been deleted by GC.")
+						TEXT("\n\tThis is unexpected since garbage has been collected and the package should have been unreferenced so it should have been collected, and will break population of Generated packages.")
+						TEXT("\n\tSplitter=%s"), *GetSplitDataObjectName().ToString());
+					EReferenceChainSearchMode SearchMode = EReferenceChainSearchMode::Shortest
+						| EReferenceChainSearchMode::PrintAllResults
+						| EReferenceChainSearchMode::FullChain;
+					FReferenceChainSearch RefChainSearch(OwnerPackage, SearchMode);
+				}
+			}
+			else
+			{
+				bWasOwnerReloaded = true;
+			}
+		}
+
+		bool bHasIssuedWarning = false;
+		for (FGeneratedStruct& GeneratedStruct : PackagesToGenerate)
+		{
+			GeneratedStruct.bHasCreatedPackage = false;
+			if (!GeneratedStruct.bHasSaved && !bHasIssuedWarning)
+			{
+				if (FindObject<UPackage>(nullptr, *GeneratedStruct.PackageData->GetPackageName().ToString()))
+				{
+					UE_LOG(LogCook, Warning, TEXT("PackageSplitter found a package it generated that was not removed from memory during garbage collection. This will cause errors later during population.")
+						TEXT("\n\tSplitter=%s, Generated=%s."), *GetSplitDataObjectName().ToString(), *GeneratedStruct.PackageData->GetPackageName().ToString());
+					bHasIssuedWarning = true; // Only issue the warning once per GC
+				}
+			}
 		}
 	}
 
-	UPackage* FGeneratorPackage::CreateGeneratedUPackage(const UPackage* OwnerPackage, const TCHAR* GeneratedPackageName)
+	UPackage* FGeneratorPackage::CreateGeneratedUPackage(FGeneratorPackage::FGeneratedStruct& GeneratedStruct,
+		const UPackage* OwnerPackage, const TCHAR* GeneratedPackageName)
 	{
 		UPackage* GeneratedPackage = CreatePackage(GeneratedPackageName);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GeneratedPackage->SetGuid(OwnerPackage->GetGuid());
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		GeneratedPackage->SetPersistentGuid(OwnerPackage->GetPersistentGuid());
+		GeneratedStruct.bHasCreatedPackage = true;
 		return GeneratedPackage;
 	}
 
+	void FGeneratorPackage::SetGeneratedSaved(FPackageData& PackageData)
+	{
+		FGeneratedStruct* GeneratedStruct = FindGeneratedStruct(&PackageData);
+		if (!GeneratedStruct)
+		{
+			UE_LOG(LogCook, Warning, TEXT("PackageSplitter called SetGeneratedSaved on a package that does not belong to the splitter.")
+				TEXT("\n\tSplitter=%s, Generated=%s."), *GetSplitDataObjectName().ToString(), *PackageData.GetPackageName().ToString());
+			return;
+		}
+		if (GeneratedStruct->bHasSaved)
+		{
+			return;
+		}
+		GeneratedStruct->bHasSaved = true;
+		--RemainingToPopulate;
+		check(RemainingToPopulate >= 0);
+	}
+
+	bool FGeneratorPackage::IsComplete() const
+	{
+		return bGeneratedList && RemainingToPopulate == 0;
+	}
 
 	void FGeneratorPackage::GetIntermediateMountPoint(FString& OutPackagePath, FString& OutLocalFilePath) const
 	{
