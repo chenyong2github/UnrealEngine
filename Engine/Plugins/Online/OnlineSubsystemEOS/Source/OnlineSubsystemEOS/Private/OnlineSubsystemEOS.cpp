@@ -298,14 +298,6 @@ bool FOnlineSubsystemEOS::Shutdown()
 	StopTicker();
 	FOnlineSubsystemImpl::Shutdown();
 
-#if !WITH_EDITOR
-	EOS_EResult ShutdownResult = EOS_Shutdown();
-	if (ShutdownResult != EOS_EResult::EOS_Success)
-	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to shutdown the EOS SDK with result code (%d)"), (int32)ShutdownResult);
-	}
-#endif
-
 	// Release our ref to the interfaces. May still exist since they can be aggregated
 	UserManager = nullptr;
 	SessionInterfacePtr = nullptr;
@@ -315,6 +307,8 @@ bool FOnlineSubsystemEOS::Shutdown()
 	StoreInterfacePtr = nullptr;
 	TitleFileInterfacePtr = nullptr;
 	UserCloudInterfacePtr = nullptr;
+
+	EOSPlatformHandle = nullptr;
 
 	return true;
 }
