@@ -18,14 +18,14 @@ struct FRemoteControlOptionalExposeArgs
 	/**
 	 * The display name of the exposed entity in the panel.
 	 */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "RemoteControlPreset")
 	FString DisplayName;
 
 	/**
 	 * The name of the group to expose the entity in.
 	 * If it does not exist, a group with that name will be created.
 	 */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "RemoteControlPreset")
 	FString GroupName;
 };
 

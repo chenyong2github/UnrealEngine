@@ -250,7 +250,17 @@ FReply FRCWebInterfaceCustomizations::OpenWebApp() const
 	if (WebApp->GetStatus() == FRemoteControlWebInterfaceProcess::EStatus::Running)
 	{
 		const uint32 Port = GetDefault<URemoteControlWebInterfaceSettings>()->RemoteControlWebInterfacePort;
-		const FString Address = FString::Printf(TEXT("http://127.0.0.1:%d"), Port);
+		FString ActivePreset;
+		if (URemoteControlPreset* Preset = IRemoteControlUIModule::Get().GetActivePreset())
+		{
+			ActivePreset = Preset->GetName();	
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Active preset was invalid when the launch web app button was pressed."));
+		}
+		
+		const FString Address = FString::Printf(TEXT("http://127.0.0.1:%d/?preset=%s"), Port, *ActivePreset);
 
 		FPlatformProcess::LaunchURL(*Address, nullptr, nullptr);
 	}

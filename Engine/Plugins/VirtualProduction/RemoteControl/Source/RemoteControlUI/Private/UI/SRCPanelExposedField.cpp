@@ -368,7 +368,6 @@ void SRCPanelExposedField::ConstructPropertyWidget()
 	ChildSlot.AttachWidget(ConstructWidget());
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
 void SRCPanelExposedField::ConstructFunctionWidget()
 {
 	TSharedPtr<SRCPanelExposedField> ExposedFieldWidget;
@@ -385,6 +384,8 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 		{
 			if (bDisplayValues)
 			{
+				FRCPanelWidgetRegistry::Get().Refresh(RCFunction->FunctionArguments);
+
 				TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildNodes;
 				for (TFieldIterator<FProperty> It(RCFunction->GetFunction()); It; ++It)
 				{
@@ -398,7 +399,6 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 						continue;
 					}
 
-					FRCPanelWidgetRegistry::Get().Refresh(RCFunction->FunctionArguments);
 					if (TSharedPtr<IDetailTreeNode> PropertyNode = FRCPanelWidgetRegistry::Get().GetStructTreeNode(RCFunction->FunctionArguments, It->GetFName().ToString(), ERCFindNodeMethod::Name))
 					{
 						ChildNodes.Add(SNew(SRCPanelFieldChildNode, PropertyNode.ToSharedRef(), ColumnSizeData));
@@ -419,7 +419,6 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 
 	ChildSlot.AttachWidget(ConstructWidget());
 }
-PRAGMA_ENABLE_OPTIMIZATION
 
 TSharedRef<SWidget> SRCPanelExposedField::ConstructCallFunctionButton(bool bIsEnabled)
 {

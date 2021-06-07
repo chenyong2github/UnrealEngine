@@ -1037,10 +1037,21 @@ private:
 		{
 			CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
 			
-			const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
-			if (PresetId.IsValid())
+			const FGuid PresetAssetId = RemoteControlUtil::GetPresetId(AssetData);
+			if (PresetAssetId.IsValid())
 			{
-				CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+				CachedPresetNamesById.Add(PresetAssetId, AssetData.AssetName);
+			}
+			else if (URemoteControlPreset* Preset = Cast<URemoteControlPreset>(AssetData.GetAsset()))
+			{
+				// Handle the case where the preset asset data does not contain the ID yet.
+				// This can happen with old assets that haven't been resaved yet.
+				const FGuid PresetId = Preset->GetPresetId();
+				if (PresetId.IsValid())
+				{
+					CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+					CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
+				}
 			}
 		}
 	}
@@ -1051,10 +1062,16 @@ private:
 		{
 			return;
 		}
-	
-		const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
-		CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
-		CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
+
+		if (URemoteControlPreset* Preset = Cast<URemoteControlPreset>(AssetData.GetAsset()))
+		{
+			const FGuid PresetId = Preset->GetPresetId();
+			if (PresetId.IsValid())
+			{
+				CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+				CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
+			}
+		}
 	}
 	
 	void OnAssetRemoved(const FAssetData& AssetData)

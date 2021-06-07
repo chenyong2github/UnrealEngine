@@ -529,7 +529,18 @@ struct FRCShortPresetDescription
 	FRCShortPresetDescription(const FAssetData& PresetAsset)
 	{
 		Name = PresetAsset.AssetName;
-		ID = PresetAsset.GetTagValueRef<FGuid>(FName("PresetId")).ToString();
+		FGuid PresetId = PresetAsset.GetTagValueRef<FGuid>(FName("PresetId"));
+
+		if (!PresetId.IsValid())
+		{
+			// Load the object to attempt to get a valid ID.
+			if (URemoteControlPreset* Preset = Cast<URemoteControlPreset>(PresetAsset.GetAsset()))
+			{
+				PresetId = Preset->GetPresetId();
+			}
+		}
+
+		ID = PresetId.ToString();
 		Path = PresetAsset.ObjectPath;
 	}
 

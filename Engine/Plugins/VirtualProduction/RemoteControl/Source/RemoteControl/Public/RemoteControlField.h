@@ -189,6 +189,14 @@ struct REMOTECONTROL_API FRemoteControlFunction : public FRemoteControlField
 	/** Returns the underlying exposed function. */
 	UFunction* GetFunction() const;
 
+#if WITH_EDITOR
+	/**
+	 * Recreates the function arguments but tries to preserve old values when possible.
+	 * Useful for updating function arguments after a blueprint recompile.
+	 */
+	void RegenerateArguments();
+#endif
+
 	friend FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction);
 	bool Serialize(FArchive& Ar);
 	void PostSerialize(const FArchive& Ar);
@@ -211,6 +219,11 @@ private:
 	/** Parse function metadata to get the function's default parameters */
 	void AssignDefaultFunctionArguments();
 
+#if WITH_EDITOR
+	/** Hash function arguments using their type and size. */
+	static uint32 HashFunctionArguments(UFunction* InFunction);
+#endif
+
 private:
 	/** Whether the function is callable in a packaged build. */
 	UPROPERTY()
@@ -223,6 +236,10 @@ private:
 	/** Cached resolved underlying function used to avoid doing a findobject while serializing. */
 	mutable TWeakObjectPtr<UFunction> CachedFunction;
 
+#if WITH_EDITORONLY_DATA
+	/** Hash of the underlying function arguments used to check if it has changed after a recompile. */
+	uint32 CachedFunctionArgsHash = 0;
+#endif
 };
 
 template<> struct TStructOpsTypeTraits<FRemoteControlFunction> : public TStructOpsTypeTraitsBase2<FRemoteControlFunction>
