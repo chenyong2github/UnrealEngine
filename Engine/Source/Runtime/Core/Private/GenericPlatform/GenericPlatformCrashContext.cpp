@@ -1131,7 +1131,7 @@ void FGenericCrashContext::AddPlugin(const FString& PluginDesc)
 	NCached::EnabledPluginsList.Add(PluginDesc);
 }
 
-void FGenericCrashContext::DumpLog(const FString& CrashFolderAbsolute)
+FString FGenericCrashContext::DumpLog(const FString& CrashFolderAbsolute)
 {
 	// Copy log
 	const FString LogSrcAbsolute = FPlatformOutputDevices::GetAbsoluteLogFilename();
@@ -1171,7 +1171,7 @@ void FGenericCrashContext::DumpLog(const FString& CrashFolderAbsolute)
 	}
 #endif // !NO_LOGGING
 
-	
+	return LogDstAbsolute;
 }
 
 void FGenericCrashContext::CapturePortableCallStack(void* ErrorProgramCounter, void* Context)
