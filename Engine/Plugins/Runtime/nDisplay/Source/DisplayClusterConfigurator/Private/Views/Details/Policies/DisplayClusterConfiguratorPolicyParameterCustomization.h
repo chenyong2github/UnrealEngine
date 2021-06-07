@@ -367,6 +367,50 @@ private:
 };
 
 /**
+* Policy info for 4x4 matrix.
+*/
+class FPolicyParameterInfo4x4Matrix final : public FPolicyParameterInfoFloatReference
+{
+public:
+	FPolicyParameterInfo4x4Matrix(
+		const FString& InDisplayName,
+		const FString& InKey,
+		UDisplayClusterBlueprint* InBlueprint,
+		UDisplayClusterConfigurationViewport* InConfigurationViewport,
+		const TSharedPtr<IPropertyHandle>& InParametersHandle);
+
+	// FPolicyParameterInfo
+	virtual void CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow) override;
+	// ~FPolicyParameterInfo
+
+private:
+	void CustomizeRow(const FText& InHeaderText, TSharedRef<float>& InX, TSharedRef<float>& InY,
+		TSharedRef<float>& InZ, TSharedRef<float>& InW, FDetailWidgetRow& InDetailWidgetRow);
+	virtual void FormatTextAndUpdateParameter() override;
+
+private:
+	mutable TSharedRef<float> A;
+	mutable TSharedRef<float> B;
+	mutable TSharedRef<float> C;
+	mutable TSharedRef<float> D;
+
+	mutable TSharedRef<float> E;
+	mutable TSharedRef<float> F;
+	mutable TSharedRef<float> G;
+	mutable TSharedRef<float> H;
+
+	mutable TSharedRef<float> I;
+	mutable TSharedRef<float> J;
+	mutable TSharedRef<float> K;
+	mutable TSharedRef<float> L;
+
+	mutable TSharedRef<float> M;
+	mutable TSharedRef<float> N;
+	mutable TSharedRef<float> O;
+	mutable TSharedRef<float> P;
+};
+
+/**
  * Policy info for rotator.
  */
 class FPolicyParameterInfoRotator final : public FPolicyParameterInfoFloatReference
