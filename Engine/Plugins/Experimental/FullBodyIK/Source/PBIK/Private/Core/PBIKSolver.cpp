@@ -4,8 +4,7 @@
 #include "Core/PBIKBody.h"
 #include "Core/PBIKConstraint.h"
 #include "Core/PBIKDebug.h"
-
-//#pragma optimize("", off)
+#include "PBIK.h"
 
 namespace PBIK
 {
@@ -283,13 +282,13 @@ bool FPBIKSolver::InitBones()
 
 	if (Bones.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PBIK: no bones added to solver. Cannot initialize."));
+		UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: no bones added to solver. Cannot initialize."));
 		return false;
 	}
 
 	if (Effectors.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PBIK: no effectors added to solver. Cannot initialize."));
+		UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: no effectors added to solver. Cannot initialize."));
 		return false;
 	}
 
@@ -306,13 +305,13 @@ bool FPBIKSolver::InitBones()
 
 	if (!SolverRoot)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PBIK: root bone not set or not found. Cannot initialize."));
+		UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: root bone not set or not found. Cannot initialize."));
 		return false;
 	}
 
 	if (NumSolverRoots > 1)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PBIK: more than 1 bone was marked as solver root. Cannot initialize."));
+		UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: more than 1 bone was marked as solver root. Cannot initialize."));
 		return false;
 	}
 
@@ -329,7 +328,7 @@ bool FPBIKSolver::InitBones()
 		const bool bIndexInRange = Bone.ParentIndex >= 0 && Bone.ParentIndex < Bones.Num();
 		if (!bIndexInRange)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("PBIK: bone found with invalid parent index. Cannot initialize."));
+			UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: bone found with invalid parent index. Cannot initialize."));
 			return false;
 		}
 
@@ -391,7 +390,7 @@ bool FPBIKSolver::InitBodies()
 			FBone* BodyBone = NextBone->bIsSolverRoot ? NextBone : NextBone->Parent;
 			if (!BodyBone)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("PBIK: effector is on bone that is not on or below root bone."));
+				UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: effector is on bone that is not on or below root bone."));
 				return false;
 			}
 
@@ -474,7 +473,7 @@ bool FPBIKSolver::InitConstraints()
 		FBone* BodyBone = Effector.Bone->bIsSolverRoot ? Effector.Bone : Effector.Bone->Parent;
 		if (!BodyBone)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("PBIK: effector is on bone that does not have a parent."));
+			UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: effector is on bone that does not have a parent."));
 			return false;
 		}
 
@@ -582,7 +581,7 @@ PBIK::FBoneSettings* FPBIKSolver::GetBoneSettings(const int32 Index)
 
 	if (!Bones[Index].Body)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PBIK: trying to apply Bone Settings to bone that is not simulated (not between root and effector)."));
+		UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: trying to apply Bone Settings to bone that is not simulated (not between root and effector)."));
 		return nullptr;
 	}
 
@@ -599,15 +598,7 @@ void FPBIKSolver::GetBoneGlobalTransform(const int32 Index, FTransform& OutTrans
 
 int32 FPBIKSolver::GetBoneIndex(FName BoneName) const
 {
-	for (int32 B=0; B < Bones.Num(); ++B)
-	{
-		if (Bones[B].Name == BoneName)
-		{
-			return B;
-		}
-	}
-
-	return INDEX_NONE;
+	return Bones.IndexOfByPredicate([&BoneName](const PBIK::FBone& Bone) { return Bone.Name == BoneName; });
 }
 
 void FPBIKSolver::SetEffectorGoal(
