@@ -1051,14 +1051,14 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 					SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(PrimitiveInstances->Num());
 					SceneInfo->NumInstanceDataEntries = PrimitiveInstances->Num();
 
-					if( GGPUSceneInstanceBVH )
+					if (GGPUSceneInstanceBVH)
 					{
-						for( int32 InstanceIndex = 0; InstanceIndex < PrimitiveInstances->Num(); ++InstanceIndex )
+						for (int32 InstanceIndex = 0; InstanceIndex < PrimitiveInstances->Num(); ++InstanceIndex)
 						{
-							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[ InstanceIndex ];
-
-							FBox WorldBox = PrimitiveInstance.LocalBounds.TransformBy( SceneInfo->Proxy->GetLocalToWorld() ).GetBox();
-							Scene->InstanceBVH.Add( FBounds( { WorldBox.Min, WorldBox.Max } ), SceneInfo->InstanceDataOffset + InstanceIndex );
+							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
+							const FRenderBounds WorldBounds = PrimitiveInstance.LocalBounds.TransformBy(SceneInfo->Proxy->GetLocalToWorld());
+							// TODO: Replace Instance BVH FBounds with FRenderBounds
+							Scene->InstanceBVH.Add(FBounds({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceDataOffset + InstanceIndex);
 						}
 					}
 				}

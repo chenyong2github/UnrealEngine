@@ -24,12 +24,15 @@ void FInstanceSceneShaderData::Setup(const FPrimitiveInstance& Instance)
 
 	Instance.LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
 	Instance.PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
+
+	const FVector3f BoundsOrigin = Instance.LocalBounds.GetCenter();
+	const FVector3f BoundsExtent = Instance.LocalBounds.GetExtent();
 	
-	Data[7]    = *(const FVector3f*)&Instance.LocalBounds.Origin;
-	Data[7].W  = *(const     float*)&Instance.LocalBounds.BoxExtent.X;
+	Data[7]    = *(const FVector3f*)&BoundsOrigin;
+	Data[7].W  = *(const     float*)&BoundsExtent.X;
 	
-	Data[8].X  = *(const     float*)&Instance.LocalBounds.BoxExtent.Y;
-	Data[8].Y  = *(const     float*)&Instance.LocalBounds.BoxExtent.Z;
+	Data[8].X  = *(const     float*)&BoundsExtent.Y;
+	Data[8].Y  = *(const     float*)&BoundsExtent.Z;
 	Data[8].Z  = *(const     float*)&Instance.NaniteInfo.HierarchyOffset;
 	Data[8].W  = *(const     float*)&Instance.PerInstanceRandom;
 

@@ -439,7 +439,7 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 			for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 			{
 				const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
-				InstanceArea = BoxSurfaceArea(Instance.LocalBounds.BoxExtent);
+				InstanceArea = BoxSurfaceArea(Instance.LocalBounds.GetExtent());
 				InstanceMeshCardsLocalToWorld = Instance.InstanceToLocal.ToMatrix() * PrimitiveLocalToWorld;
 			}
 		}
@@ -472,7 +472,7 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 			for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 			{
 				const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
-				MergedMeshCardsBounds += Instance.RenderBounds.GetBox().TransformBy(Instance.InstanceToLocal.ToMatrix() * PrimitiveLocalToMeshCardsLocal);
+				MergedMeshCardsBounds += Instance.RenderBounds.ToBox().TransformBy(Instance.InstanceToLocal.ToMatrix() * PrimitiveLocalToMeshCardsLocal);
 			}
 		}
 		else

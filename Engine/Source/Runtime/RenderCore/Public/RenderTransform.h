@@ -7,11 +7,13 @@
 
 // TODO: Further compress data size with tighter encoding
 // LWC_TODO: Rebasing support (no 64bit types in here)
+// TODO: Optimization (avoid full 4x4 math)
 struct FRenderTransform
 {
 	FVector3f TransformRows[3];
 	FVector3f Origin;
 
+public:
 	FORCEINLINE FRenderTransform()
 	{
 	}
@@ -165,23 +167,145 @@ struct FRenderTransform
 		Origin = FVector3f::ZeroVector;
 	}
 
-	RENDERCORE_API static FRenderTransform Identity;
+	/**
+	 * Serializes the render transform.
+	 *
+	 * @param Ar Reference to the serialization archive.
+	 * @param T Reference to the render transform being serialized.
+	 * @return Reference to the Archive after serialization.
+	 */
+	FORCEINLINE friend FArchive& operator<< (FArchive& Ar, FRenderTransform& T)
+	{
+		Ar << T.TransformRows[0].X << T.TransformRows[0].Y << T.TransformRows[0].Z;
+		Ar << T.TransformRows[1].X << T.TransformRows[1].Y << T.TransformRows[1].Z;
+		Ar << T.TransformRows[2].X << T.TransformRows[2].Y << T.TransformRows[2].Z;
+		Ar << T.Origin.X << T.Origin.Y << T.Origin.Z;
+		return Ar;
+	}
 
-	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar, FRenderTransform& T);
+	RENDERCORE_API static FRenderTransform Identity;
 };
 
-/**
- * Serializes the render transform.
- *
- * @param Ar Reference to the serialization archive.
- * @param T Reference to the render transform being serialized.
- * @return Reference to the Archive after serialization.
- */
-inline FArchive& operator<<(FArchive& Ar, FRenderTransform& T)
+struct FRenderBounds
 {
-	Ar << T.TransformRows[0].X << T.TransformRows[0].Y << T.TransformRows[0].Z;
-	Ar << T.TransformRows[1].X << T.TransformRows[1].Y << T.TransformRows[1].Z;
-	Ar << T.TransformRows[2].X << T.TransformRows[2].Y << T.TransformRows[2].Z;
-	Ar << T.Origin.X << T.Origin.Y << T.Origin.Z;
-	return Ar;
-}
+	FVector3f Min;
+	FVector3f Max;
+
+public:
+	FORCEINLINE FRenderBounds()
+	: Min( MAX_flt,  MAX_flt,  MAX_flt)
+	, Max(-MAX_flt, -MAX_flt, -MAX_flt)
+	{
+	}
+
+	FORCEINLINE FRenderBounds(const FVector3f& InMin, const FVector3f& InMax)
+	: Min(InMin)
+	, Max(InMax)
+	{
+	}
+
+	FORCEINLINE FRenderBounds(const FBox& Box)
+	{
+		Min = Box.Min;
+		Max = Box.Max;
+	}
+
+	FORCEINLINE FRenderBounds(const FBoxSphereBounds& Bounds)
+	{
+		Min = Bounds.Origin - Bounds.BoxExtent;
+		Max = Bounds.Origin + Bounds.BoxExtent;
+	}
+
+	FORCEINLINE FBox ToBox() const
+	{
+		return FBox(Min, Max);
+	}
+
+	FORCEINLINE FBoxSphereBounds ToBoxSphereBounds() const
+	{
+		return FBoxSphereBounds(ToBox());
+	}
+
+	FORCEINLINE FRenderBounds& operator = (const FVector3f& Other)
+	{
+		Min = Other;
+		Max = Other;
+		return *this;
+	}
+
+	FORCEINLINE FRenderBounds& operator += (const FVector3f& Other)
+	{
+		const VectorRegister VecOther = VectorLoadFloat3(&Other.X);
+		VectorStoreFloat3(VectorMin(VectorLoadFloat3(&Min.Y), VecOther), &Min);
+		VectorStoreFloat3(VectorMax(VectorLoadFloat3(&Max.X), VecOther), &Max);
+		return *this;
+	}
+
+	FORCEINLINE FRenderBounds& operator += (const FRenderBounds& Other)
+	{
+		VectorStoreFloat3(VectorMin(VectorLoadFloat3(&Min), VectorLoadFloat3(&Other.Min)), &Min);
+		VectorStoreFloat3(VectorMax(VectorLoadFloat3(&Max), VectorLoadFloat3(&Other.Max)), &Max);
+		return *this;
+	}
+
+	FORCEINLINE FRenderBounds operator+ (const FRenderBounds& Other) const
+	{
+		return FRenderBounds(*this) += Other;
+	}
+
+	FORCEINLINE const FVector3f& GetMin() const
+	{
+		return Min;
+	}
+
+	FORCEINLINE const FVector3f& GetMax() const
+	{
+		return Max;
+	}
+
+	FORCEINLINE FVector3f GetCenter() const
+	{
+		return (Max + Min) * 0.5f;
+	}
+
+	FORCEINLINE FVector3f GetExtent() const
+	{
+		return (Max - Min) * 0.5f;
+	}
+
+	FORCEINLINE float GetSurfaceArea() const
+	{
+		FVector3f Size = Max - Min;
+		return 0.5f * (Size.X * Size.Y + Size.X * Size.Z + Size.Y * Size.Z);
+	}
+
+	/**
+	 * Gets a bounding volume transformed by a matrix.
+	 *
+	 * @param M The matrix.
+	 * @return The transformed volume.
+	 */
+	RENDERCORE_API FRenderBounds TransformBy(const FMatrix44f& M) const;
+
+	/**
+	 * Gets a bounding volume transformed by a render transform.
+	 *
+	 * @param T The render transform.
+	 * @return The transformed volume.
+	 */
+	RENDERCORE_API FRenderBounds TransformBy(const FRenderTransform& T) const;
+
+	/**
+	 * Serializes the render bounds.
+	 *
+	 * @param Ar Reference to the serialization archive.
+	 * @param B Reference to the render bounds being serialized.
+	 * @return Reference to the Archive after serialization.
+	 */
+	FORCEINLINE friend FArchive& operator<< (FArchive& Ar, FRenderBounds& B)
+	{
+		Ar << B.Min;
+		Ar << B.Max;
+		return Ar;
+	}
+};
