@@ -412,17 +412,19 @@ namespace HordeServer
 
 			AuthenticationBuilder AuthBuilder = Services.AddAuthentication(Options =>
 				{
-					// If an authentication cookie is present, use it to get authentication information
-					Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-					Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-
-					// If authentication is required, and no cookie is present, use OIDC to sign in
 					if (Settings.DisableAuth)
 					{
+						Options.DefaultAuthenticateScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
+						Options.DefaultSignInScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
 						Options.DefaultChallengeScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
 					}
 					else
 					{
+						// If an authentication cookie is present, use it to get authentication information
+						Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+						Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+
+						// If authentication is required, and no cookie is present, use OIDC to sign in
 						Options.DefaultChallengeScheme = OktaDefaults.AuthenticationScheme;
 					}
 				});
