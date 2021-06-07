@@ -3,7 +3,7 @@
   <Name>Protobuf</Name>
   <Location>//UE5/Main/Engine/Source/ThirdParty/Protobuf</Location>
   <Function>Protocol Buffers (a.k.a., protobuf) are Google's language-neutral, platform-neutral, extensible mechanism for serializing structured data.</Function>
-  <Eula>https://github.com/google/protobuf/blob/master/LICENSE</Eula>
+  <Eula>https://github.com/protocolbuffers/protobuf/blob/master/LICENSE</Eula>
   <RedistributeTo>
     <EndUserGroup>Licensees</EndUserGroup>
     <EndUserGroup>Git</EndUserGroup>
