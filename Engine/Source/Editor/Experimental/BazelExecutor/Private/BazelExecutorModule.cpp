@@ -106,6 +106,7 @@ void FBazelExecutorModule::StartupModule()
 
 void FBazelExecutorModule::ShutdownModule()
 {
+	BazelExecution.Shutdown();
 	IModularFeatures::Get().UnregisterModularFeature(RemoteExecutionFeatureName, &BazelExecution);
 }
 

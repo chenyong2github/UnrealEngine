@@ -7,6 +7,9 @@
 #include "IRemoteExecutor.h"
 #include "IContentAddressableStorage.h"
 #include "IExecution.h"
+#include "HAL/RunnableThread.h"
+
+class FBazelCompletionQueueRunnable;
 
 
 class FBazelExecutor : public IRemoteExecutor
@@ -31,9 +34,12 @@ public:
 private:
 	TUniquePtr<IContentAddressableStorage> ContentAddressableStorage;
 	TUniquePtr<IExecution> Execution;
+	TUniquePtr<FRunnableThread> Thread;
+	TSharedPtr<FBazelCompletionQueueRunnable> Runnable;
 
 public:
 	void Initialize(const FSettings& Settings);
+	void Shutdown();
 
 	virtual FName GetFName() const override;
 	virtual FText GetNameText() const override;
