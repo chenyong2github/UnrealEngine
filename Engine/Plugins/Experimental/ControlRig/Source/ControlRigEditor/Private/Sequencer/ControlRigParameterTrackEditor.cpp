@@ -2042,12 +2042,10 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			continue;
 		}
 
-		if (ControlIndex < ControlsMask.Num() && !ControlsMask[ControlIndex])
-		{
-			continue;
-		}
+		bool bMaskKeyOut = (ControlIndex >= ControlsMask.Num() || ControlsMask[ControlIndex] == false);
 
-		bool bSetKey = RigControl.Name == ParameterName;
+		bool bSetKey = RigControl.Name == ParameterName && !bMaskKeyOut;
+
 		switch (RigControl.ControlType)
 		{
 		case ERigControlType::Bool:
