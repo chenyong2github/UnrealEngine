@@ -16,6 +16,12 @@ public:
 
 	virtual IOnlineSubsystemPtr CreateSubsystem(FName InstanceName)
 	{
+		static bool bDeprecationLogged = false;
+		if (!bDeprecationLogged)
+		{
+			UE_LOG(LogOnline, Warning, TEXT("OnlineSubsystemTwitch has been deprecated"));
+			bDeprecationLogged = true;
+		}
 		FOnlineSubsystemTwitchPtr OnlineSub = MakeShared<FOnlineSubsystemTwitch, ESPMode::ThreadSafe>(InstanceName);
 		if (OnlineSub->IsEnabled())
 		{
@@ -53,7 +59,9 @@ void FOnlineSubsystemTwitchModule::StartupModule()
 
 	// Create and register our singleton factory with the main online subsystem for easy access
 	FOnlineSubsystemModule& OSS = FModuleManager::GetModuleChecked<FOnlineSubsystemModule>("OnlineSubsystem");
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OSS.RegisterPlatformService(TWITCH_SUBSYSTEM, TwitchFactory.Get());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FOnlineSubsystemTwitchModule::ShutdownModule()
@@ -61,7 +69,9 @@ void FOnlineSubsystemTwitchModule::ShutdownModule()
 	UE_LOG_ONLINE(Verbose, TEXT("Twitch Shutdown!"));
 
 	FOnlineSubsystemModule& OSS = FModuleManager::GetModuleChecked<FOnlineSubsystemModule>("OnlineSubsystem");
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OSS.UnregisterPlatformService(TWITCH_SUBSYSTEM);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	TwitchFactory.Reset();
 }
