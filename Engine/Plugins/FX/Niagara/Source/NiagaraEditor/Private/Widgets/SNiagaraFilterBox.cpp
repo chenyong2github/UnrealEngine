@@ -67,7 +67,7 @@ FReply SNiagaraSourceFilterCheckBox::OnMouseButtonUp(const FGeometry& MyGeometry
 FSlateColor SNiagaraSourceFilterCheckBox::GetTextColor() const
 {
 	const float DimFactor = 0.75f;
-	return IsHovered() ? FLinearColor(DimFactor, DimFactor, DimFactor, 1.0f) : FLinearColor::White;
+	return IsHovered() ? FLinearColor(DimFactor, DimFactor, DimFactor, 1.0f) : IsChecked() ? FLinearColor::White : FLinearColor::Gray;
 }
 
 FSlateColor SNiagaraSourceFilterCheckBox::GetBackgroundColor() const
