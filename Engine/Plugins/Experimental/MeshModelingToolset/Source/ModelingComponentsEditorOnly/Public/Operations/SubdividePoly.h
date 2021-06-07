@@ -58,7 +58,7 @@ enum class ESubdivisionOutputUVs : uint8
  * precompute the refined topology, then compute the interpolated positions (and other vertex values) as the original 
  * polymesh is deformed.
  */
-class MESHMODELINGTOOLSEDITORONLY_API FSubdividePoly
+class MODELINGCOMPONENTSEDITORONLY_API FSubdividePoly
 {
 public:
 
