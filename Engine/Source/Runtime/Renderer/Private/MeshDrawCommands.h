@@ -146,7 +146,7 @@ public:
 
 	FParallelMeshDrawCommandPass()
 		: bPrimitiveIdBufferDataOwnedByRHIThread(false)
-		, bHasQueuedInstanceCullingBuild(false)
+		, bHasInstanceCullingDrawParameters(false)
 		, MaxNumDraws(0)
 	{
 	}
@@ -178,14 +178,10 @@ public:
 	 * Sync with setup task and run post-instance culling job to create the render commands and instance ID lists and optionally vertex instance data.
 	 * Needs to happen after DispatchPassSetup and before DispatchDraw, but not before global instance culling has been done.
 	 */
-	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
-
-
-	/**
-	 * Sync with setup task and return item to run batch processing on, sets a flag to signal batched processing has been requested (which is then used in BuildRenderingCommands to skip processing).
-	 * Needs to happen after DispatchPassSetup and before DispatchDraw, but not before global instance culling has been done.
-	 */
-	void QueueBatchedBuildRenderingCommands(TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator>& BatchItems);
+	void BuildRenderingCommands(
+		FRDGBuilder& GraphBuilder,
+		FGPUScene& GPUScene,
+		FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
 
 	/**
 	 * Sync with setup task and run post-instance culling job unpack surviving instance IDs into two lists of instance ID + draw command ID.
@@ -224,7 +220,7 @@ private:
 
 	// If TaskContext::PrimitiveIdBufferData will be released by RHI Thread.
 	mutable bool bPrimitiveIdBufferDataOwnedByRHIThread;
-	bool bHasQueuedInstanceCullingBuild;
+	bool bHasInstanceCullingDrawParameters;
 
 	// Maximum number of draws for this pass. Used to prealocate resources on rendering thread. 
 	// Has a guarantee that if there won't be any draws, then MaxNumDraws = 0;

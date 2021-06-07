@@ -52,6 +52,23 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	return Buffer;
 }
 
+inline FRDGBufferRef FRDGBuilder::CreateBuffer(
+	const FRDGBufferDesc& Desc,
+	const TCHAR* Name,
+	FRDGBufferNumElementsCallback&& NumElementsCallback,
+	ERDGBufferFlags Flags)
+{
+	// RDG no longer supports the legacy transient resource API.
+	FRDGBufferDesc OverrideDesc = Desc;
+	EnumRemoveFlags(OverrideDesc.Usage, BUF_Transient);
+
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Desc, Name, Flags));
+	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, OverrideDesc, Flags, MoveTemp(NumElementsCallback));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Buffer));
+	IF_RDG_ENABLE_TRACE(Trace.AddResource(Buffer));
+	return Buffer;
+}
+
 inline FRDGTextureSRVRef FRDGBuilder::CreateSRV(const FRDGTextureSRVDesc& Desc)
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateSRV(Desc));
@@ -201,6 +218,14 @@ inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, const void* Ini
 	}
 
 	UploadedBuffers.Emplace(Buffer, InitialData, InitialDataSize);
+	Buffer->bQueuedForUpload = 1;
+}
+
+inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferInitialDataCallback&& InitialDataCallback, FRDGBufferInitialDataSizeCallback&& InitialDataSizeCallback)
+{
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUploadBuffer(Buffer, InitialDataCallback, InitialDataSizeCallback));
+
+	UploadedBuffers.Emplace(Buffer, MoveTemp(InitialDataCallback), MoveTemp(InitialDataSizeCallback));
 	Buffer->bQueuedForUpload = 1;
 }
 

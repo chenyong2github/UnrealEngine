@@ -382,6 +382,41 @@ struct RENDERCORE_API FComputeShaderUtils
 		});
 	}
 
+	/** Dispatch a compute shader to render graph builder with its parameters. GroupCount is supplied through a callback.
+	 *  This allows adding a dispatch with unknown GroupCount but the value must be ready before the pass is executed.
+	 */
+	template<typename TShaderClass>
+	static void AddPass(
+		FRDGBuilder& GraphBuilder,
+		FRDGEventName&& PassName,
+		ERDGPassFlags PassFlags,
+		const TShaderRef<TShaderClass>& ComputeShader,
+		const FShaderParametersMetadata* ParametersMetadata,
+		typename TShaderClass::FParameters* Parameters,
+		FRDGDispatchGroupCountCallback&& GroupCountCallback)
+	{
+		checkf(
+			EnumHasAnyFlags(PassFlags, ERDGPassFlags::Compute | ERDGPassFlags::AsyncCompute) &&
+			!EnumHasAnyFlags(PassFlags, ERDGPassFlags::Copy | ERDGPassFlags::Raster), TEXT("AddPass only supports 'Compute' or 'AsyncCompute'."));
+
+		ClearUnusedGraphResources(ComputeShader, ParametersMetadata, Parameters);
+
+		GraphBuilder.AddPass(
+			Forward<FRDGEventName>(PassName),
+			ParametersMetadata,
+			Parameters,
+			PassFlags,
+			[ParametersMetadata, Parameters, ComputeShader, GroupCountCallback = MoveTemp(GroupCountCallback)](FRHIComputeCommandList& RHICmdList)
+			{
+				const FIntVector GroupCount = GroupCountCallback();
+				if (GroupCount.X > 0 && GroupCount.Y > 0 && GroupCount.Z > 0)
+				{
+					ValidateGroupCount(GroupCount);
+					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, ParametersMetadata, *Parameters, GroupCount);
+				}
+			});
+	}
+
 	template<typename TShaderClass>
 	static void AddPass(
 		FRDGBuilder& GraphBuilder,
@@ -405,6 +440,18 @@ struct RENDERCORE_API FComputeShaderUtils
 	{
 		const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
 		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, ParametersMetadata, Parameters, GroupCount);
+	}
+
+	template <typename TShaderClass>
+	static FORCEINLINE void AddPass(
+		FRDGBuilder& GraphBuilder,
+		FRDGEventName&& PassName,
+		const TShaderRef<TShaderClass>& ComputeShader,
+		typename TShaderClass::FParameters* Parameters,
+		FRDGDispatchGroupCountCallback&& GroupCountCallback)
+	{
+		const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
+		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, ParametersMetadata, Parameters, MoveTemp(GroupCountCallback));
 	}
 
 	/** Dispatch a compute shader to render graph builder with its parameters. */
@@ -606,6 +653,18 @@ RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
 	const void* InitialData,
 	uint64 InitialDataSize,
 	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
+
+/** A variant where NumElements, InitialData, and InitialDataSize are supplied through callbacks. This allows creating a buffer with
+ *  with information unknown at creation time. Though, data must be ready before the most recent RDG pass that references the buffer
+ *  is executed.
+ */
+RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	uint32 BytesPerElement,
+	FRDGBufferNumElementsCallback&& NumElementsCallback,
+	FRDGBufferInitialDataCallback&& InitialDataCallback,
+	FRDGBufferInitialDataSizeCallback&& InitialDataSizeCallback);
 
 /**
  * Helper to create a structured buffer with initial data from a TArray.

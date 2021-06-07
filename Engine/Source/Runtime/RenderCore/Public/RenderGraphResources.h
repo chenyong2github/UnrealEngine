@@ -931,7 +931,7 @@ class RENDERCORE_API FRDGBuffer final
 	: public FRDGParentResource
 {
 public:
-	const FRDGBufferDesc Desc;
+	FRDGBufferDesc Desc;
 	const ERDGBufferFlags Flags;
 
 	//////////////////////////////////////////////////////////////////////////
@@ -978,6 +978,12 @@ private:
 		, Flags(InFlags)
 	{}
 
+	FRDGBuffer(const TCHAR* InName, const FRDGBufferDesc& InDesc, ERDGBufferFlags InFlags, FRDGBufferNumElementsCallback&& InNumElementsCallback)
+		: FRDGBuffer(InName, InDesc, InFlags)
+	{
+		NumElementsCallback = MoveTemp(InNumElementsCallback);
+	}
+
 	/** Assigns a pooled buffer as the backing RHI resource. */
 	void SetRHI(FRDGPooledBuffer* InPooledBuffer);
 
@@ -986,6 +992,15 @@ private:
 
 	/** Finalizes the buffer for execution; no other transitions are allowed after calling this. */
 	void Finalize(FRDGPooledBufferArray& PooledBufferArray);
+
+	/** Finalizes any pending field of the buffer descriptor. */
+	void FinalizeDesc()
+	{
+		if (NumElementsCallback)
+		{
+			Desc.NumElements = FMath::Max(NumElementsCallback(), 1u);
+		}
+	}
 
 	FRHIBuffer* GetRHIUnchecked() const
 	{
@@ -1028,6 +1043,9 @@ private:
 
 	/** Tracks the last pass that produced this resource as the graph is built. */
 	FRDGProducerStatesByPipeline LastProducer;
+
+	/** Optional callback to supply NumElements after the creation of this FRDGBuffer. */
+	FRDGBufferNumElementsCallback NumElementsCallback;
 
 #if RDG_ENABLE_DEBUG
 	struct FRDGBufferDebugData* BufferDebugData = nullptr;

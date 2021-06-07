@@ -153,3 +153,8 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 		}
 	}
 }
+
+void FInstanceCullingManager::BeginDeferredCulling(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
+{
+	FInstanceCullingContext::BuildRenderingCommandsDeferred(GraphBuilder, GPUScene, *this);
+}

@@ -96,6 +96,27 @@ public:
 		uint32 bMaterialMayModifyPosition;
 	};
 
+	struct FBatchInfo
+	{
+		uint32 CullingCommandsOffset;
+		uint32 NumCullingCommands;
+		uint32 PrimitiveIdsOffset;
+		uint32 NumPrimitiveIds;
+		uint32 InstanceRunsOffset;
+		uint32 NumInstanceRuns;
+		uint32 ViewIdsOffset;
+		uint32 NumViewIds;
+		int32 DynamicPrimitiveIdOffset;
+		int32 DynamicPrimitiveIdMax;
+	};
+
+	struct FBatchItem
+	{
+		const FInstanceCullingContext* Context = nullptr;
+		FInstanceCullingDrawParams* Result = nullptr;
+		TRange<int32> DynamicPrimitiveIdRange;
+	};
+
 	/**
 	 * Call to empty out the culling commands & other culling data.
 	 */
@@ -120,27 +141,35 @@ public:
 	 */
 	void AddInstanceRunToCullingCommand(int32 ScenePrimitiveId, const uint32* Runs, uint32 NumRuns);
 
-
-	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const TRange<int32> &DynamicPrimitiveIdRange, FInstanceCullingResult& Results) const;
+	/**
+	 * If InstanceCullingDrawParams is not null, this BuildRenderingCommands operation will be deferred and merged into a global pass when possible.
+	 */
+	void BuildRenderingCommands(
+		FRDGBuilder& GraphBuilder,
+		const FGPUScene& GPUScene,
+		const TRange<int32> &DynamicPrimitiveIdRange,
+		FInstanceCullingResult& Results,
+		FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr) const;
 
 	/**
 	 * Build instance ID lists & render commands, but without extracting results and also accepting RGD resources for output buffers etc (rather than registering global resources)
 	 */
 	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, const TRange<int32>& DynamicPrimitiveIdRange, FInstanceCullingRdgParams& Params) const;
 
-	inline bool HasCullingCommands() const { return CullingCommands.Num() > 0; 	}
+	inline bool HasCullingCommands() const { return CullingCommands.Num() > 0 && TotalInstances > 0; 	}
 
 	EInstanceCullingMode GetInstanceCullingMode() const { return InstanceCullingMode; }
 
+	/**
+	 * Add a batched BuildRenderingCommands pass. Each batch represents a BuildRenderingCommands call from a mesh pass.
+	 * Batches are gradually added as we walk through the main render function.
+	 */
+	static void BuildRenderingCommandsDeferred(
+		FRDGBuilder& GraphBuilder,
+		FGPUScene& GPUScene,
+		FInstanceCullingManager& InstanceCullingManager);
 
-	struct FBatchItem
-	{
-		FInstanceCullingContext* Context = nullptr;
-		FInstanceCullingResult* Result = nullptr;
-		TRange<int32> DynamicPrimitiveIdRange;
-	};
-
-	static void BuildRenderingCommandsBatched(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, TArrayView<FBatchItem> Batches);
+	static bool AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene);
 
 	// GPUCULL_TODO: These should not be dynamically heap-allocated, all except instance runs are easy to pre-size on memstack.
 	//           Must be presized as populated from task threads.
@@ -164,3 +193,15 @@ public:
 	uint32 TotalInstances = 0U;
 };
 
+struct FInstanceCullingContextMerged
+{
+	bool bInitialized = false;
+	TArray<FInstanceCullingContext::FPrimCullingCommand, SceneRenderingAllocator> CullingCommandsAll;
+	TArray<int32, SceneRenderingAllocator> PrimitiveIdsAll;
+	TArray<FInstanceCullingContext::FInstanceRun, SceneRenderingAllocator> InstanceRunsAll;
+	TArray<int32, SceneRenderingAllocator> ViewIdsAll;
+	TArray<FInstanceCullingContext::FBatchInfo, SceneRenderingAllocator> BatchInfos;
+	TArray<int32, SceneRenderingAllocator> BatchIndsAll;
+
+	uint32 InstanceIdBufferSize = 0U;
+};

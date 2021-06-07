@@ -572,6 +572,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	{
 		// GPUCULL_TODO: Possibly fold into unpack step
 		InstanceCullingManager.CullInstances(GraphBuilder, Scene->GPUScene);
+		InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
 	}
 	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 
@@ -694,7 +695,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 	FRDGSystemTextures::Create(GraphBuilder);
 
-	FInstanceCullingManager InstanceCullingManager(Scene->GPUScene.IsEnabled());
+	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(Scene->GPUScene.IsEnabled());
 
 	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
 	// NOTE: Must be done after  system texture initialization

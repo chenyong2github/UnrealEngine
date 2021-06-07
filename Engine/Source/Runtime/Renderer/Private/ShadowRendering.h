@@ -698,10 +698,13 @@ public:
 
 	float GetMaxNonFarCascadeDistance() const { return MaxNonFarCascadeDistance; }
 
-	void QueueBatchedBuildRenderingCommands(TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator>& BatchItems)
+	void BuildRenderingCommands(
+		FRDGBuilder& GraphBuilder,
+		FGPUScene& GPUScene,
+		FInstanceCullingDrawParams& InstanceCullingDrawParams)
 	{
 		ShadowDepthView->DynamicPrimitiveCollector.Commit();
-		return ShadowDepthPass.QueueBatchedBuildRenderingCommands(BatchItems);
+		return ShadowDepthPass.BuildRenderingCommands(GraphBuilder, GPUScene, InstanceCullingDrawParams);
 	}
 
 private:

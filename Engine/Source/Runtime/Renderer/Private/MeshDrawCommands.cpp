@@ -1407,40 +1407,25 @@ public:
 	}
 };
 
-void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
+void FParallelMeshDrawCommandPass::BuildRenderingCommands(
+	FRDGBuilder& GraphBuilder,
+	FGPUScene& GPUScene,
+	FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
 {
 	if (TaskContext.InstanceCullingContext.IsEnabled())
 	{
-		if (bHasQueuedInstanceCullingBuild)
-		{
-			TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
-			return;
-		}
+		check(!bHasInstanceCullingDrawParameters);
 		WaitForMeshPassSetupTask();
-		// 2. Run finalize culling commands pass
-		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange(), TaskContext.InstanceCullingResult);
+		// 2. Run or queue finalize culling commands pass
+		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange(), TaskContext.InstanceCullingResult, &OutInstanceCullingDrawParams);
 		TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
+		bHasInstanceCullingDrawParameters = true;
+		check(!TaskContext.InstanceCullingContext.HasCullingCommands() || OutInstanceCullingDrawParams.DrawIndirectArgsBuffer && OutInstanceCullingDrawParams.InstanceIdOffsetBuffer);
 		return;
 	}
 	OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
 	OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;
 	OutInstanceCullingDrawParams.DrawCommandDataOffset = 0U;
-
-}
-
-
-void FParallelMeshDrawCommandPass::QueueBatchedBuildRenderingCommands(TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator> & BatchItems)
-{
-	if (TaskContext.InstanceCullingContext.IsEnabled())
-	{
-		WaitForMeshPassSetupTask();
-		if (MaxNumDraws > 0 && TaskContext.InstanceCullingContext.HasCullingCommands())
-		{
-			// 2. Queue finalize culling commands pass
-			BatchItems.Add(FInstanceCullingContext::FBatchItem{ &TaskContext.InstanceCullingContext, &TaskContext.InstanceCullingResult, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange() });
-			bHasQueuedInstanceCullingBuild = true;
-		}
-	}
 }
 
 
