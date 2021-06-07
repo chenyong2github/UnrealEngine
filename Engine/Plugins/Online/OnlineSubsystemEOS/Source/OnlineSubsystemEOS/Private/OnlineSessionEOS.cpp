@@ -427,6 +427,7 @@ typedef TEOSGlobalCallback<EOS_Lobby_OnLobbyUpdateReceivedCallback, EOS_Lobby_Lo
 typedef TEOSGlobalCallback<EOS_Lobby_OnLobbyMemberUpdateReceivedCallback, EOS_Lobby_LobbyMemberUpdateReceivedCallbackInfo> FLobbyMemberUpdateReceivedCallback;
 typedef TEOSGlobalCallback<EOS_Lobby_OnLobbyMemberStatusReceivedCallback, EOS_Lobby_LobbyMemberStatusReceivedCallbackInfo> FLobbyMemberStatusReceivedCallback;
 typedef TEOSGlobalCallback<EOS_Lobby_OnLobbyInviteAcceptedCallback, EOS_Lobby_LobbyInviteAcceptedCallbackInfo> FLobbyInviteAcceptedCallback;
+typedef TEOSGlobalCallback<EOS_Lobby_OnJoinLobbyAcceptedCallback, EOS_Lobby_JoinLobbyAcceptedCallbackInfo> FJoinLobbyAcceptedCallback;
 
 FOnlineSessionEOS::~FOnlineSessionEOS()
 {
@@ -437,11 +438,13 @@ FOnlineSessionEOS::~FOnlineSessionEOS()
 	EOS_Lobby_RemoveNotifyLobbyMemberUpdateReceived(LobbyHandle, LobbyMemberUpdateReceivedId);
 	EOS_Lobby_RemoveNotifyLobbyMemberStatusReceived(LobbyHandle, LobbyMemberStatusReceivedId);
 	EOS_Lobby_RemoveNotifyLobbyInviteAccepted(LobbyHandle, LobbyInviteAcceptedId);
+	EOS_Lobby_RemoveNotifyJoinLobbyAccepted(LobbyHandle, JoinLobbyAcceptedId);
 
 	delete LobbyUpdateReceivedCallback;
 	delete LobbyMemberUpdateReceivedCallback;
 	delete LobbyMemberStatusReceivedCallback;
 	delete LobbyInviteAcceptedCallback;
+	delete JoinLobbyAcceptedCallback;
 }
 
 void FOnlineSessionEOS::Init(const FString& InBucketId)
@@ -570,6 +573,19 @@ void FOnlineSessionEOS::RegisterLobbyNotifications()
 	};
 
 	LobbyInviteAcceptedId = EOS_Lobby_AddNotifyLobbyInviteAccepted(LobbyHandle, &AddNotifyLobbyInviteAcceptedOptions, LobbyInviteAcceptedCallbackObj, LobbyInviteAcceptedCallbackObj->GetCallbackPtr());
+
+	// Accepted lobby join notifications
+	EOS_Lobby_AddNotifyJoinLobbyAcceptedOptions AddNotifyJoinLobbyAcceptedOptions = { 0 };
+	AddNotifyJoinLobbyAcceptedOptions.ApiVersion = EOS_LOBBY_ADDNOTIFYJOINLOBBYACCEPTED_API_LATEST;
+
+	FJoinLobbyAcceptedCallback* JoinLobbyAcceptedCallbackObj = new FJoinLobbyAcceptedCallback();
+	JoinLobbyAcceptedCallback = JoinLobbyAcceptedCallbackObj;
+	JoinLobbyAcceptedCallbackObj->CallbackLambda = [this](const EOS_Lobby_JoinLobbyAcceptedCallbackInfo* Data)
+	{
+		OnJoinLobbyAccepted(Data->LocalUserId, Data->UiEventId);
+	};
+
+	JoinLobbyAcceptedId = EOS_Lobby_AddNotifyJoinLobbyAccepted(LobbyHandle, &AddNotifyJoinLobbyAcceptedOptions, JoinLobbyAcceptedCallbackObj, JoinLobbyAcceptedCallbackObj->GetCallbackPtr());
 }
 
 void FOnlineSessionEOS::OnLobbyUpdateReceived(const EOS_LobbyId& LobbyId)
@@ -795,7 +811,7 @@ void FOnlineSessionEOS::OnLobbyInviteAccepted(const char* InviteId, const EOS_Pr
 	FUniqueNetIdEOSPtr NetId = EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(LocalUserId);
 	if (!NetId.IsValid())
 	{
-		UE_LOG_ONLINE_SESSION(Warning, TEXT("Cannot accept invite due to unknown user (%s)"), *MakeStringFromProductUserId(LocalUserId));
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnLobbyInviteAccepted] Cannot accept lobby invite due to unknown user (%s)"), *MakeStringFromProductUserId(LocalUserId));
 		return;
 	}
 	int32 LocalUserNum = EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(*NetId);
@@ -812,7 +828,38 @@ void FOnlineSessionEOS::OnLobbyInviteAccepted(const char* InviteId, const EOS_Pr
 		LastInviteSearch = MakeShared<FOnlineSessionSearch>();
 		AddLobbySearchResult(LobbyDetailsHandle, LastInviteSearch.ToSharedRef());
 		TriggerOnSessionUserInviteAcceptedDelegates(true, LocalUserNum, NetId, LastInviteSearch->SearchResults.Last());
-		EOS_LobbyDetails_Release(LobbyDetailsHandle);
+	}
+	else
+	{
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnLobbyInviteAccepted] EOS_Lobby_CopyLobbyDetailsHandleByInviteId failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
+	}
+}
+
+void FOnlineSessionEOS::OnJoinLobbyAccepted(const EOS_ProductUserId& LocalUserId, const EOS_UI_EventId& UiEventId)
+{
+	FUniqueNetIdEOSPtr NetId = EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(LocalUserId);
+	if (!NetId.IsValid())
+	{
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnJoinLobbyAccepted] Cannot join lobby due to unknown user (%s)"), *MakeStringFromProductUserId(LocalUserId));
+		return;
+	}
+	int32 LocalUserNum = EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(*NetId);
+
+	EOS_Lobby_CopyLobbyDetailsHandleByUiEventIdOptions Options = { 0 };
+	Options.ApiVersion = EOS_LOBBY_COPYLOBBYDETAILSHANDLEBYUIEVENTID_API_LATEST;
+	Options.UiEventId = UiEventId;
+
+	EOS_HLobbyDetails LobbyDetailsHandle;
+	EOS_EResult Result = EOS_Lobby_CopyLobbyDetailsHandleByUiEventId(LobbyHandle, &Options, &LobbyDetailsHandle);
+	if (Result == EOS_EResult::EOS_Success)
+	{
+		LastInviteSearch = MakeShared<FOnlineSessionSearch>();
+		AddLobbySearchResult(LobbyDetailsHandle, LastInviteSearch.ToSharedRef());
+		TriggerOnSessionUserInviteAcceptedDelegates(true, LocalUserNum, NetId, LastInviteSearch->SearchResults.Last());
+	}
+	else
+	{
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnJoinLobbyAccepted] EOS_Lobby_CopyLobbyDetailsHandleByUiEventId failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
 	}
 }
 
@@ -3034,6 +3081,7 @@ uint32 FOnlineSessionEOS::CreateLobbySession(int32 HostingPlayerNum, FNamedOnlin
 	CreateLobbyOptions.MaxLobbyMembers = GetLobbyMaxMembersFromSessionSettings(Session->SessionSettings);
 	CreateLobbyOptions.PermissionLevel = GetLobbyPermissionLevelFromSessionSettings(Session->SessionSettings);
 	CreateLobbyOptions.bPresenceEnabled = Session->SessionSettings.bUsesPresence;
+	CreateLobbyOptions.bAllowInvites = Session->SessionSettings.bAllowInvites;
 	CreateLobbyOptions.BucketId = BucketIdAnsi;
 
 	/*When the operation finishes, the EOS_Lobby_OnCreateLobbyCallback will run with an EOS_Lobby_CreateLobbyCallbackInfo data structure.
