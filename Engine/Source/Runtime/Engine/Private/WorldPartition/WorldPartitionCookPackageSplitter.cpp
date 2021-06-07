@@ -34,6 +34,38 @@ bool FWorldPartitionCookPackageSplitter::UseDeferredPopulate()
 	return UseDeferredPopulate.Value;
 }
 
+FWorldPartitionCookPackageSplitter::FWorldPartitionCookPackageSplitter()
+{
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FWorldPartitionCookPackageSplitter::PreGarbageCollect);
+}
+
+FWorldPartitionCookPackageSplitter::~FWorldPartitionCookPackageSplitter()
+{
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+	TeardownWorldPartition();
+}
+
+void FWorldPartitionCookPackageSplitter::PreGarbageCollect()
+{
+	TeardownWorldPartition();
+}
+
+void FWorldPartitionCookPackageSplitter::TeardownWorldPartition()
+{
+	if (bWorldPartitionNeedsTeardown)
+	{
+		if (UWorld* LocalWorld = ReferencedWorld.Get())
+		{
+			UWorldPartition* WorldPartition = LocalWorld->PersistentLevel->GetWorldPartition();
+			if (WorldPartition)
+			{
+				WorldPartition->Uninitialize();
+			}
+		}
+		bWorldPartitionNeedsTeardown = false;
+	}
+}
+
 UWorld* FWorldPartitionCookPackageSplitter::ValidateDataObject(UObject* SplitData)
 {
 	UWorld* PartitionedWorld = CastChecked<UWorld>(SplitData);
@@ -83,8 +115,18 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 }
 
 bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject,
-	const FGeneratedPackageForPopulate& GeneratedPackage)
+	const FGeneratedPackageForPopulate& GeneratedPackage, bool bWasOwnerReloaded)
 {
+	if (bWasOwnerReloaded)
+	{
+		GetGenerateList(OwnerPackage, OwnerObject);
+		// When GetGenerateList is called by CookOnTheFlyServer, it is followed up with a call to 
+		// CleanupWorld when the Generator package is done saving, which calls WorldPartition->Uninitialize
+		// But when we call it here to initialize our data for the populate, we need to take responsibility
+		// for calling WorldPartition->Uninitialize before the next GarbageCollection
+		bWorldPartitionNeedsTeardown = true;
+	}
+
 	// TODO: Make PopulateGeneratedPackageForCook const so we can honor the constness of the OwnerObject in this API function
 	const UWorld* ConstPartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorld* PartitionedWorld = const_cast<UWorld*>(ConstPartitionedWorld);
@@ -99,11 +141,6 @@ void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* Owner
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
 	WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
-}
-
-void FWorldPartitionCookPackageSplitter::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObject(ReferencedWorld);
 }
 
 #endif
