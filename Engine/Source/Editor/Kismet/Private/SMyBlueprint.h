@@ -100,6 +100,9 @@ public:
 	/** Accessor for getting the current selection as a K2 local var */
 	FEdGraphSchemaAction_K2LocalVar* SelectionAsLocalVar() const;
 
+	/** Accessor for getting the current selection as a K2 blueprint base variable */
+	FEdGraphSchemaAction_BlueprintVariableBase* SelectionAsBlueprintVariable() const;
+
 	/** Accessor for determining if the current selection is a category*/
 	bool SelectionIsCategory() const;
 	

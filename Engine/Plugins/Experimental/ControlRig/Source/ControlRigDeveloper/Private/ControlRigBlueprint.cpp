@@ -1665,7 +1665,7 @@ FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString
 		return NAME_None;
 	}
 
-	Variable.bIsArray = CPPType.StartsWith(TEXT("TArray<"));
+	Variable.bIsArray = RigVMUtilities::IsArrayType(CPPType);
 	if (Variable.bIsArray)
 	{
 		CPPType = CPPType.RightChop(7).LeftChop(1);

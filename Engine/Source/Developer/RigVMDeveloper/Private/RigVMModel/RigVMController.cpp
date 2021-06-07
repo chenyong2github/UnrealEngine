@@ -615,7 +615,7 @@ void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName&
 			{
 				if (URigVMPin* ValuePin = VariableNode->FindPin(URigVMVariableNode::ValueName))
 				{
-					if (ValuePin->CPPType != InCPPType)
+					if (ValuePin->CPPType != InCPPType || ValuePin->GetCPPTypeObject() != InCPPTypeObject)
 					{
 						if (bSetupUndoRedo)
 						{
@@ -6644,39 +6644,35 @@ bool URigVMController::RemoveFunctionFromLibrary(const FName& InFunctionName, bo
 	return RemoveNodeByName(InFunctionName, bSetupUndoRedo);
 }
 
-bool URigVMController::AddLocalVariable(const FName& InVariableName,
+FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& InVariableName,
 	const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo)
 {
+	FRigVMGraphVariableDescription NewVariable;
 	if (!IsValidGraph())
 	{
-		return false;
+		return NewVariable;
 	}
 	
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	if (Graph->GetParentGraph() && !Graph->GetParentGraph()->IsA<URigVMFunctionLibrary>())
-	{
-		ReportError(TEXT("Can only add local variables to root graphs."));
-		return false;
-	}
-
-	TArray<FRigVMGraphVariableDescription>& LocalVariables = Graph->LocalVariables;
-	for (FRigVMGraphVariableDescription& Variable : LocalVariables)
-	{
-		if (Variable.Name == InVariableName)
+	FName VariableName = GetUniqueName(InVariableName, [Graph](const FName& InName) {
+		for (FRigVMGraphVariableDescription LocalVariable : Graph->GetLocalVariables())
 		{
-			return false;
+			if (LocalVariable.Name == InName)
+			{
+				return false;
+			}
 		}
-	}
+		return true;
+	});
 
-	FRigVMGraphVariableDescription NewVariable;
-	NewVariable.Name = InVariableName;
+	NewVariable.Name = VariableName;
 	NewVariable.CPPType = InCPPType;
 	NewVariable.CPPTypeObject = InCPPTypeObject;
 	NewVariable.DefaultValue = InDefaultValue;
 
-	LocalVariables.Add(NewVariable);
+	Graph->LocalVariables.Add(NewVariable);
 
 	if (bSetupUndoRedo)
 	{
@@ -6693,7 +6689,7 @@ bool URigVMController::AddLocalVariable(const FName& InVariableName,
 		Graph->MarkPackageDirty();
 	}
 
-	return true;
+	return NewVariable;
 }
 
 bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSetupUndoRedo)
@@ -6739,6 +6735,134 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 	}
 
 	return false;
+}
+
+bool URigVMController::RenameLocalVariable(const FName& InVariableName, const FName& InNewVariableName,
+	bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	TArray<FRigVMGraphVariableDescription>& LocalVariables = Graph->LocalVariables;
+	int32 FoundIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < LocalVariables.Num(); ++Index)
+	{
+		if (LocalVariables[Index].Name == InVariableName)
+		{
+			FoundIndex = Index;
+			break;
+		}
+	}
+
+	if (FoundIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	for (int32 Index = 0; Index < LocalVariables.Num(); ++Index)
+	{
+		if (LocalVariables[Index].Name == InNewVariableName)
+		{
+			return false;
+		}
+	}
+	
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+	
+	if (bSetupUndoRedo)
+	{
+		FRigVMInverseAction InverseAction;
+		InverseAction.Title = FString::Printf(TEXT("Rename Local Variable %s to %s"), *InVariableName.ToString(), *InNewVariableName.ToString());
+
+		ActionStack->BeginAction(InverseAction);
+		ActionStack->AddAction(FRigVMRenameLocalVariableAction(LocalVariables[FoundIndex].Name, InNewVariableName));
+		ActionStack->EndAction(InverseAction);
+	}	
+	
+	LocalVariables[FoundIndex].Name = InNewVariableName;
+	return true;
+}
+
+bool URigVMController::SetLocalVariableType(const FName& InVariableName, const FString& InCPPType,
+	UObject* InCPPTypeObject, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	TArray<FRigVMGraphVariableDescription>& LocalVariables = Graph->LocalVariables;
+	int32 FoundIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < LocalVariables.Num(); ++Index)
+	{
+		if (LocalVariables[Index].Name == InVariableName)
+		{
+			FoundIndex = Index;
+			break;
+		}
+	}
+
+	if (FoundIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+	
+	if (bSetupUndoRedo)
+	{
+		FRigVMInverseAction InverseAction;
+		InverseAction.Title = FString::Printf(TEXT("Change Local Variable type %s to %s"), *InVariableName.ToString(), *InCPPType);
+
+		ActionStack->BeginAction(InverseAction);
+		ActionStack->AddAction(FRigVMChangeLocalVariableTypeAction(LocalVariables[FoundIndex], InCPPType, InCPPTypeObject));
+		ActionStack->EndAction(InverseAction);
+	}	
+	
+	LocalVariables[FoundIndex].CPPType = InCPPType;
+	LocalVariables[FoundIndex].CPPTypeObject = InCPPTypeObject;
+
+	// Set default value
+	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
+	{
+		FString DefaultValue;
+		CreateDefaultValueForStructIfRequired(ScriptStruct, DefaultValue);
+		LocalVariables[FoundIndex].DefaultValue = DefaultValue;
+	}
+
+
+	// Change pin types on variable nodes
+	TArray<URigVMNode*> Nodes = Graph->GetNodes();
+	for (URigVMNode* Node : Nodes)
+	{
+		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+		{
+			if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+			{
+				if (VariablePin->GetDefaultValue() == InVariableName.ToString())
+				{
+					RefreshVariableNode(Node->GetFName(), InVariableName, InCPPType, InCPPTypeObject, bSetupUndoRedo);
+					continue;
+				}
+			}
+		}
+	}
+	
+	return true;
 }
 
 TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> URigVMController::GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad, bool bNotify)
@@ -9304,17 +9428,17 @@ bool URigVMController::ChangePinType(const FString& InPinPath, const FString& In
 
 bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins)
 {
-	if (InPin->CPPType == InCPPType)
-	{
-		return false;
-	}
-
 	if (InCPPType == TEXT("None") || InCPPType.IsEmpty())
 	{
 		return false;
 	}
 
 	UObject* CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(InCPPTypeObjectPath.ToString());
+	if (InPin->CPPType == InCPPType && InPin->CPPTypeObject == CPPTypeObject)
+	{
+		return false;
+	}
+
 	if (CPPTypeObject)
 	{
 		// for now we don't allow UObjects

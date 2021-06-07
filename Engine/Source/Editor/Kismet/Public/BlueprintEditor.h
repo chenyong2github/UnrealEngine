@@ -437,6 +437,17 @@ public:
 	 */
 	static FSlateBrush const* GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut);
 
+	/**
+	* Util for finding a glyph and color for a variable.
+	*
+	* @param PinType       The variable's pin type
+	* @param IconColorOut      The resulting color for the glyph
+	* @param SecondaryBrushOut The resulting secondary glyph brush (used for Map types)
+	* @param SecondaryColorOut The resulting secondary color for the glyph (used for Map types)
+	* @return					The resulting glyph brush
+	*/
+	static FSlateBrush const* GetVarIconAndColorFromPinType(const FEdGraphPinType& PinType, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut);
+
 	/** Overridable function for determining if the current mode can script */
 	virtual bool IsInAScriptingMode() const;
 
@@ -530,7 +541,7 @@ public:
 	virtual bool CanAddNewLocalVariable() const;
 
 	/** Adds a new local variable to the focused function graph */
-	void OnAddNewLocalVariable();
+	virtual void OnAddNewLocalVariable();
 
 	// Type of new document/graph being created by a menu item
 	enum ECreatedDocumentType

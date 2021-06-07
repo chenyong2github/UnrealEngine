@@ -40,7 +40,7 @@ namespace
 
 void FEdGraphSchemaAction_BlueprintVariableBase::MovePersistentItemToCategory(const FText& NewCategoryName)
 {
-	FBlueprintEditorUtils::SetBlueprintVariableCategory(GetSourceBlueprint(), VarName, GetVariableScope(), NewCategoryName);
+	FBlueprintEditorUtils::SetBlueprintVariableCategory(GetSourceBlueprint(), VarName, Cast<UStruct>(GetVariableScope()), NewCategoryName);
 }
 
 int32 FEdGraphSchemaAction_BlueprintVariableBase::GetReorderIndexInContainer() const
@@ -64,10 +64,10 @@ bool FEdGraphSchemaAction_BlueprintVariableBase::ReorderToBeforeAction(TSharedRe
 		FName TargetVarName = VarAction->GetVariableName();
 		if ((BP != nullptr) && (VarName != TargetVarName) && (VariableSource == VarAction->GetVariableScope()))
 		{
-			if (FBlueprintEditorUtils::MoveVariableBeforeVariable(BP, VarAction->GetVariableScope(), VarName, TargetVarName, true))
+			if (FBlueprintEditorUtils::MoveVariableBeforeVariable(BP, Cast<UStruct>(VarAction->GetVariableScope()), VarName, TargetVarName, true))
 			{
 				// Change category of var to match the one we dragged on to as well
-				FText TargetVarCategory = FBlueprintEditorUtils::GetBlueprintVariableCategory(BP, TargetVarName, GetVariableScope());
+				FText TargetVarCategory = FBlueprintEditorUtils::GetBlueprintVariableCategory(BP, TargetVarName, Cast<UStruct>(GetVariableScope()));
 				MovePersistentItemToCategory(TargetVarCategory);
 
 				// Update Blueprint after changes so they reflect in My Blueprint tab.
@@ -105,12 +105,19 @@ UBlueprint* FEdGraphSchemaAction_BlueprintVariableBase::GetSourceBlueprint() con
 	return UBlueprint::GetBlueprintFromClass(ClassToCheck);
 }
 
+void FEdGraphSchemaAction_BlueprintVariableBase::GetVariableTypeTree(
+	TArray<TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>>& TypeTree, ETypeTreeFilter TypeTreeFilter) const
+{
+	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+	Schema->GetVariableTypeTree(TypeTree, TypeTreeFilter);
+}
+
 /////////////////////////////////////////////////////
 // FEdGraphSchemaAction_K2LocalVar
 
 int32 FEdGraphSchemaAction_K2LocalVar::GetReorderIndexInContainer() const
 {
-	return FBlueprintEditorUtils::FindLocalVariableIndex(GetSourceBlueprint(), GetVariableScope(), GetVariableName());
+	return FBlueprintEditorUtils::FindLocalVariableIndex(GetSourceBlueprint(), Cast<UStruct>(GetVariableScope()), GetVariableName());
 }
 
 /////////////////////////////////////////////////////

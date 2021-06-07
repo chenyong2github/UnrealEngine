@@ -1236,7 +1236,7 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 						for (FRigVMGraphVariableDescription Variable : Node->GetContainedGraph()->LocalVariables)
 						{
 							FString TargetPath = FString::Printf(TEXT("LocalVariable::%s|%s"), *Node->GetNodePath(), *Variable.Name.ToString());
-							FString SourcePath = FString::Printf(TEXT("LocalVariable::%s|%s::Const"), *Node->GetContainedGraph()->GetGraphName(), *Variable.Name.ToString());
+							FString SourcePath = FString::Printf(TEXT("LocalVariableDefault::%s|%s::Const"), *Node->GetContainedGraph()->GetGraphName(), *Variable.Name.ToString());
 							FRigVMOperand* TargetPtr = WorkData.PinPathToOperand->Find(TargetPath);
 							FRigVMOperand* SourcePtr = WorkData.PinPathToOperand->Find(SourcePath);
 							if (SourcePtr && TargetPtr) 
@@ -1282,7 +1282,7 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 					for (FRigVMGraphVariableDescription Variable : Node->GetGraph()->LocalVariables)
 					{
 						FString TargetPath = FString::Printf(TEXT("LocalVariable::%s"), *Variable.Name.ToString());
-						FString SourcePath = FString::Printf(TEXT("LocalVariable::|%s::Const"), *Variable.Name.ToString());
+						FString SourcePath = FString::Printf(TEXT("LocalVariableDefault::|%s::Const"), *Variable.Name.ToString());
 						FRigVMOperand* TargetPtr = WorkData.PinPathToOperand->Find(TargetPath);
 						FRigVMOperand* SourcePtr = WorkData.PinPathToOperand->Find(SourcePath);
 						if (SourcePtr && TargetPtr)
@@ -1362,7 +1362,14 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 				if (bIsLiteral)
 				{
 					// Literal values will be reused for all instance of local variables
-					return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *Node->GetGraph()->GetGraphName(), *VariableName.ToString(), *Suffix);
+					if (InVarExpr->NumParents() == 0 && InVarExpr->NumChildren() == 0)
+					{
+						return FString::Printf(TEXT("%sLocalVariableDefault::%s|%s%s"), *Prefix, *Node->GetGraph()->GetGraphName(), *VariableName.ToString(), *Suffix);
+					}
+					else
+					{
+						return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *Node->GetGraph()->GetGraphName(), *VariableName.ToString(), *Suffix);					
+					}			
 				}
 				else
 				{

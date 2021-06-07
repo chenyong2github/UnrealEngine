@@ -1507,3 +1507,51 @@ public:
 	UPROPERTY()
 	FRigVMGraphVariableDescription LocalVariable;
 };
+
+/**
+* An action to rename a local variable.
+*/
+USTRUCT()
+struct FRigVMRenameLocalVariableAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMRenameLocalVariableAction() {}
+	FRigVMRenameLocalVariableAction(const FName& InOldName, const FName& InNewName);
+	virtual ~FRigVMRenameLocalVariableAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FName OldVariableName;
+
+	UPROPERTY()
+	FName NewVariableName;
+};
+
+/**
+* An action to change the type of a local variable.
+*/
+USTRUCT()
+struct FRigVMChangeLocalVariableTypeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+	FRigVMChangeLocalVariableTypeAction();
+	FRigVMChangeLocalVariableTypeAction(const FRigVMGraphVariableDescription& InLocalVariable, const FString& InCPPType, UObject* InCPPTypeObject);
+	virtual ~FRigVMChangeLocalVariableTypeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FRigVMGraphVariableDescription LocalVariable;
+
+	UPROPERTY()
+	FString CPPType;
+
+	UPROPERTY()
+	UObject* CPPTypeObject;
+};

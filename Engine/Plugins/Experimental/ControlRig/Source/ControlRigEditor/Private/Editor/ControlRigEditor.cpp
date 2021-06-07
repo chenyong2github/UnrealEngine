@@ -1845,6 +1845,24 @@ bool FControlRigEditor::TransactionObjectAffectsBlueprint(UObject* InTransactedO
 	return FBlueprintEditor::TransactionObjectAffectsBlueprint(InTransactedObject);
 }
 
+void FControlRigEditor::OnAddNewLocalVariable()
+{
+	if (!CanAddNewLocalVariable())
+	{
+		return;
+	}
+
+	FRigVMGraphVariableDescription NewVar = GetFocusedController()->AddLocalVariable(TEXT("NewLocalVar"), TEXT("bool"), nullptr, TEXT("0"));
+	if(NewVar.Name.IsNone())
+	{
+		LogSimpleMessage( LOCTEXT("AddLocalVariable_Error", "Adding new local variable failed.") );
+	}
+	else
+	{
+		RenameNewlyAddedAction(NewVar.Name);
+	}
+}
+
 void FControlRigEditor::DeleteSelectedNodes()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -2186,6 +2204,7 @@ bool FControlRigEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
 		case NodeSectionID::GRAPH:
 		case NodeSectionID::VARIABLE:
 		case NodeSectionID::FUNCTION:
+		case NodeSectionID::LOCAL_VARIABLE:
 		{
 			return true;
 		}

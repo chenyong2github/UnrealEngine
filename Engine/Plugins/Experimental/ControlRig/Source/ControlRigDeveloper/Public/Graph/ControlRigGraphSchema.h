@@ -4,6 +4,9 @@
 
 #include "EdGraph/EdGraphSchema.h"
 #include "GraphEditorDragDropAction.h"
+#include "RigVMModel/RigVMGraph.h"
+#include "EdGraphSchema_K2_Actions.h"
+
 #include "ControlRigGraphSchema.generated.h"
 
 class UControlRigBlueprint;
@@ -38,6 +41,46 @@ struct FControlRigPinConnectionResponse
 
 	FPinConnectionResponse Response;
 	ECanCreateConnectionResponse_Extended ExtendedResponse;
+};
+
+USTRUCT()
+struct CONTROLRIGDEVELOPER_API FControlRigGraphSchemaAction_LocalVar : public FEdGraphSchemaAction_BlueprintVariableBase
+{
+	GENERATED_BODY()
+
+	
+public:
+
+	// Simple type info
+	static FName StaticGetTypeId() {static FName Type("FControlRigGraphSchemaAction_LocalVar"); return Type;}
+	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
+
+	FControlRigGraphSchemaAction_LocalVar()
+		: FEdGraphSchemaAction_BlueprintVariableBase()
+	{}
+
+	FControlRigGraphSchemaAction_LocalVar(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, const int32 InSectionID)
+		: FEdGraphSchemaAction_BlueprintVariableBase(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, InSectionID)
+	{}
+
+	virtual bool IsA(const FName& InType) const override
+	{
+		return InType == GetTypeId() || InType == FEdGraphSchemaAction_BlueprintVariableBase::StaticGetTypeId();
+	}
+
+	virtual FEdGraphPinType GetPinType() const override;
+
+	virtual void ChangeVariableType(const FEdGraphPinType& NewPinType) override;
+
+	virtual void RenameVariable(const FName& NewName) override;
+
+	virtual bool IsValidName(const FName& NewName, FText& OutErrorMessage) const override;
+
+	virtual void DeleteVariable() override;
+
+	virtual bool IsVariableUsed() override;
+
+	virtual void GetVariableTypeTree(TArray< TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo> >& TypeTree, ETypeTreeFilter TypeTreeFilter) const override;
 };
 
 /** DragDropAction class for drag and dropping an item from the My Blueprints tree (e.g., variable or function) */
@@ -99,7 +142,7 @@ public:
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const override;
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
 	virtual bool CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> InAction) const override;
-	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction) const override;
+	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction, const FPointerEvent& MouseEvent = FPointerEvent() ) const override;
 	virtual class FConnectionDrawingPolicy* CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const override;
 	virtual bool ShouldHidePinDefaultValue(UEdGraphPin* Pin) const override;
 	virtual void TrySetDefaultValue(UEdGraphPin& InPin, const FString& InNewDefaultValue, bool bMarkAsModified = true) const override;
@@ -119,6 +162,8 @@ public:
 	virtual bool IsStructEditable(UStruct* InStruct) const;
 	virtual void SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const override;
 	virtual void GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const override;
+	virtual bool GetLocalVariables(const UEdGraph* InGraph, TArray<FBPVariableDescription>& OutLocalVariables) const override;
+	virtual TSharedPtr<FEdGraphSchemaAction> MakeActionFromVariableDescription(const UEdGraph* InEdGraph, const FBPVariableDescription& Variable) const override;
 	virtual FText GetGraphCategory(const UEdGraph* InGraph) const override;
 	virtual FReply TrySetGraphCategory(const UEdGraph* InGraph, const FText& InCategory) override;
 	virtual bool TryDeleteGraph(UEdGraph* GraphToDelete) const override;

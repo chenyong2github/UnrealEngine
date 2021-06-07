@@ -24,6 +24,8 @@
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
+#include "RigVMModel/RigVMVariableDescription.h"
+#include "Kismet2/Kismet2NameValidators.h"
 
 #if WITH_EDITOR
 #include "ControlRigEditor/Private/Editor/SControlRigFunctionLocalizationWidget.h"
@@ -34,9 +36,177 @@
 
 const FName UControlRigGraphSchema::GraphName_ControlRig(TEXT("Rig Graph"));
 
+FEdGraphPinType FControlRigGraphSchemaAction_LocalVar::GetPinType() const
+{
+	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
+	{
+		for (FRigVMGraphVariableDescription Variable : Graph->GetModel()->GetLocalVariables())
+		{
+			if (Variable.Name == GetVariableName())
+			{
+				return Variable.ToPinType();
+			}
+		}
+	}
+
+	return FEdGraphPinType();
+}
+
+void FControlRigGraphSchemaAction_LocalVar::ChangeVariableType(const FEdGraphPinType& NewPinType)
+{
+	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
+	{
+		FString NewCPPType;
+		UObject* NewCPPTypeObject = nullptr;
+		FRigVMGraphVariableDescription::CPPTypeFromPinType(NewPinType, NewCPPType, NewCPPTypeObject);
+		Graph->GetController()->SetLocalVariableType(GetVariableName(), NewCPPType, NewCPPTypeObject);
+	}
+}
+
+void FControlRigGraphSchemaAction_LocalVar::RenameVariable(const FName& NewName)
+{
+	const FName OldName = GetVariableName();
+	
+	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
+	{
+		if (Graph->GetController()->RenameLocalVariable(OldName, NewName))
+		{
+			SetVariableInfo(NewName, GetVariableScope(), GetPinType().PinCategory == TEXT("bool"));		
+		}
+	}	
+}
+
+bool FControlRigGraphSchemaAction_LocalVar::IsValidName(const FName& NewName, FText& OutErrorMessage) const
+{
+	if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(GetVariableScope()))
+	{
+		FKismetNameValidator NameValidator(ControlRigGraph->GetBlueprint());
+		EValidatorResult Result = NameValidator.IsValid(NewName.ToString());
+		if (Result != EValidatorResult::Ok)
+		{
+			OutErrorMessage = FText::FromString(TEXT("Name with invalid format"));
+			return false;
+		}
+		
+		for (const FRigVMGraphVariableDescription& LocalVar : ControlRigGraph->GetModel()->GetLocalVariables())
+		{
+			if (LocalVar.Name != GetVariableName() && LocalVar.Name == NewName)
+			{
+				OutErrorMessage = FText::FromString(TEXT("Name already in use"));
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void FControlRigGraphSchemaAction_LocalVar::DeleteVariable() 
+{
+	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
+	{
+		Graph->GetController()->RemoveLocalVariable(GetVariableName());
+	}
+}
+
+bool FControlRigGraphSchemaAction_LocalVar::IsVariableUsed()
+{
+	if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(GetVariableScope()))
+	{
+		const FString VarNameStr = GetVariableName().ToString();
+		for (URigVMNode* Node : ControlRigGraph->GetModel()->GetNodes())
+		{
+			if (URigVMVariableNode* VarNode = Cast<URigVMVariableNode>(Node))
+			{
+				if (VarNode->FindPin(TEXT("Variable"))->GetDefaultValue() == VarNameStr)
+				{
+					return true;		
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void FControlRigGraphSchemaAction_LocalVar::GetVariableTypeTree(
+	TArray<TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>>& TypeTree, ETypeTreeFilter TypeTreeFilter) const
+{
+	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+	
+	// Clear the list
+	TypeTree.Empty();
+
+	TypeTree.Add( MakeShareable( new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_Boolean, true), UEdGraphSchema_K2::PC_Boolean, Schema, LOCTEXT("BooleanType", "True or false value"))));
+	TypeTree.Add( MakeShareable( new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_Int, true), UEdGraphSchema_K2::PC_Int, Schema, LOCTEXT("IntegerType", "Integer number")) ) );;
+	
+	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_Float, true), UEdGraphSchema_K2::PC_Float, Schema, LOCTEXT("FloatType", "Floating point number"))));
+	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_Name, true), UEdGraphSchema_K2::PC_Name, Schema, LOCTEXT("NameType", "A text name"))));
+	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_String, true), UEdGraphSchema_K2::PC_String, Schema, LOCTEXT("StringType", "A text string"))));
+
+	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::PC_Struct, TBaseStructure<FVector>::Get(), LOCTEXT("VectorType", "A 3D vector"))));
+	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::PC_Struct, TBaseStructure<FRotator>::Get(), LOCTEXT("RotatorType", "A 3D rotation"))));
+	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::PC_Struct, TBaseStructure<FTransform>::Get(), LOCTEXT("TransformType", "A 3D transformation, including translation, rotation and 3D scale."))));
+}
+
 FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
 {
-	if (UControlRigGraph* TargetRigGraph = Cast<UControlRigGraph>(&Graph))
+	// For local variables
+	if (SourceAction->GetTypeId() == FControlRigGraphSchemaAction_LocalVar::StaticGetTypeId())
+	{
+		if (UControlRigGraph* TargetRigGraph = Cast<UControlRigGraph>(&Graph))
+		{
+			if (TargetRigGraph == SourceRigGraph)
+			{
+				FControlRigGraphSchemaAction_LocalVar* VarAction = (FControlRigGraphSchemaAction_LocalVar*) SourceAction.Get();
+				for (FRigVMGraphVariableDescription LocalVariable : TargetRigGraph->GetModel()->GetLocalVariables())
+				{
+					if (LocalVariable.Name == VarAction->GetVariableName())
+					{
+						URigVMController* Controller = TargetRigGraph->GetController();
+						FMenuBuilder MenuBuilder(true, NULL);
+						const FText VariableNameText = FText::FromName( LocalVariable.Name );
+
+						MenuBuilder.BeginSection("BPVariableDroppedOn", VariableNameText );
+
+						MenuBuilder.AddMenuEntry(
+							FText::Format( LOCTEXT("CreateGetVariable", "Get {0}"), VariableNameText ),
+							FText::Format( LOCTEXT("CreateVariableGetterToolTip", "Create Getter for variable '{0}'\n(Ctrl-drag to automatically create a getter)"), VariableNameText ),
+							FSlateIcon(),
+							FUIAction(
+							FExecuteAction::CreateLambda([Controller, LocalVariable, GraphPosition]()
+							{
+								Controller->AddVariableNode(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, true, LocalVariable.DefaultValue, GraphPosition);
+							}),
+							FCanExecuteAction()));
+
+						MenuBuilder.AddMenuEntry(
+							FText::Format( LOCTEXT("CreateSetVariable", "Set {0}"), VariableNameText ),
+							FText::Format( LOCTEXT("CreateVariableSetterToolTip", "Create Setter for variable '{0}'\n(Alt-drag to automatically create a setter)"), VariableNameText ),
+							FSlateIcon(),
+							FUIAction(
+							FExecuteAction::CreateLambda([Controller, LocalVariable, GraphPosition]()
+							{
+								Controller->AddVariableNode(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, false, LocalVariable.DefaultValue, GraphPosition);
+							}),
+							FCanExecuteAction()));
+
+						TSharedRef< SWidget > PanelWidget = Panel;
+						// Show dialog to choose getter vs setter
+						FSlateApplication::Get().PushMenu(
+							PanelWidget,
+							FWidgetPath(),
+							MenuBuilder.MakeWidget(),
+							ScreenPosition,
+							FPopupTransitionEffect( FPopupTransitionEffect::ContextMenu)
+							);
+
+						MenuBuilder.EndSection();
+					}	
+				}				
+			}
+		}
+	}
+	// For functions
+	else if (UControlRigGraph* TargetRigGraph = Cast<UControlRigGraph>(&Graph))
 	{
 		if (UControlRigBlueprint* TargetRigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(TargetRigGraph)))
 		{
@@ -68,6 +238,9 @@ FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class
 			}
 		}
 	}
+
+	
+	
 	return FReply::Unhandled();
 }
 
@@ -408,11 +581,19 @@ bool UControlRigGraphSchema::CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> 
 			return true;
 		}
 	}
+	else if (InAction->GetTypeId() == FControlRigGraphSchemaAction_LocalVar::StaticGetTypeId())
+	{
+		FControlRigGraphSchemaAction_LocalVar* VarAction = (FControlRigGraphSchemaAction_LocalVar*)InAction.Get();
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)VarAction->GetVariableScope()))
+		{
+			return true;
+		}
+	}
 	
 	return false;
 }
 
-FReply UControlRigGraphSchema::BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction) const
+FReply UControlRigGraphSchema::BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction, const FPointerEvent& MouseEvent) const
 {
 	if (!InAction.IsValid())
 	{
@@ -422,13 +603,30 @@ FReply UControlRigGraphSchema::BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAct
 	if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
 	{
 		FEdGraphSchemaAction_K2Graph* FuncAction = (FEdGraphSchemaAction_K2Graph*)InAction.Get();
-if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FuncAction->EdGraph))
-{
-	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
-	{
-		return FReply::Handled().BeginDragDrop(FControlRigFunctionDragDropAction::New(InAction, RigBlueprint, RigGraph));
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FuncAction->EdGraph))
+		{
+			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
+			{
+				TSharedRef<FControlRigFunctionDragDropAction> Action = FControlRigFunctionDragDropAction::New(InAction, RigBlueprint, RigGraph);
+				Action->SetAltDrag(MouseEvent.IsAltDown());
+				Action->SetCtrlDrag(MouseEvent.IsControlDown());
+				return FReply::Handled().BeginDragDrop(Action);
+			}
+		}
 	}
-}
+	else if(InAction->GetTypeId() == FControlRigGraphSchemaAction_LocalVar::StaticGetTypeId())
+	{
+		FControlRigGraphSchemaAction_LocalVar* VarAction = (FControlRigGraphSchemaAction_LocalVar*)InAction.Get();
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(VarAction->GetVariableScope()))
+		{
+			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
+			{
+				TSharedRef<FControlRigFunctionDragDropAction> Action = FControlRigFunctionDragDropAction::New(InAction, RigBlueprint, RigGraph);
+				Action->SetAltDrag(MouseEvent.IsAltDown());
+				Action->SetCtrlDrag(MouseEvent.IsControlDown());
+				return FReply::Handled().BeginDragDrop(Action);
+			}
+		}
 	}
 	return FReply::Unhandled();
 }
@@ -519,6 +717,47 @@ void UControlRigGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /
 			DisplayInfo.PlainName = DisplayInfo.DisplayName;
 		}
 	}
+}
+
+bool UControlRigGraphSchema::GetLocalVariables(const UEdGraph* InGraph, TArray<FBPVariableDescription>& OutLocalVariables) const
+{
+	OutLocalVariables.Reset();
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)InGraph))
+	{
+		if (URigVMGraph* Model = RigGraph->GetModel())
+		{
+			TArray<FRigVMGraphVariableDescription> LocalVariables = Model->GetLocalVariables();
+			for (FRigVMGraphVariableDescription LocalVariable : LocalVariables)
+			{
+				FBPVariableDescription VariableDescription;
+				VariableDescription.VarName = LocalVariable.Name;
+				VariableDescription.FriendlyName = LocalVariable.Name.ToString();
+				VariableDescription.DefaultValue = LocalVariable.DefaultValue;
+				VariableDescription.VarType = LocalVariable.ToPinType();
+				VariableDescription.PropertyFlags |= CPF_BlueprintVisible;
+				OutLocalVariables.Add(VariableDescription);
+			}
+		}
+	}
+	return true;
+}
+
+TSharedPtr<FEdGraphSchemaAction> UControlRigGraphSchema::MakeActionFromVariableDescription(const UEdGraph* InEdGraph,
+	const FBPVariableDescription& Variable) const
+{
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)InEdGraph))
+	{
+		FText Category = Variable.Category;
+		if (Variable.Category.EqualTo(UEdGraphSchema_K2::VR_DefaultCategory))
+		{
+			Category = FText::GetEmpty();
+		}
+
+		TSharedPtr<FControlRigGraphSchemaAction_LocalVar> Action = MakeShareable(new FControlRigGraphSchemaAction_LocalVar(Category, FText::FromName(Variable.VarName), FText::GetEmpty(), 0, NodeSectionID::LOCAL_VARIABLE));
+		Action->SetVariableInfo(Variable.VarName, RigGraph, Variable.VarType.PinCategory == UEdGraphSchema_K2::PC_Boolean);
+		return Action;
+	}
+	return nullptr;
 }
 
 FText UControlRigGraphSchema::GetGraphCategory(const UEdGraph* InGraph) const
