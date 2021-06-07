@@ -3712,6 +3712,11 @@ FBox UInstancedStaticMeshComponent::GetNavigationBounds() const
 	return CalcBounds(GetComponentTransform()).GetBox();
 }
 
+bool UInstancedStaticMeshComponent::IsNavigationRelevant() const
+{
+	return GetInstanceCount() > 0 && Super::IsNavigationRelevant();
+}
+
 void UInstancedStaticMeshComponent::GetNavigationPerInstanceTransforms(const FBox& AreaBox, TArray<FTransform>& InstanceData) const
 {
 	for (const auto& InstancedData : PerInstanceSMData)
