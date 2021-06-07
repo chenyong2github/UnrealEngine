@@ -77,12 +77,12 @@ FReply SVisualLoggerTimelineBar::OnMouseMove(const FGeometry& MyGeometry, const 
 
 			for (const FVisualLogShapeElement& Shape : CurrentEntry.ElementsToDraw)
 			{
-				TooltipBuilder += FString::Printf(TEXT("\n(shape) %s: %s"), FOutputDeviceHelper::VerbosityToString(Shape.Verbosity), *Shape.Description);
+				TooltipBuilder += FString::Printf(TEXT("\n(shape) %s: %s"), ::ToString(Shape.Verbosity), *Shape.Description);
 			}
 
 			for (const FVisualLogLine& Line : CurrentEntry.LogLines)
 			{
-				TooltipBuilder += FString::Printf(TEXT("\n(log) %s: %s"), FOutputDeviceHelper::VerbosityToString(Line.Verbosity), *Line.Line);
+				TooltipBuilder += FString::Printf(TEXT("\n(log) %s: %s"), ::ToString(Line.Verbosity), *Line.Line);
 			}
 		}
 

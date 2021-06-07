@@ -198,7 +198,7 @@ void NUTUtil::SpecialLog(FOutputDeviceFile* Ar, const TCHAR* SpecialCategory, co
 
 		if (Verbosity != ELogVerbosity::Log)
 		{
-			SerializeStr += FOutputDeviceHelper::VerbosityToString(Verbosity);
+			SerializeStr += ToString(Verbosity);
 			SerializeStr += TEXT(": ");
 		}
 		else if (Category != NAME_None)

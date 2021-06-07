@@ -61,3 +61,10 @@ namespace ELogVerbosity
 
 static_assert(ELogVerbosity::NumVerbosity - 1 < ELogVerbosity::VerbosityMask, "Bad verbosity mask.");
 static_assert(!(ELogVerbosity::VerbosityMask & ELogVerbosity::BreakOnLog), "Bad verbosity mask.");
+
+/**
+ * Converts verbosity to a string
+ * @param Verbosity verbosity enum
+ * @returns String representation of the verbosity enum
+ */
+CORE_API const TCHAR* ToString(ELogVerbosity::Type Verbosity);

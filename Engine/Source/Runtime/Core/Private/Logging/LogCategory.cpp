@@ -3,6 +3,7 @@
 #include "Logging/LogCategory.h"
 #include "CoreGlobals.h"
 #include "Logging/LogSuppressionInterface.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/OutputDeviceRedirector.h"
 
 FLogCategoryBase::FLogCategoryBase(const FLogCategoryName& InCategoryName, ELogVerbosity::Type InDefaultVerbosity, ELogVerbosity::Type InCompileTimeVerbosity)
@@ -33,10 +34,16 @@ FLogCategoryBase::~FLogCategoryBase()
 
 void FLogCategoryBase::SetVerbosity(ELogVerbosity::Type NewVerbosity)
 {
+	const ELogVerbosity::Type OldVerbosity = Verbosity;
 	// regularize the verbosity to be at most whatever we were compiled with
 	Verbosity = FMath::Min<ELogVerbosity::Type>(CompileTimeVerbosity, (ELogVerbosity::Type)(NewVerbosity & ELogVerbosity::VerbosityMask));
 	DebugBreakOnLog = !!(NewVerbosity & ELogVerbosity::BreakOnLog);
 	checkSlow(!(Verbosity & ELogVerbosity::BreakOnLog)); // this bit is factored out of this variable, always
+
+	if (OldVerbosity != Verbosity)
+	{
+		FCoreDelegates::OnLogVerbosityChanged.Broadcast(GetCategoryName(), OldVerbosity, Verbosity);
+	}
 }
 
 void FLogCategoryBase::ResetFromDefault()
