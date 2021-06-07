@@ -19,7 +19,7 @@ namespace Geometry {
 
 
 template<typename RealType>
-class GEOMETRYALGORITHMS_API TConvexHull2
+class GEOMETRYCORE_API TConvexHull2
 {
 public:
 

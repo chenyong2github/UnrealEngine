@@ -2,11 +2,14 @@
 
 #include "GeometryCoreModule.h"
 
+#include "CompGeom/ExactPredicates.h"
+
 #define LOCTEXT_NAMESPACE "FGeometryCoreModule"
 
 void FGeometryCoreModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	UE::Geometry::ExactPredicates::GlobalInit();
 }
 
 void FGeometryCoreModule::ShutdownModule()

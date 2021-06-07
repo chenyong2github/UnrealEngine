@@ -21,7 +21,7 @@ template <typename RealType> struct TConvexHull3Internal;
  * Calculate the Convex Hull of a 3D point set as a Triangle Mesh
  */
 template<typename RealType>
-class GEOMETRYALGORITHMS_API TConvexHull3
+class GEOMETRYCORE_API TConvexHull3
 {
 public:
 

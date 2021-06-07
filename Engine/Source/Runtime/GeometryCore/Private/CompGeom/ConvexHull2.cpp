@@ -1,14 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Port of "ThirdParty/GTEngine/Mathematics/GteConvexHull2.h"
+// Adaptation/Port of GTEngine's ConvexHull2 algorithm;
+// ref: Engine\Plugins\Experimental\GeometryProcessing\Source\GeometryAlgorithms\Private\ThirdParty\GTEngine\Mathematics\GteConvexHull2.h
 
-#include "ConvexHull2.h"
+#include "CompGeom/ConvexHull2.h"
 
-#include "ExactPredicates.h"
+#include "CompGeom/ExactPredicates.h"
 #include "Algo/Unique.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
-using namespace UE::Geometry;
+namespace UE
+{
+namespace Geometry
+{
+
 
 template<class RealType>
 bool TConvexHull2<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc)
@@ -288,11 +292,6 @@ void TConvexHull2<RealType>::GetTangent(TFunctionRef<FVector2<RealType>(int32)> 
 
 }
 
-
-namespace UE
-{
-namespace Geometry
-{
 
 template class TConvexHull2<float>;
 template class TConvexHull2<double>;

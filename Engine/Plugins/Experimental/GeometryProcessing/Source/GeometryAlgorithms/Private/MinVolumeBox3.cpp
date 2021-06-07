@@ -18,7 +18,7 @@ THIRD_PARTY_INCLUDES_END
 #pragma warning(pop)
 #endif
 
-#include "ConvexHull3.h"
+#include "CompGeom/ConvexHull3.h"
 
 #include "GteUtil.h"
 #include "Util/ProgressCancel.h"
