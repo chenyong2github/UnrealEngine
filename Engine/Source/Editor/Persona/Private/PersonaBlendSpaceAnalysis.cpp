@@ -296,9 +296,8 @@ static TArray<IBlendSpaceAnalysisFeature*> GetAnalysisFeatures(bool bCoreFeature
 
 //======================================================================================================================
 FVector BlendSpaceAnalysis::CalculateSampleValue(const UBlendSpace& BlendSpace, const UAnimSequence& Animation,
-												  const float RateScale, const FVector& OriginalPosition, bool bAnalyzed[3])
+                                                 const float RateScale, const FVector& OriginalPosition, bool bAnalyzed[3])
 {
-
 	FVector AdjustedPosition = OriginalPosition;
 	TArray<IBlendSpaceAnalysisFeature*> ModularFeatures = GetAnalysisFeatures(true);
 	for (int32 Index = 0; Index != 2; ++Index)
