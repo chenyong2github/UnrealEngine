@@ -14,6 +14,7 @@
 		InOption: PublishBuilds - Enabled/Disable publishing of builds to build storage
 		
 		InProperty: ProjectName
+		InProperty: ProjectPath
 		InProperty: EscapedBranch
 
 		OutOption: PublishBuilds - Publish output from builds to a network share
@@ -36,8 +37,8 @@
 	<Option Name="PublishReports" DefaultValue="$(IsBuildMachine)" Description="Publish packaged builds to the builds folder on the netwok"/>
 
 
-	<!-- Where builds are saved to locally (todo - use ProjectDir?) -->
-	<Property Name="ProjectOutputDirectory" Value="$(RootDir)/LocalBuilds/$(ProjectName)"/>
+	<!-- Where builds are saved to locally -->
+	<Property Name="ProjectOutputDirectory" Value="$(ProjectPath)/Saved/StagedBuilds"/>
 	<Property Name="AutomationReportOutputDirectory" Value=""/>
 
 	<!-- Scratch network path that can be used for tests if we aren't publishing. Assumes there's a cleanup script.. -->
