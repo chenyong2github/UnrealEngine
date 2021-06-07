@@ -242,40 +242,6 @@ void URigVMGraph::SetDefaultFunctionLibrary(URigVMFunctionLibrary* InFunctionLib
 	DefaultFunctionLibraryPtr = InFunctionLibrary;
 }
 
-bool URigVMGraph::AddLocalVariable(const FRigVMGraphVariableDescription& NewVar)
-{
-	for (FRigVMGraphVariableDescription Variable : LocalVariables)
-	{
-		if (Variable.Name == NewVar.Name)
-		{
-			return false;
-		}
-	}
-	
-	LocalVariables.Add(NewVar);
-	return true;
-}
-
-bool URigVMGraph::RemoveLocalVariable(const FName& InVariableName)
-{
-	int32 FoundIndex = INDEX_NONE;
-	for (int32 Index = 0; Index < LocalVariables.Num(); ++Index)
-	{
-		if (LocalVariables[Index].Name == InVariableName)
-		{
-			FoundIndex = Index;
-			break;
-		}
-	}
-
-	if (FoundIndex != INDEX_NONE)
-	{
-		LocalVariables.RemoveAt(FoundIndex);
-		return true;
-	}
-	return false;
-}
-
 TArray<FRigVMExternalVariable> URigVMGraph::GetExternalVariables() const
 {
 	TArray<FRigVMExternalVariable> Variables;

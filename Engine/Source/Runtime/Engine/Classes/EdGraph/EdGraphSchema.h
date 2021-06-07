@@ -14,6 +14,7 @@
 
 class FSlateRect;
 class UEdGraph;
+struct FBPVariableDescription;
 
 /** Distinguishes between different graph types. Graphs can have different properties; for example: functions have one entry point, ubergraphs can have multiples. */
 UENUM()
@@ -287,6 +288,12 @@ public:
 	// Returns an opaque handle that can be used to confirm that two different persistent entries backing actions are part of the same section/category
 	// (e.g., both are variables in the same Blueprint)
 	virtual FEdGraphSchemaActionDefiningObject GetPersistentItemDefiningObject() const { return FEdGraphSchemaActionDefiningObject(nullptr); }
+
+	// Returns true if the action refers to a external or local variable
+	virtual bool IsA(const FName& InType) const
+	{
+		return InType == GetTypeId();
+	}
 
 private:
 	void UpdateSearchText();
@@ -966,9 +973,9 @@ class ENGINE_API UEdGraphSchema : public UObject
 	virtual bool CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> InAction) const { return false; }
 
 	/*
-	 * Begins a drag and drop action to drag a graph into another graph
+	 * Begins a drag and drop action to drag a graph action into another graph
 	 */
-	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction) const { return FReply::Unhandled(); }
+	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction, const FPointerEvent& MouseEvent = FPointerEvent() ) const { return FReply::Unhandled(); }
 
 	/**
 	 * Gets display information for a graph
@@ -1170,4 +1177,25 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @return  true if the blueprint marking has been taken care off.
 	 */
 	virtual bool MarkBlueprintDirtyFromNewNode(UBlueprint* InBlueprint, UEdGraphNode* InEdGraphNode) const { return false; }
+
+	/**
+	* Returns the local variables related to the graph.
+	*
+	* @param   InGraph    The graph where to look for local variables
+	* @param   OutLocalVariables    The local variables found in the graph
+	* 
+	* @return  true if the graph can contain local variables (even if it has no local variables)
+	*/
+	virtual bool GetLocalVariables(const UEdGraph* InGraph, TArray<FBPVariableDescription>& OutLocalVariables) const { return false; }
+
+	/**
+	* Generates a graph schema action from a graph and a variable description.
+	*
+	* @param   InGraph    The graph where the variable is located
+	* @param   VariableDescription    The description of the variable from which to generate the action
+	* 
+	* @return  a shared pointer to the newly created action.
+	*/
+	virtual TSharedPtr<FEdGraphSchemaAction> MakeActionFromVariableDescription(const UEdGraph* InEdGraph, const FBPVariableDescription& VariableDescription) const { return nullptr; }
+
 };

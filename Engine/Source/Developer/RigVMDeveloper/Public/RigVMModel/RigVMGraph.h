@@ -119,14 +119,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	void SetDefaultFunctionLibrary(URigVMFunctionLibrary* InFunctionLibrary);
 
-	// Returns true if the variable was added to the graph's local variables
-	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
-	bool AddLocalVariable(const FRigVMGraphVariableDescription& InVariable);
-
-	// Returns true if the variable was removed from the graph's local variables
-	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
-	bool RemoveLocalVariable(const FName& InVariableName);
-
 	TArray<FRigVMExternalVariable> GetExternalVariables() const;
 
 	const TArray<FRigVMGraphVariableDescription>& GetLocalVariables() const { return LocalVariables; }

@@ -620,7 +620,7 @@ void SMyBlueprint::OnCategoryNameCommitted(const FText& InNewText, ETextCommit::
 			{
 				FEdGraphSchemaAction_K2LocalVar* LocalVarAction = (FEdGraphSchemaAction_K2LocalVar*)Actions[i].Get();
 
-				FBlueprintEditorUtils::SetBlueprintVariableCategory(GetBlueprintObj(), LocalVarAction->GetVariableName(), LocalVarAction->GetVariableScope(), CategoryName, true);
+				FBlueprintEditorUtils::SetBlueprintVariableCategory(GetBlueprintObj(), LocalVarAction->GetVariableName(), CastChecked<UStruct>(LocalVarAction->GetVariableScope()), CategoryName, true);
 			}
 			else if (Actions[i]->GetTypeId() == FEdGraphSchemaAction_K2Delegate::StaticGetTypeId())
 			{
@@ -1142,21 +1142,18 @@ void SMyBlueprint::GetLocalVariables(FGraphActionSort& SortList) const
 	UEdGraph* TopLevelGraph = FBlueprintEditorUtils::GetTopLevelGraph(GetFocusedGraph());
 	if( TopLevelGraph )
 	{
+		TArray<FBPVariableDescription> LocalVariables;
+		bool bSchemaImplementsGetLocalVariables = false;
+	
 		// grab the parent graph's name
 		FGraphDisplayInfo EdGraphDisplayInfo;
 		if (UEdGraphSchema const* Schema = TopLevelGraph->GetSchema())
 		{
 			Schema->GetGraphDisplayInformation(*TopLevelGraph, EdGraphDisplayInfo);
-		}
 
-		TArray<UK2Node_FunctionEntry*> FunctionEntryNodes;
-		TopLevelGraph->GetNodesOfClass<UK2Node_FunctionEntry>(FunctionEntryNodes);
-
-		// Search in all FunctionEntry nodes for their local variables
-		FText ActionCategory;
-		for (UK2Node_FunctionEntry* const FunctionEntry : FunctionEntryNodes)
-		{
-			for (const FBPVariableDescription& Variable : FunctionEntry->LocalVariables)
+			// Try to get the local variables from the schema
+			bSchemaImplementsGetLocalVariables = Schema->GetLocalVariables(GetFocusedGraph(), LocalVariables);
+			for (const FBPVariableDescription& Variable : LocalVariables)
 			{
 				FText Category = Variable.Category;
 				if (Variable.Category.EqualTo(UEdGraphSchema_K2::VR_DefaultCategory))
@@ -1164,12 +1161,39 @@ void SMyBlueprint::GetLocalVariables(FGraphActionSort& SortList) const
 					Category = FText::GetEmpty();
 				}
 
-				UFunction* Func = FindUField<UFunction>(GetBlueprintObj()->SkeletonGeneratedClass, TopLevelGraph->GetFName());
-				if (Func)
+				TSharedPtr<FEdGraphSchemaAction> Action =  Schema->MakeActionFromVariableDescription(GetFocusedGraph(), Variable);
+				if (Action.IsValid())
 				{
-					TSharedPtr<FEdGraphSchemaAction_K2LocalVar> NewVarAction = MakeShareable(new FEdGraphSchemaAction_K2LocalVar(Category, FText::FromName(Variable.VarName), FText::GetEmpty(), 0, NodeSectionID::LOCAL_VARIABLE));
-					NewVarAction->SetVariableInfo(Variable.VarName, Func, Variable.VarType.PinCategory == UEdGraphSchema_K2::PC_Boolean);
-					SortList.AddAction(NewVarAction);
+					SortList.AddAction(Action);
+				}						
+			}
+		}
+
+		// If the schema did not return any local variables, try to get them from the function entry
+		if (!bSchemaImplementsGetLocalVariables)
+		{
+			TArray<UK2Node_FunctionEntry*> FunctionEntryNodes;
+			TopLevelGraph->GetNodesOfClass<UK2Node_FunctionEntry>(FunctionEntryNodes);
+
+			// Search in all FunctionEntry nodes for their local variables
+			FText ActionCategory;
+			for (UK2Node_FunctionEntry* const FunctionEntry : FunctionEntryNodes)
+			{
+				for (const FBPVariableDescription& Variable : FunctionEntry->LocalVariables)
+				{
+					FText Category = Variable.Category;
+					if (Variable.Category.EqualTo(UEdGraphSchema_K2::VR_DefaultCategory))
+					{
+						Category = FText::GetEmpty();
+					}
+
+					UFunction* Func = FindUField<UFunction>(GetBlueprintObj()->SkeletonGeneratedClass, TopLevelGraph->GetFName());
+					if (Func)
+					{
+						TSharedPtr<FEdGraphSchemaAction_K2LocalVar> NewVarAction = MakeShareable(new FEdGraphSchemaAction_K2LocalVar(Category, FText::FromName(Variable.VarName), FText::GetEmpty(), 0, NodeSectionID::LOCAL_VARIABLE));
+						NewVarAction->SetVariableInfo(Variable.VarName, Func, Variable.VarType.PinCategory == UEdGraphSchema_K2::PC_Boolean);
+						SortList.AddAction(NewVarAction);
+					}
 				}
 			}
 		}
@@ -1775,7 +1799,7 @@ FReply SMyBlueprint::OnActionDragged( const TArray< TSharedPtr<FEdGraphSchemaAct
 		else if( InAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
 		{
 			FEdGraphSchemaAction_K2LocalVar* VarAction = (FEdGraphSchemaAction_K2LocalVar*)InAction.Get();
-			if (UStruct* VariableScope = VarAction->GetVariableScope())
+			if (UStruct* VariableScope = Cast<UStruct>(VarAction->GetVariableScope()))
 			{
 				TSharedRef<FKismetVariableDragDropAction> DragOperation = FKismetVariableDragDropAction::New(InAction, VarAction->GetVariableName(), VariableScope, AnalyticsDelegate);
 				DragOperation->SetAltDrag(MouseEvent.IsAltDown());
@@ -1793,6 +1817,15 @@ FReply SMyBlueprint::OnActionDragged( const TArray< TSharedPtr<FEdGraphSchemaAct
 				DragOperation->SetCtrlDrag(MouseEvent.IsLeftControlDown() || MouseEvent.IsRightControlDown());
 				return FReply::Handled().BeginDragDrop(DragOperation);
 			}
+		}
+		else if( InAction->IsA(FEdGraphSchemaAction_BlueprintVariableBase::StaticGetTypeId()))
+		{
+			FEdGraphSchemaAction_BlueprintVariableBase* VarAction = (FEdGraphSchemaAction_BlueprintVariableBase*)InAction.Get();
+
+			if (GetFocusedGraph()->GetSchema()->CanGraphBeDropped(InAction))
+			{
+				return GetFocusedGraph()->GetSchema()->BeginGraphDragAction(InAction, MouseEvent);
+			}		
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Event::StaticGetTypeId())
 		{	
@@ -2065,6 +2098,22 @@ FEdGraphSchemaAction_K2Var* SMyBlueprint::SelectionAsVar() const
 FEdGraphSchemaAction_K2LocalVar* SMyBlueprint::SelectionAsLocalVar() const
 {
 	return SelectionAsType<FEdGraphSchemaAction_K2LocalVar>(GraphActionMenu);
+}
+
+FEdGraphSchemaAction_BlueprintVariableBase* SMyBlueprint::SelectionAsBlueprintVariable() const
+{
+	TArray<TSharedPtr<FEdGraphSchemaAction> > SelectedActions;
+	GraphActionMenu->GetSelectedActions(SelectedActions);
+
+	FEdGraphSchemaAction_BlueprintVariableBase* Selection = nullptr;
+
+	TSharedPtr<FEdGraphSchemaAction> SelectedAction( SelectedActions.Num() > 0 ? SelectedActions[0] : nullptr );
+	if ( SelectedAction.IsValid() && SelectedAction->IsA(FEdGraphSchemaAction_BlueprintVariableBase::StaticGetTypeId()))
+	{
+		Selection = (FEdGraphSchemaAction_BlueprintVariableBase*)SelectedAction.Get();
+	}
+
+	return Selection;
 }
 
 FEdGraphSchemaAction_K2Delegate* SMyBlueprint::SelectionAsDelegate() const
@@ -2766,7 +2815,7 @@ void SMyBlueprint::OnDeleteEntry()
 	}
 	else if ( FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar() )
 	{
-		if(FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), LocalVarAction->GetVariableName(), FBlueprintEditorUtils::FindScopeGraph(GetBlueprintObj(), LocalVarAction->GetVariableScope())))
+		if(FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), LocalVarAction->GetVariableName(), FBlueprintEditorUtils::FindScopeGraph(GetBlueprintObj(), CastChecked<UStruct>(LocalVarAction->GetVariableScope()))))
 		{
 			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteLocalVariableInUse", "Local Variable {0} is in use! Do you really want to delete it?"),
 				FText::FromName( LocalVarAction->GetVariableName() ) );
@@ -2793,7 +2842,31 @@ void SMyBlueprint::OnDeleteEntry()
 		check(FunctionEntryNodes.Num() == 1);
 		FunctionEntryNodes[0]->Modify();
 
-		FBlueprintEditorUtils::RemoveLocalVariable(GetBlueprintObj(), LocalVarAction->GetVariableScope(), LocalVarAction->GetVariableName());
+		FBlueprintEditorUtils::RemoveLocalVariable(GetBlueprintObj(), CastChecked<UStruct>(LocalVarAction->GetVariableScope()), LocalVarAction->GetVariableName());
+	}
+	else if ( FEdGraphSchemaAction_BlueprintVariableBase* BPVarAction = SelectionAsBlueprintVariable() )
+	{
+		if(BPVarAction->IsVariableUsed())
+		{
+			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteLocalVariableInUse", "Variable {0} is in use! Do you really want to delete it?"),
+				FText::FromName( BPVarAction->GetVariableName() ) );
+
+			// Warn the user that this may result in data loss
+			FSuppressableWarningDialog::FSetupInfo Info( ConfirmDelete, LOCTEXT("DeleteVar", "Delete Variable"), "DeleteVariableInUse_Warning" );
+			Info.ConfirmText = LOCTEXT( "DeleteVariable_Yes", "Yes");
+			Info.CancelText = LOCTEXT( "DeleteVariable_No", "No");	
+
+			FSuppressableWarningDialog DeleteVariableInUse( Info );
+			if ( DeleteVariableInUse.ShowModal() == FSuppressableWarningDialog::Cancel )
+			{
+				return;
+			}
+		}
+
+		const FScopedTransaction Transaction( LOCTEXT( "RemoveLocalVariable", "Remove Local Variable" ) );
+
+		GetBlueprintObj()->Modify();
+		BPVarAction->DeleteVariable();		
 	}
 	else if (FEdGraphSchemaAction_K2Event* EventAction = SelectionAsEvent())
 	{
@@ -2857,7 +2930,7 @@ void SMyBlueprint::OnDeleteEntry()
 				{
 					FEdGraphSchemaAction_K2LocalVar* K2LocalVarAction = (FEdGraphSchemaAction_K2LocalVar*)Actions[i].Get();
 
-					FBlueprintEditorUtils::RemoveLocalVariable(GetBlueprintObj(), K2LocalVarAction->GetVariableScope(), K2LocalVarAction->GetVariableName());
+					FBlueprintEditorUtils::RemoveLocalVariable(GetBlueprintObj(), CastChecked<UStruct>(K2LocalVarAction->GetVariableScope()), K2LocalVarAction->GetVariableName());
 					bModified = true;
 				}
 				else if (Actions[i]->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
@@ -2932,6 +3005,10 @@ bool SMyBlueprint::CanDeleteEntry() const
 	{
 		return true;
 	}
+	else if (FEdGraphSchemaAction_BlueprintVariableBase* BPVariable = SelectionAsBlueprintVariable())
+	{
+		return true;
+	}
 	else if (SelectionIsCategory())
 	{
 		// Can't delete categories if they can't be renamed, that means they are native
@@ -2990,7 +3067,7 @@ bool SMyBlueprint::CanDuplicateAction() const
 		}
 		return true;
 	}
-	else if(SelectionAsLocalVar())
+	else if(SelectionAsBlueprintVariable())
 	{
 		return true;
 	}
@@ -3062,7 +3139,7 @@ void SMyBlueprint::OnDuplicateAction()
 		const FScopedTransaction Transaction( LOCTEXT( "Duplicate Local Variable", "Duplicate Local Variable" ) );
 		GetBlueprintObj()->Modify();
 
-		DuplicateActionName = FBlueprintEditorUtils::DuplicateVariable(GetBlueprintObj(), LocalVarAction->GetVariableScope(), LocalVarAction->GetVariableName());
+		DuplicateActionName = FBlueprintEditorUtils::DuplicateVariable(GetBlueprintObj(), Cast<UStruct>(LocalVarAction->GetVariableScope()), LocalVarAction->GetVariableName());
 	}
 
 	// Select and rename the duplicated action
@@ -3229,7 +3306,7 @@ void SMyBlueprint::OnCopy()
 	}
 	else if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
 	{
-		FBPVariableDescription* Description = FBlueprintEditorUtils::FindLocalVariable(Blueprint, LocalVarAction->GetVariableScope(), LocalVarAction->GetVariableName());
+		FBPVariableDescription* Description = FBlueprintEditorUtils::FindLocalVariable(Blueprint, CastChecked<UStruct>(LocalVarAction->GetVariableScope()), LocalVarAction->GetVariableName());
 
 		if (Description)
 		{
@@ -3261,7 +3338,7 @@ bool SMyBlueprint::CanCopy() const
 	}
 	if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
 	{
-		return FBlueprintEditorUtils::FindLocalVariable(Blueprint, LocalVarAction->GetVariableScope(), LocalVarAction->GetVariableName()) != nullptr;
+		return FBlueprintEditorUtils::FindLocalVariable(Blueprint, Cast<UStruct>(LocalVarAction->GetVariableScope()), LocalVarAction->GetVariableName()) != nullptr;
 	}
 	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{

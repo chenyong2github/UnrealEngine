@@ -551,13 +551,20 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromProperty(const FPrope
 		FEdGraphPinType PinType;
 		if (K2Schema->ConvertPropertyToPinType(Property, PinType)) // use schema to get the color
 		{
-			IconColorOut = K2Schema->GetPinTypeColor(PinType);
-			SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
-			SecondaryColorOut = K2Schema->GetSecondaryPinTypeColor(PinType);
-			return FBlueprintEditorUtils::GetIconFromPin(PinType);
+			return GetVarIconAndColorFromPinType(PinType, IconColorOut, SecondaryBrushOut, SecondaryColorOut);
 		}
 	}
 	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+}
+
+FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromPinType(const FEdGraphPinType& PinType,
+	FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut)
+{
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	IconColorOut = K2Schema->GetPinTypeColor(PinType);
+	SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
+	SecondaryColorOut = K2Schema->GetSecondaryPinTypeColor(PinType);
+	return FBlueprintEditorUtils::GetIconFromPin(PinType);
 }
 
 bool FBlueprintEditor::IsInAScriptingMode() const

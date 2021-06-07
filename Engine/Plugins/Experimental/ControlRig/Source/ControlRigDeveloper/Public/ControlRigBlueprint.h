@@ -177,7 +177,7 @@ public:
 	virtual void ReplaceDeprecatedNodes() override;
 
 	virtual bool SupportsGlobalVariables() const override { return true; }
-	virtual bool SupportsLocalVariables() const override { return false; }
+	virtual bool SupportsLocalVariables() const override { return true; }
 	virtual bool SupportsFunctions() const override { return true; }
 	virtual bool SupportsMacros() const override { return false; }
 	virtual bool SupportsDelegates() const override { return false; }

@@ -104,7 +104,9 @@ public:
 
 	// BlueprintEditor interface
 	virtual bool TransactionObjectAffectsBlueprint(UObject* InTransactedObject) override;
-	virtual bool CanAddNewLocalVariable() const override { return false; }
+	virtual bool CanAddNewLocalVariable() const override { return true; }
+	virtual void OnAddNewLocalVariable() override;
+	
 	virtual void DeleteSelectedNodes() override;
 	virtual bool CanDeleteNodes() const override;
 
