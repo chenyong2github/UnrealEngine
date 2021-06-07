@@ -45,9 +45,9 @@ struct FPrimitiveInstance
 	FRenderTransform		PrevLocalToWorld;
 	FVector4				NonUniformScale;
 	FVector3f				InvNonUniformScale;
-	FBoxSphereBounds		RenderBounds;
+	FRenderBounds			RenderBounds;
 	uint32					LastUpdateSceneFrameNumber;
-	FBoxSphereBounds		LocalBounds;
+	FRenderBounds			LocalBounds;
 	float					PerInstanceRandom;
 	FVector4				LightMapAndShadowMapUVBias;
 	FNaniteInfo				NaniteInfo;

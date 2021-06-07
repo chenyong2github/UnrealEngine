@@ -676,7 +676,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 									if (PrimitiveInstances && InstanceIndex < PrimitiveInstances->Num())
 									{
 										const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
-										LocalBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
+										LocalBoundingBox = PrimitiveInstance.RenderBounds.ToBox();
 										LocalToWorld = PrimitiveInstance.InstanceToLocal.ToMatrix() * PrimitiveLocalToWorld;
 									}
 
