@@ -640,6 +640,14 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 RWBuffer<uint> DrawIndirectBuffer; 
 RWBuffer<uint> DispatchIndirectBuffer; 
 
+#if PERMUTATION_GROUP_SIZE == 64
+	#define GROUP_SIZE 64
+#elif PERMUTATION_GROUP_SIZE == 32
+	#define GROUP_SIZE 32
+#else
+	#error Unknown group size
+#endif
+
 [numthreads(1, 1, 1)]
 void MainClusterCullingPrepareIndirectDispatchCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID, 
@@ -648,13 +656,10 @@ void MainClusterCullingPrepareIndirectDispatchCS(
 {
 	if (GroupId.x == 0 && GroupThreadId.x == 0)
 	{
-		// See HairStrandsVisibilityRasterCompute.usf
-		const uint RasterComputeGroupSize = 32; // TODO change this so that we can have dispatch for different GroupSize
-
 		// DrawIndirectBuffer contains the total number of vertex count needed for drawing quad triangle strips, so 6 vertices per quad / control point
 		const uint VertexCount    = DrawIndirectBuffer[0];
 		const uint ControlPoint   = VertexCount / 6;
-		const uint DispatchCount  = DivideAndRoundUp(ControlPoint, RasterComputeGroupSize);
+		const uint DispatchCount  = DivideAndRoundUp(ControlPoint, GROUP_SIZE);
 		const uint DispatchCountX = DispatchCount >= INDIRECT_GROUP_COUNT_X ? INDIRECT_GROUP_COUNT_X : (DispatchCount % INDIRECT_GROUP_COUNT_X);
 		const uint DispatchCountY = DivideAndRoundUp(DispatchCount, INDIRECT_GROUP_COUNT_X);
 

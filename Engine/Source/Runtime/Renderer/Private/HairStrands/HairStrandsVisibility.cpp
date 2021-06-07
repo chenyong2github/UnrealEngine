@@ -3010,11 +3010,12 @@ class FVisiblityRasterComputeCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeCS);
 	SHADER_USE_PARAMETER_STRUCT(FVisiblityRasterComputeCS, FGlobalShader);
 
+	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FRasterAtomic : SHADER_PERMUTATION_INT("PERMUTATION_RASTER_ATOMIC", 4);
 	class FSPP : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_SPP", 1, 2, 4); 
 	class FCulling : SHADER_PERMUTATION_BOOL("PERMUTATION_CULLING");
 	class FStochastic : SHADER_PERMUTATION_BOOL("PERMUTATION_STOCHASTIC");
-	using FPermutationDomain = TShaderPermutationDomain<FRasterAtomic, FSPP, FCulling, FStochastic>;
+	using FPermutationDomain = TShaderPermutationDomain<FRasterAtomic, FSPP, FCulling, FStochastic, FGroupSize>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MacroGroupId)
@@ -3158,8 +3159,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
 	const uint32 FrameIdMode8 = ViewInfo.ViewState ? (ViewInfo.ViewState->GetFrameIndex() % 8) : 0;
-	const uint32 GroupSize = 32;
-	const uint32 DispatchCountX = 64;
+	const uint32 GroupSize = GetVendorOptimalGroupSize1D();
 
 	FVisiblityRasterComputeCS::FPermutationDomain PermutationVector0;
 	FVisiblityRasterComputeCS::FPermutationDomain PermutationVector1;
@@ -3180,6 +3180,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 #endif
 	PermutationVector0.Set<FVisiblityRasterComputeCS::FStochastic>(bStochasticRaster);
 	PermutationVector0.Set<FVisiblityRasterComputeCS::FSPP>(SamplePerPixelCount);
+	PermutationVector0.Set<FVisiblityRasterComputeCS::FGroupSize>(GroupSize);
 	PermutationVector1 = PermutationVector0; 
 
 	PermutationVector0.Set<FVisiblityRasterComputeCS::FCulling>(false);
@@ -3197,7 +3198,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			PassParameters->OutputResolution = Out.SuperResolution;
 			PassParameters->ResolutionMultiplier = Out.ResolutionMultiplier;
 			PassParameters->MacroGroupId = MacroGroup.MacroGroupId;
-			PassParameters->DispatchCountX = DispatchCountX;
+			PassParameters->DispatchCountX = 1;
 			PassParameters->MaxRasterCount = FMath::Clamp(GHairVisibilityComputeRaster_MaxPixelCount, 1, 256);			
 			PassParameters->FrameIdMod8 = FrameIdMode8;
 			PassParameters->HairMaterialId = PrimitiveInfo.MaterialId;
@@ -3239,8 +3240,8 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			}
 			else
 			{
-				const uint32 DispatchCountY = FMath::CeilToInt(PassParameters->HairStrandsVF_VertexCount / float(GroupSize * DispatchCountX));
-				const FIntVector DispatchCount(DispatchCountX, DispatchCountY, 1);
+				const FIntVector DispatchCount = ComputeDispatchCount(PassParameters->HairStrandsVF_VertexCount, GroupSize);
+				PassParameters->DispatchCountX = DispatchCount.X;
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVisibilityComputeRaster(culling=off)"), ComputeShader_CullingOff, PassParameters, DispatchCount);
 			}
 		}

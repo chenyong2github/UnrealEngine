@@ -8,6 +8,7 @@
 #include "HairStrandsVoxelPageCommon.ush" 
 
 ///////////////////////////////////////////////////////////////////////////
+
 uint			DispatchCountX;
 uint			MaxRasterCount;
 uint			FrameIdMod8;
@@ -42,7 +43,20 @@ StructuredBuffer<FPackedVirtualVoxelNodeDesc> VirtualVoxelParams_NodeDescBuffer;
 RWTexture3D<uint> OutPageTexture;
 
 ///////////////////////////////////////////////////////////////////////////
+// Define
 
+#define JITTER_ENABLE 0
+
+#if PERMUTATION_GROUP_SIZE == 64
+	#define GROUP_SIZE 64
+#elif PERMUTATION_GROUP_SIZE == 32
+	#define GROUP_SIZE 32
+#else
+	#error Unknown group size	
+#endif
+
+///////////////////////////////////////////////////////////////////////////
+// Utils
 float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
 {
 	return float3(
@@ -51,11 +65,7 @@ float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
 		InterleavedGradientNoise(PixelCoord.xy, Seed * 7901));
 }
 
-#define JITTER_ENABLE 0
-
-// These number need to match HairStrandsClusterCulling.usf
-// TODO: create permutation for different group size
-#define GROUP_SIZE 32
+///////////////////////////////////////////////////////////////////////////
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
