@@ -273,7 +273,7 @@ struct TStructOpsTypeTraits<FStrataMaterialInput>
 	};
 };
 
-struct FVectorMaterialInput : FMaterialInput<FVector>
+struct FVectorMaterialInput : FMaterialInput<FVector3f>
 {
 #if WITH_EDITOR
 	ENGINE_API int32 CompileWithDefault(class FMaterialCompiler* Compiler, EMaterialProperty Property);

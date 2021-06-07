@@ -131,7 +131,7 @@ struct FValue
 		Component[1].Float = Value.Y;
 	}
 
-	inline FValue(const FVector& Value) : ComponentType(EValueComponentType::Float), NumComponents(3)
+	inline FValue(const FVector3f& Value) : ComponentType(EValueComponentType::Float), NumComponents(3)
 	{
 		Component[0].Float = Value.X;
 		Component[1].Float = Value.Y;

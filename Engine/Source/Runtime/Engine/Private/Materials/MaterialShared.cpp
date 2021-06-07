@@ -483,7 +483,7 @@ bool FStrataMaterialInput::Serialize(FArchive& Ar)
 
 bool FVectorMaterialInput::Serialize(FArchive& Ar)
 {
-	return SerializeMaterialInput<FVector>(Ar, *this);
+	return SerializeMaterialInput<FVector3f>(Ar, *this);
 }
 
 bool FVector2MaterialInput::Serialize(FArchive& Ar)
