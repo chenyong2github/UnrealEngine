@@ -1357,20 +1357,32 @@ void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource)
 		TextChars += TEXT("};\n\n");
 
 		// Function for reading global TEXT string
+		TextChars += TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry, FFontColor InColor)\n");
+		TextChars += TEXT("{\n");
+		TextChars += TEXT("\tuint Begin = TEXT_OFFSETS[InTextEntry];\n");
+		TextChars += TEXT("\tuint End = TEXT_OFFSETS[InTextEntry + 1];\n");
+		TextChars += TEXT("\tfor (uint i = Begin; i < End; ++i)\n");
+		TextChars += TEXT("\t{\n");
+		TextChars += TEXT("\t\tPos = ShaderPrintSymbol(Pos, TEXT_CHARS[i], InColor);\n");
+		TextChars += TEXT("\t}\n");
+		TextChars += TEXT("\treturn Pos;\n");
+		TextChars += TEXT("}\n");
+		TextChars += TEXT("\n");
 		TextChars += TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry)\n");
 		TextChars += TEXT("{\n");
 		TextChars += TEXT("\tuint Begin = TEXT_OFFSETS[InTextEntry];\n");
 		TextChars += TEXT("\tuint End = TEXT_OFFSETS[InTextEntry + 1];\n");
 		TextChars += TEXT("\tfor (uint i = Begin; i < End; ++i)\n");
 		TextChars += TEXT("\t{\n");
-		TextChars += TEXT("\t\tPos = ShaderPrintSymbol(Pos, TEXT_CHARS[i]);\n");
+		TextChars += TEXT("\t\tPos = ShaderPrintSymbol(Pos, TEXT_CHARS[i], FontWhite);\n");
 		TextChars += TEXT("\t}\n");
 		TextChars += TEXT("\treturn Pos;\n");
 		TextChars += TEXT("}\n");
 	}
 	else
 	{	
-		TextChars = TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry) { return Pos; }\n");
+		TextChars += TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry) { return Pos; }\n");
+		TextChars += TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry, float3 InColor) { return Pos; }\n");
 	}
 	
 	// 6. Insert global struct data + print function

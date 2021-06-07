@@ -26,7 +26,7 @@ float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
 	}
 		
 
-	return ShaderPrint(ScreenPos, Value, SHADER_PRINT_TYPE_UINT);
+	return ShaderPrint(ScreenPos, Value);
 }
 
 [numthreads(1, 1, 1)]
@@ -164,23 +164,23 @@ void PrintClipmapStats()
 	{
 		uint4 Rect = PageRectBounds[SmId * VSM_MAX_MIP_LEVELS];
 		ScreenPos.x = ItemX;
-		ScreenPos = ShaderPrint(ScreenPos, Rect.x, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.x);
+		ScreenPos = ShaderPrint(ScreenPos, Rect.x);//ShaderPrintLeftAlign(ScreenPos, Rect.x);
 		ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-		ScreenPos = ShaderPrint(ScreenPos, Rect.y, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.y);
+		ScreenPos = ShaderPrint(ScreenPos, Rect.y);//ShaderPrintLeftAlign(ScreenPos, Rect.y);
 		ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-		ScreenPos = ShaderPrint(ScreenPos, Rect.z, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
+		ScreenPos = ShaderPrint(ScreenPos, Rect.z);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
 		ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-		ScreenPos = ShaderPrint(ScreenPos, Rect.w, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
+		ScreenPos = ShaderPrint(ScreenPos, Rect.w);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
 		if (Rect.x <= Rect.z && Rect.y <= Rect.w)
 		{
 			ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-			ScreenPos = ShaderPrint(ScreenPos, Rect.z - Rect.x + 1, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
+			ScreenPos = ShaderPrint(ScreenPos, Rect.z - Rect.x + 1);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
 			ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-			ScreenPos = ShaderPrint(ScreenPos, Rect.w - Rect.y + 1, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
+			ScreenPos = ShaderPrint(ScreenPos, Rect.w - Rect.y + 1);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
 
 			uint Area = (Rect.z - Rect.x + 1) * (Rect.w - Rect.y + 1);
 			ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-			ScreenPos = ShaderPrint(ScreenPos, Area, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
+			ScreenPos = ShaderPrint(ScreenPos, Area);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
 
 			TotalArea += Area;
 		}
@@ -198,7 +198,7 @@ void PrintClipmapStats()
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-	ScreenPos = ShaderPrint(ScreenPos, TotalArea, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.x);
+	ScreenPos = ShaderPrint(ScreenPos, TotalArea);//ShaderPrintLeftAlign(ScreenPos, Rect.x);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
 	ScreenPos.x = ItemX;
@@ -217,23 +217,23 @@ void PrintClipmapStats()
 	{
 		uint4 Rect = AllocatedPageRectBounds[SmId * VSM_MAX_MIP_LEVELS];
 		ScreenPos.x = ItemX;
-		ScreenPos = ShaderPrint(ScreenPos, Rect.x, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.x);
+		ScreenPos = ShaderPrint(ScreenPos, Rect.x);//ShaderPrintLeftAlign(ScreenPos, Rect.x);
 		ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-		ScreenPos = ShaderPrint(ScreenPos, Rect.y, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.y);
+		ScreenPos = ShaderPrint(ScreenPos, Rect.y);//ShaderPrintLeftAlign(ScreenPos, Rect.y);
 		ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-		ScreenPos = ShaderPrint(ScreenPos, Rect.z, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
+		ScreenPos = ShaderPrint(ScreenPos, Rect.z);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
 		ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-		ScreenPos = ShaderPrint(ScreenPos, Rect.w, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
+		ScreenPos = ShaderPrint(ScreenPos, Rect.w);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
 		if (Rect.x <= Rect.z && Rect.y <= Rect.w)
 		{
 			ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-			ScreenPos = ShaderPrint(ScreenPos, Rect.z - Rect.x + 1, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
+			ScreenPos = ShaderPrint(ScreenPos, Rect.z - Rect.x + 1);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
 			ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-			ScreenPos = ShaderPrint(ScreenPos, Rect.w - Rect.y + 1, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
+			ScreenPos = ShaderPrint(ScreenPos, Rect.w - Rect.y + 1);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
 
 			uint Area = (Rect.z - Rect.x + 1) * (Rect.w - Rect.y + 1);
 			ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-			ScreenPos = ShaderPrint(ScreenPos, Area, SHADER_PRINT_TYPE_UINT);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
+			ScreenPos = ShaderPrint(ScreenPos, Area);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
 
 			TotalArea += Area;
 		}
