@@ -1431,6 +1431,15 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 	
 	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.CheckLevel"));
+		// Note: Since 1 is the default, we don't modify the hash for this case, so as to not force a rebuild, and to keep the hash shorter.
+		if (CVar && (CVar->GetInt() == 0 || CVar->GetInt() == 2))
+		{
+			KeyString.Appendf(TEXT("_C%d"), CVar->GetInt());
+		}
+	}
+	
+	{
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.FlowControlMode"));
 		if (CVar)
 		{

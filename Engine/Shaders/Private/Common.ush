@@ -74,6 +74,8 @@
 
 #include "Definitions.usf"
 
+#include "AssertionMacros.ush"
+
 #ifndef VELOCITY_ENCODE_DEPTH
 #define VELOCITY_ENCODE_DEPTH 1
 #endif
