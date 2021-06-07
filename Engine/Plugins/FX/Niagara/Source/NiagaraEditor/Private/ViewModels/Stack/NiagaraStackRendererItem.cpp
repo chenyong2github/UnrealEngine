@@ -25,6 +25,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraClipboard.h"
+#include "NiagaraEmitterEditorData.h"
 
 #include "Styling/SlateIconFinder.h"
 
@@ -248,6 +249,10 @@ void UNiagaraStackRendererItem::Delete()
 	UNiagaraRendererProperties* Renderer = RendererProperties.Get();
 	Emitter->Modify();
 	Emitter->RemoveRenderer(Renderer);
+	if (UNiagaraEmitterEditorData* Data = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()))
+	{
+		Data->GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), FText());
+	}
 
 	TArray<UObject*> ChangedObjects;
 	ChangedObjects.Add(Renderer);
