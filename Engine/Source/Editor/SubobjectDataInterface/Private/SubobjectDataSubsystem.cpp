@@ -1157,6 +1157,16 @@ int32 USubobjectDataSubsystem::DeleteSubobjects(const FSubobjectDataHandle& Cont
 	return DeleteSubobjects(ContextHandle, SubobjectsToDelete, Dummy, BPContext);
 }
 
+int32 USubobjectDataSubsystem::K2_DeleteSubobjectFromInstance(const FSubobjectDataHandle& ContextHandle, const FSubobjectDataHandle& SubobjectToDelete)
+{
+	return DeleteSubobject(ContextHandle, SubobjectToDelete);
+}
+
+int32 USubobjectDataSubsystem::K2_DeleteSubobjectsFromInstance(const FSubobjectDataHandle& ContextHandle, const TArray<FSubobjectDataHandle>& SubobjectsToDelete)
+{
+	return DeleteSubobjects(ContextHandle, SubobjectsToDelete);
+}
+
 int32 USubobjectDataSubsystem::DeleteSubobject(const FSubobjectDataHandle& ContextHandle, const FSubobjectDataHandle& SubobjectToDelete, UBlueprint* BPContext)
 {
 	TArray<FSubobjectDataHandle> Handles { SubobjectToDelete };
