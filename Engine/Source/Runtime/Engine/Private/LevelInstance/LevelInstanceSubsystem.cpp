@@ -15,6 +15,7 @@
 #include "Hash/CityHash.h"
 
 #if WITH_EDITOR
+#include "Settings/LevelEditorMiscSettings.h"
 #include "LevelInstance/LevelInstanceEditorLevelStreaming.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ITransaction.h"
@@ -867,6 +868,10 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels /* = 1 */, TArray<AActor*>* OutMovedActors /* = nullptr */)
 {
 	const double StartTime = FPlatformTime::Seconds();
+
+	const uint32 bAvoidRelabelOnPasteSelected = GetMutableDefault<ULevelEditorMiscSettings>()->bAvoidRelabelOnPasteSelected;
+	ON_SCOPE_EXIT { GetMutableDefault<ULevelEditorMiscSettings>()->bAvoidRelabelOnPasteSelected = bAvoidRelabelOnPasteSelected; };
+	GetMutableDefault<ULevelEditorMiscSettings>()->bAvoidRelabelOnPasteSelected = 1;
 
 	TArray<AActor*> MovedActors;
 	BreakLevelInstance_Impl(LevelInstanceActor, Levels, MovedActors);
