@@ -73,7 +73,7 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 	FActorSpawnParameters SpawnParams;
 	SetSpawnParameters(SpawnParams);
 
-	AActor* NewActor = GetLevel()->GetWorld()->SpawnActor<AActor>(GetActorClassToSpawn(), InstanceTransforms[Handle.GetInstanceIndex()], SpawnParams);
+	AActor* NewActor = GetLevel()->GetWorld()->SpawnActor<AActor>(GetActorClassToSpawn(Handle), InstanceTransforms[Handle.GetInstanceIndex()], SpawnParams);
 	check(NewActor);
 
 	Handle.Actor = NewActor;
@@ -176,7 +176,7 @@ void ALightWeightInstanceManager::SetSpawnParameters(FActorSpawnParameters& Spaw
 	SpawnParams.ObjectFlags = RF_Transactional;
 }
 
-UClass* ALightWeightInstanceManager::GetActorClassToSpawn() const
+UClass* ALightWeightInstanceManager::GetActorClassToSpawn(const FActorInstanceHandle& Handle) const
 {
 	return RepresentedClass;
 }

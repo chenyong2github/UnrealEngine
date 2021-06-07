@@ -151,7 +151,7 @@ protected:
 	virtual void SetSpawnParameters(FActorSpawnParameters& SpawnParams);
 
 	// Returns the class to use when spawning a new actor
-	virtual UClass* GetActorClassToSpawn() const;
+	virtual UClass* GetActorClassToSpawn(const FActorInstanceHandle& Handle) const;
 
 	// Called after spawning a new actor from a light weight instance
 	virtual void PostActorSpawn(const FActorInstanceHandle& Handle);

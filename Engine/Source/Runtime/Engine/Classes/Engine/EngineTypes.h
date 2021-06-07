@@ -2109,6 +2109,8 @@ struct ENGINE_API FActorInstanceHandle
 	bool operator==(const AActor* OtherActor) const;
 	bool operator!=(const AActor* OtherActor) const;
 
+	friend ENGINE_API uint32 GetTypeHash(const FActorInstanceHandle& Handle);
+
 	friend ENGINE_API FArchive& operator<<(FArchive& Ar, FActorInstanceHandle& Handle);
 
 private:
