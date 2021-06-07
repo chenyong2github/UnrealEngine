@@ -45,14 +45,18 @@ private:
 		static constexpr uint32 ReservedSize = 512 * 1024;
 		// Number of bytes allocated for user data (per named entry)
 		static constexpr uint32 UserDataSize = 64;
-		
+
+		explicit FFileContents(const TCHAR* FilePath);
+		~FFileContents();
 		FCacheId GetId(const TCHAR* Name, uint16 Flags);
 		FMutableMemoryView GetUserData(FCacheId Id);
 		uint16 GetFlags(FCacheId Id);
-		bool Save(IFileHandle* File);
-		bool Load(IFileHandle* File);
-		uint64 UpdateBlock(FMemoryView Block, BlockKeyType BlockKey, IFileHandle* File);
-		uint64 LoadBlock(FMutableMemoryView Block, BlockKeyType BlockKey, IFileHandle* File);
+		bool Save();
+		bool Load();
+		uint64 UpdateBlock(FMemoryView Block, BlockKeyType BlockKey);
+		uint64 LoadBlock(FMutableMemoryView Block, BlockKeyType BlockKey);
+		IFileHandle* GetFileHandleForWrite();
+		IFileHandle* GetFileHandleForRead();
 
 		struct FIndexEntry
 		{
@@ -72,6 +76,9 @@ private:
 			FIoHash Hash;
 		};
 		
+		FString CacheFilePath;
+		TUniquePtr<IFileHandle> CacheFile;
+		TUniquePtr<IFileHandle> CacheFileWrite;
 		TArray<FIndexEntry> IndexEntries;
 		TArray<FBlockEntry> Blocks;
 		// When this is set blocks or table of contents are never written.
@@ -136,11 +143,8 @@ private:
 
 	constexpr static uint32 BlockAlignment = 1024*4;
 	
-	FString CacheFilePath;
-	FFileContents Contents;
+	TUniquePtr<FFileContents> Contents;
 	FStats Stats;
-	TUniquePtr<IFileHandle> CacheFile;
-	TUniquePtr<IFileHandle> CacheFileWrite;
 	TMap<BlockKeyType,FSharedBuffer> CachedBlocks;
 	TMap<uint32,uint32> IndexBlockCount;
 };
