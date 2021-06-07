@@ -1342,6 +1342,9 @@ public:
 	/** Call PostEditChange() on all Actors based on the given Blueprint */
 	static void PostEditChangeBlueprintActors(UBlueprint* Blueprint, bool bComponentEditChange = false);
 
+	/** @return whether a property is private or not (whether native or via BP metadata) */
+	static bool IsPropertyPrivate(const FProperty* Property);
+	
 	/** Enumeration of whether a property is writable or if not, why. */
 	enum class EPropertyWritableState : uint8
 	{
