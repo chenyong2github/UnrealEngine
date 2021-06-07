@@ -408,8 +408,8 @@ public:
 	/** Adds a plugin descriptor string to the enabled plugins list in the crash context */
 	static void AddPlugin(const FString& PluginDesc);
 
-	/** Flushes the logs. In the case of in memory logs is used on this configuration, dumps them to file. */
-	static void DumpLog(const FString& CrashFolderAbsolute);
+	/** Flushes the logs. In the case of in memory logs is used on this configuration, dumps them to file. Returns the name of the file */
+	static FString DumpLog(const FString& CrashFolderAbsolute);
 
 	/** Collects additional crash context providers. See FAdditionalCrashContextStack. */
 	static void DumpAdditionalContext(const TCHAR* CrashFolderAbsolute);

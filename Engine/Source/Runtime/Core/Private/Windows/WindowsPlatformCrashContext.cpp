@@ -1532,7 +1532,11 @@ private:
 TOptional<FCrashReportingThread> GCrashReportingThread(InPlace);
 #endif
 
+#if WINDOWS_CRASHCONTEXT_WITH_CUSTOM_HANDLERS
+LONG WINAPI DefaultUnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
+#else
 LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
+#endif
 {
 #if !NOINITCRASHREPORTER
 	// If we get an exception during static init we hope that the crash reporting thread
@@ -1559,7 +1563,7 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
  *   - Any unhandled exception is going to terminate the program whether it is a benign exception or a fatal one.
  *   - Vectored exception handlers, Vectored continue handlers and the unhandled exception filter are global to the process.
  *   - Exceptions occurring in a thread doesn't automatically halt other threads. Exception handling executes in thread where the exception fired. The other threads continue to run.
- *   - Several threads can crash concurrently­.
+ *   - Several threads can crash concurrently.
  *   - Not all exceptions are equal. Some exceptions can be handled doing nothing more than catching them and telling the code to continue (like some user defined exception), some
  *     needs to be handled in a __except() clause to allow the program to continue (like access violation) and others are fatal and can only be reported but not continued (like stack overflow).
  *   - Not all machines are equal. Different exceptions may be fired on different machines for the same usage of the program. This seems especially true when
@@ -1609,7 +1613,11 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
  * The engine hooks itself in the unhandled exception filter. This is the best place to be as it runs after structured exception handlers and
  * it can be easily overriden externally (because there can only be one) to do something else.
  */
+#if WINDOWS_CRASHCONTEXT_WITH_CUSTOM_HANDLERS
+LONG WINAPI DefaultEngineUnhandledExceptionFilter(LPEXCEPTION_POINTERS ExceptionInfo)
+#else
 LONG WINAPI EngineUnhandledExceptionFilter(LPEXCEPTION_POINTERS ExceptionInfo)
+#endif
 {
 	ReportCrash(ExceptionInfo);
 	GIsCriticalError = true;
@@ -1619,7 +1627,11 @@ LONG WINAPI EngineUnhandledExceptionFilter(LPEXCEPTION_POINTERS ExceptionInfo)
 }
 
 // #CrashReport: 2015-05-28 This should be named EngineCrashHandler
+#if WINDOWS_CRASHCONTEXT_WITH_CUSTOM_HANDLERS
+int32 DefaultReportCrash( LPEXCEPTION_POINTERS ExceptionInfo )
+#else
 int32 ReportCrash( LPEXCEPTION_POINTERS ExceptionInfo )
+#endif
 {
 #if !NOINITCRASHREPORTER
 	// Only create a minidump the first time this function is called.
