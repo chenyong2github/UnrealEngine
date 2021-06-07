@@ -153,10 +153,13 @@ public:
 	{
 		return SharedThis(this);
 	}
+#if !PLATFORM_HOLOLENS
+	// Native stereo layers severely impact performance on Hololens
 	virtual class IStereoLayers* GetStereoLayers() override
 	{
 		return this;
 	}
+#endif
 
 	virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) override;
 
