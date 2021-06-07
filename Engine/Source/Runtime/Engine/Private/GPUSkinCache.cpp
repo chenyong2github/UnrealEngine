@@ -1751,6 +1751,8 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 			Initializer.bAllowUpdate = true;
 
 			Initializer.Segments.Reserve(LODModel.RenderSections.Num());
+			const int32 LODIndex = SkinCacheEntry->GPUSkin->GetLOD();
+
 			for (const FSkelMeshRenderSection& Section : LODModel.RenderSections)
 			{
 				FRayTracingGeometrySegment Segment;
@@ -1761,7 +1763,9 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				Segment.MaxVertices = Section.GetNumVertices();
 				Segment.FirstPrimitive = Section.BaseIndex / 3;
 				Segment.NumPrimitives = Section.NumTriangles;
-				Segment.bEnabled = !Section.bDisabled;
+
+				// TODO: If we are at a dropped LOD, route material index through the LODMaterialMap in the LODInfo struct.
+				Segment.bEnabled = !SkinCacheEntry->GPUSkin->IsMaterialHidden(LODIndex, Section.MaterialIndex) && !Section.bDisabled;
 				Initializer.Segments.Add(Segment);
 			}
 
