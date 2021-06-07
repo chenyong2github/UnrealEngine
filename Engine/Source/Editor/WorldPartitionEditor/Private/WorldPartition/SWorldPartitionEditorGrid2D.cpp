@@ -68,6 +68,7 @@ SWorldPartitionEditorGrid2D::SWorldPartitionEditorGrid2D()
 	, bIsSelecting(false)
 	, bIsDragging(false)
 	, bShowActors(false)
+	, SelectBox(ForceInit)
 {
 	FEditorCommands::Register();
 	
