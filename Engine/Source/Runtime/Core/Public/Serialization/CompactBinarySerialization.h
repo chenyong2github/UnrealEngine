@@ -58,9 +58,9 @@ CORE_API bool TryMeasureCompactBinary(
  * AsObject as appropriate. The buffer allocator is called to provide the buffer for the field
  * to load into once its size has been determined.
  *
- * @param Ar Archive to read the field from.
+ * @param Ar Archive to read the field from. An error state is set on failure.
  * @param Allocator Allocator for the buffer that the field is loaded into.
- * @return A field with a reference to the provided buffer if it is owned.
+ * @return A field with a reference to the allocated buffer, or a default field on failure.
  */
 CORE_API FCbField LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 

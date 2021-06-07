@@ -45,10 +45,13 @@ FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FIoHash* const InHash
 	}
 }
 
-void FCbAttachment::Load(FCbFieldIterator& Fields)
+bool FCbAttachment::TryLoad(FCbFieldIterator& Fields)
 {
-	checkf(Fields.IsBinary(), TEXT("Attachments must start with a binary field."));
 	const FMemoryView View = Fields.AsBinaryView();
+	if (Fields.HasError())
+	{
+		return false;
+	}
 	if (View.GetSize() > 0)
 	{
 		Buffer = FSharedBuffer::MakeView(View, Fields.GetOuterBuffer()).MakeOwned();
@@ -56,7 +59,10 @@ void FCbAttachment::Load(FCbFieldIterator& Fields)
 		++Fields;
 
 		Hash = Fields.AsAttachment();
-		checkf(!Fields.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
+		if (Fields.HasError())
+		{
+			return false;
+		}
 		if (Fields.IsObjectAttachment())
 		{
 			Object = FCbFieldView(Buffer.GetData());
@@ -70,13 +76,18 @@ void FCbAttachment::Load(FCbFieldIterator& Fields)
 		Object = FCbFieldView();
 		Hash.Reset();
 	}
+	return true;
 }
 
-void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
+bool FCbAttachment::TryLoad(FArchive& Ar, FCbBufferAllocator Allocator)
 {
 	FCbField BufferField = LoadCompactBinary(Ar, Allocator);
-	checkf(BufferField.IsBinary(), TEXT("Attachments must start with a binary field."));
 	const FMemoryView View = BufferField.AsBinaryView();
+	if (BufferField.HasError())
+	{
+		Ar.SetError();
+		return false;
+	}
 	if (View.GetSize() > 0)
 	{
 		Buffer = FSharedBuffer::MakeView(View, BufferField.GetOuterBuffer()).MakeOwned();
@@ -90,7 +101,11 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 				return FUniqueBuffer::MakeView(HashBuffer.GetData(), Size);
 			});
 		Hash = HashField.AsAttachment();
-		checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
+		if (HashField.HasError() || FIoHash::HashBuffer(Buffer) != Hash)
+		{
+			Ar.SetError();
+			return false;
+		}
 		if (HashField.IsObjectAttachment())
 		{
 			Object = FCbFieldView(Buffer.GetData());
@@ -102,6 +117,7 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 		Object = FCbFieldView();
 		Hash.Reset();
 	}
+	return true;
 }
 
 void FCbAttachment::Save(FCbWriter& Writer) const
@@ -227,7 +243,7 @@ void FCbPackage::GatherAttachments(const FCbObject& Value, FAttachmentResolver R
 		});
 }
 
-void FCbPackage::Load(FCbFieldIterator& Fields)
+bool FCbPackage::TryLoad(FCbFieldIterator& Fields)
 {
 	*this = FCbPackage();
 	while (Fields)
@@ -240,19 +256,25 @@ void FCbPackage::Load(FCbFieldIterator& Fields)
 		else if (Fields.IsBinary())
 		{
 			FCbAttachment Attachment;
-			Attachment.Load(Fields);
+			Attachment.TryLoad(Fields);
 			AddAttachment(Attachment);
 		}
 		else
 		{
-			checkf(Fields.IsObject(), TEXT("Expected Object, Binary, or Null field when loading a package."));
 			Object = Fields.AsObject();
+			if (Fields.HasError())
+			{
+				return false;
+			}
 			Object.MakeOwned();
 			++Fields;
 			if (Object)
 			{
 				ObjectHash = Fields.AsObjectAttachment();
-				checkf(!Fields.HasError(), TEXT("Object must be followed by an ObjectAttachment with the object hash."));
+				if (Fields.HasError())
+				{
+					return false;
+				}
 				++Fields;
 			}
 			else
@@ -261,9 +283,10 @@ void FCbPackage::Load(FCbFieldIterator& Fields)
 			}
 		}
 	}
+	return true;
 }
 
-void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
+bool FCbPackage::TryLoad(FArchive& Ar, FCbBufferAllocator Allocator)
 {
 	uint8 StackBuffer[64];
 	const auto StackAllocator = [&Allocator, &StackBuffer](uint64 Size) -> FUniqueBuffer
@@ -275,9 +298,14 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 	for (;;)
 	{
 		FCbField ValueField = LoadCompactBinary(Ar, StackAllocator);
+		if (!ValueField)
+		{
+			Ar.SetError();
+			return false;
+		}
 		if (ValueField.IsNull())
 		{
-			break;
+			return true;
 		}
 		else if (ValueField.IsBinary())
 		{
@@ -287,7 +315,11 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 				FSharedBuffer Buffer = FSharedBuffer::MakeView(View, ValueField.GetOuterBuffer()).MakeOwned();
 				FCbField HashField = LoadCompactBinary(Ar, StackAllocator);
 				const FIoHash& Hash = HashField.AsAttachment();
-				checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
+				if (HashField.HasError() || FIoHash::HashBuffer(Buffer) != Hash)
+				{
+					Ar.SetError();
+					return false;
+				}
 				if (HashField.IsObjectAttachment())
 				{
 					AddAttachment(FCbAttachment(FCbObject(MoveTemp(Buffer)), Hash));
@@ -300,14 +332,22 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 		}
 		else
 		{
-			checkf(ValueField.IsObject(), TEXT("Expected Object, Binary, or Null field when loading a package."));
 			Object = ValueField.AsObject();
+			if (ValueField.HasError())
+			{
+				Ar.SetError();
+				return false;
+			}
 			Object.MakeOwned();
 			if (Object)
 			{
 				FCbField HashField = LoadCompactBinary(Ar, StackAllocator);
 				ObjectHash = HashField.AsObjectAttachment();
-				checkf(!HashField.HasError(), TEXT("Object must be followed by an ObjectAttachment with the object hash."));
+				if (HashField.HasError() || Object.GetHash() != ObjectHash)
+				{
+					Ar.SetError();
+					return false;
+				}
 			}
 			else
 			{

@@ -89,17 +89,18 @@ public:
 	 *
 	 * The iterator is advanced as attachment fields are consumed from it.
 	 */
-	CORE_API void Load(FCbFieldIterator& Fields);
+	CORE_API bool TryLoad(FCbFieldIterator& Fields);
 
 	/**
 	 * Load the attachment from compact binary as written by Save.
 	 *
 	 * The attachments value will be loaded into an owned buffer.
 	 *
+	 * @param Ar Archive to read the attachment from. An error state is set on failure.
 	 * @param Allocator Allocator for the attachment value buffer.
 	 * @note Allocated buffers will be cloned if they are not owned.
 	 */
-	CORE_API void Load(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
+	CORE_API bool TryLoad(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 
 	/** Save the attachment into the writer as a stream of compact binary fields. */
 	CORE_API void Save(FCbWriter& Writer) const;
@@ -316,17 +317,18 @@ public:
 	 *
 	 * The iterator is advanced as object and attachment fields are consumed from it.
 	 */
-	CORE_API void Load(FCbFieldIterator& Fields);
+	CORE_API bool TryLoad(FCbFieldIterator& Fields);
 
 	/**
 	 * Load the object and attachments from compact binary as written by Save.
 	 *
 	 * The object and attachments will be individually loaded into owned buffers.
 	 *
+	 * @param Ar Archive to read the package from. An error state is set on failure.
 	 * @param Allocator Allocator for object and attachment buffers.
 	 * @note Allocated buffers will be cloned if they are not owned.
 	 */
-	CORE_API void Load(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
+	CORE_API bool TryLoad(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 
 	/** Save the object and attachments into the writer as a stream of compact binary fields. */
 	CORE_API void Save(FCbWriter& Writer) const;

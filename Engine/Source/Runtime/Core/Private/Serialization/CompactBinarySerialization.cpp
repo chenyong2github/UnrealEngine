@@ -2,6 +2,7 @@
 
 #include "Serialization/CompactBinarySerialization.h"
 
+#include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/VarInt.h"
 #include "Templates/IdentityFunctor.h"
 #include "Templates/Invoke.h"
@@ -189,6 +190,11 @@ FCbField LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 	if (!View.IsEmpty())
 	{
 		Ar.Serialize(View.GetData(), static_cast<int64>(View.GetSize()));
+	}
+	if (ValidateCompactBinary(Buffer, ECbValidateMode::Default) != ECbValidateError::None)
+	{
+		Ar.SetError();
+		return FCbField();
 	}
 	return FCbField(Buffer.MoveToShared());
 }
