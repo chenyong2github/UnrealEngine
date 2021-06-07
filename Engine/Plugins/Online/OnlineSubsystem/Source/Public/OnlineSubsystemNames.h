@@ -85,8 +85,13 @@
 #define TENCENT_SUBSYSTEM FName(TEXT("TENCENT"))
 #endif
 
-ONLINESUBSYSTEM_API extern UE_DEPRECATED(4.27, "OnlineSubsystemWeChat has been deprecated and will be removed") FName WECHAT_SUBSYSTEM;
-ONLINESUBSYSTEM_API extern UE_DEPRECATED(4.27, "OnlineSubsystemTwitch has been deprecated and will be removed") FName TWITCH_SUBSYSTEM;
+#ifndef WECHAT_SUBSYSTEM
+#define WECHAT_SUBSYSTEM FName(TEXT("WeChat"))
+#endif
+
+#ifndef TWITCH_SUBSYSTEM
+#define TWITCH_SUBSYSTEM FName(TEXT("TWITCH"))
+#endif
 
 #ifndef SWITCH_SUBSYSTEM
 #define SWITCH_SUBSYSTEM FName(TEXT("SWITCH"))

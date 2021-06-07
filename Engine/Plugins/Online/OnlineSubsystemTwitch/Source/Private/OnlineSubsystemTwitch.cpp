@@ -264,9 +264,7 @@ bool FOnlineSubsystemTwitch::HandleAuthExecCommands(UWorld* InWorld, const TCHAR
 
 
 FOnlineSubsystemTwitch::FOnlineSubsystemTwitch(FName InInstanceName)
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	: FOnlineSubsystemImpl(TWITCH_SUBSYSTEM, InInstanceName)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, TwitchApiVersion(TEXT("application/vnd.twitchtv.v5+json"))
 {
 }

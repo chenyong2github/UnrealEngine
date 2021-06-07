@@ -4,7 +4,7 @@
 	"FriendlyName" : "Online Subsystem Twitch",
 	"Version" : 1,
 	"VersionName" : "1.0",
-	"Description" : "Access to Twitch platform.  This plugin is deprecated and will be removed in a future engine release.",
+	"Description" : "Access to Twitch platform",
 	"Category" : "Online Platform",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",
