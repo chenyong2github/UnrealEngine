@@ -889,7 +889,9 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 		{
 			SCOPED_DRAW_EVENTF(RHICmdList, MediaCapture, TEXT("MediaCapture"));
 
-			if (InMediaCapture->ConversionOperation == EMediaCaptureConversionOperation::NONE)
+			bool bRequiresFormatConversion = InMediaCapture->DesiredPixelFormat != SourceTexture->GetFormat();
+
+			if (InMediaCapture->ConversionOperation == EMediaCaptureConversionOperation::NONE && !bRequiresFormatConversion)
 			{
 				// Asynchronously copy target from GPU to GPU
 				RHICmdList.CopyToResolveTarget(SourceTexture, DestRenderTarget.TargetableTexture, ResolveParams);
@@ -901,7 +903,6 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 			}
 			else
 			{
-				bool bRequiresAlphaChannelConversion = InMediaCapture->DesiredPixelFormat != SourceTexture->GetFormat();
 				// convert the source with a draw call
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				FRHITexture* RenderTarget = DestRenderTarget.TargetableTexture.GetReference();
@@ -946,9 +947,11 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				case EMediaCaptureConversionOperation::INVERT_ALPHA:
 					// fall through
 				case EMediaCaptureConversionOperation::SET_ALPHA_ONE:
-					bRequiresAlphaChannelConversion = true;
+					// fall through
+				case EMediaCaptureConversionOperation::NONE:
+					bRequiresFormatConversion = true;
 				default:
-					if (bRequiresAlphaChannelConversion)
+					if (bRequiresFormatConversion)
 					{
 						FModifyAlphaSwizzleRgbaPS::FPermutationDomain PermutationVector;
 						// In cases where texture is converted from a format that doesn't have A channel, we want to force set it to 1.
