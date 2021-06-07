@@ -464,6 +464,8 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	CrashContext.SetCrashedThreadId(SharedCrashContext.CrashingThreadId);
 	CrashContext.SetNumMinidumpFramesToIgnore(0);
 
+	FCrashReportAnalyticsSessionSummary::Get().OnCrashReportRemoteStackWalking();
+
 	// Initialize the stack walking for the monitored process (effectively overriding this process stack walking functionality)
 	FPlatformStackWalk::InitStackWalkingForProcess(ProcessHandle);
 
@@ -555,6 +557,8 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 		}
 	}
 
+	FCrashReportAnalyticsSessionSummary::Get().OnCrashReportGatheringFiles();
+
 	// If the path is not set it is most likely that we have crashed during static init, in which case we need to construct a directory ourself.
 	FString ReportDirectoryAbsolutePath(SharedCrashContext.CrashFilesDirectory);
 	bool DirectoryExists = true;
@@ -571,6 +575,8 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	{
 		CrashContext.CopyPlatformSpecificFiles(*ReportDirectoryAbsolutePath, SharedCrashContext.PlatformCrashContext);
 	}
+
+	FCrashReportAnalyticsSessionSummary::Get().OnCrashReportSignalingAppToResume();
 
 	// At this point the game can continue execution. It is important this happens
 	// as soon as thread state and minidump has been created, so that ensures cause

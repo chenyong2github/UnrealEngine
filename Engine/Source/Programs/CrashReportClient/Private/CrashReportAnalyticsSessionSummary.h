@@ -61,6 +61,15 @@ public:
 	/** Invoked when CRC starts collecting the crash artifacts. */
 	void OnCrashReportCollecting();
 
+	/** Invoked when CRC starts stack-walking the crash. */
+	void OnCrashReportRemoteStackWalking();
+
+	/** Invoked when CRC starts collecting crash artifacts such as the log/minidump/etc. */
+	void OnCrashReportGatheringFiles();
+
+	/** Invoked when CRC finished collecting crash artifacts and replies to the monitored app. */
+	void OnCrashReportSignalingAppToResume();
+
 	/** Invoked when CRC starts the process to submit the crash report (this also includes showing the dialog to user in needed. */
 	void OnCrashReportProcessing(bool bUserInteractive);
 
@@ -116,6 +125,15 @@ private:
 
 	/** Time at which collecting the artifacts of the last crash started. */
 	double CrashReportCollectingStartTimeSecs = 0.0;
+
+	/** Time at which remote stack-walking started. */
+	double CrashReportStackWalkingStartTimeSecs = 0.0;
+
+	/** Time at which gathering crash files (logs, minidump, etct) started. */
+	double CrashReportGatheringFilesStartTimeSecs = 0.0;
+
+	/** Time at which CRC signaled the application to resume. */
+	double CrashReportSignalingRemoteAppTimeSecs = 0.0;
 
 	/** Time at which processing the last crash started. */
 	double CrashReportProcessingStartTimeSecs = 0.0;
