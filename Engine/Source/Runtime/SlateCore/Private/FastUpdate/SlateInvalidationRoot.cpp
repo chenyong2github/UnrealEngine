@@ -243,6 +243,9 @@ void FSlateInvalidationRoot::InvalidateRootChildOrder(const SWidget* Investigato
 {
 	// Invalidate all proxy handles
 	FastWidgetPathList->Reset();
+	WidgetsNeedingPreUpdate->Reset(false);
+	WidgetsNeedingPrepassUpdate->Reset(false);
+	WidgetsNeedingPostUpdate->Reset(false);
 	InvalidationRootWidget->Invalidate(EInvalidateWidgetReason::Prepass);
 	bNeedsSlowPath = true;
 
