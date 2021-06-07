@@ -244,6 +244,7 @@ public:
 #if RHI_RAYTRACING
 	bool bRequireRecreatingRayTracingGeometry;
 	bool bSupportRayTracing;
+	bool bHiddenMaterialVisibilityDirtyForRayTracing;
 #endif
 
 #if UE_BUILD_SHIPPING

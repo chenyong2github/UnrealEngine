@@ -40,6 +40,7 @@ FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent,
 ,   bHasBeenUpdatedAtLeastOnce(false)
 #if RHI_RAYTRACING
 , bRequireRecreatingRayTracingGeometry(false)
+, bHiddenMaterialVisibilityDirtyForRayTracing(false)
 , bSupportRayTracing(IsSkeletalMeshRayTracingSupported() && InMeshComponent->SkeletalMesh->bSupportRayTracing)
 #endif
 #if !UE_BUILD_SHIPPING
@@ -168,7 +169,8 @@ const TArray<FSkelMeshRenderSection>& FSkeletalMeshObject::GetRenderSections(int
 void FSkeletalMeshObject::SetHiddenMaterials(int32 InLODIndex,const TArray<bool>& HiddenMaterials)
 {
 	check(LODInfo.IsValidIndex(InLODIndex));
-	LODInfo[InLODIndex].HiddenMaterials = HiddenMaterials;		
+	bHiddenMaterialVisibilityDirtyForRayTracing = true;
+	LODInfo[InLODIndex].HiddenMaterials = HiddenMaterials;
 }
 
 /**

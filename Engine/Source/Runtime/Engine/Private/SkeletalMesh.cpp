@@ -6274,14 +6274,19 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			{
 				TArray<FRayTracingGeometrySegment> GeometrySections;
 				GeometrySections.Reserve(LODData.RenderSections.Num());
-				for (const FSkelMeshRenderSection& Section : LODData.RenderSections)
+
+				for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
 				{
+					const FSkelMeshRenderSection& Section = Iter.GetSection();
+					const FSectionElementInfo& SectionElementInfo = Iter.GetSectionElementInfo();
+
 					FRayTracingGeometrySegment Segment;
 					Segment.FirstPrimitive = Section.BaseIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
-					Segment.bEnabled = !Section.bDisabled;
+					Segment.bEnabled = !MeshObject->IsMaterialHidden(LODIndex, SectionElementInfo.UseMaterialIndex) && !Section.bDisabled;
 					GeometrySections.Add(Segment);
 				}
+
 				MeshObject->GetRayTracingGeometry()->Initializer.Segments = GeometrySections;
 
 				Context.DynamicRayTracingGeometriesToUpdate.Add(

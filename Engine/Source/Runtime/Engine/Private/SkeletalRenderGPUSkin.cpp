@@ -379,7 +379,10 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 	// So make sure to set bRequireRecreatingRayTracingGeometry to true to account for this, so RT geometry is updated correctly.
 	bRequireRecreatingRayTracingGeometry = (DynamicData == nullptr || RayTracingGeometry.Initializer.Segments.Num() == 0 || // Newly created
 		(DynamicData != nullptr && DynamicData->LODIndex != InDynamicData->LODIndex) || // LOD level changed
-		SkinCacheEntry == nullptr);
+		SkinCacheEntry == nullptr ||
+		bHiddenMaterialVisibilityDirtyForRayTracing);
+
+	bHiddenMaterialVisibilityDirtyForRayTracing = false;
 	
 	if (!bRequireRecreatingRayTracingGeometry)
 	{
