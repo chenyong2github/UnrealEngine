@@ -2757,9 +2757,7 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 	bool bMatchOriginatingScript = OriginatingScript != nullptr;
 	bool bMatchOriginatingGraph = OriginatingGraph != nullptr;
 	bool bMatchOriginatingParameterDefinitions = OriginatingParameterDefinitions != nullptr;
-
 	TArray<UNiagaraScript*> AffectedScripts;
-	bool bMatchOriginatingScriptAndOrGraph = OriginatingScript != nullptr && OriginatingGraph != nullptr;
 
 	for (TObjectIterator<UNiagaraScript> It; It; ++It)
 	{
@@ -2816,7 +2814,7 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 			Source->NodeGraph->GetAllReferencedGraphs(ReferencedGraphs);
 			for (const UNiagaraGraph* Graph : ReferencedGraphs)
 			{
-				if (bMatchOriginatingGraph == false || Graph == OriginatingGraph)
+				if (bMatchOriginatingGraph && Graph == OriginatingGraph)
 				{
 					//Source->NodeGraph->NotifyGraphNeedsRecompile();
 					AffectedScripts.AddUnique(*It);
