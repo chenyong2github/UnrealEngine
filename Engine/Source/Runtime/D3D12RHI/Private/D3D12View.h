@@ -753,6 +753,18 @@ protected:
 		}
 	}
 
+	void CreateViewWithCounter(const TDesc& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource)
+	{
+		InitializeInternal(InDesc, InBaseShaderResource, InResourceLocation);
+
+		if (Resource)
+		{
+			ID3D12Resource* D3DResource = Resource->GetUAVAccessResource() ? Resource->GetUAVAccessResource() : Resource->GetResource();
+			ID3D12Resource* D3DCounterResource = InCounterResource ? InCounterResource->GetResource() : nullptr;
+			Descriptor.CreateViewWithCounter(Desc, D3DResource, D3DCounterResource);
+		}
+	}
+
 	virtual void ResourceRenamed(FD3D12BaseShaderResource* InRenamedResource, FD3D12ResourceLocation* InNewResourceLocation) override
 	{
 		check(InRenamedResource == BaseShaderResource);
@@ -967,19 +979,6 @@ public:
 		check(CounterResource == nullptr);
 		check(ResourceLocation->GetOffsetFromBaseOfResource() == 0);
 		Initialize(Desc, BaseShaderResource, *ResourceLocation);
-	}
-
-protected:
-	void CreateViewWithCounter(const D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource)
-	{
-		InitializeInternal(InDesc, InBaseShaderResource, InResourceLocation);
-
-		if (Resource)
-		{
-			ID3D12Resource* D3DResource = Resource->GetUAVAccessResource() ? Resource->GetUAVAccessResource() : Resource->GetResource();
-			ID3D12Resource* D3DCounterResource = InCounterResource ? InCounterResource->GetResource() : nullptr;
-			Descriptor.CreateViewWithCounter(Desc, D3DResource, D3DCounterResource);
-		}
 	}
 };
 
