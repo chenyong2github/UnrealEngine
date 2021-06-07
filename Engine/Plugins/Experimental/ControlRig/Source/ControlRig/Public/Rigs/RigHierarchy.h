@@ -2130,6 +2130,11 @@ public:
 	void StorePoseForTrace(const FString& InPrefix);
 
 	/**
+	 * Updates the format for trace floating point numbers
+	 */
+	static void CheckTraceFormatIfRequired();
+	
+	/**
 	 * Dumps the content of the transform stack to a string
 	 */
 	void DumpTransformStackToFile(FString* OutFilePath = nullptr);
