@@ -50,6 +50,8 @@ public class ModelingComponentsEditorOnly : ModuleRules
 				"PhysicsCore",
                 "RHI",
 
+				"OpenSubdiv",
+
 				"AssetTools",
 				"UnrealEd"			// required for asset factories
 

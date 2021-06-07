@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SubdividePoly.h"
+#include "Operations/SubdividePoly.h"
 #include "CoreMinimal.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
