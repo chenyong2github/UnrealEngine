@@ -9,6 +9,7 @@
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "EngineUtils.h"
 #include "Net/UnrealNetwork.h"
+#include "WorldPartition/WorldPartition.h"
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #endif
@@ -16,6 +17,21 @@
 #define LOCTEXT_NAMESPACE "WorldDataLayers"
 
 int32 AWorldDataLayers::DataLayersStateEpoch = 0;
+
+FString JoinDataLayerLabelsFromNames(AWorldDataLayers* InWorldDataLayers, const TArray<FName>& InDataLayerNames)
+{
+	check(InWorldDataLayers);
+	TArray<FString> DataLayerLabels;
+	DataLayerLabels.Reserve(InDataLayerNames.Num());
+	for (const FName& DataLayerName : InDataLayerNames)
+	{
+		if (const UDataLayer* DataLayer = InWorldDataLayers->GetDataLayerFromName(DataLayerName))
+		{
+			DataLayerLabels.Add(DataLayer->GetDataLayerLabel().ToString());
+		}
+	}
+	return FString::Join(DataLayerLabels, TEXT(","));
+}
 
 AWorldDataLayers::AWorldDataLayers(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -80,6 +96,8 @@ void AWorldDataLayers::InitializeDataLayerStates()
 
 		RepActiveDataLayerNames = ActiveDataLayerNames.Array();
 		RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
+
+		UE_LOG(LogWorldPartition, Log, TEXT("Initial Data Layer States Activated(%s) Loaded(%s)"), *JoinDataLayerLabelsFromNames(this, RepActiveDataLayerNames), *JoinDataLayerLabelsFromNames(this, RepLoadedDataLayerNames));
 	}
 }
 
@@ -121,6 +139,11 @@ void AWorldDataLayers::SetDataLayerState(FActorDataLayer InDataLayer, EDataLayer
 			RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
 
 			++DataLayersStateEpoch;
+
+			UE_LOG(LogWorldPartition, Log, TEXT("Data Layer '%s' state changed: %s -> %s"), 
+				*DataLayer->GetDataLayerLabel().ToString(), 
+				*StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)CurrentState).ToString(),
+				*StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)InState).ToString());
 
 			OnDataLayerStateChanged(DataLayer, InState);
 		}
@@ -187,6 +210,8 @@ void AWorldDataLayers::OverwriteDataLayerStates(TArray<FActorDataLayer>* InActiv
 			}
 			RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
 		}
+
+		UE_LOG(LogWorldPartition, Log, TEXT("Overwrite Data Layer States Activated(%s) Loaded(%s)"), *JoinDataLayerLabelsFromNames(this, RepActiveDataLayerNames), *JoinDataLayerLabelsFromNames(this, RepLoadedDataLayerNames));
 	}
 }
 

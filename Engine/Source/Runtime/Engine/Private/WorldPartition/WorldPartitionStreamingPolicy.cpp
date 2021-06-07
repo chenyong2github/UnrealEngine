@@ -116,6 +116,22 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 	}
 }
 
+#define WORLDPARTITION_LOG_UPDATESTREAMINGSTATE(Verbosity)\
+UE_SUPPRESS(LogWorldPartition, Verbosity, \
+{ \
+	if (ToActivateCells.Num() > 0 || ToLoadCells.Num() > 0 || ToUnloadCells.Num() > 0) \
+	{ \
+		UE_LOG(LogWorldPartition, Verbosity, TEXT("UWorldPartitionStreamingPolicy: CellsToActivate(%d), CellsToLoad(%d), CellsToUnload(%d)"), ToActivateCells.Num(), ToLoadCells.Num(), ToUnloadCells.Num()); \
+		FTransform LocalToWorld = WorldPartition->GetInstanceTransform(); \
+		for (int i = 0; i < StreamingSources.Num(); ++i) \
+		{ \
+			FVector ViewLocation = LocalToWorld.TransformPosition(StreamingSources[i].Location); \
+			FRotator ViewRotation = LocalToWorld.TransformRotation(StreamingSources[i].Rotation.Quaternion()).Rotator(); \
+			UE_LOG(LogWorldPartition, Verbosity, TEXT("UWorldPartitionStreamingPolicy: Sources[%d] = %s,%s"), i, *ViewLocation.ToString(), *ViewRotation.ToString()); \
+		} \
+	} \
+}) \
+
 void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState);
@@ -199,22 +215,15 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = LoadStreamingCells.Difference(LoadedCells);
 	TSet<const UWorldPartitionRuntimeCell*> ToUnloadCells = ActivatedCells.Union(LoadedCells).Difference(ActivateStreamingCells.Union(LoadStreamingCells));
 
-	UE_SUPPRESS(LogWorldPartition, Verbose,
+	if(World->bMatchStarted)
 	{
-		if (ToActivateCells.Num() > 0 || ToLoadCells.Num() > 0 || ToUnloadCells.Num() > 0)
-		{
-			UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: CellsToActivate(%d), CellsToLoad(%d), CellsToUnload(%d)"), ToActivateCells.Num(), ToLoadCells.Num(), ToUnloadCells.Num());
-
-			FTransform LocalToWorld = WorldPartition->GetInstanceTransform();
-			for (int i = 0; i < StreamingSources.Num(); ++i)
-			{
-				FVector ViewLocation = LocalToWorld.TransformPosition(StreamingSources[i].Location);
-				FRotator ViewRotation = LocalToWorld.TransformRotation(StreamingSources[i].Rotation.Quaternion()).Rotator();
-				UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: Sources[%d] = %s,%s"), i, *ViewLocation.ToString(), *ViewRotation.ToString());
-			}
-		}
-	});
-
+		WORLDPARTITION_LOG_UPDATESTREAMINGSTATE(Verbose);
+	}
+	else
+	{
+		WORLDPARTITION_LOG_UPDATESTREAMINGSTATE(Log);
+	}
+	
 	if (ToUnloadCells.Num() > 0)
 	{
 		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Unloaded, ToUnloadCells);
