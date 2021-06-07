@@ -1750,7 +1750,7 @@ public:
 #endif // WITH_EDITOR
 
 	/** Appends textures referenced by expressions, including nested functions. */
-	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { return GetCachedExpressionData().ReferencedTextures; }
+	ENGINE_API virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override final { return GetCachedExpressionData().ReferencedTextures; }
 
 protected:
 

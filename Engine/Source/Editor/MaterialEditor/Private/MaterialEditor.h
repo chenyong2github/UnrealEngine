@@ -106,7 +106,7 @@ public:
 	 */
 	virtual bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const override;
 
-	virtual TArrayView<UObject* const> GetReferencedTextures() const override
+	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override
 	{
 		return MakeArrayView(ReferencedTextures);
 	}
@@ -212,7 +212,7 @@ public:
 
 private:
 	TWeakObjectPtr<UMaterialExpression> Expression;
-	TArray<UObject*> ReferencedTextures;
+	TArray<TObjectPtr<UObject>> ReferencedTextures;
 	FGuid Id;
 };
 

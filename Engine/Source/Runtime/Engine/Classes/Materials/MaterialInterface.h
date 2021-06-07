@@ -548,8 +548,8 @@ public:
 		PURE_VIRTUAL(UMaterialInterface::GetLayerParameterIndex, return INDEX_NONE;);
 
 	/** Get textures referenced by expressions, including nested functions. */
-	virtual TArrayView<UObject* const> GetReferencedTextures() const
-		PURE_VIRTUAL(UMaterialInterface::GetReferencedTextures,return TArrayView<UObject* const>(););
+	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const
+		PURE_VIRTUAL(UMaterialInterface::GetReferencedTextures,return TArrayView<const TObjectPtr<UObject>>(););
 
 	virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal)
 		PURE_VIRTUAL(UMaterialInterface::SaveShaderStableKeysInner, );
