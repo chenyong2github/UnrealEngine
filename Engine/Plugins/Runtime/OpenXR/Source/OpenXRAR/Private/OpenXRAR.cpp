@@ -696,7 +696,10 @@ void FOpenXRARSystem::AddOrUpdatePlane_GameThread(FOpenXRPlaneUpdate* CurrentPla
 	// Trigger the proper notification delegate
 	if (bIsAdd)
 	{
-		AARActor::RequestSpawnARActor(CurrentPlaneUpdate->Id, SessionConfig->GetPlaneComponentClass());
+		if (SessionConfig != nullptr)
+		{
+			AARActor::RequestSpawnARActor(CurrentPlaneUpdate->Id, SessionConfig->GetPlaneComponentClass());
+		}
 	}
 	else
 	{
