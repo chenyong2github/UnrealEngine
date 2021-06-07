@@ -2148,7 +2148,9 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 {
 	for (TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
 	{
-		if (SelectionViewModel->GetSelectedEmitterHandleIds().Contains(EmitterHandleViewModel->GetId()) == false)
+		// if we are an emitter asset we don't require pre-selection
+		// if we are a system asset instead we filter out unselected emitters
+		if (EditMode != ENiagaraSystemViewModelEditMode::EmitterAsset && SelectionViewModel->GetSelectedEmitterHandleIds().Contains(EmitterHandleViewModel->GetId()) == false)
 		{
 			continue;
 		}
@@ -2164,6 +2166,26 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 	}
 	PreviewComponent->MarkRenderTransformDirty();
 	ResetSystem(ETimeResetMode::KeepCurrentTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
+}
+
+void FNiagaraSystemViewModel::UpdateSystemFixedBounds()
+{
+	// early out as we only allow system fixed bounds update on system assets
+	if(GetEditMode() != ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		return;
+	}
+
+	if(SystemInstance != nullptr)
+	{
+		GetSystem().Modify();
+		
+		GetSystem().bFixedBounds = true;
+		GetSystem().SetFixedBounds(SystemInstance->GetLocalBounds());
+
+		PreviewComponent->MarkRenderTransformDirty();
+		ResetSystem(ETimeResetMode::KeepCurrentTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
+	}
 }
 
 void FNiagaraSystemViewModel::ClearEmitterStats()

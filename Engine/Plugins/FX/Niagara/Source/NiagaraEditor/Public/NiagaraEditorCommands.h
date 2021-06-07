@@ -45,7 +45,8 @@ public:
 
 	TSharedPtr<FUICommandInfo> ToggleOrbit;
 	TSharedPtr<FUICommandInfo> ToggleBounds;
-	TSharedPtr<FUICommandInfo> ToggleBounds_SetFixedBounds;
+	TSharedPtr<FUICommandInfo> ToggleBounds_SetFixedBounds_SelectedEmitters;
+	TSharedPtr<FUICommandInfo> ToggleBounds_SetFixedBounds_System;
 	TSharedPtr<FUICommandInfo> SaveThumbnailImage;
 
 	TSharedPtr<FUICommandInfo> ToggleStatPerformance;

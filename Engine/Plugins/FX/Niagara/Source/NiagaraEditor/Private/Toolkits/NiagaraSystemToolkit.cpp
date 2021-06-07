@@ -920,8 +920,17 @@ void FNiagaraSystemToolkit::SetupCommands()
 		FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsToggleBoundsChecked));
 
 	GetToolkitCommands()->MapAction(
-		FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds,
-		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds));
+		FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_SelectedEmitters,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_Emitters),
+		FCanExecuteAction::CreateLambda([this]()
+		{
+			return (this->SystemToolkitMode == ESystemToolkitMode::System && this->SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() > 0) ||
+				this->SystemToolkitMode == ESystemToolkitMode::Emitter;				
+		}));
+
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_System,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_System));
 
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().SaveThumbnailImage,
@@ -1218,7 +1227,12 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateBoundsMenuContent(TSharedRef<
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
 
-	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds);
+	if(SystemToolkitMode == ESystemToolkitMode::System)
+	{
+		MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_System);		
+	}
+	
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_SelectedEmitters);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -1268,7 +1282,7 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 	ViewOptions.SetCategorizeLibraryAssets(true);
 	ViewOptions.SetAddLibraryOnlyCheckbox(true);
 
-	FNiagaraAssetPickerTabOptions TabOptions;
+	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions TabOptions;
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
@@ -1412,13 +1426,18 @@ void FNiagaraSystemToolkit::OpenAttributeSpreadsheet()
 	InvokeTab(DebugSpreadsheetTabID);
 }
 
-
-void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds()
+void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_Emitters()
 {
-	FScopedTransaction Transaction(LOCTEXT("SetFixedBounds", "Set Fixed Bounds"));
+	FScopedTransaction Transaction(LOCTEXT("SetFixedBoundsEmitters", "Set Fixed Bounds (Emitters)"));
 
 	SystemViewModel->UpdateEmitterFixedBounds();
+}
 
+void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_System()
+{
+	FScopedTransaction Transaction(LOCTEXT("SetFixedBoundsSystem", "Set Fixed Bounds (System)"));
+
+	SystemViewModel->UpdateSystemFixedBounds();
 }
 
 void FNiagaraSystemToolkit::ClearStatPerformance()

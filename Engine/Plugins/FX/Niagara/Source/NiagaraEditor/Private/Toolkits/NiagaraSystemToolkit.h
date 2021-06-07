@@ -81,7 +81,8 @@ public:
 protected:
 	void OnToggleBounds();
 	bool IsToggleBoundsChecked() const;
-	void OnToggleBoundsSetFixedBounds();
+	void OnToggleBoundsSetFixedBounds_Emitters();
+	void OnToggleBoundsSetFixedBounds_System();
 
 	void ClearStatPerformance();
 	void ToggleStatPerformance();
