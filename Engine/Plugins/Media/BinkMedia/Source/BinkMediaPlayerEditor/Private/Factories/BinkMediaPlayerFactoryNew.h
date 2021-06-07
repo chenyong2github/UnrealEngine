@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "Factories/Factory.h"
 #include "BinkMediaPlayer.h"
 #include "BinkMediaPlayerFactoryNew.generated.h"
 
