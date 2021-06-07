@@ -43,7 +43,7 @@ static FAutoConsoleVariableRef CVarUseGPUMorphTargets(
 	TEXT("Use GPU for computing morph targets.\n")
 	TEXT(" 0: Use original CPU method (loop per morph then by vertex)\n")
 	TEXT(" 1: Enable GPU method (default)\n"),
-	ECVF_Default
+	ECVF_ReadOnly
 	);
 
 static int32 GForceUpdateMorphTargets = 0;

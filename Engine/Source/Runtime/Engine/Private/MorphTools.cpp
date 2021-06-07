@@ -52,6 +52,14 @@ bool UMorphTarget::HasValidData() const
 	return false;
 }
 
+void UMorphTarget::DiscardCPUBuffers()
+{
+	for (FMorphTargetLODModel& Model : MorphLODModels)
+	{
+		Model.DiscardCPUBuffers();
+	}
+}
+
 #if WITH_EDITOR
 
 void UMorphTarget::PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const int32 LODIndex, const TArray<FSkelMeshSection>& Sections, const bool bCompareNormal, const bool bGeneratedByReductionSetting, const float PositionThreshold)

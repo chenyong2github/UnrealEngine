@@ -233,6 +233,15 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 				MorphTargetSize = (MorphTargetSize > FMorphTargetVertexInfoBuffers::GetMaximumThreadGroupSize()) ? MorphTargetSize - FMorphTargetVertexInfoBuffers::GetMaximumThreadGroupSize() : 0;
 				StartOffset += FMorphTargetVertexInfoBuffers::GetMaximumThreadGroupSize();
 			} while (MorphTargetSize > 0);
+
+#if !WITH_EDITOR
+			if (NumSrcDeltas > 0)
+			{
+				// A CPU copy of the morph deltas has been made so it is safe to 
+				// discard the original data.  Keep CPU buffers when in the editor.
+				MorphTarget->DiscardCPUBuffers();
+			}
+#endif
 		}
 
 		check(MorphTargetVertexInfoBuffers.WorkItemsPerMorph.Num() == MorphTargetVertexInfoBuffers.StartOffsetPerMorph.Num());
