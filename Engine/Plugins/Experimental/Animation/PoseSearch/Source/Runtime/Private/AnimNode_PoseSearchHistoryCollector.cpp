@@ -42,7 +42,7 @@ void FAnimNode_PoseSearchHistoryCollector::Initialize_AnyThread(const FAnimation
 	Super::Initialize_AnyThread(Context);
 
 	// @@ need to do this once based on descendant node's (or input param?) search schema, not every node init
-	PoseHistory.Init(32, 1.0f);
+	PoseHistory.Init(128, 4.0f);
 
 	UE::Anim::TScopedGraphMessage<UE::PoseSearch::Private::FPoseHistoryProvider> ScopedMessage(Context, this);
 

@@ -24,7 +24,11 @@ struct FPoseContext;
 struct FReferenceSkeleton;
 
 namespace UE { namespace PoseSearch {
+
 class FPoseHistory;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
+
 }}
 
 UENUM()
@@ -204,12 +208,6 @@ public:
 	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Automatic;
 
 	UPROPERTY()
-	TArray<int32> TrajectorySampleOffsets;
-
-	UPROPERTY()
-	TArray<int32> PoseSampleOffsets;
-
-	UPROPERTY()
 	EPoseSearchDataPreprocessor EffectiveDataPreprocessor = EPoseSearchDataPreprocessor::Invalid;
 
 	UPROPERTY()
@@ -239,7 +237,6 @@ public: // IBoneReferenceSkeletonProvider
 private:
 	void GenerateLayout();
 	void ResolveBoneReferences();
-	void ConvertTimesToOffsets(TArrayView<const float> SampleTimes, TArray<int32>& OutSampleOffsets);
 };
 
 USTRUCT()
@@ -467,6 +464,8 @@ public:
 	void Init(const UPoseSearchSchema* Schema);
 	void ResetFeatures();
 
+	const UPoseSearchSchema* GetSchema() const { return Schema; }
+
 	TArrayView<const float> GetValues() const { return Values; }
 	TArrayView<const float> GetNormalizedValues() const { return ValuesNormalized; }
 
@@ -477,8 +476,8 @@ public:
 	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector);
-	bool SetPoseFeatures(UE::PoseSearch::FPoseHistory* History);
-	bool SetPastTrajectoryFeatures(UE::PoseSearch::FPoseHistory* History);
+	bool TrySetPoseFeatures(UE::PoseSearch::FPoseHistory* History);
+	bool TrySetPastTrajectoryFeatures(UE::PoseSearch::FPoseHistory* History);
 
 	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
 	void CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx);
@@ -486,12 +485,16 @@ public:
 	void MergeReplace(const FPoseSearchFeatureVectorBuilder& OtherBuilder);
 
 	bool IsInitialized() const;
+	bool IsInitializedForSchema(const UPoseSearchSchema* Schema) const;
 	bool IsComplete() const;
 	bool IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const;
 
 	void Normalize(const FPoseSearchIndex& ForSearchIndex);
 
 private:
+	bool TrySetPastTrajectoryTimeFeatures(UE::PoseSearch::FPoseHistory* History);
+	bool TrySetPastTrajectoryDistanceFeatures(UE::PoseSearch::FPoseHistory* History);
+
 	UPROPERTY(Transient)
 	const UPoseSearchSchema* Schema = nullptr;
 
@@ -511,10 +514,12 @@ class POSESEARCH_API FPoseHistory
 public:
 	void Init(int32 InNumPoses, float InTimeHorizon);
 	void Init(const FPoseHistory& History);
-	bool SamplePose(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones);
-	bool SampleRoot(float SecondsAgo, FTransform* OutTransform) const;
+	bool TrySamplePose(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones);
+	bool TrySampleRootTimeBased(float SecondsAgo, FTransform* OutTransform) const;
+	bool TrySampleRootDistanceBased(float PastDistance, FTransform* OutTransform, float* OutSampleTime) const;
+
 	void Update(float SecondsElapsed, const FPoseContext& PoseContext);
-	float GetSampleInterval() const;
+	float GetSampleTimeInterval() const;
 	TArrayView<const FTransform> GetLocalPoseSample() const { return SampledLocalPose; }
 	TArrayView<const FTransform> GetComponentPoseSample() const { return SampledComponentPose; }
 	TArrayView<const FTransform> GetPrevLocalPoseSample() const { return SampledPrevLocalPose; }
@@ -523,7 +528,7 @@ public:
 	FPoseSearchFeatureVectorBuilder& GetQueryBuilder() { return QueryBuilder; }
 
 private:
-	bool SampleLocalPose(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose);
+	bool TrySampleLocalPose(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose);
 
 	struct FPose
 	{
