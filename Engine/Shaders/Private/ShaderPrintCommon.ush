@@ -12,16 +12,27 @@
 // Uniforms and structures
 
 // Needs to match C++ code in ShaderPrintUniform.cpp
-struct ShaderPrintItem
+struct FShaderPrintItem
 {
 	float2 ScreenPos; // Position in normalized coordinates
 	int Value;        // Cast to value or symbol
 	int Type;         // SHADER_PRINT_TYPE_* defines how to read Value
+	float3 Color;	  // Color
 };
 
-RWStructuredBuffer<ShaderPrintItem> RWValuesBuffer;
+struct FPackedShaderPrintItem
+{
+	float2 ScreenPos; // Position in normalized coordinates
+	int Value;        // Cast to value or symbol
+	uint TypeAndColor;//
+};
 
-// Content of ShaderPrintItem.Type defines what to cast ShaderPrintItem.Value as
+RWStructuredBuffer<FPackedShaderPrintItem> RWValuesBuffer;
+
+// --------------------------------------------------------------------------
+// Input types
+
+// Content of FShaderPrintItem.Type defines what to cast FShaderPrintItem.Value as
 #define SHADER_PRINT_TYPE_SYMBOL 0
 #define SHADER_PRINT_TYPE_FLOAT  1
 #define SHADER_PRINT_TYPE_INT    2
@@ -30,6 +41,60 @@ RWStructuredBuffer<ShaderPrintItem> RWValuesBuffer;
 
 #define SHADER_PRINT_COUNT_OFFSET 0
 #define SHADER_PRINT_VALUE_OFFSET 1
+
+// --------------------------------------------------------------------------
+// Font Color
+
+struct FFontColor
+{
+	float3 Color;
+};
+
+FFontColor InitFontColor(float InX, float InY, float InZ) { FFontColor Out; Out.Color = float3(InX, InY, InZ); return Out; }
+FFontColor InitFontColor(float3 In)						  { FFontColor Out; Out.Color = In; return Out; }
+
+static const FFontColor FontWhite		= InitFontColor(1, 1, 1);
+static const FFontColor FontBlack		= InitFontColor(0, 0, 0);
+static const FFontColor FontRed			= InitFontColor(1, 0, 0);
+static const FFontColor FontGreen		= InitFontColor(0, 1, 0);
+static const FFontColor FontBlue		= InitFontColor(0, 0, 1);
+static const FFontColor FontYellow		= InitFontColor(1, 1, 0);
+static const FFontColor FontCyan		= InitFontColor(0, 1, 1);
+static const FFontColor FontMagenta		= InitFontColor(1, 0, 1);
+static const FFontColor FontOrange		= InitFontColor(243.f / 255.f, 156.f / 255.f,  18.f / 255.f);
+static const FFontColor FontPurple		= InitFontColor(169.f /255.f,    7.f / 255.f, 228.f / 255.f);
+static const FFontColor FontTurquoise	= InitFontColor( 26.f / 255.f, 188.f / 255.f, 156.f / 255.f);
+static const FFontColor FontSilver		= InitFontColor(189.f / 255.f, 195.f / 255.f, 199.f / 255.f);
+static const FFontColor FontEmerald		= InitFontColor( 46.f / 255.f, 204.f / 255.f, 113.f / 255.f);
+
+// --------------------------------------------------------------------------
+// Util pack/unpac functions
+
+FPackedShaderPrintItem PackShaderPrintItem(FShaderPrintItem In)
+{
+	const uint3 Color8bits = saturate(In.Color) * 0xFF;
+
+	FPackedShaderPrintItem Out;
+	Out.ScreenPos = In.ScreenPos;
+	Out.Value = In.Value;
+	Out.TypeAndColor = Color8bits.z<<24 | Color8bits.y<<16 | Color8bits.x<<8 | (In.Type & 0xFF);
+	return Out;
+}
+
+FShaderPrintItem UnpackShaderPrintItem(FPackedShaderPrintItem In)
+{
+	FShaderPrintItem Out;
+	Out.ScreenPos = In.ScreenPos;
+	Out.Value	= In.Value;
+	Out.Type	= (In.TypeAndColor) & 0xFF;
+	Out.Color.x = float((In.TypeAndColor >>  8) & 0xFF) / 255.f;
+	Out.Color.y = float((In.TypeAndColor >> 16) & 0xFF) / 255.f;
+	Out.Color.z = float((In.TypeAndColor >> 24) & 0xFF) / 255.f;
+	return Out;
+}
+
+// --------------------------------------------------------------------------
+// Global variables
 
 #include "/Engine/Generated/UniformBuffers/ShaderPrintUniform.ush"
 //float4 FontSize;      // .xy character size, .zw character spacing (in normalized coordinates)
@@ -46,7 +111,7 @@ static bool ShaderPrintFilterEnable = true;
 // --------------------------------------------------------------------------
 // Internal helpers
 
-void ShaderPrint_Internal(in ShaderPrintItem Item)
+void ShaderPrint_Internal(in FShaderPrintItem Item)
 {
 	// If MaxValueCount is 0 then we don't reset the buffer counter so early out here
 	if (ShaderPrintUniform.MaxValueCount == 0)
@@ -66,40 +131,51 @@ void ShaderPrint_Internal(in ShaderPrintItem Item)
 	}
 
 	// Because counter is in first element, read/writes need to be offset by 1
-	RWValuesBuffer[IndexToStore + SHADER_PRINT_VALUE_OFFSET] = Item;
+	RWValuesBuffer[IndexToStore + SHADER_PRINT_VALUE_OFFSET] = PackShaderPrintItem(Item);
 }
 
-void ShaderPrint_Internal(in float2 ScreenPos, in int Value, in int Type)
+void ShaderPrint_Internal(in float2 ScreenPos, in int Value, in FFontColor FontColor, in int Type)
 {
-	ShaderPrintItem Item;
+	FShaderPrintItem Item;
 	Item.ScreenPos = ScreenPos;
 	Item.Value = Value;
 	Item.Type = Type;
+	Item.Color = FontColor.Color;
 	ShaderPrint_Internal(Item);
 }
 
 // --------------------------------------------------------------------------
 // Symbol printing
 
-float2 ShaderPrintSymbol(in float2 ScreenPos, in int Symbol)
+float2 ShaderPrintSymbol(in float2 ScreenPos, in int Symbol, in FFontColor Color)
 {
 	if (ShaderPrintFilterEnable)
 	{
-		ShaderPrint_Internal(ScreenPos, Symbol, SHADER_PRINT_TYPE_SYMBOL);
+		ShaderPrint_Internal(ScreenPos, Symbol, Color, SHADER_PRINT_TYPE_SYMBOL);
 		ScreenPos.x += ShaderPrintUniform.FontSize.z;
 	}
 	return ScreenPos;
 }
 
-// Function for reading global TEXT string. 
-// The data and function are generated by the shader compiler.
-float2 ShaderPrintText(float2 Pos, uint InTextEntry);
-GENERATED_SHADER_PRINT
+float2 ShaderPrintSymbol(in float2 ScreenPos, in int Symbol)
+{
+	return ShaderPrintSymbol(ScreenPos, Symbol, FontWhite);
+}
+
+void ShaderPrintSymbol(in int symbol, in FFontColor Color)
+{
+	ShaderPrintCursorPos = ShaderPrintSymbol(ShaderPrintCursorPos, symbol, Color);
+}
 
 void ShaderPrintSymbol(in int symbol)
 {
-	ShaderPrintCursorPos = ShaderPrintSymbol(ShaderPrintCursorPos, symbol);
+	ShaderPrintCursorPos = ShaderPrintSymbol(ShaderPrintCursorPos, symbol, FontWhite);
 }
+
+// Function for reading global TEXT string. 
+// The data and function are generated by the shader compiler.
+//float2 ShaderPrintText(float2 Pos, uint InTextEntry, float3 InColor);
+GENERATED_SHADER_PRINT
 
 float2 ShaderPrintHelloWorld(in float2 ScreenPos)
 {
@@ -126,275 +202,203 @@ void ShaderPrintHelloWorld()
 	ShaderPrintCursorPos = ShaderPrintHelloWorld(ShaderPrintCursorPos);
 }
 
+
 // --------------------------------------------------------------------------
-// Value printing
+// Value printing (common value printing)
 
-float2 ShaderPrint(in float2 ScreenPos, in float Value, in int Type = SHADER_PRINT_TYPE_FLOAT)
+// float
+float2 ShaderPrintValue(in float2 ScreenPos, in float Value, in FFontColor Color)
 {
-	if (ShaderPrintFilterEnable)
-	{
-		ShaderPrint_Internal(ScreenPos, asint(Value), Type);
-		ScreenPos.x += ShaderPrintUniform.FontSize.z * ShaderPrintTabCount;
-	}
+	ShaderPrint_Internal(ScreenPos, asint(Value), Color, SHADER_PRINT_TYPE_FLOAT);
+	ScreenPos.x += ShaderPrintUniform.FontSize.z * ShaderPrintTabCount;
 	return ScreenPos;
 }
 
-void ShaderPrint(in float Value, in int Type = SHADER_PRINT_TYPE_FLOAT)
+// int
+float2 ShaderPrintValue(in float2 ScreenPos, in int Value, in FFontColor Color)
 {
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in int Value, in int Type = SHADER_PRINT_TYPE_INT)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ShaderPrint_Internal(ScreenPos, Value, Type);
-		ScreenPos.x += ShaderPrintUniform.FontSize.z * ShaderPrintTabCount;
-	}
+	ShaderPrint_Internal(ScreenPos, Value, Color, SHADER_PRINT_TYPE_INT);
+	ScreenPos.x += ShaderPrintUniform.FontSize.z * ShaderPrintTabCount;
 	return ScreenPos;
 }
 
-void ShaderPrint(in int Value, in int Type = SHADER_PRINT_TYPE_INT)
+// uint
+float2 ShaderPrintValue(in float2 ScreenPos, in uint Value, in FFontColor Color)
 {
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in uint Value, in int Type = SHADER_PRINT_TYPE_UINT)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ShaderPrint_Internal(ScreenPos, asint(Value), Type);
-		ScreenPos.x += ShaderPrintUniform.FontSize.z * ShaderPrintTabCount;
-	}
+	ShaderPrint_Internal(ScreenPos, asint(Value), Color, SHADER_PRINT_TYPE_UINT);
+	ScreenPos.x += ShaderPrintUniform.FontSize.z * ShaderPrintTabCount;
 	return ScreenPos;
 }
 
-void ShaderPrint(in uint Value, in int Type = SHADER_PRINT_TYPE_UINT)
+// bool
+float2 ShaderPrintValue(in float2 ScreenPos, in bool Value, in FFontColor Color)
 {
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value, Type);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in bool Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, Value ? 1u : 0u, SHADER_PRINT_TYPE_UINT);
-	}
+	ShaderPrint_Internal(ScreenPos, asint(Value ? 1u : 0u), Color, SHADER_PRINT_TYPE_UINT);
+	ScreenPos.x += ShaderPrintUniform.FontSize.z * ShaderPrintTabCount;
 	return ScreenPos;
 }
 
-void ShaderPrint(in bool Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value ? 1u : 0u, SHADER_PRINT_TYPE_UINT);
+// --------------------------------------------------------------------------
+// Scalar type printing
+
+#define SHADER_PRINT_OVERLOAD_1(InNumComponent, InType) \
+float2 ShaderPrint(in float2 ScreenPos, in InType Value, in FFontColor Color) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		ScreenPos = ShaderPrintValue(ScreenPos, Value, Color); \
+	} \
+	return ScreenPos; \
+} \
+float2 ShaderPrint(in float2 ScreenPos, in InType Value) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		ScreenPos = ShaderPrint(ScreenPos, Value, FontWhite); \
+	} \
+	return ScreenPos; \
+} \
+void ShaderPrint(in InType Value, in FFontColor Color) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value, Color); \
+	} \
+} \
+void ShaderPrint(in InType Value) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value, FontWhite); \
+	} \
+}
+
+// --------------------------------------------------------------------------
+// Vector type printing
+
+#define SHADER_PRINT_OVERLOAD_N(InNumComponent, InType) \
+float2 ShaderPrint(in float2 ScreenPos, in InType Value, in FFontColor Color) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		UNROLL \
+		for (uint CompIt = 0; CompIt < InNumComponent; ++CompIt) \
+		{ \
+			ScreenPos = ShaderPrintValue(ScreenPos, Value[CompIt], Color); \
+		} \
+	} \
+	return ScreenPos; \
+} \
+float2 ShaderPrint(in float2 ScreenPos, in InType Value) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		UNROLL \
+		for (uint CompIt=0;CompIt<InNumComponent;++CompIt) \
+		{ \
+			ScreenPos = ShaderPrint(ScreenPos, Value[CompIt], FontWhite); \
+		} \
+	} \
+	return ScreenPos; \
+} \
+void ShaderPrint(in InType Value, in FFontColor Color) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		UNROLL \
+		for (uint CompIt=0;CompIt<InNumComponent;++CompIt) \
+		{ \
+			ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value[CompIt], Color); \
+		} \
+	} \
+} \
+void ShaderPrint(in InType Value) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		UNROLL \
+		for (uint CompIt=0;CompIt<InNumComponent;++CompIt) \
+		{ \
+			ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value[CompIt], FontWhite); \
+		} \
+	} \
+}
+
+SHADER_PRINT_OVERLOAD_1(1, float)
+SHADER_PRINT_OVERLOAD_N(2, float2)
+SHADER_PRINT_OVERLOAD_N(3, float3)
+SHADER_PRINT_OVERLOAD_N(4, float4)
+
+SHADER_PRINT_OVERLOAD_1(1, uint)
+SHADER_PRINT_OVERLOAD_N(2, uint2)
+SHADER_PRINT_OVERLOAD_N(3, uint3)
+SHADER_PRINT_OVERLOAD_N(4, uint4)
+
+SHADER_PRINT_OVERLOAD_1(1, int)
+SHADER_PRINT_OVERLOAD_N(2, int2)
+SHADER_PRINT_OVERLOAD_N(3, int3)
+SHADER_PRINT_OVERLOAD_N(4, int4)
+
+SHADER_PRINT_OVERLOAD_1(1, bool)
+
+// --------------------------------------------------------------------------
+// Matrix type printing
+
+#define SHADER_PRINT_OVERLOAD_NN(InNumComponentX, InNumComponentY, InType) \
+float2 ShaderPrint(in float2 ScreenPos, in InType Value, in FFontColor Color) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		UNROLL \
+		for (uint CompY=0;CompY<InNumComponentY;++CompY) \
+		{ \
+			ScreenPos = ShaderPrint(ScreenPos, Value[CompY], Color); \
+			ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w); \
+		} \
+	} \
+	return ScreenPos; \
+} \
+float2 ShaderPrint(in float2 ScreenPos, in InType Value) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		UNROLL \
+		for (uint CompY = 0; CompY < InNumComponentY; ++CompY) \
+		{ \
+			ScreenPos = ShaderPrint(ScreenPos, Value[CompY], FontWhite); \
+			ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w); \
+		} \
+	} \
+	return ScreenPos; \
+} \
+void ShaderPrint(in InType Value, in FFontColor Color) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		UNROLL \
+		for (uint CompY = 0; CompY < InNumComponentY; ++CompY) \
+		{ \
+			ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value[CompY], Color); \
+			ShaderPrintCursorPos += float2(0.f, ShaderPrintUniform.FontSize.w); \
+		} \
+	} \
+} \
+void ShaderPrint(in InType Value) \
+{ \
+	if (ShaderPrintFilterEnable) \
+	{ \
+		UNROLL \
+		for (uint CompY = 0; CompY < InNumComponentY; ++CompY) \
+		{ \
+			ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value[CompY], FontWhite); \
+			ShaderPrintCursorPos += float2(0.f, ShaderPrintUniform.FontSize.w); \
+		} \
+	} \
 	}
-}
 
-float2 ShaderPrint(in float2 ScreenPos, in float2 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, Value.y);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in float2 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in int2 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, Value.y);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in int2 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in uint2 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.y);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in uint2 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in float3 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, Value.y);
-		ScreenPos = ShaderPrint(ScreenPos, Value.z);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in float3 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in int3 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, Value.y);
-		ScreenPos = ShaderPrint(ScreenPos, Value.z);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in int3 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in uint3 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.y);
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.z);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in uint3 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in float4 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, Value.y);
-		ScreenPos = ShaderPrint(ScreenPos, Value.z);
-		ScreenPos = ShaderPrint(ScreenPos, Value.w);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in float4 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in int4 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, Value.y);
-		ScreenPos = ShaderPrint(ScreenPos, Value.z);
-		ScreenPos = ShaderPrint(ScreenPos, Value.w);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in int4 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in uint4 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.x);
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.y);
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.z);
-		ScreenPos = ShaderPrint(ScreenPos, (int)Value.w);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in uint4 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in float3x3 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ShaderPrint(ScreenPos, Value[0]);
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-		ShaderPrint(ScreenPos, Value[1]);
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-		ShaderPrint(ScreenPos, Value[2]);
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in float3x3 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in float4x3 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ShaderPrint(ScreenPos, float4(Value[0], 0.f));
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-		ShaderPrint(ScreenPos, float4(Value[1], 0.f));
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-		ShaderPrint(ScreenPos, float4(Value[2], 0.f));
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-		ShaderPrint(ScreenPos, float4(Value[3], 1.f));
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in float4x3 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
-
-float2 ShaderPrint(in float2 ScreenPos, in float4x4 Value)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ShaderPrint(ScreenPos, Value[0]);
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-		ShaderPrint(ScreenPos, Value[1]);
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-		ShaderPrint(ScreenPos, Value[2]);
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-		ShaderPrint(ScreenPos, Value[3]);
-		ScreenPos += float2(0.f, ShaderPrintUniform.FontSize.w);
-	}
-	return ScreenPos;
-}
-
-void ShaderPrint(in float4x4 Value)
-{
-	ShaderPrintCursorPos = ShaderPrint(ShaderPrintCursorPos, Value);
-}
+SHADER_PRINT_OVERLOAD_NN(3, 3, float3x3)
+SHADER_PRINT_OVERLOAD_NN(4, 3, float4x3)
+SHADER_PRINT_OVERLOAD_NN(4, 4, float4x4)
 
 // --------------------------------------------------------------------------
 // Formating helpers
@@ -467,6 +471,6 @@ void ShaderPrintFilterOneThread()
 {
 	// Atomic flag is stored in first element .Type Value
 	uint PrevValue;
-	InterlockedCompareExchange(RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Type, 0, 1, PrevValue);
+	InterlockedCompareExchange(RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].TypeAndColor, 0, 1, PrevValue);
 	ShaderPrintFilter(PrevValue == 0);
 }

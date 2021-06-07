@@ -7,9 +7,9 @@
 #include "Common.ush"	
 #include "ShaderPrintCommon.ush"
 
-StructuredBuffer<ShaderPrintItem> ValuesBuffer;
-RWStructuredBuffer<ShaderPrintItem> RWSymbolsBuffer;
-StructuredBuffer<ShaderPrintItem> SymbolsBuffer;
+StructuredBuffer<FPackedShaderPrintItem> ValuesBuffer;
+RWStructuredBuffer<FPackedShaderPrintItem> RWSymbolsBuffer;
+StructuredBuffer<FPackedShaderPrintItem> SymbolsBuffer;
 RWBuffer<uint> RWIndirectDispatchArgsBuffer;
 RWBuffer<uint> RWIndirectDrawArgsBuffer;
 
@@ -27,8 +27,7 @@ void InitValueBufferCS()
 
 	// Symbol/print Counter
 	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value = 0;
-	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Type = 0;
-
+	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].TypeAndColor = 0;
 }
 
 
@@ -46,38 +45,35 @@ void BuildIndirectDispatchArgsCS()
 	RWIndirectDispatchArgsBuffer[2] = 1;
 
 	// Clear .Value in the first buffer element which is (ab)used as the buffer counter
-	RWSymbolsBuffer[0].Value = 0;
+	RWSymbolsBuffer[SHADER_PRINT_COUNT_OFFSET].Value = 0;
 }
 
 
 // --------------------------------------------------------------------------
 // Read the values buffer and convert to the symbols buffer
 // This is required for converting a single number to a full set of symbols
-
-void AddSymbol(in ShaderPrintItem Item)
+void AddSymbol(inout float2 ScreenPos, in int Symbol, in float3 Color)
 {
-	// Buffer counter is stored in first element .Value
-	int IndexToStore = 0;
-	InterlockedAdd(RWSymbolsBuffer[SHADER_PRINT_COUNT_OFFSET].Value, 1, IndexToStore);
-	
-	// Prevent writing off the buffer
-	// Note that counter still increases so need to clamp when reading it in later passes
-	if (IndexToStore >= ShaderPrintUniform.MaxSymbolCount)
-	{
-		return;
-	}
-
-	// Because counter is in first element, read/writes need to be offset by 1
-	RWSymbolsBuffer[IndexToStore + SHADER_PRINT_VALUE_OFFSET] = Item;
-}
-
-void AddSymbol(inout float2 ScreenPos, in int Symbol)
-{
-	ShaderPrintItem Item;
+	FShaderPrintItem Item;
 	Item.ScreenPos = ScreenPos;
 	Item.Value = Symbol;
 	Item.Type = SHADER_PRINT_TYPE_SYMBOL;
-	AddSymbol(Item);
+	Item.Color = Color;
+	{
+		// Buffer counter is stored in first element .Value
+		int IndexToStore = 0;
+		InterlockedAdd(RWSymbolsBuffer[SHADER_PRINT_COUNT_OFFSET].Value, 1, IndexToStore);
+	
+		// Prevent writing off the buffer
+		// Note that counter still increases so need to clamp when reading it in later passes
+		if (IndexToStore >= ShaderPrintUniform.MaxSymbolCount)
+		{
+			return;
+		}
+
+		// Because counter is in first element, read/writes need to be offset by 1
+		RWSymbolsBuffer[IndexToStore + SHADER_PRINT_VALUE_OFFSET] = PackShaderPrintItem(Item);
+	}
 
 	ScreenPos.x += ShaderPrintUniform.FontSize.z;
 }
@@ -94,7 +90,7 @@ int GetHexSymbol(in int Digit)
 	return Digit < 10 ? Digit + _0_ : Digit - 10 + _A_;
 }
 
-void AddUIntSymbols(inout float2 ScreenPos, in uint Value)
+void AddUIntSymbols(inout float2 ScreenPos, in uint Value, in float3 Color)
 {
 	const uint MaxSymbols = 10; // Symbols required for MAX_UINT
 	uint SymbolCount = 1;
@@ -116,50 +112,50 @@ void AddUIntSymbols(inout float2 ScreenPos, in uint Value)
 		for (uint i = 0; i < SymbolCount; ++i)
 		{
 			uint Digit = Value / Divisor;
-			AddSymbol(ScreenPos, GetDecimalSymbol((int)Digit));
+			AddSymbol(ScreenPos, GetDecimalSymbol((int)Digit), Color);
 			Value = Value - (Digit * Divisor);
 			Divisor /= 10;
 		}
 	}
 }
 
-void AddIntSymbols(inout float2 ScreenPos, in int Value)
+void AddIntSymbols(inout float2 ScreenPos, in int Value, in float3 Color)
 {
 	if (Value < 0)
 	{
-	   AddSymbol(ScreenPos, _MINUS_);
+	   AddSymbol(ScreenPos, _MINUS_, Color);
 	   Value = -Value;
 	}
 
-	AddUIntSymbols(ScreenPos, (uint)Value);
+	AddUIntSymbols(ScreenPos, (uint)Value, Color);
 }
 
-void AddFloatSymbols(inout float2 ScreenPos, in float Value)
+void AddFloatSymbols(inout float2 ScreenPos, in float Value, in float3 Color)
 {
 	if (isinf(Value))
 	{
-		AddSymbol(ScreenPos, _I_);
-		AddSymbol(ScreenPos, _N_);
-		AddSymbol(ScreenPos, _F_);
+		AddSymbol(ScreenPos, _I_, Color);
+		AddSymbol(ScreenPos, _N_, Color);
+		AddSymbol(ScreenPos, _F_, Color);
 		return;
 	}
 
 	if (isnan(Value))
 	{
-		AddSymbol(ScreenPos, _N_);
-		AddSymbol(ScreenPos, _A_);
-		AddSymbol(ScreenPos, _N_);
+		AddSymbol(ScreenPos, _N_, Color);
+		AddSymbol(ScreenPos, _A_, Color);
+		AddSymbol(ScreenPos, _N_, Color);
 		return;
 	}
 
 	if (Value < 0)
 	{
-	   AddSymbol(ScreenPos, _MINUS_);
+	   AddSymbol(ScreenPos, _MINUS_, Color);
 	   Value = -Value;
 	}
 
-	AddIntSymbols(ScreenPos, (int)Value);
-	AddSymbol(ScreenPos, _DOT_);
+	AddIntSymbols(ScreenPos, (int)Value, Color);
+	AddSymbol(ScreenPos, _DOT_, Color);
 
 	for (int i = 5; i > 0; --i)
 	{
@@ -167,20 +163,20 @@ void AddFloatSymbols(inout float2 ScreenPos, in float Value)
 		if (Value > 0.f)
 		{
 			Value *= 10.f;
-			AddSymbol(ScreenPos, GetDecimalSymbol((int)Value));
+			AddSymbol(ScreenPos, GetDecimalSymbol((int)Value), Color);
 		}
 	}
 }
 
-void AddHexSymbols(inout float2 ScreenPos, uint Value)
+void AddHexSymbols(inout float2 ScreenPos, uint Value, in float3 Color)
 {
-    AddSymbol(ScreenPos, _0_);
-    AddSymbol(ScreenPos, _X_);
+    AddSymbol(ScreenPos, _0_, Color);
+    AddSymbol(ScreenPos, _X_, Color);
     
 	for (int i = 7; i >= 0; --i)
     {
         uint Digit = (Value >> (i*4)) & 0xf;
-        AddSymbol(ScreenPos, GetHexSymbol((int)Digit));
+        AddSymbol(ScreenPos, GetHexSymbol((int)Digit), Color);
     }
 }
 
@@ -195,18 +191,18 @@ void BuildSymbolBufferCS(
 		return;
 	}
 
-	ShaderPrintItem Value = ValuesBuffer[DispatchThreadId.x + SHADER_PRINT_VALUE_OFFSET];
+	FShaderPrintItem Value = UnpackShaderPrintItem(ValuesBuffer[DispatchThreadId.x + SHADER_PRINT_VALUE_OFFSET]);
 	
 	if (Value.Type == SHADER_PRINT_TYPE_SYMBOL)
-		AddSymbol(Value.ScreenPos, Value.Value);
+		AddSymbol(Value.ScreenPos, Value.Value, Value.Color);
 	else if (Value.Type == SHADER_PRINT_TYPE_FLOAT)
-		AddFloatSymbols(Value.ScreenPos, asfloat(Value.Value));
+		AddFloatSymbols(Value.ScreenPos, asfloat(Value.Value), Value.Color);
 	else if (Value.Type == SHADER_PRINT_TYPE_INT)
-		AddIntSymbols(Value.ScreenPos, Value.Value);
+		AddIntSymbols(Value.ScreenPos, Value.Value, Value.Color);
 	else if (Value.Type == SHADER_PRINT_TYPE_UINT)
-		AddUIntSymbols(Value.ScreenPos, asuint(Value.Value));
+		AddUIntSymbols(Value.ScreenPos, asuint(Value.Value), Value.Color);
 	else if (Value.Type == SHADER_PRINT_TYPE_HEX)
-		AddHexSymbols(Value.ScreenPos, asuint(Value.Value));
+		AddHexSymbols(Value.ScreenPos, asuint(Value.Value), Value.Color);
 }
 
 
@@ -243,8 +239,9 @@ void DrawSymbolsVS(
 	float2 DropShadowOffset = bDropShadow ? ShaderPrintUniform.FontSize.xy * float2(0.2f, -0.2f) : 0;
 	
 	InstanceId = InstanceId >> 1;
-	ShaderPrintItem Symbol = SymbolsBuffer[InstanceId + SHADER_PRINT_VALUE_OFFSET];
+	FShaderPrintItem Symbol = UnpackShaderPrintItem(SymbolsBuffer[InstanceId + SHADER_PRINT_VALUE_OFFSET]);
 	OutValue = Symbol.Value;
+	OutColor = Symbol.Color;
 
 	OutUV = float2(((VertexId + 1) / 3) & 1, VertexId & 1);
 	
@@ -259,10 +256,11 @@ void DrawSymbolsPS(
 	in noperspective float2 InUV : TEXCOORD0,
 	in nointerpolation int InValue : TEXCOORD1,
 	in nointerpolation int InShadow : TEXCOORD2,
+	in nointerpolation float3 InColor : TEXCOORD3,
 	out float4 OutColor : SV_Target0
 	)
 {
 	float Alpha = SampleMiniFont(InValue, (uint2)floor(InUV * 8.f));
-	float3 Color = InShadow == 0 ? Alpha : 0;
+	float3 Color = InColor * (InShadow == 0 ? Alpha : 0);
 	OutColor = float4(Color, Alpha);
 }
