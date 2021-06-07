@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Async/Future.h"
 
 struct FExecuteRequest;
 struct FExecuteResponse;
@@ -14,5 +15,7 @@ public:
 	/** Virtual destructor */
 	virtual ~IExecution() {}
 
-	virtual bool Execute(const FExecuteRequest& Request, FExecuteResponse& Response) = 0;
+	virtual bool Execute(const FExecuteRequest& Request, FExecuteResponse& Response, int64 TimeoutMs = 0) = 0;
+
+	virtual TFuture<FExecuteResponse> ExecuteAsync(const FExecuteRequest& Request, TUniqueFunction<void()> CompletionCallback = nullptr, int64 TimeoutMs = 0) = 0;
 };

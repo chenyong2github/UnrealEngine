@@ -4,6 +4,7 @@
 
 #include "Execution.h"
 #include "ContentAddressableStorage.h"
+#include "BazelCompletionQueueRunnable.h"
 
 THIRD_PARTY_INCLUDES_START
 UE_PUSH_MACRO("TEXT")
@@ -21,8 +22,10 @@ THIRD_PARTY_INCLUDES_END
 
 void FBazelExecutor::Initialize(const FSettings& Settings)
 {
-	ContentAddressableStorage.Reset();
-	Execution.Reset();
+	Shutdown();
+
+	Runnable = MakeShared<FBazelCompletionQueueRunnable>();
+	Thread.Reset(FRunnableThread::Create(Runnable.Get(), TEXT("BazelExecutorRunnable"), 0, TPri_BelowNormal));
 
 	grpc::ChannelArguments ChannelArguments;
 	ChannelArguments.SetMaxSendMessageSize(Settings.MaxSendMessageSize);
@@ -36,7 +39,7 @@ void FBazelExecutor::Initialize(const FSettings& Settings)
 	std::shared_ptr<grpc::ChannelCredentials> ContentAddressableStorageChannelCredentials = grpc::SslCredentials(grpc::SslCredentialsOptions(ContentAddressableStorageSslOptions));
 
 	std::shared_ptr<grpc::Channel> ContentAddressableStorageChannel = grpc::CreateCustomChannel(TCHAR_TO_UTF8(*Settings.ContentAddressableStorageTarget), ContentAddressableStorageChannelCredentials, ChannelArguments);
-	ContentAddressableStorage.Reset(new FContentAddressableStorage(ContentAddressableStorageChannel, Settings.ContentAddressableStorageHeaders));
+	ContentAddressableStorage.Reset(new FContentAddressableStorage(ContentAddressableStorageChannel, Runnable, Settings.ContentAddressableStorageHeaders));
 
 	grpc::SslCredentialsOptions ExecutionSslOptions;
 	ExecutionSslOptions.pem_cert_chain.assign(TCHAR_TO_UTF8(*Settings.ExecutionPemCertificateChain));
@@ -46,7 +49,25 @@ void FBazelExecutor::Initialize(const FSettings& Settings)
 	std::shared_ptr<grpc::ChannelCredentials> ExecutionChannelCredentials = grpc::SslCredentials(grpc::SslCredentialsOptions(ExecutionSslOptions));
 
 	std::shared_ptr<grpc::Channel> ExecutorChannel = grpc::CreateCustomChannel(TCHAR_TO_UTF8(*Settings.ExecutionTarget), ExecutionChannelCredentials, ChannelArguments);
-	Execution.Reset(new FExecution(ExecutorChannel, Settings.ExecutionHeaders));
+	Execution.Reset(new FExecution(ExecutorChannel, Runnable, Settings.ExecutionHeaders));
+}
+
+void FBazelExecutor::Shutdown()
+{
+	// FFakeThread doesn't call exit, call it manually.
+	if (Runnable.IsValid() && !FPlatformProcess::SupportsMultithreading())
+	{
+		Runnable->Stop();
+		Runnable->Exit();
+	}
+	if (Thread.IsValid())
+	{
+		Thread->Kill();
+	}
+	Thread.Reset();
+	Runnable.Reset();
+	ContentAddressableStorage.Reset();
+	Execution.Reset();
 }
 
 FName FBazelExecutor::GetFName() const
