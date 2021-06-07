@@ -11,7 +11,7 @@
  * We derive from this for each authoring mechanism. (HLSL text, VPL graph, ML Meta Lang, etc.)
  */
 UCLASS(Abstract, EditInlineNew)
-class UComputeKernelSource : public UObject
+class ENGINE_API UComputeKernelSource : public UObject
 {
 	GENERATED_BODY()
 

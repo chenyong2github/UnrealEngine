@@ -13,7 +13,7 @@ class UComputeGraph;
  * This object binds a graph to its data providers, and queues the execution. 
  */
 UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent))
-class UComputeGraphComponent : public UActorComponent
+class ENGINE_API UComputeGraphComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
