@@ -24,6 +24,7 @@ struct FMovieSceneChannelHandle;
 class UMovieSceneSection;
 class UMovieSceneTrack;
 class AActor;
+class ACameraActor;
 class FSequencerSelection;
 class FSequencerSelectionPreview;
 class FUICommandList;
@@ -457,6 +458,10 @@ public:
 	DECLARE_EVENT_TwoParams(ISequencer, FOnInitializeDetailsPanel, TSharedRef<IDetailsView>, TSharedRef<ISequencer>)
 	FOnInitializeDetailsPanel& OnInitializeDetailsPanel() { return InitializeDetailsPanelEvent; }
 
+	/** A delegate which will can be used in response to a camera being added to the sequence. If true, the default behavior of locking the camera to the viewport and adding a camera cut will be executed */
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCameraAddedToSequencer, ACameraActor*, FGuid)
+	FOnCameraAddedToSequencer& OnCameraAddedToSequencer() { return CameraAddedToSequencer; }
+
 	/** A delegate which will determine whether a binding should be visible in the tree. */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnGetIsBindingVisible, const FMovieSceneBinding&)
 	FOnGetIsBindingVisible& OnGetIsBindingVisible() { return GetIsBindingVisible; }
@@ -733,6 +738,7 @@ public:
 	virtual void SetDisplayName(FGuid InBinding, const FText& InDisplayName) = 0;
 protected:
 	FOnInitializeDetailsPanel InitializeDetailsPanelEvent;
+	FOnCameraAddedToSequencer CameraAddedToSequencer;
 	FOnGetIsBindingVisible GetIsBindingVisible;
 	FOnGetIsTrackVisible GetIsTrackVisible;
 	FOnGetPlaybackSpeeds GetPlaybackSpeeds;

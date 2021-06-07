@@ -344,7 +344,7 @@ TArray<FGuid> AddActors(UWorld* World, UMovieSceneSequence* InSequence, UMovieSc
 
 				if (Actor->IsA<ACameraActor>())
 				{
-					MovieSceneToolHelpers::CameraAdded(InMovieScene, PossessableGuid, 0);
+					MovieSceneToolHelpers::CreateCameraCutSectionForCamera(InMovieScene, PossessableGuid, 0);
 				}
 			}
 		}

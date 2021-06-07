@@ -5980,8 +5980,7 @@ void FSequencer::OnNewActorsDropped(const TArray<UObject*>& DroppedObjects, cons
 					SetLocalTimeDirectly(OriginalTime);
 				}
 
-				// New camera added, don't lock the view to the camera because we want to see where the camera rig was placed
-				NewCameraAdded(NewCameraGuid);
+				NewCameraAdded(NewCamera, NewCameraGuid);
 			}
 		}
 
@@ -6256,9 +6255,9 @@ TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InAct
 				FGuid PossessableGuid = CreateBinding(*Actor, Actor->GetActorLabel());
 				PossessableGuids.Add(PossessableGuid);
 
-				if (Actor->IsA<ACameraActor>())
+				if (ACameraActor* CameraActor = Cast<ACameraActor>(Actor))
 				{
-					NewCameraAdded(PossessableGuid);
+					NewCameraAdded(CameraActor, PossessableGuid);
 				}
 
 				OnActorAddedToSequencerEvent.Broadcast(Actor, PossessableGuid);
@@ -12072,29 +12071,21 @@ void FSequencer::CreateCamera()
 
 	OnActorAddedToSequencerEvent.Broadcast(NewCamera, CameraGuid);
 
-	NewCameraAdded(CameraGuid, NewCamera);
+	NewCameraAdded(NewCamera, CameraGuid);
 
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 
-void FSequencer::NewCameraAdded(FGuid CameraGuid, ACameraActor* NewCamera)
+void FSequencer::NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid)
 {
-	SetPerspectiveViewportCameraCutEnabled(false);
-
-	// Lock the viewport to this camera
-	if (NewCamera && NewCamera->GetLevel())
+	if (OnCameraAddedToSequencer().IsBound() && !OnCameraAddedToSequencer().Execute(NewCamera, CameraGuid))
 	{
-		GCurrentLevelEditingViewportClient->SetCinematicActorLock(nullptr);
-		GCurrentLevelEditingViewportClient->SetActorLock(NewCamera);
-		GCurrentLevelEditingViewportClient->bLockedCameraView = true;
-		GCurrentLevelEditingViewportClient->UpdateViewForLockedActor();
-		GCurrentLevelEditingViewportClient->Invalidate();
+		return;
 	}
 
-	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
-	UMovieScene* OwnerMovieScene = Sequence->GetMovieScene();
+	MovieSceneToolHelpers::LockCameraActorToViewport(SharedThis(this), NewCamera);
 
-	MovieSceneToolHelpers::CameraAdded(OwnerMovieScene, CameraGuid, GetLocalTime().Time.FloorToFrame());
+	MovieSceneToolHelpers::CreateCameraCutSectionForCamera(GetFocusedMovieSceneSequence()->GetMovieScene(), CameraGuid, GetLocalTime().Time.FloorToFrame());
 }
 
 

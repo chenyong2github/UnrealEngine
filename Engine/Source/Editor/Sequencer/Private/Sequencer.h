@@ -656,8 +656,8 @@ public:
 	/** Create camera and set it as the current camera cut. */
 	void CreateCamera();
 
-	/** Called when a new camera is added. Locks the viewport to the NewCamera is not null. */
-	void NewCameraAdded(FGuid CameraGuid, ACameraActor* NewCamera = nullptr);
+	/** Called when a new camera is added. Locks the viewport to the NewCamera. */
+	void NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid);
 
 	/** Attempts to automatically fix up broken actor references in the current scene. */
 	void FixActorReferences();
