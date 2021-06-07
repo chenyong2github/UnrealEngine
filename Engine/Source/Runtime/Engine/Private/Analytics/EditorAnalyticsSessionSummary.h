@@ -9,6 +9,8 @@
 #include "Analytics/EngineAnalyticsSessionSummary.h"
 #include <atomic>
 
+class UPackage;
+
 /** Specializes the base engine analytics for the Editor, adding Editor only data to the summary. */
 class FEditorAnalyticsSessionSummary : public FEngineAnalyticsSessionSummary
 {
@@ -27,6 +29,7 @@ private:
 	void OnSlateUserInteraction(double CurrSlateInteractionTime);
 	void OnEnterPIE(const bool /*bIsSimulating*/);
 	void OnExitPIE(const bool /*bIsSimulating*/);
+	void OnDirtyPackageStateChanged(UPackage* package);
 
 private:
 	/** Last activity (user input, crash, terminate, shutdown) timestamp from FPlatformTime::Seconds() to track user inactivity. */
