@@ -128,6 +128,9 @@ class FMainClusterCullingPrepareIndirectDispatchCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FMainClusterCullingPrepareIndirectDispatchCS);
 	SHADER_USE_PARAMETER_STRUCT(FMainClusterCullingPrepareIndirectDispatchCS, FGlobalShader);
 
+	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DrawIndirectBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectBuffer)
@@ -471,7 +474,9 @@ static void AddClusterCullingPass(
 		Parameters->DrawIndirectBuffer = DrawIndirectParametersBuffer.UAV;
 		Parameters->DispatchIndirectBuffer = DrawIndirectParametersRasterComputeBuffer.UAV;
 		
-		TShaderMapRef<FMainClusterCullingPrepareIndirectDispatchCS> ComputeShader(ShaderMap);
+		FMainClusterCullingPrepareIndirectDispatchCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FMainClusterCullingPrepareIndirectDispatchCS::FGroupSize>(GetVendorOptimalGroupSize1D());
+		TShaderMapRef<FMainClusterCullingPrepareIndirectDispatchCS> ComputeShader(ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("PrepareIndirectDispatchCS"),

@@ -13,6 +13,15 @@
 #define RASTER_AMD_DX11 2
 #define RASTER_AMD_DX12 3
 
+// Group size
+#if PERMUTATION_GROUP_SIZE == 64
+	#define GROUP_SIZE 64
+#elif PERMUTATION_GROUP_SIZE == 32
+	#define GROUP_SIZE 32
+#else
+	#error Unknown group size	
+#endif
+
 // Add permutation for AMD/other
 #if PERMUTATION_RASTER_ATOMIC == RASTER_NVIDIA
 #define NV_SHADER_EXTN_SLOT u7
@@ -261,11 +270,6 @@ uint2 Rasterize(uint2 PixelCoord, bool bIsSteep, float FracY, float RatioScale, 
 	return SeedCoord;
 }
 //////////////////////////////////////////////////////////////////////////////////////////
-
-// These number need to match HairStrandsClusterCulling.usf
-// TODO
-#define GROUP_SIZE 32
-
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 {

@@ -1190,8 +1190,9 @@ class FVoxelRasterComputeCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVoxelRasterComputeCS);
 	SHADER_USE_PARAMETER_STRUCT(FVoxelRasterComputeCS, FGlobalShader);
 
+	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
 	class FCulling : SHADER_PERMUTATION_INT("PERMUTATION_CULLING", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FCulling>;
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCulling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, VirtualVoxelParams)
@@ -1246,13 +1247,14 @@ static void AddVirtualVoxelizationComputeRasterPass(
 		FRDGTextureUAVRef PageTextureUAV = GraphBuilder.CreateUAV(VoxelResources.PageTexture);
 
 		const uint32 FrameIdMode8 = ViewInfo && ViewInfo->ViewState ? (ViewInfo->ViewState->GetFrameIndex() % 8) : 0;
-		const uint32 GroupSize = 32;
-		const uint32 DispatchCountX = 64;
+		const uint32 GroupSize = GetVendorOptimalGroupSize1D();
 
 		FVoxelRasterComputeCS::FPermutationDomain PermutationVector_Off;
 		FVoxelRasterComputeCS::FPermutationDomain PermutationVector_On;
 		PermutationVector_Off.Set<FVoxelRasterComputeCS::FCulling>(0);
+		PermutationVector_Off.Set<FVoxelRasterComputeCS::FGroupSize>(GroupSize);
 		PermutationVector_On.Set<FVoxelRasterComputeCS::FCulling>(1);
+		PermutationVector_On.Set<FVoxelRasterComputeCS::FGroupSize>(GroupSize);
 
 		TShaderMapRef<FVoxelRasterComputeCS> ComputeShader_CullingOff(ViewInfo->ShaderMap, PermutationVector_Off);
 		TShaderMapRef<FVoxelRasterComputeCS> ComputeShader_CullingOn(ViewInfo->ShaderMap, PermutationVector_On);
@@ -1274,7 +1276,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->VirtualVoxelParams = VoxelResources.Parameters.Common;
 				PassParameters->MacroGroupId = MacroGroup.MacroGroupId;
 				PassParameters->VoxelizationViewInfoBuffer = VoxelizationViewInfoBufferSRV;
-				PassParameters->DispatchCountX = DispatchCountX;
+				PassParameters->DispatchCountX = 1;
 				PassParameters->OutPageTexture = PageTextureUAV;
 				PassParameters->FrameIdMod8 = FrameIdMode8;
 
@@ -1303,11 +1305,10 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				}
 				else
 				{
-					const uint32 DispatchCountY = FMath::CeilToInt(PassParameters->HairStrandsVF_VertexCount / float(GroupSize * DispatchCountX));
-					const FIntVector DispatchCount(DispatchCountX, DispatchCountY, 1);
+					const FIntVector DispatchCount = ComputeDispatchCount(PassParameters->HairStrandsVF_VertexCount, GroupSize);
+					PassParameters->DispatchCountX = DispatchCount.X;
 					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVoxelComputeRaster(culling=off)"), ComputeShader_CullingOff, PassParameters, DispatchCount);
 				}
-
 			}
 		}
 	}

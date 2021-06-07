@@ -273,7 +273,15 @@ bool IsHairStrandsViewRectOptimEnable()
 	return GHairVisibilityRectOptimEnable > 0;
 }
 
-EHairVisibilityVendor GetVendor()
+enum EHairVisibilityVendor
+{
+	HairVisibilityVendor_AMD,
+	HairVisibilityVendor_NVIDIA,
+	HairVisibilityVendor_INTEL,
+	HairVisibilityVendorCount
+};
+
+inline EHairVisibilityVendor GetVendor()
 {
 	return IsRHIDeviceAMD() ? HairVisibilityVendor_AMD : (IsRHIDeviceNVIDIA() ? HairVisibilityVendor_NVIDIA : HairVisibilityVendor_INTEL);
 }
@@ -298,6 +306,29 @@ FIntPoint GetVendorOptimalGroupSize2D()
 	case HairVisibilityVendor_INTEL:	return FIntPoint(8, 8);
 	default:							return FIntPoint(8, 8);
 	}
+}
+
+FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
+{
+	const uint32 GroupCount = FMath::DivideAndRoundUp(ItemCount, GroupSize);
+	const uint32 DispatchCountX = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(GroupCount)));
+	const uint32 DispatchCountY = DispatchCountX + FMath::DivideAndRoundUp(GroupCount - DispatchCountX * DispatchCountX, DispatchCountX);
+
+	check(DispatchCountX <= 65535);
+	check(DispatchCountY <= 65535);
+	check(GroupCount <= DispatchCountX * DispatchCountY);
+	return FIntVector(DispatchCountX, DispatchCountY, 1);
+}
+
+FIntVector ComputeDispatchCount(uint32 GroupCount)
+{
+	const uint32 DispatchCountX = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(GroupCount)));
+	const uint32 DispatchCountY = DispatchCountX + FMath::DivideAndRoundUp(GroupCount - DispatchCountX * DispatchCountX, DispatchCountX);
+
+	check(DispatchCountX <= 65535);
+	check(DispatchCountY <= 65535);
+	check(GroupCount <= DispatchCountX * DispatchCountY);
+	return FIntVector(DispatchCountX, DispatchCountY, 1);
 }
 
 FVector4 PackHairRenderInfo(

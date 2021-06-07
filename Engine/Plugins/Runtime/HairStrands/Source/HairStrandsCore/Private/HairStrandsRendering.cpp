@@ -60,18 +60,18 @@ bool NeedsUpdateCardsMeshTriangles()
 
 static FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
 {
-	const uint32 BatchCount = FMath::DivideAndRoundUp(ItemCount, GroupSize);
-	const uint32 DispatchCountX = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(BatchCount)));
-	const uint32 DispatchCountY = DispatchCountX + FMath::DivideAndRoundUp(BatchCount - DispatchCountX * DispatchCountX, DispatchCountX);
+	const uint32 GroupCount = FMath::DivideAndRoundUp(ItemCount, GroupSize);
+	const uint32 DispatchCountX = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(GroupCount)));
+	const uint32 DispatchCountY = DispatchCountX + FMath::DivideAndRoundUp(GroupCount - DispatchCountX * DispatchCountX, DispatchCountX);
 
 	check(DispatchCountX <= 65535);
 	check(DispatchCountY <= 65535);
-	check(BatchCount <= DispatchCountX * DispatchCountY);
+	check(GroupCount <= DispatchCountX * DispatchCountY);
 	return FIntVector(DispatchCountX, DispatchCountY, 1);
 }
 
 // Same as above but the group count is what matters and is preserved
-static FIntVector ComputeDispatchGroupCount2D(uint32 GroupCount)
+static FIntVector ComputeDispatchCount(uint32 GroupCount)
 {
 	const uint32 DispatchCountX = FMath::FloorToInt(FMath::Sqrt(static_cast<float>(GroupCount)));
 	const uint32 DispatchCountY = DispatchCountX + FMath::DivideAndRoundUp(GroupCount - DispatchCountX * DispatchCountX, DispatchCountX);
@@ -817,7 +817,7 @@ static void AddHairClusterAABBPass(
 	// * If the instance has deformatin (simulation, global interpolation, skinning, then we update all clusters (for voxelization purpose) and the instance AABB
 	// * If the instance is static, we only update the instance AABB
 	const uint32 GroupSize = ComputeGroupSize();
-	const FIntVector DispatchCount = (UpdateType == EHairAABBUpdateType::UpdateClusterAABB && ClusterData) ? ComputeDispatchGroupCount2D(ClusterData->ClusterCount) : FIntVector(1,1,1);
+	const FIntVector DispatchCount = (UpdateType == EHairAABBUpdateType::UpdateClusterAABB && ClusterData) ? ComputeDispatchCount(ClusterData->ClusterCount) : FIntVector(1,1,1);
 
 	FHairClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterAABBCS::FParameters>();
 	Parameters->CPUBoundMin = TransformedBounds.GetBox().Min;
