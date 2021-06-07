@@ -198,3 +198,5 @@ TSharedRef<SWidget> SEnumComboBox::OnGetMenuContent()
 
 	return MenuBuilder.MakeWidget();
 }
+
+#undef LOCTEXT_NAMESPACE
