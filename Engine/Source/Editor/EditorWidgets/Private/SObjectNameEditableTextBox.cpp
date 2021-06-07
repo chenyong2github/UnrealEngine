@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SObjectNameEditableTextBox.h"
+#include "ObjectNameEditSinkRegistry.h"
 #include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
@@ -25,6 +26,7 @@ void SObjectNameEditableTextBox::Construct( const FArguments& InArgs )
 	bUpdateHighlightSpring = false;
 
 	Objects = InArgs._Objects;
+	ObjectNameEditSinkRegistry = InArgs._Registry;
 
 	ChildSlot
 	[
@@ -129,7 +131,7 @@ int32 SObjectNameEditableTextBox::OnPaint( const FPaintArgs& Args, const FGeomet
 
 FText SObjectNameEditableTextBox::GetNameText() const
 {
-	FString Result;
+	FText Result;
 
 	if (Objects.Num() == 1)
 	{
@@ -139,34 +141,39 @@ FText SObjectNameEditableTextBox::GetNameText() const
 	{
 		if (!UserSetCommonName.IsEmpty())
 		{
-			Result = UserSetCommonName;
+			Result = FText::FromString(UserSetCommonName);
 		}
 	}
 
-	return FText::FromString(Result);
+	return Result;
 }
 
 FText SObjectNameEditableTextBox::GetNameTooltipText() const
 {
-	FText Result = FText::GetEmpty();
+	FText Result;
 
 	if (Objects.Num() == 0)
 	{
 		Result = LOCTEXT("EditableActorLabel_NoObjectsTooltip", "Nothing selected");
 	}
-	else if (Objects.Num() == 1 && Objects[0].IsValid())
+	else if (Objects.Num() == 1)
 	{
-		if (!IsReadOnly())
+		UObject* ObjectPtr = Objects[0].Get();
+		if (!ObjectPtr)
 		{
-			Result = FText::Format(LOCTEXT("EditableActorLabel_ActorTooltipFmt", "Rename the selected {0}"), FText::FromString(Objects[0].Get()->GetClass()->GetName()));
+			return Result;
 		}
-		else if (Objects[0].Get()->IsA(AActor::StaticClass()))
+
+		TSharedPtr<UE::EditorWidgets::FObjectNameEditSinkRegistry> RegistryPtr = ObjectNameEditSinkRegistry.Pin();
+		if (!RegistryPtr.IsValid())
 		{
-			Result = LOCTEXT("EditableActorLabel_NoEditActorTooltip", "Can't rename selected actor (its label isn't editable)");
+			return Result;
 		}
-		else
+
+		TSharedPtr<UE::EditorWidgets::IObjectNameEditSink> ObjectNameEditPtr = RegistryPtr->GetObjectNameEditSinkForClass(ObjectPtr->GetClass());
+		if (ObjectNameEditPtr)
 		{
-			Result = LOCTEXT("EditableActorLabel_NoEditObjectTooltip", "Can't rename selected object (only actors can have editable labels)");
+			Result = ObjectNameEditPtr->GetObjectNameTooltip(ObjectPtr);
 		}
 	}
 	else if (Objects.Num() > 1)
@@ -189,30 +196,6 @@ EVisibility SObjectNameEditableTextBox::GetNameVisibility() const
 	return ((Objects.Num() == 1 && Objects[0].IsValid()) || Objects.Num() > 1)
 		? EVisibility::Visible
 		: EVisibility::Collapsed;
-} 
-
-
-static bool RenameActor(TWeakObjectPtr<UObject> Object, FString Name)
-{
-	// Apply the change to the selected actor
-	if (!Object.IsValid() || !Object.Get()->IsA(AActor::StaticClass()))
-	{
-		return false;
-	}
-
-	AActor* Actor = Cast<AActor>(Object.Get());
-	if (!Actor->IsActorLabelEditable())
-	{
-		return false;
-	}
-
-	if (Actor->GetActorLabel() == Name)
-	{
-		return false;
-	}
-
-	FActorLabelUtilities::RenameExistingActor(Actor, Name);
-	return true;
 }
 
 void SObjectNameEditableTextBox::OnNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
@@ -224,9 +207,14 @@ void SObjectNameEditableTextBox::OnNameTextCommitted(const FText& NewText, EText
 		return;
 	}
 
-
 	FText TrimmedText = FText::TrimPrecedingAndTrailing(NewText);
 	if (TrimmedText.IsEmpty())
+	{
+		return;
+	}
+
+	TSharedPtr<UE::EditorWidgets::FObjectNameEditSinkRegistry> RegistryPtr = ObjectNameEditSinkRegistry.Pin();
+	if (!RegistryPtr.IsValid())
 	{
 		return;
 	}
@@ -238,7 +226,14 @@ void SObjectNameEditableTextBox::OnNameTextCommitted(const FText& NewText, EText
 	bool bChanged = false;
 	for (TWeakObjectPtr<UObject> Object : Objects)
 	{
-		if (RenameActor(Object, UserSetCommonName))
+		UObject* ObjectPtr = Object.Get();
+		if (!ObjectPtr)
+		{
+			continue;
+		}
+
+		TSharedPtr<UE::EditorWidgets::IObjectNameEditSink> ObjectNameEditPtr = RegistryPtr->GetObjectNameEditSinkForClass(ObjectPtr->GetClass());
+		if (ObjectNameEditPtr && ObjectNameEditPtr->SetObjectDisplayName(ObjectPtr, UserSetCommonName))
 		{
 			bChanged = true;
 		}
@@ -266,46 +261,50 @@ bool SObjectNameEditableTextBox::IsReadOnly() const
 		return true;
 	}
 
-	for (TWeakObjectPtr<UObject> Object : Objects)
+	TSharedPtr<UE::EditorWidgets::FObjectNameEditSinkRegistry> RegistryPtr = ObjectNameEditSinkRegistry.Pin();
+	// this shouldn't happen but let's be safe and say readonly
+	if (!RegistryPtr.IsValid())
 	{
-		if (Object.IsValid())
-		{
-			if (Object.Get()->IsA(AActor::StaticClass()))
-			{
-				AActor* Actor = (AActor*) Object.Get();
-				if (!Actor->IsActorLabelEditable())
-				{
-					// can't edit the name when a non-editable actor is selected
-					return true;
-				}
-			}
-			else
-			{
-				// can't edit the name when a non-actor is selected
-				return true;
-			}
-		}
+		return true;
 	}
 
+	for (TWeakObjectPtr<UObject> Object : Objects)
+	{
+		UObject* ObjectPtr = Object.Get();
+		if (!ObjectPtr)
+		{
+			continue;
+		}
+
+		TSharedPtr<UE::EditorWidgets::IObjectNameEditSink> ObjectNameEditPtr = RegistryPtr->GetObjectNameEditSinkForClass(ObjectPtr->GetClass());
+		if (ObjectNameEditPtr && ObjectNameEditPtr->IsObjectDisplayNameReadOnly(ObjectPtr))
+		{
+			// if any objects are read only then the whole box is
+			return true;
+		}
+	}
 	return false;
 }
 
-FString SObjectNameEditableTextBox::GetObjectDisplayName(TWeakObjectPtr<UObject> Object)
+FText SObjectNameEditableTextBox::GetObjectDisplayName(TWeakObjectPtr<UObject> Object) const
 {
-	FString Result;
-	if(Object.IsValid())
+	UObject* ObjectPtr = Object.Get();
+	// no display name for no object
+	if (!ObjectPtr)
 	{
-		UObject* ObjectPtr = Object.Get();
-		if (ObjectPtr->IsA(AActor::StaticClass()))
+		return FText();
+	}
+	TSharedPtr<UE::EditorWidgets::FObjectNameEditSinkRegistry> RegistryPtr = ObjectNameEditSinkRegistry.Pin();
+	if (RegistryPtr.IsValid())
+	{
+		TSharedPtr<UE::EditorWidgets::IObjectNameEditSink> ObjectNameEditPtr = RegistryPtr->GetObjectNameEditSinkForClass(ObjectPtr->GetClass());
+		if (ObjectNameEditPtr)
 		{
-			Result =  ((AActor*)ObjectPtr)->GetActorLabel();
-		}
-		else
-		{
-			Result = ObjectPtr->GetName();
+			return ObjectNameEditPtr->GetObjectDisplayName(ObjectPtr);
 		}
 	}
-	return Result;
+	// this shouldn't happen but let's be safe and just give the default name
+	return FText::FromString(ObjectPtr->GetName());
 }
 
 // No code beyond this point

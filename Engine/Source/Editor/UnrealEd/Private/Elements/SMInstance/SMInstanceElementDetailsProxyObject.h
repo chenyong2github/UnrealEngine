@@ -4,6 +4,9 @@
 
 #include "UObject/Object.h"
 #include "Elements/SMInstance/SMInstanceManager.h"
+
+#include "IObjectNameEditSink.h"
+
 #include "SMInstanceElementDetailsProxyObject.generated.h"
 
 UCLASS(Transient)
@@ -31,4 +34,15 @@ private:
 
 	FDelegateHandle TickHandle;
 	bool bIsWithinInteractiveTransformEdit = false;
+
+	friend class FSMInstanceElementDetailsProxyObjectNameEditSink;
+};
+
+class FSMInstanceElementDetailsProxyObjectNameEditSink : public UE::EditorWidgets::IObjectNameEditSink
+{
+	virtual UClass* GetSupportedClass() const override;
+
+	virtual FText GetObjectDisplayName(UObject* Object) const override;
+
+	virtual FText GetObjectNameTooltip(UObject* Object) const override;
 };

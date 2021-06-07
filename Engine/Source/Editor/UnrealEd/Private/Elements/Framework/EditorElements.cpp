@@ -22,6 +22,11 @@
 #include "Elements/SMInstance/SMInstanceElementDetailsInterface.h"
 #include "Elements/SMInstance/SMInstanceElementEditorWorldInterface.h"
 #include "Elements/SMInstance/SMInstanceElementEditorSelectionInterface.h"
+#include "Elements/SMInstance/SMInstanceElementDetailsProxyObject.h"
+
+#include "Modules/ModuleManager.h"
+#include "EditorWidgetsModule.h"
+#include "ObjectNameEditSinkRegistry.h"
 
 FSimpleMulticastDelegate OnRegisterEditorElementsDelegate;
 
@@ -59,6 +64,9 @@ void RegisterEditorSMInstanceElements()
 	Registry->RegisterElementInterface<UTypedElementDetailsInterface>(NAME_SMInstance, NewObject<USMInstanceElementDetailsInterface>());
 	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_SMInstance, NewObject<USMInstanceElementEditorWorldInterface>(), /*bAllowOverride*/true);
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_SMInstance, NewObject<USMInstanceElementEditorSelectionInterface>(), /*bAllowOverride*/true);
+
+	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
+	EditorWidgetsModule.GetObjectNameEditSinkRegistry()->RegisterObjectNameEditSink(MakeShared<FSMInstanceElementDetailsProxyObjectNameEditSink>());
 }
 
 void RegisterEditorElements()

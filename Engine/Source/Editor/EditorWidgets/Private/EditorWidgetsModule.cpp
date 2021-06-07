@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SObjectNameEditableTextBox.h"
+#include "ObjectNameEditSinkRegistry.h"
 #include "SAssetDiscoveryIndicator.h"
 #include "ITransportControl.h"
 #include "STransportControl.h"
@@ -14,15 +15,17 @@ const FName FEditorWidgetsModule::EditorWidgetsAppIdentifier( TEXT( "EditorWidge
 
 void FEditorWidgetsModule::StartupModule()
 {
+	ObjectNameEditSinkRegistry = MakeShared<UE::EditorWidgets::FObjectNameEditSinkRegistry>();
 }
 
 void FEditorWidgetsModule::ShutdownModule()
 {
+	ObjectNameEditSinkRegistry.Reset();
 }
 
 TSharedRef<IObjectNameEditableTextBox> FEditorWidgetsModule::CreateObjectNameEditableTextBox(const TArray<TWeakObjectPtr<UObject>>& Objects)
 {
-	TSharedRef<SObjectNameEditableTextBox> Widget = SNew(SObjectNameEditableTextBox).Objects(Objects);
+	TSharedRef<SObjectNameEditableTextBox> Widget = SNew(SObjectNameEditableTextBox).Objects(Objects).Registry(ObjectNameEditSinkRegistry);
 	return Widget;
 }
 
@@ -38,4 +41,9 @@ TSharedRef<ITransportControl> FEditorWidgetsModule::CreateTransportControl(const
 {
 	return SNew(STransportControl)
 		.TransportArgs(Args);
+}
+
+TSharedRef<UE::EditorWidgets::FObjectNameEditSinkRegistry> FEditorWidgetsModule::GetObjectNameEditSinkRegistry() const
+{
+	return ObjectNameEditSinkRegistry.ToSharedRef();
 }

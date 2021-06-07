@@ -8,6 +8,8 @@
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 
+#define LOCTEXT_NAMESPACE "SMInstanceElementDetails"
+
 void USMInstanceElementDetailsProxyObject::Initialize(const FSMInstanceElementId& InSMInstanceElementId)
 {
 	ISMComponent = InSMInstanceElementId.ISMComponent;
@@ -96,3 +98,46 @@ FSMInstanceManager USMInstanceElementDetailsProxyObject::GetSMInstance() const
 	const FSMInstanceId SMInstanceId = FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(FSMInstanceElementId{ ISMComponent.Get(), ISMInstanceId });
 	return FSMInstanceManager(SMInstanceId, SMInstanceElementDataUtil::GetSMInstanceManager(SMInstanceId));
 }
+
+UClass* FSMInstanceElementDetailsProxyObjectNameEditSink::GetSupportedClass() const
+{
+	return USMInstanceElementDetailsProxyObject::StaticClass();
+}
+
+FText FSMInstanceElementDetailsProxyObjectNameEditSink::GetObjectDisplayName(UObject* Object) const
+{
+	FText DisplayName;
+	USMInstanceElementDetailsProxyObject* ProxyObject = CastChecked<USMInstanceElementDetailsProxyObject>(Object);
+	FSMInstanceManager SMInstance = ProxyObject->GetSMInstance();
+	if (!SMInstance)
+	{
+		return LOCTEXT("ProxyObjectDisplayNameUnknown", "Unknown Instanced Static Mesh");
+	}
+	TObjectPtr<UStaticMesh> StaticMesh = SMInstance.GetISMComponent()->GetStaticMesh();
+	if (StaticMesh)
+	{
+		DisplayName = FText::FromString(StaticMesh->GetName());
+	}
+	else
+	{
+		DisplayName = LOCTEXT("ProxyObjectDisplayNameUnassigned", "Static Mesh Unassigned");
+	}
+	DisplayName = FText::Format(LOCTEXT("ProxyObjectDisplayNameFmt", "{0} - Instance {1}"), DisplayName, SMInstance.GetInstanceId().InstanceIndex);
+	return DisplayName;
+}
+
+FText FSMInstanceElementDetailsProxyObjectNameEditSink::GetObjectNameTooltip(UObject* Object) const
+{
+	USMInstanceElementDetailsProxyObject* ProxyObject = CastChecked<USMInstanceElementDetailsProxyObject>(Object);
+	FSMInstanceManager SMInstance = ProxyObject->GetSMInstance();
+	if (!SMInstance)
+	{
+		return LOCTEXT("ProxyObjectTooltipUnknown", "Unknown Instanced Static Mesh");;
+	}
+	return FText::Format(LOCTEXT("ProxyObjectTooltipFmt", "Instance {0} on {1}"),
+		SMInstance.GetInstanceId().InstanceIndex,
+		// stops the path at the level of the world the object is in
+		FText::FromString(SMInstance.GetISMComponent()->GetPathName(SMInstance.GetISMComponent()->GetWorld())));
+}
+
+#undef LOCTEXT_NAMESPACE
