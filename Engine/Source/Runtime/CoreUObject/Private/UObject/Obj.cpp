@@ -1325,7 +1325,6 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		UClass *ObjClass = GetClass();
 		UObject* LoadOuter = GetOuter();
 		FName LoadName = GetFName();
-		UPackage* LoadPackage = GetExternalPackage();
 
 		// Make sure this object's class's data is loaded.
 		if(ObjClass->HasAnyFlags(RF_NeedLoad) )
@@ -1361,6 +1360,8 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		{
 			if (!UnderlyingArchive.IsIgnoringOuterRef())
 			{
+				UPackage* LoadPackage = GetExternalPackage();
+
 				if (UnderlyingArchive.IsLoading())
 				{
 					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter) << SA_VALUE(TEXT("LoadPackage"), LoadPackage);
