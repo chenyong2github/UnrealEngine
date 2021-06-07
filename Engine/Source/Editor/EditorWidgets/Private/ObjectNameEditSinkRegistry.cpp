@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectNameEditSinkRegistry.h"
+#include "Editor/EditorEngine.h"
 #include "Templates/SharedPointer.h"
 #include "GameFramework/Actor.h"
 

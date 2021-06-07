@@ -9,6 +9,7 @@
 #include "InterchangeMaterialNode.h"
 #include "InterchangeSceneNode.h"
 #include "InterchangeTextureNode.h"
+#include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
 namespace UE
