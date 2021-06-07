@@ -42,24 +42,6 @@ namespace HordeServer.Services
 			return P4APIService.GetUserInfoAsync(UserName);
 		}
 
-		/// <inheritdoc/>
-		override public Task<int> CreateNewChangeAsync(string StreamName, string Path)
-		{
-			return PythonBridgeService.CreateNewChangeAsync(StreamName, Path);
-		}
-
-		/// <inheritdoc/>
-		override public Task<List<ChangeSummary>> GetChangesAsync(string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser)
-		{
-			return P4APIService.GetChangesAsync(StreamName, MinChange, MaxChange, Results, ImpersonateUser);
-		}
-
-		/// <inheritdoc/>
-		override public Task<List<ChangeDetails>> GetChangeDetailsAsync(string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
-		{
-			return P4APIService.GetChangeDetailsAsync(StreamName, ChangeNumbers, ImpersonateUser);
-		}
-
 		/// <inheritdoc />
 		override public Task<string> CreateTicket(string ImpersonateUser)
 		{
@@ -73,9 +55,27 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
+		override public Task<List<ChangeSummary>> GetChangesAsync(string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser)
+		{
+			return P4APIService.GetChangesAsync(StreamName, MinChange, MaxChange, Results, ImpersonateUser);
+		}
+
+		/// <inheritdoc/>
+		override public Task<int> CreateNewChangeAsync(string StreamName, string Path)
+		{
+			return PythonBridgeService.CreateNewChangeAsync(StreamName, Path);
+		}
+
+		/// <inheritdoc/>
+		override public Task<List<ChangeDetails>> GetChangeDetailsAsync(string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
+		{
+			return PythonBridgeService.GetChangeDetailsAsync(StreamName, ChangeNumbers, ImpersonateUser);
+		}
+
+		/// <inheritdoc/>
 		override public Task<List<FileSummary>> FindFilesAsync(IEnumerable<string> Paths)
 		{
-			return P4APIService.FindFilesAsync(Paths);
+			return PythonBridgeService.FindFilesAsync(Paths);
 		}
 
 		/// <inheritdoc/>
@@ -105,7 +105,7 @@ namespace HordeServer.Services
 		/// <inheritdoc/>
 		override public Task UpdateChangelistDescription(int Change, string Description)
 		{
-			return P4APIService.UpdateChangelistDescription(Change, Description );
+			return PythonBridgeService.UpdateChangelistDescription(Change, Description );
 		}
 
 		/// <inheritdoc/>
