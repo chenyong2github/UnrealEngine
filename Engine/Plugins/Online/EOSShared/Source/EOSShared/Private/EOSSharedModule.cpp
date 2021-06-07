@@ -5,11 +5,6 @@
 #include "Features/IModularFeatures.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
-#include "EOSSharedSettings.h"
-
-#if WITH_EDITOR
-#include "ISettingsModule.h"
-#endif // WITH_EDITOR
 
 #include COMPILED_PLATFORM_HEADER(EOSSDKManager.h)
 
@@ -25,41 +20,10 @@ void FEOSSharedModule::StartupModule()
 
 	IModularFeatures::Get().RegisterModularFeature(TEXT("EOSSDKManager"), SDKManager.Get());
 #endif // WITH_EOS_SDK
-
-#if WITH_EDITOR
-	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FEOSSharedModule::OnPostEngineInit);
-	FCoreDelegates::OnPreExit.AddRaw(this, &FEOSSharedModule::OnPreExit);
-#endif // WITH_EDITOR
 }
-
-#if WITH_EDITOR
-void FEOSSharedModule::OnPostEngineInit()
-{
-	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
-	{
-		SettingsModule->RegisterSettings("Project", "Plugins", "Epic Online Services SDK",
-			LOCTEXT("EOSSDKSettingsName", "Epic Online Services SDK"),
-			LOCTEXT("EOSSDKSettingsDescription", "Configure the Epic Online Services SDK"),
-			GetMutableDefault<UEOSSharedSettings>());
-	}
-}
-
-void FEOSSharedModule::OnPreExit()
-{
-	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
-	{
-		SettingsModule->UnregisterSettings("Project", "Plugins", "Epic Online Services SDK");
-	}
-}
-#endif // WITH_EDITOR
 
 void FEOSSharedModule::ShutdownModule()
 {
-#if WITH_EDITOR
-	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
-	FCoreDelegates::OnPreExit.RemoveAll(this);
-#endif // WITH_EDITOR
-
 #if WITH_EOS_SDK
 	if(SDKManager.IsValid())
 	{

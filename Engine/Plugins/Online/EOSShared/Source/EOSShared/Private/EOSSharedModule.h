@@ -18,9 +18,6 @@ private:
 	virtual void ShutdownModule() override;
 	// ~End IModuleInterface
 
-	void OnPostEngineInit();
-	void OnPreExit();
-
 #if WITH_EOS_SDK
 	TUniquePtr<FEOSSDKManager> SDKManager;
 #endif

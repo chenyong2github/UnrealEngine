@@ -42,6 +42,7 @@ private:
 
 	void ReleasePlatform(EOS_HPlatform PlatformHandle);
 	bool Tick(float);
+	void OnLogVerbosityChanged(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity);
 
 #if EOSSDK_RUNTIME_LOAD_REQUIRED
 	void* SDKHandle = nullptr;
