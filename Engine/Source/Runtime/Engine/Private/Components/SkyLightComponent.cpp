@@ -221,6 +221,11 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, CaptureCubeMapResolution(InLightComponent->CubemapResolution)
 	, LowerHemisphereColor(InLightComponent->LowerHemisphereColor)
 	, bLowerHemisphereIsSolidColor(InLightComponent->bLowerHemisphereIsBlack)
+#if WITH_EDITOR
+	, bCubemapSkyLightWaitingForCubeMapTexture(false)
+	, bCaptureSkyLightWaitingForShaders(false)
+	, bCaptureSkyLightWaitingForMeshesOrTextures(false)
+#endif
 	, LightColor(FLinearColor(InLightComponent->LightColor) * InLightComponent->Intensity)
 	, bMovable(InLightComponent->IsMovable())
 {
@@ -280,6 +285,10 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	CloudAmbientOcclusionStrength = 1.0f;
 	CloudAmbientOcclusionMapResolutionScale = 1.0f;
 	CloudAmbientOcclusionApertureScale = 0.05f;
+
+#if WITH_EDITOR
+	CaptureStatus = SLCS_Uninitialized;
+#endif
 }
 
 FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
@@ -694,16 +703,38 @@ void USkyLightComponent::UpdateSkyCaptureContentsArray(UWorld* WorldToUpdate, TA
 			// We should process this texture as soon as possible so we can have a proper skylight.
 			FTextureCompilingManager::Get().RequestPriorityChange(CaptureComponent->Cubemap, EQueuedWorkPriority::Highest);
 		}
+
+		const bool bCubemapSkyLightWaitingForCubemapAsset	= CaptureComponent->SourceType == SLS_SpecifiedCubemap	&& bIsCubemapCompiling;
+		const bool bCaptureSkyLightWaitingCompiledShader	= CaptureComponent->SourceType == SLS_CapturedScene		&& bIsCompilingShaders;
+		const bool bCaptureSkyLightWaitingForMeshOrTexAssets= CaptureComponent->SourceType == SLS_CapturedScene		&& bSceneIsAsyncCompiling;
+		ENQUEUE_RENDER_COMMAND(FUpdateSkyLightProxyStatus)(
+			[CaptureComponent, bCubemapSkyLightWaitingForCubemapAsset, bCaptureSkyLightWaitingCompiledShader, bCaptureSkyLightWaitingForMeshOrTexAssets](FRHICommandList& RHICmdList)
+			{
+				FSkyLightSceneProxy* SkyLightSceneProxy = CaptureComponent->SceneProxy;
+				if (SkyLightSceneProxy)
+				{
+					SkyLightSceneProxy->bCubemapSkyLightWaitingForCubeMapTexture = bCubemapSkyLightWaitingForCubemapAsset;
+					SkyLightSceneProxy->bCaptureSkyLightWaitingForShaders = bCaptureSkyLightWaitingCompiledShader;
+					SkyLightSceneProxy->bCaptureSkyLightWaitingForMeshesOrTextures = bCaptureSkyLightWaitingForMeshOrTexAssets;
+				}
+			});
 #endif
 
 		if (((!Owner || !Owner->GetLevel() || Owner->GetLevel()->bIsVisible) && CaptureComponent->GetWorld() == WorldToUpdate)
 			// Only process sky capture requests once async texture and shader compiling completes, otherwise we will capture the scene with temporary shaders/textures
-			&& (((!bSceneIsAsyncCompiling) && (!bIsCompilingShaders)) || ((CaptureComponent->SourceType == SLS_SpecifiedCubemap) && (!bIsCubemapCompiling))))
+			&& (
+#if WITH_EDITOR
+				CaptureComponent->CaptureStatus == SLCS_Uninitialized 
+				|| 
+#endif
+				((!bSceneIsAsyncCompiling) && (!bIsCompilingShaders)) 
+				|| 
+				((CaptureComponent->SourceType == SLS_SpecifiedCubemap) && (!bIsCubemapCompiling)))
+			)
 		{
 			// Only capture valid sky light components
 			if (CaptureComponent->SourceType != SLS_SpecifiedCubemap || CaptureComponent->Cubemap)
 			{
-
 #if WITH_EDITOR
 				FStaticLightingSystemInterface::OnLightComponentUnregistered.Broadcast(CaptureComponent);
 #endif
@@ -748,9 +779,60 @@ void USkyLightComponent::UpdateSkyCaptureContentsArray(UWorld* WorldToUpdate, TA
 #endif
 			}
 
-			// Only remove queued update requests if we processed it for the right world
+#if WITH_EDITOR
+			switch (CaptureComponent->CaptureStatus)
+			{
+			case SLCS_Uninitialized:
+			{
+				if (!bCubemapSkyLightWaitingForCubemapAsset && !bCaptureSkyLightWaitingCompiledShader && !bCaptureSkyLightWaitingForMeshOrTexAssets)
+				{
+					// Do not recapture if the first forced capture was with a complete world (to avoid capturing twice each time a level is loaded or a skylight created))
+					CaptureComponent->CaptureStatus = SLCS_CapturedAndComplete;
+					ComponentArray.RemoveAt(CaptureIndex);
+				}
+				else
+				{
+					CaptureComponent->CaptureStatus = SLCS_CapturedButIncomplete;
+				}
+				break;
+			}
+			case SLCS_CapturedButIncomplete:
+			{
+				// Only remove queued update requests if we processed it for the a world with all meshes, textures and shaders.
+				ComponentArray.RemoveAt(CaptureIndex);
+				CaptureComponent->CaptureStatus = SLCS_CapturedAndComplete;
+				break;
+			}
+			case SLCS_CapturedAndComplete:
+			{
+				// It is valid to recapture a complete skylight.
+				ComponentArray.RemoveAt(CaptureIndex);
+				break;
+			}
+			default:
+			{
+				check(false);
+				break;
+			}
+			}
+#else
 			ComponentArray.RemoveAt(CaptureIndex);
+#endif
 		}
+
+#if WITH_EDITOR
+		ENQUEUE_RENDER_COMMAND(FUpdateSkyLightProxyStatusForcedCapture)(
+			[CaptureComponent, bCubemapSkyLightWaitingForCubemapAsset, bCaptureSkyLightWaitingCompiledShader, bCaptureSkyLightWaitingForMeshOrTexAssets](FRHICommandList& RHICmdList)
+			{
+				FSkyLightSceneProxy* SkyLightSceneProxy = CaptureComponent->SceneProxy;
+				if (SkyLightSceneProxy)
+				{
+					SkyLightSceneProxy->bCubemapSkyLightWaitingForCubeMapTexture = bCubemapSkyLightWaitingForCubemapAsset;
+					SkyLightSceneProxy->bCaptureSkyLightWaitingForShaders = bCaptureSkyLightWaitingCompiledShader;
+					SkyLightSceneProxy->bCaptureSkyLightWaitingForMeshesOrTextures = bCaptureSkyLightWaitingForMeshOrTexAssets;
+				}
+			});
+#endif
 	}
 }
 

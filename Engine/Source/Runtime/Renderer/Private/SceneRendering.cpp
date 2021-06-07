@@ -3007,13 +3007,22 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 
 		const bool bSingleLayerWaterWarning = ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(Views);
 
+		bool bShowWaitingSkylight = false;
+#if WITH_EDITOR
+		FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
+		if (SkyLight && !SkyLight->bRealTimeCaptureEnabled)
+		{
+			bShowWaitingSkylight = SkyLight->bCubemapSkyLightWaitingForCubeMapTexture || SkyLight->bCaptureSkyLightWaitingForShaders || SkyLight->bCaptureSkyLightWaitingForMeshesOrTextures;
+		}
+#endif
+
 		FFXSystemInterface* FXInterface = Scene->GetFXSystem();
 		const bool bFxDebugDraw = FXInterface && FXInterface->ShouldDebugDraw_RenderThread();
 
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowDemotedLocalMemoryWarning || bShowGlobalClipPlaneWarning || bShowSkylightWarning || bShowPointLightWarning
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
 			|| bMobileShowVertexFogWarning || bMobileMissingSkyMaterial || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
-			|| bLumenEnabledButNoSoftwareTracing || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture;
+			|| bLumenEnabledButNoSoftwareTracing || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture || bShowWaitingSkylight;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -3036,7 +3045,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning, bMobileMissingSkyMaterial, 
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, 
-						bLumenEnabledButNoSoftwareTracing, bNaniteEnabledButNoAtomics, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture]
+						bLumenEnabledButNoSoftwareTracing, bNaniteEnabledButNoAtomics, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -3208,6 +3217,36 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
+
+#if WITH_EDITOR
+						FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
+						if (bShowWaitingSkylight && SkyLight)
+						{
+							const FLinearColor OrangeColor = FColor::Orange;
+
+							FString String = FString::Printf(TEXT("Sky Light waiting on ["));
+							bool bAddComma = false;
+							if (SkyLight->bCubemapSkyLightWaitingForCubeMapTexture)
+							{
+								String += TEXT("CubeMap");
+								bAddComma = true;
+							}
+							if (SkyLight->bCaptureSkyLightWaitingForShaders)
+							{
+								String += bAddComma ? TEXT(", ") : TEXT("");
+								String += TEXT("Shaders");
+								bAddComma = true;
+							}
+							if (SkyLight->bCaptureSkyLightWaitingForMeshesOrTextures)
+							{
+								String += bAddComma ? TEXT(", ") : TEXT("");
+								String += TEXT("Meshes, Textures] for final capture");
+							}
+							String += FString::Printf(TEXT("] for final capture."));
+							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), OrangeColor);
+							Y += 14;
+						}
+#endif
 					});
 					if (bFxDebugDraw)
 					{
