@@ -12,6 +12,11 @@
 class ITransportControl;
 struct FTransportControlArgs;
 
+namespace UE::EditorWidgets
+{
+class FObjectNameEditSinkRegistry;
+}
+
 /** Interface for the widget that wraps an editable text box for viewing the names of objects or editing the labels of actors */
 class IObjectNameEditableTextBox : public SCompoundWidget
 {
@@ -59,6 +64,17 @@ public:
 	 */
 	virtual TSharedRef<ITransportControl> CreateTransportControl(const FTransportControlArgs& Args);
 
+	/**
+	 * Gets the registry of name edit 'sinks' used for getting and editing object display names
+	 * 
+	 * @return The registry
+	 */
+	virtual TSharedRef<UE::EditorWidgets::FObjectNameEditSinkRegistry> GetObjectNameEditSinkRegistry() const;
+
 	/** Editor Widgets app identifier string */
 	static const FName EditorWidgetsAppIdentifier;
+
+private:
+	/** Registry for name interfaces */
+	TSharedPtr<UE::EditorWidgets::FObjectNameEditSinkRegistry> ObjectNameEditSinkRegistry;
 };
