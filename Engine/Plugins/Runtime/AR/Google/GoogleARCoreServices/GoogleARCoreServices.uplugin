@@ -16,7 +16,7 @@
         {
             "Name" : "GoogleARCoreServices",
             "Type" : "Runtime",
-            "WhitelistPlatforms": [ "Win64", "Mac", "Android", "Linux", "iOS"]
+            "WhitelistPlatforms": [ "Win64", "Mac", "Android", "Linux", "IOS"]
         },
     ],
     "Plugins": [
