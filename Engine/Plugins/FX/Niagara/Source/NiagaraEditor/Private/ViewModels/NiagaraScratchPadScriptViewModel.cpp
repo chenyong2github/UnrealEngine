@@ -36,7 +36,10 @@ FNiagaraScratchPadScriptViewModel::~FNiagaraScratchPadScriptViewModel()
 		if (EditScript.Script->GetLatestSource() != nullptr)
 		{
 			UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetLatestSource());
-			EditScriptSource->NodeGraph->RemoveOnGraphNeedsRecompileHandler(OnGraphNeedsRecompileHandle);
+			if(EditScriptSource->NodeGraph != nullptr)
+			{
+				EditScriptSource->NodeGraph->RemoveOnGraphNeedsRecompileHandler(OnGraphNeedsRecompileHandle);
+			}
 		}
 		EditScript.Script->OnPropertyChanged().RemoveAll(this);
 		EditScript.Script = nullptr;
