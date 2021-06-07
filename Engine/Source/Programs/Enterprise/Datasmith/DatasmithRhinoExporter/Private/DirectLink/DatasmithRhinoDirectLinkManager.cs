@@ -16,6 +16,32 @@ namespace DatasmithRhino.DirectLink
 		public DatasmithRhinoChangeListener ChangeListener { get; private set; } = new DatasmithRhinoChangeListener();
 		public bool bInitialized { get; private set; } = false;
 		public bool bLiveLinkActive { get; private set; } = false;
+		// Slate UI is not available on Mac, we can't use the Connection UI and must provide this feature ourselves.
+		private string InternalCacheDirectory = Path.GetTempPath();
+		public string CacheDirectory
+		{
+			get
+			{
+// Slate UI is not available on Mac, do not try to access it.
+#if !MAC_OS
+				IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
+
+				if (DirectLinkUI != null)
+				{
+					return DirectLinkUI.GetDirectLinkCacheDirectory();
+				}
+				else
+#endif //!MAC_OC
+				{
+					return InternalCacheDirectory;
+				}
+			}
+			set
+			{
+				InternalCacheDirectory = value;
+			}
+		}
+
 
 		public void Initialize()
 		{
@@ -231,12 +257,7 @@ namespace DatasmithRhino.DirectLink
 				SceneName = UntitledSceneName;
 			}
 
-			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
-			string ExportPath = DirectLinkUI != null
-				? DirectLinkUI.GetDirectLinkCacheDirectory()
-				: Path.GetTempPath();
-
-			return Path.Combine(ExportPath, SceneName);
+			return Path.Combine(CacheDirectory, SceneName);
 		}
 	}
 }
