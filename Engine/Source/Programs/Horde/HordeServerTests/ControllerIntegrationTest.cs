@@ -71,7 +71,6 @@ namespace HordeServerTests
 
             _factory = GetFactory();
             _client = _factory.CreateClient();
-            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
             return _client;
         }
 

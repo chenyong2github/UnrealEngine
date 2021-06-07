@@ -71,9 +71,10 @@ namespace HordeServerTests
 			List<CreateStreamTabRequest> Tabs = new List<CreateStreamTabRequest>();
 			Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId1.ToString(), TemplateRefId2.ToString() } });
 
+			Stream = await StreamService.StreamCollection.GetAsync(new StreamId("ue5-main"));
 			Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(
 				new StreamId("ue5-main"),
-				null,
+				Stream,
 				"",
 				"",
 				new ProjectId("does-not-exist"),
