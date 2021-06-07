@@ -74,6 +74,7 @@ void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 			FDistortionData DistortionData;
 			const FVector2D CurrentSensorDimensions = FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
 
+			SubSystem->GetOriginalFocalLength(CineCameraComponent, OriginalFocalLength);
 			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, OriginalFocalLength, CurrentSensorDimensions, ProducedLensDistortionHandler, DistortionData);
 
 			// Track changes to the cine camera's focal length for consumers of distortion data
@@ -298,6 +299,11 @@ void ULensDistortionComponent::InitDefaultCamera()
 
 void ULensDistortionComponent::CreateDistortionHandlerForLensFile()
 {
+	if (DistortionSource.TargetCameraComponent == nullptr)
+	{
+		return;
+	}
+
 	ULensFile* const LensFile = LensFilePicker.GetLensFile();
 
 	// Set the distortion source settings to match this component and the selected lens file
