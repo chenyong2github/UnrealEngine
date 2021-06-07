@@ -520,7 +520,6 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 
 			CapturingRenderTarget = nullptr;
 			CapturingSceneViewport.Reset();
-			CaptureFrames.Reset();
 			DesiredSize = FIntPoint(1280, 720);
 			DesiredPixelFormat = EPixelFormat::PF_A2B10G10R10;
 			DesiredOutputSize = FIntPoint(1280, 720);
@@ -528,6 +527,16 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 			DesiredCaptureOptions = FMediaCaptureOptions();
 			ConversionOperation = EMediaCaptureConversionOperation::NONE;
 			MediaOutputName.Reset();
+
+			// CaptureFrames contains FTexture2DRHIRef, therefore should be released on Render Tread thread.
+			// Keep references frames to be released in a temporary array and clear CaptureFrames on Game Thread.
+			TSharedPtr<TArray<FCaptureFrame>> TempArrayToBeReleasedOnRenderThread = MakeShared<TArray<FCaptureFrame>>();
+			*TempArrayToBeReleasedOnRenderThread = MoveTemp(CaptureFrames);
+			ENQUEUE_RENDER_COMMAND(MediaOutputReleaseCaptureFrames)(
+				[TempArrayToBeReleasedOnRenderThread](FRHICommandListImmediate& RHICmdList)
+				{
+					TempArrayToBeReleasedOnRenderThread->Reset();
+				});
 		}
 	}
 }
