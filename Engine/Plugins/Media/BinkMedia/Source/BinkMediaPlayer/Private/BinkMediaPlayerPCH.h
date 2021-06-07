@@ -6,8 +6,6 @@
 #include "MinWindows.h"
 #endif
 
-#define BUILDING_FOR_UNREAL_ONLY
-#define BINKPLUGIN_API BINKMEDIAPLAYER_API
 #include "binkplugin.h"
 
 #include "HAL/PlatformFilemanager.h"

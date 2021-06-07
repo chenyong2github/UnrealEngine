@@ -44,7 +44,8 @@ public class BinkMediaPlayer : ModuleRules
             PublicDefinitions.Add("BINKPLUGIN_UE4_EDITOR=0");
         }
 
-        RuntimeDependencies.Add("$(ProjectDir)/Content/Movies/..."); // For chunked streaming
+		PublicDefinitions.Add("BUILDING_FOR_UNREAL_ONLY=1");
+		RuntimeDependencies.Add("$(ProjectDir)/Content/Movies/..."); // For chunked streaming
 
 		string Lib = LibName;
 		string Platform = Target.Platform.ToString();
