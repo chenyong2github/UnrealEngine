@@ -2438,8 +2438,12 @@ void FFoliageInfo::SelectInstances(bool bSelect)
 
 FBox FFoliageInfo::GetSelectionBoundingBox() const
 {
-	check(Implementation->IsInitialized());
-	return Implementation->GetSelectionBoundingBox(SelectedIndices);
+	if (Implementation->IsInitialized())
+	{
+		return Implementation->GetSelectionBoundingBox(SelectedIndices);
+	}
+
+	return FBox(EForceInit::ForceInit);
 }
 
 void FFoliageInfo::SelectInstances(bool bSelect, TArrayView<const int32> InInstances)
