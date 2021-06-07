@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DatasmithCore",
 					"DatasmithContent",
+					"XmlParser",
 				}
 			);
 

@@ -43,6 +43,16 @@ void FDatasmithPlmXmlTranslator::Initialize(FDatasmithTranslatorCapabilities& Ou
 	OutCapabilities.bIsEnabled = false;
 }
 
+bool FDatasmithPlmXmlTranslator::IsSourceSupported(const FDatasmithSceneSource& Source)
+{
+	if (Source.GetSourceFileExtension() != TEXT("xml"))
+	{
+		return true;
+	}
+
+	return Datasmith::CheckXMLFileSchema(Source.GetSourceFile(), TEXT("PLMXML"));
+}
+
 bool FDatasmithPlmXmlTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 {
 	OutScene->SetHost(TEXT("PlmXmlTranslator"));

@@ -26,6 +26,7 @@ public:
 
 	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;
+	virtual bool IsSourceSupported(const FDatasmithSceneSource& Source) override;
 	//~ End IDatasmithTranslator interface
 
 private:
