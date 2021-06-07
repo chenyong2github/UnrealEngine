@@ -6,6 +6,7 @@
 #include "NiagaraClipboard.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraGraph.h"
+#include "NiagaraNodeAssignment.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraNodeParameterMapSet.h"
@@ -16,7 +17,6 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
-#include "ViewModels/Stack/NiagaraStackModuleItem.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackFunctionInputCollection"
 
@@ -415,6 +415,16 @@ UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollection::GetRese
 	}));
 }
 
+FText GetUserFriendlyFunctionName(UNiagaraNodeFunctionCall* Node)
+{
+	if (Node->IsA<UNiagaraNodeAssignment>())
+	{
+		// The function name of assignment nodes contains a guid, which is just confusing for the user to see 
+		return LOCTEXT("AssignmentNodeName", "SetVariables");
+	}
+	return FText::FromString(Node->GetFunctionName());
+}
+
 void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& DuplicateInputNames, const TArray<FName>& ValidAliasedInputNames, const TArray<const UEdGraphPin*>& PinsWithInvalidTypes,
                                                          const TMap<FName, UEdGraphPin*>& StaticSwitchInputs, TArray<FStackIssue>& NewIssues)
 {
@@ -444,7 +454,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 					EStackIssueSeverity::Warning,
 					FText::Format(LOCTEXT("InvalidInputOverrideSummaryFormat", "Invalid Input Override: {0}"), FText::FromString(OverridePin->PinName.ToString())),
 					FText::Format(LOCTEXT("InvalidInputOverrideFormat", "The input {0} was previously overriden but is no longer exposed by the function {1}.\nPress the fix button to remove this unused override data,\nor check the function definition to see why this input is no longer exposed."),
-						FText::FromString(OverridePin->PinName.ToString()), FText::FromString(InputFunctionCallNode->GetFunctionName())),
+						FText::FromString(OverridePin->PinName.ToString()), GetUserFriendlyFunctionName(InputFunctionCallNode)),
 					GetStackEditorDataKey(),
 					false,
 					GetNodeRemovalFix(OverridePin, LOCTEXT("RemoveInvalidInputTransaction", "Remove input override")));
@@ -495,7 +505,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 					EStackIssueSeverity::Error,
 					FText::Format(LOCTEXT("DeprecatedInputSummaryFormat", "Deprecated Input Override: {0}"), FText::FromString(OverridePin->PinName.ToString())),
 					FText::Format(LOCTEXT("DeprecatedInputFormat", "The input {0} is no longer exposed by the function {1}, but there exists a static switch parameter with the same name instead.\nYou can choose to copy the previously entered data over to the new parameter or remove the override to discard it."),
-						FText::FromString(OverridePin->PinName.ToString()), FText::FromString(InputFunctionCallNode->GetFunctionName())),
+						FText::FromString(OverridePin->PinName.ToString()), GetUserFriendlyFunctionName(InputFunctionCallNode)),
 					GetStackEditorDataKey(),
 					false,
 					Fixes);
@@ -514,7 +524,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 			EStackIssueSeverity::Error,
 			FText::Format(LOCTEXT("DuplicateInputSummaryFormat", "Duplicate Input: {0}"), FText::FromName(DuplicateInputName)),
 			FText::Format(LOCTEXT("DuplicateInputFormat", "There are multiple inputs with the same name {0} exposed by the function {1}.\nThis is not supported and must be fixed in the script that defines this function.\nCheck for inputs with the same name and different types or static switches."),
-				FText::FromName(DuplicateInputName), FText::FromString(InputFunctionCallNode->GetFunctionName())),
+				FText::FromName(DuplicateInputName), GetUserFriendlyFunctionName(InputFunctionCallNode)),
 			GetStackEditorDataKey(),
 			false);
 		NewIssues.Add(DuplicateInputError);
@@ -526,8 +536,8 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 		FStackIssue InputWithInvalidTypeError(
 			EStackIssueSeverity::Error,
 			FText::Format(LOCTEXT("InputWithInvalidTypeSummaryFormat", "Input has an invalid type: {0}"), FText::FromName(PinWithInvalidType->PinName)),
-			FText::Format(LOCTEXT("InputWithInvalidTypeFormat", "The input {0} on function {1} has a type which is invalid.\nThe type of this input likely doesn't exist anymore.\nThis input must be fixed in the script before this module can be used."),
-				FText::FromName(PinWithInvalidType->PinName), FText::FromString(InputFunctionCallNode->GetFunctionName())),
+			FText::Format(LOCTEXT("InputWithInvalidTypeFormat", "The input {0} on function {1} has a type which is invalid.\nThe type of this input doesn't exist anymore.\nThe type must be brought back into the project or this input must be removed from the script."),
+				FText::FromName(PinWithInvalidType->PinName), GetUserFriendlyFunctionName(InputFunctionCallNode)),
 			GetStackEditorDataKey(),
 			false);
 		NewIssues.Add(InputWithInvalidTypeError);
@@ -542,7 +552,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 				EStackIssueSeverity::Warning,
 				FText::Format(LOCTEXT("InvalidInputSummaryFormat", "Invalid Input: {0}"), FText::FromString(InputFunctionCallNodePin->PinName.ToString())),
 				FText::Format(LOCTEXT("InvalidInputFormat", "The input {0} was previously set but is no longer exposed by the function {1}.\nPress the fix button to remove this unused input data,\nor check the function definition to see why this input is no longer exposed."),
-					FText::FromString(InputFunctionCallNodePin->PinName.ToString()), FText::FromString(InputFunctionCallNode->GetFunctionName())),
+					FText::FromString(InputFunctionCallNodePin->PinName.ToString()), GetUserFriendlyFunctionName(InputFunctionCallNode)),
 				GetStackEditorDataKey(),
 				false,
 				GetResetPinFix(InputFunctionCallNodePin, LOCTEXT("RemoveInvalidInputPinFix", "Remove invalid input.")));
