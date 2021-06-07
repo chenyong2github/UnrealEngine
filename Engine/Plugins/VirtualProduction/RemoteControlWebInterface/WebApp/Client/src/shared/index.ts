@@ -22,10 +22,6 @@ export enum PropertyType {
   Function =    'Function',
 }
 
-export enum AssetAction {
-  SequencePlay =     'SEQUENCE_PLAY',
-}
-
 export interface ColorProperty {
   R: number;
   G: number;
@@ -89,6 +85,7 @@ export interface IExposedProperty {
   Metadata: Record<string, string>;
   Widget: WidgetType;
   UnderlyingProperty: IProperty;
+  OwnerObjects: IObject[];
 
   //Added
   Type: PropertyType;
@@ -121,10 +118,13 @@ export interface IPreset {
   Exposed?: Record<string, IExposedProperty | IExposedFunction>;
 }
 
-export interface IAsset {
+export interface IObject {
   Name: string;
   Class: string;
   Path: string;
+}
+
+export interface IAsset extends IObject {
   Metadata: Record<string, string>;
 }
 
@@ -138,6 +138,7 @@ export enum WidgetTypes {
   Sliders =         'Sliders',
   ScaleSlider =     'Scale Slider',
   ColorPicker =     'Color Picker',
+  MiniColorPicker = 'Mini Color Picker',
   Toggle =          'Toggle',
   Joystick =        'Joystick',
   Button =          'Button',

@@ -1,4 +1,4 @@
-import { IPreset, PropertyType, WidgetType, WidgetTypes } from "src/shared";
+import { IPreset, PropertyType } from "src/shared";
 
 
 type Range = {

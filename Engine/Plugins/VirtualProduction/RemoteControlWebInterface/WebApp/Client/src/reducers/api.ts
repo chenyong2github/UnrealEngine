@@ -2,7 +2,7 @@ import { Dispatch } from 'redux';
 import { createAction, createReducer } from 'redux-act';
 import dotProp from 'dot-prop-immutable';
 import io from 'socket.io-client';
-import { IAsset, IPayload, IPayloads, IPreset, IView, PropertyValue, AssetAction, TabLayout } from '../shared';
+import { IAsset, IPayload, IPayloads, IPreset, IView, PropertyValue, TabLayout } from '../shared';
 import _ from 'lodash';
 
 
@@ -141,10 +141,6 @@ export const _api = {
     set: (property: string, value: PropertyValue) => {
       const preset = _internal.getPreset();
       _socket.emit('value', preset, property, value);
-    },
-    reset: (property: string) => {
-      const preset = _internal.getPreset();
-      _socket.emit('reset', preset, property);
     },
     execute: (func: string, args?: Record<string, any>) => {
       const preset = _internal.getPreset();

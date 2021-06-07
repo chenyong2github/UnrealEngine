@@ -14,8 +14,6 @@ export namespace Notify {
       socket
         .on('view', onViewChange)
         .on('value', UnrealEngine.setPayloadValue)
-        .on('actor', UnrealEngine.setActorValue)
-        .on('reset', UnrealEngine.resetPayloadValue)
         .on('execute', UnrealEngine.executeFunction)
         .on('metadata', UnrealEngine.setPresetPropertyMetadata);
 
