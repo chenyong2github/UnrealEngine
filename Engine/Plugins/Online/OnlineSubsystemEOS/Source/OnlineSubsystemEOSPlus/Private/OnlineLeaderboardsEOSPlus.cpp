@@ -20,7 +20,7 @@ FOnlineLeaderboardsEOSPlus::~FOnlineLeaderboardsEOSPlus()
 
 }
 
-TSharedPtr<FUniqueNetIdEOSPlus> FOnlineLeaderboardsEOSPlus::GetNetIdPlus(const FString& SourceId)
+FUniqueNetIdEOSPlusPtr FOnlineLeaderboardsEOSPlus::GetNetIdPlus(const FString& SourceId)
 {
 	return EOSPlus->UserInterfacePtr->GetNetIdPlus(SourceId);
 }

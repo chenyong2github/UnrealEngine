@@ -210,7 +210,7 @@ bool FOnlineSubsystemEOSPlus::IsLocalPlayer(const FUniqueNetId& UniqueId) const
 	{
 		if (UserInterfacePtr.IsValid())
 		{
-			TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = UserInterfacePtr->GetNetIdPlus(UniqueId.ToString());
+			FUniqueNetIdEOSPlusPtr NetIdPlus = UserInterfacePtr->GetNetIdPlus(UniqueId.ToString());
 			if (NetIdPlus.IsValid())
 			{
 				for (int32 LocalUserNum = 0; LocalUserNum < MAX_LOCAL_PLAYERS; LocalUserNum++)

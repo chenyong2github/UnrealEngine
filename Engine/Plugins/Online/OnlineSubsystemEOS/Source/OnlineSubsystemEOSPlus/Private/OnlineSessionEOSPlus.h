@@ -6,9 +6,9 @@
 #include "UObject/CoreOnline.h"
 #include "OnlineSessionSettings.h"
 #include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineUserEOSPlus.h"
 
 class FOnlineSubsystemEOSPlus;
-class FUniqueNetIdEOSPlus;
 
 /**
  * Interface for interacting with EOS sessions
@@ -21,7 +21,7 @@ public:
 	virtual ~FOnlineSessionEOSPlus();
 
 // IOnlineSession Interface
-	virtual TSharedPtr<const FUniqueNetId> CreateSessionIdFromString(const FString& SessionIdStr) override;
+	virtual FUniqueNetIdPtr CreateSessionIdFromString(const FString& SessionIdStr) override;
 	virtual bool CreateSession(int32 HostingPlayerNum, FName SessionName, const FOnlineSessionSettings& NewSessionSettings) override;
 	virtual bool CreateSession(const FUniqueNetId& HostingPlayerId, FName SessionName, const FOnlineSessionSettings& NewSessionSettings) override;
 	virtual bool StartSession(FName SessionName) override;
@@ -29,7 +29,7 @@ public:
 	virtual bool EndSession(FName SessionName) override;
 	virtual bool DestroySession(FName SessionName, const FOnDestroySessionCompleteDelegate& CompletionDelegate = FOnDestroySessionCompleteDelegate()) override;
 	virtual bool IsPlayerInSession(FName SessionName, const FUniqueNetId& UniqueId) override;
-	virtual bool StartMatchmaking(const TArray< TSharedRef<const FUniqueNetId> >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings) override;
+	virtual bool StartMatchmaking(const TArray< FUniqueNetIdRef >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings) override;
 	virtual bool CancelMatchmaking(int32 SearchingPlayerNum, FName SessionName) override;
 	virtual bool CancelMatchmaking(const FUniqueNetId& SearchingPlayerId, FName SessionName) override;
 	virtual bool FindSessions(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings) override;
@@ -41,18 +41,18 @@ public:
 	virtual bool JoinSession(const FUniqueNetId& PlayerId, FName SessionName, const FOnlineSessionSearchResult& DesiredSession) override;
 	virtual bool FindFriendSession(int32 LocalUserNum, const FUniqueNetId& Friend) override;
 	virtual bool FindFriendSession(const FUniqueNetId& LocalUserId, const FUniqueNetId& Friend) override;
-	virtual bool FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList) override;
+	virtual bool FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& FriendList) override;
 	virtual bool SendSessionInviteToFriend(int32 LocalUserNum, FName SessionName, const FUniqueNetId& Friend) override;
 	virtual bool SendSessionInviteToFriend(const FUniqueNetId& LocalUserId, FName SessionName, const FUniqueNetId& Friend) override;
-	virtual bool SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends) override;
-	virtual bool SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends) override;
+	virtual bool SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< FUniqueNetIdRef >& Friends) override;
+	virtual bool SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< FUniqueNetIdRef >& Friends) override;
 	virtual bool GetResolvedConnectString(FName SessionName, FString& ConnectInfo, FName PortType) override;
 	virtual bool GetResolvedConnectString(const FOnlineSessionSearchResult& SearchResult, FName PortType, FString& ConnectInfo) override;
 	virtual FOnlineSessionSettings* GetSessionSettings(FName SessionName) override;
 	virtual bool RegisterPlayer(FName SessionName, const FUniqueNetId& PlayerId, bool bWasInvited) override;
-	virtual bool RegisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players, bool bWasInvited = false) override;
+	virtual bool RegisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players, bool bWasInvited = false) override;
 	virtual bool UnregisterPlayer(FName SessionName, const FUniqueNetId& PlayerId) override;
-	virtual bool UnregisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players) override;
+	virtual bool UnregisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players) override;
 	virtual void RegisterLocalPlayer(const FUniqueNetId& PlayerId, FName SessionName, const FOnRegisterLocalPlayerCompleteDelegate& Delegate) override;
 	virtual void UnregisterLocalPlayer(const FUniqueNetId& PlayerId, FName SessionName, const FOnUnregisterLocalPlayerCompleteDelegate& Delegate) override;
 	virtual int32 GetNumSessions() override;
@@ -70,8 +70,8 @@ PACKAGE_SCOPE:
 	FOnlineSessionEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem);
 
 	/** Global callbacks that we'll need to broadcast back out */
-	void OnSessionUserInviteAcceptedBase(const bool bWasSuccessful, const int32 ControllerId, TSharedPtr<const FUniqueNetId> UserId, const FOnlineSessionSearchResult& InviteResult);
-	void OnSessionUserInviteAcceptedEOS(const bool bWasSuccessful, const int32 ControllerId, TSharedPtr<const FUniqueNetId> UserId, const FOnlineSessionSearchResult& InviteResult);
+	void OnSessionUserInviteAcceptedBase(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult& InviteResult);
+	void OnSessionUserInviteAcceptedEOS(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult& InviteResult);
 	void OnSessionInviteReceivedBase(const FUniqueNetId& UserId, const FUniqueNetId& FromId, const FString& AppId, const FOnlineSessionSearchResult& InviteResult);
 	void OnSessionInviteReceivedEOS(const FUniqueNetId& UserId, const FUniqueNetId& FromId, const FString& AppId, const FOnlineSessionSearchResult& InviteResult);
 	void OnSessionFailure(const FUniqueNetId& Player, ESessionFailure::Type Failure);
@@ -87,11 +87,11 @@ PACKAGE_SCOPE:
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type JoinResult);
 	void OnFindFriendSessionComplete(int32 LocalPlayerNum, bool bWasSuccessful, const TArray<FOnlineSessionSearchResult>& Results);
 	
-	TSharedPtr<FUniqueNetIdEOSPlus> GetNetIdPlus(const FString& SourceId);
-	TSharedPtr<const FUniqueNetId> GetBaseNetId(const FString& SourceId);
-	TSharedPtr<const FUniqueNetId> GetEOSNetId(const FString& SourceId);
-	TArray<TSharedRef<const FUniqueNetId>> GetBaseNetIds(const TArray<TSharedRef<const FUniqueNetId>>& Players);
-	TArray<TSharedRef<const FUniqueNetId>> GetEOSNetIds(const TArray<TSharedRef<const FUniqueNetId>>& Players);
+	FUniqueNetIdEOSPlusPtr GetNetIdPlus(const FString& SourceId);
+	FUniqueNetIdPtr GetBaseNetId(const FString& SourceId);
+	FUniqueNetIdPtr GetEOSNetId(const FString& SourceId);
+	TArray<FUniqueNetIdRef> GetBaseNetIds(const TArray<FUniqueNetIdRef>& Players);
+	TArray<FUniqueNetIdRef> GetEOSNetIds(const TArray<FUniqueNetIdRef>& Players);
 
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;

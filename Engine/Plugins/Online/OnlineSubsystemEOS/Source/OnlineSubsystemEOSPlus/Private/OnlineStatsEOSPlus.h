@@ -6,9 +6,9 @@
 #include "UObject/CoreOnline.h"
 #include "Interfaces/OnlineStatsInterface.h"
 #include "Interfaces/OnlineEventsInterface.h"
+#include "OnlineUserEOSPlus.h"
 
 class FOnlineSubsystemEOSPlus;
-class FUniqueNetIdEOSPlus;
 
 /**
  * Interface that mirrors stats on both OSSes
@@ -22,12 +22,12 @@ public:
 	virtual ~FOnlineStatsEOSPlus() = default;
 
 // IOnlineStats Interface
-	virtual void QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TSharedRef<const FUniqueNetId> StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate) override;
-	virtual void QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate) override;
-	virtual TSharedPtr<const FOnlineStatsUserStats> GetStats(const TSharedRef<const FUniqueNetId> StatsUserId) const override;
-	virtual void UpdateStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate) override;
+	virtual void QueryStats(const FUniqueNetIdRef LocalUserId, const FUniqueNetIdRef StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate) override;
+	virtual void QueryStats(const FUniqueNetIdRef LocalUserId, const TArray<FUniqueNetIdRef>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate) override;
+	virtual TSharedPtr<const FOnlineStatsUserStats> GetStats(const FUniqueNetIdRef StatsUserId) const override;
+	virtual void UpdateStats(const FUniqueNetIdRef LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate) override;
 #if !UE_BUILD_SHIPPING
-	virtual void ResetStats(const TSharedRef<const FUniqueNetId> StatsUserId) override;
+	virtual void ResetStats(const FUniqueNetIdRef StatsUserId) override;
 #endif
 // ~IOnlineStats Interface
 
@@ -43,7 +43,7 @@ PACKAGE_SCOPE:
 	}
 
 private:
-	TSharedPtr<FUniqueNetIdEOSPlus> GetNetIdPlus(const FString& SourceId);
+	FUniqueNetIdEOSPlusPtr GetNetIdPlus(const FString& SourceId);
 
 private:
 	/** Reference to the owning EOS plus subsystem */
