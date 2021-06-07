@@ -1970,7 +1970,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	TArray<UMorphTarget*>& GetMorphTargets()
+	TArray<TObjectPtr<UMorphTarget>>& GetMorphTargets()
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargets);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
