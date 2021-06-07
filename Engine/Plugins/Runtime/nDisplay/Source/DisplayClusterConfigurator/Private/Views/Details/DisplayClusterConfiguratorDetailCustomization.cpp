@@ -418,6 +418,12 @@ void FDisplayClusterConfiguratorScreenDetailCustomization::CustomizeDetails(IDet
 	}
 	check(ScreenComponentPtr != nullptr);
 
+	if (!ScreenComponentPtr->IsTemplate())
+	{
+		// Don't allow size property and aspect ratio changes on instances for now.
+		return;
+	}
+	
 	for (const FDisplayClusterConfiguratorAspectRatioPresetSize& PresetItem : FDisplayClusterConfiguratorAspectRatioPresetSize::CommonPresets)
 	{
 		TSharedPtr<FDisplayClusterConfiguratorAspectRatioPresetSize> PresetItemPtr = MakeShared<FDisplayClusterConfiguratorAspectRatioPresetSize>(PresetItem);
