@@ -3,17 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ContentBrowserDelegates.h"
 #include "Misc/Guid.h"
 #include "MovieSceneTrackEditor.h"
+#include "Sections/TemplateSequenceSection.h"
 #include "TrackEditors/SubTrackEditorBase.h"
-#include "ContentBrowserDelegates.h"
 
 struct FAssetData;
 class FMenuBuilder;
 class UCameraAnim;
 class UCameraComponent;
 class UTemplateSequence;
-class UTemplateSequenceSection;
 
 class FTemplateSequenceTrackEditor : public FMovieSceneTrackEditor
 {
@@ -59,5 +59,6 @@ public:
 
 private:
 	void BuildPropertyScalingSubMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
+	int32 GetPropertyScaleFor(FGuid SubObjectBinding, const FMovieScenePropertyBinding& SubPropertyBinding, ETemplateSectionPropertyScaleType PropertyScaleType) const;
 };
 

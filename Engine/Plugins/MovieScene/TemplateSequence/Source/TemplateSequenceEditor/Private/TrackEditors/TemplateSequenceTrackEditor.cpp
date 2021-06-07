@@ -19,7 +19,6 @@
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Sections/MovieSceneCameraAnimSection.h"
-#include "Sections/TemplateSequenceSection.h"
 #include "SequencerSectionPainter.h"
 #include "SequencerUtilities.h"
 #include "TemplateSequence.h"
@@ -499,18 +498,11 @@ void FTemplateSequenceSection::BuildPropertyScalingSubMenu(FMenuBuilder& MenuBui
 {
 	using FScalablePropertyInfo = TTuple<FGuid, FMovieScenePropertyBinding, ETemplateSectionPropertyScaleType>;
 
+	// Get the list of all animated properties in the child template sequence. This is the list of properties for which
+	// we can add a property multiplier.
 	TArray<FScalablePropertyInfo> AllAnimatedProperties;
-	TArray<FScalablePropertyInfo> AlreadyAddedProperties;
 
-	TSharedPtr<ISequencer> Sequencer = GetSequencer();
-	UTemplateSequenceSection& TemplateSequenceSection = GetSectionObjectAs<UTemplateSequenceSection>();
-
-	for (const FTemplateSectionPropertyScale& PropertyScale : TemplateSequenceSection.PropertyScales)
-	{
-		AlreadyAddedProperties.Add(FScalablePropertyInfo(
-				PropertyScale.ObjectBinding, PropertyScale.PropertyBinding, PropertyScale.PropertyScaleType));
-	}
-
+	const UTemplateSequenceSection& TemplateSequenceSection = GetSectionObjectAs<UTemplateSequenceSection>();
 	UMovieSceneSequence* SubSequence = TemplateSequenceSection.GetSequence();
 	UMovieScene* SubMovieScene = SubSequence->GetMovieScene();
 	for (const FMovieSceneBinding& Binding : SubMovieScene->GetBindings())
@@ -562,12 +554,22 @@ void FTemplateSequenceSection::BuildPropertyScalingSubMenu(FMenuBuilder& MenuBui
 					break;
 			}
 
-			const int32 AlreadyAddedPropertyIndex = AlreadyAddedProperties.Find(AnimatedProperty);
+			// We need to explicitly capture a non-const version of "this" otherwise the c++ compiler gets confused about 
+			// which "GetSectionObjectAs<T>" to call inside of the lambda below.
+			FTemplateSequenceSection* NonConstThis = this;
 
 			FUIAction MenuEntryAction = FUIAction(
 					FExecuteAction::CreateLambda(
-						[Sequencer, &TemplateSequenceSection, AlreadyAddedPropertyIndex, SubObjectBinding, SubPropertyBinding, ScaleType]()
+						[NonConstThis, SubObjectBinding, SubPropertyBinding, ScaleType]()
 						{
+							FScopedTransaction TogglePropertyMultiplierTransaction(LOCTEXT("TogglePropertyMultiplier_Transaction", "Toggle Property Multiplier"));
+
+							TSharedPtr<ISequencer> Sequencer = NonConstThis->GetSequencer();
+							UTemplateSequenceSection& TemplateSequenceSection = NonConstThis->GetSectionObjectAs<UTemplateSequenceSection>();
+
+							TemplateSequenceSection.Modify();
+
+							const int32 AlreadyAddedPropertyIndex = NonConstThis->GetPropertyScaleFor(SubObjectBinding, SubPropertyBinding, ScaleType);
 							if (AlreadyAddedPropertyIndex == INDEX_NONE)
 							{
 								FTemplateSectionPropertyScale NewPropertyScale;
@@ -582,12 +584,14 @@ void FTemplateSequenceSection::BuildPropertyScalingSubMenu(FMenuBuilder& MenuBui
 							{
 								TemplateSequenceSection.RemovePropertyScale(AlreadyAddedPropertyIndex);
 							}
+
 							Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 						}),
 					FCanExecuteAction::CreateLambda([]() { return true; }),
 					FGetActionCheckState::CreateLambda(
-						[AlreadyAddedPropertyIndex]() -> ECheckBoxState
+						[this, SubObjectBinding, SubPropertyBinding, ScaleType]() -> ECheckBoxState
 						{
+							const int32 AlreadyAddedPropertyIndex = GetPropertyScaleFor(SubObjectBinding, SubPropertyBinding, ScaleType);
 							return AlreadyAddedPropertyIndex != INDEX_NONE ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 						})
 					);
@@ -612,6 +616,26 @@ void FTemplateSequenceSection::BuildPropertyScalingSubMenu(FMenuBuilder& MenuBui
 			NAME_None,
 			EUserInterfaceActionType::None);
 	}
+}
+
+int32 FTemplateSequenceSection::GetPropertyScaleFor(FGuid SubObjectBinding, const FMovieScenePropertyBinding& SubPropertyBinding, ETemplateSectionPropertyScaleType PropertyScaleType) const
+{
+	using FScalablePropertyInfo = TTuple<FGuid, FMovieScenePropertyBinding, ETemplateSectionPropertyScaleType>;
+
+	const UTemplateSequenceSection& TemplateSequenceSection = GetSectionObjectAs<UTemplateSequenceSection>();
+
+	for (int32 Index = 0; Index < TemplateSequenceSection.PropertyScales.Num(); ++Index)
+	{
+		const FTemplateSectionPropertyScale& PropertyScale(TemplateSequenceSection.PropertyScales[Index]);
+		if (PropertyScale.ObjectBinding == SubObjectBinding &&
+				PropertyScale.PropertyBinding == SubPropertyBinding &&
+				PropertyScale.PropertyScaleType == PropertyScaleType)
+		{
+			return Index;
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 #undef LOCTEXT_NAMESPACE
