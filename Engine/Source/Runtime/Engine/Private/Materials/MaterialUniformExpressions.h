@@ -325,7 +325,7 @@ template<typename TextureType>
 static TextureType* GetIndexedTexture(const FMaterial& Material, int32 TextureIndex)
 {
 	UObject* IndexedTexture = nullptr;
-	const TArrayView<UObject* const> ReferencedTextures = Material.GetReferencedTextures();
+	const TArrayView<const TObjectPtr<UObject>> ReferencedTextures = Material.GetReferencedTextures();
 	if (ReferencedTextures.IsValidIndex(TextureIndex))
 	{
 		IndexedTexture = ReferencedTextures[TextureIndex];

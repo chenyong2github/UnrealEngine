@@ -1226,11 +1226,11 @@ void FMaterialResource::LegacySerialize(FArchive& Ar)
 	}
 }
 
-TArrayView<UObject* const> FMaterialResource::GetReferencedTextures() const
+TArrayView<const TObjectPtr<UObject>> FMaterialResource::GetReferencedTextures() const
 {
 	if (MaterialInstance)
 	{
-		const TArrayView<UObject* const> Textures = MaterialInstance->GetReferencedTextures();
+		const TArrayView<const TObjectPtr<UObject>> Textures = MaterialInstance->GetReferencedTextures();
 		if (Textures.Num())
 		{
 			return Textures;
@@ -3633,7 +3633,7 @@ void FMaterial::GetReferencedTexturesHash(EShaderPlatform Platform, FSHAHash& Ou
 {
 	FSHA1 HashState;
 
-	const TArrayView<UObject* const> ReferencedTextures = GetReferencedTextures();
+	const TArrayView<const TObjectPtr<UObject>> ReferencedTextures = GetReferencedTextures();
 	// Hash the names of the uniform expression textures to capture changes in their order or values resulting from material compiler code changes
 	for (int32 TextureIndex = 0; TextureIndex < ReferencedTextures.Num(); TextureIndex++)
 	{

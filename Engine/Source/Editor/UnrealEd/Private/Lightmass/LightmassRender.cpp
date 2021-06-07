@@ -275,7 +275,7 @@ public:
 		}
 	}
 
-	virtual TArrayView<UObject* const> GetReferencedTextures() const override
+	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -850,7 +850,7 @@ private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
 	UMaterial* Material;
-	TArray<UObject*> ReferencedTextures;
+	TArray<TObjectPtr<UObject>> ReferencedTextures;
 	/** The property to compile for rendering the sample */
 	EMaterialProperty PropertyToCompile;
 	/** Stores which exported attribute this proxy is compiling for. */

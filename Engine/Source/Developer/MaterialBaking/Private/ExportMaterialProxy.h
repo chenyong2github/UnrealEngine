@@ -315,7 +315,7 @@ public:
 		return bCorrectVertexFactory && bPCPlatform && bCorrectFrequency;
 	}
 
-	virtual TArrayView<UObject* const> GetReferencedTextures() const override
+	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -611,7 +611,7 @@ private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
 	UMaterial* Material;
-	TArray<UObject*> ReferencedTextures;
+	TArray<TObjectPtr<UObject>> ReferencedTextures;
 	/** The property to compile for rendering the sample */
 	EMaterialProperty PropertyToCompile;
 	/** The name of the specific custom output to compile for rendering the sample. Only used if PropertyToCompile is MP_CustomOutput */

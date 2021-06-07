@@ -1875,7 +1875,7 @@ public:
 
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector);
 
-	virtual TArrayView<UObject* const> GetReferencedTextures() const = 0;
+	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const = 0;
 
 	/**
 	 * Finds the shader matching the template type and the passed in vertex factory, asserts if not found.
@@ -2622,7 +2622,7 @@ public:
 
 	ENGINE_API virtual void LegacySerialize(FArchive& Ar) override;
 
-	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override;
+	ENGINE_API virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override;
 
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
