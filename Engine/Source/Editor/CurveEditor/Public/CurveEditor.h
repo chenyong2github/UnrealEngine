@@ -174,6 +174,11 @@ public:
 	ICurveEditorToolExtension* GetCurrentTool() const;
 
 	FCurveEditorToolID AddTool(TUniquePtr<ICurveEditorToolExtension>&& InTool);
+	
+	/** Nudge left or right*/
+	void TranslateSelectedKeys(double SecondsToAdd);
+	void TranslateSelectedKeysLeft();
+	void TranslateSelectedKeysRight();
 
 	/** Step to next or previous key from the current time */
 	void StepToNextKey();
