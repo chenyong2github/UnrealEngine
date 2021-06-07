@@ -6625,7 +6625,7 @@ bool UCharacterMovementComponent::CanStepUp(const FHitResult& Hit) const
 		 return true;
 	}
 
-	const AActor* HitActor = Hit.HitObjectHandle.FetchActor();
+	const AActor* HitActor = Hit.HitObjectHandle.GetManagingActor();
 	if (!HitActor->CanBeBaseForCharacter(CharacterOwner))
 	{
 		return false;

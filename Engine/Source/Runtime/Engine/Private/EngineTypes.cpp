@@ -548,6 +548,19 @@ bool FActorInstanceHandle::operator!=(const AActor* OtherActor) const
 	return !(*this == OtherActor);
 }
 
+uint32 GetTypeHash(const FActorInstanceHandle& Handle)
+{
+	uint32 Hash = 0;
+	if (Handle.Actor.IsValid())
+	{
+		FCrc::StrCrc32(*(Handle.Actor->GetPathName()), Hash);
+	}
+	Hash = HashCombine(Hash, Handle.ManagerIndex);
+	Hash = HashCombine(Hash, Handle.InstanceIndex);
+
+	return Hash;
+}
+
 FArchive& operator<<(FArchive& Ar, FActorInstanceHandle& Handle)
 {
 	Ar << Handle.Actor;
