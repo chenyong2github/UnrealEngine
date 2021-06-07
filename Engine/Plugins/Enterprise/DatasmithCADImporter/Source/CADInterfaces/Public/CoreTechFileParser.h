@@ -22,7 +22,7 @@ namespace CADLibrary
 
 		ECoreTechParsingResult ProcessFile(const FFileDescription& InCTFileDescription);
 
-		TSet<FFileDescription>& GetExternalRefSet()
+		TArray<FFileDescription>& GetExternalRefSet()
 		{
 			return SceneGraphArchive.ExternalRefSet;
 		}

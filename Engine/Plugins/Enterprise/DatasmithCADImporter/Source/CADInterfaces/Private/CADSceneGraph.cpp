@@ -32,8 +32,6 @@ FArchive& operator<<(FArchive& Ar, FArchiveUnloadedComponent& Unloaded)
 {
 	Ar << Unloaded.ObjectId;
 	Ar << Unloaded.MetaData;
-	Ar << Unloaded.FileName;
-	Ar << Unloaded.FileType;
 	return Ar;
 }
 
