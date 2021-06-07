@@ -13,6 +13,7 @@
 #include "Rendering/SkyAtmosphereCommonData.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Components/DirectionalLightComponent.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
@@ -348,6 +349,17 @@ SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(OtherAbsorption);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(SkyLuminanceFactor);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AerialPespectiveViewDistanceScale);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, HeightFogContribution);
+
+FLinearColor USkyAtmosphereComponent::GetAtmosphereTransmitanceOnGroundAtPlanetTop(UDirectionalLightComponent* DirectionalLight)
+{
+	if(DirectionalLight != nullptr)
+	{
+		FAtmosphereSetup AtmosphereSetup(*this);
+		const FLinearColor TransmittanceAtDirLight = AtmosphereSetup.GetTransmittanceAtGroundLevel(-DirectionalLight->GetDirection());
+		return TransmittanceAtDirLight;
+	}
+	return FLinearColor::White;
+}
 
 /*=============================================================================
 	ASkyAtmosphere implementation.
