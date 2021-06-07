@@ -839,7 +839,7 @@ int32 FindIndexOfAnimCurveInfo(TArray<TSharedPtr<FDisplayedAnimCurveInfo>>& Anim
 
 void SAnimCurveViewer::CreateAnimCurveList( const FString& SearchText, bool bInFullRefresh )
 {
-	bool bDirty = false;
+	bool bDirty = bInFullRefresh;
 	
 	const FSmartNameMapping* Mapping = GetAnimCurveMapping();
 	if (Mapping)
