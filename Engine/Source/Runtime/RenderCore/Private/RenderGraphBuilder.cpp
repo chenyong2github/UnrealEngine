@@ -376,6 +376,11 @@ void FRDGBuilder::TickPoolElements()
 #endif
 }
 
+bool FRDGBuilder::IsImmediateMode()
+{
+	return ::IsImmediateMode();
+}
+
 ERDGPassFlags FRDGBuilder::OverridePassFlags(const TCHAR* PassName, ERDGPassFlags PassFlags, bool bAsyncComputeSupported)
 {
 	const bool bDebugAllowedForPass =
@@ -1902,10 +1907,27 @@ void FRDGBuilder::UploadBuffers()
 
 	for (FUploadedBuffer& UploadedBuffer : UploadedBuffers)
 	{
-		const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = ConvertToExternalBuffer(UploadedBuffer.Buffer);
-		void* DestPtr = RHICmdList.LockBuffer(PooledBuffer->GetRHI(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
-		FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
-		RHICmdList.UnlockBuffer(PooledBuffer->GetRHI());
+		const void* InitialData;
+		uint64 InitialDataSize;
+
+		if (UploadedBuffer.bUseCallbacks)
+		{
+			InitialData = UploadedBuffer.DataCallback();
+			InitialDataSize = UploadedBuffer.DataSizeCallback();
+		}
+		else
+		{
+			InitialData = UploadedBuffer.Data;
+			InitialDataSize = UploadedBuffer.DataSize;
+		}
+
+		if (InitialData && InitialDataSize)
+		{
+			const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = ConvertToExternalBuffer(UploadedBuffer.Buffer);
+			void* DestPtr = RHICmdList.LockBuffer(PooledBuffer->GetRHI(), 0, InitialDataSize, RLM_WriteOnly);
+			FMemory::Memcpy(DestPtr, InitialData, InitialDataSize);
+			RHICmdList.UnlockBuffer(PooledBuffer->GetRHI());
+		}
 	}
 	UploadedBuffers.Reset();
 }
@@ -2685,6 +2707,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buff
 		check(GetPrologueBarrierPassHandle(PassHandle) == PassHandle);
 	}
 #endif
+	Buffer->FinalizeDesc();
 
 	// If transient then create the resource on the transient allocator. External or extracted resource can't be transient because of lifetime tracking issues.
 	if (IsTransient(Buffer))

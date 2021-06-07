@@ -61,6 +61,22 @@ struct FInstanceCullingResult
 	}
 };
 
+struct FBatchedInstanceCullingScratchSpace
+{
+	/** Whether we defer and batch GPU instance culling work throughout a frame. */
+	bool bBatchingActive = false;
+
+	FRDGBufferRef DrawIndirectArgsBuffer = nullptr;
+	FRDGBufferRef InstanceIdOffsetBuffer = nullptr;
+	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
+
+	/** GPU instance culling input data merged from multiple batches throughout a frame. */
+	FInstanceCullingContextMerged MergedContext;
+
+	/** Batches of GPU instance culling input data. */
+	TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator> Batches;
+};
+
 /**
  * Manages allocation of indirect arguments and culling jobs for all instanced draws (use the GPU Scene culling).
  */
@@ -91,10 +107,22 @@ public:
 	}
 	const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> GetDummyInstanceCullingUniformBuffer() const { return CullingIntermediate.DummyUniformBuffer; }
 	
+	/** Starts batching GPU instance culling work items if possible. */
+	void BeginDeferredCulling(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene);
+
+	/** Whether we are actively batching GPU instance culling work. */
+	bool IsDeferredCullingActive() const { return BatchedCullingScratch.bBatchingActive; }
+
 	// Populated by CullInstances, used when performing final culling & rendering 
 	FInstanceCullingIntermediate CullingIntermediate;
 
+
 private:
+	friend class FInstanceCullingContext;
+
+	// Polulated by FInstanceCullingContext::BuildRenderingCommandsDeferred, used to hold instance culling related data that needs to be passed around
+	FBatchedInstanceCullingScratchSpace BatchedCullingScratch;
+
 	FInstanceCullingManager() = delete;
 	FInstanceCullingManager(FInstanceCullingManager &) = delete;
 

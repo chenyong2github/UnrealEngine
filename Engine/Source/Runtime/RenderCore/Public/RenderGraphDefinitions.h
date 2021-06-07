@@ -577,3 +577,8 @@ using FRDGPassHandlesByPipeline = TRHIPipelineArray<FRDGPassHandle>;
 using FRDGPassesByPipeline = TRHIPipelineArray<FRDGPass*>;
 
 class FRDGTrace;
+
+using FRDGBufferNumElementsCallback = TFunction<uint32()>;
+using FRDGBufferInitialDataCallback = TFunction<const void*()>;
+using FRDGBufferInitialDataSizeCallback = TFunction<uint64()>;
+using FRDGDispatchGroupCountCallback = TFunction<FIntVector()>;

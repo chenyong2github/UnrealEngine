@@ -1887,7 +1887,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Find the visible primitives.
 	GraphBuilder.RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	FInstanceCullingManager InstanceCullingManager(Scene->GPUScene.IsEnabled());
+	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(Scene->GPUScene.IsEnabled());
 
 	bool bDoInitViewAftersPrepass = false;
 	{
@@ -1972,6 +1972,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			// GPUCULL_TODO: Possibly fold into unpack step
 			InstanceCullingManager.CullInstances(GraphBuilder, Scene->GPUScene);
+
+			// This sets up a deferred context that is used by all subsequent culling passes until it is either flushed by RDG execute or explicitly closed
+			InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
 		}
 
 		if (!bDoInitViewAftersPrepass)
