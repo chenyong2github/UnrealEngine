@@ -463,11 +463,7 @@ public:
 	}
 
 	// This method is queued with an RHIThread, otherwise it will flush after it is queued; without an RHI thread there is no benefit to queuing this frame advance commands
-	virtual void RHIBeginFrame() override final
-	{
-		State.Reset();
-		RHIContext->RHIBeginFrame();
-	}
+	virtual void RHIBeginFrame() override final;
 
 	// This method is queued with an RHIThread, otherwise it will flush after it is queued; without an RHI thread there is no benefit to queuing this frame advance commands
 	virtual void RHIEndFrame() override final;
@@ -1085,6 +1081,10 @@ protected:
 	{
 		RHIValidation::FTracker TrackerInstance{ ERHIPipeline::Graphics };
 		RHIValidation::FGlobalUniformBuffers GlobalUniformBuffers;
+
+		void* PreviousBeginFrame = nullptr;
+		void* PreviousEndFrame = nullptr;
+		int32 BeginEndFrameCounter = 0;
 
 		FRHIRenderPassInfo RenderPassInfo;
 		FString RenderPassName;
