@@ -250,33 +250,33 @@ public:
 
 	/** Get the current scalar (float) parameter value from a Material Instance */
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
-	static float GetMaterialInstanceScalarParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName);
+	static float GetMaterialInstanceScalarParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
 
 	/** Set the scalar (float) parameter value for a Material Instance */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
-	static bool SetMaterialInstanceScalarParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, float Value);
+	static bool SetMaterialInstanceScalarParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, float Value, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
 
 
 	/** Get the current texture parameter value from a Material Instance */
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
-	static UTexture* GetMaterialInstanceTextureParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName);
+	static UTexture* GetMaterialInstanceTextureParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
 
 	/** Set the texture parameter value for a Material Instance */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
-	static bool SetMaterialInstanceTextureParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, UTexture* Value);
+	static bool SetMaterialInstanceTextureParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, UTexture* Value, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
 
 
 	/** Get the current vector parameter value from a Material Instance */
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
-	static FLinearColor GetMaterialInstanceVectorParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName);
+	static FLinearColor GetMaterialInstanceVectorParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
 
 	/** Set the vector parameter value for a Material Instance */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
-	static bool SetMaterialInstanceVectorParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, FLinearColor Value);
+	static bool SetMaterialInstanceVectorParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, FLinearColor Value, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
 
 	/** Get the current static switch parameter value from a Material Instance */
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
-	static bool GetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName);
+	static bool GetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
 
 	/** Called after making modifications to a Material Instance to recompile shaders etc. */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
