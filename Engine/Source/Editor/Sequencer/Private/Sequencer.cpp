@@ -6515,6 +6515,27 @@ void FSequencer::AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerD
 
 }
 
+void FSequencer::ClearFilters()
+{
+	SequencerWidget->SetSearchText(FText::GetEmpty());
+	GetNodeTree()->RemoveAllFilters();
+	GetSequencerSettings()->SetShowSelectedNodesOnly(false);
+
+	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* FocusedMovieScene = nullptr;
+	if (IsValid(FocusedMovieSequence))
+	{
+		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+		if (IsValid(FocusedMovieScene))
+		{
+			for (UMovieSceneNodeGroup* NodeGroup : FocusedMovieScene->GetNodeGroups())
+			{
+				NodeGroup->SetEnableFilter(false);
+			}
+		}
+	}
+}
+
 void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 {
 	if ( bUpdatingSequencerSelection || !IsLevelEditorSequencer() )

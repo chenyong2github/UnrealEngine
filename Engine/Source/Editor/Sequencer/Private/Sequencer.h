@@ -1071,6 +1071,8 @@ public:
 	void AddSelectedNodesToExistingNodeGroup(UMovieSceneNodeGroup* NodeGroup);
 	void AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerDisplayNode>>& Nodes, UMovieSceneNodeGroup* NodeGroup);
 
+	void ClearFilters();
+
 private:
 
 	/** Updates a viewport client from camera cut data */
