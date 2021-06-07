@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/FeedbackContext.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Animation/AnimTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Matinee/InterpData.h"
@@ -663,8 +664,13 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 
 	const float TickRate = 1.0f/FrameRate;
 
+	FScopedSlowTask SlowTask(AnimationLength, NSLOCTEXT("UnrealEd", "ExportAnimationProgress", "Exporting Animation"));
+	SlowTask.MakeDialog(true);
+
 	for (int32 FrameCount = 0; FrameCount <= AnimationLength; ++FrameCount)
 	{
+		SlowTask.EnterProgressFrame();
+		
 		if (FrameCount == 0)
 		{
 			InitialInvParentTransform = Actor->GetRootComponent()->GetComponentTransform().Inverse();
