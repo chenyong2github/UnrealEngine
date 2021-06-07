@@ -749,8 +749,6 @@ public:
 	virtual void SetAllowEditsMode(EAllowEditsMode AllowEditsMode) override;
 	virtual EKeyGroupMode GetKeyGroupMode() const override;
 	virtual void SetKeyGroupMode(EKeyGroupMode) override;
-	virtual bool GetKeyInterpPropertiesOnly() const override;
-	virtual void SetKeyInterpPropertiesOnly(bool bKeyInterpPropertiesOnly) override;
 	virtual EMovieSceneKeyInterpolation GetKeyInterpolation() const override;
 	virtual void SetKeyInterpolation(EMovieSceneKeyInterpolation) override;
 	virtual bool GetInfiniteKeyAreas() const override;

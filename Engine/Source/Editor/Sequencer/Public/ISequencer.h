@@ -300,12 +300,6 @@ public:
 	*/
 	virtual void SetKeyGroupMode(EKeyGroupMode Mode) = 0;
 
-	/** @return Returns whether or not to key only interp properties in this sequencer */
-	virtual bool GetKeyInterpPropertiesOnly() const = 0;
-
-	/** Sets whether or not to key only interp properties in this sequencer. */
-	virtual void SetKeyInterpPropertiesOnly(bool bKeyInterpPropertiesOnly) = 0;
-
 	/** @return Returns default key interpolation */
 	virtual EMovieSceneKeyInterpolation GetKeyInterpolation() const = 0;
 

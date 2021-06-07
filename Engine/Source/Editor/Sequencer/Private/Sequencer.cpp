@@ -3112,18 +3112,6 @@ void FSequencer::SetKeyGroupMode(EKeyGroupMode Mode)
 }
 
 
-bool FSequencer::GetKeyInterpPropertiesOnly() const 
-{
-	return Settings->GetKeyInterpPropertiesOnly();
-}
-
-
-void FSequencer::SetKeyInterpPropertiesOnly(bool bKeyInterpPropertiesOnly) 
-{
-	Settings->SetKeyInterpPropertiesOnly(bKeyInterpPropertiesOnly);
-}
-
-
 EMovieSceneKeyInterpolation FSequencer::GetKeyInterpolation() const
 {
 	return Settings->GetKeyInterpolation();
