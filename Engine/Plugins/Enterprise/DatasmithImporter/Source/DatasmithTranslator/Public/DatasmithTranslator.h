@@ -170,4 +170,32 @@ namespace Datasmith
 		TStrongObjectPtr<UOptionClass> Option(MakeOptionsPtr<UOptionClass>());
 		return Option;
 	}
+
+	FString DATASMITHTRANSLATOR_API GetXMLFileSchema(const FString& XmlFilePath);
+
+	template<typename ValueType>
+	bool CheckXMLSchema(const FString& FileXmlSchema, ValueType Format)
+	{
+		return (FileXmlSchema == Format);
+	}
+
+	template<typename ValueType, class... ValueTypes>
+	bool CheckXMLSchema(const FString& FileXmlSchema, ValueType Format, ValueTypes... OtherFormats)
+	{
+		if (FileXmlSchema == Format)
+		{
+			return true;
+		}
+		return CheckXMLSchema(FileXmlSchema, OtherFormats...);
+	}
+
+	/**
+	 * Check if the xml file schema is in the list of supported schema
+	 */
+	template<class... ValueTypes>
+	bool CheckXMLFileSchema(const FString& XmlFilePath, ValueTypes&... SupportedSchema)
+	{
+		FString FileXmlSchema = GetXMLFileSchema(XmlFilePath);
+		return CheckXMLSchema(FileXmlSchema, SupportedSchema...);
+	}
 }
