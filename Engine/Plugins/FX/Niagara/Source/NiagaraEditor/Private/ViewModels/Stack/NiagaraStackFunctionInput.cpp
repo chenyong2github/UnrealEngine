@@ -494,6 +494,40 @@ FText UNiagaraStackFunctionInput::GetValueToolTip() const
 	return ValueToolTipCache.GetValue();
 }
 
+UNiagaraStackEntry::FStackIssueFixDelegate UNiagaraStackFunctionInput::GetUpgradeDynamicInputVersionFix()
+{
+	if (!InputValues.DynamicNode.IsValid())
+	{
+		return FStackIssueFixDelegate();
+	}
+	return FStackIssueFixDelegate::CreateLambda([=]()
+	{
+		FScopedTransaction ScopedTransaction(LOCTEXT("UpgradeVersionFix", "Change dynamic input version"));
+		FNiagaraScriptVersionUpgradeContext UpgradeContext;
+		UpgradeContext.CreateClipboardCallback = [this](UNiagaraClipboardContent* ClipboardContent)
+		{
+			RefreshChildren();
+			Copy(ClipboardContent);
+			if (ClipboardContent->Functions.Num() > 0)
+			{
+				ClipboardContent->FunctionInputs = ClipboardContent->Functions[0]->Inputs;
+				ClipboardContent->Functions.Empty();
+			}
+		};
+		UNiagaraNodeFunctionCall* FunctionCallNode = GetDynamicInputNode();
+		UpgradeContext.ApplyClipboardCallback = [this](UNiagaraClipboardContent* ClipboardContent, FText& OutWarning) { Paste(ClipboardContent, OutWarning); };
+		UpgradeContext.ConstantResolver = GetEmitterViewModel().IsValid() ?
+			FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode)) :
+			FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode));
+		FunctionCallNode->ChangeScriptVersion(FunctionCallNode->FunctionScript->GetExposedVersion().VersionGuid, UpgradeContext, true);
+		if (FunctionCallNode->RefreshFromExternalChanges())
+		{
+			FunctionCallNode->GetNiagaraGraph()->NotifyGraphNeedsRecompile();
+			GetSystemViewModel()->ResetSystem();
+		}
+	});
+}
+
 void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	AliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(InputParameterHandle, OwningFunctionCallNode.Get());
@@ -504,7 +538,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 	if (InputValues.DynamicNode.IsValid())
 	{
-		FNiagaraStackGraphUtilities::CheckForDeprecatedScriptVersion(GetDynamicInputNode(), GetStackEditorDataKey(), FStackIssueFixDelegate(), NewIssues);
+		FNiagaraStackGraphUtilities::CheckForDeprecatedScriptVersion(GetDynamicInputNode(), GetStackEditorDataKey(), GetUpgradeDynamicInputVersionFix(), NewIssues);
 		if (MessageManagerRegistrationKey.IsValid() == false)
 		{
 			FNiagaraMessageManager::Get()->SubscribeToAssetMessagesByObject(

@@ -268,6 +268,7 @@ protected:
 	bool UpdateRapidIterationParametersForAffectedScripts(const uint8* Data);
 	bool RemoveRapidIterationParametersForAffectedScripts();
 	FString ResolveDisplayNameArgument(const FString& InArg) const;
+	FStackIssueFixDelegate GetUpgradeDynamicInputVersionFix();
 
 private:
 	struct FInputValues
