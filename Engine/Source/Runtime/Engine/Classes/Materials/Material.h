@@ -251,7 +251,7 @@ struct FVectorMaterialInput : public FMaterialInput
 	uint32 UseConstant : 1;
 
 	UPROPERTY()
-	FVector Constant;
+	FVector3f Constant;
 
 	FVectorMaterialInput:
 		UseConstant(0) {}
