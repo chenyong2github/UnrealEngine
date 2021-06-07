@@ -31,11 +31,11 @@ public:
 
 	/** Axis for the analysis function */
 	UPROPERTY(EditAnywhere, DisplayName = "Axis", Category = AnalysisProperties)
-		EAnalysisRootMotionAxis FunctionAxis = EAnalysisRootMotionAxis::Speed;
+	EAnalysisRootMotionAxis FunctionAxis = EAnalysisRootMotionAxis::Speed;
 
 	/** The bone or socket used for analysis */
 	UPROPERTY(EditAnywhere, DisplayName = "Bone/Socket", Category = AnalysisProperties)
-		FBoneSocketTarget BoneSocket;
+	FBoneSocketTarget BoneSocket;
 
 	/**
 	* The space in which to perform the analysis. Fixed will use the analysis bone/socket at the first frame
@@ -44,27 +44,27 @@ public:
 	* as well as positions/rotations will be relative to this moving frame.
 	*/
 	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
-		EAnalysisSpace Space = EAnalysisSpace::World;
+	EAnalysisSpace Space = EAnalysisSpace::World;
 
 	/** Bone or socket that defines the analysis space (when it isn't World) */
 	UPROPERTY(EditAnywhere, DisplayName = "Analysis Space Bone/Socket", Category = AnalysisProperties, meta = (EditCondition = "Space != EAnalysisSpace::World"))
-		FBoneSocketTarget SpaceBoneSocket;
+	FBoneSocketTarget SpaceBoneSocket;
 
 	/** World or bone/socket axis that specifies the character's facing direction */
 	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
-		EAnalysisLinearAxis CharacterFacingAxis = EAnalysisLinearAxis::Y;
+	EAnalysisLinearAxis CharacterFacingAxis = EAnalysisLinearAxis::Y;
 
 	/** World or bone/socket axis that specifies the character's up direction */
 	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
-		EAnalysisLinearAxis CharacterUpAxis = EAnalysisLinearAxis::Z;
+	EAnalysisLinearAxis CharacterUpAxis = EAnalysisLinearAxis::Z;
 
 	/** Fraction through each animation at which analysis starts */
 	UPROPERTY(EditAnywhere, DisplayName = "Start time fraction", Category = AnalysisProperties, meta = (ClampMin = "0", ClampMax = "1"))
-		float StartTimeFraction = 0.0f;
+	float StartTimeFraction = 0.0f;
 
 	/** Fraction through each animation at which analysis ends */
 	UPROPERTY(EditAnywhere, DisplayName = "End time fraction", Category = AnalysisProperties, meta = (ClampMin = "0", ClampMax = "1"))
-		float EndTimeFraction = 1.0f;
+	float EndTimeFraction = 1.0f;
 };
 
 //======================================================================================================================
