@@ -4285,7 +4285,7 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 
 	if(bForceInitialized)
 	{
-		World->CleanupWorld(true, true, World);
+		World->CleanupWorld();
 	}
 
 	World->SetPhysicsScene(nullptr);
