@@ -538,6 +538,7 @@ void FMemory::Trim(bool bTrimThreadCaches)
 		GCreateMalloc();
 		CA_ASSUME(GMalloc != NULL);	// Don't want to assert, but suppress static analysis warnings about potentially NULL GMalloc
 	}
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemory::Trim);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMemory_Trim);
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMemory_Trim_Broadcast);

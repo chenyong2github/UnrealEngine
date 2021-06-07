@@ -926,6 +926,7 @@ FStreamableManager::~FStreamableManager()
 
 void FStreamableManager::OnPreGarbageCollect()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamableManager::OnPreGarbageCollect);
 	TSet<FSoftObjectPath> RedirectsToRemove;
 	TArray<FStreamable*> StreamablesToDelete;
 

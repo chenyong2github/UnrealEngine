@@ -861,6 +861,7 @@ FORCEINLINE static UPackage* UnassignExternalPackageFromObject(FUObjectHashTable
 
 void ShrinkUObjectHashTables()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ShrinkUObjectHashTables);
 	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
 	FHashTableLock HashLock(ThreadHash);
 	ThreadHash.ShrinkMaps();

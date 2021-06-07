@@ -3051,6 +3051,7 @@ void FLevelStreamingGCHelper::CancelUnloadRequest( ULevel* InLevel )
 
 void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC);
 	if (LevelsPendingUnload.Num() > 0)
 	{
 		OnGCStreamedOutLevels.Broadcast();
