@@ -23,6 +23,9 @@
 #include "RenderTargetPool.h"
 #include "GroomBindingBuilder.h"
 
+static int32 GHairStrandsRelaseBulkDataAfterUse = 0;
+static FAutoConsoleVariableRef CVarHairStrandsRelaseBulkDataAfterUse(TEXT("r.HairStrands.Strands.RelaseBulkDataAfterUse"), GHairStrandsRelaseBulkDataAfterUse, TEXT("Release CPU bulk data once hair groom/groom binding asset GPU resources are created. This saves memory"));
+
 enum class EHairResourceUsageType : uint8
 {
 	Static,
@@ -143,6 +146,15 @@ void InternalCreateVertexBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, FByte
 		DataSizeInBytes,
 		ERDGInitialDataFlags::None); // Copy data internally
 	InBulkData.Unlock();
+
+	// Unloading of the bulk data is only supported on cooked build, as we can reload the data from the file/archieve
+	#if !WITH_EDITORONLY_DATA
+	const bool bReleaseCPUData = GHairStrandsRelaseBulkDataAfterUse > 1;
+	if (bReleaseCPUData)
+	{
+		InBulkData.RemoveBulkData();
+	}
+	#endif
 
 	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, FormatType::Format);
 }
@@ -333,6 +345,14 @@ void InternalCreateStructuredBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, F
 		GraphBuilder.QueueBufferUpload(Buffer, Data, DataSizeInBytes, ERDGInitialDataFlags::None);  // Copy data internally
 	}
 	InBulkData.Unlock();
+
+	#if !WITH_EDITORONLY_DATA
+	const bool bReleaseCPUData = GHairStrandsRelaseBulkDataAfterUse > 1;
+	if (bReleaseCPUData)
+	{
+		InBulkData.RemoveBulkData();
+	}
+	#endif
 
 	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out);
 }
