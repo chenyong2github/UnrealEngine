@@ -3,6 +3,8 @@
 #include "Core/PBIKBody.h"
 #include "Core/PBIKSolver.h"
 
+//#pragma optimize("", off)
+
 namespace PBIK
 {
 

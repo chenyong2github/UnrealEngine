@@ -99,5 +99,8 @@ struct FRigUnit_PBIK : public FRigUnit_HighlevelBaseMutable
 	TArray<int32> BoneSettingToSolverBoneIndex;
 
 	UPROPERTY(transient)
+	TArray<int32> SolverBoneToElementIndex;
+
+	UPROPERTY(transient)
 	FPBIKSolver Solver;
 };
