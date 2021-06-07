@@ -427,6 +427,7 @@ UFunction* FRemoteControlFunction::GetFunction() const
 	return ResolvedFunction;
 }
 
+#if WITH_EDITOR
 void FRemoteControlFunction::RegenerateArguments()
 {
 	// Recreate the function arguments with the function from the new BP and copy the old ones on top of it.
@@ -452,6 +453,7 @@ void FRemoteControlFunction::RegenerateArguments()
 		*FunctionArguments = MoveTemp(NewFunctionOnScope);
 	}
 }
+#endif
 
 void FRemoteControlFunction::AssignDefaultFunctionArguments()
 {
@@ -474,6 +476,7 @@ void FRemoteControlFunction::AssignDefaultFunctionArguments()
 #endif
 }
 
+#if WITH_EDITOR
 uint32 FRemoteControlFunction::HashFunctionArguments(UFunction* InFunction)
 {
 	if (!InFunction)
@@ -500,6 +503,7 @@ uint32 FRemoteControlFunction::HashFunctionArguments(UFunction* InFunction)
 
 	return Hash;
 }
+#endif
 
 FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 {
