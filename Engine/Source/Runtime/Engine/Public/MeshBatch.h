@@ -177,6 +177,10 @@ struct FMeshBatch
 	/* Mesh Id in a primitive. Used for stable sorting of draws belonging to the same primitive. **/
 	uint16 MeshIdInPrimitive;
 
+	/* Used to for stable sorting of draws belonging to the same batch Id. */
+	uint16 InstancingBatchId : 12;
+	uint16 InstancingBatchVertexStreamIndex : 4;
+
 	/** LOD index of the mesh, used for fading LOD transitions. */
 	int8 LODIndex;
 	uint8 SegmentIndex;
@@ -320,6 +324,8 @@ struct FMeshBatch
 	,	LCI(nullptr)
 	,	TessellationDisablingShadowMapMeshSize(0.0f)
 	,	MeshIdInPrimitive(0)
+	,   InstancingBatchId(0)
+	,   InstancingBatchVertexStreamIndex(0xF)
 	,	LODIndex(INDEX_NONE)
 	,	SegmentIndex(0xFF)
 	,	ReverseCulling(false)

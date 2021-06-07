@@ -958,6 +958,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bUseTranslucencyVertexFog = true;
 	bApplyCloudFogging = false;
 	bIsSky = false;
+	ParticleInstancingBatchId = 0;
 	bUsedWithWater = false;
 	BlendableLocation = BL_AfterTonemapping;
 	BlendablePriority = 0;
@@ -5756,6 +5757,11 @@ bool UMaterial::IsShadingModelFromMaterialExpression() const
 bool UMaterial::IsTwoSided() const
 {
 	return TwoSided != 0;
+}
+
+uint32 UMaterial::GetParticleInstancingBatchId() const
+{
+	return ParticleInstancingBatchId;
 }
 
 bool UMaterial::IsDitheredLODTransition() const

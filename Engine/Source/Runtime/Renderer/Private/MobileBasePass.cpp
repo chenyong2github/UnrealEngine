@@ -729,7 +729,7 @@ void FMobileBasePassMeshProcessor::Process(
 		const bool bIsUsingMobilePixelProjectedReflection = MaterialResource.IsUsingPlanarForwardReflections() 
 															&& IsUsingMobilePixelProjectedReflection(GetFeatureLevelShaderPlatform(MaterialResource.GetFeatureLevel()));
 
-		SortKey = CalculateTranslucentMeshStaticSortKey(PrimitiveSceneProxy, MeshBatch.MeshIdInPrimitive);
+		SortKey = CalculateTranslucentMeshStaticSortKey(PrimitiveSceneProxy, MeshBatch.MeshIdInPrimitive, MeshBatch.InstancingBatchId);
 		// We always want water to be rendered first on mobile in order to mimic other renderers where it is opaque. We shift the other priorities by 1.
 		// And we also want to render the meshes used for mobile pixel projected reflection first if it is opaque.
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);

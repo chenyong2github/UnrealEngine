@@ -798,6 +798,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Translucency, AdvancedDisplay, meta = (DisplayName = "Allow Custom Depth Writes"))
 	uint8 AllowTranslucentCustomDepthWrites : 1;
 
+	/** Used for particle instancing batch. */
+	UPROPERTY(EditAnywhere, Category = ParticleSystem, meta = (UIMin = "0", UIMax = "4095", DisplayName = "Particle Instancing Batch ID"))
+	uint32 ParticleInstancingBatchId;
+
 	/** Enables a wireframe view of the mesh the material is applied to.  */
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 Wireframe : 1;
@@ -1047,6 +1051,7 @@ public:
 	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const override;
 	ENGINE_API virtual bool IsTwoSided() const override;
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
+	ENGINE_API virtual uint32 GetParticleInstancingBatchId() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const override;
 	ENGINE_API virtual bool IsMasked() const override;

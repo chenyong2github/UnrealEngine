@@ -780,6 +780,14 @@ public:
 	FAllocation Allocate(uint32 SizeInBytes);
 
 	/**
+	 * Allocates space in the global vertex buffer.
+	 * @param SizeInBytes - The amount of memory to allocate in bytes.
+	 * @param InstancingBatchId - Used to determine whether a separate vertexbuffer needs to be allocated.
+	 * @returns An FAllocation with information regarding the allocated memory.
+	 */
+	FAllocation Allocate(uint32 SizeInBytes, uint32& InOutInstancingBatchId);
+
+	/**
 	 * Commits allocated memory to the GPU.
 	 *		WARNING: Once this buffer has been committed to the GPU, allocations
 	 *		remain valid only until the next call to Allocate!

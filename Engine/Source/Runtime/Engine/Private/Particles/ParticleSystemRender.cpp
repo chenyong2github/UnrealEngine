@@ -1047,9 +1047,13 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 
 	const auto FeatureLevel = View->GetFeatureLevel();
 
+	// Particle instancing batch only available for translucent material 
+	UMaterialInterface* ProxyInterface = MaterialResource ? MaterialResource->GetMaterialInterface() : nullptr;
+	EBlendMode BlendMode = ProxyInterface ? ProxyInterface->GetBlendMode() : BLEND_Opaque;
+	uint32 ParticleInstancingBatchId = (BlendMode == BLEND_Translucent || BlendMode == BLEND_Additive) ? ProxyInterface->GetParticleInstancingBatchId() : 0;
+
 	// Sort and generate particles for this view.
 	const FDynamicSpriteEmitterReplayDataBase* SourceData = GetSourceData();
-
 	if (bValid && SourceData)
 	{
 		if (SourceData->EmitterRenderMode == ERM_Normal)
@@ -1091,7 +1095,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 				FGlobalDynamicVertexBuffer::FAllocation DynamicParameterAllocation;
 
 				// Allocate memory for render data.
-				Allocation = DynamicVertexBuffer.Allocate( InstanceFactor * ParticleCount * VertexSize * NumVerticesPerParticleInBuffer );
+				Allocation = DynamicVertexBuffer.Allocate(InstanceFactor * ParticleCount * VertexSize * NumVerticesPerParticleInBuffer, ParticleInstancingBatchId);
 				if (DynamicVertexBuffer.IsRenderAlarmLoggingEnabled())
 				{
 					UE_LOG(LogParticles, Warning, TEXT("Panic logging.  Allocated %u bytes for Resource: %s, Owner: %s"), InstanceFactor * ParticleCount * VertexSize * NumVerticesPerParticleInBuffer, *Proxy->GetResourceName().ToString(), *Proxy->GetOwnerName().ToString())
@@ -1213,6 +1217,8 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 			BatchElement.NumPrimitives = NumTrianglesPerParticle;
 			BatchElement.NumInstances = ParticleCount;
 			BatchElement.FirstIndex = 0;
+			Mesh.InstancingBatchId = ParticleInstancingBatchId;
+			Mesh.InstancingBatchVertexStreamIndex = 1;
 			Mesh.VertexFactory = SpriteVertexFactory;
 			// if the particle rendering data is presupplied, use it directly
 			Mesh.LCI = NULL;
@@ -1600,6 +1606,15 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 {
 	SCOPE_CYCLE_COUNTER(STAT_MeshRenderingTime);
 
+	// Particle instancing batch only available for translucent material 
+	uint32 ParticleInstancingBatchId = 0;
+	{
+		FMaterialRenderProxy* MaterialProxy = MeshMaterials.Num() ? MeshMaterials[0] : nullptr;
+		UMaterialInterface* ProxyInterface = MaterialProxy ? MaterialProxy->GetMaterialInterface() : nullptr;
+		EBlendMode BlendMode = ProxyInterface ? ProxyInterface->GetBlendMode() : BLEND_Opaque;
+		ParticleInstancingBatchId = (BlendMode == BLEND_Translucent || BlendMode == BLEND_Additive) ? ProxyInterface->GetParticleInstancingBatchId() : 0;
+	}
+
 	if (bValid && VertexFactory)
 	{
 		if (Source.EmitterRenderMode == ERM_Normal)
@@ -1650,7 +1665,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 				const uint32 InstanceFactor = View->IsInstancedStereoPass() ? 2 : 1;
 				FGlobalDynamicVertexBuffer& DynamicVertexBuffer = Collector.GetDynamicVertexBuffer();
-				FGlobalDynamicVertexBuffer::FAllocation Allocation = DynamicVertexBuffer.Allocate(InstanceFactor * ParticleCount * InstanceVertexStride);
+				FGlobalDynamicVertexBuffer::FAllocation Allocation = DynamicVertexBuffer.Allocate(InstanceFactor * ParticleCount * InstanceVertexStride, ParticleInstancingBatchId);
 				FGlobalDynamicVertexBuffer::FAllocation DynamicParameterAllocation;
 				uint8* PrevTransformBuffer = nullptr;
 
@@ -1785,6 +1800,8 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 					Mesh.ReverseCulling = Proxy->IsLocalToWorldDeterminantNegative();
 					Mesh.CastShadow = Proxy->GetCastShadow();
 					Mesh.DepthPriorityGroup = (ESceneDepthPriorityGroup)Proxy->GetDepthPriorityGroup(View);
+					Mesh.InstancingBatchId = ParticleInstancingBatchId;
+					Mesh.InstancingBatchVertexStreamIndex = 0;
 
 					FMeshBatchElement& BatchElement = Mesh.Elements[0];
 					BatchElement.PrimitiveUniformBuffer = Proxy->GetWorldSpacePrimitiveUniformBuffer();

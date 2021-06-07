@@ -252,7 +252,7 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 	}
 }
 
-FMeshDrawCommandSortKey CalculateTranslucentMeshStaticSortKey(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, uint16 MeshIdInPrimitive)
+FMeshDrawCommandSortKey CalculateTranslucentMeshStaticSortKey(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, uint16 MeshIdInPrimitive, uint16 InstancingBatchId)
 {
 	uint16 SortKeyPriority = 0;
 
@@ -260,6 +260,8 @@ FMeshDrawCommandSortKey CalculateTranslucentMeshStaticSortKey(const FPrimitiveSc
 	{
 		const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 		SortKeyPriority = (uint16)((int32)PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority() - (int32)SHRT_MIN);
+
+		SortKeyPriority += InstancingBatchId;
 	}
 
 	FMeshDrawCommandSortKey SortKey;
@@ -1283,7 +1285,7 @@ void FBasePassMeshProcessor::Process(
 
 	if (bTranslucentBasePass)
 	{
-		SortKey = CalculateTranslucentMeshStaticSortKey(PrimitiveSceneProxy, MeshBatch.MeshIdInPrimitive);
+		SortKey = CalculateTranslucentMeshStaticSortKey(PrimitiveSceneProxy, MeshBatch.MeshIdInPrimitive, MeshBatch.InstancingBatchId);
 	}
 	else
 	{

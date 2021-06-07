@@ -532,6 +532,11 @@ bool UMaterialInterface::IsDitheredLODTransition() const
 	return false;
 }
 
+uint32 UMaterialInterface::GetParticleInstancingBatchId() const
+{
+	return 0;
+}
+
 bool UMaterialInterface::IsTranslucencyWritingCustomDepth() const
 {
 	return false;

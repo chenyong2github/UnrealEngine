@@ -848,6 +848,8 @@ void FMeshDrawCommand::SetDrawParametersAndFinalize(
 	FirstIndex = BatchElement.FirstIndex;
 	NumPrimitives = BatchElement.NumPrimitives;
 	NumInstances = BatchElement.NumInstances;
+	InstancingBatchId = MeshBatch.InstancingBatchId;
+	InstancingBatchVertexStreamIndex = MeshBatch.InstancingBatchVertexStreamIndex;
 
 	if (NumPrimitives > 0)
 	{
