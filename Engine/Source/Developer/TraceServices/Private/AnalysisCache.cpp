@@ -174,7 +174,10 @@ bool FAnalysisCache::FFileContents::Load()
 	FMemoryReaderView Ar(MakeArrayView<uint8>((uint8*)Buffer.GetData(), Buffer.GetSize()));
 	
 	FCbPackage Package;
-	Package.Load(Ar);
+	if (!Package.TryLoad(Ar))
+	{
+		return false;
+	}
 
 	uint32 PackageVersion = Package.GetObject().Find("Version").AsUInt32();
 	UE_LOG(LogAnalysisCache, Display, TEXT("Cache file (version %u) loaded."), PackageVersion);
