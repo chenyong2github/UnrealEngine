@@ -1,5 +1,6 @@
-// Copyright Epic Games Tools LLC
-//   Licenced under the Unreal Engine EULA 
+// Copyright Epic Games, Inc. All Rights Reserved.
+// Licensed under the terms of a valid Unreal Engine license agreement,
+//   and the separate 'Unreal Engine End User License Agreement for Publishing'.
 
 #ifndef __BINKPLUGINH__
 #define __BINKPLUGINH__

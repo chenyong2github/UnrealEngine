@@ -1,4 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// Licensed under the terms of a valid Unreal Engine license agreement,
+//   and the separate 'Unreal Engine End User License Agreement for Publishing'.
+
 //===============================================
 // (C) Copyright 1994-2021 Epic Games Tools, LLC  
 //===============================================
