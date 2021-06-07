@@ -10,8 +10,10 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "ShaderParameterMetadataBuilder.h"
 
+UComputeGraph::UComputeGraph() = default;
+
 UComputeGraph::UComputeGraph(const FObjectInitializer& ObjectInitializer)
-	: UObject(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 }
 

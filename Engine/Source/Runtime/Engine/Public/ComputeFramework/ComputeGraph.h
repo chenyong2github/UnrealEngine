@@ -76,6 +76,7 @@ protected:
 	TArray<FComputeGraphEdge> GraphEdges;
 
 public:
+	UComputeGraph();
 	UComputeGraph(const FObjectInitializer& ObjectInitializer);
 	UComputeGraph(FVTableHelper& Helper);
 	virtual ~UComputeGraph();

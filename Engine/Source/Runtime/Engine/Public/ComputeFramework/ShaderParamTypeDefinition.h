@@ -177,11 +177,11 @@ private:
 * A hashing function to allow the FShaderValueType class to be used with hashing containers (e.g.
 * TSet or TMap).
 */
-uint32 GetTypeHash(const FShaderValueType& InShaderValueType);
+ENGINE_API uint32 GetTypeHash(const FShaderValueType& InShaderValueType);
 
 /* Fully describes the name and type of a parameter a shader exposes. */
 USTRUCT()
-struct FShaderParamTypeDefinition
+struct ENGINE_API FShaderParamTypeDefinition
 {
 	GENERATED_BODY()
 
@@ -293,6 +293,7 @@ public:
 	void ResetTypeDeclaration(
 		);
 };
+
 
 /* Describes a shader function signature. */
 USTRUCT()
