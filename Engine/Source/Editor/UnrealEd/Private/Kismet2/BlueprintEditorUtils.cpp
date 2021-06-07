@@ -8609,6 +8609,11 @@ void FBlueprintEditorUtils::PostEditChangeBlueprintActors(UBlueprint* Blueprint,
 	}
 }
 
+bool FBlueprintEditorUtils::IsPropertyPrivate(const FProperty* Property)
+{
+	return Property->HasAnyPropertyFlags(CPF_NativeAccessSpecifierPrivate) || Property->GetBoolMetaData(FBlueprintMetadata::MD_Private); 
+}
+
 FBlueprintEditorUtils::EPropertyWritableState FBlueprintEditorUtils::IsPropertyWritableInBlueprint(const UBlueprint* Blueprint, const FProperty* Property)
 {
 	if (Property)
