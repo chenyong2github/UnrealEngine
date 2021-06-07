@@ -37,6 +37,24 @@ bool FNiagaraSystemTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type)
 	return Type == UMovieSceneNiagaraSystemTrack::StaticClass();
 }
 
+bool HasLifeCycleTrack(UMovieScene& MovieScene, FGuid ObjectBinding)
+{
+	for (const FMovieSceneBinding& Binding : MovieScene.GetBindings())
+	{
+		if (Binding.GetObjectGuid() == ObjectBinding)
+		{
+			for (UMovieSceneTrack* Track : Binding.GetTracks())
+			{
+				if (Track->IsA<UMovieSceneNiagaraSystemTrack>())
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 void GetAnimatedParameters(UMovieScene& MovieScene, FGuid ObjectBinding, TSet<FNiagaraVariable>& AnimatedParameters)
 {
 	for (const FMovieSceneBinding& Binding : MovieScene.GetBindings())
@@ -58,7 +76,7 @@ void GetAnimatedParameters(UMovieScene& MovieScene, FGuid ObjectBinding, TSet<FN
 
 void FNiagaraSystemTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
-	if (ObjectClass->IsChildOf(UNiagaraComponent::StaticClass()))
+	if (ObjectClass->IsChildOf(UNiagaraComponent::StaticClass()) && HasLifeCycleTrack(*GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), ObjectBindings[0]) == false)
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AddNiagaraSystemTrack", "Niagara System Life Cycle Track"),
