@@ -55,10 +55,16 @@ public:
 	FTemplateSequenceSection(TSharedPtr<ISequencer> InSequencer, UTemplateSequenceSection& InSection);
 	virtual ~FTemplateSequenceSection() {}
 
+	virtual bool RequestDeleteKeyArea(const TArray<FName>& KeyAreaNamePath) override;
 	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding) override;
 
 private:
+
 	void BuildPropertyScalingSubMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
-	int32 GetPropertyScaleFor(FGuid SubObjectBinding, const FMovieScenePropertyBinding& SubPropertyBinding, ETemplateSectionPropertyScaleType PropertyScaleType) const;
+	
+	typedef TTuple<FGuid, FMovieScenePropertyBinding, ETemplateSectionPropertyScaleType> FScalablePropertyInfo;
+	TArray<FScalablePropertyInfo> GetAnimatedProperties() const;
+	int32 GetPropertyScaleFor(const FScalablePropertyInfo& AnimatedProperty) const;
+	FText GetAnimatedPropertyScaleTypeSuffix(const FScalablePropertyInfo& AnimatedProperty) const;
 };
 
