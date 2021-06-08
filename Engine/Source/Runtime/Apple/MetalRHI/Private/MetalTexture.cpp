@@ -276,7 +276,16 @@ mtlpp::PixelFormat ToSRGBFormat(mtlpp::PixelFormat MTLFormat)
 		return ToSRGBFormat_NonAppleMacGPU(MTLFormat);
 	}
 #endif
-
+    
+#if PLATFORM_IOS
+    // iOS 12 doesn't have the Device supportsFamily: selector
+    static bool bUnsupportedFamilyCheck = FPlatformMisc::IOSVersionCompare(13,0,0) < 0;
+    if(bUnsupportedFamilyCheck)
+    {
+        return ToSRGBFormat_AppleGPU(MTLFormat);
+    }
+#endif
+      
 	if([GetMetalDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyApple1])
 	{
 		MTLFormat = ToSRGBFormat_AppleGPU(MTLFormat);
