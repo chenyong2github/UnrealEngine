@@ -330,7 +330,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
 	int32 GetNumberVerts(UStaticMesh* StaticMesh, int32 LODIndex);
 
-	/** Get number of StaticMesh verts for an LOD */
+	/** Get number of Materials for a StaticMesh */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
 	int32 GetNumberMaterials(UStaticMesh* StaticMesh);
 
