@@ -364,8 +364,8 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	ChildSlot
 	[
 		SNew( SAssetDropTarget )
-		.OnIsAssetAcceptableForDropWithReason( this, &SPropertyEditorAsset::OnAssetDraggedOver )
-		.OnAssetDropped( this, &SPropertyEditorAsset::OnAssetDropped )
+		.OnAreAssetsAcceptableForDropWithReason( this, &SPropertyEditorAsset::OnAssetDraggedOver )
+		.OnAssetsDropped( this, &SPropertyEditorAsset::OnAssetDropped )
 		[
 			SAssignNew( ValueContentBox, SHorizontalBox )	
 		]
@@ -1260,12 +1260,13 @@ FSlateColor SPropertyEditorAsset::GetAssetClassColor()
 	return FSlateColor::UseForeground();
 }
 
-bool SPropertyEditorAsset::OnAssetDraggedOver( const UObject* InObject, FText& OutReason ) const
+bool SPropertyEditorAsset::OnAssetDraggedOver( TArrayView<FAssetData> InAssets, FText& OutReason ) const
 {
-	if (CanEdit() && InObject != nullptr && InObject->IsA(ObjectClass))
+	UObject* AssetObject = InAssets[0].GetAsset();
+	if (CanEdit() && (AssetObject != nullptr) && AssetObject->IsA(ObjectClass))
 	{
+		FAssetData AssetData(InAssets[0]);
 		// Check against custom asset filter
-		FAssetData AssetData(InObject);
 		if (!OnShouldFilterAsset.IsBound()
 			|| !OnShouldFilterAsset.Execute(AssetData))
 		{
@@ -1279,11 +1280,11 @@ bool SPropertyEditorAsset::OnAssetDraggedOver( const UObject* InObject, FText& O
 	return false;
 }
 
-void SPropertyEditorAsset::OnAssetDropped( UObject* InObject )
+void SPropertyEditorAsset::OnAssetDropped( const FDragDropEvent&, TArrayView<FAssetData> InAssets )
 {
 	if( CanEdit() )
 	{
-		SetValue(InObject);
+		SetValue(InAssets[0].GetAsset());
 	}
 }
 

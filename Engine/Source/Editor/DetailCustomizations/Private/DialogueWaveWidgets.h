@@ -43,14 +43,14 @@ private:
 	 *
 	 * @param InObject	The asset being dragged over
 	 */
-	bool OnIsAssetAcceptableForDrop( const UObject* InObject ) const;
+	bool OnIsAssetAcceptableForDrop( TArrayView<FAssetData> InAssets ) const;
 
 	/**
 	 * Called when an asset dropped onto the list item
 	 *
 	 * @param InObject	The asset being dropped
 	 */
-	void OnAssetDropped( UObject* Object );
+	void OnAssetDropped( const FDragDropEvent&, TArrayView<FAssetData> InAssets );
 
 	bool CanUseSelectedAsset();
 	void OnUseSelectedDialogueVoice();

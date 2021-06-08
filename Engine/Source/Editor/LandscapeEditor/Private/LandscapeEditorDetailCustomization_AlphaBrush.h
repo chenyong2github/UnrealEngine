@@ -25,6 +25,6 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 protected:
-	static bool OnAssetDraggedOver(const UObject* InObject);
-	static void OnAssetDropped(UObject* InObject, TSharedRef<IPropertyHandle> PropertyHandle_AlphaTexture);
+	static bool OnAssetDraggedOver(TArrayView<FAssetData> InAssets);
+	static void OnAssetDropped(const FDragDropEvent&, TArrayView<FAssetData> InAssets, TSharedRef<IPropertyHandle> PropertyHandle_AlphaTexture);
 };
