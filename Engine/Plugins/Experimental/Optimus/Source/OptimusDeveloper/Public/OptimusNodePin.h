@@ -123,7 +123,8 @@ protected:
 		);
 
 	void AddSubPin(
-		UOptimusNodePin* InSubPin);
+		UOptimusNodePin* InSubPin,
+		UOptimusNodePin* InBeforePin = nullptr);
 
 	bool SetDataType(
 	    FOptimusDataTypeRef InDataType

@@ -16,6 +16,5 @@ public:
 	// TCommands<> overrides
 	void RegisterCommands() override;
 
-	/// FIXME: Dummy command to carve in a toolbar.
-	TSharedPtr< FUICommandInfo > Apply;
+	TSharedPtr<FUICommandInfo> Compile;
 };

@@ -253,6 +253,13 @@ void UOptimusNode::PostCreateNode()
 }
 
 
+bool UOptimusNode::Modify(bool bInAlwaysMarkDirty)
+{
+	IncrementRevision();
+	return Super::Modify(bInAlwaysMarkDirty);
+}
+
+
 void UOptimusNode::Notify(EOptimusGraphNotifyType InNotifyType)
 {
 	UOptimusNodeGraph *Graph = Cast<UOptimusNodeGraph>(GetOuter());
@@ -275,10 +282,11 @@ UOptimusNodePin* UOptimusNode::AddPin(
 	FName InName, 
 	EOptimusNodePinDirection InDirection, 
 	EOptimusNodePinStorageType InStorageType, 
-	FOptimusDataTypeRef InDataType
+	FOptimusDataTypeRef InDataType,
+	UOptimusNodePin* InBeforePin
 	)
 {
-	UOptimusNodePin* Pin = CreatePinFromDataType(InName, InDirection, InStorageType, InDataType);
+	UOptimusNodePin* Pin = CreatePinFromDataType(InName, InDirection, InStorageType, InDataType, InBeforePin);
 
 	if (Pin)
 	{
@@ -339,6 +347,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
     EOptimusNodePinDirection InDirection,
     EOptimusNodePinStorageType InStorageType,
     FOptimusDataTypeRef InDataType,
+    UOptimusNodePin* InBeforePin,
     UOptimusNodePin* InParentPin
 	)
 {
@@ -349,11 +358,16 @@ UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
 
 	if (InParentPin)
 	{
-		InParentPin->AddSubPin(Pin);
+		InParentPin->AddSubPin(Pin, InBeforePin);
 	}
 	else
 	{
-		Pins.Add(Pin);
+		int32 Index = Pins.Num();
+		if (InBeforePin && ensure(Pins.IndexOfByKey(InBeforePin) != INDEX_NONE))
+		{
+			Index = Pins.IndexOfByKey(InBeforePin); 
+		}
+		Pins.Insert(Pin, Index);
 	}
 
 	// Add sub-pins, if the registered type is set to show them but only for value types.
@@ -387,6 +401,12 @@ void UOptimusNode::SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded
 bool UOptimusNode::GetPinExpanded(const UOptimusNodePin* InPin) const
 {
 	return ExpandedPins.Contains(InPin->GetUniqueName());
+}
+
+
+void UOptimusNode::IncrementRevision()
+{
+	Revision++;
 }
 
 
@@ -462,7 +482,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 	}
 
 
-	return CreatePinFromDataType(InProperty->GetFName(), InDirection, StorageType, DataType, InParentPin);
+	return CreatePinFromDataType(InProperty->GetFName(), InDirection, StorageType, DataType, nullptr, InParentPin);
 }
 
 UOptimusActionStack* UOptimusNode::GetActionStack() const

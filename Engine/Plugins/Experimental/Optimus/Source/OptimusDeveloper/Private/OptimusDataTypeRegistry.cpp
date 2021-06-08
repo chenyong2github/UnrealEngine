@@ -37,6 +37,13 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    FName(TEXT("int")), {}, 
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
+	// int -> int
+	Registry.RegisterType(
+		*FUInt32Property::StaticClass(),
+		FShaderValueType::Get(EShaderFundamentalType::Uint),
+		FName(TEXT("uint")), FLinearColor(0.0275f, 0.733, 0.820f, 1.0f), 
+		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+	
 	// float -> float
 	Registry.RegisterType(
 	    *FFloatProperty::StaticClass(),
@@ -129,6 +136,15 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    USkeleton::StaticClass(),
 	    FLinearColor(0.4f, 0.8f, 0.4f, 1.0f),
 	    EOptimusDataTypeUsageFlags::Node);
+
+	// HLSL types
+	Registry.RegisterType(
+		FName("3x4 Float"),
+		FShaderValueType::Get(EShaderFundamentalType::Float, 3, 4),
+		FName("float3x4"),
+		nullptr,
+		FLinearColor(0.7f, 0.3f, 0.4f, 1.0f),
+		EOptimusDataTypeUsageFlags::Resource);	
 }
 
 

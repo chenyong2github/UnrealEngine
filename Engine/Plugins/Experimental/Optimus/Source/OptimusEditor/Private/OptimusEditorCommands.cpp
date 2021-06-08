@@ -18,8 +18,7 @@ FOptimusEditorCommands::FOptimusEditorCommands()
 
 void FOptimusEditorCommands::RegisterCommands()
 {
-	UI_COMMAND(Apply, "Apply", "Apply changes to original material and its use in the world.", EUserInterfaceActionType::Button, FInputChord());
-
+	UI_COMMAND(Compile, "Compile", "Compile the current deformer graph into a compute kernel graph.", EUserInterfaceActionType::Button, FInputChord(EKeys::F7));
 }
 
 #undef LOCTEXT_NAMESPACE

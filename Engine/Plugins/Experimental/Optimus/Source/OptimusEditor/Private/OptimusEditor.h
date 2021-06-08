@@ -71,6 +71,12 @@ public:
 
 private:
 	// ----------------------------------------------------------------------------------------
+	// Editor commands
+	void Compile();
+
+	bool CanCompile() const;
+	
+	// ----------------------------------------------------------------------------------------
 	// Graph commands
 
 	/// Select all nodes in the visible graph

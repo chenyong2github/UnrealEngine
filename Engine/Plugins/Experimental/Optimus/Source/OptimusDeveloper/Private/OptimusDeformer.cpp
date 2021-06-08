@@ -14,6 +14,10 @@
 #include "OptimusNode.h"
 #include "OptimusNodePin.h"
 #include "OptimusDeveloperModule.h"
+#include "ComputeFramework/ComputeKernel.h"
+#include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
+#include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
+#include "Nodes/OptimusNode_ComputeKernel.h"
 
 #include "UObject/Package.h"
 
@@ -461,6 +465,127 @@ bool UOptimusDeformer::RenameResourceDirect(
 	}
 
 	return bChanged;
+}
+
+
+bool UOptimusDeformer::Compile()
+{
+	// HACK: Find a kernel node.
+
+	const UOptimusNode_ComputeKernel* KernelNode = nullptr;
+	for (const UOptimusNodeGraph* NodeGraph: GetGraphs())
+	{
+		if (NodeGraph->GetGraphType() == EOptimusNodeGraphType::Update)
+		{
+			for (const UOptimusNode* Node: NodeGraph->GetAllNodes())
+			{
+				KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node);
+				if (KernelNode)
+				{
+					break;
+				}
+			}
+		}
+		if (KernelNode)
+		{
+			break;
+		}	
+	}
+
+	if (!KernelNode)
+	{
+		UE_LOG(LogOptimusDeveloper, Warning, TEXT("No kernel node found. Compilation aborted."));
+		return false;
+	}
+
+	// Clean out any existing data.
+	KernelInvocations.Reset();
+	DataInterfaces.Reset();
+	GraphEdges.Reset();
+
+	UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(this);
+	if (!KernelSource)
+	{
+		UE_LOG(LogOptimusDeveloper, Warning, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
+		return false;
+	}
+	
+	UComputeKernel *Kernel = NewObject<UComputeKernel>(this);
+	Kernel->KernelSource = KernelSource; 
+
+	KernelInvocations.Add(Kernel);
+
+	// Hard code data interfaces.
+	USkeletalMeshReadDataInterface* SkinnedMeshDataInterface = NewObject<USkeletalMeshReadDataInterface>(this);
+	DataInterfaces.Add(SkinnedMeshDataInterface);
+	USkeletalMeshSkinCacheDataInterface* SkinnedMeshSkinCacheInterface = NewObject<USkeletalMeshSkinCacheDataInterface>(this);
+	DataInterfaces.Add(SkinnedMeshSkinCacheInterface);
+
+	// Setup the graph edges using function name/type matching.
+	// Generally function names don't need to match, but we make the assumption here to get something working without a graph editor.
+	TArray<FShaderFunctionDefinition> const& Inputs = Kernel->KernelSource->ExternalInputs;
+	for (int32 KernelBindingIndex = 0; KernelBindingIndex < Inputs.Num(); ++KernelBindingIndex)
+	{
+		FComputeGraphEdge GraphEdge;
+		GraphEdge.bKernelInput = true;
+		GraphEdge.KernelIndex = 0;
+		GraphEdge.KernelBindingIndex = KernelBindingIndex;
+
+		bool bFound = false;
+		for (int32 DataInterfaceIndex = 0; DataInterfaceIndex < DataInterfaces.Num() && !bFound; ++DataInterfaceIndex)
+		{
+			TArray<FShaderFunctionDefinition> DataProviderFunctions;
+			DataInterfaces[DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
+			for (int32 DataInterfaceBindingIndex = 0; DataInterfaceBindingIndex < DataProviderFunctions.Num() && !bFound; ++DataInterfaceBindingIndex)
+			{
+				if (DataProviderFunctions[DataInterfaceBindingIndex].Name == Inputs[KernelBindingIndex].Name)
+				{
+					GraphEdge.DataInterfaceIndex = DataInterfaceIndex;
+					GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
+					bFound = true;
+				}
+			}
+		}
+
+		if (bFound)
+		{
+			GraphEdges.Add(GraphEdge);
+		}
+	}
+
+	TArray<FShaderFunctionDefinition> const& Outputs = Kernel->KernelSource->ExternalOutputs;
+	for (int32 KernelBindingIndex = 0; KernelBindingIndex < Outputs.Num(); ++KernelBindingIndex)
+	{
+		FComputeGraphEdge GraphEdge;
+		GraphEdge.bKernelInput = false;
+		GraphEdge.KernelIndex = 0;
+		GraphEdge.KernelBindingIndex = KernelBindingIndex;
+
+		bool bFound = false;
+		for (int32 DataInterfaceIndex = 0; DataInterfaceIndex < DataInterfaces.Num() && !bFound; ++DataInterfaceIndex)
+		{
+			TArray<FShaderFunctionDefinition> DataProviderFunctions;
+			DataInterfaces[DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
+			for (int32 DataInterfaceBindingIndex = 0; DataInterfaceBindingIndex < DataProviderFunctions.Num() && !bFound; ++DataInterfaceBindingIndex)
+			{
+				if (DataProviderFunctions[DataInterfaceBindingIndex].Name == Outputs[KernelBindingIndex].Name)
+				{
+					GraphEdge.DataInterfaceIndex = DataInterfaceIndex;
+					GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
+					bFound = true;
+				}
+			}
+		}
+
+		if (bFound)
+		{
+			GraphEdges.Add(GraphEdge);
+		}
+	}	
+
+	UpdateResources();
+	
+	return true;
 }
 
 

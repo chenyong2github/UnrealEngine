@@ -399,9 +399,17 @@ void UOptimusNodePin::Initialize(
 }
 
 
-void UOptimusNodePin::AddSubPin(UOptimusNodePin* InSubPin)
+void UOptimusNodePin::AddSubPin(
+	UOptimusNodePin* InSubPin,
+	UOptimusNodePin* InBeforePin
+	)
 {
-	SubPins.Add(InSubPin);
+	int32 Index = SubPins.Num();
+	if (InBeforePin && ensure(SubPins.IndexOfByKey(InBeforePin) != INDEX_NONE))
+	{
+		Index = SubPins.IndexOfByKey(InBeforePin); 
+	}
+	SubPins.Insert(InSubPin, Index);
 }
 
 

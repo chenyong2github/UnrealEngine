@@ -59,23 +59,23 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 
 	// Graph styles
 	{
-		Set("Optimus.Node.Pin.Resource_Connected", new IMAGE_BRUSH_SVG("Icons/Resource_Pin_Connected", IconSize16x12, DefaultForeground));
-		Set("Optimus.Node.Pin.Resource_Disconnected", new IMAGE_BRUSH_SVG("Icons/Resource_Pin_Disconnected", IconSize16x12, DefaultForeground));		
+		Set("Node.Pin.Resource_Connected", new IMAGE_BRUSH_SVG("Icons/Resource_Pin_Connected", IconSize16x12, DefaultForeground));
+		Set("Node.Pin.Resource_Disconnected", new IMAGE_BRUSH_SVG("Icons/Resource_Pin_Disconnected", IconSize16x12, DefaultForeground));		
 
-		Set("Optimus.Node.Pin.Value_Connected", new IMAGE_BRUSH_SVG("Icons/Value_Pin_Connected", IconSize16x12, DefaultForeground));
-		Set("Optimus.Node.Pin.Value_Disconnected", new IMAGE_BRUSH_SVG("Icons/Value_Pin_Disconnected", IconSize16x12, DefaultForeground));		
+		Set("Node.Pin.Value_Connected", new IMAGE_BRUSH_SVG("Icons/Value_Pin_Connected", IconSize16x12, DefaultForeground));
+		Set("Node.Pin.Value_Disconnected", new IMAGE_BRUSH_SVG("Icons/Value_Pin_Disconnected", IconSize16x12, DefaultForeground));		
 
-		Set("Optimus.Node.PinTree.Arrow_Collapsed_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Left", IconSize10x10, DefaultForeground));
-		Set("Optimus.Node.PinTree.Arrow_Collapsed_Hovered_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Hovered_Left", IconSize10x10, DefaultForeground));
+		Set("Node.PinTree.Arrow_Collapsed_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Left", IconSize10x10, DefaultForeground));
+		Set("Node.PinTree.Arrow_Collapsed_Hovered_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Hovered_Left", IconSize10x10, DefaultForeground));
 
-		Set("Optimus.Node.PinTree.Arrow_Expanded_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Expanded_Left", IconSize10x10, DefaultForeground));
-		Set("Optimus.Node.PinTree.Arrow_Expanded_Hovered_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Expanded_Hovered_Left", IconSize10x10, DefaultForeground));
+		Set("Node.PinTree.Arrow_Expanded_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Expanded_Left", IconSize10x10, DefaultForeground));
+		Set("Node.PinTree.Arrow_Expanded_Hovered_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Expanded_Hovered_Left", IconSize10x10, DefaultForeground));
 
-		Set("Optimus.Node.PinTree.Arrow_Collapsed_Right", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Right", IconSize10x10, DefaultForeground));
-		Set("Optimus.Node.PinTree.Arrow_Collapsed_Hovered_Right", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Hovered_Right", IconSize10x10, DefaultForeground));
+		Set("Node.PinTree.Arrow_Collapsed_Right", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Right", IconSize10x10, DefaultForeground));
+		Set("Node.PinTree.Arrow_Collapsed_Hovered_Right", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Hovered_Right", IconSize10x10, DefaultForeground));
 
-		Set("Optimus.Node.PinTree.Arrow_Expanded_Right", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Expanded_Right", IconSize10x10, DefaultForeground));
-		Set("Optimus.Node.PinTree.Arrow_Expanded_Hovered_Right", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Expanded_Hovered_Right", IconSize10x10, DefaultForeground));
+		Set("Node.PinTree.Arrow_Expanded_Right", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Expanded_Right", IconSize10x10, DefaultForeground));
+		Set("Node.PinTree.Arrow_Expanded_Hovered_Right", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Expanded_Hovered_Right", IconSize10x10, DefaultForeground));
 	}
 }
 
