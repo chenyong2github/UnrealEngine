@@ -279,6 +279,35 @@ static int OggCloseStreaming( void *datasource )
 	return( OggInfo->CloseStreaming() );
 }
 
+#define CASE_AND_STRING(X) case X: return TEXT(#X)
+
+static const TCHAR* GetVorbisError(const int32 InErrorCode)
+{
+	switch (InErrorCode)
+	{
+		CASE_AND_STRING(OV_FALSE);
+		CASE_AND_STRING(OV_EOF);
+		CASE_AND_STRING(OV_HOLE);
+
+		CASE_AND_STRING(OV_EREAD);
+		CASE_AND_STRING(OV_EFAULT);
+		CASE_AND_STRING(OV_EIMPL);
+		CASE_AND_STRING(OV_EINVAL);
+		CASE_AND_STRING(OV_ENOTVORBIS);
+		CASE_AND_STRING(OV_EBADHEADER);
+		CASE_AND_STRING(OV_EVERSION);
+		CASE_AND_STRING(OV_ENOTAUDIO);
+		CASE_AND_STRING(OV_EBADPACKET);
+		CASE_AND_STRING(OV_EBADLINK);
+		CASE_AND_STRING(OV_ENOSEEK);
+	default:
+		break;
+	}
+	return TEXT("Unknown");
+}
+
+#undef CASE_AND_STRING
+
 bool FVorbisAudioInfo::GetCompressedInfoCommon(void* Callbacks, FSoundQualityInfo* QualityInfo)
 {
 	if (!bDllLoaded)
@@ -291,7 +320,7 @@ bool FVorbisAudioInfo::GetCompressedInfoCommon(void* Callbacks, FSoundQualityInf
 	int Result = ov_open_callbacks(this, &VFWrapper->vf, NULL, 0, (*(ov_callbacks*)Callbacks));
 	if (Result < 0)
 	{
-		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::ReadCompressedInfo, ov_open_callbacks error code: %d"), Result);
+		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::ReadCompressedInfo, ov_open_callbacks error code: %d : %s"), Result,GetVorbisError(Result));
 		return false;
 	}
 
@@ -578,6 +607,17 @@ bool FVorbisAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSo
 	
 
 	return bHeaderParsed;
+}
+
+int32 FVorbisAudioInfo::GetAudioDataStartOffset() const
+{
+	FScopeLock ScopeLock(&VorbisCriticalSection);
+
+	if (VFWrapper && VFWrapper->vf.dataoffsets)
+	{
+		return VFWrapper->vf.dataoffsets[0];
+	}
+	return -1;
 }
 
 const uint8* FVorbisAudioInfo::GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)

@@ -32,7 +32,7 @@ class FAudioFormatOgg : public IAudioFormat
 	enum
 	{
 		/** Version for OGG format, this becomes part of the DDC key. */
-		UE_AUDIO_OGG_VER = 3,
+		UE_AUDIO_OGG_VER = 4,
 	};
 
 public:
@@ -437,9 +437,29 @@ public:
 
 	virtual int32 GetMinimumSizeForInitialChunk(FName Format, const TArray<uint8>& SrcBuffer) const override
 	{
-		// The header packet is typically 753 bytes, but depending on various metadata fields this can vary.
-		// To be safe this is set to 6 kB.
-		return 6 * 1024;
+		// This is the old hard-coded size for the Zeroth chunk. 
+		static const int32 OldDefaultSizeForBackwardsCompat = 6 * 1024;
+
+		uint8 const* SrcData = SrcBuffer.GetData();
+		uint32 SrcSize = SrcBuffer.Num();
+
+		FVorbisAudioInfo	AudioInfo;
+		FSoundQualityInfo	QualityInfo;
+		if (!AudioInfo.ReadCompressedInfo((uint8*)SrcData, SrcSize, &QualityInfo))
+		{
+			return OldDefaultSizeForBackwardsCompat;
+		}
+
+		// Ask where the audio data starts, this is our minimum size, which includes the minimum of the 3 necessary headers. 
+		// This is the true minimum size for the Zeroth chunk.
+		int32 DataOffset = AudioInfo.GetAudioDataStartOffset();
+		if (DataOffset > 0)
+		{
+			// For backwards compatibility only increase the size if we need to, which should prevent a large delta.
+			return FMath::Max(OldDefaultSizeForBackwardsCompat, DataOffset);
+		}
+
+		return OldDefaultSizeForBackwardsCompat;
 	}
 
 	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 InitialChunkMaxSize, const int32 MaxChunkSize) const override
