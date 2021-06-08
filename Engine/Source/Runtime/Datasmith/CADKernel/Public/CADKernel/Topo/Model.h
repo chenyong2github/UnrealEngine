@@ -33,6 +33,11 @@ namespace CADKernel
 			: FTopologicalEntity()
 		{
 			Serialize(Archive);
+			//ensureCADKernel(Archive.ArchiveModel == nullptr);
+			if(Archive.ArchiveModel == nullptr)
+			{
+				Archive.ArchiveModel = this;
+			}
 		}
 
 	public:
@@ -42,6 +47,7 @@ namespace CADKernel
 			FEntityGeom::Serialize(Ar);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Bodies);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Faces);
+			SerializeMetadata(Ar);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override
@@ -71,38 +77,120 @@ namespace CADKernel
 			return EEntity::Model;
 		}
 
-		void AddEntity(TSharedRef<FTopologicalEntity> Entity);
+		void AddEntity(TSharedRef<FTopologicalEntity> InEntity);
 
-		void Add(TSharedPtr<FTopologicalFace> Face);
-		void Add(TSharedPtr<FBody> Body);
+		void Add(const TSharedPtr<FTopologicalFace>& InFace)
+		{
+			Faces.Add(InFace);
+		}
 
-		void RemoveEntity(TSharedPtr<FTopologicalEntity> Entity);
-		void RemoveDomain(TSharedPtr<FTopologicalFace> ToplologicalFace);
-		void RemoveBody(TSharedPtr<FBody> Body);
-		bool Contains(TSharedPtr<FTopologicalEntity> Entity);
+		void Append(TArray<TSharedPtr<FTopologicalFace>>& InNewFaces)
+		{
+			Faces.Append(InNewFaces);
+		}
+
+		void Append(TArray<TSharedPtr<FBody>>& InNewBody)
+		{
+			Bodies.Append(InNewBody);
+		}
+
+		void Add(const TSharedPtr<FBody>& InBody)
+		{
+			Bodies.Add(InBody);
+		}
+
+		void Empty()
+		{
+			Bodies.Empty();
+			Faces.Empty();
+		}
+
+		void RemoveFace(TSharedPtr<FTopologicalFace> InToplologicalFace)
+		{
+			Faces.Remove(InToplologicalFace);
+		}
+
+		void RemoveBody(TSharedPtr<FBody> InBody)
+		{
+			Bodies.Remove(InBody);
+		}
+
+		void PrintBodyAndShellCount();
+		void RemoveEmptyBodies();
+
+		void RemoveEntity(TSharedPtr<FTopologicalEntity> InEntity);
+
+		bool Contains(TSharedPtr<FTopologicalEntity> InEntity);
+
+		/**
+		 * Copy the body and face arrays of other model
+		 */
+		void Copy(const TSharedPtr<FModel>& OtherModel)
+		{
+			Bodies.Append(OtherModel->Bodies);
+			Faces.Append(OtherModel->Faces);
+		}
 		
+		/**
+		 * Copy the body and face arrays of other model
+		 */
+		void Copy(const FModel& OtherModel)
+		{
+			Bodies.Append(OtherModel.Bodies);
+			Faces.Append(OtherModel.Faces);
+		}
+
+		/**
+		 * Copy the body and face arrays of other model
+		 * Empty other model arrays
+		 */
+		void Merge(FModel& OtherModel)
+		{
+			Copy(OtherModel);
+			OtherModel.Bodies.Empty();
+			OtherModel.Faces.Empty();
+		}
+
 		const TArray<TSharedPtr<FTopologicalFace>>& GetFaces() const
 		{
 			return Faces;
 		}
 
-		const TArray<TSharedPtr<FTopologicalFace>>& GetSurfaceList() const
-		{ 
-			return Faces;
-		}
+		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override;
 
-		const TArray<TSharedPtr<FBody>>& GetBodyList() const
+		virtual int32 FaceCount() const override;
+
+		const TArray<TSharedPtr<FBody>>& GetBodies() const
 		{
 			return Bodies;
 		}
 
-		virtual int32 FaceCount() const override;
-
-		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override;
-
 		virtual void SpreadBodyOrientation() override;
 
 		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
+
+		// Topo functions
+
+		/**
+		 * Check topology of each body
+		 */
+		void CheckTopology();
+
+		/**
+		 * Fore each body
+		 */
+		void FixModelTopology(double JoiningTolerance);
+
+		void MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEntity>>& InEntities);
+		void Split(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody);
+		void Join(TArray<TSharedPtr<FBody>> Bodies, double Tolerance);
+
+		/**
+		 * Fore each shell of each body, try to stitch topological gap
+		 */
+		void HealModelTopology(double JoiningTolerance);
+
+
 	};
 
 } // namespace CADKernel

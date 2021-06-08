@@ -105,6 +105,7 @@ namespace CADKernel
 	}
 
 #ifdef CADKERNEL_DEV
+
 	void FEntity::InfoEntity() const
 	{
 		FInfoEntity Info;
@@ -120,13 +121,19 @@ namespace CADKernel
 		return Info;
 	}
 
-#ifdef CADKERNEL_DEV
 	FInfoEntity& FEntityGeom::GetInfo(FInfoEntity& Info) const
 	{
 		return FEntity::GetInfo(Info)
 			.Add(TEXT("Kio"), CtKioId);
 	}
-#endif
+
+	void FEntity::AddEntityInDatabase(TSharedRef<FEntity> Entity)
+	{
+		if (FSession::Session.IsValid())
+		{
+			FSession::Session->GetDatabase().AddEntity(Entity);
+		}
+	}
 
 #endif
 

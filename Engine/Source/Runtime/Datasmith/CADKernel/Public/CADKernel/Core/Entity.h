@@ -65,6 +65,10 @@ namespace CADKernel
 		{
 			OtherEntity* Entity = new OtherEntity(Forward<InArgTypes>(Args)...);
 			TSharedRef<OtherEntity> NewShared = MakeShareable<OtherEntity>(Entity);
+
+#ifdef CADKERNEL_DEV
+			AddEntityInDatabase(NewShared);
+#endif
 			return NewShared;
 		}
 
@@ -216,6 +220,7 @@ namespace CADKernel
 #ifdef CADKERNEL_DEV
 		void InfoEntity() const;
 		virtual FInfoEntity& GetInfo(FInfoEntity& EntityInfo) const;
+		static void AddEntityInDatabase(TSharedRef<FEntity> Entity);
 #endif
 
 		virtual void SpawnIdent(FDatabase& Database)

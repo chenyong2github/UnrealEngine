@@ -115,9 +115,9 @@ FInfoEntity& FConeSurface::GetInfo(FInfoEntity& Info) const
 		.Add(TEXT("Matrix"), Matrix)
 		.Add(TEXT("StartRadius"), StartRadius)
 		.Add(TEXT("ConeAngle"), ConeAngle)
-		.Add(TEXT("StartRuleLength"), Boundary[EIso::IsoU].Min)
-		.Add(TEXT("EndRuleLength"), Boundary[EIso::IsoU].Max)
-		.Add(TEXT("StartAngle"), Boundary[EIso::IsoV].Min)
-		.Add(TEXT("EndAngle"), Boundary[EIso::IsoV].Max);
+		.Add(TEXT("StartAngle"), Boundary[EIso::IsoU].Min)
+		.Add(TEXT("EndAngle"), Boundary[EIso::IsoU].Max)
+		.Add(TEXT("StartRuleLength"), Boundary[EIso::IsoV].Min)
+		.Add(TEXT("EndRuleLength"), Boundary[EIso::IsoV].Max);
 }
 #endif

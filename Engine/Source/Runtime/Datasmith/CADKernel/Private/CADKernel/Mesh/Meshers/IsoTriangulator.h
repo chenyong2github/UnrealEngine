@@ -13,12 +13,13 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
 
 //#define NEED_TO_CHECK_USEFULNESS
-
+#define DEBUG_DELAUNAY
 namespace CADKernel
 {
 	class FGrid;
 	class FIntersectionSegmentTool;
 	class FFaceMesh;
+	struct FCell;
 
 	typedef TFunction<double(const FPoint2D&, const FPoint2D&, double)> FGetSlop;
 
@@ -110,6 +111,7 @@ namespace CADKernel
 
 		TArray<int32> LoopStartIndex;
 		TArray<FLoopNode> LoopNodes;
+		int32 LoopNodeCount = 0;
 		TArray<FLoopNode*> SortedLoopNodes;
 
 		/**
@@ -130,7 +132,7 @@ namespace CADKernel
 		TArray<FIsoSegment*> LoopSegments;
 		TArray<FIsoSegment*> ThinZoneSegments;
 		TArray<FIsoSegment*> FinalInnerSegments;
-
+		TArray<FIsoSegment*> InnerToOuterSegments;
 
 		/**
 		 * Tool to check if a segment intersect or not existing segments.
@@ -140,6 +142,7 @@ namespace CADKernel
 		FIntersectionSegmentTool LoopSegmentsIntersectionTool;
 		FIntersectionSegmentTool InnerSegmentsIntersectionTool;
 		FIntersectionSegmentTool InnerToLoopSegmentsIntersectionTool;
+		FIntersectionSegmentTool InnerToOuterSegmentsIntersectionTool;
 
 
 		/**
@@ -170,6 +173,8 @@ namespace CADKernel
 		 * Segments to link inner to boundary and to complete the mesh
 		 */
 		TArray<FIsoSegment*> CandidateInnerToLoopSegments;
+
+		TArray<FIsoSegment*> NewTestSegments;
 
 		bool bDisplay = false;
 
@@ -237,6 +242,38 @@ namespace CADKernel
 		void CompleteIsoSegmentLoopToLoop();
 #endif
 
+		void ConnectCellLoops();
+		void FindCellContainingBoundaryNodes(TArray<FCell>& Cells);
+
+		/**
+		 * The closest loops are connected together
+		 * To do it, a Delaunay triangulation of the loop barycenters is realized.
+		 * Each edge of this mesh defined a near loops pair
+		 * The shortest segment is then build between this pair of loops
+		 */
+		void ConnectCellLoopsByNeighborhood(FCell& cell);
+
+		/**
+		 * 2nd step
+		 */
+		void ConnectCellCornerToInnerLoop(FCell& Cell);
+
+		/**
+		 * 3rd step : IsoSegment linking 
+		 */
+		void FindIsoSegmentToLinkOuterLoopNodes(FCell& Cell);
+		void FindIsoSegmentToLinkOuterLoopNodes2(FCell& Cell);
+
+		/**
+		 * 4th step : If their is no segment candidate  
+		 */
+		void FindSegmentToLinkOuterLoopNodes(FCell& Cell);
+
+		/**
+		 * 5th step : try to connect outer loop Extremities
+		 */
+		void AddSementToLinkOuterLoopExtremities(FCell& Cell);
+
 		/**
 		 * The goal of this algorithm is to connect iso U (or V) aligned loop nodes as soon as they are nearly in the same iso V (or U) strip.
 		 * I.e.:
@@ -244,6 +281,7 @@ namespace CADKernel
 		 * - In the same strip: each node of the segment has the same index "i" that verify: isoV[i] - TolV < Node.V < isoV[i+1] + TolV
 		 */
 		void FindIsoSegmentToLinkLoopToLoop();
+		void LastChanceToCreateSegmentInCell(FCell& Cell);
 
 		/**
 		 * The goal of this algorithm is to connect inner node (node of the grid UV) to iso aligned loop node when they are in the same iso V (or U) strip.
@@ -259,7 +297,7 @@ namespace CADKernel
 		 * The purpose of the method is select a minimal set of segments connecting loops together
 		 * The final segments will be selected with SelectSegmentInCandidateSegments
 		 */
-		void Delaunay();  // to rename and clean
+		void ConnectCellLoopsByNeighborhood();  // to rename and clean
 
 #ifdef TODELETE
 		void FindSegmentToLinkLoopToLoop();
@@ -270,6 +308,9 @@ namespace CADKernel
 		 * The final segments will be selected with SelectSegmentInCandidateSegments
 		 */
 		void FindCandidateSegmentsToLinkInnerToLoop();
+
+
+		void FindCandidateSegmentsToLinkInnerAndLoop();
 
 		/**
 		 * Complete the final set of segments with the best subset of segments in CandidateSegments
@@ -330,26 +371,14 @@ namespace CADKernel
 
 		//void CreateLoopToLoopSegment(FLoopNode* NodeA, const FPoint2D& ACoordinates, FLoopNode* NodeB, const FPoint2D& BCoordinates, TArray<FIsoSegment*>& NewSegments);
 
-		struct DelaunayTriangle
-		{
-			int32 VertexIndex[3];
-			double SquareRadius;
-			FPoint Center;
-
-			DelaunayTriangle(const int32& Index0, const int32& Index1, const int32& Index2, const TArray<FPoint2D>& Vertices)
-			{
-				Set(Index0, Index1, Index2, Vertices);
-			}
-
-			void Set(const int32& Index0, const int32& Index1, const int32& Index2, const TArray<FPoint2D>& Vertices)
-			{
-				VertexIndex[0] = Index0;
-				VertexIndex[1] = Index1;
-				VertexIndex[2] = Index2;
-				FTriangle2D Triangle(Vertices[Index0], Vertices[Index1], Vertices[Index2]);
-				Center = Triangle.CircumCircleCenterWithSquareRadius(SquareRadius);
-			}
-		};
+		// ==========================================================================================
+		// 	   Create segments
+		// ==========================================================================================
+		void TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, int32 IndexLoopA, int32 IndexLoopB);
+		void TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, int32 IndexLoopB);
+		void TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>& LoopB);
+		void TryToConnectTwoLoopsWithTheMostIsoSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>& LoopB);
+		void TryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const FPoint2D& ACoordinates, FIsoNode* NodeB, const FPoint2D& BCoordinates, const double FlatAngle);
 
 #ifdef CADKERNEL_DEV
 	public:
@@ -365,6 +394,9 @@ namespace CADKernel
 		void Display(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::Element) const;
 		void Display(EGridSpace Space, const FIsoSegment& Segment, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::Element, bool bDisplayOrientation = false) const;
 		void Display(EGridSpace Space, const TCHAR* Message, const TArray<FIsoSegment*>& Segment, bool bDisplayNode, bool bDisplayOrientation = false, EVisuProperty Property = EVisuProperty::Element) const;
+
+		void DisplayCells(const TArray<FCell>& Cells) const;
+		void DisplayCell(const FCell& Cell) const;
 
 		void DisplayTriangle(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, const FIsoNode& NodeC) const;
 #endif

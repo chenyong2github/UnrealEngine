@@ -85,6 +85,7 @@ void FNURBSSurface::Finalize()
 	double VMax = VNodalVector[VNodalVector.Num() - 1 - VDegree];
 
 	Boundary.Set(UMin, UMax, VMin, VMax);
+	SetMinToleranceIso();
 }
 
 

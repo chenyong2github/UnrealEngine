@@ -86,7 +86,7 @@ namespace CADKernel
 		bool bShowOrientation = FSystem::Get().GetVisu()->GetParameters()->bDisplayCADOrient;
 
 		TArray<FPoint> Polyline;
-		Curve->GetDiscretizationPoints<FPoint>(Curve->GetBoundary(), EOrientation::Front, Polyline);
+		Curve->GetDiscretizationPoints<FPoint>(Boundary, EOrientation::Front, Polyline);
 		Draw(Polyline, Property);
 
 		if (bShowOrientation)
@@ -463,11 +463,6 @@ namespace CADKernel
 
 	void Display(const TSharedPtr<FShell>& Shell)
 	{
-		Draw(Shell);
-	}
-
-	void Draw(const TSharedPtr<FShell>& Shell)
-	{
 		FProgress Progress(Shell->GetFaces().Num(), TEXT("Display Shell"));
 		for (const FOrientedFace& Face : Shell->GetFaces())
 		{
@@ -475,9 +470,20 @@ namespace CADKernel
 		}
 	}
 
+	void Draw(const TSharedPtr<FShell>& Shell)
+	{
+		FProgress Progress(Shell->GetFaces().Num(), TEXT("Display Shell"));
+		for (const FOrientedFace& Face : Shell->GetFaces())
+		{
+			Draw(Face.Entity);
+		}
+	}
+
 	void Display(const TSharedPtr<FBody>& Body)
 	{
 		FProgress Progress(Body->GetShells().Num(), TEXT("Display Body"));
+
+		F3DDebugSegment GraphicSegment(Body->GetId());
 		for (TSharedPtr<FShell> Shell : Body->GetShells())
 		{
 			if (!Shell.IsValid())
@@ -832,7 +838,7 @@ namespace CADKernel
 	{
 		FProgress MainProgress(2, TEXT("Display model"));
 		{
-			const TArray<TSharedPtr<FBody>>& Bodies = Model->GetBodyList();
+			const TArray<TSharedPtr<FBody>>& Bodies = Model->GetBodies();
 			FProgress BodyProgress((int32)Bodies.Num(), TEXT("Bodies"));
 			for (const TSharedPtr<FBody>& Body : Bodies)
 			{
@@ -841,14 +847,106 @@ namespace CADKernel
 		}
 
 		{
-			const TArray<TSharedPtr<FTopologicalFace>>& Surfaces = Model->GetSurfaceList();
-			FProgress SurfaceProgress((int32)Surfaces.Num(), TEXT("surfaces"));
+			const TArray<TSharedPtr<FTopologicalFace>>& Surfaces = Model->GetFaces();
+			FProgress SurfaceProgress((int32)Surfaces.Num(), TEXT("Surfaces"));
 			for (const TSharedPtr<FTopologicalFace>& Surface : Surfaces)
 			{
 				Display(Surface);
 			}
 		}
 	}
+
+	void DisplayProductTree(const TSharedPtr<FModel>& Model)
+	{
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Model->GetTypeName(), Model->GetId()), { Model->GetId() });
+
+		FProgress MainProgress(2, TEXT("Display Model"));
+		{
+			const TArray<TSharedPtr<FBody>>& Bodies = Model->GetBodies();
+			FProgress BodyProgress((int32)Bodies.Num(), TEXT("Bodies"));
+			for (const TSharedPtr<FBody>& Body : Bodies)
+			{
+				DisplayProductTree(Body);
+			}
+		}
+
+		{
+			const TArray<TSharedPtr<FTopologicalFace>>& Faces = Model->GetFaces();
+			FProgress SurfaceProgress((int32)Faces.Num(), TEXT("Faces"));
+			for (const TSharedPtr<FTopologicalFace>& Face : Faces)
+			{
+				Display(Face);
+			}
+		}
+
+	}
+
+	void DisplayProductTree(const TSharedPtr<FBody>& Body)
+	{
+#ifdef CORETECHBRIDGE_DEBUG
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s KioId: %d Id: %d"), Body->GetTypeName(), Body->GetName(), Body->GetKioId(), Body->GetId()), { Body->GetId() });
+#else
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s Id: %d"), Body->GetTypeName(), Body->GetName(), Body->GetId()), { Body->GetId() });
+#endif
+		FProgress Progress(Body->GetShells().Num(), TEXT("Display Body"));
+
+		for (TSharedPtr<FShell> Shell : Body->GetShells())
+		{
+			if (!Shell.IsValid())
+			{
+				continue;
+			}
+			DisplayProductTree(Shell);
+		}
+
+	}
+
+	void DisplayProductTree(const TSharedPtr<FShell>& Shell)
+	{
+#ifdef CORETECHBRIDGE_DEBUG
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s KioId: %d Id: %d"), Shell->GetTypeName(), Shell->GetName(), Shell->GetKioId(), Shell->GetId()), { Shell->GetId() });
+#else
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s Id: %d"), Shell->GetTypeName(), Shell->GetName(), Shell->GetId()), { Shell->GetId() });
+#endif
+		F3DDebugSegment Segment(Shell->GetId());
+		Draw(Shell);
+	}
+
+	void DisplayProductTree(const TSharedPtr<FEntity>& Entity)
+	{
+		if (!Entity.IsValid())
+		{
+			FMessage::Printf(Log, TEXT("Entity not found"));
+			return;
+		}
+
+		FTimePoint StartTime = FChrono::Now();
+
+		switch (Entity->GetEntityType())
+		{
+		case EEntity::TopologicalFace:
+			Display(StaticCastSharedPtr<FTopologicalFace>(Entity));
+			break;
+		case EEntity::Shell:
+			DisplayProductTree(StaticCastSharedPtr<FShell>(Entity));
+			break;
+		case EEntity::Body:
+			DisplayProductTree(StaticCastSharedPtr<FBody>(Entity));
+			break;
+		case EEntity::Model:
+			DisplayProductTree(StaticCastSharedPtr<FModel>(Entity));
+			break;
+		default:
+			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity->GetEntityType()));
+		}
+
+		FDuration DisplayDuration = FChrono::Elapse(StartTime);
+		FChrono::PrintClockElapse(Log, TEXT("  "), TEXT("Display "), DisplayDuration);
+	}
+
+
+
+
 
 	void Display(const TSharedPtr<FGroup>& Group)
 	{

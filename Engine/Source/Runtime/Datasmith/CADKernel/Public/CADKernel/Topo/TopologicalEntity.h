@@ -19,6 +19,10 @@ namespace CADKernel
 
 		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) {}
 
+		/**
+		 * Each face of model is set by its orientation. This allow to make oriented mesh and to keep the face orientation in topological function.
+		 * Marker2 of spread face is set. It must be reset after the process
+		 */
 		virtual void SpreadBodyOrientation() {}
 
 		virtual void Serialize(FCADKernelArchive& Ar) override

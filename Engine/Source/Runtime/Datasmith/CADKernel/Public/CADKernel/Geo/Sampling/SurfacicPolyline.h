@@ -33,6 +33,8 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
+		FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D);
+
 		FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D, const double Tolerance);
 
 		FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D, const double ChordTolerance, const double ParamTolerance, bool bInWithNormals/* = false*/, bool bWithTangent/* = false*/);
@@ -45,10 +47,10 @@ namespace CADKernel
 
 		void Serialize(FCADKernelArchive& Ar)
 		{
-			Ar << Points3D;
-			Ar << Points2D;
-			Ar << Normals;
-			Ar << Coordinates;
+			Ar.Serialize(Points3D);
+			Ar.Serialize(Points2D);
+			Ar.Serialize(Normals);
+			Ar.Serialize(Coordinates);
 			Ar << bWithNormals;
 			Ar << bWithTangent;
 		}
@@ -57,7 +59,9 @@ namespace CADKernel
 
 		TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH&) const;
 
-		void CheckIfDegenerated(const double Tolerance3D, const double Tolerance2D, const FLinearBoundary& Boudary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const;
+		void CheckIfDegenerated(const double Tolerance3D, const FSurfacicTolerance& Tolerances2D, const FLinearBoundary& Boudary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const;
+
+		void GetExtremities(const FLinearBoundary& InBoundary, const double Tolerance3D, const FSurfacicTolerance& Tolerances2D, FSurfacicCurveExtremity& Extremities) const;
 
 		FPoint Approximate3DPoint(double InCoordinate) const
 		{
@@ -76,6 +80,48 @@ namespace CADKernel
 			TPolylineApproximator<FPoint2D> Approximator(Coordinates, Points2D);
 			return Approximator.ApproximatePoint(InCoordinate);
 		}
+
+		FPoint GetTangentAt(double InCoordinate) const
+		{
+			FDichotomyFinder Finder(Coordinates);
+			int32 Index = Finder.Find(InCoordinate);
+			return Points3D[Index + 1] - Points3D[Index];
+		}
+
+		FPoint2D GetTangent2DAt(double InCoordinate) const
+		{
+			FDichotomyFinder Finder(Coordinates);
+			int32 Index = Finder.Find(InCoordinate);
+			return Points2D[Index + 1] - Points2D[Index];
+		}
+
+		FSurfacicTolerance ComputeTolerance(const double Tolerance3D, const FSurfacicTolerance& MinToleranceIso, const int32 Index) const
+		{
+			double Distance3D = Points3D[Index].Distance(Points3D[Index + 1]);
+			if (FMath::IsNearlyZero(Distance3D, (double) SMALL_NUMBER))
+			{
+				return FPoint2D::FarawayPoint;
+			}
+			else
+			{
+				FSurfacicTolerance Tolerance2D = Points2D[Index] - Points2D[Index + 1];
+				return Max(Abs(Tolerance2D)*Tolerance3D/Distance3D, MinToleranceIso);
+			}
+		};
+
+		double ComputeLinearToleranceAt(const double Tolerance3D, const double MinLinearTolerance, const int32 Index) const
+		{
+			double Distance3D = Points3D[Index].Distance(Points3D[Index + 1]);
+			if (FMath::IsNearlyZero(Distance3D, (double)SMALL_NUMBER))
+			{
+				return HUGE_VALUE;
+			}
+			else
+			{
+				double LinearDistance = Coordinates[Index+1] - Coordinates[Index];
+				return FMath::Max(LinearDistance / Distance3D * Tolerance3D, MinLinearTolerance);
+			}
+		};
 
 		void Approximate2DPoints(const TArray<double>& InCoordinates, TArray<FPoint2D>& OutPoints) const
 		{
@@ -176,10 +222,22 @@ namespace CADKernel
 			return Approximator3D.ProjectPointToPolyline(Boundary, PointOnEdge, ProjectedPoint);
 		}
 
+		double GetCoordinateOfProjectedPoint(const FLinearBoundary& Boundary, const FPoint2D& PointOnEdge, FPoint2D& ProjectedPoint) const
+		{
+			TPolylineApproximator<FPoint2D> Approximator2D(Coordinates, Points2D);
+			return Approximator2D.ProjectPointToPolyline(Boundary, PointOnEdge, ProjectedPoint);
+		}
+
 		void ProjectPoints(const FLinearBoundary& InBoundary, const TArray<FPoint>& InPointsToProject, TArray<double>& ProjectedPointCoordinates, TArray<FPoint>& ProjectedPoints) const
 		{
 			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
 			Approximator3D.ProjectPointsToPolyline(InBoundary, InPointsToProject, ProjectedPointCoordinates, ProjectedPoints);
+		}
+
+		void ProjectPoints(const FLinearBoundary& InBoundary, const TArray<FPoint2D>& InPointsToProject, TArray<double>& ProjectedPointCoordinates, TArray<FPoint2D>& ProjectedPoints) const
+		{
+			TPolylineApproximator<FPoint2D> Approximator(Coordinates, Points2D);
+			Approximator.ProjectPointsToPolyline(InBoundary, InPointsToProject, ProjectedPointCoordinates, ProjectedPoints);
 		}
 
 		/**

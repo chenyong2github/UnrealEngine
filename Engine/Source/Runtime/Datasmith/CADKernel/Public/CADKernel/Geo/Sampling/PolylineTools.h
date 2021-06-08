@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
+#include "CADKernel/Math/Aabb.h"
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/Geometry.h"
 #include "CADKernel/Math/Point.h"
@@ -58,14 +59,14 @@ namespace CADKernel
 			if (DistanceStart > DistanceEnd)
 			{
 				PointType Factor;
-				for (int32 Index = 0; Index < PointType::Dimension(); ++Index)
+				for (int32 Index = 0; Index < PointType::Dimension; ++Index)
 				{
 					Factor[Index] = FMath::Abs(Polyline.Last()[Index] - Polyline[0][Index]) > SMALL_NUMBER_SQUARE ? (DesiredEnd[Index] - Polyline[0][Index]) / (Polyline.Last()[Index] - Polyline[0][Index]) : 1.;
 				}
 
 				Algo::ForEach(Polyline, [&, Factor](PointType& Pole)
 					{
-						for (int32 Index = 0; Index < PointType::Dimension(); ++Index)
+						for (int32 Index = 0; Index < PointType::Dimension; ++Index)
 						{
 							Pole[Index] = Polyline[0][Index] + (Pole[Index] - Polyline[0][Index]) * Factor[Index];
 						}
@@ -75,7 +76,7 @@ namespace CADKernel
 			else
 			{
 				PointType Factor;
-				for (int32 Index = 0; Index < PointType::Dimension(); ++Index)
+				for (int32 Index = 0; Index < PointType::Dimension; ++Index)
 				{
 					Factor[Index] = FMath::Abs(Polyline[0][Index] - Polyline.Last()[Index]) > SMALL_NUMBER_SQUARE ? (DesiredEnd[Index] - Polyline.Last()[Index]) / (Polyline[0][Index] - Polyline.Last()[Index]) : 1.;
 				}
@@ -83,15 +84,30 @@ namespace CADKernel
 				Algo::Reverse(Polyline);
 				Algo::ForEach(Polyline, [&, Factor](PointType& Pole)
 					{
-						for (int32 Index = 0; Index < PointType::Dimension(); ++Index)
+						for (int32 Index = 0; Index < PointType::Dimension; ++Index)
 						{
-							Pole[Index] = Polyline.Last()[Index] + (Pole[Index] - Polyline.Last()[Index]) * Factor[Index];
+							Pole[Index] = Polyline[0][Index] + (Pole[Index] - Polyline[0][Index]) * Factor[Index];
 						}
 					}
 				);
+
 				Algo::Reverse(Polyline);
 			}
 		}
+
+		template<class PointType>
+		PointType ComputePoint(const TArray<double>& PolylineCoordinates, const TArray<PointType>& PolylinePoints, const int32 Index, const double PointCoordinate)
+		{
+			double Delta = PolylineCoordinates[Index + 1] - PolylineCoordinates[Index];
+			if (FMath::IsNearlyZero(Delta, (double)KINDA_SMALL_NUMBER))
+			{
+				return PolylinePoints[Index];
+			}
+
+			return PolylinePoints[Index] + (PolylinePoints[Index + 1] - PolylinePoints[Index]) * (PointCoordinate - PolylineCoordinates[Index]) / Delta;
+		};
+
+
 	}
 
 	template<class PointType>
@@ -110,26 +126,26 @@ namespace CADKernel
 
 	protected:
 
-		double ComputeCurvilinearCoordinatesOfPolyline(const FLinearBoundary& InBoundary, TArray<double>& OutCurvilinearCoordinates, int32& StartIndex, int32& EndIndex) const
+		double ComputeCurvilinearCoordinatesOfPolyline(const FLinearBoundary& InBoundary, TArray<double>& OutCurvilinearCoordinates, int32 BoundaryIndices[2]) const
 		{
-			GetStartEndIndex(InBoundary, StartIndex, EndIndex);
+			GetStartEndIndex(InBoundary, BoundaryIndices);
 
-			OutCurvilinearCoordinates.Reserve(EndIndex - StartIndex + 2);
+			OutCurvilinearCoordinates.Reserve(BoundaryIndices[1] - BoundaryIndices[0] + 2);
 
 			double LastSegmentLength;
 			double Length = 0;
-			ensureCADKernel(EndIndex > StartIndex);
+			ensureCADKernel(BoundaryIndices[1] > BoundaryIndices[0]);
 
 			OutCurvilinearCoordinates.Add(0);
-			if (EndIndex > StartIndex + 1)
+			if (BoundaryIndices[1] > BoundaryIndices[0] + 1)
 			{
-				PointType StartPoint = ComputePoint(StartIndex, InBoundary.Min);
-				PointType EndPoint = ComputePoint(EndIndex, InBoundary.Max);
-				Length = StartPoint.Distance(PolylinePoints[StartIndex + 1]);
-				LastSegmentLength = EndPoint.Distance(PolylinePoints[EndIndex]);
+				PointType StartPoint = ComputePoint(BoundaryIndices[0], InBoundary.Min);
+				PointType EndPoint = ComputePoint(BoundaryIndices[1], InBoundary.Max);
+				Length = StartPoint.Distance(PolylinePoints[BoundaryIndices[0] + 1]);
+				LastSegmentLength = EndPoint.Distance(PolylinePoints[BoundaryIndices[1]]);
 
 				OutCurvilinearCoordinates.Add(Length);
-				for (int32 Index = StartIndex + 1; Index < EndIndex; ++Index)
+				for (int32 Index = BoundaryIndices[0] + 1; Index < BoundaryIndices[1]; ++Index)
 				{
 					Length += PolylinePoints[Index].Distance(PolylinePoints[Index + 1]);
 					OutCurvilinearCoordinates.Add(Length);
@@ -139,8 +155,8 @@ namespace CADKernel
 			}
 			else
 			{
-				PointType StartPoint = ComputePoint(StartIndex, InBoundary.Min);
-				PointType EndPoint = ComputePoint(EndIndex, InBoundary.Max);
+				PointType StartPoint = ComputePoint(BoundaryIndices[0], InBoundary.Min);
+				PointType EndPoint = ComputePoint(BoundaryIndices[1], InBoundary.Max);
 				Length = StartPoint.Distance(EndPoint);
 				OutCurvilinearCoordinates.Add(Length);
 			}
@@ -162,7 +178,7 @@ namespace CADKernel
 		 * Project a Set of points on a restricted polyline (StartIndex & EndIndex define the polyline boundary)
 		 * the points are projected on all segments of the polyline, the closest are selected
 		 */
-		double ProjectPointToPolyline(int32 StartIndex, int32 EndIndex, const PointType& InPointToProject, PointType& OutProjectedPoint) const
+		double ProjectPointToPolyline(int32 BoundaryIndices[2], const PointType& InPointToProject, PointType& OutProjectedPoint) const
 		{
 			double MinDistance = HUGE_VAL;
 			double UForMinDistance = 0;
@@ -170,7 +186,7 @@ namespace CADKernel
 			double ParamU = 0.;
 			int32 SegmentIndex = 0;
 
-			for (int32 Index = StartIndex; Index <= EndIndex; ++Index)
+			for (int32 Index = BoundaryIndices[0]; Index <= BoundaryIndices[1]; ++Index)
 			{
 				FPoint ProjectPoint = ProjectPointOnSegment(InPointToProject, PolylinePoints[Index], PolylinePoints[Index + 1], ParamU, true);
 				double SquareDistance = FMath::Square(ProjectPoint[0] - InPointToProject[0]);
@@ -199,11 +215,11 @@ namespace CADKernel
 
 	public:
 
-		void GetStartEndIndex(const FLinearBoundary& InBoundary, int32& StartIndex, int32& EndIndex) const
+		void GetStartEndIndex(const FLinearBoundary& InBoundary, int32 BoundaryIndices[2]) const
 		{
 			FDichotomyFinder Finder(PolylineCoordinates);
-			StartIndex = Finder.Find(InBoundary.Min);
-			EndIndex = Finder.Find(InBoundary.Max);
+			BoundaryIndices[0] = Finder.Find(InBoundary.Min);
+			BoundaryIndices[1] = Finder.Find(InBoundary.Max);
 		}
 
 		/**
@@ -352,11 +368,10 @@ namespace CADKernel
 
 		void SamplePolyline(const FLinearBoundary& InBoundary, const double DesiredSegmentLength, TArray<double>& OutCoordinates) const
 		{
-			int32 StartIndex = 0;
-			int32 EndIndex = 0;
+			int32 BoundaryIndices[2];
 
 			TArray<double> CurvilinearCoordinates;
-			double CurveLength = ComputeCurvilinearCoordinatesOfPolyline(InBoundary, CurvilinearCoordinates, StartIndex, EndIndex);
+			double CurveLength = ComputeCurvilinearCoordinatesOfPolyline(InBoundary, CurvilinearCoordinates, BoundaryIndices);
 
 			int32 SegmentNum = (int32)FMath::Max(CurveLength / DesiredSegmentLength + 0.5, 1.0);
 
@@ -373,7 +388,7 @@ namespace CADKernel
 
 			double CurvilinearLength = SectionLength;
 			double LastCoordinate = InBoundary.Min;
-			for (int32 IndexCurvilinear = 1, IndexCoordinate = StartIndex + 1; IndexCurvilinear < CurvilinearCoordinates.Num(); ++IndexCurvilinear, ++IndexCoordinate)
+			for (int32 IndexCurvilinear = 1, IndexCoordinate = BoundaryIndices[0] + 1; IndexCurvilinear < CurvilinearCoordinates.Num(); ++IndexCurvilinear, ++IndexCoordinate)
 			{
 				while (CurvilinearLength < CurvilinearCoordinates[IndexCurvilinear] + SMALL_NUMBER)
 				{
@@ -396,11 +411,9 @@ namespace CADKernel
 		 */
 		double ProjectPointToPolyline(const FLinearBoundary& InBoundary, const PointType& PointOnEdge, PointType& OutProjectedPoint) const
 		{
-			int32 StartIndex = 0;
-			int32 EndIndex = 0;
-			GetStartEndIndex(InBoundary, StartIndex, EndIndex);
-
-			return ProjectPointToPolyline(StartIndex, EndIndex, PointOnEdge, OutProjectedPoint);
+			int32 BoundaryIndices[2];
+			GetStartEndIndex(InBoundary, BoundaryIndices);
+			return ProjectPointToPolyline(BoundaryIndices, PointOnEdge, OutProjectedPoint);
 		}
 
 		/**
@@ -412,15 +425,13 @@ namespace CADKernel
 			OutProjectedPointCoords.Empty(InPointsToProject.Num());
 			OutProjectedPoints.Empty(InPointsToProject.Num());
 
-			int32 StartIndex = 0;
-			int32 EndIndex = 0;
-
-			GetStartEndIndex(InBoundary, StartIndex, EndIndex);
+			int32 BoundaryIndices[2];
+			GetStartEndIndex(InBoundary, BoundaryIndices);
 
 			for (const PointType& Point : InPointsToProject)
 			{
 				PointType ProjectedPoint;
-				double Coordinate = ProjectPointToPolyline(StartIndex, EndIndex, Point, ProjectedPoint);
+				double Coordinate = ProjectPointToPolyline(BoundaryIndices, Point, ProjectedPoint);
 
 				OutProjectedPointCoords.Emplace(Coordinate);
 				OutProjectedPoints.Emplace(ProjectedPoint);
@@ -484,41 +495,40 @@ namespace CADKernel
 		 */
 		void GetSubPolyline(const FLinearBoundary& InBoundary, const EOrientation Orientation, TArray<PointType>& OutPoints) const
 		{
-			int32 StartIndex = 0;
-			int32 EndIndex = 0;
-			GetStartEndIndex(InBoundary, StartIndex, EndIndex);
+			int32 BoundaryIndices[2];
+			GetStartEndIndex(InBoundary, BoundaryIndices);
 
-			int32 NewSize = OutPoints.Num() + EndIndex - StartIndex + 2;
+			int32 NewSize = OutPoints.Num() + BoundaryIndices[1] - BoundaryIndices[0] + 2;
 			OutPoints.Reserve(NewSize);
 
-			int32 PolylineStartIndex = StartIndex;
-			int32 PolylineEndIndex = EndIndex;
-			if (FMath::IsNearlyEqual(PolylineCoordinates[StartIndex + 1], InBoundary.Min, (double)KINDA_SMALL_NUMBER))
+			int32 PolylineStartIndex = BoundaryIndices[0];
+			int32 PolylineEndIndex = BoundaryIndices[1];
+			if (FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[0] + 1], InBoundary.Min, (double)KINDA_SMALL_NUMBER))
 			{
 				PolylineStartIndex++;
 			}
-			if (FMath::IsNearlyEqual(PolylineCoordinates[EndIndex], InBoundary.Max, (double)KINDA_SMALL_NUMBER))
+			if (FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[1]], InBoundary.Max, (double)KINDA_SMALL_NUMBER))
 			{
 				PolylineEndIndex--;
 			}
 
 			if (Orientation)
 			{
-				OutPoints.Emplace(ComputePoint(StartIndex, InBoundary.Min));
+				OutPoints.Emplace(ComputePoint(BoundaryIndices[0], InBoundary.Min));
 				if(PolylineEndIndex - PolylineStartIndex > 0)
 				{
 					OutPoints.Append(PolylinePoints.GetData() + PolylineStartIndex + 1, PolylineEndIndex - PolylineStartIndex);
 				}
-				OutPoints.Emplace(ComputePoint(EndIndex, InBoundary.Max));
+				OutPoints.Emplace(ComputePoint(BoundaryIndices[1], InBoundary.Max));
 			}
 			else
 			{
-				OutPoints.Emplace(ComputePoint(EndIndex, InBoundary.Max));
+				OutPoints.Emplace(ComputePoint(BoundaryIndices[1], InBoundary.Max));
 				for (int32 Index = PolylineEndIndex; Index > PolylineStartIndex; --Index)
 				{
 					OutPoints.Emplace(PolylinePoints[Index]);
 				}
-				OutPoints.Emplace(ComputePoint(StartIndex, InBoundary.Min));
+				OutPoints.Emplace(ComputePoint(BoundaryIndices[0], InBoundary.Min));
 			}
 		}
 
@@ -564,24 +574,19 @@ namespace CADKernel
 			return Length;
 		}
 
-		double ComputeLengthOfSubPolyline(const FLinearBoundary& InBoundary) const
+		double ComputeLengthOfSubPolyline(const int BoundaryIndex[2], const FLinearBoundary& InBoundary) const
 		{
-			int32 StartIndex = 0;
-			int32 EndIndex = 0;
-
-			GetStartEndIndex(InBoundary, StartIndex, EndIndex);
-
 			double Length = 0;
-			if (EndIndex > StartIndex)
+			if (BoundaryIndex[1] > BoundaryIndex[0])
 			{
-				FPoint StartPoint = ComputePoint(StartIndex, InBoundary.Min);
-				FPoint EndPoint = ComputePoint(EndIndex, InBoundary.Max);
-				Length = StartPoint.Distance(PolylinePoints[StartIndex + 1]);
-				Length += EndPoint.Distance(PolylinePoints[EndIndex]);
+				PointType StartPoint = ComputePoint(BoundaryIndex[0], InBoundary.Min);
+				PointType EndPoint = ComputePoint(BoundaryIndex[1], InBoundary.Max);
+				Length = StartPoint.Distance(PolylinePoints[BoundaryIndex[0] + 1]);
+				Length += EndPoint.Distance(PolylinePoints[BoundaryIndex[1]]);
 
-				if (EndIndex > StartIndex + 1)
+				if (BoundaryIndex[1] > BoundaryIndex[0] + 1)
 				{
-					for (int32 Index = StartIndex + 1; Index < EndIndex; ++Index)
+					for (int32 Index = BoundaryIndex[0] + 1; Index < BoundaryIndex[1]; ++Index)
 					{
 						Length += PolylinePoints[Index].Distance(PolylinePoints[Index + 1]);
 					}
@@ -589,14 +594,36 @@ namespace CADKernel
 			}
 			else
 			{
-				FPoint StartPoint = ComputePoint(StartIndex, InBoundary.Min);
-				FPoint EndPoint = ComputePoint(EndIndex, InBoundary.Max);
+				PointType StartPoint = ComputePoint(BoundaryIndex[0], InBoundary.Min);
+				PointType EndPoint = ComputePoint(BoundaryIndex[1], InBoundary.Max);
 				Length = StartPoint.Distance(EndPoint);
 			}
 			return Length;
 		}
 
+		double ComputeLengthOfSubPolyline(const FLinearBoundary& InBoundary) const
+		{
+			int BoundaryIndices[2];
+			GetStartEndIndex(InBoundary, BoundaryIndices);
+			return ComputeLengthOfSubPolyline(BoundaryIndices, InBoundary);
+		}
 
+		void ComputeBoundingBox(const int BoundaryIndex[2], const FLinearBoundary& InBoundary, TAABB<PointType>& Aabb)
+		{
+			Aabb.Empty();
+			if (BoundaryIndex[1] > BoundaryIndex[0])
+			{
+				for (int32 Index = BoundaryIndex[0] + 1; Index <= BoundaryIndex[1]; ++Index)
+				{
+					Aabb += PolylinePoints[Index];
+				}
+			}
+
+			PointType StartPoint = ComputePoint(BoundaryIndex[0], InBoundary.Min);
+			Aabb += StartPoint;
+			PointType EndPoint = ComputePoint(BoundaryIndex[1], InBoundary.Max);
+			Aabb += EndPoint;
+		}
 	};
 
 } // namespace CADKernel

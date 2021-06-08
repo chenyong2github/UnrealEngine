@@ -8,6 +8,11 @@
 
 namespace CADKernel
 {
+	/**
+	 * MINIMAL_UNIT_LINEAR_TOLERANCE allows to define the minimal tolerance value of a parametric space
+	 * @see FLinearBoundary::ComputeMinimalTolerance
+	 */
+	#define MINIMAL_UNIT_LINEAR_TOLERANCE 10e-5
 
 	struct CADKERNEL_API FLinearBoundary
 	{
@@ -30,8 +35,7 @@ namespace CADKernel
 
 		friend FArchive& operator<<(FArchive& Ar, FLinearBoundary& Bounds)
 		{
-			Ar << Bounds.Min;
-			Ar << Bounds.Max;
+			Ar.Serialize(&Bounds, sizeof(FLinearBoundary));
 			return Ar;
 		}
 
@@ -96,6 +100,16 @@ namespace CADKernel
 			return (DeltaU < KINDA_SMALL_NUMBER);
 		}
 
+		/**
+		 * Compute the minimal tolerance of the parametric domain i.e. 
+		 * ToleranceMin = Boundary.Length() * MINIMAL_UNIT_LINEAR_TOLERANCE
+		 * e.g. for a curve of 1m with a parametric space define between [0, 1], the parametric tolerance is 0.01
+		 * This is a minimal value that has to be replace with a more accurate value when its possible
+		 */
+		double ComputeMinimalTolerance() const
+		{
+			return Length() * MINIMAL_UNIT_LINEAR_TOLERANCE;
+		}
 
 		/**
 		 * If a coordinate is outside the bounds, set the coordinate at the closed limit

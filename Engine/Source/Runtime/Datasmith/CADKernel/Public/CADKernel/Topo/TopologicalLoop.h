@@ -31,6 +31,12 @@ namespace CADKernel
 			: TOrientedEntity()
 		{
 		}
+
+		bool operator==(const FOrientedEdge& Edge) const
+		{
+			return Entity == Edge.Entity;
+		}
+
 	};
 
 	class CADKERNEL_API FTopologicalLoop : public FTopologicalEntity
@@ -46,7 +52,7 @@ namespace CADKernel
 	protected:
 		TArray<FOrientedEdge> Edges;
 
-		TWeakPtr<FTopologicalFace> Surface;
+		TWeakPtr<FTopologicalFace> Face;
 		bool bExternalLoop;
 
 		FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& Edges, const TArray<EOrientation>& EdgeDirections);
@@ -61,25 +67,25 @@ namespace CADKernel
 
 		void SetSurface(TSharedRef<FTopologicalFace> NewDomain)
 		{
-			Surface = NewDomain;
+			Face = NewDomain;
 		}
 
 		void ResetSurface()
 		{
-			Surface.Reset();
+			Face.Reset();
 		}
 
 	public:
 
 		~FTopologicalLoop() = default;
 
-		static TSharedPtr<FTopologicalLoop> Make(const TArray<TSharedPtr<FTopologicalEdge>>& EdgeList, const TArray<EOrientation>& EdgeDirections);
+		static TSharedPtr<FTopologicalLoop> Make(const TArray<TSharedPtr<FTopologicalEdge>>& EdgeList, const TArray<EOrientation>& EdgeDirections, const double GeometricTolerance);
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
 			FTopologicalEntity::Serialize(Ar);
 			SerializeIdents(Ar, (TArray<TOrientedEntity<FEntity>>&) Edges);
-			SerializeIdent(Ar, Surface);
+			SerializeIdent(Ar, Face);
 			Ar << bExternalLoop;
 		}
 
@@ -125,7 +131,7 @@ namespace CADKernel
 
 		TSharedRef<FTopologicalFace> GetFace() const
 		{
-			return Surface.Pin().ToSharedRef();
+			return Face.Pin().ToSharedRef();
 		}
 
 		void Orient();
@@ -138,9 +144,17 @@ namespace CADKernel
 
 		void ReplaceEdge(TSharedPtr<FTopologicalEdge>& OldEdge, TSharedPtr<FTopologicalEdge>& NewEdge);
 		void ReplaceEdge(TSharedPtr<FTopologicalEdge>& Edge, TArray<TSharedPtr<FTopologicalEdge>>& NewEdges);
+		void ReplaceEdges(TArray<FOrientedEdge>& Candidates, TSharedPtr<FTopologicalEdge>& NewEdge);
+
+		/**
+		 * The Edge is split in two edges : Edge + NewEdge 
+		 * @param bNewEdgeIsFirst == true => StartVertex Connected to Edge, EndVertexConnected to NewEdge
+		 * According to the direction of Edge, if bNewEdgeIsFirst == true, NewEdge is added in the loop after (EOrientation::Front) or before (EOrientation::Back)
+		 */
+		void SplitEdge(TSharedPtr<FTopologicalEdge> Edge, TSharedPtr<FTopologicalEdge> NewEdge, bool bNewEdgeIsFirst);
 
 		void RemoveEdge(TSharedPtr<FTopologicalEdge>& Edge);
-		void ReplaceEdgesWithMergedEdge(TArray<TSharedPtr<FTopologicalEdge>>& OldEdges, TSharedPtr<FTopologicalVertex>& MiddleVertex, TSharedPtr<FTopologicalEdge>& NewEdge);
+		//void ReplaceEdgesWithMergedEdge(TArray<TSharedPtr<FTopologicalEdge>>& OldEdges, TSharedPtr<FTopologicalVertex>& MiddleVertex, TSharedPtr<FTopologicalEdge>& NewEdge);
 
 		EOrientation GetDirection(TSharedPtr<FTopologicalEdge>& Edge, bool bAllowLinkedEdge = false) const;
 
@@ -173,6 +187,6 @@ namespace CADKernel
 
 		void ComputeBoundaryProperties(const TArray<int32>& StartSideIndex, TArray<FEdge2DProperties>& OutSideProperties) const;
 
-		void EnsureLogicalClosing();
+		void EnsureLogicalClosing(const double GeometricTolerance);
 	};
 }

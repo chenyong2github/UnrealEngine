@@ -6,7 +6,7 @@ namespace CADKernel
 {
 	const TCHAR* VisuPropertyNames[] = 
 	{
-		TEXT("Bounding Box"),              
+		TEXT("Bounding Box"),                   
 		TEXT("Points"),
 		TEXT("Elements"),
 		TEXT("Curves"),
@@ -31,6 +31,10 @@ namespace CADKernel
 		TEXT("GreenCurve"),
 		TEXT("PinkPoint"),
 		TEXT("PinkCurve"),
+		TEXT("OrangePoint"),
+		TEXT("OrangeCurve"),
 		nullptr
 	};
+
+
 }

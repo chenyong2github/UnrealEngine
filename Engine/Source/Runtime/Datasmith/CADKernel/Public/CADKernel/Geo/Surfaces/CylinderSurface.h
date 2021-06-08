@@ -35,6 +35,22 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
+		virtual void SetMinToleranceIso() const override
+		{
+			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
+
+			FPoint Point2DU { 1 , 0, 0 };
+			double ToleranceU = Tolerance3D / Radius;
+
+			double ScaleU = ComputeScaleAlongAxis(Point2DU, Matrix, Origin);
+			ToleranceU /= ScaleU;
+
+			FPoint Point2DV{ 0, 1, 0 };
+			double ToleranceV = Tolerance3D / ComputeScaleAlongAxis(Point2DV, Matrix, Origin);
+
+			MinToleranceIso.Set(ToleranceU, ToleranceV);
+		}
+
 	public:
 
 		virtual void Serialize(FCADKernelArchive& Ar) override

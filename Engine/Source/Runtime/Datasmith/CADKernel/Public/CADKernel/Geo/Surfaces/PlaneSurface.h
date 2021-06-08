@@ -19,15 +19,15 @@ namespace CADKernel
 		 * The plane surface is the plane XY.
 		 * The surface is placed at its final position and orientation by the Matrix
 		 */
-		FPlaneSurface(const double InToleranceGeometric, const FMatrixH& InMatrix);
+		FPlaneSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const FSurfacicBoundary& InBoundary);
 
 		/**
 		 * The plane surface is the plane XY.
 		 * The surface is placed at its final position and orientation by the Matrix,
 		 * The matrix is calculated from the normal plane at its final position and its distance from the origin along the normal.
 		 */
-		FPlaneSurface(const double InToleranceGeometric, double DistanceFromOrigin, FPoint Normal)
-			: FPlaneSurface(InToleranceGeometric, Normal* DistanceFromOrigin, Normal)
+		FPlaneSurface(const double InToleranceGeometric, double InDistanceFromOrigin, FPoint InNormal, const FSurfacicBoundary& InBoundary)
+			: FPlaneSurface(InToleranceGeometric, InNormal* InDistanceFromOrigin, InNormal, InBoundary)
 		{
 		}
 
@@ -36,7 +36,7 @@ namespace CADKernel
 		 * The surface is placed at its final position and orientation by the Matrix 
 		 * The matrix is calculated from the plan origine at its final position and its final normal
 		 */
-		FPlaneSurface(const double InToleranceGeometric, const FPoint& Position, FPoint Normal);
+		FPlaneSurface(const double InToleranceGeometric, const FPoint& Position, FPoint Normal, const FSurfacicBoundary& InBoundary);
 
 		FPlaneSurface(FCADKernelArchive& Archive)
 			: FSurface()
@@ -44,6 +44,18 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 		
+		virtual void SetMinToleranceIso() const override
+		{
+			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
+
+			FPoint Point2DU{ 1 , 0, 0 };
+			FPoint Point2DV{ 0, 1, 0 };
+
+			double ToleranceU = Tolerance3D / ComputeScaleAlongAxis(Point2DU, Matrix, Origin);
+			double ToleranceV = Tolerance3D / ComputeScaleAlongAxis(Point2DV, Matrix, Origin);
+
+			MinToleranceIso.Set(ToleranceU, ToleranceV);
+		}
 
 	public:
 
@@ -97,9 +109,6 @@ namespace CADKernel
 			bOutClosedAlongU = false;
 			bOutClosedAlongV = false;
 		}
-
-	private:
-		virtual const void ComputeIsoTolerances() const override;
 
 	};
 

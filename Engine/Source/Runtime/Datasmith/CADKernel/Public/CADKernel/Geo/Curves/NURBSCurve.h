@@ -28,9 +28,10 @@ namespace CADKernel
 		TArray<double> HomogeneousPoles;
 		int32 PoleDimension;
 
-		FNURBSCurve(const double InTolerance, int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension = 3);
-		FNURBSCurve(const double InTolerance, int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension = 3);
-		
+		FNURBSCurve(int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension = 3);
+		FNURBSCurve(int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension = 3);
+		FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs);
+
 		FNURBSCurve(FCADKernelArchive& Archive)
 			: FCurve()
 		{
@@ -43,9 +44,10 @@ namespace CADKernel
 		{
 			FCurve::Serialize(Ar);
 			Ar << Degree;
-			Ar << NodalVector;
-			Ar << Weights;
-			Ar << Poles;
+			Ar.Serialize(NodalVector);
+			Ar.Serialize(Weights);
+			Ar.Serialize(Poles);
+			Ar << bIsRational;
 
 			if (Ar.IsLoading())
 			{
@@ -114,7 +116,10 @@ namespace CADKernel
 			BSpline::FindNotDerivableParameters(*this, DerivativeOrder, InBoundary, OutNotDerivableCoordinates);
 		}
 
-		virtual void ExtendTo(const FPoint& Point) override;
+		virtual void ExtendTo(const FPoint& DesiredPosition) override;
+
+		void Invert();
+		void SetStartNodalCoordinate(double NewStartBoundary);
 
 	private:
 

@@ -14,8 +14,8 @@ namespace CADKernel
 
 		TSharedPtr<FCurve> Curve;
 
-		FBoundedCurve(const double InTolerance, TSharedRef<FCurve> InCurve, const FLinearBoundary& InBoundary, int8 InDimension)
-			: FCurve(InTolerance, InBoundary, InDimension)
+		FBoundedCurve(TSharedRef<FCurve> InCurve, const FLinearBoundary& InBoundary, int8 InDimension)
+			: FCurve(InBoundary, InDimension)
 			, Curve(InCurve)
 		{
 		}

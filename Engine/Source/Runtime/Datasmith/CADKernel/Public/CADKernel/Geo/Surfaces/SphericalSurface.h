@@ -31,6 +31,7 @@ namespace CADKernel
 			, Matrix(InMatrix)
 			, Radius(InRadius)
 		{
+			SetMinToleranceIso();
 		}
 
 		FSphericalSurface(FCADKernelArchive& Archive)
@@ -39,6 +40,21 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
+		virtual void SetMinToleranceIso() const override
+		{
+			double Tolerance2D = Tolerance3D / Radius;
+
+			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
+
+			FPoint Point2DU{ 1 , 0, 0 };
+			FPoint Point2DV{ 0, 1, 0 };
+
+			double ToleranceU = Tolerance2D / ComputeScaleAlongAxis(Point2DU, Matrix, Origin);
+			double ToleranceV = Tolerance2D / ComputeScaleAlongAxis(Point2DV, Matrix, Origin);
+
+			MinToleranceIso.Set(ToleranceU, ToleranceV);
+		}
+	
 	public:
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
@@ -67,6 +83,5 @@ namespace CADKernel
 			PresampleIsoCircle(InBoundaries, OutCoordinates, EIso::IsoU);
 			PresampleIsoCircle(InBoundaries, OutCoordinates, EIso::IsoV);
 		}
-
 	};
 }

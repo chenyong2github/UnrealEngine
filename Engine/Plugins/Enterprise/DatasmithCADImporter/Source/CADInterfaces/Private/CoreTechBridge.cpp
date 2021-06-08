@@ -85,11 +85,23 @@ using namespace CADKernel;
 FCoreTechBridge::FCoreTechBridge(TSharedRef<FSession>& InSession)
 	: Session(InSession)
 	, GeometricTolerance(Session->GetGeometricTolerance())
+	, SquareGeometricTolerance(FMath::Square(Session->GetGeometricTolerance()))
+	, SquareJoiningVertexTolerance(SquareGeometricTolerance * 2)
 {
 }
 
 TSharedRef<FBody> FCoreTechBridge::AddBody(CT_OBJECT_ID CTBodyId)
 {
+	TSharedPtr<FEntity>* EntityPtr = CTIdToEntity.Find((uint32)CTBodyId);
+	if (EntityPtr)
+	{
+		TSharedPtr<FBody> Body = StaticCastSharedPtr<FBody>(*EntityPtr);
+		if (Body.IsValid())
+		{
+			return Body.ToSharedRef();
+		}
+	}
+
 	TSharedRef<FBody> Body = FEntity::MakeShared<FBody>();
 
 	AddMetadata(CTBodyId, Body);
@@ -99,6 +111,25 @@ TSharedRef<FBody> FCoreTechBridge::AddBody(CT_OBJECT_ID CTBodyId)
 #endif
 
 	CTIdToEntity.Add((const uint32)CTBodyId, Body);
+
+#ifdef CORETECHBRIDGE_DEBUG_AABB
+	{
+		// Compute Body BBox based on CAD data
+		uint32 VerticesSize;
+		CT_BODY_IO::AskVerticesSizeArray(CTBodyId, VerticesSize);
+
+		FAABB BBox;
+		TArray<CT_COORDINATE> VerticesArray;
+		VerticesArray.SetNum(VerticesSize);
+		CT_BODY_IO::AskVerticesArray(CTBodyId, VerticesArray.GetData());
+		for (const CT_COORDINATE& Point : VerticesArray)
+		{
+			BBox += Point.xyz;
+		}
+		F3DDebugSession BBoxSession(FString::Printf(TEXT("CTBody %d"), CTBodyId));
+		DisplayAABB(BBox, (FIdent)CTBodyId);
+	}
+#endif
 
 	CT_LIST_IO CTShellIds;
 	CT_BODY_IO::AskShells(CTBodyId, CTShellIds);
@@ -136,25 +167,36 @@ void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 	CT_OBJECT_ID CTSurfaceId;
 	CT_ORIENTATION CTOrientation;
 	CT_IO_ERROR Return = CT_FACE_IO::AskSurface(CTFaceId, CTSurfaceId, CTOrientation);
+
 	if (Return != IO_OK || CTSurfaceId <= 0)
 	{
-		FMessage::Printf(Log, TEXT("The CTFace %d has invalid carrier surface, this face is ignored"), CTFaceId);
+		FMessage::Printf(Log, TEXT("The CTFace %d has invalid carrier surface, this face is ignored\n"), CTFaceId);
 		return;
 	}
 
 	TSharedPtr<FSurface> SurfacePtr = AddSurface(CTSurfaceId, FaceBoundary);
 	if (!SurfacePtr.IsValid())
 	{
-		FMessage::Printf(Log, TEXT("The CTFace %d has invalid carrier surface, this face is ignored"), CTFaceId);
+		FMessage::Printf(Log, TEXT("The CTFace %d has invalid carrier surface, this face is ignored\n"), CTFaceId);
 		return;
 	}
 
 	TSharedRef<FSurface> Surface = SurfacePtr.ToSharedRef();
 
+#ifdef CADKERNEL_DEV
+	const FSurfacicTolerance& Tolerance = Surface->GetIsoTolerances();
+	if (Tolerance[0] < SMALL_NUMBER || Tolerance[1] < SMALL_NUMBER)
+	{
+		FMessage::Printf(Log, TEXT("KIO Surface %d (of Body) has surfacic tolerance probleme: %f %f\n"), CTFaceId, Tolerance[0], Tolerance[1]);
+		return;
+	}
+  	ensureCADKernel(Tolerance[0] > SMALL_NUMBER && Tolerance[1] > SMALL_NUMBER);
+#endif
+
 	const FSurfacicBoundary& SurfaceBounds = Surface->GetBoundary();
 	if (SurfaceBounds.IsDegenerated())
 	{
-		FMessage::Printf(Log, TEXT("The CTFace %d has degenerated carrier surface, this face is ignored ([%f, %f], [%f, %f])"), CTFaceId, SurfaceBounds.UVBoundaries[EIso::IsoU].Min, SurfaceBounds.UVBoundaries[EIso::IsoU].Max, SurfaceBounds.UVBoundaries[EIso::IsoV].Min, SurfaceBounds.UVBoundaries[EIso::IsoV].Max);
+		FMessage::Printf(Log, TEXT("The CTFace %d has degenerated carrier surface, this face is ignored ([%f, %f], [%f, %f])\n"), CTFaceId, SurfaceBounds.UVBoundaries[EIso::IsoU].Min, SurfaceBounds.UVBoundaries[EIso::IsoU].Max, SurfaceBounds.UVBoundaries[EIso::IsoV].Min, SurfaceBounds.UVBoundaries[EIso::IsoV].Max);
 		return;
 	}
 
@@ -162,7 +204,7 @@ void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 	Return = CT_FACE_IO::AskLoops(CTFaceId, CTLoopIds);
 	if (Return != IO_OK)
 	{
-		FMessage::Printf(Log, TEXT("The CTFace %d has problem to get its loops, this face is ignored"), CTFaceId);
+		FMessage::Printf(Log, TEXT("The CTFace %d has problem to get its loops, this face is ignored\n"), CTFaceId);
 		return;
 	}
 
@@ -204,7 +246,7 @@ void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 
 	if (Loops.Num() == 0)
 	{
-		FMessage::Printf(Log, TEXT("The CTFace %d is degenerate, this face is ignored"), CTFaceId);
+		FMessage::Printf(Log, TEXT("The CTFace %d is degenerate, this face is ignored\n"), CTFaceId);
 		return;
 	}
 
@@ -213,7 +255,7 @@ void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 	Face->SetPatchId((int32) CTFaceId);
 
 #ifdef CORETECHBRIDGE_DEBUG
-	Face->CtKioId = (FIdent) CTFaceId;
+	Face->CtKioId = (FIdent)CTFaceId;
 #endif
 
 	Face->AddLoops(Loops);
@@ -260,7 +302,7 @@ TSharedPtr<FTopologicalLoop> FCoreTechBridge::AddLoop(CT_OBJECT_ID CTLoopId, TSh
 		return TSharedPtr<FTopologicalLoop>();
 	}
 
-	return FTopologicalLoop::Make(Edges, Directions);
+	return FTopologicalLoop::Make(Edges, Directions, GeometricTolerance);
 }
 
 TSharedPtr<FTopologicalEdge> FCoreTechBridge::AddEdge(CT_OBJECT_ID CTCoedgeId, TSharedRef<FSurface>& Surface)
@@ -315,11 +357,11 @@ TSharedPtr<FTopologicalEdge> FCoreTechBridge::AddEdge(CT_OBJECT_ID CTCoedgeId, T
 	TSharedPtr<FCurve> Curve;
 	if (PoleDim == 2)
 	{
-		Curve = FEntity::MakeShared<FNURBSCurve>(Surface->Get2DTolerance(), Degre, Knots, Poles, 2);
+		Curve = FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, 2);
 	}
 	else
 	{
-		Curve = FEntity::MakeShared<FNURBSCurve>(Surface->Get2DTolerance(), Degre, Knots, Poles, Weights, 2);
+		Curve = FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, Weights, 2);
 	}
 
 	if (!Curve.IsValid())
@@ -327,7 +369,7 @@ TSharedPtr<FTopologicalEdge> FCoreTechBridge::AddEdge(CT_OBJECT_ID CTCoedgeId, T
 		return TSharedPtr<FTopologicalEdge>();
 	}
 
-	TSharedRef<FRestrictionCurve> RestrictionCurve = FEntity::MakeShared<FRestrictionCurve>(GeometricTolerance, Surface, Curve.ToSharedRef());
+	TSharedRef<FRestrictionCurve> RestrictionCurve = FEntity::MakeShared<FRestrictionCurve>(Surface, Curve.ToSharedRef());
 	TSharedPtr<FTopologicalEdge> Edge = FTopologicalEdge::Make(RestrictionCurve);
 	if (!Edge.IsValid())
 	{
@@ -348,7 +390,7 @@ TSharedPtr<FTopologicalEdge> FCoreTechBridge::AddEdge(CT_OBJECT_ID CTCoedgeId, T
 		TSharedPtr<FEntity>* TwinEdge = CTIdToEntity.Find((uint32)CTConnectedCoedgeId);
 		if (TwinEdge != nullptr)
 		{
-			Edge->Link(StaticCastSharedRef<FTopologicalEdge>(TwinEdge->ToSharedRef()));
+			Edge->Link(StaticCastSharedRef<FTopologicalEdge>(TwinEdge->ToSharedRef()), SquareJoiningVertexTolerance);
 		}
 	}
 	return Edge;
@@ -369,7 +411,7 @@ TSharedPtr<FSurface> FCoreTechBridge::AddSurface(CT_OBJECT_ID CTSurfaceId, const
 	switch (CTSurfaceType)
 	{
 	case CT_PLANE_TYPE:
-		Surface = AddPlaneSurface(CTSurfaceId);
+		Surface = AddPlaneSurface(CTSurfaceId, Boundary);
 		break;
 	case CT_S_NURBS_TYPE:
 		Surface = AddNurbsSurface(CTSurfaceId);
@@ -546,7 +588,7 @@ TSharedPtr<FSurface> FCoreTechBridge::AddOffsetSurface(CT_OBJECT_ID CTSurfaceID,
 TSharedPtr<FSurface> FCoreTechBridge::AddLinearTransfoSurface(CT_OBJECT_ID CTSurfaceId)
 {
 	ensureCADKernel(false);
-	FMessage::Printf(Log, TEXT("The CTSurface %d is a linear transform surface, this face is ignored"), CTSurfaceId);
+	FMessage::Printf(Log, TEXT("The CTSurface %d is a linear transform surface, this face is ignored\n"), CTSurfaceId);
 	return TSharedPtr<FSurface>();
 
 	CT_OBJECT_ID CTBaseSurfaceId;
@@ -588,7 +630,7 @@ TSharedPtr<FSurface> FCoreTechBridge::AddConeSurface(CT_OBJECT_ID CTSurfaceId, c
 	return FEntity::MakeShared<FConeSurface>(GeometricTolerance, CoordinateSystem, Radius, HalfAngle, StartRuleLength, EndRuleLength, StartAngle, EndAngle);
 }
 
-TSharedPtr<FSurface> FCoreTechBridge::AddPlaneSurface(CT_OBJECT_ID CTSurfaceId)
+TSharedPtr<FSurface> FCoreTechBridge::AddPlaneSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Normal;
@@ -597,7 +639,7 @@ TSharedPtr<FSurface> FCoreTechBridge::AddPlaneSurface(CT_OBJECT_ID CTSurfaceId)
 
 	FMatrixH CoordinateSystem = CreateCoordinateSystem(Origin, Normal, UReference);
 
-	return FEntity::MakeShared<FPlaneSurface>(GeometricTolerance, CoordinateSystem);
+	return FEntity::MakeShared<FPlaneSurface>(GeometricTolerance, CoordinateSystem, InBoundary);
 }
 
 TSharedPtr<FSurface> FCoreTechBridge::AddCylinderSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
@@ -638,7 +680,7 @@ TSharedPtr<FSurface> FCoreTechBridge::AddRevolutionSurface(CT_OBJECT_ID CTSurfac
 		Point1[i] = Origin.xyz[i];
 		Point2[i] = Origin.xyz[i] + Direction.xyz[i];
 	}
-	TSharedRef<FSegmentCurve> Axe = FEntity::MakeShared<FSegmentCurve>(GeometricTolerance, Point1, Point2);
+	TSharedRef<FSegmentCurve> Axe = FEntity::MakeShared<FSegmentCurve>(Point1, Point2);
 
 	double MinAngle = Boundary.IsValid() ? Boundary.UVBoundaries[EIso::IsoV].Min : 0.0;
 	double MaxAngle = Boundary.IsValid() ? Boundary.UVBoundaries[EIso::IsoV].Max : 2.0 * PI;
@@ -744,10 +786,10 @@ TSharedPtr<FCurve> FCoreTechBridge::AddNurbsCurve(CT_OBJECT_ID CTCurveId)
 		{
 			Weights[IPole] = RawPoles[Index];
 		}
-		return FEntity::MakeShared<FNURBSCurve>(GeometricTolerance, Degre, Knots, Poles, Weights);
+		return FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, Weights);
 	}
 
-	return FEntity::MakeShared<FNURBSCurve>(GeometricTolerance, Degre, Knots, Poles);
+	return FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles);
 }
 
 TSharedPtr<FCurve> FCoreTechBridge::AddLineCurve(CT_OBJECT_ID CTCurveId, CT_OBJECT_ID CTSurfaceId)
@@ -783,7 +825,7 @@ TSharedPtr<FCurve> FCoreTechBridge::AddLineCurve(CT_OBJECT_ID CTCurveId, CT_OBJE
 		Point2[0] = (Point2[0] - TMin) / (TMax - TMin);
 	}
 
-	return FEntity::MakeShared<FSegmentCurve>(GeometricTolerance, Point1, Point2, 3);
+	return FEntity::MakeShared<FSegmentCurve>(Point1, Point2, 3);
 }
 
 TSharedPtr<FCurve> FCoreTechBridge::AddCompositeCurve(CT_OBJECT_ID CTCurveId)
@@ -806,12 +848,12 @@ TSharedPtr<FCurve> FCoreTechBridge::AddCompositeCurve(CT_OBJECT_ID CTCurveId)
 		}
 		else
 		{
-			FMessage::Printf(Log, TEXT("The CT Composite curve %d has an invalid curve, this curve is ignored"), CTCurveId);
+			FMessage::Printf(Log, TEXT("The CT Composite curve %d has an invalid curve, this curve is ignored\n"), CTCurveId);
 			return TSharedPtr<FCurve>();
 		}
 	}
 
-	return FEntity::MakeShared<FCompositeCurve>(GeometricTolerance, Curves);
+	return FEntity::MakeShared<FCompositeCurve>(Curves);
 }
 
 TSharedPtr<FCurve> FCoreTechBridge::AddCircleCurve(CT_OBJECT_ID CTCurveId)
@@ -830,7 +872,7 @@ TSharedPtr<FCurve> FCoreTechBridge::AddCircleCurve(CT_OBJECT_ID CTCurveId)
 	{
 		EndAngle = 2.0 * PI;
 	}
-	return FEntity::MakeShared<FEllipseCurve>(GeometricTolerance, CoordinateSystem, Radius, Radius, FLinearBoundary(StartAngle, EndAngle));
+	return FEntity::MakeShared<FEllipseCurve>(CoordinateSystem, Radius, Radius, FLinearBoundary(StartAngle, EndAngle));
 }
 
 TSharedPtr<FCurve> FCoreTechBridge::AddParabolaCurve(CT_OBJECT_ID CTCurveId)
@@ -846,7 +888,7 @@ TSharedPtr<FCurve> FCoreTechBridge::AddParabolaCurve(CT_OBJECT_ID CTCurveId)
 
 	FMatrixH CoordinateSystem = CreateCoordinateSystem(Origin, Direction, UReference);
 
-	return FEntity::MakeShared<FParabolaCurve>(GeometricTolerance, CoordinateSystem, Focal, FLinearBoundary(StartAlpha, EndAlpha), 3);
+	return FEntity::MakeShared<FParabolaCurve>(CoordinateSystem, Focal, FLinearBoundary(StartAlpha, EndAlpha), 3);
 }
 
 TSharedPtr<FCurve> FCoreTechBridge::AddEllipseCurve(CT_OBJECT_ID CTCurveId)
@@ -864,7 +906,7 @@ TSharedPtr<FCurve> FCoreTechBridge::AddEllipseCurve(CT_OBJECT_ID CTCurveId)
 		StartAlpha *= -1.;
 	}
 
-	return  FEntity::MakeShared<FEllipseCurve>(GeometricTolerance, CoordinateSystem, Radius1, Radius2, FLinearBoundary(StartAlpha, EndAlpha));
+	return  FEntity::MakeShared<FEllipseCurve>(CoordinateSystem, Radius1, Radius2, FLinearBoundary(StartAlpha, EndAlpha));
 }
 
 TSharedPtr<FCurve> FCoreTechBridge::AddCurveOnSurface(CT_OBJECT_ID CTCurveId)
@@ -924,7 +966,7 @@ TSharedPtr<FCurve> FCoreTechBridge::AddCurveOnSurface(CT_OBJECT_ID CTCurveId)
 	}
 #endif
 
-	return FEntity::MakeShared<FSurfacicCurve>(GeometricTolerance, Curve2D.ToSharedRef(), Surface.ToSharedRef());
+	return FEntity::MakeShared<FSurfacicCurve>(Curve2D.ToSharedRef(), Surface.ToSharedRef());
 }
 
 TSharedPtr<FCurve> FCoreTechBridge::AddHyperbolaCurve(CT_OBJECT_ID CTCurveId)
@@ -941,7 +983,7 @@ TSharedPtr<FCurve> FCoreTechBridge::AddHyperbolaCurve(CT_OBJECT_ID CTCurveId)
 
 	FMatrixH CoordinateSystem = CreateCoordinateSystem(Origin, Direction, UReference);
 
-	return FEntity::MakeShared<FHyperbolaCurve>(GeometricTolerance, CoordinateSystem, HalfAxis1, HalfAxis2, FLinearBoundary(StartAlpha, EndAlpha));
+	return FEntity::MakeShared<FHyperbolaCurve>(CoordinateSystem, HalfAxis1, HalfAxis2, FLinearBoundary(StartAlpha, EndAlpha));
 }
 
 FMatrixH FCoreTechBridge::CreateCoordinateSystem(const CT_COORDINATE& InOrigin, const CT_VECTOR& InDirection, const CT_VECTOR& InUReference)
@@ -1031,9 +1073,7 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 	CT_UINT32 IthAttrib = 0;
 	while (CT_OBJECT_IO::SearchAttribute(CTNodeId, CT_ATTRIB_ALL, IthAttrib++) == IO_OK)
 	{
-		// Get the current attribute type
 		CT_ATTRIB_TYPE       AttributeType;
-
 		if (CT_CURRENT_ATTRIB_IO::AskAttributeType(AttributeType) != IO_OK)
 		{
 			continue;
@@ -1043,16 +1083,19 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 		{
 		case CT_ATTRIB_NAME:
 		{
-			CT_STR NameStrValue;
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, NameStrValue) == IO_OK)
+			if (Entity->GetName() == nullptr) // otherwise the name has been set with ORIGINAL_NAME that is prefered in all case
 			{
-				Entity->SetName(AsFString(NameStrValue));
+				CT_STR NameStrValue;
+				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, NameStrValue) == IO_OK)
+				{
+					Entity->SetName(AsFString(NameStrValue));
+				}
+				break;
 			}
-			break;
 		}
 
 		case CT_ATTRIB_ORIGINAL_NAME:
-		{
+			{
 			CT_STR NameStrValue;
 			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, NameStrValue) == IO_OK)
 			{
@@ -1094,7 +1137,6 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 			uint32 ColorHId = CADLibrary::BuildColorId(ColorId, Alpha);
 			Entity->SetColorId(ColorHId);
 		}
-		break;
 
 		case CT_ATTRIB_MATERIALID:
 		{
@@ -1108,8 +1150,8 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 
 		default:
 			break;
-		}
-	}
-}
+			}
+			}
+			}
 
 #endif // USE_KERNEL_IO_SDK

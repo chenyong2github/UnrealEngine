@@ -34,6 +34,8 @@ namespace CADKernel
 		GreenCurve,				
 		PinkPoint,
 		PinkCurve,
+		OrangePoint,
+		OrangeCurve,
 		Last,
 	} ;
 

@@ -302,6 +302,38 @@ namespace CADKernel
 			return FPoint::ZeroPoint;
 		}
 
+		/**
+		 * Check if the segment starting from this loop node (S) to EndSegmentCoordinate (E) is inside the face
+		 * Warning, inner loops (loop index > 0) are not in the same orientation than outer loop
+		 *
+		 * Inside e.g.:
+		 *    X---------------X----------------X        X------------------X-----------X
+		 *    |                                |        |                              |
+		 *    |         X-----------------X    |        |            X-------------X   |
+		 *    |         |                 |    |        |            |             |   |
+		 *    X   E-----S                 |    |    or  S---------E  |             |   |
+		 *    |         |                 |    |        |            |             |   |
+		 *    |         X-----------------X    |        |            X-------------X   |
+		 *    |                                |        |                              |
+		 *    X---------------X----------------X        X------------------X-----------X
+		 *
+		 * Outside e.g.:
+		 *    X---------------X----------------X        X------------------X-----------X
+		 *    |                                |        |                              |
+		 *    |         X-----------------X    |        |            X-------------X   |
+		 *    |         |                 |    |        |            |             |   |
+		 *    |         S------E          |    |    or  |            |             |   S------E
+		 *    |         |                 |    |        |            |             |   |
+		 *    |         X-----------------X    |        |            X-------------X   |
+		 *    |                                |        |                              |
+		 *    X---------------X----------------X        X------------------X-----------X
+		 */
+		bool IsSegmentBeInsideFace(const FPoint2D& EndSegmentCoordinate, const FGrid& Grid, const double FlatAngle)
+		{
+			//bool bIsOuterLoop = (GetLoopIndex() == 0);
+			return (/*bIsOuterLoop  == */!IsPointPBeInsideSectorABC(GetPreviousNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Get2DPoint(EGridSpace::UniformScaled, Grid), GetNextNode().Get2DPoint(EGridSpace::UniformScaled, Grid), EndSegmentCoordinate, FlatAngle));
+		}
+
 		void SetAsIsoU()
 		{
 			States |= EIsoNodeStates::NearlyIsoU;

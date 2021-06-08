@@ -10,7 +10,7 @@ TSharedPtr<FEntityGeom> FSegmentCurve::ApplyMatrix(const FMatrixH& InMatrix) con
 	FPoint TransformedStartPoint = InMatrix.Multiply(StartPoint);
 	FPoint TransformedEndPoint = InMatrix.Multiply(EndPoint);
 
-	return FEntity::MakeShared<FSegmentCurve>(Tolerance, TransformedStartPoint, TransformedEndPoint, Dimension);
+	return FEntity::MakeShared<FSegmentCurve>(TransformedStartPoint, TransformedEndPoint, Dimension);
 }
 
 #ifdef CADKERNEL_DEV

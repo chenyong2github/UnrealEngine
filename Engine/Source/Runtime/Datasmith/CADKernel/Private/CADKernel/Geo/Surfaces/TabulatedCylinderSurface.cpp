@@ -93,7 +93,7 @@ void FTabulatedCylinderSurface::EvaluatePointGrid(const FCoordinateGrid& Coordin
 
 void FTabulatedCylinderSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
 {
-	GuideCurve->Presample(Coordinates[EIso::IsoU]);
+	GuideCurve->Presample(Coordinates[EIso::IsoU], Tolerance3D);
 
 	Coordinates[EIso::IsoV].Empty(3);
 	Coordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Min);

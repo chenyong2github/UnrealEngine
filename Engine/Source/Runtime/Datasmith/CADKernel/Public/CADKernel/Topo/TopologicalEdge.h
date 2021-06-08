@@ -13,6 +13,8 @@ namespace CADKernel
 {
 	typedef TTopologicalLink<FTopologicalEdge> FEdgeLink;
 
+	class FOrientedEdge;
+
 	enum ECoordinateType : uint8
 	{
 		VertexCoordinate,
@@ -32,6 +34,7 @@ namespace CADKernel
 
 	class FModelMesh;
 	class FRestrictionCurve;
+	class FSurface;
 	class FTopologicalLoop;
 	class FTopologicalVertex;
 
@@ -87,12 +90,14 @@ namespace CADKernel
 	private:
 
 		/**
-		 * Constructors of FEdge cannot be used directly,use FEdge::Make to create an FEdge object.
+		 * MANDATORY
+		 * Constructors of FEdge cannot be used directly, use FEdge::Make to create an FEdge object.
 		 */
 		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve, const TSharedRef<FTopologicalVertex>& InVertex1, const TSharedRef<FTopologicalVertex>& InVertex2, const FLinearBoundary& InBoundary);
 		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve, const TSharedRef<FTopologicalVertex>& InVertex1, const TSharedRef<FTopologicalVertex>& InVertex2);
 		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve, const FLinearBoundary& InBoundary);
 		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve);
+		FTopologicalEdge(const TSharedRef<FSurface>& InSurface, const FPoint2D& InCoordinateVertex1, const TSharedRef<FTopologicalVertex>& InVertex1, const FPoint2D& InCoordinateVertex2, const TSharedRef<FTopologicalVertex>& InVertex2);
 
 		FTopologicalEdge(FCADKernelArchive& Archive)
 			: TLinkable<FTopologicalEdge, FEdgeLink>()
@@ -100,12 +105,12 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
-		void SetBoundary(const TSharedRef<FTopologicalLoop>& NewBoundary)
+		void SetLoop(const TSharedRef<FTopologicalLoop>& NewBoundary)
 		{
 			Loop = NewBoundary;
 		}
 
-		void RemoveBoundary()
+		void RemoveLoop()
 		{
 			Loop.Reset();
 		}
@@ -124,6 +129,7 @@ namespace CADKernel
 		static TSharedPtr<FTopologicalEdge> Make(const TSharedRef<FRestrictionCurve>& InCurve, const TSharedRef<FTopologicalVertex>& InVertex1, const TSharedRef<FTopologicalVertex>& InVertex2);
 		static TSharedPtr<FTopologicalEdge> Make(const TSharedRef<FRestrictionCurve>& InCurve, const FLinearBoundary& InBoundary);
 		static TSharedPtr<FTopologicalEdge> Make(const TSharedRef<FRestrictionCurve>& InCurve);
+		static TSharedPtr<FTopologicalEdge> Make(const TSharedRef<FSurface>& InSurface, const FPoint2D& InCoordinateVertex1, const TSharedRef<FTopologicalVertex>& InVertex1, const FPoint2D& InCoordinateVertex2, const TSharedRef<FTopologicalVertex>& InVertex2);
 
 		virtual ~FTopologicalEdge() = default;
 
@@ -175,7 +181,7 @@ namespace CADKernel
 		 */
 		bool CheckIfDegenerated();
 
-		void Link(const TSharedRef<FTopologicalEdge>& OtherEdge);
+		void Link(const TSharedRef<FTopologicalEdge>& OtherEdge, double JoiningTolerance);
 
 		TSharedRef<const FTopologicalEdge> GetLinkActiveEdge() const
 		{
@@ -279,12 +285,12 @@ namespace CADKernel
 			return EndVertex.ToSharedRef();
 		}
 
-		TSharedPtr<FTopologicalVertex> GetOtherVertex(const TSharedRef<FTopologicalVertex>& Vertex) const
+		TSharedPtr<FTopologicalVertex> GetOtherVertex(const TSharedRef<FTopologicalVertex>& Vertex)
 		{
 			return (Vertex->GetLink() == StartVertex->GetLink() ? EndVertex : (Vertex->GetLink() == EndVertex->GetLink() ? StartVertex : TSharedPtr<FTopologicalVertex>()));
 		}
 
-		TSharedPtr<FTopologicalVertex> GetOtherVertex(const TSharedRef<const FTopologicalVertex>& Vertex) const
+		const TSharedPtr<FTopologicalVertex> GetOtherVertex(const TSharedRef<FTopologicalVertex>& Vertex) const
 		{
 			return (Vertex->GetLink() == StartVertex->GetLink() ? EndVertex : (Vertex->GetLink() == EndVertex->GetLink() ? StartVertex : TSharedPtr<FTopologicalVertex>()));
 		}
@@ -351,6 +357,8 @@ namespace CADKernel
 		{
 			return EndVertex->GetCoordinates();
 		}
+
+
 
 		void GetTangentsAtExtremities(FPoint& StartTangent, FPoint& EndTangent, bool bForward) const;
 
@@ -512,10 +520,27 @@ namespace CADKernel
 			Curve->ApproximatePolyline(Polyline);
 		}
 
+		FPoint GetTangentAt(const double InCoordinate) const
+		{
+			return Curve->GetTangentAt(InCoordinate);
+		}
+
+		FPoint2D GetTangent2DAt(const double InCoordinate) const
+		{
+			return Curve->GetTangent2DAt(InCoordinate);
+		}
+
 		/**
-		 * Project Point on the 3D polyline and return the coordinate of the projected point
+		 * Return the tangent at the input vertex
 		 */
-		double ProjectPoint(const FPoint& InPointToProject, FPoint& OutProjectedPoint) const
+		FPoint GetTangentAt(const TSharedRef<FTopologicalVertex>& InVertex);
+		FPoint2D GetTangent2DAt(const TSharedRef<FTopologicalVertex>& InVertex);
+
+		/**
+		 * Project Point (2D or 3D) on the polyline (2D or 3D) and return the coordinate of the projected point
+		 */
+		template<class PointType>
+		double ProjectPoint(const PointType& InPointToProject, PointType& OutProjectedPoint) const
 		{
 			return Curve->GetCoordinateOfProjectedPoint(Boundary, InPointToProject, OutProjectedPoint);
 		}
@@ -561,6 +586,29 @@ namespace CADKernel
 		 */
 		void ComputeEdge2DProperties(FEdge2DProperties& SlopCharacteristics);
 
+		void GetExtremities(FSurfacicCurveExtremity& Extremities) const
+		{
+			Curve->GetExtremities(Boundary, Extremities);
+		}
+
+
+		// ======   Geometrical Functions   ======
+
+		/**
+		 * Split the edge at input coordinate. The initial edge will be used for the first edge, the second edge will be return.
+		 * @param SplittingCoordinate
+		 * @param NewVertexCoordinate
+		 * @param bKeepStartVertexConnectivity: if true the new edge is connected to endVertex, otherwise the new edge is connected to start vertex
+		 * @param OutNewEdge, the second edge
+		 */
+		TSharedPtr<FTopologicalVertex> SplitAt(double SplittingCoordinate, const FPoint& NewVertexCoordinate, bool bKeepStartVertexConnectivity, TSharedPtr<FTopologicalEdge>& OutNewEdge);
+
+		/**
+		 * Extend the Edge to the NewVertex. 
+		 * NewVertex become the new extremity of the edge. The old vertex is unconnected of the edge.
+		 */
+		bool ExtendTo(bool bStartExtremity, const FPoint2D& NewExtremityCoordinate, TSharedRef<FTopologicalVertex> NewVertex);
+
 		// ======   State Functions   ======
 
 		/**
@@ -571,6 +619,16 @@ namespace CADKernel
 		{
 			return FHaveStates::IsDegenerated();
 		}
+
+		virtual void SetAsDegenerated() const override
+		{
+			if (TopologicalLink.IsValid())
+			{
+				printf("WTF");
+			}
+			return FHaveStates::SetAsDegenerated();
+		}
+
 
 		bool IsThinPeak() const
 		{
@@ -595,7 +653,13 @@ namespace CADKernel
 			return GetTwinsEntityCount() == 1;
 		}
 
-		static TSharedPtr<FTopologicalEdge> CreateEdgeToMerge2Edges(const TArray<TWeakPtr<FTopologicalEdge>>& Edges, const TArray<EOrientation>& edgeDirections);
+		/**
+		 * Merge successive edges of a face in a single edge.
+		 * Edges must not be topological linked to other faces i.e. edges must be border edges
+		 * The merged edges are deleted
+		 * @return TSharedPtr<FTopologicalEdge>() if failed
+		 */
+		static TSharedPtr<FTopologicalEdge> CreateEdgeByMergingEdges(TArray<FOrientedEdge>& Edges, const TSharedRef<FTopologicalVertex> StartVertex, const TSharedRef<FTopologicalVertex> EndVertex);
 	};
 
 	struct CADKERNEL_API FEdge2DProperties

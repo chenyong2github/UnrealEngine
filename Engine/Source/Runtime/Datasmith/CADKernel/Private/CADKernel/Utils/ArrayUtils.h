@@ -198,5 +198,27 @@ namespace CADKernel
 				OutArray.Add(Value);
 			}
 		}
+
+		/**
+		 * Find the index of the segment containing the coordinate i.e. Coordinate is in [InCoordinates[OutIndex], InCoordinates[OutIndex+1]]
+		 * This method is very fast if initial value of Index is near the solution.
+		 * This is very useful to process linked set of coordinate like loop point coordinates.
+		 */
+		inline void FindCoordinateIndex(const TArray<double>& InCoordinates, double Coordinate, int32& OutIndex)
+		{
+			ensureCADKernel(InCoordinates.IsValidIndex(OutIndex));
+
+			while (Coordinate < InCoordinates[OutIndex] && OutIndex > 0)
+			{
+				OutIndex--;
+			}
+
+			for (; OutIndex + 2 < InCoordinates.Num() && Coordinate > InCoordinates[OutIndex + 1]; ++OutIndex)
+			{
+			}
+
+			ensureCADKernel(InCoordinates.IsValidIndex(OutIndex));
+		};
+
 	};
 }

@@ -53,10 +53,9 @@ void FTopologicalFace::ApplyNaturalLoops()
 
 	TFunction<void(const FPoint&, const FPoint&)> BuildEdge = [&](const FPoint& StartPoint, const FPoint& EndPoint)
 	{
-		double Tolerance2D = CarrierSurface->Get2DTolerance();
 		double Tolerance3D = CarrierSurface->Get3DTolerance();
-		TSharedRef<FCurve> Curve2D = FEntity::MakeShared<FSegmentCurve>(Tolerance2D, StartPoint, EndPoint, 2);
-		TSharedRef<FRestrictionCurve> Curve3D = FEntity::MakeShared<FRestrictionCurve>(Tolerance3D, CarrierSurface.ToSharedRef(), Curve2D);
+		TSharedRef<FCurve> Curve2D = FEntity::MakeShared<FSegmentCurve>(StartPoint, EndPoint, 2);
+		TSharedRef<FRestrictionCurve> Curve3D = FEntity::MakeShared<FRestrictionCurve>(CarrierSurface.ToSharedRef(), Curve2D);
 		TSharedPtr<FTopologicalEdge> Edge = FTopologicalEdge::Make(Curve3D);
 		if (Edge.IsValid())
 		{
@@ -95,7 +94,7 @@ void FTopologicalFace::ApplyNaturalLoops()
 	TArray<EOrientation> Orientations;
 	Orientations.Init(EOrientation::Front, Edges.Num());
 
-	TSharedPtr<FTopologicalLoop> Loop = FTopologicalLoop::Make(Edges, Orientations);
+	TSharedPtr<FTopologicalLoop> Loop = FTopologicalLoop::Make(Edges, Orientations, CarrierSurface->Get3DTolerance());
 	AddLoop(Loop);
 }
 
@@ -264,11 +263,13 @@ void FTopologicalFace::SpawnIdent(FDatabase& Database)
 FInfoEntity& FTopologicalFace::GetInfo(FInfoEntity& Info) const
 {
 	return FTopologicalEntity::GetInfo(Info)
+		.Add(TEXT("Hosted by"), (TWeakPtr<FEntity>&) HostedBy)
 		.Add(TEXT("Carrier Surface"), CarrierSurface)
 		.Add(TEXT("Boundary"), (FSurfacicBoundary&) Boundary)
 		.Add(TEXT("Loops"), Loops)
 		.Add(TEXT("QuadCriteria"), QuadCriteria)
-		.Add(TEXT("mesh"), Mesh);
+		.Add(TEXT("mesh"), Mesh)
+		.Add(*this);
 }
 #endif
 
@@ -307,7 +308,6 @@ void FTopologicalFace::ChooseFinalDeltaUs()
 	ChooseFinalDeltas(CrossingPointDeltaMins[EIso::IsoU], CrossingPointDeltaMaxs[EIso::IsoU]);
 	ChooseFinalDeltas(CrossingPointDeltaMins[EIso::IsoV], CrossingPointDeltaMaxs[EIso::IsoV]);
 }
-
 
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================

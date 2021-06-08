@@ -23,6 +23,7 @@ FCompositeSurface::FCompositeSurface(const double InToleranceGeometric, int32 US
 		const FSurfacicBoundary& Bounds = Surface->GetBoundary();
 		NativeUVBoundaries.Emplace(Bounds);
 	}
+	SetMinToleranceIso();
 }
 
 void FCompositeSurface::InitBoundary() const

@@ -20,8 +20,8 @@ namespace CADKernel
 		
 		TPolylineApproximator<PointType> Approximator;
 
-		TPolylineCurve(const double InTolerance, const TArray<PointType>& InPoints, const TArray<double>& InCoordinates, int8 InDimension)
-			: FCurve(InTolerance, InDimension)
+		TPolylineCurve(const TArray<PointType>& InPoints, const TArray<double>& InCoordinates, int8 InDimension)
+			: FCurve(InDimension)
 			, Approximator(this->Coordinates, this->Points)
 		{
 			this->Coordinates = InCoordinates;
@@ -30,8 +30,8 @@ namespace CADKernel
 			Boundary.Set(this->Coordinates.HeapTop(), this->Coordinates.Last());
 		}
 
-		TPolylineCurve(const double InTolerance, const TArray<PointType>& InPoints, int8 InDimension)
-			: FCurve(InTolerance, InDimension)
+		TPolylineCurve(const TArray<PointType>& InPoints, int8 InDimension)
+			: FCurve(InDimension)
 			, TPolyline<PointType>(InPoints)
 			, Approximator(this->Coordinates, this->Points)
 		{
@@ -116,7 +116,7 @@ namespace CADKernel
 				NewPoints.Emplace(InMatrix.Multiply(Point));
 			}
 
-			return FEntity::MakeShared<PolylineType>(Tolerance, NewPoints, this->Coordinates);
+			return FEntity::MakeShared<PolylineType>(NewPoints, this->Coordinates);
 		}
 
 		virtual void ExtendTo(const FPoint& DesiredPoint) override
@@ -130,13 +130,13 @@ namespace CADKernel
 		friend class FEntity;
 
 	protected:
-		FPolylineCurve(const double InTolerance, const TArray<FPoint>& InPoints, const TArray<double>& InCoordinates)
-			: TPolylineCurve<FPoint, FCurvePoint>(InTolerance, InPoints, InCoordinates, 3)
+		FPolylineCurve(const TArray<FPoint>& InPoints, const TArray<double>& InCoordinates)
+			: TPolylineCurve<FPoint, FCurvePoint>(InPoints, InCoordinates, 3)
 		{
 		}
 
-		FPolylineCurve(const double InTolerance, const TArray<FPoint>& InPoints)
-			: TPolylineCurve<FPoint, FCurvePoint>(InTolerance, InPoints, 3)
+		FPolylineCurve(const TArray<FPoint>& InPoints)
+			: TPolylineCurve<FPoint, FCurvePoint>(InPoints, 3)
 		{
 		}
 
@@ -173,13 +173,13 @@ namespace CADKernel
 		friend class FEntity;
 
 	protected:
-		FPolyline2DCurve(const double InTolerance, const TArray<FPoint2D>& InPoints, const TArray<double>& InCoordinates)
-			: TPolylineCurve<FPoint2D, FCurvePoint2D>(InTolerance, InPoints, InCoordinates, 3)
+		FPolyline2DCurve(const TArray<FPoint2D>& InPoints, const TArray<double>& InCoordinates)
+			: TPolylineCurve<FPoint2D, FCurvePoint2D>(InPoints, InCoordinates, 3)
 		{
 		}
 
-		FPolyline2DCurve(const double InTolerance, const TArray<FPoint2D>& InPoints)
-			: TPolylineCurve<FPoint2D, FCurvePoint2D>(InTolerance, InPoints, 3)
+		FPolyline2DCurve(const TArray<FPoint2D>& InPoints)
+			: TPolylineCurve<FPoint2D, FCurvePoint2D>(InPoints, 3)
 		{
 		}
 

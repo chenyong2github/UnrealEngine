@@ -36,11 +36,13 @@ namespace CADKernel
 	class CADKERNEL_API FTopologicalFace : public FTopologicalEntity, public FMetadataDictionary
 	{
 		friend class FEntity;
+		//friend class FShell;
 
 	protected:
 
 		TSharedPtr<FSurface> CarrierSurface;
 		TArray<TSharedPtr<FTopologicalLoop>> Loops;
+		TWeakPtr<FShell> HostedBy;
 
 		mutable TCache<FSurfacicBoundary> Boundary;
 
@@ -97,6 +99,8 @@ namespace CADKernel
 			FTopologicalEntity::Serialize(Ar);
 			SerializeIdent(Ar, CarrierSurface);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Loops);
+			SerializeIdent(Ar, HostedBy);
+			SerializeMetadata(Ar);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override;
@@ -152,6 +156,29 @@ namespace CADKernel
 			}
 		}
 
+		void ResetHost()
+		{
+			HostedBy.Reset();
+		}
+
+		TWeakPtr<FShell>& GetHost()
+		{
+			return HostedBy;
+		}
+
+		void SetHost(TSharedPtr<FShell> Shell)
+		{
+			HostedBy = Shell;
+		}
+
+		void CompleteMetadata()
+		{
+			if (HostedBy.IsValid())
+			{
+				CompleteDictionary((const FMetadataDictionary&)*HostedBy.Pin());
+			}
+		}
+
 		// ======   Loop Functions   ======
 
 		void RemoveLoop(const TSharedPtr<FTopologicalLoop>& Loop);
@@ -189,7 +216,6 @@ namespace CADKernel
 		 * @param OutAABBs an array of 2d axis aligned bounding box of each boundary
 		 */
 		const void Get2DLoopSampling(TArray<TArray<FPoint2D>>& OutLoopSamplings) const;
-
 
 		// ======   Loop edge Functions   ======
 
@@ -496,6 +522,10 @@ namespace CADKernel
 		TArray<TSharedPtr<FTopologicalFace>> Faces;
 		int32 BorderEdgeCount = 0;
 		int32 NonManifoldEdgeCount = 0;
+		TWeakPtr<FShell> MainShell;
+		FString MainName;
+		uint32 MainColor;
+		uint32 MainMaterial;
 	};
 
 

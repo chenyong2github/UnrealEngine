@@ -182,7 +182,7 @@ TSharedPtr<FEntityGeom> FCompositeCurve::ApplyMatrix(const FMatrixH& InMatrix) c
 		return TSharedPtr<FEntityGeom>();
 	}
 
-	return FEntity::MakeShared<FCompositeCurve>(Tolerance, TransformedCurves);
+	return FEntity::MakeShared<FCompositeCurve>(TransformedCurves);
 }
 
 #ifdef CADKERNEL_DEV
@@ -207,7 +207,7 @@ FInfoEntity& FCompositeCurve::GetInfo(FInfoEntity& Info) const
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
 
-FCompositeCurve::FCompositeCurve(const double InTolerance, const TArray<TSharedPtr<FCurve>>& CurveList, bool bDoInversions)
+FCompositeCurve::FCompositeCurve(const TArray<TSharedPtr<FCurve>>& CurveList, bool bDoInversions)
 {
 	ensureCADKernel(false);
 

@@ -20,12 +20,18 @@ namespace CADKernel
 			, BaseSurface(InBaseSurface)
 			, Offset(InOffset)
 		{
+			SetMinToleranceIso();
 		}
 
 		FOffsetSurface(FCADKernelArchive& Archive)
 			: FSurface()
 		{
 			Serialize(Archive);
+		}
+
+		virtual void SetMinToleranceIso() const override
+		{
+			MinToleranceIso = BaseSurface->GetIsoTolerances();
 		}
 
 	public:
@@ -86,7 +92,6 @@ namespace CADKernel
 		virtual void EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals = false) const override;
 
 		virtual void Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& OutCoordinates) override;
-
 	};
 
 } // namespace CADKernel

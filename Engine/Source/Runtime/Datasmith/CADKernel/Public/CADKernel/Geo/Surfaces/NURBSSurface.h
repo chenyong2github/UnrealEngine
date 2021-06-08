@@ -68,6 +68,7 @@ namespace CADKernel
 			, Poles(InPoles)
 			, bIsRational(true)
 		{
+			SetMinToleranceIso();
 			Finalize();
 		}
 
@@ -87,10 +88,11 @@ namespace CADKernel
 			Ar << PoleVNum;
 			Ar << UDegree;
 			Ar << VDegree;
-			Ar << UNodalVector;
-			Ar << VNodalVector;
-			Ar << Weights;
-			Ar << Poles;
+			Ar.Serialize(UNodalVector);
+			Ar.Serialize(VNodalVector);
+			Ar.Serialize(Weights);
+			Ar.Serialize(Poles);
+			Ar << bIsRational;
 		}
 
 		ESurface GetSurfaceType() const

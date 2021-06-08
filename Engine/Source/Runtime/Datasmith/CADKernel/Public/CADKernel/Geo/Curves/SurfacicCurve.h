@@ -17,8 +17,8 @@ namespace CADKernel
 		TSharedPtr<FCurve> Curve2D;
 		TSharedPtr<FSurface> CarrierSurface;
 
-		FSurfacicCurve(const double InTolerance, TSharedRef<FCurve> InCurve2D, TSharedRef<FSurface> InSurface)
-			: FCurve(InTolerance, InCurve2D->GetBoundary())
+		FSurfacicCurve(TSharedRef<FCurve> InCurve2D, TSharedRef<FSurface> InSurface)
+			: FCurve(InCurve2D->GetBoundary())
 			, Curve2D(InCurve2D)
 			, CarrierSurface(InSurface)
 		{
@@ -82,6 +82,11 @@ namespace CADKernel
 			return Curve2D;
 		}
 
+		const TSharedRef<FSurface> GetCarrierSurface() const
+		{
+			return CarrierSurface.ToSharedRef();
+		}
+
 		void Set2DCurve(TSharedPtr<FCurve>& NewCurve2D)
 		{
 			ensureCADKernel(NewCurve2D.IsValid());
@@ -114,8 +119,7 @@ namespace CADKernel
 
 		virtual void EvaluatePoints(const TArray<double>& Coordinates, TArray<FCurvePoint>& OutPoints, int32 DerivativeOrder = 0) const override;
 
-		void EvaluateSurfacicPolyline(FSurfacicPolyline& OutPolyline, bool bInWithNormals = false) const;
-		void EvaluateSurfacicPolylineWithNormalAndTangent(FSurfacicPolyline& OutPolyline) const;
+		void EvaluateSurfacicPolyline(FSurfacicPolyline& OutPolyline) const;
 
 		virtual void Evaluate2DPoints(const TArray<double>& Coordinates, TArray<FPoint2D>& OutPoints) const override
 		{
@@ -128,7 +132,8 @@ namespace CADKernel
 		}
 
 		virtual void FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const override;
-
+private:
+		void EvaluateSurfacicPolylineWithNormalAndTangent(FSurfacicPolyline& OutPolyline) const;
 	};
 
 } // namespace CADKernel

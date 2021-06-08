@@ -40,16 +40,18 @@ void FSurfacicCurve::EvaluatePoints(const TArray<double>& InCoordinates, TArray<
 void FSurfacicCurve::EvaluateSurfacicPolylineWithNormalAndTangent(FSurfacicPolyline& OutPolyline) const
 {
 	OutPolyline.bWithNormals = true;
-	OutPolyline.bWithTangent = true;
 
 	TArray<FCurvePoint2D> Points2D;
 	Curve2D->Evaluate2DPoints(OutPolyline.Coordinates, Points2D, 1);
 	CarrierSurface->EvaluatePoints(Points2D, OutPolyline);
 }
 
-void FSurfacicCurve::EvaluateSurfacicPolyline(FSurfacicPolyline& OutPolyline, bool bInWithNormals) const
+void FSurfacicCurve::EvaluateSurfacicPolyline(FSurfacicPolyline& OutPolyline) const
 {
-	OutPolyline.bWithNormals = bInWithNormals;
+	if (OutPolyline.bWithTangent)
+	{
+		return EvaluateSurfacicPolylineWithNormalAndTangent(OutPolyline);
+	}
 
 	Curve2D->Evaluate2DPoints(OutPolyline.Coordinates, OutPolyline.Points2D);
 	CarrierSurface->EvaluatePoints(OutPolyline);
@@ -60,7 +62,7 @@ TSharedPtr<FEntityGeom> FSurfacicCurve::ApplyMatrix(const FMatrixH& InMatrix) co
 	TSharedPtr<FSurface> transformedSurface = StaticCastSharedPtr<FSurface>(CarrierSurface->ApplyMatrix(InMatrix));
 	if (transformedSurface.IsValid())
 	{
-		return FEntity::MakeShared<FSurfacicCurve>(Tolerance, Curve2D.ToSharedRef(), transformedSurface.ToSharedRef());
+		return FEntity::MakeShared<FSurfacicCurve>(Curve2D.ToSharedRef(), transformedSurface.ToSharedRef());
 	}
 	return TSharedPtr<FEntityGeom>();
 }
@@ -86,6 +88,7 @@ void FSurfacicCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBounda
 		return;
 	}
 
+	double Tolerance = CarrierSurface->Get3DTolerance();
 	FSurfacicPolyline SurfacicPolyline(CarrierSurface.ToSharedRef(), Curve2D.ToSharedRef(), Tolerance, Tolerance, false, false);
 
 	FPolyline2D Polyline;
@@ -93,7 +96,7 @@ void FSurfacicCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBounda
 	Swap(Polyline.Points, SurfacicPolyline.Points2D);
 
 	TArray<double> NotDerivableCurveCoordinates;
-	for (int32 Iso = 0; Iso <= EIso::UndefinedIso; ++Iso)
+	for (int32 Iso = 0; Iso < EIso::UndefinedIso; ++Iso)
 	{
 		for (const double& NotDerivableCoord : SurfaceNotDerivableCoordinates[(EIso) Iso])
 		{
@@ -101,5 +104,7 @@ void FSurfacicCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBounda
 		}
 	}
 	Algo::Sort(NotDerivableCurveCoordinates);
-	ArrayUtils::InsertInside(OutNotDerivableCoordinates, NotDerivableCurveCoordinates, GetParametricTolerance());
+
+	double ToleranceGeoEdge = GetBoundary().ComputeMinimalTolerance();
+	ArrayUtils::Complete(OutNotDerivableCoordinates, NotDerivableCurveCoordinates, ToleranceGeoEdge);
 }

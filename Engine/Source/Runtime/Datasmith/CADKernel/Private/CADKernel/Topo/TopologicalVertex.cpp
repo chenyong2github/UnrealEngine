@@ -40,11 +40,14 @@ void FTopologicalVertex::RemoveConnectedEdge(TSharedRef<FTopologicalEdge> Edge)
 
 bool FTopologicalVertex::IsBorderVertex()
 {
-	for (TWeakPtr<FTopologicalEdge> Edge : GetConnectedEdges())
+	for (const TWeakPtr<FTopologicalVertex>& Vertex : GetTwinsEntities())
 	{
-		if (Edge.Pin()->GetTwinsEntityCount() == 1)
+		for (const TWeakPtr<FTopologicalEdge>& Edge : Vertex.Pin()->GetDirectConnectedEdges())
 		{
-			return true;
+			if (Edge.Pin()->GetTwinsEntityCount() == 1)
+			{
+				return true;
+			}
 		}
 	}
 	return false;
@@ -61,10 +64,10 @@ void FTopologicalVertex::GetConnectedEdges(TSharedPtr<FTopologicalVertex> OtherV
 	Edges.Reserve(GetTwinsEntityCount());
 
 	TSharedPtr<TTopologicalLink<FTopologicalVertex>> OtherVertexLink = OtherVertex->GetLink();
-	for (TWeakPtr<FTopologicalVertex> Vertex : GetTwinsEntities())
+	for (const TWeakPtr<FTopologicalVertex>& Vertex : GetTwinsEntities())
 	{
 		ensureCADKernel(Vertex.IsValid());
-		for (TWeakPtr<FTopologicalEdge> Edge : Vertex.Pin()->GetConnectedEdges())
+		for (const TWeakPtr<FTopologicalEdge>& Edge : Vertex.Pin()->GetDirectConnectedEdges())
 		{
 			ensureCADKernel(Edge.IsValid());
 			if (Edge.Pin()->GetOtherVertex(Vertex.Pin().ToSharedRef())->GetLink() == OtherVertexLink)
@@ -98,10 +101,38 @@ void FTopologicalVertex::Link(TSharedRef<FTopologicalVertex> Twin)
 	GetLink()->DefineActiveEntity();
 }
 
+void FTopologicalVertex::UnlinkTo(TSharedRef<FTopologicalVertex> OtherVertex)
+{
+	TSharedPtr<FVertexLink> OldLink = GetLink();
+	ResetTopologicalLink();
+	OtherVertex->ResetTopologicalLink();
+
+	for (const TWeakPtr<FTopologicalVertex>& WeakVertex : OldLink->GetTwinsEntities())
+	{
+		TSharedPtr<FTopologicalVertex> Vertex = WeakVertex.Pin();
+		if (!Vertex.IsValid() || Vertex.Get() == this || Vertex == OtherVertex)
+		{
+			continue;
+		}
+
+		Vertex->ResetTopologicalLink();
+		double Distance1 = Distance(Vertex.ToSharedRef());
+		double Distance2 = OtherVertex->Distance(Vertex.ToSharedRef());
+		if (Distance1 < Distance2)
+		{
+			Link(Vertex.ToSharedRef());
+		}
+		else
+		{
+			OtherVertex->Link(Vertex.ToSharedRef());
+		}
+	}
+}
+
 void FVertexLink::ComputeBarycenter()
 {
 	Barycenter = FPoint::ZeroPoint;
-	for (TWeakPtr<FTopologicalVertex> Vertex : TwinsEntities)
+	for (const TWeakPtr<FTopologicalVertex>& Vertex : TwinsEntities)
 	{
 		Barycenter += Vertex.Pin()->Coordinates;
 	}

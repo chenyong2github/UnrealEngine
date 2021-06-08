@@ -18,8 +18,8 @@ namespace CADKernel
 		double   RadiusV;
 		FMatrixH InverseMatrix;
 
-		FEllipseCurve(const double InTolerance, const FMatrixH& InMatrix, double InRadiusU, double InRadiusV, int8 InDimension = 3)
-			: FCurve(InTolerance, FLinearBoundary(0, PI * 2.), InDimension)
+		FEllipseCurve(const FMatrixH& InMatrix, double InRadiusU, double InRadiusV, int8 InDimension = 3)
+			: FCurve(FLinearBoundary(0, PI * 2.), InDimension)
 			, Matrix(InMatrix)
 			, RadiusU(InRadiusU)
 			, RadiusV(InRadiusV)
@@ -27,8 +27,8 @@ namespace CADKernel
 		{
 		}
 
-		FEllipseCurve(const double InTolerance, const FMatrixH& InMatrix, double InRadiusU, double InRadiusV, const FLinearBoundary& InBounds, int8 InDimension = 3)
-			: FCurve(InTolerance, InBounds, InDimension)
+		FEllipseCurve(const FMatrixH& InMatrix, double InRadiusU, double InRadiusV, const FLinearBoundary& InBounds, int8 InDimension = 3)
+			: FCurve(InBounds, InDimension)
 			, Matrix(InMatrix)
 			, RadiusU(InRadiusU)
 			, RadiusV(InRadiusV)

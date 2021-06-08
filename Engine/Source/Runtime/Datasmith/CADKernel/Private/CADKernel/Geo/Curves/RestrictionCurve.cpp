@@ -16,15 +16,8 @@ FInfoEntity& FRestrictionCurve::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void FRestrictionCurve::ExtendTo2DPoint(const FPoint2D& Point)
+void FRestrictionCurve::ExtendTo(const FPoint2D& Point)
 {
 	Curve2D->ExtendTo(Point);
-	if(Polyline.bWithTangent)
-	{
-		EvaluateSurfacicPolylineWithNormalAndTangent(Polyline);
-	}
-	else
-	{
-		EvaluateSurfacicPolyline(Polyline);
-	}
+	EvaluateSurfacicPolyline(Polyline);
 }

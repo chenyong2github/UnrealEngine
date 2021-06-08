@@ -51,17 +51,44 @@ TSharedPtr<FEntityGeom> FShell::ApplyMatrix(const FMatrixH& InMatrix) const
 	return TSharedPtr<FEntityGeom>();
 }
 
+void FShell::Empty(int32 NewSize)
+{
+	for(FOrientedFace& Face : TopologicalFaces)
+	{
+		Face.Entity->ResetHost();
+	}
+	TopologicalFaces.Empty(NewSize);
+}
+
+void FShell::Add(TArray<TSharedPtr<FTopologicalFace>> Faces)
+{
+	TSharedPtr<FShell> Shell = StaticCastSharedRef<FShell>(AsShared());
+
+	TopologicalFaces.Reserve(TopologicalFaces.Num() + Faces.Num());
+
+	for(TSharedPtr<FTopologicalFace>& Face : Faces)
+	{
+		TopologicalFaces.Emplace(Face, Face->IsBackOriented() ? EOrientation::Back : EOrientation::Front);
+		Face->SetHost(Shell);
+	}
+}
+
+
 void FShell::Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation Orientation)
 {
 	TSharedPtr<FTopologicalFace> Face = InTopologicalFace;
 	TopologicalFaces.Emplace(Face, Orientation);
+
+	Face->SetHost(StaticCastSharedRef<FShell>(AsShared()));
 }
 
 #ifdef CADKERNEL_DEV
 FInfoEntity& FShell::GetInfo(FInfoEntity& Info) const
 {
 	return FEntity::GetInfo(Info)
-		.Add(TEXT("TopologicalFaces"), (TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
+		.Add(TEXT("Hosted by"), (TWeakPtr<FEntity>&) HostedBy)
+		.Add(TEXT("TopologicalFaces"), (TArray<TOrientedEntity<FEntity>>&) TopologicalFaces)
+		.Add(*this);
 }
 #endif
 
@@ -78,6 +105,13 @@ void FShell::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& Faces)
 		Face.Entity->SetMarker1();
 	}
 }
+
+void FShell::Merge(TSharedPtr<FShell>& Shell)
+{
+	TopologicalFaces.Append(Shell->TopologicalFaces);
+	Shell->TopologicalFaces.Empty();
+}
+
 
 void FShell::SpreadBodyOrientation()
 {
@@ -97,6 +131,27 @@ void FShell::SpreadBodyOrientation()
 		Face.Entity->SetMarker2();
 	}
 }
+
+bool FShell::IsOpenShell()
+{
+	for (const FOrientedFace& OrientedFace : GetFaces())
+	{
+		const TSharedPtr<FTopologicalFace>& Face = OrientedFace.Entity;
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+		{
+			for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
+			{
+				const TSharedPtr<FTopologicalEdge>& Edge = OrientedEdge.Entity;
+				if (Edge->GetTwinsEntityCount() == 1)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 
 void FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
 {

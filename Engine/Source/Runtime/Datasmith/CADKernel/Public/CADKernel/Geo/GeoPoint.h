@@ -37,6 +37,15 @@ namespace CADKernel
 		FPoint Tangent = FPoint::ZeroPoint;
 	};
 
+	struct FSurfacicCurvePointWithTolerance
+	{
+		FPoint2D Point2D = FPoint2D::ZeroPoint;
+		FPoint Point = FPoint::ZeroPoint;
+		FSurfacicTolerance Tolerance = FPoint2D::FarawayPoint;
+	};
+
+	typedef FSurfacicCurvePointWithTolerance FSurfacicCurveExtremity[2];
+
 	struct FCurvePoint
 	{
 		int32 DerivativeOrder = -1;

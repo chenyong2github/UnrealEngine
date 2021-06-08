@@ -13,6 +13,7 @@ FCylinderSurface::FCylinderSurface(const double InToleranceGeometric, const FMat
 	, Matrix(INMatrix)
 	, Radius(InRadius)
 {
+	SetMinToleranceIso();
 }
 
 void FCylinderSurface::InitBoundary() const

@@ -40,7 +40,7 @@ namespace CADKernel
 		FString Indentation;
 		TCHAR* Buffer = NULL;
 		int32 Result = -1;
-		if (VerboseLevel >= Level || (LogFile.IsValid() && Level < Debug) || (SpyFile.IsValid() && Level == Spy))
+		if (VerboseLevel >= Level || (LogFile.IsValid() && Level <= EVerboseLevel::Debug) || (SpyFile.IsValid() && Level == EVerboseLevel::Spy))
 		{
 			int32 BufferSize = 1024;
 
