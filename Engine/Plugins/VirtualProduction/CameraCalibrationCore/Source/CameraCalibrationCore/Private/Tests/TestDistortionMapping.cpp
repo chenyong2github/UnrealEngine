@@ -230,13 +230,89 @@ namespace CameraCalibrationTestUtil
 		TestDualCurveEvaluationResult({ ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y }, BlendFactor, { Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y }, { Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y }, { Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y }, { Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y });
 		TestDualCurveEvaluationResult({ ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y }, BlendFactor, { Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y }, { Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y }, { Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y }, { Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y });
 	}
+
+	void TestLensFileAddPoints(FAutomationTestBase& Test)
+	{
+		// Create LensFile container
+		const TCHAR* LensFileName = TEXT("AddPointsTestLensFile");
+		ULensFile* LensFile = NewObject<ULensFile>(GetTransientPackage(), LensFileName);
+
+		FDistortionInfo TestDistortionParams;
+		TestDistortionParams.Parameters = TArray<float>({ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f });
+
+		FFocalLengthInfo TestFocalLength;
+		TestFocalLength.FxFy = FVector2D(1.0f, 1.777f);
+
+		TArray<FDistortionFocusPoint>& FocusPoints = LensFile->DistortionTable.GetFocusPoints();
+
+		// Clear the LensFile's distortion table and confirm that the FocusPoints array is empty
+		LensFile->ClearAll();
+		Test.TestEqual(FString::Printf(TEXT("Num Focus Points")), FocusPoints.Num(), 0);
+
+		// Add a single point at F=0 Z=0 and confirm that FocusPoints array has one curve, and that curve has one ZoomPoint
+		LensFile->AddDistortionPoint(0.0f, 0.0f, TestDistortionParams, TestFocalLength);
+		Test.TestEqual(FString::Printf(TEXT("Num Focus Points")), FocusPoints.Num(), 1);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[0].ZoomPoints.Num(), 1);
+
+		// Add a point at F=0 Z=0.5 and confirm that FocusPoints array has one curve, and that curve has two ZoomPoints
+		LensFile->AddDistortionPoint(0.0f, 0.5f, TestDistortionParams, TestFocalLength);
+		Test.TestEqual(FString::Printf(TEXT("Num Focus Points")), FocusPoints.Num(), 1);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[0].ZoomPoints.Num(), 2);
+
+		// Attempt to add a duplicate point at F=0 Z=0.5 and confirm that FocusPoints array has one curve, and that curve has two ZoomPoints
+		LensFile->AddDistortionPoint(0.0f, 0.5f, TestDistortionParams, TestFocalLength);
+		Test.TestEqual(FString::Printf(TEXT("Num Focus Points")), FocusPoints.Num(), 1);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[0].ZoomPoints.Num(), 2);
+
+		// Test tolerance when adding a new zoom point
+		LensFile->AddDistortionPoint(0.0f, 0.49f, TestDistortionParams, TestFocalLength);
+		LensFile->AddDistortionPoint(0.0f, 0.4999f, TestDistortionParams, TestFocalLength);
+		LensFile->AddDistortionPoint(0.0f, 0.5001f, TestDistortionParams, TestFocalLength);
+		LensFile->AddDistortionPoint(0.0f, 0.51f, TestDistortionParams, TestFocalLength);
+		Test.TestEqual(FString::Printf(TEXT("Num Focus Points")), FocusPoints.Num(), 1);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[0].ZoomPoints.Num(), 4);
+
+		// Add two points at F=1 Z=0 and F=1 Z=0.5 and confirm that FocusPoints array has two curves, and that each curve has two ZoomPoints
+		LensFile->AddDistortionPoint(1.0f, 0.0f, TestDistortionParams, TestFocalLength);
+		LensFile->AddDistortionPoint(1.0f, 0.5f, TestDistortionParams, TestFocalLength);
+		Test.TestEqual(FString::Printf(TEXT("Num Focus Points")), FocusPoints.Num(), 2);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[0].ZoomPoints.Num(), 4);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[1].ZoomPoints.Num(), 2);
+
+		// Test sorting when adding a new focus point
+		LensFile->AddDistortionPoint(0.5f, 0.0f, TestDistortionParams, TestFocalLength);
+		Test.TestEqual(FString::Printf(TEXT("Num Focus Points")), FocusPoints.Num(), 3);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[0].ZoomPoints.Num(), 4);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[1].ZoomPoints.Num(), 1);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[2].ZoomPoints.Num(), 2);
+
+		// Test tolerance when adding focus points with slight differences in value
+		LensFile->AddDistortionPoint(0.5001f, 0.25f, TestDistortionParams, TestFocalLength);
+		LensFile->AddDistortionPoint(0.4999f, 0.5f, TestDistortionParams, TestFocalLength);
+		Test.TestEqual(FString::Printf(TEXT("Num Focus Points")), FocusPoints.Num(), 3);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[0].ZoomPoints.Num(), 4);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[1].ZoomPoints.Num(), 3);
+		Test.TestEqual(FString::Printf(TEXT("Num Zoom Points")), FocusPoints[2].ZoomPoints.Num(), 2);
+
+		// Finally, test final state of each focus curve to ensure proper values and sorting
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[0]")), FocusPoints[0].ZoomPoints[0].Zoom, 0.0f);
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[1]")), FocusPoints[0].ZoomPoints[1].Zoom, 0.49f);
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[2]")), FocusPoints[0].ZoomPoints[2].Zoom, 0.5f);
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[3]")), FocusPoints[0].ZoomPoints[3].Zoom, 0.51f);
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[0]")), FocusPoints[1].ZoomPoints[0].Zoom, 0.0f);
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[1]")), FocusPoints[1].ZoomPoints[1].Zoom, 0.25f);
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[2]")), FocusPoints[1].ZoomPoints[2].Zoom, 0.5f);
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[0]")), FocusPoints[2].ZoomPoints[0].Zoom, 0.0f);
+		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[1]")), FocusPoints[2].ZoomPoints[1].Zoom, 0.5f);
+	}
 }
 
 
 bool FTestCameraCalibrationCore::RunTest(const FString& Parameters)
 {
 	CameraCalibrationTestUtil::TestDistortionParameterCurveBlending(*this);
-    return true;
+	CameraCalibrationTestUtil::TestLensFileAddPoints(*this);
+	return true;
 }
 #endif // WITH_DEV_AUTOMATION_TESTS
 

@@ -44,12 +44,16 @@ namespace LensDataTableUtils
 	bool AddPoint(TArray<FocusPointType>& InContainer, float InFocus, float InZoom, const DataType& InData, float InputTolerance, bool bIsCalibrationPoint)
 	{
 		int32 PointIndex = 0;
-		for (; PointIndex < InContainer.Num() && InContainer[PointIndex].Focus <= InFocus; ++PointIndex)
+		for (; PointIndex < InContainer.Num(); ++PointIndex)
 		{
 			FocusPointType& FocusPoint = InContainer[PointIndex];
 			if (FMath::IsNearlyEqual(FocusPoint.Focus, InFocus, InputTolerance))
 			{
 				return FocusPoint.AddPoint(InZoom, InData, InputTolerance, bIsCalibrationPoint);
+			}
+			else if (InFocus < FocusPoint.Focus)
+			{
+				break;
 			}
 		}
 
