@@ -16,7 +16,7 @@ namespace P4VUtils.Commands
 	{
 		public override string Description => "Prints out a description of the given changelist";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Describe", "%c") { ShowConsole = true };
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Describe", "%c") { ShowConsole = true, RefreshUI = false};
 
 		public override async Task<int> Execute(string[] Args, IReadOnlyDictionary<string, string> ConfigValues, ILogger Logger)
 		{

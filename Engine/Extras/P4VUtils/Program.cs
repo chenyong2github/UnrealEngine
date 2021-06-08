@@ -21,6 +21,8 @@ namespace P4VUtils
 		public string Arguments { get; set; }
 		public bool AddToContextMenu { get; set; } = true;
 		public bool ShowConsole { get; set; }
+		public bool RefreshUI { get; set; } = true;
+		public string Shortcut { get; set; } = "";
 
 		public CustomToolInfo(string Name, string Arguments)
 		{
@@ -49,9 +51,11 @@ namespace P4VUtils
 			["edigrate"] = new EdigrateCommand(),
 			["preflight"] = new PreflightCommand(),
 			["preflightandsubmit"] = new PreflightAndSubmitCommand(),
+			["movewriteablepreflightandsubmit"] = new MoveWriteableFilesthenPreflightAndSubmitCommand(),
 			["findlastedit"] = new FindLastEditCommand(),
 			["snapshot"] = new SnapshotCommand(),
 			["backout"] = new BackoutCommand(),
+			["copyclnum"] = new CopyCLCommand(),
 		};
 
 		static void PrintHelp(ILogger Logger)
@@ -256,6 +260,13 @@ namespace P4VUtils
 							XmlElement Arguments = Document.CreateElement("Arguments");
 							Arguments.InnerText = $"{AssemblyLocation.FullName.QuoteArgument()} {Pair.Key} {CustomTool.Arguments}";
 							Definition.AppendChild(Arguments);
+
+							if (CustomTool.Shortcut.Length > 1)
+							{
+								XmlElement Shortcut = Document.CreateElement("Shortcut");
+								Shortcut.InnerText = CustomTool.Shortcut;
+								Definition.AppendChild(Shortcut);
+							}
 						}
 						ToolDef.AppendChild(Definition);
 
@@ -268,6 +279,13 @@ namespace P4VUtils
 								Console.AppendChild(CloseOnExit);
 							}
 							ToolDef.AppendChild(Console);
+						}
+
+						if (CustomTool.RefreshUI)
+						{
+							XmlElement Refresh = Document.CreateElement("Refresh");
+							Refresh.InnerText = CustomTool.RefreshUI ? "true" : "false";
+							ToolDef.AppendChild(Refresh);
 						}
 
 						XmlElement AddToContext = Document.CreateElement("AddToContext");

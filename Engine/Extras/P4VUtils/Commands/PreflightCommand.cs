@@ -145,6 +145,14 @@ namespace P4VUtils.Commands
 		{
 			return base.GetUrl(Stream, Change, ConfigValues) + "&defaulttemplate=true&submit=true";
 		}
+	}
+
+	class MoveWriteableFilesthenPreflightAndSubmitCommand : PreflightAndSubmitCommand
+	{
+		public override string Description => "Moves the writeable files to a new CL, then runs a preflight of the current changelist on Horde and submits it";
+
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Horde: Move writeable files, Preflight and submit", "%p");
+
 		public override bool CreateBackupCL()
 		{
 			return true;
