@@ -401,6 +401,13 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 {
 	FEdMode::Tick(ViewportClient, DeltaTime);
 
+	if(DeferredItemsToFrame.Num() > 0)
+	{
+		TGuardValue<FEditorViewportClient*> ViewportGuard(CurrentViewportClient, ViewportClient);
+		FrameItems(DeferredItemsToFrame);
+		DeferredItemsToFrame.Reset();
+	}
+
 	if (bSelectionChanged)
 	{
 		SetUpDetailPanel();
@@ -1722,6 +1729,43 @@ void FControlRigEditMode::FrameSelection()
 	}
 }
 
+void FControlRigEditMode::FrameItems(const TArray<FRigElementKey>& InItems)
+{
+	if(!OnGetRigElementTransformDelegate.IsBound())
+	{
+		return;
+	}
+
+	if(CurrentViewportClient == nullptr)
+	{
+		DeferredItemsToFrame = InItems;
+		return;
+	}
+
+	FBox Box(ForceInit);
+
+	for (int32 Index = 0; Index < InItems.Num(); ++Index)
+	{
+		static const float Radius = 20.f;
+		if (InItems[Index].Type == ERigElementType::Bone || InItems[Index].Type == ERigElementType::Null)
+		{
+			FTransform Transform = OnGetRigElementTransformDelegate.Execute(InItems[Index], false, true);
+			Box += Transform.TransformPosition(FVector::OneVector * Radius);
+			Box += Transform.TransformPosition(FVector::OneVector * -Radius);
+		}
+		else if (InItems[Index].Type == ERigElementType::Control)
+		{
+			FTransform Transform = OnGetRigElementTransformDelegate.Execute(InItems[Index], false, true);
+			Box += Transform.TransformPosition(FVector::OneVector * Radius);
+			Box += Transform.TransformPosition(FVector::OneVector * -Radius);
+		}
+	}
+
+	if(Box.IsValid)
+	{
+		CurrentViewportClient->FocusViewportOnBox(Box);
+	}
+}
 
 void FControlRigEditMode::IncreaseGizmoSize()
 {

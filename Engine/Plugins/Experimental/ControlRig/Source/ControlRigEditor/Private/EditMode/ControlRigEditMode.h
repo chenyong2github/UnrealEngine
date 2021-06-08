@@ -175,12 +175,19 @@ protected:
 	/** Toggles visibility of manipulators in the viewport */
 	void ToggleManipulators();
 
+public:
+	
 	/** Clear Selection*/
 	void ClearSelection();
 
 	/** Frame to current Control Selection*/
 	void FrameSelection();
 
+	/** Frame a list of provided items*/
+   	void FrameItems(const TArray<FRigElementKey>& InItems);
+
+private:
+	
 	/** Whether or not we should Frame Selection or not*/
 	bool CanFrameSelection();
 
@@ -343,6 +350,8 @@ private:
 	TArray<TWeakObjectPtr<UControlRig>> RuntimeControlRigs;
 
 	TStrongObjectPtr<UControlRigEditModeDelegateHelper> DelegateHelper;
+
+	TArray<FRigElementKey> DeferredItemsToFrame;
 
 	friend class FControlRigEditorModule;
 	friend class FControlRigEditor;
