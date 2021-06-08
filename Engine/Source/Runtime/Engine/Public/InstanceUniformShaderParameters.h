@@ -15,28 +15,6 @@
 #define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN		0x2
 #define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER			0x4
 
-class FNaniteInfo
-{
-public:
-	uint32 RuntimeResourceID;
-	uint32 HierarchyOffset;
-	uint8  bHasImposter : 1;
-
-	FNaniteInfo()
-	: RuntimeResourceID(0xFFFFFFFFu)
-	, HierarchyOffset(0xFFFFFFFFu)
-	, bHasImposter(false)
-	{
-	}
-
-	FNaniteInfo(uint32 InRuntimeResourceID, int32 InHierarchyOffset, bool bInHasImposter)
-	: RuntimeResourceID(InRuntimeResourceID)
-	, HierarchyOffset(InHierarchyOffset)
-	, bHasImposter(bInHasImposter)
-	{
-	}
-};
-
 struct FPrimitiveInstance
 {
 	FRenderTransform		InstanceToLocal;
@@ -50,8 +28,7 @@ struct FPrimitiveInstance
 	FRenderBounds			LocalBounds;
 	float					PerInstanceRandom;
 	FVector4				LightMapAndShadowMapUVBias;
-	FNaniteInfo				NaniteInfo;
-	uint32					PrimitiveId;
+	uint32					NaniteHierarchyOffset;
 	uint32					Flags;
 
 	FORCEINLINE void OrthonormalizeAndUpdateScale()
@@ -90,9 +67,8 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 	const FVector4& NonUniformScale,
 	const FVector3f& InvNonUniformScale,
 	const FVector4& LightMapAndShadowMapUVBias,
-	const FNaniteInfo& NaniteInfo,
+	const uint32 NaniteHierarchyOffset,
 	uint32 Flags,
-	uint32 PrimitiveId,
 	uint32 LastUpdateSceneFrameNumber,
 	float PerInstanceRandom
 )
@@ -105,10 +81,9 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 	Result.NonUniformScale						= NonUniformScale;
 	Result.InvNonUniformScale					= InvNonUniformScale;
 	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
-	Result.PrimitiveId							= PrimitiveId;
 	Result.LocalBounds							= LocalObjectBounds;
 	Result.RenderBounds							= Result.LocalBounds;
-	Result.NaniteInfo							= NaniteInfo;
+	Result.NaniteHierarchyOffset				= NaniteHierarchyOffset;
 	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;
 	Result.PerInstanceRandom					= PerInstanceRandom;
 	Result.Flags								= Flags;
@@ -126,25 +101,28 @@ struct FInstanceSceneShaderData
 	FInstanceSceneShaderData()
 		: Data(InPlace, NoInit)
 	{
-		Setup(ConstructPrimitiveInstance(
-			FRenderTransform::Identity,
-			FRenderTransform::Identity,
-			FVector3f::ZeroVector,
-			FVector3f::ZeroVector,
-			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-			FVector3f(1.0f, 1.0f, 1.0f),
-			FVector4(ForceInitToZero),
-			FNaniteInfo(),
-			0u, /* Instance Flags */
-			0,
-			0xFFFFFFFFu,
-			0.0f
-		));
+		// TODO: Should look into skipping default initialization here - likely unneeded, and just wastes CPU time.
+		Setup(
+			ConstructPrimitiveInstance(
+				FRenderTransform::Identity,
+				FRenderTransform::Identity,
+				FVector3f::ZeroVector,
+				FVector3f::ZeroVector,
+				FVector4(1.0f, 1.0f, 1.0f, 1.0f),
+				FVector3f(1.0f, 1.0f, 1.0f),
+				FVector4(ForceInitToZero),
+				0xFFFFFFFFu, /* Nanite Hierarchy Offset */
+				0u, /* Instance Flags */
+				0xFFFFFFFFu, /* Last Scene Update */
+				0.0f /* Per Instance Random */
+			),
+			0 /* Primitive Id */
+		);
 	}
 
-	ENGINE_API FInstanceSceneShaderData(const FPrimitiveInstance& Instance);
+	ENGINE_API FInstanceSceneShaderData(const FPrimitiveInstance& Instance, uint32 PrimitiveId);
 
-	ENGINE_API void Setup(const FPrimitiveInstance& Instance);
+	ENGINE_API void Setup(const FPrimitiveInstance& Instance, uint32 PrimitiveId);
 };
 
 ENGINE_API const FPrimitiveInstance& GetDummyPrimitiveInstance();

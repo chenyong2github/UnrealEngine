@@ -114,6 +114,13 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = Proxy->GetPrimitiveSceneInfo();
 
+	uint32 NaniteResourceID = NANITE_INVALID_RESOURCE_ID;
+	uint32 NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+	if (Proxy->IsNaniteMesh())
+	{
+		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset);
+	}
+
 	Setup(
 		FPrimitiveUniformShaderParametersBuilder{}
 		.Defaults()
@@ -137,6 +144,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 			.CastShadow(Proxy->CastsDynamicShadow())
 			.HasCapsuleRepresentation(Proxy->HasDynamicIndirectShadowCasterRepresentation())
 			.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
+			.NaniteResourceID(NaniteResourceID)
+			.NaniteHierarchyOffset(NaniteHierarchyOffset)
 		.Build()
 	);
 }

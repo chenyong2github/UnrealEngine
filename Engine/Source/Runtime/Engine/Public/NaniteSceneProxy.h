@@ -128,6 +128,12 @@ public:
 
 	virtual void OnTransformChanged() override;
 
+	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const override
+	{
+		ResourceID = Resources->RuntimeResourceID;
+		HierarchyOffset = Resources->HierarchyOffset;
+	}
+
 	const UStaticMesh* GetStaticMesh() const
 	{
 		return StaticMesh;

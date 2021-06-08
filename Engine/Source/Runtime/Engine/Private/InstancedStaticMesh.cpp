@@ -1271,7 +1271,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			const bool bHasPrevTransform = InComponent->GetInstancePrevTransform(InInstanceIndex, InstancePrevTransform);
 
 			FPrimitiveInstance& Instance = Instances[OutInstanceIndex];
-			Instance.PrimitiveId = ~uint32(0);
 			Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
 			
 			// TODO: KevinO cleanup
@@ -1321,43 +1320,15 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 			// NOTE: we set up partial data in the construction of ISM proxy (yep, awful but the equally awful way the InstanceBuffer is maintained means complete data is not available)
 			if (Instances.Num() == InstanceBuffer.GetNumInstances())
 			{
-				FVector4 InstanceTransformVec[3];
-				FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-				FVector4 InstanceOrigin = FVector::ZeroVector;
-
 				for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 				{
-					InstanceBuffer.GetInstanceShaderValues(
-						InstanceIndex,
-						InstanceTransformVec,
-						InstanceLightMapAndShadowMapUVBias,
-						InstanceOrigin
-					);
-
-					FMatrix LocalToPrimitiveTransform;
-					LocalToPrimitiveTransform.M[0][0] = InstanceTransformVec[0][0];
-					LocalToPrimitiveTransform.M[0][1] = InstanceTransformVec[0][1];
-					LocalToPrimitiveTransform.M[0][2] = InstanceTransformVec[0][2];
-					LocalToPrimitiveTransform.M[0][3] = 0.f;
-					LocalToPrimitiveTransform.M[1][0] = InstanceTransformVec[1][0];
-					LocalToPrimitiveTransform.M[1][1] = InstanceTransformVec[1][1];
-					LocalToPrimitiveTransform.M[1][2] = InstanceTransformVec[1][2];
-					LocalToPrimitiveTransform.M[1][3] = 0.f;
-					LocalToPrimitiveTransform.M[2][0] = InstanceTransformVec[2][0];
-					LocalToPrimitiveTransform.M[2][1] = InstanceTransformVec[2][1];
-					LocalToPrimitiveTransform.M[2][2] = InstanceTransformVec[2][2];
-					LocalToPrimitiveTransform.M[2][3] = 0.f;
-					LocalToPrimitiveTransform.M[3][0] = InstanceOrigin.X;
-					LocalToPrimitiveTransform.M[3][1] = InstanceOrigin.Y;
-					LocalToPrimitiveTransform.M[3][2] = InstanceOrigin.Z;
-					LocalToPrimitiveTransform.M[3][3] = 1.f;
-
 					FPrimitiveInstance& PrimitiveInstance = Instances[InstanceIndex];
-					PrimitiveInstance.InstanceToLocal = LocalToPrimitiveTransform;
 					PrimitiveInstance.RenderBounds = StaticMeshBounds;
-					PrimitiveInstance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
-					PrimitiveInstance.PerInstanceRandom = InstanceOrigin.W;
-					PrimitiveInstance.NaniteInfo = FNaniteInfo();
+					PrimitiveInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+
+					InstanceBuffer.GetInstanceTransform(InstanceIndex, PrimitiveInstance.InstanceToLocal);
+					InstanceBuffer.GetInstanceLightMapData(InstanceIndex, PrimitiveInstance.LightMapAndShadowMapUVBias);
+					InstanceBuffer.GetInstanceRandomID(InstanceIndex, PrimitiveInstance.PerInstanceRandom);
 				}
 			}
 		}
@@ -1549,7 +1520,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 
 		for (auto &Instance : ActiveInstances)
 		{
-			Instance = -1;
+			Instance = INDEX_NONE;
 		}
 	}
 
@@ -1626,9 +1597,6 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			const TArray<FRenderTransform>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
 			for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 			{
-				FVector4 LocalTransform[3];
-				FVector4 LightMapUV, Origin;
-
 				FVector4 InstanceSphere = PerInstanceBounds[InstanceIndex];
 				FVector InstanceLocation = InstanceSphere;
 				FVector VToInstanceCenter = LocalViewPosition - InstanceLocation;
@@ -1643,11 +1611,11 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 					{
 						FRayTracingInstance *DynamicInstance = nullptr;
 
-						if (ActiveInstances[DynamicInstanceIdx] == -1)
+						if (ActiveInstances[DynamicInstanceIdx] == INDEX_NONE)
 						{
-									// first case of this dynamic instance, setup the material and add it
-							InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(InstanceIndex, LocalTransform, LightMapUV, Origin);
-							float InstanceRandom = Origin.W;
+							// First case of this dynamic instance, setup the material and add it
+							float InstanceRandom;
+							InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceRandomID(InstanceIndex, InstanceRandom);
 
 							const FStaticMeshLODResources& LODModel = RenderData->LODResources[LOD];
 
@@ -1701,23 +1669,21 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	{
 		// No culling
 		const TArray<FRenderTransform>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
-		for (int32 InstanceIdx = 0; InstanceIdx < InstanceCount; ++InstanceIdx)
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 		{
-			FMatrix InstanceTransform = PerInstanceTransforms[InstanceIdx].ToMatrix() * GetLocalToWorld();
+			FMatrix InstanceTransform = PerInstanceTransforms[InstanceIndex].ToMatrix() * GetLocalToWorld();
 
 			if (bHasWorldPositionOffset && InstancedRenderData.VertexFactories[LOD].GetType()->SupportsRayTracingDynamicGeometry())
 			{
 				FRayTracingInstance* DynamicInstance = nullptr;
 
-				const int32 DynamicInstanceIdx = InstanceIdx % SimulatedInstances;
+				const int32 DynamicInstanceIdx = InstanceIndex % SimulatedInstances;
 
-				if (ActiveInstances[DynamicInstanceIdx] == -1)
+				if (ActiveInstances[DynamicInstanceIdx] == INDEX_NONE)
 				{
-					// first case of this dynamic instance, setup the material and add it
-					FVector4 LocalTransform[3];
-					FVector4 LightMapUV, Origin;
-					InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(InstanceIdx, LocalTransform, LightMapUV, Origin);
-					float InstanceRandom = Origin.W;
+					// First case of this dynamic instance, setup the material and add it
+					float InstanceRandom;
+					InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceRandomID(InstanceIndex, InstanceRandom);
 
 					const FStaticMeshLODResources& LODModel = RenderData->LODResources[LOD];
 
@@ -2096,11 +2062,11 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 			ShadowmapUVBias = MeshMapBuildData->PerInstanceLightmapData[Index].ShadowmapUVBias;
 		}
 	
-			OutData.SetInstance(RenderIndex, InstanceData.Transform, RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);
+		OutData.SetInstance(RenderIndex, InstanceData.Transform, RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);
 
-		for (int32 i = 0; i < NumCustomDataFloats; ++i)
+		for (int32 CustomDataIndex = 0; CustomDataIndex < NumCustomDataFloats; ++CustomDataIndex)
 		{
-			OutData.SetInstanceCustomData(RenderIndex, i, PerInstanceSMCustomData[Index * NumCustomDataFloats + i]);
+			OutData.SetInstanceCustomData(RenderIndex, CustomDataIndex, PerInstanceSMCustomData[Index * NumCustomDataFloats + CustomDataIndex]);
 		}
 
 #if WITH_EDITOR

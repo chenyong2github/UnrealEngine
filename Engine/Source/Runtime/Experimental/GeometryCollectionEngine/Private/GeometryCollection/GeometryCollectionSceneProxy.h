@@ -380,6 +380,9 @@ public:
 
 	virtual void OnTransformChanged() override;
 
+	// FSceneProxyBase interface.
+	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const override;
+
 	/** Called on render thread to setup static geometry for rendering */
 	void SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit = false);
 
@@ -400,31 +403,21 @@ public:
 		return bRequiresGPUSceneUpdate;
 	}
 
-	const FORCEINLINE TArray<Nanite::FResources*>& GetResources() const
-	{
-		return Resources;
-	}
-
-	FORCEINLINE TArray<Nanite::FResources*>& GetResources()
-	{
-		return Resources;
-	}
-
 	void OnMotionBegin();
 	void OnMotionEnd();
 
 protected:
-	TArray<Nanite::FResources*> Resources;
+	const UGeometryCollection* GeometryCollection = nullptr;
 
 	struct FGeometryNaniteData
 	{
 		FBoxSphereBounds RenderBounds;
-		FNaniteInfo NaniteInfo;
-		uint32 PrimitiveId;
+		uint32 HierarchyOffset;
 	};
 	TArray<FGeometryNaniteData> GeometryNaniteData;
 
-	const UGeometryCollection* GeometryCollection = nullptr;
+	uint32 NaniteResourceID = NANITE_INVALID_RESOURCE_ID;
+	uint32 NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
 
 	// TODO: Should probably calculate this on the materials array above instead of on the component
 	//       Null and !Opaque are assigned default material unlike the component material relevance.
