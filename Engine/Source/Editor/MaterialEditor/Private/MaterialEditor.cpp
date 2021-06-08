@@ -4539,11 +4539,14 @@ void FMaterialEditor::DeleteNodes(const TArray<UEdGraphNode*>& NodesToDelete)
 							bPreviewExpressionDeleted = true;
 						}
 
-						MaterialExpression->Modify();
-						Material->Expressions.Remove( MaterialExpression );
-						Material->RemoveExpressionParameter(MaterialExpression);
-						// Make sure the deleted expression is caught by gc
-						MaterialExpression->MarkPendingKill();
+						if (MaterialExpression)
+						{
+							MaterialExpression->Modify();
+							Material->Expressions.Remove(MaterialExpression);
+							Material->RemoveExpressionParameter(MaterialExpression);
+							// Make sure the deleted expression is caught by gc
+							MaterialExpression->MarkPendingKill();
+						}
 					}
 					else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(NodesToDelete[Index]))
 					{
