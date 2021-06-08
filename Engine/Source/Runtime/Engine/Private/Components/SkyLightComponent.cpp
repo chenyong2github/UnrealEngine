@@ -309,6 +309,10 @@ void USkyLightComponent::SetCaptureIsDirty()
 	{
 		FScopeLock Lock(&SkyCapturesToUpdateLock);
 
+#if WITH_EDITOR
+		this->CaptureStatus = ESkyLightCaptureStatus::SLCS_Uninitialized;
+#endif
+
 		SkyCapturesToUpdate.AddUnique(this);
 
 		// Mark saved values as invalid, in case a sky recapture is requested in a construction script between a save / restore of sky capture state
