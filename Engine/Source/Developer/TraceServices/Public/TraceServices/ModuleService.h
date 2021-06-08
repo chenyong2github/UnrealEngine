@@ -20,6 +20,12 @@ struct FModuleInfo
 	const TCHAR* DisplayName = nullptr;
 };
 
+struct FModuleInfoEx
+{
+	FModuleInfo Info;
+	bool bIsEnabled = false;
+};
+
 class IModule
 	: public IModularFeature
 {
@@ -29,6 +35,7 @@ public:
 	virtual void GetLoggers(TArray<const TCHAR*>& OutLoggers) = 0;
 	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) = 0;
 	virtual const TCHAR* GetCommandLineArgument() = 0;
+	virtual bool ShouldBeEnabledByDefault() const { return true; }
 };
 
 class IModuleService
@@ -36,6 +43,8 @@ class IModuleService
 public:
 	virtual ~IModuleService() = default;
 	virtual void GetAvailableModules(TArray<FModuleInfo>& OutModules) = 0;
+	virtual void GetAvailableModulesEx(TArray<FModuleInfoEx>& OutModules) = 0;
+	virtual void GetEnabledModules(TArray<FModuleInfo>& OutModules) = 0;
 	virtual void SetModuleEnabled(const FName& ModuleName, bool bEnabled) = 0;
 	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) = 0;
 };

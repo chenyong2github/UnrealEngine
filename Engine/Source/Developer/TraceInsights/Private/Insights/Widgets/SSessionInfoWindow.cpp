@@ -423,18 +423,30 @@ FText SSessionInfoWindow::GetStatusText() const
 FText SSessionInfoWindow::GetModulesText() const
 {
 	FString ModulesStr;
-	TArray<TraceServices::FModuleInfo> Modules;
+	TArray<TraceServices::FModuleInfoEx> Modules;
 
 	TSharedPtr<TraceServices::IModuleService> ModuleService = FInsightsManager::Get()->GetModuleService();
 	if (ModuleService)
 	{
-		ModuleService->GetAvailableModules(Modules);
+		ModuleService->GetAvailableModulesEx(Modules);
 	}
 
-	for (const TraceServices::FModuleInfo& Module : Modules)
+	bool bIsFirst = true;
+	for (const TraceServices::FModuleInfoEx& Module : Modules)
 	{
-		ModulesStr += Module.DisplayName;
-		ModulesStr += TEXT(", ");
+		if (bIsFirst)
+		{
+			bIsFirst = false;
+		}
+		else
+		{
+			ModulesStr += TEXT(", ");
+		}
+		if (!Module.bIsEnabled)
+		{
+			ModulesStr += TEXT("!");
+		}
+		ModulesStr += Module.Info.DisplayName;
 	}
 
 	return FText::FromString(ModulesStr);

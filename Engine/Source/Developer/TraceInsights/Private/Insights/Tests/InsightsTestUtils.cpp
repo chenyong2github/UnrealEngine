@@ -5,6 +5,8 @@
 #include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/ITraceServicesModule.h"
+#include "TraceServices/ModuleService.h"
 
 #include "Insights/IUnrealInsightsModule.h"
 
@@ -13,6 +15,11 @@
 FInsightsTestUtils::FInsightsTestUtils(FAutomationTestBase* InTest) :
 	Test(InTest)
 {
+#if WITH_EDITOR
+	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
+	TSharedPtr<TraceServices::IModuleService> ModuleService = TraceServicesModule.GetModuleService();
+	ModuleService->SetModuleEnabled(FName("TraceModule_LoadTimeProfiler"), true);
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
