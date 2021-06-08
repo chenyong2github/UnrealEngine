@@ -61,6 +61,7 @@ public:
 	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
 
 	bool CanRename(const FText& InNewName, FText& OutError) const;
+	bool IsRequired() const;
 	TArray<UMetasoundEditorGraphNode*> GetNodes() const;
 	void SetDataType(FName InNewType);
 	void SetDisplayName(const FText& InNewName);
@@ -183,6 +184,6 @@ public:
 
 	bool RemoveVariable(UMetasoundEditorGraphVariable& InVariable);
 
-	friend class UMetasoundFactory;
-	friend class UMetasoundSourceFactory;
+	friend class UMetaSoundFactory;
+	friend class UMetaSoundSourceFactory;
 };

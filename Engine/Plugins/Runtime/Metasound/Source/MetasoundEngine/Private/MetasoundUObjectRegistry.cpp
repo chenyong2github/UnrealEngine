@@ -47,7 +47,7 @@ namespace Metasound
 				return Classes;
 			}
 
-			UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const override
+			UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FMetasoundFrontendArchetype& InArchetype, const FString& InPath) const override
 			{
 				auto IsChildClassOfRegisteredClass = [&](const IMetasoundUObjectRegistryEntry* Entry)
 				{
@@ -58,7 +58,7 @@ namespace Metasound
 
 				for (const IMetasoundUObjectRegistryEntry* Entry : EntriesForClass)
 				{
-					if (Entry->GetArchetypeName() == InDocument.Archetype.Name)
+					if (Entry->GetArchetypeName() == InArchetype.Name)
 					{
 						return NewObject(*Entry, InDocument, InPath);
 					}
@@ -66,7 +66,6 @@ namespace Metasound
 
 				return nullptr;
 			}
-
 
 			bool IsRegisteredClass(UObject* InObject) const override
 			{
@@ -120,6 +119,12 @@ namespace Metasound
 				if (ensure(nullptr != NewAssetBase))
 				{
 					NewAssetBase->SetDocument(InDocument);
+
+					const FMetasoundFrontendArchetype& Archetype = NewAssetBase->GetArchetype();
+					if (ensure(NewAssetBase->IsArchetypeSupported(Archetype)))
+					{
+						NewAssetBase->ConformDocumentToArchetype();
+					}
 				}
 
 #if WITH_EDITOR

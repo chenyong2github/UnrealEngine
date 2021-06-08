@@ -419,7 +419,7 @@ namespace Metasound
 			TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) override;
 			TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FString& InName) const override;
 
-			bool IsRequired() const override;
+			bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const override;
 
 			/** Returns an input with the given id. 
 			 *
@@ -580,7 +580,7 @@ namespace Metasound
 			void SetDescription(const FText& InDescription) override;
 			void SetDisplayName(const FText& InText) override;
 			const FText& GetDisplayTitle() const override;
-			bool IsRequired() const override;
+			bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const override;
 
 		protected:
 
@@ -637,7 +637,7 @@ namespace Metasound
 			const FText& GetDescription() const override;
 			const FText& GetDisplayName() const override;
 			const FText& GetDisplayTitle() const override;
-			bool IsRequired() const override;
+			bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const override;
 			bool IsValid() const override;
 			void SetDescription(const FText& InDescription) override;
 			void SetDisplayName(const FText& InText) override;
@@ -725,6 +725,9 @@ namespace Metasound
 			TArray<FNodeHandle> GetOutputNodes() override;
 			TArray<FConstNodeHandle> GetConstOutputNodes() const override;
 
+			const FMetasoundFrontendGraphStyle& GetGraphStyle() const override;
+			void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override;
+
 			bool ContainsInputVertexWithName(const FString& InName) const override;
 			bool ContainsOutputVertexWithName(const FString& InName) const override;
 
@@ -787,6 +790,8 @@ namespace Metasound
 
 			// Returns the metadata for the current graph, including the name, description and author.
 			const FMetasoundFrontendClassMetadata& GetGraphMetadata() const override;
+
+			void SetGraphMetadata(const FMetasoundFrontendClassMetadata& InClassMetadata) override;
 
 			FNodeHandle CreateEmptySubgraph(const FMetasoundFrontendClassMetadata& InInfo) override;
 
@@ -895,9 +900,6 @@ namespace Metasound
 			virtual ~FDocumentController() = default;
 
 			bool IsValid() const override;
-
-			const TArray<FMetasoundFrontendClassVertex>& GetRequiredInputs() const override;
-			const TArray<FMetasoundFrontendClassVertex>& GetRequiredOutputs() const override;
 
 			TArray<FMetasoundFrontendClass> GetDependencies() const override;
 			TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const override;

@@ -110,6 +110,9 @@ namespace Metasound
 			void PasteNodes(const FVector2D* InLocation = nullptr);
 			void PasteNodes(const FVector2D* InLocation, const FText& InTransactionText);
 
+			/* Whether the displayed graph is marked as editable */
+			bool IsGraphEditable() const;
+
 			int32 GetNumNodesSelected() const
 			{
 				return MetasoundGraphEditor->GetSelectedNodes().Num();
@@ -120,13 +123,14 @@ namespace Metasound
 
 			void OnMeterOutput(UMeterAnalyzer* InMeterAnalyzer, int32 ChannelIndex, const FMeterResults& MeterResults);
 
+
 		protected:
 			// Callbacks for action tree
 			bool CanRenameOnActionNode(TWeakPtr<FGraphActionNode> InSelectedNode) const;
 			bool CanAddNewElementToSection(int32 InSectionID) const;
 			void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
 			void CollectStaticSections(TArray<int32>& StaticSectionIDs);
-			TSharedRef<SWidget> CreateAddInputButton(int32 InSectionID, FText AddNewText, FName MetaDataTag);
+			TSharedRef<SWidget> CreateAddButton(int32 InSectionID, FText AddNewText, FName MetaDataTag);
 			FText GetFilterText() const;
 			bool HandleActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const;
 			FReply OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent);
@@ -139,6 +143,8 @@ namespace Metasound
 
 			/** Called when the selection changes in the GraphEditor */
 			void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
+
+			FGraphAppearanceInfo GetGraphAppearance() const;
 
 			UMetasoundEditorGraph& GetMetaSoundGraphChecked();
 

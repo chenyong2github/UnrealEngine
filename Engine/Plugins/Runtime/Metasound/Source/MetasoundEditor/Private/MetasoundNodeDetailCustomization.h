@@ -167,8 +167,7 @@ namespace Metasound
 			{
 				if (GraphVariable.IsValid())
 				{
-					Frontend::FConstNodeHandle NodeHandle = GraphVariable->GetConstNodeHandle();
-					return NodeHandle->IsRequired();
+					return GraphVariable->IsRequired();
 				}
 
 				return true;
@@ -239,16 +238,6 @@ namespace Metasound
 					NodeStyle.bIsPrivate = bIsChecked;
 					NodeHandle->SetNodeStyle(NodeStyle);
 				}
-			}
-
-			EVisibility ExposePrivateVisibility() const
-			{
-				if (IsRequired())
-				{
-					return EVisibility::Collapsed;
-				}
-
-				return EVisibility::Visible;
 			}
 		};
 

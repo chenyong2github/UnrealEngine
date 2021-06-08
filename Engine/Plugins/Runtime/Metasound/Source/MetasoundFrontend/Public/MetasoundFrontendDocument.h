@@ -565,22 +565,25 @@ struct FMetasoundFrontendInterfaceStyle
 	{
 		TArray<HandleType> SortedHandles = InHandles;
 
-		TMap<FGuid, int32> HandleIDToSortIndex;
-		for (int32 i = 0; i < DefaultSortOrder.Num(); ++i)
+		if (ensure(SortedHandles.Num() == DefaultSortOrder.Num()))
 		{
-			if (InHandles.IsValidIndex(i))
+			TMap<FGuid, int32> HandleIDToSortIndex;
+			for (int32 i = 0; i < DefaultSortOrder.Num(); ++i)
 			{
-				const int32 SortIndex = DefaultSortOrder[i];
-				HandleIDToSortIndex.Add(InHandles[i]->GetID(), SortIndex);
+				if (InHandles.IsValidIndex(i))
+				{
+					const int32 SortIndex = DefaultSortOrder[i];
+					HandleIDToSortIndex.Add(InHandles[i]->GetID(), SortIndex);
+				}
 			}
-		}
 
-		SortedHandles.Sort([&](const HandleType& HandleA, const HandleType& HandleB)
-		{
-			const FGuid HandleAID = HandleA->GetID();
-			const FGuid HandleBID = HandleB->GetID();
-			return HandleIDToSortIndex[HandleAID] < HandleIDToSortIndex[HandleBID];
-		});
+			SortedHandles.Sort([&](const HandleType& HandleA, const HandleType& HandleB)
+			{
+				const FGuid HandleAID = HandleA->GetID();
+				const FGuid HandleBID = HandleB->GetID();
+				return HandleIDToSortIndex[HandleAID] < HandleIDToSortIndex[HandleBID];
+			});
+		}
 
 		return SortedHandles;
 	}
@@ -650,7 +653,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 		return { Namespace, Name, Variant };
 	}
 
-
 	// Return string version of full name.
 	FString ToString() const;
 
@@ -714,6 +716,30 @@ struct FMetasoundFrontendEditorData
 
 	UPROPERTY()
 	TArray<uint8> Data;
+};
+
+USTRUCT()
+struct METASOUNDFRONTEND_API FMetasoundFrontendClassAssetTags
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid ID = Metasound::FrontendInvalidID;
+
+	UPROPERTY()
+	FName Namespace;
+
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	FName Variant;
+
+	UPROPERTY()
+	int32 MajorVersion = -1;
+
+	UPROPERTY()
+	int32 MinorVersion = -1;
 };
 
 USTRUCT()
@@ -818,9 +844,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 
 	UPROPERTY()
 	FMetasoundFrontendEditorData EditorData;
-
-	UPROPERTY()
-	FMetasoundFrontendArchetype Archetype;
 
 	UPROPERTY()
 	TArray<FMetasoundFrontendClass> Dependencies;

@@ -136,11 +136,12 @@ namespace Metasound
 
 	namespace Frontend
 	{
-
+		/* TODO: Node registry key needs to use full version
 		struct METASOUNDFRONTEND_API FNodeRegistryKey
 		{
 			// The class name for the node.
 			FName NodeClassFullName;
+
 
 			// A hash generated from the input types and output types for this node.
 			uint32 NodeHash = 0;
@@ -155,6 +156,11 @@ namespace Metasound
 				return InKey.NodeHash;
 			}
 		};
+		*/
+
+		using FNodeRegistryKey = FString;
+
+		METASOUNDFRONTEND_API bool IsValidNodeRegistryKey(const FNodeRegistryKey& InKey);
 
 		// Struct with the basics of a node class' information,
 		// used to look up that node from our node browser functions,
@@ -347,7 +353,8 @@ public:
 	 *
 	 * @return True on success.
 	 */
-	virtual bool RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription) = 0;
+	virtual FNodeRegistryKey RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription) = 0;
+	virtual bool UnregisterExternalNode(const FNodeRegistryKey& InKey) = 0;
 	virtual bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo) = 0;
 	virtual bool IsNodeRegistered(const FNodeRegistryKey& InKey) const = 0;
 

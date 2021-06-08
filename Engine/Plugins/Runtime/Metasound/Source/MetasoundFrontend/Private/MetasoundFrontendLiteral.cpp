@@ -452,6 +452,32 @@ void FMetasoundFrontendLiteral::SetType(EMetasoundFrontendLiteralType InType)
 	}
 }
 
+bool FMetasoundFrontendLiteral::TryGet(UObject*& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::UObject)
+	{
+		if (ensure(!AsUObject.IsEmpty()))
+		{
+			OutValue = AsUObject[0];
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FMetasoundFrontendLiteral::TryGet(TArray<UObject*>& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::UObject)
+	{
+		OutValue = AsUObject;
+		return true;
+	}
+
+	return false;
+}
+
+
 Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoundDataTypeName) const
 {
 	using namespace Metasound;

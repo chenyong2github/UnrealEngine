@@ -639,13 +639,13 @@ namespace Metasound
 
 			if (ConverterInputs.Num() < 1)
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Converter node [Name: %s] does not support preferred input vertex [Vertex: %s]"), *InConverterInfo.NodeKey.NodeClassFullName.ToString(), *InConverterInfo.PreferredConverterInputPin);
+				UE_LOG(LogMetaSound, Warning, TEXT("Converter node [Name: %s] does not support preferred input vertex [Vertex: %s]"), *ConverterNode->GetNodeName(), *InConverterInfo.PreferredConverterInputPin);
 				return false;
 			}
 
 			if (ConverterOutputs.Num() < 1)
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Converter node [Name: %s] does not support preferred output vertex [Vertex: %s]"), *InConverterInfo.NodeKey.NodeClassFullName.ToString(), *InConverterInfo.PreferredConverterOutputPin);
+				UE_LOG(LogMetaSound, Warning, TEXT("Converter node [Name: %s] does not support preferred output vertex [Vertex: %s]"), *ConverterNode->GetNodeName(), *InConverterInfo.PreferredConverterOutputPin);
 				return false;
 			}
 
@@ -1402,7 +1402,7 @@ namespace Metasound
 			return FInvalidInputController::GetInvalid();
 		}
 
-		bool FBaseNodeController::IsRequired() const
+		bool FBaseNodeController::IsRequired(const FMetasoundFrontendArchetype& InArchetype) const
 		{
 			return false;
 		}
@@ -1776,12 +1776,12 @@ namespace Metasound
 			return OutputDisplayTitle;
 		}
 
-		bool FOutputNodeController::IsRequired() const
+		bool FOutputNodeController::IsRequired(const FMetasoundFrontendArchetype& InArchetype) const
 		{
 			if (NodePtr.IsValid() && OwningGraph->IsValid())
 			{
 				const FString& Name = NodePtr->Name;
-				const TArray<FMetasoundFrontendClassVertex>& RequiredOutputs = OwningGraph->GetOwningDocument()->GetRequiredOutputs();
+				const TArray<FMetasoundFrontendClassVertex>& RequiredOutputs = InArchetype.Interface.Outputs;
 				for (const FMetasoundFrontendClassVertex& OutputVertex : RequiredOutputs)
 				{
 					if (OutputVertex.Name == Name)
@@ -1930,12 +1930,12 @@ namespace Metasound
 			return InputDisplayTitle;
 		}
 
-		bool FInputNodeController::IsRequired() const
+		bool FInputNodeController::IsRequired(const FMetasoundFrontendArchetype& InArchetype) const
 		{
 			if (NodePtr.IsValid() && OwningGraph->IsValid())
 			{
 				const FString& Name = NodePtr->Name;
-				const TArray<FMetasoundFrontendClassVertex>& RequiredInputs = OwningGraph->GetOwningDocument()->GetRequiredInputs();
+				const TArray<FMetasoundFrontendClassVertex>& RequiredInputs = InArchetype.Interface.Inputs;
 				for (const FMetasoundFrontendClassVertex& InputVertex : RequiredInputs)
 				{
 					if (InputVertex.Name == Name)
@@ -2137,6 +2137,24 @@ namespace Metasound
 				return Node.ID == InNodeID; 
 			};
 			return GetNodeByPredicate(IsNodeWithSameID);
+		}
+
+		const FMetasoundFrontendGraphStyle& FGraphController::GetGraphStyle() const
+		{
+			if (GraphClassPtr.IsValid())
+			{
+				return GraphClassPtr->Graph.Style;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendGraphStyle>();
+		}
+
+		void FGraphController::SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle)
+		{
+			if (GraphClassPtr.IsValid())
+			{
+				GraphClassPtr->Graph.Style = InStyle;
+			}
 		}
 
 		TArray<FNodeHandle> FGraphController::GetOutputNodes()
@@ -2673,6 +2691,14 @@ namespace Metasound
 				return GraphClassPtr->Metadata;
 			}
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendClassMetadata>();
+		}
+
+		void FGraphController::SetGraphMetadata(const FMetasoundFrontendClassMetadata& InMetadata)
+		{
+			if (GraphClassPtr.IsValid())
+			{
+				GraphClassPtr->Metadata = InMetadata;
+			}
 		}
 
 		FNodeHandle FGraphController::CreateEmptySubgraph(const FMetasoundFrontendClassMetadata& InInfo)
@@ -3296,28 +3322,6 @@ namespace Metasound
 		bool FDocumentController::IsValid() const
 		{
 			return DocumentPtr.IsValid();
-		}
-
-		const TArray<FMetasoundFrontendClassVertex>& FDocumentController::GetRequiredInputs() const
-		{
-			if (DocumentPtr.IsValid())
-			{
-				return DocumentPtr->Archetype.Interface.Inputs;
-			}
-
-			static const TArray<FMetasoundFrontendClassVertex> Empty;
-			return Empty;
-		}
-
-		const TArray<FMetasoundFrontendClassVertex>& FDocumentController::GetRequiredOutputs() const
-		{
-			if (DocumentPtr.IsValid())
-			{
-				return DocumentPtr->Archetype.Interface.Outputs;
-			}
-
-			static const TArray<FMetasoundFrontendClassVertex> Empty;
-			return Empty;
 		}
 
 		TArray<FMetasoundFrontendClass> FDocumentController::GetDependencies() const
