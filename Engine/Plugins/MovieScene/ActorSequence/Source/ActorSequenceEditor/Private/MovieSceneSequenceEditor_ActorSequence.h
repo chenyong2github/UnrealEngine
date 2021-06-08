@@ -27,7 +27,7 @@ struct FMovieSceneSequenceEditor_ActorSequence : FMovieSceneSequenceEditor
 		}
 
 		UActorSequenceComponent* Component = ActorSequence->GetTypedOuter<UActorSequenceComponent>();
-		ULevel* Level = Component ? Component->GetOwner()->GetLevel() : nullptr;
+		ULevel* Level = (Component && Component->GetOwner()) ? Component->GetOwner()->GetLevel() : nullptr;
 
 		bool bDontCreateNewBlueprint = true;
 		return Level ? Level->GetLevelScriptBlueprint(bDontCreateNewBlueprint) : nullptr;
@@ -39,7 +39,7 @@ struct FMovieSceneSequenceEditor_ActorSequence : FMovieSceneSequenceEditor
 		check(!ActorSequence->GetParentBlueprint());
 
 		UActorSequenceComponent* Component = ActorSequence->GetTypedOuter<UActorSequenceComponent>();
-		ULevel* Level = Component ? Component->GetOwner()->GetLevel() : nullptr;
+		ULevel* Level = (Component && Component->GetOwner()) ? Component->GetOwner()->GetLevel() : nullptr;
 
 		bool bDontCreateNewBlueprint = false;
 		return Level ? Level->GetLevelScriptBlueprint(bDontCreateNewBlueprint) : nullptr;
