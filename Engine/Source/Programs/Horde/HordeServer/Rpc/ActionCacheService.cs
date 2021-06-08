@@ -45,8 +45,8 @@ namespace HordeServer.Rpc
 				Request.ActionResult.WriteTo(Stream);
 			}
 
-			BlobHash ActionHash = BlobHash.Parse(Request.ActionDigest.Hash);
-			BlobHash ResultHash = await StorageService.PutBlobAsync(Data);
+			IoHash ActionHash = IoHash.Parse(Request.ActionDigest.Hash);
+			IoHash ResultHash = await StorageService.PutBlobAsync(Data);
 			await StorageService.SetRefAsync(ActionHash, ResultHash);
 
 			return Request.ActionResult;
@@ -70,9 +70,9 @@ namespace HordeServer.Rpc
 		/// <returns></returns>
 		public async Task<ActionResult?> TryGetResult(Digest ActionDigest)
 		{
-			BlobHash ActionHash = ActionDigest.ToHashValue();
+			IoHash ActionHash = ActionDigest.ToHashValue();
 
-			BlobHash? ResultHash = await StorageService.GetRefAsync(ActionHash, TimeSpan.FromDays(1.0));
+			IoHash? ResultHash = await StorageService.GetRefAsync(ActionHash, TimeSpan.FromDays(1.0));
 			if (ResultHash == null)
 			{
 				return null;

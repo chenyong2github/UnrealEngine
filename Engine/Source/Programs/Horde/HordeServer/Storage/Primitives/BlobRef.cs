@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,14 +21,14 @@ namespace HordeServer.Storage.Primitives
 		/// <summary>
 		/// The blob hash
 		/// </summary>
-		public BlobHash Hash { get; }
+		public IoHash Hash { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Type"></param>
 		/// <param name="Hash"></param>
-		public BlobRef(IBlobType Type, BlobHash Hash)
+		public BlobRef(IBlobType Type, IoHash Hash)
 		{
 			this.Type = Type;
 			this.Hash = Hash;
@@ -54,13 +55,13 @@ namespace HordeServer.Storage.Primitives
 		/// <summary>
 		/// Hash of the referenced blob
 		/// </summary>
-		public BlobHash Hash { get; }
+		public IoHash Hash { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Hash">Hash of the blob</param>
-		public BlobRef(BlobHash Hash)
+		public BlobRef(IoHash Hash)
 		{
 			this.Hash = Hash;
 		}

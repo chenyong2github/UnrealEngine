@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,7 +16,7 @@ namespace HordeServer.Storage.Primitives
 		/// <summary>
 		/// The key
 		/// </summary>
-		public BlobHash Key { get; }
+		public IoHash Key { get; }
 
 		/// <summary>
 		/// Block of memory containing the value for this item
@@ -27,7 +28,7 @@ namespace HordeServer.Storage.Primitives
 		/// </summary>
 		/// <param name="Key"></param>
 		/// <param name="Value"></param>
-		public KeyValueItem(BlobHash Key, ReadOnlyMemory<byte> Value)
+		public KeyValueItem(IoHash Key, ReadOnlyMemory<byte> Value)
 		{
 			this.Key = Key;
 			this.Value = Value;
@@ -44,14 +45,14 @@ namespace HordeServer.Storage.Primitives
 		{
 			this.Keys = Node.Keys;
 			this.Values = Node.Values;
-			this.ValueSize = Node.IsLeafNode ? Tree.LeafValueSize : BlobHash.NumBytes;
+			this.ValueSize = Node.IsLeafNode ? Tree.LeafValueSize : IoHash.NumBytes;
 		}
 
 		public bool IsEmpty => Keys.Length == 0;
 
 		public void MoveNext()
 		{
-			Keys = Keys.Slice(BlobHash.NumBytes);
+			Keys = Keys.Slice(IoHash.NumBytes);
 			Values = Values.Slice(ValueSize);
 		}
 
@@ -65,7 +66,7 @@ namespace HordeServer.Storage.Primitives
 
 		public void CopyTo(KeyValueItemWriter Writer, int Count)
 		{
-			ReadOnlyMemory<byte> CopyKeys = Keys.Slice(0, Count * BlobHash.NumBytes);
+			ReadOnlyMemory<byte> CopyKeys = Keys.Slice(0, Count * IoHash.NumBytes);
 			ReadOnlyMemory<byte> CopyValues = Values.Slice(0, Count * ValueSize);
 
 			Writer.WriteItems(CopyKeys, CopyValues);
@@ -86,7 +87,7 @@ namespace HordeServer.Storage.Primitives
 			this.Values = Node.Values;
 		}
 
-		public void WriteItem(BlobHash Key, ReadOnlyMemory<byte> Value)
+		public void WriteItem(IoHash Key, ReadOnlyMemory<byte> Value)
 		{
 			WriteItems(Key.Memory, Value);
 		}

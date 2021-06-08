@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Buffers.Binary;
 using System.Collections;
@@ -65,7 +66,7 @@ namespace HordeServer.Storage.Primitives
 			this.NumKeyBits = NumKeyBits;
 			this.NumKeyBitsIfMerged = NumKeyBitsIfMerged;
 
-			int KeyDataLength = BlobHash.NumBytes * NumItems;
+			int KeyDataLength = IoHash.NumBytes * NumItems;
 			int ValueDataLength = ValueSize * NumItems;
 			Memory = new byte[(sizeof(int) * 4) + KeyDataLength + ValueDataLength];
 
@@ -119,7 +120,7 @@ namespace HordeServer.Storage.Primitives
 		/// <summary>
 		/// Whether this node is a leaf node
 		/// </summary>
-		public bool IsLeafNode => NumKeyBits == BlobHash.NumBits;
+		public bool IsLeafNode => NumKeyBits == IoHash.NumBits;
 
 		/// <summary>
 		/// Constructor
@@ -143,7 +144,7 @@ namespace HordeServer.Storage.Primitives
 			NumKeyBitsIfMerged = BinaryPrimitives.ReadInt32LittleEndian(Input.Span);
 			Input = Input.Slice(sizeof(int));
 
-			Keys = Input.Slice(0, NumItems * BlobHash.NumBytes);
+			Keys = Input.Slice(0, NumItems * IoHash.NumBytes);
 			Input = Input.Slice(Keys.Length);
 
 			Values = Input;

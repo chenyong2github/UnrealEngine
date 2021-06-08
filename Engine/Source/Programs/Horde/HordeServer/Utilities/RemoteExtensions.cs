@@ -9,14 +9,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using EpicGames.Core;
+
+using Digest = Build.Bazel.Remote.Execution.V2.Digest;
 
 namespace HordeServer.Utility
 {
 	static class RemoteExtensions
 	{
-		public static BlobHash ToHashValue(this Digest Digest)
+		public static IoHash ToHashValue(this Digest Digest)
 		{
-			return BlobHash.Parse(Digest.Hash);
+			return IoHash.Parse(Digest.Hash);
 		}
 
 		public static void MergeFrom<T>(this IMessage<T> Message, ReadOnlyMemory<byte> Memory) where T : IMessage<T>
@@ -31,7 +34,7 @@ namespace HordeServer.Utility
 			return Parser.ParseFrom(Memory.ToArray());
 		}
 
-		public static async Task<T> GetProtoMessageAsync<T>(this IStorageService StorageProvider, BlobHash HashValue, DateTime Deadline = default) where T : class, IMessage<T>, new()
+		public static async Task<T> GetProtoMessageAsync<T>(this IStorageService StorageProvider, IoHash HashValue, DateTime Deadline = default) where T : class, IMessage<T>, new()
 		{
 			T? Result = await TryGetProtoMessageAsync<T>(StorageProvider, HashValue, Deadline);
 			if (Result == null)
@@ -41,7 +44,7 @@ namespace HordeServer.Utility
 			return Result;
 		}
 
-		public static async Task<T?> TryGetProtoMessageAsync<T>(this IStorageService StorageProvider, BlobHash HashValue, DateTime Deadline = default) where T : class, IMessage<T>, new()
+		public static async Task<T?> TryGetProtoMessageAsync<T>(this IStorageService StorageProvider, IoHash HashValue, DateTime Deadline = default) where T : class, IMessage<T>, new()
 		{
 			ReadOnlyMemory<byte>? Data = await StorageProvider.TryGetBlobAsync(HashValue, Deadline);
 			if (Data == null)
@@ -54,32 +57,32 @@ namespace HordeServer.Utility
 			return NewItem;
 		}
 
-		public static async Task<BlobHash> PutProtoMessageAsync<T>(this IStorageService StorageProvider, IMessage<T> Message) where T : class, IMessage<T>
+		public static async Task<IoHash> PutProtoMessageAsync<T>(this IStorageService StorageProvider, IMessage<T> Message) where T : class, IMessage<T>
 		{
-			HashSet<BlobHash> References = new HashSet<BlobHash>();
+			HashSet<IoHash> References = new HashSet<IoHash>();
 			FindReferences(Message, References);
 
 			byte[] MessageData = Message.ToByteArray(); // TODO: Could generate this directly into the buffer
 
-			BlobHash HashValue = BlobHash.Compute(MessageData);
+			IoHash HashValue = IoHash.Compute(MessageData);
 			await StorageProvider.PutBlobAsync(HashValue, MessageData);
 
 			return HashValue;
 		}
 
-		public static Task<ReadOnlyMemory<byte>> GetBulkDataTreeAsync(this IStorageService StorageProvider, BlobHash Hash)
+		public static Task<ReadOnlyMemory<byte>> GetBulkDataTreeAsync(this IStorageService StorageProvider, IoHash Hash)
 		{
 			return StorageProvider.GetBlobAsync(Hash);
 		}
 
-		public static async Task<BlobHash> PutBulkDataTreeAsync(this IStorageService StorageProvider, ReadOnlyMemory<byte> BulkData)
+		public static async Task<IoHash> PutBulkDataTreeAsync(this IStorageService StorageProvider, ReadOnlyMemory<byte> BulkData)
 		{
-			BlobHash HashValue = BlobHash.Compute(BulkData);
+			IoHash HashValue = IoHash.Compute(BulkData.Span);
 			await StorageProvider.PutBlobAsync(HashValue, BulkData);
 			return HashValue;
 		}
 
-		static void FindReferences(this IMessage Message, HashSet<BlobHash> References)
+		static void FindReferences(this IMessage Message, HashSet<IoHash> References)
 		{
 			foreach (FieldDescriptor FieldDescriptor in Message.Descriptor.Fields.InFieldNumberOrder())
 			{
