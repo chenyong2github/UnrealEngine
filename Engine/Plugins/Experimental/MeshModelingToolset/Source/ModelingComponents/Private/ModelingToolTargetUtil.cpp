@@ -13,6 +13,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Volume.h"
+#include "SimpleDynamicMeshComponent.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
@@ -120,10 +121,41 @@ FDynamicMesh3 UE::ToolTarget::GetDynamicMeshCopy(UToolTarget* Target)
 }
 
 
+UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitMeshDescriptionUpdate(UToolTarget* Target, const FMeshDescription* UpdatedMesh, const FComponentMaterialSet* UpdatedMaterials)
+{
+	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
+	if (!ensure(MeshDescriptionCommitter))
+	{
+		return EDynamicMeshUpdateResult::Failed;
+	}
+
+	if (UpdatedMaterials != nullptr)
+	{
+		IMaterialProvider* MaterialProvider = Cast<IMaterialProvider>(Target);
+		if (MaterialProvider)
+		{
+			MaterialProvider->CommitMaterialSetUpdate(*UpdatedMaterials, true);
+		}
+	}
+
+	EDynamicMeshUpdateResult Result = EDynamicMeshUpdateResult::Failed;
+	MeshDescriptionCommitter->CommitMeshDescription([UpdatedMesh, &Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+	{
+		*CommitParams.MeshDescriptionOut = *UpdatedMesh;
+		Result = EDynamicMeshUpdateResult::Ok;
+	});
+	return Result;
+}
+
+
 
 UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUVUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh)
 {
 	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
+	if (!ensure(MeshDescriptionCommitter))
+	{
+		return EDynamicMeshUpdateResult::Failed;
+	}
 
 	EDynamicMeshUpdateResult Result = EDynamicMeshUpdateResult::Failed;
 	MeshDescriptionCommitter->CommitMeshDescription([UpdatedMesh, &Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
@@ -159,6 +191,12 @@ bool UE::ToolTarget::ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, 
 		if (Cast<UStaticMeshComponent>(ComponentTarget->GetOwnerComponent()) != nullptr)
 		{
 			DerivedParamsOut.TypeHint = ECreateObjectTypeHint::StaticMesh;
+			return true;
+		}
+
+		if (Cast<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerComponent()) != nullptr)
+		{
+			DerivedParamsOut.TypeHint = ECreateObjectTypeHint::DynamicMeshActor;
 			return true;
 		}
 

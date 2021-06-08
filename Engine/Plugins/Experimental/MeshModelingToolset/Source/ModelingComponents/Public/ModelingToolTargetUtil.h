@@ -90,6 +90,16 @@ enum class EDynamicMeshUpdateResult
 
 
 /**
+ * Update the Mesh in a ToolTarget based on the provided MeshDescription, and optional material set
+ * @return EDynamicMeshUpdateResult::Ok on success
+ */
+MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitMeshDescriptionUpdate(
+	UToolTarget* Target, 
+	const FMeshDescription* UpdatedMesh, 
+	const FComponentMaterialSet* UpdatedMaterials = nullptr);
+
+
+/**
  * Update the UV sets of the ToolTarget's mesh (assuming it has one) based on the provided UpdatedMesh.
  * @todo: support updating a specific UV set/index, rather than all sets
  * @return EDynamicMeshUpdateResult::Ok on success, or Ok_ForcedFullUpdate if any dependent mesh topology was modified
