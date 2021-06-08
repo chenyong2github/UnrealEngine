@@ -485,7 +485,7 @@ FReply SPlacementAssetMenuEntry::OnMouseButtonUp(const FGeometry& MyGeometry, co
 			FActorFactoryAssetProxy::GetFactoryForAssetObject(ClassObject);
 		}
 		NewActor = FLevelEditorActionCallbacks::AddActor(Factory, Item->AssetData, &TempTransform);
-		if (NewActor != nullptr)
+		if (NewActor && GCurrentLevelEditingViewportClient)
 		{
   			GEditor->MoveActorInFrontOfCamera(*NewActor, 
   				GCurrentLevelEditingViewportClient->GetViewLocation(), 
