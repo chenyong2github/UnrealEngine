@@ -43,7 +43,7 @@
 		{
 			"Name": "MetasoundEditor",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "PostEngineInit"
+			"LoadingPhase": "PostDefault"
 		}
 	],
 	"Plugins": [
