@@ -80,34 +80,6 @@ namespace EAnimationPlaybackSpeeds
 	extern float Values[NumPlaybackSpeeds];
 };
 
-/**
-* A hit proxy class for sockets in the Persona viewport.
-*/
-struct HPersonaSocketProxy : public HHitProxy
-{
-	DECLARE_HIT_PROXY();
-
-	FSelectedSocketInfo SocketInfo;
-
-	explicit HPersonaSocketProxy(FSelectedSocketInfo InSocketInfo)
-		: SocketInfo(InSocketInfo)
-	{}
-};
-
-/**
-* A hit proxy class for sockets in the Persona viewport.
-*/
-struct HPersonaBoneProxy : public HHitProxy
-{
-	DECLARE_HIT_PROXY();
-
-	FName BoneName;
-
-	explicit HPersonaBoneProxy(const FName& InBoneName)
-		: BoneName(InBoneName)
-	{}
-};
-
 /////////////////////////////////////////////////////////////////////////
 // FAnimationViewportClient
 
