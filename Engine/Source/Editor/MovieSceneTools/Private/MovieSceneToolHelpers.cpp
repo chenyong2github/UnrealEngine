@@ -2809,11 +2809,16 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieSceneSequence* InSe
 
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 
+	TArray<FbxCamera*> AllCameras;
+	MovieSceneToolHelpers::GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
+
+	if (AllCameras.Num() == 0)
+	{
+		return;
+	}
+
 	if (bCreateCameras)
 	{
-		TArray<FbxCamera*> AllCameras;
-		MovieSceneToolHelpers::GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
-
 		UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
 
 		// Find unmatched cameras
