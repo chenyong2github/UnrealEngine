@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"Foliage",
 					"FreeImage",
+					"HTTP",
 					"InputCore",
 					"Json",
 					"Landscape",
