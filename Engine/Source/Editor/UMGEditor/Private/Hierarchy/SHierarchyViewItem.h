@@ -350,7 +350,6 @@ public:
 	virtual ~SHierarchyViewItem();
 
 	// Begin SWidget
-	virtual bool IsHovered() const override;
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 	// End SWidget
@@ -376,6 +375,7 @@ private:
 
 	bool IsReadOnly() const;
 	void OnRequestBeginRename();
+	bool ShouldAppearHovered() const;
 
 	/** Gets the font to use for the text item, bold for customized named items */
 	FSlateFontInfo GetItemFont() const;
@@ -405,4 +405,7 @@ private:
 
 	/** Text when we start editing. */
 	FText InitialText;
+
+	/** Keep an internal IsHovered flag*/
+	bool bHovered;
 };

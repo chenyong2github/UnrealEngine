@@ -301,10 +301,10 @@ FSlateColor SCheckBox::GetForegroundColor() const
 		switch (State)
 		{
 		case ECheckBoxState::Unchecked:
-			return bIsPressed ? Style->PressedForeground : bIsHovered ? Style->HoveredForeground : Style->ForegroundColor;
+			return bIsPressed ? Style->PressedForeground : IsHovered() ? Style->HoveredForeground : Style->ForegroundColor;
 			break;
 		case ECheckBoxState::Checked:
-			return bIsPressed ? Style->CheckedPressedForeground : bIsHovered ? Style->CheckedHoveredForeground : Style->CheckedForeground;
+			return bIsPressed ? Style->CheckedPressedForeground : IsHovered() ? Style->CheckedHoveredForeground : Style->CheckedForeground;
 			break;
 		default:
 		case ECheckBoxState::Undetermined:

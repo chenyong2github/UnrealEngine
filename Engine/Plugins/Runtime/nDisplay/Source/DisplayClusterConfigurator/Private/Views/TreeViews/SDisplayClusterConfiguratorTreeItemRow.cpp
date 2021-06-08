@@ -19,6 +19,8 @@ void SDisplayClusterConfiguratorTreeItemRow::Construct(const FArguments& InArgs,
 	Item = InArgs._Item;
 	FilterText = InArgs._FilterText;
 
+	SetHover(TAttribute<bool>::CreateSP(this, &SDisplayClusterConfiguratorTreeItemRow::ShouldAppearHovered));
+
 	check(Item.IsValid());
 
 	SMultiColumnTableRow< TSharedPtr<IDisplayClusterConfiguratorTreeItem> >::Construct(FSuperRowType::FArguments()
@@ -56,7 +58,7 @@ void SDisplayClusterConfiguratorTreeItemRow::ConstructChildren(ETableViewMode::T
 		];
 }
 
-bool SDisplayClusterConfiguratorTreeItemRow::IsHovered() const
+bool SDisplayClusterConfiguratorTreeItemRow::ShouldAppearHovered() const
 {
 	return Item.Pin()->IsHovered();
 }

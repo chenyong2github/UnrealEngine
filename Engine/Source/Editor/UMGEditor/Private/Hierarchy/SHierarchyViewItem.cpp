@@ -1309,8 +1309,11 @@ void FHierarchyWidget::OnEndEditing()
 
 void SHierarchyViewItem::Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, TSharedPtr<FHierarchyModel> InModel)
 {
+	bHovered = false;
 	Model = InModel;
 	Model->RenameEvent.BindSP(this, &SHierarchyViewItem::OnRequestBeginRename);
+
+	SetHover(TAttribute<bool>::CreateSP(this, &SHierarchyViewItem::ShouldAppearHovered));
 
 	STableRow< TSharedPtr<FHierarchyModel> >::Construct(
 		STableRow< TSharedPtr<FHierarchyModel> >::FArguments()
@@ -1439,6 +1442,7 @@ SHierarchyViewItem::~SHierarchyViewItem()
 
 void SHierarchyViewItem::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	bHovered = true;
 	STableRow< TSharedPtr<FHierarchyModel> >::OnMouseEnter(MyGeometry, MouseEvent);
 
 	Model->OnMouseEnter();
@@ -1446,6 +1450,7 @@ void SHierarchyViewItem::OnMouseEnter(const FGeometry& MyGeometry, const FPointe
 
 void SHierarchyViewItem::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
+	bHovered = false;
 	STableRow< TSharedPtr<FHierarchyModel> >::OnMouseLeave(MouseEvent);
 
 	Model->OnMouseLeave();
@@ -1505,9 +1510,9 @@ FText SHierarchyViewItem::GetItemText() const
 	return Model->GetText();
 }
 
-bool SHierarchyViewItem::IsHovered() const
+bool SHierarchyViewItem::ShouldAppearHovered() const
 {
-	return bIsHovered || Model->IsHovered();
+	return bHovered || Model->IsHovered();
 }
 
 void SHierarchyViewItem::HandleDragEnter(FDragDropEvent const& DragDropEvent)

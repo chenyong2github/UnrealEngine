@@ -55,6 +55,8 @@ void SCommonButton::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEven
 {
 	if (!MouseEvent.IsTouchEvent())
 	{
+		bHovered = true;
+		SetHover(bHovered && bIsInteractionEnabled);
 		SButton::OnMouseEnter(MyGeometry, MouseEvent);
 	}
 }
@@ -70,6 +72,8 @@ void SCommonButton::OnMouseLeave(const FPointerEvent& MouseEvent)
 	}
 	else
 	{
+		bHovered = false;
+		SetHover(false);
 		SButton::OnMouseLeave(MouseEvent);
 	}
 }
@@ -112,11 +116,6 @@ FReply SCommonButton::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	return SButton::OnKeyUp(MyGeometry, InKeyEvent);
 }
 
-bool SCommonButton::IsHovered() const
-{
-	return bIsInteractionEnabled ? SButton::IsHovered() : false;
-}
-
 bool SCommonButton::IsPressed() const
 {
 	return IsInteractable() ? SButton::IsPressed() : false;
@@ -143,10 +142,11 @@ void SCommonButton::SetIsInteractionEnabled(bool bInIsInteractionEnabled)
 
 	bIsInteractionEnabled = bInIsInteractionEnabled;
 
-	// If the hover state changed due to an interactability change, trigger external logic accordingly.
-	const bool bIsHoveredNow = IsHovered();
+	// If the hover state changed due to an intractability change, trigger external logic accordingly.
+	const bool bIsHoveredNow = bHovered && bInIsInteractionEnabled;
 	if (bWasHovered != bIsHoveredNow)
 	{
+		SetHover(bIsHoveredNow);
 		if (bIsHoveredNow)
 		{
 			OnHovered.ExecuteIfBound();

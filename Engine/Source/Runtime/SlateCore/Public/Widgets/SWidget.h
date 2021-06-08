@@ -993,14 +993,31 @@ public:
 		return bToolTipForceFieldEnabled;
 	}
 
-	/** @return True if this widget hovered */
-	virtual bool IsHovered() const
+	/**
+	 * @return True if this widget hovered
+	 * @note IsHovered used to be virtual. Use SetHover to assign an attribute if you need to override the default behavior.
+	 */
+	bool IsHovered() const
 	{
-		return bIsHovered;
+		return HoveredAttribute.Get();
 	}
 
 	/** @return True if this widget is directly hovered */
-	virtual bool IsDirectlyHovered() const;
+	bool IsDirectlyHovered() const;
+
+protected:
+	/**
+	 * Set the hover state.
+	 * Once set, the attribute that the ownership and SWidget code will not update the attribute value.
+	 * You can return the control to the SWidget code by setting an empty TAttribute.
+	 */
+	void SetHover(TAttribute<bool> InHovered)
+	{
+		bIsHoveredAttributeSet = InHovered.IsSet();
+		HoveredAttribute.Assign(*this, MoveTemp(InHovered));
+	}
+
+public:
 
 	/**
 	 * @return is this widget visible, hidden or collapsed.
@@ -1687,6 +1704,8 @@ protected:
 
 	/** @return an attribute reference of EnabledStateAttribute */
 	TSlateAttributeRef<bool> GetEnabledStateAttribute() const { return TSlateAttributeRef<bool>(SharedThis(this), EnabledStateAttribute); }
+	/** @return an attribute reference of HoveredAttribute */
+	TSlateAttributeRef<bool> GetHoveredAttribute() const { return TSlateAttributeRef<bool>(SharedThis(this), HoveredAttribute); }
 	/** @return an attribute reference of VisibilityAttribute */
 	TSlateAttributeRef<EVisibility> GetVisibilityAttribute() const { return TSlateAttributeRef<EVisibility>(SharedThis(this), VisibilityAttribute); }
 	/** @return an attribute reference of RenderTransformAttribute */
@@ -1703,9 +1722,6 @@ private:
 	mutable FWidgetProxyHandle FastPathProxyHandle;
 
 protected:
-	/** Is this widget hovered? */
-	uint8 bIsHovered : 1;
-
 	/** Can the widget ever support keyboard focus */
 	uint8 bCanSupportFocus : 1;
 
@@ -1722,6 +1738,12 @@ protected:
 	  * really do the clipping.
 	  */
 	uint8 bClippingProxy : 1;
+
+#if WITH_EDITORONLY_DATA
+	/** Is this widget hovered? */
+	UE_DEPRECATED(5.0, "Direct access to bIsHovered is now deprecated. Use the IsHovered getter.")
+	uint8 bIsHovered : 1;
+#endif
 
 private:
 	/**
@@ -1750,6 +1772,9 @@ private:
 
 	/** The SNew or SAssignedNew construction is completed. */
 	uint8 bIsDeclarativeSyntaxConstructionCompleted : 1;
+
+	/** Is the attribute IsHovered is set? */
+	uint8 bIsHoveredAttributeSet : 1;
 
 protected:
 	uint8 bHasCustomPrepass : 1;
@@ -1809,6 +1834,9 @@ private:
 
 	/** Whether or not this widget is enabled */
 	TSlateAttribute<bool> EnabledStateAttribute;
+
+	/** Whether or not this widget is hovered */
+	TSlateAttribute<bool> HoveredAttribute;
 
 	/** Render transform pivot of this widget (in normalized local space) */
 	TSlateAttribute<FVector2D> RenderTransformPivotAttribute;

@@ -157,7 +157,6 @@ public:
 	{
 		ParentPtr = InParent;
 		StepIndex = InArgs._StepIndex.Get(InParent->GetDataprepAction()->GetStepsCount());
-		bIsHovered = false;
 
 		const float InterStepSpacing = 5.f;
 		const bool bBottomSlot = StepIndex == InParent->GetDataprepAction()->GetStepsCount();
