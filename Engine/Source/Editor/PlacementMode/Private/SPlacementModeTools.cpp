@@ -21,6 +21,8 @@
 #include "ClassIconFinder.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "AssetSelection.h"
+#include "ActorFactories/ActorFactory.h"
 
 #define LOCTEXT_NAMESPACE "PlacementMode"
 
@@ -475,17 +477,14 @@ FReply SPlacementAssetMenuEntry::OnMouseButtonUp(const FGeometry& MyGeometry, co
 
 		AActor* NewActor = nullptr;
 		FTransform TempTransform;
-		if (Item->Factory != nullptr)
+		UActorFactory* Factory = Item->Factory;
+		if (!Item->Factory)
 		{
-			NewActor = FLevelEditorActionCallbacks::AddActor(Item->Factory, Item->AssetData, &TempTransform);
+			// If no actor factory was found or failed, add the actor from the uclass
+			UObject* ClassObject = Item->AssetData.GetClass()->GetDefaultObject();
+			FActorFactoryAssetProxy::GetFactoryForAssetObject(ClassObject);
 		}
-		else 
-		{
-			// If no actor factory was found or failed, add the actor from the uclass.
-			AActor* DefaultActor = CastChecked<AActor>(CastChecked<UClass>(Item->AssetData.GetAsset())->ClassDefaultObject);
-			NewActor = FLevelEditorActionCallbacks::AddActorFromClass(DefaultActor->GetClass());
-		}
-
+		NewActor = FLevelEditorActionCallbacks::AddActor(Factory, Item->AssetData, &TempTransform);
 		if (NewActor != nullptr)
 		{
   			GEditor->MoveActorInFrontOfCamera(*NewActor, 
