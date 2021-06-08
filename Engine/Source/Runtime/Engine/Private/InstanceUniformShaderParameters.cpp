@@ -63,6 +63,6 @@ ENGINE_API const FPrimitiveInstance& GetDummyPrimitiveInstance()
 
 ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 {
-	static FInstanceSceneShaderData DummyShaderData = FInstanceSceneShaderData(GetDummyPrimitiveInstance(), 0 /* Primitive Id */);
+	static FInstanceSceneShaderData DummyShaderData = FInstanceSceneShaderData(GetDummyPrimitiveInstance(), 0xFFFFFFFFu /* Primitive Id */);
 	return DummyShaderData;
 }
