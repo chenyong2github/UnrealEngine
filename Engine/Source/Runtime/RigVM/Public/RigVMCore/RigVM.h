@@ -65,7 +65,7 @@ public:
 		P.Serialize(Ar);
 		return Ar;
 	}
-
+	
 	// returns true if the parameter is valid
 	bool IsValid() const { return Type != ERigVMParameterType::Invalid; }
 
@@ -147,7 +147,7 @@ public:
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
-
+	
 	// resets the container and maintains all memory
 	void Reset();
 
@@ -636,6 +636,8 @@ private:
 		}
 #endif
 	}
+
+	bool ValidateAllOperandsDuringLoad();
 
 	void CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand);
 
