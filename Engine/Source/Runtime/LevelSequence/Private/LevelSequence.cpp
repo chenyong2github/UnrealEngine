@@ -90,32 +90,7 @@ void ULevelSequence::Initialize()
 
 UObject* ULevelSequence::MakeSpawnableTemplateFromInstance(UObject& InSourceObject, FName ObjectName)
 {
-	UObject* NewInstance = NewObject<UObject>(MovieScene, InSourceObject.GetClass(), ObjectName);
-
-	UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
-	CopyParams.bNotifyObjectReplacement = false;
-	CopyParams.bPreserveRootComponent = false;
-	UEngine::CopyPropertiesForUnrelatedObjects(&InSourceObject, NewInstance, CopyParams);
-
-	AActor* Actor = CastChecked<AActor>(NewInstance);
-	if (Actor->GetAttachParentActor() != nullptr)
-	{
-		// We don't support spawnables and attachments right now
-		// @todo: map to attach track?
-		Actor->DetachFromActor(FDetachmentTransformRules(FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), false));
-	}
-
-	// The spawnable source object was created with RF_Transient. The object generated from that needs its 
-	// component flags cleared of RF_Transient so that the template object can be saved to the level sequence.
-	for (UActorComponent* Component : Actor->GetComponents())
-	{
-		if (Component)
-		{
-			Component->ClearFlags(RF_Transient);
-		}
-	}
-
-	return NewInstance;
+	return MovieSceneHelpers::MakeSpawnableTemplateFromInstance(InSourceObject, MovieScene, ObjectName);
 }
 
 bool ULevelSequence::CanAnimateObject(UObject& InObject) const 

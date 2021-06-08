@@ -480,6 +480,36 @@ FString MovieSceneHelpers::MakeUniqueSpawnableName(UMovieScene* MovieScene, cons
 	return NewName;
 }
 
+UObject* MovieSceneHelpers::MakeSpawnableTemplateFromInstance(UObject& InSourceObject, UMovieScene* InMovieScene, FName InName)
+{
+	UObject* NewInstance = NewObject<UObject>(InMovieScene, InSourceObject.GetClass(), InName);
+
+	UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
+	CopyParams.bNotifyObjectReplacement = false;
+	CopyParams.bPreserveRootComponent = false;
+	UEngine::CopyPropertiesForUnrelatedObjects(&InSourceObject, NewInstance, CopyParams);
+
+	AActor* Actor = CastChecked<AActor>(NewInstance);
+	if (Actor->GetAttachParentActor() != nullptr)
+	{
+		// We don't support spawnables and attachments right now
+		// @todo: map to attach track?
+		Actor->DetachFromActor(FDetachmentTransformRules(FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), false));
+	}
+
+	// The spawnable source object was created with RF_Transient. The object generated from that needs its 
+	// component flags cleared of RF_Transient so that the template object can be saved to the level sequence.
+	for (UActorComponent* Component : Actor->GetComponents())
+	{
+		if (Component)
+		{
+			Component->ClearFlags(RF_Transient);
+		}
+	}
+
+	return NewInstance;
+}
+
 FTrackInstancePropertyBindings::FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath )
 	: PropertyPath( InPropertyPath )
 	, PropertyName( InPropertyName )
