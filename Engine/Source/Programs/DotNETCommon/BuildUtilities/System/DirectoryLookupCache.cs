@@ -5,11 +5,10 @@ using System.IO;
 using System.Collections.Generic;
 using EpicGames.Core;
 using System.Linq;
-using UnrealBuildBase;
 
-namespace UnrealBuildTool
+namespace UnrealBuildBase
 {
-	static class DirectoryLookupCache
+	static public class DirectoryLookupCache
 	{
 		static public bool FileExists(FileReference File)
 		{

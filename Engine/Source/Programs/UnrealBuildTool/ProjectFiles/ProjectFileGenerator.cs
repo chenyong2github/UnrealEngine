@@ -11,6 +11,7 @@ using System.Diagnostics;
 using EpicGames.Core;
 using System.Xml.Linq;
 using System.Xml;
+using UnrealBuildBase;
 
 #nullable disable
 
