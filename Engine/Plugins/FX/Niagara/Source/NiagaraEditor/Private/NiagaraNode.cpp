@@ -894,9 +894,9 @@ bool UNiagaraNode::GetTooltipTextForKnownPin(const UEdGraphPin& Pin, FText& OutT
 			if (Text.IsEmptyOrWhitespace() == false)
 			{
 				OutTooltip = FText::Format(LOCTEXT("KnownPinHoverTooltip", "{0}\nType: {1}"), Text, TypeDef.GetNameText());
+				return true;
 			}
 		}
-		return true;
 	}
 	return false;
 }
