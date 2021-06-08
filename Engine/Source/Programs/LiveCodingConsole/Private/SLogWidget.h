@@ -66,4 +66,19 @@ protected:
 	void OnScrollX(float ScrollOffset);
 	void OnScrollY(float ScrollOffset);
 	EActiveTimerReturnType OnTimerElapsed(double CurrentTime, float DeltaTime);
+
+	/**
+	 * Extends the context menu used by the text box
+	 */
+	void ExtendTextBoxMenu(FMenuBuilder& Builder);
+
+	/**
+	* Called when delete all is selected
+	*/
+	void OnClearLog();
+
+	/**
+	 * Called to determine whether delete all is currently a valid command
+	 */
+	bool CanClearLog() const;
 };
