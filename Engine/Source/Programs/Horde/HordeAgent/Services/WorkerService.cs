@@ -369,7 +369,7 @@ namespace HordeAgent.Services
 
 				// Create the session information
 				CreateSessionRequest SessionRequest = new CreateSessionRequest();
-				SessionRequest.Name = Environment.MachineName;
+				SessionRequest.Name = Settings.GetAgentName();
 				SessionRequest.Status = AgentStatus.Ok;
 				SessionRequest.Capabilities = Capabilities;
 				SessionRequest.Version = Program.Version;
