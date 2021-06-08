@@ -40,7 +40,7 @@ FRigUnit_SpringIK_Execute()
 
 			while (EndBoneIndex != INDEX_NONE)
 			{
-				const FRigElementKey Key(EndBone, ERigElementType::Bone);
+				const FRigElementKey Key = Hierarchy->GetKey(EndBoneIndex);
 				CachedBones.Add(FCachedRigElement(Key, Hierarchy));
 				if (EndBoneIndex == StartBoneIndex)
 				{
