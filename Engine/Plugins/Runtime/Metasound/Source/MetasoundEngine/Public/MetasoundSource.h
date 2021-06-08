@@ -150,6 +150,10 @@ public:
 	// Get the most up to date archetype for metasound sources.
 	const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const override;
 
+	static const FMetasoundFrontendArchetype& GetBaseArchetype();
+	static const FMetasoundFrontendArchetype& GetMonoSourceArchetype();
+	static const FMetasoundFrontendArchetype& GetStereoSourceArchetype();
+
 protected:
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
 	{
@@ -176,7 +180,4 @@ private:
 	static const FString& GetAudioDeviceHandleVariableName();
 	static const FString& GetSoundUniqueIdName();
 	static const FString& GetIsPreviewSoundName();
-	static const FMetasoundFrontendArchetype& GetBaseArchetype();
-	static const FMetasoundFrontendArchetype& GetMonoSourceArchetype();
-	static const FMetasoundFrontendArchetype& GetStereoSourceArchetype();
 };
