@@ -11,6 +11,7 @@
 #include "Channels/MovieSceneFloatChannel.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -538,6 +539,80 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 				}
 			}
 		}
+	}
+
+	return true;
+}
+
+bool UnrealToUsd::ConvertHierarchicalInstancedStaticMeshComponent( const UHierarchicalInstancedStaticMeshComponent* HISMComponent, pxr::UsdPrim& UsdPrim, double TimeCode )
+{
+	using namespace pxr;
+
+	FScopedUsdAllocs Allocs;
+
+	UsdGeomPointInstancer PointInstancer{ UsdPrim };
+	if ( !PointInstancer || !HISMComponent )
+	{
+		return false;
+	}
+
+	UsdStageRefPtr Stage = UsdPrim.GetStage();
+	FUsdStageInfo StageInfo{ Stage };
+
+	VtArray<int> ProtoIndices;
+	VtArray<GfVec3f> Positions;
+	VtArray<GfQuath> Orientations;
+	VtArray<GfVec3f> Scales;
+
+	const int32 NumInstances = HISMComponent->GetInstanceCount();
+	ProtoIndices.reserve( ProtoIndices.size() + NumInstances );
+	Positions.reserve( Positions.size() + NumInstances );
+	Orientations.reserve( Orientations.size() + NumInstances );
+	Scales.reserve( Scales.size() + NumInstances );
+
+	for( const FInstancedStaticMeshInstanceData& InstanceData : HISMComponent->PerInstanceSMData )
+	{
+		// Convert axes
+		FTransform UETransform{ InstanceData.Transform };
+		FTransform USDTransform = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, UETransform );
+
+		FVector Translation = USDTransform.GetTranslation();
+		FQuat Rotation = USDTransform.GetRotation();
+		FVector Scale = USDTransform.GetScale3D();
+
+		// Compensate metersPerUnit
+		const float UEMetersPerUnit = 0.01f;
+		if ( !FMath::IsNearlyEqual( UEMetersPerUnit, StageInfo.MetersPerUnit ) )
+		{
+			Translation *= ( UEMetersPerUnit / StageInfo.MetersPerUnit );
+		}
+
+		ProtoIndices.push_back( 0 ); // We will always export a single prototype per PointInstancer, since HISM components handle only 1 mesh at a time
+		Positions.push_back( GfVec3f( Translation.X, Translation.Y, Translation.Z ) );
+		Orientations.push_back( GfQuath( Rotation.W, Rotation.X, Rotation.Y, Rotation.Z ) );
+		Scales.push_back( GfVec3f( Scale.X, Scale.Y, Scale.Z ) );
+	}
+
+	const pxr::UsdTimeCode UsdTimeCode( TimeCode );
+
+	if ( UsdAttribute Attr = PointInstancer.CreateProtoIndicesAttr() )
+	{
+		Attr.Set( ProtoIndices, UsdTimeCode );
+	}
+
+	if ( UsdAttribute Attr = PointInstancer.CreatePositionsAttr() )
+	{
+		Attr.Set( Positions, UsdTimeCode );
+	}
+
+	if ( UsdAttribute Attr = PointInstancer.CreateOrientationsAttr() )
+	{
+		Attr.Set( Orientations, UsdTimeCode );
+	}
+
+	if ( UsdAttribute Attr = PointInstancer.CreateScalesAttr() )
+	{
+		Attr.Set( Scales, UsdTimeCode );
 	}
 
 	return true;

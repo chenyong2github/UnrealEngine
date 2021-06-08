@@ -513,6 +513,11 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 
 bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 {
+	if ( !Prim || !Prim.IsActive() )
+	{
+		return false;
+	}
+
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdGeomXformable Xformable( Prim );

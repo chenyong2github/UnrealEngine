@@ -18,6 +18,7 @@ class AInstancedFoliageActor;
 class ALandscapeProxy;
 class UCineCameraComponent;
 class UDirectionalLightComponent;
+class UHierarchicalInstancedStaticMeshComponent;
 class ULevelExporterUSDOptions;
 class ULightComponentBase;
 class UMeshComponent;
@@ -117,6 +118,9 @@ public:
 
 	UFUNCTION( BlueprintCallable, Category = "Component conversion" )
 	bool ConvertSceneComponent( const USceneComponent* Component, const FString& PrimPath );
+
+	UFUNCTION( BlueprintCallable, Category = "Component conversion" )
+	bool ConvertHismComponent( const UHierarchicalInstancedStaticMeshComponent* Component, const FString& PrimPath, float TimeCode = 3.402823466e+38F );
 
 	UFUNCTION( BlueprintCallable, Category = "Component conversion" )
 	bool ConvertMeshComponent( const UMeshComponent* Component, const FString& PrimPath );

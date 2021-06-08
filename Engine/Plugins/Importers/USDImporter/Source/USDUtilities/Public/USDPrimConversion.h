@@ -6,6 +6,8 @@
 
 #include "CoreMinimal.h"
 
+#include "USDConversionUtils.h"
+
 #include "USDIncludesStart.h"
 	#include "pxr/pxr.h"
 #include "USDIncludesEnd.h"
@@ -26,6 +28,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 class AInstancedFoliageActor;
 class UCineCameraComponent;
+class UHierarchicalInstancedStaticMeshComponent;
 class ULevel;
 class UMeshComponent;
 class UMovieScene;
@@ -54,6 +57,7 @@ namespace UnrealToUsd
 {
 	USDUTILITIES_API bool ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const USceneComponent* SceneComponent, pxr::UsdPrim& UsdPrim );
 	USDUTILITIES_API bool ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const UMeshComponent* MeshComponent, pxr::UsdPrim& UsdPrim );
+	USDUTILITIES_API bool ConvertHierarchicalInstancedStaticMeshComponent( const UHierarchicalInstancedStaticMeshComponent* HISMComponent, pxr::UsdPrim& UsdPrim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
 	USDUTILITIES_API bool ConvertCameraComponent( const pxr::UsdStageRefPtr& Stage, const UCineCameraComponent* CameraComponent, pxr::UsdPrim& UsdPrim );
 
 	USDUTILITIES_API bool ConvertXformable( const FTransform& RelativeTransform, pxr::UsdPrim& UsdPrim, double TimeCode );

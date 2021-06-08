@@ -231,6 +231,8 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 			}
 		}
 	}
+
+	Super::UpdateComponents( PointInstancerRootComponent );
 }
 
 #endif // #if USE_USD_SDK
