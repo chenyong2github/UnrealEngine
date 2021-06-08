@@ -4,7 +4,8 @@
 #include "LensFileRendering.h"
 
 #include "Engine/TextureRenderTarget2D.h"
-#include "GlobalShader.h"											   
+#include "GlobalShader.h"
+#include "Misc/MemStack.h"
 #include "PixelShaderUtils.h"
 #include "RenderGraphUtils.h"
 #include "ShaderParameterStruct.h"
@@ -99,6 +100,7 @@ namespace LensFileRendering
 	ENQUEUE_RENDER_COMMAND(LensFileRendering_DrawBlendedDisplacementMap)(
 		[SourceTextureOneResource, SourceTextureTwoResource, SourceTextureThreeResource, SourceTextureFourResource, BlendParams = BlendParams, DestinationTextureResource](FRHICommandListImmediate& RHICmdList)
 		{
+			FMemMark Mark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICmdList);
 
 			FDisplacementMapBlendPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDisplacementMapBlendPS::FParameters>();
