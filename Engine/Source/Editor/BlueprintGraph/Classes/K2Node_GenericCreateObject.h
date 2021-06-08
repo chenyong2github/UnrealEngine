@@ -8,6 +8,8 @@
 #include "K2Node_GenericCreateObject.generated.h"
 
 class UEdGraph;
+class FKismetCompilerContext;
+class UK2Node_CallFunction;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_GenericCreateObject : public UK2Node_ConstructObjectFromClass
@@ -22,4 +24,15 @@ class BLUEPRINTGRAPH_API UK2Node_GenericCreateObject : public UK2Node_ConstructO
 
 	virtual bool UseWorldContext() const override { return false; }
 	virtual bool UseOuter() const override { return true; }
+
+	/**
+	 * attaches a self node to the self pin of 'this' if the CallCreateNode function has DefaultToSelf in it's metadata
+	 *
+	 * @param	CompilerContext		the context to expand in - likely passed from ExpandNode
+	 * @param	SourceGraph			the graph to expand in - likely passed from ExpandNode
+	 * @param	CallCreateNode		the CallFunction node that 'this' is imitating
+	 *
+	 * @return	true on success.
+	 */
+	bool ExpandDefaultToSelfPin(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UK2Node_CallFunction* CallCreateNode);
 };

@@ -13,12 +13,14 @@ struct FK2Node_ConstructObjectFromClassHelper
 {
 	static FName WorldContextPinName;
 	static FName ClassPinName;
+	static FName OuterPinFriendlyName;
 	static FName OuterPinName;
 };
 
 FName FK2Node_ConstructObjectFromClassHelper::WorldContextPinName(TEXT("WorldContextObject"));
 FName FK2Node_ConstructObjectFromClassHelper::ClassPinName(TEXT("Class"));
-FName FK2Node_ConstructObjectFromClassHelper::OuterPinName(TEXT("Outer"));
+FName FK2Node_ConstructObjectFromClassHelper::OuterPinFriendlyName(TEXT("Outer"));
+FName FK2Node_ConstructObjectFromClassHelper::OuterPinName(UEdGraphSchema_K2::PN_Self);
 
 #define LOCTEXT_NAMESPACE "K2Node_ConstructObjectFromClass"
 
@@ -60,7 +62,8 @@ void UK2Node_ConstructObjectFromClass::AllocateDefaultPins()
 	
 	if (UseOuter())
 	{
-		UEdGraphPin* OuterPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UObject::StaticClass(), FK2Node_ConstructObjectFromClassHelper::OuterPinName);
+		UEdGraphPin* OuterPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UEdGraphSchema_K2::PSC_Self, nullptr, FK2Node_ConstructObjectFromClassHelper::OuterPinName);
+		OuterPin->PinFriendlyName = FText::FromName(FK2Node_ConstructObjectFromClassHelper::OuterPinFriendlyName);
 	}
 
 	Super::AllocateDefaultPins();
@@ -165,6 +168,18 @@ void UK2Node_ConstructObjectFromClass::ReallocatePinsDuringReconstruction(TArray
 		CreatePinsForClass(UseSpawnClass);
 	}
 	RestoreSplitPins(OldPins);
+}
+
+UK2Node::ERedirectType UK2Node_ConstructObjectFromClass::DoPinsMatchForReconstruction(const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex) const
+{
+	// the name of the outer pin was changed and its friendly name was updated to match
+	// the legacy naming. Use this to identify the change
+	if (NewPin->PinName == FK2Node_ConstructObjectFromClassHelper::OuterPinName &&
+		OldPin->PinName == FK2Node_ConstructObjectFromClassHelper::OuterPinFriendlyName)
+	{
+		return ERedirectType_Name;
+	}
+	return Super::DoPinsMatchForReconstruction(NewPin, NewPinIndex, OldPin, OldPinIndex);
 }
 
 void UK2Node_ConstructObjectFromClass::PostPlacedNewNode()
