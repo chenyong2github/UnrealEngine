@@ -1161,6 +1161,7 @@ public:
 	FLinearColor GetEffectiveLightColor() const;
 
 #if WITH_EDITOR
+	float SecondsToNextIncompleteCapture;
 	bool bCubemapSkyLightWaitingForCubeMapTexture;
 	bool bCaptureSkyLightWaitingForShaders;
 	bool bCaptureSkyLightWaitingForMeshesOrTextures;
