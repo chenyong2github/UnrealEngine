@@ -103,10 +103,42 @@ void SLogWidget::Construct(const FArguments& InArgs)
 				.SelectWordOnMouseDoubleClick(false)
 		        .OnHScrollBarUserScrolled(this, &SLogWidget::OnScrollX)
 		        .OnVScrollBarUserScrolled(this, &SLogWidget::OnScrollY)
+				.ContextMenuExtender(this, &SLogWidget::ExtendTextBoxMenu)
 			]
 		];
 
 	RegisterActiveTimer(0.03f, FWidgetActiveTimerDelegate::CreateSP(this, &SLogWidget::OnTimerElapsed));
+}
+
+void SLogWidget::ExtendTextBoxMenu(FMenuBuilder& Builder)
+{
+	FUIAction ClearOutputLogAction(
+		FExecuteAction::CreateRaw(this, &SLogWidget::OnClearLog),
+		FCanExecuteAction::CreateSP(this, &SLogWidget::CanClearLog)
+	);
+
+	Builder.AddMenuEntry(
+		NSLOCTEXT("OutputLog", "ClearLogLabel", "Clear Log"),
+		NSLOCTEXT("OutputLog", "ClearLogTooltip", "Clears all log messages"),
+		FSlateIcon(),
+		ClearOutputLogAction
+	);
+}
+
+void SLogWidget::OnClearLog()
+{
+	// Make sure the cursor is back at the start of the log before we clear it
+	MessagesTextBox->GoTo(FTextLocation(0));
+
+	Clear();
+	MessagesTextBox->Refresh();
+	bIsUserScrolledX = false;
+	bIsUserScrolledY = false;
+}
+
+bool SLogWidget::CanClearLog() const
+{
+	return MessagesTextMarshaller->GetNumLines() > 0;
 }
 
 void SLogWidget::Clear()
