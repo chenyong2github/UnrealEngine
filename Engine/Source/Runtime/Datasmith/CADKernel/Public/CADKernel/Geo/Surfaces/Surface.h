@@ -7,6 +7,7 @@
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/Boundary.h"
+#include "CADKernel/Math/MatrixH.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Utils/Cache.h"
 
@@ -27,16 +28,19 @@ namespace CADKernel
 	protected:
 
 		double Tolerance3D;
-		mutable TCache<FSurfacicTolerance> ToleranceIsos;
+
+		/**
+		 * Tolerance along Iso U/V is very costly to compute and not accurate.
+		 * A first approximation is based on the surface boundary along U and along V
+		 * Indeed, defining a Tolerance2D has no sense has the boundary length along an Iso could be very very huge compare to the boundary length along the other Iso like [[0, 1000] [0, 1]]
+		 * The tolerance along an iso is the length of the boundary along this iso divided by 100 000: if the curve length in 3d is 10m, the tolerance is 0.01mm
+		 * In the used, a local tolerance has to be estimated
+		 */
+		mutable TCache<FSurfacicTolerance> MinToleranceIso;
 		mutable FSurfacicBoundary Boundary;
 
 	private:
 
-		/**
-		 * Return the tolerance in the parametric space of the surface along isoU and isoV i.e Distance(Point(U, V), Point(U + ToleranceIsoU, V)) = Tolerance3D
-		 * With Tolerance3D = FSysteme.GeometricalTolerance
-		 */
-		const virtual void ComputeIsoTolerances() const;
 
 		virtual void InitBoundary() const
 		{
@@ -54,6 +58,13 @@ namespace CADKernel
 
 		}
 
+		FSurface(double InToleranceGeometric, const FSurfacicBoundary& InBoundary)
+			: FEntityGeom()
+			, Tolerance3D(InToleranceGeometric)
+			, Boundary(InBoundary)
+		{
+		}
+
 		FSurface(double InToleranceGeometric, double UMin, double UMax, double VMin, double VMax)
 			: FEntityGeom()
 			, Tolerance3D(InToleranceGeometric)
@@ -61,8 +72,12 @@ namespace CADKernel
 		{
 		}
 
-	public:
+		virtual void SetMinToleranceIso() const
+		{
+			MinToleranceIso.Set(Boundary[EIso::IsoU].ComputeMinimalTolerance(), Boundary[EIso::IsoV].ComputeMinimalTolerance());
+		}
 
+	public:
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
@@ -75,7 +90,7 @@ namespace CADKernel
 			FEntityGeom::Serialize(Ar);
 
 			Ar << Tolerance3D;
-			Ar << ToleranceIsos;
+			Ar << MinToleranceIso;
 			Ar << Boundary;
 		}
 
@@ -102,6 +117,7 @@ namespace CADKernel
 			if (!Boundary.IsValid())
 			{
 				InitBoundary();
+				SetMinToleranceIso();
 			}
 			return Boundary;
 		};
@@ -109,21 +125,33 @@ namespace CADKernel
 		void ExtendBoundaryTo(const FSurfacicBoundary MaxLimit)
 		{
 			Boundary.ExtendTo(MaxLimit);
+			SetMinToleranceIso();
 		}
 
 		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const = 0;
 
 		/**
-		 * Return the tolerance in the parametric space of the surface i.e Distance(Point(U, V), Point(U', V')) = Tolerance3D with Distance((U,V), (U', V')) = Tolerance2D
+		 * Tolerance along Iso U/V is very costly to compute and not accurate.
+		 * A first approximation is based on the surface parametric space length along U and along V
+		 * Indeed, defining a Tolerance2D has no sense has the boundary length along an Iso could be very very huge compare to the boundary length along the other Iso like [[0, 1000] [0, 1]]
+		 * @see FBoundary::ComputeMinimalTolerance
+		 * In the used, a local tolerance has to be estimated
 		 */
-		const virtual double Get2DTolerance() const
+		const FSurfacicTolerance& GetIsoTolerances() const
 		{
-			if (!ToleranceIsos.IsValid())
-			{
-				GetIsoTolerances();
-			}
-			FSurfacicTolerance& Tolerance = ToleranceIsos;
-			return FMath::Min(Tolerance[EIso::IsoU], Tolerance[EIso::IsoV]);
+			ensureCADKernel(MinToleranceIso.IsValid());
+			return MinToleranceIso;
+		}
+
+		/**
+		 * Return the minimum tolerance in the parametric space of the surface along the specified axis 
+		 * With Tolerance3D = FSysteme.GeometricalTolerance
+		 * @see FBoundary::ComputeMinimalTolerance
+		 */
+		const double& GetIsoTolerance(EIso Iso) const
+		{
+			ensureCADKernel(MinToleranceIso.IsValid());
+			return ((FSurfacicTolerance) MinToleranceIso)[Iso];
 		}
 
 		const double Get3DTolerance()
@@ -131,32 +159,6 @@ namespace CADKernel
 			return Tolerance3D;
 		}
 
-		/**
-		 * Return the tolerance in the parametric space of the surface along isoU and isoV i.e Distance(Point(U, V), Point(U + ToleranceIsoU, V)) = Tolerance3D
-		 * With Tolerance3D = FSysteme.GeometricalTolerance
-		 */
-		const FSurfacicTolerance& GetIsoTolerances() const
-		{
-			if (!ToleranceIsos.IsValid())
-			{
-				ComputeIsoTolerances();
-			}
-			return ToleranceIsos;
-		}
-
-		/**
-		 * Return the tolerance in the parametric space of the surface along the specified axis 
-		 * With Tolerance3D = FSysteme.GeometricalTolerance
-		 * @see GetIsoTolerances
-		 */
-		const double& GetIsoTolerance(EIso Iso) const
-		{
-			if (!ToleranceIsos.IsValid())
-			{
-				ComputeIsoTolerances();
-			}
-			return ((FSurfacicTolerance) ToleranceIsos)[Iso];
-		}
 
 		virtual void EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder = 0) const = 0;
 
@@ -223,6 +225,20 @@ namespace CADKernel
 				Sample += Delta;
 			}
 		}
+
+		/**
+		 * This function return the scale of the input Axis.
+		 * This function is useful to estimate tolerance when scales are defined in the Matrix
+		 * @param InAxis a vetor of length 1
+		 * @param InMatrix
+		 * @param InOrigin = InMatrix*FPoint::ZeroPoint
+		 */
+		static double ComputeScaleAlongAxis(const FPoint& InAxis, const FMatrixH& InMatrix, const FPoint& InOrigin)
+		{
+			FPoint Point = InMatrix.Multiply(InAxis);
+			double Length = InOrigin.Distance(Point);
+			return Length;
+		};
 
 
 	};

@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CADKernel/Core/Session.h"
 
+#include "CADKernel/Topo/Model.h"
 #include "CADKernel/UI/Message.h"
 
 using namespace CADKernel;
 
+#ifdef CADKERNEL_DEV
+TSharedPtr<FSession> FSession::Session = TSharedPtr<FSession>();
+#endif
 
 void FSession::SaveDatabase(const TCHAR* FileName)
 {
@@ -50,5 +54,15 @@ void FSession::LoadDatabase(const TCHAR* FilePath)
 		FMessage::Printf(Log, TEXT("The archive file %s is corrupted\n"), FilePath);
 	}
 
+	TSharedRef<FModel> SessionModel = GetModel();
+
 	Database.Deserialize(*Archive.Get());
+	FModel* ArchiveModel = Archive->ArchiveModel;
+
+	if(ArchiveModel != nullptr)
+	{
+		ArchiveModel->Empty();
+		Database.RemoveEntity(*ArchiveModel);
+	}
+	Archive->Close();
 }

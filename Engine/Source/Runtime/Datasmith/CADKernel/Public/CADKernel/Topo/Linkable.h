@@ -115,7 +115,6 @@ namespace CADKernel
 			return 1;
 		}
 
-
 		bool HasTwin() const
 		{
 			return GetTwinsEntityCount() != 1;
@@ -139,7 +138,7 @@ namespace CADKernel
 			return TopologicalLink->GetTwinsEntities();
 		}
 
-		void RemoveFromLink() 
+		virtual void RemoveFromLink() 
 		{
 			if (TopologicalLink.IsValid())
 			{

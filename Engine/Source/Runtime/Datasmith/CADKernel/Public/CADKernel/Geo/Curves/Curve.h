@@ -24,32 +24,24 @@ namespace CADKernel
 
 	protected:
 
-		/** Geometric Tolerance of the curve in its space i.e. Tolerance 3D for 3d curve, Tolerance 2D for 2d curve */
-		double Tolerance;
-
-		mutable TCache<double> Tolerance1D;
 		mutable TCache<double> GlobalLength;
 		FLinearBoundary Boundary;
 
 		int8 Dimension;
 
-		FCurve(const double InTolerance, int8 InDimension = 3)
+		FCurve(int8 InDimension = 3)
 			: FEntityGeom()
-			, Tolerance(InTolerance)
 			, Boundary()
 			, Dimension(InDimension)
 		{
 		}
 
-		FCurve(double InTolerance, const FLinearBoundary& InBounds, int8 InDimension = 3)
+		FCurve(const FLinearBoundary& InBounds, int8 InDimension = 3)
 			: FEntityGeom()
-			, Tolerance(InTolerance)
 			, Boundary(InBounds)
 			, Dimension(InDimension)
 		{
 		}
-
-		FCurve() = default;
 
 	public:
 
@@ -62,7 +54,6 @@ namespace CADKernel
 				Ar << CurveType;
 			}
 			FEntityGeom::Serialize(Ar);
-			Ar << Tolerance;
 			Ar << Dimension;
 			Ar << Boundary;
 		}
@@ -105,12 +96,7 @@ namespace CADKernel
 
 		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override = 0;
 
-		double GetLength() const;
-
-		/**
-		 * Return the tolerance in the parametric space of the curve i.e Distance(Curve(U), Curve(U + Tolerance1D)) = Tolerance
-		 */
-		double GetParametricTolerance() const;
+		double GetLength(double Tolerance) const;
 
 		/**
 		 * Evaluate exact 3D point of the curve at the input Coordinate
@@ -196,12 +182,12 @@ namespace CADKernel
 		 * Generate a pre-sampling of the curve saved in OutCoordinates.
 		 * This sampling is light enough to allow a fast computation, precise enough to compute accurately meshing criteria
 		 */
-		void Presample(TArray<double>& OutSampling) const
+		void Presample(TArray<double>& OutSampling, double Tolerance) const
 		{
-			Presample(Boundary, OutSampling);
+			Presample(Boundary, Tolerance, OutSampling);
 		}
 
-		virtual void Presample(const FLinearBoundary& InBoundary, TArray<double>& OutSampling) const;
+		virtual void Presample(const FLinearBoundary& InBoundary, double Tolerance, TArray<double>& OutSampling) const;
 
 		/**
 		 * Make a new curve based on the new bounds.
@@ -226,16 +212,14 @@ namespace CADKernel
 		virtual void ExtendTo(const FPoint2D& DesiredPosition)
 		{
 			ensure(Dimension == 2);
-
-			NOT_IMPLEMENTED;
-			ensureCADKernel(false);
+			FPoint Point = DesiredPosition;
+			ExtendTo(Point);
 		}
 
 	protected:
 
-		virtual double ComputeLength(const FLinearBoundary& InBoundary) const;
-		//virtual double ComputeLength2D(const FLinearBoundary& InBoundary) const;
-		//virtual double ComputeLength3D(const FLinearBoundary& InBoundary) const;
+		virtual double ComputeLength(const FLinearBoundary& InBoundary, double Tolerance) const;
+		virtual double ComputeLength2D(const FLinearBoundary& InBoundary, double Tolerance) const;
 	};
 } // namespace CADKernel
 

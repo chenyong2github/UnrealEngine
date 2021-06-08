@@ -13,31 +13,24 @@
 
 namespace CADKernel
 {
-	double FCurve::GetLength() const
+	double FCurve::GetLength(double Tolerance) const
 	{
 		if (!GlobalLength.IsValid())
 		{
-			GlobalLength = ComputeLength(Boundary);
+			switch (Dimension)
+			{
+			case 3:
+				GlobalLength = ComputeLength(Boundary, Tolerance);
+				break;
+			case 2:
+				GlobalLength = ComputeLength2D(Boundary, Tolerance);
+				break;
+			default:
+				GlobalLength = 0;
+				break;
+			}
 		}
 		return GlobalLength;
-	}
-
-	double FCurve::GetParametricTolerance() const
-	{
-		if (!Tolerance1D.IsValid())
-		{
-			double Tolerance2DMax = (GetUMax() - GetUMin()) * 0.01;
-			double Length = GetLength();
-			if (Length < SMALL_NUMBER)
-			{
-				Tolerance1D = Tolerance2DMax;
-				return Tolerance1D;
-			}
-
-			Tolerance1D = Tolerance * (GetUMax() - GetUMin()) / Length;
-			Tolerance1D = FMath::Max(Tolerance2DMax, (double)Tolerance1D);
-		}
-		return Tolerance1D;
 	}
 
 	void FCurve::EvaluatePoints(const TArray<double>& Coordinates, TArray<FCurvePoint>& OutPoints, int32 DerivativeOrder) const
@@ -89,7 +82,7 @@ namespace CADKernel
 			.Add(TEXT("Curve type"), CurvesTypesNames[(uint8)GetCurveType()])
 			.Add(TEXT("Dimension"), (int32) Dimension)
 			.Add(TEXT("Boundary"), Boundary)
-			.Add(TEXT("Length"), GetLength());
+			.Add(TEXT("Length"), GetLength(0.01));
 	}
 #endif
 
@@ -127,10 +120,10 @@ namespace CADKernel
 			return TSharedPtr<FCurve>();
 		}
 
-		return FEntity::MakeShared<FBoundedCurve>(Tolerance, StaticCastSharedRef<FCurve>(AsShared()), NewBoundary, Dimension);
+		return FEntity::MakeShared<FBoundedCurve>(StaticCastSharedRef<FCurve>(AsShared()), NewBoundary, Dimension);
 	}
 
-	double FCurve::ComputeLength(const FLinearBoundary& InBoundary) const
+	double FCurve::ComputeLength(const FLinearBoundary& InBoundary, double Tolerance) const
 	{
 		FPolyline3D Polyline;
 		FCurveSamplerOnChord Sampler(*this, Boundary, Tolerance, Polyline);
@@ -138,7 +131,15 @@ namespace CADKernel
 		return Polyline.GetLength(Boundary);
 	}
 
-	void FCurve::Presample(const FLinearBoundary& InBoundary, TArray<double>& OutSampling) const
+	double FCurve::ComputeLength2D(const FLinearBoundary& InBoundary, double Tolerance) const
+	{
+		FPolyline2D Polyline;
+		FCurve2DSamplerOnChord Sampler(*this, Boundary, Tolerance, Polyline);
+		Sampler.Sample();
+		return Polyline.GetLength(Boundary);
+	}
+
+	void FCurve::Presample(const FLinearBoundary& InBoundary, double Tolerance, TArray<double>& OutSampling) const
 	{
 		FPolyline3D Presampling;
 		FCurveSamplerOnParam Sampler(*this, Boundary, Tolerance * 10., Tolerance, Presampling);

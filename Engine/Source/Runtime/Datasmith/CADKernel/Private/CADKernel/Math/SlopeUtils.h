@@ -172,7 +172,7 @@ namespace CADKernel
 	 * Return true if the segment BP is inside the sector defined the half-lines [BA) and [BC) in the counterclockwise.
 	 * Return false if ABP angle or PBC angle is too flat (smaller than FlatAngle)
 	 */
-	inline bool IsPointPIsInsideSectorABC(const FPoint2D& PointA, const FPoint2D& PointB, const FPoint2D& PointC, const FPoint2D& PointP, const double FlatAngle)
+	inline bool IsPointPBeInsideSectorABC(const FPoint2D& PointA, const FPoint2D& PointB, const FPoint2D& PointC, const FPoint2D& PointP, const double FlatAngle)
 	 {
 		 double SlopWithNextBoundary = ComputeSlope(PointB, PointC);
 		 double BoundaryDeltaSlope = ComputePositiveSlope(PointB, PointA, SlopWithNextBoundary);

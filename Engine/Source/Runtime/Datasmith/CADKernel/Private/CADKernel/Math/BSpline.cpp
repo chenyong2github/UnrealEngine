@@ -24,9 +24,9 @@ namespace CADKernel
 
 		// DeBoor Valeurs B-Spline
 		void DeBoorValeursBSpline( const int32 degre, const double* const knot, const int32 segment, const int32 ndim, const int32 derivee, const double u, double* const pole_aux, double* const grad_aux, double* const lap_aux, double* const valeur, double* const Gradient, double* const Laplacian);
-		void insertKnot(TArray<double>& vn, TArray<FPoint>& poles, TArray<double>& weights, double u, double* newU = nullptr);
-		void blossom(int32 degre, TArray<FPoint>& poles, TArray<double>& vecteurNodal, TArray<double>& poids, int32 seg, TArray<double>& params, FPoint& pnt, double& weight);
-
+		void InsertKnot(TArray<double>& vn, TArray<FPoint>& poles, TArray<double>& weights, double u, double* newU = nullptr);
+		void Blossom(int32 degre, const TArray<FPoint>& poles, const TArray<double>& vecteurNodal, const TArray<double>& poids, int32 seg, TArray<double>& params, FPoint& pnt, double& weight);
+		void DuplicateNurbsCurveWithHigherDegree(int32 degre, const TArray<FPoint>& poles, const TArray<double>& nodalVector, const TArray<double>& weights, TArray<FPoint>& newPoles, TArray<double>& newNodalVector, TArray<double>& newWeights);
 
 #define DEGRE_MAX_POLY 9
 		namespace
@@ -768,7 +768,7 @@ namespace CADKernel
 
 		void Evaluate2DPoint(const FNURBSCurve& Nurbs, double Coordinate, FCurvePoint2D& OutPoint, int32 DerivativeOrder)
 		{
-			ensure(Nurbs.GetDimension() == 2);
+			ensureCADKernel(Nurbs.GetDimension() == 2);
 
 			OutPoint.DerivativeOrder = DerivativeOrder;
 
@@ -814,6 +814,26 @@ namespace CADKernel
 				}
 			}
 		}
+
+		TSharedRef<FNURBSCurve> DuplicateNurbsCurveWithHigherDegree(int32 Degre, const FNURBSCurve& InCurve)
+		{
+			TArray<FPoint> NewPoles;
+			TArray<double> NewNodalVector;
+			TArray<double> NewWeights;
+
+			DuplicateNurbsCurveWithHigherDegree(Degre, InCurve.GetPoles(), InCurve.GetNodalVector(), InCurve.GetWeights(), NewPoles, NewNodalVector, NewWeights);
+			
+			TSharedPtr<FCurve> Curve;
+			if (InCurve.IsRational())
+			{
+				return FEntity::MakeShared<FNURBSCurve>(Degre, NewNodalVector, NewPoles, NewWeights, InCurve.GetDimension());
+			}
+			else
+			{
+				return FEntity::MakeShared<FNURBSCurve>(Degre, NewNodalVector, NewPoles, InCurve.GetDimension());
+			}
+		}
+
 
 		void EvaluatePoint(const FNURBSSurface& Nurbs, const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder)
 		{
@@ -1491,7 +1511,7 @@ namespace CADKernel
 			TabU->Add(UMax);
 		}
 
-		void IncreaseDegree(int32 degre, TArray<FPoint>& poles, TArray<double>& nodalVector, TArray<double>& weights,
+		void DuplicateNurbsCurveWithHigherDegree(int32 degre, const TArray<FPoint>& poles, const TArray<double>& nodalVector, const TArray<double>& weights,
 			TArray<FPoint>& newPoles, TArray<double>& newNodalVector, TArray<double>& newWeights)
 		{
 			//Count number of polynomial segments and
@@ -1556,7 +1576,7 @@ namespace CADKernel
 					weightsTmp.SetNum(newN);
 					for (int32 k = 0; k <newN; k++)
 					{
-						blossom(degre, poles, nodalVector, weights, seg, params[k], poles_[k], weightsTmp[k]);
+						Blossom(degre, poles, nodalVector, weights, seg, params[k], poles_[k], weightsTmp[k]);
 					}
 
 					FPoint pole(0, 0, 0);
@@ -1613,7 +1633,7 @@ namespace CADKernel
 			Swap(vn, newKnots);
 		}
 
-		void insertKnot(TArray<double>& vn, TArray<FPoint>& poles, TArray<double>& weights, double u, double* newU)
+		void InsertKnot(TArray<double>& vn, TArray<FPoint>& poles, TArray<double>& weights, double u, double* newU)
 		{
 			int32 i = 0;
 
@@ -1665,7 +1685,7 @@ namespace CADKernel
 				knotsTmp = knotsV;
 				for (int32 j = 0; j <nbTime; j++)
 				{
-					insertKnot(knotsTmp, poles[i], weights[i], v);
+					InsertKnot(knotsTmp, poles[i], weights[i], v);
 				}
 			}
 			knotsV = knotsTmp;
@@ -1701,7 +1721,7 @@ namespace CADKernel
 
 				for (j = 0; j <nbTime; j++)
 				{
-					insertKnot(knotsTmp, polesCurveU, weightsCurveU, u);
+					InsertKnot(knotsTmp, polesCurveU, weightsCurveU, u);
 				}
 
 				for (j = 0; j <(int32)polesCurveU.Num(); j++)
@@ -1729,11 +1749,11 @@ namespace CADKernel
 			//Rebound curve by knot insertion of u1 then u2...
 			while (getKnotMultiplicity(knots, u1) <deg)
 			{
-				insertKnot(knots, poles, weights, u1);
+				InsertKnot(knots, poles, weights, u1);
 			}
 			while (getKnotMultiplicity(knots, u2) <deg)
 			{
-				insertKnot(knots, poles, weights, u2);
+				InsertKnot(knots, poles, weights, u2);
 			}
 
 			//Now find the corresponding greville abscissas
@@ -1803,7 +1823,7 @@ namespace CADKernel
 			return knots;
 		}
 
-		void blossom(int32 degre, TArray<FPoint>& poles, TArray<double>& nodalVector, TArray<double>& weights, int32 seg, TArray<double>& params, FPoint& pnt, double& weight)
+		void Blossom(int32 degre, const TArray<FPoint>& poles, const TArray<double>& nodalVector, const TArray<double>& weights, int32 seg, TArray<double>& params, FPoint& pnt, double& weight)
 		{
 			int32 n = degre;
 			int32 i = 0;

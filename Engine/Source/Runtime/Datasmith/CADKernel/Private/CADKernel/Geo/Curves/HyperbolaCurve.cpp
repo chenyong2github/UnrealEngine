@@ -7,7 +7,7 @@ using namespace CADKernel;
 TSharedPtr<FEntityGeom> FHyperbolaCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
-	return FEntity::MakeShared<FHyperbolaCurve>(Tolerance, NewMatrix, SemiMajorAxis, SemiImaginaryAxis, Boundary);
+	return FEntity::MakeShared<FHyperbolaCurve>(NewMatrix, SemiMajorAxis, SemiImaginaryAxis, Boundary);
 }
 
 #ifdef CADKERNEL_DEV

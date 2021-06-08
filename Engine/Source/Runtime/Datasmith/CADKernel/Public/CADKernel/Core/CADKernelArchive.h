@@ -11,12 +11,14 @@ namespace CADKernel
 {
 	class FEntity;
 	class FSession;
+	class FModel;
 
 	class FCADKernelArchive
 	{
 	public:
 		FArchive& Archive;
 		FSession& Session;
+		FModel* ArchiveModel = nullptr;
 
 		FCADKernelArchive(FSession& InSession, FArchive& InArchive)
 			: Archive(InArchive)
@@ -62,9 +64,32 @@ namespace CADKernel
 			return Archive.IsSaving();
 		}
 
-		void Serialize(void* Value, int64 Length) 
+		void Serialize(void* Value, int64 Length)
 		{ 
 			Archive.Serialize(Value, Length);
+		}
+
+		template<typename EntityType>
+		void Serialize(TArray<EntityType>& EntityArray)
+		{
+			if(Archive.IsLoading())
+			{
+				int32 ElementCount = 0;
+				Archive << ElementCount;
+				EntityArray.SetNum(ElementCount);
+			}
+			else
+			{
+				int32 ElementCount = EntityArray.Num();
+				Archive << ElementCount;
+			}
+			Archive.Serialize((void*) EntityArray.GetData(), EntityArray.Num()*sizeof(EntityType));
+		}
+
+		template<typename EntityType>
+		void Serialize(EntityType& EntityArray)
+		{
+			Archive.Serialize((void*) &EntityArray, sizeof(EntityType));
 		}
 
 		void SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TWeakPtr<FEntity>& Entity);

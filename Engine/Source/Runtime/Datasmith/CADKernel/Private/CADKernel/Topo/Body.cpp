@@ -9,6 +9,21 @@ using namespace CADKernel;
 void FBody::AddShell(TSharedRef<FShell> Shell)
 {
 	Shells.Add(Shell);
+	Shell->HostedBy = StaticCastSharedRef<FBody>(AsShared());
+}
+
+void FBody::RemoveEmptyShell()
+{
+	TArray<TSharedPtr<FShell>> NewShells;
+	NewShells.Reserve(Shells.Num());
+	for (TSharedPtr<FShell> Shell : Shells)
+	{
+		if (Shell->FaceCount() > 0)
+		{
+			NewShells.Emplace(Shell);
+		}
+	}
+	Swap(NewShells, Shells);
 }
 
 TSharedPtr<FEntityGeom> FBody::ApplyMatrix(const FMatrixH& InMatrix) const 
@@ -24,7 +39,7 @@ TSharedPtr<FEntityGeom> FBody::ApplyMatrix(const FMatrixH& InMatrix) const
 #ifdef CADKERNEL_DEV
 FInfoEntity& FBody::GetInfo(FInfoEntity& Info) const
 {
-	return FTopologicalEntity::GetInfo(Info).Add(TEXT("shells"), Shells);
+	return FTopologicalEntity::GetInfo(Info).Add(TEXT("shells"), Shells).Add(*this);
 }
 #endif
 

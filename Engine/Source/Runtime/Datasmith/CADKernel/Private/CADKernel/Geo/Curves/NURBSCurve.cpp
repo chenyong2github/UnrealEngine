@@ -12,8 +12,8 @@
 
 using namespace CADKernel;
 
-FNURBSCurve::FNURBSCurve(const double InTolerance, int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension)
-	: FCurve(InTolerance, InDimension)
+FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension)
+	: FCurve(InDimension)
 	, Degree(InDegre)
 	, NodalVector(InNodalVector)
 	, Poles(InPoles)
@@ -23,8 +23,8 @@ FNURBSCurve::FNURBSCurve(const double InTolerance, int32 InDegre, const TArray<d
 	Finalize();
 }
 
-FNURBSCurve::FNURBSCurve(const double InTolerance, int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension)
-	: FCurve(InTolerance, InDimension)
+FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension)
+	: FCurve(InDimension)
 	, Degree(InDegre)
 	, NodalVector(InNodalVector)
 	, Weights(InWeights)
@@ -32,6 +32,11 @@ FNURBSCurve::FNURBSCurve(const double InTolerance, int32 InDegre, const TArray<d
 	, bIsRational(true)
 {
 	Finalize();
+}
+
+FNURBSCurve::FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs)
+	: FNURBSCurve(Nurbs->Degree, Nurbs->NodalVector, Nurbs->Poles, Nurbs->Weights, Nurbs->Dimension)
+{
 }
 
 TSharedPtr<FEntityGeom> FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const
@@ -44,7 +49,7 @@ TSharedPtr<FEntityGeom> FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 		TransformedPoles.Emplace(InMatrix.Multiply(Pole));
 	}
 
-	return FEntity::MakeShared<FNURBSCurve>(Tolerance, Degree, NodalVector, TransformedPoles, Weights, Dimension);
+	return FEntity::MakeShared<FNURBSCurve>(Degree, NodalVector, TransformedPoles, Weights, Dimension);
 }
 
 #ifdef CADKERNEL_DEV
@@ -135,5 +140,55 @@ void FNURBSCurve::Finalize()
 void FNURBSCurve::ExtendTo(const FPoint& Point)
 {
 	PolylineTools::ExtendTo(Poles, Point);
+	Finalize();
+}
+
+
+void FNURBSCurve::SetStartNodalCoordinate(double NewStartBoundary)
+{
+	double Offset = NewStartBoundary - NodalVector[0];
+	for (double& NodalValue : NodalVector)
+	{
+		NodalValue += Offset;
+	}
+
+	Boundary.Set(NodalVector[Degree], NodalVector[NodalVector.Num() - 1 - Degree]);
+}
+
+void FNURBSCurve::Invert()
+{
+	{
+		TArray<FPoint> NewPoles;
+		NewPoles.Reserve(Poles.Num());
+		for (int32 Index = Poles.Num() - 1; Index >= 0; --Index)
+		{
+			NewPoles.Emplace(Poles[Index]);
+		}
+		Swap(Poles, NewPoles);
+	}
+
+	{
+		TArray<double> NewNodalVector;
+		NewNodalVector.Reserve(NodalVector.Num());
+		double LastNodalValue = NodalVector.Last();
+		for (int32 Index = NodalVector.Num() - 1; Index >= 0; --Index)
+		{
+			NewNodalVector.Emplace(LastNodalValue - NodalVector[Index]);
+		}
+		Swap(NodalVector, NewNodalVector);
+
+	}
+
+	if (IsRational())
+	{
+		TArray<double> NewWeights;
+		NewWeights.Reserve(Weights.Num());
+		for (int32 Index = Weights.Num() - 1; Index >= 0; --Index)
+		{
+			NewWeights.Emplace(Weights[Index]);
+		}
+		Swap(Weights, NewWeights);
+	}
+
 	Finalize();
 }

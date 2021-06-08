@@ -40,6 +40,8 @@ namespace CADKernel
 
 		TSharedRef<FSession> Session;
 		const double GeometricTolerance;
+		const double SquareGeometricTolerance;
+		const double SquareJoiningVertexTolerance;
 
 		TMap<const uint32, TSharedPtr<FEntity>> CTIdToEntity;
 
@@ -61,15 +63,15 @@ namespace CADKernel
 		TSharedPtr<FTopologicalLoop> AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface);
 		TSharedPtr<FTopologicalEdge> AddEdge(CT_OBJECT_ID CTCoedgeId, TSharedRef<FSurface>& Surface);
 
-		TSharedPtr<FSurface> AddSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& OutBounds);
-		TSharedPtr<FSurface> AddPlaneSurface(CT_OBJECT_ID CTSurfaceId);
+		TSharedPtr<FSurface> AddSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& OutBoundary);
+		TSharedPtr<FSurface> AddPlaneSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary);
 		TSharedPtr<FSurface> AddNurbsSurface(CT_OBJECT_ID CTSurfaceId);
-		TSharedPtr<FSurface> AddRevolutionSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Bounds);
-		TSharedPtr<FSurface> AddConeSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Bounds);
-		TSharedPtr<FSurface> AddOffsetSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Bounds);
-		TSharedPtr<FSurface> AddCylinderSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Bounds);
-		TSharedPtr<FSurface> AddSphereSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Bounds);
-		TSharedPtr<FSurface> AddTorusSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Bounds);
+		TSharedPtr<FSurface> AddRevolutionSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary);
+		TSharedPtr<FSurface> AddConeSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary);
+		TSharedPtr<FSurface> AddOffsetSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary);
+		TSharedPtr<FSurface> AddCylinderSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary);
+		TSharedPtr<FSurface> AddSphereSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary);
+		TSharedPtr<FSurface> AddTorusSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary);
 		TSharedPtr<FSurface> AddRuledSurface(CT_OBJECT_ID CTSurfaceId);
 		TSharedPtr<FSurface> AddLinearTransfoSurface(CT_OBJECT_ID CTSurfaceId);
 
@@ -83,7 +85,7 @@ namespace CADKernel
 		TSharedPtr<FCurve> AddNurbsCurve(CT_OBJECT_ID CTCurveId);
 		TSharedPtr<FCurve> AddParabolaCurve(CT_OBJECT_ID CTCurveId);
 
-		void Get2DCurvesRange(CT_OBJECT_ID CTFaceId, FSurfacicBoundary& OutBounds);
+		void Get2DCurvesRange(CT_OBJECT_ID CTFaceId, FSurfacicBoundary& OutBoundary);
 
 		FMatrixH CreateCoordinateSystem(const CT_COORDINATE& InOrigin, const CT_VECTOR& InDirection, const CT_VECTOR& InURef);
 

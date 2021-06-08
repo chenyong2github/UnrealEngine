@@ -20,6 +20,7 @@ FRevolutionSurface::FRevolutionSurface(const double InToleranceGeometric, TShare
 	// Compute rotation axis
 	RotationAxis = Axis->GetEndPoint() - Axis->GetStartPoint();
 	RotationAxis.Normalize();
+	SetMinToleranceIso();
 }
 
 void FRevolutionSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
@@ -99,7 +100,7 @@ void FRevolutionSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, F
 
 void FRevolutionSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
 {
-	Generatrix->Presample(Coordinates[EIso::IsoU]);
+	Generatrix->Presample(Coordinates[EIso::IsoU], Tolerance3D);
 	PresampleIsoCircle(InBoundaries, Coordinates, EIso::IsoV);
 }
 

@@ -3,8 +3,10 @@
 #pragma once
 
 
-static int32 SurfaceToDebug = 4;
-#define SURFACE_TO_DEBUG SurfaceToDebug
+static int32 FaceToDebug = 0;
+#define DEBUG_ONLY_SURFACE_TO_DEBUG
+
+//#define SURFACE_TO_DEBUG SurfaceToDebug
 //#define SURFACE_TO_DEBUG 0
 static bool BoolDisplayDebugMeshStep=false;
 

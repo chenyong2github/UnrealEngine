@@ -81,6 +81,8 @@ namespace CADKernel
 		 * Remove from database
 		 */
 		void RemoveEntity(FIdent idEntity);
+		void RemoveEntity(FEntity& Entity);
+
 
 		/**
 		 * Recursive serialization of a selection. The selection and all the dependencies are serialized. 
@@ -111,6 +113,10 @@ namespace CADKernel
 		 */
 		void AddEntity(TSharedRef<FEntity> Entity)
 		{
+			if (Entity->GetId() > 0)
+			{
+				return;
+			}
 			FIdent Id = CreateId();
 			DatabaseEntities[Id] = Entity;
 			Entity->Id = Id;
@@ -155,6 +161,8 @@ namespace CADKernel
 				}
 			}
 
+			// Reset Id to add it in the DatabaseEntities map.
+			Entity->Id = 0;
 			// Add the entity to DatabaseEntities map.
 			AddEntity(Entity);
 		}

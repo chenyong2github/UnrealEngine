@@ -35,7 +35,7 @@ namespace CADKernel
 		TArray<FOrientedCurve> Curves;
 		TArray<double> Coordinates;
 
-		FCompositeCurve(const double InTolerance, const TArray<TSharedPtr<FCurve>>& Curves, bool bDoInversions = false);
+		FCompositeCurve(const TArray<TSharedPtr<FCurve>>& Curves, bool bDoInversions = false);
 
 		FCompositeCurve(FCADKernelArchive& Archive)
 			: FCurve()
@@ -49,7 +49,7 @@ namespace CADKernel
 		{
 			FCurve::Serialize(Ar);
 			SerializeIdents(Ar, (TArray<TOrientedEntity<FEntity>>&) Curves);
-			Ar << Coordinates;
+			Ar.Serialize(Coordinates);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override

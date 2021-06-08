@@ -51,7 +51,7 @@ TSharedPtr<FEntityGeom> FBezierCurve::ApplyMatrix(const FMatrixH& InMatrix) cons
 		TransformedPoles.Emplace(InMatrix.Multiply(Pole));
 	}
 
-	return FEntity::MakeShared<FBezierCurve>(Tolerance, TransformedPoles);
+	return FEntity::MakeShared<FBezierCurve>(TransformedPoles);
 }
 
 #ifdef CADKERNEL_DEV

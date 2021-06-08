@@ -11,7 +11,7 @@ using namespace CADKernel;
 TSharedPtr<FEntityGeom> FParabolaCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
-	return FEntity::MakeShared<FParabolaCurve>(Tolerance, NewMatrix, FocalDistance, Boundary, Dimension);
+	return FEntity::MakeShared<FParabolaCurve>(NewMatrix, FocalDistance, Boundary, Dimension);
 }
 
 #ifdef CADKERNEL_DEV

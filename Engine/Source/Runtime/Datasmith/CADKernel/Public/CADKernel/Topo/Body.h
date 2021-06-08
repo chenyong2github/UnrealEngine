@@ -46,6 +46,7 @@ namespace CADKernel
 		{
 			FTopologicalEntity::Serialize(Ar);
 			SerializeIdents(Ar, Shells);
+			SerializeMetadata(Ar);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override
@@ -74,6 +75,13 @@ namespace CADKernel
 		}
 
 		void AddShell(TSharedRef<FShell> Shell);
+
+		void RemoveEmptyShell();
+
+		void Empty()
+		{
+			Shells.Empty();
+		}
 
 		const TArray<TSharedPtr<FShell>>& GetShells() const
 		{

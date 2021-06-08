@@ -27,6 +27,8 @@ FDatabase::FDatabase()
 	DatabaseEntities.Reserve(DataBaseInitialSize);
 	AvailableIdents.Reserve(DataBaseInitialSize);
 	DatabaseEntities.Add(TSharedPtr<FEntity>());
+
+	AddEntity(Model.ToSharedRef());
 }
 
 TSharedRef<FModel> FDatabase::GetModel()
@@ -34,6 +36,7 @@ TSharedRef<FModel> FDatabase::GetModel()
 	if (!Model.IsValid())
 	{
 		Model = FEntity::MakeShared<FModel>();
+		AddEntity(Model.ToSharedRef());
 	}
 	return Model.ToSharedRef();
 }
@@ -49,6 +52,33 @@ FIdent FDatabase::CreateId()
 		FIdent NewIdent = (FIdent)DatabaseEntities.Num();
 		DatabaseEntities.Add(TSharedPtr<FEntity>());
 		return NewIdent;
+	}
+}
+
+void FDatabase::RemoveEntity(FEntity& Entity)
+{
+	FIdent EntityId = Entity.GetId();
+	if (EntityId == 0)
+	{
+		FMessage::Printf(Debug, TEXT("Warning in FDataBasse::RemoveEntity: the entity is not in the database.\n"), EntityId);
+	}
+	else if (EntityId >= (FIdent)DatabaseEntities.Num())
+	{
+		FMessage::Printf(Debug, TEXT("Warning in FDataBasse::RemoveEntity: the Id=%d is not yet defined, the entity has never exist.\n"), EntityId);
+	}
+	else if (DatabaseEntities[EntityId].IsValid())
+	{
+		if (DatabaseEntities[EntityId].Get() != &Entity)
+		{
+			FMessage::Printf(Debug, TEXT("Warning in FDataBasse::RemoveEntity: the entity with Id=%d is not in the database.\n"), EntityId);
+			return;
+		}
+		DatabaseEntities[EntityId] = TSharedPtr<FEntity>();
+		AvailableIdents.Add(EntityId);
+	}
+	else
+	{
+		FMessage::Printf(Debug, TEXT("Warning in FDataBasse::RemoveEntity: the entity with Id=%d is already deleted.\n"), EntityId);
 	}
 }
 
@@ -137,9 +167,30 @@ void FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArray<FIdent>& 
 
 	EntitiesToBeSerialized.Empty();
 	NotYetSerialized.Empty();
+
+	// An archive must gather entity under a single Model. 
+	TSharedRef<FModel> TmpModel = FEntity::MakeShared<FModel>();
+	TmpModel->SpawnIdent(*this);
+	AddEntityToSave(TmpModel->GetId());
+
 	for (FIdent EntityId : SelectionIds)
 	{
-		AddEntityToSave(EntityId);
+		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
+		switch(Entity->GetEntityType())
+		{
+		case EEntity::Model:
+			TmpModel->Copy(StaticCastSharedRef<FModel>(Entity.ToSharedRef()));
+			break;
+		case EEntity::Body:
+			TmpModel->Add(StaticCastSharedRef<FBody>(Entity.ToSharedRef()));
+			break;
+		case EEntity::TopologicalFace:
+			TmpModel->Add(StaticCastSharedRef<FTopologicalFace>(Entity.ToSharedRef()));
+			break;
+		default:
+			AddEntityToSave(EntityId);
+			break;
+		}
 	}
 
 	int32 Index = 0;
@@ -161,6 +212,8 @@ void FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArray<FIdent>& 
 	EntitiesToBeSerialized.Empty();
 	NotYetSerialized.Empty();
 	bIsRecursiveSerialization = false;
+
+	RemoveEntity(TmpModel->GetId());
 
 	FMessage::Printf(Log, TEXT("End Serialisation of %d entities\n"), Index);
 }
@@ -209,8 +262,8 @@ void FDatabase::Deserialize(FCADKernelArchive& Ar)
 
 	int32 ArchiveSize = 0;
 	Ar << ArchiveSize;
-
 	DatabaseEntities.Reserve((int32)(DatabaseEntities.Num() + ArchiveSize * 1.5));
+	ArchiveSize += 10;
 	ArchiveIdToWaitingPointers.SetNum(ArchiveSize);
 	ArchiveIdToWaitingWeakPointers.SetNum(ArchiveSize);
 	ArchiveEntities.Init(TSharedPtr<FEntity>(), ArchiveSize);
@@ -242,6 +295,8 @@ void FDatabase::Deserialize(FCADKernelArchive& Ar)
 
 void FDatabase::CleanArchiveEntities()
 {
+	int32 FaceCount = 0;
+	int32 ShellCount = 0;
 	for (TSharedPtr<FEntity> Entity : ArchiveEntities)
 	{
 		if (Entity.IsValid())
@@ -258,9 +313,86 @@ void FDatabase::CleanArchiveEntities()
 				StaticCastSharedPtr<FVertexLink>(Entity)->CleanLink();
 				break;
 			}
+			case EEntity::Body:
+			{
+				TSharedPtr<FBody> Body = StaticCastSharedPtr<FBody>(Entity);
+				for (const TSharedPtr<FShell>& Shell : Body->GetShells())
+				{
+					Shell->SetMarker1();
+				}
+				Model->Add(StaticCastSharedPtr<FBody>(Entity));
+				break;
+			}
+			case EEntity::Shell:
+			{
+				TSharedPtr<FShell> Shell = StaticCastSharedPtr<FShell>(Entity);
+				for (const FOrientedFace& Face : Shell->GetFaces())
+				{
+					Face.Entity->SetMarker1();
+				}
+				ShellCount++;
+				break;
+			}
+			case EEntity::TopologicalFace:
+			{
+				FaceCount++;
+			}
+			default:
+				break;
 			}
 		}
 	}
+
+
+	TArray<TSharedPtr<FTopologicalFace>> IndependantFaces;
+	IndependantFaces.Reserve(FaceCount);
+	TArray<TSharedPtr<FBody>> NewBodies;
+	NewBodies.Reserve(ShellCount);
+
+	// find independent faces and shells
+	for (TSharedPtr<FEntity> Entity : ArchiveEntities)
+	{
+		if (Entity.IsValid())
+		{
+			switch (Entity->GetEntityType())
+			{
+			case EEntity::Shell:
+			{
+				TSharedPtr<FShell> Shell = StaticCastSharedPtr<FShell>(Entity);
+				if (Shell->HasMarker1())
+				{
+					Shell->ResetMarker1();
+				}
+				else
+				{
+					// for independent shell, make a new body to contain it
+					TSharedRef<FBody> Body = FEntity::MakeShared<FBody>();
+					Body->AddShell(Shell.ToSharedRef());
+					NewBodies.Emplace(Body);
+				}
+				break;
+			}
+			case EEntity::TopologicalFace:
+			{
+				TSharedPtr<FTopologicalFace> Face= StaticCastSharedPtr<FTopologicalFace>(Entity);
+				if (Face->HasMarker1())
+				{
+					Face->ResetMarker1();
+				}
+				else
+				{
+					IndependantFaces.Emplace(Face);
+				}
+				break;
+			}
+			default:
+				break;
+			}
+		}
+	}
+
+	Model->Append(IndependantFaces);
+	Model->Append(NewBodies);
 }
 
 void FDatabase::Empty()
@@ -357,7 +489,7 @@ void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>&
 	case EEntity::Model:
 	{
 		TSharedPtr<FModel> InModel = StaticCastSharedPtr<FModel>(Entity);
-		for (const TSharedPtr<FBody>& Body : InModel->GetBodyList())
+		for (const TSharedPtr<FBody>& Body : InModel->GetBodies())
 		{
 			ExpandSelection(Body, Filter, Selection);
 		}

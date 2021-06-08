@@ -10,8 +10,8 @@
 
 using namespace CADKernel;
 
-FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FMatrixH& InMatrix)
-	: FSurface(InToleranceGeometric, -HUGE_VALUE, HUGE_VALUE, -HUGE_VALUE, HUGE_VALUE)
+FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const FSurfacicBoundary& InBoundary)
+	: FSurface(InToleranceGeometric, InBoundary)
 {
 	Matrix = InMatrix;
 
@@ -19,43 +19,18 @@ FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FMatrixH& 
 
 	InverseMatrix = Matrix;
 	InverseMatrix.Inverse();
+	SetMinToleranceIso();
 }
 
-FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FPoint& Position, FPoint Normal)
-	: FSurface(InToleranceGeometric, -HUGE_VALUE, HUGE_VALUE, -HUGE_VALUE, HUGE_VALUE)
+FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FPoint& InPosition, FPoint InNormal, const FSurfacicBoundary& InBoundary)
+	: FSurface(InToleranceGeometric, InBoundary)
 {
-	Normal.Normalize();
-	Matrix.FromAxisOrigin(Normal, Position);
+	InNormal.Normalize();
+	Matrix.FromAxisOrigin(InNormal, InPosition);
 
 	InverseMatrix = Matrix;
 	InverseMatrix.Inverse();
-}
-
-const void FPlaneSurface::ComputeIsoTolerances() const
-{
-	FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
-
-	TFunction<double(FPoint)> ComputeTolerance = [&](FPoint Point2D) 
-	{
-		FPoint Point = Matrix.Multiply(Point2D);
-		double Length = Origin.Distance(Point);
-		if (Length > SMALL_NUMBER)
-		{
-			return Tolerance3D / Length;
-		}
-		else
-		{
-			return Tolerance3D;
-		}
-	};
-
-	FSurfacicTolerance& Tolerance = ToleranceIsos;
-
-	FPoint Point2DU { 1 , 0, 0 };
-	Tolerance[EIso::IsoU] = ComputeTolerance(Point2DU);
-
-	FPoint Point2DV{ 0, 1, 0 };
-	Tolerance[EIso::IsoV] = ComputeTolerance(Point2DV);
+	SetMinToleranceIso();
 }
 
 CADKernel::FPlane FPlaneSurface::GetPlane() const
@@ -176,7 +151,7 @@ void FPlaneSurface::ProjectPoints(const TArray<FPoint>& Points, TArray<FPoint>* 
 TSharedPtr<FEntityGeom> FPlaneSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
-	return FEntity::MakeShared<FPlaneSurface>(Tolerance3D, NewMatrix);
+	return FEntity::MakeShared<FPlaneSurface>(Tolerance3D, NewMatrix, Boundary);
 }
 
 #ifdef CADKERNEL_DEV

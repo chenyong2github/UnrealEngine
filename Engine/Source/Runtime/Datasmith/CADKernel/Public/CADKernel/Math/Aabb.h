@@ -21,90 +21,209 @@ namespace CADKernel
 	class FSphere;
 	class FPlane;
 
-	class FAABB
+	template<class PointType>
+	class TAABB
 	{
 
-	private:
-		FPoint MinCorner;
-		FPoint MaxCorner;
+	protected:
+		PointType MinCorner;
+		PointType MaxCorner;
 
 	public:
-		FAABB()
-			: MinCorner(HUGE_VALUE, HUGE_VALUE, HUGE_VALUE)
-			, MaxCorner(-HUGE_VALUE, -HUGE_VALUE, -HUGE_VALUE)
+		TAABB()
+			: MinCorner(PointType::FarawayPoint)
+			, MaxCorner(-PointType::FarawayPoint)
 		{
 		}
 
-		FAABB(const FPoint& InMinCorner, const FPoint& InMaxCorner)
+		TAABB(const PointType& InMinCorner, const PointType& InMaxCorner)
 			: MinCorner(InMinCorner)
 			, MaxCorner(InMaxCorner)
 		{
 		}
 
+		friend FArchive& operator<<(FArchive& Ar, TAABB& AABB)
+		{
+			Ar << AABB.MinCorner;
+			Ar << AABB.MaxCorner;
+			return Ar;
+		}
+
 		bool IsValid() const
 		{
-			return (MinCorner.X < MaxCorner.Y);
+			for (int32 Axis = 0; Axis < PointType::Dimension; Axis++)
+			{
+				if (MinCorner[Axis] > MaxCorner[Axis])
+				{
+					return false;
+				}
+			}
+			return true;
 		}
 
 		void Empty()
 		{
-			MinCorner.Set(HUGE_VALUE, HUGE_VALUE, HUGE_VALUE);
-			MaxCorner.Set(-HUGE_VALUE, -HUGE_VALUE, -HUGE_VALUE);
+			MinCorner = PointType::FarawayPoint;
+			MaxCorner = -PointType::FarawayPoint;
 		}
 
-		bool Contains(const FPoint& Point) const
+		bool Contains(const PointType& Point) const
 		{
-			return ((Point.X > MinCorner.X - SMALL_NUMBER) && (Point.X < MaxCorner.X + SMALL_NUMBER) &&
-				(Point.Y > MinCorner.Y - SMALL_NUMBER) && (Point.Y < MaxCorner.Y + SMALL_NUMBER) &&
-				(Point.Z > MinCorner.Z - SMALL_NUMBER) && (Point.Z < MaxCorner.Z + SMALL_NUMBER));
-		}
-
-		void SetMinDimension(double MinDimension)
-		{
-			for (int32 Axis = 0; Axis < 3; Axis++)
+			for (int32 Axis = 0; Axis < PointType::Dimension; Axis++)
 			{
-				double AxisDimension = GetDimension(Axis);
-				if (AxisDimension < MinDimension)
+				if ((Point[Axis] < MinCorner[Axis]) || (Point[Axis] > MaxCorner[Axis]))
 				{
-					double Offset = (MinDimension - AxisDimension) / 2;
+					return false;
+				}
+			}
+			return true;
+		}
+
+		void SetMinSize(double MinSize)
+		{
+			for (int32 Axis = 0; Axis < PointType::Dimension; Axis++)
+			{
+				double AxisSize = GetSize(Axis);
+				if (AxisSize < MinSize)
+				{
+					double Offset = (MinSize - AxisSize) / 2;
 					MinCorner[Axis] -= Offset;
 					MaxCorner[Axis] += Offset;
 				}
 			}
 		}
 
-		double GetMaxDimension() const
+		double GetMaxSize() const
 		{
-			double MaxDimension = 0;
-			for (int32 Index = 0; Index < 3; Index++)
+			double MaxSideSize = 0;
+			for (int32 Index = 0; Index < PointType::Dimension; Index++)
 			{
-				double Dimension = GetDimension(Index);
-				if (Dimension > MaxDimension)
+				double Size = GetSize(Index);
+				if (Size > MaxSideSize)
 				{
-					MaxDimension = Dimension;
+					MaxSideSize = Size;
 				}
 			}
-			return MaxDimension;
+			return MaxSideSize;
 		}
 
-		double GetDimension(int32 Axis) const
+		double GetSize(int32 Axis) const
 		{
 			return MaxCorner[Axis] - MinCorner[Axis];
 		}
 
-		bool Contains(const FAABB& Aabb) const
+		double DiagonalLength() const
+		{
+			return MaxCorner.Distance(MinCorner);
+		}
+
+		PointType Diagonal() const
+		{
+			return MaxCorner - MinCorner;
+		}
+
+		bool Contains(const TAABB& Aabb) const
 		{
 			return IsValid() && Aabb.IsValid() && Contains(Aabb.MinCorner) && Contains(Aabb.MaxCorner);
 		}
 
-		const FPoint& GetMin() const
+		const PointType& GetMin() const
 		{
 			return MinCorner;
 		}
 
-		const FPoint& GetMax() const
+		const PointType& GetMax() const
 		{
 			return MaxCorner;
+		}
+
+		TAABB& operator+= (const double* Point)
+		{
+			for (int32 Index = 0; Index < PointType::Dimension; Index++)
+			{
+				if (Point[Index] < MinCorner[Index])
+				{
+					MinCorner[Index] = Point[Index];
+				}
+				if (Point[Index] > MaxCorner[Index])
+				{
+					MaxCorner[Index] = Point[Index];
+				}
+			}
+			return *this;
+		}
+
+		TAABB& operator+= (const PointType& Point)
+		{
+			for (int32 Index = 0; Index < PointType::Dimension; Index++)
+			{
+				if (Point[Index] < MinCorner[Index])
+				{
+					MinCorner[Index] = Point[Index];
+				}
+				if (Point[Index] > MaxCorner[Index])
+				{
+					MaxCorner[Index] = Point[Index];
+				}
+			}
+			return *this;
+		}
+
+
+		TAABB& operator+= (const TArray<PointType>& Points)
+		{
+			for (const PointType& Point : Points)
+			{
+				*this += Point;
+			}
+			return *this;
+		}
+
+
+		void Offset(double Offset)
+		{
+			for (int32 Index = 0; Index < PointType::Dimension; Index++)
+			{
+				MinCorner[Index] -= Offset;
+				MaxCorner[Index] += Offset;
+			}
+		}
+
+		TAABB& operator+= (const TAABB& aabb)
+		{
+			*this += aabb.MinCorner;
+			*this += aabb.MaxCorner;
+			return *this;
+		}
+
+		TAABB operator+ (const PointType& Point) const
+		{
+			TAABB Other = *this;
+			Other += Point;
+			return Other;
+		}
+
+
+		TAABB operator+ (const TAABB& Aabb) const
+		{
+			TAABB Other = *this;
+			Other += Aabb;
+			return Other;
+		}
+	};
+
+	class FAABB : public TAABB<FPoint>
+	{
+
+	public:
+		FAABB()
+			: TAABB<FPoint>()
+		{
+		}
+
+		FAABB(const FPoint& InMinCorner, const FPoint& InMaxCorner)
+			: TAABB<FPoint>(InMinCorner, InMaxCorner)
+		{
 		}
 
 		FPoint GetCorner(int32 Corner) const
@@ -115,125 +234,19 @@ namespace CADKernel
 				Corner & EAABBBoundary::ZMin ? MinCorner[2] : MaxCorner[2]
 			);
 		}
-
-		FAABB& operator+= (const double* Point)
-		{
-			for (int32 Index = 0; Index < 3; Index++)
-			{
-				if (Point[Index] < MinCorner[Index])
-				{
-					MinCorner[Index] = Point[Index];
-				}
-				if (Point[Index] > MaxCorner[Index])
-				{
-					MaxCorner[Index] = Point[Index];
-				}
-			}
-			return *this;
-		}
-
-		FAABB& operator+= (const FPoint& Point)
-		{
-			for (int32 Index = 0; Index < 3; Index++)
-			{
-				if (Point[Index] < MinCorner[Index])
-				{
-					MinCorner[Index] = Point[Index];
-				}
-				if (Point[Index] > MaxCorner[Index])
-				{
-					MaxCorner[Index] = Point[Index];
-				}
-			}
-			return *this;
-		}
-
-		void Offset (double Offset)
-		{
-			for (int32 Index = 0; Index < 3; Index++)
-			{
-				MinCorner[Index] -= Offset;
-				MaxCorner[Index] += Offset;
-			}
-		}
-
-		FAABB& operator+= (const FAABB& aabb)
-		{
-			*this += aabb.MinCorner;
-			*this += aabb.MaxCorner;
-			return *this;
-		}
-
-		FAABB operator+ (const FPoint& Point) const
-		{
-			FAABB Other = *this;
-			Other += Point;
-			return Other;
-		}
-
-
-		FAABB operator+ (const FAABB& Aabb) const
-		{
-			FAABB Other = *this;
-			Other += Aabb;
-			return Other;
-		}
-
 	};
 
-	class CADKERNEL_API FAABB2D
+	class CADKERNEL_API FAABB2D : public TAABB<FPoint2D>
 	{
-	private:
-
-		FPoint2D MinCorner;
-		FPoint2D MaxCorner;
-
 	public:
-
 		FAABB2D()
-			: MinCorner(HUGE_VALUE, HUGE_VALUE)
-			, MaxCorner(-HUGE_VALUE, -HUGE_VALUE)
+			: TAABB<FPoint2D>()
 		{
 		}
 
-		FAABB2D(const FPoint2D& InMinCorner, const FPoint2D& InMaxCorner)
-			: MinCorner(InMinCorner)
-			, MaxCorner(InMaxCorner)
+		FAABB2D(const FPoint& InMinCorner, const FPoint& InMaxCorner)
+			: TAABB<FPoint2D>(InMinCorner, InMaxCorner)
 		{
-		}
-
-		friend FArchive& operator<<(FArchive& Ar, FAABB2D& AABB)
-		{
-			Ar << AABB.MinCorner;
-			Ar << AABB.MaxCorner;
-			return Ar;
-		}
-
-		const FPoint2D& GetMin() const
-		{
-			return MinCorner;
-		}
-
-		const FPoint2D& GetMax() const
-		{
-			return MaxCorner;
-		}
-
-		bool IsValid() const
-		{
-			return (MinCorner.U < MaxCorner.U);
-		}
-
-		void Empty()
-		{
-			MinCorner.Set(HUGE_VALUE, HUGE_VALUE);
-			MaxCorner.Set(-HUGE_VALUE, -HUGE_VALUE);
-		}
-
-		bool Contains(const FPoint2D& Point) const
-		{
-			return ((Point.U > MinCorner.U - SMALL_NUMBER) && (Point.U < MaxCorner.U + SMALL_NUMBER) &&
-				(Point.V > MinCorner.V - SMALL_NUMBER) && (Point.V < MaxCorner.V + SMALL_NUMBER));
 		}
 
 		FPoint2D GetCorner(int32 CornerIndex) const
@@ -244,85 +257,6 @@ namespace CADKernel
 			);
 		}
 
-		bool Contains(const FAABB2D& Aabb2d) const
-		{
-			return IsValid() && Aabb2d.IsValid() && Contains(Aabb2d.MinCorner) && Contains(Aabb2d.MaxCorner);
-		}
-
-		double DiagonalLength() const
-		{
-			return MinCorner.Distance(MaxCorner);
-		}
-
-		FPoint2D Diagonal() const
-		{
-			return MaxCorner - MinCorner;
-		}
-
-		double GetDimension(int32 Axis) const
-		{
-			return MaxCorner[Axis] - MinCorner[Axis];
-		}
-
-		FPoint2D Center() const
-		{
-			return (MinCorner + MaxCorner) / 2.;
-		}
-
-		void Set(const FPoint2D& InMinCorner, const FPoint2D& InMaxCorner)
-		{
-			MinCorner = InMinCorner;
-			MaxCorner = InMaxCorner;
-		}
-
-		FAABB2D& operator+= (const FAABB2D& Aabb2d)
-		{
-			*this += Aabb2d.GetMin();
-			*this += Aabb2d.GetMax();
-			return *this;
-		}
-
-		FAABB2D& operator+= (TArray<FPoint2D> Points)
-		{
-			for (FPoint Point : Points)
-			{
-				*this += Point;
-			}
-			return *this;
-		}
-
-		FAABB2D& operator+= (const FPoint2D& Point)
-		{
-			if (Point.U < MinCorner.U)
-			{
-				MinCorner.U = Point.U;
-			}
-
-			if (Point.V < MinCorner.V)
-			{
-				MinCorner.V = Point.V;
-			}
-
-			if (Point.U > MaxCorner.U)
-			{
-				MaxCorner.U = Point.U;
-			}
-
-			if (Point.V > MaxCorner.V)
-			{
-				MaxCorner.V = Point.V;
-			}
-
-			return *this;
-		}
-
-		void Offset(double Offset)
-		{
-			MinCorner.U -= Offset;
-			MinCorner.V -= Offset;
-			MaxCorner.U += Offset;
-			MaxCorner.V += Offset;
-		}
 	};
 
 } // namespace CADKernel

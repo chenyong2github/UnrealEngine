@@ -30,6 +30,7 @@ namespace CADKernel
 			, Poles(InPoles)
 		{
 			ensureCADKernel((UDegre + 1) * (VDegre + 1) == Poles.Num());
+			SetMinToleranceIso();
 		}
 
 		FBezierSurface(FCADKernelArchive& Archive)
@@ -47,7 +48,7 @@ namespace CADKernel
 			Ar << VDegre;
 			Ar << UPoleNum;
 			Ar << VPoleNum;
-			Ar << Poles;
+			Ar.Serialize(Poles);
 		}
 
 		ESurface GetSurfaceType() const

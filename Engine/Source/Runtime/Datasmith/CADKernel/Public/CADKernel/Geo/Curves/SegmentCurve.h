@@ -15,8 +15,8 @@ namespace CADKernel
 		FPoint StartPoint;
 		FPoint EndPoint;
 
-		FSegmentCurve(const double InTolerance, const FPoint& InStartPoint, const FPoint& InEndPoint, int8 InDimension = 3)
-			: FCurve(InTolerance, InDimension)
+		FSegmentCurve(const FPoint& InStartPoint, const FPoint& InEndPoint, int8 InDimension = 3)
+			: FCurve(InDimension)
 			, StartPoint(InStartPoint)
 			, EndPoint(InEndPoint)
 		{

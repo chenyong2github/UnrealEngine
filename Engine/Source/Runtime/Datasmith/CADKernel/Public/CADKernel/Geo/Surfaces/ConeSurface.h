@@ -36,12 +36,33 @@ namespace CADKernel
 			, StartRadius(InStartRadius)
 			, ConeAngle(InConeAngle)
 		{
+			SetMinToleranceIso();
 		}
 
 		FConeSurface(FCADKernelArchive& Archive)
 			: FSurface()
 		{
 			Serialize(Archive);
+		}
+
+		virtual void SetMinToleranceIso() const override
+		{
+			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
+
+			double DeltaVR = tan(ConeAngle);
+			double Radius1 = FMath::Abs(StartRadius + Boundary[EIso::IsoV].Max * DeltaVR);
+			double Radius2 = FMath::Abs(StartRadius + Boundary[EIso::IsoV].Min * DeltaVR);
+			double Radius = FMath::Max(Radius2, Radius1);
+
+			FPoint Point2DU{ 1 , 0, 0 };
+			double ScaleU = ComputeScaleAlongAxis(Point2DU, Matrix, Origin);
+			double ToleranceU = Tolerance3D / Radius;
+			ToleranceU /= ScaleU;
+
+			FPoint Point2DV{ 0, 1, 0 };
+			double ToleranceV = Tolerance3D / ComputeScaleAlongAxis(Point2DV, Matrix, Origin);
+
+			MinToleranceIso.Set(ToleranceU, ToleranceV);
 		}
 
 	public:
@@ -78,7 +99,6 @@ namespace CADKernel
 			OutCoordinates[EIso::IsoV].Add((InBoundaries.UVBoundaries[EIso::IsoV].Max + InBoundaries.UVBoundaries[EIso::IsoV].Min) / 2.0);
 			OutCoordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Max);
 		}
-
 
 	};
 }

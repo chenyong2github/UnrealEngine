@@ -116,6 +116,11 @@ namespace CADKernel
 		DrawPoint(Point, Property);
 	}
 
+	CADKERNEL_API void DisplayProductTree(const TSharedPtr<FEntity>& RootId);
+	CADKERNEL_API void DisplayProductTree(const TSharedPtr<FModel>& Model);
+	CADKERNEL_API void DisplayProductTree(const TSharedPtr<FBody>& Body);
+	CADKERNEL_API void DisplayProductTree(const TSharedPtr<FShell>& Shell);
+
 	CADKERNEL_API void DisplayAABB(const FAABB& aabb, FIdent Ident = 0);
 	CADKERNEL_API void DisplayAABB2D(const FAABB2D& aabb, FIdent Ident = 0);
 

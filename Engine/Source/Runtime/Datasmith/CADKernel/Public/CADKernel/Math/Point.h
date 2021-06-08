@@ -20,6 +20,8 @@ namespace CADKernel
 
 		/** A zero point (0,0,0)*/
 		static const FPoint ZeroPoint;
+		static const FPoint FarawayPoint;
+		static const int32 Dimension;
 
 		explicit FPoint(double InCoordX = 0., double InCoordY = 0., double InCoordZ = 0.)
 		{
@@ -232,11 +234,37 @@ namespace CADKernel
 			return FMath::Square(Point.X - X) + FMath::Square(Point.Y - Y) + FMath::Square(Point.Z - Z);
 		}
 
-		double ComputeCosinus(const FPoint& Vector2) const;
+		double ComputeCosinus(const FPoint& OtherVector) const
+		{
+			FPoint ThisNormalized = *this;
+			FPoint OtherNormalized = OtherVector;
 
-		double ComputeSinus(const FPoint& Vector2) const;
+			ThisNormalized.Normalize();
+			OtherNormalized.Normalize();
 
-		double ComputeAngle(const FPoint& Vector2) const;
+			double Cosinus = ThisNormalized * OtherNormalized;
+
+			return FMath::Max(-1.0, FMath::Min(Cosinus, 1.0));
+		}
+
+		double ComputeSinus(const FPoint& OtherVector) const
+		{
+			FPoint ThisNormalized = *this;
+			FPoint OtherNormalized = OtherVector;
+
+			ThisNormalized.Normalize();
+			OtherNormalized.Normalize();
+
+			FPoint SinusPoint = ThisNormalized ^ OtherNormalized;
+			double Sinus = SinusPoint.Length();
+			return FMath::Min(Sinus, 1.0);
+		}
+
+		double ComputeAngle(const FPoint& OtherVector) const
+		{
+			double CosAngle = ComputeCosinus(OtherVector);
+			return acos(CosAngle);
+		}
 
 		double SignedAngle(const FPoint& Vector2, const FPoint& Normal) const;
 
@@ -247,13 +275,18 @@ namespace CADKernel
 
 		friend FArchive& operator<<(FArchive& Ar, FPoint& Point)
 		{
-			Ar << Point.X;
-			Ar << Point.Y;
-			Ar << Point.Z;
+			Ar.Serialize(&Point, sizeof(FPoint));
 			return Ar;
 		}
 
-		static int32 Dimension() { return 3; }
+		friend FPoint Abs(const FPoint& Point)
+		{
+			double PointX = FMath::Abs(Point.X);
+			double PointY = FMath::Abs(Point.Y);
+			double PointZ = FMath::Abs(Point.Z);
+			return FPoint(PointX, PointY, PointZ);
+		}
+
 	};
 
 	class CADKERNEL_API FPointH
@@ -267,6 +300,8 @@ namespace CADKernel
 	public:
 		/** A zero point (0,0,0)*/
 		static const FPointH ZeroPoint;
+		static const FPointH FarawayPoint;
+		static const int32 Dimension;
 
 		FPointH()
 			: X(0.)
@@ -324,10 +359,7 @@ namespace CADKernel
 
 		friend FArchive& operator<<(FArchive& Ar, FPointH& Point)
 		{
-			Ar << Point.X;
-			Ar << Point.Y;
-			Ar << Point.Z;
-			Ar << Point.W;
+			Ar.Serialize(&Point, sizeof(FPointH));
 			return Ar;
 		}
 	};
@@ -342,6 +374,8 @@ namespace CADKernel
 
 		/** A zero point (0,0,0)*/
 		static const FPoint2D ZeroPoint;
+		static const FPoint2D FarawayPoint;
+		static const int32 Dimension;
 
 		FPoint2D()
 		{
@@ -519,11 +553,17 @@ namespace CADKernel
 			return *this;
 		}
 
-		friend FArchive& operator<<(FArchive& Ar, FPoint2D& Point)
+		double ComputeCosinus(const FPoint2D& OtherVector) const
 		{
-			Ar << Point.U;
-			Ar << Point.V;
-			return Ar;
+			FPoint2D ThisNormalized = *this;
+			FPoint2D OtherNormalized = OtherVector;
+
+			ThisNormalized.Normalize();
+			OtherNormalized.Normalize();
+
+			double Cosinus = ThisNormalized * OtherNormalized;
+
+			return FMath::Max(-1.0, FMath::Min(Cosinus, 1.0));
 		}
 
 		FPoint2D GetPerpendicularVector()
@@ -531,7 +571,23 @@ namespace CADKernel
 			return FPoint2D(-V, U);
 		}
 
-		static constexpr const int32 Dimension() { return 2; }
+		friend FArchive& operator<<(FArchive& Ar, FPoint2D& Point)
+		{
+			Ar.Serialize(&Point, sizeof(FPoint2D));
+			return Ar;
+		}
+
+		friend FPoint2D Abs(const FPoint2D& Point)
+		{
+			double PointU = FMath::Abs(Point.U);
+			double PointV = FMath::Abs(Point.V);
+			return { PointU, PointV };
+		}
+
+		friend FPoint2D Max(const FPoint2D& PointA, const FPoint2D& PointB)
+		{
+			return { FMath::Max(PointA.U, PointB.U), FMath::Max(PointA.V, PointB.V) };
+		}
 	};
 
 	inline FPoint::FPoint(const FPoint2D& Point)
@@ -550,6 +606,8 @@ namespace CADKernel
 
 		/** A zero point (0,0,0)*/
 		static const FFPoint ZeroPoint;
+		static const FFPoint FarawayPoint;
+		static const int32 Dimension;
 
 		FFPoint(float InX = 0., float InY = 0., float InZ = 0.)
 		{
@@ -582,13 +640,9 @@ namespace CADKernel
 
 		friend FArchive& operator<<(FArchive& Ar, FFPoint& Point)
 		{
-			Ar << Point.X;
-			Ar << Point.Y;
-			Ar << Point.Z;
+			Ar.Serialize(&Point, sizeof(FFPoint));
 			return Ar;
 		}
-
-		static constexpr const int32 Dimension() { return 3; }
 	};
 
 	inline FPoint operator*(double Scale, const FPoint& Point)

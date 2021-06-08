@@ -15,8 +15,8 @@ namespace CADKernel
 		FMatrixH Matrix;
 		double FocalDistance;
 
-		FParabolaCurve(const double InTolerance, const FMatrixH& InMatrix, double InFocalDistance, const FLinearBoundary& InBounds, int8 InDimension = 3)
-			: FCurve(InTolerance, InBounds, InDimension)
+		FParabolaCurve(const FMatrixH& InMatrix, double InFocalDistance, const FLinearBoundary& InBounds, int8 InDimension = 3)
+			: FCurve(InBounds, InDimension)
 			, Matrix(InMatrix)
 			, FocalDistance(InFocalDistance)
 		{

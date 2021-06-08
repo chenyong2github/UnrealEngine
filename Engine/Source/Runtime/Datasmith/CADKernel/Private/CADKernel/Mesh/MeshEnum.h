@@ -16,7 +16,7 @@ namespace CADKernel
 		Default2D = 0,  // do not modified enum value as it is used for a static array
 		Scaled = 1,
 		UniformScaled = 2,
-		Max
+		EndGridSpace
 	};
 
 } // namespace CADKernel

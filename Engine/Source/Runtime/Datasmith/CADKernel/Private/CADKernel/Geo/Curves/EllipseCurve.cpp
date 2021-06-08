@@ -8,7 +8,7 @@ using namespace CADKernel;
 TSharedPtr<FEntityGeom> FEllipseCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
-	return FEntity::MakeShared<FEllipseCurve>(Tolerance, NewMatrix, RadiusU, RadiusV, Boundary);
+	return FEntity::MakeShared<FEllipseCurve>(NewMatrix, RadiusU, RadiusV, Boundary);
 }
 
 #ifdef CADKERNEL_DEV

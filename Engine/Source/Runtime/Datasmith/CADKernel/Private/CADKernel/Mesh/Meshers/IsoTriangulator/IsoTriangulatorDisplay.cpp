@@ -3,11 +3,12 @@
 
 #ifdef CADKERNEL_DEV
 
-#include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
 #include "CADKernel/Mesh/Structure/Grid.h"
+#include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
+#include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoCell.h"
+#include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
 #include "CADKernel/UI/Display.h"
-
 using namespace CADKernel;
 
 void FIsoTriangulator::Display(EGridSpace Space, const FIsoSegment& Segment, FIdent Ident, EVisuProperty Property, bool bDisplayOrientation) const
@@ -122,6 +123,38 @@ void FIsoTriangulator::DisplayPixels(TArray<uint8>& Pixel) const
 		}
 	}
 	Close3DDebugSession();
+}
+
+void FIsoTriangulator::DisplayCells(const TArray<FCell>& Cells) const
+{
+	if (!bDisplay)
+	{
+		return;
+	}
+
+	F3DDebugSession _(TEXT("Cells"));
+	int32 Index = 0;
+	for (const FCell& Cell : Cells)
+	{
+		DisplayCell(Cell);
+	}
+}
+
+void FIsoTriangulator::DisplayCell(const FCell& Cell) const
+{
+	if (!bDisplay)
+	{
+		return;
+	}
+
+	F3DDebugSession _(FString::Printf(TEXT("Cell %d"), Cell.Id));
+	for (const TArray<FLoopNode*>& Nodes : Cell.Loops)
+	{
+		for (const FLoopNode* Node : Nodes)
+		{
+			CADKernel::DisplayPoint(Node->GetPoint(EGridSpace::UniformScaled, Grid), EVisuProperty::OrangePoint, Cell.Id);
+		}
+	}
 }
 
 void FIntersectionSegmentTool::Display(const TCHAR* Message) const

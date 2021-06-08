@@ -21,6 +21,9 @@ namespace CADKernel
 		TSharedPtr<FModel> Model;
 
 	public:
+#ifdef CADKERNEL_DEV
+		static TSharedPtr<FSession> Session;
+#endif
 
 		FSession(double InGeometricTolerance)
 			: GeometricTolerance(InGeometricTolerance)

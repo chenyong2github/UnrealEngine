@@ -17,8 +17,8 @@ namespace CADKernel
 		double SemiMajorAxis;
 		double SemiImaginaryAxis;
 
-		FHyperbolaCurve(const double InTolerance, const FMatrixH& InMatrix, double InSemiAxis, double InSemiImagAxis, const FLinearBoundary& InBounds, int8 InDimension = 3)
-			: FCurve(InTolerance, InBounds, InDimension)
+		FHyperbolaCurve(const FMatrixH& InMatrix, double InSemiAxis, double InSemiImagAxis, const FLinearBoundary& InBounds, int8 InDimension = 3)
+			: FCurve(InBounds, InDimension)
 			, Matrix(InMatrix)
 			, SemiMajorAxis(InSemiAxis)
 			, SemiImaginaryAxis(InSemiImagAxis)

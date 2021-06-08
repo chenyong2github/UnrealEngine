@@ -219,7 +219,7 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 	ensureCADKernel(!Face->IsDeleted());
 	ensureCADKernel(!Face->IsMeshed());
 
-	FMessage::Printf(EVerboseLevel::Log, TEXT("Meshing of surface %d\n"),  Face->GetId());
+	FMessage::Printf(EVerboseLevel::Debug, TEXT("Meshing of surface %d\n"),  Face->GetId());
 
 	FProgress _(1, TEXT("Meshing Entities : Mesh Surface"));
 
@@ -230,11 +230,10 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 
 	FTimePoint StartTime = FChrono::Now();
 
-	FGrid Grid(Face, MeshModel);
-
 	FTimePoint GenerateCloudStartTime = FChrono::Now();
+
+	FGrid Grid(Face, MeshModel);
 	GenerateCloud(Grid);
-	FDuration GenerateCloudDuration = FChrono::Elapse(GenerateCloudStartTime);
 
 	if(Grid.IsDegenerated())
 	{
@@ -247,9 +246,12 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 		return;
 	}
 
-	TSharedRef<FFaceMesh> SurfaceMesh = StaticCastSharedRef<FFaceMesh>(Face->GetOrCreateMesh(MeshModel));
+	FDuration GenerateCloudDuration = FChrono::Elapse(GenerateCloudStartTime);
 
 	FTimePoint IsoTriangulerStartTime = FChrono::Now();
+
+	TSharedRef<FFaceMesh> SurfaceMesh = StaticCastSharedRef<FFaceMesh>(Face->GetOrCreateMesh(MeshModel));
+
 	FIsoTriangulator IsoTrianguler(Grid, SurfaceMesh);
 	if(IsoTrianguler.Triangulate())
 	{
@@ -379,7 +381,7 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalVertex> InVertex)
 	InVertex->GetOrCreateMesh(GetMeshModel());
 }
 
-void FParametricMesher::Mesh(TSharedRef<FTopologicalEdge> InEdge, TSharedRef<FTopologicalFace> TrimmedSurface)
+void FParametricMesher::Mesh(TSharedRef<FTopologicalEdge> InEdge, TSharedRef<FTopologicalFace> Face)
 {
 	TSharedRef<FTopologicalEdge> ActiveEdge = StaticCastSharedRef<FTopologicalEdge>(InEdge->GetLinkActiveEntity());
 	if (ActiveEdge->IsMeshed())
@@ -396,16 +398,14 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalEdge> InEdge, TSharedRef<FTo
 		return;
 	}
 
-	double ToleranceGeoEdge = ActiveEdge->GetCurve()->GetParametricTolerance();
-
-	const FSurfacicTolerance& ToleranceIso = TrimmedSurface->GetIsoTolerances();
+	const FSurfacicTolerance& ToleranceIso = Face->GetIsoTolerances();
 
 	// Get Edge intersection with inner surface mesh grid
 	TArray<double> UEdgeSetOfIntersectionWithIsoU;
 	TArray<double> UEdgeSetOfIntersectionWithIsoV;
 
-	const TArray<double>& SurfaceTabU = TrimmedSurface->GetCuttingCoordinatesAlongIso(EIso::IsoU);
-	const TArray<double>& SurfaceTabV = TrimmedSurface->GetCuttingCoordinatesAlongIso(EIso::IsoV);
+	const TArray<double>& SurfaceTabU = Face->GetCuttingCoordinatesAlongIso(EIso::IsoU);
+	const TArray<double>& SurfaceTabV = Face->GetCuttingCoordinatesAlongIso(EIso::IsoV);
 
 	TArray<FPoint2D> EdgeCrossingPoints2D;
 	const TArray<double>& EdgeCrossingPointsU = ActiveEdge->GetCrossingPointUs();
@@ -424,8 +424,8 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalEdge> InEdge, TSharedRef<FTo
 #endif
 
 #ifdef DEBUG_IntersectEdgeIsos
-	DebugIntersectEdgeIsos(ActiveEdge, TrimmedSurface, EdgeCrossingPoints2D, ToleranceIsoU, SurfaceTabU, EIso::IsoU);
-	DebugIntersectEdgeIsos(ActiveEdge, TrimmedSurface, EdgeCrossingPoints2D, ToleranceIsoV, SurfaceTabV, EIso::IsoV);
+	DebugIntersectEdgeIsos(ActiveEdge, Face, EdgeCrossingPoints2D, ToleranceIsoU, SurfaceTabU, EIso::IsoU);
+	DebugIntersectEdgeIsos(ActiveEdge, Face, EdgeCrossingPoints2D, ToleranceIsoV, SurfaceTabV, EIso::IsoV);
 #endif
 	IntersectEdgeIsos(ActiveEdge, EdgeCrossingPoints2D, ToleranceIso[EIso::IsoU], SurfaceTabU, EIso::IsoU, UEdgeSetOfIntersectionWithIsoU);
 	IntersectEdgeIsos(ActiveEdge, EdgeCrossingPoints2D, ToleranceIso[EIso::IsoV], SurfaceTabV, EIso::IsoV, UEdgeSetOfIntersectionWithIsoV);
@@ -455,6 +455,8 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalEdge> InEdge, TSharedRef<FTo
 		ImposedIsoCuttingPoints.Reserve(NbImposedCuttingPoints);
 	}
 
+	FPoint2D ExtremityTolerances = ActiveEdge->GetCurve()->GetExtremityTolerances(EdgeBounds);
+	double ToleranceGeoEdge = FMath::Min(ExtremityTolerances[0], ExtremityTolerances[1]);
 	ImposedIsoCuttingPoints.Emplace(EdgeBounds.GetMin(), ECoordinateType::VertexCoordinate, -1, ToleranceGeoEdge);
 
 	double MinDeltaU = HUGE_VALUE;
@@ -1250,10 +1252,11 @@ void FParametricMesher::IntersectEdgeIsos(TSharedPtr<FTopologicalEdge> Edge, con
 		}
 	}
 
-	double ToleranceEdge = Edge->GetCurve()->GetParametricTolerance();
 	const TArray<double>& EdgeCrossingPointsU = Edge->GetCrossingPointUs();
 
-	const FLinearBoundary& EdgeBounds = Edge->GetBoundary();
+	const FLinearBoundary& EdgeBoundary = Edge->GetBoundary();
+	FPoint2D ToleranceEdge = Edge->GetCurve()->GetExtremityTolerances(EdgeBoundary);
+
 	double MinU;
 	double MaxU;
 	for (int32 CrossingPointIndex = 0; CrossingPointIndex < EdgeCrossingPoints2D.Num() - 1; ++CrossingPointIndex)
@@ -1289,7 +1292,8 @@ void FParametricMesher::IntersectEdgeIsos(TSharedPtr<FTopologicalEdge> Edge, con
 				double EdgeCoord = (IsoCoord - EdgeCrossingPoints2D[CrossingPointIndex][(uint8)TypeIso]) / (EdgeCrossingPoints2D[CrossingPointIndex + 1][(uint8)TypeIso] - EdgeCrossingPoints2D[CrossingPointIndex][(uint8)TypeIso]);
 				EdgeCoord *= (EdgeCrossingPointsU[CrossingPointIndex + 1] - EdgeCrossingPointsU[CrossingPointIndex]);
 				EdgeCoord += EdgeCrossingPointsU[CrossingPointIndex];
-				if ((EdgeCoord < (EdgeBounds.GetMin() + ToleranceEdge)) || (EdgeCoord > (EdgeBounds.GetMax() - ToleranceEdge)))
+
+				if ((EdgeCoord < (EdgeBoundary.GetMin() + ToleranceEdge[0])) || (EdgeCoord > (EdgeBoundary.GetMax() - ToleranceEdge[1])))
 				{
 					continue;
 				}

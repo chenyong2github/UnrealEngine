@@ -40,19 +40,11 @@ namespace CADKernel
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
 			TLinkable<FTopologicalVertex, FVertexLink>::Serialize(Ar);
-			Ar << Coordinates;
+			Ar.Serialize(Coordinates);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) ConnectedEdges);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override;
-		//{
-		//	if (!FEntity::SetId(Database))
-		//	{
-		//		return;
-		//	}
-		//	TopologicalLink->SpawnIdent(Database);
-		//	((TSharedPtr<FEntity>) Mesh)->SpawnIdent(Database);
-		//}
 
 		virtual void ResetMarkersRecursively() override
 		{
@@ -137,6 +129,19 @@ namespace CADKernel
 
 		void Link(TSharedRef<FTopologicalVertex> InEntity);
 
+		void UnlinkTo(TSharedRef<FTopologicalVertex> Entity);
+
+		virtual void RemoveFromLink() override
+		{
+			if (TopologicalLink.IsValid())
+			{
+				TopologicalLink->RemoveEntity(StaticCastSharedRef<FTopologicalVertex>(AsShared()));
+				TopologicalLink->ComputeBarycenter();
+				TopologicalLink.Reset();
+			}
+		}
+
+
 		void DeleteIfIsolated()
 		{
 			if (ConnectedEdges.Num() == 0)
@@ -156,11 +161,57 @@ namespace CADKernel
 		void AddConnectedEdge(TSharedRef<FTopologicalEdge> Edge);
 		void RemoveConnectedEdge(TSharedRef<FTopologicalEdge> Edge);
 
-		const TArray<TWeakPtr<FTopologicalEdge>>& GetConnectedEdges() const
+		/**
+		 * Mandatory: to browse all the connected edges, you have to browse the connected edges of all the twin vertices
+		 * for (TWeakPtr<FTopologicalVertex> TwinVertex : Vertex->GetTwinsEntities())
+		 * {
+		 *    for (TWeakPtr<FTopologicalEdge> ConnectedEdge : TwinVertex.Pin()->GetDirectConnectedEdges())
+		 *    {
+		 *       ...
+		 *    }
+		 *  }
+		 */
+		const TArray<TWeakPtr<FTopologicalEdge>>& GetDirectConnectedEdges() const 
 		{
 			return ConnectedEdges;
 		}
 
+		const void GetConnectedEdges(TArray<TWeakPtr<FTopologicalEdge>>& OutConnectedEdges) const
+		{
+			if (!TopologicalLink.IsValid())
+			{
+				OutConnectedEdges = ConnectedEdges;
+			}
+			else
+			{
+				OutConnectedEdges.Reserve(100);
+				for (const TWeakPtr<FTopologicalVertex>& Vertex : GetLink()->GetTwinsEntities())
+				{
+					OutConnectedEdges.Append(Vertex.Pin()->ConnectedEdges);
+				}
+			}
+		}
+
+		const int32 ConnectedEdgeCount()
+		{
+			if (!TopologicalLink.IsValid())
+			{
+				return ConnectedEdges.Num();
+			}
+			else
+			{
+				int32 Count = 0;
+				for (const TWeakPtr<FTopologicalVertex>& Vertex : GetLink()->GetTwinsEntities())
+				{
+					Count +=Vertex.Pin()->ConnectedEdges.Num();
+				}
+				return Count;
+			}
+		}
+
+		/**
+		 * 
+		 */
 		void GetConnectedEdges(TSharedPtr<FTopologicalVertex> OtherVertex, TArray<TSharedPtr<FTopologicalEdge>>& Edges) const;
 	};
 

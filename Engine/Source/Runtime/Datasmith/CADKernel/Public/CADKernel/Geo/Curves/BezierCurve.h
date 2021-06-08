@@ -12,14 +12,14 @@ namespace CADKernel
 	protected:
 		TArray<FPoint> Poles;
 
-		FBezierCurve(const double InTolerance, const TArray<FPoint>& InPoles)
-			: FCurve(InTolerance)
+		FBezierCurve(const TArray<FPoint>& InPoles)
+			: FCurve(3)
 			, Poles{ InPoles }
 		{
 		}
 
 		FBezierCurve(FCADKernelArchive& Archive)
-			: FCurve()
+			: FCurve(3)
 		{
 			Serialize(Archive);
 		}
@@ -29,7 +29,7 @@ namespace CADKernel
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
 			FCurve::Serialize(Ar);
-			Ar << Poles;
+			Ar.Serialize(Poles);
 		}
 
 #ifdef CADKERNEL_DEV

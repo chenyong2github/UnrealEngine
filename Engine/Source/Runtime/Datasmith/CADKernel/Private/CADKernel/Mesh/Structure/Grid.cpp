@@ -9,8 +9,9 @@
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Utils/Util.h"
+#include "CADKernel/Utils/ArrayUtils.h"
 
-#define DEBUG_GRID
+//#define DEBUG_GRID
 
 namespace CADKernel
 {
@@ -21,7 +22,9 @@ namespace CADKernel
 		, ThinZoneFinder(*this)
 		, CuttingCoordinates(Face->GetCuttingPointCoordinates())
 	{
-		if (Face->GetId() == SURFACE_TO_DEBUG)
+#ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
+	if (Face->GetId() == FaceToDebug)
+#endif
 		{
 			bDisplay = true;
 		}
@@ -34,7 +37,7 @@ namespace CADKernel
 
 	void FGrid::ProcessPointCloud()
 	{
-		EGridSpace DisplaySpace = EGridSpace::Default2D;
+		EGridSpace DisplaySpace = EGridSpace::UniformScaled;
 		FTimePoint StartTime = FChrono::Now();
 
 		if(!GetMeshOfLoops())
@@ -42,46 +45,40 @@ namespace CADKernel
 			return;
 		}
 
-#ifdef DEBUG_GRID
-		DisplayLoop(TEXT("FGrid::Loop 2D with thin zone"), GetLoops2D(DisplaySpace), false, false);
-		DisplayLoop(TEXT("FGrid::Loop 2D with thin zone"), GetLoops2D(DisplaySpace), true, false);
-		DisplayLoop(TEXT("FGrid::Loop 3D"), GetLoops3D(), true, false);
-		//Wait();
-		DisplayInnerDomainPoints(TEXT("FGrid::Initial PointCloud 2D"), GetInner2DPoints(DisplaySpace));
-#endif
 		ScaleLoops();
 
 #ifdef DEBUG_GRID
-		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D UniformScaled"), GetInner2DPoints(EGridSpace::UniformScaled));
-		DisplayLoop(TEXT("FGrid::Loop 2D UniformScaled"), GetLoops2D(EGridSpace::UniformScaled), true, false);
-		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D Scaled"), GetInner2DPoints(EGridSpace::Scaled));
 		DisplayLoop(TEXT("FGrid::Loop 2D Scaled"), GetLoops2D(EGridSpace::Scaled), true, false);
+		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D Scaled"), GetInner2DPoints(EGridSpace::Scaled));
+
+		DisplayLoop(TEXT("FGrid::Loop 2D UniformScaled"), GetLoops2D(EGridSpace::UniformScaled), true, false);
+		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D UniformScaled"), GetInner2DPoints(EGridSpace::UniformScaled));
+#endif
+
+#ifdef DEBUG_GRID
 		//Wait(bDisplay);
 #endif
 
 		FindInnerFacePoints();
 
 #ifdef DEBUG_GRID
-		DisplayFindInnerDomainPoints(DisplaySpace);
+		DisplayGridPoints(DisplaySpace);
 		//Wait(bDisplay);
 #endif
 		FindPointsCloseToLoop();
 #ifdef DEBUG_GRID
-		DisplayFindPointsCloseToLoop(DisplaySpace);
-		DisplayFindPointsCloseAndInsideToLoop(DisplaySpace);
+		DisplayGridInnerPoints(DisplaySpace, TEXT("FGrid::FindPointsCloseAndInsideToLoop result"));
 #endif
 		RemovePointsClosedToLoop();
 
 #ifdef DEBUG_GRID
-		DisplayFindPointsCloseAndInsideToLoop(DisplaySpace);
-		DisplayInnerDomainPoints(TEXT("FGrid::Final PointCloud 2D"), GetInner2DPoints(DisplaySpace));
+		DisplayGridInnerPoints(DisplaySpace, TEXT("FGrid::RemovePointsClosedToLoop (Final PointCloud)"));
 		//Wait(bDisplay);
-		//DisplayInnerDomainPoints("FGrid::Final PointCloud 3D"), Get3DPoints());
 #endif
 
 		// Removed of Thin zone boundary (the last boundaries). In case of thin zone, the number of 2d boundary will be biggest than 3d boundary one.
 		// Only EGridSpace::Default2D is needed.
-		FaceLoops2D[(int32)EGridSpace::Default2D].SetNum(FaceLoops3D.Num());
+		FaceLoops2D[EGridSpace::Default2D].SetNum(FaceLoops3D.Num());
 
 #ifdef DEBUG_GRID
 		DisplayLoop(TEXT("FGrid::Final Loop 2D"), GetLoops2D(DisplaySpace), true, false);
@@ -183,7 +180,7 @@ namespace CADKernel
 		{
 			for (const FOrientedEdge& Edge : Loop->GetEdges())
 			{
-				nbPoints += (int32)Edge.Entity->GetOrCreateMesh(MeshModel)->GetNodeCoordinates().Num() + 1;
+				nbPoints += Edge.Entity->GetOrCreateMesh(MeshModel)->GetNodeCoordinates().Num() + 1;
 			}
 		}
 
@@ -338,7 +335,7 @@ namespace CADKernel
 		IsCloseToLoop.Init(0, CuttingSize);
 
 		CountOfInnerNodes = CuttingSize;
-		for (int32 Index = 0; Index < (int32)EGridSpace::Max; ++Index)
+		for (int32 Index = 0; Index < EGridSpace::EndGridSpace; ++Index)
 		{
 			Points2D[Index].SetNum(CuttingSize);
 		}
@@ -350,7 +347,7 @@ namespace CADKernel
 		{
 			for (int32 IPointU = 0; IPointU < CuttingCount[EIso::IsoU]; ++IPointU, ++Index)
 			{
-				Points2D[(int32)EGridSpace::Default2D][Index].Set(Face->GetCuttingCoordinatesAlongIso(EIso::IsoU)[IPointU], Face->GetCuttingCoordinatesAlongIso(EIso::IsoV)[IPointV]);
+				Points2D[EGridSpace::Default2D][Index].Set(Face->GetCuttingCoordinatesAlongIso(EIso::IsoU)[IPointU], Face->GetCuttingCoordinatesAlongIso(EIso::IsoV)[IPointV]);
 			}
 		}
 
@@ -436,14 +433,14 @@ namespace CADKernel
 			}
 		};
 
-		for (const TArray<FPoint2D>& Loop : FaceLoops2D[(int32)EGridSpace::Default2D])
+		for (const TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
 		{
 			const FPoint2D* PointA = &Loop.Last();
 
 			IndexU = 1;
 			for (; IndexU < CuttingCount[EIso::IsoU] - 1; ++IndexU)
 			{
-				if (CuttingCoordinates[EIso::IsoU][IndexU] + SMALL_NUMBER_SQUARE > PointA->U)
+				if (UniformCuttingCoordinates[EIso::IsoU][IndexU] + SMALL_NUMBER_SQUARE > PointA->U)
 				{
 					break;
 				}
@@ -452,7 +449,7 @@ namespace CADKernel
 			IndexV = 1;
 			for (; IndexV < CuttingCount[EIso::IsoV] - 1; ++IndexV)
 			{
-				if (CuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE > PointA->V)
+				if (UniformCuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE > PointA->V)
 				{
 					break;
 				}
@@ -470,9 +467,9 @@ namespace CADKernel
 			{
 				const FPoint2D* PointB = &Loop[BIndex];
 
-				if ((CuttingCoordinates[EIso::IsoV][IndexV - 1] - SMALL_NUMBER_SQUARE < PointB->V) && (PointB->V < CuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE))
+				if ((UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] - SMALL_NUMBER_SQUARE < PointB->V) && (PointB->V < UniformCuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE))
 				{
-					if ((CuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U) && (PointB->U < CuttingCoordinates[EIso::IsoU][IndexU]))
+					if ((UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U) && (PointB->U < UniformCuttingCoordinates[EIso::IsoU][IndexU]))
 					{
 						PointA = PointB;
 						continue;
@@ -480,7 +477,7 @@ namespace CADKernel
 
 					if (PointA->U < PointB->U)
 					{
-						while ((CuttingCoordinates[EIso::IsoU][IndexU] < PointB->U) && (IndexU < CuttingCount[EIso::IsoU] - 1))
+						while ((UniformCuttingCoordinates[EIso::IsoU][IndexU] < PointB->U) && (IndexU < CuttingCount[EIso::IsoU] - 1))
 						{
 							IncreaseU();
 							IsCloseToLoop[Index] = 1;
@@ -489,7 +486,7 @@ namespace CADKernel
 					}
 					else
 					{
-						while ((CuttingCoordinates[EIso::IsoU][IndexU - 1] > PointB->U) && (IndexU > 1))
+						while ((UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] > PointB->U) && (IndexU > 1))
 						{
 							DecreaseU();
 							IsCloseToLoop[Index - 1] = 1;
@@ -500,11 +497,11 @@ namespace CADKernel
 					continue;
 				}
 
-				if ((CuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U) && (PointB->U < CuttingCoordinates[EIso::IsoU][IndexU]))
+				if ((UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U) && (PointB->U < UniformCuttingCoordinates[EIso::IsoU][IndexU]))
 				{
 					if (PointA->V < PointB->V)
 					{
-						while ((CuttingCoordinates[EIso::IsoV][IndexV] < PointB->V) && (IndexV < CuttingCount[EIso::IsoV] - 1))
+						while ((UniformCuttingCoordinates[EIso::IsoV][IndexV] < PointB->V) && (IndexV < CuttingCount[EIso::IsoV] - 1))
 						{
 							IncreaseV();
 							IsCloseToLoop[Index] = 1;
@@ -513,7 +510,7 @@ namespace CADKernel
 					}
 					else
 					{
-						while ((CuttingCoordinates[EIso::IsoV][IndexV - 1] > PointB->V) && (IndexV > 1))
+						while ((UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] > PointB->V) && (IndexV > 1))
 						{
 							DecreaseV();
 							IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
@@ -536,25 +533,25 @@ namespace CADKernel
 
 					if (ABu > 0)
 					{
-						while (CuttingCoordinates[EIso::IsoU][IndexU] + SMALL_NUMBER_SQUARE < PointB->U)
+						while (UniformCuttingCoordinates[EIso::IsoU][IndexU] + SMALL_NUMBER_SQUARE < PointB->U)
 						{
 							IncreaseU();
 
 							double CoordinateV_IndexU = 0;
-							if (CuttingCoordinates[EIso::IsoU][IndexU] > PointB->U)
+							if (UniformCuttingCoordinates[EIso::IsoU][IndexU] > PointB->U)
 							{
 								CoordinateV_IndexU = PointB->V;
 							}
 							else
 							{
-								CoordinateV_IndexU = ABy_ABx * CuttingCoordinates[EIso::IsoU][IndexU] + Ay_ABy_ABx_Ax;
+								CoordinateV_IndexU = ABy_ABx * UniformCuttingCoordinates[EIso::IsoU][IndexU] + Ay_ABy_ABx_Ax;
 								if (ABv < 0)
 								{
 									if (IndexV > 2)
 									{
-										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < CuttingCoordinates[EIso::IsoV][IndexV - 2])
+										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoV][IndexV - 2])
 										{
-											CoordinateV_IndexU = CuttingCoordinates[EIso::IsoV][IndexV - 2] + SMALL_NUMBER_SQUARE;
+											CoordinateV_IndexU = UniformCuttingCoordinates[EIso::IsoV][IndexV - 2] + SMALL_NUMBER_SQUARE;
 											DecreaseU();
 										}
 									}
@@ -563,16 +560,16 @@ namespace CADKernel
 								{
 									if (IndexV < CuttingCount[EIso::IsoV] - 1)
 									{
-										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE > CuttingCoordinates[EIso::IsoV][IndexV + 1])
+										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoV][IndexV + 1])
 										{
-											CoordinateV_IndexU = CuttingCoordinates[EIso::IsoV][IndexV + 1] - SMALL_NUMBER_SQUARE;
+											CoordinateV_IndexU = UniformCuttingCoordinates[EIso::IsoV][IndexV + 1] - SMALL_NUMBER_SQUARE;
 											DecreaseU();
 										}
 									}
 								}
 							}
 
-							if (CoordinateV_IndexU - SMALL_NUMBER_SQUARE > CuttingCoordinates[EIso::IsoV][IndexV])
+							if (CoordinateV_IndexU - SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoV][IndexV])
 							{
 								IncreaseV();
 
@@ -580,7 +577,7 @@ namespace CADKernel
 								IsCloseToLoop[Index - 1] = 1;
 								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
 							}
-							else if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < CuttingCoordinates[EIso::IsoV][IndexV - 1])
+							else if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoV][IndexV - 1])
 							{
 								DecreaseV();
 
@@ -602,20 +599,20 @@ namespace CADKernel
 							DecreaseU();
 
 							double CoordinateV_IndexU = 0; //= ABy_ABx * CoordinateU[IndexU - 1] + Ay_ABy_ABx_Ax;
-							if (CuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U)
+							if (UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U)
 							{
 								CoordinateV_IndexU = PointB->V;
 							}
 							else
 							{
-								CoordinateV_IndexU = ABy_ABx * CuttingCoordinates[EIso::IsoU][IndexU - 1] + Ay_ABy_ABx_Ax;
+								CoordinateV_IndexU = ABy_ABx * UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] + Ay_ABy_ABx_Ax;
 								if (ABv < 0)
 								{
 									if (IndexV > 2)
 									{
-										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < CuttingCoordinates[EIso::IsoV][IndexV - 2])
+										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoV][IndexV - 2])
 										{
-											CoordinateV_IndexU = CuttingCoordinates[EIso::IsoV][IndexV - 2] + SMALL_NUMBER_SQUARE;
+											CoordinateV_IndexU = UniformCuttingCoordinates[EIso::IsoV][IndexV - 2] + SMALL_NUMBER_SQUARE;
 											IncreaseU();
 										}
 									}
@@ -624,16 +621,16 @@ namespace CADKernel
 								{
 									if (IndexV < CuttingCount[EIso::IsoV] - 1)
 									{
-										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE > CuttingCoordinates[EIso::IsoV][IndexV + 1])
+										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoV][IndexV + 1])
 										{
-											CoordinateV_IndexU = CuttingCoordinates[EIso::IsoV][IndexV + 1] - SMALL_NUMBER_SQUARE;
+											CoordinateV_IndexU = UniformCuttingCoordinates[EIso::IsoV][IndexV + 1] - SMALL_NUMBER_SQUARE;
 											IncreaseU();
 										}
 									}
 								}
 							}
 
-							if (CoordinateV_IndexU - SMALL_NUMBER_SQUARE > CuttingCoordinates[EIso::IsoV][IndexV])
+							if (CoordinateV_IndexU - SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoV][IndexV])
 							{
 								IsCloseToLoop[Index - 1] = 1;
 
@@ -641,7 +638,7 @@ namespace CADKernel
 								IsCloseToLoop[Index - 1] = 1;
 								IsCloseToLoop[Index] = 1;
 							}
-							else if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < CuttingCoordinates[EIso::IsoV][IndexV - 1])
+							else if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoV][IndexV - 1])
 							{
 								DecreaseV();
 
@@ -654,7 +651,7 @@ namespace CADKernel
 								IsCloseToLoop[Index - 1] = 1;
 								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
 							}
-						} while (CuttingCoordinates[EIso::IsoU][IndexU - 1] - SMALL_NUMBER_SQUARE > PointB->U);
+						} while (UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] - SMALL_NUMBER_SQUARE > PointB->U);
 					}
 				}
 				else
@@ -666,24 +663,24 @@ namespace CADKernel
 
 					if (ABv > 0)
 					{
-						while (CuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE < PointB->V)
+						while (UniformCuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE < PointB->V)
 						{
 							IncreaseV();
 							double CoordinateU_IndexV = 0;// = ABx_ABy * CoordinateV[IndexV - 1] + Ax_ABx_ABy_Ay;
-							if (CuttingCoordinates[EIso::IsoV][IndexV] > PointB->V)
+							if (UniformCuttingCoordinates[EIso::IsoV][IndexV] > PointB->V)
 							{
 								CoordinateU_IndexV = PointB->U;
 							}
 							else
 							{
-								CoordinateU_IndexV = ABu_ABv * CuttingCoordinates[EIso::IsoV][IndexV] + Au_ABu_ABv_Av;
+								CoordinateU_IndexV = ABu_ABv * UniformCuttingCoordinates[EIso::IsoV][IndexV] + Au_ABu_ABv_Av;
 								if (ABu < 0)
 								{
 									if (IndexU > 2)
 									{
-										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < CuttingCoordinates[EIso::IsoU][IndexU - 2])
+										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoU][IndexU - 2])
 										{
-											CoordinateU_IndexV = CuttingCoordinates[EIso::IsoU][IndexU - 2] + SMALL_NUMBER_SQUARE;
+											CoordinateU_IndexV = UniformCuttingCoordinates[EIso::IsoU][IndexU - 2] + SMALL_NUMBER_SQUARE;
 											DecreaseV();
 										}
 									}
@@ -692,23 +689,23 @@ namespace CADKernel
 								{
 									if (IndexU < CuttingCount[EIso::IsoU] - 1)
 									{
-										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE > CuttingCoordinates[EIso::IsoU][IndexU + 1])
+										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoU][IndexU + 1])
 										{
-											CoordinateU_IndexV = CuttingCoordinates[EIso::IsoU][IndexU + 1] - SMALL_NUMBER_SQUARE;
+											CoordinateU_IndexV = UniformCuttingCoordinates[EIso::IsoU][IndexU + 1] - SMALL_NUMBER_SQUARE;
 											DecreaseV();
 										}
 									}
 								}
 							}
 
-							if ((IndexU < CuttingCount[EIso::IsoU] - 1) && CoordinateU_IndexV - SMALL_NUMBER_SQUARE > CuttingCoordinates[EIso::IsoU][IndexU])
+							if ((IndexU < CuttingCount[EIso::IsoU] - 1) && CoordinateU_IndexV - SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoU][IndexU])
 							{
 								IncreaseU();
 								IsCloseToLoop[Index] = 1;
 								IsCloseToLoop[Index - 1] = 1;
 								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
 							}
-							else if ((IndexU > 1) && CoordinateU_IndexV + SMALL_NUMBER_SQUARE < CuttingCoordinates[EIso::IsoU][IndexU - 1])
+							else if ((IndexU > 1) && CoordinateU_IndexV + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoU][IndexU - 1])
 							{
 								DecreaseU();
 
@@ -730,20 +727,20 @@ namespace CADKernel
 							DecreaseV();
 
 							double CoordinateU_IndexV = 0;// = ABx_ABy * CoordinateV[IndexV - 1] + Ax_ABx_ABy_Ay;
-							if (CuttingCoordinates[EIso::IsoV][IndexV - 1] < PointB->V)
+							if (UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] < PointB->V)
 							{
 								CoordinateU_IndexV = PointB->U;
 							}
 							else
 							{
-								CoordinateU_IndexV = ABu_ABv * CuttingCoordinates[EIso::IsoV][IndexV - 1] + Au_ABu_ABv_Av;
+								CoordinateU_IndexV = ABu_ABv * UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] + Au_ABu_ABv_Av;
 								if (ABu < 0)
 								{
 									if (IndexU > 2)
 									{
-										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < CuttingCoordinates[EIso::IsoU][IndexU - 2])
+										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoU][IndexU - 2])
 										{
-											CoordinateU_IndexV = CuttingCoordinates[EIso::IsoU][IndexU - 2] + SMALL_NUMBER_SQUARE;
+											CoordinateU_IndexV = UniformCuttingCoordinates[EIso::IsoU][IndexU - 2] + SMALL_NUMBER_SQUARE;
 											IncreaseV();
 										}
 									}
@@ -752,23 +749,23 @@ namespace CADKernel
 								{
 									if (IndexU < CuttingCount[EIso::IsoU] - 1)
 									{
-										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE > CuttingCoordinates[EIso::IsoU][IndexU + 1])
+										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoU][IndexU + 1])
 										{
-											CoordinateU_IndexV = CuttingCoordinates[EIso::IsoU][IndexU + 1] - SMALL_NUMBER_SQUARE;
+											CoordinateU_IndexV = UniformCuttingCoordinates[EIso::IsoU][IndexU + 1] - SMALL_NUMBER_SQUARE;
 											IncreaseV();
 										}
 									}
 								}
 							}
 
-							if (CoordinateU_IndexV - SMALL_NUMBER_SQUARE > CuttingCoordinates[EIso::IsoU][IndexU])
+							if (CoordinateU_IndexV - SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoU][IndexU])
 							{
 								IncreaseU();
 								IsCloseToLoop[Index] = 1;
 								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
 								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
 							}
-							else if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < CuttingCoordinates[EIso::IsoU][IndexU - 1])
+							else if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoU][IndexU - 1])
 							{
 								DecreaseU();
 								IsCloseToLoop[Index - 1] = 1;
@@ -780,7 +777,7 @@ namespace CADKernel
 								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
 								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
 							}
-						} while (CuttingCoordinates[EIso::IsoV][IndexV - 1] - SMALL_NUMBER_SQUARE > PointB->V);
+						} while (UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] - SMALL_NUMBER_SQUARE > PointB->V);
 					}
 				}
 				PointA = PointB;
@@ -841,18 +838,19 @@ namespace CADKernel
 		TArray<FGridSegment> LoopSegments;
 		{
 			int32 SegmentNum = 0;
-			for (const TArray<FPoint2D>& Loop : FaceLoops2D[(int32)EGridSpace::Default2D])
+			for (const TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
 			{
-				SegmentNum += (int32)Loop.Num();
+				SegmentNum += Loop.Num();
 			}
 			LoopSegments.Reserve(SegmentNum);
 
-			for (TArray<FPoint2D>& Loop : FaceLoops2D[(int32)EGridSpace::Default2D])
+			for (TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
 			{
 				for (int32 Index = 0; Index < Loop.Num() - 1; ++Index)
 				{
 					LoopSegments.Emplace(Loop[Index], Loop[Index + 1]);
 				}
+				LoopSegments.Emplace(Loop.Last(), Loop[0]);
 			}
 
 			Algo::Sort(LoopSegments, [](const FGridSegment& Seg1, const FGridSegment& Seg2) -> bool
@@ -880,7 +878,7 @@ namespace CADKernel
 			SortedPointIndexes.Reserve(IndexOfPointsNearAndInsideLoop.Num());
 			for (const int32& Index : IndexOfPointsNearAndInsideLoop)
 			{
-				GridPointWeight.Add(Points2D[(int32)EGridSpace::Default2D][Index].U + Points2D[(int32)EGridSpace::Default2D][Index].V);
+				GridPointWeight.Add(Points2D[EGridSpace::UniformScaled][Index].U + Points2D[EGridSpace::UniformScaled][Index].V);
 			}
 			for (int32 Index = 0; Index < IndexOfPointsNearAndInsideLoop.Num(); ++Index)
 			{
@@ -889,22 +887,24 @@ namespace CADKernel
 			SortedPointIndexes.Sort([&GridPointWeight](const int32& Index1, const int32& Index2) { return GridPointWeight[Index1] < GridPointWeight[Index2]; });
 		}
 
+		// only used to reduce the search of neighborhood
 		double DeltaUVMax = 0;
 		{
 			double MaxDeltaU = 0;
 			for (int32 Index = 0; Index < CuttingCount[EIso::IsoU] - 1; ++Index)
 			{
-				MaxDeltaU = FMath::Max(MaxDeltaU, FMath::Abs(CuttingCoordinates[EIso::IsoU][Index + 1] - CuttingCoordinates[EIso::IsoU][Index]));
+				MaxDeltaU = FMath::Max(MaxDeltaU, FMath::Abs(UniformCuttingCoordinates[EIso::IsoU][Index + 1] - UniformCuttingCoordinates[EIso::IsoU][Index]));
 			}
 
 			double MaxDeltaV = 0;
 			for (int32 Index = 0; Index < CuttingCount[EIso::IsoV] - 1; ++Index)
 			{
-				MaxDeltaV = FMath::Max(MaxDeltaV, FMath::Abs(CuttingCoordinates[EIso::IsoV][Index + 1] - CuttingCoordinates[EIso::IsoV][Index]));
+				MaxDeltaV = FMath::Max(MaxDeltaV, FMath::Abs(UniformCuttingCoordinates[EIso::IsoV][Index + 1] - UniformCuttingCoordinates[EIso::IsoV][Index]));
 			}
 			DeltaUVMax = FMath::Max(MaxDeltaU, MaxDeltaV);
 		}
 
+		// Find DeltaU and DeltaV around a cutting point defined by its index
 		TFunction<void(const int32, double&, double&)> GetDeltaUV = [&](const int32 Index, double& DeltaU, double& DeltaV)
 		{
 			int32 IndexU = Index % CuttingCount[EIso::IsoU];
@@ -912,43 +912,43 @@ namespace CADKernel
 
 			if (IndexU == 0)
 			{
-				DeltaU = FMath::Abs(CuttingCoordinates[EIso::IsoU][1] - CuttingCoordinates[EIso::IsoU][0]);
+				DeltaU = FMath::Abs(UniformCuttingCoordinates[EIso::IsoU][1] - UniformCuttingCoordinates[EIso::IsoU][0]);
 			}
 			else if (IndexU == CuttingCount[EIso::IsoU] - 1)
 			{
-				DeltaU = FMath::Abs(CuttingCoordinates[EIso::IsoU][CuttingCount[EIso::IsoU] - 1] - CuttingCoordinates[EIso::IsoU][CuttingCount[EIso::IsoU] - 2]);
+				DeltaU = FMath::Abs(UniformCuttingCoordinates[EIso::IsoU][CuttingCount[EIso::IsoU] - 1] - UniformCuttingCoordinates[EIso::IsoU][CuttingCount[EIso::IsoU] - 2]);
 			}
 			else
 			{
-				DeltaU = FMath::Abs(CuttingCoordinates[EIso::IsoU][IndexU + 1] - CuttingCoordinates[EIso::IsoU][IndexU - 1]) * .5;
+				DeltaU = FMath::Abs(UniformCuttingCoordinates[EIso::IsoU][IndexU + 1] - UniformCuttingCoordinates[EIso::IsoU][IndexU - 1]) * .5;
 			}
 
 			if (IndexV == 0)
 			{
-				DeltaV = FMath::Abs(CuttingCoordinates[EIso::IsoV][1] - CuttingCoordinates[EIso::IsoV][0]);
+				DeltaV = FMath::Abs(UniformCuttingCoordinates[EIso::IsoV][1] - UniformCuttingCoordinates[EIso::IsoV][0]);
 			}
 			else if (IndexV == CuttingCount[EIso::IsoV] - 1)
 			{
-				DeltaV = FMath::Abs(CuttingCoordinates[EIso::IsoV][CuttingCount[EIso::IsoV] - 1] - CuttingCoordinates[EIso::IsoV][CuttingCount[EIso::IsoV] - 2]);
+				DeltaV = FMath::Abs(UniformCuttingCoordinates[EIso::IsoV][CuttingCount[EIso::IsoV] - 1] - UniformCuttingCoordinates[EIso::IsoV][CuttingCount[EIso::IsoV] - 2]);
 			}
 			else
 			{
-				DeltaV = FMath::Abs(CuttingCoordinates[EIso::IsoV][IndexV + 1] - CuttingCoordinates[EIso::IsoV][IndexV - 1]) * .5;
+				DeltaV = FMath::Abs(UniformCuttingCoordinates[EIso::IsoV][IndexV + 1] - UniformCuttingCoordinates[EIso::IsoV][IndexV - 1]) * .5;
 			}
 		};
 
-		const double DeltaUVMinSquare = FMath::Square(1. / 3.);
-
 		int32 SegmentIndex = 0;
+		SegmentIndex = 0;
 		for (const int32& SortedIndex : SortedPointIndexes)
 		{
 			int32 Index = IndexOfPointsNearAndInsideLoop[SortedIndex];
-			const FPoint2D& Point2D = Points2D[(int32)EGridSpace::Default2D][Index];
+			const FPoint2D& Point2D = Points2D[EGridSpace::UniformScaled][Index];
 
 			double DeltaU;
 			double DeltaV;
 			GetDeltaUV(Index, DeltaU, DeltaV);
 
+			//find the first segment that could be close to the point			
 			for (; SegmentIndex < LoopSegments.Num(); ++SegmentIndex)
 			{
 				if (GridPointWeight[SortedIndex] < LoopSegments[SegmentIndex].EndPointWeight + DeltaUVMax)
@@ -986,9 +986,9 @@ namespace CADKernel
 				FPoint2D Projection = ProjectPointOnSegment(Point2D, *Segment.StartPoint, *Segment.EndPoint, Coordinate, /*bRestrictCoodinateToInside*/ true);
 
 				// If Projected point is in the oval center on Point2D => the node is too close
-				double SqrDistance2D = FMath::Square((Point2D.U - Projection.U) / DeltaU);
-				SqrDistance2D += FMath::Square((Point2D.V - Projection.V) / DeltaV);
-				if (SqrDistance2D > DeltaUVMinSquare)
+				FPoint2D ProjectionToPoint = Abs(Point2D - Projection);
+
+				if (ProjectionToPoint.U > DeltaU * 0.05  || ProjectionToPoint.V > DeltaV * 0.05)
 				{
 					continue;
 				}
@@ -1066,11 +1066,11 @@ namespace CADKernel
 		int32 ThinZoneNum = 0;
 		if (Face->HasThinZone())
 		{
-			ThinZoneNum = (int32)ThinZoneFinder.GetThinZones().Num();
+			ThinZoneNum = ThinZoneFinder.GetThinZones().Num();
 		}
 
 		int32 LoopCount = Face->GetLoops().Num();
-		FaceLoops2D[(int32)EGridSpace::Default2D].Reserve(LoopCount + ThinZoneNum);
+		FaceLoops2D[EGridSpace::Default2D].Reserve(LoopCount + ThinZoneNum);
 
 		FaceLoops3D.Reserve(LoopCount);
 		NormalsOfFaceLoops.Reserve(LoopCount);
@@ -1089,7 +1089,7 @@ namespace CADKernel
 				LoopNodeCount += Edge.Entity->GetLinkActiveEdge()->GetCuttingPoints().Num() + 2;
 			}
 
-			TArray<FPoint2D>& Loop2D = FaceLoops2D[(int32)EGridSpace::Default2D].Emplace_GetRef();
+			TArray<FPoint2D>& Loop2D = FaceLoops2D[EGridSpace::Default2D].Emplace_GetRef();
 			Loop2D.Empty(LoopNodeCount);
 
 			TArray<FPoint>& Loop3D = FaceLoops3D.Emplace_GetRef();
@@ -1210,7 +1210,7 @@ namespace CADKernel
 
 			if (Loop2D.Num() < 3) // degenerated loop
 			{
-				FaceLoops2D[(int32)EGridSpace::Default2D].Pop();
+				FaceLoops2D[EGridSpace::Default2D].Pop();
 				FaceLoops3D.Pop();
 				NormalsOfFaceLoops.Pop();
 				continue;
@@ -1226,9 +1226,9 @@ namespace CADKernel
 		{
 			for (const FThinZone2D& ThinZone : ThinZoneFinder.GetThinZones())
 			{
-				int32 PointNum = (int32)ThinZone.GetFirstSide().GetSegments().Num();
-				PointNum += (int32)ThinZone.GetSecondSide().GetSegments().Num();
-				TArray<FPoint2D>& LoopPoints = FaceLoops2D[(int32)EGridSpace::Default2D].Emplace_GetRef();
+				int32 PointNum = ThinZone.GetFirstSide().GetSegments().Num();
+				PointNum += ThinZone.GetSecondSide().GetSegments().Num();
+				TArray<FPoint2D>& LoopPoints = FaceLoops2D[EGridSpace::Default2D].Emplace_GetRef();
 				LoopPoints.Reserve(PointNum + 4);
 
 				// First point Side1
@@ -1258,7 +1258,7 @@ namespace CADKernel
 
 		// Fit boundaries to Surface bounds.
 		const FSurfacicBoundary& Bounds = Face->GetBoundary();
-		for (TArray<FPoint2D>& Loop : FaceLoops2D[(int32)EGridSpace::Default2D])
+		for (TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::Default2D])
 		{
 			for (FPoint2D& Point : Loop)
 			{
@@ -1352,11 +1352,9 @@ namespace CADKernel
 		double MeanLengthU = GetMean(LengthsU);
 		double FactorU = MeanLengthU / (CuttingCoordinates[EIso::IsoU].Last() - CuttingCoordinates[EIso::IsoU][0]);
 
-		TArray<double> ScaledCoordinatesU;
-		ScaleCoordinates(CuttingCoordinates[EIso::IsoU], FactorU, ScaledCoordinatesU);
-
-		TArray<double> ScaledCoordinatesV;
-		ScaleCoordinates(CuttingCoordinates[EIso::IsoV], FactorV, ScaledCoordinatesV);
+		//TArray<double> ScaledCuttingCoordinates;
+		ScaleCoordinates(CuttingCoordinates[EIso::IsoU], FactorU, UniformCuttingCoordinates[EIso::IsoU]);
+		ScaleCoordinates(CuttingCoordinates[EIso::IsoV], FactorV, UniformCuttingCoordinates[EIso::IsoV]);
 
 		{
 			int32 NumUV = 0;
@@ -1364,7 +1362,7 @@ namespace CADKernel
 			{
 				for (int32 IPointU = 0; IPointU < CuttingCount[EIso::IsoU]; ++IPointU, ++NumUV)
 				{
-					Points2D[(int32)EGridSpace::UniformScaled][NumUV].Set(ScaledCoordinatesU[IPointU], ScaledCoordinatesV[IPointV]);
+					Points2D[EGridSpace::UniformScaled][NumUV].Set(UniformCuttingCoordinates[EIso::IsoU][IPointU], UniformCuttingCoordinates[EIso::IsoV][IPointV]);
 				}
 			}
 		}
@@ -1395,7 +1393,7 @@ namespace CADKernel
 				{
 					NumUV = IPointV * CuttingCount[EIso::IsoU] + IPointU;
 					Length += LastPoint.Distance(Points3D[NumUV]);
-					Points2D[(int32)EGridSpace::Scaled][NumUV].Set(Points2D[(int32)EGridSpace::UniformScaled][NumUV].U, Length);
+					Points2D[EGridSpace::Scaled][NumUV].Set(Points2D[EGridSpace::UniformScaled][NumUV].U, Length);
 					LastPoint = Points3D[NumUV];
 				}
 
@@ -1405,7 +1403,7 @@ namespace CADKernel
 				{
 					NumUV = IPointV * CuttingCount[EIso::IsoU] + IPointU;
 					Length -= LastPoint.Distance(Points3D[NumUV]);
-					Points2D[(int32)EGridSpace::Scaled][NumUV].Set(Points2D[(int32)EGridSpace::UniformScaled][NumUV].U, Length);
+					Points2D[EGridSpace::Scaled][NumUV].Set(Points2D[EGridSpace::UniformScaled][NumUV].U, Length);
 					LastPoint = Points3D[NumUV];
 				}
 			}
@@ -1433,7 +1431,7 @@ namespace CADKernel
 				{
 					NumUV = IPointV * CuttingCount[EIso::IsoU] + IPointU;
 					Length += LastPoint.Distance(Points3D[NumUV]);
-					Points2D[(int32)EGridSpace::Scaled][NumUV].Set(Length, Points2D[(int32)EGridSpace::UniformScaled][NumUV].V);
+					Points2D[EGridSpace::Scaled][NumUV].Set(Length, Points2D[EGridSpace::UniformScaled][NumUV].V);
 					LastPoint = Points3D[NumUV];
 				}
 
@@ -1443,7 +1441,7 @@ namespace CADKernel
 				{
 					NumUV = IPointV * CuttingCount[EIso::IsoU] + IPointU;
 					Length -= LastPoint.Distance(Points3D[NumUV]);
-					Points2D[(int32)EGridSpace::Scaled][NumUV].Set(Length, Points2D[(int32)EGridSpace::UniformScaled][NumUV].V);
+					Points2D[EGridSpace::Scaled][NumUV].Set(Length, Points2D[EGridSpace::UniformScaled][NumUV].V);
 					LastPoint = Points3D[NumUV];
 				}
 			}
@@ -1461,10 +1459,10 @@ namespace CADKernel
 		{
 			const FPoint2D& Point = InPointsToScale[Index];
 
-			FindCoordinateIndex(CuttingCoordinates[EIso::IsoU], Point.U, IndexU);
-			FindCoordinateIndex(CuttingCoordinates[EIso::IsoV], Point.V, IndexV);
+			ArrayUtils::FindCoordinateIndex(CuttingCoordinates[EIso::IsoU], Point.U, IndexU);
+			ArrayUtils::FindCoordinateIndex(CuttingCoordinates[EIso::IsoV], Point.V, IndexV);
 
-			ComputeNewCoordinate(Points2D[(int32)DestinationSpace], IndexU, IndexV, Point, OutTransformedPoints[Index]);
+			ComputeNewCoordinate(Points2D[DestinationSpace], IndexU, IndexV, Point, OutTransformedPoints[Index]);
 		}
 	}
 
@@ -1477,14 +1475,14 @@ namespace CADKernel
 
 	void FGrid::ScaleLoops()
 	{
-		FaceLoops2D[(int32)EGridSpace::Scaled].SetNum(FaceLoops2D[(int32)EGridSpace::Default2D].Num());
-		FaceLoops2D[(int32)EGridSpace::UniformScaled].SetNum(FaceLoops2D[(int32)EGridSpace::Default2D].Num());
+		FaceLoops2D[EGridSpace::Scaled].SetNum(FaceLoops2D[EGridSpace::Default2D].Num());
+		FaceLoops2D[EGridSpace::UniformScaled].SetNum(FaceLoops2D[EGridSpace::Default2D].Num());
 
-		for (int32 IndexBoudnary = 0; IndexBoudnary < FaceLoops2D[(int32)EGridSpace::Default2D].Num(); ++IndexBoudnary)
+		for (int32 IndexBoudnary = 0; IndexBoudnary < FaceLoops2D[EGridSpace::Default2D].Num(); ++IndexBoudnary)
 		{
-			const TArray<FPoint2D>& Loop = FaceLoops2D[(int32)EGridSpace::Default2D][IndexBoudnary];
-			TArray<FPoint2D>& ScaledLoop = FaceLoops2D[(int32)EGridSpace::Scaled][IndexBoudnary];
-			TArray<FPoint2D>& UniformScaledLoop = FaceLoops2D[(int32)EGridSpace::UniformScaled][IndexBoudnary];
+			const TArray<FPoint2D>& Loop = FaceLoops2D[EGridSpace::Default2D][IndexBoudnary];
+			TArray<FPoint2D>& ScaledLoop = FaceLoops2D[EGridSpace::Scaled][IndexBoudnary];
+			TArray<FPoint2D>& UniformScaledLoop = FaceLoops2D[EGridSpace::UniformScaled][IndexBoudnary];
 
 			ScaledLoop.SetNum(Loop.Num());
 			UniformScaledLoop.SetNum(Loop.Num());
@@ -1495,8 +1493,8 @@ namespace CADKernel
 			{
 				const FPoint2D& Point = Loop[Index];
 
-				FindCoordinateIndex(CuttingCoordinates[EIso::IsoU], Point.U, IndexU);
-				FindCoordinateIndex(CuttingCoordinates[EIso::IsoV], Point.V, IndexV);
+				ArrayUtils::FindCoordinateIndex(CuttingCoordinates[EIso::IsoU], Point.U, IndexU);
+				ArrayUtils::FindCoordinateIndex(CuttingCoordinates[EIso::IsoV], Point.V, IndexV);
 
 				ComputeNewCoordinate(Points2D[EGridSpace::Scaled], IndexU, IndexV, Point, ScaledLoop[Index]);
 				ComputeNewCoordinate(Points2D[EGridSpace::UniformScaled], IndexU, IndexV, Point, UniformScaledLoop[Index]);
@@ -1554,21 +1552,21 @@ namespace CADKernel
 		{
 			int32 IndexV = 0;
 			int32 IndexU = 0;
-			for (TArray<FPoint2D>& Loop : FaceLoops2D[(int32)EGridSpace::Default2D])
+			for (TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
 			{
 				for (FPoint2D& Point : Loop)
 				{
-					while (IndexV != 0 && (Point.V < CuttingCoordinates[EIso::IsoV][IndexV]))
+					while (IndexV != 0 && (Point.V < UniformCuttingCoordinates[EIso::IsoV][IndexV]))
 					{
 						IndexV--;
 					}
 					for (; IndexV < CuttingCount[EIso::IsoV]; ++IndexV)
 					{
-						if (Point.V + SmallToleranceV < CuttingCoordinates[EIso::IsoV][IndexV])
+						if (Point.V + SmallToleranceV < UniformCuttingCoordinates[EIso::IsoV][IndexV])
 						{
 							break;
 						}
-						if (Point.V - SmallToleranceV > CuttingCoordinates[EIso::IsoV][IndexV])
+						if (Point.V - SmallToleranceV > UniformCuttingCoordinates[EIso::IsoV][IndexV])
 						{
 							continue;
 						}
@@ -1589,17 +1587,17 @@ namespace CADKernel
 						IndexV--;
 					}
 
-					while (IndexU != 0 && (Point.U < CuttingCoordinates[EIso::IsoU][IndexU]))
+					while (IndexU != 0 && (Point.U < UniformCuttingCoordinates[EIso::IsoU][IndexU]))
 					{
 						IndexU--;
 					}
 					for (; IndexU < CuttingCount[EIso::IsoU]; ++IndexU)
 					{
-						if (Point.U + SmallToleranceU < CuttingCoordinates[EIso::IsoU][IndexU])
+						if (Point.U + SmallToleranceU < UniformCuttingCoordinates[EIso::IsoU][IndexU])
 						{
 							break;
 						}
-						if (Point.U - SmallToleranceU > CuttingCoordinates[EIso::IsoU][IndexU])
+						if (Point.U - SmallToleranceU > UniformCuttingCoordinates[EIso::IsoU][IndexU])
 						{
 							continue;
 						}
@@ -1622,10 +1620,10 @@ namespace CADKernel
 			}
 		}
 
-		DisplayLoop(TEXT("FGrid::Loop 2D After move according tol"), GetLoops2D(EGridSpace::Default2D), true, false);
+		DisplayLoop(TEXT("FGrid::Loop 2D After move according tol"), GetLoops2D(EGridSpace::UniformScaled), true, false);
 
 		// Intersection along U axis
-		for (const TArray<FPoint2D>& Loop : FaceLoops2D[(int32)EGridSpace::Default2D])
+		for (const TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
 		{
 			const FPoint2D* FirstSegmentPoint = &Loop.Last();
 			for (const FPoint2D& LoopPoint : Loop)
@@ -1662,7 +1660,7 @@ namespace CADKernel
 				int32 Index = 0;
 				for (; IndexV < CuttingCount[EIso::IsoV]; ++IndexV)
 				{
-					if (CuttingCoordinates[EIso::IsoV][IndexV] >= VMin)
+					if (UniformCuttingCoordinates[EIso::IsoV][IndexV] >= VMin)
 					{
 						break;
 					}
@@ -1671,7 +1669,7 @@ namespace CADKernel
 
 				for (; IndexV < CuttingCount[EIso::IsoV]; ++IndexV)
 				{
-					if (CuttingCoordinates[EIso::IsoV][IndexV] > Vmax)
+					if (UniformCuttingCoordinates[EIso::IsoV][IndexV] > Vmax)
 					{
 						break;
 					}
@@ -1684,17 +1682,17 @@ namespace CADKernel
 							continue;
 						}
 
-						if (CuttingCoordinates[EIso::IsoU][IndexU] < UMin)
+						if (UniformCuttingCoordinates[EIso::IsoU][IndexU] < UMin)
 						{
 							NbIntersectVForward[Index] = NbIntersectVForward[Index] > 0 ? 0 : 1;
 						}
-						else if (CuttingCoordinates[EIso::IsoU][IndexU] > Umax)
+						else if (UniformCuttingCoordinates[EIso::IsoU][IndexU] > Umax)
 						{
 							NbIntersectVBackward[Index] = NbIntersectVBackward[Index] > 0 ? 0 : 1;
 						}
 						else
 						{
-							double APvectAB = CuttingCoordinates[EIso::IsoV][IndexV] * ABu - CuttingCoordinates[EIso::IsoU][IndexU] * ABv + AuABVMinusAvABu;
+							double APvectAB = UniformCuttingCoordinates[EIso::IsoV][IndexV] * ABu - UniformCuttingCoordinates[EIso::IsoU][IndexU] * ABv + AuABVMinusAvABu;
 							if (APvectAB > SMALL_NUMBER)
 							{
 								NbIntersectVForward[Index] = NbIntersectVForward[Index] > 0 ? 0 : 1;
@@ -1715,7 +1713,7 @@ namespace CADKernel
 		}
 
 		// Intersection along V axis
-		for (const TArray<FPoint2D>& Loop : FaceLoops2D[(int32)EGridSpace::Default2D])
+		for (const TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
 		{
 			const FPoint2D* FirstSegmentPoint = &Loop.Last();
 			for (const FPoint2D& LoopPoint : Loop)
@@ -1751,12 +1749,12 @@ namespace CADKernel
 				int32 Index = 0;
 				for (int32 IndexU = 0; IndexU < CuttingCount[EIso::IsoU]; ++IndexU)
 				{
-					if (CuttingCoordinates[EIso::IsoU][IndexU] < UMin)
+					if (UniformCuttingCoordinates[EIso::IsoU][IndexU] < UMin)
 					{
 						continue;
 					}
 
-					if (CuttingCoordinates[EIso::IsoU][IndexU] >= Umax)
+					if (UniformCuttingCoordinates[EIso::IsoU][IndexU] >= Umax)
 					{
 						continue;
 					}
@@ -1769,17 +1767,17 @@ namespace CADKernel
 							continue;
 						}
 
-						if (CuttingCoordinates[EIso::IsoV][IndexV] < VMin)
+						if (UniformCuttingCoordinates[EIso::IsoV][IndexV] < VMin)
 						{
 							NbIntersectUForward[Index] = NbIntersectUForward[Index] > 0 ? 0 : 1;
 						}
-						else if (CuttingCoordinates[EIso::IsoV][IndexV] > Vmax)
+						else if (UniformCuttingCoordinates[EIso::IsoV][IndexV] > Vmax)
 						{
 							NbIntersectUBackward[Index] = NbIntersectUBackward[Index] > 0 ? 0 : 1;
 						}
 						else
 						{
-							double APvectAB = CuttingCoordinates[EIso::IsoV][IndexV] * ABu - CuttingCoordinates[EIso::IsoU][IndexU] * ABv + AuABVMinusAvABu;
+							double APvectAB = UniformCuttingCoordinates[EIso::IsoV][IndexV] * ABu - UniformCuttingCoordinates[EIso::IsoU][IndexU] * ABv + AuABVMinusAvABu;
 							if (APvectAB > SMALL_NUMBER)
 							{
 								NbIntersectUBackward[Index] = NbIntersectUBackward[Index] > 0 ? 0 : 1;
@@ -1835,7 +1833,7 @@ namespace CADKernel
 		Chronos.FindInnerDomainPointsDuration += FChrono::Elapse(StartTime);
 	}
 
-	void FGrid::DisplayFindInnerDomainPoints(EGridSpace DisplaySpace) const
+	void FGrid::DisplayGridPoints(EGridSpace DisplaySpace) const
 	{
 		if (!bDisplay)
 		{
@@ -1847,7 +1845,7 @@ namespace CADKernel
 		{
 			if (IsInsideFace[Index])
 			{
-				DisplayPoint(Points2D[(int32)EGridSpace::Default2D][Index], Index);
+				DisplayPoint(Points2D[DisplaySpace][Index], Index);
 				NbNum++;
 			}
 		}
@@ -1859,7 +1857,7 @@ namespace CADKernel
 		{
 			if (!IsInsideFace[Index])
 			{
-				DisplayPoint(Points2D[(int32)EGridSpace::Default2D][Index], EVisuProperty::GreenPoint, Index);
+				DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::OrangePoint, Index);
 			}
 		}
 		Close3DDebugSession();
@@ -1872,7 +1870,7 @@ namespace CADKernel
 			return;
 		}
 
-		Open3DDebugSession(TEXT("FGrid::FindPointsClosedToLoop result"));
+		F3DDebugSession _(TEXT("FGrid::FindPointsClosedToLoop result"));
 		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
 			if (IsCloseToLoop[Index])
@@ -1884,17 +1882,16 @@ namespace CADKernel
 				DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::YellowPoint);
 			}
 		}
-		Close3DDebugSession();
 	}
 
-	void FGrid::DisplayFindPointsCloseAndInsideToLoop(EGridSpace DisplaySpace) const
+	void FGrid::DisplayGridInnerPoints(EGridSpace DisplaySpace, TCHAR* Message) const
 	{
 		if (!bDisplay)
 		{
 			return;
 		}
 
-		Open3DDebugSession(TEXT("FGrid::FindPointsCloseAndInsideToLoop result"));
+		F3DDebugSession _(Message);
 		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
 			if (IsInsideFace[Index])
@@ -1909,12 +1906,11 @@ namespace CADKernel
 				}
 			}
 		}
-		Close3DDebugSession();
 	}
 
 	bool FGrid::CheckIfDegenerated()
 	{
-		if (FaceLoops2D[(int32)EGridSpace::Default2D].Num() == 0)
+		if (FaceLoops2D[EGridSpace::Default2D].Num() == 0)
 		{
 			SetAsDegenerated();
 			return true;
@@ -1922,7 +1918,7 @@ namespace CADKernel
 
 		// if the external boundary is composed by only 2 points, the mesh of the surface is only an edge.
 		// The grid is degenerated.
-		if (FaceLoops2D[(int32)EGridSpace::Default2D][0].Num() < 3)
+		if (FaceLoops2D[EGridSpace::Default2D][0].Num() < 3)
 		{
 			SetAsDegenerated();
 			return true;

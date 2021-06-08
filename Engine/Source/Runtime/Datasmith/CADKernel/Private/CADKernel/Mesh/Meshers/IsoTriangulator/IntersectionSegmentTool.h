@@ -32,6 +32,9 @@ namespace CADKernel
 
 		FSegment4IntersectionTools(const FGrid& Grid, const FIsoSegment& InSegment);
 
+		/**
+		 * WARNING StartPoint, EndPoint must be defined in EGridSpace::UniformScaled
+		 */
 		FSegment4IntersectionTools(const FPoint2D& StartPoint, const FPoint2D& EndPoint)
 			: Segment2D(StartPoint, EndPoint)
 			, Boundary(StartPoint, EndPoint)
@@ -62,11 +65,19 @@ namespace CADKernel
 	{
 		TArray<FSegment4IntersectionTools> Segments;
 		const FGrid& Grid;
+		bool bSegmentsAreSorted;
 
 	public:
 		FIntersectionSegmentTool(const FGrid& InGrid)
 			: Grid(InGrid)
+			, bSegmentsAreSorted(false)
 		{
+		}
+
+		void Empty(int32 InMaxNum)
+		{
+			Segments.Empty(InMaxNum);
+			bSegmentsAreSorted = false;
 		}
 
 		void Reserve(int32 InMaxNum)
@@ -79,13 +90,25 @@ namespace CADKernel
 			Segments.Reserve(NewMaxNum);
 		}
 
-		int32 Num()
+		int32 Count()
 		{
 			return Segments.Num();
 		}
 
-		void AddSegment(const TArray<FIsoSegment*>& InNewSegments)
+		void AddSegments(FIsoSegment** InNewSegments, int32 Count)
 		{
+			bSegmentsAreSorted = false;
+			Segments.Reserve(Count + Segments.Num());
+			for (int32 Index = 0; Index < Count; ++Index)
+			{
+				FIsoSegment* NewSegment = InNewSegments[Index];
+				AddSegment(*NewSegment);
+			}
+		}
+
+		void AddSegments(const TArray<FIsoSegment*>& InNewSegments)
+		{
+			bSegmentsAreSorted = false;
 			Segments.Reserve(InNewSegments.Num() + Segments.Num());
 			for (FIsoSegment* Segment : InNewSegments)
 			{
@@ -95,15 +118,26 @@ namespace CADKernel
 
 		void AddSegment(const FIsoSegment& Segment)
 		{
+			bSegmentsAreSorted = false;
 			Segments.Emplace(Grid, Segment);
+		}
+
+		void AddSegment(const FPoint2D& StartPoint, const FPoint2D& EndPoint)
+		{
+			bSegmentsAreSorted = false;
+			Segments.Emplace(StartPoint, EndPoint);
 		}
 
 		bool DoesIntersect(const FIsoSegment& Segment) const;
 
+		/**
+		 * WARNING StartPoint, EndPoint must be defined in EGridSpace::UniformScaled
+		 */
 		bool DoesIntersect(const FPoint2D& StartPoint, const FPoint2D& EndPoint) const;
 
 		/**
 		 * Allow StartNode to be connected to one segment
+		 * WARNING EndPoint must be defined in EGridSpace::UniformScaled
 		 */
 		bool DoesIntersect(const FIsoNode& StartNode, const FPoint2D& EndPoint) const;
 
@@ -118,6 +152,7 @@ namespace CADKernel
 		void Sort()
 		{
 			Algo::Sort(Segments, [](const FSegment4IntersectionTools& Segment1, const FSegment4IntersectionTools& Segment2) { return Segment1.AxisMin < Segment2.AxisMin; });
+			bSegmentsAreSorted = true;
 		}
 
 #ifdef CADKERNEL_DEV

@@ -45,7 +45,7 @@ TSharedPtr<FCurve> FBoundedCurve::ReboundCurve(const FLinearBoundary& InBoundary
 		return FEntity::MakeShared<FBoundedCurve>(*this);
 	}
 
-	return FEntity::MakeShared<FBoundedCurve>(Tolerance, Curve.ToSharedRef(), NewBoundary, Dimension);
+	return FEntity::MakeShared<FBoundedCurve>(Curve.ToSharedRef(), NewBoundary, Dimension);
 }
 
 TSharedPtr<FEntityGeom> FBoundedCurve::ApplyMatrix(const FMatrixH& InMatrix) const
@@ -56,7 +56,7 @@ TSharedPtr<FEntityGeom> FBoundedCurve::ApplyMatrix(const FMatrixH& InMatrix) con
 		return TSharedPtr<FEntityGeom>();
 	}
 
-	return FEntity::MakeShared<FBoundedCurve>(Tolerance, TransformedCurve.ToSharedRef(), Boundary, Dimension);
+	return FEntity::MakeShared<FBoundedCurve>(TransformedCurve.ToSharedRef(), Boundary, Dimension);
 }
 
 #ifdef CADKERNEL_DEV

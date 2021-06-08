@@ -17,15 +17,15 @@ bool FIntersectionSegmentTool::DoesIntersect(const FIsoSegment& Segment) const
 
 bool FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const
 {
-	const FPoint2D& StartPoint = StartNode.Get2DPoint(EGridSpace::Default2D, Grid);
-	const FPoint2D& EndPoint = EndNode.Get2DPoint(EGridSpace::Default2D, Grid);
+	const FPoint2D& StartPoint = StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
+	const FPoint2D& EndPoint = EndNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
 	const FSegment4IntersectionTools StartEndSegment(StartPoint, EndPoint);
 
 	double AxisMax = StartEndSegment.Boundary[EIso::IsoU].Max + StartEndSegment.Boundary[EIso::IsoV].Max;
 
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
-		if (AxisMax < Segment.AxisMin)
+		if (bSegmentsAreSorted && AxisMax < Segment.AxisMin)
 		{
 			break;
 		}
@@ -51,14 +51,14 @@ bool FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNode, const FI
 
 bool FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNode, const FPoint2D& EndPoint) const
 {
-	const FPoint2D& StartPoint = StartNode.Get2DPoint(EGridSpace::Default2D, Grid);
+	const FPoint2D& StartPoint = StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
 	const FSegment4IntersectionTools StartEndSegment(StartPoint, EndPoint);
 
 	double DMax = StartEndSegment.Boundary[EIso::IsoU].Max + StartEndSegment.Boundary[EIso::IsoV].Max;
 
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
-		if (DMax < Segment.AxisMin)
+		if (bSegmentsAreSorted && DMax < Segment.AxisMin)
 		{
 			break;
 		}
@@ -89,7 +89,7 @@ bool FIntersectionSegmentTool::DoesIntersect(const FPoint2D& StartPoint, const F
 
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
-		if (DMax < Segment.AxisMin)
+		if (bSegmentsAreSorted && DMax < Segment.AxisMin)
 		{
 			break;
 		}
@@ -108,7 +108,7 @@ bool FIntersectionSegmentTool::DoesIntersect(const FPoint2D& StartPoint, const F
 }
 
 FSegment4IntersectionTools::FSegment4IntersectionTools(const FGrid& Grid, const FIsoSegment& InSegment)
-	: FSegment4IntersectionTools(InSegment.GetFirstNode().Get2DPoint(EGridSpace::Default2D, Grid), InSegment.GetSecondNode().Get2DPoint(EGridSpace::Default2D, Grid))
+	: FSegment4IntersectionTools(InSegment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), InSegment.GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid))
 {
 	IsoSegment = &InSegment;
 	AxisMin = Boundary[EIso::IsoU].Min + Boundary[EIso::IsoV].Min;

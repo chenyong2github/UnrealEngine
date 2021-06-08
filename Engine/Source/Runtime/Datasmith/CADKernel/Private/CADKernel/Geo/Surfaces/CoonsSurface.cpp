@@ -12,6 +12,7 @@ using namespace CADKernel;
 FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurves[4])
 	: FCoonsSurface(InToleranceGeometric, InCurves[0], InCurves[1], InCurves[2], InCurves[3])
 {
+	SetMinToleranceIso();
 }
 
 FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurve1, TSharedPtr<FCurve> InCurve2, TSharedPtr<FCurve> InCurve3, TSharedPtr<FCurve> InCurve4)
@@ -27,6 +28,8 @@ FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurv
 	Corners[1] = Curves[0]->EvaluatePoint(Curves[0]->GetUMax()) * 0.5 + Curves[3]->EvaluatePoint(Curves[3]->GetUMin()) * 0.5;
 	Corners[2] = Curves[1]->EvaluatePoint(Curves[1]->GetUMin()) * 0.5 + Curves[2]->EvaluatePoint(Curves[2]->GetUMax()) * 0.5;
 	Corners[3] = Curves[1]->EvaluatePoint(Curves[1]->GetUMax()) * 0.5 + Curves[3]->EvaluatePoint(Curves[3]->GetUMax()) * 0.5;
+
+	SetMinToleranceIso();
 }
 
 void FCoonsSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivableCoordinates) const
@@ -52,7 +55,6 @@ void FCoonsSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 In
 		Algo::Sort(OutNotDerivableCoordinates[(EIso)Iso]);
 		ArrayUtils::RemoveDuplicates(OutNotDerivableCoordinates[(EIso)Iso], GetIsoTolerances()[Iso]);
 	}
-
 }
 
 void FCoonsSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const

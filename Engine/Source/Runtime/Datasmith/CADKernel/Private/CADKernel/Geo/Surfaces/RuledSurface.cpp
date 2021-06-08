@@ -121,7 +121,7 @@ void FRuledSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinate
 {
 	TFunction<void(int32, TArray<double>&)> PresampleCurve = [&](int32 CurveIndex, TArray<double>& Sample)
 	{
-		Curves[CurveIndex]->Presample(Sample);
+		Curves[CurveIndex]->Presample(Sample, Tolerance3D);
 
 		double ULength = Curves[CurveIndex]->GetUMax() - Curves[CurveIndex]->GetUMin();
 		double UMin = Curves[CurveIndex]->GetUMin();
@@ -137,7 +137,7 @@ void FRuledSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinate
 	PresampleCurve(1, Curve1Sample);
 
 	// remove duplicated
-	ArrayUtils::InsertInside(Coordinates[EIso::IsoU], Curve1Sample, GetIsoTolerances()[IsoU]);
+	ArrayUtils::InsertInside(Coordinates[EIso::IsoU], Curve1Sample, GetIsoTolerance(IsoU));
 
 	Coordinates[EIso::IsoV].Empty(3);
 	Coordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Min);

@@ -69,7 +69,7 @@ namespace CADKernel
 	protected:
 
 		const TSharedRef<FTopologicalFace> Face;
-		const FSurfacicTolerance& FaceTolerance;
+		const FSurfacicTolerance FaceTolerance;
 
 		TSharedRef<FModelMesh> MeshModel;
 
@@ -78,7 +78,7 @@ namespace CADKernel
 		/**
 		 * 2D Coordinate of Loop's nodes in each space
 		 */
-		TArray<TArray<FPoint2D>> FaceLoops2D[EGridSpace::Max];
+		TArray<TArray<FPoint2D>> FaceLoops2D[EGridSpace::EndGridSpace];
 
 		/**
 		 * 3D Coordinate of Loop nodes in each space
@@ -107,6 +107,7 @@ namespace CADKernel
 		 * Cutting coordinates of the face respecting the meshing criteria
 		 */
 		const FCoordinateGrid& CuttingCoordinates;
+		FCoordinateGrid UniformCuttingCoordinates;
 
 		/*
 		 * Maximum difference of coordinate along the specified axis of two successive cutting points
@@ -135,7 +136,7 @@ namespace CADKernel
 		/**
 		 * 2D Coordinate of grid nodes in each space
 		 */
-		TArray<FPoint2D> Points2D[EGridSpace::Max];
+		TArray<FPoint2D> Points2D[EGridSpace::EndGridSpace];
 
 		/**
 		 * 3D Coordinate of inner nodes
@@ -219,22 +220,6 @@ namespace CADKernel
 				NewGrid[(IndexV + 1) * CuttingCount[EIso::IsoU] + (IndexU + 0)] * (CuttingCoordinates[EIso::IsoU][IndexU + 1] - InPoint.U) * (CuttingCoordinates[EIso::IsoV][IndexV + 0] - InPoint.V) +
 				NewGrid[(IndexV + 1) * CuttingCount[EIso::IsoU] + (IndexU + 1)] * (CuttingCoordinates[EIso::IsoU][IndexU + 0] - InPoint.U) * (CuttingCoordinates[EIso::IsoV][IndexV + 0] - InPoint.V);
 			OutNewScaledPoint /= (CuttingCoordinates[EIso::IsoU][IndexU + 1] - CuttingCoordinates[EIso::IsoU][IndexU + 0]) * (CuttingCoordinates[EIso::IsoV][IndexV + 1] - CuttingCoordinates[EIso::IsoV][IndexV + 0]);
-		};
-
-		void FindCoordinateIndex(const TArray<double>& InCoordinates, double Coordinate, int32& OutIndex) const
-		{
-			ensureCADKernel(InCoordinates.IsValidIndex(OutIndex));
-
-			while (Coordinate < InCoordinates[OutIndex] && OutIndex > 0)
-			{
-				OutIndex--;
-			}
-
-			for (; OutIndex + 2 < InCoordinates.Num() && Coordinate > InCoordinates[OutIndex + 1]; ++OutIndex)
-			{
-			}
-
-			ensureCADKernel(InCoordinates.IsValidIndex(OutIndex));
 		};
 
 		/**
@@ -410,6 +395,16 @@ namespace CADKernel
 			return CuttingCoordinates;
 		}
 
+		constexpr const TArray<double>& GetUniformCuttingCoordinatesAlongIso(EIso Iso) const
+		{
+			return UniformCuttingCoordinates[Iso];
+		}
+
+		const FCoordinateGrid& GetUniformCuttingCoordinates() const
+		{
+			return UniformCuttingCoordinates;
+		}
+
 		/**
 		 * @return the array of 3d points of the grid
 		 */
@@ -528,7 +523,8 @@ namespace CADKernel
 		// ======================================================================================================================================================================================================================
 		bool bDisplay = false;
 
-		void DisplayFindInnerDomainPoints(EGridSpace DisplaySpace) const;
+		void DisplayGridPoints(EGridSpace DisplaySpace) const;
+		void DisplayGridInnerPoints(EGridSpace DisplaySpace, TCHAR* Message) const;
 
 		template<typename TPoint>
 		void DisplayPoints(FString Message, const TArray<TPoint>& Points) const
@@ -565,7 +561,7 @@ namespace CADKernel
 					}
 					else
 					{
-						DisplayPoint(Points[Index], EVisuProperty::GreenPoint, Index);
+						DisplayPoint(Points[Index], EVisuProperty::OrangePoint, Index);
 					}
 				}
 			}
@@ -615,7 +611,6 @@ namespace CADKernel
 		}
 
 		void DisplayFindPointsCloseToLoop(EGridSpace DisplaySpace) const;
-		void DisplayFindPointsCloseAndInsideToLoop(EGridSpace DisplaySpace) const;
 		void PrintTimeElapse() const;
 	};
 

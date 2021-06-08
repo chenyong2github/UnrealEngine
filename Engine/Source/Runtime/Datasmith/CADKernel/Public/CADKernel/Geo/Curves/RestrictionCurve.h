@@ -26,17 +26,20 @@ namespace CADKernel
 	protected:
 
 		FSurfacicPolyline Polyline;
+		double MinLinearTolerance;
 
-		FRestrictionCurve(const double InTolerance, TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D)
-			: FSurfacicCurve(InTolerance, InCurve2D, InCarrierSurface)
-			, Polyline(InCarrierSurface, InCurve2D, InTolerance)
+		FRestrictionCurve(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D)
+			: FSurfacicCurve(InCurve2D, InCarrierSurface)
+			, Polyline(InCarrierSurface, InCurve2D)
 		{
+			MinLinearTolerance = Boundary.ComputeMinimalTolerance();
 		}
 
 		FRestrictionCurve(FCADKernelArchive& Archive)
 			: FSurfacicCurve()
 		{
 			Serialize(Archive);
+			MinLinearTolerance = Boundary.ComputeMinimalTolerance();
 		}
 
 	public:
@@ -56,14 +59,9 @@ namespace CADKernel
 			return ECurve::Restriction;
 		}
 
-		const TSharedPtr<FCurve>& Get2DCurve() const
+		const TSharedRef<FCurve> Get2DCurve() const
 		{
-			return Curve2D;
-		}
-
-		const TSharedPtr<FSurface>& GetCarrierSurface() const
-		{
-			return CarrierSurface;
+			return Curve2D.ToSharedRef();
 		}
 
 		TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override
@@ -88,6 +86,16 @@ namespace CADKernel
 		FPoint Approximate3DPoint(double InCoordinate) const
 		{
 			return Polyline.Approximate3DPoint(InCoordinate);
+		}
+
+		FPoint GetTangentAt(double InCoordinate) const
+		{
+			return Polyline.GetTangentAt(InCoordinate);
+		}
+
+		FPoint2D GetTangent2DAt(double InCoordinate) const
+		{
+			return Polyline.GetTangent2DAt(InCoordinate);
 		}
 
 		/**
@@ -116,13 +124,14 @@ namespace CADKernel
 			Polyline.ApproximatePolyline(OutPolyline);
 		}
 
-
-		double GetCoordinateOfProjectedPoint(const FLinearBoundary& InBoundary, const FPoint& PointOnEdge, FPoint& ProjectedPoint) const
+		template<class PointType>
+		double GetCoordinateOfProjectedPoint(const FLinearBoundary& InBoundary, const PointType& PointOnEdge, PointType& ProjectedPoint) const
 		{
 			return Polyline.GetCoordinateOfProjectedPoint(InBoundary, PointOnEdge, ProjectedPoint);
 		}
 
-		void ProjectPoints(const FLinearBoundary& InBoundary, const TArray<FPoint>& InPointsToProject, TArray<double>& ProjectedPointCoordinates, TArray<FPoint>& ProjectedPoints) const
+		template<class PointType>
+		void ProjectPoints(const FLinearBoundary& InBoundary, const TArray<PointType>& InPointsToProject, TArray<double>& ProjectedPointCoordinates, TArray<PointType>& ProjectedPoints) const
 		{
 			Polyline.ProjectPoints(InBoundary, InPointsToProject, ProjectedPointCoordinates, ProjectedPoints);
 		}
@@ -142,10 +151,41 @@ namespace CADKernel
 		 * 
 		 * A curve can be degenerated in 3D and not in 2D in the case of locally degenerated carrier surface.
 		 */
-		void CheckIfDegenerated(const FLinearBoundary& Boudary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const
+		void CheckIfDegenerated(const FLinearBoundary& InBoundary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const
 		{
-			double Tolerance2D = GetCarrierSurface()->Get2DTolerance();
-			Polyline.CheckIfDegenerated(Tolerance, Tolerance2D, Boudary, bDegeneration2D, bDegeneration3D, Length3D);
+			double Tolerance = GetCarrierSurface()->Get3DTolerance();
+			const FSurfacicTolerance& Tolerances2D = GetCarrierSurface()->GetIsoTolerances();
+			Polyline.CheckIfDegenerated(Tolerance, Tolerances2D, InBoundary, bDegeneration2D, bDegeneration3D, Length3D);
+		}
+
+		void GetExtremities(const FLinearBoundary& InBoundary, FSurfacicCurveExtremity& Extremities) const
+		{
+			double Tolerance = GetCarrierSurface()->Get3DTolerance();
+			const FSurfacicTolerance& Tolerances2D = GetCarrierSurface()->GetIsoTolerances();
+			Polyline.GetExtremities(InBoundary, Tolerance, Tolerances2D, Extremities);
+		}
+
+		double GetToleranceAt(const double InCoordinate)
+		{
+			FDichotomyFinder Finder(Polyline.GetCoordinates());
+			const int32 Index = Finder.Find(InCoordinate);
+			const double Tolerance = GetCarrierSurface()->Get3DTolerance();
+
+			return Polyline.ComputeLinearToleranceAt(Tolerance, MinLinearTolerance, Index);
+		}
+
+		FPoint2D GetExtremityTolerances(const FLinearBoundary& InBoundary)
+		{
+			FDichotomyFinder Finder(Polyline.GetCoordinates());
+			const int32 StartIndex = Finder.Find(InBoundary.Min);
+			const int32 EndIndex = Finder.Find(InBoundary.Max);
+
+			const double Tolerance = GetCarrierSurface()->Get3DTolerance();
+
+			FPoint2D ExtremityTolerance;
+			ExtremityTolerance[0] = Polyline.ComputeLinearToleranceAt(Tolerance, MinLinearTolerance, StartIndex);
+			ExtremityTolerance[1] = Polyline.ComputeLinearToleranceAt(Tolerance, MinLinearTolerance, EndIndex);
+			return ExtremityTolerance;
 		}
 
 		/**
@@ -160,9 +200,9 @@ namespace CADKernel
 		 * Get the sub polyline bounded by the input InBoundary in the orientation of the input InOrientation and append it to the output OutPoints
 		 */
 		template<class PointType>
-		void GetDiscretizationPoints(const FLinearBoundary& Boundary, EOrientation Orientation, TArray<PointType>& OutPoints) const
+		void GetDiscretizationPoints(const FLinearBoundary& InBoundary, EOrientation Orientation, TArray<PointType>& OutPoints) const
 		{
-			Polyline.GetSubPolyline(Boundary, Orientation, OutPoints);
+			Polyline.GetSubPolyline(InBoundary, Orientation, OutPoints);
 		}
 
 		/**
@@ -173,12 +213,12 @@ namespace CADKernel
 			Polyline.Sample(InBoundary, DesiredSegmentLength, OutCoordinates);
 		}
 
-		virtual double ComputeLength(const FLinearBoundary& InBoundary) const
+		double ApproximateLength(const FLinearBoundary& InBoundary) const
 		{
 			return Polyline.GetLength(InBoundary);
 		}
 
-		void ExtendTo2DPoint(const FPoint2D& Point);
+		void ExtendTo(const FPoint2D& Point) override;
 	};
 
 } // namespace CADKernel

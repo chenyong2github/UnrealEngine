@@ -34,6 +34,7 @@ namespace CADKernel
 			, MajorRadius(InMajorRadius)
 			, MinorRadius(InMinorRadius)
 		{
+			SetMinToleranceIso();
 		}
 
 		FTorusSurface(FCADKernelArchive& Archive)
@@ -42,6 +43,22 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
+		void SetMinToleranceIso() const
+		{
+			double Tolerance2DU = Tolerance3D / MajorRadius;
+			double Tolerance2DV = Tolerance3D / MinorRadius;
+
+			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
+
+			FPoint Point2DU{ 1 , 0, 0 };
+			FPoint Point2DV{ 0, 1, 0 };
+
+			Tolerance2DU /= ComputeScaleAlongAxis(Point2DU, Matrix, Origin);
+			Tolerance2DV /= ComputeScaleAlongAxis(Point2DV, Matrix, Origin);
+
+			MinToleranceIso.Set(Tolerance2DU, Tolerance2DV);
+		}
+		
 	public:
 
 		virtual void Serialize(FCADKernelArchive& Ar) override

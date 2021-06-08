@@ -17,7 +17,7 @@ namespace CADKernel
 		FPoint DirectorVector;
 
 		/**
-		 * A tabulated cylinder is a surface formed by moving a line segment called GuideCurve parallel to
+		 * A tabulated cylinder is a surface formed by moving a curve segment called GuideCurve parallel to
 		 * itself along a vector called DirectorVector. 
 		 *
 		 * The bounds of the cylinder are defined as follow:
@@ -30,6 +30,7 @@ namespace CADKernel
 			, GuideCurve(InGuideCurve)
 			, DirectorVector(InDirectorVector)
 		{
+			SetMinToleranceIso();
 		}
 
 		FTabulatedCylinderSurface(FCADKernelArchive& Archive)
