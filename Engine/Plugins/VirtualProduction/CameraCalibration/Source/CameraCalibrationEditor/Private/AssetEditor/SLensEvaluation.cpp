@@ -241,7 +241,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 			+ SGridPanel::Slot(2, 0)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("PhysicalLabel", "Physicals units"))
+				.Text(LOCTEXT("PhysicalLabel", "Physical units"))
 				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 
