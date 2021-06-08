@@ -46,8 +46,6 @@ static FPrimitiveInstance DummyInstance =
 		FRenderTransform::Identity,
 		FRenderTransform::Identity,
 		FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
-		FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-		FVector3f(1.0f, 1.0f, 1.0f),
 		FVector4(ForceInitToZero),
 		NANITE_INVALID_HIERARCHY_OFFSET,
 		0u, /* Instance Flags */

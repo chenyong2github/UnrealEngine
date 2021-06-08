@@ -135,7 +135,17 @@ public:
 		return ToMatrix44f().InverseFast();
 	}
 
-	FORCEINLINE FVector3f Orthonormalize()
+	FORCEINLINE FVector3f GetScale() const
+	{
+		// Extract per axis scales
+		FVector3f Scale;
+		Scale.X = TransformRows[0].Size();
+		Scale.Y = TransformRows[1].Size();
+		Scale.Z = TransformRows[2].Size();
+		return Scale;
+	}
+
+	FORCEINLINE void Orthonormalize()
 	{
 		FVector3f X = TransformRows[0];
 		FVector3f Y = TransformRows[1];
@@ -149,14 +159,6 @@ public:
 		TransformRows[0] = X;
 		TransformRows[1] = Y;
 		TransformRows[2] = Z;
-
-		// Extract per axis scales
-		FVector3f Scale;
-		Scale.X = X.Size();
-		Scale.Y = Y.Size();
-		Scale.Z = Z.Size();
-
-		return Scale;
 	}
 
 	FORCEINLINE void SetIdentity()
