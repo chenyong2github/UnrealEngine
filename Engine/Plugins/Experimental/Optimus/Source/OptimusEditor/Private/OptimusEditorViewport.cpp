@@ -9,6 +9,7 @@
 #include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
 
 #include "ComponentAssetBroker.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeGraphComponent.h"
 #include "EditorViewportClient.h"
 #include "Editor/UnrealEdEngine.h"
