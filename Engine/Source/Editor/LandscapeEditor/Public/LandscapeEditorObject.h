@@ -703,6 +703,7 @@ public:
 	void RefreshImports();
 	void OnImportWeightmapFilenameChanged() { RefreshLayerImports(); }
 	void RefreshLayerImports();
+	void RefreshLayerImport(FLandscapeImportLayer& ImportLayer);
 
 	int32 ClampLandscapeSize(int32 InComponentsCount) const
 	{
