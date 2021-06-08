@@ -1,27 +1,29 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-from .config import CONFIG, SETTINGS, DEFAULT_MAP_TEXT
-from . import config
-from . import config_osc as osc
-from . import p4_utils
-from . import recording
-from . import resources
-from . import switchboard_application
-from switchboard.add_config_dialog import AddConfigDialog
-from switchboard.device_list_widget import DeviceListWidget, DeviceWidgetHeader
-from switchboard.devices.device_base import DeviceStatus
-from switchboard.devices.device_manager import DeviceManager
-from .switchboard_logging import ConsoleStream, DEFAULT_LOG_PATH, LOGGER
-from switchboard.settings_dialog import SettingsDialog
-from . import switchboard_utils
-import switchboard.switchboard_widgets as sb_widgets
-
 import datetime
 import logging
 import os
 import threading
 
-from PySide2 import QtCore, QtGui, QtUiTools, QtWidgets
+from PySide2 import QtCore
+from PySide2 import QtGui
+from PySide2 import QtUiTools
+from PySide2 import QtWidgets
+
+from switchboard import config
+from switchboard import config_osc as osc
+from switchboard import p4_utils
+from switchboard import recording
+from switchboard import switchboard_application
+from switchboard import switchboard_utils
+from switchboard import switchboard_widgets as sb_widgets
+from switchboard.add_config_dialog import AddConfigDialog
+from switchboard.config import CONFIG, DEFAULT_MAP_TEXT, SETTINGS
+from switchboard.device_list_widget import DeviceListWidget, DeviceWidgetHeader
+from switchboard.devices.device_base import DeviceStatus
+from switchboard.devices.device_manager import DeviceManager
+from switchboard.settings_dialog import SettingsDialog
+from switchboard.switchboard_logging import ConsoleStream, LOGGER
 
 ENGINE_PATH = "../../../../.."
 RELATIVE_PATH = os.path.dirname(__file__)
@@ -56,9 +58,6 @@ class SwitchboardDialog(QtCore.QObject):
         with open(qss_file, "r") as styling:
             self.stylesheet = styling.read()
             self.window.setStyleSheet(self.stylesheet)
-
-        # Get the available configs
-        self.available_configs = config.list_config_files()
 
         self._shoot = None
         self._sequence = None
@@ -257,21 +256,59 @@ class SwitchboardDialog(QtCore.QObject):
 
         self.window.menu_load_config.clear()
 
-        for c in config.list_config_files():
-            config_name = c.replace('.json', '')
-            config_action = self.window.menu_load_config.addAction(config_name, partial(self.set_current_config, c))
+        # We'll build up a dictionary of directory paths to the submenu for
+        # that directory as we go. Config files in the root configs directory
+        # will go at the top level.
+        menu_hierarchy = {
+            config.ROOT_CONFIGS_PATH: self.window.menu_load_config
+        }
 
-            if c == SETTINGS.CONFIG:
+        def _get_menu_for_path(path):
+            # Safe guard to make sure we don't accidentally traverse up past
+            # the root configs path.
+            if (path != config.ROOT_CONFIGS_PATH and
+                    config.ROOT_CONFIGS_PATH not in path.parents):
+                return None
+
+            path_menu = menu_hierarchy.get(path)
+            if not path_menu:
+                parent_menu = _get_menu_for_path(path.parent)
+                if not parent_menu:
+                    return None
+
+                path_menu = parent_menu.addMenu(path.name)
+                menu_hierarchy[path] = path_menu
+
+            return path_menu
+
+        config_paths = config.list_config_paths()
+
+        # Take a first pass through the config paths just creating the
+        # submenus. This makes sure that all submenus appear before any configs
+        # for any given menu level.
+        for config_path in config_paths:
+            _get_menu_for_path(config_path.parent)
+
+        # Now the dictionary of menus should be populated, so create actions
+        # for each config in the appropriate menu.
+        for config_path in config_paths:
+            menu = _get_menu_for_path(config_path.parent)
+            if not menu:
+                continue
+
+            config_action = menu.addAction(config_path.stem,
+                partial(self.set_current_config, config_path))
+
+            if config_path == SETTINGS.CONFIG:
                 config_action.setEnabled(False)
 
-    def set_current_config(self, config_name):
-
-        SETTINGS.CONFIG = config_name
-        SETTINGS.save()
+    def set_current_config(self, config_path):
 
         # Update to the new config
-        config_name = CONFIG.config_file_name_to_name(SETTINGS.CONFIG)
-        CONFIG.init_with_file_name(CONFIG.name_to_config_file_name(config_name))
+        CONFIG.init_with_file_path(config_path)
+
+        SETTINGS.CONFIG = config_path
+        SETTINGS.save()
 
         # Disable saving while loading
         CONFIG.push_saving_allowed(False)
@@ -305,12 +342,17 @@ class SwitchboardDialog(QtCore.QObject):
         if not os.path.exists(uproject_search_path):
             uproject_search_path = SETTINGS.LAST_BROWSED_PATH
 
-        dialog = AddConfigDialog(self.stylesheet, uproject_search_path=uproject_search_path, previous_engine_dir=CONFIG.ENGINE_DIR.get_value(), parent=self.window)
+        dialog = AddConfigDialog(self.stylesheet,
+            uproject_search_path=uproject_search_path,
+            previous_engine_dir=CONFIG.ENGINE_DIR.get_value(),
+            parent=self.window)
         dialog.exec()
 
         if dialog.result() == QtWidgets.QDialog.Accepted:
 
-            CONFIG.init_new_config(project_name=dialog.config_name, uproject=dialog.uproject, engine_dir=dialog.engine_dir, p4_settings=dialog.p4_settings())
+            CONFIG.init_new_config(file_path=dialog.config_path,
+                uproject=dialog.uproject, engine_dir=dialog.engine_dir,
+                p4_settings=dialog.p4_settings())
 
             # Disable saving while loading
             CONFIG.push_saving_allowed(False)
@@ -335,28 +377,30 @@ class SwitchboardDialog(QtCore.QObject):
 
     def menu_delete_config(self):
         """
-        Delete the current loaded config
-        After deleting, it will load the first config found by config.list_config_files()
-        Or it will create a new config
+        Delete the currently loaded config.
+
+        After deleting, it will load the first config found by
+        config.list_config_paths(), or it will create a new config.
         """
+        # Show the confirmation dialog using a relative path to the config.
+        rel_config_path = config.get_relative_config_path(SETTINGS.CONFIG)
         reply = QtWidgets.QMessageBox.question(self.window, 'Delete Config',
-                        f'Are you sure you would like to delete config "{SETTINGS.CONFIG}"?',
-                        QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+            f'Are you sure you would like to delete config "{rel_config_path}"?',
+            QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
 
         if reply == QtWidgets.QMessageBox.Yes:
-            file_to_delete = os.path.normpath(os.path.join(config.CONFIG_DIR, SETTINGS.CONFIG))
-
             # Remove the old config
             try:
-                os.remove(file_to_delete)
+                SETTINGS.CONFIG.unlink()
+                self.set_current_config(None)
             except FileNotFoundError as e:
                 LOGGER.error(f'menu_delete_config: {e}')
 
-            # Grab a new config to lead once this one is delted
-            config_files = config.list_config_files()
+            # Grab a new config to lead once this one is deleted
+            config_paths = config.list_config_paths()
 
-            if config_files:
-                self.set_current_config(config_files[0])
+            if config_paths:
+                self.set_current_config(config_paths[0])
             else:
                 # Create a blank config
                 self.menu_new_config()
@@ -371,8 +415,7 @@ class SwitchboardDialog(QtCore.QObject):
         # TODO: VALIDATE RECORD PATH
         settings_dialog = SettingsDialog()
 
-        config_name = CONFIG.config_file_name_to_name(SETTINGS.CONFIG)
-        settings_dialog.set_config_name(config_name)
+        settings_dialog.set_config_path(SETTINGS.CONFIG)
         settings_dialog.set_ip_address(SETTINGS.IP_ADDRESS)
         settings_dialog.set_transport_path(SETTINGS.TRANSPORT_PATH)
         settings_dialog.set_listener_exe(CONFIG.LISTENER_EXE)
@@ -401,7 +444,6 @@ class SwitchboardDialog(QtCore.QObject):
             device_settings = [(device.name, device.device_settings(), device.setting_overrides()) for device in device_instances]
             settings_dialog.add_section_for_plugin(plugin_name, self.device_manager.plugin_settings(plugin_name), device_settings)
 
-
         # avoid saving the config all the time while in the settings dialog
         CONFIG.push_saving_allowed(False)
         try:
@@ -411,13 +453,13 @@ class SwitchboardDialog(QtCore.QObject):
             # Restore saving, which should happen at the end of this function
             CONFIG.pop_saving_allowed()
 
-        new_config_name = settings_dialog.config_name()
-        if config_name != new_config_name:
-            new_config_name = CONFIG.name_to_config_file_name(new_config_name)
-            SETTINGS.CONFIG = new_config_name
+        new_config_path = settings_dialog.config_path()
+        if new_config_path != SETTINGS.CONFIG and new_config_path is not None:
+            CONFIG.replace(new_config_path)
+
+            SETTINGS.CONFIG = new_config_path
             SETTINGS.save()
 
-            CONFIG.rename(new_config_name)
             self.update_configs_menu()
 
         ip_address = settings_dialog.ip_address()

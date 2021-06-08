@@ -1,13 +1,16 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
 import os
-from pathlib import Path
+import pathlib
 
-from PySide2 import QtCore, QtGui, QtUiTools, QtWidgets
+from PySide2 import QtCore
+from PySide2 import QtGui
+from PySide2 import QtUiTools
+from PySide2 import QtWidgets
 
-from switchboard.config import CONFIG, SETTINGS, list_config_files
-import switchboard.switchboard_widgets as sb_widgets
-
+from switchboard import config
+from switchboard import switchboard_widgets as sb_widgets
+from switchboard.config import CONFIG, SETTINGS
 
 RELATIVE_PATH = os.path.dirname(__file__)
 
@@ -27,17 +30,20 @@ class SettingsDialog(QtCore.QObject):
 
         self.ui.setWindowTitle("Settings")
 
+        self.ui.finished.connect(self._on_finished)
+
         max_port = (1 << 16) - 1
         self.ui.osc_server_port_line_edit.setValidator(QtGui.QIntValidator(0, max_port))
         self.ui.osc_client_port_line_edit.setValidator(QtGui.QIntValidator(0, max_port))
 
-        # Store the current config names
-        self._config_names = [CONFIG.config_file_name_to_name(x) for x in list_config_files()]
-        self._current_config_name = CONFIG.config_file_name_to_name(SETTINGS.CONFIG)
+        # Store the current config paths so we can warn about overwriting an
+        # existing config.
+        self._config_paths = config.list_config_paths()
+        self.set_config_path(SETTINGS.CONFIG)
 
+        self.ui.config_path_line_edit.textChanged.connect(self.config_path_text_changed)
         self.ui.uproject_browse_button.clicked.connect(self.uproject_browse_button_clicked)
         self.ui.engine_dir_browse_button.clicked.connect(self.engine_dir_browse_button_clicked)
-        self.ui.config_name_line_edit.textChanged.connect(self.config_name_text_changed)
 
         # update settings in CONFIG when they are changed in the SettingsDialog
         self.ui.engine_dir_line_edit.editingFinished.connect(lambda widget=self.ui.engine_dir_line_edit: CONFIG.ENGINE_DIR.update_value(widget.text()))
@@ -55,31 +61,63 @@ class SettingsDialog(QtCore.QObject):
 
         self._device_groupbox = {}
 
-    def config_name(self):
-        return self.ui.config_name_line_edit.text()
+    def _on_finished(self, result: int):
+        # Currently, the only way to dismiss the settings dialog is by using
+        # the close button as opposed to ok/cancel buttons, so we intercept the
+        # close to issue a warning if the config path was changed and we're
+        # about to overwrite some other existing config file.
+        if (self._changed_config_path and
+                self._changed_config_path in self._config_paths and
+                self._changed_config_path != self._current_config_path):
+            # Show the confirmation dialog using a relative path to the config.
+            rel_config_path = config.get_relative_config_path(
+                self._changed_config_path)
+            reply = QtWidgets.QMessageBox.question(self.ui, 'Confirm Overwrite',
+                ('Are you sure you would like to change the config path and '
+                 f'overwrite the existing config file "{rel_config_path}"?'),
+                QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
 
-    def set_config_name(self, value):
-        self.ui.config_name_line_edit.setText(value)
+            if reply != QtWidgets.QMessageBox.Yes:
+                # Clear the changed config path so that the dialog returns the
+                # originally specified path when queried via config_path().
+                self._changed_config_path = None
 
-    def config_name_text_changed(self, value):
-        if not value:
-            valid_name = False
+    def config_path(self):
+        if self._changed_config_path:
+            return self._changed_config_path
+
+        return self._current_config_path
+
+    def set_config_path(self, config_path: pathlib.Path):
+        self._current_config_path = config_path
+        self._changed_config_path = None
+
+        if not config_path:
+            self._changed_config_path = config.Config.DEFAULT_CONFIG_PATH
+            rel_config_path_str = self._changed_config_path.stem
         else:
-            if value in self._config_names:
-                if value == self._current_config_name:
-                    valid_name = True
-                else:
-                    valid_name = False
-            else:
-                valid_name = True
+            rel_config_path_str = str(
+                config.get_relative_config_path(config_path).with_suffix(''))
 
-        if valid_name:
-            sb_widgets.set_qt_property(self.ui.config_name_line_edit, "input_error", False)
-        else:
-            sb_widgets.set_qt_property(self.ui.config_name_line_edit, "input_error", True)
+        self.ui.config_path_line_edit.setText(rel_config_path_str)
 
-            rect = self.ui.config_name_line_edit.parent().mapToGlobal(self.ui.config_name_line_edit.geometry().topRight())
-            QtWidgets.QToolTip().showText(rect, 'Config name must be unique')
+    def config_path_text_changed(self, config_path_str):
+        config_path = config.Config.DEFAULT_CONFIG_PATH
+
+        sb_widgets.set_qt_property(
+            self.ui.config_path_line_edit, "input_error", False)
+
+        try:
+            config_path = config.get_absolute_config_path(config_path_str)
+        except Exception as e:
+            sb_widgets.set_qt_property(
+                self.ui.config_path_line_edit, "input_error", True)
+
+            rect = self.ui.config_path_line_edit.parent().mapToGlobal(
+                self.ui.config_path_line_edit.geometry().topRight())
+            QtWidgets.QToolTip().showText(rect, str(e))
+
+        self._changed_config_path = config_path
 
     def uproject_browse_button_clicked(self):
         file_name, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self.ui, filter='*.uproject')
@@ -201,7 +239,7 @@ class SettingsDialog(QtCore.QObject):
 
     def set_mu_auto_join(self, value):
         self.ui.mu_auto_join_check_box.setChecked(value)
-    
+
     def mu_clean_history(self):
         return self.ui.mu_clean_history_check_box.isChecked()
 
@@ -323,7 +361,7 @@ class SettingsDialog(QtCore.QObject):
         def on_setting_changed(new_value, combo):
             if combo.currentText() != new_value:
                 combo.setCurrentIndex(combo.findText(new_value))
-        setting.signal_setting_changed.connect(lambda old, new, widget=combo: on_setting_changed(new, widget)) 
+        setting.signal_setting_changed.connect(lambda old, new, widget=combo: on_setting_changed(new, widget))
 
         layout.addRow(label, combo)
 
@@ -342,7 +380,7 @@ class SettingsDialog(QtCore.QObject):
         layout.addWidget(browse_btn)
 
         def browse_clicked():
-            start_path = str(Path.home())
+            start_path = str(pathlib.Path.home())
             if SETTINGS.LAST_BROWSED_PATH and os.path.exists(SETTINGS.LAST_BROWSED_PATH):
                 start_path = SETTINGS.LAST_BROWSED_PATH
 
