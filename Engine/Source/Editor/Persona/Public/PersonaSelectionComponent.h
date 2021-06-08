@@ -145,6 +145,9 @@ private:
 	/** Fired when the component needs to update a set of capsules */
 	FOnPersonaSelectionUpdateCapsules OnPersonaSelectionUpdateCapsules;
 
+	/** Critical section used to block between renders / updates */
+	mutable FCriticalSection CriticalSection;
+
 	friend class FPersonaSelectionComponentProxy;
 };
 
