@@ -1254,6 +1254,15 @@ void FAnimBlueprintCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Fun
 	}
 }
 
+FProperty* FAnimBlueprintCompilerContext::CreateUniqueVariable(UObject* InForObject, const FEdGraphPinType& Type)
+{
+	const FString VariableName = ClassScopeNetNameMap.MakeValidName(InForObject);
+	FProperty* Variable = CreateVariable(*VariableName, Type);
+	Variable->SetMetaData(FBlueprintMetadata::MD_Private, TEXT("true"));
+	return Variable;
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

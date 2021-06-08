@@ -7,3 +7,8 @@ FProperty* FAnimBlueprintVariableCreationContext::CreateVariable(const FName Nam
 {
 	return CompilerContext->CreateVariable(Name, Type);
 }
+
+FProperty* FAnimBlueprintVariableCreationContext::CreateUniqueVariable(UObject* InForObject, const FEdGraphPinType& Type)
+{
+	return CompilerContext->CreateUniqueVariable(InForObject, Type);
+}
