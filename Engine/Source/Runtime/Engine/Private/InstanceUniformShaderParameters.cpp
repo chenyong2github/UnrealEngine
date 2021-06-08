@@ -45,8 +45,7 @@ static FPrimitiveInstance DummyInstance =
 	ConstructPrimitiveInstance(
 		FRenderTransform::Identity,
 		FRenderTransform::Identity,
-		FVector3f::ZeroVector,
-		FVector3f::ZeroVector,
+		FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
 		FVector4(1.0f, 1.0f, 1.0f, 1.0f),
 		FVector3f(1.0f, 1.0f, 1.0f),
 		FVector4(ForceInitToZero),

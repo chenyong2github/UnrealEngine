@@ -1282,8 +1282,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 
 			// Filled in during GPU Scene update...
 			Instance.LocalToWorld.SetIdentity();
-			Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
-			Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
+			Instance.LocalBounds = InComponent->GetStaticMesh()->GetBounds();
 			// GPUCULL_TODO: Set up Per-Instance Random and LightMapAndShadowMapUVBias  - fix LocalVertexFactory.ush
 		}
 	}
@@ -1323,7 +1322,7 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 				for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 				{
 					FPrimitiveInstance& PrimitiveInstance = Instances[InstanceIndex];
-					PrimitiveInstance.RenderBounds = StaticMeshBounds;
+					PrimitiveInstance.LocalBounds = StaticMeshBounds;
 					PrimitiveInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
 
 					InstanceBuffer.GetInstanceTransform(InstanceIndex, PrimitiveInstance.InstanceToLocal);

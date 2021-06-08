@@ -472,7 +472,7 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 			for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 			{
 				const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
-				MergedMeshCardsBounds += Instance.RenderBounds.ToBox().TransformBy(Instance.InstanceToLocal.ToMatrix() * PrimitiveLocalToMeshCardsLocal);
+				MergedMeshCardsBounds += Instance.LocalBounds.ToBox().TransformBy(Instance.InstanceToLocal.ToMatrix() * PrimitiveLocalToMeshCardsLocal);
 			}
 		}
 		else

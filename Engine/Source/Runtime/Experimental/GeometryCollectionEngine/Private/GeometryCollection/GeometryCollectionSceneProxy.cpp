@@ -1171,7 +1171,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		{
 			FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
 			Instance.HierarchyOffset = GeometryCollection->GetNaniteHierarchyOffset(GeometryIndex);
-			Instance.RenderBounds = BoundingBoxes[GeometryIndex];
+			Instance.LocalBounds = BoundingBoxes[GeometryIndex];
 		}
 	}
 	else if (bHasTransformBoundingBoxes)
@@ -1190,7 +1190,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 			{
 				FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
 				Instance.HierarchyOffset = GeometryCollection->GetNaniteHierarchyOffset(GeometryIndex);
-				Instance.RenderBounds	= BoundingBoxes[TransformIndex];
+				Instance.LocalBounds = BoundingBoxes[TransformIndex];
 			}
 		}
 	}
@@ -1206,8 +1206,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		Instance.PrevInstanceToLocal.SetIdentity();
 		Instance.LocalToWorld.SetIdentity();
 		Instance.PrevLocalToWorld.SetIdentity();
-		Instance.RenderBounds = GeometryNaniteData[GeometryIndex].RenderBounds;
-		Instance.LocalBounds = Instance.RenderBounds;
+		Instance.LocalBounds = GeometryNaniteData[GeometryIndex].LocalBounds;
 		Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
 	}
 }
@@ -1348,8 +1347,7 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 		Instance.LocalToWorld			= Instance.InstanceToLocal * ParentLocalToWorld;
 		Instance.PrevInstanceToLocal	= NewConstantData->RestTransforms[TransformIndex];
 		Instance.PrevLocalToWorld		= Instance.LocalToWorld;
-		Instance.RenderBounds			= NaniteData.RenderBounds;
-		Instance.LocalBounds			= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
+		Instance.LocalBounds			= NaniteData.LocalBounds;
 		Instance.NaniteHierarchyOffset	= NaniteData.HierarchyOffset;
 	}
 
@@ -1420,8 +1418,7 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 			}
 			
 			Instance.LocalToWorld				= Instance.InstanceToLocal * ParentLocalToWorld;
-			Instance.LocalBounds				= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
-			Instance.RenderBounds				= NaniteData.RenderBounds;
+			Instance.LocalBounds				= NaniteData.LocalBounds;
 			Instance.NaniteHierarchyOffset		= NaniteData.HierarchyOffset;
 		}
 	}

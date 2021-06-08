@@ -178,8 +178,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 					ConstructPrimitiveInstance(
 						PrimitiveParams.LocalToWorld,
 						PrimitiveParams.PreviousLocalToWorld,
-						PrimitiveParams.LocalObjectBoundsMin,
-						PrimitiveParams.LocalObjectBoundsMax,
+						FRenderBounds(PrimitiveParams.LocalObjectBoundsMin, PrimitiveParams.LocalObjectBoundsMax),
 						PrimitiveParams.NonUniformScale,
 						PrimitiveParams.InvNonUniformScale,
 						FVector4(ForceInitToZero),

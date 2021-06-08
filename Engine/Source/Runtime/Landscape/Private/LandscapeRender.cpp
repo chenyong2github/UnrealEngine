@@ -1358,8 +1358,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	FPrimitiveInstance& Instance = Instances[0];
 	Instance.InstanceToLocal.SetIdentity();
 	Instance.LocalToWorld.SetIdentity();
-	Instance.RenderBounds = GetLocalBounds();
-	Instance.LocalBounds = Instance.RenderBounds;
+	Instance.LocalBounds = GetLocalBounds();
 	bSupportsInstanceDataBuffer = true;
 }
 
@@ -1925,8 +1924,7 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 
 	// 
 	FPrimitiveInstance& Instance = Instances[0];
-	Instance.RenderBounds = GetLocalBounds();
-	Instance.LocalBounds = Instance.RenderBounds;
+	Instance.LocalBounds = GetLocalBounds();
 }
 
 /** Creates a mesh batch for virtual texture rendering. Will render a simple fixed grid with combined subsections. */

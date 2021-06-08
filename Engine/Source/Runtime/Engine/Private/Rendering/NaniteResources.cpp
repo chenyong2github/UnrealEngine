@@ -549,8 +549,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	FPrimitiveInstance& Instance = Instances[0];
 	Instance.InstanceToLocal.SetIdentity();
 	Instance.LocalToWorld.SetIdentity();
-	Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
-	Instance.LocalBounds = Instance.RenderBounds;
+	Instance.LocalBounds = Component->GetStaticMesh()->GetBounds();
 	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 	Instance.PerInstanceRandom = 0;
 	Instance.NaniteHierarchyOffset = 0;
@@ -584,8 +583,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		}
 
 		Instance.LocalToWorld = Instance.InstanceToLocal;
-		Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
-		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
+		Instance.LocalBounds = Component->GetStaticMesh()->GetBounds();
 		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 		Instance.PerInstanceRandom = 0.0f;
 		Instance.NaniteHierarchyOffset = 0;

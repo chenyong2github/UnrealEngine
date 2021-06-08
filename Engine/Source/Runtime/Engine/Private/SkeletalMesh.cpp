@@ -5691,8 +5691,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		FPrimitiveInstance& Instance = Instances[0];
 		Instance.InstanceToLocal.SetIdentity();
 		Instance.LocalToWorld.SetIdentity();
-		Instance.RenderBounds = GetLocalBounds();
-		Instance.LocalBounds = Instance.RenderBounds;
+		Instance.LocalBounds = GetLocalBounds();
 	}
 
 #if RHI_RAYTRACING
@@ -6673,8 +6672,7 @@ void FSkeletalMeshSceneProxy::OnTransformChanged()
 	if (Instances.Num() == 1)
 	{
 	    FPrimitiveInstance& Instance = Instances[0];
-	    Instance.RenderBounds = GetLocalBounds();
-	    Instance.LocalBounds = Instance.RenderBounds;
+	    Instance.LocalBounds = GetLocalBounds();
 	}
 }
 
