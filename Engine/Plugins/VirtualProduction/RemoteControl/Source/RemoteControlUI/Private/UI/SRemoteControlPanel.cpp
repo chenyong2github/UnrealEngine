@@ -3,6 +3,8 @@
 #include "SRemoteControlPanel.h"
 
 #include "ActorEditorUtils.h"
+#include "AssetData.h"
+#include "AssetRegistryModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
 #include "Editor.h"
@@ -91,7 +93,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	OnEditModeChange = InArgs._OnEditModeChange;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
 	UpdateRebindButtonVisibility();
-	
+
 	TArray<TSharedRef<SWidget>> ExtensionWidgets;
 	FRemoteControlUIModule::Get().GetExtensionGenerators().Broadcast(ExtensionWidgets);
 
@@ -214,6 +216,21 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 					SNew(SCheckBox)
 					.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 					.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(5.0f, 0.f))
+				[
+					SNew(SSeparator)
+					.Orientation(Orient_Vertical)
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SAssignNew(PresetNameTextBlock, STextBlock)
+					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.Text(FText::FromName(Preset->GetFName()))
 				]
 			]
 		]
@@ -701,6 +718,8 @@ void SRemoteControlPanel::OnMapChange(uint32)
 
 void SRemoteControlPanel::RegisterEvents()
 {
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistryModule.Get().OnAssetRenamed().AddSP(this, &SRemoteControlPanel::OnAssetRenamed);
 	FEditorDelegates::MapChange.AddSP(this, &SRemoteControlPanel::OnMapChange);
 	
 	if (GEditor)
@@ -737,6 +756,9 @@ void SRemoteControlPanel::UnregisterEvents()
 	}
 
 	FEditorDelegates::MapChange.RemoveAll(this);
+	
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistryModule.Get().OnAssetRenamed().RemoveAll(this);
 }
 
 void SRemoteControlPanel::Refresh()
@@ -974,6 +996,17 @@ void SRemoteControlPanel::UpdateActorFunctionPicker()
 		{
 			ActorFunctionPicker->Refresh();
 		}));
+	}
+}
+
+void SRemoteControlPanel::OnAssetRenamed(const FAssetData& Asset, const FString&)
+{
+	if (Asset.GetAsset() == Preset.Get())
+	{
+		if (PresetNameTextBlock)
+		{
+			PresetNameTextBlock->SetText(FText::FromName(Asset.AssetName));	
+		}
 	}
 }
 

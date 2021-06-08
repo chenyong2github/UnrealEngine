@@ -25,6 +25,7 @@ struct SRCPanelTreeNode;
 class SRCPanelFunctionPicker;
 class SRemoteControlPanel;
 class SRCPanelExposedEntitiesList;
+class STextBlock;
 class URemoteControlPreset;
 
 DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
@@ -171,6 +172,9 @@ private:
 
 	/** Triggers a next frame update of the actor function picker to ensure that added actors are valid. */
 	void UpdateActorFunctionPicker();
+	
+	/** Handle updating the preset name textblock when it's renamed. */
+	void OnAssetRenamed(const FAssetData& Asset, const FString&);
 
 private:
 	/** Holds the preset asset. */
@@ -208,4 +212,6 @@ private:
 	bool bShowRebindButton = false;
 	/** Cache of exposed properties. */
 	TSet<TWeakPtr<IPropertyHandle>> CachedExposedProperties;
+	/** Preset name widget. */
+	TSharedPtr<STextBlock> PresetNameTextBlock;
 };
