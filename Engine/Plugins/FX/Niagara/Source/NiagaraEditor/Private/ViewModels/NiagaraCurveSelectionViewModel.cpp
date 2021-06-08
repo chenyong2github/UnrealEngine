@@ -949,7 +949,7 @@ void UNiagaraCurveSelectionViewModel::StackEditorDataChanged()
 {
 	if(SystemViewModelWeak.IsValid())
 	{
-		Refresh();
+		bRefreshPending = true;
 	}
 }
 
@@ -957,6 +957,6 @@ void UNiagaraCurveSelectionViewModel::UserParametersChanged()
 {
 	if (SystemViewModelWeak.IsValid())
 	{
-		Refresh();
+		bRefreshPending = true;
 	}
 }
