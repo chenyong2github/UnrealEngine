@@ -22,10 +22,10 @@ class FAssetPlacementPaletteItemModel;
 class FMenuBuilder;
 class FUICommandList;
 class IDetailsView;
-class UFoliageType;
 struct FAssetData;
 class UAssetPlacementSettings;
 class IPropertyHandle;
+class SSearchBox;
 
 typedef TSharedPtr<FAssetPlacementPaletteItemModel> FPlacementPaletteItemModelPtr;
 typedef STreeView<FPlacementPaletteItemModelPtr> SPlacementTypeTreeView;
@@ -102,25 +102,18 @@ private:
 	/** Sets whether to show tooltips when hovering over Placement type items in the palette */
 	void ToggleShowTooltips();
 
-	/** Switches the palette display between the tile and tree view */
-	FReply OnToggleViewModeClicked();
-
-	/** @return The index of the view widget to display */
-	int32 GetActiveViewIndex() const;
-
 	/** Creates the view options menu */
 	TSharedRef<SWidget> GetViewOptionsMenuContent();
 
 	TSharedPtr<SListView<FPlacementPaletteItemModelPtr>> GetActiveViewWidget() const;
 
-	/** Gets the visibility of the "Drop Placement Here" prompt for when the palette is empty */
-	EVisibility GetDropPlacementHintVisibility() const;
+	/** Gets the visibility of the drop hint text for when the palette or filtered palette is empty */
+	EVisibility GetDropHintTextVisibility() const;
 
-	/** Gets the visibility of the drag-drop zone overlay */
-	EVisibility GetPlacementDropTargetVisibility() const;
+	bool OnAreAssetsValidForDrop(TArrayView<FAssetData> DraggedAssets) const;
 
 	/** Handles dropping of a mesh or Placement type into the palette */
-	FReply HandlePlacementDropped(const FGeometry& DropZoneGeometry, const FDragDropEvent& DragDropEvent);
+	void HandlePlacementDropped(const FDragDropEvent& DragDropEvent, TArrayView<FAssetData> DraggedAssets);
 
 	/** @returns true if there are any items in the palette. */
 	bool HasAnyItemInPalette() const;
@@ -164,10 +157,6 @@ private:	// TREE VIEW
 	void OnTypeColumnSortModeChanged(EColumnSortPriority::Type InPriority, const FName& InColumnName, EColumnSortMode::Type InSortMode);
 
 private:
-	/** Handles the click for the uneditable blueprint Placement type warning */
-	void OnEditPlacementTypeBlueprintHyperlinkClicked(const FSlateHyperlinkRun::FMetadata& Metadata);
-
-private:
 	/** Active timer handler to update the items in the palette */
 	EActiveTimerReturnType UpdatePaletteItems(double InCurrentTime, float InDeltaTime);
 
@@ -197,18 +186,18 @@ private:
 	TSharedPtr<SPlacementTypeTreeView> TreeViewWidget;
 
 	/** Placement mesh details widget  */
-	TSharedPtr<class IDetailsView> DetailsWidget;
+	TSharedPtr<IDetailsView> DetailsWidget;
 
 	TSharedPtr<IPropertyHandle> PalettePropertyHandle;
 
 	/** Placement items search box widget */
-	TSharedPtr<class SSearchBox> SearchBoxPtr;
+	TSharedPtr<SSearchBox> SearchBoxPtr;
 
 	/** Command list for binding functions for the context menu. */
 	TSharedPtr<FUICommandList> UICommandList;
 
 	/** Thumbnail pool for rendering mesh thumbnails */
-	TSharedPtr<class FAssetThumbnailPool> ThumbnailPool;
+	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 
 	bool bItemsNeedRebuild = true;
 	bool bShowFullTooltips = true;

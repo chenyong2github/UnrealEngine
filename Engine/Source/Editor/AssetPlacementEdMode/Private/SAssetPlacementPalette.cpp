@@ -36,70 +36,9 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Modules/ModuleManager.h"
+#include "SAssetDropTarget.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementMode"
-
-////////////////////////////////////////////////
-// SPlacementDragDropHandler
-////////////////////////////////////////////////
-
-/** Drag-drop zone for adding Placement types to the palette */
-class SAssetPaletteDragDropHandler : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SAssetPaletteDragDropHandler) {}
-		SLATE_DEFAULT_SLOT(FArguments, Content)
-		SLATE_EVENT(FOnDrop, OnDrop)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs)
-	{
-		bIsDragOn = false;
-		OnDropDelegate = InArgs._OnDrop;
-
-		this->ChildSlot
-			[
-				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(this, &SAssetPaletteDragDropHandler::GetBackgroundColor)
-				.Padding(FMargin(100))
-				[
-					InArgs._Content.Widget
-				]
-			];
-	}
-
-	FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
-	{
-		bIsDragOn = false;
-		if (OnDropDelegate.IsBound())
-		{
-			return OnDropDelegate.Execute(MyGeometry, DragDropEvent);
-		}
-		
-		return FReply::Handled();
-	}
-
-	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
-	{
-		bIsDragOn = true;
-	}
-
-	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override
-	{
-		bIsDragOn = false;
-	}
-
-private:
-	FSlateColor GetBackgroundColor() const
-	{
-		return bIsDragOn ? FLinearColor(1.0f, 0.6f, 0.1f, 0.9f) : FLinearColor(0.1f, 0.1f, 0.1f, 0.9f);
-	}
-
-private:
-	FOnDrop OnDropDelegate;
-	bool bIsDragOn;
-};
 
 ////////////////////////////////////////////////
 // SPlacementPalette
@@ -212,42 +151,29 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 				SNew(SVerticalBox)
 
 				+ SVerticalBox::Slot()
-				[
-					SNew(SBox)
-					.Visibility(this, &SAssetPlacementPalette::GetDropPlacementHintVisibility)
-					.MinDesiredHeight(100)
-					[
-						SNew(SScaleBox)
-						.Stretch(EStretch::ScaleToFit)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("Placement_DropStatic", "+ Drop Assets Here"))
-							.ToolTipText(LOCTEXT("Placement_DropStatic_ToolTip", "Drag and drop asset types from the Content Browser to add them to the palette."))
-						]
-					]
-				]
-
-				+ SVerticalBox::Slot()
 				.Padding(2.f, 0.f)
 				[
 					CreatePaletteViews()
 				]
 			]
 			
-			// Placement Mesh Drop Zone
+			// Placement Drop Zone
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SAssetPaletteDragDropHandler)
-				.Visibility(this, &SAssetPlacementPalette::GetPlacementDropTargetVisibility)
-				.OnDrop(this, &SAssetPlacementPalette::HandlePlacementDropped)
+				SNew(SAssetDropTarget)
+				.OnAreAssetsAcceptableForDrop(this, &SAssetPlacementPalette::OnAreAssetsValidForDrop)
+				.OnAssetsDropped(this, &SAssetPlacementPalette::HandlePlacementDropped)
+				.bSupportsMultiDrop(true)
 				[
-					SNew(SScaleBox)
-					.Stretch(EStretch::ScaleToFit)
+					SNew(SBox)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("Placement_AddPlacementMesh", "+ Asset Type"))
+						.Text(LOCTEXT("Placement_AddPlacementMesh", "Drop Assets Here"))
+						.Visibility(this, &SAssetPlacementPalette::GetDropHintTextVisibility)
 						.ShadowOffset(FVector2D(1.f, 1.f))
 					]
 				]
@@ -597,67 +523,58 @@ TSharedPtr<SListView<FPlacementPaletteItemModelPtr>> SAssetPlacementPalette::Get
 	return nullptr;
 }
 
-EVisibility SAssetPlacementPalette::GetDropPlacementHintVisibility() const
+EVisibility SAssetPlacementPalette::GetDropHintTextVisibility() const
 {
-	if (bIsMirroringContentBrowser)
+	if (!bIsMirroringContentBrowser && (FilteredItems.Num() == 0) && !FSlateApplication::Get().IsDragDropping())
 	{
-		return EVisibility::Collapsed;
-	}
-
-	return FilteredItems.Num() ? EVisibility::Collapsed : EVisibility::Visible;
-}
-
-EVisibility SAssetPlacementPalette::GetPlacementDropTargetVisibility() const
-{
-	if (bIsMirroringContentBrowser)
-	{
-		return EVisibility::Hidden;
-	}
-
-	if (FSlateApplication::Get().IsDragDropping())
-	{
-		TArray<FAssetData> DraggedAssets = AssetUtil::ExtractAssetDataFromDrag(FSlateApplication::Get().GetDragDroppingContent());
-		for (const FAssetData& AssetData : DraggedAssets)
-		{
-			if (AssetData.GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_NotPlaceable))
-			{
-				continue;
-			}
-
-			if (AssetData.IsValid())
-			{
-				return EVisibility::Visible;
-			}
-		}
+		return EVisibility::HitTestInvisible;
 	}
 
 	return EVisibility::Hidden;
 }
 
-FReply SAssetPlacementPalette::HandlePlacementDropped(const FGeometry& DropZoneGeometry, const FDragDropEvent& DragDropEvent)
+bool SAssetPlacementPalette::OnAreAssetsValidForDrop(TArrayView<FAssetData> DraggedAssets) const
 {
 	if (bIsMirroringContentBrowser)
 	{
-		return FReply::Unhandled();
+		return false;
 	}
 
-	TArray<FAssetData> DroppedAssetData = AssetUtil::ExtractAssetDataFromDrag(DragDropEvent);
-	if (DroppedAssetData.Num() > 0)
+	UPlacementSubsystem* PlacementSubystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
+	for (const FAssetData& AssetData : DraggedAssets)
 	{
-		if (DragDropEvent.IsShiftDown())
+		if (AssetData.GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_NotPlaceable))
 		{
-			ClearPalette();
+			continue;
 		}
 
-		for (auto& AssetData : DroppedAssetData)
+		if (AssetData.IsValid())
 		{
-			AddPlacementType(AssetData);
+			return PlacementSubystem ? (PlacementSubystem->FindAssetFactoryFromAssetData(AssetData).GetInterface() != nullptr) : true;
 		}
-
-		UpdatePalette(true);
 	}
 
-	return FReply::Handled();
+	return false;
+}
+
+void SAssetPlacementPalette::HandlePlacementDropped(const FDragDropEvent& DragDropEvent, TArrayView<FAssetData> DroppedAssetData)
+{
+	if ((DroppedAssetData.Num() == 0) || bIsMirroringContentBrowser)
+	{
+		return;
+	}
+
+	if (DragDropEvent.IsShiftDown())
+	{
+		ClearPalette();
+	}
+
+	for (auto& AssetData : DroppedAssetData)
+	{
+		AddPlacementType(AssetData);
+	}
+
+	UpdatePalette(true);
 }
 
 bool SAssetPlacementPalette::HasAnyItemInPalette() const
