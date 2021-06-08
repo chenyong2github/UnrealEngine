@@ -397,8 +397,6 @@ public:
 
 		FReply Reply = SButton::OnMouseButtonUp(MyGeometry, MouseEvent);
 
-		bIsHovered = true;
-
 		return Reply;
 	}
 
@@ -651,7 +649,10 @@ public:
 
 	void Construct( const FArguments& InArgs )
 	{
+		bHovered = false;
 		ShouldAppearHovered = InArgs._ShouldAppearHovered;
+
+		SetHover(TAttribute<bool>::CreateSP(this, &SSubMenuButton::HandleShouldAppearHovered));
 
 		SButton::FArguments ButtonArgs;
 		ButtonArgs.Text(InArgs._Label);
@@ -674,13 +675,25 @@ public:
 		SButton::Construct( ButtonArgs );
 	}
 
-	virtual bool IsHovered() const override
+	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
-		// Submenu widgets which have been opened should remain as if hovered, even if the cursor is outside them
-		return SWidget::IsHovered() || ShouldAppearHovered.Get();
+		bHovered = true;
+		SButton::OnMouseEnter(MyGeometry, MouseEvent);
+	}
+
+	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override
+	{
+		bHovered = false;
+		SButton::OnMouseLeave(MouseEvent);
 	}
 
 private:
+	bool HandleShouldAppearHovered() const
+	{
+		// Submenu widgets which have been opened should remain as if hovered, even if the cursor is outside them
+		return bHovered || ShouldAppearHovered.Get();
+	}
+
 	FSlateColor InvertOnHover() const
 	{
 		if ( this->IsHovered() )
@@ -696,6 +709,8 @@ private:
 private:
 	/** Attribute to indicate if the sub-menu is open or not */
 	TAttribute<bool> ShouldAppearHovered;
+	/** Keep an internal IsHovered flag*/
+	bool bHovered;
 };
 
 

@@ -998,6 +998,8 @@ public:
 		FadeOutSequence = FCurveSequence(0.0f, FaderConstants::FadeTime);
 		FadeOutSequence.JumpToEnd();
 
+		SetHover(false);
+
 		SBorder::Construct(SBorder::FArguments()
 			.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
 			.Padding(0.0f)
@@ -1013,7 +1015,7 @@ public:
 	{
 		FLinearColor Color = FLinearColor::White;
 	
-		if(FadeOutSequence.IsPlaying() || !bIsHovered)
+		if(FadeOutSequence.IsPlaying() || !IsHovered())
 		{
 			Color.A = FMath::Lerp(FaderConstants::HoveredOpacity, FaderConstants::NonHoveredOpacity, FadeOutSequence.GetLerp());
 		}
@@ -1029,7 +1031,7 @@ public:
 	{
 		if(!FSlateApplication::Get().IsUsingHighPrecisionMouseMovment())
 		{
-			bIsHovered = true;
+			SetHover(true);
 			if(FadeOutSequence.IsPlaying())
 			{
 				// Fade out is already playing so just force the fade in curve to the end so we don't have a "pop" 
@@ -1047,7 +1049,7 @@ public:
 	{
 		if(!FSlateApplication::Get().IsUsingHighPrecisionMouseMovment())
 		{
-			bIsHovered = false;
+			SetHover(false);
 			FadeOutSequence.Play(AsShared());
 		}
 	}

@@ -39,12 +39,13 @@ public:
 	//~ End SWidget interface
 
 	// Begin SWidget
-	virtual bool IsHovered() const override;
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 	// End SWidget
 
 private:
+	bool ShouldAppearHovered() const;
+
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 	void HandleDragEnter(const FDragDropEvent& DragDropEvent);

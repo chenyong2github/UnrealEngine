@@ -130,6 +130,9 @@ public:
 public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, TWeakPtr<SMenuOwner> InMenuOwner)
 	{
+		bHovered = false;
+		SetHover(TAttribute<bool>::CreateSP(this, &SPinTypeRow::ShouldAppearHovered));
+
 		SComboRow<FPinTypeTreeItem>::Construct( SComboRow<FPinTypeTreeItem>::FArguments()
 			.ToolTip(InArgs._ToolTip)
 			[
@@ -143,12 +146,24 @@ public:
 			InOwnerTable);
 	}
 
-	// SWidget interface
-	virtual bool IsHovered() const override
+	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
-		return SComboRow<FPinTypeTreeItem>::IsHovered() || SubMenuHandler.Pin()->ShouldSubMenuAppearHovered();
+		bHovered = true;
+		SComboRow<FPinTypeTreeItem>::OnMouseEnter(MyGeometry, MouseEvent);
 	}
-	// End of SWidget interface
+
+	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override
+	{
+		bHovered = false;
+		SComboRow<FPinTypeTreeItem>::OnMouseLeave(MouseEvent);
+	}
+	//~ End of SWidget interface
+
+	/** Retuns TRUE if it should appear as hovered. */
+	bool ShouldAppearHovered() const
+	{
+		return bHovered || SubMenuHandler.Pin()->ShouldSubMenuAppearHovered();
+	}
 
 	/** Returns TRUE if there is a Sub-Menu available to open */
 	bool HasSubMenu() const
@@ -171,6 +186,8 @@ public:
 private:
 	/** The Sub-MenuHandler which is managing the sub-menu content so that mousing over other rows will not close the sub-menus immediately */
 	TWeakPtr<SSubMenuHandler> SubMenuHandler;
+	/** Keep an internal IsHovered flag*/
+	bool bHovered;
 };
 
 static bool ContainerRequiresGetTypeHash(EPinContainerType InType)

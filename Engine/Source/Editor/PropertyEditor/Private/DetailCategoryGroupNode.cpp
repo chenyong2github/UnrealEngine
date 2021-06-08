@@ -157,7 +157,7 @@ FSlateColor SDetailCategoryTableRow::GetInnerBackgroundColor() const
 
 FSlateColor SDetailCategoryTableRow::GetOuterBackgroundColor() const
 {
-	if (bIsHovered)
+	if (IsHovered())
 	{
 		return FAppStyle::Get().GetSlateColor("Colors.Header");
 	}

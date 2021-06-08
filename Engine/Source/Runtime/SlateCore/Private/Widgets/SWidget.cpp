@@ -174,15 +174,19 @@ void SWidget::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeIni
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "Visibility", VisibilityAttribute, EInvalidateWidgetReason::Visibility)
 		.AffectVisibility();
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "EnabledState", EnabledStateAttribute, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "Hovered", HoveredAttribute, EInvalidateWidgetReason::Paint);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "RenderTransform", RenderTransformAttribute, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "RenderTransformPivot", RenderTransformPivotAttribute, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 SWidget::SWidget()
-	: bIsHovered(false)
-	, bCanSupportFocus(true)
+	: bCanSupportFocus(true)
 	, bCanHaveChildren(true)
 	, bClippingProxy(false)
+#if WITH_EDITORONLY_DATA
+	, bIsHovered(false)
+#endif
 	, bToolTipForceFieldEnabled(false)
 	, bForceVolatile(false)
 	, bCachedVolatile(false)
@@ -191,6 +195,7 @@ SWidget::SWidget()
 	, bHasRegisteredSlateAttribute(false)
 	, bEnabledAttributesUpdate(true)
 	, bIsDeclarativeSyntaxConstructionCompleted(false)
+	, bIsHoveredAttributeSet(false)
 	, bHasCustomPrepass(false)
 	, bHasRelativeLayoutScale(false)
 	, bVolatilityAlwaysInvalidatesPrepass(false)
@@ -206,6 +211,7 @@ SWidget::SWidget()
 	, DesiredSize()
 	, VisibilityAttribute(*this, EVisibility::Visible)
 	, EnabledStateAttribute(*this, true)
+	, HoveredAttribute(*this, false)
 	, RenderTransformPivotAttribute(*this, FVector2D::ZeroVector)
 	, RenderTransformAttribute(*this)
 	, CullingBoundsExtension()
@@ -226,6 +232,7 @@ SWidget::SWidget()
 	UE_SLATE_DEBUG_WIDGETLIST_ADD_WIDGET(this);
 	UE_TRACE_SLATE_WIDGET_ADDED(this);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 SWidget::~SWidget()
@@ -494,7 +501,10 @@ FReply SWidget::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPoi
 
 void SWidget::OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	bIsHovered = true;
+	if (!bIsHoveredAttributeSet)
+	{
+		HoveredAttribute.Set(*this, true);
+	}
 
 	if (TSharedPtr<FSlateMouseEventsMetaData> Data = GetMetaData<FSlateMouseEventsMetaData>())
 	{
@@ -508,7 +518,10 @@ void SWidget::OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& Mo
 
 void SWidget::OnMouseLeave( const FPointerEvent& MouseEvent )
 {
-	bIsHovered = false;
+	if (!bIsHoveredAttributeSet)
+	{
+		HoveredAttribute.Set(*this, false);
+	}
 
 	if (TSharedPtr<FSlateMouseEventsMetaData> Data = GetMetaData<FSlateMouseEventsMetaData>())
 	{

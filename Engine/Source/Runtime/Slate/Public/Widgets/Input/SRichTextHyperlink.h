@@ -40,6 +40,8 @@ public:
 	{
 		ViewModel = InViewModel;
 
+		SetHover(TAttribute<bool>::CreateSP(this, &SRichTextHyperlink::ShouldAppearHovered));
+
 		SHyperlink::Construct(
 			SHyperlink::FArguments()
 			.Text( InArgs._Text )
@@ -79,16 +81,16 @@ public:
 		return Reply;
 	}
 
-	virtual bool IsHovered() const override
-	{
-		return ViewModel->IsHovered();
-	}
-
 	virtual bool IsPressed() const override
 	{
 		return ViewModel->IsPressed();
 	}
 
+private:
+	bool ShouldAppearHovered() const
+	{
+		return ViewModel->IsHovered();
+	}
 
 private:
 
