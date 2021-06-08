@@ -80,6 +80,8 @@ public:
 		// Compile for materials which modify meshes.
 		const bool bMayModifyMeshes = Parameters.MaterialParameters.bMaterialMayModifyMeshPosition;
 
+		const bool bHasPlatformSupport = PlatformSupportsVelocityRendering(Parameters.Platform);
+
 		/**
 		 * Any material with a vertex factory incompatible with base pass velocity generation must generate
 		 * permutations for this shader. Shaders which don't fall into this set are considered "simple" enough
@@ -91,7 +93,7 @@ public:
 		// The material may explicitly override and request that it be rendered into the velocity pass.
 		const bool bIsSeparateVelocityPassRequiredByMaterial = Parameters.MaterialParameters.bIsTranslucencyWritingVelocity;
 
-		return (bIsSeparateVelocityPassRequired || bIsSeparateVelocityPassRequiredByMaterial);
+		return bHasPlatformSupport && (bIsSeparateVelocityPassRequired || bIsSeparateVelocityPassRequiredByMaterial);
 	}
 
 	FVelocityVS() = default;
@@ -206,7 +208,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 
 bool FMobileSceneRenderer::ShouldRenderVelocities() const
 {
-	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS() || !SupportsDesktopTemporalAA(ShaderPlatform))
+	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS() || !PlatformSupportsVelocityRendering(ShaderPlatform))
 	{
 		return false;
 	}
@@ -277,13 +279,13 @@ void FSceneRenderer::RenderVelocities(
 
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			bool bIsParallelVelocity = IsParallelVelocity();
+			const bool bIsParallelVelocity = IsParallelVelocity();
 
 			// Clear velocity render target explicitly when velocity rendering in parallel or no draw but force to.
 			// Avoid adding a separate clear pass in non parallel rendering.
-			bool bExplicitlyClearVelicty = (VelocityLoadAction == ERenderTargetLoadAction::EClear) && (bIsParallelVelocity || (bForceVelocity && !bHasAnyDraw));
+			const bool bExplicitlyClearVelocity = (VelocityLoadAction == ERenderTargetLoadAction::EClear) && (bIsParallelVelocity || (bForceVelocity && !bHasAnyDraw));
 
-			if (bExplicitlyClearVelicty)
+			if (bExplicitlyClearVelocity)
 			{
 				AddClearRenderTargetPass(GraphBuilder, VelocityTexture);
 
@@ -414,7 +416,7 @@ bool FVelocityMeshProcessor::PrimitiveHasVelocityForView(const FViewInfo& View, 
 
 bool FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(EShaderPlatform ShaderPlatform, const FPrimitiveSceneProxy* PrimitiveSceneProxy)
 {
-	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) || !SupportsDesktopTemporalAA(ShaderPlatform))
+	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) || !PlatformSupportsVelocityRendering(ShaderPlatform))
 	{
 		return false;
 	}
@@ -552,7 +554,7 @@ bool FTranslucentVelocityMeshProcessor::PrimitiveCanHaveVelocity(EShaderPlatform
 	 * Therefore, the primitive can't be filtered based on motion, or it will break post
 	 * effects like depth of field which rely on depth information.
 	 */
-	return FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) && SupportsDesktopTemporalAA(ShaderPlatform);
+	return FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) && PlatformSupportsVelocityRendering(ShaderPlatform);
 }
 
 bool FTranslucentVelocityMeshProcessor::PrimitiveHasVelocityForFrame(const FPrimitiveSceneProxy* PrimitiveSceneProxy)

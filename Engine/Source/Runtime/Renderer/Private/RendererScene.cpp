@@ -3772,15 +3772,13 @@ struct FPrimitiveArraySortKey
 	}
 };
 
-static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy)
+static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy, const FStaticShaderPlatform ShaderPlatform)
 {
 	bool bShouldPrimitiveOutputVelocity = Proxy->IsMovable() || (!!CVarWPOPrimitivesOutputVelocity.GetValueOnRenderThread() && Proxy->IsUsingWPOMaterial());
 
-	FSceneInterface& Scene = Proxy->GetScene();
+	bool bPlatformSupportsVelocityRendering = PlatformSupportsVelocityRendering(ShaderPlatform);
 
-	bShouldPrimitiveOutputVelocity &= SupportsDesktopTemporalAA(Scene.GetShaderPlatform());
-
-	return bShouldPrimitiveOutputVelocity;
+	return bPlatformSupportsVelocityRendering && bShouldPrimitiveOutputVelocity;
 }
 
 void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs)
@@ -3947,7 +3945,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 				int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
 				PrimitiveSceneInfo->PackedIndex = INDEX_NONE;
 
-				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy))
+				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy, GetShaderPlatform()))
 				{
 					// Remove primitive's motion blur information.
 					VelocityData.RemoveFromScene(PrimitiveSceneInfo->PrimitiveComponentId);
@@ -4151,7 +4149,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = AddedLocalPrimitiveSceneInfos[AddIndex];
 				int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
 
-				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy))
+				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy, GetShaderPlatform()))
 				{
 					// We must register the initial LocalToWorld with the velocity state. 
 					// In the case of a moving component with MarkRenderStateDirty() called every frame, UpdateTransform will never happen.
@@ -4219,7 +4217,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 			// (note that the octree update relies on the bounds not being modified yet).
 			PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
 
-			if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy))
+			if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy, GetShaderPlatform()))
 			{
 				VelocityData.UpdateTransform(PrimitiveSceneInfo, LocalToWorld, PrimitiveSceneProxy->GetLocalToWorld());
 			}

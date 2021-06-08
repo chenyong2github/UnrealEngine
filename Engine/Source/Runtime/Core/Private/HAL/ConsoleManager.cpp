@@ -2816,9 +2816,10 @@ static TAutoConsoleVariable<int32> CVarSkyLightingQuality(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarMobileTemporalAAMethod(
-	TEXT("r.Mobile.TemporalAAMethod"),
+static TAutoConsoleVariable<int32> CVarMobileSupportsGen4TAA(
+	TEXT("r.Mobile.SupportsGen4TAA"),
 	0,
-	TEXT("0: Mobile TAA (default)")
-	TEXT("1: Desktop TAA"),
-	ECVF_RenderThreadSafe);
+	TEXT("Support desktop Gen4 TAA with mobile rendering\n")
+	TEXT("0: Fallback to Mobile TAA (default)")
+	TEXT("1: Support Desktop Gen4 TAA"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);

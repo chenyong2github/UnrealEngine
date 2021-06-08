@@ -3193,7 +3193,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		{
 			float EffectivePrimaryResolutionFraction = float(View.ViewRect.Width()) / float(View.GetSecondaryViewRectSize().X);
 
-			bool bIsMobileTAA = IsMobilePlatform(View.GetShaderPlatform()) && !SupportsDesktopTemporalAA(View.GetShaderPlatform());
+			bool bIsMobileTAA = IsMobilePlatform(View.GetShaderPlatform()) && !SupportsGen4TAA(View.GetShaderPlatform());
 
 			// Compute number of TAA samples.
 			int32 TemporalAASamples = CVarTemporalAASamplesValue;

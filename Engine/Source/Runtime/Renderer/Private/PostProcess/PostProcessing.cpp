@@ -1531,7 +1531,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 
 		bool bUseTAA = View.AntiAliasingMethod == AAM_TemporalAA;
 
-		bool bUseDesktopTAA = bUseTAA && SupportsDesktopTemporalAA(View.GetShaderPlatform());
+		bool bUseDesktopTAA = bUseTAA && SupportsGen4TAA(View.GetShaderPlatform());
 
 		bool bUseMobileTAA = bUseTAA && !bUseDesktopTAA;
 

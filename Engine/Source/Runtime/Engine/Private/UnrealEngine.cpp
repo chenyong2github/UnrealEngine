@@ -274,9 +274,6 @@ void FEngineModule::StartupModule()
 		CVARShowMaterialDrawEvents->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeEngineCVarRequiringRecreateRenderState));
 	}
 
-	static IConsoleVariable* MobileTemporalAAMethodCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.TemporalAAMethod"));
-	MobileTemporalAAMethodCVar->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeEngineCVarRequiringRecreateRenderState));
-
 	SuspendTextureStreamingRenderTasks = &SuspendRenderAssetStreaming;
 	ResumeTextureStreamingRenderTasks = &ResumeRenderAssetStreaming;
 

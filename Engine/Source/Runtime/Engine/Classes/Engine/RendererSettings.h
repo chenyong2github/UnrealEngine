@@ -866,9 +866,10 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		TEnumAsByte<EMobilePlanarReflectionMode::Type> MobilePlanarReflectionMode;
 
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
-		ConsoleVariable = "r.Mobile.TemporalAAMethod", DisplayName = "Desktop TemporalAA On Mobile",
-		ToolTip = "Use desktop TAA on mobile."))
-		uint32 bMobileTemporalAAMethod : 1;
+		ConsoleVariable = "r.Mobile.SupportsGen4TAA", DisplayName = "Supports desktop Gen4 TAA on mobile",
+		ToolTip = "Support desktop Gen4 TAA with mobile rendering. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+		uint32 bMobileSupportsGen4TAA : 1;
 
 	UPROPERTY(config, EditAnywhere, Category="Experimental|LOD Streaming|Skeletal Mesh", meta=(
 		DisplayName="Stream LODs by default",
