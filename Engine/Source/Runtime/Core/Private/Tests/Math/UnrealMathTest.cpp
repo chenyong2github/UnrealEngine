@@ -1143,6 +1143,11 @@ FORCENOINLINE void TestVectorShuffle()
 	ShuffleTest(V0, V1, 2, 2, 3, 3);
 	ShuffleTest(V0, V1, 2, 0, 3, 0);
 
+	ShuffleTest(V0, V1, 3, 1, 3, 0);
+	ShuffleTest(V0, V1, 2, 2, 0, 1);
+	ShuffleTest(V0, V1, 0, 1, 3, 2);
+	ShuffleTest(V0, V1, 1, 3, 0, 3);
+
 #undef ShuffleTest
 }
 
@@ -1782,6 +1787,26 @@ bool RunDoubleVectorTest()
 	V3 = VectorFloor(V0);
 	LogTest<double>(TEXT("VectorFloor"), TestVectorsEqual(V2, V3));
 
+	// VectorDeinterleave
+	V0 = MakeVectorRegister(0.0, 1.0, 2.0, 3.0);
+	V1 = MakeVectorRegister(4.0, 5.0, 6.0, 7.0);
+	VectorDeinterleave(V2, V3, V0, V1);
+	V0 = MakeVectorRegister(0.0, 2.0, 4.0, 6.0);
+	V1 = MakeVectorRegister(1.0, 3.0, 5.0, 7.0);
+	LogTest<double>(TEXT("VectorDeinterleave"), TestVectorsEqual(V2, V0) && TestVectorsEqual(V3, V1));
+
+	// VectorMaskBits
+	V0 = MakeVectorRegister(0.0, 1.0, 2.0, 3.0);
+	uint32 MaskBits = VectorMaskBits(V0);
+	LogTest<double>(TEXT("VectorMaskBits"), MaskBits == 0);
+	V0 = MakeVectorRegister(-0.0, -1.0, -2.0, -3.0);
+	MaskBits = VectorMaskBits(V0);
+	LogTest<double>(TEXT("VectorMaskBits"), MaskBits == 0xf);
+	V0 = MakeVectorRegister(-0.0, 1.0, -2.0, 3.0);
+	MaskBits = VectorMaskBits(V0);
+	LogTest<double>(TEXT("VectorMaskBits"), MaskBits == 5);
+
+
 	// NaN / Inf tests
 	// Using a union as we need to do a bitwise cast of 0xFFFFFFFF into a float.
 	typedef union
@@ -2311,6 +2336,17 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V2 = MakeVectorRegister(0.0f, 0.0f, 1.0f, 1.0f);
 	V3 = VectorFloor(V0);
 	LogTest<float>(TEXT("VectorFloor"), TestVectorsEqual(V2, V3));
+
+	// VectorMaskBits
+	V0 = MakeVectorRegister(0.0f, 1.0f, 2.0f, 3.0f);
+	uint32 MaskBits = VectorMaskBits(V0);
+	LogTest<double>(TEXT("VectorMaskBits"), MaskBits == 0);
+	V0 = MakeVectorRegister(-0.0f, -1.0f, -2.0f, -3.0f);
+	MaskBits = VectorMaskBits(V0);
+	LogTest<double>(TEXT("VectorMaskBits"), MaskBits == 0xf);
+	V0 = MakeVectorRegister(-0.0f, 1.0f, -2.0f, 3.0f);
+	MaskBits = VectorMaskBits(V0);
+	LogTest<double>(TEXT("VectorMaskBits"), MaskBits == 5);
 
 	FMatrix44f	M0, M1, M2, M3;		// LWC_TODO: Need double version tests!
 	FVector3f Eye, LookAt, Up;	
