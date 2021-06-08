@@ -159,7 +159,7 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 			NewRef.Id = Source.GetId();
 			Source.OperateOnLoadedBulkData([&NewRef](const FSharedBuffer& BulkDataBuffer)
 			{
-				NewRef.Data = FCompressedBuffer::Compress(NAME_None, BulkDataBuffer);
+				NewRef.Data = FCompressedBuffer::Compress(NAME_Default, BulkDataBuffer);
 			});
 		}
 	}
