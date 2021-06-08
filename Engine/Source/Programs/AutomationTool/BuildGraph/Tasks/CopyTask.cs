@@ -174,7 +174,7 @@ namespace BuildGraph.Tasks
 			{
 				CommandUtils.LogLog("  {0} -> {1}", FilePair.Value, FilePair.Key);
 			}
-			CommandUtils.ThreadedCopyFiles(FilePairs.Select(x => x.Value.FullName).ToList(), FilePairs.Select(x => x.Key.FullName).ToList(), bQuiet: true);
+			CommandUtils.ThreadedCopyFiles(FilePairs.Select(x => x.Value.FullName).ToList(), FilePairs.Select(x => x.Key.FullName).ToList(), bQuiet: true, bRetry: true);
 
 			// Update the list of build products
 			BuildProducts.UnionWith(TargetFileToSourceFile.Keys);

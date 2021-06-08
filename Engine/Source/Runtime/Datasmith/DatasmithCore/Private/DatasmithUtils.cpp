@@ -1099,6 +1099,47 @@ namespace DatasmithSceneUtilsImpl
 			}
 		}
 
+		void ScanVariant( TSharedPtr<IDatasmithVariantElement> Variant )
+		{
+			for (int32 BindingIndex = 0; BindingIndex < Variant->GetActorBindingsCount(); ++BindingIndex)
+			{
+				TSharedPtr<IDatasmithActorBindingElement> ActorBinding = Variant->GetActorBinding(BindingIndex);
+
+				for (int32 PropertyIndex = 0; PropertyIndex < ActorBinding->GetPropertyCapturesCount(); ++PropertyIndex)
+				{
+					TSharedPtr<IDatasmithBasePropertyCaptureElement> BasePropCaptureElement = ActorBinding->GetPropertyCapture(PropertyIndex);
+					if (BasePropCaptureElement->IsSubType(EDatasmithElementVariantSubType::ObjectPropertyCapture))
+					{
+						// Mark all materials used in this actor binding as referenced
+						TSharedPtr<IDatasmithObjectPropertyCaptureElement> PropCaptureElement = StaticCastSharedPtr<IDatasmithObjectPropertyCaptureElement>(BasePropCaptureElement);
+						TSharedPtr<IDatasmithElement> TargetElement = PropCaptureElement->GetRecordedObject().Pin();
+						if (TargetElement.IsValid() && TargetElement->IsA(EDatasmithElementType::BaseMaterial))
+						{
+							TSharedPtr<IDatasmithBaseMaterialElement> TargetMaterialElement = StaticCastSharedPtr<IDatasmithBaseMaterialElement>(TargetElement);
+							if (TargetMaterialElement.IsValid())
+							{
+								ReferencedMaterials.Add(TargetMaterialElement);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		void ScanLevelVariantSet( TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets )
+		{
+			for (int32 VariantSetIndex = 0; VariantSetIndex < LevelVariantSets->GetVariantSetsCount(); ++VariantSetIndex)
+			{
+				TSharedPtr<IDatasmithVariantSetElement> VariantSet = LevelVariantSets->GetVariantSet(VariantSetIndex);
+
+				for (int32 VariantIndex = 0; VariantIndex < VariantSet->GetVariantsCount(); ++VariantIndex)
+				{
+					TSharedPtr<IDatasmithVariantElement> Variant = VariantSet->GetVariant(VariantIndex);
+					ScanVariant(Variant);
+				}
+			}
+		}
+
 		void Initialize()
 		{
 			int32 AssetElementCount = Scene->GetTexturesCount() + Scene->GetMaterialsCount() +
@@ -1137,6 +1178,11 @@ namespace DatasmithSceneUtilsImpl
 			for (int32 Index = 0; Index < Scene->GetActorsCount(); ++Index)
 			{
 				ParseSceneActor( Scene->GetActor(Index) );
+			}
+
+			for (int32 Index = 0; Index < Scene->GetLevelVariantSetsCount(); ++Index)
+			{
+				ScanLevelVariantSet( Scene->GetLevelVariantSets(Index) );
 			}
 
 			for (TSharedPtr<IDatasmithMeshElement >& MeshElement : ReferencedMeshes)

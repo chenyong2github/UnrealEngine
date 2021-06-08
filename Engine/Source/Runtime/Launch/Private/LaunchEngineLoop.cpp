@@ -4814,7 +4814,7 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 
 	RHICmdList.EnqueueLambda([CurrentFrameCounter](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->SetRenderLatencyMarkerStart(CurrentFrameCounter);
+		GEngine->SetRenderSubmitLatencyMarkerStart(CurrentFrameCounter);
 	});
 }
 
@@ -4823,7 +4823,7 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 {
 	RHICmdList.EnqueueLambda([CurrentFrameCounter](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->SetRenderLatencyMarkerEnd(CurrentFrameCounter);
+		GEngine->SetRenderSubmitLatencyMarkerEnd(CurrentFrameCounter);
 	});
 
 	FCoreDelegates::OnEndFrameRT.Broadcast();
@@ -4953,7 +4953,7 @@ void FEngineLoop::Tick()
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_UpdateTimeAndHandleMaxTickRate);
 			GEngine->UpdateTimeAndHandleMaxTickRate();
-			GEngine->SetGameLatencyMarkerStart(CurrentFrameCounter);
+			GEngine->SetSimulationLatencyMarkerStart(CurrentFrameCounter);
 		}
 
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
@@ -5039,6 +5039,8 @@ void FEngineLoop::Tick()
 		// will pass us messages instead.
 		if (!GUELibraryOverrideSettings.bIsEmbedded)
 		{
+			GEngine->SetInputSampleLatencyMarker(CurrentFrameCounter);
+
 			//QUICK_SCOPE_CYCLE_COUNTER(STAT_PumpMessages);
 			FPlatformApplicationMisc::PumpMessages(true);
 		}
@@ -5285,8 +5287,18 @@ void FEngineLoop::Tick()
 			RHITick( FApp::GetDeltaTime() ); // Update RHI.
 		}
 
+		// We need to set this marker before EndFrameRenderThread is enqueued. 
+		// If multithreaded rendering is off, it can cause a bad ordering of game and rendering markers.
+		GEngine->SetSimulationLatencyMarkerEnd(CurrentFrameCounter);
+
 		// Increment global frame counter. Once for each engine tick.
 		GFrameCounter++;
+
+		ENQUEUE_RENDER_COMMAND(FrameCounter)(
+			[CurrentFrameCounter = GFrameCounter](FRHICommandListImmediate& RHICmdList)
+		{
+			GFrameCounterRenderThread = CurrentFrameCounter;
+		});
 
 		// Disregard first few ticks for total tick time as it includes loading and such.
 		if (GFrameCounter > 6)
@@ -5342,10 +5354,6 @@ void FEngineLoop::Tick()
 			GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::EndFrame);
 		}
 		#endif
-
-		// We need to set this marker before EndFrameRenderThread is enqueued. 
-		// If multithreaded rendering is off, it can cause a bad ordering of game and rendering markers.
-		GEngine->SetGameLatencyMarkerEnd(CurrentFrameCounter);
 
 		// end of RHI frame
 		ENQUEUE_RENDER_COMMAND(EndFrame)(

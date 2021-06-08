@@ -61,18 +61,18 @@ def create_disconnect_message():
     message = json.dumps(disconnect_cmd).encode() + b'\x00'
     return (cmd_id, message)
 
-def create_send_filecontent_message(file_content, destination_path):
+def create_send_filecontent_message(file_content: bytes, destination_path: str, *, force_overwrite: bool = False):
     encoded_content = base64.b64encode(file_content)
 
     cmd_id = uuid.uuid4()
-    transfer_file_cmd = {'command': 'send file', 'id': str(cmd_id), 'destination': destination_path, "content": encoded_content.decode()}
+    transfer_file_cmd = {'command': 'send file', 'id': str(cmd_id), 'destination': destination_path, 'content': encoded_content.decode(), 'force_overwrite': force_overwrite}
     message = json.dumps(transfer_file_cmd).encode() + b'\x00'
     return (cmd_id, message)
 
-def create_send_file_message(path_to_source_file, destination_path):
+def create_send_file_message(path_to_source_file: str, destination_path: str, *, force_overwrite: bool = False):
     with open(path_to_source_file, 'rb') as f:
         file_content = f.read()
-    return create_send_filecontent_message(file_content, destination_path)
+    return create_send_filecontent_message(file_content, destination_path, force_overwrite=force_overwrite)
 
 def create_copy_file_from_listener_message(path_on_listener_machine):
     cmd_id = uuid.uuid4()

@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
+#include "CoreMinimal.h"
+
+#include "Fonts/SlateFontInfo.h"
 
 class SWidget;
 class FText;

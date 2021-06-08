@@ -35,30 +35,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Components|DMX");
 	FDMXComponentFixturePatchReceivedSignature OnFixturePatchReceived;
 
-protected:
-	// ~Begin UActorComponent interface
-	virtual void OnRegister() override;
-	virtual void BeginPlay() override;
-	virtual void DestroyComponent(bool bPromoteChildren) override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
-	// ~End UActorComponent interface
-
-protected:
-	/** Called when the fixture patch received DMX */
-	UFUNCTION()
-	void OnFixturePatchReceivedDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute);
-
-public:
-	UPROPERTY(EditAnywhere, Category = "DMX")
-	FDMXEntityFixturePatchRef FixturePatchRef;
-
-	/** If set to true, the component will receive DMX from the patch */
-	UPROPERTY()
-	bool bReceiveDMXFromPatch;
-
 	/** Gets the fixture patch used in the component */
 	UFUNCTION(BlueprintPure, Category = "DMX")
 	UDMXEntityFixturePatch* GetFixturePatch() const;
@@ -67,12 +43,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SetFixturePatch(UDMXEntityFixturePatch* InFixturePatch);
 
-	/** Sets whether the component receives dmx from the patch */
+	/** Sets whether the component receives dmx from the patch. Note, this is saved with the component when called in editor. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SetReceiveDMXFromPatch(bool bReceive);
 
-private:
-	/** The fixture patch currently in use */
-	UPROPERTY(Transient)
-	UDMXEntityFixturePatch* CachedFixturePatch;
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "DMX")
+	FDMXEntityFixturePatchRef FixturePatchRef;
+
+protected:
+	/** Called when the fixture patch received DMX */
+	UFUNCTION()
+	void OnFixturePatchReceivedDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute);
+
+	/** Sets up binding for receiving depending on the patch's and the component's properties */
+	void SetupReceiveDMXBinding();
+
+	/** If true, the component will receive DMX from the patch */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, AdvancedDisplay, Category = "DMX")
+	bool bReceiveDMXFromPatch;
+
+	// ~Begin UActorComponent interface
+	virtual void BeginPlay() override;
+	virtual void DestroyComponent(bool bPromoteChildren) override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
+	// ~End UActorComponent interface
 };

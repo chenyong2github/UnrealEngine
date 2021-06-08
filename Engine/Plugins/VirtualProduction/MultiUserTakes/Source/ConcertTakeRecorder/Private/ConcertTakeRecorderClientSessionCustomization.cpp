@@ -416,7 +416,7 @@ void FConcertTakeRecorderClientSessionCustomization::RecordSettingChange(const F
 
 void FConcertTakeRecorderClientSessionCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
-	IDetailCategoryBuilder& RecordSettings = DetailLayout.EditCategory(TEXT("Multiuser Client Record Settings"));
+	IDetailCategoryBuilder& RecordSettings = DetailLayout.EditCategory(TEXT("Multi-user Client Record Settings"));
 
 	TSharedPtr<IPropertyHandle> SettingsProperty = DetailLayout.GetProperty(
 		GET_MEMBER_NAME_CHECKED(UConcertSessionRecordSettings, LocalSettings));
@@ -430,7 +430,7 @@ void FConcertTakeRecorderClientSessionCustomization::CustomizeDetails(IDetailLay
 	PopulateClientList();
 	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Customization Event"));
 	{
-		FDetailWidgetRow& Row = RecordSettings.AddCustomRow(LOCTEXT("MultiUserRecordSettings", "Multiuser Client Record Settings"));
+		FDetailWidgetRow& Row = RecordSettings.AddCustomRow(LOCTEXT("MultiUserRecordSettings", "Multi-user Client Record Settings"));
 		auto HandleGenerateRow = [this](TSharedPtr<FConcertClientRecordSetting> InClientInfo,
 									const TSharedRef<STableViewBase>& OwnerTable) -> TSharedRef<ITableRow>
 		{

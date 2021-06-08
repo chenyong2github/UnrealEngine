@@ -56,6 +56,9 @@ namespace UE_NETWORK_PHYSICS
 	bool bLogCorrections=true;
 	FAutoConsoleVariableRef CVarLogCorrections(TEXT("np2.LogCorrections"), bLogCorrections, TEXT("Logs corrections when they happen"));
 
+	bool bLogImpulses=false;
+	FAutoConsoleVariableRef CVarLogImpulses(TEXT("np2.LogImpulses"), bLogImpulses, TEXT("Logs all recorded F/T/LI/AI"));
+
 	int32 FixedLocalFrameOffset = -1;
 	FAutoConsoleVariableRef CVarFixedLocalFrameOffset(TEXT("np2.FixedLocalFrameOffset"), FixedLocalFrameOffset, TEXT("When > 0, use hardcoded frame offset on client from head"));
 
@@ -67,19 +70,83 @@ namespace UE_NETWORK_PHYSICS
 
 	float LODDistance = 2400.f;
 	FAutoConsoleVariableRef CVarLODDistance(TEXT("np2.LODDistance"), LODDistance, TEXT("Simple distance based LOD"));
+
+	// ----------------------------------------------
+	// Debugger helpers:
+	//	See current frame anywhere with: 
+	//		{,,UE4Editor-NetworkPrediction.dll}UE_NETWORK_PHYSICS::GServerFrame
+	//		{,,UE4Editor-NetworkPrediction.dll}UE_NETWORK_PHYSICS::GClientFrame
+	//		note: all bets are off here with multiple clients, this is just a debugging convenience.
+	//		Use UE_NETWORK_PHYSICS::DebugSimulationFrame() to get the correct value.
+	//
+	//
+	//	Set frame you want to break at via: 
+	//		{,,UE4Editor-NetworkPrediction.dll}UE_NETWORK_PHYSICS::GBreakAtFrame
+	//		or via console with "np2.BreakAtFrame"
+	//
+	//	Do something like this in your code:
+	//	if (UE_NETWORK_PHYSICS::ConditionalFrameBreakpoint()) { UE_LOG(...); }
+	//		or
+	//	UE_NETWORK_PHYSICS::ConditionalFrameEnsure();
+	// ----------------------------------------------
+
+	// Set this in debugger or via console to cause ConditionalFrameBreakpoint() to return true when current simulation frame is equal to this
+	int32 GBreakAtFrame = 0;
+	FAutoConsoleVariableRef CVarConditionalBreakAtFrame(TEXT("np2.BreakAtFrame"), GBreakAtFrame, TEXT(""));
+
+	// These are strictly convenience variables to view in the debugger
+	int32 GServerFrame = 0;
+	int32 GClientFrame = 0;
+
+	// returns true/false so you can log or do whatever at GBreakAtFrame
+	bool ConditionalFrameBreakpoint()
+	{
+#if NETWORK_PHYSICS_THREAD_CONTEXT
+		return (GBreakAtFrame != 0 && GBreakAtFrame == FNetworkPhysicsThreadContext::Get().SimulationFrame);
+#else
+		return false;
+#endif
+	}
+
+	// forces ensure failure to invoke debugger
+	void ConditionalFrameEnsure()
+	{
+#if NETWORK_PHYSICS_THREAD_CONTEXT
+		ensureAlways(!ConditionalFrameBreakpoint());
+#endif
+	}
+
+	int32 DebugSimulationFrame()
+	{
+#if NETWORK_PHYSICS_THREAD_CONTEXT
+		return FNetworkPhysicsThreadContext::Get().SimulationFrame;
+#else
+		return 0;
+#endif
+	}
+	
+	bool DebugServer()
+	{
+#if NETWORK_PHYSICS_THREAD_CONTEXT
+		return FNetworkPhysicsThreadContext::Get().bIsServer;
+#else
+		return false;
+#endif
+
+	}
 }
 
 struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 {
 	bool CompareVec(const FVector& A, const FVector& B, const float D, const TCHAR* Str)
 	{
-		const bool b = FVector::DistSquared(A, B) > D * D;
+		const bool b = D == 0 ? A != B : FVector::DistSquared(A, B) > D * D;
 		UE_CLOG(UE_NETWORK_PHYSICS::bLogCorrections && b && Str, LogNetworkPhysics, Log, TEXT("%s correction. Server: %s. Local: %s. Delta: %s (%.4f)"), Str, *A.ToString(), *B.ToString(), *(A-B).ToString(), (A-B).Size());
 		return  b;
 	}
 	bool CompareQuat(const FQuat& A, const FQuat& B, const float D, const TCHAR* Str)
 	{
-		const bool b = FQuat::ErrorAutoNormalize(A, B) > D;
+		const bool b = D == 0 ? A != B : FQuat::ErrorAutoNormalize(A, B) > D;
 		UE_CLOG(UE_NETWORK_PHYSICS::bLogCorrections && b && Str, LogNetworkPhysics, Log, TEXT("%s correction. Server: %s. Local: %s. Delta: %f"), Str, *A.ToString(), *B.ToString(), FQuat::ErrorAutoNormalize(A, B));
 		return b;
 	}
@@ -178,12 +245,25 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					}
 					UE_LOG(LogTemp, Warning, TEXT(""));
 					*/
-					
 				}
 
 				Stats.MinFrameChecked = FMath::Min(Stats.MaxFrameChecked, Obj.Frame);
 				Stats.MaxFrameChecked = FMath::Max(Stats.MaxFrameChecked, Obj.Frame);
 				Stats.NumChecked++;
+
+
+#if NETWORK_PHYSICS_REPLICATE_EXTRAS
+				if (UE_NETWORK_PHYSICS::bLogImpulses)
+				{
+					for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+					{
+						if (Obj.DebugState[i].LinearImpulse.SizeSquared() > 0.f)
+						{
+							UE_LOG(LogNetworkPhysics, Warning, TEXT("[C] server told us they applied Linear Impulse %s on Frame [%d] in Phase [%d]"), *Obj.DebugState[i].LinearImpulse.ToString(), SimulationFrame-1, i);
+						}
+					}
+				}
+#endif
 				
 				if (CompareObjState(Obj.Physics.ObjectState, P.ObjectState(), TEXT("ObjectState")) ||
 					CompareVec(Obj.Physics.Location, P.X(), UE_NETWORK_PHYSICS::X, TEXT("Location")) ||
@@ -206,6 +286,33 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 						FBasePhysicsState Auth{P.ObjectState(), P.X(), P.R(), P.V(), P.W()};
 						Stats.Corrections.Emplace(FStats::FCorrection{Proxy, Obj.Physics, Auth, Obj.Frame, Obj.Frame - Snapshot.LocalFrameOffset});
 					}
+
+#if NETWORK_PHYSICS_REPLICATE_EXTRAS
+					if (UE_NETWORK_PHYSICS::bLogCorrections && Obj.Frame-1 >= RewindData->GetEarliestFrame_Internal())
+					{
+						const int32 PreSimulationFrame = SimulationFrame-1;
+						for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+						{
+							const auto LocalPreFrameData = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Obj.Frame-1, (Chaos::FParticleHistoryEntry::EParticleHistoryPhase)i);
+							if (Obj.DebugState[i].Force != LocalPreFrameData.F())
+							{
+								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] FORCE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.F().ToString(), *Obj.DebugState[i].Force.ToString());
+							}
+							if (Obj.DebugState[i].Torque != LocalPreFrameData.Torque())
+							{
+								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] TORQUE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.Torque().ToString(), *Obj.DebugState[i].Torque.ToString());
+							}
+							if (Obj.DebugState[i].LinearImpulse != LocalPreFrameData.LinearImpulse())
+							{
+								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] LINEAR IMPULSE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.LinearImpulse().ToString(), *Obj.DebugState[i].LinearImpulse.ToString());
+							}
+							if (Obj.DebugState[i].AngularImpulse != LocalPreFrameData.AngularImpulse())
+							{
+								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] ANGULAR IMPULSE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.AngularImpulse().ToString(), *Obj.DebugState[i].AngularImpulse.ToString());
+							}
+						}
+					}
+#endif
 				}
 			}
 		}
@@ -275,43 +382,80 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		}
 
 		// Marhsall data back to GT based on what was requested for networking
-		FRequest Request;
-		while (DataRequested.Dequeue(Request));
-
-		FSnapshot Snapshot;
-		Snapshot.SimulationFrame = PhysicsStep - this->LastLocalOffset;
-		Snapshot.LocalFrameOffset = this->LastLocalOffset;
-		for (FSingleParticlePhysicsProxy* Proxy : Request.Proxies)
+		if (!RewindData->IsResim())
 		{
-			if (auto* PT = Proxy->GetPhysicsThreadAPI())
+			FRequest Request;
+			while (DataRequested.Dequeue(Request));
+
+			FSnapshot Snapshot;
+			Snapshot.SimulationFrame = PhysicsStep - this->LastLocalOffset;
+			Snapshot.LocalFrameOffset = this->LastLocalOffset;
+			for (FSingleParticlePhysicsProxy* Proxy : Request.Proxies)
 			{
-				FNetworkPhysicsState& Obj = Snapshot.Objects.AddDefaulted_GetRef();
-				Obj.Proxy = Proxy;
-				Obj.Frame = PhysicsStep;
-
-				Obj.Physics.ObjectState = PT->ObjectState();
-				Obj.Physics.Location = PT->X();
-				Obj.Physics.LinearVelocity = PT->V();
-				Obj.Physics.Rotation = PT->R();
-				Obj.Physics.AngularVelocity = PT->W();
-
-				if (Obj.Physics.LinearVelocity.Size() <= 0.00f)
+				if (auto* PT = Proxy->GetPhysicsThreadAPI())
 				{
-					//UE_LOG(LogTemp, Warning, TEXT("[Server] Object zero velocity. Frame: %d"), PhysicsStep);
-				}
+					FNetworkPhysicsState& Obj = Snapshot.Objects.AddDefaulted_GetRef();
+					Obj.Proxy = Proxy;
+					Obj.Frame = PhysicsStep;
 
-				if (Obj.Physics.ObjectState == Chaos::EObjectStateType::Sleeping)
-				{
-					//UE_LOG(LogTemp, Warning, TEXT("[Server] Sleeping Frame: %d"), PhysicsStep);
+					Obj.Physics.ObjectState = PT->ObjectState();
+					Obj.Physics.Location = PT->X();
+					Obj.Physics.LinearVelocity = PT->V();
+					Obj.Physics.Rotation = PT->R();
+					Obj.Physics.AngularVelocity = PT->W();
+				
+#if NETWORK_PHYSICS_REPLICATE_EXTRAS
+					// Record previous frames forces/torques for debugging
+					int32 EarliestFrame = RewindData->GetEarliestFrame_Internal();
+					const int32 PreSimFrame = Snapshot.SimulationFrame - 1;
+					const int32 PreStorageFrame = PhysicsStep - 1;
+					if (EarliestFrame < PreStorageFrame)
+					{
+						for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+						{
+							Chaos::FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), PreStorageFrame, (Chaos::FParticleHistoryEntry::EParticleHistoryPhase)i);
+							Obj.DebugState[i].Force = State.F();
+							Obj.DebugState[i].Torque = State.Torque();
+							Obj.DebugState[i].LinearImpulse = State.LinearImpulse();
+							Obj.DebugState[i].AngularImpulse = State.AngularImpulse();
+
+							if (UE_NETWORK_PHYSICS::bLogImpulses)
+							{
+								if (Obj.DebugState[i].Force.SizeSquared() > 0.f)
+								{
+									UE_LOG(LogNetworkPhysics, Warning, TEXT("[%s] Applied Force: %s on frame %d. In Phase %d"),  this->bIsServer ? TEXT("S") : TEXT("C"), *Obj.DebugState[i].Force.ToString(), PreSimFrame, i);
+								}
+
+								if (Obj.DebugState[i].Torque.SizeSquared() > 0.f)
+								{
+									UE_LOG(LogNetworkPhysics, Warning, TEXT("[%s] Applied Force: %s on frame %d. In Phase %d"),  this->bIsServer ? TEXT("S") : TEXT("C"), *Obj.DebugState[i].Torque.ToString(), PreSimFrame, i);
+								}
+
+								if (Obj.DebugState[i].LinearImpulse.SizeSquared() > 0.f)
+								{
+									UE_LOG(LogNetworkPhysics, Warning, TEXT("[%s] Applied LinearImpulse: %s on frame %d. In Phase %d"),  this->bIsServer ? TEXT("S") : TEXT("C"), *Obj.DebugState[i].LinearImpulse.ToString(), PreSimFrame, i);
+								}
+
+								if (Obj.DebugState[i].AngularImpulse.SizeSquared() > 0.f)
+								{
+									UE_LOG(LogNetworkPhysics, Warning, TEXT("[%s] Applied AngularImpulse: %s on frame %d. In Phase %d"),  this->bIsServer ? TEXT("S") : TEXT("C"), *Obj.DebugState[i].AngularImpulse.ToString(), PreSimFrame, i);
+								}
+							}
+						}
+					}
+#endif
 				}
-				//UE_LOG(LogTemp, Warning, TEXT("[Server] %d Rotation: %s"), PhysicsStep, *FRotator(Obj.Physics.Rotation).ToString());
+			}
+
+			if (Snapshot.Objects.Num() > 0)
+			{
+				DataFromPhysics.Enqueue(MoveTemp(Snapshot));
 			}
 		}
 
-		if (Snapshot.Objects.Num() > 0)
-		{
-			DataFromPhysics.Enqueue(MoveTemp(Snapshot));
-		}
+#if NETWORK_PHYSICS_THREAD_CONTEXT
+		FNetworkPhysicsThreadContext::Get().Update(PhysicsStep - this->LastLocalOffset, this->bIsServer);
+#endif
 
 		for (auto& SubSys : NetworkPhysicsManager->SubSystems)
 		{
@@ -486,6 +630,13 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 
 		if (ensure(Solver->GetRewindCallback()==nullptr))
 		{
+			int32 NumFrames = 64;
+			const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
+			if (ensure(NumFramesCVar))
+			{
+				NumFrames = NumFramesCVar->GetInt();
+			}
+
 			Solver->EnableRewindCapture(64, true, MakeUnique<FNetworkPhysicsRewindCallback>());
 			RewindCallback = static_cast<FNetworkPhysicsRewindCallback*>(Solver->GetRewindCallback());
 			RewindCallback->RewindData = Solver->GetRewindData();
@@ -779,6 +930,12 @@ void UNetworkPhysicsManager::PreNetSend(float DeltaSeconds)
 					{
 						ManagedState->Physics = Obj.Physics;					
 						ManagedState->Frame = Obj.Frame;
+#if NETWORK_PHYSICS_REPLICATE_EXTRAS
+						for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+						{
+							ManagedState->DebugState[i] = Obj.DebugState[i];
+						}
+#endif
 					}
 				}
 			}

@@ -61,13 +61,13 @@ export const DAYS_OF_THE_WEEK = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'
 type DayOfTheWeek = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
 
 export type IntegrationWindowPane = {
-	// if day not specified, daily
-	dayOfTheWeek?: DayOfTheWeek
+	// if days not specified, daily
+	daysOfTheWeek?: DayOfTheWeek[]
 	startHourUTC: number
 	durationHours: number
 }
 
-type CommonOptionFields = {
+export type CommonOptionFields = {
 	lastGoodCLPath: string | number
 	pauseCISUnlessAtGate: boolean
 
@@ -142,12 +142,15 @@ export interface BranchGraphDefinition {
 function validateCommonOptions(options: Partial<CommonOptionFields>) {
 	if (options.integrationWindow) {
 		for (const pane of options.integrationWindow) {
-			if (pane.dayOfTheWeek) {
-				const day = pane.dayOfTheWeek.slice(0, 3).toLowerCase()
-				if (DAYS_OF_THE_WEEK.indexOf(day) < 0) {
-					throw new Error(`Unknown day of the week ${pane.dayOfTheWeek}`)
+			if (pane.daysOfTheWeek) {
+				for (let index = 0; index < pane.daysOfTheWeek.length; ++index) { 
+					const dayStr = pane.daysOfTheWeek[index]
+					const day = dayStr.slice(0, 3).toLowerCase()
+					if (DAYS_OF_THE_WEEK.indexOf(day) < 0) {
+						throw new Error(`Unknown day of the week ${dayStr}`)
+					}
+					pane.daysOfTheWeek[index] = day as DayOfTheWeek
 				}
-				pane.dayOfTheWeek = day as DayOfTheWeek
 			}
 		}
 	}

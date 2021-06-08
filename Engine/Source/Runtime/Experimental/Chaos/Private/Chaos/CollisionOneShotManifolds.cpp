@@ -766,7 +766,15 @@ namespace Chaos
 					ContactPointCount,
 					MaxContactPointCount);
 			}
-			
+
+			// If we have the max number of contact points already, they will be in cyclic order. Stability is better
+			// if we solve points non-sequentially (e.g., on a box, solve one point, then it's opposite corner).
+			// If we have more than 4 contacts, the contact reduction step already effectively does something similar.
+			if (ContactPointCount == 4)
+			{
+				Swap(ClippedVertices[1], ClippedVertices[2]);
+			}
+
 			// Reduce number of contacts to the maximum allowed
 			if (ContactPointCount > 4)
 			{

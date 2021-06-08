@@ -67,7 +67,7 @@ FText FLogMessageRecord::GetTimeAsText() const
 
 FText FLogMessageRecord::GetVerbosityAsText() const
 {
-	return FText::FromString(FString(FOutputDeviceHelper::VerbosityToString(Verbosity)));
+	return FText::FromString(FString(ToString(Verbosity)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

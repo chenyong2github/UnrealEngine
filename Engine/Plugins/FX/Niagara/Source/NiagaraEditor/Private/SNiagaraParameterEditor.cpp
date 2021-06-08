@@ -10,6 +10,7 @@ void SNiagaraParameterEditor::Construct(const FArguments& InArgs)
 	VerticalAlignment = InArgs._VAlign;
 	MinimumDesiredWidth = InArgs._MinimumDesiredWidth;
 	MaximumDesiredWidth = InArgs._MaximumDesiredWidth;
+	bContinousChangeActive = false;
 }
 
 void SNiagaraParameterEditor::SetOnBeginValueChange(FOnValueChange InOnBeginValueChange)
@@ -76,15 +77,25 @@ void SNiagaraParameterEditor::SetIsEditingExclusively(bool bInIsEditingExclusive
 
 void SNiagaraParameterEditor::ExecuteOnBeginValueChange()
 {
+	bContinousChangeActive = true;
 	OnBeginValueChange.ExecuteIfBound();
 }
 
 void SNiagaraParameterEditor::ExecuteOnEndValueChange()
 {
+	bContinousChangeActive = false;
 	OnEndValueChange.ExecuteIfBound();
 }
 
 void SNiagaraParameterEditor::ExecuteOnValueChanged()
 {
+	if (bContinousChangeActive == false)
+	{
+		OnBeginValueChange.ExecuteIfBound();
+	}
 	OnValueChanged.ExecuteIfBound();
+	if (bContinousChangeActive == false)
+	{
+		OnEndValueChange.ExecuteIfBound();
+	}
 }

@@ -33,16 +33,16 @@ namespace UnrealGame
 			return Config;
 		}
 
-		public override ITestReport CreateReport(TestResult Result)
+		public override ITestReport CreateReport(TestResult Result, UnrealTestContext Contex, UnrealBuildSource Build, IEnumerable<UnrealRoleResult> RoleResults, string ArtifactPath)
 		{
-			UnrealRoleArtifacts ClientArtifacts = SessionArtifacts.Where(A => A.SessionRole.RoleType == UnrealTargetRole.Client).FirstOrDefault();
+			UnrealRoleArtifacts ClientArtifacts = RoleResults.Where(R => R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Client).Select(R => R.Artifacts).FirstOrDefault();
 
 			var SnapshotSummary = new UnrealSnapshotSummary<UnrealHealthSnapshot>(ClientArtifacts.AppInstance.StdOut);
 
 			Log.Info("Elemental Performance Report");
 			Log.Info(SnapshotSummary.ToString());
 
-			return base.CreateReport(Result);
+			return base.CreateReport(Result, Contex, Build, RoleResults, ArtifactPath);
 		}
 
 		public override void SaveArtifacts_DEPRECATED(string OutputPath)

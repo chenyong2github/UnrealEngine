@@ -378,7 +378,7 @@ void FFbxExporter::WriteToFile(const TCHAR* Filename)
 	}
 
 	FbxManager::GetFileFormatVersion(Major, Minor, Revision);
-	UE_LOG(LogFbx, Warning, TEXT("FBX version number for this version of the FBX SDK is %d.%d.%d\n\n"), Major, Minor, Revision);
+	UE_LOG(LogFbx, Log, TEXT("FBX version number for this version of the FBX SDK is %d.%d.%d\n\n"), Major, Minor, Revision);
 
 	// Export the scene.
 	Status = Exporter->Export(Scene); 

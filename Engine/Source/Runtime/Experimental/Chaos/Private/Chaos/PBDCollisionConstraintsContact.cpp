@@ -2,6 +2,7 @@
 
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/Collision/CollisionSolver.h"
+#include "Chaos/Collision/PBDCollisionSolver.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/Defines.h"
@@ -30,9 +31,6 @@ namespace Chaos
 
 		int32 Chaos_Collision_PrevVelocityRestitutionEnabled = 0;
 		FAutoConsoleVariableRef CVarChaosCollisionPrevVelocityRestitutionEnabled(TEXT("p.Chaos.Collision.PrevVelocityRestitutionEnabled"), Chaos_Collision_PrevVelocityRestitutionEnabled, TEXT("If enabled restitution will be calculated on previous frame velocities instead of current frame velocities"));
-
-		int32 Chaos_Collision_ForceApplyType = 0;
-		FAutoConsoleVariableRef CVarChaosCollisionAlternativeApply(TEXT("p.Chaos.Collision.ForceApplyType"), Chaos_Collision_ForceApplyType, TEXT("Force Apply step to use Velocity(1) or Position(2) modes"));
 
 		FRealSingle Chaos_Collision_ContactMovementAllowance = 0.05f;
 		FAutoConsoleVariableRef CVarChaosCollisionContactMovementAllowance(TEXT("p.Chaos.Collision.AntiJitterContactMovementAllowance"), Chaos_Collision_ContactMovementAllowance, 
@@ -243,20 +241,27 @@ namespace Chaos
 					Particle1->AuxilaryValue(*ParticleParameters.Collided) = true;
 				}
 
-				// What Apply algorithm should we use? Controlled by the solver, with forcable cvar override for now...
-				bool bUseVelocityMode = (IterationParameters.ApplyType == ECollisionApplyType::Velocity);
-				if (Chaos_Collision_ForceApplyType != 0)
+				// What solver algorithm should we use?
+				switch (IterationParameters.SolverType)
 				{
-					bUseVelocityMode = (Chaos_Collision_ForceApplyType == (int32)ECollisionApplyType::Velocity);
-				}
-
-				if (bUseVelocityMode)
-				{
-					ApplyContactManifold(Constraint, Particle0, Particle1, IterationParameters, ParticleParameters);
-				}
-				else
-				{
-					Constraint.AccumulatedImpulse += ApplyContact2(Constraint.Manifold, Particle0, Particle1, IterationParameters, ParticleParameters);
+				case EConstraintSolverType::GbfPbd:
+					{
+						ApplyContactManifold(Constraint, Particle0, Particle1, IterationParameters, ParticleParameters);
+					}
+					break;
+				case EConstraintSolverType::StandardPbd:
+					{
+						Constraint.AccumulatedImpulse += ApplyContact2(Constraint.Manifold, Particle0, Particle1, IterationParameters, ParticleParameters);
+					}
+					break;
+				case EConstraintSolverType::QuasiPbd:
+					{
+						FPBDCollisionSolver CollisionSolver;
+						CollisionSolver.SolvePosition(Constraint, IterationParameters, ParticleParameters);
+					}
+					break;
+				default:
+					break;
 				}
 			}
 		}
@@ -282,8 +287,8 @@ namespace Chaos
 			const FReal RemainingDT = (1 - Constraint.TimeOfImpact) * IterationParameters.Dt;
 			const int32 FakeIteration = IterationParameters.NumIterations / 2; // For iteration count dependent effects (like relaxation) // @todo: Do we still need this?
 			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations // @todo: Do we still need this?
-			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
-			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.SolverType, IterationParameters.NeedsAnotherIteration };
+			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.SolverType, IterationParameters.NeedsAnotherIteration };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
@@ -350,7 +355,28 @@ namespace Chaos
 
 				if (FRigidBodyPointContactConstraint* PointConstraint = Constraint.template As<FRigidBodyPointContactConstraint>())
 				{
-					ApplyPushOutManifold(*PointConstraint, IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
+					switch (IterationParameters.SolverType)
+					{
+					case EConstraintSolverType::GbfPbd:
+						{
+							ApplyPushOutManifold(*PointConstraint, IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
+						}
+						break;
+					case EConstraintSolverType::StandardPbd:
+						{
+							// Shouldn't have PushOut for Standard Pbd, but this is for experimentation (Collision PushOut Iterations should normally be set to 0 instead)
+							ApplyPushOutManifold(*PointConstraint, IsTemporarilyStatic, IterationParameters, ParticleParameters, GravityDir);
+						}
+						break;
+					case EConstraintSolverType::QuasiPbd:
+						{
+							FPBDCollisionSolver CollisionSolver;
+							CollisionSolver.SolveVelocity(Constraint, IterationParameters, ParticleParameters);
+						}
+						break;
+					default:
+						break;
+					}
 				}
 			}
 		}

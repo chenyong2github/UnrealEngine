@@ -200,6 +200,20 @@ void SDependencyRow::OnSelectedVariantSetChanged(TSharedPtr<FText> NewItem, ESel
 			Dependency->VariantSet = VariantSet;
 			Dependency->Variant = nullptr;
 
+			// Automatically select a valid dependency variant if we have one.
+			// The intent is to combine this with the fact that variant sets need to have at least one valid variant
+			// to be pickable as a dependency in the first place.
+			// These two facts together prevent us from getting to some invalid states when we could e.g. leave the
+			// Variant part of the dependency as None, and then have another variant depend on this one.
+			for ( const UVariant* Variant : VariantSet->GetVariants() )
+			{
+				if ( ParentVariant->IsValidDependency( Variant ) )
+				{
+					Dependency->Variant = Variant;
+					break;
+				}
+			}
+
 			RebuildVariantOptions();
 			return;
 		}
@@ -317,6 +331,21 @@ void SDependencyRow::RebuildVariantSetOptions()
 	{
 		// A variant can't have its own variant set as a dependency
 		if (VariantSet == ParentVariantSet)
+		{
+			continue;
+		}
+
+		// Check if this variant has anything we could pick as a dependency anyway
+		bool bHasValidVariant = false;
+		for ( const UVariant* Variant : VariantSet->GetVariants() )
+		{
+			if ( ParentVariant->IsValidDependency( Variant ) )
+			{
+				bHasValidVariant = true;
+				break;
+			}
+		}
+		if ( !bHasValidVariant )
 		{
 			continue;
 		}

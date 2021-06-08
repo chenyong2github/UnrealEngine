@@ -168,7 +168,7 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 
 	if (CompletedTask.ProcessResult == ETaskState::ProcessOk)
 	{
-		CompletedTask.ExternalReferences = FileParser.GetExternalRefSet().Array();
+		CompletedTask.ExternalReferences = FileParser.GetExternalRefSet();
 		CompletedTask.SceneGraphFileName = FileParser.GetSceneGraphFile();
 		CompletedTask.GeomFileName = FileParser.GetMeshFileName();
 		CompletedTask.WarningMessages = FileParser.GetWarningMessages();

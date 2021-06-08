@@ -303,8 +303,10 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 
 	// Export all LODs to raw meshes
 	const int32 NumLODs = InSkinnedMeshComponent->GetNumLODs();
+	//The cpu skinned vertice is not valid under min lod
+	int32 MinLOD = InSkinnedMeshComponent->ComputeMinLOD();
 
-	for (int32 OverallLODIndex = 0; OverallLODIndex < InOverallMaxLODs; OverallLODIndex++)
+	for (int32 OverallLODIndex = MinLOD; OverallLODIndex < InOverallMaxLODs; OverallLODIndex++)
 	{
 		int32 LODIndexRead = FMath::Min(OverallLODIndex, NumLODs - 1);
 

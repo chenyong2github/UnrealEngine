@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsField/PhysicsFieldComponent.h"
-#include "PrimitiveSceneProxy.h"
-#include "RHIStaticStates.h"
-#include "GlobalShader.h"
-#include "ShaderParameters.h"
 #include "SceneManagement.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
-#include "Materials/Material.h"
-#include "ShaderParameterUtils.h"
-#include "ShaderParameterStruct.h"
-#include "MeshMaterialShader.h"
 #include "Field/FieldSystemNodes.h"
+
+#include "RHIStaticStates.h"
+#include "Shader.h"
+#include "GlobalShader.h"
+#include "ShaderParameters.h"
+#include "ShaderParameterStruct.h"
+#include "ShaderParameterUtils.h"
+#include "RenderGraphUtils.h"
 
 /**
 *	Stats
@@ -114,7 +114,7 @@ void InitInternalBuffer(const uint32 ElementCount, FRWBuffer& OutputBuffer)
 		if (OutputBuffer.UAV)
 		{
 			FRHICommandListExecutor::GetImmediateCommandList().Transition(FRHITransitionInfo(OutputBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			if (PixelFormat == EPixelFormat::PF_R32_FLOAT)
+			if (PixelFormat == EPixelFormat::PF_R32_FLOAT || PixelFormat == EPixelFormat::PF_A32B32G32R32F)
 			{
 				FRHICommandListExecutor::GetImmediateCommandList().ClearUAVFloat(OutputBuffer.UAV, FVector4(ForceInitToZero));
 			}
@@ -421,7 +421,8 @@ IMPLEMENT_SHADER_TYPE(, FResetPhysicsFieldClipmapCS, TEXT("/Engine/Private/Physi
 
 FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArray<EFieldPhysicsType>& TargetTypes, 
 		const FPhysicsFieldInfos::BufferOffsets& VectorTargets, const FPhysicsFieldInfos::BufferOffsets& ScalarTargets,
-	    const FPhysicsFieldInfos::BufferOffsets& IntegerTargets, const FPhysicsFieldInfos::BufferOffsets& PhysicsTargets) : FRenderResource()
+	    const FPhysicsFieldInfos::BufferOffsets& IntegerTargets, const FPhysicsFieldInfos::BufferOffsets& PhysicsTargets,
+		const TStaticArray<FIntVector4, MAX_PHYSICS_FIELD_TARGETS, 16>& PhysicsBounds, const bool bBuildClipmap) : FRenderResource()
 {
 	FieldInfos.TargetCount = TargetCount;
 	FieldInfos.TargetTypes = TargetTypes;
@@ -429,6 +430,9 @@ FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArr
 	FieldInfos.ScalarTargets = ScalarTargets;
 	FieldInfos.IntegerTargets = IntegerTargets;
 	FieldInfos.PhysicsTargets = PhysicsTargets;
+	FieldInfos.PhysicsBounds = PhysicsBounds;
+	FieldInfos.bBuildClipmap = bBuildClipmap;
+	FieldInfos.bShowFields = false;
 
 	FieldInfos.ClipmapExponent = GPhysicsFieldClipmapExponent;
 	FieldInfos.ClipmapCount = GPhysicsFieldClipmapCount;
@@ -439,6 +443,12 @@ FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArr
 	FieldInfos.CellsOffsets.Init(0, CellsCount + 1);
 	FieldInfos.CellsMin.Init(FIntVector4(0), CellsCount);
 	FieldInfos.CellsMax.Init(FIntVector4(FieldInfos.ClipmapResolution), CellsCount);
+
+	for (uint32 BoundIndex = 0; BoundIndex < MAX_PHYSICS_FIELD_TARGETS; ++BoundIndex)
+	{
+		FieldInfos.BoundsOffsets[BoundIndex] = 0;
+	}
+	FieldInfos.TimeSeconds = 0.0;
 }
 
 void FPhysicsFieldResource::InitRHI()
@@ -447,26 +457,42 @@ void FPhysicsFieldResource::InitRHI()
 
 	const int32 DatasCount = FieldInfos.ClipmapCount * FieldInfos.TargetCount;
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(EFieldPhysicsType::Field_PhysicsType_Max + 1, TargetsOffsets);
-	InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(FieldInfos.ClipmapResolution * FieldInfos.ClipmapResolution * FieldInfos.ClipmapResolution * DatasCount, ClipmapBuffer);
 
-	const int32 CellsCount = FieldInfos.ClipmapCount * EFieldPhysicsType::Field_PhysicsType_Max;
-	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(CellsCount + 1, CellsOffsets);
-	InitInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(CellsCount, CellsMin);
-	InitInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(CellsCount, CellsMax);
+	InitInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(1, BoundsMin);
+	InitInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(1, BoundsMax);
+
+	InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(1, NodesParams);
+	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(1, NodesOffsets);
+
+	if (FieldInfos.bBuildClipmap)
+	{
+		const int32 CellsCount = FieldInfos.ClipmapCount * EFieldPhysicsType::Field_PhysicsType_Max;
+		InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(FieldInfos.ClipmapResolution * FieldInfos.ClipmapResolution * FieldInfos.ClipmapResolution * DatasCount, ClipmapBuffer);
+		InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(CellsCount + 1, CellsOffsets);
+		InitInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(CellsCount, CellsMin);
+		InitInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(CellsCount, CellsMax);
+	}
 }
 
 void FPhysicsFieldResource::ReleaseRHI()
 {
-	ClipmapBuffer.Release();
 	NodesParams.Release();
 	NodesOffsets.Release();
 	TargetsOffsets.Release();
-	CellsOffsets.Release();
-	CellsMin.Release();
-	CellsMax.Release();
+	BoundsMin.Release();
+	BoundsMax.Release();
+
+	if (FieldInfos.bBuildClipmap)
+	{
+		ClipmapBuffer.Release();
+		CellsOffsets.Release();
+		CellsMin.Release();
+		CellsMax.Release();
+	}
 }
 
-void FPhysicsFieldResource::UpdateBounds( const TArray<FVector>& MinBounds, const TArray<FVector>& MaxBounds, const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetOffsets)
+void FPhysicsFieldResource::UpdateBounds(const TArray<FVector>& TargetsMin, const TArray<FVector>& TargetsMax, const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetOffsets,
+	const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& BoundsOffsets)
 {
 	const uint32 CellsCount = FieldInfos.ClipmapCount * EFieldPhysicsType::Field_PhysicsType_Max;
 	FieldInfos.CellsOffsets.Init(0, CellsCount + 1);
@@ -492,8 +518,8 @@ void FPhysicsFieldResource::UpdateBounds( const TArray<FVector>& MinBounds, cons
 
 					const int32 CellIndex = FieldInfos.ValidCount * FieldInfos.ClipmapCount + ClipmapIndex;
 
-					const FVector& MinBound = MinBounds[TargetType];
-					const FVector& MaxBound = MaxBounds[TargetType];
+					const FVector& MinBound = TargetsMin[TargetType];
+					const FVector& MaxBound = TargetsMax[TargetType];
 
 					FieldInfos.CellsMin[CellIndex] = FIntVector4(0, 0, 0, 0);
 					FieldInfos.CellsMax[CellIndex] = FIntVector4(0, 0, 0, 0);
@@ -535,26 +561,12 @@ void FPhysicsFieldResource::UpdateBounds( const TArray<FVector>& MinBounds, cons
 }
 
 void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList, 
-				const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetsOffsetsDatas, const TArray<int32>& NodesOffsetsDatas, const TArray<float>& NodesParamsDatas,
-				const TArray<FVector>& MinBoundsDatas, const TArray<FVector>& MaxBoundsDatas, const float TimeSeconds)
+	const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetsOffsetsDatas, const TArray<int32>& NodesOffsetsDatas, const TArray<float>& NodesParamsDatas,
+	const TArray<FVector>& TargetsMinDatas, const TArray<FVector>& TargetsMaxDatas, const float TimeSeconds,
+	const TArray<FVector4>& BoundsMinDatas, const TArray<FVector4>& BoundsMaxDatas, const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& BoundsOffsetsDatas)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_UpdateResource_RT);
-	const int32 CellsCount = FieldInfos.ClipmapCount * EFieldPhysicsType::Field_PhysicsType_Max;
 
-	{
-		SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_ClearClipmap);
-		SCOPED_GPU_STAT(RHICmdList, PhysicsFields_ClearClipmap);
-
-		TShaderMapRef<FResetPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-		const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
-		const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FResetPhysicsFieldClipmapCS::ThreadGroupSize);
-
-		ComputeShader->SetParameters(RHICmdList, this, TimeSeconds, NumCells);
-		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, 1, 1);
-		ComputeShader->UnsetParameters(RHICmdList, this);
-	}
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_UpdateBuffers);
 		SCOPED_GPU_STAT(RHICmdList, PhysicsFields_UpdateBuffers);
@@ -563,26 +575,56 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 		UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(NodesOffsetsDatas.Num(), NodesOffsetsDatas.GetData(), NodesOffsets, true);
 		UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(TargetsOffsetsDatas.Num(), TargetsOffsetsDatas.GetData(), TargetsOffsets);
 
-		FieldInfos.ClipmapCenter = FieldInfos.ViewOrigin;
-
-		UpdateBounds(MinBoundsDatas, MaxBoundsDatas, TargetsOffsetsDatas);
-		
-		UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(FieldInfos.CellsOffsets.Num(), FieldInfos.CellsOffsets.GetData(), CellsOffsets);
-		UpdateInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(FieldInfos.CellsMin.Num(), FieldInfos.CellsMin.GetData(), CellsMin);
-		UpdateInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(FieldInfos.CellsMax.Num(), FieldInfos.CellsMax.GetData(), CellsMax);
+		FieldInfos.TimeSeconds = TimeSeconds;
+		for (uint32 BoundIndex = 0; BoundIndex < EFieldPhysicsType::Field_PhysicsType_Max + 1; ++BoundIndex)
+		{
+			FieldInfos.BoundsOffsets[BoundIndex] = BoundsOffsetsDatas[BoundIndex];
+		}
+		UpdateInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(BoundsMinDatas.Num(), BoundsMinDatas.GetData(), BoundsMin, true);
+		UpdateInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(BoundsMaxDatas.Num(), BoundsMaxDatas.GetData(), BoundsMax, true);
 	}
+
+	if (FieldInfos.bBuildClipmap)
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_BuildClipmap);
-		SCOPED_GPU_STAT(RHICmdList, PhysicsFields_BuildClipmap);
-		TShaderMapRef<FBuildPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+		const int32 CellsCount = FieldInfos.ClipmapCount * EFieldPhysicsType::Field_PhysicsType_Max;
+		{
+			SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_ClearClipmap);
+			SCOPED_GPU_STAT(RHICmdList, PhysicsFields_ClearClipmap);
 
-		const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
-		const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FBuildPhysicsFieldClipmapCS::ThreadGroupSize);
+			TShaderMapRef<FResetPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
+			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
-		ComputeShader->SetParameters(RHICmdList, this, TimeSeconds, NumCells);
-		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, 1, 1);
-		ComputeShader->UnsetParameters(RHICmdList, this);
+			const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
+			const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FResetPhysicsFieldClipmapCS::ThreadGroupSize);
+
+			ComputeShader->SetParameters(RHICmdList, this, TimeSeconds, NumCells);
+			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, 1, 1);
+			ComputeShader->UnsetParameters(RHICmdList, this);
+		}
+		{
+			SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_UpdateBuffers);
+			SCOPED_GPU_STAT(RHICmdList, PhysicsFields_UpdateBuffers);
+
+			FieldInfos.ClipmapCenter = FieldInfos.ViewOrigin;
+			UpdateBounds(TargetsMinDatas, TargetsMaxDatas, TargetsOffsetsDatas, BoundsOffsetsDatas);
+
+			UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(FieldInfos.CellsOffsets.Num(), FieldInfos.CellsOffsets.GetData(), CellsOffsets);
+			UpdateInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(FieldInfos.CellsMin.Num(), FieldInfos.CellsMin.GetData(), CellsMin);
+			UpdateInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(FieldInfos.CellsMax.Num(), FieldInfos.CellsMax.GetData(), CellsMax);
+		}
+		{
+			SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_BuildClipmap);
+			SCOPED_GPU_STAT(RHICmdList, PhysicsFields_BuildClipmap);
+			TShaderMapRef<FBuildPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
+			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+
+			const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
+			const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FBuildPhysicsFieldClipmapCS::ThreadGroupSize);
+
+			ComputeShader->SetParameters(RHICmdList, this, TimeSeconds, NumCells);
+			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, 1, 1);
+			ComputeShader->UnsetParameters(RHICmdList, this);
+		}
 	}
 }
 
@@ -590,9 +632,10 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 *	FPhysicsFieldInstance
 */
 
-void FPhysicsFieldInstance::InitInstance( const TArray<EFieldPhysicsType>& TargetTypes)
+void FPhysicsFieldInstance::InitInstance( const TArray<EFieldPhysicsType>& TargetTypes, const bool bBuildClipmap)
 {
 	FPhysicsFieldInfos::BufferOffsets VectorTargets(InPlace, -1), ScalarTargets(InPlace, -1), IntegerTargets(InPlace, -1), PhysicsTargets(InPlace, -1);
+	TStaticArray<FIntVector4, MAX_PHYSICS_FIELD_TARGETS, 16> PhysicsBounds(InPlace, FIntVector4(-1));
 
 	static const TArray<EFieldPhysicsType> VectorTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Vector);
 	static const TArray<EFieldPhysicsType> ScalarTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Scalar);
@@ -607,23 +650,26 @@ void FPhysicsFieldInstance::InitInstance( const TArray<EFieldPhysicsType>& Targe
 		if (OutputType == EFieldOutputType::Field_Output_Vector)
 		{
 			VectorTargets[TargetIndex] = TargetCount;
+			PhysicsBounds[TargetIndex].X = TargetType;
 			TargetCount += 3;
 		}
 		else if (OutputType == EFieldOutputType::Field_Output_Scalar)
 		{
 			ScalarTargets[TargetIndex] = TargetCount;
+			PhysicsBounds[TargetIndex].Y = TargetType;
 			TargetCount += 1;
 		}
 		else if (OutputType == EFieldOutputType::Field_Output_Integer)
 		{
 			IntegerTargets[TargetIndex] = TargetCount;
+			PhysicsBounds[TargetIndex].Z = TargetType;
 			TargetCount += 1;
 		}
 	}
 	
 	if (!FieldResource)
 	{
-		FieldResource = new FPhysicsFieldResource(TargetCount, TargetTypes, VectorTargets, ScalarTargets, IntegerTargets, PhysicsTargets);
+		FieldResource = new FPhysicsFieldResource(TargetCount, TargetTypes, VectorTargets, ScalarTargets, IntegerTargets, PhysicsTargets, PhysicsBounds, bBuildClipmap);
 
 		FPhysicsFieldResource* LocalFieldResource = FieldResource;
 		ENQUEUE_RENDER_COMMAND(FInitPhysicsFieldResourceCommand)(
@@ -650,8 +696,8 @@ void FPhysicsFieldInstance::ReleaseInstance()
 
 	NodesOffsets.Empty();
 	NodesParams.Empty();
-	BoundsMin.Empty();
-	BoundsMax.Empty();
+	TargetsMax.Empty();
+	TargetsMin.Empty();
 }
 
 void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
@@ -659,14 +705,21 @@ void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
 	NodesOffsets.Empty();
 	NodesParams.Empty();
 
+	TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1> BoundsOffsets;
+	TArray<FVector4> BoundsMin, BoundsMax;
+
 	if (FieldResource)
 	{
-		BoundsMin.Init(FVector(0), EFieldPhysicsType::Field_PhysicsType_Max);
-		BoundsMax.Init(FVector(0), EFieldPhysicsType::Field_PhysicsType_Max);
+		TargetsMin.Init(FVector(0), EFieldPhysicsType::Field_PhysicsType_Max);
+		TargetsMax.Init(FVector(0), EFieldPhysicsType::Field_PhysicsType_Max);
 
 		for (auto& TargetOffset : TargetsOffsets)
 		{
 			TargetOffset = 0;
+		}
+		for (auto& BoundsOffset : BoundsOffsets)
+		{
+			BoundsOffset = 0;
 		}
 		for (auto& TargetType : FieldResource->FieldInfos.TargetTypes)
 		{
@@ -680,6 +733,9 @@ void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
 					const TUniquePtr<FFieldNodeBase>& RootNode = FieldCommand.RootNode;
 					TargetRoots.Add(RootNode.Get());
 					CreationTimes.Add(FieldCommand.TimeCreation);
+					BoundsOffsets[TargetType+1]++;
+					BoundsMin.Add(FVector4(FieldCommand.BoundingBox.Min, 0.0));
+					BoundsMax.Add(FVector4(FieldCommand.BoundingBox.Max, FieldCommand.MaxMagnitude));
 				}
 			}
 			FFieldNodeBase* TargetNode = nullptr;
@@ -738,38 +794,44 @@ void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
 			}
 			const int32 PreviousNodes = NodesOffsets.Num();
 			FVector MinBound(-FLT_MAX), MaxBound(FLT_MAX);
+			float MaxMagnitude = 1.0;
 			if (TargetNode)
 			{
-				BuildNodeBounds(TargetNode, MinBound, MaxBound);
+				BuildNodeBounds(TargetNode, MinBound, MaxBound, MaxMagnitude);
 				BuildNodeParams(TargetNode, CommandTimes, 0.0);
 				if (TargetRoots.Num() > 1) delete TargetNode;
 			}
 			TargetsOffsets[TargetType + 1] = NodesOffsets.Num() - PreviousNodes;
 
-			BoundsMin[TargetType] = MinBound;
-			BoundsMax[TargetType] = MaxBound;
+			TargetsMin[TargetType] = MinBound;
+			TargetsMax[TargetType] = MaxBound;
 		}
 		
 		for (uint32 FieldIndex = 1; FieldIndex < EFieldPhysicsType::Field_PhysicsType_Max + 1; ++FieldIndex)
 		{
 			TargetsOffsets[FieldIndex] += TargetsOffsets[FieldIndex - 1];
+			BoundsOffsets[FieldIndex] += BoundsOffsets[FieldIndex - 1];
 		}
 		{
 			TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1> LocalTargetsOffsets = TargetsOffsets;
 			TArray<int32> LocalNodesOffsets = NodesOffsets;
 			TArray<float> LocalNodesParams = NodesParams;
 
-			TArray<FVector> LocalBoundsMin = BoundsMin;
-			TArray<FVector> LocalBoundsMax = BoundsMax;
+			TArray<FVector> LocalTargetsMin = TargetsMin;
+			TArray<FVector> LocalTargetsMax = TargetsMax;
+
+			TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1> LocalBoundsOffsets = BoundsOffsets;
+			TArray<FVector4> LocalBoundsMin = BoundsMin;
+			TArray<FVector4> LocalBoundsMax = BoundsMax;
 
 			const float LocalTimeSeconds = TimeSeconds;
 
 			FPhysicsFieldResource* LocalFieldResource = FieldResource;
 			ENQUEUE_RENDER_COMMAND(FUpdateFieldInstanceCommand)(
-				[LocalFieldResource, LocalNodesParams, LocalNodesOffsets, LocalTargetsOffsets, LocalBoundsMin, LocalBoundsMax, LocalTimeSeconds](FRHICommandListImmediate& RHICmdList)
+				[LocalFieldResource, LocalNodesParams, LocalNodesOffsets, LocalTargetsOffsets, LocalTargetsMin, LocalTargetsMax, LocalTimeSeconds, LocalBoundsOffsets, LocalBoundsMin, LocalBoundsMax](FRHICommandListImmediate& RHICmdList)
 				{
 					LocalFieldResource->UpdateResource(RHICmdList, 
-						LocalTargetsOffsets, LocalNodesOffsets, LocalNodesParams, LocalBoundsMin, LocalBoundsMax, LocalTimeSeconds);
+						LocalTargetsOffsets, LocalNodesOffsets, LocalNodesParams, LocalTargetsMin, LocalTargetsMax, LocalTimeSeconds, LocalBoundsMin, LocalBoundsMax, LocalBoundsOffsets);
 				});
 		}
 	}
@@ -1037,19 +1099,58 @@ void FPhysicsFieldInstance::BuildNodeParams(FFieldNodeBase* FieldNode, const TMa
 	}
 }
 
-void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds)
+void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds, float& MaxMagnitude)
 {
 	MinBounds = FVector(-FLT_MAX);
 	MaxBounds = FVector(FLT_MAX);
+	MaxMagnitude = 1.0;
 
 	if (FieldNode)
 	{
-		if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FRadialIntMask)
+		if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FUniformInteger)
+		{
+			FUniformInteger* LocalNode = StaticCast<FUniformInteger*>(FieldNode);
+			MaxMagnitude = LocalNode->Magnitude;
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FUniformScalar)
+		{
+			FUniformScalar* LocalNode = StaticCast<FUniformScalar*>(FieldNode);
+			MaxMagnitude = LocalNode->Magnitude;
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar)
+		{
+			FWaveScalar* LocalNode = StaticCast<FWaveScalar*>(FieldNode);
+			MaxMagnitude = LocalNode->Magnitude;
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FUniformVector)
+		{
+			FUniformVector* LocalNode = StaticCast<FUniformVector*>(FieldNode);
+			MaxMagnitude = LocalNode->Magnitude;
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FRadialVector)
+		{
+			FRadialVector* LocalNode = StaticCast<FRadialVector*>(FieldNode);
+			MaxMagnitude = LocalNode->Magnitude;
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FRandomVector)
+		{
+			FRandomVector* LocalNode = StaticCast<FRandomVector*>(FieldNode);
+			MaxMagnitude = LocalNode->Magnitude;
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FRadialIntMask)
 		{
 			FRadialIntMask* LocalNode = StaticCast<FRadialIntMask*>(FieldNode);
 
 			MinBounds = (LocalNode->ExteriorValue == 0) ? LocalNode->Position - FVector(LocalNode->Radius) : FVector(-FLT_MAX);
 			MaxBounds = (LocalNode->ExteriorValue == 0) ? LocalNode->Position + FVector(LocalNode->Radius) : FVector(FLT_MAX);
+			MaxMagnitude = 1.0;
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FPlaneFalloff)
+		{
+			FPlaneFalloff* LocalNode = StaticCast<FPlaneFalloff*>(FieldNode);
+			MinBounds = FVector(-FLT_MAX);
+			MaxBounds = FVector(FLT_MAX);
+			MaxMagnitude = LocalNode->Magnitude;
 		}
 		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FRadialFalloff)
 		{
@@ -1057,33 +1158,38 @@ void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& 
 
 			MinBounds = (LocalNode->Default == 0) ? LocalNode->Position - FVector(LocalNode->Radius) : FVector(-FLT_MAX);
 			MaxBounds = (LocalNode->Default == 0) ? LocalNode->Position + FVector(LocalNode->Radius) : FVector(FLT_MAX);
+			MaxMagnitude = LocalNode->Magnitude;
 		}
 		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FBoxFalloff)
 		{
 			FBoxFalloff* LocalNode = StaticCast<FBoxFalloff*>(FieldNode);
 
-			MinBounds = (LocalNode->Default == 0) ? LocalNode->Transform.GetTranslation() - 50 * LocalNode->Transform.GetScale3D() : FVector(-FLT_MAX);
-			MaxBounds = (LocalNode->Default == 0) ? LocalNode->Transform.GetTranslation() + 50 * LocalNode->Transform.GetScale3D() : FVector(FLT_MAX);
+			MinBounds = (LocalNode->Default == 0) ? LocalNode->Transform.GetTranslation() - 50*LocalNode->Transform.GetScale3D() : FVector(-FLT_MAX);
+			MaxBounds = (LocalNode->Default == 0) ? LocalNode->Transform.GetTranslation() + 50*LocalNode->Transform.GetScale3D() : FVector(FLT_MAX);
+			MaxMagnitude = LocalNode->Magnitude;
 		}
 		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FSumScalar)
 		{
 			FSumScalar* LocalNode = StaticCast<FSumScalar*>(FieldNode);
 
 			FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX);
-			BuildNodeBounds(LocalNode->ScalarRight.Get(), MinBoundsA, MaxBoundsA);
-			BuildNodeBounds(LocalNode->ScalarLeft.Get(), MinBoundsB, MaxBoundsB);
+			float MaxMagnitudeA = 0.0, MaxMagnitudeB = 0.0;
+			BuildNodeBounds(LocalNode->ScalarRight.Get(), MinBoundsA, MaxBoundsA, MaxMagnitudeA);
+			BuildNodeBounds(LocalNode->ScalarLeft.Get(), MinBoundsB, MaxBoundsB, MaxMagnitudeB);
 
 			if (LocalNode->Operation == EFieldOperationType::Field_Multiply ||
 				LocalNode->Operation == EFieldOperationType::Field_Divide)
 			{
 				MinBounds = MaxVector(MinBoundsA, MinBoundsB);
 				MaxBounds = MinVector(MaxBoundsA, MaxBoundsB);
+				MaxMagnitude = (LocalNode->Operation == EFieldOperationType::Field_Multiply) ? MaxMagnitudeA * MaxMagnitudeB : MaxMagnitudeA / MaxMagnitudeB;
 			}
 			else if (LocalNode->Operation == EFieldOperationType::Field_Add ||
 				LocalNode->Operation == EFieldOperationType::Field_Substract)
 			{
 				MinBounds = MinVector(MinBoundsA, MinBoundsB);
 				MaxBounds = MaxVector(MaxBoundsA, MaxBoundsB);
+				MaxMagnitude = FMath::Max(MaxMagnitudeA,MaxMagnitudeB);
 			}
 		}
 		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FSumVector)
@@ -1091,24 +1197,28 @@ void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& 
 			FSumVector* LocalNode = StaticCast<FSumVector*>(FieldNode);
 
 			FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX), MinBoundsC(-FLT_MAX), MaxBoundsC(FLT_MAX);
-			BuildNodeBounds(LocalNode->Scalar.Get(), MinBoundsA, MaxBoundsA);
-			BuildNodeBounds(LocalNode->VectorRight.Get(), MinBoundsB, MaxBoundsB);
-			BuildNodeBounds(LocalNode->VectorLeft.Get(), MinBoundsC, MaxBoundsC);
+			float MaxMagnitudeA = 0.0, MaxMagnitudeB = 0.0, MaxMagnitudeC = 0.0;
+			BuildNodeBounds(LocalNode->Scalar.Get(), MinBoundsA, MaxBoundsA, MaxMagnitudeA);
+			BuildNodeBounds(LocalNode->VectorRight.Get(), MinBoundsB, MaxBoundsB, MaxMagnitudeB);
+			BuildNodeBounds(LocalNode->VectorLeft.Get(), MinBoundsC, MaxBoundsC, MaxMagnitudeC);
 
 			if (LocalNode->Operation == EFieldOperationType::Field_Multiply ||
 				LocalNode->Operation == EFieldOperationType::Field_Divide)
 			{
 				MinBounds = MaxVector(MinBoundsB, MinBoundsC);
 				MaxBounds = MinVector(MaxBoundsB, MaxBoundsC);
+				MaxMagnitude = (LocalNode->Operation == EFieldOperationType::Field_Multiply) ? MaxMagnitudeB * MaxMagnitudeC : MaxMagnitudeB / MaxMagnitudeC;
 			}
 			else if (LocalNode->Operation == EFieldOperationType::Field_Add ||
-				LocalNode->Operation == EFieldOperationType::Field_Substract)
+					 LocalNode->Operation == EFieldOperationType::Field_Substract)
 			{
 				MinBounds = MinVector(MinBoundsB, MinBoundsC);
 				MaxBounds = MaxVector(MaxBoundsB, MaxBoundsC);
+				MaxMagnitude = FMath::Max(MaxMagnitudeB, MaxMagnitudeC);
 			}
 			MinBounds = MaxVector(MinBounds, MinBoundsA);
 			MaxBounds = MinVector(MaxBounds, MaxBoundsA);
+			MaxMagnitude = MaxMagnitude * MaxMagnitudeA;
 		}
 		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FCullingField)
 		{
@@ -1117,8 +1227,9 @@ void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& 
 				FCullingField<int32>* LocalNode = StaticCast<FCullingField<int32>*>(FieldNode);
 
 				FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX);
-				BuildNodeBounds(LocalNode->Culling.Get(), MinBoundsA, MaxBoundsA);
-				BuildNodeBounds(LocalNode->Input.Get(), MinBoundsB, MaxBoundsB);
+				float MaxMagnitudeA = 0.0, MaxMagnitudeB = 0.0;
+				BuildNodeBounds(LocalNode->Culling.Get(), MinBoundsA, MaxBoundsA, MaxMagnitudeA);
+				BuildNodeBounds(LocalNode->Input.Get(), MinBoundsB, MaxBoundsB, MaxMagnitudeB);
 
 				if (LocalNode->Operation == EFieldCullingOperationType::Field_Culling_Inside)
 				{
@@ -1130,14 +1241,16 @@ void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& 
 					MinBounds = MaxVector(MinBoundsA, MinBoundsB);
 					MaxBounds = MinVector(MaxBoundsA, MaxBoundsB);
 				}
+				MaxMagnitude = MaxMagnitudeB;
 			}
 			else if (FieldNode->Type() == FFieldNodeBase::EFieldType::EField_Float)
 			{
 				FCullingField<float>* LocalNode = StaticCast<FCullingField<float>*>(FieldNode);
 
 				FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX);
-				BuildNodeBounds(LocalNode->Culling.Get(), MinBoundsA, MaxBoundsA);
-				BuildNodeBounds(LocalNode->Input.Get(), MinBoundsB, MaxBoundsB);
+				float MaxMagnitudeA = 0.0, MaxMagnitudeB = 0.0;
+				BuildNodeBounds(LocalNode->Culling.Get(), MinBoundsA, MaxBoundsA, MaxMagnitudeA);
+				BuildNodeBounds(LocalNode->Input.Get(), MinBoundsB, MaxBoundsB, MaxMagnitudeB);
 
 				if (LocalNode->Operation == EFieldCullingOperationType::Field_Culling_Inside)
 				{
@@ -1149,14 +1262,16 @@ void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& 
 					MinBounds = MaxVector(MinBoundsA, MinBoundsB);
 					MaxBounds = MinVector(MaxBoundsA, MaxBoundsB);
 				}
+				MaxMagnitude = MaxMagnitudeB;
 			}
 			else if (FieldNode->Type() == FFieldNodeBase::EFieldType::EField_FVector)
 			{
 				FCullingField<FVector>* LocalNode = StaticCast<FCullingField<FVector>*>(FieldNode);
 
 				FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX);
-				BuildNodeBounds(LocalNode->Culling.Get(), MinBoundsA, MaxBoundsA);
-				BuildNodeBounds(LocalNode->Input.Get(), MinBoundsB, MaxBoundsB);
+				float MaxMagnitudeA = 0.0, MaxMagnitudeB = 0.0;
+				BuildNodeBounds(LocalNode->Culling.Get(), MinBoundsA, MaxBoundsA, MaxMagnitudeA);
+				BuildNodeBounds(LocalNode->Input.Get(), MinBoundsB, MaxBoundsB, MaxMagnitudeB);
 
 				if (LocalNode->Operation == EFieldCullingOperationType::Field_Culling_Inside)
 				{
@@ -1168,6 +1283,32 @@ void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& 
 					MinBounds = MaxVector(MinBoundsA, MinBoundsB);
 					MaxBounds = MinVector(MaxBoundsA, MaxBoundsB);
 				}
+				MaxMagnitude = MaxMagnitudeB;
+			}
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FConversionField)
+		{
+			if (FieldNode->Type() == FFieldNodeBase::EFieldType::EField_Int32)
+			{
+				FConversionField<float, int32>* LocalNode = StaticCast<FConversionField<float, int32>*>(FieldNode);
+				FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX);
+				float MaxMagnitudeA = 0.0;
+
+				BuildNodeBounds(LocalNode->InputField.Get(), MinBoundsA, MaxBoundsA, MaxMagnitudeA);
+				MinBounds = MinBoundsA;
+				MaxBounds = MaxBoundsA;
+				MaxMagnitude = MaxMagnitudeA;
+			}
+			else if (FieldNode->Type() == FFieldNodeBase::EFieldType::EField_Float)
+			{
+				FConversionField<int32, float>* LocalNode = StaticCast<FConversionField<int32, float>*>(FieldNode);
+				FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX);
+				float MaxMagnitudeA = 0.0;
+
+				BuildNodeBounds(LocalNode->InputField.Get(), MinBoundsA, MaxBoundsA, MaxMagnitudeA);
+				MinBounds = MinBoundsA;
+				MaxBounds = MaxBoundsA;
+				MaxMagnitude = MaxMagnitudeA;
 			}
 		}
 	}
@@ -1225,21 +1366,26 @@ void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
 
 	Super::SendRenderTransform_Concurrent();
 
-	if (FieldInstance)
+	TArray<uint8> FieldBuffers = { (uint8)(EFieldCommandBuffer::GPUFieldBuffer) ,(uint8)(EFieldCommandBuffer::GPUDebugBuffer) };
+	for (uint32 FieldIndex = 0; FieldIndex < 2; ++FieldIndex)
 	{
-		const bool bPreviousUpdate = FieldInstance->FieldCommands.Num() > 0;
-
-		FieldInstance->FieldCommands.Empty();
-		FieldInstance->FieldCommands.Append(PersistentCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)]);
-		FieldInstance->FieldCommands.Append(TransientCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)]);
-		TransientCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)].Empty();
-
-		const bool bCurrentUpdate = FieldInstance->FieldCommands.Num() > 0;
-
-		if (bCurrentUpdate || bPreviousUpdate)
+		FPhysicsFieldInstance*& LocalInstance = (FieldIndex == 0) ? FieldInstance : DebugInstance;
+		if (LocalInstance)
 		{
-			const float TimeSeconds = GetWorld() ? GetWorld()->TimeSeconds : 0.0;
-			FieldInstance->UpdateInstance(TimeSeconds);
+			const bool bPreviousUpdate = LocalInstance->FieldCommands.Num() > 0;
+
+			LocalInstance->FieldCommands.Empty();
+			LocalInstance->FieldCommands.Append(PersistentCommands[FieldBuffers[FieldIndex]]);
+			LocalInstance->FieldCommands.Append(TransientCommands[FieldBuffers[FieldIndex]]);
+			TransientCommands[FieldBuffers[FieldIndex]].Empty();
+
+			const bool bCurrentUpdate = LocalInstance->FieldCommands.Num() > 0;
+
+			if (bCurrentUpdate || bPreviousUpdate)
+			{
+				const float TimeSeconds = GetWorld() ? GetWorld()->TimeSeconds : 0.0;
+				LocalInstance->UpdateInstance(TimeSeconds);
+			}
 		}
 	}
 }
@@ -1248,49 +1394,58 @@ void UPhysicsFieldComponent::OnRegister()
 {
 	Super::OnRegister();
 
-	if (!FieldInstance)
+	TArray<bool> bBuildClipmaps = { true,false };
+	for (uint32 FieldIndex = 0; FieldIndex < 2; ++FieldIndex)
 	{
-		FieldInstance = new FPhysicsFieldInstance();
-
-		if (GPhysicsFieldSingleTarget == 1)
+		FPhysicsFieldInstance*& LocalInstance = (FieldIndex == 0) ? FieldInstance : DebugInstance;
+		if (!LocalInstance)
 		{
-			TArray<EFieldPhysicsType> TargetTypes = { EFieldPhysicsType::Field_LinearForce };
-			FieldInstance->InitInstance(TargetTypes);
-		}
-		else
-		{
-			TArray<EFieldPhysicsType> TargetTypes = {   EFieldPhysicsType::Field_DynamicState,
-														EFieldPhysicsType::Field_LinearForce,
-														EFieldPhysicsType::Field_ExternalClusterStrain,
-														EFieldPhysicsType::Field_Kill,
-														EFieldPhysicsType::Field_LinearVelocity,
-														EFieldPhysicsType::Field_AngularVelociy,
-														EFieldPhysicsType::Field_AngularTorque,
-														EFieldPhysicsType::Field_InternalClusterStrain,
-														EFieldPhysicsType::Field_DisableThreshold,
-														EFieldPhysicsType::Field_SleepingThreshold,
-														EFieldPhysicsType::Field_CollisionGroup,
-														EFieldPhysicsType::Field_ActivateDisabled };
-			TargetTypes.Sort();
+			LocalInstance = new FPhysicsFieldInstance();
 
-			FieldInstance->InitInstance(TargetTypes);
+			if (GPhysicsFieldSingleTarget == 1)
+			{
+				TArray<EFieldPhysicsType> TargetTypes = { EFieldPhysicsType::Field_LinearForce };
+				LocalInstance->InitInstance(TargetTypes, bBuildClipmaps[FieldIndex]);
+			}
+			else
+			{
+				TArray<EFieldPhysicsType> TargetTypes = { EFieldPhysicsType::Field_DynamicState,
+															EFieldPhysicsType::Field_LinearForce,
+															EFieldPhysicsType::Field_ExternalClusterStrain,
+															EFieldPhysicsType::Field_Kill,
+															EFieldPhysicsType::Field_LinearVelocity,
+															EFieldPhysicsType::Field_AngularVelociy,
+															EFieldPhysicsType::Field_AngularTorque,
+															EFieldPhysicsType::Field_InternalClusterStrain,
+															EFieldPhysicsType::Field_DisableThreshold,
+															EFieldPhysicsType::Field_SleepingThreshold,
+															EFieldPhysicsType::Field_CollisionGroup,
+															EFieldPhysicsType::Field_ActivateDisabled };
+				TargetTypes.Sort();
+
+				LocalInstance->InitInstance(TargetTypes, bBuildClipmaps[FieldIndex]);
+			}
 		}
 	}
 }
 
 void UPhysicsFieldComponent::OnUnregister()
 {
-	if (FieldInstance)
+	for (uint32 FieldIndex = 0; FieldIndex < 2; ++FieldIndex)
 	{
-		FieldInstance->ReleaseInstance();
+		FPhysicsFieldInstance*& LocalInstance = (FieldIndex == 0) ? FieldInstance : DebugInstance;
+		if (LocalInstance)
+		{
+			LocalInstance->ReleaseInstance();
 
-		FPhysicsFieldInstance* LocalFieldInstance = FieldInstance;
-		ENQUEUE_RENDER_COMMAND(FDestroyVectorFieldInstanceCommand)(
-			[LocalFieldInstance](FRHICommandList& RHICmdList)
-			{
-				delete LocalFieldInstance;
-			});
-		FieldInstance = nullptr;
+			FPhysicsFieldInstance* LocalFieldInstance = LocalInstance;
+			ENQUEUE_RENDER_COMMAND(FDestroyPhysicsFieldInstanceCommand)(
+				[LocalFieldInstance](FRHICommandList& RHICmdList)
+				{
+					delete LocalFieldInstance;
+				});
+			LocalInstance = nullptr;
+		}
 	}
 	Super::OnUnregister();
 }
@@ -1307,6 +1462,11 @@ void UPhysicsFieldComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	// Persistent ones will be destrtoyed on request by the field component itslef through the RemovePersistentCommand method
 	TransientCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Reset();
 
+	if (GetWorld() && GetWorld()->Scene)
+	{
+		GetWorld()->Scene->ShowPhysicsField();
+	}
+
 	MarkRenderDynamicDataDirty();
 }
 
@@ -1314,8 +1474,9 @@ void UPhysicsFieldComponent::BuildCommandBounds(FFieldSystemCommand& FieldComman
 {
 	FieldCommand.BoundingBox.Min = FVector(-FLT_MAX);
 	FieldCommand.BoundingBox.Max = FVector(FLT_MAX);
+	FieldCommand.MaxMagnitude = 1.0;
 
-	FPhysicsFieldInstance::BuildNodeBounds(FieldCommand.RootNode.Get(), FieldCommand.BoundingBox.Min, FieldCommand.BoundingBox.Max);
+	FPhysicsFieldInstance::BuildNodeBounds(FieldCommand.RootNode.Get(), FieldCommand.BoundingBox.Min, FieldCommand.BoundingBox.Max, FieldCommand.MaxMagnitude);
 }
 
 void UPhysicsFieldComponent::AddTransientCommand(const FFieldSystemCommand& FieldCommand, const bool bIsWorldField)
@@ -1327,6 +1488,7 @@ void UPhysicsFieldComponent::AddTransientCommand(const FFieldSystemCommand& Fiel
 	else
 	{
 		TransientCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Add(FieldCommand);
+		TransientCommands[(uint8)(EFieldCommandBuffer::GPUDebugBuffer)].Add(FieldCommand);
 	}
 }
 
@@ -1339,6 +1501,7 @@ void UPhysicsFieldComponent::AddPersistentCommand(const FFieldSystemCommand& Fie
 	else
 	{
 		PersistentCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Add(FieldCommand);
+		PersistentCommands[(uint8)(EFieldCommandBuffer::GPUDebugBuffer)].Add(FieldCommand);
 	}
 }
 
@@ -1351,6 +1514,7 @@ void UPhysicsFieldComponent::RemoveTransientCommand(const FFieldSystemCommand& F
 	else
 	{
 		TransientCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Remove(FieldCommand);
+		TransientCommands[(uint8)(EFieldCommandBuffer::GPUDebugBuffer)].Remove(FieldCommand);
 	}
 }
 
@@ -1363,6 +1527,7 @@ void UPhysicsFieldComponent::RemovePersistentCommand(const FFieldSystemCommand& 
 	else
 	{
 		PersistentCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Remove(FieldCommand);
+		PersistentCommands[(uint8)(EFieldCommandBuffer::GPUDebugBuffer)].Remove(FieldCommand);
 	}
 }
 
@@ -1408,20 +1573,35 @@ void UPhysicsFieldComponent::FillPersistentCommands(const bool bIsWorldField, co
 	FillFieldCommands(InputCommands, BoundingBox, TimeSeconds, OutputCommands);
 }
 
+void GetFieldIndex(const uint32 FieldType, int32& FieldIndex, EFieldOutputType& FieldOutput)
+{
+	const EFieldPhysicsType FieldPhysicsType = GetFieldPhysicsTypes()[FieldType];
+
+	int32 TargetIndex = INDEX_NONE;
+	FieldOutput = GetFieldTargetIndex(GetFieldTargetTypes(EFieldOutputType::Field_Output_Vector),
+		GetFieldTargetTypes(EFieldOutputType::Field_Output_Scalar),
+		GetFieldTargetTypes(EFieldOutputType::Field_Output_Integer), FieldPhysicsType, FieldIndex);
+}
+
 /**
  * FPhysicsFieldSceneProxy.
  */
 
 FPhysicsFieldSceneProxy::FPhysicsFieldSceneProxy(UPhysicsFieldComponent* PhysicsFieldComponent)
 {
-	//bWillEverBeLit = false;
 	if (PhysicsFieldComponent && PhysicsFieldComponent->FieldInstance)
 	{
 		FieldResource = PhysicsFieldComponent->FieldInstance->FieldResource;
+	}
+	if (PhysicsFieldComponent && PhysicsFieldComponent->DebugInstance)
+	{
+		DebugResource = PhysicsFieldComponent->DebugInstance->FieldResource;
 	}
 }
 
 FPhysicsFieldSceneProxy::~FPhysicsFieldSceneProxy()
 {}
+
+
 
 

@@ -15,35 +15,27 @@
 	"Installed": false,
 	"Plugins": [
 		{
-			"Name": "nDisplay",
+			"Name": "AjaMedia",
 			"Enabled": true
 		},
 		{
-			"Name": "VirtualProductionUtilities",
+			"Name": "BlackmagicMedia",
 			"Enabled": true
 		},
 		{
-			"Name": "MediaFrameworkUtilities",
+			"Name": "CameraCalibration",
 			"Enabled": true
 		},
 		{
-			"Name": "MultiUserClient",
+			"Name": "Composure",
 			"Enabled": true
 		},
 		{
-			"Name": "MultiUserTakes",
+			"Name": "ColorCorrectRegions",
 			"Enabled": true
 		},
 		{
-			"Name": "RemoteControl",
-			"Enabled": true
-		},
-		{
-			"Name": "RemoteControlWebInterface",
-			"Enabled": true
-		},
-		{
-			"Name": "Switchboard",
+			"Name": "GPULightmass",
 			"Enabled": true
 		},
 		{
@@ -67,31 +59,19 @@
 			"Enabled": true
 		},
 		{
-			"Name": "TimedDataMonitor",
+			"Name": "MediaFrameworkUtilities",
 			"Enabled": true
 		},
 		{
-			"Name": "StageMonitoring",
+			"Name": "MultiUserClient",
 			"Enabled": true
 		},
 		{
-			"Name": "Takes",
+			"Name": "MultiUserTakes",
 			"Enabled": true
 		},
 		{
-			"Name": "SequencerScripting",
-			"Enabled": true
-		},
-		{
-			"Name": "OpenColorIO",
-			"Enabled": true
-		},
-		{
-			"Name": "Composure",
-			"Enabled": true
-		},
-		{
-			"Name": "ColorCorrectRegions",
+			"Name": "nDisplay",
 			"Enabled": true
 		},
 		{
@@ -99,15 +79,39 @@
 			"Enabled": true
 		},
 		{
-			"Name": "AjaMedia",
+			"Name": "OpenColorIO",
 			"Enabled": true
 		},
 		{
-			"Name": "BlackmagicMedia",
+			"Name": "RemoteControl",
 			"Enabled": true
 		},
 		{
-			"Name": "GPULightmass",
+			"Name": "RemoteControlWebInterface",
+			"Enabled": true
+		},
+		{
+			"Name": "StageMonitoring",
+			"Enabled": true
+		},
+		{
+			"Name": "Switchboard",
+			"Enabled": true
+		},
+		{
+			"Name": "Takes",
+			"Enabled": true
+		},
+		{
+			"Name": "TimedDataMonitor",
+			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": true
+		},
+		{
+			"Name": "VirtualProductionUtilities",
 			"Enabled": true
 		}
 	]

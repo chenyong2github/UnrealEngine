@@ -1837,15 +1837,32 @@ public:
 	void TrimQuotesInline(bool* bQuotesRemoved = nullptr);
 
 	/**
+	* Trims a single character from the start and end of the string (removes at max one instance in the beginning and end of the string).
+	* @see TrimChar for a variant that returns a modified copy of the string
+	*/
+	void TrimCharInline(const TCHAR CharacterToTrim, bool* bCharRemoved);
+	
+	/**
 	 * Returns a copy of this string with wrapping quotation marks removed.
 	 */
-	UE_NODISCARD FString TrimQuotes( bool* bQuotesRemoved = nullptr ) const &;
+	UE_NODISCARD FString TrimQuotes(bool* bQuotesRemoved = nullptr ) const &;
 
 	/**
 	 * Returns this string with wrapping quotation marks removed.
 	 */
 	UE_NODISCARD FString TrimQuotes(bool* bQuotesRemoved = nullptr) &&;
+	
+	/**
+	* Returns a copy of this string with wrapping CharacterToTrim removed (removes at max one instance in the beginning and end of the string).
+	* @see TrimCharInline for an inline variant
+	*/
+	UE_NODISCARD FString TrimChar(const TCHAR CharacterToTrim, bool* bCharRemoved = nullptr ) const &;
 
+	/**
+	* Returns a copy of this string with wrapping CharacterToTrim removed (removes at max one instance in the beginning and end of the string).
+	*/
+	UE_NODISCARD FString TrimChar(const TCHAR CharacterToTrim, bool* bCharRemoved = nullptr) &&;
+	
 	/**
 	 * Breaks up a delimited string into elements of a string array.
 	 *
@@ -1967,6 +1984,7 @@ public:
 	}
 
 private:
+	
 	void ReplaceCharInlineCaseSensitive(const TCHAR SearchChar, const TCHAR ReplacementChar);
 	void ReplaceCharInlineIgnoreCase(const TCHAR SearchChar, const TCHAR ReplacementChar);
 

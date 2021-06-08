@@ -2757,26 +2757,19 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 	bool bMatchOriginatingScript = OriginatingScript != nullptr;
 	bool bMatchOriginatingGraph = OriginatingGraph != nullptr;
 	bool bMatchOriginatingParameterDefinitions = OriginatingParameterDefinitions != nullptr;
-
 	TArray<UNiagaraScript*> AffectedScripts;
-	bool bMatchOriginatingScriptAndOrGraph = OriginatingScript != nullptr && OriginatingGraph != nullptr;
 
 	for (TObjectIterator<UNiagaraScript> It; It; ++It)
 	{
-		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable() || It->GetOutermost() == GetTransientPackage())
+		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable())
 		{
 			continue;
 		}
 
 		// First see if it is directly called, as this will force a need to refresh from external changes...
 		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(It->GetLatestSource());
-		if (!Source)
+		if (!Source || !Source->NodeGraph)
 		{
-			continue;
-		}
-		if (Source->NodeGraph == nullptr)
-		{
-			ensureMsgf(false, TEXT("Encountered null nodegraph on source script: %s (outer: %s)"), *Source->GetName(), *Source->GetOuter()->GetName());
 			continue;
 		}
 		TArray<UNiagaraNode*> NiagaraNodes;
@@ -2821,7 +2814,7 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 			Source->NodeGraph->GetAllReferencedGraphs(ReferencedGraphs);
 			for (const UNiagaraGraph* Graph : ReferencedGraphs)
 			{
-				if (bMatchOriginatingGraph == false || Graph == OriginatingGraph)
+				if (bMatchOriginatingGraph && Graph == OriginatingGraph)
 				{
 					//Source->NodeGraph->NotifyGraphNeedsRecompile();
 					AffectedScripts.AddUnique(*It);

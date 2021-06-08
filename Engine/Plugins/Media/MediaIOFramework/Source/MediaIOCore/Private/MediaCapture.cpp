@@ -2,6 +2,7 @@
 
 #include "MediaCapture.h"
 
+
 #include "Application/ThrottleManager.h"
 #include "Async/Async.h"
 #include "Engine/GameEngine.h"
@@ -23,7 +24,9 @@
 #include "RenderTargetPool.h"
 
 #if WITH_EDITOR
+#include "AnalyticsEventAttribute.h"
 #include "Editor.h"
+#include "EngineAnalytics.h"
 #include "IAssetViewport.h"
 #include "LevelEditor.h"
 #include "Editor/EditorEngine.h"
@@ -97,6 +100,27 @@ namespace MediaCaptureDetails
 
 	static const FName LevelEditorName(TEXT("LevelEditor"));
 }
+
+#if WITH_EDITOR
+namespace MediaCaptureAnalytics
+{
+	/**
+	 * @EventName MediaFramework.CaptureStarted
+	 * @Trigger Triggered when a capture of the viewport or render target is started.
+	 * @Type Client
+	 * @Owner MediaIO Team
+	 */
+	void SendCaptureEvent(const FString& CaptureType)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			TArray<FAnalyticsEventAttribute> EventAttributes;
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("CaptureType"), CaptureType));
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.CaptureStarted"), EventAttributes);
+		}
+	}
+}
+#endif
 
 
 /* UMediaCapture::FCaptureBaseData
@@ -247,6 +271,10 @@ bool UMediaCapture::CaptureSceneViewport(TSharedPtr<FSceneViewport>& InSceneView
 		MediaCaptureDetails::ShowSlateNotification();
 	}
 
+#if WITH_EDITOR
+	MediaCaptureAnalytics::SendCaptureEvent(TEXT("SceneViewport"));
+#endif
+	
 	return bInitialized;
 }
 
@@ -306,6 +334,10 @@ bool UMediaCapture::CaptureTextureRenderTarget2D(UTextureRenderTarget2D* InRende
 		MediaCaptureDetails::ShowSlateNotification();
 	}
 
+#if WITH_EDITOR
+	MediaCaptureAnalytics::SendCaptureEvent(TEXT("RenderTarget2D"));
+#endif
+	
 	return bInitialized;
 }
 
@@ -488,7 +520,6 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 
 			CapturingRenderTarget = nullptr;
 			CapturingSceneViewport.Reset();
-			CaptureFrames.Reset();
 			DesiredSize = FIntPoint(1280, 720);
 			DesiredPixelFormat = EPixelFormat::PF_A2B10G10R10;
 			DesiredOutputSize = FIntPoint(1280, 720);
@@ -496,6 +527,16 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 			DesiredCaptureOptions = FMediaCaptureOptions();
 			ConversionOperation = EMediaCaptureConversionOperation::NONE;
 			MediaOutputName.Reset();
+
+			// CaptureFrames contains FTexture2DRHIRef, therefore should be released on Render Tread thread.
+			// Keep references frames to be released in a temporary array and clear CaptureFrames on Game Thread.
+			TSharedPtr<TArray<FCaptureFrame>> TempArrayToBeReleasedOnRenderThread = MakeShared<TArray<FCaptureFrame>>();
+			*TempArrayToBeReleasedOnRenderThread = MoveTemp(CaptureFrames);
+			ENQUEUE_RENDER_COMMAND(MediaOutputReleaseCaptureFrames)(
+				[TempArrayToBeReleasedOnRenderThread](FRHICommandListImmediate& RHICmdList)
+				{
+					TempArrayToBeReleasedOnRenderThread->Reset();
+				});
 		}
 	}
 }
@@ -857,7 +898,9 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 		{
 			SCOPED_DRAW_EVENTF(RHICmdList, MediaCapture, TEXT("MediaCapture"));
 
-			if (InMediaCapture->ConversionOperation == EMediaCaptureConversionOperation::NONE)
+			bool bRequiresFormatConversion = InMediaCapture->DesiredPixelFormat != SourceTexture->GetFormat();
+
+			if (InMediaCapture->ConversionOperation == EMediaCaptureConversionOperation::NONE && !bRequiresFormatConversion)
 			{
 				// Asynchronously copy target from GPU to GPU
 				RHICmdList.CopyToResolveTarget(SourceTexture, DestRenderTarget.TargetableTexture, ResolveParams);
@@ -869,7 +912,6 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 			}
 			else
 			{
-				bool bRequiresAlphaChannelConversion = InMediaCapture->DesiredPixelFormat != SourceTexture->GetFormat();
 				// convert the source with a draw call
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				FRHITexture* RenderTarget = DestRenderTarget.TargetableTexture.GetReference();
@@ -914,9 +956,11 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				case EMediaCaptureConversionOperation::INVERT_ALPHA:
 					// fall through
 				case EMediaCaptureConversionOperation::SET_ALPHA_ONE:
-					bRequiresAlphaChannelConversion = true;
+					// fall through
+				case EMediaCaptureConversionOperation::NONE:
+					bRequiresFormatConversion = true;
 				default:
-					if (bRequiresAlphaChannelConversion)
+					if (bRequiresFormatConversion)
 					{
 						FModifyAlphaSwizzleRgbaPS::FPermutationDomain PermutationVector;
 						// In cases where texture is converted from a format that doesn't have A channel, we want to force set it to 1.

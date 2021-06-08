@@ -618,6 +618,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FAccesExtraBinaryConfigData, FExtraBinaryConfigData&);
 	static FAccesExtraBinaryConfigData AccessExtraBinaryConfigData;
 
+	/** Called when the verbosity of a log category is changed */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLogVerbosityChanged, const FLogCategoryName& /* CategoryName */, ELogVerbosity::Type /* OldVerbosity */, ELogVerbosity::Type /* NewVerbosity */);
+	static FOnLogVerbosityChanged OnLogVerbosityChanged;
+
 private:
 
 	// Callbacks for hotfixes

@@ -57,7 +57,7 @@ class UNiagaraNodeFunctionCall : public UNiagaraNodeWithDynamicPins
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnInputsChanged);
 
-	UPROPERTY(EditAnywhere, Category = "Function")
+	UPROPERTY(EditAnywhere, Category = "Function", meta = (ForceShowEngineContent = true, ForceShowPluginContent = true))
 	TObjectPtr<UNiagaraScript> FunctionScript;
 
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Version Details")

@@ -353,6 +353,7 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 
 					InstData.ScalabilityState = Comp->DebugCachedScalabilityState;
 					InstData.bPendingKill = Comp->IsPendingKillOrUnreachable();
+					InstData.bUsingCullProxy = Comp->IsUsingCullProxy();
 
 					InstData.PoolMethod = Comp->PoolingMethod;
 

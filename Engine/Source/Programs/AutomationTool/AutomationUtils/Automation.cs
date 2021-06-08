@@ -132,6 +132,7 @@ namespace AutomationTool
 AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 ...] Command1 [-Arg0 -Arg1 ...] Command2 [-Arg0 ...] Commandn ... [EnvVar0=MyValue0 ... EnvVarn=MyValuen]"
 )]
 	[Help("verbose", "Enables verbose logging")]
+	[Help("veryverbose", "Enables very verbose logging")]
 	[Help("nop4", "Disables Perforce functionality (default if not run on a build machine)")]
 	[Help("p4", "Enables Perforce functionality (default if run on a build machine)")]
 	[Help("compileonly", "Does not run any commands, only compiles them")]
@@ -143,6 +144,7 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 	[Help("nokill", "Does not kill any spawned processes on exit")]
 	[Help("ignorejunk", "Prevents UBT from cleaning junk files")]
     [Help("UseLocalBuildStorage", @"Allows you to use local storage for your root build storage dir (default of P:\Builds (on PC) is changed to Engine\Saved\LocalBuilds). Used for local testing.")]
+	[Help("waitfordebugger", "Waits for a debugger to be attached, and breaks once debugger sucessfully attached.")]
     public static class Automation
 	{
 		/// <summary>

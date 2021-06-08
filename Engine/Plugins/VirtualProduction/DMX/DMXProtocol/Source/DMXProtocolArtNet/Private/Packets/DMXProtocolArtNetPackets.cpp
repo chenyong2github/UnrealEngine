@@ -14,7 +14,7 @@ REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetTodData);
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetTodControl);
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetRDM);
 
-TSharedPtr<FBufferArchive> FDMXProtocolArtNetDMXPacket::Pack()
+TSharedPtr<FBufferArchive> FDMXProtocolArtNetDMXPacket::Pack(const uint16 NumProperties)
 {
 	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
@@ -37,7 +37,7 @@ void FDMXProtocolArtNetDMXPacket::Serialize(FArchive & Ar)
 }
 
 
-TSharedPtr<FBufferArchive> FDMXProtocolArtNetPollPacket::Pack()
+TSharedPtr<FBufferArchive> FDMXProtocolArtNetPollPacket::Pack(const uint16 NumProperties)
 {
 	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
@@ -91,7 +91,7 @@ void FDMXProtocolArtNetPacketReply::Serialize(FArchive & Ar)
 	Ar.Serialize((void*)Filler, sizeof(Filler));
 }
 
-TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodRequest::Pack()
+TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodRequest::Pack(const uint16 NumProperties)
 {
 	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
@@ -120,7 +120,7 @@ void FDMXProtocolArtNetTodRequest::Serialize(FArchive & Ar)
 	Ar.Serialize((void*)Address, ARTNET_MAX_RDM_ADCOUNT);
 }
 
-TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodData::Pack()
+TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodData::Pack(const uint16 NumProperties)
 {
 	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
@@ -153,7 +153,7 @@ void FDMXProtocolArtNetTodData::Serialize(FArchive & Ar)
 	Ar.Serialize((void*)Tod, sizeof(Tod));
 }
 
-TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodControl::Pack()
+TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodControl::Pack(const uint16 NumProperties)
 {
 	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
@@ -181,7 +181,7 @@ void FDMXProtocolArtNetTodControl::Serialize(FArchive & Ar)
 	Ar << Address;
 }
 
-TSharedPtr<FBufferArchive> FDMXProtocolArtNetRDM::Pack()
+TSharedPtr<FBufferArchive> FDMXProtocolArtNetRDM::Pack(const uint16 NumProperties)
 {
 	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;

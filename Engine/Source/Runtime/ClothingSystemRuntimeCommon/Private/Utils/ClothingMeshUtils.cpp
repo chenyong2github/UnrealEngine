@@ -135,12 +135,12 @@ namespace ClothingMeshUtils
 	 * Performs no validation on the incoming mesh data, the mesh data should be verified
 	 * to be valid before using this function
 	 */
-	static int32 GetBestTriangleBaseIndex(const ClothMeshDesc& Mesh, const FVector& Position)
+	static int32 GetBestTriangleBaseIndex(const ClothMeshDesc& Mesh, const FVector& Position, float InTolerance = KINDA_SMALL_NUMBER)
 	{
 		float MinimumDistanceSq = MAX_flt;
 		int32 ClosestBaseIndex = INDEX_NONE;
 
-		const TArray<int32> Tris = const_cast<ClothMeshDesc&>(Mesh).FindCandidateTriangles(Position);
+		const TArray<int32> Tris = const_cast<ClothMeshDesc&>(Mesh).FindCandidateTriangles(Position, InTolerance);
 		int32 NumTriangles = Tris.Num();
 		if (!NumTriangles)
 		{
@@ -351,9 +351,9 @@ namespace ClothingMeshUtils
 					return false;
 				}
 
-				CurrentData.PositionBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition);
-				CurrentData.NormalBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertNormal);
-				CurrentData.TangentBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertTangent);
+				CurrentData.PositionBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, VertPosition);
+				CurrentData.NormalBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, VertPosition + VertNormal);
+				CurrentData.TangentBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, VertPosition + VertTangent);
 				CurrentData.SourceMeshVertIndices[0] = SourceMesh.Indices[ClosestTriangleBaseIdx];
 				CurrentData.SourceMeshVertIndices[1] = SourceMesh.Indices[ClosestTriangleBaseIdx + 1];
 				CurrentData.SourceMeshVertIndices[2] = SourceMesh.Indices[ClosestTriangleBaseIdx + 2];
@@ -464,6 +464,28 @@ namespace ClothingMeshUtils
 		{
 			OutSkinningData.Reserve(NumMesh0Verts);
 
+			// Compute the max edge length for each edge coming out of a target vertex and 
+			// use that to guide the search radius for the source mesh triangles.
+			TArray<float> MaxEdgeLength;
+			MaxEdgeLength.Init(0.0f, NumMesh0Verts);
+
+			for (int32 TriangleIdx = 0; TriangleIdx < NumMesh0Verts; ++TriangleIdx)
+			{
+				const uint32* Triangle = &TargetMesh.Indices[TriangleIdx * 3]; 
+				
+				for (int32 Vertex0Idx = 0; Vertex0Idx < 3; Vertex0Idx++)
+				{
+					const int32 Vertex1Idx = (Vertex0Idx + 1) % 3;
+
+					const FVector& P0 = TargetMesh.Positions[Triangle[Vertex0Idx]];
+					const FVector& P1 = TargetMesh.Positions[Triangle[Vertex1Idx]];
+
+					const float EdgeLength = FVector::Distance(P0, P1);
+					MaxEdgeLength[Triangle[Vertex0Idx]] = FMath::Max(MaxEdgeLength[Triangle[Vertex0Idx]], EdgeLength);
+					MaxEdgeLength[Triangle[Vertex1Idx]] = FMath::Max(MaxEdgeLength[Triangle[Vertex1Idx]], EdgeLength);
+				}
+			}			
+
 			// For all mesh0 verts
 			for (int32 VertIdx0 = 0; VertIdx0 < NumMesh0Verts; ++VertIdx0)
 			{
@@ -485,7 +507,7 @@ namespace ClothingMeshUtils
 					VertTangent = Tan0;
 				}
 
-				int32 ClosestTriangleBaseIdx = GetBestTriangleBaseIndex(SourceMesh, VertPosition);
+				const int32 ClosestTriangleBaseIdx = GetBestTriangleBaseIndex(SourceMesh, VertPosition, MaxEdgeLength[VertIdx0]);
 				check(ClosestTriangleBaseIdx != INDEX_NONE);
 
 				const FVector3f& A = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx]];
@@ -517,9 +539,9 @@ namespace ClothingMeshUtils
 					return;
 				}
 
-				SkinningData.PositionBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition);
-				SkinningData.NormalBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertNormal);
-				SkinningData.TangentBaryCoordsAndDist = GetPointBaryAndDist(A, B, C, NA, NB, NC, VertPosition + VertTangent);
+				SkinningData.PositionBaryCoordsAndDist = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, VertPosition);
+				SkinningData.NormalBaryCoordsAndDist = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, VertPosition + VertNormal);
+				SkinningData.TangentBaryCoordsAndDist = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, VertPosition + VertTangent);
 				SkinningData.SourceMeshVertIndices[0] = SourceMesh.Indices[ClosestTriangleBaseIdx];
 				SkinningData.SourceMeshVertIndices[1] = SourceMesh.Indices[ClosestTriangleBaseIdx + 1];
 				SkinningData.SourceMeshVertIndices[2] = SourceMesh.Indices[ClosestTriangleBaseIdx + 2];
@@ -532,13 +554,198 @@ namespace ClothingMeshUtils
 	}
 
 	// TODO: Vertex normals are not used at present, a future improved algorithm might however
-	FVector4 GetPointBaryAndDist(const FVector3f& A, const FVector3f& B, const FVector3f& C, const FVector3f& NA, const FVector3f& NB, const FVector3f& NC, const FVector3f& Point)
+	FVector4 GetPointBaryAndDist(const FVector3f& A, const FVector3f& B, const FVector3f& C, const FVector3f& Point)
 	{
 		FPlane4f TrianglePlane(A, B, C);
 		const FVector3f PointOnTriPlane = FVector::PointPlaneProject(Point, TrianglePlane);
 		const FVector3f BaryCoords = FMath::ComputeBaryCentric2D(PointOnTriPlane, A, B, C);
 		return FVector4(BaryCoords, TrianglePlane.PlaneDot(Point)); // Note: The normal of the plane points away from the Clockwise face (instead of the counter clockwise face) in Left Handed Coordinates (This is why we need to invert the normals later on when before sending it to the shader)
 	}
+
+
+	
+	double TripleProduct(const FVector3f& A, const FVector3f& B, const FVector3f& C)
+	{
+		return FVector3f::DotProduct(A, FVector3f::CrossProduct(B,C));
+	}
+
+	// Solve the equation x^2 + Ax + B = 0 for real roots. 
+	// Requires an array of size 2 for the results. The return value is the number of results,
+	// either 0 or 2.
+	int32 QuadraticRoots(double Result[], double A, double B)
+	{
+		double D = 0.25 * A * A - B;
+		if (D >= 0.0)
+		{
+			D = FMath::Sqrt(D);
+			Result[0] = -0.5 * A + D; 
+			Result[1] = -0.5 * A - D;
+			return 2; 
+		}
+		return 0;
+	}
+	
+	// Solve the equation x^3 + Ax^2 + Bx + C = 0 for real roots. Requires an array of size 3 
+	// for the results. The return value is the number of results, ranging from 1 to 3.
+	// Using Viete's trig formula. See: https://en.wikipedia.org/wiki/Cubic_equation
+	int32 CubicRoots(double Result[], double A, double B, double C)
+	{
+		double A2 = A * A;
+		double P = (A2 - 3.0 * B) / 9.0;
+		double Q = (A * (2.0 * A2 - 9.0 * B) + 27.0 * C) / 54.0;
+		double P3 = P * P * P;
+		double Q2 = Q * Q;
+		if (Q2 <= (P3 + SMALL_NUMBER))
+		{
+			// We have three real roots.
+			double T = Q / FMath::Sqrt(P3);
+			// FMath::Acos automatically clamps T to [-1,1]
+			T = FMath::Acos(T);
+			A /= 3.0;
+			P = -2.0 * FMath::Sqrt(P);
+			Result[0] = P * FMath::Cos(T / 3.0) - A;
+			Result[1] = P * FMath::Cos((T + 2.0 * PI) / 3.0) - A;
+			Result[2] = P * FMath::Cos((T - 2.0 * PI) / 3.0) - A;
+			return 3;
+		}
+		else
+		{
+			// One or two real roots.
+			double R_1 = FMath::Pow(FMath::Abs(Q) + FMath::Sqrt(Q2 - P3), 1.0 / 3.0);
+			if (Q > 0.0)
+			{
+				R_1 = -R_1;
+			}
+			double R_2 = 0.0;
+			if (!FMath::IsNearlyZero(A))
+			{
+				R_2 = P / R_1;
+			}
+			A /= 3.0;
+			Result[0] = (R_1 + R_2) - A;
+			
+			if (!FMath::IsNearlyZero(UE_HALF_SQRT_3 * (R_1 - R_2)))
+			{
+				return 1;
+			}
+			
+			// Yoda: No. There is another...
+			Result[1] = -0.5 * (R_1 + R_2) - A;
+			return 2;
+		}
+	}
+
+	static int32 CoplanarityParam(
+	const FVector3f& A, const FVector3f& B, const FVector3f& C,
+	   const FVector3f& OffsetA, const FVector3f& OffsetB, const FVector3f& OffsetC,
+	   const FVector3f& Point, double Out[3])
+	{
+		FVector3f PA = A - Point;
+		FVector3f PB = B - Point;
+		FVector3f PC = C - Point;
+
+		double Coeffs[4] = {
+			TripleProduct(OffsetA, OffsetB, OffsetC),
+			TripleProduct(PA, OffsetB, OffsetC) + TripleProduct(OffsetA, PB, OffsetC) + TripleProduct(OffsetA, OffsetB, PC),
+			TripleProduct(PA, PB, OffsetC) + TripleProduct(PA, OffsetB, PC) + TripleProduct(OffsetA, PB, PC),
+			TripleProduct(PA, PB, PC)
+			};
+
+		// Solve cubic A*w^3 + B*w^2 + C*w + D
+		if (FMath::IsNearlyZero(Coeffs[0], double(KINDA_SMALL_NUMBER)))
+		{
+			// In this case, the tetrahedron formed above is probably already at zero volume,
+			// which means the point is coplanar to the triangle without normal offsets.
+			// Just compute the signed distance.
+			const FPlane4f TrianglePlane(A, B, C);
+			Out[0] = -TrianglePlane.PlaneDot(Point);
+			return 1;
+		}
+		else
+		{
+			for (int32 I = 1; I < 4; I++)
+			{
+				Coeffs[I] /= Coeffs[0];
+			}
+			
+			return CubicRoots(Out, Coeffs[1], Coeffs[2], Coeffs[3]);
+		}
+	}
+
+	FVector4 GetPointBaryAndDistWithNormals(
+		const FVector3f& A, const FVector3f& B, const FVector3f& C,
+		const FVector3f& NA, const FVector3f& NB, const FVector3f& NC,
+		const FVector3f& Point)
+	{
+		// Adapted from cloth CCD paper [Bridson et al. 2002]
+		// First find W such that Point lies in the plane defined by {A+wNA, B+wNB, C+wNC}
+		// Pass in inverted normals, since they get inverted at runtime (Left handed system).
+		double W[3];
+		const int32 Count = CoplanarityParam(A, B, C, NA, NB, NC, Point, W);
+
+		if (Count == 0)
+		{
+			return GetPointBaryAndDist(A, B, C, Point);
+		}
+
+		FVector4 BaryAndDist;
+		double MinDistanceSq = std::numeric_limits<double>::max();
+
+		// If the solution gives us barycentric coordinates that lie purely within the triangle,
+		// then choose that. Otherwise try to minimize the distance of the projected point to
+		// be as close to the triangle as possible.
+		for (int32 Index = 0; Index < Count; Index++)
+		{
+			// Then find the barycentric coordinates of Point wrt {A+wNA, B+wNB, C+wNC}
+			FVector AW = A + W[Index] * NA;
+			FVector BW = B + W[Index] * NB;
+			FVector CW = C + W[Index] * NC;
+
+			FPlane4f TrianglePlane(AW, BW, CW);
+
+			const FVector3f PointOnTriPlane = FVector::PointPlaneProject(Point, TrianglePlane);
+			const FVector3f BaryCoords = FMath::ComputeBaryCentric2D(PointOnTriPlane, AW, BW, CW);
+
+			if (BaryCoords.X >= 0.0f && BaryCoords.X <= 1.0f &&
+				BaryCoords.Y >= 0.0f && BaryCoords.Y <= 1.0f &&
+				BaryCoords.Z >= 0.0f && BaryCoords.Z <= 1.0f)
+			{
+				BaryAndDist = FVector4(BaryCoords, -W[Index]);
+				break;
+			}
+			
+			const float DistSq = FMath::Square(BaryCoords.X - 0.5) +
+								 FMath::Square(BaryCoords.Y - 0.5) +
+								 FMath::Square(BaryCoords.Z - 0.5);
+			
+			if (DistSq < MinDistanceSq)
+			{
+				BaryAndDist = FVector4(BaryCoords, -W[Index]);
+				MinDistanceSq = DistSq;
+			}
+		}
+
+		const FVector3f ReprojectedPoint =
+			BaryAndDist.X * (A - NA * BaryAndDist.W) +
+			BaryAndDist.Y * (B - NB * BaryAndDist.W) +
+			BaryAndDist.Z * (C - NC * BaryAndDist.W);
+
+		const float Distance = FVector::Distance(Point, ReprojectedPoint);
+
+		// Check if the reprojected point is far from the original. If it is, fall back on
+		// the old method of computing the bary values.
+		// FIXME: Should we test other cage triangles instead? It's possible that
+		// GetBestTriangleBaseIndex is not actually picking the /best/ one.
+		const bool bRequireFallback = !FMath::IsNearlyZero(Distance, KINDA_SMALL_NUMBER); 
+
+		if (bRequireFallback)
+		{
+			return GetPointBaryAndDist(A, B, C, Point);
+		}
+		
+		return BaryAndDist;
+	}
+
 
 	void GenerateEmbeddedPositions(const ClothMeshDesc& SourceMesh, TArrayView<const FVector3f> Positions, TArray<FVector4>& OutEmbeddedPositions, TArray<int32>& OutSourceIndices)
 	{
@@ -573,7 +780,7 @@ namespace ClothingMeshUtils
 			const FVector3f& NB = SourceMesh.Normals[IB];
 			const FVector3f& NC = SourceMesh.Normals[IC];
 
-			OutEmbeddedPositions[PositionIndex] = GetPointBaryAndDist(A, B, C, NA, NB, NC, Position);
+			OutEmbeddedPositions[PositionIndex] = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, Position);
 			OutSourceIndices.Add(IA);
 			OutSourceIndices.Add(IB);
 			OutSourceIndices.Add(IC);
@@ -643,7 +850,7 @@ namespace ClothingMeshUtils
 	}
 
 
-	TArray<int32> ClothMeshDesc::FindCandidateTriangles(const FVector Point)
+	TArray<int32> ClothMeshDesc::FindCandidateTriangles(const FVector& InPoint, float InTolerance)
 	{
 		ensure(HasValidMesh());
 		static const int32 MinNumTrianglesForBVHCreation = 100;
@@ -663,8 +870,8 @@ namespace ClothingMeshUtils
 				BVH.Reinitialize(BVEntries);
 				bHasValidBVH = true;
 			}
-			Chaos::FAABB3 TmpAABB(Point, Point);
-			TmpAABB.Thicken(KINDA_SMALL_NUMBER);  // Most points might be very close to the triangle, but not directly on it
+			Chaos::FAABB3 TmpAABB(InPoint, InPoint);
+			TmpAABB.Thicken(InTolerance);  // Most points might be very close to the triangle, but not directly on it
 			TArray<int32> Triangles = BVH.FindAllIntersections(TmpAABB);
 
 			// Refine the search to include all nearby bounded volumes (the point could well be outside the closest triangle's bounded volume)
@@ -673,7 +880,7 @@ namespace ClothingMeshUtils
 				float ClosestDistance = TNumericLimits<float>::Max();
 				for (const int32 Triangle : Triangles)
 				{
-					ClosestDistance = FMath::Min(ClosestDistance, DistanceToTriangle(Point, *this, Triangle * 3));
+					ClosestDistance = FMath::Min(ClosestDistance, DistanceToTriangle(InPoint, *this, Triangle * 3));
 				}
 
 				TmpAABB.Thicken(ClosestDistance);

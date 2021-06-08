@@ -393,18 +393,18 @@ namespace UE
 		/// <param name="InArtifacts"></param>
 		/// <param name="ExitReason"></param>
 		/// <returns></returns>
-		protected override int GetExitCodeAndReason(UnrealRoleArtifacts InArtifacts, out string ExitReason)
+		protected override UnrealProcessResult GetExitCodeAndReason(StopReason InReason, UnrealLog InLog, UnrealRoleArtifacts InArtifacts, out string ExitReason, out int ExitCode)
 		{
-			int ExitCode = base.GetExitCodeAndReason(InArtifacts, out ExitReason);
+			UnrealProcessResult UnrealResult = base.GetExitCodeAndReason(InReason, InLog, InArtifacts, out ExitReason, out ExitCode);
 
 			// The editor is an additional arbiter of success
 			if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor 
-				&& InArtifacts.LogSummary.HasAbnormalExit == false)
+				&& InLog.HasAbnormalExit == false)
 			{
 				// if no fatal errors, check test results
-				if (InArtifacts.LogParser.GetFatalError() == null)
+				if (InLog.FatalError == null)
 				{
-					AutomationLogParser Parser = new AutomationLogParser(InArtifacts.LogParser);
+					AutomationLogParser Parser = new AutomationLogParser(InLog.FullLogContent);
 
 					IEnumerable<AutomationTestResult> TotalTests = Parser.GetResults();
 					IEnumerable<AutomationTestResult> FailedTests = TotalTests.Where(R => !R.Passed);
@@ -412,8 +412,9 @@ namespace UE
 					// Tests failed so list that as our primary cause of failure
 					if (FailedTests.Any())
 					{
-						ExitReason = string.Format("{0}/{1} tests failed", FailedTests.Count(), TotalTests.Count());
+						ExitReason = string.Format("{0} of {1} test(s) failed", FailedTests.Count(), TotalTests.Count());
 						ExitCode = -1;
+						return UnrealProcessResult.TestFailure;
 					}
 
 					// If no tests were run then that's a failure (possibly a bad RunTest argument?)
@@ -421,19 +422,21 @@ namespace UE
 					{
 						ExitReason = "No tests were executed!";
 						ExitCode = -1;
+						return UnrealProcessResult.TestFailure;
 					}
 				}
 			}
 
-			return ExitCode;
+			return UnrealResult;
 		}
 
 		/// <summary>
 		/// Optional function that is called on test completion and gives an opportunity to create a report
 		/// </summary>
 		/// <param name="Result"></param>
-		/// <returns>ITestReport</returns>
-		public override ITestReport CreateReport(TestResult Result)
+		/// <param name="Context"></param>
+		/// <param name="Build"></param>
+		public override ITestReport CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleResult> InResults, string ArtifactPath)
 		{
 			ITestReport Report = null;
 			if (GetConfiguration() is AutomationTestConfig)
@@ -445,7 +448,7 @@ namespace UE
 				{
 					if (Config.SimpleHordeReport)
 					{
-						Report = base.CreateReport(Result);
+						Report = base.CreateReport(Result, Context, Build, InResults, ArtifactPath);
 					}
 					else
 					{
@@ -481,15 +484,17 @@ namespace UE
 		/// <returns></returns>
 		protected override string GetTestSummaryHeader()
 		{
+			const int kMaxErrorsOrWarningsToDisplay = 5;
+
 			MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
 
 			// Everything we need is in the editor artifacts
-			var EditorArtifacts = SessionArtifacts.Where(A => A.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
+			var EditorRole = RoleResults.Where(R => R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
 
-			if (EditorArtifacts != null)
+			if (EditorRole != null)
 			{
 				// Parse automaton info from the log (TODO - use the json version)
-				AutomationLogParser Parser = new AutomationLogParser(EditorArtifacts.LogParser);
+				AutomationLogParser Parser = new AutomationLogParser(EditorRole.LogSummary.FullLogContent);
 
 				// Filter our tests into categories
 				IEnumerable<AutomationTestResult> AllTests = Parser.GetResults();
@@ -498,15 +503,15 @@ namespace UE
 				IEnumerable<AutomationTestResult> TestsWithWarnings = AllTests.Where(R => R.Completed && R.Passed && R.WarningEvents.Any());
 
 				// If there were abnormal exits then look only at the incomplete tests to avoid confusing things.
-				if (GetArtifactsThatExitedAbnormally().Any())
+				if (GetRolesThatExitedAbnormally().Any())
 				{
 					if (AllTests.Count() == 0)
 					{
-						MB.H3("No tests were executed.");
+						MB.H3("Error: No tests were executed.");
 					}
 					else if (IncompleteTests.Count() > 0)
 					{
-						MB.H3("The following test(s) were incomplete:");
+						MB.H3("Error: The following test(s) were incomplete:");
 
 						foreach (AutomationTestResult Result in IncompleteTests)
 						{
@@ -519,9 +524,9 @@ namespace UE
 				{
 					if (AllTests.Count() == 0)
 					{
-						MB.H3("No tests were executed.");
+						MB.H3("Error: No tests were executed.");
 
-						IEnumerable<UnrealLogParser.LogEntry> WarningsAndErrors = Parser.AutomationWarningsAndErrors;
+						IEnumerable<UnrealLog.LogEntry> WarningsAndErrors = Parser.AutomationWarningsAndErrors;
 
 						if (WarningsAndErrors.Any())
 						{
@@ -534,6 +539,16 @@ namespace UE
 					}
 					else
 					{
+
+						Func<string, string> SantizeLineForHorde = (L) =>
+						{
+							L = L.Replace(": Error: ", ": Err: ");
+							L = L.Replace(": Warning: ", ": Warn: ");
+							L = L.Replace("LogAutomationController: ", "");
+
+							return L;
+						};
+
 						// Now list the tests that failed
 						if (FailedTests.Count() > 0)
 						{
@@ -541,8 +556,17 @@ namespace UE
 
 							foreach (AutomationTestResult Result in FailedTests)
 							{
-								MB.H4(Result.FullName);
-								MB.UnorderedList(Result.Events.Distinct());
+								// only show the last N items
+								IEnumerable<string> Events = Result.Events.Distinct();
+
+								if (Events.Count() > kMaxErrorsOrWarningsToDisplay)
+								{
+									Events = Events.Skip(Events.Count() - kMaxErrorsOrWarningsToDisplay);
+								}
+
+								MB.H4(string.Format("Error: Test '{0}' failed", Result.DisplayName));
+								MB.Paragraph("FullName: " + Result.TestName);
+								MB.UnorderedList(Events.Distinct().Select(E => SantizeLineForHorde(E)));
 							}
 						}
 
@@ -552,8 +576,17 @@ namespace UE
 
 							foreach (AutomationTestResult Result in TestsWithWarnings)
 							{
-								MB.Paragraph(Result.FullName);
-								MB.UnorderedList(Result.WarningEvents.Distinct());
+							// only show the last N items
+							IEnumerable<string> WarningEvents = Result.WarningEvents.Distinct();
+
+							if (WarningEvents.Count() > kMaxErrorsOrWarningsToDisplay)
+							{
+								WarningEvents = WarningEvents.Skip(WarningEvents.Count() - kMaxErrorsOrWarningsToDisplay);
+							}
+
+							MB.H4(string.Format("Warning: Test '{0}' completed with warnings", Result.DisplayName));
+							MB.Paragraph("FullName: " + Result.TestName);
+							MB.UnorderedList(WarningEvents.Distinct().Select(E => SantizeLineForHorde(E)));
 							}
 						}
 
@@ -563,8 +596,17 @@ namespace UE
 
 							foreach (AutomationTestResult Result in IncompleteTests)
 							{
-								MB.H4(string.Format("{0}", Result.FullName));
-								MB.UnorderedList(Result.WarningAndErrorEvents.Distinct());
+								// only show the last N items
+								IEnumerable<string> WarningAndErrorEvents = Result.WarningAndErrorEvents.Distinct();
+
+								if (WarningAndErrorEvents.Count() > kMaxErrorsOrWarningsToDisplay)
+								{
+									WarningAndErrorEvents = WarningAndErrorEvents.Skip(WarningAndErrorEvents.Count() - kMaxErrorsOrWarningsToDisplay);
+								}
+
+								MB.H4(string.Format("Error: Test '{0}' did not run or complete", Result.DisplayName));
+								MB.Paragraph("FullName: " + Result.TestName);
+								MB.UnorderedList(WarningAndErrorEvents.Distinct().Select(E => SantizeLineForHorde(E)));
 							}
 						}
 
@@ -597,11 +639,12 @@ namespace UE
 							TestSummary.Add(string.Format("{0} Test(s) didn't complete", IncompleteTests.Count()));
 						}
 
+						MB.H3("Summary");
 						MB.UnorderedList(TestSummary);
 					}
 				}
 
-				if (EditorArtifacts.LogParser.GetSummary().EngineInitialized)
+				if (EditorRole.LogSummary.EngineInitialized)
 				{
 					// Use the paths from the report. If we passed these in they should be the same, and if not
 					// they'll be valid defaults
@@ -646,11 +689,11 @@ namespace UE
 		{
 			List<string> AllErrors = new List<string>(base.GetErrors());
 
-			foreach (var Artifact in GetArtifactsWithFailures())
+			foreach (var Role in GetRolesThatFailed())
 			{
-				if (Artifact.SessionRole.RoleType == UnrealTargetRole.Editor)
+				if (Role.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
 				{
-					AutomationLogParser Parser = new AutomationLogParser(Artifact.LogParser);
+					AutomationLogParser Parser = new AutomationLogParser(Role.LogSummary.FullLogContent);
 					AllErrors.AddRange(
 						Parser.GetResults().Where(R => !R.Passed)
 							.SelectMany(R => R.Events
@@ -677,11 +720,11 @@ namespace UE
 				return AllWarnings;
 			}
 
-			foreach (var Artifact in SessionArtifacts)
+			foreach (var Role in RoleResults)
 			{
-				if (Artifact.SessionRole.RoleType == UnrealTargetRole.Editor)
+				if (Role.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
 				{
-					AutomationLogParser Parser = new AutomationLogParser(Artifact.LogParser);
+					AutomationLogParser Parser = new AutomationLogParser(Role.LogSummary.FullLogContent);
 					AllWarnings.AddRange(
 						Parser.GetResults()
 							.SelectMany(R => R.Events

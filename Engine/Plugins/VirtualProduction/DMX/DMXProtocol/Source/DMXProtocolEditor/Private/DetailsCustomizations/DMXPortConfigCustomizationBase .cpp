@@ -94,7 +94,7 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 		{
 			GenerateIPAddressRow(PropertyRow);
 		}
-		if (Iter.Key() == GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DestinationAddress))
+		if (Iter.Key() == FDMXOutputPortConfig::GetDestinationAddressPropertyNameChecked())
 		{
 			// Customize the destination address for DMXOutputPortConfig only, instead of doing it in DMXOutputPortConfigCustomization.
 			// This is not beautiful code, but otherwise the whole customization with almost identical code would have to be moved to child classes.
@@ -118,6 +118,8 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 
 IDMXProtocolPtr FDMXPortConfigCustomizationBase::GetProtocolChecked() const
 {
+	// We don't expect this to ever fail. 
+	// If there's no protocol, there's no DMX, and this is details customizations for DMX only, this should not be dealt with here.
 	check(ProtocolNameHandle.IsValid());
 
 	FName ProtocolName;
@@ -125,7 +127,7 @@ IDMXProtocolPtr FDMXPortConfigCustomizationBase::GetProtocolChecked() const
 
 	IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
 	check(Protocol.IsValid());
-
+	
 	return Protocol;
 }
 
@@ -200,9 +202,9 @@ void FDMXPortConfigCustomizationBase::GenerateProtocolNameRow(IDetailPropertyRow
 	TSharedPtr<SWidget> ValueWidget;
 	FDetailWidgetRow Row;
 	PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
-			
-	FName InitialSelection = GetProtocolChecked()->GetProtocolName();
-
+	
+	const FName InitialSelection = GetProtocolChecked()->GetProtocolName();
+		
 	PropertyRow.CustomWidget()
 		.NameContent()
 		[

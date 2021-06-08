@@ -1429,11 +1429,14 @@ namespace PerfSummaries
 			public double value;
 			public string summaryStatName;
 			public string statName;
+			public string otherStatName;
 			public bool perSecond;
 			public bool filterOutZeros;
 			public bool applyEndOffset;
 			public double multiplier;
 			public double threshold;
+			public double frameExponent; // Exponent for relative frame time (0-1) in streamingstressmetric formula
+			public double statExponent; // Exponent for stat value in streamingstressmetric formula
 			public ColourThresholdList colourThresholdList;
 		};
 		public BoundedStatValuesSummary(XElement element, string baseXmlDirectory)
@@ -1479,14 +1482,17 @@ namespace PerfSummaries
 				{
 					stats.Add(column.statName);
 				}
+				column.otherStatName = columnEl.GetSafeAttibute<string>("otherStat", "").ToLower();
 
 				column.name = columnEl.Attribute("name").Value;
-				column.formula = columnEl.Attribute("formula").Value;
+				column.formula = columnEl.Attribute("formula").Value.ToLower();
 				column.filterOutZeros= columnEl.GetSafeAttibute<bool>("filteroutzeros", false);
 				column.perSecond = columnEl.GetSafeAttibute<bool>("persecond", false);
 				column.multiplier = columnEl.GetSafeAttibute<double>("multiplier", 1.0);
 				column.threshold = columnEl.GetSafeAttibute<double>("threshold", 0.0);
 				column.applyEndOffset = columnEl.GetSafeAttibute<bool>("applyEndOffset", true);
+				column.frameExponent = columnEl.GetSafeAttibute<double>("frameExponent", 4.0);
+				column.statExponent = columnEl.GetSafeAttibute<double>("statExponent", 0.25);
 				columns.Add(column);
 			}
 		}
@@ -1570,6 +1576,7 @@ namespace PerfSummaries
 			foreach (Column col in filteredColumns)
 			{
 				List<float> statValues = csvStats.GetStat(col.statName).samples;
+				List<float> otherStatValues = csvStats.GetStat(col.otherStatName)?.samples;
 				double value = 0.0;
 				double totalFrameWeight = 0.0;
 				int colEndFrame = col.applyEndOffset ? endFrame : endEventFrame;
@@ -1642,6 +1649,54 @@ namespace PerfSummaries
 					}
 					totalFrameWeight = 1.0;
 				}
+				else if (col.formula == "sumwhenotheroverthreshold")
+				{
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						if (otherStatValues[i] > col.threshold)
+						{
+							value += statValues[i];
+						}
+					}
+
+					if (col.perSecond)
+					{
+						double totalTimeMS = 0.0;
+						for (int i = startFrame; i < colEndFrame; i++)
+						{
+							if ((col.filterOutZeros == false || statValues[i] > 0) && otherStatValues[i] > col.threshold)
+							{
+								totalTimeMS += frameTimes[i];
+							}
+						}
+						value /= (totalTimeMS / 1000.0);
+					}
+					totalFrameWeight = 1.0;
+				}
+				else if (col.formula == "sumwhenotherunderthreshold")
+				{
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						if (otherStatValues[i] < col.threshold)
+						{
+							value += statValues[i];
+						}
+					}
+
+					if (col.perSecond)
+					{
+						double totalTimeMS = 0.0;
+						for (int i = startFrame; i < colEndFrame; i++)
+						{
+							if ((col.filterOutZeros == false || statValues[i] > 0) && otherStatValues[i] < col.threshold)
+							{
+								totalTimeMS += frameTimes[i];
+							}
+						}
+						value /= (totalTimeMS / 1000.0);
+					}
+					totalFrameWeight = 1.0;
+				}
 				else if (col.formula == "streamingstressmetric")
 				{
 					// Note: tInc is scaled such that it hits 1.0 on the event frame, regardless of the offset
@@ -1652,7 +1707,7 @@ namespace PerfSummaries
 						if (col.filterOutZeros == false || statValues[i] > 0)
 						{
 							// Frame weighting is scaled to heavily favor final frames. Note that t can exceed 1 after the event frame if an offset percentage is specified, so we clamp it
-							double frameWeight = Math.Pow(Math.Min(t,1.0), 4.0) * frameTimes[i];
+							double frameWeight = Math.Pow(Math.Min(t,1.0), col.frameExponent) * frameTimes[i];
 
 							// If we're past the end event frame, apply a linear falloff to the weight
 							if (i >= endEventFrame)
@@ -1662,12 +1717,27 @@ namespace PerfSummaries
 							}
 
 							// The frame score takes into account the queue depth, but it's not massively significant
-							double frameScore = Math.Pow(statValues[i], 0.25);
+							double frameScore = Math.Pow(statValues[i], col.statExponent);
 							value += frameScore * frameWeight;
 							totalFrameWeight += frameWeight;
 						}
 						t += tInc;
 					}
+				}
+				else if(col.formula == "ratio")
+				{
+					double numerator = 0.0;
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						numerator += statValues[i];
+					}
+					double denominator = 0.0;
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						denominator += otherStatValues[i];
+					}
+					value = numerator / denominator; // TODO: Does the rest of the pipeline handle +/-i infinity?
+					totalFrameWeight = 1.0;
 				}
 				else
 				{

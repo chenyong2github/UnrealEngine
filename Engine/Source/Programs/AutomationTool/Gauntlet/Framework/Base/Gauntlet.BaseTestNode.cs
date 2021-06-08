@@ -177,11 +177,11 @@ namespace Gauntlet
 		/// <summary>
 		/// Called after the test is completed and shutdown
 		/// </summary>
-		/// <param name="WasCancelled"></param>
+		/// <param name="InReason"></param>
 		/// <returns></returns>
-		public virtual void StopTest(bool InWasCancelled)
+		public virtual void StopTest(StopReason InReason)
 		{
-			WasCancelled = InWasCancelled;
+			WasCancelled = InReason != StopReason.Completed;
 		}
 
 		/// <summary>

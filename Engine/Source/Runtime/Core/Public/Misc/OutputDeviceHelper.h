@@ -9,13 +9,6 @@
 struct CORE_API FOutputDeviceHelper
 {
 	/**
-	 * Converts verbosity to a string
-	 * @param Verbosity verbosity enum
-	 * @returns String representation of the verbosity enum
-	 */
-	static const TCHAR* VerbosityToString(ELogVerbosity::Type Verbosity);
-
-	/**
 	 * Formats a log line with date, time, category and verbosity prefix
 	 * @param Verbosity Message verbosity
 	 * @param Category Message category

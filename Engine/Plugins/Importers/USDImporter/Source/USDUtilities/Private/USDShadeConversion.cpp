@@ -1902,8 +1902,16 @@ FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetP
 		FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
 		FPaths::NormalizeFilename( TexturePath );
 
-		pxr::SdfLayerRefPtr TextureLayer = UsdUtils::FindLayerForAttribute( TextureAssetPathAttr, pxr::UsdTimeCode::EarliestTime().GetValue() );
-		ResolvedTexturePath = UsdShadeConversionImpl::ResolveAssetPath( TextureLayer, TexturePath );
+		if ( !TexturePath.IsEmpty() )
+		{
+			pxr::SdfLayerRefPtr TextureLayer = UsdUtils::FindLayerForAttribute( TextureAssetPathAttr, pxr::UsdTimeCode::EarliestTime().GetValue() );
+			ResolvedTexturePath = UsdShadeConversionImpl::ResolveAssetPath( TextureLayer, TexturePath );
+		}
+	}
+
+	if ( ResolvedTexturePath.IsEmpty() )
+	{
+		UE_LOG( LogUsd, Warning, TEXT( "Failed to resolve texture path on attribute '%s'" ), *UsdToUnreal::ConvertPath( TextureAssetPathAttr.GetPath() ) );
 	}
 
 	return ResolvedTexturePath;

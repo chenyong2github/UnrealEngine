@@ -142,34 +142,6 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 
 		PreviousEditorColor = EditorColor;
 	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeR))
-	{
-		UpdateEachChild([this](UDMXPixelMappingMatrixCellComponent* InComponent)
-		{
-			InComponent->ByteOffsetR.Reset();
-		});
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeG))
-	{
-		UpdateEachChild([this](UDMXPixelMappingMatrixCellComponent* InComponent)
-        {
-            InComponent->ByteOffsetG.Reset();
-        });
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeB))
-	{
-		UpdateEachChild([this](UDMXPixelMappingMatrixCellComponent* InComponent)
-        {
-            InComponent->ByteOffsetB.Reset();
-        });
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, MonochromeIntensity))
-	{
-		UpdateEachChild([this](UDMXPixelMappingMatrixCellComponent* InComponent)
-        {
-            InComponent->ByteOffsetM.Reset();
-        });
-	}
 	
 	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{

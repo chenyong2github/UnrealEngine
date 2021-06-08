@@ -23,6 +23,16 @@ public:
 	/** Writes to the provided raw data pointer. Returns size for array, string, etc. */
 	SIZE_T GetValue(uint8* OutData);
 
+	/** Writes to the provided data array. Returns size for array, string, etc. */
+	SIZE_T GetValue(TArray<uint8>& OutData);
+
+	/** Returns the Value as ValueType. Not necessarily valid if using incorrect ValueType. */
+	template <typename ValueType>
+	ValueType* GetValue()
+	{
+		return GetValueProperty()->ContainerPtrToValuePtr<ValueType>(this);
+	}
+
 	/** Returns the Property for Value */
 	virtual FProperty* GetValueProperty();
 

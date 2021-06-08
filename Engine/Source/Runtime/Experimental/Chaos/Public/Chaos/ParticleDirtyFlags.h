@@ -159,6 +159,17 @@ public:
 	const FVec3& AngularImpulse() const { return MAngularImpulse; }
 	void SetAngularImpulse(const FVec3& AngularImpulse){ MAngularImpulse = AngularImpulse; }
 
+	static FParticleDynamics ZeroValue()
+	{
+		FParticleDynamics Result;
+		Result.MF = FVec3(0);
+		Result.MTorque = FVec3(0);
+		Result.MLinearImpulse = FVec3(0);
+		Result.MAngularImpulse = FVec3(0);
+
+		return Result;
+	}
+
 private:
 	FVec3 MF;
 	FVec3 MTorque;

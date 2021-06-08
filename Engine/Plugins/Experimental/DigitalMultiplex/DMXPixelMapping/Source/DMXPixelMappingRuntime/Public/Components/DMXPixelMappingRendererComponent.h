@@ -115,13 +115,13 @@ public:
 	 * @param InDownsampleBuffer CPU buffer
 	 * @param InRect buffer X and Y dimension
 	 */
-	void SetDownsampleBuffer(TArray<FColor>&& InDownsampleBuffer, FIntRect InRect);
+	void SetDownsampleBuffer(TArray<FLinearColor>&& InDownsampleBuffer, FIntRect InRect);
 
-	/** Get Pixel color by given downsample pixel index */
-	TOptional<FColor> GetDownsampleBufferPixel(const int32 InDownsamplePixelIndex);
+	/** Get Pixel color by given downsample pixel index. Returns false if no color value could be acquired */
+	bool GetDownsampleBufferPixel(const int32 InDownsamplePixelIndex, FLinearColor& OutLinearColor);
 
-	/** Get Pixels color by given downsample pixel range */
-	TArray<FColor> GetDownsampleBufferPixels(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd);
+	/** Get Pixels color by given downsample pixel range. Returns false if no color values could be acquired */
+	bool GetDownsampleBufferPixels(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd, TArray<FLinearColor>& OutLinearColors);
 
 	/** Reset the color by given downsample pixel index */
 	bool ResetColorDownsampleBufferPixel(const int32 InDownsamplePixelIndex);
@@ -214,7 +214,7 @@ private:
 	UTextureRenderTarget2D* DownsampleBufferTarget;
 
 	/** CPU downsample pixel buffer */
-	TArray<FColor> DownsampleBuffer;
+	TArray<FLinearColor> DownsampleBuffer;
 
 	/** Counter for all pixels from child components */
 	int32 DownsamplePixelCount;

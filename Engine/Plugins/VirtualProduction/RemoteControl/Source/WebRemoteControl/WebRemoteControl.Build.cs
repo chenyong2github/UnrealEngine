@@ -30,6 +30,7 @@ public class WebRemoteControl : ModuleRules
 				new string[] {
 					"Engine",
 					"ImageWrapper",
+					"RemoteControlUI",
 					"Settings",
 					"Slate",
 					"SlateCore",

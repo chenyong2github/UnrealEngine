@@ -2,6 +2,8 @@
 
 #include "Views/Results/SLevelSnapshotsEditorResults.h"
 
+
+#include "ClassIconFinder.h"
 #include "Data/FilteredResults.h"
 #include "Data/LevelSnapshot.h"
 #include "LevelSnapshotsLog.h"
@@ -25,6 +27,7 @@
 #include "PropertyHandle.h"
 #include "SnapshotRestorability.h"
 #include "Stats/StatsMisc.h"
+#include "Styling/SlateIconFinder.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -823,6 +826,8 @@ bool FLevelSnapshotsEditorResultsRow::DoesRowRepresentObject() const
 		ActorGroup,
 		ComponentGroup,
 		SubObjectGroup,
+		AddedActor,
+		RemovedActor
 	};
 
 	return GroupTypes.Contains(GetRowType());
@@ -908,9 +913,46 @@ void FLevelSnapshotsEditorResultsRow::SetDisplayName(const FText InDisplayName)
 	DisplayName = InDisplayName;
 }
 
+const FSlateBrush* FLevelSnapshotsEditorResultsRow::GetIconBrush() const
+{
+	if (RowType == ComponentGroup)
+	{		
+		ELevelSnapshotsObjectType ObjectType;
+		UObject* RowObject = GetFirstValidObject(ObjectType);
+		
+		if (UActorComponent* AsComponent = Cast<UActorComponent>(RowObject))
+		{
+			return FSlateIconFinder::FindIconBrushForClass(AsComponent->GetClass(), TEXT("SCS.Component"));
+		}
+	}
+	else if (RowType == ActorGroup)
+	{		
+		ELevelSnapshotsObjectType ObjectType;
+		UObject* RowObject = GetFirstValidObject(ObjectType);
+		
+		if (AActor* AsActor = Cast<AActor>(RowObject))
+		{
+			FName IconName = AsActor->GetCustomIconName();
+			if (IconName == NAME_None)
+			{
+				IconName = AsActor->GetClass()->GetFName();
+			}
+
+			return FClassIconFinder::FindIconForActor(AsActor);
+		}
+	}
+
+	return nullptr;
+}
+
 const TArray<FLevelSnapshotsEditorResultsRowPtr>& FLevelSnapshotsEditorResultsRow::GetChildRows() const
 {
 	return ChildRows;
+}
+
+int32 FLevelSnapshotsEditorResultsRow::GetChildCount() const
+{
+	return ChildRows.Num();
 }
 
 void FLevelSnapshotsEditorResultsRow::SetChildRows(const TArray<FLevelSnapshotsEditorResultsRowPtr>& InChildRows)
@@ -1247,9 +1289,12 @@ void FLevelSnapshotsEditorResultsRow::SetWidgetCheckedState(const ECheckBoxState
 		EvaluateAndSetAllParentGroupCheckedStates();
 	}
 
-	if (GetRowType() == ActorGroup && ResultsViewPtr.IsValid())
+	const ELevelSnapshotsEditorResultsRowType RowTypeLocal = GetRowType();
+	
+	if ((RowTypeLocal == ActorGroup || RowTypeLocal == AddedActor || RowTypeLocal == RemovedActor) && ResultsViewPtr.IsValid())
 	{
 		ResultsViewPtr.Pin()->UpdateSnapshotInformationText();
+		ResultsViewPtr.Pin()->RefreshScroll();
 	}
 }
 
@@ -1605,7 +1650,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 					.Text(LOCTEXT("LevelSnapshotsEditorResults_NoResults", "No results to show. Try selecting a snapshot, changing your active filters, or clearing any active search."))
 					.Visibility_Lambda([this]()
 						{
-							return this->DoesTreeViewHaveVisibleChildren() ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
+							return DoesTreeViewHaveVisibleChildren() ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
 						})
 				]
 			]
@@ -1625,33 +1670,19 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 					.HAlign(HAlign_Right)
 					.Padding(FMargin(5.f, 5.f))
 					[
-						SNew(SVerticalBox)
+						SAssignNew(InfoTextBox, SVerticalBox)
+						.Visibility_Lambda([this]()
+						{
+							return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot() && TreeViewRootHeaderObjects.Num() ? 
+								EVisibility::HitTestInvisible : EVisibility::Hidden;
+						})
 
 						+SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							SAssignNew(InfoTextBox, SHorizontalBox)
-							.Visibility_Lambda([this]()
-							{
-								return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot() ? 
-									EVisibility::HitTestInvisible : EVisibility::Hidden;
-							})
-
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								SAssignNew(SelectedActorCountText, STextBlock)
-								.Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
-								.Justification(ETextJustify::Right)
-							]
-
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								SAssignNew(TotalActorCountText, STextBlock)
-								.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
-								.Justification(ETextJustify::Right)
-							]
+							SAssignNew(SelectedActorCountText, STextBlock)
+							.Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
+							.Justification(ETextJustify::Right)
 						]
 
 						+ SVerticalBox::Slot()
@@ -1673,7 +1704,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 							SNew(SButton)
 							.IsEnabled_Lambda([this]()
 							{
-								return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot();
+								return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot() && TreeViewRootHeaderObjects.Num();
 							})
 							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
 							.ForegroundColor(FSlateColor::UseForeground())
@@ -1704,6 +1735,8 @@ SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 	
 	OnActiveSnapshotChangedHandle.Reset();
 	OnRefreshResultsHandle.Reset();
+	
+	FEditorDelegates::OnMapOpened.Remove(OnMapOpenedDelegateHandle);
 	OnMapOpenedDelegateHandle.Reset();
 	
 	ResultsSearchBoxPtr.Reset();
@@ -1714,7 +1747,6 @@ SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 	SelectedSnapshotNamePtr.Reset();
 
 	SelectedActorCountText.Reset();
-	TotalActorCountText.Reset();
 	MiscActorCountText.Reset();
 
 	DummyRow.Reset();
@@ -1727,21 +1759,6 @@ SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 FMenuBuilder SLevelSnapshotsEditorResults::BuildShowOptionsMenu()
 {
 	FMenuBuilder ShowOptionsMenuBuilder = FMenuBuilder(true, nullptr);
-
-	ShowOptionsMenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowFilteredRows", "Show Filtered Rows"),
-		LOCTEXT("ShowFilteredRows_Tooltip", "If false, only displays rows which have passed the applied filter. Refresh Results to apply."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([this]() {
-				SetShowFilteredRows(!GetShowFilteredRows());
-				}),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateSP(this, &SLevelSnapshotsEditorResults::GetShowFilteredRows)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
 
 	ShowOptionsMenuBuilder.AddMenuEntry(
 		LOCTEXT("ShowUnselectedRows", "Show Unselected Rows"),
@@ -1895,35 +1912,52 @@ void SLevelSnapshotsEditorResults::UpdateSnapshotInformationText()
 {
 	check(EditorDataPtr.IsValid());
 	
-	int32 SelectedActorCount = 0;
-	const int32 TotalPassingActorCount = TreeViewModifiedActorGroupObjects.Num();
-	const int32 TotalSceneActorsCount = GetNumActorsInWorld(EditorDataPtr->GetSelectedWorld());
+	int32 SelectedModifiedActorCount = 0;
+	const int32 TotalPassingModifiedActorCount = TreeViewModifiedActorGroupObjects.Num();
+
+	int32 SelectedAddedActorCount = 0;
+	int32 SelectedRemovedActorCount = 0;
 	
 	for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& ActorGroup : TreeViewModifiedActorGroupObjects)
 	{
 		if (ActorGroup->GetWidgetCheckedState() != ECheckBoxState::Unchecked)
 		{
-			SelectedActorCount++;
+			SelectedModifiedActorCount++;
+		}
+	}
+
+	for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& ActorGroup : TreeViewAddedActorGroupObjects)
+	{
+		if (ActorGroup->GetWidgetCheckedState() != ECheckBoxState::Unchecked)
+		{
+			SelectedAddedActorCount++;
+		}
+	}
+
+	for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& ActorGroup : TreeViewRemovedActorGroupObjects)
+	{
+		if (ActorGroup->GetWidgetCheckedState() != ECheckBoxState::Unchecked)
+		{
+			SelectedRemovedActorCount++;
 		}
 	}
 
 	if (SelectedActorCountText.IsValid())
 	{
-		SelectedActorCountText->SetText(FText::Format(LOCTEXT("ResultsRestoreInfoFormatSelectedActorCount", "{0} actor(s)"),
-			FText::AsNumber(SelectedActorCount)));
-	}
-
-	if (TotalActorCountText.IsValid())
-	{
-		TotalActorCountText->SetText(FText::Format(LOCTEXT("ResultsRestoreInfoFormatTotalActorCount", " (of {0} in snapshot) will be restored"),
-			FText::AsNumber(TotalPassingActorCount)));
+		SelectedActorCountText->SetText(FText::Format(LOCTEXT("ResultsRestoreInfoFormatSelectedModifiedActorCount", "{0} actor(s) (of {1} in snapshot) will be restored"),
+			FText::AsNumber(SelectedModifiedActorCount), FText::AsNumber(TotalPassingModifiedActorCount)));
 	}
 
 	if (MiscActorCountText.IsValid())
 	{
-		MiscActorCountText->SetText(FText::Format(LOCTEXT("ResultsRestoreInfoFormatMiscActorCounts", "{0} filtered, {1} unselected"),
-			FText::AsNumber(TotalSceneActorsCount - TotalPassingActorCount), FText::AsNumber(TotalPassingActorCount - SelectedActorCount)));
+		MiscActorCountText->SetText(FText::Format(LOCTEXT("ResultsRestoreInfoFormatSelectedAddedRemovedActorCounts", "{0} actors will be recreated, {1} will be removed"),
+			FText::AsNumber(SelectedRemovedActorCount), FText::AsNumber(SelectedAddedActorCount)));
 	}
+}
+
+void SLevelSnapshotsEditorResults::RefreshScroll() const
+{
+	TreeViewPtr->RequestListRefresh();
 }
 
 void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEachActorGroup()
@@ -2015,7 +2049,7 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 		}
 	};
 
-	FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties();
+	FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
 
 	// Modified actors
 	for (const FLevelSnapshotsEditorResultsRowPtr& Group : TreeViewModifiedActorGroupObjects)
@@ -2237,14 +2271,14 @@ void SLevelSnapshotsEditorResults::GenerateTreeView(const bool bSnapshotHasChang
 	SplitterManagerPtr = MakeShared<FLevelSnapshotsEditorResultsSplitterManager>(FLevelSnapshotsEditorResultsSplitterManager());
 
 	// Create root headers
-	if (FilterListData.GetModifiedFilteredActors().Num())
+	if (FilterListData.GetModifiedActors_AllowedByFilter().Num())
 	{
 		FLevelSnapshotsEditorResultsRowPtr ModifiedActorsHeader = MakeShared<FLevelSnapshotsEditorResultsRow>(
 			FLevelSnapshotsEditorResultsRow(FText::GetEmpty(), FLevelSnapshotsEditorResultsRow::TreeViewHeader, ECheckBoxState::Checked, SharedThis(this)));
 		ModifiedActorsHeader->InitHeaderRow(FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsTreeViewHeaderType::HeaderType_ModifiedActors, {
-			LOCTEXT("ColumnName_Actor", "Actor"),
-			LOCTEXT("ColumnName_ValueToRestore", "Value to Restore"),
-			LOCTEXT("ColumnName_CurrentValue", "Current Value")
+			LOCTEXT("ColumnName_ModifiedActors", "Modified Actors"),
+			LOCTEXT("ColumnName_CurrentValue", "Current Value"),
+			LOCTEXT("ColumnName_ValueToRestore", "Value to Restore")
 			});
 
 		if (GenerateTreeViewChildren_ModifiedActors(ModifiedActorsHeader, UserFilters.Get()))
@@ -2257,12 +2291,12 @@ void SLevelSnapshotsEditorResults::GenerateTreeView(const bool bSnapshotHasChang
 		}
 	}
 
-	if (FilterListData.GetFilteredAddedWorldActors().Num())
+	if (FilterListData.GetAddedWorldActors_AllowedByFilter().Num())
 	{
 		FLevelSnapshotsEditorResultsRowPtr AddedActorsHeader = MakeShared<FLevelSnapshotsEditorResultsRow>(
 			FLevelSnapshotsEditorResultsRow(FText::GetEmpty(), FLevelSnapshotsEditorResultsRow::TreeViewHeader, ECheckBoxState::Checked, SharedThis(this)));
 		AddedActorsHeader->InitHeaderRow(FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsTreeViewHeaderType::HeaderType_AddedActors, 
-			{ LOCTEXT("ColumnName_AddedActors", "Added Actors") });
+			{ LOCTEXT("ColumnName_ActorsToRemove", "Actors to Remove") });
 
 		if (GenerateTreeViewChildren_AddedActors(AddedActorsHeader))
 		{
@@ -2274,12 +2308,12 @@ void SLevelSnapshotsEditorResults::GenerateTreeView(const bool bSnapshotHasChang
 		}
 	}
 	
-	if (FilterListData.GetFilteredRemovedOriginalActorPaths().Num())
+	if (FilterListData.GetRemovedOriginalActorPaths_AllowedByFilter().Num())
 	{
 		FLevelSnapshotsEditorResultsRowPtr RemovedActorsHeader = MakeShared<FLevelSnapshotsEditorResultsRow>(
 			FLevelSnapshotsEditorResultsRow(FText::GetEmpty(), FLevelSnapshotsEditorResultsRow::TreeViewHeader, ECheckBoxState::Checked, SharedThis(this)));
 		RemovedActorsHeader->InitHeaderRow(FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsTreeViewHeaderType::HeaderType_RemovedActors, 
-			{ LOCTEXT("ColumnName_RemovedActors", "Removed Actors") });
+			{ LOCTEXT("ColumnName_ActorsToAdd", "Actors to Add") });
 
 		if (GenerateTreeViewChildren_RemovedActors(RemovedActorsHeader))
 		{
@@ -2302,7 +2336,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 {
 	check(ModifiedActorsHeader);
 	
-	const TSet<TWeakObjectPtr<AActor>>& ActorsToConsider = FilterListData.GetModifiedFilteredActors();
+	const TSet<TWeakObjectPtr<AActor>>& ActorsToConsider = FilterListData.GetModifiedActors_AllowedByFilter();
 
 	TSet<FSoftObjectPath> EvaluatedObjects;
 
@@ -2325,7 +2359,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 			continue;
 		}
 
-		const int32 KeyCountBeforeFilter = FilterListData.GetModifiedActorsSelectedProperties().GetKeyCount();
+		const int32 KeyCountBeforeFilter = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter().GetKeyCount();
 
 		// Get remaining properties after filter
 		if (UserFilters)
@@ -2333,7 +2367,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 			FilterListData.ApplyFilterToFindSelectedProperties(WorldActor, UserFilters);
 		}
 
-		const FPropertySelectionMap& ModifiedSelectedActors = FilterListData.GetModifiedActorsSelectedProperties();
+		const FPropertySelectionMap& ModifiedSelectedActors = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
 		const int32 KeyCountAfterFilter = ModifiedSelectedActors.GetKeyCount();
 		const int32 KeyCountDifference = KeyCountAfterFilter - KeyCountBeforeFilter;
 
@@ -2393,7 +2427,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_AddedActors(FLevelSn
 {
 	check(AddedActorsHeader);
 	
-	for (const TWeakObjectPtr<AActor>& Actor : FilterListData.GetFilteredAddedWorldActors())
+	for (const TWeakObjectPtr<AActor>& Actor : FilterListData.GetAddedWorldActors_AllowedByFilter())
 	{
 		if (!Actor.IsValid())
 		{
@@ -2418,7 +2452,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_RemovedActors(FLevel
 {
 	check(RemovedActorsHeader);
 	
-	for (const FSoftObjectPath& ActorPath : FilterListData.GetFilteredRemovedOriginalActorPaths())
+	for (const FSoftObjectPath& ActorPath : FilterListData.GetRemovedOriginalActorPaths_AllowedByFilter())
 	{
 		FString ActorName = ActorPath.GetSubPathString().IsEmpty() ? ActorPath.GetAssetName() : ActorPath.GetSubPathString();
 
@@ -2534,7 +2568,7 @@ void SLevelSnapshotsEditorResults::OnGetRowChildren(FLevelSnapshotsEditorResults
 		{
 			if (Row->GetIsTreeViewItemExpanded())
 			{
-				FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties();
+				FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
 				Row->GenerateActorGroupChildren(PropertySelectionMap);
 
 				OutChildren = Row->GetChildRows();
@@ -2579,14 +2613,17 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 	const bool bIsAddedOrRemovedActorRow = RowType == FLevelSnapshotsEditorResultsRow::AddedActor || RowType == FLevelSnapshotsEditorResultsRow::RemovedActor;
 	const bool bIsSinglePropertyInCollection = 
 		RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap || RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInSetOrArray;
+
+	const bool bDoesRowNeedSplitter = (RowType == FLevelSnapshotsEditorResultsRow::TreeViewHeader && PinnedItem->GetHeaderColumns().Num() > 1) ||
+		(!bIsAddedOrRemovedActorRow && !PinnedItem->DoesRowRepresentGroup());
 	
 	if (bIsSinglePropertyInCollection)
 	{
-		Tooltip = LOCTEXT("LevelSnapshotsEditorResults_CollectionDisclaimer", "Individual members of collections cannot be selected. The whole collection will be restored.");
+		Tooltip = LOCTEXT("CollectionDisclaimer", "Individual members of collections cannot be selected. The whole collection will be restored.");
 	}
 	else if (RowType == FLevelSnapshotsEditorResultsRow::ComponentGroup)
 	{
-		Tooltip = LOCTEXT("LevelSnapshotsEditorResults_ComponentOrderDisclaimer", "Please note that component order reflects the order in the world, not the snapshot. LevelSnapshots does not alter component order.");
+		Tooltip = LOCTEXT("ComponentOrderDisclaimer", "Please note that component order reflects the order in the world, not the snapshot. LevelSnapshots does not alter component order.");
 	}
 	else
 	{
@@ -2602,30 +2639,20 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 	}
 	PinnedItem->SetChildDepth(IndentationDepth);
 
+	TSharedPtr<SBorder> BorderPtr;
+
 	ChildSlot
 	[
 		SNew(SBox)
 		.Padding(FMargin(5,2))
 		[
-			SNew(SBorder)
+			SAssignNew(BorderPtr, SBorder)
 			.ToolTipText(Tooltip)
 			.Padding(FMargin(0, 5))
 			.BorderImage_Lambda([RowType]()
 				{
 					switch (RowType)
-					{
-						case FLevelSnapshotsEditorResultsRow::CollectionGroup:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.CollectionGroupBorder");
-
-						case FLevelSnapshotsEditorResultsRow::StructGroup:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.StructGroupBorder");
-							
-						case FLevelSnapshotsEditorResultsRow::ComponentGroup:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ComponentGroupBorder");
-
-						case FLevelSnapshotsEditorResultsRow::SubObjectGroup:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.SubObjectGroupBorder");
-
+					{							
 						case FLevelSnapshotsEditorResultsRow::ActorGroup:
 							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ActorGroupBorder");
 
@@ -2642,208 +2669,238 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.DefaultBorder");
 					}
 				})
-			[
-				SAssignNew(SplitterPtr, SSplitter)
-				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-				.PhysicalSplitterHandleSize(1.0f)
-				.HitDetectionSplitterHandleSize(5.0f)
-
-				+ SSplitter::Slot()
-				.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetNameColumnSize)
-				.Value(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 0)
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					.AutoWidth()
-					.Padding(5.f, 2.f)
-					[
-						SNew(SCheckBox)
-						.Visibility(bIsSinglePropertyInCollection ? EVisibility::Hidden : EVisibility::Visible)
-						.IsChecked_Raw(PinnedItem.Get(), &FLevelSnapshotsEditorResultsRow::GetWidgetCheckedState)
-						.OnCheckStateChanged_Raw(PinnedItem.Get(), &FLevelSnapshotsEditorResultsRow::SetWidgetCheckedState, true)
-					]
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					[
-						SNew(STextBlock)
-						.Text(DisplayText)
-					]
-				]
-			]
 		]
 	];
 
+	// Create name and checkbox
+
+	TSharedRef<SHorizontalBox> BasicRowWidgets = SNew(SHorizontalBox);
+
+	BasicRowWidgets->AddSlot()
+	.VAlign(VAlign_Center)
+	.HAlign(HAlign_Left)
+	.AutoWidth()
+	.Padding(5.f, 2.f)
+	[
+		SNew(SCheckBox)
+		.Visibility(bIsSinglePropertyInCollection ? EVisibility::Hidden : EVisibility::Visible)
+		.IsChecked_Raw(PinnedItem.Get(), &FLevelSnapshotsEditorResultsRow::GetWidgetCheckedState)
+		.OnCheckStateChanged_Raw(PinnedItem.Get(), &FLevelSnapshotsEditorResultsRow::SetWidgetCheckedState, true)
+	];
+
+	if (PinnedItem->DoesRowRepresentObject())
+	{
+		if (const FSlateBrush* RowIcon = PinnedItem->GetIconBrush())
+		{
+			BasicRowWidgets->AddSlot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			.Padding(0.f, 2.f, 5.f, 2.f)
+			[
+				SNew(SImage).Image(RowIcon)
+			];
+		}
+	}
+
+	BasicRowWidgets->AddSlot()
+	.VAlign(VAlign_Center)
+	.HAlign(HAlign_Left)
+	.AutoWidth()
+	[
+		SNew(STextBlock).Text(DisplayText)
+	];
+
 	// Create value widgets
-
-	// Splitter Slot 1
-	TSharedPtr<SWidget> SnapshotChildWidget;
 	
-	bool bIsSnapshotChildWidgetCustomized = false;
-	
-	if (const TSharedPtr<IPropertyHandle>& SnapshotPropertyHandle = PinnedItem->GetSnapshotPropertyHandle())
+	if (bDoesRowNeedSplitter)
 	{
-		if (SnapshotPropertyHandle->IsCustomized())
+		SAssignNew(SplitterPtr, SSplitter)
+		.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+		.PhysicalSplitterHandleSize(bDoesRowNeedSplitter ? 5.0f : 0.f)
+		.HitDetectionSplitterHandleSize(bDoesRowNeedSplitter ? 5.0f : 0.f);
+
+		SplitterPtr->AddSlot()
+		.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetNameColumnSize)
+		.Value(this, &SLevelSnapshotsEditorResultsRow::GetNameColumnSize)
+		[
+			BasicRowWidgets
+		];
+	
+		// Splitter Slot 1
+		int32 SlotIndex = 1;
+		
+		TSharedPtr<SWidget> WorldChildWidget;
+
+		bool bIsWorldChildWidgetCustomized = false;
+
+		if (const TSharedPtr<IPropertyHandle>& WorldPropertyHandle = PinnedItem->GetWorldPropertyHandle())
 		{
-			bIsSnapshotChildWidgetCustomized = true;
-			
-			if (const TSharedPtr<IDetailTreeNode>& Node = PinnedItem->GetSnapshotPropertyNode())
+			if (WorldPropertyHandle->IsCustomized())
 			{
-				FNodeWidgets Widgets = Node->CreateNodeWidgets();
+				bIsWorldChildWidgetCustomized = true;
+				
+				if (const TSharedPtr<IDetailTreeNode>& Node = PinnedItem->GetWorldPropertyNode())
+				{
+					FNodeWidgets Widgets = Node->CreateNodeWidgets();
 
-				SnapshotChildWidget = Widgets.WholeRowWidget.IsValid() ? Widgets.WholeRowWidget : Widgets.ValueWidget;
+					WorldChildWidget = Widgets.WholeRowWidget.IsValid() ? Widgets.WholeRowWidget : Widgets.ValueWidget;
+				}
 			}
-		}
-		else if (RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap)
-		{
-			TSharedRef<SSplitter> Splitter = SNew(SSplitter).ResizeMode(ESplitterResizeMode::FixedPosition);
-
-			const TSharedPtr<IPropertyHandle> KeyHandle = SnapshotPropertyHandle->GetKeyHandle();
-
-			if (KeyHandle.IsValid() && KeyHandle->IsValidHandle())
+			else if (RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap)
 			{
-				Splitter->AddSlot()[KeyHandle->CreatePropertyValueWidget(false)];
+				TSharedRef<SSplitter> Splitter = SNew(SSplitter).ResizeMode(ESplitterResizeMode::FixedPosition);
+
+				const TSharedPtr<IPropertyHandle> KeyHandle = WorldPropertyHandle->GetKeyHandle();
+
+				if (KeyHandle.IsValid() && KeyHandle->IsValidHandle())
+				{
+					Splitter->AddSlot()[KeyHandle->CreatePropertyValueWidget(false)];
+				}
+
+				Splitter->AddSlot()[WorldPropertyHandle->CreatePropertyValueWidget(false)];
+
+				WorldChildWidget = Splitter;
 			}
-
-			Splitter->AddSlot()[SnapshotPropertyHandle->CreatePropertyValueWidget(false)];
-
-			SnapshotChildWidget = Splitter;
+			else
+			{
+				WorldChildWidget = WorldPropertyHandle->CreatePropertyValueWidget(false);
+			}
 		}
 		else
 		{
-			SnapshotChildWidget = SnapshotPropertyHandle->CreatePropertyValueWidget(false);
+			if (bIsHeaderRow && PinnedItem->GetHeaderColumns().Num() > SlotIndex)
+			{
+				WorldChildWidget = SNew(STextBlock).Text(PinnedItem->GetHeaderColumns()[SlotIndex]);
+			}
+			else if (bIsAddedOrRemovedActorRow || PinnedItem->DoesRowRepresentGroup())
+			{
+				WorldChildWidget = SNullWidget::NullWidget;
+			}
 		}
-	}
-	else
-	{
-		if (bIsHeaderRow && PinnedItem->GetHeaderColumns().Num() > 1)
+
+		if (!WorldChildWidget.IsValid())
 		{
-			SnapshotChildWidget = SNew(STextBlock).Text(PinnedItem->GetHeaderColumns()[1]);
+			WorldChildWidget = 
+				SNew(STextBlock)
+				.Text(LOCTEXT("LevelSnapshotsEditorResults_NoWorldPropertyFound", "No World property found"));
 		}
-		else if (bIsAddedOrRemovedActorRow || PinnedItem->DoesRowRepresentGroup())
+
+		WorldChildWidget->SetEnabled(bIsHeaderRow);
+		WorldChildWidget->SetCanTick(bIsHeaderRow);
+
+		TSharedPtr<SWidget> FinalWorldWidget = SNew(SBox)
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(2, 0))
+			[
+				WorldChildWidget.ToSharedRef()
+			];
+
+		if (!bIsWorldChildWidgetCustomized)
 		{
-			SnapshotChildWidget = SNullWidget::NullWidget;
+			FinalWorldWidget = SNew(SInvalidationPanel)
+				[
+					FinalWorldWidget.ToSharedRef()
+				];
 		}
-	}
 
-	if (!SnapshotChildWidget.IsValid())
-	{
-		SnapshotChildWidget = 
-			SNew(STextBlock)
-			.Text(LOCTEXT("LevelSnapshotsEditorResults_NoSnapshotPropertyFound", "No snapshot property found"));
-	}
-
-	SnapshotChildWidget->SetEnabled(bIsHeaderRow);
-	SnapshotChildWidget->SetCanTick(bIsHeaderRow);
-
-	TSharedPtr<SWidget> FinalSnapshotWidget = SNew(SBox)
-		.VAlign(VAlign_Center)
-		.Padding(FMargin(2, 0))
+		SplitterPtr->AddSlot()
+		.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetWorldColumnSize)
+		.Value(this, &SLevelSnapshotsEditorResultsRow::GetWorldColumnSize)
 		[
-			SnapshotChildWidget.ToSharedRef()
+			FinalWorldWidget.ToSharedRef()
 		];
 
-	if (!bIsSnapshotChildWidgetCustomized)
-	{
-		FinalSnapshotWidget = SNew(SInvalidationPanel)
-			[
-				FinalSnapshotWidget.ToSharedRef()
-			];
-	}
-
-	SplitterPtr->AddSlot()
-	.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize)
-	.Value(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 1)
-	[
-		FinalSnapshotWidget.ToSharedRef()
-	];
-
-	
-	// Splitter Slot 2
-	TSharedPtr<SWidget> WorldChildWidget;
-
-	bool bIsWorldChildWidgetCustomized = false;
-
-	if (const TSharedPtr<IPropertyHandle>& WorldPropertyHandle = PinnedItem->GetWorldPropertyHandle())
-	{
-		if (WorldPropertyHandle->IsCustomized())
+		// Splitter Slot 2
+		SlotIndex = 2;
+		
+		TSharedPtr<SWidget> SnapshotChildWidget;
+		
+		bool bIsSnapshotChildWidgetCustomized = false;
+		
+		if (const TSharedPtr<IPropertyHandle>& SnapshotPropertyHandle = PinnedItem->GetSnapshotPropertyHandle())
 		{
-			bIsWorldChildWidgetCustomized = true;
-			
-			if (const TSharedPtr<IDetailTreeNode>& Node = PinnedItem->GetWorldPropertyNode())
+			if (SnapshotPropertyHandle->IsCustomized())
 			{
-				FNodeWidgets Widgets = Node->CreateNodeWidgets();
+				bIsSnapshotChildWidgetCustomized = true;
+				
+				if (const TSharedPtr<IDetailTreeNode>& Node = PinnedItem->GetSnapshotPropertyNode())
+				{
+					FNodeWidgets Widgets = Node->CreateNodeWidgets();
 
-				WorldChildWidget = Widgets.WholeRowWidget.IsValid() ? Widgets.WholeRowWidget : Widgets.ValueWidget;
+					SnapshotChildWidget = Widgets.WholeRowWidget.IsValid() ? Widgets.WholeRowWidget : Widgets.ValueWidget;
+				}
 			}
-		}
-		else if (RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap)
-		{
-			TSharedRef<SSplitter> Splitter = SNew(SSplitter).ResizeMode(ESplitterResizeMode::FixedPosition);
-
-			const TSharedPtr<IPropertyHandle> KeyHandle = WorldPropertyHandle->GetKeyHandle();
-
-			if (KeyHandle.IsValid() && KeyHandle->IsValidHandle())
+			else if (RowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap)
 			{
-				Splitter->AddSlot()[KeyHandle->CreatePropertyValueWidget(false)];
+				TSharedRef<SSplitter> Splitter = SNew(SSplitter).ResizeMode(ESplitterResizeMode::FixedPosition);
+
+				const TSharedPtr<IPropertyHandle> KeyHandle = SnapshotPropertyHandle->GetKeyHandle();
+
+				if (KeyHandle.IsValid() && KeyHandle->IsValidHandle())
+				{
+					Splitter->AddSlot()[KeyHandle->CreatePropertyValueWidget(false)];
+				}
+
+				Splitter->AddSlot()[SnapshotPropertyHandle->CreatePropertyValueWidget(false)];
+
+				SnapshotChildWidget = Splitter;
 			}
-
-			Splitter->AddSlot()[WorldPropertyHandle->CreatePropertyValueWidget(false)];
-
-			WorldChildWidget = Splitter;
+			else
+			{
+				SnapshotChildWidget = SnapshotPropertyHandle->CreatePropertyValueWidget(false);
+			}
 		}
 		else
 		{
-			WorldChildWidget = WorldPropertyHandle->CreatePropertyValueWidget(false);
+			if (bIsHeaderRow && PinnedItem->GetHeaderColumns().Num() > SlotIndex)
+			{
+				SnapshotChildWidget = SNew(STextBlock).Text(PinnedItem->GetHeaderColumns()[SlotIndex]);
+			}
+			else if (bIsAddedOrRemovedActorRow || PinnedItem->DoesRowRepresentGroup())
+			{
+				SnapshotChildWidget = SNullWidget::NullWidget;
+			}
 		}
+
+		if (!SnapshotChildWidget.IsValid())
+		{
+			SnapshotChildWidget = 
+				SNew(STextBlock)
+				.Text(LOCTEXT("LevelSnapshotsEditorResults_NoSnapshotPropertyFound", "No snapshot property found"));
+		}
+
+		SnapshotChildWidget->SetEnabled(bIsHeaderRow);
+		SnapshotChildWidget->SetCanTick(bIsHeaderRow);
+
+		TSharedPtr<SWidget> FinalSnapshotWidget = SNew(SBox)
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(2, 0))
+			[
+				SnapshotChildWidget.ToSharedRef()
+			];
+
+		if (!bIsSnapshotChildWidgetCustomized)
+		{
+			FinalSnapshotWidget = SNew(SInvalidationPanel)
+				[
+					FinalSnapshotWidget.ToSharedRef()
+				];
+		}
+
+		SplitterPtr->AddSlot()
+		.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize)
+		.Value(this, &SLevelSnapshotsEditorResultsRow::GetSnapshotColumnSize)
+		[
+			FinalSnapshotWidget.ToSharedRef()
+		];
+		
+		BorderPtr->SetContent(SplitterPtr.ToSharedRef());
 	}
 	else
 	{
-		if (bIsHeaderRow && PinnedItem->GetHeaderColumns().Num() > 2)
-		{
-			WorldChildWidget = SNew(STextBlock).Text(PinnedItem->GetHeaderColumns()[2]);
-		}
-		else if (bIsAddedOrRemovedActorRow || PinnedItem->DoesRowRepresentGroup())
-		{
-			WorldChildWidget = SNullWidget::NullWidget;
-		}
+		BorderPtr->SetContent(BasicRowWidgets);
 	}
-
-	if (!WorldChildWidget.IsValid())
-	{
-		WorldChildWidget = 
-			SNew(STextBlock)
-			.Text(LOCTEXT("LevelSnapshotsEditorResults_NoWorldPropertyFound", "No World property found"));
-	}
-
-	WorldChildWidget->SetEnabled(bIsHeaderRow);
-	WorldChildWidget->SetCanTick(bIsHeaderRow);
-
-	TSharedPtr<SWidget> FinalWorldWidget = SNew(SBox)
-		.VAlign(VAlign_Center)
-		.Padding(FMargin(2, 0))
-		[
-			WorldChildWidget.ToSharedRef()
-		];
-
-	if (!bIsWorldChildWidgetCustomized)
-	{
-		FinalWorldWidget = SNew(SInvalidationPanel)
-			[
-				FinalWorldWidget.ToSharedRef()
-			];
-	}
-
-	SplitterPtr->AddSlot()
-	.OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetWorldObjectColumnSize)
-	.Value(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 2)
-	[
-		FinalWorldWidget.ToSharedRef()
-	];
 }
 
 SLevelSnapshotsEditorResultsRow::~SLevelSnapshotsEditorResultsRow()
@@ -2863,33 +2920,19 @@ SLevelSnapshotsEditorResultsRow::~SLevelSnapshotsEditorResultsRow()
 	SplitterManagerPtr.Reset();
 }
 
-float SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize(const int32 SlotIndex) const
+float SLevelSnapshotsEditorResultsRow::GetNameColumnSize() const
 {
-	float SplitterSlotSize = 1.0f;
-	
-	if (ensure(SplitterPtr.IsValid()))
-	{
-		switch (SlotIndex)
-		{
-			default:
-				SplitterSlotSize = 1.0f;
-				break;
+	return SplitterManagerPtr->NameColumnWidth;;
+}
 
-			case 0:
-				SplitterSlotSize = SplitterManagerPtr->NameColumnWidth;
-				break;
+float SLevelSnapshotsEditorResultsRow::GetSnapshotColumnSize() const
+{
+	return SplitterManagerPtr->SnapshotPropertyColumnWidth;
+}
 
-			case 1:
-				SplitterSlotSize = SplitterManagerPtr->SnapshotPropertyColumnWidth;
-				break;
-
-			case 2:
-				SplitterSlotSize = SplitterManagerPtr->WorldObjectPropertyColumnWidth;
-				break;
-		}
-	}
-
-	return SplitterSlotSize;
+float SLevelSnapshotsEditorResultsRow::GetWorldColumnSize() const
+{
+	return SplitterManagerPtr->WorldObjectPropertyColumnWidth;
 }
 
 void SLevelSnapshotsEditorResultsRow::SetNameColumnSize(const float InWidth) const
@@ -2902,7 +2945,7 @@ void SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize(const float InWidth)
 	SplitterManagerPtr->SnapshotPropertyColumnWidth = InWidth;
 }
 
-void SLevelSnapshotsEditorResultsRow::SetWorldObjectColumnSize(const float InWidth) const
+void SLevelSnapshotsEditorResultsRow::SetWorldColumnSize(const float InWidth) const
 {
 	SplitterManagerPtr->WorldObjectPropertyColumnWidth = InWidth;
 }

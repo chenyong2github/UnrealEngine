@@ -18,7 +18,7 @@ struct FDMXProtocolArtNetDMXPacket
 {
 public:
 	//~ Begin IDMXProtocolPacket implementation
-	virtual TSharedPtr<FBufferArchive> Pack() override;
+	virtual TSharedPtr<FBufferArchive> Pack(const uint16 NumProperties) override;
 	//~ End IDMXProtocolPort implementation
 
 	void Serialize(FArchive& Ar);
@@ -42,7 +42,7 @@ struct FDMXProtocolArtNetPollPacket
 {
 public:
 	//~ Begin IDMXProtocolPacket implementation
-	virtual TSharedPtr<FBufferArchive> Pack() override;
+	virtual TSharedPtr<FBufferArchive> Pack(const uint16 NumProperties) override;
 	//~ End IDMXProtocolPort implementation
 
 	void Serialize(FArchive& Ar);
@@ -103,7 +103,7 @@ struct FDMXProtocolArtNetTodRequest
 {
 public:
 	//~ Begin IDMXProtocolPacket implementation
-	virtual TSharedPtr<FBufferArchive> Pack() override;
+	virtual TSharedPtr<FBufferArchive> Pack(uint16) override;
 	//~ End IDMXProtocolPort implementation
 
 	void Serialize(FArchive& Ar);
@@ -134,7 +134,7 @@ struct FDMXProtocolArtNetTodData
 {
 public:
 	//~ Begin IDMXProtocolPacket implementation
-	virtual TSharedPtr<FBufferArchive> Pack() override;
+	virtual TSharedPtr<FBufferArchive> Pack(const uint16 NumProperties) override;
 	//~ End IDMXProtocolPort implementation
 
 	void Serialize(FArchive& Ar);
@@ -173,7 +173,7 @@ struct FDMXProtocolArtNetTodControl
 {
 public:
 	//~ Begin IDMXProtocolPacket implementation
-	virtual TSharedPtr<FBufferArchive> Pack() override;
+	virtual TSharedPtr<FBufferArchive> Pack(const uint16 NumProperties) override;
 	//~ End IDMXProtocolPort implementation
 
 	void Serialize(FArchive& Ar);
@@ -203,7 +203,7 @@ struct FDMXProtocolArtNetRDM
 {
 public:
 	//~ Begin IDMXProtocolPacket implementation
-	virtual TSharedPtr<FBufferArchive> Pack() override;
+	virtual TSharedPtr<FBufferArchive> Pack(const uint16 NumProperties) override;
 	//~ End IDMXProtocolPort implementation
 
 	void Serialize(FArchive& Ar);

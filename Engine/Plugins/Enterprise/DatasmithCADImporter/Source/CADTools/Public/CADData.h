@@ -71,7 +71,7 @@ struct CADTOOLS_API FFileDescription
 
 	bool operator==(const FFileDescription& Other) const
 	{
-		return (FPaths::IsSamePath(Path, Other.Path) && (Configuration == Other.Configuration));
+		return (Name.Equals(Other.Name, ESearchCase::IgnoreCase) && (Configuration == Other.Configuration));
 	}
 
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FFileDescription& File);

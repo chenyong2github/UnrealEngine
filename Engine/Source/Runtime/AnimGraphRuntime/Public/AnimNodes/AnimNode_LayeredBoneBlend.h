@@ -140,6 +140,12 @@ public:
 		LayerSetup.RemoveAt(PoseIndex);
 	}
 
+	// Invalidate the cached per-bone blend weights from the skeleton
+	void InvalidatePerBoneBlendWeights() { RequiredBonesSerialNumber = 0; SkeletonGuid = FGuid(); VirtualBoneGuid = FGuid(); }
+	
+	// Invalidates the cached bone data so it is recalculated the next time this node is updated
+	void InvalidateCachedBoneData() { RequiredBonesSerialNumber = 0; }
+	
 private:
 	// Rebuild cache per bone blend weights from the skeleton
 	void RebuildPerBoneBlendWeights(const USkeleton* InSkeleton);

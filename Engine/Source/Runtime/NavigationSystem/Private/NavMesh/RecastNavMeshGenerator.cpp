@@ -11,6 +11,7 @@
 #include "Engine/Engine.h"
 #include "NavigationSystem.h"
 #include "FramePro/FrameProProfiler.h"
+#include "UObject/GarbageCollection.h"
 
 #if WITH_RECAST
 #if WITH_PHYSX
@@ -1317,7 +1318,19 @@ FORCEINLINE_DEBUGGABLE void ExportComponent(UActorComponent* Component, FRecastG
 			bHasData = true;
 		}
 
-		UBodySetup* BodySetup = PrimComp->GetBodySetup();
+		UBodySetup* BodySetup = nullptr;
+		{
+			// Might need to create the BodySetup outside of the main thread so garbage collection guard is required.
+			FGCScopeGuard GCGuard;
+			BodySetup = PrimComp->GetBodySetup();
+
+			if (BodySetup)
+			{
+				// Async flag need to be cleared to allow garbage collection.
+				BodySetup->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
+			}
+		}
+
 		if (BodySetup)
 		{
 			if (!bHasData)

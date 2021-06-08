@@ -16,10 +16,16 @@ struct FPendingSpatialData
 	FSpatialAccelerationIdx SpatialIdx;
 	int32 SyncTimestamp;	//indicates the inputs timestamp associated with latest change. Only relevant for external queue
 	bool bDelete;
+	
+	// If true, movement may take course over multiple physics steps generated from single GT input.
+	// (Example: Kinematic targets)
+	// Flag used to make sure we don't stomp over game thread bounds with position that is still interpolating when passing accel structure to GT.
+	bool bInterpolatedMovement;
 
 	FPendingSpatialData()
-	: SyncTimestamp(0)
-	, bDelete(false)
+		: SyncTimestamp(0)
+		, bDelete(false)
+		, bInterpolatedMovement(false)
 	{}
 
 	void Serialize(FChaosArchive& Ar)

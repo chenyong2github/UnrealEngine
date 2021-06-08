@@ -18,8 +18,9 @@ struct FAPIInfoResponse
 	
 	FAPIInfoResponse() = default;
 
-	FAPIInfoResponse(const TArray<FRemoteControlRoute>& InRoutes, bool bInPackaged)
+	FAPIInfoResponse(const TArray<FRemoteControlRoute>& InRoutes, bool bInPackaged, URemoteControlPreset* InActivePreset)
 		: IsPackaged(bInPackaged)
+		, ActivePreset(InActivePreset) 
 	{
 		HttpRoutes.Append(InRoutes);
 	}
@@ -35,6 +36,9 @@ private:
 	 */
 	UPROPERTY()
 	TArray<FRemoteControlRouteDescription> HttpRoutes;
+
+	UPROPERTY()
+	FRCShortPresetDescription ActivePreset;
 };
 
 USTRUCT()

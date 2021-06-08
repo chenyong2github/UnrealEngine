@@ -30,11 +30,11 @@ public:
 	UTexture2D* SourceTexture = nullptr;
 
 	// Use TextureRegion rect on SourceTexture to resolve
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render", meta = (DisplayName = "Use Texture Crop"))
 	bool bShouldUseTextureRegion = false;
 
 	// Resolve this region from OverrideTexture
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render", meta = (DisplayName = "Texture Crop"))
 	FDisplayClusterConfigurationRectangle TextureRegion;
 };
 

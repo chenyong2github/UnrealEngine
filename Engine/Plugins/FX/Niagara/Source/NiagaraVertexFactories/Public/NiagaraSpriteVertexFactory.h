@@ -114,24 +114,25 @@ public:
 
 	/** Default constructor. */
 	FNiagaraSpriteVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel )
-		: FNiagaraVertexFactoryBase(InType, InFeatureLevel),
-		LooseParameterUniformBuffer(nullptr),
-		NumCutoutVerticesPerFrame(0),
-		CutoutGeometrySRV(nullptr),
-		AlignmentMode(0),
-		FacingMode(0),
-		SortedIndicesOffset(0)
+		: FNiagaraVertexFactoryBase(InType, InFeatureLevel)
+		, LooseParameterUniformBuffer(nullptr)
+		, NumCutoutVerticesPerFrame(0)
+		, CutoutGeometrySRV(nullptr)
+		, AlignmentMode(0)
+		, FacingMode(0)
+		, SortedIndicesSRV(nullptr)
+		, SortedIndicesOffset(0)
 	{}
 
 	FNiagaraSpriteVertexFactory()
-		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num),
-		LooseParameterUniformBuffer(nullptr),
-		NumCutoutVerticesPerFrame(0),
-		CutoutGeometrySRV(nullptr),
-		AlignmentMode(0),
-		FacingMode(0),
-		SortedIndicesOffset(0)
-		
+		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num)
+		, LooseParameterUniformBuffer(nullptr)
+		, NumCutoutVerticesPerFrame(0)
+		, CutoutGeometrySRV(nullptr)
+		, AlignmentMode(0)
+		, FacingMode(0)
+		, SortedIndicesSRV(nullptr)
+		, SortedIndicesOffset(0)
 	{}
 
 	// FRenderResource interface.

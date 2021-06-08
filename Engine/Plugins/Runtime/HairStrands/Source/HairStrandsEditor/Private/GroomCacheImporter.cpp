@@ -7,20 +7,36 @@
 #include "GroomImportOptions.h"
 #include "HairStrandsImporter.h"
 #include "HairStrandsTranslator.h"
+#include "Misc/ScopedSlowTask.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 
+#define LOCTEXT_NAMESPACE "GroomCacheImporter"
+
 static UGroomCache* CreateGroomCache(EGroomCacheType Type, UObject*& InParent, const FString& ObjectName, const EObjectFlags Flags)
 {
-	// Parent package to place new GroomCache
-	UPackage* Package = nullptr;
-	FString NewPackageName;
-
 	// Setup package name and create one accordingly
-	NewPackageName = InParent->GetOutermost()->GetName() + TEXT("_") + ObjectName;
+	FString NewPackageName = InParent->GetOutermost()->GetName();
+	if (!NewPackageName.EndsWith(ObjectName))
+	{
+		// Remove the cache suffix if the parent is from a reimport
+		if (NewPackageName.EndsWith("_strands_cache"))
+		{
+			NewPackageName.RemoveFromEnd("_strands_cache");
+		}
+		else if (NewPackageName.EndsWith("_guides_cache"))
+		{
+			NewPackageName.RemoveFromEnd("_guides_cache");
+		}
+
+		// Append the correct suffix
+		NewPackageName += TEXT("_") + ObjectName;
+	}
 
 	NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
-	Package = CreatePackage(*NewPackageName);
+
+	// Parent package to place new GroomCache
+	UPackage* Package = CreatePackage(*NewPackageName);
 
 	FString CompoundObjectName = FPackageName::GetShortName(NewPackageName);
 	const FString SanitizedObjectName = ObjectTools::SanitizeObjectName(CompoundObjectName);
@@ -31,6 +47,7 @@ static UGroomCache* CreateGroomCache(EGroomCacheType Type, UObject*& InParent, c
 	if (ExistingTypedObject != nullptr)
 	{
 		ExistingTypedObject->PreEditChange(nullptr);
+		return ExistingTypedObject;
 	}
 	else if (ExistingObject != nullptr)
 	{
@@ -81,9 +98,19 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 	FGroomCacheProcessor GuidesProcessor(EGroomCacheType::Guides, AnimInfo.Attributes);
 	if (Translator->BeginTranslation(SourceFilename))
 	{
+		const int32 NumFrames = AnimInfo.NumFrames;
+		FScopedSlowTask SlowTask(NumFrames, LOCTEXT("ImportGroomCache", "Importing GroomCache frames"));
+		SlowTask.MakeDialog();
+
 		// Each frame is translated into a HairDescription and processed into HairGroupData
 		for (int32 FrameIndex = AnimInfo.StartFrame; FrameIndex < AnimInfo.EndFrame + 1; ++FrameIndex)
 		{
+			const uint32 CurrentFrame = FrameIndex - AnimInfo.StartFrame;
+
+			FTextBuilder TextBuilder;
+			TextBuilder.AppendLineFormat(LOCTEXT("ImportGroomCacheFrame", "Importing GroomCache frame {0} of {1}"), FText::AsNumber(CurrentFrame), FText::AsNumber(NumFrames));
+			SlowTask.EnterProgressFrame(1.f, TextBuilder.ToText());
+
 			FHairDescription FrameHairDescription;
 			if (Translator->Translate(FrameIndex, FrameHairDescription, HairImportContext.ImportOptions->ConversionSettings))
 			{
@@ -149,3 +176,5 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 	}
 	return GroomCaches;
 }
+
+#undef LOCTEXT_NAMESPACE

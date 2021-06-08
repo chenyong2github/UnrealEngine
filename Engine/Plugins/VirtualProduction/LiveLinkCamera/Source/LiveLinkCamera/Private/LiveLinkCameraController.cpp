@@ -71,8 +71,6 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 
 		if (UCameraComponent* CameraComponent = Cast<UCameraComponent>(AttachedComponent))
 		{
-			bIsEncoderMappingNeeded = (StaticData->FIZDataMode == ECameraFIZMode::EncoderData);
-			
 			//Stamp previous values that have an impact on frustum visual representation
 			const float PreviousFOV = CameraComponent->FieldOfView;
 			const float PreviousAspectRatio = CameraComponent->AspectRatio;
@@ -104,6 +102,12 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 
 				ApplyFIZ(SelectedLensFile, CineCameraComponent, StaticData, FrameData);
 				ApplyDistortion(SelectedLensFile, CineCameraComponent, StaticData, FrameData);
+
+				UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+				if (SubSystem)
+				{
+					SubSystem->UpdateOriginalFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
+				}
 			}
 
 #if WITH_EDITORONLY_DATA
@@ -166,8 +170,6 @@ void ULiveLinkCameraController::Cleanup()
 
 void ULiveLinkCameraController::OnEvaluateRegistered()
 {
-	//Reset flag until the next tick with actual data
-	bIsEncoderMappingNeeded = false;
 }
 
 void ULiveLinkCameraController::PostDuplicate(bool bDuplicateForPIE)
@@ -253,102 +255,112 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 		}
 	}
 }
-
 #endif
 
 void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData)
 {
-	//When FIZ data comes from encoder, we need to map incoming values to actual FIZ
-	if (bIsEncoderMappingNeeded)
+	/**
+	 * The logic to apply fiz is :
+	 * If there is a LensFile, give it LiveLink's Focus and Zoom to evaluate calibrated / mapped FIZ
+	 * It is assumed that the LiveLink feed matches what what used to produce the lens file
+	 * If no lens file is present, two choices :
+	 * Use LiveLink data directly as usable FIZ. This could be coming from a tracking vendor for example
+	 * Use cinecamera's min and max value range to denormalize inputs, assuming it is noramlized.
+	 */
+	if (LensFile)
 	{
-		bool bUseRange = !bUseLensFileForEncoderMapping;
-		if (LensFile)
+		if (LensFileEvalData.Input.Focus.IsSet() && UpdateFlags.bApplyFocusDistance)
 		{
-			if (LensFileEvalData.Input.Focus.IsSet() && UpdateFlags.bApplyFocusDistance)
+			float FocusDistance = LensFileEvalData.Input.Focus.GetValue(); 
+			if (LensFile->HasFocusEncoderMapping())
 			{
-				if (LensFile->HasFocusEncoderMapping())
-				{
-					CineCameraComponent->FocusSettings.ManualFocusDistance = LensFile->EvaluateNormalizedFocus(*LensFileEvalData.Input.Focus);
-				}
-				else
-				{
-					UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("'%s' could not evaluate raw focus value '%0.3f' using LensFile '%s'"), *GetName(), FrameData->FocusDistance, *LensFile->GetName())
-				}
+				FocusDistance = LensFile->EvaluateNormalizedFocus(*LensFileEvalData.Input.Focus);
 			}
 
-			if (LensFileEvalData.Input.Iris.IsSet() && UpdateFlags.bApplyAperture)
-			{
-				if (LensFile->HasIrisEncoderMapping())
-				{
-					CineCameraComponent->CurrentAperture = LensFile->EvaluateNormalizedIris(*LensFileEvalData.Input.Iris);
-				}
-				else
-				{
-					UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("'%s' could not evaluate raw iris value '%0.3f' using LensFile '%s'"), *GetName(), FrameData->Aperture, *LensFile->GetName())
-				}
-			}
-
-			if (LensFileEvalData.Input.Zoom.IsSet() && UpdateFlags.bApplyFocalLength)
-			{
-				if (LensFile->HasZoomEncoderMapping())
-				{
-					CineCameraComponent->SetCurrentFocalLength(LensFile->EvaluateNormalizedZoom(*LensFileEvalData.Input.Zoom));
-				}
-				else
-				{
-					UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("'%s' could not evaluate raw zoom value '%0.3f' using LensFile '%s'"), *GetName(), FrameData->FocalLength, *LensFile->GetName())
-				}
-			}
+			CineCameraComponent->FocusSettings.ManualFocusDistance = FocusDistance;
 		}
-		else
+
+		if (LensFileEvalData.Input.Iris.IsSet() && UpdateFlags.bApplyAperture)
 		{
-			const double CurrentTime = FPlatformTime::Seconds();
-			if ((CurrentTime - LastInvalidLoggingLoggedTimestamp) > TimeBetweenLoggingSeconds)
+			float Aperture = LensFileEvalData.Input.Iris.GetValue();
+			if (LensFile->HasIrisEncoderMapping())
 			{
-				LastInvalidLoggingLoggedTimestamp = CurrentTime;
-				FLiveLinkLog::Warning(TEXT("'%s' needs encoder mapping and wants to use LensFile to remap but it's invalid. Falling back to default CineCamera parameters?"), *GetName());
+				Aperture = LensFile->EvaluateNormalizedIris(*LensFileEvalData.Input.Iris);
 			}
 			
-			//Fallback to camera component range
-			bUseRange = true;
+			CineCameraComponent->CurrentAperture = Aperture;
 		}
-
-		//Use Min/Max values of each component to remap normalized incoming values
-		if(bUseRange)
+		if (LensFileEvalData.Input.Zoom.IsSet() && UpdateFlags.bApplyFocalLength)
 		{
-			if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance)
+			//To evaluate focal length, we need F/Z pair. If focus is not available default to 0
+			bool bHasValidFocalLength = false;
+			const float FocusValue = LensFileEvalData.Input.Focus.IsSet() ? LensFileEvalData.Input.Focus.GetValue() : 0.0f;
+			FFocalLengthInfo FocalLengthInfo;
+			if (LensFile->EvaluateFocalLength(FocusValue, LensFileEvalData.Input.Zoom.GetValue(), FocalLengthInfo))
 			{
-				const float MinFocusDistanceInWorldUnits = CineCameraComponent->LensSettings.MinimumFocusDistance * (CineCameraComponent->GetWorldToMetersScale() / 1000.f);	// convert mm to uu
-				float NewFocusDistance = FMath::Lerp(MinFocusDistanceInWorldUnits, 100000.0f, FrameData->FocusDistance);
-				CineCameraComponent->FocusSettings.ManualFocusDistance = NewFocusDistance;
+				if ((FocalLengthInfo.FxFy[0] > KINDA_SMALL_NUMBER) && (FocalLengthInfo.FxFy[1] > KINDA_SMALL_NUMBER))
+				{
+					// This is how field of view, filmback, and focal length are related:
+					//
+					// FOVx = 2*atan(1/(2*Fx)) = 2*atan(FilmbackX / (2*FocalLength))
+					// => FocalLength = Fx*FilmbackX
+					// 
+					// FOVy = 2*atan(1/(2*Fy)) = 2*atan(FilmbackY / (2*FocalLength))
+					// => FilmbackY = FocalLength / Fy
+
+					// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
+					const float NewFocalLength = CineCameraComponent->CurrentFocalLength = FocalLengthInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
+					CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / FocalLengthInfo.FxFy[1];
+					CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
+					bHasValidFocalLength = true;
+				}
 			}
-			if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture)
+
+			//If FocalLength could not be applied, use LiveLink input directly without affecting filmback
+			if (bHasValidFocalLength == false)
 			{
-				float NewAperture = FMath::Lerp(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->LensSettings.MaxFStop, FrameData->Aperture);
-				CineCameraComponent->CurrentAperture = NewAperture;
-			}
-			if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
-			{
-				float NewZoom = FMath::Lerp(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->LensSettings.MaxFocalLength, FrameData->FocalLength);
-				CineCameraComponent->SetCurrentFocalLength(NewZoom);
+				CineCameraComponent->SetCurrentFocalLength(LensFileEvalData.Input.Zoom.GetValue());
 			}
 		}
 	}
 	else
 	{
-		if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance) 
-		{ 
-			CineCameraComponent->FocusSettings.ManualFocusDistance = FrameData->FocusDistance; 
+		//Use Min/Max values of each component to remap normalized incoming values
+		if (bUseCameraRange)
+		{
+			if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance)
+			{
+				const float MinFocusDistanceInWorldUnits = CineCameraComponent->LensSettings.MinimumFocusDistance * (CineCameraComponent->GetWorldToMetersScale() / 1000.f);	// convert mm to uu
+				const float NewFocusDistance = FMath::Lerp(MinFocusDistanceInWorldUnits, 100000.0f, FrameData->FocusDistance);
+				CineCameraComponent->FocusSettings.ManualFocusDistance = NewFocusDistance;
+			}
+			if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture)
+			{
+				const float NewAperture = FMath::Lerp(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->LensSettings.MaxFStop, FrameData->Aperture);
+				CineCameraComponent->CurrentAperture = NewAperture;
+			}
+			if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
+			{
+				const float NewZoom = FMath::Lerp(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->LensSettings.MaxFocalLength, FrameData->FocalLength);
+				CineCameraComponent->SetCurrentFocalLength(NewZoom);
+			}
 		}
+		else
+		{
+			if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance)
+			{
+				CineCameraComponent->FocusSettings.ManualFocusDistance = FrameData->FocusDistance;
+			}
 
-		if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture) 
-		{ 
-			CineCameraComponent->CurrentAperture = FrameData->Aperture; 
-		}
+			if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture)
+			{
+				CineCameraComponent->CurrentAperture = FrameData->Aperture;
+			}
 
-		if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
-		{ 
-			CineCameraComponent->SetCurrentFocalLength(FrameData->FocalLength); 
+			if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
+			{
+				CineCameraComponent->SetCurrentFocalLength(FrameData->FocalLength);
+			}
 		}
 	}
 }
@@ -399,18 +411,17 @@ void ULiveLinkCameraController::ApplyNodalOffset(ULensFile* SelectedLensFile, UC
 		{
 			FNodalPointOffset Offset;
 
-			if (SelectedLensFile->EvaluateNodalPointOffset(
-				LensFileEvalData.Input.Focus.IsSet() ? *LensFileEvalData.Input.Focus : CineCameraComponent->CurrentFocusDistance, 
+			SelectedLensFile->EvaluateNodalPointOffset(
+				LensFileEvalData.Input.Focus.IsSet() ? *LensFileEvalData.Input.Focus : CineCameraComponent->CurrentFocusDistance,
 				LensFileEvalData.Input.Zoom.IsSet() ? *LensFileEvalData.Input.Zoom : CineCameraComponent->CurrentFocalLength,
-				Offset))
-			{
-				LensFileEvalData.NodalOffset.bWasApplied = true;
+				Offset);
 
-				CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
-				CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
-				CineCameraComponent->AddLocalOffset(Offset.LocationOffset);
-				CineCameraComponent->AddLocalRotation(Offset.RotationOffset);
-			}
+			LensFileEvalData.NodalOffset.bWasApplied = true;
+
+			CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
+			CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
+			CineCameraComponent->AddLocalOffset(Offset.LocationOffset);
+			CineCameraComponent->AddLocalRotation(Offset.RotationOffset);
 		}
 
 		LastLocation = CineCameraComponent->GetRelativeLocation();
@@ -437,32 +448,6 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 
 		if (LensDistortionHandler)
 		{
-			// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
-			{
-				FDistortionInfo DistortionInfo;
-				DistortionInfo.Parameters.SetNumZeroed(LensFile->LensInfo.LensModel.GetDefaultObject()->GetNumParameters());
-
-				const bool bGotFxFy = LensFile->EvaluateDistortionParameters(
-					LensFileEvalData.Input.Focus.IsSet() ? *LensFileEvalData.Input.Focus : CineCameraComponent->CurrentFocusDistance,
-					LensFileEvalData.Input.Zoom.IsSet() ? *LensFileEvalData.Input.Zoom : CineCameraComponent->CurrentFocalLength,
-					DistortionInfo
-				);
-
-				if (bGotFxFy && (DistortionInfo.FxFy[0] > KINDA_SMALL_NUMBER) && (DistortionInfo.FxFy[1] > KINDA_SMALL_NUMBER))
-				{
-					// This is how field of view, filmback, and focal length are related:
-					//
-					// FOVx = 2*atan(1/(2*Fx)) = 2*atan(FilmbackX / (2*FocalLength))
-					// => FocalLength = Fx*FilmbackX
-					// 
-					// FOVy = 2*atan(1/(2*Fy)) = 2*atan(FilmbackY / (2*FocalLength))
-					// => FilmbackY = FocalLength / Fy
-
-					CineCameraComponent->CurrentFocalLength = DistortionInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
-					CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / DistortionInfo.FxFy[1];
-				}
-			}
-
 			//Go through the lens file to get distortion data based on FIZ
 			//Our handler's displacement map will get updated
 			FDistortionData DistortionData;

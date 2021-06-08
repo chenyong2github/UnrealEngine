@@ -140,6 +140,15 @@ FString FPartyInvitationRecipient::ToDebugString() const
 	return FString::Printf(TEXT("Id=[%s], PlatformData=[%s]"), *Id->ToDebugString(), *PlatformData);
 }
 
+FDelegateHandle IOnlinePartySystem::AddOnPartyJIPDelegate_Handle(const FOnPartyJIPDelegate& Delegate)
+{
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool Success, int32 /*DeniedResultCode*/)
+	{
+		Delegate.ExecuteIfBound(LocalUserId, PartyId, Success);
+	};
+	return OnPartyJIPResponseDelegates.Add(FOnPartyJIPResponseDelegate::CreateLambda(DeprecationHelperLambda));
+}
+
 FDelegateHandle IOnlinePartySystem::AddOnPartyDataReceivedDelegate_Handle(const FOnPartyDataReceivedConstDelegate& Delegate)
 {
 	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FName& Namespace, const FOnlinePartyData& PartyData)

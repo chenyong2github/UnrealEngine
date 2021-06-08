@@ -30,12 +30,12 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 	DisplayAllViewOptions.SetCategorizeUserDefinedCategory(true);
 	DisplayAllViewOptions.SetAddLibraryOnlyCheckbox(true);
 	
-	FNiagaraAssetPickerTabOptions AllTabOptions;
+	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions AllTabOptions;
 	AllTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
 	AllTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
 	AllTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
 
-	FNiagaraAssetPickerTabOptions TemplateAndBehaviorsOnlyTabOptions;
+	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions TemplateAndBehaviorsOnlyTabOptions;
 	TemplateAndBehaviorsOnlyTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
 	TemplateAndBehaviorsOnlyTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
 
@@ -50,9 +50,10 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 		.ViewOptions(DisplayAllViewOptions)
 		.TabOptions(TemplateAndBehaviorsOnlyTabOptions);
 
-	SAssignNew(SystemAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
+	SAssignNew(CopySystemAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
 		.OnTemplateAssetActivated(this, &SNewSystemDialog::ConfirmSelection)
-		.ViewOptions(DisplayAllViewOptions);
+		.ViewOptions(DisplayAllViewOptions)
+		.TabOptions(AllTabOptions);
 	
 	SNiagaraNewAssetDialog::Construct(SNiagaraNewAssetDialog::FArguments(), UNiagaraSystem::StaticClass()->GetFName(), LOCTEXT("AssetTypeName", "system"),
 		{
@@ -128,7 +129,7 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				LOCTEXT("ProjectSystemsLabel", "Select a Project System"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedProjectSystemAssets),
 				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
-				SystemAssetPicker.ToSharedRef(), SystemAssetPicker->GetSearchBox()
+				CopySystemAssetPicker.ToSharedRef(), CopySystemAssetPicker->GetSearchBox()
 				),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateEmptyLabel", "Create empty system"),
@@ -192,7 +193,7 @@ void SNewSystemDialog::GetSelectedSystemTemplateAssets(TArray<FAssetData>& OutSe
 
 void SNewSystemDialog::GetSelectedProjectSystemAssets(TArray<FAssetData>& OutSelectedAssets)
 {
-	OutSelectedAssets.Append(SystemAssetPicker->GetSelectedAssets());
+	OutSelectedAssets.Append(CopySystemAssetPicker->GetSelectedAssets());
 }
 
 void SNewSystemDialog::GetSelectedProjectEmiterAssets(TArray<FAssetData>& OutSelectedAssets)

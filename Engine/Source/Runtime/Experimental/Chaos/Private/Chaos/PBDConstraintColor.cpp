@@ -384,32 +384,3 @@ int FPBDConstraintColor::GetIslandMaxLevel(int32 Island) const
 	}
 	return -1;
 }
-
-#if !UE_BUILD_SHIPPING
-bool FPBDConstraintColor::DebugCheckGraph(const FPBDConstraintGraph& ConstraintGraph) const
-{
-	if (IslandData.Num() != ConstraintGraph.NumIslands())
-	{
-		UE_LOG(LogChaos, Error, TEXT("Constraint Color island count mismatch %d != %d"), IslandData.Num(), ConstraintGraph.NumIslands());
-		return false;
-	}
-
-	bool bValid = true;
-
-	for (int32 Island = 0; Island < ConstraintGraph.NumIslands(); ++Island)
-	{
-		const TArray<int32>& ConstraintDataIndices = ConstraintGraph.GetIslandConstraintData(Island);
-		for (int32 EdgeIndex : ConstraintDataIndices)
-		{
-			if (Edges[EdgeIndex].Level > IslandData[Island].MaxLevel)
-			{
-				UE_LOG(LogChaos, Error, TEXT("Edge %d level out of range for island %d (%d > %d)"), EdgeIndex, Island, Edges[EdgeIndex].Level, IslandData[Island].MaxLevel);
-				bValid = false;
-			}
-		}
-	}
-
-	return bValid;
-}
-#endif
-

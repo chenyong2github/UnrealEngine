@@ -4989,14 +4989,21 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		// to get default value initialization to work.
 		if ((ObjectLoadFlags & RF_ClassDefaultObject) != 0)
 		{
-			UClass* SuperClass = LoadClass->GetSuperClass();
-			if (SuperClass && !SuperClass->IsNative())
-			{
-				UObject* SuperCDO = SuperClass->GetDefaultObject();
-				TArray<UObject*> SuperSubObjects;
-				GetObjectsWithOuter(SuperCDO, SuperSubObjects, /*bIncludeNestedObjects=*/ false, /*ExclusionFlags=*/ RF_NoFlags, /*InternalExclusionFlags=*/ EInternalObjectFlags::Native);
+			TArray<UObject*> SubObjects;
 
-				for (UObject* SubObject : SuperSubObjects)
+			TFunction<void(UClass*)> PreloadSubobjects = [this, &SubObjects, &PreloadSubobjects](UClass* PreloadClass)
+			{
+				if (PreloadClass == nullptr || PreloadClass->IsNative())
+				{
+					return;
+				}
+
+				PreloadSubobjects(PreloadClass->GetSuperClass());
+				SubObjects.Reset();
+
+				GetObjectsWithOuter(PreloadClass->GetDefaultObject(), SubObjects, /*bIncludeNestedObjects=*/ false, /*ExclusionFlags=*/ RF_NoFlags, /*InternalExclusionFlags=*/ EInternalObjectFlags::Native);
+
+				for (UObject* SubObject : SubObjects)
 				{
 					// Matching behavior in UBlueprint::ForceLoad to ensure that the subobject is actually loaded:
 					if (SubObject->HasAnyFlags(RF_WasLoaded) &&
@@ -5006,12 +5013,13 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 						Preload(SubObject);
 					}
 				}
+			};
+			PreloadSubobjects(LoadClass->GetSuperClass());
 
-				// Preload may have already created this object.
-				if (Export.Object)
-				{
-					return Export.Object;
-				}
+			// Preload may have already created this object.
+			if (Export.Object)
+			{
+				return Export.Object;
 			}
 		}
 

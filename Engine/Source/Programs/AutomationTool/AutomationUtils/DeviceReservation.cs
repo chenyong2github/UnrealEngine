@@ -206,7 +206,11 @@ namespace AutomationTool.DeviceReservation
 			var Request = (HttpWebRequest)WebRequest.Create(UriToRequest);
 			Request.UseDefaultCredentials = true;
 			Request.Method = Method;
-
+			if (Method == "PUT")
+			{
+				Request.ContentLength = 0;
+			}
+			
 			using (var Response = (HttpWebResponse)Request.GetResponse())
 			using (var ResponseStream = Response.GetResponseStream())
 			{

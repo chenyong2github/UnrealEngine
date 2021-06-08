@@ -375,7 +375,7 @@ void UTcpMessagingSettings::GetConnectToEndpoints(TArray<FString>& Endpoints) co
 	}
 
 	FString ConnectString;
-	if (FParse::Value(FCommandLine::Get(), TEXT("TcpMessagingConnect="), ConnectString))
+	if (FParse::Value(FCommandLine::Get(), TEXT("TcpMessagingConnect="), ConnectString, /* bShouldStopOnSeparator */ false))
 	{
 		ConnectString.ParseIntoArray(Endpoints, TEXT(","));
 	}

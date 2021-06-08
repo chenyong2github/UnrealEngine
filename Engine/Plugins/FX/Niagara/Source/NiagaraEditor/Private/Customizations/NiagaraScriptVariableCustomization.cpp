@@ -33,6 +33,7 @@ TSharedRef<IDetailCustomization> FNiagaraScriptVariableDetails::MakeInstance()
 FNiagaraScriptVariableDetails::FNiagaraScriptVariableDetails()
 {
 	GEditor->RegisterForUndo(this);
+	bParameterValueChangedDuringOnValueChanged = false;
 	LibraryDefaultModeValue = 0;
 
 	LibrarySynchronizedDefaultModeEnum = StaticEnum<ENiagaraLibrarySynchronizedDefaultMode>();
@@ -416,7 +417,6 @@ void FNiagaraScriptVariableDetails::OnValueChanged()
 {
 	if (TypeUtilityValue && ParameterEditorValue && GetDefaultPins().Num() > 0)
 	{
-		FString NewDefaultValue;
 		if (!ParameterEditorValue->CanChangeContinuously())
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
@@ -425,7 +425,7 @@ void FNiagaraScriptVariableDetails::OnValueChanged()
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 			ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
 			Variable->Variable.SetData(ParameterValue->GetStructMemory());
-			NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
+			const FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
 
 			for (UEdGraphPin* Pin : GetDefaultPins())
 			{
@@ -435,31 +435,18 @@ void FNiagaraScriptVariableDetails::OnValueChanged()
 		}
 		else
 		{
-			// Values that can change continuously are not guaranteed to call OnBeginChange() before OnChange(), so if a transaction has not been begun by OnBeginChange(), create one now.
-			bool bOnValueChangedTransactionActive = false;
-			if (GEditor->IsTransactionActive() == false)
-			{
-				bOnValueChangedTransactionActive = true;
-				GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
-				Variable->Modify();
-			}
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 			ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
 			Variable->Variable.SetData(ParameterValue->GetStructMemory());
-			NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
+			const FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
 
 			for (UEdGraphPin* Pin : GetDefaultPins())
 			{
-				if (bOnValueChangedTransactionActive)
+				if (Pin->GetDefaultAsString() != NewDefaultValue)
 				{
-					Pin->Modify();
+					bParameterValueChangedDuringOnValueChanged = true;
+					GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, false);
 				}
-				GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
-			}
-
-			if (bOnValueChangedTransactionActive)
-			{
-				GEditor->EndTransaction();
 			}
 		}
 	}
@@ -467,6 +454,7 @@ void FNiagaraScriptVariableDetails::OnValueChanged()
  
 void FNiagaraScriptVariableDetails::OnBeginValueChanged()
 {
+	bParameterValueChangedDuringOnValueChanged = false;
 	if (!ParameterEditorValue->CanChangeContinuously())
 	{
 		return;
@@ -479,12 +467,16 @@ void FNiagaraScriptVariableDetails::OnBeginValueChanged()
 		TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 		ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
 		Variable->Variable.SetData(ParameterValue->GetStructMemory());
+		const FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
 
 		for (UEdGraphPin* Pin : GetDefaultPins())
 		{
-			Pin->Modify();
-			FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable->Variable);
-			GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
+			if (Pin->GetDefaultAsString() != NewDefaultValue)
+			{
+				bParameterValueChangedDuringOnValueChanged = true;
+				Pin->Modify();
+				GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, false);
+			}
 		}
 	}
 }
@@ -493,6 +485,15 @@ void FNiagaraScriptVariableDetails::OnEndValueChanged()
 {
 	if (GEditor->IsTransactionActive())
 	{
+		// If the parameter value was actually changed, invoke PinDefaultValueChanged() on the target pin(s) owning Node(s) to propagate the change.
+		if (bParameterValueChangedDuringOnValueChanged)
+		{
+			bParameterValueChangedDuringOnValueChanged = false;
+			for (UEdGraphPin* Pin : GetDefaultPins())
+			{
+				Pin->GetOwningNode()->PinDefaultValueChanged(Pin);
+			}
+		}
 		GEditor->EndTransaction();
 	}
 }
@@ -578,35 +579,10 @@ void FNiagaraScriptVariableDetails::OnLibraryValueChanged()
 		}
 		else
 		{
-			// Values that can change continuously are not guaranteed to call OnBeginChange() before OnChange(), so if a transaction has not been begun by OnBeginChange(), create one now.
-			bool bOnValueChangedTransactionActive = false;
-			if (GEditor->IsTransactionActive() == false)
-			{
-				bOnValueChangedTransactionActive = true;
-				GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
-				Variable->Modify();
-			}
 			DefaultValueHandle->NotifyPreChange();
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 			ParameterEditorLibraryValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
 			Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
-
-			if (bOnValueChangedTransactionActive)
-			{
-				Variable->UpdateChangeId();
-
-				DefaultValueHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-				DefaultValueHandle->NotifyFinishedChangingProperties();
-
-				if (UNiagaraParameterDefinitions* OuterParameterDefinitions = Cast<UNiagaraParameterDefinitions>(Variable->GetOuter()))
-				{
-					OuterParameterDefinitions->NotifyParameterDefinitionsChanged();
-				}
-
-				GEditor->EndTransaction();
-			}
-			DefaultValueHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-			DefaultValueHandle->NotifyFinishedChangingProperties();
 		}
 	}
 }

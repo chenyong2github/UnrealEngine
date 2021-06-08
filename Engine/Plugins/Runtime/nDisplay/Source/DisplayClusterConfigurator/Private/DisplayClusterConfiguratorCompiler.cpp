@@ -117,18 +117,18 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 
 	if (BlueprintData->Cluster->Nodes.Num() == 0)
 	{
-		MessageLog.Warning(*LOCTEXT("NoClusterNodesError", "No cluster nodes found. Please add a cluster node.").ToString());
+		MessageLog.Warning(*LOCTEXT("NoClusterNodesWarning", "No cluster nodes found. Please add a cluster node.").ToString());
 		return;
 	}
 	
 	if (!FDisplayClusterConfiguratorUtils::IsMasterNodeInConfig(BlueprintData))
 	{
-		MessageLog.Warning(*LOCTEXT("NoMasterNodeError", "Master cluster node not set. Please set a master node.").ToString());
+		MessageLog.Warning(*LOCTEXT("NoMasterNodeWarning", "Master cluster node not set. Please set a master node.").ToString());
 	}
 
 	bool bAtLeastOneViewportFound = false;
 
-	bool bCameraFound = false;
+	bool bViewOriginFound = false;
 	if (UDisplayClusterBlueprintGeneratedClass* BPGC = DCBlueprint->GetGeneratedClass())
 	{
 		const TArray<USCS_Node*>& SCSNodes = BPGC->SimpleConstructionScript->GetAllNodes();
@@ -136,17 +136,17 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 		{
 			if (UActorComponent* Component = Node->GetActualComponentTemplate(BPGC))
 			{
-				if (Component->IsA<UDisplayClusterCameraComponent>() || Component->IsA<UCameraComponent>())
+				if (Component->IsA<UDisplayClusterCameraComponent>())
 				{
-					bCameraFound = true;
+					bViewOriginFound = true;
 					break;
 				}
 			}
 		}
 
-		if (!bCameraFound)
+		if (!bViewOriginFound)
 		{
-			MessageLog.Error(*LOCTEXT("NoCameraError", "No camera found. Please add a camera component.").ToString());
+			MessageLog.Warning(*LOCTEXT("NoViewOriginWarning", "No view origin found. Please add a view origin component.").ToString());
 		}
 	}
 	
@@ -164,9 +164,9 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 					MessageLog.Warning(*LOCTEXT("NoPolicyError", "No projection policy assigned to viewport @@.").ToString(), Viewport.Value);
 				}
 				
-				if (bCameraFound && Viewport.Value->Camera.IsEmpty())
+				if (bViewOriginFound && Viewport.Value->Camera.IsEmpty())
 				{
-					MessageLog.Note(*LOCTEXT("NoCameraForViewportNote", "Using default camera for viewport @@ because none is assigned.").ToString(), Viewport.Value);
+					MessageLog.Note(*LOCTEXT("NoViewOriginForViewportNote", "Using default view origin for viewport @@ because none is assigned.").ToString(), Viewport.Value);
 				}
 			}
 		}

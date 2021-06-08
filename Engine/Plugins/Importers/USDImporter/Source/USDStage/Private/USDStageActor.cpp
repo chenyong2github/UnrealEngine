@@ -526,7 +526,7 @@ struct FRecompilationTracker
 {
 	static void SetupEvents()
 	{
-		if ( bEventIsSetup )
+		if ( bEventIsSetup || !GIsEditor || !GEditor )
 		{
 			return;
 		}
@@ -668,10 +668,14 @@ AUsdStageActor::AUsdStageActor()
 
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject( this, &AUsdStageActor::OnObjectPropertyChanged );
 
-		if ( UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>( GetClass() ) )
+		// Also prevent standalone from doing this
+		if ( GIsEditor && GEditor )
 		{
-			FRecompilationTracker::SetupEvents();
-			FCoreUObjectDelegates::OnObjectsReplaced.AddUObject( this, &AUsdStageActor::OnObjectsReplaced );
+			if ( UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>( GetClass() ) )
+			{
+				FRecompilationTracker::SetupEvents();
+				FCoreUObjectDelegates::OnObjectsReplaced.AddUObject( this, &AUsdStageActor::OnObjectsReplaced );
+			}
 		}
 
 #endif // WITH_EDITOR

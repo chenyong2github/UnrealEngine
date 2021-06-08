@@ -153,10 +153,13 @@ public:
 	{
 		return SharedThis(this);
 	}
+#if !PLATFORM_HOLOLENS
+	// Native stereo layers severely impact performance on Hololens
 	virtual class IStereoLayers* GetStereoLayers() override
 	{
 		return this;
 	}
+#endif
 
 	virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) override;
 
@@ -265,8 +268,6 @@ public:
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 	OPENXRHMD_API void ResetActionDevices();
 
-	OPENXRHMD_API FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
-	OPENXRHMD_API FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
 	OPENXRHMD_API bool IsExtensionEnabled(const FString& Name) const { return EnabledExtensions.Contains(Name); }
 	OPENXRHMD_API XrInstance GetInstance() { return Instance; }
 	OPENXRHMD_API XrSystemId GetSystem() { return System; }
@@ -294,7 +295,6 @@ private:
 	bool					bIsMobileMultiViewEnabled;
 	bool					bSupportsHandTracking;
 	bool					bProjectionLayerAlphaEnabled;
-	bool					bNeedsAcquireOnRHI;
 	bool					bIsStandaloneStereoOnlyDevice;
 	float					WorldToMetersScale = 100.0f;
 
@@ -325,8 +325,6 @@ private:
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
 	IRendererModule*		RendererModule;
 
-	FXRSwapChainPtr			Swapchain;
-	FXRSwapChainPtr			DepthSwapchain;
 	uint8					LastRequestedSwapchainFormat;
 	uint8					LastRequestedDepthSwapchainFormat;
 

@@ -756,6 +756,13 @@ void FMaterialInstanceEditor::CreateInternalWidgets()
 	DetailsViewArgs.bShowModifiedPropertiesOption = false;
 	DetailsViewArgs.bShowCustomFilterOption = true;
 	MaterialInstanceDetails = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
+	// the sizes of the parameter lists are only based on the master material and not changed out from under the details panel 
+	// When a parameter is added open MI editors are refreshed
+	// the tree should also refresh if one of the layer or blend assets is swapped
+
+	auto ValidationLambda = ([](const FRootPropertyNodeList& PropertyNodeList) { return true; });
+	MaterialInstanceDetails->SetCustomValidatePropertyNodesFunction(FOnValidateDetailsViewPropertyNodes::CreateLambda(MoveTemp(ValidationLambda)));
+
 	FOnGetDetailCustomizationInstance LayoutMICDetails = FOnGetDetailCustomizationInstance::CreateStatic( 
 		&FMaterialInstanceParameterDetails::MakeInstance, MaterialEditorInstance, FGetShowHiddenParameters::CreateSP(this, &FMaterialInstanceEditor::GetShowHiddenParameters) );
 	MaterialInstanceDetails->RegisterInstancedCustomPropertyLayout( UMaterialEditorInstanceConstant::StaticClass(), LayoutMICDetails );
@@ -1088,6 +1095,8 @@ void FMaterialInstanceEditor::NotifyPostChange( const FPropertyChangedEvent& Pro
 		UpdatePropertyWindow();
 	}
 
+	RefreshOnScreenMessages();
+
 	// something was changed in the material so we need to reflect this in the stats
 	MaterialStatsManager->SignalMaterialChanged();
 
@@ -1212,87 +1221,65 @@ void FMaterialInstanceEditor::DrawMessages( FViewport* Viewport, FCanvas* Canvas
 	Canvas->PopTransform();
 }
 
-/**
- * Draws sampler/texture mismatch warning strings.
- * @param Canvas - The canvas on which to draw.
- * @param DrawPositionY - The Y position at which to draw. Upon return contains the Y value following the last line of text drawn.
- */
-void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& DrawPositionY)
+void FMaterialInstanceEditor::RefreshOnScreenMessages()
 {
-	if ( MaterialEditorInstance->SourceInstance )
+	OnScreenMessages.Reset();
+
+	if (MaterialEditorInstance->SourceInstance)
 	{
 		UMaterial* BaseMaterial = MaterialEditorInstance->SourceInstance->GetMaterial();
-		if ( BaseMaterial )
+		if (BaseMaterial)
 		{
-			UFont* FontToUse = GEngine->GetTinyFont();
-			const int32 SpacingBetweenLines = 13;
 			UEnum* SamplerTypeEnum = StaticEnum<EMaterialSamplerType>();
-			check( SamplerTypeEnum );
+			check(SamplerTypeEnum);
 			UEnum* MaterialTypeEnum = StaticEnum<ERuntimeVirtualTextureMaterialType>();
 			check(MaterialTypeEnum);
 
 			const int32 GroupCount = MaterialEditorInstance->ParameterGroups.Num();
-			for ( int32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex )
+			for (int32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 			{
-				const FEditorParameterGroup& Group = MaterialEditorInstance->ParameterGroups[ GroupIndex ];
+				const FEditorParameterGroup& Group = MaterialEditorInstance->ParameterGroups[GroupIndex];
 				const int32 ParameterCount = Group.Parameters.Num();
-				for ( int32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex )
+				for (int32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 				{
-					UDEditorTextureParameterValue* TextureParameterValue = Cast<UDEditorTextureParameterValue>( Group.Parameters[ ParameterIndex ] );
-					if ( TextureParameterValue && TextureParameterValue->ExpressionId.IsValid() )
+					UDEditorTextureParameterValue* TextureParameterValue = Cast<UDEditorTextureParameterValue>(Group.Parameters[ParameterIndex]);
+					if (TextureParameterValue && TextureParameterValue->ExpressionId.IsValid())
 					{
 						UTexture* Texture = NULL;
-						MaterialEditorInstance->SourceInstance->GetTextureParameterValue( TextureParameterValue->ParameterInfo, Texture );
-						if ( Texture )
+						MaterialEditorInstance->SourceInstance->GetTextureParameterValue(TextureParameterValue->ParameterInfo, Texture);
+						if (Texture)
 						{
-							EMaterialSamplerType SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture );
-							UMaterialExpressionTextureSampleParameter* Expression = BaseMaterial->FindExpressionByGUID<UMaterialExpressionTextureSampleParameter>( TextureParameterValue->ExpressionId );
+							EMaterialSamplerType SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture(Texture);
+							UMaterialExpressionTextureSampleParameter* Expression = BaseMaterial->FindExpressionByGUID<UMaterialExpressionTextureSampleParameter>(TextureParameterValue->ExpressionId);
 
 							FString ErrorMessage;
 							if (Expression && !Expression->TextureIsValid(Texture, ErrorMessage))
 							{
-								Canvas->DrawShadowedString(
-									5,
-									DrawPositionY,
-									*FString::Printf(TEXT("Error: %s has invalid texture %s: %s."),
-										*TextureParameterValue->ParameterInfo.Name.ToString(),
-										*Texture->GetPathName(),
-										*ErrorMessage),
-									FontToUse,
-									FLinearColor(1, 0, 0));
-								DrawPositionY += SpacingBetweenLines;
+								OnScreenMessages.Emplace(FLinearColor(1, 0, 0),
+									FString::Printf(TEXT("Error: %s has invalid texture %s: %s."),
+									*TextureParameterValue->ParameterInfo.Name.ToString(),
+									*Texture->GetPathName(),
+									*ErrorMessage));
 							}
 							else
 							{
 								if (Expression && Expression->SamplerType != SamplerType)
 								{
 									FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
-
-									Canvas->DrawShadowedString(
-										5,
-										DrawPositionY,
-										*FString::Printf(TEXT("Warning: %s samples %s as %s."),
-											*TextureParameterValue->ParameterInfo.Name.ToString(),
-											*Texture->GetPathName(),
-											*SamplerTypeDisplayName),
-										FontToUse,
-										FLinearColor(1, 1, 0));
-									DrawPositionY += SpacingBetweenLines;
+									OnScreenMessages.Emplace(FLinearColor(1, 1, 0),
+										FString::Printf(TEXT("Warning: %s samples %s as %s."),
+										*TextureParameterValue->ParameterInfo.Name.ToString(),
+										*Texture->GetPathName(),
+										*SamplerTypeDisplayName));
 								}
 								if (Expression && ((Expression->SamplerType == (EMaterialSamplerType)TC_Normalmap || Expression->SamplerType == (EMaterialSamplerType)TC_Masks) && Texture->SRGB))
 								{
 									FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
-
-									Canvas->DrawShadowedString(
-										5,
-										DrawPositionY,
-										*FString::Printf(TEXT("Warning: %s samples texture as '%s'. SRGB should be disabled for '%s'."),
+									OnScreenMessages.Emplace(FLinearColor(1, 1, 0),
+										FString::Printf(TEXT("Warning: %s samples texture as '%s'. SRGB should be disabled for '%s'."),
 											*TextureParameterValue->ParameterInfo.Name.ToString(),
 											*SamplerTypeDisplayName,
-											*Texture->GetPathName()),
-										FontToUse,
-										FLinearColor(1, 1, 0));
-									DrawPositionY += SpacingBetweenLines;
+											*Texture->GetPathName()));
 								}
 							}
 						}
@@ -1309,64 +1296,64 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 							if (!Expression)
 							{
 								const FText ExpressionNameText = FText::Format(LOCTEXT("MissingRVTExpression", "Warning: Runtime Virtual Texture Expression {0} not found."), FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name));
-								Canvas->DrawShadowedText(
-									5, DrawPositionY,
-									ExpressionNameText,
-									FontToUse,
-									FLinearColor(1, 1, 0));
-
-								DrawPositionY += SpacingBetweenLines;
+								OnScreenMessages.Emplace(FLinearColor(1, 1, 0), ExpressionNameText.ToString());
 							}
 							if (Expression && Expression->MaterialType != RuntimeVirtualTexture->GetMaterialType())
 							{
 								FString BaseMaterialTypeDisplayName = MaterialTypeEnum->GetDisplayNameTextByValue((int64)(Expression->MaterialType)).ToString();
 								FString OverrideMaterialTypeDisplayName = MaterialTypeEnum->GetDisplayNameTextByValue((int64)(RuntimeVirtualTexture->GetMaterialType())).ToString();
 
-								Canvas->DrawShadowedText(
-									5, DrawPositionY,
-									FText::Format(LOCTEXT("MismatchedRVTType","Warning: '{0}' interprets the virtual texture as '{1}' not '{2}', {3}"),
-										FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
-										FText::FromString(BaseMaterialTypeDisplayName),
-										FText::FromString(OverrideMaterialTypeDisplayName),
-										FText::FromString(RuntimeVirtualTexture->GetPathName())),
-									FontToUse,
-									FLinearColor(1, 1, 0));
-
-								DrawPositionY += SpacingBetweenLines;
+								OnScreenMessages.Emplace(FLinearColor(1, 1, 0),
+									FText::Format(LOCTEXT("MismatchedRVTType", "Warning: '{0}' interprets the virtual texture as '{1}' not '{2}', {3}"),
+									FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
+									FText::FromString(BaseMaterialTypeDisplayName),
+									FText::FromString(OverrideMaterialTypeDisplayName),
+									FText::FromString(RuntimeVirtualTexture->GetPathName())).ToString());
 							}
 							if (Expression && Expression->bSinglePhysicalSpace != RuntimeVirtualTexture->GetSinglePhysicalSpace())
 							{
-								Canvas->DrawShadowedText(
-									5, DrawPositionY,
+								OnScreenMessages.Emplace(FLinearColor(1, 1, 0),
 									FText::Format(LOCTEXT("VirtualTexturePagePackingWarning", "Warning: '{0}' interprets the virtual texture page table packing as {1} not {2}, {3}"),
-										FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
-										FText::FromString(RuntimeVirtualTexture->GetSinglePhysicalSpace() ?  TEXT("true") : TEXT("false")),
-										FText::FromString(Expression->bSinglePhysicalSpace ? TEXT("true") : TEXT("false")),
-										FText::FromString(RuntimeVirtualTexture->GetPathName())),
-									FontToUse,
-									FLinearColor(1, 1, 0));
-
-								DrawPositionY += SpacingBetweenLines;
+									FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
+									FText::FromString(RuntimeVirtualTexture->GetSinglePhysicalSpace() ? TEXT("true") : TEXT("false")),
+									FText::FromString(Expression->bSinglePhysicalSpace ? TEXT("true") : TEXT("false")),
+									FText::FromString(RuntimeVirtualTexture->GetPathName())).ToString());
 							}
 							if (Expression && Expression->bAdaptive != RuntimeVirtualTexture->GetAdaptivePageTable())
 							{
-								Canvas->DrawShadowedText(
-									5, DrawPositionY,
+								OnScreenMessages.Emplace(FLinearColor(1, 1, 0),
 									FText::Format(LOCTEXT("VirtualTextureAdaptiveWarning", "Warning: '{0}' interprets the adaptive page table setting as {1} not {2}, {3}"),
-										FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
-										FText::FromString(RuntimeVirtualTexture->GetAdaptivePageTable() ? TEXT("true") : TEXT("false")),
-										FText::FromString(Expression->bAdaptive ? TEXT("true") : TEXT("false")),
-										FText::FromString(RuntimeVirtualTexture->GetPathName())),
-									FontToUse,
-									FLinearColor(1, 1, 0));
-
-								DrawPositionY += SpacingBetweenLines;
+									FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
+									FText::FromString(RuntimeVirtualTexture->GetAdaptivePageTable() ? TEXT("true") : TEXT("false")),
+									FText::FromString(Expression->bAdaptive ? TEXT("true") : TEXT("false")),
+									FText::FromString(RuntimeVirtualTexture->GetPathName())).ToString());
 							}
 						}
 					}
 				}
 			}
 		}
+	}
+}
+
+/**
+ * Draws sampler/texture mismatch warning strings.
+ * @param Canvas - The canvas on which to draw.
+ * @param DrawPositionY - The Y position at which to draw. Upon return contains the Y value following the last line of text drawn.
+ */
+void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& DrawPositionY)
+{
+	const int32 SpacingBetweenLines = 13;
+	UFont* FontToUse = GEngine->GetTinyFont();
+	for (const FOnScreenMessage& Message : OnScreenMessages)
+	{
+		Canvas->DrawShadowedString(
+			5,
+			DrawPositionY,
+			*Message.Message,
+			FontToUse,
+			Message.Color);
+		DrawPositionY += SpacingBetweenLines;
 	}
 }
 
@@ -1547,6 +1534,8 @@ void FMaterialInstanceEditor::Refresh()
 	}
 	
 	UpdatePropertyWindow();
+
+	RefreshOnScreenMessages();
 }
 
 void FMaterialInstanceEditor::PostUndo( bool bSuccess )

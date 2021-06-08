@@ -53,6 +53,13 @@ bool URuntimeVirtualTextureComponent::IsVisible() const
 	return Super::IsVisible() && UseVirtualTexturing(GetScene()->GetFeatureLevel());
 }
 
+void URuntimeVirtualTextureComponent::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
+{
+	Super::ApplyWorldOffset(InOffset, bWorldShift);
+	// Mark transform as dirty after a world origin rebase. See comment in SendRenderTransform_Concurrent() below.
+	MarkRenderTransformDirty();
+}
+
 void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	if (ShouldRender() && VirtualTexture != nullptr)
@@ -68,7 +75,9 @@ void URuntimeVirtualTextureComponent::SendRenderTransform_Concurrent()
 {
 	if (ShouldRender() && VirtualTexture != nullptr)
 	{
-		// This will modify the URuntimeVirtualTexture and allocate its VT
+		// We do a full recreate of the URuntimeVirtualTexture here which can cause a visual glitch.
+		// We do this because, for an arbitrary transform, there is no way to only modify the transform and maintain the VT contents.
+		// Possibly, with some work, the contents could be maintained for any transform change that is an exact multiple of the page size in world space.
 		GetScene()->AddRuntimeVirtualTexture(this);
 	}
 

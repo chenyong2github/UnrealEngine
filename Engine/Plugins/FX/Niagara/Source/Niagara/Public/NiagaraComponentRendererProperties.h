@@ -80,7 +80,7 @@ public:
 	virtual const FSlateBrush* GetStackIcon() const override;
 	virtual FText GetWidgetDisplayName() const override;
 
-	virtual const TArray<FNiagaraVariable>& GetBoundAttributes() override;
+	virtual TArray<FNiagaraVariable> GetBoundAttributes() const override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
 #endif // WITH_EDITORONLY_DATA
 

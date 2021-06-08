@@ -35,8 +35,8 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 	Configuration      = MakeUnique<FDisplayClusterViewportConfiguration>(*this);
 	RenderFrameManager = MakeUnique<FDisplayClusterRenderFrameManager>();
 
-	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager>();
-	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager>();
+	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>();
+	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>();
 
 	ViewportManagerProxy = new FDisplayClusterViewportManagerProxy(*this);
 }
@@ -216,12 +216,6 @@ bool FDisplayClusterViewportManager::BeginNewFrame(class FViewport* InViewport, 
 	ImplUpdatePreviewRTTResources();
 #endif /*WITH_EDITOR*/
 
-	// Send render frame settings to rendering thread
-	ViewportManagerProxy->ImplUpdateRenderFrameSettings(Configuration->GetRenderFrameSettings());
-
-	// Send updated viewports data to render thread proxy
-	ViewportManagerProxy->ImplUpdateViewports(Viewports);
-
 	return true;
 }
 
@@ -232,8 +226,23 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 	// When all viewports processed, we remove all single frame custom postprocess
 	for (FDisplayClusterViewport* Viewport : Viewports)
 	{
-		Viewport->CustomPostProcessSettings.FinalizeFrame();
+		if (Viewport)
+		{
+			Viewport->CustomPostProcessSettings.FinalizeFrame();
+
+			// update projection policy proxy data
+			if (Viewport->ProjectionPolicy.IsValid())
+			{
+				Viewport->ProjectionPolicy->UpdateProxyData(Viewport);
+			}
+		}
 	}
+
+	// Send render frame settings to rendering thread
+	ViewportManagerProxy->ImplUpdateRenderFrameSettings(Configuration->GetRenderFrameSettings());
+
+	// Send updated viewports data to render thread proxy
+	ViewportManagerProxy->ImplUpdateViewports(Viewports);
 }
 
 void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& ViewFamily)
@@ -300,15 +309,19 @@ bool FDisplayClusterViewportManager::CreateViewport(const FString& InViewportId,
 	}
 
 	// Create projection policy for viewport
-	TSharedPtr<IDisplayClusterProjectionPolicy> NewProjectionPolicy = CreateProjectionPolicy(InViewportId, &ConfigurationViewport->ProjectionPolicy);
+	const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> NewProjectionPolicy = CreateProjectionPolicy(InViewportId, &ConfigurationViewport->ProjectionPolicy);
 	if (NewProjectionPolicy.IsValid())
 	{
 		// Create viewport for new projection policy
 		FDisplayClusterViewport* NewViewport = ImplCreateViewport(InViewportId, NewProjectionPolicy);
 		if (NewViewport != nullptr)
 		{
-			FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(*this, NewViewport, ConfigurationViewport);
-			return true;
+			ADisplayClusterRootActor* RootActorPtr = GetRootActor();
+			if (RootActorPtr)
+			{
+				FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(*this, *RootActorPtr, NewViewport, ConfigurationViewport);
+				return true;
+			}
 		}
 	}
 
@@ -329,7 +342,7 @@ FDisplayClusterViewport* FDisplayClusterViewportManager::ImplFindViewport(const 
 	return (DesiredViewport != nullptr) ? *DesiredViewport : nullptr;
 }
 
-IDisplayClusterViewport* FDisplayClusterViewportManager::CreateViewport(const FString& ViewportId, TSharedPtr<class IDisplayClusterProjectionPolicy> InProjectionPolicy)
+IDisplayClusterViewport* FDisplayClusterViewportManager::CreateViewport(const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy)
 {
 	check(IsInGameThread());
 
@@ -357,7 +370,7 @@ bool FDisplayClusterViewportManager::DeleteViewport(const FString& ViewportId)
 	return false;
 }
 
-FDisplayClusterViewport* FDisplayClusterViewportManager::ImplCreateViewport(const FString& ViewportId, TSharedPtr<class IDisplayClusterProjectionPolicy> InProjectionPolicy)
+FDisplayClusterViewport* FDisplayClusterViewportManager::ImplCreateViewport(const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy)
 {
 	check(IsInGameThread());
 
@@ -414,7 +427,7 @@ IDisplayClusterViewport* FDisplayClusterViewportManager::FindViewport(const enum
 	return nullptr;
 }
 
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterViewportManager::CreateProjectionPolicy(const FString& InViewportId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayClusterViewportManager::CreateProjectionPolicy(const FString& InViewportId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 {
 	check(IsInGameThread());
 	check(InConfigurationProjectionPolicy != nullptr);
@@ -428,7 +441,7 @@ TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterViewportManager::Crea
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> ProjPolicyFactory = DCRenderManager->GetProjectionPolicyFactory(InConfigurationProjectionPolicy->Type);
 	if (ProjPolicyFactory.IsValid())
 	{
-		TSharedPtr<IDisplayClusterProjectionPolicy> ProjPolicy = ProjPolicyFactory->Create(ProjectionPolicyId, InConfigurationProjectionPolicy);
+		TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjPolicy = ProjPolicyFactory->Create(ProjectionPolicyId, InConfigurationProjectionPolicy);
 		if (ProjPolicy.IsValid())
 		{
 			return ProjPolicy;

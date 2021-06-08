@@ -20,8 +20,12 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
+				"Android",
+				"IOS",
+				"Mac",
 				"Linux",
-				"Win64"
+				"Win64",
+				"HoloLens"
 			]
 		},
 		{
@@ -29,8 +33,12 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
+				"Android",
+				"IOS",
+				"Mac",
 				"Linux",
-				"Win64"
+				"Win64",
+				"HoloLens"
 			]
 		}
 	],

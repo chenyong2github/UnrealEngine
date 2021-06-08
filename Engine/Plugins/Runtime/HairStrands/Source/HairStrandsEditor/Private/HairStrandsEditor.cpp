@@ -5,6 +5,7 @@
 
 #include "GroomActions.h"
 #include "GroomBindingActions.h"
+#include "GroomCacheActions.h"
 
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
@@ -68,11 +69,13 @@ void SaveAsset(UObject* Object)
 void FGroomEditor::StartupModule()
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	TSharedRef<IAssetTypeActions> GroomAssetActions = MakeShareable(new FGroomActions());
-	TSharedRef<IAssetTypeActions> BindingAssetActions = MakeShareable(new FGroomBindingActions());
+	TSharedRef<IAssetTypeActions> GroomAssetActions = MakeShared<FGroomActions>();
+	TSharedRef<IAssetTypeActions> BindingAssetActions = MakeShared<FGroomBindingActions>();
+	TSharedRef<IAssetTypeActions> GroomCacheActions = MakeShared<FGroomCacheActions>();
 
 	AssetTools.RegisterAssetTypeActions(GroomAssetActions);
 	AssetTools.RegisterAssetTypeActions(BindingAssetActions);
+	AssetTools.RegisterAssetTypeActions(GroomCacheActions);
 	RegisteredAssetTypeActions.Add(GroomAssetActions);
 	RegisteredAssetTypeActions.Add(BindingAssetActions);
 
@@ -87,7 +90,7 @@ void FGroomEditor::StartupModule()
 		const FVector2D Icon64x64(64.0f, 64.0f);
 		FString HairStrandsContent = IPluginManager::Get().FindPlugin(TEXT("HairStrands"))->GetBaseDir() + "/Content";
 
-		StyleSet = MakeShareable(new FSlateStyleSet("Groom"));
+		StyleSet = MakeShared<FSlateStyleSet>("Groom");
 		StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 		StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 		

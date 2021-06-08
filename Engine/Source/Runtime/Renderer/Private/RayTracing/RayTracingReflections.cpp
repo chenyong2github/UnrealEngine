@@ -409,16 +409,12 @@ static bool ShouldRayTracedReflectionsUseHybridReflections()
 
 static bool ShouldRayTracedReflectionsSortMaterials(const FViewInfo& View)
 {
-	const bool bIsMultiviewSecondary = View.ViewRect.Min.X > 0 || View.ViewRect.Min.Y > 0;
-
-	return (ShouldRayTracedReflectionsUseHybridReflections() || CVarRayTracingReflectionsSortMaterials.GetValueOnRenderThread() != 0) && !bIsMultiviewSecondary;
+	return (ShouldRayTracedReflectionsUseHybridReflections() || CVarRayTracingReflectionsSortMaterials.GetValueOnRenderThread() != 0);
 }
 
 static bool ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(const FViewInfo& View)
 {
-	const bool bIsMultiviewSecondary = View.ViewRect.Min.X > 0 || View.ViewRect.Min.Y > 0;
-
-	return (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread() != 0) && !bIsMultiviewSecondary;
+	return (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread() != 0);
 }
 
 static bool ShouldRayTracedReflectionsRayTraceSkyLightContribution(const FScene& Scene)

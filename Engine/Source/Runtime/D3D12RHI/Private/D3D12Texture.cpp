@@ -944,6 +944,14 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		ClearValuePtr = &ClearValue;
 	}
 
+	if (Format == PF_NV12)
+	{
+		// Check here to ensure callers aren't trying to do the wrong thing in the specific case of this format.
+		check(!bCreateRTV && !bCreateShaderResource);
+		bCreateRTV = false;
+		bCreateShaderResource = false;
+	}
+
 	// The state this resource will be in when it leaves this function
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(TextureDesc, D3D12_HEAP_TYPE_DEFAULT);
 	const D3D12_RESOURCE_STATES InitialState = Type.GetOptimalInitialState(InResourceState, false);
@@ -2995,6 +3003,16 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 	// Set up the texture bind flags.
 	bool bCreateRTV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0;
 	bool bCreateDSV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
+	bool bCreateShaderResource = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0;
+
+	// DXGI_FORMAT_NV12 allows us to create RTV and SRV but only with other formats, so we should block creation here.
+	if (Format == PF_NV12)
+	{
+		// Check here to ensure callers aren't trying to do the wrong thing in the specific case of this format.
+		check(!bCreateRTV && !bCreateShaderResource);
+		bCreateRTV = false;
+		bCreateShaderResource = false;
+	}
 
 	// The state this resource will be in when it leaves this function
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(TextureDesc, D3D12_HEAP_TYPE_DEFAULT);
@@ -3149,7 +3167,10 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 	}
 
 	// Create a wrapper for the SRV and set it on the texture
-	Texture2D->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Texture2D));
+	if (bCreateShaderResource)
+	{
+		Texture2D->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Texture2D));
+	}
 
 	FD3D12TextureStats::D3D12TextureAllocated(*Texture2D);
 

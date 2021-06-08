@@ -114,7 +114,7 @@ namespace Gauntlet.SelfTest
 
 			UnrealLogParser LogParser = new UnrealLogParser(ClientInstance.StdOut);
 
-			UnrealLogParser.CallstackMessage ErrorInfo = LogParser.GetFatalError();
+			UnrealLog.CallstackMessage ErrorInfo = LogParser.GetFatalError();
 			if (ErrorInfo != null)
 			{
 				CheckResult(false, "FatalError - {0}", ErrorInfo.Message);

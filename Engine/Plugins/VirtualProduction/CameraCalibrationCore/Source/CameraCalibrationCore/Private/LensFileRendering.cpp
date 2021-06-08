@@ -18,17 +18,21 @@ class FDisplacementMapBlendPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FDisplacementMapBlendPS);
 	SHADER_USE_PARAMETER_STRUCT(FDisplacementMapBlendPS, FGlobalShader);
 
-	class FBlendType : SHADER_PERMUTATION_INT("BLEND_TYPE", 3);
+	class FBlendType : SHADER_PERMUTATION_INT("BLEND_TYPE", 4);
 	using FPermutationDomain = TShaderPermutationDomain<FBlendType>;
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 
-		SHADER_PARAMETER(float, BlendFactor)
-		SHADER_PARAMETER(float, MainCoefficient)
-		SHADER_PARAMETER(float, DeltaMinX)
-		SHADER_PARAMETER(float, DeltaMaxX)
-		SHADER_PARAMETER(float, DeltaMinY)
-		SHADER_PARAMETER(float, DeltaMaxY)
+		SHADER_PARAMETER(float, EvalTime)
+		SHADER_PARAMETER(float, Curve0Key0Time)
+		SHADER_PARAMETER(float, Curve0Key1Time)
+		SHADER_PARAMETER(float, Curve0Key0Tangent)
+		SHADER_PARAMETER(float, Curve0Key1Tangent)
+		SHADER_PARAMETER(float, Curve1Key0Time)
+		SHADER_PARAMETER(float, Curve1Key1Time)
+		SHADER_PARAMETER(float, Curve1Key0Tangent)
+		SHADER_PARAMETER(float, Curve1Key1Tangent)
+		SHADER_PARAMETER(float, FocusBlendFactor)
 		SHADER_PARAMETER(FVector2D, FxFyScale)
 		SHADER_PARAMETER(FVector2D, PrincipalPoint)
 		SHADER_PARAMETER(FIntPoint, OutputTextureExtent)
@@ -112,34 +116,52 @@ namespace LensFileRendering
 			FDisplacementMapBlendPS::FPermutationDomain PermutationVector;
 			switch(BlendParams.BlendType)
 			{
-			case EDisplacementMapBlendType::Linear:
+			case EDisplacementMapBlendType::TwoFocusOneZoom:
 				{
 					PermutationVector.Set<FDisplacementMapBlendPS::FBlendType>(1);
 					check(SourceTextureTwoResource);
-					FRDGTextureRef TextureTwo = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureTwoResource->TextureRHI, TEXT("DisplacementMapTwo")));
-					PassParameters->BlendFactor = BlendParams.LinearBlendFactor;
+					const FRDGTextureRef TextureTwo = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureTwoResource->TextureRHI, TEXT("DisplacementMapTwo")));
+					PassParameters->FocusBlendFactor = BlendParams.FocusBlendFactor;
 					PassParameters->SourceTextureTwo = TextureTwo;
 					break;
 				}
-			case EDisplacementMapBlendType::Bilinear:
+			case EDisplacementMapBlendType::OneFocusTwoZoom:
 				{
 					PermutationVector.Set<FDisplacementMapBlendPS::FBlendType>(2);
+					check(SourceTextureTwoResource);
+					const FRDGTextureRef TextureTwo = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureTwoResource->TextureRHI, TEXT("DisplacementMapTwo")));
+					PassParameters->EvalTime = BlendParams.EvalTime;
+					PassParameters->Curve0Key0Time = BlendParams.Curve0Key0Time;
+					PassParameters->Curve0Key1Time = BlendParams.Curve0Key1Time;
+					PassParameters->Curve0Key0Tangent = BlendParams.Curve0Key0Tangent;
+					PassParameters->Curve0Key1Tangent = BlendParams.Curve0Key1Tangent;
+					PassParameters->SourceTextureTwo = TextureTwo;
+					break;
+				}
+			case EDisplacementMapBlendType::TwoFocusTwoZoom:
+				{
+					PermutationVector.Set<FDisplacementMapBlendPS::FBlendType>(3);
 					check(SourceTextureTwoResource && SourceTextureThreeResource && SourceTextureFourResource);
-					FRDGTextureRef TextureTwo = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureTwoResource->TextureRHI, TEXT("DisplacementMapTwo")));
-					FRDGTextureRef TextureThree = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureThreeResource->TextureRHI, TEXT("DisplacementMapThree")));
-					FRDGTextureRef TextureFour = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureFourResource->TextureRHI, TEXT("DisplacementMapFour")));
-					PassParameters->MainCoefficient = BlendParams.MainCoefficient;
-					PassParameters->DeltaMinX = BlendParams.DeltaMinX;
-					PassParameters->DeltaMaxX = BlendParams.DeltaMaxX;
-					PassParameters->DeltaMinY = BlendParams.DeltaMinY;
-					PassParameters->DeltaMaxY = BlendParams.DeltaMaxY;
+					const FRDGTextureRef TextureTwo = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureTwoResource->TextureRHI, TEXT("DisplacementMapTwo")));
+					const FRDGTextureRef TextureThree = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureThreeResource->TextureRHI, TEXT("DisplacementMapThree")));
+					const FRDGTextureRef TextureFour = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceTextureFourResource->TextureRHI, TEXT("DisplacementMapFour")));
+					PassParameters->EvalTime = BlendParams.EvalTime;
+					PassParameters->Curve0Key0Time = BlendParams.Curve0Key0Time;
+					PassParameters->Curve0Key1Time = BlendParams.Curve0Key1Time;
+					PassParameters->Curve0Key0Tangent = BlendParams.Curve0Key0Tangent;
+					PassParameters->Curve0Key1Tangent = BlendParams.Curve0Key1Tangent;
+					PassParameters->Curve1Key0Time = BlendParams.Curve1Key0Time;
+					PassParameters->Curve1Key1Time = BlendParams.Curve1Key1Time;
+					PassParameters->Curve1Key0Tangent = BlendParams.Curve1Key0Tangent;
+					PassParameters->Curve1Key1Tangent = BlendParams.Curve1Key1Tangent;
+					PassParameters->FocusBlendFactor = BlendParams.FocusBlendFactor;
 					PassParameters->SourceTextureTwo = TextureTwo;
 					PassParameters->SourceTextureThree = TextureThree;
 					PassParameters->SourceTextureFour = TextureFour;
 						
 					break;
 				}
-			case EDisplacementMapBlendType::Passthrough:
+			case EDisplacementMapBlendType::OneFocusOneZoom:
 			default:
 				{
 					PermutationVector.Set<FDisplacementMapBlendPS::FBlendType>(0);

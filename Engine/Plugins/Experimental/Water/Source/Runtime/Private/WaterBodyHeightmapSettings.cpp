@@ -5,6 +5,5 @@
 FWaterBodyHeightmapSettings::FWaterBodyHeightmapSettings()
 	: BlendMode(EWaterBrushBlendType::AlphaBlend)
 	, bInvertShape(false)
-	, Priority(0)
 {
 }

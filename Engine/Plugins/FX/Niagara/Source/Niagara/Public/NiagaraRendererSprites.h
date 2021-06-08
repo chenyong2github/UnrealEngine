@@ -36,11 +36,27 @@ public:
 	//FNiagaraRenderer interface END
 
 private:
-	struct FCPUSimParticleDataAllocation
+	struct FParticleSpriteRenderData
 	{
-		FGlobalDynamicReadBuffer& DynamicReadBuffer;
-		FParticleRenderData ParticleData;
-		FGlobalDynamicReadBuffer::FAllocation IntData;
+		const FNiagaraDynamicDataSprites*	DynamicDataSprites = nullptr;
+		class FNiagaraDataBuffer*			SourceParticleData = nullptr;
+
+		bool								bHasTranslucentMaterials = false;
+		bool								bSortCullOnGpu = false;
+		bool								bNeedsSort = false;
+		bool								bNeedsCull = false;
+
+		const FNiagaraRendererLayout*		RendererLayout = nullptr;
+		ENiagaraSpriteVFLayout::Type		SortVariable;
+
+		FRHIShaderResourceView*				ParticleFloatSRV = nullptr;
+		FRHIShaderResourceView*				ParticleHalfSRV = nullptr;
+		FRHIShaderResourceView*				ParticleIntSRV = nullptr;
+		uint32								ParticleFloatDataStride = 0;
+		uint32								ParticleHalfDataStride = 0;
+		uint32								ParticleIntDataStride = 0;
+
+		uint32								RendererVisTagOffset = INDEX_NONE;
 	};
 
 	/* Mesh collector classes */
@@ -66,28 +82,21 @@ private:
 	using FMeshCollectorResources = TMeshCollectorResources<FNiagaraSpriteVertexFactory>;
 	using FMeshCollectorResourcesEx = TMeshCollectorResources<FNiagaraSpriteVertexFactoryEx>;
 
-	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, const FNiagaraRendererLayout* RendererLayout, FGlobalDynamicReadBuffer& DynamicReadBuffer, bool bNeedsGPUVis) const;
-	TUniformBufferRef<class FNiagaraSpriteUniformParameters> CreatePerViewUniformBuffer(const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy *SceneProxy, const FNiagaraRendererLayout* RendererLayout, const FNiagaraDynamicDataSprites* DynamicDataSprites) const;
-	void SetVertexFactoryParticleData(
-		class FNiagaraSpriteVertexFactory& VertexFactory,
-		int32& OutCulledGPUParticleCountOffset,
-		FNiagaraDynamicDataSprites* DynamicDataSprites,
-		FCPUSimParticleDataAllocation& CPUSimParticleDataAllocation,
-		const FSceneView* View,
-		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
-		const FNiagaraSceneProxy* SceneProxy,
-		const FNiagaraRendererLayout* RendererLayout
-	) const;
+	void PrepareParticleSpriteRenderData(FParticleSpriteRenderData& ParticleSpriteRenderData, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const;
+	void PrepareParticleRenderBuffers(FParticleSpriteRenderData& ParticleSpriteRenderData, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
+	void InitializeSortInfo(FParticleSpriteRenderData& ParticleSpriteRenderData, const FNiagaraSceneProxy& SceneProxy, const FSceneView& View, int32 ViewIndex, FNiagaraGPUSortInfo& OutSortInfo) const;
+	void SetupVertexFactory(FParticleSpriteRenderData& ParticleSpriteRenderData, FNiagaraSpriteVertexFactory& VertexFactory) const;
+	FNiagaraSpriteUniformBufferRef CreateViewUniformBuffer(FParticleSpriteRenderData& ParticleSpriteRenderData, const FSceneView& View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy& SceneProxy, FNiagaraSpriteVertexFactory& VertexFactory) const;
+
 	void CreateMeshBatchForView(
-		const FSceneView* View,
-		const FSceneViewFamily& ViewFamily,
-		const FNiagaraSceneProxy* SceneProxy,
-		int32 CulledGPUParticleCountOffset,
-		FNiagaraDynamicDataSprites* DynamicDataSprites,
-		FMeshBatch& OutMeshBatch,
-		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
-		class FMeshCollectorResourcesBase& OutCollectorResources,
-		const FNiagaraRendererLayout* RendererLayout
+		FParticleSpriteRenderData& ParticleSpriteRenderData,
+		FMeshBatch& MeshBatch,
+		const FSceneView& View,
+		const FNiagaraSceneProxy& SceneProxy,
+		FNiagaraSpriteVertexFactory& VertexFactory,
+		uint32 NumInstances,
+		uint32 GPUCountBufferOffset,
+		bool bDoGPUCulling
 	) const;
 
 	//Cached data from the properties struct.

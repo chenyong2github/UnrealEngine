@@ -22,31 +22,36 @@ Destination states have a *. These are the only states that external sources can
 Error states have !. These states become destinations if an error occurs during a transition.
 Transition states are expected to transition the machine to another state after doing some work.
 
-               +--------------+
-               |              |
-               |Uninitialized |
-               |              |
-               +------+-------+
-                      |
-               +------v-------+
-               |      *       |
-               |UnknownStatus |
-               |              |
-               +------+-------+
-                      |
-               +------v--------+     +--------------------+
-               |               |     |         !          |
-               |CheckingStatus <-----> ErrorCheckingStatus|
-               |               |     |                    |
-               +------+------^-+     +--------------------+
-                      |      |
-                      |      |       +--------------------+
-                      |      |       |         !          |
-                      |      --------> ErrorUnavailable   |
-                      |              |                    |
-                      |              +--------------------+
-                      |
-               +------v-------+                            
+                         +--------------+
+                         |              |
+                         |Uninitialized |
+                         |              |
+                         +------+-------+
+     +------------+             |
+     |     *      |             |
+     |  Terminal  <-------------~------------------------------
+     |            |             |                             |
+     +--^------^--+             |                             |
+        |      |                |                             |
+        |      |         +------v-------+                     |
+        |      |         |      *       |                     |
+        |      ----------+UnknownStatus |                     |
+        |                |              |                     |
+        |                +------+-------+                     |
+        |                  |                                  |
+        |      +-----------v---+     +--------------------+   |
+        |      |               |     |         !          |   |
+        |      |CheckingStatus <-----> ErrorCheckingStatus+-->|
+        |      |               |     |                    |   |
+        |      +------+------^-+     +--------------------+   |
+        |             |      |                                |
+        |             |      |       +--------------------+   |
+        ----------    |      |       |         !          |   |
+                 |    |      --------> ErrorUnavailable   +----
+                 |    |              |                    |
+                 |    |              +--------------------+
+                 |    |
+               +-+----v-------+                            
                |      *       |
      ----------+ StatusKnown  |
      |         |              |
@@ -125,6 +130,7 @@ Transition states are expected to transition the machine to another state after 
 enum class EGameFeaturePluginState : uint8
 {
 	Uninitialized,				// Unset. Not yet been set up.
+	Terminal,					// Final State before removal of the state machine
 	UnknownStatus,				// Initialized, but the only thing known is the URL to query status.
 	CheckingStatus,				// Transition state UnknownStatus -> StatusKnown. The status is in the process of being queried.
 	ErrorCheckingStatus,		// Error state for UnknownStatus -> StatusKnown transition.
@@ -346,6 +352,12 @@ public:
 	/** Returns the name of the game feature. Before StatusKnown, this returns the URL. */
 	FString GetGameFeatureName() const;
 
+	/** Returns the URL */
+	FString GetPluginURL() const;
+
+	/** Returns the plugin name if known (plugin must have been registered to know the name). */
+	FString GetPluginName() const;
+
 	/** Returns the uplugin filename of the game feature. Before StatusKnown, this returns false. */
 	bool GetPluginFilename(FString& OutPluginFilename) const;
 
@@ -366,6 +378,9 @@ public:
 
 	/** If the plugin is activated already, we will retrieve its game feature data */
 	UGameFeatureData* GetGameFeatureDataForActivePlugin();
+
+	/** If the plugin is registered already, we will retrieve its game feature data */
+	UGameFeatureData* GetGameFeatureDataForRegisteredPlugin();
 
 	/** Delegate for the machine's state changed. */
 	DECLARE_EVENT_OneParam(UGameFeaturePluginStateMachine, FGameFeaturePluginStateChanged, UGameFeaturePluginStateMachine* /*Machine*/);

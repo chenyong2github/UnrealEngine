@@ -23,6 +23,22 @@ FAutoConsoleVariableRef CVarAudioOcclusionEnabled(
 	TEXT("Disables (1) or enables (0) audio occlusion.\n"),
 	ECVF_Default);
 
+static int32 GatherInteriorDataFromAudioVolumesCVar = 1;
+FAutoConsoleVariableRef CVarGatherInteriorDataFromAudioVolumes(
+	TEXT("au.InteriorData.UseAudioVolumes"),
+	GatherInteriorDataFromAudioVolumesCVar,
+	TEXT("When set to 1, allows gathering of interior data from audio volumes (Legacy).\n")
+	TEXT("0: Disabled, 1: Enabled (default)"),
+	ECVF_Default);
+
+static int32 GatherInteriorDataFromIActiveSoundUpdateCVar = 0;
+FAutoConsoleVariableRef CVarGatherInteriorDataFromIActiveSoundUpdate(
+	TEXT("au.InteriorData.UseIActiveSoundUpdate"),
+	GatherInteriorDataFromIActiveSoundUpdateCVar,
+	TEXT("When set to 1, allows gathering of interior data from subsystems that implement the IActiveSoundUpdate interface.\n")
+	TEXT("0: Disabled (default), 1: Enabled"),
+	ECVF_Default);
+
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;
 TMap<FTraceHandle, FActiveSound::FAsyncTraceDetails> FActiveSound::TraceToActiveSoundMap;
 
@@ -615,7 +631,36 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	{
 		// Additional inside/outside processing for ambient sounds
 		// If we aren't in a world there is no interior volumes to be handled.
-		HandleInteriorVolumes(ParseParams);
+		const bool bNeedsInteriorUpdate = (!bGotInteriorSettings || (ParseParams.Transform.GetTranslation() - LastLocation).SizeSquared() > KINDA_SMALL_NUMBER);
+		const bool bUseAudioVolumes = GatherInteriorDataFromAudioVolumesCVar != 0;
+		const bool bUseActiveSoundUpdate = GatherInteriorDataFromIActiveSoundUpdateCVar != 0;
+
+		// Gather data from interior spaces
+		if (bNeedsInteriorUpdate)
+		{
+			if (bUseAudioVolumes)
+			{
+				GatherInteriorData(ParseParams);
+			}
+
+			if (bUseActiveSoundUpdate)
+			{
+				AudioDevice->GatherInteriorData(*this, ParseParams);
+			}
+
+			bGotInteriorSettings = true;
+		}
+
+		// Apply data to the wave instances
+		if (bUseAudioVolumes)
+		{
+			HandleInteriorVolumes(ParseParams);
+		}
+
+		if (bUseActiveSoundUpdate)
+		{
+			AudioDevice->ApplyInteriorSettings(*this, ParseParams);
+		}
 	}
 
 	// for velocity-based effects like doppler
@@ -1099,20 +1144,19 @@ void FActiveSound::CheckOcclusion(const FVector ListenerLocation, const FVector 
 	CurrentOcclusionVolumeAttenuation.Update(DeltaTime);
 }
 
+void FActiveSound::GatherInteriorData(FSoundParseParameters& ParseParams)
+{
+	// Query for new settings using audio volumes
+	FAudioDevice::FAudioVolumeSettings AudioVolumeSettings;
+	AudioDevice->GetAudioVolumeSettings(WorldID, ParseParams.Transform.GetTranslation(), AudioVolumeSettings);
+
+	InteriorSettings = AudioVolumeSettings.InteriorSettings;
+	AudioVolumeSubmixSendSettings = AudioVolumeSettings.SubmixSendSettings;
+	AudioVolumeID = AudioVolumeSettings.AudioVolumeID;
+}
+
 void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 {
-	// Get the settings of the ambient sound
-	if (!bGotInteriorSettings || (ParseParams.Transform.GetTranslation() - LastLocation).SizeSquared() > KINDA_SMALL_NUMBER)
-	{
-		FAudioDevice::FAudioVolumeSettings AudioVolumeSettings;
-		AudioDevice->GetAudioVolumeSettings(WorldID, ParseParams.Transform.GetTranslation(), AudioVolumeSettings);
-
-		InteriorSettings = AudioVolumeSettings.InteriorSettings;
-		AudioVolumeSubmixSendSettings = AudioVolumeSettings.SubmixSendSettings;
-		AudioVolumeID = AudioVolumeSettings.AudioVolumeID;
-		bGotInteriorSettings = true;
-	}
-
 	check(IsInAudioThread());
 	const TArray<FListener>& Listeners = AudioDevice->GetListeners();
 	check(ClosestListenerIndex < Listeners.Num());
@@ -1126,6 +1170,7 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 		LastUpdateTime = FApp::GetCurrentTime();
 	}
 
+	EAudioVolumeLocationState LocationState;
 	if (Listener.AudioVolumeID == AudioVolumeID || !bAllowSpatialization)
 	{
 		// Ambient and listener in same ambient zone
@@ -1135,19 +1180,7 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 		CurrentInteriorLPF = FMath::Lerp(SourceInteriorLPF, MAX_FILTER_FREQUENCY, Listener.InteriorLPFInterp);
 		ParseParams.AmbientZoneFilterFrequency = CurrentInteriorLPF;
 
-		if (AudioVolumeSubmixSendSettings.Num() > 0)
-		{
-			for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
-			{
-				if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::InsideTheVolume)
-				{
-					for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
-					{
-						ParseParams.SoundSubmixSends.Add(SubmixSendInfo);
-					}
-				}
-			}
-		}
+		LocationState = EAudioVolumeLocationState::InsideTheVolume;
 	}
 	else
 	{
@@ -1161,19 +1194,7 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 			CurrentInteriorLPF = FMath::Lerp(SourceInteriorLPF, Listener.InteriorSettings.ExteriorLPF, Listener.ExteriorLPFInterp);
 			ParseParams.AmbientZoneFilterFrequency = CurrentInteriorLPF;
 
-			if (AudioVolumeSubmixSendSettings.Num() > 0)
-			{
-				for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
-				{
-					if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::InsideTheVolume)
-					{
-						for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
-						{
-							ParseParams.SoundSubmixSends.Add(SubmixSendInfo);
-						}
-					}
-				}
-			}
+			LocationState = EAudioVolumeLocationState::InsideTheVolume;
 		}
 		else
 		{
@@ -1197,21 +1218,11 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 				ParseParams.AmbientZoneFilterFrequency = ListenerLPFValue;
 			}
 
-			if (AudioVolumeSubmixSendSettings.Num() > 0)
-			{
-				for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
-				{
-					if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::OutsideTheVolume)
-					{
-						for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
-						{
-							ParseParams.SoundSubmixSends.Add(SubmixSendInfo);
-						}
-					}
-				}
-			}
+			LocationState = EAudioVolumeLocationState::OutsideTheVolume;
 		}
 	}
+
+	AddVolumeSubmixSends(ParseParams, LocationState);
 }
 
 FWaveInstance& FActiveSound::AddWaveInstance(const UPTRINT WaveInstanceHash)
@@ -1620,6 +1631,26 @@ void FActiveSound::UpdateFocusData(float DeltaTime, const FAttenuationListenerDa
 	FocusDataToUpdate->PriorityScale = ListenerData.AttenuationSettings->GetFocusPriorityScale(FocusSettings, FocusDataToUpdate->FocusFactor);
 	FocusDataToUpdate->DistanceScale = ListenerData.AttenuationSettings->GetFocusDistanceScale(FocusSettings, FocusDataToUpdate->FocusFactor);
 	FocusDataToUpdate->VolumeScale = ListenerData.AttenuationSettings->GetFocusAttenuation(FocusSettings, FocusDataToUpdate->FocusFactor);
+}
+
+void FActiveSound::AddVolumeSubmixSends(FSoundParseParameters& ParseParams, EAudioVolumeLocationState LocationState)
+{
+	if (ensureMsgf(IsInAudioThread(), TEXT("AddVolumeSubmixSends called on something other than audio thread!")))
+	{
+		if (AudioVolumeSubmixSendSettings.Num() > 0)
+		{
+			for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
+			{
+				if (SendSetting.ListenerLocationState == LocationState)
+				{
+					for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
+					{
+						ParseParams.SoundSubmixSends.Add(SubmixSendInfo);
+					}
+				}
+			}
+		}
+	}
 }
 
 void FActiveSound::ParseAttenuation(FSoundParseParameters& OutParseParams, const FListener& InListener, const FSoundAttenuationSettings& InAttenuationSettings)

@@ -216,8 +216,8 @@ protected:
 	float LockedOrthoWidth;
 
 public:
-	/** Default aspect ratio (used when a view target override the aspect ratio and bConstrainAspectRatio is set; most of the time the value from a camera component will be used instead) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PlayerCameraManager, meta=(EditCondition=bDefaultConstrainAspectRatio))
+	/** Default aspect ratio. Most of the time the value from a camera component will be used instead. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PlayerCameraManager)
 	float DefaultAspectRatio;
 
 	/** Color to fade to (when bEnableFading == true). */

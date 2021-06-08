@@ -440,6 +440,8 @@ extern CORE_API bool GIsRetrievingVTablePtr;
 /** Steadily increasing frame counter. */
 extern CORE_API uint64 GFrameCounter;
 
+extern CORE_API uint64 GFrameCounterRenderThread;
+
 /** GFrameCounter the last time GC was run. */
 extern CORE_API uint64 GLastGCFrame;
 

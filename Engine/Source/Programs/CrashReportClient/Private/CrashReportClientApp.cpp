@@ -1015,13 +1015,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		FCrashReportAnalyticsSessionSummary::Get().LogEvent(TEXT("Recovery/Started"));
 #endif
 
-		// Try to open the process.
-#if PLATFORM_WINDOWS
-		// We do not need to open a full access.
-		FProcHandle MonitoredProcess = FProcHandle(::OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, 0, MonitorPid));
-#else
-		FProcHandle MonitoredProcess = FPlatformProcess::OpenProcess(MonitorPid);
-#endif
+		// Open the process with a restricted set of permissions (for security reasons).
+		FProcHandle MonitoredProcess = OpenProcessForMonitoring(MonitorPid);
+
 		// Loop until the monitored process dies.
 		while (MonitoredProcess.IsValid() && FPlatformProcess::IsProcRunning(MonitoredProcess))
 		{

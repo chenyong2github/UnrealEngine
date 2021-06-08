@@ -71,12 +71,52 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityZ(TEXT("p.Ri
 bool bRBAN_UseDeferredTask = false;
 FAutoConsoleVariableRef CVarRigidBodyNodeDeferredSimulation(TEXT("p.RigidBodyNode.UseDeferredTask"), bRBAN_UseDeferredTask, TEXT("Whether to defer the simulation results by one frame so that they can run in a task"), ECVF_Default);
 
-FAutoConsoleTaskPriority CPrio_RigidBodyNodeSimulationTask(
-	TEXT("TaskGraph.TaskPriorities.RigidBodyNodeSimulationTask"),
-	TEXT("Task and thread priority for the rigid body anim-node simulation."),
-	ENamedThreads::BackgroundThreadPriority,
-	ENamedThreads::HighTaskPriority,
-	ENamedThreads::NormalTaskPriority // Use normal (lowest) task priority if forced to normal thread priority
+// Array of priorities that can be indexed into with CVars, since task priorities cannot be set from scalability .ini
+static FAutoConsoleTaskPriority GRigidBodyNodeTaskPriorities[] =
+{
+	FAutoConsoleTaskPriority(
+		TEXT("p.RigidBodyNode.TaskPriorities.Maximum"),
+		TEXT("Maximum priority for rigid body node simulation"),
+		ENamedThreads::HighThreadPriority,
+		ENamedThreads::HighTaskPriority,
+		ENamedThreads::HighTaskPriority // High task priority when forced to normal thread priority
+	),
+	FAutoConsoleTaskPriority(
+		TEXT("p.RigidBodyNode.TaskPriorities.High"),
+		TEXT("High priority for rigid body node simulation"),
+		ENamedThreads::HighThreadPriority,
+		ENamedThreads::NormalTaskPriority,
+		ENamedThreads::NormalTaskPriority // Normal (lowest) task priority if forced to normal thread priority
+	),
+	FAutoConsoleTaskPriority(
+		TEXT("p.RigidBodyNode.TaskPriorities.Normal"),
+		TEXT("Normal priority for rigid body node simulation"),
+		ENamedThreads::NormalThreadPriority,
+		ENamedThreads::NormalTaskPriority,
+		ENamedThreads::NormalTaskPriority // Normal (lowest) task priority if forced to normal thread priority
+	),
+	FAutoConsoleTaskPriority(
+		TEXT("p.RigidBodyNode.TaskPriorities.Low"),
+		TEXT("Low priority for rigid body node simulation"),
+		ENamedThreads::BackgroundThreadPriority,
+		ENamedThreads::HighTaskPriority,
+		ENamedThreads::NormalTaskPriority // Normal (lowest) task priority if forced to normal thread priority
+	),
+	FAutoConsoleTaskPriority(
+		TEXT("p.RigidBodyNode.TaskPriorities.Minimum"),
+		TEXT("Minimum priority for rigid body node simulation"),
+		ENamedThreads::BackgroundThreadPriority,
+		ENamedThreads::NormalTaskPriority,
+		ENamedThreads::NormalTaskPriority // Normal (lowest) task priority if forced to normal thread priority
+	),
+};
+
+static int32 GRigidBodyNodeSimulationTaskPriority = 0;
+FAutoConsoleVariableRef CVarRigidBodyNodeSimulationTaskPriority(
+	TEXT("p.RigidBodyNode.TaskPriority.Simulation"),
+	GRigidBodyNodeSimulationTaskPriority,
+	TEXT("Task priority index for running the rigid body node simulation task"),
+	ECVF_Default
 );
 
 FSimSpaceSettings::FSimSpaceSettings()
@@ -476,7 +516,8 @@ public:
 
 	static FORCEINLINE ENamedThreads::Type GetDesiredThread()
 	{
-		return CPrio_RigidBodyNodeSimulationTask.Get();
+		const int32 PriorityIndex = FMath::Clamp<int32>(GRigidBodyNodeSimulationTaskPriority, 0, UE_ARRAY_COUNT(GRigidBodyNodeTaskPriorities) - 1);
+		return GRigidBodyNodeTaskPriorities[PriorityIndex].Get();
 	}
 
 	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()

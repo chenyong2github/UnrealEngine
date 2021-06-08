@@ -112,7 +112,7 @@ public:
 	void RemoveObserver(UGameFeatureStateChangeObserver* Observer);
 
 	/**
-	 * Calls the compile-time lambda on each loaded game feature data of the specified type
+	 * Calls the compile-time lambda on each active game feature data of the specified type
 	 * @param GameFeatureDataType       The kind of data required
 	 */
 	template<class GameFeatureDataType, typename Func>
@@ -123,6 +123,25 @@ public:
 			if (UGameFeaturePluginStateMachine* GFSM = StateMachineIt.Value())
 			{
 				if (const GameFeatureDataType* GameFeatureData = Cast<const GameFeatureDataType>(GetDataForStateMachine(GFSM)))
+				{
+					InFunc(GameFeatureData);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Calls the compile-time lambda on each registered game feature data of the specified type
+	 * @param GameFeatureDataType       The kind of data required
+	 */
+	template<class GameFeatureDataType, typename Func>
+	void ForEachRegisteredGameFeature(Func InFunc) const
+	{
+		for (auto StateMachineIt = GameFeaturePluginStateMachines.CreateConstIterator(); StateMachineIt; ++StateMachineIt)
+		{
+			if (UGameFeaturePluginStateMachine* GFSM = StateMachineIt.Value())
+			{
+				if (const GameFeatureDataType* GameFeatureData = Cast<const GameFeatureDataType>(GetRegisteredDataForStateMachine(GFSM)))
 				{
 					InFunc(GameFeatureData);
 				}
@@ -171,6 +190,10 @@ public:
 	void UninstallGameFeaturePlugin(const FString& PluginURL);
 	void UninstallGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate);
 
+	/** Same as UninstallGameFeaturePlugin, but completely removes all tracking data associated with the plugin. */
+	void TerminateGameFeaturePlugin(const FString& PluginURL);
+	void TerminateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate);
+
 	/** If the specified plugin is a built-in plugin, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
 	bool GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const;
 	
@@ -201,9 +224,6 @@ public:
 	/** Returns the list of plugin filenames that have progressed beyond installed. Used in cooking to determine which will be cooked. */
 	//@TODO: GameFeaturePluginEnginePush: Might not be general enough for engine level, TBD
 	void GetLoadedGameFeaturePluginFilenamesForCooking(TArray<FString>& OutLoadedPluginFilenames) const;
-	
-	/** Is content inside inactive plugin? */
-	bool IsContentWithinInactivePlugin(const FString& ObjectOrPackagePath) const;
 
 	/** Removes assets that are in plugins we know to be inactive.  Order is not maintained. */
 	void FilterInactivePluginAssets(TArray<FAssetIdentifier>& AssetsToFilter) const;
@@ -226,8 +246,19 @@ public:
 	static EGameFeaturePluginState ConvertInitialFeatureStateToTargetState(EBuiltInAutoState InitialState);
 
 private:
+	TSet<FString> GetActivePluginNames() const;
+
+	void OnGameFeatureTerminating(const FString& PluginURL);
+	friend struct FGameFeaturePluginState_Terminal;
+
+	void OnGameFeatureCheckingStatus(const FString& PluginURL);
+	friend struct FGameFeaturePluginState_UnknownStatus;
+
 	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);
 	friend struct FGameFeaturePluginState_Registering;
+
+	void OnGameFeatureUnregistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);
+	friend struct FGameFeaturePluginState_Unregistering;
 
 	void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName);
 	friend struct FGameFeaturePluginState_Activating;
@@ -247,6 +278,7 @@ private:
 
 private:
 	const UGameFeatureData* GetDataForStateMachine(UGameFeaturePluginStateMachine* GFSM) const;
+	const UGameFeatureData* GetRegisteredDataForStateMachine(UGameFeaturePluginStateMachine* GFSM) const;
 
 	/** Gets relevant properties out of a uplugin file */
 	bool GetGameFeaturePluginDetails(const FString& PluginDescriptorFilename, struct FGameFeaturePluginDetails& OutPluginDetails) const;
@@ -275,6 +307,9 @@ private:
 	/** Notification that a game feature that was requested to be uninstalled has finished uninstalling, and whether it was successful. */
 	void UninstallGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate);
 
+	/** Notification that a game feature that was requested to be terminate has finished terminating, and whether it was successful. */
+	void TerminateGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate);
+
 	/** Handler for when a state machine requests its dependencies. Returns false if the dependencies could not be read */
 	bool HandleRequestPluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines);
 
@@ -287,9 +322,6 @@ private:
 	TMap<FString, UGameFeaturePluginStateMachine*> GameFeaturePluginStateMachines;
 
 	TMap<FString, FString> GameFeaturePluginNameToPathMap;
-
-	/** The set of plugins that are currently registered, but inactive. */
-	TSet<FString> InactivePluginNames;
 
 	UPROPERTY(Transient)
 	TArray<UGameFeatureStateChangeObserver*> Observers;

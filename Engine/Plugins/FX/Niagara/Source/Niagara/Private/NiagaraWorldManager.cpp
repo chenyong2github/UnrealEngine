@@ -22,6 +22,8 @@
 #include "NiagaraDebugHud.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Particles/FXBudget.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraCullProxyComponent.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Update Scalability Managers [GT]"), STAT_UpdateScalabilityManagers, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
@@ -120,6 +122,22 @@ static FAutoConsoleVariableRef CVarWorldLoopTime(
 	TEXT("fx.Niagara.Debug.GlobalLoopTime"),
 	GWorldLoopTime,
 	TEXT("If > 0 all Niagara FX will reset every N seconds. \n"),
+	ECVF_Default
+);
+
+int GNiagaraAllowCullProxies = 1;
+static FAutoConsoleVariableRef CVarAllowCullProxies(
+	TEXT("fx.Niagara.AllowCullProxies"),
+	GNiagaraAllowCullProxies,
+	TEXT("Toggles whether Niagara will use Cull Proxy systems in place of systems culled by scalability."),
+	ECVF_Default
+);
+
+float GNiagaraCSVSplitTime = 180.0f;
+static FAutoConsoleVariableRef CVarCSVSplitTime(
+	TEXT("fx.Niagara.CSVSplitTime"),
+	GNiagaraCSVSplitTime,
+	TEXT("Length of Niagara's split time events passed to the CSV profiler. There are used to give check more confined stat averages."),
 	ECVF_Default
 );
 
@@ -330,11 +348,51 @@ void FNiagaraWorldManager::AddReferencedObjects(FReferenceCollector& Collector)
 		Collector.AddReferencedObject(EffectType);
 		ScalabilityMan.AddReferencedObjects(Collector);
 	}
+
+	Collector.AddReferencedObjects(CullProxyMap);
 }
 
 FString FNiagaraWorldManager::GetReferencerName() const
 {
 	return TEXT("FNiagaraWorldManager");
+}
+
+UNiagaraCullProxyComponent* FNiagaraWorldManager::GetCullProxy(UNiagaraComponent* Component)
+{
+	UNiagaraSystem* System = Component->GetAsset();
+	if (ensure(System) && GNiagaraAllowCullProxies)
+	{
+		UNiagaraCullProxyComponent*& CullProxy = CullProxyMap.FindOrAdd(System);
+
+		if (CullProxy == nullptr)
+		{
+			CullProxy = NewObject<UNiagaraCullProxyComponent>(GetWorld());
+			CullProxy->SetAsset(System);
+			CullProxy->SetAllowScalability(false);
+
+			CullProxy->bAutoActivate = false;
+			CullProxy->SetAutoDestroy(false);
+			CullProxy->bAllowAnyoneToDestroyMe = true;
+			CullProxy->RegisterComponentWithWorld(World);
+			CullProxy->SetAbsolute(true, true, true);
+			CullProxy->SetWorldLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+			CullProxy->SetRelativeScale3D(FVector::OneVector);
+
+			CullProxy->Activate(true);
+			CullProxy->SetPaused(true);
+
+			//Override the LODDistance to just below the max so the system is as cheap for simulation and rendering as possible. 
+			float MaxDist = System->GetScalabilitySettings().MaxDistance;
+			CullProxy->SetPreviewLODDistance(true, MaxDist * 0.999f, MaxDist);
+
+			//Have to copy user parameters from first requesting component so we at least have some valid values.
+			//Though this could be somewhat dangerous with DIs etc.
+			Component->GetOverrideParameters().CopyParametersTo(CullProxy->GetOverrideParameters(), false, FNiagaraParameterStore::EDataInterfaceCopyMethod::Value);
+		}
+	
+		return CullProxy;
+	}
+	return nullptr;
 }
 
 UNiagaraParameterCollectionInstance* FNiagaraWorldManager::GetParameterCollection(UNiagaraParameterCollection* Collection)
@@ -397,6 +455,11 @@ TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> FNiagaraWorldManager::
 	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
 	SystemSimulations[ActualTickGroup].Add(System, Sim);
 	Sim->Init(System, World, false, TickGroup);
+
+#if WITH_EDITOR
+	System->OnSystemPostEditChange().AddRaw(this, &FNiagaraWorldManager::OnSystemPostChange);
+#endif
+
 	return Sim;
 }
 
@@ -412,6 +475,10 @@ void FNiagaraWorldManager::DestroySystemSimulation(UNiagaraSystem* System)
 		}
 	}
 	ComponentPool->RemoveComponentsBySystem(System);
+
+#if WITH_EDITOR
+	System->OnSystemPostEditChange().RemoveAll(this);
+#endif
 }
 
 void FNiagaraWorldManager::DestroySystemInstance(FNiagaraSystemInstancePtr& InPtr)
@@ -420,6 +487,19 @@ void FNiagaraWorldManager::DestroySystemInstance(FNiagaraSystemInstancePtr& InPt
 	check(InPtr != nullptr);
 	DeferredDeletionQueue.Emplace(MoveTemp(InPtr));
 }
+
+#if WITH_EDITOR
+void FNiagaraWorldManager::OnSystemPostChange(UNiagaraSystem* System)
+{
+	if (UNiagaraEffectType* EffectType = System->GetEffectType())
+	{
+		if (FNiagaraScalabilityManager* ScalabilityMan = ScalabilityManagers.Find(EffectType))
+		{
+			ScalabilityMan->OnSystemPostChange(System);
+		}
+	}
+}
+#endif//WITH_EDITOR
 
 void FNiagaraWorldManager::OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBatcher* InBatcher)
 {
@@ -439,6 +519,9 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	{
 		for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations[TG])
 		{
+#if WITH_EDITOR
+			SimPair.Key->OnSystemPostEditChange().RemoveAll(this);
+#endif
 			SimPair.Value->Destroy();
 		}
 		SystemSimulations[TG].Empty();
@@ -448,6 +531,8 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	DeferredDeletionQueue.Empty();
 
 	ScalabilityManagers.Empty();
+
+	CullProxyMap.Empty();
 }
 
 void FNiagaraWorldManager::OnPostWorldCleanup(bool bSessionEnded, bool bCleanupResources)
@@ -683,6 +768,55 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		RequestedDebugPlaybackMode = ENiagaraDebugPlaybackMode::Paused;
 		DebugPlaybackMode = ENiagaraDebugPlaybackMode::Paused;
 	}
+
+	for (auto it = CullProxyMap.CreateIterator(); it; ++it)
+	{
+		UNiagaraSystem* System = it->Key;
+
+		if (GNiagaraAllowCullProxies && it->Value && System->GetCullProxyMode() != ENiagaraCullProxyMode::None)
+		{
+			it->Value->TickCullProxy();
+		}
+		else
+		{
+			if (it->Value)
+			{
+				it->Value->DestroyComponent();
+			}
+			it.RemoveCurrent();
+		}
+	}
+
+#if WITH_PARTICLE_PERF_CSV_STATS
+	if (FCsvProfiler* CSVProfiler = FCsvProfiler::Get())
+	{
+		if (CSVProfiler->IsCapturing() && FParticlePerfStats::GetCSVStatsEnabled())
+		{
+			//Record custom events marking split times at set intervals. Allows us to generate summary tables for averages over shorter bursts.
+			if (GNiagaraCSVSplitTime > 0.0f)
+			{
+				float WorldTime = World->GetTimeSeconds();
+				float PrevWorldTime = WorldTime - DeltaSeconds;
+
+				int32 CurrentSplitIdx = (int32)(WorldTime / GNiagaraCSVSplitTime);
+				int32 PrevSplitIdx = (int32)(PrevWorldTime / GNiagaraCSVSplitTime);
+				if (CurrentSplitIdx > PrevSplitIdx)
+				{
+					CSVProfiler->RecordEvent(CSV_CATEGORY_INDEX(Particles), FString::Printf(TEXT("SplitTime%d"), CurrentSplitIdx));
+				}
+			}
+
+			for (auto& Pair : ScalabilityManagers)
+			{
+				FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
+				UNiagaraEffectType* EffectType = Pair.Key;
+				check(EffectType);
+
+				ScalabilityMan.CSVProfilerUpdate(CSVProfiler);
+			}
+		}
+	}
+#endif 
 }
 
 void FNiagaraWorldManager::PreSendAllEndOfFrameUpdates()
@@ -1027,7 +1161,7 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	}
 
 	//Cull if any of our budgets are exceeded.
- 	if (FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.bCullByGlobalBudget)
+ 	if (!OutState.bCulled && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
  	{
  		GlobalBudgetCull(ScalabilitySettings, WorstGlobalBudgetUse, OutState);
  	}
@@ -1052,19 +1186,12 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
 
- 	if (FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.bCullByGlobalBudget)
+ 	if (!OutState.bCulled && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
 	{
  		GlobalBudgetCull(ScalabilitySettings, WorstGlobalBudgetUse, OutState);
  	}
 
 	//TODO: More progressive scalability options?
-
-#if WITH_NIAGARA_DEBUGGER
-	//Tell the debugger about our scalability state.
-	//Unfortunately cannot have the debugger just read the manager state data as components are removed.
-	//To avoid extra copy in future we can have the manager keep another list of recently removed component states which is cleaned up on component destruction.
-	Component->DebugCachedScalabilityState = OutState;
-#endif
 }
 
 bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)
@@ -1073,15 +1200,47 @@ bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)
 	return EffectType->CullReaction == ENiagaraCullReaction::Deactivate || EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediate;
 }
 
-void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32& EffectTypeInstCount, int32& SystemInstCount, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType, UNiagaraComponent* Component, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32& EffectTypeInstCount, uint16& SystemInstCount, FNiagaraScalabilityState& OutState)
 {
 	//Cull all but the N most significance FX.
 	bool bCull = false;
 	
 	if(GEnableNiagaraInstanceCountCulling)
 	{
-		bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectTypeInstCount >= ScalabilitySettings.MaxInstances;
-		bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && SystemInstCount >= ScalabilitySettings.MaxSystemInstances;
+		int32 SystemInstanceMax = ScalabilitySettings.MaxSystemInstances;
+		int32 EffectTypeInstanceMax = ScalabilitySettings.MaxInstances;
+
+		bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectTypeInstCount >= EffectTypeInstanceMax;
+		bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && SystemInstCount >= SystemInstanceMax;
+
+		if (bCull)
+		{
+#if DEBUG_SCALABILITY_STATE
+			//Clear budget culled flag if we're culling for other reasons already. Help us determine the real impact of budget culling.
+			OutState.bCulledByGlobalBudget = false;
+#endif
+		}
+		else if (FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
+	 	{
+			float Usage = FFXBudget::GetWorstAdjustedUsage();
+
+			if (ScalabilitySettings.bCullMaxInstanceCount && ScalabilitySettings.BudgetScaling.bScaleMaxInstanceCountByGlobalBudgetUse)
+			{
+				float Scale = ScalabilitySettings.BudgetScaling.MaxInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
+				EffectTypeInstanceMax *= Scale;
+				bCull = EffectTypeInstCount >= EffectTypeInstanceMax;
+			}
+			if (ScalabilitySettings.bCullPerSystemMaxInstanceCount && ScalabilitySettings.BudgetScaling.bScaleSystemInstanceCountByGlobalBudgetUse)
+			{
+				float Scale = ScalabilitySettings.BudgetScaling.MaxSystemInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
+				SystemInstanceMax *= Scale;
+				bCull |= SystemInstCount >= SystemInstanceMax;
+			}
+
+#if DEBUG_SCALABILITY_STATE
+			OutState.bCulledByGlobalBudget |= bCull;
+#endif
+	  	}
 	}
 
 	OutState.bCulled |= bCull;
@@ -1111,8 +1270,42 @@ void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const 
 
 void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState)
 {
-	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectType->NumInstances >= ScalabilitySettings.MaxInstances;
-	bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && System->GetActiveInstancesCount() >= ScalabilitySettings.MaxSystemInstances;
+	int32 SystemInstanceMax = ScalabilitySettings.MaxSystemInstances;
+	int32 EffectTypeInstanceMax = ScalabilitySettings.MaxInstances;
+
+	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectType->NumInstances >= EffectTypeInstanceMax;
+	bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && System->GetActiveInstancesCount() >= SystemInstanceMax;
+	
+	//Apply budget based adjustments separately so we can mark this cull as being due to budgetting or not.
+	if (bCull)
+	{
+#if DEBUG_SCALABILITY_STATE
+		//Clear budget culled flag if we're culling for other reasons already. Help us determine the real impact of budget culling.
+		OutState.bCulledByGlobalBudget = false;
+#endif
+	}
+	else if (FFXBudget::Enabled() && GEnableNiagaraGlobalBudgetCulling && (ScalabilitySettings.BudgetScaling.bScaleMaxInstanceCountByGlobalBudgetUse || ScalabilitySettings.BudgetScaling.bScaleSystemInstanceCountByGlobalBudgetUse))
+	{
+		float Usage = FFXBudget::GetWorstAdjustedUsage();
+
+		if (ScalabilitySettings.BudgetScaling.bScaleMaxInstanceCountByGlobalBudgetUse)
+		{
+			float Scale = ScalabilitySettings.BudgetScaling.MaxInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
+			EffectTypeInstanceMax *= Scale;
+		}
+		if (ScalabilitySettings.BudgetScaling.bScaleSystemInstanceCountByGlobalBudgetUse)
+		{
+			float Scale = ScalabilitySettings.BudgetScaling.MaxSystemInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
+			SystemInstanceMax *= Scale;
+		}
+		bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectType->NumInstances >= EffectTypeInstanceMax;
+		bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && System->GetActiveInstancesCount() >= SystemInstanceMax;
+		OutState.bCulled |= bCull;
+#if DEBUG_SCALABILITY_STATE
+		OutState.bCulledByGlobalBudget |= bCull;
+#endif
+	}
+
 	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 	OutState.bCulledByInstanceCount = bCull;
@@ -1123,16 +1316,11 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 {
 	float LODDistance = 0.0f;
 
-	//Directly drive the system lod distance from here.
-	float MaxDist = ScalabilitySettings.MaxDistance;
-#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 	if (Component->bEnablePreviewLODDistance)
 	{
 		LODDistance = Component->PreviewLODDistance;
 	}
-	else
-#endif
-	if(bCachedPlayerViewLocationsValid)
+	else if(bCachedPlayerViewLocationsValid)
 	{
 		float ClosestDistSq = FLT_MAX;
 		FVector Location = Component->GetComponentLocation();
@@ -1144,15 +1332,40 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 		LODDistance = FMath::Sqrt(ClosestDistSq);
 	}
 
+	//Directly drive the system lod distance from here.
+	float MaxDist = ScalabilitySettings.MaxDistance;
 	Component->SetLODDistance(LODDistance, FMath::Max(MaxDist, 1.0f));
 
 	if (GEnableNiagaraDistanceCulling && ScalabilitySettings.bCullByDistance)
 	{
-		bool bCull = LODDistance > ScalabilitySettings.MaxDistance;
+		bool bCull = LODDistance > MaxDist;
 		OutState.bCulled |= bCull;
+
+		//Check the budget adjusted range separately so we can tell what is down to budgets and what's distance.
+		if (bCull)
+		{
+#if DEBUG_SCALABILITY_STATE
+			//Clear budget culled flag if we're culling for other reasons already. Help us determine the real impact of budget culling.
+			OutState.bCulledByGlobalBudget = false;
+#endif
+		}
+		else if (FFXBudget::Enabled() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bScaleMaxDistanceByGlobalBudgetUse)
+		{
+			float Usage = FFXBudget::GetWorstAdjustedUsage();
+			float Scale = ScalabilitySettings.BudgetScaling.MaxDistanceScaleByGlobalBudgetUse.Evaluate(Usage);
+			MaxDist *= Scale;
+
+			bCull = LODDistance > MaxDist;
+
+#if DEBUG_SCALABILITY_STATE
+			OutState.bCulledByGlobalBudget |= bCull;
+#endif
+		}
+
 #if DEBUG_SCALABILITY_STATE
 		OutState.bCulledByDistance = bCull;
 #endif
+		OutState.bCulled |= bCull;
 	}
 }
 
@@ -1168,8 +1381,31 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 
 		if (GEnableNiagaraDistanceCulling && ScalabilitySettings.bCullByDistance)
 		{
+			float MaxDist = ScalabilitySettings.MaxDistance;
 			float ClosestDist = FMath::Sqrt(ClosestDistSq);
-			bool bCull = ClosestDist > ScalabilitySettings.MaxDistance;
+			bool bCull = ClosestDist > MaxDist;
+
+			//Check the budget adjusted range separately so we can tell what is down to budgets and what's distance.
+			if (bCull)
+			{
+#if DEBUG_SCALABILITY_STATE
+				//Clear budget culled flag if we're culling for other reasons already. Help us determine the real impact of budget culling.
+				OutState.bCulledByGlobalBudget = false;
+#endif
+			}
+			else if (FFXBudget::Enabled() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bScaleMaxDistanceByGlobalBudgetUse)
+			{
+				float Usage = FFXBudget::GetWorstAdjustedUsage();
+				float Scale = ScalabilitySettings.BudgetScaling.MaxDistanceScaleByGlobalBudgetUse.Evaluate(Usage);
+				MaxDist *= Scale;
+
+				bCull = ClosestDist > MaxDist;
+
+#if DEBUG_SCALABILITY_STATE
+				OutState.bCulledByGlobalBudget |= bCull;
+#endif
+			}
+
 			OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 			OutState.bCulledByDistance = bCull;
@@ -1180,10 +1416,10 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 
 void FNiagaraWorldManager::GlobalBudgetCull(const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState)
 {
- 	bool bCull = WorstGlobalBudgetUse >= ScalabilitySettings.MaxGlobalBudgetUsage;
+ 	bool bCull = WorstGlobalBudgetUse >= ScalabilitySettings.BudgetScaling.MaxGlobalBudgetUsage;
  	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
-	OutState.bCulledByGlobalBudget = bCull;
+	OutState.bCulledByGlobalBudget |= bCull;
 #endif
 }
 

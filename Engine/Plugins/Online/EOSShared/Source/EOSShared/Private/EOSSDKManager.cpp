@@ -9,13 +9,13 @@
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/NetworkVersion.h"
 #include "Stats/Stats.h"
 
 #include "CoreGlobals.h"
 
 #include "EOSShared.h"
-#include "EOSSharedSettings.h"
 
 #include "eos_init.h"
 #include "eos_logging.h"
@@ -42,6 +42,7 @@ namespace
 		FMemory::Free(Ptr);
 	}
 
+#if !NO_LOGGING
 	void EOS_CALL EOSLogMessageReceived(const EOS_LogMessage* Message)
 	{
 #define EOSLOG(Level) UE_LOG(LogEOSSDK, Level, TEXT("%s: %s"), ANSI_TO_TCHAR(Message->Category), *MessageStr)
@@ -64,6 +65,23 @@ namespace
 		}
 #undef EOSLOG
 	}
+
+	EOS_ELogLevel ConvertLogLevel(ELogVerbosity::Type LogLevel)
+	{
+		switch (LogLevel)
+		{
+		case ELogVerbosity::NoLogging:		return EOS_ELogLevel::EOS_LOG_Off;
+		case ELogVerbosity::Fatal:			return EOS_ELogLevel::EOS_LOG_Fatal;
+		case ELogVerbosity::Error:			return EOS_ELogLevel::EOS_LOG_Error;
+		case ELogVerbosity::Warning:		return EOS_ELogLevel::EOS_LOG_Warning;
+		default:							// Intentional fall through
+		case ELogVerbosity::Display:		// Intentional fall through
+		case ELogVerbosity::Log:			return EOS_ELogLevel::EOS_LOG_Info;
+		case ELogVerbosity::Verbose:		return EOS_ELogLevel::EOS_LOG_Verbose;
+		case ELogVerbosity::VeryVerbose:	return EOS_ELogLevel::EOS_LOG_VeryVerbose;
+		}
+	}
+#endif // !NO_LOGGING
 }
 
 
@@ -151,21 +169,21 @@ EOS_EResult FEOSSDKManager::Initialize()
 		{
 			bInitialized = true;
 
-			// Enable logging
+#if !NO_LOGGING
+			FCoreDelegates::OnLogVerbosityChanged.AddRaw(this, &FEOSSDKManager::OnLogVerbosityChanged);
+
 			EosResult = EOS_Logging_SetCallback(&EOSLogMessageReceived);
 			if (EosResult != EOS_EResult::EOS_Success)
 			{
 				UE_LOG(LogEOSSDK, Warning, TEXT("EOS_Logging_SetCallback failed error:%s"), *LexToString(EosResult));
 			}
 
-			const FEOSSharedSettings& EOSSharedSettings = UEOSSharedSettings::GetSettings();
-
-			const EOS_ELogLevel EosLogLevel = ConvertLogLevel(EOSSharedSettings.LogLevel);
-			EosResult = EOS_Logging_SetLogLevel(EOS_ELogCategory::EOS_LC_ALL_CATEGORIES, EosLogLevel);
+			EosResult = EOS_Logging_SetLogLevel(EOS_ELogCategory::EOS_LC_ALL_CATEGORIES, ConvertLogLevel(LogEOSSDK.GetVerbosity()));
 			if (EosResult != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogEOSSDK, Warning, TEXT("EOS_Logging_SetLogLevel failed error:%s"), *LexToString(EosResult));
+				UE_LOG(LogEOSSDK, Warning, TEXT("EOS_Logging_SetLogLevel failed Verbosity=%s error=[%s]"), ToString(LogEOSSDK.GetVerbosity()), *LexToString(EosResult));
 			}
+#endif // !NO_LOGGING
 		}
 		else
 		{
@@ -218,6 +236,21 @@ bool FEOSSDKManager::Tick(float)
 	return true;
 }
 
+void FEOSSDKManager::OnLogVerbosityChanged(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity)
+{
+#if !NO_LOGGING
+	if (IsInitialized() &&
+		CategoryName == LogEOSSDK.GetCategoryName())
+	{
+		const EOS_EResult EosResult = EOS_Logging_SetLogLevel(EOS_ELogCategory::EOS_LC_ALL_CATEGORIES, ConvertLogLevel(NewVerbosity));
+		if (EosResult != EOS_EResult::EOS_Success)
+		{
+			UE_LOG(LogEOSSDK, Warning, TEXT("EOS_Logging_SetLogLevel failed Verbosity=%s error=[%s]"), ToString(NewVerbosity), *LexToString(EosResult));
+		}
+	}
+#endif // !NO_LOGGING
+}
+
 FString FEOSSDKManager::GetProductName() const
 {
 	return FApp::GetProjectName();
@@ -268,6 +301,10 @@ void FEOSSDKManager::Shutdown()
 				TickerHandle.Reset();
 			}
 		}
+
+#if !NO_LOGGING
+		FCoreDelegates::OnLogVerbosityChanged.RemoveAll(this);
+#endif // !NO_LOGGING
 
 		const EOS_EResult Result = EOS_Shutdown();
 		UE_LOG(LogEOSSDK, Log, TEXT("FEOSSDKManager::Shutdown EOS_Shutdown Result=[%s]"), *LexToString(Result));

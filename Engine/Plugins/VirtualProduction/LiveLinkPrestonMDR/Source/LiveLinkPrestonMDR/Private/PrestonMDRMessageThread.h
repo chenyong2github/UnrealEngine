@@ -5,9 +5,9 @@
 #include "Containers/Queue.h"
 #include "CoreMinimal.h"
 #include "HAL/Runnable.h"
+#include "LiveLinkPrestonMDRSourceSettings.h"
 #include "Misc/FrameRate.h"
 #include "Misc/QualifiedFrameTime.h"
-#include "Roles/LiveLinkCameraTypes.h"
 #include "UObject/ObjectMacros.h"
 
 class FRunnable;
@@ -129,7 +129,7 @@ struct FMDR3Status
 struct FDataMessageDescription
 {
 	bool bContainsMDRStatus = false;
-	ECameraFIZMode LensDataMode = ECameraFIZMode::EncoderData;
+	EFIZDataMode LensDataMode = EFIZDataMode::EncoderData;
 	bool bContainsDistance = false;
 	bool bContainsSpeed = false;
 	bool bContainsAux = false;
@@ -196,7 +196,7 @@ public:
 
 	void SoftReset_AnyThread();
 	void SetSocket_AnyThread(FSocket* InSocket);
-	void SetIncomingDataMode_AnyThread(ECameraFIZMode InDataMode);
+	void SetIncomingDataMode_AnyThread(EFIZDataMode InDataMode);
 
 private:
 

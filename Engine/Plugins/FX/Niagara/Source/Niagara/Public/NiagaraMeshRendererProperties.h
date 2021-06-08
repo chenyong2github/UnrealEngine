@@ -60,12 +60,17 @@ public:
 	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	/** Use this UMaterialInterface if set to a valid value. This will be subordinate to UserParamBinding if it is set to a valid user variable.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
 	TObjectPtr<UMaterialInterface> ExplicitMat;
 
 	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and ExplicitMat is also set, UserParamBinding wins.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
 	FNiagaraUserParameterBinding UserParamBinding;
+
+	bool operator==(const FNiagaraMeshMaterialOverride& Other)const
+	{
+		return UserParamBinding == Other.UserParamBinding && ExplicitMat == Other.ExplicitMat;
+	}	
 };
 
 template<>
@@ -74,6 +79,7 @@ struct TStructOpsTypeTraits<FNiagaraMeshMaterialOverride> : public TStructOpsTyp
 	enum
 	{
 		WithStructuredSerializeFromMismatchedTag = true,
+		WithIdenticalViaEquality = true
 	};
 };
 
@@ -212,12 +218,20 @@ public:
 	ENiagaraSortMode SortMode;
 
 	/** Whether or not to use the OverrideMaterials array instead of the mesh's existing materials.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", DisplayName="Enable Material Overrides")
 	uint32 bOverrideMaterials : 1;
 
 	/** If true, the particles are only sorted when using a translucent material. */
 	UPROPERTY(EditAnywhere, Category = "Sorting")
 	uint32 bSortOnlyWhenTranslucent : 1;
+
+	/**
+	If true and a GPU emitter, we will use the current frames data to render with regardless of where the batcher may execute the dispatches.
+	If you have other emitters that are not translucent and using data that forces it to be a frame latent (i.e. view uniform buffer) you may need to disable
+	on renderers with translucent materials if you need the frame they are reading to match exactly.
+	*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Rendering")
+	uint32 bGpuLowLatencyTranslucency : 1;
 
 	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayName = "Sub UV Blending Enabled"))
@@ -393,6 +407,8 @@ protected:
 #if WITH_EDITORONLY_DATA
 	bool ChangeRequiresMeshListRebuild(const FProperty* Property);
 	void RebuildMeshList();
+
+	virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const override;
 #endif
 
 private:

@@ -57,6 +57,9 @@ public:
 	/** Returns the input ports assigned to the receiver */
 	FORCEINLINE const TSet<TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>>& GetAssignedInputPorts() const { return AssignedInputPorts; }
 
+	/** Returns the IP address of a universe */
+	static uint32 GetIpForUniverseID(uint16 InUniverseID);
+
 private:
 	/** The input ports the receiver uses */
 	TSet<TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>> AssignedInputPorts;
@@ -90,14 +93,8 @@ private:
 	/** Returns the type of the root packet */
 	uint32 GetRootPacketType(const TSharedPtr<FArrayReader>& Buffer);
 
-	/** Returns the IP address of a universe */
-	uint32 GetIpForUniverseID(uint16 InUniverseID);
-
 	/** Map of universes with their sender IP */
 	TMap<uint32 /** Multicast Group Addr */, uint16 /** UniverseID */> MulticastGroupAddrToUniverseIDMap;
-
-	/** The highest priority received */
-	int32 HighestReceivedPriority;
 
 	/** The owning sACN protocol */
 	TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> Protocol;
@@ -116,4 +113,7 @@ private:
 
 	/** The receiver thread's name. */
 	FString ThreadName;
+
+	/** Cache of Universe properties */
+	TMap<uint16, TArray<uint8>> PropertiesCacheValues;
 };

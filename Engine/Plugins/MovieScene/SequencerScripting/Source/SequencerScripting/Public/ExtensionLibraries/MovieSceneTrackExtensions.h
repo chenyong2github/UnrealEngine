@@ -98,9 +98,29 @@ public:
 	/**
 	 * Set the color tint for this track
 	 *
-	 * @param Track        The track to get the color tint from
+	 * @param Track        The track to set the color tint for
 	 * @param ColorTint The color tint to set
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta=(ScriptMethod, DevelopmentOnly))
 	static void SetColorTint(UMovieSceneTrack* Track, const FColor& ColorTint);
- };
+
+	/**
+	 * Get the section to key for this track
+	 *
+	 * @param Track        The track to get the section to key for
+	 * @return The section to key for the requested track
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta=(ScriptMethod, DevelopmentOnly))
+	static UMovieSceneSection* GetSectionToKey(UMovieSceneTrack* Track);
+ 
+	/**
+	 * Set the section to key for this track. When properties for this section are modified externally, 
+	 * this section will receive those modifications and act accordingly (add/update keys). This is 
+	 * especially useful when there are multiple overlapping sections.
+	 *
+	 * @param Track        The track to set the section to key for
+	 * @param Section      The section to key for this track
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta=(ScriptMethod, DevelopmentOnly))
+	static void SetSectionToKey(UMovieSceneTrack* Track, UMovieSceneSection* Section); 
+};

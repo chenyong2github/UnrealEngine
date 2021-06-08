@@ -911,12 +911,13 @@ void FAutomationControllerManager::UpdateTests()
 					TArray<FString> ErrorStringArray;
 					ErrorStringArray.Add(FString(TEXT("Failed")));
 					bHasErrors = true;
-					UE_LOG(LogAutomationController, Display, TEXT("Timeout hit. Nooooooo."));
 
 					FAutomationTestResults TestResults;
 					TestResults.State = EAutomationState::Fail;
 					TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
 					TestResults.AddEvent(FAutomationEvent(EAutomationEventType::Error, FString::Printf(TEXT("Timeout waiting for device %s"), *TestResults.GameInstance)));
+
+					UE_LOG(LogAutomationController, Error, TEXT("Removing test and marking failure after timeout waiting for device %s LastPingTime was greater than %.1f"), *TestResults.GameInstance, GameInstanceLostTimerSeconds);
 
 					// Set the results
 					Report->SetResults(ClusterIndex, CurrentTestPass, TestResults);

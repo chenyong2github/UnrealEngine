@@ -9,6 +9,8 @@
 #include "MoviePipeline.h"
 #include "GameFramework/PlayerController.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "MoviePipelineViewFamilySetting.h"
+#include "MoviePipelineQueue.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "MoviePipelineMasterConfig.h"
 #include "EngineModule.h"
@@ -74,10 +76,27 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 		.SetRealtimeUpdate(true));
 
 	OutViewFamily->SceneCaptureSource = InOutSampleState.SceneCaptureSource;
-	OutViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*OutViewFamily, IsScreenPercentageSupported() ? InOutSampleState.GlobalScreenPercentageFraction : 1.f, IsScreenPercentageSupported()));
 	OutViewFamily->bWorldIsPaused = InOutSampleState.bWorldIsPaused;
 	OutViewFamily->ViewMode = ViewModeIndex;
 	EngineShowFlagOverride(ESFIM_Game, OutViewFamily->ViewMode, OutViewFamily->EngineShowFlags, false);
+	
+	const UMoviePipelineExecutorShot* Shot = GetPipeline()->GetActiveShotList()[InOutSampleState.OutputState.ShotIndex];
+	
+	// No need to do anything if screen percentage is not supported. 
+	if (IsScreenPercentageSupported())
+	{
+		// Allows all Output Settings to have an access to View Family. This allows to modify rendering output settings.
+		for (UMoviePipelineViewFamilySetting* Setting : GetPipeline()->FindSettingsForShot<UMoviePipelineViewFamilySetting>(Shot))
+		{
+			Setting->SetupViewFamily(*OutViewFamily);
+		}
+	}
+
+	// If UMoviePipelineViewFamilySetting never set a Screen percentage interface we fallback to default.
+	if (OutViewFamily->GetScreenPercentageInterface() == nullptr)
+	{
+		OutViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*OutViewFamily, IsScreenPercentageSupported() ? InOutSampleState.GlobalScreenPercentageFraction : 1.f, IsScreenPercentageSupported()));
+	}
 
 
 	// View is added as a child of the OutViewFamily-> 

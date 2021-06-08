@@ -240,6 +240,8 @@ public:
 
 	/** Allows for a slate overlay widget to be set after playback. */
 	virtual void SetSlateOverlayWidget(TSharedPtr<SWidget> NewOverlayWidget) = 0;
+	/** Allows for a DPI scale to be set. */
+	virtual void SetViewportDPIScale(float InViewportDPIScale) {}
 
 	void BroadcastMoviePlaybackFinished() { OnMoviePlaybackFinished().Broadcast(); }
 	void BroadcastMovieClipFinished(const FString& MovieClipThatFinished) { OnMovieClipFinished().Broadcast(MovieClipThatFinished); }

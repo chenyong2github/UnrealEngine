@@ -67,7 +67,7 @@ namespace ClothingMeshUtils
 			return Positions.Num() == Normals.Num() && Indices.Num() % 3 == 0;
 		}
 
-		TArray<int32> FindCandidateTriangles(const FVector Point);
+		TArray<int32> FindCandidateTriangles(const FVector& InPoint, float InTolerance = KINDA_SMALL_NUMBER);
 
 		TArrayView<const FVector3f> Positions;
 		TArrayView<const FVector3f> Normals;
@@ -144,6 +144,24 @@ namespace ClothingMeshUtils
 	* @param Point	- Point to calculate Bary+Dist for
 	*/
 	FVector4 GetPointBaryAndDist(
+		const FVector3f& A,
+		const FVector3f& B,
+		const FVector3f& C,
+		const FVector3f& Point);
+
+	/**
+	* Given a triangle ABC with normals at each vertex NA, NB and NC, get a barycentric coordinate
+	* and corresponding distance from the triangle encoded in an FVector4 where the components are
+	* (BaryX, BaryY, BaryZ, Dist)
+	* @param A		- Position of triangle vertex A
+	* @param B		- Position of triangle vertex B
+	* @param C		- Position of triangle vertex C
+	* @param NA	- Normal at vertex A
+	* @param NB	- Normal at vertex B
+	* @param NC	- Normal at vertex C
+	* @param Point	- Point to calculate Bary+Dist for
+	*/
+	FVector4 GetPointBaryAndDistWithNormals(
 		const FVector3f& A,
 		const FVector3f& B,
 		const FVector3f& C,

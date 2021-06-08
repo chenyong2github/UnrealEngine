@@ -1847,6 +1847,19 @@ void SVariantManager::SwitchOnVariant(UVariant* Variant)
 	// Trick to force the viewport gizmos to also update, even though our selection
 	// may remain the same
 	GEditor->NoteSelectionChange();
+
+	// Force a redraw to save some confusion in case the user has Realtime: Off.
+	// Do this on next frame because there is some minor issue where if visibility changes are triggered
+	// on the same frame that is meant to be invalidated, sometimes the primitive's occlusion history doesn't
+	// refresh properly and we get some incorrectly hidden/visible objects (UE-100896)
+	FTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateLambda([](float Time)
+		{
+			const bool bInvalidateHitProxies = false;
+			GEditor->RedrawLevelEditingViewports( bInvalidateHitProxies );
+			return false;
+		})
+	);
 }
 
 void SVariantManager::SortDisplayNodes(TArray<TSharedRef<FVariantManagerDisplayNode>>& DisplayNodes)

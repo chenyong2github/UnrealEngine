@@ -128,50 +128,33 @@ void SLensEvaluation::CacheLiveLinkData()
 				{
 					FLiveLinkCameraStaticData* StaticData = SubjectData.StaticData.Cast<FLiveLinkCameraStaticData>();
 					FLiveLinkCameraFrameData* FrameData = SubjectData.FrameData.Cast<FLiveLinkCameraFrameData>();
-					if (StaticData->FIZDataMode == ECameraFIZMode::EncoderData)
+
+					if (StaticData->bIsFocusDistanceSupported)
 					{
-						if (StaticData->bIsFocusDistanceSupported)
+						CachedLiveLinkData.NormalizedFocus = FrameData->FocusDistance;
+						if (LensFile->HasFocusEncoderMapping())
 						{
-							CachedLiveLinkData.NormalizedFocus = FrameData->FocusDistance;
-							if (LensFile->HasFocusEncoderMapping())
-							{
-								CachedLiveLinkData.Focus = LensFile->EvaluateNormalizedFocus(FrameData->FocusDistance);
-							}
-						}
-
-						if (StaticData->bIsApertureSupported)
-						{
-							CachedLiveLinkData.NormalizedIris = FrameData->Aperture;
-							if (LensFile->HasIrisEncoderMapping())
-							{
-								CachedLiveLinkData.Iris = LensFile->EvaluateNormalizedIris(FrameData->Aperture);
-							}
-						}
-
-						if (StaticData->bIsFocalLengthSupported)
-						{
-							CachedLiveLinkData.NormalizedZoom = FrameData->FocalLength;
-							if (LensFile->HasZoomEncoderMapping())
-							{
-								CachedLiveLinkData.Zoom = LensFile->EvaluateNormalizedZoom(FrameData->FocalLength);
-							}
+							CachedLiveLinkData.Focus = LensFile->EvaluateNormalizedFocus(FrameData->FocusDistance);
 						}
 					}
-					else
+
+					if (StaticData->bIsApertureSupported)
 					{
-						if (StaticData->bIsFocusDistanceSupported)
+						CachedLiveLinkData.NormalizedIris = FrameData->Aperture;
+						if (LensFile->HasIrisEncoderMapping())
 						{
-							CachedLiveLinkData.Focus = FrameData->FocusDistance;
+							CachedLiveLinkData.Iris = LensFile->EvaluateNormalizedIris(FrameData->Aperture);
 						}
+					}
 
-						if (StaticData->bIsApertureSupported)
-						{
-							CachedLiveLinkData.Iris = FrameData->Aperture;
-						}
+					if (StaticData->bIsFocalLengthSupported)
+					{
+						CachedLiveLinkData.NormalizedZoom = FrameData->FocalLength;
 
-						if (StaticData->bIsFocalLengthSupported)
+						FFocalLengthInfo FocalLength;
+						if (LensFile->EvaluateFocalLength(FrameData->FocusDistance, FrameData->FocalLength, FocalLength))
 						{
-							CachedLiveLinkData.Zoom = FrameData->FocalLength;
+							CachedLiveLinkData.Zoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
 						}
 					}
 				}
@@ -182,14 +165,12 @@ void SLensEvaluation::CacheLiveLinkData()
 
 void SLensEvaluation::CacheLensFileData()
 {
-	if (CachedLiveLinkData.Focus.IsSet() && CachedLiveLinkData.Zoom.IsSet())
-	{
-		const float Focus = CachedLiveLinkData.Focus.GetValue();
-		const float Zoom = CachedLiveLinkData.Zoom.GetValue();
-		LensFile->EvaluateDistortionParameters(Focus, Zoom, CachedDistortionInfo);
-		LensFile->EvaluateIntrinsicParameters(Focus, Zoom, CachedIntrinsics);
-		LensFile->EvaluateNodalPointOffset(Focus, Zoom, CachedNodalOffset);
-	}
+	const float Focus = CachedLiveLinkData.NormalizedFocus.IsSet() ? CachedLiveLinkData.NormalizedFocus.GetValue() : CachedLiveLinkData.Focus.IsSet() ? CachedLiveLinkData.Focus.GetValue() : 0.0f;
+	const float Zoom = CachedLiveLinkData.NormalizedZoom.IsSet() ? CachedLiveLinkData.NormalizedZoom.GetValue() : CachedLiveLinkData.Zoom.IsSet() ? CachedLiveLinkData.Zoom.GetValue() : 0.0f;
+	LensFile->EvaluateDistortionParameters(Focus, Zoom, CachedDistortionInfo);
+	LensFile->EvaluateFocalLength(Focus, Zoom, CachedFocalLengthInfo);
+	LensFile->EvaluateImageCenterParameters(Focus, Zoom, CachedImageCenter);
+	LensFile->EvaluateNodalPointOffset(Focus, Zoom, CachedNodalOffset);
 }
 
 TSharedRef<SWidget> SLensEvaluation::MakeTrackingWidget()
@@ -254,13 +235,13 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 			+ SGridPanel::Slot(1, 0)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("EncodersLabel", "Encoders"))
+				.Text(LOCTEXT("RawInputLabel", "Raw"))
 				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 			+ SGridPanel::Slot(2, 0)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("PhysicalLabel", "Physicals"))
+				.Text(LOCTEXT("PhysicalLabel", "Physicals units"))
 				.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 			]
 
@@ -327,7 +308,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 				{
 					if (CachedLiveLinkData.Focus.IsSet())
 					{
-						return FText::AsNumber(CachedLiveLinkData.Focus.GetValue());
+						return FText::Format(LOCTEXT("PhysicalUnitsFocusValue", "{0} cm"), CachedLiveLinkData.Focus.GetValue());
 					}
 					return LOCTEXT("UndefinedFocus", "N/A");
 				}))
@@ -339,7 +320,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 				{
 					if (CachedLiveLinkData.Iris.IsSet())
 					{
-						return FText::AsNumber(CachedLiveLinkData.Iris.GetValue());
+						return FText::Format(LOCTEXT("PhysicalUnitsIrisValue", "{0} F-Stop"), CachedLiveLinkData.Iris.GetValue());
 					}
 					return LOCTEXT("UndefinedIris", "N/A");
 				}))
@@ -351,7 +332,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeFIZWidget() const
 				{
 					if (CachedLiveLinkData.Zoom.IsSet())
 					{
-						return FText::AsNumber(CachedLiveLinkData.Zoom.GetValue());
+						return FText::Format(LOCTEXT("PhysicalUnitsZoomValue", "{0} mm"), CachedLiveLinkData.Zoom.GetValue());
 					}
 					return LOCTEXT("UndefinedZoom", "N/A");
 				}))
@@ -479,7 +460,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedIntrinsics.PrincipalPoint.X);
+					return FText::AsNumber(CachedImageCenter.PrincipalPoint.X);
 				}))
 			]
 			+ SGridPanel::Slot(0, 1)
@@ -494,7 +475,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedIntrinsics.PrincipalPoint.Y);
+					return FText::AsNumber(CachedImageCenter.PrincipalPoint.Y);
 				}))
 			]
 			+ SGridPanel::Slot(0, 2)
@@ -509,7 +490,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedDistortionInfo.FxFy.X);
+					return FText::AsNumber(CachedFocalLengthInfo.FxFy.X);
 				}))
 			]
 			+ SGridPanel::Slot(0, 3)
@@ -524,7 +505,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedDistortionInfo.FxFy.Y);
+					return FText::AsNumber(CachedFocalLengthInfo.FxFy.Y);
 				}))
 			]
 		];
@@ -532,6 +513,8 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 
 TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 {
+	const FRotator CachedRotationOffset = CachedNodalOffset.RotationOffset.Rotator();
+
 	return
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -598,7 +581,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				.MinDesiredWidth(15.0f)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedNodalOffset.RotationOffset.X);
+					return FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::X));
 				}))
 			]
 			+ SGridPanel::Slot(2, 1)
@@ -607,7 +590,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				.MinDesiredWidth(15.0f)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedNodalOffset.RotationOffset.Y);
+					return FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::Y));
 				}))
 			]
 			+ SGridPanel::Slot(3, 1)
@@ -616,7 +599,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				.MinDesiredWidth(15.0f)
 				.Text(MakeAttributeLambda([this]
 				{
-					return FText::AsNumber(CachedNodalOffset.RotationOffset.Z);
+					return FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::Z));
 				}))
 			]
 		];

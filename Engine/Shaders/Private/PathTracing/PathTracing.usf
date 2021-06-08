@@ -49,8 +49,6 @@ float MaxNormalBias;
 float FilterWidth;
 
 RWTexture2D<float4> RadianceTexture;
-RWTexture2D<float4> AlbedoTexture;
-RWTexture2D<float4> NormalTexture;
 RaytracingAccelerationStructure TLAS;
 int3 TileOffset;
 uint SceneVisibleLightCount;
@@ -71,7 +69,7 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance, bool bI
 	TotalRadiance += PathRadiance;
 }
 
-FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance, inout float3 Albedo, inout float3 Normal)
+FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
 	const uint RayFlags = bIsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	const uint MissShaderIndex = 0;
@@ -145,11 +143,6 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 		if (!bLastBounce)
 		{
 			float3 Contrib = PathThroughput * EstimateMaterialAlbedo(HitPayload);
-			if (bIsCameraRay)
-			{
-				Albedo += Contrib;
-				Normal += PathThroughput * (1 - Luminance(Transparency)) * HitPayload.WorldNormal;
-			}
 
 			float SelectionWeight = max3(Contrib.x, Contrib.y, Contrib.z);
 			SelectionWeightSum += SelectionWeight;
@@ -524,8 +517,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 
 	float3 Radiance = 0;
-	float3 Albedo = 0;
-	float3 Normal = 0;
 
 	// Initialize ray and payload
 	RayDesc Ray;
@@ -560,7 +551,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		const bool bIsLastBounce = Bounce == MaxBounces;
 		const bool bIncludeEmissive = (EnableDirectLighting != 0 || Bounce > 1) &&
 									  (EnableEmissive       != 0 || bIsCameraRay);
-		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, bIsCameraRay, bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance, Albedo, Normal);
+		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, bIsCameraRay, bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 
 		if (Payload.IsMiss())
 		{
@@ -799,8 +790,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	float BlendFactor = 1.0 / float(NumSamples);
 	// Avoid reading the old pixel on the first sample on the off-chance there is a NaN/Inf pixel ...
 	float4 OldPixel = NumSamples > 1 ? RadianceTexture[PixelIndex] : 0;
-	float4 OldAlbedo = NumSamples > 1 ? AlbedoTexture[PixelIndex] : 0;
-	float4 OldNormal = NumSamples > 1 ? NormalTexture[PixelIndex] : 0;
 	float3 OldRadiance = OldPixel.rgb;
 	float OldVariance = OldPixel.a;
 
@@ -813,6 +802,4 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	float NewVariance = lerp(OldVariance, DeviationSquared, BlendFactor);
 
 	RadianceTexture[PixelIndex] = float4(NewRadiance, NewVariance);
-	AlbedoTexture[PixelIndex] = lerp(OldAlbedo, float4(Albedo, 0), BlendFactor);
-	NormalTexture[PixelIndex] = lerp(OldNormal, float4(Normal, 0), BlendFactor);
 }

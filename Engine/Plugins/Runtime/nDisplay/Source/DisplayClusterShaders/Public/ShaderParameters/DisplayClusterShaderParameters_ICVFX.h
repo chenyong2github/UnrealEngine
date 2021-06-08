@@ -26,6 +26,13 @@ enum class EDisplayClusterShaderParametersICVFX_LightcardRenderMode : uint8
 	Over,
 };
 
+struct FDisplayClusterShaderParametersICVFX_CameraContext
+{
+	FRotator CameraViewRotation;
+	FVector  CameraViewLocation;
+	FMatrix  CameraPrjMatrix;
+};
+
 struct FDisplayClusterShaderParametersICVFX_ViewportResource
 {
 public:
@@ -178,9 +185,20 @@ public:
 			return ChromakeMarkerTextureRHI.IsValid();
 		}
 
+		void UpdateCameraContext(const FDisplayClusterShaderParametersICVFX_CameraContext& InContext)
+		{
+			// Support icvfx stereo - update context from camera for each eye
+			CameraViewRotation = Local2WorldTransform.InverseTransformRotation(InContext.CameraViewRotation.Quaternion()).Rotator();
+			CameraViewLocation = Local2WorldTransform.InverseTransformPosition(InContext.CameraViewLocation);
+			CameraPrjMatrix = InContext.CameraPrjMatrix;
+		}
+
 	public:
 		FDisplayClusterShaderParametersICVFX_ViewportResource Resource;
 		FVector SoftEdge;
+
+		// Camera Origin
+		FTransform Local2WorldTransform;
 
 		// Camera world
 		FRotator CameraViewRotation;
@@ -189,12 +207,11 @@ public:
 
 		// Chromakey settings:
 		EDisplayClusterShaderParametersICVFX_ChromakeySource  ChromakeySource = EDisplayClusterShaderParametersICVFX_ChromakeySource::Disabled;
-
-		// Chromakey sources settings:
 		FDisplayClusterShaderParametersICVFX_ViewportResource Chromakey;
-		FLinearColor ChromakeyColor = FLinearColor::Green;
+		FLinearColor ChromakeyColor = FLinearColor::Black;
 
 		// Chromakey markers settings:
+		FLinearColor ChromakeyMarkersColor = FLinearColor::Black;
 		float ChromakeyMarkersScale;
 		float ChromakeyMarkersDistance;
 		FTextureRHIRef ChromakeMarkerTextureRHI;

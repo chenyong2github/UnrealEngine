@@ -1647,6 +1647,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			String roHardwareChipname = getProp("ro.hardware.chipname");
 			Log.debug("ro.hardware.chipname: " + roHardwareChipname);
 			roHardware = roHardwareChipname;
+			if (roHardware.isEmpty())
+			{
+				// provide GPU as a final fallback in case cpuInfo does not contain Hardware
+				roHardware = OpenGLDevice;
+			}
 		}
 		String hardware = roHardware;
 		if (cpuInfo.containsKey("Hardware"))

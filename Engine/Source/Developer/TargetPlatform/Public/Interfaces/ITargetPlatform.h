@@ -557,6 +557,14 @@ public:
 	virtual void GetAllWaveFormats( TArray<FName>& OutFormats ) const = 0;
 
 	/**
+	 * Checks whether if this platform wants AV data (defaults to !IsServerOnly(), which is the standard reason why we don't want AV data)
+	 * Used so that custom target platforms can remove AV data, but is not a server-only platform
+	 *
+	 * @return true if this platform allows AV data to be cooked, false otherwise.
+	 */
+	virtual bool AllowAudioVisualData() const = 0;
+
+	/**
 	 * Gets the texture LOD settings used by this platform.
 	 *
 	 * @return A texture LOD settings structure.

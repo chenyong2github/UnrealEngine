@@ -14,7 +14,7 @@
 //
 // Like TUniquePtr:
 // - Unique ownership - no reference counting.
-// - Move-only, no copying.
+// - Move-only, no copying by default.
 // - Has the same static footprint as a pointer.
 //
 // Like TSharedPtr:
@@ -31,6 +31,24 @@
 // - Has single-ownership semantics.
 // - Has the same performance and footprint as a pointer to the object, and minimal overhead on construction and destruction.
 // - Can be added as a class member with a forward-declared type without having to worry about the proper definition of constructors and other special member functions.
+// - Can support deep copying, including with forward declared types
+
+
+/**
+ * Specifies the copy mode for TPimplPtr
+ */
+enum class EPimplPtrMode : uint8
+{
+	/** Don't support copying (default) */
+	NoCopy,
+
+	/** Support deep copying, including of forward declared types */
+	DeepCopy
+};
+
+// Forward declaration
+template<typename T, EPimplPtrMode Mode = EPimplPtrMode::NoCopy> struct TPimplPtr;
+
 
 namespace UE4PimplPtr_Private
 {
@@ -38,6 +56,7 @@ namespace UE4PimplPtr_Private
 
 	template <typename T>
 	struct TPimplHeapObjectImpl;
+
 
 	template <typename T>
 	void DeleterFunc(void* Ptr)
@@ -48,20 +67,54 @@ namespace UE4PimplPtr_Private
 		delete (TPimplHeapObjectImpl<T>*)Ptr;
 	}
 
+	template<typename T>
+	static void* CopyFunc(void* A)
+	{
+		using FHeapType = TPimplHeapObjectImpl<T>;
+
+		FHeapType* NewHeap = new FHeapType(A);
+
+		return &NewHeap->Val;
+	};
+
+	using FDeleteFunc = void(*)(void*);
+	using FCopyFunc = void*(*)(void*);
+
 	template <typename T>
 	struct TPimplHeapObjectImpl
 	{
+		enum class ENoCopyType { ConstructType };
+		enum class EDeepCopyType { ConstructType };
+
 		template <typename... ArgTypes>
-		explicit TPimplHeapObjectImpl(ArgTypes&&... Args)
-			: Deleter(&DeleterFunc<T>)
+		explicit TPimplHeapObjectImpl(ENoCopyType, ArgTypes&&... Args)
+			: Val(Forward<ArgTypes>(Args)...)
+		{
+			// This should never fire, unless a compiler has laid out this struct in an unexpected way
+			static_assert(STRUCT_OFFSET(TPimplHeapObjectImpl, Val) == RequiredAlignment,
+							"Unexpected alignment of T within the pimpl object");
+		}
+
+		template <typename... ArgTypes>
+		explicit TPimplHeapObjectImpl(EDeepCopyType, ArgTypes&&... Args)
+			: Copier(&CopyFunc<T>)
 			, Val(Forward<ArgTypes>(Args)...)
 		{
 			// This should never fire, unless a compiler has laid out this struct in an unexpected way
-			static_assert(STRUCT_OFFSET(TPimplHeapObjectImpl, Val) == RequiredAlignment, "Unexpected alignment of T within the pimpl object");
+			static_assert(STRUCT_OFFSET(TPimplHeapObjectImpl, Val) == RequiredAlignment,
+							"Unexpected alignment of T within the pimpl object");
 		}
 
-		void(*Deleter)(void*);
-		char Padding[RequiredAlignment - sizeof(void(*)(void*))];
+		explicit TPimplHeapObjectImpl(void* InVal)
+			: Copier(&CopyFunc<T>)
+			, Val(*(T*)InVal)
+		{
+		}
+
+
+		FDeleteFunc Deleter					= &DeleterFunc<T>;
+		FCopyFunc Copier					= nullptr;
+
 		alignas(RequiredAlignment) T Val;
 	};
 
@@ -75,14 +128,25 @@ namespace UE4PimplPtr_Private
 		// so it's simply left commented out until we can rely on it everywhere.
 		(*(void(**)(void*) /*noexcept*/)ThunkedPtr)(ThunkedPtr);
 	}
+
+	FORCEINLINE void* CallCopier(void* Ptr)
+	{
+		void* BasePtr = (char*)Ptr - RequiredAlignment;
+		void* ThunkedPtr = (char*)BasePtr + sizeof(FDeleteFunc);
+
+		return (*(FCopyFunc*)ThunkedPtr)(Ptr);
+	}
 }
 
+
 template <typename T>
-struct TPimplPtr
+struct TPimplPtr<T, EPimplPtrMode::NoCopy>
 {
 private:
-	template <typename U, typename... ArgTypes>
-	friend TPimplPtr<U> MakePimpl(ArgTypes&&...);
+	template <typename, EPimplPtrMode> friend struct TPimplPtr;
+
+	template <typename U, EPimplPtrMode M, typename... ArgTypes>
+	friend TPimplPtr<U, M> MakePimpl(ArgTypes&&... Args);
 
 	explicit TPimplPtr(UE4PimplPtr_Private::TPimplHeapObjectImpl<T>* Impl)
 		: Ptr(&Impl->Val)
@@ -104,7 +168,6 @@ public:
 		}
 	}
 
-	// Non-copyable
 	TPimplPtr(const TPimplPtr&) = delete;
 	TPimplPtr& operator=(const TPimplPtr&) = delete;
 
@@ -174,20 +237,95 @@ private:
 	T* Ptr = nullptr;
 };
 
-template <typename T> FORCEINLINE bool operator==(const TPimplPtr<T>& Ptr, TYPE_OF_NULLPTR) { return !Ptr.IsValid(); }
-template <typename T> FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TPimplPtr<T>& Ptr) { return !Ptr.IsValid(); }
-template <typename T> FORCEINLINE bool operator!=(const TPimplPtr<T>& Ptr, TYPE_OF_NULLPTR) { return  Ptr.IsValid(); }
-template <typename T> FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TPimplPtr<T>& Ptr) { return  Ptr.IsValid(); }
+template <typename T>
+struct TPimplPtr<T, EPimplPtrMode::DeepCopy> : private TPimplPtr<T, EPimplPtrMode::NoCopy>
+{
+private:
+	using Super = TPimplPtr<T, EPimplPtrMode::NoCopy>;
+
+	template <typename U, EPimplPtrMode M, typename... ArgTypes>
+	friend TPimplPtr<U, M> MakePimpl(ArgTypes&&... Args);
+
+	using Super::TPimplPtr;
+
+public:
+	TPimplPtr() = default;
+	~TPimplPtr() = default;
+
+	TPimplPtr(const TPimplPtr& A)
+	{
+		if (A.IsValid())
+		{
+			this->Ptr = (T*)UE4PimplPtr_Private::CallCopier(A.Ptr);
+		}
+	}
+
+	TPimplPtr& operator=(const TPimplPtr& A)
+	{
+		if (&A != this)
+		{
+			if (IsValid())
+			{
+				Reset();
+			}
+
+			if (A.IsValid())
+			{
+				this->Ptr = (T*)UE4PimplPtr_Private::CallCopier(A.Ptr);
+			}
+		}
+
+		return *this;
+	}
+
+	TPimplPtr(TPimplPtr&&) = default;
+	TPimplPtr& operator=(TPimplPtr&&) = default;
+
+	TPimplPtr(TYPE_OF_NULLPTR)
+	{
+	}
+
+	FORCEINLINE TPimplPtr& operator=(TYPE_OF_NULLPTR A)
+	{
+		Super::operator = (A);
+		return *this;
+	}
+
+	using Super::IsValid;
+	using Super::operator bool;
+	using Super::operator ->;
+	using Super::Get;
+	using Super::operator *;
+	using Super::Reset;
+};
+
+
+template <typename T, EPimplPtrMode Mode> FORCEINLINE bool operator==(const TPimplPtr<T, Mode>& Ptr, TYPE_OF_NULLPTR) { return !Ptr.IsValid(); }
+template <typename T, EPimplPtrMode Mode> FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TPimplPtr<T, Mode>& Ptr) { return !Ptr.IsValid(); }
+template <typename T, EPimplPtrMode Mode> FORCEINLINE bool operator!=(const TPimplPtr<T, Mode>& Ptr, TYPE_OF_NULLPTR) { return  Ptr.IsValid(); }
+template <typename T, EPimplPtrMode Mode> FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TPimplPtr<T, Mode>& Ptr) { return  Ptr.IsValid(); }
+
 
 /**
  * Heap-allocates an instance of T with the given arguments and returns it as a TPimplPtr.
  *
  * Usage: TPimplPtr<FMyType> MyPtr = MakePimpl<FMyType>(...arguments...);
+ *
+ * DeepCopy Usage: TPimplPtr<FMyType, EPimplPtrMode::DeepCopy> MyPtr = MakePimpl<FMyType, EPimplPtrMode::DeepCopy>(...arguments...);
  */
-template <typename T, typename... ArgTypes>
-FORCEINLINE TPimplPtr<T> MakePimpl(ArgTypes&&... Args)
+template <typename T, EPimplPtrMode Mode = EPimplPtrMode::NoCopy, typename... ArgTypes>
+FORCEINLINE TPimplPtr<T, Mode> MakePimpl(ArgTypes&&... Args)
 {
+	using FHeapType = UE4PimplPtr_Private::TPimplHeapObjectImpl<T>;
+	using FHeapConstructType = typename std::conditional<Mode == EPimplPtrMode::NoCopy, typename FHeapType::ENoCopyType,
+															typename FHeapType::EDeepCopyType>::type;
+
+	static_assert(Mode != EPimplPtrMode::DeepCopy ||
+					std::is_copy_constructible<T>::value, "T must be a copyable type, to use with EPimplPtrMode::DeepCopy");
 	static_assert(sizeof(T) > 0, "T must be a complete type");
 	static_assert(alignof(T) <= UE4PimplPtr_Private::RequiredAlignment, "T cannot be aligned more than 16 bytes");
-	return TPimplPtr<T>(new UE4PimplPtr_Private::TPimplHeapObjectImpl<T>(Forward<ArgTypes>(Args)...));
+
+	return TPimplPtr<T, Mode>(new FHeapType(FHeapConstructType::ConstructType, Forward<ArgTypes>(Args)...));
 }
+
+

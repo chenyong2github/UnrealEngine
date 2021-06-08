@@ -520,23 +520,24 @@ FText UNiagaraComponentRendererProperties::GetWidgetDisplayName() const
 	return TemplateComponent ? FText::Format(FText::FromString("{0} Renderer"), TemplateComponent->GetClass()->GetDisplayNameText()) : Super::GetWidgetDisplayName();
 }
 
-const TArray<FNiagaraVariable>& UNiagaraComponentRendererProperties::GetBoundAttributes()
+TArray<FNiagaraVariable> UNiagaraComponentRendererProperties::GetBoundAttributes() const
 {
-	CurrentBoundAttributes.Reset();
+	TArray<FNiagaraVariable> BoundAttributes;
+	BoundAttributes.Reserve(PropertyBindings.Num() + (bAssignComponentsOnParticleID ? 2 : 1));
 
-	CurrentBoundAttributes.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
+	BoundAttributes.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
 	if (bAssignComponentsOnParticleID)
 	{
-		CurrentBoundAttributes.Add(SYS_PARAM_PARTICLES_UNIQUE_ID);
+		BoundAttributes.Add(SYS_PARAM_PARTICLES_UNIQUE_ID);
 	}
 	for (const FNiagaraComponentPropertyBinding& PropertyBinding : PropertyBindings)
 	{
 		if (PropertyBinding.AttributeBinding.IsValid())
 		{
-			CurrentBoundAttributes.Add(PropertyBinding.AttributeBinding.GetParamMapBindableVariable());
+			BoundAttributes.Add(PropertyBinding.AttributeBinding.GetParamMapBindableVariable());
 		}
 	}
-	return CurrentBoundAttributes;
+	return BoundAttributes;
 }
 
 const TArray<FNiagaraVariable>& UNiagaraComponentRendererProperties::GetOptionalAttributes()

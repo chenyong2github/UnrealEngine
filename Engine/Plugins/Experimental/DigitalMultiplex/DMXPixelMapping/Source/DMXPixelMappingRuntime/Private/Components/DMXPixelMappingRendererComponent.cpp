@@ -307,7 +307,7 @@ void UDMXPixelMappingRendererComponent::Render()
 		DownsampleBufferTarget->GetResource(),
 		DownsampleBufferTarget->GameThread_GetRenderTargetResource(),
 		MoveTemp(DownsamplePixelParams), // Move Set to GPU thread, no empty function call needed
-		[this](TArray<FColor>&& InDownsampleBuffer, FIntRect InRect) { SetDownsampleBuffer(MoveTemp(InDownsampleBuffer), InRect); }
+		[this](TArray<FLinearColor>&& InDownsampleBuffer, FIntRect InRect) { SetDownsampleBuffer(MoveTemp(InDownsampleBuffer), InRect); }
 	);
 }
 
@@ -548,7 +548,7 @@ bool UDMXPixelMappingRendererComponent::IsPixelRangeValid(const int32 InDownsamp
 	return false;
 }
 
-void UDMXPixelMappingRendererComponent::SetDownsampleBuffer(TArray<FColor>&& InDownsampleBuffer, FIntRect InRect)
+void UDMXPixelMappingRendererComponent::SetDownsampleBuffer(TArray<FLinearColor>&& InDownsampleBuffer, FIntRect InRect)
 {
 	check(IsInRenderingThread());
 
@@ -556,37 +556,36 @@ void UDMXPixelMappingRendererComponent::SetDownsampleBuffer(TArray<FColor>&& InD
 	DownsampleBuffer = MoveTemp(InDownsampleBuffer);
 }
 
-TOptional<FColor> UDMXPixelMappingRendererComponent::GetDownsampleBufferPixel(const int32 InDownsamplePixelIndex)
+bool UDMXPixelMappingRendererComponent::GetDownsampleBufferPixel(const int32 InDownsamplePixelIndex, FLinearColor& OutLinearColor)
 {
 	FScopeLock ScopeLock(&DownsampleBufferCS);
-	TOptional<FColor> Color;
 
 	if (DownsampleBuffer.IsValidIndex(InDownsamplePixelIndex))
 	{
-		Color = DownsampleBuffer[InDownsamplePixelIndex];
+		OutLinearColor = DownsampleBuffer[InDownsamplePixelIndex];
+		return true;
 	}
 
-	return Color;
+	return false;
 }
 
-TArray<FColor> UDMXPixelMappingRendererComponent::GetDownsampleBufferPixels(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd)
+bool UDMXPixelMappingRendererComponent::GetDownsampleBufferPixels(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd, TArray<FLinearColor>& OutLinearColors)
 {
 	FScopeLock ScopeLock(&DownsampleBufferCS);
-	TArray<FColor> DownsamplePixelRange;
 	
 	// Could be out of the range when texture resizing on GPU thread
 	if (!IsPixelRangeValid(InDownsamplePixelIndexStart, InDownsamplePixelIndexEnd))
 	{
-		return DownsamplePixelRange;
+		return false;
 	}
 
-	DownsamplePixelRange.Reserve(InDownsamplePixelIndexEnd - InDownsamplePixelIndexStart + 1);
+	OutLinearColors.Reset(InDownsamplePixelIndexEnd - InDownsamplePixelIndexStart + 1);
 	for (int32 PixelIndex = InDownsamplePixelIndexStart; PixelIndex <= InDownsamplePixelIndexEnd; ++PixelIndex)
 	{
-		DownsamplePixelRange.Add(DownsampleBuffer[PixelIndex]);
+		OutLinearColors.Add(DownsampleBuffer[PixelIndex]);
 	}
 
-	return DownsamplePixelRange;
+	return true;
 }
 
 bool UDMXPixelMappingRendererComponent::ResetColorDownsampleBufferPixel(const int32 InDownsamplePixelIndex)
@@ -595,7 +594,7 @@ bool UDMXPixelMappingRendererComponent::ResetColorDownsampleBufferPixel(const in
 
 	if (DownsampleBuffer.IsValidIndex(InDownsamplePixelIndex))
 	{
-		DownsampleBuffer[InDownsamplePixelIndex] = FColor::Black;
+		DownsampleBuffer[InDownsamplePixelIndex] = FLinearColor::Black;
 		return true;
 	}
 
@@ -614,7 +613,7 @@ bool UDMXPixelMappingRendererComponent::ResetColorDownsampleBufferPixels(const i
 
 	for (int32 PixelIndex = InDownsamplePixelIndexStart; PixelIndex <= InDownsamplePixelIndexEnd; ++PixelIndex)
 	{
-		DownsampleBuffer[PixelIndex] = FColor::Black;
+		DownsampleBuffer[PixelIndex] = FLinearColor::Black;
 	}
 
 	return true;

@@ -1468,7 +1468,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 			IScreenSpaceDenoiser::FReflectionsRayTracingConfig DenoiserConfig;
 			if (RayTracingReflectionOptions.bEnabled)
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "RayTracingReflections");
+				RDG_EVENT_SCOPE(GraphBuilder, "RayTracingReflections %d", CurrentViewIndex);
 				RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingReflections);
 
 				bDenoise = DenoiserMode != 0;

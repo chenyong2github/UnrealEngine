@@ -2136,7 +2136,7 @@ void UMaterial::UpdateCachedExpressionData()
 	}
 
 	CachedExpressionData->Reset();
-	FMaterialCachedExpressionContext Context(nullptr); // UMaterial have no parent
+	FMaterialCachedExpressionContext Context;
 	CachedExpressionData->UpdateForExpressions(Context, Expressions, EMaterialParameterAssociation::GlobalParameter, -1);
 
 	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
@@ -2162,9 +2162,9 @@ bool UMaterial::GetScalarParameterValue(const FHashedMaterialParameterInfo& Para
 
 bool UMaterial::GetScalarParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly) const
 {
-	if (CachedExpressionData)
+	if (!bOveriddenOnly && CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo, bOveriddenOnly);
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
 		if (Index != INDEX_NONE)
 		{
 			OutValue = CachedExpressionData->Parameters.ScalarValues[Index];
@@ -2288,9 +2288,9 @@ bool UMaterial::GetVectorParameterValue(const FHashedMaterialParameterInfo& Para
 
 bool UMaterial::GetVectorParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly) const
 {
-	if (CachedExpressionData)
+	if (!bOveriddenOnly && CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo, bOveriddenOnly);
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
 		if (Index != INDEX_NONE)
 		{
 			OutValue = CachedExpressionData->Parameters.VectorValues[Index];
@@ -2412,9 +2412,9 @@ bool UMaterial::GetTextureParameterValue(const FHashedMaterialParameterInfo& Par
 
 bool UMaterial::GetTextureParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bOveriddenOnly) const
 {
-	if (CachedExpressionData)
+	if (!bOveriddenOnly && CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo, bOveriddenOnly);
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
 		if (Index != INDEX_NONE)
 		{
 			OutValue = CachedExpressionData->Parameters.TextureValues[Index];
@@ -2521,9 +2521,9 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue(const FHashedMaterialPara
 
 bool UMaterial::GetRuntimeVirtualTextureParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
 {
-	if (CachedExpressionData)
+	if (!bOveriddenOnly && CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, bOveriddenOnly);
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo);
 		if (Index != INDEX_NONE)
 		{
 			OutValue = CachedExpressionData->Parameters.RuntimeVirtualTextureValues[Index];
@@ -2642,9 +2642,9 @@ bool UMaterial::GetFontParameterValue(const FHashedMaterialParameterInfo& Parame
 
 bool UMaterial::GetFontParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly) const
 {
-	if (CachedExpressionData)
+	if (!bOveriddenOnly && CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo, bOveriddenOnly);
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo);
 		if (Index != INDEX_NONE)
 		{
 			OutFontValue = CachedExpressionData->Parameters.FontValues[Index];
@@ -2731,9 +2731,9 @@ bool UMaterial::GetFontParameterValue_Legacy(const FHashedMaterialParameterInfo&
 #if WITH_EDITORONLY_DATA
 bool UMaterial::GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent) const
 {
-	if (CachedExpressionData)
+	if (!bOveriddenOnly && CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::StaticSwitch, ParameterInfo, bOveriddenOnly);
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::StaticSwitch, ParameterInfo);
 		if (Index != INDEX_NONE)
 		{
 			OutExpressionGuid = CachedExpressionData->Parameters.GetExpressionGuid(EMaterialParameterType::StaticSwitch, Index);
@@ -2746,9 +2746,9 @@ bool UMaterial::GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo
 
 bool UMaterial::GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent) const
 {
-	if (CachedExpressionData)
+	if (!bOveriddenOnly && CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::StaticComponentMask, ParameterInfo, bOveriddenOnly);
+		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::StaticComponentMask, ParameterInfo);
 		if (Index != INDEX_NONE)
 		{
 			OutExpressionGuid = CachedExpressionData->Parameters.GetExpressionGuid(EMaterialParameterType::StaticComponentMask, Index);
@@ -4506,6 +4506,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TwoSided) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUseLightmapDirectionality) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUseHQForwardReflections) ||
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bForwardBlendsSkyLightCubemaps) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUsePlanarForwardReflections)
 			)
 		{

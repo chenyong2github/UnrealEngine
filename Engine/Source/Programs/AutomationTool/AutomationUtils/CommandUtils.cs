@@ -1293,7 +1293,8 @@ namespace AutomationTool
 		/// <param name="Source"></param>
 		/// <param name="Dest"></param>
         /// <param name="bQuiet">When true, logging is suppressed.</param>
-        public static void CopyFile(string Source, string Dest, bool bQuiet = false)
+		/// <param name="bRetry">When true, the copy will be attempted up to 5 times before failing.</param>
+        public static void CopyFile(string Source, string Dest, bool bQuiet = false, bool bRetry = false)
 		{
 			Source = ConvertSeparators(PathSeparator.Default, Source);
 			Dest = ConvertSeparators(PathSeparator.Default, Dest);
@@ -1308,24 +1309,40 @@ namespace AutomationTool
 				throw new AutomationException(String.Format("Failed to get directory name for dest: {0}, {1}", Dest, Ex.Message));
 			}
 
-			if (InternalUtils.SafeFileExists(Dest, true))
-			{
-				InternalUtils.SafeDeleteFile(Dest, bQuiet);
-			}
-			else if (!InternalUtils.SafeDirectoryExists(DestDirName, true))
+			if (!InternalUtils.SafeDirectoryExists(DestDirName, true))
 			{
 				if (!InternalUtils.SafeCreateDirectory(DestDirName, bQuiet))
 				{
 					throw new AutomationException("Failed to create directory {0} for copy", DestDirName);
 				}
 			}
-			if (InternalUtils.SafeFileExists(Dest, true))
+
+			for (int AttemptsRemaining = 5; AttemptsRemaining > 0; --AttemptsRemaining)
 			{
-				throw new AutomationException("Failed to delete {0} for copy", Dest);
-			}
-			if (!InternalUtils.SafeCopyFile(Source, Dest, bQuiet))
-			{
-				throw new AutomationException("Failed to copy {0} to {1}", Source, Dest);
+				if (InternalUtils.SafeFileExists(Dest, true))
+				{
+					InternalUtils.SafeDeleteFile(Dest, bQuiet);
+				}
+				if (InternalUtils.SafeFileExists(Dest, true))
+				{
+					if (bRetry && AttemptsRemaining > 0)
+					{
+						Log.TraceLog("Failed to delete {0} for copy, retrying..", Dest);
+						Thread.Sleep(1000);
+						continue;
+					}
+					throw new AutomationException("Failed to delete {0} for copy", Dest);
+				}
+				if (!InternalUtils.SafeCopyFile(Source, Dest, bQuiet))
+				{
+					if (bRetry && AttemptsRemaining > 0)
+					{
+						Log.TraceLog("Failed to copy {0} to {1}, retrying..", Source, Dest);
+						Thread.Sleep(1000);
+						continue;
+					}
+					throw new AutomationException("Failed to copy {0} to {1}", Source, Dest);
+				}
 			}
 		}
 
@@ -1705,7 +1722,8 @@ namespace AutomationTool
 		/// <param name="Source"></param>
 		/// <param name="Dest"></param>
 		/// <param name="MaxThreads"></param>
-		public static void ThreadedCopyFiles(List<string> Source, List<string> Dest, int MaxThreads = 64, bool bQuiet = false)
+		/// <param name="bRetry"></param>
+		public static void ThreadedCopyFiles(List<string> Source, List<string> Dest, int MaxThreads = 64, bool bQuiet = false, bool bRetry = false)
 		{
 			if(!bQuiet)
 			{
@@ -1718,7 +1736,7 @@ namespace AutomationTool
 			}
 			Parallel.ForEach(Source.Zip(Dest, (Src, Dst) => new { SourceFile = Src, DestFile = Dst }), new ParallelOptions { MaxDegreeOfParallelism = MaxThreads }, (Pair) =>
 			{
-				CommandUtils.CopyFile(Pair.SourceFile, Pair.DestFile, true);
+				CommandUtils.CopyFile(Pair.SourceFile, Pair.DestFile, true, bRetry);
 			});
         }
 
@@ -3054,6 +3072,7 @@ namespace AutomationTool
 			Extensions.Add(".so");
 			Extensions.Add(".app");
 			Extensions.Add(".framework");
+			Extensions.Add(".bundle");
 
 			bool bIsExecutable = bIgnoreExtension || (!bIsDirectory && Path.GetExtension(InPath) == "" && !InPath.EndsWith("PkgInfo"));
 

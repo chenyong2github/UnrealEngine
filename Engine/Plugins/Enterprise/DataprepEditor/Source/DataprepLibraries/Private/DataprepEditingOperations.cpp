@@ -205,9 +205,15 @@ void UDataprepMergeActorsOperation::OnExecution_Implementation(const FDataprepCo
 
 	MergedActor->GetRootComponent()->SetWorldLocation( MergedMeshWorldLocation );
 
-	// Keep the merged actor in the hierarchy, taking the parent of the first component
-	// In the future, the merged actor could be attached to the common ancestor instead of the first parent in the list
-	MergedActor->GetRootComponent()->AttachToComponent( ComponentsToMerge[0]->GetAttachParent(), FAttachmentTransformRules::KeepWorldTransform );
+	AActor* Owner = ComponentsToMerge[0]->GetOwner<AActor>();
+	ensure( Owner );
+
+	if( AActor* OwnerParent = Owner->GetAttachParentActor() )
+	{
+		// Keep the merged actor in the hierarchy, taking the parent of the first component
+		// In the future, the merged actor could be attached to the common ancestor instead of the first parent in the list
+		MergedActor->GetRootComponent()->AttachToComponent( OwnerParent->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform );
+	}
 
 	// Collect all objects to be deleted
 	TArray<UObject*> ObjectsToDelete = DatasmithEditingOperationsUtils::CollectObjectsToDeleteAfterMeshMerging(ComponentsToMerge);
@@ -434,9 +440,15 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 		MergedActor->SetRootComponent(RootComponent);
 	}
 
-	// Keep the merged actor in the hierarchy, taking the parent of the first component
-	// In the future, the merged actor could be attached to the common ancestor instead of the first parent in the list
-	MergedActor->GetRootComponent()->AttachToComponent(ComponentsToMerge[0]->GetAttachParent(), FAttachmentTransformRules::KeepWorldTransform);
+	AActor* Owner = ComponentsToMerge[0]->GetOwner<AActor>();
+	ensure( Owner );
+
+	if( AActor* OwnerParent = Owner->GetAttachParentActor() )
+	{
+		// Keep the merged actor in the hierarchy, taking the parent of the first component
+		// In the future, the merged actor could be attached to the common ancestor instead of the first parent in the list
+		MergedActor->GetRootComponent()->AttachToComponent( OwnerParent->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform );
+	}
 
 	// Collect all objects to be deleted
 	TArray<UObject*> ObjectsToDelete = DatasmithEditingOperationsUtils::CollectObjectsToDeleteAfterMeshMerging(ComponentsToMerge);

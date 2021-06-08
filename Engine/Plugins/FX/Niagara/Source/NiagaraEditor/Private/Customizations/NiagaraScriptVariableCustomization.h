@@ -96,6 +96,9 @@ private:
 	TArray<UEdGraphPin*> GetDefaultPins();
 
 private:
+	// Bool to track whether a parameters value has actually changed at any point during OnBeginValueChanged(), OnValueChanged() and OnEndValueChanged() to prevent excessive refreshing.
+	bool bParameterValueChangedDuringOnValueChanged;
+
 	// Cached value of enum selector for choosing the library default mode.
 	int32 LibraryDefaultModeValue;
 

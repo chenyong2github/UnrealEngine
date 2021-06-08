@@ -287,7 +287,7 @@ namespace DatasmithMaxExporterUtils
 						}
 					}
 				}
-				
+
 				// Extract the class name without localization
 				Class_ID ClassID = Obj->ClassID();
 
@@ -392,7 +392,7 @@ int FDatasmithMaxExporter::ExportScene(FDatasmithSceneExporter* DatasmithSceneEx
 
 			// Export to file
 			FString NodeID = FString::FromInt(InSceneParser.GetNode(i)->GetHandle());
-			
+
 			{
 				const int32 MeshIndex = InSceneParser.GetRailCloneMeshIndex(i);
 				if (MeshIndex != -1)
@@ -410,10 +410,7 @@ int FDatasmithMaxExporter::ExportScene(FDatasmithSceneExporter* DatasmithSceneEx
 			if (ExporterOptions.bExportGeometry &&
 				(InSceneParser.GetInstanceMode(i) == EMaxExporterInstanceMode::NotInstanced || InSceneParser.GetInstanceMode(i) == EMaxExporterInstanceMode::InstanceMaster || InSceneParser.GetInstanceMode(i) == EMaxExporterInstanceMode::UnrealHISM))
 			{
-			
 				StaticMeshMtl = InSceneParser.GetCustomMeshNode(i) ? InSceneParser.GetCustomMeshNode(i)->GetMtl() : InSceneParser.GetNode(i)->GetMtl();
-				
-			
 
 				if (StaticMeshMtl != nullptr && FDatasmithMaxMatHelper::GetMaterialClass(StaticMeshMtl) == EDSMaterialType::XRefMat)
 				{
@@ -583,7 +580,7 @@ int FDatasmithMaxExporter::ExportScene(FDatasmithSceneExporter* DatasmithSceneEx
 						ActorElement = *PointerToActorElement;
 					}
 					else
-					{ 
+					{
 						FDatasmithMaxSceneExporter::ExportActor(DatasmithScene, Node, *MeshName, UnitMultiplier);
 						ActorElement = DatasmithScene->GetActor(DatasmithScene->GetActorsCount() - 1);
 						ElementMap.Add(InSceneParser.GetNode(i), ActorElement);
@@ -744,7 +741,7 @@ int FDatasmithMaxExporter::ExportScene(FDatasmithSceneExporter* DatasmithSceneEx
 							if ( ExporterOptions.bExportAnimations )
 							{
 								const TSharedPtr< IDatasmithLightActorElement> LightElement = StaticCastSharedPtr< IDatasmithLightActorElement >(ActorElement);
-								const FMaxLightCoordinateConversionParams LightParams(InSceneParser.GetNode(i), 
+								const FMaxLightCoordinateConversionParams LightParams(InSceneParser.GetNode(i),
 									LightElement->IsA(EDatasmithElementType::AreaLight) ? StaticCastSharedPtr<IDatasmithAreaLightElement>(LightElement)->GetLightShape() : EDatasmithLightShape::None);
 
 								FDatasmithMaxSceneExporter::ExportAnimation(LevelSequence, Instances[j], ActorElement->GetName(), UnitMultiplier, LightParams);
@@ -886,12 +883,17 @@ void FDatasmithMaxExporter::PrepareRender(RefEnumProc* Callback, const TCHAR* Me
 	ObjectState ObjState = Node->EvalWorldState(0);
 
 	int NumChildren = Node->NumberOfChildren();
+	int LastDisplayedProgress = -1;
 	for (int ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 	{
 		// Show progress bar without the Cancel button
-		float Progress = ChildIndex / float(NumChildren);
-		FString Msg = FString::Printf(TEXT("%d%%"), int(Progress * 100));
-		ProgressManager->ProgressEvent(Progress, *Msg);
+		int Progress = 100 * ChildIndex / NumChildren;
+		if (Progress != LastDisplayedProgress)
+		{
+			FString Msg = FString::Printf(TEXT("%d%%"), Progress);
+			ProgressManager->ProgressEvent(Progress * 0.01f, *Msg);
+			LastDisplayedProgress = Progress;
+		}
 
 		ReferenceMaker* ChildReference = (ReferenceMaker*)Node->GetChildNode(ChildIndex);
 		ChildReference->EnumRefHierarchy(*Callback);
@@ -1069,11 +1071,11 @@ static  FDatasmithExportImpl DatasmithExport_staticInterface(
 );
 
 INT FDatasmithExportImpl::GetInclude()
-{ 
+{
 	return ExporterOptions.bExportSelectionOnly;
 }
 void FDatasmithExportImpl::SetInclude(INT Value)
-{ 
+{
 	switch (Value)
 	{
 	case DS_INCLUDE_TARGET_VISIBLE_OBJECTS:
@@ -1093,7 +1095,7 @@ INT FDatasmithExportImpl::GetAnimatedTransform()
 }
 
 void FDatasmithExportImpl::SetAnimatedTransform(INT Value)
-{ 
+{
 	switch (Value)
 	{
 	case DS_ANIMATED_TRANSFORMS_CURRENT_FRAME:
@@ -1107,8 +1109,8 @@ void FDatasmithExportImpl::SetAnimatedTransform(INT Value)
 	}
 }
 
-INT FDatasmithExportImpl::GetVersion() 
-{ 
+INT FDatasmithExportImpl::GetVersion()
+{
 	return FDatasmithUtils::GetEnterpriseVersionAsInt();
 }
 

@@ -311,8 +311,41 @@ public:
 	virtual void AddedToChannelPool() override;
 
 protected:
-	
-	TSharedRef< FObjectReplicator > & FindOrCreateReplicator(UObject* Obj, bool* bOutCreated=nullptr);
+
+	/**
+	 * Attempts to find a valid, non-dormant replicator for the given object.
+	 *
+	 * @param Obj				The object whose replicator to find.
+	 * @param bOutFoundInvalid	Indicates we found a replicator, but it was invalid.
+	 *
+	 * @return A replicator, if one was found.
+	 */
+	TSharedRef<FObjectReplicator>* FindReplicator(UObject* Obj, bool* bOutFoundInvalid=nullptr);
+
+	/**
+	 * Creates a new object replicator.
+	 *
+	 * This will replace any existing entries in the ReplicatorMap, so this should
+	 * always be preceeded by a call to FindReplicator.
+	 *
+	 * @param Obj						The object to create a replicator for.
+	 * @param bCheckDormantReplicators	When true, we will search the DormantReplicator map before actually
+	 * 									creating a new replicator. Even in this case, we will treat the
+	 * 									replicator as newly created.
+	 *
+	 * @return The newly created replicator.
+	 */
+	TSharedRef<FObjectReplicator>& CreateReplicator(UObject* Obj, bool bCheckDormantReplicators);
+
+	/**
+	 * Convenience method for finding a replicator, and creating one if necessary, all at once.
+	 *
+	 * @param Obj			The object to find / create a replicator for.
+	 * @param bOutCreated	Whether or not the replicator was found or created.
+	 *
+	 * @return The found or created replicator.
+	 */
+	TSharedRef<FObjectReplicator>& FindOrCreateReplicator(UObject* Obj, bool* bOutCreated=nullptr);
 
 	bool ObjectHasReplicator(const TWeakObjectPtr<UObject>& Obj) const;	// returns whether we have already created a replicator for this object or not
 

@@ -799,6 +799,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ForwardShading, meta = (DisplayName = "High Quality Reflections"))
 	uint8 bUseHQForwardReflections : 1;
 
+	/* 
+	 * Enables blending of sky light cubemap textures. When disabled, the secondary cubemap is only visible when the blend factor is 1.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ForwardShading, meta = (DisplayName = "Blend Sky Light Cubemaps"))
+	uint8 bForwardBlendsSkyLightCubemaps : 1;
+
 	/* Enables planar reflection when using the forward renderer or mobile. Enabling this setting reduces the number of samplers available to the material as one more sampler will be used for the planar reflection. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ForwardShading, meta = (DisplayName = "Planar Reflections"))
 	uint8 bUsePlanarForwardReflections : 1;
@@ -898,7 +904,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=Translucency)
 	uint8 bComputeFogPerPixel : 1;
 
-	/** When true, translucent materials will output motion vectors in velocity pass. */
+	/** When true, translucent materials will output motion vectors and write to depth buffer in velocity pass. */
 	UPROPERTY(EditAnywhere, Category = Translucency, meta = (DisplayName = "Output Velocity"))
 	uint8 bOutputTranslucentVelocity : 1;
 

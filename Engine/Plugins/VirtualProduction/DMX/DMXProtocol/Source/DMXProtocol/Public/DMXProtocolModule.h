@@ -15,21 +15,9 @@ class DMXPROTOCOL_API FDMXProtocolModule
 	: public IModuleInterface
 {
 public:
-	FDMXProtocolModule();
+	void RegisterProtocol(const FName& ProtocolName, IDMXProtocolFactory* Factory);
 
-	void RegisterProtocol(const FName& FactoryName, IDMXProtocolFactory* Factory);
-
-	void UnregisterProtocol(const FName& FactoryName);
-
-	/** Delegate called when all protocols are registered */
-	FSimpleMulticastDelegate OnProtocolsRegistered;
-
-	/** Needs to be set to the number of protocol implementations */
-	static const int32 NumProtocols;
-
-private:
-	/** The number of protocols registered */
-	int32 NumRegisteredProtocols;
+	void UnregisterProtocol(const FName& ProtocolName);
 
 public:
 	/** Get the instance of this module. */
@@ -55,11 +43,13 @@ public:
 	//~ End IModuleInterface implementation
 
 private:
-	/** Called when all protocols are registered */
-	void HandleProtocolsRegistered();
+	/** Called when all protocols in the plugin are registered */
+	void OnProtocolsInPluginRegistered();
 
 	void ShutdownDMXProtocol(const FName& ProtocolName);
 	void ShutdownAllDMXProtocols();
+
+	static int32 NumProtocolsInPlugin;
 
 private:
 	TMap<FName, IDMXProtocolFactory*> DMXProtocolFactories;

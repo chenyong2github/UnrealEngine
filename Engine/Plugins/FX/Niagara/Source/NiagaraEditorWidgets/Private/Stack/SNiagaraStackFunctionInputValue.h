@@ -8,7 +8,7 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "SGraphActionMenu.h"
 #include "Widgets/SItemSelector.h"
-#include "Widgets/SNiagaraScriptSourceFilter.h"
+#include "Widgets/SNiagaraFilterBox.h"
 
 class UNiagaraStackFunctionInput;
 class UNiagaraScript;
@@ -158,7 +158,7 @@ private:
 	TSharedPtr<IStructureDetailsView> LocalValueStructDetailsView;
 
 	TSharedPtr<SNiagaraMenuActionSelector> ActionSelector;
-	TSharedPtr<SNiagaraSourceFilterBox> FilterBox;
+	TSharedPtr<SNiagaraFilterBox> FilterBox;
 	TSharedPtr<SComboButton> SetFunctionInputButton;
 
 	static bool bLibraryOnly;

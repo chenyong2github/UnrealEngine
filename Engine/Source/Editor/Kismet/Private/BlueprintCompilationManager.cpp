@@ -984,7 +984,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					SkeletonToRelink->Bind();
 					SkeletonToRelink->ClearFunctionMapsCaches();
 					SkeletonToRelink->StaticLink(true);
-					SkeletonToRelink->GetDefaultObject();
+					SkeletonToRelink->GetDefaultObject()->SetFlags(RF_Transient);
 				}
 
 				if(CompilerData.ShouldMarkUpToDateAfterSkeletonStage())

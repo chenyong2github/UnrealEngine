@@ -45,6 +45,9 @@ struct FDMXOutputPortCommunicationDeterminator
 	/** Determinates if loopback to engine is needed. If true, loopback is needed */
 	FORCEINLINE bool NeedsSendDMX() const { return bSendEnabled && bHasValidSender; }
 
+	/** Determinates if loopback to engine is needed. If true, loopback is needed */
+	FORCEINLINE bool IsSendDMXEnabled() const { return bSendEnabled; }
+
 private:
 	bool bLoopbackToEngine;
 	bool bReceiveEnabled;
@@ -65,24 +68,21 @@ private:
 class DMXPROTOCOL_API FDMXOutputPort
 	: public FDMXPort
 {
-	// Friend Raw Listener so it can add and remove themselves to the port
+	// Friend DMXPortManager so it can create instances and unregister void instances
 	friend FDMXPortManager;
 
-	// Friend Raw Listener so it can add and remove themselves to the port
+	// Friend Raw Listener so it can add and remove itself to the port
 	friend FDMXRawListener;
 
 protected:
-	/** Creates an output port that is not tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
-	static FDMXOutputPortSharedRef Create();
-
 	/** Creates an output port tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
-	static FDMXOutputPortSharedRef CreateFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
+	static FDMXOutputPortSharedRef CreateFromConfig(FDMXOutputPortConfig& OutputPortConfig);
 
 public:
 	virtual ~FDMXOutputPort();
 
 	/** Updates the Port to use the config of the OutputPortConfig */
-	void UpdateFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
+	void UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig);
 
 public:
 	// ~Begin DMXPort Interface 
@@ -116,7 +116,7 @@ protected:
 
 public:
 	/** Sends DMX over the port */
-	void SendDMX(int32 UniverseID, const TMap<int32, uint8>& ChannelToValueMap);
+	void SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& ChannelToValueMap);
 
 	/** DEPRECATED 4.27. Sends DMX over the port with an extern (remote) Universe ID. Soly here to support legacy functions that would send to an extern universe  */
 	UE_DEPRECATED(4.27, "Use SenDMX instead. SendDMXToRemoteUniverse only exists to support deprecated blueprint nodes.")
@@ -173,7 +173,7 @@ private:
 
 private:
 	/** Returns the port config that corresponds to the guid of this port. */
-	const FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
+	FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;

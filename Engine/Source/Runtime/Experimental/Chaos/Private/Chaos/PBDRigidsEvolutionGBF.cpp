@@ -206,7 +206,8 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt,const FSubSte
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ComputeIntermediateSpatialAcceleration);
-		Base::ComputeIntermediateSpatialAcceleration();
+		const bool bOnLastSubstep = SubStepInfo.Step == SubStepInfo.NumSteps - 1;
+		Base::ComputeIntermediateSpatialAcceleration(bOnLastSubstep, /*bBlock=*/false);
 	}
 
 	{
@@ -263,40 +264,52 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt,const FSubSte
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ParallelSolve);
 		PhysicsParallelFor(GetConstraintGraph().NumIslands(), [&](int32 Island) {
-			
-			if(auto* ResimCache = GetCurrentStepResimCache())
+
+			bool bHasCachedData = false;
+			FEvolutionResimCache* ResimCache = GetCurrentStepResimCache();
+			if (ResimCache && ResimCache->IsResimming() && GetConstraintGraph().IslandNeedsResim(Island) == false)
 			{
-				if(ResimCache->IsResimming() && GetConstraintGraph().IslandNeedsResim(Island) == false)
-				{
-					return;
-				}
+				bHasCachedData = true;
 			}
-			
+
 			const TArray<FGeometryParticleHandle*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
 
+			if (bHasCachedData)
 			{
-				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraints);
-				ApplyConstraints(Dt, Island);
+				for (auto Particle : IslandParticles)
+				{
+					if(auto Rigid = Particle->CastToRigidParticle())
+					{
+						ResimCache->ReloadParticlePostSolve(*Rigid);
+					}
+				}
 			}
-
-			if (PostApplyCallback != nullptr)
+			else
 			{
-				PostApplyCallback(Island);
-			}
+				{
+					SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraints);
+					ApplyConstraints(Dt, Island);
+				}
 
-			{
-				SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateVelocites);
-				UpdateVelocities(Dt, Island);
-			}
+				if (PostApplyCallback != nullptr)
+				{
+					PostApplyCallback(Island);
+				}
 
-			{
-				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyPushOut);
-				ApplyPushOut(Dt, Island);
-			}
+				{
+					SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateVelocites);
+					UpdateVelocities(Dt, Island);
+				}
 
-			if (PostApplyPushOutCallback != nullptr)
-			{
-				PostApplyPushOutCallback(Island);
+				{
+					SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyPushOut);
+					ApplyPushOut(Dt, Island);
+				}
+
+				if (PostApplyPushOutCallback != nullptr)
+				{
+					PostApplyPushOutCallback(Island);
+				}
 			}
 
 			for (auto Particle : IslandParticles)
@@ -342,10 +355,25 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt,const FSubSte
 		UnprepareIteration(Dt);
 	}
 
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_DeactivateSleep);
+		FEvolutionResimCache* ResimCache = GetCurrentStepResimCache();
 		for (int32 Island = 0; Island < GetConstraintGraph().NumIslands(); ++Island)
 		{
+			if(ResimCache)
+			{
+				const TArray<FGeometryParticleHandle*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
+				for(const auto Particle : IslandParticles)
+				{
+					if (auto PBDRigid = Particle->CastToRigidParticle())
+					{
+						//NOTE: this assumes the cached values have not changed after the solve (V, W, P, Q should be untouched, otherwise we'll use the wrong values when resim happens)
+						ResimCache->SaveParticlePostSolve(*PBDRigid);
+					}
+				}
+			}
+
 			if (SleepedIslands[Island])
 			{
 				Particles.DeactivateParticles(GetConstraintGraph().GetIslandParticles(Island));

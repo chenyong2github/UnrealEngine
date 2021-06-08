@@ -216,17 +216,20 @@ namespace UE_RepLayout_Private
 		}
 	}
 
+#endif
+
 	UEPushModelPrivate::FPushModelPerNetDriverState* GetPerNetDriverState(const FRepChangelistState* ChangelistState)
 	{
+#if WITH_PUSH_MODEL
 		const UEPushModelPrivate::FPushModelPerNetDriverHandle Handle = ChangelistState->GetPushModelObjectHandle();
-		return Handle.IsValid() ? UEPushModelPrivate::GetPerNetDriverState(Handle) : nullptr;
-	}
-#else
-	UEPushModelPrivate::FPushModelPerNetDriverState* GetPerNetDriverState(const FRepChangelistState* ChangelistState)
-	{
+		if (Handle.IsValid())
+		{
+			return UEPushModelPrivate::GetPerNetDriverState(Handle);
+		}
+#endif
+
 		return nullptr;
 	}
-#endif
 
 	static bool IsNetworkProfilerEnabled()
 	{
@@ -1164,6 +1167,13 @@ FRepChangelistState::~FRepChangelistState()
 #endif // WITH_PUSH_MODEL
 }
 
+#if WITH_PUSH_MODEL
+bool FRepChangelistState::HasAnyDirtyProperties() const
+{
+	return UEPushModelPrivate::DoesHaveDirtyPropertiesOrRecentlyCollectedGarbage(PushModelObjectHandle);
+}
+#endif
+
 void FRepChangelistState::CountBytes(FArchive& Ar) const
 {
 	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepChangelistState::CountBytes");
@@ -1429,7 +1439,7 @@ namespace UE_RepLayout_Private
 	{
 		return !(*SharedParams.PushModelProperties)[ParentIndex] ||
 			SharedParams.PushModelState->IsPropertyDirty(ParentIndex) ||
-			(SharedParams.PushModelState->DidRecentlyCollectGarbage() &&
+			(bRecentlyCollectedGarbage &&
 			EnumHasAnyFlags(SharedParams.Parents[ParentIndex].Flags, ERepParentFlags::HasObjectProperties | ERepParentFlags::IsNetSerialize));
 	}
 #endif // WITH_PUSH_MODEL	

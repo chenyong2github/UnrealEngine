@@ -274,7 +274,7 @@ void FDatasmithDispatcher::ProcessLocal()
 
 		if (TaskState == ETaskState::ProcessOk)
 		{
-			TSet<CADLibrary::FFileDescription>& ExternalRefSet = FileParser.GetExternalRefSet();
+			TArray<CADLibrary::FFileDescription>& ExternalRefSet = FileParser.GetExternalRefSet();
 			if (ExternalRefSet.Num() > 0)
 			{
 				for (CADLibrary::FFileDescription& ExternalFile : ExternalRefSet)

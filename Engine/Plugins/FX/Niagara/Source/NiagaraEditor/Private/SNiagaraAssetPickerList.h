@@ -5,33 +5,11 @@
 #include "Widgets/SItemSelector.h"
 #include "NiagaraActions.h"
 #include "AssetData.h"
-#include "Widgets/SNiagaraScriptSourceFilter.h"
+#include "Widgets/SNiagaraFilterBox.h"
 
 typedef SItemSelector<FText, FAssetData> SNiagaraAssetItemSelector;
 
 class FAssetThumbnailPool;
-
-struct FNiagaraAssetPickerTabOptions
-{
-	FNiagaraAssetPickerTabOptions()
-	{
-	}
-
-	void ChangeTabState(ENiagaraScriptTemplateSpecification AssetTab, bool bAvailable = true) { TabData.Add(AssetTab, bAvailable); }
-
-	bool IsTabAvailable(ENiagaraScriptTemplateSpecification AssetTab) const;
-
-	int32 GetNumAvailableTabs() const;
-	
-	bool GetOnlyAvailableTab(ENiagaraScriptTemplateSpecification& OutTab) const;
-	
-	bool GetOnlyShowTemplates() const;
-
-	const TMap<ENiagaraScriptTemplateSpecification, bool>& GetTabData() const;
-
-private:
-	TMap<ENiagaraScriptTemplateSpecification, bool> TabData;
-};
 
 struct FNiagaraAssetPickerListViewOptions
 {
@@ -87,7 +65,7 @@ public:
 public:
 	SLATE_BEGIN_ARGS(SNiagaraAssetPickerList) 
 		: _bAllowMultiSelect(false)
-		, _TabOptions(FNiagaraAssetPickerTabOptions())
+		, _TabOptions(SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions())
 		, _bLibraryOnly(true)
 		, _ClickActivateMode(EItemSelectorClickActivateMode::DoubleClick)
 	{}
@@ -107,7 +85,7 @@ public:
 		SLATE_ARGUMENT(FNiagaraAssetPickerListViewOptions, ViewOptions);
 
 		/** Tab options that indicate which tabs are available. If a single tab is specified, that tab will serve as a filter and not display a tab widget */
-		SLATE_ARGUMENT(FNiagaraAssetPickerTabOptions, TabOptions);
+		SLATE_ARGUMENT(SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions, TabOptions);
 
 		/** WWhether the Library Only checkbox is ticked initially */
 		SLATE_ARGUMENT(bool, bLibraryOnly)
@@ -129,7 +107,6 @@ public:
 	TSharedRef<SWidget> GetSearchBox() const;
 
 private:
-	void InitializeTemplateTabs();
 	TArray<FAssetData> GetAssetDataForSelector(UClass* AssetClass);
 
 	TArray<FText> OnGetCategoriesForItem(const FAssetData& Item);
@@ -153,32 +130,25 @@ private:
 	FText GetFilterText() const;
 
 	void TriggerRefresh(const TMap<EScriptSource, bool>& SourceState);
+	void TriggerRefreshFromTabs(ENiagaraScriptTemplateSpecification Tab);
 
-	void OnTabActivated(ECheckBoxState NewState, ENiagaraScriptTemplateSpecification AssetTab);
-
-	FSlateColor GetBackgroundColor(ENiagaraScriptTemplateSpecification TemplateSpecification) const;
-	FSlateColor GetTabForegroundColor(ENiagaraScriptTemplateSpecification TemplateSpecification) const;
-	
-	void LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox);
-	ECheckBoxState GetLibraryCheckBoxState() const;
+	void LibraryCheckBoxStateChanged(bool bInLibraryOnly);
+	bool GetLibraryCheckBoxState() const;
 
 private:
-	TSharedPtr<SNiagaraSourceFilterBox> SourceFilterBox;
+	TSharedPtr<SNiagaraFilterBox> FilterBox;
 	TSharedPtr<SNiagaraAssetItemSelector> ItemSelector;
-	TSharedPtr<SHorizontalBox> TabBox;
+	
 	static FText NiagaraPluginCategory;
 	static FText ProjectCategory;
 	static FText LibraryCategory;
 	static FText NonLibraryCategory;
 	static FText UncategorizedCategory;
 	bool bLibraryOnly = true;
+	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions TabOptions;
 	TSharedPtr<FAssetThumbnailPool> AssetThumbnailPool;
 	FOnTemplateAssetActivated OnTemplateAssetActivated;
 	FOnDoesAssetPassCustomFilter OnDoesAssetPassCustomFilter;
 	FNiagaraAssetPickerListViewOptions ViewOptions;
-	FNiagaraAssetPickerTabOptions TabOptions;
-	bool bUseActiveTab = false;
-	ENiagaraScriptTemplateSpecification ActiveTab;
-	static ENiagaraScriptTemplateSpecification CachedActiveTab;
 	FOnDoesAssetPassCustomFilter CustomFilter;
 };

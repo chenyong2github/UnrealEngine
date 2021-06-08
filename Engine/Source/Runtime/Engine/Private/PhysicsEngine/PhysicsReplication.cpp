@@ -19,6 +19,7 @@
 #include "Physics/PhysScene_PhysX.h"
 #include "Components/SkeletalMeshComponent.h"
 
+
 #if WITH_CHAOS
 #include "Chaos/ChaosMarshallingManager.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
@@ -617,8 +618,13 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 				{
 					ObjectStateType = EObjectStateType::Sleeping;
 				}
-				auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
-				Solver->GetEvolution()->SetParticleObjectState(Proxy->GetHandle_LowLevel()->CastToRigidParticle(), ObjectStateType);	//todo: move object state into physics thread api
+				// don't allow kinematic to sleeping transition
+				bool bInvalidObjectState = (ObjectStateType == EObjectStateType::Sleeping && Handle->ObjectState() == EObjectStateType::Kinematic);
+				if (!bInvalidObjectState)
+				{
+					auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
+					Solver->GetEvolution()->SetParticleObjectState(Proxy->GetHandle_LowLevel()->CastToRigidParticle(), ObjectStateType);	//todo: move object state into physics thread api
+				}
 			}
 		}
 	}

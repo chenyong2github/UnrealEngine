@@ -8,22 +8,18 @@
 
 #include "CameraNodalOffsetAlgoPoints.generated.h"
 
-struct FGeometry;
-struct FPointerEvent;
-
-class FNodalOffsetTool;
-
 template <typename ItemType>
 class SListView;
 
-class SWidget;
 class UCalibrationPointComponent;
-class UMediaTexture;
-class UWorld;
 
 template<typename OptionType>
 class SComboBox;
 
+namespace CameraNodalOffsetAlgoPoints
+{
+	class SCalibrationRowGenerator;
+};
 
 /** 
  * Implements a nodal offset calibration algorithm. It uses 3d points (UCalibrationPointComponent) 
@@ -43,7 +39,7 @@ class UCameraNodalOffsetAlgoPoints : public UCameraNodalOffsetAlgo
 public:
 
 	//~ Begin CalibPointsNodalOffsetAlgo
-	virtual void Initialize(TWeakPtr<FNodalOffsetTool> InNodalOffsetTool) override;
+	virtual void Initialize(UNodalOffsetTool* InNodalOffsetTool) override;
 	virtual void Shutdown() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -56,7 +52,7 @@ public:
 private:
 
 	// SCalibrationRowGenerator will need access to the row structures below.
-	friend class SCalibrationRowGenerator;
+	friend class CameraNodalOffsetAlgoPoints::SCalibrationRowGenerator;
 
 	/** Holds item information a given calibrator point in the calibrator model */
 	struct FCalibratorPointData
@@ -96,6 +92,18 @@ private:
 
 		// The data used to evaluate the lens data in the camera for this sample
 		FLensFileEvalData LensFileEvalData;
+
+		// The parent pose (expected to be the tracker origin)
+		FTransform ParentPose;
+
+		// The parent unique id
+		uint32 ParentUniqueId;
+
+		// Calibrator Pose
+		FTransform CalibratorPose;
+
+		// Calibrator unique id
+		uint32 CalibratorUniqueId;
 	};
 
 	/** Holds information of the calibrator 3d point for a given sample of a 2d-3d correlation */
@@ -114,7 +122,7 @@ private:
 private:
 
 	/** The nodal offset tool controller */
-	TWeakPtr<FNodalOffsetTool> NodalOffsetTool;
+	TWeakObjectPtr<UNodalOffsetTool> NodalOffsetTool;
 
 	/** The currently selected calibrator object. It is expected to contain one or more UCalibrationPointComponent in it */
 	TWeakObjectPtr<AActor> Calibrator;
@@ -132,7 +140,7 @@ private:
 	TSharedPtr<SListView<TSharedPtr<FCalibrationRowData>>> CalibrationListView;
 
 	/** Caches the last calibrator point 3d location.  Will hold last value before the nodal offset tool is paused */
-	FCalibratorPointCache LastCalibratorPoint;
+	TArray<FCalibratorPointCache> LastCalibratorPoints;
 
 	/** Caches the last camera data.  Will hold last value before the nodal offset tool is paused */
 	FCameraDataCache LastCameraData;
@@ -153,9 +161,6 @@ private:
 
 private:
 
-	/** Retrieves the world that should be used for the referenced and spawned object */
-	UWorld* GetWorld() const;
-
 	/** Returns the first calibrator object in the scene that it can find */
 	AActor* FindFirstCalibrator() const;
 
@@ -174,12 +179,21 @@ private:
 	/** Returns the world 3d location of the currently selected */
 	bool GetCurrentCalibratorPointLocation(FVector& OutLocation);
 
-	/** Selects the next available UCalibrationPointComponent of the currently selected calibrator object */
-	void AdvanceCalibratorPoint();
-
-	/** Calculates the normalized (0~1) coordinates in the simulcam viewport of the given mouse click */
-	bool CalculateNormalizedMouseClickPosition(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FVector2D& OutPosition) const;
+	/** Selects the next available UCalibrationPointComponent of the currently selected calibrator object. Returns true when it wraps around */
+	bool AdvanceCalibratorPoint();
 
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
 	bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
+
+	/** Applies the nodal offset to the calibrator */
+	bool ApplyNodalOffsetToCalibrator();
+
+	/** Applies the nodal offset to the tracker origin (normally the camera parent) */
+	bool ApplyNodalOffsetToTrackingOrigin();
+
+	/** Does basic checks on the data before performing the actual calibration */
+	bool BasicCalibrationChecksPass(FText& OutErrorMessage) const;
+
+	/** Calculates the optimal camera component pose that minimizes the reprojection error */
+	bool CalculatedOptimalCameraComponentPose(FTransform& OutDesiredCameraTransform, FText& OutErrorMessage) const;
 };

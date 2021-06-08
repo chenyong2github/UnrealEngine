@@ -2,13 +2,14 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "ConjunctionFilter.h"
-
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SLevelSnapshotsEditorFilters;
 class SLevelSnapshotsEditorFilterList;
+class ULevelSnapshotsEditorData;
 
 /* Creates all widgets needed to show an AND-condition of filters. */
 class SLevelSnapshotsEditorFilterRow : public SCompoundWidget
@@ -24,7 +25,7 @@ public:
 
 	void Construct(
 		const FArguments& InArgs, 
-		const TSharedRef<SLevelSnapshotsEditorFilters>& InEditorFilters, 
+		ULevelSnapshotsEditorData* InEditorData,
 		UConjunctionFilter* InManagedFilter,
 		const bool bShouldShowOrInFront
 	);
@@ -38,13 +39,11 @@ public:
 	//~ End SWidget Interface
 
 private:
-
+	
 	FOnClickRemoveRow OnClickRemoveRow;
 
 	TWeakObjectPtr<UConjunctionFilter> ManagedFilterWeakPtr;
 	/* Stores all filters */
 	TSharedPtr<SLevelSnapshotsEditorFilterList> FilterList;
-
-	TWeakPtr<SLevelSnapshotsEditorFilters> EditorFiltersWidgetWeakPtr;
 };
 

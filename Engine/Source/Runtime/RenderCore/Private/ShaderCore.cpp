@@ -380,9 +380,24 @@ bool ShouldExportShaderDebugInfo(EShaderPlatform ShaderPlatform)
 #define UE_ALLOW_SHADER_COMPILING 1
 #endif
 
+#ifndef UE_ALLOW_SHADER_COMPILING_BASED_ON_SHADER_DIRECTORY_EXISTENCE
+// should ability to compile shaders be based on the presence of Engine/Shaders directory?
+#define UE_ALLOW_SHADER_COMPILING_BASED_ON_SHADER_DIRECTORY_EXISTENCE 0
+#endif
+
 bool AllowShaderCompiling()
 {
-	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
+#if UE_ALLOW_SHADER_COMPILING_BASED_ON_SHADER_DIRECTORY_EXISTENCE
+	static bool bShaderDirectoryExists = FPaths::DirectoryExists(FPaths::Combine(FPaths::EngineDir(), TEXT("Shaders")));
+	// if it doesn't exist, dont allow compiling. otherwise, check the other flags to see if those have disabled it
+	if (!bShaderDirectoryExists)
+	{
+		return false;
+	}
+#endif
+
+	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile")) ||
+		FParse::Param(FCommandLine::Get(), TEXT("PrecompiledShadersOnly"));
 
 	return UE_ALLOW_SHADER_COMPILING && !bNoShaderCompile;
 }

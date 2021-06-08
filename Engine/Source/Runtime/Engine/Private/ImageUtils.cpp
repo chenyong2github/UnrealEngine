@@ -68,12 +68,12 @@ static bool GetRawData(UTextureRenderTarget2D* TexRT, TArray64<uint8>& RawData)
  * @param DstData		Destination image data.
  * @param bLinearSpace	If true, convert colors into linear space before interpolating (slower but more accurate)
  */
-void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArray<FColor> &SrcData, int32 DstWidth, int32 DstHeight, TArray<FColor> &DstData, bool bLinearSpace)
+void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArray<FColor> &SrcData, int32 DstWidth, int32 DstHeight, TArray<FColor> &DstData, bool bLinearSpace, bool bForceOpaqueOutput)
 {
 	DstData.Empty(DstWidth*DstHeight);
 	DstData.AddZeroed(DstWidth*DstHeight);
 
-	ImageResize(SrcWidth, SrcHeight, TArrayView<const FColor>(SrcData), DstWidth, DstHeight, TArrayView<FColor>(DstData), bLinearSpace);
+	ImageResize(SrcWidth, SrcHeight, TArrayView<const FColor>(SrcData), DstWidth, DstHeight, TArrayView<FColor>(DstData), bLinearSpace, bForceOpaqueOutput);
 }
 
 /**
@@ -87,7 +87,7 @@ void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArray<FCol
  * @param DstHeight Destination image height.
  * @param DstData	Destination image data. (must already be sized to DstWidth*DstHeight)
  */
-void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArrayView<const FColor> &SrcData, int32 DstWidth, int32 DstHeight, const TArrayView<FColor> &DstData, bool bLinearSpace)
+void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArrayView<const FColor> &SrcData, int32 DstWidth, int32 DstHeight, const TArrayView<FColor> &DstData, bool bLinearSpace, bool bForceOpaqueOutput)
 {
 	check(SrcData.Num() >= SrcWidth * SrcHeight);
 	check(DstData.Num() >= DstWidth * DstHeight);
@@ -144,7 +144,7 @@ void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArrayView<
 			}
 			else
 			{
-				FVector StepColor(0,0,0);
+				FVector4 StepColor(0,0,0,0);
 				for(int32 PixelX = PosX; PixelX <= EndPosX; PixelX++)
 				{
 					for(int32 PixelY = PosY; PixelY <= EndPosY; PixelY++)
@@ -153,18 +153,23 @@ void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArrayView<
 						StepColor.X += (float)SrcData[StartPixel].R;
 						StepColor.Y += (float)SrcData[StartPixel].G;
 						StepColor.Z += (float)SrcData[StartPixel].B;
+						StepColor.W += (float)SrcData[StartPixel].A;
 						PixelCount++;
 					}
 				}
-				StepColor /= (float)PixelCount;
-				uint8 FinalR = FMath::Clamp(FMath::TruncToInt(StepColor.X), 0, 255);
-				uint8 FinalG = FMath::Clamp(FMath::TruncToInt(StepColor.Y), 0, 255);
-				uint8 FinalB = FMath::Clamp(FMath::TruncToInt(StepColor.Z), 0, 255);
-				FinalColor = FColor(FinalR, FinalG, FinalB);
+				uint8 FinalR = FMath::Clamp(FMath::TruncToInt(StepColor.X / (float)PixelCount), 0, 255);
+				uint8 FinalG = FMath::Clamp(FMath::TruncToInt(StepColor.Y / (float)PixelCount), 0, 255);
+				uint8 FinalB = FMath::Clamp(FMath::TruncToInt(StepColor.Z / (float)PixelCount), 0, 255);
+				uint8 FinalA = FMath::Clamp(FMath::TruncToInt(StepColor.W / (float)PixelCount), 0, 255);
+				FinalColor = FColor(FinalR, FinalG, FinalB, FinalA);
+			}
+
+			if ( bForceOpaqueOutput )
+			{
+				FinalColor.A = 255;
 			}
 
 			// Store the final averaged pixel color value.
-			FinalColor.A = 255;
 			DstData[PixelPos] = FinalColor;
 
 			SrcX = EndX;	

@@ -117,7 +117,7 @@ namespace Gauntlet.SelfTest
 		{
 		}
 
-		public virtual void StopTest(bool WasCancelled)
+		public virtual void StopTest(StopReason InReason)
 		{
 		}
 

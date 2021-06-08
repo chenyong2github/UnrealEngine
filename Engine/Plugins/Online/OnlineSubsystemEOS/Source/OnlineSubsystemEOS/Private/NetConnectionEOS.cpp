@@ -23,6 +23,12 @@ void UNetConnectionEOS::InitLocalConnection(UNetDriver* InDriver, FSocket* InSoc
 	}
 
 	Super::InitLocalConnection(InDriver, InSocket, InURL, InState, InMaxPacket, InPacketOverhead);
+
+	// We re-set the original port, as if might have been overwritten by Super::InitLocalConnection
+	if (bHasP2PSession)
+	{
+		RemoteAddr->SetPort(InSocket->GetPortNo());
+	}
 }
 
 void UNetConnectionEOS::InitRemoteConnection(UNetDriver* InDriver, FSocket* InSocket, const FURL& InURL, const FInternetAddr& InRemoteAddr, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)

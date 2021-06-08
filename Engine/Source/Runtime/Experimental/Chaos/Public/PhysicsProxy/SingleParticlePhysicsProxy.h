@@ -17,6 +17,10 @@
 #include "Math/NumericLimits.h"
 #include "RewindData.h"
 
+
+
+extern CHAOS_API int32 SyncKinematicOnGameThread;
+
 namespace Chaos
 {
 	class FPBDRigidsEvolutionGBF;
@@ -881,7 +885,11 @@ private:
 			}
 
 			Lambda(GetHandle_LowLevel());
-			//todo: write to extra buffer
+
+			if (FRewindData* RewindData = SolverBase->GetRewindData())
+			{
+				RewindData->MarkDirtyDynamicsFromPT(*GetHandle_LowLevel());
+			}
 		}
 	}
 

@@ -262,6 +262,14 @@ void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmedi
 			SourceType = EDisplayClusterViewportResourceType::InputShaderResource;
 		}
 	}
+	else
+	{
+		if (RenderSettings.bSkipRendering)
+		{
+			//@todo: support skip rendering
+			return;
+		}
+	}
 
 	// Pass 0: Resolve from RTT region to separated viewport context resource:
 	ImplResolveResources(RHICmdList, SourceProxy, SourceType, EDisplayClusterViewportResourceType::InputShaderResource);

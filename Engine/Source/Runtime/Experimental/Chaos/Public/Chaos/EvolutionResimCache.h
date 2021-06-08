@@ -20,6 +20,29 @@ namespace Chaos
 			SavedConstraints.Reset();
 			WeakSinglePointConstraints.Reset();
 			WeakSinglePointSweptConstraints.Reset();
+			ParticleToCachedSolve.Reset();
+		}
+
+		void SaveParticlePostSolve(const FPBDRigidParticleHandle& Particle)
+		{
+			FPBDSolveCache& Cache = ParticleToCachedSolve.FindOrAdd(Particle.UniqueIdx());
+			Cache.P = Particle.P();
+			Cache.Q = Particle.Q();
+			Cache.V = Particle.V();
+			Cache.W = Particle.W();
+		}
+
+		void ReloadParticlePostSolve(FPBDRigidParticleHandle& Particle) const
+		{
+			//if this function is called it means the particle is in sync, which means we should have a cached value
+			const FPBDSolveCache* Cache = ParticleToCachedSolve.Find(Particle.UniqueIdx());
+			if(ensure(Cache))
+			{
+				Particle.P() = Cache->P;
+				Particle.Q() = Cache->Q;
+				Particle.V() = Cache->V;
+				Particle.W() = Cache->W;
+			}
 		}
 
 		void SaveConstraints(const FCollisionConstraintsArray& CollisionsArray)
@@ -91,13 +114,13 @@ namespace Chaos
 				if(A.SyncState() != ESyncState::HardDesync)
 				{
 					//Need to resim, but may end up still in sync
-					A.SetSyncState(ESyncState::SoftDesync);
+					//A.SetSyncState(ESyncState::SoftDesync);
 				}
 
 				if(B.SyncState() != ESyncState::HardDesync)
 				{
 					//Need to resim, but may end up still in sync
-					B.SetSyncState(ESyncState::SoftDesync);
+					//B.SetSyncState(ESyncState::SoftDesync);
 				}
 
 				return true;
@@ -115,9 +138,18 @@ namespace Chaos
 			FWeakParticleHandle B;
 		};
 
+		struct FPBDSolveCache
+		{
+			FVec3 P;
+			FQuat Q;
+			FVec3 V;
+			FVec3 W;
+		};
+
 		//TODO: better way to handle this?
 		TArray<FWeakConstraintPair> WeakSinglePointConstraints;
 		TArray<FWeakConstraintPair> WeakSinglePointSweptConstraints;
+		TMap<FUniqueIdx, FPBDSolveCache> ParticleToCachedSolve;
 	};
 
 } // namespace Chaos

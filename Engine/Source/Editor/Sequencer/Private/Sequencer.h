@@ -659,8 +659,8 @@ public:
 	/** Create camera and set it as the current camera cut. */
 	void CreateCamera();
 
-	/** Called when a new camera is added. Locks the viewport to the NewCamera is not null. */
-	void NewCameraAdded(FGuid CameraGuid, ACameraActor* NewCamera = nullptr);
+	/** Called when a new camera is added. Locks the viewport to the NewCamera. */
+	void NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid);
 
 	/** Attempts to automatically fix up broken actor references in the current scene. */
 	void FixActorReferences();
@@ -742,6 +742,7 @@ public:
 	virtual UMovieSceneSubSection* FindSubSection(FMovieSceneSequenceID SequenceID) const override;
 	virtual UMovieSceneSequence* GetRootMovieSceneSequence() const override;
 	virtual UMovieSceneSequence* GetFocusedMovieSceneSequence() const override;
+	virtual FMovieSceneSequenceTransform GetFocusedMovieSceneSequenceTransform() const override;
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootTemplateInstance; }
 	virtual void ResetToNewRootSequence(UMovieSceneSequence& NewSequence) override;
 	virtual void FocusSequenceInstance(UMovieSceneSubSection& InSubSection) override;
@@ -752,8 +753,6 @@ public:
 	virtual void SetAllowEditsMode(EAllowEditsMode AllowEditsMode) override;
 	virtual EKeyGroupMode GetKeyGroupMode() const override;
 	virtual void SetKeyGroupMode(EKeyGroupMode) override;
-	virtual bool GetKeyInterpPropertiesOnly() const override;
-	virtual void SetKeyInterpPropertiesOnly(bool bKeyInterpPropertiesOnly) override;
 	virtual EMovieSceneKeyInterpolation GetKeyInterpolation() const override;
 	virtual void SetKeyInterpolation(EMovieSceneKeyInterpolation) override;
 	virtual bool GetInfiniteKeyAreas() const override;
@@ -1076,6 +1075,8 @@ public:
 	void AddSelectedNodesToExistingNodeGroup(UMovieSceneNodeGroup* NodeGroup);
 	void AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerDisplayNode>>& Nodes, UMovieSceneNodeGroup* NodeGroup);
 
+	void ClearFilters();
+
 private:
 
 	/** Updates a viewport client from camera cut data */
@@ -1223,6 +1224,9 @@ private:
 	
 	/** Active customizations. */
 	TArray<TUniquePtr<ISequencerCustomization>> ActiveCustomizations;
+
+	/** Active customization callbacks */
+	TArray<FOnSequencerPaste> OnPaste;
 
 	TWeakObjectPtr<UMovieSceneSequence> RootSequence;
 	FMovieSceneRootEvaluationTemplateInstance RootTemplateInstance;

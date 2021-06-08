@@ -19,7 +19,6 @@ public:
 	//~ Begin FTakeSnapshotArchiveV2 Interface
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 	virtual void PushSerializedProperty(FProperty* InProperty, const bool bIsEditorOnlyProperty) override;
-	virtual void PopSerializedProperty(FProperty* InProperty, const bool bIsEditorOnlyProperty) override;
 	//~ End FTakeSnapshotArchiveV2 Interface
 
 protected:

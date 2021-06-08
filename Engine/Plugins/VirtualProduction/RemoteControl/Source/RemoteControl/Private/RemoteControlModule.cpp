@@ -98,7 +98,7 @@ namespace RemoteControlUtil
 			// and it's either blueprint visible if in game or editable if in editor and it isn't read only if the access type is write
 			(bObjectInGamePackage ?
 				InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly)) :
-				InProperty->HasAnyPropertyFlags(CPF_Edit) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_EditConst)));
+				InAccessType == ERCAccess::READ_ACCESS || (InProperty->HasAnyPropertyFlags(CPF_Edit) && !InProperty->HasAnyPropertyFlags(CPF_EditConst)));
 	};
 
 	FARFilter GetBasePresetFilter()
@@ -242,7 +242,7 @@ namespace RemoteControlSetterUtils
 
 		if (SetterFunction)
 		{
-			CachedSetterFunctions.Add(Property,  SetterFunction);
+			CachedSetterFunctions.Add(Property, SetterFunction);
 		}
 
 		return SetterFunction;
@@ -1021,6 +1021,12 @@ public:
 		DefaultMetadataInitializers.Remove(MetadataKey);
 	}
 
+	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property) const override
+	{
+		constexpr bool bInGameOrPackage = true;
+		return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlSetterUtils::FindSetterFunction(Property));
+	}
+
 private:
 	void CachePresets()
 	{
@@ -1031,10 +1037,21 @@ private:
 		{
 			CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
 			
-			const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
-			if (PresetId.IsValid())
+			const FGuid PresetAssetId = RemoteControlUtil::GetPresetId(AssetData);
+			if (PresetAssetId.IsValid())
 			{
-				CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+				CachedPresetNamesById.Add(PresetAssetId, AssetData.AssetName);
+			}
+			else if (URemoteControlPreset* Preset = Cast<URemoteControlPreset>(AssetData.GetAsset()))
+			{
+				// Handle the case where the preset asset data does not contain the ID yet.
+				// This can happen with old assets that haven't been resaved yet.
+				const FGuid PresetId = Preset->GetPresetId();
+				if (PresetId.IsValid())
+				{
+					CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+					CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
+				}
 			}
 		}
 	}
@@ -1045,10 +1062,16 @@ private:
 		{
 			return;
 		}
-	
-		const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
-		CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
-		CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
+
+		if (URemoteControlPreset* Preset = Cast<URemoteControlPreset>(AssetData.GetAsset()))
+		{
+			const FGuid PresetId = Preset->GetPresetId();
+			if (PresetId.IsValid())
+			{
+				CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+				CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
+			}
+		}
 	}
 	
 	void OnAssetRemoved(const FAssetData& AssetData)

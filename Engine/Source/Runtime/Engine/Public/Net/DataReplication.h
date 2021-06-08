@@ -242,6 +242,12 @@ public:
 		FNetBitWriter& Bunch,
 		FNetBitWriter& Payload) const;	
 
+	/**
+	 * @return True if we've determined nothing needs to be updated / resent by the replicator, meaning
+	 *			we can safely skip updating it this frame.
+	 */
+	bool CanSkipUpdate(FReplicationFlags Flags);
+
 public:
 
 	/** Net GUID for the object we're replicating. */
@@ -266,6 +272,12 @@ private:
 
 	/** Whether or not we are going to use Fast Array Delta Struct Delta Serialization. See FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs. */
 	uint32 bSupportsFastArrayDelta : 1;
+
+	/**
+	 * Whether or not this object replicator is eligible to skip replication calls based on
+	 * simple flag checks.
+	 */
+	uint32 bCanUseNonDirtyOptimization : 1;
 
 public:
 	

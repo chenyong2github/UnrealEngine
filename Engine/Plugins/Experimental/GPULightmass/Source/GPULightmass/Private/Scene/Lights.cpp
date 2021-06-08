@@ -98,6 +98,7 @@ FPointLightRenderState::FPointLightRenderState(UPointLightComponent* PointLightC
 	ShadowMapChannel = PointLightComponent->PreviewShadowMapChannel;
 	FalloffExponent = PointLightComponent->LightFalloffExponent;
 	IsInverseSquared = PointLightComponent->bUseInverseSquaredFalloff;
+	IESTexture = PointLightComponent->IESTexture ? PointLightComponent->IESTexture->GetResource() : nullptr;
 }
 
 FSpotLightBuildInfo::FSpotLightBuildInfo(USpotLightComponent* SpotLightComponent)
@@ -172,6 +173,7 @@ FSpotLightRenderState::FSpotLightRenderState(USpotLightComponent* SpotLightCompo
 	ShadowMapChannel = SpotLightComponent->PreviewShadowMapChannel;
 	FalloffExponent = SpotLightComponent->LightFalloffExponent;
 	IsInverseSquared = SpotLightComponent->bUseInverseSquaredFalloff;
+	IESTexture = SpotLightComponent->IESTexture ? SpotLightComponent->IESTexture->GetResource() : nullptr;
 }
 
 FRectLightBuildInfo::FRectLightBuildInfo(URectLightComponent* RectLightComponent)
@@ -210,6 +212,7 @@ FRectLightRenderState::FRectLightRenderState(URectLightComponent* RectLightCompo
 	BarnDoorLength = FMath::Max(0.1f, RectLightComponent->BarnDoorLength);
 	AttenuationRadius = RectLightComponent->AttenuationRadius;
 	ShadowMapChannel = RectLightComponent->PreviewShadowMapChannel;
+	IESTexture = RectLightComponent->IESTexture ? RectLightComponent->IESTexture->GetResource() : nullptr;
 }
 
 FLightShaderParameters FDirectionalLightRenderState::GetLightShaderParameters() const

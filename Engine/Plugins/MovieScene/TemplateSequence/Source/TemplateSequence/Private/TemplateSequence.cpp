@@ -52,6 +52,16 @@ FGuid UTemplateSequence::GetRootObjectBindingID() const
 	return FGuid();
 }
 
+const UObject* UTemplateSequence::GetRootObjectSpawnableTemplate() const
+{
+	if (MovieScene != nullptr && MovieScene->GetSpawnableCount() > 0)
+	{
+		const FMovieSceneSpawnable& FirstSpawnable = MovieScene->GetSpawnable(0);
+		return FirstSpawnable.GetObjectTemplate();
+	}
+	return nullptr;
+}
+
 void UTemplateSequence::BindPossessableObject(const FGuid& ObjectId, UObject& PossessedObject, UObject* Context)
 {
 	if (UActorComponent* Component = Cast<UActorComponent>(&PossessedObject))
@@ -209,6 +219,21 @@ bool UTemplateSequence::AllowsSpawnableObjects() const
 	return true;
 }
 
+void UTemplateSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+	if (BoundActorClass.IsValid())
+	{
+		FAssetRegistryTag Tag("BoundActorClass", BoundActorClass->GetName(), FAssetRegistryTag::TT_Alphabetical);
+		OutTags.Add(Tag);
+	}
+	else
+	{
+		OutTags.Emplace("BoundActorClass", "(None)", FAssetRegistryTag::TT_Alphabetical);
+	}
+}
+
 #if WITH_EDITOR
 FText UTemplateSequence::GetDisplayName() const
 {
@@ -223,21 +248,6 @@ ETrackSupport UTemplateSequence::IsTrackSupported(TSubclassOf<class UMovieSceneT
 	}
 
 	return Super::IsTrackSupported(InTrackClass);
-}
-
-void UTemplateSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
-{
-	Super::GetAssetRegistryTags(OutTags);
-
-	if (BoundActorClass != nullptr)
-	{
-		FAssetRegistryTag Tag("BoundActorClass", BoundActorClass->GetName(), FAssetRegistryTag::TT_Alphabetical);
-		OutTags.Add(Tag);
-	}
-	else
-	{
-		OutTags.Emplace("BoundActorClass", "(None)", FAssetRegistryTag::TT_Alphabetical);
-	}
 }
 
 void UTemplateSequence::GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const

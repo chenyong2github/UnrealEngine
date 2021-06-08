@@ -36,6 +36,8 @@ void UDisplayClusterBlueprint::UpdateConfigExportProperty()
 
 	if (UDisplayClusterConfigurationData* Config = GetOrLoadConfig())
 	{
+		Config->Meta.ExportAssetPath = GetPathName();
+
 		FString PrettyConfig;
 
 		bConfigExported = IDisplayClusterConfiguration::Get().ConfigAsString(Config, PrettyConfig);
@@ -148,11 +150,30 @@ void UDisplayClusterBlueprint::SetConfigData(UDisplayClusterConfigurationData* I
 	}
 	
 #if WITH_EDITORONLY_DATA
-	PathToConfig = InConfigData ? InConfigData->PathToConfig : "";
+	if(InConfigData)
+	{
+		InConfigData->SaveConfig();
+	}
+#endif
+}
+
+const FString& UDisplayClusterBlueprint::GetConfigPath() const
+{
+	static FString EmptyString;
+#if WITH_EDITORONLY_DATA
+	return ConfigData ? ConfigData->PathToConfig : EmptyString;
+#else
+	return EmptyString;
 #endif
 }
 
 void UDisplayClusterBlueprint::SetConfigPath(const FString& InPath)
 {
-	PathToConfig = InPath;
+#if WITH_EDITORONLY_DATA
+	if(UDisplayClusterConfigurationData* LoadedConfigData = GetOrLoadConfig())
+	{
+		LoadedConfigData->PathToConfig = InPath;
+		LoadedConfigData->SaveConfig();
+	}
+#endif
 }

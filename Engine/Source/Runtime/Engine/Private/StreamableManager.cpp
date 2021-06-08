@@ -1169,7 +1169,7 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 		}
 		else if (FPackageName::IsShortPackageName(TargetName.GetAssetPathName()))
 		{
-			UE_LOG(LogStreamableManager, Error, TEXT("RequestAsyncLoad called with invalid package name %s"), *TargetName.ToString());
+			UE_LOG(LogStreamableManager, Error, TEXT("RequestAsyncLoad(%s) called with invalid package name %s"), *DebugName, *TargetName.ToString());
 			NewRequest->CancelHandle();
 			return nullptr;
 		}
@@ -1179,7 +1179,7 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 	if (NumValidRequests == 0)
 	{
 		// Original array was empty or all null
-		UE_LOG(LogStreamableManager, Error, TEXT("RequestAsyncLoad called with empty or only null assets!"));
+		UE_LOG(LogStreamableManager, Error, TEXT("RequestAsyncLoad(%s) called with empty or only null assets!"), *DebugName);
 		NewRequest->CancelHandle();
 		return nullptr;
 	} 
@@ -1204,7 +1204,7 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 		}
 
 		// Some valid, some null
-		UE_LOG(LogStreamableManager, Warning, TEXT("RequestAsyncLoad called with both valid and null assets, null assets removed from %s!"), *RequestedSet);
+		UE_LOG(LogStreamableManager, Warning, TEXT("RequestAsyncLoad(%s) called with both valid and null assets, null assets removed from %s!"), *DebugName, *RequestedSet);
 	}
 
 	if (TargetSet.Num() != NewRequest->RequestedAssets.Num())
@@ -1221,7 +1221,7 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 			RequestedSet += Asset.ToString();
 		}
 
-		UE_LOG(LogStreamableManager, Verbose, TEXT("RequestAsyncLoad called with duplicate assets, duplicates removed from %s!"), *RequestedSet);
+		UE_LOG(LogStreamableManager, Verbose, TEXT("RequestAsyncLoad(%s) called with duplicate assets, duplicates removed from %s!"), *DebugName, *RequestedSet);
 #endif
 
 		NewRequest->RequestedAssets = TargetSet.Array();

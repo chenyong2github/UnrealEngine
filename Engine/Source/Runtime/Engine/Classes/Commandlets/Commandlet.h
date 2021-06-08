@@ -133,15 +133,20 @@ class UCommandlet : public UObject
 	 */
 	static void ParseCommandLine( const TCHAR* CmdLine, TArray<FString>& Tokens, TArray<FString>& Switches, TMap<FString, FString>& Params )
 	{
+		// Turn -foo -bar=1 into [Foo, Bar=1]
 		ParseCommandLine(CmdLine, Tokens, Switches);
 
 		for (int32 SwitchIdx = Switches.Num() - 1; SwitchIdx >= 0; --SwitchIdx)
 		{
 			FString& Switch = Switches[SwitchIdx];
 			TArray<FString> SplitSwitch;
-			if (2 == Switch.ParseIntoArray(SplitSwitch, TEXT("="), true))
+
+			// Remove Bar=1 from the switch list and put it in params as {Bar,1}.
+			// Note: Handle nested equality such as Bar="Key=Value"
+			int32 AssignmentIndex = 0;
+			if (Switch.FindChar(TEXT('='), AssignmentIndex))
 			{
-				Params.Add(SplitSwitch[0], SplitSwitch[1].TrimQuotes());
+				Params.Add(Switch.Left(AssignmentIndex), Switch.RightChop(AssignmentIndex+1).TrimQuotes());
 				Switches.RemoveAt(SwitchIdx);
 			}
 		}

@@ -2,9 +2,6 @@
 
 #include "PathTracing.h"
 #include "RHI.h"
-#include "PathTracingDenoiser.h"
-
-PathTracingDenoiserFunction* GPathTracingDenoiserFunc = nullptr;
 
 TAutoConsoleVariable<int32> CVarPathTracing(
 	TEXT("r.PathTracing"),
@@ -183,19 +180,9 @@ TAutoConsoleVariable<int32> CVarPathTracingLightGridVisualize(
 	0,
 	TEXT("Enables a visualization mode of the light grid density where red indicates the maximum light count has been reached (default = 0)\n")
 	TEXT("0: off (default)\n")
-	TEXT("1: light count heatmap (red - close to overflow, increase r.PathTracing.LightGridMaxCount)\n")
-	TEXT("2: unique light lists (colors are a function of which lights occupy each cell)\n")
-	TEXT("3: area light visualization (green: point light sources only, blue: some area light sources)\n"),
-	ECVF_RenderThreadSafe
-);
-
-TAutoConsoleVariable<int32> CVarPathTracingDenoiser(
-	TEXT("r.PathTracing.Denoiser"),
-	-1,
-	TEXT("Enable denoising of the path traced output (if a denoiser plugin is active) (default = -1 (driven by postprocesing volume))\n")
-	TEXT("-1: inherit from PostProcessVolume\n")
-	TEXT("0: disable denoiser\n")
-	TEXT("1: enable denoiser (if a denoiser plugin is active)\n"),
+	TEXT("1: light count heatmap (red - close to overflow, increase r.PathTracing.LightGridMaxCount)")
+	TEXT("2: unique light lists (colors are a function of which lights occupy each cell)")
+	TEXT("3: area light visualization (green: point light sources only, blue: some area light sources)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -229,7 +216,6 @@ struct FPathTracingConfig
 	bool VisibleLights;
 	bool UseMISCompensation;
 	bool LockedSamplingPattern;
-	int DenoiserMode; // NOTE: does not require path tracing invalidation
 
 	bool IsDifferent(const FPathTracingConfig& Other) const
 	{
@@ -258,8 +244,7 @@ struct FPathTracingConfig
 };
 
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
-static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData)
-{
+static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData) {
 	PathTracingData.EnableDirectLighting = true;
 	int32 MaxBounces = CVarPathTracingMaxBounces.GetValueOnRenderThread();
 	if (MaxBounces < 0)
@@ -439,8 +424,6 @@ class FPathTracingRG : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RadianceTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, AlbedoTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, NormalTexture)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -673,6 +656,50 @@ RENDERER_API void PrepareSkyTexture_Internal(
 			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
 		FGenerateMips::ExecuteCompute(GraphBuilder, SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 	}
+}
+
+RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder)
+{
+	// We found some IES profiles to use -- upload them into a single atlas so we can access them easily in HLSL
+
+	// TODO: This is redundant because all the IES textures are already on the GPU. Handling IES profiles via Miss shaders
+	// would be cleaner.
+	
+	// TODO: This is also redundant with the logic in RayTracingLighting.cpp, but the latter is limitted to 1D profiles and 
+	// does not consider the same set of lights as the path tracer. Longer term we should aim to unify the representation of lights
+	// across both passes
+	
+	// TODO: This process is repeated every frame! More motivation to move to a Miss shader based implementation
+	
+	// This size matches the import resolution of light profiles (see FIESLoader::GetWidth)
+	const int kIESAtlasSize = 256;
+	const int NumSlices = InIESLightProfilesMap.Num();
+	FRDGTextureDesc IESTextureDesc = FRDGTextureDesc::Create2DArray(
+		FIntPoint(kIESAtlasSize, kIESAtlasSize),
+		PF_R32_FLOAT,
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV,
+		NumSlices);
+	FRDGTexture* IESTexture = GraphBuilder.CreateTexture(IESTextureDesc, TEXT("PathTracer.IESAtlas"), ERDGTextureFlags::None);
+
+	for (auto&& Entry : InIESLightProfilesMap)
+	{
+		FPathTracingIESAtlasCS::FParameters* AtlasPassParameters = GraphBuilder.AllocParameters<FPathTracingIESAtlasCS::FParameters>();
+		const int Slice = Entry.Value;
+		AtlasPassParameters->IESTexture = Entry.Key->TextureRHI;
+		AtlasPassParameters->IESSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		AtlasPassParameters->IESAtlas = GraphBuilder.CreateUAV(IESTexture);
+		AtlasPassParameters->IESAtlasSlice = Slice;
+		TShaderMapRef<FPathTracingIESAtlasCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Path Tracing IES Atlas (Slice=%d)", Slice),
+			ComputeShader,
+			AtlasPassParameters,
+			FComputeShaderUtils::GetGroupCount(FIntPoint(kIESAtlasSize, kIESAtlasSize), FComputeShaderUtils::kGolden2DGroupSize));
+	}
+
+	return IESTexture;
 }
 
 RDG_REGISTER_BLACKBOARD_STRUCT(FPathTracingSkylight)
@@ -1122,46 +1149,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 	if (!IESLightProfilesMap.IsEmpty())
 	{
-		// We found some IES profiles to use -- upload them into a single atlas so we can access them easily in HLSL
-
-		// TODO: This is redundant because all the IES textures are already on the GPU. Handling IES profiles via Miss shaders
-		// would be cleaner.
-
-		// TODO: This is also redundant with the logic in RayTracingLighting.cpp, but the latter is limitted to 1D profiles and 
-		// does not consider the same set of lights as the path tracer. Longer term we should aim to unify the representation of lights
-		// across both passes
-
-		// TODO: This process is repeated every frame! More motivation to move to a Miss shader based implementation
-
-		// This size matches the import resolution of light profiles (see FIESLoader::GetWidth)
-		const int kIESAtlasSize = 256;
-		const int NumSlices = IESLightProfilesMap.Num();
-		FRDGTextureDesc IESTextureDesc = FRDGTextureDesc::Create2DArray(
-			FIntPoint(kIESAtlasSize, kIESAtlasSize),
-			PF_R32_FLOAT,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV,
-			NumSlices);
-		FRDGTexture* IESTexture = GraphBuilder.CreateTexture(IESTextureDesc, TEXT("PathTracer.IESAtlas"), ERDGTextureFlags::None);
-
-		for (auto&& Entry : IESLightProfilesMap)
-		{
-			FPathTracingIESAtlasCS::FParameters* AtlasPassParameters = GraphBuilder.AllocParameters<FPathTracingIESAtlasCS::FParameters>();
-			const int Slice = Entry.Value;
-			AtlasPassParameters->IESTexture = Entry.Key->TextureRHI;
-			AtlasPassParameters->IESSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			AtlasPassParameters->IESAtlas = GraphBuilder.CreateUAV(IESTexture);
-			AtlasPassParameters->IESAtlasSlice = Slice;
-			TShaderMapRef<FPathTracingIESAtlasCS> ComputeShader(View.ShaderMap);
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("Path Tracing IES Atlas (Slice=%d)", Slice),
-				ComputeShader,
-				AtlasPassParameters,
-				FComputeShaderUtils::GetGroupCount(FIntPoint(kIESAtlasSize, kIESAtlasSize), FComputeShaderUtils::kGolden2DGroupSize));
-		}
-
-		PassParameters->IESTexture = IESTexture;
+		PassParameters->IESTexture = PrepareIESAtlas(IESLightProfilesMap, GraphBuilder);
 	}
 	else
 	{
@@ -1208,32 +1196,8 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& V
 void FSceneViewState::PathTracingInvalidate()
 {
 	PathTracingRadianceRT.SafeRelease();
-	PathTracingAlbedoRT.SafeRelease();
-	PathTracingNormalRT.SafeRelease();
-	PathTracingRadianceDenoisedRT.SafeRelease();
 	PathTracingSampleIndex = 0;
 }
-
-uint32 FSceneViewState::GetPathTracingSampleIndex() const {
-	return PathTracingSampleIndex;
-}
-
-uint32 FSceneViewState::GetPathTracingSampleCount() const {
-	FPathTracingConfig* LastConfig = PathTracingLastConfig.Get();
-	if (LastConfig)
-	{
-		return LastConfig->PathTracingData.MaxSamples;
-	}
-	return 0;
-}
-
-
-BEGIN_SHADER_PARAMETER_STRUCT(FDenoiseTextureParameters, )
-	RDG_TEXTURE_ACCESS(InputTexture, ERHIAccess::CopySrc)
-	RDG_TEXTURE_ACCESS(InputAlbedo, ERHIAccess::CopySrc)
-	RDG_TEXTURE_ACCESS(InputNormal, ERHIAccess::CopySrc)
-	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
-END_SHADER_PARAMETER_STRUCT()
 
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracing, TEXT("Path Tracing"));
 void FDeferredShadingSceneRenderer::RenderPathTracing(
@@ -1327,26 +1291,20 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 	// Prepare radiance buffer (will be shared with display pass)
 	FRDGTexture* RadianceTexture = nullptr;
-	FRDGTexture* AlbedoTexture = nullptr;
-	FRDGTexture* NormalTexture = nullptr;
 	if (View.ViewState->PathTracingRadianceRT)
 	{
 		// we already have a valid radiance texture, re-use it
 		RadianceTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->PathTracingRadianceRT, TEXT("PathTracer.Radiance"));
-		AlbedoTexture   = GraphBuilder.RegisterExternalTexture(View.ViewState->PathTracingAlbedoRT, TEXT("PathTracer.Albedo"));
-		NormalTexture   = GraphBuilder.RegisterExternalTexture(View.ViewState->PathTracingNormalRT, TEXT("PathTracer.Normal"));
 	}
 	else
 	{
 		// First time through, need to make a new texture
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+		FRDGTextureDesc RadianceTextureDesc = FRDGTextureDesc::Create2D(
 			View.ViewRect.Size(),
 			PF_A32B32G32R32F,
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
-		RadianceTexture = GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.Radiance"), ERDGTextureFlags::MultiFrame);
-		AlbedoTexture   = GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.Albedo")  , ERDGTextureFlags::MultiFrame);
-		NormalTexture   = GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.Normal")  , ERDGTextureFlags::MultiFrame);
+		RadianceTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracer.Radiance"), ERDGTextureFlags::MultiFrame);
 	}
 	const bool bNeedsMoreRays = Config.PathTracingData.Iteration < MaxSPP;
 
@@ -1365,8 +1323,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 		PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
-		PassParameters->AlbedoTexture   = GraphBuilder.CreateUAV(AlbedoTexture);
-		PassParameters->NormalTexture   = GraphBuilder.CreateUAV(NormalTexture);
 
 		PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
 
@@ -1403,71 +1359,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 		// After we are done, make sure we remember our texture for next time so that we can accumulate samples across frames
 		GraphBuilder.QueueTextureExtraction(RadianceTexture, &View.ViewState->PathTracingRadianceRT);
-		GraphBuilder.QueueTextureExtraction(AlbedoTexture  , &View.ViewState->PathTracingAlbedoRT  );
-		GraphBuilder.QueueTextureExtraction(NormalTexture  , &View.ViewState->PathTracingNormalRT  );
-
-		// Bump counters for next frame
-		++View.ViewState->PathTracingSampleIndex;
-		++View.ViewState->PathTracingFrameIndex;
 	}
-
-	FRDGTexture* DenoisedRadianceTexture = nullptr;
-	int DenoiserMode = CVarPathTracingDenoiser.GetValueOnRenderThread();
-	if (DenoiserMode < 0)
-	{
-		DenoiserMode = View.FinalPostProcessSettings.PathTracingEnableDenoiser;
-	}
-	const bool IsDenoiserEnabled = DenoiserMode != 0 && GPathTracingDenoiserFunc != nullptr;
-	if (IsDenoiserEnabled)
-	{
-		// request denoise if this is the last sample
-		bool NeedsDenoise = (Config.PathTracingData.Iteration + 1) == MaxSPP;
-		// also allow turning on the denoiser after the image has stopped accumulating samples
-		if (!bNeedsMoreRays)
-		{
-			// we aren't currently rendering, run the denoiser if we just turned it on
-			NeedsDenoise |= DenoiserMode != View.ViewState->PathTracingLastConfig->DenoiserMode;
-		}
-
-		if (View.ViewState->PathTracingRadianceDenoisedRT)
-		{
-			// we already have a texture for this
-			DenoisedRadianceTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->PathTracingRadianceDenoisedRT, TEXT("PathTracer.DenoisedRadiance"));
-		}
-
-		if (NeedsDenoise)
-		{
-			if (DenoisedRadianceTexture == nullptr)
-			{
-				// First time through, need to make a new texture
-				FRDGTextureDesc RadianceTextureDesc = FRDGTextureDesc::Create2D(
-					View.ViewRect.Size(),
-					PF_A32B32G32R32F,
-					FClearValueBinding::None,
-					TexCreate_ShaderResource | TexCreate_UAV);
-				DenoisedRadianceTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracer.DenoisedRadiance"), ERDGTextureFlags::MultiFrame);
-			}
-
-			FDenoiseTextureParameters* DenoiseParameters = GraphBuilder.AllocParameters<FDenoiseTextureParameters>();
-			DenoiseParameters->InputTexture = RadianceTexture;
-			DenoiseParameters->InputAlbedo = AlbedoTexture;
-			DenoiseParameters->InputNormal = NormalTexture;
-			DenoiseParameters->OutputTexture = DenoisedRadianceTexture;
-			GraphBuilder.AddPass(RDG_EVENT_NAME("Path Tracer Denoiser Plugin"), DenoiseParameters, ERDGPassFlags::Readback, 
-				[DenoiseParameters, DenoiserMode](FRHICommandListImmediate& RHICmdList)
-				{
-					GPathTracingDenoiserFunc(RHICmdList,
-						DenoiseParameters->InputTexture->GetRHI()->GetTexture2D(),
-						DenoiseParameters->InputAlbedo->GetRHI()->GetTexture2D(),
-						DenoiseParameters->InputNormal->GetRHI()->GetTexture2D(),
-						DenoiseParameters->OutputTexture->GetRHI()->GetTexture2D());
-				}
-			);
-
-			GraphBuilder.QueueTextureExtraction(DenoisedRadianceTexture, &View.ViewState->PathTracingRadianceDenoisedRT);
-		}
-	}
-	View.ViewState->PathTracingLastConfig->DenoiserMode = DenoiserMode;
 
 	// now add a pixel shader pass to display our Radiance buffer
 
@@ -1476,7 +1368,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	DisplayParameters->MaxSamples = MaxSPP;
 	DisplayParameters->ProgressDisplayEnabled = CVarPathTracingProgressDisplay.GetValueOnRenderThread();
 	DisplayParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	DisplayParameters->RadianceTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(DenoisedRadianceTexture ? DenoisedRadianceTexture : RadianceTexture));
+	DisplayParameters->RadianceTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(RadianceTexture));
 	DisplayParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorOutputTexture, ERenderTargetLoadAction::ELoad);
 
 	FScreenPassTextureViewport Viewport(SceneColorOutputTexture, View.ViewRect);
@@ -1499,6 +1391,10 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PixelShader,
 		DisplayParameters
 	);
+
+	// Bump counters for next frame
+	++View.ViewState->PathTracingSampleIndex;
+	++View.ViewState->PathTracingFrameIndex;
 }
 
 #endif

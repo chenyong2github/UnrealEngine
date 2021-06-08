@@ -17,7 +17,7 @@
 	"Modules": [
 		{
 			"Name": "PixelStreaming",
-			"Type": "RuntimeNoCommandlet",
+			"Type": "Runtime",
 			"LoadingPhase": "PostDefault",
 			"WhitelistPlatforms": [ "Win64" ],
 			"BlacklistTargets": [ "Server" ]

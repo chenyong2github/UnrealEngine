@@ -21,10 +21,14 @@ public:
 	void LoadAsset(const FAssetData& PickedAsset);
 
 	TOptional<FAssetData> GetAssetLastSavedOrLoaded() const;
+
+	//~ Begin UObject Interface
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	//~ End UObject Interface
 	
 	DECLARE_EVENT_OneParam(UFilterLoader, FOnLoadedFilters, UDisjunctiveNormalFormFilter*);
-	/* Called by LoadAsset. Tells everyone to fix up all references. */
-	FOnLoadedFilters OnUserSelectedLoadedFilters;
+	/* Called to notify everybody that the user now wants to edit this filter. */
+	FOnLoadedFilters OnFilterChanged;
 
 	DECLARE_EVENT(UFilterLoader, FOnFilterWasSavedOrLoaded);
 	/* Used by UI to know when SaveLoaded option may be shown. */
@@ -35,12 +39,13 @@ private:
 	friend class ULevelSnapshotsEditorData;
 	void SetAssetBeingEdited(UDisjunctiveNormalFormFilter* NewAssetBeingEdited);
 
-	void OnSaveOrLoadAssetOnDisk(const FAssetData& AssetOnDisk);
-	void SetAssetLastSavedOrLoaded(const FAssetData& NewAsset);
+	void OnSaveOrLoadAssetOnDisk(UDisjunctiveNormalFormFilter* AssetOnDisk);
+	void SetAssetLastSavedOrLoaded(UDisjunctiveNormalFormFilter* NewAsset);
 	
 	/* Set once user either has used RequestSaveAs or SetPickedAsset. */
-	TOptional<FAssetData> AssetLastSavedOrLoaded;
+	UPROPERTY()
+	FSoftObjectPath AssetLastSavedOrLoaded = nullptr;
 
+	UPROPERTY()
 	UDisjunctiveNormalFormFilter* AssetBeingEdited;
-	
 };

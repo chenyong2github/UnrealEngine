@@ -7,6 +7,8 @@
 #include "UObject/Package.h"
 #include "Http.h"
 
+#include "HAL/MemoryMisc.h"
+
 #include "Logging/LogSuppressionInterface.h"
 
 #include "Misc/NetworkVersion.h"
@@ -275,6 +277,10 @@ void UOnlineHotfixManager::Cleanup()
 void UOnlineHotfixManager::StartHotfixProcess()
 {
 	UE_LOG(LogHotfixManager, Log, TEXT("Starting Hotfix Process"));
+
+#if ENABLE_SHARED_MEMORY_TRACKER
+	FSharedMemoryTracker::PrintMemoryDiff(TEXT("StartHotfixProcess"));
+#endif
 
 	// Patching the editor this way seems like a bad idea
 	bool bShouldHotfix = IsRunningGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
@@ -713,6 +719,10 @@ EHotfixResult UOnlineHotfixManager::ApplyHotfix()
 
 	for (const FCloudFileHeader& FileHeader : ChangedHotfixFileList)
 	{
+#if ENABLE_SHARED_MEMORY_TRACKER
+        FSharedMemoryTracker MemTracker(*FString::Printf(TEXT("ApplyHotfix - %s"), *FileHeader.FileName));
+#endif
+
 		if (!ApplyHotfixProcessing(FileHeader))
 		{
 			UE_LOG(LogHotfixManager, Error, TEXT("Couldn't apply hotfix file (%s)"), *FileHeader.FileName);
@@ -1590,6 +1600,10 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						UE_LOG(LogHotfixManager, Error, TEXT("Wasn't able to parse the data with semicolon separated values. Expecting 3 or 5 arguments."));
 					}
 				}
+
+#if ENABLE_SHARED_MEMORY_TRACKER
+				FSharedMemoryTracker::PrintMemoryDiff(*FString::Printf(TEXT("AssetHotfix: %s"), *AssetClass->GetPathName()));
+#endif
 			}
 		}
 	}

@@ -19,6 +19,7 @@
 #include "AssetToolsModule.h"
 #include "AutoReimport/ReimportFeedbackContext.h"
 #include "AutoReimport/AssetSourceFilenameCache.h"
+#include "Misc/BlacklistNames.h"
 
 #define LOCTEXT_NAMESPACE "ContentDirectoryMonitor"
 
@@ -149,6 +150,14 @@ bool FContentDirectoryMonitor::ShouldConsiderChange(const DirectoryWatcher::FUpd
 	{
 		return false;
 	}
+
+	static const FName AssetToolsName("AssetTools");
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolsName).Get();
+	if (!AssetTools.GetWritableFolderBlacklist()->PassesStartsWithFilter(Transaction.Filename.Get()))
+	{
+		return false;
+	}
+
 	return true;
 }
 

@@ -9,6 +9,7 @@
 #include "Widgets/SWidget.h"
 
 class ULevelSnapshotsEditorProjectSettings;
+class ULevelSnapshotsEditorDataManagementSettings;
 class FToolBarBuilder;
 class FLevelSnapshotsEditorToolkit;
 class ULevelSnapshotsEditorData;
@@ -65,4 +66,7 @@ private:
 
 	TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr;
 	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettingsObjectPtr;
+	
+	TSharedPtr<ISettingsSection> DataMangementSettingsSectionPtr;
+	TWeakObjectPtr<ULevelSnapshotsEditorDataManagementSettings> DataMangementSettingsObjectPtr;
 };

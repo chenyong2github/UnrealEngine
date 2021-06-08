@@ -121,6 +121,36 @@ public:
 		return Ref.IsSet();
 	}
 
+	template <typename THandle>
+	bool IsInSync(const THandle& Handle, const FDirtyPropertiesPool& Pool) const
+	{
+		if(!IsSet())
+		{
+			return true;	//if property is not set it already matches head
+		}
+
+		T HandleVal;
+		HandleVal.CopyFrom(Handle);
+
+		return HandleVal == ReadChecked(Pool);
+	}
+
+	template <typename THandle>
+	bool IsInSyncUnsetIsZero(const THandle& Handle, const FDirtyPropertiesPool& Pool) const
+	{
+		T HandleVal;
+		HandleVal.CopyFrom(Handle);
+
+		if(IsSet())
+		{
+			return HandleVal == ReadChecked(Pool);
+		}
+		else
+		{
+			return HandleVal == T::ZeroValue();
+		}
+	}
+
 private:
 	TPropertyRef<T> Ref;
 
@@ -226,10 +256,14 @@ public:
 
 	bool IsClean() const
 	{
+		return IsCleanExcludingDynamics() && !Dynamics.IsSet();
+	}
+
+	bool IsCleanExcludingDynamics() const
+	{
 		return !ParticlePositionRotation.IsSet() &&
 			!NonFrequentData.IsSet() &&
 			!Velocities.IsSet() &&
-			!Dynamics.IsSet() &&
 			!DynamicsMisc.IsSet() &&
 			!MassProps.IsSet() &&
 			!KinematicTarget.IsSet();
@@ -248,10 +282,13 @@ public:
 
 	void RecordPreDirtyData(const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData, FDirtyPropertiesPool& Manager);
 	void RecordAnyDirty(const FGeometryParticleHandle& Handle, FDirtyPropertiesPool& Manager, const FGeometryParticleStateBase& OldState);
-	void CopyToParticle(FGeometryParticleHandle& Handle, FDirtyPropertiesPool& Manager);
+	void CopyToParticle(FGeometryParticleHandle& Handle, FDirtyPropertiesPool& Manager) const;
 	void MarkAllDirty(const FGeometryParticleHandle& Handle, FDirtyPropertiesPool& Manager);
+	void MarkDirtyDynamicsFromPT(const FGeometryParticleHandle& Handle, FDirtyPropertiesPool& Manager);
 	void RecordDynamics(const FParticleDynamics& Dynamics, FDirtyPropertiesPool& Manager);
 	void RecordSimResults(const FPBDRigidParticleHandle& Handle, FDirtyPropertiesPool& Manager);
+
+	bool IsInSync(const FGeometryParticleHandle& Handle, const FDirtyPropertiesPool& Pool) const;
 
 	template <typename TParticle>
 	static const FVec3& X(const FGeometryParticleStateBase* State, const TParticle& Particle, const FDirtyPropertiesPool& Manager)
@@ -389,25 +426,25 @@ public:
 	template <typename TParticle>
 	static const FVec3& F(const FGeometryParticleStateBase* State, const TParticle& Particle, const FDirtyPropertiesPool& Manager)
 	{
-		return State && State->Dynamics.IsSet() ? State->Dynamics.ReadChecked(Manager).F() : Particle.CastToRigidParticle()->F();
+		return State && State->Dynamics.IsSet() ? State->Dynamics.ReadChecked(Manager).F() : ZeroVector;	//dynamics do not use delta writes, they always write their value immediately or it's 0
 	}
 
 	template <typename TParticle>
 	static const FVec3& Torque(const FGeometryParticleStateBase* State, const TParticle& Particle, const FDirtyPropertiesPool& Manager)
 	{
-		return State && State->Dynamics.IsSet() ? State->Dynamics.ReadChecked(Manager).Torque() : Particle.CastToRigidParticle()->Torque();
+		return State && State->Dynamics.IsSet() ? State->Dynamics.ReadChecked(Manager).Torque() : ZeroVector;	//dynamics do not use delta writes, they always write their value immediately or it's 0
 	}
 
 	template <typename TParticle>
 	static const FVec3& LinearImpulse(const FGeometryParticleStateBase* State, const TParticle& Particle, const FDirtyPropertiesPool& Manager)
 	{
-		return State && State->Dynamics.IsSet() ? State->Dynamics.ReadChecked(Manager).LinearImpulse() : Particle.CastToRigidParticle()->LinearImpulse();
+		return State && State->Dynamics.IsSet() ? State->Dynamics.ReadChecked(Manager).LinearImpulse() : ZeroVector;	//dynamics do not use delta writes, they always write their value immediately or it's 0
 	}
 
 	template <typename TParticle>
 	static const FVec3& AngularImpulse(const FGeometryParticleStateBase* State, const TParticle& Particle, const FDirtyPropertiesPool& Manager)
 	{
-		return State && State->Dynamics.IsSet() ? State->Dynamics.ReadChecked(Manager).AngularImpulse() : Particle.CastToRigidParticle()->AngularImpulse();
+		return State && State->Dynamics.IsSet() ? State->Dynamics.ReadChecked(Manager).AngularImpulse() : ZeroVector;	//dynamics do not use delta writes, they always write their value immediately or it's 0
 	}
 
 	template <typename TParticle>
@@ -438,6 +475,8 @@ private:
 	TParticleStateProperty2<FKinematicTarget, EParticleProperty::KinematicTarget> KinematicTarget;
 
 	FShapesArrayStateBase ShapesArrayState;
+
+	CHAOS_API static FVec3 ZeroVector;
 };
 
 class FGeometryParticleState
@@ -710,18 +749,7 @@ private:
 	int32 RecordedFramePlusOne[2] = { 0,0 };
 };
 
-enum class EFutureQueryResult
-{
-	Ok,	//There is reliable data for this particle
-	Untracked, //The particle is untracked. This could mean it's new, or that it was unchanged in prior simulations
-	Desync //The particle's state has diverged from the previous recordings
-};
-
-struct FDesyncedParticleInfo
-{
-	FGeometryParticleHandle* Particle;
-	ESyncState MostDesynced;	//Indicates the most desynced this particle got during resim (could be that it was soft desync and then went back to normal)
-};
+extern CHAOS_API int32 EnableResimCache;
 
 class FPBDRigidsSolver;
 
@@ -738,7 +766,7 @@ public:
 	, FramesSaved(0)
 	, DataIdxOffset(0)
 	, bNeedsSave(false)
-	, bResimOptimization(false)
+	, bResimOptimization(InResimOptimization)
 	{
 	}
 
@@ -758,17 +786,12 @@ public:
 
 	int32 CHAOS_API GetEarliestFrame_Internal() const { return CurFrame - FramesSaved; }
 
-	TArray<FDesyncedParticleInfo> CHAOS_API ComputeDesyncInfo() const;
-
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame) const;
-
-	/* Query the state of particles in the future. This operation can fail for particles that are desynced or that we have not been tracking */
-	EFutureQueryResult CHAOS_API GetFutureStateAtFrame(FGeometryParticleState& OutState,int32 Frame) const;
+	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame, FParticleHistoryEntry::EParticleHistoryPhase Phase = FParticleHistoryEntry::EParticleHistoryPhase::PostPushData) const;
 
 	IResimCacheBase* GetCurrentStepResimCache() const
 	{
-		return bResimOptimization ? Managers[CurFrame].ExternalResimCache.Get() : nullptr;
+		return !!EnableResimCache && bResimOptimization ? Managers[CurFrame].ExternalResimCache.Get() : nullptr;
 	}
 
 	template <typename CreateCache>
@@ -832,6 +855,8 @@ public:
 	void PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const int32 SrcDataIdx);
 
 	void CHAOS_API MarkDirtyFromPT(FGeometryParticleHandle& Handle);
+
+	void CHAOS_API MarkDirtyDynamicsFromPT(FGeometryParticleHandle& Handle);
 
 	void CHAOS_API SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy);
 
@@ -903,8 +928,6 @@ private:
 		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
 		int32 LastDirtyFrame;	//Track how recently this was made dirty
 		int32 InitializedOnStep = INDEX_NONE;	//if not INDEX_NONE, it indicates we saw initialization during rewind history window
-		bool bDesync;
-		ESyncState MostDesynced;	//Tracks the most desynced this has become (soft desync can go back to being clean, but we still want to know)
 
 		FDirtyParticleInfo(FDirtyPropertiesPool& InPropertiesPool, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
 		: Frames(NumFrames)
@@ -913,8 +936,6 @@ private:
 		, PropertiesPool(&InPropertiesPool)
 		, CachedUniqueIdx(UniqueIdx)
 		, LastDirtyFrame(CurFrame)
-		, bDesync(true)
-		, MostDesynced(ESyncState::HardDesync)
 		{
 
 		}
@@ -927,8 +948,6 @@ private:
 			, CachedUniqueIdx(MoveTemp(Other.CachedUniqueIdx))
 			, LastDirtyFrame(Other.LastDirtyFrame)
 			, InitializedOnStep(Other.InitializedOnStep)
-			, bDesync(Other.bDesync)
-			, MostDesynced(Other.MostDesynced)
 		{
 			Other.PropertiesPool = nullptr;
 		}
@@ -948,7 +967,7 @@ private:
 	};
 
 
-	const FGeometryParticleStateBase* GetStateAtFrameImp(const FDirtyParticleInfo& Info,int32 Frame) const;
+	const FGeometryParticleStateBase* GetStateAtFrameImp(const FDirtyParticleInfo& Info,int32 Frame, FParticleHistoryEntry::EParticleHistoryPhase Phase, bool bLastRun = false) const;
 	
 	const FDirtyParticleInfo& FindParticleChecked(const FUniqueIdx UniqueIdx) const
 	{
@@ -998,6 +1017,8 @@ private:
 	int32 DataIdxOffset;
 	bool bNeedsSave;	//Indicates that some data is pointing at head and requires saving before a rewind
 	bool bResimOptimization;
+
+	uint8 OriginalBufferIdx() const { return 1 - Buffer; }
 };
 
 /** Used by user code to determine when rewind should occur and gives it the opportunity to record any additional data */

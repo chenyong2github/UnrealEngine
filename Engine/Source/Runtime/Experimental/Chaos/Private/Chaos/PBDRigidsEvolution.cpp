@@ -198,7 +198,7 @@ namespace Chaos
 			DirtyParticle(Particle);
 		}
 
-		ComputeIntermediateSpatialAcceleration();
+		ComputeIntermediateSpatialAcceleration(/*bOnLastSubstep=*/true, /*bBlock=*/false);
 	}
 
 	FPBDRigidsEvolutionBase::~FPBDRigidsEvolutionBase()
@@ -446,17 +446,17 @@ namespace Chaos
 		}
 	}
 
-	void FPBDRigidsEvolutionBase::FlushInternalAccelerationQueue()
+	void FPBDRigidsEvolutionBase::FlushInternalAccelerationQueue(bool bOnLastSubstep)
 	{
 		for (const FPendingSpatialData& PendingData : InternalAccelerationQueue.PendingData)
 		{
 			ApplyParticlePendingData(PendingData, *InternalAcceleration, false);
 		}
-		InternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal);
+		InternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal, bOnLastSubstep);
 		InternalAccelerationQueue.Reset();
 	}
 
-	void FPBDRigidsEvolutionBase::FlushAsyncAccelerationQueue()
+	void FPBDRigidsEvolutionBase::FlushAsyncAccelerationQueue(bool bOnLastSubstep)
 	{
 		for (const FPendingSpatialData& PendingData : AsyncAccelerationQueue.PendingData)
 		{
@@ -478,8 +478,8 @@ namespace Chaos
 		//other queues are no longer needed since we've flushed all operations and now have a pristine structure
 		InternalAccelerationQueue.Reset();
 
-		AsyncInternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal);
-		AsyncExternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal);
+		AsyncInternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal, bOnLastSubstep);
+		AsyncExternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal, bOnLastSubstep);
 	}
 
 	//TODO: make static and _External suffix
@@ -490,7 +490,12 @@ namespace Chaos
 		for (int32 Idx = ExternalQueue.PendingData.Num() - 1; Idx >=0; --Idx)
 		{
 			const FPendingSpatialData& SpatialData = ExternalQueue.PendingData[Idx];
-			if(SpatialData.SyncTimestamp > SyncTimestamp)
+
+			// If acceleration structure is not from final substep of frame, and particle is interpolating movement in sim, position in accleration structure
+			// is not at target, however GT is position/rendering at target.
+			bool bParticleIsInterpolating =  SpatialData.bInterpolatedMovement && !Acceleration.GetIsFromLastSimSubstep();
+
+			if(SpatialData.SyncTimestamp > SyncTimestamp || bParticleIsInterpolating)
 			{
 				//operation still pending so update structure
 				//note: do we care about roll over? if game ticks at 60fps we'd get 385+ days
@@ -549,7 +554,7 @@ namespace Chaos
 		ExternalStructuresPool.Enqueue(Structure);
 	}
 	
-	void FPBDRigidsEvolutionBase::ComputeIntermediateSpatialAcceleration(bool bBlock)
+	void FPBDRigidsEvolutionBase::ComputeIntermediateSpatialAcceleration(bool bOnLastSubstep, bool bBlock)
 	{
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		SCOPE_CYCLE_COUNTER(STAT_ComputeIntermediateSpatialAcceleration);
@@ -564,7 +569,11 @@ namespace Chaos
 			InternalAcceleration = GetFreeSpatialAcceleration_Internal();
 			AsyncInternalAcceleration = GetFreeSpatialAcceleration_Internal();
 			AsyncExternalAcceleration = GetFreeSpatialAcceleration_Internal();
-			FlushInternalAccelerationQueue();
+			FlushInternalAccelerationQueue(bOnLastSubstep);
+
+			// Give game thread an empty structure to pop
+			ExternalStructuresQueue.Enqueue(AsyncExternalAcceleration);
+			AsyncExternalAcceleration = GetFreeSpatialAcceleration_Internal();
 		}
 
 		if (bBlock)
@@ -573,8 +582,7 @@ namespace Chaos
 		}
 
 		bool AsyncComplete = !AccelerationStructureTaskComplete || AccelerationStructureTaskComplete->IsComplete();
-
-		if (AsyncComplete)
+		if (AsyncComplete && !IsResimming())
 		{
 			bool bNeedsReset = false;
 
@@ -587,7 +595,7 @@ namespace Chaos
 
 				bNeedsReset = true;
 
-				FlushAsyncAccelerationQueue();
+				FlushAsyncAccelerationQueue(bOnLastSubstep);
 
 				//swap acceleration structure for new one
 				std::swap(InternalAcceleration, AsyncInternalAcceleration);
@@ -600,7 +608,7 @@ namespace Chaos
 			}
 			else
 			{
-				FlushInternalAccelerationQueue();
+				FlushInternalAccelerationQueue(bOnLastSubstep);
 			}
 			
 			if (bCanStartAsyncTasks)
@@ -611,7 +619,7 @@ namespace Chaos
 		}
 		else
 		{
-			FlushInternalAccelerationQueue();
+			FlushInternalAccelerationQueue(bOnLastSubstep);
 		}
 	}
 
@@ -642,9 +650,9 @@ namespace Chaos
 	void FPBDRigidsEvolutionBase::FlushSpatialAcceleration()
 	{
 		//force build acceleration structure with latest data
-		ComputeIntermediateSpatialAcceleration(true);
-		ComputeIntermediateSpatialAcceleration(true);	//having to do it multiple times because of the various caching involved over multiple frames.
-		ComputeIntermediateSpatialAcceleration(true);
+		ComputeIntermediateSpatialAcceleration(/*bOnLastSubstep=*/true, /*bBlock=*/true);
+		ComputeIntermediateSpatialAcceleration(/*bOnLastSubstep=*/true, /*bBlock=*/true);	//having to do it multiple times because of the various caching involved over multiple frames.
+		ComputeIntermediateSpatialAcceleration(/*bOnLastSubstep=*/true, /*bBlock=*/true);
 	}
 
 	void FPBDRigidsEvolutionBase::RebuildSpatialAccelerationForPerfTest()
@@ -702,7 +710,7 @@ namespace Chaos
 		{
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::FlushEvolutionInternalAccelerationQueue)
 			{
-				FlushInternalAccelerationQueue();
+				FlushInternalAccelerationQueue(false);
 			}
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeMultiStructures)

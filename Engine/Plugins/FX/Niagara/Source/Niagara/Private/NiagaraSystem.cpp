@@ -777,6 +777,42 @@ void UNiagaraSystem::PostLoad()
 	ExposedParameters.RecreateRedirections();
 #endif
 
+	for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
+	{
+#if WITH_EDITORONLY_DATA
+		EmitterHandle.ConditionalPostLoad(NiagaraVer);
+#else
+		if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
+		{
+			NiagaraEmitter->ConditionalPostLoad();
+		}
+#endif
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (EditorData == nullptr)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
+	}
+	else
+	{
+		EditorData->PostLoadFromOwner(this);
+	}
+
+	if (EditorParameters == nullptr)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+	}
+
+	// see the equivalent in NiagaraEmitter for details
+	if (bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
+	}
+#endif // WITH_EDITORONLY_DATA
+
 #if !WITH_EDITOR
 	// When running without the editor in a cooked build we run the update immediately in post load since
 	// there will be no merging or compiling which makes it safe to do so.
@@ -1690,9 +1726,15 @@ bool UNiagaraSystem::IsValidInternal() const
 
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		if (Handle.GetIsEnabled() && Handle.GetInstance() && !Handle.GetInstance()->IsValid())
+		if ( Handle.GetIsEnabled())
 		{
-			return false;
+			if ( UNiagaraEmitter* NiagaraEmitter = Handle.GetInstance() )
+			{
+				if ( !NiagaraEmitter->IsValid() && NiagaraEmitter->IsAllowedByScalability() )
+				{
+					return false;
+				}
+			}
 		}
 	}
 
@@ -2869,11 +2911,16 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 					CurrentScalabilitySettings.MaxTimeWithoutRender = Override.MaxTimeWithoutRender;
 				}
 
- 				if (Override.bOverrideGlobalBudgetCullingSettings)
+ 				if (Override.bOverrideGlobalBudgetScalingSettings)
 				{
- 					CurrentScalabilitySettings.bCullByGlobalBudget = Override.bCullByGlobalBudget;
- 					CurrentScalabilitySettings.MaxGlobalBudgetUsage = Override.MaxGlobalBudgetUsage;
+ 					CurrentScalabilitySettings.BudgetScaling = Override.BudgetScaling; 
  				}
+
+				if (Override.bOverrideCullProxySettings)
+				{
+					CurrentScalabilitySettings.CullProxyMode = Override.CullProxyMode;
+					CurrentScalabilitySettings.MaxSystemProxies = Override.MaxSystemProxies;
+				}
 
 				break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 			}
@@ -2885,7 +2932,7 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 	//Work out if this system needs to have sorted significance culling done.
 	bNeedsSortedSignificanceCull = false;
 
-	if (CurrentScalabilitySettings.bCullMaxInstanceCount || CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount)
+	if (CurrentScalabilitySettings.bCullMaxInstanceCount || CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount || CurrentScalabilitySettings.CullProxyMode != ENiagaraCullProxyMode::None)
 	{
 		bNeedsSortedSignificanceCull = true;
 	}

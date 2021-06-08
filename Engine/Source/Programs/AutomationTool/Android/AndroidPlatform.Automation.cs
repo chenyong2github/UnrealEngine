@@ -1013,6 +1013,7 @@ public class AndroidPlatform : Platform
 				var CreateInstallFilesAction = new Action<UnrealTargetPlatform>(Target =>
 				{
 					bool bIsPC = (Target == UnrealTargetPlatform.Win64);
+					string LineEnding = bIsPC ? "\r\n" : "\n";
 					// Write install batch file(s).
 					string PackageName = GetPackageInfo(ApkName, SC, false);
 					string BatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", bMakeSeparateApks ? GPUArchitecture : "", false, EBatchType.Install, Target);
@@ -1021,14 +1022,14 @@ public class AndroidPlatform : Platform
 					if (bHaveAPK)
 					{
 						// make a batch file that can be used to install the .apk and .obb files
-						File.WriteAllLines(BatchName, BatchLines);
+						File.WriteAllText(BatchName, string.Join(LineEnding, BatchLines) + LineEnding);
 					}
 					// make a batch file that can be used to uninstall the .apk and .obb files
 					string UninstallBatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", bMakeSeparateApks ? GPUArchitecture : "", false, EBatchType.Uninstall, Target);
 					BatchLines = GenerateUninstallBatchFile(bPackageDataInsideApk, PackageName, ApkName, Params, bIsPC);
 					if (bHaveAPK || bHaveUniversal)
 					{
-						File.WriteAllLines(UninstallBatchName, BatchLines);
+						File.WriteAllText(UninstallBatchName, string.Join(LineEnding, BatchLines) + LineEnding);
 					}
 
 					string UniversalBatchName = "";
@@ -1038,14 +1039,14 @@ public class AndroidPlatform : Platform
 						// make a batch file that can be used to install the .apk
 						string[] UniversalBatchLines = GenerateInstallBatchFile(bPackageDataInsideApk, PackageName, UniversalApkName, Params, ObbName, DeviceObbName, false, PatchName, DevicePatchName, false,
 							Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden);
-						File.WriteAllLines(UniversalBatchName, UniversalBatchLines);
+						File.WriteAllText(UniversalBatchName, string.Join(LineEnding, UniversalBatchLines) + LineEnding);
 					}
 
 					string SymbolizeBatchName = GetFinalBatchName(ApkName, SC, Architecture, GPUArchitecture, false, EBatchType.Symbolize, Target);
 					if(bBuildWithHiddenSymbolVisibility || bSaveSymbols)
 					{
 						BatchLines = GenerateSymbolizeBatchFile(Params, PackageName, ApkName, SC, Architecture, GPUArchitecture, bIsPC);
-						File.WriteAllLines(SymbolizeBatchName, BatchLines);
+						File.WriteAllText(SymbolizeBatchName, string.Join(LineEnding, BatchLines) + LineEnding);
 					}
 
 					if (!Utils.IsRunningOnWindows)

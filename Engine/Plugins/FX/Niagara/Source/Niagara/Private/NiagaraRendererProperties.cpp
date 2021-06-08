@@ -116,28 +116,40 @@ void UNiagaraRendererProperties::RenameEmitter(const FName& InOldName, const UNi
 	UpdateSourceModeDerivates(SourceMode);
 }
 
-const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
+TArray<FNiagaraVariable> UNiagaraRendererProperties::GetBoundAttributes() const
 {
-	CurrentBoundAttributes.Reset();
+	TArray<FNiagaraVariable> BoundAttributes;
+	BoundAttributes.Reserve(AttributeBindings.Num());
 
 	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
 	{
-		if (AttributeBinding->GetParamMapBindableVariable().IsValid())
+		FNiagaraVariable BoundAttribute = GetBoundAttribute(AttributeBinding);
+		if (BoundAttribute.IsValid())
 		{
-			CurrentBoundAttributes.Add(AttributeBinding->GetParamMapBindableVariable());
+			BoundAttributes.Add(BoundAttribute);
 		}
-		/*
-		else if (AttributeBinding->DataSetVariable.IsValid())
-		{
-			CurrentBoundAttributes.Add(AttributeBinding->DataSetVariable);
-		}
-		else
-		{
-			CurrentBoundAttributes.Add(AttributeBinding->DefaultValueIfNonExistent);
-		}*/
 	}
 
-	return CurrentBoundAttributes;
+	return BoundAttributes;
+}
+
+FNiagaraVariable UNiagaraRendererProperties::GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const
+{
+	if (Binding->GetParamMapBindableVariable().IsValid())
+	{
+		return Binding->GetParamMapBindableVariable();
+	}
+	/*
+	else if (AttributeBinding->DataSetVariable.IsValid())
+	{
+		return AttributeBinding->DataSetVariable;
+	}
+	else
+	{
+		return AttributeBinding->DefaultValueIfNonExistent;
+	}*/
+
+	return FNiagaraVariable();
 }
 
 void UNiagaraRendererProperties::GetRendererFeedback(UNiagaraEmitter* InEmitter,	TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings,	TArray<FNiagaraRendererFeedback>& OutInfo) const

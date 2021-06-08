@@ -17,6 +17,72 @@ class FMaterialsDatabase;
 class FTexturesCache;
 class FElementID;
 class FLibPartInfo;
+class FInstance;
+
+class FMeshDimensions
+{
+  public:
+	FMeshDimensions()
+		: Area(0.0f)
+		, Width(0.0f)
+		, Height(0.0f)
+		, Depth(0.0f)
+	{
+	}
+
+	FMeshDimensions(const IDatasmithMeshElement& InMesh)
+		: Area(InMesh.GetArea())
+		, Width(InMesh.GetWidth())
+		, Height(InMesh.GetHeight())
+		, Depth(InMesh.GetDepth())
+	{
+	}
+
+	float Area;
+	float Width;
+	float Height;
+	float Depth;
+};
+
+class FMeshCacheIndexor
+{
+  public:
+	// Constructor
+	FMeshCacheIndexor(const TCHAR* InIndexFilePath);
+
+	// Destructor
+	~FMeshCacheIndexor();
+
+	// Return the mesh dimension if mesh is already created.
+	const FMeshDimensions* FindMesh(const TCHAR* InMeshName) const;
+
+	// Add this mesh to the indexor
+	void AddMesh(const IDatasmithMeshElement& InMesh);
+
+	// If changed, save the indexor to the specified file.
+	void SaveToFile();
+
+	// Read the indexor from the specified file
+	void ReadFromFile();
+
+  private:
+	// We index with mesh name (aka. Hash of the mesh), and we save it's dimensions
+	typedef TMap< FString, TUniquePtr< FMeshDimensions > > MapName2Dimensions;
+
+	FString IndexFilePath;
+
+	// Indexor
+	MapName2Dimensions Name2Dimensions;
+
+	// Flag to know if we must save
+	bool bChanged = false;
+
+	// Control access on this object
+	mutable GS::Lock AccessControl;
+
+	// Condition variable
+	GS::Condition AccessCondition;
+};
 
 // Class that maintain synchronization datas (SyncData, Material, Texture)
 class FSyncDatabase
@@ -78,14 +144,21 @@ class FSyncDatabase
 	// Return the libpart from it's unique id
 	FLibPartInfo* GetLibPartInfo(const char* InUnID);
 
+	FInstance* GetInstance(GS::ULong InHash) const;
+
+	void AddInstance(GS::ULong InHash, TUniquePtr< FInstance >&& InInstance);
+
 	// Return the cache path
 	static GS::UniString GetCachePath();
 
+	FMeshCacheIndexor& GetMeshIndexor() { return MeshIndexor; }
+
   private:
-	typedef TMap< FGuid, FSyncData* >					  FMapGuid2SyncData;
-	typedef TMap< short, FString >						  FMapLayerIndex2Name;
-	typedef TMap< GS::Int32, TUniquePtr< FLibPartInfo > > MapIndex2LibPart;
-	typedef TMap< FGSUnID, FLibPartInfo* >				  MapUnId2LibPart;
+	typedef TMap< FGuid, FSyncData* >							FMapGuid2SyncData;
+	typedef TMap< short, FString >								FMapLayerIndex2Name;
+	typedef TMap< GS::Int32, TUniquePtr< FLibPartInfo > >		MapIndex2LibPart;
+	typedef TMap< FGSUnID, FLibPartInfo* >						MapUnId2LibPart;
+	typedef GS::HashTable< GS::ULong, TUniquePtr< FInstance > > HashTableInstances;
 
 	// To take care of mesh life cycle.
 	class FMeshInfo
@@ -99,11 +172,15 @@ class FSyncDatabase
 	// Map mesh by their hash name.
 	typedef TMap< FString, FMeshInfo > FMapHashToMeshInfo;
 
+	void ResetInstances();
+
+	void ReportInstances() const;
+
 	// Scan all elements, to determine if they need to be synchronized
 	UInt32 ScanElements(const FSyncContext& InSyncContext);
 
 	// Scan all lights
-	void ScanLights(const FElementID& InElementID);
+	void ScanLights(FElementID& InElementID);
 
 	// Scan all cameras
 	void ScanCameras(const FSyncContext& InSyncContext);
@@ -135,6 +212,10 @@ class FSyncDatabase
 
 	// Map lib part by UnId
 	MapUnId2LibPart UnIdToLibPart;
+
+	HashTableInstances Instances;
+
+	FMeshCacheIndexor MeshIndexor;
 };
 
 END_NAMESPACE_UE_AC

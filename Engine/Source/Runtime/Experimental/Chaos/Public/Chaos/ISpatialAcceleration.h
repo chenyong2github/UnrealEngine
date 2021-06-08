@@ -246,7 +246,7 @@ class CHAOS_API ISpatialAcceleration
 public:
 
 	ISpatialAcceleration(SpatialAccelerationType InType = static_cast<SpatialAccelerationType>(ESpatialAcceleration::Unknown))
-		: Type(InType), SyncTimestamp(0), AsyncTimeSlicingComplete(true)
+		: Type(InType), SyncTimestamp(0), bIsFromLastSimSubstep(false), AsyncTimeSlicingComplete(true)
 	{}
 
 	ISpatialAcceleration(ESpatialAcceleration InType)
@@ -339,10 +339,16 @@ public:
 		return SyncTimestamp;
 	}
 
+	bool GetIsFromLastSimSubstep() const
+	{
+		return bIsFromLastSimSubstep;
+	}
+
 	/** Call this whenever updating the acceleration structure for a new sync point */
-	void SetSyncTimestamp(int32 InTimestamp)
+	void SetSyncTimestamp(int32 InTimestamp, bool bInFromLastSimSubstep)
 	{
 		SyncTimestamp = InTimestamp;
+		bIsFromLastSimSubstep = bInFromLastSimSubstep;
 	}
 
 protected:
@@ -351,6 +357,7 @@ protected:
 private:
 	SpatialAccelerationType Type;
 	int32 SyncTimestamp;	//The set of inputs the acceleration structure is in sync with. GT moves forward in time and enqueues inputs
+	bool bIsFromLastSimSubstep; // Did this acceleration structure finish being built on last sim substep of frame?
 	bool AsyncTimeSlicingComplete;
 };
 

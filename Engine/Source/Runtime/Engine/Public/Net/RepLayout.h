@@ -513,6 +513,8 @@ public:
 		return PushModelObjectHandle;
 	}
 
+	bool HasAnyDirtyProperties() const;
+
 private:
 	const UEPushModelPrivate::FPushModelPerNetDriverHandle PushModelObjectHandle;
 #endif
@@ -1516,7 +1518,7 @@ public:
 
 	const bool IsEmpty() const
 	{
-		return 0 == Parents.Num();
+		return EnumHasAnyFlags(Flags, ERepLayoutFlags::NoReplicatedProperties) || (0 == Parents.Num());
 	}
 
 	const int32 GetNumParents() const

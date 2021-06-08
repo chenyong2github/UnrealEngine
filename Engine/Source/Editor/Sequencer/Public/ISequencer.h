@@ -24,6 +24,7 @@ struct FMovieSceneChannelHandle;
 class UMovieSceneSection;
 class UMovieSceneTrack;
 class AActor;
+class ACameraActor;
 class FSequencerSelection;
 class FSequencerSelectionPreview;
 class FUICommandList;
@@ -203,6 +204,9 @@ public:
 	/** @return Returns the MovieScene that is currently focused for editing by the sequencer.  This can change at any time. */
 	virtual UMovieSceneSequence* GetFocusedMovieSceneSequence() const = 0;
 
+	/**@return Returns the time transform from the focused sequence back to the root*/
+	virtual FMovieSceneSequenceTransform GetFocusedMovieSceneSequenceTransform() const =0;
+
 	/** @return The root movie scene being used */
 	virtual FMovieSceneSequenceIDRef GetRootTemplateID() const = 0;
 	virtual FMovieSceneSequenceIDRef GetFocusedTemplateID() const = 0;
@@ -299,12 +303,6 @@ public:
 	* just the group,e.g. Rotation X,Y and Z if any of those are changed (EKeyGroup::KeyGroup)
 	*/
 	virtual void SetKeyGroupMode(EKeyGroupMode Mode) = 0;
-
-	/** @return Returns whether or not to key only interp properties in this sequencer */
-	virtual bool GetKeyInterpPropertiesOnly() const = 0;
-
-	/** Sets whether or not to key only interp properties in this sequencer. */
-	virtual void SetKeyInterpPropertiesOnly(bool bKeyInterpPropertiesOnly) = 0;
 
 	/** @return Returns default key interpolation */
 	virtual EMovieSceneKeyInterpolation GetKeyInterpolation() const = 0;
@@ -467,6 +465,10 @@ public:
 
 	DECLARE_EVENT_TwoParams(ISequencer, FOnInitializeDetailsPanel, TSharedRef<IDetailsView>, TSharedRef<ISequencer>)
 	FOnInitializeDetailsPanel& OnInitializeDetailsPanel() { return InitializeDetailsPanelEvent; }
+
+	/** A delegate which will can be used in response to a camera being added to the sequence. If true, the default behavior of locking the camera to the viewport and adding a camera cut will be executed */
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCameraAddedToSequencer, ACameraActor*, FGuid)
+	FOnCameraAddedToSequencer& OnCameraAddedToSequencer() { return CameraAddedToSequencer; }
 
 	/** A delegate which will determine whether a binding should be visible in the tree. */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnGetIsBindingVisible, const FMovieSceneBinding&)
@@ -750,6 +752,7 @@ public:
 	virtual void SetDisplayName(FGuid InBinding, const FText& InDisplayName) = 0;
 protected:
 	FOnInitializeDetailsPanel InitializeDetailsPanelEvent;
+	FOnCameraAddedToSequencer CameraAddedToSequencer;
 	FOnGetIsBindingVisible GetIsBindingVisible;
 	FOnGetIsTrackVisible GetIsTrackVisible;
 	FOnGetPlaybackSpeeds GetPlaybackSpeeds;

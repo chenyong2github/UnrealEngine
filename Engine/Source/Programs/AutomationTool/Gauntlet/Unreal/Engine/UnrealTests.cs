@@ -70,11 +70,11 @@ namespace Gauntlet
 			{
 				List<string> AllErrors = base.GetErrors().ToList();
 
-				foreach (var Artifact in GetArtifactsWithFailures())
+				foreach (var Role in GetRolesThatFailed())
 				{
-					if (Artifact.SessionRole.RoleType == UnrealTargetRole.Editor)
+					if (Role.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
 					{
-						AutomationLogParser Parser = new AutomationLogParser(Artifact.LogParser);
+						AutomationLogParser Parser = new AutomationLogParser(Role.LogSummary.FullLogContent);
 						AllErrors.AddRange(
 							Parser.GetResults().Where(R => !R.Passed)
 							.SelectMany(R => R.Events
@@ -201,42 +201,46 @@ namespace Gauntlet
 			}
 
 			/// <summary>
-			/// Parses the provided artifacts to determine the cause of an exit and whether it was abnormal
+			/// Override GetExitCodeAndReason to provide additional checking of success / failure based on what occurred
 			/// </summary>
 			/// <param name="InArtifacts"></param>
-			/// <param name="Reason"></param>
-			/// <param name="WasAbnormal"></param>
+			/// <param name="ExitReason"></param>
 			/// <returns></returns>
-			protected override int GetExitCodeAndReason(UnrealRoleArtifacts InArtifacts, out string ExitReason)
+			protected override UnrealProcessResult GetExitCodeAndReason(StopReason InReason, UnrealLog InLog, UnrealRoleArtifacts InArtifacts, out string ExitReason, out int ExitCode)
 			{
-				int ExitCode = base.GetExitCodeAndReason(InArtifacts, out ExitReason);
+				UnrealProcessResult UnrealResult = base.GetExitCodeAndReason(InReason, InLog, InArtifacts, out ExitReason, out ExitCode);
 
-				if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
+				// The editor is an additional arbiter of success
+				if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor
+					&& InLog.HasAbnormalExit == false)
 				{
 					// if no fatal errors, check test results
-					if (InArtifacts.LogParser.GetFatalError() == null)
+					if (InLog.FatalError == null)
 					{
-						AutomationLogParser Parser = new AutomationLogParser(InArtifacts.LogParser);
+						AutomationLogParser Parser = new AutomationLogParser(InLog.FullLogContent);
 
 						IEnumerable<AutomationTestResult> TotalTests = Parser.GetResults();
 						IEnumerable<AutomationTestResult> FailedTests = TotalTests.Where(R => !R.Passed);
 
+						// Tests failed so list that as our primary cause of failure
 						if (FailedTests.Any())
 						{
-							ExitReason = string.Format("{0}/{1} tests failed", FailedTests.Count(), TotalTests.Count());
+							ExitReason = string.Format("{0} of {1} test(s) failed", FailedTests.Count(), TotalTests.Count());
 							ExitCode = -1;
+							return UnrealProcessResult.TestFailure;
 						}
 
-						// Warn if no tests were run
+						// If no tests were run then that's a failure (possibly a bad RunTest argument?)
 						if (!TotalTests.Any())
 						{
 							ExitReason = "No tests were executed!";
 							ExitCode = -1;
+							return UnrealProcessResult.TestFailure;
 						}
 					}
 				}
 
-				return ExitCode;
+				return UnrealResult;
 			}
 
 			/// <summary>
@@ -247,11 +251,11 @@ namespace Gauntlet
 			{
 				MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
 
-				var EditorArtifacts = SessionArtifacts.Where(A => A.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
+				var EditorRole = RoleResults.Where(R => R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
 
-				if (EditorArtifacts != null)
+				if (EditorRole != null)
 				{
-					AutomationLogParser Parser = new AutomationLogParser(EditorArtifacts.LogParser);
+					AutomationLogParser Parser = new AutomationLogParser(EditorRole.LogSummary.FullLogContent);
 
 					IEnumerable<AutomationTestResult> AllTests = Parser.GetResults();
 					IEnumerable<AutomationTestResult> FailedTests = AllTests.Where(R => R.Completed && !R.Passed);

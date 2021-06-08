@@ -81,6 +81,68 @@ void FLatentActionManager::BeginFrame()
 	}
 }
 
+#ifndef LATENT_ACTION_PROFILING_ENABLED
+#define LATENT_ACTION_PROFILING_ENABLED 0
+#endif
+
+#if LATENT_ACTION_PROFILING_ENABLED
+static float GLatentActionDurationLoggingThreshold = 0.005f;
+static FAutoConsoleVariableRef CVarLatentActionDurationLoggingThreshold(
+	TEXT("LatentActionDurationLoggingThreshold"),
+	GLatentActionDurationLoggingThreshold,
+	TEXT("Duration in seconds at which we will log information about what took time in FLatentActionManager::ProcessLatentActions()."),
+	ECVF_Default
+);
+
+struct FLatentActionStat
+{
+	FLatentActionStat(FName InObjectName, FName InClassName, double InDuration)
+		: ObjectName(InObjectName)
+		, ClassName(InClassName)
+		, Duration(InDuration)
+	{
+	}
+
+	FName ObjectName = NAME_None;
+	FName ClassName = NAME_None;
+	double Duration = 0.0;
+	// TODO: Is it possible to get the action name also?
+};
+static TArray<FLatentActionStat> GLatentActionStats;
+
+struct FScopedLatentActionTimer
+{
+	FScopedLatentActionTimer(UObject* InObject)
+	{
+		UClass* ObjectClass = nullptr;
+		if (InObject)
+		{
+			ObjectName = InObject->GetFName();
+			ObjectClass = InObject->GetClass();
+		}
+		else
+		{
+			ObjectName = NAME_None;
+		}
+
+		ClassName = ObjectClass ? ObjectClass->GetFName() : NAME_None;
+
+		StartTime = FPlatformTime::Seconds();
+	}
+
+	~FScopedLatentActionTimer()
+	{
+		const double EndTime = FPlatformTime::Seconds();
+		const double Duration = EndTime - StartTime;
+		GLatentActionStats.Emplace(ObjectName, ClassName, Duration);
+	}
+
+	FName ObjectName = NAME_None;
+	FName ClassName = NAME_None;
+	double StartTime = 0.0;
+};
+#endif // LATENT_ACTION_PROFILING_ENABLED
+
 void FLatentActionManager::ProcessLatentActions(UObject* InObject, float DeltaTime)
 {
 	SCOPE_CYCLE_COUNTER(STAT_TickLatentActions);
@@ -89,6 +151,11 @@ void FLatentActionManager::ProcessLatentActions(UObject* InObject, float DeltaTi
 	{
 		return;
 	}
+
+#if LATENT_ACTION_PROFILING_ENABLED
+	GLatentActionStats.Reset();
+	const double StartTime = FPlatformTime::Seconds();
+#endif // LATENT_ACTION_PROFILING_ENABLED
 
 	for (FActionsForObject::TIterator It(ActionsToRemoveMap); It; ++It)
 	{
@@ -120,6 +187,10 @@ void FLatentActionManager::ProcessLatentActions(UObject* InObject, float DeltaTi
 		{
 			if (!ObjectActions->bProcessedThisFrame)
 			{
+#if LATENT_ACTION_PROFILING_ENABLED
+				FScopedLatentActionTimer Timer(InObject);
+#endif // LATENT_ACTION_PROFILING_ENABLED
+
 				TickLatentActionForObject(DeltaTime, ObjectActions->ActionList, InObject);
 				ObjectActions->bProcessedThisFrame = true;
 			}
@@ -140,6 +211,9 @@ void FLatentActionManager::ProcessLatentActions(UObject* InObject, float DeltaTi
 				// Tick all outstanding actions for this object
 				if (!ObjectActions->bProcessedThisFrame && ObjectActionList.Num() > 0)
 				{
+#if LATENT_ACTION_PROFILING_ENABLED
+					FScopedLatentActionTimer Timer(Object);
+#endif // LATENT_ACTION_PROFILING_ENABLED
 					TickLatentActionForObject(DeltaTime, ObjectActionList, Object);
 					ensure(ObjectActions == ObjIt.Value().Get());
 					ObjectActions->bProcessedThisFrame = true;
@@ -166,6 +240,20 @@ void FLatentActionManager::ProcessLatentActions(UObject* InObject, float DeltaTi
 			}
 		}
 	}
+
+#if LATENT_ACTION_PROFILING_ENABLED
+	const double EndTime = FPlatformTime::Seconds();
+	const double Duration = EndTime - StartTime;
+	if (GLatentActionDurationLoggingThreshold > 0.0 && Duration >= GLatentActionDurationLoggingThreshold)
+	{
+		GLatentActionStats.Sort([](const auto& Lhs, const auto& Rhs) { return Lhs.Duration > Rhs.Duration; });
+
+		for (int32 i = 0; i < GLatentActionStats.Num(); ++i)
+		{
+			UE_LOG(LogScript, Warning, TEXT("Class = %s, Object = %s, Duration = %f ms"), *GLatentActionStats[i].ClassName.ToString(), *GLatentActionStats[i].ObjectName.ToString(), GLatentActionStats[i].Duration * 1000.0);
+		}
+	}
+#endif // LATENT_ACTION_PROFILING_ENABLED
 }
 
 void FLatentActionManager::TickLatentActionForObject(float DeltaTime, FActionList& ObjectActionList, UObject* InObject)

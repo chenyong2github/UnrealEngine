@@ -80,7 +80,7 @@ class IDMXPixelMappingRenderer
 	: public TSharedFromThis<IDMXPixelMappingRenderer>
 {
 public:
-	using DownsampleReadCallback = TFunction<void(TArray<FColor>&&, FIntRect)>;
+	using DownsampleReadCallback = TFunction<void(TArray<FLinearColor>&&, FIntRect)>;
 
 public:
 	/** Virtual destructor */

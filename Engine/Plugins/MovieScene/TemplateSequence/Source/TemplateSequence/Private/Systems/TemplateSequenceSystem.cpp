@@ -14,6 +14,7 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "Sections/TemplateSequenceSection.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
+#include "Systems/MovieSceneBaseValueEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
 #include "TemplateSequence.h"
 #include "TemplateSequenceComponentTypes.h"
@@ -262,7 +263,8 @@ UTemplateSequencePropertyScalingEvaluatorSystem::UTemplateSequencePropertyScalin
 		// We need to wait until float channels have evaluated (both the values that we're going to multiply, and the
 		// channel of the scale multiplier itself).
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
-		// We need to act multiply values before they are blended together with other values we shouldn't touch.
+		DefineImplicitPrerequisite(UMovieSceneBaseValueEvaluatorSystem::StaticClass(), GetClass());
+		// We need to multiply values before they are blended together with other values we shouldn't touch.
 		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseFloatBlenderSystem::StaticClass());
 		// We need this component to lookup the binding GUID for an entity, so we know what scaling to apply to it.
 		DefineComponentConsumer(GetClass(), BuiltInComponents->BoundObject);
@@ -271,18 +273,46 @@ UTemplateSequencePropertyScalingEvaluatorSystem::UTemplateSequencePropertyScalin
 
 void UTemplateSequencePropertyScalingEvaluatorSystem::AddPropertyScale(const FPropertyScaleKey& Key, const FPropertyScaleValue& Value)
 {
-	PropertyScales.Add(Key, Value);
+	FMultiPropertyScaleValue& MultiValue = PropertyScales.FindOrAdd(Key);
+
+	// In most cases there's only 1 multiplier for a given property, but there can be 2 multipliers in the case of 
+	// a location + rotation scale on a transform property.
+	if (ensure(MultiValue.Values.Num() < 2))
+	{
+		MultiValue.Values.Add(Value);
+	}
 }
 
-const UTemplateSequencePropertyScalingEvaluatorSystem::FPropertyScaleValue* UTemplateSequencePropertyScalingEvaluatorSystem::FindPropertyScale(const FPropertyScaleKey& Key)
+void UTemplateSequencePropertyScalingEvaluatorSystem::FindPropertyScales(const FPropertyScaleKey& Key, FPropertyScaleValueArray& OutValues) const
 {
-	return PropertyScales.Find(Key);
+	if (const FMultiPropertyScaleValue* MultiValue = PropertyScales.Find(Key))
+	{
+		ensure(MultiValue->Values.Num() <= 2);
+		OutValues.Append(MultiValue->Values);
+	}
 }
 
 namespace UE
 {
 namespace MovieScene
 {
+
+template<typename ValueType, typename WriteAccessor>
+void ScalePropertyValue(float InScale, TReadOptional<ValueType> InBaseValues, WriteAccessor InOutValues, int32 Index)
+{
+	if (InOutValues)
+	{
+		if (InBaseValues)
+		{
+			const float BaseValue = InBaseValues[Index];
+			InOutValues[Index] = (InOutValues[Index] - BaseValue) * InScale + BaseValue;
+		}
+		else
+		{
+			InOutValues[Index] *= InScale;
+		}
+	}
+}
 
 struct FGatherPropertyScales
 {
@@ -331,6 +361,8 @@ struct FScaleTransformProperties
 			TRead<FInstanceHandle> InstanceHandles,
 			TRead<FMovieScenePropertyBinding> PropertyBindings,
 			TRead<FGuid> ReverseBindingLookups,
+			TReadOptional<float> BaseLocationXs, TReadOptional<float> BaseLocationYs, TReadOptional<float> BaseLocationZs,
+			TReadOptional<float> BaseRotationXs, TReadOptional<float> BaseRotationYs, TReadOptional<float> BaseRotationZs,
 			TWriteOptional<float> LocationXs, TWriteOptional<FSourceFloatChannelFlags> LocationXFlags,
 			TWriteOptional<float> LocationYs, TWriteOptional<FSourceFloatChannelFlags> LocationYFlags,
 			TWriteOptional<float> LocationZs, TWriteOptional<FSourceFloatChannelFlags> LocationZFlags,
@@ -345,18 +377,20 @@ struct FScaleTransformProperties
 			const FGuid ObjectBindingID = ReverseBindingLookups[Index];
 			ensure(ObjectBindingID.IsValid());
 
-			const UEvaluatorSystem::FPropertyScaleValue* TransformScale = EvaluatorSystem->FindPropertyScale(
-					UEvaluatorSystem::FPropertyScaleKey { InstanceHandle, ObjectBindingID, PropertyBinding.PropertyPath });
-			if (TransformScale != nullptr)
+			UEvaluatorSystem::FPropertyScaleValueArray TransformScales;
+			EvaluatorSystem->FindPropertyScales(
+					UEvaluatorSystem::FPropertyScaleKey { InstanceHandle, ObjectBindingID, PropertyBinding.PropertyPath },
+					TransformScales);
+			for (const UEvaluatorSystem::FPropertyScaleValue& TransformScale : TransformScales)
 			{
-				const float ScaleFactor = TransformScale->Get<1>();
+				const float ScaleFactor = TransformScale.Get<1>();
 
-				switch (TransformScale->Get<0>())
+				switch (TransformScale.Get<0>())
 				{
 					case ETemplateSectionPropertyScaleType::TransformPropertyLocationOnly:
-						if (LocationXs) LocationXs[Index] *= ScaleFactor;
-						if (LocationYs) LocationYs[Index] *= ScaleFactor;
-						if (LocationZs) LocationZs[Index] *= ScaleFactor;
+						ScalePropertyValue(ScaleFactor, BaseLocationXs, LocationXs, Index);
+						ScalePropertyValue(ScaleFactor, BaseLocationYs, LocationYs, Index);
+						ScalePropertyValue(ScaleFactor, BaseLocationZs, LocationZs, Index);
 
 						// We set the source channel to force re-evaluating next frame because we want it to be
 						// reset to its unscaled value... otherwise we will start accumulating multipliers quickly!
@@ -366,9 +400,9 @@ struct FScaleTransformProperties
 						break;
 
 					case ETemplateSectionPropertyScaleType::TransformPropertyRotationOnly:
-						if (RotationXs) RotationXs[Index] *= ScaleFactor;
-						if (RotationYs) RotationYs[Index] *= ScaleFactor;
-						if (RotationZs) RotationZs[Index] *= ScaleFactor;
+						ScalePropertyValue(ScaleFactor, BaseRotationXs, RotationXs, Index);
+						ScalePropertyValue(ScaleFactor, BaseRotationYs, RotationYs, Index);
+						ScalePropertyValue(ScaleFactor, BaseRotationZs, RotationZs, Index);
 
 						// See comment above.
 						if (RotationXFlags) RotationXFlags[Index].bNeedsEvaluate = true;
@@ -397,28 +431,40 @@ struct FScaleFloatProperties
 		check(InEvaluatorSystem);
 	}
 
-	void ForEachEntity(
-			const FInstanceHandle& InstanceHandle,
-			const FMovieScenePropertyBinding& PropertyBinding,
-			const FGuid ReverseLookupBinding,
-			float& PropertyValue,
-			FSourceFloatChannelFlags& PropertyFlags)
+	void ForEachAllocation(
+			FEntityAllocation* Allocation,
+			TRead<FInstanceHandle> InstanceHandles,
+			TRead<FMovieScenePropertyBinding> PropertyBindings,
+			TRead<FGuid> ReverseBindingLookups,
+			TReadOptional<float> BasePropertyValues,
+			TWrite<float> PropertyValues,
+			TWrite<FSourceFloatChannelFlags> PropertyFlags)
 	{
-		const UEvaluatorSystem::FPropertyScaleValue* PropertyScale = EvaluatorSystem->FindPropertyScale(
-				UEvaluatorSystem::FPropertyScaleKey { InstanceHandle, ReverseLookupBinding, PropertyBinding.PropertyPath });
-		if (PropertyScale != nullptr)
+		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
-			const float ScaleFactor = PropertyScale->Get<1>();
-			switch (PropertyScale->Get<0>())
+			const FInstanceHandle InstanceHandle = InstanceHandles[Index];
+			const FMovieScenePropertyBinding& PropertyBinding = PropertyBindings[Index];
+			const FGuid ObjectBindingID = ReverseBindingLookups[Index];
+			ensure(ObjectBindingID.IsValid());
+
+			UEvaluatorSystem::FPropertyScaleValueArray PropertyScales;
+			EvaluatorSystem->FindPropertyScales(
+					UEvaluatorSystem::FPropertyScaleKey { InstanceHandle, ObjectBindingID, PropertyBinding.PropertyPath },
+					PropertyScales);
+			for (const UEvaluatorSystem::FPropertyScaleValue& PropertyScale : PropertyScales)
 			{
-				case ETemplateSectionPropertyScaleType::FloatProperty:
-					PropertyValue *= ScaleFactor;
-					// See comment for the similar code in Step 2.
-					PropertyFlags.bNeedsEvaluate = true;
-					break;
-				default:
-					ensureMsgf(false, TEXT("Unsupported or invalid float property scale type."));
-					break;
+				const float ScaleFactor = PropertyScale.Get<1>();
+				switch (PropertyScale.Get<0>())
+				{
+					case ETemplateSectionPropertyScaleType::FloatProperty:
+						ScalePropertyValue(ScaleFactor, BasePropertyValues, PropertyValues, Index);
+						// See comment for the similar code in FScaleTransformProperties.
+						PropertyFlags[Index].bNeedsEvaluate = true;
+						break;
+					default:
+						ensureMsgf(false, TEXT("Unsupported or invalid float property scale type."));
+						break;
+				}
 			}
 		}
 	}
@@ -437,6 +483,9 @@ void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequis
 
 	const FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 	const UTemplateSequencePropertyScalingInstantiatorSystem* InstantiatorSystem = Linker->FindSystem<UTemplateSequencePropertyScalingInstantiatorSystem>();
+
+	// Step 0: Clear our map of property scales from last frame.
+	PropertyScales.Reset();
 
 	// Step 1: We are going to look for all entities that describe an active property scale, pick up its up-to-date (evaluated)
 	// scale value (which was evaluated by the float channel evaluator), and build a map that tells us:
@@ -461,6 +510,12 @@ void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequis
 			.Read(BuiltInComponents->InstanceHandle)
 			.Read(BuiltInComponents->PropertyBinding)
 			.Read(TemplateSequenceComponents->PropertyScaleReverseBindingLookup)
+			.ReadOptional(BuiltInComponents->BaseFloat[0])
+			.ReadOptional(BuiltInComponents->BaseFloat[1])
+			.ReadOptional(BuiltInComponents->BaseFloat[2])
+			.ReadOptional(BuiltInComponents->BaseFloat[3])
+			.ReadOptional(BuiltInComponents->BaseFloat[4])
+			.ReadOptional(BuiltInComponents->BaseFloat[5])
 			.WriteOptional(BuiltInComponents->FloatResult[0])
 			.WriteOptional(BuiltInComponents->FloatChannelFlags[0])
 			.WriteOptional(BuiltInComponents->FloatResult[1])
@@ -484,10 +539,11 @@ void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequis
 			.Read(BuiltInComponents->InstanceHandle)
 			.Read(BuiltInComponents->PropertyBinding)
 			.Read(TemplateSequenceComponents->PropertyScaleReverseBindingLookup)
+			.ReadOptional(BuiltInComponents->BaseFloat[0])
 			.Write(BuiltInComponents->FloatResult[0])
 			.Write(BuiltInComponents->FloatChannelFlags[0])
 			.FilterAll({ TrackComponents->Float.PropertyTag })
-			.Dispatch_PerEntity<FScaleFloatProperties>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
+			.Dispatch_PerAllocation<FScaleFloatProperties>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
 	}
 }
 

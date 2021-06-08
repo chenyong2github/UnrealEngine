@@ -235,6 +235,51 @@ UDisplayClusterConfigurationData* ADisplayClusterRootActor::GetConfigData() cons
 	return CurrentConfigData;
 }
 
+bool ADisplayClusterRootActor::IsInnerFrustumEnabled(const FString& InnerFrustumID) const
+{
+	if (EnableInnerFrustum)
+	{
+		// add more GUI rules here
+		return true;
+	}
+
+	return false;
+}
+
+int ADisplayClusterRootActor::GetInnerFrustumPriority(const FString& InnerFrustumID) const
+{
+	int Order = 100000;
+	for (const FDisplayClusterComponentRef& It : InnerFrustumPriority)
+	{
+		if (It.Name.Compare(InnerFrustumID, ESearchCase::IgnoreCase) == 0)
+		{
+			return Order;
+		}
+		Order--;
+	}
+
+	return -1;
+}
+
+const FOpenColorIODisplayConfiguration* ADisplayClusterRootActor::GetViewportOCIO(const FString& ViewportID) const
+{
+	if (bEnableOuterViewportOCIO)
+	{
+		for (const FDisplayClusterConfigurationOCIOProfile& ConfigurationOCIOProfileIt : OuterViewportOCIOConfigurations)
+		{
+			for (const FString& ObjectIt : ConfigurationOCIOProfileIt.ApplyOCIOToObjects)
+			{
+				if (ObjectIt.Equals(ViewportID, ESearchCase::IgnoreCase))
+				{
+					return &ConfigurationOCIOProfileIt.OCIOConfiguration;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 template <typename TComp>
 void ImplCollectChildrenVisualizationComponent(TSet<FPrimitiveComponentId>& OutPrimitives, TComp* pComp)
 {
@@ -480,6 +525,14 @@ bool ADisplayClusterRootActor::BuildHierarchy()
 			SetDefaultCamera(DefaultCamId);
 		}
 	}
+	else
+	{
+		// Default camera must be defined
+		if (GetDefaultCamera() == nullptr)
+		{
+			bHasRerunConstructionScripts = true;
+		}
+	}
 
 	// Only check for the default camera if the construction scripts have been run, since camera components created in the blueprint editor
 	// won't have been created before then
@@ -594,6 +647,9 @@ void ADisplayClusterRootActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 {
+	// Update saved DeltaSeconds for root actor
+	LastDeltaSecondsValue = DeltaSeconds;
+
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Editor)
 	{
@@ -749,7 +805,19 @@ void ADisplayClusterRootActor::GetAllCameras(TMap<FString, UDisplayClusterCamera
 
 UDisplayClusterCameraComponent* ADisplayClusterRootActor::GetDefaultCamera() const
 {
-	return Cast<UDisplayClusterCameraComponent>(DefaultCameraComponent.GetOrFindSceneComponent());
+	check(IsInGameThread());
+
+	FScopeLock Lock(&InternalsSyncScope);
+
+	USceneComponent* SceneComponent = DefaultCameraComponent.GetOrFindSceneComponent();
+	if (SceneComponent)
+	{
+		UDisplayClusterCameraComponent* CameraComponent = static_cast<UDisplayClusterCameraComponent*>(SceneComponent);
+
+		return CameraComponent;
+	}
+
+	return nullptr;
 }
 
 void ADisplayClusterRootActor::SetDefaultCamera(const FString& CameraId)

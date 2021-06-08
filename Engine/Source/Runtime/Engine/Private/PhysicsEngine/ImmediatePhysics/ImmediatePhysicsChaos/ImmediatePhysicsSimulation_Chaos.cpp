@@ -64,7 +64,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysFixedStepTolerance(TEXT("p.Chaos.ImmPhys
 
 int32 ChaosImmediate_Collision_Enabled = 1;
 int32 ChaosImmediate_Collision_PairIterations = -1;
-int32 ChaosImmediate_Collision_PushOutPairIterations = 0;	// Force disabled - not compatible with ECollisionApplyType::Position
+int32 ChaosImmediate_Collision_PushOutPairIterations = 0;	// Force disabled - not compatible with EConstraintSolverType::StandardPbd
 int32 ChaosImmediate_Collision_Priority = 1;
 Chaos::FRealSingle ChaosImmediate_Collision_CullDistance = 1.0f;
 Chaos::FRealSingle ChaosImmediate_Collision_RestitutionThresholdMultiplier = 3.0f;
@@ -128,10 +128,10 @@ FAutoConsoleVariableRef CVarChaosImmPhysJointMaxInertiaRatio(TEXT("p.Chaos.ImmPh
 
 
 //
-// Even more temp that the above...
+// Select the solver technique to use until we settle on the final one...
 //
-int32 ChaosImmediate_UsePositionSolver = 1;
-FAutoConsoleVariableRef CVarChaosImmPhysUsePositionSolver(TEXT("p.Chaos.ImmPhys.UsePositionSolver"), ChaosImmediate_UsePositionSolver, TEXT("Use position based collision solver for Immediate Physics (default true)"));
+int32 ChaosImmediate_SolverType = (int32)Chaos::EConstraintSolverType::StandardPbd;
+FAutoConsoleVariableRef CVarChaosImmPhysSolverType(TEXT("p.Chaos.ImmPhys.SolverType"), ChaosImmediate_SolverType, TEXT("0 = None; 1 = GbfPbd; 2 = Pbd; 3 = QuasiPbd"));
 
 //
 // end remove when finished
@@ -307,7 +307,7 @@ namespace ImmediatePhysics_Chaos
 
 		// RBAN collision customization
 		Implementation->Collisions.DisableHandles();
-		Implementation->Collisions.SetApplyType(ECollisionApplyType::Position);
+		Implementation->Collisions.SetSolverType(EConstraintSolverType::StandardPbd);
 		Implementation->NarrowPhase.GetContext().bFilteringEnabled = false;
 		Implementation->NarrowPhase.GetContext().bDeferUpdate = true;
 		Implementation->NarrowPhase.GetContext().bAllowManifolds = false;
@@ -806,14 +806,9 @@ namespace ImmediatePhysics_Chaos
 			Implementation->NarrowPhase.GetContext().bDeferUpdate = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
 			Implementation->NarrowPhase.GetContext().bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
 
-			if (ChaosImmediate_UsePositionSolver)
-			{
-				Implementation->Collisions.SetApplyType(ECollisionApplyType::Position);
-			}
-			else
-			{
-				Implementation->Collisions.SetApplyType(ECollisionApplyType::Velocity);
-			}
+			Implementation->Collisions.SetSolverType((EConstraintSolverType)ChaosImmediate_SolverType);
+			// @todo(chaos): implement solver type switching for joints
+			//Implementation->Joints.SetSolverType((EConstraintSolverType)ChaosImmediate_SolverType);
 
 			if (ChaosImmediate_Evolution_StepTime > 0)
 			{

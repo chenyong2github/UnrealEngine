@@ -334,43 +334,79 @@ class FSyncData::FCamera : public FSyncData::FActor
 class FSyncData::FLight : public FSyncData::FActor
 {
   public:
+	class FLightGDLParameters
+	{
+	  public:
+		FLightGDLParameters();
+		FLightGDLParameters(const API_Guid& InLightGuid);
+
+		bool operator!=(const FLightGDLParameters& InOther) const;
+
+		enum EC4dDetAreaShape
+		{
+			kNoShape = 0,
+			kDisc,
+			kRectangle,
+			kSphere,
+			kCylinder,
+			kCube,
+			kHemisphere,
+			kLine,
+			kPerpendicularCylinder
+		};
+
+		ModelerAPI::Color	 GS_Color;
+		unsigned char		 ColorComponentCount = 0;
+		double				 Intensity = 1.0;
+		bool				 bUsePhotometric = false;
+		EDatasmithLightUnits Units = EDatasmithLightUnits::Unitless;
+		double				 DetRadius = 0.0; // Meter
+		GS::UniString		 IESFileName;
+		bool				 bIsAreaLight = false;
+		EC4dDetAreaShape	 AreaShape = kNoShape;
+		Geometry::Vector3D	 AreaSize = {};
+		double				 WindowLightAngle = 0.0;
+		double				 SunAzimuthAngle = 0.0;
+		double				 SunAltitudeAngle = 0.0;
+		bool				 bIsParallelLight = false;
+		bool				 bGenShadow = false;
+	};
+
+	class FLightData
+	{
+	  public:
+		FLightData();
+		FLightData(const ModelerAPI::Light& InLight);
+		bool operator!=(const FLightData& InOther) const;
+
+		ModelerAPI::Light::Type LightType = ModelerAPI::Light::Type::UndefinedLight;
+		float					InnerConeAngle = 15.0;
+		float					OuterConeAngle = 75.0;
+		FLinearColor			Color = FLinearColor::White;
+		FVector					Position = FVector::ZeroVector;
+		FQuat					Rotation = FQuat::Identity;
+	};
+
 	FLight(const GS::Guid& InGuid, GS::Int32 InIndex)
 		: FSyncData::FActor(InGuid)
 		, Index(InIndex)
 	{
 	}
 
-	void SetValues(ModelerAPI::Light::Type InType, float InInnerConeAngle, float InOuterConeAngle,
-				   const FLinearColor& InColor)
+	void SetLightData(const FLightData& InLightData)
 	{
-		if (Type != InType || InnerConeAngle != InInnerConeAngle || OuterConeAngle != InOuterConeAngle ||
-			Color != InColor)
+		if (LightData != InLightData)
 		{
-			Type = InType;
-			InnerConeAngle = InInnerConeAngle;
-			OuterConeAngle = InOuterConeAngle;
-			Color = InColor;
+			LightData = InLightData;
 			bIsModified = true;
 		}
 	}
 
-	void SetValuesFromParameters(double InIntensity, bool bInUseIES, const GS::UniString& InIESFileName)
+	void SetValuesFromParameters(const FLightGDLParameters& InParameters)
 	{
-		if (Intensity != InIntensity || bUseIES != bInUseIES || IESFileName != InIESFileName)
+		if (Parameters != InParameters)
 		{
-			Intensity = InIntensity;
-			bUseIES = bInUseIES;
-			IESFileName = InIESFileName;
-			bIsModified = true;
-		}
-	}
-
-	void Placement(const FVector& InPosition, const FQuat& InRotation)
-	{
-		if (Position != InPosition || Rotation != InRotation)
-		{
-			Position = InPosition;
-			Rotation = InRotation;
+			Parameters = InParameters;
 			bIsModified = true;
 		}
 	}
@@ -378,16 +414,9 @@ class FSyncData::FLight : public FSyncData::FActor
   protected:
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
 
-	GS::Int32				Index;
-	ModelerAPI::Light::Type Type;
-	float					InnerConeAngle;
-	float					OuterConeAngle;
-	FLinearColor			Color;
-	FVector					Position;
-	FQuat					Rotation;
-	double					Intensity;
-	bool					bUseIES;
-	GS::UniString			IESFileName;
+	GS::Int32			Index;
+	FLightGDLParameters Parameters;
+	FLightData			LightData;
 };
 
 class FSyncData::FHotLinksRoot : public FSyncData::FActor

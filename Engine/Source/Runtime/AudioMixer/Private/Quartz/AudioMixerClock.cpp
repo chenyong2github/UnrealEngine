@@ -329,6 +329,23 @@ namespace Audio
 		return bIsRunning;
 	}
 
+	float FQuartzClock::GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier)
+	{
+		// if this is unquantized, return 0
+		if (QuantizationType == EQuartzCommandQuantization::None)
+		{
+			return 0;
+		}
+
+		FQuartzClockTickRate TickRate = Metronome.GetTickRate();
+
+		// get number of frames until the relevant quantization event
+		int64 FramesUntilExec = TickRate.GetFramesPerDuration(QuantizationType);
+
+		//Translate frames to seconds
+		return (FramesUntilExec * Multiplier) / TickRate.GetSampleRate();
+	}
+
 	FMixerDevice* FQuartzClock::GetMixerDevice()
 	{
 		checkSlow(OwningClockManagerPtr);

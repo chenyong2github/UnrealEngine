@@ -140,6 +140,7 @@ protected:
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
+	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//~ End UObject Interface
 
 	//~ Begin UActorComponent Interface

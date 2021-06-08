@@ -16,6 +16,9 @@ class IDetailPropertyExtensionHandler;
 class IDetailRootObjectCustomization;
 class IPropertyTypeIdentifier;
 class FDetailsViewObjectFilter;
+class FComplexPropertyNode;
+
+typedef TArray<TSharedPtr<FComplexPropertyNode>> FRootPropertyNodeList;
 
 enum class EEditDefaultsOnlyNodeVisibility : uint8
 {
@@ -27,6 +30,7 @@ enum class EEditDefaultsOnlyNodeVisibility : uint8
 	Automatic,
 };
 
+DECLARE_DELEGATE_RetVal_OneParam(bool, FOnValidateDetailsViewPropertyNodes, const FRootPropertyNodeList&)
 
 /**
  * Init params for a details view widget
@@ -390,4 +394,10 @@ public:
 	virtual void SetCustomFilterDelegate(FSimpleDelegate InDelegate) = 0;
 
 	virtual void SetCustomFilterLabel(FText InText) = 0;
+
+		/* Use this function to set a callback for SDetailsView that will skip the EnsureDataIsValid call in Tick.
+	 * This is useful if your implementation doesn't need to validate nodes every tick or needs to perform some other form of validation. */
+	virtual void SetCustomValidatePropertyNodesFunction(FOnValidateDetailsViewPropertyNodes InCustomValidatePropertyNodesFunction) = 0;
+
+
 };

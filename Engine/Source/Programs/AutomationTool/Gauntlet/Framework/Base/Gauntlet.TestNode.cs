@@ -39,6 +39,15 @@ namespace Gauntlet
 	};
 
 	/// <summary>
+	/// Describes why a test is stopping
+	/// </summary>
+	public enum StopReason
+	{
+		Completed,				// Test reported itself as complete so we're asking it to stop
+		MaxDuration,			// Test reached a maximum running time
+	};
+
+	/// <summary>
 	/// Describes the priority of test. 
 	/// </summary>
 	public enum TestPriority
@@ -122,7 +131,7 @@ namespace Gauntlet
 		/// Tests should consider whether they passed or succeeded (even a terminated test may have gotten all the data it needs) 
 		/// and set their result appropriately.
 		/// </summary>
-		void StopTest(bool WasCancelled);
+		void StopTest(StopReason InReason);
 
 		/// <summary>
 		/// Allows the node to restart with the same assigned devices. Only called if the expresses 

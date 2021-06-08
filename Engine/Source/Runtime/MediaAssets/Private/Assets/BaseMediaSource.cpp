@@ -141,7 +141,7 @@ void UBaseMediaSource::Serialize(FArchive& Ar)
 
 					Ar << PlatformGuidPlayers;
 				}
-				else
+				else if(Ar.IsLoading())
 				{
 					Ar << PlatformGuidPlayers;
 

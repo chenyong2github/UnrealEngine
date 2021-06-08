@@ -33,7 +33,7 @@ struct FWaterBodyHeightmapSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TerrainCarvingSettings)
 	EWaterBrushBlendType BlendMode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TerrainCarvingSettings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = TerrainCarvingSettings)
 	bool bInvertShape;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TerrainCarvingSettings)
@@ -42,6 +42,6 @@ struct FWaterBodyHeightmapSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TerrainCarvingSettings)
 	FWaterBrushEffects Effects;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TerrainCarvingSettings)
-	int32 Priority;
+	UPROPERTY()
+	int32 Priority_DEPRECATED = 0;
 };

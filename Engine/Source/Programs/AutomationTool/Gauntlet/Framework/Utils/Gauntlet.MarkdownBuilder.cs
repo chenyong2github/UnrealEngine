@@ -132,7 +132,7 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="Text"></param>
 		/// <returns></returns>
-		public MarkdownBuilder HorizontalLine(int Count=40)
+		public MarkdownBuilder HorizontalLine(int Count=80)
 		{
 			EnsureEndsWithNewLine();
 			for (int i = 0; i < Count; i++)

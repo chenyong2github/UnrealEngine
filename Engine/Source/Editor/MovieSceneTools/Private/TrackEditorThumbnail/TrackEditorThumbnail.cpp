@@ -66,6 +66,7 @@ FTrackEditorThumbnail::FTrackEditorThumbnail(const FOnThumbnailDraw& InOnDraw, c
 {
 	SortOrder = 0;
 	bIgnoreAlpha = false;
+	bHasLatentDestroy = false;
 }
 
 
@@ -104,8 +105,24 @@ void FTrackEditorThumbnail::AssignFrom(TSharedRef<FSlateTextureData, ESPMode::Th
 }
 
 
+void FTrackEditorThumbnail::DestroyTexture_Latent()
+{
+	// UE-114425: Defer the destroy until the next tick to work around the RHI getting destroyed before the render command completes.
+	bHasLatentDestroy = true;
+	GEditor->GetTimerManager()->SetTimerForNextTick([this]()
+	{
+		bHasLatentDestroy = false;
+		DestroyTexture();
+	});
+}
+
 void FTrackEditorThumbnail::DestroyTexture()
 {
+	if (bHasLatentDestroy)
+	{
+		return;
+	}
+
 	if (ThumbnailRenderTarget || ThumbnailTexture)
 	{
 		FSlateTexture2DRHIRef*               InThumbnailTexture      = ThumbnailTexture;

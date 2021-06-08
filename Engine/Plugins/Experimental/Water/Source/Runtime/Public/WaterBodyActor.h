@@ -294,6 +294,9 @@ public:
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (EditCondition = "bGenerateCollisions", DisplayAfter = "WaterMaterial"))
 	UMaterialInterface* UnderwaterPostProcessMaterial;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Rendering)
+	float ShapeDilation = 4096.0f;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FLandmassTerrainCarvingSettings TerrainCarvingSettings_DEPRECATED;

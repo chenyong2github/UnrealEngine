@@ -2,6 +2,7 @@
 
 #include "Commandlets/NiagaraSystemAuditCommandlet.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -12,6 +13,7 @@
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
+#include "FileHelpers.h"
 
 #include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
@@ -54,6 +56,27 @@ int32 UNiagaraSystemAuditCommandlet::Main(const FString& Params)
 				else
 				{
 					UE_LOG(LogNiagaraSystemAuditCommandlet, Warning, TEXT("DataInterace %s was not found so will not be searched"), *DIName);
+				}
+			}
+		}
+	}
+
+	// Disable on specific platforms
+	// Example: -run=NiagaraSystemAuditCommandlet -DeviceProfilesToDisableGpu=Mobile
+	{
+		FString DeviceNamesArrayString;
+		if ( FParse::Value(*Params, TEXT("DeviceProfilesToDisableGpu="), DeviceNamesArrayString, false))
+		{
+			TArray<FString> DeviceNamesArray;
+			DeviceNamesArrayString.ParseIntoArray(DeviceNamesArray, TEXT(","));
+
+			for (FString DeviceString : DeviceNamesArray)
+			{
+				FName DeviceName(DeviceString);
+				TObjectPtr<UObject>* DeviceProfile = UDeviceProfileManager::Get().Profiles.FindByPredicate([&](UObject* Device) {return Device->GetFName() == DeviceName; });
+				if (DeviceProfile)
+				{
+					DeviceProfilesToDisableGpu.Add(CastChecked<UDeviceProfile>(*DeviceProfile));
 				}
 			}
 		}
@@ -112,6 +135,8 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 	FString LastPackageName = TEXT("");
 	int32 PackageSwitches = 0;
 	UPackage* CurrentPackage = nullptr;
+	TArray<UPackage*> PackagesToSave;
+
 	for (const FAssetData& AssetIt : AssetList)
 	{
 		const FString SystemName = AssetIt.ObjectPath.ToString();
@@ -163,6 +188,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 		}
 
 		// Iterate over all emitters
+		FString EmittersWithDynamicBounds;
 		bool bHasLights = false;
 		bool bHasEvents = false;
 
@@ -174,8 +200,35 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 				continue;
 			}
 
+			if ( !EmitterHandle.GetIsEnabled() )
+			{
+				continue;
+			}
+
 			if (NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 			{
+				// Optionally disable GPU emitters
+				for (UDeviceProfile* DeviceProfile : DeviceProfilesToDisableGpu)
+				{
+					const int32 DeviceQualityLevelMask = NiagaraEmitter->Platforms.IsEnabledForDeviceProfile(DeviceProfile);
+					if (DeviceQualityLevelMask != 0)
+					{
+						for (int32 iQualityLevel = 0; iQualityLevel < NiagaraSettings->QualityLevels.Num(); ++iQualityLevel)
+						{
+							if ( (DeviceQualityLevelMask & (1 << iQualityLevel)) != 0 )
+							{
+								NiagaraEmitter->Platforms.SetDeviceProfileState(DeviceProfile, iQualityLevel, ENiagaraPlatformSelectionState::Disabled);
+							}
+						}
+
+						PackagesToSave.AddUnique(CurrentPackage);
+						CurrentPackage->SetDirtyFlag(true);
+
+						UE_LOG(LogNiagaraSystemAuditCommandlet, Log, TEXT("Disabling Emitter %s for System %s Device Quality Level Mask 0x%08x"), *GetNameSafe(NiagaraEmitter), *GetNameSafe(NiagaraSystem), DeviceQualityLevelMask);
+					}
+				}
+
+				// Build information to write out
 				TStringBuilder<512> GpuEmitterBuilder;
 				GpuEmitterBuilder.Append(NiagaraEmitter->GetDebugSimName());
 				for (int32 iQualityLevel=0; iQualityLevel < NiagaraSettings->QualityLevels.Num(); ++iQualityLevel)
@@ -191,11 +244,11 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 
 					for (UDeviceProfile* EnabledProfile : EnabledProfiles)
 					{
-						GpuEmitterBuilder.Appendf(TEXT(" +%s"), *EnabledProfile->DeviceType);
+						GpuEmitterBuilder.Appendf(TEXT(" +%s"), *EnabledProfile->GetFName().ToString());
 					}
 					for (UDeviceProfile* DisabledProfile : DisabledProfiles)
 					{
-						GpuEmitterBuilder.Appendf(TEXT(" -%s"), *DisabledProfile->DeviceType);
+						GpuEmitterBuilder.Appendf(TEXT(" -%s"), *DisabledProfile->GetFName().ToString());
 					}
 				}
 
@@ -219,6 +272,11 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 					bHasLights = true;
 				}
 			}
+
+			if ( !NiagaraEmitter->bFixedBounds && !NiagaraSystem->bFixedBounds )
+			{
+				EmittersWithDynamicBounds.Append(NiagaraEmitter->GetDebugSimName());
+			}
 		}
 
 		// Add to different charts we will write out
@@ -236,6 +294,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 		{
 			NiagaraSystemsWithEvents.Add(NiagaraSystem->GetPathName());
 		}
+
 		if (SystemDataInterfacesWihPrereqs.Num() > 0)
 		{
 			FString DataInterfaceNames;
@@ -249,6 +308,12 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 			}
 			NiagaraSystemsWithPrerequisites.Add(FString::Printf(TEXT("%s,%s"), *NiagaraSystem->GetPathName(), *DataInterfaceNames));
 		}
+
+		if ( !EmittersWithDynamicBounds.IsEmpty() )
+		{
+			NiagaraSystemsWithDynamicBounds.Add(EmittersWithDynamicBounds);
+		}
+
 		if (SystemUserDataInterfaces.Num() > 0)
 		{
 			FString DataInterfaceNames;
@@ -262,6 +327,12 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 			}
 			NiagaraSystemsWithUserDataInterface.Add(FString::Printf(TEXT("%s,%s"), *NiagaraSystem->GetPathName(), *DataInterfaceNames));
 		}
+	}
+
+	// Anything to save do it
+	if ( PackagesToSave.Num() > 0 )
+	{
+		UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, true);
 	}
 
 	// Probably don't need to do this, but just in case we have any 'hanging' packages 
@@ -282,6 +353,7 @@ void UNiagaraSystemAuditCommandlet::DumpResults()
 	DumpSimpleSet(NiagaraSystemsWithLights, TEXT("NiagaraSystemsWithLights"), TEXT("Name"));
 	DumpSimpleSet(NiagaraSystemsWithEvents, TEXT("NiagaraSystemsWithEvents"), TEXT("Name"));
 	DumpSimpleSet(NiagaraSystemsWithPrerequisites, TEXT("NiagaraSystemsWithPrerequisites"), TEXT("Name,DataInterface"));
+	DumpSimpleSet(NiagaraSystemsWithDynamicBounds, TEXT("NiagaraSystemsWithDynamicBounds"), TEXT("Name,Emitters With Dynamic Bounds"));
 	if (UserDataInterfacesToFind.Num() > 0)
 	{
 		DumpSimpleSet(NiagaraSystemsWithUserDataInterface, TEXT("NiagaraSystemsWithUserDataInterface"), TEXT("Name,DataInterface"));

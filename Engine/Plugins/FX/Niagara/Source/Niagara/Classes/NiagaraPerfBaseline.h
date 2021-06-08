@@ -178,9 +178,9 @@ public:
 	virtual bool Tick()override;
 	virtual void TickRT()override;
 
-	virtual bool NeedsWorldStats()const { return false; }
-	virtual bool NeedsSystemStats()const { return true; }
-	virtual bool NeedsComponentStats()const { return false; }
+	virtual bool NeedsWorldStats()const override { return false; }
+	virtual bool NeedsSystemStats()const override { return true; }
+	virtual bool NeedsComponentStats()const override { return false; }
 
 private:
 	/** The baseline actor controlling the test conditions and which we'll send the completed stats to. */
@@ -206,7 +206,7 @@ public:
 	int32 NumFrames = 0;
 	int32 NumFramesRT = 0;
 
-	TMap<TWeakObjectPtr<UFXSystemAsset>, FNiagaraPerfBaselineStats> CurrentStats;
+	TMap<TWeakObjectPtr<const UFXSystemAsset>, FNiagaraPerfBaselineStats> CurrentStats;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -221,8 +221,8 @@ public:
 
 	virtual bool Tick()override;
 	virtual void TickRT()override;
-	virtual bool NeedsWorldStats()const { return false; }
-	virtual bool NeedsSystemStats()const { return true; }
+	virtual bool NeedsWorldStats()const override { return false; }
+	virtual bool NeedsSystemStats()const override { return true; }
 
 	void HandleTestResults();
 	void ReportToScreen();
@@ -259,7 +259,7 @@ public:
 		TArray<FStatTestInfo> BadTestHistory;
 	};
 	/** Track the worst recorded stats for each system. */
-	TMap<TWeakObjectPtr<UFXSystemAsset>, FStoredStatsInfo> StoredStats;
+	TMap<TWeakObjectPtr<const UFXSystemAsset>, FStoredStatsInfo> StoredStats;
 
 	/** We use an RT Command Fence to know when the RT data is valid and we can report the current stats to the screen. */
 	FRenderCommandFence ResultsFence;

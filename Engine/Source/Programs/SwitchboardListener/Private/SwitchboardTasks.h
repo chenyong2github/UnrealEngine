@@ -144,6 +144,7 @@ struct FSwitchboardReceiveFileFromClientTask : public FSwitchboardTask
 
 	FString Destination;
 	FString FileContent;
+	bool bForceOverwrite = false;
 
 	//~ Begin FSwitchboardTask interface
 	virtual uint32 GetEquivalenceHash() const override

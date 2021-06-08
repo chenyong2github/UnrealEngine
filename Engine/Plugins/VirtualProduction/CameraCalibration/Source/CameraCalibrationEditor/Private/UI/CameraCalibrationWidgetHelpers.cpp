@@ -9,17 +9,20 @@
 
 const int32 FCameraCalibrationWidgetHelpers::DefaultRowHeight = 35;
 
+
 TSharedRef<SWidget> FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(FText&& Text, TSharedRef<SWidget> Widget)
 {
 	return SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
-		.VAlign(EVerticalAlignment::VAlign_Center)
+		.VAlign(VAlign_Center)
 		.Padding(5,5)
+		.FillWidth(0.35f)
 		[SNew(STextBlock).Text(Text)]
 
 		+ SHorizontalBox::Slot()
-		.VAlign(EVerticalAlignment::VAlign_Center)
+		.VAlign(VAlign_Center)
 		.Padding(5, 5)
+		.FillWidth(0.65f)
 		[Widget];
 }

@@ -2014,7 +2014,7 @@ struct FObjectDuplicationHelperMethods
 /**
  * Constructor - zero initializes all members
  */
-FObjectDuplicationParameters::FObjectDuplicationParameters( UObject* InSourceObject, UObject* InDestOuter )
+FObjectDuplicationParameters::FObjectDuplicationParameters(UObject* InSourceObject, UObject* InDestOuter)
 : SourceObject(InSourceObject)
 , DestOuter(InDestOuter)
 , DestName(NAME_None)
@@ -2025,8 +2025,9 @@ FObjectDuplicationParameters::FObjectDuplicationParameters( UObject* InSourceObj
 , PortFlags(PPF_None)
 , DuplicateMode(EDuplicateMode::Normal)
 , bAssignExternalPackages(true)
-, DestClass(NULL)
-, CreatedObjects(NULL)
+, bSkipPostLoad(false)
+, DestClass(nullptr)
+, CreatedObjects(nullptr)
 {
 	checkSlow(SourceObject);
 	checkSlow(DestOuter);
@@ -2052,7 +2053,7 @@ FObjectDuplicationParameters InitStaticDuplicateObjectParams(UObject const* Sour
 		}
 	}
 
-	if (DestClass == NULL)
+	if (DestClass == nullptr)
 	{
 		Parameters.DestClass = SourceObject->GetClass();
 	}
@@ -2120,7 +2121,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 	Parameters.SourceObject->PreDuplicate(Parameters);
 
 	UObject* DupRootObject = Parameters.DuplicationSeed.FindRef(Parameters.SourceObject);
-	if ( DupRootObject == NULL )
+	if ( DupRootObject == nullptr )
 	{
 		FStaticConstructObjectParameters Params(Parameters.DestClass);
 		Params.Outer = Parameters.DestOuter;
@@ -2222,7 +2223,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 		// may not necessarily be the object that is supposed to be its archetype (the caller can populate the duplication seed map with any objects they wish)
 		// and the DuplicationSeed is only used for preserving inter-object references, not for object graphs in SCO and we don't want to call PostDuplicate/PostLoad
 		// on them as they weren't actually duplicated
-		if ( Parameters.DuplicationSeed.Find(OrigObject) == NULL )
+		if ( Parameters.DuplicationSeed.Find(OrigObject) == nullptr )
 		{
 			FDuplicatedObject DupObjectInfo = DuplicatedObjectAnnotation.GetAnnotation( OrigObject );
 
@@ -2234,7 +2235,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 			ensure(!(bDuplicateForPIE && DupObjectInfo.DuplicatedObject->HasAnyFlags(RF_Standalone)));
 
 			DupObjectInfo.DuplicatedObject->PostDuplicate(Parameters.DuplicateMode);
-			if ( !DupObjectInfo.DuplicatedObject->IsTemplate() )
+			if (!Parameters.bSkipPostLoad && !DupObjectInfo.DuplicatedObject->IsTemplate())
 			{
 				// Don't want to call PostLoad on class duplicated CDOs
 				TGuardValue<bool> GuardIsRoutingPostLoad(FUObjectThreadContext::Get().IsRoutingPostLoad, true);
@@ -2245,7 +2246,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 	}
 
 	// if the caller wanted to know which objects were created, do that now
-	if ( Parameters.CreatedObjects != NULL )
+	if ( Parameters.CreatedObjects != nullptr )
 	{
 		// note that we do not clear the map first - this is to allow callers to incrementally build a collection
 		// of duplicated objects through multiple calls to StaticDuplicateObject
@@ -2259,15 +2260,13 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 
 			// don't include any objects which were in the DuplicationSeed map, as CreatedObjects should only contain the list
 			// of objects actually created during this call to SDO
-			if ( Parameters.DuplicationSeed.Find(OrigObject) == NULL )
+			if ( Parameters.DuplicationSeed.Find(OrigObject) == nullptr )
 			{
 				FDuplicatedObject DupObjectInfo = DuplicatedObjectAnnotation.GetAnnotation( OrigObject );
 				Parameters.CreatedObjects->Add(OrigObject, DupObjectInfo.DuplicatedObject);
 			}
 		}
 	}
-
-	//return DupRoot;
 	return DupRootObject;
 }
 

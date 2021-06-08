@@ -4,6 +4,7 @@
 
 #include "NegatableFilter.h"
 #include "Templates/SubclassOf.h"
+#include "ScopedTransaction.h"
 
 namespace
 {
@@ -30,18 +31,30 @@ namespace
 		return bAtLeastOneFilterSaidInclude ? EFilterResult::Include : EFilterResult::DoNotCare;
 	}
 	
-	EFilterResult::Type ExecuteAndChain(const TArray<UNegatableFilter*>& Children, EEditorFilterBehavior EditorFilterBehavior, ConjunctionFilterCallback FilterCallback)
+	EFilterResult::Type ExecuteAndChain(bool bIgnoreFilter, const TArray<UNegatableFilter*>& Children, ConjunctionFilterCallback FilterCallback)
 	{
-		if (Children.Num() == 0 
-            || EditorFilterBehavior == EEditorFilterBehavior::Ignore
-            || !ensure(EditorFilterBehavior != EEditorFilterBehavior::Mixed))
+		if (bIgnoreFilter || Children.Num() == 0)
 		{
 			return EFilterResult::DoNotCare;
 		}
 		
-		const EFilterResult::Type IntermediateResult = AndChain(Children, FilterCallback);
-		const bool bShouldNegate = EditorFilterBehavior == EEditorFilterBehavior::Negate;
-		return bShouldNegate ? EFilterResult::Negate(IntermediateResult) : IntermediateResult;
+		return  AndChain(Children, FilterCallback);
+	}
+}
+
+FName UConjunctionFilter::GetChildrenMemberName()
+{
+	return GET_MEMBER_NAME_CHECKED(UConjunctionFilter, Children);
+}
+
+void UConjunctionFilter::MarkTransactional()
+{
+	SetFlags(RF_Transactional);
+
+	for (UNegatableFilter* Child : Children)
+	{
+		Child->SetFlags(RF_Transactional);
+		Child->GetChildFilter()->SetFlags(RF_Transactional);
 	}
 }
 
@@ -52,11 +65,11 @@ UNegatableFilter* UConjunctionFilter::CreateChild(const TSubclassOf<ULevelSnapsh
 		return nullptr;
 	}
 
-	ULevelSnapshotFilter* FilterImplementation = NewObject<ULevelSnapshotFilter>(this, FilterClass.Get());
-	UNegatableFilter* Child = UNegatableFilter::CreateNegatableFilter(FilterImplementation, this);
+	FScopedTransaction Transaction(FText::FromString("Add filter to row"));
+	Modify();
 
-	// Set Child parent
-	Child->SetParentFilter(this);
+	ULevelSnapshotFilter* FilterImplementation = NewObject<ULevelSnapshotFilter>(this, FilterClass.Get(), NAME_None, RF_Transactional);
+	UNegatableFilter* Child = UNegatableFilter::CreateNegatableFilter(FilterImplementation, this);
 
 	Children.Add(Child);
 	OnChildAdded.Broadcast(Child);
@@ -66,10 +79,19 @@ UNegatableFilter* UConjunctionFilter::CreateChild(const TSubclassOf<ULevelSnapsh
 
 void UConjunctionFilter::RemoveChild(UNegatableFilter* Child)
 {
+	if (!ensure(Child))
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction(FText::FromString("Remove filter from row"));
+	Modify();
+	
 	const bool bRemovedChild = Children.RemoveSingle(Child) != 0;
 	check(bRemovedChild);
 	if (bRemovedChild)
 	{
+		Child->OnRemoved();
 		OnChildRemoved.Broadcast(Child);
 	}
 }
@@ -79,9 +101,28 @@ const TArray<UNegatableFilter*>& UConjunctionFilter::GetChildren() const
 	return Children;
 }
 
+void UConjunctionFilter::SetIsIgnored(bool Value)
+{
+	if (Value != bIgnoreFilter)
+	{
+		FScopedTransaction Transaction(FText::FromString("Change ignore row"));
+		Modify();
+
+		bIgnoreFilter = Value;
+	}
+}
+
+void UConjunctionFilter::OnRemoved()
+{
+	for (UNegatableFilter* Child : Children)
+	{
+		Child->OnRemoved();
+	}
+}
+
 EFilterResult::Type UConjunctionFilter::IsActorValid(const FIsActorValidParams& Params) const
 {
-	return ExecuteAndChain(Children, EditorFilterBehavior, [&Params](UNegatableFilter* Child)
+	return ExecuteAndChain(bIgnoreFilter, Children, [&Params](UNegatableFilter* Child)
 		{
 			return Child->IsActorValid(Params);
 		});
@@ -89,7 +130,7 @@ EFilterResult::Type UConjunctionFilter::IsActorValid(const FIsActorValidParams& 
 
 EFilterResult::Type UConjunctionFilter::IsPropertyValid(const FIsPropertyValidParams& Params) const
 {
-	return ExecuteAndChain(Children, EditorFilterBehavior, [&Params](UNegatableFilter* Child)
+	return ExecuteAndChain(bIgnoreFilter, Children, [&Params](UNegatableFilter* Child)
 		{
 			return Child->IsPropertyValid(Params);
 		});
@@ -97,7 +138,7 @@ EFilterResult::Type UConjunctionFilter::IsPropertyValid(const FIsPropertyValidPa
 
 EFilterResult::Type UConjunctionFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
 {
-	return ExecuteAndChain(Children, EditorFilterBehavior, [&Params](UNegatableFilter* Child)
+	return ExecuteAndChain(bIgnoreFilter, Children, [&Params](UNegatableFilter* Child)
 		{
 			return Child->IsDeletedActorValid(Params);
 		});
@@ -105,51 +146,8 @@ EFilterResult::Type UConjunctionFilter::IsDeletedActorValid(const FIsDeletedActo
 
 EFilterResult::Type UConjunctionFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
 {
-	return ExecuteAndChain(Children, EditorFilterBehavior, [&Params](UNegatableFilter* Child)
+	return ExecuteAndChain(bIgnoreFilter, Children, [&Params](UNegatableFilter* Child)
 		{
 			return Child->IsAddedActorValid(Params);
 		});
-}
-
-TArray<UEditorFilter*> UConjunctionFilter::GetEditorChildren()
-{
-	TArray<UEditorFilter*> EditorFilterChildren;
-
-	for (UNegatableFilter* ChildFilter : Children)
-	{
-		EditorFilterChildren.Add(ChildFilter);
-	}
-
-	return EditorFilterChildren;
-}
-
-void UConjunctionFilter::IncrementEditorFilterBehavior(const bool bIncludeChildren)
-{
-	switch (EditorFilterBehavior)
-	{
-	case EEditorFilterBehavior::DoNotNegate:
-		EditorFilterBehavior = EEditorFilterBehavior::Negate;
-		break;
-	case EEditorFilterBehavior::Negate:
-		EditorFilterBehavior = EEditorFilterBehavior::Ignore;
-		break;
-	case EEditorFilterBehavior::Ignore:
-		EditorFilterBehavior = EEditorFilterBehavior::DoNotNegate;
-		break;
-	default:
-		checkNoEntry();
-	}
-
-	if (bIncludeChildren)
-	{
-		UpdateAllChildrenEditorFilterBehavior(EditorFilterBehavior, bIncludeChildren);
-	}
-}
-
-void UConjunctionFilter::SetEditorFilterBehavior(const EEditorFilterBehavior InFilterBehavior, const bool bIncludeChildren)
-{
-	if (ensureMsgf(EditorFilterBehavior != EEditorFilterBehavior::Mixed, TEXT("Internal error. Conjunction filter cannot have mixed behaviour.")))
-	{
-		EditorFilterBehavior = InFilterBehavior;
-	}
 }

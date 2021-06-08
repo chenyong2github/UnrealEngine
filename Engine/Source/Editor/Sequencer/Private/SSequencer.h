@@ -348,8 +348,12 @@ public:
 	/** Sets the play time for the sequence. Will extend the working range if out of bounds. */
 	void SetPlayTime(double Frame);
 
-	/** Set's the specified filter to be on or off*/
+	/** Sets the specified filter to be on or off*/
 	void SetFilterOn(const FText& InName, bool bOn);
+
+	/** Sets the text to search by */
+	void SetSearchText(const FText& InSearchText);
+
 public:
 
 	// FNotifyHook overrides

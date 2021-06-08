@@ -167,6 +167,17 @@ protected:
 		WatchedProperties.Add( PropertyKey );
 	}
 
+	/**
+	* Called by the details panel when an animatable property changes
+	*
+	* @param InObjectsThatChanged	List of objects that changed
+	* @param KeyPropertyParams		Parameters for the property change.
+	*/
+	virtual void OnAnimatedPropertyChanged( const FPropertyChangedParams& PropertyChangedParams )
+	{
+		FMovieSceneTrackEditor::AnimatablePropertyChanged( FOnKeyProperty::CreateRaw( this, &FPropertyTrackEditor::OnKeyProperty, PropertyChangedParams ) );
+	}
+
 private:
 
 	/** Adds a callback for property changes for the supplied property type name. */
@@ -190,17 +201,6 @@ private:
 			return MetaClass;
 		}
 		return nullptr;
-	}
-
-	/**
-	* Called by the details panel when an animatable property changes
-	*
-	* @param InObjectsThatChanged	List of objects that changed
-	* @param KeyPropertyParams		Parameters for the property change.
-	*/
-	virtual void OnAnimatedPropertyChanged( const FPropertyChangedParams& PropertyChangedParams )
-	{
-		FMovieSceneTrackEditor::AnimatablePropertyChanged( FOnKeyProperty::CreateRaw( this, &FPropertyTrackEditor::OnKeyProperty, PropertyChangedParams ) );
 	}
 
 	/** Adds a key based on a property change. */

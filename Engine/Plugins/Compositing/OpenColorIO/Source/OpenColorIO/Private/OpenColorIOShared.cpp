@@ -36,15 +36,10 @@ void FOpenColorIOTransformResource::SetupShaderCompilationEnvironment(EShaderPla
 {
 }
 
-
 OPENCOLORIO_API bool FOpenColorIOTransformResource::ShouldCache(EShaderPlatform InPlatform, const FShaderType* InShaderType) const
 {
 	check(InShaderType->GetOpenColorIOShaderType() )
 	return true;
-}
-
-OPENCOLORIO_API void FOpenColorIOTransformResource::NotifyCompilationFinished()
-{
 }
 
 OPENCOLORIO_API void FOpenColorIOTransformResource::CancelCompilation()
@@ -76,7 +71,7 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::Invalidate()
 
 bool FOpenColorIOTransformResource::IsSame(const FOpenColorIOShaderMapId& InIdentifier) const
 {
-	return InIdentifier.ShaderCodeHash == ShaderCodeHash;
+	return InIdentifier.ShaderCodeAndConfigHash == ShaderCodeAndConfigHash;
 }
 
 void FOpenColorIOTransformResource::GetDependentShaderTypes(EShaderPlatform InPlatform, TArray<FShaderType*>& OutShaderTypes) const
@@ -106,7 +101,8 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatfo
 		GetDependentShaderTypes(InPlatform, ShaderTypes);
 
 		OutId.FeatureLevel = GetFeatureLevel();
-		OutId.ShaderCodeHash = ShaderCodeHash;
+
+		OutId.ShaderCodeAndConfigHash = ShaderCodeAndConfigHash;
 		OutId.SetShaderDependencies(ShaderTypes, InPlatform);
 #if WITH_EDITOR
 		OutId.LayoutParams.InitializeForPlatform(TargetPlatform);
@@ -195,9 +191,21 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
-void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName, const FName& InAssetPath)
+void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InRawConfigHash, const FString& InFriendlyName, const FName& InAssetPath)
 {
-	ShaderCodeHash = InShaderCodeHash;
+	// When this happens we assume that shader was cooked and we don't need to do anything. 
+	if (InShaderCodeHash.IsEmpty() && InRawConfigHash.IsEmpty())
+	{
+		return;
+	}
+
+	FString FullShaderCodeHash;
+	FullShaderCodeHash.Reserve(InShaderCodeHash.Len());
+	const FString ConcatHashes = InShaderCodeHash + InRawConfigHash;
+	FSHAHash FullHash;
+	FSHA1::HashBuffer(TCHAR_TO_ANSI(*(ConcatHashes)), ConcatHashes.Len(), FullHash.Hash);
+
+	ShaderCodeAndConfigHash = FullHash.ToString();
 	ShaderCode = InShadercode;
 	FriendlyName = InFriendlyName;
 #if WITH_EDITOR

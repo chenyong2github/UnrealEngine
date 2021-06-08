@@ -979,9 +979,13 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyStateChanged);
 * Notification when a player has been approved for JIP
 * @param LocalUserId - id associated with this notification
 * @param PartyId - id associated with the party
+* @param Success - whether the join in progress action succeeded
+* @param DeniedResultCode - descriptive reason for a failure to join
 */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyJIP), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyJIP);
+DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyJIPResponse), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/, int32 /*DeniedResultCode*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartyJIPResponse);
 
 /**
  * Notification when player promotion is locked out.
@@ -1824,8 +1828,12 @@ public:
 	* notification of when a player had been approved to Join In Progress
 	* @param LocalUserId - id associated with this notification
 	* @param PartyId - id associated with the party
+	* @param Success - whether the join in progress action succeeded
+	* @param DeniedResultCode - descriptive reason for a failure to join
 	*/
-	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyJIP, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/);
+	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyJIPResponse, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/, int32 /*DeniedResultCode*/);
+	UE_DEPRECATED(5.0, "Use OnPartyJIPResponse instead of OnPartyJIP")
+	virtual FDelegateHandle AddOnPartyJIPDelegate_Handle(const FOnPartyJIPDelegate& Delegate);
 
 	/**
 	 * Notification when player promotion is locked out.

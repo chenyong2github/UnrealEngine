@@ -380,6 +380,7 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 	DoSnapshotEnd.PrintDiff("Total DoSnapshot", DoSnapshotStart);
 
 	AttachObservers.Start(&SyncDatabase->GetSceneSyncData());
+	SyncDatabase->GetMeshIndexor().SaveToFile();
 }
 
 void FSynchronizer::DoIdle(int* IOCount)

@@ -104,6 +104,7 @@ void FOpenColorIOColorSpaceCustomization::CustomizeChildren(TSharedRef<IProperty
 
 bool FOpenColorIOColorSpaceCustomization::LoadConfigurationFile(const FFilePath& InFilePath)
 {
+#if WITH_OCIO
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	try
 #endif
@@ -133,6 +134,9 @@ bool FOpenColorIOColorSpaceCustomization::LoadConfigurationFile(const FFilePath&
 #endif
 
 	return true;
+#else //WITH_OCIO
+	return false;
+#endif //WITH_OCIO
 }
 
 void FOpenColorIOColorSpaceCustomization::ProcessColorSpaceForMenuGeneration(FMenuBuilder& InMenuBuilder, const int32 InMenuDepth, const FString& InPreviousFamilyHierarchy, const FOpenColorIOColorSpace& InColorSpace, TArray<FString>& InOutExistingMenuFilter)

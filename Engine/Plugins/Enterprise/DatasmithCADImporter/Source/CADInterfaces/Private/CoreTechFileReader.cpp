@@ -373,6 +373,7 @@ namespace CADLibrary
 		Context.SceneGraphArchive.BodySet.Reserve(NbElements[CT_BODY_INDEX]);
 		Context.SceneGraphArchive.ComponentSet.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
 		Context.SceneGraphArchive.UnloadedComponentSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
+		Context.SceneGraphArchive.ExternalRefSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
 		Context.SceneGraphArchive.Instances.Reserve(NbElements[CT_INSTANCE_INDEX]);
 
 		Context.SceneGraphArchive.CADIdToBodyIndex.Reserve(NbElements[CT_BODY_INDEX]);
@@ -465,29 +466,19 @@ namespace CADLibrary
 		switch (Type)
 		{
 		case CT_INSTANCE_TYPE:
-			if (int32* Index = Context.SceneGraphArchive.CADIdToInstanceIndex.Find(NodeId))
-			{
-				return true;
-			}
 			return ReadInstance(NodeId, DefaultMaterialHash);
 
 		case CT_ASSEMBLY_TYPE:
 		case CT_PART_TYPE:
 		case CT_COMPONENT_TYPE:
-			if (int32* Index = Context.SceneGraphArchive.CADIdToComponentIndex.Find(NodeId))
-			{
-				return true;
-			}
 			return ReadComponent(NodeId, DefaultMaterialHash);
 
 		case CT_UNLOADED_ASSEMBLY_TYPE:
 		case CT_UNLOADED_COMPONENT_TYPE:
 		case CT_UNLOADED_PART_TYPE:
-			if (int32* Index = Context.SceneGraphArchive.CADIdToUnloadedComponentIndex.Find(NodeId))
-			{
-				return true;
-			}
-			return ReadUnloadedComponent(NodeId);
+			// should not append
+			ensure(false);
+			return false;
 
 		case CT_BODY_TYPE:
 			break;
@@ -512,27 +503,13 @@ namespace CADLibrary
 		return true;
 	}
 
-	bool FCoreTechFileReader::ReadUnloadedComponent(CT_OBJECT_ID ComponentId)
-	{
-		CT_STR Filename, FileType;
-		CT_IO_ERROR Error = CT_COMPONENT_IO::AskExternalDefinition(ComponentId, Filename, FileType);
-		if (Error != IO_OK)
-		{
-			return false;
-		}
-
-		int32 Index = Context.SceneGraphArchive.UnloadedComponentSet.Emplace(ComponentId);
-		Context.SceneGraphArchive.CADIdToUnloadedComponentIndex.Add(ComponentId, Index);
-		ReadNodeMetaData(ComponentId, Context.SceneGraphArchive.UnloadedComponentSet[Index].MetaData);
-
-		Context.SceneGraphArchive.UnloadedComponentSet[Index].FileName = CoreTechFileReaderUtils::AsFString(Filename);
-		Context.SceneGraphArchive.UnloadedComponentSet[Index].FileType = CoreTechFileReaderUtils::AsFString(FileType);
-
-		return true;
-	}
-
 	bool FCoreTechFileReader::ReadComponent(CT_OBJECT_ID ComponentId, uint32 DefaultMaterialHash)
 	{
+		if (int32* Index = Context.SceneGraphArchive.CADIdToComponentIndex.Find(ComponentId))
+		{
+			return true;
+		}
+
 		int32 Index = Context.SceneGraphArchive.ComponentSet.Emplace(ComponentId);
 		Context.SceneGraphArchive.CADIdToComponentIndex.Add(ComponentId, Index);
 		ReadNodeMetaData(ComponentId, Context.SceneGraphArchive.ComponentSet[Index].MetaData);
@@ -579,13 +556,18 @@ namespace CADLibrary
 
 	bool FCoreTechFileReader::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 DefaultMaterialHash)
 	{
+		if (int32* Index = Context.SceneGraphArchive.CADIdToInstanceIndex.Find(InstanceNodeId))
+		{
+			return true;
+		}
 
-		int32 Index = Context.SceneGraphArchive.Instances.Emplace(InstanceNodeId);
-		Context.SceneGraphArchive.CADIdToInstanceIndex.Add(InstanceNodeId, Index);
+		int32 InstanceIndex = Context.SceneGraphArchive.Instances.Num();
+		FArchiveInstance& Instance = Context.SceneGraphArchive.Instances.Emplace_GetRef(InstanceNodeId);
+		Context.SceneGraphArchive.CADIdToInstanceIndex.Add(InstanceNodeId, InstanceIndex);
 
-		ReadNodeMetaData(InstanceNodeId, Context.SceneGraphArchive.Instances[Index].MetaData);
+		ReadNodeMetaData(InstanceNodeId, Instance.MetaData);
 
-		if (uint32 MaterialHash = GetObjectMaterial(Context.SceneGraphArchive.Instances[Index]))
+		if (uint32 MaterialHash = GetObjectMaterial(Instance))
 		{
 			DefaultMaterialHash = MaterialHash;
 		}
@@ -594,10 +576,16 @@ namespace CADLibrary
 		double Matrix[16];
 		if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, Matrix) == IO_OK)
 		{
-			float* MatrixFloats = (float*)Context.SceneGraphArchive.Instances[Index].TransformMatrix.M;
+			float* MatrixFloats = (float*) Instance.TransformMatrix.M;
 			for (int32 index = 0; index < 16; index++)
 			{
-				MatrixFloats[index] = (float) Matrix[index];
+				// check if the matrix is not degenerate, otherwise return identity matrix
+				if (FMath::IsNaN(Matrix[index]) || !FMath::IsFinite(Matrix[index]))
+				{
+					Instance.TransformMatrix.SetIdentity();
+					break;
+				}
+				MatrixFloats[index] = (float)Matrix[index];
 			}
 		}
 	
@@ -605,17 +593,24 @@ namespace CADLibrary
 		CT_OBJECT_ID ReferenceNodeId;
 		CT_IO_ERROR CTReturn = CT_INSTANCE_IO::AskChild(InstanceNodeId, ReferenceNodeId);
 		if (CTReturn != CT_IO_ERROR::IO_OK)
+		{
 			return false;
-		Context.SceneGraphArchive.Instances[Index].ReferenceNodeId = ReferenceNodeId;
+		}
+		Instance.ReferenceNodeId = ReferenceNodeId;
 
 		CT_OBJECT_TYPE type;
 		CT_OBJECT_IO::AskType(ReferenceNodeId, type);
 		if (type == CT_UNLOADED_PART_TYPE || type == CT_UNLOADED_COMPONENT_TYPE || type == CT_UNLOADED_ASSEMBLY_TYPE)
 		{
-			Context.SceneGraphArchive.Instances[Index].bIsExternalRef = true;
+			Instance.bIsExternalRef = true;
+			if (int32* Index = Context.SceneGraphArchive.CADIdToUnloadedComponentIndex.Find(ReferenceNodeId))
+			{
+				Instance.ExternalRef = Context.SceneGraphArchive.ExternalRefSet[*Index];
+				return true;
+			}
 
 			const FString SupressedEntity = TEXT("Supressed Entity");
-			FString IsSupressedEntity = Context.SceneGraphArchive.Instances[Index].MetaData.FindRef(SupressedEntity);
+			FString IsSupressedEntity = Instance.MetaData.FindRef(SupressedEntity);
 			if (IsSupressedEntity == TEXT("true"))
 			{
 				return false;
@@ -626,14 +621,14 @@ namespace CADLibrary
 			CT_COMPONENT_IO::AskExternalDefinition(ReferenceNodeId, ComponentFile, FileType, InternalId);
 			FString ExternalRefFullPath = CoreTechFileReaderUtils::AsFString(ComponentFile);
 
+			if (ExternalRefFullPath.IsEmpty())
+			{
+				ExternalRefFullPath = FileDescription.Path;
+			}
+
 			FString Configuration;
 			if (FileDescription.Extension == TEXT("jt"))
 			{
-				if (ExternalRefFullPath.IsEmpty())
-				{
-					ExternalRefFullPath = FileDescription.Path;
-				}
-
 				// Parallelization of monolithic Jt file,
 				// is the external reference is the current file ? 
 				// Yes => this is an unloaded part that will be imported with CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT Option
@@ -647,23 +642,34 @@ namespace CADLibrary
 			else
 			{
 				const FString ConfigName = TEXT("Configuration Name");
-				Configuration = Context.SceneGraphArchive.Instances[Index].MetaData.FindRef(ConfigName);
+				Configuration = Instance.MetaData.FindRef(ConfigName);
 			}
 
-			FFileDescription NewFileDescription(*ExternalRefFullPath, *Configuration, *FileDescription.MainCadFilePath);
-			Context.SceneGraphArchive.Instances[Index].ExternalRef = NewFileDescription;
-			Context.SceneGraphArchive.ExternalRefSet.Add(NewFileDescription);
-		}
-		else
-		{
-			Context.SceneGraphArchive.Instances[Index].bIsExternalRef = false;
-		}
+			int32 UnloadedComponentIndex = Context.SceneGraphArchive.UnloadedComponentSet.Num();
+			FArchiveUnloadedComponent& UnloadedComponent = Context.SceneGraphArchive.UnloadedComponentSet.Emplace_GetRef(UnloadedComponentIndex);
 
-		return ReadNode(ReferenceNodeId, DefaultMaterialHash);
+			FFileDescription& NewFileDescription = Context.SceneGraphArchive.ExternalRefSet.Emplace_GetRef(*ExternalRefFullPath, *Configuration, *FileDescription.MainCadFilePath);
+			Instance.ExternalRef = NewFileDescription;
+
+			Context.SceneGraphArchive.CADIdToUnloadedComponentIndex.Add(ReferenceNodeId, UnloadedComponentIndex);
+
+			ReadNodeMetaData(ReferenceNodeId, UnloadedComponent.MetaData);
+
+			return true;
+		}
+		
+		Instance.bIsExternalRef = false;
+
+		return ReadComponent(ReferenceNodeId, DefaultMaterialHash);
 	}
 
 	bool FCoreTechFileReader::ReadKioBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
 	{
+		if (int32* Index = Context.SceneGraphArchive.CADIdToBodyIndex.Find(BodyId))
+		{
+			return true;
+		}
+
 		// Is this body a constructive geometry ?
 		CT_LIST_IO FaceList;
 		CT_BODY_IO::AskFaces(BodyId, FaceList);
@@ -678,27 +684,33 @@ namespace CADLibrary
 			}
 		}
 
-		int32 Index = Context.SceneGraphArchive.BodySet.Emplace(BodyId);
-		Context.SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, Index);
-		ReadNodeMetaData(BodyId, Context.SceneGraphArchive.BodySet[Index].MetaData);
+		int32 BodyIndex = Context.SceneGraphArchive.BodySet.Num();
+		FArchiveBody& Body = Context.SceneGraphArchive.BodySet.Emplace_GetRef(BodyId);
+		Context.SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, BodyIndex);
 
-		int32 BodyMeshIndex = Context.BodyMeshes.Emplace(BodyId);
+		ReadNodeMetaData(BodyId, Body.MetaData);
 
-		if (uint32 MaterialHash = GetObjectMaterial(Context.SceneGraphArchive.BodySet[Index]))
+		int32 BodyMeshIndex = Context.BodyMeshes.Num();
+		FBodyMesh& BodyMesh = Context.BodyMeshes.Emplace_GetRef(BodyId);
+
+		if (uint32 MaterialHash = GetObjectMaterial(Body))
 		{
 			DefaultMaterialHash = MaterialHash;
 		}
 
-		FBodyMesh& BodyMesh = Context.BodyMeshes[BodyMeshIndex];
-		Context.SceneGraphArchive.BodySet[Index].MeshActorName = CoreTechFileReaderUtils::GetStaticMeshUuid(*Context.SceneGraphArchive.ArchiveFileName, BodyId);
-		BodyMesh.MeshActorName = Context.SceneGraphArchive.BodySet[Index].MeshActorName;
+		Body.MeshActorName = CoreTechFileReaderUtils::GetStaticMeshUuid(*Context.SceneGraphArchive.ArchiveFileName, BodyId);
+		BodyMesh.MeshActorName = Body.MeshActorName;
+
+		CT_FLAGS BodyProperties;
+		CT_BODY_IO::AskProperties(BodyId, BodyProperties);
 
 		// Save Body in CT file for re-tessellation before getBody because GetBody can call repair and modify the body (delete and build a new one with a new Id)
-		if (!Context.CachePath.IsEmpty())
+		// CT file is saved only for Exact body i.e. not tessellated body
+		if (!Context.CachePath.IsEmpty() && (BodyProperties & CT_BODY_PROP_EXACT))
 		{
 			CT_LIST_IO ObjectList;
 			ObjectList.PushBack(BodyId);
-			FString BodyFile = FString::Printf(TEXT("UEx%08x"), Context.SceneGraphArchive.BodySet[Index].MeshActorName);
+			FString BodyFile = FString::Printf(TEXT("UEx%08x"), Body.MeshActorName);
 			CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(Context.CachePath, TEXT("body"), BodyFile + TEXT(".ct")), L"Ct");
 		}
 
@@ -722,8 +734,8 @@ namespace CADLibrary
 
 		CoreTechFileReaderUtils::GetBodyTessellation(BodyId, BodyMesh, ProcessFace);
 
-		Context.SceneGraphArchive.BodySet[Index].ColorFaceSet = BodyMesh.ColorSet;
-		Context.SceneGraphArchive.BodySet[Index].MaterialFaceSet = BodyMesh.MaterialSet;
+		Body.ColorFaceSet = BodyMesh.ColorSet;
+		Body.MaterialFaceSet = BodyMesh.MaterialSet;
 
 		return true;
 	}

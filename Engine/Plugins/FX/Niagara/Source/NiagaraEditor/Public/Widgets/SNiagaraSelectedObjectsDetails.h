@@ -33,6 +33,7 @@ public:
 	void RefreshDetails();
 private:
 	/** Called whenever the object selection changes. */
+	void SelectedObjectsChangedFirst();
 	void SelectedObjectsChangedSecond();
 
 	/** Internal delegate to route to third parties. */
@@ -70,4 +71,7 @@ private:
 
 	/** Flag to notify if a UNiagaraScriptVariable owned by a UNiagaraParameterDefinitions is being viewed. Used to selectively disable editing. */
 	bool bViewingLibraryOwnedScriptVar;
+
+	/** Index of the SelectedObjectsArray that was last set. Used to track which SelectedObjects to reset on refresh. */
+	int32 LastSetSelectedObjectsArrayIdx;
 };

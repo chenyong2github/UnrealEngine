@@ -226,23 +226,34 @@ struct FInstallBundleSourceAsyncInitInfo : public FInstallBundleSourceInitInfo
 	// Reserved for future use
 };
 
-struct FInstallBundleSourceBundleInfo
+// Bundle Info communicated from bundle source to bundle manager at any time
+struct FInstallBundleSourceUpdateBundleInfo
 {
 	FName BundleName;
 	FString BundleNameString;
 	EInstallBundlePriority Priority = EInstallBundlePriority::Low;
 	uint64 FullInstallSize = 0; // Total disk footprint when this bundle is fully installed
-	uint64 CurrentInstallSize = 0; // Disk footprint of the bundle in it's current state
 	FDateTime LastAccessTime = FDateTime::MinValue(); // If cached, used to decide eviction order
-	bool bIsStartup = false; // Only one startup bundle allowed.  All sources must agree on this.
-	bool bDoPatchCheck = false; // This bundle should do a patch check and fail if it doesn't pass
 	EInstallBundleInstallState BundleContentState = EInstallBundleInstallState::NotInstalled; // Whether this bundle is up to date
 	bool bIsCached = false; // Whether this bundle should be cached if this source has a bundle cache
 };
 
-struct FInstallBundleSourceBundleInfoQueryResultInfo
+struct FInstallBundleSourceUpdateBundleInfoResult
 {
-	TMap<FName, FInstallBundleSourceBundleInfo> SourceBundleInfoMap;
+	TMap<FName, FInstallBundleSourceUpdateBundleInfo> SourceBundleInfoMap;
+};
+
+// Persisted Bundle Info communicated from bundle source to bundle manager on startup
+struct FInstallBundleSourcePersistentBundleInfo : FInstallBundleSourceUpdateBundleInfo
+{
+	uint64 CurrentInstallSize = 0; // Disk footprint of the bundle in it's current state
+	bool bIsStartup = false; // Only one startup bundle allowed.  All sources must agree on this.
+	bool bDoPatchCheck = false; // This bundle should do a patch check and fail if it doesn't pas	
+};
+
+struct FInstallBundleSourceBundleInfoQueryResult
+{
+	TMap<FName, FInstallBundleSourcePersistentBundleInfo> SourceBundleInfoMap;
 };
 
 enum class EInstallBundleSourceUpdateBundleInfoResult : uint8
@@ -250,9 +261,7 @@ enum class EInstallBundleSourceUpdateBundleInfoResult : uint8
 	OK,
 	AlreadyMounted,
 	AlreadyRequested,
-	IllegalStartupBundle,
 	IllegalCacheStatus,
-	IllegalInstallSizeChange,
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleSourceUpdateBundleInfoResult Result);

@@ -110,6 +110,11 @@ namespace DatasmithSketchUp
 
 		void Update();
 
+		// Track texture usage
+		void RegisterMaterial(FMaterial*);
+		void UnregisterMaterial(FMaterial*);
+
+
 	private:
 		FExportContext& Context;
 

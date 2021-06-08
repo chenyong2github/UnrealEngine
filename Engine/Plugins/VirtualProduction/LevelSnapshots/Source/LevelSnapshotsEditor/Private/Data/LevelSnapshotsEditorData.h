@@ -43,7 +43,6 @@ public:
 	FOnActiveSnapshotChanged OnActiveSnapshotChanged;
 
 
-	
 	/******************** Selected world ********************/
 	void SetSelectedWorldReference(UWorld* InWorld);
 	void ClearSelectedWorld();
@@ -64,7 +63,7 @@ public:
 
 	
 	/******************** Loading filter preset ********************/
-	DECLARE_EVENT(ULevelSnapshotsEditorData, FUserDefinedFiltersChanged);
+	DECLARE_EVENT_TwoParams(ULevelSnapshotsEditorData, FUserDefinedFiltersChanged, UDisjunctiveNormalFormFilter* /*NewFilter*/, UDisjunctiveNormalFormFilter* /* OldFilter */);
 	/* Called when user loads a new set of filters. */
 	FUserDefinedFiltersChanged OnUserDefinedFiltersChanged;
 	

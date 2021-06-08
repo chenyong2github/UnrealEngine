@@ -199,12 +199,22 @@ private:
 	/** Refreshes the preview asset */
 	void RefreshPreviewAsset();
 
+	void RefreshOnScreenMessages();
+
 	//~ Begin FEditorUndoClient Interface
 	virtual void PostUndo( bool bSuccess ) override;
 	virtual void PostRedo( bool bSuccess ) override;
 	// End of FEditorUndoClient
 
 private:
+	struct FOnScreenMessage
+	{
+		FOnScreenMessage() = default;
+		FOnScreenMessage(const FLinearColor& InColor, const FString& InMessage) : Message(InMessage), Color(InColor) {}
+
+		FString Message;
+		FLinearColor Color;
+	};
 
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap< FName, TWeakPtr<class SDockTab> > SpawnedToolPanels;
@@ -232,6 +242,9 @@ private:
 
 	/** List of children used to populate the inheritance list chain. */
 	TArray< FAssetData > FunctionChildList;
+	
+	/** List of all current on-screen messages to display */
+	TArray<FOnScreenMessage> OnScreenMessages;
 
 	/** Object that stores all of the possible parameters we can edit. */
 	UMaterialEditorInstanceConstant* MaterialEditorInstance;

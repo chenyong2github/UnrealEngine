@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
+using DatasmithRhino.Properties.Localization;
+
 using Rhino;
 using Rhino.Commands;
+using System;
 
 namespace DatasmithRhino.Commands
 {
@@ -32,9 +34,8 @@ namespace DatasmithRhino.Commands
 			get { return "DatasmithExport"; }
 		}
 
-		///TODO: This needs to be localized.
 		public override string LocalName {
-			get { return "DatasmithExport"; }
+			get { return Resources.DatasmithExportCommand; }
 		}
 
 		protected override Result RunCommand(RhinoDoc RhinoDocument, RunMode Mode)
@@ -45,8 +46,8 @@ namespace DatasmithRhino.Commands
 			Eto.Forms.FileFilter DatasmithFileFilter = new Eto.Forms.FileFilter("Unreal Datasmith", new string[] { ".udatasmith" });
 			SaveDialog.Filters.Add(DatasmithFileFilter);
 			SaveDialog.CurrentFilter = DatasmithFileFilter;
-			SaveDialog.Title = "Export to Datasmith file";
-			SaveDialog.FileName = string.IsNullOrEmpty(RhinoDocument.Name) ? "Untitled" : System.IO.Path.GetFileNameWithoutExtension(RhinoDocument.Name);
+			SaveDialog.Title = Resources.SaveDialogTitle;
+			SaveDialog.FileName = string.IsNullOrEmpty(RhinoDocument.Name) ? Resources.UntitledFileName : System.IO.Path.GetFileNameWithoutExtension(RhinoDocument.Name);
 			if (!string.IsNullOrEmpty(RhinoDocument.Path))
 			{
 				Uri PathUri = new Uri(System.IO.Path.GetDirectoryName(RhinoDocument.Path));

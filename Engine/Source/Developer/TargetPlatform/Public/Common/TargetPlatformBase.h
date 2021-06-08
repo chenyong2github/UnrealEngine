@@ -188,6 +188,11 @@ public:
 	}
 
 #if WITH_ENGINE
+	virtual bool AllowAudioVisualData() const override
+	{
+		return !IsServerOnly();
+	}
+
 	virtual FName GetMeshBuilderModuleName() const override
 	{
 		// MeshBuilder is the default module. Platforms may override this to provide platform specific mesh data.

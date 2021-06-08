@@ -113,11 +113,6 @@ public:
 	/** Sets which channels are keyed when a channel is keyed */
 	void SetKeyGroupMode(EKeyGroupMode);
 
-	/** Gets whether or not to key interp properties only. */
-	bool GetKeyInterpPropertiesOnly() const;
-	/** Sets whether or not to key interp properties only. */
-	void SetKeyInterpPropertiesOnly(bool InbKeyInterpPropertiesOnly); 
-
 	/** Gets default key interpolation. */
 	EMovieSceneKeyInterpolation GetKeyInterpolation() const;
 	/** Sets default key interpolation */
@@ -376,10 +371,6 @@ protected:
 	/**Key group mode. */
 	UPROPERTY(config, EditAnywhere, Category = Keyframing)
 	EKeyGroupMode KeyGroupMode;
-
-	/** Enable or disable only keyframing properties marked with the 'Interp' keyword. */
-	UPROPERTY( config, EditAnywhere, Category=Keyframing )
-	bool bKeyInterpPropertiesOnly;
 
 	/** The interpolation type for newly created keyframes */
 	UPROPERTY( config, EditAnywhere, Category=Keyframing )

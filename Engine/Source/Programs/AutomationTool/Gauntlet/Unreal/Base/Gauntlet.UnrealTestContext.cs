@@ -180,13 +180,14 @@ namespace Gauntlet
 		/// <summary>
 		/// Less logging
 		/// </summary>
-		[AutoParam(false)]
+		[AutoParamWithNames(false, "Verbose", "Gauntlet.Verbose")]
 		public bool Verbose;
 
 		/// <summary>
 		/// Less logging
 		/// </summary>
 		[AutoParam(false)]
+		[AutoParamWithNames(false, "VeryVerbose", "Gauntlet.VeryVerbose")]
 		public bool VeryVerbose;
 
 		public UnrealTestOptions()

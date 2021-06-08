@@ -4,6 +4,7 @@
 
 #include "AssetTypeCategories.h"
 #include "BlackmagicMediaOutput.h"
+#include "EngineAnalytics.h"
 
 
 /* UBlackmagicMediaOutputFactoryNew structors
@@ -21,8 +22,18 @@ UBlackmagicMediaOutputFactoryNew::UBlackmagicMediaOutputFactoryNew(const FObject
 /* UFactory overrides
  *****************************************************************************/
 
+/**
+ * @EventName MediaFramework.BlackmagicMediaOutputCreated
+ * @Trigger Triggered when a Blackmagic media output asset is created.
+ * @Type Client
+ * @Owner MediaIO Team
+ */
 UObject* UBlackmagicMediaOutputFactoryNew::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.BlackmagicMediaOutputCreated"));
+	}
 	return NewObject<UBlackmagicMediaOutput>(InParent, InClass, InName, Flags);
 }
 

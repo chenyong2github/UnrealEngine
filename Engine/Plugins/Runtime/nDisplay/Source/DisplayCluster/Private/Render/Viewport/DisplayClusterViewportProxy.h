@@ -50,7 +50,7 @@ public:
 		return PostRenderSettings;
 	}
 
-	virtual const TSharedPtr<IDisplayClusterProjectionPolicy>& GetProjectionPolicy_RenderThread() const override
+	virtual const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& GetProjectionPolicy_RenderThread() const override
 	{
 		check(IsInRenderingThread());
 		return ProjectionPolicy;
@@ -119,7 +119,7 @@ protected:
 	FDisplayClusterViewport_OverscanSettings     OverscanSettings;
 
 	// Projection policy instance that serves this viewport
-	TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy;
+	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjectionPolicy;
 
 	// Viewport contexts (left/center/right eyes)
 	TArray<FDisplayClusterViewport_Context> Contexts;

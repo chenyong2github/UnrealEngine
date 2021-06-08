@@ -28,7 +28,7 @@ void FDisplayClusterConfiguratorViewportViewModel::SetRegion(const FDisplayClust
 		TSharedPtr<IPropertyHandle> XHandle = RegionHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, X));
 		check(XHandle);
 
-		XHandle->SetValue(NewRegion.X);
+		XHandle->SetValue(NewRegion.X, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (CurrentRegion.Y != NewRegion.Y)
@@ -38,7 +38,7 @@ void FDisplayClusterConfiguratorViewportViewModel::SetRegion(const FDisplayClust
 		TSharedPtr<IPropertyHandle> YHandle = RegionHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, Y));
 		check(YHandle);
 
-		YHandle->SetValue(NewRegion.Y);
+		YHandle->SetValue(NewRegion.Y, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (CurrentRegion.W != NewRegion.W)
@@ -48,7 +48,7 @@ void FDisplayClusterConfiguratorViewportViewModel::SetRegion(const FDisplayClust
 		TSharedPtr<IPropertyHandle> WHandle = RegionHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, W));
 		check(WHandle);
 
-		WHandle->SetValue(NewRegion.W);
+		WHandle->SetValue(NewRegion.W, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (CurrentRegion.H != NewRegion.H)
@@ -58,7 +58,7 @@ void FDisplayClusterConfiguratorViewportViewModel::SetRegion(const FDisplayClust
 		TSharedPtr<IPropertyHandle> HHandle = RegionHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, H));
 		check(HHandle);
 
-		HHandle->SetValue(NewRegion.H);
+		HHandle->SetValue(NewRegion.H, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (bViewportChanged)

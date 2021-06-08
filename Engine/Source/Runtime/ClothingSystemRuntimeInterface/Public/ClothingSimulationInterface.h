@@ -60,6 +60,14 @@ protected:
 	 */
 	virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) = 0;
 
+	/**
+	 * Fills an existing context for a single simulation step, called by the engine on the game thread prior to simulation 
+	 * @param InComponent - The component to fill the context for
+	 * @param InOutContext - The context to fill
+	 * @param bIsInitialization - Whether this fill is occurring as part of the actor creation stage
+	 */
+	virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext, bool bIsInitialization) = 0;
+
 	/** Initialize the simulation, will be called before any Simulate calls */
 	virtual void Initialize() = 0;
 

@@ -2,6 +2,7 @@
 
 #include "NiagaraDebuggerCommon.h"
 
+
 //////////////////////////////////////////////////////////////////////////
 
 FNiagaraDebugHUDSettingsData::FNiagaraDebugHUDSettingsData()

@@ -140,6 +140,8 @@ protected:
 	static int32 CachedFramePace;
 	static int32 CachedRefreshRate;
 	static int32 CachedSyncInterval;
+	static int32 SuccessfulRefreshRateFrames;
+	static int32 UnsuccessfulRefreshRateFrames;
 	static TArray<TArray<ANSICHAR>> DebugVulkanDeviceLayers;
 	static TArray<TArray<ANSICHAR>> DebugVulkanInstanceLayers;
 };

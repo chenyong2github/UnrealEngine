@@ -1,0 +1,44 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "LevelSnapshot.h"
+#include "LevelSnapshotFilters.h"
+
+#include "Engine/World.h"
+
+class FPreviewScene;
+
+/**
+ * Utility for executing tests
+ */
+class FSnapshotTestRunner
+{
+public:
+
+	static FName DefaultSnapshotId;
+
+	FSnapshotTestRunner();
+
+	FSnapshotTestRunner& ModifyWorld(TFunction<void(UWorld*)> Callback);
+	
+	FSnapshotTestRunner& TakeSnapshot(FName SnapshotId = DefaultSnapshotId);
+	FSnapshotTestRunner& AccessSnapshot(TFunction<void(ULevelSnapshot*)> Callback, FName SnapshotId = DefaultSnapshotId);
+	
+	FSnapshotTestRunner& ApplySnapshot(TFunction<ULevelSnapshotFilter*()> Callback, FName SnapshotId = DefaultSnapshotId);
+	FSnapshotTestRunner& ApplySnapshot(ULevelSnapshotFilter* Filter = nullptr, FName SnapshotId = DefaultSnapshotId);
+	
+	FSnapshotTestRunner& ApplySnapshot(TFunction<FPropertySelectionMap()> Callback, FName SnapshotId = DefaultSnapshotId);
+	FSnapshotTestRunner& ApplySnapshot(const FPropertySelectionMap& SelectionSet, FName SnapshotId = DefaultSnapshotId);
+
+	/* Just calls Callback. Existing for better readability in tests.  */
+	FSnapshotTestRunner& RunTest(TFunction<void()> Callback);
+
+private:
+
+	TSharedPtr<FPreviewScene> TestWorld;
+
+	TMap<FName, ULevelSnapshot*> Snapshots;
+};

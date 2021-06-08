@@ -62,6 +62,13 @@ FThumbnailSection::~FThumbnailSection()
 	GetMutableDefault<UMovieSceneUserThumbnailSettings>()->OnForceRedraw().Remove(RedrawThumbnailDelegateHandle);
 }
 
+void FThumbnailSection::DestroyThumbnails_Latent()
+{
+	for (const TSharedPtr<FTrackEditorThumbnail>& Thumbnail : ThumbnailCache.GetThumbnails())
+	{
+		Thumbnail->DestroyTexture_Latent();
+	}
+}
 
 void FThumbnailSection::RedrawThumbnails()
 {

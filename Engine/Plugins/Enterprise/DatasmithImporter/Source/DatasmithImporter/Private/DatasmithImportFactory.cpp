@@ -128,10 +128,9 @@ namespace DatasmithImportFactoryImpl
 		FString PackageName = FPaths::Combine(InContext.AssetsContext.RootFolderPath, AssetName);
 		PackageName = UPackageTools::SanitizePackageName(PackageName);
 
-
-		FText CreateAssetFailure =  LOCTEXT( "CreateSceneAsset_PackageFailure", "Failed to create the Datasmith Scene asset." );
+		FText CreateAssetFailure = LOCTEXT( "CreateSceneAsset_PackageFailure", "Failed to create the Datasmith Scene asset." );
 		FText OutFailureReason;
-		if ( !FDatasmithImporterUtils::CanCreateAsset< UDatasmithScene >( PackageName+ "." + AssetName, OutFailureReason ) )
+		if ( !FDatasmithImporterUtils::CanCreateAsset< UDatasmithScene >( PackageName + "." + AssetName, OutFailureReason ) )
 		{
 			InContext.LogError( OutFailureReason );
 			InContext.LogError( CreateAssetFailure );
@@ -328,6 +327,9 @@ namespace DatasmithImportFactoryImpl
 			EventAttributes.Emplace( TEXT("ExporterID"), ImportContext.Scene->GetUserID() );
 			EventAttributes.Emplace( TEXT("ExporterOS"), ImportContext.Scene->GetUserOS() );
 			EventAttributes.Emplace( TEXT("ExportDuration"), ImportContext.Scene->GetExportDuration() );
+
+			FString SourceFileExtension = ImportContext.SceneTranslator ? ImportContext.SceneTranslator->GetSource().GetSourceFileExtension() : TEXT("Unknown");
+			EventAttributes.Emplace( TEXT("SourceFileExtension"), SourceFileExtension );
 
 			FString EventText = TEXT("Datasmith.");
 			EventText += ImportContext.bIsAReimport ? TEXT("Reimport") : TEXT("Import");

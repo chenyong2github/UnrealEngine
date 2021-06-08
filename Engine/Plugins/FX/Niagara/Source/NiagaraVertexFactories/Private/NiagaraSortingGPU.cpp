@@ -18,10 +18,18 @@ static FAutoConsoleVariableRef CVarNiagaraGPUSortinUseMaxPrecision(
 );
 
 int32 GNiagaraGPUSortingCPUToGPUThreshold = -1;
-static FAutoConsoleVariableRef CVarNiagaraGPUSortinCPUToGPUThreshold(
+static FAutoConsoleVariableRef CVarNiagaraGPUSortingCPUToGPUThreshold(
 	TEXT("Niagara.GPUSorting.CPUToGPUThreshold"),
 	GNiagaraGPUSortingCPUToGPUThreshold,
 	TEXT("Particle count to move from a CPU sort to a GPU sort. -1 disables. (default=-1)"),
+	ECVF_Default
+);
+
+int32 GNiagaraGPUCullingCPUToGPUThreshold = 0;
+static FAutoConsoleVariableRef CVarNiagaraGPUCullingCPUToGPUThreshold(
+	TEXT("Niagara.GPUCulling.CPUToGPUThreshold"),
+	GNiagaraGPUCullingCPUToGPUThreshold,
+	TEXT("Particle count to move from a CPU sort to a GPU cull. -1 disables. (default=0)"),
 	ECVF_Default
 );
 

@@ -22,30 +22,26 @@ FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const F
 {
 }
 
-FDisplayClusterProjectionMeshPolicy::~FDisplayClusterProjectionMeshPolicy()
-{
-}
-
 bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
-	if (WarpBlendInterface == nullptr)
+	if (WarpBlendInterface.IsValid() == false)
 	{
 		FDisplayClusterWarpBlendConstruct::FAssignWarpMesh CreateParameters;
 		if (GetWarpMeshAndOrigin(InViewport, CreateParameters.MeshComponent, CreateParameters.OriginComponent))
 		{
+			IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
+
 			if (!ShadersAPI.GetWarpBlendManager().Create(CreateParameters, WarpBlendInterface))
 			{
 				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
 				return false;
 			}
-
-			return true;
 		}
 	}
 
-	return false;
+	return true;
 }
 
 bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
@@ -55,20 +51,22 @@ bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(class IDisplayCluster
 	// The game side of the nDisplay has been initialized by the nDisplay Game Manager already
 	// so we can extend it by our projection related functionality/components/etc.
 
+	WarpBlendContexts.Empty();
+
 	// Find origin component if it exists
 	InitializeOriginComponent(InViewport, OriginCompId);
 
-	if (CreateWarpMeshInterface(InViewport))
+	if (!CreateWarpMeshInterface(InViewport))
 	{
+		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't create warp interface for viewport '%s'"), *InViewport->GetId());
 
-		// Finally, initialize internal views data container
-		WarpBlendContexts.Empty();
-		WarpBlendContexts.AddDefaulted(2);
-
-		return true;
+		return false;
 	}
 
-	return false;
+	// Finally, initialize internal views data container
+	WarpBlendContexts.AddDefaulted(2);
+
+	return true;
 }
 
 bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshAndOrigin(class IDisplayClusterViewport* InViewport, class UStaticMeshComponent*& OutMeshComponent, class USceneComponent*& OutOriginComponent)

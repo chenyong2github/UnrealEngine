@@ -15,7 +15,7 @@ bool FPredictionKey::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
 		 *	or if the owning connection is this connection (Server only sends the prediction key to the client who gave it to us)
 		 *  or if this is a server initiated key (valid on all connections)
 		 */		
-		ValidKeyForConnection = (PredictiveConnection == nullptr || (Map == PredictiveConnection) || bIsServerInitiated) && (Current > 0);
+		ValidKeyForConnection = (PredictiveConnectionKey == 0 || ((UPTRINT)Map == PredictiveConnectionKey) || bIsServerInitiated) && (Current > 0);
 	}
 	Ar.SerializeBits(&ValidKeyForConnection, 1);
 
@@ -49,7 +49,7 @@ bool FPredictionKey::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
 		// We are reading this key: the connection that gave us this key is the predictive connection, and we will only serialize this key back to it.
 		if (!bIsServerInitiated)
 		{
-			PredictiveConnection = Map;
+			PredictiveConnectionKey = (UPTRINT)Map;
 		}
 	}
 

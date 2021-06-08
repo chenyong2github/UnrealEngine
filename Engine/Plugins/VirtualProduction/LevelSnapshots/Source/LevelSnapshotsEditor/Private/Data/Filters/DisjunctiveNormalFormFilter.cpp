@@ -2,7 +2,11 @@
 
 #include "DisjunctiveNormalFormFilter.h"
 
-#include "ConjunctionFilter.h"
+#include "Data/Filters/ConjunctionFilter.h"
+
+#include "Misc/ITransaction.h"
+#include "ScopedTransaction.h"
+#include "UObject/UObjectGlobals.h"
 
 namespace
 {
@@ -55,31 +59,74 @@ namespace
 	}
 }
 
+void UDisjunctiveNormalFormFilter::MarkTransactional()
+{
+	SetFlags(RF_Transactional);
+	for (UConjunctionFilter* Child : Children)
+	{
+		Child->MarkTransactional();
+	}
+}
+
 UConjunctionFilter* UDisjunctiveNormalFormFilter::CreateChild()
 {
-	UConjunctionFilter* Child = NewObject<UConjunctionFilter>(this);
-
-	// Set Child parent
-	Child->SetParentFilter(this);
-
-	if (EditorFilterBehavior != EEditorFilterBehavior::Mixed)
-	{
-		Child->SetEditorFilterBehavior(EditorFilterBehavior, false); // Set Filter Result of parent
-	}
-
+	FScopedTransaction Transaction(FText::FromString("Add filter row"));
+	Modify();
+	
+	UConjunctionFilter* Child = NewObject<UConjunctionFilter>(this, UConjunctionFilter::StaticClass(), NAME_None, RF_Transactional);
 	Children.Add(Child);
+	
 	return Child;
 }
 
 void UDisjunctiveNormalFormFilter::RemoveConjunction(UConjunctionFilter* Child)
 {
+	FScopedTransaction Transaction(FText::FromString("Remove filter row"));
+	Modify();
+	
 	const bool bRemovedChild = Children.RemoveSingle(Child) != 0;
-	check(bRemovedChild);
+	if (ensure(bRemovedChild))
+	{
+		Child->OnRemoved();
+	}
 }
 
 const TArray<UConjunctionFilter*>& UDisjunctiveNormalFormFilter::GetChildren() const
 {
 	return Children;
+}
+
+void UDisjunctiveNormalFormFilter::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject* ModifiedObject, const FTransactionObjectEvent& TransactionInfo)
+		{	
+			if (ModifiedObject == this)
+			{
+				OnFilterModified.Broadcast(EFilterChangeType::RowAddedOrRemoved);
+			}
+			
+			else if (IsValid(ModifiedObject) && ModifiedObject->IsIn(this))
+			{
+				const bool bModifiedChildren = Cast<UConjunctionFilter>(ModifiedObject) && TransactionInfo.GetChangedProperties().Contains(UConjunctionFilter::GetChildrenMemberName());
+				OnFilterModified.Broadcast(bModifiedChildren ? EFilterChangeType::RowChildFilterAddedOrRemoved : EFilterChangeType::FilterPropertyModified);
+			}
+		});
+	}
+}
+
+void UDisjunctiveNormalFormFilter::BeginDestroy()
+{
+	if (OnObjectTransactedHandle.IsValid())
+	{
+		FCoreUObjectDelegates::OnObjectTransacted.Remove(OnObjectTransactedHandle);
+		OnObjectTransactedHandle.Reset();
+	}
+
+	Super::BeginDestroy();
 }
 
 EFilterResult::Type UDisjunctiveNormalFormFilter::IsActorValid(const FIsActorValidParams& Params) const
@@ -112,16 +159,4 @@ EFilterResult::Type UDisjunctiveNormalFormFilter::IsAddedActorValid(const FIsAdd
 	{
 		return Child->IsAddedActorValid(Params);
 	});
-}
-
-TArray<UEditorFilter*> UDisjunctiveNormalFormFilter::GetEditorChildren()
-{
-	TArray<UEditorFilter*> EditorFilterChildren;
-
-	for (UConjunctionFilter* ChildFilter : Children)
-	{
-		EditorFilterChildren.Add(ChildFilter);
-	}
-
-	return EditorFilterChildren;
 }

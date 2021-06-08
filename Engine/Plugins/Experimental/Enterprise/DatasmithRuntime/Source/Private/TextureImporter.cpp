@@ -318,20 +318,13 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessTextureData);
 
-		// Textures are added in two steps. Make sure the associated FTextureData is created
-		if (!TextureDataList.Contains(TextureId))
-		{
-			TextureDataList.Add(TextureId);
-		}
-
 		FAssetData& AssetData = AssetDataList[TextureId];
-		FTextureData& TextureData = TextureDataList[TextureId];
 
-		// Clear PendingDelete flag if it is set. Something is wrong. Better safe than sorry
+		// Something is wrong. Do not go any further
 		if (AssetData.HasState(EAssetState::PendingDelete))
 		{
-			AssetData.ClearState(EAssetState::PendingDelete);
-			UE_LOG(LogDatasmithRuntime, Warning, TEXT("A texture marked for deletion is actually used by the scene"));
+			UE_LOG(LogDatasmithRuntime, Error, TEXT("A texture marked for deletion is actually used by the scene"));
+			return;
 		}
 
 		if (AssetData.HasState(EAssetState::Processed))
@@ -388,6 +381,12 @@ namespace DatasmithRuntime
 
 			return EActionResult::Succeeded;
 		};
+
+		// Textures are added in two steps. Make sure the associated FTextureData is created
+		if (!TextureDataList.Contains(TextureId))
+		{
+			TextureDataList.Add(TextureId);
+		}
 
 		AddToQueue(EQueueTask::TextureQueue, { LoadTaskFunc, {EDataType::Texture, TextureId, 0 } });
 		TasksToComplete |= EWorkerTask::TextureLoad;

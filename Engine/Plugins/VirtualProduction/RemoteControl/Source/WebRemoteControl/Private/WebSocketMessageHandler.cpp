@@ -211,7 +211,7 @@ void FWebSocketMessageHandler::OnPresetExposedPropertiesModified(URemoteControlP
 	{
 		for (const FGuid& Client : *SubscribedClients)
 		{
-			if (Client != ActingClientId)
+			if (!ClientConfigMap.FindChecked(Client).bIgnoreRemoteChanges || Client != ActingClientId)
 			{
 				EventsForClient.FindOrAdd(Client).Append(ModifiedPropertyIds);
 			}

@@ -76,7 +76,10 @@ public:
 				PreAnimatedStorage.RemoveAt(StorageIndex, 1);
 				TransientPreAnimatedStorage.Remove(StorageIndex);
 
-				Traits.RestorePreAnimatedValue(CachedData.Key, CachedData.Value, Params);
+				if (CachedData.bInitialized)
+				{
+					Traits.RestorePreAnimatedValue(CachedData.Key, CachedData.Value, Params);
+				}
 				return EPreAnimatedStorageRequirement::None;
 			}
 			else
@@ -84,7 +87,10 @@ public:
 				ensure(TargetRequirement == EPreAnimatedStorageRequirement::NoChange);
 
 				FCachedData& CachedData = PreAnimatedStorage[StorageIndex];
-				Traits.RestorePreAnimatedValue(CachedData.Key, CachedData.Value, Params);
+				if (CachedData.bInitialized)
+				{
+					Traits.RestorePreAnimatedValue(CachedData.Key, CachedData.Value, Params);
+				}
 
 				return EPreAnimatedStorageRequirement::NoChange;
 			}
@@ -107,7 +113,10 @@ public:
 			FCachedData& ActualValue = PreAnimatedStorage[StorageIndex];
 			if (ActualValue.bPersistent)
 			{
-				Traits.RestorePreAnimatedValue(ActualValue.Key, ActualValue.Value, Params);
+				if (ActualValue.bInitialized)
+				{
+					Traits.RestorePreAnimatedValue(ActualValue.Key, ActualValue.Value, Params);
+				}
 				return EPreAnimatedStorageRequirement::Persistent;
 			}
 
@@ -117,7 +126,10 @@ public:
 			PreAnimatedStorage.RemoveAt(StorageIndex, 1);
 			TransientPreAnimatedStorage.Remove(StorageIndex);
 
-			Traits.RestorePreAnimatedValue(Tmp.Key, Tmp.Value, Params);
+			if (Tmp.bInitialized)
+			{
+				Traits.RestorePreAnimatedValue(Tmp.Key, Tmp.Value, Params);
+			}
 
 			return EPreAnimatedStorageRequirement::None;
 		}
@@ -127,9 +139,11 @@ public:
 			// Restore the value but keep the value cached
 			FCachedData& PersistentData = PreAnimatedStorage[StorageIndex];
 
-			PersistentData.bPersistent = true;
-
-			Traits.RestorePreAnimatedValue(PersistentData.Key, PersistentData.Value, Params);
+			if (PersistentData.bInitialized)
+			{
+				PersistentData.bPersistent = true;
+				Traits.RestorePreAnimatedValue(PersistentData.Key, PersistentData.Value, Params);
+			}
 		}
 
 		return EPreAnimatedStorageRequirement::Persistent;

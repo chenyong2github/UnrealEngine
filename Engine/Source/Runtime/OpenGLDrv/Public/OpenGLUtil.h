@@ -132,13 +132,22 @@ struct FRHICommandGLCommandString
 	static const TCHAR* TStr() { return TEXT("FRHICommandGLCommand"); }
 };
 
+#define GL_CAPTURE_CALLSTACK 0 // Capture the callstack at the point of enqueuing the command. 
+
 struct FRHICommandGLCommand final : public FRHICommand<FRHICommandGLCommand, FRHICommandGLCommandString>
 {
+#if GL_CAPTURE_CALLSTACK
+	uint64 CallStack[16];
+#endif
 	TUniqueFunction<void()> GLFunction;
 
 	FORCEINLINE_DEBUGGABLE FRHICommandGLCommand(TUniqueFunction<void()> InGLFunction)
 		: GLFunction(MoveTemp(InGLFunction))
-	{}
+	{
+#if GL_CAPTURE_CALLSTACK
+		FPlatformStackWalk::CaptureStackBackTrace(CallStack, UE_ARRAY_COUNT(CallStack), nullptr);
+#endif
+	}
 
 	void Execute(FRHICommandListBase& CmdList)
 	{

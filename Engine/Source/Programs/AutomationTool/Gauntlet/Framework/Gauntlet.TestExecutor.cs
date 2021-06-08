@@ -607,17 +607,16 @@ namespace Gauntlet
 			{
 				MB.H2(string.Format("{0} of {1} Tests Passed in {2:mm\\:ss}. ({3} Failed, {4} Passed with Warnings)",
 					TestCount - FailedCount, TestCount, Duration, FailedCount, WarningCount));
-			}
+			
+				List<string> TestResults = new List<string>();
+				foreach (TestExecutionInfo Info in SortedInfo)
+				{
+					string WarningString = Info.TestNode.GetWarnings().Any() ? " With Warnings" : "";
+					TestResults.Add(string.Format("\t{0} result={1}{2}", Info, Info.FinalResult, WarningString));
+				}
 
-			// write out a list of tests and results
-			List<string> TestResults = new List<string>();
-			foreach (TestExecutionInfo Info in SortedInfo)
-			{
-				string WarningString = Info.TestNode.GetWarnings().Any() ? " With Warnings" : "";
-				TestResults.Add(string.Format("\t{0} result={1}{2}", Info, Info.FinalResult, WarningString));
+				MB.UnorderedList(TestResults);
 			}
-
-			MB.UnorderedList(TestResults);
 
 			// write the markdown out with each line indented
 			MB.ToString().Split('\n').ToList().ForEach(L => Log.Info("  " + L));
@@ -682,7 +681,7 @@ namespace Gauntlet
 					Log.Info("Finished Test: {0} in {1:mm\\:ss}", TestInfo, DateTime.Now - TestInfo.PostStartTime);
 
 					// Tell the test it's done. If it still thinks its running it was cancelled
-					TestInfo.TestNode.StopTest(TestIsRunning);
+					TestInfo.TestNode.StopTest(TestIsRunning ? StopReason.MaxDuration : StopReason.Completed);
 					TestInfo.EndTime = DateTime.Now;
 
 					TestResult NodeResult = TestInfo.TestNode.GetTestResult();

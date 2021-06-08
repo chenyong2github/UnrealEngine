@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using DatasmithRhino.Properties.Localization;
 using DatasmithRhino.Utils;
+
 using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
@@ -109,7 +111,7 @@ namespace DatasmithRhino.ElementExporters
 					}
 					else
 					{
-						DatasmithRhinoPlugin.Instance.LogManager.AddLog(DatasmithRhinoLogType.Info, string.Format("RhinoObject {0} of type \"{1}\" is not supported and was not exported.", CurrentObject.Id, CurrentObject.ObjectType));
+						DatasmithRhinoPlugin.Instance.LogManager.AddLog(DatasmithRhinoLogType.Info, string.Format(Resources.UnsupportedActor, CurrentObject.Id, CurrentObject.ObjectType));
 					}
 				}
 			}

@@ -48,7 +48,11 @@ void FRemoteControlWebInterfaceModule::StartupModule()
 
 		SettingsSection->OnModified().BindRaw(this, &FRemoteControlWebInterfaceModule::OnSettingsModified);
 	}
-	Customizations = MakePimpl<FRCWebInterfaceCustomizations>(WebApp);
+	
+	FCoreDelegates::OnPostEngineInit.AddLambda([this]()
+	{
+		Customizations = MakePimpl<FRCWebInterfaceCustomizations>(WebApp);
+	});
 #endif
 }
 
@@ -60,6 +64,8 @@ void FRemoteControlWebInterfaceModule::ShutdownModule()
 	}
 
 #if WITH_EDITOR
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
 		SettingsModule->UnregisterSettings("Project", "Plugins", "RemoteControlWebInterface");

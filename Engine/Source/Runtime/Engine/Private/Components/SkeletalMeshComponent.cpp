@@ -2115,7 +2115,8 @@ void USkeletalMeshComponent::UpdateClothSimulationContext(float InDeltaTime)
 	// Fill the context for the next simulation
 	if(ClothingSimulation)
 	{
-		ClothingSimulation->FillContext(this, InDeltaTime, ClothingSimulationContext);
+		const bool bIsInitialization = false;
+		ClothingSimulation->FillContext(this, InDeltaTime, ClothingSimulationContext, bIsInitialization);
 
 		if(ClothingInteractor)
 		{

@@ -18,6 +18,8 @@
 #include "PlatformInfo.h"
 #include "IMeshBuilderModule.h"
 #include "EngineUtils.h"
+#include "Serialization/LargeMemoryReader.h"
+#include "Serialization/LargeMemoryWriter.h"
 #include "Async/Async.h"
 
 #if ENABLE_COOK_STATS
@@ -41,6 +43,120 @@ static TAutoConsoleVariable<int32> CVarSkeletalMeshKeepMobileMinLODSettingOnDesk
 	TEXT("If non-zero, mobile setting for MinLOD will be stored in the cooked data for desktop platforms"));
 
 #if WITH_EDITOR
+
+/** 
+ * Utility functions for storing and accessing data that exceeds the usual signed 32bit limits 
+ * for data length.
+ * We achieve this by splitting the data into multiple chunks that the DDC can handle along with 
+ * a header chunk. Then when the data is requested we can load each chunk and reconstruct the 
+ * original data.
+ */
+namespace DDCUtils64Bit
+{
+	struct FDDCChunkingHeader
+	{
+		/** Overall size of the data when reconstructed. */
+		int64 TotalSize;
+		/** The number of chunks that the data was split into. */
+		int32 NumChunks;
+	};
+
+	/** The same as calling GetDerivedDataCacheRef().GetSynchronous(...) but with a TArray64 as the output parameter. */
+	bool GetSynchronous(const FString& DerivedDataKey, USkeletalMesh* Owner, TArray64<uint8>& OutDerivedData)
+	{
+		TStringBuilder<512> OwnerPathName;
+		Owner->GetPathName(nullptr, OwnerPathName);
+
+		TArray<uint8> Data32Bit;
+		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, Data32Bit, OwnerPathName))
+		{
+			// Note that currently the MoveTemp does nothing and the data is being copied although 
+			// at some point this might be optimized and the TArray64 will just assume ownership of
+			// the TArrays allocation instead.
+			OutDerivedData = MoveTemp(Data32Bit);
+			return true;
+		}
+		else
+		{
+			TStringBuilder<512> HeaderKey;
+			HeaderKey << DerivedDataKey << TEXT("Header");
+
+			TArray<uint8> HeaderData;
+			HeaderData.Reserve(sizeof(FDDCChunkingHeader));
+
+			// Early out if we cannot find the header or that it is the wrong size (in which case we cannot cast it)
+			if (!GetDerivedDataCacheRef().GetSynchronous(HeaderKey.ToString(), HeaderData, Owner->GetPathName()) || HeaderData.Num() != sizeof(FDDCChunkingHeader))
+			{
+				return false;
+			}
+
+			FDDCChunkingHeader* Header = (FDDCChunkingHeader*)HeaderData.GetData();
+			OutDerivedData.Reserve(Header->TotalSize);
+
+			for (int32 ChunkIndex = 0; ChunkIndex < Header->NumChunks; ChunkIndex++)
+			{
+				TStringBuilder<512> ChunkKey;
+				ChunkKey << DerivedDataKey << TEXT("Chunk") << ChunkIndex;
+
+				TArray<uint8> ChunkData;
+				if (!GetDerivedDataCacheRef().GetSynchronous(ChunkKey.ToString(), ChunkData, OwnerPathName))
+				{
+					OutDerivedData.Empty(); // Get rid of any partial results we might have
+					return false;
+				}
+
+				OutDerivedData.Append(ChunkData);
+			}
+
+			return true;
+		}
+	}
+
+	/** The same as calling GetDerivedDataCacheRef().Put(...) but with a TArrayView64 as the input data. */
+	void Put(const FString& DerivedDataKey, USkeletalMesh* Owner, TArrayView64<const uint8> DerivedData)
+	{
+		TStringBuilder<512> OwnerPathName;
+		Owner->GetPathName(nullptr, OwnerPathName);
+
+		// We don't use the full 32 bit range as internally the DDC might append info to the end of 
+		// the chunk, so we reserve 4kb for this, which is more than enough space to be safe.
+
+		const int64 ChunkSize = MAX_int32 - (4 * 1024);
+		if (DerivedData.Num() <= ChunkSize)
+		{
+			TArrayView<const uint8> DerivedData32Bit(DerivedData.GetData(), (int32)DerivedData.Num());
+			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData32Bit, OwnerPathName);
+		}
+		else
+		{
+			const int32 NumChunks = (int32)FMath::DivideAndRoundUp(DerivedData.Num(), ChunkSize);
+
+			FDDCChunkingHeader Header{ DerivedData.Num(), NumChunks };
+
+			{
+				TStringBuilder<512> HeaderKey;
+				HeaderKey << DerivedDataKey << TEXT("Header");
+
+				TArrayView<const uint8> HeaderView((uint8*)&Header, sizeof(FDDCChunkingHeader));
+
+				GetDerivedDataCacheRef().Put(HeaderKey.ToString(), HeaderView, OwnerPathName);
+			}
+
+			for (int32 ChunkIndex = 0; ChunkIndex < NumChunks; ++ChunkIndex)
+			{
+				const int64 ChunkStart = ChunkIndex * ChunkSize;
+				const uint64 BytesInChunk = FMath::Min(ChunkSize, DerivedData.Num() - ChunkStart);
+
+				TArrayView<const uint8> ChunkData(DerivedData.GetData() + ChunkStart, (int32)BytesInChunk);
+
+				TStringBuilder<512> ChunkKey;
+				ChunkKey << DerivedDataKey << TEXT("Chunk") << ChunkIndex;
+				GetDerivedDataCacheRef().Put(ChunkKey.ToString(), ChunkData, OwnerPathName);
+			}
+		}
+	}
+} //namespace DDCUtils64Bit
+
 //Serialize the LODInfo and append the result to the KeySuffix to build the LODInfo part of the DDC KEY
 //Note: this serializer is only used to build the mesh DDC key, no versioning is required
 static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuffix)
@@ -235,12 +351,12 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 		int32 T0 = FPlatformTime::Cycles();
 		DerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
 
-		TArray<uint8> DerivedData;
-		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, Owner->GetPathName()))
+		TArray64<uint8> DerivedData;
+		if(DDCUtils64Bit::GetSynchronous(DerivedDataKey, Owner, DerivedData))
 		{
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			
-			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
+			FLargeMemoryReader Ar(DerivedData.GetData(), DerivedData.Num(), ELargeMemoryReaderFlags::Persistent);
 
 			//With skeletal mesh build refactor we serialize the LODModel sections into the DDC
 			//We need to store those so we do not have to rerun the reduction to make them up to date
@@ -402,7 +518,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				LODData->BuildFromLODModel(LODModel, VertexBufferBuildFlags);
 			}
 
-			FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
+			FLargeMemoryWriter Ar(0, /*bIsPersistent=*/ true);
 			
 			//If we load an old asset we want to be sure the serialize ddc will be the same has before the skeletalmesh build refactor
 			//So we do not serialize the LODModel sections.
@@ -462,7 +578,8 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			}
 
 			//Store the data using the built key to avoid DDC corruption
-			GetDerivedDataCacheRef().Put(*BuiltDerivedDataKey, DerivedData, Owner->GetPathName());
+			TArrayView64<const uint8> ArView(Ar.GetData(), Ar.TotalSize());
+			DDCUtils64Bit::Put(BuiltDerivedDataKey, Owner, ArView);
 
 			int32 T1 = FPlatformTime::Cycles();
 			UE_LOG(LogSkeletalMesh, Log, TEXT("Built Skeletal Mesh [%.2fs] %s"), FPlatformTime::ToMilliseconds(T1 - T0) / 1000.0f, *Owner->GetPathName());

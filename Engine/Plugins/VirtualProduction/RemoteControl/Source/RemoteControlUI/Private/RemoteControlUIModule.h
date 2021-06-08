@@ -44,6 +44,7 @@ public:
 	virtual void RemovePropertyFilter(const FDelegateHandle& FilterDelegateHandle) override;
 	virtual void RegisterMetadataCustomization(FName MetadataKey, FOnCustomizeMetadataEntry OnCustomizeCallback) override;
 	virtual void UnregisterMetadataCustomization(FName MetadataKey) override;
+	virtual URemoteControlPreset* GetActivePreset() const override;
 	//~ End IRemoteControlUIModule interface
 
 	/**

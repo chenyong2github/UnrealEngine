@@ -2,9 +2,11 @@
 
 #include "Misc/TemplateSequenceEditorUtil.h"
 #include "ISequencer.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/Casts.h"
 #include "TemplateSequence.h"
 #include "UObject/Class.h"
+#include "UObject/UnrealType.h"
 
 FTemplateSequenceEditorUtil::FTemplateSequenceEditorUtil(UTemplateSequence* InTemplateSequence, ISequencer& InSequencer)
 	: TemplateSequence(InTemplateSequence)
@@ -43,6 +45,11 @@ void FTemplateSequenceEditorUtil::ChangeActorBinding(UObject* Object, UActorFact
 	FGuid NewSpawnableGuid = Sequencer.MakeNewSpawnable(*Object);
 	FMovieSceneSpawnable* NewSpawnable = MovieScene->FindSpawnable(NewSpawnableGuid);
 
+	// Pre-notify that a change will occur.
+	FProperty* BoundActorClassProperty = FindFProperty<FProperty>(UTemplateSequence::StaticClass(), GET_MEMBER_NAME_CHECKED(UTemplateSequence, BoundActorClass));
+	TemplateSequence->PreEditChange(BoundActorClassProperty);
+
+	// Update the BoundActorClass.
 	if (Object->IsA<UClass>())
 	{
 		UClass* ChosenClass = StaticCast<UClass*>(Object);
@@ -68,5 +75,9 @@ void FTemplateSequenceEditorUtil::ChangeActorBinding(UObject* Object, UActorFact
 			SpawnRegister.DestroySpawnedObject(PreviousSpawnableGuid, Sequencer.GetFocusedTemplateID(), Sequencer);
 		}
 	}
+
+	// Notify that the change occured.
+	FPropertyChangedEvent PropertyEvent(BoundActorClassProperty, EPropertyChangeType::ValueSet);
+	TemplateSequence->PostEditChangeProperty(PropertyEvent);
 }
 

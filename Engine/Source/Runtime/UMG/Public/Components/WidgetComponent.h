@@ -430,6 +430,8 @@ protected:
 
 	void UpdateMaterialInstance();
 
+	virtual void OnHiddenInGameChanged() override;
+
 protected:
 	/** The coordinate space in which to render the widget */
 	UPROPERTY(EditAnywhere, Category=UserInterface)
@@ -642,6 +644,13 @@ private:
 	static EVisibility ConvertWindowVisibilityToVisibility(EWindowVisibility visibility);
 
 	void OnWidgetVisibilityChanged(ESlateVisibility InVisibility);
+
+	/** When using Screen space, this will update the Widget on Screen. **/
+	void UpdateWidgetOnScreen();
+
+	/** When using Screen space, this code will add the widget to the screen. **/
+	void AddWidgetToScreen(ULocalPlayer* TargetPlayer);
+
 	/** Set to true after a draw of an empty component.*/
 	bool bRenderCleared;
 	bool bOnWidgetVisibilityChangedRegistered;

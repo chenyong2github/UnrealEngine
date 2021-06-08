@@ -74,16 +74,15 @@ void UNiagaraStackModuleItemLinkedInputCollection::RefreshChildrenInternal(const
 			for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); i++)
 			{
 				FNiagaraVariable& Variable = Builder.Histories[0].Variables[i];
-				const TArray<TTuple<const UEdGraphPin*, const UEdGraphPin*>>& ReadHistory = Builder.Histories[0].PerVariableReadHistory[i];
+				const auto& ReadHistory = Builder.Histories[0].PerVariableReadHistory[i];
 				if (ReadHistory.Num() > 0)
 				{
 					const FNiagaraNamespaceMetadata NamespaceMetadata = FNiagaraEditorUtilities::GetNamespaceMetaDataForVariableName(Variable.GetName());
 					if ( (NamespaceMetadata.IsValid()) && (NamespaceMetadata.Namespaces.Contains(FNiagaraConstants::LocalNamespace) == false) && (NamespaceMetadata.Namespaces.Contains(FNiagaraConstants::OutputNamespace) == false) )
 					{
-						for (const TTuple<const UEdGraphPin*, const UEdGraphPin*>& ReadPair : ReadHistory)
+						for (const FNiagaraParameterMapHistory::FReadHistory& ReadPair : ReadHistory)
 						{
-							const UEdGraphPin* ReadPin = ReadPair.Key;
-							if (Cast<UNiagaraNodeParameterMapGet>(ReadPin->GetOwningNode()) != nullptr)
+							if (Cast<UNiagaraNodeParameterMapGet>(ReadPair.ReadPin.Pin->GetOwningNode()) != nullptr)
 							{
 								UNiagaraStackModuleItemOutput* Output = FindCurrentChildOfTypeByPredicate<UNiagaraStackModuleItemOutput>(CurrentChildren,
 									[&](UNiagaraStackModuleItemOutput* CurrentOutput) { return CurrentOutput->GetOutputParameterHandle().GetParameterHandleString() == Variable.GetName(); });

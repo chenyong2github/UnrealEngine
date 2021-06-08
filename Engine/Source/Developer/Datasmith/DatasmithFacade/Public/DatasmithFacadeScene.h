@@ -15,6 +15,7 @@ class FDatasmithFacadeMesh;
 class FDatasmithFacadeMeshElement;
 class FDatasmithFacadeMetaData;
 class FDatasmithFacadeTexture;
+class FDatasmithFacadeLevelVariantSets;
 
 
 class DATASMITHFACADE_API FDatasmithFacadeScene
@@ -128,6 +129,20 @@ public:
 		FDatasmithFacadeTexture* InTexturePtr
 	);
 
+	void AddLevelVariantSets(
+		FDatasmithFacadeLevelVariantSets* InLevelVariantSetsPtr
+	);
+
+	int32 GetLevelVariantSetsCount() const;
+
+	FDatasmithFacadeLevelVariantSets* GetNewLevelVariantSets(
+		int32 LevelVariantSetsIndex
+	);
+
+	void RemoveLevelVariantSets(
+		FDatasmithFacadeLevelVariantSets* InLevelVariantSetsPtr
+	);
+
 	void AddMetaData(
 		FDatasmithFacadeMetaData* InMetaDataPtr
 	);
@@ -183,16 +198,21 @@ public:
 
 	/** Build and export a Datasmith scene instance and its scene element assets.
 	 *  The passed InOutputPath parameter will override any Name and OutputPath previously specified.
+	 *	@param bCleanupUnusedElements Remove unused meshes, textures and materials before exporting
 	 *	@return True if the scene was properly exported.
 	 */
 	bool ExportScene(
-		const TCHAR* InOutputPath // Datasmith scene output file path
+		const TCHAR* InOutputPath, // Datasmith scene output file path
+		bool bCleanupUnusedElements = true
 	);
 
 	/** Build and export a Datasmith scene instance and its scene element assets.
+	 *	@param bCleanupUnusedElements Remove unused meshes, textures and materials before exporting
 	 *	@return True if the scene was properly exported.
 	 */
-	bool ExportScene();
+	bool ExportScene(
+		bool bCleanupUnusedElements = true
+	);
 
 	/**
 	 * Set the Datasmith scene's label.

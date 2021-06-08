@@ -64,6 +64,12 @@ void FPropertyEditorWhitelist::RemoveFromBlacklist(TSoftObjectPtr<UStruct> Struc
 	}
 }
 
+void FPropertyEditorWhitelist::SetEnabled(bool bEnable)
+{
+	bEnablePropertyEditorWhitelist = bEnable;
+	WhitelistEnabledDelegate.Broadcast();
+}
+
 bool FPropertyEditorWhitelist::DoesPropertyPassFilter(const UStruct* ObjectStruct, FName PropertyName) const
 {
 	if (bEnablePropertyEditorWhitelist && ObjectStruct)

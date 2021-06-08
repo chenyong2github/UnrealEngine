@@ -43,8 +43,21 @@ class FLibPartInfo
 	GS::UniString Name; // LibPart name
 };
 
+// Class that will auto delete location field
+class FAuto_API_LibPart : public API_LibPart
+{
+  public:
+	FAuto_API_LibPart() { Zap((API_LibPart*)this); }
+	~FAuto_API_LibPart()
+	{
+		delete location;
+		location = nullptr;
+	}
+};
+
 const API_AddParType* GetParameter(API_AddParType** InParameters, const char* InParameterName);
 bool GetParameter(API_AddParType** InParameters, const char* InParameterName, GS::UniString* OutString);
 bool GetParameter(API_AddParType** InParameters, const char* InParameterName, double* OutValue);
+bool GetParameter(API_AddParType** InParameters, const char* InParameterName, bool* OutFlag);
 
 END_NAMESPACE_UE_AC

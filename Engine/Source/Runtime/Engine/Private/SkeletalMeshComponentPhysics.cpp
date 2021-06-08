@@ -2652,7 +2652,8 @@ void USkeletalMeshComponent::RecreateClothingActors()
 				TArray<UClothingAssetBase*> AssetsInUse;
 				SkeletalMesh->GetClothingAssetsInUse(AssetsInUse);
 
-				ClothingSimulation->FillContext(this, 0.f, ClothingSimulationContext);
+				const bool bIsInitialization = true;
+				ClothingSimulation->FillContext(this, 0.f, ClothingSimulationContext, bIsInitialization);
 
 				const int32 NumMeshAssets = SkeletalMesh->GetMeshClothingAssets().Num();
 				for (int32 BaseAssetIndex = 0; BaseAssetIndex < NumMeshAssets; ++BaseAssetIndex)
@@ -2774,11 +2775,9 @@ void USkeletalMeshComponent::ExtractCollisionsForCloth(
 		FTransform ComponentToComponentTransform;
 		if(SourceComponent != DestClothComponent)
 		{
-			FTransform SourceClothComponentTransform = SourceComponent->GetComponentTransform();
-			SourceClothComponentTransform.RemoveScaling();  // The source component scale will be present in the world space bone transform, and is not needed here
 			FTransform DestClothComponentTransform = DestClothComponent->GetComponentTransform();
-			DestClothComponentTransform.RemoveScaling();  // The collision source doesn't need the scale of the cloth skeletal mesh applied to it
-			ComponentToComponentTransform = SourceClothComponentTransform * DestClothComponentTransform.Inverse();
+			DestClothComponentTransform.RemoveScaling();  // The collision source doesn't need the scale of the cloth skeletal mesh applied to it (but it does need the source scale from the component transform)
+			ComponentToComponentTransform = SourceComponent->GetComponentTransform() * DestClothComponentTransform.Inverse();
 		}
 
 		// Init cache on first copy

@@ -79,6 +79,7 @@ public:
 	virtual bool IsMovieCurrentlyPlaying() const override;
 	virtual bool LoadingScreenIsPrepared() const override;
 	virtual void SetupLoadingScreenFromIni() override;
+	virtual void SetViewportDPIScale(float InViewportDPIScale) override;
 	
 	/** Check if the initial movie(s) is still playing */
 	virtual bool IsStartupMoviePlaying() const override { return IsMoviePlaying; };
@@ -202,6 +203,9 @@ private:
 
 	/** DPIScaler parented to the UserWidgetHolder to ensure correct scaling */
 	TSharedPtr<class SDPIScaler> UserWidgetDPIScaler;
+
+	/** Scale used by UserWidgetDPIScaler. */
+	float ViewportDPIScale;
 
 private:
 	/** Singleton handle */

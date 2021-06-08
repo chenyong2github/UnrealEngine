@@ -25,6 +25,7 @@
 #include "MeshDescription.h"
 #include "Misc/ScopeLock.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "UObject/GarbageCollection.h"
 
 #if WITH_EDITOR
@@ -37,11 +38,11 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMeshData);
 
-		// Clear PendingDelete flag if it is set. Something is wrong. Better safe than sorry
+		// Something is wrong. Do not go any further
 		if (MeshData.HasState(EAssetState::PendingDelete))
 		{
-			MeshData.ClearState(EAssetState::PendingDelete);
-			UE_LOG(LogDatasmithRuntime, Warning, TEXT("A mesh marked for deletion is actually used by the scene"));
+			UE_LOG(LogDatasmithRuntime, Error, TEXT("A mesh marked for deletion is actually used by the scene"));
+			return false;
 		}
 
 		if (MeshData.HasState(EAssetState::Processed))
@@ -366,6 +367,14 @@ namespace DatasmithRuntime
 
 		// #ue_datasmithruntime: Cleanup mesh descriptions
 		//FDatasmithStaticMeshImporter::CleanupMeshDescriptions(MeshDescriptions);
+		for (FMeshDescription& MeshDescription : MeshDescriptions)
+		{
+			if (ShouldRecomputeNormals(MeshDescription, 0))
+			{
+				FStaticMeshOperations::ComputeTriangleTangentsAndNormals(MeshDescription);
+				FStaticMeshOperations::ComputeTangentsAndNormals(MeshDescription, EComputeNTBsFlags::UseMikkTSpace);
+			}
+		}
 
 		//#ue_datasmithruntime: Implement task to build better lightmap sizes - See Dataprep operation
 		int32 MinLightmapSize = FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue(EDatasmithImportLightmapMin::LIGHTMAP_64);
@@ -866,13 +875,17 @@ namespace DatasmithRuntime
 			return this->AssignMaterial(Referencer, Cast<UMaterialInstanceDynamic>(Object));
 		};
 
-		TFunction<void(const IDatasmithMaterialIDElement*,int32)> UpdateMaterialSlot;
-		UpdateMaterialSlot = [&](const IDatasmithMaterialIDElement* MaterialIDElement, int32 SlotIndex) -> void
+		TFunction<bool(const IDatasmithMaterialIDElement*,int32)> UpdateMaterialSlot;
+		UpdateMaterialSlot = [&](const IDatasmithMaterialIDElement* MaterialIDElement, int32 SlotIndex) -> bool
 		{
 			const FString MaterialPathName(MaterialIDElement->GetName());
 
+			UMaterialInterface* PreviousMaterialInterface = StaticMaterials[SlotIndex].MaterialInterface;
+
 			if (!MaterialPathName.StartsWith(TEXT("/")))
 			{
+				StaticMaterials[SlotIndex].MaterialInterface = nullptr;
+
 				if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialPathName))
 				{
 					DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Mesh, MeshData.ElementId, (uint16)SlotIndex });
@@ -880,26 +893,20 @@ namespace DatasmithRuntime
 					AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Mesh, MeshData.ElementId, (uint16)SlotIndex } });
 					TasksToComplete |= EWorkerTask::MaterialAssign;
 				}
+				else
+				{
+					DependencyList.Remove(MaterialIDElement->GetNodeId());
+				}
 			}
 			else
 			{
 				StaticMaterials[SlotIndex].MaterialInterface = Cast<UMaterialInterface>(FSoftObjectPath(MaterialPathName).TryLoad());
-
-				// Mark dependent mesh components' render state as dirty
-				for (FReferencer& ActorReferencer : MeshData.Referencers)
-				{
-					const FActorData& ActorData = ActorDataList[ActorReferencer.GetId()];
-
-					if (ActorData.HasState(EAssetState::Completed))
-					{
-						if (UActorComponent* ActorComponent = ActorData.GetObject<UActorComponent>())
-						{
-							ActorComponent->MarkRenderStateDirty();
-						}
-					}
-				}
 			}
+
+			return PreviousMaterialInterface != StaticMaterials[SlotIndex].MaterialInterface;
 		};
+
+		bool bUpdateReferencers = false;
 
 		// Check to see if there is material to apply on all slots
 		int32 OverrideIndex = INDEX_NONE;
@@ -918,7 +925,7 @@ namespace DatasmithRuntime
 
 			for (int32 Index = 0; Index < MaterialSlotCount; Index++)
 			{
-				UpdateMaterialSlot(MaterialIDElement, Index);
+				bUpdateReferencers |= UpdateMaterialSlot(MaterialIDElement, Index);
 			}
 		}
 
@@ -945,10 +952,28 @@ namespace DatasmithRuntime
 						continue;
 					}
 
-					UpdateMaterialSlot(MaterialIDElement, SlotIndex);
+					bUpdateReferencers |= UpdateMaterialSlot(MaterialIDElement, SlotIndex);
 				}
 			}
 		}
+
+		if (bUpdateReferencers)
+		{
+			// Mark dependent mesh components' render state as dirty
+			for (FReferencer& ActorReferencer : MeshData.Referencers)
+			{
+				const FActorData& ActorData = ActorDataList[ActorReferencer.GetId()];
+
+				if (ActorData.HasState(EAssetState::Completed))
+				{
+					if (UActorComponent* ActorComponent = ActorData.GetObject<UActorComponent>())
+					{
+						ActorComponent->MarkRenderStateDirty();
+					}
+				}
+			}
+		}
+
 	}
 
 	void FSceneImporter::FillStaticMeshMaterials(FAssetData& MeshData, TArray<FMeshDescription>& MeshDescriptions)

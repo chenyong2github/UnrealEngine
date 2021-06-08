@@ -195,6 +195,8 @@ USTRUCT()
 struct NIAGARAEDITOR_API FNiagaraActionColors
 {
 	GENERATED_BODY()
+
+	FNiagaraActionColors();
 	
 	UPROPERTY(EditAnywhere, Category = Color)
 	FLinearColor NiagaraColor;

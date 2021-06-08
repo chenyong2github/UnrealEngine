@@ -8807,16 +8807,32 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 		}
 		else if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(Property))
 		{
-			int64 IntValue = EnumProperty->GetEnum()->GetValueByName(FName(*StrValue, FNAME_Find));
-			bParseSucceeded = (INDEX_NONE != IntValue);
-
-			// If the parse did not succeed, clear out the int to keep the enum value valid
-			if (!bParseSucceeded)
+			bParseSucceeded = false;
+			if (const UEnum* Enum = EnumProperty->GetEnum())
 			{
-				IntValue = 0;
+				int64 IntValue = Enum->GetValueByName(FName(*StrValue, FNAME_Find));
+				bParseSucceeded = (INDEX_NONE != IntValue);
+
+				// If the parse did not succeed, clear out the int to keep the enum value valid
+				if (!bParseSucceeded)
+				{
+					IntValue = 0;
+				}
+				bParseSucceeded = bParseSucceeded && (IntValue <= 255) && (IntValue >= 0);
+				EnumProperty->GetUnderlyingProperty()->SetIntPropertyValue(DirectValue, IntValue);
 			}
-			bParseSucceeded = bParseSucceeded && (IntValue <= 255) && (IntValue >= 0);
-			EnumProperty->GetUnderlyingProperty()->SetIntPropertyValue(DirectValue, IntValue);
+			else
+			{
+				UE_LOG(
+					LogBlueprint,
+					Warning,
+					TEXT("Member 'Enum' of EnumProperty is nullptr, copy   operation would fail. You could ignore this message if you moved the enum class. EnumProperty name:'%s', OwningObject: '%s', outer of OwningObject: '%s', outer of outer: '%s'"),
+					*EnumProperty->GetName(),
+					*GetNameSafe(OwningObject),
+					*GetNameSafe(OwningObject ? OwningObject->GetOuter() : nullptr),
+					*GetNameSafe(OwningObject ? OwningObject->GetOuter() ? OwningObject->GetOuter()->GetOuter(): nullptr : nullptr)
+				);
+			}
 		}
 		else if (Property->IsA(FStrProperty::StaticClass()))
 		{

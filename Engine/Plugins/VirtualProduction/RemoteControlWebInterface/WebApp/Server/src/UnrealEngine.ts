@@ -1,4 +1,5 @@
-import { IPayload, IPayloads, IPreset, IPanel, IView, ICustomStackWidget, ICustomStackTabs, PropertyValue, IAsset, AssetAction, WidgetTypes, PropertyType } from '../../Client/src/shared';
+import { IPayload, IPayloads, IPreset, IPanel, IView, ICustomStackWidget, ICustomStackTabs, PropertyValue, 
+        IAsset, WidgetTypes, PropertyType } from '../../Client/src/shared';
 import _ from 'lodash';
 import WebSocket from 'ws';
 import { Notify, Program } from './';
@@ -436,8 +437,8 @@ export namespace UnrealEngine {
     try {
       const body: any = { GenerateTransaction: true };
       if (value !== null) {
-        setPayloadValueInternal(payloads, [preset, property], value);
-        Notify.emitValueChange(preset, property, value);
+        // setPayloadValueInternal(payloads, [preset, property], value);
+        // Notify.emitValueChange(preset, property, value);
         body.PropertyValue = value;
       } else {
         body.ResetToDefault = true; 
@@ -445,47 +446,16 @@ export namespace UnrealEngine {
 
       await put(`/remote/preset/${preset}/property/${property}`, body);
 
-      if (value === null) {
-        const ret = await get<UnrealApi.PropertyValues>(`/remote/preset/${preset}/property/${property}`);
-        value = ret.PropertyValues?.[0]?.PropertyValue;
-        if (value !== undefined) {
-          setPayloadValueInternal(payloads, [preset, property], value);
-          Notify.emitValueChange(preset, property, value);
-        }
-      }
+      // if (value === null) {
+      //   const ret = await get<UnrealApi.PropertyValues>(`/remote/preset/${preset}/property/${property}`);
+      //   value = ret.PropertyValues?.[0]?.PropertyValue;
+      //   if (value !== undefined) {
+      //     setPayloadValueInternal(payloads, [preset, property], value);
+      //     Notify.emitValueChange(preset, property, value);
+      //   }
+      // }
     } catch (err) {
       console.log('Failed to set preset data:', err.message);
-    }
-  }
-
-  export async function setActorValue(preset: string, actor: string, property: string, value: PropertyValue): Promise<void> {
-    const payload = payloads[preset];
-    if (!payload)
-      return;
-
-    try {
-      const body: any = { GenerateTransaction: true };
-
-      if (value !== null) {
-        _.set(payload[actor] as IPayload, property, value);
-        Notify.emitValueChange(preset, actor, payload[actor]);
-
-        body.PropertyValue = value;
-      } else {
-        body.ResetToDefault = true;
-      }
-
-      await put(`/remote/preset/${preset}/actor/${actor}/property/${property}`, body);
-
-      if (value === null) {
-        const ret = await get<UnrealApi.GetPropertyValue>(`/remote/preset/${preset}/actor/${actor}/property/${property}`);
-        if (ret) {
-          _.set(payload[actor] as IPayload, property, ret.PropertyValue);
-          Notify.emitValueChange(preset, actor, payload[actor]);
-        }
-      }
-    } catch (err) {
-      console.log('Failed to set actor property value:', err.message);
     }
   }
 
@@ -505,37 +475,12 @@ export namespace UnrealEngine {
     element[ _.last(path) ] = value;
   }
 
-  export async function resetPayloadValue(preset: string, property: string): Promise<void> {
+  export async function executeFunction(preset: string, func: string, args: Record<string, any>): Promise<void> {
     try {
-      await put(`/remote/preset/${preset}/property/${property}`, { ResetToDefault: true, GenerateTransaction: true });
-    } catch (err) {
-      console.log('Failed to reset preset property', err.message);
-    }
-  }
-
-  export async function executeFunction(preset: string, actor: string, func: string): Promise<void> {
-    try {
-      let url = `/remote/preset/${preset}`;
-      if (actor)
-        url += `/actor/${actor}`;
-      
-      url += `/function/${func}`;
-
-      await put(url, { Parameters: {}, GenerateTransaction: true });
+      const url = `/remote/preset/${preset}/function/${func}`;
+      await put(url, { Parameters: args, GenerateTransaction: true });
     } catch (err) {
       console.log('Failed to set execute function call:', err.message);
-    }
-  }
-
-  export async function renamePresetProperty(preset: string, type: string, property: string, label: string, onChanged: (value: string) => void): Promise<void> {
-    try {
-      const url = `/remote/preset/${preset}/${type}/${property}/label`;
-      const res = await put<UnrealApi.RenameLabel>(url, { NewLabel: label });
-      await refresh();
-      onChanged?.(res?.AssignedLabel ?? label);
-
-    } catch (err) {
-      console.log(`Failed to rename a property`);
     }
   }
 
@@ -551,32 +496,7 @@ export namespace UnrealEngine {
         Notify.emit('presets', presets);
       }
     } catch (err) {
-      console.log(`Failed to rename a property`);
-    }
-  }
-
-  export async function executeAssetAction(asset: string, action: AssetAction, meta: any): Promise<void> {
-    if (!asset)
-      return;
-
-    switch (action) {
-      case AssetAction.SequencePlay:
-        await playSequence(asset);
-        break;
-    }
-  }
-
-  async function playSequence(asset: string) {
-    const sequencer = '/Script/LevelSequenceEditor.Default__LevelSequenceEditorBlueprintLibrary';
-    const editor = '/Script/EditorScriptingUtilities.Default__EditorAssetLibrary';
-    try {
-      await put('/remote/object/call', { objectPath: editor, functionName: 'LoadAsset', parameters: { 'AssetPath': asset }  });
-      await put('/remote/object/call', { objectPath: sequencer, functionName: 'OpenLevelSequence', parameters: { 'LevelSequence': asset }  });
-      await put('/remote/object/call', { objectPath: sequencer, functionName: 'Pause' });
-      await put('/remote/object/call', { objectPath: sequencer, functionName: 'SetCurrentTime', parameters: { NewFrame: 0 } });
-      await put('/remote/object/call', { objectPath: sequencer, functionName: 'Play' });
-    } catch (err) {
-      console.log('Failed to play sequence');
+      console.log(`Failed to set property metadata`);
     }
   }
 
@@ -599,7 +519,7 @@ export namespace UnrealEngine {
   }
 
   export async function search(query: string, types: string[], prefix: string, count: number): Promise<IAsset[]> {
-    const ret = await put<UnrealApi.Assets>('/remote/search/assets', { 
+    const ret = await put<UnrealApi.Assets>('/remote/search/assets', {
       Query: query,
       Limit: count,
       Filter: {

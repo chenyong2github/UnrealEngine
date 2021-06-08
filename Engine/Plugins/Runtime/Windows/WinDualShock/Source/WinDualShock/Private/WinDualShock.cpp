@@ -5,6 +5,7 @@
 #include "IInputDeviceModule.h"
 #include "IInputDevice.h"
 #include "Misc/ConfigCacheIni.h"
+#include "GenericPlatform/GenericApplication.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWinDualShock, Log, All);
 
@@ -17,6 +18,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogWinDualShock, Log, All);
 #endif
 #include "Windows/HideWindowsPlatformTypes.h"
 #include LIBSCEPAD_PLATFORM_INCLUDE
+
+static FName InputClassName = FName("FWinDualShock");
+static FString InputControllerIdentifier = TEXT("DualShock4");
 
 class FWinDualShock : public IInputDevice
 {
@@ -76,7 +80,11 @@ public:
 
 	virtual void SendControllerEvents() override
 	{
-		Controllers.SendControllerEvents(MessageHandler);
+		for (int32 UserIndex = 0; UserIndex < SCE_USER_SERVICE_MAX_LOGIN_USERS; UserIndex++)
+		{
+			FInputDeviceScope InputScope(nullptr, InputClassName, UserIndex, InputControllerIdentifier);
+			Controllers.SendControllerEvents(UserIndex, MessageHandler);
+		}
 	}
 
 	void SetChannelValue (int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value)

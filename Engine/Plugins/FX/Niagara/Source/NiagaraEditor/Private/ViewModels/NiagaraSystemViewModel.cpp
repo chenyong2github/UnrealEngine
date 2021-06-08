@@ -1522,34 +1522,33 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 		System->CacheFromCompiledData();
 	}
 
-	TArray<UNiagaraComponent*> ReferencingComponents;
-	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
-	{
-		if (PreviewComponent != nullptr)
-		{
-			ReferencingComponents.Add(PreviewComponent);
-		}
-	}
-	else
-	{
-		ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(GetSystem());
-	}
+	FNiagaraSystemUpdateContext UpdateContext;
 
-	for (auto Component : ReferencingComponents)
-	{
-		if (ReinitMode == EReinitMode::ResetSystem)
+	//TODO: Some path through the system sim init code is causing this to break running systems.
+	UpdateContext.SetDestroySystemSim(false);
+
+	UpdateContext.GetPostWork().BindLambda(
+		[ReinitMode, bResetAge](UNiagaraComponent* Component)
 		{
-			Component->ResetSystem();
-			if (bResetAge && Component->GetAgeUpdateMode() == ENiagaraAgeUpdateMode::DesiredAge)
+			if (ReinitMode == EReinitMode::ResetSystem && bResetAge  && Component->GetAgeUpdateMode() == ENiagaraAgeUpdateMode::DesiredAge)
 			{
 				Component->SetDesiredAge(0);
 			}
 		}
-		else if (ReinitMode == EReinitMode::ReinitializeSystem)
+	);
+	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
+	{
+		if (PreviewComponent != nullptr)
 		{
-			Component->ReinitializeSystem();
+			UpdateContext.Add(PreviewComponent, ReinitMode == EReinitMode::ReinitializeSystem);
 		}
 	}
+	else
+	{
+		UpdateContext.Add(&GetSystem(), ReinitMode == EReinitMode::ReinitializeSystem);
+	}
+
+	UpdateContext.CommitUpdate();
 
 	if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset && MultiResetMode == EMultiResetMode::AllowResetAllInstances && EditorSettings->GetResetDependentSystemsWhenEditingEmitters())
 	{
@@ -2150,7 +2149,9 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 {
 	for (TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
 	{
-		if (SelectionViewModel->GetSelectedEmitterHandleIds().Contains(EmitterHandleViewModel->GetId()) == false)
+		// if we are an emitter asset we don't require pre-selection
+		// if we are a system asset instead we filter out unselected emitters
+		if (EditMode != ENiagaraSystemViewModelEditMode::EmitterAsset && SelectionViewModel->GetSelectedEmitterHandleIds().Contains(EmitterHandleViewModel->GetId()) == false)
 		{
 			continue;
 		}
@@ -2166,6 +2167,26 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 	}
 	PreviewComponent->MarkRenderTransformDirty();
 	ResetSystem(ETimeResetMode::KeepCurrentTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
+}
+
+void FNiagaraSystemViewModel::UpdateSystemFixedBounds()
+{
+	// early out as we only allow system fixed bounds update on system assets
+	if(GetEditMode() != ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		return;
+	}
+
+	if(SystemInstance != nullptr)
+	{
+		GetSystem().Modify();
+		
+		GetSystem().bFixedBounds = true;
+		GetSystem().SetFixedBounds(SystemInstance->GetLocalBounds());
+
+		PreviewComponent->MarkRenderTransformDirty();
+		ResetSystem(ETimeResetMode::KeepCurrentTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
+	}
 }
 
 void FNiagaraSystemViewModel::ClearEmitterStats()

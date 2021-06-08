@@ -3,6 +3,7 @@
 #include "LevelSnapshotsEditorModule.h"
 
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
+#include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
 #include "NegatableFilter.h"
 #include "LevelSnapshotsEditorCommands.h"
 #include "LevelSnapshotsEditorStyle.h"
@@ -67,6 +68,7 @@ void FLevelSnapshotsEditorModule::ShutdownModule()
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
 		SettingsModule.UnregisterSettings("Project", "Plugins", "Level Snapshots");
+		SettingsModule.UnregisterSettings("Project", "Plugins", "Level Snapshots Data Management");
 	}
 }
 
@@ -105,9 +107,10 @@ bool FLevelSnapshotsEditorModule::RegisterProjectSettings()
 {
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
+		// User Project Settings
 		ProjectSettingsSectionPtr = SettingsModule.RegisterSettings("Project", "Plugins", "Level Snapshots",
 			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsSettingsCategoryDisplayName", "Level Snapshots"),
-			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsSettingsDescription", "Configure the Level Snapshots settings"),
+			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsSettingsDescription", "Configure the Level Snapshots user settings"),
 			GetMutableDefault<ULevelSnapshotsEditorProjectSettings>());
 
 		if (ProjectSettingsSectionPtr.IsValid() && ProjectSettingsSectionPtr->GetSettingsObject().IsValid())
@@ -116,6 +119,19 @@ bool FLevelSnapshotsEditorModule::RegisterProjectSettings()
 
 			ProjectSettingsSectionPtr->OnModified().BindRaw(this, &FLevelSnapshotsEditorModule::HandleModifiedProjectSettings);
 		}
+
+		// Data Management Project Settings
+		DataMangementSettingsSectionPtr = SettingsModule.RegisterSettings("Project", "Plugins", "Level Snapshots Data Management",
+			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsDataManagementSettingsCategoryDisplayName", "Level Snapshots Data Management"),
+			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsDataManagementSettingsDescription", "Configure the Level Snapshots path and data settings"),
+			GetMutableDefault<ULevelSnapshotsEditorDataManagementSettings>());
+
+		if (DataMangementSettingsSectionPtr.IsValid() && DataMangementSettingsSectionPtr->GetSettingsObject().IsValid())
+		{
+			DataMangementSettingsObjectPtr = Cast<ULevelSnapshotsEditorDataManagementSettings>(DataMangementSettingsSectionPtr->GetSettingsObject());
+
+			DataMangementSettingsSectionPtr->OnModified().BindRaw(this, &FLevelSnapshotsEditorModule::HandleModifiedProjectSettings);
+		}
 	}
 
 	return ProjectSettingsObjectPtr.IsValid();
@@ -123,11 +139,13 @@ bool FLevelSnapshotsEditorModule::RegisterProjectSettings()
 
 bool FLevelSnapshotsEditorModule::HandleModifiedProjectSettings()
 {
-	if (ensureMsgf(ProjectSettingsObjectPtr.IsValid(),
+	if (ensureMsgf(DataMangementSettingsObjectPtr.IsValid(),
 		TEXT("ProjectSettingsObjectPtr was not valid. Check to ensure that Project Settings have been registered for LevelSnapshots.")))
 	{
-		ProjectSettingsObjectPtr->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
-		ProjectSettingsObjectPtr->SanitizeAllProjectSettingsPaths(true);
+		DataMangementSettingsObjectPtr->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
+		DataMangementSettingsObjectPtr->SanitizeAllProjectSettingsPaths(true);
+		
+		DataMangementSettingsObjectPtr.Get()->SaveConfig();
 	}
 	
 	return true;
@@ -187,7 +205,7 @@ void FLevelSnapshotsEditorModule::CreateEditorToolbarButton(FToolBarBuilder& Bui
 		NAME_None,
 		NSLOCTEXT("LevelSnapshots", "LevelSnapshots", "Level Snapshots"), // Set Text under image
 		NSLOCTEXT("LevelSnapshots", "LevelSnapshotsToolbarButtonTooltip", "Take snapshot with optional form"), //  Set tooltip
-		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton") // Set image
+		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton", "LevelSnapshots.ToolbarButton.Small") // Set image
 	);
 	
 	Builder.AddComboButton(
@@ -218,6 +236,7 @@ TSharedRef<SWidget> FLevelSnapshotsEditorModule::FillEditorToolbarComboButtonMen
 void FLevelSnapshotsEditorModule::BuildPathsToSaveSnapshotWithOptionalForm() const
 {	
 	check(ProjectSettingsObjectPtr.IsValid());
+	check(DataMangementSettingsObjectPtr.IsValid());
 
 	// Creation Form
 
@@ -225,7 +244,8 @@ void FLevelSnapshotsEditorModule::BuildPathsToSaveSnapshotWithOptionalForm() con
 	{
 		TSharedRef<SWidget> CreationForm = 
 			FLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
-				FCloseCreationFormDelegate::CreateRaw(this, &FLevelSnapshotsEditorModule::HandleFormReply), ProjectSettingsObjectPtr.Get());
+				FCloseCreationFormDelegate::CreateRaw(this, &FLevelSnapshotsEditorModule::HandleFormReply), 
+				ProjectSettingsObjectPtr.Get(), DataMangementSettingsObjectPtr.Get());
 	}
 	else
 	{
@@ -252,7 +272,7 @@ void FLevelSnapshotsEditorModule::TakeAndSaveSnapshot(const FText& InDescription
 	{
 		return;
 	}
-	ULevelSnapshotsEditorProjectSettings* ProjectSettings = ProjectSettingsObjectPtr.Get();
+	ULevelSnapshotsEditorDataManagementSettings* DataManagementSettings = DataMangementSettingsObjectPtr.Get();
 
 
 	// Notify the user that a snapshot is being created
@@ -271,19 +291,18 @@ void FLevelSnapshotsEditorModule::TakeAndSaveSnapshot(const FText& InDescription
 	};
 
 	
-	ProjectSettings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
-	ProjectSettings->SanitizeAllProjectSettingsPaths(true);
+	DataManagementSettings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
+	DataManagementSettings->SanitizeAllProjectSettingsPaths(true);
 
-	const FFormatNamedArguments& FormatArguments = ULevelSnapshotsEditorProjectSettings::GetFormatNamedArguments(World->GetName());
-	const FText& NewSnapshotDir = FText::Format(FText::FromString(
-		bShouldUseOverrides && ProjectSettings->IsPathOverridden() ? 
-		ProjectSettings->GetSaveDirOverride() : ProjectSettings->LevelSnapshotSaveDir), FormatArguments);
-	const FText& NewSnapshotName = FText::Format(FText::FromString(
-		bShouldUseOverrides && ProjectSettings->IsNameOverridden() ?
-		ProjectSettings->GetNameOverride() : ProjectSettings->DefaultLevelSnapshotName), FormatArguments);
+	const FText& NewSnapshotDir = ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(FText::FromString(
+		bShouldUseOverrides && DataManagementSettings->IsPathOverridden() ? 
+		DataManagementSettings->GetSaveDirOverride() : DataManagementSettings->LevelSnapshotSaveDir), World->GetName());
+	const FText& NewSnapshotName = ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(FText::FromString(
+		bShouldUseOverrides && DataManagementSettings->IsNameOverridden() ?
+		DataManagementSettings->GetNameOverride() : DataManagementSettings->DefaultLevelSnapshotName), World->GetName());
 
 	const FString& ValidatedName = FPaths::MakeValidFileName(NewSnapshotName.ToString());
-	const FString& PathToSavePackage = FPaths::Combine(ProjectSettings->RootLevelSnapshotSaveDir.Path, NewSnapshotDir.ToString(), ValidatedName);
+	const FString& PathToSavePackage = FPaths::Combine(DataManagementSettings->RootLevelSnapshotSaveDir.Path, NewSnapshotDir.ToString(), ValidatedName);
 
 
 	// Take snapshot

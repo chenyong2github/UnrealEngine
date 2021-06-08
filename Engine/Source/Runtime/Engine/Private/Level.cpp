@@ -1135,7 +1135,18 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 				else
 				{
 					VisitedActors.Add(Actor);
-					Depth = CalcAttachDepth(ParentActor) + 1;
+
+					// Actors attached to a ChildActor have to be registered first or else
+					// they will become detached due to the AttachChildren not yet being populated
+					// and thus not recorded in the ComponentInstanceDataCache
+					if (ParentActor->IsChildActor())
+					{
+						Depth = CalcAttachDepth(ParentActor) - 1;
+					}
+					else
+					{
+						Depth = CalcAttachDepth(ParentActor) + 1;
+					}
 				}
 			}
 			DepthMap.Add(Actor, Depth);

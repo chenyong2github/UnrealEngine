@@ -445,9 +445,24 @@ void URCPropertyContainerBase::SetValue(const uint8* InData, const SIZE_T& InSiz
 
 SIZE_T URCPropertyContainerBase::GetValue(uint8* OutData)
 {
+	check(OutData != nullptr);
+	
 	FProperty* Prp = GetValueProperty();
+	Prp->InitializeValue(OutData);
+	
 	uint8* SrcData = Prp->ContainerPtrToValuePtr<uint8>(this);
 	FMemory::Memcpy(OutData, SrcData, Prp->GetSize());
+	return Prp->GetSize();
+}
+
+SIZE_T URCPropertyContainerBase::GetValue(TArray<uint8>& OutData)
+{
+	FProperty* Prp = GetValueProperty();
+	OutData.SetNumZeroed(Prp->GetSize());
+	Prp->InitializeValue(OutData.GetData());
+	
+	uint8* SrcData = Prp->ContainerPtrToValuePtr<uint8>(this);
+	FMemory::Memcpy(OutData.GetData(), SrcData, Prp->GetSize());
 	return Prp->GetSize();
 }
 

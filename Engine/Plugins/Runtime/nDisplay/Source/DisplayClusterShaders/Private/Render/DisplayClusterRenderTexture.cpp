@@ -15,7 +15,7 @@ FDisplayClusterRenderTexture::~FDisplayClusterRenderTexture()
 	ReleaseTextureData();
 }
 
-void FDisplayClusterRenderTexture::CreateTexture(EPixelFormat InPixelFormat, uint32_t InWidth, uint32_t InHeight, void* InTextureData, bool bInHasCPUAccess)
+void FDisplayClusterRenderTexture::CreateTexture(EPixelFormat InPixelFormat, uint32_t InWidth, uint32_t InHeight, const void* InTextureData, bool bInHasCPUAccess)
 {
 	bHasCPUAccess = bInHasCPUAccess;
 

@@ -144,7 +144,7 @@ namespace Gauntlet.SelfTest
 		{
 		}
 
-		public void StopTest(bool WasCancelled)
+		public void StopTest(StopReason InReason)
 		{
 			SetNewStage(TestStages.StopTest);
 		}

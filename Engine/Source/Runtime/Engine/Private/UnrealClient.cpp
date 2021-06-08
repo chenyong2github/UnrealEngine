@@ -1392,9 +1392,19 @@ void FViewport::EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool bPrese
 {
 	check( IsInRenderingThread() );
 
+	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
+	{
+		GEngine->SetPresentLatencyMarkerStart(CurrentFrameCounter);
+	});
+
 	uint32 StartTime = FPlatformTime::Cycles();
 	RHICmdList.EndDrawingViewport(GetViewportRHI(), bPresent, bLockToVsync);
 	uint32 EndTime = FPlatformTime::Cycles();
+
+	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
+	{
+		GEngine->SetPresentLatencyMarkerEnd(CurrentFrameCounter);
+	});
 
 	GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += EndTime - StartTime;
 	GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;

@@ -1048,6 +1048,11 @@ void FPerInstanceRenderData::UpdateBoundsTransforms()
 
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 		{
+			if (!InstanceBuffer.GetInstanceData() || !InstanceBuffer.GetInstanceData()->IsValidIndex(InstanceIndex))
+		    {
+			    continue;
+		    }
+
 			FRenderTransform InstTransform;
 			InstanceBuffer.GetInstanceTransform(InstanceIndex, InstTransform);
 			PerInstanceTransforms.Add(InstTransform);
@@ -1060,6 +1065,11 @@ void FPerInstanceRenderData::UpdateBoundsTransforms()
 	{
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 		{
+			if (!InstanceBuffer.GetInstanceData() || !InstanceBuffer.GetInstanceData()->IsValidIndex(InstanceIndex))
+		    {
+			    continue;
+		    }
+
 			FRenderTransform InstTransform;
 			InstanceBuffer.GetInstanceTransform(InstanceIndex, InstTransform);
 			PerInstanceTransforms.Add(InstTransform);

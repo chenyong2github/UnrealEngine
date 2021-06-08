@@ -17,24 +17,19 @@ class FSkeletonTreePhysicsConstraintItem : public FSkeletonTreeItem
 public:
 	SKELETON_TREE_ITEM_TYPE(FSkeletonTreePhysicsConstraintItem, FSkeletonTreeItem)
 
-	FSkeletonTreePhysicsConstraintItem(UPhysicsConstraintTemplate* InConstraint, int32 InConstraintIndex, const FName& InBoneName, const TSharedRef<class ISkeletonTree>& InSkeletonTree)
-		: FSkeletonTreeItem(InSkeletonTree)
-		, Constraint(InConstraint)
-		, ConstraintIndex(InConstraintIndex)
-		, BoneName(InBoneName)
-	{
-		const FConstraintInstance& ConstraintInstance = Constraint->DefaultInstance;
-		OtherBoneName = ConstraintInstance.ConstraintBone1 == BoneName ? ConstraintInstance.ConstraintBone2 : ConstraintInstance.ConstraintBone1;
-	}
+	FSkeletonTreePhysicsConstraintItem(UPhysicsConstraintTemplate* InConstraint, int32 InConstraintIndex, const FName& InBoneName, bool bInIsConstraintOnParentBody, const TSharedRef<class ISkeletonTree>& InSkeletonTree);
 
 	/** ISkeletonTreeItem interface */
 	virtual void GenerateWidgetForNameColumn(TSharedPtr< SHorizontalBox > Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected) override;
 	virtual TSharedRef< SWidget > GenerateWidgetForDataColumn(const FName& DataColumnName, FIsSelected InIsSelected) override;	
-	virtual FName GetRowItemName() const override { return OtherBoneName; }
+	virtual FName GetRowItemName() const override { return DisplayName; }
 	virtual UObject* GetObject() const override { return Constraint; }
 
 	/** Get the index of the constraint in the physics asset */
 	int32 GetConstraintIndex() const { return ConstraintIndex; }
+
+	/** since constraint are showing on both parent and child, gets  if this tree item is the one on the parent body */
+	bool IsConstraintOnParentBody() const { return bIsConstraintOnParentBody; }
 
 private:
 	FSlateColor GetConstraintTextColor() const;
@@ -46,9 +41,9 @@ private:
 	/** The index of the body setup in the physics asset */
 	int32 ConstraintIndex;
 
-	/** The constrained bone we are parented to in the tree */
-	FName BoneName;
+	/** since constraint are showing on both parent and child, indicates if this tree item is the one on the parent body */
+	bool bIsConstraintOnParentBody;
 
-	/** The constrained bone we are not parented to in the tree */
-	FName OtherBoneName;
+	/** The display name of the item */
+	FName DisplayName;
 };

@@ -2,6 +2,7 @@
 #include "AudioDevice.h"
 
 #include "ActiveSound.h"
+#include "ActiveSoundUpdateInterface.h"
 #include "Audio.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioDecompress.h"
@@ -3307,6 +3308,24 @@ void FAudioDevice::GetAudioVolumeSettings(const uint32 WorldID, const FVector& L
 		OutSettings.InteriorSettings = DefaultAudioVolumeSettings->Value;
 		OutSettings.SubmixSendSettings.Reset();
 	}
+}
+
+void FAudioDevice::GatherInteriorData(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const
+{
+	SubsystemCollection.ForEachSubsystem<IActiveSoundUpdateInterface>([&ActiveSound, &ParseParams](IActiveSoundUpdateInterface* ActiveSoundUpdate)
+	{
+		ActiveSoundUpdate->GatherInteriorData(ActiveSound, ParseParams);
+		return true;
+	});
+}
+
+void FAudioDevice::ApplyInteriorSettings(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const
+{
+	SubsystemCollection.ForEachSubsystem<IActiveSoundUpdateInterface>([&ActiveSound, &ParseParams](IActiveSoundUpdateInterface* ActiveSoundUpdate)
+	{
+		ActiveSoundUpdate->ApplyInteriorSettings(ActiveSound, ParseParams);
+		return true;
+	});
 }
 
 void FAudioDevice::SetBaseSoundMix(USoundMix* NewMix)

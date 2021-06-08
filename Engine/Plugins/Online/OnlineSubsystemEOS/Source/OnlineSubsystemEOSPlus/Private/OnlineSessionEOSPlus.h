@@ -9,7 +9,6 @@
 #include "OnlineUserEOSPlus.h"
 
 class FOnlineSubsystemEOSPlus;
-class FUniqueNetIdEOSPlus;
 
 /**
  * Interface for interacting with EOS sessions
@@ -105,6 +104,8 @@ PACKAGE_SCOPE:
 
 	IOnlineSessionPtr BaseSessionInterface;
 	IOnlineSessionPtr EOSSessionInterface;
+
+	TUniqueNetIdMap<TSharedRef<FOnlineSessionSearch>> CachedSearchSettingsPerSearchingUser;
 };
 
 typedef TSharedPtr<FOnlineSessionEOSPlus, ESPMode::ThreadSafe> FOnlineSessionEOSPlusPtr;

@@ -15,6 +15,7 @@
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectAnnotation.h"
+#include "UObject/UObjectIterator.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineGlobals.h"
 #include "Materials/MaterialInterface.h"
@@ -12242,6 +12243,40 @@ void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>&
 #endif
 }
 
+#if WITH_EDITOR
+void UMaterialFunctionInterface::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Go through all materials in memory and recompile them if they use this function
+	FMaterialUpdateContext UpdateContext;
+	for (TObjectIterator<UMaterial> It; It; ++It)
+	{
+		UMaterial* CurrentMaterial = *It;
+
+		bool bRecompile = false;
+		for (const FMaterialFunctionInfo& FunctionInfo : CurrentMaterial->GetCachedExpressionData().FunctionInfos)
+		{
+			if (FunctionInfo.Function == this)
+			{
+				bRecompile = true;
+				break;
+			}
+		}
+
+		if (bRecompile)
+		{
+			UpdateContext.AddMaterial(CurrentMaterial);
+
+			// Propagate the change to this material
+			CurrentMaterial->PreEditChange(nullptr);
+			CurrentMaterial->PostEditChange();
+			CurrentMaterial->MarkPackageDirty();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif // WITH_EDITOR
+
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialFunctionMaterialLayer
 ///////////////////////////////////////////////////////////////////////////////
@@ -13813,7 +13848,7 @@ void FMaterialLayersFunctions::RemoveBlendedLayerAt(int32 Index)
 #if WITH_EDITOR
 		check(LayerNames.IsValidIndex(Index) && RestrictToLayerRelatives.IsValidIndex(Index) && RestrictToBlendRelatives.IsValidIndex(Index - 1));
 
-		if (LayerLinkStates[Index] == EMaterialLayerLinkState::LinkedToParent)
+		if (LayerLinkStates[Index] != EMaterialLayerLinkState::NotFromParent)
 		{
 			// Save the parent guid as explicitly deleted, so it's not added back
 			const FGuid& LayerGuid = LayerGuids[Index];
@@ -13997,8 +14032,11 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 			check(LayerGuid.IsValid());
 			check(LinkState == EMaterialLayerLinkState::UnlinkedFromParent || LinkState == EMaterialLayerLinkState::NotFromParent);
 
-			// If we are unlinked from parent, track the layer index we were previously linked to
-			ParentLayerIndex = Parent.LayerGuids.Find(LayerGuid);
+			if (LinkState == EMaterialLayerLinkState::UnlinkedFromParent)
+			{
+				// If we are unlinked from parent, track the layer index we were previously linked to
+				ParentLayerIndex = Parent.LayerGuids.Find(LayerGuid);
+			}
 			check(ParentLayerIndex == INDEX_NONE || !ParentLayerIndices.Contains(ParentLayerIndex));
 
 			// Update the link state, depending on if we can find this layer in the parent

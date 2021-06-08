@@ -2749,14 +2749,14 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		for (int32 Index = 0; Index < History.VariablesWithOriginalAliasesIntact.Num(); Index++)
 		{
 			const FNiagaraVariable& Parameter = History.VariablesWithOriginalAliasesIntact[Index];
-			for (const UEdGraphPin* WritePin : History.PerVariableWriteHistory[Index])
+			for (const FModuleScopedPin& WriteEvent : History.PerVariableWriteHistory[Index])
 			{
-				AddParameterReference(Parameter, WritePin);
+				AddParameterReference(Parameter, WriteEvent.Pin);
 			}
 
-			for (const TTuple<const UEdGraphPin*, const UEdGraphPin*>& ReadPinTuple : History.PerVariableReadHistory[Index])
+			for (const FNiagaraParameterMapHistory::FReadHistory& ReadHistory : History.PerVariableReadHistory[Index])
 			{
-				AddParameterReference(Parameter, ReadPinTuple.Key);
+				AddParameterReference(Parameter, ReadHistory.ReadPin.Pin);
 			}
 		}
 	}

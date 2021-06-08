@@ -31,7 +31,7 @@ class ENGINE_API UAudioBus : public UObject
 
 public:
 
-	/** How many channels to use for the source bus. */
+	/** Number of channels to use for the Audio Bus. */
 	UPROPERTY(EditAnywhere, Category = BusProperties)
 	EAudioBusChannels AudioBusChannels;
 

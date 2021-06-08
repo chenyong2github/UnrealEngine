@@ -178,49 +178,6 @@ struct FSwitchboardMenuEntryImpl
 	}
 #endif // #if PLATFORM_WINDOWS
 
-	FString GetPathToPython()
-	{
-		// First try the user-specified path from settings.
-		const FString& UserInterpreter = GetDefault<USwitchboardEditorSettings>()->PythonInterpreterPath.FilePath;
-		if (!UserInterpreter.IsEmpty() && FPaths::FileExists(UserInterpreter))
-		{
-			return UserInterpreter;
-		}
-
-		const FString PythonExeName =
-#if PLATFORM_WINDOWS
-			TEXT("python.exe");
-#else
-			TEXT("python");
-#endif
-
-		// If it's been installed, fall back to Switchboard's embedded Python distribution.
-		const FString SwitchboardInterpreter = FPaths::EngineDir() / TEXT("Extras") / TEXT("ThirdPartyNotUE") /
-			TEXT("SwitchboardThirdParty") / TEXT("Python") / TEXT("current") / PythonExeName;
-		if (FPaths::FileExists(SwitchboardInterpreter))
-		{
-			return SwitchboardInterpreter;
-		}
-
-		// Finally, fall back to the engine ThirdParty Python.
-		const FString EngineInterpreter = FPaths::EngineDir() / TEXT("Binaries") / TEXT("ThirdParty")
-			/ TEXT("Python3") / FPlatformProcess::GetBinariesSubdirectory()
-#if !PLATFORM_WINDOWS
-			/ TEXT("bin")
-#endif
-			/ PythonExeName;
-		if (FPaths::FileExists(EngineInterpreter))
-		{
-			return EngineInterpreter;
-		}
-
-		// If we made it this far, we've failed.
-		const FString ErrorMsg = TEXT("Unable to locate Python interpreter. Run Switchboard first-time setup, or configure the Switchboard plugin PythonInterpreterPath setting.");
-		UE_LOG(LogSwitchboardPlugin, Error, TEXT("%s"), *ErrorMsg);
-		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("No Python interpreter found"));
-		return FString();
-	}
-
 	void OnLaunchSwitchboardClicked()
 	{
 		FString SwitchboardPath = GetDefault<USwitchboardEditorSettings>()->SwitchboardPath.Path;

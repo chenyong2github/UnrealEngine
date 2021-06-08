@@ -137,6 +137,12 @@ struct FObjectDuplicationParameters
 	 * The associated package should come from the DuplicationSeed.
 	 */
 	bool bAssignExternalPackages = true;
+
+	/**
+	 * if this option is true, then PostLoad won't be called on the new duplicated objects. 
+	 * It will be the responsability of the caller in that case to eventually call post load on those objects. a `CreatedObjects` map should be provided.
+	 */
+	bool bSkipPostLoad = false;
 	
 	/**
 	 * Optional class to specify for the destination object.

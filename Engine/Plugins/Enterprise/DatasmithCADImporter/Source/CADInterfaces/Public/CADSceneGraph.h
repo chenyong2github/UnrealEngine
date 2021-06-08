@@ -65,10 +65,6 @@ public:
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FArchiveUnloadedComponent& C);
-
-public:
-	FString FileName;
-	FString FileType;
 };
 
 class CADINTERFACES_API FArchiveBody : public ICADArchiveObject
@@ -133,7 +129,6 @@ public:
 	FString CADFileName;
 	FString ArchiveFileName;
 	FString FullPath;
-	TSet<FFileDescription> ExternalRefSet;
 
 	TMap<FColorId, FArchiveColor> ColorHIdToColor;
 	TMap<FMaterialId, FArchiveMaterial> MaterialHIdToMaterial;
@@ -141,6 +136,7 @@ public:
 	TArray<FArchiveBody> BodySet;
 	TArray<FArchiveComponent> ComponentSet;
 	TArray<FArchiveUnloadedComponent> UnloadedComponentSet;
+	TArray<FFileDescription> ExternalRefSet;
 	TArray<FArchiveInstance> Instances;
 
 	TMap<FCadId, int32> CADIdToBodyIndex;

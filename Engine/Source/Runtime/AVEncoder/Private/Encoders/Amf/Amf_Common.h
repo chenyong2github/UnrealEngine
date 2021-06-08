@@ -5,6 +5,8 @@
 #include <CoreMinimal.h>
 #include <HAL/Thread.h>
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+
 THIRD_PARTY_INCLUDES_START
 
 #if PLATFORM_WINDOWS
@@ -70,3 +72,5 @@ namespace AVEncoder
         bool bWasSetUp = false;
     };
 }
+
+#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE

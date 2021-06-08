@@ -23,6 +23,7 @@ DECLARE_CYCLE_STAT(TEXT("Send Matrix Cell"), STAT_DMXPixelMaping_SendMatrixCell,
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixPixelComponent"
 
+
 const FVector2D UDMXPixelMappingMatrixCellComponent::MixPixelSize = FVector2D(1.f);
 
 UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
@@ -224,27 +225,6 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 		}
 	}
 
-	if (MatrixComponent->AttributeRExpose && !ByteOffsetR.IsSet())
-	{
-		ByteOffsetR = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeR.Name) - 1;
-	}
-
-	if (MatrixComponent->AttributeGExpose && !ByteOffsetG.IsSet())
-	{
-		ByteOffsetG = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeG.Name) - 1;
-	}
-
-	if (MatrixComponent->AttributeBExpose && !ByteOffsetB.IsSet())
-	{
-		ByteOffsetB = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeB.Name) - 1;
-	}
-
-	if (MatrixComponent->bMonochromeExpose && !ByteOffsetM.IsSet())
-	{
-		ByteOffsetM = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->MonochromeIntensity.Name) - 1;
-	}
-
-
 	if (const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode())
 	{
 		const FDMXFixtureMatrix& FixtureMatrixConfig = ModePtr->FixtureMatrixConfig;
@@ -253,31 +233,24 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 		const int32 NumChannels = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
 		if (NumChannels > 0)
 		{
-			const TOptional<FColor> Color = RendererComponent->GetDownsampleBufferPixel(DownsamplePixelIndex);
-
-			if (Color.IsSet())
+			FLinearColor PixelColor;
+			if (RendererComponent->GetDownsampleBufferPixel(DownsamplePixelIndex, PixelColor))
 			{
 				if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
 				{
 					if (MatrixComponent->AttributeRExpose)
 					{
-						const int32 ColorRValue = static_cast<int32>(Color->R) << (*ByteOffsetR * 8);
-
-						FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, MatrixComponent->AttributeR.Name, ColorRValue, AttributeNameChannelMap);
+						FixturePatch->SendNormalizedMatrixCellValue(CellCoordinate, MatrixComponent->AttributeR.Name, FMath::Clamp(PixelColor.R, 0.f, 1.f));
 					}
 
 					if (MatrixComponent->AttributeGExpose)
 					{
-						const int32 ColorGValue = static_cast<int32>(Color->G) << (*ByteOffsetG * 8);
-
-						FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, MatrixComponent->AttributeG.Name, ColorGValue, AttributeNameChannelMap);
+						FixturePatch->SendNormalizedMatrixCellValue(CellCoordinate, MatrixComponent->AttributeG.Name, FMath::Clamp(PixelColor.G, 0.f, 1.f));
 					}
 
 					if (MatrixComponent->AttributeBExpose)
 					{
-						const int32 ColorBValue = static_cast<int32>(Color->B) << (*ByteOffsetB * 8);
-
-						FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, MatrixComponent->AttributeB.Name, ColorBValue, AttributeNameChannelMap);
+						FixturePatch->SendNormalizedMatrixCellValue(CellCoordinate, MatrixComponent->AttributeB.Name, FMath::Clamp(PixelColor.B, 0.f, 1.f));
 					}
 				}
 				else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
@@ -285,12 +258,13 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 					if (MatrixComponent->bMonochromeExpose)
 					{
 						// https://www.w3.org/TR/AERT/#color-contrast
-						const int32 Intensity = static_cast<int32>(0.299 * Color->R + 0.587 * Color->G + 0.114 * Color->B) << (*ByteOffsetM * 8);
-						FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, MatrixComponent->MonochromeIntensity.Name, Intensity, AttributeNameChannelMap);
+						const float Intensity = 0.299f * PixelColor.R + 0.587f * PixelColor.G + 0.114f * PixelColor.B;
+
+						FixturePatch->SendNormalizedMatrixCellValue(CellCoordinate, MatrixComponent->MonochromeIntensity, FMath::Clamp(Intensity, 0.f, 1.f));
 					}
 				}
 			}
-
+					
 			// Send Extra Cell Attributes
 			UDMXPixelMappingMatrixComponent* ParentMatrix = CastChecked<UDMXPixelMappingMatrixComponent>(Parent);
 			for (const FDMXPixelMappingExtraAttribute& ExtraAttribute : ParentMatrix->ExtraCellAttributes)

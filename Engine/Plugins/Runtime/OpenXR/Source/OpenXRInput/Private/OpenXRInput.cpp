@@ -459,6 +459,12 @@ int32 FOpenXRInputPlugin::FOpenXRInput::SuggestBindings(XrInstance Instance, FOp
 					continue;
 				}
 
+				// The OpenXR spec says that .../input/system/click might not be available for application usage
+				if (Identifier == "system")
+				{
+					continue;
+				}
+
 				if (Identifier != "trigger" && Identifier != "squeeze")
 				{
 					Path += "/click";
