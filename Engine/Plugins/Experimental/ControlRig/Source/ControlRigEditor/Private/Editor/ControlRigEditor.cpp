@@ -2787,6 +2787,32 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 		return FEditorFontGlyphs::Eye;
 	};
 
+	auto GetChangingGizmoTransformText = [this]()
+	{
+		if (FControlRigEditMode* EditMode = GetEditMode())
+		{
+			FText HotKeyText = EditMode->GetToggleGizmoTransformEditHotKey();
+
+			if (!HotKeyText.IsEmpty())
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("HotKey"), HotKeyText);
+				return FText::Format(LOCTEXT("ControlRigBPViewportGizmoTransformEditNotification", "Currently Manipulating Gizmo Transform - Press {HotKey} to Exit"), Args);
+			}
+		}
+		
+		return LOCTEXT("ControlRigBPViewportGizmoTransformEditNotification", "Currently Manipulating Gizmo Transform - Assign a Hotkey and Use It to Exit");
+	};
+
+	auto GetChangingGizmoTransformTextVisibility = [this]()
+	{
+		if (FControlRigEditMode* EditMode = GetEditMode())
+		{
+			return EditMode->bIsChangingGizmoTransform ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+		return EVisibility::Collapsed;
+	};
+
 	InViewport->AddNotification(MakeAttributeLambda(GetErrorSeverity),
 		false,
 		SNew(SHorizontalBox)
@@ -2849,6 +2875,33 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 			]
 		],
 		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetCompilationStateVisibility))
+	);
+	
+	FPersonaViewportNotificationOptions ChangeGizmoTransformNotificationOptions;
+	ChangeGizmoTransformNotificationOptions.OnGetVisibility = TAttribute<EVisibility>::Create(GetChangingGizmoTransformTextVisibility);
+	ChangeGizmoTransformNotificationOptions.OnGetBrushOverride = TAttribute<const FSlateBrush*>(FControlRigEditorStyle::Get().GetBrush("ControlRig.Viewport.Notification.ChangeGizmoTransform"));
+
+	// notification that shows when users enter the mode that allows them to change gizmo transform
+	InViewport->AddNotification(EMessageSeverity::Type::Info,
+		false,
+		SNew(SHorizontalBox)
+		.Visibility_Lambda(GetChangingGizmoTransformTextVisibility)
+		+SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.Padding(4.0f, 4.0f)
+		[
+			SNew(SHorizontalBox)
+			.ToolTipText_Lambda(GetChangingGizmoTransformText)
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text_Lambda(GetChangingGizmoTransformText)
+				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
+			]
+		],
+		ChangeGizmoTransformNotificationOptions
 	);
 
 	InViewport->AddToolbarExtender(TEXT("AnimViewportDefaultCamera"), FMenuExtensionDelegate::CreateLambda(
@@ -4361,8 +4414,16 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 					FRigControlElement* SourceControlElement = Cast<FRigControlElement>(Element);
 					if(SourceControlElement)
 					{
+						FTransform InitialGizmoTransform = WeakHierarchy.Get()->GetControlGizmoTransform(SourceControlElement, ERigTransformType::InitialLocal);
+
+						// set current gizmo transform = initial gizmo transform so that the viewport reflects this change
+						WeakHierarchy.Get()->SetControlGizmoTransform(SourceControlElement, InitialGizmoTransform, ERigTransformType::CurrentLocal, false); 
+
 						RigBlueprint->Hierarchy->SetControlGizmoTransform(Key, WeakHierarchy.Get()->GetControlGizmoTransform(SourceControlElement, ERigTransformType::InitialLocal), true);
 						RigBlueprint->Hierarchy->SetControlGizmoTransform(Key, WeakHierarchy.Get()->GetControlGizmoTransform(SourceControlElement, ERigTransformType::CurrentLocal), false);
+
+						RigBlueprint->Modify();
+						RigBlueprint->MarkPackageDirty();
 					}
 				}
 				break;
