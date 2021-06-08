@@ -1178,7 +1178,7 @@ public:
 public:
 	FVulkanDevice* Device;
 	VulkanRHI::FVulkanAllocation Allocation;
-
+	EUniformBufferUsage Usage;
 protected:
 	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
 	
