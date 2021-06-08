@@ -21,6 +21,15 @@ FLinearColor URigVMFunctionReferenceNode::GetNodeColor() const
 	return Super::GetNodeColor();
 }
 
+FText URigVMFunctionReferenceNode::GetToolTipText() const
+{
+	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	{
+		return ReferencedNode->GetToolTipText();
+	}
+	return Super::GetToolTipText();
+}
+
 FString URigVMFunctionReferenceNode::GetNodeCategory() const
 {
 	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())

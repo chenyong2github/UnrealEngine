@@ -22,6 +22,7 @@ public:
 	// URigVMNode interface
 	virtual FString GetNodeTitle() const override;
 	virtual FLinearColor GetNodeColor() const override;
+	virtual FText GetToolTipText() const override;
 	// end URigVMNode interface
 
 	// URigVMLibraryNode interface

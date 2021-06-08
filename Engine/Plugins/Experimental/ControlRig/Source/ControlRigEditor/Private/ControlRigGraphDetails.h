@@ -160,6 +160,8 @@ public:
 	void SetNodeCategory(const FText& InNewText, ETextCommit::Type InCommitType);
 	FText GetNodeKeywords() const;
 	void SetNodeKeywords(const FText& InNewText, ETextCommit::Type InCommitType);
+	FText GetNodeDescription() const;
+	void SetNodeDescription(const FText& InNewText, ETextCommit::Type InCommitType);
 	FLinearColor GetNodeColor() const;
 	void SetNodeColor(FLinearColor InColor, bool bSetupUndoRedo);
 	void OnNodeColorBegin();

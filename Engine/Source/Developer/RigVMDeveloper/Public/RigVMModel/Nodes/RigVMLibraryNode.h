@@ -32,6 +32,7 @@ public:
 	// Library node interface
 	virtual FString GetNodeCategory() const { return FString(); }
 	virtual FString GetNodeKeywords() const { return FString(); }
+	virtual FString GetNodeDescription() const { return FString(); }
 	virtual URigVMFunctionLibrary* GetLibrary() const { return nullptr; }
 	virtual URigVMGraph* GetContainedGraph() const { return nullptr; }
 	virtual const TArray<URigVMNode*>& GetContainedNodes() const;

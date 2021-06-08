@@ -841,6 +841,36 @@ public:
 };
 
 /**
+* An action setting a node's description in the graph.
+*/
+USTRUCT()
+struct FRigVMSetNodeDescriptionAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetNodeDescriptionAction()
+	{
+		OldDescription = NewDescription = FString();
+	}
+	FRigVMSetNodeDescriptionAction(URigVMCollapseNode* InNode, const FString& InNewDescription);
+	virtual ~FRigVMSetNodeDescriptionAction() {};
+	virtual bool Merge(const FRigVMBaseAction* Other);
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString NodePath;
+
+	UPROPERTY()
+	FString OldDescription;
+
+	UPROPERTY()
+	FString NewDescription;
+};
+
+/**
  * An action setting a comment node's text in the graph.
  */
 USTRUCT()

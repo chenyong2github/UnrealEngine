@@ -13,6 +13,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Text/SMultiLineEditableText.h"
 #include "PropertyCustomizationHelpers.h"
 #include "NodeFactory.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -669,6 +670,22 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 			.OnTextCommitted(this, &FControlRigGraphDetails::SetNodeKeywords)
 		];
 
+		// description
+		SettingsCategory.AddCustomRow(FText::GetEmpty())
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(TEXT("Description")))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SMultiLineEditableText)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(this, &FControlRigGraphDetails::GetNodeDescription)
+			.OnTextCommitted(this, &FControlRigGraphDetails::SetNodeDescription)
+		];
+
 		if(AccessSpecifierStrings.IsEmpty())
 		{
 			AccessSpecifierStrings.Add(TSharedPtr<FString>(new FString(TEXT("Public"))));
@@ -862,6 +879,41 @@ void FControlRigGraphDetails::SetNodeKeywords(const FText& InNewText, ETextCommi
 				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
 				{
 					Controller->SetNodeKeywords(OuterNode, InNewText.ToString());
+				}
+			}
+		}
+	}
+}
+
+FText FControlRigGraphDetails::GetNodeDescription() const
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMGraph* Model = Blueprint->GetModel(GraphPtr.Get()))
+		{
+			if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				return FText::FromString(OuterNode->GetNodeDescription());
+			}
+		}
+	}
+
+	return FText();
+}
+
+void FControlRigGraphDetails::SetNodeDescription(const FText& InNewText, ETextCommit::Type InCommitType)
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMGraph* Model = Blueprint->GetModel(GraphPtr.Get()))
+		{
+			if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
+				{
+					Controller->SetNodeDescription(OuterNode, InNewText.ToString());
 				}
 			}
 		}
