@@ -450,8 +450,6 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 		{
 			//Go through the lens file to get distortion data based on FIZ
 			//Our handler's displacement map will get updated
-			FDistortionData DistortionData;
-
 			const FVector2D CurrentSensorDimensions = FVector2D(
 				CineCameraComponent->Filmback.SensorWidth, 
 				CineCameraComponent->Filmback.SensorHeight
@@ -464,9 +462,15 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 				LensFileEvalData.Input.Focus.IsSet() ? *LensFileEvalData.Input.Focus : CineCameraComponent->CurrentFocusDistance,
 				LensFileEvalData.Input.Zoom.IsSet() ? *LensFileEvalData.Input.Zoom : CineCameraComponent->CurrentFocalLength,
 				CurrentSensorDimensions, 
-				LensDistortionHandler, 
-				DistortionData
+				LensDistortionHandler
 			);
+
+			// Adjust overscan by the overscan multiplier
+			if (bScaleOverscan)
+			{
+				const float ScaledOverscanFactor = ((LensDistortionHandler->GetOverscanFactor() - 1.0f) * OverscanMultiplier) + 1.0f;
+				LensDistortionHandler->SetOverscanFactor(ScaledOverscanFactor);
+			}
 		}
 	}
 }

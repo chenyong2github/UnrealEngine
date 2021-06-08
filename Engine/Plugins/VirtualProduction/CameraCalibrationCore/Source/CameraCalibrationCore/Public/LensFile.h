@@ -84,7 +84,7 @@ public:
 	bool EvaluateImageCenterParameters(float InFocus, float InZoom, FImageCenterInfo& OutEvaluatedValue) const;
 
 	/** Draws the distortion map based on evaluation point*/
-	bool EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const;
+	bool EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler) const;
 
 	/** Returns interpolated nodal point offset based on input focus and zoom */
 	bool EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue) const;
@@ -145,13 +145,13 @@ protected:
 	float ComputeOverscan(const FDistortionData& DerivedData, FVector2D PrincipalPoint) const;
 
 	/** Clears output displacement map on LensHandler to have no distortion and setup distortion data to match that */
-	void SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const;
+	void SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHandler) const;
 
 	/** Evaluates distortion based on InFocus and InZoom using parameters */
-	bool EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const;
+	bool EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler) const;
 	
 	/** Evaluates distortion based on InFocus and InZoom using STMaps */
-	bool EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const;
+	bool EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler) const;
 	
 public:
 

@@ -39,4 +39,12 @@ protected:
 	/** Unique identifier representing the source of distortion data */
 	UPROPERTY(DuplicateTransient)
 	FGuid DistortionProducerID;
+
+	/** Whether to scale the computed overscan by the overscan percentage */
+	UPROPERTY(BlueprintReadWrite, Category = "Camera Calibration", meta = (InlineEditConditionToggle))
+	bool bScaleOverscan = false;
+
+	/** The percentage of the computed overscan that should be applied to the target camera */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Calibration", meta = (EditCondition = "bScaleOverscan", ClampMin = "0.0", ClampMax = "2.0"))
+	float OverscanMultiplier = 1.0f;
 };

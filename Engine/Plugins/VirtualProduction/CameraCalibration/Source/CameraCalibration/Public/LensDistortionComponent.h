@@ -85,6 +85,14 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Default", meta = (EditCondition="bEvaluateLensFileForDistortion"))
 	FLensFilePicker LensFilePicker;
 
+	/** Whether to scale the computed overscan by the overscan percentage */
+	UPROPERTY(AdvancedDisplay, BlueprintReadWrite, Category = "Default", meta = (InlineEditConditionToggle))
+	bool bScaleOverscan = false;
+
+	/** The percentage of the computed overscan that should be applied to the target camera */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = "Default", meta = (EditCondition = "bScaleOverscan", ClampMin = "0.0", ClampMax = "2.0"))
+	float OverscanMultiplier = 1.0f;
+
 	/** Distortion handler produced by this component */
 	UPROPERTY(Transient)
 	ULensDistortionModelHandlerBase* ProducedLensDistortionHandler = nullptr;
