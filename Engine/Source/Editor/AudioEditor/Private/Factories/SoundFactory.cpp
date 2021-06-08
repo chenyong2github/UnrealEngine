@@ -327,9 +327,9 @@ UObject* USoundFactory::CreateObject
 				WaveInfo.ReportImportFailure();
 				Warn->Logf(ELogVerbosity::Error, TEXT("Only 16 bit WAV source files are supported (%s) on this editor platform."), *Name.ToString());
 				GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
+				return nullptr;
 #endif // WITH_SNDFILE_IO
 				
-				return nullptr;
 			}
 		}
 		else
