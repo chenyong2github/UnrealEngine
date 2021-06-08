@@ -701,6 +701,7 @@ protected:
 	 */
 	void InitDeclaration(const FVertexDeclarationElementList& Elements, EVertexInputStreamType StreamType = EVertexInputStreamType::Default);
 
+public:
 	/**
 	 * Information needed to set a vertex stream.
 	 */
