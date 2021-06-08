@@ -60,6 +60,8 @@ public:
 public:
 	void Construct(const FArguments& InArgs, const TSharedRef<class IPersonaToolkit>& InPersonaToolkit);
 
+	void OnRequestOpenAssets(const TArray<FAssetData>& SelectedAssets, bool bFromHistory);
+
 	void OnRequestOpenAsset(const FAssetData& AssetData, bool bFromHistory);
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
