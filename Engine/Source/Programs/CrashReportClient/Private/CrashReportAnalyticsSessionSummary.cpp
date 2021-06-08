@@ -66,7 +66,7 @@ namespace CrcAnalyticsProperties
 	//     - V3 -> Windows optimization for stall/ensure -> The engine only captures the responsible thread so CRC walks 1 thread rather than all threads.
 	//     - V4 -> Stripped ensure callstack from the ensure error message to remove noise in the diagnostic log.
 	//     - V5 -> Measured time to stack-walk, gather files and addded stall count.
-	constexpr uint32 CrcAnalyticsSummaryVersion = 4;
+	constexpr uint32 CrcAnalyticsSummaryVersion = 5;
 
 	/** The exit code of the monitored application. */
 	static const TAnalyticsProperty<int32> MonitoredAppExitCode(TEXT("ExitCode"));
