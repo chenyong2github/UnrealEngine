@@ -1512,6 +1512,10 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 				case VET_Short4N:
 				case VET_UShort4:
 				case VET_UShort4N:
+				case VET_PackedNormal:
+				case VET_UByte4:
+				case VET_UByte4N:
+				case VET_Color:
 					return 4;
 
 				case VET_Float3:
@@ -1590,6 +1594,12 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 					}
 
 					if (IsUShortNOrTuple(A[Idx].Type) && IsUShortNOrTuple(B[Idx].Type))
+					{
+						continue;
+					}
+
+					// also blindly allow any types that agree on the number of elements
+					if (NumElements(A[Idx].Type) == NumElements(B[Idx].Type))
 					{
 						continue;
 					}
