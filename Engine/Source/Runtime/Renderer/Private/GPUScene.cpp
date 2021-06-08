@@ -206,7 +206,7 @@ inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const F
 		PrimitiveInstance.Flags &= ~INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
 	}
 
-	PrimitiveInstance.OrthonormalizeAndUpdateScale();
+	PrimitiveInstance.Orthonormalize();
 }
 
 inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const FPrimitiveTransforms& PrimitiveTransforms, const FBoxSphereBounds& LocalBounds, uint32 SceneFrameNumber)
@@ -218,8 +218,6 @@ inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const 
 	DummyInstance.PrevInstanceToLocal.SetIdentity();
 	DummyInstance.LocalToWorld.SetIdentity();
 	DummyInstance.PrevLocalToWorld.SetIdentity();
-	DummyInstance.NonUniformScale = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-	DummyInstance.InvNonUniformScale = FVector3f(1.0f, 1.0f, 1.0f);
 	DummyInstance.LocalBounds = LocalBounds;
 
 	const bool bHasPreviousInstanceTransforms = false;

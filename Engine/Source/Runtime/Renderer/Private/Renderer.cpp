@@ -179,8 +179,6 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 						PrimitiveParams.LocalToWorld,
 						PrimitiveParams.PreviousLocalToWorld,
 						FRenderBounds(PrimitiveParams.LocalObjectBoundsMin, PrimitiveParams.LocalObjectBoundsMax),
-						PrimitiveParams.NonUniformScale,
-						PrimitiveParams.InvNonUniformScale,
 						FVector4(ForceInitToZero),
 						NANITE_INVALID_HIERARCHY_OFFSET,
 						InstanceFlags,

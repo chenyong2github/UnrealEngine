@@ -21,8 +21,6 @@ struct FPrimitiveInstance
 	FRenderTransform		PrevInstanceToLocal;
 	FRenderTransform		LocalToWorld;
 	FRenderTransform		PrevLocalToWorld;
-	FVector4				NonUniformScale;
-	FVector3f				InvNonUniformScale;
 	uint32					LastUpdateSceneFrameNumber;
 	FRenderBounds			LocalBounds;
 	float					PerInstanceRandom;
@@ -30,22 +28,11 @@ struct FPrimitiveInstance
 	uint32					NaniteHierarchyOffset;
 	uint32					Flags;
 
-	FORCEINLINE void OrthonormalizeAndUpdateScale()
+	FORCEINLINE void Orthonormalize()
 	{
 		// Remove shear
-		const FVector3f Scale = LocalToWorld.Orthonormalize();
+		LocalToWorld.Orthonormalize();
 		PrevLocalToWorld.Orthonormalize();
-
-		NonUniformScale = FVector4(
-			Scale.X, Scale.Y, Scale.Z,
-			FMath::Max3(FMath::Abs(Scale.X), FMath::Abs(Scale.Y), FMath::Abs(Scale.Z))
-		);
-
-		InvNonUniformScale = FVector3f(
-			Scale.X > KINDA_SMALL_NUMBER ? 1.0f / Scale.X : 0.0f,
-			Scale.Y > KINDA_SMALL_NUMBER ? 1.0f / Scale.Y : 0.0f,
-			Scale.Z > KINDA_SMALL_NUMBER ? 1.0f / Scale.Z : 0.0f
-		);
 
 		if (LocalToWorld.RotDeterminant() < 0.0f)
 		{
@@ -56,14 +43,31 @@ struct FPrimitiveInstance
 			Flags &= ~INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
 		}
 	}
+
+	FORCEINLINE FVector4 GetNonUniformScale() const
+	{
+		const FVector3f Scale = LocalToWorld.GetScale();
+		return FVector4(
+			Scale.X, Scale.Y, Scale.Z,
+			FMath::Max3(FMath::Abs(Scale.X), FMath::Abs(Scale.Y), FMath::Abs(Scale.Z))
+		);
+	}
+
+	FORCEINLINE FVector4 GetInvNonUniformScale() const
+	{
+		const FVector3f Scale = LocalToWorld.GetScale();
+		return FVector3f(
+			Scale.X > KINDA_SMALL_NUMBER ? 1.0f / Scale.X : 0.0f,
+			Scale.Y > KINDA_SMALL_NUMBER ? 1.0f / Scale.Y : 0.0f,
+			Scale.Z > KINDA_SMALL_NUMBER ? 1.0f / Scale.Z : 0.0f
+		);
+	}
 };
 
 FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 	const FRenderTransform& LocalToWorld,
 	const FRenderTransform& PrevLocalToWorld,
 	const FRenderBounds& LocalBounds,
-	const FVector4& NonUniformScale,
-	const FVector3f& InvNonUniformScale,
 	const FVector4& LightMapAndShadowMapUVBias,
 	const uint32 NaniteHierarchyOffset,
 	uint32 Flags,
@@ -74,8 +78,6 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 	FPrimitiveInstance Result;
 	Result.LocalToWorld							= LocalToWorld;
 	Result.PrevLocalToWorld						= PrevLocalToWorld;
-	Result.NonUniformScale						= NonUniformScale;
-	Result.InvNonUniformScale					= InvNonUniformScale;
 	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
 	Result.LocalBounds							= LocalBounds;
 	Result.NaniteHierarchyOffset				= NaniteHierarchyOffset;
@@ -102,8 +104,6 @@ struct FInstanceSceneShaderData
 				FRenderTransform::Identity,
 				FRenderTransform::Identity,
 				FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
-				FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-				FVector3f(1.0f, 1.0f, 1.0f),
 				FVector4(ForceInitToZero),
 				0xFFFFFFFFu, /* Nanite Hierarchy Offset */
 				0u, /* Instance Flags */
