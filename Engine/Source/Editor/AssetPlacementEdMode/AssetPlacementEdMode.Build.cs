@@ -26,6 +26,7 @@ public class AssetPlacementEdMode : ModuleRules
 				"TypedElementFramework",
 				"TypedElementRuntime",
 				"PropertyEditor",
+				"EditorWidgets",
 			}
 		);
 	}
