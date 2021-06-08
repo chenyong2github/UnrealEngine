@@ -1277,6 +1277,14 @@ TArray<UNiagaraGraph*> FNiagaraSystemToolkitParameterPanelViewModel::GetEditable
 
 TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel::GetViewedParameterItems() const
 {
+	// On the first time opening the parameter panel view model we are not guaranteed to call GetDefaultCategories() before GetViewedParameterItems(). 
+	// We require CachedCurrentCategories being set as this is used to filter out parameter items that are being viewed. If CachedCurrentCategories 
+	// is not set, call GetDefaultCategories() to initialize it. 
+	if (CachedCurrentCategories.Num() == 0)
+	{
+		GetDefaultCategories();
+	}
+
 	TMap<FNiagaraVariable, FNiagaraParameterPanelItem> VisitedParameterToItemMap;
 	TMap<FNiagaraVariable, UNiagaraScriptVariable*> ParameterToScriptVariableMap;
 	const TArray<UNiagaraGraph*> Graphs = GetEditableGraphsConst();
@@ -2302,6 +2310,14 @@ const TArray<UNiagaraParameterDefinitions*> FNiagaraScriptToolkitParameterPanelV
 
 TArray<FNiagaraParameterPanelItem> FNiagaraScriptToolkitParameterPanelViewModel::GetViewedParameterItems() const
 {
+	// On the first time opening the parameter panel view model we are not guaranteed to call GetDefaultCategories() before GetViewedParameterItems(). 
+	// We require CachedCurrentCategories being set as this is used to filter out parameter items that are being viewed. If CachedCurrentCategories 
+	// is not set, call GetDefaultCategories() to initialize it. 
+	if (CachedCurrentCategories.Num() == 0)
+	{
+		GetDefaultCategories();
+	}
+
 	TMap<FNiagaraVariable, FNiagaraParameterPanelItem> VisitedParameterToItemMap;
 	TArray<FNiagaraVariable> VisitedInvalidParameters;
 	const TSet<FName>& ReservedParameterDefinitionsNames = FNiagaraEditorModule::Get().GetReservedLibraryParameterNames();
