@@ -462,6 +462,9 @@ public:
 	// const accessor for an instruction given its index
 	FORCEINLINE const FRigVMInstruction& operator[](int32 InIndex) const { return Instructions[InIndex]; }
 
+	FORCEINLINE_DEBUGGABLE TArray<FRigVMInstruction>::RangedForConstIteratorType begin() const { return Instructions.begin(); }
+	FORCEINLINE_DEBUGGABLE TArray<FRigVMInstruction>::RangedForConstIteratorType end() const { return Instructions.end(); }
+
 private:
 
 	// hide utility constructor
