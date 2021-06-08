@@ -55,8 +55,9 @@ UENUM(BlueprintType)
 enum class ECreateObjectTypeHint : uint8
 {
 	Undefined = 0,
-	Volume = 1,
-	StaticMesh = 2
+	StaticMesh = 1,
+	Volume = 2,
+	DynamicMeshActor = 3
 };
 
 

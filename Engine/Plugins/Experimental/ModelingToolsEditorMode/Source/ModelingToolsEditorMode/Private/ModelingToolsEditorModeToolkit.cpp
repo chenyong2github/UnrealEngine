@@ -551,6 +551,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAlignObjectsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditPivotTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeTransformTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransferMeshTool);
 	}
 	else if (PaletteIndex == DeformTabName)
 	{
