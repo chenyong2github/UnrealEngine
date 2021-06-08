@@ -5255,10 +5255,12 @@ FAsyncPackage::~FAsyncPackage()
 
 void FAsyncPackage::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	Collector.AllowEliminatingReferences(false);
 	Collector.AddReferencedObjects(ReferencedObjects);
 	Collector.AddReferencedObjects(DeferredFinalizeObjects);
 	Collector.AddReferencedObjects(PackageObjLoaded);
 	Collector.AddReferencedObjects(ImportedPackages);
+	Collector.AllowEliminatingReferences(true);
 }
 
 void FAsyncPackage::AddObjectReference(UObject* InObject)

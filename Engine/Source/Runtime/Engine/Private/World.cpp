@@ -2971,6 +2971,7 @@ void FLevelStreamingGCHelper::VerifyLevelsGotRemovedByGC()
 	{
 #if DO_GUARD_SLOW
 		int32 FailCount = 0;
+		const bool bIsAsyncLoading = IsAsyncLoading();
 		// Iterate over all objects and find out whether they reside in a GC'ed level package.
 		for( FThreadSafeObjectIterator It; It; ++It )
 		{
@@ -2980,14 +2981,23 @@ void FLevelStreamingGCHelper::VerifyLevelsGotRemovedByGC()
 			// But disregard package object itself.
 			&&	!Object->IsA(UPackage::StaticClass()) )
 			{
-				UE_LOG(LogWorld, Warning, TEXT("Level object %s didn't get garbage collected! Trying to find culprit, though this might crash. Try increasing stack size if it does. Referenced by:"), *Object->GetFullName());
-				FReferenceChainSearch RefChainSearch(Object, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
-				FailCount++;
+				if (bIsAsyncLoading && Object->HasAnyInternalFlags(EInternalObjectFlags::Async|EInternalObjectFlags::AsyncLoading))
+				{
+					UE_LOG(LogWorld, Display, TEXT("Level object %s isn't released by async loading yet, "
+							"it will get garbage collected next time instead."),
+							*Object->GetFullName());
+				}
+				else
+				{
+					UE_LOG(LogWorld, Warning, TEXT("Level object %s didn't get garbage collected! Trying to find culprit, though this might crash. Try increasing stack size if it does. Referenced by:"), *Object->GetFullName());
+					FReferenceChainSearch RefChainSearch(Object, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+					FailCount++;
+				}
 			}
 		}
 		if( FailCount > 0 )
 		{
-			UE_LOG(LogWorld, Fatal,TEXT("Streamed out levels were not completely garbage collected! Please see previous log entries."));
+			UE_LOG(LogWorld, Error, TEXT("Streamed out levels were not completely garbage collected! Please see previous log entries."));
 		}
 #endif
 	}
