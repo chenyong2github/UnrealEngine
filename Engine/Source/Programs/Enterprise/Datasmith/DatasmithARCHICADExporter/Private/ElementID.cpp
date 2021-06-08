@@ -151,7 +151,7 @@ const API_Element& FElementID::GetAPIElement()
 	return APIElement;
 }
 
-FInstance* FElementID::GetInstance()
+FMeshClass* FElementID::GetMeshClass()
 {
 	if (Instance == nullptr && Index3D != 0)
 	{
@@ -167,14 +167,13 @@ FInstance* FElementID::GetInstance()
 #else
 		GS::ULong HashValue = BaseElemId.GenerateHashValue();
 #endif
-		Instance = SyncContext.GetSyncDatabase().GetInstance(HashValue);
+		Instance = SyncContext.GetSyncDatabase().GetMeshClass(HashValue);
 		bool bTransformed = (Element3D.GetElemLocalToWorldTransformation().status & TR_IDENT) != 0;
 		if (Instance == nullptr)
 		{
-			TUniquePtr< FInstance > NewInstance = MakeUnique< FInstance >();
+			TUniquePtr< FMeshClass > NewInstance = MakeUnique< FMeshClass >();
 			Instance = NewInstance.Get();
 			Instance->Hash = HashValue;
-			Instance->InstancesCount = 1;
 			Instance->ElementType = Element3D.GetType();
 			Instance->TransformCount = bTransformed ? 0 : 1;
 			SyncContext.GetSyncDatabase().AddInstance(HashValue, std::move(NewInstance));
@@ -185,8 +184,18 @@ FInstance* FElementID::GetInstance()
 		{
 			if (Instance->ElementType != Element3D.GetType())
 			{
-				UE_AC_DebugF("FSynchronizer::ScanElements - Instance Hash %u colision Type %s != %s\n", Instance->Hash,
-							 GetTypeName(Instance->ElementType), GetTypeName());
+				if (Instance->ElementType == ModelerAPI::Element::Type::UndefinedElement)
+				{
+					Instance->ElementType = Element3D.GetType();
+				}
+				else
+				{
+					UE_AC_DebugF("FSynchronizer::ScanElements - Instance Hash %u collision Type %s != %s\n",
+								 Instance->Hash, GetTypeName(Instance->ElementType), GetTypeName());
+					Instance->ElementType = Element3D.GetType();
+					Instance->MeshElement.Reset();
+					Instance->bMeshElementInitialized = false;
+				}
 			}
 			++Instance->InstancesCount;
 			Instance->TransformCount += bTransformed ? 0 : 1;

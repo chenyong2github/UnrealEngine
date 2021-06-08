@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "Utils/WarningsDisabler.h"
+#include "Utils/TaskMgr.h"
 
 DISABLE_SDK_WARNINGS_START
 
@@ -147,6 +148,7 @@ GSErrCode __ACENV_CALL FreeData(void)
 	UnloadDatasmithDlls(true);
 	FReportWindow::Delete();
 	FTraceListener::Delete();
+	FTaskMgr::DeleteMgr();
 
 	UE_AC_TraceF("<- UE_AC FreeData\n");
 

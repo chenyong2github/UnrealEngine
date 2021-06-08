@@ -12,6 +12,7 @@
 #include "Utils/AutoChangeDatabase.h"
 #include "Utils/TimeStat.h"
 #include "TexturesCache.h"
+#include "Utils/TaskMgr.h"
 
 DISABLE_SDK_WARNINGS_START
 #include "Transformation.hpp"
@@ -23,6 +24,18 @@ DISABLE_SDK_WARNINGS_END
 BEGIN_NAMESPACE_UE_AC
 
 #define TRACE_ATTACH_OBSERVERS 0
+
+// Control access on this object (for queue operations)
+GS::Lock ChildAccessControl;
+
+// Condition variable
+GS::Condition ChildAccessControlCV(ChildAccessControl);
+
+// Control access on this object (for queue operations)
+GS::Lock ElementAccessControl;
+
+// Condition variable
+GS::Condition ElementAccessControlCV(ElementAccessControl);
 
 // Constructor
 FSyncData::FSyncData(const GS::Guid& InGuid)
@@ -145,16 +158,6 @@ void FSyncData::SetDefaultParent(const FElementID& InElementID)
 	}
 }
 
-void FSyncData::ProcessTree(FProcessInfo* IOProcessInfo)
-{
-	Process(IOProcessInfo);
-	for (FChildsArray::SizeType IterChild = 0; IterChild < Childs.Num(); ++IterChild)
-	{
-		IOProcessInfo->Index = IterChild;
-		Childs[IterChild]->ProcessTree(IOProcessInfo);
-	}
-}
-
 // Add a child to this sync data
 void FSyncData::AddChild(FSyncData* InChild)
 {
@@ -214,7 +217,11 @@ void FSyncData::FScene::DeleteMe(FSyncDatabase* IOSyncDatabase)
 
 void FSyncData::FScene::AddChildActor(const TSharedPtr< IDatasmithActorElement >& InActor)
 {
-	UE_AC_Assert(SceneElement.IsValid());
+	GS::Guard< GS::Lock > lck(ChildAccessControl);
+	if (!SceneElement.IsValid())
+	{
+		ThrowAssertionFail(__FILE__, __LINE__);
+	}
 	SceneElement->AddActor(InActor);
 }
 
@@ -359,12 +366,17 @@ void FSyncData::FActor::DeleteMe(FSyncDatabase* IOSyncDatabase)
 
 void FSyncData::FActor::AddChildActor(const TSharedPtr< IDatasmithActorElement >& InActor)
 {
-	UE_AC_Assert(ActorElement.IsValid());
+	GS::Guard< GS::Lock > lck(ChildAccessControl);
+	if (!ActorElement.IsValid())
+	{
+		ThrowAssertionFail(__FILE__, __LINE__);
+	}
 	ActorElement->AddChild(InActor);
 }
 
 void FSyncData::FActor::RemoveChildActor(const TSharedPtr< IDatasmithActorElement >& InActor)
 {
+	GS::Guard< GS::Lock > lck(ChildAccessControl);
 	UE_AC_Assert(ActorElement.IsValid());
 	ActorElement->RemoveChild(InActor);
 }
@@ -372,6 +384,7 @@ void FSyncData::FActor::RemoveChildActor(const TSharedPtr< IDatasmithActorElemen
 // Set (or replace) datasmith actor element related to this sync data
 void FSyncData::FActor::SetActorElement(const TSharedPtr< IDatasmithActorElement >& InElement)
 {
+	GS::Guard< GS::Lock > lck(ElementAccessControl);
 	if (ActorElement != InElement)
 	{
 		UE_AC_TestPtr(Parent);
@@ -643,23 +656,15 @@ inline Geometry::Transformation3D Convert(const ModelerAPI::Transformation& InMa
 	return Converted;
 }
 
-class FConvertGeometry2MeshElement : public GS::Runnable
+class FConvertGeometry2MeshElement : public FTaskMgr::FTask
 {
   public:
-	FConvertGeometry2MeshElement(const FSyncContext& InSyncContext, FSyncData::FElement* InElementSyncData);
+	FConvertGeometry2MeshElement(const FSyncContext& InSyncContext, FSyncData::FElement* InElementSyncData,
+								 FMeshClass* InMeshClass);
 
 	void AddElementGeometry(FElementID* IOElementID, const Geometry::Transformation3D& InLocalToWorld);
 
 	bool HasGeometry() const { return Element2StaticMesh.HasGeometry(); }
-
-	void CreateDatasmithMesh()
-	{
-		if (HasGeometry())
-		{
-			Run();
-		}
-		delete this;
-	}
 
 	void Run()
 	{
@@ -672,11 +677,13 @@ class FConvertGeometry2MeshElement : public GS::Runnable
 		 */
 		try
 		{
-			TSharedPtr< IDatasmithMeshElement > Mesh = Element2StaticMesh.CreateMesh();
-			if (SyncContext.GetSyncDatabase().SetMesh(&ElementSyncData.GetMeshElementRef(), Mesh))
+			TSharedPtr< IDatasmithMeshElement > Mesh;
+			if (HasGeometry())
 			{
-				ElementSyncData.MeshElementChanged();
+				Mesh = Element2StaticMesh.CreateMesh();
 			}
+			MeshClass->SetMeshElement(Mesh);
+			MeshClass->SetWaitingInstanceMesh(&SyncContext.GetSyncDatabase());
 		}
 		catch (std::exception& e)
 		{
@@ -696,13 +703,16 @@ class FConvertGeometry2MeshElement : public GS::Runnable
 	const FSyncContext&	 SyncContext;
 	FElement2StaticMesh	 Element2StaticMesh;
 	FSyncData::FElement& ElementSyncData;
+	FMeshClass*			 MeshClass = nullptr;
 };
 
 FConvertGeometry2MeshElement::FConvertGeometry2MeshElement(const FSyncContext&	InSyncContext,
-														   FSyncData::FElement* InElementSyncData)
+														   FSyncData::FElement* InElementSyncData,
+														   FMeshClass*			InMeshClass)
 	: SyncContext(InSyncContext)
 	, Element2StaticMesh(InSyncContext)
 	, ElementSyncData(*InElementSyncData)
+	, MeshClass(InMeshClass)
 {
 	UE_AC_TestPtr(InElementSyncData);
 }
@@ -720,15 +730,64 @@ FSyncData::FElement::FElement(const GS::Guid& InGuid, const FSyncContext& /* InS
 {
 }
 
+static void CopyActor(IDatasmithActorElement* OutDestActor, const IDatasmithActorElement& InSourceActor)
+{
+	UE_AC_TestPtr(OutDestActor);
+	if (&InSourceActor == OutDestActor)
+	{
+		return;
+	}
+
+	OutDestActor->SetLabel(InSourceActor.GetLabel());
+	OutDestActor->SetLayer(InSourceActor.GetLayer());
+	OutDestActor->SetIsAComponent(InSourceActor.IsAComponent());
+	OutDestActor->SetTranslation(InSourceActor.GetTranslation(), false);
+	OutDestActor->SetRotation(InSourceActor.GetRotation(), false);
+
+	// Copy childs from old actor to new one
+	int32 ChildrenCount = InSourceActor.GetChildrenCount();
+	for (int32 ChildIndex = 0; ChildIndex < ChildrenCount; ++ChildIndex)
+	{
+		OutDestActor->AddChild(InSourceActor.GetChild(ChildIndex));
+	}
+
+	int32 Count = InSourceActor.GetTagsCount();
+	OutDestActor->ResetTags();
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		OutDestActor->AddTag(InSourceActor.GetTag(Index));
+	}
+}
+
 void FSyncData::FElement::MeshElementChanged()
 {
+	UE_AC_Assert(ActorElement.IsValid());
 	if (MeshElement.IsValid())
 	{
-		UE_AC_Assert(ActorElement.IsValid() && ActorElement->IsA(EDatasmithElementType::StaticMeshActor));
-
+		// UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalInstancesCreated++);
+		if (!ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
+		{
+			TSharedPtr< IDatasmithActorElement >	 OldActor = ActorElement;
+			TSharedPtr< IDatasmithMeshActorElement > NewMeshActor =
+				FDatasmithSceneFactory::CreateMeshActor(OldActor->GetName());
+			SetActorElement(NewMeshActor);
+			CopyActor(NewMeshActor.Get(), *OldActor.Get());
+		}
 		IDatasmithMeshActorElement& MeshActor = *StaticCastSharedPtr< IDatasmithMeshActorElement >(ActorElement).Get();
 		MeshActor.SetStaticMeshPathName(MeshElement->GetName());
-		MeshElement->SetLabel(ActorElement->GetLabel());
+		// MeshElement->SetLabel(ActorElement->GetLabel());
+	}
+	else
+	{
+		// UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalEmptyInstancesCreated++);
+		if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
+		{
+			TSharedPtr< IDatasmithActorElement > OldMeshActor = ActorElement;
+			TSharedPtr< IDatasmithActorElement > NewActor =
+				FDatasmithSceneFactory::CreateActor(OldMeshActor->GetName());
+			SetActorElement(NewActor);
+			CopyActor(NewActor.Get(), *OldMeshActor.Get());
+		}
 	}
 }
 
@@ -772,6 +831,8 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			IOProcessInfo->ElementID.InitHeader(GSGuid2APIGuid(ElementId));
 			CheckModificationStamp(IOProcessInfo->ElementID.GetHeader().modiStamp);
 
+			TypeID = IOProcessInfo->ElementID.GetHeader().typeID;
+
 			UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalOwnerCreated++);
 			TSharedRef< IDatasmithActorElement > NewActor =
 				FDatasmithSceneFactory::CreateActor(GSStringToUE(ElementId.ToUniString()));
@@ -788,8 +849,11 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			NewActor->SetIsAComponent(bIsAComponent);
 
 			SetActorElement(NewActor);
-			AddTags(IOProcessInfo->ElementID);
-			UpdateMetaData(IOProcessInfo);
+			if (IOProcessInfo->bProcessMetaData || MetaData.IsValid())
+			{
+				AddTags(IOProcessInfo->ElementID);
+				UpdateMetaData(IOProcessInfo);
+			}
 		}
 	}
 	else
@@ -802,9 +866,11 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			IOProcessInfo->ElementID.InitElement(this);
 			IOProcessInfo->ElementID.InitHeader();
 
-			Geometry::Transformation3D WorldToLocal; // Set 2 identity for Instances (i.e. Object with a transformation)
+			TypeID = IOProcessInfo->ElementID.GetHeader().typeID;
+
 			ModelerAPI::Transformation LocalToWorld =
 				IOProcessInfo->ElementID.GetElement3D().GetElemLocalToWorldTransformation();
+			Geometry::Transformation3D WorldToLocal; // Set 2 identity for Instances (i.e. Object with transform)
 			if ((LocalToWorld.status & TR_IDENT) != 0)
 			{
 				Box3D Bounds = IOProcessInfo->ElementID.GetElement3D().GetBounds();
@@ -819,55 +885,11 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 														  -LocalToWorld.matrix[2][3]));
 			}
 
-			TSharedPtr< IDatasmithActorElement > OldActor = ActorElement;
-			FConvertGeometry2MeshElement*		 ConvertGeometry2MeshElement =
-				new FConvertGeometry2MeshElement(IOProcessInfo->SyncContext, this);
-			ConvertGeometry2MeshElement->AddElementGeometry(&IOProcessInfo->ElementID, WorldToLocal);
-			bool bHasGeometry = ConvertGeometry2MeshElement->HasGeometry();
-			if (ActorElement.IsValid())
-			{
-				if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
-				{
-					if (!bHasGeometry)
-					{
-						// Change actor from mesh actor to a non mesh actor
-						SetActorElement(TSharedPtr< IDatasmithActorElement >());
-					}
-				}
-				else
-				{
-					if (bHasGeometry)
-					{
-						// Change actor from non mesh actor to mesh actor
-						SetActorElement(TSharedPtr< IDatasmithActorElement >());
-					}
-				}
-			}
 			if (!ActorElement.IsValid())
 			{
-				if (bHasGeometry)
-				{
-					UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalActorsCreated++);
-					SetActorElement(FDatasmithSceneFactory::CreateMeshActor(GSStringToUE(ElementId.ToUniString())));
-				}
-				else
-				{
-					UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalEmptyActorsCreated++);
-					SetActorElement(FDatasmithSceneFactory::CreateActor(GSStringToUE(ElementId.ToUniString())));
-				}
+				SetActorElement(FDatasmithSceneFactory::CreateMeshActor(GSStringToUE(ElementId.ToUniString())));
 			}
 			ActorElement->SetIsAComponent(bIsAComponent);
-
-			// Need to copy from old actor to new one ?
-			if (OldActor.IsValid() && OldActor != ActorElement)
-			{
-				// Copy childs from old actor to new one
-				int32 ChildrenCount = OldActor->GetChildrenCount();
-				for (int32 ChildIndex = 0; ChildIndex < ChildrenCount; ++ChildIndex)
-				{
-					ActorElement->AddChild(OldActor->GetChild(ChildIndex));
-				}
-			}
 
 			// Set actor label
 			GS::UniString ElemenInfo;
@@ -887,13 +909,72 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			ActorElement->SetLayer(
 				*IOProcessInfo->SyncContext.GetSyncDatabase().GetLayerName(IOProcessInfo->ElementID.GetHeader().layer));
 
-			AddTags(IOProcessInfo->ElementID);
+			if (IOProcessInfo->bProcessMetaData || MetaData.IsValid())
+			{
+				AddTags(IOProcessInfo->ElementID);
+				UpdateMetaData(IOProcessInfo);
+			}
 
-			UpdateMetaData(IOProcessInfo);
+			FMeshClass* MeshClass = IOProcessInfo->ElementID.GetMeshClass();
+			UE_AC_Assert(MeshClass != nullptr);
+			if (MeshClass->AddInstance(this, &IOProcessInfo->SyncContext.GetSyncDatabase()) == FMeshClass::kBuild)
+			{
+				FConvertGeometry2MeshElement* ConvertGeometry2MeshElement =
+					new FConvertGeometry2MeshElement(IOProcessInfo->SyncContext, this, MeshClass);
+				ConvertGeometry2MeshElement->AddElementGeometry(&IOProcessInfo->ElementID, WorldToLocal);
+				if (ConvertGeometry2MeshElement->HasGeometry())
+				{
+					UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalMeshClassesCreated++);
+				}
+				else
+				{
+					UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalEmptyMeshClassesCreated++);
+				}
 
-			ConvertGeometry2MeshElement->CreateDatasmithMesh();
+				// ConvertGeometry2MeshElement->Run();
+				// delete ConvertGeometry2MeshElement;
+				FTaskMgr::GetMgr()->AddTask(ConvertGeometry2MeshElement, FTaskMgr::kSchedule);
+			}
 		}
 	}
+}
+
+// Called from process meta data idle task
+bool FSyncData::FElement::ProcessMetaData(IDatasmithScene* InScene)
+{
+	// We already have meta data, so we do nothing
+	if (MetaData.IsValid())
+	{
+		return false; // Metadata hasn't changed
+	}
+
+	// Add some object and lamp meta data
+	FMetaData MetaDataExporter(ActorElement);
+	MetaDataExporter.ExportMetaData(ElementId);
+	if (TypeID == API_ObjectID || TypeID == API_LampID)
+	{
+		FAutoMemo AutoMemo(GSGuid2APIGuid(ElementId), APIMemoMask_AddPars);
+		if (AutoMemo.GSErr == NoError)
+		{
+			if (AutoMemo.Memo.params) // Can be null
+			{
+				GS::UniString EscapeAssetId;
+				if (GetParameter(AutoMemo.Memo.params, "enscapeAssetId", &EscapeAssetId))
+				{
+					MetaDataExporter.AddProperty(TEXT("EnscapeAssetId"), EDatasmithKeyValuePropertyType::String,
+												 EscapeAssetId);
+				}
+			}
+		}
+	}
+
+	return MetaDataExporter.SetOrUpdate(&MetaData, InScene);
+}
+
+void FSyncData::FElement::SetMesh(FSyncDatabase* IOSyncDatabase, const TSharedPtr< IDatasmithMeshElement >& InMesh)
+{
+	IOSyncDatabase->SetMesh(&MeshElement, InMesh);
+	MeshElementChanged();
 }
 
 // Attach observer for Auto Sync
@@ -1092,11 +1173,12 @@ void FSyncData::FCamera::InitWithCameraElement()
 
 	CameraElement.SetRotation(
 		FGeometryUtil::GetRotationQuat(FGeometryUtil::GetPitchAngle(camPars.cameraZ, camPars.targetZ, camPars.distance),
-									   camPars.azimuth, camPars.rollAngle));
+									   camPars.azimuth * RADDEG, camPars.rollAngle * RADDEG));
 
 	CameraElement.SetFocusDistance(
 		FGeometryUtil::GetDistance3D(abs(camPars.cameraZ - camPars.targetZ), camPars.distance));
-	CameraElement.SetFocalLength(FGeometryUtil::GetCameraFocalLength(CameraElement.GetSensorWidth(), camPars.viewCone));
+	CameraElement.SetFocalLength(
+		FGeometryUtil::GetCameraFocalLength(CameraElement.GetSensorWidth(), camPars.viewCone * RADDEG));
 }
 
 #pragma mark -
@@ -1254,7 +1336,8 @@ void FSyncData::FLight::Process(FProcessInfo* IOProcessInfo)
 
 FSyncData::FLight::FLightGDLParameters::FLightGDLParameters() {}
 
-FSyncData::FLight::FLightGDLParameters::FLightGDLParameters(const API_Guid& InLightGuid)
+FSyncData::FLight::FLightGDLParameters::FLightGDLParameters(const API_Guid&		InLightGuid,
+															const FLibPartInfo* InLibPartInfo)
 {
 	FAutoMemo AutoMemo(InLightGuid, APIMemoMask_AddPars);
 	if (AutoMemo.GSErr == NoError)
@@ -1315,8 +1398,13 @@ FSyncData::FLight::FLightGDLParameters::FLightGDLParameters(const API_Guid& InLi
 			GetParameter(AutoMemo.Memo.params, "angleSunAzimuth", &SunAzimuthAngle);
 			GetParameter(AutoMemo.Memo.params, "angleSunAltitude", &SunAltitudeAngle);
 
-			double lightPosX;
-			bIsParallelLight = !GetParameter(AutoMemo.Memo.params, "lightPosX", &lightPosX);
+			if (InLibPartInfo != nullptr)
+			{
+				static GS::Guid ParallelLightMainGuid("FF603AFE-10AE-466E-A360-87924FA7E24A");
+				static GS::Guid SunLightMainGuid("0A68517B-9FCA-483A-93A7-2E85FE6BDBF9");
+				bIsParallelLight =
+					InLibPartInfo->Guid.Main == ParallelLightMainGuid || InLibPartInfo->Guid.Main == SunLightMainGuid;
+			}
 
 			GetParameter(AutoMemo.Memo.params, "bGenShadow", &bGenShadow); // Currently not available in Datasmith.
 		}
@@ -1468,10 +1556,12 @@ FSyncData::FHotLinkInstance::FHotLinkInstance(const GS::Guid& InGuid, FSyncDatab
 	if (err == NoError)
 	{
 		// Parent is a hot link node
-		FSyncData*& HotLinkNode = IOSyncDatabase->GetSyncData(APIGuid2GSGuid(hotlinkElem.hotlink.hotlinkNodeGuid));
+		FSyncData*& RefHotLinkNode = IOSyncDatabase->GetSyncData(APIGuid2GSGuid(hotlinkElem.hotlink.hotlinkNodeGuid));
+		FSyncData*	HotLinkNode = RefHotLinkNode;
 		if (HotLinkNode == nullptr)
 		{
 			HotLinkNode = new FSyncData::FHotLinkNode(APIGuid2GSGuid(hotlinkElem.hotlink.hotlinkNodeGuid));
+			RefHotLinkNode = HotLinkNode;
 			if (!HotLinkNode->HasParent())
 			{
 				FSyncData*& HotLinksRoot = IOSyncDatabase->GetSyncData(FSyncData::FHotLinksRoot::HotLinksRootGUID);
@@ -1519,8 +1609,8 @@ void FSyncData::FHotLinkInstance::Process(FProcessInfo* IOProcessInfo)
 			{
 				ParentLabel = Parent->GetElement()->GetLabel();
 			}
-			ActorElement->SetLabel(
-				*FString::Printf(TEXT("%s - %s Instance %llu"), ParentLabel, HotLinkType, IOProcessInfo->Index));
+			ActorElement->SetLabel(*FString::Printf(TEXT("%s - %s Instance %llu"), ParentLabel, HotLinkType,
+													IOProcessInfo->GetCurrentIndex()));
 
 			Transformation = hotlinkElem.hotlink.transformation;
 
@@ -1539,98 +1629,59 @@ void FSyncData::FHotLinkInstance::Process(FProcessInfo* IOProcessInfo)
 	}
 }
 
-// Constructor
-FSyncData::FAttachObservers::FAttachObservers() {}
-
-// Destructor
-FSyncData::FAttachObservers::~FAttachObservers() {}
+#pragma mark -
 
 // Start the process with this root observer
-void FSyncData::FAttachObservers::Start(FSyncData* Root)
+void FSyncData::FInterator::Start(FSyncData* Root)
 {
 	Stop();
 	Stack.Add({Root, 0});
-
-#if ATTACH_ONSERVER_STAT
-	AttachObserverProcessTimeStart.ReStart();
-	AttachObserverProcessTimeEnd = AttachObserverProcessTimeStart;
-	AttachObserverStartTime = FTimeStat::RealTimeClock();
-	AttachObserverTime = 0.0;
-	GetHeaderTime = 0.0;
-	AttachCount = 0;
-#endif
+	ProcessedCount = 0;
 }
 
 // Stop processing
-void FSyncData::FAttachObservers::Stop()
+void FSyncData::FInterator::Stop()
 {
 	// Stop process
 	Stack.Empty();
 }
 
-// Process attachment until done or until time slice finish
-bool FSyncData::FAttachObservers::ProcessUntil(double TimeSliceEnd)
+FSyncData::FInterator::EProcessControl FSyncData::FInterator::ProcessUntil(double TimeSliceEnd)
 {
-	int NbProcessed = 0;
-#if TRACE_ATTACH_OBSERVERS
-	double startTime = FTimeStat::RealTimeClock();
-#endif
-	while (FTimeStat::RealTimeClock() < TimeSliceEnd)
+	EProcessControl ProcessControl = kContinue;
+	while (FTimeStat::RealTimeClock() < TimeSliceEnd && ProcessControl == kContinue)
 	{
 		FSyncData* Current = Next();
-		if (Current != nullptr)
-		{
-			++NbProcessed;
-			bool bNeedUpdate = Current->AttachObserver(this);
-			if (bNeedUpdate)
-			{
-				Stop();
-#if TRACE_ATTACH_OBSERVERS
-				UE_AC_TraceF("FSyncData::FAttachObservers::ProcessUntil - Nb Processed = %d (Start=%lf, Stop=%lf)\n",
-							 NbProcessed, startTime, FTimeStat::RealTimeClock());
-#endif
-#if ATTACH_ONSERVER_STAT
-				PrintStat();
-#endif
-				return true; // Request an update
-			}
-		}
-		else
-		{
-#if TRACE_ATTACH_OBSERVERS || ATTACH_ONSERVER_STAT
-			if (NbProcessed != 0)
-			{
-	#if TRACE_ATTACH_OBSERVERS
-				UE_AC_TraceF(
-					"FSyncData::FAttachObservers::ProcessUntil - Nb Processed = %d (Start=%lf, Finished=%lf)\n",
-					NbProcessed, startTime, FTimeStat::RealTimeClock());
-	#endif
-	#if ATTACH_ONSERVER_STAT
-				PrintStat();
-	#endif
-			}
-#endif
-			return false; // Process done, everything is attached
-		}
+		ProcessControl = Process(Current);
 	}
-#if TRACE_ATTACH_OBSERVERS
-	UE_AC_TraceF("FSyncData::FAttachObservers::ProcessUntil - Nb Processed = %d (Start=%lf, End=%lf)\n", NbProcessed,
-				 startTime, FTimeStat::RealTimeClock());
-#endif
-	return false; // Time slice end, wait for another idle
+	if (ProcessControl == kInterrupted)
+	{
+		Stop();
+	}
+	return ProcessControl;
 }
 
 // Return the next FSyncData
-FSyncData* FSyncData::FAttachObservers::Next()
+FSyncData* FSyncData::FInterator::Next()
 {
 	FSyncData* Current = nullptr;
 	while (Stack.Num() != 0 && Current == nullptr)
 	{
-		FSyncData*			   Parent = Stack.Top().Parent;
+		FSyncData* Parent = Stack.Top().Parent;
+
+		// Start with root
+		if (ProcessedCount == 0)
+		{
+			ProcessedCount = 1;
+			return Parent;
+		}
+
+		// Traverse all tree
 		FChildsArray::SizeType ChildIndex = Stack.Top().ChildIndex;
 		if (ChildIndex < Parent->Childs.Num())
 		{
 			Current = Parent->Childs[ChildIndex++];
+			++ProcessedCount;
 			Stack.Top().ChildIndex = ChildIndex;
 			Stack.Add({Current, 0});
 		}
@@ -1642,6 +1693,97 @@ FSyncData* FSyncData::FAttachObservers::Next()
 	return Current;
 }
 
+// Return the index of the current.
+FSyncData::FChildsArray::SizeType FSyncData::FInterator::GetCurrentIndex()
+{
+	return Stack.Num() > 1 ? Stack[Stack.Num() - 2].ChildIndex : 0;
+}
+
+#pragma mark -
+
+// Start the process with this root observer
+void FSyncData::FProcessMetadata::Start(FSyncData* Root)
+{
+	FSyncData::FInterator::Start(Root);
+	bMetadataUpdated = false;
+}
+
+// Call ProcessMetaData for the sync data
+FSyncData::FInterator::EProcessControl FSyncData::FProcessMetadata::Process(FSyncData* InCurrent)
+{
+	if (InCurrent == nullptr)
+	{
+		return FInterator::kDone;
+	}
+
+	bMetadataUpdated |= InCurrent->ProcessMetaData(&Synchronizer->GetSyncDatabase()->GetScene().Get());
+
+	return FInterator::kContinue;
+}
+
+#pragma mark -
+
+// Constructor
+FSyncData::FAttachObservers::FAttachObservers() {}
+
+// Start the process with this root observer
+void FSyncData::FAttachObservers::Start(FSyncData* Root)
+{
+	FSyncData::FInterator::Start(Root);
+
+#if ATTACH_ONSERVER_STAT
+	AttachObserverProcessTimeStart.ReStart();
+	AttachObserverProcessTimeEnd = AttachObserverProcessTimeStart;
+	AttachObserverStartTime = FTimeStat::RealTimeClock();
+	AttachObserverTime = 0.0;
+	GetHeaderTime = 0.0;
+	AttachCount = 0;
+#endif
+}
+
+FSyncData::FInterator::EProcessControl FSyncData::FAttachObservers::Process(FSyncData* InCurrent)
+{
+	if (InCurrent == nullptr)
+	{
+		return FInterator::kDone;
+	}
+
+	if (InCurrent->AttachObserver(this))
+	{
+		return FInterator::kInterrupted;
+	}
+
+	return FInterator::kContinue;
+}
+
+// Process attachment until done or until time slice finish
+bool FSyncData::FAttachObservers::ProcessAttachUntil(double TimeSliceEnd)
+{
+#if TRACE_ATTACH_OBSERVERS
+	int	   NbProcessedStart = GetProcessedCount();
+	double startTime = FTimeStat::RealTimeClock();
+#endif
+
+	FInterator::EProcessControl ProcessControl = ProcessUntil(TimeSliceEnd);
+
+#if TRACE_ATTACH_OBSERVERS
+	if (GetProcessedCount() - NbProcessedStart != 0)
+	{
+		UE_AC_TraceF("FSyncData::FAttachObservers::ProcessAttachUntil - Nb Processed = %d (Start=%lf, End=%lf)\n",
+					 GetProcessedCount() - NbProcessedStart, startTime, FTimeStat::RealTimeClock());
+	}
+#endif
+
+#if ATTACH_ONSERVER_STAT
+	if (ProcessControl == FInterator::kInterrupted || ProcessControl == FInterator::kDone)
+	{
+		PrintStat();
+	}
+#endif
+
+	return ProcessControl == FInterator::kInterrupted; // If interrupted then we request an update
+}
+
 #if ATTACH_ONSERVER_STAT
 void FSyncData::FAttachObservers::CumulateStats(const FTimeStat& SlotStart, double AfterAttachObserver)
 {
@@ -1651,7 +1793,7 @@ void FSyncData::FAttachObservers::CumulateStats(const FTimeStat& SlotStart, doub
 	AttachObserverProcessTimeEnd.AddDiff(SlotStart);
 }
 
-// Log attcah observer statistics
+// Log attach observer statistics
 void FSyncData::FAttachObservers::PrintStat()
 {
 	if (AttachCount != 0)
@@ -1665,6 +1807,7 @@ void FSyncData::FAttachObservers::PrintStat()
 					  AttachCount, AttachObserversTime, AttachObserverTime / AttachCount * 1000000.0,
 					  GetHeaderTime / AttachCount * 1000000.0);
 		AttachObserverProcessTimeEnd.PrintDiff("Attach Observers", AttachObserverProcessTimeStart);
+		AttachCount = 0;
 	}
 }
 #endif

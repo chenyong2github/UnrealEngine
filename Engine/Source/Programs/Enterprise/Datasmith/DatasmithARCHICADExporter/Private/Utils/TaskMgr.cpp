@@ -119,7 +119,7 @@ FTaskMgr::FTaskMgr()
 		Treads.resize(nbProcessors);
 		for (unsigned i = 0; i < nbProcessors; i++)
 		{
-			Treads[i].reset(new FThread(this, GS::UniString::Printf("AC2TM Task #%d", i)));
+			Treads[i].reset(new FThread(this, GS::UniString::Printf("Datasmith Exporter Task #%d", i)));
 		}
 	}
 }

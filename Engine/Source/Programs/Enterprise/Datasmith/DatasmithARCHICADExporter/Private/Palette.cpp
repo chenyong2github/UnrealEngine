@@ -69,7 +69,7 @@ class FPaletteWindow : public DG::Palette,
 		AttachToAllItems(*this);
 		this->BeginEventProcessing();
 
-		bool SendForInactiveApp = false;
+		bool SendForInactiveApp = true;
 		EnableIdleEvent(SendForInactiveApp);
 
 		Show();
@@ -97,7 +97,7 @@ class FPaletteWindow : public DG::Palette,
 	{
 		const int  Delay = 10;
 		static int Count = Delay;
-		if (FCommander::IsAutoSyncEnabled() && Is3DCurrenWindow())
+		if (Is3DCurrenWindow())
 		{
 			static DG::NativeUnit NativeXPos;
 			static DG::NativeUnit NativeYPos;
@@ -172,6 +172,8 @@ class FPaletteWindow : public DG::Palette,
 			FCommander::ToggleAutoSync();
 		}
 		else
+#else
+		(void)ev;  // Remove warning
 #endif
 		{
 			UE_AC_DebugF("FPaletteWindow::CheckItemChanged - Unknown event source\n");
@@ -190,7 +192,7 @@ void FPalette::Register()
 						API_PalEnabled_Layout | API_PalEnabled_Worksheet | API_PalEnabled_Elevation |
 						API_PalEnabled_InteriorElevation | API_PalEnabled_DocumentFrom3D;
 #else
-	GS::GSFlags	 Flags = API_PalEnabled_3D;
+	GS::GSFlags Flags = API_PalEnabled_3D;
 #endif
 	GSErrCode GSErr = ACAPI_RegisterModelessWindow(FPalette::PaletteRefId(), APIPaletteControlCallBack, Flags,
 												   GSGuid2APIGuid(PaletteGuid));
@@ -275,6 +277,8 @@ void FPalette::AutoSyncChanged()
 		bool bAutoSyncEnabled = FCommander::IsAutoSyncEnabled();
 #if AUTO_SYNC
 		CurrentPalette->Window->IconAutoSync.SetState(bAutoSyncEnabled);
+#else
+		(void)bAutoSyncEnabled; // Remove warning
 #endif
 	}
 }

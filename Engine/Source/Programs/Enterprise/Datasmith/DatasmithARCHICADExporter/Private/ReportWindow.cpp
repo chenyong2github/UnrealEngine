@@ -34,12 +34,15 @@ class FReportDialog : public DG::Palette,
 	DG::MultiLineEdit MessagesTextEdit;
 	DG::Button		  CopyAllButton;
 	DG::Button		  CopySelectionButton;
+	size_t			  LastSize = 0;
 
   public:
 	FReportDialog();
 	~FReportDialog();
 
 	virtual void PanelClosed(const DG::PanelCloseEvent& /* ev */) override {}
+
+	virtual void PanelIdle(const DG::PanelIdleEvent& /* ev */) override { Update(); }
 
 	virtual void PanelCloseRequested(const DG::PanelCloseRequestEvent& /* ev */, bool* /* accepted */) override
 	{
@@ -79,11 +82,15 @@ class FReportDialog : public DG::Palette,
 		}
 		else if (ev.GetSource() == &ClearButton)
 		{
-			FTraceListener::Get().Traces.clear();
+			{
+				GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
+				FTraceListener::Get().Traces.clear();
+			}
 			MessagesTextEdit.SetText(GS::UniString(""));
 		}
 		else if (ev.GetSource() == &CopyAllButton)
 		{
+			GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
 			SetPasteboardWithString(FTraceListener::Get().Traces.c_str());
 		}
 		else if (ev.GetSource() == &CopySelectionButton)
@@ -98,17 +105,29 @@ class FReportDialog : public DG::Palette,
 	// Update the text content with the collected traces
 	void Update()
 	{
-		DG::CharRange Selection(MessagesTextEdit.GetSelection());
-
-		GS::UniString NewText(FTraceListener::Get().Traces.c_str(), CC_UTF8);
-		MessagesTextEdit.SetText(NewText);
-
-		// On empty selection, we set selection to the end, otherwise we restore previous one
-		if (Selection.GetLength() == 0)
+		GS::UniString NewText;
 		{
-			Selection.SetWithLength(NewText.GetLength(), 0);
+			GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
+			const utf8_string&	  Traces = FTraceListener::Get().Traces;
+			if (Traces.size() != LastSize)
+			{
+				LastSize = Traces.size();
+				NewText = GS::UniString(Traces.c_str(), CC_UTF8);
+			}
 		}
-		MessagesTextEdit.SetSelection(Selection);
+		if (!NewText.IsEmpty())
+		{
+			DG::CharRange Selection(MessagesTextEdit.GetSelection());
+
+			MessagesTextEdit.SetText(NewText);
+
+			// On empty selection, we set selection to the end, otherwise we restore previous one
+			if (Selection.GetLength() == 0)
+			{
+				Selection.SetWithLength(NewText.GetLength(), 0);
+			}
+			MessagesTextEdit.SetSelection(Selection);
+		}
 	}
 };
 
@@ -123,6 +142,8 @@ FReportDialog::FReportDialog()
 	Attach(*this);
 	AttachToAllItems(*this);
 	MessagesTextEdit.SetText(GS::UniString(FTraceListener::Get().Traces.c_str(), CC_UTF8));
+	bool SendForInactiveApp = false;
+	EnableIdleEvent(SendForInactiveApp);
 }
 
 FReportDialog::~FReportDialog()
@@ -227,6 +248,7 @@ GSErrCode FTraceListener::Register()
 }
 
 FTraceListener::FTraceListener()
+	: CV(AccessControl)
 {
 	Traces.reserve(100 * 1024);
 	AddTraceListener(this);
@@ -252,11 +274,16 @@ void FTraceListener::NewTrace(EP2DB InTraceLevel, const utf8_string& InMsg)
 
 	if (InTraceLevel <= MessageLevel)
 	{
-		if (InTraceLevel != kP2DB_Report)
 		{
-			Traces.append("* ");
+			GS::Guard< GS::Lock > lck(AccessControl);
+
+			if (InTraceLevel != kP2DB_Report)
+			{
+				Traces.append("* ");
+			}
+			Traces.append(InMsg);
 		}
-		Traces.append(InMsg);
+
 		if (bScheduledForUpdate == false)
 		{
 			// Update content on the main thread

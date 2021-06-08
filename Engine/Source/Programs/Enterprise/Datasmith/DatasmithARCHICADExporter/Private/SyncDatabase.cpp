@@ -9,6 +9,7 @@
 #include "GeometryUtil.h"
 #include "Utils/3DElement2String.h"
 #include "Utils/Element2String.h"
+#include "Utils/TaskMgr.h"
 
 #include "ModelMeshBody.hpp"
 #include "Light.hpp"
@@ -27,6 +28,82 @@ DISABLE_SDK_WARNINGS_START
 DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
+
+// Control access on this object (for queue operations)
+GS::Lock FMeshClass::AccessControl;
+
+// Condition variable
+GS::Condition FMeshClass::CV(FMeshClass::AccessControl);
+
+// Define the mesh element for this hash value
+void FMeshClass::SetMeshElement(const TSharedPtr< IDatasmithMeshElement >& InMeshElement)
+{
+	if (MeshElement.IsValid())
+	{
+		UE_AC_DebugF("FMeshClass::SetMeshElement - Mesh class %08x:\"%s\" already defined\n", Hash,
+					 TCHAR_TO_UTF8(MeshElement->GetName()));
+		UE_AC_Assert(bMeshElementInitialized);
+		return;
+	}
+	GS::Guard< GS::Lock > lck(AccessControl);
+	bMeshElementInitialized = true;
+	MeshElement = InMeshElement;
+}
+
+// Add an instance, waiting for the resulting mesh
+/* return false if we need to build the mesh */
+FMeshClass::EBuildMesh FMeshClass::AddInstance(FSyncData* InInstance, FSyncDatabase* IOSyncDatabase)
+{
+	{
+		GS::Guard< GS::Lock > lck(AccessControl);
+		if (!bMeshElementInitialized)
+		{
+			bool bHasAnother = HeadInstances != nullptr;
+			HeadInstances = new FSyncDataList(InInstance, HeadInstances);
+			if (bHasAnother)
+			{
+				return kDontBuild; // Another instance is already building this object
+			}
+			return kBuild; // First instance, we must build the mesh
+		}
+	}
+
+	// We have a mesh, we set it the sync data
+	SetInstanceMesh(InInstance, IOSyncDatabase);
+	return kDontBuild;
+}
+
+FSyncData* FMeshClass::PopInstance()
+{
+	FSyncDataList* Head = nullptr;
+	{
+		GS::Guard< GS::Lock > lck(AccessControl);
+		Head = HeadInstances;
+		if (Head == nullptr)
+		{
+			return nullptr;
+		}
+		HeadInstances = Head->Next;
+	}
+	FSyncData* SyncData = Head->Element;
+	delete Head;
+	return SyncData;
+}
+
+void FMeshClass::SetInstanceMesh(FSyncData* InInstance, FSyncDatabase* IOSyncDatabase) const
+{
+	InInstance->SetMesh(IOSyncDatabase, MeshElement);
+}
+
+void FMeshClass::SetWaitingInstanceMesh(FSyncDatabase* IOSyncDatabase)
+{
+	FSyncData* SyncData = PopInstance();
+	while (SyncData != nullptr)
+	{
+		SetInstanceMesh(SyncData, IOSyncDatabase);
+		SyncData = PopInstance();
+	}
+}
 
 FMeshCacheIndexor::FMeshCacheIndexor(const TCHAR* InIndexFilePath)
 	: IndexFilePath(InIndexFilePath)
@@ -240,7 +317,12 @@ void FSyncDatabase::Synchronize(const FSyncContext& InSyncContext)
 
 	InSyncContext.NewPhase(kCommonConvertElements, ModifiedCount);
 	FSyncData::FProcessInfo ProcessInfo(InSyncContext);
-	GetSceneSyncData().ProcessTree(&ProcessInfo);
+	while (ProcessInfo.ProcessUntil(FTimeStat::RealTimeClock() + 60) == FSyncData::FInterator::kContinue)
+	{
+		UE_AC_TraceF("FSyncDatabase::Synchronize - %d processed\n", ProcessInfo.GetProcessedCount());
+	}
+	UE_AC_TraceF("FSyncDatabase::Synchronize - Done with %d processed\n", ProcessInfo.GetProcessedCount());
+	FTaskMgr::GetMgr()->Join(InSyncContext.GetProgression());
 }
 
 // Before a scan we reset our sync data, so we can detect when an element has been modified or destroyed
@@ -339,8 +421,6 @@ bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
 		{
 			GS::Guard< GS::Lock > lck(HashToMeshInfoAccesControl);
 
-			typedef TMap< FString, FMeshInfo > FMapHashToMeshInfo;
-
 			FMeshInfo* Older = HashToMeshInfo.Find(Handle->Get()->GetName());
 			UE_AC_TestPtr(Older);
 			if (--Older->Count == 0)
@@ -377,15 +457,15 @@ bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
 	return true;
 }
 
-FInstance* FSyncDatabase::GetInstance(GS::ULong InHash) const
+FMeshClass* FSyncDatabase::GetMeshClass(GS::ULong InHash) const
 {
-	const TUniquePtr< FInstance >* Ptr = Instances.GetPtr(InHash);
+	const TUniquePtr< FMeshClass >* Ptr = MeshClasses.GetPtr(InHash);
 	return Ptr == nullptr ? nullptr : Ptr->Get();
 }
 
-void FSyncDatabase::AddInstance(GS::ULong InHash, TUniquePtr< FInstance >&& InInstance)
+void FSyncDatabase::AddInstance(GS::ULong InHash, TUniquePtr< FMeshClass >&& InInstance)
 {
-	Instances.Add(InHash, std::move(InInstance));
+	MeshClasses.Add(InHash, std::move(InInstance));
 }
 
 // Return the libpart from it's index
@@ -468,40 +548,59 @@ void FSyncDatabase::SetSceneInfo()
 	TheScene.SetProductVersion(UTF8_TO_TCHAR(UE_AC_STRINGIZE(AC_VERSION)));
 }
 
-void FSyncDatabase::ResetInstances()
+void FSyncDatabase::ResetMeshClasses()
 {
-	for (auto& IterInstance : Instances)
+	for (auto& IterMeshClass : MeshClasses)
 	{
-		FInstance& Instance = **IterInstance.value;
-		Instance.InstancesCount = 0;
-		Instance.TransformCount = 0;
+		FMeshClass& MeshClass = **IterMeshClass.value;
+		MeshClass.InstancesCount = 0;
+		MeshClass.TransformCount = 0;
 	}
 }
 
-void FSyncDatabase::ReportInstances() const
+void FSyncDatabase::CleanMeshClasses(const FSyncContext& InSyncContext)
+{
+	int MeshClassesForgetCount = 0;
+	for (auto& IterMeshClass : MeshClasses)
+	{
+		FMeshClass& MeshClass = **IterMeshClass.value;
+		if (MeshClass.InstancesCount == 0 && MeshClass.ElementType != ModelerAPI::Element::Type::UndefinedElement)
+		{
+			MeshClass.ElementType = ModelerAPI::Element::Type::UndefinedElement;
+			MeshClass.MeshElement.Reset();
+			MeshClass.bMeshElementInitialized = false;
+			MeshClass.TransformCount = 0;
+			MeshClassesForgetCount++;
+		}
+	}
+	InSyncContext.Stats.TotalMeshClassesForgot = MeshClassesForgetCount;
+}
+
+void FSyncDatabase::ReportMeshClasses() const
 {
 #if defined(DEBUG) && 1
-	for (const auto& IterInstance : Instances)
+	for (const auto& IterMeshClass : MeshClasses)
 	{
-		const FInstance& Instance = **IterInstance.value;
-		if (Instance.InstancesCount > 1)
+		const FMeshClass& MeshClass = **IterMeshClass.value;
+		if (MeshClass.InstancesCount > 1)
 		{
-			if (Instance.InstancesCount != Instance.TransformCount)
+			if (MeshClass.InstancesCount != MeshClass.TransformCount)
 			{
 				UE_AC_TraceF("FSynchronizer::ScanElements - %u instances of %s for hash %u, TransfoCount=%u\n",
-							 Instance.InstancesCount, FElementID::GetTypeName(Instance.ElementType), Instance.Hash,
-							 Instance.TransformCount);
+							 MeshClass.InstancesCount, FElementID::GetTypeName(MeshClass.ElementType), MeshClass.Hash,
+							 MeshClass.TransformCount);
 			}
 			else
 			{
 				UE_AC_VerboseF("FSynchronizer::ScanElements - %u instances of %s for hash %u\n",
-							   Instance.InstancesCount, FElementID::GetTypeName(Instance.ElementType), Instance.Hash);
+							   MeshClass.InstancesCount, FElementID::GetTypeName(MeshClass.ElementType),
+							   MeshClass.Hash);
 			}
 		}
-		else if (Instance.InstancesCount == 1 && Instance.TransformCount == 1)
+		else if (MeshClass.InstancesCount == 1 && MeshClass.TransformCount == 1)
 		{
 			UE_AC_VerboseF("FSynchronizer::ScanElements - %s for hash %u has transform\n",
-						   FElementID::GetTypeName(Instance.ElementType), Instance.Hash);
+						   FElementID::GetTypeName(MeshClass.ElementType), MeshClass.Hash);
 		}
 	}
 #endif
@@ -513,7 +612,7 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 	// We create this objects here to not construct/destroy at each iteration
 	FElementID ElementID(InSyncContext);
 
-	ResetInstances();
+	ResetMeshClasses();
 
 	// Loop on all 3D elements
 	UInt32	  ModifiedCount = 0;
@@ -579,13 +678,15 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 
 		UE_AC_STAT(InSyncContext.Stats.TotalElementsWithGeometry++);
 
-		ElementID.GetInstance(); // Not needed here, now it's just for statistics
+		ElementID.GetMeshClass();
 
 		// Get sync data for this element (Create or reuse already existing)
-		FSyncData*& SyncData = GetSyncData(APIGuid2GSGuid(ElementID.GetHeader().guid));
+		FSyncData*& RefSyncData = GetSyncData(APIGuid2GSGuid(ElementID.GetHeader().guid));
+		FSyncData*	SyncData = RefSyncData;
 		if (SyncData == nullptr)
 		{
 			SyncData = new FSyncData::FElement(APIGuid2GSGuid(ElementID.GetHeader().guid), InSyncContext);
+			RefSyncData = SyncData;
 		}
 		ElementID.SetSyncData(SyncData);
 		SyncData->Update(ElementID);
@@ -605,7 +706,8 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 
 	InSyncContext.NewCurrentValue(NbElements);
 
-	ReportInstances();
+	ReportMeshClasses();
+	CleanMeshClasses(InSyncContext);
 
 	return ModifiedCount;
 }
@@ -628,7 +730,7 @@ void FSyncDatabase::ScanLights(FElementID& InElementID)
 		UE_AC_TraceF("%s", FElement2String::GetParametersAsString(Header.guid).c_str());
 		UE_AC_TraceF("%s", F3DElement2String::ElementLight2String(InElementID.Element3D).c_str());
 #endif
-		FSyncData::FLight::FLightGDLParameters LightGDLParameters(Header.guid);
+		FSyncData::FLight::FLightGDLParameters LightGDLParameters(Header.guid, InElementID.GetLibPartInfo());
 
 		ModelerAPI::Light Light;
 
@@ -702,12 +804,14 @@ void FSyncDatabase::ScanCameras(const FSyncContext& /* InSyncContext */)
 			continue;
 		}
 
-		FSyncData*& CameraSetSyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(cameraSet.header.guid));
+		FSyncData*& RefCameraSetSyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(cameraSet.header.guid));
+		FSyncData*	CameraSetSyncData = RefCameraSetSyncData;
 		if (CameraSetSyncData == nullptr)
 		{
 			GS::UniString CamSetName(cameraSet.camset.name);
 			CameraSetSyncData = new FSyncData::FCameraSet(APIGuid2GSGuid(cameraSet.header.guid), CamSetName,
 														  cameraSet.camset.perspPars.openedPath);
+			RefCameraSetSyncData = CameraSetSyncData;
 			CameraSetSyncData->SetParent(&GetSceneSyncData());
 		}
 		CameraSetSyncData->MarkAsExisting();

@@ -27,6 +27,12 @@ void FSyncContext::FStats::ResetAll()
 	TotalMeshesCreated = 0;
 	TotalMeshesReused = 0;
 	TotalBugsCount = 0;
+	TotalMeshClassesCreated = 0;
+	TotalEmptyMeshClassesCreated = 0;
+	TotalInstancesCreated = 0;
+	TotalEmptyInstancesCreated = 0;
+	TotalMeshClassesForgot = 0;
+	TotalMeshClassesResactivated = 0;
 }
 
 void FSyncContext::FStats::Print()
@@ -37,6 +43,9 @@ void FSyncContext::FStats::Print()
 	UE_AC_ReportF("Datasmith Actors : Owner=%d, Created With Mesh=%d, Created Empty %d\n", int(TotalOwnerCreated),
 				  int(TotalActorsCreated), int(TotalEmptyActorsCreated));
 	UE_AC_ReportF("Datasmith Meshes : Created=%d, Reused=%d\n", int(TotalMeshesCreated), int(TotalMeshesReused));
+	UE_AC_ReportF("Mesh Class :	Created=%d, Empty=%d, Forgot=%d, Reactivated=%d, Instances=%d (Empty=%d)\n",
+				  int(TotalMeshClassesCreated), int(TotalEmptyMeshClassesCreated), int(TotalMeshClassesForgot),
+				  int(TotalMeshClassesResactivated), int(TotalInstancesCreated), int(TotalEmptyInstancesCreated));
 	if (TotalBugsCount != 0)
 	{
 		UE_AC_ReportF("Conversion bug count=%d\n", int(TotalBugsCount));

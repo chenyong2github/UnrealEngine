@@ -6,8 +6,12 @@
 #include "Utils/LibPartInfo.h"
 
 #include "Lock.hpp"
+#include "ModelElement.hpp"
 
+DISABLE_SDK_WARNINGS_START
 #include "Map.h"
+#include "List.h"
+DISABLE_SDK_WARNINGS_END
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -17,7 +21,8 @@ class FMaterialsDatabase;
 class FTexturesCache;
 class FElementID;
 class FLibPartInfo;
-class FInstance;
+class FMeshClass;
+class FSyncDatabase;
 
 class FMeshDimensions
 {
@@ -42,6 +47,62 @@ class FMeshDimensions
 	float Width;
 	float Height;
 	float Depth;
+};
+
+class FMeshClass
+{
+  public:
+	// ARCHICAD 3D Element hash value
+	GS::ULong Hash = 0;
+
+	// Datasmith mesh element created for this class
+	TSharedPtr< IDatasmithMeshElement > MeshElement;
+
+	// Number of actor elements that are implementations of this class.
+	GS::UInt32 InstancesCount = 1;
+
+	// Next fields are for invariants tests
+
+	// Type of first ARCHICAD 3D Element collected for this hash
+	ModelerAPI::Element::Type ElementType;
+
+	// Number of elements that define transformation.
+	GS::UInt32 TransformCount = 0;
+
+	// Return the mesh element created for first converted element.
+	const TSharedPtr< IDatasmithMeshElement >& GetMeshElement() const { return MeshElement; }
+
+	bool bMeshElementInitialized = false;
+
+	// Define the mesh element for this hash value
+	void SetMeshElement(const TSharedPtr< IDatasmithMeshElement >& InMeshElement);
+
+	// Add an instance, waiting for the resulting mesh
+	enum EBuildMesh
+	{
+		kDontBuild,
+		kBuild
+	};
+	EBuildMesh AddInstance(FSyncData* InInstance, FSyncDatabase* IOSyncDatabase);
+
+	// Pop an instance waiting for the resulting mesh
+	FSyncData* PopInstance();
+
+	// Set Mesh Element to the sync data
+	void SetInstanceMesh(FSyncData* InInstance, FSyncDatabase* IOSyncDatabase) const;
+
+	// Set Mesh Element to the sync data
+	void SetWaitingInstanceMesh(FSyncDatabase* IOSyncDatabase);
+
+  private:
+	typedef TList< FSyncData* > FSyncDataList;
+	FSyncDataList*				HeadInstances;
+
+	// Control access on this object (for queue operations)
+	static GS::Lock AccessControl;
+
+	// Condition variable
+	static GS::Condition CV;
 };
 
 class FMeshCacheIndexor
@@ -144,9 +205,9 @@ class FSyncDatabase
 	// Return the libpart from it's unique id
 	FLibPartInfo* GetLibPartInfo(const char* InUnID);
 
-	FInstance* GetInstance(GS::ULong InHash) const;
+	FMeshClass* GetMeshClass(GS::ULong InHash) const;
 
-	void AddInstance(GS::ULong InHash, TUniquePtr< FInstance >&& InInstance);
+	void AddInstance(GS::ULong InHash, TUniquePtr< FMeshClass >&& InInstance);
 
 	// Return the cache path
 	static GS::UniString GetCachePath();
@@ -154,11 +215,11 @@ class FSyncDatabase
 	FMeshCacheIndexor& GetMeshIndexor() { return MeshIndexor; }
 
   private:
-	typedef TMap< FGuid, FSyncData* >							FMapGuid2SyncData;
-	typedef TMap< short, FString >								FMapLayerIndex2Name;
-	typedef TMap< GS::Int32, TUniquePtr< FLibPartInfo > >		MapIndex2LibPart;
-	typedef TMap< FGSUnID, FLibPartInfo* >						MapUnId2LibPart;
-	typedef GS::HashTable< GS::ULong, TUniquePtr< FInstance > > HashTableInstances;
+	typedef TMap< FGuid, FSyncData* >							 FMapGuid2SyncData;
+	typedef TMap< short, FString >								 FMapLayerIndex2Name;
+	typedef TMap< GS::Int32, TUniquePtr< FLibPartInfo > >		 MapIndex2LibPart;
+	typedef TMap< FGSUnID, FLibPartInfo* >						 MapUnId2LibPart;
+	typedef GS::HashTable< GS::ULong, TUniquePtr< FMeshClass > > HashTableMeshClasses;
 
 	// To take care of mesh life cycle.
 	class FMeshInfo
@@ -172,9 +233,11 @@ class FSyncDatabase
 	// Map mesh by their hash name.
 	typedef TMap< FString, FMeshInfo > FMapHashToMeshInfo;
 
-	void ResetInstances();
+	void ResetMeshClasses();
 
-	void ReportInstances() const;
+	void CleanMeshClasses(const FSyncContext& InSyncContext);
+
+	void ReportMeshClasses() const;
 
 	// Scan all elements, to determine if they need to be synchronized
 	UInt32 ScanElements(const FSyncContext& InSyncContext);
@@ -213,7 +276,7 @@ class FSyncDatabase
 	// Map lib part by UnId
 	MapUnId2LibPart UnIdToLibPart;
 
-	HashTableInstances Instances;
+	HashTableMeshClasses MeshClasses;
 
 	FMeshCacheIndexor MeshIndexor;
 };
