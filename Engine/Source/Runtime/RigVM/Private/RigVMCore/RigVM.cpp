@@ -165,7 +165,8 @@ void URigVM::Load(FArchive& Ar)
 		}
 
 		// rebuild the bytecode to adjust for byte shifts in shipping
-		RebuildByteCodeOnLoad();
+		// @fixme: commented as workaround to loading issues, fix this asap
+		// RebuildByteCodeOnLoad();
 
 		InvalidateCachedMemory();
 	}
