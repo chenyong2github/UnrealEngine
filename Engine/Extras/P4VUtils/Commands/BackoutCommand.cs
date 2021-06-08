@@ -17,7 +17,7 @@ namespace P4VUtils.Commands
 	{
 		public override string Description => "P4 Admin sanctioned method of backing out a CL";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Backout", "%p") { ShowConsole = true };
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Backout this CL", "%S") { ShowConsole = true };
 
 		public override async Task<int> Execute(string[] Args, IReadOnlyDictionary<string, string> ConfigValues, ILogger Logger)
 		{
