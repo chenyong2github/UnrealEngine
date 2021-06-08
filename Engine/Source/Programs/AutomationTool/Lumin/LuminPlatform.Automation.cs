@@ -781,7 +781,7 @@ public class LuminPlatform : Platform
 		File.Copy(UninstallBatchName, SC.CookSourceRuntimeRootDir + "\\" + Path.GetFileName(UninstallBatchName).ToString(), true);
 
 		// If needed, make the batch files able to execute
-		if (!Utils.IsRunningOnWindows)
+		if (!RuntimePlatform.IsWindows)
 		{
 			CommandUtils.FixUnixFilePermissions(BatchName);
 			CommandUtils.FixUnixFilePermissions(UninstallBatchName);
@@ -1294,22 +1294,13 @@ public class LuminPlatform : Platform
 				throw new AutomationException(ExitCode.Error_AndroidBuildToolsPathNotFound, "Failed to find a %MLSDK% directory. Please set MLSDK environment variable to point to ML SDK.");
 			}
 
-			switch (Environment.OSVersion.Platform)
+			if (RuntimePlatform.IsMac || RuntimePlatform.IsLinux)
 			{
-				case PlatformID.MacOSX:
-					return Path.Combine(
-						envValue,
-						"tools", "mldb", "mldb");
-
-				case PlatformID.Unix:
-					return Path.Combine(
-						envValue,
-						"tools", "mldb", "mldb");
-
-				default:
-					return Path.Combine(
-						envValue,
-						"tools", "mldb", "mldb.exe");
+				return Path.Combine(envValue, "tools", "mldb", "mldb");
+			}
+			else
+			{
+				return Path.Combine(envValue, "tools", "mldb", "mldb.exe");
 			}
 		}
 	}

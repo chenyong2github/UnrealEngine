@@ -519,7 +519,7 @@ class BuildHlslcc : BuildCommand
 	}
 	private static void SetupStaticBuildEnvironment()
 	{
-		if (Utils.IsRunningOnWindows)
+		if (RuntimePlatform.IsWindows)
 		{
 			string VS2019Path = GetMsDevExe(WindowsCompiler.VisualStudio2019);
 			if (VS2019Path != null)

@@ -46,12 +46,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Comparer that should be used for native path comparisons
 		/// </summary>
-		public static IEqualityComparer<string> PlatformPathComparer = Environment.OSVersion.Platform == PlatformID.Unix ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+		public static IEqualityComparer<string> PlatformPathComparer = RuntimePlatform.IsLinux ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// Utf8 string comparer that should be used for native path comparisons
 		/// </summary>
-		public static IEqualityComparer<ReadOnlyUtf8String> PlatformPathComparerUtf8 = Environment.OSVersion.Platform == PlatformID.Unix ? ReadOnlyUtf8StringComparer.Ordinal : ReadOnlyUtf8StringComparer.OrdinalIgnoreCase;
+		public static IEqualityComparer<ReadOnlyUtf8String> PlatformPathComparerUtf8 = RuntimePlatform.IsLinux ? ReadOnlyUtf8StringComparer.Ordinal : ReadOnlyUtf8StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// Read all text for a file
@@ -119,7 +119,7 @@ namespace EpicGames.Core
 		/// <param name="FileName">Name of the file to delete</param>
 		public static void ForceDeleteFile(string FileName)
 		{
-			if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+			if (RuntimePlatform.IsWindows)
 			{
 				ForceDeleteFileWin32(FileName);
 			}
@@ -135,7 +135,7 @@ namespace EpicGames.Core
 		/// <param name="File">The file to delete</param>
 		public static void ForceDeleteFile(FileInfo File)
 		{
-			if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+			if (RuntimePlatform.IsWindows)
 			{
 				ForceDeleteFileWin32(File.FullName);
 				File.Refresh();
@@ -163,7 +163,7 @@ namespace EpicGames.Core
 		/// <param name="Location">The file to delete</param>
 		public static void ForceDeleteFile(FileReference Location)
 		{
-			if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+			if (RuntimePlatform.IsWindows)
 			{
 				ForceDeleteFileWin32(Location.FullName);
 			}
@@ -179,7 +179,7 @@ namespace EpicGames.Core
 		/// <param name="DirectoryName">Directory to delete</param>
 		public static void ForceDeleteDirectory(string DirectoryName)
 		{
-			if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+			if (RuntimePlatform.IsWindows)
 			{
 				ForceDeleteLongDirectoryWin32("\\\\?\\" + DirectoryName);
 			}
@@ -197,7 +197,7 @@ namespace EpicGames.Core
 		{
 			if (Directory.Exists)
 			{
-				if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+				if (RuntimePlatform.IsWindows)
 				{
 					ForceDeleteLongDirectoryWin32("\\\\?\\" + Directory.FullName);
 				}
@@ -249,7 +249,7 @@ namespace EpicGames.Core
 		/// <param name="Directory">Directory to delete</param>
 		public static void ForceDeleteDirectoryContents(DirectoryInfo Directory)
 		{
-			if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+			if (RuntimePlatform.IsWindows)
 			{
 				ForceDeleteLongDirectoryContentsWin32(Directory.FullName);
 			}

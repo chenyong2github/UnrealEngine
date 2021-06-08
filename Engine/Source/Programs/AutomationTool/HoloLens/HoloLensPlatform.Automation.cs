@@ -1290,7 +1290,7 @@ namespace HoloLens.Automation
 		private void DeployToLocalDevice(ProjectParams Params, DeploymentContext SC)
 		{
 #if !__MonoCS__
-            if (!Utils.IsRunningOnWindows)
+            if (!RuntimePlatform.IsWindows)
             {
                 return;
             }
@@ -1407,7 +1407,7 @@ namespace HoloLens.Automation
 		private void DeployToRemoteDevice(string DeviceAddress, ProjectParams Params, DeploymentContext SC)
 		{
 #if !__MonoCS__
-			if (!Utils.IsRunningOnWindows)
+			if (!RuntimePlatform.IsWindows)
             {
                 return;
             }
@@ -1496,7 +1496,7 @@ namespace HoloLens.Automation
 
 		private IProcessResult RunUsingLauncherTool(string DeviceAddress, ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 		{
-            if (!Utils.IsRunningOnWindows)
+            if (!RuntimePlatform.IsWindows)
             {
                 return null;
             }
@@ -1588,7 +1588,7 @@ namespace HoloLens.Automation
 		private IProcessResult RunUsingDevicePortal(string DeviceAddress, ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 		{
 #if !__MonoCS__
-            if (!Utils.IsRunningOnWindows)
+            if (!RuntimePlatform.IsWindows)
             {
                 return null;
             }
@@ -1693,7 +1693,7 @@ namespace HoloLens.Automation
 		private bool ShouldAcceptCertificate(System.Security.Cryptography.X509Certificates.X509Certificate2 Certificate, bool Unattended)
 		{
 #if !__MonoCS__
-            if (!Utils.IsRunningOnWindows)
+            if (!RuntimePlatform.IsWindows)
             {
                 return false;
             }

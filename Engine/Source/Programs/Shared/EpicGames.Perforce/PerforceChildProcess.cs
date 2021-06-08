@@ -128,7 +128,7 @@ namespace EpicGames.Perforce
 		public static string GetExecutable()
 		{
 			string PerforceFileName;
-			if (Environment.OSVersion.Platform == PlatformID.Win32NT || Environment.OSVersion.Platform == PlatformID.Win32S || Environment.OSVersion.Platform == PlatformID.Win32Windows)
+			if (RuntimePlatform.IsWindows)
 			{
 				PerforceFileName = "p4.exe";
 			}

@@ -2096,7 +2096,7 @@ namespace AutomationTool
                 }
                 else
                 {
-                    CachedRootBuildStorageDirectory = Utils.IsRunningOnWindows ? CombinePaths("P:", "Builds") : "/Volumes/Builds";
+                    CachedRootBuildStorageDirectory = RuntimePlatform.IsWindows ? CombinePaths("P:", "Builds") : "/Volumes/Builds";
                 }
             }
             return CachedRootBuildStorageDirectory;
@@ -2266,7 +2266,7 @@ namespace AutomationTool
 		public static IEnumerable<string> LegacyUnzipFiles(string ZipFileName, string BaseDirectory)
 		{
 			List<string> OutputFileNames = new List<string>();
-			if (!Utils.IsRunningOnWindows)
+			if (!RuntimePlatform.IsWindows)
 			{
 				CommandUtils.CreateDirectory(BaseDirectory);
 
@@ -2966,7 +2966,7 @@ namespace AutomationTool
 		/// </summary>
 		public static void SignSingleExecutableIfEXEOrDLL(string Filename, bool bIgnoreExtension = false)
 		{
-            if (!Utils.IsRunningOnWindows)
+            if (!RuntimePlatform.IsWindows)
             {
                 CommandUtils.LogLog(String.Format("Can't sign '{0}' on non-Windows platform.", Filename));
                 return;
@@ -3159,7 +3159,7 @@ namespace AutomationTool
 
 		public static void SignMultipleFilesIfEXEOrDLL(List<FileReference> Files, bool bIgnoreExtension = false)
 		{
-			if (!Utils.IsRunningOnWindows)
+			if (!RuntimePlatform.IsWindows)
 			{
 				CommandUtils.LogLog(String.Format("Can't sign on non-Windows platform."));
 				return;

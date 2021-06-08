@@ -3742,7 +3742,7 @@ namespace UnrealBuildTool
 				UEBuildBinary ExecutableBinary = Binaries[0];
 
 				bool IsCurrentPlatform;
-				if (!Utils.IsRunningOnWindows)
+				if (!RuntimePlatform.IsWindows)
 				{
 					IsCurrentPlatform = Platform == UnrealTargetPlatform.Mac || (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform == BuildHostPlatform.Current.Platform);
 				}

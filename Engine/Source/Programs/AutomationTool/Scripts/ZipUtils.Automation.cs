@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using AutomationTool;
-using UnrealBuildTool;
 using Ionic.Zip;
 using EpicGames.Core;
 
@@ -158,7 +157,7 @@ public class ZipUtils : BuildCommand
 					}
 				}
 
-				if (!Utils.IsRunningOnWindows && CommandUtils.IsProbablyAMacOrIOSExe(OutputFileName))
+				if (!RuntimePlatform.IsWindows && CommandUtils.IsProbablyAMacOrIOSExe(OutputFileName))
 				{
 					FixUnixFilePermissions(OutputFileName);
 				}

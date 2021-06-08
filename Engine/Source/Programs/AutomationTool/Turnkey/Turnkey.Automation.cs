@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
-using UnrealBuildTool;
 using AutomationTool;
 using System.Threading;
 
@@ -103,7 +102,7 @@ namespace Turnkey
 		private static void SetupVisuals()
 		{
 			// make the form look good on modern displays!
-			if (Utils.IsRunningOnWindows && Environment.OSVersion.Version.Major >= 6)
+			if (RuntimePlatform.IsWindows && Environment.OSVersion.Version.Major >= 6)
 			{
 				SetProcessDPIAware();
 			}

@@ -36,33 +36,21 @@ namespace AutomationTool
 		/// </summary>
 		public static void Initialize()
 		{
-			PlatformID Platform = Environment.OSVersion.Platform;
-			switch (Platform)
+			if (RuntimePlatform.IsWindows)
 			{
-				case PlatformID.Win32NT:
-				case PlatformID.Win32S:
-				case PlatformID.Win32Windows:
-				case PlatformID.WinCE:
-					RunningPlatform = new WindowsHostPlatform();
-					break;
-
-				case PlatformID.Unix:
-					if (File.Exists ("/System/Library/CoreServices/SystemVersion.plist"))
-					{
-						RunningPlatform = new MacHostPlatform();
-					} 
-					else 
-					{
-						RunningPlatform = new LinuxHostPlatform();
-					}
-					break;
-
-				case PlatformID.MacOSX:
-					RunningPlatform = new MacHostPlatform();
-					break;
-
-				default:
-					throw new Exception ("Unhandled runtime platform " + Platform);
+				RunningPlatform = new WindowsHostPlatform();
+			}
+			else if (RuntimePlatform.IsMac)
+			{
+				RunningPlatform = new MacHostPlatform();
+			}
+			else if (RuntimePlatform.IsLinux)
+			{
+				RunningPlatform = new LinuxHostPlatform();
+			}
+			else
+			{
+				throw new Exception ("Unhandled runtime platform " + Environment.OSVersion.Platform);
 			}
 		}
 

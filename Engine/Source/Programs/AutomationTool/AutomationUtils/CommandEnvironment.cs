@@ -7,7 +7,6 @@ using System.Reflection;
 using Microsoft.Win32;
 using System.Diagnostics;
 using EpicGames.Core;
-using UnrealBuildTool;
 using System.Text.RegularExpressions;
 
 namespace AutomationTool
@@ -73,7 +72,7 @@ namespace AutomationTool
 		{
 			// Get the path to the UAT executable
 			// the entry assembly is the .dll but it is easier to use apphost so change extension to the executable
-			UATExe = Path.ChangeExtension(Assembly.GetEntryAssembly().GetOriginalLocation(), Utils.IsRunningOnWindows ? "exe" : null);
+			UATExe = Path.ChangeExtension(Assembly.GetEntryAssembly().GetOriginalLocation(), RuntimePlatform.IsWindows ? "exe" : null);
 
 			if (!CommandUtils.FileExists(UATExe))
 			{
@@ -127,7 +126,7 @@ namespace AutomationTool
 
 			RobocopyExe = GetSystemExePath("robocopy.exe");
 			MountExe = GetSystemExePath("mount.exe");
-			CmdExe = Utils.IsRunningOnWindows ? GetSystemExePath("cmd.exe") : "/bin/sh";
+			CmdExe = RuntimePlatform.IsWindows ? GetSystemExePath("cmd.exe") : "/bin/sh";
 			MallocNanoZone = "0";
 			CommandUtils.SetEnvVar(EnvVarNames.MacMallocNanoZone, MallocNanoZone);
 

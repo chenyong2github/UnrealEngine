@@ -21,21 +21,6 @@ namespace UnrealBuildTool
 	public static class Utils
 	{
 		/// <summary>
-		/// Whether we are currently running on Linux.
-		/// </summary>
-		public static readonly bool IsRunningOnLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-
-		/// <summary>
-		/// Whether we are currently running on a MacOS platform.
-		/// </summary>
-		public static readonly bool IsRunningOnMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-		
-		/// <summary>
-		/// Whether we are currently running a Windows platform.
-		/// </summary>
-		public static readonly bool IsRunningOnWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-
-		/// <summary>
 		/// Searches for a flag in a set of command-line arguments.
 		/// </summary>
 		public static bool ParseCommandLineFlag(string[] Arguments, string FlagName, out int ArgumentIndex)
@@ -593,7 +578,7 @@ namespace UnrealBuildTool
 			StringBuilder? CleanPath = null;
 			if (UseDirectorySeparatorChar == '\0')
 			{
-				UseDirectorySeparatorChar = Environment.OSVersion.Platform == PlatformID.Unix ? '/' : '\\';
+				UseDirectorySeparatorChar = Path.DirectorySeparatorChar;
 			}
 			char PrevC = '\0';
 			// Don't check for double separators until we run across a valid dir name. Paths that start with '//' or '\\' can still be valid.			
@@ -996,11 +981,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static DirectoryReference? GetUserSettingDirectory()
 		{
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			if (RuntimePlatform.IsMac)
 			{
 				return new DirectoryReference(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library", "Application Support", "Epic"));
 			}
-			else if (Environment.OSVersion.Platform == PlatformID.Unix)
+			else if (RuntimePlatform.IsLinux)
 			{
 				return new DirectoryReference(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Epic"));
 			}
@@ -1039,7 +1024,7 @@ namespace UnrealBuildTool
 		public static int GetLogicalProcessorCount()
 		{
 			// This function uses Windows P/Invoke calls; if we're not running on Windows, just return the default.
-			if(Utils.IsRunningOnWindows)
+			if(RuntimePlatform.IsWindows)
 			{
 				const int ERROR_INSUFFICIENT_BUFFER = 122;
 
@@ -1096,7 +1081,7 @@ namespace UnrealBuildTool
 		/// <returns>The number of physical cores, or -1 if it could not be obtained</returns>
 		public static int GetPhysicalProcessorCount()
 		{
-			if (Utils.IsRunningOnWindows)
+			if (RuntimePlatform.IsWindows)
 			{
 				const int ERROR_INSUFFICIENT_BUFFER = 122;
 
@@ -1136,7 +1121,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			else if(Utils.IsRunningOnMac)
+			else if(RuntimePlatform.IsMac)
 			{
 				UInt64 Size = 4;
 				if (0 == sysctlbyname("hw.physicalcpu", out int Value, ref Size, IntPtr.Zero, 0))
@@ -1225,7 +1210,7 @@ namespace UnrealBuildTool
 			// On Mac, MemoryInfo.MemoryLoadBytes includes memory used to cache disk-backed files ("Cached Files" in
 			// Activity Monitor), which can result in a significant over-estimate of memory pressure.
 			// We treat memory used for caching of disk-backed files as free for use in compilation tasks.
-			if (Utils.IsRunningOnMac)	
+			if (RuntimePlatform.IsMac)	
 			{
 				// host_statistics64() flavor, from <mach/host_info.h>
 				int HOST_VM_INFO64 = 4;

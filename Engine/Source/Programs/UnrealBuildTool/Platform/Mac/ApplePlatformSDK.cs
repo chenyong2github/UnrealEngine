@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 
 		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
 		{
-			if (IsMac())
+			if (RuntimePlatform.IsMac)
 			{
 				MinVersion = "11.0.0";
 				MaxVersion = "12.9.9";
@@ -42,14 +42,14 @@ namespace UnrealBuildTool
 		public override string GetInstalledSDKVersion()
 		{
 			// get xcode version on Mac
-			if (IsMac())
+			if (RuntimePlatform.IsMac)
 			{
 				string Output = Utils.RunLocalProcessAndReturnStdOut("sh", "-c 'xcodebuild -version'");
 				Match Result = Regex.Match(Output, @"Xcode (\S*)");
 				return Result.Success ? Result.Groups[1].Value : "";
 			}
 
-			if (IsWindows())
+			if (RuntimePlatform.IsWindows)
 			{
 				// otherwise, get iTunes "Version"
 				string DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "iTunesMobileDeviceDLL", null) as string;

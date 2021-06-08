@@ -774,7 +774,7 @@ namespace UnrealBuildTool
 
 			// Tell the action that we're building an import library here and it should conditionally be
 			// ignored as a prerequisite for other actions
-			LinkAction.bProducesImportLibrary = Utils.IsRunningOnWindows && (bBuildImportLibraryOnly || LinkEnvironment.bIsBuildingDLL);
+			LinkAction.bProducesImportLibrary = RuntimePlatform.IsWindows && (bBuildImportLibraryOnly || LinkEnvironment.bIsBuildingDLL);
 			
 			// Add the output file as a production of the link action.
 			FileItem OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
@@ -919,7 +919,7 @@ namespace UnrealBuildTool
 
 			if (!bIsBuildingLibrary)
 			{
-				if (UnrealBuildTool.IsEngineInstalled() || (!Utils.IsRunningOnWindows && LinkEnvironment.bIsCrossReferenced == false))
+				if (UnrealBuildTool.IsEngineInstalled() || (!RuntimePlatform.IsWindows && LinkEnvironment.bIsCrossReferenced == false))
 				{
 					foreach (string Library in EngineAndGameLibraries)
 					{
@@ -994,7 +994,7 @@ namespace UnrealBuildTool
 
 				StreamWriter FixDylibDepsScript = File.AppendText(FixDylibDepsScriptPath.FullName);
 
-				if (LinkEnvironment.bIsCrossReferenced || Utils.IsRunningOnWindows)
+				if (LinkEnvironment.bIsCrossReferenced || RuntimePlatform.IsWindows)
 				{
 					string EngineAndGameLibrariesString = "";
 					foreach (string Library in EngineAndGameLibraries)

@@ -33,26 +33,6 @@ namespace UnrealBuildTool
 	public abstract class BuildHostPlatform
 	{
 		private static BuildHostPlatform? CurrentPlatform;
-		private static bool bIsMac = File.Exists("/System/Library/CoreServices/SystemVersion.plist");
-
-		/// <summary>
-		/// Returns the name of platform UBT is running on. Internal use only. If you need access this this enum, use BuildHostPlatform.Current.Platform */
-		/// </summary>
-		private static UnrealTargetPlatform GetRuntimePlatform()
-		{
-			PlatformID Platform = Environment.OSVersion.Platform;
-			switch (Platform)
-			{
-				case PlatformID.Win32NT:
-					return UnrealTargetPlatform.Win64;
-				case PlatformID.Unix:
-					return bIsMac ? UnrealTargetPlatform.Mac : UnrealTargetPlatform.Linux;
-				case PlatformID.MacOSX:
-					return UnrealTargetPlatform.Mac;
-				default:
-					throw new BuildException("Unhandled runtime platform " + Platform);
-			}
-		}
 
 		/// <summary>
 		/// Host platform singleton.
@@ -63,16 +43,15 @@ namespace UnrealBuildTool
 			{
 				if (CurrentPlatform == null)
 				{
-					UnrealTargetPlatform RuntimePlatform = GetRuntimePlatform();
-					if (RuntimePlatform == UnrealTargetPlatform.Win64)
+					if (RuntimePlatform.IsWindows)
 					{
 						CurrentPlatform = new WindowsBuildHostPlatform();
 					}
-					else if (RuntimePlatform == UnrealTargetPlatform.Mac)
+					else if (RuntimePlatform.IsMac)
 					{
 						CurrentPlatform = new MacBuildHostPlatform();
 					}
-					else if (RuntimePlatform == UnrealTargetPlatform.Linux)
+					else if (RuntimePlatform.IsLinux)
 					{
 						CurrentPlatform = new LinuxBuildHostPlatform();
 					}
