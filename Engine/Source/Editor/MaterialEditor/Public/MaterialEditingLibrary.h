@@ -278,6 +278,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
 	static bool GetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
 
+	/** Set the static switch parameter value for a Material Instance */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static bool SetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, bool Value, EMaterialParameterAssociation Association = EMaterialParameterAssociation::GlobalParameter);
+
 	/** Called after making modifications to a Material Instance to recompile shaders etc. */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static void UpdateMaterialInstance(UMaterialInstanceConstant* Instance);

@@ -2069,6 +2069,24 @@ UPhysicalMaterial* UMaterialInstance::GetPhysicalMaterialFromMap(int32 Index) co
 }
 
 #if WITH_EDITORONLY_DATA
+
+void UMaterialInstance::SetStaticSwitchParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo, bool Value)
+{
+	check(GIsEditor || IsRunningCommandlet());
+
+	for (FStaticSwitchParameter& StaticSwitches : StaticParameters.StaticSwitchParameters)
+	{
+		if (StaticSwitches.ParameterInfo == ParameterInfo)
+		{
+			StaticSwitches.bOverride = true;
+			StaticSwitches.Value = Value;
+			return;
+		}
+	}
+
+	new(StaticParameters.StaticSwitchParameters) FStaticSwitchParameter(ParameterInfo, Value, true, FGuid());
+}
+
 void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticParameters)
 {
 	check(IsInGameThread());
