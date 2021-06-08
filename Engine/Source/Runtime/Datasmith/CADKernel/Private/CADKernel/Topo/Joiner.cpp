@@ -533,7 +533,7 @@ void FJoiner::StitchParallelEdges(TArray<TSharedPtr<FTopologicalVertex>>& Vertic
 				bool bSecondEdgeBorder = Edge->IsBorder();
 
 				// Process only if at least one edge is Border
-				if (!bSecondEdgeBorder && !bSecondEdgeBorder)
+				if (!bFirstEdgeBorder && !bSecondEdgeBorder)
 				{
 					continue;
 				}
