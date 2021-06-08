@@ -5,7 +5,6 @@
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../Nanite/HZBCull.ush"
 
-//StructuredBuffer<FPackedNaniteView> Views;
 RWStructuredBuffer<uint> InstanceVisibilityFlagsOut;
 uint NumInstances;
 uint NumInstanceFlagWords;

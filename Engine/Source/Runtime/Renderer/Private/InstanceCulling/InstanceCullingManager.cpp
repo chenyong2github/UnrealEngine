@@ -59,7 +59,7 @@ class FCullInstancesCs : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FCullInstancesCs, FGlobalShader)
 public:
 
-	static constexpr int32 NumThreadsPerGroup = 64;
+	static constexpr int32 NumThreadsPerGroup = 256;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
