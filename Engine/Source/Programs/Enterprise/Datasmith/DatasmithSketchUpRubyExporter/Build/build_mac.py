@@ -14,6 +14,7 @@ parser.add_argument('--sketchup-version', required=True)
 parser.add_argument('--sketchup-sdk-version', required=True)
 parser.add_argument('--datasmithsdk-lib', type=Path, required=True)
 parser.add_argument('--output-path', type=Path, required=True)
+parser.add_argument('--intermediate-path', type=Path, required=True)
 
 parser.add_argument('--multithread', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
@@ -32,9 +33,8 @@ assert UE_Engine.parts[-1] == 'Engine', UE_Engine
 SU_SDK_VERSION = args.sketchup_sdk_version
 SU_VERSION = args.sketchup_version
 
-output_path = args.output_path
-obj_dir = output_path/'obj'
-bundle_output_path = output_path/'bin'
+output_path = args.output_path/'Plugin/UnrealDatasmithSketchUp'
+obj_dir = args.intermediate_path
 ###########
 
 def log_debug(msg):
@@ -117,14 +117,14 @@ UE_Project = f'{UE_Runtime}/Projects/Public'
 UE_ThirdParty = f'{UE_Engine}/Source/ThirdParty'
 UE_OpenEXR = f'{UE_ThirdParty}/openexr/Deploy/OpenEXR-2.3.0/OpenEXR'
 
-UE_INCLUDES_PATH = f'''"{UE_Core}" "{UE_Core}/Internationalization" "{UE_Core}/Async" "{UE_Core}/Concurrency" "{UE_Core}/Containers" "{UE_Core}/Delegates" "{UE_Core}/GenericPlatform" "{UE_Core}/HAL" "{UE_Core}/Logging" "{UE_Core}/Math" "{UE_Core}/Misc" "{UE_Core}/Modules" "{UE_Core}/Modules/Boilerplate" "{UE_Core}/ProfilingDebugging" "{UE_Core}/Serialization" "{UE_Core}/Serialization/Csv" "{UE_Core}/Stats" "{UE_Core}/Templates" "{UE_Core}/UObject" "{UE_Project}/Public" "{UE_Project}/Interfaces" "{UE_Runtime}/TraceLog/Public"  "{UE_Runtime}/Datasmith/DatasmithCore/Public" "{UE_Runtime}/Datasmith/DirectLink/Public" "{UE_Runtime}/Launch/Resources" "{UE_Engine}/Source/Developer/Datasmith/DatasmithExporter/Public" "{UE_Engine}/Source/Developer/Datasmith/DatasmithExporterUI/Public"'''
+UE_INCLUDES_PATH = f'''"{UE_Core}" "{UE_Core}/Internationalization" "{UE_Core}/Async" "{UE_Core}/Containers" "{UE_Core}/Delegates" "{UE_Core}/GenericPlatform" "{UE_Core}/HAL" "{UE_Core}/Logging" "{UE_Core}/Math" "{UE_Core}/Misc" "{UE_Core}/Modules" "{UE_Core}/Modules/Boilerplate" "{UE_Core}/ProfilingDebugging" "{UE_Core}/Serialization" "{UE_Core}/Serialization/Csv" "{UE_Core}/Stats" "{UE_Core}/Templates" "{UE_Core}/UObject" "{UE_Runtime}/CoreUObject/Public" "{UE_Project}/Interfaces" "{UE_Runtime}/TraceLog/Public"  "{UE_Runtime}/Datasmith/DatasmithCore/Public" "{UE_Runtime}/Datasmith/DirectLink/Public" "{UE_Runtime}/Launch/Resources" "{UE_Engine}/Source/Developer/Datasmith/DatasmithExporter/Public" "{UE_Engine}/Source/Developer/Datasmith/DatasmithExporterUI/Public"'''
 
 CXX = ['xcrun', 'clang', 
     '-x', 'objective-c++', 
     '-arch', 'x86_64',
     '-std=c++14',
     '-stdlib=libc++',
-    '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.1.sdk',
+#    '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.1.sdk',
     '-target', 'x86_64-apple-macos10.14',
     ]
 
@@ -157,7 +157,7 @@ framework_search_paths.append(f'{SU_SDK_PATH}')
 framework_search_paths.append(f'{SU_SDK_PATH}/samples/common/ThirdParty/ruby/lib/mac')
 
 definitions = [f'SKP_SDK_{SU_VERSION}', 'macintosh=1']
-UE_PREPROCESSOR_DEFINITIONS = 'UE_BUILD_DEVELOPMENT=1 UE_BUILD_MINIMAL=1 WITH_EDITOR=0 WITH_EDITORONLY_DATA=0 WITH_SERVER_CODE=1 WITH_ENGINE=0 WITH_UNREAL_DEVELOPER_TOOLS=0 WITH_PLUGIN_SUPPORT=0 IS_MONOLITHIC=1 IS_PROGRAM=1 PLATFORM_MAC=1 PLATFORM_APPLE=1 UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME=0 UBT_COMPILED_PLATFORM=Mac CORE_API=DLLIMPORT DATASMITHEXPORTER_API=DLLIMPORT DATASMITHCORE_API=DLLIMPORT DIRECTLINK_API=DLLIMPORT DATASMITHEXPORTERUI_API=DLLIMPORT'
+UE_PREPROCESSOR_DEFINITIONS = 'UE_BUILD_DEVELOPMENT=1 UE_BUILD_MINIMAL=1 WITH_EDITOR=0 WITH_EDITORONLY_DATA=0 WITH_SERVER_CODE=1 WITH_ENGINE=0 WITH_UNREAL_DEVELOPER_TOOLS=0 WITH_PLUGIN_SUPPORT=0 IS_MONOLITHIC=1 IS_PROGRAM=1 PLATFORM_MAC=1 PLATFORM_APPLE=1 UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME=0 UBT_COMPILED_PLATFORM=Mac CORE_API=DLLIMPORT COREUOBJECT_API=DLLIMPORT DATASMITHEXPORTER_API=DLLIMPORT DATASMITHCORE_API=DLLIMPORT DIRECTLINK_API=DLLIMPORT DATASMITHEXPORTERUI_API=DLLIMPORT'
 definitions += UE_PREPROCESSOR_DEFINITIONS.split()
 
 compile_cmd_template = CXX + CXX_FLAGS
@@ -190,7 +190,7 @@ assert os.path.isfile(DatasmithSDKlib), DatasmithSDKlib
 link_cmd = [
     'xcrun',
     'clang++', 
-    '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.1.sdk',
+#    '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.1.sdk',
     '-target', 'x86_64-apple-macos10.14',
     '-Xlinker', '-export_dynamic',
     '-Xlinker', '-no_deduplicate',
@@ -214,14 +214,15 @@ link_cmd += [
 link_cmd += compiler.objs
 link_cmd += [DatasmithSDKlib] # link DatasmithSDK by full path(no 'lib' prefix to use search with -l)
 
-link_cmd += ['-o', str(bundle_output_path/'DatasmithSketchUp.bundle')]
+link_cmd += ['-o', str(output_path/'DatasmithSketchUp.bundle')]
 
 add_framework_search_paths(link_cmd, framework_search_paths)
 
 if args.verbose:
     log_info(link_cmd)
 if not args.dry_run:
-    bundle_output_path.mkdir(parents=True, exist_ok=True)
+    output_path.mkdir(parents=True, exist_ok=True)
+    obj_dir.mkdir(parents=True, exist_ok=True)
     subprocess.check_call(link_cmd)
 
 if args.verbose:
