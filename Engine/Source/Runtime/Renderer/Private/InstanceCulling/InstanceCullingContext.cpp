@@ -875,3 +875,102 @@ bool FInstanceCullingContext::AllowBatchedBuildRenderingCommands(const FGPUScene
 	check(CVarRDGDrain);
 	return GPUScene.IsEnabled() && !!GAllowBatchedBuildRenderingCommands && !FRDGBuilder::IsImmediateMode() && !CVarRDGDrain->GetInt();
 }
+
+
+
+/**
+ * Allocate indirect arg slots for all meshes to use instancing,
+ * add commands that populate the indirect calls and index & id buffers, and
+ * Collapse all commands that share the same state bucket ID
+ * NOTE: VisibleMeshDrawCommandsInOut can only become shorter.
+ */
+void FInstanceCullingContext::SetupDrawCommands(
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
+	bool bCompactIdenticalCommands,
+	// Stats
+	int32& MaxInstances,
+	int32& VisibleMeshDrawCommandsNum,
+	int32& NewPassVisibleMeshDrawCommandsNum)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_BuildMeshDrawCommandPrimitiveIdBuffer);
+
+	FVisibleMeshDrawCommand* RESTRICT PassVisibleMeshDrawCommands = VisibleMeshDrawCommandsInOut.GetData();
+
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_DynamicInstancingOfVisibleMeshDrawCommands);
+
+	ResetCommands(VisibleMeshDrawCommandsInOut.Num());
+
+	int32 CurrentStateBucketId = -1;
+	MaxInstances = 1;
+	// Only used to supply stats
+	int32 CurrentAutoInstanceCount = 1;
+	// Scan through and compact away all with consecutive statebucked ID, and record primitive IDs in GPU-scene culling command
+	const int32 NumDrawCommandsIn = VisibleMeshDrawCommandsInOut.Num();
+	int32 NumDrawCommandsOut = 0;
+	// Allocate conservatively for all commands, may not use all.
+	for (int32 DrawCommandIndex = 0; DrawCommandIndex < NumDrawCommandsIn; ++DrawCommandIndex)
+	{
+		const FVisibleMeshDrawCommand& RESTRICT VisibleMeshDrawCommand = PassVisibleMeshDrawCommands[DrawCommandIndex];
+
+		const bool bSupportsGPUSceneInstancing = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex);
+		const bool bMaterialMayModifyPosition = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition);
+
+		if (bCompactIdenticalCommands && CurrentStateBucketId != -1 && VisibleMeshDrawCommand.StateBucketId == CurrentStateBucketId)
+		{
+			// Drop since previous covers for this
+
+			// Update auto-instance count (only needed for logging)
+			CurrentAutoInstanceCount++;
+			MaxInstances = FMath::Max(CurrentAutoInstanceCount, MaxInstances);
+		}
+		else
+		{
+			// Reset auto-instance count (only needed for logging)
+			CurrentAutoInstanceCount = 1;
+
+			const FMeshDrawCommand* RESTRICT MeshDrawCommand = VisibleMeshDrawCommand.MeshDrawCommand;
+
+			// GPUCULL_TODO: Always allocate command as otherwise the 1:1 mapping between mesh draw command index and culling command index is broken.
+			// if (bSupportsGPUSceneInstancing)
+			{
+				// GPUCULL_TODO: Prepackage the culling command in the visible mesh draw command, or as a separate array and just index here, or even better - on the GPU (for cached CMDs at least).
+				//               We don't really want to dereference the MeshDrawCommand here.
+				BeginCullingCommand(MeshDrawCommand->PrimitiveType, MeshDrawCommand->VertexParams.BaseVertexIndex, MeshDrawCommand->FirstIndex, MeshDrawCommand->NumPrimitives, bMaterialMayModifyPosition);
+			}
+			// Record the last bucket ID (may be -1)
+			CurrentStateBucketId = VisibleMeshDrawCommand.StateBucketId;
+
+			// If we have dropped any we need to move up
+			if (DrawCommandIndex > NumDrawCommandsOut)
+			{
+				PassVisibleMeshDrawCommands[NumDrawCommandsOut] = PassVisibleMeshDrawCommands[DrawCommandIndex];
+			}
+			NumDrawCommandsOut++;
+		}
+
+		if (bSupportsGPUSceneInstancing)
+		{
+			// append 'culling command' targeting the current slot
+			// This will cause all instances belonging to the Primitive to be added to the command, if they are visible etc (GPU-Scene knows all - sees all)
+			if (VisibleMeshDrawCommand.RunArray)
+			{
+				// GPUCULL_TODO: This complexity should be removed once the HISM culling & LOD selection is on the GPU side
+				AddInstanceRunToCullingCommand(VisibleMeshDrawCommand.DrawPrimitiveId, VisibleMeshDrawCommand.RunArray, VisibleMeshDrawCommand.NumRuns);
+			}
+			else
+			{
+				AddPrimitiveToCullingCommand(VisibleMeshDrawCommand.DrawPrimitiveId, VisibleMeshDrawCommand.MeshDrawCommand->NumInstances);
+			}
+		}
+	}
+	ensure(bCompactIdenticalCommands || NumDrawCommandsIn == NumDrawCommandsOut);
+	ensureMsgf(NumDrawCommandsOut == CullingCommands.Num(), TEXT("There must be a 1:1 mapping between culling commands and mesh draw commands, as this assumption is made in SubmitGPUInstancedMeshDrawCommandsRange."));
+	// Setup instancing stats for logging.
+	VisibleMeshDrawCommandsNum = VisibleMeshDrawCommandsInOut.Num();
+	NewPassVisibleMeshDrawCommandsNum = NumDrawCommandsOut;
+
+	// Resize array post-compaction of dynamic instances
+	VisibleMeshDrawCommandsInOut.SetNum(NumDrawCommandsOut, false);
+}
+

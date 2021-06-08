@@ -248,12 +248,3 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 	FRHIBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
 	uint32 DrawCommandDataOffset, // Used to offset both the indirect args and the instance ID offset buffers when bound (wrt each their strides)
 	FRHICommandList& RHICmdList);
-
-void SetupGPUInstancedDraws(
-	FInstanceCullingContext& InstanceCullingContext,
-	FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
-	bool bCompactIdenticalCommands,
-	// Stats
-	int32& MaxInstances,
-	int32& VisibleMeshDrawCommandsNum,
-	int32& NewPassVisibleMeshDrawCommandsNum);

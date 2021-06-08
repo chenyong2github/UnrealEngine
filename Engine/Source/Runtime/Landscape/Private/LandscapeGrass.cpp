@@ -59,6 +59,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "TextureCompiler.h"
 #include "RenderCaptureInterface.h"
+#include "InstanceCulling/InstanceCullingContext.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 

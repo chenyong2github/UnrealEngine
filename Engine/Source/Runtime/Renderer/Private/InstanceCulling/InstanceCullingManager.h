@@ -7,9 +7,9 @@
 #include "RenderGraphResources.h"
 #include "SceneManagement.h"
 #include "../Nanite/NaniteRender.h"
+#include "InstanceCulling/InstanceCullingContext.h"
 
 class FGPUScene;
-class FInstanceCullingContext;
 
 class FInstanceCullingIntermediate
 {

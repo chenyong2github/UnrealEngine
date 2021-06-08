@@ -29,6 +29,7 @@
 #include "LightRendering.h"
 #include "HairStrands/HairStrandsRendering.h"
 #include "Strata/Strata.h"
+#include "SimpleMeshDrawCommandPass.h"
 
 ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
 
