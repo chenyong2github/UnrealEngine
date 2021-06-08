@@ -777,7 +777,7 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 	{
 		FMeshSceneAdapter::FStatistics Stats;
 		Scene.GetGeometryStatistics(Stats);
-		UE_LOG(LogApproximateActors, Warning, TEXT("%d triangles in %d unique meshes, total %d triangles in %d instances"),
+		UE_LOG(LogApproximateActors, Warning, TEXT("%lld triangles in %lld unique meshes, total %lld triangles in %lld instances"),
 			Stats.UniqueMeshTriangleCount, Stats.UniqueMeshCount, Stats.InstanceMeshTriangleCount, Stats.InstanceMeshCount);
 	}
 

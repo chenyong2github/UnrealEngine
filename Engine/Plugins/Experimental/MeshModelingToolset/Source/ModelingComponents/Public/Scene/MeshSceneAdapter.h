@@ -219,11 +219,11 @@ public:
 	 */
 	struct FStatistics
 	{
-		int32 UniqueMeshCount = 0;
-		int32 UniqueMeshTriangleCount = 0;
+		int64 UniqueMeshCount = 0;
+		int64 UniqueMeshTriangleCount = 0;
 
-		int32 InstanceMeshCount = 0;
-		int32 InstanceMeshTriangleCount = 0;
+		int64 InstanceMeshCount = 0;
+		int64 InstanceMeshTriangleCount = 0;
 	};
 
 	/** @return bounding box for the Actor set */
