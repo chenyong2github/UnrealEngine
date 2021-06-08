@@ -563,8 +563,9 @@ void UContentBrowserDataSubsystem::Tick(const float InDeltaTime)
 
 	if (PendingUpdates.Num() > 0)
 	{
-		ItemDataUpdatedDelegate.Broadcast(MakeArrayView(PendingUpdates));
+		TArray<FContentBrowserItemDataUpdate> LocalPendingUpdates = MoveTemp(PendingUpdates);
 		PendingUpdates.Empty();
+		ItemDataUpdatedDelegate.Broadcast(MakeArrayView(LocalPendingUpdates));
 	}
 
 	if (ActiveDataSourcesDiscoveringContent.Num() > 0)
