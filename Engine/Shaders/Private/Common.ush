@@ -1017,12 +1017,10 @@ MaterialFloat3 RGBTDecode8BPC(MaterialFloat4 RGBT, MaterialFloat Range)
   * This gets a bit from a write mask texture created with FRTWriteMaskDecodeCS. Only supprted on some platforms.
   */
 #if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
-uint DecodeRTWriteMask(float2 ScreenPos, Texture2D<uint> RTWriteMaskTexture, uint NumEncodedTextures)
+uint DecodeRTWriteMask(uint2 PixelPos, Texture2D<uint> RTWriteMaskTexture, uint NumEncodedTextures)
 {
-	uint2 InPos = uint2(ScreenPos);
-
-	uint2 TileIndex = InPos >> 3;
-	uint2 TileOffset = (InPos >> 2) & 1;
+	uint2 TileIndex = PixelPos >> 3;
+	uint2 TileOffset = (PixelPos >> 2) & 1;
 
 	uint Shift = (TileOffset.y * 2 + TileOffset.x) * NumEncodedTextures;
 	uint Mask = ~((~0) << NumEncodedTextures);
