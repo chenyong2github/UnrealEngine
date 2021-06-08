@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 

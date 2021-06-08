@@ -15,6 +15,7 @@ using EpicGames.Core;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
+using UnrealBuildBase;
 
 #nullable disable
 

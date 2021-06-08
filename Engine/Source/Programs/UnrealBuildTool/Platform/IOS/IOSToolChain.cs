@@ -15,6 +15,7 @@ using Ionic.Zip;
 using Ionic.Zlib;
 using EpicGames.Core;
 using System.Security.Cryptography.X509Certificates;
+using UnrealBuildBase;
 
 #nullable disable
 

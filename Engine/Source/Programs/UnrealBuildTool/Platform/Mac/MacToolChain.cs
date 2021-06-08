@@ -12,6 +12,7 @@ using Ionic.Zip;
 using EpicGames.Core;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using UnrealBuildBase;
 
 #nullable disable
 

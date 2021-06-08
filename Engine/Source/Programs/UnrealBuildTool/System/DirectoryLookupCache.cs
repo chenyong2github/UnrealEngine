@@ -5,6 +5,7 @@ using System.IO;
 using System.Collections.Generic;
 using EpicGames.Core;
 using System.Linq;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {

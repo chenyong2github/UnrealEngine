@@ -10,13 +10,13 @@ using System.Runtime.Serialization;
 using EpicGames.Core;
 using System.Collections.Concurrent;
 
-namespace UnrealBuildTool
+namespace UnrealBuildBase
 {
 	/// <summary>
 	/// Represents a file on disk that is used as an input or output of a build action. FileItem instances are unique for a given path. Use FileItem.GetItemByFileReference 
 	/// to get the FileItem for a specific path.
 	/// </summary>
-	class FileItem
+	public class FileItem
 	{
 		/// <summary>
 		/// The directory containing this file
@@ -286,7 +286,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Helper functions for serialization
 	/// </summary>
-	static class FileItemExtensionMethods
+	public static class FileItemExtensionMethods
 	{
 		/// <summary>
 		/// Read a file item from a binary archive

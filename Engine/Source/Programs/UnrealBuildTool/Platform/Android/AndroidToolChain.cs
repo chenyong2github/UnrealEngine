@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using Microsoft.Win32;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 

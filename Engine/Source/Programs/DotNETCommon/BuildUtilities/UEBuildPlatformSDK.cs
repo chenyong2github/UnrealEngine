@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+#nullable disable
+
 namespace EpicGames.Core
 {
 	/// <summary>

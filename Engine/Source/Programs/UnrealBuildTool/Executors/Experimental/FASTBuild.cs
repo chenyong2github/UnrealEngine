@@ -21,6 +21,7 @@ using System.Linq;
 using EpicGames.Core;
 using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
+using UnrealBuildBase;
 
 #nullable disable
 

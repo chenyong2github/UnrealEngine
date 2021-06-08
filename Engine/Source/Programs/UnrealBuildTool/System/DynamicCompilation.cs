@@ -17,6 +17,7 @@ using Microsoft.CodeAnalysis.Emit;
 using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis.Text;
 using System.Runtime.InteropServices;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
