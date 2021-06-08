@@ -20,22 +20,44 @@
 
 #define LOCTEXT_NAMESPACE "LiveLinkTransformController"
 
-void FLiveLinkTransformControllerData::ApplyTransform(USceneComponent* SceneComponent, const FTransform& Transform) const
+void FLiveLinkTransformControllerData::ApplyTransform(USceneComponent* SceneComponent, const FTransform& Transform, const FLiveLinkTransformStaticData& StaticData) const
 {
 	if (SceneComponent)
 	{
-		FTransform ComponentTransform = Transform;
-		if (!bUseScale)
+		if (bUseLocation && StaticData.bIsLocationSupported)
 		{
-			ComponentTransform.SetScale3D(FVector::OneVector);
+			if (bWorldTransform)
+			{
+				SceneComponent->SetWorldLocation(Transform.GetLocation(), bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
+			}
+			else
+			{
+				SceneComponent->SetRelativeLocation(Transform.GetLocation(), bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
+			}
 		}
-		if (bWorldTransform)
+
+		if (bUseRotation && StaticData.bIsRotationSupported)
 		{
-			SceneComponent->SetWorldTransform(ComponentTransform, bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
+			if (bWorldTransform)
+			{
+				SceneComponent->SetWorldRotation(Transform.GetRotation(), bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
+			}
+			else
+			{
+				SceneComponent->SetRelativeRotation(Transform.GetRotation(), bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
+			}
 		}
-		else
+
+		if (bUseScale && StaticData.bIsScaleSupported)
 		{
-			SceneComponent->SetRelativeTransform(ComponentTransform, bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
+			if (bWorldTransform)
+			{
+				SceneComponent->SetWorldScale3D(Transform.GetScale3D());
+			}
+			else
+			{
+				SceneComponent->SetRelativeScale3D(Transform.GetScale3D());
+			}
 		}
 	}
 }
@@ -78,7 +100,7 @@ void ULiveLinkTransformController::Tick(float DeltaTime, const FLiveLinkSubjectF
 	{
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(AttachedComponent))
 		{
-			TransformData.ApplyTransform(SceneComponent, FrameData->Transform);
+			TransformData.ApplyTransform(SceneComponent, FrameData->Transform, *StaticData);
 		}
 	}
 }
