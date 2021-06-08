@@ -40,6 +40,7 @@ extern struct android_app* GNativeAndroidApp;
 #endif
 
 #define OPENXR_PAUSED_IDLE_FPS 10
+static const int64 OPENXR_SWAPCHAIN_WAIT_TIMEOUT = 100 * 1000 * 1000 * 1000;		// 100ms in nanoseconds.
 
 static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 	TEXT("xr.EnableOpenXRValidationLayer"),
@@ -2585,11 +2586,11 @@ void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameS
 		if (!bIsRendering && ColorSwapchain)
 		{
 			ColorSwapchain->IncrementSwapChainIndex_RHIThread();
-			ColorSwapchain->WaitCurrentImage_RHIThread(InFrameState.FrameState.predictedDisplayPeriod);
+			ColorSwapchain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
 			if (bDepthExtensionSupported && DepthSwapchain)
 			{
 				DepthSwapchain->IncrementSwapChainIndex_RHIThread();
-				DepthSwapchain->WaitCurrentImage_RHIThread(InFrameState.FrameState.predictedDisplayPeriod);
+				DepthSwapchain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
 			}
 		}
 
@@ -2815,7 +2816,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	RHICmdList.EnqueueLambda([DstSwapChain](FRHICommandListImmediate& InRHICmdList)
 	{
 		DstSwapChain->IncrementSwapChainIndex_RHIThread();
-		DstSwapChain->WaitCurrentImage_RHIThread();
+		DstSwapChain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
 	});
 
 	// Now that we've enqueued the swapchain wait we can add the commands to do the actual texture copy
