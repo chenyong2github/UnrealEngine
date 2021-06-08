@@ -332,6 +332,7 @@
 		Engine/Build/BatchFiles/Linux/Setup.sh
 		Engine/Build/BatchFiles/Linux/SetupEnvironment.sh
 		Engine/Build/BatchFiles/Linux/SetupMono.sh
+		Engine/Build/BatchFiles/Linux/SetupDotnet.sh
 		Engine/Build/BatchFiles/Linux/FixMonoFiles.sh
 		Engine/Build/BatchFiles/Linux/RunMono.sh
 		Engine/Build/BatchFiles/Linux/RunXBuild.sh
