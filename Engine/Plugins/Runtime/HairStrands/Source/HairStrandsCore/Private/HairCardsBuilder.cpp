@@ -3350,12 +3350,15 @@ void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 M
 	Out->SetLayerFormatSettings(0, FormatSettings);
 #endif // #if WITH_EDITORONLY_DATA
 
+	// No need to allocate the platform data as they will be allocating once the source data are filled in
+#if 0
 	Out->PlatformData = new FTexturePlatformData();
 	Out->PlatformData->SizeX = Resolution.X;
 	Out->PlatformData->SizeY = Resolution.Y;
 	Out->PlatformData->PixelFormat = PixelFormat;
 
 	Out->UpdateResource();
+#endif
 }
 
 void AllocateAtlasTexture_Depth(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount)		{ AllocateAtlasTexture(Out, Resolution, MipCount, PF_R8G8B8A8, ETextureSourceFormat::TSF_BGRA8); }
@@ -3816,8 +3819,8 @@ static void AddCardsTextureReadbackPass(
 	[InputTexture, OutTexture, BytePerPixel](FRHICommandListImmediate& RHICmdList)
 	{
 		const FIntPoint Resolution = InputTexture->Desc.Extent;
-		check(OutTexture->GetSurfaceWidth() == Resolution.X);
-		check(OutTexture->GetSurfaceHeight() == Resolution.Y);
+		check(OutTexture->Source.GetSizeX() == Resolution.X);
+		check(OutTexture->Source.GetSizeY() == Resolution.Y);
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("CardsTextureReadbackPass_StagingTexture"));
 		FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
