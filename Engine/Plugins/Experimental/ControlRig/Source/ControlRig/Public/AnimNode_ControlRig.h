@@ -100,6 +100,12 @@ protected:
 	virtual void UpdateInput(UControlRig* InControlRig, const FPoseContext& InOutput) override;
 	virtual void UpdateOutput(UControlRig* InControlRig, FPoseContext& InOutput) override;
 
+	// Helper function to update the initial ref pose within the Control Rig if needed
+	void UpdateControlRigRefPoseIfNeeded(const FAnimInstanceProxy* InProxy, bool bIncludePoseInHash = false);
+	
+	// A hash to encode the pointer to anim instance, an
+	TOptional<int32> RefPoseSetterHash;
+
 public:
 
 	void PostSerialize(const FArchive& Ar);

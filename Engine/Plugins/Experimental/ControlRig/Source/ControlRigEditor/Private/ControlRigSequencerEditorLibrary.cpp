@@ -744,7 +744,7 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 					ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, ControlRig->GetObjectBinding()->GetBoundObject());
 					ControlRig->Initialize();
 					ControlRig->RequestInit();
-					ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkeletalMeshComp);
+					ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkeletalMeshComp, true);
 					ControlRig->Evaluate_AnyThread();
 
 					bool bSequencerOwnsControlRig = true;
