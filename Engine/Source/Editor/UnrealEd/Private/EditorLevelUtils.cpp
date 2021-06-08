@@ -146,14 +146,15 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 
 		if (FinalMoveList.Num() > 0 && (!bMoveAllOrFail || FinalMoveList.Num() == ActorCount))
 		{
-			TMap<FSoftObjectPath, FSoftObjectPath> ActorPathMapping;
+			TArray<TTuple<FSoftObjectPath, FSoftObjectPath>> ActorPathMapping;
 			GEditor->SelectNone(false, true, false);
 
 			USelection* ActorSelection = GEditor->GetSelectedActors();
 			ActorSelection->BeginBatchSelectOperation();
 			for (AActor* Actor : FinalMoveList)
 			{
-				ActorPathMapping.Add(FSoftObjectPath(Actor), FSoftObjectPath());
+				check(Actor->CopyPasteId == INDEX_NONE);
+				Actor->CopyPasteId = ActorPathMapping.Add(TTuple<FSoftObjectPath, FSoftObjectPath>(FSoftObjectPath(Actor), FSoftObjectPath()));
 				GEditor->SelectActor(Actor, true, false);
 			}
 			ActorSelection->EndBatchSelectOperation(false);
@@ -194,45 +195,15 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 				for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 				{
 					AActor* Actor = static_cast<AActor*>(*It);
-					FSoftObjectPath NewPath = FSoftObjectPath(Actor);
 
-					bool bFoundMatch = false;
-
-					// First try exact match
-					for (TPair<FSoftObjectPath, FSoftObjectPath>& Pair : ActorPathMapping)
+					if (ActorPathMapping.IsValidIndex(Actor->CopyPasteId))
 					{
-						if (Pair.Value.IsNull() && NewPath.GetSubPathString() == Pair.Key.GetSubPathString())
-						{
-							bFoundMatch = true;
-							Pair.Value = NewPath;
-							break;
-						}
+						TTuple<FSoftObjectPath, FSoftObjectPath>& Tuple = ActorPathMapping[Actor->CopyPasteId];
+						check(Tuple.Value.IsNull());
+
+						Tuple.Value = FSoftObjectPath(Actor);
 					}
-
-					if (!bFoundMatch)
-					{
-						// Remove numbers from end as it may have had to add some to disambiguate
-						FString PartialPath = NewPath.GetSubPathString();
-						int32 IgnoreNumber;
-						FActorLabelUtilities::SplitActorLabel(PartialPath, IgnoreNumber);
-
-						for (TPair<FSoftObjectPath, FSoftObjectPath>& Pair : ActorPathMapping)
-						{
-							if (Pair.Value.IsNull())
-							{
-								FString KeyPartialPath = Pair.Key.GetSubPathString();
-								FActorLabelUtilities::SplitActorLabel(KeyPartialPath, IgnoreNumber);
-								if (PartialPath == KeyPartialPath)
-								{
-									bFoundMatch = true;
-									Pair.Value = NewPath;
-									break;
-								}
-							}
-						}
-					}
-
-					if (!bFoundMatch)
+					else
 					{
 						UE_LOG(LogLevelTools, Error, TEXT("Cannot find remapping for moved actor ID %s, any soft references pointing to it will be broken!"), *Actor->GetPathName());
 					}
@@ -241,7 +212,7 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 				FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 				TArray<FAssetRenameData> RenameData;
 
-				for (TPair<FSoftObjectPath, FSoftObjectPath>& Pair : ActorPathMapping)
+				for (TTuple<FSoftObjectPath, FSoftObjectPath>& Pair : ActorPathMapping)
 				{
 					if (Pair.Value.IsValid())
 					{
@@ -270,6 +241,12 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 
 			// The moved (pasted) actors will now be selected
 			NumMovedActors += FinalMoveList.Num();
+
+			for (AActor* Actor : FinalMoveList)
+			{
+				check(Actor->CopyPasteId != INDEX_NONE);
+				Actor->CopyPasteId = INDEX_NONE;
+			}
 		}
 
 		// Restore the original clipboard contents

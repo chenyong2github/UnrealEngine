@@ -803,6 +803,9 @@ protected:
 	TArray<FActorDataLayer> DataLayers;
 
 public:
+	/** The copy/paste id used to remap actors during copy operations */
+	uint32 CopyPasteId;
+
 	/** The editor-only group this actor is a part of. */
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> GroupActor;

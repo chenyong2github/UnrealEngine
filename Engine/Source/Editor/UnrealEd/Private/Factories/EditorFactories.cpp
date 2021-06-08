@@ -984,6 +984,13 @@ UObject* ULevelFactory::FactoryCreateText
 									FParse::Value(Str, TEXT("GroupFolder="), GroupFolder);
 								}
 
+								uint32 CopyPasteId;
+								if (FParse::Value(Str, TEXT("CopyPasteId="), CopyPasteId))
+								{
+									check(CopyPasteId != INDEX_NONE);
+									NewActor->CopyPasteId = CopyPasteId;
+								}
+
 								// Does the group exist?
 								if(tmpNewGroup)
 								{

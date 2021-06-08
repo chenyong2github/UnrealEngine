@@ -176,6 +176,7 @@ void AActor::InitializeDefaults()
 
 #if WITH_EDITORONLY_DATA
 	GridPlacement = EActorGridPlacement::Location;
+	CopyPasteId = INDEX_NONE;
 #endif
 }
 
