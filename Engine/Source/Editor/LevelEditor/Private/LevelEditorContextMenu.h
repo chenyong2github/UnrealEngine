@@ -71,6 +71,8 @@ private:
 	static void RegisterSceneOutlinerContextMenu();
 	static void RegisterEmptySelectionContextMenu();
 
+	static void AddPlayFromHereSubMenu(FToolMenuSection& Section);
+
 	/**
 	 * Builds the actor group menu
 	 *
