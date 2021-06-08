@@ -1364,6 +1364,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 			{
 				IntermediateAccumulatedTangentBuffers.AddUnique(DispatchData.GetIntermediateAccumulatedTangentBuffer());
 			}
+			BuffersToTransitionToRead.Add(DispatchData.GetPositionRWBuffer());
 		}	
 	}
 	MakeBufferTransitions(RHICmdList, BuffersToSRVForRecomputeTangents, ERHIAccess::SRVCompute);
@@ -1456,6 +1457,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 		{
 			RHICmdList.Transition(DispatchData.GetIntermediateAccumulatedTangentBuffer()->UpdateAccessState(ERHIAccess::UAVCompute));
 		}
+		BuffersToTransitionToRead.Add(DispatchData.GetPositionRWBuffer());
 
 		FSkinCacheRWBuffer* StagingBuffer = nullptr;
 		DispatchUpdateSkinTangents(RHICmdList, SkinCacheEntry, Section, StagingBuffer, true);
