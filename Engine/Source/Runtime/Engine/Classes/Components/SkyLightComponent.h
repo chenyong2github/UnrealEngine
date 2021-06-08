@@ -88,7 +88,7 @@ enum ESkyLightSourceType
 	SLS_MAX,
 };
 
-enum ESkyLightCaptureStatus
+enum class ESkyLightCaptureStatus
 {
 	SLCS_Uninitialized,
 	SLCS_CapturedButIncomplete,
@@ -313,6 +313,7 @@ protected:
 	// In an attempt to get valid lighting data as soon as possible in a level, we will always trigger a skylight capture at creation.
 	// And then, a soon as the world is finally loaded, the final capture will be taken.
 	ESkyLightCaptureStatus CaptureStatus;
+	float SecondsSinceLastCapture;
 #endif
 
 	TRefCountPtr<FSkyTextureCubeResource> ProcessedSkyTexture;

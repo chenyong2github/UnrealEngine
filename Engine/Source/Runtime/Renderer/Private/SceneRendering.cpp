@@ -3224,7 +3224,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						{
 							const FLinearColor OrangeColor = FColor::Orange;
 
-							FString String = FString::Printf(TEXT("Sky Light waiting on ["));
+							FString String = TEXT("Sky Light waiting on [");
 							bool bAddComma = false;
 							if (SkyLight->bCubemapSkyLightWaitingForCubeMapTexture)
 							{
@@ -3242,7 +3242,11 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 								String += bAddComma ? TEXT(", ") : TEXT("");
 								String += TEXT("Meshes, Textures] for final capture");
 							}
-							String += FString::Printf(TEXT("] for final capture."));
+							String += TEXT("] for final capture.");
+							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), OrangeColor);
+							Y += 14;
+
+							String = FString::Printf(TEXT("Seconds to next incomplete capture = %.0f"), FMath::CeilToFloat(SkyLight->SecondsToNextIncompleteCapture));
 							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), OrangeColor);
 							Y += 14;
 						}
