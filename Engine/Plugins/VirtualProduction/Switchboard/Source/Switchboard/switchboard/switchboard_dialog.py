@@ -14,6 +14,7 @@ from switchboard import config
 from switchboard import config_osc as osc
 from switchboard import p4_utils
 from switchboard import recording
+from switchboard import resources  # noqa
 from switchboard import switchboard_application
 from switchboard import switchboard_utils
 from switchboard import switchboard_widgets as sb_widgets
