@@ -539,6 +539,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			.Text(LOCTEXT("FitToData", "Fit To Data"))
 			.AddMetaData<FTagMetaData>(TEXT("ImportButton"))
 			.OnClicked(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnFitImportDataButtonClicked)
+			.IsEnabled(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled)
 		]
 		+ SHorizontalBox::Slot()
 		.FillWidth(1)
@@ -961,14 +962,11 @@ bool FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled(
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
-		bool bAllSourceFilePathsEmpty = true;
-		if (LandscapeEdMode->UISettings->ImportLandscape_HeightmapImportResult == ELandscapeImportResult::Error)
+		if (LandscapeEdMode->UISettings->ImportLandscape_HeightmapImportResult == ELandscapeImportResult::Error ||
+			LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename.IsEmpty() ||
+			LandscapeEdMode->UISettings->GetImportLandscapeData().IsEmpty())
 		{
 			return false;
-		}
-		else if (!LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename.IsEmpty())
-		{
-			bAllSourceFilePathsEmpty = false;
 		}
 
 		for (int32 i = 0; i < LandscapeEdMode->UISettings->ImportLandscape_Layers.Num(); ++i)
@@ -977,14 +975,11 @@ bool FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled(
 			{
 				return false;
 			}
-			else if (!LandscapeEdMode->UISettings->ImportLandscape_Layers[i].SourceFilePath.IsEmpty())
-			{
-				bAllSourceFilePathsEmpty = false;
-			}
 		}
 
-		return !bAllSourceFilePathsEmpty;
+		return true;
 	}
+	
 	return false;
 }
 
