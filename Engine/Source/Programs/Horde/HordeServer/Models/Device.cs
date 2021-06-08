@@ -169,7 +169,7 @@ namespace HordeServer.Models
 		public DateTime? ProblemTimeUtc { get; }
 
 		/// <summary>
-		/// The last time a problem was reported
+		/// The time device was marked for maintenance
 		/// </summary>
 		public DateTime? MaintenanceTimeUtc { get; }
 
