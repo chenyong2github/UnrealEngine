@@ -38,6 +38,7 @@ struct FNDIPhysicsAssetArrays
 	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> RestTransform;
 	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> RestInverse;
 	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> ElementExtent;
+	TStaticArray<uint32, PHYSICS_ASSET_MAX_PRIMITIVES> PhysicsType;
 };
 
 /** Render buffers that will be used in hlsl functions */
@@ -72,6 +73,9 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 
 	/** Element extent buffer */
 	FRWBuffer ElementExtentBuffer;
+
+	/** Physics type buffer */
+	FRWBuffer PhysicsTypeBuffer;
 };
 
 /** Data stored per physics asset instance*/
@@ -206,6 +210,9 @@ public:
 
 	/** Name of the element extent buffer */
 	static const FString ElementExtentBufferName;
+
+	/** Name of the physics type buffer */
+	static const FString PhysicsTypeBufferName;
 
 	/** Init Box Origin */
 	static const FString BoxOriginName;

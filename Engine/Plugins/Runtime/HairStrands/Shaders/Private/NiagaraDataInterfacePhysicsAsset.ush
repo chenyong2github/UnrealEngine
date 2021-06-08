@@ -26,6 +26,7 @@ struct FDIPhysicsAssetContext
 	Buffer<float4>		PreviousTransformBuffer;
 	Buffer<float4>		PreviousInverseBuffer;
 	Buffer<float4>		ElementExtentBuffer;
+	Buffer<uint>		PhysicsTypeBuffer;
 	float3				BoxOrigin;
 	float3				BoxExtent;
 }; 
@@ -39,6 +40,7 @@ Buffer<float4>		RestInverseBuffer_##NAME;\
 Buffer<float4>		PreviousTransformBuffer_##NAME;\
 Buffer<float4>		PreviousInverseBuffer_##NAME;\
 Buffer<float4>		ElementExtentBuffer_##NAME;\
+Buffer<uint>		PhysicsTypeBuffer_##NAME;\
 float3 BoxOrigin_##NAME;\
 float3 BoxExtent_##NAME;\
 
@@ -52,6 +54,7 @@ DIContext.RestInverseBuffer = RestInverseBuffer_##NAME;\
 DIContext.PreviousTransformBuffer = PreviousTransformBuffer_##NAME;\
 DIContext.PreviousInverseBuffer = PreviousInverseBuffer_##NAME;\
 DIContext.ElementExtentBuffer = ElementExtentBuffer_##NAME;\
+DIContext.PhysicsTypeBuffer = PhysicsTypeBuffer_##NAME;\
 DIContext.BoxOrigin = BoxOrigin_##NAME;\
 DIContext.BoxExtent = BoxExtent_##NAME;\
 
@@ -387,7 +390,7 @@ void DIPhysicsAsset_GetElementDistance(in FDIPhysicsAssetContext DIContext, in f
 
 	if (ElementIndex != -1)
 	{
-		OutClosestDistance = MinDistance;
+		OutClosestDistance = (DIContext.PhysicsTypeBuffer[ElementIndex] == 1) ? MinDistance : 0;
 	}
 }
 
@@ -445,7 +448,7 @@ void DIPhysicsAsset_GetClosestDistance(in FDIPhysicsAssetContext DIContext, in f
 
 	if (ElementIndex != -1)
 	{
-		OutClosestDistance = MinDistance;
+		OutClosestDistance = (DIContext.PhysicsTypeBuffer[ElementIndex] == 1) ? MinDistance : 0;
 	}
 }
 
