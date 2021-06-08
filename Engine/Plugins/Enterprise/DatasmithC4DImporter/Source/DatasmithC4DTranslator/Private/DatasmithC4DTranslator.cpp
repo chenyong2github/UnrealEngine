@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithC4DTranslator.h"
+#include "DatasmithC4DDynamicImporterModule.h"
 
-#ifdef _MELANGE_SDK_
+#if defined(_MELANGE_SDK_) || defined(_CINEWARE_SDK_)
 #include "DatasmithC4DTranslatorModule.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
@@ -13,7 +14,7 @@
 #include "Misc/Paths.h"
 #include "Templates/TypeHash.h"
 
-#include "DatasmithC4DImporter.h"
+typedef TSharedPtr<IDatasmithC4DImporter>(*CreateC4DImporter)(TSharedRef<IDatasmithScene> OutScene, UDatasmithC4DImportOptions* InOptions);
 
 void FDatasmithC4DTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
@@ -27,8 +28,31 @@ void FDatasmithC4DTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 bool FDatasmithC4DTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 {
 	OutScene->SetHost(TEXT("C4DTranslator"));
+	
+#ifdef _CHECK_DYNAMIC_IMPORTER_
+	if (IDatasmithC4DDynamicImporterModule::IsAvailable())
+	{
+		FDatasmithC4DImportOptions C4DImportOptions;
+		C4DImportOptions.bImportEmptyMesh = ImportOptions->bImportEmptyMesh;
+		C4DImportOptions.bExportToUDatasmith = ImportOptions->bExportToUDatasmith;
+		C4DImportOptions.bAlwaysGenerateNormals = ImportOptions->bAlwaysGenerateNormals;
+		C4DImportOptions.ScaleVertices = ImportOptions->ScaleVertices;
+		C4DImportOptions.bOptimizeEmptySingleChildActors = ImportOptions->bOptimizeEmptySingleChildActors;
 
-    Importer = MakeShared<FDatasmithC4DImporter>(OutScene, GetOrCreateC4DImportOptions().Get());
+		IDatasmithC4DDynamicImporterModule& DynamicModule = IDatasmithC4DDynamicImporterModule::Get();
+		if (DynamicModule.TryLoadingCineware())
+		{
+			Importer = DynamicModule.GetDynamicImporter(OutScene, C4DImportOptions);
+		}
+	}
+#endif
+
+	if(!Importer.IsValid())
+	{
+		FDatasmithC4DImportOptions C4DImportOptions;
+		Importer = MakeShared<FDatasmithC4DImporter>(OutScene, C4DImportOptions);
+	}
+
 	Importer->OpenFile(GetSource().GetSourceFile());
 
 	return Importer->ProcessScene();
@@ -86,7 +110,14 @@ void FDatasmithC4DTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDat
 
 	if (Importer.IsValid())
 	{
-		Importer->SetImportOptions(GetOrCreateC4DImportOptions().Get());
+		FDatasmithC4DImportOptions C4DImportOptions;
+		C4DImportOptions.bImportEmptyMesh = ImportOptions->bImportEmptyMesh;
+		C4DImportOptions.bExportToUDatasmith = ImportOptions->bExportToUDatasmith;
+		C4DImportOptions.bAlwaysGenerateNormals = ImportOptions->bAlwaysGenerateNormals;
+		C4DImportOptions.ScaleVertices = ImportOptions->ScaleVertices;
+		C4DImportOptions.bOptimizeEmptySingleChildActors = ImportOptions->bOptimizeEmptySingleChildActors;
+
+		Importer->SetImportOptions(C4DImportOptions);
 	}
 }
 

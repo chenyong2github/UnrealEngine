@@ -4,6 +4,7 @@
 
 #ifdef _MELANGE_SDK_
 
+#include "IDatasmithC4DImporter.h"
 #include "DatasmithC4DTranslator.h"
 #include "DatasmithC4DImporterMaterialSelector.h"
 
@@ -42,6 +43,8 @@ public:
 
 		FString EnvVariable = FPlatformMisc::GetEnvironmentVariable(TEXT("DATASMITHC4D_DEBUG"));
 		bDebugMode = !EnvVariable.IsEmpty();
+
+		// TODO: Load C4DDynamicImporter if available else Import Static
 
 		Datasmith::RegisterTranslator<FDatasmithC4DTranslator>();
 	}

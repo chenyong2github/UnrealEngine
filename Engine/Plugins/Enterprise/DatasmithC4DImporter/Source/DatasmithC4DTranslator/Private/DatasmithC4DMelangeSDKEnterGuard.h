@@ -19,5 +19,9 @@ __pragma(warning(disable: 6297)) /* melange\20.004_rbmelange20.0_259890\includes
 
 #endif // PLATFORM_WINDOWS
 
+#ifdef __clang__
+_Pragma( "clang diagnostic push" )
+_Pragma( "clang diagnostic ignored \"-Wdeprecated-declarations\"" )
+#endif
 
 

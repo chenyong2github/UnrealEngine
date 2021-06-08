@@ -1,5 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#ifdef __clang__
+_Pragma( "clang diagnostic pop" )
+#endif
+
 #if PLATFORM_WINDOWS
 
 __pragma(warning(pop))
