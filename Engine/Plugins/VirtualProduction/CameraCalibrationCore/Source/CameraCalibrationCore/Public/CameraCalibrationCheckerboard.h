@@ -10,7 +10,7 @@
 
 class UCalibrationPointComponent;
 class UStaticMesh;
-class UMaterial;
+class UMaterialInterface;
 
 /**
  * Dynamic checkerboad actor
@@ -86,9 +86,9 @@ public:
 
 	/** The material that we are going to use for all the odd cubes */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UMaterial* OddCubeMaterial;
+	UMaterialInterface* OddCubeMaterial;
 
 	/** The material that we are going to use for all the even cubes */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UMaterial* EvenCubeMaterial;
+	UMaterialInterface* EvenCubeMaterial;
 };

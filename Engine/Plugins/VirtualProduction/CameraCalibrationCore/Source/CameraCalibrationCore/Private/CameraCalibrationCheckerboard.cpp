@@ -5,7 +5,7 @@
 #include "CalibrationPointComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
-#include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
 ACameraCalibrationCheckerboard::ACameraCalibrationCheckerboard() : AActor()
