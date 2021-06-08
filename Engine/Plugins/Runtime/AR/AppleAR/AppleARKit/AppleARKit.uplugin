@@ -21,13 +21,13 @@
 			"Name": "AppleARKit",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms" : [ "Mac", "iOS", "Win64" ]
+			"WhitelistPlatforms" : [ "Mac", "IOS", "Win64" ]
 		},
 		{
 			"Name": "AppleARKitPoseTrackingLiveLink",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms" : [ "Mac", "iOS", "Win64" ]
+			"WhitelistPlatforms" : [ "Mac", "IOS", "Win64" ]
 
 		}
 	],

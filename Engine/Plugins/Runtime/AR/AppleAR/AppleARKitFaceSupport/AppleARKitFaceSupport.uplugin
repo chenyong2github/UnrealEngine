@@ -22,7 +22,7 @@
 			"Name": "AppleARKitFaceSupport",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms" : [ "Mac", "iOS", "Win64" ]
+			"WhitelistPlatforms" : [ "Mac", "IOS", "Win64" ]
 		}
 	],
     "Plugins":
