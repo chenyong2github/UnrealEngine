@@ -24,7 +24,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Map of name to subdirectory
 		/// </summary>
-		public Dictionary<ReadOnlyUtf8String, Digest<Sha1>> NameToSubDirectory = new Dictionary<ReadOnlyUtf8String, Digest<Sha1>>(FileUtils.PlatformPathComparerUtf8);
+		public Dictionary<ReadOnlyUtf8String, IoHash> NameToSubDirectory = new Dictionary<ReadOnlyUtf8String, IoHash>(FileUtils.PlatformPathComparerUtf8);
 	}
 
 	/// <summary>
@@ -51,7 +51,7 @@ namespace EpicGames.Perforce.Managed
 			for (int Idx = 0; Idx < NumSubDirectories; Idx++)
 			{
 				ReadOnlyUtf8String Name = Reader.ReadString();
-				DirectoryInfo.NameToSubDirectory[Name] = Reader.ReadDigest<Sha1>();
+				DirectoryInfo.NameToSubDirectory[Name] = Reader.ReadIoHash();
 			}
 
 			return DirectoryInfo;
@@ -71,10 +71,10 @@ namespace EpicGames.Perforce.Managed
 			}
 
 			Writer.WriteInt32(DirectoryInfo.NameToSubDirectory.Count);
-			foreach ((ReadOnlyUtf8String Name, Digest<Sha1> Digest) in DirectoryInfo.NameToSubDirectory)
+			foreach ((ReadOnlyUtf8String Name, IoHash Hash) in DirectoryInfo.NameToSubDirectory)
 			{
 				Writer.WriteString(Name);
-				Writer.WriteDigest<Sha1>(Digest);
+				Writer.WriteIoHash(Hash);
 			}
 		}
 
@@ -84,7 +84,7 @@ namespace EpicGames.Perforce.Managed
 		/// <returns>The serialized size of this object</returns>
 		public static int GetSerializedSize(this StreamDirectoryInfo DirectoryInfo)
 		{
-			return sizeof(int) + DirectoryInfo.NameToFile.Values.Sum(x => x.GetSerializedSize()) + sizeof(int) + DirectoryInfo.NameToSubDirectory.Sum(x => x.Key.GetSerializedSize() + Digest<Sha1>.Length);
+			return sizeof(int) + DirectoryInfo.NameToFile.Values.Sum(x => x.GetSerializedSize()) + sizeof(int) + DirectoryInfo.NameToSubDirectory.Sum(x => x.Key.GetSerializedSize() + IoHash.NumBytes);
 		}
 	}
 }

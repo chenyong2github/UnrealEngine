@@ -28,7 +28,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Digest of the matching stream directory info. This should be set to zero if the workspace is modified.
 		/// </summary>
-		public Digest<Sha1> StreamDirectoryDigest { get; set; }
+		public IoHash StreamDirectoryDigest { get; set; }
 
 		/// <summary>
 		/// Map of name to file
@@ -45,7 +45,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="RootDir"></param>
 		public WorkspaceDirectoryInfo(DirectoryReference RootDir)
-			: this(null, RootDir.FullName, Digest<Sha1>.Zero)
+			: this(null, RootDir.FullName, IoHash.Zero)
 		{
 		}
 
@@ -55,7 +55,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="ParentDirectory">The parent directory</param>
 		/// <param name="Name">Name of this directory</param>
 		/// <param name="Digest">The corresponding stream digest</param>
-		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? ParentDirectory, ReadOnlyUtf8String Name, Digest<Sha1> Digest)
+		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? ParentDirectory, ReadOnlyUtf8String Name, IoHash Digest)
 		{
 			this.ParentDirectory = ParentDirectory;
 			this.Name = Name;
@@ -74,7 +74,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="ContentId">Unique identifier for the server content</param>
 		public void AddFile(ReadOnlyUtf8String Path, long Length, long LastModifiedTicks, bool bReadOnly, FileContentId ContentId)
 		{
-			StreamDirectoryDigest = Digest<Sha1>.Zero;
+			StreamDirectoryDigest = IoHash.Zero;
 
 			int Idx = Path.Span.IndexOf((byte)'/');
 			if (Idx == -1)
@@ -88,7 +88,7 @@ namespace EpicGames.Perforce.Managed
 				WorkspaceDirectoryInfo? SubDirectory;
 				if (!NameToSubDirectory.TryGetValue(Name, out SubDirectory))
 				{
-					SubDirectory = new WorkspaceDirectoryInfo(this, Name, Digest<Sha1>.Zero);
+					SubDirectory = new WorkspaceDirectoryInfo(this, Name, IoHash.Zero);
 					NameToSubDirectory[Name] = SubDirectory;
 				}
 
@@ -194,9 +194,9 @@ namespace EpicGames.Perforce.Managed
 			// If the file state has changed, clear the directory hashes
 			if (NameToFile.Count != NewNameToFile.Count)
 			{
-				for (WorkspaceDirectoryInfo? Directory = this; Directory != null && Directory.StreamDirectoryDigest != Digest<Sha1>.Zero; Directory = Directory.ParentDirectory)
+				for (WorkspaceDirectoryInfo? Directory = this; Directory != null && Directory.StreamDirectoryDigest != IoHash.Zero; Directory = Directory.ParentDirectory)
 				{
-					Directory.StreamDirectoryDigest = Digest<Sha1>.Zero;
+					Directory.StreamDirectoryDigest = IoHash.Zero;
 				}
 			}
 
@@ -334,11 +334,16 @@ namespace EpicGames.Perforce.Managed
 		{
 			if (Version < ManagedWorkspaceVersion.AddDigest)
 			{
-				DirectoryInfo.StreamDirectoryDigest = Digest<Sha1>.Zero;
+				DirectoryInfo.StreamDirectoryDigest = IoHash.Zero;
+			}
+			else if (Version < ManagedWorkspaceVersion.AddDigestIoHash)
+			{
+				Reader.ReadFixedLengthBytes(Sha1.Length);
+				DirectoryInfo.StreamDirectoryDigest = IoHash.Zero;
 			}
 			else
 			{
-				DirectoryInfo.StreamDirectoryDigest = Reader.ReadDigest<Sha1>();
+				DirectoryInfo.StreamDirectoryDigest = Reader.ReadIoHash();
 			}
 
 			int NumFiles = Reader.ReadInt32();
@@ -353,7 +358,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				ReadOnlyUtf8String Name = Reader.ReadString();
 
-				WorkspaceDirectoryInfo SubDirectory = new WorkspaceDirectoryInfo(DirectoryInfo, Name, Digest<Sha1>.Zero);
+				WorkspaceDirectoryInfo SubDirectory = new WorkspaceDirectoryInfo(DirectoryInfo, Name, IoHash.Zero);
 				Reader.ReadWorkspaceDirectoryInfo(SubDirectory, Version);
 				DirectoryInfo.NameToSubDirectory[SubDirectory.Name] = SubDirectory;
 			}
@@ -361,7 +366,7 @@ namespace EpicGames.Perforce.Managed
 
 		public static void WriteWorkspaceDirectoryInfo(this MemoryWriter Writer, WorkspaceDirectoryInfo DirectoryInfo)
 		{
-			Writer.WriteDigest<Sha1>(DirectoryInfo.StreamDirectoryDigest);
+			Writer.WriteIoHash(DirectoryInfo.StreamDirectoryDigest);
 
 			Writer.WriteInt32(DirectoryInfo.NameToFile.Count);
 			foreach (WorkspaceFileInfo File in DirectoryInfo.NameToFile.Values)
