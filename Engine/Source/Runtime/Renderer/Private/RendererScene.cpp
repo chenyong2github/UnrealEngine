@@ -4137,6 +4137,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				// Remove the primitive from the scene.
 				PrimitiveSceneInfo->RemoveFromScene(true);
 
+				PrimitiveSceneInfo->FreeGPUSceneInstances();
+
 				// Update the primitive that was swapped to this index
 				GPUScene.AddPrimitiveToUpdate(PrimitiveIndex);
 
@@ -4390,6 +4392,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				GPUScene.MarkPrimitiveAdded(PrimitiveIndex);
 			}
 
+			FPrimitiveSceneInfo::AllocateGPUSceneInstances(this, TArrayView<FPrimitiveSceneInfo*>(&AddedLocalPrimitiveSceneInfos[StartIndex], AddedLocalPrimitiveSceneInfos.Num() - StartIndex));
 
 			{
 				SCOPED_NAMED_EVENT(FScene_AddPrimitiveSceneInfoToScene, FColor::Turquoise);

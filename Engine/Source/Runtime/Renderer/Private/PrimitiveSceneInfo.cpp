@@ -959,6 +959,76 @@ int32 FPrimitiveSceneInfo::UpdateStaticLightingBuffer()
 	return LCIs.Num();
 }
 
+void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
+{
+	if (Scene->GPUScene.IsEnabled())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
+		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+		{
+			check(SceneInfo->InstanceDataOffset == INDEX_NONE);
+			check(SceneInfo->NumInstanceDataEntries == 0);
+			if (SceneInfo->Proxy->SupportsInstanceDataBuffer())
+			{
+				if (const TArray<FPrimitiveInstance>* PrimitiveInstances = SceneInfo->Proxy->GetPrimitiveInstances())
+				{
+					SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(PrimitiveInstances->Num());
+					SceneInfo->NumInstanceDataEntries = PrimitiveInstances->Num();
+
+					if (GGPUSceneInstanceBVH)
+					{
+						for (int32 InstanceIndex = 0; InstanceIndex < PrimitiveInstances->Num(); ++InstanceIndex)
+						{
+							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
+							const FRenderBounds WorldBounds = PrimitiveInstance.LocalBounds.TransformBy(SceneInfo->Proxy->GetLocalToWorld());
+							// TODO: Replace Instance BVH FBounds with FRenderBounds
+							Scene->InstanceBVH.Add(FBounds({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceDataOffset + InstanceIndex);
+						}
+					}
+				}
+			}
+			else
+			{
+				// Allocate a single 'dummy/fallback' instance for the primitive that gets automatically populated with the data from the primitive
+				SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(1);
+				SceneInfo->NumInstanceDataEntries = 1;
+			}
+
+			// Force a primitive update in the GPU scene, 
+			// NOTE: does not set Added as this is handled elsewhere.
+			Scene->GPUScene.AddPrimitiveToUpdate(SceneInfo->PackedIndex);
+
+			// Force a primitive update in the Lumen scene
+			if (Scene->LumenSceneData)
+			{
+				Scene->LumenSceneData->UpdatePrimitiveInstanceOffset(SceneInfo->PackedIndex);
+			}
+		}
+	}
+}
+
+void FPrimitiveSceneInfo::FreeGPUSceneInstances()
+{
+	// Release all instance data slots associated with this primitive.
+	if (InstanceDataOffset != INDEX_NONE && Scene->GPUScene.IsEnabled())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
+
+		check(Proxy->SupportsInstanceDataBuffer() || NumInstanceDataEntries == 1);
+		if (GGPUSceneInstanceBVH)
+		{
+			for (int32 InstanceIndex = 0; InstanceIndex < NumInstanceDataEntries; InstanceIndex++)
+			{
+				Scene->InstanceBVH.Remove(InstanceDataOffset + InstanceIndex);
+			}
+		}
+
+		Scene->GPUScene.FreeInstanceSlots(InstanceDataOffset, NumInstanceDataEntries);
+		InstanceDataOffset = INDEX_NONE;
+		NumInstanceDataEntries = 0;
+	}
+}
+
 void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists, bool bAsyncCreateLPIs)
 {
 	check(IsInRenderingThread());
@@ -1037,53 +1107,6 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 		}
 	}
 
-	if (Scene->GPUScene.IsEnabled())
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
-		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
-		{
-			check(SceneInfo->InstanceDataOffset == INDEX_NONE);
-			check(SceneInfo->NumInstanceDataEntries == 0);
-			if (SceneInfo->Proxy->SupportsInstanceDataBuffer())
-			{
-				if (const TArray<FPrimitiveInstance>* PrimitiveInstances = SceneInfo->Proxy->GetPrimitiveInstances())
-				{
-					SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(PrimitiveInstances->Num());
-					SceneInfo->NumInstanceDataEntries = PrimitiveInstances->Num();
-
-					if (GGPUSceneInstanceBVH)
-					{
-						for (int32 InstanceIndex = 0; InstanceIndex < PrimitiveInstances->Num(); ++InstanceIndex)
-						{
-							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
-							const FRenderBounds WorldBounds = PrimitiveInstance.LocalBounds.TransformBy(SceneInfo->Proxy->GetLocalToWorld());
-							// TODO: Replace Instance BVH FBounds with FRenderBounds
-							Scene->InstanceBVH.Add(FBounds({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceDataOffset + InstanceIndex);
-						}
-					}
-				}
-			}
-			else
-			{
-				// Allocate a single 'dummy/fallback' instance for the primitive that gets automatically populated with the data from the primitive
-				SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(1);
-				SceneInfo->NumInstanceDataEntries = 1;
-			}
-
-			// Force a primitive update in the GPU scene
-			if (!Scene->GPUScene.PrimitivesMarkedToUpdate[SceneInfo->PackedIndex])
-			{
-				Scene->GPUScene.PrimitivesToUpdate.Add(SceneInfo->PackedIndex);
-				Scene->GPUScene.PrimitivesMarkedToUpdate[SceneInfo->PackedIndex] = true;
-			}
-
-			// Force a primitive update in the Lumen scene
-			if (Scene->LumenSceneData)
-			{
-				Scene->LumenSceneData->UpdatePrimitiveInstanceOffset(SceneInfo->PackedIndex);
-			}
-		}
-	}
 
 	{
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_ReflectionCaptures, FColor::Yellow);
@@ -1265,25 +1288,6 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 	if (LightmapDataOffset != INDEX_NONE && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
 	{
 		Scene->GPUScene.LightmapDataAllocator.Free(LightmapDataOffset, NumLightmapDataEntries);
-	}
-
-	// Release all instance data slots associated with this primitive.
-	if (InstanceDataOffset != INDEX_NONE && Scene->GPUScene.IsEnabled())
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
-
-		check(Proxy->SupportsInstanceDataBuffer() || NumInstanceDataEntries == 1);
-		if( GGPUSceneInstanceBVH )
-		{
-			for( int32 InstanceIndex = 0; InstanceIndex < NumInstanceDataEntries; InstanceIndex++ )
-			{
-				Scene->InstanceBVH.Remove( InstanceDataOffset + InstanceIndex );
-			}
-		}
-
-		Scene->GPUScene.FreeInstanceSlots(InstanceDataOffset, NumInstanceDataEntries);
-		InstanceDataOffset = INDEX_NONE;
-		NumInstanceDataEntries = 0;
 	}
 
 	if (Proxy->CastsDynamicIndirectShadow())
