@@ -719,15 +719,7 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		Commands.GoHere,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoHere_Clicked, (const FVector*)nullptr )
 		);
-
-	ActionList.MapAction(
-		Commands.PlayFromHere,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::PlayFromHere_Clicked ), 
-		FCanExecuteAction(),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateStatic( &FLevelEditorActionCallbacks::PlayFromHere_IsVisible )
-		);
-
+		
 	ActionList.MapAction( 
 		Commands.SnapCameraToObject,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("CAMERA SNAP") ) )

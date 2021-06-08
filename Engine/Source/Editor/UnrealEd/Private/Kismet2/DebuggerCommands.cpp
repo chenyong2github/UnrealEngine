@@ -886,10 +886,10 @@ void FPlayWorldCommandCallbacks::StartPlayFromHere()
 		StartRotation = ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
 	}
 
-	StartPlayFromHere(StartLocation, StartRotation);
+	StartPlayFromHere(StartLocation, StartRotation, ActiveLevelViewport);
 }
 
-void FPlayWorldCommandCallbacks::StartPlayFromHere(const TOptional<FVector>& Location, const TOptional<FRotator>& Rotation)
+void FPlayWorldCommandCallbacks::StartPlayFromHere(const TOptional<FVector>& Location, const TOptional<FRotator>& Rotation, const TSharedPtr<IAssetViewport>& ActiveLevelViewport)
 {
 	// Is a PIE session already running?  If so we close it first
 	if (GUnrealEd->PlayWorld != NULL)
@@ -902,8 +902,6 @@ void FPlayWorldCommandCallbacks::StartPlayFromHere(const TOptional<FVector>& Loc
 	SessionParams.StartRotation = Rotation;
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-
-	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
 	if (ActiveLevelViewport.IsValid() && ActiveLevelViewport->GetAssetViewportClient().IsPerspective())
 	{

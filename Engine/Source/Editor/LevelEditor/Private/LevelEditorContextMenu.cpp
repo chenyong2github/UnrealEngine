@@ -217,7 +217,7 @@ void FLevelEditorContextMenu::RegisterComponentContextMenu()
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GoHere);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapCameraToObject);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapObjectToCamera);
-			Section.AddMenuEntry(FLevelEditorCommands::Get().PlayFromHere);
+			AddPlayFromHereSubMenu(Section);						
 			Section.AddMenuEntry(FLevelEditorCommands::Get().CopyActorFilePathtoClipboard);
 
 			FLevelEditorContextMenuImpl::AddSourceControlMenu(Section);
@@ -225,6 +225,22 @@ void FLevelEditorContextMenu::RegisterComponentContextMenu()
 
 		FComponentEditorUtils::FillComponentContextMenuOptions(InMenu, SelectedComponents);
 	}));
+}
+
+void FLevelEditorContextMenu::AddPlayFromHereSubMenu(FToolMenuSection& Section)
+{
+	if(FLevelEditorActionCallbacks::PlayFromHere_IsVisible())
+	{
+		Section.AddSubMenu("PlayFromHere", LOCTEXT("PlayFromHere", "Play From Here"), LOCTEXT("", ""), FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			FToolMenuSection& NewSection = InMenu->AddSection("Section");
+			FUIAction PlayFromHere(FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::PlayFromHere_Clicked, false));
+			FUIAction PlayFromHereFloating(FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::PlayFromHere_Clicked, true));
+
+			NewSection.AddMenuEntry("PlayFromHereActiveViewport", LOCTEXT("PlayFromHereActiveViewport", "Selected Viewport"), LOCTEXT("PlayFromHereActiveViewportTooltip", "Play from this actor in the active level editor viewport"), FSlateIcon("EditorSTyle", "PlayWorld.PlayInViewport"), PlayFromHere);
+			NewSection.AddMenuEntry("PlayFromHereFloatingWindow", LOCTEXT("PlayFromHereFloatingWindow", "New Editor Window (PIE)"), LOCTEXT("PlayFromHereFloatingWindowTooltip", "Play from this actor in a new editor window"), FSlateIcon("EditorSTyle", "PlayWorld.PlayInEditorFloating"), PlayFromHereFloating);
+		}));
+	}
 }
 
 void FLevelEditorContextMenu::RegisterActorContextMenu()
@@ -306,7 +322,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GoHere);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapCameraToObject);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapObjectToCamera);
-			Section.AddMenuEntry(FLevelEditorCommands::Get().PlayFromHere);
+			AddPlayFromHereSubMenu(Section);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().CopyActorFilePathtoClipboard);
 			
 			FLevelEditorContextMenuImpl::AddSourceControlMenu(Section);
