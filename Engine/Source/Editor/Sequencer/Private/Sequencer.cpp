@@ -2179,7 +2179,7 @@ void FSequencer::BakeTransform()
 	for (FFrameTime EvalTime = InFrame; EvalTime < OutFrame; EvalTime += Interval)
 	{
 		FFrameNumber KeyTime = FFrameRate::Snap(EvalTime, Resolution, SnapRate).FloorToFrame();
-		FMovieSceneEvaluationRange Range(KeyTime * RootToLocalTransform.InverseLinearOnly(), SnapRate);
+		FMovieSceneEvaluationRange Range(KeyTime * RootToLocalTransform.InverseLinearOnly(), Resolution);
 
 		EvaluateInternal(Range);
 
