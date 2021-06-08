@@ -629,6 +629,9 @@ public:
 	void GetAllShaderMaps(TArray<FMaterialShaderMap*>& OutShaderMaps);
 
 #if WITH_EDITORONLY_DATA
+
+	ENGINE_API void SetStaticSwitchParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo, bool Value);
+
 	/**
 	 * Builds a composited set of static parameters, including inherited and overridden values
 	 */
