@@ -34,7 +34,7 @@ namespace Audio
 
 		for (auto& Clock : ActiveClocks)
 		{
-			Clock->Tick(DeltaTimeSeconds);
+			Clock->LowResolutionTick(DeltaTimeSeconds);
 		}
 	}
 
@@ -260,10 +260,7 @@ namespace Audio
 		}
 
 		FScopeLock Lock(&ActiveClockCritSec);
-		for (auto& Clock : ActiveClocks)
-		{
-			Clock->Shutdown();
-		}
+		ActiveClocks.Reset();
 	}
 
 	FQuartzQuantizedCommandHandle FQuartzClockManager::AddCommandToClock(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo)
