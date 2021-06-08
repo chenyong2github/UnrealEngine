@@ -24,14 +24,14 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// The root digest
 		/// </summary>
-		public abstract Digest<Sha1> Root { get; }
+		public abstract IoHash Root { get; }
 
 		/// <summary>
 		/// Lookup a directory by digest
 		/// </summary>
-		/// <param name="Digest">The digest value</param>
+		/// <param name="Hash">The hash value</param>
 		/// <returns></returns>
-		public abstract StreamDirectoryInfo Lookup(Digest<Sha1> Digest);
+		public abstract StreamDirectoryInfo Lookup(IoHash Hash);
 	}
 
 	/// <summary>
@@ -54,10 +54,10 @@ namespace EpicGames.Perforce.Managed
 		/// Append the contents of this directory and subdirectories to a list
 		/// </summary>
 		/// <param name="Files">List to append to</param>
-		static void AppendFiles(StreamSnapshot Snapshot, Digest<Sha1> DirHash, List<StreamFileInfo> Files)
+		static void AppendFiles(StreamSnapshot Snapshot, IoHash DirHash, List<StreamFileInfo> Files)
 		{
 			StreamDirectoryInfo DirectoryInfo = Snapshot.Lookup(DirHash);
-			foreach (Digest<Sha1> SubDirHash in DirectoryInfo.NameToSubDirectory.Values)
+			foreach (IoHash SubDirHash in DirectoryInfo.NameToSubDirectory.Values)
 			{
 				AppendFiles(Snapshot, SubDirHash, Files);
 			}

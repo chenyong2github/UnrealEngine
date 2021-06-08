@@ -83,6 +83,11 @@ namespace EpicGames.Perforce.Managed
 		/// Including stream directory digests in workspace directories
 		/// </summary>
 		AddDigest = 3,
+
+		/// <summary>
+		/// Changing hash algorithm from SHA1 to IoHash
+		/// </summary>
+		AddDigestIoHash = 4,
 	}
 
 	/// <summary>

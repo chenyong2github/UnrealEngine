@@ -24,19 +24,19 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// The root digest
 		/// </summary>
-		public override Digest<Sha1> Root { get; }
+		public override IoHash Root { get; }
 
 		/// <summary>
 		/// Map of digest to directory
 		/// </summary>
-		public IReadOnlyDictionary<Digest<Sha1>, StreamDirectoryInfo> HashToDirectory { get; }
+		public IReadOnlyDictionary<IoHash, StreamDirectoryInfo> HashToDirectory { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Root"></param>
 		/// <param name="HashToDirectory"></param>
-		public StreamSnapshotFromMemory(Digest<Sha1> Root, Dictionary<Digest<Sha1>, StreamDirectoryInfo> HashToDirectory)
+		public StreamSnapshotFromMemory(IoHash Root, Dictionary<IoHash, StreamDirectoryInfo> HashToDirectory)
 		{
 			this.Root = Root;
 			this.HashToDirectory = HashToDirectory;
@@ -48,13 +48,13 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="Builder"></param>
 		public StreamSnapshotFromMemory(StreamSnapshotBuilder Builder)
 		{
-			Dictionary<Digest<Sha1>, StreamDirectoryInfo> HashToDirectory = new Dictionary<Digest<Sha1>, StreamDirectoryInfo>();
+			Dictionary<IoHash, StreamDirectoryInfo> HashToDirectory = new Dictionary<IoHash, StreamDirectoryInfo>();
 			this.Root = Builder.Encode(HashToDirectory);
 			this.HashToDirectory = HashToDirectory;
 		}
 
 		/// <inheritdoc/>
-		public override StreamDirectoryInfo Lookup(Digest<Sha1> Hash)
+		public override StreamDirectoryInfo Lookup(IoHash Hash)
 		{
 			return HashToDirectory[Hash];
 		}
@@ -75,14 +75,14 @@ namespace EpicGames.Perforce.Managed
 
 			MemoryReader Reader = new MemoryReader(Data.AsMemory(CurrentSignature.Length));
 
-			Digest<Sha1> Root = Reader.ReadDigest<Sha1>();
+			IoHash Root = Reader.ReadIoHash();
 
 			int NumItems = Reader.ReadInt32();
 
-			Dictionary<Digest<Sha1>, StreamDirectoryInfo> HashToDirectory = new Dictionary<Digest<Sha1>, StreamDirectoryInfo>(NumItems);
+			Dictionary<IoHash, StreamDirectoryInfo> HashToDirectory = new Dictionary<IoHash, StreamDirectoryInfo>(NumItems);
 			for (int Idx = 0; Idx < NumItems; Idx++)
 			{
-				Digest<Sha1> Hash = Reader.ReadDigest<Sha1>();
+				IoHash Hash = Reader.ReadIoHash();
 				StreamDirectoryInfo Info = Reader.ReadStreamDirectoryInfo();
 				HashToDirectory[Hash] = Info;
 			}
@@ -100,11 +100,11 @@ namespace EpicGames.Perforce.Managed
 			byte[] Data = new byte[Length];
 
 			MemoryWriter Writer = new MemoryWriter(Data.AsMemory());
-			Writer.WriteDigest<Sha1>(Root);
+			Writer.WriteIoHash(Root);
 			Writer.WriteInt32(HashToDirectory.Count);
-			foreach ((Digest<Sha1> Hash, StreamDirectoryInfo Info) in HashToDirectory)
+			foreach ((IoHash Hash, StreamDirectoryInfo Info) in HashToDirectory)
 			{
-				Writer.WriteDigest<Sha1>(Hash);
+				Writer.WriteIoHash(Hash);
 				Writer.WriteStreamDirectoryInfo(Info);
 			}
 			Writer.CheckOffset(Data.Length);

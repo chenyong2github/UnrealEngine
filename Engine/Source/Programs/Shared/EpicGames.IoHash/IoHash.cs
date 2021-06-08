@@ -135,4 +135,30 @@ namespace EpicGames.Core
 		/// </summary>
 		public static bool operator <=(IoHash A, IoHash B) => A.CompareTo(B) <= 0;
 	}
+
+	/// <summary>
+	/// Extension methods for dealing with IoHash values
+	/// </summary>
+	public static class IoHashExtensions
+	{
+		/// <summary>
+		/// Read an <see cref="IoHash"/> from a memory reader
+		/// </summary>
+		/// <param name="Reader"></param>
+		/// <returns></returns>
+		public static IoHash ReadIoHash(this MemoryReader Reader)
+		{
+			return new IoHash(Reader.ReadFixedLengthBytes(IoHash.NumBytes));
+		}
+
+		/// <summary>
+		/// Write an <see cref="IoHash"/> to a memory writer
+		/// </summary>
+		/// <param name="Writer"></param>
+		/// <param name="Hash"></param>
+		public static void WriteIoHash(this MemoryWriter Writer, IoHash Hash)
+		{
+			Writer.WriteFixedLengthBytes(Hash.Span);
+		}
+	}
 }

@@ -43,14 +43,14 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="Snapshot"></param>
 		/// <param name="Hash"></param>
-		public StreamSnapshotBuilder(StreamSnapshot Snapshot, Digest<Sha1> Hash)
+		public StreamSnapshotBuilder(StreamSnapshot Snapshot, IoHash Hash)
 		{
 			StreamDirectoryInfo OldDirectory = Snapshot.Lookup(Hash);
 			foreach ((ReadOnlyUtf8String Name, StreamFileInfo File) in OldDirectory.NameToFile)
 			{
 				NameToFile[Name] = File;
 			}
-			foreach ((ReadOnlyUtf8String Name, Digest<Sha1> SubDirHash) in OldDirectory.NameToSubDirectory)
+			foreach ((ReadOnlyUtf8String Name, IoHash SubDirHash) in OldDirectory.NameToSubDirectory)
 			{
 				NameToSubDirectory[Name] = new StreamSnapshotBuilder(Snapshot, SubDirHash);
 			}
@@ -61,7 +61,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="HashToDirectory"></param>
 		/// <returns></returns>
-		public Digest<Sha1> Encode(Dictionary<Digest<Sha1>, StreamDirectoryInfo> HashToDirectory)
+		public IoHash Encode(Dictionary<IoHash, StreamDirectoryInfo> HashToDirectory)
 		{
 			// Create the stream directory object
 			StreamDirectoryInfo Directory = new StreamDirectoryInfo();
@@ -78,7 +78,7 @@ namespace EpicGames.Perforce.Managed
 			Writer.WriteStreamDirectoryInfo(Directory);
 			Writer.CheckOffset(Data.Length);
 
-			Digest<Sha1> Hash = Digest.Compute<Sha1>(Data);
+			IoHash Hash = IoHash.Compute(Data);
 			HashToDirectory[Hash] = Directory;
 
 			return Hash;
