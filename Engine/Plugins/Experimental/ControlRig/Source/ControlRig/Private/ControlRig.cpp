@@ -2464,45 +2464,37 @@ bool UControlRig::ExecuteBreakpointAction(const ERigVMBreakpointAction Breakpoin
 
 #endif // WITH_EDITOR
 
-void UControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp)
+void UControlRig::SetBoneInitialTransformsFromAnimInstance(UAnimInstance* InAnimInstance)
+{
+	FMemMark Mark(FMemStack::Get());
+	FCompactPose OutPose;
+	OutPose.ResetToRefPose(InAnimInstance->GetRequiredBones());
+	SetBoneInitialTransformsFromCompactPose(&OutPose);
+}
+
+void UControlRig::SetBoneInitialTransformsFromAnimInstanceProxy(const FAnimInstanceProxy* InAnimInstanceProxy)
+{
+	FMemMark Mark(FMemStack::Get());
+	FCompactPose OutPose;
+	OutPose.ResetToRefPose(InAnimInstanceProxy->GetRequiredBones());
+	SetBoneInitialTransformsFromCompactPose(&OutPose);
+}
+
+void UControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp, bool bUseAnimInstance)
 {
 	check(InSkelMeshComp);
 	check(DynamicHierarchy);
-	if (InSkelMeshComp->GetAnimInstance() == nullptr)
+	
+	if (!bUseAnimInstance && (InSkelMeshComp->GetAnimInstance() != nullptr))
 	{
-		SetBoneInitialTransformsFromSkeletalMesh(InSkelMeshComp->SkeletalMesh);
-		return;
+		SetBoneInitialTransformsFromAnimInstance(InSkelMeshComp->GetAnimInstance());
 	}
 	else
 	{
-		FMemMark Mark(FMemStack::Get());
-		FCompactPose OutPose;
-		OutPose.ResetToRefPose(InSkelMeshComp->GetAnimInstance()->GetRequiredBones());
-		if(!OutPose.IsValid())
-		{
-			return;
-		}
-
-		DynamicHierarchy->ForEach<FRigBoneElement>([this, &OutPose, InSkelMeshComp](FRigBoneElement* BoneElement) -> bool
-			{
-				if (BoneElement->BoneType == ERigBoneType::Imported)
-				{
-					int32 MeshIndex = OutPose.GetBoneContainer().GetPoseBoneIndexForBoneName(BoneElement->GetName());
-					if (MeshIndex != INDEX_NONE)
-					{
-						FCompactPoseBoneIndex CPIndex = OutPose.GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshIndex));
-						if (CPIndex != INDEX_NONE)
-						{
-							FTransform LocalInitialTransform = OutPose.GetRefPose(CPIndex);
-							DynamicHierarchy->SetTransform(BoneElement, LocalInitialTransform, ERigTransformType::InitialLocal, true, false);
-						}
-					}
-				}
-				return true;
-			});
-		bResetInitialTransformsBeforeSetup = false;
+		SetBoneInitialTransformsFromSkeletalMesh(InSkelMeshComp->SkeletalMesh);
 	}
 }
+
 
 void UControlRig::SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
@@ -2528,6 +2520,44 @@ void UControlRig::SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkelet
 		return true;
 	});
 	bResetInitialTransformsBeforeSetup = false;
+	RequestSetup();
+}
+
+void UControlRig::SetBoneInitialTransformsFromCompactPose(FCompactPose* InCompactPose)
+{
+	check(InCompactPose);
+
+	if(!InCompactPose->IsValid())
+	{
+		return;
+	}
+	if(!InCompactPose->GetBoneContainer().IsValid())
+	{
+		return;
+	}
+	
+	FMemMark Mark(FMemStack::Get());
+
+	DynamicHierarchy->ForEach<FRigBoneElement>([this, InCompactPose](FRigBoneElement* BoneElement) -> bool
+		{
+			if (BoneElement->BoneType == ERigBoneType::Imported)
+			{
+				int32 MeshIndex = InCompactPose->GetBoneContainer().GetPoseBoneIndexForBoneName(BoneElement->GetName());
+				if (MeshIndex != INDEX_NONE)
+				{
+					FCompactPoseBoneIndex CPIndex = InCompactPose->GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshIndex));
+					if (CPIndex != INDEX_NONE)
+					{
+						FTransform LocalInitialTransform = InCompactPose->GetRefPose(CPIndex);
+						DynamicHierarchy->SetTransform(BoneElement, LocalInitialTransform, ERigTransformType::InitialLocal, true, false);
+					}
+				}
+			}
+			return true;
+		});
+
+	bResetInitialTransformsBeforeSetup = false;
+	RequestSetup();
 }
 
 void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const FRigElementKey& InKey, ERigTransformType::Type InTransformType, const FTransform& InTransform, bool bIsUndo)

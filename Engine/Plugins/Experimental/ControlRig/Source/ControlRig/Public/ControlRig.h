@@ -380,16 +380,32 @@ public:
 	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
 	FRigEventDelegate& OnRigEvent_AnyThread() { return RigEventDelegate; }
 
-	// Setup the initial transform / ref pose of the bones based upon skeletal mesh component
-	// Unlike the other two functions below this uses the current refpose instead of the RefSkeleton pose.
-	void SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp);
+	// Setup the initial transform / ref pose of the bones based upon an anim instance
+	// This uses the current refpose instead of the RefSkeleton pose.
+	void SetBoneInitialTransformsFromAnimInstance(UAnimInstance* InAnimInstance);
+
+	// Setup the initial transform / ref pose of the bones based upon an anim instance proxy
+	// This uses the current refpose instead of the RefSkeleton pose.
+	void SetBoneInitialTransformsFromAnimInstanceProxy(const FAnimInstanceProxy* InAnimInstanceProxy);
+
+	// Setup the initial transform / ref pose of the bones based upon skeletal mesh component (ref skeleton)
+	// This uses the RefSkeleton pose instead of the current refpose (or vice versae is bUseAnimInstance == true)
+	void SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp, bool bUseAnimInstance = false);
 
 	// Setup the initial transforms / ref pose of the bones based on a skeletal mesh
+	// This uses the RefSkeleton pose instead of the current refpose.
 	void SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh);
 
 	// Setup the initial transforms / ref pose of the bones based on a reference skeleton
+	// This uses the RefSkeleton pose instead of the current refpose.
 	void SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkeleton& InReferenceSkeleton);
 
+private:
+
+	void SetBoneInitialTransformsFromCompactPose(FCompactPose* InCompactPose);
+
+public:
+	
 	const FControlRigDrawInterface& GetDrawInterface() const { return DrawInterface; };
 	FControlRigDrawInterface& GetDrawInterface() { return DrawInterface; };
 
@@ -694,6 +710,7 @@ public:
 	friend class UControlRigBlueprintGeneratedClass;
 	friend class FControlRigInteractionScope;
 	friend class UControlRigValidator;
+	friend struct FAnimNode_ControlRig;
 };
 
 class CONTROLRIG_API FControlRigBracketScope

@@ -2143,7 +2143,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
 	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 
-	ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkelMeshComp);
+	ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkelMeshComp, true);
 	ControlRig->RequestSetup();
 	ControlRig->Evaluate_AnyThread();
 

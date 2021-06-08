@@ -22,6 +22,7 @@ FAnimNode_ControlRig::FAnimNode_ControlRig()
 	, bSetRefPoseFromSkeleton(false)
 	, AlphaCurveName(NAME_None)
 	, LODThreshold(INDEX_NONE)
+	, RefPoseSetterHash()
 {
 }
 
@@ -34,17 +35,10 @@ void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* In
 		ControlRig = NewObject<UControlRig>(InAnimInstance->GetOwningComponent(), ControlRigClass);
 		ControlRig->Initialize(true);
 		ControlRig->RequestInit();
+		RefPoseSetterHash.Reset();
+		ControlRig->OnInitialized_AnyThread().AddLambda([this](class UControlRig*, const EControlRigState, const FName&) { RefPoseSetterHash.Reset(); });
 
-		if (bSetRefPoseFromSkeleton)
-		{
-			if (InAnimInstance->GetSkelMeshComponent())
-			{
-				if (USkeletalMesh* SkeletalMesh = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh)
-				{
-					ControlRig->SetBoneInitialTransformsFromSkeletalMesh(SkeletalMesh);
-				}
-			}
-		}
+		UpdateControlRigRefPoseIfNeeded(InProxy);
 	}
 
 	FAnimNode_ControlRigBase::OnInitializeAnimInstance(InProxy, InAnimInstance);
@@ -109,6 +103,7 @@ void FAnimNode_ControlRig::Update_AnyThread(const FAnimationUpdateContext& Conte
 		InternalBlendAlpha = 0.f;
 	}
 
+	UpdateControlRigRefPoseIfNeeded(Context.AnimInstanceProxy);
 	FAnimNode_ControlRigBase::Update_AnyThread(Context);
 
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Class"), *GetNameSafe(ControlRigClass.Get()));
@@ -135,6 +130,8 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 
 	if(RequiredBones.IsValid())
 	{
+		RefPoseSetterHash.Reset();
+		
 		TArray<FName> const& UIDToNameLookUpTable = RequiredBones.GetUIDToNameLookupTable();
 
 		auto CacheCurveMappingUIDs = [&](const TMap<FName, FName>& Mapping, TArray<FName> const& InUIDToNameLookUpTable, 
@@ -264,6 +261,58 @@ void FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext&
 			}
 		}
 	}
+}
+
+void FAnimNode_ControlRig::UpdateControlRigRefPoseIfNeeded(const FAnimInstanceProxy* InProxy, bool bIncludePoseInHash)
+{
+	if(!bSetRefPoseFromSkeleton)
+	{
+		return;
+	}
+
+	int32 ExpectedHash = 0;
+	ExpectedHash = HashCombine(ExpectedHash, (int32)reinterpret_cast<uintptr_t>(InProxy->GetAnimInstanceObject()));
+	ExpectedHash = HashCombine(ExpectedHash, (int32)reinterpret_cast<uintptr_t>(InProxy->GetSkelMeshComponent()));
+
+	if(InProxy->GetSkelMeshComponent())
+	{
+		ExpectedHash = HashCombine(ExpectedHash, (int32)reinterpret_cast<uintptr_t>(InProxy->GetSkelMeshComponent()->SkeletalMesh.Get()));
+	}
+
+	if(bIncludePoseInHash)
+	{
+		FMemMark Mark(FMemStack::Get());
+		FCompactPose RefPose;
+		RefPose.ResetToRefPose(InProxy->GetRequiredBones());
+
+		for(const FCompactPoseBoneIndex& BoneIndex : RefPose.ForEachBoneIndex())
+		{
+			const FTransform& Transform = RefPose.GetRefPose(BoneIndex);
+			const FQuat Rotation = Transform.GetRotation();
+
+			ExpectedHash = HashCombine(ExpectedHash, GetTypeHash(Transform.GetTranslation()));
+			ExpectedHash = HashCombine(ExpectedHash, GetTypeHash(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W)));
+			ExpectedHash = HashCombine(ExpectedHash, GetTypeHash(Transform.GetScale3D()));
+		}
+
+		if(RefPoseSetterHash.IsSet() && (ExpectedHash == RefPoseSetterHash.GetValue()))
+		{
+			return;
+		}
+
+		ControlRig->SetBoneInitialTransformsFromCompactPose(&RefPose);
+	}
+	else
+	{
+		if(RefPoseSetterHash.IsSet() && (ExpectedHash == RefPoseSetterHash.GetValue()))
+		{
+			return;
+		}
+
+		ControlRig->SetBoneInitialTransformsFromAnimInstanceProxy(InProxy);
+	}
+	
+	RefPoseSetterHash = ExpectedHash;
 }
 
 void FAnimNode_ControlRig::SetIOMapping(bool bInput, const FName& SourceProperty, const FName& TargetCurve)
