@@ -43,8 +43,8 @@ void SDialogueVoicePropertyEditor::Construct( const FArguments& InArgs, const TS
 		TSharedRef<SWidget> AssetWidget =
 			SNew( SAssetDropTarget )
 			.ToolTipText( this, &SDialogueVoicePropertyEditor::OnGetToolTip )
-			.OnIsAssetAcceptableForDrop( this, &SDialogueVoicePropertyEditor::OnIsAssetAcceptableForDrop )
-			.OnAssetDropped( this, &SDialogueVoicePropertyEditor::OnAssetDropped )
+			.OnAreAssetsAcceptableForDrop( this, &SDialogueVoicePropertyEditor::OnIsAssetAcceptableForDrop )
+			.OnAssetsDropped( this, &SDialogueVoicePropertyEditor::OnAssetDropped )
 			[
 				SNew( SBox )
 				.WidthOverride( ThumbnailSizeX ) 
@@ -229,15 +229,15 @@ void SDialogueVoicePropertyEditor::CloseMenu()
 	ComboButton->SetIsOpen(false);
 }
 
-bool SDialogueVoicePropertyEditor::OnIsAssetAcceptableForDrop( const UObject* InObject ) const
+bool SDialogueVoicePropertyEditor::OnIsAssetAcceptableForDrop( TArrayView<FAssetData> InAssets ) const
 {
 	// Only dialogue voice can be dropped 
-	return InObject->IsA( UDialogueVoice::StaticClass() );
+	return Cast<UDialogueVoice>( InAssets[0].GetAsset() ) != nullptr;
 }
 
-void SDialogueVoicePropertyEditor::OnAssetDropped( UObject* Object )
+void SDialogueVoicePropertyEditor::OnAssetDropped( const FDragDropEvent&, TArrayView<FAssetData> InAssets )
 {
-	ReplaceDialogueVoice( CastChecked<UDialogueVoice>(Object) );
+	ReplaceDialogueVoice( CastChecked<UDialogueVoice>(InAssets[0].GetAsset()) );
 }
 
 FText SDialogueVoicePropertyEditor::GetDialogueVoiceDescription() const

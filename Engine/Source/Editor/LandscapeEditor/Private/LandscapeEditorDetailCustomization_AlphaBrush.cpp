@@ -204,8 +204,8 @@ void FLandscapeEditorDetailCustomization_AlphaBrush::CustomizeDetails(IDetailLay
 	.MaxDesiredWidth(0)
 	[
 		SNew(SAssetDropTarget)
-		.OnAssetDropped_Static(&FLandscapeEditorDetailCustomization_AlphaBrush::OnAssetDropped, PropertyHandle_AlphaTexture)
-		.OnIsAssetAcceptableForDrop_Static(&FLandscapeEditorDetailCustomization_AlphaBrush::OnAssetDraggedOver)
+		.OnAssetsDropped_Static(&FLandscapeEditorDetailCustomization_AlphaBrush::OnAssetDropped, PropertyHandle_AlphaTexture)
+		.OnAreAssetsAcceptableForDrop_Static(&FLandscapeEditorDetailCustomization_AlphaBrush::OnAssetDraggedOver)
 		.ToolTipText(PropertyHandle_AlphaTexture->GetToolTipText())
 		[
 			SNew(SHorizontalBox)
@@ -266,16 +266,14 @@ void FLandscapeEditorDetailCustomization_AlphaBrush::CustomizeDetails(IDetailLay
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-bool FLandscapeEditorDetailCustomization_AlphaBrush::OnAssetDraggedOver(const UObject* InObject)
+bool FLandscapeEditorDetailCustomization_AlphaBrush::OnAssetDraggedOver(TArrayView<FAssetData> InAssets)
 {
-	check(InObject);
-
-	return InObject->IsA(UTexture2D::StaticClass());
+	return Cast<UTexture2D>(InAssets[0].GetAsset()) != nullptr;
 }
 
-void FLandscapeEditorDetailCustomization_AlphaBrush::OnAssetDropped(UObject* InObject, TSharedRef<IPropertyHandle> PropertyHandle_AlphaTexture)
+void FLandscapeEditorDetailCustomization_AlphaBrush::OnAssetDropped(const FDragDropEvent&, TArrayView<FAssetData> InAssets, TSharedRef<IPropertyHandle> PropertyHandle_AlphaTexture)
 {
-	ensure(PropertyHandle_AlphaTexture->SetValue(InObject) == FPropertyAccess::Success);
+	ensure(PropertyHandle_AlphaTexture->SetValue(InAssets[0].GetAsset()) == FPropertyAccess::Success);
 }
 
 #undef LOCTEXT_NAMESPACE

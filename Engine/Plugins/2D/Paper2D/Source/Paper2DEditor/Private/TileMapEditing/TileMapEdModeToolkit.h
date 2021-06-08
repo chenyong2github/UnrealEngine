@@ -38,6 +38,7 @@ public:
 	// End of FModeToolkit interface
 
 protected:
+	void OnAssetsDropped(const FDragDropEvent&, TArrayView<FAssetData> InAssets);
 	void OnChangeTileSet(UObject* NewAsset);
 	UObject* GetCurrentTileSet() const;
 
@@ -55,7 +56,7 @@ protected:
 	EVisibility GetTileSetPaletteCornerTextVisibility() const;
 	FReply ClickedOnTileSetPaletteCornerText();
 
-	bool OnAssetDraggedOver(const UObject* InObject) const;
+	bool OnAssetDraggedOver(TArrayView<FAssetData> InAssets) const;
 
 private:
 	class FEdModeTileMap* TileMapEditor;

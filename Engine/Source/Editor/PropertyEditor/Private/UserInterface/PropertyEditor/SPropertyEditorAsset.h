@@ -267,13 +267,13 @@ private:
 	 * @param	OutReason	When returning false, the reason it was not allowed
 	 * @returns true if the object can be dropped
 	 */
-	bool OnAssetDraggedOver( const UObject* InObject, FText& OutReason ) const;
+	bool OnAssetDraggedOver( TArrayView<FAssetData> InAssets, FText& OutReason ) const;
 
 	/** 
 	 * Delegate handling dropping an object on this widget
 	 * @param	InObject	The object we are dropping
 	 */
-	void OnAssetDropped( UObject* InObject );
+	void OnAssetDropped( const FDragDropEvent&, TArrayView<FAssetData> InAssets );
 
 	/** 
 	 * Delegate handling ctrl+c

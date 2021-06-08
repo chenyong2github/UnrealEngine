@@ -96,8 +96,8 @@ void FTileMapEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost
 		+SOverlay::Slot()
 		[
 			SNew(SAssetDropTarget)
-			.OnIsAssetAcceptableForDrop(this, &FTileMapEdModeToolkit::OnAssetDraggedOver)
-			.OnAssetDropped(this, &FTileMapEdModeToolkit::OnChangeTileSet)
+			.OnAreAssetsAcceptableForDrop(this, &FTileMapEdModeToolkit::OnAssetDraggedOver)
+			.OnAssetsDropped(this, &FTileMapEdModeToolkit::OnAssetsDropped)
 			[
 				TileSetPalette.ToSharedRef()
 			]
@@ -189,6 +189,11 @@ void FTileMapEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost
 		];
 
 	FModeToolkit::Init(InitToolkitHost);
+}
+
+void FTileMapEdModeToolkit::OnAssetsDropped(const FDragDropEvent&, TArrayView<FAssetData> InAssets)
+{
+	OnChangeTileSet(InAssets[0].GetAsset());
 }
 
 void FTileMapEdModeToolkit::OnChangeTileSet(UObject* NewAsset)
@@ -398,9 +403,9 @@ FReply FTileMapEdModeToolkit::ClickedOnTileSetPaletteCornerText()
 	return FReply::Handled();
 }
 
-bool FTileMapEdModeToolkit::OnAssetDraggedOver(const UObject* InObject) const
+bool FTileMapEdModeToolkit::OnAssetDraggedOver(TArrayView<FAssetData> InAssets) const
 {
-	return Cast<UPaperTileSet>(InObject) != nullptr;
+	return Cast<UPaperTileSet>(InAssets[0].GetAsset()) != nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
