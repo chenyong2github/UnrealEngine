@@ -831,6 +831,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	StencilDummySRV.SafeRelease();
 	BlackDepthCube.SafeRelease();
 	GTAOPreIntegrated.SafeRelease();
+	AsciiTexture.SafeRelease();
 
 	DefaultTextures.Empty();
 	DefaultBuffers.Empty();
