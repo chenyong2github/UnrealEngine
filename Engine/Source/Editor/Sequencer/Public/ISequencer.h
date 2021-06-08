@@ -203,6 +203,9 @@ public:
 	/** @return Returns the MovieScene that is currently focused for editing by the sequencer.  This can change at any time. */
 	virtual UMovieSceneSequence* GetFocusedMovieSceneSequence() const = 0;
 
+	/**@return Returns the time transform from the focused sequence back to the root*/
+	virtual FMovieSceneSequenceTransform GetFocusedMovieSceneSequenceTransform() const = 0;
+
 	/** @return The root movie scene being used */
 	virtual FMovieSceneSequenceIDRef GetRootTemplateID() const = 0;
 	virtual FMovieSceneSequenceIDRef GetFocusedTemplateID() const = 0;

@@ -841,6 +841,10 @@ UMovieSceneSequence* FSequencer::GetRootMovieSceneSequence() const
 	return RootSequence.Get();
 }
 
+FMovieSceneSequenceTransform FSequencer::GetFocusedMovieSceneSequenceTransform() const
+{
+	return RootToLocalTransform;
+}
 
 UMovieSceneSequence* FSequencer::GetFocusedMovieSceneSequence() const
 {
