@@ -40,7 +40,7 @@ namespace Metasound
 
 		bAlreadyRegisteredThisDataType = true;
 
-		bool bSuccessfullyRegisteredNode = FMetasoundFrontendRegistryContainer::Get()->RegisterExternalNode(
+		Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::Get()->RegisterExternalNode(
 			[](const Metasound::FNodeInitData& InInitData) -> TUniquePtr<Metasound::INode>
 			{
 				return TUniquePtr<Metasound::INode>(new FNodeType(InInitData));
@@ -50,7 +50,8 @@ namespace Metasound
 				return Metasound::Frontend::GenerateClassDescription(InMetadata);
 			}
 		);
-
+			
+		const bool bSuccessfullyRegisteredNode = Frontend::IsValidNodeRegistryKey(Key);
 		ensureAlwaysMsgf(bSuccessfullyRegisteredNode, TEXT("Registering node class failed. Please check the logs."));
 		return bSuccessfullyRegisteredNode;
 	}

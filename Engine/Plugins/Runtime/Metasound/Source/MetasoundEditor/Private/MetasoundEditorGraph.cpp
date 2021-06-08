@@ -139,6 +139,17 @@ Metasound::Frontend::FConstNodeHandle UMetasoundEditorGraphVariable::GetConstNod
 	return GetNodeHandle();
 }
 
+bool UMetasoundEditorGraphVariable::IsRequired() const
+{
+	using namespace Metasound;
+
+	const FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(GetOutermostObject());
+	check(MetasoundAsset);
+	const FMetasoundFrontendArchetype& Archetype = MetasoundAsset->GetArchetype();
+
+	return GetConstNodeHandle()->IsRequired(Archetype);
+}
+
 bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewName, FText& OutError) const
 {
 	using namespace Metasound::Frontend;
@@ -149,15 +160,15 @@ bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewName, FText& Out
 		return false;
 	}
 
-	FConstNodeHandle NodeHandle = GetConstNodeHandle();
-
-	if (NodeHandle->IsRequired())
+	if (IsRequired())
 	{
 		OutError = FText::Format(LOCTEXT("VariableRenameInvalid_VariableRequired", "{0} is required and cannot be renamed."), InNewName);
 		return false;
 	}
 
 	bool bIsNameValid = true;
+
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
 	FConstGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
 	GraphHandle->IterateConstNodes([&](FConstNodeHandle NodeToCompare)
 	{

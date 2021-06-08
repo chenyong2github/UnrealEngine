@@ -342,7 +342,7 @@ namespace Metasound
 			virtual TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FString& InName) const = 0;
 
 			/** Returns true if node is required to satisfy the document archetype. */
-			virtual bool IsRequired() const = 0;
+			virtual bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const = 0;
 
 			/** Returns an input with the given id.
 			 *
@@ -446,6 +446,9 @@ namespace Metasound
 			/** Return the metadata for the current graph. */
 			virtual const FMetasoundFrontendClassMetadata& GetGraphMetadata() const = 0;
 
+			/** Sets the metadata for the current graph. */
+			virtual void SetGraphMetadata(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
+
 			/** Return the display name of the graph. */
 			virtual const FText& GetDisplayName() const = 0;
 
@@ -466,6 +469,12 @@ namespace Metasound
 
 			/** Returns all output nodes in the graph. */
 			virtual TArray<FNodeHandle> GetOutputNodes() = 0;
+
+			// Returns graph style.
+			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const = 0;
+
+			// Sets graph style.
+			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) = 0;
 
 			/** Returns all output nodes in the graph. */
 			virtual TArray<FConstNodeHandle> GetConstOutputNodes() const = 0;
@@ -695,12 +704,6 @@ namespace Metasound
 
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
-
-			/** Returns an array of inputs which describe the required inputs needed to satisfy the document archetype. */
-			virtual const TArray<FMetasoundFrontendClassVertex>& GetRequiredInputs() const = 0;
-
-			/** Returns an array of outputs which describe the required outputs needed to satisfy the document archetype. */
-			virtual const TArray<FMetasoundFrontendClassVertex>& GetRequiredOutputs() const = 0;
 
 			// TODO: add info on environment variables. 
 			// TODO: consider find/add subgraph

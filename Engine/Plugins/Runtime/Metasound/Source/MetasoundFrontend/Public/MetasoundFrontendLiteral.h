@@ -83,6 +83,9 @@ public:
 	// Returns true if the literal is in a valid state (Type != EMetasoundFrontendLiteralType::Invalid)
 	bool IsValid() const;
 
+	bool TryGet(UObject*& OutValue) const;
+	bool TryGet(TArray<UObject*>& OutValue) const;
+
 	// Sets the literal to the given type and value to default;
 	void SetType(EMetasoundFrontendLiteralType InType);
 

@@ -652,7 +652,7 @@ namespace Metasound
 			AddDataTypeSelector(DetailLayout, VariableCustomizationPrivate::DataTypeNameText, GraphVariable, bIsRequired);
 
 			CategoryBuilder.AddCustomRow(LOCTEXT("InputPrivate", "Private"))
-			.Visibility(TAttribute<EVisibility>(this, &FMetasoundInputDetailCustomization::ExposePrivateVisibility))
+			.Visibility(TAttribute<EVisibility>(EVisibility::Hidden))
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -932,7 +932,7 @@ namespace Metasound
 			AddDataTypeSelector(DetailLayout, VariableCustomizationPrivate::DataTypeNameText, GraphVariable, bIsRequired);
 
 			CategoryBuilder.AddCustomRow(LOCTEXT("OutputPrivate", "Private"))
-			.Visibility(TAttribute<EVisibility>(this, &FMetasoundOutputDetailCustomization::ExposePrivateVisibility))
+			.Visibility(TAttribute<EVisibility>(EVisibility::Hidden))
 			.NameContent()
 			[
 				SNew(STextBlock)

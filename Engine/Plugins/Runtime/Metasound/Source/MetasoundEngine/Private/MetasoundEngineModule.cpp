@@ -21,12 +21,13 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		Metasound::IMetasoundUObjectRegistry::RegisterUClassArchetype<UMetaSound>(TEXT(""));
 
 		// Register preferred archetypes
+		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetaSound>();
 		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetaSoundSource>();
 
-		// flush node regsitration queue
+		// flush node registration queue
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
 
-		FModuleManager::Get().LoadModuleChecked(TEXT("AudioCodecEngine"));
+		FModuleManager::Get().LoadModuleChecked("AudioCodecEngine");
 
 		UE_LOG(LogMetasoundEngine, Log, TEXT("Metasound Engine Initialized"));
 	}

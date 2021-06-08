@@ -452,7 +452,7 @@ public:
 
 	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
 	{
-// 		Metasound::Editor::InputPrivate::ConvertLiteral<UObject*>(InLiteral, Default.Object);
+		ensure(InLiteral.TryGet(Default.Object));
 	}
 
 	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const override
@@ -489,7 +489,10 @@ public:
 
 	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override
 	{
-// 		Metasound::Editor::InputPrivate::ConvertLiteralToArray<UObject*, FMetasoundEditorGraphInputObjectRef>(InLiteral, Default);
+		TArray<UObject*> ObjectArray;
+		ensure(InLiteral.TryGet(ObjectArray));
+
+		Algo::Transform(ObjectArray, Default, [](UObject* InValue) { return FMetasoundEditorGraphInputObjectRef { InValue }; });
 	}
 
 	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const override

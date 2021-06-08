@@ -164,7 +164,7 @@ namespace Metasound
 			if (ensure(nullptr != Registry))
 			{
 				bool bSuccess = Registry->FindFrontendClassFromRegistered(InNodeInfo, OutClass);
-				ensureAlwaysMsgf(bSuccess, TEXT("Cannot generate description of unregistered node [NodeClassName:%s]"), *InNodeInfo.LookupKey.NodeClassFullName.ToString());
+				ensureAlwaysMsgf(bSuccess, TEXT("Cannot generate description of unregistered node [RegistryKey:%s]"), *InNodeInfo.LookupKey);
 			}
 
 			return OutClass;

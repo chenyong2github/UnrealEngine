@@ -13,12 +13,26 @@
 
 #include "MetasoundSource.generated.h"
 
+
+namespace Metasound
+{
+	namespace ConsoleVariables
+	{
+		static float BlockRate = 100.f;
+	}
+} // namespace Metasound
+
 /** Declares the output audio format of the UMetaSoundSource */
 UENUM()
 enum class EMetasoundSourceAudioFormat : uint8
 {
-	Mono,  //< Mono audio output.
-	Stereo //< Stereo audio output.
+	// Mono audio output
+	Mono,
+
+	// Stereo audio output
+	Stereo,
+
+	COUNT UMETA(Hidden)
 };
 
 UCLASS()
@@ -46,6 +60,9 @@ protected:
 	FMetasoundFrontendDocument RootMetasoundDocument;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(AssetRegistrySearchable)
+	FMetasoundFrontendClassAssetTags AssetTags;
+
 	UPROPERTY()
 	UMetasoundEditorGraphBase* Graph;
 #endif // WITH_EDITORONLY_DATA
@@ -57,7 +74,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Metasound)
 	EMetasoundSourceAudioFormat OutputFormat;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	// Returns document name (for editor purposes, and avoids making document public for edit
 	// while allowing editor to reference directly)
 	static FName GetDocumentPropertyName()
@@ -65,32 +82,16 @@ public:
 		return GET_MEMBER_NAME_CHECKED(UMetaSoundSource, RootMetasoundDocument);
 	}
 
-	virtual void PostEditUndo() override;
+	// Name to display in editors
+	virtual FText GetDisplayName() const override;
 
 	// Returns the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
 	// @return Editor graph associated with UMetaSoundSource.
-	virtual UEdGraph* GetGraph() override
-	{
-		return Graph;
-	}
-
-	virtual const UEdGraph* GetGraph() const override
-	{
-		return Graph;
-	}
-
-	virtual UEdGraph& GetGraphChecked() override
-	{
-		check(Graph);
-		return *Graph;
-	}
-
-	virtual const UEdGraph& GetGraphChecked() const override
-	{
-		check(Graph);
-		return *Graph;
-	}
+	virtual UEdGraph* GetGraph() override;
+	virtual const UEdGraph* GetGraph() const override;
+	virtual UEdGraph& GetGraphChecked() override;
+	virtual const UEdGraph& GetGraphChecked() const override;
 
 	// Sets the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
@@ -99,6 +100,11 @@ public:
 	{
 		Graph = CastChecked<UMetasoundEditorGraphBase>(InGraph);
 	}
+#endif // #if WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
+	virtual void PostEditUndo() override;
 
 	virtual bool GetRedrawThumbnail() const override
 	{
@@ -114,9 +120,16 @@ public:
 		return false;
 	}
 
-	void PostEditChangeProperty(FPropertyChangedEvent& InEvent);
-
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
+
+	virtual const FMetasoundFrontendArchetype& GetArchetype() const override;
+
+	// If set to be a preset, converts to a full-access MetaSound,
+	// removing edit restrictions and excluding it from automatic
+	// interface versioning.
+	UFUNCTION(Category = Metasound, meta = (CallInEditor = "true"))
+	void ConvertFromPreset();
 
 	UObject* GetOwningAsset() override
 	{
@@ -128,17 +141,16 @@ public:
 		return this;
 	}
 
-	bool IsPlayable() const override;
-	bool SupportsSubtitles() const override;
-	float GetDuration() override;
-	ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
-	TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const override;
+	virtual bool IsPlayable() const override;
+	virtual bool SupportsSubtitles() const override;
+	virtual float GetDuration() override;
+	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
+	virtual TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const override;
 
 	// Get the most up to date archetype for metasound sources.
-	const TArray<FMetasoundFrontendArchetype>& GetPreferredMetasoundArchetypes() const override;
+	const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const override;
 
 protected:
-
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
 	{
 		using namespace Metasound::Frontend;
@@ -156,23 +168,7 @@ protected:
 	}
 
 private:
-	struct FSendInfoAndVertexName
-	{
-		Metasound::FMetasoundInstanceTransmitter::FSendInfo SendInfo;
-		FString VertexName;
-	};
-
-	bool GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const;
-	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
-	bool CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const;	
-	TArray<FString> GetTransmittableInputVertexNames() const;
 	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
-	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const;
-	
-
-
-	TArray<FSendInfoAndVertexName> GetSendInfos(uint64 InInstanceID) const;
-
 
 	static const FString& GetOnPlayInputName();
 	static const FString& GetAudioOutputName();

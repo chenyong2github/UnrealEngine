@@ -145,7 +145,7 @@ namespace Metasound
 			{
 				static_assert(std::is_base_of<FMetasoundAssetBase, UClassType>::value, "UClass must be derived from FMetasoundAssetBase");
 
-				const TArray<FMetasoundFrontendArchetype>& PreferredArchetypes = GetDefault<UClassType>()->GetPreferredMetasoundArchetypes();
+				const TArray<FMetasoundFrontendArchetype>& PreferredArchetypes = GetDefault<UClassType>()->GetPreferredArchetypes();
 
 				for (const FMetasoundFrontendArchetype& Arch : PreferredArchetypes)
 				{
@@ -171,15 +171,16 @@ namespace Metasound
 			/** Returns all UClasses registered to the archetype name. */
 			virtual TArray<UClass*> GetUClassesForArchetype(const FName& InArchetypeName) const = 0;
 
-			/** Creates a new object from a metasound doucment.
+			/** Creates a new object from a metasound document.
 			 *
 			 * @param InClass - A registered UClass to create.
-			 * @param InDocucument - The FMetasoundFrontendDocument to use when creating the class.
+			 * @param InDocument - The FMetasoundFrontendDocument to use when creating the class.
+			 * @param InArchetype - The FMetasoundFrontendArchetype to use when creating the class.
 			 * @param InPath - If in editor, the created asset will be stored at this content path.
 			 *
 			 * @return A new object. A nullptr on error.
 			 */
-			virtual UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const = 0;
+			virtual UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FMetasoundFrontendArchetype& InArchetype, const FString& InPath) const = 0;
 
 			/** Returns true if the InObject is of a class or child class which is registered. */
 			virtual bool IsRegisteredClass(UObject* InObject) const = 0;

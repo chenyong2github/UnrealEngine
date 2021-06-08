@@ -2,7 +2,7 @@
 #include "MetasoundFrontendTransform.h"
 
 #include "MetasoundFrontendDocument.h"
-
+#include "MetasoundLog.h"
 
 namespace Metasound
 {
@@ -18,8 +18,8 @@ namespace Metasound
 			bool bDidEdit = false;
 			FGraphHandle Graph = InDocument->GetRootGraph();
 
-			TArray<FMetasoundFrontendClassVertex> RequiredInputs = InDocument->GetRequiredInputs();
-			TArray<FMetasoundFrontendClassVertex> RequiredOutputs = InDocument->GetRequiredOutputs();
+			const TArray<FMetasoundFrontendClassVertex>& RequiredInputs = Archetype.Interface.Inputs;
+			const TArray<FMetasoundFrontendClassVertex>& RequiredOutputs = Archetype.Interface.Outputs;
 
 			// Go through each input and add or swap if something is missing.
 			for (const FMetasoundFrontendClassVertex& RequiredInput : RequiredInputs)
@@ -102,6 +102,7 @@ namespace Metasound
 					NewMetadata.Version.Number = GetTargetVersion();
 					InDocument->SetMetadata(NewMetadata);
 
+					UE_LOG(LogMetaSound, Display, TEXT("Versioned MetaSound Document to %s"), *Metadata.Version.Number.ToString());
 					return true;
 				}
 		};
@@ -112,7 +113,7 @@ namespace Metasound
 		public:
 			FMetasoundFrontendVersionNumber GetTargetVersion() const override
 			{
-				return FMetasoundFrontendVersionNumber { 1, 1 };
+				return { 1, 1 };
 			}
 
 			void TransformInternal(FDocumentHandle InDocument) const override
@@ -157,6 +158,43 @@ namespace Metasound
 			}
 		};
 
+		/** Versions document from 1.1 to 1.2. */
+		class FVersionDocument_1_2 : public FVersionDocumentTransform
+		{
+		private:
+			const FName Name;
+			const FString& Path;
+
+		public:
+			FVersionDocument_1_2(const FName InName, const FString& InPath)
+				: Name(InName)
+				, Path(InPath)
+			{
+			}
+
+			FMetasoundFrontendVersionNumber GetTargetVersion() const override
+			{
+				return FVersionDocument::GetMaxVersion();
+			}
+
+			void TransformInternal(FDocumentHandle InDocument) const override
+			{
+				FGraphHandle GraphHandle = InDocument->GetRootGraph();
+				FMetasoundFrontendClassMetadata Metadata = GraphHandle->GetGraphMetadata();
+
+				Metadata.ClassName = FMetasoundFrontendClassName { "GraphAsset", Name, *Path };
+				Metadata.DisplayName = FText::FromString(Name.ToString());
+
+				GraphHandle->SetGraphMetadata(Metadata);
+			}
+		};
+
+		FVersionDocument::FVersionDocument(FName InName, const FString& InPath)
+			: Name(InName)
+			, Path(InPath)
+		{
+		}
+
 		bool FVersionDocument::Transform(FDocumentHandle InDocument) const
 		{
 			if (!ensure(InDocument->IsValid()))
@@ -168,7 +206,7 @@ namespace Metasound
 
 			// Add additional transforms here after defining them above, example below.
 			bWasUpdated |= FVersionDocument_1_1().Transform(InDocument);
-
+			bWasUpdated |= FVersionDocument_1_2(Name, Path).Transform(InDocument);
 			return bWasUpdated;
 		}
 	} // namespace Frontend

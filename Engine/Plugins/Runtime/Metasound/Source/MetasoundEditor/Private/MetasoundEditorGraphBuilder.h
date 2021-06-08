@@ -132,7 +132,11 @@ namespace Metasound
 			static FLinearColor GetPinCategoryColor(const FEdGraphPinType& PinType);
 
 			// Initializes MetaSound with default inputs & outputs.
-			static void InitMetaSound(UObject& InMetaSound, const FString& InAuthor);
+			static void InitMetaSound(UObject& InMetaSound, const FString& InAuthor, bool bConformToArchetype = true);
+
+			// Initializes a MetaSound Preset using the provided ReferencedMetaSound asset's
+			// root graph as the sole, encapsulated topology.
+			static void InitMetaSoundPreset(const UObject& InMetaSoundReferenced, UObject& InMetaSoundPreset);
 
 			// Rebuilds all editor node pins based on the provided node handle's class definition.
 			static void RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode);

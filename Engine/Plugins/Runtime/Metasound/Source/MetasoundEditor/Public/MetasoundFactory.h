@@ -8,23 +8,36 @@
 
 #include "MetasoundFactory.generated.h"
 
-// TODO: Re-enable and potentially rename once composition is supported
-// UCLASS(hidecategories=Object, MinimalAPI)
-// class UMetasoundFactory : public UFactory
-// {
-// 	GENERATED_UCLASS_BODY()
-// 
-// 	//~ Begin UFactory Interface
-// 	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext) override;
-// 	//~ Begin UFactory Interface
-// };
+class UMetaSound;
+class UMetaSoundSource;
+
+UCLASS(abstract)
+class UMetaSoundBaseFactory : public UFactory
+{
+	GENERATED_UCLASS_BODY()
+
+	// Set to initialize MetaSound type as Preset,
+	// using the provided MetaSound as a Reference
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> ReferencedMetaSoundObject;
+};
+
+UCLASS(hidecategories=Object, MinimalAPI)
+class UMetaSoundFactory : public UMetaSoundBaseFactory
+{
+	GENERATED_UCLASS_BODY()
+ 
+	//~ Begin UFactory Interface
+	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags InFlags, UObject* InContext, FFeedbackContext* InFeedbackContext) override;
+	//~ Begin UFactory Interface
+ };
 
 UCLASS(hidecategories = Object, MinimalAPI)
-class UMetasoundSourceFactory : public UFactory
+class UMetaSoundSourceFactory : public UMetaSoundBaseFactory
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UFactory Interface
-	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext) override;
+	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags InFlags, UObject* InContext, FFeedbackContext* InFeedbackContext) override;
 	//~ Begin UFactory Interface
 };
