@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RHI.h"
 #include "RenderGraphResources.h"
+#include "MeshPassProcessor.h"
 
 struct FInstanceCullingResult;
 class FGPUScene;
@@ -170,6 +171,14 @@ public:
 		FInstanceCullingManager& InstanceCullingManager);
 
 	static bool AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene);
+
+	void SetupDrawCommands(
+		FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
+		bool bCompactIdenticalCommands,
+		// Stats
+		int32& MaxInstancesOut,
+		int32& VisibleMeshDrawCommandsNumOut,
+		int32& NewPassVisibleMeshDrawCommandsNumOut);
 
 	// GPUCULL_TODO: These should not be dynamically heap-allocated, all except instance runs are easy to pre-size on memstack.
 	//           Must be presized as populated from task threads.

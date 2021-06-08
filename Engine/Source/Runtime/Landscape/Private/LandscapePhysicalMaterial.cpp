@@ -17,6 +17,7 @@
 #include "RenderTargetPool.h"
 #include "RHIResources.h"
 #include "SceneRenderTargetParameters.h"
+#include "InstanceCulling/InstanceCullingContext.h"
 
 DECLARE_GPU_STAT_NAMED(LandscapePhysicalMaterial_Draw, TEXT("LandscapePhysicalMaterial"));
 
