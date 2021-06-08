@@ -3342,7 +3342,13 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 			HairGroupsCards[DescIndex].ProceduralMesh = FHairStrandsCore::CreateStaticMesh(PackageName, SuffixName);
 		}
 
-		FHairCardsBuilder::ExportGeometry(Q.Data, HairGroupsCards[DescIndex].ProceduralMesh);
+		// Convert procedural cards data to cards data prior to export
+		FHairCardsDatas CardData;
+		{
+			CardData.Cards = Q.ProceduralData.Cards;
+		}
+
+		FHairCardsBuilder::ExportGeometry(CardData, HairGroupsCards[DescIndex].ProceduralMesh);
 		FHairStrandsCore::SaveAsset(HairGroupsCards[DescIndex].ProceduralMesh);
 		HairGroupsCards[DescIndex].ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(this, *Desc);
 	}
