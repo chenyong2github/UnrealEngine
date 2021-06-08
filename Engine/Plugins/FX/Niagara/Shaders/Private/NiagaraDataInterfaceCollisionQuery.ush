@@ -133,7 +133,7 @@ void NDICollisionQuery_QueryMeshDistanceFieldGPU(in float3 In_SamplePos, out flo
 #if PLATFORM_SUPPORTS_DISTANCE_FIELDS && (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 	Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);
 	Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);
-	Out_IsDistanceFieldValid = MaxGlobalDistance > 0 && !(Out_DistanceToNearestSurface > 0 && Out_FieldGradient == float3(0,0,0));
+	Out_IsDistanceFieldValid = (MaxGlobalDistance > 0) && (Out_DistanceToNearestSurface > 0) && !all(Out_FieldGradient == float3(0,0,0));
 #else
 	Out_DistanceToNearestSurface = 0;
 	Out_FieldGradient = (float3)0;
