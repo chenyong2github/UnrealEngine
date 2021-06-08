@@ -1627,18 +1627,16 @@ int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAct
 	int32 TotalWeight = 0;
 
 	// Some simple weight figures to help find the most appropriate match
-	const float KeywordWeight = 10.f;
-	const float DescriptionWeight = 5.f;
+	const float KeywordWeight = 3.f;
 	const float DisplayNameWeight = 30.f;
 	const float CategoryWeight = 40.f;
-	const int32 PartialMatchExponent = 2;
 	const int32 ConsecutiveMatchExponent = 3;
 	const int32 WholeMatchExponent = 4;
 
-	const float WordContainsLetterWeightMultiplier = 0.5f;
+	const float WordContainsTermBonusWeightMultiplier = 0.5f;
 	const float StartsWithBonusWeightMultiplier = 10.f;
-	const float AlsoEndsWithBonusWeightMultiplier = 50.f;
-	const float ShorterWeight = 15.f;
+	const float EqualsBonusWeightMultiplier = 50.f;
+	const float ShorterWeight = 3.f;
 
 	FString FilterText;
 
@@ -1686,21 +1684,22 @@ int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAct
 	InCurrentAction->Keywords.ToString().ParseIntoArray(KeywordsArray, TEXT(" "), true);
 	WeightedArrayList.Add(FArrayWithWeight(&KeywordsArray, KeywordWeight));
 
-	// The categories
-	TArray<FString> CategoryArray = InCurrentAction->Categories;
-	WeightedArrayList.Add(FArrayWithWeight(&CategoryArray, CategoryWeight, 5, IsEqual));
-
+	// Category + DisplayName. Used so that exact hits can still be used for the display name alone, but category + displayname still results in a combo hit.
+	TArray<FString> CategoryDisplayNameArray = InCurrentAction->Categories;
+	CategoryDisplayNameArray.Append(DisplayNameArray);
+    WeightedArrayList.Add(FArrayWithWeight(&CategoryDisplayNameArray, CategoryWeight, 20, StartsWith));
+	
 	// Now iterate through all the filter terms and calculate a 'weight' using the values and multipliers
-	const FString* EachTerm = nullptr;
+	const FString* FilterTerm = nullptr;
 
 	// Now check the weighted lists	(We could further improve the hit weight by checking consecutive word matches)
-	for (int32 iFindCount = 0; iFindCount < WeightedArrayList.Num(); ++iFindCount)
+	for (int32 KeywordArrayIndex = 0; KeywordArrayIndex < WeightedArrayList.Num(); ++KeywordArrayIndex)
 	{
-		const TArray<FString>& KeywordArray = *WeightedArrayList[iFindCount].Array;
+		const TArray<FString>& KeywordArray = *WeightedArrayList[KeywordArrayIndex].Array;
 		float WeightPerList = 0.0f;
-		float KeywordArrayWeight = WeightedArrayList[iFindCount].Weight;
-		int32 FirstTermMultiplier = WeightedArrayList[iFindCount].FirstTermMultiplier;
-		EWordMatchStyle WordMatchStyle = WeightedArrayList[iFindCount].ConsecutiveMatchStyle;
+		float KeywordArrayWeight = WeightedArrayList[KeywordArrayIndex].Weight;
+		int32 FirstTermMultiplier = WeightedArrayList[KeywordArrayIndex].FirstTermMultiplier;
+		EWordMatchStyle WordMatchStyle = WeightedArrayList[KeywordArrayIndex].ConsecutiveMatchStyle;
 
 		FString FullKeyword;
 
@@ -1725,9 +1724,9 @@ int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAct
 			if(LastMatchingIndex - PreviousLastMatchingIndex == 1)
 			{
 				ConsecutiveWordMatchCount++;
-			}
+			}			
 		};
-		
+
 		// The number of characters in this keyword array
 		int32 KeywordArrayCharLength = 0;
 		
@@ -1737,53 +1736,63 @@ int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAct
 			// we exclude any word from appearing more than once
 			TSet<FString> UsedWords;
 			
-			EachTerm = &InFilterTerms[FilterIndex];
-			int32 TermLen = EachTerm->Len();
+			FilterTerm = &InFilterTerms[FilterIndex];
+
+			float MaxWeightOfKeywords = INDEX_NONE;
+			EWordMatchStyle MaxFoundMatchStyle = EWordMatchStyle::Contains;
+
+			auto CalculateSupersedingMatch = [&](float IterativeWeight, EWordMatchStyle IterativeFoundWordMatchStyle)
+			{
+				// for a superseding match, the found match style needs to at least be the word match style of the array
+				if(IterativeFoundWordMatchStyle >= WordMatchStyle)
+				{
+					// we only accept the new match if its iterative weight is actually higher
+					if(IterativeWeight >= MaxWeightOfKeywords)
+					{
+						MaxWeightOfKeywords = IterativeWeight;
+						MaxFoundMatchStyle = IterativeFoundWordMatchStyle;
+					}
+				}
+			};
 			
-			for (int32 iEachWord = 0; iEachWord < KeywordArray.Num(); ++iEachWord)
+			for (int32 KeywordIndex = 0; KeywordIndex < KeywordArray.Num(); ++KeywordIndex)
 			{
 				// Keep track of how long all the words in the array are
-				KeywordArrayCharLength += KeywordArray[iEachWord].Len();
-				if(UsedWords.Contains(KeywordArray[iEachWord]))
+
+				const FString& Keyword = KeywordArray[KeywordIndex];
+				KeywordArrayCharLength += Keyword.Len();
+				if(UsedWords.Contains(Keyword))
 				{
 					continue;
 				}
 
-				UsedWords.Add(KeywordArray[iEachWord]);
-								
-				if (KeywordArray[iEachWord].Contains(*EachTerm, ESearchCase::IgnoreCase))
-				{					
-					WeightPerList += KeywordArrayWeight * WordContainsLetterWeightMultiplier;
-
-					if(WordMatchStyle == Contains)
-					{
-						++WordMatchCount;
-						CalculateConsecutive(FilterIndex);
-					}
+				UsedWords.Add(Keyword);
+				
+				if (Keyword.Contains(*FilterTerm, ESearchCase::IgnoreCase))
+				{
+					CalculateSupersedingMatch(KeywordArrayWeight * WordContainsTermBonusWeightMultiplier, Contains);
 					
 					// If the word starts with the term, give it a little extra boost of weight
-					if (KeywordArray[iEachWord].StartsWith(*EachTerm, ESearchCase::IgnoreCase))
-					{
-						WeightPerList += KeywordArrayWeight * StartsWithBonusWeightMultiplier;
-
-						if(WordMatchStyle == StartsWith)
-						{
-							++WordMatchCount;
-							CalculateConsecutive(FilterIndex);
-						}
-
-						// additional boost if it also ends with the term (= usually means they are equal)
-						if(KeywordArray[iEachWord].EndsWith(*EachTerm, ESearchCase::IgnoreCase))
-						{
-							WeightPerList += KeywordArrayWeight * AlsoEndsWithBonusWeightMultiplier;
-
-							if(WordMatchStyle == IsEqual)
-							{
-								++WordMatchCount;
-								CalculateConsecutive(FilterIndex);
-							}
-						}
+					if (Keyword.StartsWith(*FilterTerm, ESearchCase::IgnoreCase))
+					{					
+						CalculateSupersedingMatch(KeywordArrayWeight * StartsWithBonusWeightMultiplier, StartsWith);						
 					}
+					
+					if(Keyword.Equals(*FilterTerm, ESearchCase::IgnoreCase))
+					{									
+						CalculateSupersedingMatch(KeywordArrayWeight * EqualsBonusWeightMultiplier, IsEqual);
+					}
+				}
+			}
+
+			if(MaxWeightOfKeywords != INDEX_NONE)
+			{
+				// if the match style that applies is 'stricter' than the required match style of the array, we consider it a hit
+				if(MaxFoundMatchStyle >= WordMatchStyle)
+				{
+					WordMatchCount++;
+					CalculateConsecutive(FilterIndex);
+					WeightPerList += MaxWeightOfKeywords;
 				}
 			}
 
@@ -1793,26 +1802,32 @@ int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAct
 				WeightPerList *= FirstTermMultiplier;
 			}
 		}
-		
-		// If the user has dragged off of a pin then do not prefer shorter things, because that will result
-		// in the matching of "Add" for a container instead of "+" for numeric types
-		if (KeywordArrayCharLength > 0)
-		{			
-			// The longer the match is, the more points it loses
-			float ShortWeight = KeywordArrayCharLength * ShorterWeight;
-			WeightPerList -= ShortWeight;
-		}
 
-		WeightPerList += FMath::Pow(WordMatchCount * KeywordArrayWeight, 3);
-
-		WeightPerList += FMath::Pow(ConsecutiveWordMatchCount * KeywordArrayWeight, ConsecutiveMatchExponent);
-
-		if(FilterText.Equals(FullKeyword, ESearchCase::IgnoreCase))
+		if(WeightPerList > 0)
 		{
-			WeightPerList += FMath::Pow(KeywordArrayWeight, WholeMatchExponent);
+			if (KeywordArrayCharLength > 0)
+			{			
+				// The longer the match is, the more points it loses
+				float ShortWeight = KeywordArrayCharLength * ShorterWeight;
+				WeightPerList -= ShortWeight;
+				// WeightPerList could be negative if the shortweight subtraction is executed
+				WeightPerList = FMath::Max(WeightPerList, 0.f);
+			}
+
+			WeightPerList += FMath::Pow(WordMatchCount * KeywordArrayWeight, 2);
+
+			WeightPerList += FMath::Pow(ConsecutiveWordMatchCount * KeywordArrayWeight, ConsecutiveMatchExponent);
+
+			if(FilterText.Equals(FullKeyword, ESearchCase::IgnoreCase))
+			{
+				WeightPerList += FMath::Pow(KeywordArrayWeight, WholeMatchExponent);
+			}
+
+			WeightPerList *= InCurrentAction->SearchWeightMultiplier;
+
+			
+			TotalWeight += WeightPerList;
 		}
-		
-		TotalWeight += WeightPerList;
 	}
 
 	// parameter actions get favored
@@ -1828,7 +1843,7 @@ int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAct
 		TotalWeight += FMath::Pow(10, 4);
 	}
 	
-	return TotalWeight;
+	return TotalWeight > 0.f ? TotalWeight : INDEX_NONE;
 }
 
 bool FNiagaraEditorUtilities::DoesItemMatchFilterText(const FText& FilterText, const TSharedPtr<FNiagaraMenuAction_Generic>& Item)

@@ -44,13 +44,14 @@ void FNiagaraMenuAction::SetParameterVariable(const FNiagaraVariable& InParamete
 }
 
 FNiagaraMenuAction_Base::FNiagaraMenuAction_Base(FText InDisplayName, ENiagaraMenuSections InSection,
-	TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
+	TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier)
 {
 	DisplayName = InDisplayName;
 	Section = InSection;
 	Categories = InNodeCategories;
 	ToolTip = InToolTip;
 	Keywords = InKeywords;
+	SearchWeightMultiplier = InIntrinsicWeightMultiplier;
 
 	UpdateFullSearchText();
 }
