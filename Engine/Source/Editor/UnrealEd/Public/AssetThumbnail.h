@@ -276,11 +276,12 @@ private:
 	 * Assign a thumbnail from its render target and re-render it if necessary.
 	 *
 	 * @param ThumbnailInfo The thumbnail info to assign a texture to
+	 * @param bIsAssetStillCompiling If the asset we want to load the thumbnail is compiling, this flag will be set to true, it wont be touch in other cases.
 	 * @param CustomAssetToRender The asset to render when generating the texture
 	 *
 	 * @return true if the thumbnail was assigned to a valid texture
 	 */
-	bool LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo, const FAssetData& CustomAssetToRender = FAssetData());
+	bool LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo, bool& bIsAssetStillCompiling, const FAssetData& CustomAssetToRender = FAssetData());
 
 	struct FThumbnailInfo_RenderThread
 	{
