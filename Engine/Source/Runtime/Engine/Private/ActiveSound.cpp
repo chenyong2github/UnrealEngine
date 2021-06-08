@@ -134,6 +134,15 @@ FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundT
 	ActiveSound->AudioDevice = &InAudioDevice;
 	ActiveSound->PlaybackTimeNonVirtualized = 0.0f;
 
+	// If we are the restart virtual mode, we need to reset our sound cue parse state and our playback time.
+	USoundBase* Sound = InActiveSoundToCopy.GetSound();
+	check(Sound);
+	if (Sound->VirtualizationMode == EVirtualizationMode::Restart)
+	{
+		ActiveSound->SoundNodeOffsetMap.Reset();
+		ActiveSound->PlaybackTime = 0.0f;
+	}
+
 	// If volume concurrency tracking is enabled, reset the value,
 	// otherwise keep disabled
 	if (InActiveSoundToCopy.VolumeConcurrency >= 0.0f)
