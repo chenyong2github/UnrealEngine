@@ -11,6 +11,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using EpicGames.Core;
 using System.Diagnostics.CodeAnalysis;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {

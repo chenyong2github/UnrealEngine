@@ -13,6 +13,7 @@ using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using System.Reflection;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {

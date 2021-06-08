@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using EpicGames.Core;
 using System.Text.Json.Serialization;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {

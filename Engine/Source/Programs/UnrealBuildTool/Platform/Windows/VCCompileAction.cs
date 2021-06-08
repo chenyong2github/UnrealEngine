@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 

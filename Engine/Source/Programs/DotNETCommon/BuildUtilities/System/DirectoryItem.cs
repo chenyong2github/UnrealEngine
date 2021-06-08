@@ -10,12 +10,12 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
-namespace UnrealBuildTool
+namespace UnrealBuildBase
 {
 	/// <summary>
 	/// Stores the state of a directory. May or may not exist.
 	/// </summary>
-	class DirectoryItem
+	public class DirectoryItem
 	{
 		/// <summary>
 		/// Full path to the directory on disk
@@ -334,7 +334,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Helper functions for serialization
 	/// </summary>
-	static class DirectoryItemExtensionMethods
+	public static class DirectoryItemExtensionMethods
 	{
 		/// <summary>
 		/// Read a directory item from a binary archive

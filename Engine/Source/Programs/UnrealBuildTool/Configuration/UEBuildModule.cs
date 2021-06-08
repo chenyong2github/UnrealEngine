@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
 using EpicGames.Core;
-
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
