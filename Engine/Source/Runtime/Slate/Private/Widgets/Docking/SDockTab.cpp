@@ -416,6 +416,11 @@ void SDockTab::SetOnPersistVisualState( const FOnPersistVisualState& Handler )
 	OnPersistVisualState = Handler;
 }
 
+void SDockTab::SetOnExtendContextMenu( const FExtendContextMenu& Handler )
+{
+	OnExtendContextMenu = Handler;
+}
+
 void SDockTab::SetCanCloseTab( const FCanCloseTab& InOnTabClosing )
 {
 	OnCanCloseTab = InOnTabClosing;
@@ -537,6 +542,7 @@ void SDockTab::Construct( const FArguments& InArgs )
 	this->OnTabClosed = InArgs._OnTabClosed;
 	this->OnCanCloseTab = InArgs._OnCanCloseTab;
 	this->OnPersistVisualState = InArgs._OnPersistVisualState;
+	this->OnExtendContextMenu = InArgs._OnExtendContextMenu;
 	this->TabLabel = InArgs._Label;
 	this->TabLabelSuffix = InArgs._LabelSuffix;
 	this->bShouldAutosize = InArgs._ShouldAutosize;
@@ -795,6 +801,10 @@ const FSlateBrush* SDockTab::GetFlashOverlayImageBrush() const
 	return FStyleDefaults::GetNoBrush();
 }
 
+void SDockTab::ExtendContextMenu(FMenuBuilder& MenuBuilder)
+{
+	OnExtendContextMenu.ExecuteIfBound(MenuBuilder);
+}
 
 FSlateColor SDockTab::GetFlashColor() const
 {

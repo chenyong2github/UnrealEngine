@@ -685,6 +685,12 @@ TSharedRef<SWidget> SDockingTabStack::MakeContextMenu()
 			);
 		}
 		MenuBuilder.EndSection();
+
+		TSharedPtr<SDockTab> ForegroundTab = TabWell->GetForegroundTab();
+		if (ForegroundTab.IsValid())
+		{
+			ForegroundTab->ExtendContextMenu(MenuBuilder);
+		}
 	}
 
 	return MenuBuilder.MakeWidget();

@@ -40,6 +40,8 @@ enum ETabActivationCause : uint8
 	SetDirectly
 };
 
+class FMenuBuilder;
+
 /**
  * A tab widget that also holds on to some content that should be shown when this tab is selected.
  * Intended to be used in conjunction with SDockingTabStack.
@@ -64,6 +66,9 @@ public:
 
 	/** Delegate called before a tab is closed.  Returning false will prevent the tab from closing */
 	DECLARE_DELEGATE_RetVal( bool, FCanCloseTab );
+
+	/** Invoked to add entries to the tab context menu */
+	DECLARE_DELEGATE_OneParam(FExtendContextMenu, FMenuBuilder&);
 
 	SLATE_BEGIN_ARGS(SDockTab)
 		: _Content()
@@ -104,6 +109,7 @@ public:
 		SLATE_ARGUMENT( bool, ShouldAutosize )
 		SLATE_EVENT( FCanCloseTab, OnCanCloseTab )
 		SLATE_EVENT( FOnPersistVisualState, OnPersistVisualState )
+		SLATE_EVENT( FExtendContextMenu, OnExtendContextMenu )
 		/** Invoked when a tab is closed from a drawer. This does not mean the tab or its contents is destroyed, just hidden. Use OnTabClosed for that */
 		SLATE_EVENT( FSimpleDelegate, OnTabDrawerClosed)
 		SLATE_ATTRIBUTE( FLinearColor, TabColorScale )
@@ -146,6 +152,9 @@ public:
 
 	/** @return the Foreground color that this widget sets; unset options if the widget does not set a foreground color */
 	virtual FSlateColor GetForegroundColor() const;
+
+	/** Add any entries specific to this tab to the tab context menu */
+	void ExtendContextMenu(FMenuBuilder& MenuBuilder);
 
 	/** Is this an MajorTab? A tool panel tab? */
 	ETabRole GetTabRole() const;
@@ -272,6 +281,9 @@ public:
 
 	/** Set the handler that will be invoked when the tab is closed from a drawer */
 	void SetOnTabDrawerClosed(const FSimpleDelegate InDelegate);
+
+	/** Set the handler for extending the tab context menu */
+	void SetOnExtendContextMenu( const FExtendContextMenu& Handler );
 
 	/** Get the tab manager currently managing this tab. Note that a user move the tab between Tab Managers, so this return value may change. */
 	TSharedRef<FTabManager> GetTabManager() const;
@@ -416,6 +428,8 @@ protected:
 	FSimpleDelegate OnTabRelocated;
 
 	FSimpleDelegate OnTabDraggedOverDockArea;
+
+	FExtendContextMenu OnExtendContextMenu;
 
 	/**
 	 * Invoked during the Save Visual State pass; gives this tab a chance to save misc info about visual state.
