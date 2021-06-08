@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
+#include "HAL/CriticalSection.h"
 #include "Sockets.h"
 
 namespace UE
@@ -74,6 +75,8 @@ namespace UE
 
 			bool bReadError = false;
 			bool bWriteError = false;
+
+			FCriticalSection SendReceiveCriticalSection;
 		};
 
 

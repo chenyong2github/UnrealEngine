@@ -22,11 +22,17 @@ namespace UE
 		{
 		}
 
-		int32 FInterchangeDispatcher::AddTask(const FString& InJsonDescription)
+		int32 FInterchangeDispatcher::AddTask(const FString& JsonDescription)
 		{
 			FScopeLock Lock(&TaskPoolCriticalSection);
-			int32 TaskIndex = TaskPool.Emplace(InJsonDescription);
+			int32 TaskIndex = TaskPool.Emplace(JsonDescription);
 			TaskPool[TaskIndex].Index = TaskIndex;
+			return TaskIndex;
+		}
+		int32 FInterchangeDispatcher::AddTask(const FString& JsonDescription, FInterchangeDispatcherTaskCompleted TaskCompledDelegate)
+		{
+			int32 TaskIndex = AddTask(JsonDescription);
+			TaskPool[TaskIndex].OnTaskCompleted = TaskCompledDelegate;
 			return TaskIndex;
 		}
 
@@ -68,6 +74,8 @@ namespace UE
 				if (TaskState == ETaskState::ProcessOk
 					|| TaskState == ETaskState::ProcessFailed)
 				{
+					//Call the task completion delegate
+					Task.OnTaskCompleted.ExecuteIfBound(TaskIndex);
 					CompletedTaskCount++;
 				}
 

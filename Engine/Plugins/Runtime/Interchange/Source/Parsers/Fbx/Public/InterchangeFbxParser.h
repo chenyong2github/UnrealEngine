@@ -46,7 +46,6 @@ namespace UE
 			TArray<FString> GetJsonLoadMessages() const { return JsonLoadMessages; }
 
 		private:
-			TStrongObjectPtr<UInterchangeBaseNodeContainer> Container = nullptr;
 			FString ResultFilepath;
 			TArray<FString> JsonLoadMessages;
 			TMap<FString, FString> ResultPayloads;

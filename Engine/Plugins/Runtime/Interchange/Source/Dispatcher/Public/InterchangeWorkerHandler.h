@@ -15,6 +15,11 @@ namespace UE
 {
 	namespace Interchange
 	{
+		namespace Dispatcher
+		{
+			class FTaskProcessCommand;
+		}
+
 		class FInterchangeDispatcher;
 
 		//Handle a Worker by socket communication
@@ -23,8 +28,7 @@ namespace UE
 			enum class EWorkerState
 			{
 				Uninitialized,
-				Idle, // Initialized, available for processing
-				Processing, // Currently processing a task
+				Processing, // send task and receive result
 				Closing, // in the process of terminating
 				Terminated, // aka. Not Alive
 			};
@@ -49,12 +53,13 @@ namespace UE
 			void Stop();
 			void StopBlocking();
 
+		protected:
+			void ProcessCommand(ICommand& Command);
 		private:
 			void RunInternal();
 			void StartWorkerProcess();
 			void ValidateConnection();
 
-			void ProcessCommand(ICommand& Command);
 			void ProcessCommand(FPingCommand& PingCommand);
 			void ProcessCommand(FCompletedTaskCommand& RunTaskCommand);
 			const TCHAR* EWorkerErrorStateAsString(EWorkerErrorState e);
@@ -75,9 +80,10 @@ namespace UE
 
 			// self
 			FString ResultFolder;
-			TOptional<FTask> CurrentTask;
+			TArray<int32> CurrentTasks;
 			bool bShouldTerminate;
 
+			friend Dispatcher::FTaskProcessCommand;
 		};
 	} //ns Interchange
 }//ns UE

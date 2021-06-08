@@ -53,7 +53,7 @@ namespace UE
 				return false;
 			}
 
-			if (JsonActionValue != GetAction())
+			if (!JsonActionValue.Equals(GetAction()))
 			{
 				//This json do not represent a load command
 				return false;
@@ -150,7 +150,7 @@ namespace UE
 				return false;
 			}
 
-			if (JsonActionValue != GetAction())
+			if (!JsonActionValue.Equals(GetAction()))
 			{
 				//This json do not represent a load command
 				return false;

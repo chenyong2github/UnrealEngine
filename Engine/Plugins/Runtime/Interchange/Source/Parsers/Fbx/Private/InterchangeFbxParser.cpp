@@ -35,16 +35,18 @@ namespace UE
 
 
 			ResultFilepath = ResultFolder + TEXT("/SceneDescription.itc");
-
-			Container = TStrongObjectPtr<UInterchangeBaseNodeContainer>(NewObject<UInterchangeBaseNodeContainer>(GetTransientPackage(), NAME_None));
-			if (!ensure(Container.IsValid()))
+			//Since we are not in main thread we cannot use TStrongPtr, so we will add the object to the root and remove it when we are done
+			UInterchangeBaseNodeContainer* Container = NewObject<UInterchangeBaseNodeContainer>(GetTransientPackage(), NAME_None);
+			Container->AddToRoot();
+			if (!ensure(Container != nullptr))
 			{
 				JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot allocate base node container to add fbx scene data\"}}"));
 				return;
 			}
-			FbxParserPrivate->FillContainerWithFbxScene(*Container.Get(), JsonLoadMessages);
+			FbxParserPrivate->FillContainerWithFbxScene(*Container, JsonLoadMessages);
 
-			Container.Get()->SaveToFile(ResultFilepath);
+			Container->SaveToFile(ResultFilepath);
+			Container->RemoveFromRoot();
 			JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Log\",\n\"Msg\" : \"This is a success!\"}}"));
 		}
 
@@ -54,7 +56,9 @@ namespace UE
 
 			FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
 			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKey + TEXT(".payload");
-			if (!FbxParserPrivate->FetchPayloadData(PayloadKey, PayloadFilepath, JsonLoadMessages))
+			//Copy the map filename key because we are multithreaded and the TMap can be reallocated
+			FString PayloadFilepathCopy = PayloadFilepath;
+			if (!FbxParserPrivate->FetchPayloadData(PayloadKey, PayloadFilepathCopy, JsonLoadMessages))
 			{
 				JsonLoadMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch fbx payload data.\"}}"));
 				return;

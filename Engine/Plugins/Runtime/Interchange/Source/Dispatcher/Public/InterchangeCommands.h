@@ -121,7 +121,7 @@ namespace UE
 		{
 		public:
 			FRunTaskCommand() = default;
-			FRunTaskCommand(const FTask& Task) : JsonDescription(Task.JsonDescription), JobIndex(Task.Index) {}
+			FRunTaskCommand(const FTask& Task) : JsonDescription(Task.JsonDescription), TaskIndex(Task.Index) {}
 			virtual ECommandId GetType() const override { return ECommandId::RunTask; }
 
 		protected:
@@ -129,7 +129,7 @@ namespace UE
 
 		public:
 			FString JsonDescription;
-			int32 JobIndex = -1;
+			int32 TaskIndex = -1;
 		};
 
 		class INTERCHANGEDISPATCHER_API FCompletedTaskCommand : public ICommand
@@ -144,6 +144,7 @@ namespace UE
 			ETaskState ProcessResult = ETaskState::Unknown;
 			FString JSonResult;
 			TArray<FString> JSonMessages;
+			int32 TaskIndex = INDEX_NONE;
 		};
 
 	} //ns Interchange

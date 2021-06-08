@@ -47,7 +47,7 @@ namespace UE
 		void FRunTaskCommand::SerializeImpl(FArchive& Ar)
 		{
 			Ar << JsonDescription;
-			Ar << JobIndex;
+			Ar << TaskIndex;
 		}
 
 		void FCompletedTaskCommand::SerializeImpl(FArchive& Ar)
@@ -55,6 +55,7 @@ namespace UE
 			Ar << ProcessResult;
 			Ar << JSonMessages;
 			Ar << JSonResult;
+			Ar << TaskIndex;
 		}
 	}//ns Interchange
 }//ns UE

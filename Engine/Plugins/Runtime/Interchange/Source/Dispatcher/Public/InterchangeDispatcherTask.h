@@ -3,6 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+namespace UE
+{
+	namespace Interchange
+	{
+		struct FTask;
+	}
+}
+DECLARE_DELEGATE_OneParam(FInterchangeDispatcherTaskCompleted, int32 TaskIndex);
+
 namespace UE
 {
 	namespace Interchange
@@ -18,7 +28,7 @@ namespace UE
 
 		struct FTask
 		{
-			FTask() = default;
+			FTask() = delete;
 
 			FTask(const FString& InJsonDescription)
 			{
@@ -31,6 +41,7 @@ namespace UE
 			ETaskState State = ETaskState::Unknown;
 			FString JsonResult;
 			TArray<FString> JsonMessages;
+			FInterchangeDispatcherTaskCompleted OnTaskCompleted;
 		};
 
 		/**
@@ -88,7 +99,7 @@ namespace UE
 
 			virtual FString GetAction() const override
 			{
-				static const FString LoadString = TEXT("Load");
+				static const FString LoadString = TEXT("LoadSource");
 				return LoadString;
 			}
 
