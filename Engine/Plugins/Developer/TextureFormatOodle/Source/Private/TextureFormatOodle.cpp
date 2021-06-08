@@ -659,7 +659,7 @@ public:
 	
 	
 	// increment this to invalidate Derived Data Cache to recompress everything
-	#define DDC_OODLE_TEXTURE_VERSION 11
+	#define DDC_OODLE_TEXTURE_VERSION 12
 
 	virtual uint16 GetVersion(FName Format, const struct FTextureBuildSettings* InBuildSettings) const override
 	{
@@ -983,19 +983,17 @@ public:
 				UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture debug dump failed!"));
 			}
 
-			OodleTex_Err OodleErr;
-			if (RDOLambda == 0)
-			{
-				OodleErr = OodleTex_EncodeBCN_LinearSurfaces(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
-					&InSurf, 1, OodlePF, NULL, EffortLevel,
-					OodleTex_BCNFlags_None, OodleJobifyNumThreads, OodleJobifyUserPointer);
-			}
-			else
-			{
-				OodleErr = OodleTex_EncodeBCN_RDO(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
+			OodleTex_RDO_Options OodleOptions = { };
+			OodleOptions.effort = EffortLevel;
+			OodleOptions.metric = OodleTex_RDO_ErrorMetric_Default;
+			OodleOptions.bcn_flags = OodleTex_BCNFlags_None;
+			OodleOptions.universal_tiling = OodleTex_RDO_UniversalTiling_Disable;
+
+			// if RDOLambda == 0, does non-RDO encode :
+			OodleTex_Err OodleErr = OodleTex_EncodeBCN_RDO_Ex(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
 					&InSurf, 1, OodlePF, NULL, RDOLambda, 
-					OodleTex_BCNFlags_None, OodleTex_RDO_ErrorMetric_Default, OodleJobifyNumThreads, OodleJobifyUserPointer);
-			}
+					&OodleOptions, OodleJobifyNumThreads, OodleJobifyUserPointer);
+
 			if (OodleErr != OodleTex_Err_OK)
 			{
 				const char * OodleErrStr = OodleTex_Err_GetName(OodleErr);
@@ -1120,8 +1118,8 @@ static void TFO_InstallPlugins()
 	OodleJobifyUserPointer = nullptr;
 	OodleJobifyNumThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
 
-	// @@ TEMP @todo clamp OodleJobifyNumThreads to avoid int overflow
-	OodleJobifyNumThreads = FMath::Min(OodleJobifyNumThreads,16);
+	// workaround for pre-2.9.1 bug : clamp OodleJobifyNumThreads to avoid int overflow
+	//OodleJobifyNumThreads = FMath::Min(OodleJobifyNumThreads,16);
 
 	OodleTex_Plugins_SetJobSystemAndCount(TFO_RunJob, TFO_WaitJob, OodleJobifyNumThreads);
 

@@ -7,7 +7,7 @@ using UnrealBuildTool;
 
 public class TextureFormatOodle : ModuleRules
 {
-	protected virtual string OodleVersion { get { return "2.9.0"; } }
+	protected virtual string OodleVersion { get { return "2.9.1"; } }
 
 	// Platform Extensions need to override these
 	protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
@@ -55,7 +55,6 @@ public class TextureFormatOodle : ModuleRules
 		bool bUseDebugLibrary = bAllowDebugLibrary && Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT;
 
 		bool bSkipLibrarySetup = false;
-
 
         if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
         {
