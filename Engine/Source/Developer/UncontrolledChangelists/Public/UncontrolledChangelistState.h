@@ -68,6 +68,8 @@ public:
 	const FDateTime& GetTimeStamp() const;
 
 	UNCONTROLLEDCHANGELISTS_API const TSet<FSourceControlStateRef>& GetFilesStates() const;
+	
+	UNCONTROLLEDCHANGELISTS_API const TSet<FString>& GetOfflineFiles() const;
 
 	/**
 	 * Serialize the state of the Uncontrolled Changelist to a Json Object.
@@ -114,6 +116,7 @@ public:
 	FUncontrolledChangelist Changelist;
 	FString Description;
 	TSet<FSourceControlStateRef> Files;
+	TSet<FString> OfflineFiles;
 
 	/** The timestamp of the last update */
 	FDateTime TimeStamp;

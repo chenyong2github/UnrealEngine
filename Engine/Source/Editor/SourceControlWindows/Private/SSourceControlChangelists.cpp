@@ -103,7 +103,9 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		[
 			SNew(SScrollBorder, TreeView.ToSharedRef())
-			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([]()->EVisibility { return ISourceControlModule::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Hidden; })))
+			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([]()->EVisibility { return (ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
+																																   ? EVisibility::Visible
+																																   : EVisibility::Hidden; })))
 			[
 				TreeView.ToSharedRef()
 			]
@@ -189,7 +191,7 @@ void SSourceControlChangelistsWidget::Tick(const FGeometry& AllottedGeometry, co
 {
 	if (bShouldRefresh)
 	{
-		if (ISourceControlModule::Get().IsEnabled())
+		if (ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
 		{
 			RequestRefresh();
 			bShouldRefresh = false;
@@ -209,8 +211,11 @@ void SSourceControlChangelistsWidget::Tick(const FGeometry& AllottedGeometry, co
 
 void SSourceControlChangelistsWidget::RequestRefresh()
 {
+	bool bAnyProviderAvailable = false;
+
 	if (ISourceControlModule::Get().IsEnabled())
 	{
+		bAnyProviderAvailable = true;
 		StartRefreshStatus();
 
 		TSharedRef<FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
@@ -220,11 +225,17 @@ void SSourceControlChangelistsWidget::RequestRefresh()
 
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		SourceControlProvider.Execute(UpdatePendingChangelistsOperation, EConcurrency::Asynchronous);
+	}
+
+	if (FUncontrolledChangelistsModule::Get().IsEnabled())
+	{
+		bAnyProviderAvailable = true;
 
 		FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
 		UncontrolledChangelistModule.UpdateStatus();
 	}
-	else
+
+	if (!bAnyProviderAvailable)
 	{
 		// No provider available, clear changelist tree
 		ClearChangelistsTree();
@@ -260,7 +271,7 @@ void SSourceControlChangelistsWidget::ClearChangelistsTree()
 
 void SSourceControlChangelistsWidget::Refresh()
 {
-	if (ISourceControlModule::Get().IsEnabled())
+	if (ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
 	{
 		TMap<FSourceControlChangelistStateRef, ExpandedState> ExpandedStates;
 		SaveExpandedState(ExpandedStates);
@@ -288,6 +299,7 @@ void SSourceControlChangelistsWidget::Refresh()
 		for (FUncontrolledChangelistStateRef UncontrolledChangelistState : UncontrolledChangelistStates)
 		{
 			ElementsToProcess += UncontrolledChangelistState->GetFilesStates().Num();
+			ElementsToProcess += UncontrolledChangelistState->GetOfflineFiles().Num();
 		}
 
 		FScopedSlowTask SlowTask(ElementsToProcess, LOCTEXT("SourceControl_RebuildTree", "Beautifying Changelist Tree Items Paths"));
@@ -330,10 +342,18 @@ void SSourceControlChangelistsWidget::Refresh()
 		{
 			FChangelistTreeItemRef UncontrolledChangelistTreeItem = MakeShareable(new FUncontrolledChangelistTreeItem(UncontrolledChangelistState));
 			
-			for (FSourceControlStateRef FileRef : UncontrolledChangelistState->GetFilesStates())
+			for (const FSourceControlStateRef& FileRef : UncontrolledChangelistState->GetFilesStates())
 			{
 				FChangelistTreeItemRef FileTreeItem = MakeShareable(new FFileTreeItem(FileRef, bBeautifyPaths));
 				UncontrolledChangelistTreeItem->AddChild(FileTreeItem);
+				SlowTask.EnterProgressFrame();
+				bBeautifyPaths &= !SlowTask.ShouldCancel();
+			}
+
+			for (const FString& Filename : UncontrolledChangelistState->GetOfflineFiles())
+			{
+				FChangelistTreeItemRef OfflineFileTreeItem = MakeShareable(new FOfflineFileTreeItem(Filename));
+				UncontrolledChangelistTreeItem->AddChild(OfflineFileTreeItem);
 				SlowTask.EnterProgressFrame();
 				bBeautifyPaths &= !SlowTask.ShouldCancel();
 			}
@@ -565,7 +585,6 @@ void SSourceControlChangelistsWidget::OnEditChangelist()
 	}
 
 	EditChangelistDescription(NewChangelistDescription, ChangelistState);
-
 }
 
 void SSourceControlChangelistsWidget::OnRevertUnchanged()
@@ -1500,6 +1519,107 @@ private:
 	FFileTreeItem* TreeItem;
 };
 
+class SOfflineFileTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
+{
+public:
+	SLATE_BEGIN_ARGS(SOfflineFileTableRow)
+		: _TreeItemToVisualize()
+	{
+	}
+	SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+	SLATE_END_ARGS()
+
+public:
+	/**
+	* Construct child widgets that comprise this widget.
+	*
+	* @param InArgs Declaration from which to construct this widget.
+	*/
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
+	{
+		TreeItem = static_cast<FOfflineFileTreeItem*>(InArgs._TreeItemToVisualize.Get());
+
+		auto Args = FSuperRowType::FArguments().ShowSelection(true);
+		FSuperRowType::Construct(Args, InOwner);
+	}
+
+	// SMultiColumnTableRow overrides
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+	{
+		if (ColumnName == TEXT("Change")) // eq. to name
+		{
+			return SNew(SHorizontalBox)
+
+				// Icon
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(40, 0, 4, 0)
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush(FName("SourceControl.OfflineFile_Small")))
+				]
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(this, &SOfflineFileTableRow::GetDisplayName)
+				];
+		}
+		else if (ColumnName == TEXT("Description")) // eq. to path
+		{
+			return SNew(STextBlock)
+				.Text(this, &SOfflineFileTableRow::GetDisplayPath)
+				.ToolTipText(this, &SOfflineFileTableRow::GetFilename);
+		}
+		else if (ColumnName == TEXT("Type"))
+		{
+			return SNew(STextBlock)
+				.Text(this, &SOfflineFileTableRow::GetDisplayType)
+				.ColorAndOpacity(this, &SOfflineFileTableRow::GetDisplayColor);
+		}
+		else
+		{
+			return SNullWidget::NullWidget;
+		}
+	}
+
+	FText GetDisplayName() const
+	{
+		return TreeItem->GetDisplayName();
+	}
+
+	FText GetFilename() const
+	{
+		return TreeItem->GetPackageName();
+	}
+
+	FText GetDisplayPath() const
+	{
+		return TreeItem->GetDisplayPath();
+	}
+
+	FText GetDisplayType() const
+	{
+		return TreeItem->GetDisplayType();
+	}
+
+	FSlateColor GetDisplayColor() const
+	{
+		return TreeItem->GetDisplayColor();
+	}
+
+protected:
+	//~ Begin STableRow Interface.
+
+	//~ End STableRow Interface.
+
+private:
+	/** The info about the widget that we are visualizing. */
+	FOfflineFileTreeItem* TreeItem;
+};
+
 class SShelvedChangelistTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
 {
 public:
@@ -1585,6 +1705,10 @@ TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(FChangelist
 		return SNew(SFileTableRow, OwnerTable)
 			.TreeItemToVisualize(InTreeItem)
 			.OnDragDetected(this, &SSourceControlChangelistsWidget::OnFilesDragged);
+
+	case IChangelistTreeItem::OfflineFile:
+		return SNew(SOfflineFileTableRow, OwnerTable)
+			.TreeItemToVisualize(InTreeItem);
 
 	case IChangelistTreeItem::ShelvedChangelist:
 		return SNew(SShelvedChangelistTableRow, OwnerTable)

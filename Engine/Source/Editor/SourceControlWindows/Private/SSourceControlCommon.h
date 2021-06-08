@@ -21,6 +21,7 @@ struct IChangelistTreeItem : TSharedFromThis<IChangelistTreeItem>
 		Changelist,
 		UncontrolledChangelist,
 		File,
+		OfflineFile,
 		ShelvedChangelist, // container for shelved files
 		ShelvedFile
 	};
@@ -188,6 +189,30 @@ private:
 	TArray<FAssetData> Assets;
 };
 
+struct FOfflineFileTreeItem : public IChangelistTreeItem
+{
+	explicit FOfflineFileTreeItem(const FString& InFilename);
+
+public:
+	const FText& GetPackageName() const { return PackageName; }
+
+	const FText& GetDisplayName() const { return AssetName; }
+
+	const FText& GetDisplayPath() const { return AssetPath; }
+
+	const FText& GetDisplayType() const { return AssetType; }
+
+	const FSlateColor& GetDisplayColor() const { return AssetTypeColor; }
+
+private:
+	TArray<FAssetData> Assets;
+	FText PackageName;
+	FText AssetName;
+	FText AssetPath;
+	FText AssetType;
+	FSlateColor AssetTypeColor;
+};
+
 typedef TSharedPtr<FFileTreeItem> FFileTreeItemPtr;
 typedef TSharedRef<FFileTreeItem> FFileTreeItemRef;
 
@@ -201,4 +226,8 @@ struct FShelvedFileTreeItem : public FFileTreeItem
 namespace SSourceControlCommon
 {
 	TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState, bool bIsShelvedFile = false);
+	FText GetDefaultAssetName();
+	FText GetDefaultAssetType();
+	FText GetDefaultUnknownAssetType();
+	FText GetDefaultMultipleAsset();
 }
