@@ -909,7 +909,7 @@ void FSceneView::SetupAntiAliasingMethod()
 
 		if (AntiAliasingMethod == AAM_TemporalAA)
 		{
-			if (!Family->EngineShowFlags.TemporalAA || !Family->bRealtimeUpdate)
+			if (!Family->EngineShowFlags.TemporalAA || !Family->bRealtimeUpdate || !SupportsGen4TAA(GetShaderPlatform()))
 			{
 				AntiAliasingMethod = AAM_FXAA;
 			}
