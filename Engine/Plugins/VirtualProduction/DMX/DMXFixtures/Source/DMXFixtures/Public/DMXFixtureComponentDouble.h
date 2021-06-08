@@ -13,47 +13,59 @@ class DMXFIXTURES_API UDMXFixtureComponentDouble : public UDMXFixtureComponent
 	GENERATED_BODY()
 
 public:
-
 	UDMXFixtureComponentDouble();
-
-	// Parameters---------------------------------------
+		
+	/** The first dmx attribute the component handles */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channels")
 	FDMXChannelData DMXChannel1;
 
+	/** The second dmx attribute the component handles */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channels")
 	FDMXChannelData DMXChannel2;
 
-	// To iterate channels and avoid code duplication
-	int NumChannels;
-	TArray<FDMXChannelData*> ChannelRefs;
-
-	// Functions-----------------------------------------
+	/** Initializes the interpolation range of the channels */
+	virtual void Initialize() override;
+	
+	/** Gets the interpolation delta value (step) for this frame */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	float DMXInterpolatedStep(int ChannelIndex);
+	float GetDMXInterpolatedStep(int32 ChannelIndex) const;
 
+	/** Gets the current interpolated value */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	float DMXInterpolatedValue(int ChannelIndex);
+	float GetDMXInterpolatedValue(int32 ChannelIndex) const;
 
+	/** Gets the target value towards which the component interpolates */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	float DMXTargetValue(int ChannelIndex);
+	float GetDMXTargetValue(int32 ChannelIndex) const;
 
+	/** True if the target value is reached and no interpolation is required */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	bool DMXIsInterpolationDone(int ChannelIndex);
+	bool IsDMXInterpolationDone(int32 ChannelIndex) const;
 
-	float RemapValue(int ChannelIndex, float Alpha);
-	bool IsTargetValid(int ChannelIndex, float Target);
-	void Push(int ChannelIndex, float Target);
-	void SetTarget(int ChannelIndex, float Target);
+	/** Returns the interpolated value for the specified channel */
+	float GetInterpolatedValue(int32 ChannelIndex, float Alpha) const;
 
-	// Overrides
-	virtual void InitCells(int NCells) override;
-	virtual void SetRangeValue() override;
+	/** Returns true, if the target value is valid */
+	bool IsTargetValid(int32 ChannelIndex, float Target);
 
-	// Sets first value of the component
+	/** Sets the target value for specified channel index. Interpolates to the value if bUseInterpolation is true. */
+	void SetTargetValue(int32 ChannelIndex, float Value);
+
+	//  Sets first value of the second channel. When interpolation is enabled this function should be called until the value is reached, else just once */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-	void SetComponentChannel1(float Channel1Value);
+	void SetChannel1ValueNoInterp(float Channel1Value);
 
-	// Sets second value of the component
+	/** Sets second value of the second channel. When interpolation is enabled this function should be called until the value is reached, else just once */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-	void SetComponentChannel2(float Channel2Value);
+	void SetChannel2ValueNoInterp(float Channel2Value);
+
+	// DEPRECATED 4.27
+public:	
+	// DEPRECATED 4.27
+	UE_DEPRECATED(4.27, "Replaced with SetChannelValue to be more expressive about the intent of the function and to avoid the duplicate method Push and SetTarget.")
+	void Push(int32 ChannelIndex, float Target);
+
+	// DEPRECATED 4.27
+	UE_DEPRECATED(4.27, "Replaced with SetChannelValue to be more expressive about the intent of the function.")
+	void SetTarget(int32 ChannelIndex, float Target);
 };

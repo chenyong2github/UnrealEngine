@@ -6,37 +6,49 @@
 #include "DMXFixtureComponent.h"
 #include "DMXFixtureComponentColor.generated.h"
 
-// Specific class to handle color mixing using 4 channels (rgb, cmy, rgbw)
+/**
+ * Specific class to handle color mixing using 4 channels (rgb, cmy, rgbw).
+ * Note, the color values are never interpolated.
+ */
 UCLASS(ClassGroup = DMXFixtureComponent, meta = (IsBlueprintBase = true))
 class DMXFIXTURES_API UDMXFixtureComponentColor : public UDMXFixtureComponent
 {
 	GENERATED_BODY()
 	
 public:
-
 	UDMXFixtureComponentColor();
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
-	FDMXAttributeName ChannelName1;
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
-	FDMXAttributeName ChannelName2;
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
-	FDMXAttributeName ChannelName3;
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
-	FDMXAttributeName ChannelName4;
+	FDMXAttributeName DMXChannel1;
 
-	TArray<FLinearColor> TargetColorArray;
-	FLinearColor* CurrentTargetColorRef;
-
-	bool IsColorValid(FLinearColor NewColor);
-	void SetTargetColor(FLinearColor NewColor);
-
-	// Overrides
-	virtual void InitCells(int NCells) override;
-	virtual void SetCurrentCell(int Index) override;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
+	FDMXAttributeName DMXChannel2;
 	
-	// Blueprint event
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-	void SetComponent(FLinearColor NewColor);
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
+	FDMXAttributeName DMXChannel3;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "DMX Channel")
+	FDMXAttributeName DMXChannel4;
 
+	/** Initializes the interpolation range of the channels */
+	virtual void Initialize() override;
+
+	/** Sets the current cell */
+	virtual void SetCurrentCell(int Index) override;
+
+	/** True if the color is valid for the component */
+	bool IsColorValid(const FLinearColor& NewColor) const;
+
+	/** Sets the target color for the current cell */
+	void SetTargetColor(const FLinearColor& NewColor);
+
+	/** Sets the color of the component. Note DMX Fixture Component Color does not support interpolation */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
+	void SetColorNoInterp(const FLinearColor& NewColor);
+
+	/** The target color, when interpolating. Otherwise just the final color */
+	TArray<FLinearColor> TargetColorArray;
+
+	/** Pointer to the current target color, corresponding to the current cell */
+	FLinearColor* CurrentTargetColorRef;
 };

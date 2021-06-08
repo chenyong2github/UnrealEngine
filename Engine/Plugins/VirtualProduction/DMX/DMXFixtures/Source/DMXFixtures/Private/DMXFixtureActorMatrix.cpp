@@ -72,114 +72,118 @@ void ADMXFixtureActorMatrix::PostEditChangeProperty(FPropertyChangedEvent& Prope
 
 void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 {
-	GetComponents<UStaticMeshComponent>(StaticMeshComponents);
-
-	// Create dynamic materials
-	DynamicMaterialLens = UMaterialInstanceDynamic::Create(LensMaterialInstance, nullptr);
-	DynamicMaterialBeam = UMaterialInstanceDynamic::Create(BeamMaterialInstance, nullptr);
-	DynamicMaterialSpotLight = UMaterialInstanceDynamic::Create(SpotLightMaterialInstance, nullptr);
-	DynamicMaterialPointLight = UMaterialInstanceDynamic::Create(PointLightMaterialInstance, nullptr);
-
-	float Quality = 1.0f;
-	switch (QualityLevel)
-	{
-		case(EDMXFixtureQualityLevel::LowQuality): Quality = 0.25f; break;
-		case(EDMXFixtureQualityLevel::MediumQuality): Quality = 0.5f; break;
-		case(EDMXFixtureQualityLevel::HighQuality): Quality = 1.0f; break;
-		case(EDMXFixtureQualityLevel::UltraQuality): Quality = 2.0f; break;
-		default: Quality = 1.0f;
-	}
-
-	// Get matrix properties
-	FDMXFixtureMatrix MatrixProperties;
-	UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 	UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
-	DMXSubsystem->GetMatrixProperties(FixturePatch, MatrixProperties);
-	XCells = MatrixProperties.XCells;
-	YCells = MatrixProperties.YCells;
-
-	// Limit cells [1-DMX_UNIVERSE_SIZE]
-	constexpr int DMXUniverseSize = DMX_UNIVERSE_SIZE;
-
-	XCells = FMath::Max(XCells, 1);
-	YCells = FMath::Max(YCells, 1);
-	XCells = FMath::Min(XCells, DMXUniverseSize);
-	YCells = FMath::Min(YCells, DMXUniverseSize);
-
-	int NbrCells = XCells * YCells;
-
-	// Create array to hold data in bgra order
-	NbrTextureRows = 2;	// using 2 rows to store dmx data
-	MatrixDataSize = NbrCells * 4 * NbrTextureRows;
-
-	MatrixData.Reset(MatrixDataSize);
-	MatrixData.AddZeroed(MatrixDataSize);
-	for (int i = 0; i < MatrixDataSize; i++)
+	if (FixturePatch)
 	{
-		MatrixData[i] = 128;
+		GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+
+		// Create dynamic materials
+		DynamicMaterialLens = UMaterialInstanceDynamic::Create(LensMaterialInstance, nullptr);
+		DynamicMaterialBeam = UMaterialInstanceDynamic::Create(BeamMaterialInstance, nullptr);
+		DynamicMaterialSpotLight = UMaterialInstanceDynamic::Create(SpotLightMaterialInstance, nullptr);
+		DynamicMaterialPointLight = UMaterialInstanceDynamic::Create(PointLightMaterialInstance, nullptr);
+
+		float Quality = 1.0f;
+		switch (QualityLevel)
+		{
+			case(EDMXFixtureQualityLevel::LowQuality): Quality = 0.25f; break;
+			case(EDMXFixtureQualityLevel::MediumQuality): Quality = 0.5f; break;
+			case(EDMXFixtureQualityLevel::HighQuality): Quality = 1.0f; break;
+			case(EDMXFixtureQualityLevel::UltraQuality): Quality = 2.0f; break;
+			default: Quality = 1.0f;
+		}
+
+		// Get matrix properties
+		FDMXFixtureMatrix MatrixProperties;
+		FixturePatch->GetMatrixProperties(MatrixProperties);
+		XCells = MatrixProperties.XCells;
+		YCells = MatrixProperties.YCells;
+
+		// Limit cells [1-DMX_UNIVERSE_SIZE]
+		constexpr int DMXUniverseSize = DMX_UNIVERSE_SIZE;
+
+		XCells = FMath::Max(XCells, 1);
+		YCells = FMath::Max(YCells, 1);
+		XCells = FMath::Min(XCells, DMXUniverseSize);
+		YCells = FMath::Min(YCells, DMXUniverseSize);
+
+		int NbrCells = XCells * YCells;
+
+		// Create array to hold data in bgra order
+		NbrTextureRows = 2;	// using 2 rows to store dmx data
+		MatrixDataSize = NbrCells * 4 * NbrTextureRows;
+
+		MatrixData.Reset(MatrixDataSize);
+		MatrixData.AddZeroed(MatrixDataSize);
+		for (int i = 0; i < MatrixDataSize; i++)
+		{
+			MatrixData[i] = 128;
+		}
+
+		// Generate runtime procedural mesh
+		GenerateMatrixMesh();
+
+		// Create transient texture at runtime (DynamicTexture)
+		int TextureWidth = NbrCells;
+		int TextureHeight = NbrTextureRows;
+		MatrixDataTexture = UTexture2D::CreateTransient(TextureWidth, TextureHeight, EPixelFormat::PF_B8G8R8A8);
+		MatrixDataTexture->SRGB = 0;
+		MatrixDataTexture->bNoTiling = true;
+		MatrixDataTexture->Filter = TextureFilter::TF_Nearest; //pixelated
+		MatrixDataTexture->AddressX = TextureAddress::TA_Clamp;
+		MatrixDataTexture->AddressY = TextureAddress::TA_Clamp;
+		MatrixDataTexture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
+		MatrixDataTexture->UpdateResource(); //to initialize resource
+
+		check(!TextureRegion);
+		TextureRegion = new FUpdateTextureRegion2D(0, 0, 0, 0, TextureWidth, TextureHeight);
+
+		// Push fixture data into materials and lights
+		FeedFixtureData();
+
+		// Assign dynamic materials to lights
+		SpotLight->SetMaterial(0, DynamicMaterialSpotLight);
+		PointLight->SetMaterial(0, DynamicMaterialPointLight);
+
+		// feed matrix properties to lens material
+		if (DynamicMaterialLens)
+		{
+			DynamicMaterialLens->SetScalarParameterValue("XCells", XCells);
+			DynamicMaterialLens->SetScalarParameterValue("YCells", YCells);
+			DynamicMaterialLens->SetScalarParameterValue("CellWidth", MatrixWidth / XCells);
+			DynamicMaterialLens->SetScalarParameterValue("CellHeight", MatrixHeight / YCells);
+			DynamicMaterialLens->SetTextureParameterValue("MatrixData", MatrixDataTexture);
+			MatrixHead->SetMaterial(0, DynamicMaterialLens);
+		}
+
+		// feed matrix properties to beam material
+		if (DynamicMaterialBeam)
+		{
+			int NbrSamples = FMath::CeilToInt(Quality * 4);
+			DynamicMaterialBeam->SetScalarParameterValue("NbrSamples", NbrSamples);
+			DynamicMaterialBeam->SetScalarParameterValue("XCells", XCells);
+			DynamicMaterialBeam->SetScalarParameterValue("YCells", YCells);
+			DynamicMaterialBeam->SetScalarParameterValue("CellWidth", MatrixWidth / XCells);
+			DynamicMaterialBeam->SetScalarParameterValue("CellHeight", MatrixHeight / YCells);
+			DynamicMaterialBeam->SetTextureParameterValue("MatrixData", MatrixDataTexture);
+			MatrixHead->SetMaterial(1, DynamicMaterialBeam);
+		}
+
+		// Initialize components
+		for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
+		{
+			DMXComponent->Initialize();
+		}
+
+		SetDefaultMatrixFixtureState();
+		UpdateDynamicTexture();
+
+		HasBeenInitialized = true;
 	}
-
-	// Generate runtime procedural mesh
-	GenerateMatrixMesh();
-
-	// Create transient texture at runtime (DynamicTexture)
-	int TextureWidth = NbrCells;
-	int TextureHeight = NbrTextureRows;
-	MatrixDataTexture = UTexture2D::CreateTransient(TextureWidth, TextureHeight, EPixelFormat::PF_B8G8R8A8);
-	MatrixDataTexture->SRGB = 0;
-	MatrixDataTexture->bNoTiling = true;
-	MatrixDataTexture->Filter = TextureFilter::TF_Nearest; //pixelated
-	MatrixDataTexture->AddressX = TextureAddress::TA_Clamp;
-	MatrixDataTexture->AddressY = TextureAddress::TA_Clamp;
-	MatrixDataTexture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
-	MatrixDataTexture->UpdateResource(); //to initialize resource
-
-	check(!TextureRegion);
-	TextureRegion = new FUpdateTextureRegion2D(0, 0, 0, 0, TextureWidth, TextureHeight);
-
-	// Push fixture data into materials and lights
-	FeedFixtureData();
-
-	// Assign dynamic materials to lights
-	SpotLight->SetMaterial(0, DynamicMaterialSpotLight);
-	PointLight->SetMaterial(0, DynamicMaterialPointLight);
-
-	// feed matrix properties to lens material
-	if (DynamicMaterialLens)
+	else
 	{
-		DynamicMaterialLens->SetScalarParameterValue("XCells", XCells);
-		DynamicMaterialLens->SetScalarParameterValue("YCells", YCells);
-		DynamicMaterialLens->SetScalarParameterValue("CellWidth", MatrixWidth / XCells);
-		DynamicMaterialLens->SetScalarParameterValue("CellHeight", MatrixHeight / YCells);
-		DynamicMaterialLens->SetTextureParameterValue("MatrixData", MatrixDataTexture);
-		MatrixHead->SetMaterial(0, DynamicMaterialLens);
+		HasBeenInitialized = false;
 	}
-
-	// feed matrix properties to beam material
-	if (DynamicMaterialBeam)
-	{
-		int NbrSamples = FMath::CeilToInt(Quality * 4);
-		DynamicMaterialBeam->SetScalarParameterValue("NbrSamples", NbrSamples);
-		DynamicMaterialBeam->SetScalarParameterValue("XCells", XCells);
-		DynamicMaterialBeam->SetScalarParameterValue("YCells", YCells);
-		DynamicMaterialBeam->SetScalarParameterValue("CellWidth", MatrixWidth / XCells);
-		DynamicMaterialBeam->SetScalarParameterValue("CellHeight", MatrixHeight / YCells);
-		DynamicMaterialBeam->SetTextureParameterValue("MatrixData", MatrixDataTexture);
-		MatrixHead->SetMaterial(1, DynamicMaterialBeam);
-	}
-
-	// Initialize components
-	TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
-	GetComponents<UDMXFixtureComponent>(DMXComponents);
-	for (auto& DMXComponent : DMXComponents)
-	{
-		DMXComponent->Initialize();
-	}
-
-	SetDefaultMatrixFixtureState();
-	UpdateDynamicTexture();
-
-	HasBeenInitialized = true;
 }
 
 // DMX Data is packed based on this convention
@@ -217,7 +221,7 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 
 			for (auto& DMXComponent : DMXComponents)
 			{
-				if (DMXComponent->IsEnabled && DMXComponent->UsingMatrixData)
+				if (DMXComponent->bIsEnabled && DMXComponent->bUsingMatrixData)
 				{
 					// set current cell reference
 					DMXComponent->SetCurrentCell(CurrentCellIndex);
@@ -228,10 +232,10 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 					{
 						if (FLinearColor* CurrentTargetColorPtr = ColorComponent->CurrentTargetColorRef)
 						{
-							const float* FirstTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->ChannelName1);
-							const float* SecondTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->ChannelName2);
-							const float* ThirdTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->ChannelName3);
-							const float* FourthTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->ChannelName4);
+							const float* FirstTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel1);
+							const float* SecondTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel2);
+							const float* ThirdTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel3);
+							const float* FourthTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel4);
 
 							// 1.f if channel not found
 							const float r = (FirstTargetValuePtr) ? *FirstTargetValuePtr : CurrentTargetColorPtr->R;
@@ -263,7 +267,7 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 						{
 							if (SingleComponent->DMXChannel.Name.Name == FName("Dimmer"))
 							{
-								float TargetValue = SingleComponent->RemapValue(*d1);
+								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
 									UpdateMatrixData(0, CurrentCellIndex, 3, TargetValue);
@@ -271,7 +275,7 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 							}
 							else if (SingleComponent->DMXChannel.Name.Name == FName("Pan"))
 							{
-								float TargetValue = SingleComponent->RemapValue(*d1);
+								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
 									UpdateMatrixData(1, CurrentCellIndex, 0, TargetValue);
@@ -279,7 +283,7 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 							}
 							else if (SingleComponent->DMXChannel.Name.Name == FName("Tilt"))
 							{
-								float TargetValue = SingleComponent->RemapValue(*d1);
+								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
 									UpdateMatrixData(1, CurrentCellIndex, 1, TargetValue);
@@ -358,7 +362,7 @@ void ADMXFixtureActorMatrix::SetDefaultMatrixFixtureState()
 
 			for (UDMXFixtureComponent* DMXComponent : DMXComponents)
 			{
-				if (DMXComponent->IsEnabled && DMXComponent->UsingMatrixData)
+				if (DMXComponent->bIsEnabled && DMXComponent->bUsingMatrixData)
 				{
 					// set current cell reference
 					DMXComponent->SetCurrentCell(CurrentCellIndex);
@@ -382,16 +386,18 @@ void ADMXFixtureActorMatrix::SetDefaultMatrixFixtureState()
 					{
 						// Single Component
 						float TargetValue = SingleComponent->DMXChannel.DefaultValue;
-						SingleComponent->SetTarget(TargetValue);
-						SingleComponent->SetComponent(TargetValue);
+						SingleComponent->SetTargetValue(TargetValue);
+						SingleComponent->SetValueNoInterp(TargetValue);
 					}
 					else if (UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent))
 					{
 						// Double Component
 						float Channel1TargetValue = DoubleComponent->DMXChannel1.DefaultValue;
 						float Channel2TargetValue = DoubleComponent->DMXChannel2.DefaultValue;
-						DoubleComponent->SetTarget(0, Channel1TargetValue);
-						DoubleComponent->SetTarget(1, Channel2TargetValue);
+						DoubleComponent->SetTargetValue(0, Channel1TargetValue);
+						DoubleComponent->SetChannel1ValueNoInterp(Channel1TargetValue);
+						DoubleComponent->SetTargetValue(1, Channel2TargetValue);
+						DoubleComponent->SetChannel2ValueNoInterp(Channel2TargetValue);
 					}
 				}
 			}
@@ -411,29 +417,30 @@ void ADMXFixtureActorMatrix::GenerateEditorMatrixMesh()
 {
 	if (DMX && !GWorld->HasBegunPlay())
 	{
-		FDMXFixtureMatrix MatrixProperties;
-		UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
-		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-		DMXSubsystem->GetMatrixProperties(FixturePatch, MatrixProperties);
-		XCells = MatrixProperties.XCells;
-		YCells = MatrixProperties.YCells;
+		if (UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch())
+		{
+			FDMXFixtureMatrix MatrixProperties;
+			FixturePatch->GetMatrixProperties(MatrixProperties);
+			XCells = MatrixProperties.XCells;
+			YCells = MatrixProperties.YCells;
 
-		// Limit cells [1-DMX_UNIVERSE_SIZE]
-		constexpr int DMXUniverseSize = DMX_UNIVERSE_SIZE;
+			// Limit cells [1-DMX_UNIVERSE_SIZE]
+			constexpr int DMXUniverseSize = DMX_UNIVERSE_SIZE;
 
-		XCells = FMath::Max(XCells, 1);
-		YCells = FMath::Max(YCells, 1);
-		XCells = FMath::Min(XCells, DMXUniverseSize);
-		YCells = FMath::Min(YCells, DMXUniverseSize);
+			XCells = FMath::Max(XCells, 1);
+			YCells = FMath::Max(YCells, 1);
+			XCells = FMath::Min(XCells, DMXUniverseSize);
+			YCells = FMath::Min(YCells, DMXUniverseSize);
 
-		MatrixHead->ClearAllMeshSections();
-		GenerateMatrixCells();
-		GenerateMatrixBeam();
-		MatrixHead->SetRelativeLocation(FVector(MatrixWidth * -0.5f, MatrixHeight * -0.5f, MatrixDepth * 0.5f));
+			MatrixHead->ClearAllMeshSections();
+			GenerateMatrixCells();
+			GenerateMatrixBeam();
+			MatrixHead->SetRelativeLocation(FVector(MatrixWidth * -0.5f, MatrixHeight * -0.5f, MatrixDepth * 0.5f));
 
-		// Assign MIC
-		MatrixHead->SetMaterial(0, LensMaterialInstance);
-		MatrixHead->SetMaterial(1, BeamMaterialInstance);
+			// Assign MIC
+			MatrixHead->SetMaterial(0, LensMaterialInstance);
+			MatrixHead->SetMaterial(1, BeamMaterialInstance);
+		}
 	}
 }
 

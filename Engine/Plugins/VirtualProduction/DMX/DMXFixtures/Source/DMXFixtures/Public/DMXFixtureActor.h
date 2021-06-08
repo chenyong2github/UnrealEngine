@@ -2,8 +2,6 @@
 
 #pragma once
 
-
-#include "DMXSubsystem.h"
 #include "CoreMinimal.h"
 #include "DMXFixtureComponent.h"
 #include "DMXFixtureComponentDouble.h"
@@ -19,7 +17,6 @@
 #include "DMXFixtureActor.generated.h"
 
 
-
 UENUM()
 enum EDMXFixtureQualityLevel
 {
@@ -28,7 +25,6 @@ enum EDMXFixtureQualityLevel
 	HighQuality			UMETA(DisplayName = "High"),
 	UltraQuality		UMETA(DisplayName = "Ultra")
 };
-
 
 UCLASS()
 class DMXFIXTURES_API ADMXFixtureActor : public AActor
@@ -74,22 +70,7 @@ protected:
 	/** Sets the fixture in a defaulted state using default values of its Fixture Components */
 	void SetDefaultFixtureState();
 	
-	/*
-	 * Pushes DMX Values to the Fixture. Does not interpolate, causing fixtures to jump to the value directly. 
-	 * Useful for initalization when data is first received.
-	 */
-	virtual void InitalizeAttributeValueNoInterp(const FDMXAttributeName& AttributeName, float Value);
-
-	/** Contains all attributes that were received at least once and got initalized  */
-	TSet<FDMXAttributeName> InitializedAttributes;
-
-	/** Holds invalid attributes. Helps ignoring attributes that don't exist */
-	TSet<FDMXAttributeName> InvalidAttributes;
-
 public:
-	UFUNCTION(BlueprintCallable, Category = "DMX Fixture", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. Use PushDMXValuesPerAttribute instead."))
-	void PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap);
-
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void InterpolateDMXComponents(float DeltaSeconds);
 	

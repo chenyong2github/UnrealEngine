@@ -103,9 +103,7 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 	PointLight->SetMaterial(0, DynamicMaterialPointLight);
 
 	// Initialize components
-	TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
-	GetComponents<UDMXFixtureComponent>(DMXComponents);
-	for (UDMXFixtureComponent* DMXComponent : DMXComponents)
+	for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
 	{
 		DMXComponent->Initialize();
 	}
@@ -152,10 +150,6 @@ void ADMXFixtureActor::FeedFixtureData()
 	PointLight->SetTemperature(LightColorTemp);
 	PointLight->SetCastShadows(LightCastShadow);
 	PointLight->SetAttenuationRadius(LightDistanceMax);
-
-	// Reset initialized and invalid attributes, they might have changed
-	InitializedAttributes.Reset();
-	InvalidAttributes.Reset();
 }
 
 void ADMXFixtureActor::InterpolateDMXComponents(float DeltaSeconds)
@@ -166,7 +160,7 @@ void ADMXFixtureActor::InterpolateDMXComponents(float DeltaSeconds)
 
 	for (auto& DMXComponent : DMXComponents)
 	{
-		if (DMXComponent->IsEnabled && DMXComponent->UseInterpolation && DMXComponent->IsRegistered())
+		if (DMXComponent->bIsEnabled && DMXComponent->bUseInterpolation && DMXComponent->IsRegistered())
 		{
 			for (auto& Cell : DMXComponent->Cells)
 			{
@@ -199,15 +193,10 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 
 	if (HasBeenInitialized)
 	{
-		for (const TPair<FDMXAttributeName, float>& AttributeValueKvp : ValuePerAttribute.Map)
-		{
-			InitalizeAttributeValueNoInterp(AttributeValueKvp.Key, AttributeValueKvp.Value);
-		}
-
 		for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
 		{
 			// Components without matrix data
-			if (DMXComponent->IsEnabled && !DMXComponent->UsingMatrixData)
+			if (DMXComponent->bIsEnabled && !DMXComponent->bUsingMatrixData)
 			{
 				if (UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent))
 				{
@@ -215,18 +204,18 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 					const float* TargetValuePtr = ValuePerAttribute.Map.Find(SingleComponent->DMXChannel.Name);
 					if (TargetValuePtr)
 					{
-						float RemappedValue = SingleComponent->RemapValue(*TargetValuePtr);
+						float RemappedValue = SingleComponent->GetInterpolatedValue(*TargetValuePtr);
 						 
 						if (SingleComponent->IsTargetValid(RemappedValue))
 						{
-							if (SingleComponent->UseInterpolation)
+							if (SingleComponent->bUseInterpolation)
 							{
-								SingleComponent->Push(RemappedValue);
+								SingleComponent->SetTargetValue(RemappedValue);
 							}
 							else
 							{
-								SingleComponent->SetTarget(RemappedValue);
-								SingleComponent->SetComponent(RemappedValue);
+								SingleComponent->SetTargetValue(RemappedValue);
+								SingleComponent->SetValueNoInterp(RemappedValue);
 							}
 						}
 					}
@@ -237,18 +226,18 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 					const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel1.Name);
 					if (FirstTargetValuePtr)
 					{
-						float Channel1RemappedValue = DoubleComponent->RemapValue(0, *FirstTargetValuePtr);
+						float Channel1RemappedValue = DoubleComponent->GetInterpolatedValue(0, *FirstTargetValuePtr);
 
 						if (DoubleComponent->IsTargetValid(0, Channel1RemappedValue))
 						{
-							if (DoubleComponent->UseInterpolation)
+							if (DoubleComponent->bUseInterpolation)
 							{
-								DoubleComponent->Push(0, Channel1RemappedValue);
+								DoubleComponent->SetTargetValue(0, Channel1RemappedValue);
 							}
 							else
 							{
-								DoubleComponent->SetTarget(0, Channel1RemappedValue);
-								DoubleComponent->SetComponentChannel1(Channel1RemappedValue);
+								DoubleComponent->SetTargetValue(0, Channel1RemappedValue);
+								DoubleComponent->SetChannel1ValueNoInterp(Channel1RemappedValue);
 							}
 						}
 					}
@@ -256,18 +245,18 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 					const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel2.Name);
 					if (SecondTargetValuePtr)
 					{
-						float Channel2RemappedValue = DoubleComponent->RemapValue(1, *SecondTargetValuePtr);
+						float Channel2RemappedValue = DoubleComponent->GetInterpolatedValue(1, *SecondTargetValuePtr);
 
 						if (DoubleComponent->IsTargetValid(1, Channel2RemappedValue))
 						{
-							if (DoubleComponent->UseInterpolation)
+							if (DoubleComponent->bUseInterpolation)
 							{
-								DoubleComponent->Push(1, Channel2RemappedValue);
+								DoubleComponent->SetTargetValue(1, Channel2RemappedValue);
 							}
 							else
 							{
-								DoubleComponent->SetTarget(1, Channel2RemappedValue);
-								DoubleComponent->SetComponentChannel2(Channel2RemappedValue);
+								DoubleComponent->SetTargetValue(1, Channel2RemappedValue);
+								DoubleComponent->SetChannel2ValueNoInterp(Channel2RemappedValue);
 							}
 						}
 					}
@@ -277,10 +266,10 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 					// Color Component
 					if (FLinearColor* CurrentTargetColorPtr = ColorComponent->CurrentTargetColorRef)
 					{
-						const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName1);
-						const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName2);
-						const float* ThirdTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName3);
-						const float* FourthTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName4);
+						const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->DMXChannel1);
+						const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->DMXChannel2);
+						const float* ThirdTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->DMXChannel3);
+						const float* FourthTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->DMXChannel4);
 
 						// 1.f if channel not found
 						const float r = (FirstTargetValuePtr) ? *FirstTargetValuePtr : CurrentTargetColorPtr->R;
@@ -292,7 +281,7 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 						if (ColorComponent->IsColorValid(NewTargetColor))
 						{
 							ColorComponent->SetTargetColor(NewTargetColor);
-							ColorComponent->SetComponent(NewTargetColor);
+							ColorComponent->SetColorNoInterp(NewTargetColor);
 						}
 					}
 				}
@@ -314,8 +303,8 @@ void ADMXFixtureActor::SetDefaultFixtureState()
 			// SingleChannel Component
 			float TargetValue = SingleComponent->DMXChannel.DefaultValue;
 
-			SingleComponent->SetTarget(TargetValue);
-			SingleComponent->SetComponent(TargetValue);
+			SingleComponent->SetTargetValue(TargetValue);
+			SingleComponent->SetValueNoInterp(TargetValue);
 		}
 		else if (UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent))
 		{
@@ -323,8 +312,8 @@ void ADMXFixtureActor::SetDefaultFixtureState()
 			float Channel1TargetValue = DoubleComponent->DMXChannel1.DefaultValue;
 			float Channel2TargetValue = DoubleComponent->DMXChannel2.DefaultValue;
 
-			DoubleComponent->SetTarget(0, Channel1TargetValue);
-			DoubleComponent->SetTarget(1, Channel2TargetValue);
+			DoubleComponent->SetTargetValue(0, Channel1TargetValue);
+			DoubleComponent->SetTargetValue(1, Channel2TargetValue);
 		}
 		else if (UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
 		{
@@ -332,109 +321,7 @@ void ADMXFixtureActor::SetDefaultFixtureState()
 			const FLinearColor& DefaultColor = FLinearColor::White;
 
 			ColorComponent->SetTargetColor(DefaultColor);
-			ColorComponent->SetComponent(DefaultColor);
+			ColorComponent->SetColorNoInterp(DefaultColor);
 		}
 	}
-}
-
-void ADMXFixtureActor::InitalizeAttributeValueNoInterp(const FDMXAttributeName& AttributeName, float Value)
-{
-	// Don't need to try and intialized invalid attributes
-	if (InitializedAttributes.Contains(AttributeName) || InvalidAttributes.Contains(AttributeName))
-	{
-		return;
-	}
-
-	bool bInitializedAttribute = false;
-	for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
-	{
-		// Components without matrix data
-		if (DMXComponent->IsEnabled && !DMXComponent->UsingMatrixData)
-		{
-			// SingleChannel Component
-			UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent);
-			if (SingleComponent && SingleComponent->DMXChannel.Name == AttributeName)
-			{
-				float RemappedValue = SingleComponent->RemapValue(Value);
-
-				if (SingleComponent->IsTargetValid(RemappedValue))
-				{
-					SingleComponent->SetTarget(RemappedValue);
-					SingleComponent->SetComponent(RemappedValue);
-
-					bInitializedAttribute = true;
-				}
-			}
-
-			// DoubleChannel Component
-			UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent);
-			if (DoubleComponent)
-			{
-				if (DoubleComponent->DMXChannel1.Name == AttributeName)
-				{
-					float Channel1RemappedValue = DoubleComponent->RemapValue(0, Value);
-					DoubleComponent->SetTarget(0, Channel1RemappedValue);
-					DoubleComponent->SetComponentChannel1(Channel1RemappedValue);
-
-					bInitializedAttribute = true;
-				}
-				else if (DoubleComponent->DMXChannel2.Name == AttributeName)
-				{
-					float Channel2RemappedValue = DoubleComponent->RemapValue(1, Value);
-					DoubleComponent->SetTarget(1, Channel2RemappedValue);
-					DoubleComponent->SetComponentChannel2(Channel2RemappedValue);
-
-					bInitializedAttribute = true;
-				}
-			}
-
-			// Color Component
-			UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
-			if (ColorComponent)
-			{
-				if (ColorComponent->ChannelName1 == AttributeName)
-				{
-					FLinearColor* TargetColorPtr = ColorComponent->CurrentTargetColorRef;
-					(*TargetColorPtr).R = Value;
-
-					bInitializedAttribute = true;
-				}
-				else if (ColorComponent->ChannelName2 == AttributeName)
-				{
-					FLinearColor* TargetColorPtr = ColorComponent->CurrentTargetColorRef;
-					(*TargetColorPtr).G = Value;
-
-					bInitializedAttribute = true;
-				}
-				else if (ColorComponent->ChannelName3 == AttributeName)
-				{
-					FLinearColor* TargetColorPtr = ColorComponent->CurrentTargetColorRef;
-					(*TargetColorPtr).B = Value;
-
-					bInitializedAttribute = true;
-				}
-				else if (ColorComponent->ChannelName4 == AttributeName)
-				{
-					FLinearColor* TargetColorPtr = ColorComponent->CurrentTargetColorRef;
-					(*TargetColorPtr).A = Value;
-
-					bInitializedAttribute = true;
-				}
-			}
-		}
-	}
-
-	if (bInitializedAttribute)
-	{
-		InitializedAttributes.Add(AttributeName);
-	}
-	else
-	{
-		InvalidAttributes.Add(AttributeName);
-	}
-}
-
-void ADMXFixtureActor::PushDMXData(TMap<FDMXAttributeName, int32> AttributesMap)
-{
-	ensureMsgf(0, TEXT("PushDMXData is no longer supported. Use PushDMXValuesPerAttribute instead"));
 }
