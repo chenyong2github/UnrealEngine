@@ -1,22 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IRemoteControlModule.h"
 #include "IRemoteControlInterceptionFeature.h"
+#include "IRemoteControlModule.h"
 #include "IStructDeserializerBackend.h"
-
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
-#include "Backends/CborStructSerializerBackend.h"
-#include "Components/StaticMeshComponent.h"
-#include "Features/IModularFeatures.h"
-#include "Misc/CoreMisc.h"
 #include "IStructSerializerBackend.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlInterceptionHelpers.h"
 #include "RemoteControlInterceptionProcessor.h"
 #include "RemoteControlPreset.h"
-#include "StructSerializer.h"
 #include "StructDeserializer.h"
+#include "StructSerializer.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Backends/CborStructSerializerBackend.h"
+#include "Features/IModularFeatures.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/ScopeExit.h"
 #include "UObject/Class.h"
 #include "UObject/FieldPath.h"
@@ -86,32 +84,32 @@ namespace RemoteControlUtil
 	bool IsPropertyAllowed(const FProperty* InProperty, ERCAccess InAccessType, bool bObjectInGamePackage)
 	{
 		// The property is allowed to be accessed if it exists...
-		return InProperty && 
-			// it doesn't have exposed getter/setter that should be used instead
+		return InProperty &&
+				// it doesn't have exposed getter/setter that should be used instead
 #if WITH_EDITOR
-			(!InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintGetter) || !InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintSetter)) &&
-			// it isn't private or protected, except if AllowPrivateAccess is true
-			(!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate) || InProperty->GetBoolMetaData(RemoteControlUtil::NAME_AllowPrivateAccess)) &&
+				(!InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintGetter) || !InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintSetter)) &&
+				// it isn't private or protected, except if AllowPrivateAccess is true
+				(!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate) || InProperty->GetBoolMetaData(RemoteControlUtil::NAME_AllowPrivateAccess)) &&
 #endif
-			// it isn't blueprint private
-			!InProperty->HasAnyPropertyFlags(CPF_DisableEditOnInstance) &&
-			// and it's either blueprint visible if in game or editable if in editor and it isn't read only if the access type is write
-			(bObjectInGamePackage ?
-				InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly)) :
-				InAccessType == ERCAccess::READ_ACCESS || (InProperty->HasAnyPropertyFlags(CPF_Edit) && !InProperty->HasAnyPropertyFlags(CPF_EditConst)));
+				// it isn't blueprint private
+				!InProperty->HasAnyPropertyFlags(CPF_DisableEditOnInstance) &&
+				// and it's either blueprint visible if in game or editable if in editor and it isn't read only if the access type is write
+				(bObjectInGamePackage
+					? InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly))
+					: InAccessType == ERCAccess::READ_ACCESS || (InProperty->HasAnyPropertyFlags(CPF_Edit) && !InProperty->HasAnyPropertyFlags(CPF_EditConst)));
 	};
 
 	FARFilter GetBasePresetFilter()
 	{
 		FARFilter Filter;
-        Filter.bIncludeOnlyOnDiskAssets = false;
-        Filter.ClassNames = { URemoteControlPreset::StaticClass()->GetFName() };
-        Filter.bRecursivePaths = true;
-        Filter.PackagePaths = { TEXT("/") };
-		
+		Filter.bIncludeOnlyOnDiskAssets = false;
+		Filter.ClassNames = {URemoteControlPreset::StaticClass()->GetFName()};
+		Filter.bRecursivePaths = true;
+		Filter.PackagePaths = {TEXT("/")};
+
 		return Filter;
 	}
-	
+
 	void GetAllPresetAssets(TArray<FAssetData>& OutAssets)
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
@@ -121,7 +119,7 @@ namespace RemoteControlUtil
 	URemoteControlPreset* GetFirstPreset(const FARFilter& Filter)
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		
+
 		TArray<FAssetData> Assets;
 		AssetRegistry.GetAssets(Filter, Assets);
 
@@ -153,7 +151,7 @@ namespace RemoteControlUtil
 	URemoteControlPreset* GetPresetByName(FName PresetName)
 	{
 		FARFilter Filter = GetBasePresetFilter();
-		Filter.PackageNames = { PresetName };
+		Filter.PackageNames = {PresetName};
 		URemoteControlPreset* FoundPreset = GetFirstPreset(Filter);
 		return FoundPreset ? FoundPreset : FindPresetByName(PresetName);
 	}
@@ -186,15 +184,14 @@ namespace RemoteControlSetterUtils
 		FConvertToFunctionCallArgs(const FRCObjectReference& InObjectReference, IStructDeserializerBackend& InReaderBackend, FRCCall& OutCall)
 			: ObjectReference(InObjectReference)
 			, ReaderBackend(InReaderBackend)
-			, Call(OutCall) 
-		{
-		}
-		
+			, Call(OutCall)
+		{ }
+
 		const FRCObjectReference& ObjectReference;
 		IStructDeserializerBackend& ReaderBackend;
 		FRCCall& Call;
 	};
-	
+
 	UFunction* FindSetterFunction(FProperty* Property)
 	{
 		// UStruct properties cannot have setters.
@@ -209,10 +206,10 @@ namespace RemoteControlSetterUtils
 		{
 			return SetterPtr.Get();
 		}
-		
+
 		UFunction* SetterFunction = nullptr;
 #if WITH_EDITOR
-		const FString& SetterName =  Property->GetMetaData(*RemoteControlUtil::NAME_BlueprintSetter.ToString());
+		const FString& SetterName = Property->GetMetaData(*RemoteControlUtil::NAME_BlueprintSetter.ToString());
 		if (!SetterName.IsEmpty())
 		{
 			SetterFunction = Property->GetOwnerClass()->FindFunctionByName(*SetterName);
@@ -220,7 +217,7 @@ namespace RemoteControlSetterUtils
 #endif
 
 		FString PropertyName = Property->GetName();
-		if (Property->IsA<FBoolProperty>()) 
+		if (Property->IsA<FBoolProperty>())
 		{
 			PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
 		}
@@ -247,7 +244,7 @@ namespace RemoteControlSetterUtils
 
 		return SetterFunction;
 	}
-	
+
 	FProperty* FindSetterArgument(UFunction* SetterFunction, FProperty* PropertyToModify)
 	{
 		FProperty* SetterArgument = nullptr;
@@ -266,7 +263,7 @@ namespace RemoteControlSetterUtils
 				{
 					SetterArgument = *PropertyIt;
 				}
-				
+
 				break;
 			}
 		}
@@ -277,7 +274,7 @@ namespace RemoteControlSetterUtils
 	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InFunction, FStructOnScope&& InFunctionArguments, FRCInterceptionPayload& OutPayload)
 	{
 		ensure(InFunctionArguments.GetStruct() && InFunctionArguments.GetStruct()->IsA<UFunction>());
-		
+
 		// Create the output payload for interception purposes.
 		FMemoryWriter Writer{OutPayload.Payload};
 		FCborStructSerializerBackend WriterBackend{Writer, EStructSerializerBackendFlags::Default};
@@ -293,7 +290,7 @@ namespace RemoteControlSetterUtils
 	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InFunction, FStructOnScope&& InFunctionArguments)
 	{
 		ensure(InFunctionArguments.GetStruct() && InFunctionArguments.GetStruct()->IsA<UFunction>());
-		
+
 		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
 		InOutArgs.Call.CallRef.Function = InFunction;
 		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
@@ -309,7 +306,7 @@ namespace RemoteControlSetterUtils
 		if (FProperty* SetterArgument = FindSetterArgument(InSetterFunction, InOutArgs.ObjectReference.Property.Get()))
 		{
 			FStructOnScope ArgsOnScope{InSetterFunction};
-			
+
 			// First put the complete property value from the object in the struct on scope
 			// in case the user only a part of the incoming structure (ie. Providing only { "x": 2 } in the case of a vector.
 			const uint8* ContainerAddress = InOutArgs.ObjectReference.Property->ContainerPtrToValuePtr<uint8>(InOutArgs.ObjectReference.ContainerAdress);
@@ -328,16 +325,16 @@ namespace RemoteControlSetterUtils
 				// Then deserialize the input value on top of it and reset the setter property name.
 				bSuccess = FStructDeserializer::Deserialize((void*)ArgsOnScope.GetStructMemory(), *const_cast<UStruct*>(ArgsOnScope.GetStruct()), InOutArgs.ReaderBackend, FStructDeserializerPolicies());
 			}
-			
+
 			if (bSuccess)
 			{
 				OptionalArgsOnScope = MoveTemp(ArgsOnScope);
 			}
 		}
-		
+
 		return OptionalArgsOnScope;
 	}
-	
+
 	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InSetterFunction, FRCInterceptionPayload& OutPayload)
 	{
 		if (TOptional<FStructOnScope> ArgsOnScope = CreateSetterFunctionPayload(InSetterFunction, InOutArgs))
@@ -345,7 +342,7 @@ namespace RemoteControlSetterUtils
 			CreateRCCall(InOutArgs, InSetterFunction, MoveTemp(*ArgsOnScope), OutPayload);
 			return true;
 		}
-		
+
 		return false;
 	}
 
@@ -356,7 +353,7 @@ namespace RemoteControlSetterUtils
 			CreateRCCall(InOutArgs, InSetterFunction, MoveTemp(*ArgsOnScope));
 			return true;
 		}
-		
+
 		return false;
 	}
 
@@ -367,7 +364,7 @@ namespace RemoteControlSetterUtils
 		{
 			return false;
 		}
-		
+
 		if (UFunction* SetterFunction = FindSetterFunction(InOutArgs.ObjectReference.Property.Get()))
 		{
 			return ConvertModificationToFunctionCall(InOutArgs, SetterFunction);
@@ -383,7 +380,7 @@ namespace RemoteControlSetterUtils
 		{
 			return false;
 		}
-		
+
 		if (UFunction* SetterFunction = FindSetterFunction(InArgs.ObjectReference.Property.Get()))
 		{
 			return ConvertModificationToFunctionCall(InArgs, SetterFunction, OutPayload);
@@ -397,17 +394,18 @@ namespace RemoteControlSetterUtils
  * Implementation of the RemoteControl interface
  */
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FRemoteControlModule : public IRemoteControlModule
 {
 public:
 	virtual void StartupModule() override
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
-		
+
 		AssetRegistry.OnAssetAdded().AddRaw(this, &FRemoteControlModule::OnAssetAdded);
 		AssetRegistry.OnAssetRemoved().AddRaw(this, &FRemoteControlModule::OnAssetRemoved);
 		AssetRegistry.OnAssetRenamed().AddRaw(this, &FRemoteControlModule::OnAssetRenamed);
-		
+
 		if (AssetRegistry.IsLoadingAssets())
 		{
 			AssetRegistry.OnFilesLoaded().AddRaw(this, &FRemoteControlModule::CachePresets);
@@ -456,8 +454,7 @@ public:
 
 	/** Unregister the preset */
 	virtual void UnregisterPreset(FName Name) override
-	{
-	}
+	{ }
 
 	virtual bool ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText) override
 	{
@@ -477,12 +474,12 @@ public:
 					ErrorText = FString::Printf(TEXT("Function: %s does not exist on object: %s"), *FunctionName, *ObjectPath);
 					bSuccess = false;
 				}
-				else if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) 
+				else if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public)
 #if WITH_EDITOR
-					|| Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction)
-					|| Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport)
+						|| Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction)
+						|| Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport)
 #endif
-					)
+				)
 				{
 					ErrorText = FString::Printf(TEXT("Function: %s is deprecated or unavailable remotely on object: %s"), *FunctionName, *ObjectPath);
 					bSuccess = false;
@@ -544,7 +541,7 @@ public:
 					return true;
 				}
 			}
-			
+
 #if WITH_EDITOR
 			FScopedTransaction Transaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"), InCall.bGenerateTransaction);
 #endif
@@ -613,7 +610,7 @@ public:
 						if ((RemoteControlUtil::IsWriteAccess(AccessType) && PropertyModificationShouldUseSetter(Object, ResolvedProperty))
 							|| RemoteControlUtil::IsPropertyAllowed(ResolvedProperty, AccessType, bObjectInGame))
 						{
-							OutObjectRef = FRCObjectReference{ AccessType , Object, MoveTemp(PropertyPath) };
+							OutObjectRef = FRCObjectReference{AccessType, Object, MoveTemp(PropertyPath)};
 						}
 						else
 						{
@@ -629,7 +626,7 @@ public:
 				}
 				else
 				{
-					OutObjectRef = FRCObjectReference{ AccessType , Object };
+					OutObjectRef = FRCObjectReference{AccessType, Object};
 				}
 			}
 			else
@@ -713,7 +710,7 @@ public:
 			// Convert raw property modifications to setter function calls if necessary.
 			if (PropertyModificationShouldUseSetter(ObjectAccess.Object.Get(), ObjectAccess.Property.Get()))
 			{
-				FRCCall	Call;
+				FRCCall Call;
 				FRCInterceptionPayload InterceptionPayload;
 				constexpr bool bCreateInterceptionPayload = true;
 				RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
@@ -722,7 +719,7 @@ public:
 					return InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
 				}
 			}
-			
+
 			// If a setter wasn't used, verify if the property should be allowed.
 			bool bObjectInGame = !GIsEditor || (ObjectAccess.Object.IsValid() && ObjectAccess.Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor));
 			if (!RemoteControlUtil::IsPropertyAllowed(ObjectAccess.Property.Get(), ObjectAccess.Access, bObjectInGame))
@@ -761,7 +758,7 @@ public:
 		// Convert raw property modifications to setter function calls if necessary.
 		if (PropertyModificationShouldUseSetter(ObjectAccess.Object.Get(), ObjectAccess.Property.Get()))
 		{
-			FRCCall	Call;
+			FRCCall Call;
 			RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
 			if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args))
 			{
@@ -813,7 +810,6 @@ public:
 			{
 				const FRCFieldPathSegment& LastSegment = ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1);
 				int32 Index = LastSegment.ArrayIndex != INDEX_NONE ? LastSegment.ArrayIndex : LastSegment.ResolvedData.MapIndex;
-
 				bSuccess = FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
 			}
 			else
@@ -827,7 +823,7 @@ public:
 			{
 				GEditor->EndTransaction();
 			}
-			
+
 			FPropertyChangedEvent PropertyEvent = ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent();
 			Object->PostEditChangeProperty(PropertyEvent);
 #endif
@@ -949,10 +945,10 @@ public:
 			CachedPresetsByName.FindOrAdd(PresetName).AddUnique(FoundPreset);
 			return FoundPreset;
 		}
-		
+
 		return nullptr;
 	}
-	
+
 	virtual URemoteControlPreset* ResolvePreset(const FGuid& PresetId) const override
 	{
 		if (const FName* AssetName = CachedPresetNamesById.Find(PresetId))
@@ -971,7 +967,6 @@ public:
 			{
 				ensureMsgf(false, TEXT("Preset id should be cached if the asset name already is."));
 			}
-	
 		}
 
 		if (URemoteControlPreset* FoundPreset = RemoteControlUtil::GetPresetById(PresetId))
@@ -979,7 +974,7 @@ public:
 			CachedPresetNamesById.Emplace(PresetId, FoundPreset->GetName());
 			return FoundPreset;
 		}
-		
+
 		return nullptr;
 	}
 
@@ -988,7 +983,7 @@ public:
 		OutPresets.Reserve(CachedPresetsByName.Num());
 		for (const TPair<FName, TArray<FAssetData>>& Entry : CachedPresetsByName)
 		{
-			Algo::Transform(Entry.Value, OutPresets, [this](const FAssetData& AssetData){ return Cast<URemoteControlPreset>( AssetData.GetAsset()); });
+			Algo::Transform(Entry.Value, OutPresets, [this](const FAssetData& AssetData) { return Cast<URemoteControlPreset>(AssetData.GetAsset()); });
 		}
 	}
 
@@ -1005,7 +1000,7 @@ public:
 	{
 		return DefaultMetadataInitializers;
 	}
-	
+
 	virtual bool RegisterDefaultEntityMetadata(FName MetadataKey, FEntityMetadataInitializer MetadataInitializer) override
 	{
 		if (!DefaultMetadataInitializers.Contains(MetadataKey))
@@ -1032,11 +1027,11 @@ private:
 	{
 		TArray<FAssetData> Assets;
 		RemoteControlUtil::GetAllPresetAssets(Assets);
-			
+
 		for (const FAssetData& AssetData : Assets)
 		{
 			CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
-			
+
 			const FGuid PresetAssetId = RemoteControlUtil::GetPresetId(AssetData);
 			if (PresetAssetId.IsValid())
 			{
@@ -1055,7 +1050,7 @@ private:
 			}
 		}
 	}
-	
+
 	void OnAssetAdded(const FAssetData& AssetData)
 	{
 		if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
@@ -1073,14 +1068,14 @@ private:
 			}
 		}
 	}
-	
+
 	void OnAssetRemoved(const FAssetData& AssetData)
 	{
 		if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
 		{
 			return;
 		}
-	
+
 		const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
 		if (FName* PresetName = CachedPresetNamesById.Find(PresetId))
 		{
@@ -1097,7 +1092,7 @@ private:
 			}
 		}
 	}
-	
+
 	void OnAssetRenamed(const FAssetData& AssetData, const FString&)
 	{
 		if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
@@ -1125,20 +1120,20 @@ private:
 				}
 			}
 		}
-		
+
 		CachedPresetNamesById.Remove(PresetId);
 		CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
-		
+
 		CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
 	}
-	
+
 	bool PropertyModificationShouldUseSetter(UObject* Object, FProperty* Property)
 	{
 		if (!Property || !Object)
 		{
 			return false;
 		}
-		
+
 		const bool bObjectInGamePackage = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
 		if (!RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bObjectInGamePackage))
 		{
@@ -1167,9 +1162,9 @@ private:
 	/** RC Processor feature instance */
 	TUniquePtr<IRemoteControlInterceptionFeatureProcessor> RCIProcessor;
 };
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE
 
 IMPLEMENT_MODULE(FRemoteControlModule, RemoteControl);
-

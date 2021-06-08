@@ -13,9 +13,9 @@ namespace RemoteControlProtocolWidgetUtils
 		MaxWidth = InArgs._MaxWidth;
 
 		ChildSlot
-        [
-            InArgs._Content.Widget
-        ];
+		[
+			InArgs._Content.Widget
+		];
 	}
 
 	FVector2D SConstrainedBox::ComputeDesiredSize(float InLayoutScaleMultiplier) const
@@ -45,10 +45,10 @@ namespace RemoteControlProtocolWidgetUtils
 	{
 		SSplitter::FArguments Args;
 		SSplitter::Construct(Args
-		                     .Style(FEditorStyle::Get(), "DetailsView.Splitter")
-		                     .PhysicalSplitterHandleSize(1.0f)
-		                     .HitDetectionSplitterHandleSize(5.0f)
-		                     .ResizeMode(ESplitterResizeMode::Fill));
+			.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+			.PhysicalSplitterHandleSize(1.0f)
+			.HitDetectionSplitterHandleSize(5.0f)
+			.ResizeMode(ESplitterResizeMode::Fill));
 
 		ColumnSizeData = InArgs._ColumnSizeData;
 
@@ -56,16 +56,18 @@ namespace RemoteControlProtocolWidgetUtils
 			.Value(ColumnSizeData->LeftColumnWidth)
 			.OnSlotResized(FOnSlotResized::CreateLambda([](float InNewWidth) -> void
 			{
-				// @todo: why is this empty? is it force a trigger elsewhere?
+				// This has to be bound or the splitter will take it upon itself to determine the size
+				// We do nothing here because it is handled by the column size data
 			}))
 			[
 				SNew(SHorizontalBox)
-	            + SHorizontalBox::Slot()
-	              .Padding(0.0f, 0.0f, 5.0f, 0.0f)
-	              .HAlign(HAlign_Fill)
-	              .VAlign(VAlign_Fill)
-	              .FillWidth(1.f)
-	            [
+				.Clipping(EWidgetClipping::OnDemand)
+				+ SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.FillWidth(1.f)
+				[
 					InArgs._LeftWidget.ToSharedRef()
 				]
 			];
@@ -76,10 +78,10 @@ namespace RemoteControlProtocolWidgetUtils
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
-				  .Padding(5.0f, 0.0f, 0.0f, 0.0f)
-				  .HAlign(HAlign_Fill)
-				  .VAlign(VAlign_Fill)
-				  .FillWidth(1.f)
+				.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.FillWidth(1.f)
 				[
 					InArgs._RightWidget.ToSharedRef()
 				]

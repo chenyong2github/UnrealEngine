@@ -14,10 +14,10 @@ class IRCProtocolBindingList
 {
 public:
 	using FRemoteControlProtocolEntitySet = TSet<TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>>>;
-	
+
 	/** Virtual destructor */
 	virtual ~IRCProtocolBindingList() = default;
 
-	/** Get the set of entities which is awaiting state and waiting for binding */ 
+	/** Get the set of entities which is awaiting state and waiting for binding */
 	virtual FRemoteControlProtocolEntitySet GetAwaitingProtocolEntities() const = 0;
 };

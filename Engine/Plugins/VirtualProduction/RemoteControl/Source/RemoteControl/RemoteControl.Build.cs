@@ -10,6 +10,8 @@ public class RemoteControl : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"Engine",
+				"RemoteControlCommon",
 			}
 		);
 
@@ -27,12 +29,12 @@ public class RemoteControl : ModuleRules
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-					"RemoteControlCommon",
 				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"AssetTools",
 					"DeveloperSettings",
 					"MessageLog",
 					"UnrealEd",

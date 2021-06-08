@@ -16,6 +16,16 @@
 
 const FName FRemoteControlProtocolOSC::ProtocolName = TEXT("OSC");
 
+bool FRemoteControlOSCProtocolEntity::IsSame(const FRemoteControlProtocolEntity* InOther)
+{
+	if(const FRemoteControlOSCProtocolEntity* Other = static_cast<const FRemoteControlOSCProtocolEntity*>(InOther))
+	{
+		return PathName == Other->PathName;
+	}
+
+	return false;
+}
+
 void FRemoteControlProtocolOSC::Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr)
 {
 	if (!ensure(InRemoteControlProtocolEntityPtr.IsValid()))

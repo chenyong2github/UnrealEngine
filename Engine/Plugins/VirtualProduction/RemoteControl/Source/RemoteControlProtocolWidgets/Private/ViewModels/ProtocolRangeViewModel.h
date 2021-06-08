@@ -3,23 +3,46 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "ProtocolBindingViewModel.h"
+#include "RCPropertyContainer.h"
+#include "RCViewModelCommon.h"
 #include "RemoteControlPreset.h"
 #include "ScopedTransaction.h"
+#include "Logging/TokenizedMessage.h"
+#include "UObject/StrongObjectPtr.h"
 
 class FProtocolBindingViewModel;
 class IPropertyHandle;
 
 #define LOCTEXT_NAMESPACE "ProtocolBindingViewModel"
 
+namespace ProtocolRangeViewModel
+{
+	/** Describes all possible validity states */
+	enum class EValidity : uint8
+	{
+		Unchecked = 0,
+		/** Not yet checked */
+		Ok = 1,
+		/** Valid */
+		DuplicateInput = 2,
+		/** The input value is the same as another range input */
+		UnsupportedType = 3,
+		/** The input or output property types aren't supported */
+	};
+}
+
 /** Represents a single range mapping for a given protocol binding  */
-class REMOTECONTROLPROTOCOLWIDGETS_API FProtocolRangeViewModel : public TSharedFromThis<FProtocolRangeViewModel>, public FEditorUndoClient
+class REMOTECONTROLPROTOCOLWIDGETS_API FProtocolRangeViewModel
+	: public TSharedFromThis<FProtocolRangeViewModel>
+	, public FEditorUndoClient
+	, public TRCValidatableViewModel<ProtocolRangeViewModel::EValidity>
+	, public IRCTreeNodeViewModel
 {
 public:
 	/** Create a new ViewModel for the given Protocol Binding and Range Id */
 	static TSharedRef<FProtocolRangeViewModel> Create(const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId);
-	virtual ~FProtocolRangeViewModel();
+	virtual ~FProtocolRangeViewModel() override;
 
 	/** Copy the input to the given PropertyHandle */
 	void CopyInputValue(const TSharedPtr<IPropertyHandle>& InDstHandle) const;
@@ -29,16 +52,16 @@ public:
 
 	/** Set input */
 	template <typename ValueType>
-    void SetInputValue(ValueType InValue, bool bWithTransaction = false)
+	void SetInputValue(ValueType InValue, bool bWithTransaction = false)
 	{
 		check(IsValid());
 
-		if(bWithTransaction)
+		if (bWithTransaction)
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetInputValue", "Set Input Value"));
-			Preset->Modify();	
+			Preset->Modify();
 		}
-		
+
 		GetRangesData()->SetRangeValue(InValue);
 	}
 
@@ -48,19 +71,22 @@ public:
 	/** Set underlying output from raw data */
 	void SetOutputData(const TSharedPtr<IPropertyHandle>& InSrcHandle) const;
 
+	/** Set underlying output from resolved data */
+	void SetOutputData(const FRCFieldResolvedData& InResolvedData) const;
+
 	/** Set output */
 	template <typename ValueType>
 	void SetOutputValue(ValueType InValue, bool bWithTransaction = false)
 	{
 		check(IsValid());
 
-		if(bWithTransaction)
+		if (bWithTransaction)
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetOutputValue", "Set Output Value"));
-        	Preset->Modify();	
+			Preset->Modify();
 		}
 
-		GetRangesData()->SetRangeValueAsPrimitive(InValue); 
+		GetRangesData()->SetMappingValueAsPrimitive(InValue);
 	}
 
 	/** Get the Range Id */
@@ -72,22 +98,39 @@ public:
 	/** Get the owning Preset */
 	const URemoteControlPreset* GetPreset() const { return Preset.Get(); }
 
+	/** Get the input TypeName */
+	FName GetInputTypeName() const;
+
+	/** Get the range input FProperty */
 	FProperty* GetInputProperty() const;
+
+	/** Get the containing object of the input property, or nullptr if it doesn't exist */
+	UObject* GetInputContainer() const;
 
 	/** Get the bound FProperty */
 	TWeakFieldPtr<FProperty> GetProperty() const { return ParentViewModel.Pin()->GetProperty(); }
 
-	/** Get the input TypeName */
-	FName GetInputTypeName() const;
+	/** Get the containing object of the output property, or nullptr if it doesn't exist */
+	UObject* GetOutputContainer() const;
+
+	/** Copies current property value to this range's output value. */
+	void CopyFromCurrentPropertyValue() const;
 
 	/** Removes this Range Mapping */
 	void Remove() const;
 
-	bool IsValid() const { return ParentViewModel.IsValid() && Preset.IsValid() && RangeId.IsValid(); }
+	/** Get logical children of this ViewModel */
+	virtual bool GetChildren(TArray<TSharedPtr<IRCTreeNodeViewModel>>& OutChildren) override { return false; }
+
+	/** Checks (non-critical, fixable) validity */
+	virtual bool IsValid(FText& OutMessage) override;
+
+	/** Checks validity of this ViewModel */
+	bool IsValid() const;
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnChanged);
-	
+
 	/** Something has changed within the ViewModel */
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
@@ -97,7 +140,7 @@ protected:
 
 	FProtocolRangeViewModel() = default;
 	FProtocolRangeViewModel(const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId);
-	
+
 	void Initialize();;
 
 	FRemoteControlProtocolMapping* GetRangesData() const { return ParentViewModel.Pin()->GetRangesMapping(RangeId); }
@@ -109,9 +152,19 @@ protected:
 	// End of FEditorUndoClient
 
 private:
+	/** Checks if the input value is the same as that of the other provided ViewModel. */
+	bool IsInputSame(const FProtocolRangeViewModel* InOther) const;
+
+	/** Message for each Validity state */
+	static TMap<EValidity, FText> ValidityMessages;
+
+	/** Last checked validity state. */
+	EValidity CurrentValidity = EValidity::Unchecked;
+
+private:
 	/** Owning Preset */
 	TWeakObjectPtr<URemoteControlPreset> Preset;
-	
+
 	/** Owning ProtocolBinding */
 	TWeakPtr<FProtocolBindingViewModel> ParentViewModel;
 
@@ -119,6 +172,12 @@ private:
 	FGuid RangeId;
 
 	FOnChanged OnChangedDelegate;
+
+	/** A UObject container/owner for the input property */
+	TStrongObjectPtr<URCPropertyContainerBase> InputProxyPropertyContainer;
+
+	/** A UObject container/owner for the output property */
+	TStrongObjectPtr<URCPropertyContainerBase> OutputProxyPropertyContainer;
 };
 
 #undef LOCTEXT_NAMESPACE

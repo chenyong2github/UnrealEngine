@@ -32,13 +32,12 @@ TRemoteControlProtocolCommandChange<ChangeArgsType>::TRemoteControlProtocolComma
 	, ChangeArgs(MoveTemp(InChangeArgs))
 	, OnApply(MoveTemp(InOnApply))
 	, OnRevert(MoveTemp(InOnRevert))
-{
-}
+{}
 
 template <typename ChangeArgsType>
 void TRemoteControlProtocolCommandChange<ChangeArgsType>::Apply(UObject* InObject)
 {
-	if(URemoteControlPreset* Preset = PresetPtr.Get())
+	if (URemoteControlPreset* Preset = PresetPtr.Get())
 	{
 		OnApply.ExecuteIfBound(Preset, ChangeArgs);
 	}
@@ -47,7 +46,7 @@ void TRemoteControlProtocolCommandChange<ChangeArgsType>::Apply(UObject* InObjec
 template <typename ChangeArgsType>
 void TRemoteControlProtocolCommandChange<ChangeArgsType>::Revert(UObject* InObject)
 {
-	if(URemoteControlPreset* Preset = PresetPtr.Get())
+	if (URemoteControlPreset* Preset = PresetPtr.Get())
 	{
 		OnRevert.ExecuteIfBound(Preset, ChangeArgs);
 	}

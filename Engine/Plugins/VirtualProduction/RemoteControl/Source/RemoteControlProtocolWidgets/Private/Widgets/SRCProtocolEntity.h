@@ -10,10 +10,10 @@
 class FProtocolBindingViewModel;
 
 /** Widget for a given FRemoteControlProtocolEntity implementation. */
-class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolStruct : public SCompoundWidget
+class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolEntity : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SRCProtocolStruct)
+	SLATE_BEGIN_ARGS(SRCProtocolEntity)
 	{}
 	SLATE_END_ARGS()
 

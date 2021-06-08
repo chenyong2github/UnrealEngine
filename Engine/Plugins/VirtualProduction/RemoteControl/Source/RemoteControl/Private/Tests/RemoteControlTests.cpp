@@ -4,6 +4,10 @@
 #include "Misc/AutomationTest.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlTestData.h"
+#include "StructDeserializer.h"
+#include "StructSerializer.h"
+#include "Backends/CborStructDeserializerBackend.h"
+#include "Backends/CborStructSerializerBackend.h"
 #include "UObject/StrongObjectPtr.h"
 
 #define PROP_NAME(Class, Name) GET_MEMBER_NAME_CHECKED(Class, Name)
@@ -97,6 +101,29 @@ bool FRemoteControlPresetIntegrationTest::RunTest(const FString& Parameters)
 	RemoteControlTest::TestExposeContainerElement(*this, GET_TEST_PROP(IntArray),		 FString::Printf(TEXT("%s.%s[0]"),		 *GET_TEST_PROP(IntArray)->GetName(), *GET_TEST_PROP(IntArray)->GetName()), true);
 	RemoteControlTest::TestExposeContainerElement(*this, GET_TEST_PROP(IntSet),			 FString::Printf(TEXT("%s.%s[0]"),		 *GET_TEST_PROP(IntSet)->GetName(), *GET_TEST_PROP(IntSet)->GetName()), true);
 	RemoteControlTest::TestExposeContainerElement(*this, GET_TEST_PROP(IntMap),			 FString::Printf(TEXT("%s.%s_Value[0]"), *GET_TEST_PROP(IntMap)->GetName(), *GET_TEST_PROP(IntMap)->GetName()), true);
+
+	{
+		FStructSerializerPolicies Policies;
+		Policies.MapSerialization = EStructSerializerMapPolicies::Array;
+
+		FStructDeserializerPolicies DeserializerPolicies;
+		DeserializerPolicies.MissingFields = EStructDeserializerErrorPolicies::Warning;
+		DeserializerPolicies.MapPolicies = EStructDeserializerMapPolicies::Array;
+		
+		TArray<uint8> Buffer;
+		FMemoryReader Reader(Buffer);
+		FMemoryWriter Writer(Buffer);
+
+		FCborStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+		FCborStructDeserializerBackend DeserializerBackend(Reader);
+
+		FRemoteControlTestInnerStruct TestStruct;
+		const FName Member = GET_MEMBER_NAME_CHECKED(FRemoteControlTestInnerStruct, ArrayOfVectors);
+		FProperty* Property = FindFProperty<FProperty>(FRemoteControlTestInnerStruct::StaticStruct(), Member);
+		FStructSerializer::SerializeElement(&TestStruct, Property, INDEX_NONE, SerializerBackend, Policies);
+
+		auto o = Buffer;
+	}
 	
 	FProperty* RProperty = TBaseStructure<FColor>::Get()->FindPropertyByName(TEXT("R"));
 	// Test exposing map with array indexing

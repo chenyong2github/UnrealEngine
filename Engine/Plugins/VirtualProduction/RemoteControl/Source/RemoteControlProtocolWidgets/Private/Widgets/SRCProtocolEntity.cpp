@@ -1,11 +1,12 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SRCProtocolStruct.h"
+#include "SRCProtocolEntity.h"
 
 #include "IDetailsView.h"
 #include "IRemoteControlProtocolModule.h"
 #include "IStructureDetailsView.h"
 #include "PropertyEditorModule.h"
+#include "RemoteControlPreset.h"
 #include "RemoteControlProtocolBinding.h"
 #include "Modules/ModuleManager.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
@@ -14,32 +15,32 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 
-void SRCProtocolStruct::Construct(const FArguments& InArgs, const TSharedRef<FProtocolBindingViewModel>& InViewModel)
+void SRCProtocolEntity::Construct(const FArguments& InArgs, const TSharedRef<FProtocolBindingViewModel>& InViewModel)
 {
 	ViewModel = InViewModel;
 
 	ChildSlot
 	[
 		SNew(SVerticalBox)
-        + SVerticalBox::Slot()
-        .Padding(0.f, 5.f)
-        .AutoHeight()
-        [
-            SNew(SHorizontalBox)
-            + SHorizontalBox::Slot()
-            [
-                CreateStructureDetailView()
-            ]
-        ]
+		+ SVerticalBox::Slot()
+		.Padding(0.f, 5.f)
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				CreateStructureDetailView()
+			]
+		]
 	];
 }
 
-TSharedRef<SWidget> SRCProtocolStruct::CreateStructureDetailView()
+TSharedRef<SWidget> SRCProtocolEntity::CreateStructureDetailView()
 {
 	const TSharedPtr<FStructOnScope> StructOnScope = ViewModel->GetBinding()->GetStructOnScope();
-	if(!StructOnScope || !StructOnScope->IsValid())
+	if (!StructOnScope || !StructOnScope->IsValid())
 	{
-		return SNew(STextBlock).Text(LOCTEXT("MappingItemError", "Mapping Item Error"));	
+		return SNew(STextBlock).Text(LOCTEXT("MappingItemError", "Mapping Item Error"));
 	}
 
 	FStructureDetailsViewArgs StructViewArgs;
@@ -62,16 +63,25 @@ TSharedRef<SWidget> SRCProtocolStruct::CreateStructureDetailView()
 	StructureDetailsView->GetOnFinishedChangingPropertiesDelegate().AddLambda([this](const FPropertyChangedEvent& PropertyChangedEvent)
 	{
 		FRemoteControlProtocolBinding* Binding = ViewModel->GetBinding();
-
+		
 		TSharedPtr<IRemoteControlProtocol> Protocol = IRemoteControlProtocolModule::Get().GetProtocolByName(Binding->GetProtocolName());
-		if(Protocol.IsValid())
+		if (Protocol.IsValid())
 		{
-			// unbind in case already bound
+			// Re-bound to update channel, etc.
+
+			// Unbind in case already bound
 			const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> EntityPtr = Binding->GetRemoteControlProtocolEntityPtr();
 			Protocol->Unbind(EntityPtr);
-
-			// bind/rebind
+		
+			// Bind/Rebind
 			Protocol->Bind(EntityPtr);
+		}
+
+		const TWeakObjectPtr<URemoteControlPreset> Preset = ViewModel->GetPreset();
+		if (Preset.IsValid())
+		{
+			// Have to mark dirty when changed by this widget, it's not automatically propagated for StructOnScope
+			Preset->MarkPackageDirty();
 		}
 	});
 

@@ -3,6 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "RCPropertyUtilities.h"
+#include "RCTypeTraits.h"
+#include "Containers/UnrealString.h"
 #include "UObject/Class.h"
 #include "UObject/StructOnScope.h"
 
@@ -26,7 +30,7 @@ UENUM()
 enum class ERCBindingStatus : uint8
 {
 	Unassigned,
-	Awaiting ,
+	Awaiting,
 	Bound
 };
 
@@ -35,7 +39,7 @@ enum class ERCBindingStatus : uint8
  * Mapping of the range of the values for the protocol
  * This class holds a generic range buffer.
  * For example, it could be FFloatProperty 4 bytes
- * Or it could be any UScripSctruct, like FVector - 12 bytes
+ * Or it could be any UScripStruct, like FVector - 12 bytes
  * Or any custom struct, arrays, maps, sets, or primitive properties
  */
 USTRUCT()
@@ -48,37 +52,6 @@ struct REMOTECONTROL_API FRemoteControlProtocolMapping
 
 	friend uint32 REMOTECONTROL_API GetTypeHash(const FRemoteControlProtocolMapping& InProtocolMapping);
 
-private:
-	/**
-	 * Traits class which tests if a range value type is primitive type.
-	 */
-	template <typename T>
-	struct TIsSupportedRangeValueType
-	{
-		enum { Value = false };
-	};
-
-	template <typename PropertyType>
-	struct TIsSupportedRangePropertyTypeBase
-	{
-		enum { Value = false };
-	};
-
-	template <typename PropertyType, typename Enable = void>
-	struct TIsSupportedRangePropertyType : TIsSupportedRangePropertyType<PropertyType> {};
-
-	template <typename PropertyType>
-    struct TIsSupportedRangePropertyType<
-            PropertyType,
-            typename TEnableIf<TIsDerivedFrom<PropertyType, FNumericProperty>::Value>::Type>
-        : TIsSupportedRangePropertyTypeBase<PropertyType>
-	{
-		enum
-		{
-			Value = true
-        };
-	};
-
 public:
 	FRemoteControlProtocolMapping() = default;
 	FRemoteControlProtocolMapping(FProperty* InProperty, uint8 InRangeValueSize);
@@ -90,11 +63,14 @@ public:
 	/** Get Binding Range Id. */
 	const FGuid& GetId() const { return Id; }
 
+	/** Get validity of the mapping (based on the Id) */
+	bool IsValid() const { return Id.IsValid(); }
+
 	/** Get Binding Range Value */
-	template<typename ValueType>
+	template <typename ValueType>
 	ValueType GetRangeValue()
 	{
-		check(TIsSupportedRangeValueType<ValueType>::Value);
+		check(TRemoteControlTypeTraits<ValueType>::IsSupportedMappingType());
 		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType));
 		return *reinterpret_cast<ValueType*>(InterpolationRangePropertyData.GetData());
 	}
@@ -107,18 +83,18 @@ public:
 		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType))
 		return *reinterpret_cast<ValueType*>(InterpolationRangePropertyData.GetData());
 	}
-	
+
 	/** Set Binding Range Value based on template value input */
-	template<typename ValueType>
+	template <typename ValueType>
 	void SetRangeValue(ValueType InRangeValue)
 	{
-		check(TIsSupportedRangeValueType<ValueType>::Value);
+		check(TRemoteControlTypeTraits<ValueType>::IsSupportedRangeType());
 		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType));
 		*reinterpret_cast<ValueType*>(InterpolationRangePropertyData.GetData()) = InRangeValue;
 	}
 
 	/** Set Binding Range Struct Value based on templated value input */
-	template<typename ValueType, typename PropertyType>
+	template <typename ValueType, typename PropertyType>
 	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, void>::Type
 	SetRangeValue(ValueType InRangeValue)
 	{
@@ -127,132 +103,124 @@ public:
 	}
 
 	/** Get Mapping Property Value as a primitive type */
-	template<typename ValueType>
-	ValueType GetMappingValueAsPrimitive()
+	template <typename ValueType>
+	typename TEnableIf<!RemoteControlTypeTraits::TIsStringLikeValue<ValueType>::Value, ValueType>::Type
+	GetMappingValueAsPrimitive()
 	{
-		check(TIsSupportedRangeValueType<ValueType>::Value);
+		check(TRemoteControlTypeTraits<ValueType>::IsSupportedMappingType());
 		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
 		return *reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData());
 	}
 
+	/** Get Mapping Property String-like Value as a primitive type */
+	template <typename ValueType>
+	typename TEnableIf<RemoteControlTypeTraits::TIsStringLikeValue<ValueType>::Value, ValueType>::Type
+	GetMappingValueAsPrimitive()
+	{
+		check(TRemoteControlTypeTraits<ValueType>::IsSupportedMappingType());
+		return *reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData());
+	}
+
 	/** Get Mapping Property Struct Value as a primitive type */
-	template<typename ValueType, typename PropertyType>
+	template <typename ValueType, typename PropertyType>
 	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, ValueType>::Type
-    GetMappingValueAsPrimitive()
+	GetMappingValueAsPrimitive()
 	{
 		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
 		return *reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData());
 	}
 
 	/** Set primitive Mapping Property Value based on template value input */
-	template<typename ValueType>
-	void SetRangeValueAsPrimitive(ValueType InMappingPropertyValue)
+	template <typename ValueType>
+	void SetMappingValueAsPrimitive(ValueType InMappingPropertyValue)
 	{
-		check(TIsSupportedRangeValueType<ValueType>::Value);
+		check(TRemoteControlTypeTraits<ValueType>::IsSupportedMappingType());
 		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
 		*reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData()) = InMappingPropertyValue;
 	}
+
 
 	/** Set primitive Mapping Property Struct Value based on template value input */
-	template<typename ValueType, typename PropertyType>
+	template <typename ValueType, typename PropertyType>
 	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, void>::Type
-    SetRangeValueAsPrimitive(ValueType InMappingPropertyValue)
+	SetMappingValueAsPrimitive(ValueType InMappingPropertyValue)
 	{
 		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
 		*reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData()) = InMappingPropertyValue;
 	}
 
+#if WITH_EDITOR
 	/** Copies the underlying InterpolationRangePropertyData to the given destination, using the input property for type information */
 	template <typename PropertyType>
-	bool CopyRawRangeData(const PropertyType* InProperty, void* OutDestination)
+	bool CopyRawRangeData(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 	{
-		return CopyRawData(InterpolationRangePropertyData, InProperty, OutDestination);
+		RemoteControlPropertyUtilities::FRCPropertyVariant Src{InPropertyHandle->GetProperty(), InterpolationRangePropertyData};
+		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InPropertyHandle};
+		return RemoteControlPropertyUtilities::Deserialize<PropertyType>(Src, Dst);
 	}
-
-	/** Copies the underlying InterpolationRangePropertyData to the given destination, using the input property for type information */
-	bool CopyRawRangeData(const FProperty* InProperty, void* OutDestination);
 
 	/** Sets the underlying InterpolationRangePropertyData to the given source, using the input property for type information */
 	template <typename PropertyType>
-    bool SetRawRangeData(URemoteControlPreset* InOwningPreset, const PropertyType* InProperty, const void* InSource)
+	bool SetRawRangeData(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 	{
-		return SetRawData(InOwningPreset, InterpolationRangePropertyData, InProperty, InSource);
+		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InPropertyHandle->GetProperty(), InterpolationRangePropertyData};
+		return RemoteControlPropertyUtilities::Serialize<PropertyType>(InPropertyHandle, Dst);
 	}
 
 	/** Sets the underlying InterpolationRangePropertyData to the given source, using the input property for type information */
-	bool SetRawRangeData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource);
-
-	/** Copies the underlying InterpolationMappingPropertyData to the given destination, using the input property for type information */
-	template <typename PropertyType>
-    bool CopyRawMappingData(const PropertyType* InProperty, void* OutDestination)
+	bool SetRawRangeData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource)
 	{
-		return CopyRawData(InterpolationMappingPropertyData, InProperty, OutDestination);
+		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InProperty, InterpolationRangePropertyData};
+		return RemoteControlPropertyUtilities::Serialize<FProperty>({InProperty, InSource}, Dst);
 	}
 
 	/** Copies the underlying InterpolationMappingPropertyData to the given destination, using the input property for type information */
-	bool CopyRawMappingData(const FProperty* InProperty, void* OutDestination);
-
-	/** Sets the underlying InterpolationMappingPropertyData to the given source, using the input property for type information */
 	template <typename PropertyType>
-	bool SetRawMappingData(URemoteControlPreset* InOwningPreset, const PropertyType* InProperty, const void* InSource)
+	bool CopyRawMappingData(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 	{
-		return SetRawData(InterpolationMappingPropertyData, InProperty, InSource);
+		RemoteControlPropertyUtilities::FRCPropertyVariant Src{InPropertyHandle->GetProperty(), InterpolationMappingPropertyData, InterpolationMappingPropertyElementNum};
+		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InPropertyHandle};
+		return RemoteControlPropertyUtilities::Deserialize<PropertyType>(Src, Dst);
 	}
 
 	/** Sets the underlying InterpolationMappingPropertyData to the given source, using the input property for type information */
-	bool SetRawMappingData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource);
-	
+	template <typename PropertyType>
+	bool SetRawMappingData(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
+	{
+		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InPropertyHandle->GetProperty(), InterpolationMappingPropertyData};
+		if (RemoteControlPropertyUtilities::Serialize<PropertyType>(InPropertyHandle, Dst))
+		{
+			InterpolationMappingPropertyElementNum = Dst.Num();
+			RefreshCachedData();
+			return true;
+		}
+		return false;
+	}
+
+	/** Sets the underlying InterpolationMappingPropertyData to the given source, using the input property for type information */
+	bool SetRawMappingData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource)
+	{
+		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InProperty, InterpolationMappingPropertyData};
+		if (RemoteControlPropertyUtilities::Serialize<FProperty>({InProperty, InSource}, Dst))
+		{
+			InterpolationMappingPropertyElementNum = Dst.Num();
+			RefreshCachedData();
+			return true;
+		}
+		return false;
+	}
+#endif
+
 	/** Get Mapping value as a Struct on Scope, only in case BoundProperty is FStructProperty */
 	TSharedPtr<FStructOnScope> GetMappingPropertyAsStructOnScope();
 
 private:
 	/** Checks that the source data matches the expected size of the property */
 	template <typename PropertyType>
-    bool PropertySizeMatchesData(const TArray<uint8>& InSource, const PropertyType* InProperty);
-	
-	/** Shared code between ranges/mapping data */
-	template <typename PropertyType>
-	bool CopyRawData(const TArray<uint8>& InSource, const PropertyType* InProperty, void* OutDestination)
-	{
-		static_assert(TIsDerivedFrom<PropertyType, FProperty>::Value, "PropertyType must derive from FProperty");
+	bool PropertySizeMatchesData(const TArray<uint8>& InSource, const PropertyType* InProperty);
 
-		check(InProperty);
-		check(OutDestination);
-
-		bool bCanCopy = ensureMsgf(TIsSupportedRangePropertyType<PropertyType>::Value, TEXT("PropertyType %s is unsupported."), *PropertyType::StaticClass()->GetName());
-		bCanCopy &= ensureMsgf(PropertySizeMatchesData(InSource, InProperty), TEXT("PropertyType %s didn't match data size."), *PropertyType::StaticClass()->GetName());
-
-		if(bCanCopy)
-		{
-			FMemory::Memcpy((uint8*)OutDestination, InSource.GetData(), InSource.Num());
-		}
-
-		return bCanCopy;
-	}
-
-	bool CopyRawData(const TArray<uint8>& InSource, const FProperty* InProperty, void* OutDestination);
-
-	/** Shared code between ranges/mapping data */
-	template <typename PropertyType>
-	bool SetRawData(URemoteControlPreset* InOwningPreset, TArray<uint8>& OutDestination, const PropertyType* InProperty, const void* InSource)
-	{
-		static_assert(TIsDerivedFrom<PropertyType, FProperty>::Value, "PropertyType must derive from FProperty");
-
-		check(InProperty);
-		check(InSource);
-
-		bool bCanCopy = ensureMsgf(TIsSupportedRangePropertyType<PropertyType>::Value, TEXT("PropertyType %s is unsupported."), *PropertyType::StaticClass()->GetName());
-		bCanCopy &= ensureMsgf(PropertySizeMatchesData(OutDestination, InProperty), TEXT("PropertyType %s didn't match data size."), *PropertyType::StaticClass()->GetName());
-
-		if(bCanCopy)
-		{
-			FMemory::Memcpy(OutDestination.GetData(), (uint8*)InSource, OutDestination.Num());
-		}
-
-		return bCanCopy;
-	}
-
-	bool SetRawData(URemoteControlPreset* InOwningPreset, TArray<uint8>& OutDestination, const FProperty* InProperty, const void* InSource);
+	/** Refreshes (deserializes) mapping data to cache */
+	void RefreshCachedData();
 
 private:
 	/** Unique Id of the current binding */
@@ -269,52 +237,69 @@ private:
 	TArray<uint8> InterpolationRangePropertyData;
 
 	/** 
-	 * Holds the mapped property data buffer. 
-	 * It could be the buffer for primitive FNumericProperty or FStructProperty or any container FProperty like FArrayProperty
+	 * Holds the serialized mapped property data. 
+	 * It could be a primitive value for FNumericProperty, or a text representation for a struct.
 	 */
 	UPROPERTY()
 	TArray<uint8> InterpolationMappingPropertyData;
+
+	/** 
+	* Holds the mapped property data buffer. 
+	* This is the cached raw data as opposed to the serialized data, so it doesn't contain type information.
+	*/
+	UPROPERTY(Transient)
+	TArray<uint8> InterpolationMappingPropertyDataCache;
+
+	/** The element count if the Mapping is an array. */
+	UPROPERTY()
+	int32 InterpolationMappingPropertyElementNum = 1;
 
 	/** Holds the bound property path */
 	UPROPERTY()
 	TFieldPath<FProperty> BoundPropertyPath;
 };
 
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<int8>		{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<int16>		{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<int32>		{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<int64>		{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<uint8>		{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<uint16>	{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<uint32>	{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<uint64>	{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<float>		{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<double>	{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<bool>		{ enum { Value = true }; };
+/** Set primitive Mapping Property String Value based on template value input */
+template <>
+inline void FRemoteControlProtocolMapping::SetMappingValueAsPrimitive<FString>(FString InMappingPropertyValue)
+{
+	check(TRemoteControlTypeTraits<FString>::IsSupportedMappingType());
 
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<FVector>		{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<FRotator>		{ enum { Value = true }; };
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangeValueType<FLinearColor>	{ enum { Value = true }; };
+	const FString Value = InMappingPropertyValue;
+	TArray<uint8> Buffer;
+	StringToBytes(Value, Buffer.GetData(), TNumericLimits<int16>::Max());
+	InterpolationMappingPropertyData = Buffer;
+}
 
-/** Currently all numeric types are supported so we can shortcut the above (rather than doing a series of CastField's) */
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangePropertyType<FNumericProperty> : TIsSupportedRangePropertyTypeBase<FNumericProperty> { enum { Value = true }; };
+/** Set primitive Mapping Property Name Value based on template value input */
+template <>
+inline void FRemoteControlProtocolMapping::SetMappingValueAsPrimitive<FName>(FName InMappingPropertyValue)
+{
+	check(TRemoteControlTypeTraits<FName>::IsSupportedMappingType());
 
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangePropertyType<FEnumProperty> : TIsSupportedRangePropertyTypeBase<FEnumProperty> { enum { Value = false }; };
+	SetMappingValueAsPrimitive(InMappingPropertyValue.ToString());
+}
 
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangePropertyType<FBoolProperty> : TIsSupportedRangePropertyTypeBase<FBoolProperty> { enum { Value = TIsSupportedRangeValueType<bool>::Value }; };
+/** Set primitive Mapping Property Text Value based on template value input */
+template <>
+inline void FRemoteControlProtocolMapping::SetMappingValueAsPrimitive<FText>(FText InMappingPropertyValue)
+{
+	check(TRemoteControlTypeTraits<FText>::IsSupportedMappingType());
 
-template <> struct FRemoteControlProtocolMapping::TIsSupportedRangePropertyType<FStructProperty> : TIsSupportedRangePropertyTypeBase<FStructProperty> { enum { Value = true }; };
+	SetMappingValueAsPrimitive(InMappingPropertyValue.ToString());
+}
+
 
 template <>
 inline bool FRemoteControlProtocolMapping::PropertySizeMatchesData<FBoolProperty>(const TArray<uint8>& InSource, const FBoolProperty* InProperty)
 {
-	return ensure(sizeof(bool) == InSource.Num());
+	return ensure(InProperty->ElementSize == InSource.Num());
 }
 
 template <>
 inline bool FRemoteControlProtocolMapping::PropertySizeMatchesData<FNumericProperty>(const TArray<uint8>& InSource, const FNumericProperty* InProperty)
 {
-	return ensure(InProperty->ElementSize == InSource.Num());
+	return ensure(InProperty->ElementSize >= InSource.Num());
 }
 
 template <>
@@ -322,6 +307,12 @@ inline bool FRemoteControlProtocolMapping::PropertySizeMatchesData<FStructProper
 {
 	UScriptStruct* ScriptStruct = InProperty->Struct;
 	return ensure(ScriptStruct->GetStructureSize() == InSource.Num());
+}
+
+template <typename PropertyType>
+bool FRemoteControlProtocolMapping::PropertySizeMatchesData(const TArray<uint8>& InSource, const PropertyType* InProperty)
+{
+	return true;
 }
 
 /**
@@ -333,10 +324,8 @@ struct REMOTECONTROL_API FRemoteControlProtocolEntity
 {
 	GENERATED_BODY()
 
-	friend FRemoteControlProtocolBinding;
-
 public:
-	virtual ~FRemoteControlProtocolEntity(){}
+	virtual ~FRemoteControlProtocolEntity() {}
 
 	/**
 	 * Initialize after allocation
@@ -353,7 +342,7 @@ public:
 	 * @param InProtocolValue double value from the protocol
 	 * @return true of applied successfully
 	 */
-	bool ApplyProtocolValueToProperty(double InProtocolValue) const;
+	bool ApplyProtocolValueToProperty(double InProtocolValue);
 
 	/** 
 	 * Get bound range property. For example, the range could be bound to FFloatProperty or FIntProperty, etc.
@@ -363,7 +352,10 @@ public:
 	virtual FName GetRangePropertyName() const { return NAME_None; }
 
 	/** Get Size of the range property value */
-	uint8 GetRangePropertySize() const;
+	virtual uint8 GetRangePropertySize() const;
+
+	/** Get the state of the binding. */
+	bool IsEnabled() const { return bIsEnabled; }
 
 	/** Get current binding state of the entity */
 	ERCBindingStatus GetBindingStatus() const { return BindingStatus; }
@@ -374,10 +366,84 @@ public:
 	 */
 	ERCBindingStatus ToggleBindingStatus();
 
-	/** Reset the binding set to default */ 
+	/** Reset the binding set to default */
 	void ResetDefaultBindingState();
 
+	/** Set to enable or disable input. */
+	void SetEnabled(bool bInEnable) { bIsEnabled = bInEnable; }
+
+	/**
+	 * Checks if this entity has the same values as the Other.
+	 * Used to check for duplicate inputs.
+	 */
+	virtual bool IsSame(const FRemoteControlProtocolEntity* InOther) { return false; }
+
+public:
+	/** Container for range and mapping value pointers, and an optional number of elements (arrays, strings). */
+	struct FRangeMappingData
+	{
+		TArray<uint8> Range;
+		TArray<uint8> Mapping;
+
+		/** Number of elements represented in the mapping data (for arrays, etc.). */
+		mutable int32 NumElements = 1;
+
+		FRangeMappingData() = default;
+
+		FRangeMappingData(const uint8* InRange,
+						const uint8* InMapping,
+						int32 InRangeSize = sizeof(uint8),
+						int32 InMappingSize = sizeof(uint8),
+						int32 InNumMappingElements = 1)
+			: NumElements(InNumMappingElements)
+		{
+			// The interpolated data isn't necessarily in the same format as the persisted data, so copy
+			Range = TArray<uint8>(InRange, InRangeSize);
+			Mapping = TArray<uint8>(InMapping, InMappingSize);
+		}
+
+		FRangeMappingData(const TArray<uint8>& InRange,
+						const uint8* InMapping,
+						int32 InMappingSize = sizeof(uint8),
+						const int32 InNumMappingElements = 1)
+			: Range(TArray<uint8>(InRange))
+			, NumElements(InNumMappingElements)
+		{
+			Mapping = TArray<uint8>(InMapping, InMappingSize);
+		}
+
+		FRangeMappingData(const TArray<uint8>& InRange,
+						const TArray<uint8>& InMapping,
+						const int32 InNumMappingElements = 1)
+			: Range(TArray<uint8>(InRange))
+			, Mapping(TArray<uint8>(InMapping))
+			, NumElements(InNumMappingElements)
+		{ }
+	};
+
+	/** Templated container for range and mapping values. */
+	template <typename RangeType, typename MappingType>
+	struct TRangeMappingData
+	{
+		RangeType Range;
+		MappingType Mapping;
+
+		TRangeMappingData() = default;
+
+		TRangeMappingData(const RangeType& InRange, const MappingType& InMapping)
+			: Range(InRange)
+			, Mapping(InMapping)
+		{ }
+
+		explicit TRangeMappingData(const FRangeMappingData& InRangeMappingData)
+		{
+			Range = reinterpret_cast<RangeType>(InRangeMappingData.Range.GetData());
+			Mapping = reinterpret_cast<MappingType>(InRangeMappingData.Mapping.GetData());
+		}
+	};
+
 private:
+	friend struct FRemoteControlProtocolBinding;
 
 	/**
 	 * Serialize interpolated property value to Cbor buffer
@@ -386,11 +452,11 @@ private:
 	 * @param OutBuffer serialized buffer
 	 * @return true if serialized correctly
 	 */
-	bool GetInterpolatedPropertyBuffer(FProperty* InProperty, double InProtocolValue, TArray<uint8>& OutBuffer) const;
+	bool GetInterpolatedPropertyBuffer(FProperty* InProperty, double InProtocolValue, TArray<uint8>& OutBuffer);
 
 private:
 	/** Get Ranges and Mapping Value pointers */
-	TArray<TPair<const uint8*, const uint8*>> GetRangeMappingBuffers() const;
+	TArray<FRangeMappingData> GetRangeMappingBuffers();
 
 protected:
 	/** The preset that owns this entity. */
@@ -400,6 +466,9 @@ protected:
 	/** Exposed property Id */
 	UPROPERTY()
 	FGuid PropertyId;
+
+	/** State of the binding, set to false to ignore input.  */
+	bool bIsEnabled = true;
 
 protected:
 	/** 
@@ -433,7 +502,6 @@ public:
 	bool operator==(FGuid InProtocolBindingId) const;
 
 public:
-
 	/** Get protocol binding id */
 	const FGuid& GetId() const { return Id; }
 
@@ -487,7 +555,7 @@ public:
 	 * @param InRangeValue range property value
 	 * @return true if it was set successfully
 	 */
-	template<typename T>
+	template <typename T>
 	bool SetRangeToMapping(const FGuid& InMappingId, T InRangeValue)
 	{
 		if (FRemoteControlProtocolMapping* Mapping = FindMapping(InMappingId))
@@ -513,11 +581,11 @@ public:
 
 	/** Checks if the given ValueType is supported */
 	template <typename ValueType>
-	static bool IsRangeTypeSupported() { return FRemoteControlProtocolMapping::TIsSupportedRangeValueType<ValueType>::Value; }
+	static bool IsRangeTypeSupported() { return TRemoteControlTypeTraits<ValueType>::IsSupportedMappingType(); }
 
 	/** Checks if the given PropertyType (FProperty) is supported */
 	template <typename PropertyType>
-    static bool IsRangePropertyTypeSupported() { return FRemoteControlProtocolMapping::TIsSupportedRangeValueType<PropertyType>::Value; }
+	static bool IsRangePropertyTypeSupported() { return TRemoteControlPropertyTypeTraits<PropertyType>::IsSupportedMappingType(); }
 
 	/** Custom struct serialize */
 	bool Serialize(FArchive& Ar);
@@ -552,7 +620,7 @@ private:
 /**
  * TypeTraits to define FRemoteControlProtocolBinding with a Serialize function
  */
-template<>
+template <>
 struct TStructOpsTypeTraits<FRemoteControlProtocolBinding> : public TStructOpsTypeTraitsBase2<FRemoteControlProtocolBinding>
 {
 	enum

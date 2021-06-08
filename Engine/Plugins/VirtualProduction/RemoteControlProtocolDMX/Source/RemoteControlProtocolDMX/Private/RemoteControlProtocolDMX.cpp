@@ -28,6 +28,25 @@ FRemoteControlDMXProtocolEntity::~FRemoteControlDMXProtocolEntity()
 	}
 }
 
+uint8 FRemoteControlDMXProtocolEntity::GetRangePropertySize() const
+{
+	switch (DataType)
+	{
+		default:
+		case EDMXFixtureSignalFormat::E8Bit:
+			return sizeof(uint8);
+			
+		case EDMXFixtureSignalFormat::E16Bit:
+			return sizeof(uint16);
+			
+		case EDMXFixtureSignalFormat::E24Bit:
+			return sizeof(uint16);
+			
+		case EDMXFixtureSignalFormat::E32Bit:
+			return sizeof(uint32);
+	}
+}
+
 void FRemoteControlDMXProtocolEntity::Initialize()
 {
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();

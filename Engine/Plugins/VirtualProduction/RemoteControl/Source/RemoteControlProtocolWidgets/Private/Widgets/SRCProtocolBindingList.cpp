@@ -2,6 +2,7 @@
 
 #include "SRCProtocolBindingList.h"
 
+#include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "IRemoteControlProtocolModule.h"
@@ -12,6 +13,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Types/ISlateMetaData.h"
 #include "ViewModels/ProtocolEntityViewModel.h"
+#include "ViewModels/RCViewModelCommon.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -26,7 +28,7 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 {
 	constexpr float Padding = 2.0f;
 	ViewModel = InViewModel;
-	FilteredBindings = ViewModel->GetFilteredBindings(GetSettings()->HiddenProtocolTypeNames);
+	Refresh();
 
 	PrimaryColumnWidth = 0.7f;
 	PrimaryColumnSizeData = MakeShared<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData>();
@@ -42,33 +44,29 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 	
 	ViewModel->OnBindingAdded().AddLambda([&](const TSharedPtr<FProtocolBindingViewModel> InBindingViewModel)
 	{
-		if(BindingList.IsValid())
+		if(Refresh())
 		{
-            BindingList->RequestListRefresh();
+			Refresh(true);
 			BindingList->RequestNavigateToItem(InBindingViewModel);
         }
 	});
 
 	ViewModel->OnBindingRemoved().AddLambda([&](FGuid)
 	{
-		if(BindingList.IsValid())
-		{
-			BindingList->RequestListRefresh();
-		}
+		Refresh();
 	});
 
 	ViewModel->OnChanged().AddLambda([&]()
 	{
-		if(BindingList.IsValid())
-		{
-			BindingList->RequestListRefresh();
-		}
+		Refresh();
 	});
 
 	// The visibility toggle menu to show/hide protocol types
 	FMenuBuilder ProtocolVisibilityMenu(true, nullptr);
 
-	// @todo: refactor to allow for protocol late loading, add & remove during editor session
+	TSharedRef<SScrollBar> ExternalScrollBar = SNew(SScrollBar);
+	ExternalScrollBar->SetVisibility(TAttribute<EVisibility>(this, &SRCProtocolBindingList::GetScrollBarVisibility));
+
 	ProtocolNames = IRemoteControlProtocolModule::Get().GetProtocolNames();
 	for(const FName& ProtocolName : ProtocolNames)
 	{
@@ -84,7 +82,13 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
-	}	
+	}
+
+	SAssignNew(BindingList, SListView<TSharedPtr<IRCTreeNodeViewModel>>)
+	.ListItemsSource(&FilteredBindings)
+	.OnGenerateRow(this, &SRCProtocolBindingList::ConstructBindingWidget)
+	.SelectionMode(ESelectionMode::None)
+	.ExternalScrollbar(ExternalScrollBar);
 
 	ChildSlot
 	[
@@ -172,16 +176,28 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 		]			 
 
 		+ SVerticalBox::Slot()
-		.Padding(1)
+		.FillHeight(1.0f)
+		.Padding(0)
 		[
-			SNew(SBorder)
-	        .BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
-	        .Padding(5.0f)
-	        [
-        		SAssignNew(BindingList, SListView<TSharedPtr<FProtocolBindingViewModel>>)
-		        .OnGenerateRow(this, &SRCProtocolBindingList::OnGenerateRow)
-		        .ListItemsSource(&FilteredBindings)
-	        ]
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.Padding(5.0f)
+				[
+					BindingList.ToSharedRef()				
+				]				
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.WidthOverride(16.0f)
+				[
+					ExternalScrollBar
+				]
+			]
 		]
 	];
 }
@@ -202,31 +218,33 @@ SRCProtocolBindingList::~SRCProtocolBindingList()
 	AwaitingProtocolEntities.Empty();
 }
 
-TSharedRef<SRCProtocolBinding> SRCProtocolBindingList::ConstructBindingWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedPtr<FProtocolBindingViewModel> InViewModel)
+TSharedRef<ITableRow> SRCProtocolBindingList::ConstructBindingWidget(TSharedPtr<IRCTreeNodeViewModel> InViewModel, const TSharedRef<STableViewBase>& InOwnerTable)
 {
-	return SNew(SRCProtocolBinding, InOwnerTable, InViewModel.ToSharedRef())
+	check(InViewModel.IsValid());
+	
+	return SNew(SRCProtocolBinding, InOwnerTable, StaticCastSharedPtr<FProtocolBindingViewModel>(InViewModel).ToSharedRef())
 		.PrimaryColumnSizeData(PrimaryColumnSizeData)
 		.SecondaryColumnSizeData(SecondaryColumnSizeData)
 		.OnStartRecording(this, &SRCProtocolBindingList::OnStartRecording)
 		.OnStopRecording(this, &SRCProtocolBindingList::OnStopRecording);
 }
 
-TSharedRef<ITableRow> SRCProtocolBindingList::OnGenerateRow(TSharedPtr<FProtocolBindingViewModel> InViewModel, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	check(InViewModel.IsValid());
-	TSharedRef<SRCProtocolBinding> BindingWidget = ConstructBindingWidget(OwnerTable, InViewModel);
-	return BindingWidget;
-}
-
 bool SRCProtocolBindingList::CanAddProtocol()
 {
-	const TSharedPtr<FName> SelectedProtocolName = ProtocolList->GetSelectedProtocolName();
-	const bool bResult = ViewModel->CanAddBinding(SelectedProtocolName.IsValid() ? *SelectedProtocolName : NAME_None, StatusMessage);
-	if(bResult)
+	const TSharedPtr<FName> SelectedProtocolName = ProtocolList.IsValid() ? ProtocolList->GetSelectedProtocolName() : nullptr;
+	if(!ViewModel->IsBound())
 	{
 		StatusMessage = FText::GetEmpty();
+		return false;
 	}
-	return bResult;	
+	
+	if(ViewModel->CanAddBinding(SelectedProtocolName.IsValid() ? *SelectedProtocolName : NAME_None, StatusMessage))
+	{
+		StatusMessage = FText::GetEmpty();
+		return true;
+	}
+	
+	return false;	
 }
 
 void SRCProtocolBindingList::ToggleShowProtocol(const FName& InProtocolName)
@@ -239,14 +257,20 @@ void SRCProtocolBindingList::ToggleShowProtocol(const FName& InProtocolName)
 	{
 		GetSettings()->HiddenProtocolTypeNames.Remove(InProtocolName);
 	}
+	GetSettings()->SaveConfig();
 
-	FilteredBindings = ViewModel->GetFilteredBindings(GetSettings()->HiddenProtocolTypeNames);
-	BindingList->RequestListRefresh();
+	Refresh(false);
 }
 
 bool SRCProtocolBindingList::IsProtocolShown(const FName& InProtocolName)
 {
 	return !GetSettings()->HiddenProtocolTypeNames.Contains(InProtocolName);
+}
+
+EVisibility SRCProtocolBindingList::GetScrollBarVisibility() const
+{
+	const bool bHasAnythingToShow = FilteredBindings.Num() > 0;
+	return bHasAnythingToShow ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SRCProtocolBindingList::OnStartRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity)
@@ -270,6 +294,37 @@ URemoteControlProtocolWidgetsSettings* SRCProtocolBindingList::GetSettings()
 	ensure(Settings.IsValid());
 	
 	return Settings.Get();
+}
+
+bool SRCProtocolBindingList::Refresh(bool bNavigateToEnd)
+{
+	FilteredBindings.Empty(FilteredBindings.Num());
+	for(const TSharedPtr<FProtocolBindingViewModel>& ProtocolBinding :  ViewModel->GetFilteredBindings(GetSettings()->HiddenProtocolTypeNames))
+	{
+		FilteredBindings.Add(ProtocolBinding);
+	}
+	
+	if(BindingList.IsValid())
+	{
+		// Don't build list if not supported
+		if(!CanAddProtocol())
+		{
+			return false;
+		}			
+		
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this, bNavigateToEnd]()
+		{
+			BindingList->RequestListRefresh();
+			if(bNavigateToEnd)
+			{
+				BindingList->ScrollToBottom();	
+			}
+		}));
+		
+		return true;
+	}
+	
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

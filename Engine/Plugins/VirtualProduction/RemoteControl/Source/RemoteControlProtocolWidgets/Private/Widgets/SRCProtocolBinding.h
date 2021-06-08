@@ -30,18 +30,19 @@ public:
 
 	/** Delegate when stop recording input from protocol */
 	DECLARE_DELEGATE_OneParam(FOnStopRecording, TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntity)
-	
-	SLATE_BEGIN_ARGS(SRCProtocolBinding) 
-	{}
+
+	SLATE_BEGIN_ARGS(SRCProtocolBinding)
+		{}
 		SLATE_ARGUMENT(TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData>, PrimaryColumnSizeData)
 		SLATE_ARGUMENT(TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData>, SecondaryColumnSizeData)
-		SLATE_EVENT( FOnStartRecording, OnStartRecording )
-		SLATE_EVENT( FOnStopRecording, OnStopRecording )
+		SLATE_EVENT(FOnStartRecording, OnStartRecording)
+		SLATE_EVENT(FOnStopRecording, OnStopRecording)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedRef<FProtocolBindingViewModel>& InViewModel);
 
 private:
+	/** Called when Delete button pressed. */
 	FReply OnDelete() const;
 
 	/** Toggle recording button handler */
@@ -51,8 +52,10 @@ private:
 	FSlateColor GetRecordingButtonColor() const;
 
 private:
+	/** ViewModel for the Protocol Binding. */
 	TSharedPtr<FProtocolBindingViewModel> ViewModel;
 
+	/** RangeList Widget. */
 	TSharedPtr<SRCProtocolRangeList> RangeList;
 
 	/** Container used by all primary splitters in the details view, so that they move in sync */
