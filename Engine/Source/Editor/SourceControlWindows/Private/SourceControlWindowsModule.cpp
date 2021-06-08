@@ -15,6 +15,7 @@
 #include "WorkspaceMenuStructureModule.h"
 
 #include "SSourceControlChangelists.h"
+#include "UncontrolledChangelistsModule.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlWindows"
 
@@ -117,13 +118,8 @@ void FSourceControlWindowsModule::ShowChangelistsTab()
 bool FSourceControlWindowsModule::CanShowChangelistsTab() const
 {
 	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	if (ISourceControlModule::Get().IsEnabled() &&
-		ISourceControlModule::Get().GetProvider().IsAvailable())
-	{
-		return true;
-	}
 
-	return false;
+	return (SourceControlModule.IsEnabled() && SourceControlModule.GetProvider().IsAvailable()) || FUncontrolledChangelistsModule::Get().IsEnabled();
 }
 
 #undef LOCTEXT_NAMESPACE

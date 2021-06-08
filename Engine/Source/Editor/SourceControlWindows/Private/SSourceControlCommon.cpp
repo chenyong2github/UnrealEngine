@@ -84,9 +84,9 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 	}
 
 	// Initialize display-related members
-	FString TempAssetName = LOCTEXT("SourceControl_DefaultAssetName", "Unavailable").ToString();
+	FString TempAssetName = SSourceControlCommon::GetDefaultAssetName().ToString();
 	FString TempAssetPath = Filename;
-	FString TempAssetType = LOCTEXT("SourceControl_DefaultAssetType", "Unknown").ToString();
+	FString TempAssetType = SSourceControlCommon::GetDefaultAssetType().ToString();
 	FString TempPackageName = Filename;
 	FColor TempAssetColor = FColor(		// Copied from ContentBrowserCLR.cpp
 		127 + FColor::Red.R / 2,	// Desaturate the colors a bit (GB colors were too.. much)
@@ -133,7 +133,7 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 		}
 		else
 		{
-			TempAssetType = LOCTEXT("SourceCOntrol_ManyAssetType", "Multiple Assets").ToString();
+			TempAssetType = SSourceControlCommon::GetDefaultMultipleAsset().ToString();
 			TempAssetColor = FColor::White;
 		}
 
@@ -156,7 +156,7 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 	{
 		TempAssetName = FPaths::GetCleanFilename(Filename);
 		TempPackageName = Filename; // put back original package name if the try failed
-		TempAssetType = FText::Format(LOCTEXT("SourceControl_FileTypeDefault", "{0} File"), FText::FromString(FPaths::GetExtension(Filename).ToUpper())).ToString();
+		TempAssetType = FText::Format(SSourceControlCommon::GetDefaultUnknownAssetType(), FText::FromString(FPaths::GetExtension(Filename).ToUpper())).ToString();
 	}
 
 	// Finally, assign the temp variables to the member variables
@@ -165,6 +165,74 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 	AssetType = FText::FromString(TempAssetType);
 	AssetTypeColor = TempAssetColor;
 	PackageName = FText::FromString(TempPackageName);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+FOfflineFileTreeItem::FOfflineFileTreeItem(const FString& InFilename)
+	: Assets()
+	, PackageName(FText::FromString(InFilename)) 
+	, AssetName(SSourceControlCommon::GetDefaultAssetName())
+	, AssetPath()
+	, AssetType(SSourceControlCommon::GetDefaultAssetType())
+	, AssetTypeColor()
+{
+	Type = IChangelistTreeItem::OfflineFile;
+	FString TempString;
+
+	USourceControlHelpers::GetAssetData(InFilename, Assets);
+
+	if (Assets.Num() > 0)
+	{
+		const FAssetData& AssetData = Assets[0];
+		AssetPath = FText::FromName(AssetData.ObjectPath);
+
+		// Find name, asset type & color only if there is exactly one asset
+		if (Assets.Num() == 1)
+		{
+			static FName NAME_ActorLabel(TEXT("ActorLabel"));
+			if (AssetData.FindTag(NAME_ActorLabel))
+			{
+				AssetData.GetTagValue(NAME_ActorLabel, AssetName);
+			}
+			else
+			{
+				AssetName = FText::FromName(AssetData.AssetName);
+			}
+
+			AssetType = FText::FromName(AssetData.AssetClass);
+
+			const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetData.GetClass()).Pin();
+			if (AssetTypeActions.IsValid())
+			{
+				AssetTypeColor = AssetTypeActions->GetTypeColor();
+			}
+			else
+			{
+				AssetTypeColor = FColor::White;
+			}
+		}
+		else
+		{
+			AssetType = SSourceControlCommon::GetDefaultMultipleAsset();
+			AssetTypeColor = FColor::White;
+		}
+
+		// Beautify the package name
+		PackageName = AssetPath;
+	}
+	else if (FPackageName::TryConvertFilenameToLongPackageName(InFilename, TempString))
+	{
+		PackageName = FText::FromString(TempString);
+		// Fake asset name, asset path from the package name
+		AssetPath = PackageName;
+	}
+	else
+	{
+		AssetName = FText::FromString(FPaths::GetCleanFilename(InFilename));
+		AssetType = FText::Format(SSourceControlCommon::GetDefaultUnknownAssetType(), FText::FromString(FPaths::GetExtension(InFilename).ToUpper()));
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -201,6 +269,26 @@ TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState, bool bI
 				SNew(SLayeredImage, InFileState->GetIcon())
 			]
 		];
+}
+
+FText GetDefaultAssetName()
+{
+	return LOCTEXT("SourceControl_DefaultAssetName", "Unavailable");
+}
+
+FText GetDefaultAssetType()
+{
+	return LOCTEXT("SourceControl_DefaultAssetType", "Unknown");
+}
+
+FText GetDefaultUnknownAssetType()
+{
+	return LOCTEXT("SourceControl_FileTypeDefault", "{0} File");
+}
+
+FText GetDefaultMultipleAsset()
+{
+	return LOCTEXT("SourceCOntrol_ManyAssetType", "Multiple Assets");
 }
 
 } // end of namespace SSourceControlCommon

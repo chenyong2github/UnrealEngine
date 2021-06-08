@@ -2,11 +2,13 @@
 
 #include "UncontrolledChangelistState.h"
 
+#include "Algo/Copy.h"
 #include "Algo/Transform.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
+#include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
 #include "UncontrolledChangelist.h"
 
@@ -52,14 +54,17 @@ const TSet<FSourceControlStateRef>& FUncontrolledChangelistState::GetFilesStates
 	return Files;
 }
 
+const TSet<FString>& FUncontrolledChangelistState::GetOfflineFiles() const
+{
+	return OfflineFiles;
+}
+
 void FUncontrolledChangelistState::Serialize(TSharedRef<FJsonObject> OutJsonObject) const
 {
 	TArray<TSharedPtr<FJsonValue>> FileValues;
 
-	for (const FSourceControlStateRef& File : Files)
-	{
-		FileValues.Add(MakeShareable(new FJsonValueString(File->GetFilename())));
-	}
+	Algo::Transform(Files, FileValues, [](const FSourceControlStateRef& File) { return MakeShareable(new FJsonValueString(File->GetFilename())); });
+	Algo::Transform(OfflineFiles, FileValues, [](const FString& OfflineFile) { return MakeShareable(new FJsonValueString(OfflineFile)); });
 
 	OutJsonObject->SetArrayField(FILES_NAME, MoveTemp(FileValues));
 }
@@ -67,7 +72,6 @@ void FUncontrolledChangelistState::Serialize(TSharedRef<FJsonObject> OutJsonObje
 bool FUncontrolledChangelistState::Deserialize(const TSharedRef<FJsonObject> InJsonValue)
 {
 	const TArray<TSharedPtr<FJsonValue>>* FileValues = nullptr;
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
 	if ((!InJsonValue->TryGetArrayField(FILES_NAME, FileValues)) || (FileValues == nullptr))
 	{
@@ -98,6 +102,14 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 	if (InFilenames.IsEmpty())
 	{
 		return bOutChanged;
+	}
+
+	// No source control is available, add files to the offline file set.
+	if (!SourceControlProvider.IsAvailable())
+	{
+		int32 OldSize = OfflineFiles.Num();
+		Algo::Copy(SourceControlHelpers::AbsoluteFilenames(InFilenames), OfflineFiles);
+		return OldSize != OfflineFiles.Num();
 	}
 
 	if (bCheckStatus)
@@ -133,11 +145,7 @@ bool FUncontrolledChangelistState::RemoveFiles(const TArray<FSourceControlStateR
 
 	for (const FSourceControlStateRef& FileState : InFileStates)
 	{
-		int32 OldSize = Files.Num();
-
-		Files.Remove(FileState);
-
-		bOutChanged |= OldSize != Files.Num();
+		bOutChanged |= (Files.Remove(FileState) > 0);
 	}
 
 	return bOutChanged;
@@ -147,30 +155,26 @@ bool FUncontrolledChangelistState::UpdateStatus()
 {
 	TArray<FString> FilesToUpdate;
 	bool bOutChanged = false;
+	int32 InitialFileNumber = Files.Num();
+	int32 InitialOfflineFileNumber = OfflineFiles.Num();
 
 	Algo::Transform(Files, FilesToUpdate, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
+	Algo::Copy(OfflineFiles, FilesToUpdate);
+
+	Files.Empty();
+	OfflineFiles.Empty();
 
 	if (FilesToUpdate.Num() == 0)
 	{
 		return bOutChanged;
 	}
 
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	auto UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
-	UpdateStatusOperation->SetUpdateModifiedState(true);
+	bOutChanged |= AddFiles(FilesToUpdate, ECheckFlags::All);
 
-	SourceControlProvider.Execute(UpdateStatusOperation, FilesToUpdate);
+	bool bFileNumberChanged = InitialFileNumber == Files.Num();
+	bool bOfflineFileNumberChanged = InitialOfflineFileNumber == OfflineFiles.Num();
 
-	for (auto It = Files.CreateIterator(); It; ++It)
-	{
-		FSourceControlStateRef& State = *It;
-
-		if (State->IsCheckedOut() || (!State->IsModified()))
-		{
-			It.RemoveCurrent();
-			bOutChanged = true;
-		}
-	}
+	bOutChanged |= bFileNumberChanged || bOfflineFileNumberChanged;
 
 	return bOutChanged;
 }
