@@ -3,6 +3,16 @@
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/RigVMFunctionLibrary.h"
 
+FText URigVMCollapseNode::GetToolTipText() const
+{
+	const FString ToolTipString = GetNodeDescription();
+	if(!ToolTipString.IsEmpty())
+	{
+		return FText::FromString(ToolTipString);
+	}
+	return Super::GetToolTipText();
+}
+
 URigVMFunctionLibrary* URigVMCollapseNode::GetLibrary() const
 {
 	return Cast<URigVMFunctionLibrary>(GetOuter());

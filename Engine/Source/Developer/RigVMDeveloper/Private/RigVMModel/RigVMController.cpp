@@ -4288,6 +4288,51 @@ bool URigVMController::SetNodeKeywordsByName(const FName& InNodeName, const FStr
 	return SetNodeKeywords(Node, InKeywords, bSetupUndoRedo, bMergeUndoAction);
 }
 
+bool URigVMController::SetNodeDescription(URigVMCollapseNode* InNode, const FString& InDescription, bool bSetupUndoRedo, bool bMergeUndoAction)
+{
+	if (!IsValidNodeForGraph(InNode))
+	{
+		return false;
+	}
+
+	if (InNode->GetNodeDescription() == InDescription)
+	{
+		return false;
+	}
+
+	FRigVMSetNodeDescriptionAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action = FRigVMSetNodeDescriptionAction(InNode, InDescription);
+		Action.Title = FString::Printf(TEXT("Set Node Description"));
+		ActionStack->BeginAction(Action);
+	}
+
+	InNode->NodeDescription = InDescription;
+	Notify(ERigVMGraphNotifType::NodeDescriptionChanged, InNode);
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action, bMergeUndoAction);
+	}
+
+	return true;
+}
+
+bool URigVMController::SetNodeDescriptionByName(const FName& InNodeName, const FString& InDescription, bool bSetupUndoRedo, bool bMergeUndoAction)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMCollapseNode* Node = Cast<URigVMCollapseNode>(Graph->FindNodeByName(InNodeName));
+	return SetNodeDescription(Node, InDescription, bSetupUndoRedo, bMergeUndoAction);
+}
+
 bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InCommentText, bool bSetupUndoRedo)
 {
 	if (!IsValidNodeForGraph(InNode))

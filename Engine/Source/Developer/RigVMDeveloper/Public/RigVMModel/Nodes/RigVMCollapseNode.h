@@ -17,9 +17,13 @@ class RIGVMDEVELOPER_API URigVMCollapseNode : public URigVMLibraryNode
 
 public:
 
+	// RigVM node interface
+	virtual FText GetToolTipText() const override;
+
 	// Library node interface
 	virtual FString GetNodeCategory() const override { return NodeCategory; }
 	virtual FString GetNodeKeywords() const override { return NodeKeywords; }
+	virtual FString GetNodeDescription() const override { return NodeDescription; }
 	virtual URigVMFunctionLibrary* GetLibrary() const override;
 	virtual URigVMGraph* GetContainedGraph() const override { return ContainedGraph; }
 
@@ -35,6 +39,9 @@ private:
 
 	UPROPERTY()
 	FString NodeKeywords;
+
+	UPROPERTY()
+	FString NodeDescription;
 
 	friend class URigVMController;
 };

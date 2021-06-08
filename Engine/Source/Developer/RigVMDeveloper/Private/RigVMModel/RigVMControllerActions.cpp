@@ -995,6 +995,48 @@ bool FRigVMSetNodeKeywordsAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Redo(InController);
 }
 
+FRigVMSetNodeDescriptionAction::FRigVMSetNodeDescriptionAction(URigVMCollapseNode* InNode, const FString& InNewDescription)
+	: NodePath(InNode->GetNodePath())
+	, OldDescription(InNode->GetNodeDescription())
+	, NewDescription(InNewDescription)
+{
+}
+
+bool FRigVMSetNodeDescriptionAction::Merge(const FRigVMBaseAction* Other)
+{
+	if (!FRigVMBaseAction::Merge(Other))
+	{
+		return false;
+	}
+
+	const FRigVMSetNodeDescriptionAction* Action = (const FRigVMSetNodeDescriptionAction*)Other;
+	if (NodePath != Action->NodePath)
+	{
+		return false;
+	}
+
+	NewDescription = Action->NewDescription;
+	return true;
+}
+
+bool FRigVMSetNodeDescriptionAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->SetNodeDescriptionByName(*NodePath, OldDescription, false);
+}
+
+bool FRigVMSetNodeDescriptionAction::Redo(URigVMController* InController)
+{
+	if (!InController->SetNodeDescriptionByName(*NodePath, NewDescription, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo(InController);
+}
+
 FRigVMSetCommentTextAction::FRigVMSetCommentTextAction(URigVMCommentNode* InNode, const FString& InNewText)
 : NodePath(InNode->GetNodePath())
 , OldText(InNode->GetCommentText())
