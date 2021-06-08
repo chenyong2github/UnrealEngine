@@ -40,7 +40,7 @@ extern struct android_app* GNativeAndroidApp;
 #endif
 
 #define OPENXR_PAUSED_IDLE_FPS 10
-static const int64 OPENXR_SWAPCHAIN_WAIT_TIMEOUT = 100 * 1000 * 1000 * 1000;		// 100ms in nanoseconds.
+static const int64 OPENXR_SWAPCHAIN_WAIT_TIMEOUT = 100000000ll;		// 100ms in nanoseconds.
 
 static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 	TEXT("xr.EnableOpenXRValidationLayer"),
