@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
 
 class ACompositingElement;
 class UCompositingMediaCaptureOutput;
@@ -36,7 +37,7 @@ public:
 	 * @param  LevelContext Optional actor whose world level you want to spawn into.
 	 * @return The newly created actor object for the named element.
 	 */
-	virtual TWeakObjectPtr<ACompositingElement> CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext = nullptr, UPackage* OverridePackage = nullptr) = 0;
+	virtual TWeakObjectPtr<ACompositingElement> CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext = nullptr, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) = 0;
  
 	/**
 	 * Gets the actor object of the named element.

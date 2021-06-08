@@ -224,7 +224,8 @@ TWeakObjectPtr<ACompositingElement> FCameraCalibrationStepsController::AddElemen
 		return nullptr;
 	}
 
-	TWeakObjectPtr<ACompositingElement> Element = CompElementManager->CreateElement(*ElementName, ElementClass, nullptr, GetTransientPackage());
+	TWeakObjectPtr<ACompositingElement> Element = CompElementManager->CreateElement(
+		*ElementName, ElementClass, nullptr, EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient);
 
 	if (!Element.IsValid())
 	{
@@ -346,7 +347,8 @@ void FCameraCalibrationStepsController::CreateComp()
 
 		if (!Comp.IsValid())
 		{
-			Comp = CompElementManager->CreateElement(*CompName, ACompositingElement::StaticClass(), nullptr, GetTransientPackage());
+			Comp = CompElementManager->CreateElement(
+				*CompName, ACompositingElement::StaticClass(), nullptr, EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient);
 		}
 
 		if (!Comp.IsValid())
