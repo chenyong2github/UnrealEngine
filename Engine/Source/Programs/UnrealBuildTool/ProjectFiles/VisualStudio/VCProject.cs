@@ -1708,11 +1708,6 @@ namespace UnrealBuildTool
 						BuildArguments.Append(ProjGenerator.GetExtraBuildArguments(Platform, Configuration));
 					}
 
-					if (ProjectFileFormat == VCProjectFileFormat.VisualStudio2022)
-					{
-						BuildArguments.Append(" -2022");
-					}
-
 					// NMake Build command line
 					VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0} {1}</NMakeBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Build.bat"))), BuildArguments.ToString());
 					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0} {1}</NMakeReBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Rebuild.bat"))), BuildArguments.ToString());
