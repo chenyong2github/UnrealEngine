@@ -39,6 +39,7 @@ void UOptimusNode_GetVariable::CreatePins()
 			Var->VariableName, 
 			EOptimusNodePinDirection::Output,
 		    EOptimusNodePinStorageType::Value,
-			Var->DataType);
+			Var->DataType,
+			nullptr);
 	}
 }

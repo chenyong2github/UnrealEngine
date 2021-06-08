@@ -6,11 +6,8 @@
 #include "OptimusCoreNotify.h"
 #include "OptimusDataType.h"
 
-#include "UObject/Object.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "ComputeKernelCollection.h"
-#include "Engine/Blueprint.h"
+#include "ComputeFramework/ComputeGraph.h"
 
 #include "OptimusDeformer.generated.h"
 
@@ -22,7 +19,7 @@ class UOptimusVariableDescription;
 
 UCLASS()
 class OPTIMUSDEVELOPER_API UOptimusDeformer :
-	public UComputeKernelCollection, 
+	public UComputeGraph, 
 	public IOptimusNodeGraphCollectionOwner
 {
 	GENERATED_BODY()
@@ -143,6 +140,10 @@ public:
 		);
 
 
+	/// Graph compilation
+	bool Compile();
+	
+
 	/// IOptimusNodeGraphCollectionOwner overrides
 	FOptimusGlobalNotifyDelegate& GetNotifyDelegate() override { return GlobalNotifyDelegate; }
 	UOptimusNodeGraph* ResolveGraphPath(const FString& InGraphPath) override;
@@ -173,7 +174,7 @@ public:
 	    UOptimusNodeGraph* InGraph,
 	    const FString& InNewName) override;
 
-
+	
 public:
 
 	UPROPERTY(EditAnywhere, Category=Preview)

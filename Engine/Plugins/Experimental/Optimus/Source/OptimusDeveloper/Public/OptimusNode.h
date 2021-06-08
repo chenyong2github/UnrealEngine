@@ -126,6 +126,18 @@ public:
 	/// By default it creates the pins representing connectable properties.
 	void PostCreateNode();
 
+	/// Returns the current revision number. The number itself has no meaning except that
+	/// it monotonically increases each time this node is modified in some way.
+	int32 GetRevision() const
+	{
+		return Revision;
+	}
+
+	//== UObject overrides
+#if WITH_EDITOR
+	bool Modify( bool bInAlwaysMarkDirty=true ) override;
+#endif
+	
 protected:
 	friend class UOptimusNodeGraph;
 	friend class UOptimusNodePin;
@@ -144,7 +156,8 @@ protected:
 	    FName InName,
 	    EOptimusNodePinDirection InDirection,
 	    EOptimusNodePinStorageType InStorageType,
-	    FOptimusDataTypeRef InDataType
+	    FOptimusDataTypeRef InDataType,
+	    UOptimusNodePin* InBeforePin = nullptr
 		);
 
 	/** Set the pin data type. */
@@ -165,6 +178,7 @@ protected:
 	    EOptimusNodePinDirection InDirection,
 	    EOptimusNodePinStorageType InStorageType,
 		FOptimusDataTypeRef InDataType,
+		UOptimusNodePin* InBeforePin,
 	    UOptimusNodePin* InParentPin = nullptr
 		);
 
@@ -172,6 +186,8 @@ protected:
 	bool GetPinExpanded(const UOptimusNodePin* InPin) const;
 
 private:
+	void IncrementRevision();
+	
 	void Notify(
 		EOptimusGraphNotifyType InNotifyType
 	);
@@ -196,6 +212,10 @@ private:
 
 	UPROPERTY()
 	TSet<FName> ExpandedPins;
+
+	// The revision number. Incremented each time Modify is called. Can be used to check
+	// if the object is now different and may need to be involved in updating the compute graph.
+	int32 Revision = 0;
 
 	/// Cached pin lookups
 	mutable TMap<TArray<FName>, UOptimusNodePin*> CachedPinLookup;

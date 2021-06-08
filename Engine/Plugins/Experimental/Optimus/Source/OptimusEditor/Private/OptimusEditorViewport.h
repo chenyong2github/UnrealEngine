@@ -8,7 +8,10 @@
 #include "SCommonEditorViewportToolbarBase.h"
 #include "AdvancedPreviewScene.h"
 
+class USkeletalMeshSkinCacheDataProvider;
+class USkeletalMeshReadDataProvider;
 class IOptimusEditor;
+class UComputeGraphComponent;
 class UMeshComponent;
 class FOptimusEditor;
 class FOptimusEditorViewportClient;
@@ -34,6 +37,12 @@ public:
 
 	void SetOwnerTab(const TSharedRef<SDockTab>& OwnerTab);
 
+
+	UComputeGraphComponent *GetComputeGraphComponent() const
+	{
+		return ComputeGraphComponent;
+	}
+	
 
 	TSharedRef<FAdvancedPreviewScene> GetAdvancedPreviewScene() const
 	{
@@ -65,6 +74,9 @@ private:
 
 	TSharedPtr<FAdvancedPreviewScene> AdvancedPreviewScene;
 
+	UComputeGraphComponent* ComputeGraphComponent = nullptr;
+	USkeletalMeshReadDataProvider* SkeletalMeshReadDataProvider = nullptr;
+	USkeletalMeshSkinCacheDataProvider *SkeletalMeshSkinCacheDataProvider = nullptr;
 	UMeshComponent* PreviewMeshComponent = nullptr;
 	UMaterialInterface* PreviewMaterial = nullptr;
 };

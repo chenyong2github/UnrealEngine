@@ -28,7 +28,6 @@ public:
 	// SGraphNode overrides
 	void EndUserInteraction() const override;
 	void AddPin( const TSharedRef<SGraphPin>& PinToAdd ) override;
-	// const FSlateBrush* GetNodeBodyBrush() const override;
 	TSharedPtr<SGraphPin> GetHoveredPin(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const override;
 
 private:

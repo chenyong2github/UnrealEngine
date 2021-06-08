@@ -23,10 +23,10 @@
 
 #define LOCTEXT_NAMESPACE "SOptimusEditorGraphNode"
 
-static const FName NAME_Pin_Resource_Connected("Optimus.Node.Pin.Resource_Connected");
-static const FName NAME_Pin_Resource_Disconnected("Optimus.Node.Pin.Resource_Disconnected");
-static const FName NAME_Pin_Value_Connected("Optimus.Node.Pin.Value_Connected");
-static const FName NAME_Pin_Value_Disconnected("Optimus.Node.Pin.Value_Disconnected");
+static const FName NAME_Pin_Resource_Connected("Node.Pin.Resource_Connected");
+static const FName NAME_Pin_Resource_Disconnected("Node.Pin.Resource_Disconnected");
+static const FName NAME_Pin_Value_Connected("Node.Pin.Value_Connected");
+static const FName NAME_Pin_Value_Disconnected("Node.Pin.Value_Disconnected");
 
 static const FSlateBrush* CachedImg_Pin_Resource_Connected = nullptr;
 static const FSlateBrush* CachedImg_Pin_Resource_Disconnected = nullptr;
@@ -78,14 +78,14 @@ class SOptimusEditorExpanderArrow : public SExpanderArrow
 		{
 			if (ExpanderArrow->IsHovered())
 			{
-				static FName ExpandedHoveredLeftName("Optimus.Node.PinTree.Arrow_Expanded_Hovered_Left");
-				static FName ExpandedHoveredRightName("Optimus.Node.PinTree.Arrow_Expanded_Hovered_Right");
+				static FName ExpandedHoveredLeftName("Node.PinTree.Arrow_Expanded_Hovered_Left");
+				static FName ExpandedHoveredRightName("Node.PinTree.Arrow_Expanded_Hovered_Right");
 				ResourceName = bLeftAligned ? ExpandedHoveredLeftName : ExpandedHoveredRightName;
 			}
 			else
 			{
-				static FName ExpandedLeftName("Optimus.Node.PinTree.Arrow_Expanded_Left");
-				static FName ExpandedRightName("Optimus.Node.PinTree.Arrow_Expanded_Right");
+				static FName ExpandedLeftName("Node.PinTree.Arrow_Expanded_Left");
+				static FName ExpandedRightName("Node.PinTree.Arrow_Expanded_Right");
 				ResourceName = bLeftAligned ? ExpandedLeftName : ExpandedRightName;
 			}
 		}
@@ -93,14 +93,14 @@ class SOptimusEditorExpanderArrow : public SExpanderArrow
 		{
 			if (ExpanderArrow->IsHovered())
 			{
-				static FName CollapsedHoveredLeftName("Optimus.Node.PinTree.Arrow_Collapsed_Hovered_Left");
-				static FName CollapsedHoveredRightName("Optimus.Node.PinTree.Arrow_Collapsed_Hovered_Right");
+				static FName CollapsedHoveredLeftName("Node.PinTree.Arrow_Collapsed_Hovered_Left");
+				static FName CollapsedHoveredRightName("Node.PinTree.Arrow_Collapsed_Hovered_Right");
 				ResourceName = bLeftAligned ? CollapsedHoveredLeftName : CollapsedHoveredRightName;
 			}
 			else
 			{
-				static FName CollapsedLeftName("Optimus.Node.PinTree.Arrow_Collapsed_Left");
-				static FName CollapsedRightName("Optimus.Node.PinTree.Arrow_Collapsed_Right");
+				static FName CollapsedLeftName("Node.PinTree.Arrow_Collapsed_Left");
+				static FName CollapsedRightName("Node.PinTree.Arrow_Collapsed_Right");
 				ResourceName = bLeftAligned ? CollapsedLeftName : CollapsedRightName;
 			}
 		}
@@ -132,7 +132,7 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 		STableRow<UOptimusNodePin*>::Construct(STableRow<UOptimusNodePin*>::FArguments(), InOwnerTableView);
 	}
 
-	const FSlateBrush* GetBorder() const
+	const FSlateBrush* GetBorder() const 
 	{
 		// We want a transparent background.
 		return FCoreStyle::Get().GetBrush("NoBrush");
@@ -393,12 +393,6 @@ void SOptimusEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 		}
 	}
 }
-
-
-//const FSlateBrush* SOptimusEditorGraphNode::GetNodeBodyBrush() const
-//{
-//	return FEditorStyle::GetBrush("Graph.Node.TintedBody");
-//}
 
 
 TSharedPtr<SGraphPin> SOptimusEditorGraphNode::GetHoveredPin(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const

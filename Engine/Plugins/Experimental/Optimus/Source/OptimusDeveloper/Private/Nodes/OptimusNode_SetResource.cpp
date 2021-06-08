@@ -15,6 +15,7 @@ void UOptimusNode_SetResource::CreatePins()
 		    Res->ResourceName,
 		    EOptimusNodePinDirection::Input,
 		    EOptimusNodePinStorageType::Resource,
-		    Res->DataType);
+		    Res->DataType,
+		    nullptr);
 	}
 }

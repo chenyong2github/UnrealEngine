@@ -4,7 +4,12 @@
 
 #include "OptimusEditor.h"
 
+#include "OptimusDeformer.h"
+#include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
+#include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
+
 #include "ComponentAssetBroker.h"
+#include "ComputeFramework/ComputeGraphComponent.h"
 #include "EditorViewportClient.h"
 #include "Editor/UnrealEdEngine.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
@@ -35,8 +40,10 @@ public:
 
 private:
 
-	/** Pointer back to the material editor tool that owns us */
+	/** Pointer back to the editor tool that owns us */
 	TWeakPtr<IOptimusEditor> EditorOwner;
+
+	TWeakPtr<SOptimusEditorViewport> EditorViewport;
 
 	/** Preview Scene - uses advanced preview settings */
 	FAdvancedPreviewScene* AdvancedPreviewScene;
@@ -72,6 +79,8 @@ FOptimusEditorViewportClient::FOptimusEditorViewportClient(
 	// Don't want to display the widget in this viewport
 	Widget->SetDefaultVisibility(false);
 
+	EditorViewport = InEditorViewport;
+	
 	AdvancedPreviewScene = &InPreviewScene;
 }
 
@@ -79,6 +88,12 @@ FOptimusEditorViewportClient::FOptimusEditorViewportClient(
 
 void FOptimusEditorViewportClient::Tick(float DeltaSeconds)
 {
+	TSharedPtr<SOptimusEditorViewport> EditorViewportPtr = EditorViewport.Pin();
+	if (EditorViewport.IsValid())
+	{
+		EditorViewportPtr->GetComputeGraphComponent()->QueueExecute();
+	}
+	
 	FEditorViewportClient::Tick(DeltaSeconds);
 
 	// Tick the preview scene world.
@@ -218,6 +233,19 @@ void SOptimusEditorViewport::Construct(const FArguments& InArgs, TWeakPtr<FOptim
 	AdvancedPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
 
 	SEditorViewport::Construct(SEditorViewport::FArguments());
+	
+	// Create the compute graph component.
+	ComputeGraphComponent = NewObject<UComputeGraphComponent>(GetTransientPackage(), UComputeGraphComponent::StaticClass(), NAME_None, RF_Transient);
+	if (TSharedPtr<FOptimusEditor> Editor = InEditor.Pin(); Editor.IsValid())
+	{
+		ComputeGraphComponent->ComputeGraph = Editor->GetDeformer();
+
+		// Set up the data interfaces. Those will get filled in when we set the preview asset.
+		SkeletalMeshReadDataProvider = NewObject<USkeletalMeshReadDataProvider>(GetTransientPackage(), USkeletalMeshReadDataProvider::StaticClass(), NAME_None, RF_Transient);
+		ComputeGraphComponent->DataProviders.Add(SkeletalMeshReadDataProvider);
+		SkeletalMeshSkinCacheDataProvider = NewObject<USkeletalMeshSkinCacheDataProvider>(GetTransientPackage(), USkeletalMeshSkinCacheDataProvider::StaticClass(), NAME_None, RF_Transient);
+		ComputeGraphComponent->DataProviders.Add(SkeletalMeshSkinCacheDataProvider);
+	}
 
 	SetPreviewAsset(GUnrealEd->GetThumbnailManager()->EditorSphere);
 }
@@ -225,7 +253,7 @@ void SOptimusEditorViewport::Construct(const FArguments& InArgs, TWeakPtr<FOptim
 
 SOptimusEditorViewport::~SOptimusEditorViewport()
 {
-
+	
 }
 
 
@@ -235,6 +263,9 @@ bool SOptimusEditorViewport::SetPreviewAsset(UObject* InAsset)
 	if (PreviewMeshComponent != nullptr)
 	{
 		AdvancedPreviewScene->RemoveComponent(PreviewMeshComponent);
+		AdvancedPreviewScene->RemoveComponent(ComputeGraphComponent);
+		
+		PreviewMeshComponent->MarkPendingKill();
 		PreviewMeshComponent = nullptr;
 	}
 
@@ -245,6 +276,12 @@ bool SOptimusEditorViewport::SetPreviewAsset(UObject* InAsset)
 			PreviewMeshComponent = NewObject<UMeshComponent>(GetTransientPackage(), ComponentClass, NAME_None, RF_Transient);
 
 			FComponentAssetBrokerage::AssignAssetToComponent(PreviewMeshComponent, InAsset);
+			
+			if (USkeletalMeshComponent *SkeletalMeshComponent = Cast<USkeletalMeshComponent>(PreviewMeshComponent))
+			{
+				SkeletalMeshReadDataProvider->SkeletalMesh = SkeletalMeshComponent;
+				SkeletalMeshSkinCacheDataProvider->SkeletalMesh = SkeletalMeshComponent;
+			}
 		}
 	}
 
@@ -257,6 +294,9 @@ bool SOptimusEditorViewport::SetPreviewAsset(UObject* InAsset)
 		AdvancedPreviewScene->AddComponent(PreviewMeshComponent, FTransform::Identity);
 		AdvancedPreviewScene->SetFloorOffset(-PreviewMeshComponent->Bounds.Origin.Z + PreviewMeshComponent->Bounds.BoxExtent.Z);
 
+		// The compute graph component must currently come after the skelmesh component because
+		// it writes over data that the skincache creates.
+		AdvancedPreviewScene->AddComponent(ComputeGraphComponent, FTransform::Identity);
 	}
 
 	// Make sure the preview material is applied to the component
@@ -274,6 +314,9 @@ void SOptimusEditorViewport::SetOwnerTab(const TSharedRef<SDockTab>& InOwnerTab)
 
 void SOptimusEditorViewport::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	Collector.AddReferencedObject(ComputeGraphComponent);
+	Collector.AddReferencedObject(SkeletalMeshReadDataProvider);
+	Collector.AddReferencedObject(SkeletalMeshSkinCacheDataProvider);
 	Collector.AddReferencedObject(PreviewMeshComponent);
 	Collector.AddReferencedObject(PreviewMaterial);
 }

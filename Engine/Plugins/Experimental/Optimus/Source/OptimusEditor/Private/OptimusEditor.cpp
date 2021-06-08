@@ -223,6 +223,22 @@ bool FOptimusEditor::SetEditGraph(UOptimusNodeGraph* InNodeGraph)
 }
 
 
+void FOptimusEditor::Compile()
+{
+	if (DeformerObject->Compile())
+	{
+		// Ensure we do a redraw.
+		EditorViewportWidget->GetViewportClient()->Invalidate();
+	}
+}
+
+
+bool FOptimusEditor::CanCompile() const
+{
+	return true;
+}
+
+
 void FOptimusEditor::SelectAllNodes()
 {
 	GraphEditorWidget->SelectAllNodes();
@@ -344,11 +360,16 @@ void FOptimusEditor::RegisterToolbar()
 	}
 
 	UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
-
+	const FOptimusEditorCommands& Commands = FOptimusEditorCommands::Get();
+	
 	FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
 	{
-		FToolMenuSection& Section = ToolBar->AddSection("Apply", TAttribute<FText>(), InsertAfterAssetSection);
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FOptimusEditorCommands::Get().Apply));
+		FToolMenuSection& Section = ToolBar->AddSection("Compile", TAttribute<FText>(), InsertAfterAssetSection);
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			Commands.Compile,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Blueprint.CompileStatus.Background")));
 	}
 
 }
@@ -358,13 +379,10 @@ void FOptimusEditor::BindCommands()
 {
 	const FOptimusEditorCommands& Commands = FOptimusEditorCommands::Get();
 
-	// FIXME: Bind commands from FOptimusEditorCommands
-#if 0
 	ToolkitCommands->MapAction(
-		Commands.Apply,
-		FExecuteAction::CreateSP(this, &FOptimusEditor::OnApply),
-		FCanExecuteAction::CreateSP(this, &FOptimusEditor::OnApplyEnabled));
-#endif
+		Commands.Compile,
+		FExecuteAction::CreateSP(this, &FOptimusEditor::Compile),
+		FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanCompile));
 }
 
 
