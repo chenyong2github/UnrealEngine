@@ -38,8 +38,111 @@
 #include "AnimGraphNode_LinkedAnimLayer.h"
 #include "AnimGraphNode_RigidBody.h"
 #include "AnimationBlendSpaceSampleGraph.h"
+#include "GraphEditorDragDropAction.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphSchema"
+
+/////////////////////////////////////////////////////
+// FAnimationLayerDragDropAction
+/** DragDropAction class for drag and dropping animation layers */
+class ANIMGRAPH_API FAnimationLayerDragDropAction : public FGraphSchemaActionDragDropAction
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FAnimationLayerDragDropAction, FGraphSchemaActionDragDropAction)
+
+	virtual FReply DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph) override;
+	virtual FReply DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition) override;
+	virtual FReply DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPosition) override;
+	virtual FReply DroppedOnAction(TSharedRef<FEdGraphSchemaAction> Action) override;
+	virtual FReply DroppedOnCategory(FText Category) override;
+	virtual void HoverTargetChanged() override;
+
+protected:
+
+	/** Constructor */
+	FAnimationLayerDragDropAction();
+
+	static TSharedRef<FAnimationLayerDragDropAction> New(TSharedPtr<FEdGraphSchemaAction> InAction, FName InFuncName, UAnimBlueprint* InRigBlueprint, UAnimationGraph* InRigGraph);
+
+	UAnimBlueprint* SourceAnimBlueprint;
+	UAnimationGraph* SourceAnimLayerGraph;
+	FName SourceFuncName;
+
+	friend class UAnimationGraphSchema;
+};
+
+
+FAnimationLayerDragDropAction::FAnimationLayerDragDropAction()
+    : FGraphSchemaActionDragDropAction()
+    , SourceAnimBlueprint(nullptr)
+    , SourceAnimLayerGraph(nullptr)
+    , SourceFuncName(NAME_None)
+{
+}
+
+FReply FAnimationLayerDragDropAction::DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
+{
+	if (UAnimationGraph* TargetRigGraph = Cast<UAnimationGraph>(&Graph))
+	{
+		if (UAnimBlueprint* TargetAnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(TargetRigGraph)))
+		{
+			FGraphNodeCreator<UAnimGraphNode_LinkedAnimLayer> LinkedInputLayerNodeCreator(*TargetRigGraph);
+			UAnimGraphNode_LinkedAnimLayer* LinkedAnimLayerNode = LinkedInputLayerNodeCreator.CreateNode();	
+			const FName GraphName = TargetRigGraph->GetFName();
+			LinkedAnimLayerNode->Node.Layer = SourceFuncName; 
+			LinkedInputLayerNodeCreator.Finalize();
+			LinkedAnimLayerNode->NodePosX = GraphPosition.X;
+			LinkedAnimLayerNode->NodePosY = GraphPosition.Y;
+		}
+	}
+	return FReply::Unhandled();
+}
+
+FReply FAnimationLayerDragDropAction::DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition)
+{
+	if (UEdGraphNode* TargetNode = GetHoveredNode())
+	{
+		if (UAnimGraphNode_LinkedAnimLayer* LinkedAnimLayer = Cast<UAnimGraphNode_LinkedAnimLayer>(TargetNode))
+		{
+			LinkedAnimLayer->Node.Layer = SourceFuncName; 
+			return FReply::Handled();
+		}
+	}
+	return FReply::Unhandled();
+}
+
+FReply FAnimationLayerDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPosition)
+{
+	return FReply::Unhandled();
+}
+
+FReply FAnimationLayerDragDropAction::DroppedOnAction(TSharedRef<FEdGraphSchemaAction> Action)
+{
+	return FReply::Unhandled();
+}
+
+FReply FAnimationLayerDragDropAction::DroppedOnCategory(FText Category)
+{
+	return FReply::Unhandled();
+}
+
+void FAnimationLayerDragDropAction::HoverTargetChanged()
+{
+	FGraphSchemaActionDragDropAction::HoverTargetChanged();
+	bDropTargetValid = true;
+}
+
+
+TSharedRef<FAnimationLayerDragDropAction> FAnimationLayerDragDropAction::New(TSharedPtr<FEdGraphSchemaAction> InAction, FName InFuncName, UAnimBlueprint* InAnimBlueprint, UAnimationGraph* InAnimationLayerGraph)
+{
+	TSharedRef<FAnimationLayerDragDropAction> Action = MakeShareable(new FAnimationLayerDragDropAction);
+	Action->SourceAction = InAction;
+	Action->SourceAnimBlueprint = InAnimBlueprint;
+	Action->SourceAnimLayerGraph = InAnimationLayerGraph;
+	Action->SourceFuncName = InFuncName; 
+	Action->Construct();
+	return Action;
+}
 
 /////////////////////////////////////////////////////
 // UAnimationGraphSchema
@@ -333,6 +436,48 @@ void UAnimationGraphSchema::CreateFunctionGraphTerminators(UEdGraph& Graph, UCla
 	{
 		Super::CreateFunctionGraphTerminators(Graph, Class);
 	}
+}
+
+
+bool UAnimationGraphSchema::CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> InAction) const
+{
+	if (!InAction.IsValid())
+	{
+		return false;
+	}
+
+	if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
+	{
+		FEdGraphSchemaAction_K2Graph* FuncAction = (FEdGraphSchemaAction_K2Graph*)InAction.Get();
+		if (UAnimationGraph* AnimGraph = Cast<UAnimationGraph>((UEdGraph*)FuncAction->EdGraph))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FReply UAnimationGraphSchema::BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction, const FPointerEvent& MouseEvent) const
+{
+	if (!InAction.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
+	{
+		FEdGraphSchemaAction_K2Graph* FuncAction = (FEdGraphSchemaAction_K2Graph*)InAction.Get();
+		if (UAnimationGraph* AnimationLayerGraph = Cast<UAnimationGraph>((UEdGraph*)FuncAction->EdGraph))
+		{
+			if (UAnimBlueprint* TargetAnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(AnimationLayerGraph)))
+			{
+				return FReply::Handled().BeginDragDrop(FAnimationLayerDragDropAction::New(InAction, FuncAction->FuncName, TargetAnimBlueprint, AnimationLayerGraph));
+			}
+		}
+	}
+	
+	return FReply::Unhandled();
 }
 
 bool UAnimationGraphSchema::SearchForAutocastFunction(const FEdGraphPinType& OutputPinType, const FEdGraphPinType& InputPinType, FName& TargetFunction, /*out*/ UClass*& FunctionOwner) const
