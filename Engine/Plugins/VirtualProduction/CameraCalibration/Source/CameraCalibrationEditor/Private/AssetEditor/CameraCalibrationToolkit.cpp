@@ -3,6 +3,7 @@
 #include "CameraCalibrationToolkit.h"
 
 #include "CameraCalibrationStepsController.h"
+#include "EngineAnalytics.h"
 #include "LensFile.h"
 #include "PropertyEditorModule.h"
 #include "SLensEvaluation.h"
@@ -29,6 +30,13 @@ TSharedRef<FCameraCalibrationToolkit> FCameraCalibrationToolkit::CreateEditor(co
 {
 	TSharedRef<FCameraCalibrationToolkit> NewEditor = MakeShared<FCameraCalibrationToolkit>();
 	NewEditor->InitCameraCalibrationTool(Mode, InitToolkitHost, InLensFile);
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("LensModel"), InLensFile->LensInfo.LensModel ? InLensFile->LensInfo.LensModel->GetName() : TEXT("None")));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Usage.LensFile.EditorOpened"), EventAttributes);
+	}
 
 	return NewEditor;
 }
