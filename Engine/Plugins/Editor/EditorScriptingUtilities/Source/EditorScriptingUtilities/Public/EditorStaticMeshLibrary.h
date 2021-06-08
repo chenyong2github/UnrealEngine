@@ -403,7 +403,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 GetNumberVerts(UStaticMesh* StaticMesh, int32 LODIndex);
 
-	/** Get number of StaticMesh verts for an LOD */
+	/** Get number of Materials for a StaticMesh */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
 	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 GetNumberMaterials(UStaticMesh* StaticMesh);
