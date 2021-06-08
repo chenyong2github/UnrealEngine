@@ -2,7 +2,7 @@
 setlocal
 
 REM pushd and %CD% are used to normalize the relative path to a shorter absolute path.
-pushd %~dp0..\..\..\..\..
+pushd "%~dp0..\..\..\..\.."
 set _engineDir=%CD%
 set _enginePythonPlatformDir=%_engineDir%\Binaries\ThirdParty\Python3\Win64
 set _pyVenvDir=%_engineDir%\Extras\ThirdPartyNotUE\SwitchboardThirdParty\Python
@@ -18,13 +18,13 @@ goto:eof
 
 REM This provides a transition from standalone installations of Python for
 REM Switchboard to the venv-based setup using the engine version of Python.
-if exist %_pyVenvDir% (
-    if not exist %_pyVenvDir%\Scripts (
-        rd /q /s %_pyVenvDir% 2>nul
+if exist "%_pyVenvDir%" (
+    if not exist "%_pyVenvDir%\Scripts" (
+        rd /q /s "%_pyVenvDir%" 2>nul
     )
 )
 
-if not exist %_pyVenvDir% (
+if not exist "%_pyVenvDir%" (
     call:setup_python_venv
 )
 
@@ -36,10 +36,10 @@ goto:eof
 :setup_python_venv
 
 1>nul 2>nul (
-    mkdir %_pyVenvDir%
+    mkdir "%_pyVenvDir%"
 )
 
-1>%_pyVenvDir%\provision.log 2>&1 (
+1>"%_pyVenvDir%\provision.log" 2>&1 (
     set prompt=-$s
     echo on
     call:setup_python_venv_impl
@@ -52,13 +52,13 @@ goto:eof
 ::------------------------------------------------------------------------------
 :setup_python_venv_impl
 
-pushd %_pyVenvDir%
-call:echo "Working path; %_pyVenvDir%"
+pushd "%_pyVenvDir%"
+call:echo "Working path; %CD%"
 
 call:echo "1/5 : Setting up Python Virtual Environment"
-call %_enginePythonPlatformDir%\python.exe -m venv %_pyVenvDir%
+call "%_enginePythonPlatformDir%\python.exe" -m venv "%_pyVenvDir%"
 
-call %_pyVenvDir%\Scripts\activate
+call "%_pyVenvDir%\Scripts\activate"
 
 call:echo "2/5 : Installing PySide2"
 python.exe -m pip install -Iv pyside2==5.15.0
@@ -85,5 +85,5 @@ goto:eof
 ::------------------------------------------------------------------------------
 :start_sb
 
-call %_pyVenvDir%\Scripts\activate
+call "%_pyVenvDir%\Scripts\activate"
 start "Switchboard" pythonw.exe -m switchboard
