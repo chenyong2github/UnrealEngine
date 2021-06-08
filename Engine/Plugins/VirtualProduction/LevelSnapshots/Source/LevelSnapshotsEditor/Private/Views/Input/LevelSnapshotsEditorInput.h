@@ -6,6 +6,8 @@
 
 class SLevelSnapshotsEditorInput;
 
+struct FAssetData;
+
 class FLevelSnapshotsEditorInput : public ILevelSnapshotsEditorInput
 {
 public:
@@ -15,6 +17,8 @@ public:
 	virtual TSharedRef<SWidget> GetOrCreateWidget() override;
 	virtual TSharedRef<FLevelSnapshotsEditorViewBuilder> GetBuilder() const override { return BuilderPtr.Pin().ToSharedRef(); }
 	//~ End ILevelSnapshotsEditorView Interface
+
+	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const;
 
 private:
 	TSharedPtr<SLevelSnapshotsEditorInput> EditorInputWidget;

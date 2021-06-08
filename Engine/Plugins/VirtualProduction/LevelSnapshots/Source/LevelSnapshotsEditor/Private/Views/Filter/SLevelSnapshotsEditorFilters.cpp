@@ -166,6 +166,16 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 					SNew(SButton)
 					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
 					.ForegroundColor(FSlateColor::UseForeground())
+					.IsEnabled_Lambda([this]() 
+					{
+						return EditorDataPtr->IsFilterDirty() && EditorDataPtr->GetActiveSnapshot();
+					})
+					.ToolTipText_Lambda([this]() 
+					{
+						return EditorDataPtr->IsFilterDirty() && EditorDataPtr->GetActiveSnapshot() ? 
+							FText(LOCTEXT("RefreshResultsTooltip_DirtyState", "Filter changes have been detected, please refresh filters.")) :
+						FText(LOCTEXT("RefreshResultsTooltip_CleanState", "Results are up to date, no refresh required."));
+					})
 					.OnClicked(this, &SLevelSnapshotsEditorFilters::OnClickUpdateResultsView)
 					[
 						SNew(SHorizontalBox)

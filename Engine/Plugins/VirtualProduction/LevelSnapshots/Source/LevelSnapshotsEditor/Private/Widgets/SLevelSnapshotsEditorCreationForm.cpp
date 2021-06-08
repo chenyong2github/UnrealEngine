@@ -4,6 +4,7 @@
 
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
 #include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
+#include "LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorStyle.h"
 
 #include "Editor.h"
@@ -219,7 +220,7 @@ FText SLevelSnapshotsEditorCreationForm::GetNameOverrideText() const
 {
 	check(DataManagementSettingsObjectPtr.IsValid());
 
-	UWorld* World = GEditor->GetEditorWorldContext().World();
+	UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld();
 	if (!ensure(World && DataManagementSettingsObjectPtr.IsValid()))
 	{
 		return FText::FromString(DataManagementSettingsObjectPtr.Get()->GetNameOverride());
@@ -250,7 +251,7 @@ FText SLevelSnapshotsEditorCreationForm::GetPathOverrideText() const
 {
 	check(DataManagementSettingsObjectPtr.IsValid());
 
-	UWorld* World = GEditor->GetEditorWorldContext().World();
+	UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld();
 	if (!ensure(World && DataManagementSettingsObjectPtr.IsValid()))
 	{
 		return FText::FromString(DataManagementSettingsObjectPtr.Get()->GetSaveDirOverride());

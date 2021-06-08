@@ -3,7 +3,10 @@
 #include "AssetTypeActions_LevelSnapshot.h"
 
 #include "LevelSnapshot.h"
+#include "LevelSnapshotsEditor/Private/LevelSnapshotsEditorModule.h"
+#include "LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorFunctionLibrary.h"
+#include "LevelSnapshotsEditorStyle.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -23,19 +26,19 @@ void FAssetTypeActions_LevelSnapshot::GetActions(const TArray<UObject*>& InObjec
 {
 	FAssetTypeActions_Base::GetActions(InObjects, MenuBuilder);
 
-	TArray<TWeakObjectPtr<ULevelSnapshot>> LevelSnapshotAssets = GetTypedWeakObjectPtrs<ULevelSnapshot>(InObjects);
+	const TArray<TWeakObjectPtr<ULevelSnapshot>> LevelSnapshotAssets = GetTypedWeakObjectPtrs<ULevelSnapshot>(InObjects);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AssetTypeActions_LevelSnapshot_TakeSnapshot", "Take Snapshot"),
-		LOCTEXT("AssetTypeActions_LevelSnapshot_TakeSnapshotToolTip", "Record a snapshot of the current map to this snapshot asset. Select only one Level Snapshot asset at a time."),
-		FSlateIcon(),
+		LOCTEXT("AssetTypeActions_LevelSnapshot_UpdateSnapshotData", "Update Snapshot Data"),
+		LOCTEXT("AssetTypeActions_LevelSnapshot_UpdateSnapshotDataToolTip", "Record a snapshot of the current map to this snapshot asset and update the thumbnail. Equivalent to 'Take Snapshot'. Select only one Level Snapshot asset at a time."),
+		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton.Small"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=] {
 				for (const TWeakObjectPtr<ULevelSnapshot>& LevelSnapshotAsset : LevelSnapshotAssets)
 				{
 					if (LevelSnapshotAsset.IsValid())
 					{
-						if (UWorld* World = GEditor->GetEditorWorldContext().World())
+						if (UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld())
 						{
 							LevelSnapshotAsset->SnapshotWorld(World);
 							ULevelSnapshotsEditorFunctionLibrary::GenerateThumbnailForSnapshotAsset(LevelSnapshotAsset.Get());
@@ -43,7 +46,7 @@ void FAssetTypeActions_LevelSnapshot::GetActions(const TArray<UObject*>& InObjec
 						}
 					}
 				}
-				}),
+			}),
 			FCanExecuteAction::CreateLambda([=] {
 					// We only want to save a snapshot to a single asset at a time, so let's ensure
 					// the number of selected assets is exactly one.
@@ -51,6 +54,58 @@ void FAssetTypeActions_LevelSnapshot::GetActions(const TArray<UObject*>& InObjec
 				})
 			)
 	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AssetTypeActions_LevelSnapshot_UpdateSnapshotThumbnails", "Update Snapshot Thumbnails"),
+		LOCTEXT("AssetTypeActions_LevelSnapshot_UpdateSnapshotThumbnailsToolTip", "Update thumbnails only for the selected snapshot assets."),
+		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton.Small"),
+		FUIAction(
+			FExecuteAction::CreateLambda([=] {
+				for (const TWeakObjectPtr<ULevelSnapshot>& LevelSnapshotAsset : LevelSnapshotAssets)
+				{
+					if (LevelSnapshotAsset.IsValid())
+					{
+						ULevelSnapshotsEditorFunctionLibrary::GenerateThumbnailForSnapshotAsset(LevelSnapshotAsset.Get());
+						LevelSnapshotAsset->MarkPackageDirty();
+					}
+				}
+			}),
+			FCanExecuteAction::CreateLambda([=] {
+					return true;
+				})
+			)
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AssetTypeActions_LevelSnapshot_OpenSnapshot", "Open Snapshot in Editor"),
+		LOCTEXT("AssetTypeActions_LevelSnapshot_OpenSnapshotToolTip", "Open this snapshot in the Level Snapshots Editor. Select only one Level Snapshot asset at a time."),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.SummonOpenAssetDialog"),
+		FUIAction(
+			FExecuteAction::CreateLambda([=] {
+					OpenAssetWithLevelSnapshotsEditor(InObjects);
+			}),
+			FCanExecuteAction::CreateLambda([=] {
+					// We only want to save a snapshot to a single asset at a time, so let's ensure
+					// the number of selected assets is exactly one.
+					return LevelSnapshotAssets.Num() == 1;
+				})
+			)
+	);
+}
+
+void FAssetTypeActions_LevelSnapshot::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
+{
+	OpenAssetWithLevelSnapshotsEditor(InObjects);
+}
+
+void FAssetTypeActions_LevelSnapshot::OpenAssetWithLevelSnapshotsEditor(const TArray<UObject*>& InObjects)
+{
+	if (InObjects.Num() && InObjects[0])
+	{
+		FLevelSnapshotsEditorModule& Module = FLevelSnapshotsEditorModule::Get();
+					
+		Module.OpenLevelSnapshotsDialogWithAssetSelected(FAssetData(InObjects[0]));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -229,12 +229,14 @@ FReply SLevelSnapshotsEditorFilter::OnNegateFilter()
 			SnapshotFilter->GetFilterBehavior() == EFilterBehavior::DoNotNegate ? EFilterBehavior::Negate : EFilterBehavior::DoNotNegate 
 		);
 	}
+	
 	return FReply::Handled();
 }
 
 FReply SLevelSnapshotsEditorFilter::OnRemoveFilter()
 {
 	OnClickRemoveFilter.Execute(SharedThis(this));
+	
 	return FReply::Handled();
 }
 

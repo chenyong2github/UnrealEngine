@@ -27,17 +27,17 @@ void UFilteredResults::SetUserFilters(ULevelSnapshotFilter* InUserFilters)
 	UserFilters = InUserFilters;
 }
 
-void UFilteredResults::UpdateFilteredResults()
+void UFilteredResults::UpdateFilteredResults(UWorld* SelectedWorld)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UpdateFilteredResults"), STAT_UpdateFilteredResults, STATGROUP_LevelSnapshots);
-	if (!ensure(UserSelectedSnapshot.IsValid()) || !ensure(UserFilters.IsValid()) || !ensure(SelectedWorld.IsValid()))
+	if (!ensure(UserSelectedSnapshot.IsValid()) || !ensure(UserFilters.IsValid()) || !ensure(SelectedWorld))
 	{
 		return;
 	}
  
 	// Do not CleanReferences because we want FilteredData to retain some of the memory it has already allocated
 	PropertiesToRollback.Empty(false);
-	FilteredData.UpdateFilteredList(SelectedWorld.Get(), UserSelectedSnapshot.Get(), UserFilters.Get());
+	FilteredData.UpdateFilteredList(SelectedWorld, UserSelectedSnapshot.Get(), UserFilters.Get());
 }
 
 void UFilteredResults::SetPropertiesToRollback(const FPropertySelectionMap& InSelectionSet)
@@ -58,16 +58,4 @@ FFilterListData& UFilteredResults::GetFilteredData()
 TWeakObjectPtr<ULevelSnapshotFilter> UFilteredResults::GetUserFilters() const
 {
 	return UserFilters;
-}
-
-void UFilteredResults::ClearSelectedWorld()
-{
-	SelectedWorld = nullptr;
-	CleanReferences();
-}
-
-void UFilteredResults::SetSelectedWorld(UWorld* InWorld)
-{
-	SelectedWorld = InWorld;
-	CleanReferences();
 }

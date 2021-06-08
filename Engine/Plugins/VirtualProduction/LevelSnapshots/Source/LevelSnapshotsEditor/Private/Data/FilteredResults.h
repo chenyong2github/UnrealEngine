@@ -26,7 +26,7 @@ public:
 	void SetUserFilters(ULevelSnapshotFilter* InUserFilters);
 
 	/* Extracts DeserializedActorsAndDesiredPaths and FilterResults is modified. */  
-	void UpdateFilteredResults();
+	void UpdateFilteredResults(UWorld* SelectedWorld);
 
 	void SetPropertiesToRollback(const FPropertySelectionMap& InSelectionSet);
 	const FPropertySelectionMap& GetPropertiesToRollback() const;
@@ -34,14 +34,9 @@ public:
 	FFilterListData& GetFilteredData();
 	TWeakObjectPtr<ULevelSnapshotFilter> GetUserFilters() const;
 
-	void ClearSelectedWorld();
-	void SetSelectedWorld(UWorld* InWorld);
-
 private:
 
 	TWeakObjectPtr<ULevelSnapshot> UserSelectedSnapshot;
-
-	TWeakObjectPtr<UWorld> SelectedWorld;
 
 	/* Stores partially filtered data for displaying in filter results view. */
 	FFilterListData FilteredData;

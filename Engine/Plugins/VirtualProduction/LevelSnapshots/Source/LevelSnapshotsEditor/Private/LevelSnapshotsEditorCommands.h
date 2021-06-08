@@ -22,6 +22,7 @@ public:
 	TSharedPtr<FUICommandInfo> UpdateResults;
 	
 	TSharedPtr<FUICommandInfo> UseCreationFormToggle;
-	TSharedPtr<FUICommandInfo> OpenLevelSnapshotsEditor;
+	TSharedPtr<FUICommandInfo> OpenLevelSnapshotsEditorMenuItem;
+	TSharedPtr<FUICommandInfo> OpenLevelSnapshotsEditorToolbarButton;
 	TSharedPtr<FUICommandInfo> LevelSnapshotsSettings;
 };

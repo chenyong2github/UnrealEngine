@@ -39,13 +39,26 @@ public:
 	void HandleFormReply(bool bWasCreateSnapshotPressed, FText InDescription) const;
 
 	void TakeAndSaveSnapshot(const FText& InDescription, const bool bShouldUseOverrides = false) const;
+
+	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData);
 	
 	static void OpenLevelSnapshotsSettings();
 
+	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> GetLevelSnapshotsUserSettings() const
+	{
+		return ProjectSettingsObjectPtr;
+	}
+	
+	TWeakObjectPtr<ULevelSnapshotsEditorDataManagementSettings> GetLevelSnapshotsDataManagementSettings() const
+	{
+		return DataMangementSettingsObjectPtr;
+	}
+
 private:
 	
-	void RegisterMenus();
+	void PostEngineInit();
 
+	void RegisterMenuItem();
 	bool RegisterProjectSettings();
 	bool HandleModifiedProjectSettings();
 	

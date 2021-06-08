@@ -32,6 +32,8 @@ public:
 	
 	static TSharedPtr<FLevelSnapshotsEditorToolkit> CreateSnapshotEditor(ULevelSnapshotsEditorData* EditorData);
 
+	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const;
+
 	//~ Begin FBaseToolkit Interface
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;

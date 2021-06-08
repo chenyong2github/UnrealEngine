@@ -406,7 +406,6 @@ private:
 
 	FDelegateHandle OnActiveSnapshotChangedHandle;
 	FDelegateHandle OnRefreshResultsHandle;
-	FDelegateHandle OnMapOpenedDelegateHandle;
 
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorDataPtr;
 
@@ -474,6 +473,8 @@ public:
 	void SetSnapshotColumnSize(const float InWidth) const;
 
 	void SetWorldColumnSize(const float InWidth) const;
+
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 private:
 	
