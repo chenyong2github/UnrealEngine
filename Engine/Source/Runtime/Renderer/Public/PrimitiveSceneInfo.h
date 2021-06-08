@@ -372,6 +372,10 @@ public:
 	/** Removes the primitive from the scene. */
 	void RemoveFromScene(bool bUpdateStaticDrawLists);
 
+	/** Allocate/Free slots for instance data in GPU-Scene */
+	static void AllocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+	void FreeGPUSceneInstances();
+
 	/** return true if we need to call ConditionalUpdateStaticMeshes */
 	bool NeedsUpdateStaticMeshes();
 
