@@ -1015,6 +1015,7 @@ public:
 			}
 
 			{
+				/*
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_BatchInstancingMeshDrawCommands);
 				BatchInstancingMeshDrawCommands(
 					Context.MeshDrawCommands,
@@ -1023,6 +1024,7 @@ public:
 					Context.VisibleMeshDrawCommandsNum,
 					Context.NewPassVisibleMeshDrawCommandsNum
 				);
+				*/
 			}
 
 			if (Context.bUseGPUScene)

@@ -1065,7 +1065,8 @@ public:
 
 	/** Gathered in initviews from all the primitives with dynamic view relevance, used in each mesh pass. */
 	TArray<FMeshBatchAndRelevance,SceneRenderingAllocator> DynamicMeshElements;
-
+	TArray<FMeshBatchAndRelevance, SceneRenderingAllocator> TempDynamicMeshElements;
+	
 	/* [PrimitiveIndex] = end index index in DynamicMeshElements[], to support GetDynamicMeshElementRange(). Contains valid values only for visible primitives with bDynamicRelevance. */
 	TArray<uint32, SceneRenderingAllocator> DynamicMeshEndIndices;
 
@@ -1074,6 +1075,7 @@ public:
 
 	/* Mesh pass relevance for gathered dynamic mesh elements. */
 	TArray<FMeshPassMask, SceneRenderingAllocator> DynamicMeshElementsPassRelevance;
+	TArray<FMeshPassMask, SceneRenderingAllocator> TempDynamicMeshElementsPassRelevance;
 
 	/** Gathered in UpdateRayTracingWorld from all the primitives with dynamic view relevance, used in each mesh pass. */
 	TArray<FMeshBatchAndRelevance, SceneRenderingAllocator> RayTracedDynamicMeshElements;
@@ -1875,6 +1877,8 @@ protected:
 		const FPrimitiveViewMasks& HasDynamicMeshElementsMasks,
 		const FPrimitiveViewMasks& HasDynamicEditorMeshElementsMasks,
 		FMeshElementCollector& Collector);
+
+	void BatchInstancingDynamicMeshElements(TArray<FViewInfo>& InViews);
 
 	/** Initialized the fog constants for each view. */
 	void InitFogConstants();

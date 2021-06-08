@@ -616,7 +616,7 @@ void ApplyOrbitToPosition(
 	}
 }
 
-bool FDynamicSpriteEmitterData::GetVertexAndIndexData(void* VertexData, void* DynamicParameterVertexData, void* FillIndexData, FParticleOrder* ParticleOrder, const FVector& InCameraPosition, const FMatrix& InLocalToWorld, uint32 InstanceFactor) const
+bool FDynamicSpriteEmitterData::GetVertexAndIndexData(void* VertexData, void* DynamicParameterVertexData, void* FillIndexData, FParticleOrder* ParticleOrder, const FVector& InCameraPosition, const FMatrix& InLocalToWorld, uint32 InstanceFactor, uint32 ParticleInstancingBatchId) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParticlePackingTime);
 	int32 ParticleCount = Source.ActiveParticleCount;
@@ -671,6 +671,10 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexData(void* VertexData, void* Dy
 		const FVector2D Size = GetParticleSize(Particle, Source);
 
 		ParticlePosition = Particle.Location;
+		if (ParticleInstancingBatchId > 0)
+		{
+			ParticlePosition = InLocalToWorld.TransformPosition(ParticlePosition);
+		}
 		ParticleOldPosition = Particle.OldLocation;
 
 		ApplyOrbitToPosition(Particle, Source, InLocalToWorld, ParticlePosition, ParticleOldPosition);
@@ -697,6 +701,7 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexData(void* VertexData, void* Dy
 		for (uint32 Factor = 0; Factor < InstanceFactor; Factor++)
 		{
 			FillVertex = (FParticleSpriteVertex*)TempVert;
+
 			FillVertex->Position = ParticlePosition;
 			FillVertex->RelativeTime = Particle.RelativeTime;
 			FillVertex->OldPosition = ParticleOldPosition;
@@ -1085,11 +1090,6 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 				FDynamicSpriteCollectorResources& CollectorResources = Collector.AllocateOneFrameResource<FDynamicSpriteCollectorResources>();
 				CollectorResources.VertexFactory = SpriteVertexFactory;
 
-				if (SourceData->bUseLocalSpace == false)
-				{
-					Proxy->UpdateWorldSpacePrimitiveUniformBuffer();
-				}
-
 				FGlobalDynamicVertexBuffer& DynamicVertexBuffer = Collector.GetDynamicVertexBuffer();
 				FGlobalDynamicVertexBuffer::FAllocation Allocation;
 				FGlobalDynamicVertexBuffer::FAllocation DynamicParameterAllocation;
@@ -1109,6 +1109,11 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 					{
 						UE_LOG(LogParticles, Warning, TEXT("Panic logging.  Allocated %u bytes for Resource: %s, Owner: %s"), InstanceFactor * ParticleCount * DynamicParameterVertexSize * NumVerticesPerParticleInBuffer, *Proxy->GetResourceName().ToString(), *Proxy->GetOwnerName().ToString())
 					}
+				}
+
+				if (SourceData->bUseLocalSpace == false || ParticleInstancingBatchId > 0)
+				{
+					Proxy->UpdateWorldSpacePrimitiveUniformBuffer();
 				}
 
 				if (Allocation.IsValid() && (!bUsesDynamicParameter || DynamicParameterAllocation.IsValid()))
@@ -1166,7 +1171,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 							}
 
 							// Fill vertex buffers.
-							GetVertexAndIndexData(Allocation.Buffer, DynamicParameterAllocation.Buffer, NULL, ParticleOrder, View->ViewMatrices.GetViewOrigin(), Proxy->GetLocalToWorld(), InstanceFactor);
+							GetVertexAndIndexData(Allocation.Buffer, DynamicParameterAllocation.Buffer, NULL, ParticleOrder, View->ViewMatrices.GetViewOrigin(), Proxy->GetLocalToWorld(), InstanceFactor, ParticleInstancingBatchId);
 						}
 					}
 
@@ -1222,7 +1227,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 			Mesh.VertexFactory = SpriteVertexFactory;
 			// if the particle rendering data is presupplied, use it directly
 			Mesh.LCI = NULL;
-			if (SourceData->bUseLocalSpace == true)
+			if (SourceData->bUseLocalSpace == true && ParticleInstancingBatchId <= 0)
 			{
 				BatchElement.PrimitiveUniformBuffer = Proxy->GetUniformBuffer();
 			}

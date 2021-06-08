@@ -41,6 +41,7 @@
 #include "RectLightSceneProxy.h"
 #include "Math/Halton.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
+#include "RendererModule.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -209,6 +210,14 @@ static FAutoConsoleVariableRef CVarCameraCutTranslationThreshold(
 	TEXT("r.CameraCutTranslationThreshold"),
 	GCameraCutTranslationThreshold,
 	TEXT("The maximum camera translation disatance in centimeters allowed between two frames before a camera cut is automatically inserted."),
+	ECVF_RenderThreadSafe
+);
+
+static int32 GEnableBatchInstancingDynamicMeshElements = 1;
+static FAutoConsoleVariableRef CVarEnableBatchInstancingDynamicMeshElements(
+	TEXT("r.DynamicMeshElements.EnableBatchInstancing"),
+	GEnableBatchInstancingDynamicMeshElements,
+	TEXT("Whether to enable instancing batch rendering for dynamic mesh elements."),
 	ECVF_RenderThreadSafe
 );
 
@@ -2971,6 +2980,88 @@ void FSceneRenderer::GatherDynamicMeshElements(
 	MeshCollector.ProcessTasks();
 }
 
+void FSceneRenderer::BatchInstancingDynamicMeshElements(TArray<FViewInfo>& InViews)
+{
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		if (!View.ShouldRenderView())
+		{
+			continue;
+		}
+
+		TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>& DynamicMeshElements = View.DynamicMeshElements;
+		TArray<FMeshPassMask, SceneRenderingAllocator>& DynamicMeshElementsPassRelevance = View.DynamicMeshElementsPassRelevance;
+
+		TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>& TempDynamicMeshElements = View.TempDynamicMeshElements;
+		TArray<FMeshPassMask, SceneRenderingAllocator>& TempDynamicMeshElementsPassRelevance = View.TempDynamicMeshElementsPassRelevance;
+
+		TempDynamicMeshElements.Reserve(DynamicMeshElements.Num());
+		TempDynamicMeshElementsPassRelevance.Reserve(DynamicMeshElementsPassRelevance.Num());
+
+		TMap<uint16, int32> InstancingBatchIdAndTempMeshIndex;
+
+		for (int32 MeshIndex = 0; MeshIndex < DynamicMeshElements.Num(); MeshIndex++)
+		{
+			uint16 InstancingBatchId = DynamicMeshElements[MeshIndex].Mesh->InstancingBatchId;
+			uint16 InstancingBatchVertexStreamIndex = DynamicMeshElements[MeshIndex].Mesh->InstancingBatchVertexStreamIndex;
+
+			if (InstancingBatchId > 0)
+			{
+				check(InstancingBatchVertexStreamIndex != 0xF && InstancingBatchVertexStreamIndex < DynamicMeshElements[MeshIndex].Mesh->VertexFactory->Streams.Num());
+
+				if (InstancingBatchIdAndTempMeshIndex.Contains(InstancingBatchId))
+				{
+					int32 TempMeshIndex = InstancingBatchIdAndTempMeshIndex[InstancingBatchId];
+					check(TempMeshIndex >= 0 && TempMeshIndex < TempDynamicMeshElements.Num());
+
+					FMeshBatchAndRelevance MeshBatchAndRelevance = TempDynamicMeshElements[TempMeshIndex];
+					if (MeshBatchAndRelevance.Mesh->InstancingBatchVertexStreamIndex == InstancingBatchVertexStreamIndex)
+					{
+						FMeshBatch* MeshBatch = (FMeshBatch*)MeshBatchAndRelevance.Mesh;
+						MeshBatch->Elements[0].NumInstances += DynamicMeshElements[MeshIndex].Mesh->Elements[0].NumInstances;
+
+						uint32 Offset = MeshBatch->VertexFactory->Streams[InstancingBatchVertexStreamIndex].Offset;
+						Offset = FMath::Min(Offset, DynamicMeshElements[MeshIndex].Mesh->VertexFactory->Streams[InstancingBatchVertexStreamIndex].Offset);
+						((FVertexFactory*)MeshBatch->VertexFactory)->Streams[InstancingBatchVertexStreamIndex].Offset = Offset;
+					}
+					else
+					{
+						//check(0);
+						UE_LOG(LogRenderer, Warning, TEXT("The same InstancingBatchId was used in different data types, please check!"));
+					}
+				}
+				else
+				{
+					FMeshBatchAndRelevance NewMeshBatchAndRelevance = DynamicMeshElements[MeshIndex];
+					TempDynamicMeshElements.Emplace(MoveTemp(NewMeshBatchAndRelevance));
+
+					FMeshPassMask MeshPassMask = DynamicMeshElementsPassRelevance[MeshIndex];
+					TempDynamicMeshElementsPassRelevance.Emplace(MoveTemp(MeshPassMask));
+
+					InstancingBatchIdAndTempMeshIndex.Add(InstancingBatchId, TempDynamicMeshElements.Num() - 1);
+				}
+			}
+			else
+			{
+				FMeshBatchAndRelevance NewMeshBatchAndRelevance = DynamicMeshElements[MeshIndex];
+				TempDynamicMeshElements.Emplace(MoveTemp(NewMeshBatchAndRelevance));
+
+				FMeshPassMask MeshPassMask = DynamicMeshElementsPassRelevance[MeshIndex];
+				TempDynamicMeshElementsPassRelevance.Emplace(MoveTemp(MeshPassMask));
+			}
+		}
+
+		// Replace DynamicMeshElements
+		FMemory::Memswap(&DynamicMeshElements, &TempDynamicMeshElements, sizeof(TempDynamicMeshElements));
+		TempDynamicMeshElements.Reset();
+
+		// Replace DynamicMeshElementsPassRelevance
+		FMemory::Memswap(&DynamicMeshElementsPassRelevance, &TempDynamicMeshElementsPassRelevance, sizeof(TempDynamicMeshElementsPassRelevance));
+		TempDynamicMeshElementsPassRelevance.Reset();
+	}
+}
+
 /**
  * Helper for InitViews to detect large camera movement, in both angle and position.
  */
@@ -4042,6 +4133,11 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		// Gather FMeshBatches from scene proxies
 		GatherDynamicMeshElements(Views, Scene, ViewFamily, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer,
 			HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, MeshCollector);
+
+		if (GEnableBatchInstancingDynamicMeshElements)
+		{
+			BatchInstancingDynamicMeshElements(Views);
+		}
 	}
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
