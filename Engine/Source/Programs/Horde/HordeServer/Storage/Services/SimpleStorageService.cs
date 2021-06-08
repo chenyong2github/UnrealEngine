@@ -48,22 +48,22 @@ namespace HordeServer.Storage.Services
 		/// <param name="BaseDir">Base directory for storage</param>
 		/// <param name="Hash">Hash of the file</param>
 		/// <returns>Path to the file for this blob</returns>
-		static string GetItemPath(string BaseDir, BlobHash Hash)
+		static string GetItemPath(string BaseDir, IoHash Hash)
 		{
 			return $"{BaseDir}/{StringUtils.FormatHexString(Hash.Span.Slice(0, 1))}/{StringUtils.FormatHexString(Hash.Span.Slice(1, 1))}/{Hash}.dat";
 		}
 
 		/// <inheritdoc/>
-		public async Task<ReadOnlyMemory<byte>?> TryGetBlobAsync(BlobHash Hash, DateTime Deadline = default)
+		public async Task<ReadOnlyMemory<byte>?> TryGetBlobAsync(IoHash Hash, DateTime Deadline = default)
 		{
 			string Path = GetItemPath(BlobsPath, Hash);
 			return await Backend.ReadAsync(Path);
 		}
 
 		/// <inheritdoc/>
-		public async Task PutBlobAsync(BlobHash Hash, ReadOnlyMemory<byte> Value)
+		public async Task PutBlobAsync(IoHash Hash, ReadOnlyMemory<byte> Value)
 		{
-			BlobHash RealHash = BlobHash.Compute(Value);
+			IoHash RealHash = IoHash.Compute(Value.Span);
 			if(Hash != RealHash)
 			{
 				throw new InvalidDataException($"Hash for blob does not match. Expected {RealHash}, got {Hash}");
@@ -77,14 +77,14 @@ namespace HordeServer.Storage.Services
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> ShouldPutBlobAsync(BlobHash Hash)
+		public Task<bool> ShouldPutBlobAsync(IoHash Hash)
 		{
 			// Always return true to force timestamps to be updated
 			return Task.FromResult(true);
 		}
 
 		/// <inheritdoc/>
-		public async Task SetRefAsync(BlobHash Key, BlobHash? Value)
+		public async Task SetRefAsync(IoHash Key, IoHash? Value)
 		{
 			string Path = GetItemPath(RefsPath, Key);
 			if (Value == null)
@@ -98,14 +98,14 @@ namespace HordeServer.Storage.Services
 		}
 
 		/// <inheritdoc/>
-		public async Task TouchRefAsync(BlobHash Key)
+		public async Task TouchRefAsync(IoHash Key)
 		{
 			string Path = GetItemPath(RefsPath, Key);
 			await Backend.TouchAsync(Path);
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobHash?> GetRefAsync(BlobHash Key, TimeSpan MaxDrift = default)
+		public async Task<IoHash?> GetRefAsync(IoHash Key, TimeSpan MaxDrift = default)
 		{
 			ReadOnlyMemory<byte>? Memory = await Backend.ReadAsync(GetItemPath(RefsPath, Key));
 			if (Memory == null)
@@ -114,7 +114,7 @@ namespace HordeServer.Storage.Services
 			}
 			else
 			{
-				return new BlobHash(Memory.Value);
+				return new IoHash(Memory.Value);
 			}
 		}
 	}

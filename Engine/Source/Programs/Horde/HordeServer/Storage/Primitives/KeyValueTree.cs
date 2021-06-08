@@ -55,7 +55,7 @@ namespace HordeServer.Storage.Primitives
 		/// <param name="LeafValueSize">Length of each value</param>
 		/// <param name="LeafValueRefTypes">References from each value</param>
 		public KeyValueTree(IBlobType KeyType, int LeafValueSize, params (int, IBlobType)[] LeafValueRefTypes)
-			: this(KeyType, LeafValueSize, LeafValueRefTypes, DefaultMaxNodeSize / (BlobHash.NumBytes * 2), DefaultMaxNodeSize / (BlobHash.NumBytes + LeafValueSize))
+			: this(KeyType, LeafValueSize, LeafValueRefTypes, DefaultMaxNodeSize / (IoHash.NumBytes * 2), DefaultMaxNodeSize / (IoHash.NumBytes + LeafValueSize))
 		{
 		}
 
@@ -84,14 +84,14 @@ namespace HordeServer.Storage.Primitives
 		public IEnumerable<BlobRef> GetRefs(ReadOnlyMemory<byte> Data)
 		{
 			ReadOnlyKeyValueNode Node = new ReadOnlyKeyValueNode(Data);
-			if (Node.NumKeyBits == BlobHash.NumBits)
+			if (Node.NumKeyBits == IoHash.NumBits)
 			{
 				// Leaf node: keys are references to other blobs, values follow type definition
 				ReadOnlyMemory<byte> Keys = Node.Keys;
 				while (!Keys.IsEmpty)
 				{
-					yield return new BlobRef(KeyType, new BlobHash(Keys.Slice(0, BlobHash.NumBytes)));
-					Keys = Keys.Slice(BlobHash.NumBytes);
+					yield return new BlobRef(KeyType, new IoHash(Keys.Slice(0, IoHash.NumBytes)));
+					Keys = Keys.Slice(IoHash.NumBytes);
 				}
 
 				ReadOnlyMemory<byte> Values = Node.Values;
@@ -99,7 +99,7 @@ namespace HordeServer.Storage.Primitives
 				{
 					foreach ((int Offset, IBlobType Type) in LeafValueRefTypes)
 					{
-						yield return new BlobRef(Type, new BlobHash(Values.Slice(Offset, BlobHash.NumBytes)));
+						yield return new BlobRef(Type, new IoHash(Values.Slice(Offset, IoHash.NumBytes)));
 					}
 					Values = Values.Slice(LeafValueSize);
 				}
@@ -107,8 +107,8 @@ namespace HordeServer.Storage.Primitives
 			else
 			{
 				// Internal node: keys are just prefixes, and not concrete references. Values are always just references to other trees.
-				ReadOnlyBlobHashArray Values = new ReadOnlyBlobHashArray(Node.Values);
-				foreach(BlobHash Value in Values)
+				ReadOnlyHashArray Values = new ReadOnlyHashArray(Node.Values);
+				foreach(IoHash Value in Values)
 				{
 					yield return new BlobRef(this, Value);
 				}
@@ -141,7 +141,7 @@ namespace HordeServer.Storage.Primitives
 		/// Constructor
 		/// </summary>
 		public KeyValueTree()
-			: base(BlobRef<TKey>.Type, BlobHash.NumBytes, (0, BlobRef<TValue>.Type))
+			: base(BlobRef<TKey>.Type, IoHash.NumBytes, (0, BlobRef<TValue>.Type))
 		{
 		}
 	}
@@ -159,48 +159,48 @@ namespace HordeServer.Storage.Primitives
 		/// <returns>Reference to the new tree</returns>
 		public static async Task<BlobRef<TTree>> CreateKeyValueTreeAsync<TTree>(this IStorageService Storage) where TTree : KeyValueTree, new()
 		{
-			KeyValueNode Node = new KeyValueNode(0, 0, BlobHash.NumBits, BlobHash.NumBits, 0);
+			KeyValueNode Node = new KeyValueNode(0, 0, IoHash.NumBits, IoHash.NumBits, 0);
 			return new BlobRef<TTree>(await Storage.PutKeyValueNodeAsync(Node));
 		}
 
-		public static async Task<BlobRef<TValue>?> SearchKeyValueTreeAsync<TKey, TValue>(this IStorageService Storage, BlobRef<KeyValueTree<TKey, TValue>> Tree, BlobHash FindHash) where TKey : IBlobType, new() where TValue : IBlobType, new()
+		public static async Task<BlobRef<TValue>?> SearchKeyValueTreeAsync<TKey, TValue>(this IStorageService Storage, BlobRef<KeyValueTree<TKey, TValue>> Tree, IoHash FindHash) where TKey : IBlobType, new() where TValue : IBlobType, new()
 		{
 			ReadOnlyMemory<byte>? Result = await SearchKeyValueTreeInternalAsync(Storage, Tree, FindHash);
 			if(Result == null)
 			{
 				return null;
 			}
-			return new BlobRef<TValue>(new BlobHash(Result.Value));
+			return new BlobRef<TValue>(new IoHash(Result.Value));
 		}
 
-		public static Task<ReadOnlyMemory<byte>?> SearchKeyValueTreeAsync<TTree>(this IStorageService Storage, BlobRef<TTree> Tree, BlobHash FindHash) where TTree : KeyValueTree, new()
+		public static Task<ReadOnlyMemory<byte>?> SearchKeyValueTreeAsync<TTree>(this IStorageService Storage, BlobRef<TTree> Tree, IoHash FindHash) where TTree : KeyValueTree, new()
 		{
 			return SearchKeyValueTreeInternalAsync(Storage, Tree, FindHash);
 		}
 
-		static async Task<ReadOnlyMemory<byte>?> SearchKeyValueTreeInternalAsync<TTree>(this IStorageService Storage, BlobRef<TTree> Tree, BlobHash FindHash) where TTree : KeyValueTree, new()
+		static async Task<ReadOnlyMemory<byte>?> SearchKeyValueTreeInternalAsync<TTree>(this IStorageService Storage, BlobRef<TTree> Tree, IoHash FindHash) where TTree : KeyValueTree, new()
 		{
-			BlobHash Hash = Tree.Hash;
+			IoHash Hash = Tree.Hash;
 			for (; ; )
 			{
 				ReadOnlyKeyValueNode Node = await Storage.GetKeyValueNodeAsync(Hash);
 
-				BlobHash MaskHash = FindHash.MaskLeft(Node.NumKeyBits);
+				IoHash MaskHash = MaskLeft(FindHash, Node.NumKeyBits);
 
-				ReadOnlyBlobHashArray Keys = new ReadOnlyBlobHashArray(Node.Keys);
+				ReadOnlyHashArray Keys = new ReadOnlyHashArray(Node.Keys);
 
 				int KeyIdx = Keys.BinarySearch(MaskHash);
 				if (KeyIdx < 0)
 				{
 					return null;
 				}
-				else if (Node.NumKeyBits == BlobHash.NumBits)
+				else if (Node.NumKeyBits == IoHash.NumBits)
 				{
 					return Node.Values.Slice(KeyIdx * BlobRef<TTree>.Type.LeafValueSize, BlobRef<TTree>.Type.LeafValueSize);
 				}
 				else
 				{
-					Hash = new ReadOnlyBlobHashArray(Node.Values)[KeyIdx];
+					Hash = new ReadOnlyHashArray(Node.Values)[KeyIdx];
 				}
 			}
 		}
@@ -215,7 +215,7 @@ namespace HordeServer.Storage.Primitives
 		/// <returns></returns>
 		public static async Task<BlobRef<TTree>> UpdateKeyValueTreeAsync<TTree>(this IStorageService Storage, BlobRef<TTree> Tree, IEnumerable<KeyValueItem> NewItems) where TTree : KeyValueTree, new()
 		{
-			BlobHash NewRootHash = await UpdateKeyValueTreeAsync(Storage, BlobRef<TTree>.Type, Tree.Hash, NewItems);
+			IoHash NewRootHash = await UpdateKeyValueTreeAsync(Storage, BlobRef<TTree>.Type, Tree.Hash, NewItems);
 			return new BlobRef<TTree>(NewRootHash);
 		}
 
@@ -227,7 +227,7 @@ namespace HordeServer.Storage.Primitives
 		/// <param name="RootHash">Hash of the root node of the tree</param>
 		/// <param name="NewItems">New items to add</param>
 		/// <returns>Hash for the new tree root</returns>
-		static async Task<BlobHash> UpdateKeyValueTreeAsync(this IStorageService Storage, KeyValueTree Tree, BlobHash RootHash, IEnumerable<KeyValueItem> NewItems)
+		static async Task<IoHash> UpdateKeyValueTreeAsync(this IStorageService Storage, KeyValueTree Tree, IoHash RootHash, IEnumerable<KeyValueItem> NewItems)
 		{
 			// Sort all the items and remove duplicates
 			ArraySegment<KeyValueItem> NewSortedItems = NewItems.OrderBy(x => x.Key).ToArray();
@@ -246,9 +246,9 @@ namespace HordeServer.Storage.Primitives
 
 			// Get the root node
 			ReadOnlyKeyValueNode RootNode;
-			if (RootHash == BlobHash.Zero)
+			if (RootHash == IoHash.Zero)
 			{
-				RootNode = new KeyValueNode(0, 0, BlobHash.NumBits, BlobHash.NumBits, Tree.LeafValueSize);
+				RootNode = new KeyValueNode(0, 0, IoHash.NumBits, IoHash.NumBits, Tree.LeafValueSize);
 			}
 			else
 			{
@@ -272,14 +272,14 @@ namespace HordeServer.Storage.Primitives
 		static async Task<KeyValueNode> UpdateKeyValueNodeAsync(IStorageService Storage, KeyValueTree Tree, int ParentKeyBits, ReadOnlyKeyValueNode Node, ArraySegment<KeyValueItem> NewItems)
 		{
 			// Create a list wrapper for the keys, so we can perform binary searches on it
-			ReadOnlyBlobHashArray Keys = new ReadOnlyBlobHashArray(Node.Keys);
+			ReadOnlyHashArray Keys = new ReadOnlyHashArray(Node.Keys);
 
 			// Keep track of the total number of child items underneath this node in order to update the merge count
 			int NewNumChildItems = Node.NumItemsIfMerged - Node.NumItems;
 
 			// Find the necessary updates to the node
 			List<(int KeyIdx, KeyValueItem? NewItem)> Updates = new List<(int, KeyValueItem?)>(NewItems.Count);
-			if (Node.NumKeyBits == BlobHash.NumBits)
+			if (Node.NumKeyBits == IoHash.NumBits)
 			{
 				foreach (KeyValueItem NewItem in NewItems)
 				{
@@ -292,14 +292,14 @@ namespace HordeServer.Storage.Primitives
 			}
 			else
 			{
-				ReadOnlyBlobHashArray Children = new ReadOnlyBlobHashArray(Node.Values);
+				ReadOnlyHashArray Children = new ReadOnlyHashArray(Node.Values);
 				for (int Idx = 0; Idx < NewItems.Count;)
 				{
-					BlobHash KeyPrefix = NewItems[Idx].Key.MaskLeft(Node.NumKeyBits);
+					IoHash KeyPrefix = MaskLeft(NewItems[Idx].Key, Node.NumKeyBits);
 
 					// Find all the operations which start with the same prefix
 					int MinIdx = Idx++;
-					while (Idx < NewItems.Count && NewItems[Idx].Key.StartsWith(KeyPrefix, Node.NumKeyBits))
+					while (Idx < NewItems.Count && StartsWith(NewItems[Idx].Key, KeyPrefix, Node.NumKeyBits))
 					{
 						Idx++;
 					}
@@ -331,7 +331,7 @@ namespace HordeServer.Storage.Primitives
 					else
 					{
 						// Add the new item to the update list
-						BlobHash NewChildHash = await Storage.PutKeyValueNodeAsync(NewChildNode);
+						IoHash NewChildHash = await Storage.PutKeyValueNodeAsync(NewChildNode);
 						KeyValueItem NewItem = new KeyValueItem(KeyPrefix, NewChildHash.Memory);
 						Updates.Add((KeyIdx, NewItem));
 
@@ -381,7 +381,7 @@ namespace HordeServer.Storage.Primitives
 			}
 
 			// If it's larger than a threshold, we need to split this node into two
-			while (NewNode.NumItems > ((NewNode.NumKeyBits == BlobHash.NumBits)? Tree.MaxItemsPerLeafNode : Tree.MaxItemsPerInternalNode))
+			while (NewNode.NumItems > ((NewNode.NumKeyBits == IoHash.NumBits)? Tree.MaxItemsPerLeafNode : Tree.MaxItemsPerInternalNode))
 			{
 				NewNode = await SplitAsync(Storage, Tree, NewNode, ParentKeyBits);
 			}
@@ -402,7 +402,7 @@ namespace HordeServer.Storage.Primitives
 			KeyValueNode NewNode = CreateNode(Tree, Node.NumItemsIfMerged, Node.NumItemsIfMerged, Node.NumKeyBitsIfMerged, Node.NumKeyBitsIfMerged);
 			KeyValueItemWriter Writer = new KeyValueItemWriter(NewNode);
 
-			ReadOnlyBlobHashArray Values = new ReadOnlyBlobHashArray(Node.Values);
+			ReadOnlyHashArray Values = new ReadOnlyHashArray(Node.Values);
 			for (int Idx = 0; Idx < Values.Count; Idx++)
 			{
 				ReadOnlyKeyValueNode ChildNode = await Storage.GetKeyValueNodeAsync(Values[Idx]);
@@ -439,15 +439,15 @@ namespace HordeServer.Storage.Primitives
 
 			KeyValueItemReader Reader = new KeyValueItemReader(Tree, Node);
 
-			ReadOnlyBlobHashArray Keys = new ReadOnlyBlobHashArray(Node.Keys);
+			ReadOnlyHashArray Keys = new ReadOnlyHashArray(Node.Keys);
 			for (int KeyIdx = 0; KeyIdx < Keys.Count; )
 			{
 				// Mask off the first key prefix
-				BlobHash KeyPrefix = Keys[KeyIdx].MaskLeft(NewMaxKeyBits);
+				IoHash KeyPrefix = MaskLeft(Keys[KeyIdx], NewMaxKeyBits);
 
 				// Count the number of keys with the same prefix
 				int Count = 1;
-				while (KeyIdx + Count < Keys.Count && Keys[KeyIdx + Count].StartsWith(KeyPrefix, NewMaxKeyBits))
+				while (KeyIdx + Count < Keys.Count && StartsWith(Keys[KeyIdx + Count], KeyPrefix, NewMaxKeyBits))
 				{
 					Count++;
 				}
@@ -464,11 +464,11 @@ namespace HordeServer.Storage.Primitives
 				}
 
 				// Finally, store the child node and add it to its new parent
-				BlobHash NewChildHash = await Storage.PutKeyValueNodeAsync(NewChildNode);
+				IoHash NewChildHash = await Storage.PutKeyValueNodeAsync(NewChildNode);
 				NewItems.Add(new KeyValueItem(KeyPrefix, NewChildHash.Memory));
 			}
 
-			KeyValueNode NewNode = new KeyValueNode(NewItems.Count, Node.NumItems, NewMaxKeyBits, Node.NumKeyBits, BlobHash.NumBytes);
+			KeyValueNode NewNode = new KeyValueNode(NewItems.Count, Node.NumItems, NewMaxKeyBits, Node.NumKeyBits, IoHash.NumBytes);
 
 			KeyValueItemWriter Writer = new KeyValueItemWriter(NewNode);
 			foreach (KeyValueItem NewItem in NewItems)
@@ -481,7 +481,7 @@ namespace HordeServer.Storage.Primitives
 
 		public static KeyValueNode CreateNode(KeyValueTree Tree, int NumItems, int NumItemsIfMerged, int NumKeyBits, int NumKeyBitsIfMerged)
 		{
-			int NewValueSize = (NumKeyBits == BlobHash.NumBits) ? Tree.LeafValueSize : BlobHash.NumBytes;
+			int NewValueSize = (NumKeyBits == IoHash.NumBits) ? Tree.LeafValueSize : IoHash.NumBytes;
 			return new KeyValueNode(NumItems, NumItemsIfMerged, NumKeyBits, NumKeyBitsIfMerged, NewValueSize);
 		}
 
@@ -495,7 +495,7 @@ namespace HordeServer.Storage.Primitives
 		{
 			// Find the largest power of two boundary that the current key length is on
 			int KeyStep = 1;
-			while (KeyLength + KeyStep < BlobHash.NumBits)
+			while (KeyLength + KeyStep < IoHash.NumBits)
 			{
 				int NextKeyStep = KeyStep << 1;
 				if ((KeyLength & (NextKeyStep - 1)) != 0)
@@ -508,12 +508,61 @@ namespace HordeServer.Storage.Primitives
 		}
 
 		/// <summary>
+		/// Check if one hash starts with the same bits as another
+		/// </summary>
+		/// <param name="This"></param>
+		/// <param name="Other">The hash to test against</param>
+		/// <param name="Length">Number of bits to compare</param>
+		/// <returns>True if the hashes match, false otherwise</returns>
+		static bool StartsWith(IoHash This, IoHash Other, int Length)
+		{
+			ReadOnlySpan<byte> ThisSpan = This.Span;
+			ReadOnlySpan<byte> OtherSpan = Other.Span;
+
+			int Idx = 0;
+			int RemainingLength = Length;
+
+			for (; RemainingLength > 8; RemainingLength -= 8, Idx++)
+			{
+				if (ThisSpan[Idx] != OtherSpan[Idx])
+				{
+					return false;
+				}
+			}
+
+			int Mask = ~((1 << (8 - RemainingLength)) - 1);
+			return (ThisSpan[Idx] & Mask) == (OtherSpan[Idx] & Mask);
+		}
+
+		/// <summary>
+		/// Mask off the left number of bits from the hash
+		/// </summary>
+		/// <param name="Hash"></param>
+		/// <param name="NumBits">Number of bits to include</param>
+		/// <returns>Masked hash value</returns>
+		static IoHash MaskLeft(IoHash Hash, int NumBits)
+		{
+			ReadOnlySpan<byte> OldData = Hash.Span;
+			byte[] NewData = new byte[IoHash.NumBytes];
+
+			int Idx = 0;
+			int RemainingBits = NumBits;
+			for (; RemainingBits > 8; RemainingBits -= 8, Idx++)
+			{
+				NewData[Idx] = OldData[Idx];
+			}
+
+			NewData[Idx] = (byte)(OldData[Idx] & ~((1 << (8 - RemainingBits)) - 1));
+			return new IoHash(NewData);
+		}
+
+		/// <summary>
 		/// Adds a key/value tree node to a storage provider
 		/// </summary>
 		/// <param name="Provider"></param>
 		/// <param name="Node"></param>
 		/// <returns></returns>
-		public static async Task<BlobHash> PutKeyValueNodeAsync(this IStorageService Provider, ReadOnlyKeyValueNode Node)
+		public static async Task<IoHash> PutKeyValueNodeAsync(this IStorageService Provider, ReadOnlyKeyValueNode Node)
 		{
 			return await Provider.PutBlobAsync(Node.Memory);
 		}
@@ -524,7 +573,7 @@ namespace HordeServer.Storage.Primitives
 		/// <param name="Provider"></param>
 		/// <param name="Hash"></param>
 		/// <returns></returns>
-		public static async Task<ReadOnlyKeyValueNode> GetKeyValueNodeAsync(this IStorageService Provider, BlobHash Hash)
+		public static async Task<ReadOnlyKeyValueNode> GetKeyValueNodeAsync(this IStorageService Provider, IoHash Hash)
 		{
 			return new ReadOnlyKeyValueNode(await Provider.GetBlobAsync(Hash));
 		}

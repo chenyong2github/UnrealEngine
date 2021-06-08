@@ -26,10 +26,10 @@ namespace HordeServer.Rpc
 		class UploadInfo
 		{
 			public long Position;
-			public BlobHash Hash { get; }
+			public IoHash Hash { get; }
 			public byte[] Data { get; }
 
-			public UploadInfo(BlobHash Hash, long Length)
+			public UploadInfo(IoHash Hash, long Length)
 			{
 				this.Hash = Hash;
 				this.Data = new byte[Length];
@@ -60,7 +60,7 @@ namespace HordeServer.Rpc
 		/// </summary>
 		/// <param name="ResourceName">The resource name</param>
 		/// <returns>THe hash and size</returns>
-		static (BlobHash, long) ParseResourceName(string ResourceName)
+		static (IoHash, long) ParseResourceName(string ResourceName)
 		{
 			// blobs/{hash}/{size}/foo/bar/baz.cc
 			Match Match = Regex.Match(ResourceName, @"^(?:[^/]+/)?(?:uploads/[^/]+/)?blobs/([0-9a-zA-Z]+)/([0-9]+)(?:/|$)");
@@ -69,7 +69,7 @@ namespace HordeServer.Rpc
 				throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid resource name"));
 			}
 
-			BlobHash Hash = BlobHash.Parse(Match.Groups[1].Value);
+			IoHash Hash = IoHash.Parse(Match.Groups[1].Value);
 			long Size = long.Parse(Match.Groups[2].Value, CultureInfo.InvariantCulture);
 			return (Hash, Size);
 		}
@@ -123,7 +123,7 @@ namespace HordeServer.Rpc
 			UploadInfo? UploadInfo;
 			if (!Uploads.TryGetValue(ResourceName, out UploadInfo))
 			{
-				(BlobHash Hash, long Size) = ParseResourceName(ResourceName);
+				(IoHash Hash, long Size) = ParseResourceName(ResourceName);
 
 				UploadInfo = new UploadInfo(Hash, Size);
 				while (!Uploads.TryAdd(ResourceName, UploadInfo!))
@@ -199,7 +199,7 @@ namespace HordeServer.Rpc
 				}
 			}
 
-			(BlobHash Hash, long Size) = ParseResourceName(Request.ResourceName);
+			(IoHash Hash, long Size) = ParseResourceName(Request.ResourceName);
 			if (await StorageService.ShouldPutBlobAsync(Hash))
 			{
 				throw new RpcException(new Status(StatusCode.NotFound, "Invalid resource name"));
