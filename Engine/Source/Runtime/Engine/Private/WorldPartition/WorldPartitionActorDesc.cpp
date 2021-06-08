@@ -220,7 +220,7 @@ UHLODLayer* FWorldPartitionActorDesc::GetHLODLayer() const
 	return HLODLayer.IsNone() ? nullptr : Cast<UHLODLayer>(FSoftObjectPath(HLODLayer).TryLoad());
 }
 
-bool FWorldPartitionActorDesc::IsLoaded() const
+bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const
 {
 #if WITH_DEV_AUTOMATION_TESTS
 	if (GIsAutomationTesting)
@@ -229,7 +229,7 @@ bool FWorldPartitionActorDesc::IsLoaded() const
 	}
 #endif
 
-	return ActorPtr.IsValid();
+	return ActorPtr.IsValid(bEvenIfPendingKill);
 }
 
 AActor* FWorldPartitionActorDesc::GetActor(bool bEvenIfPendingKill, bool bEvenIfUnreachable) const

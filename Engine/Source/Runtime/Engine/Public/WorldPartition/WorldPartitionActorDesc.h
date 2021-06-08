@@ -128,7 +128,7 @@ public:
 
 	FString ToString() const;
 
-	bool IsLoaded() const;
+	bool IsLoaded(bool bEvenIfPendingKill=false) const;
 	AActor* GetActor(bool bEvenIfPendingKill=true, bool bEvenIfUnreachable=false) const;
 	AActor* Load() const;
 	virtual void Unload();

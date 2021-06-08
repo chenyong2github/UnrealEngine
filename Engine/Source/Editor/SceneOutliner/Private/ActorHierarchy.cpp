@@ -291,7 +291,7 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 		{
 			FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [this, WorldPartition, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
                 {
-                    if (ActorDesc != nullptr && !ActorDesc->IsLoaded())
+                    if (ActorDesc != nullptr && !ActorDesc->IsLoaded(true))
                     {
                         if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), WorldPartition)))
                         {
@@ -557,7 +557,7 @@ void FActorHierarchy::OnLoadedActorRemoved(AActor& InActor)
 
 void FActorHierarchy::OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc)
 {
-	if (bShowingUnloadedActors && ActorDesc && !ActorDesc->IsLoaded())
+	if (bShowingUnloadedActors && ActorDesc && !ActorDesc->IsLoaded(true))
 	{
 		if (UWorldPartition* WorldPartition = RepresentingWorld->GetWorldPartition())
 		{
