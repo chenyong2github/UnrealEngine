@@ -1270,21 +1270,19 @@ public:
 		Transform.Origin = FVector3f(Origin.X, Origin.Y, Origin.Z);
 	}
 
-	FORCEINLINE_DEBUGGABLE void GetInstanceShaderValues(int32 InstanceIndex, FVector4 (&InstanceTransform)[3], FVector4& InstanceLightmapAndShadowMapUVBias, FVector4& InstanceOrigin) const
+	FORCEINLINE_DEBUGGABLE void GetInstanceRandomID(int32 InstanceIndex, float& RandomInstanceID) const
 	{
-		if (bUseHalfFloat)
-		{
-			GetInstanceTransformInternal<FFloat16>(InstanceIndex, InstanceTransform);
-		}
-		else
-		{
-			GetInstanceTransformInternal<float>(InstanceIndex, InstanceTransform);
-		}
-		GetInstanceLightMapDataInternal(InstanceIndex, InstanceLightmapAndShadowMapUVBias);
-		GetInstanceOriginInternal(InstanceIndex, InstanceOrigin);
+		FVector4 Origin;
+		GetInstanceOriginInternal(InstanceIndex, Origin);
+		RandomInstanceID = Origin.W;
 	}
 
-	FORCEINLINE_DEBUGGABLE void GetInstanceShaderCustomDataValues(int32 InstanceIndex, TArray<float>& CustomData) const
+	FORCEINLINE_DEBUGGABLE void GetInstanceLightMapData(int32 InstanceIndex, FVector4& InstanceLightmapAndShadowMapUVBias) const
+	{
+		GetInstanceLightMapDataInternal(InstanceIndex, InstanceLightmapAndShadowMapUVBias);
+	}
+
+	FORCEINLINE_DEBUGGABLE void GetInstanceCustomDataValues(int32 InstanceIndex, TArray<float>& CustomData) const
 	{
 		GetInstanceCustomDataInternal(InstanceIndex, CustomData);
 	}

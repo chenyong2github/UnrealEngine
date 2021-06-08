@@ -1065,6 +1065,11 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	checkSlow(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
+	// Should have valid Nanite data at this point.
+	check(GeometryCollection->HasNaniteData());
+	NaniteResourceID = GeometryCollection->GetNaniteResourceID();
+	NaniteHierarchyOffset = GeometryCollection->GetNaniteHierarchyOffset();
+
 	MaterialRelevance = Component->GetMaterialRelevance(Component->GetScene()->GetFeatureLevel());
 
 	// Nanite supports the GPUScene instance data buffer.
@@ -1165,8 +1170,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
 		{
 			FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
-			Instance.PrimitiveId = ~uint32(0);
-			Instance.NaniteInfo = GeometryCollection->GetNaniteInfo(GeometryIndex);
+			Instance.HierarchyOffset = GeometryCollection->GetNaniteHierarchyOffset(GeometryIndex);
 			Instance.RenderBounds = BoundingBoxes[GeometryIndex];
 		}
 	}
@@ -1185,8 +1189,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 			if (GeometryIndex > INDEX_NONE)
 			{
 				FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
-				Instance.PrimitiveId	= ~uint32(0);
-				Instance.NaniteInfo		= GeometryCollection->GetNaniteInfo(GeometryIndex);
+				Instance.HierarchyOffset = GeometryCollection->GetNaniteHierarchyOffset(GeometryIndex);
 				Instance.RenderBounds	= BoundingBoxes[TransformIndex];
 			}
 		}
@@ -1199,13 +1202,13 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
 	{
 		FPrimitiveInstance& Instance = Instances[GeometryIndex];
-		Instance.PrimitiveId = ~uint32(0);
 		Instance.InstanceToLocal.SetIdentity();
 		Instance.PrevInstanceToLocal.SetIdentity();
 		Instance.LocalToWorld.SetIdentity();
 		Instance.PrevLocalToWorld.SetIdentity();
 		Instance.RenderBounds = GeometryNaniteData[GeometryIndex].RenderBounds;
 		Instance.LocalBounds = Instance.RenderBounds;
+		Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
 	}
 }
 
@@ -1313,6 +1316,12 @@ void FNaniteGeometryCollectionSceneProxy::OnTransformChanged()
 	}
 }
 
+void FNaniteGeometryCollectionSceneProxy::GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const
+{
+	ResourceID = NaniteResourceID;
+	HierarchyOffset = NaniteHierarchyOffset;
+}
+
 void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)
 {
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
@@ -1339,10 +1348,9 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 		Instance.LocalToWorld			= Instance.InstanceToLocal * ParentLocalToWorld;
 		Instance.PrevInstanceToLocal	= NewConstantData->RestTransforms[TransformIndex];
 		Instance.PrevLocalToWorld		= Instance.LocalToWorld;
-		Instance.PrimitiveId			= NaniteData.PrimitiveId;
 		Instance.RenderBounds			= NaniteData.RenderBounds;
 		Instance.LocalBounds			= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
-		Instance.NaniteInfo				= NaniteData.NaniteInfo;
+		Instance.NaniteHierarchyOffset	= NaniteData.HierarchyOffset;
 	}
 
 	delete NewConstantData;
@@ -1413,9 +1421,8 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 			
 			Instance.LocalToWorld				= Instance.InstanceToLocal * ParentLocalToWorld;
 			Instance.LocalBounds				= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
-			Instance.PrimitiveId				= NaniteData.PrimitiveId;
 			Instance.RenderBounds				= NaniteData.RenderBounds;
-			Instance.NaniteInfo					= NaniteData.NaniteInfo;
+			Instance.NaniteHierarchyOffset		= NaniteData.HierarchyOffset;
 		}
 	}
 	else

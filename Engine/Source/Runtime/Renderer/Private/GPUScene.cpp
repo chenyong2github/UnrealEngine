@@ -158,6 +158,8 @@ struct FInstanceUploadInfo
 	
 	// Used for primitives that need to create a dummy instance (they do not have instance data in the proxy)
 	FPrimitiveInstance DummyInstance;
+
+	int32 PrimitiveID = INDEX_NONE;
 };
 
 struct FPrimitiveTransforms
@@ -184,11 +186,10 @@ inline FPrimitiveTransforms InitPrimitiveTransforms(const FScene& Scene, const F
 	return Transforms;
 }
 
-inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const FPrimitiveTransforms& PrimitiveTransforms, int32 PrimitiveID, uint32 SceneFrameNumber, bool bHasPreviousInstanceTransforms)
+inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const FPrimitiveTransforms& PrimitiveTransforms, uint32 SceneFrameNumber, bool bHasPreviousInstanceTransforms)
 {
 	const FRenderTransform& PreviousInstanceToLocal = bHasPreviousInstanceTransforms ? PrimitiveInstance.PrevInstanceToLocal : PrimitiveInstance.InstanceToLocal;
 
-	PrimitiveInstance.PrimitiveId = PrimitiveID;
 	PrimitiveInstance.LastUpdateSceneFrameNumber = SceneFrameNumber;
 	PrimitiveInstance.LocalBounds = PrimitiveInstance.RenderBounds;
 	PrimitiveInstance.LocalToWorld = PrimitiveInstance.InstanceToLocal * PrimitiveTransforms.LocalToWorld;
@@ -209,7 +210,7 @@ inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const F
 	PrimitiveInstance.OrthonormalizeAndUpdateScale();
 }
 
-inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const FPrimitiveTransforms& PrimitiveTransforms, const FBoxSphereBounds& LocalBounds, int32 PrimitiveID, uint32 SceneFrameNumber)
+inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const FPrimitiveTransforms& PrimitiveTransforms, const FBoxSphereBounds& LocalBounds, uint32 SceneFrameNumber)
 {
 	// We always create an instance to ensure that we can always use the same code paths in the shader
 	// In the future we should remove redundant data from the primitive, and then the instances should be
@@ -224,7 +225,7 @@ inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const 
 	DummyInstance.LocalBounds = LocalBounds;
 
 	const bool bHasPreviousInstanceTransforms = false;
-	InitPrimitiveInstance(DummyInstance, PrimitiveTransforms, PrimitiveID, SceneFrameNumber, bHasPreviousInstanceTransforms);
+	InitPrimitiveInstance(DummyInstance, PrimitiveTransforms, SceneFrameNumber, bHasPreviousInstanceTransforms);
 }
 
 /**
@@ -306,6 +307,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
 			InstanceUploadInfo.InstanceDataOffset = PrimitiveSceneInfo->GetInstanceDataOffset();
+			InstanceUploadInfo.PrimitiveID = PrimitiveID;
 
 			if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
 			{
@@ -319,7 +321,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 			else
 			{
 				const FPrimitiveTransforms PrimitiveTransforms = InitPrimitiveTransforms(Scene, PrimitiveSceneProxy, PrimitiveSceneInfo);
-				InitPrimitiveInstanceDummy(InstanceUploadInfo.DummyInstance, PrimitiveTransforms, PrimitiveSceneProxy->GetLocalBounds(), PrimitiveID, SceneFrameNumber);
+				InitPrimitiveInstanceDummy(InstanceUploadInfo.DummyInstance, PrimitiveTransforms, PrimitiveSceneProxy->GetLocalBounds(), SceneFrameNumber);
 				InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 				return true;
 			}
@@ -360,7 +362,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 			for (FPrimitiveInstance& PrimitiveInstance : *PrimitiveInstancesPtr)
 			{
-				InitPrimitiveInstance(PrimitiveInstance, PrimitiveTransforms, PrimitiveID, SceneFrameNumber, bHasPreviousInstanceTransforms);
+				InitPrimitiveInstance(PrimitiveInstance, PrimitiveTransforms, SceneFrameNumber, bHasPreviousInstanceTransforms);
 			}
 		}
 	}
@@ -980,7 +982,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 									// Update each primitive instance with current data.
 									for (int32 InstanceIndex = 0; InstanceIndex < UploadInfo.PrimitiveInstances.Num(); ++InstanceIndex)
 									{
-										const FInstanceSceneShaderData InstanceSceneData(UploadInfo.PrimitiveInstances[InstanceIndex]);
+										const FInstanceSceneShaderData InstanceSceneData(UploadInfo.PrimitiveInstances[InstanceIndex], UploadInfo.PrimitiveID);
 
 										void* DstRefs[FInstanceSceneShaderData::InstanceDataStrideInFloat4s];
 										if (RangeCount > 1)
@@ -1151,7 +1153,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 	{
 		if (ItemIndex < PrimitiveShaderData.Num())
 		{
-			const uint32 PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
+			InstanceUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
 
 			FPrimitiveTransforms PrimitiveTransforms;
 			PrimitiveTransforms.LocalToWorld = PrimitiveShaderData[ItemIndex].LocalToWorld;
@@ -1159,7 +1161,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 
 			const FBoxSphereBounds LocalBounds = FBoxSphereBounds(FBox(PrimitiveShaderData[ItemIndex].LocalObjectBoundsMin, PrimitiveShaderData[ItemIndex].LocalObjectBoundsMax));
 
-			InitPrimitiveInstanceDummy(InstanceUploadInfo.DummyInstance, PrimitiveTransforms, LocalBounds, PrimitiveID, SceneFrameNumber);
+			InitPrimitiveInstanceDummy(InstanceUploadInfo.DummyInstance, PrimitiveTransforms, LocalBounds, SceneFrameNumber);
 			InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 			InstanceUploadInfo.InstanceDataOffset = InstanceIDStartOffset + ItemIndex;
 			return true;

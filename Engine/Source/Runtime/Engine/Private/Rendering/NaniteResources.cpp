@@ -428,6 +428,9 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Nanite requires GPUScene
 	checkSlow(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
+	
+	// This should always be valid.
+	check(Resources);
 
 	MaterialRelevance = Component->GetMaterialRelevance(Component->GetScene()->GetFeatureLevel());
 
@@ -544,13 +547,13 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instances.Reserve(1);
 	Instances.SetNumZeroed(1);
 	FPrimitiveInstance& Instance = Instances[0];
-	Instance.PrimitiveId = ~uint32(0);
 	Instance.InstanceToLocal.SetIdentity();
 	Instance.LocalToWorld.SetIdentity();
 	Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
 	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 	Instance.PerInstanceRandom = 0;
+	Instance.NaniteHierarchyOffset = 0;
 	Instance.Flags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 }
 
@@ -566,12 +569,11 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
 		
-		// TODO: KevinO cleanup		
+		// TODO: KevinO cleanup
 		FTransform InstancePrevTransform;
 		const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
 
 		FPrimitiveInstance& Instance = Instances[InstanceIndex];
-		Instance.PrimitiveId = ~uint32(0);
 		Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
 		
 		// TODO: KevinO cleanup
@@ -586,6 +588,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
 		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 		Instance.PerInstanceRandom = 0.0f;
+		Instance.NaniteHierarchyOffset = 0;
 		Instance.Flags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 	}
 
@@ -595,22 +598,11 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		if (PerInstanceRenderData != nullptr &&
 			PerInstanceRenderData->InstanceBuffer.GetNumInstances() == Instances.Num())
 		{
-			FVector4 InstanceTransformVec[3];
-			FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-			FVector4 InstanceOrigin = FVector3f::ZeroVector;
-
 			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 			{
-				PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(
-					InstanceIndex,
-					InstanceTransformVec,
-					InstanceLightMapAndShadowMapUVBias,
-					InstanceOrigin
-				);
-
 				FPrimitiveInstance& Instance = Instances[InstanceIndex];
-				Instance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
-				Instance.PerInstanceRandom = InstanceOrigin.W; // Per-instance random packed into W component
+				PerInstanceRenderData->InstanceBuffer.GetInstanceLightMapData(InstanceIndex, Instance.LightMapAndShadowMapUVBias);
+				PerInstanceRenderData->InstanceBuffer.GetInstanceRandomID(InstanceIndex, Instance.PerInstanceRandom);
 			}
 		}
 	});
@@ -641,12 +633,14 @@ void FSceneProxy::CreateRenderThreadResources()
 {
 	// These couldn't be copied on the game thread because they are initialized
 	// by the streaming manager on the render thread - initialize them now.
-	check(Resources->RuntimeResourceID != 0xFFFFFFFFu && Resources->HierarchyOffset != INDEX_NONE);
+	check(Resources->RuntimeResourceID != NANITE_INVALID_RESOURCE_ID && Resources->HierarchyOffset != NANITE_INVALID_HIERARCHY_OFFSET);
 	const bool bHasImposter = Resources->ImposterAtlas.Num() > 0;
-	FNaniteInfo NaniteInfo = FNaniteInfo(Resources->RuntimeResourceID, Resources->HierarchyOffset, bHasImposter);
+
 	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 	{
-		Instances[InstanceIndex].NaniteInfo = NaniteInfo;
+		// Regular static mesh instances only use hierarchy offset on primitive.
+		Instances[InstanceIndex].NaniteHierarchyOffset = 0;
+
 		if (bHasImposter)
 		{
 			Instances[InstanceIndex].Flags |= INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;

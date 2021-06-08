@@ -33,121 +33,6 @@
 #define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN		0x2
 #define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER			0x4
 
-// Unpacked AoS layout - see FInstanceSceneShaderData::Setup() for SoA packed layout.
-#if INSTANCE_SCENE_DATA_SUPPORTED
-
-// Must match FInstanceUniformShaderParameters in C++
-struct FInstanceSceneData
-{
-	float4x4 LocalToWorld;
-	float4x4 PrevLocalToWorld;
-	float4x4 WorldToLocal;
-	float4   NonUniformScale;
-	float3   InvNonUniformScale;
-	float    DeterminantSign;
-	float3   LocalBoundsCenter;
-	uint     PrimitiveId;
-	float3   LocalBoundsExtent;
-	uint     LastUpdateSceneFrameNumber;
-	uint     NaniteRuntimeResourceID;
-	uint     NaniteHierarchyOffset;
-	bool     NaniteHasImposter;
-	// TODO: bool     CastShadows;
-	float    PerInstanceRandom;
-	float4   LightMapAndShadowMapUVBias;
-	bool     ValidInstance;
-};
-
-#if USE_GLOBAL_GPU_SCENE_DATA
-StructuredBuffer<float4> GPUSceneInstanceSceneData;
-uint GPUSceneFrameNumber;
-#endif
-
-uint GetGPUSceneFrameNumber()
-{
-#if USE_GLOBAL_GPU_SCENE_DATA
-	return GPUSceneFrameNumber;
-#else
-	return View.FrameNumber;
-#endif
-}
-
-float4 LoadInstanceDataElement(uint Index)
-{
-#if USE_GLOBAL_GPU_SCENE_DATA
-	return GPUSceneInstanceSceneData[Index];
-#else
-	return View.InstanceSceneData[Index];
-#endif
-}
-
-// Fetch from scene primitive buffer
-FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
-{
-	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
-
-	const uint Flags										= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).x);
-	InstanceData.PrimitiveId								= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).y);
-	InstanceData.NaniteRuntimeResourceID					= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).z);
-	InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).w);
-
-	// Only process valid instances
-	//InstanceData.ValidInstance							= (InstanceData.PrimitiveId != 0xFFFFFFFFu && InstanceData.NaniteRuntimeResourceID != 0xFFFFFFFFu);
-	InstanceData.ValidInstance								= InstanceData.PrimitiveId != 0xFFFFFFFFu;
-
-	BRANCH
-	if (InstanceData.ValidInstance)
-	{
-		InstanceData.LocalToWorld			= transpose(float4x4(LoadInstanceDataElement(1 * SOAStride + InstanceId),
-																 LoadInstanceDataElement(2 * SOAStride + InstanceId),
-																 LoadInstanceDataElement(3 * SOAStride + InstanceId),
-																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
-
-		InstanceData.PrevLocalToWorld		= transpose(float4x4(LoadInstanceDataElement(4 * SOAStride + InstanceId),
-																 LoadInstanceDataElement(5 * SOAStride + InstanceId),
-																 LoadInstanceDataElement(6 * SOAStride + InstanceId),
-																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
-
-		InstanceData.LocalBoundsCenter							= LoadInstanceDataElement(7 * SOAStride + InstanceId).xyz;
-		InstanceData.LocalBoundsExtent.x						= LoadInstanceDataElement(7 * SOAStride + InstanceId).w;
-
-		InstanceData.LocalBoundsExtent.yz						= LoadInstanceDataElement(8 * SOAStride + InstanceId).xy;
-		InstanceData.NaniteHierarchyOffset						= asint(LoadInstanceDataElement(8 * SOAStride + InstanceId).z);
-		InstanceData.PerInstanceRandom							= LoadInstanceDataElement(8 * SOAStride + InstanceId).w;
-
-		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceDataElement(9 * SOAStride + InstanceId);
-
-		float3 Scale2;
-		Scale2.x = length2(InstanceData.LocalToWorld[0].xyz);
-		Scale2.y = length2(InstanceData.LocalToWorld[1].xyz);
-		Scale2.z = length2(InstanceData.LocalToWorld[2].xyz);
-
-		InstanceData.InvNonUniformScale							= rsqrt(Scale2);
-		InstanceData.DeterminantSign							= CondMask(Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
-
-		InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScale;
-
-		float3 AbsNonUniformScale								= abs(InstanceData.NonUniformScale.xyz);
-		InstanceData.NonUniformScale.w							= max3(AbsNonUniformScale.x, AbsNonUniformScale.y, AbsNonUniformScale.z);
-	
-		InstanceData.WorldToLocal								= InstanceData.LocalToWorld;
-		InstanceData.WorldToLocal[0].xyz					   *= Pow2(InstanceData.InvNonUniformScale.x);
-		InstanceData.WorldToLocal[1].xyz					   *= Pow2(InstanceData.InvNonUniformScale.y);
-		InstanceData.WorldToLocal[2].xyz					   *= Pow2(InstanceData.InvNonUniformScale.z);
-		InstanceData.WorldToLocal[3].xyz						= 0.0f;
-		InstanceData.WorldToLocal								= transpose(InstanceData.WorldToLocal);
-		InstanceData.WorldToLocal[3].xyz						= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
-
-		// TODO: Uploading not fully functional
-		// InstanceData.CastShadows								= (Flags & INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS);
-		InstanceData.NaniteHasImposter							= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
-	}
-
-	return InstanceData;
-}
-
-#endif // INSTANCE_SCENE_DATA_SUPPORTED
-
 #if VF_USE_PRIMITIVE_SCENE_DATA
 
 #if USE_GLOBAL_GPU_SCENE_DATA
@@ -251,9 +136,9 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.LightmapDataIndex				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).w);
 	PrimitiveData.NonUniformScale				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 21);
 	PrimitiveData.PreSkinnedLocalBoundsMin		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 22).xyz;
-	PrimitiveData.NaniteResourceID				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 22).w;
+	PrimitiveData.NaniteResourceID				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 22).w);
 	PrimitiveData.PreSkinnedLocalBoundsMax		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).xyz;
-	PrimitiveData.NaniteHierarchyOffset			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).w;
+	PrimitiveData.NaniteHierarchyOffset			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).w);
 	PrimitiveData.LocalObjectBoundsMin			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).xyz;
 	PrimitiveData.ObjectBoundsY					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).w;
 	PrimitiveData.LocalObjectBoundsMax			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).xyz;
@@ -273,12 +158,6 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 
 // Route to Primitive uniform buffer
 #define GetPrimitiveData(x) Primitive
-
-// Route to Instance uniform buffer
-#if !INSTANCE_SCENE_DATA_SUPPORTED
-	// GPUCULL_TODO: Figure out if this one does anything?
-	#define GetInstanceData(x,y) PrimitiveInstance
-#endif // !INSTANCE_SCENE_DATA_SUPPORTED
 
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
 
@@ -337,6 +216,126 @@ uint GetPrimitive_LightingChannelMask(FPrimitiveSceneData Primitive)
 	return GetPrimitive_LightingChannelMask_FromFlags(Primitive.Flags);
 }
 #endif
+
+// Unpacked AoS layout - see FInstanceSceneShaderData::Setup() for SoA packed layout.
+#if INSTANCE_SCENE_DATA_SUPPORTED
+
+struct FInstanceSceneData
+{
+	float4x4 LocalToWorld;
+	float4x4 PrevLocalToWorld;
+	float4x4 WorldToLocal;
+	float4   NonUniformScale;
+	float3   InvNonUniformScale;
+	float    DeterminantSign;
+	float3   LocalBoundsCenter;
+	uint     PrimitiveId;
+	uint     PayloadDataOffset; // TODO: Implement payload data
+	float3   LocalBoundsExtent;
+	uint     LastUpdateSceneFrameNumber;
+	uint     NaniteRuntimeResourceID;
+	uint     NaniteHierarchyOffset;
+	bool     NaniteHasImposter;
+	float    PerInstanceRandom;
+	float4   LightMapAndShadowMapUVBias;
+	bool     ValidInstance;
+};
+
+#if USE_GLOBAL_GPU_SCENE_DATA
+StructuredBuffer<float4> GPUSceneInstanceSceneData;
+uint GPUSceneFrameNumber;
+#endif
+
+uint GetGPUSceneFrameNumber()
+{
+#if USE_GLOBAL_GPU_SCENE_DATA
+	return GPUSceneFrameNumber;
+#else
+	return View.FrameNumber;
+#endif
+}
+
+float4 LoadInstanceDataElement(uint Index)
+{
+#if USE_GLOBAL_GPU_SCENE_DATA
+	return GPUSceneInstanceSceneData[Index];
+#else
+	return View.InstanceSceneData[Index];
+#endif
+}
+
+// Fetch from scene primitive buffer
+FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
+{
+	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
+
+	const uint Flags										= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).x);
+	InstanceData.PrimitiveId								= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).y);
+	InstanceData.NaniteHierarchyOffset						= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).z);
+	InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).w);
+
+	// Only process valid instances
+	InstanceData.ValidInstance								= InstanceData.PrimitiveId != 0xFFFFFFFFu;
+
+	BRANCH
+	if (InstanceData.ValidInstance)
+	{
+		InstanceData.LocalToWorld			= transpose(float4x4(LoadInstanceDataElement(1 * SOAStride + InstanceId),
+																 LoadInstanceDataElement(2 * SOAStride + InstanceId),
+																 LoadInstanceDataElement(3 * SOAStride + InstanceId),
+																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+		InstanceData.PrevLocalToWorld		= transpose(float4x4(LoadInstanceDataElement(4 * SOAStride + InstanceId),
+																 LoadInstanceDataElement(5 * SOAStride + InstanceId),
+																 LoadInstanceDataElement(6 * SOAStride + InstanceId),
+																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+		InstanceData.LocalBoundsCenter							= LoadInstanceDataElement(7 * SOAStride + InstanceId).xyz;
+		InstanceData.LocalBoundsExtent.x						= LoadInstanceDataElement(7 * SOAStride + InstanceId).w;
+
+		InstanceData.LocalBoundsExtent.yz						= LoadInstanceDataElement(8 * SOAStride + InstanceId).xy;
+		InstanceData.PayloadDataOffset							= asuint(LoadInstanceDataElement(8 * SOAStride + InstanceId).z);
+		InstanceData.PerInstanceRandom							= LoadInstanceDataElement(8 * SOAStride + InstanceId).w;
+
+		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceDataElement(9 * SOAStride + InstanceId);
+
+		float3 Scale2;
+		Scale2.x = length2(InstanceData.LocalToWorld[0].xyz);
+		Scale2.y = length2(InstanceData.LocalToWorld[1].xyz);
+		Scale2.z = length2(InstanceData.LocalToWorld[2].xyz);
+
+		InstanceData.InvNonUniformScale							= rsqrt(Scale2);
+		InstanceData.DeterminantSign							= CondMask(Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
+
+		InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScale;
+
+		float3 AbsNonUniformScale								= abs(InstanceData.NonUniformScale.xyz);
+		InstanceData.NonUniformScale.w							= max3(AbsNonUniformScale.x, AbsNonUniformScale.y, AbsNonUniformScale.z);
+	
+		InstanceData.WorldToLocal								= InstanceData.LocalToWorld;
+		InstanceData.WorldToLocal[0].xyz					   *= Pow2(InstanceData.InvNonUniformScale.x);
+		InstanceData.WorldToLocal[1].xyz					   *= Pow2(InstanceData.InvNonUniformScale.y);
+		InstanceData.WorldToLocal[2].xyz					   *= Pow2(InstanceData.InvNonUniformScale.z);
+		InstanceData.WorldToLocal[3].xyz						= 0.0f;
+		InstanceData.WorldToLocal								= transpose(InstanceData.WorldToLocal);
+		InstanceData.WorldToLocal[3].xyz						= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
+
+		// TODO: Uploading not fully functional
+		// InstanceData.CastShadows								= (Flags & INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS);
+		InstanceData.NaniteHasImposter							= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
+
+		InstanceData.NaniteRuntimeResourceID = GetPrimitiveData(InstanceData.PrimitiveId).NaniteResourceID;
+		if (InstanceData.NaniteRuntimeResourceID != 0xFFFFFFFFu)
+		{
+			// Combine this instance's hierarchy offset with the primitive's root hierarchy offset
+			InstanceData.NaniteHierarchyOffset += GetPrimitiveData(InstanceData.PrimitiveId).NaniteHierarchyOffset;
+		}
+	}
+
+	return InstanceData;
+}
+
+#endif // INSTANCE_SCENE_DATA_SUPPORTED
 
 struct FSceneDataIntermediates
 {

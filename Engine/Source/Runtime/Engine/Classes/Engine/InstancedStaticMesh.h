@@ -83,19 +83,24 @@ public:
 		return InstanceData->GetNumInstances();
 	}
 
-	FORCEINLINE  void GetInstanceTransform(int32 InstanceIndex, FRenderTransform& Transform) const
+	FORCEINLINE void GetInstanceTransform(int32 InstanceIndex, FRenderTransform& Transform) const
 	{
 		InstanceData->GetInstanceTransform(InstanceIndex, Transform);
 	}
 
-	FORCEINLINE  void GetInstanceShaderValues(int32 InstanceIndex, FVector4 (&InstanceTransform)[3], FVector4& InstanceLightmapAndShadowMapUVBias, FVector4& InstanceOrigin) const
+	FORCEINLINE void GetInstanceRandomID(int32 InstanceIndex, float& RandomInstanceID) const
 	{
-		InstanceData->GetInstanceShaderValues(InstanceIndex, InstanceTransform, InstanceLightmapAndShadowMapUVBias, InstanceOrigin);
+		InstanceData->GetInstanceRandomID(InstanceIndex, RandomInstanceID);
+	}
+
+	FORCEINLINE void GetInstanceLightMapData(int32 InstanceIndex, FVector4& InstanceLightmapAndShadowMapUVBias) const
+	{
+		InstanceData->GetInstanceLightMapData(InstanceIndex, InstanceLightmapAndShadowMapUVBias);
 	}
 	
-	FORCEINLINE  void GetInstanceCustomDataValues(int32 InstanceIndex, TArray<float>& InstanceCustomData) const
+	FORCEINLINE void GetInstanceCustomDataValues(int32 InstanceIndex, TArray<float>& InstanceCustomData) const
 	{
-		InstanceData->GetInstanceShaderCustomDataValues(InstanceIndex, InstanceCustomData);
+		InstanceData->GetInstanceCustomDataValues(InstanceIndex, InstanceCustomData);
 	}
 	
 	FORCEINLINE FStaticMeshInstanceData* GetInstanceData() const

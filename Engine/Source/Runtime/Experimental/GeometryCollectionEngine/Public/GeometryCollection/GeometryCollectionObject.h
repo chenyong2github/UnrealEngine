@@ -325,19 +325,39 @@ public:
 	int32 NumElements(const FName& Group) const;
 	void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
 
-	FNaniteInfo GetNaniteInfo(int32 GeometryIndex) const
+	FORCEINLINE bool HasNaniteData() const
 	{
-		check(NaniteData);
+		return NaniteData != nullptr;
+	}
+
+	FORCEINLINE uint32 GetNaniteResourceID() const
+	{
+		Nanite::FResources& Resource = NaniteData->NaniteResource;
+		return Resource.RuntimeResourceID;
+	}
+
+	FORCEINLINE uint32 GetNaniteHierarchyOffset() const
+	{
+		Nanite::FResources& Resource = NaniteData->NaniteResource;
+		return Resource.HierarchyOffset;
+	}
+
+	FORCEINLINE uint32 GetNaniteHierarchyOffset(int32 GeometryIndex, bool bFlattened = false) const
+	{
 		Nanite::FResources& Resource = NaniteData->NaniteResource;
 		check(GeometryIndex >= 0 && GeometryIndex < Resource.HierarchyRootOffsets.Num());
-		bool bHasImposter = Resource.ImposterAtlas.Num() > 0;
-		return FNaniteInfo(Resource.RuntimeResourceID, Resource.HierarchyOffset + Resource.HierarchyRootOffsets[GeometryIndex], bHasImposter);
+		uint32 HierarchyOffset = Resource.HierarchyRootOffsets[GeometryIndex];
+		if (bFlattened)
+		{
+			HierarchyOffset += Resource.HierarchyOffset;
+		}
+		return HierarchyOffset;
 	}
 
 	/** ReindexMaterialSections */
 	void ReindexMaterialSections();
 
-	/** appends the standard materials to this uobject */
+	/** appends the standard materials to this UObject */
 	void InitializeMaterials();
 
 

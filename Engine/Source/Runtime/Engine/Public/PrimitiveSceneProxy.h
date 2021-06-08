@@ -719,6 +719,12 @@ public:
 		return nullptr;
 	}
 
+	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const
+	{
+		ResourceID = NANITE_INVALID_RESOURCE_ID;
+		HierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+	}
+
 	/** 
 	 * Drawing helper. Draws nice bouncy line.
 	 */

@@ -373,7 +373,7 @@ struct FResources
 
 	// Runtime State
 	uint32	RuntimeResourceID		= 0xFFFFFFFFu;
-	int32	HierarchyOffset			= INDEX_NONE;
+	uint32	HierarchyOffset			= 0xFFFFFFFFu;
 	int32	RootPageIndex			= INDEX_NONE;
 	uint32	NumHierarchyNodes		= 0;
 

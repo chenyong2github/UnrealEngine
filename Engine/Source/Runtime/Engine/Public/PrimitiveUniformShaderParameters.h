@@ -61,6 +61,9 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1				0x800
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
 
+#define NANITE_INVALID_RESOURCE_ID	0xFFFFFFFFu
+#define NANITE_INVALID_HIERARCHY_OFFSET		0xFFFFFFFFu
+
 struct FPrimitiveUniformShaderParametersBuilder
 {
 public:
@@ -84,6 +87,10 @@ public:
 		Parameters.LightmapDataIndex				= INDEX_NONE;
 		Parameters.LightmapUVIndex					= INDEX_NONE;
 		Parameters.SingleCaptureIndex				= INDEX_NONE;
+
+		// Nanite
+		Parameters.NaniteResourceID					= NANITE_INVALID_RESOURCE_ID;
+		Parameters.NaniteHierarchyOffset			= NANITE_INVALID_HIERARCHY_OFFSET;
 
 		// Instance culling
 		Parameters.InstanceDataOffset				= INDEX_NONE;
@@ -173,7 +180,7 @@ public:
 		// If this primitive has custom primitive data, set it
 		if (InCustomPrimitiveData)
 		{
-			// Copy at most up to the max supported number of dwords for safety
+			// Copy at most up to the max supported number of floats for safety
 			FMemory::Memcpy(
 				&Parameters.CustomPrimitiveData,
 				InCustomPrimitiveData->Data.GetData(),

@@ -183,12 +183,13 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 						PrimitiveParams.NonUniformScale,
 						PrimitiveParams.InvNonUniformScale,
 						FVector4(ForceInitToZero),
-						FNaniteInfo(),
+						NANITE_INVALID_HIERARCHY_OFFSET,
 						InstanceFlags,
-						0,
 						0xFFFFFFFFu,
 						0.0f
-					));
+					),
+					0 /* Primitive Id */
+				);
 
 				// Set up the parameters for the LightmapSceneData from the given LCI data 
 				FPrecomputedLightingUniformParameters LightmapParams;

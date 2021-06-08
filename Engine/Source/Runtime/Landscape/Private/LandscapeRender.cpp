@@ -1356,7 +1356,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	// 100% generic default-instance
 	Instances.SetNum(1);
 	FPrimitiveInstance& Instance = Instances[0];
-	Instance.PrimitiveId = ~uint32(0);
 	Instance.InstanceToLocal.SetIdentity();
 	Instance.LocalToWorld.SetIdentity();
 	Instance.RenderBounds = GetLocalBounds();

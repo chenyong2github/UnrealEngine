@@ -334,12 +334,12 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 						PrimitiveUniformShaderParameters.NonUniformScale,
 						PrimitiveUniformShaderParameters.InvNonUniformScale,
 						FVector4(ForceInitToZero),
-						FNaniteInfo(),
+						NANITE_INVALID_HIERARCHY_OFFSET,
 						InstanceSceneDataFlags,
-						InstanceIndex,
 						0xFFFFFFFFu,
 						0.0f
-					)
+					),
+					InstanceIndex /* Primitive Id */
 				);
 
 				for (int32 LODIndex = 0; LODIndex < Instance.LODLightmapRenderStates.Num(); LODIndex++)
@@ -414,7 +414,6 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				FRenderTransform InstanceTransform = Transform * InstanceGroup.LocalToWorld;
 
 				FPrimitiveInstance Instance;
-				Instance.PrimitiveId = PrimitiveId;
 				Instance.InstanceToLocal = Transform;
 				// Filled in during GPU Scene update...
 				Instance.LocalToWorld = InstanceTransform;
@@ -422,7 +421,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				Instance.RenderBounds = InstanceGroup.RenderData->Bounds;
 				Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
 
-				InstanceSceneData.Add(FInstanceSceneShaderData(Instance));
+				InstanceSceneData.Add(FInstanceSceneShaderData(Instance, PrimitiveId));
 			}
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));
@@ -482,12 +481,12 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					PrimitiveUniformShaderParameters.NonUniformScale,
 					PrimitiveUniformShaderParameters.InvNonUniformScale,
 					FVector4(ForceInitToZero),
-					FNaniteInfo(),
+					NANITE_INVALID_HIERARCHY_OFFSET,
 					InstanceSceneDataFlags,
-					PrimitiveId,
 					0xFFFFFFFFu,
 					0.0f
-				)
+				),
+				PrimitiveId
 			));
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));
