@@ -179,15 +179,29 @@ namespace LensDataTableUtils
 	bool GetPointValue(float InFocus, float InZoom, TConstArrayView<FocusPointType> Container, DataType& OutData)
 	{
 		const FPointNeighbors FocusNeighbors = FindFocusPoints(InFocus, Container);
-		if(FocusNeighbors.PreviousIndex == FocusNeighbors.NextIndex)
+
+		if (FocusNeighbors.PreviousIndex != FocusNeighbors.NextIndex)
 		{
-			const FPointNeighbors ZoomNeighbors = FindZoomPoints(InZoom, Container[FocusNeighbors.PreviousIndex].ZoomPoints);
-			if(ZoomNeighbors.PreviousIndex == ZoomNeighbors.NextIndex)
-			{
-				return Container[FocusNeighbors.PreviousIndex].GetValue(ZoomNeighbors.PreviousIndex, OutData);
-			}
+			return false;
 		}
 
-		return false;
+		if (FocusNeighbors.PreviousIndex == INDEX_NONE)
+		{
+			return false;
+		}
+
+		const FPointNeighbors ZoomNeighbors = FindZoomPoints(InZoom, Container[FocusNeighbors.PreviousIndex].ZoomPoints);
+
+		if (ZoomNeighbors.PreviousIndex != ZoomNeighbors.NextIndex)
+		{
+			return false;
+		}
+
+		if (ZoomNeighbors.PreviousIndex == INDEX_NONE)
+		{
+			return false;
+		}
+
+		return Container[FocusNeighbors.PreviousIndex].GetValue(ZoomNeighbors.PreviousIndex, OutData);
 	}
 }
