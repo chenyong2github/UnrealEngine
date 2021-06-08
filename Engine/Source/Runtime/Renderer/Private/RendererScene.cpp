@@ -3914,9 +3914,13 @@ struct FPrimitiveArraySortKey
 	}
 };
 
-static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy)
+static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy, const FStaticShaderPlatform ShaderPlatform)
 {
-	return Proxy->DrawsVelocity() || (!!CVarWPOPrimitivesOutputVelocity.GetValueOnRenderThread() && Proxy->IsUsingWPOMaterial());
+	bool bShouldPrimitiveOutputVelocity = Proxy->DrawsVelocity() || (!!CVarWPOPrimitivesOutputVelocity.GetValueOnRenderThread() && Proxy->IsUsingWPOMaterial());
+
+	bool bPlatformSupportsVelocityRendering = PlatformSupportsVelocityRendering(ShaderPlatform);
+
+	return bPlatformSupportsVelocityRendering && bShouldPrimitiveOutputVelocity;
 }
 
 void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsyncCreateLPIs)
@@ -4418,7 +4422,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = AddedLocalPrimitiveSceneInfos[AddIndex];
 				int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
 
-				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy))
+				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy, GetShaderPlatform()))
 				{
 					PrimitiveSceneInfo->bRegisteredWithVelocityData = true;
 					// We must register the initial LocalToWorld with the velocity state. 
@@ -4488,7 +4492,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			// (note that the octree update relies on the bounds not being modified yet).
 			PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
 
-			if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy))
+			if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy, GetShaderPlatform()))
 			{
 				PrimitiveSceneInfo->bRegisteredWithVelocityData = true;
 				VelocityData.UpdateTransform(PrimitiveSceneInfo, LocalToWorld, PrimitiveSceneProxy->GetLocalToWorld());

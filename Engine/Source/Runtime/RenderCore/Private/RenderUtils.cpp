@@ -1139,6 +1139,17 @@ RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPla
 	return GRHISupportsPixelShaderUAVs && bDistanceFieldShadowingEnabled && IsMobileDistanceFieldEnabled(Platform);
 }
 
+RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform)
+{
+	if (IsMobilePlatform(Platform))
+	{
+		static FShaderPlatformCachedIniValue<bool> MobileSupportsGen4TAAIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.SupportsGen4TAA"));
+		return (MobileSupportsGen4TAAIniValue.Get(Platform) != 0);
+	}
+
+	return true;
+}
+
 template<typename Type>
 Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
 {
@@ -1596,6 +1607,17 @@ RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatur
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
 	const bool bUseVirtualTextureLightmap = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(InFeatureLevel, TargetPlatform);
 	return bUseVirtualTextureLightmap;
+}
+
+RENDERCORE_API bool PlatformSupportsVelocityRendering(const FStaticShaderPlatform Platform)
+{
+	if (IsMobilePlatform(Platform))
+	{
+		// Enable velocity rendering if desktop Gen4 TAA is supported on mobile.
+		return SupportsGen4TAA(Platform);
+	}
+
+	return true;
 }
 
 RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform)

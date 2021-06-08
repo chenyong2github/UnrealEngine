@@ -2873,6 +2873,14 @@ static TAutoConsoleVariable<int32> CVarMobileDefaultAntiAliasing(
 	TEXT("Mobile default AntiAliasingMethod\n")
 	TEXT(" 0: off (no anti-aliasing)\n")
 	TEXT(" 1: FXAA (default, faster than TemporalAA but much more shimmering for non static cases)\n")
-	TEXT(" 2: TemporalAA\n")
+	TEXT(" 2: TemporalAA(it will fallback to FXAA if SupportsGen4TAA is disabled) \n")
 	TEXT(" 3: MSAA"),
 	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarMobileSupportsGen4TAA(
+	TEXT("r.Mobile.SupportsGen4TAA"),
+	1,
+	TEXT("Support desktop Gen4 TAA with mobile rendering\n")
+	TEXT("0: Fallback to FXAA")
+	TEXT("1: Support Desktop Gen4 TAA (default)"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
