@@ -37,6 +37,7 @@
 #include "SKismetInspector.h"
 #include "Types/WidgetActiveTimerDelegate.h"
 #include "Dialogs/CustomDialog.h"
+#include "EditMode/ControlRigEditMode.h"
 
 #define LOCTEXT_NAMESPACE "SRigHierarchy"
 
@@ -1592,11 +1593,16 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 
-		Controller->ImportBones(RefSkeleton, NAME_None, false, false, bSelectBones, true);
+		TArray<FRigElementKey> ImportedBones = Controller->ImportBones(RefSkeleton, NAME_None, false, false, bSelectBones, true);
 		Controller->ImportCurves(Mesh->GetSkeleton(), NAME_None, true, true);
 
 		ControlRigBlueprint->SourceHierarchyImport = Mesh->GetSkeleton();
 		ControlRigBlueprint->SourceCurveImport = Mesh->GetSkeleton();
+
+		if(ImportedBones.Num() > 0)
+		{
+			ControlRigEditor.Pin()->GetEditMode()->FrameItems(ImportedBones);
+		}
 	}
 
 	ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
