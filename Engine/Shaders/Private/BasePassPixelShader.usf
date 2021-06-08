@@ -1022,18 +1022,13 @@ void FPixelShaderInOut_MainPS(
 #endif
 		if ((GetPrimitiveData(MaterialParameters.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
 		{
-			uint DBufferMask = 0x07;
-#if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
-			DBufferMask = DecodeRTWriteMask(In.SvPosition.xy, OpaqueBasePass.DBufferRenderMask, 3);
+			uint ValidDBufferTargetMask = GetDBufferTargetMask(uint2(In.SvPosition.xy)) & MATERIALDECALRESPONSEMASK;
+
 			BRANCH
-#elif PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK
-			DBufferMask = GetDBufferMask(In.SvPosition.xy, OpaqueBasePass.DBufferRenderMask);
-#endif
-			if (DBufferMask)
+			if (ValidDBufferTargetMask)
 			{
-				float2 NDC = MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w;
-				float2 ScreenUV = NDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
-				FDBufferData DBufferData = GetDBufferData(ScreenUV, DBufferMask & MATERIALDECALRESPONSEMASK);
+				float2 BufferUV = SvPositionToBufferUV(In.SvPosition);
+				FDBufferData DBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
 
 				ApplyDBufferData(DBufferData, MaterialParameters.WorldNormal, SubsurfaceColor, Roughness, BaseColor, Metallic, Specular);
 				DBufferOpacity = (DBufferData.ColorOpacity + DBufferData.NormalOpacity + DBufferData.RoughnessOpacity) * (1.0f / 3.0f);

@@ -2083,9 +2083,12 @@ float3 DecodeSceneColorForMaterialNode(float2 ScreenUV)
 
 #endif // SHADING_PATH_DEFERRED
 
-float4 MaterialExpressionDBufferTextureLookup(float2 UV, int DBufferTextureIndex)
+float4 MaterialExpressionDBufferTextureLookup(float2 BufferUV, int DBufferTextureIndex)
 {
-	FDBufferData DBufferData = GetDBufferData(UV, 0x07);
+	uint2 PixelPos = uint2(BufferUV * View.BufferSizeAndInvSize.xy);
+	uint ValidDBufferTargetMask = GetDBufferTargetMask(PixelPos) & (1 << DBufferTextureIndex);
+
+	FDBufferData DBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
 	switch (DBufferTextureIndex)
 	{
 	case 0:	return float4(DBufferData.PreMulColor, DBufferData.ColorOpacity);

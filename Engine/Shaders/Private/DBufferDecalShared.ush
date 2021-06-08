@@ -82,27 +82,50 @@ FDBufferData DecodeDBufferData(
 	#define OpaqueBasePassDBufferCTextureSampler OpaqueBasePass.DBufferCTextureSampler
 #endif
 
-// @param UV - UV space in the DBuffer textures (BufferSize resolution)
-FDBufferData GetDBufferData(float2 UV, uint RTMaskBit)
+// Returns a bitmask of DBuffer targets that contain valid data for this pixel.
+// @param BufferUV - UV space in the DBuffer textures
+uint GetDBufferTargetMask(uint2 PixelPos)
+{
+#if USE_DBUFFER && ENABLE_DBUFFER_TEXTURES
+
+	#if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
+		return DecodeRTWriteMask(PixelPos, OpaqueBasePass.DBufferRenderMask, 3);
+	#elif PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK
+		uint Mask = OpaqueBasePass.DBufferRenderMask.Load(uint3(PixelPos, 0));
+		return Mask > 0 ? 0x07 : 0x00;
+	#else
+		return 0x07;
+	#endif
+
+#else
+	return 0;
+#endif
+}
+
+// @param BufferUV - UV space in the DBuffer textures
+FDBufferData GetDBufferData(float2 BufferUV, uint RTMaskBit)
 {
 	float4 DBufferA = float4(0.0, 0.0, 0.0, 1.0);
 	float4 DBufferB = float4(128.f/255.5f, 128.f / 255.5f, 128.f / 255.5f, 1.0);
 	float4 DBufferC = float4(0.0, 0.0, 0.0, 1.0);
 
 #if USE_DBUFFER && ENABLE_DBUFFER_TEXTURES
+	BRANCH
 	if (RTMaskBit & 0x1)
 	{
-		DBufferA = Texture2DSampleLevel(OpaqueBasePass.DBufferATexture, OpaqueBasePassDBufferATextureSampler, UV, 0);
+		DBufferA = Texture2DSampleLevel(OpaqueBasePass.DBufferATexture, OpaqueBasePassDBufferATextureSampler, BufferUV, 0);
 	}
 
+	BRANCH
 	if (RTMaskBit & 0x2)
 	{
-		DBufferB = Texture2DSampleLevel(OpaqueBasePass.DBufferBTexture, OpaqueBasePassDBufferBTextureSampler, UV, 0);
+		DBufferB = Texture2DSampleLevel(OpaqueBasePass.DBufferBTexture, OpaqueBasePassDBufferBTextureSampler, BufferUV, 0);
 	}
 
+	BRANCH
 	if (RTMaskBit & 0x4)
 	{
-		DBufferC = Texture2DSampleLevel(OpaqueBasePass.DBufferCTexture, OpaqueBasePassDBufferCTextureSampler, UV, 0);
+		DBufferC = Texture2DSampleLevel(OpaqueBasePass.DBufferCTexture, OpaqueBasePassDBufferCTextureSampler, BufferUV, 0);
 	}
 #endif
 
@@ -129,11 +152,4 @@ void ApplyDBufferData(
 	Metallic = Metallic * DBufferData.RoughnessOpacity + DBufferData.PreMulMetallic;
 	Specular = Specular * DBufferData.RoughnessOpacity + DBufferData.PreMulSpecular;
 #endif
-}
-
-uint GetDBufferMask(in float2 ScreenPosition, in Texture2D<uint> DBufferMaskTexture)
-{
-	int2 PixelPos = int2(ScreenPosition.xy);
-	uint Mask = DBufferMaskTexture.Load( int3(PixelPos, 0) );
-	return Mask > 0 ? 0x07 : 0x00;
 }
