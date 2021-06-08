@@ -755,7 +755,7 @@ namespace Metasound
 
 			Metadata.ClassName = FMetasoundFrontendClassName(FName(), InMetaSound.GetFName(), FName());
 			Metadata.Version.Major = 1;
-			Metadata.Version.Minor = 0;
+			Metadata.Version.Minor = 1;
 			Metadata.Type = EMetasoundFrontendClassType::Graph;
 			Metadata.Author = FText::FromString(InAuthor);
 

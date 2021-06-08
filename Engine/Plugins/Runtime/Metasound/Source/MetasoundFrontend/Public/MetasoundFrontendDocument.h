@@ -760,11 +760,6 @@ struct FMetasoundFrontendDocumentMetadata
 
 	UPROPERTY()
 	FMetasoundFrontendVersion Version;
-
-	FMetasoundFrontendDocumentMetadata()
-	{
-		Version.Number = { 1, 1 };
-	}
 };
 
 
