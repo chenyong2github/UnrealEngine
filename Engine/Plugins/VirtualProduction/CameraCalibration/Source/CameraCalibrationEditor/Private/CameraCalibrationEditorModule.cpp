@@ -3,6 +3,7 @@
 
 #include "CameraCalibrationEditorModule.h"
 
+#include "ActorFactories/ActorFactoryBlueprint.h"
 #include "AssetEditor/CameraCalibrationCommands.h"
 #include "CameraCalibrationEditorLog.h"
 #include "AssetToolsModule.h"
@@ -10,12 +11,16 @@
 #include "CameraCalibrationTypes.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
+#include "IPlacementModeModule.h"
 #include "LensFile.h"
 #include "LevelEditor.h"
+#include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "UI/CameraCalibrationEditorStyle.h"
 #include "UI/CameraCalibrationMenuEntry.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationEditor"
 
@@ -47,6 +52,83 @@ void FCameraCalibrationEditorModule::StartupModule()
 	}
 
 	FCameraCalibrationMenuEntry::Register();
+
+	RegisterPlacementModeItems();
+}
+
+const FPlacementCategoryInfo* FCameraCalibrationEditorModule::GetVirtualProductionCategoryRegisteredInfo() const
+{
+	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
+
+	static const FName VirtualProductionName = TEXT("VirtualProduction");
+
+	if (const FPlacementCategoryInfo* RegisteredInfo = PlacementModeModule.GetRegisteredPlacementCategory(VirtualProductionName))
+	{
+		return RegisteredInfo;
+	}
+	else
+	{
+		FPlacementCategoryInfo Info(
+			LOCTEXT("VirtualProductionCategoryName", "Virtual Production"),
+			VirtualProductionName,
+			TEXT("PMVirtualProduction"),
+			25
+		);
+
+		IPlacementModeModule::Get().RegisterPlacementCategory(Info);
+
+		return PlacementModeModule.GetRegisteredPlacementCategory(VirtualProductionName);
+	}
+}
+
+void FCameraCalibrationEditorModule::RegisterPlacementModeItems()
+{
+	auto RegisterPlaceActors = [&]() -> void
+	{
+		if (!GEditor)
+		{
+			return;
+		}
+
+		const FPlacementCategoryInfo* Info = GetVirtualProductionCategoryRegisteredInfo();
+
+		if (!Info)
+		{
+			UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find or create VirtualProduction Place Actor Category"));
+			return;
+		}
+
+		// Register the Tracker
+		{
+			FAssetData TrackerAssetData(
+				TEXT("/CameraCalibration/Devices/Tracker/BP_UE_Tracker"),
+				TEXT("/CameraCalibration/Devices/Tracker"),
+				TEXT("BP_UE_Tracker"),
+				TEXT("Blueprint")
+			);
+
+			PlaceActors.Add(IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
+				*UActorFactoryBlueprint::StaticClass(),
+				TrackerAssetData,
+				NAME_None,
+				TOptional<FLinearColor>(),
+				TOptional<int32>(),
+				NSLOCTEXT("PlacementMode", "Tracker", "Tracker")
+			)));
+		}
+	};
+
+	if (FApp::CanEverRender())
+	{
+		if (GEngine && GEngine->IsInitialized())
+		{
+			RegisterPlaceActors();
+		}
+		else
+		{
+			PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda(RegisterPlaceActors);
+		}
+	}
 }
 
 void FCameraCalibrationEditorModule::ShutdownModule()
@@ -72,9 +154,30 @@ void FCameraCalibrationEditorModule::ShutdownModule()
 
 		FCameraCalibrationEditorStyle::Unregister();
 		FCameraCalibrationCommands::Unregister();
+
+		UnregisterPlacementModeItems();
+	}
+
+	if (PostEngineInitHandle.IsValid())
+	{
+		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 	}
 }
 
+void FCameraCalibrationEditorModule::UnregisterPlacementModeItems()
+{
+	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
+
+	for (TOptional<FPlacementModeID>& PlaceActor : PlaceActors)
+	{
+		if (PlaceActor.IsSet())
+		{
+			PlacementModeModule.UnregisterPlaceableItem(*PlaceActor);
+		}
+	}
+
+	PlaceActors.Empty();
+}
 
 IMPLEMENT_MODULE(FCameraCalibrationEditorModule, CameraCalibrationEditor);
 

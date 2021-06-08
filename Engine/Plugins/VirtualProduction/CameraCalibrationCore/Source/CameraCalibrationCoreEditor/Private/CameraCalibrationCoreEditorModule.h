@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Modules/ModuleInterface.h"
-
 #include "CoreMinimal.h"
 
+#include "Delegates/IDelegateInstance.h"
+#include "Modules/ModuleInterface.h"
+
+class FPlacementModeID;
 class IAssetTypeActions;
+
+struct FPlacementCategoryInfo;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCameraCalibrationCoreEditor, Log, All);
 
@@ -24,5 +28,19 @@ public:
 
 private:
 
+	/** Register items to show up in the Place Actors panel. */
+	void RegisterPlacementModeItems();
+
+	/** Unregister items in Place Actors panel */
+	void UnregisterPlacementModeItems();
+
+	/** Gathers the Info on the Virtual Production Place Actors Category */
+	const FPlacementCategoryInfo* GetVirtualProductionCategoryRegisteredInfo() const;
+
+private:
+
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
+	FDelegateHandle PostEngineInitHandle;
+
+	TArray<TOptional<FPlacementModeID>> PlaceActors;
 };
