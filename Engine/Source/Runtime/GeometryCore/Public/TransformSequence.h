@@ -65,6 +65,30 @@ public:
 	}
 
 	/**
+	 * @return Cumulative scale across Transforms.
+	 */
+	FVector3<RealType> GetAccumulatedScale() const
+	{
+		FVector3<RealType> FinalScale = FVector3<RealType>::One();
+		for (const TTransform3<RealType>& Transform : Transforms)
+		{
+			FinalScale = FinalScale * Transform.GetScale();
+		}
+		return FinalScale;
+	}
+
+	/**
+	 * Set scales of all transforms to (1,1,1)
+	 */
+	void ClearScales()
+	{
+		for (TTransform3<RealType>& Transform : Transforms)
+		{
+			Transform.SetScale(FVector3<RealType>::One());
+		}
+	}
+
+	/**
 	 * @return point P with transform sequence applied
 	 */
 	FVector3<RealType> TransformPosition(UE::Math::TVector<RealType> P) const
@@ -114,7 +138,24 @@ public:
 		return Normal;
 	}
 
-
+	/**
+	 * @return true if each Transform in this sequence is equivalent to each transform of another sequence under the given test
+	 */
+	template<typename TransformsEquivalentFunc>
+	bool IsEquivalent(const TTransformSequence3<RealType>& OtherSeq, TransformsEquivalentFunc TransformsTest) const
+	{
+		int32 N = Transforms.Num();
+		if (N == OtherSeq.Transforms.Num())
+		{
+			bool bAllTransformsEqual = true;
+			for (int32 k = 0; k < N && bAllTransformsEqual; ++k)
+			{
+				bAllTransformsEqual = bAllTransformsEqual && TransformsTest(Transforms[k], OtherSeq.Transforms[k]);
+			}
+			return bAllTransformsEqual;
+		}
+		return false;
+	}
 };
 
 typedef TTransformSequence3<float> FTransformSequence3f;
