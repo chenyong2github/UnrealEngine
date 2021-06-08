@@ -942,7 +942,7 @@ namespace UnrealBuildTool
 			if (!String.IsNullOrEmpty(PersonalFolder))
 			{
 				PersonalConfigFolder = PersonalFolder;
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || Environment.OSVersion.Platform == PlatformID.Unix)
+				if (RuntimePlatform.IsMac || RuntimePlatform.IsLinux)
 				{
 					PersonalConfigFolder = System.IO.Path.Combine(PersonalConfigFolder, "Documents");
 				}

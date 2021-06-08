@@ -468,28 +468,17 @@ namespace EpicGames.Core
 		protected const string AutoSetupEnvVar = "AutoSDKSetup";
 
 
-		protected static bool IsWindows()
-		{
-			return Environment.OSVersion.Platform == PlatformID.Win32NT || Environment.OSVersion.Platform == PlatformID.Win32S || Environment.OSVersion.Platform == PlatformID.Win32Windows;
-		}
-
-		protected static bool IsMac()
-		{
-			// mono tends to return Unix on Mac, so check for a Mac-only file
-			return Environment.OSVersion.Platform == PlatformID.MacOSX || (Environment.OSVersion.Platform == PlatformID.Unix && File.Exists ("/System/Library/CoreServices/SystemVersion.plist"));
-		}
-
 		private static string GetAutoSDKHostPlatform()
 		{
-			if (IsWindows())
+			if (RuntimePlatform.IsWindows)
 			{
 				return "Win64";
 			}
-			else if (IsMac())
+			else if (RuntimePlatform.IsMac)
 			{
 				return "Mac";
 			}
-			else if (Environment.OSVersion.Platform == PlatformID.Unix)
+			else if (RuntimePlatform.IsLinux)
 			{
 				return "Linux";
 			}
@@ -746,7 +735,7 @@ namespace EpicGames.Core
 		/// <param name="Hook">Hook type</param>
 		protected virtual string GetHookExecutableName(SDKHookType Hook)
 		{
-			if (IsWindows())
+			if (RuntimePlatform.IsWindows)
 			{
 				if (Hook == SDKHookType.Uninstall)
 				{
@@ -939,7 +928,7 @@ namespace EpicGames.Core
 
                     // actually perform the PATH stripping / adding.
                     String OrigPathVar = Environment.GetEnvironmentVariable("PATH");
-                    String PathDelimiter = IsWindows() ? ";" : ":";
+                    String PathDelimiter = RuntimePlatform.IsWindows ? ";" : ":";
                     String[] PathVars = { };
                     if (!String.IsNullOrEmpty(OrigPathVar))
                     {

@@ -35,7 +35,7 @@ namespace UnrealBuildTool
 			{
 				if (MabuPath_ == null)
 				{
-					MabuPath_ = Environment.ExpandEnvironmentVariables("%MLSDK%/mabu" + (Utils.IsRunningOnWindows ? ".cmd" : ""));
+					MabuPath_ = Environment.ExpandEnvironmentVariables("%MLSDK%/mabu" + (RuntimePlatform.IsWindows ? ".cmd" : ""));
 
 					MabuPath_ = MabuPath_.Replace("\"", "");
 

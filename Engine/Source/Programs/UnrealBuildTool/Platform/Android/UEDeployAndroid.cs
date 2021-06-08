@@ -341,7 +341,7 @@ namespace UnrealBuildTool
 			uint BestVersion = 0;
 			foreach (string CandidateDir in Subdirs)
 			{
-				string AaptFilename = Path.Combine(CandidateDir, Utils.IsRunningOnWindows ? "aapt.exe" : "aapt");
+				string AaptFilename = Path.Combine(CandidateDir, RuntimePlatform.IsWindows ? "aapt.exe" : "aapt");
 				string RevisionString = "";
 				uint RevisionValue = 0;
 
@@ -1497,13 +1497,13 @@ namespace UnrealBuildTool
 			string SanitizerFullLibName = "libclang_rt." + LibName + Architecture + "-android.so";
 
 			string WrapSh = Path.Combine(UnrealBuildTool.EngineDirectory.ToString(), "Build", "Android", "ClangSanitizers", "wrap.sh");
+
 			string PlatformName = "windows-x86_64";
-			int PlatformId = (int)Environment.OSVersion.Platform;
-			if ((PlatformId == 4) || (PlatformId == 128))
+			if (RuntimePlatform.IsLinux)
 			{
 				PlatformName = "linux-x86_64";
 			}
-			else if (PlatformId == 6)
+			else if (RuntimePlatform.IsMac)
 			{
 				PlatformName = "darwin-x86_64";
 			}
@@ -3653,7 +3653,7 @@ namespace UnrealBuildTool
 			string BuildToolsVersion = GetBuildToolsVersion();
 
 			// cache some tools paths
-			//string NDKBuildPath = Environment.ExpandEnvironmentVariables("%NDKROOT%/ndk-build" + (Utils.IsRunningOnWindows ? ".cmd" : ""));
+			//string NDKBuildPath = Environment.ExpandEnvironmentVariables("%NDKROOT%/ndk-build" + (RuntimePlatform.IsWindows ? ".cmd" : ""));
 			//bool HasNDKPath = File.Exists(NDKBuildPath);
 
 			// set up some directory info
@@ -4232,7 +4232,7 @@ namespace UnrealBuildTool
 				if (!bSkipGradleBuild)
 				{
 					string GradleScriptPath = Path.Combine(UnrealBuildGradlePath, "gradlew");
-					if (!Utils.IsRunningOnWindows)
+					if (!RuntimePlatform.IsWindows)
 					{
 						// fix permissions for Mac/Linux
 						RunCommandLineProgramWithException(UnrealBuildGradlePath, "/bin/sh", string.Format("-c 'chmod 0755 \"{0}\"'", GradleScriptPath.Replace("'", "'\"'\"'")), "Fix gradlew permissions");
@@ -4265,9 +4265,9 @@ namespace UnrealBuildTool
 							Directory.CreateDirectory(Path.GetDirectoryName(DestApkName));
 
 							// Use gradle to build the .apk file
-							string ShellExecutable = Utils.IsRunningOnWindows ? "cmd.exe" : "/bin/sh";
-							string ShellParametersBegin = Utils.IsRunningOnWindows ? "/c " : "-c '";
-							string ShellParametersEnd = Utils.IsRunningOnWindows ? "" : "'";
+							string ShellExecutable = RuntimePlatform.IsWindows ? "cmd.exe" : "/bin/sh";
+							string ShellParametersBegin = RuntimePlatform.IsWindows ? "/c " : "-c '";
+							string ShellParametersEnd = RuntimePlatform.IsWindows ? "" : "'";
 							RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Making .apk with Gradle...");
 
 							if (GradleSecondCallOptions != "")
@@ -4613,7 +4613,7 @@ namespace UnrealBuildTool
 					File.WriteAllText(GradlePropertiesFilename, GradlePropertiesContent);
 
 					string GradleScriptPath = Path.Combine(UnrealBuildGradlePath, "gradlew");
-					if (!Utils.IsRunningOnWindows)
+					if (!RuntimePlatform.IsWindows)
 					{
 						// fix permissions for Mac/Linux
 						RunCommandLineProgramWithException(UnrealBuildGradlePath, "/bin/sh", string.Format("-c 'chmod 0755 \"{0}\"'", GradleScriptPath.Replace("'", "'\"'\"'")), "Fix gradlew permissions");
@@ -4640,9 +4640,9 @@ namespace UnrealBuildTool
 					//Directory.CreateDirectory(Path.GetDirectoryName(DestApkName));
 
 					// Use gradle to build the .apk file
-					string ShellExecutable = Utils.IsRunningOnWindows ? "cmd.exe" : "/bin/sh";
-					string ShellParametersBegin = Utils.IsRunningOnWindows ? "/c " : "-c '";
-					string ShellParametersEnd = Utils.IsRunningOnWindows ? "" : "'";
+					string ShellExecutable = RuntimePlatform.IsWindows ? "cmd.exe" : "/bin/sh";
+					string ShellParametersBegin = RuntimePlatform.IsWindows ? "/c " : "-c '";
+					string ShellParametersEnd = RuntimePlatform.IsWindows ? "" : "'";
 					RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Making .aab with Gradle...");
 
 					if (GradleSecondCallOptions != "")
@@ -4676,7 +4676,7 @@ namespace UnrealBuildTool
 						string UnrealBuildGradlePath = Path.Combine(UnrealBuildPath, "gradle");
 
 						string GradleScriptPath = Path.Combine(UnrealBuildGradlePath, "gradlew");
-						if (!Utils.IsRunningOnWindows)
+						if (!RuntimePlatform.IsWindows)
 						{
 							// fix permissions for Mac/Linux
 							RunCommandLineProgramWithException(UnrealBuildGradlePath, "/bin/sh", string.Format("-c 'chmod 0755 \"{0}\"'", GradleScriptPath.Replace("'", "'\"'\"'")), "Fix gradlew permissions");
@@ -4703,9 +4703,9 @@ namespace UnrealBuildTool
 						//Directory.CreateDirectory(Path.GetDirectoryName(DestApkName));
 
 						// Use gradle to build the .apk file
-						string ShellExecutable = Utils.IsRunningOnWindows ? "cmd.exe" : "/bin/sh";
-						string ShellParametersBegin = Utils.IsRunningOnWindows ? "/c " : "-c '";
-						string ShellParametersEnd = Utils.IsRunningOnWindows ? "" : "'";
+						string ShellExecutable = RuntimePlatform.IsWindows ? "cmd.exe" : "/bin/sh";
+						string ShellParametersBegin = RuntimePlatform.IsWindows ? "/c " : "-c '";
+						string ShellParametersEnd = RuntimePlatform.IsWindows ? "" : "'";
 						RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Making .aab with Gradle...");
 
 						if (GradleSecondCallOptions != "")

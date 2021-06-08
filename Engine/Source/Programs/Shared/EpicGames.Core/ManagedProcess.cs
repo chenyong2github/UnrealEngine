@@ -99,7 +99,7 @@ namespace EpicGames.Core
 		/// </summary>
 		static internal bool SupportsJobObjects
 		{
-			get { return Environment.OSVersion.Platform == PlatformID.Win32NT || Environment.OSVersion.Platform == PlatformID.Win32S || Environment.OSVersion.Platform == PlatformID.Win32Windows; }
+			get { return RuntimePlatform.IsWindows; }
 		}
 
 		/// <summary>

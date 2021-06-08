@@ -1463,7 +1463,7 @@ public class IOSPlatform : Platform
 			PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bGenerateXCArchive", out bXCArchive);
 		}
 
-		if (bXCArchive && !Utils.IsRunningOnWindows)
+		if (bXCArchive && !RuntimePlatform.IsWindows)
 		{
 			// Always put the archive in the current user's Library/Developer/Xcode/Archives path if not on the build machine
 			WindowsIdentity id = WindowsIdentity.GetCurrent();
@@ -1631,7 +1631,7 @@ public class IOSPlatform : Platform
 			Text.AppendLine("</plist>");
 			File.WriteAllText(Path.Combine(ArchiveName, "Info.plist"), Text.ToString());
 		}
-		else if (bXCArchive && Utils.IsRunningOnWindows)
+		else if (bXCArchive && RuntimePlatform.IsWindows)
 		{
 			LogWarning("Can not produce an XCArchive on windows");
 		}

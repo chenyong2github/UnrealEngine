@@ -113,7 +113,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the parallel executor can be used</returns>
 		public static bool IsAvailable()
 		{
-			return Environment.OSVersion.Platform == PlatformID.Win32NT;
+			return RuntimePlatform.IsWindows;
 		}
 
 		/// <summary>
