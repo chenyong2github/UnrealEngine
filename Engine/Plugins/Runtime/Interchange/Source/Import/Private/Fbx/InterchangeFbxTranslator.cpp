@@ -152,121 +152,121 @@ TOptional<UE::Interchange::FStaticMeshPayloadData> UInterchangeFbxTranslator::Ge
 	return TOptional<UE::Interchange::FStaticMeshPayloadData>();
 }
 
-TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> UInterchangeFbxTranslator::GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const
+void UInterchangeFbxTranslator::GetSkeletalMeshLodPayloadData(const FString& PayLoadKey, TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>& OptionalSkeletalMeshLodPayloadData) const
 {
 	if (!Dispatcher.IsValid())
 	{
-		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
+		return;
 	}
 
 	//Create a json command to read the fbx file
 	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-	int32 TaskIndex = Dispatcher->AddTask(JsonCommand);
-
-	//Blocking call until all tasks are executed
-	Dispatcher->WaitAllTaskToCompleteExecution();
-
-	UE::Interchange::ETaskState TaskState;
-	FString JsonResult;
-	TArray<FString> JSonMessages;
-	Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
-
-	//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
-
-	if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+	int32 TaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, &OptionalSkeletalMeshLodPayloadData](const int32 TaskIndex)
 	{
-		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
-	}
-	//Grab the result file and fill the BaseNodeContainer
-	UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
-	ResultParser.FromJson(JsonResult);
-	FString SkeletalMeshPayloadFilename = ResultParser.GetResultFilename();
+		UE::Interchange::ETaskState TaskState;
+		FString JsonResult;
+		TArray<FString> JSonMessages;
+		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
 
-	if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
-	{
-		//TODO log an error saying the payload file do not exist even if the get payload command succeed
-		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
-	}
-	UE::Interchange::FSkeletalMeshLodPayloadData SkeletalMeshLodPayload;
-	SkeletalMeshLodPayload.LodMeshDescription.Empty();
-	//All sub object should be gone with the reset
-	TArray64<uint8> Buffer;
-	FFileHelper::LoadFileToArray(Buffer, *SkeletalMeshPayloadFilename);
-	uint8* FileData = Buffer.GetData();
-	int64 FileDataSize = Buffer.Num();
-	if (FileDataSize < 1)
-	{
-		//Nothing to load from this file
-		return TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>();
-	}
+		//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
+		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+		{
+			return;
+		}
+		//Grab the result file and fill the BaseNodeContainer
+		UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+		ResultParser.FromJson(JsonResult);
+		FString SkeletalMeshPayloadFilename = ResultParser.GetResultFilename();
 
-	//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
-	FLargeMemoryReader Ar(FileData, FileDataSize);
-	SkeletalMeshLodPayload.LodMeshDescription.Serialize(Ar);
-	bool bFetchSkinnedData = false;
-	Ar << bFetchSkinnedData;
-	if (bFetchSkinnedData)
-	{
-		//Read the bone Name to remap the influence correctly
-		Ar << SkeletalMeshLodPayload.JointNames;
-	}
+		if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
+		{
+			//TODO log an error saying the payload file do not exist even if the get payload command succeed
+			return;
+		}
+		UE::Interchange::FSkeletalMeshLodPayloadData SkeletalMeshLodPayload;
+		SkeletalMeshLodPayload.LodMeshDescription.Empty();
+		//All sub object should be gone with the reset
+		TArray64<uint8> Buffer;
+		FFileHelper::LoadFileToArray(Buffer, *SkeletalMeshPayloadFilename);
+		uint8* FileData = Buffer.GetData();
+		int64 FileDataSize = Buffer.Num();
+		if (FileDataSize < 1)
+		{
+			//Nothing to load from this file
+			return;
+		}
 
-	return SkeletalMeshLodPayload;
+		//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
+		FLargeMemoryReader Ar(FileData, FileDataSize);
+		SkeletalMeshLodPayload.LodMeshDescription.Serialize(Ar);
+		bool bFetchSkinnedData = false;
+		Ar << bFetchSkinnedData;
+		if (bFetchSkinnedData)
+		{
+			//Read the bone Name to remap the influence correctly
+			Ar << SkeletalMeshLodPayload.JointNames;
+		}
+		OptionalSkeletalMeshLodPayloadData = SkeletalMeshLodPayload;
+	}));
 }
 
-TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData> UInterchangeFbxTranslator::GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey) const
+void UInterchangeFbxTranslator::GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>& OptionalSkeletalMeshBlendShapePayloadData) const
 {
 	if (!Dispatcher.IsValid())
 	{
-		return TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>();
+		return;
 	}
 
 	//Create a json command to read the fbx file
 	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-	int32 TaskIndex = Dispatcher->AddTask(JsonCommand);
 
+	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand,	FInterchangeDispatcherTaskCompleted::CreateLambda([this, &OptionalSkeletalMeshBlendShapePayloadData](const int32 TaskIndex)
+	{
+		UE::Interchange::ETaskState TaskState;
+		FString JsonResult;
+		TArray<FString> JSonMessages;
+		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
+
+		//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
+
+		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+		{
+			return;
+		}
+		//Grab the result file and fill the BaseNodeContainer
+		UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+		ResultParser.FromJson(JsonResult);
+		FString SkeletalMeshPayloadFilename = ResultParser.GetResultFilename();
+
+		if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
+		{
+			//TODO log an error saying the payload file do not exist even if the get payload command succeed
+			return;
+		}
+		UE::Interchange::FSkeletalMeshBlendShapePayloadData SkeletalMeshBlendShapePayload;
+		SkeletalMeshBlendShapePayload.LodMeshDescription.Empty();
+		//All sub object should be gone with the reset
+		TArray64<uint8> Buffer;
+		FFileHelper::LoadFileToArray(Buffer, *SkeletalMeshPayloadFilename);
+		uint8* FileData = Buffer.GetData();
+		int64 FileDataSize = Buffer.Num();
+		if (FileDataSize < 1)
+		{
+			//Nothing to load from this file
+			return;
+		}
+
+		//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
+		FLargeMemoryReader Ar(FileData, FileDataSize);
+		SkeletalMeshBlendShapePayload.LodMeshDescription.Serialize(Ar);
+		OptionalSkeletalMeshBlendShapePayloadData = SkeletalMeshBlendShapePayload;
+	}));
+}
+
+void UInterchangeFbxTranslator::WaitUntilAllSkeletalMeshPayloadCommandAreCompleted() const
+{
 	//Blocking call until all tasks are executed
 	Dispatcher->WaitAllTaskToCompleteExecution();
-
-	UE::Interchange::ETaskState TaskState;
-	FString JsonResult;
-	TArray<FString> JSonMessages;
-	Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
-
-	//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
-
-	if (TaskState != UE::Interchange::ETaskState::ProcessOk)
-	{
-		return TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>();
-	}
-	//Grab the result file and fill the BaseNodeContainer
-	UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
-	ResultParser.FromJson(JsonResult);
-	FString SkeletalMeshPayloadFilename = ResultParser.GetResultFilename();
-
-	if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
-	{
-		//TODO log an error saying the payload file do not exist even if the get payload command succeed
-		return TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>();
-	}
-	UE::Interchange::FSkeletalMeshBlendShapePayloadData SkeletalMeshBlendShapePayload;
-	SkeletalMeshBlendShapePayload.LodMeshDescription.Empty();
-	//All sub object should be gone with the reset
-	TArray64<uint8> Buffer;
-	FFileHelper::LoadFileToArray(Buffer, *SkeletalMeshPayloadFilename);
-	uint8* FileData = Buffer.GetData();
-	int64 FileDataSize = Buffer.Num();
-	if (FileDataSize < 1)
-	{
-		//Nothing to load from this file
-		return TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>();
-	}
-
-	//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
-	FLargeMemoryReader Ar(FileData, FileDataSize);
-	SkeletalMeshBlendShapePayload.LodMeshDescription.Serialize(Ar);
-
-	return SkeletalMeshBlendShapePayload;
 }
 
 FString UInterchangeFbxTranslator::CreateLoadFbxFileCommand(const FString& FbxFilePath) const

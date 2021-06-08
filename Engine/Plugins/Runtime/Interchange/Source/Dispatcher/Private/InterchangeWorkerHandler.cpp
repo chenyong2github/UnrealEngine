@@ -6,6 +6,7 @@
 #include "InterchangeDispatcherConfig.h"
 #include "InterchangeDispatcherLog.h"
 
+#include "Async/TaskGraphInterfaces.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
@@ -16,7 +17,46 @@ namespace UE
 {
 	namespace Interchange
 	{
+		namespace Dispatcher
+		{
+			class FTaskProcessCommand
+			{
+			private:
+				FInterchangeWorkerHandler* TaskOwner = nullptr;
+				TSharedPtr<ICommand> Command = nullptr;
 
+			public:
+				FTaskProcessCommand(FInterchangeWorkerHandler* InTaskOwner, TSharedPtr<ICommand> InCommand)
+					: TaskOwner(InTaskOwner)
+					, Command(InCommand)
+				{
+				}
+
+				static FORCEINLINE ENamedThreads::Type GetDesiredThread()
+				{
+					return ENamedThreads::AnyBackgroundThreadNormalTask;
+				}
+				static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+				{
+					return ESubsequentsMode::TrackSubsequents;
+				}
+
+				FORCEINLINE TStatId GetStatId() const
+				{
+					RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskProcessCommand, STATGROUP_TaskGraphTasks);
+				}
+
+				void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+				{
+					//Verify if the task was cancel
+					if (TaskOwner == nullptr || !TaskOwner->IsAlive() || !Command.IsValid())
+					{
+						return;
+					}
+					TaskOwner->ProcessCommand(*Command);
+				}
+			};
+		}
 		static FString GetWorkerExecutablePath()
 		{
 			static FString ProcessorPath = [&]()
@@ -136,6 +176,34 @@ namespace UE
 
 		void FInterchangeWorkerHandler::RunInternal()
 		{
+
+			auto StartNewTask = [this]()->bool
+			{
+				// Fetch a new task
+				TOptional<FTask> CurrentTask = Dispatcher.GetNextTask();
+				bool bSucceed = false;
+				if (CurrentTask.IsSet())
+				{
+					FRunTaskCommand NewTask(CurrentTask.GetValue());
+					CurrentTasks.Add(NewTask.TaskIndex);
+
+					if (CommandIO.SendCommand(NewTask, Config::SendCommandTimeout_s))
+					{
+						UE_LOG(LogInterchangeDispatcher, Verbose, TEXT("New task command sent"));
+						bSucceed = true;
+					}
+					else
+					{
+						// Signal that the Task was not processed
+						TArray<FString> GarbageMessages;
+						Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::UnTreated, FString(), GarbageMessages);
+						WorkerState = EWorkerState::Closing;
+						ErrorState = EWorkerErrorState::ConnectionLost_SendFailed;
+					}
+				}
+				return bSucceed;
+			};
+
 			while (IsAlive())
 			{
 				switch (WorkerState)
@@ -169,81 +237,41 @@ namespace UE
 							break;
 						}
 
-						WorkerState = EWorkerState::Idle;
-						break;
-					}
-
-					case EWorkerState::Idle:
-					{
-						// Fetch a new task
-						ensureMsgf(CurrentTask.IsSet() == false, TEXT("We should not have a current task when fetching a new one"));
-						CurrentTask = Dispatcher.GetNextTask();
-
-						if (CurrentTask.IsSet())
-						{
-							FRunTaskCommand NewTask(CurrentTask.GetValue());
-
-							if (CommandIO.SendCommand(NewTask, Config::SendCommandTimeout_s))
-							{
-								UE_LOG(LogInterchangeDispatcher, Verbose, TEXT("New task command sent"));
-								WorkerState = EWorkerState::Processing;
-							}
-							else
-							{
-								// Signal that the Task was not processed
-								TArray<FString> GarbageMessages;
-								Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::UnTreated, FString(), GarbageMessages);
-
-								UE_LOG(LogInterchangeDispatcher, Error, TEXT("New task command issue"));
-								WorkerState = EWorkerState::Closing;
-								ErrorState = EWorkerErrorState::ConnectionLost_SendFailed;
-							}
-						}
-						else if (bShouldTerminate)
-						{
-							UE_LOG(LogInterchangeDispatcher, Verbose, TEXT("Exit loop gracefully"));
-							WorkerState = EWorkerState::Closing;
-						}
-						else
-						{
-							ValidateConnection();
-
-							// consume
-							if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::IdleLoopDelay))
-							{
-								ProcessCommand(*Command);
-							}
-						}
-
+						WorkerState = EWorkerState::Processing;
 						break;
 					}
 
 					case EWorkerState::Processing:
 					{
-						if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::ProcessingLoopDelay))
+						ValidateConnection();
+						if (ErrorState == EWorkerErrorState::WorkerProcess_Lost)
 						{
-							ProcessCommand(*Command);
-
-							bool bProcessingOver = CurrentTask.IsSet() == false;
-							if (bProcessingOver)
+							for (const int32 TaskIndex : CurrentTasks)
 							{
-								WorkerState = bShouldTerminate ? EWorkerState::Closing : EWorkerState::Idle;
+								TArray<FString> GarbageMessages;
+								Dispatcher.SetTaskState(TaskIndex, ETaskState::ProcessFailed, FString(), GarbageMessages);
 							}
+							CurrentTasks.Empty();
+							WorkerState = EWorkerState::Closing;
 						}
-						else
+						//Start a task
+						if (StartNewTask())
 						{
-							ValidateConnection();
-							if (ErrorState == EWorkerErrorState::WorkerProcess_Lost)
-							{
-								if (CurrentTask.IsSet())
-								{
-									TArray<FString> GarbageMessages;
-									Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::ProcessFailed, FString(), GarbageMessages);
-									CurrentTask.Reset();
-								}
+							WorkerState = EWorkerState::Processing;
+						}
 
-								WorkerState = EWorkerState::Closing;
-							}
+						// consume task
+						if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::IdleLoopDelay))
+						{
+							//Make the processing asynchronous
+							TGraphTask<UE::Interchange::Dispatcher::FTaskProcessCommand>::CreateTask().ConstructAndDispatchWhenReady(this, Command);
+						}
+
+						//Need to terminate?
+						if (bShouldTerminate)
+						{
+							UE_LOG(LogInterchangeDispatcher, Verbose, TEXT("Exit loop gracefully"));
+							WorkerState = EWorkerState::Closing;
 						}
 						break;
 					}
@@ -341,13 +369,9 @@ namespace UE
 
 		void FInterchangeWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTaskCommand)
 		{
-			if (!CurrentTask.IsSet())
-			{
-				return;
-			}
 
-			Dispatcher.SetTaskState(CurrentTask->Index, CompletedTaskCommand.ProcessResult, CompletedTaskCommand.JSonResult, CompletedTaskCommand.JSonMessages);
-			CurrentTask.Reset();
+			Dispatcher.SetTaskState(CompletedTaskCommand.TaskIndex, CompletedTaskCommand.ProcessResult, CompletedTaskCommand.JSonResult, CompletedTaskCommand.JSonMessages);
+			CurrentTasks.Remove(CompletedTaskCommand.TaskIndex);
 		}
 
 		const TCHAR* FInterchangeWorkerHandler::EWorkerErrorStateAsString(EWorkerErrorState Error)

@@ -20,6 +20,7 @@ namespace UE
 			~FInterchangeDispatcher() { TerminateProcess(); }
 
 			int32 AddTask(const FString& JsonDescription);
+			int32 AddTask(const FString& JsonDescription, FInterchangeDispatcherTaskCompleted TaskCompledDelegate);
 			TOptional<FTask> GetNextTask();
 			void SetTaskState(int32 TaskIndex, ETaskState TaskState, const FString& JsonResult, const TArray<FString>& JSonMessages);
 			void GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, TArray<FString>& JSonMessages);

@@ -2,9 +2,9 @@
 
 #include "InterchangeDispatcherNetworking.h"
 
-#include "InterchangeDispatcherLog.h"
-
 #include "CoreMinimal.h"
+#include "InterchangeDispatcherLog.h"
+#include "Misc/ScopeLock.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 #include "Serialization/MemoryReader.h"
@@ -27,6 +27,7 @@ namespace UE
 
 		bool FNetworkNode::SendMessage(const TArray<uint8>& Message, double Timeout_s)
 		{
+			FScopeLock Lock(&SendReceiveCriticalSection);
 			if (bWriteError)
 			{
 				UE_LOG(LogInterchangeDispatcher, Error, TEXT("bWriteError flag raised, can't write"));
@@ -99,6 +100,7 @@ namespace UE
 
 		bool FNetworkNode::ReceiveMessage(TArray<uint8>& OutMessage, double Timeout_s)
 		{
+			FScopeLock Lock(&SendReceiveCriticalSection);
 			if (bReadError)
 			{
 				UE_LOG(LogInterchangeDispatcher, Error, TEXT("ReadError flag raised, can't read"));

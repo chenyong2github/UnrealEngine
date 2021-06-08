@@ -49,7 +49,7 @@ bool FInterchangeWorkerImpl::Run()
 	bool bIsRunning = true;
 	while (bIsRunning)
 	{
-		if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(1.0))
+		if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(0.02))
 		{
 			switch(Command->GetType())
 			{
@@ -62,7 +62,13 @@ bool FInterchangeWorkerImpl::Run()
 					break;
 
 				case ECommandId::RunTask:
-					ProcessCommand(*StaticCast<FRunTaskCommand*>(Command.Get()));
+				{
+					FScopeLock Lock(&TFinishThreadCriticalSection);
+					//Use a randomGuid to generate thread unique name
+					int32 UniqueID = (FPlatformTime::Cycles64() & 0x00000000EFFFFFFF);
+					FString ThreadName = FString(TEXT("InterchangeWorkerCommand_")) + FString::FromInt(UniqueID);
+					IOThreads.Add(ThreadName, FThread(*ThreadName, [this, ThreadName, Command]() { ProcessCommand(Command, ThreadName); }));
+				}
 					break;
 
 				case ECommandId::Terminate:
@@ -83,8 +89,29 @@ bool FInterchangeWorkerImpl::Run()
 				UE_CLOG(!bIsRunning, LogInterchangeWorker, Error, TEXT("Worker failure: server lost"));
 			}
 		}
+		
+		//Cleanup Finish threads
+		{
+			FScopeLock Lock(&TFinishThreadCriticalSection);
+			for (const FString& ThreadName : CurrentFinishThreads)
+			{
+				if (FThread* IOThread = IOThreads.Find(ThreadName))
+				{
+					IOThread->Join();
+				}
+				IOThreads.Remove(ThreadName);
+			}
+			CurrentFinishThreads.Empty();
+		}
+
 		//Sleep 0 to avoid using too much cpu
 		FPlatformProcess::Sleep(0.0f);
+	}
+
+	//Join all thread that is not terminate
+	for(TPair<FString, FThread>&IOThread : IOThreads)
+	{
+		IOThread.Value.Join();
 	}
 
 	UE_CLOG(!bIsRunning, LogInterchangeWorker, Verbose, TEXT("Worker loop exit..."));
@@ -115,8 +142,21 @@ void FInterchangeWorkerImpl::ProcessCommand(const FBackPingCommand& BackPingComm
 	PingStartCycle = 0;
 }
 
-void FInterchangeWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskCommand)
+void FInterchangeWorkerImpl::ProcessCommand(const TSharedPtr<UE::Interchange::ICommand> Command, const FString& ThreadName)
 {
+	if (!Command.IsValid())
+	{
+		UE_LOG(LogInterchangeWorker, Error, TEXT("Process command error: The run task command is invalid"));
+		return;
+	}
+	FRunTaskCommand* RunTaskCommandPtr = StaticCast<FRunTaskCommand*>(Command.Get());
+	if (!RunTaskCommandPtr)
+	{
+		UE_LOG(LogInterchangeWorker, Error, TEXT("Process command error: The run task command is invalid"));
+		return;
+	}
+	const FRunTaskCommand& RunTaskCommand = *RunTaskCommandPtr;
+
 	const FString& JsonToProcess = RunTaskCommand.JsonDescription;
 	UE_LOG(LogInterchangeWorker, Verbose, TEXT("Process %s"), *JsonToProcess);
 
@@ -153,14 +193,20 @@ void FInterchangeWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComman
 	FCompletedTaskCommand CompletedTask;
 	CompletedTask.ProcessResult = ProcessResult;
 	CompletedTask.JSonMessages = JSonMessages;
+	CompletedTask.TaskIndex = RunTaskCommand.TaskIndex;
 	if (CompletedTask.ProcessResult == ETaskState::ProcessOk)
 	{
 		CompletedTask.JSonResult = JSonResult;
 	}
 
 	CommandIO.SendCommand(CompletedTask, Config::SendCommandTimeout_s);
-
 	UE_LOG(LogInterchangeWorker, Verbose, TEXT("End of Process %s"), *JsonToProcess);
+	
+	//Notify the main thread we are done with this thread
+	{
+		FScopeLock Lock(&TFinishThreadCriticalSection);
+		CurrentFinishThreads.Add(ThreadName);
+	}
 }
 
 ETaskState FInterchangeWorkerImpl::LoadFbxFile(const FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages)

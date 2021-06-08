@@ -23,6 +23,8 @@ namespace UE
 			//BlendShape payload is a MeshDescription containing at least the vertex position.
 			FMeshDescription LodMeshDescription;
 			TOptional<FTransform> GlobalTransform;
+			//The vertex offset of the blendshape in case we combine mesh node together
+			int32 VertexOffset;
 		};
 	}//ns Interchange
 }//ns UE
