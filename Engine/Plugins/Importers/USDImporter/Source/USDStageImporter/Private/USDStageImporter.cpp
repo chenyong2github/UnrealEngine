@@ -22,6 +22,7 @@
 #include "Animation/Skeleton.h"
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "ComponentRecreateRenderStateContext.h"
 #include "Dialogs/DlgPickPath.h"
 #include "Editor.h"
 #include "Engine/SkeletalMesh.h"
@@ -533,18 +534,6 @@ namespace UsdStageImporterImpl
 		UObject* MovedAsset = ExistingAsset;
 		if (ExistingAsset != nullptr && ExistingAsset != Asset && ReplacePolicy == EReplaceAssetPolicy::Replace)
 		{
-			// Release render state of existing meshes because we'll replace them
-			TOptional<FSkinnedMeshComponentRecreateRenderStateContext> SkinnedRecreateRenderStateContext;
-			TOptional<FStaticMeshComponentRecreateRenderStateContext> StaticRecreateRenderStateContext;
-			if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ExistingAsset))
-			{
-				SkinnedRecreateRenderStateContext.Emplace(SkeletalMesh);
-			}
-			else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ExistingAsset))
-			{
-				StaticRecreateRenderStateContext.Emplace(StaticMesh);
-			}
-
 			OldAssetPathName = ExistingAsset->GetPathName();
 
 			MovedAsset = DuplicateObject<UObject>(Asset, Package, ExistingAsset->GetFName());
@@ -1223,6 +1212,9 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	}
 	ImportContext.AssetCache->MarkAssetsAsStale();
 
+	// Shotgun approach to recreate all render states because we may want to reimport/delete/reassing a material/static/skeletalmesh while it is currently being drawn
+	FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext;
+
 	TSharedRef<FUsdSchemaTranslationContext> TranslationContext = MakeShared<FUsdSchemaTranslationContext>( ImportContext.Stage, *ImportContext.AssetCache );
 	TranslationContext->Level = ImportContext.World->GetCurrentLevel();
 	TranslationContext->ObjectFlags = ImportContext.ImportObjectFlags;
@@ -1284,6 +1276,9 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 		ImportContext.AssetCache = NewObject<UUsdAssetCache>();
 	}
 	ImportContext.AssetCache->MarkAssetsAsStale();
+
+	// Shotgun approach to recreate all render states because we may want to reimport/delete/reassign a material/static/skeletalmesh while it is currently being drawn
+	FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext;
 
 	TSharedRef<FUsdSchemaTranslationContext> TranslationContext = MakeShared<FUsdSchemaTranslationContext>( ImportContext.Stage, *ImportContext.AssetCache );
 	TranslationContext->Level = ImportContext.World->GetCurrentLevel();
