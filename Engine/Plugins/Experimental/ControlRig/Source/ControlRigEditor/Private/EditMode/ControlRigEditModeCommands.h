@@ -44,6 +44,8 @@ public:
 	/** Reset Gizmo Size */
 	TSharedPtr< FUICommandInfo > ResetGizmoSize;
 
+	/** Toggle Gizmo Transform Edit*/
+	TSharedPtr< FUICommandInfo > ToggleGizmoTransformEdit;
 
 	/**
 	 * Initialize commands

@@ -203,6 +203,12 @@ private:
 	/** Reset Gizmo Size */
 	void ResetGizmoSize();
 
+	/** Toggle Gizmo Transform Edit*/
+	void ToggleGizmoTransformEdit();
+
+	/** The hotkey text is passed to a viewport notification to inform users how to toggle gizmo edit*/
+	FText GetToggleGizmoTransformEditHotKey() const;
+
 	/** Bind our keyboard commands */
 	void BindCommands();
 
@@ -213,6 +219,9 @@ private:
 
 	/** Let the preview scene know how we want to select components */
 	bool GizmoSelectionOverride(const UPrimitiveComponent* InComponent) const;
+
+	/** Enable editing of control's gizmo transform instead of control's transform*/
+	bool bIsChangingGizmoTransform;
 
 protected:
 
@@ -304,7 +313,7 @@ private:
 	TArray<ECoordSystem> CoordSystemPerWidgetMode;
 	bool bIsChangingCoordSystem;
 
-
+	bool CanChangeControlGizmoTransform();
 public:
 	//Toolbar functions
 	void SetOnlySelectRigControls(bool val);
@@ -324,6 +333,10 @@ private:
 	void MoveGizmo(AControlRigGizmoActor* GizmoActor, const bool bTranslation, FVector& InDrag, 
 		const bool bRotation, FRotator& InRot, const bool bScale, FVector& InScale, const FTransform& ToWorldTransform,
 		bool bUseLocal, bool bCalcLocal, FTransform& InOutLocal);
+
+	void ChangeControlGizmoTransform(AControlRigGizmoActor* GizmoActor, const bool bTranslation, FVector& InDrag,
+		const bool bRotation, FRotator& InRot, const bool bScale, FVector& InScale, const FTransform& ToWorldTransform);
+
 	void TickGizmo(AControlRigGizmoActor* GizmoActor, const FTransform& ComponentTransform);
 	bool ModeSupportedByGizmoActor(const AControlRigGizmoActor* GizmoActor, UE::Widget::EWidgetMode InMode) const;
 
