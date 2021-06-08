@@ -804,18 +804,21 @@ void Main(
 	// Local lights
 #if MAX_DYNAMIC_POINT_LIGHTS > 0 && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
-	#if SUPPORT_SPOTLIGHTS_SHADOW
-		FPCFSamplerSettings Settings;
-		Settings.ShadowDepthTexture = DynamicSpotLightShadowTexture;
-		Settings.ShadowDepthTextureSampler = DynamicSpotLightShadowSampler;
-		Settings.ShadowBufferSize = DynamicSpotLightShadowBufferSize;
-		Settings.bSubsurface = false;
-		Settings.bTreatMaxDepthUnshadowed = false;
-		Settings.DensityMulConstant = 0;
-		Settings.ProjectionDepthBiasParameters = 0;
-	#endif
+		if(NumDynamicPointLights > 0)
+		{
 
-		AccumulateLightingOfDynamicPointLight(MaterialParameters, 
+			#if SUPPORT_SPOTLIGHTS_SHADOW
+				FPCFSamplerSettings Settings;
+				Settings.ShadowDepthTexture = DynamicSpotLightShadowTexture;
+				Settings.ShadowDepthTextureSampler = DynamicSpotLightShadowSampler;
+				Settings.ShadowBufferSize = DynamicSpotLightShadowBufferSize;
+				Settings.bSubsurface = false;
+				Settings.bTreatMaxDepthUnshadowed = false;
+				Settings.DensityMulConstant = 0;
+				Settings.ProjectionDepthBiasParameters = 0;
+			#endif
+
+			AccumulateLightingOfDynamicPointLight(MaterialParameters, 
 												ShadingModelContext,
 												GBuffer,
 												MobileMovablePointLight0.LightPositionAndInvRadius, 
@@ -829,57 +832,58 @@ void Main(
 												MobileMovablePointLight0.SpotLightShadowWorldToShadowMatrix,
 												#endif
 												Color);
-
-		if (MAX_DYNAMIC_POINT_LIGHTS > 1 && NumDynamicPointLights > 1)
-		{
-			AccumulateLightingOfDynamicPointLight(MaterialParameters, 
-													ShadingModelContext,
-													GBuffer,
-													MobileMovablePointLight1.LightPositionAndInvRadius, 
-													MobileMovablePointLight1.LightColorAndFalloffExponent, 
-													MobileMovablePointLight1.SpotLightDirectionAndSpecularScale, 
-													MobileMovablePointLight1.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
-													#if SUPPORT_SPOTLIGHTS_SHADOW
-													Settings,
-													MobileMovablePointLight1.SpotLightShadowSharpenAndShadowFadeFraction,
-													MobileMovablePointLight1.SpotLightShadowmapMinMax,
-													MobileMovablePointLight1.SpotLightShadowWorldToShadowMatrix,
-													#endif
-													Color);
-
-			if (MAX_DYNAMIC_POINT_LIGHTS > 2 && NumDynamicPointLights > 2)
+		
+			if (MAX_DYNAMIC_POINT_LIGHTS > 1 && NumDynamicPointLights > 1)
 			{
 				AccumulateLightingOfDynamicPointLight(MaterialParameters, 
 														ShadingModelContext,
 														GBuffer,
-														MobileMovablePointLight2.LightPositionAndInvRadius, 
-														MobileMovablePointLight2.LightColorAndFalloffExponent, 
-														MobileMovablePointLight2.SpotLightDirectionAndSpecularScale, 
-														MobileMovablePointLight2.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
+														MobileMovablePointLight1.LightPositionAndInvRadius, 
+														MobileMovablePointLight1.LightColorAndFalloffExponent, 
+														MobileMovablePointLight1.SpotLightDirectionAndSpecularScale, 
+														MobileMovablePointLight1.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
 														#if SUPPORT_SPOTLIGHTS_SHADOW
 														Settings,
-														MobileMovablePointLight2.SpotLightShadowSharpenAndShadowFadeFraction,
-														MobileMovablePointLight2.SpotLightShadowmapMinMax,
-														MobileMovablePointLight2.SpotLightShadowWorldToShadowMatrix,
+														MobileMovablePointLight1.SpotLightShadowSharpenAndShadowFadeFraction,
+														MobileMovablePointLight1.SpotLightShadowmapMinMax,
+														MobileMovablePointLight1.SpotLightShadowWorldToShadowMatrix,
 														#endif
 														Color);
 
-				if (MAX_DYNAMIC_POINT_LIGHTS > 3 && NumDynamicPointLights > 3)
+				if (MAX_DYNAMIC_POINT_LIGHTS > 2 && NumDynamicPointLights > 2)
 				{
 					AccumulateLightingOfDynamicPointLight(MaterialParameters, 
 															ShadingModelContext,
 															GBuffer,
-															MobileMovablePointLight3.LightPositionAndInvRadius, 
-															MobileMovablePointLight3.LightColorAndFalloffExponent, 
-															MobileMovablePointLight3.SpotLightDirectionAndSpecularScale, 
-															MobileMovablePointLight3.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
+															MobileMovablePointLight2.LightPositionAndInvRadius, 
+															MobileMovablePointLight2.LightColorAndFalloffExponent, 
+															MobileMovablePointLight2.SpotLightDirectionAndSpecularScale, 
+															MobileMovablePointLight2.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
 															#if SUPPORT_SPOTLIGHTS_SHADOW
 															Settings,
-															MobileMovablePointLight3.SpotLightShadowSharpenAndShadowFadeFraction,
-															MobileMovablePointLight3.SpotLightShadowmapMinMax,
-															MobileMovablePointLight3.SpotLightShadowWorldToShadowMatrix,
+															MobileMovablePointLight2.SpotLightShadowSharpenAndShadowFadeFraction,
+															MobileMovablePointLight2.SpotLightShadowmapMinMax,
+															MobileMovablePointLight2.SpotLightShadowWorldToShadowMatrix,
 															#endif
 															Color);
+
+					if (MAX_DYNAMIC_POINT_LIGHTS > 3 && NumDynamicPointLights > 3)
+					{
+						AccumulateLightingOfDynamicPointLight(MaterialParameters, 
+																ShadingModelContext,
+																GBuffer,
+																MobileMovablePointLight3.LightPositionAndInvRadius, 
+																MobileMovablePointLight3.LightColorAndFalloffExponent, 
+																MobileMovablePointLight3.SpotLightDirectionAndSpecularScale, 
+																MobileMovablePointLight3.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
+																#if SUPPORT_SPOTLIGHTS_SHADOW
+																Settings,
+																MobileMovablePointLight3.SpotLightShadowSharpenAndShadowFadeFraction,
+																MobileMovablePointLight3.SpotLightShadowmapMinMax,
+																MobileMovablePointLight3.SpotLightShadowWorldToShadowMatrix,
+																#endif
+																Color);
+					}
 				}
 			}
 		}
