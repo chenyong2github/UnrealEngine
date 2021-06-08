@@ -154,6 +154,12 @@ namespace HordeAgent
 		/// The default server, unless overridden from the command line
 		/// </summary>
 		public string? Server { get; set; }
+		
+		/// <summary>
+		/// Name of agent to report as when connecting to server.
+		/// By default, the computer's hostname will be used.
+		/// </summary>
+		public string? Name { get; set; }
 
 		/// <summary>
 		/// The executor to use for jobs. Defaults to the Perforce executor.
@@ -223,6 +229,11 @@ namespace HordeAgent
 			}
 
 			return GetServerProfile(Server);
+		}
+		
+		internal string GetAgentName()
+		{
+			return Name ?? Environment.MachineName;
 		}
 	}
 }
