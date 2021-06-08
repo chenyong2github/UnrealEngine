@@ -841,28 +841,25 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 {
 	bool bDraw = MeshBatch.bUseForDepthPass;
 
-	// Filter by occluder flags and settings if required.
-	if (bDraw && bRespectUseAsOccluderFlag && !MeshBatch.bUseAsOccluder && EarlyZPassMode < DDM_AllOpaque)
-	{
-		if (PrimitiveSceneProxy)
-		{
-			// Only render primitives marked as occluders.
-			bDraw = PrimitiveSceneProxy->ShouldUseAsOccluder()
-				// Only render static objects unless movable are requested.
-				&& (!PrimitiveSceneProxy->IsMovable() || bEarlyZPassMovable);
+	// Filter draw calls if this is a partial depth prepass.
+	const bool bFilterDrawCalls = bRespectUseAsOccluderFlag && EarlyZPassMode < DDM_AllOpaque;
 
-			// Filter dynamic mesh commands by screen size.
-			if (ViewIfDynamicMeshCommand)
-			{
-				extern float GMinScreenRadiusForDepthPrepass;
-				const float LODFactorDistanceSquared = (PrimitiveSceneProxy->GetBounds().Origin - ViewIfDynamicMeshCommand->ViewMatrices.GetViewOrigin()).SizeSquared() * FMath::Square(ViewIfDynamicMeshCommand->LODDistanceFactor);
-				bDraw = bDraw && FMath::Square(PrimitiveSceneProxy->GetBounds().SphereRadius) > GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass * LODFactorDistanceSquared;
-			}
-		}
-		else
-		{
-			bDraw = false;
-		}
+	// If mesh batch hints that we are not an occluder then potentially remove.
+	if (bDraw && bFilterDrawCalls && !MeshBatch.bUseAsOccluder)
+	{
+		bDraw = PrimitiveSceneProxy != nullptr
+			// Only render primitives marked as occluders.
+			&& PrimitiveSceneProxy->ShouldUseAsOccluder()
+			// Only render static objects unless movable are requested.
+			&& (!PrimitiveSceneProxy->IsMovable() || bEarlyZPassMovable);
+	}
+
+	// Filter dynamic mesh commands by size.
+	if (bDraw && bFilterDrawCalls && ViewIfDynamicMeshCommand != nullptr && PrimitiveSceneProxy != nullptr)
+	{
+		extern float GMinScreenRadiusForDepthPrepass;
+		const float LODFactorDistanceSquared = (PrimitiveSceneProxy->GetBounds().Origin - ViewIfDynamicMeshCommand->ViewMatrices.GetViewOrigin()).SizeSquared() * FMath::Square(ViewIfDynamicMeshCommand->LODDistanceFactor);
+		bDraw = FMath::Square(PrimitiveSceneProxy->GetBounds().SphereRadius) > GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass * LODFactorDistanceSquared;
 	}
 
 	// if we are skipping movable objects in early Z, which can happen in DDM_AllOpaqueNoVelocity
