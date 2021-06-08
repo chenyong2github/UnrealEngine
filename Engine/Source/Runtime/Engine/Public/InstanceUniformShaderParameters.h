@@ -23,7 +23,6 @@ struct FPrimitiveInstance
 	FRenderTransform		PrevLocalToWorld;
 	FVector4				NonUniformScale;
 	FVector3f				InvNonUniformScale;
-	FRenderBounds			RenderBounds;
 	uint32					LastUpdateSceneFrameNumber;
 	FRenderBounds			LocalBounds;
 	float					PerInstanceRandom;
@@ -62,8 +61,7 @@ struct FPrimitiveInstance
 FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 	const FRenderTransform& LocalToWorld,
 	const FRenderTransform& PrevLocalToWorld,
-	const FVector3f& LocalObjectBoundsMin,
-	const FVector3f& LocalObjectBoundsMax,
+	const FRenderBounds& LocalBounds,
 	const FVector4& NonUniformScale,
 	const FVector3f& InvNonUniformScale,
 	const FVector4& LightMapAndShadowMapUVBias,
@@ -73,16 +71,13 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 	float PerInstanceRandom
 )
 {
-	const FBox LocalObjectBounds = FBox(LocalObjectBoundsMin, LocalObjectBoundsMax);
-
 	FPrimitiveInstance Result;
 	Result.LocalToWorld							= LocalToWorld;
 	Result.PrevLocalToWorld						= PrevLocalToWorld;
 	Result.NonUniformScale						= NonUniformScale;
 	Result.InvNonUniformScale					= InvNonUniformScale;
 	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
-	Result.LocalBounds							= LocalObjectBounds;
-	Result.RenderBounds							= Result.LocalBounds;
+	Result.LocalBounds							= LocalBounds;
 	Result.NaniteHierarchyOffset				= NaniteHierarchyOffset;
 	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;
 	Result.PerInstanceRandom					= PerInstanceRandom;
@@ -106,8 +101,7 @@ struct FInstanceSceneShaderData
 			ConstructPrimitiveInstance(
 				FRenderTransform::Identity,
 				FRenderTransform::Identity,
-				FVector3f::ZeroVector,
-				FVector3f::ZeroVector,
+				FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
 				FVector4(1.0f, 1.0f, 1.0f, 1.0f),
 				FVector3f(1.0f, 1.0f, 1.0f),
 				FVector4(ForceInitToZero),

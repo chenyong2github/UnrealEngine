@@ -411,7 +411,7 @@ protected:
 
 	struct FGeometryNaniteData
 	{
-		FBoxSphereBounds RenderBounds;
+		FBoxSphereBounds LocalBounds;
 		uint32 HierarchyOffset;
 	};
 	TArray<FGeometryNaniteData> GeometryNaniteData;

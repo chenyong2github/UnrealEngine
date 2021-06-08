@@ -191,7 +191,6 @@ inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const F
 	const FRenderTransform& PreviousInstanceToLocal = bHasPreviousInstanceTransforms ? PrimitiveInstance.PrevInstanceToLocal : PrimitiveInstance.InstanceToLocal;
 
 	PrimitiveInstance.LastUpdateSceneFrameNumber = SceneFrameNumber;
-	PrimitiveInstance.LocalBounds = PrimitiveInstance.RenderBounds;
 	PrimitiveInstance.LocalToWorld = PrimitiveInstance.InstanceToLocal * PrimitiveTransforms.LocalToWorld;
 	PrimitiveInstance.PrevLocalToWorld = PreviousInstanceToLocal * PrimitiveTransforms.PreviousLocalToWorld;
 
@@ -221,7 +220,6 @@ inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const 
 	DummyInstance.PrevLocalToWorld.SetIdentity();
 	DummyInstance.NonUniformScale = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 	DummyInstance.InvNonUniformScale = FVector3f(1.0f, 1.0f, 1.0f);
-	DummyInstance.RenderBounds = LocalBounds;
 	DummyInstance.LocalBounds = LocalBounds;
 
 	const bool bHasPreviousInstanceTransforms = false;

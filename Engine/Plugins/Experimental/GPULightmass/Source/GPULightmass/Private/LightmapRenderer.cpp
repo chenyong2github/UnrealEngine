@@ -329,8 +329,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					ConstructPrimitiveInstance(
 						PrimitiveUniformShaderParameters.LocalToWorld,
 						PrimitiveUniformShaderParameters.PreviousLocalToWorld,
-						PrimitiveUniformShaderParameters.LocalObjectBoundsMin,
-						PrimitiveUniformShaderParameters.LocalObjectBoundsMax,
+						FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
 						PrimitiveUniformShaderParameters.NonUniformScale,
 						PrimitiveUniformShaderParameters.InvNonUniformScale,
 						FVector4(ForceInitToZero),
@@ -415,11 +414,11 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 				FPrimitiveInstance Instance;
 				Instance.InstanceToLocal = Transform;
+				Instance.LocalBounds = InstanceGroup.RenderData->Bounds;
+
 				// Filled in during GPU Scene update...
 				Instance.LocalToWorld = InstanceTransform;
 				Instance.PrevLocalToWorld = InstanceTransform;
-				Instance.RenderBounds = InstanceGroup.RenderData->Bounds;
-				Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal.ToMatrix());
 
 				InstanceSceneData.Add(FInstanceSceneShaderData(Instance, PrimitiveId));
 			}
@@ -476,8 +475,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				ConstructPrimitiveInstance(
 					PrimitiveUniformShaderParameters.LocalToWorld,
 					PrimitiveUniformShaderParameters.PreviousLocalToWorld,
-					PrimitiveUniformShaderParameters.LocalObjectBoundsMin,
-					PrimitiveUniformShaderParameters.LocalObjectBoundsMax,
+					FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
 					PrimitiveUniformShaderParameters.NonUniformScale,
 					PrimitiveUniformShaderParameters.InvNonUniformScale,
 					FVector4(ForceInitToZero),
