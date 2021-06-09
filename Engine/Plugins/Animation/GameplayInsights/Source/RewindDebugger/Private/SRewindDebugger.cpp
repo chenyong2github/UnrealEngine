@@ -7,6 +7,7 @@
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Docking/LayoutService.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "IGameplayInsightsModule.h"
@@ -20,6 +21,7 @@
 #include "SceneOutlinerModule.h"
 #include "Selection.h"
 #include "Styling/SlateIconFinder.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
@@ -27,8 +29,7 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 
-
-#define LOCTEXT_NAMESPACE "SAnimationInsights"
+#define LOCTEXT_NAMESPACE "SRewindDebugger"
 
 SRewindDebugger::SRewindDebugger() 
 	: SCompoundWidget()
@@ -38,7 +39,6 @@ SRewindDebugger::SRewindDebugger()
 
 SRewindDebugger::~SRewindDebugger() 
 {
-
 }
 
 void SRewindDebugger::TrackCursor(bool bReverse)
@@ -238,19 +238,80 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 				.OnSelectionChanged(this, &SRewindDebugger::OnComponentSelectionChanged);
 
 
-	DebugViewContainer = SNew(SScrollBox);
-
 	TraceTime.OnPropertyChanged = TraceTime.OnPropertyChanged.CreateRaw(this, &SRewindDebugger::TraceTimeChanged);
+
+	// Tab Manager 
+	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
+
+	TabManager->SetOnPersistLayout(
+		FTabManager::FOnPersistLayout::CreateStatic(
+			[](const TSharedRef<FTabManager::FLayout>& InLayout)
+			{
+				if (InLayout->GetPrimaryArea().Pin().IsValid())
+				{
+					FLayoutSaveRestore::SaveToConfig(GEditorLayoutIni, InLayout);
+				}
+			}
+		)
+	);
+
+	// Default Layout: all tabs in one stack, inside the rewind debugger tab
+
+	TSharedPtr<FTabManager::FStack> MainTabStack = FTabManager::NewStack();
+
+	IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
+	GameplayInsightsModule.GetDebugViewCreator()->EnumerateCreators([this, MainTabStack](const TSharedPtr<ICreateGameplayInsightsDebugView>& Creator)
+		{
+			FName TabName = Creator->GetName();
+			TabNames.Add(TabName);
+			// Add a closed tabs to the main tab stack in the default layout, so that the first time they won't pop up in their own window
+			TabManager->RegisterTabSpawner(TabName, FOnSpawnTab::CreateRaw(this, &SRewindDebugger::SpawnTab, TabName),
+													FCanSpawnTab::CreateRaw(this, &SRewindDebugger::CanSpawnTab, TabName))
+				.SetDisplayName(Creator->GetTitle())
+				.SetIcon(Creator->GetIcon());
+
+			MainTabStack->AddTab(TabName, ETabState::ClosedTab);
+		}
+	);
+
+	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("RewindDebuggerLayout") 
+		->AddArea
+		(
+			FTabManager::NewPrimaryArea()
+			->Split
+			(
+				MainTabStack.ToSharedRef()
+			)
+		);
+
+	// load saved layout if it exists
+	Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, Layout);
+
 
 	ChildSlot
 	[
 		SNew(SSplitter)
-		+SSplitter::Slot().MinSize(270).Value(0)
+		+SSplitter::Slot().MinSize(280).Value(0)
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot().AutoHeight()
 			[
-				ToolBarBuilder.MakeWidget()
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(SComboButton)
+						.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+						.OnGetMenuContent(this, &SRewindDebugger::MakeMainMenu)
+						.ButtonContent()
+					[
+						SNew(SImage)
+						.Image(FRewindDebuggerStyle::Get().GetBrush("RewindDebugger.MenuIcon"))
+					]
+				]
+				+SHorizontalBox::Slot().AutoWidth()
+				[
+					ToolBarBuilder.MakeWidget()
+				]
 			]
 			+SVerticalBox::Slot().AutoHeight()
 			[
@@ -315,7 +376,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 					]
 				]
 			]
-			+SVerticalBox::Slot().VAlign(VAlign_Top) .FillHeight(1.0f)
+			+SVerticalBox::Slot().FillHeight(1.0f)
 			[
 				ComponentTreeView.ToSharedRef()
 			]
@@ -323,16 +384,22 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 		+SSplitter::Slot() 
 		[
 			SNew(SVerticalBox)
-			+SVerticalBox::Slot() .VAlign(VAlign_Top) .AutoHeight()
+			+SVerticalBox::Slot().AutoHeight()
 			[
 				TimeSlider
 			]
-			+SVerticalBox::Slot() .VAlign(VAlign_Top) .FillHeight(1.0f)
+			+SVerticalBox::Slot().FillHeight(1.0f)
 			[
-				DebugViewContainer.ToSharedRef()
+				TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
 			]
 		]
 	];
+
+	// close all tabs that may be open from restoring the saved layout config
+	for(FName& TabName : TabNames)
+	{
+		CloseTab(TabName);
+	}
 }
 
 void SRewindDebugger::RefreshDebugComponents()
@@ -346,40 +413,205 @@ void SRewindDebugger::TraceTimeChanged(double Time)
 	{
 		DebugView->SetTimeMarker(Time);
 	}
+	for(TSharedPtr<IGameplayInsightsDebugView>& DebugView : PinnedDebugViews)
+	{
+		DebugView->SetTimeMarker(Time);
+	}
 }
 
-
-void SRewindDebugger::OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo)
+TSharedRef<SDockTab> SRewindDebugger::SpawnTab(const FSpawnTabArgs& Args, FName ViewName)
 {
-	DebugViewContainer->ClearChildren();
+	TSharedPtr<IGameplayInsightsDebugView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IGameplayInsightsDebugView>& View) { return View->GetName() == ViewName; } );
+	if (View)
+	{
+		HiddenTabs.Remove(ViewName);
+
+		return SNew(SDockTab)
+		[
+			View->ToSharedRef()
+		]
+		.OnExtendContextMenu(this, &SRewindDebugger::ExtendTabMenu, *View)
+		.OnTabClosed_Lambda([this,ViewName](TSharedRef<SDockTab>)
+		{
+			if(!bInternalClosingTab) // skip this if the tab is being closed by our own code
+			{
+				HiddenTabs.Add(ViewName);
+			}
+		});
+	}
+
+	return SNew(SDockTab);
+}
+
+// returns true if DebugViews contains a view for the ViewName, but there is no matching Pinned view already open
+bool SRewindDebugger::CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName)
+{
+	TSharedPtr<IGameplayInsightsDebugView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IGameplayInsightsDebugView>& View) { return View->GetName() == ViewName; } );
+
+	if (View!=nullptr)
+	{
+		bool bPinned = nullptr != PinnedDebugViews.FindByPredicate(
+			[View](TSharedPtr<IGameplayInsightsDebugView>& PinnedView)
+			{
+				return PinnedView->GetName() == (*View)->GetName() && PinnedView->GetObjectId() == (*View)->GetObjectId();
+			}
+		);
+
+		return !bPinned;
+	}
+	return false;
+}
+
+void SRewindDebugger::OnPinnedTabClosed(TSharedRef<SDockTab> Tab)
+{
+	// remove view from list of pinned views
+	TSharedRef<IGameplayInsightsDebugView> View = StaticCastSharedRef<IGameplayInsightsDebugView>(Tab->GetContent());
+	PinnedDebugViews.Remove(View);
+
+	// recreate non-pinned tabs, so when closing a pinned tab for the currently selected component, the non-pinned one will appear
+	CreateDebugTabs();
+}
+
+ void SRewindDebugger::PinTab(TSharedPtr<IGameplayInsightsDebugView> View)
+ {
+	if (PinnedDebugViews.Find(View) != INDEX_NONE)
+	{
+		return;
+	}
+
+	FName TabName = View->GetName();
+
+	CloseTab(TabName);
+
+	FSlateIcon TabIcon;
+	FText TabLabel;
+
+	IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
+	TSharedPtr<ICreateGameplayInsightsDebugView> Creator = GameplayInsightsModule.GetDebugViewCreator()->GetCreator(TabName);
+	if (Creator.IsValid())
+	{
+		TabIcon = Creator->GetIcon();
+		TabLabel = Creator->GetTitle();
+	}
+
+	TSharedPtr<SDockTab> NewTab = SNew(SDockTab)
+	[
+		// add a wrapper widget here, that says the name of the object/component for pinned tabs 
+		View.ToSharedRef()
+	]
+	.OnExtendContextMenu(this, &SRewindDebugger::ExtendTabMenu, View)
+	.OnTabClosed(this, &SRewindDebugger::OnPinnedTabClosed)
+	.Label(TabLabel)
+	.LabelSuffix(LOCTEXT(" (Locked)", " \xD83D\xDD12")); // unicode lock image
+
+	NewTab->SetTabIcon(TabIcon.GetIcon());
+
+
+	static const FName RewindDebuggerPinnedTab = "RewindDebuggerPinnedTabName";
+	TabManager->InsertNewDocumentTab(TabName, RewindDebuggerPinnedTab, FTabManager::FRequireClosedTab(), NewTab.ToSharedRef());
+
+	PinnedDebugViews.Add(View);
+ }
+
+TSharedRef<SWidget> SRewindDebugger::MakeMainMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+	MakeViewsMenu(MenuBuilder);
+	return MenuBuilder.MakeWidget();
+}
+
+void SRewindDebugger::MakeViewsMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("Views", LOCTEXT("Views", "Views"));
+
+	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
+
+	MenuBuilder.AddMenuEntry(LOCTEXT("Show All Views", "Show All Views"),
+							 LOCTEXT("Show All tooltip", "Show all debug views that are relevant to the selected object type"),
+							 FSlateIcon(),
+							 FExecuteAction::CreateLambda([this]() { ShowAllViews(); }));
+
+	MenuBuilder.EndSection();
+}
+
+void SRewindDebugger::ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IGameplayInsightsDebugView> View)
+{
+	MenuBuilder.BeginSection("RewindDebugger", LOCTEXT("Rewind Debugger", "Rewind Debugger"));
+
+	MenuBuilder.AddMenuEntry(LOCTEXT("Keep View Open", "Keep View Open"),
+							 LOCTEXT("Keep View Open tooltip", "Keep this debug view open even while selected component/actor changes"),
+							 FSlateIcon(),
+							 FUIAction(
+								FExecuteAction::CreateRaw(this, &SRewindDebugger::PinTab, View),
+								FCanExecuteAction::CreateLambda([this,View](){ return PinnedDebugViews.Find(View) == INDEX_NONE; })
+							 )); 
+
+
+	MenuBuilder.EndSection();
+
+	MakeViewsMenu(MenuBuilder);
+}
+
+void SRewindDebugger::ShowAllViews()
+{
+	HiddenTabs.Empty();
+	CreateDebugTabs();
+}
+
+void SRewindDebugger::CreateDebugViews()
+{
 	DebugViews.Empty();
 
-	if (SelectedItem.IsValid())
+	if (SelectedComponent.IsValid())
 	{
-		// everything related to creating SAnimGraphSchematicView should be moved to a separate file
 		IUnrealInsightsModule &UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 		IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
 		TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule.GetAnalysisSession();
 
-		GameplayInsightsModule.GetDebugViewCreator()->CreateDebugViews(SelectedItem->ObjectId, TraceTime.Get(), *Session, DebugViews);
+		GameplayInsightsModule.GetDebugViewCreator()->CreateDebugViews(SelectedComponent->ObjectId, TraceTime.Get(), *Session, DebugViews);
+	}
+}
 
-		for(TSharedPtr<IGameplayInsightsDebugView>& DebugView : DebugViews)
+void SRewindDebugger::CloseTab(FName TabName)
+{
+	// using bInternalClosingTab to distinguish between procedural, and user initiated tab closing in the OnTabClosed callback
+	bInternalClosingTab = true;
+	TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabName);
+	if (Tab.IsValid())
+	{
+		Tab->RequestCloseTab();
+	}
+	bInternalClosingTab = false;
+}
+
+void SRewindDebugger::CreateDebugTabs()
+{
+	for(FName& TabName : TabNames)
+	{
+		CloseTab(TabName);
+	}
+
+	for(TSharedPtr<IGameplayInsightsDebugView> DebugView : DebugViews)
+	{
+		FName ViewName = DebugView->GetName();
+		uint64 ObjectId = DebugView->GetObjectId();
+
+	    bool bPinned = nullptr != PinnedDebugViews.FindByPredicate([ViewName, ObjectId](TSharedPtr<IGameplayInsightsDebugView>& View) { return View->GetName() == ViewName && View->GetObjectId() == ObjectId; } );
+	    bool bHidden = HiddenTabs.Find(ViewName) != INDEX_NONE;
+
+		if(!bPinned && !bHidden)
 		{
-			// for now, just add all the widgets to a vertical box.
-			// this will be replaced by something better once there are more DebugViews implemented
-			DebugViewContainer->AddSlot()
-			[
-				SNew(SExpandableArea)
-				.InitiallyCollapsed(false)
-				.Padding(10.0f)
-				.AreaTitle(DebugView->GetTitle())
-				.BodyContent()
-				[
-					DebugView.ToSharedRef()
-				]
-			];
+			TabManager->TryInvokeTab(ViewName);
 		}
 	}
+}
+
+void SRewindDebugger::OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo)
+{
+	SelectedComponent = SelectedItem;
+
+	CreateDebugViews();
+	CreateDebugTabs();
 }
 
 FReply SRewindDebugger::OnSelectActorClicked()

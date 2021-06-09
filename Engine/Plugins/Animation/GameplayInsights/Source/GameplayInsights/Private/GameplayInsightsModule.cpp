@@ -62,20 +62,8 @@ void FGameplayInsightsModule::StartupModule()
 		}
 	});
 
-
-	DebugViewCreator.RegisterDebugViewCreator("Object", IGameplayInsightsDebugViewCreator::FCreateDebugView::CreateLambda(
-			[](uint64 InObjectId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
-			{
-				return SNew(SObjectPropertiesView, InObjectId, InTimeMarker, InAnalysisSession);
-			}
-	));
-
-	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", IGameplayInsightsDebugViewCreator::FCreateDebugView::CreateLambda(
-			[](uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
-			{
-				return SNew(SAnimGraphSchematicView, InAnimInstanceId, InTimeMarker, InAnalysisSession);
-			}
-	));
+	DebugViewCreator.RegisterDebugViewCreator("Object", MakeShared<FObjectPropertiesViewCreator>());
+	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", MakeShared<FAnimGraphSchematicViewCreator>());
 
 #if WITH_EDITOR
 

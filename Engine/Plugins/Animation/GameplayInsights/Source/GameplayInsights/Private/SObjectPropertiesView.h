@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IGameplayInsightsDebugView.h"
+#include "IGameplayInsightsDebugViewCreator.h"
 #include "SVariantValueView.h"
 
 namespace TraceServices { class IAnalysisSession; }
@@ -16,7 +17,8 @@ public:
 	void Construct(const FArguments& InArgs, uint64 InObjectId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession);
 
 	virtual void SetTimeMarker(double InTimeMarker) override;
-	virtual FText GetTitle() override;
+	virtual FName GetName() const override;
+	virtual uint64 GetObjectId() const override { return ObjectId; }
 
 	void GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const;
 private:
@@ -25,4 +27,13 @@ private:
 	uint64 ObjectId;
 	double TimeMarker;
 	const TraceServices::IAnalysisSession* AnalysisSession;
+};
+
+class FObjectPropertiesViewCreator : public ICreateGameplayInsightsDebugView
+{
+	public:
+		virtual FName GetName() const override;
+		virtual FText GetTitle() const override;
+		virtual FSlateIcon GetIcon() const override;
+		virtual TSharedPtr<IGameplayInsightsDebugView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
 };

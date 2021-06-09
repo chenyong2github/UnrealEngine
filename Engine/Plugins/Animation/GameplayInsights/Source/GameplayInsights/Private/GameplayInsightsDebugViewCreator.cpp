@@ -8,12 +8,40 @@ namespace TraceServices
     class IAnalysisSession;
 }
 
-void FGameplayInsightsDebugViewCreator::RegisterDebugViewCreator(FName TypeName, FCreateDebugView Creator)
+void FGameplayInsightsDebugViewCreator::RegisterDebugViewCreator(FName TypeName, TSharedPtr<ICreateGameplayInsightsDebugView> Creator)
 {
-    ViewCreators.Add(TypeName, Creator);
+    FViewCreatorPair Pair;
+    Pair.Creator = Creator;
+    Pair.TypeName = TypeName;
+
+    ViewCreators.Add(Pair);
 }
 
-void FGameplayInsightsDebugViewCreator::CreateDebugViews(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& Session, TArray<TSharedPtr<IGameplayInsightsDebugView>>& OutDebugViews) 
+void FGameplayInsightsDebugViewCreator::EnumerateCreators(TFunctionRef<void(const TSharedPtr<ICreateGameplayInsightsDebugView>&)> Callback) const
+{
+    for(const FViewCreatorPair& CreatorPair : ViewCreators)
+    {
+        if (CreatorPair.Creator.IsValid())
+        {
+            Callback(CreatorPair.Creator);
+        }
+    }
+}
+
+TSharedPtr<ICreateGameplayInsightsDebugView> FGameplayInsightsDebugViewCreator::GetCreator(FName CreatorName) const
+{
+    for(const FViewCreatorPair& CreatorPair : ViewCreators)
+    {
+        if (CreatorPair.Creator.IsValid() && CreatorPair.Creator->GetName() == CreatorName)
+        {
+            return CreatorPair.Creator;
+        }
+    }
+
+    return nullptr;
+}
+
+void FGameplayInsightsDebugViewCreator::CreateDebugViews(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& Session, TArray<TSharedPtr<IGameplayInsightsDebugView>>& OutDebugViews) const
 {
     if (const IGameplayProvider* GameplayProvider = Session.ReadProvider<IGameplayProvider>("GameplayProvider"))
     {
@@ -26,14 +54,11 @@ void FGameplayInsightsDebugViewCreator::CreateDebugViews(uint64 ObjectId, double
         {
             const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(ClassId);
 
-            TArray<FCreateDebugView> List;
-            ViewCreators.MultiFind(ClassInfo.Name, List);
-
-            for (FCreateDebugView& Creator : List)
+            for(const FViewCreatorPair& CreatorPair : ViewCreators)
             {
-                if (Creator.IsBound())
+                if (CreatorPair.Creator.IsValid() && CreatorPair.TypeName == ClassInfo.Name)
                 {
-                    OutDebugViews.Add(Creator.Execute(ObjectId, CurrentTime, Session));
+                    OutDebugViews.Add(CreatorPair.Creator->CreateDebugView(ObjectId, CurrentTime, Session));
                 }
             }
 
