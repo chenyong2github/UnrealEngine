@@ -190,8 +190,8 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 			for (int32 Index = 0; Index < ViewportNames.Num(); ++Index)
 			{
 				BEGIN_GROUP(FName(*ViewportNames[Index]), FText::FromString(ViewportNames[Index]))
-					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
 					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bIsEnabled)).ToSharedRef());
+					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
 					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, ViewportSettings)).ToSharedRef()).ShouldAutoExpand(true);
 				END_GROUP();
 			}
@@ -1346,13 +1346,6 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeHeader(TShare
 
 	Mode = FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(PropertyHandle->GetProperty()->GetOwnerProperty());
 	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor());
-
-	const TAttribute<bool> EditCondition = TAttribute<bool>::Create([this]()
-	{
-		ADisplayClusterRootActor* RootActor = FindRootActor();
-		return RootActor && RootActor->bEnableOuterViewportOCIO;
-	});
-	HeaderRow.IsEnabled(EditCondition);
 	
 	HeaderRow.NameContent()
 	[

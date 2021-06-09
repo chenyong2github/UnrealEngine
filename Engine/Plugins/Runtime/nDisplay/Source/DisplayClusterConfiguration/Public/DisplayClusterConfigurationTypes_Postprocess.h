@@ -146,11 +146,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Post
 	GENERATED_BODY()
 
 	// Exclude this viewport from the global cluster post process
-	UPROPERTY(EditAnywhere, Category = "PostProcess Settings")
+	UPROPERTY(EditAnywhere, Category = "PostProcess Settings", meta = (DisplayName = "Ignore Post Process from All Viewports"))
 	bool bExcludeFromOverallClusterPostProcess = false;
 
 	// Allow using a separate post process for this viewport
-	UPROPERTY(EditAnywhere, Category = "PostProcess Settings")
+	UPROPERTY(EditAnywhere, Category = "PostProcess Settings", meta = (DisplayName = "Enable Viewport Post Process"))
 	bool bIsEnabled = false;
 
 	// Post process settings

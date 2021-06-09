@@ -440,7 +440,7 @@ public:
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
 	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Enable Viewport Post Process"))
 	bool bUseOverallClusterPostProcess = true;
 
 	// Global cluster post process settings

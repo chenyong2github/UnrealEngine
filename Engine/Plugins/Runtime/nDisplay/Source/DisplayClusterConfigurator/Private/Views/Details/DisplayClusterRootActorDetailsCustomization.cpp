@@ -21,6 +21,39 @@
 
 #define LOCTEXT_NAMESPACE "DisplayClusterRootActorDetailsCustomization"
 
+namespace DisplayClusterRootActorDetailsCustomizationUtils
+{
+	void SortCategories(const TMap<FName, IDetailCategoryBuilder*>& AllCategoryMap)
+	{
+		static const TArray<FName> CategoryOrder =
+		{
+			TEXT("TransformCommon"),
+			DisplayClusterConfigurationStrings::categories::ICVFXCategory,
+			DisplayClusterConfigurationStrings::categories::LightcardCategory,
+			DisplayClusterConfigurationStrings::categories::OCIOCategory,
+			DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory,
+			DisplayClusterConfigurationStrings::categories::OverrideCategory,
+			DisplayClusterConfigurationStrings::categories::PreviewCategory
+		};
+
+		for (const TPair<FName, IDetailCategoryBuilder*>& Pair : AllCategoryMap)
+		{
+			int32 CurrentSortOrder = Pair.Value->GetSortOrder();
+
+			int32 DesiredSortOrder;
+			if (CategoryOrder.Find(Pair.Key, DesiredSortOrder))
+			{
+				CurrentSortOrder = DesiredSortOrder;
+			}
+			else
+			{
+				CurrentSortOrder += CategoryOrder.Num();
+			}
+
+			Pair.Value->SetSortOrder(CurrentSortOrder);
+		}
+	}
+}
 
 TSharedRef<IDetailCustomization> FDisplayClusterRootActorDetailsCustomization::MakeInstance()
 {
@@ -71,6 +104,8 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 		InLayoutBuilder.HideCategory(TEXT("NDisplay Cluster"));
 		InLayoutBuilder.HideCategory(TEXT("NDisplay Cluster Configuration"));
 	}
+
+	InLayoutBuilder.SortCategories(DisplayClusterRootActorDetailsCustomizationUtils::SortCategories);
 	
 	// Lay out all of the root actor properties into their correct orders and categories. Because we are adding custom properties,
 	// most of the actor's properties will need to be laid out manually here even if they aren't being customized.
@@ -82,7 +117,6 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 
 void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuilder& InLayoutBuilder)
 {
-	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::DefaultCategory);
 	
 	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
 	
@@ -147,7 +181,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.Actors)
 			END_GROUP();
 		END_CATEGORY();
-
+		
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::LightcardCategory)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode)
@@ -159,14 +193,6 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 		END_CATEGORY();
 	}
 	
-	// Force a particular order that the property categories show up in the details panel
-
-	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::ConfigurationCategory);
-	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::ClusterCategory);
-	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory);
-	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::PreviewCategory);
-	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::AdvancedCategory).SetCategoryVisibility(false); // Re-enable for access to more adv control.
-	
 	// Add custom properties and lay out/order properties into their correct categories.
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::PreviewCategory)
 		if (RebuildNodeIdOptionsList())
@@ -174,6 +200,8 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			REPLACE_PROPERTY_WITH_CUSTOM(ADisplayClusterRootActor, PreviewNodeId, CreateCustomNodeIdWidget());
 		}
 	END_CATEGORY();
+
+	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::AdvancedCategory).SetCategoryVisibility(false); // Re-enable for access to more adv control.
 }
 
 

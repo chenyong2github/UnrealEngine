@@ -238,7 +238,7 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "OCIO")
 	bool bEnableOuterViewportOCIO = true;
 	
-	UPROPERTY(EditInstanceOnly, Category = "OCIO", meta = (DisplayName = "Outer Viewport OCIO Configurations", ConfigurationMode = "Viewports"))
+	UPROPERTY(EditInstanceOnly, Category = "OCIO", meta = (DisplayName = "Outer Viewport OCIO Configurations", ConfigurationMode = "Viewports", EditCondition = "bEnableOuterViewportOCIO"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> OuterViewportOCIOConfigurations;
 	
 public:

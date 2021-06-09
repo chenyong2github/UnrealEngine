@@ -437,7 +437,7 @@ public:
 	bool bEnableInnerFrustumOCIO = false;
 
 	// Define special OCIO for cluster nodes for this camera
-	UPROPERTY(EditInstanceOnly, Category = "OCIO", meta = (DisplayName = "Cluster nodes OCIO Configurations", ConfigurationMode = "ClusterNodes"))
+	UPROPERTY(EditInstanceOnly, Category = "OCIO", meta = (DisplayName = "Cluster nodes OCIO Configurations", ConfigurationMode = "ClusterNodes", EditCondition = "bEnableInnerFrustumOCIO"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> InnerFrustumOCIOConfigurations;
 
 	// Special hide list for this camera viewport
