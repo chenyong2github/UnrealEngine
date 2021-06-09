@@ -284,6 +284,10 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		}
 	}
 
+#if WITH_SLATE_DEBUGGING
+	ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(Reason), TEXT("%s is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(Reason));
+#endif
+
 	OwningWidget.Invalidate(Reason);
 }
 
@@ -414,6 +418,9 @@ void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInval
 
 	if (bInvalidateIfNeeded)
 	{
+#if WITH_SLATE_DEBUGGING
+		ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(InvalidationReason | CachedInvalidationReason), TEXT("%s is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(InvalidationReason | CachedInvalidationReason));
+#endif
 		OwningWidget.Invalidate(InvalidationReason | CachedInvalidationReason);
 		CachedInvalidationReason = EInvalidateWidgetReason::None;
 	}
@@ -444,6 +451,9 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 				if (OwningWidget.IsConstructed())
 				{
 					EInvalidateWidgetReason Reason = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
+#if WITH_SLATE_DEBUGGING
+					ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(Reason | AttributeMetaData->CachedInvalidationReason), TEXT("%s is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(Reason | AttributeMetaData->CachedInvalidationReason));
+#endif
 					OwningWidget.Invalidate(Reason | AttributeMetaData->CachedInvalidationReason);
 					AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 				}

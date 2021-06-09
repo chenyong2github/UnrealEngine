@@ -21,6 +21,10 @@ namespace SharedPointerInternals
 		using ThisClass = WidgetType; \
 		using PrivateThisType = WidgetType; \
 		using PrivateParentType = ParentType; \
+		template<class WidgetType, bool bIsUserWidget> \
+		friend struct TWidgetAllocator; \
+		template <typename ObjectType> \
+		friend class SharedPointerInternals::TIntrusiveReferenceController; \
 		static const FSlateWidgetClassData& GetPrivateWidgetClass() \
 		{ \
 			static FSlateWidgetClassData WidgetClassDataInstance = FSlateWidgetClassData(TIdentity<ParentType>(), #WidgetType, &WidgetType::PrivateRegisterAttributes); \
