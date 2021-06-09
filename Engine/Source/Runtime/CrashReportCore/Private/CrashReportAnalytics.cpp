@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CrashReportAnalytics.h"
+#include "Misc/CommandLine.h"
 #include "Misc/Guid.h"
 #include "Misc/EngineBuildSettings.h"
 
