@@ -3534,28 +3534,22 @@ bool USkeletalMesh::RegisterMorphTarget(UMorphTarget* MorphTarget, bool bInvalid
 		MorphTarget->BaseSkelMesh = this;
 
 		bool bRegistered = false;
-		TArray<UMorphTarget*>& RegisteredMorphTargets = GetMorphTargets();
 		const FName MorphTargetName = MorphTarget->GetFName();
-		if (UMorphTarget** MorphTargetPtrPtr = RegisteredMorphTargets.FindByPredicate([&MorphTargetName](UMorphTarget* RegisteredMorphTarget)->bool{ return (RegisteredMorphTarget->GetFName() == MorphTargetName); }))
+		TArray<UMorphTarget*>& RegisteredMorphTargets = GetMorphTargets();
+		for ( int32 Index = 0; Index < RegisteredMorphTargets.Num(); ++Index )
 		{
-			UE_LOG(LogSkeletalMesh, Verbose, TEXT("RegisterMorphTarget: %s already exists, replacing"), *MorphTarget->GetName());
-			*MorphTargetPtrPtr = MorphTarget;
-			bRegistered = true;
+			if (RegisteredMorphTargets[Index]->GetFName() == MorphTargetName )
+			{
+				UE_LOG( LogSkeletalMesh, Verbose, TEXT("RegisterMorphTarget: %s already exists, replacing"), *MorphTarget->GetName() );
+				RegisteredMorphTargets[Index] = MorphTarget;
+				bRegistered = true;
+				break;
+			}
 		}
-// 		for ( int32 Index = 0; Index < GetMorphTargets().Num(); ++Index )
-// 		{
-// 			if (GetMorphTargets()[Index]->GetFName() == MorphTarget->GetFName() )
-// 			{
-// 				UE_LOG( LogSkeletalMesh, Verbose, TEXT("RegisterMorphTarget: %s already exists, replacing"), *MorphTarget->GetName() );
-// 				GetMorphTargets()[Index] = MorphTarget;
-// 				bRegistered = true;
-// 				break;
-// 			}
-// 		}
 
 		if (!bRegistered)
 		{
-			GetMorphTargets().Add( MorphTarget );
+			RegisteredMorphTargets.Add( MorphTarget );
 			bRegistered = true;
 		}
 
