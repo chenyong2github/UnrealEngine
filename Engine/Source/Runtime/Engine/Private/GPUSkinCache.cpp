@@ -59,7 +59,7 @@ static TAutoConsoleVariable<int32> CVarEnableGPUSkinCache(
 static TAutoConsoleVariable<int32> CVarDefaultGPUSkinCacheBehavior(
 	TEXT("r.SkinCache.DefaultBehavior"),
 	(int32)ESkinCacheDefaultBehavior::Inclusive,
-	TEXT("Default behavior if all skeletal meshes are included/excluded from the skin cache. If Ray Tracing is enabled, will imply Inclusive.\n")
+	TEXT("Default behavior if all skeletal meshes are included/excluded from the skin cache. If Support Ray Tracing is enabled on a mesh, will force inclusive behavior on that mesh.\n")
 	TEXT(" Exclusive ( 0): All skeletal meshes are excluded from the skin cache. Each must opt in individually.\n")
 	TEXT(" Inclusive ( 1): All skeletal meshes are included into the skin cache. Each must opt out individually. (default)")
 	);
@@ -1688,7 +1688,7 @@ void FGPUSkinCache::ProcessEntry(
 	}
 }
 
-static bool IsGPUSkinCacheRayTracingSupported()
+bool FGPUSkinCache::IsGPUSkinCacheRayTracingSupported()
 {
 #if RHI_RAYTRACING
 	static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Geometry.SupportSkeletalMeshes"));

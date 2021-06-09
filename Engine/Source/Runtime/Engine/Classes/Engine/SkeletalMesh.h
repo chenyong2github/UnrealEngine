@@ -223,10 +223,10 @@ namespace nvidia
 UENUM()
 enum class ESkinCacheUsage : uint8
 {
-	// Auto will defer to child or global behavior based on context. If Ray Tracing is enabled, will imply Enabled
+	// Auto will defer to child or global behavior based on context. If Support Ray Tracing is enabled on the mesh, will imply Enabled
 	Auto		= 0,
 
-	// Mesh will not use the skin cache. If Ray Tracing is enabled, will imply Enabled
+	// Mesh will not use the skin cache. If Support Ray Tracing is enabled on the mesh, will imply Enabled
 	Disabled	= uint8(-1),
 
 	// Mesh will use the skin cache
@@ -236,7 +236,7 @@ enum class ESkinCacheUsage : uint8
 UENUM()
 enum class ESkinCacheDefaultBehavior : uint8
 {
-	// All skeletal meshes are excluded from the skin cache. Each must opt in individually. If Ray Tracing is enabled, will imply Inclusive
+	// All skeletal meshes are excluded from the skin cache. Each must opt in individually. If Support Ray Tracing is enabled on a mesh, will force inclusive behavior on that mesh
 	Exclusive = 0,
 
 	// All skeletal meshes are included into the skin cache. Each must opt out individually
@@ -398,7 +398,7 @@ struct FSkeletalMeshLODInfo
 	FString SourceImportFilename;
 
 	/**
-	 * How this LOD uses the skin cache feature. Auto will defer to the default project global option. If Ray Tracing is enabled, will imply Enabled
+	 * How this LOD uses the skin cache feature. Auto will defer to the default project global option. If Support Ray Tracing is enabled on the mesh, will imply Enabled
 	 */
 	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo)
 	ESkinCacheUsage SkinCacheUsage = ESkinCacheUsage::Auto;

@@ -1471,7 +1471,11 @@ bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 {
 	static const IConsoleVariable* CVarDefaultGPUSkinCacheBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.DefaultBehavior"));
 
-	bool bIsRayTracing = IsRayTracingEnabled();
+	bool bIsRayTracing = FGPUSkinCache::IsGPUSkinCacheRayTracingSupported();
+	if (bIsRayTracing && SkeletalMesh)
+	{
+		bIsRayTracing = SkeletalMesh->bSupportRayTracing;
+	}
 
 	bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
 
