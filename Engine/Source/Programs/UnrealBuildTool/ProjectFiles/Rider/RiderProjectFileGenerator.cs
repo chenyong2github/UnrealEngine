@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -174,7 +175,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				return FileReference.Combine( UnrealBuildTool.EngineDirectory, "Intermediate", "ProjectFiles", ".Rider", GeneratedProjectName);
+				return FileReference.Combine( UnrealBuild.EngineDirectory, "Intermediate", "ProjectFiles", ".Rider", GeneratedProjectName);
 			}
 		}
 
@@ -204,7 +205,7 @@ namespace UnrealBuildTool
 				// Check to see if this is an Engine target.  That is, the target is located under the "Engine" folder
 				bool IsEngineTarget = false;
 				bool WantProjectFileForTarget = true;
-				if (TargetFilePath.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+				if (TargetFilePath.IsUnderDirectory(UnrealBuild.EngineDirectory))
 				{
 					// This is an engine target
 					IsEngineTarget = true;
@@ -304,7 +305,7 @@ namespace UnrealBuildTool
 					}
 					else if (IsEngineTarget)
 					{
-						BaseFolder = UnrealBuildTool.EngineDirectory;
+						BaseFolder = UnrealBuild.EngineDirectory;
 					}
 					else
 					{
@@ -432,7 +433,7 @@ namespace UnrealBuildTool
 					{
 						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 						{
-							MasterProjectPath = UnrealBuildTool.EngineDirectory;
+							MasterProjectPath = UnrealBuild.EngineDirectory;
 							GameProjectName = "UnrealGame";
 						}
 
@@ -484,7 +485,7 @@ namespace UnrealBuildTool
 					EngineProjectFileNameBase + ProjectFileExtension);
 
 				bool bAlreadyExisted;
-				EngineProject = FindOrAddProject(ProjectFilePath, UnrealBuildTool.EngineDirectory, true, out bAlreadyExisted);
+				EngineProject = FindOrAddProject(ProjectFilePath, UnrealBuild.EngineDirectory, true, out bAlreadyExisted);
 
 				EngineProject.IsForeignProject = false;
 				EngineProject.IsGeneratedProject = true;

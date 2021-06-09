@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using System.Diagnostics;
 using System.IO;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -2564,7 +2565,7 @@ namespace UnrealBuildTool
 		{
 			if (EngineDirectory == null)
 			{
-				EngineDirectory = UnrealBuildTool.EngineDirectory;
+				EngineDirectory = UnrealBuild.EngineDirectory;
 			}
 
 			// cache base ini for use as the seed for the rest
@@ -2708,7 +2709,7 @@ namespace UnrealBuildTool
 			bIsMergingConfigs = true;
 			if (EngineDirectory == null)
 			{
-				EngineDirectory = UnrealBuildTool.EngineDirectory;
+				EngineDirectory = UnrealBuild.EngineDirectory;
 			}
 
 			if (BaseCache != null)

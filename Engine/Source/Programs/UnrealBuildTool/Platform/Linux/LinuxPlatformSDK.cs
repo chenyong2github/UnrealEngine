@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -163,7 +164,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private static DirectoryReference GetInTreeSDKRoot()
 		{
-			return DirectoryReference.Combine(UnrealBuildTool.RootDirectory, "Engine/Extras/ThirdPartyNotUE/SDKs", "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName);
+			return DirectoryReference.Combine(UnrealBuild.RootDirectory, "Engine/Extras/ThirdPartyNotUE/SDKs", "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName);
 		}
 
 		/// <summary>

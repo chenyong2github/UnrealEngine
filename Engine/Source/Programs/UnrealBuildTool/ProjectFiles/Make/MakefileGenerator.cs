@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -76,7 +77,7 @@ namespace UnrealBuildTool
 
 			string MakeGameProjectFile = "";
 
-			string UnrealRootPath = UnrealBuildTool.RootDirectory.FullName;
+			string UnrealRootPath = UnrealBuild.RootDirectory.FullName;
 
 			if (!String.IsNullOrEmpty(GameProjectName))
 			{

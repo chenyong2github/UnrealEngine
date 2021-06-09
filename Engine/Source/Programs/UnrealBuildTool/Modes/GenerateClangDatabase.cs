@@ -133,7 +133,7 @@ namespace UnrealBuildTool
 
 								foreach (FileItem InputFile in InputFiles)
 								{
-									if(FileFilter == null || FileFilter.Matches(InputFile.Location.MakeRelativeTo(UnrealBuildTool.RootDirectory)))
+									if(FileFilter == null || FileFilter.Matches(InputFile.Location.MakeRelativeTo(UnrealBuild.RootDirectory)))
 									{
 										FileToCommand[InputFile.Location] = String.Format("{0} \"{1}\"", CommandBuilder, InputFile.FullName);
 									}
@@ -144,7 +144,7 @@ namespace UnrealBuildTool
 				}
 
 				// Write the compile database
-				FileReference DatabaseFile = FileReference.Combine(UnrealBuildTool.RootDirectory, "compile_commands.json");
+				FileReference DatabaseFile = FileReference.Combine(UnrealBuild.RootDirectory, "compile_commands.json");
 				using (JsonWriter Writer = new JsonWriter(DatabaseFile))
 				{
 					Writer.WriteArrayStart();

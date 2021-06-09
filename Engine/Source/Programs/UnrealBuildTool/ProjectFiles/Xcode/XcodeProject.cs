@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Text;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -758,7 +759,7 @@ namespace UnrealBuildTool
 			
 			// @todo: look also in Project/Build/Frameworks directory!
 			ProjectDescriptor Project = ProjectDescriptor.FromFile(UProjectPath);
-			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(UnrealBuildTool.EngineDirectory, DirectoryReference.FromFile(UProjectPath), Project.AdditionalPluginDirectories);
+			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(UnrealBuild.EngineDirectory, DirectoryReference.FromFile(UProjectPath), Project.AdditionalPluginDirectories);
 
 			// look in each plugin for frameworks
 			// @todo: Cache this kind of things since every target will re-do this work!
@@ -1378,7 +1379,7 @@ namespace UnrealBuildTool
 							FileReference ReceiptFilename;
 							if (bIsUnrealGame)
 							{
-								ReceiptFilename = TargetReceipt.GetDefaultPath(UnrealBuildTool.EngineDirectory, "UnrealGame", UnrealTargetPlatform.IOS, Config.BuildConfig, "");
+								ReceiptFilename = TargetReceipt.GetDefaultPath(UnrealBuild.EngineDirectory, "UnrealGame", UnrealTargetPlatform.IOS, Config.BuildConfig, "");
 							}
 							else
 							{
@@ -1587,7 +1588,7 @@ namespace UnrealBuildTool
 											string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
 
 											// Get the output directory
-											DirectoryReference RootDirectory = UnrealBuildTool.EngineDirectory;
+											DirectoryReference RootDirectory = UnrealBuild.EngineDirectory;
 											if ((ProjectTarget.TargetRules.Type == TargetType.Game || ProjectTarget.TargetRules.Type == TargetType.Client || ProjectTarget.TargetRules.Type == TargetType.Server) && bShouldCompileMonolithic)
 											{
 												if (ProjectTarget.UnrealProjectFilePath != null)

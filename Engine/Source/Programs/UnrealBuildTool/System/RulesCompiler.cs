@@ -72,7 +72,7 @@ namespace UnrealBuildTool
 			// Add all engine source (including third party source)
 			if (bIncludeEngine)
 			{
-				Folders.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Source"));
+				Folders.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, "Source"));
 			}
 
 			// @todo plugin: Disallow modules from including plugin modules as dependency modules? (except when the module is part of that plugin)
@@ -81,7 +81,7 @@ namespace UnrealBuildTool
 			List<DirectoryReference> RootFolders = new List<DirectoryReference>();
 			if (bIncludeEngine)
 			{
-				RootFolders.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory));
+				RootFolders.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory));
 			}
 			if (GameFolders != null)
 			{
@@ -352,8 +352,8 @@ namespace UnrealBuildTool
 				List<PluginInfo> EnginePlugins = new List<PluginInfo>();
 				List<PluginInfo> MarketplacePlugins = new List<PluginInfo>();
 
-				DirectoryReference MarketplaceDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Plugins", "Marketplace");
-				foreach (PluginInfo PluginInfo in Plugins.ReadEnginePlugins(UnrealBuildTool.EngineDirectory))
+				DirectoryReference MarketplaceDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Plugins", "Marketplace");
+				foreach (PluginInfo PluginInfo in Plugins.ReadEnginePlugins(UnrealBuild.EngineDirectory))
 				{
 					if (PluginInfo.File.IsUnderDirectory(MarketplaceDirectory))
 					{
@@ -365,7 +365,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				EngineRulesAssembly = CreateEngineRulesAssemblyInternal(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory), ProjectFileGenerator.EngineProjectFileNameBase, EnginePlugins, UnrealBuildTool.IsEngineInstalled() || bUsePrecompiled, bSkipCompile, null);
+				EngineRulesAssembly = CreateEngineRulesAssemblyInternal(UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory), ProjectFileGenerator.EngineProjectFileNameBase, EnginePlugins, UnrealBuildTool.IsEngineInstalled() || bUsePrecompiled, bSkipCompile, null);
 
 				if (MarketplacePlugins.Count > 0)
 				{
@@ -467,7 +467,7 @@ namespace UnrealBuildTool
 			Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext = new Dictionary<FileReference, ModuleRulesContext>();
 			using (Timeline.ScopeEvent("Finding marketplace plugin modules"))
 			{
-				ModuleRulesContext PluginsModuleContext = new ModuleRulesContext(MarketplaceScope, UnrealBuildTool.EngineDirectory);
+				ModuleRulesContext PluginsModuleContext = new ModuleRulesContext(MarketplaceScope, UnrealBuild.EngineDirectory);
 				FindModuleRulesForPlugins(Plugins, PluginsModuleContext, ModuleFileToContext);
 			}
 
@@ -476,7 +476,7 @@ namespace UnrealBuildTool
 			if (ModuleFileToContext.Count > 0)
 			{
 				FileReference AssemblyFileName = FileReference.Combine(UnrealBuildTool.WritableEngineDirectory, "Intermediate", "Build", "BuildRules", "MarketplaceRules.dll");
-				Result = new RulesAssembly(MarketplaceScope, new List<DirectoryReference> { UnrealBuildTool.EngineDirectory }, Plugins, ModuleFileToContext, new List<FileReference>(), AssemblyFileName, bContainsEngineModules: true, DefaultBuildSettings: BuildSettingsVersion.Latest, bReadOnly: false, bSkipCompile: bSkipCompile, Parent: Parent);
+				Result = new RulesAssembly(MarketplaceScope, new List<DirectoryReference> { UnrealBuild.EngineDirectory }, Plugins, ModuleFileToContext, new List<FileReference>(), AssemblyFileName, bContainsEngineModules: true, DefaultBuildSettings: BuildSettingsVersion.Latest, bReadOnly: false, bSkipCompile: bSkipCompile, Parent: Parent);
 			}
 			return Result;
 		}

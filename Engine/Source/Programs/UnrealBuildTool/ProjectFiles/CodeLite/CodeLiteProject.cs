@@ -7,6 +7,7 @@ using System.IO;
 using System.Xml;
 using System.Xml.Linq;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -45,7 +46,7 @@ namespace UnrealBuildTool
 			string ProjectPlatformName = BuildHostPlatform.Current.Platform.ToString();
 
 			// Get the output directory
-			string EngineRootDirectory = UnrealBuildTool.EngineDirectory.FullName;
+			string EngineRootDirectory = UnrealBuild.EngineDirectory.FullName;
 
 			//
 			// Build the working directory of the Game executable.
@@ -129,7 +130,7 @@ namespace UnrealBuildTool
 							TargetName.Equals("UnrealGame") ||
 							TargetName.Equals("UnrealEditor"))
 						{
-							int Idx = UnrealBuildTool.EngineDirectory.FullName.Length;
+							int Idx = UnrealBuild.EngineDirectory.FullName.Length;
 							CurrentFilePath = Path.GetDirectoryName(Path.GetFullPath(CurrentFile.Reference.FullName)).Substring(Idx);
 						}
 						else
@@ -423,7 +424,7 @@ namespace UnrealBuildTool
 							PlatformName = "Mac";
 						}
 
-						BuildTarget = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Build/BatchFiles", PlatformName, "Build.sh") + " " + BuildTarget;
+						BuildTarget = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Build/BatchFiles", PlatformName, "Build.sh") + " " + BuildTarget;
 					}
 					else
 					{

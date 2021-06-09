@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.Collections.Generic;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -18,7 +19,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 	{
 		private readonly static string PROJECT_FILE_SEARCH_EXPRESSION = "*.pbxproj";
 		private readonly static string TEMPLATE_NAME = "FrameworkWrapper";
-		private readonly static string FRAMEWORK_WRAPPER_TEMPLATE_DIRECTORY = Path.Combine(UnrealBuildTool.EngineDirectory.ToNormalizedPath(), "Build", "IOS", "Resources", TEMPLATE_NAME);
+		private readonly static string FRAMEWORK_WRAPPER_TEMPLATE_DIRECTORY = Path.Combine(UnrealBuild.EngineDirectory.ToNormalizedPath(), "Build", "IOS", "Resources", TEMPLATE_NAME);
 		private readonly static string TEMPLATE_PROJECT_NAME = "PROJECT_NAME";
 		private readonly static string COMMANDLINE_FILENAME = "uecommandline.txt";
 

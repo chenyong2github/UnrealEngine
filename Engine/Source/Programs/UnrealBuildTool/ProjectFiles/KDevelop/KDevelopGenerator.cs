@@ -6,6 +6,7 @@ using System.Text;
 using System.IO;
 using System.Linq;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -157,7 +158,7 @@ namespace UnrealBuildTool
 		{
 			int BuildConfigIndex = 1;
 
-			string UnrealRootPath = UnrealBuildTool.RootDirectory.FullName;
+			string UnrealRootPath = UnrealBuild.RootDirectory.FullName;
 			FileContent.Append("[CustomBuildSystem]\n");
 			FileContent.Append("CurrentConfiguration=BuildConfig0\n\n"); //
 
@@ -270,7 +271,7 @@ namespace UnrealBuildTool
 			List<string> IncludeDirectories = new List<string>();
 			List<string> SystemIncludeDirectories = new List<string>();
 
-			string UnrealEngineRootPath = UnrealBuildTool.RootDirectory.FullName;
+			string UnrealEngineRootPath = UnrealBuild.RootDirectory.FullName;
 
 			int IncludeIndex = 1;
 			// Iterate through all the include paths that

@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -203,7 +204,7 @@ namespace UnrealBuildTool
 			string RequiredFile;
 			if (ParseSubValue(PlatformConfiguration, "RequiredFile=", out RequiredFile))
 			{
-				RequiredFile = FileReference.Combine(UnrealBuildTool.RootDirectory, RequiredFile).ToString();
+				RequiredFile = FileReference.Combine(UnrealBuild.RootDirectory, RequiredFile).ToString();
 			}
 
 			string ProjectTypeName;

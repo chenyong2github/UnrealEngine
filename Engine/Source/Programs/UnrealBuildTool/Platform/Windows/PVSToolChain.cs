@@ -356,7 +356,7 @@ namespace UnrealBuildTool
 			AnalyzerFile = FileReference.Combine(new DirectoryReference(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)), "PVS-Studio", "x64", "PVS-Studio.exe");
 			if(!FileReference.Exists(AnalyzerFile))
 			{
-				FileReference EngineAnalyzerFile = FileReference.Combine(UnrealBuildTool.RootDirectory, "Engine", "Restricted", "NoRedist", "Extras", "ThirdPartyNotUE", "PVS-Studio", "PVS-Studio.exe");
+				FileReference EngineAnalyzerFile = FileReference.Combine(UnrealBuild.RootDirectory, "Engine", "Restricted", "NoRedist", "Extras", "ThirdPartyNotUE", "PVS-Studio", "PVS-Studio.exe");
 				if (FileReference.Exists(EngineAnalyzerFile))
 				{
 					AnalyzerFile = EngineAnalyzerFile;
@@ -380,7 +380,7 @@ namespace UnrealBuildTool
 
 				if (!String.IsNullOrEmpty(ApplicationSettings.UserName) && !String.IsNullOrEmpty(ApplicationSettings.SerialNumber))
 				{
-					LicenseFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "PVS", "PVS-Studio.lic");
+					LicenseFile = FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "PVS", "PVS-Studio.lic");
 					Utils.WriteFileIfChanged(LicenseFile, String.Format("{0}\n{1}\n", ApplicationSettings.UserName, ApplicationSettings.SerialNumber), StringComparison.Ordinal);
 				}
 			}
@@ -612,7 +612,7 @@ namespace UnrealBuildTool
 			FileReference OutputFile;
 			if (Target.ProjectFile == null)
 			{
-				OutputFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Saved", "PVS-Studio", String.Format("{0}.pvslog", Target.Name));
+				OutputFile = FileReference.Combine(UnrealBuild.EngineDirectory, "Saved", "PVS-Studio", String.Format("{0}.pvslog", Target.Name));
 			}
 			else
 			{

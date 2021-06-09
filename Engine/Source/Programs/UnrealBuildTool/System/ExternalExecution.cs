@@ -715,7 +715,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				return TargetReceipt.GetDefaultPath(UnrealBuildTool.EngineDirectory, "UnrealHeaderTool", BuildHostPlatform.Current.Platform, Configuration, "");
+				return TargetReceipt.GetDefaultPath(UnrealBuild.EngineDirectory, "UnrealHeaderTool", BuildHostPlatform.Current.Platform, Configuration, "");
 			}
 		}
 
@@ -1076,7 +1076,7 @@ namespace UnrealBuildTool
 				// UHTLite
 				bIsBuildingUHT |= TargetName.Equals("UHTLite", StringComparison.InvariantCultureIgnoreCase);
 
-				string RootLocalPath = UnrealBuildTool.RootDirectory.FullName;
+				string RootLocalPath = UnrealBuild.RootDirectory.FullName;
 
 				UnrealTargetConfiguration UHTConfig = BuildConfiguration.bForceDebugUnrealHeaderTool ? UnrealTargetConfiguration.Debug : UnrealTargetConfiguration.Development;
 

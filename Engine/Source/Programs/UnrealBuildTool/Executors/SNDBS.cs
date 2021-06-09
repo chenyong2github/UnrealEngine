@@ -9,6 +9,7 @@ using System.Linq;
 using System.ServiceProcess;
 using System.Text.Json;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -21,7 +22,7 @@ namespace UnrealBuildTool
 		private static readonly string SCERoot = Environment.GetEnvironmentVariable("SCE_ROOT_DIR");
 		private static readonly string SNDBSExecutable = Path.Combine(SCERoot ?? string.Empty, "Common", "SN-DBS", "bin", "dbsbuild.exe");
 
-		private static readonly DirectoryReference IntermediateDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "SNDBS");
+		private static readonly DirectoryReference IntermediateDir = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "SNDBS");
 		private static readonly FileReference IncludeRewriteRulesFile = FileReference.Combine(IntermediateDir, "include-rewrite-rules.ini");
 		private static readonly FileReference ScriptFile = FileReference.Combine(IntermediateDir, "sndbs.json");
 

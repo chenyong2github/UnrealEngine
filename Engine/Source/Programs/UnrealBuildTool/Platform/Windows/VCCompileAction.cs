@@ -228,7 +228,7 @@ namespace UnrealBuildTool
 			{
 				if (UsingClFilter)
 				{
-					return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
+					return FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
 				}
 				else
 				{

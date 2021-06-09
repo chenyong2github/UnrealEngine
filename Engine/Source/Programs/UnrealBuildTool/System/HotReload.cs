@@ -107,7 +107,7 @@ namespace UnrealBuildTool
 		/// <returns>Location of the hot reload state file</returns>
 		public static FileReference GetLocation(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture)
 		{
-			DirectoryReference BaseDir = DirectoryReference.FromFile(ProjectFile) ?? UnrealBuildTool.EngineDirectory;
+			DirectoryReference BaseDir = DirectoryReference.FromFile(ProjectFile) ?? UnrealBuild.EngineDirectory;
 			return FileReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), TargetName, Configuration.ToString(), "HotReload.state");
 		}
 
@@ -297,15 +297,15 @@ namespace UnrealBuildTool
 				FileReference EditorLocation;
 				if (TargetDesc.Platform == UnrealTargetPlatform.Win64)
 				{
-					EditorLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "Win64", String.Format("{0}.exe", EditorBaseFileName));
+					EditorLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Binaries", "Win64", String.Format("{0}.exe", EditorBaseFileName));
 				}
 				else if (TargetDesc.Platform == UnrealTargetPlatform.Mac)
 				{
-					EditorLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "Mac", String.Format("{0}.app/Contents/MacOS/{0}", EditorBaseFileName));
+					EditorLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Binaries", "Mac", String.Format("{0}.app/Contents/MacOS/{0}", EditorBaseFileName));
 				}
 				else if (TargetDesc.Platform == UnrealTargetPlatform.Linux)
 				{
-					EditorLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "Linux", EditorBaseFileName);
+					EditorLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Binaries", "Linux", EditorBaseFileName);
 				}
 				else
 				{
@@ -314,7 +314,7 @@ namespace UnrealBuildTool
 
 				using(Timeline.ScopeEvent("Finding editor processes for hot-reload"))
 				{
-					DirectoryReference EditorRunsDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "EditorRuns");
+					DirectoryReference EditorRunsDir = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "EditorRuns");
 					if (!DirectoryReference.Exists(EditorRunsDir))
 					{
 						return false;

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -279,7 +280,7 @@ namespace UnrealBuildTool
 			StringBuilder IncludeDirectoriesList = new StringBuilder("include_directories( \n");
 			StringBuilder PreprocessorDefinitionsList = new StringBuilder("add_definitions( \n");
 
-            string UE4RootPath = Utils.CleanDirectorySeparators(UnrealBuildTool.RootDirectory.FullName, '/');
+            string UE4RootPath = Utils.CleanDirectorySeparators(UnrealBuild.RootDirectory.FullName, '/');
             string CMakeGameRootPath = "";
 			string GameProjectPath = "";
 			string CMakeGameProjectFile = "";
@@ -368,9 +369,9 @@ namespace UnrealBuildTool
 					string IncludeDirectory = GetIncludeDirectory(IncludeSearchPath, Path.GetDirectoryName(CurProject.ProjectFilePath.FullName));
 					if (IncludeDirectory != null && !IncludeDirectories.Contains(IncludeDirectory))
 					{
-						if (IncludeDirectory.Contains(UnrealBuildTool.RootDirectory.FullName))
+						if (IncludeDirectory.Contains(UnrealBuild.RootDirectory.FullName))
 						{
-							IncludeDirectories.Add(IncludeDirectory.Replace(UnrealBuildTool.RootDirectory.FullName, UE4RootPath));
+							IncludeDirectories.Add(IncludeDirectory.Replace(UnrealBuild.RootDirectory.FullName, UE4RootPath));
 						}
 						else
 						{
@@ -415,7 +416,7 @@ namespace UnrealBuildTool
 				List<FileReference> FoundFiles = SourceFileSearch.FindModuleSourceFiles(CurModuleFile);
 				foreach (FileReference CurSourceFile in FoundFiles)
 				{
-					string SourceFileRelativeToRoot = CurSourceFile.MakeRelativeTo(UnrealBuildTool.EngineDirectory);
+					string SourceFileRelativeToRoot = CurSourceFile.MakeRelativeTo(UnrealBuild.EngineDirectory);
 
 					// Exclude files/folders on a per-platform basis.
 					if (!IsPathExcludedOnPlatform(SourceFileRelativeToRoot, BuildHostPlatform.Current.Platform))
@@ -465,10 +466,10 @@ namespace UnrealBuildTool
 			}
 
 			// Add Engine/Shaders files (game are added via modules)
-			List<FileReference> EngineShaderFiles = SourceFileSearch.FindFiles(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Shaders"));
+			List<FileReference> EngineShaderFiles = SourceFileSearch.FindFiles(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Shaders"));
 			foreach (FileReference CurSourceFile in EngineShaderFiles)
 			{
-				string SourceFileRelativeToRoot = CurSourceFile.MakeRelativeTo(UnrealBuildTool.EngineDirectory);
+				string SourceFileRelativeToRoot = CurSourceFile.MakeRelativeTo(UnrealBuild.EngineDirectory);
 				if (SourceFileRelativeToRoot.EndsWith(".usf") || SourceFileRelativeToRoot.EndsWith(".ush"))
 				{
 					AppendCleanedPathToList(CMakeEngineShaderFilesList, CMakeProjectShaderFilesList, SourceFileRelativeToRoot, CurSourceFile.FullName, GameProjectPath, UE4RootPath, CMakeGameRootPath);
@@ -476,10 +477,10 @@ namespace UnrealBuildTool
 			}
 
 			// Add Engine/Config ini files (game are added via modules)
-			List<FileReference> EngineConfigFiles = SourceFileSearch.FindFiles(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Config"));
+			List<FileReference> EngineConfigFiles = SourceFileSearch.FindFiles(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Config"));
 			foreach (FileReference CurSourceFile in EngineConfigFiles)
 			{
-				string SourceFileRelativeToRoot = CurSourceFile.MakeRelativeTo(UnrealBuildTool.EngineDirectory);
+				string SourceFileRelativeToRoot = CurSourceFile.MakeRelativeTo(UnrealBuild.EngineDirectory);
 				if (SourceFileRelativeToRoot.EndsWith(".ini"))
 				{
 					AppendCleanedPathToList(CMakeEngineConfigFilesList, CMakeProjectConfigFilesList, SourceFileRelativeToRoot, CurSourceFile.FullName, GameProjectPath, UE4RootPath, CMakeGameRootPath);
@@ -725,7 +726,7 @@ namespace UnrealBuildTool
 			// Check for paths outside of both the engine and the project
 			if (Path.IsPathRooted(IncludeDir) &&
 				!IncludeDir.StartsWith(FullProjectPath) &&
-				!IncludeDir.StartsWith(UnrealBuildTool.RootDirectory.FullName))
+				!IncludeDir.StartsWith(UnrealBuild.RootDirectory.FullName))
 			{
 				// Full path to a folder outside of project
 				FullPath = IncludeDir;
@@ -733,7 +734,7 @@ namespace UnrealBuildTool
 			else
 			{
 				FullPath = Path.GetFullPath(Path.Combine(ProjectDir, IncludeDir));
-				if (!FullPath.StartsWith(UnrealBuildTool.RootDirectory.FullName))
+				if (!FullPath.StartsWith(UnrealBuild.RootDirectory.FullName))
 				{
 					FullPath = Utils.MakePathRelativeTo(FullPath, FullProjectPath);
 				}

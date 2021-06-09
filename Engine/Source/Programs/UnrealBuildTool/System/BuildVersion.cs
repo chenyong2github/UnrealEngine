@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -99,7 +100,7 @@ namespace UnrealBuildTool
 		/// <returns>Path to the Build.version file</returns>
 		public static FileReference GetDefaultFileName()
 		{
-			return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Build.version");
+			return FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Build.version");
 		}
 
 		/// <summary>

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -465,7 +466,7 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.bPGOOptimize)
 			{
-				DirectoryReference BaseDir = UnrealBuildTool.EngineDirectory;
+				DirectoryReference BaseDir = UnrealBuild.EngineDirectory;
 				if (Target.ProjectFile != null)
 				{
 					BaseDir = DirectoryReference.FromFile(Target.ProjectFile);

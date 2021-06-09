@@ -220,7 +220,7 @@ namespace UnrealBuildTool
 					if (FrameworkRules.IsZipFile())
 					{
 						// If FrameworkPath ends in .zip, it needs to be extracted
-						Framework = new UEBuildFramework(FrameworkRules.Name, FileReference.Combine(ModuleDirectory, FrameworkRules.Path), DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "UnzippedFrameworks", FrameworkRules.Name, Path.GetFileNameWithoutExtension(FrameworkRules.Path)), FrameworkRules.CopyBundledAssets, FrameworkRules.bCopyFramework);
+						Framework = new UEBuildFramework(FrameworkRules.Name, FileReference.Combine(ModuleDirectory, FrameworkRules.Path), DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "UnzippedFrameworks", FrameworkRules.Name, Path.GetFileNameWithoutExtension(FrameworkRules.Path)), FrameworkRules.CopyBundledAssets, FrameworkRules.bCopyFramework);
 					}
 					else
 					{
@@ -633,13 +633,13 @@ namespace UnrealBuildTool
 					{
 						if(MatchVariableName(Path, StartIdx, EndIdx, "EngineDir"))
 						{
-							Path = UnrealBuildTool.EngineDirectory + Path.Substring(EndIdx + 1);
+							Path = UnrealBuild.EngineDirectory + Path.Substring(EndIdx + 1);
 						}
 						else if(MatchVariableName(Path, StartIdx, EndIdx, "ProjectDir"))
 						{
 							if(Rules.Target.ProjectFile == null)
 							{
-								Path = UnrealBuildTool.EngineDirectory + Path.Substring(EndIdx + 1);
+								Path = UnrealBuild.EngineDirectory + Path.Substring(EndIdx + 1);
 							}
 							else
 							{

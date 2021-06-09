@@ -7,6 +7,7 @@ using System.IO;
 using EpicGames.Core;
 using System.Diagnostics;
 using System.Linq;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -265,7 +266,7 @@ namespace UnrealBuildTool
 			VSCodeDir = DirectoryReference.Combine(MasterProjectPath, ".vscode");
 			DirectoryReference.CreateDirectory(VSCodeDir);
 
-			UE4ProjectRoot = UnrealBuildTool.RootDirectory;
+			UE4ProjectRoot = UnrealBuild.RootDirectory;
 			bForeignProject = !VSCodeDir.IsUnderDirectory(UE4ProjectRoot);
 
 			List<ProjectFile> Projects;
@@ -299,7 +300,7 @@ namespace UnrealBuildTool
 			if (bForeignProject && bIncludeEngineSource)
 			{
 				// for installed builds we need to write the cpp properties file under the installed engine as well for intellisense to work
-				DirectoryReference Ue4CodeDirectory = DirectoryReference.Combine(UnrealBuildTool.RootDirectory, ".vscode");
+				DirectoryReference Ue4CodeDirectory = DirectoryReference.Combine(UnrealBuild.RootDirectory, ".vscode");
 				WriteCppPropertiesFile(Ue4CodeDirectory, ProjectData);
 			}
 
@@ -809,7 +810,7 @@ namespace UnrealBuildTool
 					FileReference ResponseFile = null;
 					if (!DirectoryToResponseFile.TryGetValue(Directory, out ResponseFile))
 					{
-						for (DirectoryReference ParentDir = Directory; ParentDir != null && ParentDir != UnrealBuildTool.RootDirectory; ParentDir = ParentDir.ParentDirectory)
+						for (DirectoryReference ParentDir = Directory; ParentDir != null && ParentDir != UnrealBuild.RootDirectory; ParentDir = ParentDir.ParentDirectory)
 						{
 							if (DirectoryToResponseFile.TryGetValue(ParentDir, out ResponseFile))
 							{
@@ -1032,7 +1033,7 @@ namespace UnrealBuildTool
 			TargetType TargetRulesType = Target.TargetRules == null ? TargetType.Program : Target.TargetRules.Type;
 
 			// Get the output directory
-			DirectoryReference RootDirectory = UnrealBuildTool.EngineDirectory;
+			DirectoryReference RootDirectory = UnrealBuild.EngineDirectory;
 			if (TargetRulesType != TargetType.Program && (bShouldCompileMonolithic || TargetRulesObject.BuildEnvironment == TargetBuildEnvironment.Unique))
 			{
 				if(Target.UnrealProjectFilePath != null)
@@ -1477,7 +1478,7 @@ namespace UnrealBuildTool
 				// but using files.exclude with our full set of excludes breaks vscode for larger code bases so a verbose file explorer
 				// seems like less of an issue and thus we are not adding these to files.exclude.
 				// see https://github.com/microsoft/vscode/issues/109380 for discussions with vscode team
-				DirectoryReference WorkspaceRoot = bForeignProject ? Projects[0].BaseDir : UnrealBuildTool.RootDirectory;
+				DirectoryReference WorkspaceRoot = bForeignProject ? Projects[0].BaseDir : UnrealBuild.RootDirectory;
 				string WorkspaceRootPath = WorkspaceRoot.ToString().Replace('\\', '/') + "/";
 
 				if (!bForeignProject)
@@ -1537,7 +1538,7 @@ namespace UnrealBuildTool
 						WorkspaceFile.BeginObject();
 						{
 							WorkspaceFile.AddField("name", "UE5");
-							WorkspaceFile.AddField("path", MakeUnquotedPathString(UnrealBuildTool.RootDirectory, EPathType.Absolute));
+							WorkspaceFile.AddField("path", MakeUnquotedPathString(UnrealBuild.RootDirectory, EPathType.Absolute));
 						}
 						WorkspaceFile.EndObject();
 					}

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -2874,7 +2875,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string RelativeEnginePath
 		{
-			get { return UnrealBuildTool.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()); }
+			get { return UnrealBuild.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()); }
 		}
 
 		/// <summary>

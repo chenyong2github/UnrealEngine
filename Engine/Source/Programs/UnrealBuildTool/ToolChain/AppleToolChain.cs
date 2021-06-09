@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Text;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -274,7 +275,7 @@ namespace UnrealBuildTool
 			// if the installed one is too old, use a fixed up one if it can
 			if (bUseInstalledDsymutil == false)
 			{
-				FileReference PatchedDsymutilLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Restricted/NotForLicensees/Binaries/Mac/LLVM/bin/dsymutil");
+				FileReference PatchedDsymutilLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Restricted/NotForLicensees/Binaries/Mac/LLVM/bin/dsymutil");
 
 				if (File.Exists(PatchedDsymutilLocation.FullName))
 				{

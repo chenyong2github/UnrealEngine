@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -46,58 +47,38 @@ namespace UnrealBuildTool
 		static DirectoryReference? CachedEngineProgramSavedDirectory;
 
 		/// <summary>
-		/// The path to UBT
-		/// </summary>
-		// In net core the actual running entrypoint is the dll, but its easier to run the apphost executable instead to avoid having to run via the dotnet command
-#if WINDOWS
-		// For windows a executable has a .exe extension
-		public static readonly FileReference UnrealBuildToolPath = FileReference.FindCorrectCase(new FileReference(Path.ChangeExtension(Assembly.GetExecutingAssembly().GetOriginalLocation(), "exe")));
-#else
-		// For linux and mac executables have no extension
-		public static readonly FileReference UnrealBuildToolPath = FileReference.FindCorrectCase(new FileReference(Path.ChangeExtension(Assembly.GetExecutingAssembly().GetOriginalLocation(), null)));
-#endif
-		/// <summary>
-		/// The full name of the root UE directory
-		/// </summary>
-		public static readonly DirectoryReference RootDirectory = DirectoryReference.Combine(UnrealBuildToolPath.Directory, "..", "..", "..", "..");
-		/// <summary>
-		/// The full name of the Engine directory
-		/// </summary>
-		public static readonly DirectoryReference EngineDirectory = DirectoryReference.Combine(RootDirectory, "Engine");
-
-		/// <summary>
 		/// The full name of the Engine/Source directory
 		/// </summary>
-		public static readonly DirectoryReference EngineSourceDirectory = DirectoryReference.Combine(EngineDirectory, "Source");
+		public static readonly DirectoryReference EngineSourceDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Source");
 
 		/// <summary>
 		/// Full path to the Engine/Source/Runtime directory
 		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/Runtime\") instead.")]
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, \"Source/Runtime\") instead.")]
 		public static readonly DirectoryReference EngineSourceRuntimeDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Runtime");
 
 		/// <summary>
 		/// Full path to the Engine/Source/Developer directory
 		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/Developer\") instead.")]
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, \"Source/Developer\") instead.")]
 		public static readonly DirectoryReference EngineSourceDeveloperDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Developer");
 
 		/// <summary>
 		/// Full path to the Engine/Source/Editor directory
 		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/Editor\") instead.")]
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, \"Source/Editor\") instead.")]
 		public static readonly DirectoryReference EngineSourceEditorDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Editor");
 
 		/// <summary>
 		/// Full path to the Engine/Source/Programs directory
 		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/Programs\") instead.")]
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, \"Source/Programs\") instead.")]
 		public static readonly DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Programs");
 
 		/// <summary>
 		/// Full path to the Engine/Source/ThirdParty directory
 		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/ThirdParty\") instead.")]
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, \"Source/ThirdParty\") instead.")]
 		public static readonly DirectoryReference EngineSourceThirdPartyDirectory = DirectoryReference.Combine(EngineSourceDirectory, "ThirdParty");
 
 		/// <summary>
@@ -121,7 +102,7 @@ namespace UnrealBuildTool
 					}
 					if (UserDir == null)
 					{
-						CachedWritableEngineDirectory = EngineDirectory;
+						CachedWritableEngineDirectory = UnrealBuild.EngineDirectory;
 					}
 					else
 					{
@@ -143,11 +124,11 @@ namespace UnrealBuildTool
 				{
 					if (IsEngineInstalled())
 					{
-						CachedEngineProgramSavedDirectory = Utils.GetUserSettingDirectory() ?? DirectoryReference.Combine(EngineDirectory, "Programs");
+						CachedEngineProgramSavedDirectory = Utils.GetUserSettingDirectory() ?? DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Programs");
 					}
 					else
 					{
-						CachedEngineProgramSavedDirectory = DirectoryReference.Combine(EngineDirectory, "Programs");
+						CachedEngineProgramSavedDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Programs");
 					}
 				}
 				return CachedEngineProgramSavedDirectory;
@@ -198,7 +179,7 @@ namespace UnrealBuildTool
 				}
 
 				// remove any platform directories in non-engine locations if the engine doesn't have the platform 
-				if (BaseDir != UnrealBuildTool.EngineDirectory && CachedDirs.Item1.Count > 0)
+				if (BaseDir != UnrealBuild.EngineDirectory && CachedDirs.Item1.Count > 0)
 				{
 					// if the DDPI.ini file doesn't exist, we haven't synced the platform, so just skip this directory
 					CachedDirs.Item1.RemoveAll(x => DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(x.GetDirectoryName()) == null);
@@ -249,7 +230,7 @@ namespace UnrealBuildTool
 		{
 			if (!bIsEngineInstalled.HasValue)
 			{
-				bIsEngineInstalled = FileReference.Exists(FileReference.Combine(EngineDirectory, "Build", "InstalledBuild.txt"));
+				bIsEngineInstalled = FileReference.Exists(FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "InstalledBuild.txt"));
 			}
 			return bIsEngineInstalled.Value;
 		}
@@ -262,10 +243,10 @@ namespace UnrealBuildTool
 		{
 			if (!bIsProjectInstalled.HasValue)
 			{
-				FileReference InstalledProjectLocationFile = FileReference.Combine(UnrealBuildTool.RootDirectory, "Engine", "Build", "InstalledProjectBuild.txt");
+				FileReference InstalledProjectLocationFile = FileReference.Combine(UnrealBuild.RootDirectory, "Engine", "Build", "InstalledProjectBuild.txt");
 				if (FileReference.Exists(InstalledProjectLocationFile))
 				{
-					InstalledProjectFile = FileReference.Combine(UnrealBuildTool.RootDirectory, File.ReadAllText(InstalledProjectLocationFile.FullName).Trim());
+					InstalledProjectFile = FileReference.Combine(UnrealBuild.RootDirectory, File.ReadAllText(InstalledProjectLocationFile.FullName).Trim());
 					bIsProjectInstalled = true;
 				}
 				else
@@ -300,7 +281,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the file is part of the installed distribution, false otherwise</returns>
 		static public bool IsFileInstalled(FileReference File)
 		{
-			if(IsEngineInstalled() && File.IsUnderDirectory(EngineDirectory))
+			if(IsEngineInstalled() && File.IsUnderDirectory(UnrealBuild.EngineDirectory))
 			{
 				return true;
 			}
@@ -317,7 +298,7 @@ namespace UnrealBuildTool
 		/// <returns>A string containing the path to the UBT assembly.</returns>
 		static public FileReference GetUBTPath()
 		{
-			return UnrealBuildToolPath;
+			return UnrealBuild.UnrealBuildToolPath;
 		}
 
 		/// <summary>

@@ -277,8 +277,8 @@ namespace UnrealBuildTool
 
 			if(ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
 			{
-				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
-				Cache = FindOrAddCache(EngineCacheLocation, UnrealBuildTool.EngineDirectory, Cache);
+				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
+				Cache = FindOrAddCache(EngineCacheLocation, UnrealBuild.EngineDirectory, Cache);
 			}
 
 			if(ProjectFile != null)
@@ -299,7 +299,7 @@ namespace UnrealBuildTool
 		{
 			if(ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
 			{
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
+				yield return FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
 			}
 			if(ProjectFile != null)
 			{

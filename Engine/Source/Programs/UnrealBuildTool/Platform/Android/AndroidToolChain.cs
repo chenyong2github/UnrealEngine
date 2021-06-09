@@ -356,7 +356,7 @@ namespace UnrealBuildTool
 			if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForx8664", out bBuild) && bBuild
 				|| (AdditionalArches != null && (AdditionalArches.Contains("x64", StringComparer.OrdinalIgnoreCase) || AdditionalArches.Contains("-x64", StringComparer.OrdinalIgnoreCase))))
 			{
-				if (File.Exists(Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Build", "InstalledBuild.txt")))
+				if (File.Exists(Path.Combine(UnrealBuild.EngineDirectory.FullName, "Build", "InstalledBuild.txt")))
 				{
 					bUnsupportedBinaryBuildArch = true;
 					Log.TraceWarningOnce("Please install source to build for x86_64 (-x64); ignoring this architecture target.");
@@ -1433,7 +1433,7 @@ namespace UnrealBuildTool
 							FileArguments += GetCompileArguments_C(bDisableOptimizations);
 
 							// remove shadow variable warnings for externally included files
-							if (!SourceFile.Location.IsUnderDirectory(UnrealBuildTool.RootDirectory))
+							if (!SourceFile.Location.IsUnderDirectory(UnrealBuild.RootDirectory))
 							{
 								bDisableShadowWarning = true;
 							}

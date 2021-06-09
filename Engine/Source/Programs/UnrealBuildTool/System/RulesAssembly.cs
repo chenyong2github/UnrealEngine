@@ -413,7 +413,7 @@ namespace UnrealBuildTool
 				List<string> DisallowedPlatformsAndGroups = Utils.MakeListOfUnsupportedPlatforms(Target.OptedInModulePlatforms.ToList(), false);
 
 				// check if the module file is disallowed
-				if (ModuleFileName.ContainsAnyNames(DisallowedPlatformsAndGroups, UnrealBuildTool.EngineDirectory) ||
+				if (ModuleFileName.ContainsAnyNames(DisallowedPlatformsAndGroups, UnrealBuild.EngineDirectory) ||
 					(Target.ProjectFile != null && ModuleFileName.ContainsAnyNames(DisallowedPlatformsAndGroups, Target.ProjectFile.Directory)))
 				{
 					throw new BuildException("Platform module file {0} is not allowed (only platforms '{1}', and their groups, are allowed. This indicates a module reference not being checked with something like IsPlatformAvailableForTarget()).",
@@ -628,7 +628,7 @@ namespace UnrealBuildTool
 
 				// look in all plugins' paths to see if any disallowed
 				IEnumerable<PluginInfo> DisallowedPlugins = EnumeratePlugins().Where(Plugin =>
-					Plugin.File.ContainsAnyNames(DisallowedPlatformsAndGroups, UnrealBuildTool.EngineDirectory) ||
+					Plugin.File.ContainsAnyNames(DisallowedPlatformsAndGroups, UnrealBuild.EngineDirectory) ||
 					(Rules.ProjectFile != null && Plugin.File.ContainsAnyNames(DisallowedPlatformsAndGroups, Rules.ProjectFile.Directory)));
 				// log out the plugins we are disabling
 				DisallowedPlugins.ToList().ForEach(x => Log.TraceLog($"Disallowing non-opted-in platform plugin {x.File}"));
