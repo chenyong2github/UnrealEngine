@@ -5,21 +5,28 @@
 #include "Toolkits/ToolkitManager.h"
 #include "EditorModeManager.h"
 
-const FEditorModeID FPLUGIN_NAMEEdMode::EM_PLUGIN_NAMEEdModeId = TEXT("EM_PLUGIN_NAMEEdMode");
+#define LOCTEXT_NAMESPACE "PLUGIN_NAME"
 
-FPLUGIN_NAMEEdMode::FPLUGIN_NAMEEdMode()
+const FEditorModeID UPLUGIN_NAMEEdMode::EM_PLUGIN_NAMEEdModeId = TEXT("EM_PLUGIN_NAMEEdMode");
+
+UPLUGIN_NAMEEdMode::UPLUGIN_NAMEEdMode()
+	: Super()
 {
+	FModuleManager::Get().LoadModule("EditorStyle");
 
+	Info = FEditorModeInfo(
+		FName(TEXT("PLUGIN_NAME")),
+		LOCTEXT("ModeName", "PLUGIN_NAME Editor Mode"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode", "LevelEditor.MeshPaintMode.Small"),
+		true,
+		600
+	);
 }
 
-FPLUGIN_NAMEEdMode::~FPLUGIN_NAMEEdMode()
-{
 
-}
-
-void FPLUGIN_NAMEEdMode::Enter()
+void UPLUGIN_NAMEEdMode::Enter()
 {
-	FEdMode::Enter();
+	Super::Enter();
 
 	if (!Toolkit.IsValid() && UsesToolkits())
 	{
@@ -28,7 +35,7 @@ void FPLUGIN_NAMEEdMode::Enter()
 	}
 }
 
-void FPLUGIN_NAMEEdMode::Exit()
+void UPLUGIN_NAMEEdMode::Exit()
 {
 	if (Toolkit.IsValid())
 	{
@@ -37,14 +44,12 @@ void FPLUGIN_NAMEEdMode::Exit()
 	}
 
 	// Call base Exit method to ensure proper cleanup
-	FEdMode::Exit();
+	Super::Exit();
 }
 
-bool FPLUGIN_NAMEEdMode::UsesToolkits() const
+void UPLUGIN_NAMEEdMode::CreateToolkit()
 {
-	return true;
+	Toolkit = MakeShareable(new FPLUGIN_NAMEEdModeToolkit);
 }
 
-
-
-
+#undef LOCTEXT_NAMESPACE

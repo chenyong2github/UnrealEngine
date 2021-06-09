@@ -2,23 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdMode.h"
+#include "Tools/UEdMode.h"
+#include "PLUGIN_NAMEEdMode.generated.h"
 
-class FPLUGIN_NAMEEdMode : public FEdMode
+
+UCLASS()
+class UPLUGIN_NAMEEdMode : public UEdMode
 {
 public:
+	GENERATED_BODY()
+
 	const static FEditorModeID EM_PLUGIN_NAMEEdModeId;
 public:
-	FPLUGIN_NAMEEdMode();
-	virtual ~FPLUGIN_NAMEEdMode();
+	UPLUGIN_NAMEEdMode();
 
-	// FEdMode interface
+	// UEdMode interface - see interface for more overrides
 	virtual void Enter() override;
 	virtual void Exit() override;
+	virtual void CreateToolkit() override;
 	//virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 	//virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 	//virtual void ActorSelectionChangeNotify() override;
-	bool UsesToolkits() const override;
-	// End of FEdMode interface
+	// End of UEdMode interface
 };
