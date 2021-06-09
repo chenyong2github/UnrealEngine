@@ -16,6 +16,10 @@
 #include "ISettingsEditorModule.h"
 #include "ISettingsModule.h"
 #include "Engine/DeveloperSettings.h"
+#include "Engine/PlatformSettings.h"
+#include "PropertyEditorModule.h"
+#include "PropertyEditorDelegates.h"
+#include "Customizations/PlatformSettingsCustomization.h"
 
 #define LOCTEXT_NAMESPACE "SSettingsEditor"
 
@@ -79,8 +83,6 @@ public:
 		}
 	}
 
-
-
 private:
 	void OnRestartClicked()
 	{
@@ -133,6 +135,12 @@ public:
 
 	virtual void StartupModule() override
 	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomPropertyTypeLayout(
+			StaticStruct<FPerPlatformSettings>()->GetFName(),
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPerPlatformSettingsCustomization::MakeInstance)
+		);
+
 		FModuleManager::Get().OnModulesChanged().AddRaw(this, &FSettingsEditorModule::ModulesChangesCallback);
 	}
 
@@ -238,35 +246,40 @@ private:
 						continue;
 					}
 
-					FRegisteredSettings Registered;
-					Registered.ContainerName = Settings->GetContainerName();
-					Registered.CategoryName = Settings->GetCategoryName();
-					Registered.SectionName = Settings->GetSectionName();
-
-					TSharedPtr<SWidget> CustomWidget = Settings->GetCustomSettingsWidget();
-					if ( CustomWidget.IsValid() )
-					{
-						// Add Settings
-						SettingsModule.RegisterSettings(Registered.ContainerName, Registered.CategoryName, Registered.SectionName,
-							Settings->GetSectionText(),
-							Settings->GetSectionDescription(),
-							CustomWidget.ToSharedRef()
-							);
-					}
-					else
-					{
-						// Add Settings
-						SettingsModule.RegisterSettings(Registered.ContainerName, Registered.CategoryName, Registered.SectionName,
-							Settings->GetSectionText(),
-							Settings->GetSectionDescription(),
-							Settings
-							);
-					}
-
-					AutoDiscoveredSettings.Add(Registered);
+					RegisterDeveloperSettings(SettingsModule, Settings);
 				}
 			}
 		}
+	}
+
+	void RegisterDeveloperSettings(ISettingsModule& SettingsModule, UDeveloperSettings* Settings)
+	{
+		FRegisteredSettings Registered;
+		Registered.ContainerName = Settings->GetContainerName();
+		Registered.CategoryName = Settings->GetCategoryName();
+		Registered.SectionName = Settings->GetSectionName();
+
+		TSharedPtr<SWidget> CustomWidget = Settings->GetCustomSettingsWidget();
+		if (CustomWidget.IsValid())
+		{
+			// Add Settings
+			SettingsModule.RegisterSettings(Registered.ContainerName, Registered.CategoryName, Registered.SectionName,
+				Settings->GetSectionText(),
+				Settings->GetSectionDescription(),
+				CustomWidget.ToSharedRef()
+			);
+		}
+		else
+		{
+			// Add Settings
+			SettingsModule.RegisterSettings(Registered.ContainerName, Registered.CategoryName, Registered.SectionName,
+				Settings->GetSectionText(),
+				Settings->GetSectionDescription(),
+				Settings
+			);
+		}
+
+		AutoDiscoveredSettings.Add(Registered);
 	}
 
 	void UnregisterAutoDiscoveredSettings(ISettingsModule& SettingsModule)
