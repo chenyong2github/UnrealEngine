@@ -1207,7 +1207,7 @@ namespace UnrealBuildTool
 			if (!FileReference.Exists(LinkerExceptionsCPPFilename))
 			{
 				// Create a dummy file in case it doesn't exist yet so that the module does not complain it's not there
-				Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, new List<string>());
+				Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, new List<string>(), StringComparison.Ordinal);
 			}
 
 			List<string> Result = new List<string>();
@@ -1246,7 +1246,7 @@ namespace UnrealBuildTool
 			// If we determined that we should write the file, write it now.
 			if (bShouldWriteFile)
 			{
-				Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, Result);
+				Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, Result, StringComparison.Ordinal);
 			}
 
 			SourceFiles.Add(FileItem.GetItemByFileReference(LinkerExceptionsCPPFilename));
@@ -1541,7 +1541,7 @@ namespace UnrealBuildTool
 
 						// Create the response file
 						FileReference ResponseFileName = CompileAction.ProducedItems[0].Location + ".rsp";
-						FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, new List<string> { AllArguments });
+						FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, new List<string> { AllArguments }, StringComparison.InvariantCultureIgnoreCase);
 						string ResponseArgument = string.Format("@\"{0}\"", ResponseFileName);
 
 						CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
@@ -2176,7 +2176,7 @@ namespace UnrealBuildTool
 					FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 					InputFileNames.Add(LinkResponseArguments.Replace("\\", "/"));
 
-					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, InputFileNames);
+					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, InputFileNames, StringComparison.InvariantCultureIgnoreCase);
 
 					LinkAction.CommandArguments += string.Format(" @\"{0}\"", ResponseFileName);
 					LinkAction.PrerequisiteItems.Add(ResponseFileItem);

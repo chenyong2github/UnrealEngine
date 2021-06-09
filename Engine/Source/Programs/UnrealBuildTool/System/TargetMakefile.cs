@@ -688,10 +688,10 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public void CreateIntermediateTextFile(FileItem FileItem, string Contents)
+		public void CreateIntermediateTextFile(FileItem FileItem, string Contents, StringComparison ComparisonForContentChanges)
 		{
 			// Write the file
-			Utils.WriteFileIfChanged(FileItem.Location, Contents, StringComparison.InvariantCultureIgnoreCase);
+			Utils.WriteFileIfChanged(FileItem.Location, Contents, ComparisonForContentChanges);
 
 			// Reset the file info, in case it already knows about the old file
 			InternalDependencies.Add(FileItem);
