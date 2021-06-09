@@ -307,7 +307,7 @@ void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int3
 	OptionValues.Reserve(NumOptionsPerVariable);
 
 	TArray<int32> SelectorValues = GetOptionValues();
-
+	
 	if(SelectorValues.Num() != NumOptionsPerVariable)
 	{
 		Translator->Error(FText::Format(LOCTEXT("SelectNodePinCountMismatch", "Select node should have {0} cases. {1} found."),
@@ -321,6 +321,16 @@ void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int3
 		OptionValues.Add(SelectorValues[Index]);
 	}
 
+	for (int32 OutputIndex = 0; OutputIndex < OutputVars.Num(); OutputIndex++)
+	{
+		if(OutputVars[OutputIndex].GetType() != UEdGraphSchema_Niagara::PinToTypeDefinition(GetOutputPin(OutputVars[OutputIndex])))
+		{
+			Translator->Error(FText::Format(LOCTEXT("PinTypeOutputVarTypeMismatch", "Internal output variable type {0} does not match pin type {1}. Please refresh node."),
+				FText::FromString(OutputVars[OutputIndex].GetType().GetName()), FText::FromString(UEdGraphSchema_Niagara::PinToTypeDefinition(GetOutputPin(OutputVars[OutputIndex])).GetName())),
+				this, GetOutputPin(OutputVars[OutputIndex]));
+		}
+	}
+	
 	for (int32 SelectorValueIndex = 0; SelectorValueIndex < NumOptionsPerVariable; SelectorValueIndex++)
 	{
 		for (int32 OutputIndex = 0; OutputIndex < OutputVars.Num(); OutputIndex++)
