@@ -4,20 +4,41 @@
 
 using namespace UE::Geometry;
 
-void UMeshOpPreviewWithBackgroundCompute::Setup(UWorld* InWorld, IDynamicMeshOperatorFactory* OpGenerator)
+void UMeshOpPreviewWithBackgroundCompute::Setup(UWorld* InWorld)
 {
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
 	PreviewMesh->CreateInWorld(InWorld, FTransform::Identity);
+	PreviewWorld = InWorld;
+	bResultValid = false;
+	bMeshInitialized = false;
+}
 
+void UMeshOpPreviewWithBackgroundCompute::Setup(UWorld* InWorld, IDynamicMeshOperatorFactory* OpGenerator)
+{
+	Setup(InWorld);
+	BackgroundCompute = MakeUnique<FBackgroundDynamicMeshComputeSource>(OpGenerator);
+}
+
+void UMeshOpPreviewWithBackgroundCompute::ChangeOpFactory(IDynamicMeshOperatorFactory* OpGenerator)
+{
+	CancelCompute();
 	BackgroundCompute = MakeUnique<FBackgroundDynamicMeshComputeSource>(OpGenerator);
 	bResultValid = false;
 	bMeshInitialized = false;
 }
 
+void UMeshOpPreviewWithBackgroundCompute::ClearOpFactory()
+{
+	CancelCompute();
+	BackgroundCompute = nullptr;
+	bResultValid = false;
+	bMeshInitialized = false;
+}
+
+
 FDynamicMeshOpResult UMeshOpPreviewWithBackgroundCompute::Shutdown()
 {
-	BackgroundCompute->CancelActiveCompute();
-
+	CancelCompute();
 
 	FDynamicMeshOpResult Result{};
 	Result.Mesh = PreviewMesh->ExtractPreviewMesh();
@@ -31,9 +52,17 @@ FDynamicMeshOpResult UMeshOpPreviewWithBackgroundCompute::Shutdown()
 }
 
 
+void UMeshOpPreviewWithBackgroundCompute::CancelCompute()
+{
+	if (BackgroundCompute)
+	{
+		BackgroundCompute->CancelActiveCompute();
+	}
+}
+
 void UMeshOpPreviewWithBackgroundCompute::Cancel()
 {
-	BackgroundCompute->CancelActiveCompute();
+	CancelCompute();
 
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->Disconnect();
@@ -46,9 +75,8 @@ void UMeshOpPreviewWithBackgroundCompute::Tick(float DeltaTime)
 	if (BackgroundCompute)
 	{
 		BackgroundCompute->Tick(DeltaTime);
+		UpdateResults();
 	}
-
-	UpdateResults();
 
 	if (!IsUsingWorkingMaterial())
 	{
@@ -80,7 +108,9 @@ void UMeshOpPreviewWithBackgroundCompute::Tick(float DeltaTime)
 
 void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 {
-	EBackgroundComputeTaskStatus Status = BackgroundCompute->CheckStatus();
+	EBackgroundComputeTaskStatus Status = BackgroundCompute ? BackgroundCompute->CheckStatus()
+		: EBackgroundComputeTaskStatus::NotComputing;
+
 	if (Status == EBackgroundComputeTaskStatus::NewResultAvailable)
 	{
 		TUniquePtr<FDynamicMeshOperator> MeshOp = BackgroundCompute->ExtractResult();
@@ -106,7 +136,10 @@ void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 
 void UMeshOpPreviewWithBackgroundCompute::InvalidateResult()
 {
-	BackgroundCompute->NotifyActiveComputeInvalidated();
+	if (BackgroundCompute)
+	{
+		BackgroundCompute->NotifyActiveComputeInvalidated();
+	}
 	bResultValid = false;
 }
 

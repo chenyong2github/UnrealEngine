@@ -61,13 +61,30 @@ public:
 	 */
 	void Setup(UWorld* InWorld, UE::Geometry::IDynamicMeshOperatorFactory* OpGenerator);
 
+	void Setup(UWorld* InWorld);
+
 	/**
 	 * Terminate any active computation and return the current Preview Mesh/Transform
 	 */
 	FDynamicMeshOpResult Shutdown();
 
 	/**
-	* Terminate any active computation without returning anything
+	 * Stops any running computes and swaps in a different op generator. Does not 
+	 * update the preview mesh or start a new compute.
+	 */
+	void ChangeOpFactory(UE::Geometry::IDynamicMeshOperatorFactory* OpGenerator);
+
+
+	void ClearOpFactory();
+
+	/**
+	 * Cancel the active computation without returning anything. Doesn't destroy the mesh.
+	 */
+	void CancelCompute();
+
+	/**
+	* Terminate any active computation without returning anything. Destroys the preview
+	* mesh.
 	*/
 	void Cancel();
 
@@ -112,6 +129,7 @@ public:
 	 */
 	bool GetCurrentResultCopy(FDynamicMesh3& MeshOut, bool bOnlyIfValid = true);
 
+	virtual UWorld* GetWorld() const override { return PreviewWorld; }
 
 	//
 	// Optional configuration
@@ -188,6 +206,7 @@ public:
 	UPROPERTY()
 	UMaterialInterface* SecondaryMaterial = nullptr;
 
+	UWorld* PreviewWorld;
 protected:
 	// state flag, if true then we have valid result
 	bool bResultValid = false;
