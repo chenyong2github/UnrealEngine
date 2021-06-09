@@ -8,6 +8,7 @@
 #include "ICommonInputModule.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "UObject/ObjectSaveContext.h"
+#include "CommonInputBaseTypes.h"
 
 const FName FCommonInputDefaults::PlatformPC(TEXT("PC"));
 const FName FCommonInputDefaults::GamepadGeneric(TEXT("Generic"));
@@ -130,7 +131,22 @@ const TArray<FName>& UCommonInputBaseControllerData::GetRegisteredGamepads()
 			const FName PlatformName = Platform.Key;
 			const FDataDrivenPlatformInfo& PlatformInfo = Platform.Value;
 
-			if (!PlatformInfo.bDefaultInputStandardKeyboard && PlatformInfo.bIsInteractablePlatform && PlatformInfo.bHasDedicatedGamepad)
+			// Don't add fake platforms that are used to group real platforms to make configuration for groups of platforms
+			// simpler.
+			if (PlatformInfo.bIsFakePlatform)
+			{
+				continue;
+			}
+
+			// If the platform uses the standard keyboard for default input, ignore it, all of those platforms will use "PC"
+			// as their target, so Windows, Linux, but not Mac.
+			if (PlatformInfo.bDefaultInputStandardKeyboard)
+			{
+				continue;
+			}
+
+			// Only add platforms with dedicated gamepads.
+			if (PlatformInfo.bHasDedicatedGamepad)
 			{
 				RegisteredGamepads.Add(PlatformName);
 			}
@@ -140,6 +156,191 @@ const TArray<FName>& UCommonInputBaseControllerData::GetRegisteredGamepads()
 	static TArray<FName> RegisteredGamepads = GenerateRegisteredGamepads();
 	return RegisteredGamepads;
 }
+
+#if WITH_EDITOR
+void UCommonInputBaseControllerData::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+	{
+		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UCommonInputBaseControllerData, SetButtonImageHeightTo))
+		{
+			if (SetButtonImageHeightTo != 0)
+			{
+				for (FCommonInputKeyBrushConfiguration& BrushConfig : InputBrushDataMap)
+				{
+					FVector2D NewBrushSize = BrushConfig.KeyBrush.GetImageSize();
+					NewBrushSize.X = FMath::RoundToInt(NewBrushSize.X * (SetButtonImageHeightTo / NewBrushSize.X));
+					NewBrushSize.Y = SetButtonImageHeightTo;
+
+					BrushConfig.KeyBrush.SetImageSize(NewBrushSize);
+				}
+
+				for (FCommonInputKeySetBrushConfiguration& BrushConfig : InputBrushKeySets)
+				{
+					FVector2D NewBrushSize = BrushConfig.KeyBrush.GetImageSize();
+					NewBrushSize.X = FMath::RoundToInt(NewBrushSize.X * (SetButtonImageHeightTo / NewBrushSize.X));
+					NewBrushSize.Y = SetButtonImageHeightTo;
+
+					BrushConfig.KeyBrush.SetImageSize(NewBrushSize);
+				}
+			}
+		}
+	}
+}
+#endif
+
+
+
+
+UCommonInputPlatformSettings::UCommonInputPlatformSettings()
+{
+	DefaultInputType = ECommonInputType::Gamepad;
+	bSupportsMouseAndKeyboard = false;
+	bSupportsGamepad = true;
+	bCanChangeGamepadType = true;
+	bSupportsTouch = false;
+	DefaultGamepadName = FCommonInputDefaults::GamepadGeneric;
+}
+
+void UCommonInputPlatformSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	ControllerDataClasses.Reset();
+	InitializeControllerData();
+}
+
+void UCommonInputPlatformSettings::InitializeControllerData() const
+{
+	if (ControllerData.Num() != ControllerDataClasses.Num())
+	{
+		for (TSoftClassPtr<UCommonInputBaseControllerData> ControllerDataPtr : ControllerData)
+		{
+			if (TSubclassOf<UCommonInputBaseControllerData> ControllerDataClass = ControllerDataPtr.LoadSynchronous())
+			{
+				ControllerDataClasses.Add(ControllerDataClass);
+			}
+		}
+	}
+}
+
+void UCommonInputPlatformSettings::InitializePlatformDefaults()
+{
+	const FName PlatformName = *GetPlatformIniName();
+	const FDataDrivenPlatformInfo& PlatformInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
+	if (PlatformInfo.DefaultInputType == "Gamepad")
+	{
+		DefaultInputType = ECommonInputType::Gamepad;
+	}
+	else if (PlatformInfo.DefaultInputType == "Touch")
+	{
+		DefaultInputType = ECommonInputType::Touch;
+	}
+	else if (PlatformInfo.DefaultInputType == "MouseAndKeyboard")
+	{
+		DefaultInputType = ECommonInputType::MouseAndKeyboard;
+	}
+
+	bSupportsMouseAndKeyboard = PlatformInfo.bSupportsMouseAndKeyboard;
+	bSupportsGamepad = PlatformInfo.bSupportsGamepad;
+	bCanChangeGamepadType = PlatformInfo.bCanChangeGamepadType;
+	bSupportsTouch = PlatformInfo.bSupportsTouch;
+
+	DefaultGamepadName = PlatformName;
+}
+
+bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const
+{
+	InitializeControllerData();
+
+	for (const TSubclassOf<UCommonInputBaseControllerData>& ControllerDataPtr : ControllerDataClasses)
+	{
+		const UCommonInputBaseControllerData* DefaultControllerData = ControllerDataPtr.GetDefaultObject();
+		if (DefaultControllerData && DefaultControllerData->InputType == InputType)
+		{
+			if (DefaultControllerData->InputType != ECommonInputType::Gamepad || DefaultControllerData->GamepadName == GamepadName)
+			{
+				return DefaultControllerData->TryGetInputBrush(OutBrush, Key);
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType, const FName& GamepadName) const
+{
+	InitializeControllerData();
+
+	for (const TSubclassOf<UCommonInputBaseControllerData>& ControllerDataPtr : ControllerDataClasses)
+	{
+		const UCommonInputBaseControllerData* DefaultControllerData = ControllerDataPtr.GetDefaultObject();
+		if (DefaultControllerData && DefaultControllerData->InputType == InputType)
+		{
+			if (DefaultControllerData->InputType != ECommonInputType::Gamepad || DefaultControllerData->GamepadName == GamepadName)
+			{
+				return DefaultControllerData->TryGetInputBrush(OutBrush, Keys);
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UCommonInputPlatformSettings::SupportsInputType(ECommonInputType InputType) const
+{
+	switch (InputType)
+	{
+	case ECommonInputType::MouseAndKeyboard:
+	{
+		return bSupportsMouseAndKeyboard;
+	}
+	break;
+	case ECommonInputType::Gamepad:
+	{
+		return bSupportsGamepad;
+	}
+	break;
+	case ECommonInputType::Touch:
+	{
+		return bSupportsTouch;
+	}
+	break;
+	}
+	return false;
+}
+
+#if WITH_EDITOR
+void UCommonInputPlatformSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	ControllerDataClasses.Reset();
+}
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 bool FCommonInputPlatformBaseData::TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const
 {
@@ -193,11 +394,23 @@ const TArray<FName>& FCommonInputPlatformBaseData::GetRegisteredPlatforms()
 			const FName PlatformName = Platform.Key;
 			const FDataDrivenPlatformInfo& PlatformInfo = Platform.Value;
 
-			if (!PlatformInfo.bDefaultInputStandardKeyboard && PlatformInfo.bIsInteractablePlatform)
+			// Don't add fake platforms that are used to group real platforms to make configuration for groups of platforms
+			// simpler.
+			if (PlatformInfo.bIsFakePlatform)
 			{
-				RegisteredPlatforms.Add(PlatformName);
+				continue;
 			}
+
+			// If the platform uses the standard keyboard for default input, ignore it, all of those platforms will use "PC"
+			// as their target, so Windows, Linux, but not Mac.
+			if (PlatformInfo.bDefaultInputStandardKeyboard)
+			{
+				continue;
+			}
+
+			RegisteredPlatforms.Add(PlatformName);
 		}
+
 		return RegisteredPlatforms;
 	};
 	static TArray<FName> RegisteredPlatforms = GenerateRegisteredPlatforms();
@@ -220,10 +433,6 @@ UCommonInputSettings* FCommonInputBase::GetInputSettings()
 
 void FCommonInputBase::GetCurrentPlatformDefaults(ECommonInputType& OutDefaultInputType, FName& OutDefaultGamepadName)
 {
-	return ICommonInputModule::GetSettings().GetCurrentPlatformDefaults(OutDefaultInputType, OutDefaultGamepadName);
-}
-
-FCommonInputPlatformBaseData FCommonInputBase::GetCurrentBasePlatformData()
-{
-	return ICommonInputModule::GetSettings().GetCurrentPlatform();
+	OutDefaultInputType = UCommonInputPlatformSettings::Get()->GetDefaultInputType();
+	OutDefaultGamepadName = UCommonInputPlatformSettings::Get()->GetDefaultGamepadName();
 }

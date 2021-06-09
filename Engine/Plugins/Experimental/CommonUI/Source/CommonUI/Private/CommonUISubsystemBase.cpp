@@ -51,7 +51,7 @@ FSlateBrush UCommonUISubsystemBase::GetInputActionButtonIcon(const FDataTableRow
 			}
 
 			FSlateBrush SlateBrush;
-			if (FCommonInputBase::GetCurrentBasePlatformData().TryGetInputBrush(SlateBrush, InputTypeInfo.GetKey(), InputType, GamepadName))
+			if (UCommonInputPlatformSettings::Get()->TryGetInputBrush(SlateBrush, InputTypeInfo.GetKey(), InputType, GamepadName))
 			{
 				return SlateBrush;
 			}

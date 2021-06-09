@@ -13,10 +13,11 @@
 #include "CommonInputBaseTypes.h"
 
 #include "Engine/DataTable.h"
+#include "Engine/PlatformSettings.h"
 #include "CommonInputSettings.generated.h"
 
 UCLASS(config = Game, defaultconfig)
-class COMMONINPUT_API UCommonInputSettings : public UObject
+class COMMONINPUT_API UCommonInputSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -36,9 +37,6 @@ public:
 	FDataTableRowHandle GetDefaultClickAction() const;
 	FDataTableRowHandle GetDefaultBackAction() const;
 
-	void GetCurrentPlatformDefaults(ECommonInputType& OutDefaultInputType, FName& OutDefaultGamepadName) const;
-	FCommonInputPlatformBaseData GetCurrentPlatform() const;
-
 	bool GetEnableInputMethodThrashingProtection() const { return bEnableInputMethodThrashingProtection; }
 
 	int32 GetInputMethodThrashingLimit() const { return InputMethodThrashingLimit; }
@@ -50,12 +48,17 @@ public:
 	bool GetAllowOutOfFocusDeviceInput() const { return bAllowOutOfFocusDeviceInput; }
 
 private:
-	/** Create a derived asset from UCommonUIInputData to store Input data for your game.*/
-	UPROPERTY(config, EditAnywhere, Category = "Input")
-	TSoftClassPtr<UCommonUIInputData> InputData;
+	virtual void PostInitProperties() override;
 
-	UPROPERTY(config, EditAnywhere, EditFixedSize, Category = "Input", Meta = (GetOptions = GetRegisteredPlatforms))
-	TMap<FName, FCommonInputPlatformBaseData> CommonInputPlatformData;
+	/** Create a derived asset from UCommonUIInputData to store Input data for your game.*/
+	UPROPERTY(config, EditAnywhere, Category = "Input", Meta=(AllowAbstract=false))
+	TSoftClassPtr<UCommonUIInputData> InputData;
+	
+	UPROPERTY(EditAnywhere, Category = "Input")
+	FPerPlatformSettings PlatformInput;
+
+	UPROPERTY(config)
+	TMap<FName, FCommonInputPlatformBaseData> CommonInputPlatformData_DEPRECATED;
 
 	UPROPERTY(config, EditAnywhere, Category = "Thrashing Settings")
 	bool bEnableInputMethodThrashingProtection = true;
@@ -72,9 +75,6 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	bool bAllowOutOfFocusDeviceInput = false;
 
-	UFUNCTION()
-	static const TArray<FName>& GetRegisteredPlatforms();
-
 private:
 	void LoadInputData();
 
@@ -82,7 +82,4 @@ private:
 
 	UPROPERTY(Transient)
 	TSubclassOf<UCommonUIInputData> InputDataClass;
-
-	UPROPERTY(Transient)
-	FCommonInputPlatformBaseData CurrentPlatform;
 };

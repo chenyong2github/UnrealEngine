@@ -284,8 +284,8 @@ void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	FCommonInputBase::GetInputSettings()->LoadData();
-	GamepadInputType = FCommonInputBase::GetCurrentBasePlatformData().GetDefaultGamepadName();
-	CurrentInputType = LastInputType = FCommonInputBase::GetCurrentBasePlatformData().GetDefaultInputType();
+	GamepadInputType = UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>()->GetDefaultGamepadName();
+	CurrentInputType = UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>()->GetDefaultInputType();
 
 	CommonInputPreprocessor = MakeShared<FCommonInputPreprocessor>(*this);
 	FSlateApplication::Get().RegisterInputPreProcessor(CommonInputPreprocessor, 0);
@@ -375,7 +375,7 @@ ECommonInputType UCommonInputSubsystem::GetCurrentInputType() const
 
 ECommonInputType UCommonInputSubsystem::GetDefaultInputType() const
 {
-	return FCommonInputBase::GetCurrentBasePlatformData().GetDefaultInputType();
+	return UCommonInputPlatformSettings::Get()->GetDefaultInputType();
 }
 
 void UCommonInputSubsystem::BroadcastInputMethodChanged()
@@ -498,7 +498,7 @@ const FName UCommonInputSubsystem::GetCurrentGamepadName() const
  
 void UCommonInputSubsystem::SetGamepadInputType(const FName& InGamepadInputType)
 {
-	if (!FCommonInputBase::GetCurrentBasePlatformData().CanChangeGamepadType())
+	if (!UCommonInputPlatformSettings::Get()->CanChangeGamepadType())
 	{
 		ensure(false);	// should not be called on the console platforms
 		return;
@@ -674,7 +674,7 @@ FVector2D UCommonInputSubsystem::ClampPositionToViewport(const FVector2D& InPosi
 
 bool UCommonInputSubsystem::PlatformSupportsInputType(ECommonInputType InInputType) const
 {
-	bool bPlatformSupportsInput = FCommonInputBase::GetCurrentBasePlatformData().SupportsInputType(InInputType);
+	bool bPlatformSupportsInput = UCommonInputPlatformSettings::Get()->SupportsInputType(InInputType);
 	switch (InInputType)
 	{
 	case ECommonInputType::MouseAndKeyboard:

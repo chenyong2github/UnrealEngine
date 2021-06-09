@@ -138,7 +138,7 @@ FSlateBrush FCommonInputActionDataBase::GetCurrentInputActionIcon(const UCommonI
 	//}
 
 	FSlateBrush SlateBrush;
-	if (FCommonInputBase::GetCurrentBasePlatformData().TryGetInputBrush(SlateBrush, CurrentInputTypeInfo.GetKey(), CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
+	if (UCommonInputPlatformSettings::Get()->TryGetInputBrush(SlateBrush, CurrentInputTypeInfo.GetKey(), CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
 	{
 		return SlateBrush;
 	}
@@ -225,7 +225,7 @@ FSlateBrush CommonUI::GetIconForInputActions(const UCommonInputSubsystem* Common
 	}
 
 	FSlateBrush SlateBrush;
-	if (FCommonInputBase::GetCurrentBasePlatformData().TryGetInputBrush(SlateBrush, Keys, CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
+	if (UCommonInputPlatformSettings::Get()->TryGetInputBrush(SlateBrush, Keys, CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
 	{
 		return SlateBrush;
 	}

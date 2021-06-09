@@ -128,9 +128,6 @@ struct FDataDrivenPlatformInfo
 	bool Freezing_bAlignBases = false;
 	bool Freezing_bWithRayTracing = false;
 
-	// True if users will actually interact with this plaform, IE: not a GDK
-	bool bIsInteractablePlatform = false;
-
 	// True if this platform has a non-generic gamepad specifically associated with it
 	bool bHasDedicatedGamepad = false;
 

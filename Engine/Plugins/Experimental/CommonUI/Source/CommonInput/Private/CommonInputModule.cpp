@@ -50,14 +50,14 @@ void FCommonInputModule::CreateInputSettings()
 	// Register settings
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 
-	if (SettingsModule != nullptr)
-	{
-		ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "CommonInput",
-			NSLOCTEXT("CommonInputPlugin", "CommonInputSettingsName", "Common Input"),
-			NSLOCTEXT("CommonInputPlugin", "CommonInputSettingsDescription", "Configure Common Input defaults."),
-			CommonInputSettings
-		);
-	}
+	//if (SettingsModule != nullptr)
+	//{
+	//	ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "CommonInput",
+	//		NSLOCTEXT("CommonInputPlugin", "CommonInputSettingsName", "Common Input"),
+	//		NSLOCTEXT("CommonInputPlugin", "CommonInputSettingsDescription", "Configure Common Input defaults."),
+	//		CommonInputSettings
+	//	);
+	//}
 
 #endif //WITH_EDITOR
 }

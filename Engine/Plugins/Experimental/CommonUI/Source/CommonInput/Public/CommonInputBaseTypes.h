@@ -13,6 +13,7 @@
 #include "Styling/SlateBrush.h"
 #include "Engine/DataTable.h"
 #include "UObject/SoftObjectPtr.h"
+#include "Engine/PlatformSettings.h"
 #include "CommonInputBaseTypes.generated.h"
 
 
@@ -103,6 +104,12 @@ public:
 
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
+private:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, Category = "Editor")
+	int32 SetButtonImageHeightTo = 0;
+#endif
+
 public:
 	UPROPERTY(EditDefaultsOnly, Category = "Properties")
 	ECommonInputType InputType;
@@ -124,8 +131,90 @@ public:
 
 	UFUNCTION()
 	static const TArray<FName>& GetRegisteredGamepads();
+
+private:
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };
 
+UCLASS(config = Game, defaultconfig)
+class COMMONINPUT_API UCommonInputPlatformSettings : public UPlatformSettings
+{
+	GENERATED_BODY()
+
+	friend class UCommonInputSettings;
+
+public:
+	UCommonInputPlatformSettings();
+
+	virtual void PostInitProperties() override;
+
+	static UCommonInputPlatformSettings* Get()
+	{
+		return UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>();
+	}
+
+	bool TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const;
+	bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType,  const FName& GamepadName) const;
+
+	ECommonInputType GetDefaultInputType() const
+	{
+		return DefaultInputType;
+	}
+
+	bool SupportsInputType(ECommonInputType InputType) const;
+
+	const FName GetDefaultGamepadName() const
+	{
+		return DefaultGamepadName;
+	}
+
+	bool CanChangeGamepadType() const 
+	{
+		return bCanChangeGamepadType;
+	}
+
+	TArray<TSoftClassPtr<UCommonInputBaseControllerData>> GetControllerData()
+	{
+		return ControllerData;
+	}
+
+
+#if WITH_EDITOR
+	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+#endif
+
+protected:
+	void InitializeControllerData() const;
+	virtual void InitializePlatformDefaults();
+
+	UPROPERTY(config, EditAnywhere, Category = "Default")
+	ECommonInputType DefaultInputType;
+
+	UPROPERTY(config, EditAnywhere, Category = "Default")
+	bool bSupportsMouseAndKeyboard;
+
+	UPROPERTY(config, EditAnywhere, Category = "Default")
+	bool bSupportsTouch;
+
+	UPROPERTY(config, EditAnywhere, Category = "Default")
+	bool bSupportsGamepad;
+
+	UPROPERTY(config, EditAnywhere, Category = "Default", Meta = (EditCondition = "bSupportsGamepad"))
+	FName DefaultGamepadName;
+
+	UPROPERTY(config, EditAnywhere, Category = "Default", Meta = (EditCondition = "bSupportsGamepad"))
+	bool bCanChangeGamepadType;
+
+	UPROPERTY(config, EditAnywhere, Category = "Default", Meta = (TitleProperty = "Key"))
+	TArray<TSoftClassPtr<UCommonInputBaseControllerData>> ControllerData;
+
+	UPROPERTY(Transient)
+	mutable TArray<TSubclassOf<UCommonInputBaseControllerData>> ControllerDataClasses;
+};
+
+/* DEPRECATED Legacy! */
 USTRUCT()
 struct COMMONINPUT_API FCommonInputPlatformBaseData
 {
@@ -136,7 +225,6 @@ struct COMMONINPUT_API FCommonInputPlatformBaseData
 public:
 	FCommonInputPlatformBaseData()
 	{
-		bSupported = false;
 		DefaultInputType = ECommonInputType::Gamepad;
 		bSupportsMouseAndKeyboard = false;
 		bSupportsGamepad = true;
@@ -197,15 +285,12 @@ public:
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Properties")
-	bool bSupported;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (EditCondition = "bSupported"))
 	ECommonInputType DefaultInputType;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (EditCondition = "bSupported"))
+	UPROPERTY(EditDefaultsOnly, Category = "Properties")
 	bool bSupportsMouseAndKeyboard;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", Meta = (EditCondition = "bSupported"))
+	UPROPERTY(EditDefaultsOnly, Category = "Gamepad")
 	bool bSupportsGamepad;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", Meta = (EditCondition = "bSupportsGamepad"))
@@ -214,10 +299,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", Meta = (EditCondition = "bSupportsGamepad"))
 	bool bCanChangeGamepadType;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (EditCondition = "bSupported"))
+	UPROPERTY(EditDefaultsOnly, Category = "Properties")
 	bool bSupportsTouch;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (TitleProperty = "Key", EditCondition = "bSupported"))
+	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (TitleProperty = "Key"))
 	TArray<TSoftClassPtr<UCommonInputBaseControllerData>> ControllerData;
 
 	UPROPERTY(Transient)
@@ -231,7 +316,5 @@ public:
 
 	COMMONINPUT_API static UCommonInputSettings* GetInputSettings();
 
-	COMMONINPUT_API static void GetCurrentPlatformDefaults(ECommonInputType& OutDefaultInputType, FName& OutDefaultGamepadName);
-
-	COMMONINPUT_API static FCommonInputPlatformBaseData GetCurrentBasePlatformData();
+	COMMONINPUT_API void GetCurrentPlatformDefaults(ECommonInputType& OutDefaultInputType, FName& OutDefaultGamepadName);
 };
