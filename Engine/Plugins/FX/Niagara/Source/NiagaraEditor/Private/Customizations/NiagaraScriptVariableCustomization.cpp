@@ -598,7 +598,7 @@ int32 FNiagaraScriptVariableDetails::GetLibrarySynchronizedDefaultModeInitialVal
 {
 	if (Variable->GetIsOverridingParameterDefinitionsDefaultValue() == false)
 	{
-		return static_cast<int32>(ENiagaraLibrarySynchronizedDefaultMode::Library);
+		return static_cast<int32>(ENiagaraLibrarySynchronizedDefaultMode::Definition);
 	}
 
 	switch (Variable->DefaultMode) {
@@ -668,7 +668,7 @@ void FNiagaraScriptVariableDetails::OnLibrarySynchronizedDefaultModeChanged(int3
 
 		const ENiagaraLibrarySynchronizedDefaultMode LibraryDefaultMode = ENiagaraLibrarySynchronizedDefaultMode(InValue);
 		switch (LibraryDefaultMode) {
-		case ENiagaraLibrarySynchronizedDefaultMode::Library:
+		case ENiagaraLibrarySynchronizedDefaultMode::Definition:
 			Variable->SetIsOverridingParameterDefinitionsDefaultValue(false);
 			// Special case if we're switching back to synchronizing with the parameter definitions, synchronize the library default value immediately.
 			FNiagaraStackGraphUtilities::SynchronizeVariableToLibraryAndApplyToGraph(Variable.Get());

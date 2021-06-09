@@ -14,19 +14,19 @@ class IDetailCategoryBuilder;
 class UEdGraphPin;
 
 
-/** Intermediate representations for default mode set on library script variables. Maps to ENiagaraDefaultMode and bOverrideParameterDefinitionsDefaultValue of UNiagaraScriptVariable. */
+/** Intermediate representations for default mode set on parameter definition script variables. Maps to ENiagaraDefaultMode and bOverrideParameterDefinitionsDefaultValue of UNiagaraScriptVariable. */
 UENUM()
 enum class ENiagaraLibrarySynchronizedDefaultMode : uint8
 {
 	// Synchronize with the default value as defined in the synchronized parameter definitions.
-	Library = 0,
-	// Default initialize using a value widget in the Selected Details panel. Override the library default value.
+	Definition = 0,
+	// Default initialize using a value widget in the Selected Details panel. Overrides the parameter definition default value.
 	Value,
-	// Default initialize using a dropdown widget in the Selected Details panel. Override the library default value.
+	// Default initialize using a dropdown widget in the Selected Details panel. Overrides the parameter definition default value.
 	Binding,
-	// Default initialization is done using a sub-graph.
+	// Default initialization is done using a sub-graph. Overrides the parameter definition default value.
 	Custom,
-	// Fail compilation if this value has not been set previously in the stack. Override the library default value.
+	// Fail compilation if this value has not been set previously in the stack. Overrides the parameter definition default value.
 	FailIfPreviouslyNotSet
 };
 
