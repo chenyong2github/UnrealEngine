@@ -52,6 +52,9 @@ namespace EAnimationPlaybackSpeeds
 	float Values[EAnimationPlaybackSpeeds::NumPlaybackSpeeds] = { 0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
 }
 
+IMPLEMENT_HIT_PROXY( HPersonaSocketProxy, HHitProxy );
+IMPLEMENT_HIT_PROXY( HPersonaBoneProxy, HHitProxy );
+
 #define LOCTEXT_NAMESPACE "FAnimationViewportClient"
 
 /////////////////////////////////////////////////////////////////////////
@@ -1396,7 +1399,9 @@ void FAnimationViewportClient::DrawBones(const TArray<FBoneIndexType>& RequiredB
 			// clamp by bound, we don't want too long or big
 			const float Radius = FMath::Clamp(BoneLength * 0.05f, 0.1f, MaxDrawRadius) * InBoneRadius;
 			//Render Sphere for bone end point and a cone between it and its parent.
+			PDI->SetHitProxy(new HPersonaBoneProxy(RefSkeleton.GetBoneName(BoneIndex)));
 			SkeletalDebugRendering::DrawWireBone(PDI, Start, End, LineColor, SDPG_Foreground, Radius);
+			PDI->SetHitProxy(NULL);
 
 			// draw gizmo
 			if ((GetLocalAxesMode() == ELocalAxesMode::All) ||
@@ -1524,7 +1529,9 @@ void FAnimationViewportClient::DrawSockets(const UDebugSkelMeshComponent* InPrev
 			float Angle = FMath::RadiansToDegrees(FMath::Atan(SphereRadius / ConeLength));
 
 			//Render Sphere for bone end point and a cone between it and its parent.
+			PDI->SetHitProxy( new HPersonaBoneProxy( Socket->BoneName ) );
 			PDI->DrawLine( Start, End, SocketColor, SDPG_Foreground );
+			PDI->SetHitProxy( NULL );
 			
 			// draw gizmo
 			if( (LocalAxesMode == ELocalAxesMode::All) || bSelectedSocket )
@@ -1532,7 +1539,9 @@ void FAnimationViewportClient::DrawSockets(const UDebugSkelMeshComponent* InPrev
 				FMatrix SocketMatrix;
 				Socket->GetSocketMatrix( SocketMatrix, InPreviewMeshComponent);
 
+				PDI->SetHitProxy( new HPersonaSocketProxy( FSelectedSocketInfo( Socket, bUseSkeletonSocketColor ) ) );
 				DrawWireDiamond( PDI, SocketMatrix, 2.f, SocketColor, SDPG_Foreground );
+				PDI->SetHitProxy( NULL );
 				
 				SkeletalDebugRendering::DrawAxes(PDI, FTransform(SocketMatrix), SDPG_Foreground);
 			}
