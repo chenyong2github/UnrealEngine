@@ -13,7 +13,7 @@
 #include "Shader.h"
 #include "RenderResource.h"
 #include "RenderGraphResources.h"
-#include "GpuDebugRendering.h"
+#include "ShaderDebug.h"
 
 class UTexture2D;
 

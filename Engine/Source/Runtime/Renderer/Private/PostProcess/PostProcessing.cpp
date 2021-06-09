@@ -38,7 +38,7 @@
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "ShaderPrint.h"
-#include "GpuDebugRendering.h"
+#include "ShaderDebug.h"
 #include "HighResScreenshot.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"

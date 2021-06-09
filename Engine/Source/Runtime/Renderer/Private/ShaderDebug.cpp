@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GpuDebugRendering.h"
+#include "ShaderDebug.h"
 #include "SceneRendering.h"
 #include "GlobalShader.h"
 #include "RenderGraphBuilder.h"
