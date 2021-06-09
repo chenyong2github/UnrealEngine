@@ -932,7 +932,7 @@ bool ULensFile::EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPoin
 		EvaluateNodalOffset(Neighbors.NextIndex, InZoom, NextValue);
 	
 		//Blend result between focus
-		const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, FocalLengthTable.FocusPoints[Neighbors.PreviousIndex].Focus, FocalLengthTable.FocusPoints[Neighbors.NextIndex].Focus);
+		const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, NodalOffsetTable.FocusPoints[Neighbors.PreviousIndex].Focus, NodalOffsetTable.FocusPoints[Neighbors.NextIndex].Focus);
 		LensInterpolationUtils::Interpolate(BlendFactor, &PreviousValue, &NextValue, &OutEvaluatedValue);
 	}
 
