@@ -66,6 +66,12 @@ public:
 	/** Add a baker to be processed. */
 	int32 AddBaker(TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe> Target);
 
+	/** @return the evaluator at the given index. */
+	FMeshMapEvaluator* GetBaker(int32 BakerIdx);
+
+	/** @return the number of bake evaluators on this baker. */
+	int32 NumBakers();
+
 	/** Reset the list of bakers. */
 	void Reset();
 

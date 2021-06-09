@@ -1335,76 +1335,88 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 
 void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& NewResult)
 {
-	// This method assumes that the bake evaluators were instantiated in the order
-	// defined by ALL_BAKE_MAP_TYPES.
-	const EBakeMapType& BakeMapTypes = CachedBakeCacheSettings.BakeMapTypes;
-	int32 BakerIdx = 0;
-	for (EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
+	FImageDimensions BakeDimensions = NewResult->GetDimensions();
+	int32 NumBakers = NewResult->NumBakers();
+	for (int32 BakerIdx = 0; BakerIdx < NumBakers; ++BakerIdx)
 	{
-		switch (BakeMapTypes & MapType)
-		{
-		case EBakeMapType::TangentSpaceNormalMap:
+		FMeshMapEvaluator* Baker = NewResult->GetBaker(BakerIdx);
+
+		auto UpdateCachedMap = [this, &NewResult, &BakerIdx, &BakeDimensions](const EBakeMapType BakeMapType, const FTexture2DBuilder::ETextureType TexType, const int32 ResultIdx) -> void
 		{
 			FTexture2DBuilder TextureBuilder;
-			TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedNormalMapSettings.Dimensions);
-			TextureBuilder.Copy(*NewResult->GetBakeResults(BakerIdx++)[0]);
+			TextureBuilder.Initialize(TexType, BakeDimensions);
+			TextureBuilder.Copy(*NewResult->GetBakeResults(BakerIdx)[ResultIdx]);
 			TextureBuilder.Commit(false);
-			CachedMaps[CachedMapIndices[EBakeMapType::TangentSpaceNormalMap]] = TextureBuilder.GetTexture2D();
+
+			// The CachedMap & CachedMapIndices can be thrown out of sync if updated during
+			// a background compute. Validate the computed type against our cached maps.
+			if (CachedMapIndices.Contains(BakeMapType))
+			{
+				CachedMaps[CachedMapIndices[BakeMapType]] = TextureBuilder.GetTexture2D();
+			}
+		};
+
+		switch (Baker->Type())
+		{
+		case EMeshMapEvaluatorType::Normal:
+		{
+			UpdateCachedMap(EBakeMapType::TangentSpaceNormalMap, FTexture2DBuilder::ETextureType::NormalMap, 0);
 			break;
 		}
-		case EBakeMapType::AmbientOcclusion:
-		case EBakeMapType::BentNormal:
-		case EBakeMapType::Occlusion:
+		case EMeshMapEvaluatorType::Occlusion:
 		{
+			// Occlusion Evaluator always outputs AmbientOcclusion then BentNormal.
+			FMeshOcclusionMapEvaluator* OcclusionBaker = static_cast<FMeshOcclusionMapEvaluator*>(Baker);
 			int32 OcclusionIdx = 0;
-			if ((bool)(BakeMapTypes & EBakeMapType::AmbientOcclusion))
+			if ((bool)(OcclusionBaker->OcclusionType & EMeshOcclusionMapType::AmbientOcclusion))
 			{
-				FTexture2DBuilder TextureBuilder;
-				TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, CachedOcclusionMapSettings.Dimensions);
-				TextureBuilder.Copy(*NewResult->GetBakeResults(BakerIdx)[OcclusionIdx++]);
-				TextureBuilder.Commit(false);
-				CachedMaps[CachedMapIndices[EBakeMapType::AmbientOcclusion]] = TextureBuilder.GetTexture2D();
+				UpdateCachedMap(EBakeMapType::AmbientOcclusion, FTexture2DBuilder::ETextureType::AmbientOcclusion, OcclusionIdx++);
 			}
-			if ((bool)(BakeMapTypes & EBakeMapType::BentNormal))
+			if ((bool)(OcclusionBaker->OcclusionType & EMeshOcclusionMapType::BentNormal))
 			{
-				FTexture2DBuilder TextureBuilder;
-				TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedOcclusionMapSettings.Dimensions);
-				TextureBuilder.Copy(*NewResult->GetBakeResults(BakerIdx)[OcclusionIdx++]);
-				TextureBuilder.Commit(false);
-				CachedMaps[CachedMapIndices[EBakeMapType::BentNormal]] = TextureBuilder.GetTexture2D();
+				UpdateCachedMap(EBakeMapType::BentNormal, FTexture2DBuilder::ETextureType::NormalMap, OcclusionIdx++);
 			}
-			++BakerIdx;
 			break;
 		}
-		case EBakeMapType::Curvature:
+		case EMeshMapEvaluatorType::Curvature:
 		{
-			FTexture2DBuilder TextureBuilder;
-			TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedCurvatureMapSettings.Dimensions);
-			TextureBuilder.Copy(*NewResult->GetBakeResults(BakerIdx++)[0]);
-			TextureBuilder.Commit(false);
-			CachedMaps[CachedMapIndices[BakeMapTypes & MapType]] = TextureBuilder.GetTexture2D();
+			UpdateCachedMap(EBakeMapType::Curvature, FTexture2DBuilder::ETextureType::Color, 0);
 			break;
 		}
-		case EBakeMapType::NormalImage:
-		case EBakeMapType::FaceNormalImage:
-		case EBakeMapType::PositionImage:
-		case EBakeMapType::MaterialID:
+		case EMeshMapEvaluatorType::Property:
 		{
-			FTexture2DBuilder TextureBuilder;
-			TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedMeshPropertyMapSettings.Dimensions);
-			TextureBuilder.Copy(*NewResult->GetBakeResults(BakerIdx++)[0]);
-			TextureBuilder.Commit(false);
-			CachedMaps[CachedMapIndices[BakeMapTypes & MapType]] = TextureBuilder.GetTexture2D();
+			FMeshPropertyMapEvaluator* PropertyBaker = static_cast<FMeshPropertyMapEvaluator*>(Baker);
+			EBakeMapType MapType = EBakeMapType::None;
+			switch (PropertyBaker->Property)
+			{
+			case EMeshPropertyMapType::Normal:
+				MapType = EBakeMapType::NormalImage;
+				break;
+			case EMeshPropertyMapType::FacetNormal:
+				MapType = EBakeMapType::FaceNormalImage;
+				break;
+			case EMeshPropertyMapType::Position:
+				MapType = EBakeMapType::PositionImage;
+				break;
+			case EMeshPropertyMapType::MaterialID:
+				MapType = EBakeMapType::MaterialID;
+				break;
+			case EMeshPropertyMapType::UVPosition:
+			default:
+				break;
+			}
+
+			UpdateCachedMap(MapType, FTexture2DBuilder::ETextureType::Color, 0);
 			break;
 		}
-		case EBakeMapType::Texture2DImage:
-		case EBakeMapType::MultiTexture:
+		case EMeshMapEvaluatorType::ResampleImage:
 		{
-			FTexture2DBuilder TextureBuilder;
-			TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedTexture2DImageSettings.Dimensions);
-			TextureBuilder.Copy(*NewResult->GetBakeResults(BakerIdx++)[0]);
-			TextureBuilder.Commit(false);
-			CachedMaps[CachedMapIndices[BakeMapTypes & MapType]] = TextureBuilder.GetTexture2D();
+			UpdateCachedMap(EBakeMapType::Texture2DImage, FTexture2DBuilder::ETextureType::Color, 0);
+			break;
+		}
+		case EMeshMapEvaluatorType::MultiResampleImage:
+		{
+			UpdateCachedMap(EBakeMapType::MultiTexture, FTexture2DBuilder::ETextureType::Color, 0);
 			break;
 		}
 		}

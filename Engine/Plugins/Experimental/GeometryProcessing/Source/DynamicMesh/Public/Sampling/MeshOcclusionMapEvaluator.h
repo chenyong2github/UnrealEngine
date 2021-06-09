@@ -52,8 +52,11 @@ public:
 	using FOcclusionTuple = TTuple<float, FVector3f>;
 
 public:
-	/** Invoked at start of bake to initialize baker. */
-	virtual void Setup(const FMeshMapBaker & Baker, FEvaluationContext & Context) override;
+	// Begin FMeshMapEvaluator interface
+	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
+
+	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Occlusion; }
+	// End FMeshMapEvaluator interface
 
 	template <EMeshOcclusionMapType OcclusionType, ESpace NormalSpace>
 	static void EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);

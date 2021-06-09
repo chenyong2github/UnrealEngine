@@ -20,8 +20,11 @@ public:
 	FVector4f DefaultColor = FVector4f(0, 0, 0, 1);
 
 public:
-	/** Invoked at start of bake to initialize baker. */
+	// Begin FMeshMapEvaluator interface
 	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
+
+	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::ResampleImage; }
+	// End FMeshMapEvaluator interface
 
 	static void EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);
 
@@ -42,10 +45,11 @@ public:
 	TMap<int32, TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> MultiTextures;
 
 public:
-	virtual ~FMeshMultiResampleImageEvaluator() = default;
+	// Begin FMeshMapEvaluator interface
+	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
 
-	/** Invoked at start of bake to initialize baker. */
-	virtual void Setup(const FMeshMapBaker & Baker, FEvaluationContext & Context) override;
+	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::MultiResampleImage; }
+	// End FMeshMapEvaluator interface
 
 	static void EvaluateSampleMulti(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);
 
