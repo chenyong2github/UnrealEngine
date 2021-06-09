@@ -285,7 +285,7 @@ bool UUsdConversionBlueprintContext::ConvertCineCameraComponent( const UCineCame
 #endif // USE_USD_SDK
 }
 
-bool UUsdConversionBlueprintContext::ConvertInstancedFoliageActor( const AInstancedFoliageActor* Actor, const FString& PrimPath, ULevel* InstancesLevel, float TimeCode )
+bool UUsdConversionBlueprintContext::ConvertInstancedFoliageActor( const AInstancedFoliageActor* Actor, const FString& PrimPath, float TimeCode )
 {
 #if USE_USD_SDK
 	UE::FUsdPrim Prim = UnrealToUsdImpl::GetPrim( Stage, PrimPath );
@@ -294,7 +294,7 @@ bool UUsdConversionBlueprintContext::ConvertInstancedFoliageActor( const AInstan
 		return false;
 	}
 
-	return UnrealToUsd::ConvertInstancedFoliageActor( *Actor, Prim, TimeCode == FLT_MAX ? UsdUtils::GetDefaultTimeCode() : TimeCode, InstancesLevel );
+	return UnrealToUsd::ConvertInstancedFoliageActor( *Actor, Prim, TimeCode == FLT_MAX ? UsdUtils::GetDefaultTimeCode() : TimeCode );
 #else
 	return false;
 #endif // USE_USD_SDK

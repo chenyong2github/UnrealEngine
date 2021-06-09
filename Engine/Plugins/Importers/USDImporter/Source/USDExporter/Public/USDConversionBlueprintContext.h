@@ -129,7 +129,7 @@ public:
 	bool ConvertCineCameraComponent( const UCineCameraComponent* Component, const FString& PrimPath );
 
 	UFUNCTION( BlueprintCallable, Category = "Component conversion" )
-	bool ConvertInstancedFoliageActor( const AInstancedFoliageActor* Actor, const FString& PrimPath, ULevel* InstancesLevel=nullptr, float TimeCode = 3.402823466e+38F );
+	bool ConvertInstancedFoliageActor( const AInstancedFoliageActor* Actor, const FString& PrimPath, float TimeCode = 3.402823466e+38F );
 
 	UFUNCTION( BlueprintCallable, Category = "Component conversion" )
 	bool ConvertLandscapeProxyActorMesh( const ALandscapeProxy* Actor, const FString& PrimPath, int32 LowestLOD, int32 HighestLOD, float TimeCode = 3.402823466e+38F );

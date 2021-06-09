@@ -77,9 +77,8 @@ namespace UnrealToUsd
 	 * @param Actor				   The actor to convert data from
 	 * @param Prim                 The pxr::UsdGeomPointInstancer to write to
 	 * @param TimeCode			   TimeCode to write the attribute values at. Use UsdUtils::GetDefaultTimeCode() for the Default value.
-	 * @param InstancesLevel       Only foliage instances belonging to this level will be converted. This defaults to the Actor's level if left nullptr.
 	 */
-	USDUTILITIES_API bool ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode, ULevel* InstancesLevel = nullptr );
+	USDUTILITIES_API bool ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode );
 }
 
 #endif // #if USE_USD_SDK

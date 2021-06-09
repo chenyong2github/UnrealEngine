@@ -719,7 +719,7 @@ bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::Us
 	return true;
 }
 
-bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode, ULevel* InstancesLevel )
+bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode )
 {
 #if WITH_EDITOR
 	using namespace pxr;
@@ -730,11 +730,6 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 	if ( !PointInstancer )
 	{
 		return false;
-	}
-
-	if ( InstancesLevel == nullptr )
-	{
-		InstancesLevel = Actor.GetLevel();
 	}
 
 	UsdStageRefPtr Stage = UsdPrim.GetStage();
@@ -751,48 +746,39 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 		const UFoliageType* FoliageType = FoliagePair.Key;
 		const FFoliageInfo& Info = FoliagePair.Value.Get();
 
-		// Collect IDs of components that are on the same level as the actor's level. This because later on we'll have level-by-level
-		// export, and we'd want one point instancer per level
-		for ( const TPair<FFoliageInstanceBaseId, FFoliageInstanceBaseInfo>& FoliageInstancePair : Actor.InstanceBaseCache.InstanceBaseMap )
+		for ( const TPair<FFoliageInstanceBaseId, TSet<int32>> Pair : Info.ComponentHash )
 		{
-			UActorComponent* Comp = FoliageInstancePair.Value.BasePtr.Get();
-			if ( !Comp || Comp->GetComponentLevel() != InstancesLevel )
-			{
-				continue;
-			}
+			const TSet<int32>& InstanceSet = Pair.Value;
 
-			if ( const TSet<int32>* InstanceSet = Info.ComponentHash.Find( FoliageInstancePair.Key ) )
-			{
-				const int32 NumInstances = InstanceSet->Num();
-				ProtoIndices.reserve( ProtoIndices.size() + NumInstances );
-				Positions.reserve( Positions.size() + NumInstances );
-				Orientations.reserve( Orientations.size() + NumInstances );
-				Scales.reserve( Scales.size() + NumInstances );
+			const int32 NumInstances = InstanceSet.Num();
+			ProtoIndices.reserve( ProtoIndices.size() + NumInstances );
+			Positions.reserve( Positions.size() + NumInstances );
+			Orientations.reserve( Orientations.size() + NumInstances );
+			Scales.reserve( Scales.size() + NumInstances );
 
-				for ( int32 InstanceIndex : *InstanceSet )
+			for ( int32 InstanceIndex : InstanceSet )
+			{
+				const FFoliageInstancePlacementInfo* Instance = &Info.Instances[ InstanceIndex ];
+
+				// Convert axes
+				FTransform UETransform{ Instance->Rotation, Instance->Location, Instance->DrawScale3D };
+				FTransform USDTransform = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, UETransform );
+
+				FVector Translation = USDTransform.GetTranslation();
+				FQuat Rotation = USDTransform.GetRotation();
+				FVector Scale = USDTransform.GetScale3D();
+
+				// Compensate metersPerUnit
+				const float UEMetersPerUnit = 0.01f;
+				if ( !FMath::IsNearlyEqual( UEMetersPerUnit, StageInfo.MetersPerUnit ) )
 				{
-					const FFoliageInstancePlacementInfo* Instance = &Info.Instances[ InstanceIndex ];
-
-					// Convert axes
-					FTransform UETransform{ Instance->Rotation, Instance->Location, Instance->DrawScale3D };
-					FTransform USDTransform = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, UETransform );
-
-					FVector Translation = USDTransform.GetTranslation();
-					FQuat Rotation = USDTransform.GetRotation();
-					FVector Scale = USDTransform.GetScale3D();
-
-					// Compensate metersPerUnit
-					const float UEMetersPerUnit = 0.01f;
-					if ( !FMath::IsNearlyEqual( UEMetersPerUnit, StageInfo.MetersPerUnit ) )
-					{
-						Translation *= ( UEMetersPerUnit / StageInfo.MetersPerUnit );
-					}
-
-					ProtoIndices.push_back( PrototypeIndex );
-					Positions.push_back( GfVec3f( Translation.X, Translation.Y, Translation.Z ) );
-					Orientations.push_back( GfQuath( Rotation.W, Rotation.X, Rotation.Y, Rotation.Z ) );
-					Scales.push_back( GfVec3f( Scale.X, Scale.Y, Scale.Z ) );
+					Translation *= ( UEMetersPerUnit / StageInfo.MetersPerUnit );
 				}
+
+				ProtoIndices.push_back( PrototypeIndex );
+				Positions.push_back( GfVec3f( Translation.X, Translation.Y, Translation.Z ) );
+				Orientations.push_back( GfQuath( Rotation.W, Rotation.X, Rotation.Y, Rotation.Z ) );
+				Scales.push_back( GfVec3f( Scale.X, Scale.Y, Scale.Z ) );
 			}
 		}
 
