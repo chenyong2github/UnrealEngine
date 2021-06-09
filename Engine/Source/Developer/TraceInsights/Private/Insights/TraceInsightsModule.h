@@ -5,12 +5,15 @@
 #include "CoreMinimal.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "Framework/Docking/TabManager.h"
+#include "Trace/StoreService.h"
 
 namespace UE
 {
 namespace Trace
 {
+#if WITH_TRACE_STORE
 	class FStoreService;
+#endif
 }
 }
 
@@ -96,7 +99,9 @@ protected:
 	void OnWindowClosedEvent(const TSharedRef<SWindow>&);
 
 protected:
+#if WITH_TRACE_STORE
 	TUniquePtr<UE::Trace::FStoreService> StoreService;
+#endif
 
 	TSharedPtr<TraceServices::IAnalysisService> TraceAnalysisService;
 	TSharedPtr<TraceServices::IModuleService> TraceModuleService;
