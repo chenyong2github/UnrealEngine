@@ -795,7 +795,7 @@ namespace HordeAgent.Services
 
 				try
 				{
-					ActionExecutor Executor = new ActionExecutor(ActionTask.InstanceName, CasChannel, ActionCacheChannel, ActionRpcChannel, Logger);
+					ActionExecutor Executor = new ActionExecutor(Settings.GetAgentName(), ActionTask.InstanceName, CasChannel, ActionCacheChannel, ActionRpcChannel, Logger);
 					await Executor.ExecuteActionAsync(LeaseId, ActionTask, LeaseDir);
 				}
 				finally
