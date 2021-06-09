@@ -27,7 +27,7 @@ static bool ShouldPreferD3D12()
 		}
 	}
 	
-	return false;
+	return true;
 }
 
 static bool ShouldForceFeatureLevelES31()
