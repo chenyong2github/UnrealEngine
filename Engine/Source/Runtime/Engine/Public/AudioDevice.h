@@ -20,6 +20,7 @@
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
 #include "Sound/SoundSourceBus.h"
+#include "Sound/SoundModulationDestination.h"
 #include "AudioVirtualLoop.h"
 #include "AudioMixer.h"
 #include "UObject/StrongObjectPtr.h"
@@ -47,6 +48,7 @@ class USoundEffectSourcePreset;
 class USoundEffectSubmixPreset;
 class USoundMix;
 class USoundSubmixBase;
+class USoundModulatorBase;
 class USoundSourceBus;
 class USoundWave;
 class UWorld;
@@ -1335,6 +1337,16 @@ public:
 
 	/** Set the wet-dry level of the given submix */
 	virtual void SetSubmixDryLevel(USoundSubmix* InSoundSubmix, float InDryLevel)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	virtual void UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, USoundModulatorBase* InOutputModulation, USoundModulatorBase* InWetLevelModulation, USoundModulatorBase* InDryLevelModulation)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	virtual void SetSubmixModulationBaseLevels(USoundSubmix* InSoundSubmix, float InVolumeModBase, float InWetModBase, float InDryModBase)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}

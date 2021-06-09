@@ -8,6 +8,7 @@
 #include "IAudioEndpoint.h"
 #include "ISoundfieldEndpoint.h"
 #include "Sound/SoundSubmix.h"
+#include "Sound/SoundModulationDestination.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/MultithreadedPatching.h"
 #include "DSP/SpectrumAnalyzer.h"
@@ -48,6 +49,7 @@ class FOnSubmixEnvelopeBP;
 class USoundEffectSubmix;
 class USoundSubmix;
 class USoundSubmixBase;
+class USoundModulatorBase;
 
 namespace Audio
 {
@@ -136,6 +138,12 @@ namespace Audio
 
 		// Sets the wet level of the submix
 		void SetWetLevel(float InWetLevel);
+
+		// Update modulation settings of the submix
+		void UpdateModulationSettings(USoundModulatorBase* InOutputModulator, USoundModulatorBase* InWetLevelModulator, USoundModulatorBase* InDryLevelModulator);
+
+		// Update modulation settings of the submix
+		void SetModulationBaseLevels(float InVolumeModBase, float InWetModeBase, float InDryModBase);
 
 		// Gets the submix channels channels
 		int32 GetSubmixChannels() const;
@@ -503,6 +511,14 @@ namespace Audio
 		float TargetWetLevel;
 		float CurrentDryLevel;
 		float TargetDryLevel;
+
+		FModulationDestination VolumeMod;
+		FModulationDestination DryLevelMod;
+		FModulationDestination WetLevelMod;
+
+		float VolumeModBase;
+		float DryModBase;
+		float WetModBase;
 
 		// Envelope following data
 		float EnvelopeValues[AUDIO_MIXER_MAX_OUTPUT_CHANNELS];

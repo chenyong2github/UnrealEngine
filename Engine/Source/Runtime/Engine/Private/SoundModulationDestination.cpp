@@ -263,4 +263,28 @@ namespace Audio
 			? UpdateHandleLambda()
 			: AsyncTask(ENamedThreads::AudioThread, MoveTemp(UpdateHandleLambda));
 	}
+
+	void FModulationDestination::UpdateModulator_RenderThread(const USoundModulatorBase* InModulator)
+	{
+		if (IsInAudioThread())
+		{
+			return;
+		}
+
+		if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetAudioDeviceRaw(DeviceId))
+		{
+			if (AudioDevice->IsModulationPluginEnabled() && AudioDevice->ModulationInterface.IsValid())
+			{
+				if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
+				{
+					FScopeLock Lock(&SettingsCritSection);
+					Handle = FModulatorHandle(*Modulation, InModulator, ParameterName);
+
+					//Cache parameter so copy isn't required to be created every process call
+					Parameter = Handle.GetParameter();
+					bIsActive = Handle.IsValid();
+				}
+			}
+		}
+	}
 } // namespace Audio

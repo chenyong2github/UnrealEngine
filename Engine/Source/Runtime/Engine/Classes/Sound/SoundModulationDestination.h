@@ -136,6 +136,7 @@ namespace Audio
 			bool ProcessControl(float InValueUnitBase, int32 InNumSamples = 0);
 
 			void UpdateModulator(const USoundModulatorBase* InModulator);
+			void UpdateModulator_RenderThread(const USoundModulatorBase* InModulator);
 
 		private:
 			FDeviceId DeviceId = INDEX_NONE;
