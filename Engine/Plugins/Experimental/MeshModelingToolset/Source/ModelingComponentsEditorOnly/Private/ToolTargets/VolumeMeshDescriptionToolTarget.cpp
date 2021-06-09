@@ -26,13 +26,13 @@ FMeshDescription* UVolumeMeshDescriptionToolTarget::GetMeshDescription()
 		// Editor.h. However, that path doesn't assign polygroups to the result, which we
 		// typically want when using this target, hence the path through a dynamic mesh.
 
-		TSharedPtr<FDynamicMesh3> DynamicMesh = GetDynamicMesh();
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> DynamicMesh = GetDynamicMesh();
 		if (!DynamicMesh)
 		{
 			return nullptr;
 		}
 
-		ConvertedMeshDescription = MakeShared<FMeshDescription>();
+		ConvertedMeshDescription = MakeShared<FMeshDescription, ESPMode::ThreadSafe>();
 		FStaticMeshAttributes Attributes(*ConvertedMeshDescription);
 		Attributes.Register();
 		FDynamicMeshToMeshDescription Converter;
@@ -48,7 +48,7 @@ void UVolumeMeshDescriptionToolTarget::CommitMeshDescription(const FCommitter& C
 	// Let the user fill our mesh description with the Committer
 	if (!ConvertedMeshDescription.IsValid())
 	{
-		ConvertedMeshDescription = MakeShared<FMeshDescription>();
+		ConvertedMeshDescription = MakeShared<FMeshDescription, ESPMode::ThreadSafe>();
 		FStaticMeshAttributes Attributes(*ConvertedMeshDescription);
 		Attributes.Register();
 	}

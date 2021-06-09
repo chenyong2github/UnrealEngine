@@ -70,7 +70,7 @@ void UVolumeDynamicMeshToolTarget::GetMaterialSet(FComponentMaterialSet& Materia
 	}
 }
 
-TSharedPtr<UE::Geometry::FDynamicMesh3> UVolumeDynamicMeshToolTarget::GetDynamicMesh()
+TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> UVolumeDynamicMeshToolTarget::GetDynamicMesh()
 {
 	UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component);
 	if (!BrushComponent)
@@ -83,7 +83,7 @@ TSharedPtr<UE::Geometry::FDynamicMesh3> UVolumeDynamicMeshToolTarget::GetDynamic
 		return nullptr;
 	}
 
-	TSharedPtr<FDynamicMesh3> DynamicMesh = MakeShared<FDynamicMesh3>();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> DynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	UE::Conversion::VolumeToDynamicMesh(Volume, *DynamicMesh, GetVolumeToMeshOptions());
 	FMeshNormals::InitializeMeshToPerTriangleNormals(DynamicMesh.Get());
 

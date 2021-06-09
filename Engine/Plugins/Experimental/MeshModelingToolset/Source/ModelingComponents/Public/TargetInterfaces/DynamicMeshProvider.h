@@ -31,5 +31,5 @@ public:
 	 * To guarantee changes having an effect, target must also be a IDynamicMeshCommitter 
 	 * and the mesh must be committed.
 	 */
-	virtual TSharedPtr<UE::Geometry::FDynamicMesh3> GetDynamicMesh() = 0;
+	virtual TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> GetDynamicMesh() = 0;
 };

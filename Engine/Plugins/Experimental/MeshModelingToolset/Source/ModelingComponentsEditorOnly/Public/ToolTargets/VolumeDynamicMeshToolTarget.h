@@ -39,7 +39,7 @@ public:
 	const UE::Conversion::FVolumeToMeshOptions& GetVolumeToMeshOptions() { return VolumeToMeshOptions; }
 
 	// IDynamicMeshProvider implementation
-	virtual TSharedPtr<UE::Geometry::FDynamicMesh3> GetDynamicMesh() override;
+	virtual TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> GetDynamicMesh() override;
 
 	// IDynamicMeshCommitter implementation
 	virtual void CommitDynamicMesh(const UE::Geometry::FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo&) override;
@@ -57,7 +57,7 @@ public:
 	// Rest provided by parent class
 
 protected:
-	TSharedPtr<FMeshDescription> ConvertedMeshDescription;
+	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> ConvertedMeshDescription;
 	UE::Conversion::FVolumeToMeshOptions VolumeToMeshOptions;
 
 	friend class UVolumeDynamicMeshToolTargetFactory;
