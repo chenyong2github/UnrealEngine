@@ -86,7 +86,8 @@ public:
 		return IsSupportedVertexFactoryType(Parameters.VertexFactoryType)
 			&& ((Parameters.MaterialParameters.bIsMasked || Parameters.MaterialParameters.BlendMode == BLEND_Translucent) == UseAnyHitShader)
 			&& FNoLightMapPolicy::ShouldCompilePermutation(Parameters)
-			&& ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+			&& ShouldCompileRayTracingShadersForProject(Parameters.Platform)
+			&& EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
