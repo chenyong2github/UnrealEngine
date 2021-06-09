@@ -266,7 +266,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 		{
 			OldFilter->OnFilterModified.Remove(OnFilterModifiedHandle);
 		}
-		OnFilterModifiedHandle = NewFilter->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
+		OnFilterModifiedHandle = NewFilter->OnFilterModified.AddSP(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
 		
 		GetEditorData()->SetEditedFilter(TOptional<UNegatableFilter*>());
 		RefreshGroups();
@@ -276,7 +276,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 	{
 		FilterDetailsView->SetObject(ActiveFilter.IsSet() ? ActiveFilter.GetValue() : nullptr);
 	});
-	OnFilterModifiedHandle = GetEditorData()->GetUserDefinedFilters()->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
+	OnFilterModifiedHandle = GetEditorData()->GetUserDefinedFilters()->OnFilterModified.AddSP(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
 	
 	RefreshGroups();
 }
@@ -339,11 +339,17 @@ FReply SLevelSnapshotsEditorFilters::OnClickUpdateResultsView()
 
 void SLevelSnapshotsEditorFilters::RefreshGroups()
 {
+	if (!ensure(FilterRowsList.IsValid()))
+	{
+		return;
+	}
+	
 	FilterRowsList->ClearChildren();
 	const TArray<UConjunctionFilter*>& AllAndRows = GetEditorData()->GetUserDefinedFilters()->GetChildren(); 
 	for (UConjunctionFilter* Row : AllAndRows)
 	{
 		FilterRowsList->AddSlot()
+			.AutoHeight()
 		[
 			SNew(SLevelSnapshotsEditorFilterRowGroup, SharedThis<SLevelSnapshotsEditorFilters>(this), Row)
 		];
