@@ -417,7 +417,6 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 	FSlateInvalidationWidgetIndex LeafMostChildIndex = NewIndex;
 	FSlateInvalidationWidgetVisibility NewVisibility {ParentVisibility, Widget.GetVisibility()};
 
-	bool bUpdateSlateAttribute = false;
 	if (ShouldBeAddedToAttributeList(Widget))
 	{
 		// The list is already sorted at this point. Add to the end.
@@ -429,13 +428,6 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 			{
 				FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(Widget, FSlateAttributeMetaData::EInvalidationPermission::DenyAndClearDelayedInvalidation);
 				NewVisibility.SetVisibility(ParentVisibility, Widget.GetVisibility());
-
-				if (!NewVisibility.IsCollapsed())
-				{
-					FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Widget, FSlateAttributeMetaData::EInvalidationPermission::DenyAndClearDelayedInvalidation);
-					NewVisibility.SetVisibility(ParentVisibility, Widget.GetVisibility());
-					bUpdateSlateAttribute = true;
-				}
 			}
 		}
 	}
@@ -455,9 +447,6 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 		WidgetProxy.Visibility = NewVisibility;
 		WidgetProxy.bIsInvalidationRoot = bIsInvalidationRoot;
 		WidgetProxy.bIsVolatilePrepass = Widget.HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePrepass);
-#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
-		WidgetProxy.bDebug_AttributeUpdated = bUpdateSlateAttribute;
-#endif
 	}
 
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
@@ -698,7 +687,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 				FSlateInvalidationWidgetIndex PreviousLeafMostChildIndex = InvalidationWidget.LeafMostChildIndex;
 				Internal_RebuildWidgetListTree(*WidgetPtr, StartChildIndex);
 
-
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_CHILDORDERCHECK
 				const InvalidationWidgetType& NewInvalidationWidget = (*this)[PreviousWidgetIndex];
 				const FIndexRange BuiltRange = (NewInvalidationWidget.LeafMostChildIndex == PreviousLeafMostChildIndex)
 					? FIndexRange{ *this, PreviousLeafMostChildIndex, NewInvalidationWidget.LeafMostChildIndex }
@@ -707,6 +696,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 				{
 					Callback.ProxiesBuilt(BuiltRange);
 				}
+#endif
 			}
 		}
 	}

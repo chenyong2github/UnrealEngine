@@ -13,6 +13,7 @@
 #include "Widgets/SWidget.h"
 
 #define UE_SLATE_WITH_INVALIDATIONWIDGETLIST_RANGECHECK UE_BUILD_DEBUG
+#define UE_SLATE_WITH_INVALIDATIONWIDGETLIST_CHILDORDERCHECK UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 
 
 class FSlateInvalidationWidgetList
@@ -126,8 +127,10 @@ public:
 		virtual void ProxiesPreResort(const FReSortOperation& Operation) {}
 		/** Widget proxies that got resorted by the operation. */
 		virtual void ProxiesPostResort() {}
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_CHILDORDERCHECK
 		/** Widget proxies built by the operation. */
 		virtual void ProxiesBuilt(const FIndexRange& Range) {}
+#endif
 	};
 
 	/**

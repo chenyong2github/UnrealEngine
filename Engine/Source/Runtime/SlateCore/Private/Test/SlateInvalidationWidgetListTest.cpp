@@ -325,7 +325,9 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 				virtual void ProxiesReIndexed(const FReIndexOperation& Operation) override { ++ReIndexedCount; }
 				using FReSortOperation = FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback::FReSortOperation;
 				virtual void ProxiesPreResort(const FReSortOperation& Operation) override { ++ResortCount; }
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_CHILDORDERCHECK
 				virtual void ProxiesBuilt(const FSlateInvalidationWidgetList::FIndexRange& Range) override { ++BuiltCount; }
+#endif
 			};
 
 			auto TestRemoveWidget = [&](TSharedPtr<SVerticalBox>& Widget, const TCHAR* Message) -> bool
@@ -473,6 +475,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 					}
 				}
 
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_CHILDORDERCHECK
 				TArray<TTuple<FString, FSlateInvalidationWidgetSortOrder, bool>> ProxiesBuiltToCheck;
 				virtual void ProxiesBuilt(const FSlateInvalidationWidgetList::FIndexRange& Range) override
 				{
@@ -494,6 +497,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 						}
 					}
 				}
+#endif
 			};
 
 			FChildOrderInvalidationCallback_RemoveG CallbackG;
@@ -535,7 +539,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 			}
 
 			{
-
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_CHILDORDERCHECK
 				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("C"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexC }, false);
 				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("F"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexF }, false);
 				const FSlateInvalidationWidgetIndex NewWidgetIndexH = WidgetF->GetAllChildren()->GetChildAt(0)->GetProxyHandle().GetWidgetIndex();
@@ -548,6 +552,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("J"), FSlateInvalidationWidgetSortOrder{ List, NewWidgetIndexJ }, false);
 				const FSlateInvalidationWidgetIndex NewWidgetIndex14 = List.IncrementIndex(NewWidgetIndexJ);
 				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("14"), FSlateInvalidationWidgetSortOrder{ List, NewWidgetIndex14 }, false);
+#endif
 			}
 
 			// Remove G

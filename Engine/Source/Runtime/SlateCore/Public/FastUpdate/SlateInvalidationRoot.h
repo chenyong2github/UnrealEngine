@@ -148,8 +148,10 @@ private:
 	void BuildFastPathWidgetList(const TSharedRef<SWidget>& RootWidget);
 	void AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform);
 
-	/** Update child order and slate attribute */
+	/** Update child order and slate attribute registration */
 	void ProcessPreUpdate();
+	/** Slate attribute update */
+	void ProcessAttributeUpdate();
 	/** Call slate prepass. */
 	void ProcessPrepassUpdate();
 	/** Update layout, and update the FinalUpdateList */
@@ -190,6 +192,7 @@ private:
 	bool bNeedsSlowPath;
 	bool bNeedScreenPositionShift;
 	bool bProcessingPreUpdate;
+	bool bProcessingAttributeUpdate;
 	bool bProcessingPrepassUpdate;
 	bool bProcessingPostUpdate;
 	bool bBuildingWidgetList;
