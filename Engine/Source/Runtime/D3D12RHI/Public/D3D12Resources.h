@@ -969,6 +969,7 @@ public:
 		OutResourceInfo.Name = GetName();
 		OutResourceInfo.Type = GetType();
 		OutResourceInfo.VRamAllocation.AllocationSize = ResourceLocation.GetSize();
+		OutResourceInfo.IsTransient = this->ResourceLocation.IsTransient();
 		return true;
 	}
 #endif
