@@ -1933,7 +1933,7 @@ void FScene::ShowPhysicsField()
 			ShaderPrint::SetEnabled(true);
 			ShaderPrint::SetFontSize(8);
 		}
-		if (!ShaderDrawDebug::IsShaderDrawDebugEnabled())
+		if (!ShaderDrawDebug::IsEnabled())
 		{
 			ShaderDrawDebug::SetEnabled(true);
 		}
