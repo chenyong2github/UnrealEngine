@@ -90,6 +90,9 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (ControlRigBlueprint)
 	{
+		// here, CDO is initialized from BP,
+		// and in UControlRig::InitializeFromCDO,
+		// other Control Rig Instances are then initialized From the CDO 
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
 		
 		// copy hierarchy
@@ -97,6 +100,14 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 			TGuardValue<bool> Guard(ControlRig->GetHierarchy()->GetSuspendNotificationsFlag(), false);
 			ControlRig->GetHierarchy()->CopyHierarchy(ControlRigBlueprint->Hierarchy);
 			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
+
+#if WITH_EDITOR
+			// link CDO hierarchy to BP's hierarchy
+			// so that whenever BP's hierarchy is modified, CDO's hierarchy is kept in sync
+			// Other instances of Control Rig can make use of CDO to reset to the initial state
+			ControlRigBlueprint->Hierarchy->ClearListeningHierarchy();
+			ControlRigBlueprint->Hierarchy->RegisterListeningHierarchy(ControlRig->GetHierarchy());
+#endif
 		}
 
 		// notify clients that the hierarchy has changed

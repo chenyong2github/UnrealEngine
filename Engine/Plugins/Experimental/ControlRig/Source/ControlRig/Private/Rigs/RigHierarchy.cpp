@@ -268,6 +268,58 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 	UpdateAllCachedChildren();
 }
 
+#if WITH_EDITOR
+void URigHierarchy::RegisterListeningHierarchy(URigHierarchy* InHierarchy)
+{
+	if (ensure(InHierarchy))
+	{
+		bool bFoundListener = false;
+		for(int32 ListenerIndex = ListeningHierarchies.Num() - 1; ListenerIndex >= 0; ListenerIndex--)
+		{
+			const URigHierarchy::FRigHierarchyListener& Listener = ListeningHierarchies[ListenerIndex];
+			if(Listener.Hierarchy.IsValid())
+			{
+				if(Listener.Hierarchy.Get() == InHierarchy)
+				{
+					bFoundListener = true;
+					break;
+				}
+			}
+		}
+
+		if(!bFoundListener)
+		{
+			URigHierarchy::FRigHierarchyListener Listener;
+			Listener.Hierarchy = InHierarchy; 
+			ListeningHierarchies.Add(Listener);
+		}
+	}
+}
+
+void URigHierarchy::UnregisterListeningHierarchy(URigHierarchy* InHierarchy)
+{
+	if (ensure(InHierarchy))
+	{
+		for(int32 ListenerIndex = ListeningHierarchies.Num() - 1; ListenerIndex >= 0; ListenerIndex--)
+		{
+			const URigHierarchy::FRigHierarchyListener& Listener = ListeningHierarchies[ListenerIndex];
+			if(Listener.Hierarchy.IsValid())
+			{
+				if(Listener.Hierarchy.Get() == InHierarchy)
+				{
+					ListeningHierarchies.RemoveAt(ListenerIndex);
+				}
+			}
+		}
+	}
+}
+
+void URigHierarchy::ClearListeningHierarchy()
+{
+	ListeningHierarchies.Reset();
+}
+#endif
+
 void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial)
 {
 	check(InHierarchy);
@@ -871,6 +923,30 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentInde
 			}
 
 			PropagateDirtyFlags(MultiParentElement, ERigTransformType::IsInitial(LocalType), bAffectChildren);
+			
+#if WITH_EDITOR
+			if (ensure(!bPropagatingChange))
+			{
+				TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+				for(FRigHierarchyListener& Listener : ListeningHierarchies)
+				{
+					if(!Listener.ShouldReactToChange(LocalType))
+					{
+						continue;
+					}
+
+					URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+					if (ensure(ListeningHierarchy))
+					{
+						if(FRigBaseElement* ListeningElement = ListeningHierarchy->Find(InChild->GetKey()))
+						{
+							ListeningHierarchy->SetParentWeight(ListeningElement, InParentIndex, InWeight, bInitial, bAffectChildren);
+						}
+					}
+				}	
+			}
+#endif
 			return true;
 		}
 	}
@@ -1331,6 +1407,29 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 			bAffectChildren,
 			bSetupUndo);
 	}
+
+	if (ensure(!bPropagatingChange))
+	{
+		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+		for(FRigHierarchyListener& Listener : ListeningHierarchies)
+		{
+			if(!Listener.ShouldReactToChange(InTransformType))
+			{
+				continue;
+			}
+
+			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+			if (ensure(ListeningHierarchy))
+			{			
+				if(FRigTransformElement* ListeningElement = Cast<FRigTransformElement>(ListeningHierarchy->Find(InTransformElement->GetKey())))
+				{
+					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierachy undos
+					ListeningHierarchy->SetTransform(ListeningElement, InTransform, InTransformType, bAffectChildren, false, bForce);
+				}
+			}
+		}
+	}
 #endif
 }
 
@@ -1389,6 +1488,15 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 	InControlElement->Offset.MarkDirty(OpposedType);
 	InControlElement->Gizmo.MarkDirty(MakeGlobal(InTransformType));
 
+	if (ERigTransformType::IsInitial(InTransformType))
+	{
+		// control's offset transform is considered a special type of transform
+		// whenever its initial value is changed, we want to make sure the current is kept in sync
+		// such that the viewport can reflect this change
+		SetControlOffsetTransform(InControlElement, InTransform, ERigTransformType::MakeCurrent(InTransformType), bAffectChildren, false, bForce);
+	}
+	
+
 #if WITH_EDITOR
 	if(bSetupUndo || IsTracingChanges())
 	{
@@ -1400,6 +1508,29 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
             InControlElement->Offset.Get(InTransformType),
             bAffectChildren,
             bSetupUndo);
+	}
+
+	if (ensure(!bPropagatingChange))
+	{
+		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+		for(FRigHierarchyListener& Listener : ListeningHierarchies)
+		{
+			if(!Listener.ShouldReactToChange(InTransformType))
+			{
+				continue;
+			}
+
+			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+			if (ensure(ListeningHierarchy))
+			{	
+				if(FRigControlElement* ListeningElement = Cast<FRigControlElement>(ListeningHierarchy->Find(InControlElement->GetKey())))
+				{
+					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierachy undos
+					ListeningHierarchy->SetControlOffsetTransform(ListeningElement, InTransform, InTransformType, bAffectChildren, false, bForce);
+				}
+			}
+		}
 	}
 #endif
 }
@@ -1453,6 +1584,14 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 	InControlElement->Gizmo.Set(InTransformType, InTransform);
 	InControlElement->Gizmo.MarkDirty(OpposedType);
 
+	if (IsInitial(InTransformType))
+	{
+		// control's gizmo transform, similar to offset transform, is considered a special type of transform
+		// whenever its initial value is changed, we want to make sure the current is kept in sync
+		// such that the viewport can reflect this change
+		SetControlGizmoTransform(InControlElement, InTransform, ERigTransformType::MakeCurrent(InTransformType), false, bForce);
+	}
+	
 #if WITH_EDITOR
 	if(bSetupUndo || IsTracingChanges())
 	{
@@ -1471,6 +1610,31 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 	{
 		Notify(ERigHierarchyNotification::ControlGizmoTransformChanged, InControlElement);
 	}
+
+#if WITH_EDITOR
+	if (ensure(!bPropagatingChange))
+	{
+		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+		for(FRigHierarchyListener& Listener : ListeningHierarchies)
+		{
+			if(!Listener.ShouldReactToChange(InTransformType))
+			{
+				continue;
+			}
+
+			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+			if (ensure(ListeningHierarchy))
+			{	
+				if(FRigControlElement* ListeningElement = Cast<FRigControlElement>(ListeningHierarchy->Find(InControlElement->GetKey())))
+				{
+					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierachy undos
+					ListeningHierarchy->SetControlGizmoTransform(ListeningElement, InTransform, InTransformType, false, bForce);
+				}
+			}
+		}
+	}
+#endif
 }
 
 FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const ERigTransformType::Type InTransformType) const
@@ -1747,17 +1911,40 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 				break;
 			}
 			case ERigControlValueType::Minimum:
-			{
-				InControlElement->Settings.MinimumValue = InValue;
-				InControlElement->Settings.ApplyLimits(InControlElement->Settings.MinimumValue);
-				Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
-				break;
-			}
 			case ERigControlValueType::Maximum:
 			{
-				InControlElement->Settings.MaximumValue = InValue;
-				InControlElement->Settings.ApplyLimits(InControlElement->Settings.MaximumValue);
+				if(InValueType == ERigControlValueType::Minimum)
+				{
+					InControlElement->Settings.MinimumValue = InValue;
+					InControlElement->Settings.ApplyLimits(InControlElement->Settings.MinimumValue);
+				}
+				else
+				{
+					InControlElement->Settings.MaximumValue = InValue;
+					InControlElement->Settings.ApplyLimits(InControlElement->Settings.MaximumValue);
+				}
+				
 				Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
+
+#if WITH_EDITOR
+				if (ensure(!bPropagatingChange))
+				{
+					TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+					for(FRigHierarchyListener& Listener : ListeningHierarchies)
+					{
+						URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+					
+						if (ensure(ListeningHierarchy))
+						{
+							if(FRigControlElement* ListeningElement = Cast<FRigControlElement>(ListeningHierarchy->Find(InControlElement->GetKey())))
+							{
+								ListeningHierarchy->SetControlValue(ListeningElement, InValue, InValueType, false, bForce);
+							}
+						}
+					}
+				}
+#endif
 				break;
 			}
 		}	
@@ -1773,6 +1960,25 @@ void URigHierarchy::SetControlVisibility(FRigControlElement* InControlElement, b
 
 	InControlElement->Settings.bGizmoVisible = bVisibility;
 	Notify(ERigHierarchyNotification::ControlVisibilityChanged, InControlElement);
+
+#if WITH_EDITOR
+	if (ensure(!bPropagatingChange))
+	{
+		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+		for(FRigHierarchyListener& Listener : ListeningHierarchies)
+		{
+			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+			if (ensure(ListeningHierarchy))
+			{
+				if(FRigControlElement* ListeningElement = Cast<FRigControlElement>(ListeningHierarchy->Find(InControlElement->GetKey())))
+				{
+					ListeningHierarchy->SetControlVisibility(ListeningElement, bVisibility);
+				}
+			}
+		}
+	}
+#endif
 }
 
 float URigHierarchy::GetCurveValue(FRigCurveElement* InCurveElement) const
@@ -1803,6 +2009,29 @@ void URigHierarchy::SetCurveValue(FRigCurveElement* InCurveElement, float InValu
 	if(bSetupUndo || IsTracingChanges())
 	{
 		PushCurveToStack(InCurveElement->GetKey(), PreviousValue, InCurveElement->Value, bSetupUndo);
+	}
+
+	if (ensure(!bPropagatingChange))
+	{
+		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+		for(FRigHierarchyListener& Listener : ListeningHierarchies)
+		{
+			if(!Listener.Hierarchy.IsValid())
+			{
+				continue;
+			}
+
+			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+			if (ensure(ListeningHierarchy))
+			{
+				if(FRigCurveElement* ListeningElement = Cast<FRigCurveElement>(ListeningHierarchy->Find(InCurveElement->GetKey())))
+				{
+					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierachy undos
+					ListeningHierarchy->SetCurveValue(ListeningElement, InValue, false, bForce);
+				}
+			}
+		}
 	}
 #endif
 }
