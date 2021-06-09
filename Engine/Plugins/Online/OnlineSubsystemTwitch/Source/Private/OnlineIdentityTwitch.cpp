@@ -13,7 +13,7 @@ bool FTwitchLoginURL::IsValid() const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return !GetLoginUrl().IsEmpty() && !GetLoginRedirectUrl().IsEmpty() && !Subsystem->GetAppId().IsEmpty();
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FString FTwitchLoginURL::GetAuthUrl(const FString& Nonce) const
@@ -158,7 +158,9 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityTwitch::GetAllUserAccount
 {
 	TArray<TSharedPtr<FUserOnlineAccount> > Result;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (const TPair<FString, TSharedRef<FUserOnlineAccountTwitch> >& It : UserAccounts)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		Result.Add(It.Value);
 	}
@@ -202,6 +204,7 @@ bool FOnlineIdentityTwitch::Login(int32 LocalUserNum, const FOnlineAccountCreden
 	{
 		ErrorStr = FString::Printf(TEXT("Login already pending for user"));
 	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	else if (!LoginURLDetails.IsValid())
 	{
 		ErrorStr = FString::Printf(TEXT("OnlineSubsystemTwitch is improperly configured in DefaultEngine.ini LoginURL=%s LoginRedirectUrl=%s ClientId=%s"),
@@ -238,6 +241,7 @@ bool FOnlineIdentityTwitch::Login(int32 LocalUserNum, const FOnlineAccountCreden
 			}
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (!ErrorStr.IsEmpty())
 	{
@@ -249,6 +253,7 @@ bool FOnlineIdentityTwitch::Login(int32 LocalUserNum, const FOnlineAccountCreden
 	return true;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FOnlineIdentityTwitch::LoginWithAccessToken(int32 LocalUserNum, const FString& AccessToken, const FOnLoginCompleteDelegate& InCompletionDelegate)
 {
 	// Validate the provided auth token and get our current scope permissions
@@ -418,6 +423,7 @@ void FOnlineIdentityTwitch::ValidateAuthToken_HttpRequestComplete(FHttpRequestPt
 
 	InCompletionDelegate.ExecuteIfBound(LocalUserNum, AccountCredentials, User, ErrorStr);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FOnlineIdentityTwitch::OnAccessTokenLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UniqueId, const FString& Error)
 {
@@ -536,6 +542,7 @@ void FOnlineIdentityTwitch::OnTwitchLogoutComplete(const FUniqueNetId& UserId)
 
 void FOnlineIdentityTwitch::RevokeAuthToken(const FUniqueNetId& UserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TSharedPtr<FUserOnlineAccountTwitch> FoundUserAccount = GetUserAccountTwitch(UserId);
 	if (FoundUserAccount.IsValid())
 	{
@@ -623,6 +630,7 @@ void FOnlineIdentityTwitch::RevokeAuthToken_HttpRequestComplete(FHttpRequestPtr 
 	// Execute completion delegate
 	InCompletionDelegate.ExecuteIfBound(*UserId, OnlineError);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 int32 FOnlineIdentityTwitch::GetLocalUserNumberFromUserId(const FUniqueNetId& UserId) const
 {
@@ -678,6 +686,7 @@ FString FOnlineIdentityTwitch::GetPlayerNickname(int32 LocalUserNum) const
 FString FOnlineIdentityTwitch::GetPlayerNickname(const FUniqueNetId& UserId) const
 {
 	// display name will be cached for users that registered or logged in manually
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const TSharedRef<FUserOnlineAccountTwitch>* FoundUserAccount = UserAccounts.Find(UserId.ToString());
 	if (FoundUserAccount != nullptr)
 	{
@@ -687,6 +696,7 @@ FString FOnlineIdentityTwitch::GetPlayerNickname(const FUniqueNetId& UserId) con
 			return DisplayName;
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return TEXT("InvalidTwitchUser");
 }
 
@@ -697,19 +707,23 @@ FString FOnlineIdentityTwitch::GetAuthToken(int32 LocalUserNum) const
 	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TSharedPtr<FUserOnlineAccountTwitch> FoundUserAccount = GetUserAccountTwitch(*UserId);
 		if (FoundUserAccount.IsValid())
 		{
 			AuthToken = FoundUserAccount->GetAccessToken();
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return AuthToken;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnlineIdentityTwitch::FOnlineIdentityTwitch(FOnlineSubsystemTwitch* InSubsystem)
 	: Subsystem(InSubsystem)
 	, LoginURLDetails(InSubsystem)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, bHasLoginOutstanding(false)
 {
 	check(InSubsystem);
@@ -742,5 +756,7 @@ FString FOnlineIdentityTwitch::GetAuthType() const
 void FOnlineIdentityTwitch::SetStatePrefix(const FString& StatePrefix)
 {
 	UE_LOG_ONLINE_IDENTITY(Log, TEXT("FOnlineIdentityTwitch::SetStatePrefix: Setting StatePrefix to %s"), *StatePrefix);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	LoginURLDetails.OverrideStatePrefix(StatePrefix);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
