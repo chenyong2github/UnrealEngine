@@ -122,7 +122,7 @@ public:
 	 * will need to call UpdateSelection(), UpdateHighlight(), ClearHighlight(), and 
 	 * ClearSelection() from its own hover/click handlers.
 	 *
-	 * Must be called after Setup() to have an effect.
+	 * Must be called during tool Setup() after calling Setup() on the mechanic to have an effect.
 	 *
 	 * @param ParentToolIn The parent tool, needed to be able to remove the behaviors.
 	 */

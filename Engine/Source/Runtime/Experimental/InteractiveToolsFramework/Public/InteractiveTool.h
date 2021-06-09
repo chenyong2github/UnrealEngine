@@ -392,7 +392,8 @@ public:
 	//
 
 	/**
-	 * Add an input behavior for this Tool
+	 * Add an input behavior for this Tool. Typically only effective when called during tool Setup(), as
+	 * the behavior set gets submitted to the input router after that call.
 	 * @param Behavior behavior to add
 	 * @param Source Optional pointer that could be used to identify the behavior for removal later.
 	 */
@@ -400,6 +401,8 @@ public:
 
 	/**
 	 * Remove all input behaviors that had the given source pointer set during their addition.
+	 * Typically only effective when called during tool Setup(), as the behavior set gets submitted
+	 * to the input router after that call.
 	 * @param Source Identifying pointer
 	 */
 	virtual void RemoveInputBehaviorsBySource(void* Source);

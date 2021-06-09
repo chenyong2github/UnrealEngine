@@ -431,7 +431,12 @@ void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, co
 
 		for (int VInd = 0; VInd < 3; ++VInd)
 		{
+			// Checks that the parent vertices of the elements that we're referencing in the overlay
+			// triangle are either not yet set or already point to the vertices of the corresponding
+			// mesh triangle (and so will remain unchanged). Remember that the same element is not
+			// allowed to be used for multiple vertices.
 			checkSlow(ParentVertices[tv[VInd]] == ParentTriangle[VInd] || ParentVertices[tv[VInd]] == FDynamicMesh3::InvalidID);
+
 			ParentVertices.InsertAt(ParentTriangle[VInd], tv[VInd]);
 		}
 	}

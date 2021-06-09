@@ -21,9 +21,16 @@ class FDynamicMesh3;
 /**
  * TDynamicMeshOverlay is an add-on to a FDynamicMesh3 that allows for per-triangle storage
  * of an "element" (eg like a per-triangle UV or normal). However the elements can be shared
- * between triangles because they are stored in a separate indexable list. As a result,
- * the overlay has it's own topology, IE there may be "seam" boundary edges in the 
- * overlay topology that are not mesh boundary edges in the associated/parent mesh.
+ * between triangles at shared vertices because the elements are stored in a separate indexable
+ * list.
+ *
+ * Each element has one vertex in the parent mesh as its parent, whereas each vertex may be the
+ * parent of multiple elements in cases where neighboring triangles are not sharing a single
+ * element for that vertex. This means that there may be "seam" boundary edges in the
+ * overlay topology that are not mesh boundary edges in the associated/parent mesh, but
+ * the overlay topology will not connect triangles that were not connected in the parent mesh
+ * or create any topologically degenerate triangles, since the parent vids of the elements
+ * of a triangle will have to match up to the vids of the triangle.
  *
  * A "seam" edge is one where at least one of the elements of the triangles on either
  * side of the edge is not shared between the two triangles.
