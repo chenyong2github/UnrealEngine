@@ -12,7 +12,7 @@
 #include "NiagaraStackEditorData.h"
 #include "NiagaraEditor/Private/NiagaraEmitterEditorData.h"
 #include "NiagaraEditorModule.h"
-
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceMeshRendererInfoDetails"
 
