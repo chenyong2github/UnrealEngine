@@ -63,7 +63,12 @@ void SNiagaraSelectedObjectsDetails::Construct(const FArguments& InArgs, TShared
 	[
 		DetailsView.ToSharedRef()
 	];
-} 
+}
+
+void SNiagaraSelectedObjectsDetails::PostUndo(bool bSuccess)
+{
+	RefreshDetails();
+}
 
 void SNiagaraSelectedObjectsDetails::SelectedObjectsChanged()
 {

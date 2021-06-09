@@ -12,7 +12,7 @@ class IDetailsView;
 class UNiagaraScriptVariable;
 
 /** A widget for viewing and editing a set of selected objects with a details panel. */
-class SNiagaraSelectedObjectsDetails : public SCompoundWidget
+class SNiagaraSelectedObjectsDetails : public SCompoundWidget, public FSelfRegisteringEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraSelectedObjectsDetails)
@@ -23,6 +23,11 @@ public:
 
 	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, TSharedRef<FNiagaraObjectSelection> InSelectedObjects);
 	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, TSharedRef<FNiagaraObjectSelection> InSelectedObjects, TSharedRef<FNiagaraObjectSelection> InSelectedObjects2);
+
+	//~ Begin FEditorUndoClient Interface 
+	NIAGARAEDITOR_API virtual void PostUndo(bool bSuccess) override;
+	NIAGARAEDITOR_API virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); };
+	//~ End FEditorUndoClient Interface 
 
 	/** Delegate to know when one of the properties has been changed.*/
 	FOnFinishedChangingProperties& OnFinishedChangingProperties() { return OnFinishedChangingPropertiesDelegate; }
