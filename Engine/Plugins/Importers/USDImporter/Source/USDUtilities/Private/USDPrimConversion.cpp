@@ -746,7 +746,7 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 		const UFoliageType* FoliageType = FoliagePair.Key;
 		const FFoliageInfo& Info = FoliagePair.Value.Get();
 
-		for ( const TPair<FFoliageInstanceBaseId, TSet<int32>> Pair : Info.ComponentHash )
+		for ( const TPair<FFoliageInstanceBaseId, TSet<int32>>& Pair : Info.ComponentHash )
 		{
 			const TSet<int32>& InstanceSet = Pair.Value;
 
