@@ -2250,6 +2250,7 @@ void FAssetDataDiscovery::AddDiscovered(FStringView DirAbsPath, TConstArrayView<
 
 void FAssetDataDiscovery::AddDiscoveredFile(FDiscoveredPathData&& File)
 {
+	FGathererScopeLock ResultsScopeLock(&ResultsLock);
 	DiscoveredSingleFiles.Emplace(MoveTemp(File));
 	NumDiscoveredFiles++;
 }
