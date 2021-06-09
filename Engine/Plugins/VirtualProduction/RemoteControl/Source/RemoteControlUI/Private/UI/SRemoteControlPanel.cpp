@@ -34,6 +34,7 @@
 #include "RemoteControlUISettings.h"
 #include "ScopedTransaction.h"
 #include "SClassViewer.h"
+#include "SRCLogger.h"
 #include "SRCPanelExposedEntitiesList.h"
 #include "SRCPanelFunctionPicker.h"
 #include "SRCPanelExposedActor.h"
@@ -311,13 +312,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			+ SSplitter::Slot()
 			.Value(.2f)
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-				.Visibility_Lambda([](){ return FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
-				.Padding(2.f)
-				[
-					FRemoteControlLogger::Get().GetWidget()
-				]
+				SNew(SRCLogger)
 			]
 		]
 	];

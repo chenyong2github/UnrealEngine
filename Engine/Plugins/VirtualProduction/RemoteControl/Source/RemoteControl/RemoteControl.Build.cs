@@ -21,7 +21,6 @@ public class RemoteControl : ModuleRules
 				"Engine",
 				"RemoteControlInterception",
 				"Serialization",
-				"SlateCore"
 			}
 		);
 
