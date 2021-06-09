@@ -78,14 +78,21 @@ namespace
 void FPixelStreamingModule::InitStreamer()
 {
 	FString StreamerId;
-	FString SignallingServerIP;
-	uint16 SignallingServerPort = 8888;
 	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), StreamerId);
-	if (!PixelStreamingSettings::GetSignallingServerIP(SignallingServerIP) ||
-		!PixelStreamingSettings::GetSignallingServerPort(SignallingServerPort))
-	{
-		UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming is disabled, provide `PixelStreamingIP` and `PixelStreamingPort` cmd-args to enable it"));
-		return;
+
+	FString SignallingServerURL;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingURL="), SignallingServerURL)) {
+
+		FString SignallingServerIP;
+		uint16 SignallingServerPort = 8888;
+		if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingIP="), SignallingServerIP) ||
+			!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingPort="), SignallingServerPort))
+		{
+			UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming is disabled, provide `PixelStreamingIP` and `PixelStreamingPort` cmd-args to enable it"));
+			return;
+		}
+		UE_LOG(PixelStreamer, Warning, TEXT("PixelStreamingIP and PixelStreamingPort are deprecated flags. Use PixelStreamingURL instead. eg. -PixelStreamingURL=ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
+		SignallingServerURL = FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
 	}
 
 	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming endpoint ID: %s"), *StreamerId);
@@ -137,7 +144,7 @@ void FPixelStreamingModule::InitStreamer()
 	UFreezeFrame::CreateInstance();
 	verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
 
-	Streamer = MakeUnique<FStreamer>(FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort), StreamerId);
+	Streamer = MakeUnique<FStreamer>(SignallingServerURL, StreamerId);
 }
 
 /** IModuleInterface implementation */
