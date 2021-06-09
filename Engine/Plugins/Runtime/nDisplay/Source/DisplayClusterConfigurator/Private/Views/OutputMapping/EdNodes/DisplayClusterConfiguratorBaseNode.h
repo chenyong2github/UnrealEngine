@@ -102,6 +102,7 @@ public:
 	virtual bool IsNodeAutosized() const { return false; }
 	virtual bool CanNodeOverlapSiblings() const { return true; }
 	virtual bool CanNodeExceedParentBounds() const { return true; }
+	virtual bool CanNodeHaveNegativePosition() const { return true; }
 	virtual bool CanNodeEncroachChildBounds() const { return true; }
 
 	virtual void FillParent(bool bRepositionNode = true);

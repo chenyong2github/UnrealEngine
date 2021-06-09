@@ -272,11 +272,19 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(ID
 
 	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
 
-	// Update the metadata for the viewport's width and height. Must set this here instead of in the UPROPERTY specifier because
+	// Update the metadata for the viewport's region. Must set this here instead of in the UPROPERTY specifier because
 	// the Region property is a generic FDisplayClusterConfigurationRectangle struct which is used in lots of places, most of
 	// which don't make sense to have a minimum or maximum limit
+	TSharedPtr<IPropertyHandle> XHandle = NestedPropertyHelper.GetNestedProperty(TEXT("Region.X"));
+	TSharedPtr<IPropertyHandle> YHandle = NestedPropertyHelper.GetNestedProperty(TEXT("Region.Y"));
 	TSharedPtr<IPropertyHandle> WidthHandle = NestedPropertyHelper.GetNestedProperty(TEXT("Region.W"));
 	TSharedPtr<IPropertyHandle> HeightHandle = NestedPropertyHelper.GetNestedProperty(TEXT("Region.H"));
+
+	XHandle->SetInstanceMetaData(TEXT("ClampMin"), FString::SanitizeFloat(0.0f));
+	XHandle->SetInstanceMetaData(TEXT("UIMin"), FString::SanitizeFloat(0.0f));
+
+	YHandle->SetInstanceMetaData(TEXT("ClampMin"), FString::SanitizeFloat(0.0f));
+	YHandle->SetInstanceMetaData(TEXT("UIMin"), FString::SanitizeFloat(0.0f));
 
 	WidthHandle->SetInstanceMetaData(TEXT("ClampMin"), FString::SanitizeFloat(UDisplayClusterConfigurationViewport::ViewportMinimumSize));
 	WidthHandle->SetInstanceMetaData(TEXT("UIMin"), FString::SanitizeFloat(UDisplayClusterConfigurationViewport::ViewportMinimumSize));

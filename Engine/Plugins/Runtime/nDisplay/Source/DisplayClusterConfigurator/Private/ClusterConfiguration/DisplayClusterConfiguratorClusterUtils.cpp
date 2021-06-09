@@ -1185,8 +1185,9 @@ TArray<UObject*> FDisplayClusterConfiguratorClusterUtils::PasteClusterItemsFromC
 				// Offset the location to keep this viewport's relative position with the group of pasted nodes consistent.
 				NewLocation -= FVector2D(Viewport->Region.X, Viewport->Region.Y) - *ReferencePosition;
 
-				ViewportCopy->Region.X = NewLocation.X;
-				ViewportCopy->Region.Y = NewLocation.Y;
+				// Viewports cannot have negative position
+				ViewportCopy->Region.X = FMath::Max(NewLocation.X, 0.0f);
+				ViewportCopy->Region.Y = FMath::Max(NewLocation.Y, 0.0f);
 			}
 
 			CopiedObjects.Add(ViewportCopy);

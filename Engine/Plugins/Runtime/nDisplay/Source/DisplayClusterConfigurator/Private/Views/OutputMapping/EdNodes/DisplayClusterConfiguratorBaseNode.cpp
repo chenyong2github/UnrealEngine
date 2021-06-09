@@ -642,6 +642,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedOffsetFromParent(const
 	const FVector2D Center = Bounds.GetCenter();
 	
 	const bool bIsParentAutosized = Parent->IsNodeAutosized();
+	const bool bCanExceedBottomRightBounds = CanNodeExceedParentBounds() && !CanNodeHaveNegativePosition();
 
 	if (IsOutside(Bounds, ParentBounds))
 	{
@@ -662,7 +663,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedOffsetFromParent(const
 			{
 				DesiredParentSizeChange.X = Bounds.Max.X - ParentBounds.Max.X;
 			}
-			else
+			else if (!bCanExceedBottomRightBounds)
 			{
 				XShift = ParentBounds.Max.X - Bounds.Max.X;
 			}
@@ -679,7 +680,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedOffsetFromParent(const
 			{
 				DesiredParentSizeChange.Y = Bounds.Max.Y - ParentBounds.Max.Y;
 			}
-			else
+			else if (!bCanExceedBottomRightBounds)
 			{
 				YShift = ParentBounds.Max.Y - Bounds.Max.Y;
 			}

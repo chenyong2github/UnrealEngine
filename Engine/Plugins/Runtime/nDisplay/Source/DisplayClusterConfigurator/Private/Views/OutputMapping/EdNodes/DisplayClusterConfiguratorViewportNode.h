@@ -33,6 +33,7 @@ public:
 	virtual bool IsNodeVisible() const override;
 	virtual bool IsNodeEnabled() const override;
 	virtual bool CanNodeOverlapSiblings() const override { return false; }
+	virtual bool CanNodeHaveNegativePosition() const { return false; }
 
 	virtual void DeleteObject() override;
 
