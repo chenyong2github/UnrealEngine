@@ -51,7 +51,7 @@ FCrashReportCoreConfig::FCrashReportCoreConfig()
 #if defined(CRC_DATAROUTER_DEFAULT)
 #if !defined(CRC_DATAROUTER_DEFAULT_UNCONDITIONALLY)
 			// Only apply default data router if explicit on the command line
-			if (FParse::Param(FCommandLine::Get(), TEXT("DefaultDataRouterUrl"))
+			if (FParse::Param(FCommandLine::Get(), TEXT("DefaultDataRouterUrl")))
 #endif 
 			{
 				DataRouterUrl = FString::Printf(TEXT("%s%s"), TEXT(CRC_DATAROUTER_DEFAULT), TEXT("datarouter/api/v1/public/data"));
