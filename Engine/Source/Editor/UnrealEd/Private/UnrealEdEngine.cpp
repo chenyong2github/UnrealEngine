@@ -746,13 +746,6 @@ void UUnrealEdEngine::OnPostWindowsMessage(FViewport* Viewport, uint32 Message)
 	}		
 }
 
-
-void UUnrealEdEngine::OnOpenMatinee()
-{
-	// Register a delegate to pickup when Matinee is closed.
-	UpdateEdModeOnMatineeCloseDelegateHandle = GLevelEditorModeTools().OnEditorModeIDChanged().AddUObject( this, &UUnrealEdEngine::UpdateEdModeOnMatineeClose );
-}
-
 bool UUnrealEdEngine::IsAutosaving() const
 {
 	if (PackageAutoSaver)
