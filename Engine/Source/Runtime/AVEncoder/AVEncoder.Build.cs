@@ -59,17 +59,17 @@ public class AVEncoder : ModuleRules
 		{
 			PublicDependencyModuleNames.Add("D3D12RHI");
 
-			// d3d to be able to use NVENC
-			PublicSystemLibraries.AddRange(new string[] {
-				"dxgi.lib",
-				"d3d11.lib",
-				"d3d12.lib",
-				"mfplat.lib",
-				"mfuuid.lib"
-			});
-
 			if (Target.Platform != UnrealTargetPlatform.XboxOne)
 			{
+				// d3d to be able to use NVENC
+				PublicSystemLibraries.AddRange(new string[] {
+					"dxgi.lib",
+					"d3d11.lib",
+					"d3d12.lib",
+					"mfplat.lib",
+					"mfuuid.lib"
+				});
+				
 				PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
 			}
 		}
