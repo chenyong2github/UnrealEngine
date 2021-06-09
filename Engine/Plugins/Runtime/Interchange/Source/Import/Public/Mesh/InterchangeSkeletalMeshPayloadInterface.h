@@ -25,28 +25,22 @@ class INTERCHANGEIMPORT_API IInterchangeSkeletalMeshPayloadInterface
 public:
 
 	/**
-	 * Once the translation is done, the import process need a way to retrieve payload data.
-	 * This payload will be use by the factories to create the asset.
+	 * Get a skeletal mesh payload data for the specified payload key
 	 *
-	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
-	 * @return a PayloadData containing the data point by the payload key. The TOptional will not be set if there is an error.
+	 * @param PayLoadKey - The key to retrieve the a particular payload contain into the specified source data.
+	 * @return - The resulting PayloadData as a TFuture point by the PayloadKey. The TOptional will not be set if there is an error retrieving the payload.
+	 * 
 	 */
-	virtual void GetSkeletalMeshLodPayloadData(const FString& PayLoadKey, TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>& OptionalSkeletalMeshLodPayloadData) const = 0;
+	virtual TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const = 0;
 
 	/**
-	 * Once the translation is done, the import process need a way to retrieve payload data.
-	 * This payload will be use by the factories to create the morph target shapes. You have to call
-	 * WaitUntilAllSkeletalMeshPayloadCommandAreCompleted before the optional payload data is filled.
+	 * Get one skeletal mesh blend shape payload data for the specified key
 	 *
-	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
-	 * @param OptionalSkeletalMeshBlendShapePayloadData - PayloadData containing the data point by the payload key. The TOptional will not be set if there is an error.
+	 * @param PayLoadKey - The key to retrieve the a particular payload contain into the specified source data.
+	 * @return - The resulting PayloadData as a TFuture point by the payload key. The TOptional will not be set if there is an error retrieving the payload.
+	 * 
 	 */
-	virtual void GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>& OptionalSkeletalMeshBlendShapePayloadData) const = 0;
-
-	/**
-	 * Wait until all payload commands are done
-	 */
-	virtual void WaitUntilAllSkeletalMeshPayloadCommandAreCompleted() const = 0;
+	virtual TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey) const = 0;
 };
 
 

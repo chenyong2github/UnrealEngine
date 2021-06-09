@@ -25,6 +25,8 @@ namespace UE
 			TOptional<FTransform> GlobalTransform;
 			//The vertex offset of the blendshape in case we combine mesh node together
 			int32 VertexOffset;
+			//The name of the blendshape
+			FString BlendShapeName;
 		};
 	}//ns Interchange
 }//ns UE
