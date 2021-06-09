@@ -92,6 +92,11 @@ typedef struct
     float scale_accum_y;
     Uint32 double_click_time;
     int double_click_radius;
+/* EG BEGIN */
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+    int double_click_touch_radius;
+#endif
+/* EG END */
     SDL_bool touch_mouse_events;
     SDL_bool mouse_touch_events;
     SDL_bool was_touch_mouse_events; /* Was a touch-mouse event pending? */
@@ -150,7 +155,8 @@ extern void SDL_MouseQuit(void);
 extern SDL_MouseClickState *GetMouseClickState(SDL_Mouse *mouse, Uint8 button);
 
 /* TODO: describe */
-extern int SDL_HandleMouseButtonClickState(SDL_Mouse * mouse, Uint8 state, Uint8 button);
+/* Can't trust that mouse->mouseID is correctly updated for touch events, so mouseID may be passed in separately */
+extern int SDL_HandleMouseButtonClickState(SDL_Mouse * mouse, SDL_MouseID mouseID, Uint8 state, Uint8 button);
 #endif /* SDL_WITH_EPIC_EXTENSIONS */
 /* EG END */
 

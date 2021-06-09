@@ -565,7 +565,7 @@ PreProcessHitTestForMaximizeRestore(_THIS, SDL_WindowData *data, const XEvent *x
         const SDL_HitTestResult rc = window->hit_test(window, &point, window->hit_test_data);
         if(rc == SDL_HITTEST_DRAGGABLE) {
             SDL_Mouse *mouse = SDL_GetMouse();
-            Uint8 clicks = SDL_HandleMouseButtonClickState(mouse, SDL_PRESSED, xev->xbutton.button);
+            Uint8 clicks = SDL_HandleMouseButtonClickState(mouse, mouse->mouseID, SDL_PRESSED, xev->xbutton.button);
             if(clicks == 2) {
                 data->initiate_maximize = SDL_TRUE;
                 ret = SDL_TRUE;
