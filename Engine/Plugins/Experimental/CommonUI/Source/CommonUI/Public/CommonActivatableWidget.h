@@ -4,7 +4,6 @@
 
 #include "CommonUserWidget.h"
 #include "Input/UIActionBindingHandle.h"
-#include "UITag.h"
 #include "CommonActivatableWidget.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetActivationChanged);
