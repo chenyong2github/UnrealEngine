@@ -1044,7 +1044,7 @@ RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform)
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform)
 {
 	return IsMobilePlatform(Platform) && IsUsingDistanceFields(Platform)
-		&& (IsSwitchPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsMobileDistanceField(Platform));
+		&& FDataDrivenShaderPlatformInfo::GetSupportsMobileDistanceField(Platform);
 }
 
 RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPlatform Platform)

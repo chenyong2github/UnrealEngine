@@ -629,7 +629,7 @@ void SetupSharedOpaqueBasePassParameters(
 		IPooledRenderTarget* DBufferC = bIsDBufferEnabled && SceneRenderTargets.DBufferC ? SceneRenderTargets.DBufferC : GSystemTextures.BlackAlphaOneDummy;
 
 		ERDGTextureFlags Flags = ERDGTextureFlags::None;
-		if ((RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) || IsUsingPerPixelDBufferMask(View.GetShaderPlatform())) && SceneRenderTargets.DBufferMask)
+		if ((RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) || FDataDrivenShaderPlatformInfo::GetSupportsPerPixelDBufferMask(View.GetShaderPlatform())) && SceneRenderTargets.DBufferMask)
 		{
 			BasePassParameters.DBufferRenderMask = GetRDG(SceneRenderTargets.DBufferMask);
 			Flags = ERDGTextureFlags::MaintainCompression;

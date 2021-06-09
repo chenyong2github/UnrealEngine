@@ -197,11 +197,10 @@ inline bool RHISupports4ComponentUAVReadWrite(const FStaticShaderPlatform Platfo
 inline bool RHISupportsManualVertexFetch(const FStaticShaderPlatform InShaderPlatform)
 {
 	bool bIsMetalMobilePlatform = IsMetalPlatform(InShaderPlatform) && !IsPCPlatform(InShaderPlatform);
-	bool bIsUnsupportedGL = IsOpenGLPlatform(InShaderPlatform)
-		&& !IsSwitchPlatform(InShaderPlatform) 
-		&& !FDataDrivenShaderPlatformInfo::GetSupportsManualVertexFetch(InShaderPlatform);
+	bool bIsUnsupportedGL = IsOpenGLPlatform(InShaderPlatform);
 
-	return !bIsUnsupportedGL && !IsMobilePlatform(InShaderPlatform) && !bIsMetalMobilePlatform;
+	return (!bIsUnsupportedGL && !IsMobilePlatform(InShaderPlatform) && !bIsMetalMobilePlatform)
+		|| FDataDrivenShaderPlatformInfo::GetSupportsManualVertexFetch(InShaderPlatform);
 }
 
 /** 

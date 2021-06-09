@@ -162,10 +162,6 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 			return FString("METAL_MACES3_1");
 		case SP_OPENGL_ES3_1_ANDROID:
 			return FString("OPENGL_ES3_1_ANDROID");
-		case SP_SWITCH:
-			return FString("SWITCH");
-		case SP_SWITCH_FORWARD:
-			return FString("SWITCH_FORWARD");
 		case SP_METAL_MRT_MAC:
 			return FString("METAL_MRT_MAC");
 		default:
@@ -227,8 +223,6 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 		case SP_METAL_SM5:
 		case SP_METAL_SM5_NOTESS:
 		case SP_METAL_MACES3_1:
-		case SP_SWITCH:
-		case SP_SWITCH_FORWARD:
 		case SP_METAL_MRT_MAC:
 			return false;
 

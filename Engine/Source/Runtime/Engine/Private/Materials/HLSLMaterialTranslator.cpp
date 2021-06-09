@@ -1373,14 +1373,13 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		}
 
 		if (ShadingModels.HasShadingModel(MSM_SingleLayerWater) &&
-			(IsSwitchPlatform(Platform) || IsVulkanMobileSM5Platform(Platform) || FDataDrivenShaderPlatformInfo::GetRequiresDisableForwardLocalLights(Platform)))
+			(IsVulkanMobileSM5Platform(Platform) || FDataDrivenShaderPlatformInfo::GetRequiresDisableForwardLocalLights(Platform)))
 		{
 			OutEnvironment.SetDefine(TEXT("DISABLE_FORWARD_LOCAL_LIGHTS"), TEXT("1"));
 		}
 
 		// This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
-		bool bSingleLayerWaterUsesSimpleShading = IsSwitchPlatform(InPlatform);
-		bSingleLayerWaterUsesSimpleShading = bSingleLayerWaterUsesSimpleShading || IsVulkanMobileSM5Platform(InPlatform);
+		bool bSingleLayerWaterUsesSimpleShading = IsVulkanMobileSM5Platform(InPlatform);
 		bSingleLayerWaterUsesSimpleShading = bSingleLayerWaterUsesSimpleShading || FDataDrivenShaderPlatformInfo::GetWaterUsesSimpleForwardShading(InPlatform);
 		bSingleLayerWaterUsesSimpleShading = bSingleLayerWaterUsesSimpleShading && IsForwardShadingEnabled(InPlatform);
 

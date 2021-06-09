@@ -645,7 +645,7 @@ namespace
 /** Returns whether hybrid scattering is supported. */
 static FORCEINLINE bool SupportsHybridScatter(EShaderPlatform ShaderPlatform)
 {
-	return !IsSwitchPlatform(ShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsDOFHybridScattering(ShaderPlatform);
+	return !!FDataDrivenShaderPlatformInfo::GetSupportsDOFHybridScattering(ShaderPlatform);
 }
 
 
