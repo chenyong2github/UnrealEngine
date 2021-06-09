@@ -214,6 +214,7 @@ public class UnrealEd : ModuleRules
 				"TextureEditor",
 				"Cascade",
 				"UMGEditor",
+				"Matinee",
 				"AssetTools",
 				"ClassViewer",
 				"StructViewer",

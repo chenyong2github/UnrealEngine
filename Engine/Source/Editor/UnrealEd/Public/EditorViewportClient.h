@@ -31,6 +31,7 @@ class FEditorViewportClient;
 class FEdMode;
 class FMouseDeltaTracker;
 class FPreviewScene;
+class IMatineeBase;
 class SEditorViewport;
 class UActorFactory;
 class UTypedElementViewportInteraction;
@@ -1067,14 +1068,15 @@ public:
 	/**
 	 * Allows custom disabling of camera recoil
 	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	void SetMatineeRecordingWindow(class IMatineeBase* InInterpEd) {}
+	void SetMatineeRecordingWindow(IMatineeBase* InInterpEd);
 
 	/**
 	 * Returns true if camera recoil is currently allowed
 	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	bool IsMatineeRecordingWindow() const { return false; }
+	bool IsMatineeRecordingWindow() const
+	{
+		return (RecordingInterpEd != NULL);
+	}
 	
 	EAxisList::Type GetCurrentWidgetAxis() const;
 
@@ -1647,6 +1649,9 @@ protected:
 	bool bShowWidget;
 
 	FMouseDeltaTracker*		MouseDeltaTracker;
+		
+	/**InterpEd, should only be set if used for matinee recording*/
+	IMatineeBase* RecordingInterpEd;
 
 	/** If true, the canvas has been been moved using bMoveCanvas Mode*/
 	bool bHasMouseMovedSinceClick;

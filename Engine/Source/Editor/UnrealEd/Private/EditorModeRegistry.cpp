@@ -5,6 +5,7 @@
 #include "EditorStyleSet.h"
 #include "EdMode.h"
 #include "EditorModes.h"
+#include "EditorModeInterpolation.h"
 
 #include "Editor/PlacementMode/Public/IPlacementModeModule.h"
 #include "Editor/LandscapeEditor/Public/LandscapeEditorModule.h"
@@ -50,6 +51,8 @@ void FEditorModeRegistry::Initialize()
 	}
 
 	// Add default editor modes
+	RegisterMode<FEdModeInterpEdit>(FBuiltinEditorModes::EM_InterpEdit);
+
 	FModuleManager::LoadModuleChecked<FActorPickerModeModule>(TEXT("ActorPickerMode"));
 	FModuleManager::LoadModuleChecked<FSceneDepthPickerModeModule>(TEXT("SceneDepthPickerMode"));
 	FModuleManager::LoadModuleChecked<ILandscapeEditorModule>(TEXT("LandscapeEditor"));

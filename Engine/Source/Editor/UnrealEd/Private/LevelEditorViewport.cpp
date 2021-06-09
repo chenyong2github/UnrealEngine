@@ -33,6 +33,7 @@
 #include "Editor.h"
 #include "EditorModeRegistry.h"
 #include "EditorModes.h"
+#include "EditorModeInterpolation.h"
 #include "PhysicsManipulationMode.h"
 #include "UnrealEdGlobals.h"
 #include "Materials/MaterialExpressionTextureSample.h"
@@ -97,7 +98,6 @@
 DEFINE_LOG_CATEGORY(LogEditorViewport);
 
 #define LOCTEXT_NAMESPACE "LevelEditorViewportClient"
-PRAGMA_DISABLE_OPTIMIZATION
 
 const FLevelViewportActorLock FLevelViewportActorLock::None(nullptr);
 
@@ -2034,6 +2034,13 @@ void FLevelEditorViewportClient::PerspectiveCameraMoved()
 		UpdateLockedActorViewports(GetActiveActorLock().Get(), false);
 	}
 
+	// Tell the editing mode that the camera moved, in case its interested.
+	FEdMode* Mode = ModeTools->GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
+	if( Mode )
+	{
+		((FEdModeInterpEdit*)Mode)->CamMoveNotify(this);
+	}
+
 	// Broadcast 'camera moved' delegate
 	FEditorDelegates::OnEditorCameraMoved.Broadcast(GetViewLocation(), GetViewRotation(), ViewportType, ViewIndex);
 }
@@ -2062,6 +2069,13 @@ void FLevelEditorViewportClient::ResetCamera()
 	ViewTransformOrthographic.SetOrthoZoom(DEFAULT_ORTHOZOOM);
 
 	ViewFOV = FOVAngle;
+
+	// If interp mode is active, tell it about the camera movement.
+	FEdMode* Mode = ModeTools->GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
+	if( Mode )
+	{
+		((FEdModeInterpEdit*)Mode)->CamMoveNotify(this);
+	}
 
 	SetIsCameraCut();
 
@@ -2331,7 +2345,7 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 
 void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
 {
-	// We can't be locked to a cinematic actor if this viewport doesn't allow cinematic control
+	// We can't be locked to a matinee actor if this viewport doesn't allow matinee control
 	if (!bAllowCinematicControl && ActorLocks.CinematicActorLock.HasValidLockedActor())
 	{
 		ActorLocks.CinematicActorLock = FLevelViewportActorLock::None;
@@ -4961,4 +4975,3 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 }
 
 #undef LOCTEXT_NAMESPACE
-PRAGMA_ENABLE_OPTIMIZATION

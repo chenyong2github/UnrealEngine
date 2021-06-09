@@ -25,11 +25,14 @@
 #include "EditorModes.h"
 #include "MouseDeltaTracker.h"
 #include "CameraController.h"
+#include "Editor/Matinee/Public/IMatinee.h"
+#include "Editor/Matinee/Public/MatineeConstants.h"
 #include "HighResScreenshot.h"
 #include "EditorDragTools.h"
 #include "EngineAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "Matinee/MatineeActor.h"
 #include "EngineModule.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -412,6 +415,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, Widget(new FWidget)
 	, bShowWidget(true)
 	, MouseDeltaTracker(new FMouseDeltaTracker)
+	, RecordingInterpEd(NULL)
 	, bHasMouseMovedSinceClick(false)
 	, CameraController(new FEditorCameraController())
 	, CameraUserImpulseData(new FCameraControllerUserImpulseData())
@@ -1329,6 +1333,12 @@ void FEditorViewportClient::ReceivedFocus(FViewport* InViewport)
 	SetRequiredCursorOverride(false, EMouseCursor::Default);
 	FSlateApplication::Get().QueryCursor();
 
+	if( IsMatineeRecordingWindow() )
+	{
+		// Allow the joystick to be used for matinee capture
+		InViewport->SetUserFocus( true );
+	}
+
 	ModeTools->ReceivedFocus(this, Viewport);
 }
 
@@ -1527,7 +1537,64 @@ void FEditorViewportClient::UpdateCameraMovementFromJoystick(const bool bRelativ
 				{
 					CameraUserImpulseData->ZoomOutInImpulse -= InConfig.ZoomMultiplier;
 				}
-				
+				else if (RecordingInterpEd)
+				{
+					bool bRepeatAllowed = RecordingInterpEd->IsRecordMenuChangeAllowedRepeat();
+					if ((Key == EKeys::Gamepad_DPad_Up) && bPressed)
+					{
+						const bool bNextMenuItem = false;
+						RecordingInterpEd->ChangeRecordingMenu(bNextMenuItem);
+						bRepeatAllowed = false;
+					}
+					else if ((Key == EKeys::Gamepad_DPad_Down) && bPressed)
+					{
+						const bool bNextMenuItem = true;
+						RecordingInterpEd->ChangeRecordingMenu(bNextMenuItem);
+						bRepeatAllowed = false;
+					}
+					else if ((Key == EKeys::Gamepad_DPad_Right) && (bPressed || (bRepeat && bRepeatAllowed)))
+					{
+						const bool bIncrease= true;
+						RecordingInterpEd->ChangeRecordingMenuValue(this, bIncrease);
+					}
+					else if ((Key == EKeys::Gamepad_DPad_Left) && (bPressed || (bRepeat && bRepeatAllowed)))
+					{
+						const bool bIncrease= false;
+						RecordingInterpEd->ChangeRecordingMenuValue(this, bIncrease);
+					}
+					else if ((Key == EKeys::Gamepad_RightThumbstick) && (bPressed))
+					{
+						const bool bIncrease= true;
+						RecordingInterpEd->ResetRecordingMenuValue(this);
+					}
+					else if ((Key == EKeys::Gamepad_LeftThumbstick) && (bPressed))
+					{
+						RecordingInterpEd->ToggleRecordMenuDisplay();
+					}
+					else if ((Key == EKeys::Gamepad_FaceButton_Bottom) && (bPressed))
+					{
+						RecordingInterpEd->ToggleRecordInterpValues();
+					}
+					else if ((Key == EKeys::Gamepad_FaceButton_Right) && (bPressed))
+					{
+						if (!RecordingInterpEd->GetMatineeActor()->bIsPlaying)
+						{
+							bool bLoop = true;
+							bool bForward = true;
+							RecordingInterpEd->StartPlaying(bLoop, bForward);
+						}
+						else
+						{
+							RecordingInterpEd->StopPlaying();
+						}
+					}
+
+					if (!bRepeatAllowed)
+					{
+						//only respond to this event ONCE
+						JoystickState->KeyEventValues.Remove(Key);
+					}
+				}
 				if (bPressed)
 				{
 					//instantly set to repeat to stock rapid flickering until the time out
@@ -1828,13 +1895,29 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 			CameraController->GetConfig().bForceRotationalPhysics = false;
 		}
 
+		bool bIgnoreJoystickControls = false;
+		//if we're playing back (without recording), stop input from being processed
+		if (RecordingInterpEd && RecordingInterpEd->GetMatineeActor())
+		{
+			if (RecordingInterpEd->GetMatineeActor()->bIsPlaying && !RecordingInterpEd->IsRecordingInterpValues())
+			{
+				bIgnoreJoystickControls = true;
+			}
+
+			CameraController->GetConfig().bPlanarCamera = (RecordingInterpEd->GetCameraMovementScheme() == MatineeConstants::ECameraScheme::CAMERA_SCHEME_PLANAR_CAM);
+		}
+
 		if( GetDefault<ULevelEditorViewportSettings>()->bLevelEditorJoystickControls )
 		{
 			//Now update for cached joystick info (relative movement first)
 			UpdateCameraMovementFromJoystick(true, CameraController->GetConfig());
 
-			//Now update for cached joystick info (absolute movement second)
-			UpdateCameraMovementFromJoystick(false, CameraController->GetConfig());
+			//if we're not playing any cinematics right now
+			if (!bIgnoreJoystickControls)
+			{
+				//Now update for cached joystick info (absolute movement second)
+				UpdateCameraMovementFromJoystick(false, CameraController->GetConfig());
+			}
 		}
 
 		FVector NewViewLocation = GetViewLocation();
@@ -1849,7 +1932,7 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 		const float FinalCameraSpeedScale = FlightCameraSpeedScale * CameraSpeed * GetCameraSpeedScalar() * CameraBoost;
 
 		// Only allow FOV recoil if flight camera mode is currently inactive.
-		const bool bAllowRecoilIfNoImpulse = !bUsingFlightInput;
+		const bool bAllowRecoilIfNoImpulse = (!bUsingFlightInput) && (!IsMatineeRecordingWindow());
 
 		// Update the camera's position, rotation and FOV
 		float EditorMovementDeltaUpperBound = 1.0f;	// Never "teleport" the camera further than a reasonable amount after a large quantum
@@ -2525,6 +2608,17 @@ bool FEditorViewportClient::IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRo
 	const bool bAnyMouseButtonsDown = (LeftMouseButtonDown || MiddleMouseButtonDown || RightMouseButtonDown);
 
 	return (!bCameraLockedToWidget && !bIsHotKeyAxisLocked && bAbsoluteMovementEnabled && (bCurrentWidgetSupportsAbsoluteMovement || bCurrentWidgetSupportsAbsoluteRotation) && bWidgetActivelyTrackingAbsoluteMovement && !IsOrtho() && bAnyMouseButtonsDown);
+}
+
+void FEditorViewportClient::SetMatineeRecordingWindow (IMatineeBase* InInterpEd)
+{
+	RecordingInterpEd = InInterpEd;
+	if (CameraController)
+	{
+		FCameraControllerConfig Config = CameraController->GetConfig();
+		RecordingInterpEd->LoadRecordingSettings(OUT Config);
+		CameraController->SetConfig(Config);
+	}
 }
 
 bool FEditorViewportClient::IsFlightCameraActive() const
@@ -3789,7 +3883,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		if( !UseEngineShowFlags.Game )
 		{
 			// in the editor, disable camera motion blur and other rendering features that rely on the former frame
-			// unless the view port is cinematic controlled
+			// unless the view port is Matinee controlled
 			ViewFamily.EngineShowFlags.CameraInterpolation = 0;
 		}
 

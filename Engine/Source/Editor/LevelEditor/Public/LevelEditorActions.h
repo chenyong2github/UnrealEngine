@@ -17,6 +17,7 @@
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 
+class AMatineeActor;
 class FLightingBuildOptions;
 class SLevelEditor;
 class UActorFactory;
@@ -399,7 +400,6 @@ public:
 	TSharedPtr< FUICommandInfo > SelectAllWithSameMaterial;
 
 	/** Selects all actors used by currently selected matinee actor */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
 	TSharedPtr< FUICommandInfo > SelectAllActorsControlledByMatinee;
 
 	/** Selects all emitters using the same particle system as the current selection */
@@ -1020,6 +1020,21 @@ public:
 	/** Selects stationary lights that are exceeding the overlap limit. */
 	static void OnSelectStationaryLightsExceedingOverlap();
 
+	/**
+	 * Selects the MatineeActor - used by Matinee Selection
+	 */
+	static void OnSelectMatineeActor( AMatineeActor * ActorToSelect );
+
+	/**
+	 * Selects the Matinee InterpGroup
+	 */
+	static void OnSelectMatineeGroup( AActor* Actor );
+
+	/**
+	 * Called when selecting all actors that's controlled by currently selected matinee actor
+	 */
+	static void OnSelectAllActorsControlledByMatinee();
+	
 	/**
 	* Called when selecting an Actor's (if available) owning HLOD cluster
 	*/
