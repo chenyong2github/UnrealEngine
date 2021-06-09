@@ -204,9 +204,9 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 {
 	// Note: layout must match GetLumenMeshCardsData in usf
 
-	const FMatrix WorldToLocal = MeshCards.LocalToWorld.Inverse();
+	const FMatrix44f WorldToLocal = MeshCards.LocalToWorld.Inverse();
 
-	const FMatrix TransposedWorldToLocal = WorldToLocal.GetTransposed();
+	const FMatrix44f TransposedWorldToLocal = WorldToLocal.GetTransposed();
 
 	OutData[0] = *(FVector4*)&TransposedWorldToLocal.M[0];
 	OutData[1] = *(FVector4*)&TransposedWorldToLocal.M[1];
