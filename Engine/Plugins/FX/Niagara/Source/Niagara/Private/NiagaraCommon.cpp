@@ -537,6 +537,42 @@ void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariable
 	}
 }
 
+void FNiagaraVariableAttributeBinding::SetAsPreviousValue(const FNiagaraVariableAttributeBinding& Src, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	static const FString PreviousNamespace = FNiagaraConstants::PreviousNamespace.ToString();
+
+	RootVariable = ParamMapVariable = DataSetVariable = Src.RootVariable;
+
+	// Split out the name and it's namespace
+	TArray<FString> SplitName;
+	Src.RootVariable.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
+
+	// If the name already contains a "Previous" in the name, just go with that
+	bool bIsPrev = false;
+	for (const FString& Split : SplitName)
+	{
+		if (Split.Equals(PreviousNamespace, ESearchCase::IgnoreCase))
+		{
+			bIsPrev = true;
+			break;
+		}
+	}
+
+	if (bIsPrev)
+	{
+		SetValue(Src.RootVariable.GetName(), InEmitter, InSourceMode);
+	}
+	else
+	{
+		// insert "Previous" into the name, after the first namespace. Or the beginning, if it has none
+		const int32 Location = SplitName.Num() > 1 ? 1 : 0;
+		SplitName.Insert(PreviousNamespace, Location);
+
+		FString PrevName = FString::Join(SplitName, TEXT("."));
+		SetValue(*PrevName, InEmitter, InSourceMode);
+	}
+}
+
 void FNiagaraVariableAttributeBinding::Setup(const FNiagaraVariableBase& InRootVar, const FNiagaraVariable& InDefaultValue, ENiagaraRendererSourceDataMode InSourceMode)
 {
 	RootVariable = InRootVar;

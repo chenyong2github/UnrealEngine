@@ -711,22 +711,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				Id.AdditionalDefines.Append(PreserveAttributes);
 			}
 
-			// Gather additional variables from renderers
-			for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
-			{
-				TArray<FNiagaraVariableBase> AdditionalVariables;
-				RendererProperty->GetAdditionalVariables(AdditionalVariables);
-				for (const FNiagaraVariableBase& AdditionalVariable : AdditionalVariables)
-				{
-					if (AdditionalVariable.IsValid())
-					{
-						Id.AdditionalVariables.AddUnique(AdditionalVariable);
-					}
-				}
-			}
-
-			// Sort the additional variables by name lexically so they are always in the same order
-			Id.AdditionalVariables.Sort([](const FNiagaraVariableBase& A, const FNiagaraVariableBase& B) { return A.GetName().LexicalLess(B.GetName()); });
+			ComputeVMCompilationId_EmitterShared(Id, Emitter, EmitterOwner, ENiagaraRendererSourceDataMode::Particles);
 		}
 
 		if ((Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript) ||
@@ -815,6 +800,8 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				{
 					Id.AdditionalDefines.Add(Emitter->GetUniqueEmitterName() + TEXT(".Determinism"));
 				}
+
+				ComputeVMCompilationId_EmitterShared(Id, Emitter, System, ENiagaraRendererSourceDataMode::Emitter);
 			}
 		}
 	}
@@ -893,6 +880,30 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 	}
 
 	LastGeneratedVMId = Id;
+}
+
+
+void UNiagaraScript::ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, UNiagaraEmitter* Emitter, UNiagaraSystem* EmitterOwner, ENiagaraRendererSourceDataMode InSourceMode) const
+{
+	// Gather additional variables from renderers
+	for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
+	{
+		if (RendererProperty->GetCurrentSourceMode() != InSourceMode)
+			continue;
+
+		TArray<FNiagaraVariableBase> AdditionalVariables;
+		RendererProperty->GetAdditionalVariables(AdditionalVariables);
+		for (const FNiagaraVariableBase& AdditionalVariable : AdditionalVariables)
+		{
+			if (AdditionalVariable.IsValid())
+			{
+				Id.AdditionalVariables.AddUnique(AdditionalVariable);
+			}
+		}
+	}
+
+	// Sort the additional variables by name lexically so they are always in the same order
+	Id.AdditionalVariables.Sort([](const FNiagaraVariableBase& A, const FNiagaraVariableBase& B) { return A.GetName().LexicalLess(B.GetName()); });
 }
 #endif
 
