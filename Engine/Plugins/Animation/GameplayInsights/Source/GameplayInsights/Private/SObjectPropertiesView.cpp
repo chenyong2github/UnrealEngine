@@ -10,34 +10,6 @@
 
 #define LOCTEXT_NAMESPACE "SObjectPropertiesView"
 
-void SObjectPropertiesView::Construct(const FArguments& InArgs, uint64 InObjectId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
-{
-	ObjectId = InObjectId;
-	AnalysisSession = &InAnalysisSession;
-
-	View = SNew(SVariantValueView, InAnalysisSession).OnGetVariantValues(this, &SObjectPropertiesView::GetVariantsAtFrame);
-
-	SetTimeMarker(InTimeMarker);
-
-	ChildSlot
-	[
-		View.ToSharedRef()
-	];
-
-}
-
-void SObjectPropertiesView::SetTimeMarker(double Time)
-{
-	TimeMarker = Time;
-	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
-	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(*AnalysisSession);
-	TraceServices::FFrame MarkerFrame;
-	if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, TimeMarker, MarkerFrame))
-	{
-		View->RequestRefresh(MarkerFrame);
-	}
-}
-
 void SObjectPropertiesView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
 {
 	if (const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName))
