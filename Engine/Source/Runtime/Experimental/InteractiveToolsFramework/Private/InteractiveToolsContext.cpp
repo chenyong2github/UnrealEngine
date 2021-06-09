@@ -125,10 +125,11 @@ void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, I
 	InputRouter = CreateInputRouterFunc(InitInfo);
 	InitInfo.InputRouter = InputRouter;
 
+	// Context store needs to be built before managers in case they want to use it
+	ContextObjectStore = CreateContextStoreFunc(InitInfo);
 	ToolManager = CreateToolManagerFunc(InitInfo);
 	TargetManager = CreateToolTargetManagerFunc(InitInfo);
 	GizmoManager = CreateGizmoManagerFunc(InitInfo);
-	ContextObjectStore = CreateContextStoreFunc(InitInfo);
 }
 
 

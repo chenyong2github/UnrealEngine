@@ -50,10 +50,4 @@ private:
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ Begin USceneComponent Interface.
-
-	// dynamic gizmo visibility as set by proxy
-	bool bRenderVisibility = true;
-
-	// set to true if circle is fully visible, in which case we ignore bOnlyAllowFrontFacingHits
-	bool bCircleIsViewPlaneParallel = false;
 };

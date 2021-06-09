@@ -19,6 +19,7 @@ class IGizmoStateTarget;
 class UGizmoConstantFrameAxisSource;
 class UGizmoComponentAxisSource;
 class UGizmoTransformChangeStateTarget;
+class UGizmoViewContext;
 class FTransformGizmoTransformChange;
 class FRay;
 
@@ -131,7 +132,7 @@ public:
 	 * sub-components with standard GizmoXComponent instances suitable for a 3-axis transformer Gizmo
 	 */
 	static ATransformGizmoActor* ConstructDefault3AxisGizmo(
-		UWorld* World
+		UWorld* World, UGizmoViewContext* GizmoViewContext
 	);
 
 	/**
@@ -139,7 +140,7 @@ public:
 	 * specified by Elements with standard GizmoXComponent instances suitable for a 3-axis transformer Gizmo
 	 */
 	static ATransformGizmoActor* ConstructCustom3AxisGizmo(
-		UWorld* World,
+		UWorld* World, UGizmoViewContext* GizmoViewContext,
 		ETransformGizmoSubElements Elements
 	);
 };
@@ -162,6 +163,11 @@ public:
 class INTERACTIVETOOLSFRAMEWORK_API FTransformGizmoActorFactory
 {
 public:
+	FTransformGizmoActorFactory(UGizmoViewContext* GizmoViewContextIn)
+		: GizmoViewContext(GizmoViewContextIn)
+	{
+	}
+
 	/** Only these members of the ATransformGizmoActor gizmo will be initialized */
 	ETransformGizmoSubElements EnableElements =
 		ETransformGizmoSubElements::TranslateAllAxes |
@@ -176,6 +182,14 @@ public:
 	 * @return new ATransformGizmoActor instance with members initialized with Components suitable for a transformation Gizmo
 	 */
 	virtual ATransformGizmoActor* CreateNewGizmoActor(UWorld* World) const;
+
+protected:
+	/**
+	 * The default gizmos that we use need to have the current view information stored for them via
+	 * the ITF context store so that they can figure out how big they are for hit testing, so this
+	 * pointer needs to be set (and kept alive elsewhere) for the actor factory to work properly.
+	 */
+	UGizmoViewContext* GizmoViewContext = nullptr;
 };
 
 

@@ -1533,6 +1533,7 @@ bool FEditorModeTools::MouseEnter( FEditorViewportClient* InViewportClient, FVie
 
 bool FEditorModeTools::MouseLeave( FEditorViewportClient* InViewportClient, FViewport* Viewport )
 {
+	HoveredViewportClient = nullptr;
 	bool bHandled = InteractiveToolsContext->MouseLeave(InViewportClient, Viewport);
 
 	ForEachEdMode<ILegacyEdModeViewportInterface>([&bHandled, InViewportClient, Viewport](ILegacyEdModeViewportInterface* Mode)
@@ -1573,6 +1574,12 @@ bool FEditorModeTools::ReceivedFocus( FEditorViewportClient* InViewportClient, F
 
 bool FEditorModeTools::LostFocus( FEditorViewportClient* InViewportClient, FViewport* Viewport )
 {
+	// Note that we don't reset FocusedViewportClient intentionally. EdModeInteractiveToolsContext
+	// only ticks its objects once for the focused viewport to avoid multi-ticking, so if we cleared
+	// it here, we'd stop ticking things in the level editor when clicking out of the viewport.
+	// TODO: Conceptually, we should probably clear FocusedViewportClient here, but also have a
+	// LastFocusedViewportClient property that we don't clear, to use in ticking.
+
 	bool bHandled = false;
 	ForEachEdMode<ILegacyEdModeViewportInterface>([&bHandled, InViewportClient, Viewport](ILegacyEdModeViewportInterface* Mode)
 		{

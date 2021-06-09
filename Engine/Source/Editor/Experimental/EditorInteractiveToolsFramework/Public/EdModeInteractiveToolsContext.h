@@ -13,6 +13,7 @@
 class FEdMode;
 class FEditorModeTools;
 class FEditorViewportClient;
+class UGizmoViewContext;
 class FSceneView;
 class FViewport;
 class UMaterialInterface;
@@ -125,6 +126,11 @@ protected:
 
 	/** Input event instance used to keep track of various button states, etc, that we cannot directly query on-demand */
 	FInputDeviceState CurrentMouseState;
+
+	// An object in which we save the current scene view information that gizmos can use on the game thread
+	// to figure out how big the gizmo is for hit testing. Lives in the context store, but we keep a pointer here
+	// to avoid having to look for it.
+	UGizmoViewContext* GizmoViewContext = nullptr;
 
 	// Utility function to convert viewport x/y from mouse events (and others?) into scene ray.
 	// Copy-pasted from other Editor code, seems kind of expensive?

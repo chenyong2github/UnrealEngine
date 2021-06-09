@@ -2,8 +2,76 @@
 
 #include "BaseGizmos/GizmoRectangleComponent.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "PrimitiveSceneProxy.h"
 
+namespace GizmoRectangleComponentLocals
+{
+	const float RECTANGLE_RENDERVISIBILITY_DOT_THRESHOLD = 0.25;
+
+	template <typename SceneViewOrGizmoViewContext>
+	bool GetWorldCorners(bool bIsViewDependent, const SceneViewOrGizmoViewContext* View, 
+		const FVector& WorldOrigin, const FVector& DirectionX, const FVector& DirectionY, 
+		float OffsetX, float OffsetY, float LengthX, float LengthY,
+		bool bUseWorldAxes, bool bOrientYAccordingToCamera, 
+		TFunctionRef<FVector(const FVector&)> VectorTransform,
+		TArray<FVector>& CornersOut)
+	{
+		FVector UseDirectionX = (bUseWorldAxes) ? DirectionX : VectorTransform(DirectionX);
+		FVector UseDirectionY = (bUseWorldAxes) ? DirectionY : VectorTransform(DirectionY);
+		float LengthScale = 1;
+
+		if (bIsViewDependent)
+		{
+			bool bIsOrtho = !View->IsPerspectiveProjection();
+
+			// direction to origin of gizmo
+			FVector ViewDirection =
+				View->IsPerspectiveProjection() ? WorldOrigin - View->ViewLocation : View->GetViewDirection();
+			ViewDirection.Normalize();
+
+			bool bFlippedX = (FVector::DotProduct(ViewDirection, UseDirectionX) > 0);
+			UseDirectionX = (bFlippedX) ? -UseDirectionX : UseDirectionX;
+
+			if (bOrientYAccordingToCamera)
+			{
+				// See if by rotating the y axis around the x axis 90 degrees, we end up with y that is less
+				// colinear to our view ray.
+				FVector RotatedY = UseDirectionY.RotateAngleAxis(90, UseDirectionX);
+				if (FMath::Abs(RotatedY.Dot(ViewDirection)) < FMath::Abs(UseDirectionY.Dot(ViewDirection)))
+				{
+					UseDirectionY = RotatedY;
+				}
+			}
+			bool bFlippedY = (FVector::DotProduct(ViewDirection, UseDirectionY) > 0);
+			UseDirectionY = (bFlippedY) ? -UseDirectionY : UseDirectionY;
+
+			FVector PlaneNormal = FVector::CrossProduct(UseDirectionX, UseDirectionY);
+			bool bRenderVisibility =
+				FMath::Abs(FVector::DotProduct(PlaneNormal, ViewDirection)) > RECTANGLE_RENDERVISIBILITY_DOT_THRESHOLD;
+
+			if (!bRenderVisibility)
+			{
+				return false;
+			}
+
+			LengthScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, WorldOrigin);
+		}
+
+		double UseOffsetX = LengthScale * OffsetX;
+		double UseOffsetLengthX = LengthScale * (OffsetX + LengthX);
+		double UseOffsetY = LengthScale * OffsetY;
+		double UseOffsetLengthY = LengthScale * (OffsetY + LengthY);
+
+		CornersOut.SetNum(4);
+		CornersOut[0] = WorldOrigin + UseOffsetX * UseDirectionX + UseOffsetY * UseDirectionY;
+		CornersOut[1] = WorldOrigin + UseOffsetLengthX * UseDirectionX + UseOffsetY * UseDirectionY;
+		CornersOut[2] = WorldOrigin + UseOffsetLengthX * UseDirectionX + UseOffsetLengthY * UseDirectionY;
+		CornersOut[3] = WorldOrigin + UseOffsetX * UseDirectionX + UseOffsetLengthY * UseDirectionY;
+
+		return true;
+	}
+}
 
 class FGizmoRectangleComponentSceneProxy final : public FPrimitiveSceneProxy
 {
@@ -19,6 +87,7 @@ public:
 		Color(InComponent->Color),
 		DirectionX(InComponent->DirectionX),
 		DirectionY(InComponent->DirectionY),
+		bOrientYAccordingToCamera(InComponent->bOrientYAccordingToCamera),
 		OffsetX(InComponent->OffsetX),
 		OffsetY(InComponent->OffsetY),
 		LengthX(InComponent->LengthX),
@@ -31,8 +100,7 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		// try to find focused scene view. May return nullptr.
-		const FSceneView* FocusedView = GizmoRenderingUtil::FindFocusedEditorSceneView(Views, ViewFamily, VisibilityMap);
+		using namespace GizmoRectangleComponentLocals;
 
 		const FMatrix& LocalToWorldMatrix = GetLocalToWorld();
 		FVector Origin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
@@ -43,82 +111,43 @@ public:
 			{
 				const FSceneView* View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
-				bool bIsFocusedView = (FocusedView != nullptr && View == FocusedView);
-				bool bIsOrtho = !View->IsPerspectiveProjection();
-
-				// direction to origin of gizmo
-				FVector ViewDirection = 
-					(bIsOrtho) ? (View->GetViewDirection()) : (Origin - View->ViewLocation);
-				ViewDirection.Normalize();
 
 				bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
-				FVector UseDirectionX = (bWorldAxis) ? DirectionX : FVector{ LocalToWorldMatrix.TransformVector(DirectionX) };
-				bool bFlippedX = (FVector::DotProduct(ViewDirection, UseDirectionX) > 0);
-				UseDirectionX = (bFlippedX) ? -UseDirectionX : UseDirectionX;
-				if (bIsFocusedView && bFlippedXExternal != nullptr)
-				{
-					*bFlippedXExternal = bFlippedX;
-				}
+				
+				TArray<FVector> Corners;
+				bool bIsViewDependent = (bExternalIsViewDependent) ? (*bExternalIsViewDependent) : false;
+				bool bRenderVisibility = GetWorldCorners(bIsViewDependent, View, Origin, DirectionX, DirectionY,
+					OffsetX, OffsetY, LengthX, LengthY, bWorldAxis, bOrientYAccordingToCamera,
+					[&LocalToWorldMatrix](const FVector& VectorIn) { return FVector{ LocalToWorldMatrix.TransformVector(VectorIn) }; },
+					Corners);
 
-				FVector UseDirectionY = (bWorldAxis) ? DirectionY : FVector{ LocalToWorldMatrix.TransformVector(DirectionY) };
-				bool bFlippedY = (FVector::DotProduct(ViewDirection, UseDirectionY) > 0);
-				UseDirectionY = (bFlippedY) ? -UseDirectionY : UseDirectionY;
-				if (bIsFocusedView && bFlippedYExternal != nullptr)
-				{
-					*bFlippedYExternal = bFlippedY;
-				}
-
-				FVector PlaneNormal = FVector::CrossProduct(UseDirectionX, UseDirectionY);
-				bool bRenderVisibility = FMath::Abs(FVector::DotProduct(PlaneNormal, ViewDirection)) > 0.25f;
-				if (bIsFocusedView && bExternalRenderVisibility != nullptr)
-				{
-					*bExternalRenderVisibility = bRenderVisibility;
-				}
-				if (bRenderVisibility == false)
+				if (!bRenderVisibility)
 				{
 					continue;
 				}
-
-				float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, Origin);
-				float LengthScale = PixelToWorldScale;
-				if (bIsFocusedView && ExternalDynamicPixelToWorldScale != nullptr)
-				{
-					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
-				}
-
-
+				
 				float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
 					(HoverThicknessMultiplier * Thickness) : (Thickness);
-				if (!bIsOrtho)
+				if (View->IsPerspectiveProjection())
 				{
 					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
 				}
 
-				double UseOffsetX = LengthScale * OffsetX;
-				double UseOffsetLengthX = LengthScale * (OffsetX + LengthX);
-				double UseOffsetY = LengthScale * OffsetY;
-				double UseOffsetLengthY = LengthScale * (OffsetY + LengthY);
-
-				FVector Point00 = Origin + UseOffsetX*UseDirectionX + UseOffsetY*UseDirectionY;
-				FVector Point10 = Origin + UseOffsetLengthX*UseDirectionX + UseOffsetY*UseDirectionY;
-				FVector Point11 = Origin + UseOffsetLengthX*UseDirectionX + UseOffsetLengthY*UseDirectionY;
-				FVector Point01 = Origin + UseOffsetX*UseDirectionX + UseOffsetLengthY*UseDirectionY;
-
 				if (SegmentFlags & 0x1)
 				{
-					PDI->DrawLine(Point00, Point10, Color, SDPG_Foreground, UseThickness, 0.0f, true);
+					PDI->DrawLine(Corners[0], Corners[1], Color, SDPG_Foreground, UseThickness, 0.0f, true);
 				}
 				if (SegmentFlags & 0x2)
 				{
-					PDI->DrawLine(Point10, Point11, Color, SDPG_Foreground, UseThickness, 0.0f, true);
+					PDI->DrawLine(Corners[1], Corners[2], Color, SDPG_Foreground, UseThickness, 0.0f, true);
 				}
 				if (SegmentFlags & 0x4)
 				{
-					PDI->DrawLine(Point11, Point01, Color, SDPG_Foreground, UseThickness, 0.0f, true);
+					PDI->DrawLine(Corners[2], Corners[3], Color, SDPG_Foreground, UseThickness, 0.0f, true);
 				}
 				if (SegmentFlags & 0x8)
 				{
-					PDI->DrawLine(Point01, Point00, Color, SDPG_Foreground, UseThickness, 0.0f, true);
+					PDI->DrawLine(Corners[3], Corners[0], Color, SDPG_Foreground, UseThickness, 0.0f, true);
 				}
 
 
@@ -163,22 +192,6 @@ public:
 	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
 	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
-	void SetExternalFlip(bool* bFlippedX, bool* bFlippedY)
-	{
-		bFlippedXExternal = bFlippedX;
-		bFlippedYExternal = bFlippedY;
-	}
-
-	void SetExternalDynamicPixelToWorldScale(float* DynamicPixelToWorldScale)
-	{
-		ExternalDynamicPixelToWorldScale = DynamicPixelToWorldScale;
-	}
-
-	void SetExternalRenderVisibility(bool* bRenderVisibility)
-	{
-		bExternalRenderVisibility = bRenderVisibility;
-	}
-
 	void SetExternalHoverState(bool* HoverState)
 	{
 		bExternalHoverState = HoverState;
@@ -189,10 +202,15 @@ public:
 		bExternalWorldLocalState = bWorldLocalState;
 	}
 
+	void SetExternalIsViewDependent(bool* bExternalIsViewDependentIn)
+	{
+		bExternalIsViewDependent = bExternalIsViewDependentIn;
+	}
 
 private:
 	FLinearColor Color;
 	FVector DirectionX, DirectionY;
+	bool bOrientYAccordingToCamera;
 	float OffsetX, OffsetY;
 	float LengthX, LengthY;
 	float Thickness;
@@ -202,12 +220,7 @@ private:
 	// set on Component for use in ::GetDynamicMeshElements()
 	bool* bExternalHoverState = nullptr;
 	bool* bExternalWorldLocalState = nullptr;
-
-	// set in ::GetDynamicMeshElements() for use by Component hit testing
-	bool* bFlippedXExternal = nullptr;
-	bool* bFlippedYExternal = nullptr;
-	float* ExternalDynamicPixelToWorldScale = nullptr;
-	bool* bExternalRenderVisibility = nullptr;
+	bool* bExternalIsViewDependent = nullptr;
 };
 
 
@@ -215,11 +228,9 @@ private:
 FPrimitiveSceneProxy* UGizmoRectangleComponent::CreateSceneProxy()
 {
 	FGizmoRectangleComponentSceneProxy* NewProxy = new FGizmoRectangleComponentSceneProxy(this);
-	NewProxy->SetExternalFlip(&bFlippedX, &bFlippedY);
-	NewProxy->SetExternalDynamicPixelToWorldScale(&DynamicPixelToWorldScale);
-	NewProxy->SetExternalRenderVisibility(&bRenderVisibility);
 	NewProxy->SetExternalHoverState(&bHovering);
 	NewProxy->SetExternalWorldLocalState(&bWorld);
+	NewProxy->SetExternalIsViewDependent(&bIsViewDependent);
 	return NewProxy;
 }
 
@@ -232,31 +243,23 @@ FBoxSphereBounds UGizmoRectangleComponent::CalcBounds(const FTransform& LocalToW
 
 bool UGizmoRectangleComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params)
 {
+	using namespace GizmoRectangleComponentLocals;
+
+	const FTransform& Transform = GetComponentToWorld();
+
+	FVector UseOrigin = Transform.TransformPosition(FVector::ZeroVector);
+
+	TArray<FVector> Corners;
+	bool bRenderVisibility = GetWorldCorners(bIsViewDependent, GizmoViewContext, UseOrigin, DirectionX, DirectionY, 
+		OffsetX, OffsetY, LengthX, LengthY,	bWorld, bOrientYAccordingToCamera,
+		[&Transform](const FVector& VectorIn) { return Transform.TransformVector(VectorIn); },
+		Corners);
+
 	if (bRenderVisibility == false)
 	{
 		return false;
 	}
 
-	const FTransform& Transform = this->GetComponentToWorld();
-
-	FVector UseDirectionX = (bFlippedX) ? -DirectionX : DirectionX;
-	UseDirectionX = (bWorld) ? UseDirectionX : Transform.TransformVector(UseDirectionX);
-	FVector UseDirectionY = (bFlippedY) ? -DirectionY : DirectionY;
-	UseDirectionY = (bWorld) ? UseDirectionY : Transform.TransformVector(UseDirectionY);
-	FVector UseOrigin = Transform.TransformPosition(FVector::ZeroVector);
-
-	float LengthScale = DynamicPixelToWorldScale;
-	double UseOffsetX = LengthScale * OffsetX;
-	double UseOffsetLengthX = LengthScale * (OffsetX + LengthX);
-	double UseOffsetY = LengthScale * OffsetY;
-	double UseOffsetLengthY = LengthScale * (OffsetY + LengthY);
-
-	FVector Points[4] = {
-		UseOrigin + UseOffsetX*UseDirectionX + UseOffsetY*UseDirectionY,
-		UseOrigin + UseOffsetLengthX*UseDirectionX + UseOffsetY*UseDirectionY,
-		UseOrigin + UseOffsetLengthX*UseDirectionX + UseOffsetLengthY*UseDirectionY,
-		UseOrigin + UseOffsetX*UseDirectionX + UseOffsetLengthY*UseDirectionY
-	};
 	static const int Triangles[2][3] = { {0,1,2}, {0,2,3} };
 
 	for (int j = 0; j < 2; ++j)
@@ -264,7 +267,7 @@ bool UGizmoRectangleComponent::LineTraceComponent(FHitResult& OutHit, const FVec
 		const int* Triangle = Triangles[j];
 		FVector HitPoint, HitNormal;
 		if (FMath::SegmentTriangleIntersection(Start, End,
-			Points[Triangle[0]], Points[Triangle[1]], Points[Triangle[2]], 
+			Corners[Triangle[0]], Corners[Triangle[1]], Corners[Triangle[2]],
 			HitPoint, HitNormal) )
 		{
 			OutHit.Component = this;

@@ -28,12 +28,15 @@ AGizmoActor::AGizmoActor()
 
 
 UGizmoArrowComponent* AGizmoActor::AddDefaultArrowComponent(
-	UWorld* World, AActor* Actor,
+	UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 	const FLinearColor& Color, const FVector& LocalDirection, const float Length)
 {
+	ensure(GizmoViewContext);
+
 	UGizmoArrowComponent* NewArrow = NewObject<UGizmoArrowComponent>(Actor);
 	Actor->AddInstanceComponent(NewArrow);
 	NewArrow->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	NewArrow->SetGizmoViewContext(GizmoViewContext);
 	NewArrow->Direction = LocalDirection;
 	NewArrow->Color = Color;
 	NewArrow->Length = Length;
@@ -44,12 +47,15 @@ UGizmoArrowComponent* AGizmoActor::AddDefaultArrowComponent(
 
 
 UGizmoRectangleComponent* AGizmoActor::AddDefaultRectangleComponent(
-	UWorld* World, AActor* Actor,
+	UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 	const FLinearColor& Color, const FVector& PlaneAxis1, const FVector& PlaneAxisx2)
 {
+	ensure(GizmoViewContext);
+
 	UGizmoRectangleComponent* NewRectangle = NewObject<UGizmoRectangleComponent>(Actor);
 	Actor->AddInstanceComponent(NewRectangle);
 	NewRectangle->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	NewRectangle->SetGizmoViewContext(GizmoViewContext);
 	NewRectangle->DirectionX = PlaneAxis1;
 	NewRectangle->DirectionY = PlaneAxisx2;
 	NewRectangle->Color = Color;
@@ -61,12 +67,15 @@ UGizmoRectangleComponent* AGizmoActor::AddDefaultRectangleComponent(
 
 
 UGizmoCircleComponent* AGizmoActor::AddDefaultCircleComponent(
-	UWorld* World, AActor* Actor,
+	UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 	const FLinearColor& Color, const FVector& PlaneNormal, float Radius)
 {
+	ensure(GizmoViewContext);
+
 	UGizmoCircleComponent* NewCircle = NewObject<UGizmoCircleComponent>(Actor);
 	Actor->AddInstanceComponent(NewCircle);
 	NewCircle->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	NewCircle->SetGizmoViewContext(GizmoViewContext);
 	NewCircle->Normal = PlaneNormal;
 	NewCircle->Color = Color;
 	NewCircle->Radius = Radius;
@@ -77,14 +86,17 @@ UGizmoCircleComponent* AGizmoActor::AddDefaultCircleComponent(
 
 
 UGizmoBoxComponent* AGizmoActor::AddDefaultBoxComponent(
-	UWorld* World, AActor* Actor,
+	UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 	const FLinearColor& Color, const FVector& Origin,
 	const FVector& Dimensions
 )
 {
+	ensure(GizmoViewContext);
+
 	UGizmoBoxComponent* NewBox = NewObject<UGizmoBoxComponent>(Actor);
 	Actor->AddInstanceComponent(NewBox);
 	NewBox->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	NewBox->SetGizmoViewContext(GizmoViewContext);
 	NewBox->Origin = Origin;
 	NewBox->Color = Color;
 	NewBox->Dimensions = Dimensions;
@@ -94,13 +106,16 @@ UGizmoBoxComponent* AGizmoActor::AddDefaultBoxComponent(
 
 
 UGizmoLineHandleComponent* AGizmoActor::AddDefaultLineHandleComponent(
-	UWorld* World, AActor* Actor,
+	UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 	const FLinearColor& Color, const FVector& HandleNormal, const FVector& LocalDirection,
     const float Length, const bool bImageScale)
 {
+	ensure(GizmoViewContext);
+
 	UGizmoLineHandleComponent* LineHandle = NewObject<UGizmoLineHandleComponent>(Actor);
 	Actor->AddInstanceComponent(LineHandle);
 	LineHandle->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	LineHandle->SetGizmoViewContext(GizmoViewContext);
 	LineHandle->Normal = HandleNormal;
 	LineHandle->Direction = LocalDirection;
 	LineHandle->Length = Length;

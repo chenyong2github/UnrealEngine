@@ -12,12 +12,14 @@
 #include "BaseGizmos/GizmoCircleComponent.h"
 #include "BaseGizmos/GizmoBoxComponent.h"
 #include "BaseGizmos/GizmoLineHandleComponent.h"
+#include "BaseGizmos/GizmoViewContext.h"
 
 // need this to implement hover
 #include "BaseGizmos/GizmoBaseComponent.h"
 
 #include "Components/SphereComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "ContextObjectStore.h"
 #include "Engine/World.h"
 #include "Engine/CollisionProfile.h"
 
@@ -37,9 +39,9 @@ ATransformGizmoActor::ATransformGizmoActor()
 
 
 
-ATransformGizmoActor* ATransformGizmoActor::ConstructDefault3AxisGizmo(UWorld* World)
+ATransformGizmoActor* ATransformGizmoActor::ConstructDefault3AxisGizmo(UWorld* World, UGizmoViewContext* GizmoViewContext)
 {
-	return ConstructCustom3AxisGizmo(World, 
+	return ConstructCustom3AxisGizmo(World, GizmoViewContext,
 		ETransformGizmoSubElements::TranslateAllAxes |
 		ETransformGizmoSubElements::TranslateAllPlanes |
 		ETransformGizmoSubElements::RotateAllAxes |
@@ -51,7 +53,7 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructDefault3AxisGizmo(UWorld* W
 
 
 ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
-	UWorld* World,
+	UWorld* World, UGizmoViewContext* GizmoViewContext,
 	ETransformGizmoSubElements Elements)
 {
 	FActorSpawnParameters SpawnInfo;
@@ -62,7 +64,7 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 
 	auto MakeAxisArrowFunc = [&](const FLinearColor& Color, const FVector& Axis)
 	{
-		UGizmoArrowComponent* Component = AddDefaultArrowComponent(World, NewActor, Color, Axis, 60.0f);
+		UGizmoArrowComponent* Component = AddDefaultArrowComponent(World, NewActor, GizmoViewContext, Color, Axis, 60.0f);
 		Component->Gap = 20.0f;
 		Component->Thickness = GizmoLineThickness;
 		Component->NotifyExternalPropertyUpdates();
@@ -84,7 +86,7 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 
 	auto MakePlaneRectFunc = [&](const FLinearColor& Color, const FVector& Axis0, const FVector& Axis1)
 	{
-		UGizmoRectangleComponent* Component = AddDefaultRectangleComponent(World, NewActor, Color, Axis0, Axis1);
+		UGizmoRectangleComponent* Component = AddDefaultRectangleComponent(World, NewActor, GizmoViewContext, Color, Axis0, Axis1);
 		Component->LengthX = Component->LengthY = 30.0f;
 		Component->SegmentFlags = 0x2 | 0x4;
 		Component->Thickness = GizmoLineThickness;
@@ -106,7 +108,7 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 
 	auto MakeAxisRotateCircleFunc = [&](const FLinearColor& Color, const FVector& Axis)
 	{
-		UGizmoCircleComponent* Component = AddDefaultCircleComponent(World, NewActor, Color, Axis, 120.0f);
+		UGizmoCircleComponent* Component = AddDefaultCircleComponent(World, NewActor, GizmoViewContext, Color, Axis, 120.0f);
 		Component->Thickness = GizmoLineThickness;
 		Component->NotifyExternalPropertyUpdates();
 		return Component;
@@ -136,6 +138,7 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 		UGizmoCircleComponent* SphereEdge = NewObject<UGizmoCircleComponent>(NewActor);
 		NewActor->AddInstanceComponent(SphereEdge);
 		SphereEdge->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+		SphereEdge->SetGizmoViewContext(GizmoViewContext);
 		SphereEdge->Color = FLinearColor::Gray;
 		SphereEdge->Thickness = 1.0f;
 		SphereEdge->Radius = 120.0f;
@@ -148,7 +151,7 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 	if ((Elements & ETransformGizmoSubElements::ScaleUniform) != ETransformGizmoSubElements::None)
 	{
 		float BoxSize = 14.0f;
-		UGizmoBoxComponent* ScaleComponent = AddDefaultBoxComponent(World, NewActor, FLinearColor::Black, 
+		UGizmoBoxComponent* ScaleComponent = AddDefaultBoxComponent(World, NewActor, GizmoViewContext, FLinearColor::Black,
 			FVector(BoxSize/2, BoxSize/2, BoxSize/2), FVector(BoxSize, BoxSize, BoxSize));
 		NewActor->UniformScale = ScaleComponent;
 	}
@@ -157,10 +160,11 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 
 	auto MakeAxisScaleFunc = [&](const FLinearColor& Color, const FVector& Axis0, const FVector& Axis1)
 	{
-		UGizmoRectangleComponent* ScaleComponent = AddDefaultRectangleComponent(World, NewActor, Color, Axis0, Axis1);
+		UGizmoRectangleComponent* ScaleComponent = AddDefaultRectangleComponent(World, NewActor, GizmoViewContext, Color, Axis0, Axis1);
 		ScaleComponent->OffsetX = 140.0f; ScaleComponent->OffsetY = -10.0f;
 		ScaleComponent->LengthX = 7.0f; ScaleComponent->LengthY = 20.0f;
 		ScaleComponent->Thickness = GizmoLineThickness;
+		ScaleComponent->bOrientYAccordingToCamera = true;
 		ScaleComponent->NotifyExternalPropertyUpdates();
 		ScaleComponent->SegmentFlags = 0x1 | 0x2 | 0x4; // | 0x8;
 		return ScaleComponent;
@@ -181,7 +185,7 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 
 	auto MakePlaneScaleFunc = [&](const FLinearColor& Color, const FVector& Axis0, const FVector& Axis1)
 	{
-		UGizmoRectangleComponent* ScaleComponent = AddDefaultRectangleComponent(World, NewActor, Color, Axis0, Axis1);
+		UGizmoRectangleComponent* ScaleComponent = AddDefaultRectangleComponent(World, NewActor, GizmoViewContext, Color, Axis0, Axis1);
 		ScaleComponent->OffsetX = ScaleComponent->OffsetY = 120.0f;
 		ScaleComponent->LengthX = ScaleComponent->LengthY = 20.0f;
 		ScaleComponent->Thickness = GizmoLineThickness;
@@ -211,7 +215,7 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 
 ATransformGizmoActor* FTransformGizmoActorFactory::CreateNewGizmoActor(UWorld* World) const
 {
-	return ATransformGizmoActor::ConstructCustom3AxisGizmo(World, EnableElements);
+	return ATransformGizmoActor::ConstructCustom3AxisGizmo(World, GizmoViewContext, EnableElements);
 }
 
 
@@ -221,8 +225,11 @@ UInteractiveGizmo* UTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& S
 	UTransformGizmo* NewGizmo = NewObject<UTransformGizmo>(SceneState.GizmoManager);
 	NewGizmo->SetWorld(SceneState.World);
 
+	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
+	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
+
 	// use default gizmo actor if client has not given us a new builder
-	NewGizmo->SetGizmoActorBuilder( (GizmoActorBuilder) ? GizmoActorBuilder : MakeShared<FTransformGizmoActorFactory>() );
+	NewGizmo->SetGizmoActorBuilder(GizmoActorBuilder ? GizmoActorBuilder : MakeShared<FTransformGizmoActorFactory>(GizmoViewContext));
 
 	NewGizmo->SetSubGizmoBuilderIdentifiers(AxisPositionBuilderIdentifier, PlanePositionBuilderIdentifier, AxisAngleBuilderIdentifier);
 
@@ -246,7 +253,6 @@ void UTransformGizmo::SetWorld(UWorld* WorldIn)
 {
 	this->World = WorldIn;
 }
-
 
 void UTransformGizmo::SetGizmoActorBuilder(TSharedPtr<FTransformGizmoActorFactory> Builder)
 {

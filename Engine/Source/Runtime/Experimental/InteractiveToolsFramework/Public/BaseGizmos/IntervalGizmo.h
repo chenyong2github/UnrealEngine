@@ -19,6 +19,7 @@ class IGizmoStateTarget;
 class UGizmoComponentAxisSource;
 class IGizmoFloatParameterSource;
 class UGizmoLocalFloatParameterSource;
+class UGizmoViewContext;
 
 
 /**
@@ -55,7 +56,8 @@ public:
 	 * Create a new instance of AIntervalGizmoActor and populate the various
 	 * sub-components with standard GizmoXComponent instances suitable for a 3-interval Gizmo
 	 */
-	static AIntervalGizmoActor* ConstructDefaultIntervalGizmo(UWorld* World);
+	static AIntervalGizmoActor* ConstructDefaultIntervalGizmo(UWorld* World, 
+		UGizmoViewContext* GizmoViewContext);
 
 };
 
@@ -74,6 +76,10 @@ public:
 class INTERACTIVETOOLSFRAMEWORK_API FIntervalGizmoActorFactory
 {
 public:
+	FIntervalGizmoActorFactory(UGizmoViewContext* GizmoViewContextIn)
+		: GizmoViewContext(GizmoViewContextIn)
+	{
+	}
 
 	/**
 	 * @param World the UWorld to create the new Actor in
@@ -81,8 +87,15 @@ public:
 	 */
 	virtual AIntervalGizmoActor* CreateNewGizmoActor(UWorld* World) const
 	{
-		return AIntervalGizmoActor::ConstructDefaultIntervalGizmo(World);
+		return AIntervalGizmoActor::ConstructDefaultIntervalGizmo(World, GizmoViewContext);
 	}
+
+protected:
+	/**
+	 * Needs to be set (and kept alive elsewhere) so that created handle gizmos can
+	 * adjust their length according to view (when not using world-scaling).
+	 */
+	UGizmoViewContext* GizmoViewContext = nullptr;
 };
 
 

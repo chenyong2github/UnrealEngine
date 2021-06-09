@@ -2,7 +2,9 @@
 
 #include "DirectionalLightGizmo.h"
 #include "BaseGizmos/GizmoBoxComponent.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "Components/SphereComponent.h"
+#include "ContextObjectStore.h"
 #include "Engine/CollisionProfile.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "BaseGizmos/GizmoMath.h"
@@ -21,6 +23,11 @@ UInteractiveGizmo* UDirectionalLightGizmoBuilder::BuildGizmo(const FToolBuilderS
 {
 	UDirectionalLightGizmo* NewGizmo = NewObject<UDirectionalLightGizmo>(SceneState.GizmoManager);
 	NewGizmo->SetWorld(SceneState.World);
+	
+	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
+	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
+	NewGizmo->SetGizmoViewContext(GizmoViewContext);
+
 	return NewGizmo;
 }
 
@@ -203,6 +210,11 @@ void UDirectionalLightGizmo::SetWorld(UWorld* InWorld)
 	World = InWorld;
 }
 
+void UDirectionalLightGizmo::SetGizmoViewContext(UGizmoViewContext* GizmoViewContextIn)
+{
+	GizmoViewContext = GizmoViewContextIn;
+}
+
 void UDirectionalLightGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 {
 	FVector Start = Ray.WorldRay.Origin;
@@ -351,7 +363,8 @@ void UDirectionalLightGizmo::CreateGizmoHandles()
 	FActorSpawnParameters SpawnInfo;
 	GizmoActor = World->SpawnActor<ADirectionalLightGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
 
-	GizmoActor->Arrow = AGizmoActor::AddDefaultLineHandleComponent(World, GizmoActor, FLinearColor::Red, FVector::YAxisVector, FVector::XAxisVector, ArrowLength, true);
+	GizmoActor->Arrow = AGizmoActor::AddDefaultLineHandleComponent(World, GizmoActor, GizmoViewContext,
+		FLinearColor::Red, FVector::YAxisVector, FVector::XAxisVector, ArrowLength, true);
 }
 
 void UDirectionalLightGizmo::UpdateGizmoHandles()

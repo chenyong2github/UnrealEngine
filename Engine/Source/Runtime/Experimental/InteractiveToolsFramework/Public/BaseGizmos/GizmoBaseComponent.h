@@ -7,6 +7,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "GizmoBaseComponent.generated.h"
 
+class UGizmoViewContext;
+
 /**
  * Base class for simple Components intended to be used as part of 3D Gizmos.
  * Contains common properties and utility functions.
@@ -45,6 +47,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	float PixelHitDistanceThreshold = 7.0f;
 
+	void SetGizmoViewContext(UGizmoViewContext* GizmoViewContextIn)
+	{
+		GizmoViewContext = GizmoViewContextIn;
+		bIsViewDependent = (GizmoViewContext != nullptr);
+	}
 
 public:
 	UFUNCTION()
@@ -67,12 +74,17 @@ public:
 
 
 protected:
-	// scale factor between pixel distances and world distances at Gizmo origin
-	float DynamicPixelToWorldScale = 1.0f;
 
 	// hover state
 	bool bHovering = false;
 
 	// world/local coordinates state
 	bool bWorld = false;
+
+	UPROPERTY()
+	UGizmoViewContext* GizmoViewContext = nullptr;
+
+	// True when GizmoViewContext is not null. Here as a boolean so it
+	// can be pointed to by the proxy to see what it should do.
+	bool bIsViewDependent = false;
 };

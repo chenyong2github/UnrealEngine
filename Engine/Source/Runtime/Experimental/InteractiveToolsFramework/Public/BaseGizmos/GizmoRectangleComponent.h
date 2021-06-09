@@ -23,6 +23,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	FVector DirectionY = FVector(0, 1, 0);
 
+	// When true, instead of using the provided DirectionY, the component will
+	// use a direction orthogonal to the camera direction and DirectionX. This
+	// keeps the rectangle pinned along DirectionX but spun to be flatter
+	// relative the camera.
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bOrientYAccordingToCamera = false;
+
 	UPROPERTY(EditAnywhere, Category = Options)
 	float OffsetX = 0.0f;
 
@@ -41,7 +48,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	uint8 SegmentFlags = 0x1 | 0x2 | 0x4 | 0x8;
 
-
 private:
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
@@ -52,12 +58,4 @@ private:
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ Begin USceneComponent Interface.
-
-	// if true, we drew along -Direction instead of Direction, and so should hit-test accordingly
-	bool bFlippedX;
-	bool bFlippedY;
-
-	// gizmo visibility
-	bool bRenderVisibility = true;
-
 };
