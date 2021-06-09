@@ -2,24 +2,7 @@
 
 
 #include "CoreMinimal.h"
-#include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
-#include "IDatasmithC4DImporter.h"
-#ifdef _CINEWARE_SDK_
-#if PLATFORM_WINDOWS
-__pragma(warning(push))
-__pragma(warning(disable: 4668))
-__pragma(warning(disable: 4191))
-__pragma(warning(disable: 4946))
-__pragma(warning(disable: 4244))
-#include "cineware.h"
-#include "cineware_api.h"
-__pragma(warning(pop))
-#else
-#include "cineware.h"
-#include "cineware_api.h"
-#endif
-#endif
 
 class IDatasmithC4DImpoter;
 class IDatasmithScene;

@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithC4DDynamicImporterModule.h"
+
 #include "DatasmithC4DImporter.h"
+#include "DatasmithC4DUtils.h"
 #include "IDatasmithC4DImporter.h"
 
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
+#include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
 
 #include "Internationalization/Text.h"
@@ -15,6 +18,13 @@
 #include "Internationalization/Internationalization.h"
 #include "Widgets/Notifications/SNotificationList.h" 
 #include "Widgets/Notifications/GlobalNotification.h"
+
+#ifdef _CINEWARE_SDK_
+DATASMITH_C4D_PUSH_WARNINGS
+#include "cineware.h"
+#include "cineware_api.h"
+DATASMITH_C4D_POP_WARNINGS
+#endif
 
 #include <vector>
 
@@ -34,6 +44,7 @@ public:
 
 	bool TryLoadingCineware() override
 	{
+#ifdef _CINEWARE_SDK_
 		// loading the modules happens async
 		if (!cineware::LoadCineware())
 		{
@@ -52,6 +63,10 @@ public:
 		
 		DynanmicAvailable = 1;
 		return true;
+#else
+		DynanmicAvailable = 0;
+		return false;
+#endif
 	}
 
 	TSharedPtr<class IDatasmithC4DImporter> GetDynamicImporter(TSharedRef<IDatasmithScene>& OutScene, FDatasmithC4DImportOptions& InputOptions) override
@@ -66,21 +81,21 @@ public:
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override
 	{
-		// Make sure the DatasmithImporter module exists and has been initialized before adding FDatasmithC4DTranslator's material selector
-		FModuleManager::Get().LoadModule(TEXT("DatasmithC4DDynamicImporter"));
-
 		FString EnvVariable = FPlatformMisc::GetEnvironmentVariable(TEXT("DATASMITHC4D_DEBUG"));
 		bDebugMode = !EnvVariable.IsEmpty();
 	}
 
+#ifdef _CINEWARE_SDK_
 	FReply RedirectToEndpoint(const FGeometry& Geometry, const FPointerEvent& Event)
 	{
 		FPlatformProcess::LaunchURL(TEXT("https://www.maxon.net/en/unreal"), NULL, NULL);
 		return FReply::Handled();
 	}
+#endif
 
 	void ShowNotification(const FString& Msg) override
 	{
+#ifdef _CINEWARE_SDK_
 		FText InfoMsg = FText::Format(LOCTEXT("DatasmithC4DImporterLoaded", "{0}"), FText::FromString(Msg));
 		UE_LOG(LogDatasmithC4DImport, Warning, TEXT("%s"), *InfoMsg.ToString());
 		
@@ -93,6 +108,7 @@ public:
 		FPointerEventHandler LinkEventHandler;
 		LinkEventHandler.BindRaw(this, &FDatasmithC4DDynamicImporterModule::RedirectToEndpoint);
 		NotificationIem->SetOnMouseButtonUp(LinkEventHandler);
+#endif
 	}
 
 

@@ -69,11 +69,15 @@ namespace UnrealBuildTool.Rules
 				CinewareSDKLocation = System.Environment.GetEnvironmentVariable("Cineware_SDK");
 			}
 
-			PublicIncludePaths.Add(Path.Combine(CinewareSDKLocation, "Public"));
+			// Make sure the C4D Cineware SDK can be used to compile
+			bool bCanUseCinewareSDK = Directory.Exists(CinewareSDKLocation);
+			// Temporary: Debug configuration does not link yet
+			bCanUseCinewareSDK |= Target.Configuration == UnrealTargetConfiguration.Development || Target.Configuration == UnrealTargetConfiguration.Shipping;
 
-			// Make sure the C4D Cineware SDK is actually installed.
-			if (Directory.Exists(CinewareSDKLocation))
+			if (bCanUseCinewareSDK)
 			{
+				PublicIncludePaths.Add(Path.Combine(CinewareSDKLocation, "Public"));
+
 				PublicDefinitions.Add("_CINEWARE_SDK_");
 				PublicDefinitions.Add("MAXON_MODULE_ID=\"net.maxon.core.framework\"");
 
@@ -97,7 +101,7 @@ namespace UnrealBuildTool.Rules
 				PublicIncludePaths.Add(Path.Combine(CinewareSDKLocation, "includes", "generated", "image.framework", "hxx"));
 				PublicIncludePaths.Add(Path.Combine(CinewareSDKLocation, "includes", "generated", "exchange.framework", "hxx"));
 
-				if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					PublicDefinitions.Add("__PC");
 					PublicDefinitions.Add("_WIN64");

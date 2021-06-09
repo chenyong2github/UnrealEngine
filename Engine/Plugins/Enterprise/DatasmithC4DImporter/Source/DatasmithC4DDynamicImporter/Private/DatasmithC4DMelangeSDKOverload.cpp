@@ -2,18 +2,13 @@
 
 #ifdef _CINEWARE_SDK_
 
-#include <Runtime/Core/Public/HAL/UnrealMemory.h>
+#include "DatasmithC4DUtils.h"
 
-#if PLATFORM_WINDOWS
-__pragma(warning(push))
-__pragma(warning(disable: 4668))
-__pragma(warning(disable: 4191))
-__pragma(warning(disable: 4946))
+#include "Runtime/Core/Public/HAL/UnrealMemory.h"
+
+DATASMITH_C4D_PUSH_WARNINGS
 #include "cineware.h"
-__pragma(warning(pop))
-#else
-#include "cineware.h"
-#endif
+DATASMITH_C4D_POP_WARNINGS
 
 namespace cineware
 {

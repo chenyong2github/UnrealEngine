@@ -2,7 +2,7 @@
 
 #pragma once
 
-#ifdef _CINEWARE_SDK_
+#include "DatasmithC4DUtils.h"
 
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
@@ -14,17 +14,13 @@
 #include "DatasmithTranslator.h"
 #include "IDatasmithC4DImporter.h"
 
-// CINEWARE_UPDATED
-#if PLATFORM_WINDOWS
-__pragma(warning(push))
-__pragma(warning(disable: 4668))
-__pragma(warning(disable: 4191))
-__pragma(warning(disable: 4946))
+DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithC4DImport, Log, All)
+
+#ifdef _CINEWARE_SDK_
+
+DATASMITH_C4D_PUSH_WARNINGS
 #include "cineware.h"
-__pragma(warning(pop))
-#else
-#include "cineware.h"
-#endif
+DATASMITH_C4D_POP_WARNINGS
 
 class FDatasmithSceneExporter;
 class IDatasmithActorElement;
@@ -44,8 +40,6 @@ struct FRichCurve;
 
 
 DECLARE_STATS_GROUP(TEXT("C4DImporter"), STATGROUP_C4DImporter, STATCAT_Advanced);
-
-DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithC4DImport, Log, All);
 
 class DATASMITHC4DDYNAMICIMPORTER_API FDatasmithC4DDynamicImporter : public IDatasmithC4DImporter
 {

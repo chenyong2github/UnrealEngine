@@ -4,20 +4,32 @@
 
 #ifdef _CINEWARE_SDK_
 
+#if PLATFORM_WINDOWS
+#define DATASMITH_C4D_PUSH_WARNINGS \
+	__pragma(warning(push)) \
+	__pragma(warning(disable: 4003)) \
+	__pragma(warning(disable: 4191)) \
+	__pragma(warning(disable: 4244)) \
+	__pragma(warning(disable: 4668)) \
+	__pragma(warning(disable: 4946)) \
+	__pragma(warning(disable: 6011)) \
+	__pragma(warning(disable: 6246))
+
+
+#define DATASMITH_C4D_POP_WARNINGS \
+	__pragma(warning(pop))
+
+#else
+#define DATASMITH_C4D_PUSH_WARNINGS
+#define DATASMITH_C4D_POP_WARNINGS
+#endif
+
 #include "CoreMinimal.h"
 
 // CINEWARE_UPDATED
-#if PLATFORM_WINDOWS
-__pragma(warning(push))
-__pragma(warning(disable: 4668))
-__pragma(warning(disable: 4191))
-__pragma(warning(disable: 4946))
+DATASMITH_C4D_PUSH_WARNINGS
 #include "cineware.h"
-__pragma(warning(pop))
-#else
-#include "cineware.h"
-#endif
-
+DATASMITH_C4D_POP_WARNINGS
 /**
  * Retrieves the value of a DA_LONG parameter of a melange object as a cineware::Int32,
  * and static_casts it to an int32. Will return 0 if the parameter is invalid

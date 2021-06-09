@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#if defined(_MELANGE_SDK_) || defined(_CINEWARE_SDK_)
-
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Logging/LogMacros.h"
@@ -86,8 +84,6 @@ public:
 	virtual void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions) = 0;
 	virtual TSharedPtr<IDatasmithLevelSequenceElement> GetLevelSequence() = 0;
 };
-
-#endif // _MELANGE_SDK_
 
 struct FDatasmithC4DImportOptions
 {
