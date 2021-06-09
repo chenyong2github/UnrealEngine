@@ -50,7 +50,7 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define TEXTURE_DERIVEDDATA_VER		TEXT("E405EE6911174BB2A4B24BAC98C41448")
+#define TEXTURE_DERIVEDDATA_VER		TEXT("B25F1A6FCA9440168B3A12C3BF5A943F")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
