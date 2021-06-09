@@ -337,10 +337,12 @@ void FNiagaraScriptToolkit::InitViewWithVersionedData()
 	if (ParameterPanelViewModel)
 	{
 		ParameterPanelViewModel->Init(UIContext);
+		ParameterPanelViewModel->RefreshNextTick();
 	}
 	if (ParameterDefinitionsPanelViewModel)
 	{
 		ParameterDefinitionsPanelViewModel->Init(UIContext);
+		ParameterDefinitionsPanelViewModel->RefreshNextTick();
 	}
 	DetailsScriptSelection->SetSelectedObject(EditedNiagaraScript.Script, &EditedNiagaraScript.Version);
 	if (NiagaraScriptGraphWidget)
