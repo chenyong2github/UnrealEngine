@@ -1242,7 +1242,7 @@ class FDrawDebugCloudShadowCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudTracedTexture)
 		SHADER_PARAMETER(FVector4, CloudTextureSizeInvSize)
 		SHADER_PARAMETER(FVector3f, CloudTraceDirection)
@@ -2407,7 +2407,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 
 					auto DebugCloudTexture = [&](FDrawDebugCloudShadowCS::FParameters* Parameters)
 					{
-						if (ShaderDrawDebug::IsShaderDrawDebugEnabled(ViewInfo))
+						if (ShaderDrawDebug::IsEnabled(ViewInfo))
 						{
 							FDrawDebugCloudShadowCS::FPermutationDomain Permutation;
 							TShaderMapRef<FDrawDebugCloudShadowCS> ComputeShader(GetGlobalShaderMap(ViewInfo.GetFeatureLevel()), Permutation);

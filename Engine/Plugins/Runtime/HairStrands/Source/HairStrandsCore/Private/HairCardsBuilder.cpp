@@ -110,7 +110,7 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FOutput>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER(FVector3f, Raster_MinBound)
 		SHADER_PARAMETER(FVector3f, Raster_MaxBound)
 		

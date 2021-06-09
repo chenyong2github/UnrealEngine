@@ -465,7 +465,7 @@ class FVoxelPlainRaymarchingCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVoxelPlainRaymarchingCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(FVector2D, OutputResolution)		
 		SHADER_PARAMETER(FIntVector, Voxel_Resolution)
@@ -555,7 +555,7 @@ class FDrawDebugCardAtlasCS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, AtlasResolution)
 		SHADER_PARAMETER(int32, DebugMode)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -648,7 +648,7 @@ class FDrawDebugCardGuidesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SimRestPosition)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SimDeformedPosition)
 
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -672,7 +672,7 @@ static void AddDrawDebugCardsGuidesPass(
 	const bool bRen)
 {
 	// Force shader debug to be enabled
-	if (!ShaderDrawDebug::IsShaderDrawDebugEnabled())
+	if (!ShaderDrawDebug::IsEnabled())
 	{
 		ShaderDrawDebug::SetEnabled(true);
 	}

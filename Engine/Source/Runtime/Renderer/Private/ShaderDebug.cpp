@@ -32,7 +32,7 @@ namespace ShaderDrawDebug
 		TEXT("Lock the shader draw buffer.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
-	bool IsShaderDrawDebugEnabled()
+	bool IsEnabled()
 	{
 #if WITH_EDITOR
 		return GShaderDrawDebug_Enable > 0;
@@ -50,7 +50,7 @@ namespace ShaderDrawDebug
 #endif
 	}
 
-	static bool IsShaderDrawDebugEnabled(const EShaderPlatform Platform)
+	static bool IsEnabled(const EShaderPlatform Platform)
 	{
 		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsPCPlatform(Platform) && !IsOpenGLPlatform(Platform);
 	}
@@ -78,9 +78,9 @@ namespace ShaderDrawDebug
 #endif			
 	}
 
-	bool IsShaderDrawDebugEnabled(const FViewInfo& View)
+	bool IsEnabled(const FViewInfo& View)
 	{
-		return IsShaderDrawDebugEnabled() && IsShaderDrawDebugEnabled(View.GetShaderPlatform());
+		return IsEnabled() && IsEnabled(View.GetShaderPlatform());
 	}
 
 	// Note: Unaligned structures used for structured buffers is an unsupported and/or sparsely
@@ -107,7 +107,7 @@ namespace ShaderDrawDebug
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return IsShaderDrawDebugEnabled(Parameters.Platform);
+			return IsEnabled(Parameters.Platform);
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -136,7 +136,7 @@ namespace ShaderDrawDebug
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return IsShaderDrawDebugEnabled(Parameters.Platform);
+			return IsEnabled(Parameters.Platform);
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -169,7 +169,7 @@ namespace ShaderDrawDebug
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return IsShaderDrawDebugEnabled(Parameters.Platform);
+			return IsEnabled(Parameters.Platform);
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -249,7 +249,7 @@ namespace ShaderDrawDebug
 
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
-		if (!IsShaderDrawDebugEnabled(View) || !IsShaderDrawDebugEnabled())
+		if (!IsEnabled(View) || !IsEnabled())
 		{
 			return;
 		}
@@ -300,7 +300,7 @@ namespace ShaderDrawDebug
 
 	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture, FRDGTextureRef DepthTexture)
 	{
-		if (!IsShaderDrawDebugEnabled(View))
+		if (!IsEnabled(View))
 		{
 			return;
 		}
@@ -321,13 +321,13 @@ namespace ShaderDrawDebug
 
 	void EndView(FViewInfo& View)
 	{
-		if (!IsShaderDrawDebugEnabled(View))
+		if (!IsEnabled(View))
 		{
 			return;
 		}
 	}
 
-	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderDrawDebugParameters& OutParameters)
+	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderParameters& OutParameters)
 	{
 		FRDGBufferRef DataBuffer = Data.Buffer;
 		FRDGBufferRef IndirectBuffer = Data.IndirectBuffer;
