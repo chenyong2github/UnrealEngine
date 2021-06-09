@@ -51,27 +51,27 @@ public:
 	
 public:
 	template <typename TPlatformSettingsClass>
-	FORCEINLINE static TObjectPtr<TPlatformSettingsClass> GetSettingsForPlatform()
+	FORCEINLINE static TPlatformSettingsClass* GetSettingsForPlatform()
 	{
 		return Cast<TPlatformSettingsClass>(GetSettingsForPlatform(TPlatformSettingsClass::StaticClass()));
 	}
 
-	static TObjectPtr<UPlatformSettings> GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass);
+	static UPlatformSettings* GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass);
 
 #if WITH_EDITOR
 	static FString GetEditorSimulatedPlatform() { return SimulatedEditorPlatform; }
 	static void SetEditorSimulatedPlatform(FString PlatformIniName) { SimulatedEditorPlatform = PlatformIniName; }
 
 	template <typename TPlatformSettingsClass>
-	FORCEINLINE static TArray<TObjectPtr<UPlatformSettings>> GetAllPlatformSettings()
+	FORCEINLINE static TArray<UPlatformSettings*> GetAllPlatformSettings()
 	{
 		return GetAllPlatformSettings(TPlatformSettingsClass::StaticClass());
 	}
 
-	static TArray<TObjectPtr<UPlatformSettings>> GetAllPlatformSettings(TSubclassOf<UPlatformSettings> SettingsClass);
+	static TArray<UPlatformSettings*> GetAllPlatformSettings(TSubclassOf<UPlatformSettings> SettingsClass);
 
 	template <typename TPlatformSettingsClass>
-	FORCEINLINE static TObjectPtr<TPlatformSettingsClass> GetSettingsForPlatform(FString TargetIniPlatformName)
+	FORCEINLINE static TPlatformSettingsClass* GetSettingsForPlatform(FString TargetIniPlatformName)
 	{
 		return Cast<TPlatformSettingsClass>(GetSettingsForPlatformInternal(TPlatformSettingsClass::StaticClass(), TargetIniPlatformName));
 	}

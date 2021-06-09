@@ -14,7 +14,8 @@ void UCommonActivatableWidget::NativeConstruct()
 	if (bIsBackHandler)
 	{
 		FBindUIActionArgs BindArgs(ICommonInputModule::GetSettings().GetDefaultBackAction(), FSimpleDelegate::CreateUObject(this, &UCommonActivatableWidget::HandleBackAction));
-		BindArgs.bDisplayInActionBar = false;
+		BindArgs.bDisplayInActionBar = bIsBackActionDisplayedInActionBar;
+
 		RegisterUIActionBinding(BindArgs);
 	}
 

@@ -21,9 +21,9 @@ UPlatformSettings::UPlatformSettings(const FObjectInitializer& ObjectInitializer
 }
 
 #if WITH_EDITOR
-TArray<TObjectPtr<UPlatformSettings>> UPlatformSettings::GetAllPlatformSettings(TSubclassOf<UPlatformSettings> SettingsClass)
+TArray<UPlatformSettings*> UPlatformSettings::GetAllPlatformSettings(TSubclassOf<UPlatformSettings> SettingsClass)
 {
-	TArray<TObjectPtr<UPlatformSettings>> Settings;
+	TArray<UPlatformSettings*> Settings;
 
 	const FProjectDescriptor* Project = IProjectManager::Get().GetCurrentProject();
 	
@@ -49,7 +49,7 @@ TArray<TObjectPtr<UPlatformSettings>> UPlatformSettings::GetAllPlatformSettings(
 }
 #endif
 
-TObjectPtr<UPlatformSettings> UPlatformSettings::GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass)
+UPlatformSettings* UPlatformSettings::GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass)
 {
 	static UPlatformSettings* ThisPlatformsSettings = GetSettingsForPlatformInternal(SettingsClass, FPlatformProperties::IniPlatformName());
 	

@@ -6,6 +6,8 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "CommonInputBaseTypes.h"
+#include "Engine/PlatformSettings.h"
 
 UCommonInputSettings::UCommonInputSettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)
@@ -112,6 +114,7 @@ void UCommonInputSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
 
+#if WITH_EDITOR
 	if (CommonInputPlatformData_DEPRECATED.Num())
 	{
 		for (const auto& PlatformData : CommonInputPlatformData_DEPRECATED)
@@ -151,4 +154,5 @@ void UCommonInputSettings::PostInitProperties()
 		CommonInputPlatformData_DEPRECATED.Reset();
 		UpdateDefaultConfigFile();
 	}
+#endif
 }
