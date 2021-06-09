@@ -7,6 +7,7 @@
 #include "Input/Reply.h"
 #include "IDetailCustomization.h"
 #include "PropertyHandle.h"
+#include "IPropertyTypeCustomization.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FPerPlatformSettingsCustomization
