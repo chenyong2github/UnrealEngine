@@ -430,7 +430,7 @@ class POSESEARCH_API UPoseSearchDatabase : public UDataAsset
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category="Database")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Database")
 	const UPoseSearchSchema* Schema;
 
 	UPROPERTY(EditAnywhere, Category="Database")

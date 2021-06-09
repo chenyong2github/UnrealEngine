@@ -19,9 +19,7 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	DbPoseIdx = INDEX_NONE;
-	DbSequenceIdx = INDEX_NONE;
-	ElapsedPoseJumpTime = SearchThrottleTime;
+	InitNewDatabaseSearch();
 
 	Source.SetLinkNode(&SequencePlayerNode);
 	Source.Initialize(Context);
@@ -45,7 +43,12 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 
 	if (IsValidForSearch())
 	{
-		if (!ComposedQuery.IsInitialized())
+		if (PreviousDatabase != Database)
+		{
+			InitNewDatabaseSearch();
+		}
+
+		if (!ComposedQuery.IsInitializedForSchema(Database->Schema))
 		{
 			ComposedQuery.Init(Database->Schema);
 		}
@@ -251,6 +254,14 @@ void FAnimNode_MotionMatching::JumpToPose(const FAnimationUpdateContext& Context
 			InertializationRequester->RequestInertialization(BlendTime);
 		}
 	}
+}
+
+void FAnimNode_MotionMatching::InitNewDatabaseSearch()
+{
+	DbPoseIdx = INDEX_NONE;
+	DbSequenceIdx = INDEX_NONE;
+	ElapsedPoseJumpTime = SearchThrottleTime;
+	PreviousDatabase = Database;
 }
 
 #undef LOCTEXT_NAMESPACE
