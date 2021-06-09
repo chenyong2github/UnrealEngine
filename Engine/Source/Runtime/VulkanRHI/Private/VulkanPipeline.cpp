@@ -1805,8 +1805,22 @@ FGraphicsPipelineStateRHIRef FVulkanDynamicRHI::RHICreateGraphicsPipelineState(c
 	return Device->PipelineStateCache->RHICreateGraphicsPipelineState(PSOInitializer);
 }
 
+FVulkanComputePipeline* FVulkanPipelineStateCacheManager::RHICreateComputePipelineState(FRHIComputeShader* ComputeShaderRHI)
+{
+	FVulkanComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
+	return Device->GetPipelineStateCache()->GetOrCreateComputePipeline(ComputeShader);
+}
 
+FComputePipelineStateRHIRef FVulkanDynamicRHI::RHICreateComputePipelineState(FRHIComputeShader* ComputeShader)
+{
+#if VULKAN_ENABLE_AGGRESSIVE_STATS
+	SCOPE_CYCLE_COUNTER(STAT_VulkanGetOrCreatePipeline);
+#endif
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Vulkan_RHICreateComputePipelineState);
+	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanShaders);
 
+	return Device->PipelineStateCache->RHICreateComputePipelineState(ComputeShader);
+}
 
 FVulkanComputePipeline* FVulkanPipelineStateCacheManager::GetOrCreateComputePipeline(FVulkanComputeShader* ComputeShader)
 {

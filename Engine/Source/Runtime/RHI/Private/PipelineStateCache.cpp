@@ -80,11 +80,7 @@ static FAutoConsoleCommand DumpPipelineCmd(
 
 void SetComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader)
 {
-#if PLATFORM_ANDROID
-	RHICmdList.SetComputeShader(ComputeShader);
-#else
 	RHICmdList.SetComputePipelineState(PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeShader), ComputeShader);
-#endif
 }
 
 extern RHI_API FRHIComputePipelineState* ExecuteSetComputePipelineState(FComputePipelineState* ComputePipelineState);

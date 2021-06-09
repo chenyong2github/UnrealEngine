@@ -1776,6 +1776,7 @@ typedef TRefCountPtr<FRHIViewport> FViewportRHIRef;
 typedef TRefCountPtr<FRHIUnorderedAccessView> FUnorderedAccessViewRHIRef;
 typedef TRefCountPtr<FRHIShaderResourceView> FShaderResourceViewRHIRef;
 typedef TRefCountPtr<FRHIGraphicsPipelineState> FGraphicsPipelineStateRHIRef;
+typedef TRefCountPtr<FRHIComputePipelineState> FComputePipelineStateRHIRef;
 typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef;
 
 
