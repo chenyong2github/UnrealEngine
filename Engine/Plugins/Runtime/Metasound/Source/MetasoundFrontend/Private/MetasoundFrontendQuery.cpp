@@ -33,6 +33,24 @@ namespace Metasound
 		};
 
 		// Wrapper for step defined by function
+		struct FTransformFunctionFrontendQueryStep: IFrontendQueryTransformStep
+		{
+			using FTransformFunction = FFrontendQueryStep::FTransformFunction;
+
+			FTransformFunctionFrontendQueryStep(FTransformFunction InFunc)
+			:	Func(InFunc)
+			{
+			}
+
+			void Transform(FFrontendQueryEntry::FValue& InValue) const override
+			{
+				Func(InValue);
+			}
+
+			FTransformFunction Func;
+		};
+
+		// Wrapper for step defined by function
 		struct FMapFunctionFrontendQueryStep: IFrontendQueryMapStep
 		{
 			using FMapFunction = FFrontendQueryStep::FMapFunction;
@@ -265,6 +283,44 @@ namespace Metasound
 			}
 		};
 
+		struct FTransformStepExecuter : TStepExecuter<IFrontendQueryTransformStep>
+		{
+			using TStepExecuter<IFrontendQueryTransformStep>::TStepExecuter;
+
+			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
+				if (Step.IsValid())
+				{
+					if (InOutResult.GetSelection().Num() > 0)
+					{
+						ResultState = EResultModificationState::Modified;
+					}
+
+					for (FFrontendQueryEntry* Entry : InOutResult.GetSelection())
+					{
+						if (nullptr != Entry)
+						{
+							Step->Transform(Entry->Value);
+						}
+					}
+				}
+
+				return ResultState;
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				return Append(InIncremental, InOutResult);
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				return Increment(InOutResult);
+			}
+		};
+
 		struct FMapStepExecuter : TStepExecuter<IFrontendQueryMapStep>
 		{
 			using TStepExecuter<IFrontendQueryMapStep>::TStepExecuter;
@@ -308,10 +364,18 @@ namespace Metasound
 			using FKey = FFrontendQueryEntry::FKey;
 
 		private:
+			static const FKey InvalidKey;
 
-			static FFrontendQueryEntry::FKey GetKey(const FFrontendQueryEntry* InEntry)
+			static const FFrontendQueryEntry::FKey& GetKey(const FFrontendQueryEntry* InEntry)
 			{
-				return (nullptr != InEntry) ? InEntry->Key : FFrontendQueryEntry::InvalidKey;
+				if (nullptr != InEntry)
+				{
+					return InEntry->Key;
+				}
+				else
+				{
+					return InvalidKey;
+				}
 			}
 
 			// Reduce entries.
@@ -445,6 +509,8 @@ namespace Metasound
 				return true;
 			}
 		};
+
+		const FReduceStepExecuter::FKey FReduceStepExecuter::InvalidKey;
 
 		struct FFilterStepExecuter : TStepExecuter<IFrontendQueryFilterStep>
 		{
@@ -647,6 +713,105 @@ namespace Metasound
 		};
 	}
 
+	FFrontendQueryKey::FFrontendQueryKey()
+	: Key(TInPlaceType<FFrontendQueryKey::FInvalid>())
+	, Hash(INDEX_NONE)
+	{}
+
+	FFrontendQueryKey::FFrontendQueryKey(int32 InKey)
+	: Key(TInPlaceType<int32>(), InKey)
+	, Hash(GetTypeHash(InKey))
+	{
+	}
+
+	FFrontendQueryKey::FFrontendQueryKey(const FString& InKey)
+	: Key(TInPlaceType<FString>(), InKey)
+	, Hash(GetTypeHash(InKey))
+	{
+	}
+
+	FFrontendQueryKey::FFrontendQueryKey(const FName& InKey)
+	: Key(TInPlaceType<FName>(), InKey)
+	, Hash(GetTypeHash(InKey))
+	{
+	}
+
+	bool FFrontendQueryKey::IsValid() const
+	{
+		return Key.GetIndex() != FKeyType::IndexOfType<FFrontendQueryKey::FInvalid>();
+	}
+
+	bool operator==(const FFrontendQueryKey& InLHS, const FFrontendQueryKey& InRHS)
+	{
+		if (InLHS.Hash == InRHS.Hash)
+		{
+			if (InLHS.IsValid() && InRHS.IsValid())
+			{
+				if (InLHS.Key.GetIndex() == InRHS.Key.GetIndex())
+				{
+					switch(InLHS.Key.GetIndex())
+					{
+						case FFrontendQueryKey::FKeyType::IndexOfType<int32>():
+							return InLHS.Key.Get<int32>() == InRHS.Key.Get<int32>();
+
+						case FFrontendQueryKey::FKeyType::IndexOfType<FString>():
+							return InLHS.Key.Get<FString>() == InRHS.Key.Get<FString>();
+
+						case FFrontendQueryKey::FKeyType::IndexOfType<FName>():
+							return InLHS.Key.Get<FName>() == InRHS.Key.Get<FName>();
+
+						default:
+							// Unhandled case type.
+							checkNoEntry();
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	bool operator!=(const FFrontendQueryKey& InLHS, const FFrontendQueryKey& InRHS)
+	{
+		return !(InLHS == InRHS);
+	}
+
+	bool operator<(const FFrontendQueryKey& InLHS, const FFrontendQueryKey& InRHS)
+	{
+		if (InLHS.Hash != InRHS.Hash)
+		{
+			return InLHS.Hash < InRHS.Hash;
+		}
+
+		if (InLHS.Key.GetIndex() != InRHS.Key.GetIndex())
+		{
+			return InLHS.Key.GetIndex() < InRHS.Key.GetIndex();
+		}
+
+		switch(InLHS.Key.GetIndex())
+		{
+			case FFrontendQueryKey::FKeyType::IndexOfType<int32>():
+				return InLHS.Key.Get<int32>() < InRHS.Key.Get<int32>();
+
+			case FFrontendQueryKey::FKeyType::IndexOfType<FString>():
+				return InLHS.Key.Get<FString>() < InRHS.Key.Get<FString>();
+
+			case FFrontendQueryKey::FKeyType::IndexOfType<FName>():
+				return InLHS.Key.Get<FName>().FastLess(InRHS.Key.Get<FName>());
+
+			default:
+				// Unhandled case type.
+				checkNoEntry();
+		}
+
+		return false;
+	}
+
+	uint32 GetTypeHash(const FFrontendQueryKey& InKey)
+	{
+		return InKey.Hash;
+	}
+
 	FFrontendQuerySelection::FFrontendQuerySelection(const FFrontendQuerySelection& InOther)
 	{
 		AppendToStorageAndSelection(InOther);
@@ -847,6 +1012,11 @@ namespace Metasound
 	{
 	}
 
+	FFrontendQueryStep::FFrontendQueryStep(FTransformFunction&& InFunc)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FTransformStepExecuter>(MakeUnique<FrontendQueryPrivate::FTransformFunctionFrontendQueryStep>(MoveTemp(InFunc))))
+	{
+	}
+
 	FFrontendQueryStep::FFrontendQueryStep(FMapFunction&& InFunc)
 	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FMapStepExecuter>(MakeUnique<FrontendQueryPrivate::FMapFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
@@ -887,6 +1057,11 @@ namespace Metasound
 	{
 	}
 	
+	FFrontendQueryStep::FFrontendQueryStep(TUniquePtr<IFrontendQueryTransformStep>&& InStep)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FTransformStepExecuter>(MoveTemp(InStep)))
+	{
+	}
+
 	FFrontendQueryStep::FFrontendQueryStep(TUniquePtr<IFrontendQueryMapStep>&& InStep)
 	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FMapStepExecuter>(MoveTemp(InStep)))
 	{
@@ -977,6 +1152,11 @@ namespace Metasound
 
 
 	FFrontendQuery& FFrontendQuery::AddStreamLambdaStep(FStreamFunction&& InFunc)
+	{
+		return AddFunctionStep(MoveTemp(InFunc));
+	}
+
+	FFrontendQuery& FFrontendQuery::AddTransformLambdaStep(FTransformFunction&& InFunc)
 	{
 		return AddFunctionStep(MoveTemp(InFunc));
 	}

@@ -14,10 +14,6 @@
 
 namespace Metasound
 {
-	namespace Frontend
-	{
-		using FRegistryTransactionID = int32;
-	}
 
 	// Base implementation for NodeConstructorCallbacks
 	struct FDefaultNodeConstructorParams
@@ -51,29 +47,6 @@ namespace Metasound
 	using FOutputNodeConstructorParams = FDefaultNodeConstructorParams;
 	using FVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
 	using FInputNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
-
-	/*
-	class IMetasoundDataTypeRegistryEntry
-	{
-	public:
-		virtual TUniquePtr<Metasound::INode> CreateInputNode(FInputNodeConstructorParams&&) const = 0;
-		virtual TUniquePtr<Metasound::INode> CreateOutputNode(const FOutputNodeConstructorParams&) const = 0;
-	};
-
-	class IMetasoundProxyRegistryEntry
-	{
-	public:
-		// This function is used to create a proxy from a datatype's base uclass.
-		virtual Audio::IProxyDataPtr CreateAudioProxy(UObject*) const = 0;
-	};
-
-	class IMetasoundNodeRegistryEntry
-	{
-	public:
-		virtual TUniquePtr<Metasound::INode> CreateNode(const Metasound::FNodeInitData&) const = 0;
-		virtual FMetasoundFrontendClass CreateMetasoundFrontendClass() const = 0;
-	};
-	*/
 
 	using FCreateInputNodeFunction = TFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)>;
 	using FCreateVariableNodeFunction = TFunction<TUniquePtr<Metasound::INode>(::Metasound::FVariableNodeConstructorParams&&)>;
@@ -136,30 +109,11 @@ namespace Metasound
 
 	namespace Frontend
 	{
-		/* TODO: Node registry key needs to use full version
-		struct METASOUNDFRONTEND_API FNodeRegistryKey
-		{
-			// The class name for the node.
-			FName NodeClassFullName;
-
-
-			// A hash generated from the input types and output types for this node.
-			uint32 NodeHash = 0;
-
-			FORCEINLINE bool operator==(const FNodeRegistryKey& Other) const
-			{
-				return NodeHash == Other.NodeHash && NodeClassFullName == Other.NodeClassFullName;
-			}
-
-			friend uint32 GetTypeHash(const Metasound::Frontend::FNodeRegistryKey& InKey)
-			{
-				return InKey.NodeHash;
-			}
-		};
-		*/
-
 		using FNodeRegistryKey = FString;
 
+		// Returns true if the registry key is a valid key. 
+		//
+		// This does *not* connote that the registry key exists in the registry.
 		METASOUNDFRONTEND_API bool IsValidNodeRegistryKey(const FNodeRegistryKey& InKey);
 
 		// Struct with the basics of a node class' information,
@@ -275,7 +229,34 @@ namespace Metasound
 				return {};
 			}
 		};
-	}
+
+		using FRegistryTransactionID = int32;
+
+		/** Describes the type of transaction. */
+		enum class ETransactionType : uint8
+		{
+			Add,     //< Something was added to the registry.
+			Remove,  //< Something was removed from the registry.
+			Invalid
+		};
+
+		/** Interface for a registry transaction. */
+		class IRegistryTransaction
+		{
+		public:
+			virtual ~IRegistryTransaction() = default;
+			virtual TUniquePtr<IRegistryTransaction> Clone() const = 0;
+
+			/** Returns the type of transaction */
+			virtual ETransactionType GetTransactionType() const = 0;
+
+			/** If a FNodeClassInfo added during the transaction, this will return
+			 * a non-null pointer to the FNodeClassInfo. */
+			virtual const FNodeClassInfo* GetNodeClassInfo() const = 0;
+		};
+
+		using FRegistryTransactionPtr = TUniquePtr<IRegistryTransaction>;
+	} // namespace Frontend
 
 	struct FDataTypeConstructorCallbacks
 	{
@@ -299,7 +280,7 @@ namespace Metasound
 
 		FCreateDataChannelFunction CreateDataChannel;
 	};
-} // namespace Frontend
+} // namespace Metasound
 
 /**
  * Singleton registry for all types and nodes.
@@ -361,8 +342,8 @@ public:
 	/** Return all node classes registered. */
 	virtual TArray<Metasound::Frontend::FNodeClassInfo> GetAllAvailableNodeClasses(Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const = 0;
 
-	/** Return node classes registered since a given transaction id. */
-	virtual TArray<Metasound::Frontend::FNodeClassInfo> GetNodeClassesRegisteredSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const = 0;
+	/** Return registry transactions since a given transaction id. */
+	virtual TArray<const Metasound::Frontend::IRegistryTransaction*> GetRegistryTransactionsSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const = 0;
 
 	// Return any data types that can be used as a metasound input type or output type.
 	virtual TArray<FName> GetAllValidDataTypes() = 0;

@@ -64,11 +64,17 @@ namespace Metasound
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
-				NewQuery->AddStep<FNodeClassRegistrationEvents>();
+				// TODO: this query will be slow to update when new nodes are registered. 
+				// Consider reworking call sites, or creating a reduce function
+				// which performs the majority of the query logic.
+				NewQuery->AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>();
 
 				if (!bInIncludeDeprecated)
 				{
-					NewQuery->AddStep<FMapClassNameToMajorVersion>()
+					NewQuery->AddStep<FMapToFullClassName>()
 						.AddStep<FReduceClassesToHighestVersion>();
 				}
 
@@ -105,6 +111,9 @@ namespace Metasound
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 				NewQuery->AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
 					.AddStep<FFilterClassesByClassName>(InName);
 
 				if (bInSortByVersion)
@@ -139,9 +148,14 @@ namespace Metasound
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
+				// TODO: Create index of class names and major version to avoid duplicating
+				// this query for each class name.
 				NewQuery->AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
 					.AddStep<FFilterClassesByClassName>(InName)
-					.AddStep<FMapClassNameToMajorVersion>()
+					.AddStep<FMapToFullClassName>()
 					.AddStep<FReduceClassesToHighestVersion>();
 
 				Query = AddQuery(QueryName, MoveTemp(NewQuery));
@@ -174,9 +188,14 @@ namespace Metasound
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
+				// TODO: Create index of class names to avoid duplicating
+				// this query for each class name.
 				NewQuery->AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
 					.AddStep<FFilterClassesByClassName>(InName)
-					.AddStep<FMapClassNameToMajorVersion>()
+					.AddStep<FMapToFullClassName>()
 					.AddStep<FReduceClassesToMajorVersion>(InMajorVersion);
 
 				Query = AddQuery(QueryName, MoveTemp(NewQuery));
