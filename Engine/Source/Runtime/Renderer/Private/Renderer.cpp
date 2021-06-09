@@ -162,7 +162,6 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				PrimitiveParams.InstanceDataOffset = 0;
 				PrimitiveParams.NumInstanceDataEntries = 1;
 
-
 				// Now we just need to fill out the first entry of primitive data in a buffer and bind it
 				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
 				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
@@ -176,16 +175,16 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				// Also fill out correct single-primitive instance data, derived from the primitive.
 				SinglePrimitiveStructured.InstanceSceneData = FInstanceSceneShaderData(
 					ConstructPrimitiveInstance(
-						PrimitiveParams.LocalToWorld,
-						PrimitiveParams.PreviousLocalToWorld,
 						FRenderBounds(PrimitiveParams.LocalObjectBoundsMin, PrimitiveParams.LocalObjectBoundsMax),
 						FVector4(ForceInitToZero),
 						NANITE_INVALID_HIERARCHY_OFFSET,
 						InstanceFlags,
-						0xFFFFFFFFu,
 						0.0f
 					),
-					0 /* Primitive Id */
+					0, /* Primitive Id */
+					PrimitiveParams.LocalToWorld,
+					PrimitiveParams.PreviousLocalToWorld,
+					INVALID_LAST_UPDATE_FRAME
 				);
 
 				// Set up the parameters for the LightmapSceneData from the given LCI data 

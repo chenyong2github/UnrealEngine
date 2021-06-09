@@ -159,70 +159,11 @@ struct FInstanceUploadInfo
 	// Used for primitives that need to create a dummy instance (they do not have instance data in the proxy)
 	FPrimitiveInstance DummyInstance;
 
+	FRenderTransform PrimitiveToWorld;
+	FRenderTransform PrevPrimitiveToWorld;
 	int32 PrimitiveID = INDEX_NONE;
+	uint32 LastUpdateSceneFrameNumber = ~uint32(0);
 };
-
-struct FPrimitiveTransforms
-{
-	FRenderTransform LocalToWorld;
-	FRenderTransform PreviousLocalToWorld;
-};
-
-inline FPrimitiveTransforms InitPrimitiveTransforms(const FScene& Scene, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FPrimitiveSceneInfo* PrimitiveSceneInfo)
-{
-	FPrimitiveTransforms Transforms;
-	Transforms.LocalToWorld = PrimitiveSceneProxy->GetLocalToWorld();
-
-	{
-		bool bHasPrecomputedVolumetricLightmap{};
-		bool bOutputVelocity{};
-		int32 SingleCaptureIndex{};
-
-		FMatrix PreviousLocalToWorld;
-		Scene.GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
-		Transforms.PreviousLocalToWorld = PreviousLocalToWorld;
-	}
-
-	return Transforms;
-}
-
-inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const FPrimitiveTransforms& PrimitiveTransforms, uint32 SceneFrameNumber, bool bHasPreviousInstanceTransforms)
-{
-	const FRenderTransform& PreviousInstanceToLocal = bHasPreviousInstanceTransforms ? PrimitiveInstance.PrevInstanceToLocal : PrimitiveInstance.InstanceToLocal;
-
-	PrimitiveInstance.LastUpdateSceneFrameNumber = SceneFrameNumber;
-	PrimitiveInstance.LocalToWorld = PrimitiveInstance.InstanceToLocal * PrimitiveTransforms.LocalToWorld;
-	PrimitiveInstance.PrevLocalToWorld = PreviousInstanceToLocal * PrimitiveTransforms.PreviousLocalToWorld;
-
-	// TODO: This should be propagated from the Primitive, or not exist?
-	PrimitiveInstance.Flags = 0;
-
-	if (PrimitiveInstance.LocalToWorld.RotDeterminant() < 0.0f)
-	{
-		PrimitiveInstance.Flags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
-	}
-	else
-	{
-		PrimitiveInstance.Flags &= ~INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
-	}
-
-	PrimitiveInstance.Orthonormalize();
-}
-
-inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const FPrimitiveTransforms& PrimitiveTransforms, const FBoxSphereBounds& LocalBounds, uint32 SceneFrameNumber)
-{
-	// We always create an instance to ensure that we can always use the same code paths in the shader
-	// In the future we should remove redundant data from the primitive, and then the instances should be
-	// provided by the proxy. However, this is a lot of work before we can just enable it in the base proxy class.
-	DummyInstance.InstanceToLocal.SetIdentity();
-	DummyInstance.PrevInstanceToLocal.SetIdentity();
-	DummyInstance.LocalToWorld.SetIdentity();
-	DummyInstance.PrevLocalToWorld.SetIdentity();
-	DummyInstance.LocalBounds = LocalBounds;
-
-	const bool bHasPreviousInstanceTransforms = false;
-	InitPrimitiveInstance(DummyInstance, PrimitiveTransforms, SceneFrameNumber, bHasPreviousInstanceTransforms);
-}
 
 /**
  * Info required by the uploader to update the lightmap data for a primitive.
@@ -303,64 +244,43 @@ struct FUploadDataSourceAdapterScenePrimitives
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
 			InstanceUploadInfo.InstanceDataOffset = PrimitiveSceneInfo->GetInstanceDataOffset();
+			InstanceUploadInfo.LastUpdateSceneFrameNumber = SceneFrameNumber;
 			InstanceUploadInfo.PrimitiveID = PrimitiveID;
+			InstanceUploadInfo.PrimitiveToWorld = PrimitiveSceneProxy->GetLocalToWorld();
+			{
+				bool bHasPrecomputedVolumetricLightmap{};
+				bool bOutputVelocity{};
+				int32 SingleCaptureIndex{};
+
+				FMatrix PreviousLocalToWorld;
+				Scene.GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+				InstanceUploadInfo.PrevPrimitiveToWorld = PreviousLocalToWorld;
+			}
 
 			if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
 			{
 				TArray<FPrimitiveInstance>* PrimitiveInstancesPtr = PrimitiveSceneProxy->GetPrimitiveInstances();
 				check(PrimitiveInstancesPtr);
 
-				// This data has already been built by UpdateInstanceTransforms.
 				InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(*PrimitiveInstancesPtr);
 				return InstanceUploadInfo.PrimitiveInstances.Num() > 0;
 			}
 			else
 			{
-				const FPrimitiveTransforms PrimitiveTransforms = InitPrimitiveTransforms(Scene, PrimitiveSceneProxy, PrimitiveSceneInfo);
-				InitPrimitiveInstanceDummy(InstanceUploadInfo.DummyInstance, PrimitiveTransforms, PrimitiveSceneProxy->GetLocalBounds(), SceneFrameNumber);
+				// We always create an instance to ensure that we can always use the same code paths in the shader
+				// In the future we should remove redundant data from the primitive, and then the instances should be
+				// provided by the proxy. However, this is a lot of work before we can just enable it in the base proxy class.
+				InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
+				InstanceUploadInfo.DummyInstance.PrevLocalToPrimitive.SetIdentity();
+				InstanceUploadInfo.DummyInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
+				// TODO: This should be propagated from the Primitive, or not exist?
+				InstanceUploadInfo.DummyInstance.Flags = 0;
 				InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 				return true;
 			}
 		}
 
 		return false;
-	}
-
-	FORCEINLINE bool ShouldUpdateInstanceTransforms() const
-	{
-		return true;
-	}
-
-	FORCEINLINE void UpdateInstanceTransforms(int32 ItemIndex) const
-	{
-		const int32 PrimitiveID = PrimitivesToUpdate[ItemIndex];
-		if (PrimitiveID < Scene.PrimitiveSceneProxies.Num())
-		{
-			FPrimitiveSceneProxy* PrimitiveSceneProxy = Scene.PrimitiveSceneProxies[PrimitiveID];
-
-			if (!PrimitiveSceneProxy->SupportsInstanceDataBuffer())
-			{
-				return;
-			}
-
-			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
-
-			if (!PrimitiveSceneInfo->GetNumInstanceDataEntries())
-			{
-				return;
-			}
-
-			const bool bHasPreviousInstanceTransforms = PrimitiveSceneProxy->HasPrevInstanceTransforms();
-			const FPrimitiveTransforms PrimitiveTransforms = InitPrimitiveTransforms(Scene, PrimitiveSceneProxy, PrimitiveSceneInfo);
-
-			TArray<FPrimitiveInstance>* PrimitiveInstancesPtr = PrimitiveSceneProxy->GetPrimitiveInstances();
-			check(PrimitiveInstancesPtr);
-
-			for (FPrimitiveInstance& PrimitiveInstance : *PrimitiveInstancesPtr)
-			{
-				InitPrimitiveInstance(PrimitiveInstance, PrimitiveTransforms, SceneFrameNumber, bHasPreviousInstanceTransforms);
-			}
-		}
 	}
 
 	FORCEINLINE bool GetLightMapInfo(int32 ItemIndex, FLightMapUploadInfo &UploadInfo) const
@@ -554,8 +474,6 @@ FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSc
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
-	UpdatePrimitiveInstances(Scene, UploadDataSourceAdapter);
-
 	FGPUSceneBufferState BufferState;
 	ensure(bInBeginEndBlock);
 	if (Scene != nullptr)
@@ -604,41 +522,6 @@ FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSc
 	BufferState.LightMapDataBufferSize = LightMapDataBufferSize;
 
 	return BufferState;
-}
-
-template <typename FUploadDataSourceAdapter>
-void FGPUScene::UpdatePrimitiveInstances(FScene* Scene, const FUploadDataSourceAdapter& UploadDataSourceAdapter)
-{
-	LLM_SCOPE_BYTAG(GPUScene);
-
-	const int32 NumPrimitiveDataUploads = UploadDataSourceAdapter.NumPrimitivesToUpload();
-
-	if (!NumPrimitiveDataUploads || !UploadDataSourceAdapter.ShouldUpdateInstanceTransforms())
-	{
-		return;
-	}
-
-	// Note: we iterate over the primitives, whether they have instances or not (which is a bit wasteful) but this is the way we currently get to the instance data.
-	// GPUCULL_TODO: move instance data ownership to GPU-scene such that it can be put in a compact list or something, and be tracked independent of primitives?
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(GPUScene_UpdateInstanceTransforms);
-
-	FParallelUpdateRanges ParallelRanges;
-
-	const bool bExecuteInParallel = GGPUSceneParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
-	const int32 RangeCount = PartitionUpdateRanges(ParallelRanges, NumPrimitiveDataUploads, bExecuteInParallel);
-	const uint32 InstanceDataNumArrays = FInstanceSceneShaderData::InstanceDataStrideInFloat4s;
-
-	// Upload any out of date instance slots.
-	ParallelFor(RangeCount,
-		[&UploadDataSourceAdapter, this, &ParallelRanges, RangeCount, InstanceDataNumArrays](int32 RangeIndex)
-	{
-		for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
-		{
-			UploadDataSourceAdapter.UpdateInstanceTransforms(ItemIndex);
-		}
-
-	}, RangeCount == 1);
 }
 
 template<typename FUploadDataSourceAdapter>
@@ -978,7 +861,13 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 									// Update each primitive instance with current data.
 									for (int32 InstanceIndex = 0; InstanceIndex < UploadInfo.PrimitiveInstances.Num(); ++InstanceIndex)
 									{
-										const FInstanceSceneShaderData InstanceSceneData(UploadInfo.PrimitiveInstances[InstanceIndex], UploadInfo.PrimitiveID);
+										const FInstanceSceneShaderData InstanceSceneData(
+											UploadInfo.PrimitiveInstances[InstanceIndex],
+											UploadInfo.PrimitiveID,
+											UploadInfo.PrimitiveToWorld,
+											UploadInfo.PrevPrimitiveToWorld,
+											UploadInfo.LastUpdateSceneFrameNumber
+										);
 
 										void* DstRefs[FInstanceSceneShaderData::InstanceDataStrideInFloat4s];
 										if (RangeCount > 1)
@@ -1135,29 +1024,19 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 		return false;
 	}
 
-	FORCEINLINE bool ShouldUpdateInstanceTransforms() const
-	{
-		return false;
-	}
-
-	FORCEINLINE void UpdateInstanceTransforms(int32 ItemIndex) const
-	{
-		// Nothing to do.
-	}
-
 	FORCEINLINE bool GetInstanceInfo(int32 ItemIndex, FInstanceUploadInfo& InstanceUploadInfo) const
 	{
 		if (ItemIndex < PrimitiveShaderData.Num())
 		{
+			const FPrimitiveUniformShaderParameters& PrimitiveData = PrimitiveShaderData[ItemIndex];
 			InstanceUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
-
-			FPrimitiveTransforms PrimitiveTransforms;
-			PrimitiveTransforms.LocalToWorld = PrimitiveShaderData[ItemIndex].LocalToWorld;
-			PrimitiveTransforms.PreviousLocalToWorld = PrimitiveTransforms.LocalToWorld;
-
-			const FBoxSphereBounds LocalBounds = FBoxSphereBounds(FBox(PrimitiveShaderData[ItemIndex].LocalObjectBoundsMin, PrimitiveShaderData[ItemIndex].LocalObjectBoundsMax));
-
-			InitPrimitiveInstanceDummy(InstanceUploadInfo.DummyInstance, PrimitiveTransforms, LocalBounds, SceneFrameNumber);
+			InstanceUploadInfo.PrimitiveToWorld = PrimitiveData.LocalToWorld;
+			InstanceUploadInfo.PrevPrimitiveToWorld = InstanceUploadInfo.PrimitiveToWorld;
+			InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
+			InstanceUploadInfo.DummyInstance.PrevLocalToPrimitive.SetIdentity();
+			InstanceUploadInfo.DummyInstance.LocalBounds = FRenderBounds(PrimitiveData.LocalObjectBoundsMin, PrimitiveData.LocalObjectBoundsMax);
+			// TODO: This should be propagated from the Primitive, or not exist?
+			InstanceUploadInfo.DummyInstance.Flags = 0;
 			InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 			InstanceUploadInfo.InstanceDataOffset = InstanceIDStartOffset + ItemIndex;
 			return true;

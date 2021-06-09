@@ -15,73 +15,73 @@
 #define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN		0x2
 #define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER			0x4
 
+#define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
+
 struct FPrimitiveInstance
 {
-	FRenderTransform		InstanceToLocal;
-	FRenderTransform		PrevInstanceToLocal;
-	FRenderTransform		LocalToWorld;
-	FRenderTransform		PrevLocalToWorld;
-	uint32					LastUpdateSceneFrameNumber;
+	FRenderTransform		LocalToPrimitive;
+	FRenderTransform		PrevLocalToPrimitive;
 	FRenderBounds			LocalBounds;
 	float					PerInstanceRandom;
 	FVector4				LightMapAndShadowMapUVBias;
 	uint32					NaniteHierarchyOffset;
 	uint32					Flags;
 
-	FORCEINLINE void Orthonormalize()
+	// Should always use this accessor so shearing is properly
+	// removed from the concatenated transform.
+	FORCEINLINE FRenderTransform ComputeLocalToWorld(const FRenderTransform& PrimitiveToWorld) const
 	{
-		// Remove shear
-		LocalToWorld.Orthonormalize();
-		PrevLocalToWorld.Orthonormalize();
+		FRenderTransform LocalToWorld = LocalToPrimitive * PrimitiveToWorld;
 
-		if (LocalToWorld.RotDeterminant() < 0.0f)
+	// TODO: Enable when scale is decomposed within FRenderTransform, so we don't have 3x
+	// length calls to retrieve the scale when checking for non-uniform scaling.
+	#if 0
+		// Shearing occurs when applying a rotation and then non-uniform scaling. It is much more likely that 
+		// an instance would be non-uniformly scaled than the primitive, so we'll check if the primitive has 
+		// non-uniform scaling, and orthonormalize in that case.
+		if (PrimitiveToWorld.IsScaleNonUniform())
+	#endif
 		{
-			Flags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
+			LocalToWorld.Orthonormalize();
 		}
-		else
-		{
-			Flags &= ~INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
-		}
+
+		return LocalToWorld;
 	}
 
-	FORCEINLINE FVector4 GetNonUniformScale() const
+	// Should always use this accessor so shearing is properly
+	// removed from the concatenated transform.
+	FORCEINLINE FRenderTransform ComputePrevLocalToWorld(const FRenderTransform& PrevPrimitiveToWorld) const
 	{
-		const FVector3f Scale = LocalToWorld.GetScale();
-		return FVector4(
-			Scale.X, Scale.Y, Scale.Z,
-			FMath::Max3(FMath::Abs(Scale.X), FMath::Abs(Scale.Y), FMath::Abs(Scale.Z))
-		);
-	}
+		FRenderTransform PrevLocalToWorld = PrevLocalToPrimitive * PrevPrimitiveToWorld;
 
-	FORCEINLINE FVector4 GetInvNonUniformScale() const
-	{
-		const FVector3f Scale = LocalToWorld.GetScale();
-		return FVector3f(
-			Scale.X > KINDA_SMALL_NUMBER ? 1.0f / Scale.X : 0.0f,
-			Scale.Y > KINDA_SMALL_NUMBER ? 1.0f / Scale.Y : 0.0f,
-			Scale.Z > KINDA_SMALL_NUMBER ? 1.0f / Scale.Z : 0.0f
-		);
+	// TODO: Enable when scale is decomposed within FRenderTransform, so we don't have 3x
+	// length calls to retrieve the scale when checking for non-uniform scaling.
+	#if 0
+		// Shearing occurs when applying a rotation and then non-uniform scaling. It is much more likely that 
+		// an instance would be non-uniformly scaled than the primitive, so we'll check if the primitive has 
+		// non-uniform scaling, and orthonormalize in that case.
+		if (PrevPrimitiveToWorld.IsScaleNonUniform())
+	#endif
+		{
+			PrevLocalToWorld.Orthonormalize();
+		}
+
+		return PrevLocalToWorld;
 	}
 };
 
 FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
-	const FRenderTransform& LocalToWorld,
-	const FRenderTransform& PrevLocalToWorld,
 	const FRenderBounds& LocalBounds,
 	const FVector4& LightMapAndShadowMapUVBias,
 	const uint32 NaniteHierarchyOffset,
 	uint32 Flags,
-	uint32 LastUpdateSceneFrameNumber,
 	float PerInstanceRandom
 )
 {
 	FPrimitiveInstance Result;
-	Result.LocalToWorld							= LocalToWorld;
-	Result.PrevLocalToWorld						= PrevLocalToWorld;
 	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
 	Result.LocalBounds							= LocalBounds;
 	Result.NaniteHierarchyOffset				= NaniteHierarchyOffset;
-	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;
 	Result.PerInstanceRandom					= PerInstanceRandom;
 	Result.Flags								= Flags;
 
@@ -101,22 +101,34 @@ struct FInstanceSceneShaderData
 		// TODO: Should look into skipping default initialization here - likely unneeded, and just wastes CPU time.
 		Setup(
 			ConstructPrimitiveInstance(
-				FRenderTransform::Identity,
-				FRenderTransform::Identity,
 				FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
 				FVector4(ForceInitToZero),
 				0xFFFFFFFFu, /* Nanite Hierarchy Offset */
 				0u, /* Instance Flags */
-				0xFFFFFFFFu, /* Last Scene Update */
 				0.0f /* Per Instance Random */
 			),
-			0 /* Primitive Id */
+			0, /* Primitive Id */
+			FRenderTransform::Identity,  /* LocalToWorld */
+			FRenderTransform::Identity,  /* PrevLocalToWorld */
+			INVALID_LAST_UPDATE_FRAME
 		);
 	}
 
-	ENGINE_API FInstanceSceneShaderData(const FPrimitiveInstance& Instance, uint32 PrimitiveId);
+	ENGINE_API FInstanceSceneShaderData(
+		const FPrimitiveInstance& Instance,
+		uint32 PrimitiveId,
+		const FRenderTransform& PrimitiveLocalToWorld,
+		const FRenderTransform& PrimitivePrevLocalToWorld,
+		uint32 LastUpdateFrame
+	);
 
-	ENGINE_API void Setup(const FPrimitiveInstance& Instance, uint32 PrimitiveId);
+	ENGINE_API void Setup(
+		const FPrimitiveInstance& Instance,
+		uint32 PrimitiveId,
+		const FRenderTransform& PrimitiveLocalToWorld,
+		const FRenderTransform& PrimitivePrevLocalToWorld,
+		uint32 LastUpdateFrame
+	);
 };
 
 ENGINE_API const FPrimitiveInstance& GetDummyPrimitiveInstance();

@@ -327,16 +327,16 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 				InstanceSceneData[InstanceIndex]  = FInstanceSceneShaderData(
 					ConstructPrimitiveInstance(
-						PrimitiveUniformShaderParameters.LocalToWorld,
-						PrimitiveUniformShaderParameters.PreviousLocalToWorld,
 						FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
 						FVector4(ForceInitToZero),
 						NANITE_INVALID_HIERARCHY_OFFSET,
 						InstanceSceneDataFlags,
-						0xFFFFFFFFu,
 						0.0f
 					),
-					InstanceIndex /* Primitive Id */
+					InstanceIndex, /* Primitive Id */
+					PrimitiveUniformShaderParameters.LocalToWorld,
+					PrimitiveUniformShaderParameters.PreviousLocalToWorld,
+					INVALID_LAST_UPDATE_FRAME
 				);
 
 				for (int32 LODIndex = 0; LODIndex < Instance.LODLightmapRenderStates.Num(); LODIndex++)
@@ -405,20 +405,19 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 			for (int32 InstanceIdx = 0; InstanceIdx < NumInstancesThisGroup; InstanceIdx++)
 			{
-				FRenderTransform Transform;
-				InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
-
-				FRenderTransform InstanceTransform = Transform * InstanceGroup.LocalToWorld;
-
 				FPrimitiveInstance Instance;
-				Instance.InstanceToLocal = Transform;
 				Instance.LocalBounds = InstanceGroup.RenderData->Bounds;
+				InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Instance.LocalToPrimitive);
 
-				// Filled in during GPU Scene update...
-				Instance.LocalToWorld = InstanceTransform;
-				Instance.PrevLocalToWorld = InstanceTransform;
-
-				InstanceSceneData.Add(FInstanceSceneShaderData(Instance, PrimitiveId));
+				InstanceSceneData.Add(
+					FInstanceSceneShaderData(
+						Instance,
+						PrimitiveId,
+						InstanceGroup.LocalToWorld,
+						InstanceGroup.LocalToWorld,
+						INVALID_LAST_UPDATE_FRAME
+					)
+				);
 			}
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));
@@ -471,16 +470,16 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 			InstanceSceneData.Add(FInstanceSceneShaderData(
 				ConstructPrimitiveInstance(
-					PrimitiveUniformShaderParameters.LocalToWorld,
-					PrimitiveUniformShaderParameters.PreviousLocalToWorld,
 					FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
 					FVector4(ForceInitToZero),
 					NANITE_INVALID_HIERARCHY_OFFSET,
 					InstanceSceneDataFlags,
-					0xFFFFFFFFu,
 					0.0f
 				),
-				PrimitiveId
+				PrimitiveId,
+				PrimitiveUniformShaderParameters.LocalToWorld,
+				PrimitiveUniformShaderParameters.PreviousLocalToWorld,
+				INVALID_LAST_UPDATE_FRAME
 			));
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));
