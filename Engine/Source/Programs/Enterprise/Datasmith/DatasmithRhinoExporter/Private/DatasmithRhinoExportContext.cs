@@ -947,7 +947,7 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo ActorInfoValue in ActorInfo.GetEnumerator())
 			{
-				System.Diagnostics.Debug.Assert(ActorInfoValue.DirectLinkStatus == DirectLinkSynchronizationStatus.Deleted);
+				System.Diagnostics.Debug.Assert(ActorInfoValue.DirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion);
 				if (ActorInfoValue.RestorePreviousDirectLinkStatus())
 				{
 					if (ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfoValue.RhinoObjectId, out DatasmithMeshInfo MeshInfo))
