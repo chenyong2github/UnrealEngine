@@ -218,8 +218,9 @@ void FAsioStoreCborPeer::OnTraceRead()
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioStoreCborPeer::OnPayload()
 {
-	FAnsiStringView Method = Response.GetString("$method", "");
-	if (!Method.Len())
+	FAnsiStringView Request = Response.GetString("$request", "");
+	FAnsiStringView Path = Response.GetString("$path", "");
+	if (!Request.Len() || !Path.Len())
 	{
 		SendError(EStatusCode::BadRequest);
 		return;
@@ -237,16 +238,16 @@ void FAsioStoreCborPeer::OnPayload()
 		{ QuickStoreHash("v1/trace/read"),		&FAsioStoreCborPeer::OnTraceRead },
 	};
 
-	uint32 MethodHash = QuickStoreHash(Method);
+	uint32 PathHash = QuickStoreHash(Path);
 	for (const auto& Row : DispatchTable)
 	{
-		if (Row.Hash == MethodHash)
+		if (Row.Hash == PathHash)
 		{
 			return (this->*(Row.Func))();
 		}
 	}
 
-	SendError(EStatusCode::MethodNotAllowed);
+	SendError(EStatusCode::NotFound);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
