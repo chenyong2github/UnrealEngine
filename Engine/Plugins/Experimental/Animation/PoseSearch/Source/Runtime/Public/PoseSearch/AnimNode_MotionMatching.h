@@ -3,12 +3,12 @@
 #pragma once
 
 #include "PoseSearch/PoseSearch.h"
-#include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "AnimNode_MotionMatching.generated.h"
 
 USTRUCT(BlueprintInternalUseOnly)
-struct POSESEARCH_API FAnimNode_MotionMatching : public FAnimNode_Base
+struct POSESEARCH_API FAnimNode_MotionMatching : public FAnimNode_AssetPlayerBase
 {
 	GENERATED_BODY()
 
@@ -58,7 +58,6 @@ public:
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual bool HasPreUpdate() const override;
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
@@ -89,4 +88,25 @@ private:
 	void ComposeQuery(const FAnimationBaseContext& Context);
 	void JumpToPose(const FAnimationUpdateContext& Context, UE::PoseSearch::FDbSearchResult Result);
 	void InitNewDatabaseSearch();
+	
+	// FAnimNode_AssetPlayerBase
+protected:
+	// FAnimNode_AssetPlayerBase interface
+	virtual float GetAccumulatedTime() const;
+	virtual UAnimationAsset* GetAnimAsset() const override;
+	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	virtual float GetCurrentAssetLength() const override;
+	virtual float GetCurrentAssetTime() const override;
+	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
+	virtual bool GetIgnoreForRelevancyTest() const override;
+	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	// End of FAnimNode_AssetPlayerBase interface
+
+private:
+
+#if WITH_EDITORONLY_DATA
+	// If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore this node
+	UPROPERTY(EditAnywhere, Category=Relevancy, meta=(FoldProperty, PinHiddenByDefault))
+	bool bIgnoreForRelevancyTest = false;
+#endif // WITH_EDITORONLY_DATA
 };

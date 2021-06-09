@@ -32,9 +32,9 @@ void FAnimNode_MotionMatching::Evaluate_AnyThread(FPoseContext& Output)
 	Source.Evaluate(Output);
 }
 
-void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& Context)
+void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateAssetPlayer);
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 	// Note: What if the input database changes? That's not being handled at all!
@@ -262,6 +262,44 @@ void FAnimNode_MotionMatching::InitNewDatabaseSearch()
 	DbSequenceIdx = INDEX_NONE;
 	ElapsedPoseJumpTime = SearchThrottleTime;
 	PreviousDatabase = Database;
+}
+
+// FAnimNode_AssetPlayerBase interface
+float FAnimNode_MotionMatching::GetAccumulatedTime() const
+{
+	return SequencePlayerNode.GetAccumulatedTime();
+}
+
+UAnimationAsset* FAnimNode_MotionMatching::GetAnimAsset() const
+{
+	return SequencePlayerNode.GetAnimAsset();
+}
+
+float FAnimNode_MotionMatching::GetCurrentAssetLength() const
+{
+	return SequencePlayerNode.GetCurrentAssetLength();
+}
+
+float FAnimNode_MotionMatching::GetCurrentAssetTime() const
+{
+	return SequencePlayerNode.GetCurrentAssetTime();
+}
+
+float FAnimNode_MotionMatching::GetCurrentAssetTimePlayRateAdjusted() const
+{
+	return SequencePlayerNode.GetCurrentAssetTimePlayRateAdjusted();
+}
+
+bool FAnimNode_MotionMatching::GetIgnoreForRelevancyTest() const
+{
+	return GET_ANIM_NODE_DATA(bool, bIgnoreForRelevancyTest);
+}
+
+void FAnimNode_MotionMatching::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
+{
+#if WITH_EDITORONLY_DATA
+	bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest;
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE
