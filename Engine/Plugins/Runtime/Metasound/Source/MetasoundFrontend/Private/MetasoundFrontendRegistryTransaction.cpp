@@ -92,15 +92,14 @@ namespace Metasound
 
 				return Result;
 			}
-			
 		}
 
-		FRegistryTransactionPtr MakeAddNodeRegistrationTransaction(const FNodeClassInfo& InInfo)
+		FRegistryTransactionPtr MakeAddNodeRegistryTransaction(const FNodeClassInfo& InInfo)
 		{
-			class FNodeRegistrationTransaction : public IRegistryTransaction
+			class FNodeRegistryTransaction : public IRegistryTransaction
 			{
 			public:
-				FNodeRegistrationTransaction(const FNodeClassInfo& InNodeClassInfo)
+				FNodeRegistryTransaction(const FNodeClassInfo& InNodeClassInfo)
 				: NodeClassInfo(InNodeClassInfo)
 				{
 				}
@@ -112,7 +111,7 @@ namespace Metasound
 
 				TUniquePtr<IRegistryTransaction> Clone() const override
 				{
-					return MakeUnique<FNodeRegistrationTransaction>(*this);
+					return MakeUnique<FNodeRegistryTransaction>(*this);
 				}
 
 				const FNodeClassInfo* GetNodeClassInfo() const 
@@ -125,15 +124,15 @@ namespace Metasound
 				FNodeClassInfo NodeClassInfo;
 			};
 
-			return MakeUnique<FNodeRegistrationTransaction>(InInfo);
+			return MakeUnique<FNodeRegistryTransaction>(InInfo);
 		}
 
-		FRegistryTransactionPtr MakeRemoveNodeRegistrationTransaction(const FNodeClassInfo& InInfo)
+		FRegistryTransactionPtr MakeRemoveNodeRegistryTransaction(const FNodeClassInfo& InInfo)
 		{
-			class FNodeRegistrationTransaction : public IRegistryTransaction
+			class FNodeRegistryTransaction : public IRegistryTransaction
 			{
 			public:
-				FNodeRegistrationTransaction(const FNodeClassInfo& InNodeClassInfo)
+				FNodeRegistryTransaction(const FNodeClassInfo& InNodeClassInfo)
 				: NodeClassInfo(InNodeClassInfo)
 				{
 				}
@@ -145,7 +144,7 @@ namespace Metasound
 
 				TUniquePtr<IRegistryTransaction> Clone() const override
 				{
-					return MakeUnique<FNodeRegistrationTransaction>(*this);
+					return MakeUnique<FNodeRegistryTransaction>(*this);
 				}
 
 				const FNodeClassInfo* GetNodeClassInfo() const 
@@ -158,7 +157,7 @@ namespace Metasound
 				FNodeClassInfo NodeClassInfo;
 			};
 
-			return MakeUnique<FNodeRegistrationTransaction>(InInfo);
+			return MakeUnique<FNodeRegistryTransaction>(InInfo);
 		}
 	}
 }

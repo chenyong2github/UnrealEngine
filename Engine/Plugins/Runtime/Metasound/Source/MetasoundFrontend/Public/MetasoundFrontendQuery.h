@@ -5,21 +5,50 @@
 #include "CoreMinimal.h"
 #include "Math/NumericLimits.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendRegistries.h"
 #include "Misc/TVariant.h"
 
 namespace Metasound
 {
+	/** FFronendQueryKey allows entries to be partitioned by their key. A key
+	 * can be created by default constructor, int32, FString or FName.
+	 */
+	struct METASOUNDFRONTEND_API FFrontendQueryKey
+	{
+		FFrontendQueryKey();
+		FFrontendQueryKey(int32 InKey);
+		FFrontendQueryKey(const FString& InKey);
+		FFrontendQueryKey(const FName& InKey);
+
+		FFrontendQueryKey(const FFrontendQueryKey&) = default;
+		FFrontendQueryKey& operator=(const FFrontendQueryKey&) = default;
+		FFrontendQueryKey(FFrontendQueryKey&&) = default;
+		FFrontendQueryKey& operator=(FFrontendQueryKey&&) = default;
+
+		friend bool operator==(const FFrontendQueryKey& InLHS, const FFrontendQueryKey& InRHS);
+		friend bool operator!=(const FFrontendQueryKey& InLHS, const FFrontendQueryKey& InRHS);
+		friend bool operator<(const FFrontendQueryKey& InLHS, const FFrontendQueryKey& InRHS);
+		friend uint32 GetTypeHash(const FFrontendQueryKey& InKey);
+		
+		bool IsValid() const;
+
+	private:
+		struct FInvalid {};
+
+		using FKeyType = TVariant<FInvalid, int32, FString, FName>;
+		FKeyType Key;
+		uint32 Hash;
+	};
+
 	/** FFrontendQueryEntry represents one value in the query. It contains a key,
 	 * value and score. 
 	 */
-	struct FFrontendQueryEntry
+	struct METASOUNDFRONTEND_API FFrontendQueryEntry
 	{
-		using FValue = TVariant<FMetasoundFrontendDocument, FMetasoundFrontendClass, FMetasoundFrontendNode>;
-		using FKey = int32;
+		using FValue = TVariant<const Frontend::IRegistryTransaction*, FMetasoundFrontendDocument, FMetasoundFrontendClass, FMetasoundFrontendNode>;
+		using FKey = FFrontendQueryKey;
 
-		static constexpr FKey InvalidKey = TNumericLimits<int32>::Max();
-
-		FKey Key = InvalidKey;
+		FKey Key;
 		FValue Value;
 		float Score = 0.f;
 
@@ -182,6 +211,14 @@ namespace Metasound
 			virtual void Stream(TArray<FFrontendQueryEntry>& OutEntries) = 0;
 	};
 
+	/** Interface for a query step which transforms an entry's value. */
+	class IFrontendQueryTransformStep : public IFrontendQueryStep
+	{
+		public:
+			virtual ~IFrontendQueryTransformStep() = default;
+			virtual void Transform(FFrontendQueryEntry::FValue& InValue) const = 0;
+	};
+
 	/** Interface for a query step which maps entries to keys. */
 	class IFrontendQueryMapStep : public IFrontendQueryStep
 	{
@@ -274,6 +311,7 @@ namespace Metasound
 		using FReduceOutputView = FFrontendQuerySelection::FReduceOutputView;
 
 		using FStreamFunction = TUniqueFunction<void (TArray<FFrontendQueryEntry>&)>;
+		using FTransformFunction = TFunction<void (FFrontendQueryEntry::FValue&)>;
 		using FMapFunction = TFunction<FFrontendQueryEntry::FKey (const FFrontendQueryEntry&)>;
 		using FReduceFunction = TFunction<void (FFrontendQueryEntry::FKey, TArrayView<FFrontendQueryEntry * const>, FReduceOutputView& )>;
 		using FFilterFunction = TFunction<bool (const FFrontendQueryEntry&)>;
@@ -283,6 +321,7 @@ namespace Metasound
 
 		/** Create query step using TFunction or lambda. */
 		FFrontendQueryStep(FStreamFunction&& InFunc);
+		FFrontendQueryStep(FTransformFunction&& InFunc);
 		FFrontendQueryStep(FMapFunction&& InFunc);
 		FFrontendQueryStep(FReduceFunction&& InFunc);
 		FFrontendQueryStep(FFilterFunction&& InFilt);
@@ -293,6 +332,7 @@ namespace Metasound
 		/** Create a query step using a IFrotnedQueryStep */
 		FFrontendQueryStep(TUniquePtr<IFrontendQuerySource>&& InSource);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryStreamStep>&& InStep);
+		FFrontendQueryStep(TUniquePtr<IFrontendQueryTransformStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryMapStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryReduceStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryFilterStep>&& InStep);
@@ -333,6 +373,7 @@ namespace Metasound
 
 		using EResultModificationState = FFrontendQueryStep::EResultModificationState;
 		using FStreamFunction = FFrontendQueryStep::FStreamFunction;
+		using FTransformFunction = FFrontendQueryStep::FTransformFunction;
 		using FMapFunction = FFrontendQueryStep::FMapFunction;
 		using FReduceFunction = FFrontendQueryStep::FReduceFunction;
 		using FFilterFunction = FFrontendQueryStep::FFilterFunction;
@@ -362,6 +403,7 @@ namespace Metasound
 		}
 
 		FFrontendQuery& AddStreamLambdaStep(FStreamFunction&& InFunc);
+		FFrontendQuery& AddTransformLambdaStep(FTransformFunction&& InFunc);
 		FFrontendQuery& AddMapLambdaStep(FMapFunction&& InFunc);
 		FFrontendQuery& AddReduceLambdaStep(FReduceFunction&& InFunc);
 		FFrontendQuery& AddFilterLambdaStep(FFilterFunction&& InFunc);

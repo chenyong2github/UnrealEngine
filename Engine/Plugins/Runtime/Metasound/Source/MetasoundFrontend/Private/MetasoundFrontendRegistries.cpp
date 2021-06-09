@@ -22,7 +22,6 @@ namespace Metasound
 		{
 			const FString& GetClassTypeString(EMetasoundFrontendClassType InType)
 			{
-
 				static const FString InputType(TEXT("Input"));
 				static const FString OutputType(TEXT("Output"));
 				static const FString ExternalType(TEXT("External"));
@@ -213,7 +212,8 @@ namespace Metasound
 
 				// Get all available nodes
 				TArray<Frontend::FNodeClassInfo> GetAllAvailableNodeClasses(Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const override;
-				TArray<Metasound::Frontend::FNodeClassInfo> GetNodeClassesRegisteredSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const override;
+
+				TArray<const Metasound::Frontend::IRegistryTransaction*> GetRegistryTransactionsSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const override;
 
 				// Return any data types that can be used as a metasound input type or output type.
 				TArray<FName> GetAllValidDataTypes() override;
@@ -339,21 +339,9 @@ namespace Metasound
 				return OutClasses;
 			}
 
-			TArray<Metasound::Frontend::FNodeClassInfo> FRegistryContainerImpl::GetNodeClassesRegisteredSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const 
+			TArray<const Metasound::Frontend::IRegistryTransaction*> FRegistryContainerImpl::GetRegistryTransactionsSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const 
 			{
-				TArray<FNodeClassInfo> OutClasses;
-
-				TArray<const IRegistryTransaction*> Transactions = RegistryTransactionHistory.GetTransactions(InSince, OutCurrentRegistryTransactionID);
-
-				for (const IRegistryTransaction* Transaction : Transactions)
-				{
-					if (const FNodeClassInfo* Info = Transaction->GetNodeClassInfo())
-					{
-						OutClasses.Add(*Info);
-					}
-				}
-
-				return OutClasses;
+				return RegistryTransactionHistory.GetTransactions(InSince, OutCurrentRegistryTransactionID);
 			}
 
 			TUniquePtr<Metasound::INode> FRegistryContainerImpl::ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams)
@@ -628,7 +616,7 @@ namespace Metasound
 					// Store update to newly registered node in history so nodes
 					// can be queried by transaction ID
 					FNodeClassInfo ClassInfo = { EMetasoundFrontendClassType::External, Key };
-					RegistryTransactionHistory.Add(MakeAddNodeRegistrationTransaction(ClassInfo));
+					RegistryTransactionHistory.Add(MakeAddNodeRegistryTransaction(ClassInfo));
 
 					// Store registry elements in map so nodes can be queried using registry key.
 					ExternalNodeRegistry.Add(Key, MoveTemp(RegistryElement));
@@ -644,7 +632,7 @@ namespace Metasound
 					if (ExternalNodeRegistry.Contains(InKey))
 					{
 						FNodeClassInfo ClassInfo = { EMetasoundFrontendClassType::External, InKey };
-						RegistryTransactionHistory.Add(MakeRemoveNodeRegistrationTransaction(ClassInfo));
+						RegistryTransactionHistory.Add(MakeRemoveNodeRegistryTransaction(ClassInfo));
 
 						ExternalNodeRegistry.Remove(InKey);
 						return true;
@@ -877,14 +865,14 @@ namespace Metasound
 				}
 				static_assert(static_cast<uint32>(EMetasoundFrontendClassType::Invalid) == 5, "Possible missing switch case coverage for EMetasoundFrontendClassType");
 			}
-		}
+		} // namespace MetasoundFrontendRegistriesPrivate
 
 		bool IsValidNodeRegistryKey(const FNodeRegistryKey& InKey)
 		{
 			return !InKey.IsEmpty();
 		}
-	}
-}
+	} // namespace Frontend
+} // namespace Metasound
 
 FMetasoundFrontendRegistryContainer* FMetasoundFrontendRegistryContainer::LazySingleton = nullptr;
 

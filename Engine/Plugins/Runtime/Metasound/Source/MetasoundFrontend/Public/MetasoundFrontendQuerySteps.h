@@ -9,7 +9,6 @@
 
 namespace Metasound
 {
-
 	/** Streams node classes that have been newly registered or unregistered since last call to Stream()
 	 */
 	class METASOUNDFRONTEND_API FNodeClassRegistrationEvents : public IFrontendQuerySource
@@ -21,6 +20,29 @@ namespace Metasound
 
 	private:
 		Frontend::FRegistryTransactionID CurrentTransactionID;
+	};
+
+	/** Partitions node registration events by their node registration keys. */
+	class METASOUNDFRONTEND_API FMapRegistrationEventsToNodeRegistryKeys : public IFrontendQueryMapStep
+	{
+	public:
+		FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override;
+	};
+
+	/** Reduces registration events mapped to the same key by inspecting their add/remove state in
+	 * order to determine their final state. If an item has been added more than it has been removed,
+	 * then it is added to the output. Otherwise, it is omitted. */
+	class METASOUNDFRONTEND_API FReduceRegistrationEventsToCurrentStatus: public IFrontendQueryReduceStep
+	{
+	public:
+		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override;
+	};
+
+	/** Transforms a registration event into a FMetasoundFrontendClass. */
+	class METASOUNDFRONTEND_API FTransformRegistrationEventsToClasses : public IFrontendQueryTransformStep
+	{
+	public:
+		virtual void Transform(FFrontendQueryEntry::FValue& InValue) const override;
 	};
 
 	class METASOUNDFRONTEND_API FFilterClassesByInputVertexDataType : public IFrontendQueryFilterStep
@@ -79,7 +101,7 @@ namespace Metasound
 		FGuid ClassID;
 	};
 
-	class METASOUNDFRONTEND_API FMapClassNameToMajorVersion : public IFrontendQueryMapStep
+	class METASOUNDFRONTEND_API FMapToFullClassName : public IFrontendQueryMapStep
 	{
 	public:
 		FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override;

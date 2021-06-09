@@ -25,8 +25,6 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	// TODO: unregister prior version.
-	
 	FConstDocumentAccessPtr DocumentPtr = GetDocument();
 	FString AssetName;
 	if (const UObject* OwningAsset = GetOwningAsset())
@@ -35,6 +33,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 	}
 
 
+	// Function for creating a core INode.
 	FCreateMetasoundNodeFunction CreateNode = [Name=AssetName, DocumentPtr=DocumentPtr](const Metasound::FNodeInitData& InInitData) -> TUniquePtr<INode>
 	{
 		check(IsInGameThread());
@@ -50,6 +49,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 		}
 	};
 
+	// Function for creating a frontend class.
 	FCreateMetasoundFrontendClassFunction CreateFrontendClass = [Name=AssetName, DocumentPtr=DocumentPtr]() -> FMetasoundFrontendClass
 	{
 		check(IsInGameThread());
@@ -70,6 +70,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 
 	if (IsValidNodeRegistryKey(RegistryKey))
 	{
+		// Unregister prior version if it exists.
 		ensure(FMetasoundFrontendRegistryContainer::Get()->UnregisterExternalNode(RegistryKey));
 	}
 

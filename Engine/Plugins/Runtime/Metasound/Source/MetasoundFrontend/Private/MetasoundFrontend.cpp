@@ -42,12 +42,12 @@ namespace Metasound
 			}
 		}
 
-		TArray<FNodeClassInfo> GetNodeClassesRegisteredSince(FRegistryTransactionID InTransactionID, FRegistryTransactionID* OutCurrentTransactionID)
+		TArray<const IRegistryTransaction*> GetRegistryTransactionsSince(FRegistryTransactionID InTransactionID, FRegistryTransactionID* OutCurrentTransactionID)
 		{
 			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
 			if (ensure(nullptr != Registry))
 			{
-				return Registry->GetNodeClassesRegisteredSince(InTransactionID, OutCurrentTransactionID);
+				return Registry->GetRegistryTransactionsSince(InTransactionID, OutCurrentTransactionID);
 			}
 			else
 			{
@@ -55,7 +55,7 @@ namespace Metasound
 				{
 					*OutCurrentTransactionID = GetOriginRegistryTransactionID();
 				}
-				return TArray<FNodeClassInfo>();
+				return TArray<const IRegistryTransaction*>();
 			}
 		}
 
