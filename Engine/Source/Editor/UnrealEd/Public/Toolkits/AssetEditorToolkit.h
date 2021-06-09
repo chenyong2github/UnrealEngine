@@ -25,6 +25,7 @@ class SStandaloneAssetEditorToolkitHost;
 class FWorkspaceItem;
 
 DECLARE_DELEGATE_RetVal( bool, FRequestAssetEditorClose );
+DECLARE_DELEGATE_RetVal( void, FAssetEditorClosing);
 
 
 /**
@@ -307,8 +308,11 @@ protected:
 	/** Called to determine if the user should be prompted for a new file if one is missing during an asset reload */
 	virtual bool ShouldPromptForNewFilesOnReload(const UObject& object) const;
 
-	/** Called when this toolkit would close */
+	/** Called when this toolkit is requested to close. Returns false if closing should be prevented. */
 	virtual bool OnRequestClose() { return true; }
+
+	/** Called when this toolkit is being closed */
+	virtual void OnClose() {}
 
 	/**
 	  * Static: Called when "Switch to Standalone Editor" is clicked for the asset editor

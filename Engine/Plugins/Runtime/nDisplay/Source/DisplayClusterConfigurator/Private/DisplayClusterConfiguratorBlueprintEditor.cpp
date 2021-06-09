@@ -978,26 +978,24 @@ TStatId FDisplayClusterConfiguratorBlueprintEditor::GetStatId() const
 
 bool FDisplayClusterConfiguratorBlueprintEditor::OnRequestClose()
 {
-	bool bShouldClose = FBlueprintEditor::OnRequestClose();
+	return FBlueprintEditor::OnRequestClose();
+}
 
-	// If we are closing the blueprint editor, take the time to remove any unused host display data objects.
-	if (bShouldClose)
+void FDisplayClusterConfiguratorBlueprintEditor::OnClose()
+{
+	// When closing the blueprint editor, take the time to remove any unused host display data objects.
+	if (UDisplayClusterConfigurationData* Config = GetConfig())
 	{
-		if (UDisplayClusterConfigurationData* Config = GetConfig())
-		{
-			bool bIsDirty = LoadedBlueprint->GetOutermost()->IsDirty();
-			bool bHostDataRemoved = FDisplayClusterConfiguratorClusterUtils::RemoveUnusedHostDisplayData(Config->Cluster);
+		bool bIsDirty = LoadedBlueprint->GetOutermost()->IsDirty();
+		bool bHostDataRemoved = FDisplayClusterConfiguratorClusterUtils::RemoveUnusedHostDisplayData(Config->Cluster);
 
-			// If the blueprint wasn't dirty before, removing the unused host display data will have make it dirty, which is confusing to the user.
-			// In this case, immediately save the host display data removal to the blueprint.
-			if (!bIsDirty && CanSaveAsset() && bHostDataRemoved)
-			{
-				SaveAsset_Execute();
-			}
+		// If the blueprint wasn't dirty before, removing the unused host display data will have make it dirty, which is confusing to the user.
+		// In this case, immediately save the host display data removal to the blueprint.
+		if (!bIsDirty && CanSaveAsset() && bHostDataRemoved)
+		{
+			SaveAsset_Execute();
 		}
 	}
-
-	return bShouldClose;
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::Compile()

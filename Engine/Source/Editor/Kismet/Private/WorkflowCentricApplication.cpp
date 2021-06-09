@@ -124,11 +124,11 @@ void FWorkflowCentricApplication::PushTabFactories(FWorkflowAllowedTabSet& Facto
 
 bool FWorkflowCentricApplication::OnRequestClose()
 {
-	if (!FSlateApplication::Get().IsNormalExecution())
-	{
-		return false;
-	}
+	return FSlateApplication::Get().IsNormalExecution();
+}
 
+void FWorkflowCentricApplication::OnClose()
+{
 	if (CurrentAppModePtr.IsValid())
 	{
 		check(TabManager.IsValid());
@@ -142,8 +142,6 @@ bool FWorkflowCentricApplication::OnRequestClose()
 		// Unregister tab spawners
 		TabManager->UnregisterAllTabSpawners();
 	}
-
-	return true;
 }
 
 void FWorkflowCentricApplication::AddApplicationMode(FName ModeName, TSharedRef<FApplicationMode> Mode)

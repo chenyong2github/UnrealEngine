@@ -61,7 +61,7 @@ public:
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual bool IsPrimaryEditor() const override { return true; }
 	FEdMode* GetEditorMode() const override;
-	virtual bool OnRequestClose() override;
+	virtual void OnClose() override;
 	/** End IToolkit interface */
 
 	/** Retrieves the current custom asset. */

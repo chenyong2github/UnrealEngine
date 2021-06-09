@@ -206,6 +206,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		( 
 			SAssignNew( NewStandaloneHost, SStandaloneAssetEditorToolkitHost, NewTabManager, AppIdentifier )
 			.OnRequestClose(this, &FAssetEditorToolkit::OnRequestClose)
+			.OnClose(this, &FAssetEditorToolkit::OnClose)
 		);
 
 		// Assign our toolkit host before we setup initial content.  (Important: We must cache this pointer here as SetupInitialContent
@@ -441,6 +442,8 @@ bool FAssetEditorToolkit::CloseWindow()
 {
 	if (OnRequestClose())
 	{
+		OnClose();
+
 		// Close this toolkit
 		FToolkitManager::Get().CloseToolkit( AsShared() );
 	}

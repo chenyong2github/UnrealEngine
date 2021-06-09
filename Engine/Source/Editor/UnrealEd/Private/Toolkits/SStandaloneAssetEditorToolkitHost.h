@@ -22,10 +22,12 @@ class SStandaloneAssetEditorToolkitHost :
 {
 
 public:
-	/** SCompoundWidget interface */
 	SLATE_BEGIN_ARGS( SStandaloneAssetEditorToolkitHost ){}
 		SLATE_EVENT(FRequestAssetEditorClose, OnRequestClose)
+		SLATE_EVENT(FAssetEditorClosing, OnClose)
 	SLATE_END_ARGS()
+
+	/** SCompoundWidget interface */
 
 	/**
 	 * Constructs this widget
@@ -114,6 +116,9 @@ private:
 
 	/** Delegate to be called to determine if we are allowed to close this toolkit host */
 	FRequestAssetEditorClose EditorCloseRequest;
+
+	/** Delegate to be called when this toolkit host is closing */
+	FAssetEditorClosing EditorClosing;
 
 	/** The menu extenders to populate the main toolkit host menu with */
 	TArray< TSharedPtr<FExtender> > MenuExtenders;

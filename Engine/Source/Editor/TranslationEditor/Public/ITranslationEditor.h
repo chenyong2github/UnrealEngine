@@ -21,7 +21,7 @@ public:
 		, AssociatedLocalizationTarget(InAssociatedLocalizationTarget)
 	{}
 
-	virtual bool OnRequestClose() override;
+	virtual void OnClose() override;
 
 protected:
 
