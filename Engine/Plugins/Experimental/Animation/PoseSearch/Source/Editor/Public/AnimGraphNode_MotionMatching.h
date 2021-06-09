@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "AnimGraphNode_Base.h"
+#include "AnimGraphNode_AssetPlayerBase.h"
 #include "PoseSearch/AnimNode_MotionMatching.h"
 #include "AnimGraphNode_MotionMatching.generated.h"
 
 
 UCLASS(MinimalAPI)
-class UAnimGraphNode_MotionMatching : public UAnimGraphNode_Base
+class UAnimGraphNode_MotionMatching : public UAnimGraphNode_AssetPlayerBase
 {
 	GENERATED_BODY()
 
@@ -22,4 +22,10 @@ class UAnimGraphNode_MotionMatching : public UAnimGraphNode_Base
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual void GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
+
+	virtual void BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog) override;
+	virtual bool DoesSupportTimeForTransitionGetter() const override;
+	virtual UAnimationAsset* GetAnimationAsset() const override;
+	virtual const TCHAR* GetTimePropertyName() const override;
+	virtual UScriptStruct* GetTimePropertyStruct() const override;
 };
