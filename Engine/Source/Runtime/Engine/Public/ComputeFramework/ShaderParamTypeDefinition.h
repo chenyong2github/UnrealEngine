@@ -8,6 +8,7 @@
 
 class FArchive;
 struct FShaderValueType;
+struct FShaderParamTypeDefinition;
 
 /* The base types of data that shaders can consume/expose */
 UENUM()
@@ -85,6 +86,16 @@ struct FShaderValueTypeHandle
 		return *ValueTypePtr;
 	}
 
+	bool operator==(const FShaderValueTypeHandle &InOther) const
+	{
+		return ValueTypePtr == InOther.ValueTypePtr;
+	}
+	
+	bool operator!=(const FShaderValueTypeHandle &InOther) const
+	{
+		return ValueTypePtr != InOther.ValueTypePtr;
+	}
+	
 };
 
 /*  */
@@ -129,6 +140,9 @@ struct ENGINE_API FShaderValueType
 
 	static FShaderValueTypeHandle Get(FName InName, std::initializer_list<FStructElement> InStructElements);
 
+	// FIXME: Remove once we remove redundant members from FShaderParamTypeDefinition
+	static FShaderValueTypeHandle Get(const FShaderParamTypeDefinition &InDef);
+	
 	/** Returns true if this type and the other type are exactly equal. */
 	bool operator==(const FShaderValueType &InOtherType) const;
 

@@ -377,6 +377,20 @@ FOptimusDataTypeHandle FOptimusDataTypeRegistry::FindType(FName InTypeName) cons
 }
 
 
+FOptimusDataTypeHandle FOptimusDataTypeRegistry::FindType(FShaderValueTypeHandle InValueType) const
+{
+	for (const FName& TypeName : RegistrationOrder)
+	{
+		const FOptimusDataTypeHandle Handle = RegisteredTypes[TypeName];
+		if (Handle->ShaderValueType == InValueType)
+		{
+			return Handle;
+		}	
+	}
+	return {};
+}
+
+
 void FOptimusDataTypeRegistry::UnregisterAllTypes()
 {
 	FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();

@@ -13,6 +13,7 @@
 
 #include "EdGraphSchema_K2.h"
 #include "Editor.h"
+#include "OptimusComputeDataInterface.h"
 #include "Styling/SlateIconFinder.h"
 
 
@@ -42,9 +43,10 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 	const UEdGraph* InGraph
 	) const
 {
+	// Basic Nodes
 	for (UClass* Class : UOptimusNode::GetAllNodeClasses())
 	{
-		UOptimusNode* Node = Cast< UOptimusNode>(Class->GetDefaultObject());
+		UOptimusNode* Node = Cast<UOptimusNode>(Class->GetDefaultObject());
 		if (Node == nullptr)
 		{
 			continue;
@@ -64,6 +66,33 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 
 		IoActionBuilder.AddAction(Action);
 	}
+
+	// Data Interface Nodes
+	for (UClass* Class : UOptimusComputeDataInterface::GetAllComputeDataInterfaceClasses())
+	{
+		UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(Class->GetDefaultObject());
+		if (!ensure(DataInterface != nullptr))
+		{
+			continue;
+		}
+
+		FText NodeName = FText::FromString(DataInterface->GetDisplayName());
+
+		// FIXME: Get from interface
+		FText NodeCategory = FText::FromName(UOptimusNode::CategoryName::DataProviders);
+
+		TSharedPtr< FOptimusGraphSchemaAction_NewDataInterfaceNode> Action(
+			new FOptimusGraphSchemaAction_NewDataInterfaceNode(
+				NodeCategory,
+				NodeName,
+				/* Tooltip */{}, 0, /* Keywords */{}
+		));
+
+		Action->DataInterfaceClass = Class;
+
+		IoActionBuilder.AddAction(Action);
+	}
+	
 }
 
 

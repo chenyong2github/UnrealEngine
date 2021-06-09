@@ -3,10 +3,16 @@
 #include "/Engine/Private/ComputeKernelCommon.ush"
 #include "/Engine/Private/GpuSkinCommon.ush"
 
+uint DI_LOCAL(NumVertices);
 uint DI_LOCAL(OutputStreamStart);
 
 RWBuffer<float> DI_LOCAL(PositionBufferUAV);
 RWBuffer<SNORM float4> DI_LOCAL(TangentBufferUAV);
+
+DI_IMPL_READ(ReadNumVertices, uint, void)
+{
+	return DI_LOCAL(NumVertices);
+}
 
 DI_IMPL_WRITE(WritePosition, uint VertexIndex, float3 Position)
 {

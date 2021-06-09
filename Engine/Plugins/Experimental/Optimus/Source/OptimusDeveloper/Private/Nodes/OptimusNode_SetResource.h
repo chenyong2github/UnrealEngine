@@ -7,7 +7,7 @@
 #include "OptimusNode_SetResource.generated.h"
 
 
-UCLASS()
+UCLASS(NotPlaceable)
 class UOptimusNode_SetResource
 	: public UOptimusNode_ResourceAccessorBase
 {

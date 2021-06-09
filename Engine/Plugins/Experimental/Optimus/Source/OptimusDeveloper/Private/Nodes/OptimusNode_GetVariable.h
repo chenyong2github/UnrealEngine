@@ -10,7 +10,7 @@
 class UOptimusVariableDescription;
 
 
-UCLASS()
+UCLASS(NotPlaceable)
 class UOptimusNode_GetVariable : 
 	public UOptimusNode
 {

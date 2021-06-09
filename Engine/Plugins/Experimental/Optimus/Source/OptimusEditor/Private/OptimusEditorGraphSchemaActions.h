@@ -3,10 +3,14 @@
 #pragma once
 
 #include "EdGraph/EdGraphSchema.h"
+#include "Templates/SubclassOf.h"
+
+#include "OptimusComputeDataInterface.h"
 
 #include "OptimusEditorGraphSchemaActions.generated.h"
 
 
+class UOptimusNode;
 class UOptimusNodeGraph;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
@@ -33,7 +37,7 @@ struct FOptimusGraphSchemaAction_NewNode :
 	using FEdGraphSchemaAction::FEdGraphSchemaAction;
 
 	UPROPERTY()
-	UClass* NodeClass = nullptr;
+	TSubclassOf<UOptimusNode> NodeClass;
 
 	static FName StaticGetTypeId() { static FName Type("FOptimusDeformerGraphSchemaAction_NewNode"); return Type; }
 	FName GetTypeId() const override { return StaticGetTypeId(); }
@@ -41,6 +45,27 @@ struct FOptimusGraphSchemaAction_NewNode :
 	// FEdGraphSchemaAction overrides
 	UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 };
+
+USTRUCT()
+struct FOptimusGraphSchemaAction_NewDataInterfaceNode : 
+	public FEdGraphSchemaAction
+{
+	GENERATED_BODY()
+
+	// Inherit the base class's constructors
+	using FEdGraphSchemaAction::FEdGraphSchemaAction;
+
+	UPROPERTY()
+	TSubclassOf<UOptimusComputeDataInterface> DataInterfaceClass;
+
+	static FName StaticGetTypeId() { static FName Type("FOptimusGraphSchemaAction_NewDataInterfaceNode"); return Type; }
+	FName GetTypeId() const override { return StaticGetTypeId(); }
+
+	// FEdGraphSchemaAction overrides
+	UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+};
+
+
 
 
 /// Reference to a UOptimusNodeGraph.

@@ -11,6 +11,25 @@
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
+
+FString USkeletalMeshReadDataInterface::GetDisplayName() const
+{
+	return TEXT("Read Skeletal Mesh");
+}
+
+
+TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitions() const
+{
+	TArray<FOptimusCDIPinDefinition> Defs;
+	Defs.Add({"Position", "ReadPosition", "ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentX", "ReadTangentX", "ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentZ", "ReadTangentZ", "ReadNumVertices", "Vertex"});
+	Defs.Add({"BindMatrix", "ReadBlendMatrix", "ReadNumVertices", "Vertex"});
+
+	return Defs;
+}
+
+
 void USkeletalMeshReadDataInterface::GetPermutations(FComputeKernelPermutationSet& OutPermutationSet) const
 {
 	// Need to be able to support these permutations according to the skeletal mesh settings.

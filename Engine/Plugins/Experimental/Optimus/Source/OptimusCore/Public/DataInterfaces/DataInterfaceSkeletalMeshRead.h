@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ComputeFramework/ComputeDataInterface.h"
+#include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DataInterfaceSkeletalMeshRead.generated.h"
 
@@ -12,11 +12,16 @@ class USkeletalMeshComponent;
 
 /** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API USkeletalMeshReadDataInterface : public UComputeDataInterface
+class OPTIMUSCORE_API USkeletalMeshReadDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
 public:
+	//~ Begin UOptimusComputeDataInterface Interface
+	FString GetDisplayName() const override;
+	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	//~ End UOptimusComputeDataInterface Interface
+	
 	//~ Begin UComputeDataInterface Interface
 	void GetPermutations(FComputeKernelPermutationSet& OutPermutationSet) const override;
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;

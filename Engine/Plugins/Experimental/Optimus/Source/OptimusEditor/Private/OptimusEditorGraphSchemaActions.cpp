@@ -5,6 +5,7 @@
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphNode.h"
 
+#include "OptimusNode.h"
 #include "OptimusResourceDescription.h"
 #include "OptimusVariableDescription.h"
 #include "OptimusNodeGraph.h"
@@ -19,11 +20,9 @@ UEdGraphNode* FOptimusGraphSchemaAction_NewNode::PerformAction(
 	bool bInSelectNewNode /*= true*/
 	)
 {
-	check(NodeClass != nullptr);											 
-
 	UOptimusEditorGraph* Graph = Cast<UOptimusEditorGraph>(InParentGraph);
 	
-	if (ensure(Graph != nullptr))
+	if (ensure(Graph != nullptr) && ensure(NodeClass != nullptr))
 	{
 		UOptimusNode* ModelNode = Graph->GetModelGraph()->AddNode(NodeClass, InLocation);
 
@@ -39,6 +38,34 @@ UEdGraphNode* FOptimusGraphSchemaAction_NewNode::PerformAction(
 
 	return nullptr;
 }
+
+
+UEdGraphNode* FOptimusGraphSchemaAction_NewDataInterfaceNode::PerformAction(
+	UEdGraph* InParentGraph,
+	UEdGraphPin* InFromPin,
+	const FVector2D InLocation,
+	bool bInSelectNewNode
+	)
+{
+	UOptimusEditorGraph* Graph = Cast<UOptimusEditorGraph>(InParentGraph);
+	
+	if (ensure(Graph != nullptr) && ensure(DataInterfaceClass != nullptr))
+	{
+		UOptimusNode* ModelNode = Graph->GetModelGraph()->AddDataInterfaceNode(DataInterfaceClass, InLocation);
+
+		// FIXME: Automatic connection from the given pin.
+
+		UOptimusEditorGraphNode* GraphNode = Graph->FindGraphNodeFromModelNode(ModelNode);
+		if (GraphNode && bInSelectNewNode)
+		{
+			Graph->SelectNodeSet({GraphNode});
+		}
+		return GraphNode;
+	}
+
+	return nullptr;
+}
+
 
 static FText GetGraphSubCategory(UOptimusNodeGraph* InGraph)
 {

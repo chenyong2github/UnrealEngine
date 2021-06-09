@@ -42,6 +42,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	UOptimusNodeGraph* AddTriggerGraph(const FString &InName);
 
+	/// Returns the update graph. The update graph will always exist, and there is only one.
+	UOptimusNodeGraph* GetUpdateGraph() const;
+
 	/** Remove a graph and delete it. */
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool RemoveGraph(UOptimusNodeGraph* InGraph);
