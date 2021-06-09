@@ -515,10 +515,20 @@ int32 FMeshMapBaker::AddBaker(TSharedPtr<FMeshMapEvaluator> Sampler)
 	return Bakers.Add(Sampler);
 }
 
+FMeshMapEvaluator* FMeshMapBaker::GetBaker(int32 BakerIdx)
+{
+	return Bakers[BakerIdx].Get();
+}
+
 void FMeshMapBaker::Reset()
 {
 	Bakers.Empty();
 	BakeResults.Empty();
+}
+
+int32 FMeshMapBaker::NumBakers()
+{
+	return Bakers.Num();
 }
 
 const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> FMeshMapBaker::GetBakeResults(int32 BakerIdx)

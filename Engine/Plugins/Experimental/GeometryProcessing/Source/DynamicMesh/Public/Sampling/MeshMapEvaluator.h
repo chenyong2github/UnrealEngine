@@ -11,6 +11,16 @@ namespace Geometry
 
 class FMeshMapBaker;
 
+enum class EMeshMapEvaluatorType
+{
+	Normal,
+	Occlusion,
+	Curvature,
+	Property,
+	ResampleImage,
+	MultiResampleImage
+};
+
 class FMeshMapEvaluator
 {
 public:
@@ -112,6 +122,9 @@ public:
 	 * @param Context [out] the evaluation context.
 	 */
 	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) = 0;
+
+	/** @return the type of evaluator. */
+	virtual EMeshMapEvaluatorType Type() const = 0;
 
 protected:
 	/**

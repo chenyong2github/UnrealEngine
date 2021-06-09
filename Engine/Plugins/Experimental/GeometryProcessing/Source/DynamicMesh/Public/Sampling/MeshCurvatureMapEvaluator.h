@@ -50,8 +50,11 @@ public:
 	TSharedPtr<FMeshVertexCurvatureCache> Curvatures;
 
 public:
-	/** Invoked at start of bake to initialize baker. */
+	// Begin FMeshMapEvaluator interface
 	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
+
+	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Curvature; }
+	// End FMeshMapEvaluator interface
 
 	static void EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);
 
