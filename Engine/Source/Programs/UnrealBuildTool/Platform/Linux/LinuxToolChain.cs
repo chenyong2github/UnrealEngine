@@ -1418,7 +1418,7 @@ namespace UnrealBuildTool
 				Debug.Assert(CompileAction.ProducedItems.Count > 0);
 
 				FileReference CompilerResponseFileName = CompileAction.ProducedItems[0].Location + ".rsp";
-				FileItem CompilerResponseFileItem = Graph.CreateIntermediateTextFile(CompilerResponseFileName, AllArguments);
+				FileItem CompilerResponseFileItem = Graph.CreateIntermediateTextFile(CompilerResponseFileName, AllArguments, StringComparison.InvariantCultureIgnoreCase);
 
 				CompileAction.CommandArguments = string.Format(" @\"{0}\"", CompilerResponseFileName);
 				CompileAction.PrerequisiteItems.Add(CompilerResponseFileItem);
@@ -1483,7 +1483,7 @@ namespace UnrealBuildTool
 			FileReference ResponsePath = GetResponseFileName(LinkEnvironment, OutputFile);
 			if (!ProjectFileGenerator.bGenerateProjectFiles)
 			{
-				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponsePath, InputFileNames);
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponsePath, InputFileNames, StringComparison.Ordinal);
 				ArchiveAction.PrerequisiteItems.Add(ResponseFileItem);
 			}
 			ArchiveAction.CommandArguments += string.Format(" @\"{0}\"", ResponsePath.FullName);
@@ -1835,7 +1835,7 @@ namespace UnrealBuildTool
 			ResponseLines.Add(" --end-group");
 
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
-			FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseLines);
+			FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseLines, StringComparison.InvariantCultureIgnoreCase);
 
 			LinkCommandString += string.Format(" -Wl,@\"{0}\"", ResponseFileName);
 			LinkAction.PrerequisiteItems.Add(ResponseFileItem);

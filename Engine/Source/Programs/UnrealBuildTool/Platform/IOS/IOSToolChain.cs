@@ -903,7 +903,7 @@ namespace UnrealBuildTool
 			{
 				bool bIsUnrealGame = LinkEnvironment.OutputFilePath.FullName.Contains("UnrealGame");
 				FileReference ResponsePath = FileReference.Combine(((!bIsUnrealGame && ProjectFile != null) ? ProjectFile.Directory : UnrealBuild.EngineDirectory), "Intermediate", "Build", LinkEnvironment.Platform.ToString(), "LinkFileList_" + LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".tmp");
-				Graph.CreateIntermediateTextFile(ResponsePath, InputFileNames);
+				Graph.CreateIntermediateTextFile(ResponsePath, InputFileNames, StringComparison.InvariantCultureIgnoreCase);
 				LinkCommandArguments += string.Format(" \\\"@{0}\\\"", ResponsePath.FullName);
 			}
 
@@ -1258,7 +1258,7 @@ namespace UnrealBuildTool
 				ExtractScript.AppendLine(String.Format("unzip -q -o {0} -d {1}", Utils.MakePathSafeToUseWithCommandLine(Framework.ZipFile.FullName), Utils.MakePathSafeToUseWithCommandLine(Framework.FrameworkDirectory.ParentDirectory.FullName))); // Zip contains folder with the same name, hence ParentDirectory
 				ExtractScript.AppendLine(String.Format("touch {0}", Utils.MakePathSafeToUseWithCommandLine(Framework.ExtractedTokenFile.AbsolutePath)));
 
-				FileItem ExtractScriptFileItem = Graph.CreateIntermediateTextFile(new FileReference(Framework.FrameworkDirectory.FullName + ".sh"), ExtractScript.ToString());
+				FileItem ExtractScriptFileItem = Graph.CreateIntermediateTextFile(new FileReference(Framework.FrameworkDirectory.FullName + ".sh"), ExtractScript.ToString(), StringComparison.InvariantCultureIgnoreCase);
 
 				Action UnzipAction = Graph.CreateAction(ActionType.BuildProject);
 				UnzipAction.CommandPath = new FileReference("/bin/sh");

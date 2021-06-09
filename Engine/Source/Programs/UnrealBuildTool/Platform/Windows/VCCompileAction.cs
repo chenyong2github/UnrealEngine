@@ -381,7 +381,7 @@ namespace UnrealBuildTool
 		{
 			if (ResponseFile != null)
 			{
-				Graph.CreateIntermediateTextFile(ResponseFile, GetCompilerArguments());
+				Graph.CreateIntermediateTextFile(ResponseFile, GetCompilerArguments(), StringComparison.InvariantCultureIgnoreCase);
 			}
 		}
 
