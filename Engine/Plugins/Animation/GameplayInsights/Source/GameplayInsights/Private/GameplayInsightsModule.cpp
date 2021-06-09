@@ -17,7 +17,10 @@
 #include "Stats/Stats.h"
 #include "ObjectPropertyTrace.h"
 #include "SAnimGraphSchematicView.h"
+#include "SAnimationCurvesView.h"
+#include "SBlendWeightsView.h"
 #include "SObjectPropertiesView.h"
+#include "SNotifiesView.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
@@ -63,6 +66,9 @@ void FGameplayInsightsModule::StartupModule()
 
 	DebugViewCreator.RegisterDebugViewCreator("Object", MakeShared<FObjectPropertiesViewCreator>());
 	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", MakeShared<FAnimGraphSchematicViewCreator>());
+	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", MakeShared<FBlendWeightsViewCreator>());
+	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", MakeShared<FNotifiesViewCreator>());
+	DebugViewCreator.RegisterDebugViewCreator("SkeletalMeshComponent", MakeShared<FAnimationCurvesViewCreator>());
 
 #if WITH_EDITOR
 

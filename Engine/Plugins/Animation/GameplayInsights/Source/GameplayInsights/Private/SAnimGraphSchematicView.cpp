@@ -9,7 +9,6 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/CoreStyle.h"
-#include "Styling/SlateIconFinder.h"
 #include "GameplayInsightsStyle.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -19,11 +18,9 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
 
-#if WITH_ENGINE
-#include "Animation/AnimInstance.h"
-#endif
-
 #if WITH_EDITOR
+#include "Animation/AnimInstance.h"
+#include "Styling/SlateIconFinder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #endif
@@ -1018,7 +1015,7 @@ FText FAnimGraphSchematicViewCreator::GetTitle() const
 
 FSlateIcon FAnimGraphSchematicViewCreator::GetIcon() const
 {
-#if WITH_ENGINE
+#if WITH_EDITOR
 	return FSlateIconFinder::FindIconForClass(UAnimInstance::StaticClass());
 #else
 	return FSlateIcon();

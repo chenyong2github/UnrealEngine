@@ -9,14 +9,14 @@
 
 namespace TraceServices { class IAnalysisSession; }
 
-class SObjectPropertiesView : public SPropertiesDebugViewBase
+class SNotifiesView : public SPropertiesDebugViewBase
 {
 public:
 	virtual void GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 	virtual FName GetName() const override;
 };
 
-class FObjectPropertiesViewCreator : public ICreateGameplayInsightsDebugView
+class FNotifiesViewCreator : public ICreateGameplayInsightsDebugView
 {
 	public:
 		virtual FName GetName() const override;
