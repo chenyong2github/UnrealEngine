@@ -135,7 +135,10 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 	if (self)
 	{
 		self->AlertController = nil;
-		self->bTransitioning = false;
+        self->bTransitioning = false;
+        self->bWantsToShow = false;
+        self->CachedTextContents = nil;
+        self->CachedPlaceholderContents = nil;
 	}
 	
 	return self;
@@ -189,22 +192,20 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 	TextEntry = FText::FromString(TEXT(""));
 	if(CachedTextContents != nil && CachedTextContents != TextContents)
 	{
-		[CachedTextContents release];
-		CachedTextContents = nil;
+        [CachedTextContents release];
 	}
 	if(CachedPlaceholderContents != nil && CachedPlaceholderContents != PlaceholderContents)
 	{
 		[CachedPlaceholderContents release];
-		CachedPlaceholderContents = nil;
 	}
 
 	if(CachedTextContents != TextContents)
 	{
-		CachedTextContents = [TextContents copy];
+		CachedTextContents = [[NSString alloc] initWithString:TextContents];
 	}
 	if(CachedPlaceholderContents != PlaceholderContents)
 	{
-		CachedPlaceholderContents = [PlaceholderContents copy];
+		CachedPlaceholderContents = [[NSString alloc] initWithString:PlaceholderContents];
 	}
 
 	CachedKeyboardConfig = KeyboardConfig;
