@@ -61,7 +61,9 @@ ONLINESUBSYSTEM_API DEFINE_STAT(STAT_Session_Interface);
 ONLINESUBSYSTEM_API DEFINE_STAT(STAT_Voice_Interface);
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FName TWITCH_SUBSYSTEM(TEXT("TWITCH"));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** The default key that will update presence text in the platform's UI */
 const FString DefaultPresenceKey = TEXT("RichPresence");
