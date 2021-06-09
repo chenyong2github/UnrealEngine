@@ -46,9 +46,10 @@ public:
 	/**
 	 * Set the TempRoot directory used to hold the deleted directories from elsewhere.  The FAsyncIODelete takes ownership of this directory, and deletes it when destructed or when it is changed.
 	 * If the FAsyncIODelete has already been used to delete files, this Set will block until all deletes are finished.
+	 * If the given TempRoot is unavailable, falls back to _digit suffixes.
 	 */
 	void SetTempRoot(const FStringView& InOwnedTempRoot);
-	FStringView GetTempRoot() const { return TempRoot; }
+	FStringView GetTempRoot() const { return TempRoot.IsEmpty() ? RequestedTempRoot : TempRoot; }
 
 	/**
 	 * Set whether new background deletes are paused.  If paused, paths will be moved immediately but will not be deleted from the temporary location until unpaused (or at the FAsyncIODelete's destruction).
@@ -116,9 +117,10 @@ private:
 	/** Delete the given path synchronously; called from a task or in error fallback cases from the public thread */
 	bool SynchronousDelete(const TCHAR* InDeletePath, EPathType PathType);
 
-	bool DeleteTempRootDirectory(uint32& OutErrorCode);
+	bool TryPurgeTempRootFamily(FString* OutNextTempRoot);
 
-	FString	TempRoot; 
+	FString	RequestedTempRoot; 
+	FString TempRoot;
 	TArray<FString> PausedDeletes;
 	FCriticalSection CriticalSection; // We use a CriticalSection instead of a TAtomic ActiveTaskCount so that we can atomically { trigger TasksComplete if ActiveTaskCount == 0 }
 	FEvent* TasksComplete = nullptr;
