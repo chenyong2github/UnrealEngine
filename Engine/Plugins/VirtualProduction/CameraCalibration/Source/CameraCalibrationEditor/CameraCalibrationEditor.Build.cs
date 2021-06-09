@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"OpenCV",
 					"PlacementMode",
 					"PropertyEditor",
+					"Settings",
 					"Slate",
 					"SlateCore",
 					"UnrealEd",

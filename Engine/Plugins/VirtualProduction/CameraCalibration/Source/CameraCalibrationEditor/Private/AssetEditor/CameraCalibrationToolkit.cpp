@@ -2,6 +2,8 @@
 
 #include "CameraCalibrationToolkit.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ISettingsModule.h"
 #include "CameraCalibrationStepsController.h"
 #include "EngineAnalytics.h"
 #include "LensFile.h"
@@ -104,6 +106,7 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 		bToolbarFocusable,
 		bUseSmallIcons);
 
+	ExtendMenu();
 	RegenerateMenusAndToolbars();
 }
 
@@ -254,6 +257,58 @@ FCachedFIZData FCameraCalibrationToolkit::GetFIZData() const
 	}
 
 	return FCachedFIZData();
+}
+
+void FCameraCalibrationToolkit::ExtendMenu()
+{
+	MenuExtender = MakeShared<FExtender>();
+
+	struct Local
+	{
+		static void ExtendMenu(FMenuBuilder& MenuBuilder)
+		{
+			MenuBuilder.BeginSection("CameraCalibrationSettings", LOCTEXT("CameraCalibrationSettings", "Plugin Settings"));
+			{
+				const FUIAction OpenSettingsAction
+				(
+					FExecuteAction::CreateLambda([]()
+					{
+						FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Plugins", "Camera Calibration");
+					})
+				);
+				
+				const FUIAction OpenEditorSettingsAction
+				(
+					FExecuteAction::CreateLambda([]()
+					{
+						FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "Plugins", "Camera Calibration Editor");
+					})
+				);
+				
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("OpenCameraCalibrationSettingsLabel", "Open Settins"),
+					LOCTEXT("OpenCameraCalibrationSettingsTooltip", "Open Camera Calibration Settins"),
+					FSlateIcon(),
+					OpenSettingsAction);
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("OpenCameraCalibrationEditorSettingsLabel", "Open Editor Settins"),
+					LOCTEXT("OpenCameraCalibrationEditorSettingsTooltip", "Open Camera Calibration Editor Settins"),
+					FSlateIcon(),
+					OpenEditorSettingsAction);
+			}
+			MenuBuilder.EndSection();
+		}
+	};
+
+	MenuExtender->AddMenuExtension(
+		"EditHistory",
+		EExtensionHook::After,
+		GetToolkitCommands(),
+		FMenuExtensionDelegate::CreateStatic(&Local::ExtendMenu)
+	);
+
+	AddMenuExtender(MenuExtender);
 }
 
 TSharedRef<SDockTab> FCameraCalibrationToolkit::HandleSpawnLensEvaluationTab(const FSpawnTabArgs& Args) const

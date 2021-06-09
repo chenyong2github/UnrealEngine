@@ -4,7 +4,7 @@
 
 #include "SCameraCalibrationCurveEditorPanel.h"
 
-#include "CurveEditor.h"
+#include "CameraCalibrationCurveEditor.h"
 #include "ICurveEditorModule.h"
 #include "ISinglePropertyView.h"
 #include "LensFile.h"
@@ -12,6 +12,7 @@
 #include "SLensDataCategoryListItem.h"
 #include "SLensDataListItem.h"
 #include "SLensDataAddPointDialog.h"
+#include "CameraCalibrationSettings.h"
 #include "Curves/LensDataCurveModel.h"
 #include "Curves/LensDistortionParametersCurveModel.h"
 #include "Curves/LensEncodersCurveModel.h"
@@ -71,10 +72,13 @@ void SLensDataViewer::Construct(const FArguments& InArgs, ULensFile* InLensFile)
 	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
 
 	//Setup curve editor
-	CurveEditor = MakeShared<FCurveEditor>();
+	CurveEditor = MakeShared<FCameraCalibrationCurveEditor>();
 	FCurveEditorInitParams InitParams;
 	CurveEditor->InitCurveEditor(InitParams);
 	CurveEditor->GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}");
+
+	// Set Delegates
+	CurveEditor->OnAddDataPointDelegate.BindSP(this, &SLensDataViewer::OnAddDataPointHandler);
 
 	TUniquePtr<ICurveEditorBounds> EditorBounds = MakeUnique<FStaticCurveEditorBounds>();
 	EditorBounds->SetInputBounds(0.05, 1.05);
@@ -294,7 +298,11 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 	TSharedRef<SWidget> AddPointButton =
 			 SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-			.OnClicked(this, &SLensDataViewer::OnAddDataPointClicked)
+			.OnClicked_Lambda([this]()
+			{
+				OnAddDataPointHandler();
+				return FReply::Handled();
+			})
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
@@ -325,7 +333,7 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 		];
 }
 
-FReply SLensDataViewer::OnAddDataPointClicked()
+void SLensDataViewer::OnAddDataPointHandler()
 {
 	const FSimpleDelegate OnDataPointAdded = FSimpleDelegate::CreateSP(this, &SLensDataViewer::OnLensDataPointAdded);
 
@@ -336,7 +344,6 @@ FReply SLensDataViewer::OnAddDataPointClicked()
 	}
 
 	SLensDataAddPointDialog::OpenDialog(LensFile.Get(), InitialCategory, CachedFIZ, OnDataPointAdded);
-	return FReply::Handled();
 }
 
 FReply SLensDataViewer::OnClearLensFileClicked()
@@ -585,7 +592,8 @@ void SLensDataViewer::RefreshCurve() const
 	if (NewCurve)
 	{
 		NewCurve->SetShortDisplayName(FText::FromName(CategoryItem->Label));
-		NewCurve->SetColor(FLinearColor(0.0f, 1.0f, 0.0f, 1.0f));
+		const UCameraCalibrationEditorSettings* EditorSettings = GetDefault<UCameraCalibrationEditorSettings>();
+		NewCurve->SetColor(EditorSettings->CategoryColor.GetColorForCategory(CategoryItem->Category));
 		const FCurveModelID CurveId = CurveEditor->AddCurve(MoveTemp(NewCurve));
 		CurveEditor->PinCurve(CurveId);
 	}

@@ -26,6 +26,7 @@ public:
 	virtual FName GetCategoryName() const;
 #if WITH_EDITOR
 	virtual FText GetSectionText() const override;
+	virtual FName GetSectionName() const override;
 #endif
 	//~ End UDevelopperSettings interface
 
@@ -73,6 +74,60 @@ private:
 };
 
 /**
+* Lens Data Table Editor Category color. Using for the color of the curves
+*/
+USTRUCT()
+struct FLensDataCategoryEditorColor
+{
+	GENERATED_BODY()
+
+	/** Get the color for specific category */
+	FColor GetColorForCategory(const ELensDataCategory InCategory) const
+	{
+		switch (InCategory) {
+		case ELensDataCategory::Focus:
+			return Focus;
+		case ELensDataCategory::Iris:
+			return Iris;
+		case ELensDataCategory::Zoom:
+			return Zoom;
+		case ELensDataCategory::Distortion:
+			return Distortion;
+		case ELensDataCategory::ImageCenter:
+			return ImageCenter;
+		case ELensDataCategory::STMap:
+			return STMap;
+		case ELensDataCategory::NodalOffset:
+			return NodalOffset;
+		default:
+			checkNoEntry();
+			return FColor::Black;
+		}
+	}
+	
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor Focus = FColor::Red;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor Iris = FColor::Green;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor Zoom = FColor::Blue;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor Distortion = FColor::Cyan;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor ImageCenter = FColor::Yellow;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor STMap = FColor::Orange;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor NodalOffset = FColor::Purple;
+};
+
+/**
  * Settings for the camera calibration when in editor and standalone.
  * @note Cooked games don't use this setting.
  */
@@ -87,6 +142,7 @@ public:
 		virtual FName GetCategoryName() const;
 #if WITH_EDITOR
 		virtual FText GetSectionText() const override;
+		virtual FName GetSectionName() const override;
 #endif
 		//~ End UDevelopperSettings interface
 
@@ -99,6 +155,12 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Settings", Meta = (ConfigRestartRequired = true, DisplayName = "Enable Lens File Toolbar Button"))
 	bool bShowEditorToolbarButton = false;
+
+	/**
+	 * Data Table category color settings
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	FLensDataCategoryEditorColor CategoryColor;
 
 private:
 

@@ -22,6 +22,11 @@ FText UCameraCalibrationSettings::GetSectionText() const
 	return NSLOCTEXT("CameraCalibrationPlugin", "CameraCalibrationSettingsSection", "Camera Calibration");
 }
 
+FName UCameraCalibrationSettings::GetSectionName() const
+{
+	return TEXT("Camera Calibration");
+}
+
 #endif
 
 ULensFile* UCameraCalibrationSettings::GetStartupLensFile() const
@@ -67,7 +72,12 @@ FName UCameraCalibrationEditorSettings::GetCategoryName() const
 #if WITH_EDITOR
 FText UCameraCalibrationEditorSettings::GetSectionText() const
 {
-	return NSLOCTEXT("CameraCalibrationEditorPlugin", "CameraCalibrationEditorSettingsSection", "Camera Calibration");
+	return NSLOCTEXT("CameraCalibrationEditorPlugin", "CameraCalibrationEditorSettingsSection", "Camera Calibration Editor");
+}
+
+FName UCameraCalibrationEditorSettings::GetSectionName() const
+{
+	return TEXT("Camera Calibration Editor");
 }
 #endif
 

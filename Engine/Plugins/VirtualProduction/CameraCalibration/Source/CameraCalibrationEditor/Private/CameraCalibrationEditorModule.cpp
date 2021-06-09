@@ -5,6 +5,8 @@
 
 #include "ActorFactories/ActorFactoryBlueprint.h"
 #include "AssetEditor/CameraCalibrationCommands.h"
+#include "AssetEditor/Curves/LensDataCurveModel.h"
+#include "AssetEditor/SCameraCalibrationCurveEditorView.h"
 #include "CameraCalibrationEditorLog.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions/AssetTypeActions_LensFile.h"
@@ -12,6 +14,7 @@
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "IPlacementModeModule.h"
+#include "ICurveEditorModule.h"
 #include "LensFile.h"
 #include "LevelEditor.h"
 #include "Misc/App.h"
@@ -25,7 +28,6 @@
 #define LOCTEXT_NAMESPACE "CameraCalibrationEditor"
 
 DEFINE_LOG_CATEGORY(LogCameraCalibrationEditor);
-
 
 void FCameraCalibrationEditorModule::StartupModule()
 {
@@ -54,6 +56,14 @@ void FCameraCalibrationEditorModule::StartupModule()
 	FCameraCalibrationMenuEntry::Register();
 
 	RegisterPlacementModeItems();
+
+	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
+	FLensDataCurveModel::ViewId = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(
+		[](TWeakPtr<FCurveEditor> WeakCurveEditor) -> TSharedRef<SCurveEditorView>
+		{
+			return SNew(SCameraCalibrationCurveEditorView, WeakCurveEditor);
+		}
+	));
 }
 
 const FPlacementCategoryInfo* FCameraCalibrationEditorModule::GetVirtualProductionCategoryRegisteredInfo() const
@@ -162,7 +172,13 @@ void FCameraCalibrationEditorModule::ShutdownModule()
 	{
 		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 	}
+
+	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
+	{
+		CurveEditorModule->UnregisterView(FLensDataCurveModel::ViewId);
+	}
 }
+
 
 void FCameraCalibrationEditorModule::UnregisterPlacementModeItems()
 {
@@ -180,6 +196,5 @@ void FCameraCalibrationEditorModule::UnregisterPlacementModeItems()
 }
 
 IMPLEMENT_MODULE(FCameraCalibrationEditorModule, CameraCalibrationEditor);
-
 
 #undef LOCTEXT_NAMESPACE
