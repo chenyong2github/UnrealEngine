@@ -130,9 +130,12 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 		for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
 		{
 			// Protect against case where Nanite max UV count is lower than what the material may define.
-			Result.TexCoords[TexCoordIndex] = (TexCoordIndex < MAX_NANITE_UVS) ? AttributeData.TexCoords[TexCoordIndex] : float2(0.0f, 0.0f);
-			Result.TexCoords_DDX[TexCoordIndex] = (TexCoordIndex < MAX_NANITE_UVS) ? AttributeData.TexCoords_DDX[TexCoordIndex] : float2(0.0f, 0.0f);
-			Result.TexCoords_DDY[TexCoordIndex] = (TexCoordIndex < MAX_NANITE_UVS) ? AttributeData.TexCoords_DDY[TexCoordIndex] : float2(0.0f, 0.0f);
+			if (TexCoordIndex < MAX_NANITE_UVS)
+			{
+				Result.TexCoords[TexCoordIndex] = AttributeData.TexCoords[TexCoordIndex];
+				Result.TexCoords_DDX[TexCoordIndex] = AttributeData.TexCoords_DDX[TexCoordIndex];
+				Result.TexCoords_DDY[TexCoordIndex] = AttributeData.TexCoords_DDY[TexCoordIndex];
+			}
 		}
 	#endif
 
