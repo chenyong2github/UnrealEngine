@@ -975,7 +975,13 @@ class ENGINE_API UEdGraphSchema : public UObject
 	/*
 	 * Begins a drag and drop action to drag a graph action into another graph
 	 */
-	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction, const FPointerEvent& MouseEvent = FPointerEvent() ) const { return FReply::Unhandled(); }
+	UE_DEPRECATED(5.0, "Use version that takes FPointerEvent instead.")
+	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction) const { return FReply::Unhandled(); }
+
+	/*
+	* Begins a drag and drop action to drag a graph action into another graph
+	*/
+	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction, const FPointerEvent& MouseEvent) const { return FReply::Unhandled(); }
 
 	/**
 	 * Gets display information for a graph
