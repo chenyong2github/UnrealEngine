@@ -16,7 +16,7 @@ struct FSkeletalMeshEditorParams
 			ChildSkelMesh = InSkelMeshComp;
 			VisibilityBasedAnimTickOption = InSkelMeshComp->VisibilityBasedAnimTickOption;
 			InSkelMeshComp->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
-
+			PredictedLODLevel = InSkelMeshComp->GetPredictedLODLevel();
 #if WITH_EDITOR
 			bUpdateAnimationInEditor = InSkelMeshComp->GetUpdateAnimationInEditor();
 			bUpdateClothInEditor = InSkelMeshComp->GetUpdateClothInEditor();
@@ -31,6 +31,7 @@ struct FSkeletalMeshEditorParams
 		if (ChildSkelMesh.IsValid())
 		{
 			ChildSkelMesh->VisibilityBasedAnimTickOption = VisibilityBasedAnimTickOption;
+			ChildSkelMesh->SetPredictedLODLevel(PredictedLODLevel);
 #if WITH_EDITOR
 
 			ChildSkelMesh->SetUpdateAnimationInEditor(bUpdateAnimationInEditor);
@@ -40,6 +41,7 @@ struct FSkeletalMeshEditorParams
 	}
 	TWeakObjectPtr<USkeletalMeshComponent> ChildSkelMesh;
 	EVisibilityBasedAnimTickOption VisibilityBasedAnimTickOption;
+	int32 PredictedLODLevel;
 #if WITH_EDITOR
 	bool bUpdateAnimationInEditor;
 	bool bUpdateClothInEditor;

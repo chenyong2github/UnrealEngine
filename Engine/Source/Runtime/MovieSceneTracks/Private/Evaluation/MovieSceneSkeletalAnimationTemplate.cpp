@@ -97,7 +97,6 @@ struct FStopPlayingMontageTokenProducer : IMovieScenePreAnimatedTokenProducer
 	}
 };
 
-
 struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 {
 	virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& Object) const
@@ -109,6 +108,7 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				// Cache this object's current update flag and animation mode
 				AnimationMode = InComponent->GetAnimationMode();
 				CachedAnimInstance.Reset(InComponent->AnimScriptInstance);
+				CachedPostProcessAnimInstance.Reset(InComponent->PostProcessAnimInstance);
 				SkeletalMeshRestoreState.SaveState(InComponent);
 			}
 
@@ -131,6 +131,20 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 					// if we're using same anim blueprint, we don't want to keep reinitializing it. 
 					Component->SetAnimationMode(AnimationMode);
 				}
+
+				bool bNeedsReinitialize = false;
+				if (CachedPostProcessAnimInstance.Get())
+				{
+					Component->PostProcessAnimInstance = CachedPostProcessAnimInstance.Get();
+					CachedPostProcessAnimInstance.Reset();
+					if (Component->PostProcessAnimInstance && Component->SkeletalMesh)
+					{
+						//the skeleton may have changed so need to recalc required bones as needed.
+						Component->PostProcessAnimInstance->CurrentSkeleton = Component->SkeletalMesh->GetSkeleton();
+						bNeedsReinitialize = true;
+					}
+				}
+
 				if (CachedAnimInstance.Get())
 				{
 					Component->AnimScriptInstance = CachedAnimInstance.Get();
@@ -139,8 +153,7 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 					{
 						//the skeleton may have changed so need to recalc required bones as needed.
 						Component->AnimScriptInstance->CurrentSkeleton = Component->SkeletalMesh->GetSkeleton();
-						//Need at least RecalcRequiredbones and UpdateMorphTargetrs
-						Component->InitializeAnimScriptInstance(true);
+						bNeedsReinitialize = true;
 					}
 				}
 
@@ -159,6 +172,12 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				// Reset the mesh component update flag and animation mode to what they were before we animated the object
 				SkeletalMeshRestoreState.RestoreState(Component);
 
+				if (bNeedsReinitialize)
+				{
+					// Need at least RecalcRequiredbones and UpdateMorphTargetrs
+					Component->InitializeAnimScriptInstance(true);
+				}
+
 				// if not game world, don't clean this up
 				if (Component->GetWorld() != nullptr && Component->GetWorld()->IsGameWorld() == false)
 				{
@@ -168,6 +187,7 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 
 			EAnimationMode::Type AnimationMode;
 			TStrongObjectPtr<UAnimInstance> CachedAnimInstance;
+			TStrongObjectPtr<UAnimInstance> CachedPostProcessAnimInstance;
 
 			FSkeletalMeshRestoreState SkeletalMeshRestoreState;
 
@@ -176,7 +196,6 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 		return FToken(CastChecked<USkeletalMeshComponent>(&Object));
 	}
 };
-
 
 struct FMinimalAnimParameters
 {
