@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterWarpBlendLoader_WarpMap.h"
-
+#include "RHI.h"
 #include "DisplayClusterShadersLog.h"
 
 THIRD_PARTY_INCLUDES_START
