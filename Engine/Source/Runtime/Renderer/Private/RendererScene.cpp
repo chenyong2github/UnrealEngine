@@ -292,6 +292,7 @@ FSceneViewState::~FSceneViewState()
 	AOScreenGridResources = NULL;
 
 	HairStrandsViewStateData.Release();
+	ShaderDrawDebugStateData.Release();
 }
 
 #if WITH_EDITOR

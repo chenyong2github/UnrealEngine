@@ -679,6 +679,20 @@ struct FHLODSceneNodeVisibilityState
 	uint16 bIsFading	: 1;
 };
 
+struct FShaderDrawDebugStateData
+{
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
+	TRefCountPtr<FRDGPooledBuffer> IndirectBuffer;
+	bool bIsLocked = false;
+
+	void Release()
+	{
+		Buffer = nullptr;
+		IndirectBuffer = nullptr;
+		bIsLocked = false;
+	}
+};
+
 /**
  * The scene manager's private implementation of persistent view state.
  * This class is associated with a particular camera across multiple frames by the game thread.
@@ -1083,6 +1097,8 @@ public:
 	FVector VolumetricCloudShadowmapPreviousAtmosphericLightDir[NUM_ATMOSPHERE_LIGHTS];
 
 	FHairStrandsViewStateData HairStrandsViewStateData;
+
+	FShaderDrawDebugStateData ShaderDrawDebugStateData;
 
 	// call after OnFrameRenderingSetup()
 	virtual uint32 GetCurrentTemporalAASampleIndex() const
