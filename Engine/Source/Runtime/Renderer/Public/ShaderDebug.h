@@ -18,13 +18,13 @@ struct FShaderDrawDebugData
 namespace ShaderDrawDebug 
 {
 	// Call this to know if this is even just available (for exemple in shipping mode buffers won't exists)
-	RENDERER_API bool IsShaderDrawDebugEnabled();
+	RENDERER_API bool IsEnabled();
 	RENDERER_API void SetEnabled(bool bEnable);
 	RENDERER_API void SetMaxElementCount(uint32 MaxCount);
 	RENDERER_API uint32 GetMaxElementCount();
 
 	// Call this to know if a view can render this debug information
-	bool IsShaderDrawDebugEnabled(const FViewInfo& View);
+	bool IsEnabled(const FViewInfo& View);
 
 	// Allocate the debug print buffer associated with the view
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View);
@@ -34,7 +34,7 @@ namespace ShaderDrawDebug
 	void EndView(FViewInfo& View);
 
 	// The structure to be set on the debug shader outputting debug primitive
-	BEGIN_SHADER_PARAMETER_STRUCT(FShaderDrawDebugParameters, )
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
 		SHADER_PARAMETER(FIntPoint, ShaderDrawCursorPos)
 		SHADER_PARAMETER(int32, ShaderDrawMaxElementCount)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutShaderDrawPrimitive)
@@ -42,5 +42,5 @@ namespace ShaderDrawDebug
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Call this to fill the FShaderDrawParameters
-	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderDrawDebugParameters& OutParameters);
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderParameters& OutParameters);
 }

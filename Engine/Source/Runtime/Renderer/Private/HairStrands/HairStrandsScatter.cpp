@@ -116,7 +116,7 @@ class FHairScatterPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairScatterPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER(FVector2D, OutputResolution)
 		SHADER_PARAMETER(float, GatherWorldRadius)
 		SHADER_PARAMETER(float, PixelRadiusAtDepth1)
@@ -181,7 +181,7 @@ static FRDGTextureRef AddScatterPass(
 	Parameters->HairEnergyLUTTexture = GetHairLUT(GraphBuilder, View, HairLUTType_MeanEnergy);
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->VirtualVoxel = VoxelResources.UniformBuffer;
-	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
+	if (ShaderDrawDebug::IsEnabled(View))
 	{
 		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
 	}

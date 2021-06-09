@@ -305,7 +305,7 @@ class FLumenCardDirectLightingRGS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
@@ -498,7 +498,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(
 		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
 	}
 
-	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
+	if (ShaderDrawDebug::IsEnabled(View))
 	{
 		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
 	}
