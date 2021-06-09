@@ -13,7 +13,9 @@ UCommonInputSettings::UCommonInputSettings(const FObjectInitializer& Initializer
 	: Super(Initializer)
 	, bInputDataLoaded(false)
 {
+#if WITH_EDITOR
 	PlatformInput.Settings = UPlatformSettings::GetAllPlatformSettings<UCommonInputPlatformSettings>();
+#endif
 }
 
 void UCommonInputSettings::LoadData()
