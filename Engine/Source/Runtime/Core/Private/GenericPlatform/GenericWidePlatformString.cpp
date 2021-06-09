@@ -409,6 +409,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 
 		const TCHAR *Percent = Src;
 		int FieldLen = 0;
+		bool bVariablePrecision = false;
 		int PrecisionLen = -1;
 
 		Src++; // skip the '%' char...
@@ -454,6 +455,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 			const TCHAR *Cur = Src + 1;
 			if (*Cur == '*')
 			{
+				bVariablePrecision = true;
 				PrecisionLen = va_arg(ArgPtr, int32);
 				Cur++;
 			}
@@ -783,7 +785,15 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 				}
 				FmtBuf[CpyIdx] = 0;
 
-				int RetCnt = snprintf(AnsiNum, sizeof (AnsiNum), FmtBuf, Val);
+				int RetCnt;
+				if (bVariablePrecision)
+				{
+					RetCnt = snprintf(AnsiNum, sizeof (AnsiNum), FmtBuf, PrecisionLen, Val);
+				}
+				else
+				{
+					RetCnt = snprintf(AnsiNum, sizeof (AnsiNum), FmtBuf, Val);
+				}
 				if (RetCnt >= UE_ARRAY_COUNT(AnsiNum))
 				{
 					// We should print what we have written into AnsiNum but ensure we null terminate before printing
