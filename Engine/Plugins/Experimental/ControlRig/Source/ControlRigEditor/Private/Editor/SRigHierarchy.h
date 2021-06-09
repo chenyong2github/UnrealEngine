@@ -19,6 +19,7 @@ class UControlRig;
 struct FAssetData;
 class FMenuBuilder;
 class SRigHierarchyItem;
+class UToolMenu;
 
 DECLARE_DELEGATE_RetVal_TwoParams(FName, FOnRenameElement, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/);
 DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnVerifyElementNameChanged, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/, FText& /*OutErrorMessage*/);
@@ -227,7 +228,7 @@ private:
 	void OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 
 	TSharedRef< SWidget > CreateFilterMenu();
-	TSharedPtr< SWidget > CreateContextMenu();
+	TSharedPtr< SWidget > CreateContextMenuWidget();
 	void OnItemClicked(TSharedPtr<FRigTreeElement> InItem);
 	void OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem);
 	void OnSetExpansionRecursive(TSharedPtr<FRigTreeElement> InItem, bool bShouldBeExpanded);
@@ -241,8 +242,10 @@ private:
 	TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
 	FReply OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
 
-	void FillContextMenu(class FMenuBuilder& MenuBuilder);
-	TSharedPtr<FUICommandList> GetContextMenuCommands();
+	UToolMenu* GetOrCreateContextMenu();
+	TSharedPtr<FUICommandList> GetContextMenuCommands() const;
+
+
 
 	/** Our owning control rig editor */
 	TWeakPtr<FControlRigEditor> ControlRigEditor;

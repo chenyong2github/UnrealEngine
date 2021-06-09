@@ -38,11 +38,13 @@ struct FRigControl;
 class IControlRigManipulatable;
 class ISequencer;
 enum class EControlRigSetKey : uint8;
+class UToolMenu;
 
 DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FOnGetRigElementTransform, const FRigElementKey& /*RigElementKey*/, bool /*bLocal*/, bool /*bOnDebugInstance*/);
 DECLARE_DELEGATE_ThreeParams(FOnSetRigElementTransform, const FRigElementKey& /*RigElementKey*/, const FTransform& /*Transform*/, bool /*bLocal*/);
 DECLARE_DELEGATE_RetVal(TSharedPtr<FUICommandList>, FNewMenuCommandsDelegate);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FControlRigAddedOrRemoved, UControlRig*, bool /*true if added, false if removed*/);
+DECLARE_DELEGATE_RetVal(UToolMenu*, FOnGetContextMenu);
 
 class FControlRigEditMode;
 
@@ -130,7 +132,7 @@ public:
 	FOnSetRigElementTransform& OnSetRigElementTransform() { return OnSetRigElementTransformDelegate; }
 
 	/** Context Menu Delegates */
-	FNewMenuDelegate& OnContextMenu() { return OnContextMenuDelegate; }
+	FOnGetContextMenu& OnGetContextMenu() { return OnGetContextMenuDelegate; }
 	FNewMenuCommandsDelegate& OnContextMenuCommands() { return OnContextMenuCommandsDelegate; }
 	FSimpleMulticastDelegate& OnAnimSystemInitialized() { return OnAnimSystemInitializedDelegate; }
 
@@ -256,7 +258,7 @@ protected:
 
 	FOnGetRigElementTransform OnGetRigElementTransformDelegate;
 	FOnSetRigElementTransform OnSetRigElementTransformDelegate;
-	FNewMenuDelegate OnContextMenuDelegate;
+	FOnGetContextMenu OnGetContextMenuDelegate;
 	FNewMenuCommandsDelegate OnContextMenuCommandsDelegate;
 	FSimpleMulticastDelegate OnAnimSystemInitializedDelegate;
 	FControlRigAddedOrRemoved OnControlRigAddedOrRemovedDelegate;

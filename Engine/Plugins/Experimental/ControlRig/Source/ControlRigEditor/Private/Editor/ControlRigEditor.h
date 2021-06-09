@@ -27,6 +27,7 @@ class SWidget;
 class SBorder;
 class USkeletalMesh;
 class FStructOnScope;
+class UToolMenu;
 
 UENUM()
 enum class EControlRigEditorEventQueue : uint8
@@ -169,7 +170,7 @@ public:
 	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition);
 
 	FPersonaViewportKeyDownDelegate& GetKeyDownDelegate() { return OnKeyDownDelegate; }
-	FNewMenuDelegate& OnViewportContextMenu() { return OnViewportContextMenuDelegate; }
+	FOnGetContextMenu& OnGetViewportContextMenu() { return OnGetViewportContextMenuDelegate; }
 	FNewMenuCommandsDelegate& OnViewportContextMenuCommands() { return OnViewportContextMenuCommandsDelegate; }
 
 	DECLARE_EVENT_OneParam(FControlRigEditor, FPreviewControlRigUpdated, FControlRigEditor*);
@@ -373,8 +374,8 @@ protected:
 	FPersonaViewportKeyDownDelegate OnKeyDownDelegate;
 
 	/** Delgate to build the context menu for the viewport */
-	FNewMenuDelegate OnViewportContextMenuDelegate;
-	void HandleOnViewportContextMenuDelegate(class FMenuBuilder& MenuBuilder);
+	FOnGetContextMenu OnGetViewportContextMenuDelegate;
+	UToolMenu* HandleOnGetViewportContextMenuDelegate();
 	FNewMenuCommandsDelegate OnViewportContextMenuCommandsDelegate;
 	TSharedPtr<FUICommandList> HandleOnViewportContextMenuCommandsDelegate();
 

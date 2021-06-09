@@ -364,7 +364,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	{
 		EditMode->OnGetRigElementTransform() = FOnGetRigElementTransform::CreateSP(this, &FControlRigEditor::GetRigElementTransform);
 		EditMode->OnSetRigElementTransform() = FOnSetRigElementTransform::CreateSP(this, &FControlRigEditor::SetRigElementTransform);
-		EditMode->OnContextMenu() = FNewMenuDelegate::CreateSP(this, &FControlRigEditor::HandleOnViewportContextMenuDelegate);
+		EditMode->OnGetContextMenu() = FOnGetContextMenu::CreateSP(this, &FControlRigEditor::HandleOnGetViewportContextMenuDelegate);
 		EditMode->OnContextMenuCommands() = FNewMenuCommandsDelegate::CreateSP(this, &FControlRigEditor::HandleOnViewportContextMenuCommandsDelegate);
 		EditMode->OnAnimSystemInitialized().Add(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FControlRigEditor::OnAnimInitialized));
 		
@@ -5682,12 +5682,13 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 
 }
 
-void FControlRigEditor::HandleOnViewportContextMenuDelegate(class FMenuBuilder& MenuBuilder)
+UToolMenu* FControlRigEditor::HandleOnGetViewportContextMenuDelegate()
 {
-	if (OnViewportContextMenuDelegate.IsBound())
+	if (OnGetViewportContextMenuDelegate.IsBound())
 	{
-		OnViewportContextMenuDelegate.Execute(MenuBuilder);
+		return OnGetViewportContextMenuDelegate.Execute();
 	}
+	return nullptr;
 }
 
 TSharedPtr<FUICommandList> FControlRigEditor::HandleOnViewportContextMenuCommandsDelegate()
