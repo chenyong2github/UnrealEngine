@@ -71,7 +71,7 @@ void APackedLevelInstance::RerunConstructionScripts()
 		if (PackedVersion != GetClass()->GetDefaultObject<APackedLevelInstance>()->PackedVersion)
 		{
 			bShouldRerunConstructionScript = true;
-			UE_LOG(LogLevelInstance, Warning, TEXT("RerunConstructionScript was executed on %s (%s) because its version (%s) doesn't match latest version (%s). Resaving this actor will fix this"),
+			UE_LOG(LogLevelInstance, Verbose, TEXT("RerunConstructionScript was executed on %s (%s) because its version (%s) doesn't match latest version (%s). Resaving this actor will fix this"),
 				*GetPathName(),
 				*GetPackage()->GetPathName(),
 				*PackedVersion.ToString(),
