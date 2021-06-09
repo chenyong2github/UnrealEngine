@@ -11,6 +11,8 @@
 
 #include "SpotLightGizmo.generated.h"
 
+class UGizmoViewContext;
+
 UCLASS()
 class USpotLightGizmoBuilder : public UInteractiveGizmoBuilder
 {
@@ -73,6 +75,7 @@ public:
 	void CreateAttenuationScaleGizmo();
 
 	void SetWorld(UWorld* InWorld);
+	void SetGizmoViewContext(UGizmoViewContext* GizmoViewContextIn);
 
 	USubTransformProxy* GetTransformProxy();
 
@@ -111,6 +114,10 @@ private:
 	 */
 	UPROPERTY()
 	ASpotLightGizmoActor* GizmoActor;
+
+	/** Used to properly render the handle gizmo. */
+	UPROPERTY()
+	UGizmoViewContext* GizmoViewContext;
 
 	UPROPERTY()
 	FVector DragStartWorldPosition;

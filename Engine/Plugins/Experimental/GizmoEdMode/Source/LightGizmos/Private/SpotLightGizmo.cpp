@@ -2,11 +2,13 @@
 
 #include "SpotLightGizmo.h"
 #include "Components/SpotLightComponent.h"
+#include "ContextObjectStore.h"
 #include "ScalableConeGizmo.h"
 #include "LightGizmosModule.h"
 #include "Engine/CollisionProfile.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "BaseGizmos/GizmoMath.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "Components/SphereComponent.h"
 #include "BaseGizmos/GizmoLineHandleComponent.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
@@ -19,6 +21,11 @@ UInteractiveGizmo* USpotLightGizmoBuilder::BuildGizmo(const FToolBuilderState& S
 {
 	USpotLightGizmo* NewGizmo = NewObject<USpotLightGizmo>(SceneState.GizmoManager);
 	NewGizmo->SetWorld(SceneState.World);
+
+	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
+	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
+	NewGizmo->SetGizmoViewContext(GizmoViewContext);
+
 	return NewGizmo;
 }
 
@@ -273,6 +280,11 @@ void USpotLightGizmo::SetWorld(UWorld* InWorld)
 	World = InWorld;
 }
 
+void USpotLightGizmo::SetGizmoViewContext(UGizmoViewContext* GizmoViewContextIn)
+{
+	GizmoViewContext = GizmoViewContextIn;
+}
+
 void USpotLightGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 {
 	FVector Start = Ray.WorldRay.Origin;
@@ -385,7 +397,8 @@ void USpotLightGizmo::CreateAttenuationScaleGizmo()
 	GizmoActor = World->SpawnActor<ASpotLightGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
 
 	// The handle to scale attenuation is line handle component
-	GizmoActor->AttenuationScaleHandle = AGizmoActor::AddDefaultLineHandleComponent(World, GizmoActor, FLinearColor::Blue, FVector::YAxisVector, FVector::XAxisVector, 60.f, true);
+	GizmoActor->AttenuationScaleHandle = AGizmoActor::AddDefaultLineHandleComponent(World, GizmoActor, GizmoViewContext,
+		FLinearColor::Blue, FVector::YAxisVector, FVector::XAxisVector, 60.f, true);
 	GizmoActor->AttenuationScaleHandle->SetRelativeLocation(FVector(LightActor->SpotLightComponent->AttenuationRadius, 0, 0));
 
 	TransformProxy->OnTransformChanged.AddUObject(this, &USpotLightGizmo::OnTransformChanged);

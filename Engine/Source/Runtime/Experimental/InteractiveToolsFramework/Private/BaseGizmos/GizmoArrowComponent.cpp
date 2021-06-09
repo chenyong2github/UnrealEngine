@@ -2,11 +2,59 @@
  
 #include "BaseGizmos/GizmoArrowComponent.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "PrimitiveSceneProxy.h"
 #include "Materials/Material.h"
 #include "MaterialShared.h"
 #include "SceneManagement.h"
 
+namespace GizmoArrowComponentLocals
+{
+	const float ARROW_RENDERVISIBILITY_DOT_THRESHOLD = 0.965f; //~15 degrees
+
+	template <typename SceneViewOrGizmoViewContext>
+	bool GetWorldEndpoints(bool bIsViewDependent, const SceneViewOrGizmoViewContext* View,
+		const FVector& WorldOrigin, const FVector& Direction, float Gap, 
+		float Length, bool bUseWorldAxes,
+		TFunctionRef<FVector(const FVector&)> VectorTransform, 
+		FVector& StartPointOut, FVector& EndPointOut, float& PixelToWorldScaleOut)
+	{
+		FVector ArrowDirection = bUseWorldAxes ? Direction : VectorTransform(Direction);
+		float LengthScale = 1;
+
+		if (bIsViewDependent)
+		{
+			// direction to origin of gizmo
+			FVector ViewDirection = View->IsPerspectiveProjection() ?
+				WorldOrigin - View->ViewLocation : View->GetViewDirection();
+			ViewDirection.Normalize();
+
+			bool bFlipped = (FVector::DotProduct(ViewDirection, ArrowDirection) > 0);
+			ArrowDirection = (bFlipped) ? -ArrowDirection : ArrowDirection;
+
+			//bRenderVisibilityOut = FMath::Abs(FVector::DotProduct(ArrowDirection, ViewDirection)) < 0.985f;   // ~10 degrees
+			bool bRenderVisibility =
+				FMath::Abs(FVector::DotProduct(ArrowDirection, ViewDirection)) < ARROW_RENDERVISIBILITY_DOT_THRESHOLD;   // ~15 degrees
+
+			if (!bRenderVisibility)
+			{
+				return false;
+			}
+
+			LengthScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, WorldOrigin);
+		}
+
+		PixelToWorldScaleOut = LengthScale;
+
+		double StartDist = LengthScale * Gap;
+		double EndDist = LengthScale * (Gap + Length);
+
+		StartPointOut = WorldOrigin + StartDist * ArrowDirection;
+		EndPointOut = WorldOrigin + EndDist * ArrowDirection;
+
+		return true;
+	}
+}
 
 class FGizmoArrowComponentSceneProxy final : public FPrimitiveSceneProxy
 {
@@ -30,8 +78,7 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		// try to find focused scene view. May return nullptr.
-		const FSceneView* FocusedView = GizmoRenderingUtil::FindFocusedEditorSceneView(Views, ViewFamily, VisibilityMap);
+		using namespace GizmoArrowComponentLocals;
 
 		const FMatrix& LocalToWorldMatrix = GetLocalToWorld();
 		FVector Origin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
@@ -42,54 +89,29 @@ public:
 			{
 				const FSceneView* View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
-				bool bIsFocusedView = (FocusedView != nullptr && View == FocusedView);
-				bool bIsOrtho = !View->IsPerspectiveProjection();
-
-				// direction to origin of gizmo
-				FVector ViewDirection = 
-					(bIsOrtho) ?  (View->GetViewDirection()) : (Origin - View->ViewLocation);
-				ViewDirection.Normalize();
 
 				bool bWorldAxis = (bExternalWorldLocalState) ? (*bExternalWorldLocalState) : false;
-				FVector ArrowDirection = (bWorldAxis) ? Direction : FVector{ LocalToWorldMatrix.TransformVector(Direction) };
-				bool bFlipped = (FVector::DotProduct(ViewDirection, ArrowDirection) > 0);
-				ArrowDirection = (bFlipped) ? -ArrowDirection : ArrowDirection;
-				if (bIsFocusedView && bFlippedExternal != nullptr)
-				{
-					*bFlippedExternal = bFlipped;
-				}
+				FVector StartPoint, EndPoint;
+				float PixelToWorldScale = 0;
 
-				//bRenderVisibility = FMath::Abs(FVector::DotProduct(ArrowDirection, ViewDirection)) < 0.985f;   // ~10 degrees
-				bool bRenderVisibility = FMath::Abs(FVector::DotProduct(ArrowDirection, ViewDirection)) < 0.965f;   // ~15 degrees
+				bool bIsViewDependent = (bExternalIsViewDependent) ? (*bExternalIsViewDependent) : false;
+				bool bRenderVisibility = GetWorldEndpoints(bIsViewDependent, View, Origin, 
+					Direction, Gap, Length, bWorldAxis,
+					[&LocalToWorldMatrix](const FVector& VectorIn) {
+						return FVector{ LocalToWorldMatrix.TransformVector(VectorIn) };
+					}, StartPoint, EndPoint, PixelToWorldScale);
 
-				if (bIsFocusedView && bExternalRenderVisibility != nullptr)
-				{
-					*bExternalRenderVisibility = bRenderVisibility;
-				}
-				if (bRenderVisibility == false)
+				if (!bRenderVisibility)
 				{
 					continue;
 				}
 
-				float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, Origin);
-				float LengthScale = PixelToWorldScale;
-				if (bIsFocusedView && ExternalDynamicPixelToWorldScale != nullptr)
-				{
-					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
-				}
-
 				float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
 					(HoverThicknessMultiplier * Thickness) : (Thickness);
-				if (!bIsOrtho)
+				if (View->IsPerspectiveProjection())
 				{
 					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
 				}
-
-				double StartDist = LengthScale * Gap;
-				double EndDist = LengthScale * (Gap + Length);
-
-				FVector StartPoint = Origin + StartDist*ArrowDirection;
-				FVector EndPoint = Origin + EndDist*ArrowDirection;
 
 				PDI->DrawLine(StartPoint, EndPoint, Color, SDPG_Foreground, UseThickness, 0.0f, true);
 			}
@@ -115,22 +137,6 @@ public:
 	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
 	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
-
-	void SetExternalFlip(bool* bFlipped)
-	{
-		bFlippedExternal = bFlipped;
-	}
-
-	void SetExternalDynamicPixelToWorldScale(float* DynamicPixelToWorldScale)
-	{
-		ExternalDynamicPixelToWorldScale = DynamicPixelToWorldScale;
-	}
-
-	void SetExternalRenderVisibility(bool* bRenderVisibility)
-	{
-		bExternalRenderVisibility = bRenderVisibility;
-	}
-
 	void SetExternalHoverState(bool* HoverState)
 	{
 		bExternalHoverState = HoverState;
@@ -139,6 +145,11 @@ public:
 	void SetExternalWorldLocalState(bool* bWorldLocalState)
 	{
 		bExternalWorldLocalState = bWorldLocalState;
+	}
+
+	void SetExternalIsViewDependent(bool* bExternalIsViewDependentIn)
+	{
+		bExternalIsViewDependent = bExternalIsViewDependentIn;
 	}
 
 private:
@@ -152,22 +163,16 @@ private:
 	// set on Component for use in ::GetDynamicMeshElements()
 	bool* bExternalHoverState = nullptr;
 	bool* bExternalWorldLocalState = nullptr;
-
-	// set in ::GetDynamicMeshElements() for use by Component hit testing
-	bool* bFlippedExternal = nullptr;
-	float* ExternalDynamicPixelToWorldScale = nullptr;
-	bool* bExternalRenderVisibility = nullptr;
+	bool* bExternalIsViewDependent = nullptr;
 };
 
 
 FPrimitiveSceneProxy* UGizmoArrowComponent::CreateSceneProxy()
 {
 	FGizmoArrowComponentSceneProxy* NewProxy = new FGizmoArrowComponentSceneProxy(this);
-	NewProxy->SetExternalFlip(&bFlipped);
-	NewProxy->SetExternalDynamicPixelToWorldScale(&DynamicPixelToWorldScale);
-	NewProxy->SetExternalRenderVisibility(&bRenderVisibility);
 	NewProxy->SetExternalHoverState(&bHovering);
 	NewProxy->SetExternalWorldLocalState(&bWorld);
+	NewProxy->SetExternalIsViewDependent(&bIsViewDependent);
 	return NewProxy;
 }
 
@@ -178,27 +183,27 @@ FBoxSphereBounds UGizmoArrowComponent::CalcBounds(const FTransform& LocalToWorld
 
 bool UGizmoArrowComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params)
 {
-	if (bRenderVisibility == false)
+	using namespace GizmoArrowComponentLocals;
+
+	const FTransform& Transform = this->GetComponentToWorld();
+	FVector UseOrigin = Transform.TransformPosition(FVector::ZeroVector);
+
+	// Copy what is done in the proxy object, but get data from the gizmo view context.
+	FVector StartPoint, EndPoint;
+	float PixelToWorldScale = 0;
+	bool bRenderVisibility = GetWorldEndpoints(bIsViewDependent, GizmoViewContext, UseOrigin, Direction, Gap, Length, bWorld,
+		[&Transform](const FVector& VectorIn) { return Transform.TransformVector(VectorIn); },
+		StartPoint, EndPoint, PixelToWorldScale);
+
+	if (!bRenderVisibility)
 	{
 		return false;
 	}
 
-	const FTransform& Transform = this->GetComponentToWorld();
-
-	FVector UseDirection = (bFlipped) ? -Direction : Direction;
-	float LengthScale = DynamicPixelToWorldScale;
-	double StartDist = LengthScale * Gap;
-	double EndDist = LengthScale * (Gap + Length);
-
-	UseDirection = (bWorld) ? UseDirection : Transform.TransformVector(UseDirection);
-	FVector UseOrigin = Transform.TransformPosition(FVector::ZeroVector);
-	FVector Point0 = UseOrigin + StartDist * UseDirection;
-	FVector Point1 = UseOrigin + EndDist * UseDirection;
-
 	FVector NearestArrow, NearestLine;
-	FMath::SegmentDistToSegmentSafe(Point0, Point1, Start, End, NearestArrow, NearestLine);
+	FMath::SegmentDistToSegmentSafe(StartPoint, EndPoint, Start, End, NearestArrow, NearestLine);
 	double Distance = FVector::Distance(NearestArrow, NearestLine);
-	if (Distance > PixelHitDistanceThreshold*DynamicPixelToWorldScale)
+	if (Distance > PixelHitDistanceThreshold * PixelToWorldScale)
 	{
 		return false;
 	}

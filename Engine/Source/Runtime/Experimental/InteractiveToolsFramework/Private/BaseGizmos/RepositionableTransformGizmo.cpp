@@ -5,10 +5,12 @@
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "BaseGizmos/AxisAngleGizmo.h"
 #include "BaseGizmos/AxisPositionGizmo.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "BaseGizmos/HitTargets.h"
 #include "BaseGizmos/PlanePositionGizmo.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "BaseGizmos/TransformSources.h"
+#include "ContextObjectStore.h"
 
 #include "InteractiveGizmo.h"
 
@@ -20,8 +22,11 @@ UInteractiveGizmo* URepositionableTransformGizmoBuilder::BuildGizmo(const FToolB
 	UTransformGizmo* NewGizmo = NewObject<URepositionableTransformGizmo>(SceneState.GizmoManager);
 	NewGizmo->SetWorld(SceneState.World);
 
+	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
+	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
+
 	// use default gizmo actor if client has not given us a new builder
-	NewGizmo->SetGizmoActorBuilder((GizmoActorBuilder) ? GizmoActorBuilder : MakeShared<FTransformGizmoActorFactory>());
+	NewGizmo->SetGizmoActorBuilder(GizmoActorBuilder ? GizmoActorBuilder : MakeShared<FTransformGizmoActorFactory>(GizmoViewContext));
 
 	NewGizmo->SetSubGizmoBuilderIdentifiers(AxisPositionBuilderIdentifier, PlanePositionBuilderIdentifier, AxisAngleBuilderIdentifier);
 

@@ -3,6 +3,8 @@
 
 #include "EdModeInteractiveToolsContext.h"
 
+#include "BaseGizmos/GizmoViewContext.h"
+#include "ContextObjectStore.h"
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
@@ -570,6 +572,9 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 	});
 
 	InvalidationTimestamp = 0;
+
+	// This gets set up in UInteractiveToolsContext::Initialize;
+	GizmoViewContext = ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
 }
 
 void UEdModeInteractiveToolsContext::Shutdown()
@@ -818,16 +823,11 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	// FEditorViewportClient, which passes it's own Viewport down. So, this cast should be valid (for now)
 	FEditorViewportClient* ViewportClient = static_cast<FEditorViewportClient*>(Viewport->GetClient());
 
-	// Update the global currently-focused FSceneView variable, which GizmoArrowComponent and friends will
-	// use to know when they are seeing the SceneView they should use to recalculate their size/visibility/etc.
-	// This could go away if we could move that functionality out of the RenderProxy (tricky given that it needs
-	// to respond to each FSceneView...)
-	if (ViewportClient == EditorModeManager->GetHoveredViewportClient())
+	// Update the currently-hovered scene view information, which GizmoArrowComponent and friends will
+	// use to recalculate their size/visibility/etc.
+	if (GizmoViewContext && ViewportClient == EditorModeManager->GetHoveredViewportClient())
 	{
-		// This locks internally and so no need to do on Render thread, and possibly better to do immediately (?)
-		//ENQUEUE_RENDER_COMMAND(BlerBlerBler)( [View](FRHICommandListImmediate& RHICmdList) {
-			GizmoRenderingUtil::SetGlobalFocusedEditorSceneView(View);
-		//});
+		GizmoViewContext->ResetFromSceneView(*View);
 	}
 
 	// Render Tool and Gizmos

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LightGizmosModule.h"
+#include "ContextObjectStore.h"
 #include "Editor.h"
 #include "EditorModeRegistry.h"
 #include "EditorModeManager.h"
 #include "Misc/CoreDelegates.h"
 #include "GizmoEdMode.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "PointLightGizmoFactory.h"
 #include "DirectionalLightGizmoFactory.h"
 #include "SpotLightGizmoFactory.h"
@@ -37,6 +39,15 @@ void FLightGizmosModule::OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEd
 			 // Register the factories and gizmos if we are entering the new Gizmo Mode
 			if (IsEnteringMode && GizmoEdMode)
 			{
+				// UGizmoViewContext is needed for DirectionalLightGizmo and SpotLightGizmo
+				UContextObjectStore* ContextStore = LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->ContextObjectStore;
+				UGizmoViewContext* GizmoViewContext = ContextStore->FindContext<UGizmoViewContext>();
+				if (!GizmoViewContext)
+				{
+					GizmoViewContext = NewObject<UGizmoViewContext>();
+					ContextStore->AddContextObject(GizmoViewContext);
+				}
+
 				LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->GizmoManager->RegisterGizmoType(PointLightGizmoType, NewObject<UPointLightGizmoBuilder>());
 				LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->GizmoManager->RegisterGizmoType(ScalableConeGizmoType, NewObject<UScalableConeGizmoBuilder>());
 				LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->GizmoManager->RegisterGizmoType(SpotLightGizmoType, NewObject<USpotLightGizmoBuilder>());

@@ -1,10 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
- 
+
 #include "BaseGizmos/GizmoCircleComponent.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseGizmos/GizmoMath.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "PrimitiveSceneProxy.h"
 
+namespace GizmoCircleComponentLocals
+{
+	const float RENDER_VISIBILITY_DOT_THRESHOLD = 0.05;
+	const float VIEW_PLANE_PARALLEL_DOT_THRESHOLD = 0.95;
+
+	template <typename SceneViewOrGizmoViewContext>
+	void GetVisibility(const SceneViewOrGizmoViewContext* View, const FVector& ViewDirection,
+		const FVector& GizmoPlaneWorldNormal, const FVector& WorldOrigin,
+		bool& bRenderVisibilityOut, bool& bIsViewPlaneParallelOut)
+	{
+		FVector ViewPlaneDirection = View->GetViewDirection();
+
+		bRenderVisibilityOut = FMath::Abs(ViewDirection.Dot(GizmoPlaneWorldNormal)) >= RENDER_VISIBILITY_DOT_THRESHOLD;
+		bIsViewPlaneParallelOut = FMath::Abs(ViewPlaneDirection.Dot(GizmoPlaneWorldNormal)) >= VIEW_PLANE_PARALLEL_DOT_THRESHOLD;
+	}
+
+}
 
 class FGizmoCircleComponentSceneProxy final : public FPrimitiveSceneProxy
 {
@@ -30,8 +48,7 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		// try to find focused scene view. May return nullptr.
-		const FSceneView* FocusedView = GizmoRenderingUtil::FindFocusedEditorSceneView(Views, ViewFamily, VisibilityMap);
+		using namespace GizmoCircleComponentLocals;
 
 		const FMatrix& LocalToWorldMatrix = GetLocalToWorld();
 		FVector Origin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
@@ -44,21 +61,14 @@ public:
 			{
 				const FSceneView* View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
-				bool bIsFocusedView = (FocusedView != nullptr && View == FocusedView);
 				bool bIsOrtho = !View->IsPerspectiveProjection();
-				FVector UpVector = View->GetViewUp();
 				FVector ViewVector = View->GetViewDirection();
 
-				// direction to origin of gizmo
-				FVector GizmoViewDirection = 
-					(bIsOrtho) ? (View->GetViewDirection()) : (Origin - View->ViewLocation);
-				GizmoViewDirection.Normalize();
-
-				float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, Origin);
-				float LengthScale = PixelToWorldScale;
-				if (bIsFocusedView && ExternalDynamicPixelToWorldScale != nullptr)
+				float LengthScale = 1;
+				bool bIsViewDependent = (bExternalIsViewDependent) ? (*bExternalIsViewDependent) : false;
+				if (bIsViewDependent)
 				{
-					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
+					LengthScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, Origin);
 				}
 
 				double UseRadius = LengthScale * Radius;
@@ -83,15 +93,6 @@ public:
 
 				if (bViewAligned)
 				{
-					//if (bIsOrtho)		// skip in ortho views?
-					//{
-					//	if (bIsFocusedView && bExternalRenderVisibility != nullptr)
-					//	{
-					//		*bExternalRenderVisibility = false;
-					//	}
-					//	continue;
-					//}
-
 					FVector WorldOrigin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
 					WorldOrigin += 0.001 * ViewVector;
 					FVector WorldPlaneX, WorldPlaneY;
@@ -116,19 +117,19 @@ public:
 					FVector WorldPlaneY = (bWorldAxis) ? PlaneY : FVector{ LocalToWorldMatrix.TransformVector(PlaneY) };
 
 					FVector PlaneWorldNormal = (bWorldAxis) ? Normal : FVector{ LocalToWorldMatrix.TransformVector(Normal) };
-					double ViewDot = FVector::DotProduct(GizmoViewDirection, PlaneWorldNormal);
-					bool bOnEdge = FMath::Abs(ViewDot) < 0.05;
-					bool bIsViewPlaneParallel = FMath::Abs(ViewDot) > 0.95;
-					if (bIsFocusedView && bExternalIsViewPlaneParallel != nullptr)
+
+					// direction to origin of gizmo
+					FVector GizmoViewDirection =
+						(bIsOrtho) ? (View->GetViewDirection()) : (Origin - View->ViewLocation);
+					GizmoViewDirection.Normalize();
+
+					bool bRenderVisibility = true;
+					bool bIsViewPlaneParallel = false;
+					if (bIsViewDependent)
 					{
-						*bExternalIsViewPlaneParallel = bIsViewPlaneParallel;
+						GetVisibility(View, GizmoViewDirection, PlaneWorldNormal, WorldOrigin, bRenderVisibility, bIsViewPlaneParallel);
 					}
 
-					bool bRenderVisibility = !bOnEdge;
-					if (bIsFocusedView && bExternalRenderVisibility != nullptr)
-					{
-						*bExternalRenderVisibility = bRenderVisibility;
-					}
 					if (bRenderVisibility)
 					{
 						if (bIsViewPlaneParallel)
@@ -192,22 +193,6 @@ public:
 	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
 	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
-
-	void SetExternalDynamicPixelToWorldScale(float* DynamicPixelToWorldScale)
-	{
-		ExternalDynamicPixelToWorldScale = DynamicPixelToWorldScale;
-	}
-
-	void SetExternalRenderVisibility(bool* bRenderVisibility)
-	{
-		bExternalRenderVisibility = bRenderVisibility;
-	}
-
-	void SetExternalIsViewPlaneParallel(bool* bIsViewPlaneParallel)
-	{
-		bExternalIsViewPlaneParallel = bIsViewPlaneParallel;
-	}
-
 	void SetExternalHoverState(bool* HoverState)
 	{
 		bExternalHoverState = HoverState;
@@ -218,6 +203,10 @@ public:
 		bExternalWorldLocalState = bWorldLocalState;
 	}
 
+	void SetExternalIsViewDependent(bool* bExternalIsViewDependentIn)
+	{
+		bExternalIsViewDependent = bExternalIsViewDependentIn;
+	}
 
 private:
 	FLinearColor Color;
@@ -232,11 +221,7 @@ private:
 	// set on Component for use in ::GetDynamicMeshElements()
 	bool* bExternalHoverState = nullptr;
 	bool* bExternalWorldLocalState = nullptr;
-
-	// set in ::GetDynamicMeshElements() for use by Component hit testing
-	float* ExternalDynamicPixelToWorldScale = nullptr;
-	bool* bExternalRenderVisibility = nullptr;
-	bool* bExternalIsViewPlaneParallel = nullptr;
+	bool* bExternalIsViewDependent = nullptr;
 };
 
 
@@ -245,11 +230,9 @@ private:
 FPrimitiveSceneProxy* UGizmoCircleComponent::CreateSceneProxy()
 {
 	FGizmoCircleComponentSceneProxy* NewProxy = new FGizmoCircleComponentSceneProxy(this);
-	NewProxy->SetExternalDynamicPixelToWorldScale(&DynamicPixelToWorldScale);
-	NewProxy->SetExternalIsViewPlaneParallel(&bCircleIsViewPlaneParallel);
-	NewProxy->SetExternalRenderVisibility(&bRenderVisibility);
 	NewProxy->SetExternalHoverState(&bHovering);
 	NewProxy->SetExternalWorldLocalState(&bWorld);
+	NewProxy->SetExternalIsViewDependent(&bIsViewDependent);
 	return NewProxy;
 }
 
@@ -260,17 +243,34 @@ FBoxSphereBounds UGizmoCircleComponent::CalcBounds(const FTransform& LocalToWorl
 
 bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params)
 {
-	if (bRenderVisibility == false)
-	{
-		return false;
-	}
-
-	float LengthScale = DynamicPixelToWorldScale;
-	double UseRadius = LengthScale * Radius;
+	using namespace GizmoCircleComponentLocals;
 
 	const FTransform& Transform = this->GetComponentToWorld();
-	FVector WorldNormal = (bWorld) ? Normal : Transform.TransformVector(Normal);
 	FVector WorldOrigin = Transform.TransformPosition(FVector::ZeroVector);
+	FVector WorldNormal = (bWorld) ? Normal : Transform.TransformVector(Normal);
+
+	bool bRenderVisibility = true;
+	bool bCircleIsViewPlaneParallel = false;
+	float PixelToWorldScale = 1;
+	if (bIsViewDependent)
+	{
+		FVector ViewDirection = GizmoViewContext->IsPerspectiveProjection() ? (WorldOrigin - GizmoViewContext->ViewLocation)
+			: GizmoViewContext->GetViewDirection();
+		ViewDirection.Normalize();
+
+		GetVisibility(GizmoViewContext, ViewDirection, WorldNormal, WorldOrigin, bRenderVisibility, bCircleIsViewPlaneParallel);
+
+		if (!bRenderVisibility)
+		{
+			return false;
+		}
+
+		PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(GizmoViewContext, WorldOrigin);
+	}
+
+	float LengthScale = PixelToWorldScale;
+	double UseRadius = LengthScale * Radius;
+
 
 	FRay Ray(Start, End - Start, false);
 
@@ -290,7 +290,7 @@ bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector
 	FVector NearestRay = Ray.ClosestPoint(NearestCircle);
 
 	double Distance = FVector::Distance(NearestCircle, NearestRay);
-	if (Distance > PixelHitDistanceThreshold*DynamicPixelToWorldScale)
+	if (Distance > PixelHitDistanceThreshold * PixelToWorldScale)
 	{
 		return false;
 	}

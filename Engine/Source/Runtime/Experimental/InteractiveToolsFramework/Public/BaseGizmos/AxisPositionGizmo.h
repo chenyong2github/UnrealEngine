@@ -11,6 +11,7 @@
 
 
 class UClickDragInputBehavior;
+class UGizmoViewContext;
 
 UCLASS()
 class INTERACTIVETOOLSFRAMEWORK_API UAxisPositionGizmoBuilder : public UInteractiveGizmoBuilder
@@ -72,6 +73,9 @@ public:
 	/** The 3D line-nearest-point is converted to a 1D coordinate along the line, and the change in value is sent to this ParameterSource */
 	UPROPERTY()
 	TScriptInterface<IGizmoFloatParameterSource> ParameterSource;
+
+	UPROPERTY()
+	UGizmoViewContext* GizmoViewContext;
 
 	/** The HitTarget provides a hit-test against some 3D element (presumably a visual widget) that controls when interaction can start */
 	UPROPERTY()

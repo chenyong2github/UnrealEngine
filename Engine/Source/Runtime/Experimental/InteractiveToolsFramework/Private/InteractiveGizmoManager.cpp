@@ -5,11 +5,13 @@
 #include "InteractiveToolsContext.h"
 
 #include "BaseGizmos/AxisPositionGizmo.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "BaseGizmos/PlanePositionGizmo.h"
 #include "BaseGizmos/AxisAngleGizmo.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "BaseGizmos/RepositionableTransformGizmo.h"
 #include "BaseGizmos/ScalableSphereGizmo.h"
+#include "ContextObjectStore.h"
 
 #define LOCTEXT_NAMESPACE "UInteractiveGizmoManager"
 
@@ -300,7 +302,13 @@ void UInteractiveGizmoManager::RegisterDefaultGizmos()
 	TransformBuilder->AxisAngleBuilderIdentifier = DefaultAxisAngleBuilderIdentifier;
 	RegisterGizmoType(DefaultThreeAxisTransformBuilderIdentifier, TransformBuilder);
 
-	GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>();
+	UGizmoViewContext* GizmoViewContext = GetContextObjectStore()->FindContext<UGizmoViewContext>();
+	if (!GizmoViewContext)
+	{
+		GizmoViewContext = NewObject<UGizmoViewContext>();
+		GetContextObjectStore()->AddContextObject(GizmoViewContext);
+	}
+	GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>(GizmoViewContext);
 
 	UTransformGizmoBuilder* CustomThreeAxisBuilder = NewObject<UTransformGizmoBuilder>();
 	CustomThreeAxisBuilder->AxisPositionBuilderIdentifier = DefaultAxisPositionBuilderIdentifier;

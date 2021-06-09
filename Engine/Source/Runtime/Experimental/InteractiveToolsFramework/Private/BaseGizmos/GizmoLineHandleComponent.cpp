@@ -32,9 +32,6 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		// try to find focused scene view. May return nullptr.
-		const FSceneView* FocusedView = GizmoRenderingUtil::FindFocusedEditorSceneView(Views, ViewFamily, VisibilityMap);
-
 		FVector LocalOffset = Direction;
 		if (ExternalDistance != nullptr)
 		{
@@ -55,16 +52,15 @@ public:
 			{
 				const FSceneView* View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
-				bool bIsFocusedView = (FocusedView != nullptr && View == FocusedView);
 				bool bIsOrtho = !View->IsPerspectiveProjection();
 				FVector UpVector = View->GetViewUp();
 				FVector ViewVector = View->GetViewDirection();
 
-				float PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, WorldDiskOrigin);
-				float LengthScale = PixelToWorldScale;
-				if (bIsFocusedView && ExternalDynamicPixelToWorldScale != nullptr)
+				float LengthScale = 1;
+				bool bIsViewDependent = (bExternalIsViewDependent) ? (*bExternalIsViewDependent) : false;
+				if (bIsViewDependent)
 				{
-					*ExternalDynamicPixelToWorldScale = PixelToWorldScale;
+					LengthScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, WorldDiskOrigin);
 				}
 
 				FVector ScaledIntevalStart = -LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
@@ -106,11 +102,6 @@ public:
 	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
 
-	void SetExternalDynamicPixelToWorldScale(float* DynamicPixelToWorldScale)
-	{
-		ExternalDynamicPixelToWorldScale = DynamicPixelToWorldScale;
-	}
-
 	void SetExternalHoverState(bool* HoverState)
 	{
 		bExternalHoverState = HoverState;
@@ -119,6 +110,11 @@ public:
 	void SetExternalWorldLocalState(bool* bWorldLocalState)
 	{
 		bExternalWorldLocalState = bWorldLocalState;
+	}
+
+	void SetExternalIsViewDependent(bool* bExternalIsViewDependentIn)
+	{
+		bExternalIsViewDependent = bExternalIsViewDependentIn;
 	}
 
 	void SetLengthScale(float* Distance)
@@ -140,19 +136,17 @@ private:
 	bool* bExternalHoverState = nullptr;
 	bool* bExternalWorldLocalState = nullptr;
 	float* ExternalDistance = nullptr;
-
-	// set in ::GetDynamicMeshElements() for use by Component hit testing
-	float* ExternalDynamicPixelToWorldScale = nullptr;
+	bool* bExternalIsViewDependent = nullptr;
 };
 
 
 FPrimitiveSceneProxy* UGizmoLineHandleComponent::CreateSceneProxy()
 {
 	FGizmoLineHandleComponentSceneProxy* NewProxy = new FGizmoLineHandleComponentSceneProxy(this);
-	NewProxy->SetExternalDynamicPixelToWorldScale(&DynamicPixelToWorldScale);
 	NewProxy->SetExternalHoverState(&bHovering);
 	NewProxy->SetExternalWorldLocalState(&bWorld);
 	NewProxy->SetLengthScale(&Length);
+	NewProxy->SetExternalIsViewDependent(&bIsViewDependent);
 	return NewProxy;
 }
 
@@ -168,13 +162,19 @@ FBoxSphereBounds UGizmoLineHandleComponent::CalcBounds(const FTransform& LocalTo
 
 bool UGizmoLineHandleComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params)
 {
-	float LengthScale = (bImageScale) ? DynamicPixelToWorldScale : 1.f;
+	const FTransform& Transform = this->GetComponentToWorld();
+	FVector WorldBaseOrigin = Transform.TransformPosition(FVector::ZeroVector);
+	float PixelToWorldScale = 1;
+	if (bIsViewDependent)
+	{
+		PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(GizmoViewContext, WorldBaseOrigin);
+	}
+
+	float LengthScale = (bImageScale) ? PixelToWorldScale : 1.f;
 	double UseHandleSize = LengthScale * HandleSize;
 	FVector LocalOffset = Length * Direction;
 
-	const FTransform& Transform = this->GetComponentToWorld();
 	FVector HandleDir = (bWorld) ? Normal : Transform.TransformVector(Normal);
-	FVector WorldBaseOrigin = Transform.TransformPosition(FVector::ZeroVector);
 	FVector WorldHandleOrigin = Transform.TransformPosition(LocalOffset);
 
 	FVector BaseToHandle = WorldHandleOrigin - WorldBaseOrigin;
@@ -189,7 +189,7 @@ bool UGizmoLineHandleComponent::LineTraceComponent(FHitResult& OutHit, const FVe
 	FVector NearestOnHandle, NearestOnLine;
 	FMath::SegmentDistToSegmentSafe(HandleStart, HandleEnd, Start, End, NearestOnHandle, NearestOnLine);
 	double Distance = FVector::Distance(NearestOnHandle, NearestOnLine);
-	if (Distance > PixelHitDistanceThreshold*DynamicPixelToWorldScale)
+	if (Distance > PixelHitDistanceThreshold * PixelToWorldScale)
 	{
 		return false;
 	}

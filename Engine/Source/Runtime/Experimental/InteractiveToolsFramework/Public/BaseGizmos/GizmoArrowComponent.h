@@ -38,10 +38,4 @@ private:
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ Begin USceneComponent Interface.
-
-	// if true, we drew along -Direction instead of Direction, and so should hit-test accordingly
-	bool bFlipped;
-
-	// gizmo visibility
-	bool bRenderVisibility = true;
 };

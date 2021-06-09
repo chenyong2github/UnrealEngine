@@ -16,6 +16,8 @@
 
 #include "DirectionalLightGizmo.generated.h"
 
+class UGizmoViewContext;
+
 UCLASS()
 class UDirectionalLightGizmoBuilder : public UInteractiveGizmoBuilder
 {
@@ -72,6 +74,7 @@ public:
 
 	virtual void SetSelectedObject(ADirectionalLight* InLight);
 	virtual void SetWorld(UWorld* InWorld);
+	virtual void SetGizmoViewContext(UGizmoViewContext* GizmoViewContextIn);
 
 	virtual void OnBeginDrag(const FInputDeviceRay& Ray);
 	virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
@@ -102,6 +105,10 @@ private:
 	/** The internal actor used by the light gizmo */
 	UPROPERTY()
 	ADirectionalLightGizmoActor* GizmoActor;
+
+	/** Used to properly render the handle gizmo. */
+	UPROPERTY()
+	UGizmoViewContext* GizmoViewContext;
 
 	/** The current target of the gizmo */
 	UPROPERTY()

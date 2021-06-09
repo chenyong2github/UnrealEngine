@@ -6,12 +6,14 @@
 
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/GizmoLineHandleComponent.h"
+#include "BaseGizmos/GizmoViewContext.h"
 
 // need this to implement hover
 #include "BaseGizmos/GizmoBaseComponent.h"
 
 #include "Components/SphereComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "ContextObjectStore.h"
 #include "Engine/World.h"
 #include "Engine/CollisionProfile.h"
 
@@ -136,7 +138,7 @@ AIntervalGizmoActor::AIntervalGizmoActor()
 	SphereComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 }
 
-AIntervalGizmoActor* AIntervalGizmoActor::ConstructDefaultIntervalGizmo(UWorld* World)
+AIntervalGizmoActor* AIntervalGizmoActor::ConstructDefaultIntervalGizmo(UWorld* World, UGizmoViewContext* GizmoViewContext)
 {
 	FActorSpawnParameters SpawnInfo;
 	AIntervalGizmoActor* NewActor = World->SpawnActor<AIntervalGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
@@ -144,9 +146,9 @@ AIntervalGizmoActor* AIntervalGizmoActor::ConstructDefaultIntervalGizmo(UWorld* 
 	const FLinearColor MintGreen(152 / 255.f, 1.f, 152 / 255.f);
 	
 	// add components 
-	NewActor->UpIntervalComponent      = AddDefaultLineHandleComponent(World, NewActor, MintGreen, FVector(0, 1, 0), FVector(0, 0, 1));
-	NewActor->DownIntervalComponent    = AddDefaultLineHandleComponent(World, NewActor, MintGreen, FVector(0, 1, 0), FVector(0, 0, 1));
-	NewActor->ForwardIntervalComponent = AddDefaultLineHandleComponent(World, NewActor, MintGreen, FVector(1, 0, 0), FVector(0, 1, 0));
+	NewActor->UpIntervalComponent      = AddDefaultLineHandleComponent(World, NewActor, GizmoViewContext, MintGreen, FVector(0, 1, 0), FVector(0, 0, 1));
+	NewActor->DownIntervalComponent    = AddDefaultLineHandleComponent(World, NewActor, GizmoViewContext, MintGreen, FVector(0, 1, 0), FVector(0, 0, 1));
+	NewActor->ForwardIntervalComponent = AddDefaultLineHandleComponent(World, NewActor, GizmoViewContext, MintGreen, FVector(1, 0, 0), FVector(0, 1, 0));
 
 
 	return NewActor;
@@ -159,8 +161,11 @@ UInteractiveGizmo* UIntervalGizmoBuilder::BuildGizmo(const FToolBuilderState& Sc
 	UIntervalGizmo* NewGizmo = NewObject<UIntervalGizmo>(SceneState.GizmoManager);
 	NewGizmo->SetWorld(SceneState.World);
 
+	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
+	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
+
 	// use default gizmo actor if client has not given us a new builder
-	NewGizmo->SetGizmoActorBuilder((GizmoActorBuilder) ? GizmoActorBuilder : MakeShared<FIntervalGizmoActorFactory>());
+	NewGizmo->SetGizmoActorBuilder(GizmoActorBuilder ? GizmoActorBuilder : MakeShared<FIntervalGizmoActorFactory>(GizmoViewContext));
 
 	// override default hover function if proposed
 	if (UpdateHoverFunction)
