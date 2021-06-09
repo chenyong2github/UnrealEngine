@@ -9,10 +9,22 @@
 class FToolTargetTypeRequirements;
 
 /**
- * A tool target is a stand-in object that a tool can operate on. It can implement any
- * interface(s) that a tool requires without having to implement those interfaces in
- * specific actor classes, and it allows the tools to work on anything that can provide
- * a qualifying tool target.
+ * A tool target is a stand-in object that a tool can operate on. It exposes the necessary
+ * interfaces to the tool.
+ *
+ * There are two intended purposes of the tool target system:
+ * 1. Allow tools to operate on arbitrary objects as long as they can be made to provide the 
+ *   tool with the necessary inputs. For instance, a mesh editing tool should be able to operate
+ *   on skeletal, static, volume, and other mesh as long as the target manager has a registered
+ *   factory that can use that type of mesh to create a suitable target.
+ * 2. (not yet used) Help cache tool inputs. I.e., if a tool requires an expensive
+ *   conversion before it can work on an item, the converted result can be stored in the
+ *   tool target which can be cached by the target manager and provided the next time the
+ *   same type of target is requested for that item.
+ * 
+ * Given an object, tool builders usually ask the target manager to turn it into a target that
+ * has the interfaces the tools needs. The tools cast the target to those interfaces to use
+ * them.
  */
 UCLASS(Transient, Abstract)
 class INTERACTIVETOOLSFRAMEWORK_API UToolTarget : public UObject
@@ -27,13 +39,13 @@ public:
 
 /**
  * A structure used to specify the requirements of a tool for its target. E.g., a tool
- * may need a target that has base type x and interfaces w,y,z.
+ * may need a target that has interfaces x,y,z.
  */
 class INTERACTIVETOOLSFRAMEWORK_API FToolTargetTypeRequirements
 {
 public:
 
-	TArray<const UClass*, TInlineAllocator<2>> Interfaces;
+	TArray<const UClass*, TInlineAllocator<5>> Interfaces;
 
 	FToolTargetTypeRequirements()
 	{
@@ -49,6 +61,12 @@ public:
 		Interfaces = InterfacesIn;
 	}
 
+	FToolTargetTypeRequirements& Add(UClass* Interface)
+	{
+		Interfaces.Add(Interface);
+		return *this;
+	}
+
 	bool AreSatisfiedBy(UClass* Class) const;
 
 	bool AreSatisfiedBy(UToolTarget* ToolTarget) const;
@@ -57,7 +75,8 @@ public:
 
 /**
  * Base class for factories of tool targets, which let a tool manager build targets
- * out of inputs without knowing anything itself.
+ * out of inputs without knowing anything about the inputs itself, as long as it
+ * has a factory registered that is able to process the input.
  */
 UCLASS(Transient, Abstract)
 class INTERACTIVETOOLSFRAMEWORK_API UToolTargetFactory : public UObject

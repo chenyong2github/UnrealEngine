@@ -13,12 +13,24 @@
 // target or another could be more efficient for certain tasks. This is probably only worth
 // thinking about once we encounter it.
 
+// NOTE FOR IMPLEMENTING CACHING: Someday we will probably write a tool target manager that
+// caches tool targets and gives prebuilt ones when possible to avoid any extra conversions.
+// When implementing this, note that currently, some targets store converted versions of their
+// source objects without a way to determine whether their stored conversion is out of date.
+// The cached target will then give an incorrect result if the source object has been
+// modified after caching.
+// One way to deal with this is to have subclasses of UToolTarget that give the degree of
+// cacheability- fully cacheable (i.e., detects changes and rebuilds if necessary), cacheable
+// only if changes are made through that tool target (i.e. target manager has to clear it if
+// object may have changed; may choose not to have this option), or not cacheable. 
+
 /**
  * The tool target manager converts input objects into tool targets- objects that
- * can expose various interfaces that tools might expect but which the original
- * objects may not know about.
+ * can expose various interfaces that tools need to operate on them.
  *
  * Someday, the tool target manager may implement caching of targets.
+ * 
+ * See the class comment for UToolTarget for more info.
  */
 UCLASS(Transient)
 class INTERACTIVETOOLSFRAMEWORK_API UToolTargetManager : public UObject
