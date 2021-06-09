@@ -39,11 +39,29 @@ FCrashReportCoreConfig::FCrashReportCoreConfig()
 		UE_LOG(CrashReportCoreLog, Log, TEXT("CrashReportReceiverIP: %s"), *CrashReportReceiverIP);
 	}
 
-	if (!GConfig->GetString(*SectionName, TEXT("DataRouterUrl"), DataRouterUrl, GEngineIni))
+	// Get the data router url. Priority order
+	// 1. Commandline
+	// 2. Config file
+	// 3. Compiled default value if set
+	// 4. Empty
+	if (!FParse::Value(FCommandLine::Get(), TEXT("DataRouterUrl"), DataRouterUrl))
 	{
-		// Use the default value.
-		DataRouterUrl = TEXT("");
+		if (!GConfig->GetString(*SectionName, TEXT("DataRouterUrl"), DataRouterUrl, GEngineIni))
+		{
+#if defined(CRC_DATAROUTER_DEFAULT)
+#if !defined(CRC_DATAROUTER_DEFAULT_UNCONDITIONALLY)
+			// Only apply default data router if explicit on the command line
+			if (FParse::Param(FCommandLine::Get(), TEXT("DefaultDataRouterUrl"))
+#endif 
+			{
+				DataRouterUrl = FString::Printf(TEXT("%s%s"), TEXT(CRC_DATAROUTER_DEFAULT), TEXT("datarouter/api/v1/public/data"));
+			}
+#else
+			DataRouterUrl.Empty();
+#endif
+		}
 	}
+
 	if (DataRouterUrl.IsEmpty())
 	{
 		UE_LOG(CrashReportCoreLog, Log, TEXT("DataRouter disabled"));

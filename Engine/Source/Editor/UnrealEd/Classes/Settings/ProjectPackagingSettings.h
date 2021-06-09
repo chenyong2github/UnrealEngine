@@ -318,10 +318,13 @@ public:
 
 	/**
 	 * Specifies whether to include the crash reporter in the packaged project. 
-	 * This is included by default for Blueprint based projects, but can optionally be disabled.
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay)
 	bool IncludeCrashReporter;
+
+	/** URL where crash reporter will send it's crash reports. */
+	UPROPERTY(Config, EditAnywhere, Category=Packaging, meta = (EditCondition = "IncludeCrashReporter"), AdvancedDisplay)
+	FString CrashReporterUrl;
 
 	/** Predefined sets of culture whose internationalization data should be packaged. */
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Internationalization Support"))

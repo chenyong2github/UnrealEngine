@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.Collections.Generic;
+using System;
+using System.Linq;
 
 [SupportedPlatforms("Win64", "Mac", "Linux")]
 [SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping)]
@@ -17,6 +18,10 @@ public class CrashReportClientEditorTarget : CrashReportClientTarget
 		bBuildWithEditorOnlyData = false;
 		bBuildDeveloperTools = true;
 
+		// Editor target always falls back to sending crash reports to Epic, but can be overridden by setting
+		// 'DataRouterUrl' value in Engine/Config/DefaultEngine.ini
+		GlobalDefinitions.Add("CRC_DATAROUTER_DEFAULT_UNCONDITIONALLY");
+		
 		if (bHostRecoverySvc)
 		{
 			AdditionalPlugins.Add("UdpMessaging");

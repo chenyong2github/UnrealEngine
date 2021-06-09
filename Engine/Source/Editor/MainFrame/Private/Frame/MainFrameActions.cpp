@@ -823,6 +823,10 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	if (PackagingSettings->IncludeCrashReporter && bTargetPlatformCanUseCrashReporter)
 	{
 		OptionalParams += TEXT( " -CrashReporter" );
+		if (!PackagingSettings->CrashReporterUrl.IsEmpty())
+		{
+			OptionalParams += FString::Printf(TEXT(" -CrashReporterUrl=\"%s\""), *PackagingSettings->CrashReporterUrl);
+		}
 	}
 
 	if (PackagingSettings->bBuildHttpChunkInstallData)

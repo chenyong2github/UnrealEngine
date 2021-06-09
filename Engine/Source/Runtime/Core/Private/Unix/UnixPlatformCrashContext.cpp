@@ -638,6 +638,15 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 				CrashReportClientArguments += TEXT(" -CleanCrashReports ");
 			}
 
+#if WITH_EDITOR
+			// For editor builds we want to send crash reports and telemetry to the default Epic data router unless
+			// the user decides to route somewhere else.
+			if (GIsEditor)
+			{
+				CrashReportClientArguments += TEXT(" -DataRouterUrlFallback ");
+			}
+#endif
+
 			CrashReportClientArguments += TEXT("\"\"") + CrashInfoAbsolute + TEXT("/\"\"");
 
 			if (bReportingNonCrash)

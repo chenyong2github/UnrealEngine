@@ -2313,6 +2313,16 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		
 		GenerateInfoInFolder(CrashInfoFolder);
 
+		char DataRouterOptions[32] = {0};
+		if (GIsEditor)
+		{
+			FCStringAnsi::Strcat(DataRouterOptions, 32, " -DataRouterUrlFallback ");
+		}
+		else
+		{
+			FCStringAnsi::Strcat(DataRouterOptions, 32, " ");
+		}
+
 		// try launching the tool and wait for its exit, if at all
 		// Use vfork() & execl() as they are async-signal safe, CreateProc can fail in Cocoa
 		int32 ReturnCode = 0;
@@ -2323,22 +2333,22 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 			// Child
 			if (bImplicitSend)
 			{
-				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", "-ImplicitSend", NULL);
+				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, DataRouterOptions, "-Unattended", "-ImplicitSend", NULL);
 			}
 			else if(GMacAppInfo.bIsUnattended)
 			{
-				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", NULL);
+				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, DataRouterOptions, "-Unattended", NULL);
 			}
 			else
 			{
 				if (bSendUsageData)
 				{
-					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
+					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, DataRouterOptions, NULL);
 				}
 				// If the editor setting has been disabled to not send analytics extend this to the CRC
 				else
 				{
-					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-NoAnalytics", NULL);
+					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, DataRouterOptions, "-NoAnalytics", NULL);
 				}
 			}
 		}

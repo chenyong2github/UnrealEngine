@@ -279,7 +279,7 @@ namespace AutomationTool
 		// Characters that can appear at the start of
 		private static char[] IgnoredIniValuePrefixes = { '+', '-', ' ', '\t' };
 
-		private static void FilterIniFile(string SourceName, string TargetName, List<string> IniKeyBlacklist, List<string> InSectionBlacklist)
+		private static void FilterIniFile(string SourceName, string TargetName, List<string> IniKeyBlacklist, List<string> InSectionBlacklist, Dictionary<Tuple<string,string>,string> IniKeyOverrides)
 		{
 			string[] Lines = File.ReadAllLines(SourceName);
 			StringBuilder NewLines = new StringBuilder("");
@@ -294,21 +294,9 @@ namespace AutomationTool
 					continue;
 				}
 
-				bool bFiltered = bFilteringSection;
-
-				// look for each filter on each line
-				if (!bFiltered)
-				{
-					string TrimmedLine = Line.TrimStart(IgnoredIniValuePrefixes);
-					foreach (string Filter in IniKeyBlacklist)
-					{
-						if (TrimmedLine.StartsWith(Filter + "="))
-						{
-							bFiltered = true;
-							break;
-						}
-					}
-				}
+				bool bFiltered = bFilteringSection ||
+				            IniKeyBlacklist.Any(Key => Line.TrimStart(IgnoredIniValuePrefixes).StartsWith(Key + "=")) ||
+				            IniKeyOverrides.Any(KeyValue => Line.TrimStart(IgnoredIniValuePrefixes).StartsWith(KeyValue.Key.Item2 + "=")); 
 
 				if (InSectionBlacklist != null)
 				{
@@ -330,6 +318,15 @@ namespace AutomationTool
 					NewLines.AppendLine(Line);
 				}
 			}
+			
+			// Add overrides
+			NewLines.AppendLine("");
+			NewLines.AppendLine("; Packing overrides");
+			foreach (var KeyOverride in IniKeyOverrides)
+			{
+				NewLines.AppendLine($"[{KeyOverride.Key.Item1}]");
+				NewLines.AppendLine($"{KeyOverride.Key.Item2}={KeyOverride.Value}");
+			}
 
 			// now write out the final .ini file
 			if (File.Exists(TargetName))
@@ -348,7 +345,7 @@ namespace AutomationTool
 		/// <param name="SourceName">Source name</param>
 		/// <param name="TargetName">Target name</param>
 		/// <returns>True if the operation was successful, false otherwise.</returns>
-		public static bool SafeCopyFile(string SourceName, string TargetName, bool bQuiet = false, List<string> IniKeyBlacklist = null, List<string> IniSectionBlacklist = null)
+		public static bool SafeCopyFile(string SourceName, string TargetName, bool bQuiet = false, List<string> IniKeyBlacklist = null, List<string> IniSectionBlacklist = null, Dictionary<Tuple<string,string>, string> IniKeyOverride = null)
 		{
 			if (!bQuiet)
 			{
@@ -369,7 +366,7 @@ namespace AutomationTool
 					// file chunking/packaging/etc rules
 					if (IniKeyBlacklist != null && Path.GetExtension(SourceName) == ".ini" && Path.GetFileName(SourceName) != "BinaryConfig.ini")
 					{
-						FilterIniFile(SourceName, TargetName, IniKeyBlacklist, IniSectionBlacklist);
+						FilterIniFile(SourceName, TargetName, IniKeyBlacklist, IniSectionBlacklist, IniKeyOverride);
 						// ini files may change size, don't check
 						bSkipSizeCheck = true;
 					}

@@ -346,6 +346,7 @@ namespace AutomationTool
             this.DeviceUsername = InParams.DeviceUsername;
             this.DevicePassword = InParams.DevicePassword;
             this.CrashReporter = InParams.CrashReporter;
+            this.CrashReporterUrl = InParams.CrashReporterUrl;
 			this.ClientConfigsToBuild = InParams.ClientConfigsToBuild;
 			this.ServerConfigsToBuild = InParams.ServerConfigsToBuild;
 			this.NumClients = InParams.NumClients;
@@ -865,6 +866,7 @@ namespace AutomationTool
 			this.DeviceUsername = ParseParamValueIfNotSpecified(Command, DeviceUsername, "deviceuser", String.Empty);
 			this.DevicePassword = ParseParamValueIfNotSpecified(Command, DevicePassword, "devicepass", String.Empty);
 			this.CrashReporter = GetParamValueIfNotSpecified(Command, CrashReporter, this.CrashReporter, "crashreporter");
+			this.CrashReporterUrl = Command.ParseParamValue("CrashReporterUrl", "");
 			this.SpecifiedArchitecture = ParseParamValueIfNotSpecified(Command, SpecifiedArchitecture, "specifiedarchitecture", String.Empty);
 			this.UbtArgs = ParseParamValueIfNotSpecified(Command, UbtArgs, "ubtargs", String.Empty);
 			this.AdditionalPackageOptions = ParseParamValueIfNotSpecified(Command, AdditionalPackageOptions, "AdditionalPackageOptions", String.Empty);
@@ -1163,6 +1165,12 @@ namespace AutomationTool
 		/// </summary>
 		[Help("CrashReporter", "true if we should build crash reporter")]
 		public bool CrashReporter { private set; get; }
+		
+		/// <summary>
+		/// Shared: Data router url for the deployed crash report client.
+		/// </summary>
+		[Help("CrashReporterUrl", "Data router url where crash reports are submitted to.")]
+		public string CrashReporterUrl { private set; get; }
 
 		/// <summary>
 		/// Shared: Determines if the build is going to use cooked data, commandline: -cook, -cookonthefly
