@@ -545,8 +545,6 @@ public:
 	// End of FEdGraphSchemaAction interface
 
 	UBlueprint* GetSourceBlueprint() const;
-
-	virtual void GetVariableTypeTree(TArray< TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo> >& TypeTree, ETypeTreeFilter TypeTreeFilter) const;
 };
 
 

@@ -105,13 +105,6 @@ UBlueprint* FEdGraphSchemaAction_BlueprintVariableBase::GetSourceBlueprint() con
 	return UBlueprint::GetBlueprintFromClass(ClassToCheck);
 }
 
-void FEdGraphSchemaAction_BlueprintVariableBase::GetVariableTypeTree(
-	TArray<TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>>& TypeTree, ETypeTreeFilter TypeTreeFilter) const
-{
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-	Schema->GetVariableTypeTree(TypeTree, TypeTreeFilter);
-}
-
 /////////////////////////////////////////////////////
 // FEdGraphSchemaAction_K2LocalVar
 

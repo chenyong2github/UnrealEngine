@@ -800,6 +800,12 @@ class ENGINE_API UEdGraphSchema : public UObject
 	/** Should the Pin in question display an asset picker */
 	virtual bool ShouldShowAssetPickerForPin(UEdGraphPin* Pin) const { return true; }
 
+	/** Returns true if the schema supports the pin type through the schema action */
+	virtual bool SupportsPinType(TWeakPtr<const FEdGraphSchemaAction> SchemaAction, const FEdGraphPinType& PinType) const { return true; }
+
+	/** Returns true if the schema supports the pin type through the schema action */
+	virtual bool SupportsPinTypeContainer(TWeakPtr<const FEdGraphSchemaAction> SchemaAction, const FEdGraphPinType& PinType, const EPinContainerType& ContainerType) const { return true; }
+
 	/**
 	 * Gets the draw color of a pin based on it's type.
 	 *
@@ -808,6 +814,8 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @return	The color representing the passed in type.
 	 */
 	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const { return FLinearColor::Black; }
+
+	virtual FLinearColor GetSecondaryPinTypeColor(const FEdGraphPinType& PinType) const { return FLinearColor::White; };
 
 #if WITH_EDITORONLY_DATA
 	/** Get the name to show in the editor */
