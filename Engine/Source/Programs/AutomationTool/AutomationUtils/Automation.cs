@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Diagnostics;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
