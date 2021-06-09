@@ -1488,6 +1488,7 @@ struct FRHIResourceInfo
 	FName Name;
 	ERHIResourceType Type{ RRT_None };
 	FVRamAllocation VRamAllocation;
+	bool IsTransient{ false };
 };
 
 enum class EClearBinding
