@@ -1107,7 +1107,10 @@ int32 USubobjectDataSubsystem::DeleteSubobjects(const FSubobjectDataHandle& Cont
 			{
 				if(const FSubobjectData* Data = Handle.GetData())
 				{
-					ComponentsToDelete.Add(Data->GetMutableComponentTemplate());		
+					if(UActorComponent* Template = Data->GetMutableComponentTemplate())
+					{
+						ComponentsToDelete.Add(Template);
+					}					
 				}		
 			}
 		}
