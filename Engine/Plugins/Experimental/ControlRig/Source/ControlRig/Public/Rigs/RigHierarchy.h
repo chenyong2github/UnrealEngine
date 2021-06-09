@@ -94,6 +94,7 @@ public:
 	, TransformStackIndex(0)
 	, bTransactingForTransformChange(false)
 	, bIsInteracting(false)
+	, LastInteractedKey()
 	, bSuspendNotifications(false)
 	, ResetPoseHash(INDEX_NONE)
 #if WITH_EDITOR
@@ -1672,7 +1673,11 @@ public:
 	 * Starts an interaction on the rig.
 	 * This will cause all transform actions happening to be merged
 	 */
-	FORCEINLINE void EndInteraction() { bIsInteracting = false; }
+	FORCEINLINE void EndInteraction()
+	{
+		bIsInteracting = false;
+		LastInteractedKey.Reset();
+	}
 
 	/**
 	 * Returns the transform stack index
@@ -2282,7 +2287,12 @@ private:
 	 * Manages merging transform actions into one during an interaction
 	 */
 	bool bIsInteracting;
-	
+
+	/**
+	* Stores the last key being interacted on
+	*/
+	FRigElementKey LastInteractedKey;
+
 	/** 
 	 * If set to true all notifs coming from this hierarchy will be suspended
 	 */

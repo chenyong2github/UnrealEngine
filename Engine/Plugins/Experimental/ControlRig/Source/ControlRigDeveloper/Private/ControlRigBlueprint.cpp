@@ -3074,6 +3074,22 @@ void UControlRigBlueprint::HandleHierarchyModified(ERigHierarchyNotification InN
 
 			if(bClearTransientControls)
 			{
+				if(UControlRig* RigBeingDebugged = Cast<UControlRig>(GetObjectBeingDebugged()))
+				{
+					const FName TransientControlName = UControlRig::GetNameForTransientControl(InElement->GetKey());
+					const FRigElementKey TransientControlKey(TransientControlName, ERigElementType::Control);
+					if (const FRigControlElement* ControlElement = RigBeingDebugged->GetHierarchy()->Find<FRigControlElement>(TransientControlKey))
+					{
+						if (ControlElement->Settings.bIsTransientControl)
+						{
+							bClearTransientControls = false;
+						}
+					}
+				}
+			}
+
+			if(bClearTransientControls)
+			{
 				ClearTransientControls();
 			}
 			break;

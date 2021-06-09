@@ -51,6 +51,11 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Interaction)
 	bool bResetControlsOnPinValueInteraction;
 
+	// When this is checked any hierarchy interaction within the Control Rig
+	// Editor will be stored on the undo stack
+	UPROPERTY(EditAnywhere, config, Category = Interaction)
+	bool bEnableUndoForPoseInteraction;
+
 	/**
 	 * When checked controls will be reset during a manual compilation
 	 * (when pressing the Compile button)

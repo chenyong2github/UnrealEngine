@@ -2300,13 +2300,15 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ERigTransf
 
 	if(bIsInteracting)
 	{
+		bool bCanMerge = LastInteractedKey == InKey;
+
 		FRigTransformStackEntry LastEntry;
 		if(!TransformUndoStack.IsEmpty())
 		{
 			LastEntry = TransformUndoStack.Last();
 		}
 
-		if(LastEntry.Key == InKey && LastEntry.EntryType == InEntryType && LastEntry.bAffectChildren == bAffectChildren)
+		if(bCanMerge && LastEntry.Key == InKey && LastEntry.EntryType == InEntryType && LastEntry.bAffectChildren == bAffectChildren)
 		{
 			// merge the entries on the stack
 			TransformUndoStack.Last() = 
@@ -2322,6 +2324,7 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ERigTransf
 		}
 
 		TransformRedoStack.Reset();
+		LastInteractedKey = InKey;
 		return;
 	}
 
@@ -2384,11 +2387,23 @@ void URigHierarchy::PushCurveToStack(const FRigElementKey& InKey, float InOldCur
 bool URigHierarchy::ApplyTransformFromStack(const FRigTransformStackEntry& InEntry, bool bUndo)
 {
 #if WITH_EDITOR
-	
+
+	bool bApplyInitialForCurrent = false;
 	FRigBaseElement* Element = Find(InEntry.Key);
 	if(Element == nullptr)
 	{
-		return false;
+		// this might be a transient control which had been removed.
+		if(InEntry.Key.Type == ERigElementType::Control)
+		{
+			const FRigElementKey TargetKey = UControlRig::GetElementKeyFromTransientControl(InEntry.Key);
+			Element = Find(TargetKey);
+			bApplyInitialForCurrent = Element != nullptr;
+		}
+
+		if(Element == nullptr)
+		{
+			return false;
+		}
 	}
 
 	const FTransform& Transform = bUndo ? InEntry.OldTransform : InEntry.NewTransform;
@@ -2397,7 +2412,12 @@ bool URigHierarchy::ApplyTransformFromStack(const FRigTransformStackEntry& InEnt
 	{
 		case ERigTransformStackEntryType::TransformPose:
 		{
-			SetTransform(Cast<FRigTransformElement>(Element), Transform, InEntry.TransformType, InEntry.bAffectChildren, false); 
+			SetTransform(Cast<FRigTransformElement>(Element), Transform, InEntry.TransformType, InEntry.bAffectChildren, false);
+
+			if(ERigTransformType::IsCurrent(InEntry.TransformType) && bApplyInitialForCurrent)
+			{
+				SetTransform(Cast<FRigTransformElement>(Element), Transform, ERigTransformType::MakeInitial(InEntry.TransformType), InEntry.bAffectChildren, false);
+			}
 			break;
 		}
 		case ERigTransformStackEntryType::ControlOffset:
