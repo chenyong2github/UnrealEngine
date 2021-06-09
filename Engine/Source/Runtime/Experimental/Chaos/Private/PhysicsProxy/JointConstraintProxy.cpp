@@ -104,6 +104,10 @@ void FJointConstraintPhysicsProxy::DestroyOnPhysicsThread(Chaos::FPBDRigidsSolve
 		auto& JointConstraints = InSolver->GetJointConstraints();
 		JointConstraints.RemoveConstraint(Handle->GetConstraintIndex());
 
+	}
+
+	if (Constraint != nullptr)
+	{
 		delete Constraint;
 		Constraint = nullptr;
 	}
