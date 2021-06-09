@@ -656,6 +656,7 @@ namespace DatasmithRhino
 		private Dictionary<Guid, string> TextureIdToTextureHash = new Dictionary<Guid, string>();
 		private Dictionary<int, string> LayerIndexToLayerString = new Dictionary<int, string>();
 		private Dictionary<int, HashSet<int>> LayerIndexToLayerIndexHierarchy = new Dictionary<int, HashSet<int>>();
+		private Dictionary<int, HashSet<DatasmithInfoBase>> MaterialIndexToElementInfosMap = new Dictionary<int, HashSet<DatasmithInfoBase>>();
 		private DatasmithRhinoUniqueNameGenerator ActorLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 		private DatasmithRhinoUniqueNameGenerator MaterialLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 		private DatasmithRhinoUniqueNameGenerator TextureLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
@@ -742,6 +743,7 @@ namespace DatasmithRhino
 			TextureIdToTextureHash = new Dictionary<Guid, string>();
 			LayerIndexToLayerString = new Dictionary<int, string>();
 			LayerIndexToLayerIndexHierarchy = new Dictionary<int, HashSet<int>>();
+			MaterialIndexToElementInfosMap = new Dictionary<int, HashSet<DatasmithInfoBase>>();
 			ActorLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 			MaterialLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 			TextureLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
@@ -834,6 +836,8 @@ namespace DatasmithRhino
 			{
 				InstanceDefinitionInfo.PurgeDeleted();
 			}
+
+			CleanMaterialElementCache();
 		}
 
 		private void CleanCacheDictionary<KeyType, InfoType>(Dictionary<KeyType, InfoType> InDictionary) where InfoType : DatasmithInfoBase
@@ -851,6 +855,26 @@ namespace DatasmithRhino
 			foreach (KeyType CurrentKey in KeysOfElementsToDelete)
 			{
 				InDictionary.Remove(CurrentKey);
+			}
+		}
+
+		private void CleanMaterialElementCache()
+		{
+			foreach (HashSet<DatasmithInfoBase> ElementSet in MaterialIndexToElementInfosMap.Values)
+			{
+				List<DatasmithInfoBase> ElementsToRemove = new List<DatasmithInfoBase>();
+				foreach (DatasmithInfoBase ElementInSet in ElementSet)
+				{
+					if (ElementInSet.DirectLinkStatus == DirectLinkSynchronizationStatus.Deleted)
+					{
+						ElementsToRemove.Add(ElementInSet);
+					}
+				}
+
+				for (int ElementIndex = 0; ElementIndex < ElementsToRemove.Count; ++ElementIndex)
+				{
+					ElementSet.Remove(ElementsToRemove[ElementIndex]);
+				}
 			}
 		}
 
@@ -1019,6 +1043,7 @@ namespace DatasmithRhino
 						{
 							AddMaterialIndexMapping(DiffActorInfo.MaterialIndex);
 						}
+						UpdateMaterialElementMapping(ActorInfo, DiffActorInfo.MaterialIndex, ActorInfo.MaterialIndex);
 					}
 
 					ActorInfo.ApplyDiffs(DiffActorInfo);
@@ -1161,7 +1186,7 @@ namespace DatasmithRhino
 
 					if (TargetObject != null)
 					{
-						ChildActorInfo.MaterialIndex = GetObjectMaterialIndex(TargetObject, ActorInfo.Parent);
+						ChildActorInfo.MaterialIndex = GetObjectMaterialIndex(TargetObject, ChildActorInfo.Parent);
 						if (!ChildActorInfo.bOverrideMaterial)
 						{
 							if (ObjectIdToMeshInfoDictionary.TryGetValue(TargetObject.Id, out DatasmithMeshInfo MeshInfo))
@@ -1226,6 +1251,7 @@ namespace DatasmithRhino
 				ObjectIdToHierarchyActorNodeDictionary.Add(CurrentLayer.Id, ActorNodeInfo);
 				LayerIndexToLayerString[CurrentLayer.Index] = BuildLayerString(CurrentLayer, ParentNode);
 				AddMaterialIndexMapping(CurrentLayer.RenderMaterialIndex);
+				UpdateMaterialElementMapping(ActorNodeInfo, ActorNodeInfo.MaterialIndex);
 
 				RhinoObject[] ObjectsInLayer = RhinoDocument.Objects.FindByLayer(CurrentLayer);
 				RecursivelyParseObjectInstance(ObjectsInLayer, ActorNodeInfo);
@@ -1299,6 +1325,9 @@ namespace DatasmithRhino
 			{
 				if (CurrentInfo.DirectLinkStatus != DirectLinkSynchronizationStatus.PendingDeletion)
 				{
+					// Make sure to update the material usage mapping, this is required to quickly find affected actors on material changes.
+					UpdateMaterialElementMapping(CurrentInfo, CurrentInfo.MaterialIndex);
+					
 					RhinoObject CurrentRhinoObject = CurrentInfo.RhinoCommonObject as RhinoObject;
 					bool bIsNotInstancedObject = CurrentRhinoObject == null || CurrentInfo.DefinitionNode == null || (CurrentRhinoObject.ObjectType == ObjectType.InstanceReference && !CurrentInfo.bIsInstanceDefinition);
 					
@@ -1660,6 +1689,8 @@ namespace DatasmithRhino
 					DatasmithMaterialInfo ModifiedMaterialInfo = GetOrCreateMaterialHashMapping(MaterialHash, IndexedMaterial);
 					ModifiedMaterialInfo.MaterialIndexes.Add(MaterialIndex);
 
+					SetModifiedFlagOnElementsUsingMaterial(MaterialIndex);
+
 					if (MaterialHashToMaterialInfo.TryGetValue(ExistingMaterialHash, out DatasmithMaterialInfo ExistingMaterialInfo))
 					{
 						ExistingMaterialInfo.MaterialIndexes.Remove(MaterialIndex);
@@ -1691,6 +1722,17 @@ namespace DatasmithRhino
 				{
 					//Material didn't change, nothing to do.
 					return;
+				}
+			}
+		}
+
+		private void SetModifiedFlagOnElementsUsingMaterial(int MaterialIndex)
+		{
+			if (MaterialIndexToElementInfosMap.TryGetValue(MaterialIndex, out HashSet<DatasmithInfoBase> ElementInfos))
+			{
+				foreach (DatasmithInfoBase ElementInfo in ElementInfos)
+				{
+					ElementInfo.ApplyModifiedStatus();
 				}
 			}
 		}
@@ -1985,11 +2027,14 @@ namespace DatasmithRhino
 							ExistingMeshInfo.RestorePreviousDirectLinkStatus();
 						}
 
+						List<int> PreviousMaterialIndices = ExistingMeshInfo.MaterialIndices;
 						ExistingMeshInfo.ApplyDiffs(MeshInfo);
+						UpdateMaterialElementMapping(ExistingMeshInfo, MeshInfo.MaterialIndices, PreviousMaterialIndices);
 					}
 					else
 					{
 						ObjectIdToMeshInfoDictionary.Add(CurrentObject.Id, MeshInfo);
+						UpdateMaterialElementMapping(MeshInfo, MeshInfo.MaterialIndices);
 					}
 				}
 			}
@@ -2114,6 +2159,94 @@ namespace DatasmithRhino
 
 			//The parent material and layer material is baked into the HierarchyActorNode.
 			return HierarchyActorNode.MaterialIndex;
+		}
+
+
+		/// <summary>
+		/// Update the material index mapping to associated Element info. We need this to dirty the element when the material assignment changes.
+		/// </summary>
+		/// <param name="ElementInfo">The element referencing the material</param>
+		/// <param name="NewMaterialIndices">Material indices referenced by the element</param>
+		/// <param name="PreviousMaterialIndices">Previous material indices referenced by the element, can pass null if this is a new element</param>
+		private void UpdateMaterialElementMapping(DatasmithInfoBase ElementInfo, List<int> NewMaterialIndices, List<int> PreviousMaterialIndices = null)
+		{
+			if (PreviousMaterialIndices != null)
+			{
+				if (NewMaterialIndices.Count == PreviousMaterialIndices.Count)
+				{
+					bool bSameMaterialAssignment = true;
+					for (int MaterialIndex = 0; MaterialIndex < NewMaterialIndices.Count; ++MaterialIndex)
+					{
+						if (NewMaterialIndices[MaterialIndex] != PreviousMaterialIndices[MaterialIndex])
+						{
+							bSameMaterialAssignment = false;
+							break;
+						}
+					}
+
+					//If the material assignments are the same, there is nothing to do.
+					if (bSameMaterialAssignment)
+					{
+						return;
+					}
+				}
+
+				// Remove previous material mapping.
+				foreach (int MaterialIndex in PreviousMaterialIndices.Distinct())
+				{
+					if (MaterialIndexToElementInfosMap.TryGetValue(MaterialIndex, out HashSet<DatasmithInfoBase> MeshInfos))
+					{
+						MeshInfos.Remove(ElementInfo);
+					}
+				}
+			}
+
+			// Add new material mapping
+			foreach (int MaterialIndex in NewMaterialIndices.Distinct())
+			{
+				HashSet<DatasmithInfoBase> ElementInfos;
+				if (!MaterialIndexToElementInfosMap.TryGetValue(MaterialIndex, out ElementInfos))
+				{
+					ElementInfos = new HashSet<DatasmithInfoBase>();
+					MaterialIndexToElementInfosMap.Add(MaterialIndex, ElementInfos);
+				}
+
+				ElementInfos.Add(ElementInfo);
+			}
+		}
+
+		/// <summary>
+		/// Update the material index mapping to associated Element info. We need this to dirty the element when the material assignment changes.
+		/// </summary>
+		/// <param name="ElementInfo">The element referencing the material</param>
+		/// <param name="NewMaterialIndex">Material index referenced by the element</param>
+		/// <param name="PreviousMaterialIndex">Previous material index referenced by the element, can pass null if this is a new element</param>
+		private void UpdateMaterialElementMapping(DatasmithInfoBase ElementInfo, int NewMaterialIndex, int? PreviousMaterialIndex = null)
+		{
+			if (PreviousMaterialIndex != null)
+			{
+				if (NewMaterialIndex == PreviousMaterialIndex.Value)
+				{
+					//If the material assignments are the same, there is nothing to do.
+					return;
+				}
+
+				// Remove previous material mapping.
+				if (MaterialIndexToElementInfosMap.TryGetValue(PreviousMaterialIndex.Value, out HashSet<DatasmithInfoBase> MeshInfos))
+				{
+					MeshInfos.Remove(ElementInfo);
+				}
+			}
+
+			// Add new material mapping
+			HashSet<DatasmithInfoBase> ElementInfos;
+			if (!MaterialIndexToElementInfosMap.TryGetValue(NewMaterialIndex, out ElementInfos))
+			{
+				ElementInfos = new HashSet<DatasmithInfoBase>();
+				MaterialIndexToElementInfosMap.Add(NewMaterialIndex, ElementInfos);
+			}
+
+			ElementInfos.Add(ElementInfo);
 		}
 	}
 }
