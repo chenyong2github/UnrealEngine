@@ -178,6 +178,31 @@ public:
 		float& LinearBreakThreshold
 	);
 
+
+	/** Sets Constraint Linear Plasticity properties
+	*	@param Accessor						Constraint accessor to change
+	*	@param bLinearPlasticity			Whether it is possible to reset the target position from the linear displacement
+	*	@param LinearPlasticityThreshold	Delta from target needed to reset the target joint
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+		static void SetLinearPlasticity(
+			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
+			bool bLinearPlasticity,
+			float LinearPlasticityThreshold
+		);
+
+	/** Sets Constraint Linear Plasticity properties
+	*	@param Accessor						Constraint accessor to query
+	*	@param bAngularPlasticity			Whether it is possible to reset the target position from the linear displacement
+	*	@param AngularPlasticityThreshold	Delta from target needed to reset the target joint
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+		static void GetLinearPlasticity(
+			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
+			bool& bLinearPlasticity,
+			float& LinearPlasticityThreshold
+		);
+
 	//---------------------------------------------------------------------------------------------------
 	//
 	// ANGULAR LIMITS 
