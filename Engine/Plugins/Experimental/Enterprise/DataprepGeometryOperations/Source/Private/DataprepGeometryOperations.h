@@ -15,6 +15,8 @@
 
 #include "DataprepGeometryOperations.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN( LogDataprepGeometryOperations, Log, All );
+
 class AStaticMeshActor;
 class IMeshBuilderModule;
 class UStaticMesh;
