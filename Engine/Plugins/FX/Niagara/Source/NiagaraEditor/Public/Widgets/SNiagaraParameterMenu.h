@@ -98,8 +98,7 @@ public:
 		const FText& Category = FText::GetEmpty(),
 		const FString& RootCategory = FString(),
 		const bool bSort = true,
-		const bool bCustomName = true,
-		bool bForMakeNew = false);
+		const bool bCreateUniqueName = true);
 
 	void CollectParameterCollectionsActions(FGraphActionListBuilderBase& OutActions);
 	void CollectMakeNew(FGraphActionListBuilderBase& OutActions, const FGuid& InNamespaceId);

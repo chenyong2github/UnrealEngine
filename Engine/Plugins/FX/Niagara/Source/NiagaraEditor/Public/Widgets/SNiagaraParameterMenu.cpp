@@ -42,6 +42,7 @@ void SNiagaraParameterMenu::Construct(const FArguments& InArgs)
 			SAssignNew(GraphMenu, SGraphActionMenu)
 			.OnActionSelected(this, &SNiagaraParameterMenu::OnActionSelected)
 			.OnCollectAllActions(this, &SNiagaraParameterMenu::CollectAllActions)
+			.SortItemsRecursively(false)
 			.AutoExpandActionMenu(bAutoExpandMenu)
 			.ShowFilterTextBox(true)
 			.OnGetSectionTitle(InArgs._OnGetSectionTitle)
@@ -183,8 +184,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectMakeNew(FGraphActionListBuilderBa
 
 	AddParameterGroup(OutActions, Variables, InNamespaceId,
 		LOCTEXT("MakeNewCat", "Make New"),
-		bShowNamespaceCategory ? GetNamespaceCategoryText(InNamespaceId).ToString() : FString(),
-		true, true, true);
+		bShowNamespaceCategory ? GetNamespaceCategoryText(InNamespaceId).ToString() : FString());
 }
 
 void SNiagaraAddParameterFromPanelMenu::AddParameterGroup(
@@ -194,12 +194,29 @@ void SNiagaraAddParameterFromPanelMenu::AddParameterGroup(
 	const FText& Category /*= FText::GetEmpty()*/,
 	const FString& RootCategory /*= FString()*/,
 	const bool bSort /*= true*/,
-	const bool bCustomName /*= true*/,
-	bool bForMakeNew /*= false*/)
+	const bool bCreateUniqueName /*= true*/)
 {
 	if (bSort)
 	{
-		Variables.Sort([](const FNiagaraVariable& A, const FNiagaraVariable& B) { return A.GetName().LexicalLess(B.GetName()); });
+		Variables.Sort([](const FNiagaraVariable& A, const FNiagaraVariable& B)
+		{
+			FNiagaraParameterHandle HandleA(A.GetName());
+			FNiagaraParameterHandle HandleB(B.GetName());
+
+			const TArray<FName> NamesA = HandleA.GetHandleParts();
+			const TArray<FName> NamesB = HandleB.GetHandleParts();
+			if (NamesA.Num() == NamesB.Num())
+			{
+				for (int i = 0; i < NamesA.Num(); i++)
+				{
+					if (NamesA[i] != NamesB[i])
+					{
+						return NamesA[i].LexicalLess(NamesB[i]);
+					}
+				}
+			}
+			return NamesA.Num() < NamesB.Num();
+		});
 	}
 
 	for (const FNiagaraVariable& Variable : Variables)
@@ -223,7 +240,7 @@ void SNiagaraAddParameterFromPanelMenu::AddParameterGroup(
 		FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(Variable);
 		FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
 		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(FullCategory, DisplayName, Tooltip, 0, FText(),
-			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterFromPanelMenu::ParameterSelected, Variable, bCustomName, InNamespaceId)));
+			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterFromPanelMenu::ParameterSelected, Variable, bCreateUniqueName, InNamespaceId)));
 		Action->SetParameterVariable(Variable);
 
 		if (Variable.IsDataInterface())
@@ -261,39 +278,18 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	auto CollectEngineNamespaceParameterActions = [this, &OutAllActions]() {
 		const FNiagaraNamespaceMetadata NamespaceMetaData = FNiagaraEditorUtilities::GetNamespaceMetaDataForId(FNiagaraEditorGuids::EngineNamespaceMetaDataGuid);
 		TArray<FNiagaraVariable> Variables = FNiagaraConstants::GetEngineConstants();
-		const TArray<FName>& EngineNamespaces = NamespaceMetaData.Namespaces;
-		Variables.RemoveAll([EngineNamespaces](const FNiagaraVariable& Variable)
-			{
-				FNiagaraParameterHandle VariableHandle(Variable.GetName());
-				TArray<FName> VariableNameParts = VariableHandle.GetHandleParts();
-				if (VariableNameParts.Num() <= EngineNamespaces.Num())
-				{
-					return true;
-				}
-
-				for (int32 NamespaceIndex = 0; NamespaceIndex < EngineNamespaces.Num(); NamespaceIndex++)
-				{
-					if (VariableNameParts[NamespaceIndex] != EngineNamespaces[NamespaceIndex])
-					{
-						return true;
-					}
-				}
-
-				return false;
-			});
-
 		const FText CategoryText = bShowNamespaceCategory ? GetNamespaceCategoryText(NamespaceMetaData) : LOCTEXT("EngineConstantNamespaceCategory", "Add Engine Constant");
 		const FString RootCategoryStr = FString();
+		const bool bSort = true;
 		const bool bMakeNameUnique = false;
-		const bool bCreateNewParameter = false;
 		AddParameterGroup(
 			OutAllActions,
 			Variables,
 			FNiagaraEditorGuids::EngineNamespaceMetaDataGuid,
 			CategoryText,
 			RootCategoryStr,
-			bMakeNameUnique,
-			bCreateNewParameter
+			bSort,
+			bMakeNameUnique
 		);
 	};
 
