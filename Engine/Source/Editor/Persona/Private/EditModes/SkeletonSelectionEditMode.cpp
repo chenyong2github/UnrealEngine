@@ -529,10 +529,18 @@ bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportCl
 			MeshComponent->SetSelectedEditorSection(INDEX_NONE);
 		}
 
-		if ( HitProxy->IsA( HPersonaSelectionHitProxy::StaticGetType() ) )
+		if ( HitProxy->IsA( HPersonaSocketProxy::StaticGetType() ) )
 		{
+			// Tell the preview scene that the socket has been selected - this will sort out the skeleton tree, etc.
 			GetAnimPreviewScene().DeselectAll();
-			static_cast<HPersonaSelectionHitProxy*>(HitProxy)->BroadcastClicked();
+			GetAnimPreviewScene().SetSelectedSocket(static_cast<HPersonaSocketProxy*>(HitProxy)->SocketInfo);
+			bHandled = true;
+		}
+		else if ( HitProxy->IsA( HPersonaBoneProxy::StaticGetType() ) )
+		{			
+			// Tell the preview scene that the bone has been selected - this will sort out the skeleton tree, etc.
+			GetAnimPreviewScene().DeselectAll();
+			GetAnimPreviewScene().SetSelectedBone(static_cast<HPersonaBoneProxy*>(HitProxy)->BoneName, ESelectInfo::OnMouseClick);
 			bHandled = true;
 		}
 		else if ( HitProxy->IsA( HActor::StaticGetType() ) && bSelectingSections)
