@@ -1940,10 +1940,6 @@ void UploadCardPagesToRenderIndexBuffers(
 		const uint32 NumHashMapBytes = 4 * NumHashMapUInt32;
 		const uint32 NumHashMapBuckets = 32 * NumHashMapUInt32;
 
-		LumenCardRenderer.CardPagesToRenderHashMapBuffer = GraphBuilder.CreateBuffer(
-			FRDGBufferDesc::CreateUploadDesc(sizeof(uint32), NumHashMapUInt32),
-			TEXT("Lumen.CardPagesToRenderHashMapBuffer"));
-
 		LumenCardRenderer.CardPagesToRenderHashMap.Init(0, NumHashMapBuckets);
 
 		for (const FCardPageRenderData& CardPageRenderData : LumenCardRenderer.CardPagesToRender)
@@ -1952,24 +1948,10 @@ void UploadCardPagesToRenderIndexBuffers(
 			LumenCardRenderer.CardPagesToRenderHashMap[CardPageRenderData.PageTableIndex % NumHashMapBuckets] = 1;
 		}
 
-		FLumenBufferUpload* PassParameters = GraphBuilder.AllocParameters<FLumenBufferUpload>();
-		PassParameters->DestBuffer = LumenCardRenderer.CardPagesToRenderHashMapBuffer;
-
-		const void* HashMapDataPtr = LumenCardRenderer.CardPagesToRenderHashMap.GetData();
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Upload CardPagesToRenderHashMapBuffer NumUInt32=%d", NumHashMapUInt32),
-			PassParameters,
-			ERDGPassFlags::Copy,
-			[PassParameters, NumHashMapBytes, HashMapDataPtr](FRHICommandListImmediate& RHICmdList)
-			{
-				if (NumHashMapBytes > 0)
-				{
-					void* DestCardIdPtr = RHILockBuffer(PassParameters->DestBuffer->GetRHI(), 0, NumHashMapBytes, RLM_WriteOnly);
-					FPlatformMemory::Memcpy(DestCardIdPtr, HashMapDataPtr, NumHashMapBytes);
-					RHIUnlockBuffer(PassParameters->DestBuffer->GetRHI());
-				}
-			});
+		LumenCardRenderer.CardPagesToRenderHashMapBuffer =
+			CreateUploadBuffer(GraphBuilder, TEXT("Lumen.CardPagesToRenderHashMapBuffer"),
+				sizeof(uint32), NumHashMapUInt32,
+				LumenCardRenderer.CardPagesToRenderHashMap.GetData(), NumHashMapBytes, ERDGInitialDataFlags::NoCopy);
 	}
 }
 
@@ -2045,23 +2027,24 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 			FRDGBufferSRVRef CardCaptureRectBufferSRV = nullptr;
 
 			{
-				CardCaptureRectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateUploadDesc(sizeof(FUintVector4), FMath::RoundUpToPowerOfTwo(CardPagesToRender.Num())), TEXT("Lumen.CardCaptureRects"));
-				CardCaptureRectBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardCaptureRectBuffer, PF_R32G32B32A32_UINT));
+				FRDGUploadData<FUintVector4> CardCaptureRectArray(GraphBuilder, CardPagesToRender.Num());
 
-				TArray<FUintVector4, SceneRenderingAllocator> CardCaptureRectArray;
-				CardCaptureRectArray.Reserve(CardPagesToRender.Num());
-
-				for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+				for (int32 Index = 0; Index < CardPagesToRender.Num(); Index++)
 				{
-					FUintVector4 Rect;
+					const FCardPageRenderData& CardPageRenderData = CardPagesToRender[Index];
+
+					FUintVector4& Rect = CardCaptureRectArray[Index];
 					Rect.X = FMath::Max(CardPageRenderData.CardCaptureAtlasRect.Min.X, 0);
 					Rect.Y = FMath::Max(CardPageRenderData.CardCaptureAtlasRect.Min.Y, 0);
 					Rect.Z = FMath::Max(CardPageRenderData.CardCaptureAtlasRect.Max.X, 0);
 					Rect.W = FMath::Max(CardPageRenderData.CardCaptureAtlasRect.Max.Y, 0);
-					CardCaptureRectArray.Add(Rect);
 				}
 
-				FPixelShaderUtils::UploadRectBuffer(GraphBuilder, CardCaptureRectArray, CardCaptureRectBuffer);
+				CardCaptureRectBuffer =
+					CreateUploadBuffer(GraphBuilder, TEXT("Lumen.CardCaptureRects"),
+						sizeof(FUintVector4), FMath::RoundUpToPowerOfTwo(CardPagesToRender.Num()),
+						CardCaptureRectArray);
+				CardCaptureRectBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardCaptureRectBuffer, PF_R32G32B32A32_UINT));
 
 				ClearLumenCards(GraphBuilder, View, CardCaptureAtlas, CardCaptureRectBufferSRV, CardPagesToRender.Num());
 			}

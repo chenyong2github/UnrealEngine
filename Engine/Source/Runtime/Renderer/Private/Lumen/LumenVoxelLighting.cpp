@@ -740,10 +740,6 @@ void AddUpdateBoundsForAxis(FIntVector MovementInTiles,
 	}
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FUploadVoxelLightingUpdateBoundsParameters, )
-	RDG_BUFFER_ACCESS(UpdateBoundsBuffer, ERHIAccess::CopyDest)
-END_SHADER_PARAMETER_STRUCT()
-
 void UpdateVoxelVisBuffer(
 	FRDGBuilder& GraphBuilder, 
 	FScene* Scene, 
@@ -870,9 +866,7 @@ void UpdateVoxelVisBuffer(
 			uint32 NumUpdateBounds = 0;
 			{
 				const uint32 BufferStrideInFloat4 = 2;
-				const uint32 BufferStride = BufferStrideInFloat4 * sizeof(FVector4);
-				TArray<FVector4, SceneRenderingAllocator> UpdateBoundsData;
-				UpdateBoundsData.SetNum(BufferStrideInFloat4 * UpdateBounds.Num());
+				FRDGUploadData<FVector4> UpdateBoundsData(GraphBuilder, BufferStrideInFloat4 * UpdateBounds.Num());
 
 				for (int32 UpdateBoundsIndex = 0; UpdateBoundsIndex < UpdateBounds.Num(); ++UpdateBoundsIndex)
 				{
@@ -885,29 +879,10 @@ void UpdateVoxelVisBuffer(
 
 				check(UpdateBoundsData.Num() % BufferStrideInFloat4 == 0);
 
-				UpdateBoundsBuffer = GraphBuilder.CreateBuffer(
-					FRDGBufferDesc::CreateUploadDesc(sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2))),
-					TEXT("Lumen.UpdateBoundsBuffer"));
-
-				FUploadVoxelLightingUpdateBoundsParameters* PassParameters = GraphBuilder.AllocParameters<FUploadVoxelLightingUpdateBoundsParameters>();
-				PassParameters->UpdateBoundsBuffer = UpdateBoundsBuffer;
-
-				const uint32 UploadBytes = UpdateBoundsData.Num() * sizeof(FVector4);
-				const void* UploadPtr = UpdateBoundsData.GetData();
-
-				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("Upload %d update bounds", NumUpdateBounds),
-					PassParameters,
-					ERDGPassFlags::Copy,
-					[PassParameters, UploadBytes, UploadPtr](FRHICommandListImmediate& RHICmdList)
-					{
-						if (UploadBytes > 0)
-						{
-							void* DestCardIdPtr = RHILockBuffer(PassParameters->UpdateBoundsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
-							FPlatformMemory::Memcpy(DestCardIdPtr, UploadPtr, UploadBytes);
-							RHIUnlockBuffer(PassParameters->UpdateBoundsBuffer->GetRHI());
-						}
-					});
+				UpdateBoundsBuffer =
+					CreateUploadBuffer(GraphBuilder, TEXT("Lumen.UpdateBoundsBuffer"),
+						sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2)),
+						UpdateBoundsData);
 			}
 
 			FRDGBufferRef ClearVisBufferIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.UpdateIndirectArgBuffer"));

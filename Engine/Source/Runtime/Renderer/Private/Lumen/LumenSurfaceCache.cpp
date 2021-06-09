@@ -182,23 +182,25 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 
 	// Create rect buffer
-	FRDGBufferRef SurfaceCacheRectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateUploadDesc(sizeof(FUintVector4), FMath::RoundUpToPowerOfTwo(CardPagesToRender.Num())), TEXT("Lumen.SurfaceCacheRects"));
-	FRDGBufferSRVRef SurfaceCacheRectBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(SurfaceCacheRectBuffer, PF_R32G32B32A32_UINT));
+	FRDGBufferRef SurfaceCacheRectBuffer;
 	{
-		TArray<FUintVector4, SceneRenderingAllocator> SurfaceCacheRectArray;
-		SurfaceCacheRectArray.Reserve(CardPagesToRender.Num());
-		for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+		FRDGUploadData<FUintVector4> SurfaceCacheRectArray(GraphBuilder, CardPagesToRender.Num());
+		for (int32 Index = 0; Index < CardPagesToRender.Num(); Index++)
 		{
-			FUintVector4 Rect;
+			const FCardPageRenderData& CardPageRenderData = CardPagesToRender[Index];
+			FUintVector4& Rect = SurfaceCacheRectArray[Index];
 			Rect.X = FMath::Max(CardPageRenderData.SurfaceCacheAtlasRect.Min.X, 0);
 			Rect.Y = FMath::Max(CardPageRenderData.SurfaceCacheAtlasRect.Min.Y, 0);
 			Rect.Z = FMath::Max(CardPageRenderData.SurfaceCacheAtlasRect.Max.X, 0);
 			Rect.W = FMath::Max(CardPageRenderData.SurfaceCacheAtlasRect.Max.Y, 0);
-			SurfaceCacheRectArray.Add(Rect);
 		}
 
-		FPixelShaderUtils::UploadRectBuffer(GraphBuilder, SurfaceCacheRectArray, SurfaceCacheRectBuffer);
+		SurfaceCacheRectBuffer =
+			CreateUploadBuffer(GraphBuilder, TEXT("Lumen.SurfaceCacheRects"),
+				sizeof(FUintVector4), FMath::RoundUpToPowerOfTwo(CardPagesToRender.Num()),
+				SurfaceCacheRectArray);
 	}
+	FRDGBufferSRVRef SurfaceCacheRectBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(SurfaceCacheRectBuffer, PF_R32G32B32A32_UINT));
 
 	const FIntPoint PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
 	const ESurfaceCacheCompression PhysicalAtlasCompression = LumenSceneData.GetPhysicalAtlasCompression();
