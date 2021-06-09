@@ -37,11 +37,10 @@ class OPTIMUSDEVELOPER_API UOptimusNode : public UObject
 public:
 	struct CategoryName
 	{
-		static const FName Attributes;
-		static const FName Deformers;
-		static const FName Meshes;
-		static const FName Resources;
-		static const FName Variables;
+		OPTIMUSDEVELOPER_API static const FName DataProviders;
+		OPTIMUSDEVELOPER_API static const FName Deformers;
+		OPTIMUSDEVELOPER_API static const FName Resources;
+		OPTIMUSDEVELOPER_API static const FName Variables;
 	};
 
 	struct PropertyMeta
@@ -178,7 +177,7 @@ protected:
 	    EOptimusNodePinDirection InDirection,
 	    EOptimusNodePinStorageType InStorageType,
 		FOptimusDataTypeRef InDataType,
-		UOptimusNodePin* InBeforePin,
+		UOptimusNodePin* InBeforePin = nullptr,
 	    UOptimusNodePin* InParentPin = nullptr
 		);
 

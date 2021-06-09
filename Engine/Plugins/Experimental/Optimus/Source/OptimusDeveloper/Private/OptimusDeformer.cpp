@@ -79,6 +79,21 @@ UOptimusNodeGraph* UOptimusDeformer::AddTriggerGraph(const FString &InName)
 	}
 }
 
+
+UOptimusNodeGraph* UOptimusDeformer::GetUpdateGraph() const
+{
+	for (UOptimusNodeGraph* Graph: Graphs)
+	{
+		if (Graph->GetGraphType() == EOptimusNodeGraphType::Update)
+		{
+			return Graph;
+		}
+	}
+	UE_LOG(LogOptimusDeveloper, Fatal, TEXT("No upgrade graph on deformer (%s)."), *GetPathName());
+	return nullptr;
+}
+
+
 bool UOptimusDeformer::RemoveGraph(UOptimusNodeGraph* InGraph)
 {
     return GetActionStack()->RunAction<FOptimusNodeGraphAction_RemoveGraph>(InGraph);

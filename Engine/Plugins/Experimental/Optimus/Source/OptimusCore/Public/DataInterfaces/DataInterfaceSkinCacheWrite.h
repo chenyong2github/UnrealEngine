@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ComputeFramework/ComputeDataInterface.h"
+#include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DataInterfaceSkinCacheWrite.generated.h"
 
@@ -12,12 +12,18 @@ class USkeletalMeshComponent;
 
 /** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API USkeletalMeshSkinCacheDataInterface : public UComputeDataInterface
+class OPTIMUSCORE_API USkeletalMeshSkinCacheDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
 public:
+	//~ Begin UOptimusComputeDataInterface Interface
+	FString GetDisplayName() const override;
+	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	//~ End UOptimusComputeDataInterface Interface
+	
 	//~ Begin UComputeDataInterface Interface
+	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;

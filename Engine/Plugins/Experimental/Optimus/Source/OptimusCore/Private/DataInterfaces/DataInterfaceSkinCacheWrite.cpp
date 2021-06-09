@@ -10,6 +10,39 @@
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
+
+FString USkeletalMeshSkinCacheDataInterface::GetDisplayName() const
+{
+	return TEXT("Write Skeletal Mesh");
+}
+
+
+TArray<FOptimusCDIPinDefinition> USkeletalMeshSkinCacheDataInterface::GetPinDefinitions() const
+{
+	TArray<FOptimusCDIPinDefinition> Defs;
+	Defs.Add({"Position", "WritePosition", "ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentX", "WriteTangentX", "ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentZ", "WriteTangentZ", "ReadNumVertices", "Vertex"});
+
+	return Defs;
+}
+
+
+void USkeletalMeshSkinCacheDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+{
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadNumVertices");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
+		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(ReturnParam);
+		OutFunctions.Add(Fn);
+	}
+}
+
+
 void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	// Functions must match those exposed in data interface shader code.
@@ -62,6 +95,7 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunc
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSkinCacheWriteDataInterfaceParameters, )
+	SHADER_PARAMETER(uint32, NumVertices)
 	SHADER_PARAMETER(uint32, OutputStreamStart)
 	SHADER_PARAMETER_UAV(RWBuffer<float>, PositionBufferUAV)
 	SHADER_PARAMETER_UAV(RWBuffer<SNORM float4>, TangentBufferUAV)
@@ -131,6 +165,7 @@ void FSkeletalMeshSkinCacheDataProviderProxy::GetBindings(int32 InvocationIndex,
 
 	FSkinCacheWriteDataInterfaceParameters Parameters;
 	FMemory::Memset(&Parameters, 0, sizeof(FSkinCacheWriteDataInterfaceParameters));
+	Parameters.NumVertices = RenderSection.GetNumVertices();
 	Parameters.OutputStreamStart = RenderSection.GetVertexBufferIndex();
 	Parameters.PositionBufferUAV = OutputPositionBuffer->UAV;
 	Parameters.TangentBufferUAV = OutputTangentBuffer->UAV;

@@ -121,6 +121,25 @@ FShaderValueTypeHandle FShaderValueType::Get(
 	return GetOrCreate(MoveTemp(ValueType));
 }
 
+
+FShaderValueTypeHandle FShaderValueType::Get(const FShaderParamTypeDefinition& InDef)
+{
+	switch(InDef.DimType)
+	{
+	case EShaderFundamentalDimensionType::Scalar:
+		return Get(InDef.FundamentalType);
+
+	case EShaderFundamentalDimensionType::Vector:
+		return Get(InDef.FundamentalType, InDef.VectorDimension);
+		
+	case EShaderFundamentalDimensionType::Matrix:
+		return Get(InDef.FundamentalType, InDef.MatrixRowCount, InDef.MatrixColumnCount);
+	}
+
+	return {};
+}
+
+
 FShaderValueTypeHandle FShaderValueType::GetOrCreate(FShaderValueType&& InValueType)
 {
 	FShaderValueTypeHandle Handle;

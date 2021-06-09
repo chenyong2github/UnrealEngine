@@ -74,6 +74,13 @@ public:
 	*/
 	OPTIMUSDEVELOPER_API FOptimusDataTypeHandle FindType(FName InTypeName) const;
 
+	/** Find a registered type from a FShaderValueTypeHandle. If multiple types are using the
+	  * same shader value type, then the first one found in the registration order will be
+	  * returned.
+	  */
+	// FIXME: We should allow for some kind of type hinting from the HLSL side (e.g. vector4 a color or a vector of four independent scalars).
+	OPTIMUSDEVELOPER_API FOptimusDataTypeHandle FindType(FShaderValueTypeHandle InValueType) const;
+
 protected:
 	friend class FOptimusDeveloperModule;
 

@@ -5,10 +5,13 @@
 #include "OptimusCoreNotify.h"
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Templates/SubclassOf.h"
 
 #include "OptimusNodeGraph.generated.h"
 
+class UOptimusVariableDescription;
+class UOptimusResourceDescription;
+class UOptimusComputeDataInterface;
 class IOptimusNodeGraphCollectionOwner;
 class UOptimusActionStack;
 class UOptimusNode;
@@ -57,7 +60,13 @@ public:
 	// TODO: Add magic connection from a pin.
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	UOptimusNode* AddNode(
-		const UClass* InNodeClass,
+		const TSubclassOf<UOptimusNode> InNodeClass,
+		const FVector2D& InPosition
+	);
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* AddDataInterfaceNode(
+		const TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass,
 		const FVector2D& InPosition
 	);
 

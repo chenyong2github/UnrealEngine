@@ -17,8 +17,7 @@
 #include "UObject/UObjectGlobals.h"
 
 
-const FName UOptimusNode::CategoryName::Attributes("Attributes");
-const FName UOptimusNode::CategoryName::Meshes("Meshes");
+const FName UOptimusNode::CategoryName::DataProviders("Data Providers");
 const FName UOptimusNode::CategoryName::Deformers("Deformers");
 const FName UOptimusNode::CategoryName::Resources("Resources");
 const FName UOptimusNode::CategoryName::Variables("Variables");
@@ -229,13 +228,11 @@ TArray<UClass*> UOptimusNode::GetAllNodeClasses()
 {
 	if (CachedNodesClasses.IsEmpty())
 	{
-		UClass* ClassType = UOptimusNode::StaticClass();
-
 		for (TObjectIterator<UClass> It; It; ++It)
 		{
 			UClass* Class = *It;
-			if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated) &&
-				Class->IsChildOf(UOptimusNode::StaticClass()))
+			if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NotPlaceable) &&
+				Class->IsChildOf(StaticClass()))
 			{
 				CachedNodesClasses.Add(Class);
 			}

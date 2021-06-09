@@ -7,13 +7,13 @@
 #include "OptimusNodeLink.h"
 #include "OptimusNodePin.h"
 #include "OptimusActionStack.h"
-#include "Actions/OptimusNodeActions.h"
 #include "Actions/OptimusNodeGraphActions.h"
 #include "Nodes/OptimusNode_GetResource.h"
 #include "Nodes/OptimusNode_GetVariable.h"
 #include "Nodes/OptimusNode_SetResource.h"
 
 #include "Containers/Queue.h"
+#include "Nodes/OptimusNode_DataInterface.h"
 #include "Templates/Function.h"
 #include "UObject/Package.h"
 
@@ -50,13 +50,33 @@ FOptimusGraphNotifyDelegate& UOptimusNodeGraph::GetNotifyDelegate()
 
 
 UOptimusNode* UOptimusNodeGraph::AddNode(
-	const UClass* InNodeClass, 
+	const TSubclassOf<UOptimusNode> InNodeClass, 
 	const FVector2D& InPosition
 	)
 {
 	FOptimusNodeGraphAction_AddNode *AddNodeAction = new FOptimusNodeGraphAction_AddNode(
 		this, InNodeClass, 
 		[InPosition](UOptimusNode *InNode) { 
+			return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false); 
+		});
+	if (!GetActionStack()->RunAction(AddNodeAction))
+	{
+		return nullptr;
+	}
+
+	return AddNodeAction->GetNode(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
+UOptimusNode* UOptimusNodeGraph::AddDataInterfaceNode(
+	const TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass,
+	const FVector2D& InPosition
+	)
+{
+	FOptimusNodeGraphAction_AddNode *AddNodeAction = new FOptimusNodeGraphAction_AddNode(
+		this, UOptimusNode_DataInterface::StaticClass(), 
+		[InDataInterfaceClass, InPosition](UOptimusNode *InNode) {
+			Cast<UOptimusNode_DataInterface>(InNode)->SetDataInterfaceClass(InDataInterfaceClass);
 			return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false); 
 		});
 	if (!GetActionStack()->RunAction(AddNodeAction))
