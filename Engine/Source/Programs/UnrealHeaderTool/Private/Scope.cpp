@@ -21,49 +21,38 @@ void FScope::AddType(FUnrealFieldDefinitionInfo& Type)
 	TypeMap.Add(Type.GetFName(), &Type);
 }
 
-/**
- * Dispatch type to one of three arrays Enums, Structs and DelegateFunctions.
- *
- * @param Type Input type.
- * @param Enums (Output parameter) Array to fill with enums.
- * @param Structs (Output parameter) Array to fill with structs.
- * @param DelegateFunctions (Output parameter) Array to fill with delegate functions.
- */
-void DispatchType(FUnrealFieldDefinitionInfo& FieldDef, TArray<FUnrealEnumDefinitionInfo*>& Enums, TArray<FUnrealScriptStructDefinitionInfo*>& Structs, TArray<FUnrealFunctionDefinitionInfo*>& DelegateFunctions)
-{
-	if (UHTCast<FUnrealClassDefinitionInfo>(FieldDef) != nullptr)
-	{
-		// Inner scopes.
-		FieldDef.GetScope()->SplitTypesIntoArrays(Enums, Structs, DelegateFunctions);
-	}
-	else if (FUnrealEnumDefinitionInfo* EnumDef = UHTCast<FUnrealEnumDefinitionInfo>(FieldDef))
-	{
-		Enums.Add(EnumDef);
-	}
-	else if (FUnrealScriptStructDefinitionInfo* ScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(FieldDef))
-	{
-		Structs.Add(ScriptStructDef);
-	}
-	else if (FUnrealFunctionDefinitionInfo* FunctionDef = UHTCast<FUnrealFunctionDefinitionInfo>(FieldDef))
-	{
-		if (FunctionDef->IsDelegateFunction())
-		{
-			bool bAdded = false;
-			if (FunctionDef->GetSuperFunction() == nullptr)
-			{
-				DelegateFunctions.Add(FunctionDef);
-				bAdded = true;
-			}
-			check(bAdded);
-		}
-	}
-}
-
-void FScope::SplitTypesIntoArrays(TArray<FUnrealEnumDefinitionInfo*>& Enums, TArray<FUnrealScriptStructDefinitionInfo*>& Structs, TArray<FUnrealFunctionDefinitionInfo*>& DelegateFunctions)
+void FScope::GatherTypes(TArray<FUnrealFieldDefinitionInfo*>& Types)
 {
 	for (TPair<FName, FUnrealFieldDefinitionInfo*>& TypePair : TypeMap)
 	{
-		DispatchType(*TypePair.Value, Enums, Structs, DelegateFunctions);
+		FUnrealFieldDefinitionInfo* FieldDef = TypePair.Value;
+		if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(FieldDef))
+		{
+			// Inner scopes.
+			ClassDef->GetScope()->GatherTypes(Types);
+			Types.Add(ClassDef);
+		}
+		else if (FUnrealEnumDefinitionInfo* EnumDef = UHTCast<FUnrealEnumDefinitionInfo>(FieldDef))
+		{
+			Types.Add(EnumDef);
+		}
+		else if (FUnrealScriptStructDefinitionInfo* ScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(FieldDef))
+		{
+			Types.Add(ScriptStructDef);
+		}
+		else if (FUnrealFunctionDefinitionInfo* FunctionDef = UHTCast<FUnrealFunctionDefinitionInfo>(FieldDef))
+		{
+			if (FunctionDef->IsDelegateFunction())
+			{
+				bool bAdded = false;
+				if (FunctionDef->GetSuperFunction() == nullptr)
+				{
+					Types.Add(FunctionDef);
+					bAdded = true;
+				}
+				check(bAdded);
+			}
+		}
 	}
 }
 

@@ -124,13 +124,11 @@ public:
 	}
 
 	/**
-	 * Gets structs, enums and delegate functions from this scope.
-	 *
-	 * @param Enums (Output parameter) List of enums from this scope.
-	 * @param Structs (Output parameter) List of structs from this scope.
-	 * @param DelegateFunctions (Output parameter) List of delegate properties from this scope.
+	 * Collect a list of all types declared in this scope.  This includes any types defined in other types which 
+	 * at this time is not currently supported.  Functions that aren't delegates are not collected.
+	 * The types are returned in the order they are declared.
 	 */
-	void SplitTypesIntoArrays(TArray<FUnrealEnumDefinitionInfo*>& Enums, TArray<FUnrealScriptStructDefinitionInfo*>& Structs, TArray<FUnrealFunctionDefinitionInfo*>& DelegateFunctions);
+	void GatherTypes(TArray<FUnrealFieldDefinitionInfo*>& Types);
 
 	/**
 	 * Gets scope name.

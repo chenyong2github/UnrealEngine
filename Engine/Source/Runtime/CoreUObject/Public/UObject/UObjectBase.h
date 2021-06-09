@@ -350,17 +350,17 @@ struct FEnumReloadVersionInfo
 };
 
 /**
- * Registration information for structures
+ * Registration information for enums
  */
 using FEnumRegistrationInfo = TRegistrationInfo<UEnum, FEnumReloadVersionInfo>;
 
 /**
- * Adds a static structure registration and version information. The InInfo parameter must be static.
+ * Adds a static enum registration and version information. The InInfo parameter must be static.
  */
 COREUOBJECT_API void RegisterCompiledInInfo(class UEnum* (*InOuterRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FEnumRegistrationInfo& InInfo, const FEnumReloadVersionInfo& InVersionInfo);
 
 /**
- * Adds a dynamic struct registration.
+ * Adds a dynamic enum registration.
  */
 COREUOBJECT_API void RegisterCompiledInInfo(class UEnum* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName);
 
@@ -368,6 +368,27 @@ COREUOBJECT_API void RegisterCompiledInInfo(class UEnum* (*InRegister)(), const 
  * Invoke the registration method wrapped in notifications.
  */
 COREUOBJECT_API class UEnum* GetStaticEnum(class UEnum* (*InRegister)(), UObject* EnumOuter, const TCHAR* EnumName);
+
+/**
+ * Reload version information for packages 
+ */
+struct FPackageReloadVersionInfo
+{
+#if WITH_RELOAD
+	uint32 BodyHash = 0;
+	uint32 DeclarationsHash = 0;
+#endif
+};
+
+/**
+ * Registration information for packages
+ */
+using FPackageRegistrationInfo = TRegistrationInfo<UPackage, FPackageReloadVersionInfo>;
+
+/**
+ * Adds a static package registration and version information. The InInfo parameter must be static.
+ */
+COREUOBJECT_API void RegisterCompiledInInfo(UPackage* (*InOuterRegister)(), const TCHAR* InPackageName, FPackageRegistrationInfo& InInfo, const FPackageReloadVersionInfo& InVersionInfo);
 
 /**
  * Base class for deferred native class registration

@@ -575,4 +575,24 @@ FEdGraphNodeDeprecationResponse UK2Node_CustomEvent::GetDeprecationResponse(EEdG
 	return Response;
 }
 
+bool UK2Node_CustomEvent::HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const
+{
+	bool bResult = false;
+
+	// We use the dependencies of the linked node instead of the resulting function signature because a globally defined 
+	// delegate won't match a dependency check (it has no owner). 
+	const UEdGraphPin* DelegateOutPin = FindPin(DelegateOutputName);
+	const UEdGraphPin* LinkedPin = (DelegateOutPin && DelegateOutPin->LinkedTo.Num() && DelegateOutPin->LinkedTo[0]) ? FBlueprintEditorUtils::FindFirstCompilerRelevantLinkedPin(DelegateOutPin->LinkedTo[0]) : nullptr;
+	if (LinkedPin)
+	{
+		if (UK2Node* OtherNode = Cast<UK2Node>(LinkedPin->GetOwningNode()))
+		{
+			bResult = OtherNode->HasExternalDependencies(OptionalOutput);
+		}
+	}
+
+	bResult |= Super::HasExternalDependencies(OptionalOutput);
+	return bResult;
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -754,11 +754,11 @@ void FNativeClassHeaderGenerator::GetPropertyTag(FUHTStringBuilder& Out, FUnreal
 	{
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
 	case EUHTPropertyType::Enum:
-		PropertyBase.EnumDef->GetHashTag(Out);
+		PropertyBase.EnumDef->GetHashTag(PropDef, Out);
 		break;
 
 	case EUHTPropertyType::Struct:
-		PropertyBase.ScriptStructDef->GetHashTag(Out);
+		PropertyBase.ScriptStructDef->GetHashTag(PropDef, Out);
 		break;
 #endif
 
@@ -771,6 +771,13 @@ void FNativeClassHeaderGenerator::GetPropertyTag(FUHTStringBuilder& Out, FUnreal
 	case EUHTPropertyType::InterfaceReference:
 	case EUHTPropertyType::InterfaceReference:
 		PropertyBase.ClassDef->GetHashTag(Out);
+		break;
+#endif
+
+#if UHT_ENABLE_DELEGATE_PROPERTY_TAG
+	case EUHTPropertyType::Delegate:
+	case EUHTPropertyType::MulticastDelegate:
+		PropertyBase.FunctionDef->GetHashTag(PropDef, Out);
 		break;
 #endif
 
@@ -1826,7 +1833,14 @@ bool IsDelegateFunction(FUnrealFieldDefinitionInfo& FieldDef)
 void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, uint32 Hash)
 {
 	UPackage* Package = PackageDef.GetPackage();
-	const FString& SingletonName = GetPackageSingletonName(PackageDef, nullptr);
+	const FString& SingletonName = GetPackageSingletonNameFuncAddr(PackageDef, nullptr);
+
+	FString PackageName = Package->GetName();
+	PackageName.ReplaceInline(TEXT("/"), TEXT("_"), ESearchCase::CaseSensitive);
+	FString BodyHashFn = FString::Printf(TEXT("Z_UPackage_%s_BodyHash"), *PackageName);
+	FString DeclarationsHashFn = FString::Printf(TEXT("Z_UPackage_%s_DeclarationsHash"), *PackageName);
+
+	uint32 DeclarationsHash = GenerateTextHash(InDeclarations);
 
 	TArray<FUnrealFieldDefinitionInfo*> Singletons;
 	for (TSharedRef<FUnrealSourceFile>& SourceFile : PackageDef.GetAllSourceFiles())
@@ -1855,9 +1869,18 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 	FOutputDeviceNull OutputDeviceNull;
 	FString MetaDataParams = OutputMetaDataCodeForObject(OutputDeviceNull, Out, PackageDef, TEXT("Package_MetaDataParams"), TEXT(""), TEXT("\t\t\t"));
 
-	Out.Logf(TEXT("\tUPackage* %s\r\n"), *SingletonName);
+	Out.Logf(TEXT("\tuint32 %s()\t\r\n\t{\r\n\t\treturn 0x%08X;\r\n\t}\r\n"), *BodyHashFn, Hash);
+	Out.Logf(TEXT("\tuint32 %s()\t\r\n\t{\r\n\t\treturn 0x%08X;\r\n\t}\r\n"), *DeclarationsHashFn, DeclarationsHash);
+
+	Out.Logf(TEXT("\tstatic FPackageRegistrationInfo& Z_Registration_Info_UPackage_%s()\r\n"), *PackageName);
 	Out.Logf(TEXT("\t{\r\n"));
-	Out.Logf(TEXT("\t\tstatic UPackage* ReturnPackage = nullptr;\r\n"));
+	Out.Logf(TEXT("\t\tstatic FPackageRegistrationInfo info;\r\n"));
+	Out.Logf(TEXT("\t\treturn info;\r\n"));
+	Out.Logf(TEXT("\t}\r\n"));
+
+	Out.Logf(TEXT("\tUPackage* %s()\r\n"), *SingletonName);
+	Out.Logf(TEXT("\t{\r\n"));
+	Out.Logf(TEXT("\t\tstatic UPackage*& ReturnPackage = Z_Registration_Info_UPackage_%s().OuterSingleton;\r\n"), *PackageName);
 	Out.Logf(TEXT("\t\tif (!ReturnPackage)\r\n"));
 	Out.Logf(TEXT("\t\t{\r\n"));
 
@@ -1865,7 +1888,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 	const TCHAR* SingletonCount;
 	if (!Singletons.IsEmpty())
 	{
-		Out.Logf(TEXT("\t\t\tstatic UObject* (*const SingletonFuncArray[])() = {\r\n"));
+		Out.Logf(TEXT("\t\t\tUObject* (*const SingletonFuncArray[])() = {\r\n"));
 		for (FUnrealFieldDefinitionInfo* FieldDef : Singletons)
 		{
 			const FString& Name = FieldDef->GetSingletonNameChopped(true);
@@ -1882,19 +1905,29 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 		SingletonCount = TEXT("0");
 	}
 
-	Out.Logf(TEXT("\t\t\tstatic const UECodeGen_Private::FPackageParams PackageParams = {\r\n"));
+	Out.Logf(TEXT("\t\t\tconst UECodeGen_Private::FPackageParams PackageParams = {\r\n"));
 	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(Package->GetName()));
 	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), SingletonArray);
 	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), SingletonCount);
 	Out.Logf(TEXT("\t\t\t\tPKG_CompiledIn | 0x%08X,\r\n"), Package->GetPackageFlags() & (PKG_ClientOptional | PKG_ServerSideOnly | PKG_EditorOnly | PKG_Developer | PKG_UncookedOnly));
 	Out.Logf(TEXT("\t\t\t\t0x%08X,\r\n"), Hash);
-	Out.Logf(TEXT("\t\t\t\t0x%08X,\r\n"), GenerateTextHash(InDeclarations));
+	Out.Logf(TEXT("\t\t\t\t0x%08X,\r\n"), DeclarationsHash);
 	Out.Logf(TEXT("\t\t\t\t%s\r\n"), *MetaDataParams);
 	Out.Logf(TEXT("\t\t\t};\r\n"));
 	Out.Logf(TEXT("\t\t\tUECodeGen_Private::ConstructUPackage(ReturnPackage, PackageParams);\r\n"));
 	Out.Logf(TEXT("\t\t}\r\n"));
 	Out.Logf(TEXT("\t\treturn ReturnPackage;\r\n"));
 	Out.Logf(TEXT("\t}\r\n"));
+
+	// Do not change the Z_CompiledInDeferPackage_UPackage_ without changing LC_SymbolPatterns
+	Out.Logf(TEXT("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage_%s(%s, TEXT(\"%s\"), Z_Registration_Info_UPackage_%s(), CONSTUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, %s(), %s()));\r\n"),
+		*PackageName,
+		*SingletonName,
+		*Package->GetName(),
+		*PackageName,
+		*BodyHashFn,
+		*DeclarationsHashFn
+	);
 }
 
 void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& Out, FOutputDevice& OutDeclarations, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealClassDefinitionInfo& ClassDef, FUHTStringBuilder& OutFriendText) const
@@ -2025,7 +2058,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 				}
 
 				FUHTStringBuilder FuncHashTag;
-				FunctionDef->GetHashTag(FuncHashTag);
+				FunctionDef->GetHashTag(ClassDef, FuncHashTag);
 
 				StaticDefinitions.Logf(
 					TEXT("%s\t\t{ &%s, %s },%s\r\n%s"),
@@ -2089,7 +2122,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 				}
 
 				FUHTStringBuilder IntHash;
-				InterClassDef.GetHashTag(IntHash);
+				InterClassDef.GetHashTag(ClassDef, IntHash);
 				StaticDefinitions.Logf(
 					TEXT("\t\t\t{ %s, %s, %s }, %s\r\n"),
 					*InterClassDef.GetSingletonNameChopped(false),
@@ -2209,7 +2242,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 	FUnrealClassDefinitionInfo* SuperClassDef = ClassDef.GetSuperClass();
 	if (SuperClassDef && !SuperClassDef->HasAnyClassFlags(CLASS_Intrinsic))
 	{
-		BaseClassHash = SuperClassDef->GetHash();
+		BaseClassHash = SuperClassDef->GetHash(ClassDef);
 	}
 	GeneratedClassRegisterFunctionText.Logf(TEXT("\r\n// %u\r\n"), BaseClassHash);
 
@@ -5321,35 +5354,6 @@ static bool HasDynamicOuter(FUnrealFieldDefinitionInfo& FieldDef)
 	return FieldOuter && FieldOuter->IsDynamic();
 }
 
-static void RecordPackageSingletons(
-	FUnrealSourceFile& SourceFile,
-	const TArray<FUnrealScriptStructDefinitionInfo*>& StructDefs,
-	const TArray<FUnrealFunctionDefinitionInfo*>& DelegateDefs)
-{
-	TArray<FUnrealFieldDefinitionInfo*> Singletons;
-	Singletons.Reserve(StructDefs.Num() + DelegateDefs.Num());
-	for (FUnrealScriptStructDefinitionInfo* StructDef : StructDefs)
-	{
-		if (StructDef->HasAnyStructFlags(STRUCT_NoExport) && !HasDynamicOuter(*StructDef))
-		{
-			Singletons.Add(StructDef);
-		}
-	}
-
-	for (FUnrealFunctionDefinitionInfo* DelegateDef : DelegateDefs)
-	{
-		if (!HasDynamicOuter(*DelegateDef))
-		{
-			Singletons.Add(DelegateDef);
-		}
-	}
-
-	if (Singletons.Num())
-	{
-		SourceFile.GetSingletons().Append(MoveTemp(Singletons));
-	}
-}
-
 bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGeneratedFileInfo& FileInfo, const FString& InBodyText, FUnrealSourceFile* InSourceFile, const TSet<FString>& InCrossModuleReferences)
 {
 	// Collect the includes if this is from a source file
@@ -5478,23 +5482,25 @@ void FNativeClassHeaderGenerator::GenerateSourceFiles(
 
 					FReferenceGatherers ReferenceGatherers(&GeneratedCPP.CrossModuleReferences, GeneratedCPP.ForwardDeclarations);
 
-					TArray<FUnrealEnumDefinitionInfo*> EnumDefs;
-					TArray<FUnrealScriptStructDefinitionInfo*> StructDefs;
-					TArray<FUnrealFunctionDefinitionInfo*> DelegateFunctionDefs;
-					SourceFile.GetScope()->SplitTypesIntoArrays(EnumDefs, StructDefs, DelegateFunctionDefs);
+					TArray<FUnrealFieldDefinitionInfo*> Types;
+					SourceFile.GetScope()->GatherTypes(Types);
 
-					RecordPackageSingletons(SourceFile, StructDefs, DelegateFunctionDefs);
-
-					// Sort by line number to help make sure things are in order
-					auto Predicate = [](const FUnrealFieldDefinitionInfo& Lhs, const FUnrealFieldDefinitionInfo& Rhs)
+					// Make sure that all the types have a definition range.
+					for (FUnrealFieldDefinitionInfo* TypeDef : Types)
 					{
-						return Lhs.GetLineNumber() < Rhs.GetLineNumber();
-					};
-					EnumDefs.StableSort(Predicate);
-					StructDefs.StableSort(Predicate);
+						TypeDef->ValidateDefinitionRange();
+					}
 
-					// Reverse the containers as they come out in the reverse order of declaration
-					Algo::Reverse(DelegateFunctionDefs);
+					// Sort by the end of the definition range.  Since classes can contain delegates, we can't use the definition line
+					// since that will place the class ahead of the delegate.
+					Types.StableSort([](const FUnrealFieldDefinitionInfo& Lhs, const FUnrealFieldDefinitionInfo& Rhs)
+						{
+							return Lhs.GetDefinitionRange().End < Rhs.GetDefinitionRange().End;
+						}
+					);
+
+					TArray<FUnrealFieldDefinitionInfo*> Singletons;
+					Singletons.Reserve(Types.Num());
 
 					const FString FileDefineName = SourceFile.GetFileDefineName();
 					const FString& StrippedFilename = SourceFile.GetStrippedFilename();
@@ -5507,53 +5513,59 @@ void FNativeClassHeaderGenerator::GenerateSourceFiles(
 						LINE_TERMINATOR,
 						*FileDefineName, *StrippedFilename, *StrippedFilename, *FileDefineName);
 
-					// Export enums declared in non-UClass headers.
-					for (FUnrealEnumDefinitionInfo* EnumDef : EnumDefs)
+					for (FUnrealFieldDefinitionInfo* FieldDef : Types)
 					{
-						// Is this ever not the case?
-						if (EnumDef->GetOuter()->GetObject()->IsA(UPackage::StaticClass()))
+						if (FUnrealEnumDefinitionInfo* EnumDef = UHTCast<FUnrealEnumDefinitionInfo>(FieldDef))
 						{
-							GeneratedFunctionDeclarations.Log(EnumDef->GetExternDecl(true));
-							Generator.ExportGeneratedEnumInitCode(GeneratedCPPText, ReferenceGatherers, SourceFile, *EnumDef);
+							// Is this ever not the case?
+							if (EnumDef->GetOuter()->GetObject()->IsA(UPackage::StaticClass()))
+							{
+								GeneratedFunctionDeclarations.Log(EnumDef->GetExternDecl(true));
+								Generator.ExportGeneratedEnumInitCode(GeneratedCPPText, ReferenceGatherers, SourceFile, *EnumDef);
+							}
 						}
-					}
-
-					// export boilerplate macros for structs
-					// reverse the order.
-					for (FUnrealScriptStructDefinitionInfo* StructDef : StructDefs)
-					{
-						GeneratedFunctionDeclarations.Log(StructDef->GetExternDecl(true));
-						Generator.ExportGeneratedStructBodyMacros(GeneratedHeaderText, GeneratedCPPText, ReferenceGatherers, SourceFile, *StructDef);
-					}
-
-					// export delegate definitions
-					for (FUnrealFunctionDefinitionInfo* FunctionDef : DelegateFunctionDefs)
-					{
-						GeneratedFunctionDeclarations.Log(FunctionDef->GetExternDecl(true));
-						Generator.ExportDelegateDeclaration(GeneratedCPPText, ReferenceGatherers, SourceFile, *FunctionDef);
-					}
-
-					// export delegate wrapper function implementations
-					for (FUnrealFunctionDefinitionInfo* FunctionDef : DelegateFunctionDefs)
-					{
-						Generator.ExportDelegateDefinition(GeneratedHeaderText, ReferenceGatherers, SourceFile, *FunctionDef);
-					}
-
-					for (const TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedClasses())
-					{
-						FUnrealClassDefinitionInfo& ClassDef = TypeDef->AsClassChecked();
-						if (!ClassDef.HasAnyClassFlags(CLASS_Intrinsic))
+						else if (FUnrealScriptStructDefinitionInfo* ScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(FieldDef))
 						{
-							Generator.ExportClassFromSourceFileInner(GeneratedHeaderText, GeneratedCPPText, GeneratedFunctionDeclarations, ReferenceGatherers, ClassDef, SourceFile, GeneratedCPP.ExportFlags);
+							if (ScriptStructDef->HasAnyStructFlags(STRUCT_NoExport) && !HasDynamicOuter(*ScriptStructDef))
+							{
+								Singletons.Add(ScriptStructDef);
+							}
+							GeneratedFunctionDeclarations.Log(ScriptStructDef->GetExternDecl(true));
+							Generator.ExportGeneratedStructBodyMacros(GeneratedHeaderText, GeneratedCPPText, ReferenceGatherers, SourceFile, *ScriptStructDef);
+						}
+						else if (FUnrealFunctionDefinitionInfo* FunctionDef = UHTCast<FUnrealFunctionDefinitionInfo>(FieldDef))
+						{
+							if (!HasDynamicOuter(*FunctionDef))
+							{
+								Singletons.Add(FunctionDef);
+							}
+							GeneratedFunctionDeclarations.Log(FunctionDef->GetExternDecl(true));
+							Generator.ExportDelegateDeclaration(GeneratedCPPText, ReferenceGatherers, SourceFile, *FunctionDef);
+							Generator.ExportDelegateDefinition(GeneratedHeaderText, ReferenceGatherers, SourceFile, *FunctionDef);
+						}
+						else if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(FieldDef))
+						{
+							if (!ClassDef->HasAnyClassFlags(CLASS_Intrinsic))
+							{
+								Generator.ExportClassFromSourceFileInner(GeneratedHeaderText, GeneratedCPPText, GeneratedFunctionDeclarations, ReferenceGatherers, *ClassDef, SourceFile, GeneratedCPP.ExportFlags);
+							}
 						}
 					}
 
 					GeneratedHeaderText.Log(TEXT("#undef CURRENT_FILE_ID\r\n"));
 					GeneratedHeaderText.Logf(TEXT("#define CURRENT_FILE_ID %s\r\n\r\n\r\n"), *SourceFile.GetFileId());
 
-					for (FUnrealEnumDefinitionInfo* EnumDef : EnumDefs)
+					for (FUnrealFieldDefinitionInfo* FieldDef : Types)
 					{
-						Generator.ExportEnum(GeneratedHeaderText, *EnumDef);
+						if (FUnrealEnumDefinitionInfo* EnumDef = UHTCast<FUnrealEnumDefinitionInfo>(FieldDef))
+						{
+							Generator.ExportEnum(GeneratedHeaderText, *EnumDef);
+						}
+					}
+
+					if (Singletons.Num())
+					{
+						SourceFile.GetSingletons().Append(MoveTemp(Singletons));
 					}
 				}
 			);

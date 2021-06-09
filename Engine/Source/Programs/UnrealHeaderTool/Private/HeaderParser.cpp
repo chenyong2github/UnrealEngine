@@ -1052,6 +1052,8 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 		Throwf(TEXT("Invalid BlueprintType enum base - currently only uint8 supported"));
 	}
 
+	EnumDef.GetDefinitionRange().Start = &Input[InputPos];
+
 	// Get opening brace.
 	RequireSymbol( TEXT('{'), TEXT("'Enum'") );
 
@@ -1220,6 +1222,8 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 		// Trailing brace for the namespace.
 		RequireSymbol( TEXT('}'), TEXT("'Enum'") );
 	}
+
+	EnumDef.GetDefinitionRange().End = &Input[InputPos];
 
 	// Register the list of enum names.
 	if (!EnumDef.SetEnums(EnumNames, CppForm, Flags))
@@ -1851,6 +1855,8 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 	// Register the metadata
 	FUHTMetaData::RemapAndAddMetaData(StructDef, MoveTemp(MetaData));
 
+	StructDef.GetDefinitionRange().Start = &Input[InputPos];
+
 	// Get opening brace.
 	RequireSymbol( TEXT('{'), TEXT("'struct'") );
 
@@ -2019,6 +2025,8 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 			}
 		}
 	}
+
+	StructDef.GetDefinitionRange().End = &Input[InputPos];
 
 	// Validation
 	bool bStructBodyFound = StructDef.GetMacroDeclaredLineNumber() != INDEX_NONE;
@@ -5913,6 +5921,8 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 		FuncInfo.FunctionFlags |= FUNC_MulticastDelegate;
 	}
 
+	const TCHAR* StartPos = &Input[InputPos];
+
 	// Now parse the macro body
 	RequireSymbol(TEXT('('), CurrentScopeName);
 
@@ -5959,6 +5969,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 	}
 
 	FUnrealFunctionDefinitionInfo& DelegateSignatureFunctionDef = CreateFunction(MoveTemp(FuncInfo), bIsSparse ? EFunctionType::SparseDelegate : EFunctionType::Delegate);
+	DelegateSignatureFunctionDef.GetDefinitionRange().Start = StartPos;
 	const FFuncInfo& FuncDefFuncInfo = DelegateSignatureFunctionDef.GetFunctionData();
 
 	// determine whether this function should be 'const'
@@ -6010,6 +6021,8 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 		// Require the closing paren even with no parameter list
 		RequireSymbol(TEXT(')'), TEXT("Delegate Declaration"));
 	}
+
+	DelegateSignatureFunctionDef.GetDefinitionRange().End = &Input[InputPos];
 
 	// The macro line must be set here
 	DelegateSignatureFunctionDef.GetFunctionData().MacroLine = InputLine;
@@ -6313,6 +6326,8 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 		Throwf(TEXT("Missing %s name"), TypeOfFunction);
 	}
 
+	const TCHAR* StartPos = &Input[InputPos];
+
 	if ( !MatchSymbol(TEXT('(')) )
 	{
 		Throwf(TEXT("Bad %s definition"), TypeOfFunction);
@@ -6358,6 +6373,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	}
 
 	FUnrealFunctionDefinitionInfo& FuncDef = CreateFunction(MoveTemp(FuncInfo), EFunctionType::Function);
+	FuncDef.GetDefinitionRange().Start = StartPos;
 	const FFuncInfo& FuncDefFuncInfo = FuncDef.GetFunctionData();
 	FUnrealFunctionDefinitionInfo* SuperFuncDef = FuncDef.GetSuperFunction();
 
@@ -6493,6 +6509,8 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	{
 		Throwf(TEXT("Function '%s': Base implementation of RPCs cannot be in a state. Add a stub outside state scope."), *FuncDef.GetName());
 	}
+
+	FuncDef.GetDefinitionRange().End = &Input[InputPos];
 
 	// Just declaring a function, so end the nesting.
 	PostPopFunctionDeclaration(FuncDef);

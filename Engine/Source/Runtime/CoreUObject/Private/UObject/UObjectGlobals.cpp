@@ -4917,10 +4917,25 @@ namespace UECodeGen_Private
 		NewPackage->SetGuid(FGuid(Params.BodyCRC, Params.DeclarationsCRC, 0u, 0u));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+#if WITH_RELOAD
+		TArray<UFunction*> Delegates;
+		Delegates.Reserve(Params.NumSingletons);
+#endif
 		for (UObject* (*const *SingletonFunc)() = Params.SingletonFuncArray, *(*const *SingletonFuncEnd)() = SingletonFunc + Params.NumSingletons; SingletonFunc != SingletonFuncEnd; ++SingletonFunc)
 		{
+#if WITH_RELOAD
+			UObject* Object = (*SingletonFunc)();
+			if (UFunction* Function = Cast<UFunction>(Object))
+			{
+				Delegates.Add(Function);
+			}
+#else
 			(*SingletonFunc)();
+#endif
 		}
+#if WITH_RELOAD
+		NewPackage->Delegates = MoveTemp(Delegates);
+#endif
 	}
 
 	void ConstructUClass(UClass*& OutClass, const FClassParams& Params)

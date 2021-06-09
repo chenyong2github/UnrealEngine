@@ -504,12 +504,12 @@ public:
 	/**
 	 * Return the previously set hash. This method will assert if the hash has not been set.
 	 */
-	virtual uint32 GetHash(bool bIncludeNoExport = true) const;
+	virtual uint32 GetHash(FUnrealTypeDefinitionInfo& ReferencingDef, bool bIncludeNoExport = true) const;
 
 	/**
 	 * Return the hash as a code comment.
 	 */
-	void GetHashTag(FUHTStringBuilder& Out) const;
+	void GetHashTag(FUnrealTypeDefinitionInfo& ReferencingDef, FUHTStringBuilder& Out) const;
 
 	/**
 	 * Add meta data for the given definition
@@ -1653,6 +1653,13 @@ private:
 class FUnrealFieldDefinitionInfo 
 	: public FUnrealObjectDefinitionInfo
 {
+public:
+	struct FDefinitionRange
+	{
+		const TCHAR* Start = nullptr;
+		const TCHAR* End = nullptr;
+	};
+
 protected:
 	using FUnrealObjectDefinitionInfo::FUnrealObjectDefinitionInfo;
 
@@ -1764,6 +1771,33 @@ public:
 	 */
 	void PostParseFinalizeReferencedProperties();
 
+	/**
+	 * Return the definition range of the structure
+	 */
+	FDefinitionRange& GetDefinitionRange()
+	{
+		return DefinitionRange;
+	}
+
+	/**
+	 * Return the definition range of the structure
+	 */
+	const FDefinitionRange& GetDefinitionRange() const
+	{
+		return DefinitionRange;
+	}
+
+	/**
+	 * Verify we have a valid definition range
+	 */
+	void ValidateDefinitionRange()
+	{
+		if (DefinitionRange.End <= DefinitionRange.Start)
+		{
+			Throwf(TEXT("The definition range is invalid. Most probably caused by previous parsing error."));
+		}
+	}
+
 protected:
 	/**
 	 * Perform any post parsing finalization and validation
@@ -1775,6 +1809,7 @@ private:
 	FString SingletonNameChopped[2];
 	FString ExternDecl[2];
 	FString TypePackageName;
+	FDefinitionRange DefinitionRange;
 
 	/** Linked list of all properties that reference this field */
 	std::atomic<FUnrealPropertyDefinitionInfo*> ReferencingProperties = nullptr;
@@ -2003,13 +2038,6 @@ public:
 		FString Name;
 		FUnrealStructDefinitionInfo* Struct = nullptr;
 	};
-
-	struct FDefinitionRange
-	{
-		const TCHAR* Start = nullptr;
-		const TCHAR* End = nullptr;
-	};
-
 
 public:
 	virtual FUnrealStructDefinitionInfo* AsStruct() override
@@ -2246,25 +2274,6 @@ public:
 	}
 
 	/**
-	 * Verify we have a valid definition range
-	 */
-	void ValidateDefinitionRange()
-	{
-		if (DefinitionRange.End <= DefinitionRange.Start)
-		{
-			Throwf(TEXT("The class definition range is invalid. Most probably caused by previous parsing error."));
-		}
-	}
-
-	/**
-	 * Return the definition range of the structure
-	 */
-	FDefinitionRange& GetDefinitionRange()
-	{
-		return DefinitionRange;
-	}
-
-	/**
 	 * Get the RigVM information
 	 */
 	FRigVMStructInfo& GetRigVMInfo()
@@ -2302,8 +2311,6 @@ private:
 	FBaseStructInfo SuperStructInfo;
 	TArray<FBaseStructInfo> BaseStructInfos;
 
-	FDefinitionRange DefinitionRange;
-
 	FRigVMStructInfo RigVMInfo;
 
 	EGeneratedCodeVersion GeneratedCodeVersion = FUHTConfig::Get().DefaultGeneratedCodeVersion;
@@ -2328,7 +2335,7 @@ public:
 		return this;
 	}
 
-	virtual uint32 GetHash(bool bIncludeNoExport = true) const override;
+	virtual uint32 GetHash(FUnrealTypeDefinitionInfo& ReferencingDef, bool bIncludeNoExport = true) const override;
 
 	/**
 	 * Return the engine class name
@@ -2755,7 +2762,7 @@ public:
 	 */
 	virtual const TCHAR* GetPrefixCPP() const;
 
-	virtual uint32 GetHash(bool bIncludeNoExport = true) const override;
+	virtual uint32 GetHash(FUnrealTypeDefinitionInfo& ReferencingDef, bool bIncludeNoExport = true) const override;
 
 	/**
 	 * Return the Engine instance associated with the compiler instance

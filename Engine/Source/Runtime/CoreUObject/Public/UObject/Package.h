@@ -251,6 +251,11 @@ public:
 	/** size of the file for this package; if the package was not loaded from a file or was a forced export in another package, this will be zero */
 	uint64 FileSize;			// TODO: strip from runtime?
 
+#if WITH_RELOAD
+	/** Link list of delegates registered to the package.  The next pointer chain can't be used for this. */
+	TArray<UFunction*> Delegates;
+#endif
+
 #if WITH_EDITORONLY_DATA
 	/** Editor only: Thumbnails stored in this package */
 	TUniquePtr< FThumbnailMap > ThumbnailMap;

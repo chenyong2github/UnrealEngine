@@ -753,6 +753,16 @@ void UObjectCompiledInDefer(UClass *(*InRegister)(), UClass *(*InStaticClass)(),
 	}
 }
 
+// UPackage registration
+
+void RegisterCompiledInInfo(UPackage* (*InOuterRegister)(), const TCHAR* InPackageName, FPackageRegistrationInfo& InInfo, const FPackageReloadVersionInfo& InVersionInfo)
+{
+#if WITH_RELOAD
+	check(InOuterRegister);
+	FPackageDeferredRegistry::Get().AddRegistration(reinterpret_cast<class UPackage* (*)()>(InOuterRegister), nullptr, TEXT(""), InPackageName, InInfo, InVersionInfo, nullptr);
+#endif
+}
+
 /** Register all loaded classes */
 void UClassRegisterAllCompiledInClasses()
 {
@@ -763,7 +773,7 @@ void UClassRegisterAllCompiledInClasses()
 
 	FClassDeferredRegistry& Registry = FClassDeferredRegistry::Get();
 
-	Registry.RenameChangedObjects();
+	Registry.ProcessChangedObjects();
 
 	for (const FClassDeferredRegistry::FRegistrant& Registrant : Registry.GetRegistrations())
 	{
@@ -931,12 +941,14 @@ void ProcessNewlyLoadedUObjects(FName Package, bool bCanProcessNewlyLoadedObject
 	LLM_SCOPE(ELLMTag::UObject);
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ProcessNewlyLoadedUObjects"), STAT_ProcessNewlyLoadedUObjects, STATGROUP_ObjectVerbose);
 
+	FPackageDeferredRegistry& PackageRegistry = FPackageDeferredRegistry::Get();
 	FClassDeferredRegistry& ClassRegistry = FClassDeferredRegistry::Get();
 	FStructDeferredRegistry& StructRegistry = FStructDeferredRegistry::Get();
 	FEnumDeferredRegistry& EnumRegistry = FEnumDeferredRegistry::Get();
 
-	StructRegistry.RenameChangedObjects();
-	EnumRegistry.RenameChangedObjects();
+	PackageRegistry.ProcessChangedObjects(true);
+	StructRegistry.ProcessChangedObjects();
+	EnumRegistry.ProcessChangedObjects();
 
 	UClassRegisterAllCompiledInClasses();
 
@@ -960,6 +972,7 @@ void ProcessNewlyLoadedUObjects(FName Package, bool bCanProcessNewlyLoadedObject
 	if (Reload != nullptr)
 	{
 		UClassReplaceReloadClasses(); // Legacy
+		PackageRegistry.NotifyReload(*Reload);
 		EnumRegistry.NotifyReload(*Reload);
 		StructRegistry.NotifyReload(*Reload);
 		ClassRegistry.NotifyReload(*Reload);
@@ -967,6 +980,7 @@ void ProcessNewlyLoadedUObjects(FName Package, bool bCanProcessNewlyLoadedObject
 	}
 #endif
 
+	PackageRegistry.EmptyRegistrations();
 	EnumRegistry.EmptyRegistrations();
 	StructRegistry.EmptyRegistrations();
 	ClassRegistry.EmptyRegistrations();

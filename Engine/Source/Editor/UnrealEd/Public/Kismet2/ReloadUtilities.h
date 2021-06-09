@@ -40,6 +40,7 @@ public:
 	virtual void NotifyChange(UClass* New, UClass* Old) override;
 	virtual void NotifyChange(UEnum* New, UEnum* Old) override;
 	virtual void NotifyChange(UScriptStruct* New, UScriptStruct* Old) override;
+	virtual void NotifyChange(UPackage* New, UPackage* Old) override;
 	virtual void Reinstance() override;
 
 	/**
@@ -153,6 +154,7 @@ private:
 	FReinstanceStats ClassStats;
 	FReinstanceStats EnumStats;
 	FReinstanceStats StructStats;
+	FReinstanceStats PackageStats;
 	int32 NumFunctionsRemapped = 0;
 	int32 NumScriptStructsRemapped = 0;
 	mutable bool bEnabledMessage = false;
