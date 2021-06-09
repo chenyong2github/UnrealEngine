@@ -28,5 +28,8 @@ public class UnrealInsightsTarget : TargetRules
 		bBuildDeveloperTools = true;
 
 		bHasExports = false;
+
+		// Have UnrealInsights implicitly launch the trace store.
+		GlobalDefinitions.Add("WITH_UNREAL_TRACE_LAUNCH=1");
 	}
 }
