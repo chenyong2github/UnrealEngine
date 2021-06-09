@@ -1271,17 +1271,15 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			const bool bHasPrevTransform = InComponent->GetInstancePrevTransform(InInstanceIndex, InstancePrevTransform);
 
 			FPrimitiveInstance& Instance = Instances[OutInstanceIndex];
-			Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
+			Instance.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
 			
 			// TODO: KevinO cleanup
 			if (bHasPrevTransform)
 			{
 				bHasPrevInstanceTransforms = true;
-				Instance.PrevInstanceToLocal = InstancePrevTransform.ToMatrixWithScale();
+				Instance.PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
 			}
 
-			// Filled in during GPU Scene update...
-			Instance.LocalToWorld.SetIdentity();
 			Instance.LocalBounds = InComponent->GetStaticMesh()->GetBounds();
 			// GPUCULL_TODO: Set up Per-Instance Random and LightMapAndShadowMapUVBias  - fix LocalVertexFactory.ush
 		}
@@ -1325,7 +1323,7 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 					PrimitiveInstance.LocalBounds = StaticMeshBounds;
 					PrimitiveInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
 
-					InstanceBuffer.GetInstanceTransform(InstanceIndex, PrimitiveInstance.InstanceToLocal);
+					InstanceBuffer.GetInstanceTransform(InstanceIndex, PrimitiveInstance.LocalToPrimitive);
 					InstanceBuffer.GetInstanceLightMapData(InstanceIndex, PrimitiveInstance.LightMapAndShadowMapUVBias);
 					InstanceBuffer.GetInstanceRandomID(InstanceIndex, PrimitiveInstance.PerInstanceRandom);
 				}

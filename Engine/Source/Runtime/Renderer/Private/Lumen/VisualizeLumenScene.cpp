@@ -664,23 +664,25 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 						{
 							for (const FPrimitiveSceneInfo* ScenePrimitiveInfo : PrimitiveGroup.Primitives)
 							{
-								const FMatrix& PrimitiveLocalToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
+								const FMatrix& PrimitiveToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
 								const TArray<FPrimitiveInstance>* PrimitiveInstances = ScenePrimitiveInfo->Proxy->GetPrimitiveInstances();
 
 								const int32 NumInstances = PrimitiveInstances ? PrimitiveInstances->Num() : 1;
 								for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 								{
 									FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetLocalBounds().GetBox();
-									FMatrix LocalToWorld = PrimitiveLocalToWorld;
 
 									if (PrimitiveInstances && InstanceIndex < PrimitiveInstances->Num())
 									{
 										const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
 										LocalBoundingBox = PrimitiveInstance.LocalBounds.ToBox();
-										LocalToWorld = PrimitiveInstance.InstanceToLocal.ToMatrix() * PrimitiveLocalToWorld;
+										FMatrix LocalToWorld = PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
+										DrawWireBox(&ViewPDI, LocalToWorld, LocalBoundingBox, CardColor, DepthPriority);
 									}
-
-									DrawWireBox(&ViewPDI, LocalToWorld, LocalBoundingBox, CardColor, DepthPriority);
+									else
+									{
+										DrawWireBox(&ViewPDI, PrimitiveToWorld, LocalBoundingBox, CardColor, DepthPriority);
+									}
 								}
 							}
 						}

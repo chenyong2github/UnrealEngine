@@ -547,8 +547,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instances.Reserve(1);
 	Instances.SetNumZeroed(1);
 	FPrimitiveInstance& Instance = Instances[0];
-	Instance.InstanceToLocal.SetIdentity();
-	Instance.LocalToWorld.SetIdentity();
+	Instance.LocalToPrimitive.SetIdentity();
 	Instance.LocalBounds = Component->GetStaticMesh()->GetBounds();
 	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 	Instance.PerInstanceRandom = 0;
@@ -573,16 +572,15 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
 
 		FPrimitiveInstance& Instance = Instances[InstanceIndex];
-		Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
+		Instance.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
 		
 		// TODO: KevinO cleanup
 		if (bHasPrevTransform)
 		{
 			bHasPrevInstanceTransforms = true;
-			Instance.PrevInstanceToLocal = InstancePrevTransform.ToMatrixWithScale();
+			Instance.PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
 		}
 
-		Instance.LocalToWorld = Instance.InstanceToLocal;
 		Instance.LocalBounds = Component->GetStaticMesh()->GetBounds();
 		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 		Instance.PerInstanceRandom = 0.0f;
@@ -997,11 +995,14 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	const int32 InstanceCount = Instances.Num();
 	if (CachedRayTracingInstanceTransforms.Num() != InstanceCount || !bCachedRayTracingInstanceTransformsValid)
 	{
+		const FRenderTransform PrimitiveToWorld = (FMatrix44f)GetLocalToWorld();
+
 		CachedRayTracingInstanceTransforms.SetNumUninitialized(InstanceCount);
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 		{
 			const FPrimitiveInstance& Instance = Instances[InstanceIndex];
-			CachedRayTracingInstanceTransforms[InstanceIndex] = Instance.InstanceToLocal.ToMatrix() * GetLocalToWorld();
+			const FRenderTransform InstanceLocalToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
+			CachedRayTracingInstanceTransforms[InstanceIndex] = InstanceLocalToWorld.ToMatrix();
 		}
 		bCachedRayTracingInstanceTransformsValid = true;
 	}
@@ -1037,7 +1038,7 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	{
 		const FPrimitiveInstance& Instance = Instances[InstanceIndex];
 		// LocalToWorld multiplication will be done when added to FScene, and re-done when doing UpdatePrimitiveTransform
-		RayTracingInstance.InstanceTransforms[InstanceIndex] = Instance.InstanceToLocal.ToMatrix();
+		RayTracingInstance.InstanceTransforms[InstanceIndex] = Instance.LocalToPrimitive.ToMatrix();
 	}
 	RayTracingInstance.NumTransforms = InstanceCount;
 
@@ -1080,19 +1081,11 @@ void FSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectL
 {
 	if (DistanceFieldData)
 	{
-		const TArray<FPrimitiveInstance>* PrimitiveInstances = GetPrimitiveInstances();
-		if (PrimitiveInstances)
+		const FRenderTransform PrimitiveToWorld = (FMatrix44f)GetLocalToWorld();
+		for (const FPrimitiveInstance& Instance : Instances)
 		{
-			for (int32 InstanceIndex = 0; InstanceIndex < PrimitiveInstances->Num(); ++InstanceIndex)
-			{
-				// FPrimitiveInstance LocalToWorld is actually InstanceToWorld
-				const FRenderTransform& InstanceToWorld = (*PrimitiveInstances)[InstanceIndex].LocalToWorld;
-				ObjectLocalToWorldTransforms.Add(InstanceToWorld);
-			}
-		}
-		else
-		{
-			ObjectLocalToWorldTransforms.Add((FMatrix44f)GetLocalToWorld());
+			FRenderTransform& InstanceToWorld = ObjectLocalToWorldTransforms.Emplace_GetRef();
+			InstanceToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
 		}
 	}
 }

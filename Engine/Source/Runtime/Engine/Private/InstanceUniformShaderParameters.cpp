@@ -4,28 +4,57 @@
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveSceneInfo.h"
 
-FInstanceSceneShaderData::FInstanceSceneShaderData(const FPrimitiveInstance& Instance, uint32 PrimitiveId)
-	: Data(InPlace, NoInit)
+FInstanceSceneShaderData::FInstanceSceneShaderData(
+	const FPrimitiveInstance& Instance,
+	uint32 PrimitiveId,
+	const FRenderTransform& PrimitiveLocalToWorld,
+	const FRenderTransform& PrimitivePrevLocalToWorld,
+	uint32 LastUpdateFrame
+)
+: Data(InPlace, NoInit)
 {
-	Setup(Instance, PrimitiveId);
+	Setup(Instance, PrimitiveId, PrimitiveLocalToWorld, PrimitivePrevLocalToWorld, LastUpdateFrame);
 }
 
-void FInstanceSceneShaderData::Setup(const FPrimitiveInstance& Instance, uint32 PrimitiveId)
+void FInstanceSceneShaderData::Setup(
+	const FPrimitiveInstance& Instance,
+	uint32 PrimitiveId,
+	const FRenderTransform& PrimitiveToWorld,
+	const FRenderTransform& PrevPrimitiveToWorld,
+	uint32 LastUpdateFrame
+)
 {
 	// Note: layout must match GetInstanceData in SceneData.ush
 
 	// TODO: Could remove LightMapAndShadowMapUVBias if r.AllowStaticLighting=false.
 	// This is a read-only setting that will cause all shaders to recompile if changed.
 
+	FRenderTransform LocalToWorld		= Instance.LocalToPrimitive * PrimitiveToWorld;
+	FRenderTransform PrevLocalToWorld	= Instance.PrevLocalToPrimitive * PrevPrimitiveToWorld;
+
+	// Remove shear
+	LocalToWorld.Orthonormalize();
+	PrevLocalToWorld.Orthonormalize();
+
+	uint32 InstanceFlags = Instance.Flags;
+	if (LocalToWorld.RotDeterminant() < 0.0f)
+	{
+		InstanceFlags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
+	}
+	else
+	{
+		InstanceFlags &= ~INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
+	}
+
 	uint32 PayloadDataOffset = 0xFFFFFFFFu; // TODO: Implement payload data
 
-	Data[0].X  = *(const     float*)&Instance.Flags;
+	Data[0].X  = *(const     float*)&InstanceFlags;
 	Data[0].Y  = *(const     float*)&PrimitiveId;
 	Data[0].Z  = *(const     float*)&Instance.NaniteHierarchyOffset;
-	Data[0].W  = *(const     float*)&Instance.LastUpdateSceneFrameNumber;
+	Data[0].W  = *(const     float*)&LastUpdateFrame;
 
-	Instance.LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
-	Instance.PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
+	LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
+	PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
 
 	const FVector3f BoundsOrigin = Instance.LocalBounds.GetCenter();
 	const FVector3f BoundsExtent = Instance.LocalBounds.GetExtent();
@@ -43,13 +72,10 @@ void FInstanceSceneShaderData::Setup(const FPrimitiveInstance& Instance, uint32 
 
 static FPrimitiveInstance DummyInstance =
 	ConstructPrimitiveInstance(
-		FRenderTransform::Identity,
-		FRenderTransform::Identity,
 		FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
 		FVector4(ForceInitToZero),
 		NANITE_INVALID_HIERARCHY_OFFSET,
 		0u, /* Instance Flags */
-		0, /* Last Update Frame */
 		0.0f
 	);
 
@@ -60,6 +86,12 @@ ENGINE_API const FPrimitiveInstance& GetDummyPrimitiveInstance()
 
 ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 {
-	static FInstanceSceneShaderData DummyShaderData = FInstanceSceneShaderData(GetDummyPrimitiveInstance(), 0xFFFFFFFFu /* Primitive Id */);
+	static FInstanceSceneShaderData DummyShaderData = FInstanceSceneShaderData(
+		GetDummyPrimitiveInstance(),
+		0xFFFFFFFFu, /* Primitive Id */
+		FRenderTransform::Identity, /* Primitive LocalToWorld */
+		FRenderTransform::Identity,  /* Primitive PrevLocalToWorld */
+		INVALID_LAST_UPDATE_FRAME
+	);
 	return DummyShaderData;
 }

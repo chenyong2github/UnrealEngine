@@ -145,6 +145,17 @@ public:
 		return Scale;
 	}
 
+	FORCEINLINE bool IsScaleNonUniform() const
+	{
+		const FVector3f Scale = GetScale();
+		return
+		(
+			!FMath::IsNearlyEqual(Scale.X, Scale.Y) ||
+			!FMath::IsNearlyEqual(Scale.X, Scale.Z) ||
+			!FMath::IsNearlyEqual(Scale.Y, Scale.Z)
+		);
+	}
+
 	FORCEINLINE void Orthonormalize()
 	{
 		FVector3f X = TransformRows[0];

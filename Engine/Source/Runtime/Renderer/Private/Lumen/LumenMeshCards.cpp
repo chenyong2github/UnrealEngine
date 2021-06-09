@@ -427,11 +427,11 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 	float LargestInstanceArea = -1.0f;
 	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
 	{
-		const FMatrix& PrimitiveLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+		const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 		const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
 
 		float InstanceArea = BoxSurfaceArea(PrimitiveSceneInfo->Proxy->GetBounds().BoxExtent);
-		FMatrix InstanceMeshCardsLocalToWorld = PrimitiveLocalToWorld;
+		FMatrix InstanceMeshCardsLocalToWorld = PrimitiveToWorld;
 
 		if (PrimitiveInstances && PrimitiveInstances->Num() > 0)
 		{
@@ -440,7 +440,7 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 			{
 				const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
 				InstanceArea = BoxSurfaceArea(Instance.LocalBounds.GetExtent());
-				InstanceMeshCardsLocalToWorld = Instance.InstanceToLocal.ToMatrix() * PrimitiveLocalToWorld;
+				InstanceMeshCardsLocalToWorld = Instance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
 			}
 		}
 
@@ -461,10 +461,10 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 
 	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
 	{
-		const FMatrix& PrimitiveLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+		const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 		const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
 
-		const FMatrix PrimitiveLocalToMeshCardsLocal = PrimitiveLocalToWorld * WorldToMeshCardsLocal;
+		const FMatrix PrimitiveLocalToMeshCardsLocal = PrimitiveToWorld * WorldToMeshCardsLocal;
 
 		if (PrimitiveInstances && PrimitiveInstances->Num() > 0)
 		{
@@ -472,7 +472,7 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 			for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 			{
 				const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
-				MergedMeshCardsBounds += Instance.LocalBounds.ToBox().TransformBy(Instance.InstanceToLocal.ToMatrix() * PrimitiveLocalToMeshCardsLocal);
+				MergedMeshCardsBounds += Instance.LocalBounds.ToBox().TransformBy(Instance.LocalToPrimitive.ToMatrix() * PrimitiveLocalToMeshCardsLocal);
 			}
 		}
 		else
@@ -530,7 +530,7 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 			if (PrimitiveInstances)
 			{
 				const int32 PrimitiveInstanceIndex = FMath::Clamp(PrimitiveGroup.PrimitiveInstanceIndex, 0, PrimitiveInstances->Num() - 1);
-				LocalToWorld = (*PrimitiveInstances)[PrimitiveInstanceIndex].InstanceToLocal.ToMatrix() * LocalToWorld;
+				LocalToWorld = (*PrimitiveInstances)[PrimitiveInstanceIndex].LocalToPrimitive.ToMatrix() * LocalToWorld;
 			}
 
 			const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
