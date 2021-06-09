@@ -246,6 +246,9 @@ private:
 	/** Called to set property editors to show the given actors, even if those actors aren't in the current selection set */
 	void OnOverridePropertyEditorSelection(const TArray<AActor*>& NewSelection, bool bForceRefresh = false);
 
+	/** Called when an actor is destroyed */
+	void OnLevelActorDeleted(AActor* InActor);
+
 	/** Called when an actor changes outer */
 	void OnLevelActorOuterChanged(AActor* InActor = nullptr, UObject* InOldOuter = nullptr);
 
@@ -312,6 +315,9 @@ private:
 
 	/** Handle to the registered OnPreviewFeatureLevelChanged delegate. */
 	FDelegateHandle PreviewFeatureLevelChangedHandle;
+
+	/** Handle to the registered OnLevelActorDeleted delegate */
+	FDelegateHandle LevelActorDeletedHandle;
 
 	/** Handle to the registered OnLevelActorOuterChanged delegate */
 	FDelegateHandle LevelActorOuterChangedHandle;

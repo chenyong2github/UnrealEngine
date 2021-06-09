@@ -35,6 +35,7 @@
 	#include "Editor/UnrealEdEngine.h"
 	#include "PackageTools.h"
 	#include "ObjectTools.h"
+	#include "Selection.h"
 	#include "Subsystems/AssetEditorSubsystem.h"
 	#include "GameMapsSettings.h"
 	#include "FileHelpers.h"
@@ -399,6 +400,7 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 		if (InObject->IsAsset() && GIsEditor)
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(InObject);
+			GEditor->GetSelectedObjects()->Deselect(InObject);
 		}
 		ObjectsToPurge.Add(InObject);
 	};
