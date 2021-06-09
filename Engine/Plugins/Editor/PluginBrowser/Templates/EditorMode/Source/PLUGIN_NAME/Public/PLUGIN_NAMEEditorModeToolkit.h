@@ -4,22 +4,22 @@
 
 #include "CoreMinimal.h"
 #include "Toolkits/BaseToolkit.h"
+#include "PLUGIN_NAMEEditorMode.h"
 
-class FPLUGIN_NAMEEdModeToolkit : public FModeToolkit
+/**
+ * This FModeToolkit just creates a basic UI panel that allows various InteractiveTools to
+ * be initialized, and a DetailsView used to show properties of the active Tool.
+ */
+class FPLUGIN_NAMEEditorModeToolkit : public FModeToolkit
 {
 public:
+	FPLUGIN_NAMEEditorModeToolkit();
 
-	FPLUGIN_NAMEEdModeToolkit();
-	
 	/** FModeToolkit interface */
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
+	virtual void GetToolPaletteNames(TArray<FName>& PaletteNames) const override;
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
-
-private:
-
-	TSharedPtr<SWidget> ToolkitWidget;
 };

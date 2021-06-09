@@ -40,9 +40,11 @@ public class PLUGIN_NAME : ModuleRules
 				"SlateCore",
 				"InputCore",
 				"EditorFramework",
+				"EditorStyle",
 				"UnrealEd",
 				"LevelEditor",
-				"EditorStyle",
+				"InteractiveToolsFramework",
+				"EditorInteractiveToolsFramework"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
