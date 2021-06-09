@@ -34,6 +34,7 @@
 
 #include "EditorEngine.generated.h"
 
+class AMatineeActor;
 class APlayerStart;
 class Error;
 class FEditorViewportClient;
@@ -1726,7 +1727,6 @@ public:
 
 	/**
 	 * Request to create a new PIE window and join the currently running PIE session.
-	 * Deferred until the next tick.
 	 */
 	void RequestLateJoin();
 
@@ -2149,8 +2149,7 @@ public:
 	/**
 	 * Selects all actors controlled by currently selected MatineeActor
 	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	void SelectAllActorsControlledByMatinee() {}
+	void SelectAllActorsControlledByMatinee();
 
 	/**
 	 * Selects all actors with the same class as the current selection
@@ -2326,7 +2325,6 @@ public:
 	 *
 	 * @return The event delegate.
 	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldOpenMatineeCallback, AMatineeActor*)
 	FShouldOpenMatineeCallback& OnShouldOpenMatinee() { return ShouldOpenMatineeCallback; }
 
@@ -2336,8 +2334,7 @@ public:
 	 * @param MatineeActor	The actor we wish to check (can be null)
 	 * @returns true if the user wishes to proceed
 	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	bool ShouldOpenMatinee(AMatineeActor* MatineeActor) const { return false; }
+	bool ShouldOpenMatinee(AMatineeActor* MatineeActor) const;
 
 	/** 
 	 * Open the Matinee tool to edit the supplied MatineeActor. Will check that MatineeActor has an InterpData attached.
@@ -2345,8 +2342,7 @@ public:
 	 * @param MatineeActor	The actor we wish to edit
 	 * @param bWarnUser		If true, calls ShouldOpenMatinee as part of the open process
 	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	void OpenMatinee(class AMatineeActor* MatineeActor, bool bWarnUser = true) {}
+	void OpenMatinee(class AMatineeActor* MatineeActor, bool bWarnUser=true);
 
 	/**
 	* Update any outstanding reflection captures
@@ -2834,7 +2830,7 @@ private:
 	FExecParticleInvoked ExecParticleInvokedEvent; 
 
 	/** Delegate to be called when a matinee is requested to be opened */
-	FShouldOpenMatineeCallback ShouldOpenMatineeCallback;	
+	FShouldOpenMatineeCallback ShouldOpenMatineeCallback;
 
 	/** Reference to owner of the current popup */
 	TWeakPtr<class SWindow> PopupWindow;
@@ -3097,7 +3093,6 @@ private:
 protected:
 
 	/** Called when Matinee is opened */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
 	virtual void OnOpenMatinee(){};
 
 	/**

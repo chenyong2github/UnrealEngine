@@ -37,6 +37,7 @@
 #include "EditorModes.h"
 #include "UnrealEdMisc.h"
 #include "FileHelpers.h"
+#include "EditorModeInterpolation.h"
 #include "UnrealEdGlobals.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
@@ -49,6 +50,7 @@
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 #include "LevelEditor.h"
+#include "Matinee/MatineeActor.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "LightingBuildOptions.h"
 #include "EditorSupportDelegates.h"
@@ -1837,6 +1839,11 @@ bool FLevelEditorActionCallbacks::CanSelectComponentOwnerActor()
 	return GEditor->GetSelectedComponentCount() > 0;
 }
 
+void FLevelEditorActionCallbacks::OnSelectAllActorsControlledByMatinee()
+{
+	GEditor->SelectAllActorsControlledByMatinee();
+}
+
 void FLevelEditorActionCallbacks::OnSelectOwningHLODCluster()
 {
 	if (GEditor->GetSelectedActorCount() > 0)
@@ -1852,6 +1859,27 @@ void FLevelEditorActionCallbacks::OnSelectOwningHLODCluster()
 			GEditor->SelectNone(false, true);
 			GEditor->SelectActor(ParentActor, true, false);
 			GEditor->NoteSelectionChange();
+		}
+	}
+}
+
+void FLevelEditorActionCallbacks::OnSelectMatineeActor( AMatineeActor * ActorToSelect )
+{
+	GEditor->SelectNone( false, true );
+	GEditor->SelectActor(ActorToSelect, true, false, true);
+
+	GEditor->NoteSelectionChange();
+}
+
+void FLevelEditorActionCallbacks::OnSelectMatineeGroup( AActor* Actor )
+{
+	if( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_InterpEdit ) )
+	{
+		FEdModeInterpEdit* InterpEditMode = (FEdModeInterpEdit*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_InterpEdit );
+
+		if ( InterpEditMode && InterpEditMode->MatineeActor )
+		{
+			InterpEditMode->UpdateSelectedActor();
 		}
 	}
 }
@@ -3434,6 +3462,7 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( SelectStationaryLightsExceedingOverlap, "Select Stationary Lights exceeding overlap", "Selects all stationary lights exceeding the overlap limit", EUserInterfaceActionType::Button, FInputChord() ); 
 	UI_COMMAND( SelectAllAddditiveBrushes, "Select All Additive Brushes", "Selects all additive brushes", EUserInterfaceActionType::Button, FInputChord() ); 
 	UI_COMMAND( SelectAllSubtractiveBrushes, "Select All Subtractive Brushes", "Selects all subtractive brushes", EUserInterfaceActionType::Button, FInputChord() ); 
+	UI_COMMAND( SelectAllActorsControlledByMatinee, "Select Actors Used by This Matinee", "Selects all actors controlled by this Matinee", EUserInterfaceActionType::Button, FInputChord() ); 
 
 	UI_COMMAND( SelectAllSurfaces, "Select All Surfaces", "Selects all bsp surfaces", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::S) ); 
 

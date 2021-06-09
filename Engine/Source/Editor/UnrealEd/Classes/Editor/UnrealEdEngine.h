@@ -210,8 +210,7 @@ public:
 	virtual void GetPackageList( TArray<UPackage*>* InPackages, UClass* InClass ) override;
 	virtual bool ShouldAbortActorDeletion() const override final; // @note Final - Override ShouldAbortComponentDeletion or ShouldAbortActorDeletion (with parameters) instead.
 	virtual void CloseEditor() override;
-
-	
+	virtual void OnOpenMatinee() override;
 	virtual bool IsAutosaving() const override;
 	//~ End UEditorEngine Interface 
 	
