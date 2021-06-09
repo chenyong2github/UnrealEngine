@@ -13,7 +13,7 @@
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
 #include "ComponentSourceInterfaces.h"  // for EStaticMeshEditingLOD
 
-#include "StaticMeshComponentToolTarget.generated.h"
+#include "StaticMeshToolTarget.generated.h"
 
 class UStaticMesh;
 
@@ -22,9 +22,14 @@ class UStaticMesh;
  * description.
  */
 UCLASS(Transient)
-class MODELINGCOMPONENTSEDITORONLY_API UStaticMeshComponentToolTarget : public UPrimitiveComponentToolTarget,
-	public IMeshDescriptionCommitter, public IMeshDescriptionProvider, public IMaterialProvider, public IStaticMeshBackedTarget,
-	public IDynamicMeshProvider, public IDynamicMeshCommitter
+class MODELINGCOMPONENTSEDITORONLY_API UStaticMeshToolTarget : 
+	public UToolTarget,
+	public IMeshDescriptionCommitter, 
+	public IMeshDescriptionProvider, 
+	public IMaterialProvider, 
+	public IStaticMeshBackedTarget,
+	public IDynamicMeshProvider, 
+	public IDynamicMeshCommitter
 {
 	GENERATED_BODY()
 
@@ -38,11 +43,9 @@ public:
 	/** @return current editing LOD */
 	virtual EStaticMeshEditingLOD GetEditingLOD() const { return EditingLOD; }
 
-public:
+	// UToolTarget
 	virtual bool IsValid() const override;
 
-
-public:
 	// IMeshDescriptionProvider implementation
 	FMeshDescription* GetMeshDescription() override;
 
@@ -68,18 +71,30 @@ public:
 
 	// Rest provided by parent class
 
-public:
-
 protected:
+	UStaticMesh* StaticMesh = nullptr;
+
 	EStaticMeshEditingLOD EditingLOD = EStaticMeshEditingLOD::LOD0;
 
-	friend class UStaticMeshComponentToolTargetFactory;
+	friend class UStaticMeshToolTargetFactory;
+
+	friend class UStaticMeshComponentToolTarget;
+
+	static bool IsValid(const UStaticMesh* StaticMesh, EStaticMeshEditingLOD EditingLOD);
+	static EStaticMeshEditingLOD GetValidEditingLOD(const UStaticMesh* StaticMesh, 
+		EStaticMeshEditingLOD RequestedEditingLOD);
+	static void CommitMeshDescription(UStaticMesh* SkeletalMesh, FMeshDescription* MeshDescription,
+		const FCommitter& Committer, EStaticMeshEditingLOD EditingLODIn);
+	static void GetMaterialSet(const UStaticMesh* SkeletalMesh, 
+		FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials);
+	static bool CommitMaterialSetUpdate(UStaticMesh* SkeletalMesh, 
+		const FComponentMaterialSet& MaterialSet, bool bApplyToAsset);
 };
 
 
-/** Factory for UStaticMeshComponentToolTarget to be used by the target manager. */
+/** Factory for UStaticMeshToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class MODELINGCOMPONENTSEDITORONLY_API UStaticMeshComponentToolTargetFactory : public UToolTargetFactory
+class MODELINGCOMPONENTSEDITORONLY_API UStaticMeshToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 

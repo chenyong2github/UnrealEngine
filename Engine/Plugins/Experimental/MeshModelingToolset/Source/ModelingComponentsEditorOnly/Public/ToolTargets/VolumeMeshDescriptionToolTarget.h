@@ -31,7 +31,7 @@ public:
 protected:
 	// This isn't for caching- we have to take ownership of the mesh description because it is
 	// expected for things like a static mesh.
-	TSharedPtr<FMeshDescription> ConvertedMeshDescription;
+	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> ConvertedMeshDescription;
 
 	friend class UVolumeMeshDescriptionToolTargetFactory;
 };

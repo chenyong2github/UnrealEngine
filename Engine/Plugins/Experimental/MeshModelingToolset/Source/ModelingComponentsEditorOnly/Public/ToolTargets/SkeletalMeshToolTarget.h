@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,18 +12,17 @@
 #include "TargetInterfaces/SkeletalMeshBackedTarget.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
 
-#include "SkeletalMeshComponentToolTarget.generated.h"
+#include "SkeletalMeshToolTarget.generated.h"
 
 
 class USkeletalMesh;
 
 /**
- * A tool target backed by a skeletal mesh component that can provide and take a mesh
- * description.
+ * A tool target backed by a skeletal mesh.
  */
 UCLASS(Transient)
-class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentToolTarget :
-	public UPrimitiveComponentToolTarget,
+class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshToolTarget :
+	public UToolTarget,
 	public IMeshDescriptionCommitter,
 	public IMeshDescriptionProvider,
 	public IDynamicMeshProvider, 
@@ -34,6 +33,9 @@ class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentToolTarget :
 	GENERATED_BODY()
 
 public:
+	// UToolTarget
+	virtual bool IsValid() const override;
+
 	// IMeshDescriptionProvider implementation
 	FMeshDescription* GetMeshDescription() override;
 
@@ -51,25 +53,39 @@ public:
 	virtual TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> GetDynamicMesh() override;
 
 	// IDynamicMeshCommitter
-	virtual void CommitDynamicMesh(const UE::Geometry::FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo) override;
+	virtual void CommitDynamicMesh(const UE::Geometry::FDynamicMesh3& Mesh, 
+		const FDynamicMeshCommitInfo& CommitInfo) override;
 	using IDynamicMeshCommitter::CommitDynamicMesh; // unhide the other overload
 
 	// ISkeletalMeshBackedTarget implementation
 	USkeletalMesh* GetSkeletalMesh() const override;
 
 protected:
-	// So that the tool target factory can poke into Component.
-	friend class USkeletalMeshComponentToolTargetFactory;
+	USkeletalMesh* SkeletalMesh = nullptr;
 
+	// So that the tool target factory can poke into Component.
+	friend class USkeletalMeshToolTargetFactory;
+
+	
+	friend class USkeletalMeshComponentToolTarget;
+
+	static void GetMeshDescription(const USkeletalMesh* SkeletalMesh, FMeshDescription& MeshDescriptionOut);
+	static void CommitMeshDescription(USkeletalMesh* SkeletalMesh, 
+		FMeshDescription* MeshDescription, const FCommitter& Committer);
+	static void GetMaterialSet(const USkeletalMesh* SkeletalMesh, FComponentMaterialSet& MaterialSetOut,
+		bool bPreferAssetMaterials);
+	static bool CommitMaterialSetUpdate(USkeletalMesh* SkeletalMesh,
+		const FComponentMaterialSet& MaterialSet, bool bApplyToAsset);
+	
 private:
 	// Until USkeletalMesh stores its internal representation as FMeshDescription, we need to
 	// retain the storage here to cover the lifetime of the pointer returned by GetMeshDescription(). 
-	TUniquePtr<FMeshDescription> CachedMeshDescription;
+	TUniquePtr<FMeshDescription> CachedMeshDescription;	
 };
 
-/** Factory for USkeletalMeshComponentToolTarget to be used by the target manager. */
+/** Factory for USkeletalMeshToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentToolTargetFactory : public UToolTargetFactory
+class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 
