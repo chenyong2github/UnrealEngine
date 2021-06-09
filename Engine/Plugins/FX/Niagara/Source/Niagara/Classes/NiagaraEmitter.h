@@ -247,6 +247,8 @@ public:
 	/** Helper method for when a rename has been detected within the graph. Covers resetting the internal renderer bindings.*/
 	NIAGARA_API void HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts);
 
+	/** Helper method for binding the notifications needed for proper editor integration. */
+	NIAGARA_API void BindNotifications();
 #endif
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
 	void Serialize(FArchive& Ar)override;
