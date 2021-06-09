@@ -285,6 +285,26 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 			continue;
 		}
 
+		// Compiled function script (bytecode) may contain raw pointers to properties owned by this (or another) BP class. These
+		// fields will be immediately freed after the compilation phase (see UClass::DestroyPropertiesPendingDestruction()), thus
+		// invalidating any references to them in the "old" function object's serialized bytecode. Furthermore, reinstancing won't
+		// update this function's bytecode, as that operation is only applied to a Blueprint class's dependencies, and does not
+		// include "trash" class objects that we're creating here (see FBlueprintCompileReinstancer::UpdateBytecodeReferences()).
+		// As we typically run a GC pass after BP compilation, this normally isn't an issue, because the "trash" class object that
+		// owns this function object will get cleaned up at that point, preventing the "old" function object from being serialized
+		// (e.g. as part of reinstancing an external dependency), and ensuring that we don't encounter one of these "dangling"
+		// FField pointers. However, in certain cases (e.g. batched compiles) we may not run a GC pass in-between each operation,
+		// so to cover that case, we ensure that existing bytecode is fully purged before moving a function to the "trash" class.
+		if(UFunction* Function = Cast<UFunction>(CurrSubObj))
+		{
+			Function->Script.Empty();
+
+			// This array will get repopulated as part of constructing the new function object when compiling the class; we don't
+			// want to preserve the old copy, because then the old function object could potentially be identified as a referencer
+			// of a stale struct or a class asset during reference replacement if the previous dependency is subsequently recompiled.
+			Function->ScriptAndPropertyObjectReferences.Empty();
+		}
+
 		FName NewSubobjectName = MakeUniqueObjectName(TransientClass, CurrSubObj->GetClass(), CurrSubObj->GetFName());
 		CurrSubObj->Rename(*NewSubobjectName.ToString(), TransientClass, RenFlags | REN_ForceNoResetLoaders);
 		FLinkerLoad::InvalidateExport(CurrSubObj);
