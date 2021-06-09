@@ -959,6 +959,23 @@ void UNiagaraMeshRendererProperties::RebuildMeshList()
 	}
 }
 
+FNiagaraVariable UNiagaraMeshRendererProperties::GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const
+{
+	if (!NeedsPreciseMotionVectors())
+	{
+		if (Binding == &PrevPositionBinding
+			|| Binding == &PrevScaleBinding
+			|| Binding == &PrevMeshOrientationBinding
+			|| Binding == &PrevCameraOffsetBinding
+			|| Binding == &PrevVelocityBinding)
+		{
+			return FNiagaraVariable();
+		}
+	}
+
+	return Super::GetBoundAttribute(Binding);
+}
+
 #endif // WITH_EDITORONLY_DATA
 
 #undef LOCTEXT_NAMESPACE

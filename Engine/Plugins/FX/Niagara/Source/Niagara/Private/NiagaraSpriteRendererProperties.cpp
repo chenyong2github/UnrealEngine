@@ -641,6 +641,26 @@ void UNiagaraSpriteRendererProperties::CacheDerivedData()
 	}
 }
 
+FNiagaraVariable UNiagaraSpriteRendererProperties::GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const
+{
+	if (!NeedsPreciseMotionVectors())
+	{
+		if (Binding == &PrevPositionBinding
+			|| Binding == &PrevVelocityBinding
+			|| Binding == &PrevSpriteRotationBinding
+			|| Binding == &PrevSpriteSizeBinding
+			|| Binding == &PrevSpriteFacingBinding
+			|| Binding == &PrevSpriteAlignmentBinding
+			|| Binding == &PrevCameraOffsetBinding
+			|| Binding == &PrevPivotOffsetBinding)
+		{
+			return FNiagaraVariable();
+		}
+	}
+
+	return Super::GetBoundAttribute(Binding);
+}
+
 #endif // WITH_EDITORONLY_DATA
 
 

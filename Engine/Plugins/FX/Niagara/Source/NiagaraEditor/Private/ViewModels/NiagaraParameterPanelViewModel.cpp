@@ -1241,21 +1241,19 @@ const TArray<FNiagaraGraphParameterReference> FNiagaraSystemToolkitParameterPane
 			{
 				if (Item.GetVariable() == Builder.Histories[0].Variables[VariableIndex])
 				{
-					TArray<TTuple<const UEdGraphPin*, const UEdGraphPin*>>& ReadHistory = Builder.Histories[0].PerVariableReadHistory[VariableIndex];
-					for (const TTuple<const UEdGraphPin*, const UEdGraphPin*>& Read : ReadHistory)
+					for (const FNiagaraParameterMapHistory::FReadHistory& ReadHistory : Builder.Histories[0].PerVariableReadHistory[VariableIndex])
 					{
-						if (Read.Key->GetOwningNode() != nullptr)
+						if (ReadHistory.ReadPin.Pin->GetOwningNode() != nullptr)
 						{
-							GraphParameterReferences.Add(FNiagaraGraphParameterReference(Read.Key->PersistentGuid, Read.Key->GetOwningNode()));
+							GraphParameterReferences.Add(FNiagaraGraphParameterReference(ReadHistory.ReadPin.Pin->PersistentGuid, ReadHistory.ReadPin.Pin->GetOwningNode()));
 						}
 					}
 
-					TArray<const UEdGraphPin*>& WriteHistory = Builder.Histories[0].PerVariableWriteHistory[VariableIndex];
-					for (const UEdGraphPin* Write : WriteHistory)
+					for (const FModuleScopedPin& Write : Builder.Histories[0].PerVariableWriteHistory[VariableIndex])
 					{
-						if (Write->GetOwningNode() != nullptr)
+						if (Write.Pin->GetOwningNode() != nullptr)
 						{
-							GraphParameterReferences.Add(FNiagaraGraphParameterReference(Write->PersistentGuid, Write->GetOwningNode()));
+							GraphParameterReferences.Add(FNiagaraGraphParameterReference(Write.Pin->PersistentGuid, Write.Pin->GetOwningNode()));
 						}
 					}
 				}

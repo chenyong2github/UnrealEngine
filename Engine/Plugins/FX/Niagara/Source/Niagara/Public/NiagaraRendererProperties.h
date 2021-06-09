@@ -203,7 +203,8 @@ public:
 
 	virtual void FixMaterial(UMaterial* Material) { }
 
-	virtual const TArray<FNiagaraVariable>& GetBoundAttributes();
+	virtual TArray<FNiagaraVariable> GetBoundAttributes() const;
+
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 
@@ -269,6 +270,8 @@ protected:
 	virtual void PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode);
 	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false);
 
-	// Copy of variables in the attribute binding, updated when GetBoundAttributes() is called.
-	TArray<FNiagaraVariable> CurrentBoundAttributes;
+#if WITH_EDITORONLY_DATA
+	/** returns the variable associated with the supplied binding if it should be bound given the current settings of the RendererProperties. */
+	virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const;
+#endif
 };

@@ -34,6 +34,23 @@ private:
 	ENiagaraFunctionDebugState DebugState;
 };
 
+struct FModuleScopedPin
+{
+	FModuleScopedPin() = default;
+	FModuleScopedPin(const UEdGraphPin* InPin, FName InName = NAME_None)
+	: Pin(InPin)
+	, ModuleName(InName)
+	{}
+
+	bool operator==(const FModuleScopedPin& Rhs) const
+	{
+		return Pin == Rhs.Pin && ModuleName == Rhs.ModuleName;
+	}
+
+	const UEdGraphPin* Pin = nullptr;
+	FName ModuleName = NAME_None;
+};
+
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 
 * 	This class is meant to aid in UI and compilation of the graph. There are several main script types and each one interacts
 *	slightly differently with the history depending on context.
@@ -65,10 +82,16 @@ public:
 	TArray<FString> PerVariableWarnings;
 
 	/** For each variable that was found, identify the pins that wrote to them in order from first to last write.*/
-	TArray<TArray<const UEdGraphPin*> > PerVariableWriteHistory;
+	TArray<TArray<FModuleScopedPin> > PerVariableWriteHistory;
 
 	/** For each variable that was found, identify the pins that read them from the map in order from first to last read. First of the pair has the read pin, second of the pair has the last set that wrote to the pin.*/
-	TArray<TArray<TTuple<const UEdGraphPin*, const UEdGraphPin*> > > PerVariableReadHistory; 
+	struct FReadHistory
+	{
+		FModuleScopedPin ReadPin;
+		FModuleScopedPin PreviousWritePin;
+	};
+
+	TArray<TArray<FReadHistory>> PerVariableReadHistory; 
 
 	/** List of pins that manipulated the parameter map from input to output. */
 	TArray<const UEdGraphPin*> MapPinHistory;
@@ -98,7 +121,7 @@ public:
 	/**
 	* Find a variable by name with no concern for type.
 	*/
-	int32 FindVariableByName(const FName& VariableName, bool bAllowPartialMatch = false);
+	int32 FindVariableByName(const FName& VariableName, bool bAllowPartialMatch = false) const;
 
 	static int32 SearchArrayForPartialNameMatch(const TArray<FNiagaraVariable>& Variables, const FName& VariableName);
 	
@@ -207,8 +230,14 @@ public:
 	/** Does this parameter contain the "Initial" namespace as one of its intermediate namespaces?*/
 	static bool IsInitialValue(const FNiagaraVariableBase& InVar);
 
+	/** Does this variable name contain the "Initial" namespace as one of its intermediate namespaces? */
+	static bool IsInitialName(const FName& InVariableName);
+
 	/** Does this parameter contain the "Previous" namespace as one of its intermediate namespaces?*/
 	static bool IsPreviousValue(const FNiagaraVariableBase& InVar);
+
+	/** Does this variable name contain the "Previous" namespace as one of its intermediate namespaces? */
+	static bool IsPreviousName(const FName& InVariableName);
 
 	/** Get the output node associated with this graph.*/
 	const UNiagaraNodeOutput* GetFinalOutputNode() const;
@@ -216,13 +245,19 @@ public:
 	/** Does this parameter contain the "Initial" namespace as one of its intermediate namespaces? If so, remove the "Initial" namespace and return the original value.*/
 	static FNiagaraVariable GetSourceForInitialValue(const FNiagaraVariable& InVar);
 
+	/** Does this parameter contain the "Initial" namespace as one of its intermediate namespaces? If so, remove the "Initial" namespace and return the original value.*/
+	static FName GetSourceForInitialValue(const FName& InVariableName);
+
 	/** Does this parameter contain the "Previous" namespace as one of its intermediate namespaces? If so, remove the "Previous" namespace and return the original value.*/
 	static FNiagaraVariable GetSourceForPreviousValue(const FNiagaraVariable& InVar);
+
+	/** Does this parameter contain the "Previous" namespace as one of its intermediate namespaces? If so, remove the "Previous" namespace and return the original value.*/
+	static FName GetSourceForPreviousValue(const FName& InVariableName);
 
 	/**
 	* Helper to add a variable to the known list for a parameter map.
 	*/
-	int32 AddVariable(const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin, TOptional<FNiagaraVariableMetaData> InMetaData = TOptional<FNiagaraVariableMetaData>());
+	int32 AddVariable(const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, FName ModuleName, const UEdGraphPin* InPin, TOptional<FNiagaraVariableMetaData> InMetaData = TOptional<FNiagaraVariableMetaData>());
 
 	/** Get the default value for this variable.*/
 	const UEdGraphPin* GetDefaultValuePin(int32 VarIdx) const;

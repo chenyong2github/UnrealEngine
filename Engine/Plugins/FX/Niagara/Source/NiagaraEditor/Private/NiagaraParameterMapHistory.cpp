@@ -159,7 +159,7 @@ void FNiagaraParameterMapHistory::EndNodeVisitation(uint32 IndexFromBeginNode)
 }
 
 
-int32 FNiagaraParameterMapHistory::FindVariableByName(const FName& VariableName, bool bAllowPartialMatch)
+int32 FNiagaraParameterMapHistory::FindVariableByName(const FName& VariableName, bool bAllowPartialMatch) const
 {
 	if (!bAllowPartialMatch)
 	{
@@ -190,11 +190,12 @@ int32 FNiagaraParameterMapHistory::FindVariable(const FName& VariableName, const
 int32 FNiagaraParameterMapHistory::AddVariable(
 	  const FNiagaraVariable& InVar
 	, const FNiagaraVariable& InAliasedVar
+	, FName ModuleName
 	, const UEdGraphPin* InPin
 	, TOptional<FNiagaraVariableMetaData> InMetaData /*= TOptional<FNiagaraVariableMetaData>()*/)
 {
 	FNiagaraVariable Var = InVar;
-	
+
 	int32 FoundIdx = FindVariable(Var.GetName(), Var.GetType());
 	if (FoundIdx == -1)
 	{
@@ -208,33 +209,27 @@ int32 FNiagaraParameterMapHistory::AddVariable(
 			VariableMetaData.Add(InMetaData.GetValue());
 			check(Variables.Num() == VariableMetaData.Num());
 		}
-
-		if (InPin != nullptr)
-		{
-			PerVariableWriteHistory[FoundIdx].Add(InPin);
-		}
-
-		check(Variables.Num() == PerVariableWarnings.Num());
-		check(Variables.Num() == PerVariableWriteHistory.Num());
 	}
-	else
+	else if (Variables[FoundIdx].GetType() != Var.GetType())
 	{
-		if (Variables[FoundIdx].GetType() != Var.GetType())
-		{
-			PerVariableWarnings[FoundIdx].Append(FString::Printf(TEXT("Type mismatch %s instead of %s in map!"), *Var.GetType().GetName(), *Variables[FoundIdx].GetType().GetName()));
-		}
-		if (InPin != nullptr)
-		{
-			PerVariableWriteHistory[FoundIdx].Add(InPin);
-		}
+		PerVariableWarnings[FoundIdx].Append(FString::Printf(TEXT("Type mismatch %s instead of %s in map!"), *Var.GetType().GetName(), *Variables[FoundIdx].GetType().GetName()));
 	}
+
+	if (InPin != nullptr)
+	{
+		PerVariableWriteHistory[FoundIdx].Emplace(InPin, ModuleName);
+	}
+
+	check(Variables.Num() == PerVariableWarnings.Num());
+	check(Variables.Num() == PerVariableReadHistory.Num());
+	check(Variables.Num() == PerVariableWriteHistory.Num());
 
 	return FoundIdx;
 }
 
 int32 FNiagaraParameterMapHistory::AddExternalVariable(const FNiagaraVariable& Var)
 {
-	return AddVariable(Var, Var, nullptr);
+	return AddVariable(Var, Var, NAME_None, nullptr);
 }
 
 const UEdGraphPin* FNiagaraParameterMapHistory::GetFinalPin() const
@@ -431,97 +426,95 @@ const UEdGraphPin* FNiagaraParameterMapHistory::GetDefaultValuePin(int32 VarIdx)
 {
 	if (PerVariableWriteHistory[VarIdx].Num() > 0)
 	{
-		const UEdGraphPin* Pin = PerVariableWriteHistory[VarIdx][0];
-		if (Pin != nullptr && Pin->Direction == EEdGraphPinDirection::EGPD_Input && Cast<UNiagaraNodeParameterMapGet>(Pin->GetOwningNode()) != nullptr)
+		const FModuleScopedPin& ScopedPin = PerVariableWriteHistory[VarIdx][0];
+		if (ScopedPin.Pin != nullptr && ScopedPin.Pin->Direction == EEdGraphPinDirection::EGPD_Input && Cast<UNiagaraNodeParameterMapGet>(ScopedPin.Pin->GetOwningNode()) != nullptr)
 		{
-			return Pin;
+			return ScopedPin.Pin;
 		}
 	}
 	return nullptr;
 }
 
-bool FNiagaraParameterMapHistory::IsInitialValue(const FNiagaraVariableBase& InVar)
+static bool DoesVariableIncludeNamespace(const FName& InVariableName, const TCHAR* Namespace)
 {
 	TArray<FString> SplitName;
-	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
+	InVariableName.ToString().ParseIntoArray(SplitName, TEXT("."));
 
 	for (int32 i = 1; i < SplitName.Num() - 1; i++)
 	{
-		if (SplitName[i].Equals(PARAM_MAP_INITIAL_BASE_STR, ESearchCase::IgnoreCase))
+		if (SplitName[i].Equals(Namespace, ESearchCase::IgnoreCase))
 		{
 			return true;
 		}
 	}
 	return false;
+}
+
+static FName ReplaceVariableNamespace(const FName& InVariableName, const TCHAR* Namespace)
+{
+	TArray<FString> SplitName;
+	InVariableName.ToString().ParseIntoArray(SplitName, TEXT("."));
+
+	TArray<FString> JoinString;
+	bool bFound = false;
+	for (int32 i = 0; i < SplitName.Num(); i++)
+	{
+		if (!bFound && SplitName[i].Equals(Namespace, ESearchCase::IgnoreCase))
+		{
+			bFound = true;
+			continue;
+		}
+		else
+		{
+			JoinString.Add(SplitName[i]);
+		}
+	}
+
+	return *FString::Join(JoinString, TEXT("."));
+}
+
+bool FNiagaraParameterMapHistory::IsInitialName(const FName& InVariableName)
+{
+	return DoesVariableIncludeNamespace(InVariableName, PARAM_MAP_INITIAL_BASE_STR);
+}
+
+bool FNiagaraParameterMapHistory::IsInitialValue(const FNiagaraVariableBase& InVar)
+{
+	return IsInitialName(InVar.GetName());
+}
+
+bool FNiagaraParameterMapHistory::IsPreviousName(const FName& InVariableName)
+{
+	return DoesVariableIncludeNamespace(InVariableName, PARAM_MAP_PREVIOUS_BASE_STR);
 }
 
 bool FNiagaraParameterMapHistory::IsPreviousValue(const FNiagaraVariableBase& InVar)
 {
-	TArray<FString> SplitName;
-	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
-
-	for (int32 i = 1; i < SplitName.Num() - 1; i++)
-	{
-		if (SplitName[i].Equals(PARAM_MAP_PREVIOUS_BASE_STR, ESearchCase::IgnoreCase))
-		{
-			return true;
-		}
-	}
-	return false;
+	return IsPreviousName(InVar.GetName());
 }
 
 FNiagaraVariable FNiagaraParameterMapHistory::GetSourceForInitialValue(const FNiagaraVariable& InVar)
 {
-	TArray<FString> SplitName;
-	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
-
-	TArray<FString> JoinString;
-	bool bFound = false;
-	for (int32 i = 0; i < SplitName.Num(); i++)
-	{
-		if (!bFound && SplitName[i].Equals(PARAM_MAP_INITIAL_BASE_STR, ESearchCase::IgnoreCase))
-		{
-			bFound = true;
-			continue;
-		}
-		else
-		{
-			JoinString.Add(SplitName[i]);
-		}
-	}
-
-	FString OutVarStrName = FString::Join(JoinString, TEXT("."));
 	FNiagaraVariable Var = InVar;
-	Var.SetName(*OutVarStrName);
-
+	Var.SetName(GetSourceForInitialValue(InVar.GetName()));
 	return Var;
+}
+
+FName FNiagaraParameterMapHistory::GetSourceForInitialValue(const FName& InVariableName)
+{
+	return ReplaceVariableNamespace(InVariableName, PARAM_MAP_INITIAL_BASE_STR);
 }
 
 FNiagaraVariable FNiagaraParameterMapHistory::GetSourceForPreviousValue(const FNiagaraVariable& InVar)
 {
-	TArray<FString> SplitName;
-	InVar.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
-
-	TArray<FString> JoinString;
-	bool bFound = false;
-	for (int32 i = 0; i < SplitName.Num(); i++)
-	{
-		if (!bFound && SplitName[i].Equals(PARAM_MAP_PREVIOUS_BASE_STR, ESearchCase::IgnoreCase))
-		{
-			bFound = true;
-			continue;
-		}
-		else
-		{
-			JoinString.Add(SplitName[i]);
-		}
-	}
-
-	FString OutVarStrName = FString::Join(JoinString, TEXT("."));
 	FNiagaraVariable Var = InVar;
-	Var.SetName(*OutVarStrName);
-
+	Var.SetName(GetSourceForPreviousValue(InVar.GetName()));
 	return Var;
+}
+
+FName FNiagaraParameterMapHistory::GetSourceForPreviousValue(const FName& InVariableName)
+{
+	return ReplaceVariableNamespace(InVariableName, PARAM_MAP_PREVIOUS_BASE_STR);
 }
 
 bool FNiagaraParameterMapHistory::IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, const UNiagaraScript* InScript,  bool bAllowDataInterfaces) const
@@ -1279,7 +1272,12 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 		History.ParameterCollectionVariables[Index] = Collection->GetParameters();
 	}
 
-	int32 FoundIdx = Histories[ParamMapIdx].FindVariable(Var.GetName(), Var.GetType());
+	const FString* ModuleAlias = GetModuleAlias();
+	FName ModuleName = ModuleAlias ? FName(**ModuleAlias) : NAME_None;
+
+	bool AddWriteHistory = true;
+
+	int32 FoundIdx = History.FindVariable(Var.GetName(), Var.GetType());
 	if (FoundIdx == -1)
 	{
 		if (RegisterReadsAsVariables)
@@ -1289,7 +1287,8 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 				VisitInputPin(InDefaultPin, Cast<UNiagaraNode>(InDefaultPin->GetOwningNode()), bFilterForCompilation);
 			}
 
-			FoundIdx = AddVariableToHistory(Histories[ParamMapIdx], Var, AliasedVar, InDefaultPin);
+			FoundIdx = AddVariableToHistory(History, Var, AliasedVar, InDefaultPin);
+			AddWriteHistory = false;
 
 			// Add the default binding as well to the parameter history, if used.
 			if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(InPin->GetOwningNode()->GetGraph()))
@@ -1298,36 +1297,31 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 				if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding && Variable->DefaultBinding.IsValid())
 				{
 					FNiagaraVariable TempVar = FNiagaraVariable(Var.GetType(), Variable->DefaultBinding.GetName());
-					int32 FoundIdxBinding = AddVariableToHistory(Histories[ParamMapIdx], TempVar, TempVar, nullptr);
+					int32 FoundIdxBinding = AddVariableToHistory(History, TempVar, TempVar, nullptr);
 
-					Histories[ParamMapIdx].PerVariableReadHistory[FoundIdxBinding].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InDefaultPin, nullptr));
+					History.PerVariableReadHistory[FoundIdxBinding].AddDefaulted_GetRef().ReadPin = FModuleScopedPin(InDefaultPin, ModuleName);
 				}
 			}
-
-			Histories[ParamMapIdx].PerVariableReadHistory[FoundIdx].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InPin, nullptr));
-
 		}
-		check(Histories[ParamMapIdx].Variables.Num() == Histories[ParamMapIdx].PerVariableWarnings.Num());
-		check(Histories[ParamMapIdx].Variables.Num() == Histories[ParamMapIdx].PerVariableWriteHistory.Num());
-		check(Histories[ParamMapIdx].Variables.Num() == Histories[ParamMapIdx].PerVariableReadHistory.Num());
 	}
 	else
 	{
-		if (Histories[ParamMapIdx].Variables[FoundIdx].GetType() != Var.GetType())
+		if (History.Variables[FoundIdx].GetType() != Var.GetType())
 		{
-			Histories[ParamMapIdx].PerVariableWarnings[FoundIdx].Append(FString::Printf(TEXT("Type mismatch %s instead of %s in map!"), *Var.GetType().GetName(), *Histories[ParamMapIdx].Variables[FoundIdx].GetType().GetName()));
-		}
-
-
-		if (Histories[ParamMapIdx].PerVariableWriteHistory[FoundIdx].Num() > 0)
-		{
-			Histories[ParamMapIdx].PerVariableReadHistory[FoundIdx].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InPin, Histories[ParamMapIdx].PerVariableWriteHistory[FoundIdx][Histories[ParamMapIdx].PerVariableWriteHistory[FoundIdx].Num() - 1]));
-		}
-		else
-		{
-			Histories[ParamMapIdx].PerVariableReadHistory[FoundIdx].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InPin, nullptr));
+			History.PerVariableWarnings[FoundIdx].Append(FString::Printf(TEXT("Type mismatch %s instead of %s in map!"), *Var.GetType().GetName(), *History.Variables[FoundIdx].GetType().GetName()));
 		}
 	}
+
+	FNiagaraParameterMapHistory::FReadHistory& ReadEntry = History.PerVariableReadHistory[FoundIdx].AddDefaulted_GetRef();
+	ReadEntry.ReadPin = FModuleScopedPin(InPin, ModuleName);
+	if (AddWriteHistory && History.PerVariableWriteHistory[FoundIdx].Num())
+	{
+		ReadEntry.PreviousWritePin = History.PerVariableWriteHistory[FoundIdx].Last();
+	}
+
+	check(History.Variables.Num() == History.PerVariableWarnings.Num());
+	check(History.Variables.Num() == History.PerVariableWriteHistory.Num());
+	check(History.Variables.Num() == History.PerVariableReadHistory.Num());
 
 	return FoundIdx;
 }
@@ -1446,7 +1440,10 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleExternalVariableRead(int32 Param
 
 int32 FNiagaraParameterMapHistoryBuilder::AddVariableToHistory(FNiagaraParameterMapHistory& History, const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin)
 {
-	return History.AddVariable(InVar, InAliasedVar, InPin);
+	const FString* ModuleAlias = GetModuleAlias();
+	const FName ModuleName = ModuleAlias ? FName(**ModuleAlias) : NAME_None;
+	
+	return History.AddVariable(InVar, InAliasedVar, ModuleName, InPin);
 }
 
 void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
@@ -1638,13 +1635,16 @@ FCompileConstantResolver FCompileConstantResolver::WithUsage(ENiagaraScriptUsage
 
 int32 FNiagaraParameterMapHistoryWithMetaDataBuilder::AddVariableToHistory(FNiagaraParameterMapHistory& History, const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin)
 {
+	const FString* ModuleAlias = GetModuleAlias();
+	const FName ModuleName = ModuleAlias ? FName(**ModuleAlias) : NAME_None;
+
 	TOptional<FNiagaraVariableMetaData> MetaData = CallingGraphContext.Last()->GetMetaData(InAliasedVar);
 	if (MetaData.IsSet())
 	{
-		return History.AddVariable(InVar, InAliasedVar, InPin, MetaData);
+		return History.AddVariable(InVar, InAliasedVar, ModuleName, InPin, MetaData);
 	}
 	TOptional<FNiagaraVariableMetaData> BlankMetaData = FNiagaraVariableMetaData();
-	return History.AddVariable(InVar, InAliasedVar, InPin, BlankMetaData);
+	return History.AddVariable(InVar, InAliasedVar, ModuleName, InPin, BlankMetaData);
 }
 
 #undef LOCTEXT_NAMESPACE
