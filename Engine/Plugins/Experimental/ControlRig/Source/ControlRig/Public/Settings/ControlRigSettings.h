@@ -9,7 +9,10 @@
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "ControlRigGizmoLibrary.h"
+
+#if WITH_EDITOR
 #include "RigVMModel/RigVMGraph.h"
+#endif
 
 #include "ControlRigSettings.generated.h"
 
@@ -143,7 +146,10 @@ public:
 
 	static UControlRigSettings * Get() { return GetMutableDefault<UControlRigSettings>(); }
 
-private:
+#if WITH_EDITOR
 
+private:
 	static FString GetSnippetContentForUnitNode(UScriptStruct* InUnitNodeStruct);
+
+#endif
 };

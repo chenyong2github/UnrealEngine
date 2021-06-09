@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Settings/ControlRigSettings.h"
+
+#if WITH_EDITOR
 #include "RigVMModel/RigVMController.h"
 #include "RigVMModel/RigVMNode.h"
+#endif
 
 #include "Units/Hierarchy/RigUnit_GetTransform.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
@@ -28,6 +31,8 @@ UControlRigSettings::UControlRigSettings(const FObjectInitializer& ObjectInitial
 #endif
 }
 
+#if WITH_EDITOR
+
 FString UControlRigSettings::GetSnippetContentForUnitNode(UScriptStruct* InUnitNodeStruct)
 {
 	URigVMGraph* Graph = NewObject<URigVMGraph>(GetTransientPackage(), NAME_None, RF_Transient);
@@ -48,3 +53,5 @@ FString UControlRigSettings::GetSnippetContentForUnitNode(UScriptStruct* InUnitN
 	NodeNames.Add(Node->GetFName());
 	return Controller->ExportNodesToText(NodeNames);
 }
+
+#endif
