@@ -12,6 +12,7 @@ class UTypedElementSelectionSet;
 struct FToolMenuContext;
 class SLevelEditor;
 class SWidget;
+struct FToolMenuSection;
 
 /**
  * Context menu construction class 
