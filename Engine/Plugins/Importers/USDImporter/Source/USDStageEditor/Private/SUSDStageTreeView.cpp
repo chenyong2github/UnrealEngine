@@ -327,6 +327,13 @@ void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 		// stage from being fully closed, so we must do this whenever the stage changes
 		ClearExpandedItems();
 		TreeItemExpansionStates.Reset();
+
+		// Clear other things that may hold FUsdPrimViewModelRefs
+		LinearizedItems.Empty();
+		SelectorItem = SUsdStageTreeView::NullableItemType(nullptr);
+		RangeSelectionStart = SUsdStageTreeView::NullableItemType(nullptr);
+		ItemToScrollIntoView = SUsdStageTreeView::NullableItemType(nullptr);
+		ItemToNotifyWhenInView = SUsdStageTreeView::NullableItemType(nullptr);
 	}
 
 	UsdStageActor = InUsdStageActor;
