@@ -151,6 +151,16 @@ public:
 		return ErrorSummaryText;
 	}
 
+	FORCEINLINE bool operator !=(const FNiagaraDataInterfaceError& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	FORCEINLINE bool operator == (const FNiagaraDataInterfaceError& Other) const
+	{
+		return ErrorText.EqualTo(Other.ErrorText) && ErrorSummaryText.EqualTo(Other.ErrorSummaryText);
+	}
+
 private:
 	FText ErrorText;
 	FText ErrorSummaryText;
@@ -196,6 +206,16 @@ public:
 	FText GetFeedbackSummaryText() const
 	{
 		return FeedbackSummaryText;
+	}
+
+	FORCEINLINE bool operator !=(const FNiagaraDataInterfaceFeedback& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	FORCEINLINE bool operator == (const FNiagaraDataInterfaceFeedback& Other) const
+	{
+		return FeedbackText.EqualTo(Other.FeedbackText) && FeedbackSummaryText.EqualTo(Other.FeedbackSummaryText);
 	}
 
 private:
