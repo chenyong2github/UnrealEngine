@@ -259,8 +259,6 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		PropertyOwnerBlueprint = Cast<UBlueprint>(GeneratedClass->ClassGeneratedBy);
 	}
 
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-	
 	IDetailCategoryBuilder& Category = DetailLayout.EditCategory("Variable", LOCTEXT("VariableDetailsCategory", "Variable"));
 	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
 	
@@ -295,6 +293,12 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 	{
 		CustomPinTypeFilter = BlueprintEditor.Pin()->GetOrCreateNamespaceHelperForBlueprint(GetBlueprintObj())->GetPinTypeSelectorFilter();
 	}
+	
+	const UEdGraphSchema* Schema = GetDefault<UEdGraphSchema_K2>();
+	if (BlueprintEditor.IsValid())
+	{
+		Schema = BlueprintEditor.Pin()->GetFocusedGraph()->GetSchema();
+	}
 
 	Category.AddCustomRow(LOCTEXT("VariableTypeLabel", "Variable Type"))
 		.NameContent()
@@ -307,7 +311,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.ValueContent()
 		.MaxDesiredWidth(980.f)
 		[
-			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
+			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(GetDefault<UEdGraphSchema_K2>(), &UEdGraphSchema_K2::GetVariableTypeTree))
 			.TargetPinType(this, &FBlueprintVarActionDetails::OnGetVarType)
 			.OnPinTypeChanged(this, &FBlueprintVarActionDetails::OnVarTypeChanged)
 			.IsEnabled(this, &FBlueprintVarActionDetails::GetVariableTypeChangeEnabled)

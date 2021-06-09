@@ -61,6 +61,7 @@ public:
 	SLATE_BEGIN_ARGS(SPinTypeSelector)
 		: _TargetPinType()
 		, _Schema(nullptr)
+		, _SchemaAction(nullptr)
 		, _TypeTreeFilter(ETypeTreeFilter::None)
 		, _bAllowArrays(true)
 		, _TreeViewWidth(300.f)
@@ -70,7 +71,8 @@ public:
 		, _ReadOnly(false)
 		{}
 		SLATE_ATTRIBUTE( FEdGraphPinType, TargetPinType )
-		SLATE_ARGUMENT( const UEdGraphSchema_K2*, Schema )
+		SLATE_ARGUMENT( const UEdGraphSchema*, Schema )
+		SLATE_ARGUMENT( TWeakPtr<const FEdGraphSchemaAction>, SchemaAction)
 		SLATE_ARGUMENT( ETypeTreeFilter, TypeTreeFilter )
 		SLATE_ARGUMENT( bool, bAllowArrays )
 		SLATE_ATTRIBUTE( FOptionalSize, TreeViewWidth )
@@ -126,7 +128,10 @@ protected:
 	FGetPinTypeTree				GetPinTypeTree;
 
 	/** Schema in charge of determining available types for this pin */
-	UEdGraphSchema_K2*			Schema;
+	const UEdGraphSchema*				Schema;
+
+	/** Schema action related to the pin selection */
+	TWeakPtr<const FEdGraphSchemaAction> SchemaAction;
 
 	/** UEdgraphSchema::ETypeTreeFilter flags for filtering available types*/
 	ETypeTreeFilter				TypeTreeFilter;
@@ -193,6 +198,9 @@ protected:
 	FText SearchText;
 	void OnFilterTextChanged(const FText& NewText);
 	void OnFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
+
+	/** Helper to generate the filtered list of types, based on the supported types of the schema */
+	bool GetChildrenWithSupportedTypes(const TArray<FPinTypeTreeItem>& UnfilteredList, TArray<FPinTypeTreeItem>& OutFilteredList);
 
 	/** Helper to generate the filtered list of types, based on the search string matching */
 	bool GetChildrenMatchingSearch(const FText& SearchText, const TArray<FPinTypeTreeItem>& UnfilteredList, TArray<FPinTypeTreeItem>& OutFilteredList);

@@ -127,26 +127,6 @@ bool FControlRigGraphSchemaAction_LocalVar::IsVariableUsed()
 	return false;
 }
 
-void FControlRigGraphSchemaAction_LocalVar::GetVariableTypeTree(
-	TArray<TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>>& TypeTree, ETypeTreeFilter TypeTreeFilter) const
-{
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-	
-	// Clear the list
-	TypeTree.Empty();
-
-	TypeTree.Add( MakeShareable( new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_Boolean, true), UEdGraphSchema_K2::PC_Boolean, Schema, LOCTEXT("BooleanType", "True or false value"))));
-	TypeTree.Add( MakeShareable( new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_Int, true), UEdGraphSchema_K2::PC_Int, Schema, LOCTEXT("IntegerType", "Integer number")) ) );;
-	
-	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_Float, true), UEdGraphSchema_K2::PC_Float, Schema, LOCTEXT("FloatType", "Floating point number"))));
-	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_Name, true), UEdGraphSchema_K2::PC_Name, Schema, LOCTEXT("NameType", "A text name"))));
-	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::GetCategoryText(UEdGraphSchema_K2::PC_String, true), UEdGraphSchema_K2::PC_String, Schema, LOCTEXT("StringType", "A text string"))));
-
-	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::PC_Struct, TBaseStructure<FVector>::Get(), LOCTEXT("VectorType", "A 3D vector"))));
-	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::PC_Struct, TBaseStructure<FRotator>::Get(), LOCTEXT("RotatorType", "A 3D rotation"))));
-	TypeTree.Add(MakeShareable(new UEdGraphSchema_K2::FPinTypeTreeInfo(UEdGraphSchema_K2::PC_Struct, TBaseStructure<FTransform>::Get(), LOCTEXT("TransformType", "A 3D transformation, including translation, rotation and 3D scale."))));
-}
-
 FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
 {
 	// For local variables
@@ -536,6 +516,103 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 		}
 	}
 	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
+}
+
+bool UControlRigGraphSchema::SupportsPinType(UScriptStruct* ScriptStruct) const
+{
+	if(!ScriptStruct)
+	{
+		return false;
+	}
+
+	for (TFieldIterator<FProperty> It(ScriptStruct); It; ++It)
+	{
+		FName PropertyName = It->GetFName();
+		FProperty* Property = *It;
+
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		{
+			Property = ArrayProperty->Inner;
+		}
+
+		FString CPPType = Property->GetCPPType();
+		if (CPPType == TEXT("bool") ||
+			CPPType == TEXT("float") ||
+			CPPType == TEXT("int32") ||
+			CPPType == TEXT("FString") ||
+			CPPType == TEXT("FName") ||
+			CPPType == TEXT("uint16"))
+		{
+			continue;
+		}		
+		
+		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			if (SupportsPinType(StructProperty->Struct))
+			{
+				continue;
+			}
+		}
+		else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
+		{
+			continue;
+		}
+		else if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
+		{
+			if (ByteProperty->Enum)
+			{
+				continue;
+			}
+		}
+	
+		return false;
+	}
+	
+	return true;
+}
+
+bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction> SchemaAction, const FEdGraphPinType& PinType) const
+{
+	if (PinType.IsContainer())
+	{
+		return false;
+	}
+	
+	const FName TypeName = PinType.PinCategory;
+
+	if (TypeName == UEdGraphSchema_K2::PC_Boolean ||
+		TypeName == UEdGraphSchema_K2::PC_Int ||
+		TypeName == UEdGraphSchema_K2::PC_Float ||
+		TypeName == UEdGraphSchema_K2::PC_Name ||
+		TypeName == UEdGraphSchema_K2::PC_String ||
+		TypeName == UEdGraphSchema_K2::PC_Enum)
+	{
+		return true;
+	}
+
+	if (PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+	{
+		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(PinType.PinSubCategoryObject))
+		{
+			return SupportsPinType(ScriptStruct);
+		}
+	}
+
+	if (PinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
+	{
+		if (PinType.PinSubCategoryObject.IsValid())
+		{
+			return PinType.PinSubCategoryObject->IsA<UEnum>();
+		}
+	}
+
+	return false;
+}
+
+bool UControlRigGraphSchema::SupportsPinTypeContainer(TWeakPtr<const FEdGraphSchemaAction> SchemaAction,
+	const FEdGraphPinType& PinType, const EPinContainerType& ContainerType) const
+{
+	return ContainerType == EPinContainerType::None;
 }
 
 void UControlRigGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const

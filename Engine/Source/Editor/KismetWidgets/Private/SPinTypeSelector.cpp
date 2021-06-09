@@ -291,7 +291,8 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 	check(GetPinTypeTreeFunc.IsBound());
 	GetPinTypeTree = GetPinTypeTreeFunc;
 
-	Schema = (UEdGraphSchema_K2*)(InArgs._Schema);
+	Schema = InArgs._Schema;
+	SchemaAction = InArgs._SchemaAction;
 	TypeTreeFilter = InArgs._TypeTreeFilter;
 	TreeViewWidth = InArgs._TreeViewWidth;
 	TreeViewHeight = InArgs._TreeViewHeight;
@@ -977,6 +978,11 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 		}
 	}
 
+	// Remove types not supported by schema
+	TArray<FPinTypeTreeItem> FilteredBySupportedTypes;
+	GetChildrenWithSupportedTypes(TypeTreeRoot, FilteredBySupportedTypes);
+	TypeTreeRoot = FilteredBySupportedTypes;
+
 	if (CustomFilter.IsValid())
 	{
 		NumFilteredPinTypeItems = 0;
@@ -1091,13 +1097,21 @@ TSharedRef<SWidget> SPinTypeSelector::GetPinContainerTypeMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	if (PinTypeSelectorStatics::PinTypes.Num() == 0)
+	PinTypeSelectorStatics::PinTypes.Reset();
+	
+	PinTypeSelectorStatics::PinTypes.Add(MakeShared<EPinContainerType>(EPinContainerType::None));
+	PinTypeSelectorStatics::PinTypes.Add(MakeShared<EPinContainerType>(EPinContainerType::Array));
+	PinTypeSelectorStatics::PinTypes.Add(MakeShared<EPinContainerType>(EPinContainerType::Set));
+	PinTypeSelectorStatics::PinTypes.Add(MakeShared<EPinContainerType>(EPinContainerType::Map));
+
+
+	for (int32 i = PinTypeSelectorStatics::PinTypes.Num()-1; i >= 0; --i)
 	{
-		PinTypeSelectorStatics::PinTypes.Add(MakeShared<EPinContainerType>(EPinContainerType::None));
-		PinTypeSelectorStatics::PinTypes.Add(MakeShared<EPinContainerType>(EPinContainerType::Array));
-		PinTypeSelectorStatics::PinTypes.Add(MakeShared<EPinContainerType>(EPinContainerType::Set));
-		PinTypeSelectorStatics::PinTypes.Add(MakeShared<EPinContainerType>(EPinContainerType::Map));
-	}
+		if (!Schema->SupportsPinTypeContainer(SchemaAction, TargetPinType.Get(), *PinTypeSelectorStatics::PinTypes[i].Get()))
+		{
+			PinTypeSelectorStatics::PinTypes.RemoveAt(i);
+		}
+	}	
 
 	for (auto& PinType : PinTypeSelectorStatics::PinTypes)
 	{
@@ -1169,6 +1183,42 @@ void SPinTypeSelector::OnFilterTextCommitted(const FText& NewText, ETextCommit::
 			TypeTreeView->SetSelection(SelectedItems[0]);
 		}
 	}
+}
+
+bool SPinTypeSelector::GetChildrenWithSupportedTypes(const TArray<FPinTypeTreeItem>& UnfilteredList,
+	TArray<FPinTypeTreeItem>& OutFilteredList)
+{
+	bool bReturnVal = false;
+	
+	for( auto it = UnfilteredList.CreateConstIterator(); it; ++it )
+	{
+		FPinTypeTreeItem Item = *it;
+		FPinTypeTreeItem NewInfo = MakeShareable( new UEdGraphSchema_K2::FPinTypeTreeInfo(Item) );
+		TArray<FPinTypeTreeItem> ValidChildren;
+
+		const bool bHasChildrenWithValidTypes = GetChildrenWithSupportedTypes(Item->Children, ValidChildren);
+		bool bSupportsType = true;
+
+		if (!bHasChildrenWithValidTypes)
+		{
+			bSupportsType = Schema->SupportsPinType(SchemaAction, Item->GetPinType(false));
+		}
+		
+		if (bHasChildrenWithValidTypes || bSupportsType)
+		{
+			NewInfo->Children = ValidChildren;
+			OutFilteredList.Add(NewInfo);
+
+			if (!NewInfo->bReadOnly)
+			{
+				++NumFilteredPinTypeItems;
+			}
+
+			bReturnVal = true;
+		}
+	}
+
+	return bReturnVal;
 }
 
 bool SPinTypeSelector::GetChildrenMatchingSearch(const FText& InSearchText, const TArray<FPinTypeTreeItem>& UnfilteredList, TArray<FPinTypeTreeItem>& OutFilteredList)

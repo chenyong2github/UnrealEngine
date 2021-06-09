@@ -760,15 +760,18 @@ private:
 			CustomPinTypeFilter = BlueprintEditorPtr.Pin()->GetOrCreateNamespaceHelperForBlueprint(BlueprintObj)->GetPinTypeSelectorFilter();
 		}
 
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-		FGetPinTypeTree GetPinTypeTreeFunc = ActionPtr.IsValid() ? FGetPinTypeTree::CreateRaw(ActionPtr.Pin().Get(), &FEdGraphSchemaAction_BlueprintVariableBase::GetVariableTypeTree)
-			: FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree);
+		const UEdGraphSchema* Schema = GetDefault<UEdGraphSchema_K2>();
+		if (BlueprintEditorPtr.IsValid())
+		{
+			Schema = BlueprintEditorPtr.Pin()->GetFocusedGraph()->GetSchema();
+		}
 		
 		this->ChildSlot
 		[
-			SNew(SPinTypeSelector, GetPinTypeTreeFunc)
+			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(GetDefault<UEdGraphSchema_K2>(), &UEdGraphSchema_K2::GetVariableTypeTree))
 			.ReadOnly(InArgs._ReadOnly)
 			.Schema(Schema)
+			.SchemaAction(ActionPtr)
 			.TargetPinType(this, &SPinTypeSelectorHelper::OnGetVarType)
 			.OnPinTypeChanged(this, &SPinTypeSelectorHelper::OnVarTypeChanged)
 			.TypeTreeFilter(ETypeTreeFilter::None)
