@@ -5,6 +5,9 @@
 // Enable property tags for enums and structures
 #define UHT_ENABLE_VALUE_PROPERTY_TAG 1
 
+// Enable property tags for delegates
+#define UHT_ENABLE_DELEGATE_PROPERTY_TAG 1
+
 // Enable property tags for class and interfaces wrapped in porters 
 // DO NOT ENABLE: This does not handle forward declarations.  Also,
 // we might never need this tracking since it is always by pointer.

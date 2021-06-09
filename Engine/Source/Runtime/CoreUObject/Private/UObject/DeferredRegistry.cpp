@@ -6,43 +6,43 @@
 
 #if WITH_RELOAD
 
-void ReloadRenameObject(UScriptStruct& Object, const TCHAR* RenamePrefix)
+void ReloadProcessObject(UScriptStruct* ScriptStruct, const TCHAR* RenamePrefix)
 {
 	// Make sure the old struct is not used by anything
-	Object.ClearFlags(RF_Standalone | RF_Public);
-	Object.RemoveFromRoot();
-	const FName OldRename = MakeUniqueObjectName(GetTransientPackage(), Object.GetClass(), *FString::Printf(TEXT("%s_%s"), RenamePrefix, *Object.GetName()));
-	Object.Rename(*OldRename.ToString(), GetTransientPackage());
+	ScriptStruct->ClearFlags(RF_Standalone | RF_Public);
+	ScriptStruct->RemoveFromRoot();
+	const FName OldRename = MakeUniqueObjectName(GetTransientPackage(), ScriptStruct->GetClass(), *FString::Printf(TEXT("%s_%s"), RenamePrefix, *ScriptStruct->GetName()));
+	ScriptStruct->Rename(*OldRename.ToString(), GetTransientPackage());
 }
 
-void ReloadRenameObject(UEnum& Object, const TCHAR* RenamePrefix)
+void ReloadProcessObject(UEnum* Enum, const TCHAR* RenamePrefix)
 {
 	// Make sure the old struct is not used by anything
-	Object.ClearFlags(RF_Standalone | RF_Public);
-	Object.RemoveFromRoot();
-	const FName OldRename = MakeUniqueObjectName(GetTransientPackage(), Object.GetClass(), *FString::Printf(TEXT("%s_%s"), RenamePrefix, *Object.GetName()));
-	Object.Rename(*OldRename.ToString(), GetTransientPackage());
+	Enum->ClearFlags(RF_Standalone | RF_Public);
+	Enum->RemoveFromRoot();
+	const FName OldRename = MakeUniqueObjectName(GetTransientPackage(), Enum->GetClass(), *FString::Printf(TEXT("%s_%s"), RenamePrefix, *Enum->GetName()));
+	Enum->Rename(*OldRename.ToString(), GetTransientPackage());
 
-	Object.RemoveNamesFromMasterList();
+	Enum->RemoveNamesFromMasterList();
 }
 
-void ReloadRenameObject(UClass& Class, const TCHAR* RenamePrefix)
+void ReloadProcessObject(UClass* Class, const TCHAR* RenamePrefix)
 {
-	FString NameWithoutPrefix = UObjectBase::RemoveClassPrefix(*Class.GetName());
+	FString NameWithoutPrefix = UObjectBase::RemoveClassPrefix(*Class->GetName());
 
 	// Rename the old class and move it to transient package
-	Class.RemoveFromRoot();
-	Class.ClearFlags(RF_Standalone | RF_Public);
-	Class.GetDefaultObject()->RemoveFromRoot();
-	Class.GetDefaultObject()->ClearFlags(RF_Standalone | RF_Public);
-	const FName OldClassRename = MakeUniqueObjectName(GetTransientPackage(), Class.GetClass(), *FString::Printf(TEXT("%s_%s"), RenamePrefix, *NameWithoutPrefix));
-	Class.Rename(*OldClassRename.ToString(), GetTransientPackage());
-	Class.SetFlags(RF_Transient);
-	Class.AddToRoot();
+	Class->RemoveFromRoot();
+	Class->ClearFlags(RF_Standalone | RF_Public);
+	Class->GetDefaultObject()->RemoveFromRoot();
+	Class->GetDefaultObject()->ClearFlags(RF_Standalone | RF_Public);
+	const FName OldClassRename = MakeUniqueObjectName(GetTransientPackage(), Class->GetClass(), *FString::Printf(TEXT("%s_%s"), RenamePrefix, *NameWithoutPrefix));
+	Class->Rename(*OldClassRename.ToString(), GetTransientPackage());
+	Class->SetFlags(RF_Transient);
+	Class->AddToRoot();
 
 	// Make sure enums de-register their names BEFORE we create the new class, otherwise there will be name conflicts
 	TArray<UObject*> ClassSubobjects;
-	GetObjectsWithOuter(&Class, ClassSubobjects);
+	GetObjectsWithOuter(Class, ClassSubobjects);
 	for (auto ClassSubobject : ClassSubobjects)
 	{
 		if (auto Enum = dynamic_cast<UEnum*>(ClassSubobject))
@@ -53,10 +53,23 @@ void ReloadRenameObject(UClass& Class, const TCHAR* RenamePrefix)
 
 	// Reset singletons for any child fields
 #if WITH_LIVE_CODING
-	for (UField* Field = Class.Children; Field != nullptr; Field = Field->Next)
+	for (UField* Field = Class->Children; Field != nullptr; Field = Field->Next)
 	{
 		UFunction* Function = Cast<UFunction>(Field);
 		if (Function != nullptr && Function->SingletonPtr != nullptr)
+		{
+			*Function->SingletonPtr = nullptr;
+		}
+	}
+#endif
+}
+
+void ReloadProcessObject(UPackage* Package, const TCHAR* RenamePrefix)
+{
+#if WITH_LIVE_CODING
+	for (UFunction* Function : Package->Delegates)
+	{
+		if (Function->SingletonPtr != nullptr)
 		{
 			*Function->SingletonPtr = nullptr;
 		}

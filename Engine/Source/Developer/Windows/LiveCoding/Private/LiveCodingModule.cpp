@@ -87,6 +87,10 @@ public:
 	{
 	}
 
+	virtual void NotifyChange(UPackage* New, UPackage* Old) override
+	{
+	}
+
 	virtual bool GetEnableReinstancing(bool bHasChanged) const
 	{
 		if (bHasChanged && !bEnabledMessage)

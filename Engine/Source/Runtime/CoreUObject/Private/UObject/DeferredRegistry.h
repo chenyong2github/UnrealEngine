@@ -23,9 +23,15 @@ inline bool operator != (const FEnumReloadVersionInfo& lhs, const FEnumReloadVer
 	return lhs.Hash != rhs.Hash;
 }
 
-void ReloadRenameObject(UScriptStruct& Object, const TCHAR* RenamePrefix);
-void ReloadRenameObject(UEnum& Object, const TCHAR* RenamePrefix);
-void ReloadRenameObject(UClass& Object, const TCHAR* RenamePrefix);
+inline bool operator != (const FPackageReloadVersionInfo& lhs, const FPackageReloadVersionInfo& rhs)
+{
+	return lhs.BodyHash != rhs.BodyHash || lhs.DeclarationsHash != rhs.DeclarationsHash;
+}
+
+void ReloadProcessObject(UScriptStruct* Object, const TCHAR* RenamePrefix);
+void ReloadProcessObject(UEnum* Object, const TCHAR* RenamePrefix);
+void ReloadProcessObject(UClass* Object, const TCHAR* RenamePrefix);
+void ReloadProcessObject(UPackage* Object, const TCHAR* RenamePrefix);
 #endif
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -83,7 +89,7 @@ public:
 
 		bool bHasChanged = !ExistingInfo || (*ExistingInfo)->ReloadVersionInfo != InVersion;
 		InInfo.ReloadVersionInfo = InVersion;
-		TType* OldSingleton = ExistingInfo ? (*ExistingInfo)->InnerSingleton : nullptr;
+		TType* OldSingleton = ExistingInfo ? ((*ExistingInfo)->InnerSingleton ? (*ExistingInfo)->InnerSingleton : (*ExistingInfo)->OuterSingleton) : nullptr;
 
 		bool bAdd = true;
 		if (ExistingInfo)
@@ -234,9 +240,9 @@ public:
 	}
 
 	/**
-	* Rename and existing objects that have changed
+	* Process existing objects that have changed
 	*/
-	void RenameChangedObjects()
+	void ProcessChangedObjects(bool InvokeOuterRegisterFunction = false)
 	{
 #if WITH_RELOAD
 		IReload* Reload = GetActiveReloadInterface();
@@ -248,11 +254,19 @@ public:
 				if (Registrant.bHasChanged && Registrant.OldSingleton != nullptr)
 				{
 					UE_LOG(LogClass, Log, TEXT("%s Reload."), *Registrant.OldSingleton->GetName());
-					ReloadRenameObject(*Registrant.OldSingleton, Prefix);
 
 					// Reset the cached class construct info.
 					Registrant.Info->InnerSingleton = nullptr;
 					Registrant.Info->OuterSingleton = nullptr;
+
+					// Perform any other processing needed for existing objects
+					ReloadProcessObject(Registrant.OldSingleton, Prefix);
+
+					// If requested, invoke the registration function to make sure it has been recreated
+					if (InvokeOuterRegisterFunction)
+					{
+						Registrant.OuterRegisterFn();
+					}
 				}
 			}
 		}
@@ -349,5 +363,6 @@ inline void TDeferredRegistry<FClassRegistrationInfo>::UpdateSingletons(FClassRe
 using FClassDeferredRegistry = TDeferredRegistry<FClassRegistrationInfo>;
 using FEnumDeferredRegistry = TDeferredRegistry<FEnumRegistrationInfo>;
 using FStructDeferredRegistry = TDeferredRegistry<FStructRegistrationInfo>;
+using FPackageDeferredRegistry = TDeferredRegistry<FPackageRegistrationInfo>;
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

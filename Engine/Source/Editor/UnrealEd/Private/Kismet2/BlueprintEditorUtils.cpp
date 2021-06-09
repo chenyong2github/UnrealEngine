@@ -650,6 +650,13 @@ void FBlueprintEditorUtils::RefreshExternalBlueprintDependencyNodes(UBlueprint* 
 						{
 							bShouldRefresh |= OwnerClass &&
 								(OwnerClass->IsChildOf(RefreshOnlyChild) || OwnerClass->GetAuthoritativeClass()->IsChildOf(RefreshOnlyChild));
+							if (!bShouldRefresh && Struct->IsA<UFunction>() && OwnerClass->HasAnyClassFlags(CLASS_Interface))
+							{
+								if (UClass* RefreshClass = Cast<UClass>(RefreshOnlyChild))
+								{
+									bShouldRefresh = RefreshClass->ImplementsInterface(OwnerClass);
+								}
+							}
 						}						
 					}
 					if (bShouldRefresh)

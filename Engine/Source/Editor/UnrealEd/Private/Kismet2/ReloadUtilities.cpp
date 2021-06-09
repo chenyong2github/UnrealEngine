@@ -713,8 +713,9 @@ FReload::~FReload()
 	EndReload();
 
 	TStringBuilder<256> Builder;
-	if (ClassStats.HasValues() || StructStats.HasValues() || EnumStats.HasValues() || NumFunctionsRemapped != 0 || NumScriptStructsRemapped != 0)
+	if (PackageStats.HasValues() || ClassStats.HasValues() || StructStats.HasValues() || EnumStats.HasValues() || NumFunctionsRemapped != 0 || NumScriptStructsRemapped != 0)
 	{
+		FormatStats(Builder, TEXT("package"), TEXT("packages"), PackageStats);
 		FormatStats(Builder, TEXT("class"), TEXT("classes"), ClassStats);
 		FormatStats(Builder, TEXT("enum"), TEXT("enums"), EnumStats);
 		FormatStats(Builder, TEXT("scriptstruct"), TEXT("scriptstructs"), StructStats);
@@ -841,6 +842,20 @@ void FReload::NotifyChange(UScriptStruct* New, UScriptStruct* Old)
 		checkf(!ReinstancedStructs.Contains(Old) || ReinstancedStructs[Old] == NewIfChanged, TEXT("Attempting to reload a structure which is already being reloaded as a different structure"));
 		ReinstancedStructs.Add(Old, NewIfChanged);
 	}
+}
+
+void FReload::NotifyChange(UPackage* New, UPackage* Old)
+{
+	if (Old != nullptr)
+	{
+		++PackageStats.Changed;
+	}
+	else
+	{
+		++PackageStats.New;
+	}
+
+	Packages.AddUnique(New);
 }
 
 namespace

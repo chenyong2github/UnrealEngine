@@ -47,6 +47,7 @@ public:
 	virtual void NotifyChange(UClass* New, UClass* Old) = 0;
 	virtual void NotifyChange(UEnum* New, UEnum* Old) = 0;
 	virtual void NotifyChange(UScriptStruct* New, UScriptStruct* Old) = 0;
+	virtual void NotifyChange(UPackage* New, UPackage* Old) = 0;
 
 	/**
 	 * Perform the re-instancing 

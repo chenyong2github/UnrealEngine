@@ -314,18 +314,18 @@ void FUnrealTypeDefinitionInfo::SetHash(uint32 InHash)
 	Hash = InHash;
 }
 
-uint32 FUnrealTypeDefinitionInfo::GetHash(bool bIncludeNoExport) const
+uint32 FUnrealTypeDefinitionInfo::GetHash(FUnrealTypeDefinitionInfo& ReferencingDef, bool bIncludeNoExport) const
 {
 	if (Hash == 0)
 	{
-		Throwf(TEXT("Attempt to fetch the generated hash for type \"%s\" before it has been generated.  Include dependencies, topological sort, or job graph is in error."), *GetNameCPP());
+		ReferencingDef.Throwf(TEXT("Attempt to fetch the generated hash for type \"%s\" before it has been generated.  Include dependencies, topological sort, or job graph is in error."), *GetNameCPP());
 	}
 	return Hash;
 }
 
-void FUnrealTypeDefinitionInfo::GetHashTag(FUHTStringBuilder& Out) const
+void FUnrealTypeDefinitionInfo::GetHashTag(FUnrealTypeDefinitionInfo& ReferencingDef, FUHTStringBuilder& Out) const
 {
-	uint32 TempHash = GetHash(false);
+	uint32 TempHash = GetHash(ReferencingDef, false);
 	if (TempHash != 0)
 	{
 		if (Out.IsEmpty())
@@ -661,6 +661,10 @@ void FUnrealPropertyDefinitionInfo::SetDelegateFunctionSignature(FUnrealFunction
 		DelegateProperty->SignatureFunction = DelegateFunctionDef.GetFunction();
 	}
 	PropertyBase.FunctionDef = &DelegateFunctionDef;
+
+#if UHT_ENABLE_DELEGATE_PROPERTY_TAG
+	GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(&DelegateFunctionDef);
+#endif
 
 	// This can be invoked multiple times.  Just add the first instance.
 	if (!bSignatureSet)
@@ -1726,7 +1730,7 @@ FUnrealScriptStructDefinitionInfo* FUnrealScriptStructDefinitionInfo::GetSuperSc
 	return UHTCast<FUnrealScriptStructDefinitionInfo>(GetSuperStruct());
 }
 
-uint32 FUnrealScriptStructDefinitionInfo::GetHash(bool bIncludeNoExport) const
+uint32 FUnrealScriptStructDefinitionInfo::GetHash(FUnrealTypeDefinitionInfo& ReferencingDef, bool bIncludeNoExport) const
 {
 	if (!bIncludeNoExport)
 	{
@@ -1735,7 +1739,7 @@ uint32 FUnrealScriptStructDefinitionInfo::GetHash(bool bIncludeNoExport) const
 			return 0;
 		}
 	}
-	return FUnrealStructDefinitionInfo::GetHash(bIncludeNoExport);
+	return FUnrealStructDefinitionInfo::GetHash(ReferencingDef, bIncludeNoExport);
 }
 
 void FUnrealScriptStructDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase)
@@ -1942,7 +1946,7 @@ FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindScriptClass(const FS
 	return nullptr;
 }
 
-uint32 FUnrealClassDefinitionInfo::GetHash(bool bIncludeNoExport) const
+uint32 FUnrealClassDefinitionInfo::GetHash(FUnrealTypeDefinitionInfo& ReferencingDef, bool bIncludeNoExport) const
 {
 	if (!bIncludeNoExport)
 	{
@@ -1951,7 +1955,7 @@ uint32 FUnrealClassDefinitionInfo::GetHash(bool bIncludeNoExport) const
 			return 0;
 		}
 	}
-	return FUnrealStructDefinitionInfo::GetHash(bIncludeNoExport);
+	return FUnrealStructDefinitionInfo::GetHash(ReferencingDef, bIncludeNoExport);
 }
 
 void FUnrealClassDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase)
