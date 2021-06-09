@@ -41,6 +41,8 @@ private:
 	EVisibility GetRefreshVisibility() const;
 
 	EVisibility GetVersionSelectionMenuVisibility() const;
+	bool GetVersionSelectionMenuEnabled() const;
+	FText GetVersionSelectionMenuTooltip() const;
 
 	FReply ScratchButtonPressed() const;
 	
