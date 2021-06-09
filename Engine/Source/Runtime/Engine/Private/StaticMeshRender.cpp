@@ -1095,13 +1095,11 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 		// Determine the DPG the primitive should be drawn in.
 		uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
 		int32 NumLODs = RenderData->LODResources.Num();
-		// Never use the dynamic path in this path, because only unselected elements will use DrawStaticElements
+		//Never use the dynamic path in this path, because only unselected elements will use DrawStaticElements
 		bool bIsMeshElementSelected = false;
 		const auto FeatureLevel = GetScene().GetFeatureLevel();
 		const bool IsMobile = IsMobilePlatform(GetScene().GetShaderPlatform());
 		const int32 NumRuntimeVirtualTextureTypes = RuntimeVirtualTextureMaterialTypes.Num();
-		// When this is false the final bUseAsOccluder state is re-evaluated in FDepthPassMeshProcessor::AddMeshBatch()
-		const bool bIsOccluderNonMovable = ShouldUseAsOccluder() && !IsMovable();
 
 		//check if a LOD is being forced
 		if (ForcedLodModel > 0) 
@@ -1195,8 +1193,9 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 					if (bSafeToUseUnifiedMesh)
 					{
 						bUseUnifiedMeshForShadow = bAllSectionsCastShadow;
-						// Depth pass is only used for deferred renderer.
-						bUseUnifiedMeshForDepth = GetScene().GetShadingPath() == EShadingPath::Deferred;
+
+						// Depth pass is only used for deferred renderer. The other conditions are meant to match the logic in FDepthPassMeshProcessor::AddMeshBatch.
+						bUseUnifiedMeshForDepth = ShouldUseAsOccluder() && GetScene().GetShadingPath() == EShadingPath::Deferred && !IsMovable();
 
 						if (bUseUnifiedMeshForShadow || bUseUnifiedMeshForDepth)
 						{
@@ -1214,7 +1213,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 
 									MeshBatch.CastShadow = bUseUnifiedMeshForShadow;
 									MeshBatch.bUseForDepthPass = bUseUnifiedMeshForDepth;
-									MeshBatch.bUseAsOccluder = bIsOccluderNonMovable;
+									MeshBatch.bUseAsOccluder = bUseUnifiedMeshForDepth;
 									MeshBatch.bUseForMaterial = false;
 
 									PDI->DrawMesh(MeshBatch, ScreenSize);
@@ -1263,8 +1262,8 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 								// If we have submitted an optimized shadow-only mesh, remaining mesh elements must not cast shadows.
 								FMeshBatch MeshBatch(BaseMeshBatch);
 								MeshBatch.CastShadow &= !bUseUnifiedMeshForShadow;
+								MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
 								MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
-								MeshBatch.bUseAsOccluder &= bIsOccluderNonMovable;
 								PDI->DrawMesh(MeshBatch, ScreenSize);
 							}
 						}
