@@ -11,8 +11,11 @@
 class IGameplayInsightsDebugView : public SCompoundWidget
 {
 	public:
-		// text for widget header
-		virtual FText GetTitle() = 0;
+		// unique name for widget
+		virtual FName GetName() const = 0;
+
+		// id of target object
+		virtual uint64 GetObjectId() const = 0;
 
 		// called by the debugger when the scrubbing bar position changes
 		virtual void SetTimeMarker(double InTimeMarker) = 0;

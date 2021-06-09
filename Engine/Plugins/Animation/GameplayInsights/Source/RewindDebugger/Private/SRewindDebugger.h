@@ -13,8 +13,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SCompoundWidget.h"
 
-
-class SScrollBox;
+class SDockTab;
 
 class SRewindDebugger : public SCompoundWidget
 {
@@ -72,12 +71,30 @@ private:
 
 	void TraceTimeChanged(double Time);
 
+	TSharedRef<SWidget> MakeMainMenu();
+	void MakeViewsMenu(FMenuBuilder& MenuBuilder);
+	
 	// component tree view
 	TArray<TSharedPtr<FDebugObjectInfo>>* DebugComponents;
+	TSharedPtr<FDebugObjectInfo> SelectedComponent;
     void OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo);
 	TSharedPtr<SRewindDebuggerComponentTree> ComponentTreeView;
 
-	// anim graph view 
+	// Debug View Tabs
+	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args, FName ViewName);
+	bool CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName);
+	void CloseTab(FName TabName);
+	void OnPinnedTabClosed(TSharedRef<SDockTab> Tab);
+	void ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IGameplayInsightsDebugView> View);
+	void PinTab(TSharedPtr<IGameplayInsightsDebugView> View);
+	void ShowAllViews();
+	void CreateDebugViews();
+	void CreateDebugTabs();
 	TArray<TSharedPtr<IGameplayInsightsDebugView>> DebugViews;
-	TSharedPtr<SScrollBox> DebugViewContainer;
+	TArray<TSharedPtr<IGameplayInsightsDebugView>> PinnedDebugViews;
+	TArray<FName> TabNames;
+	TArray<FName> HiddenTabs;  // keep track of tabs that have been closed so we don't automatically reopen them when switching components
+	bool bInternalClosingTab = false;
+
+	TSharedPtr<FTabManager> TabManager;
 };

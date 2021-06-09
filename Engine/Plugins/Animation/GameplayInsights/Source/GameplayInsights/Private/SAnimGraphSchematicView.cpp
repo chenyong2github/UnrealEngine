@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimGraphSchematicView.h"
+#include "Animation/AnimInstance.h"
 #include "AnimationProvider.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -9,6 +10,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateIconFinder.h"
 #include "GameplayInsightsStyle.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -24,6 +26,8 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "SAnimGraphSchematicView"
+
+static const FName AnimGraphSchematicName("AnimGraphSchematic");
 
 namespace AnimGraphSchematicPropertyColumns
 {
@@ -822,9 +826,10 @@ void SAnimGraphSchematicView::SetTimeMarker(double InTimeMarker)
 	}
 }
 
-FText SAnimGraphSchematicView::GetTitle()
+
+FName SAnimGraphSchematicView::GetName() const
 {
-	return LOCTEXT("Anim Graph Update", "Anim Graph Update");
+	return AnimGraphSchematicName;
 }
 
 TSharedRef<SWidget> SAnimGraphSchematicView::HandleGetViewMenuContent()
@@ -996,6 +1001,26 @@ void SAnimGraphSchematicView::RefreshDetails(const TArray<TSharedRef<FAnimGraphS
 			Splitter->RemoveAt(1);
 		}
 	}
+}
+
+FName FAnimGraphSchematicViewCreator::GetName() const
+{
+	return AnimGraphSchematicName;
+}
+
+FText FAnimGraphSchematicViewCreator::GetTitle() const
+{
+	return LOCTEXT("Anim Graph Update", "Anim Graph");
+}
+
+FSlateIcon FAnimGraphSchematicViewCreator::GetIcon() const
+{
+	return FSlateIconFinder::FindIconForClass(UAnimInstance::StaticClass());
+}
+
+TSharedPtr<IGameplayInsightsDebugView> FAnimGraphSchematicViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
+{
+	return SNew(SAnimGraphSchematicView, ObjectId, CurrentTime, AnalysisSession);
 }
 
 #undef LOCTEXT_NAMESPACE

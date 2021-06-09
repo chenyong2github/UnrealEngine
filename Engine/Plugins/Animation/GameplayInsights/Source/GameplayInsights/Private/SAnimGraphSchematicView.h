@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IGameplayInsightsDebugView.h"
+#include "IGameplayInsightsDebugViewCreator.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 
@@ -30,7 +31,9 @@ public:
 	uint64 GetAnimInstanceId() const { return AnimInstanceId; }
 
 	virtual void SetTimeMarker(double InTimeMarker) override;
-	virtual FText GetTitle() override;
+	virtual FName GetName() const override;
+	virtual uint64 GetObjectId() const override { return AnimInstanceId; }
+
 private:
 	// Generate a row widget for an item
 	TSharedRef<ITableRow> HandleGenerateRow(TSharedRef<FAnimGraphSchematicNode> Item, const TSharedRef<STableViewBase>& OwnerTable);
@@ -111,4 +114,13 @@ private:
 	double TimeMarker;
 
 	uint64 AnimInstanceId;
+};
+
+class FAnimGraphSchematicViewCreator : public ICreateGameplayInsightsDebugView
+{
+	public:
+		virtual FName GetName() const override;
+		virtual FText GetTitle() const override;
+		virtual FSlateIcon GetIcon() const override;
+		virtual TSharedPtr<IGameplayInsightsDebugView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
 };

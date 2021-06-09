@@ -11,9 +11,15 @@ class FGameplayInsightsDebugViewCreator : public IGameplayInsightsDebugViewCreat
 	public:
 		virtual ~FGameplayInsightsDebugViewCreator() {};
 
-		virtual void RegisterDebugViewCreator(FName TypeName, FCreateDebugView Creator) override;
-		virtual void CreateDebugViews(uint64 ObjectId, double CurrentTime,  const TraceServices::IAnalysisSession& InAnalysisSession, TArray<TSharedPtr<IGameplayInsightsDebugView>>& OutDebugViews) override;
-
+		virtual void RegisterDebugViewCreator(FName TypeName, TSharedPtr<ICreateGameplayInsightsDebugView> Creator) override;
+		virtual void CreateDebugViews(uint64 ObjectId, double CurrentTime,  const TraceServices::IAnalysisSession& InAnalysisSession, TArray<TSharedPtr<IGameplayInsightsDebugView>>& OutDebugViews)const override;
+		virtual void EnumerateCreators(TFunctionRef<void(const TSharedPtr<ICreateGameplayInsightsDebugView>&)> Callback) const;
+		virtual TSharedPtr<ICreateGameplayInsightsDebugView> GetCreator(FName CreatorName) const;
 	private:
-		TMultiMap<FName, FCreateDebugView> ViewCreators;
+		struct FViewCreatorPair
+		{
+			FName TypeName;
+			TSharedPtr<ICreateGameplayInsightsDebugView> Creator;
+		};
+		TArray<FViewCreatorPair> ViewCreators;
 };

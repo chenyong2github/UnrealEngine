@@ -4,6 +4,7 @@
 #include "AnimationProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "GameplayProvider.h"
+#include "Styling/SlateIconFinder.h"
 #include "TraceServices/Model/Frames.h"
 #include "VariantTreeNode.h"
 
@@ -87,12 +88,33 @@ void SObjectPropertiesView::GetVariantsAtFrame(const TraceServices::FFrame& InFr
 	}
 }
 
-FText SObjectPropertiesView::GetTitle()
+
+static const FName ObjectPropertiesName("ObjectProperties");
+
+FName SObjectPropertiesView::GetName() const
 {
-	return LOCTEXT("Object Properties", "Object Properties");
+	return ObjectPropertiesName;
 }
 
+FName FObjectPropertiesViewCreator::GetName() const
+{
+	return ObjectPropertiesName;
+}
 
+FText FObjectPropertiesViewCreator::GetTitle() const
+{
+	return LOCTEXT("Object Properties", "Properties");
+}
+
+FSlateIcon FObjectPropertiesViewCreator::GetIcon() const
+{
+	return FSlateIconFinder::FindIconForClass(UObject::StaticClass());
+}
+
+TSharedPtr<IGameplayInsightsDebugView> FObjectPropertiesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
+{
+	return SNew(SObjectPropertiesView, ObjectId, CurrentTime, AnalysisSession);
+}
 
 
 #undef LOCTEXT_NAMESPACE
