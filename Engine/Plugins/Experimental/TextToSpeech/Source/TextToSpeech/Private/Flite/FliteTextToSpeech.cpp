@@ -122,8 +122,11 @@ void FFliteTextToSpeech::Mute()
 void FFliteTextToSpeech::Unmute()
 {
 	check(IsInGameThread());
-	SetMuted(false);
-	TTSSubmixListener->Unmute();
+	if (IsActive())
+	{
+		SetMuted(false);
+		TTSSubmixListener->Unmute();
+	}
 }
 
 void FFliteTextToSpeech::OnActivated()
