@@ -2902,7 +2902,7 @@ void USoundWave::CacheInheritedLoadingBehavior()
 		// if this is true then the behavior should not be Inherited here
 		check(!bLoadingBehaviorOverridden);
 
-		USoundClass* CurrentSoundClass = SoundClassObject;
+		USoundClass* CurrentSoundClass = GetSoundClass();
 		ESoundWaveLoadingBehavior SoundClassLoadingBehavior = ESoundWaveLoadingBehavior::Inherited;
 
 		// Recurse through this sound class's parents until we find an override.

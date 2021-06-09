@@ -3,6 +3,7 @@
 #include "Components/SynthComponent.h"
 #include "AudioDevice.h"
 #include "AudioMixerLog.h"
+#include "Sound/AudioSettings.h"
 
 USynthSound::USynthSound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -139,10 +140,6 @@ USynthComponent::USynthComponent(const FObjectInitializer& ObjectInitializer)
 	bIsInitialized = false;
 	bIsUISound = false;
 	bAlwaysPlay = true;
-	Synth = nullptr;
-
-	// Set the default sound class
-	SoundClass = USoundBase::DefaultSoundClassObject;
 	Synth = nullptr;
 
 	PreferredBufferLength = DEFAULT_PROCEDURAL_SOUNDWAVE_BUFFER_SIZE;
@@ -348,6 +345,22 @@ void USynthComponent::OnUnregister()
 		AudioComponent->DestroyComponent();
 		AudioComponent = nullptr;
 	}
+}
+
+USoundClass* USynthComponent::GetSoundClass()
+{
+	if (SoundClass)
+	{
+		return SoundClass;
+	}
+
+	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
+	if (ensure(AudioSettings))
+	{
+		return AudioSettings->GetDefaultSoundClass();
+	}
+
+	return nullptr;
 }
 
 bool USynthComponent::IsReadyForOwnerToAutoDestroy() const

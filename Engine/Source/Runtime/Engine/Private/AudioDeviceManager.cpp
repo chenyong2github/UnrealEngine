@@ -513,8 +513,13 @@ bool FAudioDeviceManager::InitializeManager()
 	{
 		check(AudioDeviceModule);
 
+		UAudioSettings* AudioSettings = GetMutableDefault<UAudioSettings>();
+		check(AudioSettings);
+
+		AudioSettings->LoadDefaultObjects();
+
 		const bool bIsAudioMixerEnabled = AudioDeviceModule->IsAudioMixerModule();
-		GetMutableDefault<UAudioSettings>()->SetAudioMixerEnabled(bIsAudioMixerEnabled);
+		AudioSettings->SetAudioMixerEnabled(bIsAudioMixerEnabled);
 
 #if WITH_EDITOR
 		if (bIsAudioMixerEnabled)

@@ -234,7 +234,7 @@ void USoundCue::PostLoad()
 	
 	ESoundWaveLoadingBehavior SoundClassLoadingBehavior = ESoundWaveLoadingBehavior::Inherited;
 
-	USoundClass* CurrentSoundClass = SoundClassObject;
+	USoundClass* CurrentSoundClass = GetSoundClass();
 
 	// Recurse through this sound class's parents until we find an override.
 	while (SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::Inherited && CurrentSoundClass != nullptr)
