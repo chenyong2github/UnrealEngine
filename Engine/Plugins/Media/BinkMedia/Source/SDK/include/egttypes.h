@@ -6,9 +6,11 @@
 // (C) Copyright 1994-2021 Epic Games Tools, LLC  
 //===============================================
 
-#if !defined(__EGTTYPESH__) && !defined(__RADTYPESH__) && !defined(__RADRR_COREH__) 
-#define __RADTYPESH__
+#if !defined(__EGTTYPESH__)
 #define __EGTTYPESH__
+
+#if !defined(__RADTYPESH__) && !defined(__RADRR_COREH__) 
+#define __RADTYPESH__
 #define __RADRR_COREH__ // block old rr_core
 
 #define RADCOPYRIGHT "Copyright (C) 1994-2021, Epic Games Tools, LLC"
@@ -617,5 +619,7 @@
 #endif
 
 #endif // __RADRES__
+
+#endif // __RADTYPESH__, __RADRR_COREH__
 
 #endif // __EGTTYPESH__
