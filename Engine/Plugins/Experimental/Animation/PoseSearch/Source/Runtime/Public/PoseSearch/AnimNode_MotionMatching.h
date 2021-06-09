@@ -18,7 +18,7 @@ public:
 
 	// Collection of animations for motion matching
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
-	const UPoseSearchDatabase* Database = nullptr;
+	TObjectPtr<const UPoseSearchDatabase> Database;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
 	FPoseSearchBiasWeightParams BiasWeights;
@@ -78,10 +78,15 @@ private:
 	// The current query feature vector used to search the database for pose candidates
 	FPoseSearchFeatureVectorBuilder ComposedQuery;
 
+	// When the current database is different from the previous one, the search parameters are reset
+	UPROPERTY(Transient)
+	TObjectPtr<const UPoseSearchDatabase> PreviousDatabase;
+
 	// Time since the last pose jump
 	float ElapsedPoseJumpTime = 0.0f;
 
 	bool IsValidForSearch() const;
 	void ComposeQuery(const FAnimationBaseContext& Context);
 	void JumpToPose(const FAnimationUpdateContext& Context, UE::PoseSearch::FDbSearchResult Result);
+	void InitNewDatabaseSearch();
 };
