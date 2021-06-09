@@ -540,6 +540,18 @@ public:
 		UpdatePlasticity();
 	}
 
+	/** Gets Whether it is possible to reset the target position */
+	bool HasLinearPlasticity() const
+	{
+		return ProfileInstance.bLinearPlasticity;
+	}
+
+	/** Gets Delta from target needed to reset the target joint */
+	float GetLinearPlasticityThreshold() const
+	{
+		return ProfileInstance.LinearPlasticityThreshold;
+	}
+
 	/** Sets the Angular Breakable properties
 	*	@param bInAngularBreakable		Whether it is possible to break the joint with angular force
 	*	@param InAngularBreakThreshold	Torque needed to break the joint

@@ -205,6 +205,36 @@ void UConstraintInstanceBlueprintLibrary::GetLinearBreakable(
 	}
 }
 
+void UConstraintInstanceBlueprintLibrary::SetLinearPlasticity(
+	FConstraintInstanceAccessor& Accessor,
+	bool bLinearPlasticity,
+	float LinearPlasticityThreshold
+	)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		ConstraintInstance->SetLinearPlasticity(bLinearPlasticity, LinearPlasticityThreshold);
+	}
+}
+
+void UConstraintInstanceBlueprintLibrary::GetLinearPlasticity(
+	FConstraintInstanceAccessor& Accessor,
+	bool& bLinearPlasticity,
+	float& LinearPlasticityThreshold
+	)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		bLinearPlasticity = ConstraintInstance->HasLinearPlasticity();
+		LinearPlasticityThreshold = ConstraintInstance->GetLinearPlasticityThreshold();
+	}
+	else
+	{
+		bLinearPlasticity = false;
+		LinearPlasticityThreshold = 0.0f;
+	}
+}
+
 //---------------------------------------------------------------------------------------------------
 //
 // ANGULAR LIMITS 

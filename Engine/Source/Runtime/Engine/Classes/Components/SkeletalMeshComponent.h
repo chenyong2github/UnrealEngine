@@ -2099,6 +2099,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics", meta = (Keywords = "Components|SkeletalMesh"))
 	void GetConstraints(bool bIncludesTerminated, TArray<FConstraintInstanceAccessor>& OutConstraints);
 
+	/** Gets all the constraints attached to a body 
+	* @param BodyName name of the body to get the attached constraints from 
+	* @param bParentConstraints return constraints where BodyName is the child of the constraint
+	* @param bChildConstraints return constraints where BodyName is the parent of the constraint
+	* @param bParentConstraints return constraints attached to the parent of the body 
+	* @param IncludesTerminated whether or not to return terminated constraints
+	* @param OutConstraints returned list of constraints matching the parameters
+	* */
+	UFUNCTION(BlueprintCallable, Category = "Physics", meta = (Keywords = "Components|SkeletalMesh"))
+	void GetConstraintsFromBody(FName BodyName, bool bParentConstraints, bool bChildConstraints, bool bIncludesTerminated, TArray<FConstraintInstanceAccessor>& OutConstraints);
+
 	/** Sets the Angular Motion Ranges for a named constraint
 	*  @param InBoneName  Name of bone to adjust constraint ranges for
 	*  @param Swing1LimitAngle	 Size of limit in degrees, 0 means locked, 180 means free

@@ -1906,6 +1906,30 @@ void USkeletalMeshComponent::GetConstraints(bool bIncludesTerminated, TArray<FCo
 	}
 }
 
+void  USkeletalMeshComponent::GetConstraintsFromBody(FName BodyName, bool bParentConstraints, bool bChildConstraints, bool bIncludesTerminated, TArray<FConstraintInstanceAccessor>& OutConstraints)
+{
+	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
+	{
+		for (int32 i = 0; i < Constraints.Num(); i++)
+		{
+			if (FConstraintInstance* ConstraintInstance = Constraints[i])
+			{
+				if (bIncludesTerminated || !ConstraintInstance->IsTerminated())
+				{
+					if (bParentConstraints && ConstraintInstance->GetChildBoneName() == BodyName)
+					{
+						OutConstraints.Add(FConstraintInstanceAccessor(this, i));
+					}
+					if (bChildConstraints && ConstraintInstance->GetParentBoneName() == BodyName)
+					{
+						OutConstraints.Add(FConstraintInstanceAccessor(this, i));
+					}
+				}
+			}
+		}
+	}
+}
+
 void USkeletalMeshComponent::BreakConstraint(FVector Impulse, FVector HitLocation, FName InBoneName)
 {
 	// you can enable/disable the instanced weights by calling
