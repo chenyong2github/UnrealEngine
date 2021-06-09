@@ -170,7 +170,7 @@ bool UTextToSpeechEngineSubsystem::IsChannelActive(UPARAM(DisplayName = "Channel
 	const TSharedRef<FTextToSpeechBase>* TTS = ChannelIdToTextToSpeechMap.Find(InChannelId);
 	if (TTS)
 	{
-		(*TTS)->Deactivate();
+		return (*TTS)->IsActive();
 	}
 	return false;
 }
