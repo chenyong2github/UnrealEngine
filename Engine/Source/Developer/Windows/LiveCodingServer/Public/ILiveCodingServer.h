@@ -83,5 +83,7 @@ public:
 
 	DECLARE_DELEGATE_OneParam(FSetVisibleDelegate, bool);
 	virtual FSetVisibleDelegate& GetSetVisibleDelegate() = 0;
+
+	virtual bool HasReinstancingProcess() = 0;
 };
 

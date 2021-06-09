@@ -35,6 +35,10 @@ public:
 
 	std::wstring GetProcessImagePath(void) const;
 
+	// BEGIN EPIC MOD
+	bool HasReinstancingProcess();
+	// END EPIC MOD
+
 private:
 	scheduler::Task<LiveModule*>* LoadModule(Process::Id processId, void* moduleBase, const wchar_t* modulePath, scheduler::TaskBase* taskRoot);
 	bool UnloadModule(Process::Id processId, const wchar_t* modulePath);
