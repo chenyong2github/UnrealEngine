@@ -221,6 +221,12 @@ void SSettingsEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 				{
 					Section->Save();
 				}
+				// Some files being edited might have an array element, but they may also not have a corresponding section for inlined
+				// external objects, for them if they're DefaultConfig, we update them here.
+				else if (ObjectBeingEdited->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig))
+				{
+					ObjectBeingEdited->UpdateDefaultConfigFile();
+				}
 
 				if (bIsNewFile && bIsSourceControlled)
 				{

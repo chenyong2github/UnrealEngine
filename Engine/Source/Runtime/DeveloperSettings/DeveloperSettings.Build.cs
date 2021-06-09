@@ -11,6 +11,7 @@ public class DeveloperSettings : ModuleRules
 				"Core",
 				"CoreUObject",
                 "SlateCore",
+				"Projects"
 			}
 		);
 	}
