@@ -13,7 +13,6 @@
 #include "WorkspaceMenuStructureModule.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Trace/StoreService.h"
 #include "Trace/StoreClient.h"
 #include "Stats/Stats.h"
 #include "ObjectPropertyTrace.h"
@@ -162,6 +161,7 @@ void FGameplayInsightsModule::StartupModule()
 			IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 			if (!UnrealInsightsModule.GetStoreClient())
 			{
+#if WITH_TRACE_STORE
 				// Create the Store Service.
 				FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
 				UE::Trace::FStoreService::FDesc StoreServiceDesc;
@@ -177,6 +177,10 @@ void FGameplayInsightsModule::StartupModule()
 				// Connect to our newly created store and setup the insights module
 				UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort());
 				UE::Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
+#else
+				ensure(UnrealInsightsModule.ConnectToStore(TEXT("127.0.0.1")));
+				UE::Trace::SendTo(TEXT("127.0.0.1"));
+#endif // WITH_TRACE_STORE
 
 				UnrealInsightsModule.CreateSessionViewer(false);
 				UnrealInsightsModule.StartAnalysisForLastLiveSession();

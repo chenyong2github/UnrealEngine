@@ -105,9 +105,8 @@ void FTraceInsightsModule::UnregisterComponent(TSharedPtr<IInsightsComponent> Co
 
 void FTraceInsightsModule::CreateDefaultStore()
 {
+#if WITH_TRACE_STORE
 	const FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
-
-	FInsightsManager::Get()->SetStoreDir(StoreDir);
 
 	// Create the Store Service.
 	UE::Trace::FStoreService::FDesc StoreServiceDesc;
@@ -120,6 +119,9 @@ void FTraceInsightsModule::CreateDefaultStore()
 	{
 		ConnectToStore(TEXT("127.0.0.1"), StoreService->GetPort());
 	}
+#else
+	ConnectToStore(TEXT("127.0.0.1"));
+#endif // WITH_TRACE_STORE
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
