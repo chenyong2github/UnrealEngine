@@ -65,12 +65,44 @@ SDL_MouseDoubleClickRadiusChanged(void *userdata, const char *name, const char *
 {
     SDL_Mouse *mouse = (SDL_Mouse *)userdata;
 
+/* EG BEGIN */
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+    if (hint && *hint) {
+        mouse->double_click_radius = SDL_atoi(hint);
+        if (mouse->double_click_radius < 1) {
+            mouse->double_click_radius = 1;
+        }
+    } else {
+        mouse->double_click_radius = 2;     /* 2 pixels seems about right for mouse interfaces */
+    }
+#else
     if (hint && *hint) {
         mouse->double_click_radius = SDL_atoi(hint);
     } else {
-        mouse->double_click_radius = 32;    /* 32 pixels seems about right for touch interfaces */
+        mouse->double_click_radius = 32; 
+    }
+#endif
+}
+
+
+/* EG BEGIN */
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+static void SDLCALL
+SDL_TouchDoubleClickRadiusChanged(void *userdata, const char *name, const char *oldValue, const char *hint)
+{
+    SDL_Mouse *mouse = (SDL_Mouse *)userdata;
+
+    if (hint && *hint) {
+        mouse->double_click_touch_radius = SDL_atoi(hint);
+        if (mouse->double_click_touch_radius < 1) {
+            mouse->double_click_touch_radius = 1;
+        }
+    } else {
+        mouse->double_click_touch_radius = 32;    /* 32 pixels seems about right for touch interfaces */
     }
 }
+#endif
+/* EG END */
 
 static void SDLCALL
 SDL_MouseNormalSpeedScaleChanged(void *userdata, const char *name, const char *oldValue, const char *hint)
@@ -135,6 +167,13 @@ SDL_MouseInit(void)
 
     SDL_AddHintCallback(SDL_HINT_MOUSE_DOUBLE_CLICK_RADIUS,
                         SDL_MouseDoubleClickRadiusChanged, mouse);
+
+/* EG BEGIN */
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+    SDL_AddHintCallback(SDL_HINT_TOUCH_DOUBLE_CLICK_RADIUS,
+                        SDL_TouchDoubleClickRadiusChanged, mouse);
+#endif
+/* EG END */
 
     SDL_AddHintCallback(SDL_HINT_MOUSE_NORMAL_SPEED_SCALE,
                         SDL_MouseNormalSpeedScaleChanged, mouse);
@@ -490,7 +529,7 @@ static SDL_MouseClickState *GetMouseClickState(SDL_Mouse *mouse, Uint8 button)
 #ifdef SDL_WITH_EPIC_EXTENSIONS
 /* This is made separate function because it is also called from SDL_x11events.c directly. */
 int
-SDL_HandleMouseButtonClickState(SDL_Mouse * mouse, Uint8 state, Uint8 button)
+SDL_HandleMouseButtonClickState(SDL_Mouse * mouse, SDL_MouseID mouseID, Uint8 state, Uint8 button)
 {
     int clicks;
     SDL_MouseClickState *clickstate = GetMouseClickState(mouse, button);
@@ -498,9 +537,14 @@ SDL_HandleMouseButtonClickState(SDL_Mouse * mouse, Uint8 state, Uint8 button)
         if (state == SDL_PRESSED) {
             Uint32 now = SDL_GetTicks();
 
+            int true_double_click_radius = mouse->double_click_radius;
+            if (mouseID == SDL_TOUCH_MOUSEID) {
+                true_double_click_radius = mouse->double_click_touch_radius;
+            }
+
             if (SDL_TICKS_PASSED(now, clickstate->last_timestamp + mouse->double_click_time) ||
-                SDL_abs(mouse->x - clickstate->last_x) > mouse->double_click_radius ||
-                SDL_abs(mouse->y - clickstate->last_y) > mouse->double_click_radius) {
+                SDL_abs(mouse->x - clickstate->last_x) > true_double_click_radius ||
+                SDL_abs(mouse->y - clickstate->last_y) > true_double_click_radius) {
                 clickstate->click_count = 0;
             }
             clickstate->last_timestamp = now;
@@ -580,7 +624,7 @@ SDL_PrivateSendMouseButton(SDL_Window * window, SDL_MouseID mouseID, Uint8 state
     /* EG BEGIN */
     #ifdef SDL_WITH_EPIC_EXTENSIONS
         /* for consistency, call the same function that is also called elsewhere */
-        clicks = SDL_HandleMouseButtonClickState(mouse, state, button);
+        clicks = SDL_HandleMouseButtonClickState(mouse, mouseID, state, button);
     #else
         SDL_MouseClickState *clickstate = GetMouseClickState(mouse, button);
         if (clickstate) {

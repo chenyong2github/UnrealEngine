@@ -304,6 +304,15 @@ extern "C" {
  */
 #define SDL_HINT_MOUSE_DOUBLE_CLICK_RADIUS    "SDL_MOUSE_DOUBLE_CLICK_RADIUS"
 
+/* EG BEGIN */
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+/**
+ *  \brief  A variable setting the double click radius for touch control, in pixels.
+ */
+#define SDL_HINT_TOUCH_DOUBLE_CLICK_RADIUS    "SDL_TOUCH_DOUBLE_CLICK_RADIUS"
+#endif
+/* EG END */
+
 /**
  *  \brief  A variable setting the speed scale for mouse motion, in floating point, when the mouse is not in relative mode
  */
