@@ -150,11 +150,4 @@ public:
 #endif
 
 	static UControlRigSettings * Get() { return GetMutableDefault<UControlRigSettings>(); }
-
-#if WITH_EDITOR
-
-private:
-	static FString GetSnippetContentForUnitNode(UScriptStruct* InUnitNodeStruct);
-
-#endif
 };

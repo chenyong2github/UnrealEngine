@@ -55,6 +55,9 @@
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_GetControlTransform.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_SetControlTransform.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_Collection.h"
+#include "ControlRig/Private/Units/Highlevel/Hierarchy/RigUnit_TransformConstraint.h"
+#include "ControlRig/Private/Units/Hierarchy/RigUnit_GetControlTransform.h"
+#include "ControlRig/Public/Units/Hierarchy/RigUnit_SetCurveValue.h"
 #include "Units/Hierarchy/RigUnit_AddBoneTransform.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/ControlRigGraphSchema.h"
@@ -1995,6 +1998,43 @@ FReply FControlRigEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const 
 {
 	if(!InChord.HasAnyModifierKeys())
 	{
+		if(UControlRigGraph* RigGraph = Cast<UControlRigGraph>(InGraph))
+		{
+			if(URigVMController* Controller = RigGraph->GetController())
+			{
+				if(InChord.Key == EKeys::B)
+				{
+					Controller->AddBranchNode(InPosition);
+				}
+				else if(InChord.Key == EKeys::S)
+				{
+					Controller->AddUnitNode(FRigUnit_SequenceExecution::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+				}
+				else if(InChord.Key == EKeys::One)
+				{
+					Controller->AddUnitNode(FRigUnit_GetTransform::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+				}
+				else if(InChord.Key == EKeys::Two)
+				{
+					Controller->AddUnitNode(FRigUnit_SetTransform::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+				}
+				else if(InChord.Key == EKeys::Three)
+				{
+					Controller->AddUnitNode(FRigUnit_ParentConstraint::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+				}
+				else if(InChord.Key == EKeys::Four)
+				{
+					Controller->AddUnitNode(FRigUnit_GetControlFloat::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+				}
+				else if(InChord.Key == EKeys::Five)
+				{
+					Controller->AddUnitNode(FRigUnit_SetCurveValue::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+				}
+			}
+		}
+	}
+	else if(InChord.NeedsAlt() && !InChord.NeedsControl() && !InChord.NeedsShift())
+	{
 		if(InChord.Key == EKeys::One)
 		{
 			RestoreNodeSnippet(1);
@@ -2044,21 +2084,6 @@ FReply FControlRigEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const 
 		{
 			RestoreNodeSnippet(0);
 			return FReply::Handled();
-		}
-		
-		if(UControlRigGraph* RigGraph = Cast<UControlRigGraph>(InGraph))
-		{
-			if(URigVMController* Controller = RigGraph->GetController())
-			{
-				if(InChord.Key == EKeys::B)
-				{
-					Controller->AddBranchNode(InPosition);
-				}
-				else if(InChord.Key == EKeys::S)
-				{
-					Controller->AddUnitNode(FRigUnit_SequenceExecution::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
-				}
-			}
 		}
 	}
 
@@ -5780,6 +5805,16 @@ void FControlRigEditor::RestoreNodeSnippet(int32 InSnippetIndex)
 
 	FPlatformApplicationMisc::ClipboardCopy(*(*Setting));
 	PasteNodes();
+	
+	FNotificationInfo Info(FText::FromString(FString::Printf(
+		TEXT("Snippet %d has been restored."),
+		InSnippetIndex)));
+	Info.bFireAndForget = true;
+	Info.FadeOutDuration = 0.5f;
+	Info.ExpireDuration = 3.0f;
+
+	TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 }
 
 FString* FControlRigEditor::GetSnippetStorage(int32 InSnippetIndex)
