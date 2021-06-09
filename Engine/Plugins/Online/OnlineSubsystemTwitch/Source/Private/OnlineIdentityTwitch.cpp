@@ -11,7 +11,9 @@
 
 bool FTwitchLoginURL::IsValid() const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return !GetLoginUrl().IsEmpty() && !GetLoginRedirectUrl().IsEmpty() && !Subsystem->GetAppId().IsEmpty();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 }
 
 FString FTwitchLoginURL::GetAuthUrl(const FString& Nonce) const
@@ -20,7 +22,9 @@ FString FTwitchLoginURL::GetAuthUrl(const FString& Nonce) const
 	const FString LoginUrl(GetLoginUrl());
 	const FString LoginRedirectUrl(GetLoginRedirectUrl());
 	const FString StatePrefix(GetStatePrefix());
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const FString ClientId(Subsystem->GetAppId());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	const TArray<FString> ScopeFields(GetScopeFields());
 
 	const FString Scopes = FString::Join(ScopeFields, TEXT(" "));
@@ -130,6 +134,7 @@ FString FTwitchLoginURL::GetLoginRedirectUrl() const
 	return LoginRedirectUrl;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedPtr<FUserOnlineAccountTwitch> FOnlineIdentityTwitch::GetUserAccountTwitch(const FUniqueNetId& UserId) const
 {
 	TSharedPtr<FUserOnlineAccountTwitch> Result;
@@ -142,6 +147,7 @@ TSharedPtr<FUserOnlineAccountTwitch> FOnlineIdentityTwitch::GetUserAccountTwitch
 
 	return Result;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TSharedPtr<FUserOnlineAccount> FOnlineIdentityTwitch::GetUserAccount(const FUniqueNetId& UserId) const
 {

@@ -89,9 +89,7 @@
 #define WECHAT_SUBSYSTEM FName(TEXT("WeChat"))
 #endif
 
-#ifndef TWITCH_SUBSYSTEM
-#define TWITCH_SUBSYSTEM FName(TEXT("TWITCH"))
-#endif
+UE_DEPRECATED(4.27, "OnlineSubsystemTwitch has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName TWITCH_SUBSYSTEM;
 
 #ifndef SWITCH_SUBSYSTEM
 #define SWITCH_SUBSYSTEM FName(TEXT("SWITCH"))

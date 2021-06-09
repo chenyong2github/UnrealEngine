@@ -14,6 +14,7 @@ bool FOnlineExternalUITwitch::ShowLoginUI(const int ControllerIndex, bool bShowO
 	FString ErrorStr;
 	if (ControllerIndex >= 0 && ControllerIndex < MAX_LOCAL_PLAYERS)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineIdentityTwitchPtr IdentityInt = TwitchSubsystem->GetTwitchIdentityService();
 		if (IdentityInt.IsValid())
 		{
@@ -61,6 +62,7 @@ bool FOnlineExternalUITwitch::ShowLoginUI(const int ControllerIndex, bool bShowO
 		{
 			ErrorStr = TEXT("ShowLoginUI: Missing identity interface");
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
@@ -82,6 +84,7 @@ bool FOnlineExternalUITwitch::ShowLoginUI(const int ControllerIndex, bool bShowO
 	return bStarted;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FLoginFlowResult FOnlineExternalUITwitch::ParseRedirectResult(const FTwitchLoginURL& URLDetails, const FString& RedirectURL)
 {
 	FLoginFlowResult Result;
@@ -134,11 +137,13 @@ FLoginFlowResult FOnlineExternalUITwitch::ParseRedirectResult(const FTwitchLogin
 
 	return Result;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FLoginFlowResult FOnlineExternalUITwitch::OnLoginRedirectURL(const FString& RedirectURL)
 {
 	FLoginFlowResult Result;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnlineIdentityTwitchPtr IdentityInt = TwitchSubsystem->GetTwitchIdentityService();
 	if (IdentityInt.IsValid())
 	{  
@@ -156,6 +161,7 @@ FLoginFlowResult FOnlineExternalUITwitch::OnLoginRedirectURL(const FString& Redi
 			}
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return Result;
 }
@@ -165,6 +171,7 @@ void FOnlineExternalUITwitch::OnLoginUIComplete(const FLoginFlowResult& Result, 
 	bool bStarted = false;
 	if (Result.IsValid())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FOnlineIdentityTwitchPtr IdentityInt = TwitchSubsystem->GetTwitchIdentityService();
 		if (IdentityInt.IsValid())
 		{
@@ -174,6 +181,7 @@ void FOnlineExternalUITwitch::OnLoginUIComplete(const FLoginFlowResult& Result, 
 			CompletionDelegate = FOnLoginCompleteDelegate::CreateThreadSafeSP(this, &FOnlineExternalUITwitch::OnAccessTokenLoginComplete, Delegate);
 			IdentityInt->LoginWithAccessToken(ControllerIndex, Result.Token, CompletionDelegate);
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	if (!bStarted)

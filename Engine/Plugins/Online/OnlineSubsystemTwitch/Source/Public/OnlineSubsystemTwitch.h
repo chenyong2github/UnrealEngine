@@ -17,7 +17,7 @@ class FRunnableThread;
 /**
  * Twitch backend services
  */
-class ONLINESUBSYSTEMTWITCH_API FOnlineSubsystemTwitch :
+class ONLINESUBSYSTEMTWITCH_API UE_DEPRECATED(4.27, "OnlineSubsystemTwitch has been deprecated and will be removed") FOnlineSubsystemTwitch :
 	public FOnlineSubsystemImpl
 {
 public:
@@ -98,6 +98,6 @@ private:
 	/** Twitch API version */
 	FString TwitchApiVersion;
 };
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 typedef TSharedPtr<FOnlineSubsystemTwitch, ESPMode::ThreadSafe> FOnlineSubsystemTwitchPtr;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
