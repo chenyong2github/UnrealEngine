@@ -30,7 +30,7 @@
 #include "Templates/UniquePtr.h"
 #include "RenderGraphUtils.h"
 #include "MeshDrawCommands.h"
-#include "GpuDebugRendering.h"
+#include "ShaderDebug.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 #include "Nanite/NaniteRender.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"

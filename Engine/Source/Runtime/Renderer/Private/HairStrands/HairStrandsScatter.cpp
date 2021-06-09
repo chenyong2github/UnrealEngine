@@ -9,7 +9,7 @@
 #include "RenderGraphUtils.h"
 #include "PostProcessing.h"
 #include "HairStrandsRendering.h"
-#include "GpuDebugRendering.h"
+#include "ShaderDebug.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////
 

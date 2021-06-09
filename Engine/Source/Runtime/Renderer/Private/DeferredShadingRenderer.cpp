@@ -45,7 +45,7 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
 #include "ShaderPrint.h"
-#include "GpuDebugRendering.h"
+#include "ShaderDebug.h"
 #include "GPUSortManager.h"
 #include "HairStrands/HairStrandsRendering.h"
 #include "HairStrands/HairStrandsData.h"

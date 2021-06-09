@@ -17,7 +17,7 @@
 #include "SkyAtmosphereRendering.h"
 #include "VolumeLighting.h"
 #include "DynamicPrimitiveDrawing.h"
-#include "GpuDebugRendering.h"
+#include "ShaderDebug.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "VolumetricRenderTarget.h"
