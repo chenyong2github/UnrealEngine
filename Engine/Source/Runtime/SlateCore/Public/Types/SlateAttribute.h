@@ -164,6 +164,26 @@
 class SWidget;
 
 
+/** Base struct of all SlateAttribute type. */
+struct FSlateAttributeBase
+{
+	/**
+	 * Not all invalidation is supported by SlateAttribute.
+	 * ChildOrder: The update of SlateAttribute is done in the SlatePrepass. We can't add or remove children in SlatePrepass.
+	 * AttributeRegistration: In FastPath, the SlateAttribute are updated in a loop. The iterator can't be modified while we are looping.
+	 */
+	template<typename T>
+	constexpr static bool IsInvalidateWidgetReasonSupported(T Reason)
+	{
+		return false;
+	}
+	constexpr static bool IsInvalidateWidgetReasonSupported(EInvalidateWidgetReason Reason)
+	{
+		return (Reason & (EInvalidateWidgetReason::ChildOrder | EInvalidateWidgetReason::AttributeRegistration)) == EInvalidateWidgetReason::None;
+	}
+};
+
+
 /** Default predicate to compare of Object for SlateAttribute. */
 template<typename ComparePredicate = TEqualTo<>>
 struct TSlateAttributeComparePredicate
@@ -191,6 +211,7 @@ struct TSlateAttributeFTextComparePredicate
 template<EInvalidateWidgetReason InvalidationReason>
 struct TSlateAttributeInvalidationReason
 {
+	static_assert(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(InvalidationReason), "The invalidation is not supported by the SlateAttribute.");
 	static constexpr EInvalidateWidgetReason GetInvalidationReason(const SWidget&) { return InvalidationReason; }
 };
 
@@ -229,13 +250,6 @@ struct FSlateDeprecatedTAttribute
 	bool IsBound() const { return false; }
 
 	bool IdenticalTo(const TAttribute<ObjectType>& InOther) const { return false; }
-};
-
-
-/** Base struct of all SlateAttribute type. */
-struct FSlateAttributeBase
-{
-
 };
 
 
