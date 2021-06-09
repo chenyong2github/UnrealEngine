@@ -6,12 +6,12 @@
 using System;
 using System.Threading;
 using System.Diagnostics;
-using UnrealBuildTool;
 using System.Reflection;
 using EpicGames.Core;
 using System.IO;
 using System.Collections.Generic;
 using System.Text;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {

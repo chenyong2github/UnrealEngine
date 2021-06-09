@@ -10,10 +10,9 @@ using Microsoft.CSharp;
 using Microsoft.Win32;
 using System.Reflection;
 using System.Diagnostics;
-using UnrealBuildTool;
 using EpicGames.Core;
 
-namespace UnrealBuildTool
+namespace UnrealBuildBase
 {
 	/// <summary>
 	/// Captures all log output during startup until a log file writer has been created
