@@ -9671,6 +9671,15 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 			for (TSharedRef<FSequencerDisplayNode> DescendantNode : DescendantNodes)
 			{
+				// Don't automatically paste onto subtracks because that would lead to multiple paste destinations
+				if (DescendantNode->GetType() == ESequencerNode::Track)
+				{
+					TSharedPtr<FSequencerTrackNode> DescendantTrackNode = StaticCastSharedRef<FSequencerTrackNode>(DescendantNode);
+					if (DescendantTrackNode.IsValid() && DescendantTrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
+					{
+						continue;
+					}
+				}
 				GetSupportedTracks(DescendantNode, ImportedSections, TracksToPasteOnto);
 			}
 		}
@@ -9681,10 +9690,10 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 	for (TSharedRef<FSequencerTrackNode> TrackNode : TracksToPasteOnto)
 	{
+		UMovieSceneTrack* Track = TrackNode->GetTrack();
 		for (int32 SectionIndex = 0; SectionIndex < ImportedSections.Num(); ++SectionIndex)
 		{
 			UMovieSceneSection* Section = ImportedSections[SectionIndex];
-			UMovieSceneTrack* Track = TrackNode->GetTrack();
 			if (!Track->SupportsType(Section->GetClass()))
 			{
 				continue;
@@ -9705,22 +9714,36 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 			if (Track->SupportsMultipleRows())
 			{
-				int32 AvailableRowIndex = MovieSceneToolHelpers::FindAvailableRowIndex(Track, Section);
-
-				if (AvailableRowIndex == Track->GetMaxRowIndex() + 1)
+				if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
 				{
-					Section->SetRowIndex(AvailableRowIndex);
+					Section->SetRowIndex(TrackNode->GetRowIndex());
 				}
-				else
+			}
+			NewSections.Add(Section);
+		}
+
+		// Fix up rows after sections are in place
+		if (Track->SupportsMultipleRows())
+		{
+			// If any newly created section overlaps the previous sections, put all the sections on the max available row
+			// Find the  this section overlaps any previous sections, 
+			int32 MaxAvailableRowIndex = -1;
+			for (UMovieSceneSection* Section : NewSections)
+			{
+				if (MovieSceneToolHelpers::OverlapsSection(Track, Section, NewSections))
 				{
-					if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
-					{
-						Section->SetRowIndex(TrackNode->GetRowIndex());
-					}
+					int32 AvailableRowIndex = MovieSceneToolHelpers::FindAvailableRowIndex(Track, Section, NewSections);
+					MaxAvailableRowIndex = FMath::Max(AvailableRowIndex, MaxAvailableRowIndex);
 				}
 			}
 
-			NewSections.Add(Section);
+			if (MaxAvailableRowIndex != -1)
+			{
+				for (UMovieSceneSection* Section : NewSections)
+				{
+					Section->SetRowIndex(MaxAvailableRowIndex);					
+				}
+			}
 		}
 
 		// Regenerate for pasting onto the next track 
@@ -12630,13 +12653,27 @@ void FSequencer::BindCommands()
 		Commands.TranslateRight,
 		FExecuteAction::CreateSP( this, &FSequencer::TranslateSelectedKeysAndSections, false) );
 
+	auto CanTrimSection = [this]{
+		for (auto Section : Selection.GetSelectedSections())
+		{
+			if (Section.IsValid() && Section->IsTimeWithinSection(GetLocalTime().Time.FrameNumber))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
 	SequencerCommandBindings->MapAction(
 		Commands.TrimSectionLeft,
-		FExecuteAction::CreateSP( this, &FSequencer::TrimSection, true ) );
+		FExecuteAction::CreateSP( this, &FSequencer::TrimSection, true ),
+		FCanExecuteAction::CreateLambda(CanTrimSection));
+
 
 	SequencerCommandBindings->MapAction(
 		Commands.TrimSectionRight,
-		FExecuteAction::CreateSP( this, &FSequencer::TrimSection, false ) );
+		FExecuteAction::CreateSP( this, &FSequencer::TrimSection, false ),
+		FCanExecuteAction::CreateLambda(CanTrimSection));
 
 	SequencerCommandBindings->MapAction(
 		Commands.TrimOrExtendSectionLeft,
@@ -12648,7 +12685,8 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.SplitSection,
-		FExecuteAction::CreateSP( this, &FSequencer::SplitSection ) );
+		FExecuteAction::CreateSP( this, &FSequencer::SplitSection ),
+		FCanExecuteAction::CreateLambda(CanTrimSection));
 
 	// We can convert to spawnables if anything selected is a root-level possessable
 	auto CanConvertToSpawnables = [this]{
