@@ -21,7 +21,6 @@
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/IntervalGizmo.h"
-#include "PositionPlaneGizmo.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "CoreMinimal.h"
