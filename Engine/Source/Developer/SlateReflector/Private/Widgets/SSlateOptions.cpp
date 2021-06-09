@@ -70,8 +70,9 @@ void SSlateOptions::Construct( const FArguments& InArgs )
 	};
 
 	FToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+	ToolbarBuilder.SetStyle(&FWidgetReflectorStyle::Get(), "BoldSlimToolbar");
 	Local::FillToolbar(ToolbarBuilder);
-
+	
 	ChildSlot
 	[
 		SNew(SBorder)
