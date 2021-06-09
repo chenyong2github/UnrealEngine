@@ -210,6 +210,7 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 		// Set the initial preview feature level.
 		World->ChangeFeatureLevel(GEditor->GetActiveFeatureLevelPreviewType());
 
+		LevelActorDeletedHandle = GEditor->OnLevelActorDeleted().AddSP(this, &SLevelEditor::OnLevelActorDeleted);
 		LevelActorOuterChangedHandle = GEditor->OnLevelActorOuterChanged().AddSP(this, &SLevelEditor::OnLevelActorOuterChanged);
 	}
 
@@ -373,6 +374,7 @@ SLevelEditor::~SLevelEditor()
 		{
 			AssetEditorSubsystem->OnEditorModesChanged().RemoveAll(this);
 		}
+		GEditor->OnLevelActorDeleted().Remove(LevelActorDeletedHandle);
 		GEditor->OnLevelActorOuterChanged().Remove(LevelActorOuterChangedHandle);
 		GEditor->GetEditorWorldContext(true).RemoveRef(World);
 	}
@@ -1862,6 +1864,24 @@ void SLevelEditor::OnOverridePropertyEditorSelection(const TArray<AActor*>& NewS
 	}
 
 	bNeedsRefresh = false;
+}
+
+void SLevelEditor::OnLevelActorDeleted(AActor* InActor)
+{
+	if (SelectedElements && InActor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+	{
+		// Deselect PIE actors when they are deleted, as these won't go through the normal editor flow that will make sure an element is deselected prior to being destroyed
+		if (FTypedElementHandle ActorElement = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor, /*bAllowCreate*/false))
+		{
+			const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+				.SetAllowHidden(true)
+				.SetAllowGroups(false)
+				.SetAllowLegacyNotifications(false)
+				.SetWarnIfLocked(false);
+
+			SelectedElements->DeselectElement(ActorElement, SelectionOptions);
+		}
+	}
 }
 
 void SLevelEditor::OnLevelActorOuterChanged(AActor* InActor, UObject* InOldOuter)
