@@ -205,6 +205,8 @@ public:
 
 	ENGINE_API uint64 GetExtraRequiredMemoryAndReset();
 
+	static bool IsGPUSkinCacheRayTracingSupported();
+
 	enum
 	{
 		NUM_BUFFERS = 2,
