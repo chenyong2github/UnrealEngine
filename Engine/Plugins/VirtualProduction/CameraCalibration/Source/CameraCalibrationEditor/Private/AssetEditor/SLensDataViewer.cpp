@@ -148,18 +148,7 @@ void SLensDataViewer::OnGetDataCategoryItemChildren(TSharedPtr<FLensDataCategory
 void SLensDataViewer::OnDataCategorySelectionChanged(TSharedPtr<FLensDataCategoryItem> Item, ESelectInfo::Type SelectInfo)
 {
 	//Don't filter based on SelectInfo. We want to update on arrow key usage
-	if((Item.IsValid() == false)
-		|| (CachedSelectedCategoryItem.IsValid() == false)
-		|| (CachedSelectedCategoryItem->Category != Item->Category))
-	{
-		RefreshDataEntriesTree();
-	}
-	else
-	{
-		RefreshCurve();
-	}
-
-	CachedSelectedCategoryItem = Item;
+	RefreshDataEntriesTree();
 }
 
 TSharedPtr<FLensDataListItem> SLensDataViewer::GetSelectedDataEntry() const
@@ -425,6 +414,8 @@ void SLensDataViewer::RefreshDataCategoriesTree()
 
 void SLensDataViewer::RefreshDataEntriesTree()
 {
+	TSharedPtr<FLensDataListItem> CurrentSelection = GetSelectedDataEntry();
+
 	DataEntries.Reset();
 
 	if (TSharedPtr<FLensDataCategoryItem> CategoryItem = GetDataCategorySelection())
@@ -485,14 +476,8 @@ void SLensDataViewer::RefreshDataEntriesTree()
 	//When data entries have been repopulated, refresh the tree and select first item
 	DataEntriesTree->RequestListRefresh();
 
-	if (DataEntries.Num())
-	{
-		DataEntriesTree->SetSelection(DataEntries[0]);
-	}
-	else
-	{
-		DataEntriesTree->SetSelection(nullptr);
-	}
+	//Try to put back the same selected Focus/Zoom item
+	UpdateDataSelection(CurrentSelection);
 }
 
 void SLensDataViewer::RefreshCurve() const
@@ -617,6 +602,35 @@ void SLensDataViewer::OnDataTablePointsUpdated(ELensDataCategory InCategory)
 		{
 			RefreshDataEntriesTree();
 		}
+	}
+}
+
+void SLensDataViewer::UpdateDataSelection(const TSharedPtr<FLensDataListItem>& PreviousSelection)
+{
+	if (PreviousSelection.IsValid())
+	{
+		const TOptional<float> FocusValue = PreviousSelection->GetFocus();
+		if(FocusValue.IsSet())
+		{
+			for(const TSharedPtr<FLensDataListItem>& Item : DataEntries)
+			{
+				if(Item->GetFocus() == FocusValue)
+				{
+					DataEntriesTree->SetSelection(Item);
+					return;
+				}
+			}
+		}
+	}
+
+	//If we haven't found a selection
+	if (DataEntries.Num())
+	{
+		DataEntriesTree->SetSelection(DataEntries[0]);
+	}
+	else
+	{
+		DataEntriesTree->SetSelection(nullptr);
 	}
 }
 

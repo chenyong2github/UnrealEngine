@@ -99,6 +99,9 @@ private:
 	
 	/** Called when the data table points list of a data category was updated */
 	void OnDataTablePointsUpdated(ELensDataCategory InCategory);
+
+	/** Used to keep same selected data point when rebuilding tree */
+	void UpdateDataSelection(const TSharedPtr<FLensDataListItem>& PreviousSelection);
 	
 private:
 	
