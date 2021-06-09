@@ -7,6 +7,7 @@
 #include "RenderGraphUtils.h"
 #include "Containers/ResourceArray.h"
 #include "CommonRenderResources.h"
+#include "ScenePrivate.h"
 
 namespace ShaderDrawDebug 
 {
@@ -91,16 +92,6 @@ namespace ShaderDrawDebug
 		float Pos0_ColorX[4];		// float3 pos0 + packed color0
 		float Pos1_ColorY[4];		// float3 pos1 + packed color1
 	};
-
-	// This needs to be allocated per view, or move into a more persistent place
-	struct FLockedData
-	{
-		TRefCountPtr<FRDGPooledBuffer> Buffer;
-		TRefCountPtr<FRDGPooledBuffer> IndirectBuffer;
-		bool bIsLocked = false;
-	};
-
-	static FLockedData LockedData = {};
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -263,7 +254,9 @@ namespace ShaderDrawDebug
 			return;
 		}
 
-		const bool bLockBufferThisFrame = IsShaderDrawLocked() && !LockedData.bIsLocked;
+		FSceneViewState* ViewState = View.ViewState;
+
+		const bool bLockBufferThisFrame = IsShaderDrawLocked() && ViewState && !ViewState->ShaderDrawDebugStateData.bIsLocked;
 		ERDGBufferFlags Flags = bLockBufferThisFrame ? ERDGBufferFlags::MultiFrame : ERDGBufferFlags::None;
 
 		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderDrawElement), GetMaxElementCount()), TEXT("ShaderDrawDataBuffer"), Flags);
@@ -285,22 +278,23 @@ namespace ShaderDrawDebug
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, FIntVector(1,1,1));
 		});
 
+
 		View.ShaderDrawData.Buffer = DataBuffer;
 		View.ShaderDrawData.IndirectBuffer = IndirectBuffer;
 		View.ShaderDrawData.CursorPosition = View.CursorPos;
 
-		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
+		if (IsShaderDrawLocked() && ViewState && !ViewState->ShaderDrawDebugStateData.bIsLocked)
 		{
-			LockedData.Buffer = GraphBuilder.ConvertToExternalBuffer(View.ShaderDrawData.Buffer);
-			LockedData.IndirectBuffer = GraphBuilder.ConvertToExternalBuffer(View.ShaderDrawData.IndirectBuffer);
-			LockedData.bIsLocked = true;
+			ViewState->ShaderDrawDebugStateData.Buffer = GraphBuilder.ConvertToExternalBuffer(View.ShaderDrawData.Buffer);
+			ViewState->ShaderDrawDebugStateData.IndirectBuffer = GraphBuilder.ConvertToExternalBuffer(View.ShaderDrawData.IndirectBuffer);
+			ViewState->ShaderDrawDebugStateData.bIsLocked = true;
 		}
 
-		if (!IsShaderDrawLocked() && LockedData.bIsLocked)
+		if (!IsShaderDrawLocked() && ViewState && ViewState->ShaderDrawDebugStateData.bIsLocked)
 		{
-			LockedData.Buffer = nullptr;
-			LockedData.IndirectBuffer = nullptr;
-			LockedData.bIsLocked = false;
+			ViewState->ShaderDrawDebugStateData.Buffer = nullptr;
+			ViewState->ShaderDrawDebugStateData.IndirectBuffer = nullptr;
+			ViewState->ShaderDrawDebugStateData.bIsLocked = false;
 		}
 	}
 
@@ -317,10 +311,10 @@ namespace ShaderDrawDebug
 			InternalDrawView(GraphBuilder, View, DataBuffer, IndirectBuffer, OutputTexture, DepthTexture);
 		}
 
-		if (IsShaderDrawLocked())
+		if (View.ViewState && View.ViewState->ShaderDrawDebugStateData.bIsLocked)
 		{
-			FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(LockedData.Buffer);
-			FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(LockedData.IndirectBuffer);
+			FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ViewState->ShaderDrawDebugStateData.Buffer);
+			FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(View.ViewState->ShaderDrawDebugStateData.IndirectBuffer);
 			InternalDrawView(GraphBuilder, View, DataBuffer, IndirectBuffer, OutputTexture, DepthTexture);
 		}
 	}
