@@ -713,6 +713,7 @@ public:
 	friend class FControlRigInteractionScope;
 	friend class UControlRigValidator;
 	friend struct FAnimNode_ControlRig;
+	friend class URigHierarchy;
 };
 
 class CONTROLRIG_API FControlRigBracketScope

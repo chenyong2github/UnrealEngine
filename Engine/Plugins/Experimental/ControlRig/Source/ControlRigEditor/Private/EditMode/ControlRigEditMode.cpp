@@ -51,6 +51,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Settings/ControlRigSettings.h"
 
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
@@ -745,7 +746,7 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 					InteractionScope = new FControlRigInteractionScope(ControlRig);
 				}
 			}
-			else
+			else if(UControlRigSettings::Get()->bEnableUndoForPoseInteraction)
 			{
 				InteractionScope = new FControlRigInteractionScope(ControlRig);
 			}

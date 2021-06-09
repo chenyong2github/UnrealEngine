@@ -2045,11 +2045,6 @@ FReply FControlRigEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const 
 			RestoreNodeSnippet(0);
 			return FReply::Handled();
 		}
-		else if(InChord.Key == EKeys::Zero)
-		{
-			RestoreNodeSnippet(0);
-			return FReply::Handled();
-		}
 		
 		if(UControlRigGraph* RigGraph = Cast<UControlRigGraph>(InGraph))
 		{
@@ -3555,6 +3550,13 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 				NewSelection.Add(ElementToSelect);
 				Hierarchy->GetController()->SetSelection(NewSelection);
 			}
+
+			/*
+			if (FControlRigEditMode* EditMode = GetEditMode())
+			{
+				EditMode->RequestToRecreateGizmoActors();
+			}
+			*/
 		}
 	});
 
@@ -5721,11 +5723,24 @@ void FControlRigEditor::StoreNodeSnippet(int32 InSnippetIndex)
 		return;
 	}
 
-	FString Snippet = Controller->ExportSelectedNodesToText();
+	const TArray<FName> SelectedNodeNames = Controller->GetGraph()->GetSelectNodes();
+	if(SelectedNodeNames.Num() == 0)
+	{
+		return;
+	}
+	
+	FString Snippet = Controller->ExportNodesToText(SelectedNodeNames);
 	if(Snippet.IsEmpty())
 	{
 		return;
 	}
+
+	TArray<FString> NodeNameStrings;
+	for(const FName& SelectedNodeName : SelectedNodeNames)
+	{
+		NodeNameStrings.Add(SelectedNodeName.ToString());
+	}
+	const FString NodeNamesJoined = FString::Join(NodeNameStrings, TEXT(", "));
 
 	FString* Setting = GetSnippetStorage(InSnippetIndex);
 	check(Setting != nullptr);
@@ -5739,6 +5754,18 @@ void FControlRigEditor::StoreNodeSnippet(int32 InSnippetIndex)
 	check(Property);
 	
 	Settings->UpdateSinglePropertyInConfigFile(Property, Settings->GetDefaultConfigFilename());
+
+	FNotificationInfo Info(FText::FromString(FString::Printf(
+		TEXT("A snippet has been stored to the Project Settings.\n")
+		TEXT("Nodes %s are now stored as snippet %d.\n")
+		TEXT("You can restore the snippet by pressing %d and left clicking into the graph."),
+		*NodeNamesJoined, InSnippetIndex, InSnippetIndex)));
+	Info.bFireAndForget = true;
+	Info.FadeOutDuration = 2.0f;
+	Info.ExpireDuration = 8.0f;
+
+	TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 }
 
 void FControlRigEditor::RestoreNodeSnippet(int32 InSnippetIndex)

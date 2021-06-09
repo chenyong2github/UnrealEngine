@@ -20,6 +20,7 @@ UControlRigSettings::UControlRigSettings(const FObjectInitializer& ObjectInitial
 	DefaultGizmoLibrary = LoadObject<UControlRigGizmoLibrary>(nullptr, TEXT("/ControlRig/Controls/DefaultGizmoLibrary.DefaultGizmoLibrary"));
 	bResetControlsOnCompile = true;
 	bResetControlsOnPinValueInteraction = false;
+	bEnableUndoForPoseInteraction = true;
 
 	SetupEventBorderColor = FLinearColor::Red;
 	BackwardsSolveBorderColor = FLinearColor::Yellow;
