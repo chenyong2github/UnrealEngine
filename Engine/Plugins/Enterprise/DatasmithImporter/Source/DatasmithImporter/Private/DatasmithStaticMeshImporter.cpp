@@ -98,9 +98,9 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::CleanupMeshDescriptions)
 
-	TSet<FPolygonID> PolygonsToDelete;
 	for (FMeshDescription& MeshDescription : MeshDescriptions)
 	{
+		TSet<FPolygonID> PolygonsToDelete;
 		FStaticMeshAttributes Attributes(MeshDescription);
 		const TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 		if (VertexPositions.IsValid())
@@ -116,6 +116,12 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 					}
 				}
 			}
+		}
+
+		if (MeshDescription.Polygons().Num() == PolygonsToDelete.Num())
+		{
+			MeshDescription.Empty();
+			continue;
 		}
 
 		// Remove UV channels containing UV coordinates with Nan.
@@ -169,6 +175,16 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 
 			FElementIDRemappings Remappings;
 			MeshDescription.Compact(Remappings);
+		}
+
+		if (PolygonsToDelete.Num() > 0 || MeshDescription.Triangles().Num() == 0)
+		{
+			MeshDescription.TriangulateMesh();
+			if (MeshDescription.Triangles().Num() == 0)
+			{
+				MeshDescription.Empty();
+				continue;
+			}
 		}
 
 		// Fix invalid vertex normals and tangents
