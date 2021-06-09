@@ -55,6 +55,7 @@ int vswprintf( TCHAR *buf, int max, const TCHAR *fmt, va_list args )
 
 		TCHAR *percent_ptr = src;
 		int fieldlen = 0;
+		bool bVariablePrecision = false;
 		int precisionlen = -1;
 
 		src++; // skip the '%' char...
@@ -91,13 +92,22 @@ int vswprintf( TCHAR *buf, int max, const TCHAR *fmt, va_list args )
 		if (*src == '.')
 		{
 			TCHAR *ptr = src + 1;
-			while ((*ptr >= '0') && (*ptr <= '9'))
+			if (*ptr == '*')
+			{
+				bVariablePrecision = true;
+				precisionlen = va_arg(args, int);
 				ptr++;
+			}
+			else
+			{
+				while ((*ptr >= '0') && (*ptr <= '9'))
+					ptr++;
 
-			TCHAR ch = *ptr;
-			*ptr = '\0';
-			precisionlen = atoi(TCHAR_TO_ANSI(src + 1));
-			*ptr = ch;
+				TCHAR ch = *ptr;
+				*ptr = '\0';
+				precisionlen = atoi(TCHAR_TO_ANSI(src + 1));
+				*ptr = ch;
+			}
 			src = ptr;
 		}
 
@@ -252,7 +262,15 @@ int vswprintf( TCHAR *buf, int max, const TCHAR *fmt, va_list args )
 				}
 				fmtbuf[cpyidx] = 0;
 
-				int rc = snprintf(ansinum, sizeof (ansinum), fmtbuf, val);
+				int rc;
+				if (bVariablePrecision)
+				{
+					rc = snprintf(ansinum, sizeof (ansinum), fmtbuf, precisionlen, val);
+				}
+				else
+				{
+					rc = snprintf(ansinum, sizeof (ansinum), fmtbuf, val);
+				}
 				if ((dst + rc) > enddst)
 					return -1;	// Fail - the app needs to create a larger buffer and try again
 				for (int i = 0; i < rc; i++)
