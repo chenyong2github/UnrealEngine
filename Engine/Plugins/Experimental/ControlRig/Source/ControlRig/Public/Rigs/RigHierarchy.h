@@ -98,6 +98,7 @@ public:
 	, bSuspendNotifications(false)
 	, ResetPoseHash(INDEX_NONE)
 #if WITH_EDITOR
+	, bPropagatingChange(false)
 	, TraceFramesLeft(0)
 	, TraceFramesCaptured(0)
 #endif
@@ -127,6 +128,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	void CopyHierarchy(URigHierarchy* InHierarchy);
 
+#if WITH_EDITOR
+	/**
+	* Add dependent hierarchies that listens to changes made to this hierarchy
+	* Note: By default, only changes to the initial states of this hierarchy is mirrored to the listening hierarchies
+	*/	
+	void RegisterListeningHierarchy(URigHierarchy* InHierarchy);
+	
+	/**
+	* Remove dependent hierarchies that listens to changes made to this hierarchy
+	*/	
+	void UnregisterListeningHierarchy(URigHierarchy* InHierarchy);
+	
+	void ClearListeningHierarchy();
+#endif
+
+public:
 	/**
 	 * Copies the contents of a hierarchy onto this one
 	 */
@@ -701,6 +718,7 @@ public:
 	 * @InTypeFilter The types to retrieve the selection for
 	 * @return An array of the currently selected elements
 	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	TArray<FRigElementKey> GetSelectedKeys(ERigElementType InTypeFilter = ERigElementType::All) const;
 
 	/**
@@ -735,6 +753,7 @@ public:
 	 * @param InKeys The keys to sort
 	 * @return The sorted keys
 	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	FORCEINLINE TArray<FRigElementKey> SortKeys(const TArray<FRigElementKey>& InKeys) const
 	{
 		TArray<FRigElementKey> Result;
@@ -2011,7 +2030,7 @@ public:
 	 * Sets the offset transform for a given control element
 	 * @param InControlElement The element to set the transform for
 	 * @param InTransform The offset transform to set
-	 * @param InTransformType The type of transform to set
+	 * @param InTransformType The type of transform to set. Note: for offset transform, setting the initial value also updates the current value
 	 * @param bAffectChildren If set to false children will not move (maintain global).
 	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
 	 * @param bForce Set the transform even if it is the same as the previously set one
@@ -2030,7 +2049,7 @@ public:
 	 * Sets the gizmo transform for a given control element
 	 * @param InControlElement The element to set the transform for
 	 * @param InTransform The gizmo transform to set
-	 * @param InTransformType The type of transform to set
+	 * @param InTransformType The type of transform to set. Note: for gizmo transform, setting the initial value also updates the current value
 	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
 	 * @param bForce Set the transform even if it is the same as the previously set one
 	 */
@@ -2314,6 +2333,47 @@ private:
 
 #if WITH_EDITOR
 
+	// this is mainly used for propagating changes between hierarchies in the direction of blueprint -> CDO -> other instances
+	struct FRigHierarchyListener
+	{
+		FRigHierarchyListener()
+			: Hierarchy(nullptr)
+			, bShouldReactToInitialChanges(true)
+			// default to false since changing the current values in a BP/CDO is not meaningful
+			, bShouldReactToCurrentChanges(false) 
+		{}
+
+		bool ShouldReactToChange(ERigTransformType::Type InTransformType) const
+		{
+			if(Hierarchy.IsValid())
+			{
+				if(ERigTransformType::IsInitial(InTransformType))
+				{
+					return bShouldReactToInitialChanges;
+				}
+
+				if(ERigTransformType::IsCurrent(InTransformType))
+				{
+					return bShouldReactToCurrentChanges;
+				}
+			}
+			return false;
+		}
+		
+		TWeakObjectPtr<URigHierarchy> Hierarchy;
+		bool bShouldReactToInitialChanges;
+		bool bShouldReactToCurrentChanges;
+	};
+	
+	TArray<FRigHierarchyListener> ListeningHierarchies;
+
+	// a bool to guard against circular dependencies among listening hierarchies
+	bool bPropagatingChange;
+	
+#endif
+
+#if WITH_EDITOR
+
 protected:
 	
 	int32 TraceFramesLeft;
@@ -2321,7 +2381,7 @@ protected:
 	TMap<FName, FRigPose> TracePoses;
 
 #endif
-	
+
 	friend class URigHierarchyController;
 	friend class UControlRig;
 	friend class FControlRigEditor;

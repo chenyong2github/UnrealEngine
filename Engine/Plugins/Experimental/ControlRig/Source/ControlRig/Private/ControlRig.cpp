@@ -99,6 +99,16 @@ void UControlRig::BeginDestroy()
 		VM->ExecutionReachedExit().RemoveAll(this);
 	}
 
+#if WITH_EDITOR
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if(UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>())
+		{
+			CDO->GetHierarchy()->UnregisterListeningHierarchy(GetHierarchy());
+		}
+	}
+#endif
+
 #if WITH_EDITORONLY_DATA
 	if (VMSnapshotBeforeExecution)
 	{
@@ -179,6 +189,9 @@ void UControlRig::InitializeFromCDO()
 	// copy CDO property you need to here
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+		// similar to FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject,
+		// where CDO is initialized from BP there,
+		// we initialize all other instances of Control Rig from the CDO here
 		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 
 		// copy hierarchy
@@ -187,6 +200,11 @@ void UControlRig::InitializeFromCDO()
 			GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
 			GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
 		}
+
+#if WITH_EDITOR
+		// current hierarchy should always mirror CDO's hierarchy whenever a change of interest happens
+		CDO->GetHierarchy()->RegisterListeningHierarchy(GetHierarchy());
+#endif
 
 		// notify clients that the hierarchy has changed
 		GetHierarchy()->Notify(ERigHierarchyNotification::HierarchyReset, nullptr);

@@ -2915,6 +2915,8 @@ void UControlRigBlueprint::PropagatePoseFromBPToInstances()
 	{
 		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
 		{
+			DefaultObject->GetHierarchy()->CopyPose(Hierarchy, true, true);
+
 			TArray<UObject*> ArchetypeInstances;
 			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
 			for (UObject* ArchetypeInstance : ArchetypeInstances)
