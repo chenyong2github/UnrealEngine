@@ -3016,6 +3016,34 @@ FNiagaraVariant UNiagaraComponent::FindParameterOverride(const FNiagaraVariableB
 	return FNiagaraVariant();
 }
 
+FNiagaraVariant UNiagaraComponent::GetCurrentParameterValue(const FNiagaraVariableBase& InKey) const
+{
+	FNiagaraVariableBase UserVariable = InKey;
+	if (OverrideParameters.RedirectUserVariable(UserVariable) == false)
+	{
+		return FNiagaraVariant();
+	}
+
+	int32 ParameterOffset = OverrideParameters.IndexOf(UserVariable);
+	if (ParameterOffset == INDEX_NONE)
+	{
+		return FNiagaraVariant();
+	}
+
+	if (InKey.GetType().IsDataInterface())
+	{
+		return FNiagaraVariant(OverrideParameters.GetDataInterface(ParameterOffset));
+	}
+	else if (InKey.GetType().IsUObject())
+	{
+		return FNiagaraVariant(OverrideParameters.GetUObject(ParameterOffset));
+	}
+	else
+	{
+		return FNiagaraVariant(OverrideParameters.GetParameterData(ParameterOffset), InKey.GetSizeInBytes());
+	}
+}
+
 void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue)
 {
 	if (InKey.IsDataInterface())
