@@ -13,7 +13,7 @@ FPLUGIN_NAMEEdModeToolkit::FPLUGIN_NAMEEdModeToolkit()
 {
 }
 
-void FPLUGIN_NAMEEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
+void FPLUGIN_NAMEEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
 {
 	struct Locals
 	{
@@ -102,8 +102,8 @@ void FPLUGIN_NAMEEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkit
 				]
 
 		];
-		
-	FModeToolkit::Init(InitToolkitHost);
+
+	FModeToolkit::Init(InitToolkitHost, InOwningMode);
 }
 
 FName FPLUGIN_NAMEEdModeToolkit::GetToolkitFName() const
@@ -114,11 +114,6 @@ FName FPLUGIN_NAMEEdModeToolkit::GetToolkitFName() const
 FText FPLUGIN_NAMEEdModeToolkit::GetBaseToolkitName() const
 {
 	return NSLOCTEXT("PLUGIN_NAMEEdModeToolkit", "DisplayName", "PLUGIN_NAMEEdMode Tool");
-}
-
-class FEdMode* FPLUGIN_NAMEEdModeToolkit::GetEditorMode() const
-{
-	return GLevelEditorModeTools().GetActiveMode(FPLUGIN_NAMEEdMode::EM_PLUGIN_NAMEEdModeId);
 }
 
 #undef LOCTEXT_NAMESPACE
