@@ -19,7 +19,7 @@
 #include "Engine/PlatformSettings.h"
 #include "PropertyEditorModule.h"
 #include "PropertyEditorDelegates.h"
-#include "Customizations/PlatformSettingsCustomization.h"
+#include "Customizations/PerPlatformSettingsCustomization.h"
 
 #define LOCTEXT_NAMESPACE "SSettingsEditor"
 
