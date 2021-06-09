@@ -26,7 +26,7 @@ namespace DatasmithImportContextImpl
 {
 	const TCHAR* GetUserOptionPath()
 	{
-		static FString UserDatasmithOptionsFile = FPaths::Combine(FPlatformProcess::UserSettingsDir(), "Unreal Engine/Enterprise/Datasmith/Config/UserOptions.ini");
+		static FString UserDatasmithOptionsFile = FPaths::Combine(FPlatformProcess::UserSettingsDir(), TEXT("Unreal Engine/Enterprise/Datasmith/Config/UserOptions.ini"));
 		return *UserDatasmithOptionsFile;
 	}
 
