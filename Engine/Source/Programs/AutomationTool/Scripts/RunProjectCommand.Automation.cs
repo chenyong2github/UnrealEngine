@@ -1056,7 +1056,7 @@ public partial class Project : CommandUtils
 	private static bool StartUnrealTrace()
 	{
 		// [TEMPORARY] - UnrealTrace server is currently only available on Windows
-		if (!Utils.IsRunningOnWindows)
+		if (!RuntimePlatform.IsWindows)
 		{
 			return true;
 		}
