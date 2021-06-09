@@ -4,6 +4,7 @@
 
 #include "CommonUserWidget.h"
 #include "Input/UIActionBindingHandle.h"
+#include "UITag.h"
 #include "CommonActivatableWidget.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetActivationChanged);
@@ -117,13 +118,17 @@ protected:
 
 	void HandleBackAction();
 
+	/** True to receive "Back" actions automatically. Custom back handler behavior can be provided, default is to deactivate. */
+	UPROPERTY(EditAnywhere, Category = Back)
+	bool bIsBackHandler = false;
+
+	/** True to receive "Back" actions automatically. Custom back handler behavior can be provided, default is to deactivate. */
+	UPROPERTY(EditAnywhere, Category = Back)
+	bool bIsBackActionDisplayedInActionBar = false;
+
 	/** True to automatically activate upon construction */
 	UPROPERTY(EditAnywhere, Category = Activation)
 	bool bAutoActivate = false;
-
-	/** True to receive "Back" actions automatically. Custom back handler behavior can be provided, default is to deactivate. */
-	UPROPERTY(EditAnywhere, Category = Activation)
-	bool bIsBackHandler = false;
 
 	//@todo DanH: This property name suuucks, need to circle back and pick something better
 	/**
