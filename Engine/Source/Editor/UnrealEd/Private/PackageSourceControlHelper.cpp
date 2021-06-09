@@ -183,30 +183,11 @@ bool FPackageSourceControlHelper::Delete(const TArray<UPackage*>& Packages) cons
 		return true;
 	}
 
-	// Store all packages names as we won't be able to retrieve them from the UPackages once they are unloaded
-	TArray<FString> PackagesNames;
-	PackagesNames.Reserve(Packages.Num());
-
+	bool bAllPackagesDeleted = true;
 	for (UPackage* Package : Packages)
 	{
-		PackagesNames.Add(Package->GetName());
-
-		// Must clear dirty flag before unloading
-		Package->SetDirtyFlag(false);
-	}
-
-	// Unload packages so we can delete them
-	FText ErrorMessage;
-	if (!UPackageTools::UnloadPackages(Packages, ErrorMessage))
-	{
-		UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error unloading package: %s"), *ErrorMessage.ToString());
-		return false;
-	}
-
-	bool bAllPackagesDeleted = true;
-	for (const FString& PackageName : PackagesNames)
-	{
-		bAllPackagesDeleted &= Delete(PackageName);
+		ResetLoaders(Package);
+		bAllPackagesDeleted &= Delete(Package->GetName());
 	}
 
 	return bAllPackagesDeleted;
