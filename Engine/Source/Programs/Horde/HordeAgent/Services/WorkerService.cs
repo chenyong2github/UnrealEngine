@@ -349,7 +349,7 @@ namespace HordeAgent.Services
 			}
 
 			// Mount all the necessary network shares. Currently only supported on Windows.
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			if (Settings.ShareMountingEnabled && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				foreach (MountNetworkShare Share in Settings.Shares)
 				{
