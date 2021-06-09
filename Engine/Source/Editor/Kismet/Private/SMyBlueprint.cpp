@@ -1739,7 +1739,7 @@ FReply SMyBlueprint::OnActionDragged( const TArray< TSharedPtr<FEdGraphSchemaAct
 			{
 				if (FuncAction->EdGraph->GetSchema()->CanGraphBeDropped(InAction))
 				{
-					return FuncAction->EdGraph->GetSchema()->BeginGraphDragAction(InAction);
+					return FuncAction->EdGraph->GetSchema()->BeginGraphDragAction(InAction, FPointerEvent());
 				}
 			}
 
