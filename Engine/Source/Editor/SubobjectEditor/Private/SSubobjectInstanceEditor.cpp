@@ -193,14 +193,11 @@ void SSubobjectInstanceEditor::OnDeleteNodes()
 		int32 NumDeleted = System->DeleteSubobjects(RootNodes[0]->GetDataHandle(), HandlesToDelete, HandleToSelect);
 
 		if(NumDeleted > 0)
-		{
-			if(HandleToSelect.IsValid())
+		{			
+			FSubobjectEditorTreeNodePtrType NodeToSelect = HandleToSelect.IsValid() ? FindSlateNodeForHandle(HandleToSelect) : GetSceneRootNode();
+			if(NodeToSelect.IsValid())
 			{
-				FSubobjectEditorTreeNodePtrType NodeToSelect = FindSlateNodeForHandle(HandleToSelect);
-				if(NodeToSelect.IsValid())
-				{
-					TreeWidget->SetSelection(NodeToSelect);
-				}
+				TreeWidget->SetSelection(NodeToSelect);
 			}
 			
 			UpdateTree();
