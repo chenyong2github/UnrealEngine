@@ -586,7 +586,7 @@ public:
 	virtual void ClearSelectionStateFor(FName SelectionOwner);
 
 	/** Handles spawning a graph node in the current graph using the passed in chord */
-	FReply OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition, UEdGraph* InGraph);
+	virtual FReply OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition, UEdGraph* InGraph);
 
 	/**
 	 * Perform the actual promote to variable action on the given pin in the given blueprint.

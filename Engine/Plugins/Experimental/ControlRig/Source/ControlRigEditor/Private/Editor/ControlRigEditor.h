@@ -116,6 +116,8 @@ public:
 	virtual void PasteNodes() override;
 	virtual bool CanPasteNodes() const override;
 
+	virtual FReply OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition, UEdGraph* InGraph) override;
+
 	// FEditorUndoClient Interface
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
@@ -392,6 +394,13 @@ protected:
 	URigVMGraph* GetFocusedModel() const;
 	URigVMController* GetFocusedController() const;
 	TSharedPtr<SGraphEditor> GetGraphEditor(UEdGraph* InEdGraph) const;
+	
+	// stores a node snippet into the setting
+	void StoreNodeSnippet(int32 InSnippetIndex);
+	// restores a node snippet from the setting
+	void RestoreNodeSnippet(int32 InSnippetIndex);
+	// returns the right setting storage for a given snippet index
+	static FString* GetSnippetStorage(int32 InSnippetIndex);
 
 	URigVMController* ActiveController;
 	bool bControlRigEditorInitialized;

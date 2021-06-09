@@ -28,6 +28,17 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 	virtual void Execute(const FRigUnitContext& Context) {}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const { return FRigElementKey(); }
+
+	/** The name of the method used within each rig unit */
+	FORCEINLINE_DEBUGGABLE static FName GetMethodName()
+	{
+		static FName MethodName = FName(NAME_None);
+		if(MethodName.IsNone())
+		{
+			MethodName = TEXT("Execute");
+		}
+		return MethodName;
+	}
 };
 
 /** Base class for all rig units that can change data */

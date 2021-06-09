@@ -85,6 +85,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_SequenceExecution.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -403,7 +404,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		{
 			if (Model->GetNodes().Num() == 0)
 			{
-				URigVMNode* Node = InControlRigBlueprint->GetController()->AddUnitNode(FRigUnit_BeginExecution::StaticStruct(), TEXT("Execute"), FVector2D::ZeroVector, FString(), false);
+				URigVMNode* Node = InControlRigBlueprint->GetController()->AddUnitNode(FRigUnit_BeginExecution::StaticStruct(), FRigUnit::GetMethodName(), FVector2D::ZeroVector, FString(), false);
 				if (Node)
 				{
 					TArray<FName> NodeNames;
@@ -588,7 +589,6 @@ void FControlRigEditor::BindCommands()
 		FControlRigBlueprintCommands::Get().StepOut,
 		FExecuteAction::CreateSP(this, &FControlRigEditor::HandleBreakpointActionRequested, ERigVMBreakpointAction::StepOut),
 		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
-
 }
 
 void FControlRigEditor::ToggleExecuteGraph()
@@ -1560,6 +1560,55 @@ void FControlRigEditor::CreateDefaultCommands()
 
 void FControlRigEditor::OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList)
 {
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet1,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 1),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet2,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 2),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet3,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 3),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet4,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 4),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet5,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 5),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet6,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 6),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet7,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 7),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet8,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 8),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet9,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 9),
+		FCanExecuteAction());
+
+	GraphEditorCommandsList->MapAction(
+		FControlRigBlueprintCommands::Get().StoreNodeSnippet0,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::StoreNodeSnippet, 0),
+		FCanExecuteAction());
 
 }
 
@@ -1939,6 +1988,86 @@ bool FControlRigEditor::CanPasteNodes() const
 	FString TextToImport;
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
 	return GetFocusedController()->CanImportNodesFromText(TextToImport);
+}
+
+FReply FControlRigEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition,
+                                                     UEdGraph* InGraph)
+{
+	if(!InChord.HasAnyModifierKeys())
+	{
+		if(InChord.Key == EKeys::One)
+		{
+			RestoreNodeSnippet(1);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Two)
+		{
+			RestoreNodeSnippet(2);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Three)
+		{
+			RestoreNodeSnippet(3);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Four)
+		{
+			RestoreNodeSnippet(4);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Five)
+		{
+			RestoreNodeSnippet(5);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Six)
+		{
+			RestoreNodeSnippet(6);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Seven)
+		{
+			RestoreNodeSnippet(7);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Eight)
+		{
+			RestoreNodeSnippet(8);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Nine)
+		{
+			RestoreNodeSnippet(9);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Zero)
+		{
+			RestoreNodeSnippet(0);
+			return FReply::Handled();
+		}
+		else if(InChord.Key == EKeys::Zero)
+		{
+			RestoreNodeSnippet(0);
+			return FReply::Handled();
+		}
+		
+		if(UControlRigGraph* RigGraph = Cast<UControlRigGraph>(InGraph))
+		{
+			if(URigVMController* Controller = RigGraph->GetController())
+			{
+				if(InChord.Key == EKeys::B)
+				{
+					Controller->AddBranchNode(InPosition);
+				}
+				else if(InChord.Key == EKeys::S)
+				{
+					Controller->AddUnitNode(FRigUnit_SequenceExecution::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+				}
+			}
+		}
+	}
+
+	return FReply::Unhandled();
 }
 
 void FControlRigEditor::PasteNodes()
@@ -4703,7 +4832,7 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 								{
 									Controller->OpenUndoBracket(TEXT("Create Collection from Items"));
 
-									if (URigVMNode* ItemsNode = Controller->AddUnitNode(FRigUnit_CollectionItems::StaticStruct(), TEXT("Execute"), NodePosition))
+									if (URigVMNode* ItemsNode = Controller->AddUnitNode(FRigUnit_CollectionItems::StaticStruct(), FRigUnit::GetMethodName(), NodePosition))
 									{
 										if (URigVMPin* ItemsPin = ItemsNode->FindPin(TEXT("Items")))
 										{
@@ -5014,7 +5143,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 		}
 
 		FName Name = FControlRigBlueprintUtils::ValidateName(Blueprint, StructTemplate->GetName());
-		if (URigVMUnitNode* ModelNode = GetFocusedController()->AddUnitNode(StructTemplate, TEXT("Execute"), NodePosition))
+		if (URigVMUnitNode* ModelNode = GetFocusedController()->AddUnitNode(StructTemplate, FRigUnit::GetMethodName(), NodePosition))
 		{
 			FString ItemTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)Key.Type).ToString();
 			NewNode.Name = ModelNode->GetFName();
@@ -5580,6 +5709,115 @@ TSharedPtr<SGraphEditor> FControlRigEditor::GetGraphEditor(UEdGraph* InEdGraph) 
 	}
 
 	return TSharedPtr<SGraphEditor>();
+}
+
+void FControlRigEditor::StoreNodeSnippet(int32 InSnippetIndex)
+{
+	check((InSnippetIndex >= 0) && (InSnippetIndex < 10));
+
+	URigVMController* Controller = GetFocusedController();
+	if(Controller == nullptr)
+	{
+		return;
+	}
+
+	FString Snippet = Controller->ExportSelectedNodesToText();
+	if(Snippet.IsEmpty())
+	{
+		return;
+	}
+
+	FString* Setting = GetSnippetStorage(InSnippetIndex);
+	check(Setting != nullptr);
+
+	UControlRigSettings* Settings = UControlRigSettings::Get();
+	Settings->Modify();
+	(*Setting) = Snippet;
+
+	const FString PropertyName = FString::Printf(TEXT("NodeSnippet_%d"), InSnippetIndex);
+	FProperty* Property = UControlRigSettings::StaticClass()->FindPropertyByName(*PropertyName);
+	check(Property);
+	
+	Settings->UpdateSinglePropertyInConfigFile(Property, Settings->GetDefaultConfigFilename());
+}
+
+void FControlRigEditor::RestoreNodeSnippet(int32 InSnippetIndex)
+{
+	FString* Setting = GetSnippetStorage(InSnippetIndex);
+	check(Setting != nullptr);
+
+	if(Setting->IsEmpty())
+	{
+		return;
+	}
+
+	FPlatformApplicationMisc::ClipboardCopy(*(*Setting));
+	PasteNodes();
+}
+
+FString* FControlRigEditor::GetSnippetStorage(int32 InSnippetIndex)
+{
+	UControlRigSettings* Settings = UControlRigSettings::Get();
+	switch(InSnippetIndex)
+	{
+		case 1:
+		{
+			return &Settings->NodeSnippet_1;
+			break;
+		}
+		case 2:
+		{
+			return &Settings->NodeSnippet_2;
+			break;
+		}
+		case 3:
+		{
+			return &Settings->NodeSnippet_3;
+			break;
+		}
+		case 4:
+		{
+			return &Settings->NodeSnippet_4;
+			break;
+		}
+		case 5:
+		{
+			return &Settings->NodeSnippet_5;
+			break;
+		}
+		case 6:
+		{
+			return &Settings->NodeSnippet_6;
+			break;
+		}
+		case 7:
+		{
+			return &Settings->NodeSnippet_7;
+			break;
+		}
+		case 8:
+		{
+			return &Settings->NodeSnippet_8;
+			break;
+		}
+		case 9:
+		{
+			return &Settings->NodeSnippet_9;
+			break;
+		}
+		case 0:
+		{
+			return &Settings->NodeSnippet_0;
+			break;
+		}
+		default:
+		{
+			checkNoEntry();
+			break;
+		}
+	}
+
+	return nullptr;
 }
 
 
