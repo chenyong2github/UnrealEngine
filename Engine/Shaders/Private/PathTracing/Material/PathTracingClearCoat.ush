@@ -16,19 +16,19 @@
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 
-float3 CalcThinTransmission(float NoL, float NoV, FMaterialClosestHitPayload Payload)
+float3 CalcThinTransmission(float NoL, float NoV, FPathTracingPayload Payload)
 {
 	float3 Transmission = 1.0;
 
-	float AbsorptionMix = GetMetallic(Payload);
+	float AbsorptionMix = Payload.Metallic;
 	if (AbsorptionMix > 0.0)
 	{
-		float LayerThickness = GetClearCoatThickness(Payload);
+		float LayerThickness = 1.0;	// Assume normalized thickness
 		float ThinDistance = LayerThickness * (rcp(NoV) + rcp(NoL));
 
 		// Base color represents reflected color viewed at 0 incidence angle, after being absorbed through the substrate.
 		// Because of this, extinction is normalized by traveling through layer thickness twice
-		float3 TransmissionColor = Diffuse_Lambert(GetBaseColor(Payload) );
+		float3 TransmissionColor = Diffuse_Lambert(Payload.BaseColor);
 		float3 ExtinctionCoefficient = -log(TransmissionColor) / (2.0 * LayerThickness);
 		float3 OpticalDepth = ExtinctionCoefficient * max(ThinDistance - 2.0 * LayerThickness, 0.0);
 		Transmission = exp(-OpticalDepth);
@@ -37,7 +37,7 @@ float3 CalcThinTransmission(float NoL, float NoV, FMaterialClosestHitPayload Pay
 	return Transmission;
 }
 
-float CalcClearCoatSelectionPdf(FMaterialClosestHitPayload Payload)
+float CalcClearCoatSelectionPdf(FPathTracingPayload Payload)
 {
 #if EVAL_TOP_LAYER == 0
 	// never select coating if top is disabled
@@ -48,7 +48,7 @@ float CalcClearCoatSelectionPdf(FMaterialClosestHitPayload Payload)
 #endif
 	// probability of choosing the coat
 	// TODO: this could be improved if we had a directional albedo tabulation
-	float Pdf = GetClearCoat(Payload) * CLEAR_COAT_F0;
+	float Pdf = Payload.GetClearCoat() * CLEAR_COAT_F0;
 	return Pdf;
 }
 
@@ -61,19 +61,19 @@ float ClearCoatFresnel(float VoH) {
 FMaterialEval ClearCoat_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	inout FMaterialClosestHitPayload Payload
+	inout FPathTracingPayload Payload
 )
 {
 	FMaterialEval Result = NullMaterialEval();
 	
 	float3 V_World = -IncomingDirection;
 	float3 L_World = OutgoingDirection;
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 
 	float CoatSelectionPdf = CalcClearCoatSelectionPdf(Payload);
 
 	float2 Alpha = 0;
-	float3x3 Basis = GetGGXBasis(GetClearCoatRoughness(Payload), Payload.WorldNormal, Alpha);
+	float3x3 Basis = GetGGXBasis(Payload.GetClearCoatRoughness(), Payload.WorldNormal, Alpha);
 
 	// move vectors into right shading frame
 	float3 V = mul(Basis, V_World);
@@ -87,7 +87,7 @@ FMaterialEval ClearCoat_EvalMaterial(
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-	const float F = GetClearCoat(Payload) * ClearCoatFresnel(VoH);
+	const float F = Payload.GetClearCoat() * ClearCoatFresnel(VoH);
 	const float3 SpecWeight = F * GGXResult.x;
 	const float SpecPdf = GGXResult.y;
 
@@ -96,7 +96,7 @@ FMaterialEval ClearCoat_EvalMaterial(
 
 	// bottom-layer clear coat evaluation
 	FMaterialEval BottomEval = NullMaterialEval();
-	Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
+	Payload.WorldNormal = Payload.GetClearCoatBottomNormal();
 #if GREY_INNER_LAYER == 0
 	// NOTE: Should we try to account for the IOR ratio between layers? We could try to darken Specular Color by the coating IOR
 	// but this would apply to both the dielctric and metal portions equally ...
@@ -120,7 +120,7 @@ FMaterialEval ClearCoat_EvalMaterial(
 	float CC_F1 = ClearCoatFresnel(NoV);
 	float CC_F2 = ClearCoatFresnel(NoL);
 
-	BottomEval.Weight *= lerp(1.0, Transmission * (1 - CC_F1) * (1 - CC_F2), GetClearCoat(Payload));
+	BottomEval.Weight *= lerp(1.0, Transmission * (1 - CC_F1) * (1 - CC_F2), Payload.GetClearCoat());
 
 	AddLobeWithMIS(Result.Weight, Result.Pdf, BottomEval.Weight, BottomEval.Pdf, 1.0 - CoatSelectionPdf);
 
@@ -129,11 +129,11 @@ FMaterialEval ClearCoat_EvalMaterial(
 
 FMaterialSample ClearCoat_SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample
 )
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	float3 V_World = -RayDirection;
 
 	float CoatSelectionPdf = CalcClearCoatSelectionPdf(Payload);
@@ -146,7 +146,7 @@ FMaterialSample ClearCoat_SampleMaterial(
 		RandSample.x /= CoatSelectionPdf;
 
 		// No anisotropy, just pick an arbitrary basis
-		float Roughness = max(GetClearCoatRoughness(Payload), GGX_MIN_ROUGHNESS);
+		float Roughness = max(Payload.GetClearCoatRoughness(), GGX_MIN_ROUGHNESS);
 		float2 Alpha = Roughness * Roughness;
 		float3x3 Basis = GetTangentBasis(N_World);
 
@@ -173,14 +173,14 @@ FMaterialSample ClearCoat_SampleMaterial(
 #if GREY_INNER_LAYER == 0
 		float3 Weight = 0;
 		float Pdf = 0;
-		Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
+		Payload.WorldNormal = Payload.GetClearCoatBottomNormal();
 		FMaterialSample InnerSample = DefaultLit_SampleMaterial(RayDirection, Payload, RandSample);
 		Payload.WorldNormal = N_World;
 
 		OutDirection = InnerSample.Direction;
 		OutRoughness = InnerSample.Roughness;
 #else
-		float3 Nb = GetClearCoatBottomNormal(Payload);
+		float3 Nb = Payload.GetClearCoatBottomNormal();
 		OutDirection = TangentToWorld(CosineSampleHemisphere(RandSample.xy).xyz, Nb);
 		OutRoughness = 1.0;
 #endif

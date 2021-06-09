@@ -8,7 +8,7 @@
 
 #include "PathTracingFresnel.ush"
 
-float ClothLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
+float ClothLobeSelectionPdf(float3 V, FPathTracingPayload Payload)
 {
 	// TODO: This could be improved if we had a directional albedo tabulation, but this formulation will at least prevent
 	// under-sampling when one lobe is black (like with metals)
@@ -24,14 +24,14 @@ float ClothLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
 FMaterialEval Cloth_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
 	FMaterialEval Result = NullMaterialEval();
 
 	const float3 V_World = -IncomingDirection;
 	const float3 L_World = OutgoingDirection;
-	const float3 N_World = GetWorldNormal(Payload);
+	const float3 N_World = Payload.WorldNormal;
 
 	float2 Alpha = 0;
 	const float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
@@ -72,11 +72,11 @@ FMaterialEval Cloth_EvalMaterial(
 
 FMaterialSample Cloth_SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample
 )
 {
-	float3 N = GetWorldNormal(Payload);
+	float3 N = Payload.WorldNormal;
 	float3 V = -RayDirection;
 
 	const float LobeSelectionPdf = ClothLobeSelectionPdf(V, Payload);

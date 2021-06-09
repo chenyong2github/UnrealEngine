@@ -6,36 +6,36 @@ PathTracingLambert.usf: Lambertian BRDF sampling functions
 #pragma once
 
 FMaterialSample Lambert_SampleMaterial(
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample)
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 
-	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World), GetBaseColor(Payload), SampledValue.w, 1.0, 1.0);
+	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World), Payload.BaseColor, SampledValue.w, 1.0, 1.0);
 }
 
 FMaterialEval Lambert_EvalMaterial(
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	float NoL = saturate(dot(N_World, OutgoingDirection));
 
-	return CreateMaterialEval(GetBaseColor(Payload), NoL / PI);
+	return CreateMaterialEval(Payload.BaseColor, NoL / PI);
 }
 
 
 FMaterialSample Simplified_SampleMaterial(
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample)
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 
-	float3 FrontColor = GetBaseColor(Payload);
-	float3 BackColor = Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ? GetSubsurfaceColor(Payload) : 0.0;
+	float3 FrontColor = Payload.BaseColor;
+	float3 BackColor = Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ? Payload.GetSubsurfaceColor() : 0.0;
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 
@@ -49,14 +49,14 @@ FMaterialSample Simplified_SampleMaterial(
 
 FMaterialEval Simplified_EvalMaterial(
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	float NoL = dot(N_World, OutgoingDirection);
 
-	float3 FrontColor = GetBaseColor(Payload);
-	float3 BackColor = Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ? GetSubsurfaceColor(Payload) : 0.0;
+	float3 FrontColor = Payload.BaseColor;
+	float3 BackColor = Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ? Payload.GetSubsurfaceColor() : 0.0;
 	float TransmissionProb = LobeSelectionProb(BackColor, FrontColor);
 
 	float3 Weight = NoL < 0.0 ? BackColor : FrontColor;

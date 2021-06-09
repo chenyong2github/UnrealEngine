@@ -32,14 +32,12 @@
 
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
-	FPackedMaterialClosestHitPayload, PackedPayload,
+	FPackedPathTracingPayload, PackedPayload,
 	FDefaultAttributes, Attributes)
 {
 	PackedPayload.HitT = RayTCurrent();
 
 #if USE_MATERIAL_CLOSEST_HIT_SHADER
-	GlobalTextureMipBias = PackedPayload.GetMipBias();
-
 	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
 
 	ResolvedView = ResolveView();
@@ -67,7 +65,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// #endif
 	}
 
-	FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
+	FPathTracingPayload Payload = (FPathTracingPayload)0;
+	Payload.RayCone = PropagatedCone;
 
 	/**
 	 * Set common material attributes for both full and simplified materials
@@ -100,7 +99,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIAL_IS_SKY
 	if (PackedPayload.IsIgnoreSkyMaterials())
 	{
-		PackedPayload = PackRayTracingPayload(Payload, PropagatedCone);
+		PackedPayload = PackPathTracingPayload(Payload);
 		return;
 	}
 #endif
@@ -108,9 +107,9 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 #if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
-	half2 Refraction = GetMaterialRefraction(PixelMaterialInputs);
+	half Refraction = GetMaterialRefraction(PixelMaterialInputs).x;
 #else
-	half2 Refraction = 1;
+	half Refraction = 1;
 #endif
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
 	half  Specular = GetMaterialSpecular(PixelMaterialInputs);
@@ -130,6 +129,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.Metallic = Metallic;
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 
+#if MATERIAL_USES_ANISOTROPY
+	Payload.WorldTangent = CalculateAnisotropyTangent(MaterialParameters, PixelMaterialInputs);
+	Payload.Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
+#endif	
+
 #if MATERIALBLENDING_MASKED
 #if MATERIAL_DITHER_OPACITY_MASK
 	// dithering emulates real transparency, so switch to translucent
@@ -144,72 +148,63 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #endif
 #endif // MATERIALBLENDING_MASKED
 
-	Payload.Ior = Refraction.x == 0 ? 1.0 : Refraction.x;
-	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
+	Payload.Ior = Refraction == 0 ? 1.0 : Refraction;
 
 #if MATERIAL_SHADINGMODEL_CLEAR_COAT
-#if CLEAR_COAT_BOTTOM_NORMAL
 	if (Payload.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
-		float2 oct2 = UnitVectorToOctahedron(Payload.WorldNormal);
-
+    	Payload.CustomData.x = GetMaterialCustomData0(MaterialParameters);
+		Payload.CustomData.y = GetMaterialCustomData1(MaterialParameters);
+#if CLEAR_COAT_BOTTOM_NORMAL
 #if NUM_MATERIAL_OUTPUTS_CLEARCOATBOTTOMNORMAL > 0
 #if MATERIAL_TANGENTSPACENORMAL
 		float3 tempnormal = normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, ClearCoatBottomNormal0(MaterialParameters)));
 #else
 		float3 tempnormal = ClearCoatBottomNormal0(MaterialParameters);
 #endif
-
-		float2 oct1 = UnitVectorToOctahedron(tempnormal);
-		float2 oct3 = ((oct1 - oct2) * 0.5) + (128.0 / 255.0);
-		Payload.CustomData.a = oct3.x;
-		Payload.CustomData.z = oct3.y;
+		Payload.CustomVector = tempnormal;
 #else
-		Payload.CustomData.a = 128.0 / 255.0;
-		Payload.CustomData.z = 128.0 / 255.0;
+		Payload.CustomVector = Payload.WorldNormal;
+#endif
+#else
+		Payload.CustomVector = Payload.WorldNormal;
 #endif
 	}
-#endif
-#endif
-
-	// Override custom data if sub-surface material
-#if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE
-	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
-		Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
-		Payload.ShadingModelID == SHADINGMODELID_CLOTH ||
-		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE |
-		Payload.ShadingModelID == SHADINGMODELID_EYE)
-	{
-		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
-	}
+	else
 #endif
 
 #if MATERIAL_SHADINGMODEL_CLOTH
 	if (Payload.ShadingModelID == SHADINGMODELID_CLOTH)
 	{
-		Payload.CustomData.a = saturate(GetMaterialCustomData0(MaterialParameters));
+		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+		Payload.CustomData.a = saturate(GetMaterialCustomData0(MaterialParameters)); // Fuzz
 	}
+	else
 #endif
 
+#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE
+	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
+		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
+		Payload.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN ||
+		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE |
+		Payload.ShadingModelID == SHADINGMODELID_EYE)
+	{
+		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+	}
+	else
+#endif
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 	{
 		Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
 	}
+	else
 #endif
+	{
+		// terminal case for when none of the above worked
+	}
 
-#if MATERIAL_USES_ANISOTROPY
-	Payload.WorldTangent = CalculateAnisotropyTangent(MaterialParameters, PixelMaterialInputs);
-	Payload.Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
-#else
-	Payload.WorldTangent = 0;
-	Payload.Anisotropy = 0.0f;
-#endif	
-
-	Payload.DiffuseColor = BaseColor - BaseColor * Metallic;
-	Payload.SpecularColor = ComputeF0(Specular, BaseColor, Metallic);
-
-#else
+#else // SIMPLIFIED_MATERIAL_SHADER
 
 	/**
 	 * Set material attributes for simplified materials
@@ -223,21 +218,21 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	else
 #endif
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-		if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
-		{
-			Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
-		}
-		else
+	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+	{
+		Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
+	}
+	else
 #endif
 #if MATERIAL_SHADINGMODEL_UNLIT
-			if (Payload.ShadingModelID == SHADINGMODELID_UNLIT)
-			{
-			}
-			else
+	if (Payload.ShadingModelID == SHADINGMODELID_UNLIT)
+	{
+	}
+	else
 #endif
-			{
-				Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-			}
+	{
+		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+	}
 	Payload.WorldPos = MaterialParameters.AbsoluteWorldPosition;
 	Payload.WorldNormal = normalize(MaterialParameters.WorldNormal);
 	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
@@ -250,12 +245,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 #endif
 
-	PackedPayload = PackRayTracingPayload(Payload, PropagatedCone);
+	PackedPayload = PackPathTracingPayload(Payload);
 #endif // USE_MATERIAL_CLOSEST_HIT_SHADER
 }
 
 RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
-	FPackedMaterialClosestHitPayload, PackedPayload,
+	FPackedPathTracingPayload, PackedPayload,
 	FDefaultAttributes, Attributes)
 {
 #if USE_MATERIAL_ANY_HIT_SHADER
@@ -265,7 +260,7 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	// Usually this path is inactive because opaque materials don't have AHS bound
 	return;
 #elif MATERIALBLENDING_ALPHAHOLDOUT || MATERIALBLENDING_ADDITIVE
-	if (PackedPayload.IsPathTracingVisibilityRay())
+	if (PackedPayload.IsVisibilityRay())
 	{
 		// path tracer wants to treat these cases as fully transparent
 		// no material evaluation is required
@@ -281,15 +276,7 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	// This ensures that both material rays and shadow rays "see" the same thing
 #else
 	// For any other blending models, we have a few options:
-	if (PackedPayload.IsIgnoreTranslucentMaterials())
-	{
-		// special mode used by regular RT shadows - translucent materials are skipped, everything else is treated as opaque
-#if MATERIALBLENDING_TRANSLUCENT || (MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK)
-		IgnoreHit();
-#endif
-		return;
-	}
-	else if (PackedPayload.IsPathTracingVisibilityRay())
+	if (PackedPayload.IsVisibilityRay())
 	{
 		// this case is used by the path tracer only currently
 		// We want to evaluate the material opacity and accumulate it
@@ -303,8 +290,6 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 #endif  // !MATERIALBLENDING_MASKED
 
 	// If we got here -- we have a reason to evaluate the material -- do the setup 
-
-	GlobalTextureMipBias = PackedPayload.GetMipBias();
 
 	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
 

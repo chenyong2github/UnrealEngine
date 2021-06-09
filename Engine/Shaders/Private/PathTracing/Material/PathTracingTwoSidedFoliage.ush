@@ -10,19 +10,19 @@
 
 float CalcTransmissionSelectionPdf(
 	float3 IncomingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
 	// pick back lobe proportionally to its contribution relative to front side
-	float3 Diff = GetDiffuseColor(Payload);
-	float3 Spec = GetSpecularColor(Payload);
-	float3 Back = GetSubsurfaceColor(Payload);
+	float3 Diff = Payload.DiffuseColor;
+	float3 Spec = Payload.SpecularColor;
+	float3 Back = Payload.GetSubsurfaceColor();
 	return LobeSelectionProb(Back, Diff + Spec);
 }
 
 FMaterialSample TwoSidedFoliage_SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample
 )
 {
@@ -31,8 +31,8 @@ FMaterialSample TwoSidedFoliage_SampleMaterial(
 	{
 		RandSample.x /= TransmissionSelectionPdf;
 
-		float3 N = GetWorldNormal(Payload);
-		float3 SubsurfaceColor = GetSubsurfaceColor(Payload);
+		float3 N = Payload.WorldNormal;
+		float3 SubsurfaceColor = Payload.GetSubsurfaceColor();
 
 		float4 SampledValue = CosineSampleHemisphere(RandSample.yz);
 
@@ -53,12 +53,12 @@ FMaterialSample TwoSidedFoliage_SampleMaterial(
 FMaterialEval TwoSidedFoliage_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
 	float TransmissionSelectionPdf = CalcTransmissionSelectionPdf(IncomingDirection, Payload);
 
-	float3 N = GetWorldNormal(Payload);
+	float3 N = Payload.WorldNormal;
 	float NoL = dot(N, OutgoingDirection);
 	if (NoL < 0.0)
 	{
@@ -66,7 +66,7 @@ FMaterialEval TwoSidedFoliage_EvalMaterial(
 
 		if (TransmissionSelectionPdf > 0)
 		{
-			float3 SubsurfaceColor = GetSubsurfaceColor(Payload);
+			float3 SubsurfaceColor = Payload.GetSubsurfaceColor();
 			float LambertPdf = -NoL / PI;
 
 			return CreateMaterialEval(SubsurfaceColor / TransmissionSelectionPdf, TransmissionSelectionPdf * LambertPdf);

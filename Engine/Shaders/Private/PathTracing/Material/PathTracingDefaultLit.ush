@@ -9,13 +9,13 @@
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 
-float CalcLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
+float CalcLobeSelectionPdf(float3 V, FPathTracingPayload Payload)
 {
 	// TODO: This could be improved if we had a directional albedo tabulation, but this formulation will at least prevent
 	// under-sampling when one lobe is black (like with metals)
 
-	float3 Diff = GetDiffuseColor(Payload);
-	float3 Spec = GetSpecularColor(Payload);
+	float3 Diff = Payload.DiffuseColor;
+	float3 Spec = Payload.SpecularColor;
 
 	return LobeSelectionProb(Diff, Spec);
 }
@@ -23,14 +23,14 @@ float CalcLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
 FMaterialEval DefaultLit_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
 	FMaterialEval Result = NullMaterialEval();
 
 	const float3 V_World = -IncomingDirection;
 	const float3 L_World = OutgoingDirection;
-	const float3 N_World = GetWorldNormal(Payload);
+	const float3 N_World = Payload.WorldNormal;
 
 	float2 Alpha = 0;
 	const float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
@@ -47,11 +47,11 @@ FMaterialEval DefaultLit_EvalMaterial(
 	const float LobeSelectionPdf = CalcLobeSelectionPdf(V_World, Payload);
 
 	// Diffuse Lobe
-	AddLobeWithMIS(Result.Weight, Result.Pdf, GetDiffuseColor(Payload), NoL / PI, LobeSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, Payload.DiffuseColor, NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-	const float3 F = F_Schlick(GetSpecularColor(Payload), VoH);
+	const float3 F = F_Schlick(Payload.SpecularColor, VoH);
 	const float3 SpecWeight = F * GGXResult.x;
 	const float SpecPdf = GGXResult.y;
 
@@ -62,11 +62,11 @@ FMaterialEval DefaultLit_EvalMaterial(
 
 FMaterialSample DefaultLit_SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample
 )
 {
-	float3 N = GetWorldNormal(Payload);
+	float3 N = Payload.WorldNormal;
 	float3 V = -RayDirection;
 	
 	float LobeSelectionPdf = CalcLobeSelectionPdf(V, Payload);
@@ -117,11 +117,11 @@ FMaterialSample DefaultLit_SampleMaterial(
 	float OutPdf = 0;
 
 	// Diffuse Lobe
-	AddLobeWithMIS(OutWeight, OutPdf, GetDiffuseColor(Payload), NoL / PI, LobeSelectionPdf);
+	AddLobeWithMIS(OutWeight, OutPdf, Payload.DiffuseColor, NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-	const float3 F = F_Schlick(GetSpecularColor(Payload), VoH);
+	const float3 F = F_Schlick(Payload.SpecularColor, VoH);
 	const float3 SpecWeight = F * GGXResult.x;
 	const float SpecPdf = GGXResult.y;
 	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1.0 - LobeSelectionPdf);

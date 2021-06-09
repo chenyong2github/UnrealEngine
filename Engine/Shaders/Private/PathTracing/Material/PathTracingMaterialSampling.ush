@@ -28,7 +28,7 @@ PathTracingMaterialSampling.usf: Material sampling functions
 	#define SIMPLIFIED_MATERIAL_SHADER 0
 #endif
 
-bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
+bool IsNeeValidMaterial(FPathTracingPayload Payload)
 {
 	// Checks done in the same order as other sampling and evaluation functions to ensure consistency
 	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE ||
@@ -53,7 +53,7 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	}
 }
 
-float3 GetMaterialTransparency(FMaterialClosestHitPayload Payload, float3 RayDirection)
+float3 GetMaterialTransparency(FPathTracingPayload Payload, float3 RayDirection)
 {
 	switch (Payload.ShadingModelID)
 	{
@@ -103,7 +103,7 @@ float3 GetMaterialTransparency(FMaterialClosestHitPayload Payload, float3 RayDir
 	}
 }
 
-float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
+float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 {
 	float BrdfWeight = 1;
 	bool HasRefraction = false;
@@ -143,14 +143,14 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 			return 0;
 #if SIMPLIFIED_MATERIAL_SHADER
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
-			Albedo = BrdfWeight * (Payload.BaseColor + GetSubsurfaceColor(Payload));
+			Albedo = BrdfWeight * (Payload.BaseColor + Payload.GetSubsurfaceColor());
 			break;
 #else
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 		case SHADINGMODELID_SUBSURFACE:
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
-			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor + GetSubsurfaceColor(Payload));
+			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor + Payload.GetSubsurfaceColor());
 			break;
 		case SHADINGMODELID_DEFAULT_LIT:
 		case SHADINGMODELID_CLEAR_COAT:
@@ -177,7 +177,7 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 	return Albedo;
 }
 
-void AdjustMaterialRoughness(inout FMaterialClosestHitPayload Payload, float PathRoughness)
+void AdjustMaterialRoughness(inout FPathTracingPayload Payload, float PathRoughness)
 {
 #if !SIMPLIFIED_MATERIAL_SHADER
 	// boost material roughness according to what we've seen so far
@@ -188,7 +188,7 @@ void AdjustMaterialRoughness(inout FMaterialClosestHitPayload Payload, float Pat
 			return;
 		case SHADINGMODELID_CLEAR_COAT:
 			// clamp coat roughness
-			SetClearCoatRoughness(Payload, max(GetClearCoatRoughness(Payload), PathRoughness));
+			Payload.SetClearCoatRoughness(max(Payload.GetClearCoatRoughness(), PathRoughness));
 			// fallthrough
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 		case SHADINGMODELID_DEFAULT_LIT:
@@ -201,9 +201,9 @@ void AdjustMaterialRoughness(inout FMaterialClosestHitPayload Payload, float Pat
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
 		{
 			// Clamp both specular lobes
-			float3 DualRoughnessData = GetDualRoughnessSpecular(Payload);
+			float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
 			DualRoughnessData = max(DualRoughnessData, float3(PathRoughness, PathRoughness, 0.0));
-			SetDualRoughnessSpecular(Payload, DualRoughnessData);
+			Payload.SetDualRoughnessSpecular(DualRoughnessData);
 			break;
 		}
 		default:
@@ -215,7 +215,7 @@ void AdjustMaterialRoughness(inout FMaterialClosestHitPayload Payload, float Pat
 }
 
 // returns an average roughness for the whole material (for the path roughness of shadow rays from this material)
-float GetAverageRoughness(FMaterialClosestHitPayload Payload)
+float GetAverageRoughness(FPathTracingPayload Payload)
 {
 #if SIMPLIFIED_MATERIAL_SHADER
 	return 1.0;
@@ -225,11 +225,11 @@ float GetAverageRoughness(FMaterialClosestHitPayload Payload)
 	switch (Payload.ShadingModelID)
 	{
 		case SHADINGMODELID_CLEAR_COAT:
-			Roughness = max(Roughness, GetClearCoatRoughness(Payload)); 
+			Roughness = max(Roughness, Payload.GetClearCoatRoughness());
 			break;
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
 		{
-			float3 DualRoughnessData = GetDualRoughnessSpecular(Payload);
+			float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
 			Roughness = max(DualRoughnessData.x, DualRoughnessData.y);
 			break;
 		}
@@ -241,14 +241,14 @@ float GetAverageRoughness(FMaterialClosestHitPayload Payload)
 }
 
 
-FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPayload PackedInput, RayDesc Ray)
+FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload PackedInput, RayDesc Ray)
 {
 	// the path tracer has a few more requirements compared to the ray-tracing path.
 	// Long term, we should reoranize the payload for the path tracer, but for now, just
 	// do a bit of post-processing and re-use fields to encode extracted information
 
 	// This function can also do a bit of per-material post-processing to simplify the rest of the code
-	FMaterialClosestHitPayload HitPayload = UnpackRayTracingPayload(PackedInput, Ray);
+	FPathTracingPayload HitPayload = UnpackPathTracingPayload(PackedInput, Ray);
 
 	switch (HitPayload.ShadingModelID)
 	{
@@ -258,7 +258,7 @@ FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPay
 		{
 			// TODO: is this accurate enough? hard to measure exactly since the raster path uses a very different approach
 			float SSSRadius = (1 - HitPayload.Opacity) * 10.0; // simple formula, up to 10cm radius
-			SetSubsurfaceRadius(HitPayload, SSSRadius);
+			HitPayload.SetSubsurfaceRadius(SSSRadius);
 
 			// Reset opacity to avoid special cases elsewhere
 			HitPayload.Opacity = 1;
@@ -269,7 +269,7 @@ FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPay
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 		{
 			float3 Front = HitPayload.DiffuseColor;
-			float3 Back = GetSubsurfaceColor(HitPayload);
+			float3 Back = HitPayload.GetSubsurfaceColor();
 			float3 Sum = Front + Back;
 			float S = max(Sum.x, max(Sum.y, Sum.z));
 			if (S > 1)
@@ -277,7 +277,7 @@ FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPay
 				// nudge the material back to something physically plausible
 				// NOTE: we ignore spec here since it should be accounted for by the brdf model itself
 				HitPayload.DiffuseColor = Front / S;
-				SetSubsurfaceColor(HitPayload, Back / S);
+				HitPayload.SetSubsurfaceColor(Back / S);
 			}
 			break;
 		}
@@ -304,18 +304,18 @@ FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPay
 				// NOTE: this seems backwards? Opacity=0 acts like default-lit while Opacity=1 acts like SSS?
 				float3 SSSRadius = HitPayload.Opacity * WorldUnitScale * DiffuseMeanFreePath * GetDiffuseSurfaceScalingFactor3D(SurfaceAlbedo);
 
-				SetSubsurfaceRadius(HitPayload, SSSRadius);
+				HitPayload.SetSubsurfaceRadius(SSSRadius);
 
 				// burley mode doesn't have any diffuse component
-				SetSubsurfaceColor(HitPayload, HitPayload.DiffuseColor);
+				HitPayload.SetSubsurfaceColor(HitPayload.DiffuseColor);
 				HitPayload.DiffuseColor = 0;
 			}
 			else
 			{
 				// How to handle this case? a diffusion kernel is tabulated into the texture but I don't see a way to extract the original
 				// radius/color controls
-				SetSubsurfaceRadius(HitPayload, 0);
-				SetSubsurfaceColor(HitPayload, 0);
+				HitPayload.SetSubsurfaceRadius(0);
+				HitPayload.SetSubsurfaceColor(0);
 				// TODO: non-burley profile allows a blend of diffuse and SSS which should be accounted for here
 			}
 			// Decode dual roughness info
@@ -332,7 +332,7 @@ FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPay
 			Lobe0Roughness = lerp(1.0f, Lobe0Roughness, saturate(HitPayload.Opacity * 10.0f));
 			Lobe1Roughness = lerp(1.0f, Lobe1Roughness, saturate(HitPayload.Opacity * 10.0f));
 
-			SetDualRoughnessSpecular(HitPayload, float3(Lobe0Roughness, Lobe1Roughness, LobeMix));
+			HitPayload.SetDualRoughnessSpecular(float3(Lobe0Roughness, Lobe1Roughness, LobeMix));
 			
 			// Reset opacity to avoid special cases elsewhere
 			HitPayload.Opacity = 1;
@@ -346,7 +346,7 @@ FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPay
 
 FMaterialSample SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample,
 	bool bForceRadianceProbe
 )
@@ -465,7 +465,7 @@ FMaterialSample SampleMaterial(
 FMaterialEval EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	bool bForceRadianceProbe
 )
 {
