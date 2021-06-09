@@ -87,7 +87,7 @@ void FCommonUIModule::CreateUISettings()
 			CommonUIEditorSettings);
 
 		SettingsModule->RegisterSettings(TEXT("Project"), TEXT("Plugins"), TEXT("CommonUIInputSettings"),
-			NSLOCTEXT("CommonUIPlugin", "CommonUIInputSettingsName", "UI Input Settings"),
+			NSLOCTEXT("CommonUIPlugin", "CommonUIInputSettingsName", "Common UI Input Settings"),
 			NSLOCTEXT("CommonUIPlugin", "CommonUIInputSettingsDescription", "Establish project-wide UI input settings and action mappings."),
 			GetMutableDefault<UCommonUIInputSettings>());
 	}

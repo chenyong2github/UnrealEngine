@@ -18,7 +18,7 @@
 	[
 		{
 			"Name" : "CommonUI",
-			"Type" : "ClientOnly",
+			"Type" : "Runtime",
 			"LoadingPhase" : "Default"
 		},
 		{
@@ -28,7 +28,7 @@
 		},
 		{
 			"Name" : "CommonInput",
-			"Type" : "ClientOnly",
+			"Type" : "Runtime",
 			"LoadingPhase" : "Default"		
 		}
 	],
