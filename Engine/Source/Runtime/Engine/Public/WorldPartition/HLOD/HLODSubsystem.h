@@ -59,5 +59,5 @@ private:
 		}
 	};
 
-	TMap<TSoftObjectPtr<UWorldPartitionRuntimeCell>, FCellHLODMapping> CellsHLODMapping;
+	TMap<FName, FCellHLODMapping> CellsHLODMapping;
 };
