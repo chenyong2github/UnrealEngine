@@ -41,6 +41,11 @@ namespace HordeAgent
 		string InstanceName;
 		
 		/// <summary>
+		/// The agent name name
+		/// </summary>
+		string AgentName;
+		
+		/// <summary>
 		/// The storage wrapper
 		/// </summary>
 		ContentAddressableStorage.ContentAddressableStorageClient Storage;
@@ -63,13 +68,15 @@ namespace HordeAgent
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="AgentName"></param>
 		/// <param name="InstanceName"></param>
 		/// <param name="CasChannel"></param>
 		/// <param name="ActionCacheChannel"></param>
 		/// <param name="ActionRpcChannel"></param>
 		/// <param name="Logger"></param>
-		public ActionExecutor(string InstanceName, GrpcChannel CasChannel, GrpcChannel ActionCacheChannel, GrpcChannel ActionRpcChannel, ILogger Logger)
+		public ActionExecutor(string AgentName, string InstanceName, GrpcChannel CasChannel, GrpcChannel ActionCacheChannel, GrpcChannel ActionRpcChannel, ILogger Logger)
 		{
+			this.AgentName = AgentName;
 			this.InstanceName = InstanceName;
 			this.Storage = new ContentAddressableStorage.ContentAddressableStorageClient(CasChannel);
 			this.Cache = new ActionCache.ActionCacheClient(ActionCacheChannel);
@@ -147,7 +154,7 @@ namespace HordeAgent
 					Result.ExitCode = Process.ExitCode;
 					Result.ExecutionMetadata = new ExecutedActionMetadata
 					{
-						Worker = System.Net.Dns.GetHostName()
+						Worker = AgentName
 					};
 
 					foreach (string Line in Encoding.UTF8.GetString(StdOutData).Split('\n'))
