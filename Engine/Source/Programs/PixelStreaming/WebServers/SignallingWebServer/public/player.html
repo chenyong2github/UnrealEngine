@@ -41,39 +41,62 @@
 						<div class="tgl-slider"></div>
 					</label>
 				</div>
-				<div id="PrioritiseQuality">
-					<div class="settings-text">Prioritise Quality</div>
-					<label class="tgl-switch">
-						<input type="checkbox" id="prioritise-quality-tgl" class="tgl tgl-flat" data-toggle="collapse" href="#qualityParamsContainer">
-						<div class="tgl-slider"></div>
-					</label>
-					<div id="qualityParamsContainer" class="collapse">
+				<div id="EncoderSettings">
+					<div class="settings-text">Encoder Settings</div>
+					<div id="encoderParamsContainer" class="collapse">
 						<div class="form-group">
-							<label for="low-bitrate-text">Low Bitrate (kbps)</label>
-							<input type="number" class="form-control" id="low-bitrate-text" value="2000" min="0" max="100000" />
-							<label for="high-bitrate-text">High Bitrate (kbps)</label>
-							<input type="number" class="form-control" id="high-bitrate-text" value="10000" min="0" max="100000" />
-							<label for="min-fps-text">Min FPS</label>
-							<input type="number" class="form-control" id="min-fps-text" value="10" min="1" max="120" />
-							<input id="quality-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
+							<label for="encoder-rate-control" class="settings-text">Rate Control</label>
+							<select id="encoder-rate-control">
+								<option value="CBR" selected>CBR</option>
+								<option value="VBR">VBR</option>
+								<option value="ConstQP">ConstQP</option>
+							</select><br>
+							<label for="encoder-target-bitrate-text">Target Bitrate (kbps)</label>
+							<input type="number" class="form-control" id="encoder-target-bitrate-text" value="0" min="0" max="100000" /><br>
+							<label for="encoder-max-bitrate-text">Max Bitrate (kbps)</label>
+							<input type="number" class="form-control" id="encoder-max-bitrate-text" value="0" min="0" max="100000" /><br>
+							<label for="encoder-min-qp-text">Min QP</label>
+							<input type="number" class="form-control" id="encoder-min-qp-text" value="0" min="0" max="999" /><br>
+							<label for="encoder-max-qp-text">Max QP</label>
+							<input type="number" class="form-control" id="encoder-max-qp-text" value="0" min="0" max="999" /><br>
+							<div class="settings-text">Filler Data</div>
+							<label class="tgl-switch">
+								<input type="checkbox" id="encoder-filler-data-tgl" class="tgl tgl-flat">
+								<div class="tgl-slider"></div>
+							</label><br>
+							<label for="encoder-multipass" class="settings-text">Multipass</label>
+							<select id="encoder-multipass">
+								<option value="DISABLED" selected>DISABLED</option>
+								<option value="QUARTER">QUARTER</option>
+								<option value="FULL">FULL</option>
+							</select><br>
+							<input id="encoder-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
 						</div>
 					</div>
 				</div>
-				<div id="RateControlContainer">
-					<div class="settings-text">Rate Control</div>
-					<label class="tgl-switch">
-						<select id="rate-control-dropdown">
-							<option value="CBR" selected>CBR</option>
-							<option value="VBR">VBR</option>
-							<option value="ConstQP">ConstQP</option>
-						</select>
-					</label>
-				</div>
-				<div id="MinQPContainer">
-					<div class="settings-text">Qual control (0=max qual/br)</div>
-					<label class="tgl-switch">
-						<input type="number" id="minqp-number" value="21" min="0" max="51">
-					</label>
+				<div id="WebRTCSettings">
+					<div class="settings-text">WebRTC Settings</div>
+					<div id="webrtcParamsContainer" class="collapse">
+						<div class="form-group">
+							<label for="webrtc-degradation-pref">Degradation Pref</label>
+							<select id="webrtc-degradation-pref">
+								<option value="BALANCED">BALANCED</option>
+								<option value="MAINTAIN_FRAMERATE">MAINTAIN_FRAMERATE</option>
+								<option value="MAINTAIN_RESOLUTION">MAINTAIN_RESOLUTION</option>
+							</select><br>
+							<label for="webrtc-max-fps-text">Max FPS</label>
+							<input type="number" class="form-control" id="webrtc-max-fps-text" value="1" min="1" max="999" /><br>
+							<label for="webrtc-min-bitrate-text">Min Bitrate (kbps)</label>
+							<input type="number" class="form-control" id="webrtc-min-bitrate-text" value="0" min="0" max="100000" /><br>
+							<label for="webrtc-max-bitrate-text">Max Bitrate (kbps)</label>
+							<input type="number" class="form-control" id="webrtc-max-bitrate-text" value="0" min="0" max="100000" /><br>
+							<label for="webrtc-low-qp-text">Low QP Threshold</label>
+							<input type="number" class="form-control" id="webrtc-low-qp-text" value="0" min="0" max="999" /><br>
+							<label for="webrtc-high-qp-text">High QP Threshold</label>
+							<input type="number" class="form-control" id="webrtc-high-qp-text" value="0" min="0" max="999" /><br>
+							<input id="webrtc-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
+						</div>
+					</div>
 				</div>
 				<div id="ShowFPS">
 					<div class="settings-text">Show FPS</div>

@@ -25,8 +25,6 @@ FVideoCapturer::FVideoCapturer()
 {
 	CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
 
-	LastTimestampUs =  FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMicroseconds();
-
 	if (GDynamicRHI)
 	{
 		FString RHIName = GDynamicRHI->GetName();
@@ -48,48 +46,61 @@ FVideoCapturer::FVideoCapturer()
 
 void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 {
-	FIntPoint Resolution = FrameBuffer->GetSizeXY();
-	int64 TimestampUs = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMicroseconds();
+	const int64 TimestampUs = rtc::TimeMicros();
 
-	int outWidth, outHeight, cropWidth, cropHeight, cropX, cropY;
-	if (!AdaptFrame(Resolution.X, Resolution.Y, TimestampUs, &outWidth, &outHeight, &cropWidth, &cropHeight, &cropX, &cropY))
+	if (!AdaptCaptureFrame(TimestampUs, FrameBuffer->GetSizeXY()))
 	{
 		return;
 	}
 
 	if (CurrentState != webrtc::MediaSourceInterface::SourceState::kLive)
 		CurrentState = webrtc::MediaSourceInterface::SourceState::kLive;
-	
-	// Set resolution of encoder using user-defined params (i.e. not the back buffer).
-	if (PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize.GetValueOnRenderThread() == 0)
-	{
-		// set resolution based on cvars
-		FString CaptureSize = PixelStreamingSettings::CVarPixelStreamingCaptureSize.GetValueOnRenderThread();
-		FString TargetWidth, TargetHeight;
-		bool bValidSize = CaptureSize.Split(TEXT("x"), &TargetWidth, &TargetHeight);
-		if (bValidSize)
-		{
-			Resolution.X = FCString::Atoi(*TargetWidth);
-			Resolution.Y = FCString::Atoi(*TargetHeight);
-		}
-		else
-		{
-			UE_LOG(PixelStreamer, Error, TEXT("CVarPixelStreamingCaptureSize is not in a valid format: %s. It should be e.g: \"1920x1080\""), *CaptureSize);
-			PixelStreamingSettings::CVarPixelStreamingCaptureSize->Set(*FString::Printf(TEXT("%dx%d"), Resolution.X, Resolution.Y));
-		}
 
-		SetCaptureResolution(Resolution.X, Resolution.Y);
-	}
-	// Set the resolution based on the back buffer.
-	else
-	{
-		SetCaptureResolution(outWidth, outHeight); 
-	}
-		
+	AVEncoder::FVideoEncoderInputFrame* InputFrame = ObtainInputFrame();
+	const int32 FrameId = InputFrame->GetFrameID();
+	InputFrame->SetTimestampUs(TimestampUs);
 
+	// Latency test pre capture
+	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::PRE_CAPTURE)
+	{
+		FLatencyTester::RecordPreCaptureTime(FrameId);
+	}
+
+	// Actual texture copy (i.e the actual "capture")
+	CopyTexture(FrameBuffer, BackBuffers[InputFrame]);
+
+	// Latency test post capture
+	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::POST_CAPTURE)
+	{
+		// Render a fully red frame for latency testing purposes
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		FTexture2DRHIRef& DestinationTexture = BackBuffers[InputFrame];
+		FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
+        DrawClearQuad(RHICmdList, FLinearColor::Red);
+        RHICmdList.EndRenderPass();
+		FLatencyTester::RecordPostCaptureTime(FrameId);
+	}
+
+	UE_LOG(PixelStreamer, VeryVerbose, TEXT("(%d) captured video %lld"), RtcTimeMs(), TimestampUs);
+
+	// pass to webrtc which will pass it to the correct encoder
+	// TODO couldnt we pass directly to PixelStreamingVideoEncoder here and have it output to the webrtc broadcaster or something?
+	rtc::scoped_refptr<FPixelStreamingFrameBuffer> Buffer = new rtc::RefCountedObject<FPixelStreamingFrameBuffer>(BackBuffers[InputFrame], InputFrame, VideoEncoderInput);
+	webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder().
+		set_video_frame_buffer(Buffer).
+		set_timestamp_us(TimestampUs).
+		set_rotation(webrtc::VideoRotation::kVideoRotation_0).
+		set_id(FrameId).
+		build();
+	OnFrame(Frame);
+
+	InputFrame->Release();
+}
+
+AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
+{
 	AVEncoder::FVideoEncoderInputFrame* InputFrame = VideoEncoderInput->ObtainInputFrame();
-	InputFrame->PTS = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMicroseconds();
-	uint32 FrameId = InputFrame->GetFrameID();
 
 	if (!BackBuffers.Contains(InputFrame))
 	{
@@ -112,7 +123,7 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 #endif // PLATFORM_WINDOWS
 #if WITH_CUDA
 #if PLATFORM_WINDOWS
-		else if(RHIName == TEXT("Vulkan"))
+		else if (RHIName == TEXT("Vulkan"))
 #endif // PLATFORM_WINDOWS
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
@@ -220,44 +231,10 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 		UE_LOG(PixelStreamer, Log, TEXT("%d backbuffers currently allocated"), BackBuffers.Num());
 	}
 
-	// Latency test pre capture
-	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::PRE_CAPTURE)
-	{
-		FLatencyTester::RecordPreCaptureTime(FrameId);
-	}
-
-	// Actual texture copy (i.e the actual "capture")
-	CopyTexture(FrameBuffer, BackBuffers[InputFrame]);
-
-	// Latency test post capture
-	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::POST_CAPTURE)
-	{
-		// Render a fully red frame for latency testing purposes
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		FTexture2DRHIRef& DestinationTexture = BackBuffers[InputFrame];
-		FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
-        DrawClearQuad(RHICmdList, FLinearColor::Red);
-        RHICmdList.EndRenderPass();
-		FLatencyTester::RecordPostCaptureTime(FrameId);
-	}
-
-	rtc::scoped_refptr<FPixelStreamingFrameBuffer> Buffer = new rtc::RefCountedObject<FPixelStreamingFrameBuffer>(BackBuffers[InputFrame], InputFrame, VideoEncoderInput);
-
-	webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder().
-		set_video_frame_buffer(Buffer).
-		set_timestamp_us(TimestampUs).
-		set_rotation(webrtc::VideoRotation::kVideoRotation_0).
-		set_id(FrameId).
-		build();
-
-	UE_LOG(PixelStreamer, VeryVerbose, TEXT("(%d) captured video %lld"), RtcTimeMs(), TimestampUs);
-	OnFrame(Frame);
-	InputFrame->Release();
+	return InputFrame;
 }
 
-
-void FVideoCapturer::CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture)
+void FVideoCapturer::CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture) const
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -321,14 +298,50 @@ void FVideoCapturer::CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture
 
 		RHICmdList.EndRenderPass();
 	}
-
 }
 
-bool FVideoCapturer::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight)
+bool FVideoCapturer::AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolution)
+{
+	int outWidth, outHeight, cropWidth, cropHeight, cropX, cropY;
+	if (!AdaptFrame(Resolution.X, Resolution.Y, TimestampUs, &outWidth, &outHeight, &cropWidth, &cropHeight, &cropX, &cropY))
+	{
+		return false;
+	}
+
+	// Set resolution of encoder using user-defined params (i.e. not the back buffer).
+	if (PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize.GetValueOnRenderThread() == 0)
+	{
+		// set resolution based on cvars
+		FString CaptureSize = PixelStreamingSettings::CVarPixelStreamingCaptureSize.GetValueOnRenderThread();
+		FString TargetWidth, TargetHeight;
+		bool bValidSize = CaptureSize.Split(TEXT("x"), &TargetWidth, &TargetHeight);
+		if (bValidSize)
+		{
+			Resolution.X = FCString::Atoi(*TargetWidth);
+			Resolution.Y = FCString::Atoi(*TargetHeight);
+		}
+		else
+		{
+			UE_LOG(PixelStreamer, Error, TEXT("CVarPixelStreamingCaptureSize is not in a valid format: %s. It should be e.g: \"1920x1080\""), *CaptureSize);
+			PixelStreamingSettings::CVarPixelStreamingCaptureSize->Set(*FString::Printf(TEXT("%dx%d"), Resolution.X, Resolution.Y));
+		}
+	}
+	else
+	{
+		Resolution.X = outWidth;
+		Resolution.Y = outHeight;
+	}
+
+	SetCaptureResolution(Resolution.X, Resolution.Y);
+
+	return true;
+}
+
+void FVideoCapturer::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight)
 {
 	// Check is requested resolution is same as current resolution, if so, do nothing.
 	if (Width == NewCaptureWidth && Height == NewCaptureHeight)
-		return false;
+		return;
 
 	verifyf(NewCaptureWidth > 0, TEXT("Capture width must be greater than zero."));
 	verifyf(NewCaptureHeight  > 0, TEXT("Capture height must be greater than zero."));
@@ -337,6 +350,4 @@ bool FVideoCapturer::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHei
 	Height = NewCaptureHeight;
 	VideoEncoderInput->SetResolution(Width, Height);
 	VideoEncoderInput->Flush();
-
-	return true;
 }

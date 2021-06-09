@@ -11,7 +11,6 @@
 
 
 #include "VideoEncoder.h"
-typedef AVEncoder::FVideoEncoder FVideoEncoder;
 
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"

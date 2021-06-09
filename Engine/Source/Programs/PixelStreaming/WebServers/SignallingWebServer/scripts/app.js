@@ -80,74 +80,45 @@ function setupHtmlEvents() {
 		};
 	}
 
-	let prioritiseQualityCheckbox = document.getElementById('prioritise-quality-tgl');
-	let qualityParamsSubmit = document.getElementById('quality-params-submit');
-
-	if (prioritiseQualityCheckbox !== null) {
-		prioritiseQualityCheckbox.onchange = function (event) {
-			if (prioritiseQualityCheckbox.checked) {
-				// TODO: This state should be read from the UE Application rather than from the initial values in the HTML
-				let lowBitrate = document.getElementById('low-bitrate-text').value;
-				let highBitrate = document.getElementById('high-bitrate-text').value;
-				let minFPS = document.getElementById('min-fps-text').value;
-
-				let initialDescriptor = {
-					PrioritiseQuality: 1,
-					LowBitrate: lowBitrate,
-					HighBitrate: highBitrate,
-					MinFPS: minFPS
-				};
-				// TODO: The descriptor should be sent as is to a generic handler on the UE side
-				// but for now we're just sending it as separate console commands
-				//emitUIInteraction(initialDescriptor); 
-				sendQualityConsoleCommands(initialDescriptor);
-				console.log(initialDescriptor);
-
-				qualityParamsSubmit.onclick = function (event) {
-					let lowBitrate = document.getElementById('low-bitrate-text').value;
-					let highBitrate = document.getElementById('high-bitrate-text').value;
-					let minFPS = document.getElementById('min-fps-text').value;
-					let descriptor = {
-						PrioritiseQuality: 1,
-						LowBitrate: lowBitrate,
-						HighBitrate: highBitrate,
-						MinFPS: minFPS
-					};
-					//emitUIInteraction(descriptor);
-					sendQualityConsoleCommands(descriptor);
-					console.log(descriptor);
-				};
-			} else { // Prioritise Quality unchecked
-				let initialDescriptor = {
-					PrioritiseQuality: 0
-				};
-				//emitUIInteraction(initialDescriptor);
-				sendQualityConsoleCommands(initialDescriptor);
-				console.log(initialDescriptor);
-
-				qualityParamsSubmit.onclick = null;
-			}
+	let encoderParamsSubmit = document.getElementById('encoder-params-submit');
+	if (encoderParamsSubmit !== null) {
+		encoderParamsSubmit.onclick = function (event) {
+			let rateControl = document.getElementById('encoder-rate-control').value;
+			let targetBitrate = document.getElementById('encoder-target-bitrate-text').value * 1000;
+			let maxBitrate = document.getElementById('encoder-max-bitrate-text').value * 1000;
+			let minQP = document.getElementById('encoder-min-qp-text').value;
+			let maxQP = document.getElementById('encoder-max-qp-text').value;
+			let fillerData = document.getElementById('encoder-filler-data-tgl').checked ? 1 : 0;
+			let multipass = document.getElementById('encoder-multipass').value;
+			
+			emitUIInteraction({ Console: 'PixelStreaming.Encoder.RateControl ' + rateControl });
+			emitUIInteraction({ Console: 'PixelStreaming.Encoder.TargetBitrate ' + targetBitrate > 0 ? targetBitrate : -1 });
+			emitUIInteraction({ Console: 'PixelStreaming.Encoder.MaxBitrateVBR ' + maxBitrate > 0 ? maxBitrate : -1 });
+			emitUIInteraction({ Console: 'PixelStreaming.Encoder.MinQP ' + minQP });
+			emitUIInteraction({ Console: 'PixelStreaming.Encoder.MaxQP ' + maxQP });
+			emitUIInteraction({ Console: 'PixelStreaming.Encoder.EnableFillerData ' + fillerData });
+			emitUIInteraction({ Console: 'PixelStreaming.Encoder.Multipass ' + multipass });
 		};
 	}
 
-	// Rate control drop down selection
-	let rateControlSelect = document.getElementById('rate-control-dropdown')
-	if (rateControlSelect !== null) {
-		rateControlSelect.onchange = function (event) {
-			var selectedValue = event.target.value;  
-			sendRateControlConsoleCommand(selectedValue);
-		}
+	let webrtcParamsSubmit = document.getElementById('webrtc-params-submit');
+	if (webrtcParamsSubmit !== null) {
+		webrtcParamsSubmit.onclick = function (event) {
+			let degradationPref = document.getElementById('webrtc-degradation-pref').value;
+			let maxFPS = document.getElementById('webrtc-max-fps-text').value;
+			let minBitrate = document.getElementById('webrtc-min-bitrate-text').value * 1000;
+			let maxBitrate = document.getElementById('webrtc-max-bitrate-text').value * 1000;
+			let lowQP = document.getElementById('webrtc-low-qp-text').value;
+			let highQP = document.getElementById('webrtc-high-qp-text').value;
+			
+			emitUIInteraction({ Console: 'PixelStreaming.WebRTC.DegradationPreference ' + degradationPref });
+			emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MaxFps ' + maxFPS });
+			emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MinBitrate ' + minBitrate });
+			emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MaxBitrate ' + maxBitrate });
+			emitUIInteraction({ Console: 'PixelStreaming.WebRTC.LowQpThreshold ' + lowQP });
+			emitUIInteraction({ Console: 'PixelStreaming.WebRTC.HighQpThreshold ' + highQP });
+		};
 	}
-
-	// Minimum quality prioritisation spinner
-	let minqpSpinner = document.getElementById('minqp-number')
-	if (minqpSpinner !== null) {
-		minqpSpinner.onchange = function (event) {
-			var selectedValue = event.target.value;  
-			sendMinQPConsoleCommand(selectedValue);
-		}
-	}
-	
 
 	let showFPSButton = document.getElementById('show-fps-button');
 	if (showFPSButton !== null) {
@@ -199,60 +170,6 @@ function sendStartLatencyTest() {
 	};
 
 	webRtcPlayerObj.startLatencyTest(onTestStarted);
-}
-
-function sendMinQPConsoleCommand(minQP) {
-	if(minQP) {
-		let command = 'PixelStreaming.Encoder.MinQP ' + minQP;
-		let consoleDescriptor = {
-			Console: command
-		};
-		emitUIInteraction(consoleDescriptor);
-	}
-}
-
-function sendRateControlConsoleCommand(rateControlMode) {
-	if(rateControlMode) {
-		let command = 'PixelStreaming.Encoder.RateControl ' + rateControlMode;
-		let consoleDescriptor = {
-			Console: command
-		};
-		emitUIInteraction(consoleDescriptor);
-	}
-}
-
-function sendQualityConsoleCommands(descriptor) {
-	if (descriptor.PrioritiseQuality !== null) {
-		let command = 'PixelStreaming.Encoder.PrioritizeQuality ' + descriptor.PrioritiseQuality;
-		let consoleDescriptor = {
-			Console: command
-		};
-		emitUIInteraction(consoleDescriptor);
-	}
-
-	if (descriptor.LowBitrate !== null) {
-		let command = 'PixelStreaming.Encoder.LowBitrate ' + descriptor.LowBitrate;
-		let consoleDescriptor = {
-			Console: command
-		};
-		emitUIInteraction(consoleDescriptor);
-	}
-
-	if (descriptor.HighBitrate !== null) {
-		let command = 'PixelStreaming.Encoder.HighBitrate ' + descriptor.HighBitrate;
-		let consoleDescriptor = {
-			Console: command
-		};
-		emitUIInteraction(consoleDescriptor);
-	}
-
-	if (descriptor.MinFPS !== null) {
-		var command = 'PixelStreaming.Encoder.MinFPS ' + descriptor.MinFPS;
-		let consoleDescriptor = {
-			Console: command
-		};
-		emitUIInteraction(consoleDescriptor);
-	}
 }
 
 function setOverlay(htmlClass, htmlElement, onClickFunction) {
@@ -315,6 +232,7 @@ function showPlayOverlay() {
 		if (webRtcPlayerObj)
 			webRtcPlayerObj.video.play();
 
+		requestInitialSettings();
 		requestQualityControl();
 
 		showFreezeFrameOverlay();
@@ -420,7 +338,8 @@ const ToClientMessageType = {
 	FreezeFrame: 3,
 	UnfreezeFrame: 4,
 	VideoEncoderAvgQP: 5,
-	LatencyTest: 6
+	LatencyTest: 6,
+	InitialSettings: 7
 };
 
 var VideoEncoderQP = "N/A";
@@ -543,6 +462,29 @@ function setupWebRtcPlayer(htmlElement, config) {
 			if(webRtcPlayerObj)
 			{
 				webRtcPlayerObj.latencyTestTimings.SetUETimings(latencyTimingsFromUE);
+			}
+		} else if (view[0] == ToClientMessageType.InitialSettings) {
+			let settingsString = new TextDecoder("utf-16").decode(data.slice(1));
+			let settingsJSON = JSON.parse(settingsString);
+
+			// reminder bitrates are sent in bps but displayed in kbps
+
+			if (settingsJSON.Encoder) {
+				document.getElementById('encoder-rate-control').value = settingsJSON.Encoder.RateControl;
+				document.getElementById('encoder-target-bitrate-text').value = settingsJSON.Encoder.TargetBitrate  > 0 ? settingsJSON.Encoder.TargetBitrate / 1000 : settingsJSON.Encoder.TargetBitrate;
+				document.getElementById('encoder-max-bitrate-text').value = settingsJSON.Encoder.MaxBitrate > 0 ? settingsJSON.Encoder.MaxBitrate / 1000 : settingsJSON.Encoder.MaxBitrate;
+				document.getElementById('encoder-min-qp-text').value = settingsJSON.Encoder.MinQP;
+				document.getElementById('encoder-max-qp-text').value = settingsJSON.Encoder.MaxQP;
+				document.getElementById('encoder-filler-data-tgl').checked = settingsJSON.Encoder.FillerData == 1;
+				document.getElementById('encoder-multipass').value = settingsJSON.Encoder.MultiPass;
+			}
+			if (settingsJSON.WebRTC) {
+				document.getElementById('webrtc-degradation-pref').value = settingsJSON.WebRTC.DegradationPref;
+				document.getElementById("webrtc-max-fps-text").value = settingsJSON.WebRTC.MaxFPS;
+				document.getElementById("webrtc-min-bitrate-text").value = settingsJSON.WebRTC.MinBitrate / 1000;
+				document.getElementById("webrtc-max-bitrate-text").value = settingsJSON.WebRTC.MaxBitrate / 1000;
+				document.getElementById("webrtc-low-qp-text").value = settingsJSON.WebRTC.LowQP;
+				document.getElementById("webrtc-high-qp-text").value = settingsJSON.WebRTC.HighQP;
 			}
 		} else {
 			console.error(`unrecognized data received, packet ID ${view[0]}`);
@@ -925,6 +867,7 @@ const MessageType = {
 	StartStreaming: 4,
 	StopStreaming: 5,
 	LatencyTest: 6,
+	RequestInitialSettings: 7,
 
 	/**********************************************************************/
 
@@ -999,6 +942,10 @@ function emitUIInteraction(descriptor) {
 //    "{ Encoder: { BitrateReduction: <value> } }"
 function emitCommand(descriptor) {
 	emitDescriptor(MessageType.Command, descriptor);
+}
+
+function requestInitialSettings() {
+	sendInputData(new Uint8Array([MessageType.RequestInitialSettings]).buffer);
 }
 
 function requestQualityControl() {

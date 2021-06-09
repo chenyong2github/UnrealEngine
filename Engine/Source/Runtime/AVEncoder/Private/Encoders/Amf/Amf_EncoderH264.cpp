@@ -472,7 +472,7 @@ namespace AVEncoder
 
 		if (Buffer)
 		{
-			Buffer->Surface->SetPts(FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks());
+			Buffer->Surface->SetPts(frame->GetTimestampRTP());
 
 			bForceNextKeyframe = options.bForceKeyFrame;
 			MaybeReconfigure(Buffer);
@@ -528,7 +528,6 @@ namespace AVEncoder
 					// create packet with buffer contents
 					FCodecPacketImpl	Packet;
 
-					Packet.PTS = data->GetPts();
 					Packet.Data = static_cast<const uint8*>(OutBuffer->GetNative());
 					Packet.DataSize = OutBuffer->GetSize();
 					uint32 PictureType = AMF_VIDEO_ENCODER_PICTURE_TYPE_NONE;

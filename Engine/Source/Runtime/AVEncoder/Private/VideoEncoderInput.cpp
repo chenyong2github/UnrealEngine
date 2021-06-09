@@ -320,6 +320,8 @@ void FVideoEncoderInputImpl::DestroyBuffer(FVideoEncoderInputFrame* InBuffer)
 
 FVideoEncoderInputFrame* FVideoEncoderInputImpl::ObtainInputFrame()
 {
+	static uint32 NextFrameID = 1;
+
 	FVideoEncoderInputFrameImpl*	Frame = nullptr;
 	FScopeLock						Guard(&ProtectFrames);
 	if (!AvailableFrames.IsEmpty())
@@ -333,6 +335,8 @@ FVideoEncoderInputFrame* FVideoEncoderInputImpl::ObtainInputFrame()
 	if (Frame)
 	{
 		ActiveFrames.Push(Frame);
+		Frame->SetFrameID(NextFrameID++);
+		if (NextFrameID == 0) ++NextFrameID; // skip 0 id
 		return const_cast<FVideoEncoderInputFrame*>(Frame->Obtain());
 	}
 	return nullptr;
@@ -556,19 +560,20 @@ VkDevice FVideoEncoderInputImpl::GetVulkanDevice() const
 
 FVideoEncoderInputFrame::FVideoEncoderInputFrame()
 	: FrameID(0)
+	, TimestampUs(0)
+	, TimestampRTP(0)
 	, NumReferences(0)
 	, Format(EVideoFrameFormat::Undefined)
 	, Width(0)
 	, Height(0)
 	, bFreeYUV420PData(false)
 {
-	static FThreadSafeCounter	NextFrameID = 0;
-	FrameID = NextFrameID.Increment();
 }
 
 FVideoEncoderInputFrame::FVideoEncoderInputFrame(const FVideoEncoderInputFrame& CloneFrom)
-	: PTS(CloneFrom.PTS)
-	, FrameID(CloneFrom.FrameID)
+	: FrameID(CloneFrom.FrameID)
+	, TimestampUs(CloneFrom.TimestampUs)
+	, TimestampRTP(CloneFrom.TimestampRTP)
 	, NumReferences(0)
 	, Format(CloneFrom.Format)
 	, Width(CloneFrom.Width)

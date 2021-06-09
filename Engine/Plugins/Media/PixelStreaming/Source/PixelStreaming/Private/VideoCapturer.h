@@ -6,8 +6,6 @@
 #include "RHI.h"
 #include "VideoEncoderInput.h"
 
-using SourceState = webrtc::MediaSourceInterface::SourceState;
-
 // This is a video track source for WebRTC.
 // Its main purpose is to copy frames from the Unreal Engine backbuffer.
 class FVideoCapturer : public rtc::AdaptedVideoTrackSource
@@ -30,16 +28,10 @@ public:
 			: rtc::RefCountReleaseStatus::kOtherRefsRemained;
 	}
 
-	// Return true is resolution was changed.
-	bool SetCaptureResolution(int width, int height);
-
-private:
-	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture);
-	
-	virtual SourceState state() const override 
-	{ 
-		return this->CurrentState; 
-	};
+	virtual webrtc::MediaSourceInterface::SourceState state() const override
+	{
+		return this->CurrentState;
+	}
 
 	virtual bool remote() const override
 	{
@@ -56,13 +48,18 @@ private:
 		return false;
 	}
 
+private:
+	AVEncoder::FVideoEncoderInputFrame* ObtainInputFrame();
+	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture) const;
+	bool AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolution);
+	void SetCaptureResolution(int width, int height);
+	
 	TMap<AVEncoder::FVideoEncoderInputFrame*, FTexture2DRHIRef> BackBuffers;
 	TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput = nullptr;
-	int64 LastTimestampUs = 0;
 
 	int32 Width = 1920;
 	int32 Height = 1080;
 	int32 Framerate = 60;
-	SourceState CurrentState;
+	webrtc::MediaSourceInterface::SourceState CurrentState;
 	volatile int32 count;
 };

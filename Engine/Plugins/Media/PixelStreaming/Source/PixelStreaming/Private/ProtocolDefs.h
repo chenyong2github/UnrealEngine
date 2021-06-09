@@ -21,6 +21,7 @@ namespace PixelStreamingProtocol
 		StartStreaming = 4,
 		StopStreaming = 5,
 		LatencyTest = 6,
+		RequestInitialSettings = 7,
 
 		/**********************************************************************/
 
@@ -68,7 +69,8 @@ namespace PixelStreamingProtocol
 		FreezeFrame = 3,
 		UnfreezeFrame = 4,
 		VideoEncoderAvgQP = 5, // average Quantisation Parameter value of Video Encoder, roughly depicts video encoding quality
-		LatencyTest = 6
+		LatencyTest = 6,
+		InitialSettings = 7
 	};
 
 	template<typename T>

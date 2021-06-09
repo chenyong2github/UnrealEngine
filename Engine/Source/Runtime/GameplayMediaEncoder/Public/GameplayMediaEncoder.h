@@ -103,12 +103,15 @@ private:
 	void ProcessAudioFrame(const float* AudioData, int32 NumSamples, int32 NumChannels, int32 SampleRate);
 	void ProcessVideoFrame(const FTexture2DRHIRef& FrameBuffer);
 
-	bool ChangeVideoConfig();
+	void UpdateVideoConfig();
 
 	void OnEncodedAudioFrame(const AVEncoder::FMediaPacket& Packet) override;
 	void OnEncodedVideoFrame(uint32 LayerIndex, const AVEncoder::FVideoEncoderInputFrame* Frame, const AVEncoder::FCodecPacket& Packet);
 
-	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture);
+	AVEncoder::FVideoEncoderInputFrame* ObtainInputFrame();
+	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture) const;
+
+	void FloatToPCM16(float const* floatSamples, int32 numSamples, TArray<int16>& out) const;
 
 	FCriticalSection ListenersCS;
 	TArray<IGameplayMediaEncoderListener*> Listeners;
@@ -119,9 +122,6 @@ private:
 	TUniquePtr<AVEncoder::FAudioEncoder> AudioEncoder;
 
 	AVEncoder::FVideoConfig VideoConfig;
-
-	FTexture2DRHIRef BufferTexture;
-	void CopyTexture(const FTexture2DRHIRef& src, const FTexture2DRHIRef& dst);
 
 	TUniquePtr<AVEncoder::FVideoEncoder> VideoEncoder;
 	TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput;
@@ -149,6 +149,6 @@ private:
 	FThreadSafeBool bChangeFramerate = false;
 
 	TArray<int16> PCM16;
-	TMap<AVEncoder::FVideoEncoderInputFrame*, FTexture2DRHIRef> BackBufferMap;
+	TMap<AVEncoder::FVideoEncoderInputFrame*, FTexture2DRHIRef> BackBuffers;
 };
 
