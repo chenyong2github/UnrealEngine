@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CoreMisc.h"
+#include "Misc/CoreMisc.h"
 #include "Tickable.h"
 #include "Performance/LatencyMarkerModule.h"
 
