@@ -52,6 +52,7 @@
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Settings/ControlRigSettings.h"
+#include "ToolMenus.h"
 
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
@@ -978,12 +979,16 @@ void FControlRigEditMode::OpenContextMenu(FEditorViewportClient* InViewportClien
 		Commands = OnContextMenuCommandsDelegate.Execute();
 	}
 
-	if (OnContextMenuDelegate.IsBound())
+	if (OnGetContextMenuDelegate.IsBound())
 	{
-		FMenuBuilder MenuBuilder(true, Commands);
-		OnContextMenuDelegate.Execute(MenuBuilder);
+		TSharedPtr<SWidget> MenuWidget = SNullWidget::NullWidget;
+		
+		if (UToolMenu* ContextMenu = OnGetContextMenuDelegate.Execute())
+		{
+			UToolMenus* ToolMenus = UToolMenus::Get();
+			MenuWidget = ToolMenus->GenerateWidget(ContextMenu);
+		}
 
-		TSharedPtr<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 		TSharedPtr<SWidget> ParentWidget = InViewportClient->GetEditorViewportWidget();
 
 		if (MenuWidget.IsValid() && ParentWidget.IsValid())
