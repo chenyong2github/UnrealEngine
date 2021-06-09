@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilingDebugging/TraceAuxiliary.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Trace/Trace.h"
 
 #if PLATFORM_WINDOWS
