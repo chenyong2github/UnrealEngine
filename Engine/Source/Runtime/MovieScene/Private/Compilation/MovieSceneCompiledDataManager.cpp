@@ -1373,6 +1373,10 @@ bool UMovieSceneCompiledDataManager::GenerateSubSequenceData(UMovieSceneSubTrack
 		// Iterate into the sub sequence
 		FGatherParameters SubParams = Params.CreateForSubData(NewSubData, InnerSequenceID);
 
+		// This is a bit of hack to make sure that LocalClampRange gets sent through to the next GenerateSubSequenceData call,
+		// but we do not set RootClampRange because it would be ambiguous to do so w.r.t looping sub sequences
+		SubParams.LocalClampRange = NewSubData.PlayRange.Value;
+
 		RootPath->PushGeneration(InnerSequenceID, NewSubData.DeterministicSequenceID);
 		GenerateSubSequenceData(SubSequence, SubParams, Operand, RootPath, InOutHierarchy);
 		RootPath->PopGenerations(1);
