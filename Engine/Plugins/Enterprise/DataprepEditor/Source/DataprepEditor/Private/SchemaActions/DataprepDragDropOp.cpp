@@ -296,13 +296,20 @@ FText FDataprepDragDropOp::GetMessageText()
 
 	if(bDropTargetValid || bCopyRequested)
 	{
-		if(GetHoveredNode()->IsA<UDataprepGraphActionStepNode>() || GetHoveredNode()->IsA<UDataprepGraphActionNode>())
+		if(UEdGraphNode* CurrentHoveredNode = GetHoveredNode())
 		{
-			LastMessageText = bCopyRequested ? LOCTEXT("DataprepActionStepNode_Copy", "Copy step to location") : LOCTEXT("DataprepActionStepNode_Move", "Move step to location");
+			if(CurrentHoveredNode->IsA<UDataprepGraphActionStepNode>() || CurrentHoveredNode->IsA<UDataprepGraphActionNode>())
+			{
+				LastMessageText = bCopyRequested ? LOCTEXT("DataprepActionStepNode_Copy", "Copy step to location") : LOCTEXT("DataprepActionStepNode_Move", "Move step to location");
+			}
+			else if(CurrentHoveredNode->IsA<UDataprepGraphRecipeNode>())
+			{
+				LastMessageText = LOCTEXT("DataprepActionAssetNode_Insert", "Insert action to location");
+			}
 		}
-		else if(GetHoveredNode()->IsA<UDataprepGraphRecipeNode>())
+		else
 		{
-			LastMessageText = LOCTEXT("DataprepActionAssetNode_Insert", "Insert action to location");
+			LastMessageText = LOCTEXT("DataprepActionStepNode_NotImplemented", "Operation not allowed");
 		}
 	}
 	else if(GetHoveredNode() != nullptr)
