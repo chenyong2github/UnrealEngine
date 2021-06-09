@@ -95,6 +95,8 @@ public:
 	/** IXRTrackingSystem interface */
 	virtual FName GetSystemName() const override
 	{
+		// This identifier is relied upon for plugin identification,
+		// see GetHMDName() to query the true XR system name.
 		static FName DefaultName(TEXT("OpenXR"));
 		return DefaultName;
 	}
@@ -194,6 +196,7 @@ public:
 	virtual bool DoesSupportPositionalTracking() const override { return true; }
 	virtual bool IsHMDEnabled() const override;
 	virtual void EnableHMD(bool allow = true) override;
+	virtual FName GetHMDName() const override;
 	virtual bool GetHMDMonitorInfo(MonitorInfo&) override;
 	virtual void GetFieldOfView(float& OutHFOVInDegrees, float& OutVFOVInDegrees) const override;
 	virtual bool IsChromaAbCorrectionEnabled() const override;
@@ -311,6 +314,7 @@ private:
 	XrReferenceSpaceType	TrackingSpaceType;
 	XrViewConfigurationType SelectedViewConfigurationType;
 	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
+	XrSystemProperties      SystemProperties;
 
 	FPipelinedFrameState	PipelinedFrameStateGame;
 	FPipelinedFrameState	PipelinedFrameStateRendering;

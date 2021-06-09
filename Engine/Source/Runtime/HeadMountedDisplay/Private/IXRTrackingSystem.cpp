@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IXRTrackingSystem.h"
+#include "IHeadMountedDisplay.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
@@ -8,7 +9,7 @@
 void IXRTrackingSystem::GetHMDData(UObject* WorldContext, FXRHMDData& HMDData)
 {
 	HMDData.bValid = true;
-	HMDData.DeviceName = GetSystemName();
+	HMDData.DeviceName = GetHMDDevice() ? GetHMDDevice()->GetHMDName() : GetSystemName();
 	HMDData.ApplicationInstanceID = FApp::GetInstanceId();
 
 	bool bIsTracking = IsTracking(IXRTrackingSystem::HMDDeviceId);

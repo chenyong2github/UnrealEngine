@@ -947,6 +947,11 @@ FVector2D FOpenXRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
 	return ToFVector2D(Bounds, WorldToMetersScale);
 }
 
+FName FOpenXRHMD::GetHMDName() const
+{
+	return SystemProperties.systemName;
+}
+
 bool FOpenXRHMD::IsHMDEnabled() const
 {
 	return true;
@@ -958,16 +963,30 @@ void FOpenXRHMD::EnableHMD(bool enable)
 
 bool FOpenXRHMD::GetHMDMonitorInfo(MonitorInfo& MonitorDesc)
 {
-	MonitorDesc.MonitorName = "";
+	MonitorDesc.MonitorName = UTF8_TO_TCHAR(SystemProperties.systemName);
 	MonitorDesc.MonitorId = 0;
-	MonitorDesc.DesktopX = MonitorDesc.DesktopY = MonitorDesc.ResolutionX = MonitorDesc.ResolutionY = 0;
-	return false;
+
+	FIntPoint RTSize = GetIdealRenderTargetSize();
+	MonitorDesc.DesktopX = MonitorDesc.DesktopY = 0;
+	MonitorDesc.ResolutionX = MonitorDesc.WindowSizeX = RTSize.X;
+	MonitorDesc.ResolutionY = MonitorDesc.WindowSizeY = RTSize.Y;
+	return true;
 }
 
 void FOpenXRHMD::GetFieldOfView(float& OutHFOVInDegrees, float& OutVFOVInDegrees) const
 {
-	OutHFOVInDegrees = 0.0f;
-	OutVFOVInDegrees = 0.0f;
+	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
+
+	XrFovf UnifiedFov = { 0.0f };
+	for (const XrView& View : FrameState.Views)
+	{
+		UnifiedFov.angleLeft = FMath::Min(UnifiedFov.angleLeft, View.fov.angleLeft);
+		UnifiedFov.angleRight = FMath::Max(UnifiedFov.angleRight, View.fov.angleRight);
+		UnifiedFov.angleUp = FMath::Max(UnifiedFov.angleUp, View.fov.angleUp);
+		UnifiedFov.angleDown = FMath::Min(UnifiedFov.angleDown, View.fov.angleDown);
+	}
+	OutHFOVInDegrees = FMath::RadiansToDegrees(UnifiedFov.angleRight - UnifiedFov.angleLeft);
+	OutVFOVInDegrees = FMath::RadiansToDegrees(UnifiedFov.angleUp - UnifiedFov.angleDown);
 }
 
 bool FOpenXRHMD::EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type)
@@ -992,7 +1011,15 @@ void FOpenXRHMD::SetInterpupillaryDistance(float NewInterpupillaryDistance)
 
 float FOpenXRHMD::GetInterpupillaryDistance() const
 {
-	return 0.064f;
+	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
+	if (FrameState.Views.Num() < 2)
+	{
+		return 0.064f;
+	}
+
+	FVector leftPos = ToFVector(FrameState.Views[0].pose.position);
+	FVector rightPos = ToFVector(FrameState.Views[1].pose.position);
+	return FVector::Dist(leftPos, rightPos);
 }	
 
 bool FOpenXRHMD::GetIsTracked(int32 DeviceId)
@@ -1483,6 +1510,13 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 		!FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus");
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
 
+	// Retrieve system properties and check for hand tracking support
+	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties = { XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
+	SystemProperties = XrSystemProperties{ XR_TYPE_SYSTEM_PROPERTIES, &HandTrackingSystemProperties };
+	XR_ENSURE(xrGetSystemProperties(Instance, System, &SystemProperties));
+	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
+	SystemProperties.next = nullptr;
+
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 	const bool bMobileHDR = (CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() != 0);
@@ -1961,13 +1995,6 @@ bool FOpenXRHMD::OnStereoStartup()
 		}
 	}
 
-	// Check for hand tracking support
-	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties{
-		XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
-	XrSystemProperties systemProperties{ XR_TYPE_SYSTEM_PROPERTIES,
-										&HandTrackingSystemProperties };
-	XR_ENSURE(xrGetSystemProperties(Instance, System, &systemProperties));
-	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
 	return true;
 }
 

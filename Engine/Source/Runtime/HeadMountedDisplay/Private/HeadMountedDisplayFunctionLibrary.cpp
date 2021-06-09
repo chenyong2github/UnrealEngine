@@ -57,9 +57,9 @@ FName UHeadMountedDisplayFunctionLibrary::GetHMDDeviceName()
 {
 	FName DeviceName(NAME_None);
 
-	if (GEngine->XRSystem.IsValid())
+	if (GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice())
 	{
-		DeviceName = GEngine->XRSystem->GetSystemName();
+		DeviceName = GEngine->XRSystem->GetHMDDevice()->GetHMDName();
 	}
 
 	return DeviceName;
