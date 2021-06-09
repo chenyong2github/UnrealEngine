@@ -324,6 +324,7 @@ public:
 	 * @output	out_Location, view location of player
 	 * @output	out_rotation, view rotation of player
 	 */
+	UFUNCTION(BlueprintCallable, Category = Pawn)
 	virtual void GetPlayerViewPoint( FVector& Location, FRotator& Rotation ) const;
 
 	/** GameMode failed to spawn pawn for me. */
