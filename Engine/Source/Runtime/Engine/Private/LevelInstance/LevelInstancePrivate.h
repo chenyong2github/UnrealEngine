@@ -4,5 +4,5 @@
 
 #include "CoreMinimal.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogLevelInstance, Verbose, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogLevelInstance, Log, All);
 
