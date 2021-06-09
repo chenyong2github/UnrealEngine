@@ -32,18 +32,14 @@ public class XMPP : ModuleRules
 		bool TargetPlatformSupportsJingle = bTargetPlatformSupportsJingle;
 		bool TargetPlatformSupportsStrophe = bTargetPlatformSupportsStrophe;
 
-		if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			TargetPlatformSupportsJingle = true;
-			TargetPlatformSupportsStrophe = true;
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32 ||
+		if (Target.Platform == UnrealTargetPlatform.Win32 ||
 			Target.Platform == UnrealTargetPlatform.Win64 ||
 			Target.Platform == UnrealTargetPlatform.XboxOne ||
 			Target.Platform == UnrealTargetPlatform.Android ||
 			Target.Platform == UnrealTargetPlatform.IOS ||
 			Target.Platform == UnrealTargetPlatform.Switch||
 			Target.Platform == UnrealTargetPlatform.Mac ||
+			Target.Platform == UnrealTargetPlatform.PS4 ||
 			Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			TargetPlatformSupportsStrophe = true;

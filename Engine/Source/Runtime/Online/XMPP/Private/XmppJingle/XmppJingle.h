@@ -6,6 +6,7 @@
 #include "XmppConnection.h"
 
 #if WITH_XMPP_JINGLE
+UE_STATIC_DEPRECATE(5.0, true, "The Jingle module has been deprecated. Please use XmppStrophe.");
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
