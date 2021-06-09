@@ -192,12 +192,13 @@ public:
 	uint32 numDispatches;
 	uint32 numClears;
 	uint32 numBarriers;
+	uint32 numPendingBarriers;
 	uint32 numCopies;
 	uint32 otherWorkCounter;
 
 	bool HasDoneWork() const
 	{
-		return (numDraws + numDispatches + numClears + numBarriers + numCopies + otherWorkCounter) > 0;
+		return (numDraws + numDispatches + numClears + numBarriers + numPendingBarriers + numCopies + otherWorkCounter) > 0;
 	}
 
 	/** Constant buffers for Set*ShaderParameter calls. */

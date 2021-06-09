@@ -321,6 +321,7 @@ void FD3D12CommandContext::OpenCommandList()
 	numDispatches = 0;
 	numClears = 0;
 	numBarriers = 0;
+	numPendingBarriers = 0;
 	numCopies = 0;
 	otherWorkCounter = 0;
 }
