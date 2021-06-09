@@ -43,8 +43,57 @@ void FNiagaraMenuAction::SetParameterVariable(const FNiagaraVariable& InParamete
 	ParameterVariable = InParameterVariable;
 }
 
+void FNiagaraMenuActionCollector::AddAction(TSharedPtr<FNiagaraMenuAction> Action, int32 SortOrder, const FString& Category)
+{
+	Actions.Add({Action, SortOrder, Category});
+}
+
+void FNiagaraMenuActionCollector::AddAllActionsTo(FGraphActionListBuilderBase& ActionBuilder)
+{
+	Actions.Sort([](const FCollectedAction& Lhs, const FCollectedAction& Rhs)
+	{
+		// First check configured sort order
+		if (Lhs.SortOrder != Rhs.SortOrder)
+		{
+			return Lhs.SortOrder < Rhs.SortOrder;
+		}
+
+		// Then check the defined category (and subcategory)
+		const FText CategoryA = Lhs.Action->GetCategory();
+		const FText CategoryB = Rhs.Action->GetCategory();
+		int32 CategoryCompare = CategoryA.CompareTo(CategoryB);
+		if (CategoryCompare != 0)
+		{
+			return CategoryCompare < 0;
+		}
+
+		// Then compare the actual variable names
+		FNiagaraParameterHandle HandleA(FName(Lhs.Action->GetMenuDescription().ToString()));
+		FNiagaraParameterHandle HandleB(FName(Rhs.Action->GetMenuDescription().ToString()));
+
+		const TArray<FName> NamesA = HandleA.GetHandleParts();
+		const TArray<FName> NamesB = HandleB.GetHandleParts();
+		if (NamesA.Num() == NamesB.Num())
+		{
+			for (int i = 0; i < NamesA.Num(); i++)
+			{
+				if (NamesA[i] != NamesB[i])
+				{
+					return NamesA[i].LexicalLess(NamesB[i]);
+				}
+			}
+		}
+		return NamesA.Num() < NamesB.Num();
+	});
+	
+	for (const FCollectedAction& Entry : Actions)
+	{
+		ActionBuilder.AddAction(Entry.Action, Entry.Category);
+	}
+}
+
 FNiagaraMenuAction_Base::FNiagaraMenuAction_Base(FText InDisplayName, ENiagaraMenuSections InSection,
-	TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier)
+                                                 TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier)
 {
 	DisplayName = InDisplayName;
 	Section = InSection;

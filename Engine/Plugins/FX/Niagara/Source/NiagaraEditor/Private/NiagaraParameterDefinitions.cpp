@@ -11,6 +11,7 @@ UNiagaraParameterDefinitions::UNiagaraParameterDefinitions(const FObjectInitiali
 	: Super(ObjectInitializer)
 {
 	bPromoteToTopInAddMenus = false;
+	MenuSortOrder = 100;
 }
 
 UNiagaraParameterDefinitions::~UNiagaraParameterDefinitions()

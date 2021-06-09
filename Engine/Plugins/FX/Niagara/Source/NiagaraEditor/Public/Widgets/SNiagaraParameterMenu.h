@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "NiagaraActions.h"
 #include "Misc/Guid.h"
 #include "NiagaraTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -92,16 +94,16 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	void AddParameterGroup(
-		FGraphActionListBuilderBase& OutActions,
+		FNiagaraMenuActionCollector& Collector,
 		TArray<FNiagaraVariable>& Variables,
 		const FGuid& InNamespaceId = FGuid(),
 		const FText& Category = FText::GetEmpty(),
+		int32 SortOrder = 0,
 		const FString& RootCategory = FString(),
-		const bool bSort = true,
 		const bool bCreateUniqueName = true);
 
-	void CollectParameterCollectionsActions(FGraphActionListBuilderBase& OutActions);
-	void CollectMakeNew(FGraphActionListBuilderBase& OutActions, const FGuid& InNamespaceId);
+	void CollectParameterCollectionsActions(FNiagaraMenuActionCollector& Collector);
+	void CollectMakeNew(FNiagaraMenuActionCollector& Collector, const FGuid& InNamespaceId);
 
 protected:
 	virtual void CollectAllActions(FGraphActionListBuilderBase& OutAllActions) override;

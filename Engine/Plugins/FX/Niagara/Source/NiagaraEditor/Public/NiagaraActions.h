@@ -85,6 +85,23 @@ private:
 	FCanExecuteStackAction CanPerformAction;
 };
 
+class FNiagaraMenuActionCollector
+{
+public:
+	void AddAction(TSharedPtr<FNiagaraMenuAction> Action, int32 SortOrder, const FString& Category = FString());
+	void AddAllActionsTo(FGraphActionListBuilderBase& ActionBuilder);
+
+private:
+	struct FCollectedAction
+	{
+		TSharedPtr<FNiagaraMenuAction> Action;
+		int32 SortOrder;
+		FString Category;
+	};
+
+	TArray<FCollectedAction> Actions;
+};
+
 // new action hierarchy for the new menus. Prefer inheriting from this rather than the above
 // this action does not have any use; inherit from it and provide your own functionality
 USTRUCT()
