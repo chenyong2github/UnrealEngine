@@ -270,7 +270,6 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Input(const FSpawnTa
 {	
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.InputTitle", "Input"))
-		.ShouldAutosize(true)
 		[
 			EditorInput->GetOrCreateWidget()
 		];
