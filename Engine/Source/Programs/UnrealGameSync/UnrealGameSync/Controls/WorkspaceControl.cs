@@ -3122,8 +3122,6 @@ namespace UnrealGameSync
 			ProcessNames.Add("CrashReportClientEditor-Win64-Debug");
 			ProcessNames.Add("UnrealBuildTool");
 			ProcessNames.Add("AutomationTool");
-			ProcessNames.Add("InterchangeWorker");
-			ProcessNames.Add("InterchangeWorker-Win64-Debug");
 
 			List<string> ProcessFileNames = new List<string>();
 			try
@@ -5268,7 +5266,6 @@ namespace UnrealGameSync
 			DefaultBuildSteps.Add(new BuildStep(new Guid("{24FFD88C-7901-4899-9696-AE1066B4B6E8}"), 3, "Compile UnrealLightmass", "Compiling UnrealLightmass...", 1, "UnrealLightmass", "Win64", "Development", "", !ShouldSyncPrecompiledEditor));
 			DefaultBuildSteps.Add(new BuildStep(new Guid("{FFF20379-06BF-4205-8A3E-C53427736688}"), 4, "Compile CrashReportClient", "Compiling CrashReportClient...", 1, "CrashReportClient", "Win64", "Shipping", "", !ShouldSyncPrecompiledEditor && !bUseCrashReportClientEditor));
 			DefaultBuildSteps.Add(new BuildStep(new Guid("{7143D861-58D3-4F83-BADC-BC5DCB2079F6}"), 5, "Compile CrashReportClientEditor", "Compiling CrashReportClientEditor...", 1, "CrashReportClientEditor", "Win64", "Shipping", "", !ShouldSyncPrecompiledEditor && bUseCrashReportClientEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{C434716F-D61F-4209-B900-B6D942751453}"), 6, "Compile InterchangeWorker", "Compiling InterchangeWorker...", 1, "InterchangeWorker", "Win64", "Development", "", !ShouldSyncPrecompiledEditor));
 
 			return DefaultBuildSteps.ToDictionary(x => x.UniqueId, x => x.ToConfigObject());
 		}
