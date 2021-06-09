@@ -37,7 +37,7 @@ private:
 	FString ResultFolder;
 	FCriticalSection TFinishThreadCriticalSection;
 	TArray<FString> CurrentFinishThreads;
-	TMap<FString, FThread > IOThreads;
+	TMap<FString, TFuture<bool> > ActiveThreads;
 
 	UE::Interchange::FInterchangeFbxParser FbxParser;
 
