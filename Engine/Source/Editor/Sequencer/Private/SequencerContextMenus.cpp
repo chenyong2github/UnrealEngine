@@ -253,11 +253,6 @@ void FSectionContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, FSequencer& InSeq
 
 void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 {
-	if (ChannelsByType.Num() == 0 && SectionsByType.Num() == 0)
-	{
-		return;
-	}
-
 	// Copy a reference to the context menu by value into each lambda handler to ensure the type stays alive until the menu is closed
 	TSharedRef<FSectionContextMenu> Shared = AsShared();
 
