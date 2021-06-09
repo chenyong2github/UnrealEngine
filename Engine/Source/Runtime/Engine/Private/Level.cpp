@@ -2120,13 +2120,16 @@ void ULevel::SetWorldSettings(AWorldSettings* NewWorldSettings)
 			}
 		}
 
-		if (WorldSettings)
+		// Assign the new world settings before destroying the old one
+		// since level will prevent destruction of the world settings if it matches the cached value;
+		AWorldSettings* OldWorldSettings = WorldSettings;
+		WorldSettings = NewWorldSettings;
+
+		if (OldWorldSettings)
 		{
 			// Makes no sense to have two WorldSettings so destroy existing one
-			WorldSettings->Destroy();
+			OldWorldSettings->Destroy();
 		}
-
-		WorldSettings = NewWorldSettings;
 	}
 }
 

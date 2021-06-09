@@ -1552,7 +1552,22 @@ void UWorld::RepairWorldSettings()
 		{
 			PersistentLevel->OwningWorld = nullptr;
 		}
+
+		// Now that we have set the proper world settings, clean up any other stay that may have accumulated due to legacy behaviors
+		if (PersistentLevel->Actors.Num() > 1)
+		{
+			for (int32 Index = 1, ActorNum = PersistentLevel->Actors.Num(); Index < ActorNum; ++Index)
+			{
+				AActor* Actor = PersistentLevel->Actors[Index];
+				if (Actor->IsA<AWorldSettings>())
+				{
+					UE_LOG(LogWorld, Warning, TEXT("Extra World Settings '%s' actor found. Resave level or actors to clean up"), *Actor->GetName());
+					Actor->Destroy();
+				}
+			}
+		}
 	}
+
 	check(GetWorldSettings());
 }
 
