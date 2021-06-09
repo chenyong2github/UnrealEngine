@@ -370,6 +370,13 @@
                     onTestStarted(self.latencyTestTimings.TestStartTimeMs);
                 }
 
+                // If we have not found the special latency frame in 1 seconds we abort the test as this test is expensive.
+                let testDeltaMs = Date.now() - self.latencyTestTimings.TestStartTimeMs;
+                if(testDeltaMs > 1000)
+                {
+                    return;
+                }
+
                 // draw the video to the canvas so we can analyse pixels in the canvas
                 ctx.drawImage(self.video, 0,0);
                 let middlePixelW = self.video.videoWidth * 0.5
@@ -414,6 +421,12 @@
             self.pcClient = new RTCPeerConnection(self.cfg);
 
             setupPeerConnection(self.pcClient);
+            
+            // At this stage Pixel Streaming does not support transmission of any audio/video from browser, so indicate recvonly
+            self.videoTransceiver = self.pcClient.addTransceiver("audio", { direction: "recvonly" });
+            self.audioTransceiver = self.pcClient.addTransceiver("video", { direction: "recvonly" });
+
+            
             self.dcClient = setupDataChannel(self.pcClient, 'cirrus', self.dataChannelOptions);
             handleCreateOffer(self.pcClient);
 
