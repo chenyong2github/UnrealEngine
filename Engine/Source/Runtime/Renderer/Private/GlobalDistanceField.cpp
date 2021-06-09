@@ -1093,10 +1093,6 @@ void ReadbackDistanceFieldClipmap(FRHICommandListImmediate& RHICmdList, FGlobalD
 		);	
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FUpdateBoundsUploadParameters, )
-	RDG_BUFFER_ACCESS(UpdateBoundsBuffer, ERHIAccess::CopyDest)
-END_SHADER_PARAMETER_STRUCT()
-
 class FCullObjectsToClipmapCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCullObjectsToClipmapCS);
@@ -1695,8 +1691,8 @@ void UpdateGlobalDistanceFieldVolume(
 					{
 						const uint32 BufferStrideInFloat4 = 2;
 						const uint32 BufferStride = BufferStrideInFloat4 * sizeof(FVector4);
-						TArray<FVector4, SceneRenderingAllocator> UpdateBoundsData;
-						UpdateBoundsData.SetNum(BufferStrideInFloat4 * Clipmap.UpdateBounds.Num());
+
+						FRDGUploadData<FVector4> UpdateBoundsData(GraphBuilder, BufferStrideInFloat4 * Clipmap.UpdateBounds.Num());
 
 						for (int32 UpdateBoundsIndex = 0; UpdateBoundsIndex < Clipmap.UpdateBounds.Num(); ++UpdateBoundsIndex)
 						{
@@ -1709,29 +1705,10 @@ void UpdateGlobalDistanceFieldVolume(
 
 						check(UpdateBoundsData.Num() % BufferStrideInFloat4 == 0);
 
-						UpdateBoundsBuffer = GraphBuilder.CreateBuffer(
-							FRDGBufferDesc::CreateUploadDesc(sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2))),
-							TEXT("UpdateBoundsBuffer"));
-
-						FUpdateBoundsUploadParameters* PassParameters = GraphBuilder.AllocParameters<FUpdateBoundsUploadParameters>();
-						PassParameters->UpdateBoundsBuffer = UpdateBoundsBuffer;
-
-						const uint32 UploadBytes = UpdateBoundsData.Num() * sizeof(FVector4);
-						const void* UploadPtr = UpdateBoundsData.GetData();
-
-						GraphBuilder.AddPass(
-							RDG_EVENT_NAME("Upload %d update bounds", NumUpdateBounds),
-							PassParameters,
-							ERDGPassFlags::Copy,
-							[PassParameters, UploadBytes, UploadPtr](FRHICommandListImmediate& RHICmdList)
-							{
-								if (UploadBytes > 0)
-								{
-									void* DestCardIdPtr = RHILockBuffer(PassParameters->UpdateBoundsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
-									FPlatformMemory::Memcpy(DestCardIdPtr, UploadPtr, UploadBytes);
-									RHIUnlockBuffer(PassParameters->UpdateBoundsBuffer->GetRHI());
-								}
-							});
+						UpdateBoundsBuffer =
+							CreateUploadBuffer(GraphBuilder, TEXT("UpdateBoundsBuffer"),
+								sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2)),
+								UpdateBoundsData);
 					}
 
 

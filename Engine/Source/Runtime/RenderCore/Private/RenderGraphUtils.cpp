@@ -789,6 +789,23 @@ FRDGBufferRef CreateStructuredBuffer(
 	return Buffer;
 }
 
+FRDGBufferRef CreateUploadBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	uint32 BytesPerElement,
+	uint32 NumElements,
+	const void* InitialData,
+	uint64 InitialDataSize,
+	ERDGInitialDataFlags InitialDataFlags)
+{
+	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateUploadDesc(BytesPerElement, NumElements), Name);
+	if (InitialData != nullptr && InitialDataSize > 0)
+	{
+		GraphBuilder.QueueBufferUpload(Buffer, InitialData, InitialDataSize, InitialDataFlags);
+	}
+	return Buffer;
+}
+
 FRDGBufferRef CreateVertexBuffer(
 	FRDGBuilder& GraphBuilder,
 	const TCHAR* Name,

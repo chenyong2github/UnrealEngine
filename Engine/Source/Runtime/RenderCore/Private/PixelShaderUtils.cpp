@@ -15,10 +15,6 @@ bool FPixelShaderUtils::FRasterizeToRectsVS::ShouldCompilePermutation(const FGlo
 	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FUploadRectBuffer, )
-	RDG_BUFFER_ACCESS(RectBuffer, ERHIAccess::CopyDest)
-END_SHADER_PARAMETER_STRUCT()
-
 // static
 void FPixelShaderUtils::DrawFullscreenTriangle(FRHICommandList& RHICmdList, uint32 InstanceCount)
 {
@@ -67,26 +63,4 @@ void FPixelShaderUtils::InitFullscreenPipelineState(
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-}
-
-void FPixelShaderUtils::UploadRectBuffer(FRDGBuilder& GraphBuilder,
-	const TArray<FUintVector4, SceneRenderingAllocator>& RectArray,
-	FRDGBufferRef RectBuffer)
-{
-	FUploadRectBuffer* PassParameters = GraphBuilder.AllocParameters<FUploadRectBuffer>();
-	PassParameters->RectBuffer = RectBuffer;
-
-	const uint32 RectArraySizeInBytes = RectArray.GetTypeSize() * RectArray.Num();
-	const void* RectArrayDataPtr = RectArray.GetData();
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("UploadRectBuffer"),
-		PassParameters,
-		ERDGPassFlags::Copy,
-		[PassParameters, RectArraySizeInBytes, RectArrayDataPtr](FRHICommandListImmediate& RHICmdList)
-	{
-		void* WritePointer = RHILockBuffer(PassParameters->RectBuffer->GetRHI(), 0, RectArraySizeInBytes, RLM_WriteOnly);
-		FPlatformMemory::Memcpy(WritePointer, RectArrayDataPtr, RectArraySizeInBytes);
-		RHIUnlockBuffer(PassParameters->RectBuffer->GetRHI());
-	});
 }

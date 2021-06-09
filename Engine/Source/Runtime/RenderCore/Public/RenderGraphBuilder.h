@@ -121,6 +121,10 @@ public:
 	template <typename PODType>
 	PODType* AllocPOD();
 
+	/** Allocates POD memory using an allocator tied to the lifetime of the graph. Does not construct / destruct. */
+	template <typename PODType>
+	PODType* AllocPODArray(uint32 Count);
+
 	/** Allocates a C++ object using an allocator tied to the lifetime of the graph. Will destruct the object. */
 	template <typename ObjectType, typename... TArgs>
 	ObjectType* AllocObject(TArgs&&... Args);

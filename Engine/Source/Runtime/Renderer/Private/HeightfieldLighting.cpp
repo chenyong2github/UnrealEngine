@@ -679,10 +679,6 @@ void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription
 	RHIUnlockBuffer(GHeightfieldDescriptions.Data.Buffer);
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FUploadHeightfieldDescriptionsParameters, )
-	RDG_BUFFER_ACCESS(HeightfieldDescriptionsBuffer, ERHIAccess::CopyDest)
-END_SHADER_PARAMETER_STRUCT()
-
 FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor)
 {
 	const uint32 BufferStride = GHeightfieldDescriptions.Data.Stride;
@@ -694,29 +690,10 @@ FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TAr
 		InvDownsampleFactor,
 		/*out*/ HeightfieldDescriptionData);
 
-	FRDGBufferRef HeightfieldDescriptionsBuffer = GraphBuilder.CreateBuffer(
-		FRDGBufferDesc::CreateUploadDesc(sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(HeightfieldDescriptionData.Num(), 1))),
-		TEXT("HeightfieldDescriptionsBuffer"));
-
-	FUploadHeightfieldDescriptionsParameters* PassParameters = GraphBuilder.AllocParameters<FUploadHeightfieldDescriptionsParameters>();
-	PassParameters->HeightfieldDescriptionsBuffer = HeightfieldDescriptionsBuffer;
-
-	const uint32 UploadBytes = HeightfieldDescriptionData.Num() * sizeof(FVector4);
-	const void* UploadPtr = HeightfieldDescriptionData.GetData();
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("Upload HeightfieldDescriptions"),
-		PassParameters,
-		ERDGPassFlags::Copy,
-		[PassParameters, UploadBytes, UploadPtr](FRHICommandListImmediate& RHICmdList)
-		{
-			if (UploadBytes > 0)
-			{
-				void* DestCardIdPtr = RHILockBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
-				FPlatformMemory::Memcpy(DestCardIdPtr, UploadPtr, UploadBytes);
-				RHIUnlockBuffer(PassParameters->HeightfieldDescriptionsBuffer->GetRHI());
-			}
-		});
+	FRDGBufferRef HeightfieldDescriptionsBuffer =
+		CreateUploadBuffer(GraphBuilder, TEXT("HeightfieldDescriptionsBuffer"),
+			sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(HeightfieldDescriptionData.Num(), 1)),
+			HeightfieldDescriptionData.GetData(), HeightfieldDescriptionData.Num() * HeightfieldDescriptionData.GetTypeSize());
 
 	return HeightfieldDescriptionsBuffer;
 }

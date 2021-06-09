@@ -19,9 +19,9 @@ public:
 
 	/** Allocates an uninitialized type without destructor tracking. */
 	template <typename PODType>
-	FORCEINLINE PODType* AllocUninitialized()
+	FORCEINLINE PODType* AllocUninitialized(uint32 Count = 1)
 	{
-		return reinterpret_cast<PODType*>(Alloc(sizeof(PODType), alignof(PODType)));
+		return reinterpret_cast<PODType*>(Alloc(sizeof(PODType) * Count, alignof(PODType)));
 	}
 
 	/** Allocates and constructs an object and tracks it for destruction. */

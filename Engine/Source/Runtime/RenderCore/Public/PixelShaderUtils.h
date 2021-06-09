@@ -174,9 +174,4 @@ struct RENDERCORE_API FPixelShaderUtils
 			RHICmdList.DrawPrimitive(0, NumPrimitives, NumInstances);
 		});
 	}
-
-	static void UploadRectBuffer(
-		FRDGBuilder& GraphBuilder,
-		const TArray<FUintVector4, SceneRenderingAllocator>& RectArray,
-		FRDGBufferRef RectBuffer);
 };

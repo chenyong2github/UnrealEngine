@@ -112,6 +112,12 @@ FORCEINLINE PODType* FRDGBuilder::AllocPOD()
 	return Allocator.AllocUninitialized<PODType>();
 }
 
+template <typename PODType>
+FORCEINLINE PODType* FRDGBuilder::AllocPODArray(uint32 Count)
+{
+	return Allocator.AllocUninitialized<PODType>(Count);
+}
+
 template <typename ObjectType, typename... TArgs>
 FORCEINLINE ObjectType* FRDGBuilder::AllocObject(TArgs&&... Args)
 {

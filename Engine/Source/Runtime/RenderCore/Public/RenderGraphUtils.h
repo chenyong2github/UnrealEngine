@@ -644,6 +644,21 @@ inline void AddBufferUploadPass(
 	GraphBuilder.QueueBufferUpload(Buffer, InitialData, InitialDataSize, InitialDataFlags);
 }
 
+/** Helper class to allocate data from a GraphBuilder in order to upload said data to an RDG resource.
+*   Allocating from the GraphBuilder makes it so we don't have to copy the data before deferring the upload.
+*/
+template<typename InElementType>
+struct FRDGUploadData : public TArrayView<InElementType, int32>
+{
+	FRDGUploadData() = delete;
+	FRDGUploadData(FRDGBuilder& GraphBuilder, uint32 InCount)
+		: TArrayView<InElementType, int32>(GraphBuilder.AllocPODArray<InElementType>(InCount), InCount)
+	{
+	}
+
+	FORCEINLINE int32 GetTotalSize() const { return this->Num() * this->GetTypeSize(); }
+};
+
 /** Creates a structured buffer with initial data by creating an upload pass. */
 RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
@@ -679,9 +694,52 @@ FORCEINLINE FRDGBufferRef CreateStructuredBuffer(
 	static const ElementType DummyElement = ElementType();
 	if (InitialData.Num() == 0)
 	{
-		return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), 1, &DummyElement, InitialData.GetTypeSize());
+		return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), 1, &DummyElement, InitialData.GetTypeSize(), ERDGInitialDataFlags::NoCopy);
 	}
 	return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), InitialData.Num(), InitialData.GetData(), InitialData.Num() * InitialData.GetTypeSize(), InitialDataFlags);
+}
+
+template <typename ElementType>
+FORCEINLINE FRDGBufferRef CreateStructuredBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	const FRDGUploadData<ElementType>& InitialData)
+{
+	static const ElementType DummyElement = ElementType();
+	if (InitialData.Num() == 0)
+	{
+		return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), 1, &DummyElement, InitialData.GetTypeSize(), ERDGInitialDataFlags::NoCopy);
+	}
+	return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), InitialData.Num(), InitialData.GetData(), InitialData.GetTotalSize(), ERDGInitialDataFlags::NoCopy);
+}
+
+RENDERCORE_API FRDGBufferRef CreateUploadBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	uint32 BytesPerElement,
+	uint32 NumElements,
+	const void* InitialData,
+	uint64 InitialDataSize,
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
+
+template <typename ElementType>
+FORCEINLINE FRDGBufferRef CreateUploadBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	uint32 BytesPerElement,
+	uint32 NumElements,
+	const FRDGUploadData<ElementType>& InitialData)
+{
+	return CreateUploadBuffer(GraphBuilder, Name, BytesPerElement, NumElements, InitialData.GetData(), InitialData.GetTotalSize(), ERDGInitialDataFlags::NoCopy);
+}
+
+template <typename ElementType>
+FORCEINLINE FRDGBufferRef CreateUploadBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	const FRDGUploadData<ElementType>& InitialData)
+{
+	return CreateUploadBuffer(GraphBuilder, Name, sizeof(ElementType), InitialData.Num(), InitialData);
 }
 
 /** Creates a vertex buffer with initial data by creating an upload pass. */
