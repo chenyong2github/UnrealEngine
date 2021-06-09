@@ -2,6 +2,11 @@
 
 //-- Server side logic. Serves pixel streaming WebRTC-based page, proxies data back to Streamer --//
 
+// Microsoft Notes: This file has additions to the Unreal Engine Matchmaker that were done in conjuction with Epic to
+// add improved capabilities, resiliency and abilities to deploy and scale Pixel Streaming in Azure.
+// "MSFT Improvement" -- Areas where Microsoft have added additional code to what is exported out of Unreal Engine
+// "AZURE" -- Areas where Azure specific code was added (i.e., logging, metrics, etc.)
+
 var express = require('express');
 var app = express();
 
@@ -22,17 +27,60 @@ const defaultConfig = {
 	LogToFile: true,
 	HomepageFile: 'player.html',
 	AdditionalRoutes: new Map(),
-	EnableWebserver: true
+	EnableWebserver: true,
+	ScriptPath: 'psscripts'
 };
 
 const argv = require('yargs').argv;
-var configFile = (typeof argv.configFile != 'undefined') ? argv.configFile.toString() : './config.json';
+var configFile = (typeof argv.configFile != 'undefined') ? argv.configFile.toString() : '.\\config.json';
 console.log(`configFile ${configFile}`);
 const config = require('./modules/config.js').init(configFile, defaultConfig);
 
 if (config.LogToFile) {
 	logging.RegisterFileLogger('./logs');
 }
+
+/////////////////////////////// AZURE ///////////////////////////////
+// Add Azure Application Insights for logging / metrics
+const appInsights = require('applicationinsights');
+
+if (typeof config.appInsightsId != 'undefined' && config.appInsightsId != "") {
+	appInsights.setup(config.appInsightsId).setSendLiveMetrics(true).start();
+}
+
+if (!appInsights || !appInsights.defaultClient) {
+	console.log("No valid appInsights object to use");
+}
+
+function appInsightsLogError(err) {
+
+	if (!appInsights || !appInsights.defaultClient) {
+		return;
+	}
+
+	appInsights.defaultClient.trackMetric({ name: "SignalingServerErrors", value: 1 });
+	appInsights.defaultClient.trackException({ exception: err });
+}
+
+function appInsightsLogEvent(eventName, eventCustomValue) {
+
+	if (!appInsights || !appInsights.defaultClient) {
+		return;
+	}
+
+	appInsights.defaultClient.trackEvent({ name: eventName, properties: { customProperty: eventProperty } });
+}
+
+function appInsightsLogMetric(metricName, metricValue) {
+
+	if (!appInsights || !appInsights.defaultClient) {
+		return;
+	}
+
+	appInsights.defaultClient.trackMetric({ name: metricName, value: metricValue });
+}
+/////////////////////////////////////////////////////////////////////
+
 
 console.log("Config: " + JSON.stringify(config, null, '\t'));
 
@@ -78,15 +126,16 @@ if (config.UseFrontend) {
 	const httpsClient = require('./modules/httpsClient.js');
 	var webRequest = new httpsClient();
 } else {
-	var httpPort = 80;
-	var httpsPort = 443;
+	var httpPort = config.httpPort;
+	var httpsPort = config.httpsPort;
 }
 
-var streamerPort = 8888; // port to listen to Streamer connections
+var streamerPort = config.streamerPort; // port to listen to Streamer connections
 
 var matchmakerAddress = '127.0.0.1';
 var matchmakerPort = 9999;
 var matchmakerRetryInterval = 5;
+var matchmakerKeepAliveInterval = 30;
 
 var gameSessionId;
 var userSessionId;
@@ -138,6 +187,11 @@ try {
 	}
 } catch (e) {
 	console.error(e);
+
+	/////////////////////////////// AZURE ///////////////////////////////	
+	appInsightsLogMetric("SignalingServerError", 1);
+	appInsightsLogError(err);
+
 	process.exit(2);
 }
 
@@ -174,7 +228,7 @@ sendGameSessionData();
 if(config.UseAuthentication){
 	if(config.EnableWebserver) {
 		app.get('/login', function(req, res){
-			res.sendFile(__dirname + '/login.html');
+			res.sendFile(__dirname + '/login.htm');
 		});
 	}
 
@@ -217,7 +271,7 @@ try {
 if(config.EnableWebserver) {
 	app.get('/', isAuthenticated('/login'), function (req, res) {
 		homepageFile = (typeof config.HomepageFile != 'undefined' && config.HomepageFile != '') ? config.HomepageFile.toString() : defaultConfig.HomepageFile;
-		homepageFilePath = path.join(__dirname, '/public', homepageFile)
+		homepageFilePath = path.join(__dirname, homepageFile)
 
 		fs.access(homepageFilePath, (err) => {
 			if (err) {
@@ -242,34 +296,6 @@ if (config.UseHTTPS) {
 	});
 }
 
-/*
-app.get('/:sessionId', isAuthenticated('/login'), function(req, res){
-	let sessionId = req.params.sessionId;
-	console.log(sessionId);
-	
-	//For now don't verify session id is valid, just send player.htm if they get the right server
-  res.sendFile(__dirname + '/player.htm');
-});
-*/
-
-/* 
-app.get('/custom_html/:htmlFilename', isAuthenticated('/login'), function(req, res){
-	let htmlFilename = req.params.htmlFilename;
-	
-	let htmlPathname = __dirname + '/custom_html/' + htmlFilename;
-
-	console.log(htmlPathname);
-	fs.access(htmlPathname, (err) => {
-		if (err) {
-			res.status(404).send('Unable to locate file ' + htmlPathname);
-		}
-		else {
-			res.sendFile(htmlPathname);
-		}
-	});
-});
-*/
-
 let WebSocket = require('ws');
 
 let streamerServer = new WebSocket.Server({ port: streamerPort, backlog: 1 });
@@ -279,6 +305,7 @@ let streamer; // WebSocket connected to Streamer
 streamerServer.on('connection', function (ws, req) {
 	console.logColor(logging.Green, `Streamer connected: ${req.connection.remoteAddress}`);
 	sendStreamerConnectedToMatchmaker();
+	appInsightsLogMetric("SSStreamerConnected", 1); //////// AZURE ////////
 
 	ws.on('message', function onStreamerMessage(msg) {
 		console.logColor(logging.Blue, `<- Streamer: ${msg}`);
@@ -291,45 +318,58 @@ streamerServer.on('connection', function (ws, req) {
 			return;
 		}
 	
-		if (msg.type == 'ping') {
-			streamer.send(JSON.stringify({ type: "pong", time: msg.time}));
-			return;
-		}
+		try {
+			if (msg.type == 'ping') {
+				streamer.send(JSON.stringify({ type: "pong", time: msg.time}));
+				return;
+			}
 
-		let playerId = msg.playerId;
-		delete msg.playerId; // no need to send it to the player
-		let player = players.get(playerId);
-		if (!player) {
-			console.log(`dropped message ${msg.type} as the player ${playerId} is not found`);
-			return;
-		}
+			let playerId = msg.playerId;
+			delete msg.playerId; // no need to send it to the player
+			let player = players.get(playerId);
+			if (!player) {
+				console.log(`dropped message ${msg.type} as the player ${playerId} is not found`);
+				return;
+			}
 
-		if (msg.type == 'answer') {
-			player.ws.send(JSON.stringify(msg));
-		} else if (msg.type == 'iceCandidate') {
-			player.ws.send(JSON.stringify(msg));
-		} else if (msg.type == 'disconnectPlayer') {
-			player.ws.close(1011 /* internal error */, msg.reason);
-		} else {
-			console.error(`unsupported Streamer message type: ${msg.type}`);
-			streamer.close(1008, 'Unsupported message type');
+			if (msg.type == 'answer') {
+				player.ws.send(JSON.stringify(msg));
+			} else if (msg.type == 'iceCandidate') {
+				player.ws.send(JSON.stringify(msg));
+			} else if (msg.type == 'disconnectPlayer') {
+				player.ws.close(1011 /* internal error */, msg.reason);
+			} else {
+				console.error(`unsupported Streamer message type: ${msg.type}`);
+				streamer.close(1008, 'Unsupported message type');
+			}
+		} catch(err) {
+			console.error(`ERROR: ws.on message error: ${err.message}`);
 		}
 	});
 
 	function onStreamerDisconnected() {
 		sendStreamerDisconnectedToMatchmaker();
 		disconnectAllPlayers();
+		appInsightsLogMetric("SSStreamerDisconnected", 1);	//////// AZURE ////////
 	}
 	
 	ws.on('close', function(code, reason) {
-		console.error(`streamer disconnected: ${code} - ${reason}`);
-		onStreamerDisconnected();
+		try {
+			console.error(`streamer disconnected: ${code} - ${reason}`);
+			onStreamerDisconnected();
+		} catch(err) {
+			console.error(`ERROR: ws.on close error: ${err.message}`);
+		}
 	});
 
 	ws.on('error', function(error) {
-		console.error(`streamer connection error: ${error}`);
-		ws.close(1006 /* abnormal closure */, error);
-		onStreamerDisconnected();
+		try {
+			console.error(`streamer connection error: ${error}`);
+			ws.close(1006 /* abnormal closure */, error);
+			onStreamerDisconnected();
+		} catch(err) {
+			console.error(`ERROR: ws.on error: ${err.message}`);
+		}
 	});
 
 	streamer = ws;
@@ -353,6 +393,7 @@ playerServer.on('connection', function (ws, req) {
 	let playerId = (++nextPlayerId).toString();
 	console.log(`player ${playerId} (${req.connection.remoteAddress}) connected`);
 	players.set(playerId, { ws: ws, id: playerId });
+	appInsightsLogMetric("SSPlayerConnected", 1);	//////// AZURE ////////
 
 	function sendPlayersCount() {
 		let playerCountMsg = JSON.stringify({ type: 'playerCount', count: players.size });
@@ -369,6 +410,11 @@ playerServer.on('connection', function (ws, req) {
 		} catch (err) {
 			console.error(`Cannot parse player ${playerId} message: ${err}`);
 			ws.close(1008, 'Cannot parse');
+
+			/////////////////////////////// AZURE ///////////////////////////////	
+			appInsightsLogMetric("SignalingServerError", 1);
+			appInsightsLogError(err);
+
 			return;
 		}
 
@@ -397,23 +443,72 @@ playerServer.on('connection', function (ws, req) {
 		}
 	});
 
+
+	//////////////////////////// MSFT Improvement  ////////////////////////////	
+	// Added for the ability to restart the app once a user closes their session,
+	// this way the next user doesn't see where the player last left off.
+	// This calls a custom OnClientDisconnected.ps1 script to close and restart the app.
+	function restartUnrealApp() {
+		// Call the restart PowerShell script only if all players have disconnected
+		if(players.size == 0) {
+			try {
+				var spawn = require("child_process").spawn,child;
+				// TODO: Need to pass in a config path to this for more robustness and not hard coded
+				child = spawn("powershell.exe",[`${config.ScriptPath}\\OnClientDisconnected.ps1 ${config.unrealAppName} ${config.streamerPort}`]);
+				
+				child.stdout.on("data", function(data) {
+					console.log("PowerShell Data: " + data);
+				});
+				child.stderr.on("data", function(data) {
+					console.log("PowerShell Errors: " + data);
+				});
+				child.on("exit",function(){
+					console.log("The PowerShell script complete.");
+				});
+				child.stdin.end();
+			} catch(e) {
+				console.log(`ERROR: Errors executing PowerShell with message: ${e.toString()}`);
+				appInsightsLogError(e);	//////// AZURE ////////
+			}
+		}
+	}
+	///////////////////////////////////////////////////////////////////////////
+
+
 	function onPlayerDisconnected() {
-		players.delete(playerId);
-		streamer.send(JSON.stringify({type: 'playerDisconnected', playerId: playerId}));
-		sendPlayerDisconnectedToFrontend();
-		sendPlayerDisconnectedToMatchmaker();
-		sendPlayersCount();
+
+		try {
+			console.log("calling onPlayerDisconnected...");
+			players.delete(playerId);
+			streamer.send(JSON.stringify({type: 'playerDisconnected', playerId: playerId}));
+			sendPlayerDisconnectedToFrontend();
+			sendPlayerDisconnectedToMatchmaker();
+			sendPlayersCount();
+			console.log("CALLED onPlayerDisconnected");
+
+			appInsightsLogMetric("SSPlayerDisconnected", 1); //////// AZURE ////////
+		} catch(err) {
+			console.logColor(loggin.Red, `ERROR:: onPlayerDisconnected error: ${err.message}`);
+		}
 	}
 
 	ws.on('close', function(code, reason) {
 		console.logColor(logging.Yellow, `player ${playerId} connection closed: ${code} - ${reason}`);
 		onPlayerDisconnected();
+
+		//////////////////////////// MSFT Improvement  ////////////////////////////
+		// When a player session closes, kick off a restart for the Unreal app
+		setTimeout(restartUnrealApp, 500);
+		///////////////////////////////////////////////////////////////////////////
 	});
 
 	ws.on('error', function(error) {
 		console.error(`player ${playerId} connection error: ${error}`);
 		ws.close(1006 /* abnormal closure */, error);
 		onPlayerDisconnected();
+
+		console.logColor(logging.Red, `Trying to reconnect...`);
+		reconnect();
 	});
 
 	sendPlayerConnectedToFrontend();
@@ -440,26 +535,50 @@ if (config.UseMatchmaker) {
 
 	matchmaker.on('connect', function() {
 		console.log(`Cirrus connected to Matchmaker ${matchmakerAddress}:${matchmakerPort}`);
+
+		//////////////////////////// MSFT Improvement  ////////////////////////////
+		// message.playerConnected is a new variable sent from the SS to help track whether or not a player 
+		// is already connected when a 'connect' message is sent (i.e., reconnect). This happens when the MM
+		// and the SS get disconnected unexpectedly (was happening often at scale for some reason).
+		var playerConnected = false;
+
+		// Set the playerConnected flag to tell the MM if there is already a player active (i.e., don't send a new one here)
+		if( players && players.size > 0) {
+			playerConnected = true;
+		}
+
+		// Add the new playerConnected flag to the message body to the MM
 		message = {
 			type: 'connect',
 			address: typeof serverPublicIp === 'undefined' ? '127.0.0.1' : serverPublicIp,
 			port: httpPort,
-			ready: streamer && streamer.readyState === 1
+			ready: streamer && streamer.readyState === 1,
+			playerConnected: playerConnected
 		};
+		//////////////////////////// MSFT Improvement  ////////////////////////////
+
 		matchmaker.write(JSON.stringify(message));
+		appInsightsLogMetric("SSMatchmakerConnected", 1);			//////// AZURE ////////
 	});
 
 	matchmaker.on('error', (err) => {
 		console.log(`Matchmaker connection error ${JSON.stringify(err)}`);
+		appInsightsLogMetric("SSMatchmakerConnectionError", 1);		//////// AZURE ////////
 	});
 
 	matchmaker.on('end', () => {
 		console.log('Matchmaker connection ended');
+		appInsightsLogMetric("SSMatchmakerConnectionEnded", 1);		//////// AZURE ////////
 	});
 
 	matchmaker.on('close', (hadError) => {
+		console.logColor(logging.Blue, 'Setting Keep Alive to true');
+        matchmaker.setKeepAlive(true, 60000); // Keeps it alive for 60 seconds
+		
 		console.log(`Matchmaker connection closed (hadError=${hadError})`);
+
 		reconnect();
+		appInsightsLogMetric("SSMatchmakerConnectionClosed", 1);	//////// AZURE ////////
 	});
 
 	// Attempt to connect to the Matchmaker
@@ -470,13 +589,26 @@ if (config.UseMatchmaker) {
 	// Try to reconnect to the Matchmaker after a given period of time
 	function reconnect() {
 		console.log(`Try reconnect to Matchmaker in ${matchmakerRetryInterval} seconds`)
+		appInsightsLogMetric("SSMatchmakerRetryConnection", 1);		//////// AZURE ////////
 		setTimeout(function() {
 			connect();
 		}, matchmakerRetryInterval * 1000);
 	}
 
+	function registerMMKeepAlive() {
+		setInterval(function() {
+			message = {
+				type: 'ping'
+			};
+			matchmaker.write(JSON.stringify(message));
+		}, matchmakerKeepAliveInterval * 1000);
+	}
+
 	connect();
+	registerMMKeepAlive();
 }
+
+
 
 //Keep trying to send gameSessionId in case the server isn't ready yet
 function sendGameSessionData() {
@@ -543,26 +675,32 @@ function sendServerDisconnect() {
 	if (!config.UseFrontend)
 		return;
 
-	webRequest.get(`${FRONTEND_WEBSERVER}/server/serverDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
-		function (response, body) {
-			if (response.statusCode === 200) {
-				console.log('serverDisconnected acknowledged by Frontend');
-			} else {
-				console.error('Status code: ' + response.statusCode);
-				console.error(body);
-			}
-		},
-		function (err) {
-			//Repeatedly try in cases where the connection timed out or never connected
-			if (err.code === "ECONNRESET") {
-				//timeout
-				sendServerDisconnect();
-			} else if (err.code === 'ECONNREFUSED') {
-				console.error('Frontend server not running, unable to setup user session');
-			} else {
-				console.error(err);
-			}
-		});
+	try {
+		console.log("calling sendServerDisconnect...");
+		webRequest.get(`${FRONTEND_WEBSERVER}/server/serverDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
+			function (response, body) {
+				if (response.statusCode === 200) {
+					console.log('serverDisconnected acknowledged by Frontend');
+				} else {
+					console.error('Status code: ' + response.statusCode);
+					console.error(body);
+				}
+			},
+			function (err) {
+				//Repeatedly try in cases where the connection timed out or never connected
+				if (err.code === "ECONNRESET") {
+					//timeout
+					sendServerDisconnect();
+				} else if (err.code === 'ECONNREFUSED') {
+					console.error('Frontend server not running, unable to setup user session');
+				} else {
+					console.error(err);
+				}
+			});
+		console.log("calling sendServerDisconnect...");
+	} catch(err) {
+		console.logColor(logging.Red, `ERROR::: sendServerDisconnect error: ${err.message}`);
+	}
 }
 
 function sendPlayerConnectedToFrontend() {
@@ -570,74 +708,101 @@ function sendPlayerConnectedToFrontend() {
 	if (!config.UseFrontend)
 		return;
 
-	webRequest.get(`${FRONTEND_WEBSERVER}/server/clientConnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
-		function (response, body) {
-			if (response.statusCode === 200) {
-				console.log('clientConnected acknowledged by Frontend');
-			} else {
-				console.error('Status code: ' + response.statusCode);
-				console.error(body);
-			}
-		},
-		function (err) {
-			//Repeatedly try in cases where the connection timed out or never connected
-			if (err.code === "ECONNRESET") {
-				//timeout
-				sendPlayerConnectedToFrontend();
-			} else if (err.code === 'ECONNREFUSED') {
-				console.error('Frontend server not running, unable to setup game session');
-			} else {
-				console.error(err);
-			}
-		});
+	try {
+		console.log("calling sendPlayerConnectedToFrontend...");
+		webRequest.get(`${FRONTEND_WEBSERVER}/server/clientConnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
+			function (response, body) {
+				if (response.statusCode === 200) {
+					console.log('clientConnected acknowledged by Frontend');
+				} else {
+					console.error('Status code: ' + response.statusCode);
+					console.error(body);
+				}
+			},
+			function (err) {
+				//Repeatedly try in cases where the connection timed out or never connected
+				if (err.code === "ECONNRESET") {
+					//timeout
+					sendPlayerConnectedToFrontend();
+				} else if (err.code === 'ECONNREFUSED') {
+					console.error('Frontend server not running, unable to setup game session');
+				} else {
+					console.error(err);
+				}
+			});
+		console.log("CALLED sendPlayerConnectedToFrontend");
+	} catch(err) {
+		console.logColor(logging.Red, `ERROR::: sendPlayerConnectedToFrontend error: ${err.message}`);
+	}
 }
 
 function sendPlayerDisconnectedToFrontend() {
 	//If we are not using the frontend web server don't try and make requests to it
 	if (!config.UseFrontend)
 		return;
-
-	webRequest.get(`${FRONTEND_WEBSERVER}/server/clientDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
-		function (response, body) {
-			if (response.statusCode === 200) {
-				console.log('clientDisconnected acknowledged by Frontend');
-			}
-			else {
-				console.error('Status code: ' + response.statusCode);
-				console.error(body);
-			}
-		},
-		function (err) {
-			//Repeatedly try in cases where the connection timed out or never connected
-			if (err.code === "ECONNRESET") {
-				//timeout
-				sendPlayerDisconnectedToFrontend();
-			} else if (err.code === 'ECONNREFUSED') {
-				console.error('Frontend server not running, unable to setup game session');
-			} else {
-				console.error(err);
-			}
-		});
+	try {
+		console.log("calling sendPlayerDisconnectedToFrontend...");
+		webRequest.get(`${FRONTEND_WEBSERVER}/server/clientDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
+			function (response, body) {
+				if (response.statusCode === 200) {
+					console.log('clientDisconnected acknowledged by Frontend');
+					appInsightsLogMetric("SSPlayerDisconnectedFrontEnd", 1);		//////// AZURE ////////
+				}
+				else {
+					console.error('Status code: ' + response.statusCode);
+					console.error(body);
+				}
+			},
+			function (err) {
+				//Repeatedly try in cases where the connection timed out or never connected
+				if (err.code === "ECONNRESET") {
+					//timeout
+					sendPlayerDisconnectedToFrontend();
+				} else if (err.code === 'ECONNREFUSED') {
+					console.error('Frontend server not running, unable to setup game session');
+				} else {
+					console.error(err);
+				}
+			});
+		console.log("CALLED sendPlayerDisconnectedToFrontend");
+	} catch(err) {
+		console.logColor(logging.Red, `ERROR::: sendPlayerDisconnectedToFrontend error: ${err.message}`);
+	}
 }
 
 function sendStreamerConnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 		return;
 
-	message = {
-		type: 'streamerConnected'
-	};
-	matchmaker.write(JSON.stringify(message));
+	try {
+		console.log("sendStreamerConnectedToMatchmaker started...");
+		message = {
+			type: 'streamerConnected'
+		};
+		matchmaker.write(JSON.stringify(message));
+		console.log("sendStreamerConnectedToMatchmaker FINISHED");
+	} catch (err) {
+		console.logColor(logging.Red, `ERROR sending streamerConnected: ${err.message}`);
+	}
 }
 
 function sendStreamerDisconnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
+	{
+		console.log("WARNING:::sendStreamerDisconnectedToMatchmaker not using matchmaker for some reason???");
 		return;
+	}
 
-	message = {
-		type: 'streamerDisconnected'
-	};
-	matchmaker.write(JSON.stringify(message));
+	try {
+		console.log("sendStreamerDisconnectedToMatchmaker started...");
+		message = {
+			type: 'streamerDisconnected'
+		};
+		matchmaker.write(JSON.stringify(message));	
+		console.log("sendStreamerDisconnectedToMatchmaker FINISHED");
+	} catch (err) {
+		console.logColor(logging.Red, `ERROR sending streamerDisconnected: ${err.message}`);
+	}
 }
 
 // The Matchmaker will not re-direct clients to this Cirrus server if any client
@@ -645,11 +810,17 @@ function sendStreamerDisconnectedToMatchmaker() {
 function sendPlayerConnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 		return;
-
-	message = {
-		type: 'clientConnected'
-	};
-	matchmaker.write(JSON.stringify(message));
+	
+	try {
+		console.log("sendPlayerConnectedToMatchmaker started...");
+		message = {
+			type: 'clientConnected'
+		};
+		matchmaker.write(JSON.stringify(message));
+		console.log("sendPlayerConnectedToMatchmaker FINISHED");
+	} catch (err) {
+		console.logColor(logging.Red, `ERROR sending clientConnected: ${err.message}`);
+	}
 }
 
 // The Matchmaker is interested when nobody is connected to a Cirrus server
@@ -658,8 +829,14 @@ function sendPlayerDisconnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 		return;
 
-	message = {
-		type: 'clientDisconnected'
-	};
-	matchmaker.write(JSON.stringify(message));
+	try {
+		console.log("sendPlayerDisconnectedToMatchmaker started...");
+		message = {
+			type: 'clientDisconnected'
+		};
+		matchmaker.write(JSON.stringify(message));
+		console.log("sendPlayerDisconnectedToMatchmaker FINISHED");
+	} catch (err) {
+		console.logColor(logging.Red, `ERROR sending clientDisconnected: ${err.message}`);
+	}
 }

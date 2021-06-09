@@ -1,10 +1,22 @@
 {
 	"UseFrontend": false,
-	"UseMatchmaker": false,
+	"UseMatchmaker": true,
 	"UseHTTPS": false,
 	"UseAuthentication": false,
 	"LogToFile": true,
-	"HomepageFile": "player.html",
+	"HomepageFile": "/public/player.html",
 	"AdditionalRoutes": {},
-	"EnableWebserver": true
+	"EnableWebserver": true,
+	"ScriptPath": "psscripts",
+	"matchmakerAddress": "",
+	"matchmakerPort": "9999",
+	"publicIp": "localhost",
+	"subscriptionId": "",
+	"resourceGroup": "",
+	"virtualMachineScaleSet": "",
+	"appInsightsId": "",
+	"httpPort": 90,
+	"httpsPort": 443,
+	"streamerPort": 8888,
+	"unrealAppName": "PixelStreamingDemo"
 }
