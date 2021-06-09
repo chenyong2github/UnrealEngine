@@ -519,10 +519,7 @@ public:
 
 	virtual ~FGenericAccessibleMessageHandler()
 	{
-		if (AccessibleEventDelegate.IsBound())
-		{
-			AccessibleEventDelegate.Unbind();
-		}
+		UnbindAccessibleEventDelegate();
 	}
 
 	/**
@@ -594,6 +591,14 @@ public:
 	void SetAccessibleEventDelegate(const FAccessibleEvent& Delegate)
 	{
 		AccessibleEventDelegate = Delegate;
+	}
+
+	/**
+ * Unbinds the delegate called during accessible events if it is bound. 
+ */
+	void UnbindAccessibleEventDelegate()
+	{
+		AccessibleEventDelegate.Unbind();
 	}
 
 	/**
