@@ -182,6 +182,11 @@ namespace HordeAgent
 		public string? WorkingDir { get; set; } = Program.DataDir.FullName;
 
 		/// <summary>
+		/// Whether to mount the specified list of network shares
+		/// </summary>
+		public bool ShareMountingEnabled { get; set; } = true;
+		
+		/// <summary>
 		/// List of network shares to mount
 		/// </summary>
 		public List<MountNetworkShare> Shares { get; set; } = new List<MountNetworkShare>();
