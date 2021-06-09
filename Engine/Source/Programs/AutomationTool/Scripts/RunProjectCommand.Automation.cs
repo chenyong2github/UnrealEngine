@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -118,6 +119,9 @@ public partial class Project : CommandUtils
 
 	private static void RunInternal(ProjectParams Params, string ServerLogFile, string ClientLogFile)
 	{
+		// Start the UnrealTrace
+		StartUnrealTrace();
+
 		// Setup server process if required.
 		if (Params.DedicatedServer && !Params.SkipServer)
 		{
@@ -1047,5 +1051,36 @@ public partial class Project : CommandUtils
 		var Result = Run(UnrealFileServerExe, Args, null, ERunOptions.AllowSpew | ERunOptions.NoWaitForExit | ERunOptions.AppMustExist | ERunOptions.NoStdOutRedirect);
 		PopDir();
 		return Result;
+	}
+
+	private static bool StartUnrealTrace()
+	{
+		// [TEMPORARY] - UnrealTrace server is currently only available on Windows
+		if (!Utils.IsRunningOnWindows)
+		{
+			return true;
+		}
+		// [/TEMPORARY]
+
+		LogInformation("UnrealTrace: Starting server");
+
+		// Locate the UnrealTrace binary
+		var UnrealTracePath = HostPlatform.Current.GetUE4ExePath("UnrealTrace.exe");
+		if (!File.Exists(UnrealTracePath))
+		{
+			LogWarning("UnrealTrace: Unable to locate binary at " + UnrealTracePath);
+			return false;
+		}
+
+		// Launch UnrealTrace and wait for it to fork and return
+		Process Proc = Process.Start(UnrealTracePath);
+		Proc.WaitForExit();
+		if (Proc.ExitCode != 0)
+		{
+			LogWarning("UnrealTrace: Failed to start server; ExitCode=" + Proc.ExitCode);
+			return false;
+		}
+
+		return true;
 	}
 }

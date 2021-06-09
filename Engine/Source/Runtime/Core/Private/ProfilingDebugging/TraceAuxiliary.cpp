@@ -3,6 +3,16 @@
 #include "ProfilingDebugging/TraceAuxiliary.h"
 #include "Trace/Trace.h"
 
+#if PLATFORM_WINDOWS
+#	include "Windows/AllowWindowsPlatformTypes.h"
+#	include <Windows.h>
+#	include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
+#if !defined(WITH_UNREAL_TRACE_LAUNCH)
+#	define WITH_UNREAL_TRACE_LAUNCH (PLATFORM_DESKTOP && !UE_BUILD_SHIPPING && !IS_PROGRAM)
+#endif
+
 #if UE_TRACE_ENABLED
 
 #include "BuildSettings.h"
@@ -28,12 +38,6 @@
 #include "String/ParseTokens.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Trace.inl"
-
-#if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include <Windows.h>
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 const TCHAR* GDefaultChannels = TEXT("cpu,gpu,frame,log,bookmark");
@@ -480,6 +484,61 @@ static FAutoConsoleCommand TraceAuxiliaryResumeCmd(
 
 
 
+#if WITH_UNREAL_TRACE_LAUNCH
+////////////////////////////////////////////////////////////////////////////////
+#if PLATFORM_WINDOWS
+static void StartUnrealTrace()
+{
+	FString BinPath = "\"";
+	BinPath += FPaths::EngineDir();
+	BinPath += "/Binaries/Win64/UnrealTrace.exe\"";
+
+	uint32 Flags = 0x0100'0000; // CREATE_BREAKAWAY_FROM_JOB
+	STARTUPINFOW StartupInfo = { sizeof(STARTUPINFOW) };
+	PROCESS_INFORMATION ProcessInfo = {};
+	BOOL bOk = CreateProcessW(nullptr, LPWSTR(*BinPath), nullptr, nullptr,
+		false, Flags, nullptr, nullptr, &StartupInfo, &ProcessInfo);
+
+	if (!bOk)
+	{
+		UE_LOG(LogCore, Warning, TEXT("Unable to launch the trace store from '%s' (%08x)"), *BinPath, GetLastError());
+		return;
+	}
+
+	if (WaitForSingleObject(ProcessInfo.hProcess, 5000) == WAIT_TIMEOUT)
+	{
+		UE_LOG(LogCore, Warning, TEXT("Timed out waiting for the trace store to start"));
+	}
+	else
+	{
+		DWORD ExitCode = 0x0000'a9e0;
+		GetExitCodeProcess(ProcessInfo.hProcess, &ExitCode);
+		if (ExitCode)
+		{
+			UE_LOG(LogCore, Warning, TEXT("Trace store returned an error (%08x)"), ExitCode);
+		}
+		else
+		{
+			UE_LOG(LogCore, Log, TEXT("Trace store launch successful"));
+		}
+	}
+
+	CloseHandle(ProcessInfo.hProcess);
+	CloseHandle(ProcessInfo.hThread);
+}
+#endif // PLATFORM_WINDOWS
+
+////////////////////////////////////////////////////////////////////////////////
+#if PLATFORM_UNIX || PLATFORM_MAC
+static void StartUnrealTrace()
+{
+	/* nop */
+}
+#endif // PLATFORM_UNIX/MAC
+#endif // WITH_UNREAL_TRACE_LAUNCH
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Platform)
@@ -495,6 +554,15 @@ UE_TRACE_EVENT_END()
 ////////////////////////////////////////////////////////////////////////////////
 void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTraceAux_Init);
+
+#if WITH_UNREAL_TRACE_LAUNCH
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FTraceAux_StartUnrealTrace);
+		StartUnrealTrace();
+	}
+#endif
+
 #if UE_TRACE_ENABLED
 	// Trace out information about this session. This is done before initialisation
 	// so that it is always sent (all channels are enabled prior to initialisation)
