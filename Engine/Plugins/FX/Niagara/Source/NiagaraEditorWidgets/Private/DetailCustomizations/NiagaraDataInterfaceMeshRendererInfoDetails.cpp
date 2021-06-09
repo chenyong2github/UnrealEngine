@@ -11,6 +11,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraStackEditorData.h"
 #include "NiagaraEditor/Private/NiagaraEmitterEditorData.h"
+#include "NiagaraEditorModule.h"
 
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceMeshRendererInfoDetails"
@@ -26,6 +27,7 @@ FNiagaraDataInterfaceMeshRendererInfoDetails::~FNiagaraDataInterfaceMeshRenderer
 void FNiagaraDataInterfaceMeshRendererInfoDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	LayoutBuilder = &DetailBuilder;
+	FNiagaraDataInterfaceDetailsBase::CustomizeDetails(DetailBuilder);
 
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 	DetailBuilder.GetObjectsBeingCustomized(SelectedObjects);
@@ -94,7 +96,7 @@ TSharedRef<IDetailCustomization> FNiagaraDataInterfaceMeshRendererInfoDetails::M
 
 void FNiagaraDataInterfaceMeshRendererInfoDetails::OnInterfaceChanged()
 {
-	if (MeshRendererWidget.IsValid())
+	if (!bSettingSelection && MeshRendererWidget.IsValid())
 	{
 		MeshRendererWidget->SetSelectedItem(GetSelectedRenderer());
 	}
@@ -109,15 +111,8 @@ void FNiagaraDataInterfaceMeshRendererInfoDetails::GenerateRendererList()
 	if (auto Interface = DataInterface.Get())
 	{
 		UNiagaraSystem* System = nullptr;
-		if (auto NiagaraComponent = Cast<UNiagaraComponent>(Interface->GetOuter()))
-		{
-			System = NiagaraComponent->GetAsset();
-		}
-		else
-		{
-			System = Interface->GetTypedOuter<UNiagaraSystem>();
-		}
-		
+		UNiagaraEmitter* Emitter = nullptr;
+		FNiagaraEditorModule::Get().GetTargetSystemAndEmitterForDataInterface(Interface, System, Emitter);
 		if (System)
 		{
 			for (auto& EmitterHandle : System->GetEmitterHandles())
@@ -150,9 +145,20 @@ UNiagaraMeshRendererProperties* FNiagaraDataInterfaceMeshRendererInfoDetails::Ge
 
 void FNiagaraDataInterfaceMeshRendererInfoDetails::SetSelectedRenderer(TRendererPtr Selection, ESelectInfo::Type)
 {
-	if (MeshRendererProperty.IsValid())
+	if (MeshRendererProperty.IsValid() && DataInterface.IsValid())
 	{
-		MeshRendererProperty->SetValue(Selection.Get());
+		bSettingSelection = true;
+		UObject* Obj = nullptr;
+		MeshRendererProperty->GetValue(Obj);
+		if (Obj != Selection.Get())
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("FNiagaraDataInterfaceMeshRendererInfoDetails", "Change Mesh Renderer", "Change Mesh Renderer"));
+			DataInterface->Modify();
+			MeshRendererProperty->NotifyPreChange();
+			MeshRendererProperty->SetValue(Selection.Get());
+			MeshRendererProperty->NotifyPostChange();
+		}
+		bSettingSelection = false;
 	}	
 }
 

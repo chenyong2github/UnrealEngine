@@ -43,4 +43,5 @@ private:
 	TWeakObjectPtr<UNiagaraDataInterfaceMeshRendererInfo>  DataInterface;
 	IDetailCategoryBuilder* SourceCategory = nullptr;
 	TSharedPtr<IPropertyHandle> MeshRendererProperty;
+	bool bSettingSelection = false;
 };

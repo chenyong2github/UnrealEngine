@@ -58,7 +58,9 @@
 #include "NiagaraDataInterfaceColorCurve.h"
 #include "ViewModels/NiagaraScriptViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraPlaceholderDataInterfaceManager.h"
 #include "TNiagaraGraphPinEditableName.h"
 #include "UObject/Class.h"
 #include "NiagaraScriptMergeManager.h"
@@ -1497,6 +1499,80 @@ void FNiagaraEditorModule::AddReservedLibraryParameterName(const FName& Paramete
 void FNiagaraEditorModule::RemoveReservedLibraryParameterName(const FName& ParameterName)
 {
 	ReservedLibraryParameterNames.Remove(ParameterName);
+}
+
+void FNiagaraEditorModule::GetDataInterfaceFeedbackSafe(UNiagaraDataInterface* InDataInterface, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
+{
+	if (!InDataInterface)
+		return;
+
+	UNiagaraSystem* OwningSystem = InDataInterface->GetTypedOuter<UNiagaraSystem>();
+	UNiagaraEmitter* OwningEmitter = InDataInterface->GetTypedOuter<UNiagaraEmitter>();
+	UNiagaraComponent* OwningComponent = InDataInterface->GetTypedOuter<UNiagaraComponent>();
+
+	if (OwningSystem == nullptr)
+	{
+		// If no outer was find try to find one by componenet.
+		if (OwningComponent != nullptr)
+		{
+			OwningSystem = OwningComponent->GetAsset();
+		}
+	}
+
+	if (OwningSystem == nullptr)
+	{
+		// If no outer information is available check system view models for placeholder DIs.
+		TArray<TSharedRef<FNiagaraSystemViewModel>> SystemViewModels;
+		FNiagaraSystemViewModel::GetAllViewModels(SystemViewModels);
+		for (TSharedRef<FNiagaraSystemViewModel> SystemViewModel : SystemViewModels)
+		{
+			FGuid OwningEmitterHandle;
+			UNiagaraNodeFunctionCall* OwningFunctionCallNode;
+			if (SystemViewModel->IsValid() && SystemViewModel->GetPlaceholderDataInterfaceManager()->TryGetOwnerInformation(InDataInterface, OwningEmitterHandle, OwningFunctionCallNode))
+			{
+				OwningSystem = &SystemViewModel->GetSystem();
+				OwningEmitter = OwningEmitterHandle.IsValid() ? SystemViewModel->GetEmitterHandleViewModelById(OwningEmitterHandle)->GetEmitterViewModel()->GetEmitter() : nullptr;
+				break;
+			}
+		}
+	}
+
+	InDataInterface->GetFeedback(OwningSystem, OwningComponent, OutErrors, OutWarnings, OutInfo);
+
+}
+
+void FNiagaraEditorModule::GetTargetSystemAndEmitterForDataInterface(UNiagaraDataInterface* InDataInterface, UNiagaraSystem*& OutOwningSystem, UNiagaraEmitter*& OutOwningEmitter)
+{
+	OutOwningSystem = InDataInterface->GetTypedOuter<UNiagaraSystem>();
+	OutOwningEmitter = InDataInterface->GetTypedOuter<UNiagaraEmitter>();
+	
+	if (OutOwningSystem == nullptr)
+	{
+		// If no outer was find try to find one by componenet.
+		UNiagaraComponent* OwningComponent = InDataInterface->GetTypedOuter<UNiagaraComponent>();
+		if (OwningComponent != nullptr)
+		{
+			OutOwningSystem = OwningComponent->GetAsset();
+		}
+	}
+
+	if (OutOwningSystem == nullptr)
+	{
+		// If no outer information is available check system view models for placeholder DIs.
+		TArray<TSharedRef<FNiagaraSystemViewModel>> SystemViewModels;
+		FNiagaraSystemViewModel::GetAllViewModels(SystemViewModels);
+		for (TSharedRef<FNiagaraSystemViewModel> SystemViewModel : SystemViewModels)
+		{
+			FGuid OwningEmitterHandle;
+			UNiagaraNodeFunctionCall* OwningFunctionCallNode;
+			if (SystemViewModel->IsValid() && SystemViewModel->GetPlaceholderDataInterfaceManager()->TryGetOwnerInformation(InDataInterface, OwningEmitterHandle, OwningFunctionCallNode))
+			{
+				OutOwningSystem = &SystemViewModel->GetSystem();
+				OutOwningEmitter = OwningEmitterHandle.IsValid() ? SystemViewModel->GetEmitterHandleViewModelById(OwningEmitterHandle)->GetEmitterViewModel()->GetEmitter() : nullptr;
+				break;
+			}
+		}
+	}
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

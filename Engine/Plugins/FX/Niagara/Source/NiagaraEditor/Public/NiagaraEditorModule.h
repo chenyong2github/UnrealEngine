@@ -153,6 +153,10 @@ public:
 	void AddReservedLibraryParameterName(const FName& ParameterName);
 	void RemoveReservedLibraryParameterName(const FName& ParameterName);
 
+	NIAGARAEDITOR_API void GetTargetSystemAndEmitterForDataInterface(UNiagaraDataInterface* InDataInterface, UNiagaraSystem*& OutOwningSystem, UNiagaraEmitter*& OutOwningEmitter);
+	NIAGARAEDITOR_API void GetDataInterfaceFeedbackSafe(UNiagaraDataInterface* InDataInterface, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info);
+
+
 private:
 	class FDeferredDestructionContainerBase
 	{

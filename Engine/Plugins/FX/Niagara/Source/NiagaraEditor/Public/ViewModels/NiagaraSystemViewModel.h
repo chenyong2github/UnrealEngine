@@ -165,6 +165,9 @@ public:
 	/** Initializes this system view model with the supplied system and options. */
 	NIAGARAEDITOR_API void Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions);
 
+	/** Returns whether or not this view model is initialized and safe to use. */
+	bool IsValid() const;
+
 	NIAGARAEDITOR_API ~FNiagaraSystemViewModel();
 
 	//~ Begin NiagaraParameterDefinitionsSubscriberViewModel Interface

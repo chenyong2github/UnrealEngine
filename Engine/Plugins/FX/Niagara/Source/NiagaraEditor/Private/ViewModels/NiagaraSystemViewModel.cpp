@@ -137,6 +137,11 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	AddSystemEventHandlers();
 }
 
+bool FNiagaraSystemViewModel::IsValid() const
+{
+	return SystemInstance != nullptr;
+}
+
 void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
 {
 	TSet<UObject*> ExportObjs;

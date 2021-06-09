@@ -52,6 +52,20 @@ TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> FNiagaraPlaceholderDataInterf
 		: TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle>();
 }
 
+bool FNiagaraPlaceholderDataInterfaceManager::TryGetOwnerInformation(UNiagaraDataInterface* InDataInterface, FGuid& OutOwningEmitterHandleId, UNiagaraNodeFunctionCall*& OutOwningFunctionCallNode)
+{
+	for (const FPlaceholderDataInterfaceInfo& PlaceholderDataInterfaceInfo : PlaceholderDataInterfaceInfos)
+	{
+		if (PlaceholderDataInterfaceInfo.PlaceholderDataInterface == InDataInterface)
+		{
+			OutOwningEmitterHandleId = PlaceholderDataInterfaceInfo.OwningEmitterHandleId;
+			OutOwningFunctionCallNode = PlaceholderDataInterfaceInfo.OwningFunctionCall.Get();
+			return true;
+		}
+	}
+	return false;
+}
+
 void FNiagaraPlaceholderDataInterfaceManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	for (FPlaceholderDataInterfaceInfo& PlaceholderDataInterfaceInfo : PlaceholderDataInterfaceInfos)
@@ -119,6 +133,7 @@ void FNiagaraPlaceholderDataInterfaceManager::PlaceholderDataInterfaceChanged(UN
 			PlaceholderDataInterfaceInfo->OverrideDataInterfaceGraphChangeId = PlaceholderDataInterfaceInfo->OwningFunctionCall->GetNiagaraGraph()->GetChangeID();
 		}
 
+		OverrideDataInterface->Modify();
 		PlaceholderDataInterface->CopyTo(OverrideDataInterface);
 		TArray<UObject*> ChangedObjects;
 		ChangedObjects.Add(OverrideDataInterface);
