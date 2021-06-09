@@ -612,6 +612,25 @@ Thread::ReturnValue ServerCommandThread::ServerThread(void)
 	return Thread::ReturnValue(0u);
 }
 
+// BEGIN EPIC MOD
+bool ServerCommandThread::HasReinstancingProcess()
+{
+
+	// protect against m_liveProcesses being accessed when processes restart and register themselves with this Live++ instance
+	CriticalSection::ScopedLock lock(&m_actionCS);
+
+	// remove processes that were successfully restarted last time
+	for (auto processIt = m_liveProcesses.begin(); processIt != m_liveProcesses.end(); ++processIt)
+	{
+		LiveProcess* liveProcess = *processIt;
+		if (liveProcess->IsReinstancingFlowEnabled())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+// END EPIC MOD
 
 // BEGIN EPIC MOD - Focus application windows on patch complete
 BOOL CALLBACK FocusApplicationWindows(HWND WindowHandle, LPARAM Lparam)
@@ -1732,6 +1751,11 @@ bool ServerCommandThread::actions::EnableLazyLoadedModule::Execute(const Command
 bool ServerCommandThread::actions::EnableReinstancingFlow::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
+
+	if (!commandThread->HasReinstancingProcess())
+	{
+		LC_WARNING_USER("Quick restart disabled when re-instancing is enabled.");
+	}
 
 	// protect against accepting this command while compilation is already in progress
 	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);

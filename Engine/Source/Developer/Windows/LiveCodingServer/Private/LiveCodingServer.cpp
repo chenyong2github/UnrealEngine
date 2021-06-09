@@ -114,3 +114,8 @@ ILiveCodingServer::FSetVisibleDelegate& FLiveCodingServer::GetSetVisibleDelegate
 {
 	return SetVisibleDelegate;
 }
+
+bool FLiveCodingServer::HasReinstancingProcess()
+{
+	return CommandThread->HasReinstancingProcess();
+}

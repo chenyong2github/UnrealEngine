@@ -95,6 +95,10 @@ public:
 							SNew(SButton)
 							.Text(LOCTEXT("QuickRestart", "Quick Restart"))
 							.OnClicked(FOnClicked::CreateRaw(this, &FLiveCodingConsoleApp::RestartTargets))
+							.ToolTipText_Lambda([this]() { return Server.HasReinstancingProcess() ? 
+								LOCTEXT("DisableQuickRestart", "Quick restarting isn't supported when re-instancing is enabled") :
+								LOCTEXT("EnableQuickRestart", "Restart all live coding applications"); })
+							.IsEnabled_Lambda([this]() { return !Server.HasReinstancingProcess(); })
 						]
 						+ SHorizontalBox::Slot()
 						.HAlign(HAlign_Center)
