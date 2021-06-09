@@ -308,7 +308,7 @@ namespace UnrealBuildTool
 		{
 			for(int FileNum = 0;;FileNum++)
 			{
-				string OutFile = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Intermediate", "Build", String.Format("UBTExport.{0}.xge.xml", FileNum.ToString("D3")));
+				string OutFile = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Intermediate", "Build", String.Format("UBTExport.{0}.xge.xml", FileNum.ToString("D3")));
 				if(!File.Exists(OutFile))
 				{
 					ExportActions(ActionsToExecute, OutFile);
@@ -350,7 +350,7 @@ namespace UnrealBuildTool
 			if (Actions.Count > 0)
 			{
 				// Write the actions to execute to a XGE task file.
-				string XGETaskFilePath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "XGETasks.xml").FullName;
+				string XGETaskFilePath = FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "XGETasks.xml").FullName;
 				WriteTaskFile(Actions, XGETaskFilePath, ProgressWriter.bWriteMarkup, false);
 
 				XGEResult = ExecuteTaskFileWithProgressMarkup(XGETaskFilePath, Actions.Count);

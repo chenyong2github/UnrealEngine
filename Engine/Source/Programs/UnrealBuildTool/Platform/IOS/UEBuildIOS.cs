@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -464,7 +465,7 @@ namespace UnrealBuildTool
             string MobileProvision = ProjectSettings.MobileProvision;
 
 			FileReference ProjectFile = ProjectSettings.ProjectFile;
-			FileReference IPhonePackager = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries/DotNET/IOS/IPhonePackager.exe");
+			FileReference IPhonePackager = FileReference.Combine(UnrealBuild.EngineDirectory, "Binaries/DotNET/IOS/IPhonePackager.exe");
 
 			if (!string.IsNullOrEmpty(SigningCertificate))
             {
@@ -473,13 +474,13 @@ namespace UnrealBuildTool
 
 				string IPPCmd = "certificates " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bForDistribtion ? " -distribution" : "");
 				
-				IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
+				IPPProcess.StartInfo.WorkingDirectory = UnrealBuild.EngineDirectory.ToString();
 				IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
 				IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
 
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
                 {
-                    IPPProcess.StartInfo.FileName = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build/BatchFiles/Mac/RunMono.sh").FullName;
+                    IPPProcess.StartInfo.FileName = FileReference.Combine(UnrealBuild.EngineDirectory, "Build/BatchFiles/Mac/RunMono.sh").FullName;
 					IPPProcess.StartInfo.Arguments = string.Format("\"{0}\" {1}", IPhonePackager ,IPPCmd);
 				}
                 else
@@ -527,13 +528,13 @@ namespace UnrealBuildTool
 
 				IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
 				IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
-				IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
+				IPPProcess.StartInfo.WorkingDirectory = UnrealBuild.EngineDirectory.ToString();
 
 				string IPPCmd = "signing_match " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bIsTVOS ? " -tvos" : "") + (bForDistribtion ? " -distribution" : "");
 
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 				{
-					IPPProcess.StartInfo.FileName = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build/BatchFiles/Mac/RunMono.sh").FullName;
+					IPPProcess.StartInfo.FileName = FileReference.Combine(UnrealBuild.EngineDirectory, "Build/BatchFiles/Mac/RunMono.sh").FullName;
 					IPPProcess.StartInfo.Arguments = string.Format("\"{0}\" {1}", IPhonePackager, IPPCmd);
 				}
 				else

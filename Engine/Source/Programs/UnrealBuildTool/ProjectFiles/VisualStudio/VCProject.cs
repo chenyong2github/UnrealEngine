@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Security;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -1059,7 +1060,7 @@ namespace UnrealBuildTool
 			{
 				const string InvalidMessage = "echo The selected platform/configuration is not valid for this target.";
 
-				string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "Unused"));
+				string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "Unused"));
 
 				VCProjectFileContent.AppendLine("  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='Invalid|{0}'\">", InvalidConfigPlatformName);
 				VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0}</NMakeBuildCommandLine>", InvalidMessage);
@@ -1535,7 +1536,7 @@ namespace UnrealBuildTool
 
 				if (IsStubProject)
 				{
-					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "Unused"));
+					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "Unused"));
 
 					VCProjectFileContent.AppendLine("  <PropertyGroup {0}>", ConditionString);
 					VCProjectFileContent.AppendLine("    <OutDir>{0}{1}</OutDir>", ProjectRelativeUnusedDirectory, Path.DirectorySeparatorChar);
@@ -1549,7 +1550,7 @@ namespace UnrealBuildTool
 				else if (UnrealBuildTool.IsEngineInstalled() && Combination.ProjectTarget != null && Combination.ProjectTarget.TargetRules != null &&
 					(Combination.Platform == null || !Combination.ProjectTarget.SupportedPlatforms.Contains(Combination.Platform.Value)))
 				{
-					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "Unused"));
+					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "Unused"));
 
 					string TargetName = Combination.ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
 					string ValidPlatforms = String.Join(", ", Combination.ProjectTarget.SupportedPlatforms.Select(x => x.ToString()));
@@ -1593,7 +1594,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						RootOutputDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UnrealBuildTool.EngineDirectory, TargetRulesObject.File);
+						RootOutputDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UnrealBuild.EngineDirectory, TargetRulesObject.File);
 					}
 
 					// Get the output directory
@@ -1696,7 +1697,7 @@ namespace UnrealBuildTool
 						BuildArguments.Append(" -FastPDB");
 					}
 
-					DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "BatchFiles");
+					DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Build", "BatchFiles");
 
 					if (BuildToolOverride != null)
 					{

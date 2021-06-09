@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -605,7 +606,7 @@ namespace UnrealBuildTool
 				}
 
 				// Get the path to the visualizers file. Try to make it relative to the solution directory, but fall back to a full path if it's a foreign project.
-				FileReference VisualizersFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Extras", "VisualStudioDebugging", "Unreal.natvis");
+				FileReference VisualizersFile = FileReference.Combine(UnrealBuild.EngineDirectory, "Extras", "VisualStudioDebugging", "Unreal.natvis");
 
 				// Add the visualizers at the solution level. Doesn't seem to be picked up from a makefile project in VS2017 15.8.5.
 				VCSolutionFileContent.AppendLine(String.Format("Project(\"{0}\") = \"Visualizers\", \"Visualizers\", \"{{1CCEC849-CC72-4C59-8C36-2F7C38706D4C}}\"", SolutionFolderEntryGUID));

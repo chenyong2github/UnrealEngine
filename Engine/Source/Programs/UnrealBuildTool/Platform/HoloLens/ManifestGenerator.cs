@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Resources;
 using System.Xml;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -435,7 +436,7 @@ namespace UnrealBuildTool
 			{
 				if (AllowEngineFallback)
 				{
-					SourcePath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, BuildResourceProjectRelativePath, EngineResourceSubPath);
+					SourcePath = Path.Combine(UnrealBuild.EngineDirectory.FullName, BuildResourceProjectRelativePath, EngineResourceSubPath);
 					bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 				}
 			}
@@ -2053,7 +2054,7 @@ namespace UnrealBuildTool
 				ConfigPostfix = TargetConfig.ToString();
 			}
 
-			string MakeRelativeTo = IsGameSpecificExe ? Path.Combine(ProjectPath, "..") : UnrealBuildTool.EngineDirectory.FullName;
+			string MakeRelativeTo = IsGameSpecificExe ? Path.Combine(ProjectPath, "..") : UnrealBuild.EngineDirectory.FullName;
 			string RelativeExePath = IsGameSpecificExe ?
 				Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo) :
 				Path.Combine(RelativeProjectRootForStage, Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo));
@@ -2161,7 +2162,7 @@ namespace UnrealBuildTool
 						, to
 						//, Path.Combine(IntermediatePath, "tempGltf") //temp path doesn't work
 						);
-					string Exe = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Binaries", "Win64", "WindowsMRAssetConverter.exe");
+					string Exe = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Binaries", "Win64", "WindowsMRAssetConverter.exe");
 					System.Diagnostics.ProcessStartInfo StartInfo = new System.Diagnostics.ProcessStartInfo(Exe, Args);
 					StartInfo.UseShellExecute = false;
 					StartInfo.RedirectStandardOutput = true;

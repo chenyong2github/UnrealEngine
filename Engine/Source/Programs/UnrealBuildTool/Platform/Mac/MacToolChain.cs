@@ -706,7 +706,7 @@ namespace UnrealBuildTool
 				// If building an app bundle, we also need an RPATH for use in packaged game and a separate one for staged builds
 				if (bIsBuildingAppBundle)
 				{
-					string EngineDir = UnrealBuildTool.RootDirectory.ToString();
+					string EngineDir = UnrealBuild.RootDirectory.ToString();
 					string ProjectDir = (ProjectFile != null ? ProjectFile.Directory.FullName : null);
 
 					// In packaged games dylibs are stored in Contents/UE4 subfolders, for example in GameName.app/Contents/UE4/Engine/Binaries/ThirdParty/PhysX/Mac
@@ -893,7 +893,7 @@ namespace UnrealBuildTool
 			foreach (FileItem InputFile in LinkEnvironment.InputFiles)
 			{
 				string InputFilePath = InputFile.AbsolutePath;
-				if (InputFile.Location.IsUnderDirectory(UnrealBuildTool.RootDirectory))
+				if (InputFile.Location.IsUnderDirectory(UnrealBuild.RootDirectory))
 				{
 					InputFilePath = InputFile.Location.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
 				}

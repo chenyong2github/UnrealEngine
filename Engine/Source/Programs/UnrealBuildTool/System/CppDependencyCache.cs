@@ -312,8 +312,8 @@ namespace UnrealBuildTool
 					AppName = UEBuildTarget.GetAppNameForTargetType(TargetType);
 				}
 
-				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, Configuration.ToString(), "DependencyCache.bin");
-				FindOrAddPartition(EngineCacheLocation, UnrealBuildTool.EngineDirectory);
+				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuild.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, Configuration.ToString(), "DependencyCache.bin");
+				FindOrAddPartition(EngineCacheLocation, UnrealBuild.EngineDirectory);
 			}
 
 			if (ProjectFile != null)

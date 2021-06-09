@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -73,7 +74,7 @@ namespace UnrealBuildTool
 		{
 			if (ProjectFile == null)
 			{
-				return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "TargetInfo.json");
+				return FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "TargetInfo.json");
 			}
 			else
 			{

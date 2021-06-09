@@ -11,6 +11,7 @@ using Microsoft.Win32;
 using System.Xml.Linq;
 using EpicGames.Core;
 using System.Security.Cryptography;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -1496,7 +1497,7 @@ namespace UnrealBuildTool
 			
 			string SanitizerFullLibName = "libclang_rt." + LibName + Architecture + "-android.so";
 
-			string WrapSh = Path.Combine(UnrealBuildTool.EngineDirectory.ToString(), "Build", "Android", "ClangSanitizers", "wrap.sh");
+			string WrapSh = Path.Combine(UnrealBuild.EngineDirectory.ToString(), "Build", "Android", "ClangSanitizers", "wrap.sh");
 
 			string PlatformName = "windows-x86_64";
 			if (RuntimePlatform.IsLinux)
@@ -4757,7 +4758,7 @@ namespace UnrealBuildTool
 		{
 			//Log.TraceInformation("$$$$$$$$$$$$$$ PrepTargetForDeployment $$$$$$$$$$$$$$$$$");
 
-			DirectoryReference ProjectDirectory = DirectoryReference.FromFile(Receipt.ProjectFile) ?? UnrealBuildTool.EngineDirectory;
+			DirectoryReference ProjectDirectory = DirectoryReference.FromFile(Receipt.ProjectFile) ?? UnrealBuild.EngineDirectory;
 			string TargetName = (Receipt.ProjectFile == null ? Receipt.TargetName : Receipt.ProjectFile.GetFileNameWithoutAnyExtensions());
 
 			AndroidToolChain ToolChain = ((AndroidPlatform)UEBuildPlatform.GetBuildPlatform(Receipt.Platform)).CreateTempToolChainForProject(Receipt.ProjectFile) as AndroidToolChain;
@@ -4781,7 +4782,7 @@ namespace UnrealBuildTool
 			string BaseSoName = ToolChain.RemoveArchName(OutputPaths[0].FullName);
 
 			// make an apk at the end of compiling, so that we can run without packaging (debugger, cook on the fly, etc)
-			string RelativeEnginePath = UnrealBuildTool.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
+			string RelativeEnginePath = UnrealBuild.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
 
 			MakeApk(ToolChain, TargetName, Receipt.TargetType, ProjectDirectory.FullName, BaseSoName, RelativeEnginePath, bForDistribution: false, CookFlavor: "", Configuration: Receipt.Configuration,
 				bMakeSeparateApks: ShouldMakeSeparateApks(), bIncrementalPackage: true, bDisallowPackagingDataInApk: false, bDisallowExternalFilesDir: true, bSkipGradleBuild: bShouldCompileAsDll);

@@ -709,7 +709,7 @@ namespace UnrealBuildTool
 					CommandArguments.Add(CompileAction.CommandArguments);
 					CommandArguments.Add("/showIncludes");
 					CompileAction.CommandArguments = string.Join(" ", CommandArguments);
-					CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
+					CompileAction.CommandPath = FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
 				}
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)

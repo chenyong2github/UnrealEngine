@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.Setup.Configuration;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Buffers.Binary;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -403,7 +404,7 @@ namespace UnrealBuildTool
 		{
 			this.Target = Target;
 
-			ManifestFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "Resources", String.Format("Default-{0}.manifest", Target.Platform)).FullName;
+			ManifestFile = FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "Resources", String.Format("Default-{0}.manifest", Target.Platform)).FullName;
 		}
 	}
 
@@ -1821,7 +1822,7 @@ namespace UnrealBuildTool
 			}
 
 			// Otherwise use the default
-			return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "Resources", "Default.ico");
+			return FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "Resources", "Default.ico");
 		}
 
 		/// <summary>

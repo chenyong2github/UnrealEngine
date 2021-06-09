@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Xml.Linq;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -177,7 +178,7 @@ namespace UnrealBuildTool
 				string TempTargetFilePath = InTargetFilePath.FullName.Replace("\\", "/");
 				if (TempTargetFilePath.Contains("/Templates/"))
 				{
-					string AbsoluteEnginePath = UnrealBuildTool.EngineDirectory.FullName;
+					string AbsoluteEnginePath = UnrealBuild.EngineDirectory.FullName;
 					AbsoluteEnginePath = AbsoluteEnginePath.Replace("\\", "/");
 					if (AbsoluteEnginePath.EndsWith("/") == false)
 					{

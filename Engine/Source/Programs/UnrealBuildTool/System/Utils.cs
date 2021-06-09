@@ -307,7 +307,7 @@ namespace UnrealBuildTool
 		{
 			string AppName = Path.GetFileNameWithoutExtension(StartInfo.FileName);
 			string LogFilenameBase = string.Format("{0}_{1}", AppName, DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss"));
-			string LogDir = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Programs", "AutomationTool", "Saved", "Logs");
+			string LogDir = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Programs", "AutomationTool", "Saved", "Logs");
 			string LogFilename = "";
 			for (int Attempt = 1; Attempt < 100; ++Attempt)
 			{
@@ -996,7 +996,7 @@ namespace UnrealBuildTool
 				string DirectoryName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 				if(String.IsNullOrEmpty(DirectoryName))
 				{
-					return DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Saved");
+					return DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Saved");
 				}
 				else
 				{

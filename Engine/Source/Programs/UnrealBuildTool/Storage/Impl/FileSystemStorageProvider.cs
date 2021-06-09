@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool.Storage.Impl
 {
@@ -138,7 +139,7 @@ namespace UnrealBuildTool.Storage.Impl
 		static FileReference GetFileForDigest(ContentHash Digest)
 		{
 			string DigestText = Digest.ToString();
-			return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Saved", "UnrealBuildTool", "Cache", String.Format("{0}/{1}/{2}/{3}.bin", DigestText[0], DigestText[1], DigestText[2], DigestText));
+			return FileReference.Combine(UnrealBuild.EngineDirectory, "Saved", "UnrealBuildTool", "Cache", String.Format("{0}/{1}/{2}/{3}.bin", DigestText[0], DigestText[1], DigestText[2], DigestText));
 		}
 	}
 }

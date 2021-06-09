@@ -140,9 +140,9 @@ namespace UnrealBuildTool
 			Arguments.ApplyTo(BuildConfiguration);
 
 			// Check the root path length isn't too long
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && UnrealBuildTool.RootDirectory.FullName.Length > BuildConfiguration.MaxRootPathLength)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && UnrealBuild.RootDirectory.FullName.Length > BuildConfiguration.MaxRootPathLength)
 			{
-				Log.TraceWarning("Running from a path with a long directory name (\"{0}\" = {1} characters). Root paths shorter than {2} characters are recommended to avoid exceeding maximum path lengths on Windows.", UnrealBuildTool.RootDirectory, UnrealBuildTool.RootDirectory.FullName.Length, BuildConfiguration.MaxRootPathLength);
+				Log.TraceWarning("Running from a path with a long directory name (\"{0}\" = {1} characters). Root paths shorter than {2} characters are recommended to avoid exceeding maximum path lengths on Windows.", UnrealBuild.RootDirectory, UnrealBuild.RootDirectory.FullName.Length, BuildConfiguration.MaxRootPathLength);
 			}
 
 			// now that we know the available platforms, we can delete other platforms' junk. if we're only building specific modules from the editor, don't touch anything else (it may be in use).
@@ -224,7 +224,7 @@ namespace UnrealBuildTool
 					}
 
 					// Create the working set provider per group.
-					using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(UnrealBuildTool.RootDirectory, ProjectDirs))
+					using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(UnrealBuild.RootDirectory, ProjectDirs))
 					{
 						Build(TargetDescriptors, BuildConfiguration, WorkingSet, Options, WriteOutdatedActionsFile, bSkipPreBuildTargets);
 					}
@@ -508,7 +508,7 @@ namespace UnrealBuildTool
 				// Make sure we're not modifying any engine files
 				if ((Options & BuildOptions.NoEngineChanges) != 0)
 				{
-					List<FileItem> EngineChanges = MergedActionsToExecute.SelectMany(x => x.ProducedItems).Where(x => x.Location.IsUnderDirectory(UnrealBuildTool.EngineDirectory)).Distinct().OrderBy(x => x.FullName).ToList();
+					List<FileItem> EngineChanges = MergedActionsToExecute.SelectMany(x => x.ProducedItems).Where(x => x.Location.IsUnderDirectory(UnrealBuild.EngineDirectory)).Distinct().OrderBy(x => x.FullName).ToList();
 					if (EngineChanges.Count > 0)
 					{
 						StringBuilder Result = new StringBuilder("Building would modify the following engine files:\n");

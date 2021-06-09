@@ -11,6 +11,7 @@ using System.Linq;
 using System.Xml;
 using System.Xml.Serialization;
 using System.Xml.Linq;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -492,10 +493,10 @@ namespace UnrealBuildTool
 
 		public void InitUPL(TargetReceipt Receipt)
 		{
-			DirectoryReference ProjectDirectory = Receipt.ProjectDir ?? UnrealBuildTool.EngineDirectory;
+			DirectoryReference ProjectDirectory = Receipt.ProjectDir ?? UnrealBuild.EngineDirectory;
 
 			string UE4BuildPath = Path.Combine(ProjectDirectory.FullName, "Intermediate/Lumin/Mabu");
-			string RelativeEnginePath = UnrealBuildTool.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
+			string RelativeEnginePath = UnrealBuild.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
 			string RelativeProjectPath = ProjectDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());//.MakeRelativeTo(ProjectDirectory);
 
 			string ConfigurationString = Receipt.Configuration.ToString();

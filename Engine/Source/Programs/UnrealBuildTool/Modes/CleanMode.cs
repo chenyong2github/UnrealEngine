@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -116,7 +117,7 @@ namespace UnrealBuildTool
 
 				// Find the base folders that can contain binaries
 				List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
-				BaseDirs.Add(UnrealBuildTool.EngineDirectory);
+				BaseDirs.Add(UnrealBuild.EngineDirectory);
 				foreach (FileReference Plugin in Plugins.EnumeratePlugins(Target.ProjectFile))
 				{
 					BaseDirs.Add(Plugin.Directory);

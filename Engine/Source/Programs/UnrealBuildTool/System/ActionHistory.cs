@@ -197,7 +197,7 @@ namespace UnrealBuildTool
 				AppName = UEBuildTarget.GetAppNameForTargetType(TargetType);
 			}
 
-			return FileReference.Combine(UnrealBuildTool.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, "ActionHistory.bin");
+			return FileReference.Combine(UnrealBuild.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, "ActionHistory.bin");
 		}
 
 		/// <summary>
@@ -400,7 +400,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public ActionHistory()
 		{
-			Partitions.Add(new ActionHistoryPartition(UnrealBuildTool.EngineDirectory));
+			Partitions.Add(new ActionHistoryPartition(UnrealBuild.EngineDirectory));
 		}
 
 		/// <summary>

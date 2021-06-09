@@ -121,7 +121,7 @@ namespace UnrealBuildTool
 		{
 			// Try to use a relative path to shorten command line length. Always need the full path when preprocessing because the output file will be in a different place, where include paths cannot be relative.
 			string IncludePathString;
-			if(IncludePath.IsUnderDirectory(UnrealBuildTool.RootDirectory) && Compiler != WindowsCompiler.Clang && !bPreprocessOnly)
+			if(IncludePath.IsUnderDirectory(UnrealBuild.RootDirectory) && Compiler != WindowsCompiler.Clang && !bPreprocessOnly)
 			{
 				IncludePathString = IncludePath.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
 			}
@@ -1831,7 +1831,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				LinkAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "link-filter", "link-filter.exe");
+				LinkAction.CommandPath = FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "link-filter", "link-filter.exe");
 				LinkAction.CommandArguments = String.Format("-- \"{0}\" @\"{1}\"", EnvVars.LinkerPath, ResponseFileName);
 			}
 			LinkAction.CommandVersion = EnvVars.ToolChainVersion.ToString();

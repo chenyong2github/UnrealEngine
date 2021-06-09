@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -45,7 +46,7 @@ namespace UnrealBuildTool
 			this.SdkVersion = SdkVersion;
 			this.bCreateStubIPA = Target.IOSPlatform.bCreateStubIPA;
 			this.bSkipCrashlytics = Target.IOSPlatform.bSkipCrashlytics;
-			this.ProjectDirectory = DirectoryReference.FromFile(Target.ProjectFile) ?? UnrealBuildTool.EngineDirectory;
+			this.ProjectDirectory = DirectoryReference.FromFile(Target.ProjectFile) ?? UnrealBuild.EngineDirectory;
 			this.ProjectIntermediateDirectory = ProjectIntermediateDirectory;
 			this.ImportProvision = Target.IOSPlatform.ImportProvision;
 			this.ImportCertificate = Target.IOSPlatform.ImportCertificate;

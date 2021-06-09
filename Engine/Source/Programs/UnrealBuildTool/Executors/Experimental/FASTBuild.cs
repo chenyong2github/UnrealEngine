@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 	class FASTBuild : ActionExecutor
 	{
 
-		public readonly static string DefaultExecutableBasePath	= Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Extras", "ThirdPartyNotUE", "FASTBuild");
+		public readonly static string DefaultExecutableBasePath	= Path.Combine(UnrealBuild.EngineDirectory.FullName, "Extras", "ThirdPartyNotUE", "FASTBuild");
 
 		//////////////////////////////////////////
 		// Tweakables
@@ -451,7 +451,7 @@ namespace UnrealBuildTool
 				if (!DetectBuildType(CompileActions))
 					return false;
 
-				string FASTBuildFilePath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Intermediate", "Build", "fbuild.bff");
+				string FASTBuildFilePath = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Intermediate", "Build", "fbuild.bff");
 				if (!CreateBffFile(CompileActions, FASTBuildFilePath))
 					return false;
 
@@ -867,7 +867,7 @@ namespace UnrealBuildTool
 
 				AddText("Compiler('UECompiler') \n{\n");
 
-				DirectoryReference CLFilterDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter");
+				DirectoryReference CLFilterDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "cl-filter");
 
 				AddText($"\t.Root = '{VCEnv.GetToolPath()}'\n");
 				AddText($"\t.CLFilterRoot = '{CLFilterDirectory.FullName}'\n");
@@ -1451,7 +1451,7 @@ namespace UnrealBuildTool
 			Log.TraceInformation($"FBuild Command Line Arguments: '{FBCommandLine}");
 
 			string FBExecutable		= GetExecutablePath();
-			string WorkingDirectory	= Path.GetFullPath(Path.Combine(UnrealBuildTool.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()), "Source"));
+			string WorkingDirectory	= Path.GetFullPath(Path.Combine(UnrealBuild.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()), "Source"));
 
 			ProcessStartInfo FBStartInfo		= new ProcessStartInfo(FBExecutable, FBCommandLine);
 			FBStartInfo.UseShellExecute			= false;

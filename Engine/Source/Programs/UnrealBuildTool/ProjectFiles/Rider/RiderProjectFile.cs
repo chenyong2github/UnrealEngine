@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 #nullable disable
 
@@ -492,7 +493,7 @@ namespace UnrealBuildTool
 			else if(UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Linux) ||
 			        UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Unix))
 			{
-				var EngineDirectory = UnrealBuildTool.EngineDirectory.ToString();
+				var EngineDirectory = UnrealBuild.EngineDirectory.ToString();
 
 				string UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE4_LINUX_USE_LIBCXX");
 				if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
