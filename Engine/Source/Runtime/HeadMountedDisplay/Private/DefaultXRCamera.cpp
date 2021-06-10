@@ -107,7 +107,7 @@ void FDefaultXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RHIC
 		FQuat DeviceOrientation;
 		FVector DevicePosition;
 
-		if (TrackingSystem->GetStereoRenderingDevice())
+		if (TrackingSystem->DoesSupportLateProjectionUpdate() && TrackingSystem->GetStereoRenderingDevice())
 		{
 			View.UpdateProjectionMatrix(TrackingSystem->GetStereoRenderingDevice()->GetStereoProjectionMatrix(View.StereoPass));
 		}

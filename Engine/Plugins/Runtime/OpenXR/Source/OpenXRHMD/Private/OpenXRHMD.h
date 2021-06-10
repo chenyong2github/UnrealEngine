@@ -191,6 +191,9 @@ protected:
 	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const;
 
 public:
+	/** IXRTrackingSystem interface */
+	virtual bool DoesSupportLateProjectionUpdate() const override { return true; }
+
 	/** IHeadMountedDisplay interface */
 	virtual bool IsHMDConnected() override { return true; }
 	virtual bool DoesSupportPositionalTracking() const override { return true; }
