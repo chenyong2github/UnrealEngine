@@ -35,10 +35,11 @@ namespace HordeServer.Collections
 		/// Gets a user by unique id
 		/// </summary>
 		/// <param name="Ids">Ids of the users</param>
+		/// <param name="NameRegex">Name regex to match for the users</param>
 		/// <param name="Index">Maximum number of results</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>The user information</returns>
-		Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids = null, int? Index = null, int? Count = null);
+		Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids = null, string? NameRegex = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Gets a user by login

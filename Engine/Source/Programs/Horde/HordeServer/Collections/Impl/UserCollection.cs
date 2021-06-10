@@ -109,7 +109,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids, int? Index, int? Count)
+		public async Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids, string? NameRegex, int? Index, int? Count)
 		{
 			FilterDefinition<UserDocument> Filter = Builders<UserDocument>.Filter.In(x => x.Id, Ids);
 			return await Users.Find(Filter).Range(Index, Count).ToListAsync<UserDocument, IUser>();

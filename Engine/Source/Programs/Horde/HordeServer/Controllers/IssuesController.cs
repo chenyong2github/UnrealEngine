@@ -401,15 +401,15 @@ namespace HordeServer.Controllers
 		public async Task<ActionResult> UpdateIssueAsync(int IssueId, [FromBody] UpdateIssueRequest Request)
 		{
 			ObjectId? NewOwnerId = null;
-			if (Request.Owner != null)
+			if (Request.OwnerId != null)
 			{
-				NewOwnerId = (await UserCollection.FindOrAddUserByLoginAsync(Request.Owner))?.Id;
+				NewOwnerId = new ObjectId(Request.OwnerId);
 			}
 
 			ObjectId? NewNominatedById = null;
-			if (Request.NominatedBy != null)
+			if (Request.NominatedById != null)
 			{
-				NewNominatedById = (await UserCollection.FindOrAddUserByLoginAsync(Request.NominatedBy))?.Id;
+				NewNominatedById = new ObjectId(Request.NominatedById);
 			}
 
 			ObjectId? NewDeclinedById = null;
