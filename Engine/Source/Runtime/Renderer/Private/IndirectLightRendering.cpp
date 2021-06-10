@@ -150,6 +150,12 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
+	}
+
 };
 
 class FAmbientCubemapCompositePS : public FGlobalShader
