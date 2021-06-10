@@ -21,28 +21,45 @@ namespace HordeAgent.Parser.Matchers
 		/// <inheritdoc/>
 		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
 		{
-			Match? Match;
-
 			int LineCount = 0;
-			bool bIsWarning = true;
-			while (Cursor.IsMatch(LineCount, @": undefined reference to |undefined symbol|^\s*(ld|ld.lld):|[^a-zA-Z]ld: |^\s*>>>"))
+			bool bIsError = false;
+			bool bIsWarning = false;
+			while (Cursor.IsMatch(LineCount, @": undefined reference to |undefined symbol|^\s*(ld|ld.lld):|^[^:]*[^a-zA-Z][a-z]?ld: |^\s*>>>"))
 			{
-				bIsWarning &= Cursor.IsMatch("warning:");
-				LineCount++;
-			}
-			if (Cursor.IsMatch(LineCount, @"error: linker command failed with exit code "))
-			{
-				bIsWarning = false;
+				bIsError |= Cursor.IsMatch("error:");
+				bIsWarning |= Cursor.IsMatch("warning:");
 				LineCount++;
 			}
 			if (LineCount > 0)
 			{
+				for (; ; )
+				{
+					if (Cursor.IsMatch(LineCount, "ld:"))
+					{
+						break;
+					}
+					else if (Cursor.IsMatch(LineCount, "error:"))
+					{
+						bIsError = true;
+					}
+					else if (Cursor.IsMatch(LineCount, "warning:"))
+					{
+						bIsWarning = true;
+					}
+					else
+					{
+						break;
+					}
+					LineCount++;
+				}
+
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
 				Builder.LineCount = LineCount;
 				EventId EventId = AddSymbolMarkup(Builder) ? KnownLogEvents.Linker_UndefinedSymbol : KnownLogEvents.Linker;
-				return Builder.ToLogEvent(LogEventPriority.Normal, bIsWarning? LogLevel.Warning : LogLevel.Error, EventId);
+				return Builder.ToLogEvent(LogEventPriority.Normal, (bIsError || !bIsWarning)? LogLevel.Error : LogLevel.Warning, EventId);
 			}
 
+			Match? Match;
 			if (Cursor.TryMatch(@"^(\s*)Undefined symbols for architecture", out Match))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);

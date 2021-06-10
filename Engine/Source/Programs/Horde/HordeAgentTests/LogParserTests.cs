@@ -844,6 +844,24 @@ namespace HordeAgentTests
 		}
 
 		[TestMethod]
+		public void DockerErrorMatcher()
+		{
+			string[] Lines =
+			{
+				@"  #14 9.301 cc -O2 -Wall -DLUA_ANSI -DENABLE_CJSON_GLOBAL -DREDIS_STATIC=''    -c -o lua.o lua.c",
+				@"  #14 9.419 cc -o lua  lua.o liblua.a -lm",
+				@"  #14 9.447 /usr/bin/ld: liblua.a(loslib.o): in function `os_tmpname':",
+				@"  #14 9.447 loslib.c:(.text+0x280): warning: the use of `tmpnam' is dangerous, better use `mkstemp'",
+				@"  #14 9.448 cc -O2 -Wall -DLUA_ANSI -DENABLE_CJSON_GLOBAL -DREDIS_STATIC=''    -c -o luac.o luac.c"
+			};
+			List<CapturedEvent> Events = Parse(Lines);
+			Assert.AreEqual(1, Events.Count);
+
+			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
+			Assert.AreEqual(KnownLogEvents.Linker, Events[0].Id);
+		}
+
+		[TestMethod]
 		public void GauntletErrorMatcher()
 		{
 			string[] Lines =
