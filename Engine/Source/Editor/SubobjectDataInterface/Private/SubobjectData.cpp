@@ -310,6 +310,11 @@ FString FSubobjectData::GetDisplayString(bool bShowNativeComponentNames /* = tru
 	}
 }
 
+FText FSubobjectData::GetDragDropDisplayText() const
+{
+	return FText::FromString(GetDisplayString());
+}
+
 FText FSubobjectData::GetDisplayNameContextModifiers(bool bShowNativeComponentNames) const
 {
 	if(IsActor())

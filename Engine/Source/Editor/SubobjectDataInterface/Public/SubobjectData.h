@@ -138,6 +138,9 @@ public:
 
 	virtual FString GetDisplayString(bool bShowNativeComponentNames = true) const;
 
+	/** Get the display name of this subobject that should be used during drag/drop operations */
+	FText GetDragDropDisplayText() const;
+
 	/**
 	 * Returns a string that gives details about this subobject. For Inherited
 	 * components it will return "(Inherited)". For native components
