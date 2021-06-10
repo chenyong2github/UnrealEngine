@@ -55,6 +55,7 @@ public:
 	virtual FText GetOnlineServiceName() const override;
 
 	virtual bool Init() override;
+	virtual void PreUnload() override;
 	virtual bool Shutdown() override;
 	virtual FString GetAppId() const override;
 //~IOnlineSubsystem

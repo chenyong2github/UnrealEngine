@@ -8,14 +8,14 @@
 	"Category": "Online Platform",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://dev.epicgames.com/services",
-	"EnabledByDefault": false,
+	"EnabledByDefault": true,
 	"IsBetaVersion" : true,
 
 	"Modules": [
 		{
 			"Name": "OnlineSubsystemEOS",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
+			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
@@ -26,7 +26,7 @@
 		{
 			"Name": "OnlineSubsystemEOSPlus",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
+			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",

@@ -21,13 +21,21 @@ FText FOnlineSubsystemEOSPlus::GetOnlineServiceName() const
 
 bool FOnlineSubsystemEOSPlus::Init()
 {
-#if PLATFORM_DESKTOP
+	// Get name of Base OSS from config
 	FString BaseOSSName;
 	GConfig->GetString(TEXT("[OnlineSubsystemEOSPlus]"), TEXT("BaseOSSName"), BaseOSSName, GEngineIni);
-	BaseOSS = BaseOSSName.IsEmpty() ? IOnlineSubsystem::GetByPlatform() : IOnlineSubsystem::Get(FName(*BaseOSSName));
-#else
-	BaseOSS = IOnlineSubsystem::GetByPlatform();
-#endif
+	if (BaseOSSName.IsEmpty())
+	{
+		// Load the native platform OSS name
+		GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("NativePlatformService"), BaseOSSName, GEngineIni);
+	}
+	if (BaseOSSName.IsEmpty())
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to find the native OSS!"));
+		return false;
+	}
+
+	BaseOSS = IOnlineSubsystem::Get(FName(*BaseOSSName));
 	if (BaseOSS == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to get the platform OSS"));
@@ -40,6 +48,7 @@ bool FOnlineSubsystemEOSPlus::Init()
 		BaseOSS = nullptr;
 		return false;
 	}
+
 	EosOSS = IOnlineSubsystem::Get(EOS_SUBSYSTEM);
 	if (EosOSS == nullptr)
 	{
@@ -56,10 +65,9 @@ bool FOnlineSubsystemEOSPlus::Init()
 	return true;
 }
 
-bool FOnlineSubsystemEOSPlus::Shutdown()
+void FOnlineSubsystemEOSPlus::PreUnload()
 {
-	BaseOSS = nullptr;
-	EosOSS = nullptr;
+	//EOSPlus will be shutdown after its component subsystems, so we need to delete the references to their interfaces beforehand to avoid errors
 
 #define DESTRUCT_INTERFACE(Interface) \
 	if (Interface.IsValid()) \
@@ -75,6 +83,12 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
+}
+
+bool FOnlineSubsystemEOSPlus::Shutdown()
+{
+	BaseOSS = nullptr;
+	EosOSS = nullptr;
 
 	return true;
 }
