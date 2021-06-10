@@ -615,20 +615,7 @@ Thread::ReturnValue ServerCommandThread::ServerThread(void)
 // BEGIN EPIC MOD
 bool ServerCommandThread::HasReinstancingProcess()
 {
-
-	// protect against m_liveProcesses being accessed when processes restart and register themselves with this Live++ instance
-	CriticalSection::ScopedLock lock(&m_actionCS);
-
-	// remove processes that were successfully restarted last time
-	for (auto processIt = m_liveProcesses.begin(); processIt != m_liveProcesses.end(); ++processIt)
-	{
-		LiveProcess* liveProcess = *processIt;
-		if (liveProcess->IsReinstancingFlowEnabled())
-		{
-			return true;
-		}
-	}
-	return false;
+	return m_reinstancingProcessCount.load() != 0;
 }
 // END EPIC MOD
 
@@ -1764,7 +1751,11 @@ bool ServerCommandThread::actions::EnableReinstancingFlow::Execute(const Command
 	{
 		if (process->GetProcessId() == command->processId)
 		{
-			process->EnableReinstancingFlow();
+			if (!process->IsReinstancingFlowEnabled())
+			{
+				++commandThread->m_reinstancingProcessCount;
+				process->EnableReinstancingFlow();
+			}
 		}
 	}
 
