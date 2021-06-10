@@ -254,7 +254,7 @@ float2 HistoryInfo_ViewportSizeInverse;
 float2 HistoryInfo_UVViewportBilinearMin;
 float2 HistoryInfo_UVViewportBilinearMax;
 
-// FTAAPrevHistoryParameters
+// FTSRPrevHistoryParameters
 float2 PrevHistoryInfo_Extent;
 float2 PrevHistoryInfo_ExtentInverse;
 float2 PrevHistoryInfo_ScreenPosToViewportScale;
