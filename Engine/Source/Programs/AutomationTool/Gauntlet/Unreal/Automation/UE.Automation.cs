@@ -434,9 +434,7 @@ namespace UE
 		/// Optional function that is called on test completion and gives an opportunity to create a report
 		/// </summary>
 		/// <param name="Result"></param>
-		/// <param name="Context"></param>
-		/// <param name="Build"></param>
-		public override ITestReport CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleResult> InResults, string ArtifactPath)
+		public override ITestReport CreateReport(TestResult Result)
 		{
 			ITestReport Report = null;
 			if (GetConfiguration() is AutomationTestConfig)
@@ -448,7 +446,7 @@ namespace UE
 				{
 					if (Config.SimpleHordeReport)
 					{
-						Report = base.CreateReport(Result, Context, Build, InResults, ArtifactPath);
+						Report = base.CreateReport(Result);
 					}
 					else
 					{
