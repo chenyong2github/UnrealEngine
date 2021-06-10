@@ -109,6 +109,16 @@ namespace UVEditorToolMeshInputLocals
 	}
 }
 
+bool UUVEditorToolMeshInput::IsValid() const
+{
+	return UnwrapCanonical
+		&& UnwrapPreview && UnwrapPreview->IsValidLowLevel()
+		&& AppliedCanonical
+		&& AppliedPreview && AppliedPreview->IsValidLowLevel()
+		&& OriginalAsset && OriginalAsset->IsValidLowLevel()
+		&& UVLayerIndex >= 0;
+}
+
 bool UUVEditorToolMeshInput::InitializeMeshes(
 	UToolTarget* Target, int32 UVLayerIndexIn,
 	UWorld* UnwrapWorld, UWorld* LivePreviewWorld,
