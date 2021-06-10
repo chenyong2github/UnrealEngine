@@ -615,27 +615,16 @@ public:
 	{
 		FPrimitiveViewRelevance Result;
 
-		if (ParentComponent->bDrawOnTop)
-		{
-			Result.bDrawRelevance = IsShown(View);
-			Result.bDynamicRelevance = true;
-			Result.bShadowRelevance = false;
-			Result.bEditorPrimitiveRelevance = UseEditorCompositing(View);
-			Result.bEditorNoDepthTestPrimitiveRelevance = true;
-		}
-		else
-		{
-			Result.bDrawRelevance = IsShown(View);
-			Result.bShadowRelevance = IsShadowCast(View);
-			Result.bDynamicRelevance = true;
-			Result.bRenderInMainPass = ShouldRenderInMainPass();
-			Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
-			Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
-			Result.bRenderCustomDepth = ShouldRenderCustomDepth();
-			// Note that this is actually a getter. One may argue that it is poorly named.
-			MaterialRelevance.SetPrimitiveViewRelevance(Result);
-			Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
-		}
+		Result.bDrawRelevance = IsShown(View);
+		Result.bShadowRelevance = IsShadowCast(View);
+		Result.bDynamicRelevance = true;
+		Result.bRenderInMainPass = ShouldRenderInMainPass();
+		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+		Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
+		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+		// Note that this is actually a getter. One may argue that it is poorly named.
+		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
 
 		return Result;
 	}
@@ -651,19 +640,8 @@ public:
 
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override
 	{
-		if (ParentComponent->bDrawOnTop)
-		{
-			bDynamic = false;
-			bRelevant = false;
-			bLightMapped = false;
-			bShadowMapped = false;
-		}
-		else
-		{
-			FPrimitiveSceneProxy::GetLightRelevance(LightSceneProxy, bDynamic, bRelevant, bLightMapped, bShadowMapped);
-		}
+		FPrimitiveSceneProxy::GetLightRelevance(LightSceneProxy, bDynamic, bRelevant, bLightMapped, bShadowMapped);
 	}
-
 
 	virtual bool CanBeOccluded() const override
 	{
@@ -674,14 +652,11 @@ public:
 
 	uint32 GetAllocatedSize(void) const { return(FPrimitiveSceneProxy::GetAllocatedSize()); }
 
-
 	SIZE_T GetTypeHash() const override
 	{
 		static size_t UniquePointer;
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
-
-
 
 };
 

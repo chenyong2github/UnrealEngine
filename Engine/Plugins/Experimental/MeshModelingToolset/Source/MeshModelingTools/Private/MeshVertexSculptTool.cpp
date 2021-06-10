@@ -75,7 +75,7 @@ void UMeshVertexSculptTool::Setup()
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
-	DynamicMeshComponent->bInvalidateProxyOnChange = false;
+	DynamicMeshComponent->SetInvalidateProxyOnChangeEnabled(false);
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshVerticesChanged.AddUObject(this, &UMeshVertexSculptTool::OnDynamicMeshComponentChanged);
 
 	FDynamicMesh3* SculptMesh = GetSculptMesh();
