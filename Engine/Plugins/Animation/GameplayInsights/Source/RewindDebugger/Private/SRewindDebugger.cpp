@@ -274,7 +274,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 		}
 	);
 
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("RewindDebuggerLayout") 
+	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("RewindDebuggerLayout1.0") 
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
