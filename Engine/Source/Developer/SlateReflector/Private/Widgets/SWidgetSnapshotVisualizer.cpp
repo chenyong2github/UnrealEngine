@@ -14,6 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SNavigationSimulationList.h"
 #include "Framework/Layout/ScrollyZoomy.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/Base64.h"
 
 #include "SlateNavigationEventSimulator.h"
