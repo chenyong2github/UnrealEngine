@@ -1227,6 +1227,55 @@ void FDisplayClusterConfiguratorComponentRefCustomization::CustomizeHeader(TShar
 // Node Selection Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
 
+FDisplayClusterConfiguratorNodeSelection::FDisplayClusterConfiguratorNodeSelection(EOperationMode InMode, ADisplayClusterRootActor* InRootActor, FDisplayClusterConfiguratorBlueprintEditor* InToolkitPtr)
+{
+	RootActorPtr = InRootActor;
+
+	if (InToolkitPtr)
+	{
+		ToolkitPtr = StaticCastSharedRef<FDisplayClusterConfiguratorBlueprintEditor>(InToolkitPtr->AsShared());
+	}
+
+	OperationMode = InMode;
+
+	check(RootActorPtr.IsValid() || ToolkitPtr.IsValid());
+	ResetOptions();
+}
+
+ADisplayClusterRootActor* FDisplayClusterConfiguratorNodeSelection::GetRootActor() const
+{
+	ADisplayClusterRootActor* RootActor = nullptr;
+
+	if (ToolkitPtr.IsValid())
+	{
+		RootActor = Cast<ADisplayClusterRootActor>(ToolkitPtr.Pin()->GetPreviewActor());
+	}
+	else
+	{
+		RootActor = RootActorPtr.Get();
+	}
+
+	check(RootActor);
+	return RootActor;
+}
+
+UDisplayClusterConfigurationData* FDisplayClusterConfiguratorNodeSelection::GetConfigData() const
+{
+	UDisplayClusterConfigurationData* ConfigData = nullptr;
+
+	if (ToolkitPtr.IsValid())
+	{
+		ConfigData = ToolkitPtr.Pin()->GetConfig();
+	}
+	else if (RootActorPtr.IsValid())
+	{
+		ConfigData = RootActorPtr->GetConfigData();
+	}
+
+	check(ConfigData);
+	return ConfigData;
+}
+
 void FDisplayClusterConfiguratorNodeSelection::CreateArrayBuilder(const TSharedRef<IPropertyHandle>& InPropertyHandle,
 	IDetailChildrenBuilder& InChildBuilder)
 {
@@ -1289,24 +1338,21 @@ void FDisplayClusterConfiguratorNodeSelection::GenerateSelectionWidget(
 void FDisplayClusterConfiguratorNodeSelection::ResetOptions()
 {
 	Options.Reset();
-	if(ADisplayClusterRootActor* RootActor = RootActorPtr.Get())
+	if (UDisplayClusterConfigurationData* ConfigData = GetConfigData())
 	{
-		if (UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData())
+		for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& Node : ConfigData->Cluster->Nodes)
 		{
-			for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& Node : ConfigData->Cluster->Nodes)
+			if (OperationMode == ClusterNodes)
 			{
-				if (OperationMode == ClusterNodes)
-				{
-					Options.Add(MakeShared<FString>(Node.Value->GetName()));
-					continue;
-				}
-				for (const TTuple<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
-				{
-					Options.Add(MakeShared<FString>(Viewport.Value->GetName()));
-				}
+				Options.Add(MakeShared<FString>(Node.Value->GetName()));
+				continue;
+			}
+			for (const TTuple<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
+			{
+				Options.Add(MakeShared<FString>(Viewport.Value->GetName()));
 			}
 		}
-	}	
+	}
 }
 
 TSharedRef<SWidget> FDisplayClusterConfiguratorNodeSelection::MakeOptionComboWidget(
@@ -1345,7 +1391,7 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeHeader(TShare
 	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
 
 	Mode = FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(PropertyHandle->GetProperty()->GetOwnerProperty());
-	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor());
+	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
 	
 	HeaderRow.NameContent()
 	[

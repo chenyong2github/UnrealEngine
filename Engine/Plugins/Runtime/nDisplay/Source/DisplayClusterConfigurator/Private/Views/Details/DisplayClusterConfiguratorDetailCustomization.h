@@ -426,18 +426,16 @@ public:
 		ClusterNodes
 	};
 
-	FDisplayClusterConfiguratorNodeSelection(EOperationMode InMode, ADisplayClusterRootActor* InRootActor)
-	{
-		RootActorPtr = InRootActor;
-		OperationMode = InMode;
-		ResetOptions();
-	}
+	FDisplayClusterConfiguratorNodeSelection(EOperationMode InMode, ADisplayClusterRootActor* InRootActor, FDisplayClusterConfiguratorBlueprintEditor* InToolkitPtr);
 
 	~FDisplayClusterConfiguratorNodeSelection()
 	{
 		OptionsComboBox.Reset();
 		Options.Reset();
 	}
+
+	ADisplayClusterRootActor* GetRootActor() const;
+	UDisplayClusterConfigurationData* GetConfigData() const;
 
 	void CreateArrayBuilder(const TSharedRef<IPropertyHandle>& InPropertyHandle, IDetailChildrenBuilder& InChildBuilder);
 
@@ -453,7 +451,10 @@ protected:
 private:
 	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> OptionsComboBox;
 	TArray<TSharedPtr<FString>> Options;
+
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr = nullptr;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr;
+
 	EOperationMode OperationMode = ClusterNodes;
 };
 
