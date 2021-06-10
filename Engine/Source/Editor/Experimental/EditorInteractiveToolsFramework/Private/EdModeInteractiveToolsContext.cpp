@@ -28,6 +28,7 @@
 #include "ToolContextInterfaces.h"
 #include "InteractiveToolObjects.h"
 #include "InteractiveToolsSelectionStoreSubsystem.h"
+#include "EditorInteractiveGizmoManager.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "EditorModeManager.h"
 #include "EdMode.h"
@@ -612,6 +613,14 @@ void UEdModeInteractiveToolsContext::InitializeContextWithEditorModeManager(FEdi
 
 	this->TransactionAPI = new FEdModeToolsContextTransactionImpl(this, InEditorModeManager);
 	this->QueriesAPI = new FEdModeToolsContextQueriesImpl(this, InEditorModeManager);
+
+	SetCreateGizmoManagerFunc([this](const FContextInitInfo& ContextInfo)
+	{
+		UEditorInteractiveGizmoManager* NewGizmoManager = NewObject<UEditorInteractiveGizmoManager>(ContextInfo.ToolsContext);
+		NewGizmoManager->InitializeWithEditorModeManager(ContextInfo.QueriesAPI, ContextInfo.TransactionsAPI, ContextInfo.InputRouter, EditorModeManager);
+		NewGizmoManager->RegisterDefaultGizmos();
+		return NewGizmoManager;
+	});
 
 	Initialize(QueriesAPI, TransactionAPI);
 
