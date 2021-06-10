@@ -1,17 +1,25 @@
 @ECHO OFF
 
-set opencv_url=https://github.com/opencv/opencv/archive/3.3.1.zip
-set opencv_src=opencv-3.3.1
+:: Specifies the version of opencv to download
+set opencv_version=3.3.1
 
-for %%x in ("..\..\Binaries\ThirdParty") do set bin_path=%%~fx
-for %%x in ("lib") do set lib_path=%%~fx
+:: Uncomment to include opencv_contrib in the build
+::set use_opencv_contrib=
 
+set opencv_url=https://github.com/opencv/opencv/archive/%opencv_version%.zip
+set opencv_src=opencv-%opencv_version%
+
+set opencv_contrib_url=https://github.com/opencv/opencv_contrib/archive/%opencv_version%.zip
+set opencv_contrib_src=opencv_contrib-%opencv_version%
+
+:: Create build directory
 if not exist build md build
 
 pushd build
 
-IF NOT EXIST %opencv_src% (
-    IF NOT EXIST opencv.zip (
+:: Download opencv
+if not exist %opencv_src% (
+    if not exist opencv.zip (
         echo Downloading %opencv_url%...
         powershell -Command "(New-Object Net.WebClient).DownloadFile('%opencv_url%', '%opencv_src%.zip')"
     )
@@ -19,54 +27,126 @@ IF NOT EXIST %opencv_src% (
     powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('%opencv_src%.zip', '.')"
 )
 
+set EXTRA_MODULES_PATH="%~dp0/UnrealModules"
+
+if defined use_opencv_contrib (
+	:: Download opencv_contrib
+	if not exist %opencv_contrib_src% (
+		if not exist opencv_contrib.zip (
+			echo Downloading %opencv_contrib_url%...
+			powershell -Command "(New-Object Net.WebClient).DownloadFile('%opencv_contrib_url%', '%opencv_contrib_src%.zip')"
+		)
+		echo Extracting %opencv_contrib_src%.zip...
+		powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('%opencv_contrib_src%.zip', '.')"
+	)
+	
+	:: Append it to the extra modules path for opencv to compile in
+	set EXTRA_MODULES_PATH=%EXTRA_MODULES_PATH%;"%~dp0/build/%opencv_contrib_src%/modules"
+)
 
 echo Deleting existing build directories...
 if exist x86 rd /s /q x86
 if exist x64 rd /s /q x64
 
-md x86
+:: Create x86 directory
+if not exist x86 (
+	md x86
+)
 pushd x86
 
 echo Configuring x86 build...
-cmake -G "Visual Studio 14 2015" -C %~dp0\cmake_options.txt -DCMAKE_INSTALL_PREFIX=%~dp0 ..\%opencv_src%
+
+cmake^
+ -G "Visual Studio 14 2015"^
+ -A Win32^
+ -C "%~dp0\cmake_options.txt"^
+ -DCMAKE_INSTALL_PREFIX=%~dp0^
+ -DOPENCV_EXTRA_MODULES_PATH=%EXTRA_MODULES_PATH%^
+ "..\%opencv_src%"
 
 echo Building x86 Release build...
 cmake.exe --build . --config Release --target INSTALL -- /m:4
+
 echo Building x86 Debug build...
 cmake.exe --build . --config Debug --target INSTALL -- /m:4
 
+:: x86/..
 popd
 
-md x64
+:: Create x64 directory
+IF NOT EXIST x64 (
+	md x64
+)
+
 pushd x64
 
 echo Configuring x64 build...
-cmake -G "Visual Studio 14 2015 Win64" -C %~dp0\cmake_options.txt -DCMAKE_INSTALL_PREFIX=%~dp0 ..\%opencv_src%
+
+cmake^
+ -G "Visual Studio 14 2015"^
+ -A x64^
+ -C "%~dp0\cmake_options.txt"^
+ -DCMAKE_INSTALL_PREFIX=%~dp0^
+ -DOPENCV_EXTRA_MODULES_PATH=%EXTRA_MODULES_PATH%^
+ "..\%opencv_src%"
 
 echo Building x64 Release build...
 cmake.exe --build . --config Release --target INSTALL -- /m:4
+
 echo Building x64 Debug build...
 cmake.exe --build . --config Debug --target INSTALL -- /m:4
 
+:: x64/..
 popd
 
-popd
+echo Moving outputs to destination folders...
 
-echo Cleaning up
-:: Clean up destination directories
-md %bin_path%\Win32
-md %bin_path%\Win64
+set bin_path="%~dp0\..\..\..\Binaries\ThirdParty"
+set lib_path="%~dp0\lib"
 
-md %lib_path%\Win32
-md %lib_path%\Win64
+echo bin_path is %bin_path%
+echo lib_path is %lib_path%
 
-move /y x86\vc14\bin\*.* %bin_path%\Win32
-move /y x64\vc14\bin\*.* %bin_path%\Win64
-move /y x86\vc14\lib\*.lib %lib_path%\Win32
-move /y x64\vc14\lib\*.lib %lib_path%\Win64
+echo %bin_path%\Win32
+echo %bin_path%\Win64
+echo %lib_path%\Win32
+echo %lib_path%\Win64
+
+IF NOT EXIST %bin_path%\Win32 (
+	md %bin_path%\Win32
+)
+
+IF NOT EXIST %bin_path%\Win64 (
+	md %bin_path%\Win64
+)
+
+IF NOT EXIST %lib_path%\Win32 (
+	md %lib_path%\Win32
+)
+
+IF NOT EXIST %lib_path%\Win64 (
+	md %lib_path%\Win64
+)
+
+move /y x86\bin\Release\opencv_*.*   %bin_path%\Win32
+move /y x86\bin\Debug\opencv_*.*     %bin_path%\Win32
+move /y x86\lib\Release\opencv_*.lib %lib_path%\Win32
+move /y x86\lib\Debug\opencv_*.lib   %lib_path%\Win32
+
+move /y x64\bin\Release\opencv_*.*   %bin_path%\Win64
+move /y x64\bin\Debug\opencv_*.*     %bin_path%\Win64
+move /y x64\lib\Release\opencv_*.lib %lib_path%\Win64
+move /y x64\lib\Debug\opencv_*.lib   %lib_path%\Win64
+
+echo Cleaning up...
 
 rd /s /q x86
 rd /s /q x64
+
+:: build/..
+popd
+
+:: Remove generated .cmake files
 del /f OpenCV*.cmake
 
 echo Done. Remember to delete the build directory and submit changed files to p4
