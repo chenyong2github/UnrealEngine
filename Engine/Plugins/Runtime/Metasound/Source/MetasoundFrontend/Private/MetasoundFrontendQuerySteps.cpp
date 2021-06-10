@@ -54,7 +54,7 @@ namespace Metasound
 			}
 		}
 
-		return RegistryKey;
+		return FFrontendQueryEntry::FKey(RegistryKey);
 	}
 
 	void FReduceRegistrationEventsToCurrentStatus::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const

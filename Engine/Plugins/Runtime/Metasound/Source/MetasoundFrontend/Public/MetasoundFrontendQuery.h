@@ -16,9 +16,9 @@ namespace Metasound
 	struct METASOUNDFRONTEND_API FFrontendQueryKey
 	{
 		FFrontendQueryKey();
-		FFrontendQueryKey(int32 InKey);
-		FFrontendQueryKey(const FString& InKey);
-		FFrontendQueryKey(const FName& InKey);
+		explicit FFrontendQueryKey(int32 InKey);
+		explicit FFrontendQueryKey(const FString& InKey);
+		explicit FFrontendQueryKey(const FName& InKey);
 
 		FFrontendQueryKey(const FFrontendQueryKey&) = default;
 		FFrontendQueryKey& operator=(const FFrontendQueryKey&) = default;
