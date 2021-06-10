@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
-using Tools.DotNETCommon;
 
 namespace UnrealBuildTool.Rules
 {
@@ -72,7 +71,7 @@ namespace UnrealBuildTool.Rules
 			// Make sure the C4D Cineware SDK can be used to compile
 			bool bCanUseCinewareSDK = Directory.Exists(CinewareSDKLocation);
 			// Temporary: Debug configuration does not link yet
-			bCanUseCinewareSDK |= Target.Configuration == UnrealTargetConfiguration.Development || Target.Configuration == UnrealTargetConfiguration.Shipping;
+			bCanUseCinewareSDK &= Target.Configuration == UnrealTargetConfiguration.Development || Target.Configuration == UnrealTargetConfiguration.Shipping;
 
 			if (bCanUseCinewareSDK)
 			{
