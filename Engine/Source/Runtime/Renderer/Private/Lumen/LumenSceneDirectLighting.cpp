@@ -119,6 +119,14 @@ FAutoConsoleVariableRef CVarLumenSceneCardDirectLightingUpdateFrequencyScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+namespace Lumen
+{
+	bool UseVirtualShadowMaps()
+	{
+		return GLumenDirectLightingVirtualShadowMap != 0;
+	}
+}
+
 BEGIN_SHADER_PARAMETER_STRUCT(FLightFunctionParameters, )
 	SHADER_PARAMETER(FVector4, LightFunctionParameters)
 	SHADER_PARAMETER(FMatrix44f, LightFunctionWorldToLight)
@@ -168,7 +176,8 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		SHADER_PARAMETER(float, VirtualShadowMapSurfaceBias)
 		SHADER_PARAMETER(int32, VirtualShadowMapId)
 		SHADER_PARAMETER(uint32, ForceOffscreenShadowing)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>,ShadowMaskAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ShadowMaskAtlas)
+		SHADER_PARAMETER(int, ShadowMaskIndex)
 		SHADER_PARAMETER(uint32, UseIESProfile)
 		SHADER_PARAMETER_TEXTURE(Texture2D,IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState,IESTextureSampler)
@@ -204,12 +213,6 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		if (PermutationVector.Get<FRayTracingShadowPassCombine>() || PermutationVector.Get<FLightType>() != ELumenLightType::Directional)
 		{
 			PermutationVector.Set<FTraceMeshSDFs>(false);
-		}
-
-		if (PermutationVector.Get<FRayTracingShadowPassCombine>())
-		{
-			PermutationVector.Set<FDynamicallyShadowed>(false);
-			PermutationVector.Set<FVirtualShadowMap>(false);
 		}
 
 		return PermutationVector;
@@ -382,12 +385,6 @@ void CullMeshSDFsForLightCards(
 		LightTileIntersectionParameters);
 }
 
-struct FLumenShadowSetup
-{
-	const FProjectedShadowInfo* VirtualShadowMap;
-	const FProjectedShadowInfo* DenseShadowMap;
-};
-
 FLumenShadowSetup GetShadowForLumenDirectLighting(FVisibleLightInfo& VisibleLightInfo)
 {
 	FLumenShadowSetup ShadowSetup;
@@ -421,6 +418,8 @@ void RenderDirectLightIntoLumenCards(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardRenderer& LumenCardRenderer,
 	const FEngineShowFlags& EngineShowFlags,
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
@@ -430,8 +429,9 @@ void RenderDirectLightIntoLumenCards(
 	const FString& LightName,
 	const FLumenCardScatterContext& CardScatterContext,
 	int32 ScatterInstanceIndex,
-	FLumenDirectLightingHardwareRayTracingData& LumenDirectLightingHardwareRayTracingData,
-	const FVirtualShadowMapArray& VirtualShadowMapArray)
+	const TArray<const FLightSceneInfo*, TInlineAllocator<Lumen::MaxShadowMaskChannels>>& Lights,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
+	FRDGTextureRef& ShadowMaskAtlas)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
@@ -461,7 +461,7 @@ void RenderDirectLightIntoLumenCards(
 	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
 	FMatrix WorldToMeshSDFShadowValue = FMatrix::Identity;
 
-	const bool bLumenUseHardwareRayTracedShadow = Lumen::UseHardwareRayTracedShadows(View) && bShadowed;
+	const bool bLumenUseHardwareRayTracedDirectLighting = Lumen::UseHardwareRayTracedDirectLighting();
 	const bool bTraceMeshSDFs = bShadowed 
 		&& LumenLightType == ELumenLightType::Directional 
 		&& DoesPlatformSupportDistanceFieldShadowing(View.GetShaderPlatform())
@@ -471,8 +471,7 @@ void RenderDirectLightIntoLumenCards(
 
 	int32 VirtualShadowMapId = -1;
 	if (bDynamicallyShadowed
-		&& !bLumenUseHardwareRayTracedShadow
-		&& GLumenDirectLightingVirtualShadowMap != 0
+		&& Lumen::UseVirtualShadowMaps()
 		&& VirtualShadowMapArray.IsAllocated())
 	{
 		if (LightType == LightType_Directional)
@@ -493,12 +492,23 @@ void RenderDirectLightIntoLumenCards(
 		ShadowSetup.DenseShadowMap = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo);
 	}
 
-	if (bLumenUseHardwareRayTracedShadow)
+	if (bLumenUseHardwareRayTracedDirectLighting)
 	{
-		RenderHardwareRayTracedShadowIntoLumenCards(
-			GraphBuilder, Scene, View, LumenCardSceneUniformBuffer, OpacityAtlas, 
-			LightSceneInfo, LightName, CardScatterContext, ScatterInstanceIndex,
-			LumenDirectLightingHardwareRayTracingData, bDynamicallyShadowed, LumenLightType);
+		RenderLumenHardwareRayTracingDirectLighting(
+			GraphBuilder,
+			Scene,
+			GetSceneTextureParameters(GraphBuilder),
+			View,
+			Lights,
+			VisibleLightInfos,
+			VirtualShadowMapArray,
+			TracingInputs,
+			OpacityAtlas,
+			LumenCardRenderer,
+			CardScatterContext,
+			ShadowMaskAtlas,
+			ScatterInstanceIndex
+		);
 	}
 	else if (bTraceMeshSDFs)
 	{
@@ -564,9 +574,11 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->PS.VirtualShadowMapSurfaceBias = FMath::Clamp(GLumenDirectLightingVirtualShadowMapBias, .01f, 100.0f);
 		PassParameters->PS.ForceOffscreenShadowing = GLumenDirectLightingForceOffscreenShadowing;
 
-		if (bLumenUseHardwareRayTracedShadow)
+		if (bLumenUseHardwareRayTracedDirectLighting)
 		{
-			PassParameters->PS.ShadowMaskAtlas = LumenDirectLightingHardwareRayTracingData.ShadowMaskAtlas;
+			check(ShadowMaskAtlas);
+			PassParameters->PS.ShadowMaskAtlas = ShadowMaskAtlas;
+			PassParameters->PS.ShadowMaskIndex = ScatterInstanceIndex;
 		}
 
 		{
@@ -610,7 +622,7 @@ void RenderDirectLightIntoLumenCards(
 	PermutationVector.Set< FLumenCardDirectLightingPS::FTraceMeshSDFs >(bTraceMeshSDFs);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FVirtualShadowMap >(bUseVirtualShadowMap);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FLightFunction >(bUseLightFunction);
-	PermutationVector.Set< FLumenCardDirectLightingPS::FRayTracingShadowPassCombine>(bLumenUseHardwareRayTracedShadow);
+	PermutationVector.Set< FLumenCardDirectLightingPS::FRayTracingShadowPassCombine>(bLumenUseHardwareRayTracedDirectLighting);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FCloudTransmittance >(bUseCloudTransmittance);
 	
 	PermutationVector = FLumenCardDirectLightingPS::RemapPermutation(PermutationVector);
@@ -647,9 +659,7 @@ void RenderDirectLightIntoLumenCards(
 
 void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-	FRDGTextureRef FinalLightingAtlas,
-	FRDGTextureRef OpacityAtlas,
+	const FLumenCardTracingInputs& TracingInputs,
 	FGlobalShaderMap* GlobalShaderMap,
 	const FLumenCardScatterContext& VisibleCardScatterContext)
 {
@@ -662,13 +672,11 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 		const FViewInfo& MainView = Views[0];
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-		const bool bLumenUseHardwareRayTracedShadow = Lumen::UseHardwareRayTracedShadows(MainView);
-		FLumenDirectLightingHardwareRayTracingData LumenDirectLightingHardwareRayTracingData;
 		
-		if(bLumenUseHardwareRayTracedShadow)
-		{
-			LumenDirectLightingHardwareRayTracingData.Initialize(GraphBuilder, Scene);
-		}
+		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = TracingInputs.LumenCardSceneUniformBuffer;
+		FRDGTextureRef FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
+		FRDGTextureRef OpacityAtlas = TracingInputs.OpacityAtlas;
+		FRDGTextureRef ShadowMaskAtlas = nullptr;
 
 		TArray<const FLightSceneInfo*, TInlineAllocator<64>> GatheredLocalLights;
 
@@ -685,6 +693,9 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 				if (LightType == LightType_Directional)
 				{
+					TArray<const FLightSceneInfo*, TInlineAllocator<Lumen::MaxShadowMaskChannels>> Lights;
+					Lights.Add(LightSceneInfo);
+
 					// Doesn't require culling, just draw immediately
 
 					FString LightNameWithLevel;
@@ -694,6 +705,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						GraphBuilder,
 						Scene,
 						MainView,
+						TracingInputs,
+						LumenCardRenderer,
 						ViewFamily.EngineShowFlags,
 						VisibleLightInfos,
 						LumenCardSceneUniformBuffer,
@@ -703,8 +716,9 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						LightNameWithLevel,
 						VisibleCardScatterContext,
 						0,
-						LumenDirectLightingHardwareRayTracingData,
-						VirtualShadowMapArray);
+						Lights,
+						VirtualShadowMapArray,
+						ShadowMaskAtlas);
 				}
 				else
 				{
@@ -713,7 +727,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			}
 		}
 
-		const int32 LightBatchSize = FMath::Clamp(GLumenDirectLightingBatchSize, 1, 256);
+		const int32 MaxLightBatchSize = Lumen::UseHardwareRayTracedDirectLighting() ? Lumen::MaxShadowMaskChannels : 256;
+		const int32 LightBatchSize = FMath::Clamp(GLumenDirectLightingBatchSize, 1, MaxLightBatchSize);
 
 		// Batched light culling and drawing
 		for (int32 LightBatchIndex = 0; LightBatchIndex * LightBatchSize < GatheredLocalLights.Num(); ++LightBatchIndex)
@@ -721,6 +736,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			const int32 FirstLightIndex = LightBatchIndex * LightBatchSize;
 			const int32 LastLightIndex = FMath::Min((LightBatchIndex + 1) * LightBatchSize, GatheredLocalLights.Num());
 
+			TArray<const FLightSceneInfo*, TInlineAllocator<Lumen::MaxShadowMaskChannels>> Lights;
 			FLumenCardScatterContext CardScatterContext;
 
 			{
@@ -736,6 +752,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 				for (int32 LightIndex = FirstLightIndex; LightIndex < LastLightIndex; ++LightIndex)
 				{
+					Lights.Add(GatheredLocalLights[LightIndex]);
+
 					const int32 ScatterInstanceIndex = LightIndex - FirstLightIndex;
 					const FLightSceneInfo* LightSceneInfo = GatheredLocalLights[LightIndex];
 					const ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
@@ -800,6 +818,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						GraphBuilder,
 						Scene,
 						MainView,
+						TracingInputs,
+						LumenCardRenderer,
 						ViewFamily.EngineShowFlags,
 						VisibleLightInfos,
 						LumenCardSceneUniformBuffer,
@@ -809,8 +829,9 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						LightNameWithLevel,
 						CardScatterContext,
 						ScatterInstanceIndex,
-						LumenDirectLightingHardwareRayTracingData,
-						VirtualShadowMapArray);
+						Lights,
+						VirtualShadowMapArray,
+						ShadowMaskAtlas);
 				}
 			}
 		}

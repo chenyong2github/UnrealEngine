@@ -70,16 +70,11 @@ float VirtualShadowMapSurfaceBias;
 uint ForceOffscreenShadowing;
 int VirtualShadowMapId;
 uint UseIESProfile;
+uint ShadowMaskIndex;
 
 #if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
-Texture2D ShadowMaskAtlas;
+Texture2D<uint> ShadowMaskAtlas;
 #endif
-
-float3 GetWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float BiasScale)
-{
-	//@todo DynamicGI - derive from card texel size
-	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal))) * BiasScale;
-}
 
 float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal)
 {
@@ -96,7 +91,7 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 
 	#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
 	{
-		float3 WorldPositionForShadowing = GetWorldPositionForShadowing(WorldPosition, L, WorldNormal, 1.0f);
+		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
 
 		uint NumIntersectingObjects = GetCulledNumObjects();
 		uint CulledDataParameter = 0;
@@ -122,7 +117,7 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 	}
 	#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
 	{
-		float3 WorldPositionForShadowing = GetWorldPositionForShadowing(WorldPosition, L, WorldNormal, SDFSurfaceBiasScale);
+		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, SDFSurfaceBiasScale);
 
 		FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
 		FGlobalSDFTraceResult SDFResult = RayTraceGlobalDistanceField(TraceInput);
@@ -218,11 +213,6 @@ void LumenCardDirectLightingPS(
 
 				#if SHADOWED_LIGHT 
 				{
-					#if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
-					{
-						ShadowFactor = ShadowMaskAtlas.Load(uint3(CardInterpolants.AtlasUV * LumenCardScene.PhysicalAtlasSize, 0));
-					}
-					#else
 					{
 						bool bShadowFactorComplete = false;
 						bool bVSMValid = false;
@@ -240,7 +230,7 @@ void LumenCardDirectLightingPS(
 
 						if (!bShadowFactorComplete)
 						{
-							float3 WorldPositionForShadowing = GetWorldPositionForShadowing(WorldPosition, L, WorldNormal, 1.0f);
+							float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
 
 							#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
 							{
@@ -283,10 +273,19 @@ void LumenCardDirectLightingPS(
 
 						if (bOffscreenShadowing)
 						{
-							ShadowFactor *= TraceOffscreenShadows(WorldPosition, L, ToLight, WorldNormal);
+							#if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
+							{
+								uint ShadowValue = ShadowMaskAtlas.Load(uint3(CardInterpolants.AtlasUV * LumenCardScene.PhysicalAtlasSize, 0));
+								uint ShadowMask = 1 << ShadowMaskIndex;
+								ShadowFactor = (ShadowValue & ShadowMask) > 0 ? 1.0 : 0.0;
+							}
+							#else
+							{
+								ShadowFactor *= TraceOffscreenShadows(WorldPosition, L, ToLight, WorldNormal);
+							}
+							#endif
 						}
 					}
-					#endif // End hardware/software shadow selection		
 				}
 				#endif // End ShadowLight
 

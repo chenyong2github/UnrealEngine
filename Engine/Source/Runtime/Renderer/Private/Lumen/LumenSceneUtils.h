@@ -371,43 +371,28 @@ enum class ELumenLightType
 	MAX
 };
 
-struct FLumenDirectLightingHardwareRayTracingData
+struct FLumenShadowSetup
 {
-public:
-	FLumenDirectLightingHardwareRayTracingData();
-
-	void Initialize(FRDGBuilder& GraphBuilder, const FScene* Scene);
-
-	void BeginLumenDirectLightingUpdate();
-	void EndLumenDirectLightingUpdate();
-
-	int GetLightId();
-	bool ShouldClearLightMask();
-	bool IsInterpolantsTextureCreated();
-
-	FRDGTextureRef LightMaskTexture;
-	FRDGTextureRef ShadowMaskAtlas;
-	FRDGTextureRef CardInterpolantsTexture;
-	FRDGBufferRef CardInterpolantsBuffer;
-private:
-	int LightId;	// Used for efficient raytracing when indirect dispatch is not supported.
-	bool bSouldClearLightMask;
-	bool bIsInterpolantsTextureCreated;
+	const FProjectedShadowInfo* VirtualShadowMap;
+	const FProjectedShadowInfo* DenseShadowMap;
 };
 
-void RenderHardwareRayTracedShadowIntoLumenCards(
+FLumenShadowSetup GetShadowForLumenDirectLighting(FVisibleLightInfo& VisibleLightInfo);
+
+void RenderLumenHardwareRayTracingDirectLighting(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
+	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
+	const TArray<const FLightSceneInfo*, TInlineAllocator<Lumen::MaxShadowMaskChannels>>& Lights,
+	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
+	const FLumenCardTracingInputs& TracingInputs,
 	FRDGTextureRef OpacityAtlas,
-	const FLightSceneInfo* LightSceneInfo,
-	const FString& LightName,
+	const FLumenCardRenderer& LumenCardRenderer,
 	const FLumenCardScatterContext& CardScatterContext,
-	int32 ScatterInstanceIndex,
-	FLumenDirectLightingHardwareRayTracingData& LumenDirectLightingHardwareRayTracingData,
-	bool bDynamicallyShadowed,
-	ELumenLightType LumenLightType);
+	FRDGTextureRef& ShadowMaskTexture,
+	uint32 ShadowMaskIndex);
 
 extern void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, FLumenCardTracingParameters& TracingParameters, bool bShaderWillTraceCardsOnly = false);
 

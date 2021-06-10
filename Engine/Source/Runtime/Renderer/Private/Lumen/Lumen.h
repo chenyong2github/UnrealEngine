@@ -22,6 +22,7 @@ namespace Lumen
 	constexpr uint32 MaxResLevel = 11; // 2^11 = 2048 texels
 	constexpr uint32 SubAllocationResLevel = 7; // log2(PHYSICAL_PAGE_SIZE)
 	constexpr uint32 NumResLevels = MaxResLevel - MinResLevel + 1;
+	constexpr uint32 MaxShadowMaskChannels = 32;
 
 	enum class ETracingPermutation
 	{
@@ -43,13 +44,15 @@ namespace Lumen
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing);
 	bool ShouldVisualizeHardwareRayTracing();
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
+	bool UseLumenSceneLightingForceFullUpdate();
+	bool UseVirtualShadowMaps();
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();
+	bool UseHardwareRayTracedDirectLighting();
 	bool UseHardwareRayTracedReflections();
 	bool UseHardwareRayTracedScreenProbeGather();
 	bool UseHardwareRayTracedRadianceCache();
-	bool UseHardwareRayTracedShadows(const FViewInfo& View);
 
 	enum class EHardwareRayTracingLightingMode
 	{

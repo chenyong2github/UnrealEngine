@@ -57,6 +57,11 @@ namespace Lumen
 		bool bUsedInVisualization = ShouldVisualizeHardwareRayTracing() && (GetVisualizeHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
 		return bUsedInReflections || bUsedInScreenProbeGather || bUsedInVisualization;
 	}
+
+	bool UseLumenSceneLightingForceFullUpdate()
+	{
+		return GLumenSceneLightingForceFullUpdate != 0;
+	}
 }
 
 FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCachaFeedback)
@@ -190,7 +195,10 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.DepthAtlas = TracingInputs.DepthAtlas;
 	TracingParameters.VoxelLighting = TracingInputs.VoxelLighting;
 	
-	GetLumenVoxelTracingParameters(TracingInputs, TracingParameters, bShaderWillTraceCardsOnly);
+	if (TracingInputs.NumClipmapLevels > 0)
+	{
+		GetLumenVoxelTracingParameters(TracingInputs, TracingParameters, bShaderWillTraceCardsOnly);
+	}
 
 	TracingParameters.NumGlobalSDFClipmaps = View.GlobalDistanceFieldInfo.Clipmaps.Num();
 }
@@ -649,9 +657,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 			RenderDirectLightingForLumenScene(
 				GraphBuilder,
-				TracingInputs.LumenCardSceneUniformBuffer,
-				TracingInputs.FinalLightingAtlas,
-				TracingInputs.OpacityAtlas,
+				TracingInputs,
 				GlobalShaderMap,
 				DirectLightingCardScatterContext);
 
