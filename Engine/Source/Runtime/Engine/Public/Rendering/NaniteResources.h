@@ -21,7 +21,9 @@
 
 #define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTER_TRIANGLES					128
-#define MAX_CLUSTER_VERTICES					256
+#define MAX_CLUSTER_VERTICES_BITS				8														// must match define in NaniteDataDecode.ush
+#define MAX_CLUSTER_VERTICES_MASK				( ( 1 << MAX_CLUSTER_VERTICES_BITS ) - 1 )
+#define MAX_CLUSTER_VERTICES					( 1 << MAX_CLUSTER_VERTICES_BITS )						// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTER_INDICES						( MAX_CLUSTER_TRIANGLES * 3 )
 #define MAX_NANITE_UVS							4														// must match define in NaniteDataDecode.ush
 #define NUM_ROOT_PAGES							1u														// Should probably be made a per-resource option
@@ -61,10 +63,12 @@
 
 #define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteDataDecode.ush
 
-#define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteDataDecode.ush
+#define NUM_PACKED_CLUSTER_FLOAT4S				6														// must match define in NaniteDataDecode.ush
 
 
 #define MAX_POSITION_QUANTIZATION_BITS			21		// (21*3 = 63) < 64								// must match define in NaniteDataDecode.ush
+#define MIN_POSITION_PRECISION					-8														// must match define in NaniteDataDecode.ush
+#define MAX_POSITION_PRECISION					 23														// must match define in NaniteDataDecode.ush
 
 #define NORMAL_QUANTIZATION_BITS				 9
 
@@ -86,6 +90,8 @@
 #define NANITE_USE_SCRATCH_BUFFERS				1
 
 #define NANITE_CLUSTER_FLAG_LEAF				0x1
+
+#define NANITE_PAGE_FLAG_RELATIVE_ENCODING		0x1
 
 DECLARE_STATS_GROUP( TEXT("Nanite"), STATGROUP_Nanite, STATCAT_Advanced );
 
@@ -173,14 +179,13 @@ FORCEINLINE void SetBits(uint32& Value, uint32 Bits, uint32 NumBits, uint32 Offs
 struct FPackedCluster
 {
 	// Members needed for rasterization
-	FIntVector	QuantizedPosStart;
 	uint32		NumVerts_PositionOffset;					// NumVerts:9, PositionOffset:23
-
-	FVector3f	MeshBoundsMin;
 	uint32		NumTris_IndexOffset;						// NumTris:8, IndexOffset: 24
+	uint32		ColorMin;
+	uint32		ColorBits_GroupIndex;						// R:4, G:4, B:4, A:4. (GroupIndex&0xFFFF) is for debug visualization only.
 
-	FVector3f	MeshBoundsDelta;
-	uint32		BitsPerIndex_QuantizedPosShift_PosBits;		// BitsPerIndex:4, QuantizedPosShift:6, QuantizedPosBits:5.5.5
+	FIntVector	PosStart;
+	uint32		BitsPerIndex_PosPrecision_PosBits;			// BitsPerIndex:4, PosPrecision: 5, PosBits:5.5.5
 	
 	// Members needed for culling
 	FVector4	LODBounds;									// LWC_TODO: Was FSphere, but that's now twice as big and won't work on GPU.
@@ -197,22 +202,17 @@ struct FPackedCluster
 	uint32		UV_Prec;									// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
 	uint32		PackedMaterialInfo;
 
-	uint32		ColorMin;
-	uint32		ColorBits;									// R:4, G:4, B:4, A:4
-	uint32		GroupIndex;									// Debug only
-	uint32		Pad0;
-
 	uint32		GetNumVerts() const						{ return GetBits(NumVerts_PositionOffset, 9, 0); }
 	uint32		GetPositionOffset() const				{ return GetBits(NumVerts_PositionOffset, 23, 9); }
 
 	uint32		GetNumTris() const						{ return GetBits(NumTris_IndexOffset, 8, 0); }
 	uint32		GetIndexOffset() const					{ return GetBits(NumTris_IndexOffset, 24, 8); }
 
-	uint32		GetBitsPerIndex() const					{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 4, 0); }
-	uint32		GetQuantizedPosShift() const			{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 6, 4); }
-	uint32		GetPosBitsX() const						{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 5, 10); }
-	uint32		GetPosBitsY() const						{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 5, 15); }
-	uint32		GetPosBitsZ() const						{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 5, 20); }
+	uint32		GetBitsPerIndex() const					{ return GetBits(BitsPerIndex_PosPrecision_PosBits, 4, 0); }
+	int32		GetPosPrecision() const					{ return (int32)GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 4) + MIN_POSITION_PRECISION; }
+	uint32		GetPosBitsX() const						{ return GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 9); }
+	uint32		GetPosBitsY() const						{ return GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 14); }
+	uint32		GetPosBitsZ() const						{ return GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 19); }
 
 	uint32		GetAttributeOffset() const				{ return GetBits(AttributeOffset_BitsPerAttribute, 22, 0); }
 	uint32		GetBitsPerAttribute() const				{ return GetBits(AttributeOffset_BitsPerAttribute, 10, 22); }
@@ -223,11 +223,11 @@ struct FPackedCluster
 	void		SetNumTris(uint32 NumTris)				{ SetBits(NumTris_IndexOffset, NumTris, 8, 0); }
 	void		SetIndexOffset(uint32 Offset)			{ SetBits(NumTris_IndexOffset, Offset, 24, 8); }
 
-	void		SetBitsPerIndex(uint32 BitsPerIndex)	{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, BitsPerIndex, 4, 0); }
-	void		SetQuantizedPosShift(uint32 PosShift)	{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, PosShift, 6, 4); }
-	void		SetPosBitsX(uint32 NumBits)				{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, NumBits, 5, 10); }
-	void		SetPosBitsY(uint32 NumBits)				{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, NumBits, 5, 15); }
-	void		SetPosBitsZ(uint32 NumBits)				{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, NumBits, 5, 20); }
+	void		SetBitsPerIndex(uint32 BitsPerIndex)	{ SetBits(BitsPerIndex_PosPrecision_PosBits, BitsPerIndex, 4, 0); }
+	void		SetPosPrecision(int32 Precision)		{ SetBits(BitsPerIndex_PosPrecision_PosBits, uint32(Precision - MIN_POSITION_PRECISION), 5, 4); }
+	void		SetPosBitsX(uint32 NumBits)				{ SetBits(BitsPerIndex_PosPrecision_PosBits, NumBits, 5, 9); }
+	void		SetPosBitsY(uint32 NumBits)				{ SetBits(BitsPerIndex_PosPrecision_PosBits, NumBits, 5, 14); }
+	void		SetPosBitsZ(uint32 NumBits)				{ SetBits(BitsPerIndex_PosPrecision_PosBits, NumBits, 5, 19); }
 
 	void		SetAttributeOffset(uint32 Offset)		{ SetBits(AttributeOffset_BitsPerAttribute, Offset, 22, 0); }
 	void		SetBitsPerAttribute(uint32 Bits)		{ SetBits(AttributeOffset_BitsPerAttribute, Bits, 10, 22); }
@@ -235,15 +235,23 @@ struct FPackedCluster
 	void		SetDecodeInfoOffset(uint32 Offset)		{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Offset, 22, 0); }
 	void		SetNumUVs(uint32 Num)					{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Num, 3, 22); }
 	void		SetColorMode(uint32 Mode)				{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Mode, 2, 22+3); }
+
+	void		SetColorBitsR(uint32 NumBits)			{ SetBits(ColorBits_GroupIndex, NumBits, 4, 0); }
+	void		SetColorBitsG(uint32 NumBits)			{ SetBits(ColorBits_GroupIndex, NumBits, 4, 4); }
+	void		SetColorBitsB(uint32 NumBits)			{ SetBits(ColorBits_GroupIndex, NumBits, 4, 8); }
+	void		SetColorBitsA(uint32 NumBits)			{ SetBits(ColorBits_GroupIndex, NumBits, 4, 12); }
+
+	void		SetGroupIndex(uint32 GroupIndex)		{ SetBits(ColorBits_GroupIndex, GroupIndex & 0xFFFFu, 16, 16); }
 };
 
 struct FPageStreamingState
 {
 	uint32			BulkOffset;
 	uint32			BulkSize;
-	uint32			PageUncompressedSize;
+	uint32			PageSize;
 	uint32			DependenciesStart;
 	uint32			DependenciesNum;
+	uint32			Flags;
 };
 
 class FHierarchyFixup
@@ -311,6 +319,7 @@ struct FPageDiskHeader
 	uint32 NumClusters;
 	uint32 NumRawFloat4s;
 	uint32 NumTexCoords;
+	uint32 NumVertexRefs;
 	uint32 DecodeInfoOffset;
 	uint32 StripBitmaskOffset;
 	uint32 VertexRefBitmaskOffset;
@@ -319,9 +328,11 @@ struct FPageDiskHeader
 struct FClusterDiskHeader
 {
 	uint32 IndexDataOffset;
+	uint32 PageClusterMapOffset;
 	uint32 VertexRefDataOffset;
 	uint32 PositionDataOffset;
 	uint32 AttributeDataOffset;
+	uint32 NumVertexRefs;
 	uint32 NumPrevRefVerticesBeforeDwords;
 	uint32 NumPrevNewVerticesBeforeDwords;
 };
@@ -377,15 +388,6 @@ struct FResources
 	int32	RootPageIndex			= INDEX_NONE;
 	uint32	NumHierarchyNodes		= 0;
 
-#if WITH_EDITOR
-	// HACK: Need to cache this because Geometry Collection might serialize the same object more than once.
-	// BulkData has to be kept alive for the duration of serialization and you are not allowed to update it more than once.
-	bool							bHasDecompressedData = false;
-	TArray<uint8>					DecompressedRootClusterPage;
-	TArray<FPageStreamingState>		DecompressedPageStreamingStates;
-	FByteBulkData					DecompressedStreamableClusterPages;
-#endif
-	
 	ENGINE_API void InitResources();
 	ENGINE_API bool ReleaseResources();
 

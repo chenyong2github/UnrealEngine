@@ -2670,7 +2670,6 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
-			check(NaniteResources.RootClusterPage.Num() == 0 || (NaniteResources.ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0);
 
 			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
 			{
@@ -2733,7 +2732,6 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			bLODsShareStaticLighting = Owner->CanLODsShareStaticLighting();
 			FLargeMemoryWriter Ar(0, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
-			check(NaniteResources.RootClusterPage.Num() == 0 || (NaniteResources.ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0);
 
 			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
 			{

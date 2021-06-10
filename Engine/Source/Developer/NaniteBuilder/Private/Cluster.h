@@ -85,12 +85,9 @@ public:
 	uint32		GUID = 0;
 	int32		MipLevel = 0;
 
-	FIntVector	QuantizedPosStart	= { 0u, 0u, 0u };
-	uint32		QuantizedPosShift	= 0u;
-	FIntVector  QuantizedPosBits	= {};
-
-	FVector3f	MeshBoundsMin;
-	FVector3f	MeshBoundsDelta;
+	FIntVector	QuantizedPosStart		= { 0u, 0u, 0u };
+	int32		QuantizedPosPrecision	= 0u;
+	FIntVector  QuantizedPosBits		= { 0u, 0u, 0u };
 
 	float		EdgeLength = 0.0f;
 	float		LODError = 0.0f;

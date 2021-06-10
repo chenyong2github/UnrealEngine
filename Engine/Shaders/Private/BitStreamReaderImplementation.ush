@@ -1,0 +1,183 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+// Bit buffer implementation:
+// Maintains an internal bit buffer instead of issuing memory loads at every read operation.
+// Reads extract the bits from the bottom dword of the bit buffer. Whenever the bottom dword runs out of bits,
+// it is refilled by shifting the bit buffer down (v_alignbit). Only when the bit buffer also runs out of bits
+// is a memory load issued that then refills the buffer using a single load4.
+
+// If the read sizes are divergent, it is very likely that for a given read at least one thread will need to refill, so
+// in the worst case the refill has to happen at every read.
+// To mitigate this, all reads have to supply a compile-time constant upper bound to the size of the read.
+// By keeping track of these bounds, we can conservatively determine a which reads a refill can possibly be required and only
+// emit the refill code in those instances.
+
+// Everything prefixed with CompileTime should be compile-time constant and generate no code.
+// We unfortunately have no way to enforce this.
+
+
+// BitStreamReader
+// Helper 'class' for efficiently parsing bit streams of arbitrary length.
+
+struct FBitStreamReaderStateType
+{
+#if RO_ENABLED
+	ByteAddressBuffer InputBufferRO;
+#endif
+#if RW_ENABLED
+	RWByteAddressBuffer InputBufferRW;
+#endif
+#if RO_ENABLED && RW_ENABLED
+	bool	bRW;
+#endif
+	uint	AlignedByteAddress;
+	int		BitOffsetFromAddress;
+
+	uint4	BufferBits;
+	int		BufferOffset;
+
+	int		CompileTimeMinBufferBits;
+	int		CompileTimeMinDwordBits;
+	int		CompileTimeMaxRemainingBits;
+};
+
+FBitStreamReaderStateType BitStreamReader_Create_Aligned(
+#if RO_ENABLED
+	ByteAddressBuffer InputBufferRO,
+#endif
+#if RW_ENABLED
+	RWByteAddressBuffer InputBufferRW,
+#endif
+#if RO_ENABLED && RW_ENABLED
+	bool bRW,
+#endif
+	uint AlignedByteAddress, uint BitOffset, uint CompileTimeMaxRemainingBits)
+{
+	FBitStreamReaderStateType State;
+
+#if RO_ENABLED
+	State.InputBufferRO = InputBufferRO;
+#endif
+#if RW_ENABLED
+	State.InputBufferRW = InputBufferRW;
+#endif
+#if RO_ENABLED && RW_ENABLED
+	State.bRW = bRW;
+#endif
+	State.AlignedByteAddress = AlignedByteAddress;
+	State.BitOffsetFromAddress = BitOffset;
+
+	State.BufferBits = 0;
+	State.BufferOffset = 0;
+
+	State.CompileTimeMinBufferBits = 0;
+	State.CompileTimeMinDwordBits = 0;
+	State.CompileTimeMaxRemainingBits = CompileTimeMaxRemainingBits;
+
+	return State;
+}
+
+FBitStreamReaderStateType BitStreamReader_Create(
+#if RO_ENABLED
+	ByteAddressBuffer InputBufferRO,
+#endif
+#if RW_ENABLED
+	RWByteAddressBuffer InputBufferRW,
+#endif
+#if RO_ENABLED && RW_ENABLED
+	bool bRW,
+#endif
+	uint ByteAddress, uint BitOffset, uint CompileTimeMaxRemainingBits)
+{
+	uint AlignedByteAddress = ByteAddress & ~3u;
+	BitOffset += (ByteAddress & 3u) << 3;
+	return BitStreamReader_Create_Aligned(
+#if RO_ENABLED
+		InputBufferRO,
+#endif
+#if RW_ENABLED
+		InputBufferRW,
+#endif
+#if RO_ENABLED && RW_ENABLED
+		bRW,
+#endif
+		AlignedByteAddress, BitOffset, CompileTimeMaxRemainingBits);
+}
+
+uint BitStreamReader_Read(inout FBitStreamReaderStateType State, int NumBits, int CompileTimeMaxBits)
+{
+	if (CompileTimeMaxBits > State.CompileTimeMinBufferBits)
+	{
+		// BitBuffer could be out of bits: Reload.
+
+		// Add cumulated offset since last refill. No need to update at every read.
+		State.BitOffsetFromAddress += State.BufferOffset;	
+		uint Address = State.AlignedByteAddress + ((State.BitOffsetFromAddress >> 5) << 2);
+
+#if RO_ENABLED && RW_ENABLED
+		uint4 Data = State.bRW ? State.InputBufferRW.Load4(Address) : State.InputBufferRO.Load4(Address);
+#elif RO_ENABLED
+		uint4 Data = State.InputBufferRO.Load4(Address);
+#elif RW_ENABLED
+		uint4 Data = State.InputBufferRW.Load4(Address);
+#endif
+
+		// Shift bits down to align
+		State.BufferBits.x												= BitAlignU32(Data.y,	Data.x,	State.BitOffsetFromAddress); // BitOffsetFromAddress implicitly &31
+		if (State.CompileTimeMaxRemainingBits > 32) State.BufferBits.y	= BitAlignU32(Data.z,	Data.y,	State.BitOffsetFromAddress); // BitOffsetFromAddress implicitly &31
+		if (State.CompileTimeMaxRemainingBits > 64) State.BufferBits.z	= BitAlignU32(Data.w,	Data.z,	State.BitOffsetFromAddress); // BitOffsetFromAddress implicitly &31
+		if (State.CompileTimeMaxRemainingBits > 96) State.BufferBits.w	= BitAlignU32(0,		Data.w,	State.BitOffsetFromAddress); // BitOffsetFromAddress implicitly &31
+
+		State.BufferOffset = 0;
+
+		State.CompileTimeMinDwordBits	= min(32, State.CompileTimeMaxRemainingBits);
+		State.CompileTimeMinBufferBits	= min(97, State.CompileTimeMaxRemainingBits);	// Up to 31 bits wasted to alignment
+	}
+	else if (CompileTimeMaxBits > State.CompileTimeMinDwordBits)
+	{
+		// Bottom dword could be out of bits: Shift down.
+		State.BitOffsetFromAddress += State.BufferOffset;
+
+		State.BufferBits.x											= BitAlignU32(State.BufferBits.y,	State.BufferBits.x,	State.BufferOffset); // BufferOffset implicitly &31
+		if (State.CompileTimeMinBufferBits > 32) State.BufferBits.y	= BitAlignU32(State.BufferBits.z,	State.BufferBits.y,	State.BufferOffset); // BufferOffset implicitly &31
+		if (State.CompileTimeMinBufferBits > 64) State.BufferBits.z	= BitAlignU32(State.BufferBits.w,	State.BufferBits.z,	State.BufferOffset); // BufferOffset implicitly &31
+		if (State.CompileTimeMinBufferBits > 96) State.BufferBits.w	= BitAlignU32(0,					State.BufferBits.w, State.BufferOffset); // BufferOffset implicitly &31
+
+		State.BufferOffset = 0;
+
+		State.CompileTimeMinDwordBits = min(32, State.CompileTimeMaxRemainingBits);
+	}
+
+	const uint Result = BitFieldExtractU32(State.BufferBits.x, NumBits, State.BufferOffset); // BufferOffset implicitly &31
+	
+	State.BufferOffset += NumBits;
+	State.CompileTimeMinBufferBits    -= CompileTimeMaxBits;
+	State.CompileTimeMinDwordBits     -= CompileTimeMaxBits;
+	State.CompileTimeMaxRemainingBits -= CompileTimeMaxBits;
+
+	return Result;
+}
+
+uint2 BitStreamReader_Read2(inout FBitStreamReaderStateType State, int2 NumBits, int2 CompileTimeMaxBits)
+{
+	uint ResultX = BitStreamReader_Read(State, NumBits.x, CompileTimeMaxBits.x);
+	uint ResultY = BitStreamReader_Read(State, NumBits.y, CompileTimeMaxBits.y);
+	return uint2(ResultX, ResultY);
+}
+
+uint3 BitStreamReader_Read3(inout FBitStreamReaderStateType State, int3 NumBits, int3 CompileTimeMaxBits)
+{
+	uint ResultX = BitStreamReader_Read(State, NumBits.x, CompileTimeMaxBits.x);
+	uint ResultY = BitStreamReader_Read(State, NumBits.y, CompileTimeMaxBits.y);
+	uint ResultZ = BitStreamReader_Read(State, NumBits.z, CompileTimeMaxBits.z);
+	return uint3(ResultX, ResultY, ResultZ);
+}
+
+uint4 BitStreamReader_Read4(inout FBitStreamReaderStateType State, int4 NumBits, int4 CompileTimeMaxBits)
+{
+	uint ResultX = BitStreamReader_Read(State, NumBits.x, CompileTimeMaxBits.x);
+	uint ResultY = BitStreamReader_Read(State, NumBits.y, CompileTimeMaxBits.y);
+	uint ResultZ = BitStreamReader_Read(State, NumBits.z, CompileTimeMaxBits.z);
+	uint ResultW = BitStreamReader_Read(State, NumBits.w, CompileTimeMaxBits.w);
+	return uint4(ResultX, ResultY, ResultZ, ResultW);
+}

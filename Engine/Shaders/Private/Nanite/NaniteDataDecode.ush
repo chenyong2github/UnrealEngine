@@ -11,13 +11,14 @@
 #define USE_UNCOMPRESSED_VERTEX_DATA			0														// must match define in NaniteBuilder.h
 
 #define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteResources.h
-#define MAX_CLUSTER_TRIANGLES					128
-#define MAX_CLUSTER_VERTICES					256
+#define MAX_CLUSTER_TRIANGLES					128														// must match define in NaniteResources.h
+#define MAX_CLUSTER_VERTICES_BITS				8														// must match define in NaniteResources.h
+#define MAX_CLUSTER_VERTICES					(1 << MAX_CLUSTER_VERTICES_BITS)						// must match define in NaniteResources.h
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteResources.h
 
 #define CLUSTER_PAGE_GPU_SIZE_BITS				17														// must match define in NaniteResources.h
-#define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_SIZE_BITS )							// must match define in NaniteResources.h
+#define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_GPU_SIZE_BITS )						// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE_BITS				10														// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteResources.h
@@ -50,9 +51,12 @@
 
 #define MAX_TRANSCODE_GROUPS_PER_PAGE			128														// must match define in NaniteResources.h
 
-#define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteResources.h
+#define NUM_PACKED_CLUSTER_FLOAT4S				6														// must match define in NaniteResources.h
 
 #define MAX_POSITION_QUANTIZATION_BITS			21		// (21*3 = 63) < 64								// must match define in NaniteResources.h
+#define POSITION_PRECISION_BITS					 5														// must match define in NaniteResources.h
+#define MIN_POSITION_PRECISION					-8														// must match define in NaniteResources.h
+#define MAX_POSITION_PRECISION					 23														// must match define in NaniteResources.h
 
 #define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteResources.h
 #define CULLING_FLAG_TEST_LOD					0x1
@@ -161,17 +165,15 @@ struct FCluster
 {
 	uint	PageBaseAddress;
 
-	int3	QuantizedPosStart;
 	uint	NumVerts;
 	uint	PositionOffset;
 
-	float3  MeshBoundsMin;
 	uint	NumTris;
 	uint	IndexOffset;
 
-	float3	MeshBoundsDelta;
+	int3	PosStart;
 	uint	BitsPerIndex;
-	uint	QuantizedPosShift;
+	int		PosPrecision;
 	uint3	PosBits;
 
 	float4	LODBounds;
@@ -419,61 +421,43 @@ FInstanceSceneData GetInstanceData( uint InstanceId )
 	return GetInstanceData( InstanceId, SOAStrides.x );
 }
 
-FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
+FCluster UnpackCluster(uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S])
 {
-	uint ClusterSOAStride = ( NumPageClusters << 4 );
-
-	uint ClusterBaseAddress = SrcBaseOffset + ( ClusterIndex << 4 );
-	
-	uint4 ClusterData[8];
-	ClusterData[0] = InputBuffer.Load4( ClusterBaseAddress + 0 * ClusterSOAStride );
-	ClusterData[1] = InputBuffer.Load4( ClusterBaseAddress + 1 * ClusterSOAStride );
-	ClusterData[2] = InputBuffer.Load4( ClusterBaseAddress + 2 * ClusterSOAStride );
-	ClusterData[3] = InputBuffer.Load4( ClusterBaseAddress + 3 * ClusterSOAStride );
-	ClusterData[4] = InputBuffer.Load4( ClusterBaseAddress + 4 * ClusterSOAStride );
-	ClusterData[5] = InputBuffer.Load4( ClusterBaseAddress + 5 * ClusterSOAStride );
-	ClusterData[6] = InputBuffer.Load4( ClusterBaseAddress + 6 * ClusterSOAStride );
-	ClusterData[7] = InputBuffer.Load4( ClusterBaseAddress + 7 * ClusterSOAStride );
-
 	FCluster Cluster;
 	Cluster.PageBaseAddress		= 0;
 
-	Cluster.QuantizedPosStart	= ClusterData[0].xyz;
-	Cluster.NumVerts			= BitFieldExtractU32(ClusterData[0].w, 9, 0);
-	Cluster.PositionOffset		= BitFieldExtractU32(ClusterData[0].w, 23, 9);
+	Cluster.NumVerts			= BitFieldExtractU32(ClusterData[0].x, 9, 0);
+	Cluster.PositionOffset		= BitFieldExtractU32(ClusterData[0].x, 23, 9);
+	Cluster.NumTris				= BitFieldExtractU32(ClusterData[0].y, 8, 0);
+	Cluster.IndexOffset			= BitFieldExtractU32(ClusterData[0].y, 24, 8);
 
-	Cluster.MeshBoundsMin		= asfloat( ClusterData[1].xyz );
-	Cluster.NumTris				= BitFieldExtractU32(ClusterData[1].w, 8, 0);
-	Cluster.IndexOffset			= BitFieldExtractU32(ClusterData[1].w, 24, 8);
+	Cluster.ColorMin			= ClusterData[0].z;
+	Cluster.ColorBits			= BitFieldExtractU32(ClusterData[0].w, 16, 0);
+	Cluster.GroupIndex			= BitFieldExtractU32(ClusterData[0].w, 16, 16);			// Debug only
 
-	Cluster.MeshBoundsDelta		= asfloat( ClusterData[2].xyz );
-	Cluster.BitsPerIndex		= BitFieldExtractU32(ClusterData[2].w, 4, 0);
-	Cluster.QuantizedPosShift	= BitFieldExtractU32(ClusterData[2].w, 6, 4);
+	Cluster.PosStart			= ClusterData[1].xyz;
+	Cluster.BitsPerIndex		= BitFieldExtractU32(ClusterData[1].w, 4, 0);
+	Cluster.PosPrecision		= (int)BitFieldExtractU32(ClusterData[1].w, 5, 4) + MIN_POSITION_PRECISION;
+	Cluster.PosBits.x			= BitFieldExtractU32(ClusterData[1].w, 5, 9);
+	Cluster.PosBits.y			= BitFieldExtractU32(ClusterData[1].w, 5, 14);
+	Cluster.PosBits.z			= BitFieldExtractU32(ClusterData[1].w, 5, 19);
 
-	Cluster.PosBits.x			= BitFieldExtractU32(ClusterData[2].w, 5, 10);
-	Cluster.PosBits.y			= BitFieldExtractU32(ClusterData[2].w, 5, 15);
-	Cluster.PosBits.z			= BitFieldExtractU32(ClusterData[2].w, 5, 20);
+	Cluster.LODBounds			= asfloat(ClusterData[2]);
 
-	Cluster.LODBounds			= asfloat(ClusterData[3]);
+	Cluster.BoxBoundsCenter		= asfloat(ClusterData[3].xyz);
+	Cluster.LODError			= f16tof32(ClusterData[3].w);
+	Cluster.EdgeLength			= f16tof32(ClusterData[3].w >> 16);
 
-	Cluster.BoxBoundsCenter		= asfloat(ClusterData[4].xyz);
-	Cluster.LODError			= f16tof32(ClusterData[4].w);
-	Cluster.EdgeLength			= f16tof32(ClusterData[4].w >> 16);
+	Cluster.BoxBoundsExtent		= asfloat(ClusterData[4].xyz);
+	Cluster.Flags				= ClusterData[4].w;
 
-	Cluster.BoxBoundsExtent		= asfloat(ClusterData[5].xyz);
-	Cluster.Flags				= ClusterData[5].w;
-
-	Cluster.AttributeOffset		= BitFieldExtractU32(ClusterData[6].x, 22,  0);
-	Cluster.BitsPerAttribute	= BitFieldExtractU32(ClusterData[6].x, 10, 22);
-	Cluster.DecodeInfoOffset	= BitFieldExtractU32(ClusterData[6].y, 22,  0);
-	Cluster.NumUVs				= BitFieldExtractU32(ClusterData[6].y,  3, 22);
-	Cluster.ColorMode			= BitFieldExtractU32(ClusterData[6].y,  2, 22+3);
-	Cluster.UV_Prec				= ClusterData[6].z;
-	const uint MaterialEncoding = ClusterData[6].w;
-
-	Cluster.ColorMin			= ClusterData[7].x;
-	Cluster.ColorBits			= ClusterData[7].y;
-	Cluster.GroupIndex			= ClusterData[7].z;			// Debug only
+	Cluster.AttributeOffset		= BitFieldExtractU32(ClusterData[5].x, 22,  0);
+	Cluster.BitsPerAttribute	= BitFieldExtractU32(ClusterData[5].x, 10, 22);
+	Cluster.DecodeInfoOffset	= BitFieldExtractU32(ClusterData[5].y, 22,  0);
+	Cluster.NumUVs				= BitFieldExtractU32(ClusterData[5].y,  3, 22);
+	Cluster.ColorMode			= BitFieldExtractU32(ClusterData[5].y,  2, 22+3);
+	Cluster.UV_Prec				= ClusterData[5].z;
+	const uint MaterialEncoding = ClusterData[5].w;
 
 	// Material Table Range Encoding (32 bits)
 	// uint TriStart        :  8;  // max 128 triangles
@@ -520,6 +504,35 @@ FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Clus
 	return Cluster;
 }
 
+FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
+{
+	const uint ClusterSOAStride = ( NumPageClusters << 4 );
+	const uint ClusterBaseAddress = SrcBaseOffset + ( ClusterIndex << 4 );
+	
+	uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S];
+	UNROLL
+	for(int i = 0; i < NUM_PACKED_CLUSTER_FLOAT4S; i++)
+	{
+		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride );
+	}
+	
+	return UnpackCluster(ClusterData);
+}
+
+FCluster GetCluster(RWByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
+{
+	const uint ClusterSOAStride = (NumPageClusters << 4);
+	const uint ClusterBaseAddress = SrcBaseOffset + (ClusterIndex << 4);
+
+	uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S];
+	UNROLL
+	for (int i = 0; i < NUM_PACKED_CLUSTER_FLOAT4S; i++)
+	{
+		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride );
+	}
+	return UnpackCluster(ClusterData);
+}
+
 FCluster GetCluster(uint PageIndex, uint ClusterIndex)
 {
 	uint NumClusters = ClusterPageHeaders.Load(PageIndex * 4);
@@ -535,7 +548,7 @@ uint3 ReadTriangleIndices(FCluster Cluster, uint TriIndex)
 {
 	const uint BitsPerTriangle = Cluster.BitsPerIndex + 2 * 5;
 
-	FBitStreamReaderState BitStreamReader = BitStreamReader_Create_Aligned(ClusterPageData, Cluster.PageBaseAddress + Cluster.IndexOffset, TriIndex * BitsPerTriangle, 8 + 2*5);
+	FBitStreamReaderStateRO BitStreamReader = BitStreamReader_Create_Aligned(ClusterPageData, Cluster.PageBaseAddress + Cluster.IndexOffset, TriIndex * BitsPerTriangle, 8 + 2*5);
 
 	uint BaseIndex = BitStreamReader_Read(BitStreamReader, Cluster.BitsPerIndex, 8);
 	uint Delta0 = BitStreamReader_Read(BitStreamReader, 5, 5);
@@ -582,7 +595,8 @@ float3 UnpackPosition(uint2 Packed, FCluster Cluster)
 	Packed.x = BitAlignU32(Packed.y, Packed.x, Cluster.PosBits.y);
 	Pos.z = BitFieldExtractU32(Packed.x, Cluster.PosBits.z, 0);
 
-	return (Pos + Cluster.QuantizedPosStart) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;	// Get rid of MeshBoundsMin/MeshBoundsDelta once we remove of the old quantization.
+	const float Scale = asfloat(asint(1.0f) - (Cluster.PosPrecision << 23));
+	return (Pos + Cluster.PosStart) * Scale;
 }
 
 uint2 GetPackedPosition(uint VertIndex, FCluster Cluster)

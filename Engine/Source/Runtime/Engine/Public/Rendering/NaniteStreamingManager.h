@@ -194,7 +194,7 @@ private:
 #if !WITH_EDITOR
 	TArray< uint8 >							PendingPageStagingMemory;
 #endif
-	TArray< uint8 >							PendingPageStagingMemoryLZ;
+	TArray< uint32 >						GPUPageDependencies;
 
 	FRequestsHashTable*						RequestsHashTable = nullptr;
 	FStreamingPageUploader*					PageUploader = nullptr;

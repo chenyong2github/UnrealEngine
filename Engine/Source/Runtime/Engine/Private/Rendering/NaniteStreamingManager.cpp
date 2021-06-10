@@ -120,7 +120,10 @@ class FTranscodePageToGPU_CS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FTranscodePageToGPU_CS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_SRV(StructuredBuffer<FPageInstallInfo>, InstallInfoBuffer)
+		SHADER_PARAMETER(uint32,								StartPageIndex)
+		SHADER_PARAMETER_SRV(StructuredBuffer<FPageInstallInfo>,InstallInfoBuffer)
+		SHADER_PARAMETER_SRV(StructuredBuffer<uint>,			PageDependenciesBuffer)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer,					ClusterPageHeaders)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer,					SrcPageBuffer)
 		SHADER_PARAMETER_UAV(RWByteAddressBuffer,				DstPageBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -248,36 +251,31 @@ struct FPageInstallInfo
 {
 	uint32 SrcPageOffset;
 	uint32 DstPageOffset;
+	uint32 PageDependenciesStart;
+	uint32 PageDependenciesNum;
 };
 
 class FStreamingPageUploader
 {
+	struct FAddedPageInfo
+	{
+		FPageInstallInfo	InstallInfo;
+		FPageKey			GPUPageKey;
+		uint32				InstallPassIndex;
+	};
 public:
 	FStreamingPageUploader()
 	{
 		ResetState();
 	}
 
-	void Init(uint32 NumPages, uint32 NumPageBytes)
+	void Init(uint32 InMaxPages, uint32 InMaxPageBytes)
 	{
 		ResetState();
-		MaxPages = NumPages;
-		MaxPageBytes = NumPageBytes;
+		MaxPages = InMaxPages;
+		MaxPageBytes = InMaxPageBytes;
 
-
-		uint32 InstallInfoAllocationSize	= FMath::RoundUpToPowerOfTwo(NumPages * sizeof(FPageInstallInfo));
-		uint32 PageAllocationSize			= FMath::RoundUpToPowerOfTwo(NumPageBytes);
-
-		if (InstallInfoAllocationSize > InstallInfoUploadBuffer.NumBytes)
-		{
-			InstallInfoUploadBuffer.Release();
-			InstallInfoUploadBuffer.NumBytes = InstallInfoAllocationSize;
-
-			FRHIResourceCreateInfo CreateInfo(TEXT("Nanite.InstallInfoUploadBuffer"));
-			InstallInfoUploadBuffer.Buffer = RHICreateStructuredBuffer(sizeof(FPageInstallInfo), InstallInfoUploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile, CreateInfo);
-			InstallInfoUploadBuffer.SRV = RHICreateShaderResourceView(InstallInfoUploadBuffer.Buffer);
-		}
-
+		const uint32 PageAllocationSize	= FMath::RoundUpToPowerOfTwo(MaxPageBytes);
 		if (PageAllocationSize > PageUploadBuffer.NumBytes)
 		{
 			PageUploadBuffer.Release();
@@ -288,26 +286,32 @@ public:
 			PageUploadBuffer.SRV = RHICreateShaderResourceView(PageUploadBuffer.Buffer);
 		}
 		
-		InstallInfoPtr = (FPageInstallInfo*)RHILockBuffer(InstallInfoUploadBuffer.Buffer, 0, InstallInfoAllocationSize, RLM_WriteOnly);
 		PageDataPtr = (uint8*)RHILockBuffer(PageUploadBuffer.Buffer, 0, PageAllocationSize, RLM_WriteOnly);
 	}
 
-	uint8* Add_GetRef(uint32 PageSize, uint32 DstPageOffset)
+	uint8* Add_GetRef(uint32 PageSize, uint32 DstPageOffset, const FPageKey& GPUPageKey, const TArray<uint32>& PageDependencies)
 	{
 		check(IsAligned(PageSize, 4));
 		check(IsAligned(DstPageOffset, 4));
 
-		check(NextPageIndex < MaxPages);
-		check(NextPageOffset + PageSize <= MaxPageBytes);
+		const uint32 PageIndex = AddedPageInfos.Num();
 
-		FPageInstallInfo& Info = InstallInfoPtr[NextPageIndex];
-		Info.SrcPageOffset = NextPageOffset;
-		Info.DstPageOffset = DstPageOffset;
+		check(PageIndex < MaxPages);
+		check(NextPageByteOffset + PageSize <= MaxPageBytes);
 
-		uint8* ResultPtr = PageDataPtr + NextPageOffset;
-		NextPageOffset += PageSize;
-		NextPageIndex++;
-
+		FAddedPageInfo& Info = AddedPageInfos.AddDefaulted_GetRef();
+		Info.GPUPageKey = GPUPageKey;
+		Info.InstallInfo.SrcPageOffset = NextPageByteOffset;
+		Info.InstallInfo.DstPageOffset = DstPageOffset;
+		Info.InstallInfo.PageDependenciesStart = FlattenedPageDependencies.Num();
+		Info.InstallInfo.PageDependenciesNum = PageDependencies.Num();
+		Info.InstallPassIndex = 0xFFFFFFFFu;
+		FlattenedPageDependencies.Append(PageDependencies);
+		GPUPageKeyToAddedIndex.Add(GPUPageKey, PageIndex);
+		
+		uint8* ResultPtr = PageDataPtr + NextPageByteOffset;
+		NextPageByteOffset += PageSize;
+		
 		return ResultPtr;
 	}
 
@@ -315,46 +319,137 @@ public:
 	{
 		InstallInfoUploadBuffer.Release();
 		PageUploadBuffer.Release();
+		PageDependenciesBuffer.Release();
 		ResetState();
 	}
 
-	void ResourceUploadTo(FRHICommandList& RHICmdList, FRWByteAddressBuffer& DstBuffer)
+	void ResourceUploadTo(FRHICommandList& RHICmdList, FRWByteAddressBuffer& DstBuffer, FRWByteAddressBuffer& ClusterPageHeaders)
 	{
-		RHIUnlockBuffer(InstallInfoUploadBuffer.Buffer);
 		RHIUnlockBuffer(PageUploadBuffer.Buffer);
 
-		if (NextPageIndex > 0)
+		const uint32 NumPages = AddedPageInfos.Num();
+		uint32 InstallInfoAllocationSize = FMath::RoundUpToPowerOfTwo(NumPages * sizeof(FPageInstallInfo));
+		if (InstallInfoAllocationSize > InstallInfoUploadBuffer.NumBytes)
+		{
+			InstallInfoUploadBuffer.Release();
+			InstallInfoUploadBuffer.NumBytes = InstallInfoAllocationSize;
+
+			FRHIResourceCreateInfo CreateInfo(TEXT("Nanite.InstallInfoUploadBuffer"));
+			InstallInfoUploadBuffer.Buffer = RHICreateStructuredBuffer(sizeof(FPageInstallInfo), InstallInfoUploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+			InstallInfoUploadBuffer.SRV = RHICreateShaderResourceView(InstallInfoUploadBuffer.Buffer);
+		}
+		FPageInstallInfo* InstallInfoPtr = (FPageInstallInfo*)RHILockBuffer(InstallInfoUploadBuffer.Buffer, 0, InstallInfoAllocationSize, RLM_WriteOnly);
+	
+		uint32 PageDependenciesAllocationSize = FMath::RoundUpToPowerOfTwo(FMath::Max(FlattenedPageDependencies.Num(), 4096) * sizeof(uint32));
+		if (PageDependenciesAllocationSize > PageDependenciesBuffer.NumBytes)
+		{
+			PageDependenciesBuffer.Release();
+			PageDependenciesBuffer.NumBytes = PageDependenciesAllocationSize;
+
+			FRHIResourceCreateInfo CreateInfo(TEXT("Nanite.PageDependenciesBuffer"));
+			PageDependenciesBuffer.Buffer = RHICreateStructuredBuffer(sizeof(uint32), PageDependenciesBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+			PageDependenciesBuffer.SRV = RHICreateShaderResourceView(PageDependenciesBuffer.Buffer);
+		}
+
+		uint32* PageDependenciesPtr = (uint32*)RHILockBuffer(PageDependenciesBuffer.Buffer, 0, PageDependenciesAllocationSize, RLM_WriteOnly);
+		FMemory::Memcpy(PageDependenciesPtr, FlattenedPageDependencies.GetData(), FlattenedPageDependencies.Num() * sizeof(uint32));
+		RHIUnlockBuffer(PageDependenciesBuffer.Buffer);
+
+		// Split page installs into passes.
+		// Every pass adds the pages that no longer have any unresolved dependency.
+		// Essentially a naive multi-pass topology sort, but with a low number of passes in practice.
+		check(NumInstalledPagesPerPass.Num() == 0);
+		uint32 NumRemainingPages = NumPages;
+		while (NumRemainingPages > 0)
+		{
+			const uint32 CurrentPassIndex = NumInstalledPagesPerPass.Num();
+			uint32 NumPassPages = 0;
+			for(FAddedPageInfo& PageInfo : AddedPageInfos)
+			{
+				if (PageInfo.InstallPassIndex < CurrentPassIndex)
+					continue;	// Page already installed in an earlier pass
+
+				bool bMissingDependency = false;
+				for (uint32 i = 0; i < PageInfo.InstallInfo.PageDependenciesNum; i++)
+				{
+					const uint32 GPUPageIndex = FlattenedPageDependencies[PageInfo.InstallInfo.PageDependenciesStart + i];
+					const FPageKey DependencyGPUPageKey = { PageInfo.GPUPageKey.RuntimeResourceID, GPUPageIndex };
+					const uint32* DependencyAddedIndexPtr = GPUPageKeyToAddedIndex.Find(DependencyGPUPageKey);
+					
+					// Check if a dependency has not yet been installed.
+					// We only need to resolve dependencies in the current batch. Batches are already ordered.
+					if (DependencyAddedIndexPtr && AddedPageInfos[*DependencyAddedIndexPtr].InstallPassIndex >= CurrentPassIndex)
+					{
+						bMissingDependency = true;
+						break;
+					}
+				}
+
+				if (!bMissingDependency)
+				{
+					*InstallInfoPtr++ = PageInfo.InstallInfo;
+					PageInfo.InstallPassIndex = CurrentPassIndex;
+					NumPassPages++;
+				}
+			}
+
+			NumInstalledPagesPerPass.Add(NumPassPages);
+			NumRemainingPages -= NumPassPages;
+		}
+
+		RHIUnlockBuffer(InstallInfoUploadBuffer.Buffer);
+
+		// Dispatch passes
+		const uint32 NumPasses = NumInstalledPagesPerPass.Num();
+		uint32 StartPageIndex = 0;
+		for (uint32 PassIndex = 0; PassIndex < NumPasses; PassIndex++)
 		{
 			FTranscodePageToGPU_CS::FParameters Parameters;
-			Parameters.InstallInfoBuffer	= InstallInfoUploadBuffer.SRV;
-			Parameters.SrcPageBuffer		= PageUploadBuffer.SRV;
-			Parameters.DstPageBuffer		= DstBuffer.UAV;
+			Parameters.InstallInfoBuffer = InstallInfoUploadBuffer.SRV;
+			Parameters.PageDependenciesBuffer = PageDependenciesBuffer.SRV;
+			Parameters.ClusterPageHeaders = ClusterPageHeaders.SRV;
+			Parameters.SrcPageBuffer = PageUploadBuffer.SRV;
+			Parameters.DstPageBuffer = DstBuffer.UAV;
+			Parameters.StartPageIndex = StartPageIndex;
+			
+			const uint32 NumPagesInPass = NumInstalledPagesPerPass[PassIndex];
+
+			if (PassIndex != 0)
+			{
+				RHICmdList.Transition(FRHITransitionInfo(DstBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+			}
 
 			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FTranscodePageToGPU_CS>();
-			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(MAX_TRANSCODE_GROUPS_PER_PAGE, NextPageIndex, 1));
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(MAX_TRANSCODE_GROUPS_PER_PAGE, NumPagesInPass, 1));
+			StartPageIndex += NumPagesInPass;
 		}
 
 		ResetState();
 	}
 private:
-	FByteAddressBuffer	InstallInfoUploadBuffer;
-	FByteAddressBuffer	PageUploadBuffer;
-	FPageInstallInfo*	InstallInfoPtr;
-	uint8*				PageDataPtr;
+	FByteAddressBuffer		InstallInfoUploadBuffer;
+	FByteAddressBuffer		PageUploadBuffer;
+	FByteAddressBuffer		PageDependenciesBuffer;
+	uint8*					PageDataPtr;
 
-	uint32				MaxPages;
-	uint32				MaxPageBytes;
-	uint32				NextPageIndex;
-	uint32				NextPageOffset;
+	uint32					MaxPages;
+	uint32					MaxPageBytes;
+	uint32					NextPageByteOffset;
+	TArray<FAddedPageInfo>	AddedPageInfos;
+	TMap<FPageKey, uint32>	GPUPageKeyToAddedIndex;
+	TArray<uint32>			FlattenedPageDependencies;
+	TArray<uint32>			NumInstalledPagesPerPass;
 	
 	void ResetState()
 	{
-		InstallInfoPtr = nullptr;
 		PageDataPtr = nullptr;
 		MaxPages = 0;
 		MaxPageBytes = 0;
-		NextPageIndex = 0;
-		NextPageOffset = 0;
+		NextPageByteOffset = 0;
+		AddedPageInfos.Reset();
+		GPUPageKeyToAddedIndex.Reset();
+		FlattenedPageDependencies.Reset();
+		NumInstalledPagesPerPass.Reset();
 	}
 };
 
@@ -431,11 +526,6 @@ void FStreamingManager::InitRHI()
 		PendingPages[i].MemoryPtr = PendingPageStagingMemory.GetData() + i * CLUSTER_PAGE_DISK_SIZE;
 	}
 #endif
-
-	if (!FPlatformProperties::SupportsHardwareLZDecompression())
-	{
-		PendingPageStagingMemoryLZ.SetNumUninitialized( MaxPageInstallsPerUpdate * CLUSTER_PAGE_DISK_SIZE );
-	}
 
 	RequestsHashTable	= new FRequestsHashTable();
 	PageUploader		= new FStreamingPageUploader();
@@ -818,20 +908,6 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 	}
 }
 
-static void DecompressPage(uint8* Dst, uint8* Tmp, uint32 DstSize, const uint8* Src, uint32 SrcSize, bool bLZCompressed)
-{
-	check(bLZCompressed == !FPlatformProperties::SupportsHardwareLZDecompression());
-	if (bLZCompressed)
-	{
-		verify(FCompression::UncompressMemory(NAME_LZ4, Tmp, DstSize, Src, SrcSize));	// Decompress to cached memory (Tmp) to avoid decompressing directly to WC memory on some platforms.
-		FMemory::Memcpy(Dst, Tmp, DstSize);												// TODO: Figure out how to avoid this copy on platforms that dont require it.
-	}
-	else
-	{
-		FMemory::Memcpy(Dst, Src, SrcSize);
-	}
-}
-
 void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 {
 	LLM_SCOPE_BYTAG(Nanite);
@@ -846,12 +922,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 	{
 		FPendingPage* PendingPage = nullptr;
 		uint8* Dst = nullptr;
-		uint32 DstSize = 0;
-		uint8* Tmp = nullptr;
-		
 		const uint8* Src = nullptr;
 		uint32 SrcSize = 0;
-		bool bLZCompressed;
 	};
 
 #if WITH_EDITOR
@@ -952,12 +1024,12 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(InstallReadyPages);
 			uint32 NumInstalledPages = 0;
-			for (uint32 i = 0; i < NumReadyPages; i++)
+			for (uint32 TaskIndex = 0; TaskIndex < NumReadyPages; TaskIndex++)
 			{
-				uint32 LastPendingPageIndex = (StartPendingPageIndex + i) % MaxPendingPages;
+				uint32 LastPendingPageIndex = (StartPendingPageIndex + TaskIndex) % MaxPendingPages;
 				FPendingPage& PendingPage = PendingPages[LastPendingPageIndex];
 
-				FUploadTask& UploadTask = UploadTasks[i];
+				FUploadTask& UploadTask = UploadTasks[TaskIndex];
 				UploadTask.PendingPage = &PendingPage;
 
 				uint32* PagePtr = GPUPageToLastPendingPageIndex.Find(PendingPages[LastPendingPageIndex].GPUPageIndex);
@@ -1000,20 +1072,38 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				FFixupChunk* FixupChunk = (FFixupChunk*)FMemory::Realloc(StreamingPageFixupChunks[PendingPage.GPUPageIndex], FixupChunkSize, sizeof(uint16));
 				StreamingPageFixupChunks[PendingPage.GPUPageIndex] = FixupChunk;
 				FMemory::Memcpy(FixupChunk, SrcPtr, FixupChunkSize);
-				UploadTask.Src = SrcPtr + FixupChunkSize;
 
+				// Build list of GPU page dependencies
+				GPUPageDependencies.Reset();
+				if(PageStreamingState.Flags & NANITE_PAGE_FLAG_RELATIVE_ENCODING)
+				{
+					for (uint32 i = 0; i < PageStreamingState.DependenciesNum; i++)
+					{
+						const uint32 DependencyPageIndex = (*Resources)->PageDependencies[PageStreamingState.DependenciesStart + i];
+						if (IsRootPage(DependencyPageIndex))
+						{
+							GPUPageDependencies.Add(MaxStreamingPages + (*Resources)->RootPageIndex);
+						}
+						else
+						{
+							FPageKey DependencyKey = { PendingPage.InstallKey.RuntimeResourceID, DependencyPageIndex };
+							FStreamingPageInfo** DependencyPagePtr = CommittedStreamingPageMap.Find(DependencyKey);
+							check(DependencyPagePtr != nullptr);
+							GPUPageDependencies.Add((*DependencyPagePtr)->GPUPageIndex);
+						}
+					}
+				}
+			
 				uint32 PageOffset = PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
 				uint32 DataSize = PageStreamingState.BulkSize - FixupChunkSize;
 				check(NumInstalledPages < MaxPageInstallsPerUpdate);
 
-				const bool bLZCompressed = ((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0;
+				const FPageKey GPUPageKey = FPageKey{ PendingPage.InstallKey.RuntimeResourceID, PendingPage.GPUPageIndex };
 
-				UploadTask.SrcSize = DataSize;
 				UploadTask.PendingPage = &PendingPage;
-				UploadTask.Dst = PageUploader->Add_GetRef(PageStreamingState.PageUncompressedSize, PageOffset);
-				UploadTask.DstSize = PageStreamingState.PageUncompressedSize;
-				UploadTask.Tmp = PendingPageStagingMemoryLZ.GetData() + NumInstalledPages * CLUSTER_PAGE_DISK_SIZE;
-				UploadTask.bLZCompressed = bLZCompressed;
+				UploadTask.Dst = PageUploader->Add_GetRef(DataSize, PageOffset, GPUPageKey, GPUPageDependencies);
+				UploadTask.Src = SrcPtr + FixupChunkSize;
+				UploadTask.SrcSize = DataSize;
 				NumInstalledPages++;
 
 				// Update page headers
@@ -1038,7 +1128,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 		
 		if(Task.Dst)	// Dst can be 0 if we skipped install in InstallReadyPages.
 		{
-			DecompressPage(Task.Dst, Task.Tmp, Task.DstSize, Task.Src, Task.SrcSize, Task.bLZCompressed);
+			FMemory::Memcpy(Task.Dst, Task.Src, Task.SrcSize);
 		}
 
 #if !WITH_EDITOR
@@ -1134,13 +1224,15 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	RootPages.UploadBuffer.Init( RootPages.TotalUpload, AtlasBytes, false, TEXT("Nanite.StreamingManager.RootPagesUpload"));
 	
 	// Calculate total requires size
-	uint32 TotalUncompressedSize = 0;
+	uint32 TotalPageSize = 0;
 	for (uint32 i = 0; i < NumPendingAdds; i++)
 	{
-		TotalUncompressedSize += PendingAdds[i]->PageStreamingStates[0].PageUncompressedSize;
+		TotalPageSize += PendingAdds[i]->PageStreamingStates[0].PageSize;
 	}
 
-	PageUploader->Init(NumPendingAdds, TotalUncompressedSize);
+	PageUploader->Init(NumPendingAdds, TotalPageSize);
+
+	GPUPageDependencies.Reset();
 
 	for( FResources* Resources : PendingAdds )
 	{
@@ -1150,14 +1242,13 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		uint32 FixupChunkSize = FixupChunk.GetSize();
 		uint32 NumClusters = FixupChunk.Header.NumClusters;
 
+		const FPageKey GPUPageKey = { Resources->RuntimeResourceID, GPUPageIndex };
+
 		const FPageStreamingState& PageStreamingState = Resources->PageStreamingStates[0];
 		uint32 PageDiskSize = PageStreamingState.BulkSize - FixupChunkSize;
 		uint32 PageOffset = GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
-		uint8* Dst = PageUploader->Add_GetRef(PageStreamingState.PageUncompressedSize, PageOffset);
-		
-		const bool bLZCompressed = (Resources->ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0;
-		DecompressPage(Dst, PendingPageStagingMemoryLZ.GetData(), PageStreamingState.PageUncompressedSize, Ptr + FixupChunkSize, PageDiskSize, bLZCompressed);
-
+		uint8* Dst = PageUploader->Add_GetRef(PageDiskSize, PageOffset, GPUPageKey, GPUPageDependencies);
+		FMemory::Memcpy(Dst, Ptr + FixupChunkSize, PageDiskSize);
 
 		ClusterPageHeaders.UploadBuffer.Add(GPUPageIndex, &NumClusters);
 
@@ -1213,11 +1304,16 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		RootPages.TotalUpload = 0;
 		RootPages.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, RootPages.DataBuffer, false);
 
-		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, false);
-		PageUploader->ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageData.DataBuffer);
+		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, false);	// Must be updated before Page data is uploaded. Get rid of ClusterPageHeader?
+		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		PageUploader->ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageData.DataBuffer, ClusterPageHeaders.DataBuffer);
 
 		// Transition root pages already since this one is not done while processing bBuffersTransitionedToWrite flag
-		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(RootPages.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		GraphBuilder.RHICmdList.Transition(
+			{
+				FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::SRVMask, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(RootPages.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+			});
 	}
 
 	PendingAdds.Reset();
@@ -1756,13 +1852,20 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 				});
 			}
 
-			PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
-
 			ClusterPageHeaders.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageHeaders.DataBuffer, false);
+			RHICmdList.Transition(FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+
+			PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, ClusterPageHeaders.DataBuffer);
 			Hierarchy.UploadBuffer.ResourceUploadTo(RHICmdList, Hierarchy.DataBuffer, false);
 
 			// NOTE: We need an additional barrier here to make sure pages are finished uploading before fixups can be applied.
-			RHICmdList.Transition(FRHITransitionInfo(ClusterPageData.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+
+			RHICmdList.Transition(
+				{
+					FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::SRVCompute, ERHIAccess::UAVCompute),
+				});
+
 			ClusterFixupUploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
 
 			NumPendingPages -= AsyncState.NumReadyPages;
