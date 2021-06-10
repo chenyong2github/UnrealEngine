@@ -305,6 +305,7 @@ void SCrashReportClient::Construct(const FArguments& InArgs, const TSharedRef<FC
 					.Text(LOCTEXT("SendAndRestartEditor", "Send and Restart"))
 					.OnClicked(Client, &FCrashReportClient::SubmitAndRestart)
 					.IsEnabled(this, &SCrashReportClient::IsSendEnabled)
+					.Visibility( FCrashReportCoreConfig::Get().GetHideRestartOption() ? EVisibility::Collapsed : EVisibility::Visible )
 				]			
 			]
 		]

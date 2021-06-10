@@ -94,6 +94,11 @@ struct FCrashReportCoreConfig
 		return bHideLogFilesOption;
 	}
 
+	const bool& GetHideRestartOption() const
+	{
+		return bHideRestartOption;
+	}
+
 	const bool& IsAllowedToCloseWithoutSending() const
 	{
 		return bIsAllowedToCloseWithoutSending;
@@ -152,6 +157,9 @@ protected:
 
 	/** Whether the user is shown the option to enable/disable sending the log file. */
 	bool bHideLogFilesOption;
+
+	/** Whether the user is shown the option to restart the crashed application */
+	bool bHideRestartOption;
 
 	/** Whether the user is allowed to close the crash reporter without sending a report */
 	bool bIsAllowedToCloseWithoutSending;
