@@ -31,7 +31,7 @@ public:
 	virtual bool BuildMeshVertexPositions(
 		UObject* StaticMesh,
 		TArray<uint32>& Indices,
-		TArray<FVector>& Vertices) override;
+		TArray<FVector3f>& Vertices) override;
 
 	virtual bool BuildSkeletalMesh(const FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters) override;
 
@@ -55,7 +55,7 @@ bool FMeshBuilderModule::BuildMesh(FStaticMeshRenderData& OutRenderData, class U
 bool FMeshBuilderModule::BuildMeshVertexPositions(
 	UObject* Mesh,
 	TArray<uint32>& Indices,
-	TArray<FVector>& Vertices)
+	TArray<FVector3f>& Vertices)
 {
 	UStaticMesh* StaticMesh = Cast< UStaticMesh >(Mesh);
 	if (StaticMesh)

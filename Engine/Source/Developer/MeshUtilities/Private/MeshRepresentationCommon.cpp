@@ -137,11 +137,11 @@ void MeshRepresentation::SetupEmbreeScene(
 			const uint32 I1 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 1];
 			const uint32 I2 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 2];
 
-			const FVector V0 = SourceMeshData.VertexPositions[I0];
-			const FVector V1 = SourceMeshData.VertexPositions[I1];
-			const FVector V2 = SourceMeshData.VertexPositions[I2];
+			const FVector3f V0 = SourceMeshData.VertexPositions[I0];
+			const FVector3f V1 = SourceMeshData.VertexPositions[I1];
+			const FVector3f V2 = SourceMeshData.VertexPositions[I2];
 
-			const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
+			const FVector3f TriangleNormal = ((V1 - V2) ^ (V0 - V2));
 			const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
 			if (!bDegenerateTriangle)
 			{
@@ -158,11 +158,11 @@ void MeshRepresentation::SetupEmbreeScene(
 			const uint32 I1 = Indices[TriangleIndex * 3 + 1];
 			const uint32 I2 = Indices[TriangleIndex * 3 + 2];
 
-			const FVector V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
-			const FVector V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
-			const FVector V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
+			const FVector3f V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
+			const FVector3f V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
+			const FVector3f V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
 
-			const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
+			const FVector3f TriangleNormal = ((V1 - V2) ^ (V0 - V2));
 			const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
 			if (!bDegenerateTriangle)
 			{
@@ -199,14 +199,14 @@ void MeshRepresentation::SetupEmbreeScene(
 	EmbreeScene.Geometry.IndexArray.Empty(NumFilteredIndices);
 	EmbreeScene.Geometry.IndexArray.AddUninitialized(NumFilteredIndices);
 
-	FVector* EmbreeVertices = EmbreeScene.Geometry.VertexArray.GetData();
+	FVector3f* EmbreeVertices = EmbreeScene.Geometry.VertexArray.GetData();
 	uint32* EmbreeIndices = EmbreeScene.Geometry.IndexArray.GetData();
 	EmbreeScene.Geometry.TriangleDescs.Empty(FilteredTriangles.Num());
 
 	for (int32 FilteredTriangleIndex = 0; FilteredTriangleIndex < FilteredTriangles.Num(); FilteredTriangleIndex++)
 	{
 		uint32 I0, I1, I2;
-		FVector V0, V1, V2;
+		FVector3f V0, V1, V2;
 
 		const int32 TriangleIndex = FilteredTriangles[FilteredTriangleIndex];
 		if (SourceMeshData.IsValid())
@@ -280,7 +280,7 @@ void MeshRepresentation::SetupEmbreeScene(
 		RTCGeometry Geometry = rtcNewGeometry(EmbreeScene.EmbreeDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
 		EmbreeScene.Geometry.InternalGeometry = Geometry;
 
-		rtcSetSharedGeometryBuffer(Geometry, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, EmbreeVertices, 0, sizeof(FVector), NumVertices); 
+		rtcSetSharedGeometryBuffer(Geometry, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, EmbreeVertices, 0, sizeof(FVector3f), NumVertices);
 		rtcSetSharedGeometryBuffer(Geometry, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, EmbreeIndices, 0, sizeof(uint32) * 3, FilteredTriangles.Num());
 
 		rtcSetGeometryUserData(Geometry, &EmbreeScene.Geometry);
