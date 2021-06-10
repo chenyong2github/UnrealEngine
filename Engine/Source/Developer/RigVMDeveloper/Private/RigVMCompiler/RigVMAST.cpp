@@ -2827,7 +2827,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 			{
 				if (ChildPin->GetDirection() == ERigVMPinDirection::Output && ChildPin->GetParentPin() == nullptr)
 				{
-					if (URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(Pin->GetNode()))
+					if (URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(ChildPin->GetNode()))
 					{
 						if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(EntryNode->GetGraph()->GetOuter()))
 						{
@@ -2837,6 +2837,18 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 								SourcePinProxy = FindSourcePin(OuterPinProxy, OutTraversalInfo);
 								SourcePinProxy = SourcePinProxy.IsValid() ? SourcePinProxy : OuterPinProxy;
 								break;
+							}
+						}
+					}
+					else if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ChildPin->GetNode()))
+					{
+						const FRigVMASTProxy ChildPinProxy = InPinProxy.GetSibling(ChildPin); 
+						if (ShouldRecursePin(ChildPinProxy))
+						{
+							FRigVMASTProxy SourceSourcePinProxy = FindSourcePin(ChildPinProxy, OutTraversalInfo);
+							if(SourceSourcePinProxy.IsValid())
+							{
+								SourcePinProxy = SourceSourcePinProxy;
 							}
 						}
 					}
