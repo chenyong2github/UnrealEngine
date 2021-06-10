@@ -16,6 +16,7 @@
 // BEGIN EPIC MOD
 #include "LC_Types.h"
 #include "VisualStudioDTE.h"
+#include <atomic>
 // END EPIC MOD
 
 class MainFrame;
@@ -150,6 +151,10 @@ private:
 	// keeping track of the client connections
 	CriticalSection m_connectionCS;
 	types::vector<CommandThreadContext*> m_commandThreads;
+
+	// BEGIN EPIC MOD
+	std::atomic<unsigned int> m_reinstancingProcessCount = 0;
+	// END EPIC MOD
 
 	// BEGIN EPIC MOD - Non-destructive compile
 	std::vector<std::pair<std::wstring, std::wstring>> m_restoreFiles;
