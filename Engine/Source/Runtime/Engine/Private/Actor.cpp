@@ -468,7 +468,7 @@ void AActor::GetExternalActorExtendedAssetRegistryTags(TArray<FAssetRegistryTag>
 	{
 		TUniquePtr<FWorldPartitionActorDesc> ActorDesc(CreateActorDesc());
 
-		const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetName();
+		const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetPathName();
 		static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
 		OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));
 
