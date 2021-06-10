@@ -3,8 +3,10 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Deterministic>true</Deterministic>
+    <Product>UnrealGameSync</Product>
+    <Company>Epic Games, Inc</Company>
+    <Copyright>Copyright Epic Games, Inc. All Rights Reserved.</Copyright>
     <RootNamespace>UnrealGameSync</RootNamespace>
     <AssemblyName>UnrealGameSync</AssemblyName>
     <StartupObject>UnrealGameSync.Program</StartupObject>
