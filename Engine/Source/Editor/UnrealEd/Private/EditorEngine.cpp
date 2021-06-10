@@ -393,6 +393,8 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	EditorWorldExtensionsManager = nullptr;
 
 	ActorGroupingUtilsClassName = UActorGroupingUtils::StaticClass();
+
+	bUATSuccessfullyCompiledOnce = FApp::IsEngineInstalled() || FApp::GetEngineIsPromotedBuild();
 }
 
 

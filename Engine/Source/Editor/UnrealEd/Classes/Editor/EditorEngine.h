@@ -2945,6 +2945,9 @@ protected:
 	/** Start a Launcher session with the given parameters. Called by StartQueuedPlaySessionRequestImpl based on request settings. */
 	virtual void StartPlayUsingLauncherSession(FRequestPlaySessionParams& InRequestParams);
 
+	/** This flag is used to skip UAT\UBT compilation on every launch if it was successfully compiled once. */
+	bool bUATSuccessfullyCompiledOnce;
+
 	// This chunk is for Play in Editor
 public:
 	/** @return true if the editor is able to launch PIE with online platform support */
