@@ -929,7 +929,7 @@ bool UsdUtils::RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName )
 	{
 		pxr::SdfChangeBlock Block;
 
-		for ( const TPair<pxr::SdfLayerRefPtr, pxr::SdfBatchNamespaceEdit> Pair : Edits )
+		for ( const TPair<pxr::SdfLayerRefPtr, pxr::SdfBatchNamespaceEdit>& Pair : Edits )
 		{
 			const pxr::SdfLayerRefPtr& Layer = Pair.Key;
 			const pxr::SdfBatchNamespaceEdit& Edit = Pair.Value;
