@@ -326,7 +326,7 @@ namespace HordeServer.Tasks.Impl
 			ExecuteOperation? Operation;
 			if (TryGetOperation(Lease.Id, out Operation))
 			{
-				Logger.LogDebug("Lease cancelled. LeaseId={LeaseId} OperationId={OperationId}", Lease.Id, Operation.Id);
+				Logger.LogInformation("Lease cancelled. LeaseId={LeaseId} OperationId={OperationId}", Lease.Id, Operation.Id);
 				Operation.TrySetResult(null);
 			}
 			return Task.CompletedTask;
@@ -446,7 +446,7 @@ namespace HordeServer.Tasks.Impl
 
 				void OnConnectionLost()
 				{
-					Logger.LogDebug("Connection lost. LeaseId={LeaseId} OperationId={OperationId}", Lease.Id, Operation!.Id);
+					Logger.LogInformation("Connection lost. LeaseId={LeaseId} OperationId={OperationId}", Lease.Id, Operation!.Id);
 					Operation.TrySetResult(null);
 				}
 				
@@ -570,7 +570,7 @@ namespace HordeServer.Tasks.Impl
 			{
 				lock (Bucket!)
 				{
-					Logger.LogDebug("Trimming lease from bucket. LeaseId={LeaseId} OperationId={OperationId}", LeaseId, Operation!.Id);
+					Logger.LogInformation("Trimming lease from bucket. LeaseId={LeaseId} OperationId={OperationId}", LeaseId, Operation!.Id);
 					Operation!.TrySetResult(null);
 					Bucket.Remove(LeaseId.Value);
 				}
