@@ -44,7 +44,6 @@ bool FDerivedDataGeometryCollectionCooker::Build(TArray<uint8>& OutData)
 		{
 			TUniquePtr<FGeometryCollectionNaniteData> NaniteData = UGeometryCollection::CreateNaniteData(Collection);
 			NaniteData->Serialize(ChaosAr, &GeometryCollection);
-			check(NaniteData->NaniteResource.RootClusterPage.Num() == 0 || (NaniteData->NaniteResource.ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0);
 		}
 		else
 		{

@@ -34,11 +34,22 @@ struct FNaniteAttributeData
 #define SIZEOF_UV_RANGE	32
 struct FUVRange
 {
-	float2	Min;
-	float2	Scale;
+	int2	Min;
 	uint2	GapStart;
 	uint2	GapLength;
+	uint	Precision;
 };
+
+
+FUVRange UnpackUVRange(uint4 Data[2])
+{
+	FUVRange Range;
+	Range.Min = (int2)Data[0].xy;
+	Range.GapStart = Data[0].zw;
+	Range.GapLength = Data[1].xy;
+	Range.Precision = Data[1].z;
+	return Range;
+}
 
 FUVRange GetUVRange(ByteAddressBuffer InputBuffer, uint StartOffset, uint Index)
 {
@@ -46,19 +57,24 @@ FUVRange GetUVRange(ByteAddressBuffer InputBuffer, uint StartOffset, uint Index)
 	uint4 Data[2];
 	Data[0] = InputBuffer.Load4(Offset);
 	Data[1] = InputBuffer.Load4(Offset + 16);
+	return UnpackUVRange(Data);
+}
 
-	FUVRange Range;
-	Range.Min =			asfloat(Data[0].xy);
-	Range.Scale =		asfloat(Data[0].zw);
-	Range.GapStart =	Data[1].xy;
-	Range.GapLength =	Data[1].zw;
-	return Range;
+FUVRange GetUVRange(RWByteAddressBuffer InputBuffer, uint StartOffset, uint Index)
+{
+	uint Offset = StartOffset + Index * SIZEOF_UV_RANGE;
+	uint4 Data[2];
+	Data[0] = InputBuffer.Load4(Offset);
+	Data[1] = InputBuffer.Load4(Offset + 16);
+	return UnpackUVRange(Data);
 }
 
 float2 UnpackTexCoord(uint2 Packed, FUVRange UVRange)
 {
-	uint2 T = Packed + ((Packed >= UVRange.GapStart) ? UVRange.GapLength : 0u);
-	return float2(T) * UVRange.Scale + UVRange.Min;
+	uint2 T = Packed + ((Packed > UVRange.GapStart) ? UVRange.GapLength : 0u);
+
+	const float Scale = asfloat(asint(1.0f) - (UVRange.Precision << 23));
+	return float2((int2)T + UVRange.Min) * Scale;
 }
 
 float3 UnpackNormal(uint Packed, uint Bits)
@@ -271,9 +287,9 @@ FNaniteAttributeData GetAttributeData(
 #else
 	const uint MaxAttributeBits = CalculateMaxAttributeBits(CompileTimeMaxTexCoords);
 
-	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
-	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
-	FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
 
 	uint NormalBits0 = BitStreamReader_Read(AttributeStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
 	uint NormalBits1 = BitStreamReader_Read(AttributeStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
@@ -446,9 +462,9 @@ FTexCoord GetTexCoord(
 
 	const uint BitOffset = 2 * NORMAL_QUANTIZATION_BITS + dot(NumColorComponentBits, 1u) + TexCoord_OffsetBits;
 
-	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.x * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
-	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.y * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
-	FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.z * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.x * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.y * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.z * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
 #endif
 
 #if USE_UNCOMPRESSED_VERTEX_DATA

@@ -804,7 +804,6 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC)
 
 			NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 			NaniteData->Serialize(ChaosAr, this);
-			check(NaniteData->NaniteResource.RootClusterPage.Num() == 0 || (NaniteData->NaniteResource.ResourceFlags & NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION) != 0);
 		}
 	}
 }

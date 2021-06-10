@@ -789,7 +789,7 @@ FArchive& operator<<(FArchive& Ar, FStripDesc& Desc)
 	Ar << Desc.NumPrevNewVerticesBeforeDwords;
 	return Ar;
 }
-
+/*
 FArchive& operator<<(FArchive& Ar, FCluster& Cluster)
 {
 	Ar << Cluster.NumVerts;
@@ -833,5 +833,5 @@ FArchive& operator<<(FArchive& Ar, FCluster& Cluster)
 	Ar << Cluster.StripIndexData;
 	return Ar;
 }
-
+*/
 } // namespace Nanite
