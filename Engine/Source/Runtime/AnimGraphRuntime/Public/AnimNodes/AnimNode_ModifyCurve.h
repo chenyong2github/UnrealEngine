@@ -35,6 +35,9 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = Links)
 	FPoseLink SourcePose;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category = ModifyCurve, meta = (PinHiddenByDefault))
+	TMap<FName, float> CurveMap;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category = ModifyCurve, meta = (PinShownByDefault))
 	TArray<float> CurveValues;
 
@@ -42,6 +45,8 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 	TArray<FName> CurveNames;
 
 	TArray<float> LastCurveValues;
+	TMap<FName, float> LastCurveMapValues;
+	bool bInitializeLastValuesMap;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ModifyCurve, meta = (PinShownByDefault))
 	float Alpha;
@@ -55,6 +60,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	// End of FAnimNode_Base interface
 
@@ -64,4 +70,8 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 	/** Remove a curve from being modified */
 	void RemoveCurve(int32 PoseIndex);
 #endif // WITH_EDITOR
+
+private:
+	void ProcessCurveOperation(const EModifyCurveApplyMode& InApplyMode, FPoseContext& Output, const SmartName::UID_Type& NameUID, float CurrentValue, float NewValue);
+	void ProcessCurveWMAOperation(FPoseContext& Output, const SmartName::UID_Type& NameUID, float CurrentValue, float NewValue, float& InOutLastValue);
 };
