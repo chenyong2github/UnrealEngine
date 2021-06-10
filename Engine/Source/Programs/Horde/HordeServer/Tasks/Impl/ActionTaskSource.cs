@@ -393,6 +393,7 @@ namespace HordeServer.Tasks.Impl
 				}
 			}
 
+			DateTimeOffset QueueTime = DateTimeOffset.UtcNow;
 			for(; ;)
 			{
 				Operation.SetStatus(ExecutionStage.Types.Value.Queued, null);
@@ -415,6 +416,7 @@ namespace HordeServer.Tasks.Impl
 				ActionTask.InstanceName = Request.InstanceName;
 				ActionTask.Digest = Request.ActionDigest;
 				ActionTask.LogId = LogFile.Id.ToString();
+				ActionTask.QueueTime = Timestamp.FromDateTimeOffset(QueueTime);
 
 				if (Request.InstanceName != null && RemoteExecSettings.Instances.TryGetValue(Request.InstanceName, out var InstanceSettings))
 				{
