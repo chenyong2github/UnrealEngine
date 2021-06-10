@@ -1352,12 +1352,13 @@ void FIoStoreWriter::EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreRe
 	Impl->EnableDiskLayoutOrdering(PatchSourceReaders);
 }
 
-void FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
+void FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint)
 {
 	struct FWriteRequest
 		: IIoStoreWriteRequest
 	{
-		FWriteRequest(FIoBuffer InSourceBuffer)
+		FWriteRequest(FIoBuffer InSourceBuffer, uint64 InOrderHint)
+			: OrderHint(InOrderHint)
 		{
 			SourceBuffer = InSourceBuffer;
 			SourceBuffer.MakeOwned();
@@ -1381,7 +1382,7 @@ void FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FI
 
 		uint64 GetOrderHint() override
 		{
-			return MAX_uint64;
+			return OrderHint;
 		}
 
 		TArrayView<const FFileRegion> GetRegions()
@@ -1390,9 +1391,10 @@ void FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FI
 		}
 
 		FIoBuffer SourceBuffer;
+		uint64 OrderHint;
 	};
 
-	Append(ChunkId, new FWriteRequest(Chunk), WriteOptions);
+	Append(ChunkId, new FWriteRequest(Chunk, OrderHint), WriteOptions);
 }
 
 void FIoStoreWriter::Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions)

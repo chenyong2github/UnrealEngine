@@ -10,6 +10,7 @@
 #include "Math/IntVector.h"
 #include "Misc/AES.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "Async/TaskGraphInterfaces.h"
 
 class AActor;
 class Error;
@@ -618,6 +619,11 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FAccesExtraBinaryConfigData, FExtraBinaryConfigData&);
 	static FAccesExtraBinaryConfigData AccessExtraBinaryConfigData;
 
+	using FAttachShaderReadRequestFunc = TFunctionRef<class FIoRequest(const class FIoChunkId&, FGraphEventRef)>;
+	DECLARE_DELEGATE_TwoParams(FPreloadPackageShaderMaps, TArrayView<const FSHAHash>, FAttachShaderReadRequestFunc);
+	static FPreloadPackageShaderMaps PreloadPackageShaderMaps;
+	DECLARE_DELEGATE_OneParam(FReleasePreloadedPackageShaderMaps, TArrayView<const FSHAHash>);
+	static FReleasePreloadedPackageShaderMaps ReleasePreloadedPackageShaderMaps;
 	/** Called when the verbosity of a log category is changed */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLogVerbosityChanged, const FLogCategoryName& /* CategoryName */, ELogVerbosity::Type /* OldVerbosity */, ELogVerbosity::Type /* NewVerbosity */);
 	static FOnLogVerbosityChanged OnLogVerbosityChanged;

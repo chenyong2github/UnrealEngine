@@ -15,6 +15,7 @@ public class IoStoreUtilities : ModuleRules
             "CoreUObject",
             "Projects",
             "AssetRegistry",
+            "RenderCore",
         });
         PrivateDependencyModuleNames.Add("PakFile");
         PrivateDependencyModuleNames.Add("Json");

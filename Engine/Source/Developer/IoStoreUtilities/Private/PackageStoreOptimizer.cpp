@@ -12,6 +12,7 @@
 #include "UObject/Object.h"
 #include "Serialization/MemoryReader.h"
 #include "UObject/Package.h"
+#include "Misc/SecureHash.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPackageStoreOptimizer, Log, All);
 
@@ -1566,6 +1567,7 @@ FPackageStoreContainerHeaderEntry FPackageStoreOptimizer::CreateContainerHeaderE
 	Result.ExportBundleCount = Package->ExportBundles.Num();
 	Result.LoadOrder = Package->GetLoadOrder();
 	Result.ImportedPackageIds = Package->ImportedPackageIds;
+	Result.ShaderMapHashes = Package->ShaderMapHashes.Array();
 	Result.bIsRedirected = Package->bIsRedirected;
 	return Result;
 }
@@ -1637,6 +1639,14 @@ FContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContaine
 		{
 			check(ImportedPackageId.IsValid());
 			StoreDataArchive << ImportedPackageId;
+		}
+		
+		// ShaderMapHashes
+		const TArray<FSHAHash>& ShaderMapHashes = Package->ShaderMapHashes;
+		SerializePackageEntryCArrayHeader(ShaderMapHashes.Num());
+		for (const FSHAHash& ShaderMapHash : ShaderMapHashes)
+		{
+			StoreDataArchive << const_cast<FSHAHash&>(ShaderMapHash);
 		}
 	}
 

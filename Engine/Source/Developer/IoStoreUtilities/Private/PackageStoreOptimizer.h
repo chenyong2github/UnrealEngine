@@ -104,6 +104,7 @@ private:
 	int32 ExportBundleCount = 0;
 	uint32 LoadOrder = 0;
 	TArray<FPackageId> ImportedPackageIds;
+	TArray<FSHAHash> ShaderMapHashes;
 	bool bIsRedirected = false;
 
 	friend class FPackageStoreOptimizer;
@@ -170,6 +171,16 @@ public:
 	void RedirectFrom(FName SourcePackageName)
 	{
 		SourceName = SourcePackageName;
+	}
+
+	void AddShaderMapHash(const FSHAHash& ShaderMapHash)
+	{
+		ShaderMapHashes.Add(ShaderMapHash);
+	}
+
+	const TSet<FSHAHash>& GetShaderMapHashes() const
+	{
+		return ShaderMapHashes;
 	}
 
 private:
@@ -262,6 +273,7 @@ private:
 	TArray<FPackageStorePackage*> ImportedByWaitingPackages;
 	TSet<FPackageId> RedirectedToPackageIds;
 	TSet<FPackageId> ImportedRedirectedPackageIds;
+	TSet<FSHAHash> ShaderMapHashes;
 
 	FIoBuffer OptimizedHeaderBuffer;
 

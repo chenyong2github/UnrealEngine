@@ -7,6 +7,10 @@
 #include "FileCache/FileCache.h"
 #include "Containers/HashTable.h"
 #include "Shader.h"
+#include "IO/IoDispatcher.h"
+
+FIoChunkId GetShaderCodeArchiveChunkId(const FString& LibraryName, FName FormatName);
+FIoChunkId GetShaderCodeChunkId(const FSHAHash& ShaderHash);
 
 struct FShaderMapEntry
 {
@@ -261,3 +265,96 @@ protected:
 	TArray<FShaderPreloadEntry> ShaderPreloads;
 	FRWLock ShaderPreloadLock;
 };
+
+struct FIoStoreShaderMapEntry
+{
+	uint32 ShaderIndicesOffset = 0u;
+	uint32 NumShaders = 0u;
+
+	friend FArchive& operator <<(FArchive& Ar, FIoStoreShaderMapEntry& Ref)
+	{
+		return Ar << Ref.ShaderIndicesOffset << Ref.NumShaders;
+	}
+};
+
+struct FIoStoreShaderCodeEntry
+{
+	uint32 UncompressedSize = 0;
+	uint32 CompressedSize = 0;
+	uint8 Frequency;
+
+	EShaderFrequency GetFrequency() const
+	{
+		return (EShaderFrequency)Frequency;
+	}
+
+	friend FArchive& operator <<(FArchive& Ar, FIoStoreShaderCodeEntry& Ref)
+	{
+		return Ar << Ref.UncompressedSize << Ref.CompressedSize << Ref.Frequency;
+	}
+};
+
+class FIoStoreShaderCodeArchive : public FRHIShaderLibrary
+{
+public:
+	static FIoStoreShaderCodeArchive* Create(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher);
+
+	virtual ~FIoStoreShaderCodeArchive();
+
+	virtual bool IsNativeLibrary() const override { return false; }
+
+	uint32 GetSizeBytes() const
+	{
+		return sizeof(*this) +
+			ShaderMapHashes.GetAllocatedSize() +
+			ShaderMapEntries.GetAllocatedSize() +
+			ShaderHashes.GetAllocatedSize() +
+			ShaderEntries.GetAllocatedSize() +
+			ShaderIndices.GetAllocatedSize() +
+			ShaderPreloads.GetAllocatedSize();
+	}
+
+	virtual int32 GetNumShaders() const override { return ShaderEntries.Num(); }
+	virtual int32 GetNumShaderMaps() const override { return ShaderMapEntries.Num(); }
+	virtual int32 GetNumShadersForShaderMap(int32 ShaderMapIndex) const override { return ShaderMapEntries[ShaderMapIndex].NumShaders; }
+
+	virtual int32 GetShaderIndex(int32 ShaderMapIndex, int32 i) const override
+	{
+		const FIoStoreShaderMapEntry& ShaderMapEntry = ShaderMapEntries[ShaderMapIndex];
+		return ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
+	}
+
+	virtual int32 FindShaderMapIndex(const FSHAHash& Hash) override;
+	virtual int32 FindShaderIndex(const FSHAHash& Hash) override;
+	virtual bool PreloadShader(int32 ShaderIndex, FGraphEventArray& OutCompletionEvents) override;
+	virtual bool PreloadShaderMap(int32 ShaderMapIndex, FGraphEventArray& OutCompletionEvents) override;
+	virtual bool PreloadShaderMap(int32 ShaderMapIndex, FCoreDelegates::FAttachShaderReadRequestFunc AttachShaderReadRequestFunc) override;
+	virtual void ReleasePreloadedShader(int32 ShaderIndex) override;
+	virtual TRefCountPtr<FRHIShader> CreateShader(int32 Index) override;
+	virtual void Teardown() override;
+
+private:
+	struct FShaderPreloadEntry
+	{
+		FGraphEventRef PreloadEvent;
+		FIoRequest IoRequest;
+		uint32 FramePreloadStarted = ~0u;
+		uint32 NumRefs = 0u;
+	};
+
+	FIoStoreShaderCodeArchive(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher);
+	bool ReleaseRef(int32 ShaderIndex);
+
+	FIoDispatcher& IoDispatcher;
+
+	TArray<FSHAHash> ShaderMapHashes;
+	TArray<FSHAHash> ShaderHashes;
+	TArray<FIoStoreShaderMapEntry> ShaderMapEntries;
+	TArray<FIoStoreShaderCodeEntry> ShaderEntries;
+	TArray<uint32> ShaderIndices;
+	FHashTable ShaderMapHashTable;
+	FHashTable ShaderHashTable;
+	TArray<FShaderPreloadEntry> ShaderPreloads;
+	FRWLock ShaderPreloadLock;
+};
+

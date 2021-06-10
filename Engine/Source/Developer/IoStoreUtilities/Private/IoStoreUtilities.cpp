@@ -54,6 +54,7 @@
 #include "Algo/MaxElement.h"
 #include "Algo/StableSort.h"
 #include "PackageStoreOptimizer.h"
+#include "ShaderCodeLibrary.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -284,8 +285,8 @@ struct FContainerSourceSpec
 
 struct FCookedFileStatData
 {
-	enum EFileExt { UMap, UAsset, UExp, UBulk, UPtnl, UMappedBulk };
-	enum EFileType { PackageHeader, PackageData, BulkData };
+	enum EFileExt { UMap, UAsset, UExp, UBulk, UPtnl, UMappedBulk, UShaderByteCode };
+	enum EFileType { PackageHeader, PackageData, BulkData, ShaderLibrary };
 
 	int64 FileSize = 0;
 	EFileType FileType = PackageHeader;
@@ -298,6 +299,16 @@ using FCookedFileStatMap = TMap<FString, FCookedFileStatData>;
 
 struct FContainerTargetSpec;
 
+struct FShaderInfo
+{
+	FIoChunkId ChunkId;
+	FIoChunkId LibraryChunkId;
+	FContainerTargetSpec* ContainerTarget = nullptr;
+	uint64 Size = 0;
+	uint32 ReferencedByPackagesCount = 0;
+	uint32 LibraryOrder = 0;
+};
+
 struct FLegacyCookedPackage
 {
 	FPackageId GlobalPackageId;
@@ -308,6 +319,17 @@ struct FLegacyCookedPackage
 	uint64 UExpSize = 0;
 	uint64 DiskLayoutOrder = -1;
 	FPackageStorePackage* OptimizedPackage = nullptr;
+	TSet<FShaderInfo*> Shaders;
+};
+
+enum class EContainerChunkType
+{
+	ShaderCodeLibrary,
+	ShaderCode,
+	PackageData,
+	BulkData,
+	OptionalBulkData,
+	MemoryMappedBulkData
 };
 
 struct FContainerTargetFile
@@ -315,15 +337,14 @@ struct FContainerTargetFile
 	FContainerTargetSpec* ContainerTarget = nullptr;
 	FLegacyCookedPackage* Package = nullptr;
 	FString NormalizedSourcePath;
+	TOptional<FIoBuffer> SourceBuffer;
 	FString TargetPath;
 	FString DestinationPath;
 	uint64 SourceSize = 0;
 	uint64 IdealOrder = 0;
 	FIoChunkId ChunkId;
 	TArray<uint8> PackageHeaderData;
-	bool bIsBulkData = false;
-	bool bIsOptionalBulkData = false;
-	bool bIsMemoryMappedBulkData = false;
+	EContainerChunkType ChunkType;
 	bool bForceUncompressed = false;
 
 	TArray<FFileRegion> FileRegions;
@@ -387,7 +408,8 @@ struct FContainerTargetSpec
 	TArray<FContainerTargetFile> TargetFiles;
 	TArray<TUniquePtr<FIoStoreReader>> PatchSourceReaders;
 	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
-	uint32 PackageCount = 0;
+	TArray<FLegacyCookedPackage*> Packages;
+	TArray<FShaderInfo> Shaders;
 	bool bGenerateDiffPatch = false;
 };
 
@@ -652,34 +674,115 @@ static void CreateDiskLayout(
 	{
 		TArray<FContainerTargetFile*> SortedTargetFiles;
 		SortedTargetFiles.Reserve(ContainerTarget->TargetFiles.Num());
+		TMap<FIoChunkId, FContainerTargetFile*> ShaderTargetFilesMap;
+		ShaderTargetFilesMap.Reserve(ContainerTarget->Shaders.Num());
 		for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 		{
-			SortedTargetFiles.Add(&TargetFile);
+			if (TargetFile.ChunkType == EContainerChunkType::ShaderCode)
+			{
+				ShaderTargetFilesMap.Add(TargetFile.ChunkId, &TargetFile);
+			}
+			else
+			{
+				SortedTargetFiles.Add(&TargetFile);
+			}
 		}
 		Algo::Sort(SortedTargetFiles, [](const FContainerTargetFile* A, const FContainerTargetFile* B)
 		{
-			if (A->bIsMemoryMappedBulkData != B->bIsMemoryMappedBulkData)
+			if (A->ChunkType != B->ChunkType)
 			{
-				// Put all memory mapped bulkdata last
-				return B->bIsMemoryMappedBulkData;
+				return A->ChunkType < B->ChunkType;
 			}
-			else if (A->bIsBulkData != B->bIsBulkData)
+			if (A->ChunkType == EContainerChunkType::ShaderCodeLibrary)
 			{
-				// Put packages before bulkdata
-				return B->bIsBulkData;
+				return A->TargetPath < B->TargetPath;
 			}
-			else if (A->Package != B->Package)
+			if (A->Package != B->Package)
 			{
 				return A->Package->DiskLayoutOrder < B->Package->DiskLayoutOrder;
-			}
-			else if (A->bIsOptionalBulkData != B->bIsOptionalBulkData)
-			{
-				// Put each ubulk right before it's corresponding uptnl
-				return B->bIsOptionalBulkData;
 			}
 			check(A == B)
 			return false;
 		});
+
+		TArray<const FShaderInfo*> SharedShaders;
+		TSet<const FShaderInfo*> AddedSharedShaders;
+		int32 Index = 0;
+		int32 ShaderCodeInsertionIndex = -1;
+		while (Index < SortedTargetFiles.Num())
+		{
+			FContainerTargetFile* TargetFile = SortedTargetFiles[Index];
+			if (ShaderCodeInsertionIndex < 0 && TargetFile->ChunkType != EContainerChunkType::ShaderCodeLibrary)
+			{
+				ShaderCodeInsertionIndex = Index;
+			}
+			if (TargetFile->ChunkType == EContainerChunkType::PackageData)
+			{
+				TArray<FContainerTargetFile*, TInlineAllocator<1024>> PackageUniqueShaders;
+				for (FShaderInfo* Shader : TargetFile->Package->Shaders)
+				{
+					if (Shader->ContainerTarget == ContainerTarget)
+					{
+						check(Shader->ReferencedByPackagesCount > 0);
+						if (Shader->ReferencedByPackagesCount == 1)
+						{
+							FContainerTargetFile* ShaderTargetFile = ShaderTargetFilesMap.FindRef(Shader->ChunkId);
+							check(ShaderTargetFile);
+							PackageUniqueShaders.Add(ShaderTargetFile);
+						}
+						else if (!AddedSharedShaders.Contains(Shader))
+						{
+							SharedShaders.Add(Shader);
+							AddedSharedShaders.Add(Shader);
+						}
+					}
+				}
+				SortedTargetFiles.Insert(PackageUniqueShaders, Index + 1);
+				Index += PackageUniqueShaders.Num();
+			}
+			++Index;
+		}
+		if (ShaderCodeInsertionIndex < 0)
+		{
+			ShaderCodeInsertionIndex = 0;
+		}
+
+		TArray<const FShaderInfo*> GlobalShaders;
+		for (const FShaderInfo& Shader : ContainerTarget->Shaders)
+		{
+			if (Shader.ReferencedByPackagesCount == 0)
+			{
+				GlobalShaders.Add(&Shader);
+			}
+		}
+		if (!GlobalShaders.IsEmpty())
+		{
+			TArray<FContainerTargetFile*> GlobalShaderTargetFiles;
+			GlobalShaderTargetFiles.Reserve(GlobalShaders.Num());
+			for (const FShaderInfo* ShaderInfo : GlobalShaders)
+			{
+				FContainerTargetFile* ShaderTargetFile = ShaderTargetFilesMap.FindRef(ShaderInfo->ChunkId);
+				check(ShaderTargetFile);
+				GlobalShaderTargetFiles.Add(ShaderTargetFile);
+			}
+			SortedTargetFiles.Insert(GlobalShaderTargetFiles, ShaderCodeInsertionIndex);
+			ShaderCodeInsertionIndex += GlobalShaderTargetFiles.Num();
+		}
+		if (!SharedShaders.IsEmpty())
+		{
+			TArray<FContainerTargetFile*> SharedShaderTargetFiles;
+			SharedShaderTargetFiles.Reserve(SharedShaders.Num());
+			for (const FShaderInfo* ShaderInfo : SharedShaders)
+			{
+				FContainerTargetFile* ShaderTargetFile = ShaderTargetFilesMap.FindRef(ShaderInfo->ChunkId);
+				check(ShaderTargetFile);
+				SharedShaderTargetFiles.Add(ShaderTargetFile);
+			}
+			SortedTargetFiles.Insert(SharedShaderTargetFiles, ShaderCodeInsertionIndex);
+		}
+
+		check(SortedTargetFiles.Num() == ContainerTarget->TargetFiles.Num());
+
 		uint64 IdealOrder = 0;
 		for (FContainerTargetFile* TargetFile : SortedTargetFiles)
 		{
@@ -877,6 +980,139 @@ TArray<TUniquePtr<FIoStoreReader>> CreatePatchSourceReaders(const TArray<FString
 	return Readers;
 }
 
+void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContainerTargetSpec*>& ContainerTargets)
+{
+	IOSTORE_CPU_SCOPE(ProcessShaderLibraries);
+
+	TMap<FIoChunkId, FSHAHash> AllShaderCodeHashes;
+	uint64 LibraryOrder = 0;
+	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
+	{
+		TMap<FSHAHash, TArray<FIoChunkId>> ShaderChunkIdsByShaderMapHash;
+		TSet<FIoChunkId> AddedShaderChunkIds;
+		TArray<FContainerTargetFile> ShaderTargetFiles;
+		TArray<FShaderInfo> Shaders;
+		for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+		{
+			if (TargetFile.ChunkType == EContainerChunkType::ShaderCodeLibrary)
+			{
+				TArray<TTuple<FSHAHash, TArray<FIoChunkId>>> ShaderMaps;
+				TMap<FIoChunkId, FIoBuffer> ShaderCodeMap;
+				TTuple<FIoChunkId, FIoBuffer> LibraryChunk;
+				TArray<TTuple<FIoChunkId, FIoBuffer, FSHAHash>> CodeChunks;
+				TArray<TTuple<FSHAHash, TSet<FName>>> ShaderMapAssetAssociations;
+				if (!FShaderLibraryCooker::ConvertToIoStoreShaderLibrary(*TargetFile.NormalizedSourcePath, LibraryChunk, CodeChunks, ShaderMaps, ShaderMapAssetAssociations))
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("Failed converting shader library '%s'"), *TargetFile.NormalizedSourcePath);
+					continue;
+				}
+				TargetFile.ChunkId = LibraryChunk.Key;
+				TargetFile.SourceBuffer.Emplace(LibraryChunk.Value);
+				for (const TTuple<FIoChunkId, FIoBuffer, FSHAHash>& CodeChunk : CodeChunks)
+				{
+					ShaderCodeMap.Add(CodeChunk.Get<0>(), CodeChunk.Get<1>());
+					FSHAHash* FindShaderCodeHash = AllShaderCodeHashes.Find(CodeChunk.Get<0>());
+					if (FindShaderCodeHash)
+					{
+						UE_CLOG(*FindShaderCodeHash != CodeChunk.Get<2>(), LogIoStore, Fatal, TEXT("Shader code chunk id collision"));
+					}
+					else
+					{
+						AllShaderCodeHashes.Add(CodeChunk.Get<0>(), CodeChunk.Get<2>());
+					}
+				}
+				TMap<FName, TSet<FSHAHash>> PackageNameToShaderMaps;
+				for (const TTuple<FSHAHash, TSet<FName>>& ShaderMapAssetAssociation : ShaderMapAssetAssociations)
+				{
+					for (const FName& PackageName : ShaderMapAssetAssociation.Value)
+					{
+						TSet<FSHAHash>& PackageShaderMaps = PackageNameToShaderMaps.FindOrAdd(PackageName);
+						PackageShaderMaps.Add(ShaderMapAssetAssociation.Key);
+					}
+				}
+				for (FLegacyCookedPackage* Package : ContainerTarget->Packages)
+				{
+					TSet<FSHAHash>* FindShaderMapHashes = PackageNameToShaderMaps.Find(Package->PackageName);
+					if (FindShaderMapHashes)
+					{
+						for (const FSHAHash& ShaderMapHash : *FindShaderMapHashes)
+						{
+							Package->OptimizedPackage->AddShaderMapHash(ShaderMapHash);
+						}
+					}
+				}
+
+				for (TTuple<FSHAHash, TArray<FIoChunkId>>& ShaderMap : ShaderMaps)
+				{
+					for (const FIoChunkId& ShaderChunkId : ShaderMap.Value)
+					{
+						if (!AddedShaderChunkIds.Contains(ShaderChunkId))
+						{
+							FContainerTargetFile& ShaderTargetFile = ShaderTargetFiles.AddDefaulted_GetRef();
+							ShaderTargetFile.ContainerTarget = ContainerTarget;
+							ShaderTargetFile.ChunkId = ShaderChunkId;
+							ShaderTargetFile.ChunkType = EContainerChunkType::ShaderCode;
+							ShaderTargetFile.bForceUncompressed = true;
+							
+							FShaderInfo& ShaderInfo = Shaders.AddDefaulted_GetRef();
+							ShaderInfo.ChunkId = ShaderChunkId;
+							ShaderInfo.LibraryChunkId = TargetFile.ChunkId;
+							ShaderInfo.ContainerTarget = ContainerTarget;
+							ShaderInfo.LibraryOrder = LibraryOrder++;
+
+							FIoBuffer* FindCodeIoBuffer = ShaderCodeMap.Find(ShaderChunkId);
+							check(FindCodeIoBuffer);
+							ShaderTargetFile.SourceBuffer.Emplace(*FindCodeIoBuffer);
+							ShaderTargetFile.SourceSize = FindCodeIoBuffer->DataSize();
+							ShaderInfo.Size = FindCodeIoBuffer->DataSize();
+							
+							AddedShaderChunkIds.Add(ShaderChunkId);
+						}
+					}
+					ShaderChunkIdsByShaderMapHash.Add(ShaderMap.Key, MoveTemp(ShaderMap.Value));
+				}
+			}
+		}
+
+		check(ShaderTargetFiles.Num() == Shaders.Num());
+		
+		if (ShaderTargetFiles.Num() == 0)
+		{
+			continue;
+		}
+
+		ContainerTarget->TargetFiles.Append(ShaderTargetFiles);
+		ContainerTarget->Shaders.Append(Shaders);
+
+		TMap<FIoChunkId, FShaderInfo*> ShaderInfoByChunkIdMap;
+		ShaderInfoByChunkIdMap.Reserve(ContainerTarget->Shaders.Num());
+		for (FShaderInfo& ShaderInfo : ContainerTarget->Shaders)
+		{
+			ShaderInfoByChunkIdMap.Add(ShaderInfo.ChunkId, &ShaderInfo);
+		}
+
+		for (FLegacyCookedPackage* Package : ContainerTarget->Packages)
+		{
+			for (const FSHAHash& ShaderMapHash : Package->OptimizedPackage->GetShaderMapHashes())
+			{
+				const TArray<FIoChunkId>* FindChunkIds = ShaderChunkIdsByShaderMapHash.Find(ShaderMapHash);
+				if (!FindChunkIds)
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("Package referencing unknown shader map"));
+					continue;
+				}
+				for (const FIoChunkId& ShaderChunkId : *FindChunkIds)
+				{
+					FShaderInfo* ShaderInfo = ShaderInfoByChunkIdMap.FindRef(ShaderChunkId);
+					check(ShaderInfo);
+					Package->Shaders.Add(ShaderInfo);
+					++ShaderInfo->ReferencedByPackagesCount;
+				}
+			}
+		}
+	}
+}
+
 void InitializeContainerTargetsAndPackages(
 	const FIoStoreArguments& Arguments,
 	TArray<FLegacyCookedPackage*>& Packages,
@@ -960,6 +1196,31 @@ void InitializeContainerTargetsAndPackages(
 				}
 
 				FString RelativeFileName = ConvertCookedPathToRelativePath(SourceFile.NormalizedPath);
+				if (CookedFileStatData->FileType == FCookedFileStatData::ShaderLibrary)
+				{
+					FContainerTargetFile& TargetFile = ContainerTarget->TargetFiles.AddDefaulted_GetRef();
+					TargetFile.ChunkType = EContainerChunkType::ShaderCodeLibrary;
+					TargetFile.ContainerTarget = ContainerTarget;
+					TargetFile.SourceSize = uint64(CookedFileStatData->FileSize);
+					TargetFile.NormalizedSourcePath = NormalizedSourcePath;
+					TargetFile.TargetPath = MoveTemp(RelativeFileName);
+					TargetFile.DestinationPath = SourceFile.DestinationPath;
+					if (SourceFile.bNeedsCompression)
+					{
+						ContainerTarget->ContainerFlags |= EIoContainerFlags::Compressed;
+					}
+					else
+					{
+						TargetFile.bForceUncompressed = true;
+					}
+					if (SourceFile.bNeedsEncryption)
+					{
+						ContainerTarget->ContainerFlags |= EIoContainerFlags::Encrypted;
+					}
+					continue;
+				}
+				
+				
 				FLegacyCookedPackage* Package = nullptr;
 				const bool bIsMemoryMappedBulkData = CookedFileStatData->FileExt == FCookedFileStatData::EFileExt::UMappedBulk;
 
@@ -997,20 +1258,20 @@ void InitializeContainerTargetsAndPackages(
 
 					if (CookedFileStatData->FileType == FCookedFileStatData::BulkData)
 					{
-						TargetFile.bIsBulkData = true;
 						if (CookedFileStatData->FileExt == FCookedFileStatData::UPtnl)
 						{
-							TargetFile.bIsOptionalBulkData = true;
+							TargetFile.ChunkType = EContainerChunkType::OptionalBulkData;
 							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::OptionalBulkData, *TargetFile.TargetPath);
 						}
 						else if (CookedFileStatData->FileExt == FCookedFileStatData::UMappedBulk)
 						{
-							TargetFile.bIsMemoryMappedBulkData = true;
+							TargetFile.ChunkType = EContainerChunkType::MemoryMappedBulkData;
 							TargetFile.bForceUncompressed = true;
 							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::MemoryMappedBulkData, *TargetFile.TargetPath);
 						}
 						else
 						{
+							TargetFile.ChunkType = EContainerChunkType::BulkData;
 							TargetFile.ChunkId = CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::BulkData, *TargetFile.TargetPath);
 						}
 						if (Package->FileName.IsEmpty())
@@ -1021,8 +1282,8 @@ void InitializeContainerTargetsAndPackages(
 					else
 					{
 						check(CookedFileStatData->FileType == FCookedFileStatData::PackageData);
-
-						++ContainerTarget->PackageCount;
+						TargetFile.ChunkType = EContainerChunkType::PackageData;
+						ContainerTarget->Packages.Add(Package);
 
 						Package->FileName = SourceFile.NormalizedPath; // .uasset path
 						Package->UAssetSize = OriginalCookedFileStatData->FileSize;
@@ -1141,7 +1402,7 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 	for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
 		uint64 StoreSize = ContainerTarget->Header.StoreEntries.Num();
-		uint64 PackageCount = ContainerTarget->PackageCount;
+		uint64 PackageCount = ContainerTarget->Packages.Num();
 		uint64 LocalizedPackageCount = 0;
 
 		for (const auto& KV : ContainerTarget->Header.CulturePackageMap)
@@ -1189,23 +1450,18 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 	for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
 		uint64 HeaderSize = 0;
-		uint64 SummarySize = ContainerTarget->PackageCount * sizeof(FPackageSummary);
+		uint64 SummarySize = ContainerTarget->Packages.Num() * sizeof(FPackageSummary);
 		uint64 UGraphSize = 0;
 		uint64 ImportMapSize = 0;
 		uint64 ExportMapSize = 0;
 		uint64 NameMapSize = 0;
 
-		for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+		for (const FLegacyCookedPackage* Package : ContainerTarget->Packages)
 		{
-			if (TargetFile.bIsBulkData)
-			{
-				continue;
-			}
-
-			UGraphSize += TargetFile.Package->OptimizedPackage->GetExportBundleArcsSize();
-			ImportMapSize += TargetFile.Package->OptimizedPackage->GetImportMapSize();
-			ExportMapSize += TargetFile.Package->OptimizedPackage->GetExportMapSize();
-			NameMapSize += TargetFile.Package->OptimizedPackage->GetNameMapSize();
+			UGraphSize += Package->OptimizedPackage->GetExportBundleArcsSize();
+			ImportMapSize += Package->OptimizedPackage->GetImportMapSize();
+			ExportMapSize += Package->OptimizedPackage->GetExportMapSize();
+			NameMapSize += Package->OptimizedPackage->GetNameMapSize();
 		}
 
 		HeaderSize = SummarySize + UGraphSize + ImportMapSize + ExportMapSize + NameMapSize;
@@ -1324,7 +1580,7 @@ private:
 		void AsyncReadCallback()
 		{
 			//TRACE_CPUPROFILER_EVENT_SCOPE(ReadCallback);
-			if (!TargetFile.bIsBulkData)
+			if (TargetFile.ChunkType == EContainerChunkType::PackageData)
 			{
 				*SourceBuffer = Manager.PackageStoreOptimizer.CreatePackageBuffer(TargetFile.Package->OptimizedPackage, *SourceBuffer, bHasUpdatedExportBundleRegions ? nullptr : &FileRegions);
 				bHasUpdatedExportBundleRegions = true;
@@ -1608,6 +1864,9 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	ParsePackageAssets(Packages, PackageStoreOptimizer);
 
+	UE_LOG(LogIoStore, Display, TEXT("Processing shader libraries..."));
+	ProcessShaderLibraries(Arguments, ContainerTargets);
+
 	if (Arguments.IsDLC() && Arguments.bRemapPluginContentToGame)
 	{
 		for (FLegacyCookedPackage* Package : Packages)
@@ -1638,14 +1897,21 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		{
 			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 			{
-				if (TargetFile.bIsBulkData)
+				if (TargetFile.ChunkType != EContainerChunkType::PackageData)
 				{
 					FIoWriteOptions WriteOptions;
 					WriteOptions.DebugName = *TargetFile.TargetPath;
 					WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
-					WriteOptions.bIsMemoryMapped = TargetFile.bIsMemoryMappedBulkData;
+					WriteOptions.bIsMemoryMapped = TargetFile.ChunkType == EContainerChunkType::MemoryMappedBulkData;
 					WriteOptions.FileName = TargetFile.DestinationPath;
-					ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+					if (TargetFile.SourceBuffer.IsSet())
+					{
+						ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, *TargetFile.SourceBuffer, WriteOptions, TargetFile.IdealOrder);
+					}
+					else
+					{
+						ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+					}
 				}
 			}
 		}
@@ -1669,14 +1935,21 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			TArray<FPackageStoreContainerHeaderEntry> ContainerHeaderEntries;
 			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 			{
-				check(TargetFile.Package);
-				if (!TargetFile.bIsBulkData)
+				if (TargetFile.ChunkType == EContainerChunkType::PackageData)
 				{
+					check(TargetFile.Package);
 					FIoWriteOptions WriteOptions;
 					WriteOptions.DebugName = *TargetFile.TargetPath;
 					WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
 					WriteOptions.FileName = TargetFile.DestinationPath;
-					ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+					if (TargetFile.SourceBuffer.IsSet())
+					{
+						ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, *TargetFile.SourceBuffer, WriteOptions, TargetFile.IdealOrder);
+					}
+					else
+					{
+						ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+					}
 					ContainerHeaderEntries.Add(PackageStoreOptimizer.CreateContainerHeaderEntry(TargetFile.Package->OptimizedPackage));
 				}
 			}
@@ -1765,6 +2038,28 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		ImportedPackagesCount += PackageImportedPackagesCount;
 		NoImportedPackagesCount += PackageImportedPackagesCount == 0;
 	}
+	
+	uint64 GlobalShaderSize = 0;
+	uint64 SharedShaderSize = 0;
+	uint64 UniqueShaderSize = 0;
+	for (const FContainerTargetSpec* ContainerTarget : ContainerTargets)
+	{
+		for (const FShaderInfo& ShaderInfo : ContainerTarget->Shaders)
+		{
+			if (ShaderInfo.ReferencedByPackagesCount == 0)
+			{
+				GlobalShaderSize += ShaderInfo.Size;
+			}
+			else if (ShaderInfo.ReferencedByPackagesCount == 1)
+			{
+				UniqueShaderSize += ShaderInfo.Size;
+			}
+			else
+			{
+				SharedShaderSize += ShaderInfo.Size;
+			}
+		}
+	}
 
 	LogWriterResults(IoStoreWriterResults);
 	LogContainerPackageInfo(ContainerTargets);
@@ -1772,6 +2067,9 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2lf MB UExp"), (double)UExpSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2lf MB UAsset"), (double)UAssetSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("Input:  %8d Packages"), Packages.Num());
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2f MB Global shaders"), (double)GlobalShaderSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2f MB Shared shaders"), (double)SharedShaderSize / 1024.0 / 1024.0);
+	UE_LOG(LogIoStore, Display, TEXT("Input:  %8.2f MB Unique shaders"), (double)UniqueShaderSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundles"), PackageStoreOptimizer.GetTotalExportBundleCount());
 	UE_LOG(LogIoStore, Display, TEXT("Output: %8llu Export bundle entries"), PackageStoreOptimizer.GetTotalExportBundleEntryCount());
@@ -3232,9 +3530,10 @@ public:
 	virtual bool Visit(const TCHAR* FilenameOrDirectory, const FFileStatData& StatData)
 	{
 		// Should match FCookedFileStatData::EFileExt
-		static const TCHAR* Extensions[] = { TEXT("umap"), TEXT("uasset"), TEXT("uexp"), TEXT("ubulk"), TEXT("uptnl"), TEXT("m.ubulk") };
+		static const TCHAR* Extensions[] = { TEXT("umap"), TEXT("uasset"), TEXT("uexp"), TEXT("ubulk"), TEXT("uptnl"), TEXT("m.ubulk"), TEXT("ushaderbytecode") };
 		static const int32 NumPackageExtensions = 2;
 		static const int32 UExpExtensionIndex = 2;
+		static const int32 UShaderByteCodeExtensionIndex = 6;
 
 		if (StatData.bIsDirectory)
 		{
@@ -3296,6 +3595,10 @@ public:
 		else if (ExtIndex == UExpExtensionIndex)
 		{
 			CookedFileStatData.FileType = FCookedFileStatData::PackageData;
+		}
+		else if (ExtIndex == UShaderByteCodeExtensionIndex)
+		{
+			CookedFileStatData.FileType = FCookedFileStatData::ShaderLibrary;
 		}
 		else
 		{

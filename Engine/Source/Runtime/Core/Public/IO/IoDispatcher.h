@@ -704,7 +704,9 @@ enum class EIoChunkType : uint8
 	LoaderInitialLoadMeta,
 	LoaderGlobalNames,
 	LoaderGlobalNameHashes,
-	ContainerHeader
+	ContainerHeader,
+	ShaderCodeLibrary,
+	ShaderCode
 };
 
 /**
@@ -1150,7 +1152,7 @@ public:
 
 	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings);
 	CORE_API void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>());
-	CORE_API void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
+	CORE_API void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64);
 	CORE_API void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
 

@@ -2736,6 +2736,13 @@ public partial class Project : CommandUtils
 							bAllowBulkDataInIoStore = true; // Default is to allow it in the IoStore
 						}
 
+						bool bAllowShadersInIoStore;
+						if (!PlatformEngineConfig.GetBool("Core.System", "AllowShadersInIoStore", out bAllowShadersInIoStore))
+						{
+							bAllowShadersInIoStore = false;
+						}
+
+
 						UnrealPakResponseFile = new Dictionary<string, string>();
 						Dictionary<string, string> IoStoreResponseFile = new Dictionary<string, string>();
 						foreach (var Entry in PakParams.UnrealPakResponseFile)
@@ -2756,6 +2763,17 @@ public partial class Project : CommandUtils
 									Path.GetExtension(Entry.Key).Contains(".uptnl"))
 							{
 								if(bAllowBulkDataInIoStore)
+								{
+									IoStoreResponseFile.Add(Entry.Key, Entry.Value);
+								}
+								else
+								{
+									UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
+								}
+							}
+							else if (Path.GetExtension(Entry.Key).Contains(".ushaderbytecode"))
+							{
+								if (bAllowShadersInIoStore)
 								{
 									IoStoreResponseFile.Add(Entry.Key, Entry.Value);
 								}

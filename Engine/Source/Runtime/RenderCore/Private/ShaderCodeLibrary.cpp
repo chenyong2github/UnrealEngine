@@ -33,6 +33,8 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CommandLine.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "Serialization/LargeMemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Modules/ModuleManager.h"
@@ -59,6 +61,7 @@ DEFINE_LOG_CATEGORY(LogShaderLibrary);
 
 static uint32 GShaderCodeArchiveVersion = 2;
 static uint32 GShaderPipelineArchiveVersion = 1;
+extern uint32 GIoStoreShaderCodeArchiveVersion;
 
 static FString ShaderExtension = TEXT(".ushaderbytecode");
 static FString ShaderAssetInfoExtension = TEXT(".assetinfo.json");
@@ -734,6 +737,11 @@ public:
 			Library = RHICreateShaderLibrary(InShaderPlatform, ShaderCodeDir, InLibraryName);
 		}
 
+		if (!Library && FIoDispatcher::IsInitialized())
+		{
+			Library = FIoStoreShaderCodeArchive::Create(InShaderPlatform, InLibraryName, FIoDispatcher::Get());
+		}
+
 		if (!Library)
 		{
 			const FName PlatformName = LegacyShaderPlatformToShaderFormat(InShaderPlatform);
@@ -917,6 +925,24 @@ public:
 				RHIShaders[ShaderIndex].SafeRelease();
 			}
 		}
+	}
+
+	void PreloadPackageShaderMap(int32 ShaderMapIndex, FCoreDelegates::FAttachShaderReadRequestFunc AttachShaderReadRequestFunc)
+	{
+		FRWScopeLock Locker(ResourceLock, SLT_Write);
+		FShaderMapResource_SharedCode*& Resource = Resources[ShaderMapIndex];
+		if (!Resource)
+		{
+			Resource = new FShaderMapResource_SharedCode(this, ShaderMapIndex);
+			Resource->bShaderMapPreloaded = Library->PreloadShaderMap(ShaderMapIndex, AttachShaderReadRequestFunc);
+		}
+		Resource->AddRef();
+	}
+
+	void ReleasePreloadedPackageShaderMap(int32 ShaderMapIndex)
+	{
+		FRWScopeLock Locker(ResourceLock, SLT_Write);
+		Resources[ShaderMapIndex]->Release();
 	}
 
 public:
@@ -1325,6 +1351,33 @@ struct FEditorShaderCodeArchive
 				}
 			}
 		}
+	}
+
+	static void SaveIoStoreShaderCodeArchive(const FSerializedShaderArchive& SerializedShaders, FArchive& OutLibraryAr)
+	{
+		OutLibraryAr << GIoStoreShaderCodeArchiveVersion;
+		OutLibraryAr << const_cast<FSerializedShaderArchive&>(SerializedShaders).ShaderMapHashes;
+		OutLibraryAr << const_cast<FSerializedShaderArchive&>(SerializedShaders).ShaderHashes;
+		TArray<FIoStoreShaderMapEntry> ShaderMapEntries;
+		ShaderMapEntries.Reserve(SerializedShaders.ShaderMapEntries.Num());
+		for (const FShaderMapEntry& ShaderMapEntry : SerializedShaders.ShaderMapEntries)
+		{
+			FIoStoreShaderMapEntry& IoStoreShaderMapEntry = ShaderMapEntries.AddDefaulted_GetRef();
+			IoStoreShaderMapEntry.ShaderIndicesOffset = ShaderMapEntry.ShaderIndicesOffset;
+			IoStoreShaderMapEntry.NumShaders = ShaderMapEntry.NumShaders;
+		}
+		OutLibraryAr << ShaderMapEntries;
+		TArray<FIoStoreShaderCodeEntry> ShaderEntries;
+		ShaderEntries.Reserve(SerializedShaders.ShaderEntries.Num());
+		for (const FShaderCodeEntry& ShaderEntry : SerializedShaders.ShaderEntries)
+		{
+			FIoStoreShaderCodeEntry& IoStoreShaderEntry = ShaderEntries.AddDefaulted_GetRef();
+			IoStoreShaderEntry.UncompressedSize = ShaderEntry.UncompressedSize;
+			IoStoreShaderEntry.CompressedSize = ShaderEntry.Size;
+			IoStoreShaderEntry.Frequency = ShaderEntry.Frequency;
+		}
+		OutLibraryAr << ShaderEntries;
+		OutLibraryAr << const_cast<FSerializedShaderArchive&>(SerializedShaders).ShaderIndices;
 	}
 
 	bool Finalize(FString OutputDir, const FString& MetaOutputDir, bool bSaveOnlyAssetInfo = false, TArray<FString>* OutputFilenames = nullptr)
@@ -1851,10 +1904,16 @@ public:
 			ECVF_Default
 			);
 #endif
+
+		FCoreDelegates::PreloadPackageShaderMaps.BindRaw(this, &FShaderLibrariesCollection::PreloadPackageShaderMapsDelegate);
+		FCoreDelegates::ReleasePreloadedPackageShaderMaps.BindRaw(this, &FShaderLibrariesCollection::ReleasePreloadedPackageShaderMapsDelegate);
 	}
 
 	~FShaderLibrariesCollection()
 	{
+		FCoreDelegates::PreloadPackageShaderMaps.Unbind();
+		FCoreDelegates::ReleasePreloadedPackageShaderMaps.Unbind();
+
 #if WITH_EDITOR
 		for (uint32 i = 0; i < EShaderPlatform::SP_NumPlatforms; i++)
 		{
@@ -2501,6 +2560,33 @@ public:
 		}
 	}
 #endif// WITH_EDITOR
+
+	void PreloadPackageShaderMapsDelegate(TArrayView<const FSHAHash> ShaderMapHashes, FCoreDelegates::FAttachShaderReadRequestFunc AttachShaderReadRequestFunc)
+	{
+		for (const FSHAHash& ShaderMapHash : ShaderMapHashes)
+		{
+			int32 ShaderMapIndex;
+			FShaderLibraryInstance* LibraryInstance = FindShaderLibraryForShaderMap(ShaderMapHash, ShaderMapIndex);
+			if (LibraryInstance)
+			{
+				LibraryInstance->PreloadPackageShaderMap(ShaderMapIndex, AttachShaderReadRequestFunc);
+			}
+		}
+	}
+
+	void ReleasePreloadedPackageShaderMapsDelegate(TArrayView<const FSHAHash> ShaderMapHashes)
+	{
+		for (const FSHAHash& ShaderMapHash : ShaderMapHashes)
+		{
+			int32 ShaderMapIndex;
+			FShaderLibraryInstance* LibraryInstance = FindShaderLibraryForShaderMap(ShaderMapHash, ShaderMapIndex);
+			if (LibraryInstance)
+			{
+				LibraryInstance->ReleasePreloadedPackageShaderMap(ShaderMapIndex);
+			}
+		}
+	}
+
 };
 
 static FSharedShaderCodeRequest OnSharedShaderCodeRequest;
@@ -2958,6 +3044,90 @@ bool FShaderLibraryCooker::SaveShaderLibraryChunk(int32 ChunkId, const TSet<FNam
 		bResult = FShaderLibrariesCollection::Impl->SaveShaderCodeChunk(ChunkId, InPackagesInChunk, ShaderFormats, SandboxDestinationPath, SandboxMetadataPath, OutChunkFilenames);
 	}
 	return bResult;
+}
+
+bool FShaderLibraryCooker::ConvertToIoStoreShaderLibrary(
+	const TCHAR* FileName,
+	TTuple<FIoChunkId, FIoBuffer>& OutLibraryIoChunk,
+	TArray<TTuple<FIoChunkId, FIoBuffer, FSHAHash>>& OutCodeIoChunks,
+	TArray<TTuple<FSHAHash, TArray<FIoChunkId>>>& OutShaderMaps,
+	TArray<TTuple<FSHAHash, TSet<FName>>>& OutShaderMapAssetAssociations)
+{
+	TArray<FString> Components;
+	if (FPaths::GetBaseFilename(FileName).ParseIntoArray(Components, TEXT("-")) != 3)
+	{
+		UE_LOG(LogShaderLibrary, Error, TEXT("Invalid shader code library file name '%s'."), FileName);
+		return false;
+	}
+	FString LibraryName = Components[1];
+	FName FormatName(Components[2]);
+	
+	TUniquePtr<FArchive> LibraryAr(IFileManager::Get().CreateFileReader(FileName));
+	if (!LibraryAr)
+	{
+		UE_LOG(LogShaderLibrary, Error, TEXT("Missing shader code library file '%s'."), FileName);
+		return false;
+	}
+
+	uint32 Version;
+	(*LibraryAr) << Version;
+	if (Version != GShaderCodeArchiveVersion)
+	{
+		UE_LOG(LogShaderLibrary, Error, TEXT("Invalid shader code library chunk version in file '%s'."), FileName);
+		return false;
+	}
+
+	FSerializedShaderArchive SerializedShaders;
+	(*LibraryAr) << SerializedShaders;
+	int64 OffsetToShaderCode = LibraryAr->Tell();
+
+	FString AssetInfoFileName = GetShaderAssetInfoFilename(FPaths::GetPath(FileName), LibraryName, FormatName);
+	if (!SerializedShaders.LoadAssetInfo(AssetInfoFileName))
+	{
+		UE_LOG(LogShaderLibrary, Error, TEXT("Failed loading asset asset info file '%s'"), *AssetInfoFileName);
+		return false;
+	}
+
+	FLargeMemoryWriter IoStoreLibraryAr(0, true);
+	FEditorShaderCodeArchive::SaveIoStoreShaderCodeArchive(SerializedShaders, IoStoreLibraryAr);
+	OutLibraryIoChunk.Key = GetShaderCodeArchiveChunkId(LibraryName, FormatName);
+	int64 TotalSize = IoStoreLibraryAr.TotalSize();
+	OutLibraryIoChunk.Value = FIoBuffer(FIoBuffer::AssumeOwnership, IoStoreLibraryAr.ReleaseOwnership(), TotalSize);
+
+	int32 ShaderCount = SerializedShaders.ShaderEntries.Num();
+	OutCodeIoChunks.Reserve(ShaderCount);
+	for (int32 ShaderIndex = 0; ShaderIndex < ShaderCount; ++ShaderIndex)
+	{
+		const FSHAHash& ShaderHash = SerializedShaders.ShaderHashes[ShaderIndex];
+		const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
+		TTuple<FIoChunkId, FIoBuffer, FSHAHash>& OutCodeIoChunk = OutCodeIoChunks.Emplace_GetRef(GetShaderCodeChunkId(ShaderHash), ShaderEntry.Size, ShaderHash);
+		LibraryAr->Seek(OffsetToShaderCode + ShaderEntry.Offset);
+		LibraryAr->Serialize(OutCodeIoChunk.Get<1>().Data(), ShaderEntry.Size);
+	}
+
+	int32 ShaderMapCount = SerializedShaders.ShaderMapHashes.Num();
+	OutShaderMaps.Reserve(ShaderMapCount);
+	for (int32 ShaderMapIndex = 0; ShaderMapIndex < ShaderMapCount; ++ShaderMapIndex)
+	{
+		TTuple<FSHAHash, TArray<FIoChunkId>>& OutShaderMap = OutShaderMaps.AddDefaulted_GetRef();
+		OutShaderMap.Key = SerializedShaders.ShaderMapHashes[ShaderMapIndex];
+		const FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
+		int32 LookupIndexEnd = ShaderMapEntry.ShaderIndicesOffset + ShaderMapEntry.NumShaders;
+		OutShaderMap.Value.Reserve(ShaderMapEntry.NumShaders);
+		for (int32 ShaderLookupIndex = ShaderMapEntry.ShaderIndicesOffset; ShaderLookupIndex < LookupIndexEnd; ++ShaderLookupIndex)
+		{
+			int32 ShaderIndex = SerializedShaders.ShaderIndices[ShaderLookupIndex];
+			OutShaderMap.Value.Add(GetShaderCodeChunkId(SerializedShaders.ShaderHashes[ShaderIndex]));
+		}
+	}
+
+	OutShaderMapAssetAssociations.Reserve(SerializedShaders.ShaderCodeToAssets.Num());
+	for (auto& KV : SerializedShaders.ShaderCodeToAssets)
+	{
+		OutShaderMapAssetAssociations.Emplace(KV.Key, MoveTemp(KV.Value));
+	}
+
+	return true;
 }
 
 #endif// WITH_EDITOR
