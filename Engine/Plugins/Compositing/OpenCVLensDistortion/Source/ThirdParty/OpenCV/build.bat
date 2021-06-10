@@ -4,7 +4,7 @@
 set opencv_version=3.3.1
 
 :: Uncomment to include opencv_contrib in the build
-::set use_opencv_contrib=
+::set use_opencv_contrib=""
 
 set opencv_url=https://github.com/opencv/opencv/archive/%opencv_version%.zip
 set opencv_src=opencv-%opencv_version%
@@ -27,7 +27,7 @@ if not exist %opencv_src% (
     powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('%opencv_src%.zip', '.')"
 )
 
-set EXTRA_MODULES_PATH="%~dp0/UnrealModules"
+set EXTRA_MODULES_PATH="%~dp0UnrealModules"
 
 if defined use_opencv_contrib (
 	:: Download opencv_contrib
@@ -39,9 +39,9 @@ if defined use_opencv_contrib (
 		echo Extracting %opencv_contrib_src%.zip...
 		powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('%opencv_contrib_src%.zip', '.')"
 	)
-	
+
 	:: Append it to the extra modules path for opencv to compile in
-	set EXTRA_MODULES_PATH=%EXTRA_MODULES_PATH%;"%~dp0/build/%opencv_contrib_src%/modules"
+	set EXTRA_MODULES_PATH=%EXTRA_MODULES_PATH%;"%~dp0build\%opencv_contrib_src%\modules"
 )
 
 echo Deleting existing build directories...
