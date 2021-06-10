@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"MediaAssets",
 					"MediaFrameworkUtilities",
 					"OpenCV",
+					"OpenCVHelper",
 					"PlacementMode",
 					"PropertyEditor",
 					"Settings",
