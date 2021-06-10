@@ -3,6 +3,7 @@
 #include "DatasmithCADTranslator.h"
 
 #include "CADInterfacesModule.h"
+#include "CADKernelSurfaceExtension.h"
 #include "CoreTechSurfaceHelper.h"
 #include "DatasmithCADTranslatorModule.h"
 #include "DatasmithDispatcher.h"
@@ -154,16 +155,16 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescription);
 
-		Dispatcher.Process(bWithProcessor);
+			Dispatcher.Process(bWithProcessor);
+		}
+
+		FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUEFileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
+		SceneGraphBuilder.Build();
+
+		MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUEGeomMap, CachePath, ImportParameters);
+
+		return true;
 	}
-
-	FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUEFileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
-	SceneGraphBuilder.Build();
-
-	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUEGeomMap, CachePath, ImportParameters);
-
-	return true;
-}
 
 	ImportParameters.bEnableCacheUsage = false;
 
@@ -206,7 +207,7 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 		}
 		else
 		{
-			//CADKernelSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+			CADKernelSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
 		}
 	}
 	return OutMeshPayload.LodMeshes.Num() > 0;

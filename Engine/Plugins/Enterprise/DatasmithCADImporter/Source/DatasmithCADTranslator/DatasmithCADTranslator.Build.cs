@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"CADKernelSurface",
 					"CADInterfaces",
 					"CADLibrary",
 					"CADTools",

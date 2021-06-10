@@ -8,13 +8,14 @@ namespace UnrealBuildTool.Rules
 	{
 		public CADTools(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
                     "Core",
+					"CADKernel",
 					"DatasmithCore"
-                }
-            );
+				}
+			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
