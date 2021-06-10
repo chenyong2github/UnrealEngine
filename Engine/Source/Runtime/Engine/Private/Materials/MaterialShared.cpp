@@ -1692,6 +1692,21 @@ uint32 FMaterialResource::GetStencilCompare() const
 	return GetMaterialDomain() == MD_PostProcess ? uint32(Material->StencilCompare.GetValue()) : 0;
 }
 
+bool FMaterialResource::HasPerInstanceCustomData() const
+{
+	return Material->GetCachedExpressionData().bHasPerInstanceCustomData;
+}
+
+bool FMaterialResource::HasPerInstanceRandom() const
+{
+	return Material->GetCachedExpressionData().bHasPerInstanceRandom;
+}
+
+bool FMaterialResource::HasVertexInterpolator() const
+{
+	return Material->GetCachedExpressionData().bHasVertexInterpolator;
+}
+
 bool FMaterialResource::HasRuntimeVirtualTextureOutput() const
 {
 	return Material->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput;

@@ -229,6 +229,9 @@ struct FMaterialCachedExpressionData
 	FMaterialCachedExpressionData()
 		: bHasRuntimeVirtualTextureOutput(false)
 		, bHasSceneColor(false)
+		, bHasPerInstanceCustomData(false)
+		, bHasPerInstanceRandom(false)
+		, bHasVertexInterpolator(false)
 	{}
 
 #if WITH_EDITOR
@@ -287,6 +290,15 @@ struct FMaterialCachedExpressionData
 
 	UPROPERTY()
 	uint32 bHasSceneColor : 1;
+
+	UPROPERTY()
+	uint32 bHasPerInstanceCustomData : 1;
+
+	UPROPERTY()
+	uint32 bHasPerInstanceRandom : 1;
+
+	UPROPERTY()
+	uint32 bHasVertexInterpolator : 1;
 
 	/** Each bit corresponds to EMaterialProperty connection status. */
 	UPROPERTY()

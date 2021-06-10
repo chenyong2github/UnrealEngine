@@ -15,6 +15,8 @@
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
 #include "Materials/MaterialExpressionParameter.h"
+#include "Materials/MaterialExpressionPerInstanceCustomData.h"
+#include "Materials/MaterialExpressionPerInstanceRandom.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
@@ -56,6 +58,9 @@ void FMaterialCachedExpressionData::Reset()
 	QualityLevelsUsed.AddDefaulted(EMaterialQualityLevel::Num);
 	bHasRuntimeVirtualTextureOutput = false;
 	bHasSceneColor = false;
+	bHasPerInstanceCustomData = false;
+	bHasPerInstanceRandom = false;
+	bHasVertexInterpolator = false;
 	MaterialAttributesPropertyConnectedBitmask = 0;
 
 	static_assert((uint32)(EMaterialProperty::MP_MAX)-1 <= (8 * sizeof(MaterialAttributesPropertyConnectedBitmask)), "MaterialAttributesPropertyConnectedBitmask cannot contain entire EMaterialProperty enumeration.");
@@ -576,7 +581,6 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 					}
 				}
 			}
-
 		}
 		else if (Expression->IsA(UMaterialExpressionRuntimeVirtualTextureOutput::StaticClass()))
 		{
@@ -585,6 +589,18 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 		else if (Expression->IsA(UMaterialExpressionSceneColor::StaticClass()))
 		{
 			bHasSceneColor = true;
+		}
+		else if (Expression->IsA(UMaterialExpressionPerInstanceRandom::StaticClass()))
+		{
+			bHasPerInstanceRandom = true;
+		}
+		else if (Expression->IsA(UMaterialExpressionPerInstanceCustomData::StaticClass()))
+		{
+			bHasPerInstanceCustomData = true;
+		}
+		else if (Expression->IsA(UMaterialExpressionVertexInterpolator::StaticClass()))
+		{
+			bHasVertexInterpolator = true;
 		}
 		else if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{

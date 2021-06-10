@@ -563,6 +563,9 @@ public:
 		bUsesGlobalDistanceField(false),
 		bUsesPixelDepthOffset(false),
 		bUsesDistanceCullFade(false),
+		bUsesPerInstanceCustomData(false),
+		bUsesPerInstanceRandom(false),
+		bUsesVertexInterpolator(false),
 		bHasRuntimeVirtualTextureOutputNode(false),
 		bUsesAnisotropy(false)
 	{}
@@ -652,6 +655,15 @@ public:
 
 	/** true if the material uses distance cull fade */
 	LAYOUT_BITFIELD(uint8, bUsesDistanceCullFade, 1);
+
+	/** true if the material uses per-instance custom data */
+	LAYOUT_BITFIELD(uint8, bUsesPerInstanceCustomData, 1);
+
+	/** true if the material uses per-instance random */
+	LAYOUT_BITFIELD(uint8, bUsesPerInstanceRandom, 1);
+
+	/** true if the material uses vertex interpolator */
+	LAYOUT_BITFIELD(uint8, bUsesVertexInterpolator, 1);
 
 	/** true if the material writes to a runtime virtual texture custom output node. */
 	LAYOUT_BITFIELD(uint8, bHasRuntimeVirtualTextureOutputNode, 1);
@@ -1720,6 +1732,9 @@ public:
 	virtual bool IsStencilTestEnabled() const { return false; }
 	virtual uint32 GetStencilRefValue() const { return 0; }
 	virtual uint32 GetStencilCompare() const { return 0; }
+	virtual bool HasPerInstanceCustomData() const { return false; }
+	virtual bool HasPerInstanceRandom() const { return false; }
+	virtual bool HasVertexInterpolator() const { return false; }
 	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
 	virtual bool HasMaterialLayers() const { return false; }
 	virtual bool CastsRayTracedShadows() const { return true; }
@@ -2601,6 +2616,9 @@ public:
 	ENGINE_API virtual bool ShouldApplyCloudFogging() const override;
 	ENGINE_API virtual bool IsSky() const override;
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
+	ENGINE_API virtual bool HasPerInstanceCustomData() const override;
+	ENGINE_API virtual bool HasPerInstanceRandom() const override;
+	ENGINE_API virtual bool HasVertexInterpolator() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
 	ENGINE_API virtual bool HasMaterialLayers() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
@@ -3173,6 +3191,9 @@ struct FMaterialShaderParameters
 			uint64 bIsTranslucencyWritingCustomDepth : 1;
 			uint64 bIsDitheredLODTransition : 1;
 			uint64 bIsUsedWithInstancedStaticMeshes : 1;
+			uint64 bHasPerInstanceCustomData : 1;
+			uint64 bHasPerInstanceRandom : 1;
+			uint64 bHasVertexInterpolator : 1;
 			uint64 bHasRuntimeVirtualTextureOutput : 1;
 			uint64 bIsUsedWithLidarPointCloud : 1;
 			uint64 bIsUsedWithVirtualHeightfieldMesh : 1;
@@ -3232,6 +3253,9 @@ struct FMaterialShaderParameters
 		bIsTranslucencyWritingCustomDepth = InMaterial->IsTranslucencyWritingCustomDepth();
 		bIsDitheredLODTransition = InMaterial->IsDitheredLODTransition();
 		bIsUsedWithInstancedStaticMeshes = InMaterial->IsUsedWithInstancedStaticMeshes();
+		bHasPerInstanceCustomData = InMaterial->HasPerInstanceCustomData();
+		bHasPerInstanceRandom = InMaterial->HasPerInstanceRandom();
+		bHasVertexInterpolator = InMaterial->HasVertexInterpolator();
 		bHasRuntimeVirtualTextureOutput = InMaterial->HasRuntimeVirtualTextureOutput();
 		bIsUsedWithLidarPointCloud = InMaterial->IsUsedWithLidarPointCloud();
 		bIsUsedWithVirtualHeightfieldMesh = InMaterial->IsUsedWithVirtualHeightfieldMesh();

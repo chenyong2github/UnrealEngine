@@ -5365,9 +5365,23 @@ bool UMaterial::CanBeClusterRoot() const
 
 void UMaterial::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
-	// CachedExpressionData may be NULL here for default objects
-	const bool bHasSceneColor = CachedExpressionData ? CachedExpressionData->bHasSceneColor : false;
-	OutTags.Add(FAssetRegistryTag("HasSceneColor", bHasSceneColor ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	// CachedExpressionData may be nullptr here for default objects
+	{
+		const bool bHasSceneColor = CachedExpressionData ? CachedExpressionData->bHasSceneColor : false;
+		OutTags.Add(FAssetRegistryTag("HasSceneColor", bHasSceneColor ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	}
+	{
+		const bool bHasPerInstanceRandom = CachedExpressionData ? CachedExpressionData->bHasPerInstanceRandom : false;
+		OutTags.Add(FAssetRegistryTag("HasPerInstanceRandom", bHasPerInstanceRandom ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	}
+	{
+		const bool bHasPerInstanceCustomData = CachedExpressionData ? CachedExpressionData->bHasPerInstanceCustomData : false;
+		OutTags.Add(FAssetRegistryTag("HasPerInstanceCustomData", bHasPerInstanceCustomData ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	}
+	{
+		const bool bHasVertexInterpolator = CachedExpressionData ? CachedExpressionData->bHasVertexInterpolator : false;
+		OutTags.Add(FAssetRegistryTag("HasVertexInterpolator", bHasVertexInterpolator ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	}
 	Super::GetAssetRegistryTags(OutTags);
 }
 

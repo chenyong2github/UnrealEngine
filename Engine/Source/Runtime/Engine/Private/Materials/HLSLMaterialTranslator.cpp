@@ -151,7 +151,6 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	bUsesDistanceCullFade(false)
 ,	bIsFullyRough(0)
 ,	bAllowCodeChunkGeneration(true)
-,	bUsesPerInstanceCustomData(false)
 ,	bUsesAnisotropy(false)
 ,	bMaterialIsStrata(false)
 ,	AllocatedUserTexCoords()
@@ -1427,8 +1426,10 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		OutEnvironment.SetDefine(TEXT("VIRTUAL_TEXTURE_OUTPUT"), 1);
 	}
 
-	OutEnvironment.SetDefine(TEXT("USES_PER_INSTANCE_CUSTOM_DATA"), bUsesPerInstanceCustomData && Material->IsUsedWithInstancedStaticMeshes());
-		
+	OutEnvironment.SetDefine(TEXT("USES_PER_INSTANCE_CUSTOM_DATA"), MaterialCompilationOutput.bUsesPerInstanceCustomData && Material->IsUsedWithInstancedStaticMeshes());
+	OutEnvironment.SetDefine(TEXT("USES_PER_INSTANCE_RANDOM"), MaterialCompilationOutput.bUsesPerInstanceRandom && Material->IsUsedWithInstancedStaticMeshes());
+	OutEnvironment.SetDefine(TEXT("USES_VERTEX_INTERPOLATOR"), MaterialCompilationOutput.bUsesVertexInterpolator);
+
 	OutEnvironment.SetDefine(TEXT("MATERIAL_SKY_ATMOSPHERE"), bUsesSkyAtmosphere);
 	OutEnvironment.SetDefine(TEXT("INTERPOLATE_VERTEX_COLOR"), bUsesVertexColor);
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_COLOR"), bUsesParticleColor); 
@@ -6702,6 +6703,8 @@ int32 FHLSLMaterialTranslator::VertexInterpolator(uint32 InterpolatorIndex)
 		return Errorf(TEXT("Invalid custom interpolator index."));
 	}
 
+	MaterialCompilationOutput.bUsesVertexInterpolator = true;
+
 	UMaterialExpressionVertexInterpolator* Interpolator = *InterpolatorPtr;
 	check(Interpolator->InterpolatorIndex == InterpolatorIndex);
 	check(Interpolator->InterpolatedType & MCT_Float);
@@ -9655,6 +9658,7 @@ int32 FHLSLMaterialTranslator::PerInstanceRandom()
 	}
 	else
 	{
+		MaterialCompilationOutput.bUsesPerInstanceRandom = true;
 		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceRandom(Parameters)"));
 	}
 }
@@ -9690,7 +9694,7 @@ int32 FHLSLMaterialTranslator::PerInstanceCustomData(int32 DataIndex, int32 Defa
 	}
 	else
 	{
-		bUsesPerInstanceCustomData = true;
+		MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
 		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceCustomData(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
 	}
 }
