@@ -262,7 +262,7 @@ export type JobQuery = {
 	maxChange?: number;
 	preflightChange?: number;
 	includePreflight?: boolean,
-	preflightStartedByUser?: string,
+	preflightStartedByUserId?: string,
 	minCreateTime?: string;
 	maxCreateTime?: string;
 	modifiedAfter?: string;
@@ -281,7 +281,7 @@ export type IssueQuery = {
 	maxChange?: number;
 	index?: number;
 	count?: number;
-	user?: string;
+	userId?: string;
 	resolved?: boolean;
 }
 

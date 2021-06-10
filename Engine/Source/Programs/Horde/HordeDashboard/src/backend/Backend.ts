@@ -1034,7 +1034,7 @@ export class Backend {
 
     createSubscription(requests: CreateSubscriptionRequest[]): Promise<CreateSubscriptionResponse[]> {
         requests.forEach(request => {
-            request.userId = dashboard.username ?? "Anonymous";
+            request.userId = dashboard.userId;
         });
         let url = `api/v1/subscriptions`;
         return new Promise<CreateSubscriptionResponse[]>((resolve, reject) => {
@@ -1048,7 +1048,7 @@ export class Backend {
     }
 
     getSubscriptions(): Promise<GetSubscriptionResponse[]> {
-        let url = `api/v1/subscriptions?userId=${dashboard.username ?? "Anonymous"}`;
+        let url = `api/v1/subscriptions?userId=${dashboard.userId}`;
         return new Promise<GetSubscriptionResponse[]>((resolve, reject) => {
             this.backend.get(`${url}`, { suppress404: true }).then((value) => {
                 resolve(value.data as GetSubscriptionResponse[]);
