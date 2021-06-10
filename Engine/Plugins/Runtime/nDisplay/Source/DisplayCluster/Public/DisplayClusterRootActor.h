@@ -185,7 +185,7 @@ private:
 	/**
 	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
 	 */
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "NDisplay")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category = "NDisplay", meta = (AllowPrivateAccess = "true"))
 	UDisplayClusterConfigurationData* CurrentConfigData;
 
 	/**

@@ -9,9 +9,9 @@
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
 
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterProjectionStrings.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Misc/DisplayClusterHelpers.h"
-#include "DisplayClusterProjectionStrings.h"
 #include "Misc/DisplayClusterTypesConverter.h"
 
 #include "EditorDirectories.h"
@@ -22,6 +22,7 @@
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Components/StaticMeshComponent.h"
 
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -204,7 +205,8 @@ void FPolicyParameterInfoComponentCombo::CreateParameterValues(ADisplayClusterRo
 		RootActor->GetComponents(ComponentType, ActorComponents);
 		for (UActorComponent* ActorComponent : ActorComponents)
 		{
-			if (ActorComponent->GetName().EndsWith(FDisplayClusterConfiguratorUtils::GetImplSuffix()))
+			if (ActorComponent->GetName().EndsWith(FDisplayClusterConfiguratorUtils::GetImplSuffix()) ||
+				(ActorComponent->IsA<UStaticMeshComponent>() && ActorComponent->IsVisualizationComponent()))
 			{
 				// Ignore the default impl subobjects.
 				continue;

@@ -350,7 +350,7 @@ public:
 	bool bFixedAspectRatio;
 #endif
 
-	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
 
 	UPROPERTY(VisibleInstanceOnly, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
@@ -436,7 +436,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationNetworkSettings Network;
 
-	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
 	// Apply the global cluster post process settings to all viewports
@@ -444,7 +444,7 @@ public:
 	bool bUseOverallClusterPostProcess = true;
 
 	// Global cluster post process settings
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (EditCondition = "bUseOverallClusterPostProcess"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay, meta = (EditCondition = "bUseOverallClusterPostProcess"))
 	FDisplayClusterConfigurationViewport_PerViewportSettings OverallClusterPostProcessSettings;
 
 
@@ -517,7 +517,7 @@ public:
 	UPROPERTY()
 	UDisplayClusterConfigurationScene* Scene;
 
-	UPROPERTY(VisibleInstanceOnly, Instanced, Category = Advanced, meta = (DisplayThumbnail = false, ShowInnerProperties))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Instanced, Category = Advanced, meta = (DisplayThumbnail = false, ShowInnerProperties))
 	UDisplayClusterConfigurationCluster* Cluster;
 
 	UPROPERTY(EditAnywhere, Category = Advanced)

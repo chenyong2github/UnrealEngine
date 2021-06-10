@@ -44,22 +44,22 @@ public:
 	bool bOversize = true;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ICVFX
 {
 	GENERATED_BODY()
 
 public:
 	// Allow use ICVFX for this viewport (Must be supported by projection policy)
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NDisplay Viewport")
 	bool bAllowICVFX = true;
 
 	// Disable incamera render to this viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NDisplay Viewport")
 	EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode CameraRenderMode = EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Default;
 
 	// Use unique lightcard mode for this viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NDisplay Viewport")
 	EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode LightcardRenderMode = EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Default;
 };
 
@@ -170,7 +170,7 @@ public:
 	FDisplayClusterConfigurationViewport_RenderSettings RenderSettings;
 
 	// Configure ICVFX for this viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NDisplay Viewport")
 	FDisplayClusterConfigurationViewport_ICVFX ICVFX;
 
 	// OCIO Display look configuration 

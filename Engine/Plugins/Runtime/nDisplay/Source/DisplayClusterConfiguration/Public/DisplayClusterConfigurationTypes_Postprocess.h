@@ -89,7 +89,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 	FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerViewportSettings
 {
 	GENERATED_BODY()
@@ -100,27 +100,27 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 		, bOverride_AutoExposureBias(0)
 	{};
 
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTemp:1;
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTint:1;
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_AutoExposureBias:1;
 
 	// Blend weight
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings", Meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings", Meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float BlendWeight = 1.0f;
 
 	// White temperature
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings", Meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings", Meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp"))
 	float WhiteTemp = 6500.0f;
 
 	// White tint
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings", Meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_WhiteTint"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings", Meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_WhiteTint"))
 	float WhiteTint = 0.0f;
 
 	// Exposure compensation
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings", Meta = (UIMin = "-15.0", UIMax = "15.0", EditCondition = "bOverride_AutoExposureBias"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings", Meta = (UIMin = "-15.0", UIMax = "15.0", EditCondition = "bOverride_AutoExposureBias"))
 	float AutoExposureBias = 0.0f;
 
 	// Global color grading
