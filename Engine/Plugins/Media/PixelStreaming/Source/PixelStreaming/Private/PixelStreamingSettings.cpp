@@ -180,10 +180,51 @@ namespace PixelStreamingSettings
 
 }
 
+template<typename T>
+void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
+{
+	T Value;
+	if (FParse::Value(FCommandLine::Get(), Match, Value))
+		CVar->Set(Value, ECVF_SetByCommandline);
+};
+
+void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<FString>& CVar)
+{
+	FString Value;
+	if (FParse::Value(FCommandLine::Get(), Match, Value))
+		CVar->Set(*Value, ECVF_SetByCommandline);
+};
+
+void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
+{
+	if (FParse::Param(FCommandLine::Get(), Match))
+		CVar->Set(true, ECVF_SetByCommandline);
+};
+
 UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)
 {
+	CommandLineParseValue(TEXT("PixelStreamingEncoderTargetBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderTargetBitrate);
+	CommandLineParseValue(TEXT("PixelStreamingEncoderMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderMaxBitrate);
+	CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame);
+	CommandLineParseValue(TEXT("PixelStreamingEncoderMinQP="), PixelStreamingSettings::CVarPixelStreamingEncoderMinQP);
+	CommandLineParseValue(TEXT("PixelStreamingEncoderMaxQP="), PixelStreamingSettings::CVarPixelStreamingEncoderMaxQP);
+	CommandLineParseValue(TEXT("PixelStreamingEncoderRateControl="), PixelStreamingSettings::CVarPixelStreamingEncoderRateControl);
+	CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), PixelStreamingSettings::CVarPixelStreamingEnableFillerData);
+	CommandLineParseValue(TEXT("PixelStreamingEncoderMultipass="), PixelStreamingSettings::CVarPixelStreamingEncoderMultipass);
 
+	CommandLineParseValue(TEXT("PixelStreamingUseBackBufferCaptureSize="), PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize);
+	CommandLineParseValue(TEXT("PixelStreamingCaptureSize="), PixelStreamingSettings::CVarPixelStreamingCaptureSize);
+
+	CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
+	CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxFps="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps);
+	CommandLineParseValue(TEXT("PixelStreamingWebRTCMinBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate);
+	CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate);
+	CommandLineParseValue(TEXT("PixelStreamingWebRTCLowQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCLowQpThreshold);
+	CommandLineParseValue(TEXT("PixelStreamingWebRTCHighQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCHighQpThreshold);
+
+	CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingHudStats);
+	CommandLineParseValue(TEXT("FreezeFrameQuality="), PixelStreamingSettings::CVarFreezeFrameQuality);
 }
 
 FName UPixelStreamingSettings::GetCategoryName() const
