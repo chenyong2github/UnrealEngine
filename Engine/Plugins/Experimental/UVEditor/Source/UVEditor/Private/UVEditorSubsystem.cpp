@@ -3,12 +3,12 @@
 #include "UVEditorSubsystem.h"
 
 #include "ToolTargetManager.h"
-#include "ToolTargets/StaticMeshUVMeshToolTarget.h"
-#include "TargetInterfaces/UVUnwrapDynamicMesh.h"
+#include "ToolTargets/StaticMeshToolTarget.h"
+#include "ToolTargets/SkeletalMeshToolTarget.h"
 #include "UVEditor.h"
+#include "UVEditorMode.h"
 
-const FToolTargetTypeRequirements UUVEditorSubsystem::UVUnwrapMeshTargetRequirements = 
-	FToolTargetTypeRequirements(UUVUnwrapDynamicMesh::StaticClass());
+using namespace UE::Geometry;
 
 void UUVEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -17,8 +17,8 @@ void UUVEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	ToolTargetManager = NewObject<UToolTargetManager>(this);
 	ToolTargetManager->Initialize();
 
-	// Add new target factories here and in UUVEditorMode::Enter() as they are developed.
-	ToolTargetManager->AddTargetFactory(NewObject<UStaticMeshUVMeshToolTargetFactory>(ToolTargetManager));
+	ToolTargetManager->AddTargetFactory(NewObject<UStaticMeshToolTargetFactory>(ToolTargetManager));
+	ToolTargetManager->AddTargetFactory(NewObject<USkeletalMeshToolTargetFactory>(ToolTargetManager));
 }
 
 void UUVEditorSubsystem::Deinitialize()
@@ -36,13 +36,28 @@ bool UUVEditorSubsystem::AreObjectsValidTargets(const TArray<UObject*>& InObject
 
 	for (UObject* Object : InObjects)
 	{
-		if (!ToolTargetManager->CanBuildTarget(Object, UVUnwrapMeshTargetRequirements))
+		if (!ToolTargetManager->CanBuildTarget(Object, UUVEditorMode::GetToolTargetRequirements()))
 		{
 			return false;
 		}
 	}
 
 	return true;
+}
+
+void UUVEditorSubsystem::BuildTargets(const TArray<TObjectPtr<UObject>>& ObjectsIn, 
+	const FToolTargetTypeRequirements& TargetRequirements, TArray<TObjectPtr<UToolTarget>>& TargetsOut)
+{
+	TargetsOut.Reset();
+
+	for (UObject* Object : ObjectsIn)
+	{
+		UToolTarget* Target = ToolTargetManager->BuildTarget(Object, TargetRequirements);
+		if (Target)
+		{
+			TargetsOut.Add(Target);
+		}
+	}
 }
 
 void UUVEditorSubsystem::StartUVEditor(TArray<TObjectPtr<UObject>> ObjectsToEdit)

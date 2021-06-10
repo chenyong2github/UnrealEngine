@@ -7,7 +7,11 @@
 #include "EditorSubsystem.h"
 #include "ToolTargets/ToolTarget.h" //FToolTargetTypeRequirements
 
+#include "GeometryBase.h"
+
 #include "UVEditorSubsystem.generated.h"
+
+PREDECLARE_GEOMETRY(class FAssetDynamicMeshTargetComboInterface);
 
 class UToolTargetManager;
 class UUVEditor;
@@ -33,6 +37,13 @@ public:
 	/** Checks that all of the objects are valid targets for a UV editor session. */
 	virtual bool AreObjectsValidTargets(const TArray<UObject*>& InObjects) const;
 
+	/** 
+	 * Tries to build the core targets that provide meshes for UV tools to work on.
+	 */
+	virtual void BuildTargets(const TArray<TObjectPtr<UObject>>& ObjectsIn, 
+		const FToolTargetTypeRequirements& TargetRequirements,
+		TArray<TObjectPtr<UToolTarget>>& TargetsOut);
+
 	/**
 	 * Either brings to the front an existing UV editor instance that is editing one of
 	 * these objects, if one exists, or starts up a new instance editing all of these 
@@ -46,14 +57,11 @@ public:
 	 */
 	virtual void NotifyThatUVEditorClosed(TArray<TObjectPtr<UObject>> ObjectsItWasEditing);
 
-	static const FToolTargetTypeRequirements UVUnwrapMeshTargetRequirements;
-
 protected:
 
 	/**
 	 * Used to let the subsystem figure out whether targets are valid. New factories should be
-	 * added here in Initialize() as they are developed, as well as to the tool manager used
-	 * by a UV mode.
+	 * added here in Initialize() as they are developed.
 	 */
 	UPROPERTY()
 	UToolTargetManager* ToolTargetManager = nullptr;

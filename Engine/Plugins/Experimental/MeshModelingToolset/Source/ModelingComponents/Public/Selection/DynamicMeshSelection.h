@@ -27,7 +27,7 @@ public:
 	TSet<int32> SelectedIDs;
 	EType Type = EType::Vertex;
 
-	// Not be relevant if the selection type is not Group
+	// Not relevant if the selection type is not Group
 	int32 GroupLayer = 0;
 
 	bool IsEmpty() const
