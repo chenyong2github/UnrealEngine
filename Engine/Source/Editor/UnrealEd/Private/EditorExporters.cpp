@@ -531,6 +531,10 @@ bool ULevelExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 				// Restore dynamic delegate bindings.
 				UBlueprintGeneratedClass::BindDynamicDelegates(Actor->GetClass(), Actor);
 			}
+			else if (GEditor)
+			{
+				GEditor->GetSelectedActors()->Deselect(Actor);
+			}
 		}
 	}
 
