@@ -59,8 +59,8 @@ FLightCullingParameters UnpackLightBatchCullingParameters(FLightBatchCullingPara
 	Parameters.CosConeAngle = PackedData.LightPositionAndCosConeAngle.w;
 	Parameters.SinConeAngle = PackedData.LightDirectionAndSinConeAngle.w;
 	
-	LightType = PackedData.Flags & 0x01;
-	bIsDynamicShadow = (PackedData.Flags >> 1) & 0x03;
+	bIsDynamicShadow = PackedData.Flags & 0x01;
+	LightType = (PackedData.Flags >> 1) & 0x03;
 	return Parameters;
 }
 
