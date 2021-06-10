@@ -89,7 +89,10 @@ namespace LowLevelTasks
 
 	class FSchedulerTls
 	{
-	protected: 
+	protected:
+		using FQueueRegistry	= TLocalQueueRegistry<>;
+		using FLocalQueueType	= FQueueRegistry::TLocalQueue;
+
 		enum class EWorkerType
 		{
 			None,
@@ -99,6 +102,7 @@ namespace LowLevelTasks
 
 		static thread_local FTask* ActiveTask;
 		static thread_local FSchedulerTls* ActiveScheduler;
+		static thread_local FLocalQueueType* LocalQueue;
 		static thread_local EWorkerType WorkerType;
 		// number of busy-waiting calls in the call-stack
 		static thread_local uint32 BusyWaitingDepth;
@@ -129,12 +133,7 @@ namespace LowLevelTasks
 		UE_NONCOPYABLE(FScheduler);
 		static constexpr uint32 WorkerSpinCycles = 53;
 
-		using FQueueRegistry	= TLocalQueueRegistry<>;
-		using FLocalQueueType	= FQueueRegistry::TLocalQueue;
-
-		static thread_local FLocalQueueType* LocalQueue;
 		static thread_local FTask* ActiveTask;
-		static thread_local FScheduler* ActiveScheduler;
 
 		static CORE_API FScheduler Singleton;
 
@@ -176,6 +175,9 @@ namespace LowLevelTasks
 		//number of instantiated workers
 		inline uint32 GetNumWorkers() const;
 
+		//get the Queue registry to register additonal WorkerQueues for this Scheduler
+		inline FSchedulerTls::FQueueRegistry& GetQueueRegistry();
+
 	private: //Private Interface of the Scheduler	
 		enum class ESleepState
 		{
@@ -198,24 +200,24 @@ namespace LowLevelTasks
 		~FScheduler();
 
 	private: 
-		TUniquePtr<FThread> CreateWorker(FLocalQueueType* ExternalWorkerLocalQueue = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal, bool bPermitBackgroundWork = false, bool bIsForkable = false);
-		void WorkerMain(struct FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork);
+		TUniquePtr<FThread> CreateWorker(FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal, bool bPermitBackgroundWork = false, bool bIsForkable = false);
+		void WorkerMain(struct FSleepEvent* WorkerEvent, FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork);
 		CORE_API void LaunchInternal(FTask& Task, EQueuePreference QueuePreference, bool bWakeUpWorker);
 		CORE_API void BusyWaitInternal(const FConditional& Conditional, bool ForceAllowBackgroundWork);
-		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, bool& Drowsing, bool bBackgroundWorker);
+		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FSchedulerTls::FQueueRegistry::FOutOfWork& OutOfWork, bool& Drowsing, bool bBackgroundWorker);
 		inline bool WakeUpWorker(bool bBackgroundWorker);
 
-		template<FTask* (FLocalQueueType::*DequeueFunction)(bool), bool bIsBusyWaiting>
-		bool TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork);
+		template<FTask* (FSchedulerTls::FLocalQueueType::*DequeueFunction)(bool), bool bIsBusyWaiting>
+		bool TryExecuteTaskFrom(FSchedulerTls::FLocalQueueType* Queue, FSchedulerTls::FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork);
 
 	private:
-		TEventStack<FSleepEvent> 	SleepEventStack[2];
-		FQueueRegistry 				QueueRegistry;
-		FCriticalSection 			WorkerThreadsCS;
-		TArray<TUniquePtr<FThread>> WorkerThreads;
-		TArray<FLocalQueueType>		WorkerLocalQueues;
-		std::atomic_uint			ActiveWorkers { 0 };
-		std::atomic_uint			NextWorkerId { 0 };
+		TEventStack<FSleepEvent> 				SleepEventStack[2];
+		FSchedulerTls::FQueueRegistry 			QueueRegistry;
+		FCriticalSection 						WorkerThreadsCS;
+		TArray<TUniquePtr<FThread>>				WorkerThreads;
+		TArray<FSchedulerTls::FLocalQueueType>	WorkerLocalQueues;
+		std::atomic_uint						ActiveWorkers { 0 };
+		std::atomic_uint						NextWorkerId { 0 };
 	};
 
 	FORCEINLINE_DEBUGGABLE bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference, bool bWakeUpWorker = true)
@@ -304,7 +306,7 @@ namespace LowLevelTasks
 		}
 	}
 
-	inline void FScheduler::TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, bool& Drowsing, bool bBackgroundWorker)
+	inline void FScheduler::TrySleeping(FSleepEvent* WorkerEvent, FSchedulerTls::FQueueRegistry::FOutOfWork& OutOfWork, bool& Drowsing, bool bBackgroundWorker)
 	{
 		ESleepState DrowsingState1 = ESleepState::Drowsing;
 		ESleepState DrowsingState2 = ESleepState::Drowsing;
@@ -347,6 +349,11 @@ namespace LowLevelTasks
 			return true; // Solving State one: (Running -> Drowsing) -> Running  OR ((Running -> Drowsing) -> Drowsing) -> Running
 		}
 		return false;
+	}
+
+	inline FSchedulerTls::FQueueRegistry& FScheduler::GetQueueRegistry()
+	{
+		return QueueRegistry;
 	}
 
 	inline FScheduler& FScheduler::Get()
