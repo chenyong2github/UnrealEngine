@@ -67,18 +67,16 @@ private:
 	TSharedRef<FOptimusHLSLSyntaxHighlighter> SyntaxHighlighter;
 	TSharedRef<FOptimusHLSLSyntaxHighlighter> SyntaxHighlighterMain;
 
-	TSharedPtr<IPropertyHandle> ShaderPreambleProperty;
+	TSharedPtr<IPropertyHandle> DeclarationsProperty;
 	TSharedPtr<IPropertyHandle> ShaderTextProperty;
-	TSharedPtr<IPropertyHandle> ShaderEpilogueProperty;
 
 	TSharedPtr<SScrollBar> HorizontalScrollbar;
 	TSharedPtr<SScrollBar> VerticalScrollbar;
 
 	TSharedPtr<SMultiLineEditableText> ShaderEditor;
 
-	FText GetPreambleText() const;
+	FText GetDeclarationsText() const;
 	FText GetShaderText() const;
-	FText GetEpilogueText() const;
 
 	void OnShaderTextChanged(const FText &InText);
 

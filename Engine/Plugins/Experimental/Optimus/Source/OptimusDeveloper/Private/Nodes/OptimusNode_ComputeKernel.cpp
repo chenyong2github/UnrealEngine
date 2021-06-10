@@ -2,6 +2,7 @@
 
 #include "OptimusNode_ComputeKernel.h"
 #include "OptimusNodePin.h"
+#include "OptimusHelpers.h"
 
 #include "OptimusDataTypeRegistry.h"
 
@@ -10,7 +11,6 @@ UOptimusNode_ComputeKernel::UOptimusNode_ComputeKernel()
 {
 	UpdatePreamble();
 
-	ShaderSource.ShaderEpilogue = TEXT("}\n");
 }
 
 
@@ -18,7 +18,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(UObject *I
 {
 	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InOuter, NAME_None);
 
-	KernelSource->SetSourceAndEntryPoint(ShaderSource.GetSource(), KernelName);
+	KernelSource->SetSourceAndEntryPoint(ShaderSource.ShaderText, KernelName);
 
 	auto CopyValueType = [](FShaderValueTypeHandle InValueType,  FShaderParamTypeDefinition& OutParamDef)
 	{
@@ -56,7 +56,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(UObject *I
 	FShaderParamTypeDefinition IndexParamDef;
 	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);
 	
-	for (const FOptimus_ShaderInputResourceBinding& Input: InputBindings)
+	for (const FOptimus_ShaderBinding& Input: InputBindings)
 	{
 		FShaderFunctionDefinition FuncDef;
 		FuncDef.Name = Input.Name.ToString();
@@ -67,10 +67,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(UObject *I
 
 		FuncDef.ParamTypes.Emplace(ParamDef);
 
-		if (Input.bUsesIndex)
-		{
-			FuncDef.ParamTypes.Add(IndexParamDef);
-		}
+		FuncDef.ParamTypes.Add(IndexParamDef);
 
 		KernelSource->ExternalInputs.Emplace(FuncDef);
 	}
@@ -141,7 +138,7 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 	{
 		EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 		FOptimus_ShaderBinding *Binding = nullptr;
-		FString Name;
+		FName Name;
 		UOptimusNodePin *BeforePin = nullptr;
 		EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Resource;
 
@@ -149,31 +146,30 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 		{
 			Direction = EOptimusNodePinDirection::Input;
 			Binding = &Parameters.Last();
-			Name = FString::Printf(TEXT("Param%d"), Parameters.Num());
+			Name = FName("Param");
 			StorageType = EOptimusNodePinStorageType::Value;
 
 			if (!InputBindings.IsEmpty())
 			{
 				BeforePin = GetPins()[Parameters.Num()];
-			}	
+			}
 		}
 		else if (BasePropertyName == InputBindingsName)
 		{
 			Direction = EOptimusNodePinDirection::Input;
 			Binding = &InputBindings.Last();
-			Name = FString::Printf(TEXT("Read%d"), InputBindings.Num());
-			InputBindings.Last().bUsesIndex = true;
+			Name = FName("Input");
 		}
 		else if (BasePropertyName == OutputBindingsName)
 		{
 			Direction = EOptimusNodePinDirection::Output;
 			Binding = &OutputBindings.Last();
-			Name = FString::Printf(TEXT("Write%d"), OutputBindings.Num());
+			Name = FName("Output");
 		}
 
 		if (ensure(Binding))
 		{
-			Binding->Name = *Name;
+			Binding->Name = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Name);
 			Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
 
 			AddPin(Binding->Name, Direction, StorageType, Binding->DataType, BeforePin);
@@ -234,7 +230,6 @@ void UOptimusNode_ComputeKernel::UpdatePinNames(
 	EOptimusNodePinDirection InPinDirection
 	)
 {
-	// FIXME: Duplicate names.
 	TArray<FName> Names;
 
 	if (InPinDirection == EOptimusNodePinDirection::Input)
@@ -259,13 +254,46 @@ void UOptimusNode_ComputeKernel::UpdatePinNames(
 	// Let's try and figure out which pin got changed.
 	TArray<UOptimusNodePin*> KernelPins = GetKernelPins(InPinDirection);
 
+	bool bNameChanged = false;
 	if (ensure(Names.Num() == KernelPins.Num()))
 	{
 		for (int32 Index = 0; Index < KernelPins.Num(); Index++)
 		{
 			if (KernelPins[Index]->GetFName() != Names[Index])
 			{
-				SetPinName(KernelPins[Index], Names[Index]);
+				FName NewName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Names[Index]);
+
+				SetPinName(KernelPins[Index], NewName);
+
+				if (NewName != Names[Index])
+				{
+					bNameChanged = true;  
+				}
+			}
+		}
+	}
+
+	if (bNameChanged)
+	{
+		if (InPinDirection == EOptimusNodePinDirection::Input)
+		{
+			for (int32 Index = 0; Index < Names.Num(); Index++)
+			{
+				if (Index < Parameters.Num())
+				{
+					Parameters[Index].Name = Names[Index];
+				}
+				else
+				{
+					InputBindings[Index - Parameters.Num()].Name = Names[Index];
+				}
+			}
+		}
+		else if (InPinDirection == EOptimusNodePinDirection::Output)
+		{
+			for (int32 Index = 0; Index < Names.Num(); Index++)
+			{
+				OutputBindings[Index].Name = Names[Index];
 			}
 		}
 	}
@@ -298,68 +326,46 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 	CollectStructs(InputBindings);
 	CollectStructs(OutputBindings);
 	
-	TArray<FString> Buffers;
+	TArray<FString> Declarations;
 
 	for (const FOptimus_ShaderBinding& Binding: Parameters)
 	{
-		Buffers.Add(FString::Printf(TEXT("KERNEL_PARAM(%s, %s)"),
+		Declarations.Add(FString::Printf(TEXT("%s Read%s();"),
 			*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString()));
 	}
 	if (!Parameters.IsEmpty())
 	{
-		Buffers.AddDefaulted();
+		Declarations.AddDefaulted();
 	}
 
-	for (const FOptimus_ShaderInputResourceBinding& Binding: InputBindings)
+	for (const FOptimus_ShaderBinding& Binding: InputBindings)
 	{
-		FString IndexVar;
-		if (Binding.bUsesIndex)
-		{
-			IndexVar = TEXT(", uint");
-		}
-		Buffers.Add(FString::Printf(TEXT("KERNEL_EXTERN_READ(%s, %s%s)"),
-			*Binding.Name.ToString(), *Binding.DataType->ShaderValueType->ToString(), *IndexVar));
+		Declarations.Add(FString::Printf(TEXT("uint %sCount();"), *Binding.Name.ToString()));
+		Declarations.Add(FString::Printf(TEXT("%s Read%s(uint Index);"),
+			*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString()));
 	}
 	if (!InputBindings.IsEmpty())
 	{
-		Buffers.AddDefaulted();
+		Declarations.AddDefaulted();
 	}
 	for (const FOptimus_ShaderBinding& Binding: OutputBindings)
 	{
-		Buffers.Add(FString::Printf(TEXT("KERNEL_EXTERN_WRITE(%s, uint, %s)"),
+		Declarations.Add(FString::Printf(TEXT("uint %sCount();"), *Binding.Name.ToString()));
+		Declarations.Add(FString::Printf(TEXT("void Write%s(uint Index, %s Value);"),
 			*Binding.Name.ToString(), *Binding.DataType->ShaderValueType->ToString()));
 	}
-	
-	FString Declarations;
 
+	ShaderSource.Declarations.Reset();
 	if (!Structs.IsEmpty())
 	{
-		Declarations += TEXT("// Type declarations\n");
-		Declarations += FString::Join(Structs, TEXT("\n")) + TEXT("\n");
+		ShaderSource.Declarations += TEXT("// Type declarations\n");
+		ShaderSource.Declarations += FString::Join(Structs, TEXT("\n")) + TEXT("\n");
 	}
-	if (!Buffers.IsEmpty())
+	if (!Declarations.IsEmpty())
 	{
-		Declarations += TEXT("// Kernel params and read/write buffers\n");
-		Declarations += FString::Join(Buffers, TEXT("\n")) + TEXT("\n\n");
+		ShaderSource.Declarations += TEXT("// Parameters and resource read/write functions\n");
+		ShaderSource.Declarations += FString::Join(Declarations, TEXT("\n"));
 	}
-
-	FString Name = KernelName;
-	if (Name.IsEmpty())
-	{
-		Name = "ComputeShader";
-	}
-	else
-	{
-		Name.RemoveSpacesInline();
-	}
-
-	ShaderSource.ShaderPreamble = FString::Printf(TEXT(
-		"#include \"/Engine/Private/Common.ush\"\n"
-		"#include \"/Engine/Private/ComputeKernelCommon.ush\"\n\n"
-	    "%s"	// Buffers + declarations
-	    "[numthreads(%d, 1, 1)]\n"
-	    "KERNEL_ENTRY_POINT(%s)\n"
-	    "{"), *Declarations, InvocationCount, *Name);	
 }
 
 

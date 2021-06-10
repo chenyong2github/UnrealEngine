@@ -126,6 +126,8 @@ protected:
 		UOptimusNodePin* InSubPin,
 		UOptimusNodePin* InBeforePin = nullptr);
 
+	void ClearSubPins();
+
 	bool SetDataType(
 	    FOptimusDataTypeRef InDataType
 		);

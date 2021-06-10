@@ -303,7 +303,40 @@ bool UOptimusNode::SetPinDataType(
 	if (ensure(InPin) && ensure(InDataType.IsValid()) && 
 	    ensure(InPin->GetPropertyFromPin() == nullptr))
 	{
-		return InPin->SetDataType(InDataType);
+		bool bPinTypeChanged;
+		
+		// FIXME: Turn into an undo command that preserves links.
+		if (InPin->GetStorageType() == EOptimusNodePinStorageType::Value &&
+			EnumHasAllFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
+		{
+			bPinTypeChanged = InPin->SetDataType(InDataType);
+
+			if (bPinTypeChanged)
+			{
+				// If the type was already a sub-element type, remove the existing pins.
+				if (EnumHasAllFlags(InPin->GetDataType()->TypeFlags, EOptimusDataTypeFlags::ShowElements))
+				{
+					InPin->ClearSubPins();
+				}
+				
+				// Add sub-pins, if the registered type is set to show them but only for value types.
+				if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InDataType->TypeObject))
+				{
+					CreatePinsFromStructLayout(Struct, InPin);
+				}
+			}
+		}
+		else
+		{
+			bPinTypeChanged = InPin->SetDataType(InDataType);
+		}
+
+		if (bPinTypeChanged)
+		{
+			InPin->Notify(EOptimusGraphNotifyType::PinTypeChanged);
+		}
+
+		return bPinTypeChanged;
 	}
 	else
 	{

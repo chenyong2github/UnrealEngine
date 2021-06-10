@@ -72,16 +72,6 @@ struct FOptimus_ShaderBinding
 };
 
 
-USTRUCT()
-struct FOptimus_ShaderInputResourceBinding : public FOptimus_ShaderBinding
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = Binding)
-	bool bUsesIndex;
-};
-
-
 UCLASS()
 class UOptimusNode_ComputeKernel
 	: public UOptimusNode
@@ -111,7 +101,7 @@ public:
 	TArray<FOptimus_ShaderBinding> Parameters;
 	
 	UPROPERTY(EditAnywhere, Category=Bindings)
-	TArray<FOptimus_ShaderInputResourceBinding> InputBindings;
+	TArray<FOptimus_ShaderBinding> InputBindings;
 
 	UPROPERTY(EditAnywhere, Category=Bindings)
 	TArray<FOptimus_ShaderBinding> OutputBindings;

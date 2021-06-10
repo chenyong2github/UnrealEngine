@@ -16,6 +16,7 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
 
@@ -153,12 +154,9 @@ void FOptimusType_ShaderTextCustomization::CustomizeHeader(
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
-	ShaderPreambleProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, ShaderPreamble));
+	DeclarationsProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, Declarations));
 	ShaderTextProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, ShaderText));
-	ShaderEpilogueProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, ShaderEpilogue));
 
-	ShaderEpilogueProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, ShaderEpilogue));
-	
 	HorizontalScrollbar =
 	    SNew(SScrollBar)
 	        .AlwaysShowScrollbar(true)
@@ -199,14 +197,32 @@ void FOptimusType_ShaderTextCustomization::CustomizeHeader(
 					.ExternalScrollbar(VerticalScrollbar)
 					+ SScrollBox::Slot()
 					[
+						SNew(STextBlock)
+						.Font(InCustomizationUtils.GetBoldFont())
+						.Text(LOCTEXT("OptimusType_ShaderTextCustomization_Decl", "Declarations:"))
+						.Margin(FMargin(0, 3, 0, 0))
+					]
+					+ SScrollBox::Slot()
+					[
 						SNew(SMultiLineEditableText)
 						.Font(Font)
 						.TextStyle(&TextStyle)
-						.Text(this, &FOptimusType_ShaderTextCustomization::GetPreambleText)
+						.Text(this, &FOptimusType_ShaderTextCustomization::GetDeclarationsText)
 						.Marshaller(SyntaxHighlighter)
 						.HScrollBar(HorizontalScrollbar)
 						.AutoWrapText(false)
 						.IsReadOnly(true)
+					]
+					+ SScrollBox::Slot()
+					[
+						SNew(SSeparator)
+					]
+					+ SScrollBox::Slot()
+					[
+						SNew(STextBlock)
+						.Font(InCustomizationUtils.GetBoldFont())
+						.Text(LOCTEXT("OptimusType_ShaderTextCustomization_Src", "Compute Kernel Source:"))
+						.Margin(FMargin(0, 3, 0, 0))
 					]
 					+ SScrollBox::Slot()
 					[
@@ -221,17 +237,6 @@ void FOptimusType_ShaderTextCustomization::CustomizeHeader(
 						.AutoWrapText(false)
 						.Marshaller(SyntaxHighlighterMain)
 						.HScrollBar(HorizontalScrollbar)
-					]
-					+ SScrollBox::Slot()
-					[
-						SNew(SMultiLineEditableText)
-						.Font(Font)
-						.TextStyle(&TextStyle)
-						.Text(this, &FOptimusType_ShaderTextCustomization::GetEpilogueText)
-						.Marshaller(SyntaxHighlighter)
-						.HScrollBar(HorizontalScrollbar)
-						.AutoWrapText(false)
-						.IsReadOnly(true)
 					]
 				]
 				+SGridPanel::Slot(1, 0)
@@ -248,10 +253,10 @@ void FOptimusType_ShaderTextCustomization::CustomizeHeader(
 }
 
 
-FText FOptimusType_ShaderTextCustomization::GetPreambleText() const
+FText FOptimusType_ShaderTextCustomization::GetDeclarationsText() const
 {
 	FString Preamble;
-	ShaderPreambleProperty->GetValue(Preamble);
+	DeclarationsProperty->GetValue(Preamble);
 	return FText::FromString(Preamble);
 }
 
@@ -261,14 +266,6 @@ FText FOptimusType_ShaderTextCustomization::GetShaderText() const
 	FString ShaderText;
 	ShaderTextProperty->GetValue(ShaderText);
 	return FText::FromString(ShaderText);
-}
-
-
-FText FOptimusType_ShaderTextCustomization::GetEpilogueText() const
-{
-	FString Epilogue;
-	ShaderEpilogueProperty->GetValue(Epilogue);
-	return FText::FromString(Epilogue);
 }
 
 
@@ -289,7 +286,6 @@ FReply FOptimusType_ShaderTextCustomization::OnShaderTextKeyChar(const FGeometry
 	if (Character == TEXT('\t'))
 	{
 		// Tab to nearest 4.
-
 		ShaderEditor->InsertTextAtCursor(TEXT("    "));
 		return FReply::Handled();
 	}
