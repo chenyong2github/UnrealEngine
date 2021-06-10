@@ -160,7 +160,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 	const FDisplayClusterConfigurationViewport_RenderSettings& InRenderSettings = InConfigurationViewport.RenderSettings;
 
 	// OCIO
-	FDisplayClusterViewportConfigurationHelpers_OpenColorIO::Update(DstViewport, RootActor, InConfigurationViewport.OCIO_Configuration);
+	FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateBaseViewport(DstViewport, RootActor, InConfigurationViewport);
 
 	// Additional per-viewport PostProcess
 	FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCustomPostProcessSettings(DstViewport, RootActor, InRenderSettings.CustomPostprocess);

@@ -246,7 +246,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_LightcardRenderSettings RenderSettings;
 
-	// OCIO Display look configuration 
+	// Enable using outer viewport OCIO from DCRA for lightcard rendering
+	UPROPERTY(EditInstanceOnly, Category = "OCIO")
+	bool bEnableOuterViewportOCIO = false;
+
+	// Enable using viewport OCIO for lightcard rendering
+	UPROPERTY(EditInstanceOnly, Category = "OCIO")
+	bool bEnableViewportOCIO = false;
+
+	// OCIO Display look configuration for all lightcards
 	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FOpenColorIODisplayConfiguration OCIO_Configuration;
 };

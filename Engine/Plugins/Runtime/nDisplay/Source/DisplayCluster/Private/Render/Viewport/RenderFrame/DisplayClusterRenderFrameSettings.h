@@ -47,6 +47,9 @@ struct FDisplayClusterRenderFrameSettings
 	// (icvfx has child viewports: lightcard and chromakey with prj_view matrices copied from parent viewport. May sense to use same viewfamily?)
 	// [not implemented yet] Experimental
 	bool bShouldUseParentViewportRenderFamily = false;
+
+	// Cluster node name for render
+	FString ClusterNodeId;
 };
 
 

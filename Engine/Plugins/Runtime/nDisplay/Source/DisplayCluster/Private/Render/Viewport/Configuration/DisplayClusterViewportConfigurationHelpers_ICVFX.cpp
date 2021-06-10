@@ -201,14 +201,10 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetO
 	return ChromakeyViewport;
 }
 
-FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetOrCreateLightcardViewport(FDisplayClusterViewport& BaseViewport, ADisplayClusterRootActor& RootActor)
+FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetOrCreateLightcardViewport(FDisplayClusterViewport& BaseViewport, ADisplayClusterRootActor& RootActor, bool bIsOpenColorIOViewportExist)
 {
-	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
-	const FDisplayClusterConfigurationICVFX_LightcardSettings& LightcardSettings = StageSettings.Lightcard;
-	const bool bIsOpenColorIO = LightcardSettings.OCIO_Configuration.bIsEnabled;
-
 	// Create new lightcard viewport
-	const FString ResourceId = bIsOpenColorIO ? DisplayClusterViewportStrings::icvfx::lightcard_OCIO : DisplayClusterViewportStrings::icvfx::lightcard;
+	const FString ResourceId = bIsOpenColorIOViewportExist ? DisplayClusterViewportStrings::icvfx::lightcard_OCIO : DisplayClusterViewportStrings::icvfx::lightcard;
 
 	FDisplayClusterViewport* LightcardViewport = ImplFindViewport(RootActor, BaseViewport.GetId(), ResourceId);
 	if (LightcardViewport == nullptr)
@@ -230,7 +226,7 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetO
 	LightcardViewport->RenderSettingsICVFX.RuntimeFlags &= ~(ViewportRuntime_Unused);
 
 	// Add viewport ICVFX usage as Lightcard
-	LightcardViewport->RenderSettingsICVFX.RuntimeFlags |= (bIsOpenColorIO) ? ViewportRuntime_ICVFXLightcard_OCIO : ViewportRuntime_ICVFXLightcard;
+	LightcardViewport->RenderSettingsICVFX.RuntimeFlags |= (bIsOpenColorIOViewportExist) ? ViewportRuntime_ICVFXLightcard_OCIO : ViewportRuntime_ICVFXLightcard;
 
 	return LightcardViewport;
 }
@@ -330,7 +326,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 	ImplUpdateCameraProjectionSettings(DstViewport.ProjectionPolicy, CameraSettings, InCameraComponent.GetCameraComponent());
 
 	// OCIO
-	FDisplayClusterViewportConfigurationHelpers_OpenColorIO::Update(DstViewport, RootActor, ImplGetCameraOCIO(RootActor, InCameraComponent));
+	FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateICVFXCameraViewport(DstViewport, RootActor, InCameraComponent);
 
 	// Motion blur:
 	const FDisplayClusterViewport_CameraMotionBlur CameraMotionBlurParameters = InCameraComponent.GetMotionBlurParameters();
@@ -506,11 +502,10 @@ bool FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseLightcard(con
 	return FDisplayClusterViewportConfigurationHelpers_Visibility::IsValid(InLightcardSettings.ShowOnlyList);
 }
 
-void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportSetting(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& BaseViewport, ADisplayClusterRootActor& RootActor)
+void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportSetting(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& BaseViewport, ADisplayClusterRootActor& RootActor, bool bIsOpenColorIOViewportExist)
 {
 	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
 	const FDisplayClusterConfigurationICVFX_LightcardSettings& LightcardSettings = StageSettings.Lightcard;
-	const bool bIsOpenColorIO = LightcardSettings.OCIO_Configuration.bIsEnabled;
 
 	check(LightcardSettings.bEnable);
 
@@ -520,14 +515,16 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 	// LIghtcard texture used as overlay
 	DstViewport.RenderSettings.bVisible = false;
 
-	if (bIsOpenColorIO)
+	bool bIsUsedOpenColorIO = bIsOpenColorIOViewportExist ? false : FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateLightcardViewport(DstViewport, BaseViewport, RootActor);
+	if (bIsUsedOpenColorIO)
 	{
-		// OCIO
-		FDisplayClusterViewportConfigurationHelpers_OpenColorIO::Update(DstViewport, RootActor, LightcardSettings.OCIO_Configuration);
+		// ligthcard used OCIO - capture 2 vp, [1] color with OCIO and [2] alpha
+		// to support OCIO capture mode must be without alpha, so we need to render second vp with alpha
 		DstViewport.RenderSettings.CaptureMode = EDisplayClusterViewportCaptureMode::Lightcard_OCIO;
 	}
 	else
 	{
+		// no OCIO, capture 1 vp - color+alpha
 		DstViewport.RenderSettings.CaptureMode = EDisplayClusterViewportCaptureMode::Lightcard;
 	}
 
@@ -574,7 +571,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 	}
 	else
 	{
-		if (bIsOpenColorIO)
+		if (bIsUsedOpenColorIO)
 		{
 			BaseViewport.RenderSettingsICVFX.ICVFX.Lightcard_OCIO.ViewportId = DstViewport.GetId();
 		}

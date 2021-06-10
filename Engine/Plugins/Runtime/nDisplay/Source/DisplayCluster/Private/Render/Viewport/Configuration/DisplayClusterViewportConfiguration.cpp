@@ -75,18 +75,21 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 			FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(*RootActor);
 			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(ViewportManager, *RootActor, *ConfigurationData);
 
+			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
+
+			// Set current rendering mode
+			RenderFrameSettings.RenderMode = InRenderMode;
+			RenderFrameSettings.ClusterNodeId = InClusterNodeId;
+
 			ConfigurationBase.Update(RenderNodes);
 			ConfigurationICVFX.Update();
 			ConfigurationProjectionPolicy.Update();
 			ConfigurationICVFX.PostUpdate();
 
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
-			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
 
 			ImplUpdateConfiguration_PostProcess(InClusterNodeId, *ConfigurationData);
 
-			// Set current rendering mode
-			RenderFrameSettings.RenderMode = InRenderMode;
 
 			return true;
 		}

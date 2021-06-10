@@ -6,10 +6,20 @@
 
 class FDisplayClusterViewport;
 class ADisplayClusterRootActor;
+
+class UDisplayClusterConfigurationViewport;
+class UDisplayClusterICVFXCameraComponent;
+
 struct FOpenColorIODisplayConfiguration;
 
 class FDisplayClusterViewportConfigurationHelpers_OpenColorIO
 {
 public:
-	static void Update(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FOpenColorIODisplayConfiguration& InOCIO_Configuration);
+	static bool UpdateBaseViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationViewport& InViewportConfiguration);
+	static bool UpdateICVFXCameraViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent);
+	static bool UpdateLightcardViewport(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& BaseViewport, ADisplayClusterRootActor& RootActor);
+
+private:
+	static bool ImplUpdate(FDisplayClusterViewport& DstViewport, const FOpenColorIODisplayConfiguration& InConfiguration);
+	static void ImplDisable(FDisplayClusterViewport& DstViewport);
 };
