@@ -498,7 +498,7 @@ void Attributes::MirrorAttributes(FStackAttributeContainer& CustomAttributes, co
 				}
 			}
 
-			TArray<TWrappedAttribute<FAnimStackAllocator>, FAnimStackAllocator>& ValuesArray = FStackAttributeContainerAccessor::GetValues(CustomAttributes, TypeIndex);
+			TArray<TWrappedAttribute<FAnimStackAllocator>>& ValuesArray = FStackAttributeContainerAccessor::GetValues(CustomAttributes, TypeIndex);
 			const TArray<FAttributeId, FAnimStackAllocator>& AttributeIdentifiers = CustomAttributes.GetKeys(TypeIndex);
 
 			// gather attributes that are on mirrored bones 

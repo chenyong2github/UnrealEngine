@@ -44,7 +44,7 @@ namespace UE
 		template<class BoneIndexType, typename InAllocator>
         struct TAttributeContainerAccessor
 		{
-			static TArray<TWrappedAttribute<InAllocator>, InAllocator>& GetValues(TAttributeContainer<BoneIndexType, InAllocator>& Attributes,  int32 TypeIndex) {return Attributes.GetValuesInternal(TypeIndex);}
+			static TArray<TWrappedAttribute<InAllocator>>& GetValues(TAttributeContainer<BoneIndexType, InAllocator>& Attributes,  int32 TypeIndex) {return Attributes.GetValuesInternal(TypeIndex);}
 			static TArray<FAttributeId, InAllocator>& GetKeys(TAttributeContainer<BoneIndexType, InAllocator>& Attributes,  int32 TypeIndex) {return Attributes.GetKeysInternal(TypeIndex);}
 		};
 
