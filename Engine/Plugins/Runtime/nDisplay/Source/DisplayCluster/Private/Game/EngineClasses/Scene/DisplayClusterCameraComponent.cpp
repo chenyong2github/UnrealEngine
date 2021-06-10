@@ -2,6 +2,7 @@
 
 #include "Components/DisplayClusterCameraComponent.h"
 
+#include "Components/BillboardComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
@@ -19,20 +20,19 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		// Create visual mesh component as a child
-		VisCameraComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
-		if (VisCameraComponent)
+		SpriteComponent = CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite"));
+		if (SpriteComponent)
 		{
-			static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/SM_DCCineCam"));
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> RootTextureObject = TEXT("/nDisplay/Icons/S_nDisplayViewOrigin");
 
-			VisCameraComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-			VisCameraComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator(0.f, 90.f, 0.f));
-			VisCameraComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
-			VisCameraComponent->SetStaticMesh(ScreenMesh.Object);
-			VisCameraComponent->SetMobility(EComponentMobility::Movable);
-			VisCameraComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			VisCameraComponent->SetVisibility(true);
-			VisCameraComponent->SetIsVisualizationComponent(true);
+			SpriteComponent->Sprite = RootTextureObject.Get();
+			SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f));
+			SpriteComponent->bHiddenInGame = false;
+			SpriteComponent->SpriteInfo.Category = TEXT("NDisplayViewOrigin");
+			SpriteComponent->SpriteInfo.DisplayName = NSLOCTEXT("DisplayClusterCameraComponent", "NDisplayViewOriginSpriteInfo", "nDisplay View Origin");
+			SpriteComponent->bIsScreenSizeScaled = true;
+			SpriteComponent->SetIsVisualizationComponent(true);
+			SpriteComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
 		}
 	}
 #endif
@@ -68,11 +68,3 @@ void UDisplayClusterCameraComponent::ApplyConfigurationData()
 		}
 	}
 }
-
-#if WITH_EDITOR
-void UDisplayClusterCameraComponent::SetNodeSelection(bool bSelect)
-{
-	VisCameraComponent->bDisplayVertexColors = bSelect;
-	VisCameraComponent->PushSelectionToProxy();
-}
-#endif

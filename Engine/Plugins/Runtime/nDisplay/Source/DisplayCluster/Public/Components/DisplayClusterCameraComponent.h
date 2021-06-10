@@ -115,11 +115,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	EDisplayClusterEyeStereoOffset StereoOffset;
 
-	UPROPERTY(Transient)
-	UStaticMeshComponent* VisCameraComponent = nullptr;
-
-#if WITH_EDITOR 
-public:
-	virtual void SetNodeSelection(bool bSelect) override;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	UBillboardComponent* SpriteComponent;
 #endif
 };
