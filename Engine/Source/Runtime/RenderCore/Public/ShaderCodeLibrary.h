@@ -17,6 +17,8 @@ class FShaderPipeline;
 class FShaderMapResource;
 class FShaderMapResourceCode;
 using FShaderMapAssetPaths = TSet<FName>;
+class FIoChunkId;
+class FIoBuffer;
 
 struct RENDERCORE_API FShaderCodeLibraryPipeline
 {
@@ -302,5 +304,12 @@ struct RENDERCORE_API FShaderLibraryCooker
 
 	// Create a smaller 'patch' library that only contains data from 'NewMetaDataDir' not contained in any of 'OldMetaDataDirs'
 	static bool CreatePatchLibrary(TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat, bool bNeedsDeterministicOrder);
+
+	static bool ConvertToIoStoreShaderLibrary(
+		const TCHAR* FileName,
+		TTuple<FIoChunkId, FIoBuffer>& OutLibraryIoChunk,
+		TArray<TTuple<FIoChunkId, FIoBuffer, FSHAHash>>& OutCodeIoChunks,
+		TArray<TTuple<FSHAHash, TArray<FIoChunkId>>>& OutShaderMaps,
+		TArray<TTuple<FSHAHash, TSet<FName>>>& OutShaderMapAssetAssociations);
 };
 #endif

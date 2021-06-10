@@ -192,6 +192,9 @@ FCoreDelegates::FOnGCFinishDestroyTimeExtended FCoreDelegates::OnGCFinishDestroy
 
 FCoreDelegates::FAccesExtraBinaryConfigData FCoreDelegates::AccessExtraBinaryConfigData;
 
+FCoreDelegates::FPreloadPackageShaderMaps FCoreDelegates::PreloadPackageShaderMaps;
+FCoreDelegates::FReleasePreloadedPackageShaderMaps FCoreDelegates::ReleasePreloadedPackageShaderMaps;
+
 FCoreDelegates::FApplicationNetworkInitializationChanged FCoreDelegates::ApplicationNetworkInitializationChanged;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

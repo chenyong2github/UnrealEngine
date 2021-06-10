@@ -1953,7 +1953,7 @@ private:
 	TMap<FPackageId, FAsyncPackage2*> AsyncPackageLookup;
 
 	TQueue<FAsyncPackage2*, EQueueMode::Mpsc> ExternalReadQueue;
-	TAtomic<int32> WaitingForIoBundleCounter{ 0 };
+	TAtomic<int32> PendingIoRequestsCounter{ 0 };
 	
 	/** List of all pending package requests */
 	TSet<int32> PendingRequests;
@@ -2590,8 +2590,8 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 
 void FAsyncLoadingThread2::AddBundleIoRequest(FAsyncPackage2* Package)
 {
-	int32 LocalWaitingForIoBundleCount = WaitingForIoBundleCounter.IncrementExchange() + 1;
-	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalWaitingForIoBundleCount);
+	int32 LocalPendingIoRequestsCounter = PendingIoRequestsCounter.IncrementExchange() + 1;
+	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
 	WaitingIoRequests.HeapPush({ Package });
 }
 
@@ -2639,11 +2639,31 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 					TEXT("Failed reading chunk for package: %s"), *Result.Status().ToString());
 				Package->bLoadHasFailed = true;
 			}
-			int32 LocalWaitingForIoBundleCounter = Package->AsyncLoadingThread.WaitingForIoBundleCounter.DecrementExchange() - 1;
-			TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalWaitingForIoBundleCounter);
+			int32 LocalPendingIoRequestsCounter = Package->AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
+			TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
 			TRACE_COUNTER_ADD(AsyncLoadingTotalLoaded, Package->IoBuffer.DataSize());
 			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
 		});
+
+		if (Package->Desc.StoreEntry->ShaderMapHashes.Num())
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(StartShaderMapRequests);
+			auto ReadShaderMapFunc = [Package, &IoBatch](const FIoChunkId& ChunkId, FGraphEventRef GraphEvent)
+			{
+				Package->GetPackageNode(Package_ExportsSerialized).AddBarrier();
+				int32 LocalPendingIoRequestsCounter = Package->AsyncLoadingThread.PendingIoRequestsCounter.IncrementExchange() + 1;
+				TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
+				return IoBatch.ReadWithCallback(ChunkId, FIoReadOptions(), Package->Desc.Priority,
+					[Package, GraphEvent](TIoStatusOr<FIoBuffer> Result)
+					{
+						GraphEvent->DispatchSubsequents();
+						int32 LocalPendingIoRequestsCounter = Package->AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
+						TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
+						Package->GetPackageNode(Package_ExportsSerialized).ReleaseBarrier();
+					});
+			};
+			FCoreDelegates::PreloadPackageShaderMaps.ExecuteIfBound(MakeArrayView(Package->Desc.StoreEntry->ShaderMapHashes.Data(), Package->Desc.StoreEntry->ShaderMapHashes.Num()), ReadShaderMapFunc);
+		}
 	}
 	IoBatch.Issue();
 
@@ -3798,6 +3818,12 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncLoadingThreadSt
 		PackageRef.SetAllPublicExportsLoaded();
 	}
 
+	if (Package->Desc.StoreEntry->ShaderMapHashes.Num())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ReleasePreloadedShaderMaps);
+		FCoreDelegates::ReleasePreloadedPackageShaderMaps.ExecuteIfBound(MakeArrayView(Package->Desc.StoreEntry->ShaderMapHashes.Data(), Package->Desc.StoreEntry->ShaderMapHashes.Num()));
+	}
+
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::PostLoad;
 	Package->GetExportBundleNode(EEventLoadNode2::ExportBundle_PostLoad, 0).ReleaseBarrier();
 	return EAsyncPackageState::Complete;
@@ -4752,7 +4778,7 @@ uint32 FAsyncLoadingThread2::Run()
 			if (!bDidSomething)
 			{
 				FAsyncPackage2* Package = nullptr;
-				if (WaitingForIoBundleCounter.Load() > 0)
+				if (PendingIoRequestsCounter.Load() > 0)
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
 					TRACE_CPUPROFILER_EVENT_SCOPE(WaitingForIo);

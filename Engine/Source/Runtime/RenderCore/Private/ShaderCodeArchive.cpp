@@ -9,10 +9,13 @@
 #include "Policies/PrettyJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
 #include "Misc/FileHelper.h"
+#include "Serialization/MemoryReader.h"
 #if WITH_EDITOR
 #include "Misc/StringBuilder.h"
 #include "Templates/Greater.h"
 #endif
+
+uint32 GIoStoreShaderCodeArchiveVersion = 1;
 
 int32 GShaderCodeLibraryAsyncLoadingPriority = int32(AIOP_Normal);
 static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingPriority(
@@ -30,6 +33,23 @@ static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingAllowDontCache(
 	ECVF_Default
 );
 
+FIoChunkId GetShaderCodeArchiveChunkId(const FString& LibraryName, FName FormatName)
+{
+	FString Name = FString::Printf(TEXT("%s-%s"), *LibraryName, *FormatName.ToString());
+	Name.ToLowerInline();
+	uint64 Hash = CityHash64(reinterpret_cast<const char*>(*Name), Name.Len() * sizeof(TCHAR));
+	return CreateIoChunkId(Hash, 0, EIoChunkType::ShaderCodeLibrary);
+}
+
+FIoChunkId GetShaderCodeChunkId(const FSHAHash& ShaderHash)
+{
+	uint8 Data[12];
+	FMemory::Memcpy(Data, ShaderHash.Hash, 11);
+	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(EIoChunkType::ShaderCode);
+	FIoChunkId ChunkId;
+	ChunkId.Set(Data, 12);
+	return ChunkId;
+}
 
 int32 FSerializedShaderArchive::FindShaderMapWithKey(const FSHAHash& Hash, uint32 Key) const
 {
@@ -997,3 +1017,309 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 
 	return Shader;
 }
+
+FIoStoreShaderCodeArchive* FIoStoreShaderCodeArchive::Create(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher)
+{
+	const FName PlatformName = LegacyShaderPlatformToShaderFormat(InPlatform);
+	FIoChunkId ChunkId = GetShaderCodeArchiveChunkId(InLibraryName, PlatformName);
+	if (InIoDispatcher.DoesChunkExist(ChunkId))
+	{
+		FIoBatch IoBatch = InIoDispatcher.NewBatch();
+		FIoRequest IoRequest = IoBatch.Read(ChunkId, FIoReadOptions(), IoDispatcherPriority_Max);
+		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
+		IoBatch.IssueAndTriggerEvent(Event);
+		Event->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(Event);
+		const FIoBuffer& IoBuffer = IoRequest.GetResult().ValueOrDie();
+		FMemoryReaderView Ar(MakeArrayView(IoBuffer.Data(), IoBuffer.DataSize()));
+		uint32 Version = 0;
+		Ar << Version;
+		if (Version == GIoStoreShaderCodeArchiveVersion)
+		{
+			FIoStoreShaderCodeArchive* Library = new FIoStoreShaderCodeArchive(InPlatform, InLibraryName, InIoDispatcher);
+			Ar << Library->ShaderMapHashes;
+			Ar << Library->ShaderHashes;
+			Ar << Library->ShaderMapEntries;
+			Ar << Library->ShaderEntries;
+			Ar << Library->ShaderIndices;
+			Library->ShaderPreloads.SetNum(Library->GetNumShaders());
+			{
+				const uint32 HashSize = FMath::Min<uint32>(0x10000, 1u << FMath::CeilLogTwo(Library->ShaderMapHashes.Num()));
+				Library->ShaderMapHashTable.Clear(HashSize, Library->ShaderMapHashes.Num());
+				for (int32 Index = 0; Index < Library->ShaderMapHashes.Num(); ++Index)
+				{
+					const uint32 Key = GetTypeHash(Library->ShaderMapHashes[Index]);
+					Library->ShaderMapHashTable.Add(Key, Index);
+				}
+			}
+			{
+				const uint32 HashSize = FMath::Min<uint32>(0x10000, 1u << FMath::CeilLogTwo(Library->ShaderHashes.Num()));
+				Library->ShaderHashTable.Clear(HashSize, Library->ShaderHashes.Num());
+				for (int32 Index = 0; Index < Library->ShaderHashes.Num(); ++Index)
+				{
+					const uint32 Key = GetTypeHash(Library->ShaderHashes[Index]);
+					Library->ShaderHashTable.Add(Key, Index);
+				}
+			}
+			
+			UE_LOG(LogShaderLibrary, Display, TEXT("Using IoDispatcher for shader code library %s. Total %d unique shaders."), *InLibraryName, Library->ShaderEntries.Num());
+			INC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, Library->GetSizeBytes());
+			return Library;
+		}
+	}
+	return nullptr;
+}
+
+FIoStoreShaderCodeArchive::FIoStoreShaderCodeArchive(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher)
+	: FRHIShaderLibrary(InPlatform, InLibraryName)
+	, IoDispatcher(InIoDispatcher)
+{
+}
+
+FIoStoreShaderCodeArchive::~FIoStoreShaderCodeArchive()
+{
+	DEC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, GetSizeBytes());
+	Teardown();
+}
+
+void FIoStoreShaderCodeArchive::Teardown()
+{
+	for (int32 ShaderIndex = 0; ShaderIndex < ShaderPreloads.Num(); ++ShaderIndex)
+	{
+		FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+		check(!ShaderPreloadEntry.NumRefs);
+	}
+}
+
+bool FIoStoreShaderCodeArchive::PreloadShader(int32 ShaderIndex, FGraphEventArray& OutCompletionEvents)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+
+	FWriteScopeLock Lock(ShaderPreloadLock);
+
+	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+	const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs++;
+	if (ShaderNumRefs == 0u)
+	{
+		check(!ShaderPreloadEntry.PreloadEvent);
+
+		const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
+		ShaderPreloadEntry.FramePreloadStarted = GFrameNumber;
+
+		ShaderPreloadEntry.PreloadEvent = FGraphEvent::CreateGraphEvent();
+		FIoBatch IoBatch = IoDispatcher.NewBatch();
+		IoBatch.Read(GetShaderCodeChunkId(ShaderHashes[ShaderIndex]), FIoReadOptions(), IoDispatcherPriority_Medium);
+		IoBatch.IssueAndDispatchSubsequents(ShaderPreloadEntry.PreloadEvent);
+		INC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, ShaderEntry.CompressedSize);
+	}
+
+	if (ShaderPreloadEntry.PreloadEvent && !ShaderPreloadEntry.PreloadEvent->IsComplete())
+	{
+		OutCompletionEvents.Add(ShaderPreloadEntry.PreloadEvent);
+	}
+	return true;
+}
+
+bool FIoStoreShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FGraphEventArray& OutCompletionEvents)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+
+	const FIoStoreShaderMapEntry& ShaderMapEntry = ShaderMapEntries[ShaderMapIndex];
+	const uint32 FrameNumber = GFrameNumber;
+	uint32 PreloadMemory = 0u;
+	uint32 PreloadCount = 0u;
+
+	FWriteScopeLock Lock(ShaderPreloadLock);
+
+	for (uint32 i = 0u; i < ShaderMapEntry.NumShaders; ++i)
+	{
+		const int32 ShaderIndex = ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
+		FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+		const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs++;
+		if (ShaderNumRefs == 0u)
+		{
+			check(!ShaderPreloadEntry.PreloadEvent);
+			const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
+			ShaderPreloadEntry.FramePreloadStarted = FrameNumber;
+			PreloadMemory += ShaderEntry.CompressedSize;
+			++PreloadCount;
+			ShaderPreloadEntry.PreloadEvent = FGraphEvent::CreateGraphEvent();
+			FIoBatch IoBatch = IoDispatcher.NewBatch();
+			ShaderPreloadEntry.IoRequest = IoBatch.Read(GetShaderCodeChunkId(ShaderHashes[ShaderIndex]), FIoReadOptions(), IoDispatcherPriority_Medium);
+			IoBatch.IssueAndDispatchSubsequents(ShaderPreloadEntry.PreloadEvent);
+		}
+		if (ShaderPreloadEntry.PreloadEvent && !ShaderPreloadEntry.PreloadEvent->IsComplete())
+		{
+			OutCompletionEvents.Add(ShaderPreloadEntry.PreloadEvent);
+		}
+	}
+
+	INC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, PreloadMemory);
+
+	return true;
+}
+
+bool FIoStoreShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FCoreDelegates::FAttachShaderReadRequestFunc AttachShaderReadRequestFunc)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+
+	const FIoStoreShaderMapEntry& ShaderMapEntry = ShaderMapEntries[ShaderMapIndex];
+	const uint32 FrameNumber = GFrameNumber;
+	uint32 PreloadMemory = 0u;
+
+	FWriteScopeLock Lock(ShaderPreloadLock);
+
+	for (uint32 i = 0u; i < ShaderMapEntry.NumShaders; ++i)
+	{
+		const int32 ShaderIndex = ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
+		FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+		const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs++;
+		if (ShaderNumRefs == 0u)
+		{
+			check(!ShaderPreloadEntry.PreloadEvent);
+			const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
+			ShaderPreloadEntry.FramePreloadStarted = FrameNumber;
+			PreloadMemory += ShaderEntry.CompressedSize;
+			ShaderPreloadEntry.PreloadEvent = FGraphEvent::CreateGraphEvent();
+			ShaderPreloadEntry.IoRequest = AttachShaderReadRequestFunc(GetShaderCodeChunkId(ShaderHashes[ShaderIndex]), ShaderPreloadEntry.PreloadEvent);
+		}
+	}
+	INC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, PreloadMemory);
+	return true;
+}
+
+bool FIoStoreShaderCodeArchive::ReleaseRef(int32 ShaderIndex)
+{
+	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+	const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs--;
+	check(ShaderNumRefs > 0u);
+	if (ShaderNumRefs == 1u)
+	{
+		ShaderPreloadEntry.IoRequest = FIoRequest();
+		ShaderPreloadEntry.PreloadEvent.SafeRelease();
+		const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
+		DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, ShaderEntry.CompressedSize);
+		return true;
+	}
+	return false;
+}
+
+void FIoStoreShaderCodeArchive::ReleasePreloadedShader(int32 ShaderIndex)
+{
+	FWriteScopeLock Lock(ShaderPreloadLock);
+	ReleaseRef(ShaderIndex);
+}
+
+int32 FIoStoreShaderCodeArchive::FindShaderMapIndex(const FSHAHash& Hash)
+{
+	const uint32 Key = GetTypeHash(Hash);
+	for (uint32 Index = ShaderMapHashTable.First(Key); ShaderMapHashTable.IsValid(Index); Index = ShaderMapHashTable.Next(Index))
+	{
+		if (ShaderMapHashes[Index] == Hash)
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+int32 FIoStoreShaderCodeArchive::FindShaderIndex(const FSHAHash& Hash)
+{
+	const uint32 Key = GetTypeHash(Hash);
+	for (uint32 Index = ShaderHashTable.First(Key); ShaderHashTable.IsValid(Index); Index = ShaderHashTable.Next(Index))
+	{
+		if (ShaderHashes[Index] == Hash)
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 Index)
+{
+	LLM_SCOPE(ELLMTag::Shaders);
+	TRefCountPtr<FRHIShader> Shader;
+
+	const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[Index];
+	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[Index];
+
+	FGraphEventRef Event;
+	{
+		FWriteScopeLock Lock(ShaderPreloadLock);
+		uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs++;
+		if (ShaderNumRefs == 0u)
+		{
+			check(!ShaderPreloadEntry.PreloadEvent);
+			ShaderPreloadEntry.PreloadEvent = FGraphEvent::CreateGraphEvent();
+			FIoBatch IoBatch = IoDispatcher.NewBatch();
+			ShaderPreloadEntry.IoRequest = IoBatch.Read(GetShaderCodeChunkId(ShaderHashes[Index]), FIoReadOptions(), IoDispatcherPriority_Max);
+			IoBatch.IssueAndDispatchSubsequents(ShaderPreloadEntry.PreloadEvent);
+		}
+		else if (!ShaderPreloadEntry.IoRequest.Status().IsCompleted())
+		{
+			ShaderPreloadEntry.IoRequest.UpdatePriority(IoDispatcherPriority_Max);
+		}
+		Event = ShaderPreloadEntry.PreloadEvent;
+	}
+
+	const bool bNeededToWait = !Event->IsComplete();
+	if (bNeededToWait)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(BlockingShaderLoad);
+		UE_LOG(LogShaderLibrary, Warning, TEXT("Blocking wait for shader preload, NumRefs: %d, FramePreloadStarted: %d"), ShaderPreloadEntry.NumRefs, ShaderPreloadEntry.FramePreloadStarted);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(Event);
+	}
+
+	const uint8* ShaderCode = ShaderPreloadEntry.IoRequest.GetResult().ValueOrDie().Data();
+
+	FMemStackBase& MemStack = FMemStack::Get();
+	FMemMark Mark(MemStack);
+	if (ShaderEntry.UncompressedSize != ShaderEntry.CompressedSize)
+	{
+		void* UncompressedCode = MemStack.Alloc(ShaderEntry.UncompressedSize, 16);
+		const bool bDecompressResult = FCompression::UncompressMemory(GetShaderCompressionFormat(), UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.CompressedSize);
+		check(bDecompressResult);
+		ShaderCode = (uint8*)UncompressedCode;
+	}
+
+	const auto ShaderCodeView = MakeArrayView(ShaderCode, ShaderEntry.UncompressedSize);
+	const FSHAHash& ShaderHash = ShaderHashes[Index];
+	switch (ShaderEntry.Frequency)
+	{
+	case SF_Vertex: Shader = RHICreateVertexShader(ShaderCodeView, ShaderHash); break;
+	case SF_Mesh: Shader = RHICreateMeshShader(ShaderCodeView, ShaderHash); break;
+	case SF_Amplification: Shader = RHICreateAmplificationShader(ShaderCodeView, ShaderHash); break;
+	case SF_Pixel: Shader = RHICreatePixelShader(ShaderCodeView, ShaderHash); break;
+	case SF_Geometry: Shader = RHICreateGeometryShader(ShaderCodeView, ShaderHash); break;
+	case SF_Compute: Shader = RHICreateComputeShader(ShaderCodeView, ShaderHash); break;
+	case SF_RayGen: case SF_RayMiss: case SF_RayHitGroup: case SF_RayCallable:
+#if RHI_RAYTRACING
+		if (GRHISupportsRayTracing)
+		{
+			Shader = RHICreateRayTracingShader(ShaderCodeView, ShaderHash, ShaderEntry.GetFrequency());
+		}
+#endif // RHI_RAYTRACING
+		break;
+	default: checkNoEntry(); break;
+	}
+
+	{
+		FWriteScopeLock Lock(ShaderPreloadLock);
+		const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs--;
+		check(ShaderNumRefs > 0u);
+		if (ShaderNumRefs == 1u)
+		{
+			ShaderPreloadEntry.PreloadEvent.SafeRelease();
+			ShaderPreloadEntry.IoRequest = FIoRequest();
+		}
+	}
+
+	if (Shader)
+	{
+		Shader->SetHash(ShaderHash);
+	}
+
+	return Shader;
+}
+

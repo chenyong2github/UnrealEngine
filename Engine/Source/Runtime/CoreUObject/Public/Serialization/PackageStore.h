@@ -44,6 +44,7 @@ struct FPackageStoreEntry
 	uint32 LoadOrder;
 	uint32 Pad;
 	TPackageStoreEntryCArrayView<FPackageId> ImportedPackages;
+	TPackageStoreEntryCArrayView<FSHAHash> ShaderMapHashes;
 };
 
 /**

@@ -10,6 +10,7 @@
 #include "Math/IntVector.h"
 #include "Misc/AES.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "Async/TaskGraphInterfaces.h"
 
 class AActor;
 class Error;
@@ -617,6 +618,12 @@ public:
 	};
 	DECLARE_MULTICAST_DELEGATE_OneParam(FAccesExtraBinaryConfigData, FExtraBinaryConfigData&);
 	static FAccesExtraBinaryConfigData AccessExtraBinaryConfigData;
+
+	using FAttachShaderReadRequestFunc = TFunctionRef<class FIoRequest(const class FIoChunkId&, FGraphEventRef)>;
+	DECLARE_DELEGATE_TwoParams(FPreloadPackageShaderMaps, TArrayView<const FSHAHash>, FAttachShaderReadRequestFunc);
+	static FPreloadPackageShaderMaps PreloadPackageShaderMaps;
+	DECLARE_DELEGATE_OneParam(FReleasePreloadedPackageShaderMaps, TArrayView<const FSHAHash>);
+	static FReleasePreloadedPackageShaderMaps ReleasePreloadedPackageShaderMaps;
 
 private:
 
