@@ -53,7 +53,7 @@ public:
 	// Irradiance Caching should be enabled with interior scenes to achieve more physically correct GI intensities,
 	// albeit with some biasing. Without IC the results may be darker than expected. It should be disabled for exterior scenes.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GlobalIllumination)
-	bool bUseIrradianceCaching = false;
+	bool bUseIrradianceCaching = true;
 
 	// If Irradiance Caching is enabled, First Bounce Ray Guiding will search the hemisphere over
 	// each first bounce sample to find the brightest directions to weigh the rest of the samples towards.
@@ -95,7 +95,7 @@ public:
 
 	// Baking speed multiplier when Realtime is disabled in the viewer.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = System, DisplayName = "Full Speed", meta = (ClampMin = "1", ClampMax = "64"))
-	int32 TilePassesInFullSpeedMode = 16;
+	int32 TilePassesInFullSpeedMode = 8;
 
 	// GPU Lightmass manages a pool for calculations of visible tiles. The pool size should be set based on the size of the
 	// viewport and how many tiles will be visible on screen at once. Increasing this number increases GPU memory usage.
