@@ -285,9 +285,9 @@ void FActorDetails::CreateClassPickerConvertActorFilter(const TWeakObjectPtr<AAc
 {
 	// Shouldn't ever be overwriting an already established filter
 	check( ConvertActor.IsValid() )
-	check( ClassPickerOptions != NULL && !ClassPickerOptions->ClassFilter.IsValid() )
-	TSharedPtr<FConvertToClassFilter> Filter = MakeShareable(new FConvertToClassFilter);
-	ClassPickerOptions->ClassFilter = Filter;
+	check( ClassPickerOptions != nullptr && ClassPickerOptions->ClassFilters.IsEmpty() );
+	TSharedRef<FConvertToClassFilter> Filter = MakeShared<FConvertToClassFilter>();
+	ClassPickerOptions->ClassFilters.Add(Filter);
 
 	UClass* ConvertClass = ConvertActor->GetClass();
 	UClass* RootConversionClass = GetConversionRoot(ConvertClass);

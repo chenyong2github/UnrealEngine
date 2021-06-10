@@ -200,7 +200,7 @@ private:
 		Options.bIsBlueprintBaseOnly = true;
 
 		TSharedPtr<FAnimBlueprintParentFilter> Filter = MakeShareable(new FAnimBlueprintParentFilter(TargetSkeleton));
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		// All child child classes of UAnimInstance are valid.
 		Filter->AllowedChildrenOfClasses.Add(UAnimInstance::StaticClass());

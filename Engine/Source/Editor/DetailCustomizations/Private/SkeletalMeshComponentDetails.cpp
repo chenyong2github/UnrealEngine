@@ -299,7 +299,7 @@ TSharedRef<SWidget> FSkeletalMeshComponentDetails::GetClassPickerMenuContent()
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
 	FClassViewerInitializationOptions InitOptions;
 	InitOptions.Mode = EClassViewerMode::ClassPicker;
-	InitOptions.ClassFilter = Filter;
+	InitOptions.ClassFilters.Add(Filter.ToSharedRef());
 	InitOptions.bShowNoneOption = true;
 
 	return SNew(SBorder)

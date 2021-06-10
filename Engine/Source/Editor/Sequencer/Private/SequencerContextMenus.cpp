@@ -2202,7 +2202,7 @@ void FEasingContextMenu::EasingTypeMenu(FMenuBuilder& MenuBuilder)
 
 	FClassViewerInitializationOptions InitOptions;
 	InitOptions.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
-	InitOptions.ClassFilter = MakeShared<FFilter>();
+	InitOptions.ClassFilters.Add(MakeShared<FFilter>());
 
 	// Copy a reference to the context menu by value into each lambda handler to ensure the type stays alive until the menu is closed
 	TSharedRef<FEasingContextMenu> Shared = AsShared();

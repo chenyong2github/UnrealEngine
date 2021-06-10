@@ -584,7 +584,7 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeByClassWidget()
 	
 	FClassViewerInitializationOptions Options;
 	{
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 		Options.bIsPlaceableOnly = true;
 		Options.Mode = EClassViewerMode::ClassPicker;
 		Options.DisplayMode = EClassViewerDisplayMode::ListView;

@@ -174,7 +174,7 @@ private:
 
 		// All child child classes of UGameplayAbility are valid.
 		Filter->AllowedChildrenOfClasses.Add(UGameplayAbility::StaticClass());
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		ParentClassContainer->ClearChildren();
 		ParentClassContainer->AddSlot()

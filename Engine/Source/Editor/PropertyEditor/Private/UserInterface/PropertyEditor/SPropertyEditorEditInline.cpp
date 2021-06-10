@@ -171,7 +171,7 @@ TSharedRef<SWidget> SPropertyEditorEditInline::GenerateClassPicker()
 	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 
 	TSharedPtr<FPropertyEditorInlineClassFilter> ClassFilter = MakeShareable( new FPropertyEditorInlineClassFilter );
-	Options.ClassFilter = ClassFilter;
+	Options.ClassFilters.Add(ClassFilter.ToSharedRef());
 	ClassFilter->bAllowAbstract = false;
 
 	const TSharedRef< FPropertyNode > PropertyNode = PropertyEditor->GetPropertyNode();

@@ -2349,7 +2349,7 @@ void SAnimNotifyTrack::MakeNewNotifyPicker(FMenuBuilder& MenuBuilder, bool bIsRe
 	InitOptions.bEnableClassDynamicLoading = true;
 	InitOptions.bExpandRootNodes = true;
 	InitOptions.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
-	InitOptions.ClassFilter = MakeShared<FNotifyStateClassFilter>(Sequence);
+	InitOptions.ClassFilters.Add(MakeShared<FNotifyStateClassFilter>(Sequence));
 	InitOptions.bShowBackgroundBorder = false;
 
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");

@@ -62,7 +62,7 @@ bool UDataRegistryFactory::ConfigureProperties()
 	// Options.InitiallySelectedClass = UDataRegistry::StaticClass();
 
 	TSharedPtr<FAssetClassParentFilter> Filter = MakeShareable(new FAssetClassParentFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_HideDropDown;
 	Filter->AllowedChildrenOfClasses.Add(UDataRegistry::StaticClass());

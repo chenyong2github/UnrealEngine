@@ -488,10 +488,22 @@ bool FClassViewerFilter::IsClassAllowed(const FClassViewerInitializationOptions&
 	}
 
 	bool bPassesCustomFilter = true;
-	if (InInitOptions.ClassFilter.IsValid())
+	for (const TSharedRef<IClassViewerFilter>& CustomFilter : InInitOptions.ClassFilters)
+	{
+		if (!CustomFilter->IsClassAllowed(InInitOptions, InClass, FilterFunctions))
+		{
+			bPassesCustomFilter = false;
+			break;
+		}
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Retained for backcompat; can remove when fully deprecated.
+	if (bPassesCustomFilter && InInitOptions.ClassFilter.IsValid())
 	{
 		bPassesCustomFilter = InInitOptions.ClassFilter->IsClassAllowed(InInitOptions, InClass, FilterFunctions);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool bPassesTextFilter = true;
 	if (bCheckTextFilter && (TextFilter->GetFilterType() != ETextFilterExpressionType::Empty))
@@ -590,10 +602,22 @@ bool FClassViewerFilter::IsUnloadedClassAllowed(const FClassViewerInitialization
 	}
 
 	bool bPassesCustomFilter = true;
-	if (InInitOptions.ClassFilter.IsValid())
+	for (const TSharedRef<IClassViewerFilter>& CustomFilter : InInitOptions.ClassFilters)
+	{
+		if (!CustomFilter->IsUnloadedClassAllowed(InInitOptions, InUnloadedClassData, FilterFunctions))
+		{
+			bPassesCustomFilter = false;
+			break;
+		}
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Retained for backcompat; can remove when fully deprecated.
+	if (bPassesCustomFilter && InInitOptions.ClassFilter.IsValid())
 	{
 		bPassesCustomFilter = InInitOptions.ClassFilter->IsUnloadedClassAllowed(InInitOptions, InUnloadedClassData, FilterFunctions);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	const bool bPassesTextFilter = PassesTextFilter(*InUnloadedClassData->GetClassName().Get(), TextFilter);
 

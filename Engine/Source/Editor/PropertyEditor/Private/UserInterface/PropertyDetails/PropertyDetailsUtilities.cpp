@@ -55,6 +55,11 @@ TSharedPtr<class FAssetThumbnailPool> FPropertyDetailsUtilities::GetThumbnailPoo
 	return DetailsView.GetThumbnailPool();
 }
 
+const TArray<TSharedRef<class IClassViewerFilter>>& FPropertyDetailsUtilities::GetClassViewerFilters() const
+{
+	return DetailsView.GetClassViewerFilters();
+}
+
 void FPropertyDetailsUtilities::NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	DetailsView.NotifyFinishedChangingProperties(PropertyChangedEvent);

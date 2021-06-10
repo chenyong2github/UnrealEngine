@@ -120,7 +120,7 @@ TSharedRef<SWidget> SGraphPinClass::GenerateAssetPicker()
 		Filter->bAllowAbstractClasses = AllowAbstractString.ToBool();
 	}
 
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->AllowedChildrenOfClasses.Add(PinRequiredParentClass);
 	Filter->GraphPinOutermostPackage = GraphPinObj->GetOuter()->GetOutermost();

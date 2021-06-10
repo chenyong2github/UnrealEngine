@@ -58,6 +58,8 @@ public:
 		SLATE_ARGUMENT(bool, ShowDisplayNames)
 		/** Delegate used to set the currently selected class (required if PropertyEditor == null) */
 		SLATE_EVENT(FOnSetClass, OnSetClass)
+		/** Custom class filter(s) to be applied to the class picker widget (may be empty) */
+		SLATE_ARGUMENT(TArray<TSharedRef<class IClassViewerFilter>>, ClassViewerFilters)
 	SLATE_END_ARGS()
 
 	static bool Supports(const TSharedRef< class FPropertyEditor >& InPropertyEditor);
@@ -139,5 +141,5 @@ private:
 	/** Delegate used to set the currently selected class (required if PropertyEditor == null) */
 	FOnSetClass OnSetClass;
 
-	void CreateClassFilter();
+	void CreateClassFilter(const TArray<TSharedRef<IClassViewerFilter>>& InClassFilters);
 };

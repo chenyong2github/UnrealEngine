@@ -57,12 +57,17 @@ enum class EClassViewerNameTypeToDisplay : uint8
  * Settings for the Class Viewer set by the programmer before spawning an instance of the widget.  This
  * is used to modify the class viewer's behavior in various ways, such as filtering in or out specific classes.
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FClassViewerInitializationOptions
 {
 
 public:
-	/** The filter to use on classes in this instance. */
+	/** [Deprecated] The filter to use on classes in this instance. */
+	UE_DEPRECATED(5.0, "Please add to the ClassFilters array member instead.")
 	TSharedPtr<class IClassViewerFilter> ClassFilter;
+
+	/** The filter(s) to use on classes in this instance. */
+	TArray<TSharedRef<class IClassViewerFilter>> ClassFilters;
 
 	/** Mode to operate in */
 	EClassViewerMode::Type Mode;
@@ -146,6 +151,7 @@ public:
 	{
 	}
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /**
  * Class Viewer module

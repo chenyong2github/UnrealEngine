@@ -31,7 +31,7 @@ bool UAudioSynesthesiaSettingsFactory::ConfigureProperties()
 	Options.Mode = EClassViewerMode::ClassPicker;
 
 	TSharedPtr<Audio::FAssetClassParentFilter> Filter = MakeShareable(new Audio::FAssetClassParentFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 	Filter->AllowedChildrenOfClasses.Add(UAudioSynesthesiaSettings::StaticClass());

@@ -65,7 +65,7 @@ protected:
 		Options.bShowNoneOption = true;
 		Options.bShowObjectRootClass = true;
 		TSharedPtr< FActorBasedClassFilter > Filter = MakeShareable(new FActorBasedClassFilter);
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 		// Populate the referencing asset, if possible
 		if (UEdGraphPin* LocalGraphPin = GetPinObj())
 		{

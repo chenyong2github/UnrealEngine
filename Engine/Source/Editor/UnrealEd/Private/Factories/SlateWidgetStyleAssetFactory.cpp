@@ -61,7 +61,7 @@ bool USlateWidgetStyleAssetFactory::ConfigureProperties()
 	Options.Mode = EClassViewerMode::ClassPicker;
 
 	TSharedPtr<FClassFilter> Filter = MakeShareable(new FClassFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 	Filter->AllowedChildrenOfClasses.Add( USlateWidgetStyleContainerBase::StaticClass() );

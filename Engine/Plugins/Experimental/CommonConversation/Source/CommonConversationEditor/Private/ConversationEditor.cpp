@@ -925,7 +925,7 @@ TSharedRef<SWidget> FConversationEditor::HandleCreateNewClassMenu(UClass* BaseCl
 {
 	FClassViewerInitializationOptions Options;
 	Options.bShowUnloadedBlueprints = true;
-	Options.ClassFilter = MakeShareable( new FNewNodeClassFilter(BaseClass) );
+	Options.ClassFilters.Add(MakeShareable( new FNewNodeClassFilter(BaseClass) ));
 
 	FOnClassPicked OnPicked( FOnClassPicked::CreateSP( this, &FConversationEditor::HandleNewNodeClassPicked ) );
 

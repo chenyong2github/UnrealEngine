@@ -324,7 +324,7 @@ namespace LevelEditorActionHelpers
 
 		TSharedPtr< FBlueprintParentFilter_MapModeSettings > Filter = MakeShareable(new FBlueprintParentFilter_MapModeSettings);
 		Filter->AllowedChildrenOfClasses.Add(InRootClass);
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		FText RootClassName = FText::FromString(InRootClass->GetName());
 		TSharedRef<SWidget> ClassViewer = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, InOnClassPicked);
@@ -356,7 +356,7 @@ namespace LevelEditorActionHelpers
 
 		TSharedPtr< FBlueprintParentFilter_MapModeSettings > Filter = MakeShareable(new FBlueprintParentFilter_MapModeSettings);
 		Filter->AllowedChildrenOfClasses.Add(InRootClass);
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		FText RootClassName = FText::FromString(InRootClass->GetName());
 		TSharedRef<SWidget> ClassViewer = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, InOnClassPicked);

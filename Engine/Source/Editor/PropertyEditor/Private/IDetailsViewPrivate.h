@@ -96,6 +96,11 @@ public:
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const = 0;
 
 	/**
+	 * @return The set of custom class viewer filters to use for class properties in this view
+	 */
+	virtual const TArray<TSharedRef<class IClassViewerFilter>>& GetClassViewerFilters() const = 0;
+
+	/**
 	 * Creates the color picker window for this property view.
 	 *
 	 * @param PropertyEditor				The slate property node to edit.

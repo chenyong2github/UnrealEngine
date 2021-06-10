@@ -22,6 +22,7 @@ class FTextFilterExpressionEvaluator;
 class UBlueprint;
 class SComboButton;
 class FClassViewerFilter;
+class FClassViewerFilterOption;
 
 //////////////////////////////////////////////////////////////////////////
 // SClassViewer
@@ -206,6 +207,12 @@ private:
 	/** Whether or not it's possible to show internal use classes */
 	bool IsToggleShowInternalClassesAllowed() const;
 
+	/** Toggle whether a custom class filter option is enabled */
+	void ToggleCustomFilterOption(TSharedRef<FClassViewerFilterOption> FilterOption);
+
+	/** Returns whether a custom class filter option is currently enabled */
+	bool IsCustomFilterOptionEnabled(TSharedRef<FClassViewerFilterOption> FilterOption) const;
+
 	/** Get the total number of classes passing the current filters.*/
 	const int GetNumItems() const;
 
@@ -274,4 +281,7 @@ private:
 
 	/** Number of classes that passed the filter*/
 	int NumClasses;
+
+	/** Custom filter options for the View Options menu */
+	TArray<TSharedRef<FClassViewerFilterOption>> CustomClassFilterOptions;
 };

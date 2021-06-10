@@ -113,6 +113,13 @@ TSharedPtr<class FAssetThumbnailPool> FPropertyTable::GetThumbnailPool() const
 	return NULL;
 }
 
+const TArray<TSharedRef<class IClassViewerFilter>>& FPropertyTable::GetClassViewerFilters() const
+{
+	// not implemented
+	static TArray<TSharedRef<class IClassViewerFilter>> NotImplemented;
+	return NotImplemented;
+}
+
 bool FPropertyTable::GetIsUserAllowedToChangeRoot()
 {
 	return AllowUserToChangeRoot;

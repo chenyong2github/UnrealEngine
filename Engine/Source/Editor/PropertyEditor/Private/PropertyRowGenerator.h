@@ -110,6 +110,7 @@ public:
 	virtual void ForceRefresh();
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const;
 	virtual bool HasClassDefaultObject() const { return bViewingClassDefaultObject; }
+	virtual const TArray<TSharedRef<class IClassViewerFilter>>& GetClassViewerFilters() const;
 
 	const FCustomPropertyTypeLayoutMap& GetInstancedPropertyTypeLayoutMap() const;
 	void UpdateDetailRows();

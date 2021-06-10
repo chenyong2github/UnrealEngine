@@ -366,7 +366,7 @@ TSharedRef<SWidget> SBlueprintLibraryPalette::ConstructClassFilterDropdownConten
 	FClassViewerInitializationOptions Options;
 	Options.Mode        = EClassViewerMode::ClassPicker;
 	Options.DisplayMode = EClassViewerDisplayMode::TreeView;
-	Options.ClassFilter = MakeShareable(new FPaletteClassFilter);
+	Options.ClassFilters.Add(MakeShareable(new FPaletteClassFilter));
 	//  create a class picker for the drop-down
 	TSharedRef<SWidget> ClassPickerWidget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateSP(this, &SBlueprintLibraryPalette::OnClassPicked));
 

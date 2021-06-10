@@ -653,7 +653,7 @@ namespace LevelInstanceMenuUtils
 			Options->bIsBlueprintBaseOnly = false;
 			Options->InitiallySelectedClass = ALevelInstance::StaticClass();
 			Options->bIsActorsOnly = true;
-			Options->ClassFilter = MakeShareable(new FLevelInstanceClassFilter);
+			Options->ClassFilters.Add(MakeShareable(new FLevelInstanceClassFilter));
 		});
 		ON_SCOPE_EXIT
 		{

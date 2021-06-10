@@ -77,7 +77,7 @@ static UClass* CompElementCollectionViewModel_Impl::PromptForElementClass(const 
 	FClassViewerInitializationOptions Options;
 	Options.Mode = EClassViewerMode::ClassPicker;
 	TSharedPtr<FCompElementClassFilter> Filter = MakeShareable(new FCompElementClassFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Options.ExtraPickerCommonClasses.Reserve(ChoiceClasses.Num());
 	for (TSubclassOf<ACompositingElement> Class : ChoiceClasses)

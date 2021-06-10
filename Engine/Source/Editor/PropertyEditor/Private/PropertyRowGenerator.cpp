@@ -93,6 +93,19 @@ public:
 		return Generator != nullptr && Generator->HasClassDefaultObject();
 	}
 
+	virtual const TArray<TSharedRef<class IClassViewerFilter>>& GetClassViewerFilters() const override
+	{
+		if (Generator != nullptr)
+		{
+			return Generator->GetClassViewerFilters();
+		}
+		else
+		{
+			static TArray<TSharedRef<class IClassViewerFilter>> NullFilters;
+			return NullFilters;
+		}
+	}
+
 private:
 	FPropertyRowGenerator* Generator;
 };
@@ -420,6 +433,13 @@ void FPropertyRowGenerator::ForceRefresh()
 TSharedPtr<class FAssetThumbnailPool> FPropertyRowGenerator::GetThumbnailPool() const
 {
 	return UThumbnailManager::Get().GetSharedThumbnailPool();
+}
+
+const TArray<TSharedRef<class IClassViewerFilter>>& FPropertyRowGenerator::GetClassViewerFilters() const
+{
+	// not implemented
+	static TArray<TSharedRef<class IClassViewerFilter>> NotImplemented;
+	return NotImplemented;
 }
 
 void FPropertyRowGenerator::PreSetObject(int32 NumNewObjects, bool bHasStructRoots)

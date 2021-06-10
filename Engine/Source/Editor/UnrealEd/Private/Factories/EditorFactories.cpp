@@ -1974,7 +1974,7 @@ bool UPhysicalMaterialFactoryNew::ConfigureProperties()
 	Options.Mode = EClassViewerMode::ClassPicker;
 
 	TSharedPtr<FAssetClassParentFilter> Filter = MakeShareable(new FAssetClassParentFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 	Filter->AllowedChildrenOfClasses.Add(UPhysicalMaterial::StaticClass());
@@ -2033,7 +2033,7 @@ bool UPhysicalMaterialMaskFactory::ConfigureProperties()
 	Options.Mode = EClassViewerMode::ClassPicker;
 
 	TSharedPtr<FAssetClassParentFilter> Filter = MakeShareable(new FAssetClassParentFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 	Filter->AllowedChildrenOfClasses.Add(UPhysicalMaterialMask::StaticClass());
@@ -6743,7 +6743,7 @@ bool UBlueprintFactory::ConfigureProperties()
 
 	// Prevent creating blueprints of classes that require special setup (they'll be allowed in the corresponding factories / via other means)
 	TSharedPtr<FBlueprintParentFilter> Filter = MakeShareable(new FBlueprintParentFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 	if (!IsMacroFactory())
 	{
 		Filter->DisallowedChildrenOfClasses.Add(ALevelScriptActor::StaticClass());
@@ -7023,7 +7023,7 @@ bool UCurveFactory::ConfigureProperties()
 	Options.Mode = EClassViewerMode::ClassPicker;
 
 	TSharedPtr<FAssetClassParentFilter> Filter = MakeShareable(new FAssetClassParentFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 	Filter->AllowedChildrenOfClasses.Add(UCurveBase::StaticClass());
@@ -7242,7 +7242,7 @@ bool UDataAssetFactory::ConfigureProperties()
 	Options.Mode = EClassViewerMode::ClassPicker;
 
 	TSharedPtr<FAssetClassParentFilter> Filter = MakeShareable(new FAssetClassParentFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_HideDropDown;
 	Filter->AllowedChildrenOfClasses.Add(UDataAsset::StaticClass());
