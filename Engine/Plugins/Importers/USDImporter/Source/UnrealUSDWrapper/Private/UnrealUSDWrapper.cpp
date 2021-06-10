@@ -970,6 +970,11 @@ TArray<FString> UnrealUSDWrapper::GetAllSupportedFileFormats()
 
 UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* Identifier, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
 {
+	if ( !Identifier || FCString::Strlen( Identifier ) == 0 )
+	{
+		return UE::FUsdStage();
+	}
+
 #if USE_USD_SDK
 	FScopedUsdAllocs UsdAllocs;
 
@@ -1155,8 +1160,6 @@ public:
 			PlugRegistry::GetInstance().RegisterPlugins(UsdPluginDirectories);
 		}
 
-#else
-		UsdWrapperUtils::CheckIfForceDisabled();
 #endif // USE_USD_SDK
 
 		FUsdMemoryManager::Initialize();
