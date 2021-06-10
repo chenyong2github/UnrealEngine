@@ -7,21 +7,22 @@
 #include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorModule.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "LevelSnapshotsStats.h"
 #include "Misc/LevelSnapshotsEditorContext.h"
 #include "Views/Filter/LevelSnapshotsEditorFilters.h"
 #include "Views/Filter/SLevelSnapshotsEditorFilters.h"
 #include "Views/Results/LevelSnapshotsEditorResults.h"
 #include "Views/Input/LevelSnapshotsEditorInput.h"
 
-#include "Editor.h"
 #include "EditorFontGlyphs.h"
-#include "Framework/Notifications/NotificationManager.h"
+#include "EditorStyleSet.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Stats/StatsMisc.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FLevelSnapshotsToolkit"
 
@@ -231,22 +232,30 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const 
 
 				// Open Settings
 				+ SHorizontalBox::Slot()
-                    .HAlign(HAlign_Right)
-					.Padding(2.f, 2.f)
+                .HAlign(HAlign_Right)
+				.VAlign(VAlign_Fill)
                 [
-                    SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Info")
-                    .ForegroundColor(FSlateColor::UseForeground())
-                    .OnClicked_Lambda([]()
-                    {
-						FLevelSnapshotsEditorModule::OpenLevelSnapshotsSettings();
-						return FReply::Handled();
-                    })
-                    [
-						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-						.Text(FEditorFontGlyphs::Cogs)
-                    ]
+					SNew(SBox)
+					.WidthOverride(28)
+					.HeightOverride(28)
+					[
+						SAssignNew(SettingsButtonPtr, SCheckBox)
+						.Padding(FMargin(4.f))
+						.ToolTipText(LOCTEXT("ShowSettings_Tip", "Show the general user/project settings for Level Snapshots"))
+						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.ForegroundColor(FSlateColor::UseForeground())
+						.IsChecked(false)
+						.OnCheckStateChanged_Lambda([this](ECheckBoxState CheckState)
+						{
+							FLevelSnapshotsEditorModule::OpenLevelSnapshotsSettings();
+							SettingsButtonPtr->SetIsChecked(false);
+						})
+		                [
+							SNew(STextBlock)
+							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+							.Text(FEditorFontGlyphs::Cogs)
+		                ]
+					]
                 ]
         	]
         ];

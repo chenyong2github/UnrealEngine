@@ -87,7 +87,7 @@ public:
 
 private:
 
-	void LogActiveIMEInfo();
+	void LogActiveInputMethod();
 
 	// IMM Implementation
 

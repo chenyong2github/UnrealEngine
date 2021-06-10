@@ -138,6 +138,18 @@ bool UQuartzClockHandle::IsClockRunning(const UObject* WorldContextObject)
 	return false;
 }
 
+float UQuartzClockHandle::GetDurationOfQuantizationTypeInSeconds(const UObject* WorldContextObject, const EQuartzCommandQuantization& QuantizationType, float Multiplier)
+{
+	if (QuartzSubsystem != nullptr)
+	{
+		return QuartzSubsystem->GetDurationOfQuantizationTypeInSeconds(WorldContextObject, CurrentClockId, QuantizationType, Multiplier);
+	}
+	else
+	{
+		return -1;
+	}
+}
+
 void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FName OtherClockName, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
 {
 	if (QuartzSubsystem)

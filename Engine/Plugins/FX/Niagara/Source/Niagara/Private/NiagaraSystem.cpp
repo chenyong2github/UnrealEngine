@@ -1729,9 +1729,15 @@ bool UNiagaraSystem::IsValidInternal() const
 
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		if (Handle.GetIsEnabled() && Handle.GetInstance() && !Handle.GetInstance()->IsValid())
+		if ( Handle.GetIsEnabled())
 		{
-			return false;
+			if ( UNiagaraEmitter* NiagaraEmitter = Handle.GetInstance() )
+			{
+				if ( !NiagaraEmitter->IsValid() && NiagaraEmitter->IsAllowedByScalability() )
+				{
+					return false;
+				}
+			}
 		}
 	}
 
@@ -2908,11 +2914,16 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 					CurrentScalabilitySettings.MaxTimeWithoutRender = Override.MaxTimeWithoutRender;
 				}
 
- 				if (Override.bOverrideGlobalBudgetCullingSettings)
+ 				if (Override.bOverrideGlobalBudgetScalingSettings)
 				{
- 					CurrentScalabilitySettings.bCullByGlobalBudget = Override.bCullByGlobalBudget;
- 					CurrentScalabilitySettings.MaxGlobalBudgetUsage = Override.MaxGlobalBudgetUsage;
+ 					CurrentScalabilitySettings.BudgetScaling = Override.BudgetScaling; 
  				}
+
+				if (Override.bOverrideCullProxySettings)
+				{
+					CurrentScalabilitySettings.CullProxyMode = Override.CullProxyMode;
+					CurrentScalabilitySettings.MaxSystemProxies = Override.MaxSystemProxies;
+				}
 
 				break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 			}
@@ -2924,7 +2935,7 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 	//Work out if this system needs to have sorted significance culling done.
 	bNeedsSortedSignificanceCull = false;
 
-	if (CurrentScalabilitySettings.bCullMaxInstanceCount || CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount)
+	if (CurrentScalabilitySettings.bCullMaxInstanceCount || CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount || CurrentScalabilitySettings.CullProxyMode != ENiagaraCullProxyMode::None)
 	{
 		bNeedsSortedSignificanceCull = true;
 	}

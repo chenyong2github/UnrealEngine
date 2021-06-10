@@ -50,7 +50,6 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	ADisplayClusterRootActor* RootActor = GetRootActor();
 	if (RootActor == nullptr)
 	{
-		//@todo: handle error
 		return;
 	}
 
@@ -143,15 +142,15 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 				{
 					if (ViewIt.bDisableRender == false)
 					{
-						FDisplayClusterViewport* pViewport = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
+						FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
 
-						check(pViewport != nullptr);
-						check(ViewIt.ContextNum < (uint32)pViewport->Contexts.Num());
+						check(ViewportPtr != nullptr);
+						check(ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num());
 
 						// Calculate the player's view information.
 						FVector  ViewLocation;
 						FRotator ViewRotation;
-						FSceneView* View = pViewport->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
+						FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
 
 						if (View)
 						{

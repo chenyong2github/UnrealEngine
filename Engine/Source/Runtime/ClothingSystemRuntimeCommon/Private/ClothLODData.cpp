@@ -24,7 +24,7 @@ bool FClothLODDataCommon::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FClothingAssetCustomVersion::GUID);
 
 	// Serialize normal tagged property data
-	if (!Ar.IsCountingMemory())
+	if (Ar.IsLoading() || Ar.IsSaving())
 	{
 		UScriptStruct* const Struct = FClothLODDataCommon::StaticStruct();
 		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);

@@ -3583,7 +3583,33 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Lists files of the specified directory non-recursively.
+		/// Takes P4 output from files or opened and returns a dictionary of paths/actions
+		/// </summary>
+		/// <param name="P4Output"></param>
+		/// <returns></returns>
+		protected Dictionary<string,string> MapFileOutputToActions(string P4Output)
+		{
+			Dictionary<string, string> Results = new Dictionary<string, string>();
+
+			string[] Lines = P4Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+			// <path>#<have> - <action> change 16479539 (text)
+			Regex OutputSplitter = new Regex(@"(?<filename>.+)#(?<have>\d+|none) \- (?<action>[a-zA-Z/]+) .+");
+			foreach (string Line in Lines)
+			{
+				if (!Line.Contains("no such file") && OutputSplitter.IsMatch(Line))
+				{
+					Match RegexMatch = OutputSplitter.Match(Line);
+					string Filename = RegexMatch.Groups["filename"].Value;
+					string Action = RegexMatch.Groups["action"].Value;
+					Results.Add(Filename, Action);
+				}
+			}
+
+			return Results;
+		}
+
+		/// <summary>
+		/// Run 'p4 files <cmdline>'and return a list of the files in the changelist (files being deleted are excluded)
 		/// </summary>
 		/// <param name="CommandLine"></param>
 		/// <returns>List of files in the specified directory.</returns>
@@ -3597,19 +3623,41 @@ namespace AutomationTool
 				throw new AutomationException("{0} failed.", FilesCmdLine);
 			}
 			List<string> Result = new List<string>();
-			string[] Lines = P4Result.Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-			Regex OutputSplitter = new Regex(@"(?<filename>.+)#\d+ \- (?<action>[a-zA-Z/]+) .+");
-			foreach (string Line in Lines)
+			Dictionary<string, string> FileActions = MapFileOutputToActions(P4Result.Output);
+
+			foreach (var KV in FileActions)
 			{
-				if (!Line.Contains("no such file") && OutputSplitter.IsMatch(Line))
+				if (!DeleteActions.Contains(KV.Value))
 				{
-					Match RegexMatch = OutputSplitter.Match(Line);
-					string Filename = RegexMatch.Groups["filename"].Value;
-					string Action = RegexMatch.Groups["action"].Value;
-					if (!DeleteActions.Contains(Action))
-					{
-						Result.Add(Filename);
-					}
+					Result.Add(KV.Key);
+				}
+			}
+			return Result;
+		}
+
+		/// <summary>
+		/// Run 'p4 opened <cmdline>'and return a list of the files in the changelist (files being deleted are excluded)
+		/// </summary>
+		/// <param name="CommandLine"></param>
+		/// <returns>List of files in the specified directory.</returns>
+		public List<string> Opened(string CommandLine)
+		{
+			List<string> DeleteActions = new List<string> { "delete", "move/delete", "archive", "purge" };
+			string FilesCmdLine = String.Format("opened {0}", CommandLine);
+			IProcessResult P4Result = P4(FilesCmdLine, AllowSpew: false);
+			if (P4Result.ExitCode != 0)
+			{
+				throw new AutomationException("{0} failed.", FilesCmdLine);
+			}
+
+			List<string> Result = new List<string>();
+			Dictionary<string, string> FileActions = MapFileOutputToActions(P4Result.Output);
+
+			foreach (var KV in FileActions)
+			{
+				if (!DeleteActions.Contains(KV.Value))
+				{
+					Result.Add(KV.Key);
 				}
 			}
 			return Result;

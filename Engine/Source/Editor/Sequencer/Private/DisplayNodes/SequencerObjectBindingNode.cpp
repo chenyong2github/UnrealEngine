@@ -495,6 +495,16 @@ void FSequencerObjectBindingNode::AddChangeClassMenu(FMenuBuilder& MenuBuilder)
 	Options.bIsActorsOnly = true;
 	Options.bIsPlaceableOnly = true;
 
+	const UClass* ClassForObjectBinding = GetClassForObjectBinding();
+	if (ClassForObjectBinding)
+	{
+		Options.ViewerTitleString = FText::FromString(TEXT("Change from: ") + ClassForObjectBinding->GetFName().ToString());
+	}
+	else
+	{
+		Options.ViewerTitleString = FText::FromString(TEXT("Change from: (empty)"));
+	}
+
 	MenuBuilder.AddWidget(
 		SNew(SBox)
 		.MinDesiredWidth(300.0f)
@@ -888,6 +898,14 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 		// If only 1 bound object, no need to display tooltip
 		if (ValidBoundObjectLabels.Num() == 1 && NumMissing == 0)
 		{
+			if (BindingType == EObjectBindingType::Spawnable)
+			{
+				const UClass* ClassForObjectBinding = GetClassForObjectBinding();
+				if (ClassForObjectBinding)
+				{
+					return FText::FromString(TEXT("Spawnable Class: ") + ClassForObjectBinding->GetFName().ToString());
+				}
+			}
 			return FText();
 		}
 		else if (ValidBoundObjectLabels.Num() == 0 && NumMissing == 1)

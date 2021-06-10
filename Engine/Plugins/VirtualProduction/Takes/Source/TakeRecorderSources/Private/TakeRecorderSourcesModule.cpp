@@ -31,6 +31,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/Layout/SBox.h"
+#include "Dialogs/Dialogs.h"
 
 #include "Engine/LevelScriptActor.h"
 #include "Engine/Selection.h"
@@ -888,6 +889,22 @@ public:
 			}
 			else
 			{
+				// Pop open a dialog asking whether to record
+				FSuppressableWarningDialog::FSetupInfo Info( 
+					LOCTEXT("ShouldRecordPrompt", "Are you sure you want to start recording?"), 
+					LOCTEXT("ShouldRecordTitle", "Record Actors?"), 
+					TEXT("RecordActors") );
+				Info.ConfirmText = LOCTEXT("ShouldRecord_ConfirmText", "Record");
+				Info.CancelText = LOCTEXT("ShouldRecord_CancelText", "Cancel");
+				Info.CheckBoxText = LOCTEXT("ShouldRecord_CheckBoxText", "Don't Ask Again");
+
+				FSuppressableWarningDialog ShouldRecordDialog( Info );
+
+				if (ShouldRecordDialog.ShowModal() == FSuppressableWarningDialog::EResult::Cancel)
+				{
+					return;
+				}
+
 				if (UTakeRecorderPanel* TakeRecorderPanel = UTakeRecorderBlueprintLibrary::GetTakeRecorderPanel())
 				{
 					FText ErrorText;

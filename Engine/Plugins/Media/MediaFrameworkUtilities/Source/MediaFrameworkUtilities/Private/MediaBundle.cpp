@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
 #include "Editor.h"
+#include "EngineAnalytics.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformTime.h"
@@ -348,6 +349,12 @@ void UMediaBundle::PostDuplicate(bool bDuplicateForPIE)
 }
 
 #if WITH_EDITOR
+/**
+ * @EventName MediaFramework.MediaSourceSelected
+ * @Trigger Triggered when a media source is selected.
+ * @Type Client
+ * @Owner MediaIO Team
+ */
 void UMediaBundle::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -372,6 +379,26 @@ void UMediaBundle::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 			if (MediaState == EMediaState::Stopped && ReferenceCount > 0 && FApp::CanEverRender())
 			{
 				MediaPlayer->OpenSource(MediaSource);
+			}
+		}
+	}
+	else if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMediaBundle, MediaSource))
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			TArray<UObject*> Objects;
+			
+			for (int32 Index = 0; Index < PropertyChangedEvent.GetNumObjectsBeingEdited(); Index++)
+			{
+				if (const UObject* Object = PropertyChangedEvent.GetObjectBeingEdited(Index))
+				{
+					if (const UMediaSource* Source = PropertyChangedEvent.Property->ContainerPtrToValuePtr<UMediaSource>(Object))
+					{
+						TArray<FAnalyticsEventAttribute> EventAttributes;
+						EventAttributes.Add(FAnalyticsEventAttribute(TEXT("MediaSourceType"), Source->GetClass()->GetName()));
+						FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.MediaSourceSelected"), EventAttributes);
+					}
+				}
 			}
 		}
 	}

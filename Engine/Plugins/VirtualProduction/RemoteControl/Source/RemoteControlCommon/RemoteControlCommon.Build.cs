@@ -8,7 +8,8 @@ public class RemoteControlCommon : ModuleRules
 	public RemoteControlCommon(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
-			new string[] { }
+			new string[] {
+			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
@@ -17,7 +18,7 @@ public class RemoteControlCommon : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"InputCore",
+				"InputCore"
 			}
 		);
 		

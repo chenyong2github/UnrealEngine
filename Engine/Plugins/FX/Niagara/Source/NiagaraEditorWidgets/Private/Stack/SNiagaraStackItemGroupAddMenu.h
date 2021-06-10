@@ -8,7 +8,7 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SItemSelector.h"
-#include "Widgets/SNiagaraScriptSourceFilter.h"
+#include "Widgets/SNiagaraFilterBox.h"
 
 class INiagaraStackItemGroupAddUtilities;
 
@@ -35,7 +35,7 @@ private:
 	int32 InsertIndex;
 
 	TSharedPtr<SNiagaraStackAddSelector> ActionSelector;
-	TSharedPtr<SNiagaraSourceFilterBox> SourceFilter;
+	TSharedPtr<SNiagaraFilterBox> FilterBox;
 
 	bool bSetFocusOnNextTick;
 	

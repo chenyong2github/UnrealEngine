@@ -52,8 +52,8 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 	check(Config && Config->Scene && Config->Cluster);
 
 	// Fill metadata
-	Config->Meta.DataSource = EDisplayClusterConfigurationDataSource::Text;
-	Config->Meta.FilePath   = ConfigFile;
+	Config->Meta.ImportDataSource = EDisplayClusterConfigurationDataSource::Text;
+	Config->Meta.ImportFilePath   = ConfigFile;
 
 	Config->Info.Version     = CfgInfo.Version;
 	Config->Info.Description = FString("nDisplay configuration");

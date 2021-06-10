@@ -187,15 +187,17 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillPhysicalAnimationPr
 
 				auto SearchClickedLambda = [ProfileName, SharedData]()
 				{
-					SharedData->ClearSelectedBody();	//clear selection
+					TArray<int32> NewBodiesSelection;
 					for (int32 BSIndex = 0; BSIndex < SharedData->PhysicsAsset->SkeletalBodySetups.Num(); ++BSIndex)
 					{
 						const USkeletalBodySetup* BS = SharedData->PhysicsAsset->SkeletalBodySetups[BSIndex];
 						if (BS->FindPhysicalAnimationProfile(ProfileName))
 						{
-							SharedData->SetSelectedBodyAnyPrim(BSIndex, true);
+							NewBodiesSelection.Add(BSIndex);
 						}
 					}
+					SharedData->ClearSelectedBody();	//clear selection
+					SharedData->SetSelectedBodiesAnyPrim(NewBodiesSelection, true);
 
 					FSlateApplication::Get().DismissAllMenus();
 
@@ -302,16 +304,19 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillConstraintProfilesO
 
 				auto SearchClickedLambda = [ProfileName, SharedData]()
 				{
-					SharedData->ClearSelectedConstraints();	//clear selection
+					TArray<int32> NewSelectedConstraints;
 					for (int32 CSIndex = 0; CSIndex < SharedData->PhysicsAsset->ConstraintSetup.Num(); ++CSIndex)
 					{
 						const UPhysicsConstraintTemplate* CS = SharedData->PhysicsAsset->ConstraintSetup[CSIndex];
 						if (CS->ContainsConstraintProfile(ProfileName))
 						{
-							SharedData->SetSelectedConstraint(CSIndex, true);
+							NewSelectedConstraints.AddUnique(CSIndex);
 						}
 					}
-							
+
+					SharedData->ClearSelectedConstraints();	//clear selection
+					SharedData->SetSelectedConstraints(NewSelectedConstraints, true);
+
 					FSlateApplication::Get().DismissAllMenus();
 
 					return FReply::Handled();

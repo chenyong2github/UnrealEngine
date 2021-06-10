@@ -54,6 +54,12 @@ static TAutoConsoleVariable<int32> CVarAllowRGLHIThread(
 	TEXT("1: GL scene rendering operations are queued onto the RHI thread gaining some parallelism with the render thread. (default, mobile feature levels only)"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarGLExtraDeletionLatency(
+	TEXT("r.OpenGL.ExtraDeletionLatency"),
+	1,
+	TEXT("Toggle the engine's deferred deletion queue for RHI resources. (default:1)"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 void OnQueryCreation( FOpenGLRenderQuery* Query )
 {
 	check(PrivateOpenGLDevicePtr);
@@ -1028,6 +1034,10 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 	// This should be called once at the start
 	check( IsInGameThread() );
 	check( !GIsThreadedRendering );
+
+#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+	GRHINeedsExtraDeletionLatency = CVarGLExtraDeletionLatency.GetValueOnAnyThread() == 1;
+#endif
 
 	PlatformInitOpenGL();
 	PlatformDevice = PlatformCreateOpenGLDevice();

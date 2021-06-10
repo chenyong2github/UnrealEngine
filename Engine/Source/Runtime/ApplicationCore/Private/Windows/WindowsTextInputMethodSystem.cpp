@@ -44,6 +44,89 @@ namespace
 		return OutString;
 	}
 
+	FString GetLocaleInfoAsFString(LCID lcid)
+	{
+		// Get the internal buffer of the string, we're going to use it as scratch space
+		FString OutString;
+		TArray<TCHAR>& OutStringBuffer = OutString.GetCharArray();
+
+		// Work out the maximum size required and resize the buffer so it can hold enough data
+		const int32 StringNeededSize = ::GetLocaleInfo(lcid, LOCALE_SLANGUAGE, nullptr, 0);
+		OutStringBuffer.SetNumUninitialized(StringNeededSize); // size already includes null
+
+		// Get directly into the string buffer
+		::GetLocaleInfo(lcid, LOCALE_SLANGUAGE, OutStringBuffer.GetData(), StringNeededSize);
+
+		return OutString;
+	}
+
+	FString GetHKLDescriptionAsFString(HKL KeyboardLayout)
+	{
+		const HKL ActiveKeyboardLayout = ::GetKeyboardLayout(0);
+		if (ActiveKeyboardLayout != KeyboardLayout)
+		{
+			// We need to activate this layout, as the IMM functions below ignore their HKL argument
+			::ActivateKeyboardLayout(KeyboardLayout, 0);
+		}
+
+		// Build a friendly description in the form "{Locale} - {Description} ({Type})"
+		FString InputMethodDescription = GetLocaleInfoAsFString(MAKELCID(((UPTRINT)KeyboardLayout & 0xffffffff), SORT_DEFAULT));
+		InputMethodDescription += TEXT(" - ");
+		if (::ImmGetIMEFileName(KeyboardLayout, nullptr, 0) > 0)
+		{
+			TArray<TCHAR> DescriptionString;
+			const int32 DescriptionLen = ::ImmGetDescription(KeyboardLayout, nullptr, 0);
+			DescriptionString.SetNumUninitialized(DescriptionLen + 1); // +1 for null
+			::ImmGetDescription(KeyboardLayout, DescriptionString.GetData(), DescriptionLen);
+			DescriptionString[DescriptionLen] = 0;
+
+			if (DescriptionString.Num() > 1)
+			{
+				InputMethodDescription += DescriptionString.GetData();
+				InputMethodDescription += TEXT(" ");
+			}
+
+			InputMethodDescription += TEXT("(IMM IME)");
+		}
+		else
+		{
+			InputMethodDescription += TEXT("(Keyboard)");
+		}
+
+		if (ActiveKeyboardLayout != KeyboardLayout)
+		{
+			// Restore the previous keyboard layout
+			::ActivateKeyboardLayout(ActiveKeyboardLayout, 0);
+		}
+
+		return InputMethodDescription;
+	}
+
+	FString GetTSFInputMethodAsFString(const TF_INPUTPROCESSORPROFILE& TSFProfile, ITfInputProcessorProfiles& TSFInputProcessorProfiles)
+	{
+		// Build a friendly description in the form "{Locale} - {Description} ({Type})"
+		FString InputMethodDescription = GetLocaleInfoAsFString(MAKELCID(TSFProfile.langid, SORT_DEFAULT));
+		InputMethodDescription += TEXT(" - ");
+		if (TSFProfile.dwProfileType == TF_PROFILETYPE_KEYBOARDLAYOUT)
+		{
+			InputMethodDescription += TEXT("(Keyboard)");
+		}
+		else if (TSFProfile.dwProfileType == TF_PROFILETYPE_INPUTPROCESSOR)
+		{
+			BSTR TSFDescriptionString;
+			if (SUCCEEDED(TSFInputProcessorProfiles.GetLanguageProfileDescription(TSFProfile.clsid, TSFProfile.langid, TSFProfile.guidProfile, &TSFDescriptionString)))
+			{
+				InputMethodDescription += TSFDescriptionString;
+				InputMethodDescription += TEXT(" ");
+				::SysFreeString(TSFDescriptionString);
+			}
+
+			InputMethodDescription += TEXT("(TSF IME)");
+		}
+
+		return InputMethodDescription;
+	}
+
 	class FTextInputMethodChangeNotifier
 		: public ITextInputMethodChangeNotifier
 	{
@@ -164,86 +247,120 @@ bool FWindowsTextInputMethodSystem::Initialize()
 
 	if(Result)
 	{
-		const HKL KeyboardLayout = ::GetKeyboardLayout(0);
-
-		// We might already be using an IME if it's set as the default language
-		// If so, work out what kind of IME it is
-		TF_INPUTPROCESSORPROFILE TSFProfile;
-		if(SUCCEEDED(TSFInputProcessorProfileManager->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &TSFProfile)) && TSFProfile.hkl && TSFProfile.dwProfileType == TF_PROFILETYPE_INPUTPROCESSOR)
+		// Log all available input methods, to catch issues where crashes are caused by having an IME installed that's never actually activated
 		{
-			check(TSFProfile.hkl == KeyboardLayout);
-			CurrentAPI = EAPI::TSF;
-		}
-		else if(::ImmGetIMEFileName(KeyboardLayout, nullptr, 0) > 0)
-		{
-			CurrentAPI = EAPI::IMM;
+			TArray<FString> AvailableInputMethods;
+			TSet<HKL> ProcessedKeyboardLayouts;
+
+			// Query TSF-based input methods first, which will include physical keyboards and TSF-based IMEs
+			// Most modern Windows input methods use TSF, so this should catch everything except legacy IMEs that only support IMM
+			{
+				// Create an enumerator for all TSF-based input profiles (langid 0)
+				TComPtr<IEnumTfInputProcessorProfiles> TSFEnumInputProcessorProfiles;
+				if (SUCCEEDED(TSFInputProcessorProfileManager->EnumProfiles(0, &TSFEnumInputProcessorProfiles)))
+				{
+					// Enumerate in batches to minimize COM API calls
+					ULONG FetchedTSFProfilesCount = 0;
+					TF_INPUTPROCESSORPROFILE TSFProfiles[32];
+					while (SUCCEEDED(TSFEnumInputProcessorProfiles->Next(UE_ARRAY_COUNT(TSFProfiles), TSFProfiles, &FetchedTSFProfilesCount)) && FetchedTSFProfilesCount > 0)
+					{
+						for (ULONG FetchedTSFProfileIndex = 0; FetchedTSFProfileIndex < FetchedTSFProfilesCount; ++FetchedTSFProfileIndex)
+						{
+							const TF_INPUTPROCESSORPROFILE& TSFProfile = TSFProfiles[FetchedTSFProfileIndex];
+
+							// If this is a keyboard layout, mark it as processed even if we'll skip it via the disabled test below
+							// This will stop it potentially being reconsidered as a potential IMM-based IME
+							if (TSFProfile.dwProfileType == TF_PROFILETYPE_KEYBOARDLAYOUT)
+							{
+								ProcessedKeyboardLayouts.Add(TSFProfile.hkl);
+							}
+
+							// Skip disabled profiles, as these may have just been installed by default
+							if (!(TSFProfile.dwFlags & TF_IPP_FLAG_ENABLED))
+							{
+								continue;
+							}
+
+							AvailableInputMethods.Add(GetTSFInputMethodAsFString(TSFProfile, *TSFInputProcessorProfiles));
+						}
+					}
+				}
+			}
+
+			// Query HKL inputs second, discarding any for physical keyboards that were already processed as a TSF-based input method
+			// That should leave us with a list of legacy IMEs that only support IMM
+			{
+				// Get all the available keyboard layouts
+				const int32 NumKeyboardLayouts = ::GetKeyboardLayoutList(0, nullptr);
+				TArray<HKL, TInlineAllocator<4>> KeyboardLayouts;
+				KeyboardLayouts.AddZeroed(NumKeyboardLayouts);
+				if (::GetKeyboardLayoutList(KeyboardLayouts.Num(), KeyboardLayouts.GetData()) == NumKeyboardLayouts)
+				{
+					for (HKL KeyboardLayout : KeyboardLayouts)
+					{
+						// Skip anything already processed
+						if (ProcessedKeyboardLayouts.Contains(KeyboardLayout))
+						{
+							continue;
+						}
+
+						// Mark this as processed, as GetKeyboardLayoutList can return duplicates
+						ProcessedKeyboardLayouts.Add(KeyboardLayout);
+
+						// Anything left at this point is likely an IMM-based IME
+						AvailableInputMethods.Add(GetHKLDescriptionAsFString(KeyboardLayout));
+					}
+				}
+			}
+
+			UE_LOG(LogWindowsTextInputMethodSystem, Log, TEXT("Available input methods:"));
+			for (const FString& AvailableInputMethod : AvailableInputMethods)
+			{
+				UE_LOG(LogWindowsTextInputMethodSystem, Log, TEXT("  - %s."), *AvailableInputMethod);
+			}
 		}
 
-		LogActiveIMEInfo();
+		// Detect whether we have an IME active, and log the active input method
+		{
+			// We might already be using an IME if it's set as the default language
+			// If so, work out what kind of IME it is
+			TF_INPUTPROCESSORPROFILE TSFProfile;
+			if (SUCCEEDED(TSFInputProcessorProfileManager->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &TSFProfile)) && TSFProfile.dwProfileType == TF_PROFILETYPE_INPUTPROCESSOR)
+			{
+				CurrentAPI = EAPI::TSF;
+			}
+			else if (::ImmGetIMEFileName(::GetKeyboardLayout(0), nullptr, 0) > 0)
+			{
+				CurrentAPI = EAPI::IMM;
+			}
+
+			LogActiveInputMethod();
+		}
 	}
 
 	return Result;
 }
 
-void FWindowsTextInputMethodSystem::LogActiveIMEInfo()
+void FWindowsTextInputMethodSystem::LogActiveInputMethod()
 {
-	FString APIString;
+	FString InputMethodDescription;
 
-	switch(CurrentAPI)
+	if (CurrentAPI == EAPI::TSF)
 	{
-	case EAPI::IMM:
+		// TSF-based IME
+		TF_INPUTPROCESSORPROFILE TSFProfile;
+		if (SUCCEEDED(TSFInputProcessorProfileManager->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &TSFProfile)) && TSFProfile.dwProfileType == TF_PROFILETYPE_INPUTPROCESSOR)
 		{
-			APIString = TEXT("IMM");
-
-			// Get the description of the active IME
-			const HKL KeyboardLayout = ::GetKeyboardLayout(0);
-			TArray<TCHAR> DescriptionString;
-			const int32 DescriptionLen = ::ImmGetDescription(KeyboardLayout, nullptr, 0);
-			DescriptionString.SetNumUninitialized(DescriptionLen + 1); // +1 for null
-			::ImmGetDescription(KeyboardLayout, DescriptionString.GetData(), DescriptionLen);
-			DescriptionString[DescriptionLen] = 0;
-
-			if(DescriptionLen > 0)
-			{
-				APIString += TEXT(" (");
-				APIString += DescriptionString.GetData();
-				APIString += TEXT(")");
-			}
+			InputMethodDescription = GetTSFInputMethodAsFString(TSFProfile, *TSFInputProcessorProfiles);
 		}
-		break;
-
-	case EAPI::TSF:
-		{
-			APIString = TEXT("TSF");
-
-			TF_INPUTPROCESSORPROFILE TSFProfile;
-			if(SUCCEEDED(TSFInputProcessorProfileManager->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &TSFProfile)) && TSFProfile.dwProfileType == TF_PROFILETYPE_INPUTPROCESSOR)
-			{
-				BSTR TSFDescriptionString;
-				if(SUCCEEDED(TSFInputProcessorProfiles->GetLanguageProfileDescription(TSFProfile.clsid, TSFProfile.langid, TSFProfile.guidProfile, &TSFDescriptionString)))
-				{
-					APIString += TEXT(" (");
-					APIString += TSFDescriptionString;
-					APIString += TEXT(")");
-					::SysFreeString(TSFDescriptionString);
-				}
-			}
-		}
-		break;
-
-	case EAPI::Unknown:
-	default:
-		break;
-	}
-
-	if(APIString.IsEmpty())
-	{
-		UE_LOG(LogWindowsTextInputMethodSystem, Display, TEXT("IME system deactivated."));
 	}
 	else
 	{
-		UE_LOG(LogWindowsTextInputMethodSystem, Display, TEXT("IME system activated using %s."), *APIString);
+		// IMM-based IME, or physical keyboard
+		InputMethodDescription = GetHKLDescriptionAsFString(::GetKeyboardLayout(0));
 	}
+
+	UE_LOG(LogWindowsTextInputMethodSystem, Log, TEXT("Activated input method: %s."), InputMethodDescription.IsEmpty() ? TEXT("Unknown") : *InputMethodDescription);
 }
 
 bool FWindowsTextInputMethodSystem::InitializeIMM()
@@ -833,7 +950,7 @@ void FWindowsTextInputMethodSystem::OnIMEActivationStateChanged(const bool bIsEn
 		CurrentAPI = EAPI::Unknown;
 	}
 
-	LogActiveIMEInfo();
+	LogActiveInputMethod();
 }
 
 int32 FWindowsTextInputMethodSystem::ProcessMessage(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam)

@@ -14,6 +14,37 @@
 #include "MediaSource.h"
 #include "Profile/IMediaProfileManager.h"
 
+#if WITH_EDITOR
+#include "Algo/Transform.h"
+#include "AnalyticsEventAttribute.h"
+#include "EngineAnalytics.h"
+#endif
+
+#if WITH_EDITOR
+namespace MediaProfileAnalytics
+{
+	template <typename ObjectType>
+	auto JoinObjectNames = [](const TArray<ObjectType*>& InObjects)
+	{
+		TArray<FString> SourceNames;
+		Algo::TransformIf(
+			InObjects,
+			SourceNames,
+			[](ObjectType* Object)
+			{
+				return !!Object;	
+			},
+			[](ObjectType* Object)
+			{
+				return Object->GetName();	
+			});
+
+		TStringBuilder<64> StringBuilder;
+		StringBuilder.Join(SourceNames, TEXT(","));
+		return StringBuilder.ToString();
+	};
+}
+#endif
 
 UMediaSource* UMediaProfile::GetMediaSource(int32 Index) const
 {
@@ -223,6 +254,31 @@ void UMediaProfile::ResetCustomTimeStep()
 		AppliedCustomTimeStep = nullptr;
 		bCustomTimeStepWasApplied = false;
 	}
+}
+
+/**
+ * @EventName MediaFramework.ApplyMediaProfile
+ * @Trigger Triggered when a media profile is applied.
+ * @Type Client
+ * @Owner MediaIO Team
+ */
+void UMediaProfile::SendAnalytics() const
+{
+#if WITH_EDITOR
+	if (FEngineAnalytics::IsAvailable())
+	{
+		const FString TimecodeProviderName = GetTimecodeProvider() ? GetTimecodeProvider()->GetName() : TEXT("None");
+		const FString CustomTimestepName = GetCustomTimeStep() ? GetCustomTimeStep()->GetName() : TEXT("None");
+		
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Inputs"), MediaProfileAnalytics::JoinObjectNames<UMediaSource>(MediaSources)));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Outputs"), MediaProfileAnalytics::JoinObjectNames<UMediaOutput>(MediaOutputs)));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("TimecodeProvider"), TimecodeProviderName));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("CustomTimeStep"), CustomTimestepName));
+		
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.ApplyMediaProfile"), EventAttributes);
+	}
+#endif
 }
 
 void UMediaProfile::FixNumSourcesAndOutputs()

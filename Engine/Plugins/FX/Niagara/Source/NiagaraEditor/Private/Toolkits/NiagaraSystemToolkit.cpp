@@ -23,6 +23,7 @@
 #include "Widgets/SNiagaraSpreadsheetView.h"
 #include "Widgets/SNiagaraGeneratedCodeView.h"
 #include "Widgets/SNiagaraScriptGraph.h"
+#include "Widgets/SNiagaraDebugger.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorSettings.h"
@@ -910,8 +911,17 @@ void FNiagaraSystemToolkit::SetupCommands()
 		FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsToggleBoundsChecked));
 
 	GetToolkitCommands()->MapAction(
-		FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds,
-		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds));
+		FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_SelectedEmitters,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_Emitters),
+		FCanExecuteAction::CreateLambda([this]()
+		{
+			return (this->SystemToolkitMode == ESystemToolkitMode::System && this->SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() > 0) ||
+				this->SystemToolkitMode == ESystemToolkitMode::Emitter;				
+		}));
+
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_System,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_System));
 
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().SaveThumbnailImage,
@@ -978,6 +988,16 @@ void FNiagaraSystemToolkit::SetupCommands()
 			SystemViewModel->DisableSelectedEmitters();
 		}),
 		FCanExecuteAction());
+
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().OpenDebugHUD,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OpenDebugHUD));
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().OpenDebugOutliner,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OpenDebugOutliner));	
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().OpenAttributeSpreadsheet,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OpenAttributeSpreadsheet));
 	
 	// appending the sequencer commands will make the toolkit also check for sequencer commands (last)
 	GetToolkitCommands()->Append(SystemViewModel->GetSequencer()->GetCommandBindings(ESequencerCommandBindings::Sequencer).ToSharedRef());
@@ -1054,6 +1074,18 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			return MenuBuilder.MakeWidget();
 		}
 
+		static TSharedRef<SWidget> FillDebugOptionsMenu(FNiagaraSystemToolkit* Toolkit)
+		{
+			FMenuBuilder MenuBuilder(true, Toolkit->GetToolkitCommands());
+
+#if WITH_NIAGARA_DEBUGGER
+			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenDebugHUD);
+			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenDebugOutliner);
+#endif
+			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenAttributeSpreadsheet);
+			return MenuBuilder.MakeWidget();
+		}
+
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FNiagaraSystemToolkit* Toolkit)
 		{
 			ToolbarBuilder.BeginSection("Compile");
@@ -1120,6 +1152,13 @@ void FNiagaraSystemToolkit::ExtendToolbar()
                     LOCTEXT("NiagaraShowPerformanceCombo_ToolTip", "Runtime performance options"),
 					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.ToggleStats"),
                     true);
+				ToolbarBuilder.AddComboButton(
+					FUIAction(),
+					FOnGetContent::CreateStatic(Local::FillDebugOptionsMenu, Toolkit),
+					LOCTEXT("DebugOptions", "Debug"),
+					LOCTEXT("DebugOptionsTooltip", "Debug options"),
+					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.DebugOptions")
+				);
 			}
 			ToolbarBuilder.EndSection();
 #endif
@@ -1173,7 +1212,12 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateBoundsMenuContent(TSharedRef<
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
 
-	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds);
+	if(SystemToolkitMode == ESystemToolkitMode::System)
+	{
+		MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_System);		
+	}
+	
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_SelectedEmitters);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -1223,7 +1267,7 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 	ViewOptions.SetCategorizeLibraryAssets(true);
 	ViewOptions.SetAddLibraryOnlyCheckbox(true);
 
-	FNiagaraAssetPickerTabOptions TabOptions;
+	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions TabOptions;
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
@@ -1347,12 +1391,49 @@ bool FNiagaraSystemToolkit::IsDrawOptionEnabled(int32 Element) const
 	}
 }
 
-void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds()
+void FNiagaraSystemToolkit::OpenDebugHUD()
 {
-	FScopedTransaction Transaction(LOCTEXT("SetFixedBounds", "Set Fixed Bounds"));
+#if WITH_NIAGARA_DEBUGGER
+	TSharedPtr<SDockTab> DebugTab = FGlobalTabmanager::Get()->TryInvokeTab(SNiagaraDebugger::DebugWindowName);
+
+	if (DebugTab.IsValid())
+	{
+		TSharedRef<SNiagaraDebugger> Content = StaticCastSharedRef<SNiagaraDebugger>(DebugTab->GetContent());
+		Content->FocusDebugTab();
+	}
+#endif
+}
+
+void FNiagaraSystemToolkit::OpenDebugOutliner()
+{
+#if WITH_NIAGARA_DEBUGGER
+	TSharedPtr<SDockTab> DebugTab = FGlobalTabmanager::Get()->TryInvokeTab(SNiagaraDebugger::DebugWindowName);
+
+	if (DebugTab.IsValid())
+	{
+		TSharedRef<SNiagaraDebugger> Content = StaticCastSharedRef<SNiagaraDebugger>(DebugTab->GetContent());
+		Content->FocusOutlineTab();
+	}
+#endif
+}
+
+void FNiagaraSystemToolkit::OpenAttributeSpreadsheet()
+{
+	InvokeTab(DebugSpreadsheetTabID);
+}
+
+void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_Emitters()
+{
+	FScopedTransaction Transaction(LOCTEXT("SetFixedBoundsEmitters", "Set Fixed Bounds (Emitters)"));
 
 	SystemViewModel->UpdateEmitterFixedBounds();
+}
 
+void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds_System()
+{
+	FScopedTransaction Transaction(LOCTEXT("SetFixedBoundsSystem", "Set Fixed Bounds (System)"));
+
+	SystemViewModel->UpdateSystemFixedBounds();
 }
 
 void FNiagaraSystemToolkit::ClearStatPerformance()

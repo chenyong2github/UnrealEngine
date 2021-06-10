@@ -55,10 +55,11 @@ namespace EFilterResult
 	}
 }
 
-/** Base-class for filtering a level snapshot.
+/**
+ * Base-class for filtering a level snapshot.
  * Native C++ classes should inherit directly from this class.
  */
-UCLASS(Abstract)
+UCLASS(Abstract, BlueprintType, EditInlineNew)
 class LEVELSNAPSHOTFILTERS_API ULevelSnapshotFilter : public UObject
 {
 	GENERATED_BODY()
@@ -96,26 +97,26 @@ public:
 	/**
 	 * @return Whether the actor should be considered for the level snapshot.
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Level Snapshots")
 	EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;
 
 	/**
 	 * @return Whether this property should be considered for rolling back to the version in the snapshot. 
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Level Snapshots")
 	EFilterResult::Type IsPropertyValid(const FIsPropertyValidParams& Params) const override;
 
 	/**
 	* This is called when an actor was removed from the world since the snapshot had been taken.
 	* @return Whether to track the removed actor
 	*/
-	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Level Snapshots")
 	EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const override;
 
 	/**
 	* This is called when an actor was added to the world since the snapshot had been taken. 
 	* @return Whether to track the added actor
 	*/
-	UFUNCTION(BlueprintNativeEvent, Category = "Level Snapshots")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Level Snapshots")
 	EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
 };

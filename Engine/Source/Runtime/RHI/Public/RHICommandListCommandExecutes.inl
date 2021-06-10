@@ -517,7 +517,7 @@ void FRHICommandSubmitCommandsHint::Execute(FRHICommandListBase& CmdList)
 void FRHICommandPostExternalCommandsReset::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(PostExternalCommandsReset);
-	INTERNAL_DECORATOR_COMPUTE(RHIPostExternalCommandsReset)();
+	INTERNAL_DECORATOR(RHIPostExternalCommandsReset)();
 }
 
 void FRHICommandPollOcclusionQueries::Execute(FRHICommandListBase& CmdList)

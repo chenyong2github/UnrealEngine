@@ -67,6 +67,8 @@
 #include "RayTracing/RayTracingScene.h"
 #endif
 #include "RHIGPUReadback.h"
+#include "GpuDebugRendering.h" 
+#include "ShaderPrint.h"
 
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 
@@ -1920,6 +1922,28 @@ void FScene::SetPhysicsField(FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy)
 		});
 }
 
+void FScene::ShowPhysicsField()
+{
+	// Set the shader print/debug values from game thread if
+	// physics field visualisation has been enabled
+	if (PhysicsField && PhysicsField->FieldResource && PhysicsField->FieldResource->FieldInfos.bShowFields)
+	{
+		if (!ShaderPrint::IsEnabled())
+		{
+			ShaderPrint::SetEnabled(true);
+			ShaderPrint::SetFontSize(8);
+		}
+		if (!ShaderDrawDebug::IsEnabled())
+		{
+			ShaderDrawDebug::SetEnabled(true);
+		}
+		if (ShaderDrawDebug::GetMaxElementCount() < 128000)
+		{
+			ShaderDrawDebug::SetMaxElementCount(128000);
+		}
+	}
+}
+
 void FScene::ResetPhysicsField()
 {
 	FScene* Scene = this;
@@ -1936,6 +1960,10 @@ void FScene::UpdatePhysicsField(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	if (PhysicsField)
 	{
 		PhysicsField->FieldResource->FieldInfos.ViewOrigin = View.ViewMatrices.GetViewOrigin();
+		if (View.Family )
+		{
+			PhysicsField->FieldResource->FieldInfos.bShowFields = View.Family->EngineShowFlags.PhysicsField;
+		}
 	}
 }
 
@@ -4680,6 +4708,7 @@ public:
 
 	virtual void SetPhysicsField(FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy) override {}
 	virtual void ResetPhysicsField() override {}
+	virtual void ShowPhysicsField() override {}
 	virtual void UpdatePhysicsField(FRDGBuilder& GraphBuilder, FViewInfo& View) override {}
 
 	virtual void AddVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override {}

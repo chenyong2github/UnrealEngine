@@ -15,24 +15,8 @@ DECLARE_CYCLE_STAT(TEXT("Input Port Tick"), STAT_DMXInputPortTick, STATGROUP_DMX
 
 #define LOCTEXT_NAMESPACE "DMXInputPort"
 
-FDMXInputPortSharedRef FDMXInputPort::Create()
-{
-	FDMXInputPortSharedRef NewInputPort = MakeShared<FDMXInputPort, ESPMode::ThreadSafe>();
 
-	NewInputPort->PortGuid = FGuid::NewGuid();
-
-	UDMXProtocolSettings* Settings = GetMutableDefault<UDMXProtocolSettings>();
-	check(Settings);
-
-	NewInputPort->bReceiveDMXEnabled = Settings->IsReceiveDMXEnabled();
-
-	// Bind to receive dmx changes
-	Settings->OnSetReceiveDMXEnabled.AddThreadSafeSP(NewInputPort, &FDMXInputPort::OnSetReceiveDMXEnabled);
-
-	return NewInputPort;
-}
-
-FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(const FDMXInputPortConfig& InputPortConfig)
+FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(FDMXInputPortConfig& InputPortConfig)
 {
 	// Port Configs are expected to have a valid guid always
 	check(InputPortConfig.GetPortGuid().IsValid());
@@ -51,6 +35,8 @@ FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(const FDMXInputPortConfig
 
 	NewInputPort->UpdateFromConfig(InputPortConfig);
 
+	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Created input port %s"), *NewInputPort->PortName);
+
 	return NewInputPort;
 }
 
@@ -62,10 +48,15 @@ FDMXInputPort::~FDMXInputPort()
 
 	// Port needs be unregistered before destruction
 	check(!bRegistered);
+
+	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed input port %s"), *PortName);
 }
 
-void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
+void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 {
+	// Need a valid config for the port
+	InputPortConfig.MakeValid();
+
 	// Find if the port needs update its registration with the protocol
 	const bool bNeedsUpdateRegistration = [this, &InputPortConfig]()
 	{
@@ -74,11 +65,16 @@ void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
 			return true;
 		}
 
+		if (IsRegistered() && FDMXPortManager::Get().AreProtocolsSuspended())
+		{
+			return true;
+		}
+
 		FName ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
 
-		if (ProtocolName == InputPortConfig.ProtocolName &&
-			DeviceAddress == InputPortConfig.DeviceAddress &&
-			CommunicationType == InputPortConfig.CommunicationType)
+		if (ProtocolName == InputPortConfig.GetProtocolName() &&
+			DeviceAddress == InputPortConfig.GetDeviceAddress() &&
+			CommunicationType == InputPortConfig.GetCommunicationType())
 		{
 			return false;
 		}
@@ -89,29 +85,24 @@ void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
 	// Unregister the port if required before the new protocol is set
 	if (bNeedsUpdateRegistration)
 	{
-		if (IsRegistered())
-		{
-			Unregister();
-		}
+		Unregister();
 	}
 
-	Protocol = IDMXProtocol::Get(InputPortConfig.ProtocolName);
+	Protocol = IDMXProtocol::Get(InputPortConfig.GetProtocolName());
 
 	// Copy properties from the config into the base class
-	CommunicationType = InputPortConfig.CommunicationType;
-	ExternUniverseStart = InputPortConfig.ExternUniverseStart;
-	DeviceAddress = InputPortConfig.DeviceAddress;
-	LocalUniverseStart = InputPortConfig.LocalUniverseStart;
-	NumUniverses = InputPortConfig.NumUniverses;
-	PortName = InputPortConfig.PortName;
+	PortGuid = InputPortConfig.GetPortGuid();
+	CommunicationType = InputPortConfig.GetCommunicationType();
+	ExternUniverseStart = InputPortConfig.GetExternUniverseStart();
+	DeviceAddress = InputPortConfig.GetDeviceAddress();
+	LocalUniverseStart = InputPortConfig.GetLocalUniverseStart();
+	NumUniverses = InputPortConfig.GetNumUniverses();
+	PortName = InputPortConfig.GetPortName();
 
 	// Re-register the port if required
 	if (bNeedsUpdateRegistration)
 	{
-		if (IsValidPortSlow() && bReceiveDMXEnabled)
-		{
-			Register();
-		}
+		Register();
 	}
 
 	OnPortUpdated.Broadcast();
@@ -145,7 +136,7 @@ void FDMXInputPort::RemoveRawInput(TSharedRef<FDMXRawListener> RawInput)
 
 bool FDMXInputPort::Register()
 {
-	if (Protocol.IsValid())
+	if (IsValidPortSlow() && bReceiveDMXEnabled && !FDMXPortManager::Get().AreProtocolsSuspended())
 	{
 		bRegistered = Protocol->RegisterInputPort(SharedThis(this));
 
@@ -173,11 +164,14 @@ void FDMXInputPort::Tick(float DeltaTime)
 
 	// Tick universe Inputs with latest signals on tick
 	FDMXSignalSharedPtr Signal;
-	while (TickedBuffer.Dequeue(Signal))
+
+	if (bUseDefaultInputQueue)
 	{
-		// No need to filter extern universe, we already did that when enqueing
-		UniverseToLatestSignalMap.FindOrAdd(Signal->ExternUniverseID) = Signal;
-		FDMXPortManager::Get().OnPortInputDequeued.Broadcast(FDMXInputPort::SharedThis(this), Signal.ToSharedRef());
+		while (DefaultInputQueue.Dequeue(Signal))
+		{
+			// No need to filter extern universe, we already did that when enqueing
+			ExternUniverseToLatestSignalMap.FindOrAdd(Signal->ExternUniverseID) = Signal;
+		}
 	}
 }
 
@@ -194,7 +188,7 @@ TStatId FDMXInputPort::GetStatId() const
 void FDMXInputPort::ClearBuffers()
 {
 #if UE_BUILD_DEBUG
-	// Needs be called from the game thread, to maintain thread safety with UniverseToLatestSignalMap
+	// Needs be called from the game thread, to maintain thread safety with ExternUniverseToLatestSignalMap
 	check(IsInGameThread());
 #endif // UE_BUILD_DEBUG
 
@@ -203,8 +197,8 @@ void FDMXInputPort::ClearBuffers()
 		RawInput->ClearBuffer();
 	}
 
-	TickedBuffer.Empty();
-	UniverseToLatestSignalMap.Reset();
+	DefaultInputQueue.Empty();
+	ExternUniverseToLatestSignalMap.Reset();
 }
 
 void FDMXInputPort::SingleProducerInputDMXSignal(const FDMXSignalSharedRef& DMXSignal)
@@ -214,14 +208,15 @@ void FDMXInputPort::SingleProducerInputDMXSignal(const FDMXSignalSharedRef& DMXS
 		int32 ExternUniverseID = DMXSignal->ExternUniverseID;
 		if (IsExternUniverseInPortRange(ExternUniverseID))
 		{
-			int32 LocalUniverseID = ConvertExternToLocalUniverseID(ExternUniverseID);
-
 			for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 			{
 				RawListener->EnqueueSignal(this, DMXSignal);
 			}
 
-			TickedBuffer.Enqueue(DMXSignal);
+			if (bUseDefaultInputQueue)
+			{
+				DefaultInputQueue.Enqueue(DMXSignal);
+			}
 		}
 	}
 }
@@ -234,7 +229,7 @@ bool FDMXInputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalShar
 
 	int32 ExternUniverseID = ConvertLocalToExternUniverseID(LocalUniverseID);
 
-	const FDMXSignalSharedPtr* SignalPtr = UniverseToLatestSignalMap.Find(ExternUniverseID);
+	const FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap.Find(ExternUniverseID);
 	if (SignalPtr)
 	{
 		OutDMXSignal = *SignalPtr;
@@ -242,6 +237,15 @@ bool FDMXInputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalShar
 	}
 
 	return false;
+}
+
+const TMap<int32, FDMXSignalSharedPtr>& FDMXInputPort::GameThreadGetAllDMXSignals() const
+{
+#if UE_BUILD_DEBUG
+	check(IsInGameThread());
+#endif // UE_BUILD_DEBUG
+
+	return ExternUniverseToLatestSignalMap;
 }
 
 bool FDMXInputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine)
@@ -251,7 +255,7 @@ bool FDMXInputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr
 	check(IsInGameThread());
 #endif // UE_BUILD_DEBUG
 
-	const FDMXSignalSharedPtr* SignalPtr = UniverseToLatestSignalMap.Find(RemoteUniverseID);
+	const FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap.Find(RemoteUniverseID);
 	if (SignalPtr)
 	{
 		OutDMXSignal = *SignalPtr;
@@ -261,6 +265,22 @@ bool FDMXInputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr
 	return false;
 }
 
+void FDMXInputPort::GameThreadInjectDMXSignal(const FDMXSignalSharedRef& DMXSignal)
+{
+	ensureMsgf(!bUseDefaultInputQueue || !bReceiveDMXEnabled || FDMXPortManager::Get().AreProtocolsSuspended(), TEXT("Potential conflicts between injected and received signals, please revise the implementation."));
+
+	int32 ExternUniverseID = DMXSignal->ExternUniverseID;
+	if (IsExternUniverseInPortRange(ExternUniverseID))
+	{
+		ExternUniverseToLatestSignalMap.FindOrAdd(ExternUniverseID, DMXSignal) = DMXSignal;
+	}
+}
+
+void FDMXInputPort::SetUseDefaultQueue(bool bUse)
+{
+	bUseDefaultInputQueue = bUse;
+}
+
 void FDMXInputPort::OnSetReceiveDMXEnabled(bool bEnabled)
 {
 	bReceiveDMXEnabled = bEnabled;
@@ -268,11 +288,11 @@ void FDMXInputPort::OnSetReceiveDMXEnabled(bool bEnabled)
 	UpdateFromConfig(*FindInputPortConfigChecked());
 }
 
-const FDMXInputPortConfig* FDMXInputPort::FindInputPortConfigChecked() const
+FDMXInputPortConfig* FDMXInputPort::FindInputPortConfigChecked() const
 {
-	const UDMXProtocolSettings* ProjectSettings = GetDefault<UDMXProtocolSettings>();
+	UDMXProtocolSettings* ProjectSettings = GetMutableDefault<UDMXProtocolSettings>();
 
-	for (const FDMXInputPortConfig& InputPortConfig : ProjectSettings->InputPortConfigs)
+	for (FDMXInputPortConfig& InputPortConfig : ProjectSettings->InputPortConfigs)
 	{
 		if (InputPortConfig.GetPortGuid() == PortGuid)
 		{

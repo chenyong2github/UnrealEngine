@@ -146,7 +146,7 @@ void SRCPanelExposedField::Refresh()
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
 		CachedLabel = Field->GetLabel();
-
+		
 		if (Field->FieldType == EExposedFieldType::Property)
 		{
 			ConstructPropertyWidget();
@@ -384,6 +384,8 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 		{
 			if (bDisplayValues)
 			{
+				FRCPanelWidgetRegistry::Get().Refresh(RCFunction->FunctionArguments);
+
 				TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildNodes;
 				for (TFieldIterator<FProperty> It(RCFunction->GetFunction()); It; ++It)
 				{

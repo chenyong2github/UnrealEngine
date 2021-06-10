@@ -192,7 +192,8 @@ void UEditorUtilitySubsystem::RegisterTabAndGetID(class UEditorUtilityWidgetBlue
 				.SetDisplayName(DisplayName)
 				.SetGroup(BlutilityModule->GetMenuGroup().ToSharedRef());
 			InBlueprint->SetRegistrationName(RegistrationName);
-			BlutilityModule->AddLoadedScriptUI(InBlueprint);
+			RegisteredTabs.Add(RegistrationName, InBlueprint);
+			
 		}
 		NewTabID = RegistrationName;
 	}
@@ -207,6 +208,10 @@ bool UEditorUtilitySubsystem::SpawnRegisteredTabByID(FName NewTabID)
 		if (LevelEditorTabManager->HasTabSpawner(NewTabID))
 		{
 			TSharedPtr<SDockTab> NewDockTab = LevelEditorTabManager->TryInvokeTab(NewTabID);
+			IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
+			UEditorUtilityWidgetBlueprint* WidgetToSpawn = *RegisteredTabs.Find(NewTabID);
+			check(WidgetToSpawn);
+			BlutilityModule->AddLoadedScriptUI(WidgetToSpawn);
 			return true;
 		}
 	}

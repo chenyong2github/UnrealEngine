@@ -1527,48 +1527,18 @@ namespace Audio
 		}
 		else
 		{
-			TArray<TPair<FString, FString>> SplitNames;
 			FString SoundPath, SoundName;
-			int32 MaxNameLength = 0;
-			uint32 MaxClassLength = 0;
-
-			// Get spacing data
-			for (const FAudioStats::FStatSoundInfo& StatSoundInfo : AudioStats.StatSoundInfos)
-			{
-				for (const FAudioStats::FStatWaveInstanceInfo& WaveInstanceInfo : StatSoundInfo.WaveInstanceInfos)
-				{
-					if (WaveInstanceInfo.Volume >= MinDisplayVolume)
-					{
-						if (!StatSoundInfo.SoundPath.Split(TEXT("."), &SoundPath, &SoundName))
-						{
-							if (!StatSoundInfo.SoundPath.Split(SUBOBJECT_DELIMITER, &SoundPath, &SoundName))
-							{
-								SoundPath = StatSoundInfo.SoundPath;
-							}
-						}
-						SoundName = StatSoundInfo.SoundName;
-						SplitNames.Emplace(SoundName, SoundPath);
-
-						if (SoundName.Len() > MaxNameLength)
-						{
-							MaxNameLength = SoundName.Len();
-						}
-
-						if (StatSoundInfo.SoundClassName.GetStringLength() > MaxClassLength)
-						{
-							MaxClassLength = StatSoundInfo.SoundClassName.GetStringLength();
-						}
-					}
-				}
-			}
+			static int32 PrevNameLength = 0;
+			static int32 PrevClassLength = 0;
 
 			const int32 TabSpacing = FMath::Clamp(SoundCueDebugTabSpacingCVar, 1, SoundCueDebugTabSpacingCVar);
 			const int32 CharSpacing = FMath::Clamp(SoundCueDebugCharSpacingCVar, 1, SoundCueDebugCharSpacingCVar);
 			const int32 NumberSpacing = 6 * CharSpacing;	// 6 character len for 2 decimal float + 2 spaces 'X.XX  '
 
-			// Tab out name and class length
-			MaxNameLength = (MaxNameLength / TabSpacing + 1) * TabSpacing;
-			MaxClassLength = (MaxClassLength / TabSpacing + 1) * TabSpacing;
+			// Tab out name and class length and reset previous length counters
+			int32 TabbedName = (PrevNameLength / TabSpacing + 1) * TabSpacing;
+			int32 TabbedClass = (PrevClassLength / TabSpacing + 1) * TabSpacing;
+			PrevNameLength = PrevClassLength = 0;
 
 			for (const FAudioStats::FStatSoundInfo& StatSoundInfo : AudioStats.StatSoundInfos)
 			{
@@ -1579,6 +1549,25 @@ namespace Audio
 						FColor Color = FColor::White;
 						FString MuteSoloReason;
 						bool bMutedOrSoloed = false;
+
+						if (!StatSoundInfo.SoundPath.Split(TEXT("."), &SoundPath, &SoundName))
+						{
+							if (!StatSoundInfo.SoundPath.Split(SUBOBJECT_DELIMITER, &SoundPath, &SoundName))
+							{
+								SoundPath = StatSoundInfo.SoundPath;
+							}
+						}
+						SoundName = StatSoundInfo.SoundName;
+
+						if (SoundName.Len() > PrevNameLength)
+						{
+							PrevNameLength = SoundName.Len();
+						}
+
+						if ((int32)StatSoundInfo.SoundClassName.GetStringLength() > PrevClassLength)
+						{
+							PrevClassLength = StatSoundInfo.SoundClassName.GetStringLength();
+						}
 
 						if (FSoundSource::FDebugInfo* DebugInfo = WaveInstanceInfo.DebugInfo.Get())
 						{
@@ -1592,7 +1581,7 @@ namespace Audio
 						const int32 SoundNameIndex = ActiveSoundCount++;
 						const FString LeadingNumber = FString::Printf(TEXT("%4i. "), SoundNameIndex);
 						const FString Volume = FString::Printf(TEXT("%6.2f "), WaveInstanceInfo.Volume);
-						const FString PathAndMuting = FString::Printf(TEXT("Path: %s %s"), *SplitNames[SoundNameIndex].Value, *MuteSoloReason);
+						const FString PathAndMuting = FString::Printf(TEXT("Path: %s %s"), *SoundPath, *MuteSoloReason);
 
 						int32 CurrentX = X;
 						Canvas->DrawShadowedString(CurrentX, Y, *LeadingNumber, StatsFont, Color);
@@ -1607,13 +1596,13 @@ namespace Audio
 							CurrentX += (NumberSpacing * 2);
 						}
 
-						Canvas->DrawShadowedString(CurrentX, Y, *SplitNames[SoundNameIndex].Key, StatsFont, bMutedOrSoloed ? Color : FColor(0, 255, 255));
-						CurrentX += (MaxNameLength * CharSpacing);
+						Canvas->DrawShadowedString(CurrentX, Y, *SoundName, StatsFont, bMutedOrSoloed ? Color : FColor(0, 255, 255));
+						CurrentX += (TabbedName * CharSpacing);
 						Canvas->DrawShadowedString(CurrentX, Y, *StatSoundInfo.SoundClassName.ToString(), StatsFont, bMutedOrSoloed ? Color : FColor::Yellow);
 
 						if (SoundCueDebugShowPathCVar)
 						{
-							CurrentX += (MaxClassLength * CharSpacing);
+							CurrentX += (TabbedClass * CharSpacing);
 							Canvas->DrawShadowedString(CurrentX, Y, *PathAndMuting, StatsFont, Color);
 						}
 

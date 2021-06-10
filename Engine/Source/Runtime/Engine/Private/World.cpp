@@ -3424,7 +3424,7 @@ void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, b
 	if (StreamingLevel)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ManageLevelsToConsider);
-		if (bStreamingLevelsBeingConsidered)
+		if (AreStreamingLevelsBeingConsidered())
 		{
 			// Add is a more significant reason than reevaluate, so either we are adding it to the map 
 			// if not already there, or upgrading the reason if not
@@ -3465,7 +3465,7 @@ bool FStreamingLevelsToConsider::Remove(ULevelStreaming* StreamingLevel)
 	if (StreamingLevel)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ManageLevelsToConsider);
-		if (bStreamingLevelsBeingConsidered)
+		if (AreStreamingLevelsBeingConsidered())
 		{
 			int32 Index;
 			if (StreamingLevels.Find(StreamingLevel, Index))
@@ -3486,21 +3486,27 @@ bool FStreamingLevelsToConsider::Remove(ULevelStreaming* StreamingLevel)
 
 void FStreamingLevelsToConsider::RemoveAt(const int32 Index)
 {
-	if (bStreamingLevelsBeingConsidered)
+	if (AreStreamingLevelsBeingConsidered())
 	{
 		if (ULevelStreaming* StreamingLevel = StreamingLevels[Index])
 		{
 			LevelsToProcess.Remove(StreamingLevel);
+
+			// While we are considering we must null here because we are iterating the array and changing the size would be undesirable
+			StreamingLevels[Index] = nullptr;
 		}
 	}
-	StreamingLevels.RemoveAt(Index, 1, false);
+	else
+	{
+		StreamingLevels.RemoveAt(Index, 1, false);
+	}
 }
 
 void FStreamingLevelsToConsider::Reevaluate(ULevelStreaming* StreamingLevel)
 {
 	if (StreamingLevel)
 	{
-		if (bStreamingLevelsBeingConsidered)
+		if (AreStreamingLevelsBeingConsidered())
 		{
 			// If the streaming level is already in the map then it doesn't need to be updated as it is either
 			// already Reevaluate or the more significant Add
@@ -3528,46 +3534,52 @@ bool FStreamingLevelsToConsider::Contains(ULevelStreaming* StreamingLevel) const
 
 void FStreamingLevelsToConsider::Reset()
 {
-	if (bStreamingLevelsBeingConsidered)
+	if (AreStreamingLevelsBeingConsidered())
 	{
 		// not safe to resize while levels are being considered, just null everything
 		FMemory::Memzero(StreamingLevels.GetData(), StreamingLevels.Num() * sizeof(ULevelStreaming*));
 	}
 	else
 	{
-	StreamingLevels.Reset();
+		StreamingLevels.Reset();
 	}
 	LevelsToProcess.Reset();
 }
 
 void FStreamingLevelsToConsider::BeginConsideration()
 {
-	bStreamingLevelsBeingConsidered = true;
+	StreamingLevelsBeingConsidered++;
 }
 
 void FStreamingLevelsToConsider::EndConsideration()
 {
-	bStreamingLevelsBeingConsidered = false;
+	StreamingLevelsBeingConsidered--;
 
-	if (LevelsToProcess.Num() > 0)
+	if (!AreStreamingLevelsBeingConsidered())
 	{
-		// For any streaming level that was added or had its priority changed while we were considering the
-		// streaming levels go through and ensure they are correctly in the map and sorted to the correct location
-		TSortedMap<ULevelStreaming*, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
-		for (const TPair<ULevelStreaming*,EProcessReason>& LevelToProcessPair : LevelsToProcessCopy)
+		if (LevelsToProcess.Num() > 0)
 		{
-			if (ULevelStreaming* StreamingLevel = LevelToProcessPair.Key)
+			// For any streaming level that was added or had its priority changed while we were considering the
+			// streaming levels go through and ensure they are correctly in the map and sorted to the correct location
+			TSortedMap<ULevelStreaming*, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
+			for (const TPair<ULevelStreaming*,EProcessReason>& LevelToProcessPair : LevelsToProcessCopy)
 			{
-				// Remove the level if it is already in the list so we can use Add to place in the correct priority location
-				const bool bIsBeingConsidered = Remove(StreamingLevel);
-
-				// If the level was in the list or this is an Add, now use Add to insert in priority order
-				if (bIsBeingConsidered || LevelToProcessPair.Value == EProcessReason::Add)
+				if (ULevelStreaming* StreamingLevel = LevelToProcessPair.Key)
 				{
-					Add_Internal(StreamingLevel, true);
+					// Remove the level if it is already in the list so we can use Add to place in the correct priority location
+					const bool bIsBeingConsidered = Remove(StreamingLevel);
+
+					// If the level was in the list or this is an Add, now use Add to insert in priority order
+					if (bIsBeingConsidered || LevelToProcessPair.Value == EProcessReason::Add)
+					{
+						Add_Internal(StreamingLevel, true);
+					}
 				}
 			}
 		}
+
+		// Removed null entries that might have been cleared during consideration.
+		StreamingLevels.Remove(nullptr);
 	}
 }
 
@@ -5077,10 +5089,6 @@ void UWorld::SetPhysicsScene(FPhysScene* InScene)
 	{
 		// Set pointer in scene to know which world its coming from
 		PhysicsScene->SetOwningWorld(this);
-
-#if WITH_CHAOS
-		FPhysInterface_Chaos::FlushScene(PhysicsScene);
-#endif
 	}
 }
 

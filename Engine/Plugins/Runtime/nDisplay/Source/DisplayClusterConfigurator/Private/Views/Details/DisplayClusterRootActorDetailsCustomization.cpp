@@ -125,15 +125,8 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				END_GROUP();
 
 				ADD_PROPERTY(ADisplayClusterRootActor, InnerFrustumPriority);
-
-				{
-					TArray<TSharedPtr<IPropertyHandle>> GlobalScreenPercentageHandles;
-					NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.RenderFrameSettings.ClusterRenderTargetRatioMult"), GlobalScreenPercentageHandles);
-					check(GlobalScreenPercentageHandles.Num() == 1);
-
-					GlobalScreenPercentageHandles[0]->SetPropertyDisplayName(LOCTEXT("OuterViewportScreenPercentageMult", "Outer Viewport Screen Percentage Multiplier"));
-					CurrentCategory.AddProperty(GlobalScreenPercentageHandles[0]);
-				}
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterRenderTargetRatioMult)
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult)
 				
 				TArray<TSharedPtr<IPropertyHandle>> ScreenPercentageHandles;
 				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.BufferRatio"), ScreenPercentageHandles);
@@ -149,33 +142,20 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				END_GROUP();
 			}
 
+			BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from nDisplay"))
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.ActorLayers)
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.Actors)
+			END_GROUP();
 		END_CATEGORY();
 
-		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ChromaKeyCategory)
-		{
-			TArray<TSharedPtr<IPropertyHandle>> Handles;
-			NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.StageSettings.Chromakey"), Handles);
-			
-			check(Handles.Num() == 1);
-			CurrentCategory.AddProperty(Handles[0]).ShouldAutoExpand(true);
-		}
-		END_CATEGORY();
-		
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::LightcardCategory)
-		{
-			TArray<TSharedPtr<IPropertyHandle>> Handles;
-			NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.StageSettings.Lightcard.bEnable"), Handles);
-			check(Handles.Num() == 1);
-			Handles[0]->SetPropertyDisplayName(LOCTEXT("LightCardDisplayName", "Enable Light Cards"));
-			CurrentCategory.AddProperty(Handles[0]);
-		}
-		{
-			TArray<TSharedPtr<IPropertyHandle>> Handles;
-			NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.StageSettings.Lightcard.BlendingMode"), Handles);
-			check(Handles.Num() == 1);
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode)
 
-			CurrentCategory.AddProperty(Handles[0]);
-		}
+			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Content Visibile Only in Outer Viewports"))
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers)
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors)
+			END_GROUP();
 		END_CATEGORY();
 	}
 	

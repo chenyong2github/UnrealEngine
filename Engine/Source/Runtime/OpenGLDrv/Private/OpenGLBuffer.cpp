@@ -219,17 +219,15 @@ void* FOpenGLDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICm
 
 	VERIFY_GL_SCOPE();
 	FOpenGLBuffer* Buffer = ResourceCast(BufferRHI);
+	if (Buffer->IsDynamic() && LockMode == EResourceLockMode::RLM_WriteOnly)
 	{
-		if (Buffer->IsDynamic() && LockMode == EResourceLockMode::RLM_WriteOnly)
+		void *Staging = GetAllocation(Buffer, Size, Offset);
+		if (Staging)
 		{
-			void *Staging = GetAllocation(Buffer, Size, Offset);
-			if (Staging)
-			{
-				return Staging;
-			}
+			return Staging;
 		}
-		return (void*)Buffer->Lock(Offset, Size, LockMode == EResourceLockMode::RLM_ReadOnly, Buffer->IsDynamic());
 	}
+	return (void*)Buffer->Lock(Offset, Size, LockMode == EResourceLockMode::RLM_ReadOnly, Buffer->IsDynamic());
 	RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(void*);
 }
 

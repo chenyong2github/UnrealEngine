@@ -27,6 +27,7 @@ const int32  STABLE_COMPRESSED_EXT_LEN = 11; // len of ".compressed";
 const int32  STABLE_COMPRESSED_VER = 3;
 const int64  STABLE_MAX_CHUNK_SIZE = MAX_int32 - 100 * 1024 * 1024;
 const TCHAR* ShaderStableKeysFileExt = TEXT("shk");
+const TCHAR* ShaderStableKeysFileExtWildcard = TEXT("*.shk");
 
 int32 GShaderPipelineCacheTools_ComputePSOInclusionMode = 2;
 static FAutoConsoleVariableRef CVarShaderPipelineCacheDoNotPrecompileComputePSO(
@@ -324,7 +325,7 @@ static void PrintShaders(const TMap<FSHAHash, TArray<FString>>& InverseMap, cons
 
 	for (const FString& Item : *Out)
 	{
-		UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("    %s"), *Item);
+		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    %s"), *Item);
 	}
 }
 
@@ -374,8 +375,29 @@ bool CheckPSOStringInveribility(const FPipelineCacheFileFormatPSO& Item)
 	return (DupItem == TempItem) && (GetTypeHash(DupItem) == GetTypeHash(TempItem));
 }
 
-int32 DumpPSOSC(FString& Token)
+int32 DumpPSOSC(FString& Token, const FString& StableKeyFileDir)
 {
+	TMap<FSHAHash, TArray<FString>> InverseMap;
+	if (StableKeyFileDir.Len())
+	{
+		TArray<FString> StableKeyFiles;
+		IFileManager::Get().FindFilesRecursive(StableKeyFiles, *StableKeyFileDir, ShaderStableKeysFileExtWildcard, true, false);
+		TArray<FStringView, TInlineAllocator<16>> StableKeyFilesViews;
+		for (const FString& StableKeyFile : StableKeyFiles)
+		{
+			StableKeyFilesViews.Add(StableKeyFile);
+		}
+
+		TMultiMap<FStableShaderKeyAndValue, FSHAHash> StableMap;
+		LoadStableShaderKeysMultiple(StableMap, StableKeyFilesViews);
+		for (const auto& Pair : StableMap)
+		{
+			FStableShaderKeyAndValue Temp = Pair.Key;
+			Temp.OutputHash = Pair.Value;
+			InverseMap.FindOrAdd(Pair.Value).Add(Temp.ToString());
+		}
+	}
+
 	TSet<FPipelineCacheFileFormatPSO> PSOs;
 
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loading %s...."), *Token);
@@ -387,28 +409,37 @@ int32 DumpPSOSC(FString& Token)
 
 	for (const FPipelineCacheFileFormatPSO& Item : PSOs)
 	{
-		FString StringRep;
 		if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute)
 		{
 			check(!(Item.ComputeDesc.ComputeShader == FSHAHash()));
-			StringRep = Item.ComputeDesc.ToString();
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%s"), *Item.ComputeDesc.ToString());
 		}
 		else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 		{
 			check(!(Item.GraphicsDesc.VertexShader == FSHAHash() || Item.GraphicsDesc.MeshShader == FSHAHash()));
-			StringRep = Item.GraphicsDesc.ToString();
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%s"), *Item.GraphicsDesc.ToString());
+
+			if (InverseMap.Num())
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("VertexShader"));
+				PrintShaders(InverseMap, Item.GraphicsDesc.VertexShader);
+				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("FragmentShader"));
+				PrintShaders(InverseMap, Item.GraphicsDesc.FragmentShader);
+				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("GeometryShader"));
+				PrintShaders(InverseMap, Item.GraphicsDesc.GeometryShader);
+			}
 		}
 		else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
 		{
-			StringRep = Item.RayTracingDesc.ToString();
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%s"), *Item.RayTracingDesc.ToString());
 		}
 		else
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.Type));
 		}
-		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%s"), *StringRep);
 	}
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("%s"), *FPipelineCacheFileFormatPSO::GraphicsDescriptor::HeaderLine());
+	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Total PSOs logged: %d"), PSOs.Num());
 
 	for (const FPipelineCacheFileFormatPSO& Item : PSOs)
 	{
@@ -2295,7 +2326,13 @@ int32 UShaderPipelineCacheToolsCommandlet::StaticMain(const FString& Params)
 			{
 				if (Tokens[Index].EndsWith(TEXT(".upipelinecache")))
 				{
-					return DumpPSOSC(Tokens[Index]);
+					// check if there's more arguments and assume it's the directory for stable keys
+					FString StableKeysDir;
+					if (Index < Tokens.Num() - 1)
+					{
+						StableKeysDir = Tokens[Index + 1];
+					}
+					return DumpPSOSC(Tokens[Index], StableKeysDir);
 				}
 				if (Tokens[Index].EndsWith(ShaderStableKeysFileExt))
 				{

@@ -19,12 +19,13 @@
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryContext.h"
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryProxy.h"
 
-bool FDisplayClusterWarpBlendLoader_MeshComponent::Load(const FDisplayClusterWarpBlendConstruct::FAssignWarpMesh& InParameters, TSharedPtr<IDisplayClusterWarpBlend>& OutWarpBlend)
+bool FDisplayClusterWarpBlendLoader_MeshComponent::Load(const FDisplayClusterWarpBlendConstruct::FAssignWarpMesh& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
 {
 	if (InParameters.MeshComponent != nullptr)
 	{
 		//ok, Create and initialize warpblend interface:
-		TSharedPtr<FDisplayClusterWarpBlend> WarpBlend = MakeShared<FDisplayClusterWarpBlend>();
+		TSharedPtr<FDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlend = MakeShared<FDisplayClusterWarpBlend, ESPMode::ThreadSafe>();
+
 		WarpBlend->GeometryContext.GeometryProxy.GeometryType = EDisplayClusterWarpGeometryType::WarpMesh;
 		WarpBlend->GeometryContext.ProfileType = EDisplayClusterWarpProfileType::warp_A3D;
 

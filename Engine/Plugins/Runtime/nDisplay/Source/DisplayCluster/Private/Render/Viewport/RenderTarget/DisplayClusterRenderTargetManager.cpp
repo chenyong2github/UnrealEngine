@@ -10,6 +10,7 @@
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 
+#include "Misc/DisplayClusterLog.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// FDisplayClusterRenderTargetManager
@@ -126,7 +127,7 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FVie
 
 		if (!AllocateFrameTargets(InRenderFrameSettings, ViewportSize, InOutRenderFrame))
 		{
-			// handle error
+			UE_LOG(LogDisplayClusterViewport, Error, TEXT("DisplayClusterRenderTargetManager: Can't allocate frame targets."));
 			bResult = false;
 		}
 

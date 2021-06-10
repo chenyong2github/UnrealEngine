@@ -5531,8 +5531,9 @@ int32 FHLSLMaterialTranslator::TextureSample(
 		if (SamplerSource != SSM_FromTextureAsset)
 	{
 			// VT doesn't care if the shared sampler is wrap or clamp this is handled in the shader explicitly by our code so we still inherit this from the texture
-			TextureName += FString::Printf(TEXT("Material.VirtualTexturePhysical_%d, GetMaterialSharedSampler(Material.VirtualTexturePhysical_%dSampler, View.SharedBilinearClampedSampler)")
-				, VirtualTextureIndex, VirtualTextureIndex);
+			const TCHAR* SharedSamplerName = (MipValueMode == TMVM_MipLevel) ? TEXT("View.SharedBilinearClampedSampler") : TEXT("View.SharedBilinearAnisoClampedSampler");
+			TextureName += FString::Printf(TEXT("Material.VirtualTexturePhysical_%d, GetMaterialSharedSampler(Material.VirtualTexturePhysical_%dSampler, %s)")
+				, VirtualTextureIndex, VirtualTextureIndex, SharedSamplerName);
 	}
 		else
 	{
@@ -5871,16 +5872,23 @@ int32 FHLSLMaterialTranslator::TextureSample(
 
 int32 FHLSLMaterialTranslator::TextureProperty(int32 TextureIndex, EMaterialExposedTextureProperty Property)
 {
-	EMaterialValueType TextureType = GetParameterType(TextureIndex);
-
-	if(TextureType != MCT_Texture2D && TextureType != MCT_TextureVirtual && TextureType != MCT_VolumeTexture)
+	const EMaterialValueType TextureType = GetParameterType(TextureIndex);
+	if (TextureType != MCT_Texture2D &&
+		TextureType != MCT_TextureVirtual &&
+		TextureType != MCT_VolumeTexture &&
+		TextureType != MCT_Texture2DArray)
 	{
-		return Errorf(TEXT("Texture size only available for Texture2D, TextureVirtual, and VolumeTexture, not %s"),DescribeType(TextureType));
+		return Errorf(TEXT("Texture size only available for Texture2D, TextureVirtual, Texture2DArray, and VolumeTexture, not %s"),DescribeType(TextureType));
 	}
 		
-	auto TextureExpression = (FMaterialUniformExpressionTexture*) (*CurrentScopeChunks)[TextureIndex].UniformExpression.GetReference();
+	FMaterialUniformExpressionTexture* TextureExpression = (*CurrentScopeChunks)[TextureIndex].UniformExpression->GetTextureUniformExpression();
+	if (!TextureExpression)
+	{
+		return Errorf(TEXT("Expected a texture expression"));
+	}
 
-	return AddUniformExpression(new FMaterialUniformExpressionTextureProperty(TextureExpression, Property), (TextureType == MCT_VolumeTexture ? MCT_Float3 : MCT_Float2), TEXT(""));
+	const EMaterialValueType ValueType = (TextureType == MCT_VolumeTexture || TextureType == MCT_Texture2DArray) ? MCT_Float3 : MCT_Float2;
+	return AddUniformExpression(new FMaterialUniformExpressionTextureProperty(TextureExpression, Property), ValueType, TEXT(""));
 }
 
 int32 FHLSLMaterialTranslator::TextureDecalMipmapLevel(int32 TextureSizeInput)
@@ -5943,6 +5951,10 @@ int32 FHLSLMaterialTranslator::PixelDepth()
 	if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Vertex)
 	{
 		return Errorf(TEXT("Invalid node used in hull/domain shader input!"));
+	}
+	if (Material->IsTranslucencyWritingVelocity())
+	{
+		return Errorf(TEXT("Translucenct material with 'Output Velocity' enabled will write to depth buffer, therefore cannot read from depth buffer at the same time."));
 	}
 
 	FString FiniteCode = TEXT("GetPixelDepth(Parameters)");

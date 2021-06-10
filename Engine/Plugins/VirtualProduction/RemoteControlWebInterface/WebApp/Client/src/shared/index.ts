@@ -20,11 +20,6 @@ export enum PropertyType {
   Text =        'FText',
 
   Function =    'Function',
-  Asset =       'Asset',
-}
-
-export enum AssetAction {
-  SequencePlay =     'SEQUENCE_PLAY',
 }
 
 export interface ColorProperty {
@@ -90,6 +85,7 @@ export interface IExposedProperty {
   Metadata: Record<string, string>;
   Widget: WidgetType;
   UnderlyingProperty: IProperty;
+  OwnerObjects: IObject[];
 
   //Added
   Type: PropertyType;
@@ -119,13 +115,16 @@ export interface IPreset {
   
   ExposedProperties?: IExposedProperty[];
   ExposedFunctions?: IExposedFunction[];
-  Exposed: Record<string, IExposedProperty | IExposedFunction>;
+  Exposed?: Record<string, IExposedProperty | IExposedFunction>;
 }
 
-export interface IAsset {
+export interface IObject {
   Name: string;
   Class: string;
   Path: string;
+}
+
+export interface IAsset extends IObject {
   Metadata: Record<string, string>;
 }
 
@@ -139,6 +138,7 @@ export enum WidgetTypes {
   Sliders =         'Sliders',
   ScaleSlider =     'Scale Slider',
   ColorPicker =     'Color Picker',
+  MiniColorPicker = 'Mini Color Picker',
   Toggle =          'Toggle',
   Joystick =        'Joystick',
   Button =          'Button',
@@ -149,9 +149,6 @@ export enum WidgetTypes {
   Vector =          'Vector',
   Spacer =          'Spacer',
   Tabs =            'Tabs',
-  
-  Level =           'Level',
-  Sequence =        'Sequence',
 }
 
 export type WidgetType = keyof typeof WidgetTypes | string;
@@ -184,6 +181,7 @@ export enum TabLayout {
 
 export enum ScreenType {
   Snapshot =      'Snapshot',
+  Sequencer =     'Sequencer',
 }
 
 export interface IScreen {
@@ -210,6 +208,9 @@ export interface ICustomStackProperty {
 
   // Dropdown only
   options?: IDropdownOption[];
+
+  // Function arguments
+  args?: Record<string, any>;
 
   // Space only
   spaces?: number;

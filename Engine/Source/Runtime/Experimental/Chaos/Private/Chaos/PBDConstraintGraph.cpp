@@ -451,21 +451,12 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 		for (int32 Island = 0; Island < NewIslandParticles.Num(); ++Island)
 		{
 			NewIslandToSleepCount[Island] = 0;
-			const bool bNeedsResim = IslandToData[Island].bNeedsResim;
 			for (FGeometryParticleHandle* Particle : NewIslandParticles[Island])
 			{
 				FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle();
 				if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 				{
 					PBDRigid->Island() = Island;
-					if(bNeedsResim)
-					{
-						if(PBDRigid->SyncState() == ESyncState::InSync)
-						{
-							//mark as soft desync, we may end up with exact same output
-							PBDRigid->SetSyncState(ESyncState::SoftDesync);
-						}
-					}
 				}
 			}
 		}

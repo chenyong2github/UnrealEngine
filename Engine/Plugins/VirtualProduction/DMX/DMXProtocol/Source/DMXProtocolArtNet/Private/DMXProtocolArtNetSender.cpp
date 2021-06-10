@@ -217,16 +217,17 @@ uint32 FDMXProtocolArtNetSender::Run()
 	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
 	check(DMXSettings);
 	
-	float SendDeltaTime = 1.f / DMXSettings->SendingRefreshRate;
+	// Fixed rate delta time
+	const double SendDeltaTime = 1.f / DMXSettings->SendingRefreshRate;
 
 	while (!bStopping)
 	{
-		double StartTime = FPlatformTime::Seconds();
+		const double StartTime = FPlatformTime::Seconds();
 
 		Update();
 
-		double EndTime = FPlatformTime::Seconds();
-		double WaitTime = SendDeltaTime - EndTime - StartTime;
+		const double EndTime = FPlatformTime::Seconds();
+		const double WaitTime = SendDeltaTime - (EndTime - StartTime);
 
 		if (WaitTime > 0.f)
 		{
@@ -298,7 +299,7 @@ void FDMXProtocolArtNetSender::Update()
 		ArtNetDMXPacket.Universe = UniverseID;
 		ArtNetDMXPacket.Sequence = 0x00; // As per Standard: The Sequence field is set to 0x00 to disable this feature.
 
-		TSharedPtr<FBufferArchive> BufferArchive = ArtNetDMXPacket.Pack();
+		TSharedPtr<FBufferArchive> BufferArchive = ArtNetDMXPacket.Pack(ARTNET_DMX_LENGTH);
 
 		int32 SendDataSize = BufferArchive->Num();
 		int32 BytesSent = -1;

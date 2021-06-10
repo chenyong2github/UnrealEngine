@@ -112,7 +112,6 @@ FWaterBodyIslandDefaults::FWaterBodyIslandDefaults()
 	BrushDefaults.HeightmapSettings.FalloffSettings.FalloffWidth = 1024.0f;
 	BrushDefaults.HeightmapSettings.FalloffSettings.EdgeOffset = 0;
 	BrushDefaults.HeightmapSettings.FalloffSettings.ZOffset = 0;
-	BrushDefaults.HeightmapSettings.Priority = 0;
 }
 
 UWaterEditorSettings::UWaterEditorSettings()

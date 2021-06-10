@@ -30,6 +30,8 @@
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorPolicyParameterCustomization"
 
+FLinearColor OrangeLabelBackgroundColor(0.8f, 0.3f, 0.0f);
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Policy Parameter Configuration
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -444,7 +446,8 @@ FPolicyParameterInfoMatrix::FPolicyParameterInfoMatrix(const FString& InDisplayN
 
 
 void FPolicyParameterInfoMatrix::CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow)
-{	IDetailGroup& Group = InDetailWidgetRow.AddGroup(*GetParameterKey(), GetParameterDisplayName());
+{
+	IDetailGroup& Group = InDetailWidgetRow.AddGroup(*GetParameterKey(), GetParameterDisplayName());
 	Group.HeaderRow()
 	[
 		SNew(STextBlock)
@@ -572,11 +575,115 @@ void FPolicyParameterInfoMatrix::FormatTextAndUpdateParameter()
 	UpdateCustomParameterValueText(MatrixString);
 }
 
+FPolicyParameterInfo4x4Matrix::FPolicyParameterInfo4x4Matrix(const FString& InDisplayName, const FString& InKey,
+	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
+	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
+	A(MakeShared<float>()), B(MakeShared<float>()), C(MakeShared<float>()), D(MakeShared<float>()), E(MakeShared<float>())
+	, F(MakeShared<float>()), G(MakeShared<float>()), H(MakeShared<float>()), I(MakeShared<float>()), J(MakeShared<float>())
+	, K(MakeShared<float>()), L(MakeShared<float>()), M(MakeShared<float>()), N(MakeShared<float>()), O(MakeShared<float>())
+	, P(MakeShared<float>())
+{
+	const FText TextValue = GetOrAddCustomParameterValueText();
+	const FMatrix Matrix = DisplayClusterTypesConverter::template FromString<FMatrix>(TextValue.ToString());
+	*A = Matrix.M[0][0];
+	*B = Matrix.M[0][1];
+	*C = Matrix.M[0][2];
+	*D = Matrix.M[0][3];
+
+	*E = Matrix.M[1][0];
+	*F = Matrix.M[1][1];
+	*G = Matrix.M[1][2];
+	*H = Matrix.M[1][3];
+
+	*I = Matrix.M[2][0];
+	*J = Matrix.M[2][1];
+	*K = Matrix.M[2][2];
+	*L = Matrix.M[2][3];
+
+	*M = Matrix.M[3][0];
+	*N = Matrix.M[3][1];
+	*O = Matrix.M[3][2];
+	*P = Matrix.M[3][3];
+}
+
+void FPolicyParameterInfo4x4Matrix::CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow)
+{
+	IDetailGroup& Group = InDetailWidgetRow.AddGroup(*GetParameterKey(), GetParameterDisplayName());
+	Group.HeaderRow()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(GetParameterDisplayName())
+		.Visibility(this, &FPolicyParameterInfo4x4Matrix::IsParameterVisible)
+	]
+	.Visibility(MakeAttributeRaw(this, &FPolicyParameterInfo4x4Matrix::IsParameterVisible));
+	
+	CustomizeRow(LOCTEXT("RowX", "X"), A, B, C, D, Group.AddWidgetRow());
+	CustomizeRow(LOCTEXT("RowY", "Y"), E, F, G, H, Group.AddWidgetRow());
+	CustomizeRow(LOCTEXT("RowZ", "Z"), I, J, K, L, Group.AddWidgetRow());
+	CustomizeRow(LOCTEXT("RowW", "W"), M, N, O, P, Group.AddWidgetRow());
+	
+	Group.ToggleExpansion(true);
+}
+
+void FPolicyParameterInfo4x4Matrix::CustomizeRow(const FText& InHeaderText, TSharedRef<float>& InX, TSharedRef<float>& InY,
+		TSharedRef<float>& InZ, TSharedRef<float>& InW, FDetailWidgetRow& InDetailWidgetRow)
+{
+	InDetailWidgetRow
+	.Visibility(MakeAttributeRaw(this, &FPolicyParameterInfo4x4Matrix::IsParameterVisible))
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(InHeaderText)
+	]
+	.ValueContent()
+	.MinDesiredWidth(375.0f)
+	.MaxDesiredWidth(375.0f)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
+		[
+			MakeFloatInputWidget(InX, LOCTEXT("MatrixX", "X"), false, FLinearColor::White, SNumericEntryBox<float>::RedLabelBackgroundColor)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
+		[
+			MakeFloatInputWidget(InY, LOCTEXT("MatrixY", "Y"), false, FLinearColor::White, SNumericEntryBox<float>::GreenLabelBackgroundColor)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
+		[
+			MakeFloatInputWidget(InZ, LOCTEXT("MatrixZ", "Z"), false, FLinearColor::White, SNumericEntryBox<float>::BlueLabelBackgroundColor)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
+		[
+			MakeFloatInputWidget(InW, LOCTEXT("MatrixW", "W"), false, FLinearColor::White, OrangeLabelBackgroundColor)
+		]
+	];
+}
+
+void FPolicyParameterInfo4x4Matrix::FormatTextAndUpdateParameter()
+{
+	const FPlane PlaneX(*A, *B, *C, *D);
+	const FPlane PlaneY(*E, *F, *G, *H);
+	const FPlane PlaneZ(*I, *J, *K, *L);
+	const FPlane PlaneW(*M, *N, *O, *P);
+	
+	const FMatrix Matrix(PlaneX, PlaneY, PlaneZ, PlaneW);
+
+	const FString MatrixString = DisplayClusterTypesConverter::template ToString(Matrix);
+	UpdateCustomParameterValueText(MatrixString);
+}
+
 
 FPolicyParameterInfoRotator::FPolicyParameterInfoRotator(const FString& InDisplayName, const FString& InKey,
-	UDisplayClusterBlueprint* InBlueprint,
-	UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
+                                                         UDisplayClusterBlueprint* InBlueprint,
+                                                         UDisplayClusterConfigurationViewport* InConfigurationViewport,
+                                                         const TSharedPtr<IPropertyHandle>& InParametersHandle) :
 	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
 	CachedRotationYaw(MakeShared<float>()),
 	CachedRotationPitch(MakeShared<float>()),
@@ -699,7 +806,7 @@ void FPolicyParameterInfoFrustumAngle::CreateCustomRowWidget(IDetailChildrenBuil
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
 		[
-			MakeFloatInputWidget(CachedAngleB, LOCTEXT("AngleB", "B"), true, FLinearColor::White, FLinearColor(0.8f, 0.3f, 0.0f) /* Orange */)
+			MakeFloatInputWidget(CachedAngleB, LOCTEXT("AngleB", "B"), true, FLinearColor::White, OrangeLabelBackgroundColor)
 		]
 	];
 }

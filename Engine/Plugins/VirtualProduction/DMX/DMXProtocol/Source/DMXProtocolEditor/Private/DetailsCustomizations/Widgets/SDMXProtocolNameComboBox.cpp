@@ -32,8 +32,19 @@ void SDMXProtocolNameComboBox::Construct(const FArguments& InArgs)
 			InitiallySelectedItem = ProtocolNameString;
 		}
 	}
-
-	// Initial selection needs be valid
+	
+	if (!InitiallySelectedItem.IsValid())
+	{
+		if (ProtocolNamesSource.Num() > 0)
+		{
+			InitiallySelectedItem = ProtocolNamesSource[0];
+		}
+		else
+		{
+			ProtocolNamesSource.Add(MakeShared<FString>(TEXT("No protocols available")));
+			InitiallySelectedItem = ProtocolNamesSource[0];
+		}
+	}
 	check(InitiallySelectedItem.IsValid());
 
 	ChildSlot

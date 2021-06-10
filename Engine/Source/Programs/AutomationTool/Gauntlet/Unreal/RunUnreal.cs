@@ -275,6 +275,9 @@ namespace Gauntlet
 			// dispose now, not during shutdown gc, because this runs commands...
 			DevicePool.Instance.Dispose();
 
+			// Generate Horde summary for CIS test (maybe want to use a delegate here)
+			Horde.GenerateSummary();
+
 			DoCleanup(UsedPlatforms);
 
 			return AllTestsPassed ? ExitCode.Success : ExitCode.Error_TestFailure;

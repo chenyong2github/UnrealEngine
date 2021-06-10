@@ -102,18 +102,6 @@ public:
 	float RelativePositionY;
 #endif // WITH_EDITORONLY_DATA
 
-	/** Matrix cell R offset */
-	TOptional<uint8> ByteOffsetR;
-
-	/** Matrix cell R offset */
-	TOptional<uint8> ByteOffsetG;
-
-	/** Matrix cell R offset */
-	TOptional<uint8> ByteOffsetB;
-
-	/** Matrix cell R offset */
-	TOptional<uint8> ByteOffsetM;
-
 private:
 	UPROPERTY()
 	FIntPoint CellCoordinate;

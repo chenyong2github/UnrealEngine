@@ -454,43 +454,107 @@ void FPhysicsAssetEditorSharedData::RefreshPhysicsAssetChange(const UPhysicsAsse
 
 void FPhysicsAssetEditorSharedData::SetSelectedBodyAnyPrim(int32 BodyIndex, bool bSelected)
 {
-	if (BodyIndex == INDEX_NONE)
+	SetSelectedBodiesAnyPrim({ BodyIndex }, bSelected);
+}
+
+void FPhysicsAssetEditorSharedData::SetSelectedBodiesAnyPrim(const TArray<int32>& BodiesIndices, bool bSelected)
+{
+	if (BodiesIndices.Num() == 0)
+	{
+		return;
+	}
+
+	if (BodiesIndices.Num() == 1 && BodiesIndices[0] == INDEX_NONE)
 	{
 		ClearSelectedBody();
 		return;
 	}
-	
-	UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
-	check(BodySetup);
 
-	if (BodySetup->AggGeom.SphereElems.Num() > 0)
+	TArray<FSelection> NewSelection;
+	for (const int32 BodyIndex : BodiesIndices)
 	{
-		FSelection Selection(BodyIndex, EAggCollisionShape::Sphere, 0);
-		SetSelectedBody(Selection, bSelected);
+		UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
+		check(BodySetup);
+
+		if (BodySetup->AggGeom.SphereElems.Num() > 0)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Sphere, 0));
+		}
+		else if (BodySetup->AggGeom.BoxElems.Num() > 0)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Box, 0));
+		}
+		else if (BodySetup->AggGeom.SphylElems.Num() > 0)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Sphyl, 0));
+		}
+		else if (BodySetup->AggGeom.ConvexElems.Num() > 0)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Convex, 0));
+		}
+		else if (BodySetup->AggGeom.TaperedCapsuleElems.Num() > 0)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::TaperedCapsule, 0));
+		}
+		else
+		{
+			UE_LOG(LogPhysicsAssetEditor, Fatal, TEXT("Body Setup with index %d has No Primitives!"), BodyIndex);
+		}
 	}
-	else if (BodySetup->AggGeom.BoxElems.Num() > 0)
+
+	if (NewSelection.Num() > 0)
 	{
-		FSelection Selection(BodyIndex, EAggCollisionShape::Box, 0);
-		SetSelectedBody(Selection, bSelected);
+		SetSelectedBodies(NewSelection, bSelected);
 	}
-	else if (BodySetup->AggGeom.SphylElems.Num() > 0)
+}
+
+void FPhysicsAssetEditorSharedData::SetSelectedBodiesAllPrim(const TArray<int32>& BodiesIndices, bool bSelected)
+{
+	if (BodiesIndices.Num() == 0)
 	{
-		FSelection Selection(BodyIndex, EAggCollisionShape::Sphyl, 0);
-		SetSelectedBody(Selection, bSelected);
+		return;
 	}
-	else if (BodySetup->AggGeom.ConvexElems.Num() > 0)
+
+	if (BodiesIndices.Num() == 1 && BodiesIndices[0] == INDEX_NONE)
 	{
-		FSelection Selection(BodyIndex, EAggCollisionShape::Convex, 0);
-		SetSelectedBody(Selection, bSelected);
+		ClearSelectedBody();
+		return;
 	}
-	else if (BodySetup->AggGeom.TaperedCapsuleElems.Num() > 0)
+
+	TArray<FSelection> NewSelection;
+	for (const int32 BodyIndex : BodiesIndices)
 	{
-		FSelection Selection(BodyIndex, EAggCollisionShape::TaperedCapsule, 0);
-		SetSelectedBody(Selection, bSelected);
+		UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
+		check(BodySetup);
+
+		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.SphereElems.Num(); ++PrimitiveIndex)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Sphere, PrimitiveIndex));
+		}
+
+		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.BoxElems.Num(); ++PrimitiveIndex)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Box, PrimitiveIndex));
+		}
+
+		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.SphylElems.Num(); ++PrimitiveIndex)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Sphyl, PrimitiveIndex));
+		}
+
+		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.ConvexElems.Num(); ++PrimitiveIndex)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Convex, PrimitiveIndex));
+		}
+		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.TaperedCapsuleElems.Num(); ++PrimitiveIndex)
+		{
+			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::TaperedCapsule, PrimitiveIndex));
+		}
 	}
-	else
+
+	if (NewSelection.Num() > 0)
 	{
-		UE_LOG(LogPhysicsAssetEditor, Fatal, TEXT("Body Setup with No Primitives!")); 
+		SetSelectedBodies(NewSelection, bSelected);
 	}
 }
 
@@ -503,23 +567,34 @@ void FPhysicsAssetEditorSharedData::ClearSelectedBody()
 
 void FPhysicsAssetEditorSharedData::SetSelectedBody(const FSelection& Body, bool bSelected)
 {
-	if(InsideSelChange)
+	SetSelectedBodies({ Body }, bSelected);
+}
+
+void FPhysicsAssetEditorSharedData::SetSelectedBodies(const TArray<FSelection>& Bodies, bool bSelected)
+{
+	if (InsideSelChange || Bodies.Num() == 0)
 	{
 		return;
 	}
 
-	if(bSelected)
+	if (bSelected)
 	{
-		SelectedBodies.AddUnique(Body);
+		for (const FSelection& Body : Bodies)
+		{
+			SelectedBodies.AddUnique(Body);
+		}
 	}
 	else
 	{
-		SelectedBodies.Remove(Body);
+		for (const FSelection& Body : Bodies)
+		{
+			SelectedBodies.Remove(Body);
+		}
 	}
 
 	BroadcastSelectionChanged();
 
-	if(!GetSelectedBody())
+	if (!GetSelectedBody())
 	{
 		return;
 	}
@@ -535,15 +610,10 @@ bool FPhysicsAssetEditorSharedData::IsBodySelected(const FSelection& Body) const
 	return SelectedBodies.Contains(Body);
 }
 
-void FPhysicsAssetEditorSharedData::ToggleSelectionType()
+void FPhysicsAssetEditorSharedData::ToggleSelectionType(bool bIgnoreUserConstraints)
 {
-	TArray<FSelection> OldSelectedConstraints = SelectedConstraints;
-	TArray<FSelection> OldSelectedBodies = SelectedBodies;
-
-	ClearSelectedBody();
-	ClearSelectedConstraints();
-
-	for (const FSelection& Selection : OldSelectedConstraints)
+	TSet<int32> NewSelectedBodies; 
+	for (const FSelection& Selection : SelectedConstraints)
 	{
 		UPhysicsConstraintTemplate* ConstraintTemplate = PhysicsAsset->ConstraintSetup[Selection.Index];
 		FConstraintInstance & DefaultInstance = ConstraintTemplate->DefaultInstance;
@@ -551,27 +621,46 @@ void FPhysicsAssetEditorSharedData::ToggleSelectionType()
 		for (int32 BodyIdx = 0; BodyIdx < PhysicsAsset->SkeletalBodySetups.Num(); ++BodyIdx)
 		{
 			UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIdx];
-			if (DefaultInstance.GetChildBoneName() == BodySetup->BoneName && BodySetup->AggGeom.GetElementCount() > 0)
+
+			// no need to account for bIgnoreUserConstraints when selecting from constraints to bodies
+			if (ConstraintTemplate->DefaultInstance.ConstraintBone1 == BodySetup->BoneName)
 			{
-				SetSelectedBodyAnyPrim(BodyIdx, true);
+				if (BodySetup->AggGeom.GetElementCount() > 0 && !NewSelectedBodies.Contains(BodyIdx))
+				{
+					NewSelectedBodies.Add(BodyIdx);
+				}
 			}
 		}
 	}
 
-	TSet<int32> TmpSelectedConstraints;	//We could have multiple shapes selected which would cause us to add and remove the same constraint.
-	for (const FSelection& Selection : OldSelectedBodies)
+	TSet<int32> NewSelectedConstraints; //We could have multiple shapes selected which would cause us to add and remove the same constraint.
+	for (const FSelection& Selection : SelectedBodies)
 	{
 		UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[Selection.Index];
 		for(int32 ConstraintIdx = 0; ConstraintIdx < PhysicsAsset->ConstraintSetup.Num(); ++ConstraintIdx)
 		{
-			const UPhysicsConstraintTemplate* ConstraintTemplate = PhysicsAsset->ConstraintSetup[ConstraintIdx]; 
-			if(ConstraintTemplate->DefaultInstance.GetChildBoneName() == BodySetup->BoneName && !TmpSelectedConstraints.Contains(ConstraintIdx))
+			const UPhysicsConstraintTemplate* ConstraintTemplate = PhysicsAsset->ConstraintSetup[ConstraintIdx];
+
+			bool bConstraintIsConnectedToBone = (ConstraintTemplate->DefaultInstance.JointName == BodySetup->BoneName);
+			if (!bIgnoreUserConstraints)
 			{
-				TmpSelectedConstraints.Add(ConstraintIdx);
-				SetSelectedConstraint(ConstraintIdx, true);
+				bConstraintIsConnectedToBone |= (ConstraintTemplate->DefaultInstance.ConstraintBone1 == BodySetup->BoneName);
+			}
+			if (bConstraintIsConnectedToBone)
+			{
+				if (!NewSelectedConstraints.Contains(ConstraintIdx))
+				{
+					NewSelectedConstraints.Add(ConstraintIdx);
+				}
 			}
 		}
 	}
+	
+	ClearSelectedBody();
+	ClearSelectedConstraints();
+
+	SetSelectedBodiesAllPrim(NewSelectedBodies.Array(), true);
+	SetSelectedConstraints(NewSelectedConstraints.Array(), true);
 }
 
 void FPhysicsAssetEditorSharedData::ToggleShowSelected()
@@ -687,8 +776,7 @@ void FPhysicsAssetEditorSharedData::ShowAll()
 	HiddenBodies.Empty();
 }
 
-
-void FPhysicsAssetEditorSharedData::HideAll()
+void FPhysicsAssetEditorSharedData::HideAllBodies()
 {
 	if (PhysicsAsset != nullptr)
 	{
@@ -697,7 +785,13 @@ void FPhysicsAssetEditorSharedData::HideAll()
 		{
 			HiddenBodies.Add(i);
 		}
+	}
+}
 
+void FPhysicsAssetEditorSharedData::HideAllConstraints()
+{
+	if (PhysicsAsset != nullptr)
+	{
 		HiddenConstraints.Empty();
 		for (int32 i = 0; i < PhysicsAsset->ConstraintSetup.Num(); ++i)
 		{
@@ -706,20 +800,26 @@ void FPhysicsAssetEditorSharedData::HideAll()
 	}
 }
 
+void FPhysicsAssetEditorSharedData::HideAll()
+{
+	HideAllBodies();
+	HideAllConstraints();
+}
+
 void FPhysicsAssetEditorSharedData::ShowSelected()
 {
 	for (const FSelection& Selection : SelectedConstraints)
 	{
 		if (HiddenConstraints.Contains(Selection.Index))
 		{
-			HiddenConstraints.Remove(Selection.Index);
+			HiddenConstraints.RemoveSwap(Selection.Index);
 		}
 	}
 	for (const FSelection& Selection : SelectedBodies)
 	{
 		if (HiddenBodies.Contains(Selection.Index))
 		{
-			HiddenBodies.Remove(Selection.Index);
+			HiddenBodies.RemoveSwap(Selection.Index);
 		}
 	}
 }
@@ -759,6 +859,76 @@ void FPhysicsAssetEditorSharedData::ToggleShowOnlyColliding()
 			// NoCollisionBodies already contains the non colliding bodies from the one selection
 			HiddenBodies.Empty();
 			HiddenBodies.Append(NoCollisionBodies);
+		}
+	}
+}
+
+void FPhysicsAssetEditorSharedData::ToggleShowOnlyConstrained()
+{
+	if (PhysicsAsset == nullptr)
+	{
+		return;
+	}
+
+	// important that we check this before calling ShowAll
+	if (bool bIsAlreadyShowingConstrained = (HiddenBodies.Num() > 0))
+	{
+		HiddenBodies.Empty();
+		return;
+	}
+
+	// first Hide all bodies and then show only the ones that needs to be
+	HideAllBodies();
+
+	// add  the current selection of bodies
+	for (const FSelection& SelectedBody : SelectedBodies)
+	{
+		HiddenBodies.RemoveSwap(SelectedBody.Index);
+	}
+
+	// collect connected bodies from the selected constraints
+	for (const FSelection& Selection : SelectedConstraints)
+	{
+		UPhysicsConstraintTemplate* ConstraintTemplate = PhysicsAsset->ConstraintSetup[Selection.Index];
+		FConstraintInstance& DefaultInstance = ConstraintTemplate->DefaultInstance;
+
+		// Add bothe connected bodies
+		int32 Body1IndexToAdd = PhysicsAsset->FindBodyIndex(DefaultInstance.ConstraintBone1);
+		if (Body1IndexToAdd != INDEX_NONE)
+		{
+			HiddenBodies.RemoveSwap(Body1IndexToAdd);
+		}
+		int32 Body2IndexToAdd = PhysicsAsset->FindBodyIndex(DefaultInstance.ConstraintBone2);
+		if (Body2IndexToAdd != INDEX_NONE)
+		{
+			HiddenBodies.RemoveSwap(Body2IndexToAdd);
+		}
+	}
+
+	// collect connected bodies from the selected bodies
+	for (const FSelection& Selection : SelectedBodies)
+	{
+		UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[Selection.Index];
+		for (int32 ConstraintIdx = 0; ConstraintIdx < PhysicsAsset->ConstraintSetup.Num(); ++ConstraintIdx)
+		{
+			const UPhysicsConstraintTemplate* ConstraintTemplate = PhysicsAsset->ConstraintSetup[ConstraintIdx];
+			FName OtherConnectedBody;
+			if (ConstraintTemplate->DefaultInstance.ConstraintBone1 == BodySetup->BoneName)
+			{
+				OtherConnectedBody = ConstraintTemplate->DefaultInstance.ConstraintBone2;
+			}
+			else if (ConstraintTemplate->DefaultInstance.ConstraintBone2 == BodySetup->BoneName)
+			{
+				OtherConnectedBody = ConstraintTemplate->DefaultInstance.ConstraintBone1;
+			}
+			if (!OtherConnectedBody.IsNone())
+			{
+				int32 BodyIndexToAdd = PhysicsAsset->FindBodyIndex(OtherConnectedBody);
+				if (BodyIndexToAdd != INDEX_NONE)
+				{
+					HiddenBodies.RemoveSwap(BodyIndexToAdd);
+				}
+			}
 		}
 	}
 }
@@ -816,23 +986,41 @@ void FPhysicsAssetEditorSharedData::ClearSelectedConstraints()
 
 void FPhysicsAssetEditorSharedData::SetSelectedConstraint(int32 ConstraintIndex, bool bSelected)
 {
-	if(InsideSelChange)
+	SetSelectedConstraints({ ConstraintIndex }, bSelected);
+}
+
+void FPhysicsAssetEditorSharedData::SetSelectedConstraints(const TArray<int32> ConstraintsIndices, bool bSelected)
+{
+	if (ConstraintsIndices.Num() == 0)
 	{
 		return;
 	}
 
-	if(ConstraintIndex != INDEX_NONE)
+	if (InsideSelChange)
 	{
-		FSelection Constraint(ConstraintIndex, EAggCollisionShape::Unknown, INDEX_NONE);
-		if(bSelected)
-		{
-			SelectedConstraints.AddUnique(Constraint);
-		}
-		else
-		{
-			SelectedConstraints.Remove(Constraint);
-		}
+		return;
+	}
 
+	bool bSelectionchanged = false;
+	for (int32 ConstraintIndex : ConstraintsIndices)
+	{
+		if (ConstraintIndex != INDEX_NONE)
+		{
+			FSelection Constraint(ConstraintIndex, EAggCollisionShape::Unknown, INDEX_NONE);
+			if (bSelected)
+			{
+				SelectedConstraints.AddUnique(Constraint);
+			}
+			else
+			{
+				SelectedConstraints.Remove(Constraint);
+			}
+			bSelectionchanged = true;
+		}
+	}
+
+	if (bSelectionchanged)
+	{
 		BroadcastSelectionChanged();
 
 		++InsideSelChange;
@@ -1039,6 +1227,133 @@ bool FPhysicsAssetEditorSharedData::GetPrimitiveContributeToMass() const
 	}
 
 	return false;
+}
+
+static EAggCollisionShape::Type ConvertPhysicsAssetGeomTypeToAggCollisionShapeType(EPhysAssetFitGeomType PhysicsAssetGeomType)
+{
+	switch (PhysicsAssetGeomType)
+	{
+	case EPhysAssetFitGeomType::EFG_Box:				return EAggCollisionShape::Type::Box;
+	case EPhysAssetFitGeomType::EFG_Sphyl:				return EAggCollisionShape::Type::Sphyl;
+	case EPhysAssetFitGeomType::EFG_Sphere:				return EAggCollisionShape::Type::Sphere;
+	case EPhysAssetFitGeomType::EFG_TaperedCapsule: 	return EAggCollisionShape::Type::TaperedCapsule;
+	case EPhysAssetFitGeomType::EFG_SingleConvexHull:	return EAggCollisionShape::Type::Convex;
+	case EPhysAssetFitGeomType::EFG_MultiConvexHull:	return EAggCollisionShape::Type::Convex;
+	default:											return EAggCollisionShape::Type::Unknown;
+	}
+}
+
+void FPhysicsAssetEditorSharedData::AutoNameAllPrimitives(int32 BodyIndex, EPhysAssetFitGeomType PrimitiveType)
+{
+	AutoNameAllPrimitives(BodyIndex, ConvertPhysicsAssetGeomTypeToAggCollisionShapeType(PrimitiveType));
+}
+
+void FPhysicsAssetEditorSharedData::AutoNameAllPrimitives(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType)
+{
+	if (!PhysicsAsset || !PhysicsAsset->SkeletalBodySetups.IsValidIndex(BodyIndex))
+	{
+		return;
+	}
+
+	if (UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex])
+	{
+		int32 PrimitiveCount = 0;
+		switch (PrimitiveType)
+		{
+		case EAggCollisionShape::Sphere:
+			PrimitiveCount = BodySetup->AggGeom.SphereElems.Num();
+			break;
+		case EAggCollisionShape::Box:
+			PrimitiveCount = BodySetup->AggGeom.BoxElems.Num();
+			break;
+		case EAggCollisionShape::Sphyl:
+			PrimitiveCount = BodySetup->AggGeom.SphylElems.Num();
+			break;
+		case EAggCollisionShape::Convex:
+			PrimitiveCount = BodySetup->AggGeom.ConvexElems.Num();
+			break;
+		case EAggCollisionShape::TaperedCapsule:
+			PrimitiveCount = BodySetup->AggGeom.TaperedCapsuleElems.Num();
+			break;
+		}
+
+		for (int32 PrimitiveIndex = 0; PrimitiveIndex < PrimitiveCount; PrimitiveIndex++)
+		{
+			AutoNamePrimitive(BodyIndex, PrimitiveType, PrimitiveIndex);
+		}
+	}
+}
+
+void FPhysicsAssetEditorSharedData::AutoNamePrimitive(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex)
+{
+	if (!PhysicsAsset || !PhysicsAsset->SkeletalBodySetups.IsValidIndex(BodyIndex))
+	{
+		return;
+	}
+
+	if (UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex])
+	{
+		if (PrimitiveType == EAggCollisionShape::Sphere)
+		{
+			if (PrimitiveIndex == INDEX_NONE)
+			{
+				PrimitiveIndex = BodySetup->AggGeom.SphereElems.Num() - 1;
+			}
+			if (BodySetup->AggGeom.SphereElems.IsValidIndex(PrimitiveIndex))
+			{
+				FName PrimitiveName(FString::Printf(TEXT("%s_sphere"), *BodySetup->BoneName.ToString()));
+				BodySetup->AggGeom.SphereElems[PrimitiveIndex].SetName(PrimitiveName);
+			}
+		}
+		else if (PrimitiveType == EAggCollisionShape::Box)
+		{
+			if (PrimitiveIndex == INDEX_NONE)
+			{
+				PrimitiveIndex = BodySetup->AggGeom.BoxElems.Num() - 1;
+			}
+			if (BodySetup->AggGeom.BoxElems.IsValidIndex(PrimitiveIndex))
+			{
+				FName PrimitiveName(FString::Printf(TEXT("%s_box"), *BodySetup->BoneName.ToString()));
+				BodySetup->AggGeom.BoxElems[PrimitiveIndex].SetName(PrimitiveName);
+			}
+		}
+		else if (PrimitiveType == EAggCollisionShape::Sphyl)
+		{
+			if (PrimitiveIndex == INDEX_NONE)
+			{
+				PrimitiveIndex = BodySetup->AggGeom.SphylElems.Num() - 1;
+			}
+			if (BodySetup->AggGeom.SphylElems.IsValidIndex(PrimitiveIndex))
+			{
+				FName PrimitiveName(FString::Printf(TEXT("%s_capsule"), *BodySetup->BoneName.ToString()));
+				BodySetup->AggGeom.SphylElems[PrimitiveIndex].SetName(PrimitiveName);
+			}
+		}
+		else if (PrimitiveType == EAggCollisionShape::Convex)
+		{
+			if (PrimitiveIndex == INDEX_NONE)
+			{
+				PrimitiveIndex = BodySetup->AggGeom.ConvexElems.Num() - 1;
+			}
+			if (BodySetup->AggGeom.ConvexElems.IsValidIndex(PrimitiveIndex))
+			{
+				FName PrimitiveName(FString::Printf(TEXT("%s_convex"), *BodySetup->BoneName.ToString()));
+				BodySetup->AggGeom.ConvexElems[PrimitiveIndex].SetName(PrimitiveName);
+			}
+		}
+		else if (PrimitiveType == EAggCollisionShape::TaperedCapsule)
+		{
+			if (PrimitiveIndex == INDEX_NONE)
+			{
+				PrimitiveIndex = BodySetup->AggGeom.TaperedCapsuleElems.Num() - 1;
+			}
+			if (BodySetup->AggGeom.TaperedCapsuleElems.IsValidIndex(PrimitiveIndex))
+			{
+				FName PrimitiveName(FString::Printf(TEXT("%s_tapered_capsule"), *BodySetup->BoneName.ToString()));
+				BodySetup->AggGeom.TaperedCapsuleElems[PrimitiveIndex].SetName(PrimitiveName);
+			}
+		}
+	}
 }
 
 void FPhysicsAssetEditorSharedData::CopyBody()
@@ -1297,6 +1612,9 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 		return;
 	}
 
+	// name the new created primitives
+	AutoNameAllPrimitives(NewBodyIndex, NewBodyData.GeomType);
+
 	// Check if the bone of the new body has any physical children bones
 	for (int32 i = 0; i < EditorSkelMesh->GetRefSkeleton().GetRawBoneNum(); ++i)
 	{
@@ -1385,33 +1703,42 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 	RefreshPhysicsAssetChange(PhysicsAsset);
 }
 
-void FPhysicsAssetEditorSharedData::MakeNewConstraint(int32 BodyIndex0, int32 BodyIndex1)
+void FPhysicsAssetEditorSharedData::MakeNewConstraints(int32 ParentBodyIndex, const TArray<int32>& ChildBodyIndices)
 {
 	// check we have valid bodies
-	check(BodyIndex0 < PhysicsAsset->SkeletalBodySetups.Num());
-	check(BodyIndex1 < PhysicsAsset->SkeletalBodySetups.Num());
+	check(ParentBodyIndex < PhysicsAsset->SkeletalBodySetups.Num());
 
-	// Make a new unique name for this constraint
-	int32 Index = 0;
-	FString BaseConstraintName(TEXT("UserConstraint"));
-	FString ConstraintName = BaseConstraintName;
-	while(PhysicsAsset->FindConstraintIndex(*ConstraintName) != INDEX_NONE)
+	for (const int32 ChildBodyIndex : ChildBodyIndices)
 	{
-		ConstraintName = FString::Printf(TEXT("%s_%d"), *BaseConstraintName, Index++);
+		check(ChildBodyIndex < PhysicsAsset->SkeletalBodySetups.Num());
+
+		// Make a new unique name for this constraint
+		int32 Index = 0;
+		FString BaseConstraintName(TEXT("UserConstraint"));
+		FString ConstraintName = BaseConstraintName;
+		while (PhysicsAsset->FindConstraintIndex(*ConstraintName) != INDEX_NONE)
+		{
+			ConstraintName = FString::Printf(TEXT("%s_%d"), *BaseConstraintName, Index++);
+		}
+
+		// Create new constraint with a name not related to a bone, so it wont get auto managed in code that creates new bodies
+		const int32 NewConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, *ConstraintName);
+		UPhysicsConstraintTemplate* ConstraintSetup = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
+		check(ConstraintSetup);
+
+		InitConstraintSetup(ConstraintSetup, ChildBodyIndex, ParentBodyIndex);
 	}
-
-	// Create new constraint with a name not related to a bone, so it wont get auto managed in code that creates new bodies
-	const int32 NewConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, *ConstraintName);
-	UPhysicsConstraintTemplate* ConstraintSetup = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
-	check(ConstraintSetup);
-
-	InitConstraintSetup(ConstraintSetup, BodyIndex1, BodyIndex0);
 
 	// update the tree
 	BroadcastHierarchyChanged();
 	RefreshPhysicsAssetChange(PhysicsAsset);
 
 	BroadcastSelectionChanged();
+}
+
+void FPhysicsAssetEditorSharedData::MakeNewConstraint(int32 ParentBodyIndex, int32 ChildBodyIndex)
+{
+	MakeNewConstraints(ParentBodyIndex, { ChildBodyIndex });
 }
 
 void FPhysicsAssetEditorSharedData::SetConstraintRelTM(const FPhysicsAssetEditorSharedData::FSelection* Constraint, const FTransform& RelTM)

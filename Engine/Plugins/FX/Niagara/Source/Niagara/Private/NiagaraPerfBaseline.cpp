@@ -379,7 +379,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToLog()
 
 	struct FBaselineReportItem
 	{
-		UNiagaraSystem* System;
+		const UNiagaraSystem* System;
 		FStoredStatsInfo* Stats;
 
 		bool operator<(const FBaselineReportItem& Other)const
@@ -399,7 +399,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToLog()
 	for (auto& SysStatPair : StoredStats)
 	{
 		FStoredStatsInfo& StatsInfo = SysStatPair.Value;
-		if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
+		if (const UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 		{
 			UNiagaraEffectType* FXType = System->GetEffectType();
 
@@ -555,7 +555,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToScreen()
 	bool bHasBadPerfReports = false;
 	for (auto& SysStatPair : StoredStats)
 	{
-		if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
+		if (const UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 		{
 			if (UNiagaraEffectType* FXType = System->GetEffectType())
 			{
@@ -617,7 +617,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::HandleTestResults()
 
 	struct FTestReport
 	{
-		UNiagaraSystem* System;
+		const UNiagaraSystem* System;
 		FNiagaraPerfBaselineStats::EComparisonResult OverallResult;
 		FNiagaraPerfBaselineStats::EComparisonResult GTAvgResult;
 		FNiagaraPerfBaselineStats::EComparisonResult GTMaxResult;
@@ -635,9 +635,9 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::HandleTestResults()
 
 	for (auto& SysStatPair : StoredStats)
 	{
-		if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
+		if (const UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 		{
-			if (UNiagaraEffectType* FXType = System->GetEffectType())
+			if (const UNiagaraEffectType* FXType = System->GetEffectType())
 			{
 				if (FXType->IsPerfBaselineValid())
 				{
@@ -789,7 +789,7 @@ bool FParticlePerfStatsListener_NiagaraPerformanceReporter::Tick()
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
-			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
+			if (const UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 			{
 				FAccumulatedParticlePerfStats* Stats = SysStatPair.Value.Get();
 				check(Stats);
@@ -830,7 +830,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::TickRT()
 		FScopeLock Lock(&AccumulatedStatsGuard);
 		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
-			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
+			if (const UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 			{
 				FAccumulatedParticlePerfStats* Stats = SysStatPair.Value.Get();
 				check(Stats);
@@ -873,7 +873,7 @@ bool FParticlePerfStatsListener_NiagaraBaselineComparisonRender::Tick()
 		FScopeLock Lock(&AccumulatedStatsGuard);
 		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
-			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
+			if (const UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 			{
 				FAccumulatedParticlePerfStats* Stats = SysStatPair.Value.Get();
 				check(Stats);
@@ -912,7 +912,7 @@ void FParticlePerfStatsListener_NiagaraBaselineComparisonRender::TickRT()
 		FScopeLock Lock(&AccumulatedStatsGuard);
 		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
-			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
+			if (const UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 			{
 				FAccumulatedParticlePerfStats* Stats = SysStatPair.Value.Get();
 				check(Stats);
@@ -944,7 +944,7 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 
 	struct FBaselineReportItem
 	{
-		UNiagaraSystem* System;
+		const UNiagaraSystem* System;
 		FNiagaraPerfBaselineStats PerfStats;
 		FNiagaraPerfBaselineStats Ratio;
 		FNiagaraPerfBaselineStats::EComparisonResult OverallResult = FNiagaraPerfBaselineStats::EComparisonResult::Good;
@@ -970,7 +970,7 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 	int32 NumRows = 0;
 	for (auto it = CurrentStats.CreateIterator(); it; ++it)
 	{
-		if (UNiagaraSystem* System = Cast<UNiagaraSystem>(it.Key().Get()))
+		if (const UNiagaraSystem* System = Cast<UNiagaraSystem>(it.Key().Get()))
 		{
 			FNiagaraPerfBaselineStats& PerfStats = it.Value();
 			UNiagaraEffectType* FXType = System->GetEffectType();
@@ -1026,7 +1026,7 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 	for (FBaselineReportItem& ReportItem : Items)
 	{
 		FNiagaraPerfBaselineStats& PerfStats = ReportItem.PerfStats;
-		UNiagaraSystem* System = ReportItem.System;
+		const UNiagaraSystem* System = ReportItem.System;
 		UNiagaraEffectType* FXType = System->GetEffectType();
 
 		FLinearColor OverallColor = FNiagaraPerfBaselineStats::GetComparisonResultColor(ReportItem.OverallResult);

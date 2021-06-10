@@ -108,6 +108,9 @@ namespace Audio
 		// is the clock currently ticking?
 		bool IsRunning();
 
+		// Returns the duration in seconds of the given Quantization Type
+		float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier);
+
 		FMixerDevice* GetMixerDevice();
 
 		FMixerSourceManager* GetSourceManager();

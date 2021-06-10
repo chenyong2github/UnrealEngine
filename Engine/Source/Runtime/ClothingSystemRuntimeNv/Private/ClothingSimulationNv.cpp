@@ -252,6 +252,16 @@ void FClothingSimulationNv::CreateActor(USkeletalMeshComponent* InOwnerComponent
 			NewActor.SkinnedPhysicsMeshPositions[1] = SkinnedVerts;
 			NewActor.SkinnedPhysicsMeshNormals = SkinnedNormals;
 		}
+		else
+		{
+			// Increase the array in case a LOD N is of higher definition than LOD 0
+			// Note: Only the normal array needs doing since it is shared between LODs
+			//       whereas positions are stored inside their respective LOD data
+			if (NumVerts > NewActor.CurrentNormals.Num())
+			{
+				NewActor.CurrentNormals.SetNum(NumVerts);
+			}
+		}
 	}
 
 	const UClothConfigNv* const Config = Asset->GetClothConfig<UClothConfigNv>();

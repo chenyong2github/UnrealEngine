@@ -648,7 +648,7 @@ class FConvertGeometry2MeshElement : public GS::Runnable
   public:
 	FConvertGeometry2MeshElement(const FSyncContext& InSyncContext, FSyncData::FElement* InElementSyncData);
 
-	void AddElementGeometry(FElementID* IOElementID, const ModelerAPI::Transformation& InLocalToWorld);
+	void AddElementGeometry(FElementID* IOElementID, const Geometry::Transformation3D& InLocalToWorld);
 
 	bool HasGeometry() const { return Element2StaticMesh.HasGeometry(); }
 
@@ -708,18 +708,11 @@ FConvertGeometry2MeshElement::FConvertGeometry2MeshElement(const FSyncContext&	I
 }
 
 void FConvertGeometry2MeshElement::AddElementGeometry(FElementID*						IOElementID,
-													  const ModelerAPI::Transformation& InLocalToWorld)
+													  const Geometry::Transformation3D& InWorldToLocal)
 {
 	UE_AC_TestPtr(IOElementID);
 
-	Geometry::Transformation3D Local2World = Convert(InLocalToWorld);
-#if AC_VERSION < 24
-	Geometry::Transformation3D World2Local = Local2World.GetInverse();
-#else
-	Geometry::Transformation3D World2Local = Local2World.GetInverse().Get(Geometry::Transformation3D());
-#endif
-
-	Element2StaticMesh.AddElementGeometry(IOElementID->GetElement3D(), World2Local);
+	Element2StaticMesh.AddElementGeometry(IOElementID->GetElement3D(), InWorldToLocal);
 }
 
 FSyncData::FElement::FElement(const GS::Guid& InGuid, const FSyncContext& /* InSyncContext */)
@@ -809,6 +802,7 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			IOProcessInfo->ElementID.InitElement(this);
 			IOProcessInfo->ElementID.InitHeader();
 
+			Geometry::Transformation3D WorldToLocal; // Set 2 identity for Instances (i.e. Object with a transformation)
 			ModelerAPI::Transformation LocalToWorld =
 				IOProcessInfo->ElementID.GetElement3D().GetElemLocalToWorldTransformation();
 			if ((LocalToWorld.status & TR_IDENT) != 0)
@@ -821,12 +815,14 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 									   LocalToWorld.matrix[2][3] == 0.0)
 										  ? TR_IDENT
 										  : TR_TRANSL_ONLY;
+				WorldToLocal.SetOffset(Geometry::Vector3D(-LocalToWorld.matrix[0][3], -LocalToWorld.matrix[1][3],
+														  -LocalToWorld.matrix[2][3]));
 			}
 
 			TSharedPtr< IDatasmithActorElement > OldActor = ActorElement;
 			FConvertGeometry2MeshElement*		 ConvertGeometry2MeshElement =
 				new FConvertGeometry2MeshElement(IOProcessInfo->SyncContext, this);
-			ConvertGeometry2MeshElement->AddElementGeometry(&IOProcessInfo->ElementID, LocalToWorld);
+			ConvertGeometry2MeshElement->AddElementGeometry(&IOProcessInfo->ElementID, WorldToLocal);
 			bool bHasGeometry = ConvertGeometry2MeshElement->HasGeometry();
 			if (ActorElement.IsValid())
 			{
@@ -1109,29 +1105,33 @@ void FSyncData::FLight::Process(FProcessInfo* IOProcessInfo)
 {
 	if (!ActorElement.IsValid())
 	{
-		switch (Type)
+		if (Parameters.bIsAreaLight)
 		{
-			case ModelerAPI::Light::Type::DirectionLight:
-				SetActorElement(FDatasmithSceneFactory::CreateDirectionalLight(GSStringToUE(ElementId.ToUniString())));
-				break;
-			case ModelerAPI::Light::Type::SpotLight:
-				{
-					TSharedRef< IDatasmithSpotLightElement > SpotLight =
-						FDatasmithSceneFactory::CreateSpotLight(GSStringToUE(ElementId.ToUniString()));
-					float InnerConeAngleClamped = FGeometryUtil::Clamp(InnerConeAngle, 1.0f, 89.0f - 0.001f);
-					SpotLight->SetInnerConeAngle(InnerConeAngleClamped);
-					float OuterConeAngleClamped =
-						FGeometryUtil::Clamp(OuterConeAngle, InnerConeAngleClamped + 0.001f, 89.0f);
-					SpotLight->SetOuterConeAngle(OuterConeAngleClamped);
-					SetActorElement(SpotLight);
+			SetActorElement(FDatasmithSceneFactory::CreateAreaLight(GSStringToUE(ElementId.ToUniString())));
+		}
+		else if (Parameters.bIsParallelLight)
+		{
+			SetActorElement(FDatasmithSceneFactory::CreateDirectionalLight(GSStringToUE(ElementId.ToUniString())));
+		}
+		else
+		{
+			switch (LightData.LightType)
+			{
+				case ModelerAPI::Light::Type::DirectionLight:
+					SetActorElement(
+						FDatasmithSceneFactory::CreateDirectionalLight(GSStringToUE(ElementId.ToUniString())));
 					break;
-				}
-			case ModelerAPI::Light::Type::PointLight:
-				SetActorElement(FDatasmithSceneFactory::CreatePointLight(GSStringToUE(ElementId.ToUniString())));
-				break;
-			default:
-				throw std::runtime_error(
-					Utf8StringFormat("FSyncData::FLight::Process - Invalid light type %d\n", Type).c_str());
+				case ModelerAPI::Light::Type::SpotLight:
+					SetActorElement(FDatasmithSceneFactory::CreateSpotLight(GSStringToUE(ElementId.ToUniString())));
+					break;
+				case ModelerAPI::Light::Type::PointLight:
+					SetActorElement(FDatasmithSceneFactory::CreatePointLight(GSStringToUE(ElementId.ToUniString())));
+					break;
+				default:
+					throw std::runtime_error(
+						Utf8StringFormat("FSyncData::FLight::Process - Invalid light type %d\n", LightData.LightType)
+							.c_str());
+			}
 		}
 	}
 	if (IsModified())
@@ -1150,34 +1150,219 @@ void FSyncData::FLight::Process(FProcessInfo* IOProcessInfo)
 			LightElement.SetLayer(Parent->GetActorElement()->GetLayer());
 		}
 
-		LightElement.SetTranslation(Position);
-		LightElement.SetRotation(Rotation);
-		LightElement.SetIntensity(Intensity * 5000.0);
-		LightElement.SetColor(Color);
-		if (Color == FLinearColor(0, 0, 0))
+		LightElement.SetTranslation(LightData.Position);
+		LightElement.SetRotation(LightData.Rotation);
+		LightElement.SetIntensity(Parameters.Intensity);
+		if (LightData.Color != FLinearColor::Black || Parameters.ColorComponentCount != 3)
 		{
-			LightElement.SetEnabled(false);
-		}
-
-		LightElement.SetUseIes(bUseIES);
-		if (bUseIES)
-		{
-			const FTexturesCache::FIESTexturesCacheElem& Texture =
-				IOProcessInfo->SyncContext.GetTexturesCache().GetIESTexture(IOProcessInfo->SyncContext,
-																			GSStringToUE(IESFileName));
-			LightElement.SetIesTexturePathName(*Texture.TexturePath);
-
-			/*
-			 LightElement.SetIesBrightnessScale(double IesBrightnessScale);
-			 LightElement.SetUseIesBrightness(bool bUseIesBrightness);
-			 LightElement.SetIesRotation(const FQuat& IesRotation);
-			 */
+			LightElement.SetColor(LightData.Color);
 		}
 		else
 		{
+			LightElement.SetColor(ACRGBColorToUELinearColor(Parameters.GS_Color));
+		}
+		if (LightElement.IsA(EDatasmithElementType::PointLight))
+		{
+			IDatasmithPointLightElement& PointLightElement = static_cast< IDatasmithPointLightElement& >(LightElement);
+			if (Parameters.bUsePhotometric)
+			{
+				PointLightElement.SetIntensityUnits(Parameters.Units);
+			}
+			else
+			{
+				PointLightElement.SetAttenuationRadius(
+					float(Parameters.DetRadius * IOProcessInfo->SyncContext.ScaleLength));
+			}
+		}
+		if (LightElement.IsA(EDatasmithElementType::SpotLight))
+		{
+			IDatasmithSpotLightElement& PointLightElement = static_cast< IDatasmithSpotLightElement& >(LightElement);
+			float InnerConeAngleClamped = FGeometryUtil::Clamp(LightData.InnerConeAngle, 1.0f, 89.0f - 0.001f);
+			PointLightElement.SetInnerConeAngle(InnerConeAngleClamped);
+			float OuterConeAngleClamped =
+				FGeometryUtil::Clamp(LightData.OuterConeAngle, InnerConeAngleClamped + 0.001f, 89.0f);
+			PointLightElement.SetOuterConeAngle(OuterConeAngleClamped);
+		}
+		if (LightElement.IsA(EDatasmithElementType::AreaLight))
+		{
+			IDatasmithAreaLightElement& AreaLightElement = static_cast< IDatasmithAreaLightElement& >(LightElement);
+
+			EDatasmithLightShape LightShape = EDatasmithLightShape::None;
+			switch (Parameters.AreaShape)
+			{
+				case FLightGDLParameters::EC4dDetAreaShape::kRectangle:
+				case FLightGDLParameters::EC4dDetAreaShape::kCube:
+				case FLightGDLParameters::EC4dDetAreaShape::kLine:
+					LightShape = EDatasmithLightShape::Rectangle;
+					break;
+				case FLightGDLParameters::EC4dDetAreaShape::kDisc:
+					LightShape = EDatasmithLightShape::Disc;
+					break;
+				case FLightGDLParameters::EC4dDetAreaShape::kSphere:
+				case FLightGDLParameters::EC4dDetAreaShape::kHemisphere:
+					LightShape = EDatasmithLightShape::Sphere;
+					break;
+				case FLightGDLParameters::EC4dDetAreaShape::kCylinder:
+				case FLightGDLParameters::EC4dDetAreaShape::kPerpendicularCylinder:
+					LightShape = EDatasmithLightShape::Cylinder;
+					break;
+				default:
+					LightShape = EDatasmithLightShape::Rectangle;
+					break;
+			}
+			AreaLightElement.SetLightShape(LightShape);
+
+			EDatasmithAreaLightType AreaLightType = EDatasmithAreaLightType::Point;
+			switch (LightData.LightType)
+			{
+				case ModelerAPI::Light::Type::DirectionLight:
+					AreaLightType = EDatasmithAreaLightType::Rect;
+					break;
+				case ModelerAPI::Light::Type::SpotLight:
+					AreaLightType = EDatasmithAreaLightType::Spot;
+					break;
+				case ModelerAPI::Light::Type::PointLight:
+					AreaLightType = EDatasmithAreaLightType::Point;
+					break;
+				default:
+					AreaLightType = EDatasmithAreaLightType::Point;
+					break;
+			}
+			AreaLightElement.SetLightType(AreaLightType);
+			AreaLightElement.SetWidth(float(Parameters.AreaSize.x * IOProcessInfo->SyncContext.ScaleLength));
+			AreaLightElement.SetLength(float(Parameters.AreaSize.y * IOProcessInfo->SyncContext.ScaleLength));
+		}
+		if (!Parameters.IESFileName.IsEmpty())
+		{
+			LightElement.SetUseIes(true);
+			const FTexturesCache::FIESTexturesCacheElem& Texture =
+				IOProcessInfo->SyncContext.GetTexturesCache().GetIESTexture(IOProcessInfo->SyncContext,
+																			GSStringToUE(Parameters.IESFileName));
+			LightElement.SetIesTexturePathName(*Texture.TexturePath);
+			LightElement.SetUseIesBrightness(Parameters.bUsePhotometric);
+			// LightElement.SetIesBrightnessScale(1.0);
+			// LightElement.SetIesRotation(const FQuat& IesRotation);
+		}
+		else
+		{
+			LightElement.SetUseIes(false);
+			LightElement.SetUseIesBrightness(false);
 			LightElement.SetIesTexturePathName(TEXT(""));
 		}
 	}
+}
+
+FSyncData::FLight::FLightGDLParameters::FLightGDLParameters() {}
+
+FSyncData::FLight::FLightGDLParameters::FLightGDLParameters(const API_Guid& InLightGuid)
+{
+	FAutoMemo AutoMemo(InLightGuid, APIMemoMask_AddPars);
+	if (AutoMemo.GSErr == NoError)
+	{
+		if (AutoMemo.Memo.params) // Can be null
+		{
+			double value;
+			if (GetParameter(AutoMemo.Memo.params, "gs_light_intensity", &value))
+			{
+				Intensity = value / 100.0 * 5000;
+			}
+			if (GetParameter(AutoMemo.Memo.params, "gs_color_red", &GS_Color.red))
+			{
+				++ColorComponentCount;
+			}
+			if (GetParameter(AutoMemo.Memo.params, "gs_color_green", &GS_Color.green))
+			{
+				++ColorComponentCount;
+			}
+			if (GetParameter(AutoMemo.Memo.params, "gs_color_blue", &GS_Color.blue))
+			{
+				++ColorComponentCount;
+			}
+			GetParameter(AutoMemo.Memo.params, "c4dPhoPhotometric", &bUsePhotometric);
+			if (bUsePhotometric)
+			{
+				GS::UniString PhoUnit; //
+				GetParameter(AutoMemo.Memo.params, "c4dPhoUnit", &PhoUnit);
+				if (PhoUnit == "candela")
+				{
+					Units = EDatasmithLightUnits::Candelas;
+					GetParameter(AutoMemo.Memo.params, "photoIntensityCandela", &Intensity);
+				}
+				if (PhoUnit == "lumen")
+				{
+					Units = EDatasmithLightUnits::Lumens;
+					GetParameter(AutoMemo.Memo.params, "photoIntensityLumen", &Intensity);
+				}
+			}
+			else
+			{
+				GetParameter(AutoMemo.Memo.params, "c4dDetRadius", &DetRadius);
+			}
+			GetParameter(AutoMemo.Memo.params, "c4dPhoIESFile", &IESFileName);
+
+			bIsAreaLight = GetParameter(AutoMemo.Memo.params, "c4dDetAreaX", &AreaSize.x);
+			bIsAreaLight |= GetParameter(AutoMemo.Memo.params, "c4dDetAreaY", &AreaSize.y);
+			bIsAreaLight |= GetParameter(AutoMemo.Memo.params, "c4dDetAreaZ", &AreaSize.z);
+			double TmpAreaShape;
+			if (GetParameter(AutoMemo.Memo.params, "iC4dDetAreaShape", &TmpAreaShape))
+			{
+				if (TmpAreaShape >= kDisc && TmpAreaShape <= kPerpendicularCylinder)
+				{
+					AreaShape = (EC4dDetAreaShape) int(TmpAreaShape + 0.5);
+				}
+			}
+			GetParameter(AutoMemo.Memo.params, "rotAngleX", &WindowLightAngle);
+			GetParameter(AutoMemo.Memo.params, "angleSunAzimuth", &SunAzimuthAngle);
+			GetParameter(AutoMemo.Memo.params, "angleSunAltitude", &SunAltitudeAngle);
+
+			double lightPosX;
+			bIsParallelLight = !GetParameter(AutoMemo.Memo.params, "lightPosX", &lightPosX);
+
+			GetParameter(AutoMemo.Memo.params, "bGenShadow", &bGenShadow); // Currently not available in Datasmith.
+		}
+	}
+	else
+	{
+		UE_AC_DebugF(
+			"FSyncData::FLight::FLightGDLParameters::FLightGDLParameters - Error=%d when getting element memo\n",
+			AutoMemo.GSErr);
+	}
+	if (ColorComponentCount != 0 && ColorComponentCount != 3)
+	{
+		UE_AC_DebugF("FSyncData::FLight::FLightGDLParameters::FLightGDLParameters - ColorComponentCount is %u\n",
+					 ColorComponentCount);
+	}
+};
+
+bool FSyncData::FLight::FLightGDLParameters::operator!=(const FLightGDLParameters& InOther) const
+{
+	return GS_Color != InOther.GS_Color || ColorComponentCount != InOther.ColorComponentCount ||
+		   Intensity != InOther.Intensity || bUsePhotometric != InOther.bUsePhotometric || Units != InOther.Units ||
+		   DetRadius != InOther.DetRadius || IESFileName != InOther.IESFileName || AreaShape != InOther.AreaShape ||
+		   AreaSize != InOther.AreaSize || WindowLightAngle != InOther.WindowLightAngle ||
+		   SunAzimuthAngle != InOther.SunAzimuthAngle || SunAltitudeAngle != InOther.SunAltitudeAngle ||
+		   bIsParallelLight != InOther.bIsParallelLight || bGenShadow != InOther.bGenShadow;
+}
+
+FSyncData::FLight::FLightData::FLightData() {}
+
+FSyncData::FLight::FLightData::FLightData(const ModelerAPI::Light& InLight)
+{
+	LightType = InLight.GetType();
+
+	InnerConeAngle = float(InLight.GetFalloffAngle1() * 180.0f / PI);
+	OuterConeAngle = float(InLight.GetFalloffAngle2() * 180.0f / PI);
+	Color = ACRGBColorToUELinearColor(InLight.GetColor());
+
+	Position = FGeometryUtil::GetTranslationVector(InLight.GetPosition());
+	Rotation = FGeometryUtil::GetRotationQuat(InLight.GetDirection());
+}
+
+bool FSyncData::FLight::FLightData::operator!=(const FLightData& InOther) const
+{
+	return LightType != InOther.LightType || InnerConeAngle != InOther.InnerConeAngle ||
+		   OuterConeAngle != InOther.OuterConeAngle || Color != InOther.Color || Position != InOther.Position ||
+		   Rotation != InOther.Rotation;
 }
 
 #pragma mark -

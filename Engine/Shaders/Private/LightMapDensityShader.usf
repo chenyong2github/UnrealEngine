@@ -50,14 +50,14 @@ void MainVertexShader(
 		Output.Position = mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip);
 	}
 
-#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-	Output.PixelPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
-#endif
-
 #if USE_GLOBAL_CLIP_PLANE
 	OutGlobalClipPlaneDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPosition.xyz - ResolvedView.PreViewTranslation.xyz, 1));
 #endif
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+
+#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+	Output.PixelPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
+#endif
 }
 #endif
 

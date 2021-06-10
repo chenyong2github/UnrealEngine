@@ -15,8 +15,8 @@
 
 FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const FString& InProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: ProjectionPolicyId(InProjectionPolicyId)
-	, Parameters(InConfigurationProjectionPolicy->Parameters)
 {
+	Parameters.Append(InConfigurationProjectionPolicy->Parameters);
 }
 
 FDisplayClusterProjectionPolicyBase::~FDisplayClusterProjectionPolicyBase()
@@ -32,7 +32,8 @@ bool FDisplayClusterProjectionPolicyBase::IsConfigurationChanged(const struct FD
 
 	for (const TPair<FString, FString>& NewParamIt : InConfigurationProjectionPolicy->Parameters) {
 
-		if (NewParamIt.Value != Parameters.FindRef(NewParamIt.Key)) {
+		const FString* CurrentValue = Parameters.Find(NewParamIt.Key);
+		if (CurrentValue==nullptr || CurrentValue->Compare(NewParamIt.Value, ESearchCase::IgnoreCase) != 0) {
 			return true;
 		}
 	}

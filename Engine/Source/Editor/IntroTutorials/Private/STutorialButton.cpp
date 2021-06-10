@@ -230,21 +230,30 @@ FReply STutorialButton::OnMouseButtonDown(const FGeometry& MyGeometry, const FPo
 		const bool bInShouldCloseWindowAfterMenuSelection = true;
 		FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, nullptr);
 
-		if(ShouldShowAlert())
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("DismissReminder", "Don't Remind Me Again"),
-				LOCTEXT("DismissReminderTooltip", "Selecting this option will prevent the tutorial blip from being displayed again, even if you choose not to complete the tutorial."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &STutorialButton::DismissAlert))
-				);
+		const bool bShouldShowAlert = ShouldShowAlert();
+		const bool bAreAllTutorialsDismissed = GetMutableDefault<UTutorialStateSettings>()->AreAllTutorialsDismissed();
 
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("DismissAllReminders", "Dismiss All Tutorial Reminders"),
-				LOCTEXT("DismissAllRemindersTooltip", "Selecting this option will prevent all tutorial blips from being displayed."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &STutorialButton::DismissAllAlerts))
-				);
+		if (bShouldShowAlert || !bAreAllTutorialsDismissed)
+		{
+			if (bShouldShowAlert)
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("DismissReminder", "Don't Remind Me Again"),
+					LOCTEXT("DismissReminderTooltip", "Selecting this option will prevent the tutorial blip from being displayed again, even if you choose not to complete the tutorial."),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateSP(this, &STutorialButton::DismissAlert))
+					);
+			}
+
+			if (!bAreAllTutorialsDismissed)
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("DismissAllReminders", "Dismiss All Tutorial Reminders"),
+					LOCTEXT("DismissAllRemindersTooltip", "Selecting this option will prevent all tutorial blips from being displayed."),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateSP(this, &STutorialButton::DismissAllAlerts))
+					);
+			}
 
 			MenuBuilder.AddMenuSeparator();
 		}

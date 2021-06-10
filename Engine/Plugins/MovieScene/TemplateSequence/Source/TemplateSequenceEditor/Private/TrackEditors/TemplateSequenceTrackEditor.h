@@ -3,17 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ContentBrowserDelegates.h"
 #include "Misc/Guid.h"
 #include "MovieSceneTrackEditor.h"
+#include "Sections/TemplateSequenceSection.h"
 #include "TrackEditors/SubTrackEditorBase.h"
-#include "ContentBrowserDelegates.h"
 
 struct FAssetData;
 class FMenuBuilder;
 class UCameraAnim;
 class UCameraComponent;
 class UTemplateSequence;
-class UTemplateSequenceSection;
 
 class FTemplateSequenceTrackEditor : public FMovieSceneTrackEditor
 {
@@ -55,9 +55,16 @@ public:
 	FTemplateSequenceSection(TSharedPtr<ISequencer> InSequencer, UTemplateSequenceSection& InSection);
 	virtual ~FTemplateSequenceSection() {}
 
+	virtual bool RequestDeleteKeyArea(const TArray<FName>& KeyAreaNamePath) override;
 	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding) override;
 
 private:
+
 	void BuildPropertyScalingSubMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
+	
+	typedef TTuple<FGuid, FMovieScenePropertyBinding, ETemplateSectionPropertyScaleType> FScalablePropertyInfo;
+	TArray<FScalablePropertyInfo> GetAnimatedProperties() const;
+	int32 GetPropertyScaleFor(const FScalablePropertyInfo& AnimatedProperty) const;
+	FText GetAnimatedPropertyScaleTypeSuffix(const FScalablePropertyInfo& AnimatedProperty) const;
 };
 

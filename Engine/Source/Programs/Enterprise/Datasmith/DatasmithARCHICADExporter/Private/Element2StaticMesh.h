@@ -61,9 +61,6 @@ class FElement2StaticMesh
 	TSharedPtr< IDatasmithMeshElement > CreateMesh();
 
 	// Collect geometry of the element
-	void AddElementGeometry(const ModelerAPI::Element& InModelElement);
-
-	// Collect geometry of the element
 	void AddElementGeometry(const ModelerAPI::Element& InModelElement, const Geometry::Transformation3D& InWorld2Local);
 
 	// Return the numbers of bugs detected during conversion

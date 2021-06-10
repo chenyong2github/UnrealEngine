@@ -144,13 +144,6 @@ namespace
 		PS4Settings.HardwareSpatializationPlugin = TEXT("Audio3D");
 		DefaultProjectSettings.Add(TEXT("PS4"), PS4Settings);
 
-		FAudioDefaultPlatformSettings PS5Settings(TEXT("/Script/PS5PlatformEditor.PS5TargetSettings"));
-		PS5Settings.Settings.CallbackBufferFrameSize = 256;
-		PS5Settings.Settings.NumBuffers = 7;
-		PS5Settings.Settings.NumSourceWorkers = 4;
-		PS5Settings.HardwareSpatializationPlugin = TEXT("Audio3D");
-		DefaultProjectSettings.Add(TEXT("PS5"), PS5Settings);
-
 		FAudioDefaultPlatformSettings SwitchSettings(TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings"));
 		SwitchSettings.Settings.MaxChannels = 16;
 		DefaultProjectSettings.Add(TEXT("Switch"), SwitchSettings);
@@ -165,10 +158,6 @@ namespace
 		XBoxSettings.Settings.NumBuffers = 7;
 		DefaultProjectSettings.Add(TEXT("XboxOne"), XBoxSettings);
 
-		FAudioDefaultPlatformSettings XSXSettings(TEXT("/Script/XSXPlatformEditor.XSXTargetSettings"));
-		XSXSettings.Settings.CallbackBufferFrameSize = 256;
-		XSXSettings.Settings.NumBuffers = 7;
-		DefaultProjectSettings.Add(TEXT("XSX"), XSXSettings);
 
 		return MoveTemp(DefaultProjectSettings);
 	}

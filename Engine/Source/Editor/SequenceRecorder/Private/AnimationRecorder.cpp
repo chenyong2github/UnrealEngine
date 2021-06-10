@@ -999,6 +999,11 @@ FAnimRecorderInstance::~FAnimRecorderInstance()
 
 bool FAnimRecorderInstance::BeginRecording()
 {
+	if (SkelComp.IsValid() == false)
+	{
+		UE_LOG(LogAnimation, Log, TEXT("Animation Recorder:  Begin Recording: SkelMeshComp not Valid, No Recording will occur."));
+		return false;
+	}
 	if (Recorder.IsValid())
 	{
 		if(Sequence.IsValid())
@@ -1012,14 +1017,24 @@ bool FAnimRecorderInstance::BeginRecording()
 		}
 	}
 
+	UE_LOG(LogAnimation, Log, TEXT("Animation Recorder: Begin Recording: Recorder not Valid, No Recording will occur."));
 	return false;
 }
 
 void FAnimRecorderInstance::Update(float DeltaTime)
 {
+	if (SkelComp.IsValid())
+	{
+		UE_LOG(LogAnimation, Log, TEXT("Animation Recorder:  Update: SkelMeshComp not Valid, No Recording will occur."));
+		return;
+	}
 	if (Recorder.IsValid())
 	{
 		Recorder->UpdateRecord(SkelComp.Get(), DeltaTime);
+	}
+	else
+	{
+		UE_LOG(LogAnimation, Log, TEXT("Animation Recorder:  Update: Recoder not Valid, No Recording will occur."));
 	}
 }
 

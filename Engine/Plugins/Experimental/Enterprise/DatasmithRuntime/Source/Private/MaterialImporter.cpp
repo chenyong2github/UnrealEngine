@@ -26,11 +26,11 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMaterialData);
 
-		// Clear PendingDelete flag if it is set. Something is wrong. Better safe than sorry
+		// Something is wrong. Do not go any further
 		if (MaterialData.HasState(EAssetState::PendingDelete))
 		{
-			MaterialData.ClearState(EAssetState::PendingDelete);
-			UE_LOG(LogDatasmithRuntime, Warning, TEXT("A material marked for deletion is actually used by the scene"));
+			UE_LOG(LogDatasmithRuntime, Error, TEXT("A material marked for deletion is actually used by the scene"));
+			return;
 		}
 
 		if (MaterialData.HasState(EAssetState::Processed))
@@ -261,31 +261,31 @@ namespace DatasmithRuntime
 			{
 				MaterialUpdateContext.AddMaterialInstance( MaterialInstance );
 
-#if WITH_EDITOR
-				// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
-				if ( MaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
-				{
-					MaterialInstance->ForceRecompileForRendering();
-				}
-				else
-				{
-					// If a switch is overridden, we need to recompile
-					FStaticParameterSet StaticParameters;
-					MaterialInstance->GetStaticParameterValues( StaticParameters );
-
-					for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
-					{
-						if ( Switch.bOverride )
-						{
-							MaterialInstance->ForceRecompileForRendering();
-							break;
-						}
-					}
-				}
-
-				MaterialInstance->PreEditChange( nullptr );
-				MaterialInstance->PostEditChange();
-#endif
+//#if WITH_EDITOR
+//				// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
+//				if ( MaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
+//				{
+//					MaterialInstance->ForceRecompileForRendering();
+//				}
+//				else
+//				{
+//					// If a switch is overridden, we need to recompile
+//					FStaticParameterSet StaticParameters;
+//					MaterialInstance->GetStaticParameterValues( StaticParameters );
+//
+//					for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
+//					{
+//						if ( Switch.bOverride )
+//						{
+//							MaterialInstance->ForceRecompileForRendering();
+//							break;
+//						}
+//					}
+//				}
+//
+//				MaterialInstance->PreEditChange( nullptr );
+//				MaterialInstance->PostEditChange();
+//#endif
 			}
 		}
 	}

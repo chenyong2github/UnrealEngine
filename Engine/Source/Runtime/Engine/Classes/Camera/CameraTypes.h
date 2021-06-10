@@ -79,7 +79,7 @@ struct FMinimalViewInfo
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category=Camera)
 	float OrthoFarClipPlane;
 
-	// Aspect Ratio (Width/Height); ignored unless bConstrainAspectRatio is true
+	// Aspect Ratio (Width/Height)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
 	float AspectRatio;
 

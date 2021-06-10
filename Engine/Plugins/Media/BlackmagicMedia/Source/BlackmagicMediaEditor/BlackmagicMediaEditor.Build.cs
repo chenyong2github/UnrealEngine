@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"BlackmagicMedia",
 					"BlackmagicMediaOutput",
+					"Engine",
 					"MediaAssets",
 					"MediaIOEditor",
 					"Projects",

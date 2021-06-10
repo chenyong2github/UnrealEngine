@@ -29,8 +29,7 @@ void ANavModifierVolume::GetNavigationData(FNavigationRelevantData& Data) const
 {
 	if (Brush && AreaClass && AreaClass != FNavigationSystem::GetDefaultWalkableArea())
 	{
-		FAreaNavModifier AreaMod(GetBrushComponent(), AreaClass);
-		Data.Modifiers.Add(AreaMod);
+		Data.Modifiers.CreateAreaModifiers(GetBrushComponent(), AreaClass);
 	}
 
 	if (bMaskFillCollisionUnderneathForNavmesh)

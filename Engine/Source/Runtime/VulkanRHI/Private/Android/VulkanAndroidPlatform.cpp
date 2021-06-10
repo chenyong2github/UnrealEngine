@@ -58,6 +58,8 @@ TUniquePtr<struct FAndroidVulkanFramePacer> FVulkanAndroidPlatform::FramePacer;
 int32 FVulkanAndroidPlatform::CachedFramePace = 60;
 int32 FVulkanAndroidPlatform::CachedRefreshRate = 60;
 int32 FVulkanAndroidPlatform::CachedSyncInterval = 1;
+int32 FVulkanAndroidPlatform::SuccessfulRefreshRateFrames = 1;
+int32 FVulkanAndroidPlatform::UnsuccessfulRefreshRateFrames = 0;
 TArray<TArray<ANSICHAR>> FVulkanAndroidPlatform::DebugVulkanDeviceLayers;
 TArray<TArray<ANSICHAR>> FVulkanAndroidPlatform::DebugVulkanInstanceLayers;
 
@@ -508,12 +510,37 @@ bool FVulkanAndroidPlatform::FramePace(FVulkanDevice& Device, VkSwapchainKHR Swa
 	{
 		int32 CurrentRefreshRate = FAndroidMisc::GetNativeDisplayRefreshRate();
 
-		// cache refresh rate and sync interval
-		if (CurrentFramePace != CachedFramePace || CurrentRefreshRate != CachedRefreshRate)
+		bool bRefreshRateInvalid = (CurrentRefreshRate != CachedRefreshRate);
+		bool bTryChangingRefreshRate = (bRefreshRateInvalid && (SuccessfulRefreshRateFrames > 0 || UnsuccessfulRefreshRateFrames > 1000));
+
+		if (bRefreshRateInvalid)
+		{
+			SuccessfulRefreshRateFrames = 0;
+			UnsuccessfulRefreshRateFrames++;
+		}
+		else
+		{
+			SuccessfulRefreshRateFrames++;
+			UnsuccessfulRefreshRateFrames = 0;
+		}
+
+		// Cache refresh rate and sync interval.
+		// Only try to change the refresh rate immediately if we're successfully running at the desired rate,
+		// or periodically if not successfully running at the desired rate
+		if (CurrentFramePace != CachedFramePace || bTryChangingRefreshRate)
 		{
 			CachedFramePace = CurrentFramePace;
-			FramePacer->SupportsFramePaceInternal(CurrentFramePace, CachedRefreshRate, CachedSyncInterval);
-			FAndroidMisc::SetNativeDisplayRefreshRate(CachedRefreshRate);
+			if (FramePacer->SupportsFramePaceInternal(CurrentFramePace, CachedRefreshRate, CachedSyncInterval))
+			{
+				FAndroidMisc::SetNativeDisplayRefreshRate(CachedRefreshRate);
+			}
+			else
+			{
+				// Desired frame pace not supported, save current refresh rate to prevent logspam.
+				CachedRefreshRate = CurrentRefreshRate;
+			}
+			UnsuccessfulRefreshRateFrames = 0;
+			SuccessfulRefreshRateFrames = 0;
 		}
 
 		if (CachedSyncInterval != 0)

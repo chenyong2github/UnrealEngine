@@ -307,6 +307,19 @@ namespace UEPushModelPrivate
 			return nullptr;
 		}
 
+		bool DoesHaveDirtyPropertiesOrRecentlyCollectedGarbage(const FPushModelPerNetDriverHandle Handle) const
+		{
+			const int32 ObjectIndex = Handle.ObjectId;
+			if (LIKELY(PerObjectStates.IsValidIndex(ObjectIndex)))
+			{
+				const FPushModelPerObjectState& ObjectState = PerObjectStates[ObjectIndex];
+				const FPushModelPerNetDriverState& NetDriverState = ObjectState.GetPerNetDriverState(Handle.NetDriverId);
+				return ObjectState.HasDirtyProperties() || NetDriverState.HasDirtyProperties() || NetDriverState.DidRecentlyCollectGarbage();
+			}
+
+			return false;
+		}
+
 		bool ValidateObjectIdReassignment(FNetPushObjectId CurrentId, FNetPushObjectId NewId)
 		{
 			if (!PerObjectStates.IsValidIndex(CurrentId))
@@ -429,6 +442,14 @@ namespace UEPushModelPrivate
 	FPushModelPerNetDriverState* GetPerNetDriverState(const FPushModelPerNetDriverHandle Handle)
 	{
 		return PushObjectManager.GetPerNetDriverState(Handle);
+	}
+
+	/**
+	 * @return True if the Object (or NetDriver state) have dirty properties, or have had GC 
+	 */
+	bool DoesHaveDirtyPropertiesOrRecentlyCollectedGarbage(const FPushModelPerNetDriverHandle Handle)
+	{
+		return PushObjectManager.DoesHaveDirtyPropertiesOrRecentlyCollectedGarbage(Handle);
 	}
 
 	bool ValidateObjectIdReassignment(FNetPushObjectId CurrentId, FNetPushObjectId NewId)

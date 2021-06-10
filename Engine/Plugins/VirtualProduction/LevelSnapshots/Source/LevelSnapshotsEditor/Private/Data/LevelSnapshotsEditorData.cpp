@@ -3,11 +3,13 @@
 #include "LevelSnapshotsEditorData.h"
 #include "SLevelSnapshotsEditorInput.h"
 
+#include "Editor.h"
+#include "Engine/World.h"
+
 #include "FavoriteFilterContainer.h"
 #include "DisjunctiveNormalFormFilter.h"
 #include "FilterLoader.h"
 #include "FilteredResults.h"
-#include "Engine/World.h"
 
 ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer)
 {
@@ -19,20 +21,24 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 		this,
 		TEXT("UserDefinedFilters")
 		);
+	UserDefinedFilters->SetFlags(RF_Transactional);
 	
 	FilterLoader = ObjectInitializer.CreateDefaultSubobject<UFilterLoader>(
 		this,
 		TEXT("FilterLoader")
 		);
+	FilterLoader->SetFlags(RF_Transactional);
 	FilterLoader->SetAssetBeingEdited(UserDefinedFilters);
-	FilterLoader->OnUserSelectedLoadedFilters.AddLambda([this](UDisjunctiveNormalFormFilter* NewFilterToEdit)
+	FilterLoader->OnFilterChanged.AddLambda([this](UDisjunctiveNormalFormFilter* NewFilterToEdit)
 	{
+		Modify();
+		UDisjunctiveNormalFormFilter* OldFilter = UserDefinedFilters;
 		UserDefinedFilters = NewFilterToEdit;
-		
-		FilterLoader->SetAssetBeingEdited(UserDefinedFilters);
+		UserDefinedFilters->MarkTransactional();
+
+		FilterResults->Modify();
 		FilterResults->SetUserFilters(UserDefinedFilters);
-		
-		OnUserDefinedFiltersChanged.Broadcast();
+		OnUserDefinedFiltersChanged.Broadcast(NewFilterToEdit, OldFilter);
 	});
 
 	FilterResults = ObjectInitializer.CreateDefaultSubobject<UFilteredResults>(
@@ -43,7 +49,7 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 
 	OnWorldCleanup = FWorldDelegates::OnWorldCleanup.AddLambda([this](UWorld* World, bool bSessionEnded, bool bCleanupResources)
     {
-        SetActiveSnapshot(nullptr);
+        ClearActiveSnapshot();
     });
 }
 

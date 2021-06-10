@@ -11,6 +11,7 @@
 
 #include "NiagaraLightRendererProperties.h"
 #include "NiagaraRendererLights.h"
+#include "NiagaraCullProxyComponent.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Generate Particle Lights"), STAT_NiagaraGenLights, STATGROUP_Niagara);
@@ -67,6 +68,21 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 		return nullptr;
 	}
 
+	if (Properties->bAllowInCullProxies == false)
+	{
+		check(Emitter);
+
+		FNiagaraSystemInstance* Inst = Emitter->GetParentSystemInstance();
+		check(Emitter->GetParentSystemInstance());
+
+		//TODO: Probably should push some state into the system instance for this?
+		bool bIsCullProxy = Cast<UNiagaraCullProxyComponent>(Inst->GetAttachComponent()) != nullptr;
+		if (bIsCullProxy)
+		{
+			return nullptr;
+		}
+	}
+
 	FNiagaraDynamicDataLights* DynamicData = new FNiagaraDynamicDataLights(Emitter);
 
 	//I'm not a great fan of pulling scalar components out to a structured vert buffer like this.
@@ -87,8 +103,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 		LocalToWorld = SystemInstance->GetWorldTransform();
 	}
 
+	bool bUseLocalSpace = UseLocalSpace(Proxy);
 	const FLinearColor DefaultColor = Properties->ColorBinding.GetDefaultValue<FLinearColor>();
-	const FVector DefaultPos = bLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
+	const FVector DefaultPos = bUseLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
 	const float DefaultRadius = Properties->RadiusBinding.GetDefaultValue<float>();
 	const float DefaultScattering = Properties->VolumetricScatteringBinding.GetDefaultValue<float>();
 	const FNiagaraBool DefaultEnabled(true);
@@ -116,7 +133,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 			LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
 			LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);
 			LightData.PerViewEntry.Position = PositionReader.GetSafe(ParticleIndex, DefaultPos);
-			if (bLocalSpace)
+			if (bUseLocalSpace)
 			{
 				LightData.PerViewEntry.Position = LocalToWorld.TransformPosition(LightData.PerViewEntry.Position);
 			}

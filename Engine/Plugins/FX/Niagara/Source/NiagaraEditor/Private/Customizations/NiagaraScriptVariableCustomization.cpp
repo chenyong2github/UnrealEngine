@@ -435,14 +435,6 @@ void FNiagaraScriptVariableDetails::OnValueChanged()
 		}
 		else
 		{
-			// Values that can change continuously are not guaranteed to call OnBeginChange() before OnChange(), so if a transaction has not been begun by OnBeginChange(), create one now.
-			bool bOnValueChangedTransactionActive = false;
-			if (GEditor->IsTransactionActive() == false)
-			{
-				bOnValueChangedTransactionActive = true;
-				GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
-				Variable->Modify();
-			}
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 			ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
 			Variable->Variable.SetData(ParameterValue->GetStructMemory());
@@ -450,16 +442,11 @@ void FNiagaraScriptVariableDetails::OnValueChanged()
 
 			for (UEdGraphPin* Pin : GetDefaultPins())
 			{
-				if (bOnValueChangedTransactionActive)
+				if (Pin->GetDefaultAsString() != NewDefaultValue)
 				{
-					Pin->Modify();
+					bParameterValueChangedDuringOnValueChanged = true;
+					GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, false);
 				}
-				GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
-			}
-
-			if (bOnValueChangedTransactionActive)
-			{
-				GEditor->EndTransaction();
 			}
 		}
 	}
@@ -592,35 +579,10 @@ void FNiagaraScriptVariableDetails::OnLibraryValueChanged()
 		}
 		else
 		{
-			// Values that can change continuously are not guaranteed to call OnBeginChange() before OnChange(), so if a transaction has not been begun by OnBeginChange(), create one now.
-			bool bOnValueChangedTransactionActive = false;
-			if (GEditor->IsTransactionActive() == false)
-			{
-				bOnValueChangedTransactionActive = true;
-				GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
-				Variable->Modify();
-			}
 			DefaultValueHandle->NotifyPreChange();
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 			ParameterEditorLibraryValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
 			Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
-
-			if (bOnValueChangedTransactionActive)
-			{
-				Variable->UpdateChangeId();
-
-				DefaultValueHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-				DefaultValueHandle->NotifyFinishedChangingProperties();
-
-				if (UNiagaraParameterDefinitions* OuterParameterDefinitions = Cast<UNiagaraParameterDefinitions>(Variable->GetOuter()))
-				{
-					OuterParameterDefinitions->NotifyParameterDefinitionsChanged();
-				}
-
-				GEditor->EndTransaction();
-			}
-			DefaultValueHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-			DefaultValueHandle->NotifyFinishedChangingProperties();
 		}
 	}
 }

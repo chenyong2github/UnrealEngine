@@ -831,8 +831,9 @@ public:
 	ENGINE_API const FCustomPrimitiveData* GetCustomPrimitiveData() const { return &CustomPrimitiveData; }
 
 protected:
-
-	/** Returns true if primitive should be hidden because it is drawn only to the runtime virtual texture. */
+	/** Returns true if a primitive can never be rendered outside of a runtime virtual texture. */
+	ENGINE_API bool IsVirtualTextureOnly() const { return bVirtualTextureMainPassDrawNever; }
+	/** Returns true if a primitive should currently be hidden because it is drawn only to the runtime virtual texture. The result can depend on the current scene state. */
 	bool DrawInVirtualTextureOnly(bool bEditor) const;
 
 	/** Allow subclasses to override the primitive name. Used primarily by BSP. */

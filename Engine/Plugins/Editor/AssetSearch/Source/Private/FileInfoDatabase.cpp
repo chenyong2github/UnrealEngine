@@ -165,8 +165,7 @@ public:
 	public: bool AddOrUpdateFileInfo(const FAssetData& InAssetData, FAssetFileInfo& OutFileInfo)
 	{
 		const FString PackageName = InAssetData.PackageName.ToString();
-		const bool bIsWorldAsset = (InAssetData.AssetClass == UWorld::StaticClass()->GetFName());
-		const FString Extension = bIsWorldAsset ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
+		const FString Extension = (InAssetData.PackageFlags & PKG_ContainsMap) ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
 
 		FString FilePath;
 		if (!FPackageName::TryConvertLongPackageNameToFilename(PackageName, FilePath, Extension))

@@ -9,7 +9,7 @@ class IDetailTreeNode;
 class FComplexPropertyNode;
 class FStructOnScope;
 
-typedef TArray<TSharedPtr<FComplexPropertyNode>> FRootPropertyNodeList;
+
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnValidatePropertyRowGeneratorNodes, const FRootPropertyNodeList&)
 

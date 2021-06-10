@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Subsystem.h"
+#include "SubsystemCollection.h"
 #include "AudioDeviceManager.h"
 #include "AudioEngineSubsystem.generated.h"
 
@@ -46,3 +47,25 @@ public:
 
 	virtual FAudioDeviceHandle GetAudioDeviceHandle() const final;
 };
+
+/**
+ * FAudioSubsystemCollection - Subsystem collection specifically targeting UAudioEngineSubsystems
+ */
+class FAudioSubsystemCollection : public FSubsystemCollection<UAudioEngineSubsystem>
+{
+public:
+
+	template<class InterfaceToCastTo>
+	void ForEachSubsystem(TFunctionRef<bool(InterfaceToCastTo*)> InFunction) const
+	{
+		const TArray<USubsystem*>& AllSubsystems = GetSubsystemArrayInternal(UAudioEngineSubsystem::StaticClass());
+		for (USubsystem* Subsystem : AllSubsystems)
+		{
+			if (InterfaceToCastTo* CastedSystem = Cast<InterfaceToCastTo>(Subsystem))
+			{
+				InFunction(CastedSystem);
+			}
+		}
+	}
+};
+

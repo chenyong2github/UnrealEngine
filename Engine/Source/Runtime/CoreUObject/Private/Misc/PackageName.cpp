@@ -458,6 +458,30 @@ void FPackageName::InternalFilenameToLongPackageName(FStringView InFilename, FSt
 		}
 	}
 
+	// if we get here, we haven't converted to a package name, and it may be because the path was absolute. in which case we should 
+	// check the absolute representation in ContentPathToRoot
+	if (!bIsValidLongPackageName)
+	{
+		// reset to the incoming string
+		Filename = InFilename;
+		if (!FPaths::IsRelative(Filename))
+		{
+			FPaths::NormalizeFilename(Filename);
+			Result = FPathViews::GetBaseFilenameWithPath(Filename);
+			{
+				FReadScopeLock ScopeLock(ContentMountPointCriticalSection);
+				for (const auto& Pair : Paths.ContentPathToRoot)
+				{
+					if (Result.StartsWith(Pair.ContentPath))
+					{
+						OutPackageName << Pair.RootPath << Result.RightChop(Pair.ContentPath.Len());
+						return;
+					}
+				}
+			}
+		}
+	}
+
 	OutPackageName << Result;
 }
 

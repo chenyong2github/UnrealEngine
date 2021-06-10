@@ -32,6 +32,7 @@ namespace UEPushModelPrivate
 		FPushModelPerObjectState(const FObjectKey InObjectKey, const uint16 InNumberOfProperties)
 			: ObjectKey(InObjectKey)
 			, DirtiedThisFrame(true, InNumberOfProperties)
+			, bHasDirtyProperties(true)
 		{
 		}
 
@@ -39,7 +40,9 @@ namespace UEPushModelPrivate
 			: ObjectKey(Other.ObjectKey)
 			, DirtiedThisFrame(MoveTemp(Other.DirtiedThisFrame))
 			, PerNetDriverStates(MoveTemp(Other.PerNetDriverStates))
+			, bHasDirtyProperties(Other.bHasDirtyProperties)
 		{
+			Other.bHasDirtyProperties = false;
 		}
 
 		FPushModelPerObjectState(const FPushModelPerObjectState& Other) = delete;
@@ -61,6 +64,7 @@ namespace UEPushModelPrivate
 		void MarkPropertyDirty(const uint16 RepIndex)
 		{
 			DirtiedThisFrame[RepIndex] = true;
+			bHasDirtyProperties = true;
 		}
 		
 		/**
@@ -69,7 +73,7 @@ namespace UEPushModelPrivate
 		 */
 		void PushDirtyStateToNetDrivers()
 		{
-			if (AreAnyBitsSet(DirtiedThisFrame))
+			if (bHasDirtyProperties)
 			{
 				for (FPushModelPerNetDriverState& NetDriverObject : PerNetDriverStates)
 				{
@@ -77,10 +81,16 @@ namespace UEPushModelPrivate
 				}
 
 				ResetBitArray(DirtiedThisFrame);
+				bHasDirtyProperties = false;
 			}
 		}
 
 		FPushModelPerNetDriverState& GetPerNetDriverState(FNetPushPerNetDriverId DriverId)
+		{
+			return PerNetDriverStates[DriverId];
+		}
+
+		const FPushModelPerNetDriverState& GetPerNetDriverState(FNetPushPerNetDriverId DriverId) const
 		{
 			return PerNetDriverStates[DriverId];
 		}
@@ -123,6 +133,11 @@ namespace UEPushModelPrivate
 			return ObjectKey;
 		}
 
+		bool HasDirtyProperties() const
+		{
+			return bHasDirtyProperties;
+		}
+
 	private:
 	
 		//! A unique ID for the object.
@@ -135,6 +150,8 @@ namespace UEPushModelPrivate
 
 		//! Set of NetDriver states that have been requested and are currently tracking the object.
 		TSparseArray<FPushModelPerNetDriverState> PerNetDriverStates;
+
+		uint8 bHasDirtyProperties : 1;
 	};
 }
 

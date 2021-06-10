@@ -2,7 +2,6 @@
 
 #include "DMXProtocolEditorModule.h"
 
-#include "DMXProtocolModule.h"
 #include "DMXProtocolSettings.h"
 #include "IO/DMXInputPortReference.h"
 #include "IO/DMXOutputPortReference.h"
@@ -12,23 +11,21 @@
 #include "DetailsCustomizations/DMXOutputPortReferenceCustomization.h"
 
 #include "PropertyEditorModule.h"
+#include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_MODULE( FDMXProtocolEditorModule, DMXProtocolEditor );
 
 
 #define LOCTEXT_NAMESPACE "DMXProtocolEditorModule"
 
 void FDMXProtocolEditorModule::StartupModule()
 {
-	FDMXProtocolModule& ProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	ProtocolModule.OnProtocolsRegistered.AddRaw(this, &FDMXProtocolEditorModule::OnProtocolsRegistered);
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FDMXProtocolEditorModule::RegisterDetailsCustomizations);
 }
 
 void FDMXProtocolEditorModule::ShutdownModule()
 {
-	FDMXProtocolModule& ProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	ProtocolModule.OnProtocolsRegistered.RemoveAll(this);
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 
 	UnregisterDetailsCustomizations();
 }
@@ -36,11 +33,6 @@ void FDMXProtocolEditorModule::ShutdownModule()
 FDMXProtocolEditorModule& FDMXProtocolEditorModule::Get()
 {
 	return FModuleManager::GetModuleChecked<FDMXProtocolEditorModule>("DMXProtocolEditor");
-}
-
-void FDMXProtocolEditorModule::OnProtocolsRegistered()
-{
-	RegisterDetailsCustomizations();
 }
 
 void FDMXProtocolEditorModule::RegisterDetailsCustomizations()
@@ -66,5 +58,7 @@ void FDMXProtocolEditorModule::UnregisterDetailsCustomizations()
 	PropertyModule.UnregisterCustomPropertyTypeLayout(FDMXInputPortReference::StaticStruct()->GetFName());
 	PropertyModule.UnregisterCustomPropertyTypeLayout(FDMXOutputPortReference::StaticStruct()->GetFName());
 }
+
+IMPLEMENT_MODULE(FDMXProtocolEditorModule, DMXProtocolEditor);
 
 #undef LOCTEXT_NAMESPACE

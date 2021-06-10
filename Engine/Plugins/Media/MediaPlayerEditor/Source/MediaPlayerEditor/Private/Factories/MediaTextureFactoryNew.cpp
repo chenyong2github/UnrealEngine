@@ -2,6 +2,7 @@
 
 #include "Factories/MediaTextureFactoryNew.h"
 #include "AssetTypeCategories.h"
+#include "EngineAnalytics.h"
 #include "MediaTexture.h"
 
 
@@ -20,8 +21,20 @@ UMediaTextureFactoryNew::UMediaTextureFactoryNew(const FObjectInitializer& Objec
 /* UFactory overrides
  *****************************************************************************/
 
+
+/**
+ * @EventName MediaFramework.CreateNewMediaTexture
+ * @Trigger Triggered when a media texture asset is created.
+ * @Type Client
+ * @Owner MediaIO Team
+ */
 UObject* UMediaTextureFactoryNew::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.CreateNewMediaTexture"));
+	}
+	
 	auto MediaTexture = NewObject<UMediaTexture>(InParent, InClass, InName, Flags);
 
 	if (MediaTexture != nullptr)

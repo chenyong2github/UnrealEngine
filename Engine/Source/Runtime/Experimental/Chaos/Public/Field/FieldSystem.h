@@ -496,6 +496,7 @@ public:
 		, TimeCreation(0.0)
 		, BoundingBox(FVector(-FLT_MAX), FVector(FLT_MAX))
 		, PhysicsType(EFieldPhysicsType::Field_None)
+		, MaxMagnitude(1.0)
 	{}
 	FFieldSystemCommand(const FName& TargetAttributeIn, FFieldNodeBase * RootNodeIn)
 		: TargetAttribute(TargetAttributeIn)
@@ -504,6 +505,7 @@ public:
 		, TimeCreation(0.0)
 		, BoundingBox(FVector(-FLT_MAX), FVector(FLT_MAX))
 		, PhysicsType(GetFieldPhysicsType(TargetAttributeIn))
+		, MaxMagnitude(1.0)
 	{}
 	FFieldSystemCommand(const EFieldPhysicsType PhsyicsTypeIn, FFieldNodeBase* RootNodeIn)
 		: TargetAttribute(GetFieldPhysicsName(PhsyicsTypeIn))
@@ -512,6 +514,7 @@ public:
 		, TimeCreation(0.0)
 		, BoundingBox(FVector(-FLT_MAX), FVector(FLT_MAX))
 		, PhysicsType(PhsyicsTypeIn)
+		, MaxMagnitude(1.0)
 	{}
 
 	// Commands are copied when moved from the one thread to 
@@ -523,6 +526,7 @@ public:
 		, TimeCreation(Other.TimeCreation)
 		, BoundingBox(Other.BoundingBox)
 		, PhysicsType(Other.RootNode ? Other.PhysicsType : EFieldPhysicsType::Field_None)
+		, MaxMagnitude(Other.MaxMagnitude)
 	{
 		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : Other.MetaData)
 		{
@@ -575,6 +579,7 @@ public:
 
 	FBox BoundingBox;
 	EFieldPhysicsType PhysicsType;
+	float MaxMagnitude;
 
 	TMap<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData> > MetaData;
 };

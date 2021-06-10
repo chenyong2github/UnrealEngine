@@ -40,10 +40,10 @@
 
 #define LOCTEXT_NAMESPACE "SNiagaraDebugger"
 
+const FName SNiagaraDebugger::DebugWindowName(TEXT("NiagaraDebugger"));
+
 namespace NiagaraDebuggerLocal
 {
-	static const FName NiagaraDebuggerTabName(TEXT("NiagaraDebugger"));
-
 	DECLARE_DELEGATE_TwoParams(FOnExecConsoleCommand, const TCHAR*, bool);
 
 	template<typename T>
@@ -643,6 +643,7 @@ namespace NiagaraSessionBrowserTab
 }
 #endif
 
+
 SNiagaraDebugger::SNiagaraDebugger()
 {
 }
@@ -752,7 +753,7 @@ void SNiagaraDebugger::FillWindowMenu(FMenuBuilder& MenuBuilder)
 void SNiagaraDebugger::RegisterTabSpawner()
 {
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-		NiagaraDebuggerLocal::NiagaraDebuggerTabName,
+		SNiagaraDebugger::DebugWindowName,
 		FOnSpawnTab::CreateStatic(&SNiagaraDebugger::SpawnNiagaraDebugger)
 	)
 	.SetDisplayName(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTab", "Niagara Debugger"))
@@ -765,7 +766,7 @@ void SNiagaraDebugger::UnregisterTabSpawner()
 {
 	if (FSlateApplication::IsInitialized())
 	{
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(NiagaraDebuggerLocal::NiagaraDebuggerTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(SNiagaraDebugger::DebugWindowName);
 	}
 }
 
@@ -811,6 +812,16 @@ TSharedRef<SDockTab> SNiagaraDebugger::SpawnNiagaraDebugger(const FSpawnTabArgs&
 
 	NomadTab->SetContent(MainWidget);
 	return NomadTab;
+}
+
+void SNiagaraDebugger::FocusDebugTab()
+{
+	TabManager->TryInvokeTab(NiagaraDebugHudTab::TabName);
+}
+
+void SNiagaraDebugger::FocusOutlineTab()
+{
+	TabManager->TryInvokeTab(NiagaraOutlinerTab::TabName);
 }
 
 TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()

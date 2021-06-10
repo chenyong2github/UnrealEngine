@@ -6,7 +6,7 @@
 #include "Chaos/SpatialAccelerationCollection.h"
 #include "PBDRigidsSolver.h"
 
-void FCharacterMovementAsyncInput::Simulate(const float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::Simulate(const float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 //	SCOPE_CYCLE_COUNTER(STAT_CharacterMovement);
 
@@ -74,7 +74,7 @@ void FCharacterMovementAsyncInput::Simulate(const float DeltaSeconds, FCharacter
 	}*/
 }
 
-void FCharacterMovementAsyncInput::ControlledCharacterMove(const float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::ControlledCharacterMove(const float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	{
 	//	SCOPE_CYCLE_COUNTER(STAT_CharUpdateAcceleration);
@@ -99,7 +99,7 @@ void FCharacterMovementAsyncInput::ControlledCharacterMove(const float DeltaSeco
 	}*/
 }
 
-void FCharacterMovementAsyncInput::PerformMovement(float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	EMovementMode& MovementMode = Output.MovementMode;
 	FVector& LastUpdateLocation = Output.LastUpdateLocation;
@@ -491,7 +491,7 @@ void FCharacterMovementAsyncInput::PerformMovement(float DeltaSeconds, FCharacte
 	Output.LastUpdateVelocity = Velocity;
 }
 
-void FCharacterMovementAsyncInput::MaybeUpdateBasedMovement(float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::MaybeUpdateBasedMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	bool& bDeferUpdateBasedMovement = Output.bDeferUpdateBasedMovement;
 
@@ -546,7 +546,7 @@ void FCharacterMovementAsyncInput::MaybeUpdateBasedMovement(float DeltaSeconds, 
 	}
 }
 
-void FCharacterMovementAsyncInput::UpdateBasedMovement(float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::UpdateBasedMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 /*	if (!HasValidData())
 	{
@@ -625,7 +625,7 @@ void FCharacterMovementAsyncInput::UpdateBasedMovement(float DeltaSeconds, FChar
 				// Do we need this value after all?
 
 				CharacterInput->FaceRotation(TargetRotator, 0.0f, *this, Output);
-				FinalQuat =  Output.Pawn->Rotation.Quaternion();//UpdatedComponent->GetComponentQuat(); supposed to be modified by MockFaceRotation, si this ok?
+				FinalQuat =  Output.CharacterOutput->Rotation.Quaternion();//UpdatedComponent->GetComponentQuat(); supposed to be modified by MockFaceRotation, si this ok?
 
 
 				if (PawnOldQuat.Equals(FinalQuat, 1e-6f))
@@ -706,7 +706,7 @@ void FCharacterMovementAsyncInput::UpdateBasedMovement(float DeltaSeconds, FChar
 	}
 }
 
-void FCharacterMovementAsyncInput::StartNewPhysics(float deltaTime, int32 Iterations, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::StartNewPhysics(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if ((deltaTime < UCharacterMovementComponent::MIN_TICK_TIME) || (Iterations >= MaxSimulationIterations) || !bHasValidData)
 	{
@@ -762,12 +762,12 @@ void FCharacterMovementAsyncInput::StartNewPhysics(float deltaTime, int32 Iterat
 	}
 }
 
-void FCharacterMovementAsyncInput::PhysWalking(float deltaTime, int32 Iterations, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::PhysWalking(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	//SCOPE_CYCLE_COUNTER(STAT_CharPhysWalking);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CharPhysWalking);
 
-	const FCharacterMovementAsyncInput& Input = *this; // TODO Refactor
+	const FCharacterMovementComponentAsyncInput& Input = *this; // TODO Refactor
 
 	if (deltaTime < UCharacterMovementComponent::MIN_TICK_TIME)
 	{
@@ -1005,7 +1005,7 @@ void FCharacterMovementAsyncInput::PhysWalking(float deltaTime, int32 Iterations
 	}
 }
 
-void FCharacterMovementAsyncInput::PhysFalling(float deltaTime, int32 Iterations, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::PhysFalling(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const
 {
 //	SCOPE_CYCLE_COUNTER(STAT_CharPhysFalling);
 //	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CharPhysFalling);
@@ -1058,15 +1058,15 @@ void FCharacterMovementAsyncInput::PhysFalling(float deltaTime, int32 Iterations
 
 		// If jump is providing force, gravity may be affected.
 		bool bEndingJumpForce = false;
-		if (Output.Pawn->JumpForceTimeRemaining > 0.0f)
+		if (Output.CharacterOutput->JumpForceTimeRemaining > 0.0f)
 		{
 			// Consume some of the force time. Only the remaining time (if any) is affected by gravity when bApplyGravityWhileJumping=false.
-			const float JumpForceTime = FMath::Min(Output.Pawn->JumpForceTimeRemaining, timeTick);
+			const float JumpForceTime = FMath::Min(Output.CharacterOutput->JumpForceTimeRemaining, timeTick);
 			GravityTime = bApplyGravityWhileJumping ? timeTick : FMath::Max(0.0f, timeTick - JumpForceTime);
 
 			// Update Character state
-			Output.Pawn->JumpForceTimeRemaining -= JumpForceTime;
-			if (Output.Pawn->JumpForceTimeRemaining <= 0.0f)
+			Output.CharacterOutput->JumpForceTimeRemaining -= JumpForceTime;
+			if (Output.CharacterOutput->JumpForceTimeRemaining <= 0.0f)
 			{
 				CharacterInput->ResetJumpState(*this, Output);
 				bEndingJumpForce = true;
@@ -1318,7 +1318,7 @@ void FCharacterMovementAsyncInput::PhysFalling(float deltaTime, int32 Iterations
 	}
 }
 
-void FCharacterMovementAsyncInput::PhysicsRotation(float DeltaTime, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::PhysicsRotation(float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!(bOrientRotationToMovement || bUseControllerDesiredRotation))
 	{
@@ -1333,7 +1333,7 @@ void FCharacterMovementAsyncInput::PhysicsRotation(float DeltaTime, FCharacterMo
 	FRotator CurrentRotation = FRotator(UpdatedComponentInput->GetRotation()); // Normalized
 	CurrentRotation.DiagnosticCheckNaN(TEXT("CharacterMovementComponent::PhysicsRotation(): CurrentRotation"));
 
-	FRotator DeltaRot = GetDeltaRotation(DeltaTime);
+	FRotator DeltaRot = Output.GetDeltaRotation(Output.RotationRate, DeltaTime);
 	DeltaRot.DiagnosticCheckNaN(TEXT("CharacterMovementComponent::PhysicsRotation(): GetDeltaRotation"));
 
 	FRotator DesiredRotation = CurrentRotation;
@@ -1390,7 +1390,7 @@ void FCharacterMovementAsyncInput::PhysicsRotation(float DeltaTime, FCharacterMo
 	}
 }
 
-void FCharacterMovementAsyncInput::MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!Output.CurrentFloor.IsWalkableFloor())
 	{
@@ -1471,7 +1471,7 @@ void FCharacterMovementAsyncInput::MoveAlongFloor(const FVector& InVelocity, flo
 	}
 }
 
-FVector FCharacterMovementAsyncInput::ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	const FVector FloorNormal = RampHit.ImpactNormal;
 	const FVector ContactNormal = RampHit.Normal;
@@ -1496,7 +1496,7 @@ FVector FCharacterMovementAsyncInput::ComputeGroundMovementDelta(const FVector& 
 }
 
 
-bool FCharacterMovementAsyncInput::CanCrouchInCurrentState(FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::CanCrouchInCurrentState(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!bCanEverCrouch)
 	{
@@ -1507,7 +1507,7 @@ bool FCharacterMovementAsyncInput::CanCrouchInCurrentState(FCharacterMovementAsy
 }
 
 
-FVector FCharacterMovementAsyncInput::ConstrainInputAcceleration(FVector InputAcceleration, const FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::ConstrainInputAcceleration(FVector InputAcceleration, const FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// walking or falling pawns ignore up/down sliding
 	if (InputAcceleration.Z != 0.f && (IsMovingOnGround(Output) || IsFalling(Output)))
@@ -1518,12 +1518,12 @@ FVector FCharacterMovementAsyncInput::ConstrainInputAcceleration(FVector InputAc
 	return InputAcceleration;
 }
 
-FVector FCharacterMovementAsyncInput::ScaleInputAcceleration(FVector InputAcceleration) const
+FVector FCharacterMovementComponentAsyncInput::ScaleInputAcceleration(FVector InputAcceleration) const
 {
 	return MaxAcceleration * InputAcceleration.GetClampedToMaxSize(1.0f);
 }
 
-float FCharacterMovementAsyncInput::ComputeAnalogInputModifier(FVector Acceleration) const
+float FCharacterMovementComponentAsyncInput::ComputeAnalogInputModifier(FVector Acceleration) const
 {
 	const float MaxAccel = MaxAcceleration;
 	if (Acceleration.SizeSquared() > 0.f && MaxAccel > SMALL_NUMBER)
@@ -1534,7 +1534,7 @@ float FCharacterMovementAsyncInput::ComputeAnalogInputModifier(FVector Accelerat
 	return 0.f;
 }
 
-FVector FCharacterMovementAsyncInput::ConstrainDirectionToPlane(FVector Direction) const
+FVector FCharacterMovementComponentAsyncInput::ConstrainDirectionToPlane(FVector Direction) const
 {
 	if (bConstrainToPlane)
 	{
@@ -1544,7 +1544,7 @@ FVector FCharacterMovementAsyncInput::ConstrainDirectionToPlane(FVector Directio
 	return Direction;
 }
 
-FVector FCharacterMovementAsyncInput::ConstrainNormalToPlane(FVector Normal) const
+FVector FCharacterMovementComponentAsyncInput::ConstrainNormalToPlane(FVector Normal) const
 {
 	if (bConstrainToPlane)
 	{
@@ -1554,7 +1554,7 @@ FVector FCharacterMovementAsyncInput::ConstrainNormalToPlane(FVector Normal) con
 	return Normal;
 }
 
-FVector FCharacterMovementAsyncInput::ConstrainLocationToPlane(FVector Location) const
+FVector FCharacterMovementComponentAsyncInput::ConstrainLocationToPlane(FVector Location) const
 {
 	if (bConstrainToPlane)
 	{
@@ -1565,7 +1565,7 @@ FVector FCharacterMovementAsyncInput::ConstrainLocationToPlane(FVector Location)
 }
 
 
-void FCharacterMovementAsyncInput::MaintainHorizontalGroundVelocity(FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::MaintainHorizontalGroundVelocity(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (Output.Velocity.Z != 0.f)
 	{
@@ -1582,13 +1582,13 @@ void FCharacterMovementAsyncInput::MaintainHorizontalGroundVelocity(FCharacterMo
 	}
 }
 
-bool FCharacterMovementAsyncInput::MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FCharacterMovementAsyncOutput& Output, FHitResult* OutHitResult, ETeleportType TeleportType) const
+bool FCharacterMovementComponentAsyncInput::MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FCharacterMovementComponentAsyncOutput& Output, FHitResult* OutHitResult, ETeleportType TeleportType) const
 {
 	const FVector NewDelta = ConstrainDirectionToPlane(Delta);
 	return UpdatedComponentInput->MoveComponent(Delta, NewRotation, bSweep, OutHitResult, Output.MoveComponentFlags, TeleportType, *this, Output);
 }
 
-bool FCharacterMovementAsyncInput::SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, FCharacterMovementAsyncOutput& Output, ETeleportType Teleport) const
+bool FCharacterMovementComponentAsyncInput::SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, FCharacterMovementComponentAsyncOutput& Output, ETeleportType Teleport) const
 {
 	// Ensuring that we have this when filling inputs
 	/*if (UpdatedComponent == NULL)
@@ -1623,7 +1623,7 @@ bool FCharacterMovementAsyncInput::SafeMoveUpdatedComponent(const FVector& Delta
 	return bMoveResult;
 }
 
-void FCharacterMovementAsyncInput::ApplyAccumulatedForces(float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::ApplyAccumulatedForces(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (Output.PendingImpulseToApply.Z != 0.f || Output.PendingForceToApply.Z != 0.f)
 	{
@@ -1641,14 +1641,14 @@ void FCharacterMovementAsyncInput::ApplyAccumulatedForces(float DeltaSeconds, FC
 	Output.PendingForceToApply = FVector::ZeroVector;
 }
 
-void FCharacterMovementAsyncInput::ClearAccumulatedForces(FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::ClearAccumulatedForces(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	Output.PendingImpulseToApply = FVector::ZeroVector;
 	Output.PendingForceToApply = FVector::ZeroVector;
 	Output.PendingLaunchVelocity = FVector::ZeroVector;
 }
 
-void FCharacterMovementAsyncInput::SetMovementMode(EMovementMode NewMovementMode, FCharacterMovementAsyncOutput& Output, uint8 NewCustomMode) const
+void FCharacterMovementComponentAsyncInput::SetMovementMode(EMovementMode NewMovementMode, FCharacterMovementComponentAsyncOutput& Output, uint8 NewCustomMode) const
 {
 	if (NewMovementMode != MOVE_Custom)
 	{
@@ -1693,7 +1693,7 @@ void FCharacterMovementAsyncInput::SetMovementMode(EMovementMode NewMovementMode
 	// @todo UE4 do we need to disable ragdoll physics here? Should this function do nothing if in ragdoll?
 }
 
-void FCharacterMovementAsyncInput::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!bHasValidData)
 	{
@@ -1786,7 +1786,7 @@ void FCharacterMovementAsyncInput::OnMovementModeChanged(EMovementMode PreviousM
 	//ensureMsgf(GroundMovementMode == MOVE_Walking || GroundMovementMode == MOVE_NavWalking, TEXT("Invalid GroundMovementMode %d. MovementMode: %d, PreviousMovementMode: %d"), GroundMovementMode.GetValue(), MovementMode.GetValue(), PreviousMovementMode);
 }
 
-void FCharacterMovementAsyncInput::FindFloor(const FVector& CapsuleLocation, FFindFloorResult& OutFloorResult, bool bCanUseCachedLocation, FCharacterMovementAsyncOutput& Output, const FHitResult* DownwardSweepResult) const
+void FCharacterMovementComponentAsyncInput::FindFloor(const FVector& CapsuleLocation, FFindFloorResult& OutFloorResult, bool bCanUseCachedLocation, FCharacterMovementComponentAsyncOutput& Output, const FHitResult* DownwardSweepResult) const
 {
 	//SCOPE_CYCLE_COUNTER(STAT_CharFindFloor);
 
@@ -1897,7 +1897,7 @@ void FCharacterMovementAsyncInput::FindFloor(const FVector& CapsuleLocation, FFi
 	}
 }
 
-void FCharacterMovementAsyncInput::ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, FCharacterMovementAsyncOutput& Output, const FHitResult* DownwardSweepResult) const
+void FCharacterMovementComponentAsyncInput::ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, FCharacterMovementComponentAsyncOutput& Output, const FHitResult* DownwardSweepResult) const
 {
 	//UE_LOG(LogCharacterMovement, VeryVerbose, TEXT("[Role:%d] ComputeFloorDist: %s at location %s"), (int32)CharacterOwner->GetLocalRole(), *GetNameSafe(CharacterOwner), *CapsuleLocation.ToString());
 	OutFloorResult.Clear();
@@ -2039,7 +2039,7 @@ void FCharacterMovementAsyncInput::ComputeFloorDist(const FVector& CapsuleLocati
 	OutFloorResult.bWalkableFloor = false;
 }
 
-bool FCharacterMovementAsyncInput::FloorSweepTest(FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParam, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::FloorSweepTest(FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParam, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	bool bBlockingHit = false;
 
@@ -2068,14 +2068,14 @@ bool FCharacterMovementAsyncInput::FloorSweepTest(FHitResult& OutHit, const FVec
 	return bBlockingHit;
 }
 
-bool FCharacterMovementAsyncInput::IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const
+bool FCharacterMovementComponentAsyncInput::IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const
 {
 	const float DistFromCenterSq = (TestImpactPoint - CapsuleLocation).SizeSquared2D();
 	const float ReducedRadiusSq = FMath::Square(FMath::Max(UCharacterMovementComponent::SWEEP_EDGE_REJECT_DISTANCE + KINDA_SMALL_NUMBER, CapsuleRadius - UCharacterMovementComponent::SWEEP_EDGE_REJECT_DISTANCE));
 	return DistFromCenterSq < ReducedRadiusSq;
 }
 
-bool FCharacterMovementAsyncInput::IsWalkable(const FHitResult& Hit) const
+bool FCharacterMovementComponentAsyncInput::IsWalkable(const FHitResult& Hit) const
 {
 	if (!Hit.IsValidBlockingHit())
 	{
@@ -2111,7 +2111,7 @@ bool FCharacterMovementAsyncInput::IsWalkable(const FHitResult& Hit) const
 	return true;
 }
 
-void FCharacterMovementAsyncInput::UpdateCharacterStateBeforeMovement(float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::UpdateCharacterStateBeforeMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Proxies get replicated crouch state.
 	if (CharacterInput->LocalRole != ROLE_SimulatedProxy)
@@ -2131,7 +2131,7 @@ void FCharacterMovementAsyncInput::UpdateCharacterStateBeforeMovement(float Delt
 	}
 }
 
-void FCharacterMovementAsyncInput::UpdateCharacterStateAfterMovement(float DeltaSeconds, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::UpdateCharacterStateAfterMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Proxies get replicated crouch state.
 	if (CharacterInput->LocalRole != ROLE_SimulatedProxy)
@@ -2145,7 +2145,7 @@ void FCharacterMovementAsyncInput::UpdateCharacterStateAfterMovement(float Delta
 	}
 }
 
-float FCharacterMovementAsyncInput::GetSimulationTimeStep(float RemainingTime, int32 Iterations) const
+float FCharacterMovementComponentAsyncInput::GetSimulationTimeStep(float RemainingTime, int32 Iterations) const
 {
 	static uint32 s_WarningCount = 0;
 	if (RemainingTime > MaxSimulationTimeStep)
@@ -2172,7 +2172,7 @@ float FCharacterMovementAsyncInput::GetSimulationTimeStep(float RemainingTime, i
 	return FMath::Max(UCharacterMovementComponent::MIN_TICK_TIME, RemainingTime);
 }
 
-void FCharacterMovementAsyncInput::CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Do not update velocity when using root motion or when SimulatedProxy and not simulating root motion - SimulatedProxy are repped their Velocity
 	if (!bHasValidData || Output.RootMotionParams.bHasRootMotion || DeltaTime < UCharacterMovementComponent::MIN_TICK_TIME
@@ -2276,7 +2276,7 @@ void FCharacterMovementAsyncInput::CalcVelocity(float DeltaTime, float Friction,
 	}*/
 }
 
-bool FCharacterMovementAsyncInput::ApplyRequestedMove(float DeltaTime, float MaxAccel, float MaxSpeed, float Friction, float BrakingDeceleration, FVector& OutAcceleration, float& OutRequestedSpeed, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::ApplyRequestedMove(float DeltaTime, float MaxAccel, float MaxSpeed, float Friction, float BrakingDeceleration, FVector& OutAcceleration, float& OutRequestedSpeed, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (Output.bHasRequestedVelocity)
 	{
@@ -2323,13 +2323,13 @@ bool FCharacterMovementAsyncInput::ApplyRequestedMove(float DeltaTime, float Max
 	return false;
 }
 
-bool FCharacterMovementAsyncInput::ShouldComputeAccelerationToReachRequestedVelocity(const float RequestedSpeed, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::ShouldComputeAccelerationToReachRequestedVelocity(const float RequestedSpeed, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Compute acceleration if accelerating toward requested speed, 1% buffer.
 	return bRequestedMoveUseAcceleration && Output.Velocity.SizeSquared() < FMath::Square(RequestedSpeed * 1.01f);
 }
 
-float FCharacterMovementAsyncInput::GetMinAnalogSpeed(FCharacterMovementAsyncOutput& Output) const
+float FCharacterMovementComponentAsyncInput::GetMinAnalogSpeed(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	switch (Output.MovementMode)
 	{
@@ -2342,7 +2342,7 @@ float FCharacterMovementAsyncInput::GetMinAnalogSpeed(FCharacterMovementAsyncOut
 	}
 }
 
-float FCharacterMovementAsyncInput::GetMaxBrakingDeceleration(FCharacterMovementAsyncOutput& Output) const
+float FCharacterMovementComponentAsyncInput::GetMaxBrakingDeceleration(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	switch (Output.MovementMode)
 	{
@@ -2363,7 +2363,7 @@ float FCharacterMovementAsyncInput::GetMaxBrakingDeceleration(FCharacterMovement
 	}
 }
 
-void FCharacterMovementAsyncInput::ApplyVelocityBraking(float DeltaTime, float Friction, float BrakingDeceleration, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::ApplyVelocityBraking(float DeltaTime, float Friction, float BrakingDeceleration, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	FVector& Velocity = Output.Velocity;
 
@@ -2417,7 +2417,7 @@ void FCharacterMovementAsyncInput::ApplyVelocityBraking(float DeltaTime, float F
 	}
 }
 
-FVector FCharacterMovementAsyncInput::GetPenetrationAdjustment(FHitResult& HitResult) const
+FVector FCharacterMovementComponentAsyncInput::GetPenetrationAdjustment(FHitResult& HitResult) const
 {
 	FVector Result = MoveComponent_GetPenetrationAdjustment(HitResult);//Super::GetPenetrationAdjustment(Hit);
 
@@ -2437,7 +2437,7 @@ FVector FCharacterMovementAsyncInput::GetPenetrationAdjustment(FHitResult& HitRe
 	return Result;
 }
 
-bool FCharacterMovementAsyncInput::ResolvePenetration(const FVector& ProposedAdjustment, const FHitResult& Hit, const FQuat& NewRotation, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::ResolvePenetration(const FVector& ProposedAdjustment, const FHitResult& Hit, const FQuat& NewRotation, FCharacterMovementComponentAsyncOutput& Output) const
 {
 
 	// SceneComponent can't be in penetration, so this function really only applies to PrimitiveComponent.
@@ -2539,7 +2539,7 @@ bool FCharacterMovementAsyncInput::ResolvePenetration(const FVector& ProposedAdj
 	return false;
 }
 
-FVector FCharacterMovementAsyncInput::MoveComponent_GetPenetrationAdjustment(FHitResult& Hit) const
+FVector FCharacterMovementComponentAsyncInput::MoveComponent_GetPenetrationAdjustment(FHitResult& Hit) const
 {
 	if (!Hit.bStartPenetrating)
 	{
@@ -2555,7 +2555,7 @@ FVector FCharacterMovementAsyncInput::MoveComponent_GetPenetrationAdjustment(FHi
 	return ConstrainDirectionToPlane(Result);
 }
 
-float FCharacterMovementAsyncInput::MoveComponent_SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, FCharacterMovementAsyncOutput& Output, bool bHandleImpact) const
+float FCharacterMovementComponentAsyncInput::MoveComponent_SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output, bool bHandleImpact) const
 {
 	if (!Hit.bBlockingHit)
 	{
@@ -2607,7 +2607,7 @@ float FCharacterMovementAsyncInput::MoveComponent_SlideAlongSurface(const FVecto
 	return 0.f;
 }
 
-FVector FCharacterMovementAsyncInput::MoveComponent_ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::MoveComponent_ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!bConstrainToPlane)
 	{
@@ -2620,7 +2620,7 @@ FVector FCharacterMovementAsyncInput::MoveComponent_ComputeSlideVector(const FVe
 	}
 }
 
-bool FUpdatedComponentAsyncInput::MoveComponent(const FVector& Delta, const FQuat& NewRotationQuat, bool bSweep, FHitResult* OutHit,  EMoveComponentFlags MoveFlags, ETeleportType Teleport,  const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const 
+bool FUpdatedComponentAsyncInput::MoveComponent(const FVector& Delta, const FQuat& NewRotationQuat, bool bSweep, FHitResult* OutHit,  EMoveComponentFlags MoveFlags, ETeleportType Teleport,  const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const 
 {
 	// what does primitive component do?
 	const FVector TraceStart = GetPosition();
@@ -2775,7 +2775,7 @@ bool FUpdatedComponentAsyncInput::MoveComponent(const FVector& Delta, const FQua
 								}
 
 								// cache touches
-								Output.UpdatedComponent.AddUniqueSpeculativeOverlap(FOverlapInfo(TestHit));
+								Output.UpdatedComponentOutput.AddUniqueSpeculativeOverlap(FOverlapInfo(TestHit));
 							}
 						}
 					}
@@ -3147,7 +3147,7 @@ FQuat FUpdatedComponentAsyncInput::GetRotation() const
 }
 
 
-void FCharacterMovementAsyncInput::HandleImpact(const FHitResult& Impact, FCharacterMovementAsyncOutput& Output, float TimeSlice, const FVector& MoveDelta) const
+void FCharacterMovementComponentAsyncInput::HandleImpact(const FHitResult& Impact, FCharacterMovementComponentAsyncOutput& Output, float TimeSlice, const FVector& MoveDelta) const
 {
 	//SCOPE_CYCLE_COUNTER(STAT_CharHandleImpact);
 
@@ -3178,7 +3178,7 @@ void FCharacterMovementAsyncInput::HandleImpact(const FHitResult& Impact, FChara
 	}*/
 }
 
-float FCharacterMovementAsyncInput::SlideAlongSurface(const FVector& Delta, float Time, const FVector& InNormal, FHitResult& Hit, bool bHandleImpact, FCharacterMovementAsyncOutput& Output) const 
+float FCharacterMovementComponentAsyncInput::SlideAlongSurface(const FVector& Delta, float Time, const FVector& InNormal, FHitResult& Hit, bool bHandleImpact, FCharacterMovementComponentAsyncOutput& Output) const 
 {
 	if (!Hit.bBlockingHit)
 	{
@@ -3216,7 +3216,7 @@ float FCharacterMovementAsyncInput::SlideAlongSurface(const FVector& Delta, floa
 	return MoveComponent_SlideAlongSurface(Delta, Time, Normal, Hit, Output, bHandleImpact);
 }
 
-FVector FCharacterMovementAsyncInput::ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	FVector Result = MoveComponent_ComputeSlideVector(Delta, Time, Normal, Hit, Output);
 
@@ -3229,7 +3229,7 @@ FVector FCharacterMovementAsyncInput::ComputeSlideVector(const FVector& Delta, c
 	return Result;
 }
 
-FVector FCharacterMovementAsyncInput::HandleSlopeBoosting(const FVector& SlideResult, const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::HandleSlopeBoosting(const FVector& SlideResult, const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	FVector Result = SlideResult;
 
@@ -3262,7 +3262,7 @@ FVector FCharacterMovementAsyncInput::HandleSlopeBoosting(const FVector& SlideRe
 	return Result;
 }
 
-void FCharacterMovementAsyncInput::OnCharacterStuckInGeometry(const FHitResult* Hit, FCharacterMovementAsyncOutput& Output) const 
+void FCharacterMovementComponentAsyncInput::OnCharacterStuckInGeometry(const FHitResult* Hit, FCharacterMovementComponentAsyncOutput& Output) const 
 {
 	/*if (CharacterMovementCVars::StuckWarningPeriod >= 0)
 	{
@@ -3302,7 +3302,7 @@ void FCharacterMovementAsyncInput::OnCharacterStuckInGeometry(const FHitResult* 
 	Output.bJustTeleported = true;
 }
 
-bool FCharacterMovementAsyncInput::CanStepUp(const FHitResult& Hit, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::CanStepUp(const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!Hit.IsValidBlockingHit() || !bHasValidData || Output.MovementMode == MOVE_Falling)
 	{
@@ -3337,7 +3337,7 @@ bool FCharacterMovementAsyncInput::CanStepUp(const FHitResult& Hit, FCharacterMo
 	return true;
 }
 
-bool FCharacterMovementAsyncInput::StepUp(const FVector& GravDir, const FVector& Delta, const FHitResult& InHit, FCharacterMovementAsyncOutput& Output, FStepDownResult* OutStepDownResult) const
+bool FCharacterMovementComponentAsyncInput::StepUp(const FVector& GravDir, const FVector& Delta, const FHitResult& InHit, FCharacterMovementComponentAsyncOutput& Output, FStepDownResult* OutStepDownResult) const
 {
 //	SCOPE_CYCLE_COUNTER(STAT_CharStepUp);
 
@@ -3569,7 +3569,7 @@ bool FCharacterMovementAsyncInput::StepUp(const FVector& GravDir, const FVector&
 	return true;
 }
 
-bool FCharacterMovementAsyncInput::CanWalkOffLedges(FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::CanWalkOffLedges(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!bCanWalkOffLedgesWhenCrouching && Output.bIsCrouched)
 	{
@@ -3579,7 +3579,7 @@ bool FCharacterMovementAsyncInput::CanWalkOffLedges(FCharacterMovementAsyncOutpu
 	return bCanWalkOffLedges;
 }
 
-FVector FCharacterMovementAsyncInput::GetLedgeMove(const FVector& OldLocation, const FVector& Delta, const FVector& GravDir, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::GetLedgeMove(const FVector& OldLocation, const FVector& Delta, const FVector& GravDir, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!bHasValidData || Delta.IsZero())
 	{
@@ -3604,7 +3604,7 @@ FVector FCharacterMovementAsyncInput::GetLedgeMove(const FVector& OldLocation, c
 	return FVector::ZeroVector;
 }
 
-bool FCharacterMovementAsyncInput::CheckLedgeDirection(const FVector& OldLocation, const FVector& SideStep, const FVector& GravDir, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::CheckLedgeDirection(const FVector& OldLocation, const FVector& SideStep, const FVector& GravDir, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	const FVector SideDest = OldLocation + SideStep;
 //	FCollisionQueryParams CapsuleParams(SCENE_QUERY_STAT(CheckLedgeDirection), false, CharacterOwner);
@@ -3628,7 +3628,7 @@ bool FCharacterMovementAsyncInput::CheckLedgeDirection(const FVector& OldLocatio
 	return false;
 }
 
-FVector FCharacterMovementAsyncInput::GetPawnCapsuleExtent(const EShrinkCapsuleExtent ShrinkMode, const float CustomShrinkAmount, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::GetPawnCapsuleExtent(const EShrinkCapsuleExtent ShrinkMode, const float CustomShrinkAmount, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	//check(CharacterOwner);
 
@@ -3673,13 +3673,13 @@ FVector FCharacterMovementAsyncInput::GetPawnCapsuleExtent(const EShrinkCapsuleE
 	return CapsuleExtent;
 }
 
-FCollisionShape FCharacterMovementAsyncInput::GetPawnCapsuleCollisionShape(const EShrinkCapsuleExtent ShrinkMode, FCharacterMovementAsyncOutput& Output, const float CustomShrinkAmount) const
+FCollisionShape FCharacterMovementComponentAsyncInput::GetPawnCapsuleCollisionShape(const EShrinkCapsuleExtent ShrinkMode, FCharacterMovementComponentAsyncOutput& Output, const float CustomShrinkAmount) const
 {
 	FVector Extent = GetPawnCapsuleExtent(ShrinkMode, CustomShrinkAmount, Output);
 	return FCollisionShape::MakeCapsule(Extent);
 }
 
-void FCharacterMovementAsyncInput::TwoWallAdjust(FVector& OutDelta, const FHitResult& Hit, const FVector& OldHitNormal, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::TwoWallAdjust(FVector& OutDelta, const FHitResult& Hit, const FVector& OldHitNormal, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	FVector Delta = OutDelta;
 	const FVector HitNormal = Hit.Normal;
@@ -3714,7 +3714,7 @@ void FCharacterMovementAsyncInput::TwoWallAdjust(FVector& OutDelta, const FHitRe
 	OutDelta = Delta;
 }
 
-void FCharacterMovementAsyncInput::RevertMove(const FVector& OldLocation, UPrimitiveComponent* OldBase, const FVector& PreviousBaseLocation, const FFindFloorResult& OldFloor, bool bFailMove, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::RevertMove(const FVector& OldLocation, UPrimitiveComponent* OldBase, const FVector& PreviousBaseLocation, const FFindFloorResult& OldFloor, bool bFailMove, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	//UE_LOG(LogCharacterMovement, Log, TEXT("RevertMove from %f %f %f to %f %f %f"), CharacterOwner->Location.X, CharacterOwner->Location.Y, CharacterOwner->Location.Z, OldLocation.X, OldLocation.Y, OldLocation.Z);
 
@@ -3761,23 +3761,23 @@ void FCharacterMovementAsyncInput::RevertMove(const FVector& OldLocation, UPrimi
 	}*/
 }
 
-ETeleportType FCharacterMovementAsyncInput::GetTeleportType(FCharacterMovementAsyncOutput& Output) const
+ETeleportType FCharacterMovementComponentAsyncInput::GetTeleportType(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// ensuring in inputs on networek large correction
 	return Output.bJustTeleported /*|| bNetworkLargeClientCorrection*/ ? ETeleportType::TeleportPhysics : ETeleportType::None;
 }
 
-void FCharacterMovementAsyncInput::HandleWalkingOffLedge(const FVector& PreviousFloorImpactNormal, const FVector& PreviousFloorContactNormal, const FVector& PreviousLocation, float TimeDelta) const
+void FCharacterMovementComponentAsyncInput::HandleWalkingOffLedge(const FVector& PreviousFloorImpactNormal, const FVector& PreviousFloorContactNormal, const FVector& PreviousLocation, float TimeDelta) const
 {
 	ensure(false); // TODO HandleWalkingOffLedge
 }
 
-bool FCharacterMovementAsyncInput::ShouldCatchAir(const FFindFloorResult& OldFloor, const FFindFloorResult& NewFloor) const
+bool FCharacterMovementComponentAsyncInput::ShouldCatchAir(const FFindFloorResult& OldFloor, const FFindFloorResult& NewFloor) const
 {
 	return false;
 }
 
-void FCharacterMovementAsyncInput::StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// start falling 
 	const float DesiredDist = Delta.Size();
@@ -3807,7 +3807,7 @@ void FCharacterMovementAsyncInput::StartFalling(int32 Iterations, float remainin
 	StartNewPhysics(remainingTime, Iterations, Output);
 }
 
-void FCharacterMovementAsyncInput::SetBaseFromFloor(const FFindFloorResult& FloorResult, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::SetBaseFromFloor(const FFindFloorResult& FloorResult, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (FloorResult.IsWalkableFloor())
 	{
@@ -3823,7 +3823,7 @@ void FCharacterMovementAsyncInput::SetBaseFromFloor(const FFindFloorResult& Floo
 	}
 }
 
-void FCharacterMovementAsyncInput::AdjustFloorHeight(FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::AdjustFloorHeight(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	//SCOPE_CYCLE_COUNTER(STAT_CharAdjustFloorHeight);
 
@@ -3893,7 +3893,7 @@ void FCharacterMovementAsyncInput::AdjustFloorHeight(FCharacterMovementAsyncOutp
 	}
 }
 
-bool FCharacterMovementAsyncInput::ShouldComputePerchResult(const FHitResult& InHit, FCharacterMovementAsyncOutput& Output, bool bCheckRadius) const
+bool FCharacterMovementComponentAsyncInput::ShouldComputePerchResult(const FHitResult& InHit, FCharacterMovementComponentAsyncOutput& Output, bool bCheckRadius) const
 {
 	if (!InHit.IsValidBlockingHit())
 	{
@@ -3920,7 +3920,7 @@ bool FCharacterMovementAsyncInput::ShouldComputePerchResult(const FHitResult& In
 	return true;
 }
 
-bool FCharacterMovementAsyncInput::ComputePerchResult(const float TestRadius, const FHitResult& InHit, const float InMaxFloorDist, FFindFloorResult& OutPerchFloorResult, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::ComputePerchResult(const float TestRadius, const FHitResult& InHit, const float InMaxFloorDist, FFindFloorResult& OutPerchFloorResult, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (InMaxFloorDist <= 0.f)
 	{
@@ -3953,19 +3953,19 @@ bool FCharacterMovementAsyncInput::ComputePerchResult(const float TestRadius, co
 	return true;
 }
 
-float FCharacterMovementAsyncInput::GetPerchRadiusThreshold() const
+float FCharacterMovementComponentAsyncInput::GetPerchRadiusThreshold() const
 {
 	// Don't allow negative values.
 	return FMath::Max(0.f, PerchRadiusThreshold);
 }
 
-float FCharacterMovementAsyncInput::GetValidPerchRadius(const FCharacterMovementAsyncOutput& Output) const
+float FCharacterMovementComponentAsyncInput::GetValidPerchRadius(const FCharacterMovementComponentAsyncOutput& Output) const
 {
 	const float PawnRadius = Output.ScaledCapsuleRadius;
 	return FMath::Clamp(PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius);
 }
 
-bool FCharacterMovementAsyncInput::CheckFall(const FFindFloorResult& OldFloor, const FHitResult& Hit, const FVector& Delta, const FVector& OldLocation, float remainingTime, float timeTick, int32 Iterations, bool bMustJump, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::CheckFall(const FFindFloorResult& OldFloor, const FHitResult& Hit, const FVector& Delta, const FVector& OldLocation, float remainingTime, float timeTick, int32 Iterations, bool bMustJump, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!bHasValidData)
 	{
@@ -3985,7 +3985,7 @@ bool FCharacterMovementAsyncInput::CheckFall(const FFindFloorResult& OldFloor, c
 	return false;
 }
 
-FVector FCharacterMovementAsyncInput::GetFallingLateralAcceleration(float DeltaTime, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::GetFallingLateralAcceleration(float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// No acceleration in Z
 	FVector FallAcceleration = FVector(Output.Acceleration.X, Output.Acceleration.Y, 0.f);
@@ -4000,7 +4000,7 @@ FVector FCharacterMovementAsyncInput::GetFallingLateralAcceleration(float DeltaT
 	return FallAcceleration;
 }
 
-float FCharacterMovementAsyncInput::BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration, FCharacterMovementAsyncOutput& Output) const
+float FCharacterMovementComponentAsyncInput::BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Allow a burst of initial acceleration
 	if (AirControlBoostMultiplier > 0.f && Output.Velocity.SizeSquared2D() < FMath::Square(AirControlBoostVelocityThreshold))
@@ -4011,12 +4011,12 @@ float FCharacterMovementAsyncInput::BoostAirControl(float DeltaTime, float TickA
 	return TickAirControl;
 }
 
-bool FCharacterMovementAsyncInput::ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const
+bool FCharacterMovementComponentAsyncInput::ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const
 {
 	return (FallAcceleration.SizeSquared2D() > 0.f);
 }
 
-FVector FCharacterMovementAsyncInput::LimitAirControl(float DeltaTime, const FVector& FallAcceleration, const FHitResult& HitResult, bool bCheckForValidLandingSpot, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::LimitAirControl(float DeltaTime, const FVector& FallAcceleration, const FHitResult& HitResult, bool bCheckForValidLandingSpot, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	FVector Result(FallAcceleration);
 
@@ -4042,7 +4042,7 @@ FVector FCharacterMovementAsyncInput::LimitAirControl(float DeltaTime, const FVe
 	return Result;
 }
 
-FVector FCharacterMovementAsyncInput::NewFallVelocity(const FVector& InitialVelocity, const FVector& Gravity, float DeltaTime, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::NewFallVelocity(const FVector& InitialVelocity, const FVector& Gravity, float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	FVector Result = InitialVelocity;
 
@@ -4067,7 +4067,7 @@ FVector FCharacterMovementAsyncInput::NewFallVelocity(const FVector& InitialVelo
 	return Result;
 }
 
-bool FCharacterMovementAsyncInput::IsValidLandingSpot(const FVector& CapsuleLocation, const FHitResult& Hit, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::IsValidLandingSpot(const FVector& CapsuleLocation, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (!Hit.bBlockingHit)
 	{
@@ -4121,7 +4121,7 @@ bool FCharacterMovementAsyncInput::IsValidLandingSpot(const FVector& CapsuleLoca
 	return true;
 }
 
-void FCharacterMovementAsyncInput::ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	//SCOPE_CYCLE_COUNTER(STAT_CharProcessLanded);
 
@@ -4163,7 +4163,7 @@ void FCharacterMovementAsyncInput::ProcessLanded(const FHitResult& Hit, float re
 	StartNewPhysics(remainingTime, Iterations, Output);
 }
 
-void FCharacterMovementAsyncInput::SetPostLandedPhysics(const FHitResult& Hit, FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::SetPostLandedPhysics(const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// TODO Other movement modes
 	/*if (CanEverSwim() && IsInWater())
@@ -4189,7 +4189,7 @@ void FCharacterMovementAsyncInput::SetPostLandedPhysics(const FHitResult& Hit, F
 	}
 }
 
-void FCharacterMovementAsyncInput::SetDefaultMovementMode(FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::SetDefaultMovementMode(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// check for water volume
 	/*if (CanEverSwim() && IsInWater())
@@ -4210,7 +4210,7 @@ void FCharacterMovementAsyncInput::SetDefaultMovementMode(FCharacterMovementAsyn
 	}
 }
 
-bool FCharacterMovementAsyncInput::ShouldCheckForValidLandingSpot(float DeltaTime, const FVector& Delta, const FHitResult& Hit, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::ShouldCheckForValidLandingSpot(float DeltaTime, const FVector& Delta, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// See if we hit an edge of a surface on the lower portion of the capsule.
 	// In this case the normal will not equal the impact normal, and a downward sweep may find a walkable surface on top of the edge.
@@ -4226,31 +4226,20 @@ bool FCharacterMovementAsyncInput::ShouldCheckForValidLandingSpot(float DeltaTim
 	return false;
 }
 
-FRotator FCharacterMovementAsyncInput::GetDeltaRotation(float DeltaTime) const
-{
-	return FRotator(GetAxisDeltaRotation(RotationRate.Pitch, DeltaTime), GetAxisDeltaRotation(RotationRate.Yaw, DeltaTime), GetAxisDeltaRotation(RotationRate.Roll, DeltaTime));
-}
-
-float FCharacterMovementAsyncInput::GetAxisDeltaRotation(float InAxisRotationRate, float DeltaTime) const
-{
-	// Values over 360 don't do anything, see FMath::FixedTurn. However we are trying to avoid giant floats from overflowing other calculations.
-	return (InAxisRotationRate >= 0.f) ? FMath::Min(InAxisRotationRate * DeltaTime, 360.f) : 360.f;
-}
-
-bool FCharacterMovementAsyncInput::ShouldRemainVertical(FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::ShouldRemainVertical(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Always remain vertical when walking or falling.
 	return IsMovingOnGround(Output) || IsFalling(Output);
 }
 
-bool FCharacterMovementAsyncInput::CanAttemptJump(FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::CanAttemptJump(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	return IsJumpAllowed() &&
 		!Output.bWantsToCrouch &&
 		(IsMovingOnGround(Output) || IsFalling(Output));  // Falling included for double-jump and non-zero jump hold time, but validated by character.
 }
 
-bool FCharacterMovementAsyncInput::DoJump(bool bReplayingMoves, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::DoJump(bool bReplayingMoves, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (/*CharacterOwner &&*/ CharacterInput->CanJump(*this, Output))
 	{
@@ -4266,7 +4255,7 @@ bool FCharacterMovementAsyncInput::DoJump(bool bReplayingMoves, FCharacterMoveme
 	return false;
 }
 
-bool FCharacterMovementAsyncInput::IsJumpAllowed() const
+bool FCharacterMovementComponentAsyncInput::IsJumpAllowed() const
 {
 	return bNavAgentPropsCanJump && bMovementStateCanJump;
 }
@@ -4276,7 +4265,7 @@ bool FCharacterMovementAsyncInput::IsJumpAllowed() const
 * UMovementComponent Interface Begin
 * 
 */
-float FCharacterMovementAsyncInput::GetMaxSpeed(FCharacterMovementAsyncOutput& Output) const
+float FCharacterMovementComponentAsyncInput::GetMaxSpeed(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	switch (Output.MovementMode)
 	{
@@ -4297,22 +4286,22 @@ float FCharacterMovementAsyncInput::GetMaxSpeed(FCharacterMovementAsyncOutput& O
 	}
 }
 
-bool FCharacterMovementAsyncInput::IsCrouching(const FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::IsCrouching(const FCharacterMovementComponentAsyncOutput& Output) const
 {
 	return Output.bIsCrouched;
 }
 
-bool FCharacterMovementAsyncInput::IsFalling(const FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::IsFalling(const FCharacterMovementComponentAsyncOutput& Output) const
 {
 	return (Output.MovementMode == MOVE_Falling);// && UpdatedComponent;
 }
 
-bool FCharacterMovementAsyncInput::IsMovingOnGround(const FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::IsMovingOnGround(const FCharacterMovementComponentAsyncOutput& Output) const
 {
 	return ((Output.MovementMode == MOVE_Walking) || (Output.MovementMode == MOVE_NavWalking));//&& UpdatedComponent;
 }
 
-bool FCharacterMovementAsyncInput::IsExceedingMaxSpeed(float MaxSpeed, const FCharacterMovementAsyncOutput& Output) const
+bool FCharacterMovementComponentAsyncInput::IsExceedingMaxSpeed(float MaxSpeed, const FCharacterMovementComponentAsyncOutput& Output) const
 {
 	MaxSpeed = FMath::Max(0.f, MaxSpeed);
 	const float MaxSpeedSquared = FMath::Square(MaxSpeed);
@@ -4322,7 +4311,7 @@ bool FCharacterMovementAsyncInput::IsExceedingMaxSpeed(float MaxSpeed, const FCh
 	return (Output.Velocity.SizeSquared() > MaxSpeedSquared * OverVelocityPercent);
 }
 
-FRotator FCharacterMovementAsyncInput::ComputeOrientToMovementRotation(const FRotator& CurrentRotation, float DeltaTime, FRotator& DeltaRotation, FCharacterMovementAsyncOutput& Output) const
+FRotator FCharacterMovementComponentAsyncInput::ComputeOrientToMovementRotation(const FRotator& CurrentRotation, float DeltaTime, FRotator& DeltaRotation, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	if (Output.Acceleration.SizeSquared() < KINDA_SMALL_NUMBER)
 	{
@@ -4340,7 +4329,7 @@ FRotator FCharacterMovementAsyncInput::ComputeOrientToMovementRotation(const FRo
 	return Output.Acceleration.GetSafeNormal().Rotation();
 }
 
-void FCharacterMovementAsyncInput::RestorePreAdditiveRootMotionVelocity(FCharacterMovementAsyncOutput& Output) const
+void FCharacterMovementComponentAsyncInput::RestorePreAdditiveRootMotionVelocity(FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Restore last frame's pre-additive Velocity if we had additive applied 
 	// so that we're not adding more additive velocity than intended
@@ -4360,7 +4349,7 @@ void FCharacterMovementAsyncInput::RestorePreAdditiveRootMotionVelocity(FCharact
 	}
 }
 
-FVector FCharacterMovementAsyncInput::GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration, FCharacterMovementAsyncOutput& Output) const
+FVector FCharacterMovementComponentAsyncInput::GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Boost
 	if (TickAirControl != 0.f)
@@ -4371,12 +4360,12 @@ FVector FCharacterMovementAsyncInput::GetAirControl(float DeltaTime, float TickA
 	return TickAirControl * FallAcceleration;
 }
 
-void FCharacterAsyncInput::FaceRotation(FRotator NewControlRotation, float DeltaTime, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const
+void FCharacterAsyncInput::FaceRotation(FRotator NewControlRotation, float DeltaTime, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Only if we actually are going to use any component of rotation.
 	if (bUseControllerRotationPitch || bUseControllerRotationYaw || bUseControllerRotationRoll)
 	{
-		FRotator& CurrentRotation = Output.Pawn->Rotation;
+		FRotator& CurrentRotation = Output.CharacterOutput->Rotation;
 		if (!bUseControllerRotationPitch)
 		{
 			NewControlRotation.Pitch = CurrentRotation.Pitch;
@@ -4404,18 +4393,18 @@ void FCharacterAsyncInput::FaceRotation(FRotator NewControlRotation, float Delta
 }
 
 
-void FCharacterAsyncInput::CheckJumpInput(float DeltaSeconds, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const
+void FCharacterAsyncInput::CheckJumpInput(float DeltaSeconds, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const
 {
-	Output.Pawn->JumpCurrentCountPreJump = Output.Pawn->JumpCurrentCount;
+	Output.CharacterOutput->JumpCurrentCountPreJump = Output.CharacterOutput->JumpCurrentCount;
 
-	if (Output.Pawn->bPressedJump)
+	if (Output.CharacterOutput->bPressedJump)
 	{
 		// If this is the first jump and we're already falling,
 		// then increment the JumpCount to compensate.
-		const bool bFirstJump = Output.Pawn->JumpCurrentCount == 0;
+		const bool bFirstJump = Output.CharacterOutput->JumpCurrentCount == 0;
 		if (bFirstJump && Input.IsFalling(Output))
 		{
-			Output.Pawn->JumpCurrentCount++;
+			Output.CharacterOutput->JumpCurrentCount++;
 		}
 
 		// TODO bClientUpdating
@@ -4423,40 +4412,40 @@ void FCharacterAsyncInput::CheckJumpInput(float DeltaSeconds, const FCharacterMo
 		if (bDidJump)
 		{
 			// Transition from not (actively) jumping to jumping.
-			if (!Output.Pawn->bWasJumping)
+			if (!Output.CharacterOutput->bWasJumping)
 			{
-				Output.Pawn->JumpCurrentCount++;
-				Output.Pawn->JumpForceTimeRemaining = JumpMaxHoldTime;
+				Output.CharacterOutput->JumpCurrentCount++;
+				Output.CharacterOutput->JumpForceTimeRemaining = JumpMaxHoldTime;
 				//OnJumped(); TODO Jumping
 			}
 		}
 
-		Output.Pawn->bWasJumping = bDidJump;
+		Output.CharacterOutput->bWasJumping = bDidJump;
 	}
 }
 
-void FCharacterAsyncInput::ClearJumpInput(float DeltaSeconds, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const
+void FCharacterAsyncInput::ClearJumpInput(float DeltaSeconds, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const
 {
-	if (Output.Pawn->bPressedJump)
+	if (Output.CharacterOutput->bPressedJump)
 	{
-		Output.Pawn->JumpKeyHoldTime += DeltaSeconds;
+		Output.CharacterOutput->JumpKeyHoldTime += DeltaSeconds;
 
 		// Don't disable bPressedJump right away if it's still held.
 		// Don't modify JumpForceTimeRemaining because a frame of update may be remaining.
-		if (Output.Pawn->JumpKeyHoldTime >= JumpMaxHoldTime)
+		if (Output.CharacterOutput->JumpKeyHoldTime >= JumpMaxHoldTime)
 		{
-			Output.Pawn->bClearJumpInput = true;
-			Output.Pawn->bPressedJump = false;
+			Output.CharacterOutput->bClearJumpInput = true;
+			Output.CharacterOutput->bPressedJump = false;
 		}
 	}
 	else
 	{
-		Output.Pawn->JumpForceTimeRemaining = 0.0f;
-		Output.Pawn->bWasJumping = false;
+		Output.CharacterOutput->JumpForceTimeRemaining = 0.0f;
+		Output.CharacterOutput->bWasJumping = false;
 	}
 }
 
-bool FCharacterAsyncInput::CanJump(const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const
+bool FCharacterAsyncInput::CanJump(const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Ensure the character isn't currently crouched.
 	bool bCanJump = !Output.bIsCrouched;
@@ -4467,15 +4456,15 @@ bool FCharacterAsyncInput::CanJump(const FCharacterMovementAsyncInput& Input, FC
 	if (bCanJump)
 	{
 		// Ensure JumpHoldTime and JumpCount are valid.
-		if (!Output.Pawn->bWasJumping || Input.CharacterInput->JumpMaxHoldTime <= 0.0f)
+		if (!Output.CharacterOutput->bWasJumping || Input.CharacterInput->JumpMaxHoldTime <= 0.0f)
 		{
-			if (Output.Pawn->JumpCurrentCount == 0 && Input.IsFalling(Output))
+			if (Output.CharacterOutput->JumpCurrentCount == 0 && Input.IsFalling(Output))
 			{
-				bCanJump = Output.Pawn->JumpCurrentCount + 1 < Input.CharacterInput->JumpMaxCount;
+				bCanJump = Output.CharacterOutput->JumpCurrentCount + 1 < Input.CharacterInput->JumpMaxCount;
 			}
 			else
 			{
-				bCanJump = Output.Pawn->JumpCurrentCount < Input.CharacterInput->JumpMaxCount;
+				bCanJump = Output.CharacterOutput->JumpCurrentCount < Input.CharacterInput->JumpMaxCount;
 			}
 		}
 		else
@@ -4483,37 +4472,37 @@ bool FCharacterAsyncInput::CanJump(const FCharacterMovementAsyncInput& Input, FC
 			// Only consider JumpKeyHoldTime as long as:
 			// A) The jump limit hasn't been met OR
 			// B) The jump limit has been met AND we were already jumping
-			const bool bJumpKeyHeld = (Output.Pawn->bPressedJump && Output.Pawn->JumpKeyHoldTime < Input.CharacterInput->JumpMaxHoldTime);
+			const bool bJumpKeyHeld = (Output.CharacterOutput->bPressedJump && Output.CharacterOutput->JumpKeyHoldTime < Input.CharacterInput->JumpMaxHoldTime);
 			bCanJump = bJumpKeyHeld &&
-				((Output.Pawn->JumpCurrentCount < Input.CharacterInput->JumpMaxCount) || (Output.Pawn->bWasJumping && Output.Pawn->JumpCurrentCount == Input.CharacterInput->JumpMaxCount));
+				((Output.CharacterOutput->JumpCurrentCount < Input.CharacterInput->JumpMaxCount) || (Output.CharacterOutput->bWasJumping && Output.CharacterOutput->JumpCurrentCount == Input.CharacterInput->JumpMaxCount));
 		}
 	}
 
 	return bCanJump;
 }
 
-void FCharacterAsyncInput::ResetJumpState(const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const
+void FCharacterAsyncInput::ResetJumpState(const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const
 {
-	if (Output.Pawn->bPressedJump == true)
+	if (Output.CharacterOutput->bPressedJump == true)
 	{
-		Output.Pawn->bClearJumpInput = true;
+		Output.CharacterOutput->bClearJumpInput = true;
 	}
 
-	Output.Pawn->bPressedJump = false;
-	Output.Pawn->bWasJumping = false;
-	Output.Pawn->JumpKeyHoldTime = 0.0f;
-	Output.Pawn->JumpForceTimeRemaining = 0.0f;
+	Output.CharacterOutput->bPressedJump = false;
+	Output.CharacterOutput->bWasJumping = false;
+	Output.CharacterOutput->JumpKeyHoldTime = 0.0f;
+	Output.CharacterOutput->JumpForceTimeRemaining = 0.0f;
 
 	if (!Input.IsFalling(Output))
 	{
-		Output.Pawn->JumpCurrentCount = 0;
-		Output.Pawn->JumpCurrentCountPreJump = 0;
+		Output.CharacterOutput->JumpCurrentCount = 0;
+		Output.CharacterOutput->JumpCurrentCountPreJump = 0;
 	}
 }
 
-void FCharacterAsyncInput::OnMovementModeChanged(EMovementMode PrevMovementMode, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output, uint8 PreviousCustomMode)
+void FCharacterAsyncInput::OnMovementModeChanged(EMovementMode PrevMovementMode, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output, uint8 PreviousCustomMode)
 {
-	if (!Output.Pawn->bPressedJump || !Input.IsFalling(Output))
+	if (!Output.CharacterOutput->bPressedJump || !Input.IsFalling(Output))
 	{
 		ResetJumpState(Input, Output);
 	}
@@ -4530,12 +4519,12 @@ void FCharacterAsyncInput::OnMovementModeChanged(EMovementMode PrevMovementMode,
 	//MovementModeChangedDelegate.Broadcast(this, PrevMovementMode, PrevCustomMode);
 }
 
-void FCharacterMovementAsyncCallback::OnPreSimulate_Internal()
+void FCharacterMovementComponentAsyncCallback::OnPreSimulate_Internal()
 {
-	PreSimulateImpl<FCharacterMovementAsyncInput, FCharacterMovementAsyncOutput>(*this);
+	PreSimulateImpl<FCharacterMovementComponentAsyncInput, FCharacterMovementComponentAsyncOutput>(*this);
 }
 
-void FCharacterMovementAsyncOutput::Copy(const FCharacterMovementAsyncOutput& Value)
+void FCharacterMovementComponentAsyncOutput::Copy(const FCharacterMovementComponentAsyncOutput& Value)
 {
 	bIsValid = Value.bIsValid;
 
@@ -4586,7 +4575,17 @@ void FCharacterMovementAsyncOutput::Copy(const FCharacterMovementAsyncOutput& Va
 	NewMovementBase = Value.NewMovementBase;
 	NewMovementBaseOwner = Value.NewMovementBaseOwner;
 
-	UpdatedComponent = Value.UpdatedComponent;
-	*Pawn = *Value.Pawn;
+	UpdatedComponentOutput = Value.UpdatedComponentOutput;
+	*CharacterOutput = *Value.CharacterOutput;
 }
 
+FRotator FCharacterMovementComponentAsyncOutput::GetDeltaRotation(const FRotator& InRotationRate, float InDeltaTime)
+{
+	return FRotator(GetAxisDeltaRotation(InRotationRate.Pitch, InDeltaTime), GetAxisDeltaRotation(InRotationRate.Yaw, InDeltaTime), GetAxisDeltaRotation(InRotationRate.Roll, InDeltaTime));
+}
+
+float FCharacterMovementComponentAsyncOutput::GetAxisDeltaRotation(float InAxisRotationRate, float InDeltaTime)
+{
+	// Values over 360 don't do anything, see FMath::FixedTurn. However we are trying to avoid giant floats from overflowing other calculations.
+	return (InAxisRotationRate >= 0.f) ? FMath::Min(InAxisRotationRate * InDeltaTime, 360.f) : 360.f;
+}

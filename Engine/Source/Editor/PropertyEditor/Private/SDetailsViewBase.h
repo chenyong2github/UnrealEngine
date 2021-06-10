@@ -152,7 +152,10 @@ public:
 	virtual void RegisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) override;
 	virtual void UnregisterInstancedCustomPropertyLayout(UStruct* Class) override;
 	virtual void UnregisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) override;
-
+	virtual void SetCustomValidatePropertyNodesFunction(FOnValidatePropertyRowGeneratorNodes InCustomValidatePropertyNodesFunction) override
+	{
+		CustomValidatePropertyNodesFunction = MoveTemp(InCustomValidatePropertyNodesFunction);
+	}
 	/** IDetailsViewPrivate interface */
 	virtual void RerunCurrentFilter() override;
 	void SetNodeExpansionState(TSharedRef<FDetailTreeNode> InTreeNode, bool bIsItemExpanded, bool bRecursive) override;
@@ -442,6 +445,10 @@ protected:
 
 	int32 NumVisibleTopLevelObjectNodes;
 
+	/** Used to refresh the tree when the whitelist changes */
+	FDelegateHandle PropertyWhitelistedChangedDelegate;
+	FDelegateHandle PropertyWhitelistedEnabledDelegate;
+
 	/** Delegate for overriding the show modified filter */
 	FSimpleDelegate CustomFilterDelegate;
 
@@ -454,7 +461,10 @@ protected:
 	FText CustomFilterLabel;
 
 	mutable TSharedPtr<FEditConditionParser> EditConditionParser;
-
+	
 	/** Optional custom filter(s) to be applied when selecting values for class properties */
 	TArray<TSharedRef<class IClassViewerFilter>> ClassViewerFilters;
+
+	/** The EnsureDataIsValid function can be skipped with this member, if set. Useful if your implementation doesn't require this kind of validation each Tick. */
+	FOnValidateDetailsViewPropertyNodes CustomValidatePropertyNodesFunction;
 };

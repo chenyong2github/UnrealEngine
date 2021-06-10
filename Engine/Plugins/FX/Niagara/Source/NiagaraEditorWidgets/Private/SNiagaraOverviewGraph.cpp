@@ -343,7 +343,7 @@ void SNiagaraOverviewGraph::CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilde
 	ViewOptions.SetCategorizeUserDefinedCategory(true);
 	ViewOptions.SetCategorizeLibraryAssets(true);
 
-	FNiagaraAssetPickerTabOptions TabOptions;
+	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions TabOptions;
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);	

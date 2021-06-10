@@ -261,13 +261,13 @@ struct FOpenGLCachedAttr
 
 struct FOpenGLStream
 {
-	FOpenGLBuffer *VertexBuffer;
+	GLuint VertexBufferResource;
 	uint32 Stride;
 	uint32 Offset;
 	uint32 Divisor;
 	
 	FOpenGLStream()
-		: VertexBuffer(0)
+		: VertexBufferResource(0)
 		, Stride(0)
 		, Offset(0)
 		, Divisor(0)

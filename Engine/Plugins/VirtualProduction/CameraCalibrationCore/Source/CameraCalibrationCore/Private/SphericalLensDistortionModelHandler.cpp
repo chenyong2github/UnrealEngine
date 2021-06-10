@@ -14,12 +14,12 @@ void USphericalLensDistortionModelHandler::InitializeHandler()
 FVector2D USphericalLensDistortionModelHandler::ComputeDistortedUV(const FVector2D& InUndistortedUV) const
 {
 	// These distances cannot be zero in real-life. If they are, the current distortion state must be bad
-	if ((CurrentState.DistortionInfo.FxFy.X == 0.0f) || (CurrentState.DistortionInfo.FxFy.Y == 0.0f))
+	if ((CurrentState.FocalLengthInfo.FxFy.X == 0.0f) || (CurrentState.FocalLengthInfo.FxFy.Y == 0.0f))
 	{
 		return InUndistortedUV;
 	}
 
-	FVector2D NormalizedDistanceFromImageCenter = (InUndistortedUV - CurrentState.PrincipalPoint) / CurrentState.DistortionInfo.FxFy;
+	FVector2D NormalizedDistanceFromImageCenter = (InUndistortedUV - CurrentState.ImageCenter.PrincipalPoint) / CurrentState.FocalLengthInfo.FxFy;
 	const FVector2D OriginalDistance = NormalizedDistanceFromImageCenter;
 
 	// Iterative approach to distort an undistorted UV using coefficients that were designed to undistort
@@ -48,7 +48,7 @@ FVector2D USphericalLensDistortionModelHandler::ComputeDistortedUV(const FVector
 		}
 	}
 
-	const FVector2D DistortedUV = (NormalizedDistanceFromImageCenter * CurrentState.DistortionInfo.FxFy) + FVector2D(0.5f, 0.5f);
+	const FVector2D DistortedUV = (NormalizedDistanceFromImageCenter * CurrentState.FocalLengthInfo.FxFy) + FVector2D(0.5f, 0.5f);
 	return DistortedUV;
 }
 
@@ -89,11 +89,11 @@ void USphericalLensDistortionModelHandler::UpdateMaterialParameters()
 		MID->SetScalarParameterValue("p1", SphericalParameters.P1);
 		MID->SetScalarParameterValue("p2", SphericalParameters.P2);
 
-		MID->SetScalarParameterValue("cx", CurrentState.PrincipalPoint.X);
-		MID->SetScalarParameterValue("cy", CurrentState.PrincipalPoint.Y);
+		MID->SetScalarParameterValue("cx", CurrentState.ImageCenter.PrincipalPoint.X);
+		MID->SetScalarParameterValue("cy", CurrentState.ImageCenter.PrincipalPoint.Y);
 
-		MID->SetScalarParameterValue("fx", CurrentState.DistortionInfo.FxFy.X);
-		MID->SetScalarParameterValue("fy", CurrentState.DistortionInfo.FxFy.Y);
+		MID->SetScalarParameterValue("fx", CurrentState.FocalLengthInfo.FxFy.X);
+		MID->SetScalarParameterValue("fy", CurrentState.FocalLengthInfo.FxFy.Y);
 	};
 
 	SetDistortionMaterialParameters(UndistortionDisplacementMapMID);

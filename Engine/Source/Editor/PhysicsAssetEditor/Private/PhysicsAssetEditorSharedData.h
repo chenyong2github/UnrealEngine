@@ -87,6 +87,7 @@ public:
 
 	/** Set the selection state of a constraint */
 	void SetSelectedConstraint(int32 ConstraintIndex, bool bSelected);
+	void SetSelectedConstraints(const TArray<int32> ConstraintsIndices, bool bSelected);
 
 	/** Check whether the constraint at the specified index is selected */
 	bool IsConstraintSelected(int32 ConstraintIndex) const;
@@ -140,26 +141,38 @@ public:
 	/** Collision geometry editing */
 	void ClearSelectedBody();
 	void SetSelectedBody(const FSelection& Body, bool bSelected);
+	void SetSelectedBodies(const TArray<FSelection>& Bodies, bool bSelected);
 	bool IsBodySelected(const FSelection& Body) const;
-	void ToggleSelectionType();
+	void ToggleSelectionType(bool bIgnoreUserConstraints = true);
 	void ToggleShowSelected();
 	void ShowAll();
 	void HideAll();
+	void HideAllBodies();
+	void HideAllConstraints();
 	void ToggleShowOnlyColliding();
+	void ToggleShowOnlyConstrained();
 	void ToggleShowOnlySelected();
 	void ShowSelected();
 	void HideSelected();
 	void SetSelectedBodyAnyPrim(int32 BodyIndex, bool bSelected);
+	void SetSelectedBodiesAnyPrim(const TArray<int32>& BodiesIndices, bool bSelected);
+	void SetSelectedBodiesAllPrim(const TArray<int32>& BodiesIndices, bool bSelected);
 	void DeleteCurrentPrim();
 	void DeleteBody(int32 DelBodyIndex, bool bRefreshComponent=true);
 	void RefreshPhysicsAssetChange(const UPhysicsAsset* InPhysAsset, bool bFullClothRefresh = true);
 	void MakeNewBody(int32 NewBoneIndex, bool bAutoSelect = true);
-	void MakeNewConstraint(int32 BodyIndex0, int32 BodyIndex1);
+	void MakeNewConstraints(int32 ParentBodyIndex, const TArray<int32>& ChildBodyIndices);
+	void MakeNewConstraint(int32 ParentBodyIndex, int32 ChildBodyIndex);
 	void CopyBody();
 	void CopyConstraint();
 	void PasteBodyProperties();
 	bool WeldSelectedBodies(bool bWeld = true);
 	void Mirror();
+
+	/** auto name a primitive, if PrimitiveIndex is INDEX_NONE, then the last primitive of specified typed is renamed */
+	void AutoNamePrimitive(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType, int32 PrimitiveIndex = INDEX_NONE);
+	void AutoNameAllPrimitives(int32 BodyIndex, EAggCollisionShape::Type PrimitiveType);
+	void AutoNameAllPrimitives(int32 BodyIndex, EPhysAssetFitGeomType PrimitiveType);
 
 	/** Toggle simulation on and off */
 	void ToggleSimulation();

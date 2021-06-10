@@ -15,6 +15,9 @@ class IAnalyticsProviderET;
 class FAnalyticsSessionSummaryManager;
 class FThread;
 
+/** Open the monitored process with restricted permissions, for security reasons. */
+FProcHandle OpenProcessForMonitoring(uint32 pid);
+
 /**
  * Creates a summary of CRC session for analytics purpose. The summary should be merged with the
  * monitored application one.

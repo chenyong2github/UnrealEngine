@@ -227,6 +227,7 @@ private:
 			bWasEverDisconnected = true;
 			bCanFinalizeWorkspace = true;
 
+			UE_LOG(LogDisplayClusterInterception, Display, TEXT("Disconnecting from session."));
 			Workspace->RemoveWorkspaceFinalizeDelegate(TEXT("nDisplay Interceptor"));
 			Workspace->OnWorkspaceSynchronized().RemoveAll(this);
 		}

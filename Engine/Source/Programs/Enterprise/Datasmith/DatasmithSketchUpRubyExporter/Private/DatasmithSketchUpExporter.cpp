@@ -724,7 +724,7 @@ VALUE get_directlink_cache_directory() {
 
 
 // todo: hardcoded init module function name
-extern "C" DLLEXPORT void Init_DatasmithSketchUpRuby()
+extern "C" DLLEXPORT void Init_DatasmithSketchUp()
 {
 
 	VALUE EpicGames = rb_define_module("EpicGames");

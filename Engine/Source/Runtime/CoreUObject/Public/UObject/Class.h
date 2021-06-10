@@ -2685,13 +2685,16 @@ public:
 	ClassAddReferencedObjectsType ClassAddReferencedObjects;
 
 	/** Class pseudo-unique counter; used to accelerate unique instance name generation */
-	mutable uint32 ClassUnique:31;
+	mutable int32 ClassUnique;
+
+	/** Index of the first ClassRep that belongs to this class. Anything before that was defined by / belongs to parent classes. */
+	int32 FirstOwnedClassRep = 0;
 
 	/** Used to check if the class was cooked or not */
-	uint32 bCooked:1;
+	bool bCooked;
 
 	/** Used to check if the class layout is currently changing and therefore is not ready for a CDO to be created */
-	uint32 bLayoutChanging : 1;
+	bool bLayoutChanging;
 
 	/** Class flags; See EClassFlags for more information */
 	EClassFlags ClassFlags;
@@ -2730,9 +2733,6 @@ public:
 
 	/** List of network relevant fields (functions) */
 	TArray<UField*> NetFields;
-
-	/** Index of the first ClassRep that belongs to this class. Anything before that was defined by / belongs to parent classes. */
-	int32 FirstOwnedClassRep = 0;
 
 #if WITH_EDITOR || HACK_HEADER_GENERATOR 
 	// Editor only properties

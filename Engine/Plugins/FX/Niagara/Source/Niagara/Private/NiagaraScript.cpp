@@ -62,6 +62,14 @@ static FAutoConsoleVariableRef CVarNiagaraDumpKeyGen(
 	ECVF_Default
 );
 
+int32 GNiagaraForceSafeScriptAttributeTrim = 0;
+static FAutoConsoleVariableRef CVarNiagaraForceSsafeScriptAttributeTrim(
+	TEXT("fx.ForceSafeScriptAttributeTrim"),
+	GNiagaraForceSafeScriptAttributeTrim,
+	TEXT("If > 0 attribute trimming will use a less aggressive algorithm for removing script attributes. \n"),
+	ECVF_Default
+);
+
 FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), FrameLastWriteId(-1), bWritten(false)
 {
 }
@@ -712,7 +720,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 
 			if (TrimAttributes)
 			{
-				Id.AdditionalDefines.Add(TEXT("TrimAttributes"));
+				Id.AdditionalDefines.Add(GNiagaraForceSafeScriptAttributeTrim ? TEXT("TrimAttributesSafe") : TEXT("TrimAttributes"));
 
 				TArray<FString> PreserveAttributes;
 

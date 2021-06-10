@@ -68,12 +68,6 @@ struct FBTPendingExecutionInfo
 	void Unlock() { bLocked = false; }
 };
 
-struct FBTPendingAuxNodesUnregisterInfo
-{
-	/** list of node index ranges pending aux nodes unregistration */
-	TArray<FBTNodeIndexRange> Ranges;
-};
-
 struct FBTTreeStartInfo
 {
 	UBehaviorTree* Asset;
@@ -139,7 +133,11 @@ public:
 	void RequestExecution(EBTNodeResult::Type ContinueWithResult);
 
 	/** request unregistration of aux nodes in the specified branch */
+	UE_DEPRECATED(5.0, "This function is deprecated. Please use RequestBranchDeactivation instead.")
 	void RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node);
+		
+	/** request branch deactivation: helper for decorator */
+	void RequestBranchDeactivation(const UBTDecorator& RequestedBy);
 
 	/** finish latent execution or abort */
 	void OnTaskFinished(const UBTTaskNode* TaskNode, EBTNodeResult::Type TaskResult);
@@ -165,7 +163,6 @@ public:
 	void UnregisterAuxNodesInRange(const FBTNodeIndex& FromIndex, const FBTNodeIndex& ToIndex);
 
 	/** unregister all aux nodes in branch of tree */
-	UE_DEPRECATED(4.26, "This function is deprecated. Please use RequestUnregisterAuxNodesInBranch instead.")
 	void UnregisterAuxNodesInBranch(const UBTCompositeNode* Node, bool bApplyImmediately = true);
 
 	/** BEGIN UActorComponent overrides */
@@ -271,8 +268,8 @@ protected:
 	/** result of ExecutionRequest, will be applied when current task finish aborting */
 	FBTPendingExecutionInfo PendingExecution;
 
-	/** list of all pending aux nodes unregistration requests */
-	FBTPendingAuxNodesUnregisterInfo PendingUnregisterAuxNodesRequests;
+	/** list of all pending branch deactivation requests */
+	TArray<const UBTNode*> PendingBranchesToDeactivate;
 
 	/** stored data for starting new tree, waits until previously running finishes aborting */
 	FBTTreeStartInfo TreeStartInfo;
@@ -316,8 +313,8 @@ protected:
 	/** loops tree execution */
 	uint8 bLoopExecution : 1;
 
-	/** set when execution is waiting for tasks to abort (current or parallel's main) */
-	uint8 bWaitingForAbortingTasks : 1;
+	/** set when execution is waiting for tasks to finish their latent abort (current or parallel's main) */
+	uint8 bWaitingForLatentAborts : 1;
 
 	/** set when execution update is scheduled for next tick */
 	uint8 bRequestedFlowUpdate : 1;
@@ -330,6 +327,9 @@ protected:
 
 	/** if set, execution requests will be postponed */
 	uint8 bIsPaused : 1;
+
+	/** if set, all branch deactivation requests will be queued up */
+	uint8 bBranchDeactivationSuspended : 1;
 
 	/** push behavior tree instance on execution stack
 	 *	@NOTE: should never be called out-side of BT execution, meaning only BT tasks can push another BT instance! */
@@ -371,20 +371,20 @@ protected:
 	/** deactivate all nodes up to requested one */
 	bool DeactivateUpTo(UBTCompositeNode* Node, uint16 NodeInstanceIdx, EBTNodeResult::Type& NodeResult, int32& OutLastDeactivatedChildIndex);
 
-	/** update state of aborting tasks */
-	void UpdateAbortingTasks();
+	/** returns true if execution was waiting on latent aborts and they are all finished;  */
+	bool TrackPendingLatentAborts();
+
+	/** tracks if there are new tasks using latent abort in progress */
+	void TrackNewLatentAborts();
+
+	/** return true if the current or any parallel task has a latent abort in progress */
+	bool HasActiveLatentAborts() const;
 
 	/** apply pending execution from last task search */
 	void ProcessPendingExecution();
 
 	/** apply pending tree initialization */
 	void ProcessPendingInitialize();
-
-	/**
-	 * apply pending unregister aux nodes requests
-	 * @return true if some request were processed, false otherwise
-	 */
-	bool ProcessPendingUnregister();
 
 	/** restore state of tree to state before search */
 	void RollbackSearchChanges();
@@ -417,6 +417,29 @@ protected:
 
 	/** Return NodeA's relative priority in regards to NodeB */
 	EBTNodeRelativePriority CalculateRelativePriority(const UBTNode* NodeA, const UBTNode* NodeB) const;
+
+	/** Deactivate a branch as the decorator condition is not passing anymore */
+	void DeactivateBranch(const UBTDecorator& RequestedBy);
+
+	/** Suspend any branch deactivation and queue them to be processed later by ResumeBranchDeactivation() */
+	void SuspendBranchDeactivation();
+
+	/** Resume branch deactivation and execute all the queued up ones */
+	void ResumeBranchDeactivation();
+
+	struct FBTSuspendBranchDeactivationScoped
+	{
+		FBTSuspendBranchDeactivationScoped(UBehaviorTreeComponent& InBTComp)
+			: BTComp(InBTComp)
+		{
+			BTComp.SuspendBranchDeactivation();
+		}
+		~FBTSuspendBranchDeactivationScoped()
+		{
+			BTComp.ResumeBranchDeactivation();
+		}
+		UBehaviorTreeComponent& BTComp;
+	};
 
 	friend UBTNode;
 	friend UBTCompositeNode;
@@ -477,5 +500,5 @@ FORCEINLINE bool UBehaviorTreeComponent::IsRestartPending() const
 
 FORCEINLINE bool UBehaviorTreeComponent::IsAbortPending() const
 {
-	return bWaitingForAbortingTasks || PendingExecution.IsSet();
+	return bWaitingForLatentAborts || PendingExecution.IsSet();
 }

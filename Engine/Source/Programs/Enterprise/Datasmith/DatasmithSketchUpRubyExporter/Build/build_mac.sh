@@ -29,12 +29,13 @@ BuildSketchUpPlugin() {
     SUSDKVERSION=${2}
 
     # Compile plugin bundle
-    BuildDir="$PluginSrcPath/.build/$SUVERSION"
+    # BuildDir="$PluginSrcPath/.build/$SUVERSION"
+    BuildDir="$EnginePath/Binaries/Mac/SketchUp/$SUVERSION"
     rm -rf "$BuildDir"
     mkdir -p "$BuildDir"
     #DEBUG_BUILD_SCRIPT="--no-compile --verbose"
     DEBUG_BUILD_SCRIPT="--verbose"
-    python3 build_mac.py --multithread --sdks-root="$UE_SDKS_ROOT" --sketchup-version=$SUVERSION --sketchup-sdk-version=$SUSDKVERSION --output-path="$BuildDir" --datasmithsdk-lib="$Dylibs/DatasmithSDK.dylib" $DEBUG_BUILD_SCRIPT
+    python3 "$PluginSrcPath/Build/build_mac.py" --multithread --sdks-root="$UE_SDKS_ROOT" --sketchup-version=$SUVERSION --sketchup-sdk-version=$SUSDKVERSION --output-path="$BuildDir" --datasmithsdk-lib="$Dylibs/DatasmithSDK.dylib" $DEBUG_BUILD_SCRIPT
 
     # Copy plugin files as they should b ein the plugin folder:
     # ruby code
@@ -42,12 +43,15 @@ BuildSketchUpPlugin() {
     # support libs
     cp -r "$Dylibs" "$BuildDir/Plugin/UnrealDatasmithSketchUp"
     # plugin bundle
-    cp "$BuildDir/bin/DatasmithSketchUpRuby.bundle" "$BuildDir/Plugin/UnrealDatasmithSketchUp"
+    cp "$BuildDir/bin/DatasmithSketchUp.bundle" "$BuildDir/Plugin/UnrealDatasmithSketchUp"
+
+    #version file
+    python3 "$PluginSrcPath/Build/create_version_file.py" "$EnginePath" "$BuildDir/Plugin/UnrealDatasmithSketchUp/version"
 }
 
 BuildSketchUpPlugin 2019 SDK_Mac_2019-3-252
 BuildSketchUpPlugin 2020 SDK_Mac_2020-2-171
 BuildSketchUpPlugin 2021 SDK_Mac_2021-0-338
 
-# install_name_tool -change @rpath/DatasmithSDK.dylib @loader_path/Dylibs/DatasmithSDK.dylib DatasmithSketchUpRuby.bundle 
-# install_name_tool -change @loader_path/libfreeimage-3.18.0.dylib @loader_path/Dylibs/libfreeimage-3.18.0.dylib DatasmithSketchUpRuby.bundle 
+# install_name_tool -change @rpath/DatasmithSDK.dylib @loader_path/Dylibs/DatasmithSDK.dylib DatasmithSketchUp.bundle 
+# install_name_tool -change @loader_path/libfreeimage-3.18.0.dylib @loader_path/Dylibs/libfreeimage-3.18.0.dylib DatasmithSketchUp.bundle 

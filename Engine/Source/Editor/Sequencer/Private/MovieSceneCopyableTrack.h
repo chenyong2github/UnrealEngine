@@ -21,5 +21,8 @@ public:
 	bool bIsAMasterTrack;
 
 	UPROPERTY()
+	bool bIsACameraCutTrack;
+
+	UPROPERTY()
 	TArray<FName> FolderPath;
 };

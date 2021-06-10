@@ -8,6 +8,7 @@
 #include "Components/ActorComponent.h"
 #include "UObject/ObjectKey.h"
 #include "Misc/NetworkGuid.h"
+#include "RewindData.h"
 
 #include "NetworkPhysics.generated.h"
 
@@ -19,6 +20,14 @@ class FSingleParticlePhysicsProxy;
 
 namespace Chaos { struct FSimCallbackInputAndObject; }
 
+#ifndef NETWORK_PHYSICS_REPLICATE_EXTRAS
+	#if (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+		#define NETWORK_PHYSICS_REPLICATE_EXTRAS 1
+	#else
+		#define NETWORK_PHYSICS_REPLICATE_EXTRAS 0
+	#endif
+#endif
+
 // FIXME: use FRigidBodyState instead
 struct FBasePhysicsState
 {
@@ -27,6 +36,15 @@ struct FBasePhysicsState
 	Chaos::FRotation3 Rotation;
 	Chaos::FVec3 LinearVelocity;
 	Chaos::FVec3 AngularVelocity;
+};
+
+struct FDebugPhysicsState
+{	
+	Chaos::FVec3 Force;
+	Chaos::FVec3 Torque;	
+
+	Chaos::FVec3 LinearImpulse;
+	Chaos::FVec3 AngularImpulse;
 };
 
 
@@ -69,12 +87,27 @@ struct FNetworkPhysicsState
 		Ar << Physics.Rotation;
 		Ar << Physics.LinearVelocity;
 		Ar << Physics.AngularVelocity;
+
+#if NETWORK_PHYSICS_REPLICATE_EXTRAS
+		for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+		{
+			Ar << DebugState[i].Force;
+			Ar << DebugState[i].Torque;
+			Ar << DebugState[i].LinearImpulse;
+			Ar << DebugState[i].AngularImpulse;
+		}
+#endif
+
 		return true;
 	}
 
 	// LOD: should probably be moved out of this struct
 	int32 LocalLOD = 0;
 	AActor* OwningActor = nullptr;
+
+#if NETWORK_PHYSICS_REPLICATE_EXTRAS
+	FDebugPhysicsState	DebugState[(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases];
+#endif
 };
 
 template<>
@@ -199,3 +232,43 @@ private:
 
 	bool bRecordDebugSnapshots = false;
 };
+
+namespace UE_NETWORK_PHYSICS
+{
+	extern NETWORKPREDICTION_API int32 GBreakAtFrame;
+	extern NETWORKPREDICTION_API int32 GServerFrame;
+	extern NETWORKPREDICTION_API int32 GClientFrame;
+
+	extern NETWORKPREDICTION_API bool ConditionalFrameBreakpoint();
+	extern NETWORKPREDICTION_API void ConditionalFrameEnsure();
+
+	// Read bIsServer and SimulationFrame from thread local storage. This is only enabled in development builds!
+	extern NETWORKPREDICTION_API int32 DebugSimulationFrame();
+	extern NETWORKPREDICTION_API bool DebugServer();
+};
+
+#ifndef NETWORK_PHYSICS_THREAD_CONTEXT
+	#if (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+		#define NETWORK_PHYSICS_THREAD_CONTEXT 1
+	#else
+		#define NETWORK_PHYSICS_THREAD_CONTEXT 0
+	#endif
+#endif
+
+#if NETWORK_PHYSICS_THREAD_CONTEXT
+class NETWORKPREDICTION_API FNetworkPhysicsThreadContext : public TThreadSingleton<FNetworkPhysicsThreadContext>
+{
+public:
+
+	void Update(int32 InFrame, bool InServer)
+	{
+		SimulationFrame = InFrame;
+		bIsServer = InServer;
+		int32* Ptr = InServer ? &UE_NETWORK_PHYSICS::GServerFrame : &UE_NETWORK_PHYSICS::GClientFrame;
+		*Ptr = InFrame;
+	}
+
+	bool bIsServer;
+	int32 SimulationFrame;
+};
+#endif

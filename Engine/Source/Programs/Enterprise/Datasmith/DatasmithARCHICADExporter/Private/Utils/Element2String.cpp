@@ -3,6 +3,7 @@
 #include "Element2String.h"
 #include "ElementTools.h"
 #include "TAssValueName.h"
+#include "LibPartInfo.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -161,8 +162,7 @@ utf8_string FElement2String::GetElementAsString(const API_Element& InElement)
 		ElementString += Utf8StringFormat("\t\tLibPart=%s\n", LpfUnID);
 		if (bDumpLibSections)
 		{
-			API_LibPart LibPart;
-			Zap(&LibPart);
+			FAuto_API_LibPart LibPart;
 			strcpy(LibPart.ownUnID, LpfUnID);
 			GSErr = ACAPI_LibPart_Search(&LibPart, false);
 			if (GSErr == NoError)
@@ -195,46 +195,120 @@ utf8_string FElement2String::GetElementAsString(const API_Element& InElement)
 		}
 	}
 
-	if (InElement.header.typeID == API_ObjectID || InElement.header.typeID == API_LampID)
+	Int32					   LibInd = 0;
+	const API_ObjectType*	   ObjectType = nullptr;
+	const API_OpeningBaseType* OpeningBase = nullptr;
+	utf8_string				   ObjectData;
+	switch (InElement.header.typeID)
 	{
-		utf8_string ObjectData = Utf8StringFormat("libInd=%d", InElement.object.libInd);
-		if (InElement.object.libInd)
-		{
-			API_LibPart LibPart;
-			Zap(&LibPart);
-			LibPart.index = InElement.object.libInd;
-			GSErrCode GSErr = ACAPI_LibPart_Get(&LibPart);
-			if (GSErr == GS::NoError)
+		case API_WallID:
 			{
-				ObjectData += Utf8StringFormat(", Id=%s, Name=\"%s\"", LibPart.ownUnID,
-											   GS::UniString(LibPart.docu_UName).ToUtf8());
+				API_Coord Begin = InElement.wall.begC;
+				API_Coord End = InElement.wall.endC;
+				ObjectData = Utf8StringFormat("Wall Begin={%lf, %lf}, End={%lf, %lf} Angle=%lf", Begin.x, Begin.y,
+											  End.x, End.y, InElement.wall.angle);
+				if (InElement.wall.hasWindow)
+				{
+					ObjectData += Utf8StringFormat(", hasWindow");
+				}
+				if (InElement.wall.hasDoor)
+				{
+					ObjectData += Utf8StringFormat(", hasDoor");
+				}
+				ObjectData +=
+					Utf8StringFormat("\n\t\t\theight=%lf, bottomOffset=%lf, topOffset=%lf, thickness=%lf, "
+									 "thickness1=%lf, offset=%lf, offsetFromOutside=%lf, logHeight=%lf",
+									 InElement.wall.height, InElement.wall.bottomOffset, InElement.wall.topOffset,
+									 InElement.wall.thickness, InElement.wall.thickness1, InElement.wall.offset,
+									 InElement.wall.offsetFromOutside, InElement.wall.logHeight);
 			}
-		}
-		if (InElement.object.useObjMaterials)
+			break;
+		case API_ObjectID:
+			LibInd = InElement.object.libInd;
+			ObjectType = &InElement.object;
+			ObjectData = "Object";
+			break;
+		case API_LampID:
+			LibInd = InElement.lamp.libInd;
+			ObjectType = &InElement.lamp;
+			ObjectData = "Lamp";
+			break;
+		case API_DoorID:
+			LibInd = InElement.lamp.libInd;
+			OpeningBase = &InElement.door.openingBase;
+			ObjectData = "Door";
+			break;
+		case API_WindowID:
+			LibInd = InElement.lamp.libInd;
+			OpeningBase = &InElement.window.openingBase;
+			ObjectData = "Window";
+			break;
+		case API_SkylightID:
+			LibInd = InElement.lamp.libInd;
+			OpeningBase = &InElement.skylight.openingBase;
+			ObjectData = "Skylight";
+			break;
+
+		default:
+			break;
+	}
+	if (LibInd != 0)
+	{
+		ObjectData += Utf8StringFormat(" LibIndex=%d", LibInd);
+		FAuto_API_LibPart LibPart;
+		LibPart.index = LibInd;
+		GSErrCode GSErr = ACAPI_LibPart_Get(&LibPart);
+		if (GSErr == GS::NoError)
 		{
-			ObjectData += Utf8StringFormat(", mat=%d", InElement.object.mat);
+			ObjectData +=
+				Utf8StringFormat(", Id=%s, Name=\"%s\"", LibPart.ownUnID, GS::UniString(LibPart.docu_UName).ToUtf8());
 		}
-		if (InElement.object.reflected)
+	}
+	if (ObjectType != nullptr)
+	{
+		if (ObjectType->useObjMaterials)
+		{
+			ObjectData += Utf8StringFormat(", mat=%d", ObjectType->mat);
+		}
+		if (ObjectType->reflected)
 		{
 			ObjectData += Utf8StringFormat(", reflected");
 		}
-		if (InElement.object.angle != 0)
+		if (ObjectType->angle != 0)
 		{
-			ObjectData += Utf8StringFormat(", angle=%lf", InElement.object.angle);
+			ObjectData += Utf8StringFormat(", angle=%lf", ObjectType->angle);
 		}
-		if (InElement.object.offset.x != 0 || InElement.object.offset.y != 0)
+		if (ObjectType->offset.x != 0 || ObjectType->offset.y != 0)
 		{
-			ObjectData += Utf8StringFormat(", offset={%lf, %lf}", InElement.object.offset.x, InElement.object.offset.y);
+			ObjectData += Utf8StringFormat(", offset={%lf, %lf}", ObjectType->offset.x, ObjectType->offset.y);
 		}
-		if (InElement.object.pos.x != 0 || InElement.object.pos.y != 0)
+		if (ObjectType->pos.x != 0 || ObjectType->pos.y != 0)
 		{
-			ObjectData += Utf8StringFormat(", pos={%lf, %lf}", InElement.object.pos.x, InElement.object.pos.y);
+			ObjectData += Utf8StringFormat(", pos={%lf, %lf}", ObjectType->pos.x, ObjectType->pos.y);
 		}
-		if (InElement.object.ownerID || InElement.object.owner != APINULLGuid)
+		if (ObjectType->ownerID || ObjectType->owner != APINULLGuid)
 		{
-			ObjectData += Utf8StringFormat(", ownerID=%d, owner={%s}", InElement.object.ownerID,
-										   APIGuidToString(InElement.object.owner).ToUtf8());
+			ObjectData += Utf8StringFormat(", ownerID=%d, owner={%s}", ObjectType->ownerID,
+										   APIGuidToString(ObjectType->owner).ToUtf8());
 		}
+	}
+	if (OpeningBase != nullptr)
+	{
+		if (OpeningBase->reflected)
+		{
+			ObjectData += Utf8StringFormat(", reflected");
+		}
+		if (OpeningBase->oSide)
+		{
+			ObjectData += Utf8StringFormat(", oSide");
+		}
+		if (OpeningBase->refSide)
+		{
+			ObjectData += Utf8StringFormat(", refSide");
+		}
+	}
+	if (ObjectData.size() != 0)
+	{
 		ElementString += Utf8StringFormat("\t\t%s\n", ObjectData.c_str());
 	}
 
@@ -717,8 +791,7 @@ utf8_string FElement2String::GetPropertyObjectsAsString(const API_Elem_Head& InE
 		}
 		for (Int32 IndexPropertyObject = 0; IndexPropertyObject < NbProps; IndexPropertyObject++)
 		{
-			API_LibPart LibPart;
-			Zap(&LibPart);
+			FAuto_API_LibPart LibPart;
 			LibPart.index = (*PropRefs)[IndexPropertyObject].libIndex;
 			GSErr = ACAPI_LibPart_Get(&LibPart);
 			if (GSErr == NoError)
@@ -795,7 +868,7 @@ utf8_string FElement2String::GetParametersAsString(const API_AddParType* const* 
 	{
 		const API_AddParType& Param = (*InParamsHandle)[IndexParam];
 
-		if (Param.flags & (API_ParFlg_Hidden | API_ParFlg_Disabled))
+		if (Param.flags & (0 /* | API_ParFlg_Hidden | API_ParFlg_Disabled */))
 		{
 			continue;
 		}
@@ -903,11 +976,11 @@ utf8_string FElement2String::GetParametersAsString(const API_AddParType* const* 
 				case APIParT_FillPat:
 				case APIParT_PenCol:
 					Params +=
-						Utf8StringFormat("\t\t\t%s %s:%d\n", ParamName.c_str(),
+						Utf8StringFormat("\t\t\t[%3d] %s %s:%d\n", IndexParam, ParamName.c_str(),
 										 TAssEnumName< API_AddParID >::GetName(Param.typeID), (Int32)Param.value.real);
 					break;
 				case APIParT_Boolean:
-					Params += Utf8StringFormat("\t\t\t%s Boolean:%s\n", ParamName.c_str(),
+					Params += Utf8StringFormat("\t\t\t[%3d] %s Boolean:%s\n", IndexParam, ParamName.c_str(),
 											   Param.value.real != 0 ? "true" : "false");
 					break;
 
@@ -915,13 +988,13 @@ utf8_string FElement2String::GetParametersAsString(const API_AddParType* const* 
 				case APIParT_Angle:
 				case APIParT_RealNum:
 				case APIParT_ColRGB:
-					Params += Utf8StringFormat("\t\t\t%s %s:%lg\n", ParamName.c_str(),
+					Params += Utf8StringFormat("\t\t\t[%3d] %s %s:%lg\n", IndexParam, ParamName.c_str(),
 											   TAssEnumName< API_AddParID >::GetName(Param.typeID), Param.value.real);
 					break;
 
 				case APIParT_CString:
 				case APIParT_Title:
-					Params += Utf8StringFormat("\t\t\t%s %s:\"%s\"\n", ParamName.c_str(),
+					Params += Utf8StringFormat("\t\t\t[%3d] %s %s:\"%s\"\n", IndexParam, ParamName.c_str(),
 											   TAssEnumName< API_AddParID >::GetName(Param.typeID),
 											   GS::UniString(Param.value.uStr).ToUtf8());
 					break;
@@ -931,7 +1004,8 @@ utf8_string FElement2String::GetParametersAsString(const API_AddParType* const* 
 					break;
 
 				default:
-					UE_AC_DebugF("FElement2String::AddParam2JSON typeMod=%d\n", Param.typeMod);
+					UE_AC_DebugF("FElement2String::GetParametersAsString [%3d] typeMod=%d\n", IndexParam,
+								 Param.typeMod);
 					break;
 			}
 		}
@@ -939,7 +1013,7 @@ utf8_string FElement2String::GetParametersAsString(const API_AddParType* const* 
 		{
 			// Matrix parameter
 			GS::Int32 PosString = 0;
-			Params += Utf8StringFormat("\t\t\t%s={\n", ParamName.c_str());
+			Params += Utf8StringFormat("\t\t\t[%3d] %s={\n", IndexParam, ParamName.c_str());
 			for (GS::Int32 Index1 = 0; Index1 < Param.dim1; Index1++)
 			{
 				Params += Utf8StringFormat("\t\t\t\t{");

@@ -37,6 +37,14 @@ FNiagaraNamespaceMetadata::FNiagaraNamespaceMetadata(TArray<FName> InNamespaces,
 {
 }
 
+FNiagaraActionColors::FNiagaraActionColors()
+	: NiagaraColor(EForceInit::ForceInitToZero)
+	, GameColor(EForceInit::ForceInitToZero)
+	, PluginColor(EForceInit::ForceInitToZero)
+	, DeveloperColor(EForceInit::ForceInitToZero)
+{
+}
+
 UNiagaraEditorSettings::UNiagaraEditorSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)
 {

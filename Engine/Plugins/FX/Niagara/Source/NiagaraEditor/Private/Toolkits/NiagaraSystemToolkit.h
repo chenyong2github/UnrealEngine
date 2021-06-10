@@ -85,7 +85,8 @@ public:
 protected:
 	void OnToggleBounds();
 	bool IsToggleBoundsChecked() const;
-	void OnToggleBoundsSetFixedBounds();
+	void OnToggleBoundsSetFixedBounds_Emitters();
+	void OnToggleBoundsSetFixedBounds_System();
 
 	void ClearStatPerformance();
 	void ToggleStatPerformance();
@@ -103,6 +104,10 @@ protected:
 
 	void ToggleDrawOption(int32 Element);
 	bool IsDrawOptionEnabled(int32 Element) const;
+
+	void OpenDebugHUD();
+	void OpenDebugOutliner();
+	void OpenAttributeSpreadsheet();
 
 	//~ FAssetEditorToolkit interface
 	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const override;

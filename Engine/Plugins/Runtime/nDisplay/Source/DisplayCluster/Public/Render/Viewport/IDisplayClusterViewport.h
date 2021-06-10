@@ -34,7 +34,7 @@ public:
 	virtual bool CalculateView(const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
 	virtual bool GetProjectionMatrix(const uint32 InContextNum, FMatrix& OutPrjMatrix) = 0;
 
-	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy>& GetProjectionPolicy() const = 0;
+	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& GetProjectionPolicy() const = 0;
 
 	virtual const TArray<FDisplayClusterViewport_Context>& GetContexts() const = 0;
 

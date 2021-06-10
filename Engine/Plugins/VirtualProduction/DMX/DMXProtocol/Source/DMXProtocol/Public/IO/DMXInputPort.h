@@ -15,7 +15,7 @@
 struct FDMXInputPortConfig;
 class FDMXPortManager;
 class FDMXRawListener;
-
+class IDMXInputPortTickedBufferOverride;
 
 /**  
  * Higher level abstraction of a DMX input hiding networking specific and protocol specific complexity from the game. 
@@ -23,30 +23,26 @@ class FDMXRawListener;
  * To input DMX into your objects, refer to DMXRawListener and DMXTickedUniverseListener.
  *
  * Can only be constructed via DMXPortManger, see FDMXPortManager::CreateInputPort and FDMXPortManager::CreateInputPortFromConfig
-
  */
 class DMXPROTOCOL_API FDMXInputPort
 	: public FDMXPort
 	, public FTickableGameObject
 {
-	// Friend DMXPortManager so no other object can create instances
+	// Friend DMXPortManager so it can create instances and unregister void instances
 	friend FDMXPortManager;
 
-	// Friend Raw Listener so it can add and remove themselves to the port
+	// Friend Raw Listener so it can add and remove itself to the port
 	friend FDMXRawListener;
 
 protected:
-	/** Creates an output port that is not tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
-	static FDMXInputPortSharedRef Create();
-
-	/** Creates an output port tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
-	static FDMXInputPortSharedRef CreateFromConfig(const FDMXInputPortConfig& InputPortConfig);
+	/** Creates an output port tied to a specific config. Makes the config valid if it's invalid. */
+	static FDMXInputPortSharedRef CreateFromConfig(FDMXInputPortConfig& InputPortConfig);
 
 public:
 	virtual ~FDMXInputPort();
 
-	/** Updates the Port to use the config of the InputPortConfig */
-	void UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig);
+	/** Updates the Port to use the config of the InputPortConfig. Makes the config valid if it's invalid. */
+	void UpdateFromConfig(FDMXInputPortConfig& InputPortConfig);
 
 public:
 	// ~Begin DMXPort Interface 
@@ -96,28 +92,49 @@ public:
 	/** Gets the last signal received in specified local universe. Returns false if no signal was received. Game-Thread only */
 	bool GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal);
 
+	/** Gets all the last signal received. Game-Thread only */
+	const TMap<int32, FDMXSignalSharedPtr>& GameThreadGetAllDMXSignals() const;
+
 	/**  DEPRECATED 4.27. Gets the DMX signal from an extern (remote) Universe ID. */
 	UE_DEPRECATED(4.27, "Use GameThreadGetDMXSignal instead. GameThreadGetDMXSignalFromRemoteUniverse only exists to support deprecated blueprint nodes.")
 	bool GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine = false);
 
+	/** Returns true if receive DMX is disabled */
 	FORCEINLINE bool IsReceiveDMXEnabled() const { return bReceiveDMXEnabled; }
 
+	/** 
+	 * Injects a dmx signal into the game thread. 
+	 * Note, only signals get from game thread are affected but not raw listeners. 
+	 * Useful for nDisplay replication.
+	 */
+	void GameThreadInjectDMXSignal(const FDMXSignalSharedRef& DMXSignal);
+
+	/** 
+	 * Sets if the port should listen to its default queue. 
+	 * If false, another raw listener can create the default queue by adding a raw listener and inject its data via GameThreadInjectDMXSignal
+	 * Useful for nDisplay replication.
+	 */
+	void SetUseDefaultQueue(bool bUse);
+	
 protected:
 	/** Called to set if receive DMX should be enabled */
 	void OnSetReceiveDMXEnabled(bool bEnabled);
 
 	/** According to DMXProtcolSettings, true if DMX should be received */
 	bool bReceiveDMXEnabled;
-	
+
 private:
 	/** The default buffer, which is being read on tick */
-	TQueue<FDMXSignalSharedPtr> TickedBuffer;
+	TQueue<FDMXSignalSharedPtr> DefaultInputQueue;
+
+	/** If true, adds data to the default input queue and fills the UniverseToLatestSignalMap with it */
+	bool bUseDefaultInputQueue = true;
 
 	/** Map of Universe Inputs with their Universes */
 	TMap<int32, TSet<TSharedRef<FDMXTickedUniverseListener>>> LocalUniverseToListenerGroupMap;
 
-	/** Map of latest Singals per local Universe */
-	TMap<int32, FDMXSignalSharedPtr> UniverseToLatestSignalMap;
+	/** Map of latest Singals per extern Universe */
+	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap;
 
 	/** Map of raw isteners */
 	TSet<TSharedRef<FDMXRawListener>> RawListeners;
@@ -127,7 +144,7 @@ private:
 
 private:
 	/** Returns the port config that corresponds to the guid of this port. */
-	const FDMXInputPortConfig* FindInputPortConfigChecked() const;
+	FDMXInputPortConfig* FindInputPortConfigChecked() const;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;

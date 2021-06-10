@@ -135,7 +135,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
 	FLinearColor EditorColor;
 
-	/** If true, the patch receives dmx and raises the OnFixturePatchReceivedDMX event in editor */
+	/** 
+	 * If true, the patch receives dmx and raises the OnFixturePatchReceivedDMX event in editor. 
+	 * Note: DMXComponent does not support this. To receive the patch in editor, drag out from the patch and bind its OnFixturePatchReceivedDMX event.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
 	bool bReceiveDMXInEditor;
 #endif

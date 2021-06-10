@@ -23,7 +23,7 @@ public:
 public:
 	virtual FString GetId() const = 0;
 
-	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy>& GetProjectionPolicy_RenderThread() const = 0;
+	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& GetProjectionPolicy_RenderThread() const = 0;
 
 	virtual const FDisplayClusterViewport_RenderSettings& GetRenderSettings_RenderThread() const = 0;
 	virtual const FDisplayClusterViewport_RenderSettingsICVFX& GetRenderSettingsICVFX_RenderThread() const = 0;

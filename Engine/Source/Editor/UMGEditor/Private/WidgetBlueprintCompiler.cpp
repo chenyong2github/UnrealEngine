@@ -614,7 +614,30 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 			EObjectFlags PreviousFlags = WidgetBP->WidgetTree->GetFlags();
 			WidgetBP->WidgetTree->ClearFlags(RF_ArchetypeObject);
 
-			UWidgetTree* NewWidgetTree = Cast<UWidgetTree>(StaticDuplicateObject(WidgetBP->WidgetTree, BPGClass, NAME_None, RF_AllFlags & ~RF_DefaultSubObject));
+			TMap<UObject*, UObject*> DupObjectsMap;
+			FObjectDuplicationParameters DupParams(WidgetBP->WidgetTree, BPGClass);
+			DupParams.DestName = DupParams.SourceObject->GetFName();
+			DupParams.FlagMask = RF_AllFlags & ~RF_DefaultSubObject;
+
+			// if we are recompiling the BP on load, skip post load and defer it to the loading process
+			FUObjectSerializeContext* LinkerLoadingContext = nullptr;
+			if (WidgetBP->bIsRegeneratingOnLoad)
+			{
+				FLinkerLoad* Linker = WidgetBP->GetLinker();
+				LinkerLoadingContext = Linker ? Linker->GetSerializeContext() : nullptr;
+				DupParams.bSkipPostLoad = true;
+				DupParams.CreatedObjects = &DupObjectsMap;
+			}
+
+			UWidgetTree* NewWidgetTree = Cast<UWidgetTree>(StaticDuplicateObjectEx(DupParams));
+
+			// if we have anything in here after duplicate, then hook them in the loading process so they get post loaded
+			if (LinkerLoadingContext)
+			{
+				TArray<UObject*> DupObjects;
+				DupObjectsMap.GenerateValueArray(DupObjects);
+				LinkerLoadingContext->AddUniqueLoadedObjects(DupObjects);
+			}
 
 			BPGClass->SetWidgetTreeArchetype(NewWidgetTree);
 			if (OldWidgetTree)

@@ -17,6 +17,7 @@ FPhysicsAssetEditorSkeletonTreeBuilder::FPhysicsAssetEditorSkeletonTreeBuilder(U
 	, bShowKinematicBodies(true)
 	, bShowSimulatedBodies(true)
 	, bShowConstraints(false)
+	, bShowConstraintsOnParentBodies(true)
 	, bShowPrimitives(false)
 	, PhysicsAsset(InPhysicsAsset)
 {
@@ -86,6 +87,14 @@ ESkeletonTreeFilterResult FPhysicsAssetEditorSkeletonTreeBuilder::FilterItem(con
 			if(!bShowConstraints)
 			{
 				Result = ESkeletonTreeFilterResult::Hidden;
+			} 
+			else
+			{
+				TSharedPtr<FSkeletonTreePhysicsConstraintItem> SkeletonTreePhysicsConstraintItem = StaticCastSharedPtr<FSkeletonTreePhysicsConstraintItem>(InItem);
+				if (!bShowConstraintsOnParentBodies && SkeletonTreePhysicsConstraintItem->IsConstraintOnParentBody())
+				{
+					Result = ESkeletonTreeFilterResult::Hidden;
+				}
 			}
 		}
 		else if(InItem->IsOfType<FSkeletonTreePhysicsShapeItem>())
@@ -174,7 +183,8 @@ void FPhysicsAssetEditorSkeletonTreeBuilder::AddBodies(FSkeletonTreeBuilderOutpu
 
 							if (bJointMatches || bUserConstraintMatches)
 							{
-								Output.Add(MakeShared<FSkeletonTreePhysicsConstraintItem>(PhysicsAsset->ConstraintSetup[ConstraintIndex], ConstraintIndex, BoneName, SkeletonTreePtr.Pin().ToSharedRef()), BoneName, FSkeletonTreePhysicsBodyItem::GetTypeId());
+								const bool bIsConstraintOnParentBone = !(ConstraintInstance.JointName == BoneName || ConstraintInstance.ConstraintBone1 == BoneName);
+								Output.Add(MakeShared<FSkeletonTreePhysicsConstraintItem>(PhysicsAsset->ConstraintSetup[ConstraintIndex], ConstraintIndex, BoneName, bIsConstraintOnParentBone, SkeletonTreePtr.Pin().ToSharedRef()), BoneName, FSkeletonTreePhysicsBodyItem::GetTypeId());
 							}
 						}
 

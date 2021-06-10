@@ -3,25 +3,18 @@
 #include "SNodalOffsetToolPanel.h"
 
 #include "AssetRegistry/AssetData.h"
-#include "Camera/CameraActor.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraNodalOffsetAlgo.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
-#include "Engine/StaticMeshActor.h"
-#include "Engine/TextureRenderTarget2D.h"
-#include "IContentBrowserSingleton.h"
 #include "LensFile.h"
 #include "NodalOffsetTool.h"
-#include "PropertyCustomizationHelpers.h"
-#include "SSimulcamViewport.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SSpinBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STreeView.h"
@@ -30,10 +23,9 @@
 #define LOCTEXT_NAMESPACE "NodalOffsetTool"
 
 
-void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, ULensFile* InLensFile)
+void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool* InNodalOffsetTool)
 {
-	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
-	NodalOffsetTool = MakeShared<FNodalOffsetTool>(InLensFile);
+	NodalOffsetTool = InNodalOffsetTool;
 
 	// This will be the widget wrapper of the custom algo UI.
 	NodalOffsetUI = SNew(SVerticalBox);
@@ -42,29 +34,10 @@ void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, ULensFile* InLen
 	[
 		SNew(SHorizontalBox)
 
-		+ SHorizontalBox::Slot() // Simulcam Viewport
-		.FillWidth(0.75f) 
-		[ 
-			SNew(SSimulcamViewport, NodalOffsetTool->GetRenderTarget())
-			.OnSimulcamViewportClicked_Raw(NodalOffsetTool.Get(), &FNodalOffsetTool::OnSimulcamViewportClicked)
-		]
-
 		+ SHorizontalBox::Slot() // Right toolbar
 		.FillWidth(0.25f)
 		[ 
 			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot() // Wiper
-			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-			[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Transparency", "Transparency"), BuildSimulcamWiperWidget())]
-
-			+ SVerticalBox::Slot() // Camera picker
-			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-			[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Camera", "Camera"), BuildCameraPickerWidget())]
-
-			+ SVerticalBox::Slot() // Media Source picker
-			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-			[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("MediaSource", "Media Source"), BuildMediaSourceWidget())]
 
 			+ SVerticalBox::Slot() // Algo picker
 			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
@@ -96,19 +69,7 @@ void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, ULensFile* InLen
 
 TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetUIWrapper()
 {
-	const UCameraNodalOffsetAlgo* Algo = NodalOffsetTool->GetNodalOffsetAlgo();
-
-	NodalOffsetUITitle = SNew(STextBlock)
-		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 13))
-		.Text(Algo ? FText::FromName(Algo->FriendlyName()) : LOCTEXT("None", "None"))
-		.Justification(ETextJustify::Center);
-
 	return SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot() // Title
-		.AutoHeight()
-		.Padding(0,10)
-		[ NodalOffsetUITitle.ToSharedRef() ]
 
 		+ SVerticalBox::Slot() // Algo's Widget
 		.AutoHeight()
@@ -148,52 +109,6 @@ void SNodalOffsetToolPanel::UpdateNodalOffsetUI()
 
 	// Assign GUI
 	NodalOffsetUI->AddSlot() [Algo->BuildUI()];
-
-	// Update Title
-	if (NodalOffsetUITitle.IsValid())
-	{
-		NodalOffsetUITitle->SetText(FText::FromName(Algo->FriendlyName()));
-	}
-}
-
-TSharedRef<SWidget> SNodalOffsetToolPanel::BuildCameraPickerWidget()
-{
-	return SNew(SObjectPropertyEntryBox)
-		.AllowedClass(ACameraActor::StaticClass())
-		.OnObjectChanged_Lambda([&](const FAssetData& AssetData)
-		{
-			if (AssetData.IsValid())
-			{
-				NodalOffsetTool->SetCamera(Cast<ACameraActor>(AssetData.GetAsset()));
-			}
-		})
-		.ObjectPath_Lambda([&]() -> FString
-		{
-			if (ACameraActor* Camera = NodalOffsetTool->GetCamera())
-			{
-				FAssetData AssetData(Camera, true);
-				return AssetData.ObjectPath.ToString();
-			}
-
-			return TEXT("");
-		});
-}
-
-TSharedRef<SWidget> SNodalOffsetToolPanel::BuildSimulcamWiperWidget()
-{
-	return SNew(SSpinBox<float>)
-		.Value_Lambda([&]() { return NodalOffsetTool->GetWiperWeight(); })
-		.ToolTipText(LOCTEXT("CGWiper", "CG/Media Wiper"))
-		.OnValueChanged_Lambda([&](double InValue)
-		{
-			NodalOffsetTool->SetWiperWeight(float(InValue));
-		})
-		.MinValue(0.0f)
-		.MaxValue(1.0f)
-		.MinSliderValue(0.0f)
-		.MaxSliderValue(1.0f)
-		.ClearKeyboardFocusOnCommit(true)
-		.Delta(0.1f);
 }
 
 void SNodalOffsetToolPanel::UpdateAlgosOptions()
@@ -259,77 +174,5 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
 	return AlgosComboBox.ToSharedRef();
 }
 
-void SNodalOffsetToolPanel::UpdateMediaSourcesOptions()
-{
-	CurrentMediaSources.Empty();
-
-	if (NodalOffsetTool.IsValid())
-	{
-		NodalOffsetTool->FindMediaSourceUrls(CurrentMediaSources);
-	}
-
-	// Add a "None" option
-	CurrentMediaSources.Add(MakeShareable(new FString(TEXT("None"))));
-
-	check(MediaSourcesComboBox.IsValid());
-
-	// Ask the ComboBox to refresh its options from its source (that we just updated)
-	MediaSourcesComboBox->RefreshOptions();
-
-	// Make sure we show the item that is selected
-	const FString MediaSourceUrl = NodalOffsetTool->GetMediaSourceUrl();
-
-	for (const TSharedPtr<FString>& MediaSourceUrlItem: CurrentMediaSources)
-	{
-		check(MediaSourceUrlItem.IsValid());
-
-		if (*MediaSourceUrlItem == MediaSourceUrl)
-		{
-			MediaSourcesComboBox->SetSelectedItem(MediaSourceUrlItem);
-			return;
-		}
-	}
-
-	// If we arrived here, we fall back to "None"
-	MediaSourcesComboBox->SetSelectedItem(CurrentMediaSources[CurrentMediaSources.Num() - 1]);
-
-	return;
-}
-
-TSharedRef<SWidget> SNodalOffsetToolPanel::BuildMediaSourceWidget()
-{
-	MediaSourcesComboBox = SNew(SComboBox<TSharedPtr<FString>>)
-		.OptionsSource(&CurrentMediaSources)
-		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> NewValue, ESelectInfo::Type Type) -> void
-		{
-			if (!NodalOffsetTool.IsValid() || !NewValue.IsValid())
-			{
-				return;
-			}
-
-			NodalOffsetTool->SetMediaSourceUrl(*NewValue);
-		})
-		.OnGenerateWidget_Lambda([&](TSharedPtr<FString> InOption) -> TSharedRef<SWidget>
-		{
-			return SNew(STextBlock).Text(FText::FromString(*InOption));
-		})
-		.InitiallySelectedItem(nullptr)
-		[
-			SNew(STextBlock)
-			.Text_Lambda([&]() -> FText
-			{
-				if (MediaSourcesComboBox.IsValid() && MediaSourcesComboBox->GetSelectedItem().IsValid())
-				{
-					return FText::FromString(*MediaSourcesComboBox->GetSelectedItem());
-				}
-
-				return LOCTEXT("InvalidComboOption", "Invalid");
-			})
-		];
-
-	UpdateMediaSourcesOptions();
-
-	return MediaSourcesComboBox.ToSharedRef();
-}
 
 #undef LOCTEXT_NAMESPACE

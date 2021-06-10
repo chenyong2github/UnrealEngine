@@ -1158,6 +1158,10 @@ namespace Audio
 
 			return ++NumEffects;
 		}
+		else
+		{
+			UE_LOG(LogAudio, Warning, TEXT("Submix instance %s not found."), *InSoundSubmix->GetName());
+		}
 		return 0;
 	}
 

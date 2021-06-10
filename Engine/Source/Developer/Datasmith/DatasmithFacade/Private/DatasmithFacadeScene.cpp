@@ -9,6 +9,7 @@
 #include "DatasmithFacadeMesh.h"
 #include "DatasmithFacadeMetaData.h"
 #include "DatasmithFacadeTexture.h"
+#include "DatasmithFacadeVariant.h"
 
 // Datasmith SDK.
 #include "DatasmithExporterManager.h"
@@ -221,6 +222,40 @@ void FDatasmithFacadeScene::RemoveTexture(
 	SceneRef->RemoveTexture(InTexturePtr->GetDatasmithTextureElement());
 }
 
+void FDatasmithFacadeScene::AddLevelVariantSets(
+	FDatasmithFacadeLevelVariantSets* InLevelVariantSetsPtr
+)
+{
+	if (InLevelVariantSetsPtr)
+	{
+		SceneRef->AddLevelVariantSets(InLevelVariantSetsPtr->GetDatasmithLevelVariantSets());
+	}
+}
+
+int32 FDatasmithFacadeScene::GetLevelVariantSetsCount() const
+{
+	return SceneRef->GetLevelVariantSetsCount();
+}
+
+FDatasmithFacadeLevelVariantSets* FDatasmithFacadeScene::GetNewLevelVariantSets(
+	int32 LevelVariantSetsIndex
+)
+{
+	if (TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSetsElement = SceneRef->GetLevelVariantSets(LevelVariantSetsIndex))
+	{
+		return new FDatasmithFacadeLevelVariantSets(LevelVariantSetsElement.ToSharedRef());
+	}
+
+	return nullptr;
+}
+
+void FDatasmithFacadeScene::RemoveLevelVariantSets(
+	FDatasmithFacadeLevelVariantSets* InLevelVariantSetsPtr
+)
+{
+	SceneRef->RemoveLevelVariantSets(InLevelVariantSetsPtr->GetDatasmithLevelVariantSets());
+}
+
 void FDatasmithFacadeScene::AddMetaData(
 	FDatasmithFacadeMetaData* InMetaData
 )
@@ -422,7 +457,8 @@ void FDatasmithFacadeScene::Shutdown()
 }
 
 bool FDatasmithFacadeScene::ExportScene(
-	const TCHAR* InOutputPath
+	const TCHAR* InOutputPath,
+	bool bCleanupUnusedElements
 )
 {
 	FString OutputPath = InOutputPath;
@@ -435,10 +471,10 @@ bool FDatasmithFacadeScene::ExportScene(
 	FString SceneFolder = FPaths::GetPath(OutputPath);
 	SetOutputPath(*SceneFolder);
 
-	return ExportScene();
+	return ExportScene(bCleanupUnusedElements);
 }
 
-bool FDatasmithFacadeScene::ExportScene()
+bool FDatasmithFacadeScene::ExportScene(bool bCleanupUnusedElements)
 {
 	if ( FCString::Strlen(SceneExporterRef->GetName()) == 0
 		|| FCString::Strlen(SceneExporterRef->GetOutputPath()) == 0)
@@ -447,7 +483,7 @@ bool FDatasmithFacadeScene::ExportScene()
 	}
 
 	// Export the Datasmith scene instance into its file.
-	SceneExporterRef->Export(SceneRef);
+	SceneExporterRef->Export(SceneRef, bCleanupUnusedElements);
 
 	return true;
 }

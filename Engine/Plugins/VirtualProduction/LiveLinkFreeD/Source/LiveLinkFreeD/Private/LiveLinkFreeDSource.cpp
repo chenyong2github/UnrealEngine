@@ -374,7 +374,6 @@ void FLiveLinkFreeDSource::Send(FLiveLinkFrameDataStruct* FrameDataToSend, FName
 		CameraData.bIsFocusDistanceSupported = SavedSourceSettings->FocusDistanceEncoderData.bIsValid;
 		CameraData.bIsFocalLengthSupported = SavedSourceSettings->FocalLengthEncoderData.bIsValid;
 		CameraData.bIsApertureSupported = SavedSourceSettings->UserDefinedEncoderData.bIsValid;
-		CameraData.FIZDataMode = ECameraFIZMode::EncoderData;
 		Client->PushSubjectStaticData_AnyThread({ SourceGuid, SubjectName }, ULiveLinkCameraRole::StaticClass(), MoveTemp(StaticData));
 		EncounteredSubjects.Add(SubjectName);
 	}

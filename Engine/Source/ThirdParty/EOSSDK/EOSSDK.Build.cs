@@ -9,37 +9,12 @@ using EpicGames.Core;
 
 public class EOSSDK : ModuleRules
 {
-	public virtual string BaseSDKSearchPath
+	public virtual string SDKBaseDir
 	{
 		get
 		{
 			// Overridden by platform extensions to point at the PE module directory
-			return ModuleDirectory;
-		}
-	}
-
-	private string SDKBaseDirCached;
-	public string SDKBaseDir
-	{
-		get
-		{
-			if(SDKBaseDirCached == null)
-			{
-				List<string> SDKSearchPaths = new List<string>
-				{
-					Path.Combine(BaseSDKSearchPath, "Restricted", "NotForLicensees", "SDK"),
-					Path.Combine(BaseSDKSearchPath, "SDK")
-				};
-
-				SDKBaseDirCached = SDKSearchPaths.FirstOrDefault(SDKSearchPath => Directory.Exists(Path.Combine(SDKSearchPath, "Include")));
-
-				if (string.IsNullOrEmpty(SDKBaseDirCached))
-				{
-					throw new BuildException("EOS SDK not found in any search location");
-				}
-			}
-
-			return SDKBaseDirCached;
+			return Path.Combine(ModuleDirectory, "SDK");
 		}
 	}
 

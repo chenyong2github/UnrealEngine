@@ -14,6 +14,7 @@
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/IDataprepMenuActionCollector.h"
 #include "SelectionSystem/DataprepStringFilter.h"
+#include "SelectionSystem/DataprepObjectSelectionFilter.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
@@ -809,35 +810,12 @@ void SDataprepGraphEditor::OnCollectCustomActions(TArray<TSharedPtr<FDataprepSch
 		return;
 	}
 
-	UClass* NameFetcherClass = FindObject<UClass>( ANY_PACKAGE, TEXT( "DataprepStringObjectNameFetcher" ) );
-	check( NameFetcherClass );
-
 	FDataprepSchemaAction::FOnExecuteAction OnExcuteMenuAction;
-	OnExcuteMenuAction.BindLambda( [this, AssetAndActorSelection, NameFetcherClass] (const FDataprepSchemaActionContext& InContext)
+	OnExcuteMenuAction.BindLambda( [this, AssetAndActorSelection] (const FDataprepSchemaActionContext& InContext)
 	{
-		UDataprepActionAsset* Action = InContext.DataprepActionPtr.Get();
-		if ( Action )
+		if( UDataprepActionAsset* Action = InContext.DataprepActionPtr.Get() )
 		{
-			int32 NewFilterIndex = Action->AddStep( NameFetcherClass );
-
-			UDataprepActionStep* Step = Action->GetStep(NewFilterIndex).Get();
-			check( Step );
-
-			UDataprepStringFilter* StringFilter = Cast< UDataprepStringFilter >( Step->GetStepObject() );
-			check( StringFilter );
-
-			StringFilter->SetMatchInArray( true );
-			UDataprepStringFilterMatchingArray* ArrayField = StringFilter->GetStringArray();
-
-			for ( UObject* Obj : AssetAndActorSelection )
-			{
-				ArrayField->Strings.Add( Obj->GetName() );
-			}
-
-			if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
-			{
-				TrackGraphNode->UpdateGraphNode();
-			}
+			CreateFilterFromSelection( Action, AssetAndActorSelection );
 		}
 	});
 
@@ -846,6 +824,30 @@ void SDataprepGraphEditor::OnCollectCustomActions(TArray<TSharedPtr<FDataprepSch
 		, MAX_int32, FText::FromString( TEXT("") ), OnExcuteMenuAction);
 
 	OutActions.Add( Action );
+}
+
+void SDataprepGraphEditor::CreateFilterFromSelection(UDataprepActionAsset* InTargetAction, const TSet< UObject* >& InAssetAndActorSelection)
+{
+	check( InTargetAction );
+
+	if ( InAssetAndActorSelection.Num() == 0 )
+	{
+		return;
+	}
+
+	TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin();
+	check( DataprepEditorPtr );
+
+	UDataprepObjectSelectionFilter* Filter = NewObject< UDataprepObjectSelectionFilter >( GetTransientPackage(), UDataprepObjectSelectionFilter::StaticClass(), NAME_None, RF_Transactional );
+	Filter->SetSelection( DataprepEditorPtr->GetTransientContentFolder(), InAssetAndActorSelection.Array() );
+
+	int32 NewFilterIndex = InTargetAction->AddStep( Filter );
+	ensure( NewFilterIndex != INDEX_NONE );
+
+	if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
+	{
+		TrackGraphNode->UpdateGraphNode();
+	}
 }
 
 FActionMenuContent SDataprepGraphEditor::OnCreateActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
@@ -1157,28 +1159,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 					{
 						if ( UDataprepActionAsset* Action = Actions[0] )
 						{
-							UClass* NameFetcherClass = FindObject<UClass>( ANY_PACKAGE, TEXT( "DataprepStringObjectNameFetcher" ) );
-							check( NameFetcherClass );
-							const int32 StepIndex = Action->AddStep( NameFetcherClass );
-
-							UDataprepActionStep* Step = Action->GetStep(StepIndex).Get();
-							check( Step );
-
-							UDataprepStringFilter* StringFilter = Cast< UDataprepStringFilter >( Step->GetStepObject() );
-							check( StringFilter );
-
-							StringFilter->SetMatchInArray( true );
-							UDataprepStringFilterMatchingArray* ArrayField = StringFilter->GetStringArray();
-
-							for ( UObject* Obj : AssetAndActorSelection )
-							{
-								ArrayField->Strings.Add( Obj->GetName() );
-							}
-
-							if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
-							{
-								TrackGraphNode->UpdateGraphNode();
-							}
+							CreateFilterFromSelection( Action, AssetAndActorSelection );
 						}
 					});
 					
@@ -1197,7 +1178,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			bool bIsSelectionOnlyFilters = true;
 			bool bAreFilterFromSameAction = true;
 			
-			TArray<UDataprepFilter*> Filters;
+			TArray<UDataprepParameterizableObject*> Filters;
 			Filters.Reserve( SelectedNodes.Num() );
 
 			const UDataprepActionAsset* ClickedAction = FirstStepNode->GetDataprepActionAsset();
@@ -1226,6 +1207,10 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 					{
 						Filters.Add( Filter );
 					}
+					else if( UDataprepFilterNoFetcher* FilterNF = Cast<UDataprepFilterNoFetcher>( StepObject ) )
+					{
+						Filters.Add( FilterNF );
+					}
 					else
 					{
 						bIsSelectionOnlyFilters = false;
@@ -1243,9 +1228,16 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 					InverseFilterAction.ExecuteAction.BindLambda( [Filters]()
 						{
 							FScopedTransaction Transaction( LOCTEXT("InverseFilterTransaction", "Inverse the filter") );
-							for ( UDataprepFilter* Filter : Filters )
+							for ( UDataprepParameterizableObject* ParamObj : Filters )
 							{
-								Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
+								if( UDataprepFilter* Filter = Cast<UDataprepFilter>( ParamObj ) )
+								{
+									Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
+								}
+								else if( UDataprepFilterNoFetcher* FilterNF = Cast<UDataprepFilterNoFetcher>( ParamObj ) )
+								{
+									FilterNF->SetIsExcludingResult( !FilterNF->IsExcludingResult() );
+								}
 							}
 						});
 					MenuBuilder->AddMenuEntry(LOCTEXT("InverseFilter", "Inverse Filter(s) Selection"),
@@ -1263,7 +1255,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 						 * Work with the assumption that the filters array contains only unique objects
 						 */
 						{
-							for ( UDataprepFilter* Filter : Filters )
+							for ( UDataprepParameterizableObject* Filter : Filters )
 							{
 								if ( !DataprepEditorPtr->IsPreviewingStep(Filter) )
 								{

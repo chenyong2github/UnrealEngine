@@ -18,7 +18,7 @@ public:
 
 protected:
 	// IDetailCustomization interface
-	virtual void CustomizeDetails(class IDetailLayoutBuilder& LayoutBuilder) override;
+	virtual void CustomizeDetails(class IDetailLayoutBuilder& InLayoutBuilder) override;
 
 protected:
 	TWeakObjectPtr<UDisplayClusterICVFXCameraComponent> EditedObject;

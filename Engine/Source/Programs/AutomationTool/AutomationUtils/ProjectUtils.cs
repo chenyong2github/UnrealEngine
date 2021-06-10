@@ -15,6 +15,7 @@ namespace AutomationTool
 	public class SingleTargetProperties
 	{
 		public string TargetName;
+		public string TargetClassName;
 		public TargetRules Rules;
 	}
 
@@ -37,6 +38,11 @@ namespace AutomationTool
 		/// List of all targets detected for this project.
 		/// </summary>
 		public List<SingleTargetProperties> Targets = new List<SingleTargetProperties>();
+
+		/// <summary>
+		/// List of all scripts that were compiled to create the list of Targets
+		/// </summary>
+		public List<FileReference> TargetScripts = new List<FileReference>();
 
 		/// <summary>
 		/// List of all Engine ini files for this project
@@ -741,6 +747,8 @@ namespace AutomationTool
 		/// <param name="TargetScripts"></param>
 		private static void CompileAndLoadTargetsAssembly(ProjectProperties Properties, FileReference TargetsDllFilename, bool DoNotCompile, List<FileReference> TargetScripts)
 		{
+			Properties.TargetScripts = new List<FileReference>(TargetScripts);
+
 			CommandUtils.LogVerbose("Compiling targets DLL: {0}", TargetsDllFilename);
 
 			List<string> ReferencedAssemblies = new List<string>() 
@@ -766,6 +774,7 @@ namespace AutomationTool
 
 					SingleTargetProperties TargetData = new SingleTargetProperties();
 					TargetData.TargetName = GetTargetName(TargetType);
+					TargetData.TargetClassName = TargetType.FullName;
 					TargetData.Rules = Rules;
 					if (Rules.Type == global::UnrealBuildTool.TargetType.Program)
 					{

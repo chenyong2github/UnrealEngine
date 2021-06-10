@@ -36,11 +36,14 @@ public:
 
 	/** When the whitelist or blacklist for any struct was added to or removed from. */
     FWhitelistUpdated WhitelistUpdatedDelegate;
+    
+	/** When the entire whitelist is enabled or disabled */
+	FWhitelistUpdated WhitelistEnabledDelegate;
 
 	/** Controls whether DoesPropertyPassFilter always returns true or performs property-based filtering. */
 	bool IsEnabled() const { return bEnablePropertyEditorWhitelist; }
 	/** Turn on or off the property editor whitelist. DoesPropertyPassFilter will always return true if disabled. */
-	void SetEnabled(bool bEnable) { bEnablePropertyEditorWhitelist = bEnable; }
+	void SetEnabled(bool bEnable);
 
 	/** Whether the Details View should show special menu entries to add/remove items in the whitelist */
 	bool ShouldShowMenuEntries() const { return bShouldShowMenuEntries;}

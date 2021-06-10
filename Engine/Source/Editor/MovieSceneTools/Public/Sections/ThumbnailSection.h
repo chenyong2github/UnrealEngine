@@ -41,6 +41,9 @@ public:
 
 public:
 
+	/* Destroy the thumbnails on the next tick. */
+	void DestroyThumbnails_Latent();
+
 	/** @return The sequencer widget owning the MovieScene section. */
 	TSharedRef<SWidget> GetSequencerWidget()
 	{

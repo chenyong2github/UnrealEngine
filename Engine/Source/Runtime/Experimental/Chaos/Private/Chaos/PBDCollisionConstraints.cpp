@@ -117,7 +117,7 @@ namespace Chaos
 		, bEnableRestitution(true)
 		, bHandlesEnabled(true)
 		, bCanDisableContacts(true)
-		, ApplyType(ECollisionApplyType::Velocity)
+		, SolverType(EConstraintSolverType::GbfPbd)
 		, LifespanCounter(0)
 		, PostApplyCallback(nullptr)
 		, PostApplyPushOutCallback(nullptr)
@@ -209,24 +209,28 @@ namespace Chaos
 
 			const FChaosPhysicsMaterial::ECombineMode FrictionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->FrictionCombineMode,PhysicsMaterial1->FrictionCombineMode);
 			Contact.Friction = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Friction,PhysicsMaterial1->Friction, FrictionCombineMode);
-			Contact.AngularFriction = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->StaticFriction, PhysicsMaterial1->StaticFriction, FrictionCombineMode);
+			const FReal StaticFriction0 = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial0->StaticFriction);
+			const FReal StaticFriction1 = FMath::Max(PhysicsMaterial1->Friction, PhysicsMaterial1->StaticFriction);
+			Contact.AngularFriction = FChaosPhysicsMaterial::CombineHelper(StaticFriction0, StaticFriction1, FrictionCombineMode);
 		}
 		else if (PhysicsMaterial0)
 		{
+			const FReal StaticFriction0 = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial0->StaticFriction);
 			Contact.Restitution = PhysicsMaterial0->Restitution;
 			Contact.Friction = PhysicsMaterial0->Friction;
-			Contact.AngularFriction = PhysicsMaterial0->StaticFriction;
+			Contact.AngularFriction = StaticFriction0;
 		}
 		else if (PhysicsMaterial1)
 		{
+			const FReal StaticFriction1 = FMath::Max(PhysicsMaterial1->Friction, PhysicsMaterial1->StaticFriction);
 			Contact.Restitution = PhysicsMaterial1->Restitution;
 			Contact.Friction = PhysicsMaterial1->Friction;
-			Contact.AngularFriction = PhysicsMaterial1->StaticFriction;
+			Contact.AngularFriction = StaticFriction1;
 		}
 		else
 		{
 			Contact.Friction = DefaultCollisionFriction;
-			Contact.AngularFriction = 0;
+			Contact.AngularFriction = DefaultCollisionFriction;
 			Contact.Restitution = DefaultCollisionRestitution;
 		}
 
@@ -519,7 +523,7 @@ namespace Chaos
 			Iteration, 
 			NumIterations, 
 			NumPairIterations, 
-			ApplyType, 
+			SolverType, 
 			&bNeedsAnotherIteration
 		};
 	}

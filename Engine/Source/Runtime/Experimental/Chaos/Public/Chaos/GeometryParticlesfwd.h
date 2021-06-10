@@ -28,7 +28,7 @@ namespace Chaos
 	enum class ESyncState: uint8
 	{
 		InSync,	    //in sync with recorded data
-		SoftDesync, //recorded data still matches, but may interact with hard desynced particles
+		//SoftDesync, //recorded data still matches, but may interact with hard desynced particles
 		HardDesync, //recorded data mismatches, must run collision detection again
 	};
 

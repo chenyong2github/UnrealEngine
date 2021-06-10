@@ -440,7 +440,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateVIOSOPolicy(UDisp
 		ParametersHandle,
 		TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() }));
 
-	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoMatrix>(
+	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfo4x4Matrix>(
 		"Matrix",
 		DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix,
 		Blueprint,
@@ -456,7 +456,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateEasyBlendPolicy(U
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		TArray<FString>{"pol", "ol"}));
+		TArray<FString>{"pol*", "ol*"}));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoComponentCombo>(
 		"Origin",
@@ -547,7 +547,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 
 		if (IsMatrixVisible())
 		{
-			const TSharedPtr<FPolicyParameterInfoMatrix> MatrixPolicy = MakeShared<FPolicyParameterInfoMatrix>(
+			const TSharedPtr<FPolicyParameterInfo4x4Matrix> MatrixPolicy = MakeShared<FPolicyParameterInfo4x4Matrix>(
 				"Matrix",
 				DisplayClusterProjectionStrings::cfg::manual::Matrix,
 				Blueprint,
@@ -571,7 +571,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 
 		if (IsMatrixLeftRightVisible())
 		{
-			const TSharedPtr<FPolicyParameterInfoMatrix> MatrixLeftPolicy = MakeShared<FPolicyParameterInfoMatrix>(
+			const TSharedPtr<FPolicyParameterInfo4x4Matrix> MatrixLeftPolicy = MakeShared<FPolicyParameterInfo4x4Matrix>(
 				"MatrixLeft",
 				DisplayClusterProjectionStrings::cfg::manual::MatrixLeft,
 				Blueprint,
@@ -579,8 +579,8 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 				ParametersHandle);
 			CustomPolicyParameters.Add(MatrixLeftPolicy);
 
-			const TSharedPtr<FPolicyParameterInfoMatrix> MatrixRightPolicy =
-				MakeShared<FPolicyParameterInfoMatrix>(
+			const TSharedPtr<FPolicyParameterInfo4x4Matrix> MatrixRightPolicy =
+				MakeShared<FPolicyParameterInfo4x4Matrix>(
 					"MatrixRight",
 					DisplayClusterProjectionStrings::cfg::manual::MatrixRight,
 					Blueprint,

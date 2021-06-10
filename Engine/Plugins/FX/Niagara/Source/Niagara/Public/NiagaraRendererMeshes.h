@@ -37,14 +37,33 @@ public:
 	void SetupVertexFactory(FNiagaraMeshVertexFactory& InVertexFactory, const FStaticMeshLODResources& LODResources) const;
 
 protected:
-	struct FParticleGPUBufferData
+	struct FParticleMeshRenderData
 	{
-		FRHIShaderResourceView* FloatSRV = nullptr;
-		FRHIShaderResourceView* HalfSRV = nullptr;
-		FRHIShaderResourceView* IntSRV = nullptr;
-		uint32 FloatDataStride = 0;
-		uint32 HalfDataStride = 0;
-		uint32 IntDataStride = 0;
+		const FNiagaraDynamicDataMesh*	DynamicDataMesh = nullptr;
+		class FNiagaraDataBuffer*		SourceParticleData = nullptr;
+
+		bool							bHasTranslucentMaterials = false;
+		bool							bSortCullOnGpu = false;
+		bool							bNeedsSort = false;
+		bool							bNeedsCull = false;
+
+		const FNiagaraRendererLayout*	RendererLayout = nullptr;
+		ENiagaraMeshVFLayout::Type		SortVariable;
+
+		FRHIShaderResourceView*			ParticleFloatSRV = nullptr;
+		FRHIShaderResourceView*			ParticleHalfSRV = nullptr;
+		FRHIShaderResourceView*			ParticleIntSRV = nullptr;
+		uint32							ParticleFloatDataStride = 0;
+		uint32							ParticleHalfDataStride = 0;
+		uint32							ParticleIntDataStride = 0;
+		FRHIShaderResourceView*			ParticleSortedIndicesSRV = nullptr;
+		uint32							ParticleSortedIndicesOffset = 0xffffffff;
+
+		uint32							RendererVisTagOffset = INDEX_NONE;
+		uint32							MeshIndexOffset = INDEX_NONE;
+
+		FVector							WorldSpacePivotOffset = FVector::ZeroVector;
+		FSphere							CullingSphere = FSphere(EForceInit::ForceInit);
 	};
 
 	struct FMeshData
@@ -84,50 +103,14 @@ protected:
 
 	int32 GetLODIndex(int32 MeshIndex) const;
 
-	void PrepareParticleBuffers(
-		FGlobalDynamicReadBuffer& DynamicReadBuffer,
-		FNiagaraDataBuffer& SourceParticleData,
-		const FNiagaraRendererLayout& RendererLayout,
-		bool bDoGPUCulling,
-		FParticleGPUBufferData& OutData,
-		uint32& OutRendererVisTagOffset,
-		uint32& OutFlipbookIndexOffset) const;
-
-	FNiagaraMeshUniformBufferRef CreatePerViewUniformBuffer(
-		const FMeshData& MeshData,
-		const FNiagaraSceneProxy& SceneProxy,
-		const FNiagaraRendererLayout& RendererLayout,
-		const FSceneView& View,
-		const FParticleGPUBufferData& BufferData, 
-		const FNiagaraDynamicDataMesh* DynamicDataMesh,
-		const bool bShouldSort,
-		const bool bDoGPUCulling,
-		const bool bGPUSortEnabled,
-		FNiagaraGPUSortInfo& SortInfo,
-		const int32 SortVarIdx,
-		NiagaraEmitterInstanceBatcher* Batcher,
-		FGlobalDynamicReadBuffer& DynamicReadBuffer,
-		const int32 NumInstances,
-		FVector& OutWorldSpacePivotOffset,
-		FSphere& OutCullingSphere) const;
-
-	void InitializeSortInfo(
-		const FNiagaraDataBuffer& SourceParticleData,
-		const FNiagaraSceneProxy& SceneProxy,
-		const FNiagaraRendererLayout& RendererLayout,
-		const FParticleGPUBufferData& BufferData,
-		const FSceneView& View,
-		int32 ViewIndex,
-		bool bHasTranslucentMaterials,
-		bool bIsInstancedStereo,
-		bool bDoGPUCulling,
-		int32 SortVarIdx,
-		uint32 VisTagOffset,
-		uint32 FlipbookIdxOffset,
-		FNiagaraGPUSortInfo& OutSortInfo) const;
+	void PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const;
+	void PrepareParticleRenderBuffers(FParticleMeshRenderData& ParticleMeshRenderData, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
+	void InitializeSortInfo(FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraSceneProxy& SceneProxy, const FSceneView& View, int32 ViewIndex, bool bIsInstancedStereo, FNiagaraGPUSortInfo& OutSortInfo) const;
+	uint32 PerformSortAndCull(FParticleMeshRenderData& ParticleMeshRenderData, FGlobalDynamicReadBuffer& ReadBuffer, FNiagaraGPUSortInfo& SortInfo, class NiagaraEmitterInstanceBatcher* Batcher, int32 MeshIndex) const;
+	FNiagaraMeshUniformBufferRef CreatePerViewUniformBuffer(FParticleMeshRenderData& ParticleMeshRenderData, const FSceneView& View, const FMeshData& MeshData, const FNiagaraSceneProxy& SceneProxy) const;
 
 	void CreateMeshBatchForSection(
-		FMeshElementCollector& Collector,
+		FMeshBatch& MeshBatch,
 		FVertexFactory& VertexFactory,
 		FMaterialRenderProxy& MaterialProxy,
 		const FNiagaraSceneProxy& SceneProxy,
@@ -140,10 +123,10 @@ protected:
 		uint32 GPUCountBufferOffset,
 		bool bIsWireframe,
 		bool bIsInstancedStereo,
-		bool bDoGPUCulling) const;
+		bool bDoGPUCulling
+	) const;
 
 private:
-
 	TArray<FMeshData, TInlineAllocator<1>> Meshes;
 
 	ENiagaraRendererSourceDataMode SourceMode;
@@ -151,6 +134,7 @@ private:
 	ENiagaraMeshFacingMode FacingMode;
 	uint32 bOverrideMaterials : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
+	uint32 bGpuLowLatencyTranslucency : 1;
 	uint32 bLockedAxisEnable : 1;
 	uint32 bEnableCulling : 1;
 	uint32 bEnableFrustumCulling : 1;

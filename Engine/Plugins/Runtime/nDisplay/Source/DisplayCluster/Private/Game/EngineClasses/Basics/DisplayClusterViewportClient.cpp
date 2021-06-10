@@ -125,11 +125,11 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 	// Get nDisplay stereo device
 	IDisplayClusterRenderDevice* const DCRenderDevice = bIsNDisplayClusterMode ? static_cast<IDisplayClusterRenderDevice* const>(GEngine->StereoRenderingDevice.Get()) : nullptr;
 
-	if (!bIsNDisplayClusterMode || !DCRenderDevice)
+	if (!bIsNDisplayClusterMode || DCRenderDevice == nullptr)
 	{
 #if WITH_EDITOR
 		// Special render for PIE
-		if (Draw_PIE(InViewport, SceneCanvas))
+		if (!IsRunningGame() && Draw_PIE(InViewport, SceneCanvas))
 		{
 			return;
 		}
@@ -638,8 +638,15 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* SceneCanvas)
 {
+	IDisplayClusterGameManager* GameMgr = GDisplayCluster->GetGameMgr();
+
+	if (GameMgr == nullptr)
+	{
+		return false;
+	}
+
 	// Get root actor from viewport
-	ADisplayClusterRootActor* const RootActor = GDisplayCluster->GetGameMgr()->GetRootActor();
+	ADisplayClusterRootActor* const RootActor = GameMgr->GetRootActor();
 	if (RootActor == nullptr)
 	{
 		return false;

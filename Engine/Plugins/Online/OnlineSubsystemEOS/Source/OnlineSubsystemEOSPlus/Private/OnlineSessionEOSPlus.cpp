@@ -305,7 +305,6 @@ bool FOnlineSessionEOSPlus::CreateSession(int32 HostingPlayerNum, FName SessionN
 		OnCreateSessionCompleteDelegateHandleEOS = EOSSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
 			FOnCreateSessionCompleteDelegate::CreateLambda([this, HostingPlayerNum](FName SessionName, bool bWasSuccessful)
 		{
-			EOSSessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegateHandleEOS);
 			if (bWasSuccessful)
 			{
 				// We need the session settings & session id from EOS
@@ -314,21 +313,28 @@ bool FOnlineSessionEOSPlus::CreateSession(int32 HostingPlayerNum, FName SessionN
 				{
 					// Mirror in the base interface
 					BaseSessionInterface->CreateSession(HostingPlayerNum, SessionName, *Settings);
+
+					EOSSessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegateHandleEOS);
+
 					return;
 				}
 				bWasSuccessful = false;
 			}
+
 			OnCreateSessionComplete(SessionName, bWasSuccessful);
+
+			EOSSessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegateHandleEOS);
 		}));
 		return EOSSessionInterface->CreateSession(HostingPlayerNum, SessionName, NewSessionSettings);
 	}
 	// Otherwise create the platform version
-	return EOSSessionInterface->CreateSession(HostingPlayerNum, SessionName, NewSessionSettings);;
+	return BaseSessionInterface->CreateSession(HostingPlayerNum, SessionName, NewSessionSettings);;
 }
 
 bool FOnlineSessionEOSPlus::CreateSession(const FUniqueNetId& HostingPlayerId, FName SessionName, const FOnlineSessionSettings& NewSessionSettings)
 {
-	FUniqueNetIdEOSPlusPtr Id = GetNetIdPlus(HostingPlayerId.ToString());
+	FString HostingPlayerIdStr = HostingPlayerId.ToString();
+	FUniqueNetIdEOSPlusPtr Id = GetNetIdPlus(HostingPlayerIdStr);
 	if (!Id.IsValid() || !Id->GetEOSNetId().IsValid())
 	{
 		OnCreateSessionComplete(SessionName, false);
@@ -339,22 +345,30 @@ bool FOnlineSessionEOSPlus::CreateSession(const FUniqueNetId& HostingPlayerId, F
 	if (bUseEOSSessions)
 	{
 		OnCreateSessionCompleteDelegateHandleEOS = EOSSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
-			FOnCreateSessionCompleteDelegate::CreateLambda([this, Id](FName SessionName, bool bWasSuccessful)
+			FOnCreateSessionCompleteDelegate::CreateLambda([this, HostingPlayerIdStr](FName SessionName, bool bWasSuccessful)
 				{
-					EOSSessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegateHandleEOS);
 					if (bWasSuccessful)
 					{
 						// We need the session settings & session id from EOS
 						FOnlineSessionSettings* Settings = EOSSessionInterface->GetSessionSettings(SessionName);
 						if (Settings != nullptr)
 						{
+							FUniqueNetIdEOSPlusPtr Id = GetNetIdPlus(HostingPlayerIdStr);
+
 							// Mirror in the base interface
 							BaseSessionInterface->CreateSession(*Id->GetBaseNetId(), SessionName, *Settings);
+
+							EOSSessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegateHandleEOS);
+
 							return;
 						}
+
 						bWasSuccessful = false;
 					}
+					
 					OnCreateSessionComplete(SessionName, bWasSuccessful);
+
+					EOSSessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegateHandleEOS);
 				}));
 		return EOSSessionInterface->CreateSession(*Id->GetEOSNetId(), SessionName, NewSessionSettings);
 	}
@@ -433,48 +447,29 @@ bool FOnlineSessionEOSPlus::IsPlayerInSession(FName SessionName, const FUniqueNe
 
 bool FOnlineSessionEOSPlus::StartMatchmaking(const TArray<FUniqueNetIdRef>& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
 {
-	if (bUseEOSSessions)
-	{
-		if (!EOSSessionInterface->StartMatchmaking(GetEOSNetIds(LocalPlayers), SessionName, NewSessionSettings, SearchSettings))
-		{
-			return false;
-		}
-	}
-	return BaseSessionInterface->StartMatchmaking(GetBaseNetIds(LocalPlayers), SessionName, NewSessionSettings, SearchSettings);
+	UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOSPlus::StartMatchmaking] Matchmaking is not supported in EOSPlus or EOS"));
+
+	TriggerOnMatchmakingCompleteDelegates(SessionName, false);
+
+	return true;
 }
 
 bool FOnlineSessionEOSPlus::CancelMatchmaking(int32 SearchingPlayerNum, FName SessionName)
 {
-	if (bUseEOSSessions)
-	{
-		if (!EOSSessionInterface->CancelMatchmaking(SearchingPlayerNum, SessionName))
-		{
-			return false;
-		}
-	}
-	return BaseSessionInterface->CancelMatchmaking(SearchingPlayerNum, SessionName);
+	UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOSPlus::CancelMatchmaking] Matchmaking is not supported in EOSPlus or EOS"));
+
+	TriggerOnCancelMatchmakingCompleteDelegates(SessionName, false);
+
+	return true;
 }
 
 bool FOnlineSessionEOSPlus::CancelMatchmaking(const FUniqueNetId& SearchingPlayerId, FName SessionName)
 {
-	if (bUseEOSSessions)
-	{
-		FUniqueNetIdPtr Id = GetEOSNetId(SearchingPlayerId.ToString());
-		if (!Id.IsValid())
-		{
-			return false;
-		}
-		if (!EOSSessionInterface->CancelMatchmaking(*Id, SessionName))
-		{
-			return false;
-		}
-	}
-	FUniqueNetIdPtr Id = GetBaseNetId(SearchingPlayerId.ToString());
-	if (!Id.IsValid())
-	{
-		return false;
-	}
-	return BaseSessionInterface->CancelMatchmaking(*Id, SessionName);
+	UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOSPlus::CancelMatchmaking] Matchmaking is not supported in EOSPlus or EOS"));
+
+	TriggerOnCancelMatchmakingCompleteDelegates(SessionName, false);
+
+	return true;
 }
 
 bool FOnlineSessionEOSPlus::FindSessions(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings)
@@ -556,10 +551,7 @@ bool FOnlineSessionEOSPlus::JoinSession(int32 PlayerNum, FName SessionName, cons
 {
 	if (bUseEOSSessions)
 	{
-		if (!EOSSessionInterface->JoinSession(PlayerNum, SessionName, DesiredSession))
-		{
-			return false;
-		}
+		return EOSSessionInterface->JoinSession(PlayerNum, SessionName, DesiredSession);
 	}
 	return BaseSessionInterface->JoinSession(PlayerNum, SessionName, DesiredSession);
 }
@@ -573,10 +565,7 @@ bool FOnlineSessionEOSPlus::JoinSession(const FUniqueNetId& PlayerId, FName Sess
 		{
 			return false;
 		}
-		if (!EOSSessionInterface->JoinSession(*Id, SessionName, DesiredSession))
-		{
-			return false;
-		}
+		return EOSSessionInterface->JoinSession(*Id, SessionName, DesiredSession);
 	}
 	FUniqueNetIdPtr Id = GetBaseNetId(PlayerId.ToString());
 	if (!Id.IsValid())

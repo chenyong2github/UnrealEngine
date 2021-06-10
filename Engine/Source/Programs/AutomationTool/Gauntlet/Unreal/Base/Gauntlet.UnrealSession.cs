@@ -419,16 +419,6 @@ namespace Gauntlet
 		public string ArtifactPath { get; protected set; }
 
 		/// <summary>
-		/// Out log file wrapped in a parser
-		/// </summary>
-		public UnrealLogParser LogParser { get; protected set; }
-
-		/// <summary>
-		/// A preprocessed summary of our log file
-		/// </summary>
-		public UnrealLogParser.LogSummary LogSummary { get { return LogParser.GetSummary(); } }
-
-		/// <summary>
 		/// Path to Log from this role
 		/// </summary>
 		public string LogPath { get; protected set; }
@@ -446,7 +436,7 @@ namespace Gauntlet
 			AppInstance = InAppInstance;
 			ArtifactPath = InArtifactPath;
 			LogPath = InLogPath;
-			LogParser = InLog;
+			//LogParser = InLog;
 		}
 	}
 
@@ -1272,9 +1262,6 @@ namespace Gauntlet
 
 
 			UnrealLogParser LogParser = new UnrealLogParser(InRunningRole.AppInstance.StdOut);
-
-			int ExitCode = InRunningRole.AppInstance.ExitCode;
-			LogParser.GetTestExitCode(out ExitCode);
 
 			UnrealRoleArtifacts Artifacts = new UnrealRoleArtifacts(InRunningRole.Role, InRunningRole.AppInstance, InDestArtifactPath, ArtifactLogPath, LogParser);
 

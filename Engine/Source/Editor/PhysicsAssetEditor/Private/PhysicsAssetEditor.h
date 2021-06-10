@@ -202,6 +202,8 @@ private:
 	/** Toolbar/menu command methods */
 	bool HasSelectedBodyAndIsNotSimulation() const;
 	bool HasOneSelectedBodyAndIsNotSimulation() const;
+	bool HasMoreThanOneSelectedBodyAndIsNotSimulation() const;
+	bool HasSelectedBodyOrConstraintAndIsNotSimulation() const;
 	bool CanEditConstraintProperties() const;
 	bool HasSelectedConstraintAndIsNotSimulation() const;
 	void OnChangeDefaultMesh(USkeletalMesh* OldPreviewMesh, USkeletalMesh* NewPreviewMesh);
@@ -258,6 +260,7 @@ private:
 	void OnDuplicatePrimitive();
 	bool CanDuplicatePrimitive() const;
 	void OnResetConstraint();
+	void OnConstrainChildBodiesToParentBody();
 	void OnSnapConstraint();
 	void OnConvertToBallAndSocket();
 	void OnConvertToHinge();
@@ -287,11 +290,12 @@ private:
 	void OnSelectSimulatedBodies();
 	void OnSelectBodies(EPhysicsType PhysicsType = EPhysicsType::PhysType_Simulated);
 	void OnSelectAllConstraints();
-	void OnToggleSelectionType();
+	void OnToggleSelectionType(bool bIgnoreUserConstraints);
 	void OnToggleShowSelected();
 	void OnShowSelected();
 	void OnHideSelected();
 	void OnToggleShowOnlyColliding();
+	void OnToggleShowOnlyConstrained();
 	void OnToggleShowOnlySelected();
 	void OnShowAll();
 	void OnHideAll();
@@ -314,12 +318,15 @@ private:
 	void HandleToggleShowSimulatedBodies();
 	void HandleToggleShowKinematicBodies();
 	void HandleToggleShowConstraints();
+	void HandleToggleShowConstraintsOnParentBodies();
 	void HandleToggleShowPrimitives();
 	ECheckBoxState GetShowBodiesChecked() const;
 	ECheckBoxState GetShowSimulatedBodiesChecked() const;
 	ECheckBoxState GetShowKinematicBodiesChecked() const;
 	ECheckBoxState GetShowConstraintsChecked() const;
+	ECheckBoxState GetShowConstraintsOnParentBodiesChecked() const;
 	ECheckBoxState GetShowPrimitivesChecked() const;
+	bool IsShowConstraintsChecked() const;
 
 	/** Customize the filter label */
 	void HandleGetFilterLabel(TArray<FText>& InOutItems) const;

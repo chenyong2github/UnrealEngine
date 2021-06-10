@@ -28,7 +28,7 @@ void FDisplayClusterConfiguratorClusterNodeViewModel::SetWindowRect(const FDispl
 		TSharedPtr<IPropertyHandle> XHandle = WindowRectHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, X));
 		check(XHandle);
 
-		XHandle->SetValue(NewWindowRect.X);
+		XHandle->SetValue(NewWindowRect.X, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (CurrentWindowRect.Y != NewWindowRect.Y)
@@ -38,7 +38,7 @@ void FDisplayClusterConfiguratorClusterNodeViewModel::SetWindowRect(const FDispl
 		TSharedPtr<IPropertyHandle> YHandle = WindowRectHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, Y));
 		check(YHandle);
 
-		YHandle->SetValue(NewWindowRect.Y);
+		YHandle->SetValue(NewWindowRect.Y, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (CurrentWindowRect.W != NewWindowRect.W)
@@ -48,7 +48,7 @@ void FDisplayClusterConfiguratorClusterNodeViewModel::SetWindowRect(const FDispl
 		TSharedPtr<IPropertyHandle> WHandle = WindowRectHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, W));
 		check(WHandle);
 
-		WHandle->SetValue(NewWindowRect.W);
+		WHandle->SetValue(NewWindowRect.W, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (CurrentWindowRect.H != NewWindowRect.H)
@@ -58,7 +58,7 @@ void FDisplayClusterConfiguratorClusterNodeViewModel::SetWindowRect(const FDispl
 		TSharedPtr<IPropertyHandle> HHandle = WindowRectHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationRectangle, H));
 		check(HHandle);
 
-		HHandle->SetValue(NewWindowRect.H);
+		HHandle->SetValue(NewWindowRect.H, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (bClusterNodeChanged)

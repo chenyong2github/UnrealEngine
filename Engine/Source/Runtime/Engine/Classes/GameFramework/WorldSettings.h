@@ -558,7 +558,7 @@ public:
 	float WorldToMeters;
 
 	// any actor falling below this level gets destroyed
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, meta=(editcondition = "bEnableWorldBoundsChecks"))
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category=World, meta=(editcondition = "bEnableWorldBoundsChecks"))
 	float KillZ;
 
 	// The type of damage inflicted when a actor falls below KillZ
@@ -640,10 +640,6 @@ public:
 	/** Default interior settings used by audio volumes.												*/
 	UPROPERTY(EditAnywhere, config, Category=Audio)
 	FInteriorSettings DefaultAmbientZoneSettings;
-
-	/** Distance from the player after which content will be rendered in mono if monoscopic far field rendering is activated */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=VR)
-	float MonoCullingDistance;
 
 	/** Default Base SoundMix.																			*/
 	UPROPERTY(EditAnywhere, Category=Audio)

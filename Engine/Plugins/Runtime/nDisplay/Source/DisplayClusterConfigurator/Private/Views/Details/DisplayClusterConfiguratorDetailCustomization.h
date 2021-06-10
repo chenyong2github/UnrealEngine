@@ -241,6 +241,7 @@ public:
 protected:
 	void RefreshBlueprint();
 	void ModifyBlueprint();
+	ADisplayClusterRootActor* FindRootActor() const;
 
 protected:
 	UObject* EditingObject;
@@ -411,6 +412,72 @@ protected:
 	//~ IPropertyTypeCustomization interface begin
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 	//~ IPropertyTypeCustomization interface end
+};
+
+/**
+ * Viewport or Cluster Node Array Selection
+ */
+class FDisplayClusterConfiguratorNodeSelection : public TSharedFromThis<FDisplayClusterConfiguratorNodeSelection>
+{
+public:
+	enum EOperationMode
+	{
+		Viewports,
+		ClusterNodes
+	};
+
+	FDisplayClusterConfiguratorNodeSelection(EOperationMode InMode, ADisplayClusterRootActor* InRootActor)
+	{
+		RootActorPtr = InRootActor;
+		OperationMode = InMode;
+		ResetOptions();
+	}
+
+	~FDisplayClusterConfiguratorNodeSelection()
+	{
+		OptionsComboBox.Reset();
+		Options.Reset();
+	}
+
+	void CreateArrayBuilder(const TSharedRef<IPropertyHandle>& InPropertyHandle, IDetailChildrenBuilder& InChildBuilder);
+
+	static EOperationMode GetOperationModeFromProperty(FProperty* Property);
+
+protected:
+	void GenerateSelectionWidget(TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder);
+	void ResetOptions();
+	TSharedRef<SWidget> MakeOptionComboWidget(TSharedPtr<FString> InItem);
+	void OnOptionSelected(TSharedPtr<FString> InValue, ESelectInfo::Type SelectInfo, TSharedRef<IPropertyHandle> InPropertyHandle);
+	FText GetSelectedOptionText(TSharedRef<IPropertyHandle> InPropertyHandle) const;
+
+private:
+	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> OptionsComboBox;
+	TArray<TSharedPtr<FString>> Options;
+	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr;
+	EOperationMode OperationMode = ClusterNodes;
+};
+
+/**
+* OCIO Profiles
+*/
+class FDisplayClusterConfiguratorOCIOProfileCustomization final
+	: public FDisplayClusterConfiguratorTypeCustomization
+{
+public:
+	virtual ~FDisplayClusterConfiguratorOCIOProfileCustomization() override
+	{
+		NodeSelection.Reset();
+	}
+	
+protected:
+	//~ IPropertyTypeCustomization interface begin
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	//~ IPropertyTypeCustomization interface end
+
+private:
+	TSharedPtr<FDisplayClusterConfiguratorNodeSelection> NodeSelection;
+	FDisplayClusterConfiguratorNodeSelection::EOperationMode Mode = FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports;
 };
 
 

@@ -602,6 +602,11 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 		return true;
 	}
 
+	if (EventArgs.Key == EKeys::LeftMouseButton && EventArgs.Event == EInputEvent::IE_Pressed)
+	{
+		GEngine->SetFlashIndicatorLatencyMarker(GFrameCounter);
+	}
+
 	if (IgnoreInput())
 	{
 		return ViewportConsole ? ViewportConsole->InputKey(ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false;
@@ -1404,7 +1409,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		}
 		#endif
 
-		if (GCustomStaticScreenPercentage && ViewFamily.ViewMode == EViewModeIndex::VMI_Lit)
+		if (GCustomStaticScreenPercentage && ViewFamily.ViewMode == EViewModeIndex::VMI_Lit && ViewFamily.Scene->GetShadingPath() == EShadingPath::Deferred)
 		{
 			GCustomStaticScreenPercentage->SetupMainGameViewFamily(ViewFamily);
 		}

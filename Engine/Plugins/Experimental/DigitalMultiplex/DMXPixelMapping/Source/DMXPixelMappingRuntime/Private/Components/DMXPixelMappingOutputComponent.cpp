@@ -136,26 +136,6 @@ void UDMXPixelMappingOutputComponent::SetPosition(const FVector2D& InPosition)
 	PositionY = FMath::RoundHalfToZero(InPosition.Y);
 }
 
-uint8 UDMXPixelMappingOutputComponent::GetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName)
-{
-	if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
-	{
-		const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
-		if (ModePtr)
-		{
-			const FDMXFixtureFunction* FunctionPtr = ModePtr->Functions.FindByPredicate([&AttributeName](const FDMXFixtureFunction& Function) {
-				return Function.Attribute.Name == AttributeName;
-				});
-			if (FunctionPtr)
-			{
-				return FixtureType->NumChannelsToOccupy(FunctionPtr->DataType);
-			}
-		}
-	}
-
-	return 1;
-}
-
 bool UDMXPixelMappingOutputComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
 {
 	return false;

@@ -218,7 +218,7 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::AddContainerForRowWidgets(TSharedRe
 			FScopedTransaction Transaction(LOCTEXT("NoteAdded", "Note Added"));
 			ModuleItem->GetModuleNode().Modify();
 			
-			FNiagaraStackMessage StackMessage(DescriptionTextBox->GetText(), ShortDescriptionTextBox->GetText(), ENiagaraMessageSeverity::Info, false);
+			FNiagaraStackMessage StackMessage(DescriptionTextBox->GetText(), ShortDescriptionTextBox->GetText(), ENiagaraMessageSeverity::CustomNote, false);
 			ModuleItem->GetModuleNode().AddCustomNote(StackMessage);
 		}
 		
@@ -256,7 +256,7 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::AddContainerForRowWidgets(TSharedRe
 			.Padding(0.f, 0.f, 3.f, 0.f)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Info"))
+				.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Message.CustomNote"))
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()

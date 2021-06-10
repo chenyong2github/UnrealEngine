@@ -9,6 +9,7 @@
 #include "Restorability/PropertyComparisonParams.h"
 
 #include "Algo/Accumulate.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
 #include "GameFramework/Actor.h"
@@ -118,7 +119,8 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		return;
 	}
 
-	if (TargetWorld->WorldType != EWorldType::Editor)
+	if (TargetWorld->WorldType != EWorldType::Editor
+		&& TargetWorld->WorldType != EWorldType::EditorPreview) // To suppor tests in editor preview maps
 	{
 #if WITH_EDITOR
 		if (TargetWorld->IsPlayInEditor())

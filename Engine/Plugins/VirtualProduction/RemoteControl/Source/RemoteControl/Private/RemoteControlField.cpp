@@ -4,6 +4,7 @@
 
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
+#include "IRemoteControlModule.h"
 #include "RemoteControlObjectVersion.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlBinding.h"
@@ -192,6 +193,11 @@ TSharedPtr<IRemoteControlPropertyHandle> FRemoteControlProperty::GetPropertyHand
 	return FRemoteControlPropertyHandle::GetPropertyHandle(ThisPtr, Property, ParentProperty, ParentFieldPath, ArrayIndex);
 }
 
+bool FRemoteControlProperty::IsEditableInPackaged() const
+{
+	return bIsEditableInPackaged || IRemoteControlModule::Get().PropertySupportsRawModificationWithoutEditor(GetProperty());
+}
+
 bool FRemoteControlProperty::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FRemoteControlObjectVersion::GUID);
@@ -232,7 +238,14 @@ UClass* FRemoteControlProperty::GetSupportedBindingClass() const
 	
 	if (FProperty* Property = GetProperty())
 	{
-		return Property->GetOwnerClass();
+		if (UClass* PropertyOwnerClass = Property->GetOwnerClass())
+		{
+			return PropertyOwnerClass;
+		}
+		else if (!OwnerClass.IsValid() && FieldPathInfo.GetSegmentCount() > 0 && FieldPathInfo.GetFieldSegment(0).IsResolved())
+		{
+			return FieldPathInfo.GetFieldSegment(0).ResolvedData.Field->GetOwnerClass();
+		}
 	}
 	return nullptr;
 }
@@ -296,6 +309,10 @@ FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FRCFieldPathInfo F
 	InFunction->InitializeStruct(FunctionArguments->GetStructMemory());
 	AssignDefaultFunctionArguments();
 	OwnerClass = GetSupportedBindingClass();
+
+#if WITH_EDITOR
+	CachedFunctionArgsHash = HashFunctionArguments(InFunction);
+#endif
 }
 
 FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, UFunction* InFunction, const TArray<URemoteControlBinding*>& InBindings)
@@ -311,6 +328,10 @@ FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, F
 
 	bIsEditorOnly = InFunction->HasAnyFunctionFlags(FUNC_EditorOnly);
 	bIsCallableInPackaged = InFunction->HasAnyFunctionFlags(FUNC_BlueprintCallable);
+
+#if WITH_EDITOR
+	CachedFunctionArgsHash = HashFunctionArguments(InFunction);
+#endif
 }
 
 uint32 FRemoteControlFunction::GetUnderlyingEntityIdentifier() const
@@ -348,6 +369,10 @@ void FRemoteControlFunction::PostSerialize(const FArchive& Ar)
 				bIsCallableInPackaged = Function->HasAnyFunctionFlags(FUNC_BlueprintCallable);
 			}
 		}
+
+#if WITH_EDITOR
+		CachedFunctionArgsHash = HashFunctionArguments(GetFunction());
+#endif
 	}
 }
 
@@ -402,6 +427,34 @@ UFunction* FRemoteControlFunction::GetFunction() const
 	return ResolvedFunction;
 }
 
+#if WITH_EDITOR
+void FRemoteControlFunction::RegenerateArguments()
+{
+	// Recreate the function arguments with the function from the new BP and copy the old ones on top of it.
+	if (UFunction* Function = GetFunction())
+	{
+		FStructOnScope NewFunctionOnScope{ Function };
+
+		// Only port the old values if the new function has the same arguments.
+		// We use a hash to determine compatibility because the old function may not be available after a recompile.
+		const uint32 NewHash = HashFunctionArguments(Function);
+		if (CachedFunctionArgsHash == NewHash)
+		{
+			for (TFieldIterator<FProperty> It(Function); It; ++It)
+			{
+				It->CopyCompleteValue_InContainer(NewFunctionOnScope.GetStructMemory(), FunctionArguments->GetStructMemory());
+			}
+		}
+		else
+		{
+			CachedFunctionArgsHash = NewHash; 
+		}
+		
+		*FunctionArguments = MoveTemp(NewFunctionOnScope);
+	}
+}
+#endif
+
 void FRemoteControlFunction::AssignDefaultFunctionArguments()
 {
 #if WITH_EDITOR
@@ -422,6 +475,35 @@ void FRemoteControlFunction::AssignDefaultFunctionArguments()
 	}
 #endif
 }
+
+#if WITH_EDITOR
+uint32 FRemoteControlFunction::HashFunctionArguments(UFunction* InFunction)
+{
+	if (!InFunction)
+	{
+		return 0;
+	}
+
+	uint32 Hash = GetTypeHash(InFunction->NumParms);
+
+	for (TFieldIterator<FProperty> It(InFunction); It; ++It)
+	{
+		const bool Param = It->HasAnyPropertyFlags(CPF_Parm);
+		const bool OutParam = It->HasAnyPropertyFlags(CPF_OutParm) && !It->HasAnyPropertyFlags(CPF_ConstParm);
+		const bool ReturnParam = It->HasAnyPropertyFlags(CPF_ReturnParm);
+
+		if (!Param || OutParam || ReturnParam)
+		{
+			continue;
+		}
+
+		Hash = HashCombine(Hash, GetTypeHash(It->GetClass()->GetFName()));
+		Hash = HashCombine(Hash, GetTypeHash(It->GetSize()));
+	}
+
+	return Hash;
+}
+#endif
 
 FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 {

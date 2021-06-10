@@ -127,10 +127,6 @@ protected:
 	int32 ZOrder = 1;
 #endif //WITH_EDITORONLY_DATA
 
-protected:
-	/** Helper function to get the correct word size of an attribute */
-	uint8 GetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName);
-	
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", meta = (ClampMin = "1", UIMin = "1"))
 	float SizeX;

@@ -414,6 +414,12 @@ void FWinHttpHttpRequest::FinishRequest()
 	check(IsInGameThread());
 	check(IsThreadedRequestComplete());
 
+	// If we were cancelled, set our finished time
+	if (bRequestCancelled && !RequestFinishTimeSeconds.IsSet())
+	{
+		RequestFinishTimeSeconds = FPlatformTime::Seconds();
+	}
+
 	// Shutdown our connection
 	if (Connection.IsValid())
 	{

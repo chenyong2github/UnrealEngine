@@ -89,7 +89,7 @@ class FSyncContext
 
   public:
 	Geometry::Point3D ModelOrigin = {0.0, 0.0, 0.0};
-	double			  ScaleLength = 100;
+	double			  ScaleLength = 100; // Meter 2 centimeter
 	bool			  bUseFingerPrint = true;
 	FStats&			  Stats;
 };

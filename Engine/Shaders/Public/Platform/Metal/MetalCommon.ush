@@ -5,9 +5,15 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Metal only shaders
-// GUID = 2FCBEC23-BA55-4BCB-9C9D-41C08D506184
+// GUID = ED71607D-0C3E-4E98-B9E3-EA5BBA6DA22B
 
 #pragma once
+
+#if VERTEXSHADER && HULLSHADER
+#ifndef TESSELLATIONSHADER
+#define TESSELLATIONSHADER 1
+#endif
+#endif
 
 #define STRONG_TYPE
 #define StrongTypedBuffer Buffer

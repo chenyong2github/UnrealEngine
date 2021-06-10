@@ -438,7 +438,7 @@ FAndroidPlatformMemory::FPlatformVirtualMemoryBlock FAndroidPlatformMemory::FPla
 	size_t Alignment = FMath::Max(InAlignment, GetVirtualSizeAlignment());
 	check(Alignment <= GetVirtualSizeAlignment());
 
-	Result.Ptr = mmap(nullptr, Result.GetActualSize(), PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+	Result.Ptr = mmap(nullptr, Result.GetActualSize(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 	if (!LIKELY(Result.Ptr != MAP_FAILED))
 	{
 		FPlatformMemory::OnOutOfMemory(Result.GetActualSize(), InAlignment);
@@ -469,24 +469,12 @@ void FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::Commit(size_t InOffset
 {
 	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
 	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
-	const int Result = mprotect(((uint8*)Ptr) + InOffset, InSize, PROT_READ | PROT_WRITE);
-	if (UNLIKELY(Result != 0))
-	{
-		FPlatformMemory::OnOutOfMemory(InSize, GetCommitAlignment());
-	}
 }
 
 void FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::Decommit(size_t InOffset, size_t InSize)
 {
 	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
 	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
-	const int Result = mprotect(((uint8*)Ptr) + InOffset, InSize, PROT_NONE);
-	if (UNLIKELY(Result != 0))
-	{
-		// We are most likely out of page table entries
-		FPlatformMemory::OnOutOfMemory(InSize, GetCommitAlignment());
-	}
-
 	madvise(((uint8*)Ptr) + InOffset, InSize, MADV_DONTNEED);
 }
 

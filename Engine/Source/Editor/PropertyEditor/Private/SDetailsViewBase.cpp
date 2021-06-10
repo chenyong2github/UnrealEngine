@@ -27,6 +27,7 @@
 #include "ScopedTransaction.h"
 #include "SDetailNameArea.h"
 #include "SDetailsView.h"
+#include "PropertyEditorWhitelist.h"
 
 #include "ThumbnailRendering/ThumbnailManager.h"
 
@@ -50,10 +51,15 @@ SDetailsViewBase::SDetailsViewBase() :
 		CurrentFilter.bShowOnlyKeyable = ViewConfig->bShowOnlyKeyable;
 		CurrentFilter.bShowOnlyModified = ViewConfig->bShowOnlyModified;
 	}
+
+	PropertyWhitelistedChangedDelegate = FPropertyEditorWhitelist::Get().WhitelistUpdatedDelegate.AddRaw(this, &SDetailsViewBase::ForceRefresh);
+	PropertyWhitelistedEnabledDelegate = FPropertyEditorWhitelist::Get().WhitelistEnabledDelegate.AddRaw(this, &SDetailsViewBase::ForceRefresh);
 }
 
 SDetailsViewBase::~SDetailsViewBase()
 {
+	FPropertyEditorWhitelist::Get().WhitelistUpdatedDelegate.Remove(PropertyWhitelistedChangedDelegate);
+	FPropertyEditorWhitelist::Get().WhitelistEnabledDelegate.Remove(PropertyWhitelistedEnabledDelegate);
 }
 
 void SDetailsViewBase::OnGetChildrenForDetailTree(TSharedRef<FDetailTreeNode> InTreeNode, TArray< TSharedRef<FDetailTreeNode> >& OutChildren)
@@ -952,24 +958,31 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	}
 	else
 	{
-		for(TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+		if (CustomValidatePropertyNodesFunction.IsBound())
 		{
-			EPropertyDataValidationResult Result = RootPropertyNode->EnsureDataIsValid();
-			if(Result == EPropertyDataValidationResult::PropertiesChanged || Result == EPropertyDataValidationResult::EditInlineNewValueChanged)
+			bool bIsValid = CustomValidatePropertyNodesFunction.Execute(RootPropertyNodes);
+		}
+		else // standard validation behavior
+		{
+			for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 			{
-				UpdatePropertyMaps();
-				bUpdateFilteredDetails = true;
-			}
-			else if(Result == EPropertyDataValidationResult::ArraySizeChanged || Result == EPropertyDataValidationResult::ChildrenRebuilt)
-			{
-				bUpdateFilteredDetails = true;
-			}
-			else if(Result == EPropertyDataValidationResult::ObjectInvalid)
-			{
-				bValidateExternalNodes = false;
+				EPropertyDataValidationResult Result = RootPropertyNode->EnsureDataIsValid();
+				if (Result == EPropertyDataValidationResult::PropertiesChanged || Result == EPropertyDataValidationResult::EditInlineNewValueChanged)
+				{
+					UpdatePropertyMaps();
+					bUpdateFilteredDetails = true;
+				}
+				else if (Result == EPropertyDataValidationResult::ArraySizeChanged || Result == EPropertyDataValidationResult::ChildrenRebuilt)
+				{
+					bUpdateFilteredDetails = true;
+				}
+				else if (Result == EPropertyDataValidationResult::ObjectInvalid)
+				{
+					bValidateExternalNodes = false;
 
-				ForceRefresh();
-				break;
+					ForceRefresh();
+					break;
+				}
 			}
 		}
 	}

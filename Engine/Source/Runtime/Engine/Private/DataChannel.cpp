@@ -24,6 +24,7 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Misc/NetworkVersion.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 DEFINE_LOG_CATEGORY(LogNet);
 DEFINE_LOG_CATEGORY(LogRep);
@@ -3163,7 +3164,11 @@ int64 UActorChannel::ReplicateActor()
 		// The Actor
 		{
 			UE_NET_TRACE_OBJECT_SCOPE(ActorReplicator->ObjectNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
-			bWroteSomethingImportant |= ActorReplicator->ReplicateProperties(Bunch, RepFlags);
+
+			if (!ActorReplicator->CanSkipUpdate(RepFlags))
+			{
+				bWroteSomethingImportant |= ActorReplicator->ReplicateProperties(Bunch, RepFlags);
+			}
 		}
 
 		// The SubObjects
@@ -4074,23 +4079,67 @@ FObjectReplicator & UActorChannel::GetActorReplicationData()
 	return *ActorReplicator;
 }
 
-TSharedRef<FObjectReplicator>& UActorChannel::FindOrCreateReplicator(UObject* Obj, bool* bOutCreated)
+TSharedRef<FObjectReplicator>* UActorChannel::FindReplicator(UObject* Obj, bool* bOutFoundInvalid)
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
 	SCOPE_CYCLE_UOBJECT(ActorChannelFindOrCreateRep, Obj);
 
 	// First, try to find it on the channel replication map
-	bool bCheckDormantReplicators = true;
 	TSharedRef<FObjectReplicator>* ReplicatorRefPtr = ReplicationMap.Find( Obj );
 	if (ReplicatorRefPtr != nullptr)
 	{
 		if (!ReplicatorRefPtr->Get().GetWeakObjectPtr().IsValid())
 		{
 			ReplicatorRefPtr = nullptr;
-			ReplicationMap.Remove( Obj );
-			bCheckDormantReplicators = false;
+			ReplicationMap.Remove(Obj);
+
+			if (bOutFoundInvalid)
+			{
+				*bOutFoundInvalid = true;
+			}
 		}
 	}
+
+	return ReplicatorRefPtr;
+}
+
+TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, bool bCheckDormantReplicators)
+{
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
+	SCOPE_CYCLE_UOBJECT(ActorChannelFindOrCreateRep, Obj);
+
+	// Try to find in the dormancy map if desired
+	TSharedPtr<FObjectReplicator> NewReplicator;
+	TSharedRef<FObjectReplicator>* ReplicatorRefPtr = (bCheckDormantReplicators ? Connection->DormantReplicatorMap.Find(Obj) : nullptr);
+
+	// Check if we found it and that it is has a valid object
+	if ( ReplicatorRefPtr != nullptr && ReplicatorRefPtr->Get().GetWeakObjectPtr().IsValid() )
+	{
+		UE_LOG( LogNetTraffic, Log, TEXT( "Found existing replicator for %s" ), *Obj->GetName() );
+		NewReplicator = *ReplicatorRefPtr;
+	}
+	else
+	{
+		// Didn't find one, need to create
+		UE_LOG( LogNetTraffic, Log, TEXT( "Creating Replicator for %s" ), *Obj->GetName() );
+		NewReplicator = Connection->CreateReplicatorForNewActorChannel(Obj);
+	}
+
+	// Add to the replication map
+	TSharedRef<FObjectReplicator>& NewRef = ReplicationMap.Add(Obj, NewReplicator.ToSharedRef());
+
+	// Remove from dormancy map in case we found it there
+	Connection->DormantReplicatorMap.Remove(Obj);
+
+	// Start replicating with this replicator
+	NewRef->StartReplicating(this);
+	return NewRef;
+}
+
+TSharedRef<FObjectReplicator>& UActorChannel::FindOrCreateReplicator(UObject* Obj, bool* bOutCreated)
+{
+	bool bFoundInvalidReplicator = false;
+	TSharedRef<FObjectReplicator>* ReplicatorRefPtr = FindReplicator(Obj, &bFoundInvalidReplicator);
 
 	// This should only be false if we found the replicator in the ReplicationMap
 	// If we pickup the replicator from the DormantReplicatorMap we treat it as it has been created.
@@ -4099,35 +4148,9 @@ TSharedRef<FObjectReplicator>& UActorChannel::FindOrCreateReplicator(UObject* Ob
 		*bOutCreated = (ReplicatorRefPtr == nullptr);
 	}
 
-	if (ReplicatorRefPtr == nullptr)
+	if (!ReplicatorRefPtr)
 	{
-		// Didn't find it. 
-		// Try to find in the dormancy map
-		TSharedPtr<FObjectReplicator> NewReplicator;
-		ReplicatorRefPtr = (bCheckDormantReplicators ? Connection->DormantReplicatorMap.Find( Obj ) : nullptr);
-
-		// Check if we found it and that it is has a valid object
-		if ( ReplicatorRefPtr != nullptr && ReplicatorRefPtr->Get().GetWeakObjectPtr().IsValid() )
-		{
-			UE_LOG( LogNetTraffic, Log, TEXT( "Found existing replicator for %s" ), *Obj->GetName() );
-			NewReplicator = *ReplicatorRefPtr;
-		}
-		else
-		{
-			// Still didn't find one, need to create
-			UE_LOG( LogNetTraffic, Log, TEXT( "Creating Replicator for %s" ), *Obj->GetName() );
-			NewReplicator = Connection->CreateReplicatorForNewActorChannel(Obj);
-		}
-
-		// Add to the replication map
-		TSharedRef<FObjectReplicator>& NewRef = ReplicationMap.Add(Obj, NewReplicator.ToSharedRef());
-
-		// Remove from dormancy map in case we found it there
-		Connection->DormantReplicatorMap.Remove(Obj);
-
-		// Start replicating with this replicator
-		NewRef->StartReplicating(this);
-		return NewRef;
+		ReplicatorRefPtr = &CreateReplicator(Obj, !bFoundInvalidReplicator);
 	}
 
 	return *ReplicatorRefPtr;
@@ -4194,6 +4217,15 @@ bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FRe
 		return false;
 	}
 
+	bool bFoundInvalidReplicator = false;
+	TSharedRef<FObjectReplicator>* FoundReplicator = FindReplicator(Obj, &bFoundInvalidReplicator);
+	const bool bFoundReplicator = (FoundReplicator != nullptr);
+	
+	if (bFoundReplicator && (*FoundReplicator)->CanSkipUpdate(RepFlags))
+	{
+		return false;
+	}
+
 	TWeakObjectPtr<UObject> WeakObj(Obj);
 
 	// Hack for now: subobjects are SupportsObject==false until they are replicated via ::ReplicateSUbobject, and then we make them supported
@@ -4206,9 +4238,9 @@ bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FRe
 	}
 
 	bool NewSubobject = false;
-	bool bCreatedReplicator = false;
-	TSharedRef<FObjectReplicator>& ObjectReplicator = FindOrCreateReplicator(Obj, &bCreatedReplicator);
-	if (bCreatedReplicator)
+	
+	TSharedRef<FObjectReplicator>& ObjectReplicator = !bFoundReplicator ? CreateReplicator(Obj, !bFoundInvalidReplicator) : *FoundReplicator;
+	if (!bFoundReplicator)
 	{
 		// This is the first time replicating this subobject
 		// This bunch should be reliable and we should always return true

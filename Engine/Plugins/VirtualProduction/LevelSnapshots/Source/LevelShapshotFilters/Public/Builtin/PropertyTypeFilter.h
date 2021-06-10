@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LevelSnapshotFilters.h"
+#include "PropertySelector/PropertySelectorFilter.h"
 #include "PropertyTypeFilter.generated.h"
 
 UENUM()
@@ -52,9 +52,13 @@ namespace EBlueprintPropertyType
 	};
 }
 
-/* Allows a property if it is of a certain type. */
+/**
+ * Allows a property if it is of a certain type.
+ *
+ * Use case: You want to include only int properties.
+ */
 UCLASS()
-class LEVELSNAPSHOTFILTERS_API UPropertyTypeFilter : public ULevelSnapshotFilter
+class LEVELSNAPSHOTFILTERS_API UPropertyTypeFilter : public UPropertySelectorFilter
 {
 	GENERATED_BODY()
 public:

@@ -7,30 +7,6 @@
 #include "Misc/App.h"
 #include "CoreGlobals.h"
 
-const TCHAR* FOutputDeviceHelper::VerbosityToString(ELogVerbosity::Type Verbosity)
-{
-	switch (Verbosity & ELogVerbosity::VerbosityMask)
-	{
-	case ELogVerbosity::NoLogging:
-		return TEXT("NoLogging");
-	case ELogVerbosity::Fatal:
-		return TEXT("Fatal");
-	case ELogVerbosity::Error:
-		return TEXT("Error");
-	case ELogVerbosity::Warning:
-		return TEXT("Warning");
-	case ELogVerbosity::Display:
-		return TEXT("Display");
-	case ELogVerbosity::Log:
-		return TEXT("Log");
-	case ELogVerbosity::Verbose:
-		return TEXT("Verbose");
-	case ELogVerbosity::VeryVerbose:
-		return TEXT("VeryVerbose");
-	}
-	return TEXT("UknownVerbosity");
-}
-
 FString FOutputDeviceHelper::FormatLogLine( ELogVerbosity::Type Verbosity, const class FName& Category, const TCHAR* Message /*= nullptr*/, ELogTimes::Type LogTime /*= ELogTimes::None*/, const double Time /*= -1.0*/ )
 {
 	const bool bShowCategory = GPrintLogCategory && Category != NAME_None;
@@ -68,14 +44,14 @@ FString FOutputDeviceHelper::FormatLogLine( ELogVerbosity::Type Verbosity, const
 
 		if (GPrintLogVerbosity && Verbosity != ELogVerbosity::Log)
 		{
-			Format += VerbosityToString(Verbosity);
+			Format += ToString(Verbosity);
 			Format += TEXT(": ");
 		}
 	}
 	else if (GPrintLogVerbosity && Verbosity != ELogVerbosity::Log)
 	{
 #if !HACK_HEADER_GENERATOR
-		Format += VerbosityToString(Verbosity);
+		Format += ToString(Verbosity);
 		Format += TEXT(": ");
 #endif
 	}

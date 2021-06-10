@@ -941,6 +941,15 @@ static uint8 GetPlaneSliceFromViewFormat(DXGI_FORMAT ResourceFormat, DXGI_FORMAT
 			return 1;
 		}
 		break;
+	case DXGI_FORMAT_NV12:
+		switch (ViewFormat)
+		{
+		case DXGI_FORMAT_R8_UNORM:
+			return 0;
+		case DXGI_FORMAT_R8G8_UNORM:
+			return 1;
+		}
+		break;
 	}
 
 	return 0;

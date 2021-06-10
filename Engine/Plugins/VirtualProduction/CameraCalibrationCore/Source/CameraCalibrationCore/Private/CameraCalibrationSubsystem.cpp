@@ -29,18 +29,14 @@ void UCameraCalibrationSubsystem::SetDefaultLensFile(ULensFile* NewDefaultLensFi
 
 ULensFile* UCameraCalibrationSubsystem::GetLensFile(const FLensFilePicker& Picker) const
 {
-	ULensFile* ReturnedLens = nullptr;
-
-	if (Picker.bOverrideDefaultLensFile)
+	if (Picker.bUseDefaultLensFile)
 	{
-		ReturnedLens = Picker.LensFile;
+		return GetDefaultLensFile();
 	}
 	else
 	{
-		ReturnedLens = GetDefaultLensFile();
+		return Picker.LensFile;
 	}
-
-	return ReturnedLens;
 }
 
 TArray<ULensDistortionModelHandlerBase*> UCameraCalibrationSubsystem::GetDistortionModelHandlers(UCineCameraComponent* Component)
@@ -55,6 +51,20 @@ ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindDistortionMode
 {
 	TArray<ULensDistortionModelHandlerBase*> Handlers;
 	LensDistortionHandlerMap.MultiFind(DistortionHandlerPicker.TargetCameraComponent, Handlers);
+
+	if (!DistortionHandlerPicker.DistortionProducerID.IsValid() && DistortionHandlerPicker.HandlerDisplayName.IsEmpty())
+	{
+		if (Handlers.Num() > 0)
+		{
+			if (bUpdatePicker)
+			{
+				DistortionHandlerPicker.DistortionProducerID = Handlers[0]->GetDistortionProducerID();
+				DistortionHandlerPicker.HandlerDisplayName = Handlers[0]->GetDisplayName();
+			}
+
+			return Handlers[0];
+		}
+	}
 
 	// Look through the available handlers to find the one driven by the distortion source's producer
 	for (ULensDistortionModelHandlerBase* Handler : Handlers)
@@ -120,6 +130,12 @@ ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindOrCreateDistor
 		NewHandler->SetDistortionProducerID(DistortionHandlerPicker.DistortionProducerID);
 		NewHandler->SetDisplayName(DistortionHandlerPicker.HandlerDisplayName);
 		LensDistortionHandlerMap.Add(FObjectKey(DistortionHandlerPicker.TargetCameraComponent), NewHandler);
+
+		if (!CachedFocalLengthMap.Contains(DistortionHandlerPicker.TargetCameraComponent))
+		{
+			FCachedFocalLength CachedFocalLength = { DistortionHandlerPicker.TargetCameraComponent->CurrentFocalLength, 0.0f };
+			CachedFocalLengthMap.Add(DistortionHandlerPicker.TargetCameraComponent, CachedFocalLength);
+		}
 	}
 	else
 	{
@@ -142,6 +158,39 @@ void UCameraCalibrationSubsystem::RegisterDistortionModel(TSubclassOf<ULensModel
 void UCameraCalibrationSubsystem::UnregisterDistortionModel(TSubclassOf<ULensModel> LensModel)
 {
 	LensModelMap.Remove(LensModel->GetDefaultObject<ULensModel>()->GetModelName());
+}
+
+void UCameraCalibrationSubsystem::UpdateOriginalFocalLength(UCineCameraComponent* Component, float InFocalLength)
+{
+	FCachedFocalLength* CachedFocalLength = CachedFocalLengthMap.Find(Component);
+	if (CachedFocalLength)
+	{
+		// If the input focal length matches the focal length of the camera after overscan was applied, do not update the original (prevents double overscan)
+		if (!FMath::IsNearlyEqual(InFocalLength, CachedFocalLength->OverscanFocalLength))
+		{
+			CachedFocalLength->OriginalFocalLength = InFocalLength;
+		}
+	}
+}
+
+void UCameraCalibrationSubsystem::UpdateOverscanFocalLength(UCineCameraComponent* Component, float InFocalLength)
+{
+	FCachedFocalLength* CachedFocalLength = CachedFocalLengthMap.Find(Component);
+	if (CachedFocalLength)
+	{
+		CachedFocalLength->OverscanFocalLength = InFocalLength;
+	}
+}
+
+bool UCameraCalibrationSubsystem::GetOriginalFocalLength(UCineCameraComponent* Component, float& OutFocalLength)
+{
+	FCachedFocalLength* CachedFocalLength = CachedFocalLengthMap.Find(Component);
+	if (CachedFocalLength)
+	{
+		OutFocalLength = CachedFocalLength->OriginalFocalLength;
+		return true;
+	}
+	return false;
 }
 
 TSubclassOf<ULensModel> UCameraCalibrationSubsystem::GetRegisteredLensModel(FName ModelName) const
@@ -199,7 +248,8 @@ void UCameraCalibrationSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 			{
 				if (AlgoIt->IsChildOf(UCameraNodalOffsetAlgo::StaticClass()) && !AlgoIt->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
 				{
-					CameraNodalOffsetAlgosMap.Add(AlgoIt->GetFName(), TSubclassOf<UCameraNodalOffsetAlgo>(*AlgoIt));
+					const UCameraNodalOffsetAlgo* Algo = CastChecked<UCameraNodalOffsetAlgo>(AlgoIt->GetDefaultObject());
+					CameraNodalOffsetAlgosMap.Add(Algo->FriendlyName(), TSubclassOf<UCameraNodalOffsetAlgo>(*AlgoIt));
 				}
 			}
 		}

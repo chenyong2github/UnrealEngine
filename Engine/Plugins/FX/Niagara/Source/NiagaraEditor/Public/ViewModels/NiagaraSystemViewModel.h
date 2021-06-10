@@ -276,6 +276,9 @@ public:
 	/** Updates all selected emitter's fixed bounds with their current dynamic bounds. */
 	void UpdateEmitterFixedBounds();
 
+	/** Updates the current system's fixed bounds with its current dynamic bounds. */
+	void UpdateSystemFixedBounds();
+
 	/** Clear the captures stats for all the emitters in the current system. */
 	void ClearEmitterStats();
 

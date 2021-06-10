@@ -1138,7 +1138,17 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 	// Calculate renderthread time (excluding idle time).	
 	uint32 StartTime = FPlatformTime::Cycles();
 
+	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
+	{
+		GEngine->SetPresentLatencyMarkerStart(CurrentFrameCounter);
+	});
+
 	RHICmdList.EndDrawingViewport(ViewportInfo.ViewportRHI, true, DrawCommandParams.bLockToVsync);
+
+	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
+	{
+		GEngine->SetPresentLatencyMarkerEnd(CurrentFrameCounter);
+	});
 
 	uint32 EndTime = FPlatformTime::Cycles();
 

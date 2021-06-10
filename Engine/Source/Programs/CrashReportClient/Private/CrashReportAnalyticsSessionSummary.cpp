@@ -10,6 +10,7 @@
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/PlatformProcess.h"
 #include "HAL/Thread.h"
 #include "Internationalization/Regex.h"
 #include "Logging/LogMacros.h"
@@ -22,7 +23,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCrashReportClientDiagnostics, Log, All)
 
-#if PLATFORM_WINDOWS && CRASH_REPORT_WITH_MTBF
+#if PLATFORM_WINDOWS
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows.h"
@@ -42,9 +43,22 @@ LRESULT CALLBACK CrashReportAnalyticsSessionSummaryWindowProc(HWND Hwnd, UINT Ms
 	return DefWindowProc(Hwnd, Msg, wParam, lParam);
 }
 
+FProcHandle OpenProcessForMonitoring(uint32 pid)
+{
+	// Until a crash occurs, for security reasons, restrict CRC accesses on the remote process.
+	return FProcHandle(::OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, 0, pid));
+}
+
 #include "Windows/HideWindowsPlatformTypes.h"
 
-#endif
+#else // PLATFORM_WINDOWS
+
+FProcHandle OpenProcessForMonitoring(uint32 pid)
+{
+	return FPlatformProcess::OpenProcess(pid);
+}
+
+#endif // PLATFORM_WINDOWS
 
 namespace CrcAnalyticsProperties
 {
@@ -307,7 +321,7 @@ void FCrashReportAnalyticsSessionSummary::Initialize(const FString& ProcessGroup
 				AnalyticsThread = MakeUnique<FThread>(TEXT("AnalyticsMonitorThread"), [this, ForProcessId]()
 				{
 					// Try to open the process.
-					FProcHandle MonitoredProcessHandle = FPlatformProcess::OpenProcess(ForProcessId);
+					FProcHandle MonitoredProcessHandle = OpenProcessForMonitoring(ForProcessId);
 					if (!MonitoredProcessHandle.IsValid())
 					{
 						LogEvent(TEXT("CRC/OpenProcessFailed"));

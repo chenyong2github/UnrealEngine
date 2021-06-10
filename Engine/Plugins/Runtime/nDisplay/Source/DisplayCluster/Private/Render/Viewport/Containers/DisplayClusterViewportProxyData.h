@@ -37,7 +37,7 @@ private:
 	FDisplayClusterViewport_PostRenderSettings   PostRenderSettings;
 
 	// Projection policy instance that serves this viewport
-	TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy;
+	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjectionPolicy;
 
 	// Viewport contexts (left/center/right eyes)
 	TArray<FDisplayClusterViewport_Context>      Contexts;

@@ -624,6 +624,9 @@ public:
 	static FPreloadPackageShaderMaps PreloadPackageShaderMaps;
 	DECLARE_DELEGATE_OneParam(FReleasePreloadedPackageShaderMaps, TArrayView<const FSHAHash>);
 	static FReleasePreloadedPackageShaderMaps ReleasePreloadedPackageShaderMaps;
+	/** Called when the verbosity of a log category is changed */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLogVerbosityChanged, const FLogCategoryName& /* CategoryName */, ELogVerbosity::Type /* OldVerbosity */, ELogVerbosity::Type /* NewVerbosity */);
+	static FOnLogVerbosityChanged OnLogVerbosityChanged;
 
 private:
 

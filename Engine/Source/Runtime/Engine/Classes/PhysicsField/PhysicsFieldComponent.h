@@ -16,7 +16,8 @@ enum class EFieldCommandBuffer : uint8
 	GPUFieldBuffer = 0,
 	CPUReadBuffer = 1,
 	CPUWriteBuffer = 2,
-	NumFieldBuffers = 3
+	GPUDebugBuffer = 3,
+	NumFieldBuffers = 4
 };
 
 struct FPhysicsFieldInfos
@@ -44,6 +45,9 @@ struct FPhysicsFieldInfos
 
 	/** Valid targets offsets */
 	BufferOffsets ValidTargets;
+
+	/** Physics Targets bounds */
+	TStaticArray<FIntVector4, MAX_PHYSICS_FIELD_TARGETS, 16> PhysicsBounds;
 
 	/** Clipmap  Center */
 	FVector ClipmapCenter = FVector::ZeroVector;
@@ -74,6 +78,18 @@ struct FPhysicsFieldInfos
 
 	/** Max Bounds for each target/clipmap */
 	TArray<FIntVector4> CellsMax;
+
+	/** Min Bounds for each target/clipmap */
+	TStaticArray<int32, MAX_PHYSICS_FIELD_TARGETS, 16> BoundsOffsets;
+
+	/** Time in seconds for field evaluation */
+	float TimeSeconds;
+
+	/** Boolean to check if we are building the clipmap or not */
+	bool bBuildClipmap;
+
+	/** Boolean to check if we are visualizing the field */
+	bool bShowFields;
 };
 
 /**
@@ -104,13 +120,20 @@ public:
 	/** Cells max buffer */
 	FRWBuffer CellsMax;
 
+	/** Bounds Min buffer */
+	FRWBuffer BoundsMin;
+
+	/** Bounds max buffer */
+	FRWBuffer BoundsMax;
+
 	/** Field infos that will be used to allocate memory and to transfer information */
 	FPhysicsFieldInfos FieldInfos;
 
 	/** Default constructor. */
 	FPhysicsFieldResource(const int32 TargetCount, const TArray<EFieldPhysicsType>& TargetTypes,
 		const FPhysicsFieldInfos::BufferOffsets& VectorTargets, const FPhysicsFieldInfos::BufferOffsets& ScalarTargets,
-		const FPhysicsFieldInfos::BufferOffsets& IntegerTargets, const FPhysicsFieldInfos::BufferOffsets& PhysicsTargets);
+		const FPhysicsFieldInfos::BufferOffsets& IntegerTargets, const FPhysicsFieldInfos::BufferOffsets& PhysicsTargets,
+		const TStaticArray< FIntVector4, MAX_PHYSICS_FIELD_TARGETS, 16>& PhysicsBounds, const bool bBuildClipmap);
 
 	/** Release Field resources. */
 	virtual void ReleaseRHI() override;
@@ -121,10 +144,12 @@ public:
 	/** Update RHI resources. */
 	void UpdateResource(FRHICommandListImmediate& RHICmdList,
 		const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetsOffsetsDatas, const TArray<int32>& NodesOffsetsDatas, const TArray<float>& NodesParamsDatas,
-		const TArray<FVector>& MinBoundsDatas, const TArray<FVector>& MaxBoundsDatas, const float TimeSeconds);
+		const TArray<FVector>& TargetsMinDatas, const TArray<FVector>& TargetsMaxDatas, const float TimeSeconds, 
+		const TArray<FVector4>& BoundsMinDatas, const TArray<FVector4>& BoundsMaxDatas, const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& BoundsOffsetsDatas);
 
 	/** Update Bounds. */
-	void UpdateBounds(const TArray<FVector>& MinBounds, const TArray<FVector>& MaxBounds, const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetOffsets);
+	void UpdateBounds(const TArray<FVector>& TargetsMin, const TArray<FVector>& TargetsMax, const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetOffsets,
+					  const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& BoundsOffsets);
 };
 
 
@@ -147,7 +172,7 @@ public:
 	 * Initializes the instance for the given resource.
 	 * @param TextureSize - The resource texture size to be used.
 	 */
-	void InitInstance(const TArray<EFieldPhysicsType>& TargetTypes);
+	void InitInstance(const TArray<EFieldPhysicsType>& TargetTypes, const bool bBuildClipmap);
 
 	/**
 	 * Release the resource of the instance.
@@ -164,7 +189,7 @@ public:
 	void BuildNodeParams(FFieldNodeBase* FieldNode, const TMap<FFieldNodeBase*, float> CommandTimes, const float PreviousTime);
 
 	/** Update the bounds given a node */
-	static void BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds);
+	static void BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds, float& MaxMagnitude);
 
 	/** The field system resource. */
 	FPhysicsFieldResource* FieldResource = nullptr;
@@ -182,10 +207,10 @@ public:
 	TArray<FFieldSystemCommand> FieldCommands;
 
 	/** Min Bounds for each target/clipmap */
-	TArray<FVector> BoundsMin;
+	TArray<FVector> TargetsMin;
 
 	/** Max Bounds for each target/clipmap */
-	TArray<FVector> BoundsMax;
+	TArray<FVector> TargetsMax;
 };
 
 /**
@@ -239,12 +264,18 @@ public:
 	/** List of all the field persitent commands in the world */
 	TArray<FFieldSystemCommand> PersistentCommands[(uint8)(EFieldCommandBuffer::NumFieldBuffers)];
 
-	/** The instance of the field system. */
+	/** The instance of the GPU field system. */
 	FPhysicsFieldInstance* FieldInstance = nullptr;
+
+	/** The instance of the CPU field system. */
+	FPhysicsFieldInstance* DebugInstance = nullptr;
 
 	/** Scene proxy to be sent to the render thread. */
 	class FPhysicsFieldSceneProxy* FieldProxy = nullptr;
 };
+
+/** Compute the field indexand output given a field type */
+void ENGINE_API GetFieldIndex(const uint32 FieldType, int32& FieldIndex, EFieldOutputType& FieldOutput);
 
 //class FPhysicsFieldSceneProxy final : public FPrimitiveSceneProxy
 class FPhysicsFieldSceneProxy 
@@ -258,8 +289,11 @@ public:
 	/** Destructor. */
 	~FPhysicsFieldSceneProxy();
 
-	/** The vector field resource which this proxy is visualizing. */
+	/** The GPU physics field resource which this proxy is visualizing. */
 	FPhysicsFieldResource* FieldResource = nullptr;
+
+	/** The CPU physics field resource which this proxy is visualizing. */
+	FPhysicsFieldResource* DebugResource = nullptr;
 };
 
 

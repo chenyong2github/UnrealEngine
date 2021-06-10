@@ -734,12 +734,12 @@ void ExtractInputPinsFromHistory(FNiagaraParameterMapHistory& History, UEdGraph*
 	for (int32 i = 0; i < History.Variables.Num(); i++)
 	{
 		FNiagaraVariable& Variable = History.Variables[i];
-		TArray<TTuple<const UEdGraphPin*, const UEdGraphPin*>>& ReadHistory = History.PerVariableReadHistory[i];
+		const TArray< FNiagaraParameterMapHistory::FReadHistory>& ReadHistory = History.PerVariableReadHistory[i];
 
 		// A read is only really exposed if it's the first read and it has no corresponding write.
-		if (ReadHistory.Num() > 0 && ReadHistory[0].Get<1>() == nullptr)
+		if (ReadHistory.Num() > 0 && ReadHistory[0].PreviousWritePin.Pin == nullptr)
 		{
-			const UEdGraphPin* InputPin = ReadHistory[0].Get<0>();
+			const UEdGraphPin* InputPin = ReadHistory[0].ReadPin.Pin;
 
 			// Make sure that the module input is from the called graph, and not a nested graph.
 			UEdGraph* NodeGraph = InputPin->GetOwningNode()->GetGraph();
@@ -927,9 +927,9 @@ void FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(UNiagaraNodeFu
 		for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); i++)
 		{
 			bool bHasParameterMapSetWrite = false;
-			for (const UEdGraphPin* WritePin : Builder.Histories[0].PerVariableWriteHistory[i])
+			for (const FModuleScopedPin& WritePin : Builder.Histories[0].PerVariableWriteHistory[i])
 			{
-				if (WritePin != nullptr && WritePin->GetOwningNode() != nullptr && WritePin->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>())
+				if (WritePin.Pin != nullptr && WritePin.Pin->GetOwningNode() != nullptr && WritePin.Pin->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>())
 				{
 					bHasParameterMapSetWrite = true;
 					break;
@@ -963,10 +963,10 @@ bool FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(UNiaga
 	for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); ++i)
 	{
 		bool bHasParameterMapSetWrite = false;
-		for (const UEdGraphPin* WritePin : Builder.Histories[0].PerVariableWriteHistory[i])
+		for (const auto& WritePin : Builder.Histories[0].PerVariableWriteHistory[i])
 		{
-			if (WritePin != nullptr && WritePin->GetOwningNode() != nullptr &&
-				WritePin->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>())
+			if (WritePin.Pin != nullptr && WritePin.Pin->GetOwningNode() != nullptr &&
+				WritePin.Pin->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>())
 			{
 				bHasParameterMapSetWrite = true;
 				break;

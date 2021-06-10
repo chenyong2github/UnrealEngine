@@ -842,6 +842,10 @@ UMovieSceneSequence* FSequencer::GetRootMovieSceneSequence() const
 	return RootSequence.Get();
 }
 
+FMovieSceneSequenceTransform FSequencer::GetFocusedMovieSceneSequenceTransform() const
+{
+	return RootToLocalTransform;
+}
 
 UMovieSceneSequence* FSequencer::GetFocusedMovieSceneSequence() const
 {
@@ -1309,16 +1313,23 @@ void FSequencer::UpdateSubSequenceData()
 			// of the loop. Note, again, that we only compute the new loop index for UI display purposes at this
 			// point (see comment at the beginning of this method). We will commit to the new loop indices
 			// once we're done scrubbing.
-			LocalLoopIndexOffsetDuringScrubbing = 0;
+			uint32 CurLoopIndex = 0;
 			while (LocalTimeWithLastLoopUnwarped >= PlayRangeUpperBound)
 			{
 				LocalTimeWithLastLoopUnwarped = LocalTimeWithLastLoopUnwarped - PlayRangeSize;
-				++LocalLoopIndexOffsetDuringScrubbing;
+				++CurLoopIndex;
 			}
 			while (LocalTimeWithLastLoopUnwarped <= PlayRangeLowerBound)
 			{
 				LocalTimeWithLastLoopUnwarped = LocalTimeWithLastLoopUnwarped + PlayRangeSize;
-				--LocalLoopIndexOffsetDuringScrubbing;
+				--CurLoopIndex;
+			}
+			if (CurLoopIndex != LocalLoopIndexOffsetDuringScrubbing)
+			{
+				LocalLoopIndexOffsetDuringScrubbing = CurLoopIndex;
+				// If we jumped to the previous or next loop, we need to invalidate the global marked frames because
+				// the focused (currently edited) sequence's time transform just changed.
+				InvalidateGlobalMarkedFramesCache();
 			}
 		}
 	}
@@ -1350,6 +1361,17 @@ void FSequencer::UpdateSequencerCustomizations()
 
 	// Apply customizations to our editor.
 	SequencerWidget->ApplySequencerCustomizations(Builder.GetCustomizations());
+
+	// Apply customizations to ourselves.
+	OnPaste.Reset();
+
+	for (const FSequencerCustomizationInfo& CustomizationInfo : Builder.GetCustomizations())
+	{
+		if (CustomizationInfo.OnPaste.IsBound())
+		{
+			OnPaste.Add(CustomizationInfo.OnPaste);
+		}
+	}
 }
 
 void FSequencer::RerunConstructionScripts()
@@ -3103,18 +3125,6 @@ EKeyGroupMode FSequencer::GetKeyGroupMode() const
 void FSequencer::SetKeyGroupMode(EKeyGroupMode Mode)
 {
 	Settings->SetKeyGroupMode(Mode);
-}
-
-
-bool FSequencer::GetKeyInterpPropertiesOnly() const 
-{
-	return Settings->GetKeyInterpPropertiesOnly();
-}
-
-
-void FSequencer::SetKeyInterpPropertiesOnly(bool bKeyInterpPropertiesOnly) 
-{
-	Settings->SetKeyInterpPropertiesOnly(bKeyInterpPropertiesOnly);
 }
 
 
@@ -5979,8 +5989,7 @@ void FSequencer::OnNewActorsDropped(const TArray<UObject*>& DroppedObjects, cons
 					SetLocalTimeDirectly(OriginalTime);
 				}
 
-				// New camera added, don't lock the view to the camera because we want to see where the camera rig was placed
-				NewCameraAdded(NewCameraGuid);
+				NewCameraAdded(NewCamera, NewCameraGuid);
 			}
 		}
 
@@ -6255,9 +6264,9 @@ TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InAct
 				FGuid PossessableGuid = CreateBinding(*Actor, Actor->GetActorLabel());
 				PossessableGuids.Add(PossessableGuid);
 
-				if (Actor->IsA<ACameraActor>())
+				if (ACameraActor* CameraActor = Cast<ACameraActor>(Actor))
 				{
-					NewCameraAdded(PossessableGuid);
+					NewCameraAdded(CameraActor, PossessableGuid);
 				}
 
 				OnActorAddedToSequencerEvent.Broadcast(Actor, PossessableGuid);
@@ -6513,6 +6522,27 @@ void FSequencer::AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerD
 		}
 	}
 
+}
+
+void FSequencer::ClearFilters()
+{
+	SequencerWidget->SetSearchText(FText::GetEmpty());
+	GetNodeTree()->RemoveAllFilters();
+	GetSequencerSettings()->SetShowSelectedNodesOnly(false);
+
+	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* FocusedMovieScene = nullptr;
+	if (IsValid(FocusedMovieSequence))
+	{
+		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+		if (IsValid(FocusedMovieScene))
+		{
+			for (UMovieSceneNodeGroup* NodeGroup : FocusedMovieScene->GetNodeGroups())
+			{
+				NodeGroup->SetEnableFilter(false);
+			}
+		}
+	}
 }
 
 void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
@@ -8848,6 +8878,7 @@ void FSequencer::CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& Tra
 				UMovieSceneTrack* DuplicatedTrack = Cast<UMovieSceneTrack>(StaticDuplicateObject(TrackNode->GetTrack(), CopyableTrack));
 				CopyableTrack->Track = DuplicatedTrack;
 				CopyableTrack->bIsAMasterTrack = MovieScene->IsAMasterTrack(*TrackNode->GetTrack());
+				CopyableTrack->bIsACameraCutTrack = TrackNode->GetTrack()->IsA<UMovieSceneCameraCutTrack>();
 
 				TSharedPtr<FSequencerFolderNode> FolderNode = TrackNode->FindFolderNode();
 				if (FolderNode.IsValid() && Folders.Contains(&FolderNode->GetFolder()))
@@ -8922,6 +8953,19 @@ bool FSequencer::DoPaste(bool bClearSelection)
 		// If we cancel the paste due to being read-only, count that as having handled the paste operation
 		return true;
 	}
+	
+	// Call into the active customizations.
+	ESequencerPasteSupport PasteSupport = ESequencerPasteSupport::All;
+	for (const FOnSequencerPaste& Callback : OnPaste)
+	{
+		const ESequencerPasteSupport CurSupport = Callback.Execute();
+		PasteSupport = (PasteSupport & CurSupport);
+	}
+	if (PasteSupport == ESequencerPasteSupport::None)
+	{
+		// We handled the paste operation but we didn't support doing anything.
+		return true;
+	}
 
 	// Grab the text to paste from the clipboard
 	FString TextToImport;
@@ -8937,13 +8981,25 @@ bool FSequencer::DoPaste(bool bClearSelection)
 	TArray<FNotificationInfo> PasteErrors;
 	bool bAnythingPasted = false;
 	TArray<UMovieSceneFolder*> PastedFolders;
-	bAnythingPasted |= PasteFolders(TextToImport, ParentFolder, PastedFolders, PasteErrors);
-	bAnythingPasted |= PasteObjectBindings(TextToImport, ParentFolder, PastedFolders, PasteErrors, bClearSelection);
-	bAnythingPasted |= PasteTracks(TextToImport, ParentFolder, PastedFolders, PasteErrors, bClearSelection);
-	
+	if (EnumHasAnyFlags(PasteSupport, ESequencerPasteSupport::Folders)) 
+	{
+		bAnythingPasted |= PasteFolders(TextToImport, ParentFolder, PastedFolders, PasteErrors);
+	}
+	if (EnumHasAnyFlags(PasteSupport, ESequencerPasteSupport::ObjectBindings)) 
+	{
+		bAnythingPasted |= PasteObjectBindings(TextToImport, ParentFolder, PastedFolders, PasteErrors, bClearSelection);
+	}
+	if (EnumHasAnyFlags(PasteSupport, ESequencerPasteSupport::Tracks)) 
+	{
+		bAnythingPasted |= PasteTracks(TextToImport, ParentFolder, PastedFolders, PasteErrors, bClearSelection);
+	}
+
 	if (!bAnythingPasted)
 	{
-		bAnythingPasted |= PasteSections(TextToImport, PasteErrors);
+		if (EnumHasAnyFlags(PasteSupport, ESequencerPasteSupport::Sections))
+		{
+			bAnythingPasted |= PasteSections(TextToImport, PasteErrors);
+		}
 	}
 
 	if (!bAnythingPasted)
@@ -9373,7 +9429,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InP
 	{
 		return false;
 	}
-	
+
 	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 	UObject* BindingContext = GetPlaybackContext();
 
@@ -9398,14 +9454,14 @@ bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InP
 		}
 	}
 
-	int32 NumMasterTracks = 0;
+	int32 NumMasterOrCameraCutTracks = 0;
 	int32 NumTracks = 0;
 
 	for (UMovieSceneCopyableTrack* CopyableTrack : ImportedTracks)
 	{
-		if (CopyableTrack->bIsAMasterTrack)
+		if (CopyableTrack->bIsAMasterTrack || CopyableTrack->bIsACameraCutTrack)
 		{
-			++NumMasterTracks;
+			++NumMasterOrCameraCutTracks;
 		}
 		else
 		{
@@ -9413,8 +9469,8 @@ bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InP
 		}
 	}
 
-	int32 NumMasterTracksPasted = 0;
 	int32 NumTracksPasted = 0;
+	int32 NumMasterOrCameraCutTracksPasted = 0;
 	if (ObjectNodes.Num())
 	{
 		for (TSharedPtr<FSequencerObjectBindingNode> ObjectNode : ObjectNodes)
@@ -9426,7 +9482,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InP
 
 			for (UMovieSceneCopyableTrack* CopyableTrack : NewTracks)
 			{
-				if (!CopyableTrack->bIsAMasterTrack)
+				if (!CopyableTrack->bIsAMasterTrack && !CopyableTrack->bIsACameraCutTrack)
 				{
 					UMovieSceneTrack* NewTrack = CopyableTrack->Track;
 					NewTrack->ClearFlags(RF_Transient);
@@ -9471,7 +9527,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InP
 	// Add as master track or set camera cut track
 	for (UMovieSceneCopyableTrack* CopyableTrack : ImportedTracks)
 	{
-		if (CopyableTrack->bIsAMasterTrack)
+		if (CopyableTrack->bIsAMasterTrack || CopyableTrack->bIsACameraCutTrack)
 		{
 			UMovieSceneTrack* NewTrack = CopyableTrack->Track;
 			NewTrack->ClearFlags(RF_Transient);
@@ -9497,7 +9553,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InP
 					ParentFolder->AddChildMasterTrack(NewTrack);
 				}
 
-				++NumMasterTracksPasted;
+				++NumMasterOrCameraCutTracksPasted;
 			}
 			else
 			{
@@ -9509,12 +9565,12 @@ bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InP
 					}
 				}
 
-				++NumMasterTracksPasted;
+				++NumMasterOrCameraCutTracksPasted;
 			}
 		}
 	}
 
-	if (NumMasterTracksPasted < NumMasterTracks)
+	if (NumMasterOrCameraCutTracksPasted < NumMasterOrCameraCutTracks)
 	{
 		FNotificationInfo Info(LOCTEXT("PasteTracks_NoMasterTracks", "Can't paste track. Master track could not be pasted"));
 		PasteErrors.Add(Info);
@@ -9526,7 +9582,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InP
 		PasteErrors.Add(Info);
 	}
 
-	if ((NumMasterTracksPasted + NumTracksPasted) > 0)
+	if ((NumMasterOrCameraCutTracksPasted + NumTracksPasted) > 0)
 	{
 		NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 
@@ -11582,7 +11638,12 @@ void FSequencer::UpdateGlobalMarkedFramesCache()
 {
 	GlobalMarkedFramesCache.Empty();
 
-	FSequencerMarkedFrameHelper::FindGlobalMarkedFrames(*this, GlobalMarkedFramesCache);
+	TArray<uint32> LoopCounts = RootToLocalLoopCounter.WarpCounts;
+	if (LoopCounts.Num() > 0)
+	{
+		LoopCounts.Last() += LocalLoopIndexOffsetDuringScrubbing;
+	}
+	FSequencerMarkedFrameHelper::FindGlobalMarkedFrames(*this, LoopCounts, GlobalMarkedFramesCache);
 	
 	bGlobalMarkedFramesCached = true;
 }
@@ -12073,29 +12134,21 @@ void FSequencer::CreateCamera()
 
 	OnActorAddedToSequencerEvent.Broadcast(NewCamera, CameraGuid);
 
-	NewCameraAdded(CameraGuid, NewCamera);
+	NewCameraAdded(NewCamera, CameraGuid);
 
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 
-void FSequencer::NewCameraAdded(FGuid CameraGuid, ACameraActor* NewCamera)
+void FSequencer::NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid)
 {
-	SetPerspectiveViewportCameraCutEnabled(false);
-
-	// Lock the viewport to this camera
-	if (NewCamera && NewCamera->GetLevel())
+	if (OnCameraAddedToSequencer().IsBound() && !OnCameraAddedToSequencer().Execute(NewCamera, CameraGuid))
 	{
-		GCurrentLevelEditingViewportClient->SetCinematicActorLock(nullptr);
-		GCurrentLevelEditingViewportClient->SetActorLock(NewCamera);
-		GCurrentLevelEditingViewportClient->bLockedCameraView = true;
-		GCurrentLevelEditingViewportClient->UpdateViewForLockedActor();
-		GCurrentLevelEditingViewportClient->Invalidate();
+		return;
 	}
 
-	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
-	UMovieScene* OwnerMovieScene = Sequence->GetMovieScene();
+	MovieSceneToolHelpers::LockCameraActorToViewport(SharedThis(this), NewCamera);
 
-	MovieSceneToolHelpers::CameraAdded(OwnerMovieScene, CameraGuid, GetLocalTime().Time.FloorToFrame());
+	MovieSceneToolHelpers::CreateCameraCutSectionForCamera(GetFocusedMovieSceneSequence()->GetMovieScene(), CameraGuid, GetLocalTime().Time.FloorToFrame());
 }
 
 

@@ -14,13 +14,55 @@ UDMXComponent::UDMXComponent()
 	bTickInEditor = false;
 }
 
-void UDMXComponent::OnRegister()
+UDMXEntityFixturePatch* UDMXComponent::GetFixturePatch() const
 {
-	Super::OnRegister();
+	return FixturePatchRef.GetFixturePatch();
+}
 
-	if (bTickInEditor && bReceiveDMXFromPatch)
+void UDMXComponent::SetFixturePatch(UDMXEntityFixturePatch* InFixturePatch)
+{
+	UDMXEntityFixturePatch* PreviousFixturePatch = FixturePatchRef.GetFixturePatch();
+
+	if (InFixturePatch != PreviousFixturePatch)
 	{
-		SetReceiveDMXFromPatch(true);
+		// Remove the old receive binding
+		if (IsValid(PreviousFixturePatch))
+		{
+			PreviousFixturePatch->OnFixturePatchReceivedDMX.RemoveAll(this);
+		}
+
+		FixturePatchRef.SetEntity(InFixturePatch);
+		SetupReceiveDMXBinding();
+	}
+}
+
+void UDMXComponent::SetReceiveDMXFromPatch(bool bReceive)
+{
+	bReceiveDMXFromPatch = bReceive;
+
+	SetupReceiveDMXBinding();
+}
+
+void UDMXComponent::OnFixturePatchReceivedDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute)
+{
+	OnFixturePatchReceived.Broadcast(FixturePatch, NormalizedValuePerAttribute);
+}
+
+void UDMXComponent::SetupReceiveDMXBinding()
+{
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+	if (IsValid(FixturePatch))
+	{
+		if (bReceiveDMXFromPatch && !FixturePatch->OnFixturePatchReceivedDMX.Contains(this, GET_FUNCTION_NAME_CHECKED(UDMXComponent, OnFixturePatchReceivedDMX)))
+		{
+			// Enable receive DMX
+			FixturePatch->OnFixturePatchReceivedDMX.AddDynamic(this, &UDMXComponent::OnFixturePatchReceivedDMX);
+		}
+		else if (!bReceiveDMXFromPatch && FixturePatch->OnFixturePatchReceivedDMX.Contains(this, GET_FUNCTION_NAME_CHECKED(UDMXComponent, OnFixturePatchReceivedDMX)))
+		{
+			// Disable receive DMX
+			FixturePatch->OnFixturePatchReceivedDMX.RemoveAll(this);
+		}
 	}
 }
 
@@ -28,19 +70,17 @@ void UDMXComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (bReceiveDMXFromPatch)
-	{
-		SetReceiveDMXFromPatch(true);
-	}
+	SetupReceiveDMXBinding();
 }
 
 void UDMXComponent::DestroyComponent(bool bPromoteChildren)
 {
 	Super::DestroyComponent(bPromoteChildren);
 
-	if (IsValid(CachedFixturePatch))
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+	if (IsValid(FixturePatch))
 	{
-		CachedFixturePatch->OnFixturePatchReceivedDMX.RemoveAll(this);
+		FixturePatch->OnFixturePatchReceivedDMX.RemoveAll(this);
 	}
 }
 
@@ -53,50 +93,12 @@ void UDMXComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXComponent, FixturePatchRef))
 	{
-		if (IsValid(CachedFixturePatch))
-		{
-			CachedFixturePatch->OnFixturePatchReceivedDMX.RemoveAll(this);
-		}
-
-		CachedFixturePatch = FixturePatchRef.GetFixturePatch();
-
-		if (bTickInEditor || GIsPlayInEditorWorld)
-		{
-			UDMXEntityFixturePatch* FixturePatch = GetFixturePatch();
-		}
+		SetFixturePatch(FixturePatchRef.GetFixturePatch());
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXComponent, bReceiveDMXFromPatch))
+	{
+		SetupReceiveDMXBinding();
 	}
 }
 #endif // WITH_EDITOR
 
-void UDMXComponent::OnFixturePatchReceivedDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute)
-{
-	OnFixturePatchReceived.Broadcast(FixturePatch, NormalizedValuePerAttribute);
-}
-
-UDMXEntityFixturePatch* UDMXComponent::GetFixturePatch() const
-{
-	return FixturePatchRef.GetFixturePatch();
-}
-
-void UDMXComponent::SetFixturePatch(UDMXEntityFixturePatch* InFixturePatch)
-{
-	FixturePatchRef.SetEntity(InFixturePatch);
-
-	SetReceiveDMXFromPatch(bReceiveDMXFromPatch);
-}
-
-void UDMXComponent::SetReceiveDMXFromPatch(bool bReceive)
-{
-	bReceiveDMXFromPatch = bReceive;
-
-	if (IsValid(CachedFixturePatch))
-	{
-		CachedFixturePatch->OnFixturePatchReceivedDMX.RemoveAll(this);
-	}
-
-	CachedFixturePatch = GetFixturePatch();
-	if (bReceiveDMXFromPatch && IsValid(CachedFixturePatch))
-	{
-		CachedFixturePatch->OnFixturePatchReceivedDMX.AddDynamic(this, &UDMXComponent::OnFixturePatchReceivedDMX);
-	}
-}

@@ -1043,7 +1043,7 @@ void UMaterialEditorInstanceConstant::PostEditChangeProperty(FPropertyChangedEve
 	}
 }
 
-void  UMaterialEditorInstanceConstant::AssignParameterToGroup(UMaterial*, UDEditorParameterValue* ParameterValue, FName* OptionalGroupName)
+void  UMaterialEditorInstanceConstant::AssignParameterToGroup(UMaterial*, UDEditorParameterValue* ParameterValue, const FName* OptionalGroupName)
 {
 	check(ParameterValue);
 
@@ -1156,13 +1156,11 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 					ParamData = InCachedExpressionData.BlendParameters[InEditorParamValue->ParameterInfo.Index].Find(InEditorParamValue->ParameterInfo.Name);
 				}
 			}
-			FName GroupName = NAME_None;
 			if (ParamData)
 			{
 				InEditorParamValue->SortPriority = ParamData->SortPriority;
-				GroupName = ParamData->Group;
 			}
-			AssignParameterToGroup(nullptr/*useless param: Parent->GetMaterial()*/, InEditorParamValue, &GroupName);
+			AssignParameterToGroup(nullptr/*useless param: Parent->GetMaterial()*/, InEditorParamValue, ParamData ? &ParamData->Group : nullptr);
 		};
 
 		// Only operate on base materials

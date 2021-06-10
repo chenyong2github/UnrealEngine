@@ -329,11 +329,13 @@ SWIGEXPORT void SWIGSTDCALL SWIGRegisterWStringCallback_DatasmithFacadeCSharp(SW
 #include "DatasmithFacadeMesh.h"
 #include "DatasmithFacadeMetaData.h"
 #include "DatasmithFacadeActor.h"
-#include "DatasmithFacadeDirectLink.h"
+#include "DirectLink/DatasmithFacadeEndpointObserver.h"
+#include "DirectLink/DatasmithFacadeDirectLink.h"
 #include "DatasmithFacadeActorCamera.h"
 #include "DatasmithFacadeActorLight.h"
 #include "DatasmithFacadeActorMesh.h"
 #include "DatasmithFacadeScene.h"
+#include "DatasmithFacadeVariant.h"
 #include "DatasmithFacadeLog.h"
 #include "DatasmithFacadeUtils.h"
 
@@ -350,6 +352,22 @@ SWIGEXPORT void SWIGSTDCALL SWIGRegisterWStringCallback_DatasmithFacadeCSharp(SW
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeGuid(void * jarg1) {
+  FGuid *arg1 = (FGuid *) 0 ;
+  
+  arg1 = (FGuid *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeMessageAddress(void * jarg1) {
+  FMessageAddress *arg1 = (FMessageAddress *) 0 ;
+  
+  arg1 = (FMessageAddress *)jarg1; 
+  delete arg1;
+}
+
 
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeElement_SetCoordinateSystemType(int jarg1) {
   FDatasmithFacadeElement::ECoordinateSystemType arg1 ;
@@ -5093,6 +5111,52 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveTexture(void * ja
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_AddLevelVariantSets(void * jarg1, void * jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  FDatasmithFacadeLevelVariantSets *arg2 = (FDatasmithFacadeLevelVariantSets *) 0 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (FDatasmithFacadeLevelVariantSets *)jarg2; 
+  (arg1)->AddLevelVariantSets(arg2);
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeScene_GetLevelVariantSetsCount(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 result;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  result = (int32)((FDatasmithFacadeScene const *)arg1)->GetLevelVariantSetsCount();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeScene_GetLevelVariantSets(void * jarg1, int jarg2) {
+  void * jresult ;
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadeLevelVariantSets *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  result = (FDatasmithFacadeLevelVariantSets *)(arg1)->GetNewLevelVariantSets(arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveLevelVariantSets(void * jarg1, void * jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  FDatasmithFacadeLevelVariantSets *arg2 = (FDatasmithFacadeLevelVariantSets *) 0 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (FDatasmithFacadeLevelVariantSets *)jarg2; 
+  (arg1)->RemoveLevelVariantSets(arg2);
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_AddMetaData(void * jarg1, void * jarg2) {
   FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
   FDatasmithFacadeMetaData *arg2 = (FDatasmithFacadeMetaData *) 0 ;
@@ -5230,7 +5294,23 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_Shutdown() {
 }
 
 
-SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeScene_ExportScene__SWIG_0(void * jarg1, wchar_t * jarg2) {
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeScene_ExportScene__SWIG_0(void * jarg1, wchar_t * jarg2, unsigned int jarg3) {
+  unsigned int jresult ;
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  TCHAR *arg2 = (TCHAR *) 0 ;
+  bool arg3 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (TCHAR *)jarg2; 
+  arg3 = jarg3 ? true : false; 
+  result = (bool)(arg1)->ExportScene((TCHAR const *)arg2,arg3);
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeScene_ExportScene__SWIG_1(void * jarg1, wchar_t * jarg2) {
   unsigned int jresult ;
   FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
   TCHAR *arg2 = (TCHAR *) 0 ;
@@ -5244,7 +5324,21 @@ SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeScene_ExportScene__SW
 }
 
 
-SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeScene_ExportScene__SWIG_1(void * jarg1) {
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeScene_ExportScene__SWIG_2(void * jarg1, unsigned int jarg2) {
+  unsigned int jresult ;
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  bool arg2 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = jarg2 ? true : false; 
+  result = (bool)(arg1)->ExportScene(arg2);
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeScene_ExportScene__SWIG_3(void * jarg1) {
   unsigned int jresult ;
   FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
   bool result;
@@ -5436,6 +5530,418 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeLog(void * jarg1) {
 }
 
 
+SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_GetName(void * jarg1) {
+  wchar_t * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *) 0 ;
+  TCHAR *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *)jarg1; 
+  result = (TCHAR *)((FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId const *)arg1)->GetName();
+  jresult = (wchar_t *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_GetId(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *) 0 ;
+  SwigValueWrapper< FGuid > result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *)jarg1; 
+  result = ((FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId const *)arg1)->GetId();
+  jresult = new FGuid((const FGuid &)result); 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_IsPublic(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *) 0 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *)jarg1; 
+  result = (bool)((FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId const *)arg1)->IsPublic();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId(void * jarg1) {
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *) 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetName(void * jarg1) {
+  wchar_t * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  TCHAR *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  result = (TCHAR *)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetName();
+  jresult = (wchar_t *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetNumberOfDestinations(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  int32 result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  result = (int32)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetNumberOfDestinations();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetDestination(void * jarg1, int jarg2) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  arg2 = (int32)jarg2; 
+  result = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetNewDestination(arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetNumberOfSources(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  int32 result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  result = (int32)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetNumberOfSources();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetSource(void * jarg1, int jarg2) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  arg2 = (int32)jarg2; 
+  result = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointId *)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetNewSource(arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetUserName(void * jarg1) {
+  wchar_t * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  TCHAR *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  result = (TCHAR *)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetUserName();
+  jresult = (wchar_t *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetExecutableName(void * jarg1) {
+  wchar_t * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  TCHAR *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  result = (TCHAR *)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetExecutableName();
+  jresult = (wchar_t *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetComputerName(void * jarg1) {
+  wchar_t * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  TCHAR *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  result = (TCHAR *)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetComputerName();
+  jresult = (wchar_t *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_IsLocal(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  result = (bool)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->IsLocal();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetProcessId(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  uint32 result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  result = (uint32)((FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo const *)arg1)->GetProcessId();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo(void * jarg1) {
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *) 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_GetEndpointAddress(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *) 0 ;
+  SwigValueWrapper< FMessageAddress > result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *)jarg1; 
+  result = ((FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo const *)arg1)->GetEndpointAddress();
+  jresult = new FMessageAddress((const FMessageAddress &)result); 
+  return jresult;
+}
+
+
+SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_GetName(void * jarg1) {
+  wchar_t * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *) 0 ;
+  TCHAR *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *)jarg1; 
+  result = (TCHAR *)((FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo const *)arg1)->GetName();
+  jresult = (wchar_t *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsSource(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *) 0 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *)jarg1; 
+  result = (bool)((FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo const *)arg1)->IsSource();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsOnThisEndpoint(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *) 0 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *)jarg1; 
+  result = (bool)((FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo const *)arg1)->IsOnThisEndpoint();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsPublic(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *) 0 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *)jarg1; 
+  result = (bool)((FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo const *)arg1)->IsPublic();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo(void * jarg1) {
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *) 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetStreamId(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *) 0 ;
+  uint32 result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *)jarg1; 
+  result = (uint32)((FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo const *)arg1)->GetStreamId();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetSource(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *) 0 ;
+  SwigValueWrapper< FGuid > result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *)jarg1; 
+  result = ((FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo const *)arg1)->GetSource();
+  jresult = new FGuid((const FGuid &)result); 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetDestination(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *) 0 ;
+  SwigValueWrapper< FGuid > result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *)jarg1; 
+  result = ((FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo const *)arg1)->GetDestination();
+  jresult = new FGuid((const FGuid &)result); 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_IsActive(void * jarg1) {
+  unsigned int jresult ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *) 0 ;
+  bool result;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *)jarg1; 
+  result = (bool)((FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo const *)arg1)->IsActive();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo(void * jarg1) {
+  FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *) 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_GetThisEndpointAddress(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo *arg1 = (FDatasmithFacadeRawInfo *) 0 ;
+  SwigValueWrapper< FMessageAddress > result;
+  
+  arg1 = (FDatasmithFacadeRawInfo *)jarg1; 
+  result = ((FDatasmithFacadeRawInfo const *)arg1)->GetThisEndpointAddress();
+  jresult = new FMessageAddress((const FMessageAddress &)result); 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_GetEndpointInfo(void * jarg1, void * jarg2) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo *arg1 = (FDatasmithFacadeRawInfo *) 0 ;
+  FMessageAddress *arg2 = (FMessageAddress *) 0 ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo *)jarg1; 
+  arg2 = (FMessageAddress *)jarg2; 
+  result = (FDatasmithFacadeRawInfo::FDatasmithFacadeEndpointInfo *)((FDatasmithFacadeRawInfo const *)arg1)->GetNewEndpointInfo((FMessageAddress const *)arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_GetDataPointsInfo(void * jarg1, void * jarg2) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo *arg1 = (FDatasmithFacadeRawInfo *) 0 ;
+  FGuid *arg2 = (FGuid *) 0 ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo *)jarg1; 
+  arg2 = (FGuid *)jarg2; 
+  result = (FDatasmithFacadeRawInfo::FDatasmithFacadeDataPointInfo *)((FDatasmithFacadeRawInfo const *)arg1)->GetNewDataPointsInfo((FGuid const *)arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_GetNumberOfStreamsInfo(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadeRawInfo *arg1 = (FDatasmithFacadeRawInfo *) 0 ;
+  int32 result;
+  
+  arg1 = (FDatasmithFacadeRawInfo *)jarg1; 
+  result = (int32)((FDatasmithFacadeRawInfo const *)arg1)->GetNumberOfStreamsInfo();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeRawInfo_GetStreamInfo(void * jarg1, int jarg2) {
+  void * jresult ;
+  FDatasmithFacadeRawInfo *arg1 = (FDatasmithFacadeRawInfo *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo *)jarg1; 
+  arg2 = (int32)jarg2; 
+  result = (FDatasmithFacadeRawInfo::FDatasmithFacadeStreamInfo *)((FDatasmithFacadeRawInfo const *)arg1)->GetNewStreamInfo(arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeRawInfo(void * jarg1) {
+  FDatasmithFacadeRawInfo *arg1 = (FDatasmithFacadeRawInfo *) 0 ;
+  
+  arg1 = (FDatasmithFacadeRawInfo *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadeEndpointObserver() {
+  void * jresult ;
+  FDatasmithFacadeEndpointObserver *result = 0 ;
+  
+  result = (FDatasmithFacadeEndpointObserver *)new FDatasmithFacadeEndpointObserver();
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeEndpointObserver_RegisterOnStateChangedDelegateInternal(void * jarg1, void * jarg2) {
+  FDatasmithFacadeEndpointObserver *arg1 = (FDatasmithFacadeEndpointObserver *) 0 ;
+  FDatasmithFacadeEndpointObserver::OnStateChangedDelegate arg2 = (FDatasmithFacadeEndpointObserver::OnStateChangedDelegate) 0 ;
+  
+  arg1 = (FDatasmithFacadeEndpointObserver *)jarg1; 
+  arg2 = (FDatasmithFacadeEndpointObserver::OnStateChangedDelegate)jarg2; 
+  (arg1)->RegisterOnStateChangedDelegateInternal(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeEndpointObserver_UnregisterOnStateChangedDelegateInternal(void * jarg1, void * jarg2) {
+  FDatasmithFacadeEndpointObserver *arg1 = (FDatasmithFacadeEndpointObserver *) 0 ;
+  FDatasmithFacadeEndpointObserver::OnStateChangedDelegate arg2 = (FDatasmithFacadeEndpointObserver::OnStateChangedDelegate) 0 ;
+  
+  arg1 = (FDatasmithFacadeEndpointObserver *)jarg1; 
+  arg2 = (FDatasmithFacadeEndpointObserver::OnStateChangedDelegate)jarg2; 
+  (arg1)->UnregisterOnStateChangedDelegateInternal(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeEndpointObserver(void * jarg1) {
+  FDatasmithFacadeEndpointObserver *arg1 = (FDatasmithFacadeEndpointObserver *) 0 ;
+  
+  arg1 = (FDatasmithFacadeEndpointObserver *)jarg1; 
+  delete arg1;
+}
+
+
 SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_Init__SWIG_0() {
   unsigned int jresult ;
   bool result;
@@ -5505,6 +6011,26 @@ SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_UpdateScen
   result = (bool)(arg1)->UpdateScene(arg2);
   jresult = result; 
   return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_AddEndpointObserver(void * jarg1, void * jarg2) {
+  FDatasmithFacadeDirectLink *arg1 = (FDatasmithFacadeDirectLink *) 0 ;
+  FDatasmithFacadeEndpointObserver *arg2 = (FDatasmithFacadeEndpointObserver *) 0 ;
+  
+  arg1 = (FDatasmithFacadeDirectLink *)jarg1; 
+  arg2 = (FDatasmithFacadeEndpointObserver *)jarg2; 
+  (arg1)->AddEndpointObserver(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_RemoveEndpointObserver(void * jarg1, void * jarg2) {
+  FDatasmithFacadeDirectLink *arg1 = (FDatasmithFacadeDirectLink *) 0 ;
+  FDatasmithFacadeEndpointObserver *arg2 = (FDatasmithFacadeEndpointObserver *) 0 ;
+  
+  arg1 = (FDatasmithFacadeDirectLink *)jarg1; 
+  arg2 = (FDatasmithFacadeEndpointObserver *)jarg2; 
+  (arg1)->RemoveEndpointObserver(arg2);
 }
 
 
@@ -5585,6 +6111,422 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeUniqueNameProvider(voi
   
   arg1 = (FDatasmithFacadeUniqueNameProvider *)jarg1; 
   delete arg1;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadePropertyCapture() {
+  void * jresult ;
+  FDatasmithFacadePropertyCapture *result = 0 ;
+  
+  result = (FDatasmithFacadePropertyCapture *)new FDatasmithFacadePropertyCapture();
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadePropertyCapture(void * jarg1) {
+  FDatasmithFacadePropertyCapture *arg1 = (FDatasmithFacadePropertyCapture *) 0 ;
+  
+  arg1 = (FDatasmithFacadePropertyCapture *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadePropertyCapture_SetPropertyPath(void * jarg1, wchar_t * jarg2) {
+  FDatasmithFacadePropertyCapture *arg1 = (FDatasmithFacadePropertyCapture *) 0 ;
+  TCHAR *arg2 = (TCHAR *) 0 ;
+  
+  arg1 = (FDatasmithFacadePropertyCapture *)jarg1; 
+  arg2 = (TCHAR *)jarg2; 
+  (arg1)->SetPropertyPath((TCHAR const *)arg2);
+}
+
+
+SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadePropertyCapture_GetPropertyPath(void * jarg1) {
+  wchar_t * jresult ;
+  FDatasmithFacadePropertyCapture *arg1 = (FDatasmithFacadePropertyCapture *) 0 ;
+  TCHAR *result = 0 ;
+  
+  arg1 = (FDatasmithFacadePropertyCapture *)jarg1; 
+  result = (TCHAR *)(arg1)->GetPropertyPath();
+  jresult = (wchar_t *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadePropertyCapture_GetCategory(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadePropertyCapture *arg1 = (FDatasmithFacadePropertyCapture *) 0 ;
+  EDatasmithFacadePropertyCategory result;
+  
+  arg1 = (FDatasmithFacadePropertyCapture *)jarg1; 
+  result = (EDatasmithFacadePropertyCategory)((FDatasmithFacadePropertyCapture const *)arg1)->GetCategory();
+  jresult = (int)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadeActorBinding(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
+  FDatasmithFacadeActorBinding *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeActor *)jarg1; 
+  result = (FDatasmithFacadeActorBinding *)new FDatasmithFacadeActorBinding(arg1);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeActorBinding(void * jarg1) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddPropertyCapture(void * jarg1, void * jarg2) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  FDatasmithFacadePropertyCapture *arg2 = (FDatasmithFacadePropertyCapture *) 0 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (FDatasmithFacadePropertyCapture *)jarg2; 
+  (arg1)->AddPropertyCapture(arg2);
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_GetPropertyCapturesCount(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  int32 result;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  result = (int32)((FDatasmithFacadeActorBinding const *)arg1)->GetPropertyCapturesCount();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_GetPropertyCapture(void * jarg1, int jarg2) {
+  void * jresult ;
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadePropertyCapture *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (int32)jarg2; 
+  result = (FDatasmithFacadePropertyCapture *)(arg1)->GetNewPropertyCapture(arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_RemovePropertyCapture(void * jarg1, void * jarg2) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  FDatasmithFacadePropertyCapture *arg2 = (FDatasmithFacadePropertyCapture *) 0 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (FDatasmithFacadePropertyCapture *)jarg2; 
+  (arg1)->RemovePropertyCapture(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeLocationCapture(void * jarg1, float jarg2, float jarg3, float jarg4) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  float arg2 ;
+  float arg3 ;
+  float arg4 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (float)jarg2; 
+  arg3 = (float)jarg3; 
+  arg4 = (float)jarg4; 
+  (arg1)->AddRelativeLocationCapture(arg2,arg3,arg4);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_0(void * jarg1, float jarg2, float jarg3, float jarg4) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  float arg2 ;
+  float arg3 ;
+  float arg4 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (float)jarg2; 
+  arg3 = (float)jarg3; 
+  arg4 = (float)jarg4; 
+  (arg1)->AddRelativeRotationCapture(arg2,arg3,arg4);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_1(void * jarg1, float jarg2, float jarg3, float jarg4, float jarg5) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  float arg2 ;
+  float arg3 ;
+  float arg4 ;
+  float arg5 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (float)jarg2; 
+  arg3 = (float)jarg3; 
+  arg4 = (float)jarg4; 
+  arg5 = (float)jarg5; 
+  (arg1)->AddRelativeRotationCapture(arg2,arg3,arg4,arg5);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeScaleCapture(void * jarg1, float jarg2, float jarg3, float jarg4) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  float arg2 ;
+  float arg3 ;
+  float arg4 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (float)jarg2; 
+  arg3 = (float)jarg3; 
+  arg4 = (float)jarg4; 
+  (arg1)->AddRelativeScaleCapture(arg2,arg3,arg4);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_0(void * jarg1, float * jarg2, unsigned int jarg3) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  float *arg2 ;
+  bool arg3 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (float *)jarg2; 
+  arg3 = jarg3 ? true : false; 
+  (arg1)->AddRelativeTransformCapture((float const (*))arg2,arg3);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_1(void * jarg1, float * jarg2) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  float *arg2 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (float *)jarg2; 
+  (arg1)->AddRelativeTransformCapture((float const (*))arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddVisibilityCapture(void * jarg1, unsigned int jarg2) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  bool arg2 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = jarg2 ? true : false; 
+  (arg1)->AddVisibilityCapture(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_AddMaterialCapture(void * jarg1, void * jarg2) {
+  FDatasmithFacadeActorBinding *arg1 = (FDatasmithFacadeActorBinding *) 0 ;
+  FDatasmithFacadeBaseMaterial *arg2 = (FDatasmithFacadeBaseMaterial *) 0 ;
+  
+  arg1 = (FDatasmithFacadeActorBinding *)jarg1; 
+  arg2 = (FDatasmithFacadeBaseMaterial *)jarg2; 
+  (arg1)->AddMaterialCapture(arg2);
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadeVariant(wchar_t * jarg1) {
+  void * jresult ;
+  TCHAR *arg1 = (TCHAR *) 0 ;
+  FDatasmithFacadeVariant *result = 0 ;
+  
+  arg1 = (TCHAR *)jarg1; 
+  result = (FDatasmithFacadeVariant *)new FDatasmithFacadeVariant((TCHAR const *)arg1);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeVariant(void * jarg1) {
+  FDatasmithFacadeVariant *arg1 = (FDatasmithFacadeVariant *) 0 ;
+  
+  arg1 = (FDatasmithFacadeVariant *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeVariant_AddActorBinding(void * jarg1, void * jarg2) {
+  FDatasmithFacadeVariant *arg1 = (FDatasmithFacadeVariant *) 0 ;
+  FDatasmithFacadeActorBinding *arg2 = (FDatasmithFacadeActorBinding *) 0 ;
+  
+  arg1 = (FDatasmithFacadeVariant *)jarg1; 
+  arg2 = (FDatasmithFacadeActorBinding *)jarg2; 
+  (arg1)->AddActorBinding(arg2);
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeVariant_GetActorBindingsCount(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadeVariant *arg1 = (FDatasmithFacadeVariant *) 0 ;
+  int32 result;
+  
+  arg1 = (FDatasmithFacadeVariant *)jarg1; 
+  result = (int32)((FDatasmithFacadeVariant const *)arg1)->GetActorBindingsCount();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeVariant_GetActorBinding(void * jarg1, int jarg2) {
+  void * jresult ;
+  FDatasmithFacadeVariant *arg1 = (FDatasmithFacadeVariant *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadeActorBinding *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeVariant *)jarg1; 
+  arg2 = (int32)jarg2; 
+  result = (FDatasmithFacadeActorBinding *)(arg1)->GetNewActorBinding(arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeVariant_RemoveActorBinding(void * jarg1, void * jarg2) {
+  FDatasmithFacadeVariant *arg1 = (FDatasmithFacadeVariant *) 0 ;
+  FDatasmithFacadeActorBinding *arg2 = (FDatasmithFacadeActorBinding *) 0 ;
+  
+  arg1 = (FDatasmithFacadeVariant *)jarg1; 
+  arg2 = (FDatasmithFacadeActorBinding *)jarg2; 
+  (arg1)->RemoveActorBinding(arg2);
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadeVariantSet(wchar_t * jarg1) {
+  void * jresult ;
+  TCHAR *arg1 = (TCHAR *) 0 ;
+  FDatasmithFacadeVariantSet *result = 0 ;
+  
+  arg1 = (TCHAR *)jarg1; 
+  result = (FDatasmithFacadeVariantSet *)new FDatasmithFacadeVariantSet((TCHAR const *)arg1);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeVariantSet(void * jarg1) {
+  FDatasmithFacadeVariantSet *arg1 = (FDatasmithFacadeVariantSet *) 0 ;
+  
+  arg1 = (FDatasmithFacadeVariantSet *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeVariantSet_AddVariant(void * jarg1, void * jarg2) {
+  FDatasmithFacadeVariantSet *arg1 = (FDatasmithFacadeVariantSet *) 0 ;
+  FDatasmithFacadeVariant *arg2 = (FDatasmithFacadeVariant *) 0 ;
+  
+  arg1 = (FDatasmithFacadeVariantSet *)jarg1; 
+  arg2 = (FDatasmithFacadeVariant *)jarg2; 
+  (arg1)->AddVariant(arg2);
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeVariantSet_GetVariantsCount(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadeVariantSet *arg1 = (FDatasmithFacadeVariantSet *) 0 ;
+  int32 result;
+  
+  arg1 = (FDatasmithFacadeVariantSet *)jarg1; 
+  result = (int32)((FDatasmithFacadeVariantSet const *)arg1)->GetVariantsCount();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeVariantSet_GetVariant(void * jarg1, int jarg2) {
+  void * jresult ;
+  FDatasmithFacadeVariantSet *arg1 = (FDatasmithFacadeVariantSet *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadeVariant *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeVariantSet *)jarg1; 
+  arg2 = (int32)jarg2; 
+  result = (FDatasmithFacadeVariant *)(arg1)->GetNewVariant(arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeVariantSet_RemoveVariant(void * jarg1, void * jarg2) {
+  FDatasmithFacadeVariantSet *arg1 = (FDatasmithFacadeVariantSet *) 0 ;
+  FDatasmithFacadeVariant *arg2 = (FDatasmithFacadeVariant *) 0 ;
+  
+  arg1 = (FDatasmithFacadeVariantSet *)jarg1; 
+  arg2 = (FDatasmithFacadeVariant *)jarg2; 
+  (arg1)->RemoveVariant(arg2);
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadeLevelVariantSets(wchar_t * jarg1) {
+  void * jresult ;
+  TCHAR *arg1 = (TCHAR *) 0 ;
+  FDatasmithFacadeLevelVariantSets *result = 0 ;
+  
+  arg1 = (TCHAR *)jarg1; 
+  result = (FDatasmithFacadeLevelVariantSets *)new FDatasmithFacadeLevelVariantSets((TCHAR const *)arg1);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeLevelVariantSets(void * jarg1) {
+  FDatasmithFacadeLevelVariantSets *arg1 = (FDatasmithFacadeLevelVariantSets *) 0 ;
+  
+  arg1 = (FDatasmithFacadeLevelVariantSets *)jarg1; 
+  delete arg1;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeLevelVariantSets_AddVariantSet(void * jarg1, void * jarg2) {
+  FDatasmithFacadeLevelVariantSets *arg1 = (FDatasmithFacadeLevelVariantSets *) 0 ;
+  FDatasmithFacadeVariantSet *arg2 = (FDatasmithFacadeVariantSet *) 0 ;
+  
+  arg1 = (FDatasmithFacadeLevelVariantSets *)jarg1; 
+  arg2 = (FDatasmithFacadeVariantSet *)jarg2; 
+  (arg1)->AddVariantSet(arg2);
+}
+
+
+SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeLevelVariantSets_GetVariantSetsCount(void * jarg1) {
+  int jresult ;
+  FDatasmithFacadeLevelVariantSets *arg1 = (FDatasmithFacadeLevelVariantSets *) 0 ;
+  int32 result;
+  
+  arg1 = (FDatasmithFacadeLevelVariantSets *)jarg1; 
+  result = (int32)((FDatasmithFacadeLevelVariantSets const *)arg1)->GetVariantSetsCount();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeLevelVariantSets_GetVariantSet(void * jarg1, int jarg2) {
+  void * jresult ;
+  FDatasmithFacadeLevelVariantSets *arg1 = (FDatasmithFacadeLevelVariantSets *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadeVariantSet *result = 0 ;
+  
+  arg1 = (FDatasmithFacadeLevelVariantSets *)jarg1; 
+  arg2 = (int32)jarg2; 
+  result = (FDatasmithFacadeVariantSet *)(arg1)->GetNewVariantSet(arg2);
+  jresult = (void *)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeLevelVariantSets_RemoveVariantSet(void * jarg1, void * jarg2) {
+  FDatasmithFacadeLevelVariantSets *arg1 = (FDatasmithFacadeLevelVariantSets *) 0 ;
+  FDatasmithFacadeVariantSet *arg2 = (FDatasmithFacadeVariantSet *) 0 ;
+  
+  arg1 = (FDatasmithFacadeLevelVariantSets *)jarg1; 
+  arg2 = (FDatasmithFacadeVariantSet *)jarg2; 
+  (arg1)->RemoveVariantSet(arg2);
 }
 
 
@@ -5764,6 +6706,26 @@ SWIGEXPORT FDatasmithFacadePointLight * SWIGSTDCALL CSharp_FDatasmithFacadeLight
 
 SWIGEXPORT FDatasmithFacadeActor * SWIGSTDCALL CSharp_FDatasmithFacadeActorMesh_SWIGUpcast(FDatasmithFacadeActorMesh *jarg1) {
     return (FDatasmithFacadeActor *)jarg1;
+}
+
+SWIGEXPORT FDatasmithFacadeElement * SWIGSTDCALL CSharp_FDatasmithFacadePropertyCapture_SWIGUpcast(FDatasmithFacadePropertyCapture *jarg1) {
+    return (FDatasmithFacadeElement *)jarg1;
+}
+
+SWIGEXPORT FDatasmithFacadeElement * SWIGSTDCALL CSharp_FDatasmithFacadeActorBinding_SWIGUpcast(FDatasmithFacadeActorBinding *jarg1) {
+    return (FDatasmithFacadeElement *)jarg1;
+}
+
+SWIGEXPORT FDatasmithFacadeElement * SWIGSTDCALL CSharp_FDatasmithFacadeVariant_SWIGUpcast(FDatasmithFacadeVariant *jarg1) {
+    return (FDatasmithFacadeElement *)jarg1;
+}
+
+SWIGEXPORT FDatasmithFacadeElement * SWIGSTDCALL CSharp_FDatasmithFacadeVariantSet_SWIGUpcast(FDatasmithFacadeVariantSet *jarg1) {
+    return (FDatasmithFacadeElement *)jarg1;
+}
+
+SWIGEXPORT FDatasmithFacadeElement * SWIGSTDCALL CSharp_FDatasmithFacadeLevelVariantSets_SWIGUpcast(FDatasmithFacadeLevelVariantSets *jarg1) {
+    return (FDatasmithFacadeElement *)jarg1;
 }
 
 #ifdef __cplusplus

@@ -15,7 +15,9 @@ class GAMEFEATURES_API UGameFeatureAction : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual void OnGameFeatureRegistering() {}
+	virtual void OnGameFeatureRegistering(const FString& PluginName) {}
+
+	virtual void OnGameFeatureUnregistering(const FString& PluginName) {}
 
 	virtual void OnGameFeatureActivating() {}
 

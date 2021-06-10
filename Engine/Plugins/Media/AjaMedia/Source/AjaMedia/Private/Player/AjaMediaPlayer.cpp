@@ -24,6 +24,10 @@
 
 #include "AjaMediaAllowPlatformTypes.h"
 
+#if WITH_EDITOR
+#include "EngineAnalytics.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "FAjaMediaPlayer"
 
 DECLARE_CYCLE_STAT(TEXT("AJA MediaPlayer Request frame"), STAT_AJA_MediaPlayer_RequestFrame, STATGROUP_Media);
@@ -85,6 +89,13 @@ FAjaMediaPlayer::~FAjaMediaPlayer()
 
 /* IMediaPlayer interface
  *****************************************************************************/
+
+/**
+ * @EventName MediaFramework.AjaSourceOpened
+ * @Trigger Triggered when an Aja media source is opened through a media player.
+ * @Type Client
+ * @Owner MediaIO Team
+ */
 bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 {
 	if (!FAja::CanUseAJACard())
@@ -228,6 +239,22 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	AjaThreadNewState = EMediaState::Preparing;
 	EventSink.ReceiveMediaEvent(EMediaEvent::MediaConnecting);
 
+#if WITH_EDITOR
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		
+		const int64 ResolutionWidth = Options->GetMediaOption( FMediaIOCoreMediaOption::ResolutionWidth, (int64)1920);
+		const int64 ResolutionHeight = Options->GetMediaOption( FMediaIOCoreMediaOption::ResolutionHeight, (int64)1080);
+		
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionWidth"), FString::Printf(TEXT("%d"), ResolutionWidth)));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionHeight"), FString::Printf(TEXT("%d"), ResolutionHeight)));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FrameRate"), *VideoFrameRate.ToPrettyText().ToString()));
+		
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.AjaSourceOpened"), EventAttributes);
+	}
+#endif
+	
 	return true;
 }
 

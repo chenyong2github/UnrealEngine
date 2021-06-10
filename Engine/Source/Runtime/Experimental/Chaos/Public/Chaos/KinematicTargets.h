@@ -77,6 +77,13 @@ namespace Chaos
 			return IsEqual(other);
 		}
 
+		template <typename TOther>
+		void CopyFrom(const TOther& Other)
+		{
+			Target = Other.KinematicTarget().Target;
+			Mode = Other.KinematicTarget().Mode;
+		}
+
 	private:
 		TRigidTransform<T, d> Target;
 		EKinematicTargetMode Mode;

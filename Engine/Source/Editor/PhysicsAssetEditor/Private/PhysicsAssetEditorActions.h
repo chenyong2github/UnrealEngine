@@ -71,6 +71,7 @@ public:
 	TSharedPtr<FUICommandInfo> AddTaperedCapsule;
 	TSharedPtr<FUICommandInfo> DeletePrimitive;
 	TSharedPtr<FUICommandInfo> DuplicatePrimitive;
+	TSharedPtr<FUICommandInfo> ConstrainChildBodiesToParentBody;
 	TSharedPtr<FUICommandInfo> ResetConstraint;
 	TSharedPtr<FUICommandInfo> SnapConstraint;
 	TSharedPtr<FUICommandInfo> ConvertToBallAndSocket;
@@ -92,10 +93,12 @@ public:
 	TSharedPtr<FUICommandInfo> SelectKinematicBodies;
 	TSharedPtr<FUICommandInfo> SelectAllConstraints;
 	TSharedPtr<FUICommandInfo> ToggleSelectionType;
+	TSharedPtr<FUICommandInfo> ToggleSelectionTypeWithUserConstraints;
 	TSharedPtr<FUICommandInfo> ToggleShowSelected;
 	TSharedPtr<FUICommandInfo> ShowSelected;
 	TSharedPtr<FUICommandInfo> HideSelected;
 	TSharedPtr<FUICommandInfo> ToggleShowOnlyColliding;
+	TSharedPtr<FUICommandInfo> ToggleShowOnlyConstrained;
 	TSharedPtr<FUICommandInfo> ToggleShowOnlySelected;
 	TSharedPtr<FUICommandInfo> ShowAll;
 	TSharedPtr<FUICommandInfo> HideAll;
@@ -115,6 +118,7 @@ public:
 	TSharedPtr<FUICommandInfo> ShowSimulatedBodies;
 	TSharedPtr<FUICommandInfo> ShowKinematicBodies;
 	TSharedPtr<FUICommandInfo> ShowConstraints;
+	TSharedPtr<FUICommandInfo> ShowConstraintsOnParentBodies;
 	TSharedPtr<FUICommandInfo> ShowPrimitives;
 
 	/** Hotkey only commands */

@@ -810,6 +810,9 @@ public:
 	/** Updates the provided focus data using the local */
 	void UpdateFocusData(float DeltaTime, const FAttenuationListenerData& ListenerData, FAttenuationFocusData* OutFocusData = nullptr);
 
+	/** Apply the submix sends to our parse params as appropriate */
+	void AddVolumeSubmixSends(FSoundParseParameters& ParseParams, EAudioVolumeLocationState LocationState);
+
 private:
 
 	struct FAsyncTraceDetails
@@ -851,8 +854,11 @@ private:
 	 */
 	void CheckOcclusion(const FVector ListenerLocation, const FVector SoundLocation, const FSoundAttenuationSettings* AttenuationSettingsPtr);
 
+	/** Gather the interior settings needed for the sound */
+	void GatherInteriorData(FSoundParseParameters& ParseParams);
+
 	/** Apply the interior settings to the ambient sound as appropriate */
-	void HandleInteriorVolumes(struct FSoundParseParameters& ParseParams);
+	void HandleInteriorVolumes(FSoundParseParameters& ParseParams);
 
 	/** Helper function which retrieves attenuation frequency value for HPF and LPF distance-based filtering. */
 	float GetAttenuationFrequency(const FSoundAttenuationSettings* InSettings, const FAttenuationListenerData& ListenerData, const FVector2D& FrequencyRange, const FRuntimeFloatCurve& CustomCurve);

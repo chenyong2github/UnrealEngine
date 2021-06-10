@@ -58,16 +58,19 @@ public:
 		return true;
 	}
 
+	virtual void UpdateProxyData(class IDisplayClusterViewport* InViewport) override;
+
 protected:
 	bool CreateWarpBlendFromConfig();
 
 protected:
 	FString OriginCompId;
 	
-	TSharedPtr<IDisplayClusterWarpBlend> WarpBlendInterface;
+	TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlendInterface;
 	TArray<FDisplayClusterWarpContext> WarpBlendContexts;
 
-	class IDisplayClusterShaders& ShadersAPI;
+	TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlendInterface_Proxy;
+	TArray<FDisplayClusterWarpContext> WarpBlendContexts_Proxy;
 
 #if WITH_EDITOR
 protected:

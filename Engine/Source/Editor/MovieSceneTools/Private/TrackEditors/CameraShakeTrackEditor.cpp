@@ -9,6 +9,7 @@
 #include "ReferenceSkeleton.h"
 #include "Modules/ModuleManager.h"
 #include "Camera/CameraComponent.h"
+#include "CameraShakeTrackEditorBase.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
@@ -26,22 +27,22 @@
 
 #define LOCTEXT_NAMESPACE "FCameraShakeTrackEditor"
 
-class FCameraShakeSection : public FSequencerSection
+class FCameraShakeSection : public FCameraShakeSectionBase
 {
 public:
-	FCameraShakeSection(UMovieSceneSection& InSection)
-		: FSequencerSection(InSection)
-	{ }
+	FCameraShakeSection(const TSharedPtr<ISequencer> InSequencer, UMovieSceneSection& InSection, const FGuid& ObjectBinding)
+		: FCameraShakeSectionBase(InSequencer, InSection, ObjectBinding)
+	{}
 
-	virtual FText GetSectionTitle() const override
+private:
+	virtual TSubclassOf<UCameraShakeBase> GetCameraShakeClass() const override
 	{
-		UMovieSceneCameraShakeSection const* const ShakeSection = Cast<UMovieSceneCameraShakeSection>(WeakSection.Get());
-		UClass const* const Shake = ShakeSection ? ShakeSection->ShakeData.ShakeClass : nullptr;
-		if (Shake)
+		if (UMovieSceneCameraShakeSection const* const ShakeSection = GetSectionObjectAs<UMovieSceneCameraShakeSection>())
 		{
-			return FText::FromString(Shake->GetName());
+			return ShakeSection->ShakeData.ShakeClass;
 		}
-		return LOCTEXT("NoCameraShakeSection", "No Camera Shake");
+
+		return TSubclassOf<UCameraShakeBase>();
 	}
 };
 
@@ -67,7 +68,7 @@ bool FCameraShakeTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) c
 TSharedRef<ISequencerSection> FCameraShakeTrackEditor::MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding)
 {
 	check(SupportsType(SectionObject.GetOuter()->GetClass()));
-	return MakeShareable(new FCameraShakeSection(SectionObject));
+	return MakeShareable(new FCameraShakeSection(GetSequencer(), SectionObject, ObjectBinding));
 }
 
 bool FCameraShakeTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& TargetObjectGuid)

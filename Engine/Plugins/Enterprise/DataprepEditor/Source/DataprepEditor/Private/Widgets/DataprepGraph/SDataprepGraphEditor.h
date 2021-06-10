@@ -136,6 +136,8 @@ public:
 	/** Callback from the contextual menu to create any entries outside of the action collector */
 	void OnCollectCustomActions(TArray<TSharedPtr<FDataprepSchemaAction>>& OutActions);
 
+	void CreateFilterFromSelection(UDataprepActionAsset* InTargetAction, const TSet< UObject* >& InAssetAndActorSelection);
+
 private:
 	/** Recompute the layout of the displayed graph after a pan, resize and/or zoom */
 	void UpdateLayout( const FVector2D& LocalSize, const FVector2D& Location, float ZoomAmount );

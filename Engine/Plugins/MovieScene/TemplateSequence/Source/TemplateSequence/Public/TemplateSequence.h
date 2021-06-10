@@ -26,6 +26,9 @@ public:
 	/** Gets the object binding that corresponds to the root spawnable that serves as the template. */
 	FGuid GetRootObjectBindingID() const;
 
+	/** Gets the root spawnable object template. */
+	const UObject* GetRootObjectSpawnableTemplate() const;
+
 	//~ UMovieSceneSequence interface
 	virtual void BindPossessableObject(const FGuid& ObjectId, UObject& PossessedObject, UObject* Context) override;
 	virtual bool CanPossessObject(UObject& Object, UObject* InPlaybackContext) const override;
@@ -39,12 +42,13 @@ public:
 	virtual FGuid CreatePossessable(UObject* ObjectToPossess) override;
 	virtual bool AllowsSpawnableObjects() const override;
 
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+
 #if WITH_EDITOR
 	virtual FText GetDisplayName() const override;
 
 	virtual ETrackSupport IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const override;
 	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
 
 private:

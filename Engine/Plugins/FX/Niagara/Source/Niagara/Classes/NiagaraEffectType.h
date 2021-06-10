@@ -42,6 +42,107 @@ enum class ENiagaraScalabilityUpdateFrequency
 	Continuous,
 };
 
+/** Controls how cull proxies should be handled for a system. */
+UENUM()
+enum class ENiagaraCullProxyMode
+{
+	/** No cull proxy replaces culled systems. */
+	None,
+	/** A single simulation is used but rendered in place of all culled systems. This saves on simulation cost but can still incur significant render thread cost. */
+	Instanced_Rendered,
+	
+	/** TODO: Some method of instancing that bypasses the need to fully re-render the system in each location. */
+	//Instanced_NoRender,
+	/** TODO: When we have baked simulations we could us these as cull proxies. */
+	//BakedSimulation,
+	/** TODO: Possible to get very cheap proxies using an impostor billboard using a pre-generated flipbook of the system using the Baker tool. */
+	//FlipbookImpostor,
+};
+
+/** 
+Simple linear ramp to drive scaling values. 
+TODO: Replace with Curve that can baked down for fast eval and has good inline UI widgets.
+*/
+USTRUCT()
+struct FNiagaraLinearRamp
+{
+	GENERATED_USTRUCT_BODY()
+	
+	UPROPERTY(EditAnywhere, Category = "Ramp")
+	float StartX = 0.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "Ramp")
+	float StartY = 0.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "Ramp")
+	float EndX = 1.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "Ramp")
+	float EndY = 1.0f;
+
+	FORCEINLINE float Evaluate(float X)const 
+	{
+		if (X <= StartX)
+		{
+			return StartY;
+		}
+		else if (X >= EndX)
+		{
+			return EndY;
+		}
+
+		float Alpha = (X - StartX) / (EndX - StartX);
+		return FMath::Lerp(StartY, EndY, Alpha);
+	}
+	
+	FNiagaraLinearRamp(float InStartX = 0.0f, float InStartY = 0.0f, float InEndX = 1.0f, float InEndY = 1.0f)
+	: StartX(InStartX)
+	, StartY(InStartY)
+	, EndX(InEndX)
+	, EndY(InEndY)
+	{}
+};
+
+USTRUCT()
+struct FNiagaraGlobalBudgetScaling
+{
+	GENERATED_USTRUCT_BODY()	
+	
+	FNiagaraGlobalBudgetScaling();
+
+	/** Controls whether global budget based culling is enabled. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	uint32 bCullByGlobalBudget : 1;
+
+	/** Controls whether we scale down the MaxDistance based on the global budget use. Allows us to increase aggression of culling when performance is poor. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	uint32 bScaleMaxDistanceByGlobalBudgetUse : 1;
+
+	/** Controls whether we scale down the system instance counts by global budget usage. Allows us to increase aggression of culling when performance is poor. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	uint32 bScaleMaxInstanceCountByGlobalBudgetUse : 1;
+
+	/** Controls whether we scale down the effect type instance counts by global budget usage. Allows us to increase aggression of culling when performance is poor. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	uint32 bScaleSystemInstanceCountByGlobalBudgetUse : 1;
+
+	/** Effects will be culled if the global budget usage exceeds this fraction. A global budget usage of 1.0 means current global FX workload has reached it's max budget. Budgets are set by CVars under FX.Budget... */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByGlobalBudget"))
+	float MaxGlobalBudgetUsage;
+
+	/** When enabled, MaxDistance is scaled down by the global budget use based on this curve. Allows us to cull more aggressively when performance is poor.	*/
+	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleMaxDistanceByGlobalBudgetUse"))
+	FNiagaraLinearRamp MaxDistanceScaleByGlobalBudgetUse;
+	
+	/** When enabled, Max Effect Type Instances is scaled down by the global budget use based on this curve. Allows us to cull more aggressively when performance is poor.	*/
+	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleMaxInstanceCountByGlobalBudgetUse"))
+	FNiagaraLinearRamp MaxInstanceCountScaleByGlobalBudgetUse;
+	
+	/** When enabled, Max System Instances is scaled down by the global budget use based on this curve. Allows us to cull more aggressively when performance is poor.	*/
+	UPROPERTY(EditAnywhere, Category = "Budget Scaling", meta = (EditCondition = "bScaleSystemInstanceCountByGlobalBudgetUse"))
+	FNiagaraLinearRamp MaxSystemInstanceCountScaleByGlobalBudgetUse;
+};
+
 //////////////////////////////////////////////////////////////////////////
 
 /** Scalability settings for Niagara Systems for a particular platform set (unless overridden). */
@@ -66,9 +167,7 @@ struct FNiagaraSystemScalabilitySettings
 	/** Controls whether visibility culling is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullByMaxTimeWithoutRender : 1;
-	/** Controls whether global budget based culling is enabled. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bCullByGlobalBudget : 1;
+
 
 	/** Effects of this type are culled beyond this distance. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByDistance"))
@@ -97,10 +196,22 @@ struct FNiagaraSystemScalabilitySettings
 	/** Effects will be culled if they go more than this length of time without being rendered. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxTimeWithoutRender"))
 	float MaxTimeWithoutRender;
+		
+	/** Controls what, if any, proxy will be used in place of culled systems.  */
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	ENiagaraCullProxyMode CullProxyMode = ENiagaraCullProxyMode::None;
 
-	/** Effects will be culled if the global budget usage exceeds this fraction. A global budget usage of 1.0 means current global FX workload has reached it's max budget. Budgets are set by CVars under FX.Budget... */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByGlobalBudget"))
-	float MaxGlobalBudgetUsage;
+	/** 
+	Limit on the number of proxies that can be used at once per system.
+	While much cheaper than full FX instances, proxies still incur some cost so must have a limit.
+	When significance information is available using a significance handler, the most significance proxies will be kept up to this limit.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	int32 MaxSystemProxies = 32;
+
+	/** Settings related to scaling down FX based on the current budget usage. */
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	FNiagaraGlobalBudgetScaling BudgetScaling;
 	
 	FNiagaraSystemScalabilitySettings();
 
@@ -136,9 +247,12 @@ struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySetti
 	/** Controls whether we override the visibility culling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideTimeSinceRendererSettings : 1;
-	/** Controls whether we override the global budget culling settings. */
+	/** Controls whether we override the global budget scaling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
-	uint32 bOverrideGlobalBudgetCullingSettings : 1;
+	uint32 bOverrideGlobalBudgetScalingSettings : 1;
+	/** Controls whether we override the cull proxy settings. */
+	UPROPERTY(EditAnywhere, Category = "Override")
+	uint32 bOverrideCullProxySettings : 1;
 };
 
 /** Container struct for an array of system scalability overrides. Enables details customization and data validation. */
@@ -209,6 +323,7 @@ struct FNiagaraEmitterScalabilityOverrides
 
 class UNiagaraComponent;
 struct FNiagaraScalabilityState;
+struct FNiagaraScalabilitySystemData;
 
 /**
 Base class for significance handlers. 
@@ -222,7 +337,7 @@ class NIAGARA_API UNiagaraSignificanceHandler : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices)PURE_VIRTUAL(CalculateSignificance, );
+	virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices)PURE_VIRTUAL(CalculateSignificance, );
 };
 
 /** Significance is determined by the system's distance to the nearest camera. Closer systems are more significant. */
@@ -232,7 +347,7 @@ class NIAGARA_API UNiagaraSignificanceHandlerDistance : public UNiagaraSignifica
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices) override;
+	virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices) override;
 };
 
 /** Significance is determined by the system's age. Newer systems are more significant. */
@@ -242,7 +357,7 @@ class NIAGARA_API UNiagaraSignificanceHandlerAge : public UNiagaraSignificanceHa
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices) override;
+	virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices) override;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -285,9 +400,6 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraEmitterScalabilitySettingsArray EmitterScalabilitySettings;
 
-	//TODO: Dynamic budgetting from perf data.
-	//void ApplyDynamicBudget(float InDynamicBudget_GT, float InDynamicBudget_GT_CNC, float InDynamicBudget_RT);
-
 	FORCEINLINE const FNiagaraSystemScalabilitySettingsArray& GetSystemScalabilitySettings()const { return SystemScalabilitySettings; }
 	FORCEINLINE const FNiagaraEmitterScalabilitySettingsArray& GetEmitterScalabilitySettings()const { return EmitterScalabilitySettings; }
 
@@ -304,8 +416,8 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 
 #if NIAGARA_PERF_BASELINES
 	UNiagaraBaselineController* GetPerfBaselineController() { return PerformanceBaselineController; }
-	FNiagaraPerfBaselineStats& GetPerfBaselineStats(){return PerfBaselineStats;}
-	FORCEINLINE bool IsPerfBaselineValid(){ return PerfBaselineVersion == CurrentPerfBaselineVersion; }
+	FNiagaraPerfBaselineStats& GetPerfBaselineStats()const { return PerfBaselineStats; }
+	FORCEINLINE bool IsPerfBaselineValid()const { return PerfBaselineVersion == CurrentPerfBaselineVersion; }
 	void UpdatePerfBaselineStats(FNiagaraPerfBaselineStats& NewBaselineStats);
 
 	void InvalidatePerfBaseline();
@@ -324,7 +436,7 @@ private:
 	These give artists a good idea of the perf to aim for in their own FX.
 	*/
 	UPROPERTY(config)
-	FNiagaraPerfBaselineStats PerfBaselineStats;
+	mutable FNiagaraPerfBaselineStats PerfBaselineStats;
 
 	//Version guid at the time these baseline stats were generated.
 	//Allows us to invalidate perf baseline results if there are significant performance optimizations

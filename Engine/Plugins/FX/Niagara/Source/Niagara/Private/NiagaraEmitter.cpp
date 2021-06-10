@@ -935,6 +935,17 @@ void UNiagaraEmitter::HandleVariableRenamed(const FNiagaraVariable& InOldVariabl
 		Prop->RenameVariable(InOldVariable, InNewVariable, this);
 	}
 
+	// Rename any simulation stage iteration sources
+	for (UNiagaraSimulationStageBase* SimStage : SimulationStages)
+	{
+		UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage);
+		if (GenericStage && GenericStage->DataInterface.BoundVariable.GetName() == InOldVariable.GetName())
+		{
+			GenericStage->Modify(false);
+			GenericStage->DataInterface.BoundVariable = InNewVariable;
+		}
+	}
+
 	if (bUpdateContexts)
 	{
 		FNiagaraSystemUpdateContext UpdateCtx(this, true);
@@ -1164,7 +1175,7 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	{
 		// Prevent division by 0 in case there are no renderers.
 		uint32 MaxGPUBufferComponents = 1;
-		if (SimTarget == ENiagaraSimTarget::CPUSim && GbEnableMinimalGPUBuffers)
+		if (SimTarget == ENiagaraSimTarget::CPUSim)
 		{
 			// CPU emitters only upload the data needed by the renderers to the GPU. Compute the maximum number of components per particle
 			// among all the enabled renderers, since this will decide how many particles we can upload.

@@ -30,10 +30,26 @@ public:
 
 public:
 	/**
-	* Return projection name
+	* Return projection policy name
 	*/
 	virtual const FString& GetId() const = 0;
+
+	/**
+	* Return projection policy type
+	*/
 	virtual const FString GetTypeId() const = 0;
+
+	/**
+	* Return projection policy configuration
+	*/
+	virtual const TMap<FString, FString>& GetParameters() const = 0;
+
+	/**
+	* Send projection policy game thread data to render thread proxy
+	* called once per frame from FDisplayClusterViewportManager::FinalizeNewFrame
+	*/
+	virtual void UpdateProxyData(class IDisplayClusterViewport* InViewport)
+	{ }
 
 	/**
 	* Called each time a new game level starts

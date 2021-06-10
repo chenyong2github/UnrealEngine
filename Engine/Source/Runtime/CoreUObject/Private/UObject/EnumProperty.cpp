@@ -239,7 +239,17 @@ FString FEnumProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFla
 
 void FEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	check(Enum);
+	if (Enum == nullptr)
+	{
+		UE_LOG(
+			LogClass,
+			Warning,
+			TEXT("Member 'Enum' of %s is nullptr, export operation would fail. This can occur when the enum class has been moved or deleted."),
+			*GetFullName()
+		);
+		return;
+	}
+
 	check(UnderlyingProp);
 
 	FNumericProperty* LocalUnderlyingProp = UnderlyingProp;

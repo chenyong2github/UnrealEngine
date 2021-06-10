@@ -65,7 +65,7 @@ FText SVisualLoggerFilterWidget::GetCaptionString() const
 	FCategoryFilter& CategoryFilter = FVisualLoggerFilters::Get().GetCategoryByName(GetFilterNameAsString());
 	if (CategoryFilter.LogVerbosity != LastVerbosity)
 	{
-		const FString VerbosityStr = FOutputDeviceHelper::VerbosityToString((ELogVerbosity::Type)CategoryFilter.LogVerbosity);
+		const FString VerbosityStr = ::ToString((ELogVerbosity::Type)CategoryFilter.LogVerbosity);
 		if (CategoryFilter.LogVerbosity != ELogVerbosity::VeryVerbose)
 		{
 			CaptionString = FString::Printf(TEXT("%s [%s]"), *GetFilterNameAsString().Replace(TEXT("Log"), TEXT(""), ESearchCase::CaseSensitive), *VerbosityStr.Mid(0, 1));
@@ -86,7 +86,7 @@ FText SVisualLoggerFilterWidget::GetTooltipString() const
 	if (bWasEnabledLastTime != IsEnabled())
 	{
 		FCategoryFilter& CategoryFilter = FVisualLoggerFilters::Get().GetCategoryByName(GetFilterNameAsString());
-		const FString VerbosityStr = FOutputDeviceHelper::VerbosityToString((ELogVerbosity::Type)CategoryFilter.LogVerbosity);
+		const FString VerbosityStr = ::ToString((ELogVerbosity::Type)CategoryFilter.LogVerbosity);
 
 		CachedTooltipString = FText::FromString(
 			IsEnabled() ?
@@ -112,7 +112,7 @@ TSharedRef<SWidget> SVisualLoggerFilterWidget::GetRightClickMenuContent()
 		{
 			for (int32 Index = ELogVerbosity::NoLogging + 1; Index <= ELogVerbosity::VeryVerbose; Index++)
 			{
-				const FString VerbosityStr = FOutputDeviceHelper::VerbosityToString((ELogVerbosity::Type)Index);
+				const FString VerbosityStr = ::ToString((ELogVerbosity::Type)Index);
 				MenuBuilder.AddMenuEntry(
 					FText::Format(LOCTEXT("UseVerbosity", "Use: {0}"), FText::FromString(VerbosityStr)),
 					LOCTEXT("UseVerbosityTooltip", "Applay verbosity to selected flter."),

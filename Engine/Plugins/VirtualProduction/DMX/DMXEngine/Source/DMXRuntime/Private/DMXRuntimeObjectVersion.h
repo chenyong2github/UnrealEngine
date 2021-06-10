@@ -15,6 +15,9 @@ struct FDMXRuntimeObjectVersion
 		// Update to DMX Library Section using normalized values by default
 		DefaultToNormalizedValuesInDMXLibrarySection,
 
+		// Update to DMX Library Section using normalized values by default
+		ReplaceWeakWithStrongFixturePatchReferncesInLibrarySection,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

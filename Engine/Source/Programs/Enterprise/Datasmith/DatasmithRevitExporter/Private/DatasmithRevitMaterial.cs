@@ -1289,11 +1289,13 @@ namespace DatasmithRevitExporter
 					IOMasterMaterial.AddBoolean("TintEnabled", tintEnabled);
 					IOMasterMaterial.AddColor("TintColor", tintColor.Red / 255.0F, tintColor.Green / 255.0F, tintColor.Blue / 255.0F, 1.0F);
 
-					float selfIlluminationLuminance   = GetFloatPropertyValue(RenderingAsset, Generic.GenericSelfIllumLuminance, 0.0F);
-					Color selfIlluminationFilterColor = GetColorPropertyValue(RenderingAsset, Generic.GenericSelfIllumFilterMap, new Color(255, 255, 255));
-
+					float selfIlluminationLuminance			= GetFloatPropertyValue(RenderingAsset, Generic.GenericSelfIllumLuminance, 0.0F);
+					float selfIlluminationColorTemperature	= GetFloatPropertyValue(RenderingAsset, Generic.GenericSelfIllumColorTemperature, 0.0f);
+					Color selfIlluminationFilterColor		= GetColorPropertyValue(RenderingAsset, Generic.GenericSelfIllumFilterMap, new Color(255, 255, 255));
+				
 					// Control the Unreal material Emissive Color.
 					IOMasterMaterial.AddFloat("SelfIlluminationLuminance", selfIlluminationLuminance);
+					IOMasterMaterial.AddFloat("SelfIlluminationColorTemperature", selfIlluminationColorTemperature);
 					IOMasterMaterial.AddColor("SelfIlluminationFilter", selfIlluminationFilterColor.Red / 255.0F, selfIlluminationFilterColor.Green / 255.0F, selfIlluminationFilterColor.Blue / 255.0F, 1.0F);
 
 					string selfIlluminationMapPath = GetTexturePropertyPath(RenderingAsset, Generic.GenericSelfIllumFilterMap);
@@ -1889,7 +1891,7 @@ namespace DatasmithRevitExporter
 
 					if (distanceProperty != null && distanceProperty.Value != 0.0)
 					{
-#if REVIT_API_2021
+#if REVIT_API_2021 || REVIT_API_2022
 						return (float) UnitUtils.Convert(distanceProperty.Value, distanceProperty.GetUnitTypeId(), UnitTypeId.Feet);
 #else
 						return (float) UnitUtils.Convert(distanceProperty.Value, distanceProperty.DisplayUnitType, DisplayUnitType.DUT_DECIMAL_FEET);

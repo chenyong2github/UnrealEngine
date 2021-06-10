@@ -1,4 +1,4 @@
-import { IPreset, PropertyType, WidgetType, WidgetTypes } from "src/shared";
+import { IPreset, PropertyType } from "src/shared";
 
 
 type Range = {
@@ -73,16 +73,6 @@ export class WidgetUtilities {
       min: WidgetUtilities.parseNumber(property?.Metadata?.Min),
       max: WidgetUtilities.parseNumber(property?.Metadata?.Max),
     };
-  }
-
-  static isAsset(type: WidgetType): boolean {
-    switch (type) {
-      case WidgetTypes.Level:
-      case WidgetTypes.Sequence:
-        return true;
-    }
-
-    return false;
   }
 
   static registerWidget(type: string, properties: PropertyType[], render: (props: WidgetProperties) => React.ReactNode): void {

@@ -27,8 +27,6 @@ class NiagaraEmitterInstanceBatcher;
 // Called when the particle system is done
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNiagaraComponent*, PSystem);
 
-#define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (ENABLE_DRAW_DEBUG || NIAGARA_PERF_BASELINES)
-
 /**
 * UNiagaraComponent is the primitive component for a Niagara System.
 * @see ANiagaraActor
@@ -508,7 +506,7 @@ public:
 	//~ End UObject Interface
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
-	void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance);
+	void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance, float PreviewMaxDistance);
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	FORCEINLINE bool GetPreviewLODDistanceEnabled()const;
@@ -523,7 +521,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Performance, meta = (Keywords = "Niagara Performance"))
 	void InitForPerformanceBaseline();
 
-	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance) { if (SystemInstanceController) SystemInstanceController->SetLODDistance(InLODDistance, InMaxLODDistance); }
+	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
 #if WITH_EDITOR
 	void PostLoadNormalizeOverrideNames();
@@ -620,10 +618,9 @@ public:
 
 	virtual void SetUseAutoManageAttachment(bool bAutoManage) override { bAutoManageAttachment = bAutoManage; }
 
-#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 	float PreviewLODDistance;
+	float PreviewMaxDistance;
 	uint32 bEnablePreviewLODDistance : 1;
-#endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = Compilation)
@@ -644,6 +641,8 @@ public:
 	//Cache our scalability state in the component so we have access to it easily and also after it has been removed from the scalability manager.
 	FNiagaraScalabilityState DebugCachedScalabilityState;
 #endif
+
+	FORCEINLINE bool IsUsingCullProxy()const { return CullProxy != nullptr; }
 
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
@@ -684,17 +683,18 @@ private:
 
 	float CustomTimeDilation = 1.0f;
 
+	UPROPERTY()
+	class UNiagaraCullProxyComponent* CullProxy;
+
+	void CreateCullProxy(bool bForce = false);
+	void DestroyCullProxy();
+
 public:
 	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext(){ return FParticlePerfStatsContext(GetWorld(), Asset, this); }
 };
 
-#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return bEnablePreviewLODDistance; }
 FORCEINLINE float UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
-#else
-FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return false; }
-FORCEINLINE float UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
-#endif
 
 /**
 * Scene proxy for drawing niagara particle simulations.
@@ -731,6 +731,18 @@ public:
 	FRHIUniformBuffer* GetCustomUniformBuffer(bool bHasVelocity, const FBox& PreSkinnedBounds = FBox(ForceInitToZero)) const;
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+
+	/** Some proxy wide dynamic settings passed down with the emitter dynamic data. */
+	struct FDynamicData
+	{
+		bool bUseCullProxy = false;
+		float LODDistanceOverride = -1.0f;
+#if WITH_PARTICLE_PERF_STATS
+		FParticlePerfStatsContext PerfStatsContext;
+#endif
+	};
+	const FDynamicData& GetProxyDynamicData()const { return DynamicData; }
+	void SetProxyDynamicData(const FDynamicData& NewData) { DynamicData = NewData; }
 
 private:
 	void ReleaseRenderThreadResources();
@@ -769,21 +781,9 @@ private:
 
 	FMatrix LocalToWorldInverse;
 
-	/** Ptr to the cycle count for this systems effect type. Lifetime is guaranteed to be longer than the proxy. */
-	int32* RuntimeCycleCount;
-
-#if STATS
 	TStatId SystemStatID;
-#endif
-#if WITH_PARTICLE_PERF_STATS
-public:
-	FParticlePerfStatsContext PerfStatsContext;
-#endif
 
-#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-public:
-	float PreviewLODDistance;
-#endif
+	FDynamicData DynamicData;
 };
 
 extern float GLastRenderTimeSafetyBias;
@@ -791,3 +791,12 @@ FORCEINLINE float UNiagaraComponent::GetSafeTimeSinceRendered(float WorldTime)co
 {
 	return FMath::Max(0.0f, WorldTime - GetLastRenderTime() - GLastRenderTimeSafetyBias);
 }
+
+FORCEINLINE void UNiagaraComponent::SetLODDistance(float InLODDistance, float InMaxLODDistance)
+{
+	if (!bEnablePreviewLODDistance && SystemInstanceController)
+	{
+		SystemInstanceController->SetLODDistance(InLODDistance, InMaxLODDistance, false);
+	}
+}
+

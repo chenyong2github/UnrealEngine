@@ -31,7 +31,7 @@ void FFieldSystemCommand::Serialize(FArchive& Ar)
 
 bool FFieldSystemCommand::operator==(const FFieldSystemCommand& CommandIn) const
 {
-	if (TargetAttribute.IsEqual(CommandIn.TargetAttribute) && CommandName.IsEqual(CommandIn.CommandName) && (BoundingBox == CommandIn.BoundingBox))
+	if (TargetAttribute.IsEqual(CommandIn.TargetAttribute) && CommandName.IsEqual(CommandIn.CommandName) && (BoundingBox == CommandIn.BoundingBox) && (MaxMagnitude == CommandIn.MaxMagnitude))
 	{
 		if (RootNode.IsValid() == CommandIn.RootNode.IsValid())
 		{

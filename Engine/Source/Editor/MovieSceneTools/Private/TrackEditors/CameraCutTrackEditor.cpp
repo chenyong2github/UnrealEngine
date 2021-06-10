@@ -75,6 +75,14 @@ FCameraCutTrackEditor::FCameraCutTrackEditor(TSharedRef<ISequencer> InSequencer)
 
 void FCameraCutTrackEditor::OnRelease()
 {
+	for (const TWeakPtr<FCameraCutSection>& CameraCutSection : CameraCutSections)
+	{
+		if (CameraCutSection.IsValid())
+		{
+			CameraCutSection.Pin()->DestroyThumbnails_Latent();
+		}
+	}
+	
 	const FCameraCutTrackCommands& Commands = FCameraCutTrackCommands::Get();
 	Commands.BindingCount--;
 	
@@ -224,7 +232,11 @@ TSharedRef<ISequencerSection> FCameraCutTrackEditor::MakeSectionInterface(UMovie
 {
 	check(SupportsType(SectionObject.GetOuter()->GetClass()));
 
-	return MakeShareable(new FCameraCutSection(GetSequencer(), ThumbnailPool, SectionObject));
+	TSharedRef<FCameraCutSection> CameraCutSection = MakeShareable(new FCameraCutSection(GetSequencer(), ThumbnailPool, SectionObject));
+
+	CameraCutSections.Add(CameraCutSection);
+
+	return CameraCutSection;
 }
 
 

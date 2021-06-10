@@ -526,6 +526,12 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 
 		for (int32 Index = 0; Index < EntityIDs.Num(); ++Index)
 		{
+			FMovieSceneEntityID EntityID = EntityIDs[Index];
+			if (!EntityID)
+			{
+				continue;
+			}
+
 			FEntityDataLocation Location = EntityManager.GetEntity(EntityIDs[Index]).Data;
 
 			PatchCompositeValue(Composites, &TypedResults[Index],

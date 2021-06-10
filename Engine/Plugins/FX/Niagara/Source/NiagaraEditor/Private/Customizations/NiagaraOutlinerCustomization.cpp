@@ -1175,6 +1175,18 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeComponentItem::GetHeaderWidget()
 						.Data(LOCTEXT("UninitializedSystemInstanceValue", "Uninitialized"))
 					];
 			}
+			else if (Data->bUsingCullProxy)
+			{
+				//This instance is using it's cull proxy.
+				Box->AddSlot()
+					.AutoWidth()
+					.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+					[
+						SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
+						.ToolTipText(LOCTEXT("CullProxyToolTipText", "This instance is not simulating. Instead it's using a cull proxy to maintain visuals while limiting it's cost."))
+						.Data(LOCTEXT("CullProxyInstanceValue", "Cull Proxy"))
+					];
+			}
 			else
 			{
 				int32 NumMatchingEmitters = 0;

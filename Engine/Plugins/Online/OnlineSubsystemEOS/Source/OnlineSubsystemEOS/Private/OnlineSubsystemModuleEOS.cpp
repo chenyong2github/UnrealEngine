@@ -48,6 +48,11 @@ public:
 
 void FOnlineSubsystemEOSModule::StartupModule()
 {
+	if (IsRunningCommandlet())
+	{
+		return;
+	}
+
 	// Force loading of the OSS module before we register the factory in case the
 	// plugin manager failed to get the dependencies right
 	FModuleManager::LoadModuleChecked<FOnlineSubsystemModule>(TEXT("OnlineSubsystem"));
@@ -94,6 +99,11 @@ void FOnlineSubsystemEOSModule::OnPreExit()
 
 void FOnlineSubsystemEOSModule::ShutdownModule()
 {
+	if (IsRunningCommandlet())
+	{
+		return;
+	}
+
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	FCoreDelegates::OnPreExit.RemoveAll(this);

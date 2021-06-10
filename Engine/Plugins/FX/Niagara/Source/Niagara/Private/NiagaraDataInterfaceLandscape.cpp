@@ -273,9 +273,7 @@ bool FNDI_Landscape_SharedResource::IsUsed() const
 
 bool FNDI_Landscape_SharedResource::CanBeDestroyed() const
 {
-	return !IsUsed()
-		&& (!GpuDataQueuedForRelease || GpuDataReleasedByRt)
-		&& (!CpuDataQueuedForRelease || CpuDataReleasedByRt);
+	return !IsUsed() && GpuDataReleasedByRt && CpuDataReleasedByRt;
 }
 
 bool FNDI_Landscape_SharedResource::CanRepresent(const FResourceKey& RequestKey) const
@@ -937,6 +935,10 @@ bool UNiagaraDataInterfaceLandscape::PerInstanceTick(void* PerInstanceData, FNia
 		{
 			FNDI_Landscape_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->EditGeneratedData<FNDI_Landscape_GeneratedData>();
 			InstanceData->SharedResourceHandle = GeneratedData.GetLandscapeData(*this, *SystemInstance, *InstanceData, FNDI_SharedResourceUsage(false, true), true);
+		}
+		else
+		{
+			InstanceData->SharedResourceHandle = FNDI_Landscape_SharedResourceHandle();
 		}
 	}
 

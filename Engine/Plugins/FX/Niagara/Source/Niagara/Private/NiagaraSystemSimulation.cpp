@@ -112,7 +112,7 @@ static FAutoConsoleVariableRef CVarNiagaraSkipTickDeltaSeconds(
 	ECVF_Default
 );
 
-static int32 GNiagaraSystemSimulationTickTaskShouldWait = 1;
+static int32 GNiagaraSystemSimulationTickTaskShouldWait = 0;
 static FAutoConsoleVariableRef CVarNiagaraSystemSimulationTickTaskShouldWait(
 	TEXT("fx.Niagara.SystemSimulation.TickTaskShouldWait"),
 	GNiagaraSystemSimulationTickTaskShouldWait,
@@ -231,11 +231,11 @@ namespace NiagaraSystemSimulationLocal
 
 static FAutoConsoleTaskPriority GNiagaraTaskPriorities[] =
 {
-	//																														Thread Priority (w HiPri Thread)			Task Priority (w HiPri Thread)				Task Priority
-	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.High"),		TEXT("Task Prority When Set to High"),			ENamedThreads::HighThreadPriority,			ENamedThreads::HighTaskPriority,			ENamedThreads::HighTaskPriority),
-	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Normal"),		TEXT("Task Prority When Set to Normal"),		ENamedThreads::HighThreadPriority,			ENamedThreads::NormalTaskPriority,			ENamedThreads::NormalTaskPriority),
-	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Low"),			TEXT("Task Prority When Set to Low"),			ENamedThreads::NormalThreadPriority,		ENamedThreads::HighTaskPriority,			ENamedThreads::NormalTaskPriority),
-	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Background"),	TEXT("Task Prority When Set to Background"),	ENamedThreads::NormalThreadPriority,		ENamedThreads::BackgroundThreadPriority,	ENamedThreads::BackgroundThreadPriority),
+	//																														Thread Priority (w HiPri Thread)			Task Priority (w HiPri Thread)				Task Priority (w Normal Thread)
+	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.High"),		TEXT("Task Priority When Set to High"),			ENamedThreads::HighThreadPriority,			ENamedThreads::HighTaskPriority,			ENamedThreads::HighTaskPriority),
+	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Normal"),		TEXT("Task Priority When Set to Normal"),		ENamedThreads::HighThreadPriority,			ENamedThreads::NormalTaskPriority,			ENamedThreads::NormalTaskPriority),
+	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Low"),			TEXT("Task Priority When Set to Low"),			ENamedThreads::NormalThreadPriority,		ENamedThreads::HighTaskPriority,			ENamedThreads::NormalTaskPriority),
+	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Background"),	TEXT("Task Priority When Set to Background"),	ENamedThreads::BackgroundThreadPriority,	ENamedThreads::NormalTaskPriority,			ENamedThreads::NormalTaskPriority),
 };
 
 static int32 GNiagaraSystemSimulationSpawnPendingTaskPri = 1;
@@ -270,12 +270,20 @@ static FAutoConsoleVariableRef CVarNiagaraSystemSimulationWaitAllTaskPri(
 	ECVF_Default
 );
 
+static int32 GAllowHighPriorityForPerfTests = 1;
+static FAutoConsoleVariableRef CVarAllowHighPriorityForPerfTests(
+	TEXT("fx.Niagara.TaskPriority.AllowHighPriPerfTests"),
+	GAllowHighPriorityForPerfTests,
+	TEXT("Allow Niagara to pump up to high task priority when running performance tests. Reduces the context switching of Niagara tasks but can increase overall frame time when Niagara blocks GT work like Physics."),
+	ECVF_Default
+);
+
 ENamedThreads::Type GetNiagaraTaskPriority(int32 Priority)
 {
 #if WITH_PARTICLE_PERF_STATS
 	// If we are profiling particle performance make sure we don't get context switched due to lower priority as that will confuse the results
 	// Leave low pri if we're just gathering world stats but for per system or per component stats we should use high pri.
-	if (FParticlePerfStats::GetGatherSystemStats() || FParticlePerfStats::GetGatherComponentStats())
+	if (GAllowHighPriorityForPerfTests && (FParticlePerfStats::GetGatherSystemStats() || FParticlePerfStats::GetGatherComponentStats()))
 	{
 		return GNiagaraTaskPriorities[1].Get();
 	}
@@ -325,7 +333,7 @@ struct FNiagaraSystemSimulationAllWorkCompleteTask
 	}
 
 	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemSimulationAllWorkCompleteTask, STATGROUP_TaskGraphTasks); }
-	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemSimulationWaitAllTaskPri); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{

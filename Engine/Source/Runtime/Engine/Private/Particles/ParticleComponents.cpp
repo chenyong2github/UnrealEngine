@@ -131,6 +131,26 @@ const FGuid FParticleSystemCustomVersion::GUID(0x4A56EB40, 0x10F511DC, 0x92D3347
 // Register the custom version with core
 FCustomVersionRegistration GRegisterParticleSystemCustomVersion(FParticleSystemCustomVersion::GUID, FParticleSystemCustomVersion::LatestVersion, TEXT("ParticleSystemVer"));
 
+//////////////////////////////////////////////////////////////////////////
+
+void UFXSystemAsset::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+#if WITH_PARTICLE_PERF_CSV_STATS
+	CSVStat_Total = *FString::Printf(TEXT("Total/%s"), *GetFName().ToString());
+	CSVStat_GTOnly = *FString::Printf(TEXT("GTOnly/%s"), *GetFName().ToString());
+	CSVStat_InstAvgGT = *FString::Printf(TEXT("InstAvgGT/%s"), *GetFName().ToString());
+	CSVStat_RT = *FString::Printf(TEXT("RT/%s"), *GetFName().ToString());
+	CSVStat_InstAvgRT = *FString::Printf(TEXT("InstAvgRT/%s"), *GetFName().ToString());
+	CSVStat_Count = *FString::Printf(TEXT("Count/%s"), *GetFName().ToString());
+	CSVStat_Activation = *FString::Printf(TEXT("Activation/%s"), *GetFName().ToString());
+	CSVStat_Waits = *FString::Printf(TEXT("Waits/%s"), *GetFName().ToString());
+	CSVStat_Culled = *FString::Printf(TEXT("Culled/%s"), *GetFName().ToString());
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 int32 GParticleLODBias = 0;
 FAutoConsoleVariableRef CVarParticleLODBias(
@@ -5550,6 +5570,7 @@ void UParticleSystemComponent::WaitForAsyncAndFinalize(EForceAsyncWorkCompletion
 			check(IsInGameThread());
 			SCOPE_CYCLE_COUNTER(STAT_GTSTallTime);
 			SCOPE_CYCLE_COUNTER(STAT_UParticleSystemComponent_WaitForAsyncAndFinalize);
+			PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetWorld(), Template, this), Wait);
 			
 			if(WITH_EDITOR && !IsTickManaged())
 			{
@@ -5566,6 +5587,7 @@ void UParticleSystemComponent::WaitForAsyncAndFinalize(EForceAsyncWorkCompletion
 		else
 		{
 			SCOPE_CYCLE_COUNTER(STAT_UParticleSystemComponent_WaitForAsyncAndFinalize);
+			PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetWorld(), Template, this), Wait);
 			while (bAsyncWorkOutstanding)
 			{
 				FPlatformProcess::SleepNoStats(0.0f);
@@ -5893,6 +5915,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	SCOPE_CYCLE_COUNTER(STAT_ParticleActivateTime);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT);
+	PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetWorld(), Template, this), Activation);
 	ForceAsyncWorkCompletion(STALL);
 
 	if (IsTemplate() == true || !IsRegistered() || 	!FApp::CanEverRender())
@@ -6394,7 +6417,7 @@ void UParticleSystemComponent::UpdateInstances(bool bEmptyInstances)
 	}
 }
 
-int32 UParticleSystemComponent::GetNumActiveParticles() const
+int32 UParticleSystemComponent::GetNumActiveParticles()const
 {
 	ForceAsyncWorkCompletion(STALL);
 	int32 NumParticles = 0;

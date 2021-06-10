@@ -24,6 +24,7 @@ namespace DatasmithSketchUp
 	class FEntitiesGeometry;
 	class FMaterial;
 	class FMaterialOccurrence;
+	class FTexture;
 
 	// Associates SketchUp material with its Datasmith occurrences
 	// A SketchUp material can have two instances in Datasmith scene - when it's directly applied to a face and when inherited from Component
@@ -57,11 +58,18 @@ namespace DatasmithSketchUp
 			return MeshesMaterialDirectlyAppliedTo.Num() || NodesMaterialInheritedBy.Num();
 		}
 
+		FTexture* GetTexture()
+		{
+			return Texture;
+		}
+
 	private:
 
 		SUMaterialRef MaterialRef;
 
 		int32 EntityId; // Sketchup Material entity Id is used as a slot Id on datasmith meshes
+
+		FTexture* Texture = nullptr;
 
 		// Material can be directly applied to a face in SketchUp
 		TSharedPtr<FMaterialOccurrence> MaterialDirectlyAppliedToMeshes;

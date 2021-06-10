@@ -81,7 +81,7 @@ namespace UE
 		/// <returns></returns>
 		protected virtual string GetCompletionString()
 		{
-			return "Bringing up level for play took";
+			return "Engine is initialized. Leaving FEngineLoop::Init()";
 		}
 
 		/// <summary>
@@ -141,7 +141,10 @@ namespace UE
 		/// </summary>
 		/// <param name="Result"></param>
 		/// <returns>ITestReport</returns>
-		public override ITestReport CreateReport(TestResult Result)
+		/// <param name="Build"></param>
+		/// <param name="Artifacts"></param>
+		/// <param name="InArtifactPath"></param>
+		public override ITestReport CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleResult> InResults, string InArtifactPath)
 		{
 			if (Result == TestResult.Passed)
 			{
@@ -154,9 +157,9 @@ namespace UE
 					// find a logfile or something that indicates the process ran successsfully
 					bool MissingFiles = false;
 
-					foreach (var RoleArtifact in SessionArtifacts)
+					foreach (var RoleResult in InResults)
 					{
-						DirectoryInfo RoleDir = new DirectoryInfo(RoleArtifact.ArtifactPath);
+						DirectoryInfo RoleDir = new DirectoryInfo(RoleResult.Artifacts.ArtifactPath);
 
 						IEnumerable<FileInfo> ArtifactFiles = RoleDir.EnumerateFiles("*.*", SearchOption.AllDirectories);
 
@@ -166,7 +169,7 @@ namespace UE
 						if (ArtifactFiles.Any() == false)
 						{
 							MissingFiles = true;
-							ReportError("No artifact files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
+							ReportError("No artifact files found for {0}. Were they not retrieved from the device?", RoleResult.Artifacts.SessionRole);
 						}
 
 						IEnumerable<FileInfo> LogFiles = ArtifactFiles.Where(F => F.Extension.Equals(".log", StringComparison.OrdinalIgnoreCase));
@@ -174,7 +177,7 @@ namespace UE
 						if (LogFiles.Any() == false)
 						{
 							MissingFiles = true;
-							ReportError("No log files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
+							ReportError("No log files found for {0}. Were they not retrieved from the device?", RoleResult.Artifacts.SessionRole);
 						}
 					}
 

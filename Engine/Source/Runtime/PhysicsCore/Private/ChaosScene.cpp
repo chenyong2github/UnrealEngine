@@ -83,7 +83,9 @@ FChaosScene::FChaosScene(
 		});
 	}
 
-	Flush();	//make sure acceleration structure exists right away
+	// Make sure we have initialized structure on game thread, evolution has already initialized structure, just need to copy.
+	CopySolverAccelerationStructure();
+
 }
 
 FChaosScene::~FChaosScene()

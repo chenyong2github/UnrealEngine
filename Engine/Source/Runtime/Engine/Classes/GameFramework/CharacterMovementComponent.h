@@ -168,11 +168,11 @@ public:
 
 
 private:
-	FCharacterMovementAsyncCallback* AsyncCallback;
+	FCharacterMovementComponentAsyncCallback* AsyncCallback;
 
 protected:
 	// This is the most recent async state from simulated. Only safe for access on physics thread.
-	TSharedPtr<FCharacterMovementAsyncOutput, ESPMode::ThreadSafe> AsyncSimState;
+	TSharedPtr<FCharacterMovementComponentAsyncOutput, ESPMode::ThreadSafe> AsyncSimState;
 	bool bMovementModeDirty = false; // Gamethread changed movement mode, need to update sim.
 private:
 
@@ -2025,15 +2025,16 @@ protected:
 
 protected:
 	/* Prepare inputs for asynchronous simulation on physics thread */ 
-	virtual void FillAsyncInput(const FVector& InputVector, FCharacterMovementAsyncInput& AsyncInput) const;
+	virtual void FillAsyncInput(const FVector& InputVector, FCharacterMovementComponentAsyncInput& AsyncInput) const;
 	virtual void BuildAsyncInput();
 	virtual void PostBuildAsyncInput();
 	/* Apply outputs from async sim. */
-	virtual void ApplyAsyncOutput(FCharacterMovementAsyncOutput& Output);
+	virtual void ApplyAsyncOutput(FCharacterMovementComponentAsyncOutput& Output);
 	virtual void ProcessAsyncOutput();
 	
 	/* Register async callback with physics system. */
 	virtual void RegisterAsyncCallback();
+	virtual bool IsAsyncCallbackRegistered() const;
 	
 public:
 

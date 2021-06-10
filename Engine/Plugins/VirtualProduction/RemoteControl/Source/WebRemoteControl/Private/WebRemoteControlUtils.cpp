@@ -178,7 +178,7 @@ namespace RemotePayloadSerializer
 			{
 				FMemoryReader Reader(CallRequest.TCHARBody);
 				Reader.Seek(ParametersDelimiters.BlockStart);
-				Reader.SetLimitSize(ParametersDelimiters.BlockEnd + 1);
+				Reader.SetLimitSize(ParametersDelimiters.BlockEnd);
 
 				FJsonStructDeserializerBackend Backend(Reader);
 				if (!FStructDeserializer::Deserialize((void*)OutCall.ParamStruct.GetStructMemory(), *const_cast<UStruct*>(OutCall.ParamStruct.GetStruct()), Backend, FStructDeserializerPolicies()))

@@ -12,9 +12,8 @@
 
 #include "DisplayClusterICVFXCameraComponent.generated.h"
 
-
+struct FMinimalViewInfo;
 class UCameraComponent;
-
 
 /**
  * ICVFX camera with configuration
@@ -31,7 +30,7 @@ public:
 
 public:
 	// Use external cine camera actor
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (DisplayName = "Cine Camera Actor"))
 	TSoftObjectPtr<ACineCameraActor> ExternalCameraActor;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (ShowInnerProperties))
@@ -43,6 +42,7 @@ public:
 	
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
+
 
 	bool IsICVFXEnabled() const
 	{
@@ -58,4 +58,5 @@ public:
 	}
 
 	UCameraComponent* GetCameraComponent();
+	void GetDesiredView(FMinimalViewInfo& DesiredView);
 };

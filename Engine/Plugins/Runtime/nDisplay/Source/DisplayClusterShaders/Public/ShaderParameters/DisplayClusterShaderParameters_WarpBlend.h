@@ -29,7 +29,7 @@ struct FDisplayClusterShaderParameters_WarpBlend
 	FResourceWithRect Dest;
 
 	// Warp interface
-	TSharedPtr<IDisplayClusterWarpBlend> WarpInterface;
+	TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpInterface;
 
 	// Context data
 	FDisplayClusterWarpContext Context;

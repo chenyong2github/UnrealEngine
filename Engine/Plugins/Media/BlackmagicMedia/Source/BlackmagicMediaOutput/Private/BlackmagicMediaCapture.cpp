@@ -16,6 +16,11 @@
 #include "Slate/SceneViewport.h"
 #include "Widgets/SViewport.h"
 
+#if WITH_EDITOR
+#include "AnalyticsEventAttribute.h"
+#include "EngineAnalytics.h"
+#endif
+
 
 bool bBlackmagicWritInputRawDataCmdEnable = false;
 static FAutoConsoleCommand BlackmagicWriteInputRawDataCmd(
@@ -178,6 +183,31 @@ namespace BlackmagicMediaCaptureDevice
 	}
 }
 
+#if WITH_EDITOR
+namespace BlackmagicMediaCaptureAnalytics
+{
+	/**
+	 * @EventName MediaFramework.BlackmagicCaptureStarted
+	 * @Trigger Triggered when a Blackmagic capture of the viewport or render target is started.
+	 * @Type Client
+	 * @Owner MediaIO Team
+	 */
+	void SendCaptureEvent(const FIntPoint& Resolution, const FFrameRate FrameRate, const FString& CaptureType)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			TArray<FAnalyticsEventAttribute> EventAttributes;
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("CaptureType"), CaptureType));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionWidth"), FString::Printf(TEXT("%d"), Resolution.X)));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionHeight"), FString::Printf(TEXT("%d"), Resolution.Y)));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FrameRate"), FrameRate.ToPrettyText().ToString()));
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.BlackmagicCaptureStarted"), EventAttributes);
+		}
+	}
+}
+#endif
+
+
 ///* UBlackmagicMediaCapture implementation
 //*****************************************************************************/
 UBlackmagicMediaCapture::UBlackmagicMediaCapture(const FObjectInitializer& ObjectInitializer)
@@ -214,6 +244,9 @@ bool UBlackmagicMediaCapture::CaptureSceneViewportImpl(TSharedPtr<FSceneViewport
 	{
 		ApplyViewportTextureAlpha(InSceneViewport);
 		BlackmagicMediaOutputPixelFormat = BlackmagicMediaOutput->PixelFormat;
+#if WITH_EDITOR
+		BlackmagicMediaCaptureAnalytics::SendCaptureEvent(BlackmagicMediaOutput->GetRequestedSize(), FrameRate, TEXT("SceneViewport"));
+#endif
 	}
 	return bResult;
 }
@@ -223,6 +256,9 @@ bool UBlackmagicMediaCapture::CaptureRenderTargetImpl(UTextureRenderTarget2D* In
 	UBlackmagicMediaOutput* BlackmagicMediaOutput = CastChecked<UBlackmagicMediaOutput>(MediaOutput);
 	bool bResult = InitBlackmagic(BlackmagicMediaOutput);
 	BlackmagicMediaOutputPixelFormat = BlackmagicMediaOutput->PixelFormat;
+#if WITH_EDITOR
+	BlackmagicMediaCaptureAnalytics::SendCaptureEvent(BlackmagicMediaOutput->GetRequestedSize(), FrameRate, TEXT("RenderTarget"));
+#endif
 	return bResult;
 }
 

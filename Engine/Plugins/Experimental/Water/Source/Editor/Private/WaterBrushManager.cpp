@@ -1201,7 +1201,8 @@ void AWaterBrushManager::SetMPCParams()
 
 void AWaterBrushManager::ApplyToCompositeWaterBodyTexture(FBrushRenderContext& BrushRenderContext, const FBrushActorRenderContext& BrushActorRenderContext)
 {
-	if (BrushRenderContext.bHeightmapRender && (BrushActorRenderContext.TryGetActorAs<AWaterBody>() != nullptr))
+	AWaterBody* WaterBody = BrushActorRenderContext.TryGetActorAs<AWaterBody>();
+	if (BrushRenderContext.bHeightmapRender && (WaterBody != nullptr))
 	{
 		check(::IsValid(BrushActorRenderContext.CacheContainer));
 		const FWaterBodyHeightmapSettings& HeightmapSettings = BrushActorRenderContext.WaterBrushActor->GetWaterHeightmapSettings();
@@ -1210,6 +1211,7 @@ void AWaterBrushManager::ApplyToCompositeWaterBodyTexture(FBrushRenderContext& B
 		CompositeWaterBodyTextureMID->SetTextureParameterValue(FName(TEXT("CombinedVelocityAndHeight")), VelocityPingPongRead(BrushRenderContext));
 		CompositeWaterBodyTextureMID->SetTextureParameterValue(FName(TEXT("LandscapeHeight")), HeightPingPongRead(BrushRenderContext));
 		CompositeWaterBodyTextureMID->SetScalarParameterValue(FName(TEXT("ZOffset")), HeightmapSettings.FalloffSettings.ZOffset);
+		CompositeWaterBodyTextureMID->SetScalarParameterValue(FName(TEXT("Shape Dilation")), WaterBody->ShapeDilation);
 
 		UE_LOG(LogWaterEditor, Verbose, TEXT("Rendering Water Body Velocity/Height to Combined Texture: %s"), *UKismetSystemLibrary::GetDisplayName(VelocityPingPongWrite(BrushRenderContext)));
 

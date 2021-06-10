@@ -1622,6 +1622,11 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 		{
 			if(BodyInstance->OwnerComponent.IsValid())
 			{
+				if (SyncKinematicOnGameThread == 0 && BodyInstance->IsInstanceSimulatingPhysics() == false)
+				{
+					return;
+				}
+
 				UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
 				if(OwnerComponent != nullptr)
 				{

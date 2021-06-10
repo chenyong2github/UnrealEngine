@@ -27,6 +27,7 @@ cannot undefine the value.
 	__pragma(warning(disable: 6297))  /* Arithmetic overflow:  32-bit value is shifted, then cast to 64-bit value.  Results might not be an expected value. */ \
 	__pragma(warning(disable: 6294))  /* Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed. */ \
 	__pragma(warning(disable: 6201))  /* Index '<x>' is out of valid index range '<a>' to '<b>' for possibly stack allocated buffer '<variable>'. */ \
+	__pragma(warning(disable: 6269))  /* Possibly incorrect order of operations:  dereference ignored. */ \
 	UE_PUSH_MACRO("check")
 #else
 // TODO: when adding support for other platforms, this definition may require updating

@@ -145,12 +145,29 @@ void UNiagaraEffectType::InvalidatePerfBaseline()
 
 //////////////////////////////////////////////////////////////////////////
 
+static const FNiagaraLinearRamp DefaultBudgetScaleRamp(0.5f, 1.0f, 1.0f, 0.5f);
+
+FNiagaraGlobalBudgetScaling::FNiagaraGlobalBudgetScaling()
+{
+	bCullByGlobalBudget = false;
+	bScaleMaxDistanceByGlobalBudgetUse = false;
+	bScaleMaxInstanceCountByGlobalBudgetUse = false;
+	bScaleSystemInstanceCountByGlobalBudgetUse = false;
+	MaxGlobalBudgetUsage = 1.0f;
+	MaxDistanceScaleByGlobalBudgetUse = DefaultBudgetScaleRamp;
+	MaxInstanceCountScaleByGlobalBudgetUse = DefaultBudgetScaleRamp;
+	MaxSystemInstanceCountScaleByGlobalBudgetUse = DefaultBudgetScaleRamp;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 FNiagaraSystemScalabilityOverride::FNiagaraSystemScalabilityOverride()
 	: bOverrideDistanceSettings(false)
 	, bOverrideInstanceCountSettings(false)
 	, bOverridePerSystemInstanceCountSettings(false)
 	, bOverrideTimeSinceRendererSettings(false)
-	, bOverrideGlobalBudgetCullingSettings(false)
+	, bOverrideGlobalBudgetScalingSettings(false)
+	, bOverrideCullProxySettings(false)
 {
 }
 
@@ -166,12 +183,14 @@ void FNiagaraSystemScalabilitySettings::Clear()
 	bCullByMaxTimeWithoutRender = false;
 	bCullMaxInstanceCount = false;
 	bCullPerSystemMaxInstanceCount = false;
-	bCullByGlobalBudget = false;
 	MaxDistance = 0.0f;
 	MaxInstances = 0;
 	MaxSystemInstances = 0;
 	MaxTimeWithoutRender = 0.0f;
-	MaxGlobalBudgetUsage = 1.0f;
+
+	BudgetScaling = FNiagaraGlobalBudgetScaling();
+	CullProxyMode = ENiagaraCullProxyMode::None;
+	MaxSystemProxies = 32;
 }
 
 FNiagaraEmitterScalabilitySettings::FNiagaraEmitterScalabilitySettings()
@@ -194,7 +213,7 @@ FNiagaraEmitterScalabilityOverride::FNiagaraEmitterScalabilityOverride()
 //////////////////////////////////////////////////////////////////////////
 
 #include "NiagaraScalabilityManager.h"
-void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices)
+void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices)
 {
 	const int32 ComponentCount = Components.Num();
 	check(ComponentCount == OutState.Num());
@@ -202,10 +221,11 @@ void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraC
 	for (int32 CompIdx = 0; CompIdx < ComponentCount; ++CompIdx)
 	{
 		FNiagaraScalabilityState& State = OutState[CompIdx];
+		const FNiagaraScalabilitySystemData& SysData = SystemData[State.SystemDataIndex];
 
-		const bool AddIndex = !State.bCulled || State.IsDirty();
+		const bool AddIndex = (SysData.bNeedsSignificanceForActiveOrDirty && (!State.bCulled || State.IsDirty())) || SysData.bNeedsSignificanceForCulled;
 
-		if (State.bCulled)
+		if (State.bCulled && !SysData.bNeedsSignificanceForCulled)
 		{
 			State.Significance = 0.0f;
 		}
@@ -214,14 +234,11 @@ void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraC
 			UNiagaraComponent* Component = Components[CompIdx];
 
 			float LODDistance = 0.0f;
-#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 			if (Component->bEnablePreviewLODDistance)
 			{
 				LODDistance = Component->PreviewLODDistance;
 			}
-			else
-#endif
-			if (FNiagaraSystemInstanceControllerConstPtr Controller = Component->GetSystemInstanceController())
+			else if (FNiagaraSystemInstanceControllerConstPtr Controller = Component->GetSystemInstanceController())
 			{
 				LODDistance = Controller->GetLODDistance();
 			}
@@ -236,7 +253,7 @@ void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TArray<UNiagaraC
 	}
 }
 
-void UNiagaraSignificanceHandlerAge::CalculateSignificance(TArray<UNiagaraComponent*>& Components, TArray<FNiagaraScalabilityState>& OutState, TArray<int32>& OutIndices)
+void UNiagaraSignificanceHandlerAge::CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices)
 {
 	const int32 ComponentCount = Components.Num();
 	check(ComponentCount == OutState.Num());
@@ -244,7 +261,8 @@ void UNiagaraSignificanceHandlerAge::CalculateSignificance(TArray<UNiagaraCompon
 	for (int32 CompIdx = 0; CompIdx < ComponentCount; ++CompIdx)
 	{
 		FNiagaraScalabilityState& State = OutState[CompIdx];
-		const bool AddIndex = !State.bCulled || State.IsDirty();
+		const FNiagaraScalabilitySystemData& SysData = SystemData[State.SystemDataIndex];
+		const bool AddIndex = (SysData.bNeedsSignificanceForActiveOrDirty && (!State.bCulled || State.IsDirty())) || SysData.bNeedsSignificanceForCulled;
 
 		if (State.bCulled)
 		{

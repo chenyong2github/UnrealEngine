@@ -147,14 +147,30 @@ void ATemplateSequenceActor::OnSequenceLoaded(const FName& PackageName, UPackage
 
 bool ATemplateSequenceActor::RetrieveBindingOverrides(const FGuid& InBindingId, FMovieSceneSequenceID InSequenceID, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const
 {
+	// If the given object binding ID corresponds to the template sequence's root binding, return the override we have.
+	// Otherwise, let the runtime do the normal lookup.
+	UTemplateSequence* TemplateSequenceObject = GetSequence();
+	if (!TemplateSequenceObject)
+	{
+		return true;
+	}
+
+	const FGuid RootBindingID = TemplateSequenceObject->GetRootObjectBindingID();
+	if (!RootBindingID.IsValid())
+	{
+		return true;
+	}
+	if (RootBindingID != InBindingId)
+	{
+		return true;
+	}
+
 	if (UObject* Object = BindingOverride.Object.Get())
 	{
 		OutObjects.Add(Object);
-		return false;
 	}
 
-	// No binding overrides, use default binding.
-	return true;
+	return !BindingOverride.bOverridesDefault;
 }
 
 UObject* ATemplateSequenceActor::GetInstanceData() const
@@ -162,10 +178,12 @@ UObject* ATemplateSequenceActor::GetInstanceData() const
 	return nullptr;
 }
 
-void ATemplateSequenceActor::SetBinding(AActor* Actor)
+void ATemplateSequenceActor::SetBinding(AActor* Actor, bool bOverridesDefault)
 {
 	BindingOverride.Object = Actor;
+	BindingOverride.bOverridesDefault = bOverridesDefault;
 
+	// Invalidate the root bound object's mapping, if any.
 	UTemplateSequence* TemplateSequenceObject = GetSequence();
 	if (SequencePlayer && TemplateSequenceObject)
 	{

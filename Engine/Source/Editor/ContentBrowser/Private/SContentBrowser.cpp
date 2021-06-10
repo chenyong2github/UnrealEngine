@@ -3459,12 +3459,22 @@ TSharedPtr<SWidget> SContentBrowser::GetItemContextMenu(TArrayView<const FConten
 		}
 
 		TArray<FString> SelectedPackagePaths;
+		bool bPhysicalPathExists = false;
 		for (const FContentBrowserItem& SelectedFolder : SelectedFolders)
 		{
 			FName PackagePath;
 			if (SelectedFolder.Legacy_TryGetPackagePath(PackagePath))
 			{
 				SelectedPackagePaths.Add(PackagePath.ToString());
+
+				if (!bPhysicalPathExists)
+				{
+					FString PhysicalPath;
+					if (SelectedFolder.GetItemPhysicalPath(PhysicalPath) && FPaths::DirectoryExists(PhysicalPath))
+					{
+						bPhysicalPathExists = true;
+					}
+				}
 			}
 		}
 
@@ -3487,6 +3497,11 @@ TSharedPtr<SWidget> SContentBrowser::GetItemContextMenu(TArrayView<const FConten
 		{
 			Context->bNoFolderOnDisk = true;
 			Context->bCanBeModified = false;
+		}
+
+		if (!bPhysicalPathExists)
+		{
+			Context->bNoFolderOnDisk = true;
 		}
 
 		FToolMenuContext MenuContext(Commands, Extender, Context);

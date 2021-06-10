@@ -20,6 +20,7 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Misc/ScopeExit.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 DECLARE_CYCLE_STAT(TEXT("Custom Delta Property Rep Time"), STAT_NetReplicateCustomDeltaPropTime, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("ReceiveRPC"), STAT_NetReceiveRPC, STATGROUP_Game);
@@ -60,6 +61,14 @@ static FAutoConsoleVariableRef CVarSupportsFastArrayDelta(
 	GSupportsFastArrayDelta,
 	TEXT("Whether or not Fast Array Struct Delta Serialization is enabled.")
 );
+
+bool GbPushModelSkipUndirtiedReplicators = false;
+FAutoConsoleVariableRef CVarPushModelSkipUndirtiedReplicators(
+	TEXT("net.PushModelSkipUndirtiedReplication"),
+	GbPushModelSkipUndirtiedReplicators,
+	TEXT("When true, skip replicating any objects that we can safely see aren't dirty."));
+
+extern int32 GNumSkippedObjectEmptyUpdates;
 
 extern NETCORE_API TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
 
@@ -497,6 +506,12 @@ void FObjectReplicator::InitWithObject( UObject* InObject, UNetConnection * InCo
 	InitRecentProperties( Source );
 
 	Connection->Driver->AllOwnedReplicators.Add(this);
+
+	bCanUseNonDirtyOptimization =
+		GbPushModelSkipUndirtiedReplicators &&
+		(RepLayout->IsEmpty() || EnumHasAnyFlags(RepLayout->GetFlags(), ERepLayoutFlags::FullPushSupport)) &&
+			RepState->GetSendingRepState() &&
+			RepState->GetSendingRepState()->RecentCustomDeltaState.Num() == 0;
 }
 
 void FObjectReplicator::CleanUp()
@@ -1634,6 +1649,38 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 		NETWORK_PROFILER(GNetworkProfiler.TrackReplicateProperty(Property, TempBitWriter.GetNumBits(), Connection));
 	}
+}
+
+bool FObjectReplicator::CanSkipUpdate(FReplicationFlags RepFlags)
+{
+#if WITH_PUSH_MODEL
+	const FSendingRepState& SendingRepState = *RepState->GetSendingRepState();
+	const FRepChangelistState& RepChangelistState = *ChangelistMgr->GetRepChangelistState();
+
+	if (bCanUseNonDirtyOptimization &&
+		(RemoteFunctions == nullptr || RemoteFunctions->GetNumBits() == 0) &&
+		(RepLayout->IsEmpty() ||
+			(!RepFlags.bNetInitial &&
+			SendingRepState.RepFlags.Value == RepFlags.Value &&
+			SendingRepState.NumNaks == 0 &&
+			SendingRepState.LastCompareIndex > 1 &&
+			!(SendingRepState.bOpenAckedCalled && SendingRepState.PreOpenAckHistory.Num() > 0) &&
+			SendingRepState.LastChangelistIndex == RepChangelistState.HistoryEnd &&
+			Connection->ResendAllDataState == EResendAllDataState::None &&
+			!OwningChannel->bForceCompareProperties &&
+			!RepChangelistState.HasAnyDirtyProperties())
+		))
+	{
+#if CSV_PROFILER
+		++GNumSkippedObjectEmptyUpdates;
+#endif
+
+		bLastUpdateEmpty = true;
+		return true;
+	}
+#endif
+
+	return false;
 }
 
 /** Replicates properties to the Bunch. Returns true if it wrote anything */

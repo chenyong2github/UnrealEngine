@@ -33,6 +33,9 @@ public:
 	// This viewport visible on final frame texture (backbuffer)
 	bool bVisible = true;
 
+	// Skip rendering for this viewport
+	bool bSkipRendering = false;
+
 	// Useful to render some viewports in mono, then copied to stereo backbuffers identical image
 	bool bForceMono = false;
 
@@ -67,6 +70,7 @@ public:
 	{
 		bVisible = true;
 		bEnable = true;
+		bSkipRendering = false;
 
 		CaptureMode = EDisplayClusterViewportCaptureMode::Default;
 

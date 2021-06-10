@@ -35,11 +35,23 @@ public:
 		RootActorHidePrimitivesList.Empty();
 	}
 
-	void UpdateConfiguration(EDisplayClusterViewport_VisibilityMode InMode, const TArray<FActorLayer>& InActorLayers, const TSet<FPrimitiveComponentId>& InAdditionalComponentsList)
+	bool AppendHideList(const TArray<FName>& InActorLayers, const TSet<FPrimitiveComponentId>& InAdditionalComponentsList)
+	{
+		if (LayersMode == EDisplayClusterViewport_VisibilityMode::Hide)
+		{
+			ActorLayers.Append(InActorLayers);
+			AdditionalComponentsList.Append(InAdditionalComponentsList);
+			return true;
+		}
+
+		return false;
+	}
+
+	void UpdateConfiguration(EDisplayClusterViewport_VisibilityMode InMode, const TArray<FName>& InActorLayers, const TSet<FPrimitiveComponentId>& InAdditionalComponentsList)
 	{
 
 		LayersMode = InMode;
-		SetActorLayers(InActorLayers);
+		ActorLayers = InActorLayers;
 		AdditionalComponentsList = InAdditionalComponentsList;
 	}
 
@@ -49,9 +61,6 @@ public:
 	}
 
 	void SetupSceneView(UWorld* World, FSceneView& InOutView) const;
-
-protected:
-	void SetActorLayers(const TArray<FActorLayer>& InActorLayers);
 
 private:
 	EDisplayClusterViewport_VisibilityMode LayersMode = EDisplayClusterViewport_VisibilityMode::None;

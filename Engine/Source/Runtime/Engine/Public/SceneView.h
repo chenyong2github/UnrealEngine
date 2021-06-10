@@ -824,6 +824,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_SAMPLER(SamplerState, SharedPointClampedSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SharedBilinearWrappedSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SharedBilinearClampedSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SharedBilinearAnisoClampedSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SharedTrilinearWrappedSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SharedTrilinearClampedSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedBRDF)

@@ -575,6 +575,7 @@ void SDisplayClusterConfiguratorGraphEditor::PasteNodes()
 		{
 			Toolkit->GetEditorData()->MarkPackageDirty();
 			Toolkit->ClusterChanged();
+			ClearSelectionSet();
 		}
 		else
 		{

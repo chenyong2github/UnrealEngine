@@ -23,7 +23,7 @@ UWMRARPin* FHoloLensARSystem::WMRCreateNamedARPin(FName Name, const FTransform& 
 	const FTransform& TrackingToAlignedTracking = ARSupportInterface->GetAlignmentTransform();
 	const FTransform PinToTrackingTransform = WorldTransform.GetRelativeTransform(TrackingSystem->GetTrackingToWorldTransform()).GetRelativeTransform(TrackingToAlignedTracking);
 
-	FString WMRAnchorId = Name.ToString();
+	FString WMRAnchorId = Name.ToString().ToLower();
 
 	if (AnchorIdToPinMap.Contains(Name))
 	{
@@ -56,7 +56,7 @@ UWMRARPin* FHoloLensARSystem::WMRCreateNamedARPinAroundAnchor(FName Name, FStrin
 	TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface = TrackingSystem->GetARCompositionComponent();
 
 	FTransform Transform;
-	const bool bTracked = WMRGetAnchorTransform(*AnchorId, Transform);
+	const bool bTracked = WMRGetAnchorTransform(*AnchorId.ToLower(), Transform);
 
 	UWMRARPin* NewPin = NewObject<UWMRARPin>();
 	NewPin->InitARPin(ARSupportInterface.ToSharedRef(), nullptr, Transform, nullptr, Name);
@@ -81,7 +81,7 @@ TArray<UWMRARPin*> FHoloLensARSystem::WMRLoadWMRAnchorStoreARPins()
 	for (FName& AnchorId : AnchorIds)
 	{
 		FTransform Transform;
-		const bool bTracked = WMRGetAnchorTransform(*AnchorId.ToString(), Transform);
+		const bool bTracked = WMRGetAnchorTransform(*AnchorId.ToString().ToLower(), Transform);
 
 		UWMRARPin* NewPin = NewObject<UWMRARPin>();
 		NewPin->InitARPin(ARSupportInterface.ToSharedRef(), nullptr, FTransform::Identity, nullptr, AnchorId);
@@ -112,7 +112,7 @@ bool FHoloLensARSystem::WMRSaveARPinToAnchorStore(UARPin* InPin)
 	{
 		const FString& AnchorId = WMRPin->GetAnchorId();
 		FString SaveId = AnchorId.ToLower();
-		bool Saved = WMRSaveAnchor(*AnchorId, *AnchorId);
+		bool Saved = WMRSaveAnchor(*SaveId.ToLower(), *SaveId.ToLower());
 		WMRPin->SetIsInAnchorStore(Saved);
 		return Saved;
 	}

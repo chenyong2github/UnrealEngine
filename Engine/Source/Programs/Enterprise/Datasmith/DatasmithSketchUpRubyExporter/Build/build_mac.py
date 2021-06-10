@@ -214,7 +214,7 @@ link_cmd += [
 link_cmd += compiler.objs
 link_cmd += [DatasmithSDKlib] # link DatasmithSDK by full path(no 'lib' prefix to use search with -l)
 
-link_cmd += ['-o', str(bundle_output_path/'DatasmithSketchUpRuby.bundle')]
+link_cmd += ['-o', str(bundle_output_path/'DatasmithSketchUp.bundle')]
 
 add_framework_search_paths(link_cmd, framework_search_paths)
 

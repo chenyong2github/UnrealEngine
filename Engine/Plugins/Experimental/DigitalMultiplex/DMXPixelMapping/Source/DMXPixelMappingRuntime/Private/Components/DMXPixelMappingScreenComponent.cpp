@@ -417,64 +417,69 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 		}
 	};
 
-	TArray<FColor> UnsortedList = RendererComponent->GetDownsampleBufferPixels(PixelDownsamplePositionRange.Key, PixelDownsamplePositionRange.Value);
-	TArray<FColor> SortedList;
-	SortedList.Reserve(UnsortedList.Num());
-	FDMXPixelMappingUtils::TextureDistributionSort<FColor>(Distribution, NumXCells, NumYCells, UnsortedList, SortedList);
-
-	// Sending only if there enough space at least for one pixel
-	if (!FDMXPixelMappingUtils::CanFitCellIntoChannels(PixelFormat, StartAddress))
+	TArray<FLinearColor> UnsortedList; 
+	if (RendererComponent->GetDownsampleBufferPixels(PixelDownsamplePositionRange.Key, PixelDownsamplePositionRange.Value, UnsortedList))
 	{
-		return;
-	}
+		TArray<FLinearColor> SortedList;
+		SortedList.Reserve(UnsortedList.Num());
+		FDMXPixelMappingUtils::TextureDistributionSort<FLinearColor>(Distribution, NumXCells, NumYCells, UnsortedList, SortedList);
 
-	// Prepare Universes for send
-	TArray<uint8> SendBuffer;
-	for (const FColor& Color : SortedList)
-	{
-		FColor ColorWithAppliedIntensity = Color;
-		const float MaxValue = 255;
-		ColorWithAppliedIntensity.R = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.R * PixelIntensity, MaxValue));
-		ColorWithAppliedIntensity.G = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.G * PixelIntensity, MaxValue));
-		ColorWithAppliedIntensity.B = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.B * PixelIntensity, MaxValue));
-		ColorWithAppliedIntensity.A = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.A * AlphaIntensity, MaxValue));;
-		AddColorToSendBuffer(ColorWithAppliedIntensity, SendBuffer);
-	}
-
-	// Start sending
-	const uint32 UniverseMaxChannels = FDMXPixelMappingUtils::GetUniverseMaxChannels(PixelFormat, StartAddress);
-	uint32 SendDMXIndex = StartAddress;
-	int32 UniverseToSend = RemoteUniverse;
-	const int32 SendBufferNum = SendBuffer.Num();
-	TMap<int32, uint8> ChannelToValueMap;
-	for (int32 FragmentMapIndex = 0; FragmentMapIndex < SendBufferNum; FragmentMapIndex++)
-	{			
-		// ready to send here
-		if (SendDMXIndex > UniverseMaxChannels)
+		// Sending only if there enough space at least for one pixel
+		if (!FDMXPixelMappingUtils::CanFitCellIntoChannels(PixelFormat, StartAddress))
 		{
-			SendDMXToPorts(UniverseToSend, ChannelToValueMap);
-
-			// Now reset
-			ChannelToValueMap.Empty();
-			SendDMXIndex = StartAddress;
-			UniverseToSend++;
+			return;
 		}
 
-		// should be channels from 1...UniverseMaxChannels
-		ChannelToValueMap.Add(SendDMXIndex, SendBuffer[FragmentMapIndex]);
-		if (SendDMXIndex > UniverseMaxChannels || SendDMXIndex < 1)
+		// Prepare Universes for send
+		TArray<uint8> SendBuffer;
+		for (const FLinearColor& LinearColor : SortedList)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("WrongIndex FragmentMapIndex %d, SendDMXIndex %d"), FragmentMapIndex, SendDMXIndex);
+			constexpr bool bUseSRGB = true;
+			FColor Color = LinearColor.ToFColor(bUseSRGB);
+		
+			const float MaxValue = 255.f;
+			Color.R = static_cast<uint8>(FMath::Min(Color.R * PixelIntensity, MaxValue));
+			Color.G = static_cast<uint8>(FMath::Min(Color.G * PixelIntensity, MaxValue));
+			Color.B = static_cast<uint8>(FMath::Min(Color.B * PixelIntensity, MaxValue));
+			Color.A = static_cast<uint8>(FMath::Min(Color.A * AlphaIntensity, MaxValue));;
+			AddColorToSendBuffer(Color, SendBuffer);
 		}
 
-		// send dmx if next iteration is the last one
-		if ((SendBufferNum > FragmentMapIndex + 1) == false)
+		// Start sending
+		const uint32 UniverseMaxChannels = FDMXPixelMappingUtils::GetUniverseMaxChannels(PixelFormat, StartAddress);
+		uint32 SendDMXIndex = StartAddress;
+		int32 UniverseToSend = RemoteUniverse;
+		const int32 SendBufferNum = SendBuffer.Num();
+		TMap<int32, uint8> ChannelToValueMap;
+		for (int32 FragmentMapIndex = 0; FragmentMapIndex < SendBufferNum; FragmentMapIndex++)
 		{
-			SendDMXToPorts(UniverseToSend, ChannelToValueMap);
-			break;
-		}
+			// ready to send here
+			if (SendDMXIndex > UniverseMaxChannels)
+			{
+				SendDMXToPorts(UniverseToSend, ChannelToValueMap);
 
-		SendDMXIndex++;
+				// Now reset
+				ChannelToValueMap.Empty();
+				SendDMXIndex = StartAddress;
+				UniverseToSend++;
+			}
+
+			// should be channels from 1...UniverseMaxChannels
+			ChannelToValueMap.Add(SendDMXIndex, SendBuffer[FragmentMapIndex]);
+			if (SendDMXIndex > UniverseMaxChannels || SendDMXIndex < 1)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("WrongIndex FragmentMapIndex %d, SendDMXIndex %d"), FragmentMapIndex, SendDMXIndex);
+			}
+
+			// send dmx if next iteration is the last one
+			if ((SendBufferNum > FragmentMapIndex + 1) == false)
+			{
+				SendDMXToPorts(UniverseToSend, ChannelToValueMap);
+				break;
+			}
+
+			SendDMXIndex++;
+		}
 	}
 }
 

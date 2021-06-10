@@ -146,7 +146,26 @@ namespace Chaos
 		, bStealAdvanceTasksForTesting(false)
 #endif
 	{
+		UE_LOG(LogChaos, Log, TEXT("FPhysicsSolverBase::AsyncDt:%f"), AsyncDt);
 	}
+
+	void FPhysicsSolverBase::EnableAsyncMode(FReal FixedDt)
+	{
+		if (AsyncDt != FixedDt)
+		{
+			AccumulatedTime = 0;
+		}
+		AsyncDt = FixedDt;
+		
+		UE_LOG(LogChaos, Log, TEXT("FPhysicsSolverBase::AsyncDt:%f"), AsyncDt);
+	}
+
+	void FPhysicsSolverBase::DisableAsyncMode()
+	{
+		AsyncDt = -1;
+		UE_LOG(LogChaos, Log, TEXT("FPhysicsSolverBase::AsyncDt:%f"), AsyncDt);
+	}
+
 
 	FPhysicsSolverBase::~FPhysicsSolverBase()
 	{
@@ -220,6 +239,15 @@ namespace Chaos
 		SpatialData.SpatialIdx = Particle->SpatialIdx();
 		SpatialData.AccelerationHandle = AccelerationHandle;
 		SpatialData.SyncTimestamp = MarshallingManager.GetExternalTimestamp_External();
+		SpatialData.bInterpolatedMovement = false;
+
+		if (bDelete == false)
+		{
+			if (FKinematicGeometryParticle* Kinematic = Particle->CastToKinematicParticle())
+			{
+				SpatialData.bInterpolatedMovement = Kinematic->IsKinematicTargetDirty();
+			}
+		}
 	}
 
 	void FPhysicsSolverBase::EnqueueSimcallbackRewindRegisteration(ISimCallbackObject* Callback)

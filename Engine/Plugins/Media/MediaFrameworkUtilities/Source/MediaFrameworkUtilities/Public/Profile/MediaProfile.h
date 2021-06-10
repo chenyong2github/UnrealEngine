@@ -126,6 +126,7 @@ private:
 
 	void ResetTimecodeProvider();
 	void ResetCustomTimeStep();
+	void SendAnalytics() const;
 
 private:
 

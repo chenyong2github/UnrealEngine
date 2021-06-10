@@ -86,6 +86,10 @@ public:
 	void DestroySystemSimulation(UNiagaraSystem* System);
 	void DestroySystemInstance(FNiagaraSystemInstancePtr& InPtr);	
 
+#if WITH_EDITOR
+	void OnSystemPostChange(UNiagaraSystem* System);
+#endif
+
 	void MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation);
 	void MarkSimulationsForEndOfFrameWait(FNiagaraSystemSimulation* SystemSimulation);
 
@@ -148,11 +152,14 @@ public:
 	void CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState);
 	void CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState);
 
-	/*FORCEINLINE_DEBUGGABLE*/ void SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32& EffectTypeInstCount, int32& SystemInstCount, FNiagaraScalabilityState& OutState);
+	/*FORCEINLINE_DEBUGGABLE*/ void SortedSignificanceCull(UNiagaraEffectType* EffectType, UNiagaraComponent* Component, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32& EffectTypeInstCount, uint16& SystemInstCount, FNiagaraScalabilityState& OutState);
 
 #if DEBUG_SCALABILITY_STATE
 	void DumpScalabilityState();
 #endif
+
+	void DestroyCullProxy(UNiagaraSystem* System);
+	class UNiagaraCullProxyComponent* GetCullProxy(UNiagaraComponent* Component);
 
 	template<typename TAction>
 	void ForAllSystemSimulations(TAction Func);
@@ -275,6 +282,8 @@ private:
 	float DebugPlaybackRate = 1.0f;
 
 	TUniquePtr<class FNiagaraDebugHud> NiagaraDebugHud;
+
+	TMap<UNiagaraSystem*, UNiagaraCullProxyComponent*> CullProxyMap;
 };
 
 

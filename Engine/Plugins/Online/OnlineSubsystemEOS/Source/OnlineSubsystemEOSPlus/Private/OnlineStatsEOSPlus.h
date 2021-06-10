@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
 #include "Interfaces/OnlineStatsInterface.h"
+#include "Interfaces/OnlineEventsInterface.h"
+#include "OnlineUserEOSPlus.h"
 
 class FOnlineSubsystemEOSPlus;
 
@@ -12,7 +14,8 @@ class FOnlineSubsystemEOSPlus;
  * Interface that mirrors stats on both OSSes
  */
 class FOnlineStatsEOSPlus :
-	public IOnlineStats
+	public IOnlineStats,
+	public IOnlineEvents
 {
 public:
 	FOnlineStatsEOSPlus() = delete;
@@ -28,11 +31,19 @@ public:
 #endif
 // ~IOnlineStats Interface
 
+// IOnlineEvents Interface
+	virtual bool TriggerEvent(const FUniqueNetId& PlayerId, const TCHAR* EventName, const FOnlineEventParms& Parms) override;
+	virtual void SetPlayerSessionId(const FUniqueNetId& PlayerId, const FGuid& PlayerSessionId) override;
+// ~IOnlineEvents Interface
+
 PACKAGE_SCOPE:
 	FOnlineStatsEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
 		: EOSPlus(InSubsystem)
 	{
 	}
+
+private:
+	FUniqueNetIdEOSPlusPtr GetNetIdPlus(const FString& SourceId);
 
 private:
 	/** Reference to the owning EOS plus subsystem */

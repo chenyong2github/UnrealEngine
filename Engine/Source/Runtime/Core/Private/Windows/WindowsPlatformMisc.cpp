@@ -484,9 +484,13 @@ void FWindowsPlatformMisc::PlatformPreInit()
 
 	// Load the bundled version of dbghelp.dll if necessary
 #if USE_BUNDLED_DBGHELP
-	// Try to load a bundled copy of dbghelp.dll. A bug with Windows 10 version 1709 
-	FString DbgHlpPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/DbgHelp/dbghelp.dll");
-	FPlatformProcess::GetDllHandle(*DbgHlpPath);
+	// Loading newer versions of DbgHelp fails on Windows 7 since it is no longer supported.
+	if (IsWindows8OrGreater())
+	{
+		// Try to load a bundled copy of dbghelp.dll. A bug with Windows 10 version 1709 
+		FString DbgHlpPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/DbgHelp/dbghelp.dll");
+		FPlatformProcess::GetDllHandle(*DbgHlpPath);
+	}
 #endif
 
 	// Use our own handler for pure virtuals being called.

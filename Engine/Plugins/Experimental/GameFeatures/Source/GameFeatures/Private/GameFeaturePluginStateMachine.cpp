@@ -44,6 +44,7 @@ namespace UE
 			switch (InType)
 			{
 			case EGameFeaturePluginState::Uninitialized: return TEXT("Uninitialized");
+			case EGameFeaturePluginState::Terminal: return TEXT("Terminal");
 			case EGameFeaturePluginState::UnknownStatus: return TEXT("UnknownStatus");
 			case EGameFeaturePluginState::CheckingStatus: return TEXT("CheckingStatus");
 			case EGameFeaturePluginState::ErrorCheckingStatus: return TEXT("ErrorCheckingStatus");
@@ -75,7 +76,7 @@ namespace UE
 		}
 	}
 
-	static_assert((int32)EGameFeaturePluginState::MAX == 25, "");
+	static_assert((int32)EGameFeaturePluginState::MAX == 26, "");
 }
 
 #define GAME_FEATURE_PLUGIN_PROTOCOL_PREFIX(inEnum, inString) case EGameFeaturePluginProtocol::inEnum: return inString;
@@ -161,15 +162,36 @@ struct FGameFeaturePluginState_Uninitialized : public FGameFeaturePluginState
 	}
 };
 
+struct FGameFeaturePluginState_Terminal : public FDestinationGameFeaturePluginState
+{
+	FGameFeaturePluginState_Terminal(FGameFeaturePluginStateMachineProperties& InStateProperties) : FDestinationGameFeaturePluginState(InStateProperties) {}
+
+	bool bEnteredTerminalState = false;
+
+	virtual void BeginState() override
+	{
+		checkf(!bEnteredTerminalState, TEXT("Plugin entered terminal state more than once! %s"), *StateProperties.PluginURL);
+		bEnteredTerminalState = true;
+
+		UGameFeaturesSubsystem::Get().OnGameFeatureTerminating(StateProperties.PluginURL);
+	}
+};
+
 struct FGameFeaturePluginState_UnknownStatus : public FDestinationGameFeaturePluginState
 {
 	FGameFeaturePluginState_UnknownStatus(FGameFeaturePluginStateMachineProperties& InStateProperties) : FDestinationGameFeaturePluginState(InStateProperties) {}
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		if (StateProperties.DestinationState > EGameFeaturePluginState::UnknownStatus)
+		if (StateProperties.DestinationState < EGameFeaturePluginState::UnknownStatus)
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::Terminal);
+		}
+		else if (StateProperties.DestinationState > EGameFeaturePluginState::UnknownStatus)
 		{
 			StateStatus.SetTransition(EGameFeaturePluginState::CheckingStatus);
+
+			UGameFeaturesSubsystem::Get().OnGameFeatureCheckingStatus(StateProperties.PluginURL);
 		}
 	}
 };
@@ -259,7 +281,14 @@ struct FGameFeaturePluginState_ErrorCheckingStatus : public FErrorGameFeaturePlu
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		StateStatus.SetTransition(EGameFeaturePluginState::CheckingStatus);
+		if (StateProperties.DestinationState < EGameFeaturePluginState::ErrorCheckingStatus)
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::Terminal);
+		}
+		else
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::CheckingStatus);
+		}
 	}
 };
 
@@ -269,7 +298,14 @@ struct FGameFeaturePluginState_ErrorUnavailable : public FErrorGameFeaturePlugin
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		StateStatus.SetTransition(EGameFeaturePluginState::CheckingStatus);
+		if (StateProperties.DestinationState < EGameFeaturePluginState::ErrorUnavailable)
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::Terminal);
+		}
+		else
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::CheckingStatus);
+		}
 	}
 };
 
@@ -279,7 +315,11 @@ struct FGameFeaturePluginState_StatusKnown : public FDestinationGameFeaturePlugi
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		if (StateProperties.DestinationState > EGameFeaturePluginState::StatusKnown)
+		if (StateProperties.DestinationState < EGameFeaturePluginState::StatusKnown)
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::Terminal);
+		}
+		else if (StateProperties.DestinationState > EGameFeaturePluginState::StatusKnown)
 		{
 			if (StateProperties.GetPluginProtocol() != EGameFeaturePluginProtocol::File)
 			{
@@ -1059,6 +1099,12 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
+		if (StateProperties.GameFeatureData)
+		{
+			const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
+			UGameFeaturesSubsystem::Get().OnGameFeatureUnregistering(StateProperties.GameFeatureData, PluginName);
+		}
+
 		StateProperties.GameFeatureData = nullptr;
 		// @todo Make UnloadGameFeature in asset manager, which will call UnloadPrimaryAsset on the GameFeatureData
 
@@ -1333,6 +1379,7 @@ void UGameFeaturePluginStateMachine::InitStateMachine(const FString& InPluginURL
 		FGameFeatureStateProgressUpdate::CreateUObject(this, &ThisClass::UpdateCurrentStateProgress));
 
 	AllStates[(int32)EGameFeaturePluginState::Uninitialized] = MakeUnique<FGameFeaturePluginState_Uninitialized>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Terminal] = MakeUnique<FGameFeaturePluginState_Terminal>(StateProperties);
 	AllStates[(int32)EGameFeaturePluginState::UnknownStatus] = MakeUnique<FGameFeaturePluginState_UnknownStatus>(StateProperties);
 	AllStates[(int32)EGameFeaturePluginState::CheckingStatus] = MakeUnique<FGameFeaturePluginState_CheckingStatus>(StateProperties);
 	AllStates[(int32)EGameFeaturePluginState::ErrorCheckingStatus] = MakeUnique<FGameFeaturePluginState_ErrorCheckingStatus>(StateProperties);
@@ -1358,7 +1405,7 @@ void UGameFeaturePluginStateMachine::InitStateMachine(const FString& InPluginURL
 	AllStates[(int32)EGameFeaturePluginState::Activating] = MakeUnique<FGameFeaturePluginState_Activating>(StateProperties);
 	AllStates[(int32)EGameFeaturePluginState::Active] = MakeUnique<FGameFeaturePluginState_Active>(StateProperties);
 
-	static_assert((int32)EGameFeaturePluginState::MAX == 25, "");
+	static_assert((int32)EGameFeaturePluginState::MAX == 26, "");
 
 	AllStates[(int32)CurrentStateInfo.State]->BeginState();
 }
@@ -1369,6 +1416,7 @@ void UGameFeaturePluginStateMachine::SetDestinationState(EGameFeaturePluginState
 
 	// JMarcus TODO: If we aren't in a destination state and our new destination is in the opposite direction of 
 	// our current destination, cancel the current state transition (if possible)
+	// The completion delegate may be stomped in these cases.  Should probably callback with a cancelled error
 
 	StateProperties.DestinationState = InDestinationState;
 	StateProperties.OnFeatureStateTransitionComplete = OnFeatureStateTransitionComplete;
@@ -1387,6 +1435,16 @@ FString UGameFeaturePluginStateMachine::GetGameFeatureName() const
 	{
 		return StateProperties.PluginURL;
 	}
+}
+
+FString UGameFeaturePluginStateMachine::GetPluginURL() const
+{
+	return StateProperties.PluginURL;
+}
+
+FString UGameFeaturePluginStateMachine::GetPluginName() const
+{
+	return StateProperties.PluginName;
 }
 
 bool UGameFeaturePluginStateMachine::GetPluginFilename(FString& OutPluginFilename) const
@@ -1424,6 +1482,16 @@ bool UGameFeaturePluginStateMachine::IsAvailable() const
 UGameFeatureData* UGameFeaturePluginStateMachine::GetGameFeatureDataForActivePlugin()
 {
 	if (GetCurrentState() == EGameFeaturePluginState::Active)
+	{
+		return StateProperties.GameFeatureData;
+	}
+
+	return nullptr;
+}
+
+UGameFeatureData* UGameFeaturePluginStateMachine::GetGameFeatureDataForRegisteredPlugin()
+{
+	if (GetCurrentState() >= EGameFeaturePluginState::Registered)
 	{
 		return StateProperties.GameFeatureData;
 	}

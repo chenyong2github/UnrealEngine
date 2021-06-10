@@ -24,14 +24,19 @@ bool SNiagaraStackItemGroupAddMenu::bLibraryOnly = true;
 
 void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex)
 {
-	TSharedPtr<SNiagaraLibraryOnlyToggleHeader> LibraryOnlyToggle;
-
 	AddUtilities = InAddUtilities;
 	InsertIndex = InInsertIndex;
 	bSetFocusOnNextTick = true;
 
-	SAssignNew(SourceFilter, SNiagaraSourceFilterBox)
-    .OnFiltersChanged(this, &SNiagaraStackItemGroupAddMenu::TriggerRefresh);
+	SNiagaraFilterBox::FFilterOptions FilterOptions;
+	FilterOptions.SetAddSourceFilter(AddUtilities->SupportsSourceFilter());
+	FilterOptions.SetAddLibraryFilter(AddUtilities->SupportsLibraryFilter());
+
+	// if a filter is not supported, the delegates won't impact anything, so it's fine to bind them in any case.
+	SAssignNew(FilterBox, SNiagaraFilterBox, FilterOptions)
+	.bLibraryOnly(this, &SNiagaraStackItemGroupAddMenu::GetLibraryOnly)
+	.OnLibraryOnlyChanged(this, &SNiagaraStackItemGroupAddMenu::SetLibraryOnly)
+    .OnSourceFiltersChanged(this, &SNiagaraStackItemGroupAddMenu::TriggerRefresh);	
 	
 	ChildSlot
 	[
@@ -41,18 +46,16 @@ void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, INiagara
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
-			.Padding(1.0f)
+			.HAlign(HAlign_Center)
 			.AutoHeight()
 			[
-				SAssignNew(LibraryOnlyToggle, SNiagaraLibraryOnlyToggleHeader)
-				.HeaderLabelText(FText::Format(LOCTEXT("AddToGroupFormatTitle", "Add new {0}"), AddUtilities->GetAddItemName()))
-				.LibraryOnly(this, &SNiagaraStackItemGroupAddMenu::GetLibraryOnly)
-				.LibraryOnlyChanged(this, &SNiagaraStackItemGroupAddMenu::SetLibraryOnly)
+				SNew(STextBlock)
+				.Text(FText::Format(LOCTEXT("AddToGroupFormatTitle", "Add new {0}"), AddUtilities->GetAddItemName()))
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
             [
-				SourceFilter.ToSharedRef()
+				FilterBox.ToSharedRef()
             ]
 			+SVerticalBox::Slot()
 			[
@@ -247,8 +250,9 @@ TSharedRef<SWidget> SNiagaraStackItemGroupAddMenu::OnGenerateWidgetForItem(
 
 bool SNiagaraStackItemGroupAddMenu::DoesItemPassCustomFilter(const TSharedPtr<FNiagaraMenuAction_Generic>& Item)
 {
-	bool bLibraryConditionFulfilled = (bLibraryOnly && Item->bIsInLibrary) || !bLibraryOnly;
-	return SourceFilter->IsFilterActive(Item->SourceData.Source) && bLibraryConditionFulfilled;
+	bool bLibraryConditionFulfilled = !AddUtilities->SupportsLibraryFilter() || (bLibraryOnly && Item->bIsInLibrary) || !bLibraryOnly;
+	bool bSourceConditionFulfilled = !AddUtilities->SupportsSourceFilter() || FilterBox->IsSourceFilterActive(Item->SourceData.Source); 
+	return bSourceConditionFulfilled && bLibraryConditionFulfilled;
 }
 
 #undef LOCTEXT_NAMESPACE

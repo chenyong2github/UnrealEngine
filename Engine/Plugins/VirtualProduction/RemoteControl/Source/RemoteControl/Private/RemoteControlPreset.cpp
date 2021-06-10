@@ -24,7 +24,9 @@
 #include "UObject/StructOnScope.h"
 
 #if WITH_EDITOR
+#include "AnalyticsEventAttribute.h"
 #include "Editor.h"
+#include "EngineAnalytics.h"
 #include "Engine/Blueprint.h"
 #include "TimerManager.h"
 #endif
@@ -33,7 +35,7 @@ URemoteControlPreset::FOnPostLoadRemoteControlPreset URemoteControlPreset::OnPos
 
 #define LOCTEXT_NAMESPACE "RemoteControlPreset"
 
-static TAutoConsoleVariable<int32> CVarRemoteControlFramesBetweenPropertyWatch(TEXT("RemoteControl.FramesBetweenPropertyWatch"), 6, TEXT("The number of frames between every property value comparison when manually watching for property changes."));
+static TAutoConsoleVariable<int32> CVarRemoteControlFramesBetweenPropertyWatch(TEXT("RemoteControl.FramesBetweenPropertyWatch"), 30, TEXT("The number of frames between every property value comparison when manually watching for property changes."));
 
 namespace
 {
@@ -109,7 +111,7 @@ FRemoteControlPresetExposeArgs::FRemoteControlPresetExposeArgs()
 }
 
 FRemoteControlPresetExposeArgs::FRemoteControlPresetExposeArgs(FString InLabel, FGuid InGroupId)
-	: Label(MoveTemp(Label))
+	: Label(MoveTemp(InLabel))
 	, GroupId(MoveTemp(InGroupId))
 {
 }
@@ -806,6 +808,16 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 TSharedPtr<FRemoteControlEntity> URemoteControlPreset::Expose(FRemoteControlEntity&& Entity, UScriptStruct* EntityType, const FGuid& GroupId)
 {
 	Registry->Modify();
+
+#if WITH_EDITOR
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		check(EntityType);
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ExposedEntityType"), EntityType->GetName()));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("RemoteControl.EntityExposed"), EventAttributes);	
+	}
+#endif
 	
 	TSharedPtr<FRemoteControlEntity> RCEntity = Registry->AddExposedEntity(MoveTemp(Entity), EntityType);
 	InitializeEntityMetadata(RCEntity);
@@ -1795,7 +1807,7 @@ void URemoteControlPreset::OnReplaceObjects(const TMap<UObject*, UObject*>& Repl
 	{
 		for (TWeakObjectPtr<URemoteControlBinding> Binding : Entity->Bindings)
 		{
-			if (ModifiedBindings.Contains(Binding.Get()))
+			if (ModifiedBindings.Contains(Binding.Get()) || ReplacementObjectMap.FindKey(Binding->Resolve()))
 			{
 				PerFrameUpdatedEntities.Add(Entity->GetId());
 			}
@@ -1825,19 +1837,12 @@ void URemoteControlPreset::OnBlueprintRecompiled(UBlueprint* Blueprint)
 		{
 			if (Class->ClassGeneratedBy == Blueprint)
 			{
-				// Recreate the function arguments with the function from the new BP and copy the old ones on top of it.
 				if (UFunction* OldFunction = RCFunction->GetFunction())
 				{
 					UClass* NewClass = Blueprint->GeneratedClass;
-					if (UFunction* NewFunction = NewClass->FindFunctionByName(OldFunction->GetFName()))
+					if (!!NewClass->FindFunctionByName(OldFunction->GetFName()))
 					{
-						FStructOnScope NewFunctionOnScope{ NewFunction };
-						for (TFieldIterator<FProperty> It(OldFunction); It; ++It)
-						{
-							It->CopyCompleteValue_InContainer(NewFunctionOnScope.GetStructMemory(), RCFunction->FunctionArguments->GetStructMemory());
-						}
-						*RCFunction->FunctionArguments = MoveTemp(NewFunctionOnScope);
-
+						RCFunction->RegenerateArguments();
 						PerFrameUpdatedEntities.Add(RCFunction->GetId());
 					}
 				}

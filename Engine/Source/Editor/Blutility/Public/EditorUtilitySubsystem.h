@@ -37,6 +37,8 @@ public:
 	UPROPERTY(config)
 	TArray<FSoftObjectPath> StartupObjects;
 
+	TMap<FName, UEditorUtilityWidgetBlueprint*> RegisteredTabs;
+
 	// Allow startup object to be garbage collected
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	void ReleaseInstanceOfAsset(UObject* Asset);

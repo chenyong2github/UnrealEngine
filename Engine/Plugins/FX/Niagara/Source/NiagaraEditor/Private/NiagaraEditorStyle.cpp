@@ -150,7 +150,7 @@ void InitActionMenu(TSharedRef< FSlateStyleSet > Style)
         .SetColorAndOpacity(FSlateColor::UseForeground())
 		.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
 		.SetShadowOffset(FVector2D(1.f, 1.f))
-        .SetFont(DEFAULT_FONT("Bold", 8));
+        .SetFont(DEFAULT_FONT("Bold", 9));
         
 	FTextBlockStyle TemplateTabText = FTextBlockStyle(NormalText)
 		.SetColorAndOpacity(FSlateColor::UseForeground())
@@ -328,6 +328,7 @@ void InitToolbarIcons(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("NiagaraEditor.LockToChanges.Small", new IMAGE_BRUSH("Icons/icon_levels_LockedReadOnly_40x", Icon20x20));
 	Style->Set("NiagaraEditor.SimulationOptions", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_simulationOptions_40x", Icon40x40));
 	Style->Set("NiagaraEditor.SimulationOptions.Small", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_simulationOptions_40x", Icon20x20));
+	Style->Set("NiagaraEditor.DebugOptions", new IMAGE_CORE_BRUSH("Icons/icon_tab_DebugTools_40x", Icon40x40));
 
 	Style->Set("Niagara.Asset.ReimportAsset.Needed", new IMAGE_BRUSH("Icons/icon_Reimport_Needed_40x", Icon40x40));
 	Style->Set("Niagara.Asset.ReimportAsset.Default", new IMAGE_BRUSH("Icons/icon_Reimport_40x", Icon40x40));

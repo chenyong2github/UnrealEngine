@@ -441,6 +441,7 @@ private:
 		SetVisualizeLumenIndirectDiffuse(false);
 		SetVisualizeLightingOnProbes(false);
 		SetVisualizeDistanceFieldAO(false);
+		SetPhysicsField(false);
 		SetVisualizeSSR(false);
 		SetVisualizeSSS(false);
 		SetPrimitiveDistanceAccuracy(false);

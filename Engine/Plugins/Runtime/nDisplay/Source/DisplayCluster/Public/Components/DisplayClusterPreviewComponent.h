@@ -78,7 +78,7 @@ protected:
 
 protected:
 	// Set to true, when RTT surface updated
-	bool bIsRenderTargetSurfaceChanged = false;
+	int32 RenderTargetSurfaceChangedCnt = 0;
 	bool bIsEditingProperty = false;
 
 private:

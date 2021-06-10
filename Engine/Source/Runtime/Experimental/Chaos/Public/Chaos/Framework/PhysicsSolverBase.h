@@ -10,6 +10,7 @@
 #include "Async/ParallelFor.h"
 #include "Containers/Queue.h"
 #include "Chaos/ChaosMarshallingManager.h"
+#include "Stats/Stats2.h"
 
 class FChaosSolversModule;
 
@@ -263,21 +264,10 @@ namespace Chaos
 
 		bool IsShuttingDown() const { return bIsShuttingDown; }
 
-		void EnableAsyncMode(FReal FixedDt)
-		{
-			if (AsyncDt != FixedDt)
-			{
-				AccumulatedTime = 0;
-			}
-
-			AsyncDt = FixedDt;
-		}
-
-		void DisableAsyncMode()
-		{
-			AsyncDt = -1;
-		}
-
+		void EnableAsyncMode(FReal FixedDt);
+		
+		void DisableAsyncMode();
+		
 		virtual void ConditionalApplyRewind_Internal(){}
 
 		FChaosMarshallingManager& GetMarshallingManager() { return MarshallingManager; }
@@ -304,6 +294,7 @@ namespace Chaos
 
 		void ApplyCallbacks_Internal(const FReal SimTime, const FReal Dt)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(ApplySimCallbacks);
 			for (ISimCallbackObject* Callback : SimCallbackObjects)
 			{
 				Callback->SetSimAndDeltaTime_Internal(SimTime, Dt);

@@ -625,7 +625,7 @@ public partial class Project : CommandUtils
 		{
 			// Making a plugin
 			DirectoryReference DLCRoot = Params.DLCFile.Directory;
-			string RelativeDLCRootPath = string.IsNullOrEmpty(Params.DLCOverrideCookedSubDir) ? DLCRoot.MakeRelativeTo(SC.LocalRoot) : Params.DLCOverrideCookedSubDir;
+			string RelativeDLCRootPath = (Params.DLCOverrideCookedSubDir == null) ? DLCRoot.MakeRelativeTo(SC.LocalRoot) : Params.DLCOverrideCookedSubDir;
 
 			// Put all of the cooked dir into the staged dir
 			if (String.IsNullOrEmpty(Params.CookOutputDir))
@@ -650,7 +650,7 @@ public partial class Project : CommandUtils
 			if (FileReference.Exists(Params.DLCFile))
 			{
 				StagedFileType StageType = Params.DLCPakPluginFile ? StagedFileType.UFS : StagedFileType.NonUFS;
-				if (!string.IsNullOrEmpty(Params.DLCOverrideCookedSubDir))
+				if (Params.DLCOverrideCookedSubDir != null)
 				{
 					SC.StageFile(StageType, Params.DLCFile, new StagedFileReference(Path.Combine(Params.DLCOverrideCookedSubDir, Params.DLCFile.GetFileName())));
 				}

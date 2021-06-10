@@ -1505,7 +1505,7 @@ bool UGameplayCueManager::DoesPendingCueExecuteMatch(FGameplayCuePendingExecute&
 		return false;
 	}
 
-	if (PendingCue.PredictionKey.PredictiveConnection != ExistingCue.PredictionKey.PredictiveConnection)
+	if (PendingCue.PredictionKey.GetPredictiveConnectionKey() != ExistingCue.PredictionKey.GetPredictiveConnectionKey())
 	{
 		// They can both by null, but if they were predicted by different people exclude it
 		return false;

@@ -90,8 +90,8 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 	check(Config && Config->Scene && Config->Cluster);
 
 	// Fill metadata
-	Config->Meta.DataSource = EDisplayClusterConfigurationDataSource::Json;
-	Config->Meta.FilePath   = ConfigFile;
+	Config->Meta.ImportDataSource = EDisplayClusterConfigurationDataSource::Json;
+	Config->Meta.ImportFilePath   = ConfigFile;
 
 	const FDisplayClusterConfigurationJsonNdisplay& CfgJson = JsonData.nDisplay;
 
@@ -291,6 +291,7 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 	// Info
 	Json.Description = Config->Info.Description;
 	Json.Version     = Config->Info.Version;
+	Json.AssetPath   = Config->Meta.ExportAssetPath;
 
 	// Scene
 	if(Config->Scene)

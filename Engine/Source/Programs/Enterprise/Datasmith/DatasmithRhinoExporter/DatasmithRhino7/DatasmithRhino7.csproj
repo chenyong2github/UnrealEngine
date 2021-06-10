@@ -113,7 +113,97 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\SharedResources\Localization\Resources.Designer.cs">
+      <Link>Properties\Localization\Resources.Designer.cs</Link>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="..\SharedResources\Localization\Resources.de.Designer.cs">
+      <Link>Properties\Localization\Resources.Designer.cs</Link>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.de.resx</DependentUpon>
+    </Compile>
+    <Compile Include="..\SharedResources\Localization\Resources.es.Designer.cs">
+      <Link>Properties\Localization\Resources.Designer.cs</Link>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.es.resx</DependentUpon>
+    </Compile>
+    <Compile Include="..\SharedResources\Localization\Resources.fr.Designer.cs">
+      <Link>Properties\Localization\Resources.Designer.cs</Link>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.fr.resx</DependentUpon>
+    </Compile>
+    <Compile Include="..\SharedResources\Localization\Resources.ja.Designer.cs">
+      <Link>Properties\Localization\Resources.Designer.cs</Link>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.ja.resx</DependentUpon>
+    </Compile>
+    <Compile Include="..\SharedResources\Localization\Resources.ko.Designer.cs">
+      <Link>Properties\Localization\Resources.Designer.cs</Link>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.ko.resx</DependentUpon>
+    </Compile>
+    <Compile Include="..\SharedResources\Localization\Resources.pt.Designer.cs">
+      <Link>Properties\Localization\Resources.Designer.cs</Link>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.pt.resx</DependentUpon>
+    </Compile>
+    <Compile Include="..\SharedResources\Localization\Resources.zh.Designer.cs">
+      <Link>Properties\Localization\Resources.Designer.cs</Link>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.zh.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
     <EmbeddedResource Include="..\SharedResources\UnrealEngine.ico" />
+    <EmbeddedResource Include="..\SharedResources\Localization\Resources.resx">
+      <Link>Properties\Localization\Resources.resx</Link>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\SharedResources\Localization\Resources.de.resx">
+      <Link>Properties\Localization\Resources.de-DE.resx</Link>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.de.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\SharedResources\Localization\Resources.es.resx">
+      <Link>Properties\Localization\Resources.es-ES.resx</Link>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.es.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\SharedResources\Localization\Resources.fr.resx">
+      <Link>Properties\Localization\Resources.fr-FR.resx</Link>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.fr.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\SharedResources\Localization\Resources.ja.resx">
+      <Link>Properties\Localization\Resources.ja-JP.resx</Link>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.ja.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\SharedResources\Localization\Resources.ko.resx">
+      <Link>Properties\Localization\Resources.ko-KR.resx</Link>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.ko.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\SharedResources\Localization\Resources.pt.resx">
+      <Link>Properties\Localization\Resources.pt-BR.resx</Link>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.pt.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\SharedResources\Localization\Resources.zh.resx">
+      <Link>Properties\Localization\Resources.zh-CN.resx</Link>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.zh.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

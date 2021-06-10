@@ -11,7 +11,6 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	AutoChangeMode = EAutoChangeMode::None;
 	AllowEditsMode = EAllowEditsMode::AllEdits;
 	KeyGroupMode = EKeyGroupMode::KeyChanged;
-	bKeyInterpPropertiesOnly = false;
 	KeyInterpolation = EMovieSceneKeyInterpolation::Auto;
 	bAutoSetTrackDefaults = false;
 	SpawnPosition = SSP_Origin;
@@ -105,20 +104,6 @@ void USequencerSettings::SetKeyGroupMode(EKeyGroupMode InKeyGroupMode)
 	if (KeyGroupMode != InKeyGroupMode)
 	{
 		KeyGroupMode = InKeyGroupMode;
-		SaveConfig();
-	}
-}
-
-bool USequencerSettings::GetKeyInterpPropertiesOnly() const
-{
-	return bKeyInterpPropertiesOnly;
-}
-
-void USequencerSettings::SetKeyInterpPropertiesOnly(bool InbKeyInterpPropertiesOnly)
-{
-	if ( bKeyInterpPropertiesOnly != InbKeyInterpPropertiesOnly )
-	{
-		bKeyInterpPropertiesOnly = InbKeyInterpPropertiesOnly;
 		SaveConfig();
 	}
 }

@@ -149,6 +149,38 @@ void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* Prop
 	ResetReplicatedLifetimeProperty(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), LifetimeCondition, OutLifetimeProps);
 }
 
+void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, const FDoRepLifetimeParams& Params, TArray< FLifetimeProperty >& OutLifetimeProps)
+{
+	const FProperty* ReplicatedProperty = GetReplicatedProperty(ThisClass, PropertyClass, PropertyName);
+	if (!ReplicatedProperty)
+	{
+		return;
+	}
+
+	ResetReplicatedLifetimeProperty(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), Params, OutLifetimeProps);
+}
+
+void ResetReplicatedLifetimeProperty(const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor, const FDoRepLifetimeParams& Params, TArray< FLifetimeProperty >& OutLifetimeProps)
+{
+	for (int32 i = 0; i < PropertyDescriptor.ArrayDim; i++)
+	{
+		uint16 RepIndex = PropertyDescriptor.RepIndex + i;
+		FLifetimeProperty* RegisteredPropertyPtr = OutLifetimeProps.FindByPredicate([&RepIndex](const FLifetimeProperty& Var) { return Var.RepIndex == RepIndex; });
+
+		// Set the new condition
+		if (RegisteredPropertyPtr)
+		{
+			RegisteredPropertyPtr->bIsPushBased = Params.bIsPushBased;
+			RegisteredPropertyPtr->Condition = Params.Condition;
+			RegisteredPropertyPtr->RepNotifyCondition = Params.RepNotifyCondition;
+		}
+		else
+		{
+			OutLifetimeProps.Add(FLifetimeProperty(RepIndex, Params.Condition, Params.RepNotifyCondition, Params.bIsPushBased));
+		}
+	}
+}
+
 void DisableAllReplicatedPropertiesOfClass(const NetworkingPrivate::FRepClassDescriptor& ClassDescriptor, EFieldIteratorFlags::SuperClassFlags SuperClassBehavior, TArray<FLifetimeProperty>& OutLifetimeProps)
 {
 	const int32 StartIndex = (EFieldIteratorFlags::IncludeSuper == SuperClassBehavior) ? 0 : ClassDescriptor.StartRepIndex;

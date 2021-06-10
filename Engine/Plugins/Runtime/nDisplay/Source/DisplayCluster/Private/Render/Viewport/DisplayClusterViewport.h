@@ -20,10 +20,14 @@ class FDisplayClusterRenderFrameManager;
 class FDisplayClusterViewportProxyData;
 class FDisplayClusterViewportProxy;
 struct FDisplayClusterRenderFrameSettings;
-class DisplayClusterViewportConfigurationHelpers;
 class FDisplayClusterViewportConfigurationCameraViewport;
 class FDisplayClusterViewportConfigurationCameraICVFX;
 class FDisplayClusterViewportConfigurationICVFX;
+
+class FDisplayClusterViewportConfigurationHelpers;
+class FDisplayClusterViewportConfigurationHelpers_ICVFX;
+
+struct FDisplayClusterViewportConfigurationProjectionPolicy;
 
 /**
  * Rendering viewport (sub-region of the main viewport)
@@ -33,7 +37,7 @@ class FDisplayClusterViewport
 	: public IDisplayClusterViewport
 {
 public:
-	FDisplayClusterViewport(FDisplayClusterViewportManager& Owner, const FString& ViewportId, TSharedPtr<IDisplayClusterProjectionPolicy> InProjectionPolicy);
+	FDisplayClusterViewport(FDisplayClusterViewportManager& Owner, const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);
 	
 	virtual ~FDisplayClusterViewport();
 
@@ -70,7 +74,7 @@ public:
 		return PostRenderSettings;
 	}
 
-	virtual const TSharedPtr<IDisplayClusterProjectionPolicy>& GetProjectionPolicy() const override
+	virtual const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& GetProjectionPolicy() const override
 	{
 		check(IsInGameThread());
 		return ProjectionPolicy;
@@ -132,6 +136,18 @@ public:
 	bool HandleStartScene();
 	void HandleEndScene();
 
+	void ResetRuntimeParameters()
+	{
+		// Reset runtim flags from prev frame:
+		RenderSettings.BeginUpdateSettings();
+		RenderSettingsICVFX.BeginUpdateSettings();
+		PostRenderSettings.BeginUpdateSettings();
+		VisibilitySettings.ResetConfiguration();
+		CameraMotionBlur.ResetConfiguration();
+		OverscanRendering.ResetConfiguration();
+	}
+
+
 	// Active view extension for this viewport
 	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(FViewport* InViewport) const;
 
@@ -151,8 +167,8 @@ public:
 
 public:
 	// Projection policy instance that serves this viewport
-	TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy;
-	TSharedPtr<IDisplayClusterProjectionPolicy> UninitializedProjectionPolicy;
+	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjectionPolicy;
+	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> UninitializedProjectionPolicy;
 
 	// Game thread only settings:
 	FDisplayClusterViewport_CustomPostProcessSettings CustomPostProcessSettings;
@@ -168,10 +184,14 @@ protected:
 	friend FDisplayClusterViewportManager;
 	friend FDisplayClusterRenderTargetManager;
 	friend FDisplayClusterRenderFrameManager;
-	friend DisplayClusterViewportConfigurationHelpers;
 	friend FDisplayClusterViewportConfigurationCameraViewport;
 	friend FDisplayClusterViewportConfigurationCameraICVFX;
+
 	friend FDisplayClusterViewportConfigurationICVFX;
+
+	friend FDisplayClusterViewportConfigurationHelpers;
+	friend FDisplayClusterViewportConfigurationHelpers_ICVFX;
+	friend FDisplayClusterViewportConfigurationProjectionPolicy;
 
 	// viewport render thread data
 	FDisplayClusterViewportProxy* ViewportProxy = nullptr;

@@ -37,7 +37,7 @@ struct FTransformGizmoMeasurement
 /**
  * Base class for transform gizmo
  */
-UCLASS( Abstract )
+UCLASS( Abstract, NotPlaceable )
 class VIEWPORTINTERACTION_API ABaseTransformGizmo : public AActor
 {
 	GENERATED_BODY()

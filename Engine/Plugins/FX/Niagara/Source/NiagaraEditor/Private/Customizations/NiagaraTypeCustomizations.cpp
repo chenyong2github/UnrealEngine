@@ -1,48 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraTypeCustomizations.h"
+
 #include "CoreMinimal.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
 #include "NiagaraConstants.h"
-#include "NiagaraConstants.h"
-#include "NiagaraEditorStyle.h"
+#include "NiagaraDataInterfaceRW.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraNodeParameterMapBase.h"
-#include "NiagaraParameterMapHistory.h"
 #include "NiagaraParameterDefinitions.h"
-#include "NiagaraPlatformSet.h"
+#include "NiagaraParameterMapHistory.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraSimulationStageBase.h"
 #include "NiagaraSystem.h"
 #include "NiagaraTypes.h"
-#include "PlatformInfo.h"
 #include "PropertyHandle.h"
-#include "SGraphActionMenu.h"
-#include "Scalability.h"
 #include "ScopedTransaction.h"
-#include "DeviceProfiles/DeviceProfile.h"
+#include "SGraphActionMenu.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
+#include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Layout/SWrapBox.h"
-#include "NiagaraSimulationStageBase.h"
 #include "Widgets/Text/STextBlock.h"
-#include "NiagaraDataInterfaceRW.h"
-#include "NiagaraSettings.h"
-#include "Widgets/SNiagaraParameterName.h"
 
 
 #define LOCTEXT_NAMESPACE "FNiagaraVariableAttributeBindingCustomization"
@@ -276,7 +266,6 @@ TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(UNiagaraEm
 void FNiagaraVariableAttributeBindingCustomization::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
 	TArray<FName> EventNames = GetNames(BaseEmitter);
-	FName EmitterName = BaseEmitter->GetFName();
 	for (FName EventName : EventNames)
 	{
 		FText CategoryName = FText();
@@ -1262,10 +1251,10 @@ TSharedRef<SWidget> FNiagaraDataInterfaceBindingCustomization::OnGetMenuContent(
 			[
 				SNew(SGraphActionMenu)
 				.OnActionSelected(const_cast<FNiagaraDataInterfaceBindingCustomization*>(this), &FNiagaraDataInterfaceBindingCustomization::OnActionSelected)
-		.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraDataInterfaceBindingCustomization*>(this), &FNiagaraDataInterfaceBindingCustomization::OnCreateWidgetForAction))
-		.OnCollectAllActions(const_cast<FNiagaraDataInterfaceBindingCustomization*>(this), &FNiagaraDataInterfaceBindingCustomization::CollectAllActions)
-		.AutoExpandActionMenu(false)
-		.ShowFilterTextBox(true)
+				.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraDataInterfaceBindingCustomization*>(this), &FNiagaraDataInterfaceBindingCustomization::OnCreateWidgetForAction))
+				.OnCollectAllActions(const_cast<FNiagaraDataInterfaceBindingCustomization*>(this), &FNiagaraDataInterfaceBindingCustomization::CollectAllActions)
+				.AutoExpandActionMenu(false)
+				.ShowFilterTextBox(true)
 			]
 		];
 }
@@ -1296,11 +1285,14 @@ TArray<FName> FNiagaraDataInterfaceBindingCustomization::GetNames() const
 
 			for (const UNiagaraGraph* Graph : Graphs)
 			{
-				const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ParameterReferenceMap = Graph->GetParameterReferenceMap();
+				TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ParameterReferenceMap = Graph->GetParameterReferenceMap();
+				ParameterReferenceMap.KeySort([](const FNiagaraVariable& A, const FNiagaraVariable& B) { return A.GetName().LexicalLess(B.GetName()); });
 				for (const auto& ParameterToReferences : ParameterReferenceMap)
 				{
 					const FNiagaraVariable& ParameterVariable = ParameterToReferences.Key;
-					if (ParameterVariable.IsDataInterface())
+					FNiagaraParameterHandle Handle(ParameterVariable.GetName());
+					bool bIsValidNamespace = Handle.IsEmitterHandle() || Handle.IsSystemHandle() || Handle.IsOutputHandle() || Handle.IsParticleAttributeHandle() || Handle.IsTransientHandle() || Handle.IsStackContextHandle();
+					if (ParameterVariable.IsDataInterface() && bIsValidNamespace)
 					{
 						const UClass* Class = ParameterVariable.GetType().GetClass();
 						if (Class)
@@ -1399,26 +1391,26 @@ void FNiagaraDataInterfaceBindingCustomization::CustomizeHeader(TSharedRef<IProp
 			TargetDataInterfaceBinding = (FNiagaraVariableDataInterfaceBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
 
 			HeaderRow
-				.NameContent()
-				[
-					PropertyHandle->CreatePropertyNameWidget()
-				]
+			.NameContent()
+			[
+				PropertyHandle->CreatePropertyNameWidget()
+			]
 			.ValueContent()
-				.MaxDesiredWidth(200.f)
-				[
-					SNew(SComboButton)
-					.OnGetMenuContent(this, &FNiagaraDataInterfaceBindingCustomization::OnGetMenuContent)
-					.ContentPadding(1)
-					.ToolTipText(this, &FNiagaraDataInterfaceBindingCustomization::GetTooltipText)
-					.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-					.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
-					.ButtonContent()
+			.MaxDesiredWidth(250.f)
+			[
+				SNew(SComboButton)
+				.OnGetMenuContent(this, &FNiagaraDataInterfaceBindingCustomization::OnGetMenuContent)
+				.ContentPadding(1)
+				.ToolTipText(this, &FNiagaraDataInterfaceBindingCustomization::GetTooltipText)
+				.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+				.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+				.ButtonContent()
 				[
 					SNew(SNiagaraParameterName)
 					.ParameterName(this, &FNiagaraDataInterfaceBindingCustomization::GetVariableName)
 					.IsReadOnly(true)
 				]
-				];
+			];
 			bAddDefault = false;
 		}
 	}

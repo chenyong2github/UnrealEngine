@@ -15,7 +15,8 @@ public:
 	{
 		Start,
 		Override,
-		Final
+		Final,
+		FinalPerViewport,
 	};
 
 public:

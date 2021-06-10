@@ -96,6 +96,22 @@ namespace Audio
 		return false;
 	}
 
+	float FQuartzClockManager::GetDurationOfQuantizationTypeInSeconds(const FName& InClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier)
+	{
+		FScopeLock Lock(&ActiveClockCritSec);
+
+		// See if this clock already exists
+		TSharedPtr<FQuartzClock> Clock = FindClock(InClockName);
+
+		if (Clock)
+		{
+			return Clock->GetDurationOfQuantizationTypeInSeconds(QuantizationType, Multiplier);
+		}
+
+		//Clock doesn't exist
+		return -1;
+	}
+
 	void FQuartzClockManager::RemoveClock(const FName& InName)
 	{
 		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())

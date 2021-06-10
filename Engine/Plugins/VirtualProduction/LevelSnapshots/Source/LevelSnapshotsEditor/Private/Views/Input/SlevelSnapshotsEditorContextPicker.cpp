@@ -21,6 +21,7 @@
 SLevelSnapshotsEditorContextPicker::~SLevelSnapshotsEditorContextPicker()
 {
 	FEditorDelegates::OnMapOpened.Remove(OnMapOpenedDelegateHandle);
+	OnMapOpenedDelegateHandle.Reset();
 }
 
 void SLevelSnapshotsEditorContextPicker::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)

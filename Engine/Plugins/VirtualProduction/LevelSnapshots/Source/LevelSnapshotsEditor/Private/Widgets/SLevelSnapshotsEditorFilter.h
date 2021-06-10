@@ -13,6 +13,7 @@
 class SFilterCheckBox;
 class SClickableText;
 class FLevelSnapshotsEditorFilters;
+class ULevelSnapshotsEditorData;
 
 enum class ECheckBoxState : uint8;
 
@@ -23,14 +24,16 @@ class SLevelSnapshotsEditorFilter : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnClickRemoveFilter, TSharedRef<SLevelSnapshotsEditorFilter>);
+	DECLARE_DELEGATE_RetVal(bool, FIsParentFilterIgnored);
 
 	~SLevelSnapshotsEditorFilter();
 	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorFilter)
 	{}
 		SLATE_EVENT(FOnClickRemoveFilter, OnClickRemoveFilter)
+		SLATE_EVENT(FIsParentFilterIgnored, IsParentFilterIgnored)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
+	void Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, ULevelSnapshotsEditorData* InEditorData);
 
 	const TWeakObjectPtr<UNegatableFilter>& GetSnapshotFilter() const;
 
@@ -41,14 +44,21 @@ public:
 	
 private:
 
+	FText GetFilterTooltip() const;
+	FSlateColor GetFilterColor() const;
+	
 	FReply OnSelectFilterForEdit();
-	void OnActiveFilterChanged(const TOptional<UNegatableFilter*>& NewFilter);
 	FReply OnNegateFilter();
 	FReply OnRemoveFilter();
-
 	
-	FOnClickRemoveFilter OnClickRemoveFilter;
+	void OnActiveFilterChanged(const TOptional<UNegatableFilter*>& NewFilter);
 
+	/* Used to remove this filter */
+	FOnClickRemoveFilter OnClickRemoveFilter;
+	/* Used to darken filter colour when the parent is ignored. */
+	FIsParentFilterIgnored IsParentFilterIgnored;
+
+	FDelegateHandle OnFilterDestroyedDelegateHandle;
 	FDelegateHandle ActiveFilterChangedDelegateHandle;
 	bool bShouldHighlightFilter = false;;
 	
@@ -60,6 +70,4 @@ private:
 	/* Filter managed by this widget */
 	TWeakObjectPtr<UNegatableFilter> SnapshotFilter;
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorData;
-	/* Used to set the filter to edit */
-	TWeakPtr<FLevelSnapshotsEditorFilters> FiltersModelPtr;
 };

@@ -1088,9 +1088,24 @@ bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid Obj
 	return false;
 }
 
-void MovieSceneToolHelpers::CameraAdded(UMovieScene* OwnerMovieScene, FGuid CameraGuid, FFrameNumber FrameNumber)
-{
 
+void MovieSceneToolHelpers::LockCameraActorToViewport(const TSharedPtr<ISequencer>& Sequencer, ACameraActor* CameraActor)
+{
+	Sequencer->SetPerspectiveViewportCameraCutEnabled(false);
+
+	// Lock the viewport to this camera
+	if (CameraActor && CameraActor->GetLevel())
+	{
+		GCurrentLevelEditingViewportClient->SetCinematicActorLock(nullptr);
+		GCurrentLevelEditingViewportClient->SetActorLock(CameraActor);
+		GCurrentLevelEditingViewportClient->bLockedCameraView = true;
+		GCurrentLevelEditingViewportClient->UpdateViewForLockedActor();
+		GCurrentLevelEditingViewportClient->Invalidate();
+	}
+}
+
+void MovieSceneToolHelpers::CreateCameraCutSectionForCamera(UMovieScene* OwnerMovieScene, FGuid CameraGuid, FFrameNumber FrameNumber)
+{
 	// If there's a cinematic shot track, no need to set this camera to a shot
 	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindMasterTrack(UMovieSceneCinematicShotTrack::StaticClass());
 	if (CinematicShotTrack)

@@ -97,6 +97,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
 	bool IsClockRunning(const UObject* WorldContextObject, FName ClockName);
 
+	/** Returns the duration in seconds of the given Quantization Type
+	 * 
+	 * @param The Quantization type to measure
+	 * @param The quantity of the Quantization Type to calculate the time of
+	 * @return The duration, in seconds, of a multiplier amount of the Quantization Type, or -1 in the case the clock is invalid
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
+	float GetDurationOfQuantizationTypeInSeconds(const UObject* WorldContextObject, FName ClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier = 1.0f);
+
 	// latency data (Game thread -> Audio Render Thread)
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
 	float GetGameThreadToAudioRenderThreadAverageLatency(const UObject* WorldContextObject);

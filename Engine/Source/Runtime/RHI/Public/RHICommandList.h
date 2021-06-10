@@ -1870,16 +1870,8 @@ FRHICOMMAND_MACRO(FRHICommandCalibrateTimers)
 	RHI_API void Execute(FRHICommandListBase & CmdList);
 };
 
-struct FRHICommandSubmitCommandsHintString
+FRHICOMMAND_MACRO(FRHICommandSubmitCommandsHint)
 {
-	static const TCHAR* TStr() { return TEXT("FRHICommandSubmitCommandsHint"); }
-};
-
-struct FRHICommandSubmitCommandsHint final : public FRHICommand<FRHICommandSubmitCommandsHint, FRHICommandSubmitCommandsHintString>
-{
-	FORCEINLINE_DEBUGGABLE FRHICommandSubmitCommandsHint()
-	{
-	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
@@ -3012,7 +3004,7 @@ public:
 	{
 		if (Bypass())
 		{
-			GetComputeContext().RHIPostExternalCommandsReset();
+			GetContext().RHIPostExternalCommandsReset();
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandPostExternalCommandsReset)();

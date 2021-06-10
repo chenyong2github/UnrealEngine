@@ -5,101 +5,21 @@
 #include "Widgets/SCompoundWidget.h"
 
 #include "CameraCalibrationEditorCommon.h"
+#include "EditorUndoClient.h"
+#include "LensFile.h"
 #include "SLensFilePanel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STreeView.h"
 #include "UObject/StrongObjectPtr.h"
 
+class FLensDataListItem;
+class FLensDataCategoryItem;
 class FCurveEditor;
-class SCurveEditorPanel;
-class ULensFile;
+class SCameraCalibrationCurveEditorPanel;
 
-/**
- * Data entry item
- * @note To be expanded
- */
-class FLensDataItem : public TSharedFromThis<FLensDataItem>
-{
-public:
-	FLensDataItem(float InFocus);
-
-	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable);
-
-	/** Focus value of this item */
-	float Focus;
-
-	/** Children of this item */
-	TArray<TSharedPtr<FLensDataItem>> Children;
-};
-
-/**
- * Widget representing a data entry row
- * @note To be expanded
- */
-class SLensDataItem : public STableRow<TSharedPtr<FLensDataItem>>
-{
-	SLATE_BEGIN_ARGS(SLensDataItem) {}
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FLensDataItem> InItemData);
-
-private:
-	FText GetLabelText() const;
-
-private:
-
-	/** WeakPtr to source data item */
-	TWeakPtr<FLensDataItem> WeakItem;
-};
-
-/**
- * Data category item
- */
-class FLensDataCategoryItem : public TSharedFromThis<FLensDataCategoryItem>
-{
-public:
-	FLensDataCategoryItem(TWeakPtr<FLensDataCategoryItem> Parent, EDataCategories InCategory, FName InLabel);
-
-	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable);
-
-public:
-
-	/** Category this item is associated with */
-	EDataCategories Category;
-
-	/** Label of this category */
-	FName Label;
-
-	/** WeakPtr to parent of this item */
-	TWeakPtr<FLensDataCategoryItem> Parent;
-
-	/** Children of this category */
-	TArray<TSharedPtr<FLensDataCategoryItem>> Children;
-};
-
-/**
- * Data category row widget
- */
-class SLensDataCategoryItem : public STableRow<TSharedPtr<FLensDataCategoryItem>>
-{
-	SLATE_BEGIN_ARGS(SLensDataCategoryItem) {}
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FLensDataCategoryItem> InItemData);
-
-private:
-
-	/** Returns the label of this row */
-	FText GetLabelText() const;
-
-private:
-
-	/** WeakPtr to source data item */
-	TWeakPtr<FLensDataCategoryItem> WeakItem;
-};
 
 /** Widget used to display data from the LensFile */
-class SLensDataViewer : public SCompoundWidget
+class SLensDataViewer : public SCompoundWidget, public FSelfRegisteringEditorUndoClient
 {
 public:
 
@@ -126,16 +46,21 @@ public:
 	void OnDataCategorySelectionChanged(TSharedPtr<FLensDataCategoryItem> Item, ESelectInfo::Type SelectInfo);
 
 	/** Get the currently selected data entry */
-	TSharedPtr<FLensDataItem> GetSelectedDataEntry() const;
+	TSharedPtr<FLensDataListItem> GetSelectedDataEntry() const;
 
 	/** Generates one data entry row */
-	TSharedRef<ITableRow> OnGenerateDataEntryRow(TSharedPtr<FLensDataItem> Node, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> OnGenerateDataEntryRow(TSharedPtr<FLensDataListItem> Node, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Used to get the children of a data entry item */
-	void OnGetDataEntryChildren(TSharedPtr<FLensDataItem> Node, TArray<TSharedPtr<FLensDataItem>>& OutNodes);
+	void OnGetDataEntryChildren(TSharedPtr<FLensDataListItem> Node, TArray<TSharedPtr<FLensDataListItem>>& OutNodes);
 
 	/** Triggered when data entry selection has changed */
-	void OnDataEntrySelectionChanged(TSharedPtr<FLensDataItem> Node, ESelectInfo::Type SelectInfo);
+	void OnDataEntrySelectionChanged(TSharedPtr<FLensDataListItem> Node, ESelectInfo::Type SelectInfo);
+
+	//~ Begin FSelfRegisteringEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~ End FSelfRegisteringEditorUndoClient interface
 
 private:
 
@@ -143,10 +68,13 @@ private:
 	TSharedRef<SWidget> MakeLensDataWidget();
 
 	/** Makes the Toolbar with data manipulation buttons */
-	TSharedRef<SWidget> MakeToolbarWidget();
+	TSharedRef<SWidget> MakeToolbarWidget(TSharedRef<SCameraCalibrationCurveEditorPanel> InEditorPanel);
 
 	/** Called when user clicks on AddPoint button */
 	FReply OnAddDataPointClicked();
+	
+	/** Called when user clicks on Clear LensFile button */
+	FReply OnClearLensFileClicked();
 
 	/** Called when DataMode is changed */
 	void OnDataModeChanged();
@@ -161,11 +89,17 @@ private:
 	void RefreshDataEntriesTree();
 
 	/** Refreshes curve editor */
-	void RefreshCurve();
+	void RefreshCurve() const;
 
 	/** Callbacked when user clicks AddPoint from the dialog */
 	void OnLensDataPointAdded();
 
+	/** Callbacked when user clicks remove point buttons */
+	void OnDataPointRemoved(float InFocus, TOptional<float> InZoom);
+	
+	/** Called when the data table points list of a data category was updated */
+	void OnDataTablePointsUpdated(ELensDataCategory InCategory);
+	
 private:
 	
 	/** Data category TreeView */
@@ -174,11 +108,17 @@ private:
 	/** List of data category items */
 	TArray<TSharedPtr<FLensDataCategoryItem>> DataCategories;
 
+	/**
+	 * Cached selected item to detect category change
+	 * If category hasn't changed, don't recreate data entries
+	 */
+	TSharedPtr<FLensDataCategoryItem> CachedSelectedCategoryItem;
+
 	/** Data items associated with selected data category TreeView */
-	TSharedPtr<STreeView<TSharedPtr<FLensDataItem>>> DataEntriesTree;
+	TSharedPtr<STreeView<TSharedPtr<FLensDataListItem>>> DataEntriesTree;
 
 	/** List of data items for the selected data category */
-	TArray<TSharedPtr<FLensDataItem>> DataEntries;
+	TArray<TSharedPtr<FLensDataListItem>> DataEntries;
 
 	/** Data entries title */
 	TSharedPtr<STextBlock> DataEntryNameWidget;
@@ -188,7 +128,9 @@ private:
 
 	/** Curve editor manager and panel to display */
 	TSharedPtr<FCurveEditor> CurveEditor;
-	TSharedPtr<SCurveEditorPanel> CurvePanel;
+
+	/** Child class of curve editor panel */
+	TSharedPtr<SCameraCalibrationCurveEditorPanel> CurvePanel;
 
 	/** Evaluated FIZ for the current frame */
 	TAttribute<FCachedFIZData> CachedFIZ;

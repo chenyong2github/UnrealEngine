@@ -384,6 +384,16 @@ ENGINE_API void DisableAllReplicatedPropertiesOfClass(const NetworkingPrivate::F
 #define RESET_REPLIFETIME_FAST(c,v) RESET_REPLIFETIME_CONDITION_FAST(c, v, COND_None)
 #define RESET_REPLIFETIME_FAST_STATIC_ARRAY(c,v) RESET_REPLIFETIME_FAST_STATIC_ARRAY(c, v, COND_None)
 
+#define RESET_REPLIFETIME_WITH_PARAMS(c,v,params)  ResetReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NAME_CHECKED(c,v), params, OutLifetimeProps);
+
+#define RESET_REPLIFETIME_FAST_WITH_PARAMS(c,v,params) \
+{ \
+	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
+	const TCHAR* DoRepPropertyName_##c_##v(TEXT(#v)); \
+	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, (int32)c::ENetFields_Private::v, 1); \
+	ResetReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NAME_CHECKED(c,v), params, OutLifetimeProps); \
+}
+
 ENGINE_API void ResetReplicatedLifetimeProperty(
 	const UClass* ThisClass,
 	const UClass* PropertyClass,
@@ -395,6 +405,19 @@ ENGINE_API void ResetReplicatedLifetimeProperty(
 	const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor,
 	ELifetimeCondition LifetimeCondition,
 	TArray<FLifetimeProperty>& OutLifetimeProps);
+
+ENGINE_API void ResetReplicatedLifetimeProperty(
+	const UClass* ThisClass,
+	const UClass* PropertyClass,
+	FName PropertyName,
+	const FDoRepLifetimeParams& Params,
+	TArray< FLifetimeProperty >& OutLifetimeProps);
+
+ENGINE_API void ResetReplicatedLifetimeProperty(
+	const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor,
+	const FDoRepLifetimeParams& Params,
+	TArray< FLifetimeProperty >& OutLifetimeProps);
+
 
 /*-----------------------------------------------------------------------------
 	RPC Parameter Validation Helpers

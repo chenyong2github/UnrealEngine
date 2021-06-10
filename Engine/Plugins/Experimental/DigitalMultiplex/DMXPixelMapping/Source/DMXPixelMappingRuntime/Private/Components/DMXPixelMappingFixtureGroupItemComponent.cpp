@@ -2,14 +2,15 @@
 
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 
+#include "DMXConversions.h"
 #include "DMXPixelMappingTypes.h"
-#include "DMXSubsystem.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
-#include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXLibrary.h"
+#include "IO/DMXOutputPort.h"
 
 #include "Engine/Texture.h"
 #include "Widgets/SOverlay.h"
@@ -22,6 +23,44 @@
 DECLARE_CYCLE_STAT(TEXT("Send Fixture Group Item"), STAT_DMXPixelMaping_FixtureGroupItem, STATGROUP_DMXPIXELMAPPING);
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingFixtureGroupItemComponent"
+
+namespace
+{
+	// Converts a normalized attribute value, adds it to the InOutAttributeValueMap, without resetting it.
+	void ConvertNormalizedAttributeValueToChannelValues(UDMXEntityFixturePatch* InFixturePatch, const FDMXAttributeName& InAttributeName, float InNormalizedValue, TMap<int32, uint8>& InOutChannelToValueMap)
+	{
+		if (InFixturePatch)
+		{
+			const FDMXFixtureMode* ModePtr = InFixturePatch->GetActiveMode();
+
+			if (ModePtr)
+			{
+				const int32 StartingChannel = InFixturePatch->GetStartingChannel();
+
+				// Build the value map from the attributes
+				TMap<int32, uint8> ChannelToValueMap;
+
+				const FDMXFixtureFunction* FunctionPtr = ModePtr->Functions.FindByPredicate([InAttributeName](const FDMXFixtureFunction& Function) {
+					return Function.Attribute.GetName() == InAttributeName;
+					});
+
+				if (FunctionPtr)
+				{
+					const int32 AttributeStartingChannel = StartingChannel + FunctionPtr->Channel - 1 + FunctionPtr->ChannelOffset;
+
+					uint8 NumBytes = static_cast<uint8>(FunctionPtr->DataType) + 1;
+					
+					TArray<uint8> Bytes = FDMXConversions::NormalizedDMXValueToByteArray(InNormalizedValue, FunctionPtr->DataType, FunctionPtr->bUseLSBMode);
+
+					for (int32 IndexByte = 0; IndexByte < Bytes.Num(); IndexByte++)
+					{
+						InOutChannelToValueMap.Add(AttributeStartingChannel + IndexByte, Bytes[IndexByte]);
+					}
+				}
+			}
+		}
+	}
+}
 
 const FVector2D UDMXPixelMappingFixtureGroupItemComponent::MixPixelSize = FVector2D(1.f);
 
@@ -137,22 +176,6 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeChainProperty(FPro
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
 	{
 		Brush.TintColor = EditorColor;
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeR))
-	{
-		ByteOffsetR.Reset();
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeG))
-	{
-		ByteOffsetG.Reset();
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeB))
-	{
-		ByteOffsetB.Reset();
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, MonochromeIntensity))
-	{
-		ByteOffsetM.Reset();
 	}
 	
 	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
@@ -325,79 +348,51 @@ void UDMXPixelMappingFixtureGroupItemComponent::SendDMX()
 {
 	SCOPE_CYCLE_COUNTER(STAT_DMXPixelMaping_FixtureGroupItem);
 
-	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
 	UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
-	if (!ensure(FixturePatch))
+	if (RendererComponent)
 	{
-		return;
-	}
-
-	if (!ensure(RendererComponent))
-	{
-		return;
-	}
-
-	TMap<FDMXAttributeName, int32> AttributeMap;
-
-	const TOptional<FColor> Color = RendererComponent->GetDownsampleBufferPixel(DownsamplePixelIndex);
-	if (Color.IsSet())
-	{
-		if (AttributeRExpose && !ByteOffsetR.IsSet())
+		// Get the color data from the rendered component
+		FLinearColor PixelColor;
+		if (RendererComponent->GetDownsampleBufferPixel(DownsamplePixelIndex, PixelColor))
 		{
-			ByteOffsetR = GetNumChannelsOfAttribute(FixturePatch, AttributeR.Name) - 1;
-		}
+			UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
 
-		if (AttributeGExpose && !ByteOffsetG.IsSet())
-		{
-			ByteOffsetG = GetNumChannelsOfAttribute(FixturePatch, AttributeG.Name) - 1;
-		}
-
-		if (AttributeBExpose && !ByteOffsetB.IsSet())
-		{
-			ByteOffsetB = GetNumChannelsOfAttribute(FixturePatch, AttributeB.Name) - 1;
-		}
-
-		if (bMonochromeExpose && !ByteOffsetM.IsSet())
-		{
-			ByteOffsetM = GetNumChannelsOfAttribute(FixturePatch, MonochromeIntensity.Name) - 1;
-		}
-
-		
-		if (ColorMode == EDMXColorMode::CM_RGB)
-		{
-			if (AttributeRExpose)
+			TMap<int32, uint8> ChannelToValueMap;
+			if (ColorMode == EDMXColorMode::CM_RGB)
 			{
-				AttributeMap.Add(AttributeR, int32(Color->R) << (*ByteOffsetR * 8));
+				if (AttributeRExpose)
+				{
+					ConvertNormalizedAttributeValueToChannelValues(FixturePatch, AttributeR, FMath::Clamp(PixelColor.R, 0.f, 1.f), ChannelToValueMap);
+				}
+				if (AttributeGExpose)
+				{
+					ConvertNormalizedAttributeValueToChannelValues(FixturePatch, AttributeG, FMath::Clamp(PixelColor.G, 0.f, 1.f), ChannelToValueMap);
+				}
+				if (AttributeBExpose)
+				{
+					ConvertNormalizedAttributeValueToChannelValues(FixturePatch, AttributeB, FMath::Clamp(PixelColor.B, 0.f, 1.f), ChannelToValueMap);
+				}
+			}
+			else if (ColorMode == EDMXColorMode::CM_Monochrome)
+			{
+				if (bMonochromeExpose)
+				{
+					// https://www.w3.org/TR/AERT/#color-contrast
+					const float Intensity = 0.299f * PixelColor.R + 0.587f * PixelColor.G + 0.114f * PixelColor.B;
+
+					ConvertNormalizedAttributeValueToChannelValues(FixturePatch, MonochromeIntensity, FMath::Clamp(Intensity, 0.f, 1.f), ChannelToValueMap);
+				}
 			}
 
-			if (AttributeGExpose)
+			if (UDMXLibrary* Library = FixturePatch->GetParentLibrary())
 			{
-				AttributeMap.Add(AttributeG, int32(Color->G) << (*ByteOffsetG * 8));
-			}
-
-			if (AttributeBExpose)
-			{
-				AttributeMap.Add(AttributeB, int32(Color->B) << (*ByteOffsetB * 8));
-			}
-		}
-		else if (ColorMode == EDMXColorMode::CM_Monochrome)
-		{
-			if (bMonochromeExpose)
-			{					
-				// https://www.w3.org/TR/AERT/#color-contrast
-				const int32 Intensity = int32(0.299 * Color->R + 0.587 * Color->G + 0.114 * Color->B) << (*ByteOffsetM * 8);
-				AttributeMap.Add(MonochromeIntensity, Intensity);
+				for (const FDMXOutputPortSharedRef& OutputPort : Library->GetOutputPorts())
+				{
+					OutputPort->SendDMX(FixturePatch->UniverseID, ChannelToValueMap);
+				}
 			}
 		}
 	}
-
-	// Add offset functions
-	for (const FDMXPixelMappingExtraAttribute& ExtraAttribute : ExtraAttributes)
-	{
-		AttributeMap.Add(ExtraAttribute.Attribute, ExtraAttribute.Value);
-	}
-
-	FixturePatch->SendDMX(AttributeMap);
 }
 
 void UDMXPixelMappingFixtureGroupItemComponent::QueueDownsample()

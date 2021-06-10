@@ -665,7 +665,7 @@ namespace UsdToUnrealImpl
 
 namespace UnrealToUsdImpl
 {
-	void ConvertSkeletalMeshLOD( const FSkeletalMeshLODModel& LODModel, pxr::UsdGeomMesh& UsdLODPrimGeomMesh, bool bHasVertexColors, pxr::VtArray< std::string >& MaterialAssignments, const TArray<int32>& LODMaterialMap, const pxr::UsdTimeCode TimeCode, pxr::UsdPrim MaterialPrim )
+	void ConvertSkeletalMeshLOD( USkeletalMesh* SkeletalMesh, const FSkeletalMeshLODModel& LODModel, pxr::UsdGeomMesh& UsdLODPrimGeomMesh, bool bHasVertexColors, pxr::VtArray< std::string >& MaterialAssignments, const TArray<int32>& LODMaterialMap, const pxr::UsdTimeCode TimeCode, pxr::UsdPrim MaterialPrim )
 	{
 		FScopedUsdAllocs UsdAllocs;
 
@@ -794,6 +794,8 @@ namespace UnrealToUsdImpl
 					pxr::VtArray< float > JointWeights;
 					JointWeights.reserve( VertexCount * NumInfluencesPerVertex );
 
+					USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
+
 					const int32 SectionCount = LODModel.Sections.Num();
 					for ( const FSkelMeshSection& Section : LODModel.Sections )
 					{
@@ -801,7 +803,16 @@ namespace UnrealToUsdImpl
 						{
 							for ( int32 InfluenceIndex = 0; InfluenceIndex < NumInfluencesPerVertex; ++InfluenceIndex )
 							{
-								JointIndices.push_back( Section.BoneMap[ Vertex.InfluenceBones [InfluenceIndex ] ] );
+								int32 BoneIndex = Section.BoneMap[ Vertex.InfluenceBones[ InfluenceIndex ] ];
+
+								// Remap to whatever skeleton we'll export with this skeletal mesh, because if the skeleton has e.g. more bones
+								// than this mesh's RefSkeleton, then these indices will be different
+								if ( Skeleton )
+								{
+									BoneIndex = Skeleton->GetSkeletonBoneIndexFromMeshBoneIndex( SkeletalMesh, BoneIndex );
+								}
+
+								JointIndices.push_back( BoneIndex );
 								JointWeights.push_back( Vertex.InfluenceWeights[ InfluenceIndex ] / 255.0f );
 							}
 						}
@@ -2333,7 +2344,7 @@ bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkelet
 	return true;
 }
 
-bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
+bool UnrealToUsd::ConvertSkeletalMesh( USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
 {
 	pxr::UsdSkelRoot SkelRoot{ SkelRootPrim };
 	if ( !SkeletalMesh || !SkeletalMesh->GetSkeleton() || !SkelRoot )
@@ -2456,7 +2467,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			LODMaterialMap = LODInfo->LODMaterialMap;
 		}
 
-		UnrealToUsdImpl::ConvertSkeletalMeshLOD( LODModel, UsdLODPrimGeomMesh, SkeletalMesh->GetHasVertexColors(), MaterialAssignments, LODMaterialMap, TimeCode, MaterialPrim );
+		UnrealToUsdImpl::ConvertSkeletalMeshLOD( SkeletalMesh, LODModel, UsdLODPrimGeomMesh, SkeletalMesh->GetHasVertexColors(), MaterialAssignments, LODMaterialMap, TimeCode, MaterialPrim );
 
 		// Relationships can't target prims inside variants, so if we have BlendShapes to export we have to disable the edit target
 		// so that the blend shapes end up outside the variants and the Meshes can have their blendShapeTargets relationships pointing at them

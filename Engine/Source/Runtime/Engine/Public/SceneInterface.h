@@ -310,6 +310,11 @@ public:
 	virtual void ResetPhysicsField() = 0;
 
 	/**
+	 * Set the shader print/debug cvars to be able to show the fields
+	 */
+	virtual void ShowPhysicsField() = 0;
+
+	/**
 	 * Reset the physics field scene proxy
 	 */
 	virtual void UpdatePhysicsField(FRDGBuilder& GraphBuilder, FViewInfo& View) = 0;

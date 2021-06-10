@@ -47,8 +47,6 @@
 #include "NiagaraNodeSelect.h"
 #include "NiagaraScriptVariable.h"
 
-#include "Algo/RemoveIf.h"
-
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - Translate"), STAT_NiagaraEditor_HlslTranslator_Translate, STATGROUP_NiagaraEditor);
@@ -983,111 +981,6 @@ bool FHlslNiagaraTranslator::IsVariableInUniformBuffer(const FNiagaraVariable& V
 	return true;
 }
 
-void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InCompileOptions, TArray<FNiagaraVariable>& Attributes)
-{
-	if (!UNiagaraScript::IsParticleScript(InCompileOptions.TargetUsage))
-	{
-		return;
-	}
-
-	if (InCompileOptions.AdditionalDefines.Contains(TEXT("TrimAttributes")))
-	{
-		const bool bRequiresPersistentIDs = InCompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
-
-		// we want to use the ParamMapHistories of both the particle update and spawn scripts because they need to
-		// agree to define a unified attribute set
-		TArray<const FNiagaraParameterMapHistory*, TInlineAllocator<2>> LocalParamHistories;
-		for (const FNiagaraParameterMapHistory& History : OtherOutputParamMapHistories)
-		{
-			if (UNiagaraScript::IsParticleScript(History.OriginatingScriptUsage))
-			{
-				LocalParamHistories.Add(&History);
-			}
-		}
-
-		// go through the ParamMapHistories and collect any CustomHlsl nodes so that we can give a best effort to
-		// find references to our variable.  If a reference is found we'll assume that we can't trim the attribute
-		TArray<const UNiagaraNodeCustomHlsl*, TInlineAllocator<8>> CustomHlslNodes;
-		for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
-		{
-			for (const UEdGraphPin* Pin : ParamMap->MapPinHistory)
-			{
-				if (const UNiagaraNodeCustomHlsl* CustomHlslNode = Cast<const UNiagaraNodeCustomHlsl>(Pin->GetOwningNode()))
-				{
-					CustomHlslNodes.AddUnique(CustomHlslNode);
-				}
-			}
-		}
-
-		// check through the AdditionalDefines to see if any variables have been explicitly preserved
-		TArray<FString> ExplicitPreservedAttributes;
-
-		for (const FString& AdditionalDefine : InCompileOptions.AdditionalDefines)
-		{
-			const FString PreserveTag = TEXT("PreserveAttribute=");
-			if (AdditionalDefine.StartsWith(PreserveTag))
-			{
-				ExplicitPreservedAttributes.AddUnique(AdditionalDefine.RightChop(PreserveTag.Len()));
-			}
-		}
-
-		Attributes.SetNum(Algo::StableRemoveIf(Attributes, [=](const FNiagaraVariable& Var)
-		{
-			// preserve attributes which have a record of being read
-			for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
-			{
-				const int32 VarIdx = ParamMap->FindVariable(Var.GetName(), Var.GetType());
-				if (VarIdx != INDEX_NONE)
-				{
-					check(ParamMap->PerVariableReadHistory.IsValidIndex(VarIdx));
-					if (ParamMap->PerVariableReadHistory[VarIdx].Num())
-					{
-						return false;
-					}
-				}
-			}
-
-			// or are required by the renderer
-			// Commenting this out for now as we explicitly add these to the preserve list
-			/*if (CompileData->RequiredRendererVariables.Contains(Var))
-			{
-				return false;
-			}*/
-
-			// or are special?
-			if (Var == SYS_PARAM_PARTICLES_UNIQUE_ID)
-			{
-				return false;
-			}
-
-			if (bRequiresPersistentIDs && Var == SYS_PARAM_PARTICLES_ID)
-			{
-				return false;
-			}
-
-			const FString VariableName = Var.GetName().ToString();
-			for (const FString& PreservedName : ExplicitPreservedAttributes)
-			{
-				if (!VariableName.Compare(PreservedName, ESearchCase::IgnoreCase))
-				{
-					return false;
-				}
-			}
-
-			for (const UNiagaraNodeCustomHlsl* CustomHlslNode : CustomHlslNodes)
-			{
-				if (CustomHlslNode->ReferencesVariable(Var))
-				{
-					return false;
-				}
-			}
-
-			//UE_LOG(LogNiagaraEditor, Warning, TEXT("Trimming variable %s"), *Var.GetName().ToString())
-			return true;
-		}));
-	}
-}
-
 template<typename T>
 void FHlslNiagaraTranslator::BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode)
 {
@@ -1356,7 +1249,11 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 						}
 
 						// Is this an output?
-						const bool bIsOutput = FoundHistory.PerVariableWriteHistory[iVar].ContainsByPredicate([](const UEdGraphPin* InPin) -> bool { return Cast<UNiagaraNodeParameterMapSet>(InPin->GetOwningNode()) != nullptr; });
+						const bool bIsOutput = FoundHistory.PerVariableWriteHistory[iVar].ContainsByPredicate([](const FModuleScopedPin& InPin) -> bool
+						{
+							return Cast<UNiagaraNodeParameterMapSet>(InPin.Pin->GetOwningNode()) != nullptr;
+						});
+
 						if (!bIsOutput)
 						{
 							continue;
@@ -1502,20 +1399,20 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					{
 						//TODO: Setup alias for current level to decouple from "Particles". Would we ever want emitter or system persistent IDs?
 						FNiagaraVariable Var = FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particles.ID"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
+						FoundHistory.AddVariable(Var, Var, NAME_None, nullptr);
 					}
 					{
 						// NOTE(mv): This will explicitly expose Particles.UniqueID to the HLSL code regardless of whether it is exposed in a script or not. 
 						//           This is necessary as the script needs to know about it even when no scripts reference it. 
 						FNiagaraVariable Var = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Particles.UniqueID"));
-						FoundHistory.AddVariable(Var, Var, nullptr);
+						FoundHistory.AddVariable(Var, Var, NAME_None, nullptr);
 					}
 
 					if (UsesInterpolation)
 					{
 						for (const FNiagaraVariable& Var : InterpSpawnVariables)
 						{
-							FoundHistory.AddVariable(Var, Var, nullptr);
+							FoundHistory.AddVariable(Var, Var, NAME_None, nullptr);
 						}
 					}
 

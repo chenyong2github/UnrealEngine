@@ -66,18 +66,17 @@ namespace
 
 			// DMX Port usage statistics
 			{
-
 				int32 CountArtNetPorts = 0;
 				int32 CountSACNPorts = 0;
 				int32 CountOtherPorts = 0;
 				const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 				for (const FDMXInputPortConfig& Config : ProtocolSettings->InputPortConfigs)
 				{
-					if (Config.ProtocolName == "Art-Net")
+					if (Config.GetProtocolName() == "Art-Net")
 					{
 						CountArtNetPorts++;
 					}
-					else if (Config.ProtocolName == "sACN")
+					else if (Config.GetProtocolName() == "sACN")
 					{
 						CountSACNPorts++;
 					}
@@ -89,11 +88,11 @@ namespace
 
 				for (const FDMXOutputPortConfig& Config : ProtocolSettings->OutputPortConfigs)
 				{
-					if (Config.ProtocolName == "Art-Net")
+					if (Config.GetProtocolName() == "Art-Net")
 					{
 						CountArtNetPorts++;
 					}
-					else if (Config.ProtocolName == "sACN")
+					else if (Config.GetProtocolName() == "sACN")
 					{
 						CountSACNPorts++;
 					}
@@ -764,20 +763,10 @@ void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AssetRegistry.OnFilesLoaded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles);
 	AssetRegistry.OnAssetAdded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryAddedAsset);
 	AssetRegistry.OnAssetRemoved().AddUObject(this, &UDMXSubsystem::OnAssetRegistryRemovedAsset);
-
-	// Register delegates
-	TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
-	for (const FName& ProtocolName : ProtocolNames)
-	{
-		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
-		check(Protocol.IsValid());
-	}
 }
 
 void UDMXSubsystem::Deinitialize()
-{
-
-}
+{}
 
 void UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles()
 {

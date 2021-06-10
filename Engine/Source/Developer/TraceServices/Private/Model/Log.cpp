@@ -21,7 +21,7 @@ FLogProvider::FLogProvider(IAnalysisSession& InSession)
 		AddColumn(&FLogMessageInternal::Time, TEXT("Time")).
 		AddColumn<const TCHAR*>([](const FLogMessageInternal& Message)
 			{
-				return FOutputDeviceHelper::VerbosityToString(Message.Spec->Verbosity);
+				return ToString(Message.Spec->Verbosity);
 			},
 			TEXT("Verbosity")).
 		AddColumn<const TCHAR*>([](const FLogMessageInternal& Message)

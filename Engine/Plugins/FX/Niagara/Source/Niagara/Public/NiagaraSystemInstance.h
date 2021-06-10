@@ -350,7 +350,8 @@ public:
 	FNiagaraDataSet* GetEventDataSet(FName EmitterName, FName EventName) const;
 	void ClearEventDataSets();
 
-	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
+	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance, bool bOverride);
+	FORCEINLINE void ClearLODDistance();
 
 	const FString& GetCrashReporterTag()const;
 
@@ -511,6 +512,7 @@ private:
 	uint32 bAlreadyBound : 1;
 
 	uint32 bLODDistanceIsValid : 1;
+	uint32 bLODDistanceIsOverridden : 1;
 
 	/** True if the system instance is pooled. Prevents unbinding of parameters on completing the system */
 	uint32 bPooled : 1;
@@ -596,9 +598,18 @@ public:
 	FInstanceParameters GatheredInstanceParameters;
 };
 
-FORCEINLINE void FNiagaraSystemInstance::SetLODDistance(float InLODDistance, float InMaxLODDistance)
+FORCEINLINE void FNiagaraSystemInstance::SetLODDistance(float InLODDistance, float InMaxLODDistance, bool bOverride)
 {
+	bLODDistanceIsOverridden = bOverride;
 	bLODDistanceIsValid = true;
 	LODDistance = InLODDistance; 
 	MaxLODDistance = InMaxLODDistance;
+}
+
+FORCEINLINE void FNiagaraSystemInstance::ClearLODDistance()
+{
+	bLODDistanceIsOverridden = false;
+	bLODDistanceIsValid = false;
+	LODDistance = 0.0f;
+	MaxLODDistance = 1.0f;
 }

@@ -94,6 +94,9 @@ public:
 	virtual FSlateShaderResource* GetViewportRenderTargetTexture() const override;
 	virtual bool RequiresVsync() const override;
 
+	/** Destroy the texture on the next tick */
+	void DestroyTexture_Latent();
+
 private:
 
 	/** Destroy the texture */
@@ -131,6 +134,9 @@ private:
 
 	/** Fade curve to display while the thumbnail is redrawing. */
 	FCurveSequence FadeInCurve;
+
+	/** This thumbnail has been scheduled to be destroyed. */
+	bool bHasLatentDestroy;
 };
 
 /** Client interface for thumbanils that render the current world from a viewport */

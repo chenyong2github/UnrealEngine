@@ -27,30 +27,41 @@ extern int32 GuardedMain( const TCHAR* CmdLine );
 extern void LaunchStaticShutdownAfterError();
 static int32 GGuardedMainErrorLevel = 0;
 
-/**
- * Game-specific crash reporter
- */
-void EngineCrashHandler(const FGenericCrashContext& GenericContext)
+void LogCrashCallstack(const FMacCrashContext& Context)
 {
-	const FMacCrashContext& Context = static_cast< const FMacCrashContext& >( GenericContext );
-	
-	Context.ReportCrash();
-	if (GLog)
-	{
-		GLog->SetCurrentThreadAsMasterThread();
-		GLog->Flush();
-	}
-	if (GWarn)
-	{
-		GWarn->Flush();
-	}
-	if (GError)
-	{
-		GError->Flush();
-		GError->HandleError();
-	}
+    Context.ReportCrash();
+    if (GLog)
+    {
+        GLog->SetCurrentThreadAsMasterThread();
+        GLog->Flush();
+    }
+    if (GWarn)
+    {
+        GWarn->Flush();
+    }
+    if (GError)
+    {
+        GError->Flush();
+        GError->HandleError();
+    }
+}
 
-	return Context.GenerateCrashInfoAndLaunchReporter();
+/**
+ * Minimal Crash Handler that logs the callstack
+ */
+void EngineMinimalCrashHandler(const FGenericCrashContext& GenericContext)
+{
+    LogCrashCallstack(static_cast<const FMacCrashContext&>( GenericContext ));
+}
+
+/**
+ * Full crash handler that logs the callstack and calls a project-overridable crash handler client
+ */
+void EngineFullCrashHandler(const FGenericCrashContext& GenericContext)
+{
+    const FMacCrashContext& Context = static_cast<const FMacCrashContext&>( GenericContext );
+    LogCrashCallstack(Context);
+    Context.GenerateCrashInfoAndLaunchReporter();
 }
 
 static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const NSOperatingSystemVersion& VersionB)
@@ -219,7 +230,7 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 #if UE_BUILD_DEBUG
 	if( true && !GAlwaysReportCrash )
 #else
-	if( bIsBuildMachine || ( FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash ) )
+	if( FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash )
 #endif
 	{
 		// Don't use exception handling when a debugger is attached to exactly trap the crash. This does NOT check
@@ -228,10 +239,7 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 	}
 	else
 	{
-		if (!bIsBuildMachine)
-		{
-			FPlatformMisc::SetCrashHandler(EngineCrashHandler);
-		}
+		FPlatformMisc::SetCrashHandler(bIsBuildMachine ? EngineMinimalCrashHandler : EngineFullCrashHandler);
 		GIsGuarded = 1;
 		// Run the guarded code.
 		GGuardedMainErrorLevel = GuardedMain( *GSavedCommandLine );

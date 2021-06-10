@@ -102,7 +102,7 @@ namespace Gauntlet.SelfTest
 			{
 				UnrealLogParser Parser = new UnrealLogParser(GetFileContents("OrionLogWithCheck" + Platform + ".txt"));
 
-				UnrealLogParser.CallstackMessage FatalError = Parser.GetFatalError();
+				UnrealLog.CallstackMessage FatalError = Parser.GetFatalError();
 
 				if (FatalError == null || FatalError.Callstack.Length < 8 || string.IsNullOrEmpty(FatalError.Message))
 				{
@@ -126,7 +126,7 @@ namespace Gauntlet.SelfTest
 			{
 				UnrealLogParser Parser = new UnrealLogParser(GetFileContents(Platform + "FatalError" + ".txt"));
 
-				UnrealLogParser.CallstackMessage FatalError = Parser.GetFatalError();
+				UnrealLog.CallstackMessage FatalError = Parser.GetFatalError();
 
 				if (FatalError == null || FatalError.Callstack.Length == 0 || string.IsNullOrEmpty(FatalError.Message))
 				{
@@ -147,7 +147,7 @@ namespace Gauntlet.SelfTest
 			{
 				UnrealLogParser Parser = new UnrealLogParser(GetFileContents("OrionLogWithException" + Platform + ".txt"));
 
-				UnrealLogParser.CallstackMessage FatalError = Parser.GetFatalError();
+				UnrealLog.CallstackMessage FatalError = Parser.GetFatalError();
 
 				if (FatalError == null || FatalError.Callstack.Length == 0 || string.IsNullOrEmpty(FatalError.Message))
 				{

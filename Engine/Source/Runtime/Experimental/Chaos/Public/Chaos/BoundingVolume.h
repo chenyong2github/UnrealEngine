@@ -275,16 +275,16 @@ public:
 	}
 
 	template <typename SQVisitor>
-	bool RaycastFast(const TVector<T,d>& Start, FQueryFastData& CurData, SQVisitor& Visitor) const
+	bool RaycastFast(const TVector<T,d>& Start, FQueryFastData& CurData, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
 	{
-		return RaycastImp(Start, CurData, Visitor);
+		return RaycastImp(Start, CurData, Visitor, Dir, InvDir, bParallel);
 	}
 
 	template <typename SQVisitor, bool bPruneDuplicates = true>
 	void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, SQVisitor& Visitor) const
 	{
 		FQueryFastData CurData(Dir, Length); 
-		RaycastImp<SQVisitor, bPruneDuplicates>(Start, CurData, Visitor);
+		RaycastImp<SQVisitor, bPruneDuplicates>(Start, CurData, Visitor, CurData.Dir, CurData.InvDir, CurData.bParallel);
 	}
 
 	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -294,16 +294,16 @@ public:
 	}
 
 	template <typename SQVisitor>
-	bool SweepFast(const TVector<T,d>& Start, FQueryFastData& CurData, const TVector<T,d>& QueryHalfExtents, SQVisitor& Visitor) const
+	bool SweepFast(const TVector<T,d>& Start, FQueryFastData& CurData, const TVector<T,d>& QueryHalfExtents, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
 	{
-		return SweepImp(Start, CurData, QueryHalfExtents, Visitor);
+		return SweepImp(Start, CurData, QueryHalfExtents, Visitor, Dir, InvDir, bParallel);
 	}
 
 	template <typename SQVisitor, bool bPruneDuplicates = true>
 	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor) const
 	{
 		FQueryFastData CurData(Dir, Length);
-		SweepImp<SQVisitor, bPruneDuplicates>(Start, CurData, QueryHalfExtents, Visitor);
+		SweepImp<SQVisitor, bPruneDuplicates>(Start, CurData, QueryHalfExtents, Visitor, CurData.Dir, CurData.InvDir, CurData.bParallel);
 	}
 
 	virtual void Overlap(const TAABB<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
@@ -415,7 +415,7 @@ private:
 	}
 
 	template <typename SQVisitor, bool bPruneDuplicates = true>
-	bool RaycastImp(const TVector<T, d>& Start, FQueryFastData& CurData, SQVisitor& Visitor) const
+	bool RaycastImp(const TVector<T, d>& Start, FQueryFastData& CurData, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
 	{
 		TVector<T, d> TmpPosition;
 		T TOI;
@@ -430,7 +430,7 @@ private:
 
 			const auto& InstanceBounds = Elem.Bounds;
 			if (InstanceBounds.RaycastFast(Start,
-				CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+				Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);
@@ -450,8 +450,8 @@ private:
 			}
 
 			const auto& InstanceBounds = Elem.Bounds;
-			if (InstanceBounds.RaycastFast(Start, CurData.Dir,
-				CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+			if (InstanceBounds.RaycastFast(Start, Dir,
+				InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);
@@ -470,8 +470,8 @@ private:
 		TAABB<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
 		TVector<T, d> NextStart;
 		TVector<int32, d> CellIdx;
-		bool bCellsLeft = MElements.Num() && GlobalBounds.RaycastFast(Start, CurData.Dir,
-			CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, NextStart);
+		bool bCellsLeft = MElements.Num() && GlobalBounds.RaycastFast(Start, Dir,
+			InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, NextStart);
 		if (bCellsLeft)
 		{
 			CellIdx = MGrid.Cell(NextStart);
@@ -514,7 +514,7 @@ private:
 					}
 					const auto& InstanceBounds = Elem.Bounds;
 					if (InstanceBounds.RaycastFast(Start,
-						CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+							Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
 					{
 						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 						const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);
@@ -539,11 +539,11 @@ private:
 				bool bTerminate = true;
 				for (int Axis = 0; Axis < d; ++Axis)
 				{
-					if (!CurData.bParallel[Axis])
+					if (!bParallel[Axis])
 					{
-						const T CrossPoint = CurData.Dir[Axis] > 0 ? CellCenter[Axis] + Dx[Axis] / 2 : CellCenter[Axis] - Dx[Axis] / 2;
+						const T CrossPoint = Dir[Axis] > 0 ? CellCenter[Axis] + Dx[Axis] / 2 : CellCenter[Axis] - Dx[Axis] / 2;
 						const T Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
-						const T Time = Distance * CurData.InvDir[Axis];
+						const T Time = Distance * InvDir[Axis];
 						Times[Axis] = Time;
 						if (Time < BestTime)
 						{
@@ -565,14 +565,14 @@ private:
 				for (int Axis = 0; Axis < d; ++Axis)
 				{
 					constexpr T Epsilon = 1e-2f;	//if raycast is slightly off we still count it as hitting the cell surface
-					CellIdx[Axis] += (Times[Axis] <= BestTime + Epsilon) ? (CurData.Dir[Axis] > 0 ? 1 : -1) : 0;
+					CellIdx[Axis] += (Times[Axis] <= BestTime + Epsilon) ? (Dir[Axis] > 0 ? 1 : -1) : 0;
 					if (CellIdx[Axis] < 0 || CellIdx[Axis] >= MGrid.Counts()[Axis])
 					{
 						return true;
 					}
 				}
 
-				NextStart = NextStart + CurData.Dir * BestTime;
+				NextStart = NextStart + Dir * BestTime;
 			} while (true);
 		}
 
@@ -580,7 +580,7 @@ private:
 	}
 
 	template <typename SQVisitor, bool bPruneDuplicates = true>
-	bool SweepImp(const TVector<T, d>& Start, FQueryFastData& CurData, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor) const
+	bool SweepImp(const TVector<T, d>& Start, FQueryFastData& CurData, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
 	{
 		T TOI = 0;
 		const void* QueryData = Visitor.GetQueryData();
@@ -595,7 +595,7 @@ private:
 			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
 			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
 			TVector<T, d> TmpPosition;
-			if (TAABB<T, d>(Min,Max).RaycastFast(Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+			if (TAABB<T, d>(Min,Max).RaycastFast(Start, Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				const bool bContinue = Visitor.VisitSweep(VisitData, CurData);
@@ -617,7 +617,7 @@ private:
 			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
 			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
 			TVector<T, d> TmpPosition;
-			if (TAABB<T, d>(Min, Max).RaycastFast(Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+			if (TAABB<T, d>(Min, Max).RaycastFast(Start, Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				const bool bContinue = Visitor.VisitSweep(VisitData, CurData);
@@ -647,7 +647,7 @@ private:
 
 		if (StartMinIndex == StartMaxIndex)
 		{
-			const TVector<T, d> End = Start + CurData.CurrentLength * CurData.Dir;
+			const TVector<T, d> End = Start + CurData.CurrentLength * Dir;
 			const TVector<int32, d> EndMinIndex = MGrid.ClampIndex(MGrid.Cell(End  - QueryHalfExtents));
 			const TVector<int32, d> EndMaxIndex = MGrid.ClampIndex(MGrid.Cell(End + QueryHalfExtents));
 			if (StartMinIndex == EndMinIndex && StartMinIndex == EndMaxIndex)
@@ -660,7 +660,7 @@ private:
 					const TAABB<T, d>& InstanceBounds = Elem.Bounds;
 					const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
 					const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
-					if (TAABB<T, d>(Min, Max).RaycastFast(Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPoint))
+					if (TAABB<T, d>(Min, Max).RaycastFast(Start, Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPoint))
 					{
 						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 						const bool bContinue = Visitor.VisitSweep(VisitData, CurData);
@@ -693,7 +693,7 @@ private:
 		}
 
 		TVector<T, d> HitPoint;
-		const bool bInitialHit = GlobalBounds.RaycastFast(Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint);
+		const bool bInitialHit = GlobalBounds.RaycastFast(Start, Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint);
 		if (bInitialHit)	//NOTE: it's possible to have a non empty IdxsQueue and bInitialHit be false. This is because the IdxsQueue works off clamped cells which we can skip
 		{
 			//Flood fill from inflated cell so that we get all cells along the ray
@@ -756,7 +756,7 @@ private:
 						const TVector<T, d> NeighborCenter = MGrid.Location(NeighborIdx);
 						const TVector<T, d> Min = NeighborCenter - QueryHalfExtents - HalfDx;
 						const TVector<T, d> Max = NeighborCenter + QueryHalfExtents + HalfDx;
-						if (TAABB<T, d>(Min, Max).RaycastFast(Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint))
+						if (TAABB<T, d>(Min, Max).RaycastFast(Start, Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint))
 						{
 							IdxsQueue.Add({ NeighborIdx, TOI });	//should we sort by TOI?
 						}
@@ -798,7 +798,7 @@ private:
 					const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
 					const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
 					if (TAABB<T, d>(Min,Max).RaycastFast(Start,
-						CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint))
+							Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint))
 					{
 						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 						const bool bContinue = Visitor.VisitSweep(VisitData, CurData);

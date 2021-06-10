@@ -338,6 +338,31 @@ inline CHAOS_API const TArray<FName>& GetFieldPhysicsNames()
 	return FieldPhysicsNames;
 }
 
+inline CHAOS_API const TArray<EFieldPhysicsType>& GetFieldPhysicsTypes()
+{
+	static const TArray<EFieldPhysicsType> FieldPhysicsTypes ={ EFieldPhysicsType::Field_None, 
+																EFieldPhysicsType::Field_DynamicState, 
+																EFieldPhysicsType::Field_LinearForce, 
+																EFieldPhysicsType::Field_ExternalClusterStrain, 
+																EFieldPhysicsType::Field_Kill, 
+																EFieldPhysicsType::Field_LinearVelocity, 
+																EFieldPhysicsType::Field_AngularVelociy,
+																EFieldPhysicsType::Field_AngularTorque, 
+																EFieldPhysicsType::Field_InternalClusterStrain, 
+																EFieldPhysicsType::Field_DisableThreshold, 
+																EFieldPhysicsType::Field_SleepingThreshold, 
+																EFieldPhysicsType::Field_PositionStatic,
+																EFieldPhysicsType::Field_PositionAnimated, 
+																EFieldPhysicsType::Field_PositionTarget, 
+																EFieldPhysicsType::Field_DynamicConstraint, 
+																EFieldPhysicsType::Field_CollisionGroup,
+																EFieldPhysicsType::Field_ActivateDisabled, 
+																EFieldPhysicsType::Field_InitialLinearVelocity, 
+																EFieldPhysicsType::Field_InitialAngularVelocity };
+
+	return FieldPhysicsTypes;
+}
+
 inline CHAOS_API const FName& GetFieldPhysicsName(EFieldPhysicsType PhysicsType)
 {
 	const TArray<FName>& FieldPhysicsNames = GetFieldPhysicsNames();

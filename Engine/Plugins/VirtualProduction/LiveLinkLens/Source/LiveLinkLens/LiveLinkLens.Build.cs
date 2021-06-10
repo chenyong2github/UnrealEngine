@@ -24,7 +24,10 @@ public class LiveLinkLens : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"Engine"
+				"Engine",
+				"LiveLinkMovieScene",
+				"MovieScene",
+				"MovieSceneTracks",
 			}
 		);
 	}

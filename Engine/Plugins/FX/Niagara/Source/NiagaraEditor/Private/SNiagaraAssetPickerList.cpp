@@ -22,67 +22,6 @@ FText SNiagaraAssetPickerList::ProjectCategory = LOCTEXT("ProjectCategory", "Pro
 FText SNiagaraAssetPickerList::LibraryCategory = LOCTEXT("Library", "Library");
 FText SNiagaraAssetPickerList::NonLibraryCategory = LOCTEXT("NotInLibrary", "Not in Library");
 FText SNiagaraAssetPickerList::UncategorizedCategory = LOCTEXT("Uncategorized", "Uncategorized");
-ENiagaraScriptTemplateSpecification SNiagaraAssetPickerList::CachedActiveTab = ENiagaraScriptTemplateSpecification::Template;
-
-bool FNiagaraAssetPickerTabOptions::IsTabAvailable(ENiagaraScriptTemplateSpecification AssetTab) const
-{
-	if(TabData.Contains(AssetTab))
-	{
-		return TabData[AssetTab];
-	}
-
-	return false;
-}
-
-int32 FNiagaraAssetPickerTabOptions::GetNumAvailableTabs() const
-{
-	TArray<bool> StateArray;
-	TabData.GenerateValueArray(StateArray);
-
-	int32 NumAvailableTabs = 0;
-	for(const bool& State : StateArray)
-	{
-		if(State)
-		{
-			NumAvailableTabs++;
-		}
-	}
-	return NumAvailableTabs;
-}
-
-bool FNiagaraAssetPickerTabOptions::GetOnlyAvailableTab(ENiagaraScriptTemplateSpecification& OutTab) const
-{
-	int32 ActiveCount = 0;
-	ENiagaraScriptTemplateSpecification Tab = ENiagaraScriptTemplateSpecification::None;
-	for(const auto& TabEntry : TabData)
-	{
-		if(TabEntry.Value == true)
-		{
-			ActiveCount++;
-			Tab = TabEntry.Key;
-		}
-	}
-
-	if(ActiveCount == 1)
-	{
-		OutTab = Tab;
-		return true;
-	}
-
-	return false;
-}
-
-bool FNiagaraAssetPickerTabOptions::GetOnlyShowTemplates() const
-{
-	ENiagaraScriptTemplateSpecification Tab;
-	bool bFound = GetOnlyAvailableTab(Tab);
-	return bFound && Tab == ENiagaraScriptTemplateSpecification::Template;
-}
-
-const TMap<ENiagaraScriptTemplateSpecification, bool>& FNiagaraAssetPickerTabOptions::GetTabData() const
-{
-	return TabData;
-}
 
 void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetClass)
 {
@@ -94,41 +33,32 @@ void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetC
 	CustomFilter = InArgs._OnDoesAssetPassCustomFilter;
 	bLibraryOnly = InArgs._bLibraryOnly;
 	
-	SAssignNew(SourceFilterBox, SNiagaraSourceFilterBox)
-    .OnFiltersChanged(this, &SNiagaraAssetPickerList::TriggerRefresh);
-	
-	InitializeTemplateTabs();
-
 	TArray<FAssetData> EmittersToShow = GetAssetDataForSelector(AssetClass);
+
+	SNiagaraFilterBox::FFilterOptions FilterOptions;
+	FilterOptions.SetAddTemplateFilter(true);
+	FilterOptions.SetTabOptions(TabOptions);
+
+	FilterBox = SNew(SNiagaraFilterBox, FilterOptions)
+	.bLibraryOnly(this, &SNiagaraAssetPickerList::GetLibraryCheckBoxState)
+	.OnLibraryOnlyChanged(this, &SNiagaraAssetPickerList::LibraryCheckBoxStateChanged)
+	.OnSourceFiltersChanged(this, &SNiagaraAssetPickerList::TriggerRefresh)
+	.OnTabActivated(this, &SNiagaraAssetPickerList::TriggerRefreshFromTabs);
+	
+	if(!ViewOptions.GetAddLibraryOnlyCheckbox())
+	{
+		FilterOptions.SetAddLibraryFilter(false);
+	}
 	
 	ChildSlot
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
-		.HAlign(HAlign_Right)
 		.AutoHeight()
 		.Padding(3.f)
 		[
-			SNew(SCheckBox)
-			.OnCheckStateChanged(this, &SNiagaraAssetPickerList::LibraryCheckBoxStateChanged)
-			.IsChecked(this, &SNiagaraAssetPickerList::GetLibraryCheckBoxState)
-			.Visibility(ViewOptions.GetAddLibraryOnlyCheckbox() ? EVisibility::Visible : EVisibility::Collapsed)			
-			.HAlign(HAlign_Right)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("LibraryOnly", "Library Only"))
-			]
+			FilterBox.ToSharedRef()
 		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SourceFilterBox.ToSharedRef()
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-        [
-            TabBox.ToSharedRef()
-        ]
 		+ SVerticalBox::Slot()
 		[
 			SAssignNew(ItemSelector, SNiagaraAssetItemSelector)
@@ -174,146 +104,6 @@ void SNiagaraAssetPickerList::ExpandTree()
 TSharedRef<SWidget> SNiagaraAssetPickerList::GetSearchBox() const
 {
 	return ItemSelector->GetSearchBox();
-}
-
-void SNiagaraAssetPickerList::InitializeTemplateTabs()
-{
-	SAssignNew(TabBox, SHorizontalBox);
-
-	int32 NumTabs = TabOptions.GetNumAvailableTabs();
-	bool bActiveTabSet = false;
-
-	// we restore 
-	if(TabOptions.IsTabAvailable(CachedActiveTab))
-	{
-		ActiveTab = CachedActiveTab;
-		bUseActiveTab = true;
-		bActiveTabSet = true;
-	}
-	
-	// if we have one tab available, we want to activate it for the item filter to work
-	if(NumTabs == 1)
-	{
-		TabOptions.GetOnlyAvailableTab(ActiveTab);
-		bUseActiveTab = true;
-	}
-	// we only want to add tab widgets if we have more than one tab
-	else if(NumTabs > 1)
-	{
-		if(TabOptions.IsTabAvailable(ENiagaraScriptTemplateSpecification::Template))
-		{
-			// we set the currently active tab using the first available tab in a set order
-			if(bActiveTabSet == false)
-			{
-				ActiveTab = ENiagaraScriptTemplateSpecification::Template;
-				bUseActiveTab = true;
-				bActiveTabSet = true;
-			}
-
-			TabBox->AddSlot()
-			.Padding(5.f)
-			[
-				SNew(SBorder)
-				.ToolTipText(LOCTEXT("TemplateTabTooltip", "Templates are intended as starting points for building functional emitters of different types,\n"
-					"and are copied into a system as a unique emitter with no inheritance"))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-				[
-					SNew(SCheckBox)
-					.Style(FNiagaraEditorStyle::Get(), "GraphActionMenu.FilterCheckBox")
-					.BorderBackgroundColor(this, &SNiagaraAssetPickerList::GetBackgroundColor, ENiagaraScriptTemplateSpecification::Template)
-					.ForegroundColor(this, &SNiagaraAssetPickerList::GetTabForegroundColor, ENiagaraScriptTemplateSpecification::Template)
-					.IsChecked_Lambda([&]()
-					{
-						return ActiveTab == ENiagaraScriptTemplateSpecification::Template ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-					})
-					.OnCheckStateChanged(this, &SNiagaraAssetPickerList::OnTabActivated, ENiagaraScriptTemplateSpecification::Template)
-				   [
-				       SNew(STextBlock)
-				       .TextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("GraphActionMenu.TemplateTabTextBlock"))
-				       .Justification(ETextJustify::Center)
-				       .Text(LOCTEXT("TemplateTabLabel", "Templates"))
-				   ]
-				]
-			];
-		}
-
-		if(TabOptions.IsTabAvailable(ENiagaraScriptTemplateSpecification::None))
-		{
-			if(bActiveTabSet == false)
-			{
-				ActiveTab = ENiagaraScriptTemplateSpecification::None;
-				bUseActiveTab = true;
-				bActiveTabSet = true;
-			}
-			
-			TabBox->AddSlot()
-			.Padding(5.f)
-            [
-	            SNew(SBorder)
-	            .ToolTipText(LOCTEXT("ParentTabTooltip", "Parent Emitters assets are inherited as children and will receive changes from the parent emitter,\n"
-	            	"and are meant to serve as art directed initial behaviors which can be propagated throughout a project quickly and easily.\n"
-	            	"Over time, a library of parent emitters can be used to speed up the construction of complex effects specific to your project."))
-	            .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-				[
-		            SNew(SCheckBox)
-					.Style(FNiagaraEditorStyle::Get(), "GraphActionMenu.FilterCheckBox")
-					.BorderBackgroundColor(this, &SNiagaraAssetPickerList::GetBackgroundColor, ENiagaraScriptTemplateSpecification::None)
-					.ForegroundColor(this, &SNiagaraAssetPickerList::GetTabForegroundColor, ENiagaraScriptTemplateSpecification::None)
-					.IsChecked_Lambda([&]()
-					{
-						return ActiveTab == ENiagaraScriptTemplateSpecification::None ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-					})
-					.OnCheckStateChanged(this, &SNiagaraAssetPickerList::OnTabActivated, ENiagaraScriptTemplateSpecification::None)
-				     [
-				         SNew(STextBlock)
-				         .TextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("GraphActionMenu.TemplateTabTextBlock"))
-				         .Justification(ETextJustify::Center)
-				         .Text(LOCTEXT("ParentTabLabel", "Parents"))
-				     ]
-				]
-            ];
-		}
-
-		if(TabOptions.IsTabAvailable(ENiagaraScriptTemplateSpecification::Behavior))
-		{
-			if(bActiveTabSet == false)
-			{
-				ActiveTab = ENiagaraScriptTemplateSpecification::Behavior;
-				bUseActiveTab = true;
-				bActiveTabSet = true;
-			}
-			
-			TabBox->AddSlot()
-			.Padding(5.f)
-            [
-	            SNew(SBorder)
-	            .ToolTipText(LOCTEXT("BehaviorTabTooltip", "Behavior Examples are intended to serve as a guide to how Niagara works at a feature level.\n"
-	            	"Each example shows a simplified setup used to achieve specific outcomes and are intended as starting points, building blocks, or simply as reference.\n"
-	            	"These are copied into a system as a unique emitter with no inheritance"))
-	            .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-				[
-					SNew(SCheckBox)
-					.Style(FNiagaraEditorStyle::Get(), "GraphActionMenu.FilterCheckBox")
-					.BorderBackgroundColor(this, &SNiagaraAssetPickerList::GetBackgroundColor, ENiagaraScriptTemplateSpecification::Behavior)
-					.ForegroundColor(this, &SNiagaraAssetPickerList::GetTabForegroundColor, ENiagaraScriptTemplateSpecification::Behavior)
-					.IsChecked_Lambda([&]()
-					{
-						return ActiveTab == ENiagaraScriptTemplateSpecification::Behavior ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-					})
-				    .OnCheckStateChanged(this, &SNiagaraAssetPickerList::OnTabActivated, ENiagaraScriptTemplateSpecification::Behavior)
-				    [
-				        SNew(STextBlock)
-				        .TextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("GraphActionMenu.TemplateTabTextBlock"))
-				        .Justification(ETextJustify::Center)
-				        .Text(LOCTEXT("BehaviorTabLabel", "Behavior Examples"))
-				    ]
-				]
-            ];
-		}
-
-		// we cache the active tab if we have more than 1 tab available so we can activate it for other instances
-		CachedActiveTab = ActiveTab;
-	}	
 }
 
 TArray<FAssetData> SNiagaraAssetPickerList::GetAssetDataForSelector(UClass* AssetClass)
@@ -678,7 +468,7 @@ bool SNiagaraAssetPickerList::DoesItemPassCustomFilter(const FAssetData& Item)
 		bDoesPassFilter &= CustomFilter.Execute(Item);
 	}
 
-	bDoesPassFilter &= SourceFilterBox->IsFilterActive(FNiagaraEditorUtilities::GetScriptSource(Item).Key);
+	bDoesPassFilter &= FilterBox->IsSourceFilterActive(FNiagaraEditorUtilities::GetScriptSource(Item).Key);
 
 	if (bLibraryOnly == true)
 	{
@@ -687,23 +477,13 @@ bool SNiagaraAssetPickerList::DoesItemPassCustomFilter(const FAssetData& Item)
 		bDoesPassFilter &= bInLibrary;
 	}
 
-	if(bUseActiveTab)
+	ENiagaraScriptTemplateSpecification ActiveTab = ENiagaraScriptTemplateSpecification::None;
+	if(FilterBox->GetActiveTemplateTab(ActiveTab))
 	{
 		ENiagaraScriptTemplateSpecification TemplateSpecification;
 		FNiagaraEditorUtilities::GetTemplateSpecificationFromTag(Item, TemplateSpecification);
-		
-		if(ActiveTab == ENiagaraScriptTemplateSpecification::Template)
-		{
-			bDoesPassFilter &= TemplateSpecification == ENiagaraScriptTemplateSpecification::Template;
-		}
-		else if(ActiveTab == ENiagaraScriptTemplateSpecification::None)
-		{
-			bDoesPassFilter &= TemplateSpecification == ENiagaraScriptTemplateSpecification::None;
-		}
-		else if(ActiveTab == ENiagaraScriptTemplateSpecification::Behavior)
-		{
-			bDoesPassFilter &= TemplateSpecification == ENiagaraScriptTemplateSpecification::Behavior;
-		}
+
+		bDoesPassFilter &= TemplateSpecification == ActiveTab;
 	}
 
 	return bDoesPassFilter;
@@ -733,47 +513,22 @@ void SNiagaraAssetPickerList::TriggerRefresh(const TMap<EScriptSource, bool>& So
 	ItemSelector->ExpandTree();
 }
 
-void SNiagaraAssetPickerList::OnTabActivated(ECheckBoxState NewState, ENiagaraScriptTemplateSpecification AssetTab)
+void SNiagaraAssetPickerList::TriggerRefreshFromTabs(ENiagaraScriptTemplateSpecification Tab)
 {
-	if(ActiveTab != AssetTab)
-	{
-		ActiveTab = AssetTab;
-		CachedActiveTab = ActiveTab;
-		RefreshAll();
-		ExpandTree();
-	}
-}
-
-FSlateColor SNiagaraAssetPickerList::GetBackgroundColor(ENiagaraScriptTemplateSpecification TemplateSpecification) const
-{
-	if(ActiveTab == TemplateSpecification)
-	{
-		return FCoreStyle::Get().GetSlateColor("SelectionColor");
-	}
-
-	return FLinearColor::Transparent;
-}
-
-FSlateColor SNiagaraAssetPickerList::GetTabForegroundColor(ENiagaraScriptTemplateSpecification TemplateSpecification) const
-{
-	if(ActiveTab == TemplateSpecification)
-	{
-		return FLinearColor::Black;
-	}
-
-	return FLinearColor::White;
-}
-
-void SNiagaraAssetPickerList::LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox)
-{
-	bLibraryOnly = (InCheckbox == ECheckBoxState::Checked);
 	RefreshAll();
 	ExpandTree();
 }
 
-ECheckBoxState SNiagaraAssetPickerList::GetLibraryCheckBoxState() const
+void SNiagaraAssetPickerList::LibraryCheckBoxStateChanged(bool bInLibraryOnly)
 {
-	return bLibraryOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	bLibraryOnly = bInLibraryOnly;
+	RefreshAll();
+	ExpandTree();
+}
+
+bool SNiagaraAssetPickerList::GetLibraryCheckBoxState() const
+{
+	return bLibraryOnly;
 }
 
 #undef LOCTEXT_NAMESPACE

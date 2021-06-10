@@ -42,9 +42,9 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 				// Update the lens distortion handler with the latest frame of data from the LiveLink source
 				FLensDistortionState DistortionState;
 
-				DistortionState.DistortionInfo.Parameters = FrameData->DistortionInfo.Parameters;
-				DistortionState.DistortionInfo.FxFy = FrameData->DistortionInfo.FxFy;
-				DistortionState.PrincipalPoint = FrameData->PrincipalPoint;
+				DistortionState.DistortionInfo.Parameters = FrameData->DistortionParameters;
+				DistortionState.FocalLengthInfo.FxFy = FrameData->FxFy;
+				DistortionState.ImageCenter.PrincipalPoint = FrameData->PrincipalPoint;
 
 				//Update the distortion state based on incoming LL data.
 				LensDistortionHandler->SetDistortionState(DistortionState);
@@ -55,6 +55,9 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 				//Make sure the displacement map is up to date
 				LensDistortionHandler->ProcessCurrentDistortion();
 			}
+
+			// Track changes to the cine camera's focal length for consumers of distortion data
+			SubSystem->UpdateOriginalFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
 		}
 	}
 }

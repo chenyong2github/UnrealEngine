@@ -200,7 +200,7 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 				// also do not warn for shader platforms other than current (if the game targets more than one RHI)
 				if (FApp::CanEverRender() && ShaderPlatform == GMaxRHIShaderPlatform)
 				{
-					UE_LOG(LogShaders, Error, TEXT("Missing shader resource for hash '%s' for shader platform %d in the shader library"), *ResourceHash.ToString(), ShaderPlatform);
+					UE_LOG(LogShaders, Error, TEXT("Missing shader resource for hash '%s' for shader platform '%s' in the shader library"), *ResourceHash.ToString(), *LexToString(ShaderPlatform));
 				}
 			}
 		}

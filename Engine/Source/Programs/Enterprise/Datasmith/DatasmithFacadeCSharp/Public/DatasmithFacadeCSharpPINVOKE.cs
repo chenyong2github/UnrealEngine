@@ -215,6 +215,12 @@ class DatasmithFacadeCSharpPINVOKE {
   static protected SWIGWStringHelper swigWStringHelper = new SWIGWStringHelper();
 
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeGuid")]
+  public static extern void delete_FDatasmithFacadeGuid(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeMessageAddress")]
+  public static extern void delete_FDatasmithFacadeMessageAddress(global::System.Runtime.InteropServices.HandleRef jarg1);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeElement_SetCoordinateSystemType")]
   public static extern void FDatasmithFacadeElement_SetCoordinateSystemType(int jarg1);
 
@@ -1421,6 +1427,18 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_RemoveTexture")]
   public static extern void FDatasmithFacadeScene_RemoveTexture(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_AddLevelVariantSets")]
+  public static extern void FDatasmithFacadeScene_AddLevelVariantSets(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_GetLevelVariantSetsCount")]
+  public static extern int FDatasmithFacadeScene_GetLevelVariantSetsCount(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_GetLevelVariantSets")]
+  public static extern global::System.IntPtr FDatasmithFacadeScene_GetLevelVariantSets(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_RemoveLevelVariantSets")]
+  public static extern void FDatasmithFacadeScene_RemoveLevelVariantSets(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_AddMetaData")]
   public static extern void FDatasmithFacadeScene_AddMetaData(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
 
@@ -1461,10 +1479,16 @@ class DatasmithFacadeCSharpPINVOKE {
   public static extern void FDatasmithFacadeScene_Shutdown();
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_ExportScene__SWIG_0")]
-  public static extern bool FDatasmithFacadeScene_ExportScene__SWIG_0(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
+  public static extern bool FDatasmithFacadeScene_ExportScene__SWIG_0(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2, bool jarg3);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_ExportScene__SWIG_1")]
-  public static extern bool FDatasmithFacadeScene_ExportScene__SWIG_1(global::System.Runtime.InteropServices.HandleRef jarg1);
+  public static extern bool FDatasmithFacadeScene_ExportScene__SWIG_1(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_ExportScene__SWIG_2")]
+  public static extern bool FDatasmithFacadeScene_ExportScene__SWIG_2(global::System.Runtime.InteropServices.HandleRef jarg1, bool jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_ExportScene__SWIG_3")]
+  public static extern bool FDatasmithFacadeScene_ExportScene__SWIG_3(global::System.Runtime.InteropServices.HandleRef jarg1);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_SetLabel")]
   public static extern void FDatasmithFacadeScene_SetLabel(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
@@ -1520,6 +1544,114 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeLog")]
   public static extern void delete_FDatasmithFacadeLog(global::System.Runtime.InteropServices.HandleRef jarg1);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_GetName")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_GetName(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_GetId")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_GetId(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_IsPublic")]
+  public static extern bool FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId_IsPublic(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId")]
+  public static extern void delete_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointId(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetName")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetName(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetNumberOfDestinations")]
+  public static extern int FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetNumberOfDestinations(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetDestination")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetDestination(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetNumberOfSources")]
+  public static extern int FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetNumberOfSources(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetSource")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetSource(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetUserName")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetUserName(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetExecutableName")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetExecutableName(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetComputerName")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetComputerName(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_IsLocal")]
+  public static extern bool FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_IsLocal(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetProcessId")]
+  public static extern uint FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo_GetProcessId(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo")]
+  public static extern void delete_FDatasmithFacadeRawInfo_FDatasmithFacadeEndpointInfo(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_GetEndpointAddress")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_GetEndpointAddress(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_GetName")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_GetName(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsSource")]
+  public static extern bool FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsSource(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsOnThisEndpoint")]
+  public static extern bool FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsOnThisEndpoint(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsPublic")]
+  public static extern bool FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo_IsPublic(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo")]
+  public static extern void delete_FDatasmithFacadeRawInfo_FDatasmithFacadeDataPointInfo(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetStreamId")]
+  public static extern uint FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetStreamId(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetSource")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetSource(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetDestination")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_GetDestination(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_IsActive")]
+  public static extern bool FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo_IsActive(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo")]
+  public static extern void delete_FDatasmithFacadeRawInfo_FDatasmithFacadeStreamInfo(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_GetThisEndpointAddress")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_GetThisEndpointAddress(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_GetEndpointInfo")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_GetEndpointInfo(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_GetDataPointsInfo")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_GetDataPointsInfo(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_GetNumberOfStreamsInfo")]
+  public static extern int FDatasmithFacadeRawInfo_GetNumberOfStreamsInfo(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeRawInfo_GetStreamInfo")]
+  public static extern global::System.IntPtr FDatasmithFacadeRawInfo_GetStreamInfo(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeRawInfo")]
+  public static extern void delete_FDatasmithFacadeRawInfo(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeEndpointObserver")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeEndpointObserver();
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeEndpointObserver_RegisterOnStateChangedDelegateInternal")]
+  public static extern void FDatasmithFacadeEndpointObserver_RegisterOnStateChangedDelegateInternal(global::System.Runtime.InteropServices.HandleRef jarg1, FDatasmithFacadeEndpointObserver.NotifyStateChangeNativeEvent jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeEndpointObserver_UnregisterOnStateChangedDelegateInternal")]
+  public static extern void FDatasmithFacadeEndpointObserver_UnregisterOnStateChangedDelegateInternal(global::System.Runtime.InteropServices.HandleRef jarg1, FDatasmithFacadeEndpointObserver.NotifyStateChangeNativeEvent jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeEndpointObserver")]
+  public static extern void delete_FDatasmithFacadeEndpointObserver(global::System.Runtime.InteropServices.HandleRef jarg1);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeDirectLink_Init__SWIG_0")]
   public static extern bool FDatasmithFacadeDirectLink_Init__SWIG_0();
 
@@ -1537,6 +1669,12 @@ class DatasmithFacadeCSharpPINVOKE {
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeDirectLink_UpdateScene")]
   public static extern bool FDatasmithFacadeDirectLink_UpdateScene(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeDirectLink_AddEndpointObserver")]
+  public static extern void FDatasmithFacadeDirectLink_AddEndpointObserver(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeDirectLink_RemoveEndpointObserver")]
+  public static extern void FDatasmithFacadeDirectLink_RemoveEndpointObserver(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeDirectLink")]
   public static extern global::System.IntPtr new_FDatasmithFacadeDirectLink();
@@ -1561,6 +1699,117 @@ class DatasmithFacadeCSharpPINVOKE {
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeUniqueNameProvider")]
   public static extern void delete_FDatasmithFacadeUniqueNameProvider(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadePropertyCapture")]
+  public static extern global::System.IntPtr new_FDatasmithFacadePropertyCapture();
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadePropertyCapture")]
+  public static extern void delete_FDatasmithFacadePropertyCapture(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadePropertyCapture_SetPropertyPath")]
+  public static extern void FDatasmithFacadePropertyCapture_SetPropertyPath(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadePropertyCapture_GetPropertyPath")]
+  public static extern global::System.IntPtr FDatasmithFacadePropertyCapture_GetPropertyPath(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadePropertyCapture_GetCategory")]
+  public static extern int FDatasmithFacadePropertyCapture_GetCategory(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeActorBinding")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeActorBinding(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeActorBinding")]
+  public static extern void delete_FDatasmithFacadeActorBinding(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddPropertyCapture")]
+  public static extern void FDatasmithFacadeActorBinding_AddPropertyCapture(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_GetPropertyCapturesCount")]
+  public static extern int FDatasmithFacadeActorBinding_GetPropertyCapturesCount(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_GetPropertyCapture")]
+  public static extern global::System.IntPtr FDatasmithFacadeActorBinding_GetPropertyCapture(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_RemovePropertyCapture")]
+  public static extern void FDatasmithFacadeActorBinding_RemovePropertyCapture(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddRelativeLocationCapture")]
+  public static extern void FDatasmithFacadeActorBinding_AddRelativeLocationCapture(global::System.Runtime.InteropServices.HandleRef jarg1, float jarg2, float jarg3, float jarg4);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_0")]
+  public static extern void FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_0(global::System.Runtime.InteropServices.HandleRef jarg1, float jarg2, float jarg3, float jarg4);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_1")]
+  public static extern void FDatasmithFacadeActorBinding_AddRelativeRotationCapture__SWIG_1(global::System.Runtime.InteropServices.HandleRef jarg1, float jarg2, float jarg3, float jarg4, float jarg5);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddRelativeScaleCapture")]
+  public static extern void FDatasmithFacadeActorBinding_AddRelativeScaleCapture(global::System.Runtime.InteropServices.HandleRef jarg1, float jarg2, float jarg3, float jarg4);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_0")]
+  public static extern void FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_0(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.In, global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPArray)] float[] jarg2, bool jarg3);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_1")]
+  public static extern void FDatasmithFacadeActorBinding_AddRelativeTransformCapture__SWIG_1(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.In, global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPArray)] float[] jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddVisibilityCapture")]
+  public static extern void FDatasmithFacadeActorBinding_AddVisibilityCapture(global::System.Runtime.InteropServices.HandleRef jarg1, bool jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_AddMaterialCapture")]
+  public static extern void FDatasmithFacadeActorBinding_AddMaterialCapture(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeVariant")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeVariant([global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeVariant")]
+  public static extern void delete_FDatasmithFacadeVariant(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariant_AddActorBinding")]
+  public static extern void FDatasmithFacadeVariant_AddActorBinding(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariant_GetActorBindingsCount")]
+  public static extern int FDatasmithFacadeVariant_GetActorBindingsCount(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariant_GetActorBinding")]
+  public static extern global::System.IntPtr FDatasmithFacadeVariant_GetActorBinding(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariant_RemoveActorBinding")]
+  public static extern void FDatasmithFacadeVariant_RemoveActorBinding(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeVariantSet")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeVariantSet([global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeVariantSet")]
+  public static extern void delete_FDatasmithFacadeVariantSet(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariantSet_AddVariant")]
+  public static extern void FDatasmithFacadeVariantSet_AddVariant(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariantSet_GetVariantsCount")]
+  public static extern int FDatasmithFacadeVariantSet_GetVariantsCount(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariantSet_GetVariant")]
+  public static extern global::System.IntPtr FDatasmithFacadeVariantSet_GetVariant(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariantSet_RemoveVariant")]
+  public static extern void FDatasmithFacadeVariantSet_RemoveVariant(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeLevelVariantSets")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeLevelVariantSets([global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeLevelVariantSets")]
+  public static extern void delete_FDatasmithFacadeLevelVariantSets(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelVariantSets_AddVariantSet")]
+  public static extern void FDatasmithFacadeLevelVariantSets_AddVariantSet(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelVariantSets_GetVariantSetsCount")]
+  public static extern int FDatasmithFacadeLevelVariantSets_GetVariantSetsCount(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelVariantSets_GetVariantSet")]
+  public static extern global::System.IntPtr FDatasmithFacadeLevelVariantSets_GetVariantSet(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelVariantSets_RemoveVariantSet")]
+  public static extern void FDatasmithFacadeLevelVariantSets_RemoveVariantSet(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_IDatasmithExporterUIModule_Get")]
   public static extern global::System.IntPtr IDatasmithExporterUIModule_Get();
@@ -1669,4 +1918,19 @@ class DatasmithFacadeCSharpPINVOKE {
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorMesh_SWIGUpcast")]
   public static extern global::System.IntPtr FDatasmithFacadeActorMesh_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadePropertyCapture_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadePropertyCapture_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorBinding_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeActorBinding_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariant_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeVariant_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVariantSet_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeVariantSet_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelVariantSets_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeLevelVariantSets_SWIGUpcast(global::System.IntPtr jarg1);
 }

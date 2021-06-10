@@ -114,50 +114,47 @@ namespace UE
 			return Config;
 		}
 
-		protected override int GetExitCodeAndReason(UnrealRoleArtifacts InArtifacts, out string ExitReason)
+		protected override UnrealProcessResult GetExitCodeAndReason(StopReason InReason, UnrealLog InLog, UnrealRoleArtifacts InArtifacts, out string ExitReason, out int ExitCode)
 		{
-			string Reason = "";
-			int ExitCode = -1;
+			string LocalReason = "";
 
 			TestResult FinalResult = TestResult.Invalid;
-
-			UnrealLogParser.LogSummary Summary = InArtifacts.LogSummary;
 
 			if (ErrorType == ErrorTypes.Ensure)
 			{
 				// for an ensure we should have an entry and a callstack
-				int EnsureCount = Summary.Ensures.Count();
-				int CallstackLength = EnsureCount > 0 ? Summary.Ensures.First().Callstack.Length : 0;
+				int EnsureCount = InLog.Ensures.Count();
+				int CallstackLength = EnsureCount > 0 ? InLog.Ensures.First().Callstack.Length : 0;
 
 				if (EnsureCount == 0)
 				{
 					FinalResult = TestResult.Failed;
-					Reason = string.Format("No ensure error found for failure of type {0}", ErrorType);
+					LocalReason = string.Format("No ensure error found for failure of type {0}", ErrorType);
 				}
 				else if (EnsureCount != 1)
 				{
 					FinalResult = TestResult.Failed;
-					Reason = string.Format("Incorrect ensure count found for failure of type {0}", ErrorType);
+					LocalReason = string.Format("Incorrect ensure count found for failure of type {0}", ErrorType);
 				}
 				else if (CallstackLength == 0)
 				{
 					FinalResult = TestResult.Failed;
-					Reason = string.Format("No callstack error found for failure of type {0}", ErrorType);
+					LocalReason = string.Format("No callstack error found for failure of type {0}", ErrorType);
 				}
 				else
 				{
 					FinalResult = TestResult.Passed;
-					Reason = string.Format("Found {0} ensures, test result = {1}", EnsureCount, FinalResult);
+					LocalReason = string.Format("Found {0} ensures, test result = {1}", EnsureCount, FinalResult);
 				}
 			}
 			else
 			{
-				if (Summary.FatalError == null)
+				if (InLog.FatalError == null)
 				{
 					FinalResult = TestResult.Failed;
 					Log.Info("No fatal error found for failure of type {0}", ErrorType);
 				}
-				else if (Summary.FatalError.Callstack.Length == 0)
+				else if (InLog.FatalError.Callstack.Length == 0)
 				{
 					FinalResult = TestResult.Failed;
 					Log.Info("No callstack found for failure of type {0}", ErrorType);
@@ -167,44 +164,44 @@ namespace UE
 					// all of these should contain a message and a result
 					if (ErrorType == ErrorTypes.Check)
 					{
-						if (!Summary.FatalError.Message.ToLower().Contains("assertion failed"))
+						if (!InLog.FatalError.Message.ToLower().Contains("assertion failed"))
 						{
 							FinalResult = TestResult.Failed;
-							Reason = string.Format("Unexpected assertion message");
+							LocalReason = string.Format("Unexpected assertion message");
 						}
 						else
 						{
 							FinalResult = TestResult.Passed;
 						}
-						Log.Info("Assertion message was {0}", Summary.FatalError.Message);
+						Log.Info("Assertion message was {0}", InLog.FatalError.Message);
 					}
 					else if (ErrorType == ErrorTypes.Fatal)
 					{
-						if (!Summary.FatalError.Message.ToLower().Contains("fatal erro"))
+						if (!InLog.FatalError.Message.ToLower().Contains("fatal erro"))
 						{
 							FinalResult = TestResult.Failed;
-							Reason = string.Format("Unexpected Fatal Error message");
+							LocalReason = string.Format("Unexpected Fatal Error message");
 						}
 						else
 						{
 							FinalResult = TestResult.Passed;
 						}
 
-						Log.Info("Fatal Error message was {0}", Summary.FatalError.Message);
+						Log.Info("Fatal Error message was {0}", InLog.FatalError.Message);
 					}
 					else if (ErrorType == ErrorTypes.GPF)
 					{
-						if (!Summary.FatalError.Message.ToLower().Contains("exception"))
+						if (!InLog.FatalError.Message.ToLower().Contains("exception"))
 						{
 							FinalResult = TestResult.Failed;
-							Reason = string.Format("Unexpected exception message");
+							LocalReason = string.Format("Unexpected exception message");
 						}
 						else
 						{
 							FinalResult = TestResult.Passed;
 						}
 
-						Log.Info("Exception message was {0}", Summary.FatalError.Message);
+						Log.Info("Exception message was {0}", InLog.FatalError.Message);
 					}
 				}
 			}
@@ -212,11 +209,11 @@ namespace UE
 			if (FinalResult != TestResult.Invalid)
 			{
 				ExitCode = (FinalResult == TestResult.Passed) ? 0 : 6;
-				ExitReason = Reason;
-				return ExitCode;
+				ExitReason = LocalReason;
+				return FinalResult == TestResult.Passed ? UnrealProcessResult.ExitOk : UnrealProcessResult.TestFailure;
 			}
 			
-			return base.GetExitCodeAndReason(InArtifacts, out ExitReason);
+			return base.GetExitCodeAndReason(InReason, InLog, InArtifacts, out ExitReason, out ExitCode);
 		}
 	}
 }

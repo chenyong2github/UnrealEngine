@@ -2,25 +2,25 @@
 
 #include "CameraCalibrationToolkit.h"
 
+#include "CameraCalibrationStepsController.h"
 #include "LensFile.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "SLensEvaluation.h"
 #include "SLensFilePanel.h"
-#include "SNodalOffsetToolPanel.h"
-#include "UI/CameraCalibrationEditorStyle.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/SWindow.h"
 #include "Widgets/Docking/SDockTab.h"
-
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationToolkit"
 
+TWeakPtr<SWindow> FCameraCalibrationToolkit::PopupWindow;
 
 namespace CameraCalibrationToolkitUtils
 {
 	const FName CameraCalibrationIdentifier(TEXT("CameraCalibrationTools"));
 	const FName LensTabId(TEXT("LensFileEditorTab"));
 	const FName LensEvaluationTabId(TEXT("LensEvaluationTab"));
-	const FName NodalOffsetTabId(TEXT("NodalOffsetTab"));
+	const FName CalibrationStepsTabId(TEXT("CalibrationStepsTab"));
 	const FName LensDetailsTabId(TEXT("LensFileDetailsTab"));
 }
 
@@ -36,12 +36,18 @@ TSharedRef<FCameraCalibrationToolkit> FCameraCalibrationToolkit::CreateEditor(co
 void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, ULensFile* InLensFile)
 {
 	LensFile = InLensFile;
+
+	CalibrationStepsController = MakeShared<FCameraCalibrationStepsController>(SharedThis(this), InLensFile);
+	check(CalibrationStepsController.IsValid());
+
+	CalibrationStepsController->Initialize();
+
 	LensEvaluationWidget = SNew(SLensEvaluation, InLensFile);
-	NodalOffsetToolTab = SNew(SNodalOffsetToolPanel, LensFile);
+	CalibrationStepsTab = CalibrationStepsController->BuildUI();
 	LensEditorTab = SNew(SLensFilePanel, LensFile)
 		.CachedFIZData(TAttribute<FCachedFIZData>::Create(TAttribute<FCachedFIZData>::FGetter::CreateSP(LensEvaluationWidget.ToSharedRef(), &SLensEvaluation::GetLastEvaluatedData)));
 		
-	TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout("CameraCalibrationToolLayout_v0.6")
+	TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout("CameraCalibrationToolLayout_v0.7")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -61,8 +67,8 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 				->Split
 				(
 					FTabManager::NewStack()
+					->AddTab(CameraCalibrationToolkitUtils::CalibrationStepsTabId, ETabState::OpenedTab)
 					->AddTab(CameraCalibrationToolkitUtils::LensTabId, ETabState::OpenedTab)
-					->AddTab(CameraCalibrationToolkitUtils::NodalOffsetTabId, ETabState::OpenedTab)
 					->AddTab(CameraCalibrationToolkitUtils::LensDetailsTabId, ETabState::ClosedTab)
 				)
 			)
@@ -93,6 +99,41 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 	RegenerateMenusAndToolbars();
 }
 
+TSharedPtr<SWindow> FCameraCalibrationToolkit::OpenPopupWindow(const FText& InTitle)
+{
+	TSharedPtr<SWindow> PopupWindowPin = PopupWindow.Pin();
+	if (PopupWindowPin.IsValid())
+	{
+		PopupWindowPin->BringToFront();
+	}
+	else
+	{
+		PopupWindowPin = SNew(SWindow)
+			.HasCloseButton(true)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false)
+			.ClientSize(FVector2D(480, 360));
+
+		FSlateApplication::Get().AddWindow(PopupWindowPin.ToSharedRef());
+	}
+
+	PopupWindow = PopupWindowPin;
+	PopupWindowPin->SetTitle(InTitle);
+
+	return PopupWindowPin;
+
+}
+
+void FCameraCalibrationToolkit::DestroyPopupWindow()
+{
+	TSharedPtr<SWindow> ExistingWindowPin = PopupWindow.Pin();
+	if (ExistingWindowPin.IsValid())
+	{
+		ExistingWindowPin->RequestDestroyWindow();
+		ExistingWindowPin = nullptr;
+	}
+}
+
 void FCameraCalibrationToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_CameraCalibrationTools", "Camera Calibration Panel"));
@@ -109,8 +150,8 @@ void FCameraCalibrationToolkit::RegisterTabSpawners(const TSharedRef<class FTabM
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
 	
-	InTabManager->RegisterTabSpawner(CameraCalibrationToolkitUtils::NodalOffsetTabId, FOnSpawnTab::CreateSP(this, &FCameraCalibrationToolkit::HandleSpawnNodalOffsetTab))
-		.SetDisplayName(LOCTEXT("NodalOffsetTab", "Nodal Offset"))
+	InTabManager->RegisterTabSpawner(CameraCalibrationToolkitUtils::CalibrationStepsTabId, FOnSpawnTab::CreateSP(this, &FCameraCalibrationToolkit::HandleSpawnNodalOffsetTab))
+		.SetDisplayName(LOCTEXT("CalibrationStepsTab", "Calibration Steps"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
 
@@ -123,7 +164,7 @@ void FCameraCalibrationToolkit::RegisterTabSpawners(const TSharedRef<class FTabM
 void FCameraCalibrationToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::LensTabId);
-	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::NodalOffsetTabId);
+	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::CalibrationStepsTabId);
 	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::LensDetailsTabId);
 	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::LensEvaluationTabId);
 	Super::UnregisterTabSpawners(InTabManager);
@@ -157,13 +198,13 @@ FString FCameraCalibrationToolkit::GetWorldCentricTabPrefix() const
 
 TSharedRef<SDockTab> FCameraCalibrationToolkit::HandleSpawnNodalOffsetTab(const FSpawnTabArgs& Args) const
 {
-	check(Args.GetTabId() == CameraCalibrationToolkitUtils::NodalOffsetTabId);
+	check(Args.GetTabId() == CameraCalibrationToolkitUtils::CalibrationStepsTabId);
 
 	return SNew(SDockTab)
-		.Label(LOCTEXT("NodalOffsetToolPanel", "Nodal Offset Tool"))
+		.Label(LOCTEXT("CalibrationStepsPanel", "Calibration Steps"))
 		.TabColorScale(GetTabColorScale())
 		[
-			NodalOffsetToolTab.ToSharedRef()
+			CalibrationStepsTab.ToSharedRef()
 		];
 }
 

@@ -126,8 +126,7 @@ float3x3 GetHouseholderTransform(in float3 PlaneNormal)
 
 // Generate a random direction to sample according to world normal and roughness.
 float3 GenerateReflectionDirection(
-	inout RandomSequence RandSequence, 
-	uint2 DispatchThreadId, 
+	inout RandomSequence RandSequence,
 	uint BounceIndex, 
 	uint SamplePerPixel, 
 	float3 IncidentDirection, 
@@ -231,9 +230,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + uint2(RenderTileOffsetX, RenderTileOffsetY);
 #endif
 
-	DispatchThreadId += (uint2)View.ViewRectMin.xy;
-
-	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
+	uint2 OutputPixelCoord = DispatchThreadId + (uint2)View.ViewRectMin.xy;
+	uint2 PixelCoord = GetPixelCoord(OutputPixelCoord, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
 
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO(Denoiser): PixelCoord or DispatchThreadId
 	
@@ -403,7 +401,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 				ModifyGGXAnisotropicNormalRoughness(TopLayerWorldTangent, TopLayerAnisotropy, TopLayerRoughness, TopLayerWorldNormal, IncidentDirection);
 
-				TopLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, TopLayerWorldNormal, TopLayerRoughness);
+				TopLayerRay.Direction = GenerateReflectionDirection(RandSequence, BounceIndex, LocalSamplesPerPixel, IncidentDirection, TopLayerWorldNormal, TopLayerRoughness);
 
 				// Apply a ray bias with respect to the camera and surface normal on the first bounce, otherwise only with respect to the surface normal for subsequent bounces
 				if (BounceIndex == 0)
@@ -500,7 +498,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 					ModifyGGXAnisotropicNormalRoughness(BottomLayerWorldTangent, BottomLayerAnisotropy, BottomLayerRoughness, BottomLayerWorldNormal, IncidentDirection);
 
-					BottomLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, BottomLayerWorldNormal, BottomLayerRoughness);
+					BottomLayerRay.Direction = GenerateReflectionDirection(RandSequence, BounceIndex, LocalSamplesPerPixel, IncidentDirection, BottomLayerWorldNormal, BottomLayerRoughness);
 					ApplyPositionBias(BottomLayerRay, BottomLayerWorldNormal, ReflectionMaxNormalBias);
 					if (BounceIndex == 0 && dot(GBufferData.WorldNormal, BottomLayerRay.Direction) < 0.0)
 					{
@@ -958,8 +956,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		if (SampleMode == SAMPLE_PHASE_ACCUM || SampleMode == SAMPLE_PHASE_RESOLVE)
 		{
 			// Read the previous sample's output information
-			float4 PreviousColor = ColorOutput[DispatchThreadId];
-			float PreviousConfusionFactor = RayHitDistanceOutput[DispatchThreadId];
+			float4 PreviousColor = ColorOutput[OutputPixelCoord];
+			float PreviousConfusionFactor = RayHitDistanceOutput[OutputPixelCoord];
 			FImaginaryReflectionGBufferData PreviousImaginaryReflectionGBufferData;
 
 #if DIM_RAY_TRACE_SKY_LIGHT_CONTRIBUTION
@@ -1035,9 +1033,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		ReflectedColor.xyz *= View.PreExposure;
 
 		// Output required information
-		ColorOutput[DispatchThreadId] = ClampToHalfFloatRange(ReflectedColor);
-		RayHitDistanceOutput[DispatchThreadId] = ConfusionFactor;
-		RayImaginaryDepthOutput[DispatchThreadId] = ImaginaryClosestSVDepth; // TODO(Denoiser): shader permutation?
+		ColorOutput[OutputPixelCoord] = ClampToHalfFloatRange(ReflectedColor);
+		RayHitDistanceOutput[OutputPixelCoord] = ConfusionFactor;
+		RayImaginaryDepthOutput[OutputPixelCoord] = ImaginaryClosestSVDepth; // TODO(Denoiser): shader permutation?
 
 #if DIM_RAY_TRACE_SKY_LIGHT_CONTRIBUTION
 		ImaginaryReflectionGBuffer[LinearIndex] = CurrentImaginaryReflectionGBufferData;

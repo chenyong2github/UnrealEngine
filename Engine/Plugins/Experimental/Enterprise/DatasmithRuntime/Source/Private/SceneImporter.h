@@ -179,6 +179,12 @@ namespace DatasmithRuntime
 		FSceneGraphId GetId() const { return (FSceneGraphId)ElementId; }
 	};
 
+	FORCEINLINE bool operator==(const FReferencer& Lhs, const FReferencer& Rhs)
+	{
+		return Lhs.ElementId == Rhs.ElementId && Lhs.Slot == Rhs.Slot;
+	}
+
+
 	typedef std::atomic<EAssetState> FDataState;
 
 	/**
@@ -521,6 +527,9 @@ namespace DatasmithRuntime
 		/** Delete the asset created from the given FAssetData */
 		bool DeleteAsset(FAssetData& AssetData);
 
+		/** Remove given referencer from the list of referencers of the asset */
+		void RemoveFromReferencer(FSceneGraphId* AssetIdPtr, FSceneGraphId ReferencerId);
+
 		/**
 		 * Creates the FAssetData and FActorData required to import the associated Datasmith scene
 		 * This is the first task  after StartImport has been called
@@ -620,7 +629,7 @@ namespace DatasmithRuntime
 			++QueuedTaskCount;
 			if (ActionTask.GetAssetId() != DirectLink::InvalidId)
 			{
-				AssetDataList[ActionTask.GetAssetId()].Referencers.Add(ActionTask.GetReferencer());
+				AssetDataList[ActionTask.GetAssetId()].Referencers.AddUnique(ActionTask.GetReferencer());
 			}
 			ActionQueues[WhichQueue].Enqueue(MoveTemp(ActionTask));
 		}

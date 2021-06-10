@@ -468,7 +468,7 @@ namespace Audio
 			int32 WholeNextIndex = WholeThisIndex + 1;
 
 			// check for interpolation between last and first frames
-			if (WholeNextIndex == NumSamples)
+			if (WholeNextIndex == NumFrames)
 			{
 				WholeNextIndex = 0;
 			}
@@ -482,14 +482,14 @@ namespace Audio
 
 				if (TIsSame<SampleType, float>::Value)
 				{
-					SampleA = RawPCMData[i * NumChannels + WholeThisIndex];
-					SampleB = RawPCMData[i * NumChannels + WholeNextIndex];
+					SampleA = RawPCMData[(WholeThisIndex * NumChannels) + i];
+					SampleB = RawPCMData[(WholeNextIndex * NumChannels) + i];
 					OutFrame[i] = FMath::Lerp(SampleA, SampleB, Alpha);
 				}
 				else
 				{
-					SampleA = static_cast<float>(RawPCMData[i * NumChannels + WholeThisIndex]);
-					SampleB = static_cast<float>(RawPCMData[i * NumChannels + WholeNextIndex]);
+					SampleA = static_cast<float>(RawPCMData[(WholeThisIndex * NumChannels) + i]);
+					SampleB = static_cast<float>(RawPCMData[(WholeNextIndex * NumChannels) + i]);
 					OutFrame[i] = static_cast<SampleType>(FMath::Lerp(SampleA, SampleB, Alpha));
 				}
 			}

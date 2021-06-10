@@ -15,7 +15,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyFactory
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionDomeprojectionPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayClusterProjectionDomeprojectionPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 {
 	FString RHIName = GDynamicRHI->GetName();
 
@@ -25,7 +25,7 @@ TSharedPtr<IDisplayClusterProjectionPolicy> FDisplayClusterProjectionDomeproject
 		check(InConfigurationProjectionPolicy != nullptr);
 
 		UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
-		return MakeShared<FDisplayClusterProjectionDomeprojectionPolicyDX11>(ProjectionPolicyId, InConfigurationProjectionPolicy);
+		return MakeShared<FDisplayClusterProjectionDomeprojectionPolicyDX11, ESPMode::ThreadSafe>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 	}
 #endif
 

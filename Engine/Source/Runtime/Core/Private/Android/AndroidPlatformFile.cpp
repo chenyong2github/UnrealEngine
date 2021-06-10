@@ -5,7 +5,6 @@
 =============================================================================*/
 
 #include "Android/AndroidPlatformFile.h"
-#include "HAL/IPlatformFileManagedStorageWrapper.h"
 
 #if USE_ANDROID_FILE
 #include "Misc/App.h"
@@ -2167,10 +2166,14 @@ private:
 
 IPlatformFile& IPlatformFile::GetPlatformPhysical()
 {
+#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
+	return IAndroidPlatformFile::GetManagedStorageWrapper();
+#else
 	return FAndroidPlatformFile::GetPlatformPhysical();
+#endif //PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
 }
 
-IAndroidPlatformFile & IAndroidPlatformFile::GetPlatformPhysical()
+IAndroidPlatformFile& IAndroidPlatformFile::GetPlatformPhysical()
 {
 	return FAndroidPlatformFile::GetPlatformPhysical();
 }
@@ -2189,5 +2192,23 @@ FString IAndroidPlatformFile::ConvertToAbsolutePathForExternalAppForWrite(const 
 {
 	return AndroidRelativeToAbsolutePath(false, Filename);
 }
+
+#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
+void IAndroidPlatformFile::EarlyInitializeForStorageWrapper(const TCHAR* CommandLineParam)
+{
+	FManagedStoragePlatformFile& StorageWrapper = GetManagedStorageWrapper();
+	
+	IPlatformFile* LowerLevel = StorageWrapper.GetLowerLevel();
+	check(LowerLevel);
+	LowerLevel->Initialize(nullptr, CommandLineParam);
+}
+
+FManagedStoragePlatformFile& IAndroidPlatformFile::GetManagedStorageWrapper()
+{
+	FAndroidPlatformFile& AndroidPlatformFile = FAndroidPlatformFile::GetPlatformPhysical();
+	static FManagedStoragePlatformFile ManagedStoragePlatformFileSingleton(&AndroidPlatformFile);
+	return ManagedStoragePlatformFileSingleton;
+}
+#endif //PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
 
 #endif

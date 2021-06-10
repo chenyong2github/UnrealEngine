@@ -151,9 +151,7 @@ const TCHAR* LexToString(EInstallBundleSourceUpdateBundleInfoResult Result)
 		TEXT("OK"),
 		TEXT("AlreadyMounted"),
 		TEXT("AlreadyRequested"),
-		TEXT("IllegalStartupBundle"),
 		TEXT("IllegalCacheStatus"),
-		TEXT("IllegalInstallSizeChange"),
 	};
 
 	return InstallBundleUtil::TLexToString(Result, Strings);

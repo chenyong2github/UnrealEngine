@@ -21,6 +21,7 @@ public:
 	bool bShowKinematicBodies;
 	bool bShowSimulatedBodies;
 	bool bShowConstraints;
+	bool bShowConstraintsOnParentBodies;
 	bool bShowPrimitives;
 
 private:

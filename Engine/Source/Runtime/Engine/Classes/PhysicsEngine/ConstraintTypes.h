@@ -50,7 +50,7 @@ struct ENGINE_API FLinearConstraint : public FConstraintBaseParams
 {
 	GENERATED_BODY()
 
-	/** The distance allowed between between the two joint reference frames. Distance applies on all axes enabled (one axis means line, two axes implies circle, three axes implies sphere) */
+	/** The distance allowed between the two joint reference frames. Distance applies on all axes enabled (one axis means line, two axes implies circle, three axes implies sphere) */
 	UPROPERTY(EditAnywhere, Category = Linear, meta = (ClampMin = "0.0"))
 	float Limit;
 
@@ -111,7 +111,7 @@ struct ENGINE_API FTwistConstraint : public FConstraintBaseParams
 	UPROPERTY(EditAnywhere, Category = Angular, meta = (ClampMin = "0.0", ClampMax = "180.0", DisplayName = "Twist Limit"))
 	float TwistLimitDegrees;
 
-	/** Indicates whether the Swing1 limit is used.*/
+	/** Indicates whether the Twist limit is used.*/
 	UPROPERTY(EditAnywhere, Category = Angular)
 	TEnumAsByte<enum EAngularConstraintMotion> TwistMotion;
 

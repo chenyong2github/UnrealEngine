@@ -141,6 +141,10 @@ FAutoConsoleVariableRef CVarChaosSolverUseParticlePool(TEXT("p.Chaos.Solver.UseP
 int32 ChaosSolverParticlePoolNumFrameUntilShrink = 30;
 FAutoConsoleVariableRef CVarChaosSolverParticlePoolNumFrameUntilShrink(TEXT("p.Chaos.Solver.ParticlePoolNumFrameUntilShrink"), ChaosSolverParticlePoolNumFrameUntilShrink, TEXT("Num Frame until we can potentially shrink the pool"));
 
+// Select the solver technique to use until we settle on the final one...
+int32 ChaosSolver_SolverType = (int32)Chaos::EConstraintSolverType::GbfPbd;
+FAutoConsoleVariableRef CVarChaosSolverSolverType(TEXT("p.Chaos.Solver.SolverType"), ChaosSolver_SolverType, TEXT("0 = None; 1 = GbfPbd; 2 = Pbd; 3 = QuasiPbd"));
+
 // Iteration count cvars
 // These override the engine config if >= 0
 
@@ -314,7 +318,7 @@ namespace Chaos
 				// Editor will tick with 0 DT, this will guarantee acceleration structure is still processing even if we don't advance evolution.
 				if (MDeltaTime < MinDeltaTime)
 				{
-					MSolver->GetEvolution()->ComputeIntermediateSpatialAcceleration();
+					MSolver->GetEvolution()->ComputeIntermediateSpatialAcceleration(MSubStepInfo.Step == MSubStepInfo.NumSteps - 1, /*bBlock=*/false);
 				}
 
 
@@ -749,6 +753,10 @@ namespace Chaos
 
 		// Apply CVAR overrides if set
 		{
+			GetEvolution()->GetCollisionConstraints().SetSolverType((EConstraintSolverType)ChaosSolver_SolverType);
+			// @todo(chaos): implement solver type switching for joints
+			//GetJointConstraints().SetSolverType((EConstraintSolverType)ChaosImmediate_SolverType);
+
 			if (ChaosSolverIterations >= 0)
 			{
 				SetIterations(ChaosSolverIterations);
@@ -1020,6 +1028,7 @@ namespace Chaos
 
 	void FPBDRigidsSolver::ProcessPushedData_Internal(FPushPhysicsData& PushData)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(ChaosPushData);
 		ensure(PushData.InternalStep == CurrentFrame);	//push data was generated for this specific frame
 
 		//update callbacks
@@ -1092,8 +1101,10 @@ namespace Chaos
 			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded_Internal(LastStep);
 			if(ResimStep != INDEX_NONE)
 			{
+				QUICK_SCOPE_CYCLE_COUNTER(ChaosRewindAndResim);
 				if(ensure(MRewindData->RewindToFrame(ResimStep)))
 				{
+					GetEvolution()->SetResim(true);
 					MRewindData->FlipBufferIfNeeded();
 					CurrentFrame = ResimStep;
 					const int32 NumResimSteps = LastStep - ResimStep + 1;
@@ -1115,6 +1126,8 @@ namespace Chaos
 
 						bFirst = false;
 					}
+
+					GetEvolution()->SetResim(false);
 				}
 			}
 		}

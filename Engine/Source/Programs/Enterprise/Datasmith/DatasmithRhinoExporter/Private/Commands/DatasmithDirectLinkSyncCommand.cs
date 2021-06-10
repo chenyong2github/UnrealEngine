@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using DatasmithRhino.DirectLink;
+using DatasmithRhino.Properties.Localization;
+
 using Rhino;
 using Rhino.Commands;
 
@@ -32,9 +34,8 @@ namespace DatasmithRhino.Commands
 			get { return "DatasmithDirectLinkSync"; }
 		}
 
-		///TODO: This needs to be localized.
 		public override string LocalName {
-			get { return "DatasmithDirectLinkSync"; }
+			get { return Resources.DatasmithDirectLinkSyncCommand; }
 		}
 
 		protected override Result RunCommand(RhinoDoc RhinoDocument, RunMode Mode)

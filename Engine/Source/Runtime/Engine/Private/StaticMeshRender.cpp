@@ -1111,7 +1111,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 			// Draw the static mesh elements.
 			for(int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
-			#if WITH_EDITOR
+#if WITH_EDITOR
 				if (GIsEditor)
 				{
 					const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
@@ -1422,7 +1422,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 									bool bSectionIsSelected = false;
 									FMeshBatch& MeshElement = Collector.AllocateMesh();
 
-								#if WITH_EDITOR
+	#if WITH_EDITOR
 									if (GIsEditor)
 									{
 										const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
@@ -1805,7 +1805,7 @@ void FStaticMeshSceneProxy::GetLCIs(FLCIArray& LCIs)
 
 bool FStaticMeshSceneProxy::CanBeOccluded() const
 {
-	return !MaterialRelevance.bDisableDepthTest && !MaterialRelevance.bPostMotionBlurTranslucency && !ShouldRenderCustomDepth();
+	return !MaterialRelevance.bDisableDepthTest && !MaterialRelevance.bPostMotionBlurTranslucency && !ShouldRenderCustomDepth() && !IsVirtualTextureOnly();
 }
 
 bool FStaticMeshSceneProxy::IsUsingDistanceCullFade() const

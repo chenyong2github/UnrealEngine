@@ -28,6 +28,19 @@ DECLARE_DELEGATE_FourParams(FOnCustomizeMetadataEntry, URemoteControlPreset* /*P
 class IRemoteControlUIModule : public IModuleInterface
 {
 public:
+	
+	/**
+	 * Singleton-like access to this module's interface.  This is just for convenience!
+	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
+	 *
+	 * @return Returns singleton instance, loading the module on demand if needed
+	 */
+	static IRemoteControlUIModule& Get()
+	{
+		static const FName ModuleName = "RemoteControlUI";
+		return FModuleManager::LoadModuleChecked<IRemoteControlUIModule>(ModuleName);
+	}
+	
 	/** 
 	 * Get the toolbar extension generators.
 	 * Usage: Bind a handler that adds a widget to the out array parameter.
@@ -60,4 +73,9 @@ public:
      * @param MetadataKey The metadata map entry to unregister the customization for.
      */
 	virtual void UnregisterMetadataCustomization(FName MetadataKey) = 0;
+
+	/**
+	 * Get the preset currently being edited in the editor.
+	 */
+	virtual URemoteControlPreset* GetActivePreset() const = 0;
 };

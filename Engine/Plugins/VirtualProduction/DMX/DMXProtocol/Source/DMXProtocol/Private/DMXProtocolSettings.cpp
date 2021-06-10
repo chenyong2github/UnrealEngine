@@ -4,8 +4,7 @@
 
 #include "DMXProtocolBlueprintLibrary.h"
 #include "DMXProtocolConstants.h"
-#include "IO/DMXInputPort.h"
-#include "IO/DMXOutputPort.h"
+#include "IO/DMXPortManager.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXPortManager.h"
 
@@ -94,7 +93,7 @@ void UDMXProtocolSettings::PostInitProperties()
 	{
 		UE_LOG(LogDMXProtocol, Log, TEXT("Overridden Default Receive DMX Enabled from command line, set to %s."), bDefaultReceiveDMXEnabled ? TEXT("True") : TEXT("False"));
 	}
-	OverrideReceiveDMXEnabled(bDefaultReceiveDMXEnabled);
+	OverrideReceiveDMXEnabled(bDefaultReceiveDMXEnabled);	
 }
 
 #if WITH_EDITOR
@@ -155,11 +154,11 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 	else if	(
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs) ||
-		(InputPortConfigStruct == PropertyOwnerStruct || OutputPortConfigStruct || PropertyOwnerStruct)
-		)
+		(InputPortConfigStruct && InputPortConfigStruct == PropertyOwnerStruct) ||
+		(OutputPortConfigStruct && OutputPortConfigStruct == PropertyOwnerStruct))
 	{
-		// if a new config was added, create a guid for that. We cannot do that in the ctor because 
-		// the engine expects clearly defined default values, FGuid::NewGuid doesn't work with that.
+		// If a new config was added, create a guid for that. We cannot do that in the ctor because the engine
+		// expects identical default values for its structs, FGuid::NewGuid as a default doesn't work with that.
 		if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 		{
 			for (FDMXInputPortConfig& Config : InputPortConfigs)
@@ -199,4 +198,3 @@ void UDMXProtocolSettings::OverrideReceiveDMXEnabled(bool bEnabled)
 
 	OnSetReceiveDMXEnabled.Broadcast(bEnabled);
 }
-

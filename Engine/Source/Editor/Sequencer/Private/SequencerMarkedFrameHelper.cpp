@@ -141,7 +141,7 @@ static void FindGlobalMarkedFrames(
 } // namespace MovieScene
 } // namespace UE
 
-void FSequencerMarkedFrameHelper::FindGlobalMarkedFrames(ISequencer& Sequencer, TArray<FMovieSceneMarkedFrame>& OutGlobalMarkedFrames)
+void FSequencerMarkedFrameHelper::FindGlobalMarkedFrames(ISequencer& Sequencer, TArray<uint32> LoopCounter, TArray<FMovieSceneMarkedFrame>& OutGlobalMarkedFrames)
 {
 	// Get the focused sequence info. We want to gather all the marked frames that are in the subset of the sequence hierarchy
 	// that hangs below this focused sequence.
@@ -163,19 +163,23 @@ void FSequencerMarkedFrameHelper::FindGlobalMarkedFrames(ISequencer& Sequencer, 
 		return;
 	}
 	
-	// Find the time offset of the focused sequence, so that we can offset all the marked frames we find.
-	// If it is the root sequence, there's no offset.
-	FFrameTime FrameZeroInFocusedMovieSequence(0);
+	// All the marked frames will be added using their root time, but we want to actually display them in the time space of whatever
+	// is the currently focused sequence. We therefore add the inverse time transform of the focused sequence at the top of the
+	// transform stack if the focused sequence isn't the root sequence (which has no time transform).
+	FMovieSceneTimeTransform FocusedMovieSequenceInverseTransform;
 	const FMovieSceneSubSequenceData* FocusedMovieSequenceSubData = SequenceHierarchy->FindSubData(FocusedMovieSequenceID);
 	if (FocusedMovieSequenceSubData)
 	{
-		FrameZeroInFocusedMovieSequence = FocusedMovieSequenceSubData->RootToSequenceTransform.TransformTime(FrameZeroInFocusedMovieSequence);
+		const int32 FocusedMovieSequenceDepth = FMath::Min(
+				FocusedMovieSequenceSubData->RootToSequenceTransform.NestedTransforms.Num(), 
+				LoopCounter.Num());
+		TArrayView<uint32> LoopCounterForFocusedMovieSequence = MakeArrayView(LoopCounter.GetData(), FocusedMovieSequenceDepth);
+		FocusedMovieSequenceInverseTransform = FocusedMovieSequenceSubData->RootToSequenceTransform.InverseFromWarp(LoopCounterForFocusedMovieSequence);
 	}
-	const FFrameNumber FocusedMovieSequenceFrameOffset = FrameZeroInFocusedMovieSequence.FrameNumber;
 
 	// Grab the marked frames from the root sequence, and recursively across the whole hierarchy.
 	TMovieSceneTimeArray<FMovieSceneMarkedFrame> TimestampedGlobalMarkedFrames;
-	TimestampedGlobalMarkedFrames.PushTransform(FocusedMovieSequenceFrameOffset);
+	TimestampedGlobalMarkedFrames.PushTransform(FocusedMovieSequenceInverseTransform);
 	UE::MovieScene::FindGlobalMarkedFrames(Sequencer, SequenceHierarchy, FocusedMovieSequenceID, MovieSceneSequenceID::Root, TRange<FFrameNumber>::All(), TimestampedGlobalMarkedFrames);
 
 	// Export the modified timestamped entries.

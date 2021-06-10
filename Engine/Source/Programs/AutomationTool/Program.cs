@@ -25,10 +25,21 @@ namespace AutomationTool
 		// Do not add [STAThread] here. It will cause deadlocks in platform automation code.
 		public static int Main(string[] Arguments)
 		{
-			Stopwatch Timer = Stopwatch.StartNew();
+			// Wait for a debugger to be attached
+			if (CommandUtils.ParseParam(Arguments, "-WaitForDebugger"))
+			{
+				Console.WriteLine("Waiting for debugger to be attached...");
+				while (Debugger.IsAttached == false)
+				{
+					Thread.Sleep(100);
+				}
+				Debugger.Break();
+			}
 
-            // Ensure UTF8Output flag is respected, since we are initializing logging early in the program.
-            if (CommandUtils.ParseParam(Arguments, "-Utf8output"))
+			Stopwatch Timer = Stopwatch.StartNew();
+			
+			// Ensure UTF8Output flag is respected, since we are initializing logging early in the program.
+			if (CommandUtils.ParseParam(Arguments, "-Utf8output"))
             {
                 Console.OutputEncoding = new System.Text.UTF8Encoding(false, false);
             }

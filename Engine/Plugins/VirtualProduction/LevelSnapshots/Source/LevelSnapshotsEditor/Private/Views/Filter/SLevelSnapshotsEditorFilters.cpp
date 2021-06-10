@@ -1,24 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SLevelSnapshotsEditorFilters.h"
+#include "Views/Filter/SLevelSnapshotsEditorFilters.h"
 
-#include "DisjunctiveNormalFormFilter.h"
-#include "EditorFilter.h"
-#include "EditorFontGlyphs.h"
-#include "FilteredResults.h"
-#include "ILevelSnapshotsEditorView.h"
-#include "LevelSnapshotsEditorData.h"
+#include "Customizations/NegatableFilterDetailsCustomization.h"
+#include "Data/FilteredResults.h"
+#include "Data/Filters/DisjunctiveNormalFormFilter.h"
+#include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorFilters.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "SFavoriteFilterList.h"
-#include "SMasterFilterIndicatorButton.h"
-#include "SLevelSnapshotsEditorFilterRow.h"
-#include "SSaveAndLoadFilters.h"
+#include "TempInterfaces/ILevelSnapshotsEditorView.h"
+#include "Widgets/Filter/SFavoriteFilterList.h"
+#include "Widgets/SLevelSnapshotsEditorFilterRow.h"
+#include "Widgets/Filter/SSaveAndLoadFilters.h"
 
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IDetailsView.h"
-#include "NegatableFilterDetailsCustomization.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
@@ -45,16 +43,17 @@ public:
 	}
 };
 
-class SLevelSnapshotsEditorFilterRowGroup : public STableRow<UConjunctionFilter*>
+class SLevelSnapshotsEditorFilterRowGroup : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorFilterRowGroup)
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedRef<SLevelSnapshotsEditorFilters>& InOwnerPanel, UConjunctionFilter* InManagedFilter)
+	void Construct(const FArguments& InArgs, const TSharedRef<SLevelSnapshotsEditorFilters>& InOwnerPanel, UConjunctionFilter* InManagedFilter)
 	{
-		const bool bIsFirstAndRow = InOwnerPanel->GetEditorData()->GetUserDefinedFilters()->GetChildren().Find(InManagedFilter) == 0;
+		ULevelSnapshotsEditorData* EditorData = InOwnerPanel->GetEditorData();
+		const bool bIsFirstAndRow = EditorData->GetUserDefinedFilters()->GetChildren().Find(InManagedFilter) == 0;
 		const bool bShouldShowOrTextInFrontOfRow = !bIsFirstAndRow;
 		
 		ChildSlot
@@ -63,19 +62,13 @@ public:
 			+ SHorizontalBox::Slot()
 			.Padding(FMargin(3.0f, 2.0f))
 			[
-				SNew(SLevelSnapshotsEditorFilterRow, InOwnerPanel, InManagedFilter, bShouldShowOrTextInFrontOfRow)
+				SNew(SLevelSnapshotsEditorFilterRow, EditorData, InManagedFilter, bShouldShowOrTextInFrontOfRow)
 					.OnClickRemoveRow_Lambda([InOwnerPanel, InManagedFilter](auto)
 					{
 						InOwnerPanel->RemoveFilter(InManagedFilter);
 					})
 			]
 		];
-
-		STableRow<UConjunctionFilter*>::ConstructInternal(
-			STableRow::FArguments()
-			.ShowSelection(false),
-			InOwnerTableView
-		);
 	}
 };
 
@@ -85,6 +78,7 @@ SLevelSnapshotsEditorFilters::~SLevelSnapshotsEditorFilters()
 	{
 		Data->OnUserDefinedFiltersChanged.Remove(OnUserDefinedFiltersChangedHandle);
 		Data->OnEditedFiterChanged.Remove(OnEditedFilterChangedHandle);
+		Data->GetUserDefinedFilters()->OnFilterModified.Remove(OnFilterModifiedHandle);
 	}
 }
 
@@ -125,10 +119,15 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 
 	// Create a property view
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
 	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.bUpdatesFromSelection = false;
+	DetailsViewArgs.bLockable = false;
+	DetailsViewArgs.bAllowSearch = true;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.bHideSelectionTip = true;
+	DetailsViewArgs.NotifyHook = nullptr;
+	DetailsViewArgs.bSearchInitialKeyFocus = false;
+	DetailsViewArgs.ViewIdentifier = NAME_None;
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
 	
 	FilterDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
@@ -137,7 +136,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 		);
 
 
-	
+	TSharedPtr<SScrollBar> ScrollBar;
 	const TArray<UConjunctionFilter*>* AndFilters = &GetEditorData()->GetUserDefinedFilters()->GetChildren();
 	ChildSlot
 	[
@@ -159,61 +158,35 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 			[
 				SNew(SHorizontalBox)
 
+				// Refresh button
 				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.Padding(FMargin(0.f, 2.f))
+				.AutoWidth()
+				.Padding(0.f, 0.f, 2.f, 0.f)
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ForegroundColor(FSlateColor::UseForeground())
+					.OnClicked(this, &SLevelSnapshotsEditorFilters::OnClickUpdateResultsView)
 					[
-						// Checkbox 
 						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.Padding(2.f, 0.f)
-						.AutoWidth()
+						+SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
 						[
-							SAssignNew(MasterFilterIndicatorButton, SMasterFilterIndicatorButton, GetEditorData()->GetUserDefinedFilters())
+							SNew(STextBlock)
+							.Justification(ETextJustify::Center)
+							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+							.Text(FEditorFontGlyphs::Plus)
+							.Text(LOCTEXT("UpdateResults", "Refresh Results"))
 						]
 					]
 				]
 
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
+				// Save and load
+				+SHorizontalBox::Slot()
+					.HAlign(HAlign_Right)
 				[
-					SNew(SHorizontalBox)
-
-					// Refresh button
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(0.f, 0.f, 2.f, 0.f)
-					[
-						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FSlateColor::UseForeground())
-						.OnClicked(this, &SLevelSnapshotsEditorFilters::OnClickUpdateResultsView)
-						[
-							SNew(SHorizontalBox)
-							+SHorizontalBox::Slot()
-								.AutoWidth()
-								.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-								.Justification(ETextJustify::Center)
-								.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-								.Text(FEditorFontGlyphs::Plus)
-								.Text(LOCTEXT("UpdateResults", "Refresh Results"))
-							]
-						]
-					]
-
-					// Save and load
-					+SHorizontalBox::Slot()
-						.HAlign(HAlign_Right)
-					[
-						SNew(SSaveAndLoadFilters, GetEditorData())
-					]
+					SNew(SSaveAndLoadFilters, GetEditorData())
 				]
 			]
 			
@@ -240,12 +213,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
                     + SVerticalBox::Slot()
                     .AutoHeight()
                     [
-                        SAssignNew(FilterRowsList, STreeView<UConjunctionFilter*>)
-                        .TreeItemsSource(AndFilters)
-                        .ItemHeight(24.0f)
-                        .OnGenerateRow(this, &SLevelSnapshotsEditorFilters::OnGenerateRow)
-                        .OnGetChildren_Lambda([](auto, auto){})
-                        .ClearSelectionOnClick(false)
+                        SAssignNew(FilterRowsList, SVerticalBox)
                     ]
 
                     // Add button
@@ -281,26 +249,26 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 		]
 	];
 
-	OnUserDefinedFiltersChangedHandle = GetEditorData()->OnUserDefinedFiltersChanged.AddLambda([this]()
+	// Set Delegates
+	OnUserDefinedFiltersChangedHandle = GetEditorData()->OnUserDefinedFiltersChanged.AddLambda([this](UDisjunctiveNormalFormFilter* NewFilter, UDisjunctiveNormalFormFilter* OldFilter)
 	{
-		UDisjunctiveNormalFormFilter* UserDefinedFilters = GetEditorData()->GetUserDefinedFilters();
-
-		const TArray<UConjunctionFilter*>* AndFilters = &UserDefinedFilters->GetChildren();
-		FilterRowsList->SetTreeItemsSource(AndFilters);
-
-		// Update master filter
-		MasterFilterIndicatorButton->SetUserDefinedFilters(UserDefinedFilters);
-		UserDefinedFilters->SetEditorFilterBehaviorFromChild();
+		if (IsValid(OldFilter) && OnFilterModifiedHandle.IsValid())
+		{
+			OldFilter->OnFilterModified.Remove(OnFilterModifiedHandle);
+		}
+		OnFilterModifiedHandle = NewFilter->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
 		
 		GetEditorData()->SetEditedFilter(TOptional<UNegatableFilter*>());
+		RefreshGroups();
 	});
-	RefreshGroups();
 
-	// Set Delegates
 	OnEditedFilterChangedHandle = GetEditorData()->OnEditedFiterChanged.AddLambda([this](const TOptional<UNegatableFilter*>& ActiveFilter)
 	{
 		FilterDetailsView->SetObject(ActiveFilter.IsSet() ? ActiveFilter.GetValue() : nullptr);
 	});
+	OnFilterModifiedHandle = GetEditorData()->GetUserDefinedFilters()->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
+	
+	RefreshGroups();
 }
 
 ULevelSnapshotsEditorData* SLevelSnapshotsEditorFilters::GetEditorData() const
@@ -327,22 +295,13 @@ void SLevelSnapshotsEditorFilters::RemoveFilter(UConjunctionFilter* FilterToRemo
 {
 	UDisjunctiveNormalFormFilter* UserDefinedFilters = GetEditorData()->GetUserDefinedFilters();
 	UserDefinedFilters->RemoveConjunction(FilterToRemove);
-	UserDefinedFilters->SetEditorFilterBehaviorFromChild();
-
-	RefreshGroups();
 }
 
-void SLevelSnapshotsEditorFilters::SetMasterFilterBehaviorFromChildRow(const EEditorFilterBehavior InFilterBehavior)
+void SLevelSnapshotsEditorFilters::OnFilterModified(EFilterChangeType FilterChangeType)
 {
-	ULevelSnapshotsEditorData* EditorData = GetEditorData();
-	if (!ensure(EditorData))
+	if (FilterChangeType != EFilterChangeType::FilterPropertyModified)
 	{
-		return;
-	}
-
-	if (UDisjunctiveNormalFormFilter* UserDefinedFilters = EditorData->GetUserDefinedFilters())
-	{
-		UserDefinedFilters->SetEditorFilterBehaviorFromChild(InFilterBehavior);
+		RefreshGroups();
 	}
 }
 
@@ -368,22 +327,25 @@ FReply SLevelSnapshotsEditorFilters::OnClickUpdateResultsView()
 	return FReply::Handled();
 }
 
-TSharedRef<ITableRow> SLevelSnapshotsEditorFilters::OnGenerateRow(UConjunctionFilter* InManagedFilter, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return SNew(SLevelSnapshotsEditorFilterRowGroup, OwnerTable, SharedThis<SLevelSnapshotsEditorFilters>(this), InManagedFilter);
-}
-
 void SLevelSnapshotsEditorFilters::RefreshGroups()
 {
-	FilterRowsList->RequestTreeRefresh();
+	FilterRowsList->ClearChildren();
+	const TArray<UConjunctionFilter*>& AllAndRows = GetEditorData()->GetUserDefinedFilters()->GetChildren(); 
+	for (UConjunctionFilter* Row : AllAndRows)
+	{
+		FilterRowsList->AddSlot()
+		[
+			SNew(SLevelSnapshotsEditorFilterRowGroup, SharedThis<SLevelSnapshotsEditorFilters>(this), Row)
+		];
+	}
 }
 
 FReply SLevelSnapshotsEditorFilters::AddFilterClick()
 {
 	if (ULevelSnapshotsEditorData* EditorData = GetEditorData())
 	{
-		GetEditorData()->GetUserDefinedFilters()->CreateChild();
-		RefreshGroups();
+		// This will trigger the filter's OnFilterModified, which will refresh this UI
+		EditorData->GetUserDefinedFilters()->CreateChild();
 	}
 
 	return FReply::Handled();

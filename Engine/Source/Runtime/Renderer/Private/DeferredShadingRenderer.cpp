@@ -50,6 +50,7 @@
 #include "HairStrands/HairStrandsRendering.h"
 #include "HairStrands/HairStrandsData.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
+#include "PhysicsFieldRendering.h"
 #include "GPUSortManager.h"
 #include "NaniteVisualizationData.h"
 #include "Rendering/NaniteResources.h"
@@ -3032,6 +3033,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 #endif
 
 	RendererModule.RenderOverlayExtensions(GraphBuilder, Views, SceneTextures);
+
+	if (ViewFamily.EngineShowFlags.PhysicsField && Scene->PhysicsField)
+	{
+		RenderPhysicsField(GraphBuilder, Views, Scene->PhysicsField, SceneTextures.Color.Target);
+	}
 
 	if (ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO && ShouldRenderDistanceFieldLighting())
 	{

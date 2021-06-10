@@ -155,6 +155,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogNetSyncLoads, Log, All);
 int32 GNumSaturatedConnections; // Counter for how many connections are skipped/early out due to bandwidth saturation
 int32 GNumSharedSerializationHit;
 int32 GNumSharedSerializationMiss;
+int32 GNumSkippedObjectEmptyUpdates;
 
 extern int32 GNetRPCDebug;
 
@@ -4803,6 +4804,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num Saturated Connections"), STAT_NumSaturatedC
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("SharedSerialization RPC Hit"), STAT_SharedSerializationRPCHit, STATGROUP_Net);
 DECLARE_DWORD_COUNTER_STAT(TEXT("SharedSerialization RPC Miss"), STAT_SharedSerializationRPCMiss, STATGROUP_Net);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Empty Object Replicate Properties Skipped"), STAT_NumSkippedObjectEmptyUpdates, STATGROUP_Net);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("SharedSerialization Property Hit"), STAT_SharedSerializationPropertyHit, STATGROUP_Net);
 DECLARE_DWORD_COUNTER_STAT(TEXT("SharedSerialization Property Miss"), STAT_SharedSerializationPropertyMiss, STATGROUP_Net);
@@ -4868,6 +4870,7 @@ struct FScopedNetDriverStats
 			GReplicateActorTimeSeconds = 0;
 			GNumReplicateActorCalls = 0;
 			GNumSaturatedConnections = 0;
+			GNumSkippedObjectEmptyUpdates = 0;
 
 			GReplicationGatherPrioritizeTimeSeconds = 0.f;
 			GServerReplicateActorTimeSeconds = 0.f;
@@ -4899,6 +4902,7 @@ struct FScopedNetDriverStats
 			SET_FLOAT_STAT(STAT_NetServerGatherPrioritizeRepActorsTime, GReplicationGatherPrioritizeTimeSeconds * 1000.0);
 			SET_DWORD_STAT(STAT_NumReplicatedActors, GNumReplicateActorCalls);
 			SET_DWORD_STAT(STAT_NumSaturatedConnections, GNumSaturatedConnections);
+			SET_DWORD_STAT(STAT_NumSkippedObjectEmptyUpdates, GNumSkippedObjectEmptyUpdates);
 
 			CSV_CUSTOM_STAT(Replication, ServerReplicateActorTimeMS, (float)(GServerReplicateActorTimeSeconds * 1000.0), ECsvCustomStatOp::Set );
 			CSV_CUSTOM_STAT(Replication, GatherPrioritizeTimeMS, (float)(GReplicationGatherPrioritizeTimeSeconds * 1000.0), ECsvCustomStatOp::Set );

@@ -115,6 +115,8 @@ class UFXSystemAsset : public UObject
 public:
 	UFXSystemAsset() {}
 
+	ENGINE_API virtual void PostInitProperties() override;
+
 	/** Max number of components of this system to keep resident in the world component pool. */
 	UPROPERTY(EditAnywhere, Category = Performance)
 	uint32 MaxPoolSize;
@@ -133,13 +135,19 @@ public:
 
 	//Cached CSV Stat names for this system.
 #if WITH_PARTICLE_PERF_CSV_STATS
+	FName CSVStat_Count = NAME_None;
 	FName CSVStat_Total = NAME_None;
 	FName CSVStat_GTOnly = NAME_None;
-	FName CSVStat_InstAvg = NAME_None;
+	FName CSVStat_InstAvgGT = NAME_None;
 	FName CSVStat_RT = NAME_None;
-	FName CSVStat_Count = NAME_None;
+	FName CSVStat_InstAvgRT = NAME_None;
+	FName CSVStat_Activation = NAME_None;
+	FName CSVStat_Waits = NAME_None;
+	FName CSVStat_Culled = NAME_None;
 #endif
 #endif
+
+
 };
 
 /**

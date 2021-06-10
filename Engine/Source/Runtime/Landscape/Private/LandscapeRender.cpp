@@ -1590,6 +1590,11 @@ FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
 
 bool FLandscapeComponentSceneProxy::CanBeOccluded() const
 {
+	if (IsVirtualTextureOnly())
+	{
+		return false;
+	}
+
 	for (const FMaterialRelevance& Relevance : MaterialRelevances)
 	{
 		if (!Relevance.bDisableDepthTest)
