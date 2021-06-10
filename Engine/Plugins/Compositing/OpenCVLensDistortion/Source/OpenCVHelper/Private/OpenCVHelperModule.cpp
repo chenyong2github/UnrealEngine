@@ -13,6 +13,23 @@ OPENCV_INCLUDES_START
 OPENCV_INCLUDES_END
 #endif
 
+namespace OpenCVHelperModule
+{
+#if WITH_OPENCV
+
+	static void* UnrealMalloc(size_t Count, uint32_t Alignment)
+	{
+		return FMemory::Malloc(static_cast<SIZE_T>(Count), static_cast<uint32>(Alignment));
+	}
+
+	static void UnrealFree(void* Original)
+	{
+		FMemory::Free(Original);
+	}
+
+#endif //WITH_OPENCV
+}
+
 class FOpenCVHelperModule : public IOpenCVHelperModule
 {
 public:
@@ -47,7 +64,7 @@ void FOpenCVHelperModule::StartupModule()
 	// We need to tell OpenCV to use Unreal's memory allocator to avoid crashes.
 	// These may happen when Unreal passes a container to OpenCV, then OpenCV allocates memory for that container
 	// and then Unreal tries to release the memory in it.
-	cv::unreal::SetMallocAndFree(&FMemory::Malloc, &FMemory::Free);
+	cv::unreal::SetMallocAndFree(&OpenCVHelperModule::UnrealMalloc, &OpenCVHelperModule::UnrealFree);
 
 #endif
 }
