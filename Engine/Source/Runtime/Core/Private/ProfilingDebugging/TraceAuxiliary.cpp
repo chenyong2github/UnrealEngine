@@ -492,7 +492,7 @@ static void StartUnrealTrace()
 {
 	FString BinPath = "\"";
 	BinPath += FPaths::EngineDir();
-	BinPath += "/Binaries/Win64/UnrealTrace.exe\"";
+	BinPath += "/Binaries/Win64/UnrealTraceServer.exe\"";
 
 	uint32 Flags = 0x0100'0000; // CREATE_BREAKAWAY_FROM_JOB
 	STARTUPINFOW StartupInfo = { sizeof(STARTUPINFOW) };

@@ -1065,7 +1065,7 @@ public partial class Project : CommandUtils
 		LogInformation("UnrealTrace: Starting server");
 
 		// Locate the UnrealTrace binary
-		var UnrealTracePath = HostPlatform.Current.GetUE4ExePath("UnrealTrace.exe");
+		var UnrealTracePath = HostPlatform.Current.GetUE4ExePath("UnrealTraceServer.exe");
 		if (!File.Exists(UnrealTracePath))
 		{
 			LogWarning("UnrealTrace: Unable to locate binary at " + UnrealTracePath);
