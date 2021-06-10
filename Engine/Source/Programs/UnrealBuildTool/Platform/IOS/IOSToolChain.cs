@@ -551,7 +551,7 @@ namespace UnrealBuildTool
 					{
 						FrameworkDir = Path.GetDirectoryName(FrameworkDir);
 					}
-					Result += String.Format(" -F\"{0}\"", FrameworkDir);
+					Result += String.Format(" -F\\\"{0}\\\"", FrameworkDir);
 				}
 
 				Result += " -framework " + Framework.Name;
