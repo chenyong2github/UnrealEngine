@@ -171,11 +171,11 @@ private:
 	/** Get the current text to use for the "Pick Snapshot Widget" button */
 	FText GetPickWidgetText() const;
 
-	/** Get the current color to use for the "Pick Snapshot Widget" button */
-	FSlateColor GetPickWidgetColor() const;
+	/** Get the current check state to use for the "Pick Snapshot Widget" button */
+	ECheckBoxState GetPickWidgetColor() const;
 
 	/** Called when the "Pick Snapshot Widget" button is clicked */
-	FReply OnPickWidgetClicked();
+	void OnPickWidgetClicked();
 
 	/** Is there any snapshot data to save, visualized... */
 	bool HasValidSnapshot() const;
@@ -185,7 +185,7 @@ private:
 
 #if SLATE_REFLECTOR_HAS_DESKTOP_PLATFORM
 	/** Called when the "Save Snapshot" button is clicked */
-	FReply OnSaveSnapshotClicked();
+	void OnSaveSnapshotClicked();
 #endif // SLATE_REFLECTOR_HAS_DESKTOP_PLATFORM
 
 private:
