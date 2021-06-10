@@ -37,6 +37,14 @@ FAutoConsoleVariableRef CVarGPUSceneValidatePrimitiveBuffer(
 	ECVF_RenderThreadSafe
 );
 
+int32 GGPUSceneValidateInstanceBuffer = 0;
+FAutoConsoleVariableRef CVarGPUSceneValidateInstanceBuffer(
+	TEXT("r.GPUScene.ValidateInstanceBuffer"),
+	GGPUSceneValidateInstanceBuffer,
+	TEXT("Whether to readback the GPU instance data and assert if it doesn't match the RT primitive data.  Useful for debugging."),
+	ECVF_RenderThreadSafe
+);
+
 int32 GGPUSceneMaxPooledUploadBufferSize = 256000;
 FAutoConsoleVariableRef CVarGGPUSceneMaxPooledUploadBufferSize(
 	TEXT("r.GPUScene.MaxPooledUploadBufferSize"),
@@ -183,10 +191,11 @@ struct FUploadDataSourceAdapterScenePrimitives
 {
 	static constexpr bool bUpdateNaniteMaterialTables = true;
 
-	FUploadDataSourceAdapterScenePrimitives(FScene& InScene, uint32 InSceneFrameNumber, const TArray<int32> &InPrimitivesToUpdate)
+	FUploadDataSourceAdapterScenePrimitives(FScene& InScene, uint32 InSceneFrameNumber, TArray<int32> InPrimitivesToUpdate, TArray<EPrimitiveDirtyState> InPrimitiveDirtyState)
 		: Scene(InScene)
 		, SceneFrameNumber(InSceneFrameNumber)
-		, PrimitivesToUpdate(InPrimitivesToUpdate)
+		, PrimitivesToUpdate(MoveTemp(InPrimitivesToUpdate))
+		, PrimitiveDirtyState(MoveTemp(InPrimitiveDirtyState))
 	{}
 
 	/**
@@ -238,7 +247,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 	FORCEINLINE bool GetInstanceInfo(int32 ItemIndex, FInstanceUploadInfo& InstanceUploadInfo) const
 	{
 		const int32 PrimitiveID = PrimitivesToUpdate[ItemIndex];
-		if (PrimitiveID < Scene.PrimitiveSceneProxies.Num())
+		if (PrimitiveID < Scene.PrimitiveSceneProxies.Num() && PrimitiveDirtyState[PrimitiveID] != EPrimitiveDirtyState::ChangedId)
 		{
 			FPrimitiveSceneProxy* PrimitiveSceneProxy = Scene.PrimitiveSceneProxies[PrimitiveID];
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
@@ -273,8 +282,12 @@ struct FUploadDataSourceAdapterScenePrimitives
 				InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
 				InstanceUploadInfo.DummyInstance.PrevLocalToPrimitive.SetIdentity();
 				InstanceUploadInfo.DummyInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
+				InstanceUploadInfo.DummyInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+				InstanceUploadInfo.DummyInstance.PerInstanceRandom = 0.0f;
+				InstanceUploadInfo.DummyInstance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 				// TODO: This should be propagated from the Primitive, or not exist?
 				InstanceUploadInfo.DummyInstance.Flags = 0;
+
 				InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 				return true;
 			}
@@ -301,7 +314,8 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 	FScene& Scene;
 	const uint32 SceneFrameNumber;
-	TArray<int, SceneRenderingAllocator> PrimitivesToUpdate;
+	TArray<int> PrimitivesToUpdate;
+	TArray<EPrimitiveDirtyState> PrimitiveDirtyState;
 };
 
 void FGPUScene::SetEnabled(ERHIFeatureLevel::Type InFeatureLevel)
@@ -341,6 +355,165 @@ void FGPUScene::EndRender()
 	CurrentDynamicContext = nullptr;
 }
 
+
+
+// Helper to build the needed data to run per-instance operation on the GPU in a balanced way
+// TODO: Move to own files
+class FInstanceProcessingGPULoadBalancer
+{
+public:
+	static constexpr int32 ThreadGroupSize = 64;
+
+	// Number of bits needed for prefix sum storage
+	static constexpr uint32 PrefixBits = ILog2Const(uint32(ThreadGroupSize));
+	static constexpr uint32 PrefixBitMask = (1U << PrefixBits) - 1U;
+
+	static constexpr uint32 NumInstancesItemBits = PrefixBits + 1U;
+	static constexpr uint32 NumInstancesItemMask = (1U << NumInstancesItemBits) - 1U;
+
+	FInstanceProcessingGPULoadBalancer()
+	{ 
+	}
+
+	void Add(int32 InstanceDataOffset, int32 NumInstanceDataEntries, int32 Payload)
+	{
+		int32 InstancesAdded = 0;
+		while (InstancesAdded < NumInstanceDataEntries)
+		{
+			int32 MaxInstancesThisBatch = ThreadGroupSize - CurrentBatchPrefixSum;
+
+			if (MaxInstancesThisBatch > 0)
+			{
+				const int NumInstancesThisItem = FMath::Min(MaxInstancesThisBatch, NumInstanceDataEntries - InstancesAdded);
+				Items.Add(PackItem(InstanceDataOffset + InstancesAdded, NumInstancesThisItem, Payload, CurrentBatchPrefixSum));
+				if (CurrentBatchNumItems * PrefixBits < sizeof(CurrentBatchPackedPrefixSum) * 8U)
+				{
+					CurrentBatchPackedPrefixSum |= CurrentBatchPackedPrefixSum << (PrefixBits * CurrentBatchNumItems);
+				}
+				CurrentBatchNumItems += 1;
+				InstancesAdded += NumInstancesThisItem;
+				CurrentBatchPrefixSum += NumInstancesThisItem;
+
+			}
+
+			// Flush batch if it is not possible to add any more items (for one of the reasons)
+			if (MaxInstancesThisBatch <= 0 || CurrentBatchPrefixSum >= ThreadGroupSize)
+			{
+				Batches.Add(PackBatch(CurrentBatchFirstItem, CurrentBatchNumItems));
+				CurrentBatchFirstItem = uint32(Items.Num());
+				CurrentBatchPrefixSum = 0;
+				CurrentBatchNumItems = 0U;
+				CurrentBatchPackedPrefixSum = 0U;
+			}
+		}
+	}
+
+	bool IsEmpty() const
+	{
+		return Items.IsEmpty();
+	}
+
+	struct FPackedBatch
+	{
+		uint32 FirstItem_NumItems;
+	};
+
+	FPackedBatch PackBatch(uint32 FirstItem, uint32 NumItems)
+	{
+		checkSlow(NumItems < (1U << NumInstancesItemBits));
+		checkSlow(FirstItem < (1U << (32U - NumInstancesItemBits)));
+
+		return FPackedBatch{ (FirstItem << NumInstancesItemBits) | (NumItems & NumInstancesItemMask) };
+	}
+
+	struct FPackedItem
+	{
+		// packed 32-NumInstancesItemBits:NumInstancesItemBits - need one more bit for the case where one item has ThreadGroupSize work to do
+		uint32 InstanceDataOffset_NumInstances;
+		// packed 32-PrefixBits:PrefixBits
+		uint32 Payload_BatchPrefixOffset;
+	};
+	FPackedItem PackItem(uint32 InstanceDataOffset, uint32 NumInstances, uint32 Payload, uint32 BatchPrefixSum)
+	{
+		checkSlow(NumInstances < (1U << NumInstancesItemBits));
+		checkSlow(InstanceDataOffset < (1U << (32U - NumInstancesItemBits)));
+		checkSlow(BatchPrefixSum < (1U << PrefixBits));
+		checkSlow(Payload < (1U << (32U - PrefixBits)));
+
+		return FPackedItem
+		{ 
+			(InstanceDataOffset << NumInstancesItemBits) | (NumInstances & NumInstancesItemMask),
+			(Payload << PrefixBits) | (BatchPrefixSum & PrefixBitMask)
+		};
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedBatch >, BatchBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedItem >, ItemBuffer)
+		SHADER_PARAMETER(uint32, NumBatches)
+		SHADER_PARAMETER(uint32, NumItems)
+	END_SHADER_PARAMETER_STRUCT()
+
+	struct FGPUData
+	{
+		int32 NumBatches = 0;
+		int32 NumItems = 0;
+		FRDGBufferRef BatchBuffer = nullptr;
+		FRDGBufferRef ItemBuffer = nullptr;
+
+		void GetShaderParameters(FRDGBuilder& GraphBuilder, FShaderParameters& ShaderParameters)
+		{
+			ShaderParameters.BatchBuffer = GraphBuilder.CreateSRV(BatchBuffer);
+			ShaderParameters.ItemBuffer = GraphBuilder.CreateSRV(ItemBuffer);
+			ShaderParameters.NumBatches = NumBatches;
+			ShaderParameters.NumItems = NumItems;
+		}
+	};
+
+	// publish constants to the shader
+	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), ThreadGroupSize);
+		OutEnvironment.SetDefine(TEXT("NUM_INSTANCES_ITEM_BITS"), NumInstancesItemBits);
+		OutEnvironment.SetDefine(TEXT("NUM_INSTANCES_ITEM_MASK"), NumInstancesItemMask);
+		OutEnvironment.SetDefine(TEXT("PREFIX_BITS"), PrefixBits);
+		OutEnvironment.SetDefine(TEXT("PREFIX_BIT_MASK"), PrefixBitMask);
+	}
+
+	FGPUData Upload(FRDGBuilder& GraphBuilder)
+	{
+		if (CurrentBatchNumItems != 0)
+		{
+			Batches.Add(PackBatch(CurrentBatchFirstItem, CurrentBatchNumItems));
+			CurrentBatchNumItems = 0;
+		}
+
+		FGPUData Result;
+		Result.BatchBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceProcessingGPULoadBalancer.Batches"), Batches, ERDGInitialDataFlags::NoCopy);
+		Result.ItemBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceProcessingGPULoadBalancer.Items"), Items, ERDGInitialDataFlags::NoCopy);
+		Result.NumBatches = Batches.Num();
+		Result.NumItems = Items.Num();
+
+		return Result;
+	}
+
+	FIntVector GetCsGroupCount() const
+	{
+		return FIntVector(Batches.Num(), 1, 1);
+	}
+
+	TArray<FPackedBatch, SceneRenderingAllocator>  Batches;
+	TArray<FPackedItem, SceneRenderingAllocator>  Items;
+	
+	int32 CurrentBatchPrefixSum = 0;
+	uint32 CurrentBatchNumItems = 0U;
+	uint32 CurrentBatchPackedPrefixSum = 0U;
+	uint32 CurrentBatchFirstItem = 0U;
+};
+
+
+
+
 void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
@@ -352,11 +525,11 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 
 	if (GGPUSceneUploadEveryFrame || bUpdateAllPrimitives)
 	{
-		PrimitivesMarkedToUpdate.Init(false, PrimitivesMarkedToUpdate.Num());
 		PrimitivesToUpdate.Reset();
 
 		for (int32 Index = 0; Index < Scene.Primitives.Num(); ++Index)
 		{
+			PrimitiveDirtyState[Index] |= EPrimitiveDirtyState::ChangedAll;
 			PrimitivesToUpdate.Add(Index);
 		}
 
@@ -375,16 +548,32 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 	// Store in GPU-scene to enable validation that update has been carried out.
 	SceneFrameNumber = Scene.GetFrameNumber();
 
-	FUploadDataSourceAdapterScenePrimitives Adapter(Scene, SceneFrameNumber, PrimitivesToUpdate);
+	FUploadDataSourceAdapterScenePrimitives Adapter(Scene, SceneFrameNumber, MoveTemp(PrimitivesToUpdate), MoveTemp(PrimitiveDirtyState));
 	FGPUSceneBufferState BufferState = UpdateBufferState(GraphBuilder, &Scene, Adapter);
+
+	// Pull out instances needing only primitive ID update, they still have to go to the general update such that the primitive gets updated (as it moved)
+	{
+		FInstanceProcessingGPULoadBalancer IdOnlyUpdateData;
+		for (int32 Index = 0; Index < Adapter.PrimitivesToUpdate.Num(); ++Index)
+		{
+			int32 PrimitiveId = Adapter.PrimitivesToUpdate[Index];
+
+			if (PrimitiveId < Scene.PrimitiveSceneProxies.Num() && Adapter.PrimitiveDirtyState[PrimitiveId] == EPrimitiveDirtyState::ChangedId)
+			{
+				const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene.Primitives[PrimitiveId];
+				if (PrimitiveSceneInfo->GetInstanceDataOffset() >= 0)
+				{
+					InstanceDataToClear.SetRange(PrimitiveSceneInfo->GetInstanceDataOffset(), PrimitiveSceneInfo->GetNumInstanceDataEntries(), false);
+					IdOnlyUpdateData.Add(PrimitiveSceneInfo->GetInstanceDataOffset(), PrimitiveSceneInfo->GetNumInstanceDataEntries(), PrimitiveId);
+				}
+			}
+		}
+		AddUpdatePrimitiveIdsPass(GraphBuilder, IdOnlyUpdateData);
+	}
 
 	// The adapter copies the IDs of primitives to update such that any that are (incorrectly) marked for update after are not lost.
 	PrimitivesToUpdate.Reset();
-	PrimitivesMarkedToUpdate.Init(false, PrimitivesMarkedToUpdate.Num());
-
-	// Clear the flags that mark newly added primitives.
-	AddedPrimitiveFlags.Init(false, AddedPrimitiveFlags.Num());
-
+	PrimitiveDirtyState.Init(EPrimitiveDirtyState::None, PrimitiveDirtyState.Num());
 
 	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUSceneUpdate"), 
 		[this, &Scene, Adapter = MoveTemp(Adapter), BufferState = MoveTemp(BufferState)](FRHICommandListImmediate& RHICmdList)
@@ -402,7 +591,6 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 		{
 			//UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
 			const FPrimitiveSceneShaderData* PrimitiveBufferPtr = reinterpret_cast<const FPrimitiveSceneShaderData*>(RHILockBuffer(BufferState.PrimitiveBuffer.Buffer, 0, BufferState.PrimitiveBuffer.NumBytes, RLM_ReadOnly));
-			ensureMsgf(PrimitiveBufferPtr != nullptr, TEXT("Validation not implemented for Texture2D buffer type as layout is opaque."));
 
 			if (PrimitiveBufferPtr != nullptr)
 			{
@@ -425,6 +613,173 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 			}
 			RHIUnlockBuffer(BufferState.PrimitiveBuffer.Buffer);
 		}
+
+
+		// Validate the scene instances are identical to the uploaded data (not the dynamic ones).
+		if (GGPUSceneValidateInstanceBuffer && BufferState.InstanceDataBuffer.NumBytes > 0)
+		{
+			//UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
+			const FVector4 *InstanceDataBufferPtr = reinterpret_cast<const FVector4*>(RHILockBuffer(BufferState.InstanceDataBuffer.Buffer, 0, BufferState.InstanceDataBuffer.NumBytes, RLM_ReadOnly));
+
+			struct FInstanceSceneDataDebug
+			{
+				FRenderTransform  LocalToWorld;
+				FRenderTransform  PrevLocalToWorld;
+#if 0
+				// Derived data, not checked: 
+				FMatrix44f  WorldToLocal;
+				FVector4    NonUniformScale;
+				FVector3f   InvNonUniformScale;
+				float       DeterminantSign;
+				uint32      NaniteRuntimeResourceID;
+#endif 
+				FVector3f   LocalBoundsCenter;
+				uint32      PrimitiveId;
+				uint32      PayloadDataOffset; // TODO: Implement payload data
+				FVector3f   LocalBoundsExtent;
+				uint32      LastUpdateSceneFrameNumber;
+				uint32      NaniteRuntimeResourceID;
+				uint32      NaniteHierarchyOffset;
+				bool        NaniteHasImposter;
+				float       PerInstanceRandom;
+				FVector4    LightMapAndShadowMapUVBias;
+				bool        ValidInstance;
+				uint32      Flags;
+			};
+
+			auto GetInstanceData = [](uint32 InstanceId, uint32 SOAStride, const FVector4 * InstanceDataBufferInner) -> FInstanceSceneDataDebug
+			{
+				auto LoadInstanceDataElement = [InstanceDataBufferInner](uint32 Index) -> FVector4
+				{
+					return InstanceDataBufferInner[Index];
+				};
+
+				auto asuint = [](const float& Value) -> uint32
+				{
+					return *reinterpret_cast<const uint32*>(&Value);
+				};
+
+				auto LoadRenderTransform = [&](uint32 InstanceId, uint32 StartOffset) -> FRenderTransform
+				{
+					FVector4 V0 = LoadInstanceDataElement((StartOffset + 0) * SOAStride + InstanceId);
+					FVector4 V1 = LoadInstanceDataElement((StartOffset + 1) * SOAStride + InstanceId);
+					FVector4 V2 = LoadInstanceDataElement((StartOffset + 2) * SOAStride + InstanceId);
+
+					FRenderTransform Result;
+					Result.TransformRows[0] = FVector3f(V0.X, V1.X, V2.X);
+					Result.TransformRows[1] = FVector3f(V0.Y, V1.Y, V2.Y);
+					Result.TransformRows[2] = FVector3f(V0.Z, V1.Z, V2.Z);
+					Result.Origin = FVector3f(V0.W, V1.W, V2.W);
+
+					return Result;
+				};
+
+				FInstanceSceneDataDebug InstanceData;
+
+
+				InstanceData.Flags = asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).X);
+				InstanceData.PrimitiveId = asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).Y);
+				InstanceData.NaniteHierarchyOffset = asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).Z);
+				InstanceData.LastUpdateSceneFrameNumber = asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).W);
+
+				// Only process valid instances
+				InstanceData.ValidInstance = InstanceData.PrimitiveId != 0xFFFFFFFFu;
+
+				if (InstanceData.ValidInstance)
+				{
+					InstanceData.LocalToWorld = LoadRenderTransform(InstanceId, 1);
+					InstanceData.PrevLocalToWorld = LoadRenderTransform(InstanceId, 4);
+
+					InstanceData.LocalBoundsCenter = LoadInstanceDataElement(7 * SOAStride + InstanceId);
+					InstanceData.LocalBoundsExtent.X = LoadInstanceDataElement(7 * SOAStride + InstanceId).W;
+
+					InstanceData.LocalBoundsExtent.Y = LoadInstanceDataElement(8 * SOAStride + InstanceId).X;
+					InstanceData.LocalBoundsExtent.Z = LoadInstanceDataElement(8 * SOAStride + InstanceId).Y;
+					InstanceData.PayloadDataOffset = asuint(LoadInstanceDataElement(8 * SOAStride + InstanceId).Z);
+					InstanceData.PerInstanceRandom = LoadInstanceDataElement(8 * SOAStride + InstanceId).W;
+
+					InstanceData.LightMapAndShadowMapUVBias = LoadInstanceDataElement(9 * SOAStride + InstanceId);
+
+					InstanceData.NaniteHasImposter = (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
+				}
+
+				return InstanceData;
+			};
+
+			if (InstanceDataBufferPtr != nullptr)
+			{
+				//const int32 TotalNumberInstances = InstanceDataAllocator.GetMaxSize();
+				check(BufferState.InstanceDataBuffer.NumBytes >= BufferState.InstanceDataSOAStride * sizeof(FInstanceSceneShaderData::Data));
+
+				for (int32 Index = 0; Index < InstanceDataAllocator.GetMaxSize(); ++Index)
+				{
+					FInstanceSceneDataDebug InstanceDataGPU = GetInstanceData(uint32(Index), BufferState.InstanceDataSOAStride, InstanceDataBufferPtr);
+
+					if (InstanceDataGPU.ValidInstance)
+					{
+						check(!InstanceDataAllocator.IsFree(Index));
+						if (InstanceDataGPU.PrimitiveId < uint32(Scene.Primitives.Num()))
+						{
+							const FPrimitiveSceneProxy* PrimitiveSceneProxy = Scene.PrimitiveSceneProxies[InstanceDataGPU.PrimitiveId];
+							const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+							check(Index >= PrimitiveSceneInfo->GetInstanceDataOffset() && Index < PrimitiveSceneInfo->GetInstanceDataOffset() + PrimitiveSceneInfo->GetNumInstanceDataEntries());
+							FPrimitiveInstance PrimitiveInstance;
+							if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
+							{
+								const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneProxy->GetPrimitiveInstances();
+								PrimitiveInstance = (*PrimitiveInstances)[Index - PrimitiveSceneInfo->GetInstanceDataOffset()];
+							}
+							else
+							{
+								PrimitiveInstance.LocalToPrimitive.SetIdentity();
+								PrimitiveInstance.PrevLocalToPrimitive.SetIdentity();
+								PrimitiveInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
+								PrimitiveInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+								PrimitiveInstance.PerInstanceRandom = 0.0f;
+								PrimitiveInstance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+								// TODO: This should be propagated from the Primitive, or not exist?
+								PrimitiveInstance.Flags = 0;
+							}
+							FMatrix PrimitiveToWorld = PrimitiveSceneProxy->GetLocalToWorld();
+							bool bHasPrecomputedVolumetricLightmap{};
+							bool bOutputVelocity{};
+							int32 SingleCaptureIndex{};
+
+							FMatrix PrevPrimitiveToWorld;
+							Scene.GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PrevPrimitiveToWorld, SingleCaptureIndex, bOutputVelocity);
+
+							// Pack down then info just as for upload.
+							const FInstanceSceneShaderData InstanceSceneData(
+								PrimitiveInstance,
+								InstanceDataGPU.PrimitiveId,
+								PrimitiveToWorld,
+								PrevPrimitiveToWorld,
+								SceneFrameNumber
+							);
+
+							// unpack again, just as on GPU...
+							FInstanceSceneDataDebug InstanceDataHost = GetInstanceData(0U, 1U, InstanceSceneData.Data.GetData());
+
+							check(InstanceDataHost.LocalToWorld.Equals(InstanceDataGPU.LocalToWorld));
+							// Check disabled for now as PrevLocalToWorld handling is a bit odd and is subject to change.
+							// check(PrimitiveInstance.PrevLocalToWorld.Equals(InstanceDataGPU.PrevLocalToWorld));
+							checkSlow(FMath::IsFinite(InstanceDataGPU.PerInstanceRandom));
+							check(InstanceDataHost.PerInstanceRandom == InstanceDataGPU.PerInstanceRandom);
+							// Can't validate this because it is transient and can't be known at this point
+							// check(PrimitiveInstance.LastUpdateSceneFrameNumber == InstanceDataGPU.LastUpdateSceneFrameNumber);
+							check(InstanceDataHost.LocalBoundsCenter.Equals(InstanceDataGPU.LocalBoundsCenter));
+							check(InstanceDataHost.LocalBoundsExtent.Equals(InstanceDataGPU.LocalBoundsExtent));
+							check(InstanceDataHost.LightMapAndShadowMapUVBias == InstanceDataGPU.LightMapAndShadowMapUVBias);
+							check(InstanceDataHost.NaniteHierarchyOffset == InstanceDataGPU.NaniteHierarchyOffset);
+							check(InstanceDataHost.Flags == InstanceDataGPU.Flags);
+						}
+					}
+				}
+			}
+			RHIUnlockBuffer(BufferState.InstanceDataBuffer.Buffer);
+		}
+
+
 #endif // DO_CHECK
 	});
 }
@@ -1032,11 +1387,16 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 			InstanceUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
 			InstanceUploadInfo.PrimitiveToWorld = PrimitiveData.LocalToWorld;
 			InstanceUploadInfo.PrevPrimitiveToWorld = InstanceUploadInfo.PrimitiveToWorld;
+			
 			InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
 			InstanceUploadInfo.DummyInstance.PrevLocalToPrimitive.SetIdentity();
 			InstanceUploadInfo.DummyInstance.LocalBounds = FRenderBounds(PrimitiveData.LocalObjectBoundsMin, PrimitiveData.LocalObjectBoundsMax);
+			InstanceUploadInfo.DummyInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+			InstanceUploadInfo.DummyInstance.PerInstanceRandom = 0.0f;
+			InstanceUploadInfo.DummyInstance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 			// TODO: This should be propagated from the Primitive, or not exist?
 			InstanceUploadInfo.DummyInstance.Flags = 0;
+
 			InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 			InstanceUploadInfo.InstanceDataOffset = InstanceIDStartOffset + ItemIndex;
 			return true;
@@ -1110,29 +1470,28 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 
 void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId)
 {
-	Scene.GPUScene.AddPrimitiveToUpdate(PrimitiveId);
+	Scene.GPUScene.AddPrimitiveToUpdate(PrimitiveId, EPrimitiveDirtyState::ChangedAll);
 }
 
-void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId)
+void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId, EPrimitiveDirtyState DirtyState)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
 	if (bIsEnabled)
 	{
-		if (PrimitiveId + 1 > PrimitivesMarkedToUpdate.Num())
-		{
-			const int32 NewSize = Align(PrimitiveId + 1, 64);
-			PrimitivesMarkedToUpdate.Add(0, NewSize - PrimitivesMarkedToUpdate.Num());
-		}
+		ResizeDirtyState(PrimitiveId + 1);
 
 		// Make sure we aren't updating same primitive multiple times.
-		if (!PrimitivesMarkedToUpdate[PrimitiveId])
+		if (PrimitiveDirtyState[PrimitiveId] == EPrimitiveDirtyState::None)
 		{
 			PrimitivesToUpdate.Add(PrimitiveId);
-			PrimitivesMarkedToUpdate[PrimitiveId] = true;
 		}
+		
+		PrimitiveDirtyState[PrimitiveId] |= DirtyState;
 	}
 }
+
+
 void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene)
 {
 	if (bIsEnabled)
@@ -1226,22 +1585,6 @@ void FGPUScene::FreeInstanceSlots(int InstanceDataOffset, int32 NumInstanceDataE
 }
 
 
-void FGPUScene::MarkPrimitiveAdded(int32 PrimitiveId)
-{
-	if (bIsEnabled)
-	{
-		check(PrimitiveId >= 0);
-
-		if (PrimitiveId >= AddedPrimitiveFlags.Num())
-		{
-			AddedPrimitiveFlags.Add(false, PrimitiveId + 1 - AddedPrimitiveFlags.Num());
-		}
-		AddedPrimitiveFlags[PrimitiveId] = true;
-	}
-}
-
-
-
 TRange<int32> FGPUScene::CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector)
 {
 	ensure(bInBeginEndBlock);
@@ -1283,4 +1626,128 @@ FGPUScenePrimitiveCollector::FUploadData* FGPUSceneDynamicContext::AllocateDynam
 	FGPUScenePrimitiveCollector::FUploadData* UploadData = new FGPUScenePrimitiveCollector::FUploadData;
 	DymamicPrimitiveUploadData.Add(UploadData);
 	return UploadData;
+}
+
+
+/**
+ * Call before accessing the GPU scene in a read/write pass.
+ */
+bool FGPUScene::BeginReadWriteAccess(FRDGBuilder& GraphBuilder)
+{
+	if (IsEnabled())
+	{
+		// TODO: Remove this when everything is properly RDG'd
+		AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+		{
+			FRHITransitionInfo 	Transitions[2] =
+			{
+				FRHITransitionInfo(InstanceDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(PrimitiveBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			};
+
+			RHICmdList.Transition(Transitions);
+		});
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Fills in the FGPUSceneWriterParameters to use for read/write access to the GPU Scene.
+ */
+void FGPUScene::GetWriteParameters(FGPUSceneWriterParameters& GPUSceneWriterParametersOut)
+{
+	GPUSceneWriterParametersOut.GPUSceneFrameNumber = SceneFrameNumber;
+	GPUSceneWriterParametersOut.GPUSceneInstanceDataSOAStride = InstanceDataSOAStride;
+	GPUSceneWriterParametersOut.GPUSceneNumAllocatedInstances = InstanceDataAllocator.GetMaxSize();
+	GPUSceneWriterParametersOut.GPUSceneNumAllocatedPrimitives = DynamicPrimitivesOffset;
+	GPUSceneWriterParametersOut.GPUSceneInstanceSceneDataRW = InstanceDataBuffer.UAV;
+	GPUSceneWriterParametersOut.GPUScenePrimitiveSceneDataRW = PrimitiveBuffer.UAV;
+
+
+}
+
+/**
+ * Call after accessing the GPU scene in a read/write pass. Ensures barriers are done.
+ */
+void FGPUScene::EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAccessState)
+{
+	if (IsEnabled())
+	{
+
+		// TODO: Remove this when everything is properly RDG'd
+		AddPass(GraphBuilder, [this, FinalAccessState](FRHICommandList& RHICmdList)
+		{
+			FRHITransitionInfo 	Transitions[2] =
+			{
+				FRHITransitionInfo(InstanceDataBuffer.UAV, ERHIAccess::UAVCompute, FinalAccessState),
+				FRHITransitionInfo(PrimitiveBuffer.UAV, ERHIAccess::UAVCompute, FinalAccessState)
+			};
+
+			RHICmdList.Transition(Transitions);
+		});
+	}
+
+}
+
+
+/**
+ * Compute shader to project and invalidate the rectangles of given instances.
+ */
+class FGPUSceneSetInstancePrimitiveIdCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGPUSceneSetInstancePrimitiveIdCS);
+	SHADER_USE_PARAMETER_STRUCT(FGPUSceneSetInstancePrimitiveIdCS, FGlobalShader)
+public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceProcessingGPULoadBalancer::FShaderParameters, BatcherParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneWriterParameters, GPUSceneWriterParameters)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static constexpr int32 NumThreadsPerGroup = FInstanceProcessingGPULoadBalancer::ThreadGroupSize;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		FInstanceProcessingGPULoadBalancer::SetShaderDefines(OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FGPUSceneSetInstancePrimitiveIdCS, "/Engine/Private/GPUScene/GPUSceneDataManagement.usf", "GPUSceneSetInstancePrimitiveIdCS", SF_Compute);
+
+
+void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceProcessingGPULoadBalancer& IdOnlyUpdateItems)
+{
+	if (!IdOnlyUpdateItems.IsEmpty())
+	{
+		FGPUSceneSetInstancePrimitiveIdCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGPUSceneSetInstancePrimitiveIdCS::FParameters>();
+
+		IdOnlyUpdateItems.Upload(GraphBuilder).GetShaderParameters(GraphBuilder, PassParameters->BatcherParameters);
+
+		BeginReadWriteAccess(GraphBuilder);
+
+		GetWriteParameters(PassParameters->GPUSceneWriterParameters);
+
+		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FGPUSceneSetInstancePrimitiveIdCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("GPUSceneSetInstancePrimitiveIdCS"),
+			ComputeShader,
+			PassParameters,
+			IdOnlyUpdateItems.GetCsGroupCount()
+		);
+
+		//GraphBuilder.AddPass()
+
+		EndReadWriteAccess(GraphBuilder, ERHIAccess::UAVCompute);
+	}
 }

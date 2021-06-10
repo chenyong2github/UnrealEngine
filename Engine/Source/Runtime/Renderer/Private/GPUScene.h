@@ -5,7 +5,7 @@
 #include "RenderResource.h"
 #include "RendererInterface.h"
 #include "PrimitiveUniformShaderParameters.h"
-
+#include "PrimitiveSceneInfo.h"
 #include "GrowOnlySpanAllocator.h"
 
 class FRHICommandList;
@@ -116,6 +116,9 @@ private:
 	FGPUSceneDynamicContext* GPUSceneDynamicContext = nullptr;
 };
 
+// TODO: move to own header
+class FInstanceProcessingGPULoadBalancer;
+
 /**
  * Contains and controls the lifetime of any dynamic primitive data collected for the scene rendering.
  * Typically shares life-time with the SceneRenderer. 
@@ -155,6 +158,17 @@ struct FGPUSceneBufferState
 	bool bResizedLightmapData = false;
 };
 
+
+// Include in shader that modifies GPU-Scene instances
+BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneWriterParameters, )
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUSceneInstanceSceneDataRW)
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUScenePrimitiveSceneDataRW)
+	SHADER_PARAMETER(uint32, GPUSceneInstanceDataSOAStride)
+	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
+	SHADER_PARAMETER(uint32, GPUSceneNumAllocatedInstances)
+	SHADER_PARAMETER(uint32, GPUSceneNumAllocatedPrimitives)
+END_SHADER_PARAMETER_STRUCT()
+
 class FGPUScene
 {
 public:
@@ -192,11 +206,6 @@ public:
 	void FreeInstanceSlots(int32 InstanceDataOffset, int32 NumInstanceDataEntries);
 
 	/**
-	 * Flag the primitive as added this frame (flags are consumed / reset when the GPU-Scene update is invoked).
-	 */
-	void MarkPrimitiveAdded(int32 PrimitiveId);
-
-	/**
 	 * Upload primitives from View.DynamicPrimitiveCollector.
 	 */
 	void UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View);
@@ -207,10 +216,61 @@ public:
 	void Update(FRDGBuilder& GraphBuilder, FScene& Scene);
 
 	/**
-	 * Mark the given primitive for upload to GPU at next call to Update.
-	 * May be called multiple times.
+	 * Queue the given primitive for upload to GPU at next call to Update.
+	 * May be called multiple times, dirty-flags are cumulative.
 	 */
-	void RENDERER_API AddPrimitiveToUpdate(int32 PrimitiveId);
+	void RENDERER_API AddPrimitiveToUpdate(int32 PrimitiveId, EPrimitiveDirtyState DirtyState = EPrimitiveDirtyState::ChangedAll);
+
+	/**
+	 * Let GPU-Scene know that two primitive IDs swapped location, such that dirty-state can be tracked.
+	 * Marks both as having changed ID. 
+	 */
+	FORCEINLINE void RecordPrimitiveIdSwap(int32 PrimitiveIdA, int32 PrimitiveIdB)
+	{
+		// We should never call this on a non-existent primitive, so no need to resize
+		checkSlow(PrimitiveIdA < PrimitiveDirtyState.Num());
+		checkSlow(PrimitiveIdB < PrimitiveDirtyState.Num());
+
+		if (PrimitiveDirtyState[PrimitiveIdA] == EPrimitiveDirtyState::None)
+		{
+			PrimitivesToUpdate.Add(PrimitiveIdA);
+		}
+		PrimitiveDirtyState[PrimitiveIdA] |= EPrimitiveDirtyState::ChangedId;
+		if (PrimitiveDirtyState[PrimitiveIdB] == EPrimitiveDirtyState::None)
+		{
+			PrimitivesToUpdate.Add(PrimitiveIdB);
+		}
+		PrimitiveDirtyState[PrimitiveIdB] |= EPrimitiveDirtyState::ChangedId;
+
+		Swap(PrimitiveDirtyState[PrimitiveIdA], PrimitiveDirtyState[PrimitiveIdB]);
+	}
+
+	FORCEINLINE EPrimitiveDirtyState GetPrimitiveDirtyState(int32 PrimitiveId) const { return PrimitiveDirtyState[PrimitiveId]; }
+
+	FORCEINLINE void ResizeDirtyState(int32 NewSizeIn)
+	{
+		if (NewSizeIn > PrimitiveDirtyState.Num())
+		{
+			const int32 NewSize = Align(NewSizeIn, 64);
+			static_assert(static_cast<uint32>(EPrimitiveDirtyState::None) == 0U, "Using AddZeroed to ensure efficent add, requires None == 0");
+			PrimitiveDirtyState.AddZeroed(NewSize - PrimitiveDirtyState.Num());
+		}
+	}
+
+	/**
+	 * Call before accessing the GPU scene in a read/write pass, returns false if read/write acces is not supported on the platform or the GPU scene is not enabled.
+	 */
+	bool BeginReadWriteAccess(FRDGBuilder& GraphBuilder);
+
+	/**
+	 * Fills in the FGPUSceneWriterParameters to use for read/write access to the GPU Scene.
+	 */
+	void GetWriteParameters(FGPUSceneWriterParameters& GPUSceneWriterParametersOut);
+
+	/**
+	 * Call after accessing the GPU scene in a read/write pass. Ensures barriers are done.
+	 */
+	void EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAccessState = ERHIAccess::SRVGraphics);
 
 	uint32 GetSceneFrameNumber() const { return SceneFrameNumber; }
 
@@ -218,9 +278,6 @@ public:
 
 	/** Indices of primitives that need to be updated in GPU Scene */
 	TArray<int32>			PrimitivesToUpdate;
-
-	/** Bit array of all scene primitives. Set bit means that current primitive is in PrimitivesToUpdate array. */
-	TBitArray<>				PrimitivesMarkedToUpdate;
 
 	/** GPU mirror of Primitives */
 	FRWBufferStructured PrimitiveBuffer;
@@ -238,10 +295,9 @@ public:
 	FRWBufferStructured		LightmapDataBuffer;
 	FScatterUploadBuffer	LightmapUploadBuffer;
 
-	/** Flag array with 1 bit set for each newly added primitive. */
-	TBitArray<>				AddedPrimitiveFlags;
-
 private:
+	TArray<EPrimitiveDirtyState> PrimitiveDirtyState;
+
 	TBitArray<>				InstanceDataToClear;
 	TSet<uint32>			InstanceClearList;
 
@@ -278,6 +334,8 @@ private:
 	void UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View);
 
 	void UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene);
+
+	void AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceProcessingGPULoadBalancer& IdOnlyUpdateItems);
 };
 
 class FGPUSceneScopeBeginEndHelper

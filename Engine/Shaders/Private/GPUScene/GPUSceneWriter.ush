@@ -1,0 +1,37 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+/**
+ * Include access API to update the GPU-Scene from a compute shader. 
+ * This header must be included before SceneData.ush, as it modifies the behaviour. 
+ * Expects FGPUSceneWriterParameters to be present in the parameter struct (use GPUScene::BeginReadWriteAccess/EndReadWriteAccess/GetWriteParameters)
+ * Since this uses the GPU scene loading functions via a global RW buffer this cannot be used in the same translation unit as regular use of 
+ * SceneData.ush (where the data is loaded from e.g., View.InstanceSceneData).
+ */
+
+
+#define USE_GLOBAL_GPU_SCENE_DATA_RW 1
+
+#include "../SceneData.ush"
+
+uint GPUSceneInstanceDataSOAStride;
+uint GPUSceneNumAllocatedInstances;
+uint GPUSceneNumAllocatedPrimitives;
+
+void StoreInstanceDataElement(uint InstanceId, uint ElementIndex, float4 DataElement)
+{
+	GPUSceneInstanceSceneDataRW[ElementIndex * GPUSceneInstanceDataSOAStride + InstanceId] = DataElement;
+}
+
+/**
+ * Store the contents of InstanceData.PrimitiveId to the GPUScene buffers. 
+ * NOTE: As the granularity is float4 this also reads/stores other members that are co-located.
+ */
+void WriteInstancePrimitiveId(uint InstanceId, uint NewPrimitiveId)
+{
+	float4 DataElement = LoadInstanceDataElement(0 * GPUSceneInstanceDataSOAStride + InstanceId);
+	DataElement.y = asfloat(NewPrimitiveId);
+	checkSlow(InstanceId < GPUSceneNumAllocatedInstances);
+	StoreInstanceDataElement(InstanceId, 0, DataElement);
+}

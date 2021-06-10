@@ -1205,7 +1205,10 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		Instance.LocalToPrimitive.SetIdentity();
 		Instance.PrevLocalToPrimitive.SetIdentity();
 		Instance.LocalBounds = GeometryNaniteData[GeometryIndex].LocalBounds;
+		Instance.PerInstanceRandom = 0.0f;
+		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 		Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+		Instance.Flags = 0U;
 	}
 }
 
@@ -1304,10 +1307,13 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 
 		FPrimitiveInstance& Instance = Instances.Emplace_GetRef();
 
-		Instance.LocalToPrimitive		= NewConstantData->RestTransforms[TransformIndex];
-		Instance.PrevLocalToPrimitive	= NewConstantData->RestTransforms[TransformIndex];
-		Instance.LocalBounds			= NaniteData.LocalBounds;
-		Instance.NaniteHierarchyOffset	= NaniteData.HierarchyOffset;
+		Instance.LocalToPrimitive           = NewConstantData->RestTransforms[TransformIndex];
+		Instance.PrevLocalToPrimitive       = NewConstantData->RestTransforms[TransformIndex];
+		Instance.LocalBounds                = NaniteData.LocalBounds;
+		Instance.NaniteHierarchyOffset      = NaniteData.HierarchyOffset;
+		Instance.PerInstanceRandom          = 0.0f;
+		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+		Instance.Flags                      = 0U;
 	}
 
 	delete NewConstantData;
@@ -1354,6 +1360,9 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 			
 			Instance.LocalBounds				= NaniteData.LocalBounds;
 			Instance.NaniteHierarchyOffset		= NaniteData.HierarchyOffset;
+			Instance.PerInstanceRandom          = 0.0f;
+			Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+			Instance.Flags                      = 0U;
 		}
 	}
 	else

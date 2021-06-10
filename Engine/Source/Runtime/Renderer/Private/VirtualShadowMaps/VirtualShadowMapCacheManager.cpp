@@ -361,9 +361,9 @@ void FVirtualShadowMapArrayCacheManager::ProcessRemovedPrimives(FRDGBuilder& Gra
 {
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0 && RemovedPrimitiveSceneInfos.Num() > 0 && PrevBuffers.DynamicCasterPageFlags.IsValid())
 	{
-		// Note: Could filter out primitives that have no nanite here (though later this might be bad anyway, when regular geo is also rendered into virtual SMs)
-		TArray<FInstanceDataRange> InstanceRangesLarge;
-		TArray<FInstanceDataRange> InstanceRangesSmall;
+		TArray<FInstanceDataRange, SceneRenderingAllocator> InstanceRangesLarge;
+		TArray<FInstanceDataRange, SceneRenderingAllocator> InstanceRangesSmall;
+
 		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedPrimitiveSceneInfos)
 		{
 			if (PrimitiveSceneInfo->GetInstanceDataOffset() != INDEX_NONE)
@@ -390,24 +390,32 @@ void FVirtualShadowMapArrayCacheManager::ProcessPrimitivesToUpdate(FRDGBuilder& 
 	if (IsValid() && GPUScene.PrimitivesToUpdate.Num() > 0)
 	{
 		// TODO: As a slight CPU optimization just pass primitive ID list and use instance ranges stored in GPU scene
-		TArray<FInstanceDataRange> InstanceRangesLarge;
-		TArray<FInstanceDataRange> InstanceRangesSmall;
+		TArray<FInstanceDataRange, SceneRenderingAllocator> InstanceRangesLarge;
+		TArray<FInstanceDataRange, SceneRenderingAllocator> InstanceRangesSmall;
+
 		for (const int32 PrimitiveId : GPUScene.PrimitivesToUpdate)
 		{
-			// Skip added ones (they dont need it, but must be marked as having moved).
-			if (PrimitiveId < Scene.Primitives.Num() && (PrimitiveId >= GPUScene.AddedPrimitiveFlags.Num() || !GPUScene.AddedPrimitiveFlags[PrimitiveId]))
+			// There may possibly be IDs that are out of range if they were marked for update and then removed.
+			if (PrimitiveId < Scene.Primitives.Num())
 			{
-				const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene.Primitives[PrimitiveId];
-				if (PrimitiveSceneInfo->GetInstanceDataOffset() != INDEX_NONE)
+				EPrimitiveDirtyState PrimitiveDirtyState = GPUScene.GetPrimitiveDirtyState(PrimitiveId);
+
+				// SKIP if marked for Add, because this means it has no previous location to invalidate.
+				// SKIP if transform has not changed, as this means no invalidation needs to take place.
+				if (!EnumHasAnyFlags(PrimitiveDirtyState, EPrimitiveDirtyState::Added) && EnumHasAnyFlags(PrimitiveDirtyState, EPrimitiveDirtyState::ChangedTransform))
 				{
-					int32 NumInstanceDataEntries = PrimitiveSceneInfo->GetNumInstanceDataEntries();
-					if (NumInstanceDataEntries >= 8U)
+					const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene.Primitives[PrimitiveId];
+					if (PrimitiveSceneInfo->GetInstanceDataOffset() != INDEX_NONE)
 					{
-						InstanceRangesLarge.Add(FInstanceDataRange{ PrimitiveSceneInfo->GetInstanceDataOffset(), NumInstanceDataEntries });
-					}
-					else
-					{
-						InstanceRangesSmall.Add(FInstanceDataRange{ PrimitiveSceneInfo->GetInstanceDataOffset(), NumInstanceDataEntries });
+						int32 NumInstanceDataEntries = PrimitiveSceneInfo->GetNumInstanceDataEntries();
+						if (NumInstanceDataEntries >= 8U)
+						{
+							InstanceRangesLarge.Add(FInstanceDataRange{ PrimitiveSceneInfo->GetInstanceDataOffset(), NumInstanceDataEntries });
+						}
+						else
+						{
+							InstanceRangesSmall.Add(FInstanceDataRange{ PrimitiveSceneInfo->GetInstanceDataOffset(), NumInstanceDataEntries });
+						}
 					}
 				}
 			}
@@ -473,7 +481,7 @@ TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> FVirtualShadowMapArrayC
 	return GraphBuilder.CreateUniformBuffer(VersionedParameters);
 }
 
-void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange>& InstanceRangesLarge, const TArray<FInstanceDataRange>& InstanceRangesSmall, const FGPUScene& GPUScene)
+void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange, SceneRenderingAllocator>& InstanceRangesLarge, const TArray<FInstanceDataRange, SceneRenderingAllocator>& InstanceRangesSmall, const FGPUScene& GPUScene)
 {
 	auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
 	{
