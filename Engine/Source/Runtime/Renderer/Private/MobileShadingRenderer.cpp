@@ -568,7 +568,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		PrepareDistanceFieldScene(GraphBuilder, false);
 	}
 	
-	if (InstanceCullingManager.IsEnabled())
 	{
 		// GPUCULL_TODO: Possibly fold into unpack step
 		InstanceCullingManager.CullInstances(GraphBuilder, Scene->GPUScene);
