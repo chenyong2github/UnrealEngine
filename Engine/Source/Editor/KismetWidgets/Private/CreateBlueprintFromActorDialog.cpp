@@ -289,7 +289,7 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 	{
 		ActorOverrideClass = ActorOverride->GetClass();
 		TSharedPtr<FBlueprintFromActorParentFilter> Filter = MakeShareable(new FBlueprintFromActorParentFilter(ActorOverrideClass, CreateMode));
-		ClassViewerOptions.ClassFilter = Filter;
+		ClassViewerOptions.ClassFilters.Add(Filter.ToSharedRef());
 	}
 
 	if (ActorOverrideClass && CreateMode == ECreateBlueprintFromActorMode::Subclass)

@@ -176,7 +176,7 @@ private:
 		Options.Mode = EClassViewerMode::ClassPicker;
 
 		TSharedPtr<FControlRigBlueprintParentFilter> Filter = MakeShareable(new FControlRigBlueprintParentFilter());
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		// All child child classes of UControlRig are valid.
 		Filter->AllowedChildrenOfClasses.Add(UControlRig::StaticClass());

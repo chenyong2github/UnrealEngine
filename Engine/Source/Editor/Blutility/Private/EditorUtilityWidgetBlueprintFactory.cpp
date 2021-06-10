@@ -77,7 +77,7 @@ bool UEditorUtilityWidgetBlueprintFactory::ConfigureProperties()
 		Options.ExtraPickerCommonClasses.Add(UCanvasPanel::StaticClass());
 
 		TSharedPtr<FEditorUtilityWidgetBlueprintFactoryFilter> Filter = MakeShareable(new FEditorUtilityWidgetBlueprintFactoryFilter);
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 		Filter->AllowedChildrenOfClasses.Add(UPanelWidget::StaticClass());

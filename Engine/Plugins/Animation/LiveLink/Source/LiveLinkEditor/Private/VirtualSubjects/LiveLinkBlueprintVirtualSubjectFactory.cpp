@@ -122,7 +122,7 @@ bool ULiveLinkBlueprintVirtualSubjectFactory::ConfigureProperties()
 			// Fill in options
 			FClassViewerInitializationOptions Options;
 			Options.Mode = EClassViewerMode::ClassPicker;
-			Options.ClassFilter = MakeShared<FLiveLinkRoleClassFilter>();
+			Options.ClassFilters.Add(MakeShared<FLiveLinkRoleClassFilter>());
 
 			return
 				SNew(SBox)
@@ -151,7 +151,7 @@ bool ULiveLinkBlueprintVirtualSubjectFactory::ConfigureProperties()
 			// Fill in options
 			FClassViewerInitializationOptions Options;
 			Options.Mode = EClassViewerMode::ClassPicker;
-			Options.ClassFilter = MakeShared<FLiveLinkRoleClassFilter>();
+			Options.ClassFilters.Add(MakeShared<FLiveLinkRoleClassFilter>());
 
 			PickerWindow = SNew(SWindow)
 				.Title(LOCTEXT("PickerTitle", "Select Role"))

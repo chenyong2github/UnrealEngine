@@ -1694,7 +1694,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::HandleCreateNewTaskMenu() const
 {
 	FClassViewerInitializationOptions Options;
 	Options.bShowUnloadedBlueprints = true;
-	Options.ClassFilter = MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTTask_BlueprintBase> );
+	Options.ClassFilters.Add(MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTTask_BlueprintBase> ));
 
 	FOnClassPicked OnPicked( FOnClassPicked::CreateSP( this, &FBehaviorTreeEditor::HandleNewNodeClassPicked ) );
 
@@ -1705,7 +1705,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::HandleCreateNewDecoratorMenu() const
 {
 	FClassViewerInitializationOptions Options;
 	Options.bShowUnloadedBlueprints = true;
-	Options.ClassFilter = MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTDecorator_BlueprintBase> );
+	Options.ClassFilters.Add(MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTDecorator_BlueprintBase> ));
 
 	FOnClassPicked OnPicked( FOnClassPicked::CreateSP( this, &FBehaviorTreeEditor::HandleNewNodeClassPicked ) );
 
@@ -1716,7 +1716,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::HandleCreateNewServiceMenu() const
 {
 	FClassViewerInitializationOptions Options;
 	Options.bShowUnloadedBlueprints = true;
-	Options.ClassFilter = MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTService_BlueprintBase> );
+	Options.ClassFilters.Add(MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTService_BlueprintBase> ));
 
 	FOnClassPicked OnPicked( FOnClassPicked::CreateSP( this, &FBehaviorTreeEditor::HandleNewNodeClassPicked ) );
 

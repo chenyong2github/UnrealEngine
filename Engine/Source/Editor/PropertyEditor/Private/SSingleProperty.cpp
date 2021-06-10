@@ -79,6 +79,13 @@ public:
 		return false;
 	}
 
+	virtual const TArray<TSharedRef<class IClassViewerFilter>>& GetClassViewerFilters() const override
+	{
+		// not implemented
+		static TArray<TSharedRef<class IClassViewerFilter>> NotImplemented;
+		return NotImplemented;
+	}
+
 	const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const override
 	{
 		static TArray<TWeakObjectPtr<UObject>> Empty;

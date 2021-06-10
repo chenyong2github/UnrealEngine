@@ -95,6 +95,7 @@ public:
 	virtual void SetRootObjectCustomizationInstance(TSharedPtr<IDetailRootObjectCustomization> InRootObjectCustomization) override {}
 	virtual TSharedPtr<class IDetailRootObjectCustomization> GetRootObjectCustomization() const override { return nullptr; }
 	virtual void SetObjectFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter) override {}
+	virtual void SetClassViewerFilters(const TArray<TSharedRef<class IClassViewerFilter>>& InFilters) override {}
 	virtual bool IsGroupFavorite(FStringView GroupPath) const { return false; }
 	virtual void SetGroupFavorite(FStringView GroupPath, bool IsFavorite) {}
 	virtual bool IsCustomBuilderFavorite(FStringView Path) const { return false; }

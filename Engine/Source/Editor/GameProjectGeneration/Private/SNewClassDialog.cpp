@@ -214,20 +214,22 @@ void SNewClassDialog::Construct( const FArguments& InArgs )
 	Options.bShowObjectRootClass = true;
 	Options.bExpandRootNodes = true;
 
-	if (InArgs._ClassViewerFilter.IsValid())
-	{
-		Options.ClassFilter = InArgs._ClassViewerFilter;
-	}
-	else if (InArgs._ClassDomain == EClassDomain::Native)
+	TSharedPtr<IClassViewerFilter> ClassFilter = InArgs._ClassViewerFilter;
+	if (!ClassFilter.IsValid() && InArgs._ClassDomain == EClassDomain::Native)
 	{
 		// Prevent creating native classes based on blueprint classes
-		Options.ClassFilter = MakeShareable(new FNativeClassParentFilter());
+		ClassFilter = MakeShared<FNativeClassParentFilter>();
 	}
 
-	// Only show the Object root class if it's a valid base (this helps keep the tree clean)
-	if (Options.ClassFilter.IsValid() && !Options.ClassFilter->IsClassAllowed(Options, UObject::StaticClass(), MakeShareable(new FClassViewerFilterFuncs)))
+	if (ClassFilter.IsValid())
 	{
-		Options.bShowObjectRootClass = false;
+		Options.ClassFilters.Add(ClassFilter.ToSharedRef());
+
+		// Only show the Object root class if it's a valid base (this helps keep the tree clean)
+		if (!ClassFilter->IsClassAllowed(Options, UObject::StaticClass(), MakeShared<FClassViewerFilterFuncs>()))
+		{
+			Options.bShowObjectRootClass = false;
+		}
 	}
 
 	ClassViewer = StaticCastSharedRef<SClassViewer>(FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateSP(this, &SNewClassDialog::OnAdvancedClassSelected)));

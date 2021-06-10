@@ -67,7 +67,7 @@ bool ULightWeightInstanceFactory::ConfigureProperties()
 
 	// Prevent creating blueprints of classes that require special setup (they'll be allowed in the corresponding factories / via other means)
 	TSharedPtr<FLWIFilter> Filter = MakeShareable(new FLWIFilter);
-	Options.ClassFilter = Filter;
+	Options.ClassFilters.Add(Filter.ToSharedRef());
 
 	Filter->AllowedChildrenOfClasses.Add(ALightWeightInstanceManager::StaticClass());
 

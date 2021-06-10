@@ -57,6 +57,8 @@ struct FDetailsViewArgs
 	TSharedPtr<FTabManager> HostTabManager;
 	/** Optional object filter to use for more complex handling of what a details panel is viewing. */
 	TSharedPtr<FDetailsViewObjectFilter> ObjectFilter;
+	/** Optional custom filter(s) to apply to the class viewer widget for class object property values. */
+	TArray<TSharedRef<class IClassViewerFilter>> ClassViewerFilters;
 
 	/** Identifier for this details view; NAME_None if this view is anonymous */
 	FName ViewIdentifier;
@@ -369,7 +371,7 @@ public:
 	/** Returns the name area widget used to display object naming functionality so it can be placed in a custom location.  Note FDetailsViewArgs.bCustomNameAreaLocation must be true */
 	virtual TSharedPtr<SWidget> GetNameAreaWidget() = 0;
 
-	/** Optinoally add custom tools into the NameArea */
+	/** Optionally add custom tools into the NameArea */
 	virtual void SetNameAreaCustomContent(TSharedRef<SWidget>& InCustomContent) = 0;
 
 	/** Returns the search area widget used to display search and view options so it can be placed in a custom location.  Note FDetailsViewArgs.bCustomFilterAreaLocation must be true */
@@ -389,6 +391,9 @@ public:
 	
 	/** Sets an optional object filter to use for more complex handling of what a details panel is viewing. */
 	virtual void SetObjectFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter) = 0;
+
+	/** Sets the custom filter(s) to be used when selecting values for class properties in this view. */
+	virtual void SetClassViewerFilters(const TArray<TSharedRef<class IClassViewerFilter>>& InFilters) = 0;
 
 	/** Allows other systems to add a custom filter in the details panel */
 	virtual void SetCustomFilterDelegate(FSimpleDelegate InDelegate) = 0;

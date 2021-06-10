@@ -59,7 +59,7 @@ bool USoundModulationGeneratorFactory::ConfigureProperties()
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
 
 	FClassViewerInitializationOptions Options;
-	Options.ClassFilter = MakeShared<FGeneratorClassViewerFilter>();
+	Options.ClassFilters.Add(MakeShared<FGeneratorClassViewerFilter>());
 	Options.Mode = EClassViewerMode::ClassPicker;
 
 	const FText TitleText = LOCTEXT("CreateModulationGeneratorClassSelect", "Select Generator Class");

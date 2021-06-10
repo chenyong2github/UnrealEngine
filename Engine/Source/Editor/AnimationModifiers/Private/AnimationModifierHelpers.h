@@ -34,8 +34,8 @@ public:
 		FClassViewerInitializationOptions Options;
 		Options.bShowUnloadedBlueprints = true;
 		Options.bShowNoneOption = false;
-		TSharedPtr<FModifierClassFilter> ClassFilter = MakeShareable(new FModifierClassFilter);
-		Options.ClassFilter = ClassFilter;
+		TSharedRef<FModifierClassFilter> ClassFilter = MakeShared<FModifierClassFilter>();
+		Options.ClassFilters.Add(ClassFilter);
 
 		return SNew(SBox)
 		.WidthOverride(280)

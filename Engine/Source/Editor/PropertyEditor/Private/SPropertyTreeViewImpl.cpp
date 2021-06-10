@@ -80,6 +80,13 @@ public:
 		return NULL;
 	}
 
+	virtual const TArray<TSharedRef<class IClassViewerFilter>>& GetClassViewerFilters() const override
+	{
+		// not implemented
+		static TArray<TSharedRef<class IClassViewerFilter>> NotImplemented;
+		return NotImplemented;
+	}
+
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override {}
 
 	virtual bool DontUpdateValueWhileEditing() const override

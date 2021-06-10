@@ -164,6 +164,7 @@ public:
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	void RefreshTree() override;
 	TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override;
+	virtual const TArray<TSharedRef<class IClassViewerFilter>>& GetClassViewerFilters() const override;
 	TSharedPtr<IPropertyUtilities> GetPropertyUtilities() override;
 	void CreateColorPickerWindow(const TSharedRef< class FPropertyEditor >& PropertyEditor, bool bUseAlpha) override;
 	virtual void UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> InRootPropertyNode, FDetailLayoutData& LayoutData, bool bIsExternal) override;
@@ -460,6 +461,9 @@ protected:
 	FText CustomFilterLabel;
 
 	mutable TSharedPtr<FEditConditionParser> EditConditionParser;
+	
+	/** Optional custom filter(s) to be applied when selecting values for class properties */
+	TArray<TSharedRef<class IClassViewerFilter>> ClassViewerFilters;
 
 	/** The EnsureDataIsValid function can be skipped with this member, if set. Useful if your implementation doesn't require this kind of validation each Tick. */
 	FOnValidateDetailsViewPropertyNodes CustomValidatePropertyNodesFunction;

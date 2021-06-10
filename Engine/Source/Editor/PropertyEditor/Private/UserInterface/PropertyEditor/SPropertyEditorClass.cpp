@@ -194,7 +194,7 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 		OnSetClass = InArgs._OnSetClass;
 	}
 
-	CreateClassFilter();
+	CreateClassFilter(InArgs._ClassViewerFilters);
 
 	SAssignNew(ComboButton, SComboButton)
 		.OnGetMenuContent(this, &SPropertyEditorClass::GenerateClassPicker)
@@ -261,7 +261,7 @@ FText SPropertyEditorClass::GetDisplayValueAsString() const
 	
 }
 
-void SPropertyEditorClass::CreateClassFilter()
+void SPropertyEditorClass::CreateClassFilter(const TArray<TSharedRef<IClassViewerFilter>>& InClassFilters)
 {
 	ClassViewerOptions.bShowBackgroundBorder = false;
 	ClassViewerOptions.bShowUnloadedBlueprints = true;
@@ -277,9 +277,10 @@ void SPropertyEditorClass::CreateClassFilter()
 	ClassViewerOptions.NameTypeToDisplay = (bShowDisplayNames ? EClassViewerNameTypeToDisplay::DisplayName : EClassViewerNameTypeToDisplay::ClassName);
 	ClassViewerOptions.DisplayMode = bShowTree ? EClassViewerDisplayMode::TreeView : EClassViewerDisplayMode::ListView;
 	ClassViewerOptions.bAllowViewOptions = bShowViewOptions;
+	ClassViewerOptions.ClassFilters.Append(InClassFilters);
 
-	TSharedPtr<FPropertyEditorClassFilter> PropEdClassFilter = MakeShareable(new FPropertyEditorClassFilter);
-	ClassViewerOptions.ClassFilter = PropEdClassFilter;
+	TSharedRef<FPropertyEditorClassFilter> PropEdClassFilter = MakeShared<FPropertyEditorClassFilter>();
+	ClassViewerOptions.ClassFilters.Add(PropEdClassFilter);
 
 	PropEdClassFilter->ClassPropertyMetaClass = MetaClass;
 	PropEdClassFilter->InterfaceThatMustBeImplemented = RequiredInterface;

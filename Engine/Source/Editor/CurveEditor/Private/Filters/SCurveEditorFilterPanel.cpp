@@ -46,7 +46,7 @@ void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCu
 	Options.InitiallySelectedClass = DefaultFilterClass;
 
 	TSharedPtr<FCurveFilterClassFilter> ClassFilter = MakeShared<FCurveFilterClassFilter>();
-	Options.ClassFilter = ClassFilter;
+	Options.ClassFilters.Add(ClassFilter.ToSharedRef());
 
 	FOnClassPicked OnPicked(FOnClassPicked::CreateSP(this, &SCurveEditorFilterPanel::SetFilterClass));
 

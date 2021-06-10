@@ -52,6 +52,7 @@ public:
 	virtual void SetRootObjectCustomizationInstance(TSharedPtr<IDetailRootObjectCustomization> InRootObjectCustomization) override;
 	virtual void ClearSearch() override;
 	virtual void SetObjectFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter) override;
+	virtual void SetClassViewerFilters(const TArray<TSharedRef<class IClassViewerFilter>>& InFilters) override;
 
 	/**
 	 * Replaces objects being observed by the view with new objects

@@ -179,7 +179,7 @@ TSharedRef<SWidget> FEditorSessionSourceFilterService::GetFilterPickerWidget(FOn
 	Options.bShowUnloadedBlueprints = true;
 	Options.bShowNoneOption = false;
 	TSharedPtr<FFilterClassFilter> ClassFilter = MakeShareable(new FFilterClassFilter);
-	Options.ClassFilter = ClassFilter;
+	Options.ClassFilters.Add(ClassFilter.ToSharedRef());
 
 	FOnClassPicked ClassPicked = FOnClassPicked::CreateLambda([InFilterClassPicked](UClass* Class)
 	{
@@ -242,7 +242,7 @@ TSharedRef<SWidget> FEditorSessionSourceFilterService::GetClassFilterPickerWidge
 	GetClassFilters(ExistingClasses);
 
 	TSharedPtr<FFilterClassFilter> ClassFilter = MakeShared<FFilterClassFilter>(ExistingClasses);
-	Options.ClassFilter = ClassFilter;
+	Options.ClassFilters.Add(ClassFilter.ToSharedRef());
 
 	FOnClassPicked ClassPicked = FOnClassPicked::CreateLambda([InFilterClassPicked](UClass* Class)
 	{

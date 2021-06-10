@@ -1473,6 +1473,21 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 		}
 	}
 
+	// Clear out the current set of custom filter options.
+	CustomClassFilterOptions.Empty(InitOptions.ClassFilters.Num());
+
+	// Gather additional filter options from any custom filters.
+	TArray<TSharedRef<FClassViewerFilterOption>> FilterOptions;
+	for (TSharedRef<IClassViewerFilter> CustomFilter : InitOptions.ClassFilters)
+	{
+		// Append this filter's options to the current set.
+		CustomFilter->GetFilterOptions(FilterOptions);
+		CustomClassFilterOptions.Append(FilterOptions);
+
+		// Clear out the temp array for the next pass.
+		FilterOptions.Empty();
+	}
+
 	TSharedRef<SWidget> FiltersWidget = SNullWidget::NullWidget;
 	// Build the top menu
 	if(InitOptions.Mode == EClassViewerMode::ClassBrowsing)
@@ -1932,6 +1947,22 @@ TSharedRef<SWidget> SClassViewer::GetViewButtonContent()
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 			);
+
+		for (const TSharedRef<FClassViewerFilterOption>& FilterOption : CustomClassFilterOptions)
+		{
+			MenuBuilder.AddMenuEntry(
+				FilterOption->LabelText,
+				FilterOption->ToolTipText,
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SClassViewer::ToggleCustomFilterOption, FilterOption),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(this, &SClassViewer::IsCustomFilterOptionEnabled, FilterOption)
+				),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
 	}
 	MenuBuilder.EndSection();
 
@@ -2663,6 +2694,23 @@ bool SClassViewer::IsShowingInternalClasses() const
 		return true;
 	}
 	return IsToggleShowInternalClassesAllowed() ? GetDefault<UClassViewerSettings>()->DisplayInternalClasses : false;
+}
+
+void SClassViewer::ToggleCustomFilterOption(TSharedRef<FClassViewerFilterOption> FilterOption)
+{
+	FilterOption->bEnabled = !FilterOption->bEnabled;
+
+	if (FilterOption->OnOptionChanged.IsBound())
+	{
+		FilterOption->OnOptionChanged.Execute(FilterOption->bEnabled);
+	}
+
+	Refresh();
+}
+
+bool SClassViewer::IsCustomFilterOptionEnabled(TSharedRef<FClassViewerFilterOption> FilterOption) const
+{
+	return FilterOption->bEnabled;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -155,9 +155,11 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 		}
 		else if (SPropertyEditorClass::Supports(PropertyEditorRef))
 		{
+			static TArray<TSharedRef<class IClassViewerFilter>> NullFilters;
 			TSharedRef<SPropertyEditorClass> ClassWidget =
 				SAssignNew(PropertyWidget, SPropertyEditorClass, PropertyEditorRef)
-				.Font(FontStyle);
+				.Font(FontStyle)
+				.ClassViewerFilters(InPropertyUtilities.IsValid() ? InPropertyUtilities->GetClassViewerFilters() : NullFilters);
 
 			ClassWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}

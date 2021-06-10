@@ -296,7 +296,7 @@ private:
 		FClassViewerInitializationOptions Options;
 		Options.Mode = EClassViewerMode::ClassPicker;
 
-		Options.ClassFilter = MakeShared<FLiveLinkRoleClassFilter>();
+		Options.ClassFilters.Add(MakeShared<FLiveLinkRoleClassFilter>());
 
 		RoleClassPicker->ClearChildren();
 		RoleClassPicker->AddSlot()

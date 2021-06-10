@@ -50,6 +50,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 	ColumnSizeData.RightColumnMinWidth = DetailsViewArgs.RightColumnMinWidth;
 
 	SetObjectFilter(InDetailsViewArgs.ObjectFilter);
+	SetClassViewerFilters(InDetailsViewArgs.ClassViewerFilters);
 
 	bViewingClassDefaultObject = false;
 
@@ -518,6 +519,11 @@ void SDetailsView::SetObjectFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter
 	{
 		ObjectFilter = MakeShared<FDetailsViewDefaultObjectFilter>(!!DetailsViewArgs.bAllowMultipleTopLevelObjects);
 	}
+}
+
+void SDetailsView::SetClassViewerFilters(const TArray<TSharedRef<class IClassViewerFilter>>& InFilters)
+{
+	ClassViewerFilters = InFilters;
 }
 
 bool SDetailsView::ShouldSetNewObjects(const TArray<UObject*>& InObjects) const

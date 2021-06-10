@@ -550,6 +550,11 @@ TSharedPtr<FAssetThumbnailPool> SDetailsViewBase::GetThumbnailPool() const
 	return UThumbnailManager::Get().GetSharedThumbnailPool();
 }
 
+const TArray<TSharedRef<class IClassViewerFilter>>& SDetailsViewBase::GetClassViewerFilters() const
+{
+	return ClassViewerFilters;
+}
+
 void SDetailsViewBase::NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	OnFinishedChangingPropertiesDelegate.Broadcast(PropertyChangedEvent);

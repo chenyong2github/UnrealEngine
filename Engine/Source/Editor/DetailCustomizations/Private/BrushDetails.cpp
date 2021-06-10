@@ -257,7 +257,7 @@ TSharedRef<SWidget> FBrushDetails::GenerateBuildMenuContent()
 	};
 
 	FClassViewerInitializationOptions Options;
-	Options.ClassFilter = MakeShareable(new FBrushFilter);
+	Options.ClassFilters.Add(MakeShareable(new FBrushFilter));
 	Options.Mode = EClassViewerMode::ClassPicker;
 	Options.DisplayMode = EClassViewerDisplayMode::ListView;
 	return FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateSP(this, &FBrushDetails::OnClassPicked));

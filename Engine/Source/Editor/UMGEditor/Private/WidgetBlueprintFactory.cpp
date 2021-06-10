@@ -75,7 +75,7 @@ bool UWidgetBlueprintFactory::ConfigureProperties()
 		Options.ExtraPickerCommonClasses.Add(UCanvasPanel::StaticClass());
 
 		TSharedPtr<FWidgetClassFilter> Filter = MakeShareable(new FWidgetClassFilter);
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 		Filter->AllowedChildrenOfClasses.Add(UPanelWidget::StaticClass());

@@ -79,7 +79,7 @@ protected:
 		Options.bShowNoneOption = true;
 		Options.bShowObjectRootClass = false;
 		TSharedPtr< FActorBasedBlueprintClassFilter > Filter = MakeShareable(new FActorBasedBlueprintClassFilter);
-		Options.ClassFilter = Filter;
+		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		return
 			SNew(SBox)

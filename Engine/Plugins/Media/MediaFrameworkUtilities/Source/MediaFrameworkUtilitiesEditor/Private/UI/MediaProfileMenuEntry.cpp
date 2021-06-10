@@ -86,7 +86,7 @@ struct FMediaProfileMenuEntryImpl
 
 		const FText TitleText = LOCTEXT("CreateMediaProfileOptions", "Pick Media Profile Class");
 		FClassViewerInitializationOptions Options;
-		Options.ClassFilter = MakeShared<FModifierClassFilter>();
+		Options.ClassFilters.Add(MakeShared<FModifierClassFilter>());
 		UClass* ChosenClass = nullptr;
 		const bool bPressedOk = SClassPickerDialog::PickClass(TitleText, Options, ChosenClass, UMediaProfile::StaticClass());
 

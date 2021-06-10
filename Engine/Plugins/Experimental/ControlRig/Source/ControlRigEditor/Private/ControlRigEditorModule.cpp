@@ -658,7 +658,7 @@ TSharedRef< SWidget > FControlRigEditorModule::GenerateAnimationMenu(TWeakPtr<IA
 								Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 
 								TSharedPtr<FControlRigClassFilter> ClassFilter = MakeShareable(new FControlRigClassFilter(bFilterAssetBySkeleton, true, true, Skeleton));
-								Options.ClassFilter = ClassFilter;
+								Options.ClassFilters.Add(ClassFilter.ToSharedRef());
 								Options.bShowNoneOption = false;
 
 								FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
