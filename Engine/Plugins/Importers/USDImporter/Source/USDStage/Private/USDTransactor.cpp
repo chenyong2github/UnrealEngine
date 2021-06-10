@@ -172,7 +172,8 @@ namespace UsdUtils
 						ConvertedChange.PrimAppliedSchemas.Add( SchemaName.ToString() );
 					}
 
-					UE_LOG( LogUsd, Log, TEXT( "Recorded the creation of prim '%s' with TypeName '%s' and PrimAppliedSchemas [%s]" ),
+					UE_LOG( LogUsd, Log, TEXT( "Recorded the %s of prim '%s' with TypeName '%s' and PrimAppliedSchemas [%s]" ),
+						(ConvertedChange.Flags.bDidAddInertPrim || ConvertedChange.Flags.bDidAddNonInertPrim) ? TEXT("addition") : TEXT("removal"),
 						*PrimPath,
 						*ConvertedChange.PrimTypeName,
 						*FString::Join( ConvertedChange.PrimAppliedSchemas, TEXT( ", " ) )
@@ -192,6 +193,12 @@ namespace UsdUtils
 
 				for ( const FAttributeChange& AttributeChange : Change.AttributeChanges )
 				{
+					// We won't be able to do anything with this, so just ignore it
+					if ( AttributeChange.PropertyName.IsEmpty() )
+					{
+						continue;
+					}
+
 					FTransactorAttributeChange& ConvertedAttributeChange = ConvertedChange.AttributeChanges.Emplace_GetRef();
 					ConvertedAttributeChange.PropertyName = AttributeChange.PropertyName;
 					ConvertedAttributeChange.Field = AttributeChange.Field;
@@ -286,7 +293,8 @@ namespace UsdUtils
 				*PrimChange.PrimTypeName
 			);
 
-			return Stage.RemovePrim( PrimPath );
+			UsdUtils::RemoveAllPrimSpecs( Stage.GetPrimAtPath( PrimPath ), Stage.GetEditTarget() );
+			return true;
 		}
 		else if ( bRename )
 		{
@@ -305,7 +313,12 @@ namespace UsdUtils
 				NewName = UE::FSdfPath( *PrimChange.OldPath ).GetElementString();
 			}
 
-			if ( UE::FUsdPrim Prim = Stage.GetPrimAtPath( UE::FSdfPath( *CurrentPath ) ) )
+			// When redoing, we'll be using the old path, and USD sends it with all the variant selections in there
+			// UsdUtils::RenamePrim can figure out the variant selections on its own, but we need to strip them here
+			// to be able to GetPrimAtPath with this path
+			UE::FSdfPath UsdCurrentPath = UE::FSdfPath( *CurrentPath ).StripAllVariantSelections();
+
+			if ( UE::FUsdPrim Prim = Stage.GetPrimAtPath( UsdCurrentPath ) )
 			{
 				UE_LOG( LogUsd, Log, TEXT( "Renaming prim '%s' to '%s'" ),
 					*Prim.GetPrimPath().GetString(),
@@ -317,6 +330,14 @@ namespace UsdUtils
 				{
 					return true;
 				}
+			}
+			else if ( UE::FUsdPrim TargetPrim = Stage.GetPrimAtPath( UsdCurrentPath.ReplaceName( *NewName ) ) )
+			{
+				// We couldn't find a prim at the old path but found one at the new path, so just assume its the prim that we
+				// wanted to rename anyway, as USD wouldn't have let us rename a prim onto an existing path in the first place.
+				// This is useful because sometimes we may get multiple rename edits for the same prim in the same notice, like when we have
+				// multiple specs per prim on the same layer.
+				return true;
 			}
 
 			UE_LOG( LogUsd, Warning, TEXT( "Failed to rename prim at path '%s' to name '%s'" ),
