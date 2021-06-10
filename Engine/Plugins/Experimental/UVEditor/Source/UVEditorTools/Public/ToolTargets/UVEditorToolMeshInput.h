@@ -12,6 +12,7 @@
 
 #include "UVEditorToolMeshInput.generated.h"
 
+class UMaterialInterface;
 class UMeshOpPreviewWithBackgroundCompute;
 class UMeshElementsVisualizer;
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
@@ -48,7 +49,7 @@ public:
 	 * Preview of the unwrapped UV layer, suitable for being manipulated by background ops.
 	 */
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* UnwrapPreview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> UnwrapPreview = nullptr;
 
 	// Note that both UnwrapCanonical and UnwrapPreview, besides having vert positions that represent
 	// a UV layer, also have a primary UV overlay that represents the same layer, to make it possible
@@ -67,7 +68,7 @@ public:
 	 * 3d preview of the asset with the UV layer updated, suitable for use with background ops. 
 	 */
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* AppliedPreview;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> AppliedPreview;
 
 	/**
 	 * Optional: a wireframe to track the mesh in unwrap preview. If set, it gets updated whenever the
@@ -75,7 +76,7 @@ public:
 	 * TODO: We should have a fast path for updating the wireframe...
 	 */
 	UPROPERTY()
-	UMeshElementsVisualizer* WireframeDisplay = nullptr;
+	TObjectPtr<UMeshElementsVisualizer> WireframeDisplay = nullptr;
 
 	// Additional needed information
 	TObjectPtr<UObject> OriginalAsset = nullptr;
@@ -148,6 +149,9 @@ public:
 	 * Updates the other meshes using the UV overlay in the live preview.
 	 */
 	void UpdateAllFromAppliedPreview(const TArray<int32>* ChangedElementIDs = nullptr, const TArray<int32>* ChangedTids = nullptr);
+
+	// UToolTarget
+	virtual bool IsValid() const override;
 protected:
 
 	void UpdateAppliedOverlays(const UE::Geometry::FDynamicMeshUVOverlay& SourceOverlay,
