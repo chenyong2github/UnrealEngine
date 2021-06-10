@@ -409,7 +409,8 @@ bool ShouldKeepShaderDebugInfo(EShaderPlatform ShaderPlatform)
 bool ShouldExportShaderDebugInfo(FName ShaderFormat)
 {
 	static const FShaderSymbolSettingHelper ExportSymbols(TEXT("r.Shaders.ExportDebugInfo"));
-	return ExportSymbols.IsEnabled(ShaderFormat) || ShouldKeepShaderDebugInfo(ShaderFormat);
+	static const FShaderSymbolSettingHelper GenerateSymbols(TEXT("r.Shaders.KeepDebugInfo"));
+	return ExportSymbols.IsEnabled(ShaderFormat) || GenerateSymbols.IsEnabled(ShaderFormat);
 }
 
 bool ShouldExportShaderDebugInfo(EShaderPlatform ShaderPlatform)
@@ -426,6 +427,10 @@ bool GetShaderDebugInfoPathOverride(FString& OutPathOverride, FName ShaderFormat
 		{
 			// Allow the user to specify the location of the per-platform string.
 			OutPathOverride = OutPathOverride.Replace(TEXT("{Platform}"), *ShaderFormat.ToString(), ESearchCase::IgnoreCase);
+			// Allow the user to specify the location of the per-project string.
+			OutPathOverride = OutPathOverride.Replace(TEXT("{ProjectDir}"), *FPaths::ProjectDir(), ESearchCase::IgnoreCase);
+			// Allow the user to specify the location of the per-project saved folder string.
+			OutPathOverride = OutPathOverride.Replace(TEXT("{ProjectSavedDir}"), *FPaths::ProjectSavedDir(), ESearchCase::IgnoreCase);
 		}
 		return !OutPathOverride.IsEmpty();
 	}
