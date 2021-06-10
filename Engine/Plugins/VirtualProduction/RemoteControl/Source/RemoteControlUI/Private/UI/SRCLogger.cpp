@@ -15,12 +15,16 @@ void SRCLogger::Construct(const FArguments& InArgs)
 	// Create widget from MessageLog module
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	LogListingWidget = MessageLogModule.CreateLogListingWidget(RemoteControlLogger.GetMessageLogListing().ToSharedRef());
-	
+
+	Visibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([]()
+	{
+		return FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed;
+	}));
+
 	ChildSlot
 	[
 		SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-		.Visibility_Lambda([](){ return FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
 		.Padding(2.f)
 		[
 			LogListingWidget.ToSharedRef()

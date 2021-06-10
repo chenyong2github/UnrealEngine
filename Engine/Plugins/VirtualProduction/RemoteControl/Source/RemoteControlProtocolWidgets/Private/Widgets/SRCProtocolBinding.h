@@ -43,7 +43,7 @@ public:
 
 private:
 	/** Called when Delete button pressed. */
-	FReply OnDelete() const;
+	FReply OnDelete();
 
 	/** Toggle recording button handler */
 	FReply ToggleRecording() const;

@@ -148,9 +148,10 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 		InOwnerTableView);
 }
 
-FReply SRCProtocolBinding::OnDelete() const
+FReply SRCProtocolBinding::OnDelete()
 {
 	ViewModel->Remove();
+	Visibility = EVisibility::Collapsed;
 	return FReply::Handled();
 }
 

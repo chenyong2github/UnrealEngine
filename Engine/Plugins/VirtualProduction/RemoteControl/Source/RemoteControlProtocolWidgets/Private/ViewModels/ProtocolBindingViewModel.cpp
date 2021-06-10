@@ -572,7 +572,14 @@ bool FProtocolBindingViewModel::IsValid(FText& OutMessage)
 	// Continue if ok
 	if (Result == EValidity::Ok)
 	{
-		const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntity = GetBinding()->GetRemoteControlProtocolEntityPtr();
+		FRemoteControlProtocolBinding* ProtocolBinding = GetBinding();
+		// Was probably deleted
+		if(ProtocolBinding == nullptr)
+		{
+			return false;
+		}
+		
+		const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntity = ProtocolBinding->GetRemoteControlProtocolEntityPtr();
 
 		FString DuplicateBindings;
 
