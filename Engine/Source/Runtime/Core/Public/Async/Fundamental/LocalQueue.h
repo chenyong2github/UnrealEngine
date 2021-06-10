@@ -120,6 +120,13 @@ public:
 };
 }
 
+enum class ELocalQueueType
+{
+	EBackground,
+	EForeground,
+	EBusyWait,
+};
+
 /********************************************************************************************************************************************
  * A LocalQueueRegistry is a collection of LockFree queues that store pointers to Items, there are ThreadLocal LocalQueues with LocalItems. *
  * LocalQueues can only be Enqueued and Dequeued by the current Thread they were installed on. But Items can be stolen from any Thread      *
@@ -238,27 +245,27 @@ public:
 		friend class TLocalQueueRegistry;
 
 	public:
-		TLocalQueue(TLocalQueueRegistry& InRegistry, bool bBackgroundWorker) : Registry(&InRegistry)
+		TLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType QueueType) : Registry(&InRegistry)
 		{
 			checkSlow(Registry);
 			StealHazard = FStealHazard(Registry->QueueCollection, Registry->HazardsCollection);
-			Registry->AddLocalQueue(StealHazard, this, bBackgroundWorker);
+			Registry->AddLocalQueue(StealHazard, this, QueueType);
 			for (int32 PriorityIndex = 0; PriorityIndex < int32(ETaskPriority::Count); PriorityIndex++)
 			{
 				DequeueHazards[PriorityIndex] = Registry->OverflowQueues[PriorityIndex].getHeadHazard();
 			}
 		}
 
-		static TLocalQueue* AllocateLocalQueue(TLocalQueueRegistry& InRegistry, bool bBackgroundWorker)
+		static TLocalQueue* AllocateLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType QueueType)
 		{
 			void* Memory = FMemory::Malloc(sizeof(TLocalQueue), 128u);
-			return new (Memory) TLocalQueue(InRegistry, bBackgroundWorker);
+			return new (Memory) TLocalQueue(InRegistry, QueueType);
 		}
 
 		//delete a queue
 		//WorkeOwned means that the queue will not be automatically deleted when removal succeded.
 		//It is a special case where the memory for the local queues is alloated linearly by the Scheduler for improved stealing performance.
-		static void DeleteLocalQueue(TLocalQueue* Queue, bool bBackgroundWorker, bool WorkerOwned = false)
+		static void DeleteLocalQueue(TLocalQueue* Queue, ELocalQueueType QueueType, bool WorkerOwned = false)
 		{
 			TLocalQueueRegistry* Registry = Queue->Registry;
 			Queue->Registry = nullptr;
@@ -275,7 +282,7 @@ public:
 					Registry->OverflowQueues[PriorityIndex].enqueue(Item);
 				}
 			}
-			Registry->DeleteLocalQueue(Queue->StealHazard, Queue, bBackgroundWorker, WorkerOwned);
+			Registry->DeleteLocalQueue(Queue->StealHazard, Queue, QueueType, WorkerOwned);
 		}
 
 		//add an item to the local queue and overflow into the global queue if full
@@ -361,9 +368,13 @@ public:
 
 private:
 	// add a queue to the Registry
-	void AddLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToAdd, bool bBackgroundWorker)
+	void AddLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToAdd, ELocalQueueType QueueType)
 	{
-		NumActiveWorkers[bBackgroundWorker].fetch_add(1, std::memory_order_relaxed);
+		if (QueueType != ELocalQueueType::EBusyWait)
+		{
+			NumActiveWorkers[QueueType == ELocalQueueType::EBackground].fetch_add(1, std::memory_order_relaxed);
+		}
+
 		while(true)
 		{
 			FLocalQueueCollection* Previous = Hazard.Get();
@@ -381,9 +392,13 @@ private:
 	}
 
 	// remove a queue from the Registry
-	void DeleteLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToRemove, bool bBackgroundWorker, bool WorkerOwned)
+	void DeleteLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToRemove, ELocalQueueType QueueType, bool WorkerOwned)
 	{
-		NumActiveWorkers[bBackgroundWorker].fetch_sub(1, std::memory_order_relaxed);
+		if (QueueType != ELocalQueueType::EBusyWait)
+		{
+			NumActiveWorkers[QueueType == ELocalQueueType::EBackground].fetch_sub(1, std::memory_order_relaxed);
+		}
+
 		while(true)
 		{
 			FLocalQueueCollection* Previous = Hazard.Get();
@@ -463,15 +478,15 @@ public:
 		return nullptr;
 	}
 
-	inline FOutOfWork GetOutOfWorkScope(bool bBackgroundWorker)
+	inline FOutOfWork GetOutOfWorkScope(ELocalQueueType QueueType)
 	{
-		return FOutOfWork(NumWorkersLookingForWork[bBackgroundWorker]);
+		return FOutOfWork(NumWorkersLookingForWork[QueueType == ELocalQueueType::EBackground]);
 	}
 
 private:
-	inline bool AnyWorkerLookingForWork(bool bBackgroundWorker) const
+	inline bool AnyWorkerLookingForWork(bool bBackgroundTask) const
 	{
-		return (NumWorkersLookingForWork[bBackgroundWorker].load(std::memory_order_acquire) == 0) && (bBackgroundWorker || (NumWorkersLookingForWork[true].load(std::memory_order_acquire) == 0));
+		return (NumWorkersLookingForWork[bBackgroundTask].load(std::memory_order_acquire) == 0) && (bBackgroundTask || (NumWorkersLookingForWork[true].load(std::memory_order_acquire) == 0));
 	}
 
 	FOverflowQueueType	  OverflowQueues[uint32(ETaskPriority::Count)];
