@@ -19,7 +19,6 @@
 #include "UObject/UObjectHash.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
-#include "EditorModeInterpolation.h"
 #include "MatineeModule.h"
 
 #include "Matinee/InterpFilter.h"
@@ -2059,14 +2058,6 @@ void FMatinee::OnClosed()
 	// When they close the window - change the mode away from InterpEdit.
 	if( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_InterpEdit ) )
 	{
-		FEdModeInterpEdit* InterpEditMode = (FEdModeInterpEdit*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_InterpEdit );
-
-		// Only change mode if this window closing wasn't instigated by someone changing mode!
-		if( !InterpEditMode->bLeavingMode )
-		{
-			InterpEditMode->InterpEd = NULL;
-			GLevelEditorModeTools().DeactivateMode( FBuiltinEditorModes::EM_InterpEdit );
-		}
 	}
 
 	// Undo any weird settings to editor level viewports.
@@ -2187,6 +2178,7 @@ static void DrawTransparentLine( FCanvas* Canvas, const FVector2D& Start, const 
 
 void FMatinee::DrawModeHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View,FCanvas* Canvas)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if( ViewportClient->AllowsCinematicControl() )
 	{
 		// Get the size of the viewport
@@ -2618,6 +2610,7 @@ void FMatinee::DrawModeHUD(FEditorViewportClient* ViewportClient,FViewport* View
 			YPos += YL;
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

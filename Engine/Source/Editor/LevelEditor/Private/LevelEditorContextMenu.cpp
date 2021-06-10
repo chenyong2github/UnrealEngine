@@ -30,9 +30,7 @@
 #include "Editor/GroupActor.h"
 #include "LevelEditorViewport.h"
 #include "EditorModes.h"
-#include "EditorModeInterpolation.h"
 #include "LevelEditor.h"
-#include "Matinee/MatineeActor.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "AssetSelection.h"
 #include "LevelEditorActions.h"
@@ -150,13 +148,6 @@ public:
 	 */
 	static void FillSourceControlMenu(UToolMenu* Menu);
 
-private:
-	/**
-	 * Fills in menu options for the matinee selection menu
-	 *
-	 * @param MenuBuilder	The menu to add items to
-	 */
-	static void FillMatineeSelectActorMenu(UToolMenu* Menu);
 };
 
 FSelectedActorInfo FLevelEditorContextMenuImpl::SelectionInfo;
@@ -977,93 +968,6 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UToolMenu* Menu)
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GeometryCollectionSelectAllGeometry);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GeometryCollectionSelectNone);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GeometryCollectionSelectInverseGeometry);
-		}
-	}
-
-	// build matinee related selection menu
-	FillMatineeSelectActorMenu( Menu );
-}
-
-void FLevelEditorContextMenuImpl::FillMatineeSelectActorMenu(UToolMenu* Menu)
-{
-	{
-		FToolMenuSection& Section = Menu->AddSection("SelectMatinee", LOCTEXT("SelectMatineeHeading", "Matinee"));
-		// show list of Matinee Actors that controls this actor
-		// this is ugly but we don't have good way of knowing which Matinee actor controls me
-		// in the future this can be cached to TMap somewhere and use that list
-		// for now we show only when 1 actor is selected
-		if ( SelectionInfo.SharedLevel && SelectionInfo.NumSelected == 1 )
-		{
-			TArray<AMatineeActor*> MatineeActors;	
-			// first collect all matinee actors
-			for ( AActor* Actor : SelectionInfo.SharedLevel->Actors )
-			{
-				AMatineeActor * CurActor = Cast<AMatineeActor>(Actor);
-				if ( CurActor )
-				{
-					MatineeActors.Add(CurActor);
-				}
-			}
-
-			if ( MatineeActors.Num() > 0 )
-			{
-				FSelectionIterator ActorIter( GEditor->GetSelectedActorIterator() );
-				AActor* SelectedActor = Cast<AActor>(*ActorIter);
-
-				// now delete the matinee actors that don't control currently selected actor
-				for (int32 MatineeActorIter=0; MatineeActorIter<MatineeActors.Num(); ++MatineeActorIter)
-				{
-					AMatineeActor * CurMatineeActor = MatineeActors[MatineeActorIter];
-					TArray<AActor *> CutMatineeControlledActors;
-					CurMatineeActor->GetControlledActors(CutMatineeControlledActors);
-					bool bIsMatineeControlled=false;
-					for ( AActor* ControlledActor : CutMatineeControlledActors )
-					{
-						if (ControlledActor == SelectedActor)
-						{
-							bIsMatineeControlled = true;
-						}
-					}
-
-					// if not, remove it
-					if (!bIsMatineeControlled)
-					{
-						MatineeActors.RemoveAt(MatineeActorIter);
-						--MatineeActorIter;
-					}
-				}
-
-				// if some matinee controls this, add to menu for direct selection
-				if ( MatineeActors.Num() > 0 )
-				{
-					for (int32 MatineeActorIter=0; MatineeActorIter<MatineeActors.Num(); ++MatineeActorIter)
-					{
-						AMatineeActor * CurMatineeActor = MatineeActors[MatineeActorIter];
-						const FText Text = FText::Format( LOCTEXT("SelectMatineeActor", "Select {0}"), FText::FromString( CurMatineeActor->GetName() ) );
-
-						FUIAction CurMatineeActorAction( FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectMatineeActor, CurMatineeActor ) );
-						Section.AddMenuEntry(NAME_None, Text, Text, FSlateIcon(), CurMatineeActorAction);
-
-						// if matinee is opened, and if that is CurMatineeActor, show option to go to group
-						if( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_InterpEdit ) )
-						{
-							const FEdModeInterpEdit* InterpEditMode = (const FEdModeInterpEdit*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_InterpEdit );
-
-							if ( InterpEditMode && InterpEditMode->MatineeActor == CurMatineeActor )
-							{
-								FUIAction SelectedActorAction( FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectMatineeGroup, SelectedActor ) );
-								Section.AddMenuEntry(NAME_None, LOCTEXT("SelectMatineeGroupForActorMenuTitle", "Select Matinee Group For This Actor"), LOCTEXT("SelectMatineeGroupForActorMenuTooltip", "Selects matinee group controlling this actor"), FSlateIcon(), SelectedActorAction);
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// if this class is Matinee Actor, add option to allow select all controlled actors
-		if ( SelectionInfo.bHaveMatinee )
-		{
-			Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllActorsControlledByMatinee);	
 		}
 	}
 }

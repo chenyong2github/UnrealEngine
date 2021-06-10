@@ -307,7 +307,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "EditorDirectories.h"
 #include "Utils.h"
 #include "FileHelpers.h"
-#include "EditorModeInterpolation.h"
 #include "PhysicsManipulationMode.h"
 #include "PhysicsAssetUtils.h"
 

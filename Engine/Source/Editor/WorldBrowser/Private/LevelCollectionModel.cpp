@@ -17,7 +17,6 @@
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "FileHelpers.h"
-#include "EditorModeInterpolation.h"
 #include "ScopedTransaction.h"
 #include "EditorLevelUtils.h"
 #include "LevelCollectionCommands.h"
@@ -26,7 +25,6 @@
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
 #include "EditorSupportDelegates.h"
-#include "Matinee/MatineeActor.h"
 #include "GameFramework/WorldSettings.h"
 
 #include "ShaderCompiler.h"
@@ -697,19 +695,7 @@ void FLevelCollectionModel::UnloadLevels(const FLevelModelList& InLevelList)
 	UWorld* ThisWorld = GetWorld();
 	check(ThisWorld != nullptr);
 
-	// If matinee is opened, and if it belongs to the level being removed, close it
-	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit))
-	{
-		TArray<ULevel*> LevelsToRemove = GetLevelObjectList(InLevelList);
-		
-		const FEdModeInterpEdit* InterpEditMode = (const FEdModeInterpEdit*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
-
-		if (InterpEditMode && InterpEditMode->MatineeActor && LevelsToRemove.Contains(InterpEditMode->MatineeActor->GetLevel()))
-		{
-			GLevelEditorModeTools().ActivateDefaultMode();
-		}
-	}
-	else if(GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Landscape))
+	if(GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Landscape))
 	{
 		GLevelEditorModeTools().ActivateDefaultMode();
 	}
@@ -1760,34 +1746,6 @@ bool FLevelCollectionModel::IsValidFindInContentBrowser()
 
 void FLevelCollectionModel::MoveActorsToSelected_Executed()
 {
-	// If matinee is open, and if an actor being moved belongs to it, message the user
-	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit))
-	{
-		const FEdModeInterpEdit* InterpEditMode = (const FEdModeInterpEdit*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
-		if (InterpEditMode && InterpEditMode->MatineeActor)
-		{
-			TArray<AActor*> ControlledActors;
-			InterpEditMode->MatineeActor->GetControlledActors(ControlledActors);
-
-			// are any of the selected actors in the matinee
-			USelection* SelectedActors = GEditor->GetSelectedActors();
-			for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
-			{
-				AActor* Actor = CastChecked<AActor>(*Iter);
-				if (Actor != nullptr && (Actor == InterpEditMode->MatineeActor || ControlledActors.Contains(Actor)))
-				{
-					const bool ExitInterp = EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "MatineeUnableToMove", "You must close Matinee before moving actors.\nDo you wish to do this now and continue?"));
-					if (!ExitInterp)
-					{
-						return;
-					}
-					GLevelEditorModeTools().DeactivateMode(FBuiltinEditorModes::EM_InterpEdit);
-					break;
-				}
-			}
-		}
-	}
-
 	MakeLevelCurrent_Executed();
 
 	const FScopedTransaction Transaction(LOCTEXT("MoveSelectedActorsToSelectedLevel", "Move Selected Actors to Level"));
