@@ -9,16 +9,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace HordeServer.Rpc
 {
 	class ActionRpcService : ActionRpc.ActionRpcBase
 	{
 		ActionTaskSource ActionTaskSource;
+		ILogger<ActionRpcService> Logger;
 
-		public ActionRpcService(ActionTaskSource ActionTaskSource)
+		public ActionRpcService(ActionTaskSource ActionTaskSource, ILogger<ActionRpcService> Logger)
 		{
 			this.ActionTaskSource = ActionTaskSource;
+			this.Logger = Logger;
 		}
 
 		/// <inheritdoc/>
@@ -27,6 +30,7 @@ namespace HordeServer.Rpc
 			IActionExecuteOperation? Operation;
 			if (ActionTaskSource.TryGetOperation(Request.LeaseId.ToObjectId(), out Operation))
 			{
+				Logger.LogInformation("Setting operation result to {Result}. LeaseId={LeaseId} OperationId={OperationId}", Request.Result, Request.LeaseId, Operation.Id);
 				Operation.TrySetResult(Request.Result);
 			}
 			return Task.FromResult<Empty>(new Empty());
