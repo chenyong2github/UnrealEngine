@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "Factories/Factory.h"
 #include "BinkMediaTextureFactoryNew.generated.h"
 
 UCLASS(hidecategories=Object, MinimalAPI)
