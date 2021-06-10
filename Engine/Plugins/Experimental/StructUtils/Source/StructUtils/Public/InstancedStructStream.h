@@ -35,7 +35,7 @@ struct STRUCTUTILS_API FInstancedStructStream
 	FInstancedStructStream(FInstancedStructStream&& Other)
 	{
 		ChunkSize = Other.ChunkSize;
-		Append(Other);
+		Append(MoveTemp(Other));
 	}
 
 	~FInstancedStructStream()
