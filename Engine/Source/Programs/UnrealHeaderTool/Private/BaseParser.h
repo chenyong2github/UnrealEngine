@@ -55,9 +55,11 @@ struct FUHTConfig
 	// Default version of generated code. Defaults to oldest possible, unless specified otherwise in config.
 	EGeneratedCodeVersion DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
 
-	EPointerMemberBehavior NativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
+	EPointerMemberBehavior EngineNativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
+	EPointerMemberBehavior EngineObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
 
-	EPointerMemberBehavior ObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
+	EPointerMemberBehavior NonEngineNativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
+	EPointerMemberBehavior NonEngineObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
 
 private:
 	FUHTConfig();
