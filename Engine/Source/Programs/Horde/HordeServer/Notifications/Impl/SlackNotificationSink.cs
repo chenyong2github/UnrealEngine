@@ -41,7 +41,7 @@ namespace HordeServer.Notifications.Impl
 	/// <summary>
 	/// Maintains a connection to Slack, in order to receive socket-mode notifications of user interactions
 	/// </summary>
-	public class SlackNotificationSink : BackgroundService, INotificationSink
+	public class SlackNotificationSink : BackgroundService, INotificationSink, IAvatarService
 	{
 		const string PostMessageUrl = "https://slack.com/api/chat.postMessage";
 		const string UpdateMessageUrl = "https://slack.com/api/chat.update";
@@ -82,10 +82,40 @@ namespace HordeServer.Notifications.Impl
 			public List<ActionInfo> Actions { get; set; } = new List<ActionInfo>();
 		}
 
+		class UserResponse
+		{
+			[JsonPropertyName("ok")]
+			public bool Ok { get; set; }
+
+			[JsonPropertyName("user")]
+			public UserInfo? User { get; set; }
+		}
+
 		class UserInfo
 		{
 			[JsonPropertyName("username")]
 			public string? UserName { get; set; }
+
+			[JsonPropertyName("profile")]
+			public UserProfile? Profile { get; set; }
+		}
+
+		class UserProfile
+		{
+			[JsonPropertyName("is_custom_image")]
+			public bool IsCustomImage { get; set; }
+
+			[JsonPropertyName("image_24")]
+			public string? Image24 { get; set; }
+
+			[JsonPropertyName("image_32")]
+			public string? Image32 { get; set; }
+
+			[JsonPropertyName("image_48")]
+			public string? Image48 { get; set; }
+
+			[JsonPropertyName("image_72")]
+			public string? Image72 { get; set; }
 		}
 
 		class ActionInfo
@@ -118,12 +148,52 @@ namespace HordeServer.Notifications.Impl
 			public string Digest { get; set; } = String.Empty;
 		}
 
-		class UserDocument
+		class SlackUser : IAvatar
 		{
+			public const int CurrentVersion = 2;
+
 			[BsonId]
 			public string Email { get; set; } = String.Empty;
+
+			[BsonElement("u")]
 			public string? SlackUserId { get; set; }
+
+			[BsonElement("i24")]
+			public string? Image24 { get; set; }
+
+			[BsonElement("i32")]
+			public string? Image32 { get; set; }
+			
+			[BsonElement("i48")]
+			public string? Image48 { get; set; }
+
+			[BsonElement("i72")]
+			public string? Image72 { get; set; }
+
+			[BsonElement("t")]
 			public DateTime Time { get; set; }
+
+			[BsonElement("v")]
+			public int Version { get; set; }
+
+			private SlackUser()
+			{
+			}
+
+			public SlackUser(string Email, UserInfo? Info)
+			{
+				this.Email = Email;
+				this.SlackUserId = Info?.UserName;
+				if (Info != null && Info.Profile != null && Info.Profile.IsCustomImage)
+				{
+					this.Image24 = Info.Profile.Image24;
+					this.Image32 = Info.Profile.Image32;
+					this.Image48 = Info.Profile.Image48;
+					this.Image72 = Info.Profile.Image72;
+				}
+				this.Time = DateTime.UtcNow;
+				this.Version = CurrentVersion;
+			}
 		}
 
 		IIssueService IssueService;
@@ -132,7 +202,7 @@ namespace HordeServer.Notifications.Impl
 		StreamService StreamService;
 		ServerSettings Settings;
 		IMongoCollection<MessageStateDocument> MessageStates;
-		IMongoCollection<UserDocument> Users;
+		IMongoCollection<SlackUser> SlackUsers;
 		ILogger Logger;
 
 		/// <summary>
@@ -158,7 +228,7 @@ namespace HordeServer.Notifications.Impl
 			this.StreamService = StreamService;
 			this.Settings = Settings.Value;
 			this.MessageStates = DatabaseService.Database.GetCollection<MessageStateDocument>("Slack");
-			this.Users = DatabaseService.Database.GetCollection<UserDocument>("Slack.Users");
+			this.SlackUsers = DatabaseService.Database.GetCollection<SlackUser>("Slack.Users");
 			this.Logger = Logger;
 		}
 
@@ -171,6 +241,16 @@ namespace HordeServer.Notifications.Impl
 
 			GC.SuppressFinalize(this);
 		}
+
+		#region Avatars
+
+		/// <inheritdoc/>
+		public async Task<IAvatar?> GetAvatarAsync(IUser User)
+		{
+			return await GetSlackUser(User);
+		}
+
+		#endregion
 
 		#region Message state 
 
@@ -897,9 +977,9 @@ namespace HordeServer.Notifications.Impl
 			}
 		}
 
-		static bool ShouldUpdateUser(UserDocument? Document)
+		static bool ShouldUpdateUser(SlackUser? Document)
 		{
-			if(Document == null)
+			if(Document == null || Document.Version < SlackUser.CurrentVersion)
 			{
 				return true;
 			}
@@ -918,6 +998,11 @@ namespace HordeServer.Notifications.Impl
 
 		private async Task<string?> GetSlackUserId(IUser User)
 		{
+			return (await GetSlackUser(User))?.SlackUserId;
+		}
+
+		private async Task<SlackUser?> GetSlackUser(IUser User)
+		{
 			string? Email = User.Email;
 			if (Email == null)
 			{
@@ -925,17 +1010,17 @@ namespace HordeServer.Notifications.Impl
 				return null;
 			}
 
-			UserDocument? UserDocument;
+			SlackUser? UserDocument;
 			if (!UserCache.TryGetValue(Email, out UserDocument))
 			{
-				UserDocument = await Users.Find(x => x.Email == Email).FirstOrDefaultAsync();
+				UserDocument = await SlackUsers.Find(x => x.Email == Email).FirstOrDefaultAsync();
 				if (UserDocument == null || ShouldUpdateUser(UserDocument))
 				{
-					string? UserId = await GetSlackUserIdByEmail(Email);
-					if (UserDocument == null || UserId != null)
+					UserInfo? UserInfo = await GetSlackUserInfoByEmail(Email);
+					if (UserDocument == null || UserInfo != null)
 					{
-						UserDocument = new UserDocument { Email = Email, SlackUserId = UserId, Time = DateTime.UtcNow };
-						await Users.ReplaceOneAsync(x => x.Email == Email, UserDocument, new ReplaceOptions { IsUpsert = true });
+						UserDocument = new SlackUser(Email, UserInfo);
+						await SlackUsers.ReplaceOneAsync(x => x.Email == Email, UserDocument, new ReplaceOptions { IsUpsert = true });
 					}
 				}
 				using (ICacheEntry Entry = UserCache.CreateEntry(Email))
@@ -945,34 +1030,27 @@ namespace HordeServer.Notifications.Impl
 				}
 			}
 
-			return UserDocument?.SlackUserId;
+			return UserDocument;
 		}
 
-		private async Task<string?> GetSlackUserIdByEmail(string Email)
+		private async Task<UserInfo?> GetSlackUserInfoByEmail(string Email)
 		{
 			using HttpClient Client = new HttpClient();
 
 			using HttpRequestMessage GetUserIdRequest = new HttpRequestMessage(HttpMethod.Post, $"https://slack.com/api/users.lookupByEmail?email={Email}");
 			GetUserIdRequest.Headers.Add("Authorization", $"Bearer {Settings.SlackToken ?? ""}");
 
-			HttpResponseMessage Response = await Client.SendAsync(GetUserIdRequest);
-			string? SlackResponse = await Response.Content.ReadAsStringAsync();
+			HttpResponseMessage ResponseMessage = await Client.SendAsync(GetUserIdRequest);
+			byte[] ResponseData = await ResponseMessage.Content.ReadAsByteArrayAsync();
 
-			JObject ResponseObject = JObject.Parse(SlackResponse);
-			if (!ResponseObject["ok"].ToObject<bool>())
+			UserResponse UserResponse = JsonSerializer.Deserialize<UserResponse>(ResponseData);
+			if(!UserResponse.Ok || UserResponse.User == null)
 			{
-				Logger.LogWarning("Unable to find Slack user id for {Email}: {Response}", Email, SlackResponse);
+				Logger.LogWarning("Unable to find Slack user id for {Email}: {Response}", Email, Encoding.UTF8.GetString(ResponseData));
 				return null;
 			}
 
-			string? UserId = ResponseObject["user"]["id"].ToString();
-			if (String.IsNullOrEmpty(UserId))
-			{
-				Logger.LogWarning("Unexpected response from Slack user query on {Email}: {Response}", Email, SlackResponse);
-				return null;
-			}
-
-			return UserId;
+			return UserResponse.User;
 		}
 
 		class SlackResponse

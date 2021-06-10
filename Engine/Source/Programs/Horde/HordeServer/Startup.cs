@@ -389,6 +389,7 @@ namespace HordeServer
 			Services.AddSingleton<ProjectService>();
 			Services.AddSingleton<ScheduleService>();
 			Services.AddSingleton<SlackNotificationSink>();
+			Services.AddSingleton<IAvatarService, SlackNotificationSink>(SP => SP.GetRequiredService<SlackNotificationSink>());
 			Services.AddSingleton<INotificationSink, SlackNotificationSink>(SP => SP.GetRequiredService<SlackNotificationSink>());
 			Services.AddSingleton<SoftwareService>();
 			Services.AddSingleton<StreamService>();

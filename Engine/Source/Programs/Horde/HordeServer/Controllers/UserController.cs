@@ -3,6 +3,7 @@
 using HordeServer.Api;
 using HordeServer.Collections;
 using HordeServer.Models;
+using HordeServer.Services;
 using HordeServer.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,12 +29,19 @@ namespace HordeServer.Controllers
 		IUserCollection UserCollection { get; set; }
 
 		/// <summary>
+		/// The avatar service
+		/// </summary>
+		IAvatarService? AvatarService { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="UserCollection"></param>
-		public UserController(IUserCollection UserCollection)
+		/// <param name="AvatarService"></param>
+		public UserController(IUserCollection UserCollection, IAvatarService? AvatarService)
 		{
 			this.UserCollection = UserCollection;
+			this.AvatarService = AvatarService;
 		}
 
 		/// <summary>
@@ -51,9 +59,10 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			IUserClaims? Claims = await UserCollection.GetClaimsAsync(InternalUser.Id);
-			IUserSettings? Settings = await UserCollection.GetSettingsAsync(InternalUser.Id);
-			return PropertyFilter.Apply(new GetUserResponse(InternalUser, Claims, Settings), Filter);
+			IAvatar? Avatar = (AvatarService == null)? (IAvatar?)null : await AvatarService.GetAvatarAsync(InternalUser);
+			IUserClaims Claims = await UserCollection.GetClaimsAsync(InternalUser.Id);
+			IUserSettings Settings = await UserCollection.GetSettingsAsync(InternalUser.Id);
+			return PropertyFilter.Apply(new GetUserResponse(InternalUser, Avatar, Claims, Settings), Filter);
 		}
 
 		/// <summary>

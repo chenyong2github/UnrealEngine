@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using HordeServer.Models;
+using HordeServer.Services;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -20,6 +21,26 @@ namespace HordeServer.Api
 		/// Id of the user
 		/// </summary>
 		public string Id { get; set; }
+
+		/// <summary>
+		/// Avatar image URL (24px)
+		/// </summary>
+		public string? Image24 { get; set; }
+
+		/// <summary>
+		/// Avatar image URL (32px)
+		/// </summary>
+		public string? Image32 { get; set; }
+
+		/// <summary>
+		/// Avatar image URL (48px)
+		/// </summary>
+		public string? Image48 { get; set; }
+
+		/// <summary>
+		/// Avatar image URL (72px)
+		/// </summary>
+		public string? Image72 { get; set; }
 
 		/// <summary>
 		/// Claims for the user
@@ -49,12 +70,13 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="User"></param>
-		/// <param name="Claims"></param>
-		/// <param name="Settings"></param>
-		public GetUserResponse(IUser User, IUserClaims Claims, IUserSettings Settings)
+		public GetUserResponse(IUser User, IAvatar? Avatar, IUserClaims Claims, IUserSettings Settings)
 		{
 			this.Id = User.Id.ToString();
+			this.Image24 = Avatar?.Image24;
+			this.Image32 = Avatar?.Image32;
+			this.Image48 = Avatar?.Image48;
+			this.Image72 = Avatar?.Image72;
 			this.Claims = Claims.Claims.Select(x => new UserClaim(x)).ToList();
 			this.EnableExperimentalFeatures = Settings.EnableExperimentalFeatures;
 			this.EnableIssueNotifications = Settings.EnableIssueNotifications;
