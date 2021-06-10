@@ -55,7 +55,10 @@ inline void FShaderSymbolExport::Initialize()
 		// if no command line path is provided, look to the cvar first
 		if (ExportPath.IsEmpty())
 		{
-			GetShaderDebugInfoPathOverride(ExportPath, ShaderFormat);
+			if (GetShaderDebugInfoPathOverride(ExportPath, ShaderFormat))
+			{
+				ExportPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*ExportPath);
+			}
 		}
 
 		// if there was no path set via command line or the cvar, fall back to our default
