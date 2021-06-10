@@ -2,11 +2,11 @@
 
 #define EYE_ADAPTATION_LOOSE_PARAMETERS 1
 
-#include "../Common.ush"
-#include "../Random.ush"
-#include "../EyeAdaptationCommon.ush"
-#include "../TextureSampling.ush"
-#include "../MonteCarlo.ush"
+#include "Common.ush"
+#include "Random.ush"
+#include "EyeAdaptationCommon.ush"
+#include "TextureSampling.ush"
+#include "MonteCarlo.ush"
 
 //------------------------------------------------------- COMPILER CONFIG
 

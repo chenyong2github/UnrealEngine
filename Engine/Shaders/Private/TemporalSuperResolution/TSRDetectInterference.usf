@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TAACommon.ush"
+#include "TSRCommon.ush"
 
 
 //------------------------------------------------------- CONFIG
@@ -133,7 +133,7 @@ void MainCS(
 		ClosestInterferenceSeedMin = min(ClosestInterferenceSeedMin, InterferenceSeed.x);
 		ClosestInterferenceSeedMax = max(ClosestInterferenceSeedMax, InterferenceSeed.x); 
 		
-		// TODO(G5TAA): this is InterferenceSeed.w - InterferenceSeed.z
+		// TODO(TSR): this is InterferenceSeed.w - InterferenceSeed.z
 		IntegratedInterferenceSeedMin = min(IntegratedInterferenceSeedMin, InterferenceSeed.y);
 		IntegratedInterferenceSeedMax = max(IntegratedInterferenceSeedMax, InterferenceSeed.y);
 		
@@ -191,7 +191,7 @@ void MainCS(
 		UninterferenceSeed = lerp(ClampedPrevUninterferenceSeed, LumaToInterferenceSeed(InputLuma), 0.05);
 	}
 
-	// TODO(G5TAA): optimise VGPR here
+	// TODO(TSR): optimise VGPR here
 	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
 		InterferenceWeightOutput[InputPixelPos] = bIsInterference ? 0.0 : 1.0;
