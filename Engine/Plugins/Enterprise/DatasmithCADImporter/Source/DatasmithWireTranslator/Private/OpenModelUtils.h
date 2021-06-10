@@ -10,6 +10,9 @@
 
 #include "AlAccessTypes.h"
 #include "AlShadingFields.h"
+#include "AlDagNode.h"
+#include "AlPersistentID.h"
+
 
 class IDatasmithActorElement;
 class AlDagNode;
@@ -43,10 +46,29 @@ namespace OpenModelUtils
 
 	bool IsValidActor(const TSharedPtr< IDatasmithActorElement >& ActorElement);
 
-	uint32 GetUUIDFromAIPersistentID(AlPersistentID* GroupNodeId);
-	uint32 GetUUIDFromAIPersistentID(AlDagNode& GroupNode);
-	FString GetPersistentIDString(AlPersistentID* GroupNodeId);
-	FString GetUEUUIDFromAIPersistentID(const FString& ParentUEuuid, const FString& CurrentNodePersistentID);
+	inline FString UuidToString(const uint32& Uuid)
+	{
+		return FString::Printf(TEXT("0x%08x"), Uuid);
+	}
+
+	inline uint32 GetTypeHash(AlPersistentID& GroupNodeId)
+	{
+		int IdA, IdB, IdC, IdD;
+		GroupNodeId.id(IdA, IdB, IdC, IdD);
+		return HashCombine(IdA, HashCombine(IdB, HashCombine(IdC, IdD)));
+	}
+
+	inline uint32 GetAlDagNodeUuid(AlDagNode& GroupNode)
+	{
+		if (GroupNode.hasPersistentID() == sSuccess)
+		{
+			AlPersistentID* PersistentID;
+			GroupNode.persistentID(PersistentID);
+			return GetTypeHash(*PersistentID);
+		}
+		FString Label = GroupNode.name();
+		return GetTypeHash(Label);
+	}
 
 	// Note that Alias file unit is cm like UE
 	bool TransferAlMeshToMeshDescription(const AlMesh& Mesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& SymmetricParameters, bool& bHasNormal, bool bMerge = false);
