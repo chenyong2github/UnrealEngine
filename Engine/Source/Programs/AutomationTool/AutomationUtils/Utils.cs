@@ -295,8 +295,8 @@ namespace AutomationTool
 				}
 
 				bool bFiltered = bFilteringSection ||
-				            IniKeyBlacklist.Any(Key => Line.TrimStart(IgnoredIniValuePrefixes).StartsWith(Key + "=")) ||
-				            IniKeyOverrides.Any(KeyValue => Line.TrimStart(IgnoredIniValuePrefixes).StartsWith(KeyValue.Key.Item2 + "=")); 
+				            (IniKeyBlacklist != null && IniKeyBlacklist.Any(Key => Line.TrimStart(IgnoredIniValuePrefixes).StartsWith(Key + "="))) ||
+				            (IniKeyOverrides != null && IniKeyOverrides.Any(KeyValue => Line.TrimStart(IgnoredIniValuePrefixes).StartsWith(KeyValue.Key.Item2 + "="))); 
 
 				if (InSectionBlacklist != null)
 				{
@@ -318,14 +318,17 @@ namespace AutomationTool
 					NewLines.AppendLine(Line);
 				}
 			}
-			
-			// Add overrides
-			NewLines.AppendLine("");
-			NewLines.AppendLine("; Packing overrides");
-			foreach (var KeyOverride in IniKeyOverrides)
+
+			if (IniKeyOverrides != null)
 			{
-				NewLines.AppendLine($"[{KeyOverride.Key.Item1}]");
-				NewLines.AppendLine($"{KeyOverride.Key.Item2}={KeyOverride.Value}");
+				// Add overrides
+				NewLines.AppendLine("");
+				NewLines.AppendLine("; Packing overrides");
+				foreach (var KeyOverride in IniKeyOverrides)
+				{
+					NewLines.AppendLine($"[{KeyOverride.Key.Item1}]");
+					NewLines.AppendLine($"{KeyOverride.Key.Item2}={KeyOverride.Value}");
+				}
 			}
 
 			// now write out the final .ini file
