@@ -279,6 +279,21 @@ uint32 UVolumeTexture::CalcTextureMemorySizeEnum( ETextureMipCount Enum ) const
 	}
 }
 
+#if WITH_EDITOR
+bool UVolumeTexture::GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const
+{
+	TGuardValue<FTexturePlatformData*> Guard(const_cast<UVolumeTexture*>(this)->PlatformData, InPlatformData);
+	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
+	const bool bFormatIsSupported = FormatInfo.Supported;
+	if (GetNumMips() > 0 && GSupportsTexture3D && bFormatIsSupported)
+	{
+		OutState = GetResourcePostInitState(PlatformData, GSupportsVolumeTextureStreaming, 0, 0, /*bSkipCanBeLoaded*/ true);
+		return true;
+	}
+	return false;
+}
+#endif
+
 FTextureResource* UVolumeTexture::CreateResource()
 {
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];

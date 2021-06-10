@@ -2105,6 +2105,7 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 #if WITH_EDITOR
 	if (Ar.IsCooking() && Ar.IsPersistent())
 	{
+		bCookedIsStreamable.Reset();
 		if (!Ar.CookingTarget()->IsServerOnly())
 		{
 			FTextureBuildSettings BuildSettings;
@@ -2160,6 +2161,14 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 			{
 				FTexturePlatformData* PlatformDataToSave = PlatformDataToSerialize[i];
 				PlatformDataToSave->FinishCache();
+
+				// Update bCookedIsStreamable for later use in IsCandidateForTextureStreaming
+				FStreamableRenderResourceState State;
+				if (GetStreamableRenderResourceState(PlatformDataToSave, State))
+				{
+					bCookedIsStreamable = !bCookedIsStreamable.IsSet() ? State.bSupportsStreaming : (*bCookedIsStreamable || State.bSupportsStreaming);
+				}
+
 				FName PixelFormatName = PixelFormatEnum->GetNameByValue(PlatformDataToSave->PixelFormat);
 				Ar << PixelFormatName;
 				int64 SkipOffsetLoc = Ar.Tell();

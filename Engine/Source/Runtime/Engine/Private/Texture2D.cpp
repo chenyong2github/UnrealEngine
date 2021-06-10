@@ -930,6 +930,30 @@ bool UTexture2D::HasAlphaChannel() const
 	return false;
 }
 
+#if WITH_EDITOR
+bool UTexture2D::GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const
+{
+	TGuardValue<FTexturePlatformData*> Guard(const_cast<UTexture2D*>(this)->PrivatePlatformData, InPlatformData);
+	if (PlatformData)
+	{
+		if (IsCurrentlyVirtualTextured())
+		{
+			return false;
+		}
+
+		const EPixelFormat PixelFormat = GetPixelFormat();
+		const int32 NumMips = FMath::Min3<int32>(PlatformData->Mips.Num(), GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
+		if (NumMips && GPixelFormats[PixelFormat].Supported &&
+			(NumMips > 1 || FMath::Max(GetSizeX(), GetSizeY()) <= (int32)GetMax2DTextureDimension()))
+		{
+			OutState = GetResourcePostInitState(PlatformData, true, 0, NumMips, /*bSkipCanBeLoaded*/ true);
+			return true;
+		}
+	}
+	return false;
+}
+#endif
+
 FTextureResource* UTexture2D::CreateResource()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2D::CreateResource)

@@ -998,6 +998,12 @@ protected:
 	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 private:
+
+#if WITH_EDITOR
+	/** Used to mark texture streamable state when cooking. */
+	TOptional<bool> bCookedIsStreamable;
+#endif
+
 	/** The texture's resource, can be NULL */
 	class FTextureResource*	PrivateResource;
 	/** Value updated and returned by the render-thread to allow
@@ -1341,6 +1347,11 @@ public:
 	/** Sets the minimum number of mips that must be resident in memory (cannot be streamed). */
 	static void SetMinTextureResidentMipCount(int32 InMinTextureResidentMipCount);
 
+#if WITH_EDITOR
+	/** Called by ULevel::MarkNoStreamableTexturesPrimitiveComponents when cooking level. */
+	bool IsCandidateForTextureStreaming(const ITargetPlatform* InTargetPlatform) const;
+#endif
+
 protected:
 
 	/** The minimum number of mips that must be resident in memory (cannot be streamed). */
@@ -1363,6 +1374,7 @@ protected:
 	/** Notify any loaded material instances that the texture has changed. */
 	ENGINE_API void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
 
+	virtual bool GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const { return false; }
 #endif //WITH_EDITOR
 
 	void BeginFinalReleaseResource();
@@ -1375,7 +1387,7 @@ protected:
 	 * @param	MaxMipCount - optional limitation on the max mip count.
 	 * @return  The state to be passed to FStreamableTextureResource.
 	 */
-	FStreamableRenderResourceState GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount = 0, int32 MaxMipCount = 0) const;
+	FStreamableRenderResourceState GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount = 0, int32 MaxMipCount = 0, bool bSkipCanBeLoaded = false) const;
 };
 
 /** 
