@@ -21,6 +21,7 @@
 #include "Curves/LensNodalOffsetCurveModel.h"
 #include "Curves/LensSTMapCurveModel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/MessageDialog.h"
 #include "Widgets/Input/SButton.h"
 
 
@@ -340,6 +341,14 @@ FReply SLensDataViewer::OnClearLensFileClicked()
 	FScopedTransaction Transaction(LOCTEXT("LensFileClearAll", "Cleared LensFile"));
 	LensFile->Modify();
 
+	//Warn the user that he's about to clear everything
+	const FText Message = LOCTEXT("ClearAllWarning", "This will erase all data contained in this LensFile. Do you wish to continue?");
+	if (FMessageDialog::Open(EAppMsgType::OkCancel, Message) != EAppReturnType::Ok)
+	{
+		Transaction.Cancel();
+		return FReply::Handled();
+	}
+
 	LensFile->ClearAll();
 	RefreshDataEntriesTree();
 
@@ -428,7 +437,7 @@ void SLensDataViewer::RefreshDataEntriesTree()
 			{
 				for (int32 Index = 0; Index <LensFile->EncodersTable.GetNumFocusPoints(); ++Index)
 				{
-					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetFocusInput(Index), Index));
+					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetFocusInput(Index), Index, DataRemovedCallback));
 				}
 				break;
 			}
@@ -436,7 +445,7 @@ void SLensDataViewer::RefreshDataEntriesTree()
 			{
 				for (int32 Index = 0; Index <LensFile->EncodersTable.GetNumIrisPoints(); ++Index)
 				{
-					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetIrisInput(Index), Index));
+					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetIrisInput(Index), Index, DataRemovedCallback));
 				}
 				break;
 			}

@@ -20,8 +20,8 @@ FLensDataListItem::FLensDataListItem(ULensFile* InLensFile, ELensDataCategory In
 }
 
 
-FEncoderDataListItem::FEncoderDataListItem(ULensFile* InLensFile, ELensDataCategory InCategory, float InInputValue, int32 InIndex)
-	: FLensDataListItem(InLensFile, InCategory, INDEX_NONE, nullptr)
+FEncoderDataListItem::FEncoderDataListItem(ULensFile* InLensFile, ELensDataCategory InCategory, float InInputValue, int32 InIndex, FOnDataRemoved InOnDataRemovedCallback)
+	: FLensDataListItem(InLensFile, InCategory, INDEX_NONE, InOnDataRemovedCallback)
 	, InputValue(InInputValue)
 	, EntryIndex()
 {
@@ -29,6 +29,15 @@ FEncoderDataListItem::FEncoderDataListItem(ULensFile* InLensFile, ELensDataCateg
 
 void FEncoderDataListItem::OnRemoveRequested() const
 {
+	if (ULensFile* LensFilePtr = WeakLensFile.Get())
+	{
+		FScopedTransaction Transaction(LOCTEXT("RemoveEncoderPointTransaction", "Remove encoder point"));
+		LensFilePtr->Modify();
+
+		//Pass encoder mapping raw input value as focus to remove it
+		LensFilePtr->RemoveFocusPoint(Category, InputValue);
+		OnDataRemovedCallback.ExecuteIfBound(InputValue, TOptional<float>());
+	}
 }
 
 TSharedRef<ITableRow> FEncoderDataListItem::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable)

@@ -48,7 +48,7 @@ public:
 class FEncoderDataListItem : public FLensDataListItem
 {
 public:
-	FEncoderDataListItem(ULensFile* InLensFile, ELensDataCategory InCategory, float InInput, int32 InIndex);
+	FEncoderDataListItem(ULensFile* InLensFile, ELensDataCategory InCategory, float InInput, int32 InIndex, FOnDataRemoved InOnDataRemovedCallback);
 
 	virtual void OnRemoveRequested() const override;
 	virtual TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable) override;

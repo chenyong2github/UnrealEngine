@@ -23,11 +23,14 @@ public:
 	/** Returns number of focus points */
 	int32 GetNumFocusPoints() const;
 
-	/** Returns  value for a given index */
+	/** Returns raw focus value for a given index */
 	float GetFocusInput(int32 Index) const;
 	
-	/** Returns zoom value for a given index */
+	/** Returns focus value for a given index */
 	float GetFocusValue(int32 Index) const;
+
+	/** Removes a focus mapping point at the given raw input */
+	bool RemoveFocusPoint(float InRawFocus);
 
 	/** Returns number of focus points */
 	int32 GetNumIrisPoints() const;
@@ -37,6 +40,12 @@ public:
 	
 	/** Returns zoom value for a given index */
 	float GetIrisValue(int32 Index) const;	
+
+	/** Removes a iris mapping point at the given raw input */
+	bool RemoveIrisPoint(float InRawIris);
+
+	/** Removes all focus and iris points */
+	void ClearAll();
 
 
 public:

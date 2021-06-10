@@ -1055,7 +1055,15 @@ void ULensFile::RemoveFocusPoint(ELensDataCategory InDataCategory, float InFocus
 			break;
 		}
 		case ELensDataCategory::Focus:
+		{
+			EncodersTable.RemoveFocusPoint(InFocus);
+			break;
+		}
 		case ELensDataCategory::Iris:
+		{
+			EncodersTable.RemoveIrisPoint(InFocus);
+			break;
+		}
 		default:
 		{}
 	}
@@ -1099,6 +1107,7 @@ void ULensFile::RemoveZoomPoint(ELensDataCategory InDataCategory, float InFocus,
 
 void ULensFile::ClearAll()
 {
+	EncodersTable.ClearAll();
 	LensDataTableUtils::EmptyTable(DistortionTable);
 	LensDataTableUtils::EmptyTable(FocalLengthTable);
 	LensDataTableUtils::EmptyTable(STMapTable);

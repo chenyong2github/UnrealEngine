@@ -286,14 +286,14 @@ void FCameraCalibrationToolkit::ExtendMenu()
 				);
 				
 				MenuBuilder.AddMenuEntry(
-					LOCTEXT("OpenCameraCalibrationSettingsLabel", "Open Settins"),
-					LOCTEXT("OpenCameraCalibrationSettingsTooltip", "Open Camera Calibration Settins"),
+					LOCTEXT("OpenCameraCalibrationSettingsLabel", "Open Settings"),
+					LOCTEXT("OpenCameraCalibrationSettingsTooltip", "Open Camera Calibration Settings"),
 					FSlateIcon(),
 					OpenSettingsAction);
 
 				MenuBuilder.AddMenuEntry(
-					LOCTEXT("OpenCameraCalibrationEditorSettingsLabel", "Open Editor Settins"),
-					LOCTEXT("OpenCameraCalibrationEditorSettingsTooltip", "Open Camera Calibration Editor Settins"),
+					LOCTEXT("OpenCameraCalibrationEditorSettingsLabel", "Open Editor Settings"),
+					LOCTEXT("OpenCameraCalibrationEditorSettingsTooltip", "Open Camera Calibration Editor Settings"),
 					FSlateIcon(),
 					OpenEditorSettingsAction);
 			}
