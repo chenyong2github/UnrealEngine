@@ -51,7 +51,7 @@ void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool
 			.AutoHeight()
 			.Padding(0, 20)
 			[
-				SNew(SButton).Text(LOCTEXT("AddToNodalOffsetLUT", "Add To Nodal Offset LUT"))
+				SNew(SButton).Text(LOCTEXT("AddToNodalOffsetLUT", "Add To Nodal Offset Calibration"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked_Lambda([&]() -> FReply

@@ -41,6 +41,7 @@
 #include "Profile/MediaProfile.h"
 #include "SCameraCalibrationSteps.h"
 #include "TimeSynchronizableMediaSource.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/SWidget.h"
@@ -1018,5 +1019,41 @@ bool FCameraCalibrationStepsController::CalculateNormalizedMouseClickPosition(co
 	return true;
 }
 
+bool FCameraCalibrationStepsController::ReadMediaPixels(TArray<FColor>& Pixels, FIntPoint& Size, ETextureRenderTargetFormat& PixelFormat, FText& OutErrorMessage) const
+{
+	// Get the media plate texture render target 2d
+
+	if (!MediaPlateRenderTarget.IsValid())
+	{
+		OutErrorMessage = LOCTEXT("InvalidMediaPlateRenderTarget", "Invalid MediaPlateRenderTarget");
+		return false;
+	}
+
+	// Extract its render target resource
+	FRenderTarget* MediaRenderTarget = MediaPlateRenderTarget->GameThread_GetRenderTargetResource();
+
+	if (!MediaRenderTarget)
+	{
+		OutErrorMessage = LOCTEXT("InvalidRenderTargetResource", "MediaPlateRenderTarget did not have a RenderTarget resource");
+		return false;
+	}
+
+	PixelFormat = MediaPlateRenderTarget->RenderTargetFormat;
+
+	// Read the pixels onto CPU
+	const bool bReadPixels = MediaRenderTarget->ReadPixels(Pixels);
+
+	if (!bReadPixels)
+	{
+		OutErrorMessage = LOCTEXT("ReadPixelsFailed", "ReadPixels from render target failed");
+		return false;
+	}
+
+	Size = MediaRenderTarget->GetSizeXY();
+
+	check(Pixels.Num() == Size.X * Size.Y);
+
+	return true;
+}
 
 #undef LOCTEXT_NAMESPACE

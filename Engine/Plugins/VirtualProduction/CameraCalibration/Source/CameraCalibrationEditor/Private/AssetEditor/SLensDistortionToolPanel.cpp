@@ -51,7 +51,7 @@ void SLensDistortionToolPanel::Construct(const FArguments& InArgs, ULensDistorti
 			.AutoHeight()
 			.Padding(0, 20)
 			[
-				SNew(SButton).Text(LOCTEXT("AddToLUT", "Add To LUT"))
+				SNew(SButton).Text(LOCTEXT("AddToLUT", "Add To Lens Distortion Calibration"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked_Lambda([&]() -> FReply

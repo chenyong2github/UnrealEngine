@@ -111,64 +111,6 @@ namespace CameraLensDistortionAlgoCheckerboard
 		TSharedPtr<FCalibrationRowData> CalibrationRowData;
 	};
 
-#if WITH_OPENCV
-	static bool ReadMediaPixels(cv::Mat& CvFrame, FCameraCalibrationStepsController* StepsController, FText& OutErrorMessage)
-	{
-		if (!ensure(StepsController))
-		{
-			OutErrorMessage = LOCTEXT("InvalidStepsController", "Invalid StepsController");
-			return false;
-		}
-
-		// Get the media plate texture render target 2d
-		UTextureRenderTarget2D* MediaPlateRenderTarget = StepsController->GetMediaPlateRenderTarget();
-
-		if (!MediaPlateRenderTarget)
-		{
-			OutErrorMessage = LOCTEXT("InvalidMediaPlateRenderTarget", "Invalid MediaPlateRenderTarget");
-			return false;
-		}
-
-		// Extract its render target resource
-		FRenderTarget* RenderTarget = MediaPlateRenderTarget->GameThread_GetRenderTargetResource();
-
-		if (!RenderTarget)
-		{
-			OutErrorMessage = LOCTEXT("InvalidRenderTargetResource", "MediaPlateRenderTarget did not have a RenderTarget resource");
-			return false;
-		}
-
-		// Verify that we have the correct pixel format
-		if (MediaPlateRenderTarget->RenderTargetFormat != ETextureRenderTargetFormat::RTF_RGBA8)
-		{
-			OutErrorMessage = LOCTEXT("InvalidFormat", "MediaPlateRenderTarget did not have the expected RTF_RGBA8 format");
-			return false;
-		}
-
-		// Read the pixels onto CPU
-		TArray<FColor> Pixels;
-		const bool bReadPixels = RenderTarget->ReadPixels(Pixels);
-
-		if (!bReadPixels)
-		{
-			OutErrorMessage = LOCTEXT("ReadPixelsFailed", "ReadPixels from render target failed");
-			return false;
-		}
-
-		FIntPoint RTSize = RenderTarget->GetSizeXY();
-
-		check(Pixels.Num() == RTSize.X * RTSize.Y);
-
-		// Create OpenCV Mat with those pixels
-		CvFrame = cv::Mat(cv::Size(RTSize.X, RTSize.Y), CV_8UC4);
-
-		// This copy avoids a crash when/if cv::imwrite is called.
-		const int32 PixelSize = 4;
-		memcpy(CvFrame.data, Pixels.GetData(), PixelSize * Pixels.Num());
-
-		return true;
-	}
-#endif //WITH_OPENCV
 };
 
 void UCameraLensDistortionAlgoCheckerboard::Initialize(ULensDistortionTool* InTool)
@@ -280,23 +222,35 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 
 	if (!LastCameraData.bIsValid)
 	{
-		OutErrorMessage = LOCTEXT("InvalidLastCameraData", "Invalid LastCameraData");
+		OutErrorMessage = LOCTEXT("InvalidLastCameraData", "Could not find a cached set of camera data (e.g. FIZ). Please ensure that the camera has a camera live link controller and that it is receiving FIZ data");
 		return false;
 	}
 
 	if (!Calibrator.IsValid())
 	{
-		OutErrorMessage = LOCTEXT("InvalidCalibrator", "Invalid Calibrator");
+		OutErrorMessage = LOCTEXT("InvalidCalibrator", "Please pick a calibrator actor in the given combo box that contains calibration points");
 		return false;
 	}
 
 	// Read pixels
-	cv::Mat CvFrame;
 
-	if (!ReadMediaPixels(CvFrame, StepsController, OutErrorMessage))
+	TArray<FColor> Pixels;
+	FIntPoint Size;
+	ETextureRenderTargetFormat PixelFormat;
+
+	if (!StepsController->ReadMediaPixels(Pixels, Size, PixelFormat, OutErrorMessage))
 	{
 		return false;
 	}
+
+	if (PixelFormat != ETextureRenderTargetFormat::RTF_RGBA8)
+	{
+		OutErrorMessage = LOCTEXT("InvalidFormat", "MediaPlateRenderTarget did not have the expected RTF_RGBA8 format");
+		return false;
+	}
+
+	// Create OpenCV Mat with those pixels
+	cv::Mat CvFrame(cv::Size(Size.X, Size.Y), CV_8UC4, Pixels.GetData());
 
 	cv::Mat CvGray;
 	cv::cvtColor(CvFrame, CvGray, cv::COLOR_RGBA2GRAY);
@@ -328,7 +282,6 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		cv::Size CheckerboardSize(Row->NumCornerCols, Row->NumCornerRows);
 
 		std::vector<cv::Point2f> Corners;
-		Corners.reserve(CheckerboardSize.height * CheckerboardSize.width); // reserve avoids a crash when this block goes out of scope
 
 		const bool bCornersFound = cv::findChessboardCorners(
 			CvGray, 
@@ -380,7 +333,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
 
 		const int32 PixelStride = 4;
-		FMemory::Memcpy(TextureData, CvThumbnail.data, CvThumbnail.cols * CvThumbnail.rows * PixelStride);
+		FMemory::Memcpy(TextureData, CvThumbnail.data, SIZE_T(CvThumbnail.cols * CvThumbnail.rows * PixelStride));
 
 		Mip0.BulkData.Unlock();
 		Texture->UpdateResource();
@@ -467,21 +420,21 @@ bool UCameraLensDistortionAlgoCheckerboard::ValidateNewRow(TSharedPtr<FCalibrati
 	// Valid image dimensions
 	if ((Row->ImageHeight < 1) || (Row->ImageWidth < 1))
 	{
-		OutErrorMessage = LOCTEXT("InvalidImageDimensions", "Invalid image dimensions");
+		OutErrorMessage = LOCTEXT("InvalidImageDimensions", "Image dimensions were less than 1 pixel");
 		return false;
 	}
 
 	// Valid image pattern size
 	if (Row->SquareSideInCm < 1)
 	{
-		OutErrorMessage = LOCTEXT("InvalidPatternSize", "Invalid pattern size");
+		OutErrorMessage = LOCTEXT("InvalidPatternSize", "Pattern size cannot be smaller than 1 cm");
 		return false;
 	}
 
 	// valid number of rows and columns
 	if ((Row->NumCornerCols < 3) || (Row->NumCornerRows < 3))
 	{
-		OutErrorMessage = LOCTEXT("InvalidPatternRowsandCols", "Invalid number of rows/columns in the pattern");
+		OutErrorMessage = LOCTEXT("InvalidPatternRowsandCols", "Number of corner rows or columns cannot be less than 3");
 		return false;
 	}
 
@@ -511,28 +464,28 @@ bool UCameraLensDistortionAlgoCheckerboard::ValidateNewRow(TSharedPtr<FCalibrati
 	// NumRows didn't change
 	if (Row->NumCornerRows != FirstRow->NumCornerRows)
 	{
-		OutErrorMessage = LOCTEXT("NumRowsChanged", "Number of rows changed");
+		OutErrorMessage = LOCTEXT("NumRowsChanged", "Number of corner rows changed in calibrator, which is an invalid condition.");
 		return false;
 	}
 
 	// NumCols didn't change
 	if (Row->NumCornerCols != FirstRow->NumCornerCols)
 	{
-		OutErrorMessage = LOCTEXT("NumColsChanged", "Number of columns changed");
+		OutErrorMessage = LOCTEXT("NumColsChanged", "Number of corner columns changed in calibrator, which is an invalid condition.");
 		return false;
 	}
 
 	// Square side length didn't change
 	if (!FMath::IsNearlyEqual(Row->SquareSideInCm, FirstRow->SquareSideInCm))
 	{
-		OutErrorMessage = LOCTEXT("PatternSizeChanged", "Physical size of the pattern changed");
+		OutErrorMessage = LOCTEXT("PatternSizeChanged", "Physical size of the pattern changed, which is an invalid condition");
 		return false;
 	}
 
 	// Image dimensions did not change
 	if ((Row->ImageWidth != FirstRow->ImageWidth) || (Row->ImageHeight != FirstRow->ImageHeight))
 	{
-		OutErrorMessage = LOCTEXT("ImageDimensionsChanged", "The dimensions of the media plate changed");
+		OutErrorMessage = LOCTEXT("ImageDimensionsChanged", "The dimensions of the media plate changed, which is an invalid condition");
 		return false;
 	}
 
@@ -617,9 +570,6 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 
 	std::vector<cv::Mat> Rvecs;
 	std::vector<cv::Mat> Tvecs;
-
-	Rvecs.reserve(CalibrationRows.Num());
-	Tvecs.reserve(CalibrationRows.Num());
 
 	std::vector<std::vector<cv::Point2f>> Samples2d;
 	std::vector<std::vector<cv::Point3f>> Samples3d;

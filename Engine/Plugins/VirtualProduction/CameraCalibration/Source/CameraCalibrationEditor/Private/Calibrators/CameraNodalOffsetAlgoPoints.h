@@ -8,6 +8,8 @@
 
 #include "CameraNodalOffsetAlgoPoints.generated.h"
 
+class FCameraCalibrationStepsController;
+
 template <typename ItemType>
 class SListView;
 
@@ -15,6 +17,7 @@ class UCalibrationPointComponent;
 
 template<typename OptionType>
 class SComboBox;
+
 
 namespace CameraNodalOffsetAlgoPoints
 {
@@ -49,7 +52,7 @@ public:
 	virtual void OnSavedNodalOffset() override;
 	//~ End CalibPointsNodalOffsetAlgo
 
-private:
+protected:
 
 	// SCalibrationRowGenerator will need access to the row structures below.
 	friend class CameraNodalOffsetAlgoPoints::SCalibrationRowGenerator;
@@ -102,8 +105,14 @@ private:
 		// Calibrator Pose
 		FTransform CalibratorPose;
 
+		// Calibrator ParentPose
+		FTransform CalibratorParentPose;
+
 		// Calibrator unique id
 		uint32 CalibratorUniqueId;
+
+		// Calibrator parent unique id
+		uint32 CalibratorParentUniqueId;
 	};
 
 	/** Holds information of the calibrator 3d point for a given sample of a 2d-3d correlation */
@@ -119,7 +128,7 @@ private:
 		FCameraDataCache CameraData;
 	};
 
-private:
+protected:
 
 	/** The nodal offset tool controller */
 	TWeakObjectPtr<UNodalOffsetTool> NodalOffsetTool;
@@ -145,7 +154,7 @@ private:
 	/** Caches the last camera data.  Will hold last value before the nodal offset tool is paused */
 	FCameraDataCache LastCameraData;
 
-private:
+protected:
 
 	/** Builds the UI of the calibration device picker */
 	TSharedRef<SWidget> BuildCalibrationDevicePickerWidget();
@@ -159,7 +168,7 @@ private:
 	/** Builds the UI for the action buttons (RemoveLast, ClearAll) */
 	TSharedRef<SWidget> BuildCalibrationActionButtons();
 
-private:
+protected:
 
 	/** Returns the first calibrator object in the scene that it can find */
 	AActor* FindFirstCalibrator() const;
@@ -174,7 +183,7 @@ private:
 	void ClearCalibrationRows();
 
 	/** Retrieves by name the UCalibrationPointComponent of the currently selected calibrator */
-	const UCalibrationPointComponent* GetCalibrationPointComponentFromName(FString& Name) const;
+	const UCalibrationPointComponent* GetCalibrationPointComponentFromName(const FString& Name) const;
 
 	/** Returns the world 3d location of the currently selected */
 	bool GetCurrentCalibratorPointLocation(FVector& OutLocation);
@@ -191,9 +200,15 @@ private:
 	/** Applies the nodal offset to the tracker origin (normally the camera parent) */
 	bool ApplyNodalOffsetToTrackingOrigin();
 
+	/** Applies the nodal offset to the parent of the calibrator */
+	bool ApplyNodalOffsetToCalibratorParent();
+
 	/** Does basic checks on the data before performing the actual calibration */
 	bool BasicCalibrationChecksPass(FText& OutErrorMessage) const;
 
 	/** Calculates the optimal camera component pose that minimizes the reprojection error */
 	bool CalculatedOptimalCameraComponentPose(FTransform& OutDesiredCameraTransform, FText& OutErrorMessage) const;
+
+	/** Gets the step controller and the lens file */
+	bool GetStepsControllerAndLensFile(const FCameraCalibrationStepsController** OutStepsController, const ULensFile** OutLensFile) const;
 };
