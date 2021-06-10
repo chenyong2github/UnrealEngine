@@ -356,6 +356,8 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,   Notify(nullptr)
 ,	Time( 0.f )
 ,	ElapsedTime( 0.0 )
+,	bInTick(false)
+,	bPendingDestruction(false)
 ,	LastTickDispatchRealtime( 0.f )
 ,   bIsPeer(false)
 ,	bSkipLocalStats(false)
@@ -664,6 +666,8 @@ bool ShouldEnableScopeSecondsTimers()
 
 void UNetDriver::TickFlush(float DeltaSeconds)
 {
+	TGuardValue<bool> GuardInNetTick(bInTick, true);
+
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NetworkOutgoing);
 	SCOPE_CYCLE_COUNTER(STAT_NetTickFlush);
 	bool bEnableTimer = (NetDriverName == NAME_GameNetDriver) && ShouldEnableScopeSecondsTimers();
@@ -1471,6 +1475,19 @@ void UNetDriver::PostTickFlush()
 	{
 		UOnlineEngineInterface::Get()->ClearVoicePackets(World);
 	}
+
+	if (bPendingDestruction)
+	{
+		if (World)
+		{
+			GEngine->DestroyNamedNetDriver(World, NetDriverName);
+		}
+		else
+		{
+			UE_LOG(LogNet, Error, TEXT("NetDriver %s pending destruction without valid world."), *NetDriverName.ToString());
+		}
+		bPendingDestruction = false;
+	}
 }
 
 bool UNetDriver::InitConnectionClass(void)
@@ -1832,6 +1849,8 @@ struct FRPCCSVTracker
 
 void UNetDriver::TickDispatch( float DeltaTime )
 {
+	TGuardValue<bool> GuardInNetTick(bInTick, true);
+
 	SendCycles=0;
 
 	const double CurrentRealtime = FPlatformTime::Seconds();
@@ -1935,6 +1954,19 @@ void UNetDriver::PostTickDispatch()
 	{
 		GRPCCSVTracker.EndTickDispatch();
 		GReceiveRPCTimingEnabled = false;
+	}
+
+	if (bPendingDestruction)
+	{
+		if (World)
+		{ 
+			GEngine->DestroyNamedNetDriver(World, NetDriverName);
+		}
+		else
+		{
+			UE_LOG(LogNet, Error, TEXT("NetDriver %s pending destruction without valid world."), *NetDriverName.ToString());
+		}
+		bPendingDestruction = false;
 	}
 }
 
