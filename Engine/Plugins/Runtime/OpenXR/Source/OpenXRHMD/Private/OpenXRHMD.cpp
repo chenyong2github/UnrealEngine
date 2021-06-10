@@ -2935,7 +2935,7 @@ void FOpenXRHMD::UpdateLayer(FOpenXRLayer& Layer, uint32 LayerId, bool bIsValid)
 	if (bIsValid)
 	{
 		const ETextureCreateFlags Flags = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE ?
-			TexCreate_Dynamic : TexCreate_None;
+			TexCreate_Dynamic | TexCreate_SRGB : TexCreate_SRGB;
 
 		auto CreateSwapchain = [this](FRHITexture2D* Texture, ETextureCreateFlags Flags)
 		{
