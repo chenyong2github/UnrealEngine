@@ -408,8 +408,13 @@ bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyH
 
 void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle)
 {
-	TArray<UObject*> OuterObjects;
-	PropertyHandle->GetOuterObjects(OuterObjects);
+	TSet<UObject*> UniqueOuterObjects;
+	{
+		// Make sure properties are only being exposed once per object.
+		TArray<UObject*> OuterObjects;
+		PropertyHandle->GetOuterObjects(OuterObjects);
+		UniqueOuterObjects.Append(MoveTemp(OuterObjects));
+	}
 
 	if (IsExposed(PropertyHandle))
 	{
@@ -418,12 +423,12 @@ void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& Prop
 		Unexpose(PropertyHandle);
 		return;
 	}
-
-	if (OuterObjects.Num())
+	if (UniqueOuterObjects.Num())
 	{
 		FScopedTransaction Transaction(LOCTEXT("ExposeProperty", "Expose Property"));
 		Preset->Modify();
-		for (UObject* Object : OuterObjects)
+		
+		for (UObject* Object : UniqueOuterObjects)
 		{
 			if (Object)
 			{

@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlPresetEditorToolkit.h"
+
+#include "Framework/Docking/TabManager.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SWidget.h"
-#include "Framework/Docking/TabManager.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 #include "UI/SRCPanelExposedEntitiesList.h"
 #include "UI/SRCPanelTreeNode.h"
 #include "UI/SRemoteControlPanel.h"
@@ -58,6 +59,21 @@ void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToo
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, RemoteControlPanelAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultStandaloneMenu, InPreset);
 
 	InvokePanelTab();
+}
+
+FRemoteControlPresetEditorToolkit::~FRemoteControlPresetEditorToolkit()
+{
+	if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		if (TSharedPtr<FTabManager> EditorTabManager = LevelEditorModule.GetLevelEditorTabManager())
+		{
+			if (TSharedPtr<SDockTab> Tab = EditorTabManager->FindExistingLiveTab(PanelTabId))
+			{
+				Tab->RequestCloseTab();
+			}
+		}
+	}
 }
 
 void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
