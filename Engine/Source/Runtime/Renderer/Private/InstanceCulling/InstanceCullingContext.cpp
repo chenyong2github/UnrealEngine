@@ -12,7 +12,6 @@
 #include "ScenePrivate.h"
 #include "InstanceCulling/InstanceCullingManager.h"
 
-#define ENABLE_DETERMINISTIC_INSTANCE_CULLING 0
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(InstanceCullingUbSlot);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FInstanceCullingGlobalUniforms, "InstanceCulling", InstanceCullingUbSlot);
@@ -92,163 +91,6 @@ void FInstanceCullingContext::AddInstanceRunToCullingCommand(int32 ScenePrimitiv
 		InstanceRuns.Add(FInstanceRun{ RunStart, RunEndIncl, ScenePrimitiveId });
 	}
 }
-
-#if ENABLE_DETERMINISTIC_INSTANCE_CULLING
-
-class FComputeInstanceIdOutputSizeCs : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FComputeInstanceIdOutputSizeCs);
-	SHADER_USE_PARAMETER_STRUCT(FComputeInstanceIdOutputSizeCs, FGlobalShader)
-public:
-	class FCullInstancesDim : SHADER_PERMUTATION_BOOL("CULL_INSTANCES");
-	using FPermutationDomain = TShaderPermutationDomain<FCullInstancesDim>;
-
-	static constexpr int32 NumThreadsPerGroup = 64;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return UseGPUScene(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("INDIRECT_ARGS_NUM_WORDS"), FInstanceCullingContext::IndirectArgsNumWords);
-		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NumThreadsPerGroup);
-		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
-		OutEnvironment.SetDefine(TEXT("ENABLE_DETERMINISTIC_INSTANCE_CULLING"), 1);
-		OutEnvironment.SetDefine(TEXT("PRIM_ID_DYNAMIC_FLAG"), GPrimIDDynamicFlag);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
-
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FPrimCullingCommand >, PrimitiveCullingCommands)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< int32 >, PrimitiveIds)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FInstanceRun >, InstanceRuns)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, VisibleInstanceFlags)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, ViewIds)
-
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutputOffsetBufferOut)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint2>, InstanceCountsOut)
-
-		SHADER_PARAMETER(int32, NumPrimitiveIds)
-		SHADER_PARAMETER(int32, NumInstanceRuns)
-		SHADER_PARAMETER(int32, NumCommands)
-		SHADER_PARAMETER(uint32, NumInstanceFlagWords)
-		SHADER_PARAMETER(uint32, NumCulledInstances)
-		SHADER_PARAMETER(uint32, NumCulledViews)
-		SHADER_PARAMETER(int32, NumViewIds)
-
-		SHADER_PARAMETER(int32, DynamicPrimitiveIdOffset)
-		SHADER_PARAMETER(int32, DynamicPrimitiveIdMax)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FComputeInstanceIdOutputSizeCs, "/Engine/Private/InstanceCulling/BuildInstanceDrawCommands.usf", "ComputeInstanceIdOutputSize", SF_Compute);
-
-class FCalcOutputOffsetsCs : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FCalcOutputOffsetsCs);
-	SHADER_USE_PARAMETER_STRUCT(FCalcOutputOffsetsCs, FGlobalShader)
-public:
-	static constexpr int32 NumThreadsPerGroup = 64;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return UseGPUScene(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("INDIRECT_ARGS_NUM_WORDS"), FInstanceCullingContext::IndirectArgsNumWords);
-		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NumThreadsPerGroup);
-		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
-		OutEnvironment.SetDefine(TEXT("ENABLE_DETERMINISTIC_INSTANCE_CULLING"), 1);
-		OutEnvironment.SetDefine(TEXT("PRIM_ID_DYNAMIC_FLAG"), GPrimIDDynamicFlag);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, InstanceIdOffsetBufferOut)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutputOffsetBufferOut)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, InstanceCounts)
-		SHADER_PARAMETER(int32, NumCommands)
-		SHADER_PARAMETER(int32, NumViewIds)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FCalcOutputOffsetsCs, "/Engine/Private/InstanceCulling/BuildInstanceDrawCommands.usf", "CalcOutputOffsets", SF_Compute);
-
-class FOutputInstanceIdsAtOffsetCs : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FOutputInstanceIdsAtOffsetCs);
-	SHADER_USE_PARAMETER_STRUCT(FOutputInstanceIdsAtOffsetCs, FGlobalShader)
-public:
-	static constexpr int32 NumThreadsPerGroup = 64;
-
-	// GPUCULL_TODO: remove once buffer is somehow unified
-	class FOutputCommandIdDim : SHADER_PERMUTATION_BOOL("OUTPUT_COMMAND_IDS");
-	class FCullInstancesDim : SHADER_PERMUTATION_BOOL("CULL_INSTANCES");
-	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FCullInstancesDim>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return UseGPUScene(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("INDIRECT_ARGS_NUM_WORDS"), FInstanceCullingContext::IndirectArgsNumWords);
-		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NumThreadsPerGroup);
-		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
-		OutEnvironment.SetDefine(TEXT("ENABLE_DETERMINISTIC_INSTANCE_CULLING"), 1);
-		OutEnvironment.SetDefine(TEXT("PRIM_ID_DYNAMIC_FLAG"), GPrimIDDynamicFlag);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, InstanceIdOffsetBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, InstanceCounts)
-
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
-
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FPrimCullingCommand >, PrimitiveCullingCommands)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< int32 >, PrimitiveIds)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FInstanceRun >, InstanceRuns)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, VisibleInstanceFlags)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, ViewIds)
-
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, InstanceIdsBufferOut)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawCommandIdsBufferOut)
-		// Using the wrong kind of buffer for RDG...
-		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, InstanceIdsBufferOut)
-
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
-		SHADER_PARAMETER(int32, NumPrimitiveIds)
-		SHADER_PARAMETER(int32, NumInstanceRuns)
-		SHADER_PARAMETER(int32, NumCommands)
-		SHADER_PARAMETER(uint32, NumInstanceFlagWords)
-		SHADER_PARAMETER(uint32, NumCulledInstances)
-		SHADER_PARAMETER(uint32, NumCulledViews)
-		SHADER_PARAMETER(int32, NumViewIds)
-
-		SHADER_PARAMETER(int32, DynamicPrimitiveIdOffset)
-		SHADER_PARAMETER(int32, DynamicPrimitiveIdMax)
-
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FOutputInstanceIdsAtOffsetCs, "/Engine/Private/InstanceCulling/BuildInstanceDrawCommands.usf", "OutputInstanceIdsAtOffset", SF_Compute);
-
-#endif // ENABLE_DETERMINISTIC_INSTANCE_CULLING
 
 class FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs : public FGlobalShader
 {
@@ -389,136 +231,6 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	const uint32 InstanceIdBufferSize = TotalInstances * ViewIds.Num();
 	FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
 
-#if ENABLE_DETERMINISTIC_INSTANCE_CULLING
-	// 1. Compute output sizes for all commands
-	FRDGBufferRef InstanceCountsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FIntVector2), CullingCommands.Num()), TEXT("InstanceCulling.InstanceCounts"));
-	FRDGBufferRef InstanceIdOffsetBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), CullingCommands.Num()), TEXT("InstanceCulling.InstanceIdOffsetBuffer"));
-	FRDGBufferRef DrawIndirectArgsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(IndirectArgsNumWords * CullingCommands.Num()), TEXT("InstanceCulling.DrawIndirectArgsBuffer"));
-
-
-	{
-		FComputeInstanceIdOutputSizeCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeInstanceIdOutputSizeCs::FParameters>();
-
-		PassParameters->InstanceCountsOut = GraphBuilder.CreateUAV(InstanceCountsRDG);
-
-		// Because the view uniforms are not set up by the time this runs
-		// PassParameters->View = View.ViewUniformBuffer;
-		// Set up global GPU-scene data instead...
-		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
-		PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-		PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
-		// Upload data etc
-		PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(PrimitiveCullingCommandsBuffer, CullingCommands));
-
-		PassParameters->PrimitiveIds = GraphBuilder.CreateSRV(PrimitiveIdsBuffer, PrimitiveIds));
-		PassParameters->DynamicPrimitiveIdOffset = DynamicPrimitiveIdRange.GetLowerBoundValue();
-		PassParameters->DynamicPrimitiveIdMax = DynamicPrimitiveIdRange.GetUpperBoundValue();
-
-		PassParameters->InstanceRuns = GraphBuilder.CreateSRV(PrimitiveInstanceRunsBuffer);
-
-		PassParameters->OutputOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOutOffsetBufferRDG);
-
-		PassParameters->ViewIds = GraphBuilder.CreateSRV(ViewIdsBuffer);
-		PassParameters->NumViewIds = ViewIds.Num();
-		PassParameters->NumPrimitiveIds = PrimitiveIds.Num();
-		PassParameters->NumInstanceRuns = InstanceRuns.Num();
-		PassParameters->NumCommands = CullingCommands.Num();
-		PassParameters->VisibleInstanceFlags = VisibleInstanceFlagsRDG ? GraphBuilder.CreateSRV(VisibleInstanceFlagsRDG) : nullptr;
-
-		PassParameters->NumInstanceFlagWords = NumInstanceFlagWords;
-		PassParameters->NumCulledInstances = NumCulledInstances;
-		PassParameters->NumCulledViews = NumCulledViews;
-		PassParameters->NumCulledInstances = uint32(NumCulledInstances);
-
-		FComputeInstanceIdOutputSizeCs::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FComputeInstanceIdOutputSizeCs::FCullInstancesDim>(bCullInstances);
-		PermutationVector.Set<FComputeInstanceIdOutputSizeCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
-		auto ComputeShader = ShaderMap->GetShader<FComputeInstanceIdOutputSizeCs>(PermutationVector);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("ComputeInstanceIdOutputSize"),
-			ComputeShader,
-			PassParameters,
-			FIntVector(CullingCommands.Num(), 1, 1)
-		);
-	}
-	// 2. Allocate output slots for each command
-	{
-		FCalcOutputOffsetsCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FCalcOutputOffsetsCs::FParameters>();
-
-		PassParameters->InstanceCounts = GraphBuilder.CreateSRV(InstanceCountsRDG);
-		PassParameters->OutputOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOutOffsetBufferRDG);
-		PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOffsetBufferRDG, PF_R32_UINT);
-		PassParameters->NumViewIds = ViewIds.Num();
-		PassParameters->NumCommands = CullingCommands.Num();
-
-		auto ComputeShader = ShaderMap->GetShader<FCalcOutputOffsetsCs>();
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("CalcOutputOffsets"),
-			ComputeShader,
-			PassParameters,
-			FIntVector(1, 1, 1)
-		);
-	}
-	// 3. Populate the output buffers
-	{
-		FOutputInstanceIdsAtOffsetCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FOutputInstanceIdsAtOffsetCs::FParameters>();
-
-		PassParameters->InstanceCounts = GraphBuilder.CreateSRV(InstanceCountsRDG);
-		PassParameters->InstanceIdOffsetBuffer = GraphBuilder.CreateSRV(InstanceIdOffsetBufferRDG, PF_R32_UINT);
-
-
-		// Because the view uniforms are not set up by the time this runs
-		// PassParameters->View = View.ViewUniformBuffer;
-		// Set up global GPU-scene data instead...
-		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
-		PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-		PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
-		// Upload data etc
-		PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(PrimitiveCullingCommandsBuffer);
-
-		PassParameters->PrimitiveIds = GraphBuilder.CreateSRV(PrimitiveIdsBuffer);
-		PassParameters->DynamicPrimitiveIdOffset = DynamicPrimitiveIdRange.GetLowerBoundValue();
-		PassParameters->DynamicPrimitiveIdMax = DynamicPrimitiveIdRange.GetUpperBoundValue();
-
-		PassParameters->InstanceRuns = GraphBuilder.CreateSRV(PrimitiveInstanceRunsBuffer);
-
-		PassParameters->ViewIds = GraphBuilder.CreateSRV(ViewIdsBuffer);
-		PassParameters->NumViewIds = ViewIds.Num();
-
-		//PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBufferRDG, PF_R32_UINT);
-		// TODO: Access resources through manager rather than global
-		PassParameters->InstanceIdsBufferOut = GInstanceCullingManagerResources.GetInstancesIdBufferUav();
-		PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DrawIndirectArgsRDG, PF_R32_UINT);
-		PassParameters->NumPrimitiveIds = PrimitiveIds.Num();
-		PassParameters->NumInstanceRuns = InstanceRuns.Num();
-		PassParameters->NumCommands = CullingCommands.Num();
-		PassParameters->VisibleInstanceFlags = VisibleInstanceFlagsRDG ? GraphBuilder.CreateSRV(VisibleInstanceFlagsRDG) : nullptr;
-		PassParameters->NumInstanceFlagWords = NumInstanceFlagWords;
-		PassParameters->NumCulledInstances = NumCulledInstances;
-		PassParameters->NumCulledViews = NumCulledViews;
-		PassParameters->NumCulledInstances = uint32(NumCulledInstances);
-
-		FOutputInstanceIdsAtOffsetCs::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FOutputCommandIdDim>(0);
-		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FCullInstancesDim>(bCullInstances);
-		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
-		auto ComputeShader = ShaderMap->GetShader<FOutputInstanceIdsAtOffsetCs>(PermutationVector);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("OutputInstanceIdsAtOffset"),
-			ComputeShader,
-			PassParameters,
-			FIntVector(CullingCommands.Num(), 1, 1)
-		);
-	}
-
-#else // !ENABLE_DETERMINISTIC_INSTANCE_CULLING
-
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters>();
 
 	// Because the view uniforms are not set up by the time this runs
@@ -576,8 +288,6 @@ void FInstanceCullingContext::BuildRenderingCommands(
 		PassParameters,
 		FIntVector(CullingCommands.Num(), 1, 1)
 	);
-
-#endif // ENABLE_DETERMINISTIC_INSTANCE_CULLING
 
 	Results.DrawIndirectArgsBuffer = DrawIndirectArgsRDG;
 	Results.InstanceIdOffsetBuffer = InstanceIdOffsetBufferRDG;
@@ -780,6 +490,12 @@ void FInstanceCullingContext::BuildRenderingCommandsDeferred(
 	// Cannot defer pass execution in immediate mode.
 	// TODO: support batching when r.RDG.Drain is enabled
 	if (!AllowBatchedBuildRenderingCommands(GPUScene))
+	{
+		return;
+	}
+
+	// If there are no instances, there can be no work to perform later.
+	if (InstanceCullingManager.CullingIntermediate.NumInstances == 0 || InstanceCullingManager.CullingIntermediate.NumViews == 0)
 	{
 		return;
 	}
