@@ -319,7 +319,7 @@ namespace HordeServer.Services
 				}
 				else
 				{
-					Revisions[Path] = $"ver={Version},md5={ContentHash.MD5(Path)}";
+					Revisions[Path] = $"ver={Version},md5={ContentHash.MD5(new FileReference(Path))}";
 				}
 			}
 
