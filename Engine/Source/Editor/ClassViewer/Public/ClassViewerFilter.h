@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Settings/ClassViewerSettings.h"
+#include "Misc/Attribute.h"
 
 class FClassViewerNode;
 class FClassViewerInitializationOptions;
