@@ -31,7 +31,7 @@ public:
 	virtual bool BuildMeshVertexPositions(
 		UStaticMesh* StaticMesh,
 		TArray<uint32>& Indices,
-		TArray<FVector>& Vertices) override;
+		TArray<FVector3f>& Vertices) override;
 
 private:
 

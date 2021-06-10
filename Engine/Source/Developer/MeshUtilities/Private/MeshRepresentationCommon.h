@@ -67,7 +67,7 @@ struct FEmbreeTriangleDesc
 struct FEmbreeGeometry
 {
 	TArray<uint32> IndexArray;
-	TArray<FVector> VertexArray;
+	TArray<FVector3f> VertexArray;
 	TArray<FEmbreeTriangleDesc> TriangleDescs; // The material ID of each triangle.
 	RTCGeometry InternalGeometry;
 };
@@ -101,9 +101,9 @@ struct FEmbreeRay : public RTCRayHit
 		hit.primID = RTC_INVALID_GEOMETRY_ID;
 	}
 
-	FVector GetHitNormal() const
+	FVector3f GetHitNormal() const
 	{
-		return FVector(-hit.Ng_x, -hit.Ng_y, -hit.Ng_z).GetSafeNormal();
+		return FVector3f(-hit.Ng_x, -hit.Ng_y, -hit.Ng_z).GetSafeNormal();
 	}	
 
 	bool IsHitTwoSided() const

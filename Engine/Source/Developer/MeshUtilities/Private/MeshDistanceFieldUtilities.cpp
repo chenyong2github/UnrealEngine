@@ -31,19 +31,19 @@ bool EmbreePointQueryFunction(RTCPointQueryFunctionArguments* args)
 	const int32 TriangleIndex = args->primID;
 	check(TriangleIndex < Context->NumTriangles);
 
-	const FVector* VertexBuffer = (const FVector*)rtcGetGeometryBufferData(Context->MeshGeometry, RTC_BUFFER_TYPE_VERTEX, 0);
+	const FVector3f* VertexBuffer = (const FVector3f*)rtcGetGeometryBufferData(Context->MeshGeometry, RTC_BUFFER_TYPE_VERTEX, 0);
 	const uint32* IndexBuffer = (const uint32*)rtcGetGeometryBufferData(Context->MeshGeometry, RTC_BUFFER_TYPE_INDEX, 0);
 
 	const uint32 I0 = IndexBuffer[TriangleIndex * 3 + 0];
 	const uint32 I1 = IndexBuffer[TriangleIndex * 3 + 1];
 	const uint32 I2 = IndexBuffer[TriangleIndex * 3 + 2];
 
-	const FVector V0 = VertexBuffer[I0];
-	const FVector V1 = VertexBuffer[I1];
-	const FVector V2 = VertexBuffer[I2];
+	const FVector3f V0 = VertexBuffer[I0];
+	const FVector3f V1 = VertexBuffer[I1];
+	const FVector3f V2 = VertexBuffer[I2];
 
-	const FVector QueryPosition(args->query->x, args->query->y, args->query->z);
-	const FVector ClosestPoint = FMath::ClosestPointOnTriangleToPoint(QueryPosition, V0, V1, V2);
+	const FVector3f QueryPosition(args->query->x, args->query->y, args->query->z);
+	const FVector3f ClosestPoint = FMath::ClosestPointOnTriangleToPoint(QueryPosition, V0, V1, V2);
 	const float QueryDistanceSq = (ClosestPoint - QueryPosition).SizeSquared();
 
 	if (QueryDistanceSq < ClosestDistanceSq)

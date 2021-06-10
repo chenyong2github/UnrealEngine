@@ -570,7 +570,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 bool FStaticMeshBuilder::BuildMeshVertexPositions(
 	UStaticMesh* StaticMesh,
 	TArray<uint32>& BuiltIndices,
-	TArray<FVector>& BuiltVertices)
+	TArray<FVector3f>& BuiltVertices)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::BuildMeshVertexPositions);
 
@@ -593,11 +593,12 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 			const FStaticMeshConstAttributes Attributes(MeshDescription);
 			TArrayView<const FVector3f> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
 			TArrayView<const FVertexID> VertexIndices = Attributes.GetTriangleVertexIndices().GetRawArray();
+			const FVector3f BuildScale3D = BuildSettings.BuildScale3D;
 
 			BuiltVertices.Reserve(VertexPositions.Num());
 			for (int32 VertexIndex = 0; VertexIndex < VertexPositions.Num(); ++VertexIndex)
 			{
-				BuiltVertices.Add(VertexPositions[VertexIndex] * BuildSettings.BuildScale3D);
+				BuiltVertices.Add(VertexPositions[VertexIndex] * BuildScale3D);
 			}
 
 			BuiltIndices.Reserve(VertexIndices.Num());
@@ -607,11 +608,11 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 				const uint32 I1 = VertexIndices[TriangleIndex * 3 + 1];
 				const uint32 I2 = VertexIndices[TriangleIndex * 3 + 2];
 
-				const FVector V0 = BuiltVertices[I0];
-				const FVector V1 = BuiltVertices[I1];
-				const FVector V2 = BuiltVertices[I2];
+				const FVector3f V0 = BuiltVertices[I0];
+				const FVector3f V1 = BuiltVertices[I1];
+				const FVector3f V2 = BuiltVertices[I2];
 
-				const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
+				const FVector3f TriangleNormal = ((V1 - V2) ^ (V0 - V2));
 				const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
 				if (!bDegenerateTriangle)
 				{

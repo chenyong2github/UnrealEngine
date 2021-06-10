@@ -14,7 +14,7 @@ class FSourceMeshDataForDerivedDataTask
 {
 public:
 	TArray<uint32> TriangleIndices;
-	TArray<FVector> VertexPositions;
+	TArray<FVector3f> VertexPositions;
 
 	int32 GetNumIndices() const
 	{
