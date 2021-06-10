@@ -130,7 +130,9 @@ void SMatineeRecorder::Construct(const FArguments& InArgs)
 	LevelViewportClient->SetRealtime( true );
 	LevelViewportClient->SetAllowCinematicControl( true );
 	LevelViewportClient->Viewport->SetUserFocus(true);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	LevelViewportClient->SetMatineeRecordingWindow( ParentMatineeWindow.Pin().Get() );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	LevelViewportClient->VisibilityDelegate.BindSP( this, &SMatineeRecorder::IsVisible );
 

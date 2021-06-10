@@ -3878,6 +3878,7 @@ void FMatinee::UpdateCameraToGroup(const bool bInUpdateStandardViewports, bool b
  */
 void FMatinee::UpdateLevelViewport(AActor* InActor, FLevelEditorViewportClient* InViewportClient, const float InFadeAmount, const FVector& InColorScale, const bool bInEnableColorScaling, bool bUpdateViewportTransform )
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	//if we're recording matinee and this is the proper recording window.  Do NOT update the viewport (it's being controlled by input)
 	if ((RecordingState!=MatineeConstants::ERecordingState::RECORDING_COMPLETE) && InViewportClient->IsMatineeRecordingWindow())
 	{
@@ -3957,6 +3958,7 @@ void FMatinee::UpdateLevelViewport(AActor* InActor, FLevelEditorViewportClient* 
 	bUpdatingCameraGuard = true;
 	InViewportClient->UpdateViewForLockedActor();
 	bUpdatingCameraGuard = false;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /** Restores a viewports' settings that were overridden by UpdateLevelViewport, where necessary. */

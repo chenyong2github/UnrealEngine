@@ -33,7 +33,6 @@
 #include "SScalabilitySettings.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "Matinee/MatineeActor.h"
 #include "LevelSequenceActor.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "ISettingsCategory.h"
@@ -62,11 +61,6 @@
 #include "ISourceControlModule.h"
 #include "Styling/ToolBarStyle.h"
 #include "PlatformInfo.h"
-
-static TAutoConsoleVariable<int32> CVarAllowMatineeActors(
-	TEXT("Matinee.AllowMatineeActors"),
-	0,
-	TEXT("Toggles whether matinee actors should appear in the cinematics menu so that they can be edited."));
 
 namespace LevelEditorActionHelpers
 {
@@ -1969,16 +1963,14 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			return;
 		}
 
-		const int32 bAllowMatineeActors = CVarAllowMatineeActors->GetInt();
-
 		UWorld* World = FoundContext->LevelEditor.IsValid() ? FoundContext->LevelEditor.Pin()->GetWorld() : nullptr;
-		const bool bHasAnyCinematicsActors = (bAllowMatineeActors && !!TActorIterator<AMatineeActor>(World)) || !!TActorIterator<ALevelSequenceActor>(World);
+		const bool bHasAnyCinematicsActors = !!TActorIterator<ALevelSequenceActor>(World);
 		if (!bHasAnyCinematicsActors)
 		{
 			return;
 		}
 
-		// We can't build a list of Matinees and LevelSequenceActors while the current World is a PIE world.
+		// We can't build a list of LevelSequenceActors while the current World is a PIE world.
 		FSceneOutlinerInitializationOptions InitOptions;
 		{
 			// We hide the header row to keep the UI compact.
@@ -1990,9 +1982,9 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
 			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10));
 
-			// Only display Matinee and MovieScene actors
+			// Only display MovieScene actors
 			auto ActorFilter = [&](const AActor* Actor) {
-				return (bAllowMatineeActors && Actor->IsA(AMatineeActor::StaticClass())) || Actor->IsA(ALevelSequenceActor::StaticClass());
+				return Actor->IsA(ALevelSequenceActor::StaticClass());
 			};
 			InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda(ActorFilter));
 		}
@@ -2024,12 +2016,7 @@ void FLevelEditorToolBar::OnCinematicsActorPicked( AActor* Actor )
 	FSlateApplication::Get().DismissAllMenus();
 
 	// Make sure we dismiss the menus before we open this
-	if (AMatineeActor* MatineeActor = Cast<AMatineeActor>(Actor))
-	{
-		// Open Matinee for editing!
-		GEditor->OpenMatinee( MatineeActor );
-	}
-	else if (ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
+	if (ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
 	{
 		FScopedSlowTask SlowTask(1.f, NSLOCTEXT("LevelToolBarCinematicsMenu", "LoadSequenceSlowTask", "Loading Level Sequence..."));
 		SlowTask.MakeDialog();

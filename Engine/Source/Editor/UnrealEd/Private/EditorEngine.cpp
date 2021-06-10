@@ -76,11 +76,9 @@
 #include "UnrealEdMisc.h"
 #include "EditorDirectories.h"
 #include "FileHelpers.h"
-#include "EditorModeInterpolation.h"
 #include "Dialogs/Dialogs.h"
 #include "Dialogs/DialogsPrivate.h"
 #include "UnrealEdGlobals.h"
-#include "Matinee/MatineeActor.h"
 #include "InteractiveFoliageActor.h"
 #include "Engine/WorldComposition.h"
 #include "EditorSupportDelegates.h"
@@ -1480,7 +1478,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	{
 		AudioFocusViewportClient->SetAudioFocus();
 
-		// override realtime setting if viewport chooses (i.e. for matinee preview)
+		// override realtime setting if viewport chooses (i.e. for cinematic preview)
 		if (AudioFocusViewportClient->IsForcedRealtimeAudio())
 		{
 			bAudioIsRealtime = true;
@@ -3053,29 +3051,6 @@ void UEditorEngine::DeselectLevelInLevelBrowser()
 	LevelEditorModule.SummonWorldBrowserHierarchy();
 }
 
-void UEditorEngine::SelectAllActorsControlledByMatinee()
-{
-	TArray<AActor *> AllActors;
-	UWorld* IteratorWorld = GWorld;
-	for( FSelectedActorIterator Iter(IteratorWorld); Iter; ++Iter)
-	{
-		AMatineeActor * CurActor = Cast<AMatineeActor>(*Iter);
-		if ( CurActor )
-		{
-			TArray<AActor*> Actors;			
-			CurActor->GetControlledActors(Actors);
-			AllActors.Append(Actors);
-		}
-	}
-
-	SelectNone(false, true, false);
-	for(int32 i=0; i<AllActors.Num(); i++)
-	{
-		SelectActor( AllActors[i], true, false, true );
-	}
-	NoteSelectionChange();
-}
-
 void UEditorEngine::SelectAllActorsWithClass( bool bArchetype )
 {
 	if( !bArchetype )
@@ -3701,60 +3676,6 @@ void UEditorEngine::ConvertActorsFromClass( UClass* FromClass, UClass* ToClass )
 
 		GetSelectedActors()->EndBatchSelectOperation();
 	}
-}
-
-bool UEditorEngine::ShouldOpenMatinee(AMatineeActor* MatineeActor) const
-{
-	if( PlayWorld )
-	{
-		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_MatineeCantOpenDuringPIE", "Matinee cannot be opened during Play in Editor.") );
-		return false;
-	}
-
-	if ( MatineeActor && !MatineeActor->MatineeData )
-	{
-		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_MatineeActionMustHaveData", "Matinee must have valid InterpData assigned before being edited.") );
-		return false;
-	}
-
-	// Make sure we can't open the same action twice in Matinee.
-	if( GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit) )
-	{
-		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "MatineeActionAlreadyOpen", "An Matinee sequence is currently open in an editor.  Please close it before proceeding.") );
-		return false;
-	}
-
-	// Don't let you open Matinee if a transaction is currently active.
-	if( IsTransactionActive() )
-	{
-		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "TransactionIsActive", "Undo Transaction Is Active - Cannot Open Matinee.") );
-		return false;
-	}
-
-	return true;
-}
-
-void UEditorEngine::OpenMatinee(AMatineeActor* MatineeActor, bool bWarnUser)
-{
-	// Drop out if the user doesn't want to proceed to matinee atm
-	if( bWarnUser && ( (ShouldOpenMatineeCallback.IsBound() && !ShouldOpenMatineeCallback.Execute(MatineeActor)) || !ShouldOpenMatinee( MatineeActor ) ) )
-	{
-		return;
-	}
-
-	// If already in Matinee mode, exit out before going back in with new Interpolation.
-	if( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_InterpEdit ) )
-	{
-		GLevelEditorModeTools().DeactivateMode( FBuiltinEditorModes::EM_InterpEdit );
-	}
-
-	GLevelEditorModeTools().ActivateMode( FBuiltinEditorModes::EM_InterpEdit );
-
-	FEdModeInterpEdit* InterpEditMode = (FEdModeInterpEdit*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_InterpEdit );
-
-	InterpEditMode->InitInterpMode( MatineeActor );
-
-	OnOpenMatinee();
 }
 
 void UEditorEngine::BuildReflectionCaptures(UWorld* World)
