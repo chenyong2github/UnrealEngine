@@ -387,7 +387,7 @@ namespace Audio
 
 	bool FQuartzClock::CancelQuantizedCommandInternal(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr, TArray<PendingCommand>& CommandsToTick)
 	{
-		for (int32 i = PendingCommands.Num() - 1; i >= 0; --i)
+		for (int32 i = CommandsToTick.Num() - 1; i >= 0; --i)
 		{
 			PendingCommand& PendingCommand = CommandsToTick[i];
 
