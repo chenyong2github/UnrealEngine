@@ -86,11 +86,6 @@ private:
 	/** Delegate for Selection Changed Event */
 	void OnSelectionChanged(TArray<UMovieSceneTrack*> InTracks);
 
-
-
-	/** Delegate for  Tree View Changed Event */
-	void OnTreeViewChanged();
-
 	/** Delegate for MovieScene Changing so we can see if our track got deleted*/
 	void OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
 
@@ -175,7 +170,6 @@ private:
 	FDelegateHandle OnChannelChangedHandle;
 	FDelegateHandle OnMovieSceneChannelChangedHandle;
 	FDelegateHandle OnActorAddedToSequencerHandle;
-	FDelegateHandle OnTreeViewChangedHandle;
 
 	void BindControlRig(UControlRig* ControlRig);
 	void UnbindControlRig(UControlRig* ControlRig);
