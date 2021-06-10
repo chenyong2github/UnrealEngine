@@ -321,7 +321,12 @@ static bool IsShaderCompilerConfigEnabledForPlatform(const IConsoleVariable* Glo
 		{
 			if (FConfigCacheIni* PlatformConfig = TargetPlatform->GetConfigSystem())
 			{
-				PlatformConfig->GetBool(TEXT("ShaderCompiler"), Key, bEnabled, GEngineIni);
+				// Override with a build machine specific setting, if present.
+				bool QueryBaseConfig = GIsBuildMachine ? !PlatformConfig->GetBool(TEXT("ShaderCompiler_BuildMachine"), Key, bEnabled, GEngineIni) : true;
+				if (QueryBaseConfig)
+				{
+					PlatformConfig->GetBool(TEXT("ShaderCompiler"), Key, bEnabled, GEngineIni);
+				}
 			}
 		}
 	}
@@ -330,16 +335,70 @@ static bool IsShaderCompilerConfigEnabledForPlatform(const IConsoleVariable* Glo
 	return bEnabled;
 }
 
+static bool GetShaderCompilerStringForPlatform(FString& OutputString, const IConsoleVariable* GlobalCvar, const TCHAR* Key, FName ShaderFormat)
+{
+	// First check the global cvar
+	if (GlobalCvar)
+	{
+		OutputString = GlobalCvar->GetString();
+	}
+
+#if WITH_EDITOR
+	if (OutputString.IsEmpty())
+	{
+		// Then check the per platform settings.
+		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), ShaderFormat);
+		if (TargetPlatform)
+		{
+			if (FConfigCacheIni* PlatformConfig = TargetPlatform->GetConfigSystem())
+			{
+				// Override with a build machine specific setting, if present.
+				if (GIsBuildMachine)
+				{
+					OutputString = PlatformConfig->GetStr(TEXT("ShaderCompiler_BuildMachine"), Key, GEngineIni);
+				}
+
+				if (OutputString.IsEmpty())
+				{
+					OutputString = PlatformConfig->GetStr(TEXT("ShaderCompiler"), Key, GEngineIni);
+				}
+			}
+		}
+	}
+#endif
+
+	return !OutputString.IsEmpty();
+}
+
+struct FShaderSymbolSettingHelper
+{
+	const TCHAR* const SettingName;
+	const IConsoleVariable* const SettingCVar;
+
+	const bool bEnableLegacySettings = true;
+public:
+	FShaderSymbolSettingHelper(const TCHAR* InSettingName, bool bPlatformOnly = false)
+		: SettingName(InSettingName)
+		, SettingCVar(!bPlatformOnly ? IConsoleManager::Get().FindConsoleVariable(InSettingName) : nullptr)
+	{
+	}
+
+	bool IsEnabled(FName ShaderFormat) const
+	{
+		return  IsShaderCompilerConfigEnabledForPlatform(SettingCVar, SettingName, ShaderFormat);
+	}
+
+	bool GetString(FString& OutString, FName ShaderFormat) const
+	{
+		return GetShaderCompilerStringForPlatform(OutString, SettingCVar, SettingName, ShaderFormat);
+	}
+};
+
 bool ShouldKeepShaderDebugInfo(FName ShaderFormat)
 {
-	static const TCHAR* const KeepDebugInfoName = TEXT("r.Shaders.KeepDebugInfo");
-	static const IConsoleVariable* KeepDebugInfoCvar = IConsoleManager::Get().FindConsoleVariable(KeepDebugInfoName);
-
-	// PrepareExportedDebugInfo is only read from the platform settings, not the global cvar
-	static const TCHAR* const PrepareExportedDebugInfoName = TEXT("r.Shaders.PrepareExportedDebugInfo");
-
-	return IsShaderCompilerConfigEnabledForPlatform(KeepDebugInfoCvar, KeepDebugInfoName, ShaderFormat)
-		|| IsShaderCompilerConfigEnabledForPlatform(nullptr, PrepareExportedDebugInfoName, ShaderFormat);
+	static const FShaderSymbolSettingHelper GenerateSymbols(TEXT("r.Shaders.KeepDebugInfo"));
+	static const FShaderSymbolSettingHelper PrepareExportedSymbols(TEXT("r.Shaders.PrepareExportedDebugInfo"), true);
+	return GenerateSymbols.IsEnabled(ShaderFormat) || PrepareExportedSymbols.IsEnabled(ShaderFormat);
 }
 
 bool ShouldKeepShaderDebugInfo(EShaderPlatform ShaderPlatform)
@@ -349,30 +408,34 @@ bool ShouldKeepShaderDebugInfo(EShaderPlatform ShaderPlatform)
 
 bool ShouldExportShaderDebugInfo(FName ShaderFormat)
 {
-	// r.DumpShaderDebugInfo should also turn on ExportShaderDebugInfo
-	// The difference is that r.DumpShaderDebugInfo will also output engine debug files such as converted hlsl or SCW helper files.
-	// Where as r.Shader.ExportDebugInfo is purely to export the graphics debugging tool's debug info files.
-	static IConsoleVariable* CVarDumpDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DumpShaderDebugInfo"));
-	if (CVarDumpDebugInfo && CVarDumpDebugInfo->GetInt())
-	{
-		return true;
-	}
-
-	static const TCHAR* const KeepDebugInfoName = TEXT("r.Shaders.KeepDebugInfo");
-	static const IConsoleVariable* KeepDebugInfoCvar = IConsoleManager::Get().FindConsoleVariable(KeepDebugInfoName);
-	if (IsShaderCompilerConfigEnabledForPlatform(KeepDebugInfoCvar, KeepDebugInfoName, ShaderFormat))
-	{
-		return true;
-	}
-
-	static const TCHAR* const ExportDebugInfoName = TEXT("r.Shaders.ExportDebugInfo");
-	static const IConsoleVariable* ExportDebugInfoCvar = IConsoleManager::Get().FindConsoleVariable(ExportDebugInfoName);
-	return IsShaderCompilerConfigEnabledForPlatform(ExportDebugInfoCvar, ExportDebugInfoName, ShaderFormat);
+	static const FShaderSymbolSettingHelper ExportSymbols(TEXT("r.Shaders.ExportDebugInfo"));
+	return ExportSymbols.IsEnabled(ShaderFormat) || ShouldKeepShaderDebugInfo(ShaderFormat);
 }
 
 bool ShouldExportShaderDebugInfo(EShaderPlatform ShaderPlatform)
 {
 	return ShouldExportShaderDebugInfo(LegacyShaderPlatformToShaderFormat(ShaderPlatform));
+}
+
+bool GetShaderDebugInfoPathOverride(FString& OutPathOverride, FName ShaderFormat)
+{
+	static const FShaderSymbolSettingHelper SymbolPathOverride(TEXT("r.Shaders.SymbolPathOverride"));
+	if (SymbolPathOverride.GetString(OutPathOverride, ShaderFormat))
+	{
+		if (!OutPathOverride.IsEmpty())
+		{
+			// Allow the user to specify the location of the per-platform string.
+			OutPathOverride = OutPathOverride.Replace(TEXT("{Platform}"), *ShaderFormat.ToString(), ESearchCase::IgnoreCase);
+		}
+		return !OutPathOverride.IsEmpty();
+	}
+	return false;
+}
+
+bool ShouldExportShaderDebugInfoAsZip(FName ShaderFormat)
+{
+	static const FShaderSymbolSettingHelper ExportSymbolsZip(TEXT("r.Shaders.ExportDebugInfo.Zip"));
+	return ExportSymbolsZip.IsEnabled(ShaderFormat);
 }
 
 #ifndef UE_ALLOW_SHADER_COMPILING
@@ -415,9 +478,8 @@ bool AllowGlobalShaderLoad()
 
 bool ShouldAllowUniqueDebugInfo(FName ShaderFormat)
 {
-	static const TCHAR* const VariableName = TEXT("r.Shaders.AllowUniqueDebugInfo");
-	static const IConsoleVariable* GlobalCvar = IConsoleManager::Get().FindConsoleVariable(VariableName);
-	return IsShaderCompilerConfigEnabledForPlatform(GlobalCvar, VariableName, ShaderFormat);
+	static const FShaderSymbolSettingHelper AllowUniqueDebugInfo(TEXT("r.Shaders.AllowUniqueDebugInfo"));
+	return AllowUniqueDebugInfo.IsEnabled(ShaderFormat);
 }
 
 bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName,uint16& OutBufferIndex,uint16& OutBaseIndex,uint16& OutSize) const
