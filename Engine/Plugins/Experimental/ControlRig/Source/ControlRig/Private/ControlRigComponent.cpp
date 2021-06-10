@@ -54,6 +54,7 @@ UControlRigComponent::UControlRigComponent(const FObjectInitializer& ObjectIniti
 	bUpdateInEditor = true;
 	bDrawBones = true;
 	bShowDebugDrawing = false;
+	bIsInsideInitializeBracket = false;
 }
 
 #if WITH_EDITOR
@@ -252,6 +253,11 @@ float UControlRigComponent::GetAbsoluteTime() const
 	return 0.f;
 }
 
+void UControlRigComponent::OnPreInitialize_Implementation(UControlRigComponent* Component)
+{
+	OnPreInitializeDelegate.Broadcast(Component);
+}
+
 void UControlRigComponent::OnPostInitialize_Implementation(UControlRigComponent* Component)
 {
 	ValidateMappingData();
@@ -282,6 +288,25 @@ void UControlRigComponent::OnPostUpdate_Implementation(UControlRigComponent* Com
 
 void UControlRigComponent::Initialize()
 {
+	if(bIsInsideInitializeBracket)
+	{
+		return;
+	}
+
+	TGuardValue<bool> InitializeBracket(bIsInsideInitializeBracket, true);
+	
+#if WITH_EDITOR
+	if (bUpdateInEditor)
+	{
+		FEditorScriptExecutionGuard AllowScripts;
+		OnPreInitialize(this);
+	}
+	else
+#endif
+	{
+		OnPreInitialize(this);
+	}
+	
 	if(UControlRig* CR = SetupControlRigIfRequired())
 	{
 		if (CR->IsInitializing())
@@ -453,7 +478,7 @@ void UControlRigComponent::AddMappedElements(TArray<FControlRigComponentMappedEl
 
 void UControlRigComponent::AddMappedComponents(TArray<FControlRigComponentMappedComponent> Components)
 {
-	if (!EnsureCalledOutsideOfBracket(TEXT("AddMappedComponents")))
+	if (!EnsureCalledOutsideOfBracket(TEXT("AddMapprepedComponents")))
 	{
 		return;
 	}
