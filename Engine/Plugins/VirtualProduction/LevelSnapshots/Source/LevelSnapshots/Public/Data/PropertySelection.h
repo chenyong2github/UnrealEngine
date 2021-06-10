@@ -32,6 +32,7 @@ struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedProper
 	bool EqualsSerializedProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const;
 
 	bool IsEmpty() const;
+	bool operator==(const FLevelSnapshotPropertyChain& InPropertyChain) const;
 };
 
 /* Holds all properties that should be restored for an object. */
@@ -65,6 +66,8 @@ struct LEVELSNAPSHOTS_API FPropertySelection
 
 	/* Gets a flat list of all selected properties. The result contains no information what nested struct a property came from. */
 	const TArray<TFieldPath<FProperty>>& GetSelectedLeafProperties() const;
+
+	const TArray<FLevelSnapshotPropertyChain>& GetSelectedProperties() const;
 
 private:
 

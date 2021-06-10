@@ -54,6 +54,29 @@ bool FLevelSnapshotPropertyChain::IsEmpty() const
 	return GetNumProperties() == 0;
 }
 
+bool FLevelSnapshotPropertyChain::operator==(const FLevelSnapshotPropertyChain& InPropertyChain) const
+{
+	const int32 NumberOfProperties = GetNumProperties();
+	
+	if (NumberOfProperties != InPropertyChain.GetNumProperties())
+	{
+		return false;
+	}
+
+	for (int32 PropertyItr = 0; PropertyItr < NumberOfProperties; PropertyItr++)
+	{
+		FProperty* PropertyA = GetPropertyFromStack(PropertyItr);
+		FProperty* PropertyB = InPropertyChain.GetPropertyFromStack(PropertyItr);
+
+		if (PropertyA != PropertyB)
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
 bool FPropertySelection::ShouldSerializeProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const
 {
 	if (IsPropertySelected(ContainerChain, LeafProperty))
@@ -132,6 +155,11 @@ void FPropertySelection::RemoveProperty(const FArchiveSerializedPropertyChain* C
 const TArray<TFieldPath<FProperty>>& FPropertySelection::GetSelectedLeafProperties() const
 {
 	return SelectedLeafProperties;
+}
+
+const TArray<FLevelSnapshotPropertyChain>& FPropertySelection::GetSelectedProperties() const
+{
+	return SelectedProperties;
 }
 
 int32 FPropertySelection::FindPropertyChain(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const

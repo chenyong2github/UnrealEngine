@@ -56,8 +56,8 @@ void FAssetTypeActions_LevelSnapshot::GetActions(const TArray<UObject*>& InObjec
 	);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AssetTypeActions_LevelSnapshot_UpdateSnapshotThumbnails", "Update Snapshot Thumbnails"),
-		LOCTEXT("AssetTypeActions_LevelSnapshot_UpdateSnapshotThumbnailsToolTip", "Update thumbnails only for the selected snapshot assets."),
+		LOCTEXT("AssetTypeActions_LevelSnapshot_CaptureThumbnails", "Capture Thumbnails"),
+		LOCTEXT("AssetTypeActions_LevelSnapshot_CaptureThumbnailsToolTip", "Capture and update thumbnails only for the selected snapshot assets."),
 		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton.Small"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=] {

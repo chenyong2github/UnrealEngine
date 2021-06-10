@@ -97,15 +97,15 @@ private:
 
 struct FPropertyHandleHierarchy
 {
-	FPropertyHandleHierarchy(const TSharedPtr<IDetailTreeNode>& InNode, const TSharedPtr<IPropertyHandle>& InHandle);
-
-	// Used to identify counterparts
-	FString PropertyName;
-	FString ParentPropertyName;
-
+	FPropertyHandleHierarchy(const TSharedPtr<IDetailTreeNode>& InNode, const TSharedPtr<IPropertyHandle>& InHandle, const TWeakPtr<FPropertyHandleHierarchy> InParentHierarchy);
+	
 	TSharedPtr<IDetailTreeNode> Node;
 	TSharedPtr<IPropertyHandle> Handle;
 	TArray<TSharedRef<FPropertyHandleHierarchy>> DirectChildren;
+
+	// Used to identify counterparts
+	TWeakPtr<FPropertyHandleHierarchy> ParentHierarchy;
+	FLevelSnapshotPropertyChain PropertyChain;
 };
 
 struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEditorResultsRow>
@@ -119,7 +119,9 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 		ActorGroup, // Modified Actor group. Use AddedActor or RemovedActor for other Actor row types.
 		ComponentGroup, // Includes rows that represent UActorComponent types
 		SubObjectGroup, // Includes rows that represent separate non-component objects wholly owned by the world or snapshot actor
-		StructGroup,
+		StructGroup, // Rows that represent a single struct or a struct inside of a struct
+		StructInMap, // Rows that represent a struct that's a value inside of a map
+		StructInSetOrArray, // Rows that represent a struct inside a collection that isn't a map
 		CollectionGroup, // Includes rows that represent TMap, TSet, and TArray.
 		SingleProperty,
 		SinglePropertyInStruct,
@@ -222,6 +224,7 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	
 	FProperty* GetProperty() const;
 	FLevelSnapshotPropertyChain GetPropertyChain() const;
+	void SetPropertyChain(const FLevelSnapshotPropertyChain& InChain);
 
 	TSharedPtr<IDetailTreeNode> GetSnapshotPropertyNode() const;
 	TSharedPtr<IDetailTreeNode> GetWorldPropertyNode() const;
@@ -252,6 +255,9 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 
 	void GetAllCheckedChildProperties(TArray<FLevelSnapshotsEditorResultsRowPtr>& CheckedSinglePropertyNodeArray) const;
 	void GetAllUncheckedChildProperties(TArray<FLevelSnapshotsEditorResultsRowPtr>& UncheckedSinglePropertyNodeArray) const;
+	
+	bool GetShouldCheckboxBeHidden() const;
+	void SetShouldCheckboxBeHidden(const bool bNewShouldCheckboxBeHidden);
 	
 	EVisibility GetDesiredVisibility() const;
 
@@ -316,6 +322,8 @@ private:
 	/* Evaluates all factors which should make a row visible or invisible but does not set visibility. */
 	bool ShouldRowBeVisible() const;
 
+	bool bShouldCheckboxBeHidden;
+
 	/* Checkbox in widget is bound to this property */
 	ECheckBoxState WidgetCheckedState = ECheckBoxState::Checked;
 };
@@ -347,7 +355,7 @@ public:
 	TOptional<ULevelSnapshot*> GetSelectedLevelSnapshot() const;
 
 	void OnSnapshotSelected(const TOptional<ULevelSnapshot*>& InLevelSnapshot);
-	void RefreshResults();
+	void RefreshResults(const bool bSnapshotHasChanged = false);
 	FReply OnClickApplyToWorld();
 
 	void UpdateSnapshotNameText(const TOptional<ULevelSnapshot*>& InLevelSnapshot) const;
