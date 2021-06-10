@@ -36,6 +36,7 @@ public:
 	virtual bool ShouldUseAdditionalTargetableResource() const override
 	{ return true; }
 
+	virtual bool IsEasyBlendRenderingEnabled() = 0;
 
 protected:
 	// Delegate view adapter instantiation to the RHI specific children
@@ -48,6 +49,7 @@ private:
 private:
 	FString OriginCompId;
 	float EasyBlendScale = 1.f;
+	bool bInitializeOnce = false;
 
 	// RHI depended view adapter (different RHI require different DLL/API etc.)
 	TUniquePtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> ViewAdapter;

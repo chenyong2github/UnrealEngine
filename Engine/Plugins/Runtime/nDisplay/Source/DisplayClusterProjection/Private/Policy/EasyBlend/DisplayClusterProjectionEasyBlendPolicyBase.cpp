@@ -28,6 +28,19 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 {
 	check(IsInGameThread());
 
+	if (bInitializeOnce)
+	{
+		return false;
+	}
+
+	bInitializeOnce = true;
+
+	if (!IsEasyBlendRenderingEnabled())
+	{
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("An error occurred during EasyBlend initialization : current UE render device not supported"));
+		return false;
+	}
+
 	// The game side of the nDisplay has been initialized by the nDisplay Game Manager already
 	// so we can extend it by our projection related functionality/components/etc.
 
@@ -49,7 +62,7 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 		return false;
 	}
 
-	const uint32 MaxViewsAmmount = 2; 
+	const uint32 MaxViewsAmmount = 2;
 
 	// Create and store nDisplay-to-EasyBlend viewport adapter
 	ViewAdapter = CreateViewAdapter(FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams{ MaxViewsAmmount });
@@ -60,7 +73,6 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 	}
 
 	UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("An EasyBlend viewport adapter has been initialized"));
-
 	return true;
 }
 
@@ -75,7 +87,7 @@ void FDisplayClusterProjectionEasyBlendPolicyBase::ApplyWarpBlend_RenderThread(F
 {
 	check(IsInRenderingThread());
 
-	if (ViewAdapter.IsValid())
+	if (ViewAdapter.IsValid() && IsEasyBlendRenderingEnabled())
 	{
 		if (!ViewAdapter->ApplyWarpBlend_RenderThread(RHICmdList, InViewportProxy))
 		{
@@ -89,7 +101,7 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::CalculateView(IDisplayCluster
 {
 	check(IsInGameThread());
 
-	if (!ViewAdapter.IsValid())
+	if (!ViewAdapter.IsValid() || !IsEasyBlendRenderingEnabled())
 	{
 		return false;
 	}
@@ -127,7 +139,7 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::GetProjectionMatrix(IDisplayC
 {
 	check(IsInGameThread());
 
-	if (!ViewAdapter.IsValid())
+	if (!ViewAdapter.IsValid() || !IsEasyBlendRenderingEnabled())
 	{
 		return false;
 	}
