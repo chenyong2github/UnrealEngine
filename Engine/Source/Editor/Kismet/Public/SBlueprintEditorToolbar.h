@@ -16,6 +16,7 @@ class FMenuBuilder;
 class FToolBarBuilder;
 class UToolMenu;
 struct FToolMenuContext;
+class UBlueprintEditorToolMenuContext;
 
 /**
  * Kismet menu
@@ -35,12 +36,6 @@ protected:
 	static void FillDebugMenu(UToolMenu* Menu);
 
 	static void FillDeveloperMenu(UToolMenu* Menu);
-
-private:
-	/** Diff current blueprint against the specified revision */
-	static void DiffAgainstRevision( class UBlueprint* Current, int32 OldRevision );
-
-	static TSharedRef<SWidget> MakeDiffMenu(const FToolMenuContext& ToolMenuContext);
 };
 
 
@@ -92,6 +87,11 @@ public:
 
 	/** Returns the current status as text for the blueprint being edited */
 	FText GetStatusTooltip() const;
+
+	/** Diff current blueprint against the specified revision */
+	static void DiffAgainstRevision(class UBlueprint* Current, int32 OldRevision);
+
+	static TSharedRef<SWidget> MakeDiffMenu(const UBlueprintEditorToolMenuContext* InContext);
 
 protected:
 	/** Pointer back to the blueprint editor tool that owns us */

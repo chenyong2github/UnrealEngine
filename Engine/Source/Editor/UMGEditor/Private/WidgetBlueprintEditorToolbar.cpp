@@ -127,7 +127,7 @@ void FWidgetBlueprintEditorToolbar::FillWidgetBlueprintEditorModesToolbar(FToolB
 void FWidgetBlueprintEditorToolbar::AddWidgetReflector(UToolMenu* InMenu)
 {
 	FToolMenuSection& Section = InMenu->AddSection("WidgetTools");
-	Section.InsertPosition = FToolMenuInsert("Asset", EToolMenuInsertType::After);
+	Section.InsertPosition = FToolMenuInsert("SourceControl", EToolMenuInsertType::After);
 
 	Section.AddEntry(FToolMenuEntry::InitToolBarButton(
 		"OpenWidgetReflector",
