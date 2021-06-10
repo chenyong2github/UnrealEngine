@@ -16,10 +16,15 @@ class SCameraCalibrationCurveEditorView : public SCurveEditorViewAbsolute
 public:
 	void Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor);
 
-private:
 	//~ Begin SInteractiveCurveEditorView interface
+
+public:
+	virtual bool IsTimeSnapEnabled() const override;
+
+private:
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	
 	//~ End SInteractiveCurveEditorView interface
 
 	/** Create context menu for Editor View widget */

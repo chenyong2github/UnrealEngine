@@ -158,6 +158,12 @@ FReply SCameraCalibrationCurveEditorView::OnMouseMove(const FGeometry& MyGeometr
 	return Super::OnMouseMove(MyGeometry, MouseEvent);
 }
 
+bool SCameraCalibrationCurveEditorView::IsTimeSnapEnabled() const
+{
+	//We never want anything playing automatically change X (zoom / time) values for us
+	return false;
+}
+
 void SCameraCalibrationCurveEditorView::CreateContextMenu(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	const TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();

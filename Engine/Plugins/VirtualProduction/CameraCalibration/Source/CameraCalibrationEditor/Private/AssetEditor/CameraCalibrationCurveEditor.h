@@ -10,6 +10,10 @@
 class FCameraCalibrationCurveEditor : public FCurveEditor
 {
 public:
+	FCameraCalibrationCurveEditor();
+	
+public:
 	/** Delegate instance when new Data Point added */
 	FSimpleDelegate OnAddDataPointDelegate;
 };
+
