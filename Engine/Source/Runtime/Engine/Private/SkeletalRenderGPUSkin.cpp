@@ -569,6 +569,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 
 	if (bDataPresent)
 	{
+		bool bSkinCacheResult = true;
 		for (int32 SectionIdx = 0; SectionIdx < Sections.Num(); SectionIdx++)
 		{
 			const FSkelMeshRenderSection& Section = Sections[SectionIdx];
@@ -654,22 +655,26 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 				// Matrices are transposed in UE meaning matrix multiples need to happen in reverse ((AB)x = b becomes xTBTAT = b).
 				FMatrix44f LocalToCloth = DynamicData->ClothObjectLocalToWorld * ClothLocalToWorld.Inverse();
 
-				GPUSkinCache->ProcessEntry(
-					RHICmdList, 
-					VertexFactory,
-					VertexFactoryData.PassthroughVertexFactories[SectionIdx].Get(), 
-					Section, 
-					this, 
-					&LOD.VertexOffsetVertexBuffers,
-					bMorph ? &LOD.MorphVertexBuffer : 0, 
-					bClothFactory ? &LODData.ClothVertexBuffer : 0,
-					bClothFactory ? DynamicData->ClothingSimData.Find(Section.CorrespondClothAssetIndex) : 0, 
-					LocalToCloth, 
-					DynamicData->ClothBlendWeight, 
-					RevisionNumber, 
-					SectionIdx, 
-					SkinCacheEntry
-					);
+				// ProcessEntry returns false if not enough memory is left in skin cache to allocate for the mesh, if that happens don't try to process subsequent sections because they will also fail.
+				if (bSkinCacheResult)
+				{
+					bSkinCacheResult = GPUSkinCache->ProcessEntry(
+						RHICmdList,
+						VertexFactory,
+						VertexFactoryData.PassthroughVertexFactories[SectionIdx].Get(),
+						Section,
+						this,
+						&LOD.VertexOffsetVertexBuffers,
+						bMorph ? &LOD.MorphVertexBuffer : 0,
+						bClothFactory ? &LODData.ClothVertexBuffer : 0,
+						bClothFactory ? DynamicData->ClothingSimData.Find(Section.CorrespondClothAssetIndex) : 0,
+						LocalToCloth,
+						DynamicData->ClothBlendWeight,
+						RevisionNumber,
+						SectionIdx,
+						SkinCacheEntry
+						);
+				}
 			}
 
 			if (bNeedFence)
