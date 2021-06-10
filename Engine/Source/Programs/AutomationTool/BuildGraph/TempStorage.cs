@@ -1059,9 +1059,24 @@ namespace AutomationTool
 				Parallel.ForEach(ZipFiles,
 					(ZipFile) =>
 					{
-						using (var ZipArchive = Ionic.Zip.ZipFile.Read(ZipFile.FullName))
+						int Retries = 3;
+						while (true)
 						{
-							ZipArchive.ExtractAll(RootDir.FullName, Ionic.Zip.ExtractExistingFileAction.OverwriteSilently);
+							try
+							{
+								using (var ZipArchive = Ionic.Zip.ZipFile.Read(ZipFile.FullName))
+								{
+									ZipArchive.ExtractAll(RootDir.FullName, Ionic.Zip.ExtractExistingFileAction.OverwriteSilently);
+								}
+								break;
+							}
+							catch (Exception Ex)
+							{
+								if (Retries-- == 0)
+								{
+									throw new AutomationException(Ex, "Failed to unzip '{0}' to '{1}'.", ZipFile.FullName, RootDir.FullName);
+								}
+							}
 						}
 					});
 			}
