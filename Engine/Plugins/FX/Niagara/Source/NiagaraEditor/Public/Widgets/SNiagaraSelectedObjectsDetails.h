@@ -6,6 +6,7 @@
 #include "Delegates/Delegate.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "PropertyEditorDelegates.h"
+#include "EditorUndoClient.h"
 
 class FNiagaraObjectSelection;
 class IDetailsView;
