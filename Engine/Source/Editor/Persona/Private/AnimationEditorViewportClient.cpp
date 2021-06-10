@@ -1736,15 +1736,22 @@ float FAnimationViewportClient::GetFloorOffset() const
 	return 0.0f;
 }
 
-void FAnimationViewportClient::SetFloorOffset( float NewValue )
+void FAnimationViewportClient::SetFloorOffset( float NewValue, bool bCommitted )
 {
 	USkeletalMesh* Mesh = GetPreviewScene()->GetPreviewMeshComponent()->SkeletalMesh;
 
 	if ( Mesh )
 	{
-		// This value is saved in a UPROPERTY for the mesh, so changes are transactional
-		FScopedTransaction Transaction( LOCTEXT( "SetFloorOffset", "Set Floor Offset" ) );
-		Mesh->Modify();
+		if (bCommitted)
+		{
+			PendingTransaction.Reset();
+		}
+		else if (!PendingTransaction.IsValid())
+		{
+			// This value is saved in a UPROPERTY for the mesh, so changes are transactional
+			PendingTransaction = MakeUnique<FScopedTransaction>( LOCTEXT( "SetFloorOffset", "Set Floor Offset" ) );
+			Mesh->Modify();
+		}
 
 		Mesh->SetFloorOffset(NewValue);
 		UpdateCameraSetup(); // This does the actual moving of the floor mesh

@@ -254,7 +254,7 @@ public:
 	float GetFloorOffset() const;
 
 	/* Sets the floor height offset, saves it to config and invalidates the viewport so it shows up immediately */
-	void SetFloorOffset(float NewValue);
+	void SetFloorOffset(float NewValue, bool bCommitted);
 
 	/** Function to set mesh stat drawing state */
 	void OnSetShowMeshStats(int32 ShowMode);
@@ -438,6 +438,8 @@ private:
 
 	/** Relative view location stored to match it pre/post tick */
 	FVector RelativeViewLocation;
+
+	TUniquePtr<FScopedTransaction> PendingTransaction;
 
 	// Delegate Handler to allow changing of camera controller
 	void OnCameraControllerChanged();
