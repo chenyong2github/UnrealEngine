@@ -230,7 +230,7 @@ namespace UE { namespace Anim {
 		const int32 TypeIndex = AttributeContainers.FindTypeIndex(AttributeScriptStruct);
 		if (TypeIndex != INDEX_NONE)
 		{
-			const TArray<TWrappedAttribute<FAnimStackAllocator>, FAnimStackAllocator>& ValuesArray = AttributeContainers.GetValues(TypeIndex);
+			const TArray<TWrappedAttribute<FAnimStackAllocator>>& ValuesArray = AttributeContainers.GetValues(TypeIndex);
 			const TArray<FAttributeId, FAnimStackAllocator>& AttributeIdentifiers = AttributeContainers.GetKeys(TypeIndex);
 			
 			for (int32 AttributeIndex = 0; AttributeIndex < AttributeIdentifiers.Num(); ++AttributeIndex)
