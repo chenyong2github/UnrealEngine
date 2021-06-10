@@ -2580,7 +2580,7 @@ struct FRelevancePacket
 			PrimitiveSceneInfo->ConditionalUpdateUniformBuffer(RHICmdList);
 
 			FScene& WriteScene = *const_cast<FScene*>(Scene);
-			WriteScene.GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
+			WriteScene.GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex(), EPrimitiveDirtyState::ChangedAll);
 		}
 
 		for (int32 Index = 0; Index < LazyUpdatePrimitives.NumPrims; Index++)

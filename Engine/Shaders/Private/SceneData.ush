@@ -6,6 +6,10 @@
 	#define USE_GLOBAL_GPU_SCENE_DATA 0
 #endif
 
+#ifndef USE_GLOBAL_GPU_SCENE_DATA_RW
+	#define USE_GLOBAL_GPU_SCENE_DATA_RW 0
+#endif
+
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
 #define VF_USE_PRIMITIVE_SCENE_DATA ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
 
@@ -37,6 +41,8 @@
 
 #if USE_GLOBAL_GPU_SCENE_DATA
 StructuredBuffer<float4> GPUScenePrimitiveSceneData;
+#elif USE_GLOBAL_GPU_SCENE_DATA_RW
+RWStructuredBuffer<float4> GPUScenePrimitiveSceneDataRW;
 #endif
 
 #define NUM_CUSTOM_PRIMITIVE_DATA 9 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
@@ -93,6 +99,8 @@ float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemInde
 	// END: Workaround for UE-115402
 
 	return GPUScenePrimitiveSceneData[TargetIdx];
+#elif USE_GLOBAL_GPU_SCENE_DATA_RW
+	return GPUScenePrimitiveSceneDataRW[PrimitiveIndex + ItemIndex];
 #else
 	return View.PrimitiveSceneData[PrimitiveIndex + ItemIndex];
 #endif
@@ -239,10 +247,14 @@ struct FInstanceSceneData
 	float    PerInstanceRandom;
 	float4   LightMapAndShadowMapUVBias;
 	bool     ValidInstance;
+	uint     Flags;
 };
 
 #if USE_GLOBAL_GPU_SCENE_DATA
 StructuredBuffer<float4> GPUSceneInstanceSceneData;
+uint GPUSceneFrameNumber;
+#elif USE_GLOBAL_GPU_SCENE_DATA_RW
+RWStructuredBuffer<float4> GPUSceneInstanceSceneDataRW;
 uint GPUSceneFrameNumber;
 #endif
 
@@ -259,6 +271,8 @@ float4 LoadInstanceDataElement(uint Index)
 {
 #if USE_GLOBAL_GPU_SCENE_DATA
 	return GPUSceneInstanceSceneData[Index];
+#elif USE_GLOBAL_GPU_SCENE_DATA_RW
+	return GPUSceneInstanceSceneDataRW[Index];
 #else
 	return View.InstanceSceneData[Index];
 #endif
@@ -269,7 +283,12 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 {
 	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
 
-	const uint Flags										= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).x);
+	//
+	// NOTE: When changing the packed data layout, ensure that GPUScene/GPUSceneWriter.ush is kept in sync!
+	//       Also, please update the GetInstanceData function in GPUScene.cpp for validation purposes.
+	//
+
+	InstanceData.Flags										= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).x);
 	InstanceData.PrimitiveId								= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).y);
 	InstanceData.NaniteHierarchyOffset						= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).z);
 	InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).w);
@@ -305,7 +324,7 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 		Scale2.z = length2(InstanceData.LocalToWorld[2].xyz);
 
 		InstanceData.InvNonUniformScale							= rsqrt(Scale2);
-		InstanceData.DeterminantSign							= CondMask(Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
+		InstanceData.DeterminantSign							= CondMask(InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
 
 		InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScale;
 
@@ -321,8 +340,8 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 		InstanceData.WorldToLocal[3].xyz						= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
 
 		// TODO: Uploading not fully functional
-		// InstanceData.CastShadows								= (Flags & INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS);
-		InstanceData.NaniteHasImposter							= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
+		// InstanceData.CastShadows								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS);
+		InstanceData.NaniteHasImposter							= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
 
 		InstanceData.NaniteRuntimeResourceID = GetPrimitiveData(InstanceData.PrimitiveId).NaniteResourceID;
 		if (InstanceData.NaniteRuntimeResourceID != 0xFFFFFFFFu)

@@ -2740,7 +2740,7 @@ void FSceneVelocityData::StartFrame(FScene* Scene)
 		{
 			if (VelocityData.PrimitiveSceneInfo)
 			{
-				Scene->GPUScene.AddPrimitiveToUpdate(VelocityData.PrimitiveSceneInfo->GetIndex());
+				Scene->GPUScene.AddPrimitiveToUpdate(VelocityData.PrimitiveSceneInfo->GetIndex(), EPrimitiveDirtyState::ChangedOther);
 			}
 
 			It.RemoveCurrent();
@@ -3951,6 +3951,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 	TSet<FPrimitiveSceneInfo*> DeletedSceneInfos;
 	DeletedSceneInfos.Reserve(RemovedLocalPrimitiveSceneInfos.Num());
 
+	GPUScene.ResizeDirtyState(Primitives.Num());
 	{
 		SCOPED_NAMED_EVENT(FScene_RemovePrimitiveSceneInfos, FColor::Red);
 		SCOPE_CYCLE_COUNTER(STAT_RemoveScenePrimitiveTime);
@@ -4050,9 +4051,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 									}
 								}
 							}
-
-							GPUScene.AddPrimitiveToUpdate(SourceIndex);
-							GPUScene.AddPrimitiveToUpdate(DestIndex);
+							GPUScene.RecordPrimitiveIdSwap(DestIndex, SourceIndex);
 
 						#if RHI_RAYTRACING
 							// Update cached PrimitiveIndex after an index swap
@@ -4141,7 +4140,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveSceneInfo->FreeGPUSceneInstances();
 
 				// Update the primitive that was swapped to this index
-				GPUScene.AddPrimitiveToUpdate(PrimitiveIndex);
+				GPUScene.AddPrimitiveToUpdate(PrimitiveIndex, EPrimitiveDirtyState::Removed);
 
 				DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
 				LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveIndex);
@@ -4271,7 +4270,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				const int32 SourceIndex = PrimitiveSceneProxies.Num() - 1;
 				PrimitiveSceneInfo->PackedIndex = SourceIndex;
 
-				GPUScene.AddPrimitiveToUpdate(SourceIndex);
+				GPUScene.AddPrimitiveToUpdate(SourceIndex, EPrimitiveDirtyState::AddedMask);
 			}
 
 			bool EntryFound = false;
@@ -4366,7 +4365,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 								}
 							}
 
-							GPUScene.AddPrimitiveToUpdate(DestIndex);
+							GPUScene.RecordPrimitiveIdSwap(DestIndex, SourceIndex);
 
 						#if RHI_RAYTRACING
 							// Update cached PrimitiveIndex after an index swap
@@ -4388,9 +4387,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				// Add the primitive to its shadow parent's linked list of children.
 				// Note: must happen before AddToScene because AddToScene depends on LightingAttachmentRoot
 				PrimitiveSceneInfo->LinkAttachmentGroup();
-
-				// Flag the Primitive as added, as at this point the final PrimitiveIndex is known
-				GPUScene.MarkPrimitiveAdded(PrimitiveIndex);
 			}
 
 			FPrimitiveSceneInfo::AllocateGPUSceneInstances(this, TArrayView<FPrimitiveSceneInfo*>(&AddedLocalPrimitiveSceneInfos[StartIndex], AddedLocalPrimitiveSceneInfos.Num() - StartIndex));
@@ -4433,8 +4429,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 					// In the case of a moving component with MarkRenderStateDirty() called every frame, UpdateTransform will never happen.
 					VelocityData.UpdateTransform(PrimitiveSceneInfo, PrimitiveTransforms[PrimitiveIndex], PrimitiveTransforms[PrimitiveIndex]);
 				}
-
-				GPUScene.AddPrimitiveToUpdate(PrimitiveIndex);
 
 				// Invalidate PathTraced image because we added something to the scene
 				bPathTracingNeedsInvalidation = true;
@@ -4512,7 +4506,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveSceneInfo->MarkIndirectLightingCacheBufferDirty();
 			}
 
-			GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->PackedIndex);
+			GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->PackedIndex, EPrimitiveDirtyState::ChangedTransform);
 
 			DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
 			LumenSceneData->UpdatePrimitive(PrimitiveSceneInfo);

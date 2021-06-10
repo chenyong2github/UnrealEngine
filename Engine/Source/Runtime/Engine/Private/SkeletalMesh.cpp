@@ -5686,6 +5686,10 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		Instance.LocalToPrimitive.SetIdentity();
 		Instance.PrevLocalToPrimitive.SetIdentity();
 		Instance.LocalBounds = GetLocalBounds();
+		Instance.PerInstanceRandom = 0.0f;
+		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+		Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+		Instance.Flags = 0U;
 	}
 
 #if RHI_RAYTRACING

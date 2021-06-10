@@ -447,14 +447,15 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 #endif
 
 	Instances.Reserve(1);
-	Instances.SetNumZeroed(1);
+	Instances.SetNum(1);
 	FPrimitiveInstance& Instance = Instances[0];
 	Instance.LocalToPrimitive.SetIdentity();
-	Instance.LocalBounds = Component->GetStaticMesh()->GetBounds();
+	Instance.PrevLocalToPrimitive       = Instance.LocalToPrimitive;
+	Instance.LocalBounds                = Component->GetStaticMesh()->GetBounds();
+	Instance.NaniteHierarchyOffset      = 0U;
+	Instance.PerInstanceRandom          = 0.0f;
 	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-	Instance.PerInstanceRandom = 0;
-	Instance.NaniteHierarchyOffset = 0;
-	Instance.Flags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
+	Instance.Flags = bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
@@ -463,7 +464,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	LLM_SCOPE_BYTAG(Nanite);
 
 	Instances.Reserve(Component->GetInstanceCount());
-	Instances.SetNumZeroed(Component->GetInstanceCount());
+	Instances.SetNum(Component->GetInstanceCount());
 	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 	{
 		FTransform InstanceTransform;
@@ -482,12 +483,16 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 			bHasPrevInstanceTransforms = true;
 			Instance.PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
 		}
+		else
+		{
+			Instance.PrevLocalToPrimitive = Instance.LocalToPrimitive;
+		}
 
 		Instance.LocalBounds = Component->GetStaticMesh()->GetBounds();
 		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 		Instance.PerInstanceRandom = 0.0f;
-		Instance.NaniteHierarchyOffset = 0;
-		Instance.Flags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
+		Instance.NaniteHierarchyOffset = 0U;
+		Instance.Flags = bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 	}
 
 	ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(

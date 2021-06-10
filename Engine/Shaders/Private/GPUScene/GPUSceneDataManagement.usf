@@ -1,0 +1,212 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "GPUSceneWriter.ush"
+
+
+#if COMPILER_SUPPORTS_WAVE_VOTE
+	// TODO: Need to also check that wave width == thread group size (or implement workaround for other wave sizes)
+	#define USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION 0
+#endif
+
+struct FPackedInstanceBatch
+{
+	uint FirstItem_NumItems;
+};
+
+struct FPackedInstanceBatchItem
+{
+	// packed 32-NumInstancesItemBits:NumInstancesItemBits - need one more bit for the case where one item has ThreadGroupSize work to do
+	uint InstanceDataOffset_NumInstances;
+	// packed 32-PrefixBits:PrefixBits
+	uint Payload_BatchPrefixOffset;
+};
+
+
+StructuredBuffer<FPackedInstanceBatch> BatchBuffer;
+StructuredBuffer<FPackedInstanceBatchItem> ItemBuffer;
+uint NumBatches;
+uint NumItems;
+
+
+struct FInstanceBatch
+{
+	uint FirstItem;
+	uint NumItems;
+};
+
+FInstanceBatch UnpackBatch(FPackedInstanceBatch PackedBatch)
+{
+	FInstanceBatch Result;
+	Result.FirstItem = PackedBatch.FirstItem_NumItems >> NUM_INSTANCES_ITEM_BITS;
+	Result.NumItems = PackedBatch.FirstItem_NumItems & NUM_INSTANCES_ITEM_MASK;
+
+	return Result;
+};
+
+struct FInstanceBatchItem
+{
+	uint InstanceDataOffset;
+	uint NumInstances;
+	uint Payload;
+	uint BatchPrefixOffset;
+};
+
+FInstanceBatchItem UnpackItem(FPackedInstanceBatchItem PackedItem)
+{
+	FInstanceBatchItem Result;
+
+	Result.InstanceDataOffset = PackedItem.InstanceDataOffset_NumInstances >> NUM_INSTANCES_ITEM_BITS;
+	Result.NumInstances = PackedItem.InstanceDataOffset_NumInstances & NUM_INSTANCES_ITEM_MASK;
+	Result.Payload = PackedItem.Payload_BatchPrefixOffset >> PREFIX_BITS;
+	Result.BatchPrefixOffset = PackedItem.Payload_BatchPrefixOffset & PREFIX_BIT_MASK;
+
+	return Result;
+};
+
+
+#if USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION
+
+groupshared uint WorkBoundary[NUM_THREADS_PER_GROUP];
+
+#else // !USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION
+
+groupshared uint ItemIndex[NUM_THREADS_PER_GROUP];
+
+void PrefixMaxStep(uint ElementIndex, uint StepSize, inout uint CurrentValue)
+{
+	if (ElementIndex >= StepSize)
+	{
+		CurrentValue = max(CurrentValue, ItemIndex[ElementIndex - StepSize]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ElementIndex >= StepSize)
+	{
+		ItemIndex[ElementIndex] = CurrentValue;
+	}
+	GroupMemoryBarrierWithGroupSync();
+}
+
+uint PrefixMaxLastStep(uint ElementIndex, inout uint CurrentValue)
+{
+	GroupMemoryBarrierWithGroupSync();
+
+	uint StepSize = NUM_THREADS_PER_GROUP / 2U;
+
+	if (ElementIndex >= StepSize)
+	{
+		uint NewValue = max(CurrentValue, ItemIndex[ElementIndex - StepSize]);
+		CurrentValue = NewValue;
+	}
+
+	// No sync needed since we don't look at ItemIndex[] again
+	return CurrentValue;
+}
+
+uint PrefixMax(uint ElementIndex)
+{
+	GroupMemoryBarrierWithGroupSync();
+
+	uint CurrentValue = ItemIndex[ElementIndex];
+	GroupMemoryBarrierWithGroupSync();
+
+	UNROLL
+	for (uint StepSize = 1U; StepSize < NUM_THREADS_PER_GROUP / 2U; ++StepSize)
+	{
+		PrefixMaxStep(ElementIndex, 1U, CurrentValue);
+	}
+	return PrefixMaxLastStep(ElementIndex, CurrentValue);
+}
+
+#endif // USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION
+
+
+groupshared FInstanceBatchItem Items[NUM_THREADS_PER_GROUP];
+
+// TODO: Move this into own file and namespace things a bit.
+FInstanceBatchItem InstanceProcessingGPULoadBalancer_Setup(uint GroupId, int GroupThreadIndex)
+{
+	uint BatchIndex = GroupId;
+
+	// Load work description for whole work group
+	FInstanceBatch GroupBatch = UnpackBatch(BatchBuffer[GroupId]);
+
+	// Special case where we have an 1:1 item/thread no need to do prefix sums or whatever
+	// TODO: this case can also store less data per item
+	if (GroupBatch.NumItems == NUM_THREADS_PER_GROUP)
+	{
+		checkSlow(UnpackItem(ItemBuffer[GroupBatch.FirstItem + GroupThreadIndex]).BatchPrefixOffset == GroupThreadIndex);
+
+		return UnpackItem(ItemBuffer[GroupBatch.FirstItem + GroupThreadIndex]);
+	}
+
+	// Load work Items (guaranteed to be less than group size)
+#if USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION
+	WorkBoundary[GroupThreadIndex] = 0;
+#else 
+	ItemIndex[GroupThreadIndex] = 0U;
+#endif
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadIndex < GroupBatch.NumItems)
+	{
+		FInstanceBatchItem WorkItem = UnpackItem(ItemBuffer[GroupBatch.FirstItem + GroupThreadIndex]);
+#if USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION
+		// Mark last instance as boundary
+		WorkBoundary[(WorkItem.BatchPrefixOffset + WorkItem.NumInstances) - 1U] = 1;
+#else 
+		ItemIndex[WorkItem.BatchPrefixOffset] = GroupThreadIndex;
+#endif
+		Items[GroupThreadIndex] = WorkItem;
+	}
+	GroupMemoryBarrierWithGroupSync();
+	uint WorkItemIndex = 0U;
+	if (GroupBatch.NumItems < 4U)
+	{
+		// Distribute using linear search (no syncs requires like the prefix max op)
+		for (int Index = int(GroupBatch.NumItems) - 1; Index >= 0; --Index)
+		{
+			// TODO: pack the offset data into a single dword and store in group batch? 6x5 bits can fit and would be far more efficient that all the shared mumbojumbo
+			FInstanceBatchItem WorkItem = Items[Index];
+			if (GroupThreadIndex >= WorkItem.BatchPrefixOffset)
+			{
+				WorkItemIndex = uint(Index);
+				break;
+			}
+		}
+	}
+	else
+	{
+#if USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION
+		// Ballot based boundary search for when wave ops are available.
+		bool bIsBoundary = WorkBoundary[GroupThreadIndex];
+		WorkItemIndex = WavePrefixCountBits(bIsBoundary);
+#else
+		// Distribute the index to the other threads that should work on the same item
+		WorkItemIndex = PrefixMax(GroupThreadIndex);
+#endif
+	}
+
+	return Items[WorkItemIndex];
+}
+
+/**
+ * Each thread loops over a range on instances loaded from a buffer. The instance bounds are projected to all cached virtual shadow map address space 
+ * and any overlapped pages are marked as invalid.
+ */
+[numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
+void GPUSceneSetInstancePrimitiveIdCS(uint GroupId : SV_GroupID, int GroupThreadIndex : SV_GroupIndex)
+{
+	FInstanceBatchItem WorkItem = InstanceProcessingGPULoadBalancer_Setup(GroupId, GroupThreadIndex);
+
+	// Work out who I am in expansion of  the item in range [0,WorkItem.Count], may be negative when no work at end of batch
+	int LocalItemIndex = GroupThreadIndex - WorkItem.BatchPrefixOffset;
+
+	if (LocalItemIndex >= 0 && LocalItemIndex < WorkItem.NumInstances)
+	{
+		int InstanceId = WorkItem.InstanceDataOffset + LocalItemIndex;
+		WriteInstancePrimitiveId(InstanceId, WorkItem.Payload);
+	}
+}

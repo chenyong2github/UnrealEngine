@@ -129,7 +129,7 @@ public:
 	bool bAccumulatingStats = false;
 	FRHIGPUBufferReadback *GPUBufferReadback = nullptr;
 	
-protected:
+private:
 
 	// Must match shader...
 	struct FInstanceDataRange
@@ -138,5 +138,5 @@ protected:
 		int32 NumInstanceDataEntries;
 	};
 
-	void ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange>& InstanceRangesLarge, const TArray<FInstanceDataRange>& InstanceRangesSmall, const FGPUScene& GPUScene);
+	void ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange, SceneRenderingAllocator>& InstanceRangesLarge, const TArray<FInstanceDataRange, SceneRenderingAllocator>& InstanceRangesSmall, const FGPUScene& GPUScene);
 };

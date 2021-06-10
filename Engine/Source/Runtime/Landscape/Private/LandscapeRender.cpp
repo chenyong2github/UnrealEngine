@@ -1357,7 +1357,13 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	Instances.SetNum(1);
 	FPrimitiveInstance& Instance = Instances[0];
 	Instance.LocalToPrimitive.SetIdentity();
+	Instance.PrevLocalToPrimitive = Instance.LocalToPrimitive;
 	Instance.LocalBounds = GetLocalBounds();
+	Instance.PerInstanceRandom = 0.0f;
+	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+	Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+	Instance.Flags = 0U;
+
 	bSupportsInstanceDataBuffer = true;
 }
 

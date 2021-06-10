@@ -903,7 +903,7 @@ static void OnVirtualTextureDestroyed(const FVirtualTextureProducerHandle& InHan
 	PrimitiveSceneInfo->UpdateStaticLightingBuffer();
 
 	// Also need to update lightmap data inside GPUScene, if that's enabled
-	PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
+	PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex(), EPrimitiveDirtyState::ChangedStaticLighting);
 }
 
 static void GetRuntimeVirtualTextureLODRange(TArray<class FStaticMeshBatchRelevance> const& MeshRelevances, int8& OutMinLOD, int8& OutMaxLOD)
@@ -996,7 +996,7 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 
 			// Force a primitive update in the GPU scene, 
 			// NOTE: does not set Added as this is handled elsewhere.
-			Scene->GPUScene.AddPrimitiveToUpdate(SceneInfo->PackedIndex);
+			Scene->GPUScene.AddPrimitiveToUpdate(SceneInfo->PackedIndex, EPrimitiveDirtyState::ChangedAll);
 
 			// Force a primitive update in the Lumen scene
 			if (Scene->LumenSceneData)
@@ -1427,7 +1427,8 @@ void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdLi
 	checkSlow(bNeedsUniformBufferUpdate);
 	bNeedsUniformBufferUpdate = false;
 	Proxy->UpdateUniformBuffer();
-	Scene->GPUScene.AddPrimitiveToUpdate(PackedIndex);
+	// TODO: Figure out when and why this is called
+	Scene->GPUScene.AddPrimitiveToUpdate(PackedIndex, EPrimitiveDirtyState::ChangedAll);
 }
 
 void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshes()
@@ -1542,11 +1543,11 @@ void FPrimitiveSceneInfo::UnlinkAttachmentGroup()
 	}
 }
 
-bool FPrimitiveSceneInfo::RequestGPUSceneUpdate()
+bool FPrimitiveSceneInfo::RequestGPUSceneUpdate(EPrimitiveDirtyState PrimitiveDirtyState)
 {
 	if (Scene && IsIndexValid())
 	{
-		Scene->GPUScene.AddPrimitiveToUpdate(GetIndex());
+		Scene->GPUScene.AddPrimitiveToUpdate(GetIndex(), PrimitiveDirtyState);
 		return true;
 	}
 

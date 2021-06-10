@@ -40,6 +40,31 @@ public:
 		return FreeSpans.Num();
 	}
 
+#if DO_CHECK
+	/**
+	 * Loop over all free spans and check if Index is in any of them. 
+	 * Note: Very costly, only intended for debugging use, and probably best if under a toggle even then.
+	 */
+	FORCEINLINE bool IsFree(int32 Index) const
+	{
+		// If outside the max size, it is considered free as the allocator can grow at will
+		if (Index >= MaxSize)
+		{
+			return true;
+		}
+
+		for (const auto& FreeSpan : FreeSpans)
+		{
+			if (Index >= FreeSpan.StartOffset && Index < FreeSpan.StartOffset + FreeSpan.Num)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+#endif // DO_CHECK
+
 private:
 	class FLinearAllocation
 	{
