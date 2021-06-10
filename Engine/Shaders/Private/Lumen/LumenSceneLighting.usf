@@ -7,6 +7,7 @@
 #include "../Common.ush"
 #include "../BRDF.ush"
 #include "LumenCardCommon.ush"
+#include "LumenCardUpdate.ush"
 
 RWBuffer<uint> RWQuadAllocator;
 RWBuffer<uint> RWQuadData;
@@ -18,146 +19,31 @@ float LightRadius;
 float CosConeAngle;
 float SinConeAngle;
 
-bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3 ConeAxis, float ConeAngleCos, float ConeAngleSin)
-{
-	float3 U = ConeVertex - (SphereCenterAndRadius.w / ConeAngleSin) * ConeAxis;
-	float3 D = SphereCenterAndRadius.xyz - U;
-	float DSizeSq = dot(D, D);
-	float E = dot(ConeAxis, D);
-
-	if (E > 0 && E * E >= DSizeSq * ConeAngleCos * ConeAngleCos)
-	{
-		D = SphereCenterAndRadius.xyz - ConeVertex;
-		DSizeSq = dot(D, D);
-		E = -dot(ConeAxis, D);
-
-		if (E > 0 && E * E >= DSizeSq * ConeAngleSin * ConeAngleSin)
-		{
-			return DSizeSq <= SphereCenterAndRadius.w * SphereCenterAndRadius.w;
-		}
-		else
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void GetCardAABB(FLumenCardData LumenCardData, out float3 WorldCardCenter, out float3 WorldCardExtent)
 {
 	WorldCardCenter = LumenCardData.Origin;
 	WorldCardExtent = mul(abs(LumenCardData.WorldToLocalRotation), LumenCardData.LocalExtent);
 }
 
-bool DoesLightAffectCardPage(FLumenCardPageData CardPage, FLumenCardData Card)
-{
-	float3 CardPageLocalCenter;
-	float3 CardPageLocalExtent;
-	GetCardPageLocalBBox(CardPage, Card, CardPageLocalCenter, CardPageLocalExtent);
-
-	float3 CardPageWorldCenter = mul(Card.WorldToLocalRotation, CardPageLocalCenter) + Card.Origin;
-	float3 CardPageWorldExtent = mul(abs(Card.WorldToLocalRotation), CardPageLocalExtent);
-	float CardPageWorldBoundingSphere = length(CardPageLocalExtent);
-
-	float3 LightInfluenceSphereLocalCenter = mul(InfluenceSphere.xyz - Card.Origin, Card.WorldToLocalRotation);
-	const float BoxDistanceSq = ComputeSquaredDistanceFromBoxToPoint(CardPageLocalCenter, CardPageLocalExtent, LightInfluenceSphereLocalCenter);	
-	const bool bCardAffectedByInfluenceSphere = BoxDistanceSq < InfluenceSphere.w * InfluenceSphere.w;
-
-#if SHAPE_TYPE == 0
-	
-	return true;
-
-#elif SHAPE_TYPE == 1
-
-	// Point light
-	return bCardAffectedByInfluenceSphere;
-
-#elif SHAPE_TYPE == 2
-
-	float ConeAxisDistance = dot(CardPageWorldCenter - LightPosition, LightDirection);
-	float2 ConeAxisDistanceMinMax = float2(ConeAxisDistance + CardPageWorldBoundingSphere, ConeAxisDistance - CardPageWorldBoundingSphere);
-
-	// Spot light
-	return bCardAffectedByInfluenceSphere
-		&& SphereIntersectCone(float4(CardPageWorldCenter, CardPageWorldBoundingSphere), LightPosition, LightDirection, CosConeAngle, SinConeAngle)
-		&& ConeAxisDistanceMinMax.x > 0 && ConeAxisDistanceMinMax.y < LightRadius;
-
-#elif SHAPE_TYPE == 3
-
-	// Rect light
-	float4 BackPlane = float4(LightDirection, dot(LightPosition, LightDirection));
-	float DistanceFromBoxCenterToPlane = dot(BackPlane.xyz, CardPageWorldCenter) - BackPlane.w;
-	float MaxExtent = dot(CardPageWorldExtent, abs(BackPlane.xyz));
-	bool bInFrontOfPlane = DistanceFromBoxCenterToPlane + MaxExtent > 0.0f;
-	return bCardAffectedByInfluenceSphere && bInFrontOfPlane;
-
-#endif
-}
-
-uint NumCardPagesToRenderIndices;
-Buffer<uint> CardPagesToRenderIndices;
-Buffer<uint> CardPagesToRenderHashMap;
-uint FrameId;
-float CardLightingUpdateFrequencyScale;
-uint CardLightingUpdateMinFrequency;
-
-#define OPERATE_ON_CARD_TILES_TO_RENDER 0
-#define OPERATE_ON_SCENE 1
-#define OPERATE_ON_SCENE_FORCE_UPDATE_FOR_CARD_TILES_TO_RENDER 2
-
-bool ShouldUpdateCardPageLighting(uint CardPageId, FLumenCardData Card)
-{
-#if OPERATE_ON_CARD_TILES_MODE == OPERATE_ON_CARD_TILES_TO_RENDER
-	// Explicit list - update everything
-	return true;
-#else 
-
-#if OPERATE_ON_CARD_TILES_MODE == OPERATE_ON_SCENE_FORCE_UPDATE_FOR_CARD_TILES_TO_RENDER
-	// Operating on the whole scene - CardIds contains cards that must have their lighting updated this frame due to recapture
-
-	#if 1
-	{
-		uint HashMapBucketId = CardPageId % (NUM_CARD_TILES_TO_RENDER_HASH_MAP_BUCKET_UINT32 * 32);
-		uint HashMapUInt32Id = HashMapBucketId / 32;
-		uint HashMapBitId = HashMapBucketId - HashMapUInt32Id * 32;
-
-		uint HashMapUInt32 = CardPagesToRenderHashMap[HashMapUInt32Id];
-
-		if (HashMapUInt32 & (1 << HashMapBitId))
-		{
-			return true;
-		}
-	}
-	#else
-	{
-		for (uint i = 0; i < NumCardPagesToRenderIndices; i++)
-		{
-			if (CardPageId == CardPagesToRenderIndices[i])
-			{
-				return true;
-			}
-		}
-	}
-	#endif
-#endif
-
-	float3 CardSpaceViewPosition = mul(View.WorldCameraOrigin - Card.Origin, Card.WorldToLocalRotation);
-	float DistanceFromViewerSq = ComputeSquaredDistanceFromBoxToPoint(0, Card.LocalExtent, CardSpaceViewPosition);
-	uint CardLightingUpdateFrequency = clamp((uint)pow(DistanceFromViewerSq * CardLightingUpdateFrequencyScale, .25f), CardLightingUpdateMinFrequency, 100);
-
-	//@todo - Better guarantees on even distribution of texels lit each frame
-	return CardPageId % CardLightingUpdateFrequency == FrameId % CardLightingUpdateFrequency;
-	
-#endif
-}
-
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 0
 #endif
 
+#ifndef SHAPE_TYPE
+#define SHAPE_TYPE 0
+#endif
+
 uint ScatterInstanceIndex;
 uint MaxQuadsPerScatterInstance;
+
+// Resources for LumenCardUpdate
+uint NumCardPagesToRenderIndices;
+Buffer<uint> CardPagesToRenderIndices;
+Buffer<uint> CardPagesToRenderHashMap;
+
+uint FrameId;
+float CardLightingUpdateFrequencyScale;
+uint CardLightingUpdateMinFrequency;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void CullCardPagesToShapeCS(
@@ -177,11 +63,20 @@ void CullCardPagesToShapeCS(
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
 		if (CardPage.CardIndex >= 0)
 		{
+			FLightCullingParameters LightCullingParameters = CreateLightCullingParameters(
+				InfluenceSphere, LightPosition, LightDirection, LightRadius, CosConeAngle, SinConeAngle);
+
 			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 
+			FLumenCardUpdateResources CardUpdateResources = CreateLumenCardUpdateResources(
+				NumCardPagesToRenderIndices, CardPagesToRenderIndices, CardPagesToRenderHashMap);
+
+			FLumenCardUpdateOptions CardUpdateOptions = CreateLumenCardUpdateOptions(
+				CardLightingUpdateMinFrequency, CardLightingUpdateFrequencyScale, FrameId);
+
 			if (Card.bVisible
-				&& DoesLightAffectCardPage(CardPage, Card)
-				&& ShouldUpdateCardPageLighting(CardPageIndex, Card))
+				&& DoesLightAffectCardPage(SHAPE_TYPE, LightCullingParameters, CardPage, Card)
+				&& ShouldUpdateCardPage(CardPageIndex, Card, CardUpdateResources, CardUpdateOptions))
 			{
 				uint QuadDataInsertIndex;
 				InterlockedAdd(RWQuadAllocator[ScatterInstanceIndex], 1, QuadDataInsertIndex);

@@ -250,13 +250,20 @@ float3 GetCardLocalPosition(FLumenCardData Card, float2 CardUV, float Depth)
 	return LocalPosition;
 }
 
-void GetCardPageLocalBBox(FLumenCardPageData CardPage, FLumenCardData Card, out float3 CardPageLocalCenter, out float3 CardPageLocalExtent)
+void GetCardLocalBBox(FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax, out float3 CardPageLocalCenter, out float3 CardPageLocalExtent)
 {
-	float3 CardPageLocalBoxMin = GetCardLocalPosition(Card, CardPage.CardUVRect.xw, 0.0f);
-	float3 CardPageLocalBoxMax = GetCardLocalPosition(Card, CardPage.CardUVRect.zy, 1.0f);
+	float2 CardUVMin = lerp(CardPage.CardUVRect.xw, CardPage.CardUVRect.zy, UVMin);
+	float2 CardUVMax = lerp(CardPage.CardUVRect.xw, CardPage.CardUVRect.zy, UVMax);
+	float3 CardPageLocalBoxMin = GetCardLocalPosition(Card, CardUVMin, 0.0f);
+	float3 CardPageLocalBoxMax = GetCardLocalPosition(Card, CardUVMax, 1.0f);
 
 	CardPageLocalCenter = 0.5f * (CardPageLocalBoxMax + CardPageLocalBoxMin);
 	CardPageLocalExtent = 0.5f * (CardPageLocalBoxMax - CardPageLocalBoxMin);
+}
+
+void GetCardPageLocalBBox(FLumenCardPageData CardPage, FLumenCardData Card, out float3 CardPageLocalCenter, out float3 CardPageLocalExtent)
+{
+	GetCardLocalBBox(CardPage, Card, 0, 1, CardPageLocalCenter, CardPageLocalExtent);
 }
 
 float3 GetCardWorldPosition(FLumenCardData Card, float2 CardUV, float Depth)
@@ -294,4 +301,131 @@ float2 SamplePositonToCardUV(FLumenCardData Card, float2 LocalSamplePosition)
 float3 DecodeSurfaceCacheNormal(float2 EncodedNormal)
 {
 	return OctahedronToUnitVector(EncodedNormal);
+}
+
+bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3 ConeAxis, float ConeAngleCos, float ConeAngleSin)
+{
+	float3 U = ConeVertex - (SphereCenterAndRadius.w / ConeAngleSin) * ConeAxis;
+	float3 D = SphereCenterAndRadius.xyz - U;
+	float DSizeSq = dot(D, D);
+	float E = dot(ConeAxis, D);
+
+	if (E > 0 && E * E >= DSizeSq * ConeAngleCos * ConeAngleCos)
+	{
+		D = SphereCenterAndRadius.xyz - ConeVertex;
+		DSizeSq = dot(D, D);
+		E = -dot(ConeAxis, D);
+
+		if (E > 0 && E * E >= DSizeSq * ConeAngleSin * ConeAngleSin)
+		{
+			return DSizeSq <= SphereCenterAndRadius.w * SphereCenterAndRadius.w;
+		}
+		else
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+struct FLightCullingParameters
+{
+	float4 InfluenceSphere;
+	float3 LightPosition;
+	float3 LightDirection;
+	float LightRadius;
+	float CosConeAngle;
+	float SinConeAngle;
+};
+
+FLightCullingParameters CreateLightCullingParameters(
+	float4 InfluenceSphere,
+	float3 LightPosition,
+	float3 LightDirection,
+	float LightRadius,
+	float CosConeAngle,
+	float SinConeAngle
+)
+{
+	FLightCullingParameters Parameters;
+	Parameters.InfluenceSphere = InfluenceSphere;
+	Parameters.LightPosition = LightPosition;
+	Parameters.LightDirection = LightDirection;
+	Parameters.LightRadius = LightRadius;
+	Parameters.CosConeAngle = CosConeAngle;
+	Parameters.SinConeAngle = SinConeAngle;
+
+	return Parameters;
+}
+
+bool DoesLightAffectCard(uint LightType, FLightCullingParameters LightCullingParameters, FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax)
+{
+	float3 CardPageLocalCenter;
+	float3 CardPageLocalExtent;
+	GetCardLocalBBox(CardPage, Card, UVMin, UVMax, CardPageLocalCenter, CardPageLocalExtent);
+
+	float3 CardPageWorldCenter = mul(Card.WorldToLocalRotation, CardPageLocalCenter) + Card.Origin;
+	float3 CardPageWorldExtent = mul(abs(Card.WorldToLocalRotation), CardPageLocalExtent);
+	float CardPageWorldBoundingSphere = length(CardPageLocalExtent);
+
+	float4 InfluenceSphere = LightCullingParameters.InfluenceSphere;
+	float3 LightInfluenceSphereLocalCenter = mul(InfluenceSphere.xyz - Card.Origin, Card.WorldToLocalRotation);
+	const float BoxDistanceSq = ComputeSquaredDistanceFromBoxToPoint(CardPageLocalCenter, CardPageLocalExtent, LightInfluenceSphereLocalCenter);
+	const bool bCardAffectedByInfluenceSphere = BoxDistanceSq < InfluenceSphere.w* InfluenceSphere.w;
+
+	//uint LightType = LightCullingParameters.GetLightType();
+	if (LightType == 0)
+	{
+		return true;
+	}
+	else if (LightType == 1)
+	{
+		// Point light
+		return bCardAffectedByInfluenceSphere;
+	}
+	else if (LightType == 2)
+	{
+		float3 LightPosition = LightCullingParameters.LightPosition;
+		float3 LightDirection = LightCullingParameters.LightDirection;
+		float CosConeAngle = LightCullingParameters.CosConeAngle;
+		float SinConeAngle = LightCullingParameters.SinConeAngle;
+		float LightRadius = LightCullingParameters.LightRadius;
+
+		float ConeAxisDistance = dot(CardPageWorldCenter - LightPosition, LightDirection);
+		float2 ConeAxisDistanceMinMax = float2(ConeAxisDistance + CardPageWorldBoundingSphere, ConeAxisDistance - CardPageWorldBoundingSphere);
+
+		// Spot light
+		return bCardAffectedByInfluenceSphere
+			&& SphereIntersectCone(float4(CardPageWorldCenter, CardPageWorldBoundingSphere), LightPosition, LightDirection, CosConeAngle, SinConeAngle)
+			&& ConeAxisDistanceMinMax.x > 0 && ConeAxisDistanceMinMax.y < LightRadius;
+	}
+	else if (LightType == 3)
+	{
+		float3 LightPosition = LightCullingParameters.LightPosition;
+		float3 LightDirection = LightCullingParameters.LightDirection;
+
+		// Rect light
+		float4 BackPlane = float4(LightDirection, dot(LightPosition, LightDirection));
+		float DistanceFromBoxCenterToPlane = dot(BackPlane.xyz, CardPageWorldCenter) - BackPlane.w;
+		float MaxExtent = dot(CardPageWorldExtent, abs(BackPlane.xyz));
+		bool bInFrontOfPlane = DistanceFromBoxCenterToPlane + MaxExtent > 0.0f;
+		return bCardAffectedByInfluenceSphere && bInFrontOfPlane;
+	}
+
+	// Error: Unknown light type
+	return false;
+}
+
+bool DoesLightAffectCardPage(uint LightType, FLightCullingParameters LightCullingParameters, FLumenCardPageData CardPage, FLumenCardData Card)
+{
+	float2 UVMin = 0;
+	float2 UVMax = 1;
+	return DoesLightAffectCard(LightType, LightCullingParameters, CardPage, Card, UVMin, UVMax);
+}
+
+float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float SurfaceBias, float SlopeScaledSurfaceBias, float BiasScale)
+{
+	//@todo DynamicGI - derive from card texel size
+	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal))) * BiasScale;
 }

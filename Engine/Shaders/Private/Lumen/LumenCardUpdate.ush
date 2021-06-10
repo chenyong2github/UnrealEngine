@@ -1,0 +1,101 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenCardUpdate.ush
+=============================================================================*/
+
+#define OPERATE_ON_CARD_TILES_TO_RENDER 0
+#define OPERATE_ON_SCENE 1
+#define OPERATE_ON_SCENE_FORCE_UPDATE_FOR_CARD_TILES_TO_RENDER 2
+
+#ifndef NUM_CARD_TILES_TO_RENDER_HASH_MAP_BUCKET_UINT32
+#define NUM_CARD_TILES_TO_RENDER_HASH_MAP_BUCKET_UINT32 1
+#endif
+
+#ifndef OPERATE_ON_CARD_TILES_MODE
+#define OPERATE_ON_CARD_TILES_MODE OPERATE_ON_SCENE_FORCE_UPDATE_FOR_CARD_TILES_TO_RENDER
+#endif
+
+struct FLumenCardUpdateResources
+{
+	uint NumCardPagesToRenderIndices;
+	Buffer<uint> CardPagesToRenderIndices;
+	Buffer<uint> CardPagesToRenderHashMap;
+};
+
+FLumenCardUpdateResources CreateLumenCardUpdateResources(uint NumIndices, Buffer<uint> Indices, Buffer<uint> HashMap)
+{
+	FLumenCardUpdateResources Resources;
+	Resources.NumCardPagesToRenderIndices = NumIndices;
+	Resources.CardPagesToRenderIndices = Indices;
+	Resources.CardPagesToRenderHashMap = HashMap;
+
+	return Resources;
+}
+
+struct FLumenCardUpdateOptions
+{
+	uint MinFrequency;
+	float FrequencyScale;
+	uint FrameId;
+};
+
+FLumenCardUpdateOptions CreateLumenCardUpdateOptions(uint MinFrequency, float FrequencyScale, uint FrameId)
+{
+	FLumenCardUpdateOptions Options;
+	Options.MinFrequency = MinFrequency;
+	Options.FrequencyScale = FrequencyScale;
+	Options.FrameId = FrameId;
+
+	return Options;
+}
+
+bool ShouldUpdateCardPage(
+	uint CardPageId,
+	FLumenCardData Card,
+	FLumenCardUpdateResources Resources,
+	FLumenCardUpdateOptions Options)
+{
+#if OPERATE_ON_CARD_TILES_MODE == OPERATE_ON_CARD_TILES_TO_RENDER
+	// Explicit list - update everything
+	return true;
+#else 
+
+#if OPERATE_ON_CARD_TILES_MODE == OPERATE_ON_SCENE_FORCE_UPDATE_FOR_CARD_TILES_TO_RENDER
+	// Operating on the whole scene - CardIds contains cards that must have their lighting updated this frame due to recapture
+
+#if 1
+	{
+		uint HashMapBucketId = CardPageId % (NUM_CARD_TILES_TO_RENDER_HASH_MAP_BUCKET_UINT32 * 32);
+		uint HashMapUInt32Id = HashMapBucketId / 32;
+		uint HashMapBitId = HashMapBucketId - HashMapUInt32Id * 32;
+
+		uint HashMapUInt32 = Resources.CardPagesToRenderHashMap[HashMapUInt32Id];
+
+		if (HashMapUInt32 & (1 << HashMapBitId))
+		{
+			return true;
+		}
+	}
+#else
+	{
+		for (uint i = 0; i < Resources.NumCardPagesToRenderIndices; i++)
+		{
+			if (CardPageId == Resources.CardPagesToRenderIndices[i])
+			{
+				return true;
+			}
+		}
+	}
+#endif
+#endif
+
+	float3 CardSpaceViewPosition = mul(View.WorldCameraOrigin - Card.Origin, Card.WorldToLocalRotation);
+	float DistanceFromViewerSq = ComputeSquaredDistanceFromBoxToPoint(0, Card.LocalExtent, CardSpaceViewPosition);
+	uint CardUpdateFrequency = clamp((uint)pow(DistanceFromViewerSq * Options.FrequencyScale, .25f), Options.MinFrequency, 100);
+
+	//@todo - Better guarantees on even distribution of texels lit each frame
+	return CardPageId % CardUpdateFrequency == Options.FrameId % CardUpdateFrequency;
+
+#endif
+}

@@ -384,9 +384,7 @@ private:
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-		FRDGTextureRef FinalLightingAtlas,
-		FRDGTextureRef OpacityAtlas,
+		const class FLumenCardTracingInputs& TracingInputs,
 		FGlobalShaderMap* GlobalShaderMap,
 		const FLumenCardScatterContext& VisibleCardScatterContext);
 	
@@ -973,7 +971,6 @@ private:
 	static void PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingDebug(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PreparePathTracing(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
-	static void PrepareRayTracingLumenDirectLighting(const FViewInfo& View,const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingScreenProbeGather(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingScreenProbeGatherDeferredMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingRadianceCache(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
@@ -993,6 +990,7 @@ private:
 	static void PrepareLumenHardwareRayTracingReflectionsLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingRadianceCacheLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
+	static void PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 
 	/** Lighting evaluation shader registration */
 	static FRHIRayTracingShader* GetRayTracingLightingMissShader(FViewInfo& View);
