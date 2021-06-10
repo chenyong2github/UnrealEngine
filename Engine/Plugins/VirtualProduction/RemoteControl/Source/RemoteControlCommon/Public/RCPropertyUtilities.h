@@ -287,12 +287,53 @@ namespace RemoteControlPropertyUtilities
 		ValueType* DstCurrentValue = OutDst.GetPropertyValue<ValueType>();
 		InSrc.GetProperty()->InitializeValue(DstCurrentValue);
 
+		const int32 SrcSize = InSrc.Size();
+
+		// The stored data size doesn't match, so cast
+		if(OutDst.GetProperty()->ElementSize != SrcSize)
+		{
+			if(const FNumericProperty* DstProperty = OutDst.GetProperty<FNumericProperty>())
+			{
+				// @note this only works for integers
+				if(DstProperty->IsInteger())
+				{
+					if(SrcSize == 1)
+					{
+						uint8* SrcValue = InSrc.GetPropertyValue<uint8>();
+						if(SrcValue)
+						{
+							DstProperty->SetIntPropertyValue(DstCurrentValue, static_cast<uint64>(*SrcValue));
+							return true;
+						}
+					}
+					else if(SrcSize == 2)
+					{
+						uint16* SrcValue = InSrc.GetPropertyValue<uint16>();
+						if(SrcValue)
+						{
+							DstProperty->SetIntPropertyValue(DstCurrentValue, static_cast<uint64>(*SrcValue));
+							return true;
+						}
+					}
+					else if(SrcSize == 4)
+					{
+						uint32* SrcValue = InSrc.GetPropertyValue<uint32>();
+						if(SrcValue)
+						{
+							DstProperty->SetIntPropertyValue(DstCurrentValue, static_cast<uint64>(*SrcValue));
+							return true;
+						}
+					}
+				}
+			}
+		}
+
 		FMemoryReader Reader(*SrcPropertyContainer);
 		InSrc.GetProperty()->SerializeItem(FStructuredArchiveFromArchive(Reader).GetSlot(), DstCurrentValue, nullptr);
 
- 		return false;
+ 		return true;
 	}
-
+	
 	/** Reads the property value from InSrc and serializes to OutDst. */
 	template <typename PropertyType>
 	typename TEnableIf<
@@ -338,7 +379,7 @@ namespace RemoteControlPropertyUtilities
 		FMemoryReader Reader(*SrcPropertyContainer);
 		InSrc.GetProperty()->SerializeItem(FStructuredArchiveFromArchive(Reader).GetSlot(), DstCurrentValue, nullptr);
 
-		return false;
+		return true;
 	}
 
 	/** Specialization for FProperty casts and forwards to specializations. */

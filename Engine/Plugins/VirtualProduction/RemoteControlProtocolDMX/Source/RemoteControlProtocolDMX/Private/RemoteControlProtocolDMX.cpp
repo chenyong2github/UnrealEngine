@@ -38,9 +38,10 @@ uint8 FRemoteControlDMXProtocolEntity::GetRangePropertySize() const
 			
 		case EDMXFixtureSignalFormat::E16Bit:
 			return sizeof(uint16);
-			
+
+		// @note 24 bit ints are not available natively, so store as 32bit/4 bytes. This will also affect property clamping.
 		case EDMXFixtureSignalFormat::E24Bit:
-			return sizeof(uint16);
+			return sizeof(uint32);
 			
 		case EDMXFixtureSignalFormat::E32Bit:
 			return sizeof(uint32);

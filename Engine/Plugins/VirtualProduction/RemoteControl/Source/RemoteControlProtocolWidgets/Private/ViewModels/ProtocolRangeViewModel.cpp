@@ -45,6 +45,37 @@ void FProtocolRangeViewModel::Initialize()
 		URCPropertyContainerBase* PropertyContainer = PropertyContainers::CreateContainerForProperty(GetTransientPackage(), Property);
 		if (PropertyContainer)
 		{
+			// If there's a mismatch between the RangePropertySize and Property, clamp to RangePropertySize
+			const int32 PropertyTypeSize = Property->ElementSize;
+			const int32 RangeTypeSize = GetBinding()->GetRemoteControlProtocolEntityPtr()->Get()->GetRangePropertySize();
+			FProperty* PropertyInContainer = PropertyContainer->GetValueProperty();
+
+			// Set this metadata to indicate we set the ClampMax flag, not the user
+			static const FName RCSetKey = TEXT("RCSetClampMax");
+			if(PropertyTypeSize != RangeTypeSize || PropertyInContainer->HasMetaData(RCSetKey))
+			{
+				if(const FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
+				{
+					// @note: Only works with ints!
+					if(NumericProperty->IsInteger())
+					{
+						if(RangeTypeSize > 3)
+						{
+							PropertyInContainer->RemoveMetaData(RemoteControlTypeUtilities::ClampMaxKey);
+							PropertyInContainer->RemoveMetaData(RCSetKey);
+						}
+						else
+						{
+							const uint64 ClampMax = FMath::Pow(2, RangeTypeSize * 8) - 1;
+							FString ClampMaxStr;
+							ClampMaxStr.AppendInt(ClampMax);
+							PropertyInContainer->SetMetaData(RemoteControlTypeUtilities::ClampMaxKey, *ClampMaxStr);
+							PropertyInContainer->SetMetaData(RCSetKey, *ClampMaxStr);
+						}
+					}
+				}
+			}
+			
 			InputProxyPropertyContainer.Reset(PropertyContainer);
 		}
 	}
