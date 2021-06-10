@@ -72,6 +72,11 @@ namespace UnrealBuildTool.Rules
 			bool bCanUseCinewareSDK = Directory.Exists(CinewareSDKLocation);
 			// Temporary: Debug configuration does not link yet
 			bCanUseCinewareSDK &= Target.Configuration == UnrealTargetConfiguration.Development || Target.Configuration == UnrealTargetConfiguration.Shipping;
+			// Temporary: Do not enable Cineware SDK code if static analysis is requested
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+            {
+				bCanUseCinewareSDK &= Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None;
+			}
 
 			if (bCanUseCinewareSDK)
 			{
