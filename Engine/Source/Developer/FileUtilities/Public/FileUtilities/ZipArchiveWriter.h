@@ -49,6 +49,7 @@ public:
 	FZipArchiveWriter(IFileHandle* InFile);
 	~FZipArchiveWriter();
 
+	void AddFile(const FString& Filename, TConstArrayView<uint8> Data, const FDateTime& Timestamp);
 	void AddFile(const FString& Filename, const TArray<uint8>& Data, const FDateTime& Timestamp);
 };
 

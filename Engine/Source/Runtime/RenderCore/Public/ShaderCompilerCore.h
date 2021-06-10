@@ -32,9 +32,13 @@ extern RENDERCORE_API bool ShouldKeepShaderDebugInfo(FName ShaderFormat);
 extern RENDERCORE_API bool ShouldExportShaderDebugInfo(EShaderPlatform Platform);
 extern RENDERCORE_API bool ShouldExportShaderDebugInfo(FName ShaderFormat);
 
-/** Returns true if (external) debug information should be specific to each shader rather than be deduplicated. */
-extern RENDERCORE_API bool ShouldAllowUniqueDebugInfo(FName ShaderFormat);
+extern RENDERCORE_API bool GetShaderDebugInfoPathOverride(FString& OutPathOverride, FName ShaderFormat);
 
+/** Returns true if shader symbols should be exported to a single zip file for a given platform. */
+extern RENDERCORE_API bool ShouldExportShaderDebugInfoAsZip(FName ShaderFormat);
+
+/** Returns true if (external) shader symbols should be specific to each shader rather than be de-duplicated. */
+extern RENDERCORE_API bool ShouldAllowUniqueDebugInfo(FName ShaderFormat);
 
 /** Returns true is shader compiling is allowed */
 extern RENDERCORE_API bool AllowShaderCompiling();

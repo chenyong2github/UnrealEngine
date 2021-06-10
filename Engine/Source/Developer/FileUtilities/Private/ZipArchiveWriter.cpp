@@ -97,7 +97,7 @@ FZipArchiveWriter::~FZipArchiveWriter()
 	}
 }
 
-void FZipArchiveWriter::AddFile(const FString& Filename, const TArray<uint8>& Data, const FDateTime& Timestamp)
+void FZipArchiveWriter::AddFile(const FString& Filename, TConstArrayView<uint8> Data, const FDateTime& Timestamp)
 {
 	uint32 Crc = FCrc::MemCrc32(Data.GetData(), Data.Num());
 
@@ -138,6 +138,11 @@ void FZipArchiveWriter::AddFile(const FString& Filename, const TArray<uint8>& Da
 	Write((void*)Data.GetData(), Data.Num());
 
 	Flush();
+}
+
+void FZipArchiveWriter::AddFile(const FString& Filename, const TArray<uint8>& Data, const FDateTime& Timestamp)
+{
+	AddFile(Filename, TConstArrayView<uint8>(Data), Timestamp);
 }
 
 void FZipArchiveWriter::Flush()

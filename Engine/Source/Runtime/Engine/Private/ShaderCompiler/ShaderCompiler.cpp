@@ -838,6 +838,13 @@ static TAutoConsoleVariable<int32> CVarExportShaderDebugData(
 	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<FString> CVarShadersSymbolPathOverride(
+	TEXT("r.Shaders.SymbolPathOverride"),
+	"",
+	TEXT("Override output location of shader symbols. If the path contains the text '{Platform}', that will be replaced with the shader platform string.\n")
+	TEXT("Empty: use default location Saved/ShaderSymbols/{Platform}"),
+	ECVF_ReadOnly);
+
 static TAutoConsoleVariable<int32> CVarAllowUniqueDebugInfo(
 	TEXT("r.Shaders.AllowUniqueDebugInfo"),
 	0,
@@ -846,8 +853,8 @@ static TAutoConsoleVariable<int32> CVarAllowUniqueDebugInfo(
 	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarExportShaderDebugDataMode(
-	TEXT("r.Shaders.ExportDebugInfoMode"),
+static TAutoConsoleVariable<int32> CVarExportShaderDebugInfoZip(
+	TEXT("r.Shaders.ExportDebugInfo.Zip"),
 	0,
 	TEXT(" 0: Export as loose files.\n")
 	TEXT(" 1: Export as an uncompressed archive.\n"),
