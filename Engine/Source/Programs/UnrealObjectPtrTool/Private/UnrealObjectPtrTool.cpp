@@ -486,7 +486,7 @@ bool FPointerUpgrader::SaveStringToFile(const FStringView& InString, EByteOrderM
 
 	if (InBOM == EByteOrderMarkerType::UTF8)
 	{
-		UTF8CHAR UTF8BOM[] = {0xEF, 0xBB, 0xBF};
+		UTF8CHAR UTF8BOM[] = {(UTF8CHAR)0xEF, (UTF8CHAR)0xBB, (UTF8CHAR)0xBF};
 		Ar->Serialize(&UTF8BOM, UE_ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR));
 
 		FTCHARToUTF8 UTF8String(InString.GetData(), InString.Len());
@@ -596,6 +596,7 @@ FString FPointerUpgrader::PerformReverseTypenameUpgrade(const FString& TypeName)
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
 	FString CmdLine = FCommandLine::BuildFromArgV(nullptr, ArgC, ArgV, nullptr);
 	GEngineLoop.PreInit(*CmdLine);
 

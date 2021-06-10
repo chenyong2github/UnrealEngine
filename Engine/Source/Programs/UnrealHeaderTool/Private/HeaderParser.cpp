@@ -709,8 +709,10 @@ FUHTConfig::FUHTConfig()
 	const FName StructsWithTPrefixKey(TEXT("StructsWithTPrefix"));
 	const FName DelegateParameterCountStringsKey(TEXT("DelegateParameterCountStrings"));
 	const FName GeneratedCodeVersionKey(TEXT("GeneratedCodeVersion"));
-	const FName NativePointerMemberBehaviorKey(TEXT("NativePointerMemberBehavior"));
-	const FName ObjectPtrMemberBehaviorKey(TEXT("ObjectPtrMemberBehavior"));
+	const FName EngineNativePointerMemberBehaviorKey(TEXT("EngineNativePointerMemberBehavior"));
+	const FName EngineObjectPtrMemberBehaviorKey(TEXT("EngineObjectPtrMemberBehavior"));
+	const FName NonEngineNativePointerMemberBehaviorKey(TEXT("NonEngineNativePointerMemberBehavior"));
+	const FName NonEngineObjectPtrMemberBehaviorKey(TEXT("NonEngineObjectPtrMemberBehavior"));
 
 	FConfigSection* ConfigSection = GConfig->GetSectionPrivate(TEXT("UnrealHeaderTool"), false, true, GEngineIni);
 	if (ConfigSection)
@@ -743,13 +745,21 @@ FUHTConfig::FUHTConfig()
 			{
 				DefaultGeneratedCodeVersion = ToGeneratedCodeVersion(It.Value().GetValue());
 			}
-			else if (It.Key() == NativePointerMemberBehaviorKey)
+			else if (It.Key() == EngineNativePointerMemberBehaviorKey)
 			{
-				NativePointerMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
+				EngineNativePointerMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
 			}
-			else if (It.Key() == ObjectPtrMemberBehaviorKey)
+			else if (It.Key() == EngineObjectPtrMemberBehaviorKey)
 			{
-				ObjectPtrMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
+				EngineObjectPtrMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
+			}
+			else if (It.Key() == NonEngineNativePointerMemberBehaviorKey)
+			{
+				NonEngineNativePointerMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
+			}
+			else if (It.Key() == NonEngineObjectPtrMemberBehaviorKey)
+			{
+				NonEngineObjectPtrMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
 			}
 		}
 	}
@@ -4084,7 +4094,8 @@ void FHeaderParser::GetVarType(
 						// Optionally emit messages about native pointer members and swallow trailing 'const' after pointer properties
 						if (VariableCategory == EVariableCategory::Member)
 						{
-							ConditionalLogPointerUsage(UHTConfig.NativePointerMemberBehavior, TEXT("Native pointer"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar());
+							ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine ? UHTConfig.EngineNativePointerMemberBehavior : UHTConfig.NonEngineNativePointerMemberBehavior,
+								TEXT("Native pointer"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar());
 
 							MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
 						}
@@ -4093,7 +4104,8 @@ void FHeaderParser::GetVarType(
 					}
 					else if ((PropertyType == CPT_ObjectPtrReference) && (VariableCategory == EVariableCategory::Member))
 					{
-						ConditionalLogPointerUsage(UHTConfig.ObjectPtrMemberBehavior, TEXT("ObjectPtr"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar());
+						ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine ? UHTConfig.EngineObjectPtrMemberBehavior : UHTConfig.NonEngineObjectPtrMemberBehavior,
+							TEXT("ObjectPtr"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar());
 					}
 
 					// Imply const if it's a parameter that is a pointer to a const class
@@ -8694,11 +8706,11 @@ bool FHeaderParser::CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const F
 
 void FHeaderParser::ConditionalLogPointerUsage(EPointerMemberBehavior PointerMemberBehavior, const TCHAR* PointerTypeDesc, FString&& PointerTypeDecl)
 {
-	switch (UHTConfig.NativePointerMemberBehavior)
+	switch (PointerMemberBehavior)
 	{
 		case EPointerMemberBehavior::Disallow:
 		{
-			UE_LOG(LogCompile, Error, TEXT("%s usage in member declaration detected in '%s', line %d [[%s]]"), PointerTypeDesc, *Filename, InputLine, *PointerTypeDecl);
+			LogError(TEXT("%s usage in member declaration detected in '%s', line %d [[%s]]"), PointerTypeDesc, *Filename, InputLine, *PointerTypeDecl);
 		}
 		break;
 		case EPointerMemberBehavior::AllowAndLog:
