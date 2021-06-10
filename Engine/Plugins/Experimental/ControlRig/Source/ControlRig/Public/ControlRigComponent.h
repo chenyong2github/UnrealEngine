@@ -182,6 +182,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = ControlRig, meta = (DisallowCreateNew))
 	TSubclassOf<UControlRig> ControlRigClass;
 
+	/** Event fired just before this component's ControlRig is initialized */
+	UPROPERTY(BlueprintAssignable, Category = "ControlRig", meta = (DisplayName = "On Pre Initialize"))
+	FControlRigComponentDelegate OnPreInitializeDelegate;
+
 	/** Event fired after this component's ControlRig is initialized */
 	UPROPERTY(BlueprintAssignable, Category = "ControlRig", meta = (DisplayName = "On Post Initialize"))
 	FControlRigComponentDelegate OnPostInitializeDelegate;
@@ -232,6 +236,9 @@ public:
 	/** Get the ControlRig's local time in seconds since its last initialize */
 	UFUNCTION(BlueprintPure, Category = "ControlRig")
 	float GetAbsoluteTime() const;
+
+	UFUNCTION(BlueprintNativeEvent, Category = "ControlRig", CallInEditor)
+	void OnPreInitialize(UControlRigComponent* Component);
 
 	UFUNCTION(BlueprintNativeEvent, Category = "ControlRig", CallInEditor)
 	void OnPostInitialize(UControlRigComponent* Component);
@@ -627,6 +634,7 @@ private:
 	TMap<USkeletalMeshComponent*, FCachedSkeletalMeshComponentSettings> CachedSkeletalMeshComponentSettings;
 
 	FControlRigComponentEvent ControlRigCreatedEvent;
+	bool bIsInsideInitializeBracket;
 
 	friend class FControlRigSceneProxy;
 };
