@@ -1574,6 +1574,19 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 {
 	// Objects modified should have run through the preobjectmodified. If interesting, they will be cached
 	TRACE_CPUPROFILER_EVENT_SCOPE(URemoteControlPreset::OnObjectPropertyChanged);
+
+	if (Event.Property == nullptr && Event.MemberProperty == nullptr)
+	{
+		// When no property is passed to ObObjectPropertyChanged (such as by LevelSnapshot->Restore()), let's assume they all changed since we don't have more context.
+		for (TSharedPtr<FRemoteControlProperty> Property : Registry->GetExposedEntities<FRemoteControlProperty>())
+		{
+			if (Property->GetBoundObjects().Contains(Object))
+			{
+				PerFrameModifiedProperties.Add(Property->GetId());
+			}
+		}
+	}
+	
 	for (auto Iter = PreObjectsModifiedCache.CreateIterator(); Iter; ++Iter)
 	{
 		FGuid& PropertyId = Iter.Key();
