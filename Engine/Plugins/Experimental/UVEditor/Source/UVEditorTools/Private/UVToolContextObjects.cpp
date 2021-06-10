@@ -2,7 +2,8 @@
 
 #include "UVToolContextObjects.h"
 
-#include "InputRouter.h"
+#include "InputRouter.h" // Need to define this and UWorld so weak pointers know they are UThings
+#include "Engine/World.h"
 
 using namespace UE::Geometry;
 
