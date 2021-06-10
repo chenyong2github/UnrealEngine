@@ -159,6 +159,11 @@ protected:
 	    UOptimusNodePin* InBeforePin = nullptr
 		);
 
+	// Remove the gi
+	bool RemovePin(
+		UOptimusNodePin* InPin
+		);
+
 	/** Set the pin data type. */
 	// FIXME: Currently not undoable
 	bool SetPinDataType(

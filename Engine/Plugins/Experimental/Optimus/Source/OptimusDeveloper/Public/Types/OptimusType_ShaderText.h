@@ -36,17 +36,10 @@ struct OPTIMUSDEVELOPER_API FOptimusType_ShaderText
 {
 	GENERATED_BODY()
 
-	FString GetSource() const
-	{
-		return ShaderPreamble + TEXT("\n") + ShaderText + TEXT("\n") + ShaderEpilogue;
-	}
-	
+	// 
 	UPROPERTY(VisibleAnywhere, Category=ShaderText)
-	FString ShaderPreamble;
-
+	FString Declarations;
+	
 	UPROPERTY(EditAnywhere, Category=ShaderText)
 	FString ShaderText;
-
-	UPROPERTY(VisibleAnywhere, Category=ShaderText)
-	FString ShaderEpilogue;
 };

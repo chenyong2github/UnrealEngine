@@ -413,6 +413,16 @@ void UOptimusNodePin::AddSubPin(
 }
 
 
+void UOptimusNodePin::ClearSubPins()
+{
+	for (UOptimusNodePin *SubPin: SubPins)
+	{
+		SubPin->Notify(EOptimusGraphNotifyType::PinRemoved);
+	}
+	SubPins.Reset();
+}
+
+
 bool UOptimusNodePin::SetDataType(FOptimusDataTypeRef InDataType)
 {
 	FOptimusDataTypeHandle DataTypeHandle = InDataType.Resolve();
@@ -433,21 +443,7 @@ bool UOptimusNodePin::SetDataType(FOptimusDataTypeRef InDataType)
 		return false;
 	}
 
-	// FIXME: For now we don't support changing data type on pins with sub-pins or into
-	// data types that require expansion if we're a value pin.
-	if (!ensure(SubPins.IsEmpty()))
-	{
-		return false;
-	}
-	if (!ensure(StorageType != EOptimusNodePinStorageType::Value ||
-				!EnumHasAllFlags(DataTypeHandle->TypeFlags, EOptimusDataTypeFlags::ShowElements)))
-	{
-		return false;
-	}
-
 	DataType = InDataType;
-
-	Notify(EOptimusGraphNotifyType::PinTypeChanged);
 
 	return true;
 }
