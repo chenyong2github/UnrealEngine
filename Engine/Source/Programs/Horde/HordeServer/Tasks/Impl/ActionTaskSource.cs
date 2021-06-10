@@ -149,6 +149,7 @@ namespace HordeServer.Tasks.Impl
 					Operation.Done = true;
 				}
 				Operation.Metadata = Any.Pack(Metadata);
+				Operation.Name = Id.ToString();
 
 				return TrySetStatus(Operation);
 			}
