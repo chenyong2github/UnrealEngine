@@ -291,6 +291,8 @@ bool GetVirtualShadowMapIds(
 	return bUseVirtualShadowMaps;
 }
 
+#endif // RHI_RAYTRACING
+
 void RenderLumenHardwareRayTracingDirectLighting(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -307,6 +309,7 @@ void RenderLumenHardwareRayTracingDirectLighting(
 	uint32 ShadowMaskIndex
 )
 {
+#if RHI_RAYTRACING
 	if (ShadowMaskIndex != 0) return;
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
@@ -447,6 +450,7 @@ void RenderLumenHardwareRayTracingDirectLighting(
 			}
 		);
 	}
-}
-
+#else
+	unimplemented();
 #endif // RHI_RAYTRACING
+}
