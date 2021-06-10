@@ -517,7 +517,7 @@ void UNiagaraEmitter::PostLoad()
 			}
 		}
 
-		if (IsSynchronizedWithParent() == false)
+		if (IsSynchronizedWithParent() == false && IsRunningCommandlet())
 		{
 			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
 			Modify();
@@ -1289,8 +1289,13 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 	{
 		if (IsSynchronizedWithParent() == false)
 		{
-			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
+			bool bIsPackageDirty = GetOutermost()->IsDirty();
 			MergeChangesFromParent();
+			if (bIsPackageDirty == false)
+			{
+				// we do not want to dirty the system from the merge on load
+				GetOutermost()->SetDirtyFlag(false);
+			}
 		}
 
 		// Reset scripts if recompile is forced.
