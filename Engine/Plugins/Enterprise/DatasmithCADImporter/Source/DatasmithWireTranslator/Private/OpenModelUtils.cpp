@@ -11,7 +11,6 @@
 #include "AlDagNode.h"
 #include "AlMesh.h"
 #include "AlLayer.h"
-#include "AlPersistentID.h"
 #include "AlTesselate.h"
 #include "MeshAttributes.h"
 #include "MeshDescription.h"
@@ -1599,45 +1598,6 @@ bool OpenModelUtils::IsValidActor(const TSharedPtr< IDatasmithActorElement >& Ac
 	}
 	return false;
 }
-
-
-FString OpenModelUtils::GetPersistentIDString(AlPersistentID* GroupNodeId)
-{
-	if(GroupNodeId == nullptr)
-	{
-		return FString();
-	}
-
-	int IdA, IdB, IdC, IdD;
-	GroupNodeId->id(IdA, IdB, IdC, IdD);
-	FString ThisGroupNodeID = FString::FromInt(IdA) + FString::FromInt(IdB) + FString::FromInt(IdC) + FString::FromInt(IdD);
-	return ThisGroupNodeID;
-}
-
-uint32 OpenModelUtils::GetUUIDFromAIPersistentID(AlPersistentID* GroupNodeId)
-{
-	FString ThisGroupNodeID = GetPersistentIDString(GroupNodeId);
-	return GetTypeHash(*ThisGroupNodeID);
-}
-
-uint32 OpenModelUtils::GetUUIDFromAIPersistentID(AlDagNode& GroupNode)
-{
-	AlPersistentID* ShellNodeId = new AlPersistentID();
-	if (GroupNode.hasPersistentID() == sSuccess)
-	{
-		GroupNode.persistentID(ShellNodeId);
-		return OpenModelUtils::GetUUIDFromAIPersistentID(ShellNodeId);
-	}
-	return 0;
-}
-
-FString OpenModelUtils::GetUEUUIDFromAIPersistentID(const FString& ParentUEuuid, const FString& CurrentNodePersistentID)
-{
-	// Limit length of UUID by combining hash of parent UUID and container's UUID if ParentUuid is not empty
-	return FString::Printf(TEXT("0x%08x"), HashCombine(GetTypeHash(ParentUEuuid), GetTypeHash(CurrentNodePersistentID)));
-}
-
-
 
 bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& MeshParameters, bool& bHasNormal, bool bMerge)
 {
