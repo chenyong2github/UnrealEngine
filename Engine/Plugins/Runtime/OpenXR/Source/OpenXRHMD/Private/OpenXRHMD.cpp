@@ -2390,6 +2390,9 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHIC
 		FTransform NewRelativePoseTransform = EyePose * NewRelativeTransform;
 		NewRelativePoseTransform.NormalizeRotation();
 		Projection.pose = ToXrPose(NewRelativePoseTransform, GetWorldToMetersScale());
+
+		// Update the field-of-view to match the final projection matrix
+		Projection.fov = View.fov;
 	}
 
 	RHICmdList.EnqueueLambda([this, ProjectionLayers = PipelinedLayerStateRendering.ProjectionLayers](FRHICommandListImmediate& InRHICmdList)
