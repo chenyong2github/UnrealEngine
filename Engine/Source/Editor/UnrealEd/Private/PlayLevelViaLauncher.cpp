@@ -21,6 +21,7 @@
 #include "DesktopPlatformModule.h"
 #include "PlatformInfo.h"
 #include "Framework/Docking/TabManager.h"
+#include "Editor/EditorPerProjectUserSettings.h"
 
 #define LOCTEXT_NAMESPACE "PlayLevel"
 
@@ -268,6 +269,12 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	LauncherProfile->SetIncrementalDeploying(bIncrimentalCooking);
 	LauncherProfile->SetEditorExe(FUnrealEdMisc::Get().GetExecutableForCommandlets());
 	LauncherProfile->SetShouldUpdateDeviceFlash(InRequestParams.LauncherTargetDevice->bUpdateDeviceFlash);
+	
+	if (LauncherProfile->IsBuildingUAT() && !GetDefault<UEditorPerProjectUserSettings>()->bAlwaysBuildUAT && bUATSuccessfullyCompiledOnce)
+	{
+		// UAT was built on a first launch and there's no need to rebuild it any more
+		LauncherProfile->SetBuildUAT(false);
+	}
 
 	const FString DummyIOSDeviceName(FString::Printf(TEXT("All_iOS_On_%s"), FPlatformProcess::ComputerName()));
 	const FString DummyTVOSDeviceName(FString::Printf(TEXT("All_tvOS_On_%s"), FPlatformProcess::ComputerName()));
@@ -636,6 +643,8 @@ void UEditorEngine::HandleLaunchCompleted(bool Succeeded, double TotalTime, int3
 		FEditorAnalytics::ReportEvent(TEXT( "Editor.LaunchOn.Completed" ), LastPlayUsingLauncherDeviceId.Left(LastPlayUsingLauncherDeviceId.Find(TEXT("@"))), bHasCode, ParamArray);
 
 		UE_LOG(LogPlayLevel, Log, TEXT("Launch On Completed. Time: %f"), TotalTime);
+
+		bUATSuccessfullyCompiledOnce = true;
 	}
 	else
 	{

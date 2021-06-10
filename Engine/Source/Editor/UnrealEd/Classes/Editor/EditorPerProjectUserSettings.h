@@ -113,6 +113,10 @@ class UEditorPerProjectUserSettings : public UObject
 	UPROPERTY(EditAnywhere, config, Category = UnrealAutomationTool)
 	bool bGetAttentionOnUATCompletion;
 
+	/** Always build UAT\UBT before launching the game. It will decrease iteration times if disabled */
+	UPROPERTY(EditAnywhere, config, Category = UnrealAutomationTool)
+	bool bAlwaysBuildUAT = true;
+
 	/** How fast the SCS viewport camera moves */
 	UPROPERTY(config, meta=(UIMin = "1", UIMax = "8", ClampMin="1", ClampMax="8"))
 	int32 SCSViewportCameraSpeed;
