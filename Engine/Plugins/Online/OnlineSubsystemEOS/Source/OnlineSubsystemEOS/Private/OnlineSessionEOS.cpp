@@ -3282,7 +3282,7 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	FString Keyword;
 	Session->SessionSettings.Get(SEARCH_KEYWORDS, Keyword);
 	FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
-	FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), Keyword);
+	FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
 	AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
 
 	// Now the session settings

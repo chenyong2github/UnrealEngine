@@ -305,6 +305,7 @@ bool FOnlineSessionEOSPlus::CreateSession(int32 HostingPlayerNum, FName SessionN
 		OnCreateSessionCompleteDelegateHandleEOS = EOSSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
 			FOnCreateSessionCompleteDelegate::CreateLambda([this, HostingPlayerNum](FName SessionName, bool bWasSuccessful)
 		{
+#if CREATE_MIRROR_PLATFORM_SESSION
 			if (bWasSuccessful)
 			{
 				// We need the session settings & session id from EOS
@@ -320,6 +321,7 @@ bool FOnlineSessionEOSPlus::CreateSession(int32 HostingPlayerNum, FName SessionN
 				}
 				bWasSuccessful = false;
 			}
+#endif
 
 			OnCreateSessionComplete(SessionName, bWasSuccessful);
 
@@ -347,6 +349,7 @@ bool FOnlineSessionEOSPlus::CreateSession(const FUniqueNetId& HostingPlayerId, F
 		OnCreateSessionCompleteDelegateHandleEOS = EOSSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
 			FOnCreateSessionCompleteDelegate::CreateLambda([this, HostingPlayerIdStr](FName SessionName, bool bWasSuccessful)
 				{
+#if CREATE_MIRROR_PLATFORM_SESSION
 					if (bWasSuccessful)
 					{
 						// We need the session settings & session id from EOS
@@ -365,7 +368,8 @@ bool FOnlineSessionEOSPlus::CreateSession(const FUniqueNetId& HostingPlayerId, F
 
 						bWasSuccessful = false;
 					}
-					
+#endif
+
 					OnCreateSessionComplete(SessionName, bWasSuccessful);
 
 					EOSSessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegateHandleEOS);
