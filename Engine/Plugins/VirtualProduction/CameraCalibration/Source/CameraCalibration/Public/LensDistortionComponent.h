@@ -86,7 +86,7 @@ protected:
 	FLensFilePicker LensFilePicker;
 
 	/** Whether to scale the computed overscan by the overscan percentage */
-	UPROPERTY(AdvancedDisplay, BlueprintReadWrite, Category = "Default", meta = (InlineEditConditionToggle))
+	UPROPERTY(AdvancedDisplay, BlueprintReadWrite, Category = "Default")
 	bool bScaleOverscan = false;
 
 	/** The percentage of the computed overscan that should be applied to the target camera */

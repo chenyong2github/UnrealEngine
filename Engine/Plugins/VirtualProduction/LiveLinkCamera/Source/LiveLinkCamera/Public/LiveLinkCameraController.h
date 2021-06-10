@@ -122,7 +122,7 @@ public:
 	bool bApplyNodalOffset = true;
 
 	/** Whether to scale the computed overscan by the overscan percentage */
-	UPROPERTY(BlueprintReadWrite, Category = "Camera Calibration", meta = (InlineEditConditionToggle))
+	UPROPERTY(BlueprintReadWrite, Category = "Camera Calibration")
 	bool bScaleOverscan = false;
 
 	/** The percentage of the computed overscan that should be applied to the target camera */

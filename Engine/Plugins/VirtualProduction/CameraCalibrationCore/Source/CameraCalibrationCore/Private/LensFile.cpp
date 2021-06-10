@@ -432,7 +432,7 @@ bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, FVector2D In
 		//Only other mode for now
 		check(DataMode == ELensDataMode::STMap);
 
-		return EvaluteDistortionForSTMaps(InFocus, InZoom, InFilmback, InLensHandler);
+		return EvaluateDistortionForSTMaps(InFocus, InZoom, InFilmback, InLensHandler);
 	}
 }
 
@@ -697,9 +697,9 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 	return true;
 }
 
-bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler) const
+bool ULensFile::EvaluateDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluteDistortionForSTMaps);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluateDistortionForSTMaps);
 
 	if(DerivedDataInFlightCount > 0)
 	{
