@@ -601,11 +601,13 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 				else
 				{
 					// Update bounds
-					PrimitiveGroup.WorldSpaceBoundingBox.Init();
+					FBox WorldSpaceBoundingBox;
+					WorldSpaceBoundingBox.Init();
 					for (const FPrimitiveSceneInfo* Primitive : PrimitiveGroup.Primitives)
 					{
-						PrimitiveGroup.WorldSpaceBoundingBox += Primitive->Proxy->GetBounds().GetBox();
+						WorldSpaceBoundingBox += Primitive->Proxy->GetBounds().GetBox();
 					}
+					PrimitiveGroup.WorldSpaceBoundingBox = WorldSpaceBoundingBox;
 				}
 			}
 
@@ -678,11 +680,13 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 
-						PrimitiveGroup.WorldSpaceBoundingBox.Init();
+						FBox WorldSpaceBoundingBox;
+						WorldSpaceBoundingBox.Init();
 						for (const FPrimitiveSceneInfo* PrimitiveInfoInGroup : PrimitiveGroup.Primitives)
 						{
-							PrimitiveGroup.WorldSpaceBoundingBox += PrimitiveInfoInGroup->Proxy->GetBounds().GetBox();
+							WorldSpaceBoundingBox += PrimitiveInfoInGroup->Proxy->GetBounds().GetBox();
 						}
+						PrimitiveGroup.WorldSpaceBoundingBox = WorldSpaceBoundingBox;
 					}
 					else
 					{

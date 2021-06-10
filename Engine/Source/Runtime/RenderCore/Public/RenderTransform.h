@@ -309,6 +309,19 @@ public:
 	RENDERCORE_API FRenderBounds TransformBy(const FRenderTransform& T) const;
 
 	/**
+	 * Computes a squared distance to point
+	 *
+	 * @param Point Point
+	 * @return Squared distance to specified point
+	 */
+	FORCEINLINE float ComputeSquaredDistanceToPoint(const FVector3f& Point) const
+	{
+		FVector3f AxisDistances = (Point - GetCenter()) - GetExtent();
+		AxisDistances = FVector3f::Max(AxisDistances, FVector3f(0.0f, 0.0f, 0.0f));
+		return AxisDistances | AxisDistances;
+	}
+
+	/**
 	 * Serializes the render bounds.
 	 *
 	 * @param Ar Reference to the serialization archive.

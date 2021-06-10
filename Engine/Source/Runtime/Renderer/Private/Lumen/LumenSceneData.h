@@ -204,15 +204,14 @@ public:
 class FLumenPrimitiveGroup
 {
 public:
-	FBox WorldSpaceBoundingBox;
-
-	Experimental::FHashElementId RayTracingGroupMapElementId;
-
 	TArray<FPrimitiveSceneInfo*, TInlineAllocator<1>> Primitives;
 	int32 PrimitiveInstanceIndex = -1;
-
-	float CardResolutionScale = 1.0f;
 	int32 MeshCardsIndex = -1;
+
+	FRenderBounds WorldSpaceBoundingBox;
+	Experimental::FHashElementId RayTracingGroupMapElementId;
+	float CardResolutionScale = 1.0f;
+
 	bool bValidMeshCards = false;
 
 	bool HasMergedInstances() const;
