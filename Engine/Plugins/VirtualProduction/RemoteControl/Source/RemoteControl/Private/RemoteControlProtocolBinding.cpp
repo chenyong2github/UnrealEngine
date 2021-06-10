@@ -129,14 +129,11 @@ namespace EntityInterpolation
 				RangeMin.Range = &Range.Range;
 				RangeMin.Mapping = &Range.Mapping;
 			}
-
-			if (ClampProtocolValue <= Range.Range)
+			else if (ClampProtocolValue <= Range.Range)
 			{
-				auto& LastItem = ValueMap[FMath::Min(ValueMap.Num() - 1, RangeIdx + 1)];
-
-				RangeMax.Range = &LastItem.Range;
-				RangeMax.Mapping = &LastItem.Mapping;
-
+				RangeMax.Range = &Range.Range;
+				RangeMax.Mapping = &Range.Mapping;
+				// Max found, no need to continue
 				break;
 			}
 		}
