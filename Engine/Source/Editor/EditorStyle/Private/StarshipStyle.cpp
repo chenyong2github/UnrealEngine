@@ -5344,6 +5344,7 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 	//Blueprint Diff
 	{
+		Set("BlueprintDiff.ToolbarIcon", new IMAGE_BRUSH_SVG("Starship/Blueprints/BlueprintDiff", Icon16x16));
 		Set("BlueprintDif.HasGraph", new IMAGE_BRUSH_SVG("Starship/Blueprints/blueprint_Dif_has_graph", Icon10x10));
 		Set("BlueprintDif.MissingGraph", new IMAGE_BRUSH_SVG("Starship/Blueprints/blueprint_Dif_missing_graph", Icon8x8));
 		Set("BlueprintDif.NextDiff", new IMAGE_BRUSH_SVG("/Starship/Blueprints/diff_next", Icon16x16));

@@ -540,7 +540,12 @@ void FMainMenu::RegisterExitMenuItems()
 
 void FMainMenu::RegisterNomadMainMenu()
 {
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.NomadMainMenu", "MainFrame.MainMenu");
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	static const FName NomadMainMenuName("MainFrame.NomadMainMenu");
+	if (!ToolMenus->IsMenuRegistered(NomadMainMenuName))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(NomadMainMenuName, "MainFrame.MainMenu");
+	}
 }
 
 
