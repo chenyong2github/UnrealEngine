@@ -25,7 +25,8 @@ public:
 	virtual void ShutdownModule() override;
 
 	TSharedPtr<IDetailsView> SettingsView;
-	TSharedRef<SDockTab> SpawnSettingsTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnSettingsTab(const FSpawnTabArgs& Args);	
+	void UpdateSettingsTab();
 	void RegisterTabSpawner();
 	void OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType);
 

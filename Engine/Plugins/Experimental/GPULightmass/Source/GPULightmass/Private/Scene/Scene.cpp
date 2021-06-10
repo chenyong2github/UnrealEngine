@@ -1736,6 +1736,7 @@ void FScene::BackgroundTick()
 	else
 	{
 		ApplyFinishedLightmapsToWorld();
+		GPULightmass->World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().Broadcast();
 	}
 }
 

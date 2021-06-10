@@ -156,6 +156,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = GPULightmass)
 	void Save();
 
+	/* Accessor for the delegate called when the light build finishes successfully or is cancelled */
+	FSimpleMulticastDelegate& OnLightBuildEnded()
+	{
+		return LightBuildEnded;
+	}
+
 private:
 	AGPULightmassSettingsActor* GetSettingsActor();
+
+private:
+	/* Called when the light build finishes successfully or is cancelled */
+	FSimpleMulticastDelegate LightBuildEnded;
 };
