@@ -69,11 +69,11 @@ namespace CoreTechSurface
 		if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Available)
 		{
 			// Store CoreTech additional data if provided
-			const TCHAR* CoretechFile = InMeshElement->GetFile();
-			if (FPaths::FileExists(CoretechFile))
+			FString CoretechFile = InMeshElement->GetFile(); 
+			if (FPaths::FileExists(*CoretechFile))
 			{
 				TArray<uint8> ByteArray;
-				if (FFileHelper::LoadFileToArray(ByteArray, CoretechFile))
+				if (FFileHelper::LoadFileToArray(ByteArray, *CoretechFile))
 				{
 					UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
 					CoreTechData->SourceFile = CoretechFile;

@@ -66,3 +66,9 @@ void FSession::LoadDatabase(const TCHAR* FilePath)
 	}
 	Archive->Close();
 }
+
+void FSession::AddDatabase(const TArray<uint8>& InRawData)
+{
+	FCADKernelArchive Archive = FCADKernelArchive(*this, InRawData);
+	Database.Deserialize(Archive);
+}

@@ -4,6 +4,7 @@
 
 #include "DatasmithUtils.h"
 #include "Math/Vector.h"
+#include "Misc/Paths.h"
 #include "Templates/TypeHash.h"
 
 namespace CADLibrary
@@ -78,6 +79,19 @@ namespace CADLibrary
 			return Ar;
 		}
 
+		FString DefineCADFilePath(const TCHAR* FolderPath, const TCHAR* InFileName) const
+		{
+			FString OutFileName = FPaths::Combine(FolderPath, InFileName);
+			if (bEnableKernelIOTessellation)
+			{
+				OutFileName += TEXT(".ct");
+			}
+			else
+			{
+				OutFileName += TEXT(".ugeom");
+			}
+			return OutFileName;
+		}
 	};
 
 	struct FMeshParameters

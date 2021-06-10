@@ -3189,8 +3189,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 
 		LocalSession->AddBRep(*Brep, Offset);
 
-		FString Filename = FString::Printf(TEXT("%s.ct"), *Name);
-		FString FilePath = FPaths::Combine(OutputPath, Filename);
+		FString FilePath = LocalSession->GetImportParameters().DefineCADFilePath(*OutputPath, *Name);
 		if (LocalSession->SaveBrep(FilePath))
 		{
 			MeshElement->SetFile(*FilePath);

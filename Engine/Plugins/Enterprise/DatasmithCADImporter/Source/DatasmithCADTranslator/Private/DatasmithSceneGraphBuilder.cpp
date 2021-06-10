@@ -168,9 +168,8 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithSceneGraphBuilder::FindOrAddMeshElem
 {
 	if (TSharedPtr<IDatasmithMeshElement> MeshElement = FDatasmithSceneBaseGraphBuilder::FindOrAddMeshElement(Body, InLabel))
 	{
-		FString BodyFile = FString::Printf(TEXT("UEx%08x"), Body.MeshActorName);
-		MeshElement->SetFile(*FPaths::Combine(CachePath, TEXT("body"), BodyFile + TEXT(".ct")));
-
+		FString BodyFile = ImportParameters.DefineCADFilePath(*FPaths::Combine(CachePath, TEXT("body")), *FString::Printf(TEXT("UEx%08x"), Body.MeshActorName));
+		MeshElement->SetFile(*BodyFile);
 		return MeshElement;
 	}
 
@@ -565,17 +564,6 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithSceneBaseGraphBuilder::FindOrAddMe
 	FMD5Hash Hash;
 	Hash.Set(MD5);
 	MeshElement->SetFileHash(Hash);
-
-	MeshElement->SetFile(*(ShellUuidName + TEXT(".ct")));
-
-
-	// TODO: Set bounding box 
-	//float BoundingBox[6];
-	//FString Buffer = GetStringAttribute(GeomID, TEXT("UE_MESH_BBOX"));
-	//if (FString::ToHexBlob(Buffer, (uint8*)BoundingBox, sizeof(BoundingBox)))
-	//{
-	//	MeshElement->SetDimensions(BoundingBox[3] - BoundingBox[0], BoundingBox[4] - BoundingBox[1], BoundingBox[5] - BoundingBox[2], 0.0f);
-	//}
 
 	// Currently we assume that face has only colors
 	TSet<uint32>& MaterialSet = Body.ColorFaceSet;

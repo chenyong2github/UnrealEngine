@@ -74,10 +74,16 @@ namespace CADKernel
 		}
 
 		/**
-		 * load and add a database in the current session database
+		 * Load and add a database in the current session database
 		 * Entity ID is set for all loaded entities
 		 */
 		void LoadDatabase(const TCHAR* FilePath);
+
+		/**
+		 * Add a database defined by a RawData in the current session database
+		 * Entity ID is set for all loaded entities
+		 */
+		void AddDatabase(const TArray<uint8>& InRawData);
 
 		void Clear()
 		{

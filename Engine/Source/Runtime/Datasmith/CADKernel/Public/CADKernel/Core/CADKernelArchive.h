@@ -6,6 +6,7 @@
 
 #include "HAL/FileManager.h"
 #include "Serialization/Archive.h"
+#include "Serialization/MemoryReader.h"
 
 namespace CADKernel
 {
@@ -16,12 +17,23 @@ namespace CADKernel
 	class FCADKernelArchive
 	{
 	public:
+		TUniquePtr<FMemoryReader> MemoryReader;
 		FArchive& Archive;
 		FSession& Session;
 		FModel* ArchiveModel = nullptr;
 
 		FCADKernelArchive(FSession& InSession, FArchive& InArchive)
 			: Archive(InArchive)
+			, Session(InSession)
+		{
+		}
+
+		/**
+		 * Archive reader constructor
+		 */
+		FCADKernelArchive(FSession& InSession, const TArray<uint8>& InRawData)
+			: MemoryReader(MakeUnique<FMemoryReader>(InRawData, true))
+			, Archive(*MemoryReader)
 			, Session(InSession)
 		{
 		}

@@ -18,9 +18,6 @@ class CADKERNELSURFACE_API UCADKernelParametricSurfaceData : public UParametricS
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
-	FString SourceFile;
-
 	// Too costly to serialize as a UPROPERTY, will use custom serialization.
 	TArray<uint8> RawData;
 
