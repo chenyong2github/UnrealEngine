@@ -43,18 +43,25 @@ UOctreeDynamicMeshComponent::UOctreeDynamicMeshComponent(const FObjectInitialize
 
 	SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 
-	InitializeNewMesh();
+	MeshObject = CreateDefaultSubobject<UDynamicMesh>(TEXT("DynamicMesh"));
+	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &UOctreeDynamicMeshComponent::OnMeshObjectChanged);
+	PreMeshChangeHandle = MeshObject->OnPreMeshChanged().AddUObject(this, &UOctreeDynamicMeshComponent::OnPreMeshObjectChanged);
+	
+
+	Octree = MakeUnique<FDynamicMeshOctree3>();
+	Octree->Initialize(GetMesh());
+	OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
 }
 
 
 
-void UOctreeDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescription)
+void UOctreeDynamicMeshComponent::InitializeMesh(const FMeshDescription* MeshDescription)
 {
 	FMeshDescriptionToDynamicMesh Converter;
-	Mesh->Clear();
-	Converter.Convert(MeshDescription, *Mesh);
+	GetMesh()->Clear();
+	Converter.Convert(MeshDescription, *GetMesh());
 
-	FAxisAlignedBox3d MeshBounds = Mesh->GetCachedBounds();
+	FAxisAlignedBox3d MeshBounds = GetMesh()->GetCachedBounds();
 	Octree = MakeUnique<FDynamicMeshOctree3>();
 	Octree->RootDimension = MeshBounds.MaxDim() * 0.25;
 
@@ -65,31 +72,9 @@ void UOctreeDynamicMeshComponent::InitializeMesh(FMeshDescription* MeshDescripti
 	//UE_LOG(LogTemp, Warning, TEXT("OctreeStats %s"), *Stats.ToString());
 
 	OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
+	CutCellSetMap.Reset();
 
 	NotifyMeshUpdated();
-}
-
-
-TUniquePtr<FDynamicMesh3> UOctreeDynamicMeshComponent::ExtractMesh(bool bNotifyUpdate)
-{
-	TUniquePtr<FDynamicMesh3> CurMesh = MoveTemp(Mesh);
-	InitializeNewMesh();
-	if (bNotifyUpdate)
-	{
-		NotifyMeshUpdated();
-	}
-	return CurMesh;
-}
-
-
-void UOctreeDynamicMeshComponent::InitializeNewMesh()
-{
-	Mesh = MakeUnique<FDynamicMesh3>();
-	// discard any attributes/etc initialized by default
-	Mesh->Clear();
-	Octree = MakeUnique<FDynamicMeshOctree3>();
-	Octree->Initialize(GetMesh());
-	OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
 }
 
 
@@ -114,11 +99,12 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3
 	}
 	else
 	{
-		FAxisAlignedBox3d MeshBounds = Mesh->GetCachedBounds();
+		FAxisAlignedBox3d MeshBounds = GetMesh()->GetCachedBounds();
 		Octree = MakeUnique<FDynamicMeshOctree3>();
 		Octree->RootDimension = MeshBounds.MaxDim() * 0.25;
 		Octree->Initialize(GetMesh());
 		OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
+		CutCellSetMap.Reset();
 	}
 
 }
@@ -127,13 +113,13 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3
 void UOctreeDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
 {
 	FDynamicMeshToMeshDescription Converter(ConversionOptions);
-	if (bHaveModifiedTopology == false && Converter.HaveMatchingElementCounts(Mesh.Get(), MeshDescription))
+	if (bHaveModifiedTopology == false && Converter.HaveMatchingElementCounts(GetMesh(), MeshDescription))
 	{
-		Converter.Update(Mesh.Get(), *MeshDescription);
+		Converter.Update(GetMesh(), *MeshDescription);
 	}
 	else
 	{
-		Converter.Convert(Mesh.Get(), *MeshDescription);
+		Converter.Convert(GetMesh(), *MeshDescription);
 
 		//UE_LOG(LogTemp, Warning, TEXT("MeshDescription has %d instances"), MeshDescription->VertexInstances().Num());
 	}
@@ -265,7 +251,7 @@ FPrimitiveSceneProxy* UOctreeDynamicMeshComponent::CreateSceneProxy()
 	check(GetCurrentSceneProxy() == nullptr);
 
 	FOctreeDynamicMeshSceneProxy* NewProxy = nullptr;
-	if (Mesh->TriangleCount() > 0)
+	if (GetMesh()->TriangleCount() > 0)
 	{
 		NewProxy = new FOctreeDynamicMeshSceneProxy(this);
 
@@ -275,15 +261,14 @@ FPrimitiveSceneProxy* UOctreeDynamicMeshComponent::CreateSceneProxy()
 			NewProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* MeshIn, int TriangleID) { return GetTriangleColor(TriangleID); };
 		}
 
-
 		OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
-		InitializeOctreeCutSet(*Mesh, *Octree, OctreeCut);
+		CutCellSetMap.Reset();
+		InitializeOctreeCutSet(*GetMesh(), *Octree, OctreeCut);
 
 		TriangleDecomposition = FArrayIndexSetsDecomposition();
 
 		SpillDecompSetID = TriangleDecomposition.CreateNewIndexSet();
 
-		CutCellSetMap.Reset();
 		for (auto CellRef : OctreeCut->CutCells)
 		{
 			int32 IndexSetID = TriangleDecomposition.CreateNewIndexSet();
@@ -331,7 +316,7 @@ FColor UOctreeDynamicMeshComponent::GetTriangleColor(int TriangleID)
 {
 	if (TriangleColorFunc != nullptr)
 	{
-		return TriangleColorFunc(Mesh.Get(), TriangleID);
+		return TriangleColorFunc(GetMesh(), TriangleID);
 	}
 	else
 	{
@@ -345,7 +330,7 @@ FBoxSphereBounds UOctreeDynamicMeshComponent::CalcBounds(const FTransform& Local
 {
 	// Bounds are tighter if the box is generated from transformed vertices.
 	FBox BoundingBox(ForceInit);
-	for ( FVector3d Vertex : Mesh->VerticesItr() ) 
+	for ( FVector3d Vertex : GetMesh()->VerticesItr() ) 
 	{
 		BoundingBox += LocalToWorld.TransformPosition((FVector)Vertex);
 	}
@@ -356,7 +341,15 @@ FBoxSphereBounds UOctreeDynamicMeshComponent::CalcBounds(const FTransform& Local
 
 void UOctreeDynamicMeshComponent::ApplyChange(const FMeshVertexChange* Change, bool bRevert)
 {
+	// This function is not currently used in the codebase, and needs to be restructured
+	// to work properly with passing the change down to the UDynamicMesh
+	check(false);
+
+/*
 	Octree->ResetModifiedBounds();
+
+	const FDynamicMesh3* Mesh = GetMesh();
+
 	TSet<int> TrianglesToUpdate;
 	auto NotifyTriVerticesAffected = [&](int32 vid) 
 	{
@@ -401,6 +394,7 @@ void UOctreeDynamicMeshComponent::ApplyChange(const FMeshVertexChange* Change, b
 	//NotifyMeshUpdated();
 
 	OnMeshChanged.Broadcast();
+*/
 }
 
 
@@ -408,17 +402,7 @@ void UOctreeDynamicMeshComponent::ApplyChange(const FMeshVertexChange* Change, b
 
 void UOctreeDynamicMeshComponent::ApplyChange(const FMeshChange* Change, bool bRevert)
 {
-	TArray<int> RemoveTriangles, AddTriangles;
-	bool bRemoveOld = ! bRevert;
-	Change->DynamicMeshChange->GetSavedTriangleList(RemoveTriangles, bRemoveOld);
-	Change->DynamicMeshChange->GetSavedTriangleList(AddTriangles, !bRemoveOld);
-
-	Octree->ResetModifiedBounds();
-	Octree->RemoveTriangles(RemoveTriangles);
-
-	Change->DynamicMeshChange->Apply(Mesh.Get(), bRevert);
-
-	Octree->InsertTriangles(AddTriangles);
+	MeshObject->ApplyChange(Change, bRevert);
 
 	//NotifyMeshUpdated();
 
@@ -429,15 +413,72 @@ void UOctreeDynamicMeshComponent::ApplyChange(const FMeshChange* Change, bool bR
 void UOctreeDynamicMeshComponent::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)
 {
 	// full clear and reset
-	Mesh->Clear();
-	Mesh->Copy(*Change->GetMesh(bRevert));
+	MeshObject->ApplyChange(Change, bRevert);
+
 	Octree = MakeUnique<FDynamicMeshOctree3>();
 	Octree->Initialize(GetMesh());
 	
 	OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
+	CutCellSetMap.Reset();
 
 	// need to force proxy recreation because we changed the Octree pointer...
 	MarkRenderStateDirty();
 
+	OnMeshChanged.Broadcast();
+}
+
+
+void UOctreeDynamicMeshComponent::OnPreMeshObjectChanged(UDynamicMesh* ChangedMeshObject, FDynamicMeshChangeInfo ChangeInfo)
+{
+	TArray<int> RemoveTriangles;
+	if (ChangeInfo.Type == EDynamicMeshChangeType::MeshChange && ensure(ChangeInfo.MeshChange != nullptr))
+	{
+		ChangeInfo.MeshChange->DynamicMeshChange->GetSavedTriangleList(RemoveTriangles, !ChangeInfo.bIsRevertChange);
+	}
+	if (RemoveTriangles.Num() > 0)
+	{
+		Octree->ResetModifiedBounds();
+		Octree->RemoveTriangles(RemoveTriangles);
+	}
+}
+
+
+void UOctreeDynamicMeshComponent::OnMeshObjectChanged(UDynamicMesh* ChangedMeshObject, FDynamicMeshChangeInfo ChangeInfo)
+{
+	if (ChangeInfo.Type == EDynamicMeshChangeType::MeshChange && ensure(ChangeInfo.MeshChange != nullptr))
+	{
+		TArray<int> AddTriangles;
+		ChangeInfo.MeshChange->DynamicMeshChange->GetSavedTriangleList(AddTriangles, ChangeInfo.bIsRevertChange);
+		Octree->InsertTriangles(AddTriangles);
+	}
+
+	NotifyMeshUpdated();
+	OnMeshChanged.Broadcast();
+}
+
+
+void UOctreeDynamicMeshComponent::SetDynamicMesh(UDynamicMesh* NewMesh)
+{
+	if (ensure(NewMesh) == false)
+	{
+		return;
+	}
+
+	if (ensure(MeshObject))
+	{
+		MeshObject->OnMeshChanged().Remove(MeshObjectChangedHandle);
+		MeshObject->OnPreMeshChanged().Remove(PreMeshChangeHandle);
+	}
+
+	MeshObject = NewMesh;
+	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &UOctreeDynamicMeshComponent::OnMeshObjectChanged);
+	PreMeshChangeHandle = MeshObject->OnPreMeshChanged().AddUObject(this, &UOctreeDynamicMeshComponent::OnPreMeshObjectChanged);
+
+	Octree = MakeUnique<FDynamicMeshOctree3>();
+	Octree->Initialize(GetMesh());
+	OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
+	CutCellSetMap.Reset();
+
+	NotifyMeshUpdated();
 	OnMeshChanged.Broadcast();
 }

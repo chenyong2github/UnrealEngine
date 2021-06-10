@@ -102,7 +102,7 @@ void UMeshGroupPaintTool::Setup()
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
-	DynamicMeshComponent->bInvalidateProxyOnChange = false;
+	DynamicMeshComponent->SetInvalidateProxyOnChangeEnabled(false);
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshVerticesChanged.AddUObject(this, &UMeshGroupPaintTool::OnDynamicMeshComponentChanged);
 
 	FDynamicMesh3* Mesh = GetSculptMesh();
@@ -223,11 +223,10 @@ void UMeshGroupPaintTool::Setup()
 	MeshElementsDisplay->SetMeshAccessFunction([&](void) { return GetSculptMesh(); });
 
 	// force colors update... ?
-	DynamicMeshComponent->TriangleColorFunc = [this](const FDynamicMesh3* Mesh, int TriangleID)
+	DynamicMeshComponent->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
 	{
 		return GetColorForGroup(ActiveGroupSet->GetGroup(TriangleID));
-	};
-	DynamicMeshComponent->FastNotifyColorsUpdated();
+	});
 
 	// disable view properties
 	SetViewPropertiesEnabled(false);

@@ -809,7 +809,7 @@ public:
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_OctreeDynamicMeshSceneProxy_GetDynamicMeshElements);
 
 		const bool bWireframe = (AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe)
-			|| ParentBaseComponent->EnableWireframeRenderPass();
+			|| ParentBaseComponent->GetEnableWireframeRenderPass();
 
 		// set up wireframe material. Probably bad to reference GEngine here...also this material is very bad?
 		FMaterialRenderProxy* WireframeMaterialProxy = nullptr;

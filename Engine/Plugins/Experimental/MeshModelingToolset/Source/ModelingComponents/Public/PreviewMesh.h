@@ -207,15 +207,15 @@ public:
 	void SetVisible(bool bVisible);
 
 
-	/** Render data update hint */
+	/** Render data update hint (values mirror EDynamicMeshComponentRenderUpdateMode) */
 	enum class ERenderUpdateMode
 	{
 		/** Do not update render data */
-		NoUpdate,	
+		NoUpdate = 0,	
 		/** Invalidate overlay of internal component, rebuilding all render data */
-		FullUpdate,
+		FullUpdate = 1,
 		/** Attempt to do partial update of render data if possible */
-		FastUpdate
+		FastUpdate = 2
 	};
 
 	/**
@@ -430,10 +430,6 @@ public:
 	/** If true, we build a spatial data structure internally for the preview mesh, which allows for hit-testing */
 	UPROPERTY()
 	bool bBuildSpatialDataStructure;
-
-	// results in component drawing w/o z-testing and with editor compositing. Do not recommend using this flag, will be deprecated/removed.
-	UPROPERTY()
-	bool bDrawOnTop;
 
 protected:
 	/** The temporary actor we create internally to own the preview mesh component */

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseDynamicMeshComponent.h"
 #include "MeshConversionOptions.h"
-
+#include "UDynamicMesh.h"
 #include "DynamicMeshOctree3.h"
 #include "Util/IndexSetDecompositions.h"
 
@@ -41,25 +41,20 @@ public:
 	/**
 	 * initialize the internal mesh from a MeshDescription
 	 */
-	virtual void InitializeMesh(FMeshDescription* MeshDescription) override;
+	virtual void InitializeMesh(const FMeshDescription* MeshDescription) override;
 
 	/**
 	 * @return pointer to internal mesh
 	 */
-	virtual FDynamicMesh3* GetMesh() override { return Mesh.Get(); }
+	virtual FDynamicMesh3* GetMesh() override { return MeshObject->GetMeshPtr(); }
 
 	/**
 	 * @return pointer to internal mesh
 	 */
-	virtual const FDynamicMesh3* GetMesh() const override { return Mesh.Get(); }
+	virtual const FDynamicMesh3* GetMesh() const override { return MeshObject->GetMeshPtr(); }
 
 
 	UE::Geometry::FDynamicMeshOctree3* GetOctree() { return Octree.Get(); }
-
-	/**
-	 * @return the current internal mesh, which is replaced with an empty mesh
-	 */
-	TUniquePtr<FDynamicMesh3> ExtractMesh(bool bNotifyUpdate);
 
 	/**
 	 * Write the internal mesh to a MeshDescription
@@ -117,22 +112,6 @@ public:
 	FSimpleMulticastDelegate OnMeshChanged;
 
 	/**
-	 * if true, we always show the wireframe on top of the shaded mesh, even when not in wireframe mode
-	 */
-	UPROPERTY()
-	bool bExplicitShowWireframe = false;
-
-	/**
-	 * Configure whether wireframe rendering is enabled or not
-	 */
-	virtual void SetEnableWireframeRenderPass(bool bEnable) override { bExplicitShowWireframe = bEnable; }
-
-	/**
-	 * @return true if wireframe rendering pass is enabled
-	 */
-	virtual bool EnableWireframeRenderPass() const override { return bExplicitShowWireframe; }
-
-	/**
 	 * If this function is set, we will use these colors instead of vertex colors
 	 */
 	TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc = nullptr;
@@ -156,7 +135,15 @@ private:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ Begin USceneComponent Interface.
 
-	TUniquePtr<FDynamicMesh3> Mesh;
+	UPROPERTY()
+	UDynamicMesh* MeshObject;
+
+	FDelegateHandle MeshObjectChangedHandle;
+	void OnMeshObjectChanged(UDynamicMesh* ChangedMeshObject, FDynamicMeshChangeInfo ChangeInfo);
+
+	FDelegateHandle PreMeshChangeHandle;
+	void OnPreMeshObjectChanged(UDynamicMesh* ChangedMeshObject, FDynamicMeshChangeInfo ChangeInfo);
+
 	TUniquePtr<UE::Geometry::FDynamicMeshOctree3> Octree;
 	TUniquePtr<UE::Geometry::FDynamicMeshOctree3::FTreeCutSet> OctreeCut;
 	UE::Geometry::FArrayIndexSetsDecomposition TriangleDecomposition;
@@ -168,11 +155,16 @@ private:
 	TArray<FCutCellIndexSet> CutCellSetMap;
 	int32 SpillDecompSetID;
 
-	void InitializeNewMesh();
-
-
 
 	FColor GetTriangleColor(int TriangleID);
 
 	//friend class FCustomMeshSceneProxy;
+
+
+public:
+	//UFUNCTION(BlueprintCallable, Category = "DynamicMesh")
+	virtual UDynamicMesh* GetDynamicMesh() override { return MeshObject; }
+
+	UFUNCTION(BlueprintCallable, Category = "DynamicMesh")
+	void SetDynamicMesh(UDynamicMesh* NewMesh);
 };

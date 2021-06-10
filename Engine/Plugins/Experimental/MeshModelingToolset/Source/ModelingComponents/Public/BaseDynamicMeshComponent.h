@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Components/MeshComponent.h"
 #include "InteractiveToolObjects.h"
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
 #include "Changes/MeshReplacementChange.h"
 #include "MeshConversionOptions.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh3.h"		// todo replace with predeclaration (lots of fallout)
+#include "UDynamicMesh.h"
 
 #include "BaseDynamicMeshComponent.generated.h"
 
@@ -19,7 +19,6 @@ struct FMeshDescription;
 class FMeshVertexChange;
 class FMeshChange;
 using UE::Geometry::FDynamicMesh3;
-
 
 /**
  * EMeshRenderAttributeFlags is used to identify different mesh rendering attributes, for things
@@ -56,26 +55,35 @@ enum class EDynamicMeshTangentCalcType : uint8
 
 
 /**
- * UBaseDynamicMeshComponent is a base interface for a UMeshComponent based on a FDynamicMesh.
- * Currently no functionality lives here, only some interface functions are defined that various subclasses implement.
+ * UBaseDynamicMeshComponent is a base interface for a UMeshComponent based on a UDynamicMesh.
  */
-UCLASS(hidecategories = (LOD, Physics, Collision), editinlinenew, ClassGroup = Rendering)
-class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : public UMeshComponent, public IToolFrameworkComponent, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget, public IMeshReplacementCommandChangeTarget
+UCLASS(Abstract, hidecategories = (LOD, Physics, Collision), ClassGroup = Rendering)
+class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : 
+	public UMeshComponent, 
+	public IToolFrameworkComponent, 
+	public IMeshVertexCommandChangeTarget, 
+	public IMeshCommandChangeTarget, 
+	public IMeshReplacementCommandChangeTarget
 {
 	GENERATED_UCLASS_BODY()
 
-public:
 
+	//===============================================================================================================
+	// UBaseDynamicMeshComponent API. Subclasses must implement these functions
+	//
+public:
 	/**
 	 * initialize the internal mesh from a MeshDescription
+	 * @warning avoid usage of this function, access via GetDynamicMesh() instead
 	 */
-	virtual void InitializeMesh(FMeshDescription* MeshDescription)
+	virtual void InitializeMesh(const FMeshDescription* MeshDescription)
 	{
 		unimplemented();
 	}
 
 	/**
 	 * @return pointer to internal mesh
+	 * @warning avoid usage of this function, access via GetDynamicMesh() instead
 	 */
 	virtual FDynamicMesh3* GetMesh()
 	{
@@ -90,6 +98,16 @@ public:
 	{
 		unimplemented();
 		return nullptr;
+	}
+
+	/**
+	 * @return the child UDynamicMesh
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual UDynamicMesh* GetDynamicMesh() 
+	{ 
+		unimplemented();
+		return nullptr; 
 	}
 
 	/**
@@ -125,12 +143,9 @@ public:
 		unimplemented();
 	}
 
-
-	//
-	// Modification support
-	//
-public:
-
+	/**
+	 * Apply a transform to the mesh
+	 */
 	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
 	{
 		unimplemented();
@@ -146,8 +161,6 @@ public:
 		unimplemented();
 	}
 
-
-
 protected:
 	/**
 	 * Subclass must implement this to notify allocated proxies of updated materials
@@ -159,36 +172,56 @@ protected:
 
 
 
+
+	//===============================================================================================================
+	// Built-in Wireframe-on-Shaded Rendering support. The wireframe looks terrible but this is a convenient 
+	// way to enable/disable it.
+	//
 public:
+	/**
+	 * if true, we always show the wireframe on top of the shaded mesh, even when not in wireframe mode
+	 * @todo: this should not be public, access via Set/Get once all usage is cleaned up
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component")
+	bool bExplicitShowWireframe = false;
 
 	/**
 	 * Configure whether wireframe rendering is enabled or not
 	 */
-	virtual void SetEnableWireframeRenderPass(bool bEnable) { check(false); }
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual void SetEnableWireframeRenderPass(bool bEnable) { bExplicitShowWireframe = bEnable; }
 
 	/**
-	 * @return true if wireframe rendering pass is enabled (default false)
+	 * @return true if wireframe rendering pass is enabled
 	 */
-	virtual bool EnableWireframeRenderPass() const { return false; }
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual bool GetEnableWireframeRenderPass() const { return bExplicitShowWireframe; }
 
 
+
+
+
+	//===============================================================================================================
+	// Override rendering material support. If an Override material is set, then it
+	// will be used during drawing of all mesh buffers except Secondary buffers.
 	//
-	// Override rendering material support
-	//
-
+public:
 	/**
 	 * Set an active override render material. This should replace all materials during rendering.
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual void SetOverrideRenderMaterial(UMaterialInterface* Material);
 
 	/**
 	 * Clear any active override render material
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual void ClearOverrideRenderMaterial();
 	
 	/**
 	 * @return true if an override render material is currently enabled for the given MaterialIndex
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual bool HasOverrideRenderMaterial(int k) const
 	{
 		return OverrideRenderMaterial != nullptr;
@@ -197,32 +230,40 @@ public:
 	/**
 	 * @return active override render material for the given MaterialIndex
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual UMaterialInterface* GetOverrideRenderMaterial(int MaterialIndex) const
 	{
 		return OverrideRenderMaterial;
 	}
 
+protected:
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> OverrideRenderMaterial = nullptr;
 
 
 
+
+
+	//===============================================================================================================
+	// Secondary Render Buffers support. This requires implementation in subclasses. It allows
+	// a subset of the mesh triangles to be moved to a separate set of render buffers, which
+	// can then have a separate material (eg to highlight faces), or be shown/hidden independently.
+	// 
 public:
-
-	//
-	// secondary buffer support
-	//
-
 	/**
-	 * Set an active override render material. This should replace all materials during rendering.
+	 * Set an active secondary render material. 
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual void SetSecondaryRenderMaterial(UMaterialInterface* Material);
 
 	/**
-	 * Clear any active override render material
+	 * Clear any active secondary render material
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual void ClearSecondaryRenderMaterial();
 
 	/**
-	 * @return true if an override render material is currently enabled for the given MaterialIndex
+	 * @return true if a secondary render material is set
 	 */
 	virtual bool HasSecondaryRenderMaterial() const
 	{
@@ -230,47 +271,48 @@ public:
 	}
 
 	/**
-	 * @return active override render material for the given MaterialIndex
+	 * @return active secondary render material
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual UMaterialInterface* GetSecondaryRenderMaterial() const
 	{
 		return SecondaryRenderMaterial;
 	}
 
-
 	/**
 	 * Show/Hide the secondary triangle buffers. Does not invalidate SceneProxy.
 	 */
-	virtual void SetSecondaryBuffersVisibility(bool bVisible);
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual void SetSecondaryBuffersVisibility(bool bSetVisible);
 
 	/**
 	 * @return true if secondary buffers are currently set to be visible
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual bool GetSecondaryBuffersVisibility() const;
 
-
 protected:
-
 	UPROPERTY()
-	TArray<UMaterialInterface*> BaseMaterials;
-
-	UPROPERTY()
-	UMaterialInterface* OverrideRenderMaterial = nullptr;
-
-	UPROPERTY()
-	UMaterialInterface* SecondaryRenderMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> SecondaryRenderMaterial = nullptr;
 
 	bool bDrawSecondaryBuffers = true;
 
+
+
+
+
+	//===============================================================================================================
+	// Standard Component interfaces
+	//
 public:
 
-
-	//~ Begin UMeshComponent Interface.
+	// UMeshComponent Interface.
 	virtual int32 GetNumMaterials() const override;
 	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
 	virtual FMaterialRelevance GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const override;
 	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
-	//~ End UMeshComponent Interface.
 
+	UPROPERTY()
+	TArray<TObjectPtr<UMaterialInterface>> BaseMaterials;
 };
