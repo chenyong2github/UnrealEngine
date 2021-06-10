@@ -1474,7 +1474,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 	SkinCacheEntry->UpdateVertexFactoryDeclaration(Section);
 }
 
-void FGPUSkinCache::ProcessEntry(
+bool FGPUSkinCache::ProcessEntry(
 	FRHICommandListImmediate& RHICmdList, 
 	FGPUBaseSkinVertexFactory* VertexFactory,
 	FGPUSkinPassthroughVertexFactory* TargetVertexFactory, 
@@ -1578,7 +1578,7 @@ void FGPUSkinCache::ProcessEntry(
 			}
 
 			// Couldn't fit; caller will notify OOM
-			return;
+			return false;
 		}
 
 		InOutEntry = new FGPUSkinCacheEntry(this, Skin, NewPositionAllocation);
@@ -1686,6 +1686,8 @@ void FGPUSkinCache::ProcessEntry(
 	{
 		DoDispatch(RHICmdList, InOutEntry, Section, RevisionNumber);
 	}
+
+	return true;
 }
 
 bool FGPUSkinCache::IsGPUSkinCacheRayTracingSupported()
