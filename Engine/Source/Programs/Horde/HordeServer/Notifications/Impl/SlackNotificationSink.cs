@@ -1160,7 +1160,7 @@ namespace HordeServer.Notifications.Impl
 		/// <inheritdoc/>
 		protected async override Task ExecuteAsync(CancellationToken StoppingToken)
 		{
-			if (Settings.SlackSocketToken != null)
+			if (!String.IsNullOrEmpty(Settings.SlackSocketToken))
 			{
 				while (!StoppingToken.IsCancellationRequested)
 				{
