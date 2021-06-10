@@ -363,6 +363,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFloorOffsetWidget() const
 				.MaxSliderValue(100.0f)
 				.Value(this, &SAnimViewportToolBar::OnGetFloorOffset)
 				.OnValueChanged(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnFloorOffsetChanged)
+				.OnValueCommitted(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnFloorOffsetCommitted)
 				.ToolTipText(LOCTEXT("FloorOffsetToolTip", "Height offset for the floor mesh (stored per-mesh)"))
 			]
 		];
@@ -1209,7 +1210,16 @@ void SAnimViewportToolBar::OnFloorOffsetChanged( float NewValue )
 {
 	FAnimationViewportClient& AnimViewportClient = (FAnimationViewportClient&)Viewport.Pin()->GetLevelViewportClient();
 
-	AnimViewportClient.SetFloorOffset( NewValue );
+	AnimViewportClient.SetFloorOffset( NewValue, false );
+
+	PinnedCommands->AddCustomWidget(TEXT("FloorOffsetWidget"));
+}
+
+void SAnimViewportToolBar::OnFloorOffsetCommitted( float NewValue, ETextCommit::Type CommitType )
+{
+	FAnimationViewportClient& AnimViewportClient = (FAnimationViewportClient&)Viewport.Pin()->GetLevelViewportClient();
+
+	AnimViewportClient.SetFloorOffset( NewValue, true );
 
 	PinnedCommands->AddCustomWidget(TEXT("FloorOffsetWidget"));
 }

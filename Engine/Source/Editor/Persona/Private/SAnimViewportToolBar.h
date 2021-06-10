@@ -3,13 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Editor/UnrealEd/Public/SViewportToolBar.h"
 #include "Layout/Visibility.h"
+#include "SAnimationEditorViewport.h"
+#include "SEditorViewport.h"
 #include "Styling/SlateColor.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
-#include "SEditorViewport.h"
-#include "SAnimationEditorViewport.h"
-#include "Editor/UnrealEd/Public/SViewportToolBar.h"
 
 class FMenuBuilder;
 class SComboButton;
@@ -161,6 +162,7 @@ private:
 	TOptional<float> OnGetFloorOffset() const;
 	/** Called when the floor offset slider is adjusted in the perspective viewport */
 	void OnFloorOffsetChanged( float NewValue );
+	void OnFloorOffsetCommitted ( float NewValue, ETextCommit::Type CommitType );
 
 	/** Called when users select the mirror table in the menu */
 	void OnMirrorDataTableSelected(const FAssetData& SelectedMirrorTableData);
