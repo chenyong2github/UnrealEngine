@@ -20,11 +20,11 @@ export class Dashboard {
 
     pinJob(id: string) {
 
-        if (this.data.pinnedJobIds.find(j => j === id)) {
+        if (this.data.pinnedJobIds!.find(j => j === id)) {
             return;
         }
 
-        this.data.pinnedJobIds.push(id);
+        this.data.pinnedJobIds!.push(id);
 
         backend.updateUser({ addPinnedJobIds: [id] });
 
@@ -33,11 +33,11 @@ export class Dashboard {
 
     unpinJob(id: string) {
 
-        if (!this.data.pinnedJobIds.find(j => j === id)) {
+        if (!this.data.pinnedJobIds!.find(j => j === id)) {
             return;
         }
 
-        this.data.pinnedJobIds = this.data.pinnedJobIds.filter(j => j !== id);
+        this.data.pinnedJobIds = this.data.pinnedJobIds!.filter(j => j !== id);
 
         backend.updateUser({ removePinnedJobIds: [id] });
 
@@ -45,14 +45,15 @@ export class Dashboard {
     }
 
     get username(): string {
+        return this.data.name;
+    }
 
-        let email = this.claims.find(c => c.type.endsWith("/ue/horde/user"));
+    get userImage48(): string | undefined {
+        return this.data.image48;
+    }
 
-        if (!email) {
-            email = this.claims.find(c => c.type.endsWith("/identity/claims/name"));
-        }
-
-        return email ? email.value : "???";
+    get userImage32(): string | undefined {
+        return this.data.image32;
     }
 
 
@@ -84,6 +85,11 @@ export class Dashboard {
 
     }
 
+    get userId(): string {
+        return this.data.id;
+    }
+
+
     get pinnedJobsIds(): string[] {
 
         return this.data.pinnedJobIds ?? [];
@@ -91,7 +97,7 @@ export class Dashboard {
 
     get issueNotifications(): boolean {
 
-        return this.data.enableIssueNotifications;
+        return this.data.enableIssueNotifications!;
     }
 
     set issueNotifications(value: boolean) {
@@ -107,7 +113,7 @@ export class Dashboard {
 
     get experimentalFeatures(): boolean {
 
-        return this.data.enableExperimentalFeatures;
+        return this.data.enableExperimentalFeatures!;
     }
 
     set experimentalFeatures(value: boolean) {
@@ -187,7 +193,7 @@ export class Dashboard {
     }
 
     private get preferences() {
-        return this.data.dashboardSettings.preferences;
+        return this.data.dashboardSettings!.preferences;
     }
 
     async update() {
@@ -206,7 +212,7 @@ export class Dashboard {
 
                 const cancelId = this.cancelId++;
 
-                const response = await backend.getUser();
+                const response = await backend.getCurrentUser();
 
                 // check for canceled during graph request
                 if (!this.canceled.has(cancelId)) {
@@ -293,7 +299,7 @@ export class Dashboard {
         const data: any = {};
 
         for (const key of Object.keys(DashboardPreference)) {
-            data[key] = this.data.dashboardSettings.preferences?.get(key as DashboardPreference);
+            data[key] = this.data.dashboardSettings!.preferences?.get(key as DashboardPreference);
         }
 
         let success = true;
@@ -310,7 +316,7 @@ export class Dashboard {
 
     requestLogout = false;
 
-    private data: GetUserResponse = { id: "", enableIssueNotifications: false, enableExperimentalFeatures: false, claims: [], pinnedJobIds: [], dashboardSettings: { preferences: new Map() } };
+    private data: GetUserResponse = { id: "", name: "", enableIssueNotifications: false, enableExperimentalFeatures: false, claims: [], pinnedJobIds: [], dashboardSettings: { preferences: new Map() } };
 
     private updateTimeoutId: any = undefined;
 

@@ -217,13 +217,20 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids, int? Index = null, int? Count = null)
+		public async Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids, string? NameRegex = null, int? Index = null, int? Count = null)
 		{
 			FilterDefinition<UserDocument> Filter = FilterDefinition<UserDocument>.Empty;
 			if (Ids != null)
 			{
 				Filter &= Builders<UserDocument>.Filter.In(x => x.Id, Ids);
 			}
+			
+			if (NameRegex != null)
+			{
+				BsonRegularExpression Regex = new BsonRegularExpression(NameRegex, "i");
+				Filter &= Builders<UserDocument>.Filter.Regex(x => x.Name, Regex);
+			}
+
 			return await Users.Find(Filter).Range(Index, Count ?? 100).ToListAsync<UserDocument, IUser>();
 		}
 

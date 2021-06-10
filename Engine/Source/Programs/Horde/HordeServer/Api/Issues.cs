@@ -488,9 +488,14 @@ namespace HordeServer.Api
 		public List<GetIssueAffectedStreamResponse> AffectedStreams { get; set; }
 
 		/// <summary>
-		/// Most likely suspects for causing this issue
+		/// Most likely suspects for causing this issue, deprecated
 		/// </summary>
 		public List<string> PrimarySuspects { get; set; }
+
+		/// <summary>
+		/// User ids of the most likely suspects
+		/// </summary>
+		public List<string> PrimarySuspectIds { get; set; }
 
 		/// <summary>
 		/// Whether to show alerts for this issue
@@ -537,6 +542,7 @@ namespace HordeServer.Api
 				}
 			}
 			this.PrimarySuspects = Details.SuspectUsers.Where(x => x.Login != null).Select(x => x.Login).ToList();
+			this.PrimarySuspectIds= Details.SuspectUsers.Select(x => x.Id.ToString()).ToList();
 			this.ShowDesktopAlerts = ShowDesktopAlerts;
 		}
 	}
@@ -552,14 +558,14 @@ namespace HordeServer.Api
 		public string? Summary { get; set; }
 
 		/// <summary>
-		/// New owner of the issue
+		/// New user id for owner of the issue
 		/// </summary>
-		public string? Owner { get; set; }
+		public string? OwnerId { get; set; }
 
 		/// <summary>
-		/// User than nominates the new owner
+		/// User id that nominated the new owner
 		/// </summary>
-		public string? NominatedBy { get; set; }
+		public string? NominatedById { get; set; }
 
 		/// <summary>
 		/// Whether the issue has been acknowledged

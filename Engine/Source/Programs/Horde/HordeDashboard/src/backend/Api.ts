@@ -285,6 +285,16 @@ export type IssueQuery = {
 	resolved?: boolean;
 }
 
+export type UsersQuery = {
+	ids?: string[];
+	nameRegex? : string;
+	index?: number;
+	count?: number;
+	includeAvatar?: boolean;
+	includeClaims?: boolean;
+}
+
+
 export type ScheduleQuery = {
 	streamId?: string;
 	filter?: string;
@@ -2519,6 +2529,9 @@ export type GetIssueResponse = {
 	/**Owner of the issue */
 	owner?: string;
 
+	/**Owner id of the issue */
+	ownerId?: string;
+
 	/**User that nominated the current owner */
 	nominatedBy?: string;
 
@@ -2542,8 +2555,8 @@ export type GetIssueResponse = {
 
 	affectedStreams: GetIssueAffectedStreamResponse[];
 
-	/** Most likely suspects for causing this issue */
-	primarySuspects: string[];
+	/** User id's of the Most likely suspects for causing this issue */
+	primarySuspectIds: string[];
 
 	/** Whether to show alerts for this issue */
 	showDesktopAlerts: boolean;
@@ -2557,10 +2570,10 @@ export type UpdateIssueRequest = {
 	summary?: string;
 
 	/**New owner of the issue */
-	owner?: string | null;
+	ownerId?: string | null;
 
 	/**User than nominates the new owner */
-	nominatedBy?: string | null;
+	nominatedById?: string | null;
 
 	/**Whether the issue has been acknowledged */
 	acknowledged?: boolean;
@@ -2643,20 +2656,38 @@ export type GetUserResponse = {
 	/** Id of the user */
 	id: string;
 
-	/** Claims for the user */
-	claims: UserClaim[];
+	/** Name of the user */
+	name: string;
 
-	/** List of pinned job ids */
-	pinnedJobIds: string[];
+	/** Email of the user */
+	email?: string;
+
+	/** Avatar image URL (24px) */
+	image24?: string;
+
+	/** Avatar image URL (32px) */
+	image32?: string;
+
+	/** Avatar image URL (48px) */
+	image48?: string;
+
+	/** Avatar image URL (72px) */
+	image72?: string;
+
+	/** Claims for the user */
+	claims?: UserClaim[];
 
 	/** Whether to enable slack notifications for this user */
-	enableIssueNotifications: boolean;
+	enableIssueNotifications?: boolean;
 
 	/** Whether to enable experimental features for this user */
-	enableExperimentalFeatures: boolean;
+	enableExperimentalFeatures?: boolean;
 
 	/**  Settings for the dashboard */
-	dashboardSettings: DashboardSettings;
+	dashboardSettings?: DashboardSettings;
+
+	/** List of pinned job ids */
+	pinnedJobIds?: string[];
 
 }
 
