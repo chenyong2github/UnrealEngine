@@ -6,6 +6,7 @@
 #include "InteractiveGizmoManager.h"
 #include "EditorInteractiveGizmoManager.generated.h"
 
+class FEditorModeTools;
 class UEditorInteractiveGizmoSelectionBuilder;
 class UEdModeInteractiveToolsContext;
 class UinteractiveGizmo;
