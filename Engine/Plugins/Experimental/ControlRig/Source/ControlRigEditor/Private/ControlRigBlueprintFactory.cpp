@@ -21,6 +21,9 @@
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintActions.h"
 #include "ControlRigBlueprintGeneratedClass.h"
+#include "Graph/ControlRigGraphSchema.h"
+#include "Graph/ControlRigGraph.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintFactory"
 
@@ -284,6 +287,7 @@ UObject* UControlRigBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* I
 	else
 	{
 		UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, Name, BPTYPE_Normal, UControlRigBlueprint::StaticClass(), UControlRigBlueprintGeneratedClass::StaticClass(), CallingContext));
+		CreateRigGraphIfRequired(ControlRigBlueprint);
 		return ControlRigBlueprint;
 	}
 }
@@ -301,6 +305,25 @@ UControlRigBlueprint* UControlRigBlueprintFactory::CreateNewControlRigAsset(cons
 UControlRigBlueprint* UControlRigBlueprintFactory::CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject)
 {
 	return FControlRigBlueprintActions::CreateControlRigFromSkeletalMeshOrSkeleton(InSelectedObject);
+}
+
+void UControlRigBlueprintFactory::CreateRigGraphIfRequired(UControlRigBlueprint* InBlueprint)
+{
+	for(UEdGraph* EdGraph : InBlueprint->UbergraphPages)
+	{
+		if(EdGraph->IsA<UControlRigGraph>())
+		{
+			return;
+		}
+	}
+	
+	// add an initial graph for us to work in
+	const UControlRigGraphSchema* ControlRigGraphSchema = GetDefault<UControlRigGraphSchema>();
+	UEdGraph* ControlRigGraph = FBlueprintEditorUtils::CreateNewGraph(InBlueprint, ControlRigGraphSchema->GraphName_ControlRig, UControlRigGraph::StaticClass(), UControlRigGraphSchema::StaticClass());
+	ControlRigGraph->bAllowDeletion = false;
+	FBlueprintEditorUtils::AddUbergraphPage(InBlueprint, ControlRigGraph);
+	InBlueprint->LastEditedDocuments.AddUnique(ControlRigGraph);
+	InBlueprint->PostLoad();
 }
 
 #undef LOCTEXT_NAMESPACE

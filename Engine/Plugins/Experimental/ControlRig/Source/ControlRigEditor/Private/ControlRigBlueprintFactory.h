@@ -42,5 +42,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	static UControlRigBlueprint* CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject);
+
+	/**
+	 * Creates the riggraph if necessary
+	 * @param InBlueprint The blueprint to setup up
+	 */
+	static void CreateRigGraphIfRequired(UControlRigBlueprint* InBlueprint);
 };
 
