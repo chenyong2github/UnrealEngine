@@ -33,10 +33,10 @@ export function getIssueStatus(issue: GetIssueResponse, showResolveTime?:boolean
 
 	}
 
-	if (!issue.owner) {
+	if (!issue.ownerId) {
 		text = "Currently unassigned.";
 	} else {
-		if (issue.owner.toLowerCase() === dashboard.username?.toLowerCase()) {
+		if (issue.ownerId === dashboard.userId) {
 			if (issue.nominatedBy) {
 				text = `You have been nominated to fix this issue by ${issue.nominatedBy}.`;
 			} else {

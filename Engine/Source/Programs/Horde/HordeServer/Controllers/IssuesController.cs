@@ -92,7 +92,7 @@ namespace HordeServer.Controllers
 		/// <param name="BatchId">The batch to filter by</param>
 		/// <param name="StepId">The step to filter by</param>
 		/// <param name="LabelIdx">The label within the job to filter by</param>
-		/// <param name="User">User to filter issues for</param>
+		/// <param name="UserId">User to filter issues for</param>
 		/// <param name="Resolved">Whether to include resolved issues</param>
 		/// <param name="Index">Starting offset of the window of results to return</param>
 		/// <param name="Count">Number of results to return</param>
@@ -101,7 +101,7 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/issues")]
 		[ProducesResponseType(typeof(List<GetIssueResponse>), 200)]
-		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] string? StreamId = null, [FromQuery] int? Change = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] string? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string? User = null, [FromQuery] bool? Resolved = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] string? StreamId = null, [FromQuery] int? Change = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] string? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string? UserId = null, [FromQuery] bool? Resolved = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
 		{
 			if(Ids != null && Ids.Length == 0)
 			{
@@ -109,13 +109,9 @@ namespace HordeServer.Controllers
 			}
 
 			ObjectId? UserIdValue = null;
-			if (User != null)
+			if (UserId != null)
 			{
-				UserIdValue = (await UserCollection.FindUserByLoginAsync(User))?.Id;
-				if (UserIdValue == null)
-				{
-					return new List<IIssue>();
-				}
+				UserIdValue = new ObjectId(UserId);
 			}
 
 			List<IIssue> Issues;

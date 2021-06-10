@@ -20,19 +20,19 @@ export class JobHandler {
     }
 
 
-    filter(stream: StreamData, templateNamesIn?: string[], preflightStartedByUser?: string): boolean {
+    filter(stream: StreamData, templateNamesIn?: string[], preflightStartedByUserId?: string): boolean {
 
         const names = templateNamesIn ?? [];
         const sameNames = (this.templateNames.length === names.length && this.templateNames.every((value, index) => value === names[index]));
 
-        if (stream.id === this.stream?.id && sameNames && this.preflightStartedByUser === preflightStartedByUser) {
+        if (stream.id === this.stream?.id && sameNames && this.preflightStartedByUserId === preflightStartedByUserId) {
             return false;
         }
 
         this.clear();
         this.stream = stream;
         this.templateNames = names;
-        this.preflightStartedByUser = preflightStartedByUser;
+        this.preflightStartedByUserId = preflightStartedByUserId;
         this.setUpdated();
         this.update();
         return true;
@@ -49,7 +49,7 @@ export class JobHandler {
         this.bumpCount = false;
         this.count = jobPageSize * 2;
         this.includePreflights = true;
-        this.preflightStartedByUser = undefined;
+        this.preflightStartedByUserId = undefined;
 
         // cancel any pending        
         for (let i = 0; i < this.cancelId; i++) {
@@ -91,7 +91,7 @@ export class JobHandler {
                 streamId: this.stream?.id,
                 template: this.templateNames,
                 includePreflight: this.includePreflights,
-                preflightStartedByUser: this.preflightStartedByUser
+                preflightStartedByUserId: this.preflightStartedByUserId
             };
 
             // instance property can mutate externally as we're async
@@ -322,7 +322,7 @@ export class JobHandler {
     includeBatches = false;
 
     includePreflights = true;
-    private preflightStartedByUser?: string;
+    private preflightStartedByUserId?: string;
 
     private jobLimit?:number;
 
