@@ -110,6 +110,9 @@
 		<!-- Content folders -->
 		Engine/Content/...
 
+		<!-- Plugins -->
+		Engine/Plugins/VirtualProduction/RemoteControlWebInterface/WebApp/...
+
 		<!-- Source code -->
 		Engine/Source/UE4Game.Target.cs
 		Engine/Source/UE4Editor.Target.cs
@@ -204,9 +207,6 @@
 
 		<!-- Shaders -->
 		Shaders/...
-		
-		<!-- Misc -->
-		Engine/Plugins/VirtualProduction/RemoteControlWebInterface/WebApp/...
 	</Property>
 	<ForEach Name="Filter" Values="$(CopyEditorEngineOrPlatformFilter)">
 		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/$(Filter);Engine/Platforms/*/$(Filter)"/>
