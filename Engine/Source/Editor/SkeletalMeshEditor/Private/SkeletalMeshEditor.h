@@ -212,4 +212,22 @@ private:
 
 	// The toolbox widget
 	TSharedPtr<SSkeletalMeshEditorToolbox> ToolboxWidget;
+
+	enum ECapsuleType
+	{
+		Bone,
+		VirtualBone,
+		Socket
+	};
+	
+	struct FCapsuleInfo
+	{
+		ECapsuleType Type;
+		FName Name;
+		int32 Index;
+	};
+
+	TArray<FCapsuleInfo> CapsuleInfos;
+
+	void UpdateCapsules();
 };
