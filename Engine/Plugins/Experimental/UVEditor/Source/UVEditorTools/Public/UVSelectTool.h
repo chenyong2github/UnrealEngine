@@ -7,11 +7,14 @@
 #include "DynamicMeshAABBTree3.h"
 #include "FrameTypes.h"
 #include "InteractiveTool.h"
+//#include "InteractiveToolChange.h"
 #include "InteractiveToolBuilder.h"
 #include "TargetInterfaces/UVUnwrapDynamicMesh.h"
 
 #include "UVSelectTool.generated.h"
 
+class APreviewGeometryActor;
+class ULineSetComponent;
 class UMeshSelectionMechanic;
 class UToolTargetManager;
 class UTransformGizmo;
@@ -19,6 +22,7 @@ class UTransformProxy;
 class UUVEditorMode;
 class UUVToolStateObjectStore;
 class UPreviewMesh;
+class UUVEditorToolMeshInput;
 
 UCLASS()
 class UVEDITORTOOLS_API UUVSelectToolBuilder : public UInteractiveToolBuilder
@@ -33,12 +37,7 @@ public:
 
 	// This is a pointer so that it can be updated under the builder without
 	// having to set it in the mode after initializing targets.
-	const TArray<TObjectPtr<UPreviewMesh>>* DisplayedMeshes;
-
-	// TODO: This is one way to pass around state between tools. Another could be to
-	// hang the state onto the targets via a tool target manager, or to have something
-	// like UInteractiveToolsSelectionStoreSubsystem. Which should we do?
-	TObjectPtr<UUVToolStateObjectStore> StateObjectStore = nullptr;
+	const TArray<TObjectPtr<UUVEditorToolMeshInput>>* Targets = nullptr;
 
 protected:
 	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
@@ -60,8 +59,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Options)
 	EUVSelectToolSelectionMode SelectionMode = EUVSelectToolSelectionMode::Island;
-};
 
+	//~ TODO: Make this only visible in transform mode
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	bool bUpdatePreviewDuringDrag = true;
+
+};
 
 /**
  * A tool for selecting elements of a flat FDynamicMesh corresponding to a UV layer of some asset.
@@ -77,15 +80,15 @@ class UVEDITORTOOLS_API UUVSelectTool : public UInteractiveTool
 	using FDynamicMeshAABBTree3 = UE::Geometry::FDynamicMeshAABBTree3;
 
 public:
+	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 	virtual void SetGizmoEnabled(bool bEnabledIn);
-	virtual void SetStateObjectStore(TObjectPtr<UUVToolStateObjectStore> StoreIn) { StateObjectStore = StoreIn; };
 	
 	/**
 	 * The tool will operate on the meshes given here.
 	 */
-	virtual void SetDisplayedMeshes(const TArray<TObjectPtr<UPreviewMesh>>& DisplayedMeshesIn)
+	virtual void SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn)
 	{
-		DisplayedMeshes = DisplayedMeshesIn;
+		Targets = TargetsIn;
 	}
 
 	// UInteractiveTool
@@ -106,12 +109,12 @@ protected:
 	virtual void GizmoTransformEnded(UTransformProxy* Proxy);
 
 	virtual void UpdateGizmo();
+	virtual void UpdateLivePreviewLines();
+
+	UWorld* TargetWorld;
 
 	UPROPERTY()
-	TObjectPtr<UUVToolStateObjectStore> StateObjectStore;
-
-	UPROPERTY()
-	TArray<TObjectPtr<UPreviewMesh>> DisplayedMeshes;
+	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
 
 	UPROPERTY()
 	TObjectPtr<UUVSelectToolProperties> Settings = nullptr;
@@ -124,12 +127,43 @@ protected:
 
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> AABBTrees;
 
-	// Placeholders: used for transforming a triangle
+	UPROPERTY()
+	APreviewGeometryActor* LivePreviewGeometryActor = nullptr;
+
+	UPROPERTY()
+	ULineSetComponent* LivePreviewLineSet = nullptr;
+
 	UE::Geometry::FFrame3d InitialGizmoFrame;
 	TArray<int32> MovingVids;
 	TArray<FVector3d> MovingVertOriginalPositions;
-	int32 SelectionMeshIndex;
+	int32 SelectionTargetIndex;
+	TArray<int32> BoundaryEids;
 
 	// We need this flag so that SetGizmoVisibility can be called before Setup() by the tool builder.
 	bool bGizmoEnabled = false;
 };
+
+///**
+// * Wraps a FDynamicMeshChange.
+// */
+//class UVEDITORTOOLS_API FUVSelectToolChange : public FToolCommandChange
+//{
+//public:
+//	FUVSelectToolChange(TUniquePtr<FDynamicMeshChange> MeshChangeIn)
+//		: MeshChange(MoveTemp(MeshChangeIn))
+//	{};
+//
+//	virtual void Apply(UObject* Object) override;
+//	virtual void Revert(UObject* Object) override;
+//	//virtual bool HasExpired(UObject* Object) const override
+//	//{
+//	//	return Cast<UGroupEdgeInsertionTool>(Object)->CurrentChangeStamp != ChangeStamp;
+//	//}
+//	virtual FString ToString() const override
+//	{
+//		return TEXT("FUVSelectToolChange");
+//	}
+//
+//protected:
+//	TUniquePtr<FDynamicMeshChange> MeshChange;
+//};

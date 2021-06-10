@@ -30,6 +30,7 @@ public class UVEditor : ModuleRules
 				"UnrealEd",
 				"InputCore",
 				"InteractiveToolsFramework",
+				"MeshModelingTools",
 				
 				// ... add other public dependencies that you statically link with here ...
 			}
@@ -53,12 +54,11 @@ public class UVEditor : ModuleRules
 				"EditorStyle",
 				"EditorSubsystem",
 				"LevelEditor",
+				"ModelingComponentsEditorOnly", // Static/skeletal mesh tool targets
 				"ModelingComponents",
 				"ToolMenus",
 				"UVEditorTools",
 				
-				// TODO: Remove?
-				"MeshConversion",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

@@ -7,10 +7,12 @@
 #include "Tools/BaseAssetToolkit.h"
 
 class FAdvancedPreviewScene;
+class FUVEditorPreviewModeManager;
 class IDetailsView;
 class SDockTab;
 class SBorder;
 class UInteractiveToolsContext;
+class UInputRouter;
 
 /**
  * The toolkit is supposed to act as the UI manager for the asset editor. It's responsible 
@@ -27,8 +29,9 @@ public:
 	virtual ~FUVEditorToolkit();
 
 	static const FName InteractiveToolsPanelTabID;
+	static const FName LivePreviewTabID;
 
-	FPreviewScene* GetPreviewScene() { return PreviewScene.Get(); }
+	FPreviewScene* GetPreviewScene() { return UnwrapScene.Get(); }
 
 	// FBaseAssetToolkit
 	virtual void CreateWidgets() override;
@@ -51,6 +54,7 @@ public:
 protected:
 
 	TSharedRef<SDockTab> SpawnTab_InteractiveToolsPanel(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_LivePreview(const FSpawnTabArgs& Args);
 
 	// FBaseAssetToolkit
 	virtual AssetEditorViewportFactoryFunction GetViewportDelegate() override;
@@ -62,5 +66,18 @@ protected:
 	/** Inline content area for the UV mode's content (gotten from UVEditorModeToolkit) */
 	TSharedPtr<SDockTab> ToolsPanel;
 
-	TUniquePtr<FPreviewScene> PreviewScene;
+	/** Scene in which the 2D unwrapped uv meshes live. */
+	TUniquePtr<FPreviewScene> UnwrapScene;
+
+	/** Scene in which the 3D preview meshes of the assets live. */
+	TUniquePtr<FAdvancedPreviewScene> LivePreviewScene;
+
+	// These are related to the 3D "live preview" viewport. The 2d unwrap viewport things are
+	// stored in FBaseAssetToolkit::ViewportTabContent, ViewportDelegate, ViewportClient
+	TSharedPtr<class FEditorViewportTabContent> LivePreviewTabContent;
+	AssetEditorViewportFactoryFunction LivePreviewViewportDelegate;
+	TSharedPtr<FEditorViewportClient> LivePreviewViewportClient;
+	
+	TSharedPtr<FAssetEditorModeManager> LivePreviewEditorModeManager;
+	TObjectPtr<UInputRouter> LivePreviewInputRouter = nullptr;
 };

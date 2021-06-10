@@ -45,7 +45,7 @@ public class UVEditorTools : ModuleRules
 				"Slate",
 				"SlateCore",
 					
-				"MeshConversion",
+				"MeshModelingTools",
 				"DynamicMesh",
 				"GeometryCore",
 				"ModelingComponents",

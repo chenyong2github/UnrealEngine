@@ -3,22 +3,30 @@
 #include "UVEditorMode.h"
 
 #include "Algo/AnyOf.h"
+#include "ContextObjectStore.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "EdModeInteractiveToolsContext.h" //ToolsContext
 #include "InteractiveTool.h"
-#include "TargetInterfaces/UVUnwrapDynamicMesh.h"
-#include "ToolTargetManager.h"
-#include "ToolTargets/StaticMeshUVMeshToolTarget.h"
-#include "ToolTargets/ToolTarget.h"
+#include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "PreviewMesh.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/DynamicMeshProvider.h"
+#include "TargetInterfaces/DynamicMeshCommitter.h"
+#include "ToolSetupUtil.h"
+#include "ToolTargets/UVEditorToolMeshInput.h"
+#include "ToolTargetManager.h"
+#include "ToolTargets/UVEditorToolMeshInput.h"
 #include "UVEditorCommands.h"
 #include "UVSelectTool.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
-#include "ToolSetupUtil.h"
-#include "UVToolStateObjects.h"
+#include "UVEditorToolUtil.h"
+#include "UVToolContextObjects.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
+
+using namespace UE::Geometry;
 
 const FEditorModeID UUVEditorMode::EM_UVEditorModeId = TEXT("EM_UVEditorMode");
 
@@ -31,6 +39,18 @@ namespace UVEditorModeLocals
 	FColor TriangleColor = FColor(50, 194, 219);
 	FColor WireframeColor = FColor(50, 100, 219);
 	FColor IslandBorderColor = FColor(103, 52, 235);
+}
+
+const FToolTargetTypeRequirements& UUVEditorMode::GetToolTargetRequirements()
+{
+	static const FToolTargetTypeRequirements ToolTargetRequirements =
+		FToolTargetTypeRequirements({
+			UMaterialProvider::StaticClass(),
+			UDynamicMeshCommitter::StaticClass(),
+			UDynamicMeshProvider::StaticClass(),
+			UAssetBackedTarget::StaticClass()
+			});
+	return ToolTargetRequirements;
 }
 
 UUVEditorMode::UUVEditorMode()
@@ -46,14 +66,9 @@ void UUVEditorMode::Enter()
 {
 	Super::Enter();
 
-	StateObjectStore = NewObject<UUVToolStateObjectStore>(this);
-
 	RegisterTools();
 
 	ActivateDefaultTool();
-
-	// Add new target factories here and in UUVEditorSubsystem::Initialize() as they are developed.
-	ToolsContext->TargetManager->AddTargetFactory(NewObject<UStaticMeshUVMeshToolTargetFactory>(ToolsContext->TargetManager));
 }
 
 void UUVEditorMode::RegisterTools()
@@ -62,13 +77,11 @@ void UUVEditorMode::RegisterTools()
 
 	// TODO: Other tool registrations go here
 	auto UVSelectToolBuilder = NewObject<UUVSelectToolBuilder>();
-	UVSelectToolBuilder->DisplayedMeshes = &DisplayedMeshes;
-	UVSelectToolBuilder->StateObjectStore = GetStateObjectStore();
+	UVSelectToolBuilder->Targets = &ToolInputObjects;
 	RegisterTool(CommandInfos.BeginSelectTool, TEXT("UVSelectTool"), UVSelectToolBuilder);
 
 	auto UVTransformToolBuilder = NewObject<UUVSelectToolBuilder>();
-	UVTransformToolBuilder->DisplayedMeshes = &DisplayedMeshes;
-	UVTransformToolBuilder->StateObjectStore = GetStateObjectStore();
+	UVTransformToolBuilder->Targets = &ToolInputObjects;
 	UVTransformToolBuilder->bGizmoEnabled = true;
 	RegisterTool(CommandInfos.BeginTransformTool, TEXT("UVTransformTool"), UVTransformToolBuilder);
 }
@@ -92,55 +105,80 @@ void UUVEditorMode::BindCommands()
 
 void UUVEditorMode::Exit()
 {
-	StateObjectStore->Clear();
-	StateObjectStore = nullptr;
-
-	for (TObjectPtr<UPreviewMesh>& Preview : DisplayedMeshes)
+	for (TObjectPtr<UUVEditorToolMeshInput> ToolInput : ToolInputObjects)
 	{
-		Preview->Disconnect();
+		ToolInput->Shutdown();
 	}
-	for (TObjectPtr<UMeshElementsVisualizer>& Wireframe : DisplayedWireframes)
-	{
-		Wireframe->Disconnect();
-	}
+	ToolInputObjects.Reset();
 
 	Super::Exit();
 }
 
-void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn)
+void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TArray<FTransform>* TransformsIn)
 {
 	using namespace UVEditorModeLocals;
 
 	OriginalObjectsToEdit = AssetsIn;
 
-	for (const TObjectPtr<UObject>& Object : AssetsIn)
+	// Build the tool targets that provide us with 3d dynamic meshes
+	UUVEditorSubsystem* UVSubsystem = GEditor->GetEditorSubsystem<UUVEditorSubsystem>();
+	UVSubsystem->BuildTargets(AssetsIn, GetToolTargetRequirements(), ToolTargets);
+
+	// Get an api for manipulating things in the live preview, which has its own world and input router
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+	UUVToolLivePreviewAPI* LivePreviewAPI = ContextStore->FindContext<UUVToolLivePreviewAPI>();
+	check(LivePreviewAPI);
+	UWorld* LivePreviewWorld = LivePreviewAPI->GetLivePreviewWorld();
+
+	double ScaleFactor = GetUVMeshScalingFactor();
+
+	// These functions will determine the mapping between UV values and the resulting mesh vertex positions. 
+	// If we're looking down on the unwrapped mesh, with the Z axis towards us, we want U's to be right, and
+	// V's to be up. In Unreal's left-handed coordinate system, this means that we map U's to world Y
+	// and V's to world X.
+	// Also, Unreal changes the V coordinates of imported meshes to 1-V internally, and we undo this
+	// while displaying the UV's because the users likely expect to see the original UV's (it would
+	// be particularly confusing for users working with UDIM assets, where internally stored V's 
+	// frequently end up negative).
+	// The ScaleFactor just scales the mesh up. Scaling the mesh up makes it easier to zoom in
+	// further into the display before getting issues with the camera near plane distance.
+	auto UVToVertPosition = [this, ScaleFactor](const FVector2f& UV)
 	{
-		UToolTarget* ToolTarget = ToolsContext->TargetManager->BuildTarget(Object, UUVEditorSubsystem::UVUnwrapMeshTargetRequirements);
-		IUVUnwrapDynamicMesh* UVMesh = Cast<IUVUnwrapDynamicMesh>(ToolTarget);
-		check(UVMesh);
-		UVUnwrapMeshTargets.Add(ToolTarget);
+		return FVector3d((1 - UV.Y) * ScaleFactor, UV.X * ScaleFactor, 0);
+	};
+	auto VertPositionToUV = [this, ScaleFactor](const FVector3d& VertPosition)
+	{
+		return FVector2D(VertPosition.Y / ScaleFactor, 1 - (VertPosition.X / ScaleFactor));
+	};
 
-		// Create in-viewport representations of the unwrapped mesh
-		UPreviewMesh* UVPreview = NewObject<UPreviewMesh>();
-		UVPreview->CreateInWorld(GetWorld(), FTransform::Identity);
-		UVPreview->UpdatePreview(UVMesh->GetMesh(UVLayerIndex).Get());
+	// For each of our tool targets, we're going to create a UV tool input object that bundles together
+	// the 3d preview and the unwrapped UV layer, with both a reference and a "preview with background op"
+	// versions of both
+	for (UToolTarget* Target : ToolTargets)
+	{
+		UUVEditorToolMeshInput* ToolInputObject = NewObject<UUVEditorToolMeshInput>();
 		
-		// We use a two-sided material because the triangles of our unwrapped meshes may have different orientations
-		UVPreview->SetMaterial(0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
-			GetToolManager(),
-			(FLinearColor)TriangleColor,
-			0, //depth offset
-			0.3)); //opacity
+		if (!ToolInputObject->InitializeMeshes(Target, UVLayerIndex,
+			GetWorld(), LivePreviewWorld, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()),
+			UVToVertPosition, VertPositionToUV))
+		{
+			continue;
+		}
 
-		UVPreview->SetVisible(true);
-		DisplayedMeshes.Add(UVPreview);
+		ToolInputObject->UnwrapPreview->PreviewMesh->SetMaterial(
+			0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
+				GetToolManager(),
+				(FLinearColor)TriangleColor,
+				0)); //depth offset
+
+		// Initialize our timestamp so we can later detect changes
+		MeshChangeStamps.Add(ToolInputObject->UnwrapCanonical->GetShapeTimestamp());
 
 		// Set up the wireframe display of the unwrapped mesh.
 		UMeshElementsVisualizer* WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
 		WireframeDisplay->CreateInWorld(GetWorld(), FTransform::Identity);
-		check(WireframeDisplay->Settings);
 
-		WireframeDisplay->Settings->DepthBias = 1;
+		WireframeDisplay->Settings->DepthBias = 0.5;
 		WireframeDisplay->Settings->bAdjustDepthBiasUsingMeshSize = false;
 		WireframeDisplay->Settings->bShowWireframe = true;
 		WireframeDisplay->Settings->bShowBorders = true;
@@ -148,33 +186,45 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn)
 		WireframeDisplay->Settings->BoundaryEdgeColor = IslandBorderColor;
 		WireframeDisplay->Settings->bShowUVSeams = false;
 		WireframeDisplay->Settings->bShowNormalSeams = false;
-
 		// These are not exposed at the visualizer level yet
 		// TODO: Should they be?
 		WireframeDisplay->WireframeComponent->BoundaryEdgeThickness = 2;
 
-		// The settings object is not part of a tool, so it won't get ticked like its
-		// supposed to (to enable property watching), unless we add this here.
+		// The wireframe will track the unwrap preview mesh
+		WireframeDisplay->SetMeshAccessFunction([ToolInputObject](void) { 
+			return ToolInputObject->UnwrapPreview->PreviewMesh->GetMesh(); 
+			});
+
+		// The settings object and wireframe are not part of a tool, so they won't get ticked like they
+		// are supposed to (to enable property watching), unless we add this here.
 		PropertyObjectsToTick.Add(WireframeDisplay->Settings);
+		WireframesToTick.Add(WireframeDisplay);
 
-		// The wireframe will track the preview mesh
-		WireframeDisplay->SetMeshAccessFunction([UVPreview](void) { return UVPreview->GetMesh(); });
-		UVPreview->GetOnMeshChanged().AddWeakLambda(this, [WireframeDisplay]() 
-		{
-			WireframeDisplay->NotifyMeshChanged();
-		});
-		DisplayedWireframes.Add(WireframeDisplay);
+		// The tool input object will hold on to the wireframe for the purposes of updating it and cleaning it up
+		ToolInputObject->WireframeDisplay = WireframeDisplay;
 
-		// Initialize our timestamp so we can later detect changes
-		MeshChangeStamps.Add(UVPreview->GetMesh()->GetShapeTimestamp());
+		ToolInputObjects.Add(ToolInputObject);
 	}
+	
+	if (TransformsIn && TransformsIn->Num() == AssetsIn.Num())
+	{
+		for (int i = 0; i < ToolInputObjects.Num(); ++i)
+		{
+			ToolInputObjects[i]->AppliedPreview->PreviewMesh->SetTransform((*TransformsIn)[i]);
+		}
+	}
+}
+
+void UUVEditorMode::EmitToolIndependentObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)
+{
+	GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(TargetObject, MoveTemp(Change), Description);
 }
 
 bool UUVEditorMode::HaveUnappliedChanges()
 {
-	for (int32 i = 0; i < DisplayedMeshes.Num(); ++i)
+	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
 	{
-		if (DisplayedMeshes[i]->GetMesh()->GetShapeTimestamp() != MeshChangeStamps[i])
+		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeTimestamp() != MeshChangeStamps[i])
 		{
 			return true;
 		}
@@ -184,9 +234,9 @@ bool UUVEditorMode::HaveUnappliedChanges()
 
 void UUVEditorMode::GetAssetsWithUnappliedChanges(TArray<TObjectPtr<UObject>> UnappliedAssetsOut)
 {
-	for (int32 i = 0; i < DisplayedMeshes.Num(); ++i)
+	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
 	{
-		if (DisplayedMeshes[i]->GetMesh()->GetShapeTimestamp() != MeshChangeStamps[i])
+		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeTimestamp() != MeshChangeStamps[i])
 		{
 			UnappliedAssetsOut.Add(OriginalObjectsToEdit[i]);
 		}
@@ -197,14 +247,21 @@ void UUVEditorMode::ApplyChanges()
 {
 	using namespace UVEditorModeLocals;
 
-	for (int32 i = 0; i < DisplayedMeshes.Num(); ++i)
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("UVEditorApplyChangesTransaction", "UV Editor Apply Changes"));
+
+	IDynamicMeshCommitter::FDynamicMeshCommitInfo CommitInfo(false);
+	CommitInfo.bUVsChanged = true;
+
+	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
 	{
-		if (DisplayedMeshes[i]->GetMesh()->GetShapeTimestamp() != MeshChangeStamps[i])
+		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeTimestamp() != MeshChangeStamps[i])
 		{
-			UVUnwrapMeshTargets[i]->SaveBackToUVs(DisplayedMeshes[i]->GetMesh(), UVLayerIndex);
-			MeshChangeStamps[i] = DisplayedMeshes[i]->GetMesh()->GetShapeTimestamp();
+			Cast<IDynamicMeshCommitter>(ToolTargets[i])->CommitDynamicMesh(*ToolInputObjects[i]->AppliedCanonical, CommitInfo);
+			MeshChangeStamps[i] = ToolInputObjects[i]->UnwrapCanonical->GetShapeTimestamp();
 		}
 	}
+
+	GetToolManager()->EndUndoTransaction();
 }
 
 void UUVEditorMode::ModeTick(float DeltaTime)
@@ -226,9 +283,12 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 		}
 	}
 
-	for (UMeshElementsVisualizer* WireframeDisplay : DisplayedWireframes)
+	for (TWeakObjectPtr<UMeshElementsVisualizer> WireframeDisplay : WireframesToTick)
 	{
-		WireframeDisplay->OnTick(DeltaTime);
+		if (WireframeDisplay.IsValid())
+		{
+			WireframeDisplay->OnTick(DeltaTime);
+		}
 	}
 }
 

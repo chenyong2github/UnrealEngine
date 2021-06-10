@@ -14,6 +14,9 @@
 
 #include "MeshSelectionMechanic.generated.h"
 
+class ULineSetComponent;
+class APreviewGeometryActor;
+
 enum class EMeshSelectionMechanicMode
 {
 	Component,
@@ -50,8 +53,20 @@ public:
 	virtual void Setup(UInteractiveTool* ParentTool) override;
 	virtual void Shutdown() override;
 
+	void SetWorld(UWorld* World);
+
 	// Use this to initialize the meshes we want to hit test.
-	virtual void AddSpatial(TSharedPtr<FDynamicMeshAABBTree3> SpatialIn);
+	virtual void AddSpatial(TSharedPtr<FDynamicMeshAABBTree3> SpatialIn, const FTransform& TransformIn);
+
+	FVector3d GetCurrentSelectionCentroid();
+
+	// Rebuilds the drawn selection highlights, and intializes them in such a way that their transform
+	// is equal to StartTransform (useful so that their transform can later be changed)
+	void RebuildDrawnElements(const FTransform& StartTransform);
+
+	// Changes the transform of the selection highlights. Useful for quickly updating the hightlight
+	// without rebuilding it, when the change is a transformation.
+	void SetDrawnElementsTransform(const FTransform& Transform);
 
 	virtual const FDynamicMeshSelection& GetCurrentSelection() const;
 	virtual void SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast = false, bool bEmitChange = false);
@@ -68,8 +83,25 @@ public:
 	EMeshSelectionMechanicMode SelectionMode;
 
 protected:
+
+	UPROPERTY()
+	APreviewGeometryActor* PreviewGeometryActor = nullptr;
+
+	UPROPERTY()
+	ULineSetComponent* LineSet = nullptr;
+
+
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> MeshSpatials;
+	TArray<FTransform> MeshTransforms;
 	FDynamicMeshSelection CurrentSelection;
+	int32 CurrentSelectionIndex;
 	FViewCameraState CameraState;
+
+	FColor LineColor = FColor::Yellow;
+	float LineThickness = 3;
+	float DepthBias = 0.3;
+
+	FVector3d CurrentSelectionCentroid;
+	void UpdateCentroid();
 };
 

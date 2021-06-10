@@ -64,7 +64,7 @@ public:
 	template <class TObjectType>
 	bool RemoveContextObjectsOfType()
 	{
-		return RemoveToolDataObjectsOfType(TObjectType::StaticClass());
+		return RemoveContextObjectsOfType(TObjectType::StaticClass());
 	}
 
 	/**
