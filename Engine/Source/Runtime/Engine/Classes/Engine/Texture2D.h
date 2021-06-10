@@ -307,4 +307,10 @@ public:
 	 * This can reduce page table overhead but potentially increase the number of physical pools allocated.
 	 */
 	virtual bool IsVirtualTexturedWithSinglePhysicalSpace() const { return false;  }
+
+protected:
+
+#if WITH_EDITOR
+	virtual bool GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const override;
+#endif
 };

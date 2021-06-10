@@ -131,6 +131,7 @@ protected:
 
 #if WITH_EDITOR
 	void UpdateMipGenSettings();
+	virtual bool GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const override;
 #endif
 };
 

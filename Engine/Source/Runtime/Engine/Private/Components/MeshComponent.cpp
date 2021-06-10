@@ -440,6 +440,11 @@ void UMeshComponent::CacheMaterialParameterNameIndices()
 
 void UMeshComponent::GetStreamingTextureInfoInner(FStreamingTextureLevelContext& LevelContext, const TArray<FStreamingTextureBuildInfo>* PreBuiltData, float ComponentScaling, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingTextures) const
 {
+	if (CanSkipGetTextureStreamingRenderAssetInfo())
+	{
+		return;
+	}
+
 	LevelContext.BindBuildData(PreBuiltData);
 
 	const int32 NumMaterials = GetNumMaterials();

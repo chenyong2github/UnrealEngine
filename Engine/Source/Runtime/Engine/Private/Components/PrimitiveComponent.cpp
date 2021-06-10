@@ -34,6 +34,7 @@
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "EngineModule.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
 #include "Engine/LODActor.h"
@@ -409,6 +410,11 @@ bool UPrimitiveComponent::HasStaticLighting() const
 
 void UPrimitiveComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
+	if (CanSkipGetTextureStreamingRenderAssetInfo())
+	{
+		return;
+	}
+
 	if (CVarStreamingUseNewMetrics.GetValueOnGameThread() != 0)
 	{
 		LevelContext.BindBuildData(nullptr);
@@ -1240,6 +1246,23 @@ void UPrimitiveComponent::PostDuplicate(bool bDuplicateForPIE)
 	Super::PostDuplicate(bDuplicateForPIE);
 }
 
+static int32 GEnableAutoDetectNoStreamableTextures = 1;
+static FAutoConsoleVariableRef CVarEnableAutoDetectNoStreamableTextures(
+	TEXT("r.Streaming.EnableAutoDetectNoStreamableTextures"),
+	GEnableAutoDetectNoStreamableTextures,
+	TEXT("Enables auto-detection at cook time of primitive components with no streamable textures. Can also be turned-off at runtime to skip optimisation."),
+	ECVF_Default
+);
+
+bool UPrimitiveComponent::CanSkipGetTextureStreamingRenderAssetInfo() const
+{
+#if WITH_EDITOR
+	return false;
+#else
+	return GEnableAutoDetectNoStreamableTextures && bHasNoStreamableTextures;
+#endif
+}
+
 #if WITH_EDITOR
 /**
  * Called after importing property values for this object (paste, duplicate or .t3d import)
@@ -1261,6 +1284,57 @@ void UPrimitiveComponent::PostEditImport()
 
 	// Setup the transient internal primitive data array here after import (to support duplicate/paste)
 	ResetCustomPrimitiveData();
+}
+
+void UPrimitiveComponent::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+void UPrimitiveComponent::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+
+	if (!IsTemplate() && ObjectSaveContext.IsCooking())
+	{
+		// Reset flag
+		bHasNoStreamableTextures = false;
+
+		if (!GEnableAutoDetectNoStreamableTextures || (Mobility != EComponentMobility::Static))
+		{
+			return;
+		}
+
+		TArray<UMaterialInterface*> Materials;
+		GetUsedMaterials(Materials);
+		if (Materials.IsEmpty())
+		{
+			return;
+		}
+
+		TSet<const UTexture*> Textures;
+		for (UMaterialInterface* Material : Materials)
+		{
+			if (Material)
+			{
+				Material->GetReferencedTexturesAndOverrides(Textures);
+			}
+		}
+
+		bool bHasStreamableTextures = false;
+		for (const UTexture* Texture : Textures)
+		{
+			if (Texture && Texture->IsCandidateForTextureStreaming(ObjectSaveContext.GetTargetPlatform()))
+			{
+				bHasStreamableTextures = true;
+				break;
+			}
+		}
+
+		bHasNoStreamableTextures = !bHasStreamableTextures;
+	}
 }
 #endif
 

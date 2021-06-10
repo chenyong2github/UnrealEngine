@@ -593,6 +593,9 @@ protected:
 	/** Result of last call to AreAllCollideableDescendantsRelative(). */
 	uint8 bCachedAllCollideableDescendantsRelative : 1;
 
+	UPROPERTY()
+	uint8 bHasNoStreamableTextures : 1;
+
 public:
 	/** If true then DoCustomNavigableGeometryExport will be called to collect navigable geometry of this component. */
 	UPROPERTY()
@@ -600,8 +603,8 @@ public:
 
 public:
 #if WITH_EDITORONLY_DATA
-		UPROPERTY()
-			TEnumAsByte<enum EHitProxyPriority> HitProxyPriority;
+	UPROPERTY()
+	TEnumAsByte<enum EHitProxyPriority> HitProxyPriority;
 #endif
 
 private:
@@ -1694,6 +1697,9 @@ public:
 	/** Return True if a primitive's parameters as well as its position is static during gameplay, and can thus use static lighting. */
 	bool HasStaticLighting() const;
 
+	/** Return true if primitive can skip getting texture streaming render asset info. */
+	bool CanSkipGetTextureStreamingRenderAssetInfo() const;
+
 	/** Returns true if the component is static and has the right static mesh setup to support lightmaps. */
 	virtual bool HasValidSettingsForStaticLighting(bool bOverlookInvalidComponents) const 
 	{
@@ -2035,6 +2041,11 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void UpdateCollisionProfile();
 	virtual void PostEditImport() override;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
+	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 

@@ -913,7 +913,32 @@ const TArray<UAssetUserData*>* UTexture::GetAssetUserDataArray() const
 	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }
 
-FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount, int32 MaxMipCount) const
+#if WITH_EDITOR
+// Based on target platform, returns wether texture is candidate to be streamed.
+// This method is used to decide if PrimitiveComponent's bHasNoStreamableTextures flag can be set to true.
+// See ULevel::MarkNoStreamableTexturesPrimitiveComponents for details.
+bool UTexture::IsCandidateForTextureStreaming(const ITargetPlatform* InTargetPlatform) const
+{
+	const bool bIsVirtualTextureStreaming = InTargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming) ? VirtualTextureStreaming : false;
+	const bool bIsCandidateForTextureStreaming = InTargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming) && !bIsVirtualTextureStreaming;
+
+	if (bIsCandidateForTextureStreaming &&
+		!NeverStream &&
+		LODGroup != TEXTUREGROUP_UI &&
+		MipGenSettings != TMGS_NoMipmaps)
+	{
+		// If bCookedIsStreamable flag was previously computed, use it.
+		if (bCookedIsStreamable.IsSet())
+		{
+			return *bCookedIsStreamable;
+		}
+		return true;
+	}
+	return false;
+}
+#endif
+
+FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount, int32 MaxMipCount, bool bSkipCanBeLoaded) const
 {
 	// Create the resource with a mip count limit taking in consideration the asset LODBias.
 	// This ensures that the mip count stays constant when toggling asset streaming at runtime.
@@ -943,7 +968,7 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatfo
 		NumOfNonStreamingMips < NumMips && 
 		LODGroup != TEXTUREGROUP_UI && 
 		bAllowStreaming &&
-		PlatformData->CanBeLoaded())
+		(bSkipCanBeLoaded || PlatformData->CanBeLoaded()))
 	{
 		bMakeStreamble  = true;
 	}
