@@ -7,6 +7,7 @@
 
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Engine/StaticMesh.h"
 
 #define LOCTEXT_NAMESPACE "SMInstanceElementDetails"
 

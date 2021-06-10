@@ -6,6 +6,7 @@
 
 #include "PackageSourceControlHelper.h"
 #include "Logging/LogMacros.h"
+#include "UObject/Linker.h"
 #include "UObject/Package.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
