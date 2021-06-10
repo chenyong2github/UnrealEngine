@@ -31,16 +31,20 @@ FOnlineAsyncTaskManager::FOnlineAsyncTaskManager() :
 	ActiveTask(nullptr),
 	MaxParallelTasks(8),
 	bReloadMaxParallelTasksConfig(false),
-	WorkEvent(nullptr),
+	WorkEvent(FPlatformProcess::GetSynchEventFromPool()),
 	PollingInterval(POLLING_INTERVAL_MS),
 	bRequestingExit(false),
 	OnlineThreadId(0)
 {
 }
 
+FOnlineAsyncTaskManager::~FOnlineAsyncTaskManager()
+{
+	FPlatformProcess::ReturnSynchEventToPool(WorkEvent);
+}
+
 bool FOnlineAsyncTaskManager::Init(void)
 {
-	WorkEvent = FPlatformProcess::GetSynchEventFromPool();
 	int32 PollingConfig = POLLING_INTERVAL_MS;
 	// Read the polling interval to use from the INI file
 	if (GConfig->GetInt(TEXT("OnlineSubsystem"), TEXT("PollingIntervalInMs"), PollingConfig, GEngineIni))
@@ -100,9 +104,6 @@ void FOnlineAsyncTaskManager::Stop(void)
 void FOnlineAsyncTaskManager::Exit(void)
 {
 	UE_LOG_ONLINE(VeryVerbose, TEXT("FOnlineAsyncTaskManager::Exit() started"));
-
-	FPlatformProcess::ReturnSynchEventToPool(WorkEvent);
-	WorkEvent = nullptr;
 
 	OnlineThreadId = 0;
 	InvocationCount--;

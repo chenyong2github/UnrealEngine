@@ -357,7 +357,7 @@ PACKAGE_SCOPE:
 public:
 
 	FOnlineAsyncTaskManager();
-	virtual ~FOnlineAsyncTaskManager() {}
+	virtual ~FOnlineAsyncTaskManager();
 
 	/**
 	 * Init the online async task manager
