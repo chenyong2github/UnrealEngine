@@ -7,6 +7,7 @@
 #include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "MetasoundFrontendDocument.h"
+#include "Templates/TypeHash.h"
 
 namespace Metasound
 {
