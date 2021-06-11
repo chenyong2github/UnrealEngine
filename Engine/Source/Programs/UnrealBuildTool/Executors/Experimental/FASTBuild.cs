@@ -70,6 +70,10 @@ namespace UnrealBuildTool
 
 	class FASTBuild : ActionExecutor
 	{
+		/// <summary>
+		/// Executor to use for local actions
+		/// </summary>
+		ActionExecutor LocalExecutor;
 
 		public readonly static string DefaultExecutableBasePath	= Path.Combine(UnrealBuild.EngineDirectory.FullName, "Extras", "ThirdPartyNotUE", "FASTBuild");
 
@@ -149,6 +153,16 @@ namespace UnrealBuildTool
 		public static String MsvcCRTRedistVersion = "";
 
 		//////////////////////////////////////////
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public FASTBuild(int MaxLocalActions)
+		{
+			XmlConfig.ApplyTo(this);
+
+			this.LocalExecutor = new ParallelExecutor(MaxLocalActions);
+		}
 
 		public override string Name
 		{
@@ -437,7 +451,7 @@ namespace UnrealBuildTool
 
 			if (PreCompileActions.Any())
 			{
-				bool bResult = new LocalExecutor().ExecuteActions(PreCompileActions);
+				bool bResult = LocalExecutor.ExecuteActions(PreCompileActions);
 
 				if (!bResult)
 					return false;
@@ -466,7 +480,7 @@ namespace UnrealBuildTool
 
 			if (PostCompileActions.Any())
 			{
-				bool bResult = new LocalExecutor().ExecuteActions(PostCompileActions);
+				bool bResult = LocalExecutor.ExecuteActions(PostCompileActions);
 
 				if (!bResult)
 					return false;

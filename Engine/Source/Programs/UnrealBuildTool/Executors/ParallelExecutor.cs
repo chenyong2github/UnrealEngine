@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using EpicGames.Core;
 
 namespace UnrealBuildTool
 {
@@ -30,10 +28,6 @@ namespace UnrealBuildTool
 
 			public List<string> LogLines = new List<string>();
 			public int ExitCode = -1;
-
-			// BEGIN TEMPORARY TO CATCH PVS-STUDIO ISSUES
-			public bool GotOutput = false;
-			// END TEMPORARY
 
 			public BuildAction(LinkedAction Inner)
 			{
@@ -113,7 +107,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the parallel executor can be used</returns>
 		public static bool IsAvailable()
 		{
-			return RuntimePlatform.IsWindows;
+			return true;
 		}
 
 		/// <summary>
@@ -122,11 +116,12 @@ namespace UnrealBuildTool
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
 		public override bool ExecuteActions(List<LinkedAction> InputActions)
 		{
-			Log.TraceInformation("Building {0} {1} with {2} {3}...", InputActions.Count, (InputActions.Count == 1) ? "action" : "actions", NumParallelProcesses, (NumParallelProcesses == 1)? "process" : "processes");
+			int ActualNumParallelProcesses = Math.Min(InputActions.Count, NumParallelProcesses);
+			Log.TraceInformation("Building {0} {1} with {2} {3}...", InputActions.Count, (InputActions.Count == 1) ? "action" : "actions", ActualNumParallelProcesses, (ActualNumParallelProcesses == 1) ? "process" : "processes");
 
 			// Create actions with all our internal metadata
 			List<BuildAction> Actions = new List<BuildAction>();
-			for(int Idx = 0; Idx < InputActions.Count; Idx++)
+			for (int Idx = 0; Idx < InputActions.Count; Idx++)
 			{
 				BuildAction Action = new BuildAction(InputActions[Idx]);
 				Action.SortIndex = Idx;
@@ -143,10 +138,10 @@ namespace UnrealBuildTool
 			Dictionary<LinkedAction, BuildAction> LinkedActionToBuildAction = Actions.ToDictionary(x => x.Inner, x => x);
 			foreach (BuildAction Action in Actions)
 			{
-				foreach(LinkedAction PrerequisiteAction in Action.Inner.PrerequisiteActions)
+				foreach (LinkedAction PrerequisiteAction in Action.Inner.PrerequisiteActions)
 				{
 					BuildAction? Dependency;
-					if(LinkedActionToBuildAction.TryGetValue(PrerequisiteAction, out Dependency))
+					if (LinkedActionToBuildAction.TryGetValue(PrerequisiteAction, out Dependency))
 					{
 						Action.Dependencies.Add(Dependency);
 						Dependency.Dependants.Add(Action);
@@ -156,7 +151,7 @@ namespace UnrealBuildTool
 
 			// Figure out the recursive dependency count
 			HashSet<BuildAction> VisitedActions = new HashSet<BuildAction>();
-			foreach(BuildAction Action in Actions)
+			foreach (BuildAction Action in Actions)
 			{
 				Action.MissingDependencyCount = Action.Dependencies.Count;
 				RecursiveIncDependents(Action, VisitedActions);
@@ -164,9 +159,9 @@ namespace UnrealBuildTool
 
 			// Create the list of things to process
 			List<BuildAction> QueuedActions = new List<BuildAction>();
-			foreach(BuildAction Action in Actions)
+			foreach (BuildAction Action in Actions)
 			{
-				if(Action.MissingDependencyCount == 0)
+				if (Action.MissingDependencyCount == 0)
 				{
 					QueuedActions.Add(Action);
 				}
@@ -177,29 +172,30 @@ namespace UnrealBuildTool
 			{
 				// Create a job object for all the child processes
 				bool bResult = true;
-				Dictionary<BuildAction, Thread> ExecutingActions = new Dictionary<BuildAction,Thread>();
+				Dictionary<BuildAction, Thread> ExecutingActions = new Dictionary<BuildAction, Thread>();
 				List<BuildAction> CompletedActions = new List<BuildAction>();
 
-				using(ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
+				using (ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
 				{
-					using(AutoResetEvent CompletedEvent = new AutoResetEvent(false))
+					using (AutoResetEvent CompletedEvent = new AutoResetEvent(false))
 					{
 						int NumCompletedActions = 0;
 						using (ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false))
 						{
-							while(QueuedActions.Count > 0 || ExecutingActions.Count > 0)
+							while (QueuedActions.Count > 0 || ExecutingActions.Count > 0)
 							{
 								// Sort the actions by the number of things dependent on them
-								QueuedActions.Sort((A, B) => (A.TotalDependantCount == B.TotalDependantCount)? (B.SortIndex - A.SortIndex) : (B.TotalDependantCount - A.TotalDependantCount));
+								QueuedActions.Sort((A, B) => (A.TotalDependantCount == B.TotalDependantCount) ? (B.SortIndex - A.SortIndex) : (B.TotalDependantCount - A.TotalDependantCount));
 
 								// Create threads up to the maximum number of actions
-								while(ExecutingActions.Count < NumParallelProcesses && QueuedActions.Count > 0)
+								while (ExecutingActions.Count < ActualNumParallelProcesses && QueuedActions.Count > 0)
 								{
 									BuildAction Action = QueuedActions[QueuedActions.Count - 1];
 									QueuedActions.RemoveAt(QueuedActions.Count - 1);
 
 									Thread ExecutingThread = new Thread(() => { ExecuteAction(ProcessGroup, Action, CompletedActions, CompletedEvent); });
-									ExecutingThread.Name = String.Format("Build:{0}", Action.Inner.StatusDescription);
+									string Description = $"{(Action.Inner.CommandDescription != null ? Action.Inner.CommandDescription : Action.Inner.CommandPath.GetFileName())} {Action.Inner.StatusDescription}".Trim();
+									ExecutingThread.Name = String.Format("Build:{0}", Description);
 									ExecutingThread.Start();
 
 									ExecutingActions.Add(Action, ExecutingThread);
@@ -209,9 +205,9 @@ namespace UnrealBuildTool
 								CompletedEvent.WaitOne();
 
 								// Wait for something to finish and flush it to the log
-								lock(CompletedActions)
+								lock (CompletedActions)
 								{
-									foreach(BuildAction CompletedAction in CompletedActions)
+									foreach (BuildAction CompletedAction in CompletedActions)
 									{
 										// Join the thread
 										Thread CompletedThread = ExecutingActions[CompletedAction];
@@ -222,23 +218,26 @@ namespace UnrealBuildTool
 										NumCompletedActions++;
 										ProgressWriter.Write(NumCompletedActions, InputActions.Count);
 
+										string Description = $"{(CompletedAction.Inner.CommandDescription != null ? CompletedAction.Inner.CommandDescription : CompletedAction.Inner.CommandPath.GetFileName())} {CompletedAction.Inner.StatusDescription}".Trim();
+
 										// Write it to the log
-										if(CompletedAction.LogLines.Count > 0)
+										if (CompletedAction.Inner.bShouldOutputStatusDescription)
 										{
-											Log.TraceInformation("[{0}/{1}] {2}", NumCompletedActions, InputActions.Count, CompletedAction.LogLines[0]);
-											for(int LineIdx = 1; LineIdx < CompletedAction.LogLines.Count; LineIdx++)
-											{
-												Log.TraceInformation("{0}", CompletedAction.LogLines[LineIdx]);
-											}
+											Log.TraceInformation("[{0}/{1}] {2}", NumCompletedActions, InputActions.Count, Description);
+										}
+
+										foreach (string Line in CompletedAction.LogLines)
+										{
+											Log.TraceInformation(Line);
 										}
 
 										// Check the exit code
-										if(CompletedAction.ExitCode == 0)
+										if (CompletedAction.ExitCode == 0)
 										{
 											// Mark all the dependents as done
-											foreach(BuildAction DependantAction in CompletedAction.Dependants)
+											foreach (BuildAction DependantAction in CompletedAction.Dependants)
 											{
-												if(--DependantAction.MissingDependencyCount == 0)
+												if (--DependantAction.MissingDependencyCount == 0)
 												{
 													QueuedActions.Add(DependantAction);
 												}
@@ -247,16 +246,15 @@ namespace UnrealBuildTool
 										else
 										{
 											// BEGIN TEMPORARY TO CATCH PVS-STUDIO ISSUES
-											if (!CompletedAction.GotOutput)
+											if (CompletedAction.LogLines.Count == 0)
 											{
-												string StatusDescription = CompletedAction.LogLines.Count > 0 ? CompletedAction.LogLines[0] : "";
-												Log.TraceInformation("[{0}/{1}] {2} - Error but no output", NumCompletedActions, InputActions.Count, StatusDescription);
-												Log.TraceInformation("[{0}/{1}] {2} - {3} {4} {5} {6}", NumCompletedActions, InputActions.Count, StatusDescription, CompletedAction.ExitCode, 
+												Log.TraceInformation("[{0}/{1}] {2} - Error but no output", NumCompletedActions, InputActions.Count, Description);
+												Log.TraceInformation("[{0}/{1}] {2} - {3} {4} {5} {6}", NumCompletedActions, InputActions.Count, Description, CompletedAction.ExitCode,
 													CompletedAction.Inner.WorkingDirectory, CompletedAction.Inner.CommandPath, CompletedAction.Inner.CommandArguments);
 											}
 											// END TEMPORARY
 											// Update the exit code if it's not already set
-											if(bResult && CompletedAction.ExitCode != 0)
+											if (bResult && CompletedAction.ExitCode != 0)
 											{
 												bResult = false;
 											}
@@ -266,7 +264,7 @@ namespace UnrealBuildTool
 								}
 
 								// If we've already got a non-zero exit code, clear out the list of queued actions so nothing else will run
-								if(!bResult && bStopCompilationAfterErrors)
+								if (!bResult && bStopCompilationAfterErrors)
 								{
 									QueuedActions.Clear();
 								}
@@ -288,14 +286,6 @@ namespace UnrealBuildTool
 		/// <param name="CompletedEvent">Event to set once an event is complete</param>
 		static void ExecuteAction(ManagedProcessGroup ProcessGroup, BuildAction Action, List<BuildAction> CompletedActions, AutoResetEvent CompletedEvent)
 		{
-			if (Action.Inner.bShouldOutputStatusDescription && !String.IsNullOrEmpty(Action.Inner.StatusDescription))
-			{
-				Action.LogLines.Add(Action.Inner.StatusDescription);
-			}
-
-			// BEGIN TEMPORARY TO CATCH PVS-STUDIO ISSUES
-			int LogLineCount = Action.LogLines.Count;
-			// END TEMPORARY
 			try
 			{
 				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.Inner.CommandPath.FullName, Action.Inner.CommandArguments, Action.Inner.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal))
@@ -303,17 +293,14 @@ namespace UnrealBuildTool
 					Action.LogLines.AddRange(Process.ReadAllLines());
 					Action.ExitCode = Process.ExitCode;
 				}
-				// BEGIN TEMPORARY TO CATCH PVS-STUDIO ISSUES
-				Action.GotOutput = Action.LogLines.Count > LogLineCount;
-				// END TEMPORARY
 			}
-			catch(Exception Ex)
+			catch (Exception Ex)
 			{
 				Log.WriteException(Ex, null);
 				Action.ExitCode = 1;
 			}
 
-			lock(CompletedActions)
+			lock (CompletedActions)
 			{
 				CompletedActions.Add(Action);
 			}
@@ -328,9 +315,9 @@ namespace UnrealBuildTool
 		/// <param name="VisitedActions">Set of visited actions</param>
 		private static void RecursiveIncDependents(BuildAction Action, HashSet<BuildAction> VisitedActions)
 		{
-			foreach(BuildAction Dependency in Action.Dependants)
+			foreach (BuildAction Dependency in Action.Dependants)
 			{
-				if(!VisitedActions.Contains(Action))
+				if (!VisitedActions.Contains(Action))
 				{
 					VisitedActions.Add(Action);
 					Dependency.TotalDependantCount++;

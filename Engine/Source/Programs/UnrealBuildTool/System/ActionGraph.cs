@@ -337,19 +337,15 @@ namespace UnrealBuildTool
 				}
 				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable())
 				{
-					Executor = new FASTBuild();
+					Executor = new FASTBuild(BuildConfiguration.MaxParallelActions);
 				}
 				else if(BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable())
 				{
 					Executor = new SNDBS();
 				}
-				else if(BuildConfiguration.bAllowParallelExecutor && ParallelExecutor.IsAvailable())
-				{
-					Executor = new ParallelExecutor(BuildConfiguration.MaxParallelActions);
-				}
 				else
 				{
-					Executor = new LocalExecutor(BuildConfiguration.MaxParallelActions);
+					Executor = new ParallelExecutor(BuildConfiguration.MaxParallelActions);
 				}
 
 				// Execute the build

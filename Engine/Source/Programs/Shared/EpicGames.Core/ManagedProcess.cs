@@ -600,6 +600,14 @@ namespace EpicGames.Core
 		/// <param name="Flags">Flags for the new process</param>
 		private void CreateManagedProcessPortable(ManagedProcessGroup? Group, string FileName, string CommandLine, string? WorkingDirectory, IReadOnlyDictionary<string, string>? Environment, ProcessPriorityClass Priority, ManagedProcessFlags Flags)
 		{
+			// TODO: Process Arguments follow windows conventions in .NET Core
+			// Which means single quotes ' are not considered quotes.
+			// see https://github.com/dotnet/runtime/issues/29857
+			// also see UE-102580
+			// for rules see https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
+			CommandLine = CommandLine.Replace('\'', '\"');
+
+
 			// for non-Windows platforms
 			FrameworkProcess = new Process();
 			FrameworkProcess.StartInfo.FileName = FileName;
@@ -607,6 +615,7 @@ namespace EpicGames.Core
 			FrameworkProcess.StartInfo.WorkingDirectory = WorkingDirectory;
 			FrameworkProcess.StartInfo.RedirectStandardInput = true;
 			FrameworkProcess.StartInfo.RedirectStandardOutput = true;
+			FrameworkProcess.StartInfo.RedirectStandardError = true;
 			FrameworkProcess.StartInfo.UseShellExecute = false;
 			FrameworkProcess.StartInfo.CreateNoWindow = true;
 
@@ -631,6 +640,9 @@ namespace EpicGames.Core
 			Id = FrameworkProcess.Id;
 			StdIn = FrameworkProcess.StandardInput.BaseStream;
 			StdOut = FrameworkProcess.StandardOutput.BaseStream;
+			StdOutText = FrameworkProcess.StandardOutput;
+			StdErr = FrameworkProcess.StandardError.BaseStream;
+			StdErrText = FrameworkProcess.StandardError;
 		}
 
 		/// <summary>
@@ -684,18 +696,23 @@ namespace EpicGames.Core
 		public int Read(byte[] Buffer, int Offset, int Count)
 		{
 			// Fill the buffer, reentering managed code every 20ms to allow thread abort exceptions to be thrown
-			Task<int> ReadTask;
-			if(FrameworkProcess == null)
-			{
-				ReadTask = StdOut!.ReadAsync(Buffer, Offset, Count);
-			}
-			else
-			{
-				ReadTask = FrameworkProcess.StandardOutput.BaseStream.ReadAsync(Buffer, Offset, Count);
-			}
+			Task<int> ReadTask = StdOut!.ReadAsync(Buffer, Offset, Count);
 			while(!ReadTask.Wait(20))
 			{
 				// Spin through managed code to allow things like ThreadAbortExceptions to be thrown.
+			}
+			if (ReadTask.Result != 0)
+			{
+				return ReadTask.Result;
+			}
+
+			if (StdOut != StdErr)
+			{
+				ReadTask = StdErr!.ReadAsync(Buffer, Offset, Count);
+				while (!ReadTask.Wait(20))
+				{
+					// Spin through managed code to allow things like ThreadAbortExceptions to be thrown.
+				}
 			}
 			return ReadTask.Result;
 		}
@@ -709,14 +726,17 @@ namespace EpicGames.Core
 		/// <returns>Number of bytes read</returns>
 		public async Task<int> ReadAsync(byte[] Buffer, int Offset, int Count, CancellationToken CancellationToken)
 		{
-			if (FrameworkProcess == null)
+			Task<int> ReadTask = StdOut!.ReadAsync(Buffer, Offset, Count, CancellationToken);
+			if (StdOut != StdErr)
 			{
-				return await StdOut!.ReadAsync(Buffer, Offset, Count, CancellationToken);
+				await ReadTask;
+				if (ReadTask.Result == 0)
+				{
+					ReadTask = StdErr!.ReadAsync(Buffer, Offset, Count, CancellationToken);
+				}
 			}
-			else
-			{
-				return await FrameworkProcess.StandardOutput.BaseStream.ReadAsync(Buffer, Offset, Count, CancellationToken);
-			}
+
+			return await ReadTask;
 		}
 
 		/// <summary>
@@ -727,14 +747,16 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public Task CopyToAsync(Stream OutputStream, CancellationToken CancellationToken)
 		{
-			if(FrameworkProcess == null)
+			if (StdOut == StdErr)
 			{
 				return StdOut!.CopyToAsync(OutputStream, CancellationToken);
 			}
-			else
+
+			return new Task(async () =>
 			{
-				return FrameworkProcess.StandardOutput.BaseStream.CopyToAsync(OutputStream, CancellationToken);
-			}
+				await StdOut!.CopyToAsync(OutputStream, CancellationToken);
+				await StdErr!.CopyToAsync(OutputStream, CancellationToken);
+			});
 		}
 
 		/// <summary>
@@ -761,9 +783,23 @@ namespace EpicGames.Core
 			using (CancellationTokenRegistration Registration = CancellationToken.Register(() => TaskCompletionSource.SetResult(false)))
 			{
 				byte[] Buffer = new byte[BufferSize];
-				for (; ; )
+				for (;;)
 				{
-					Task<int> ReadTask = StdOut.ReadAsync(Buffer, 0, BufferSize, CancellationToken);
+					Task<int> ReadTask = StdOut!.ReadAsync(Buffer, 0, BufferSize, CancellationToken);
+
+					Task CompletedTask = await Task.WhenAny(ReadTask, TaskCompletionSource.Task);
+					CancellationToken.ThrowIfCancellationRequested();
+
+					int Bytes = await ReadTask;
+					if (Bytes == 0)
+					{
+						break;
+					}
+					await WriteOutputAsync(Buffer, 0, Bytes, CancellationToken);
+				}
+				for (;;)
+				{
+					Task<int> ReadTask = StdErr!.ReadAsync(Buffer, 0, BufferSize, CancellationToken);
 
 					Task CompletedTask = await Task.WhenAny(ReadTask, TaskCompletionSource.Task);
 					CancellationToken.ThrowIfCancellationRequested();
@@ -831,6 +867,7 @@ namespace EpicGames.Core
 				Array.Copy(Buffer, LastStartIdx, Buffer, 0, Buffer.Length - LastStartIdx);
 				NumBytesInBuffer -= LastStartIdx;
 			}
+			WaitForExit();
 			return OutputLines;
 		}
 
@@ -840,14 +877,17 @@ namespace EpicGames.Core
 		/// <returns>New line</returns>
 		public async Task<string?> ReadLineAsync()
 		{
-			if (FrameworkProcess == null)
+			Task<string?> ReadLineTask = StdOutText!.ReadLineAsync();
+			if (StdOutText != StdErrText)
 			{
-				return await StdOutText!.ReadLineAsync();
+				await ReadLineTask;
+				if (ReadLineTask.Result == null)
+				{
+					ReadLineTask = StdErrText!.ReadLineAsync();
+				}
 			}
-			else
-			{
-				return await FrameworkProcess.StandardOutput.ReadLineAsync();
-			}
+
+			return await ReadLineTask;
 		}
 
 		/// <summary>
@@ -861,15 +901,7 @@ namespace EpicGames.Core
 			try
 			{
 				// Busy wait for the ReadLine call to finish, so we can get interrupted by thread abort exceptions
-				Task<string?> ReadLineTask;
-				if(FrameworkProcess == null)
-				{
-					ReadLineTask = StdOutText!.ReadLineAsync();
-				}
-				else
-				{
-					ReadLineTask = FrameworkProcess.StandardOutput.ReadLineAsync();
-				}
+				Task<string?> ReadLineTask = StdOutText!.ReadLineAsync();
 				for (;;)
 				{
 					const int MillisecondsTimeout = 20;
@@ -878,16 +910,37 @@ namespace EpicGames.Core
 							: ReadLineTask.Wait(MillisecondsTimeout))
 					{
 						Line = ReadLineTask.IsCompleted ? ReadLineTask.Result : null;
-						return Line != null;
+						if (Line != null)
+						{
+							return true;
+						}
+						break;
+					}
+				}
+
+				if (StdOutText != StdErrText)
+				{
+					ReadLineTask = StdErrText!.ReadLineAsync();
+					for (;;)
+					{
+						const int MillisecondsTimeout = 20;
+						if (Token.HasValue
+								? ReadLineTask.Wait(MillisecondsTimeout, Token.Value)
+								: ReadLineTask.Wait(MillisecondsTimeout))
+						{
+							Line = ReadLineTask.IsCompleted ? ReadLineTask.Result : null;
+							return Line != null;
+						}
 					}
 				}
 			}
 			catch (OperationCanceledException)
 			{
 				// If the cancel token is signalled, just return false.
-				Line = null;
-				return false;
 			}
+
+			Line = null;
+			return false;
 		}
 
 		/// <summary>
