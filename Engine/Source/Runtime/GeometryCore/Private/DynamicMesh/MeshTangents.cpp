@@ -1,10 +1,84 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMesh/MeshTangents.h"
+#include "VectorUtil.h"
 #include "Async/ParallelFor.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
+
+
+
+FDynamicMeshTangents::FDynamicMeshTangents(const FDynamicMesh3* MeshIn)
+{
+	Mesh = MeshIn;
+	if (ensure(Mesh) && ensure(Mesh->HasAttributes()))
+	{
+		Normals = Mesh->Attributes()->PrimaryNormals();
+		if (ensure(Normals) && Mesh->Attributes()->HasTangentSpace() )
+		{
+			Tangents = Mesh->Attributes()->PrimaryTangents();
+			Bitangents = Mesh->Attributes()->PrimaryBiTangents();
+		}
+	}
+}
+
+
+void FDynamicMeshTangents::GetTangentFrame(int32 TriangleID, int32 TriVertexIndex, FVector3f& Normal, FVector3f& Tangent, FVector3f& Bitangent) const
+{
+	if (Normals)
+	{
+		Normals->GetTriElement(TriangleID, TriVertexIndex, Normal);
+		if (Tangents)
+		{
+			Tangents->GetTriElement(TriangleID, TriVertexIndex, Tangent);
+			Bitangents->GetTriElement(TriangleID, TriVertexIndex, Bitangent);
+		}
+		else
+		{
+			VectorUtil::MakePerpVectors(Normal, Tangent, Bitangent);
+		}
+	}
+	else
+	{
+		Normal = FVector3f::UnitZ();
+		Tangent = FVector3f::UnitX();
+		Bitangent = FVector3f::UnitY();
+	}
+}
+
+
+void FDynamicMeshTangents::GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, const FVector3f& Normal, FVector3f& Tangent, FVector3f& Bitangent) const
+{
+	if (Tangents)
+	{
+		Tangents->GetTriElement(TriangleID, TriVertexIndex, Tangent);
+		Bitangents->GetTriElement(TriangleID, TriVertexIndex, Bitangent);
+	}
+	else
+	{
+		VectorUtil::MakePerpVectors(Normal, Tangent, Bitangent);
+	}
+}
+
+
+
+
+void FDynamicMeshTangents::GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, FVector3f& Tangent, FVector3f& Bitangent) const
+{
+	if (Tangents)
+	{
+		Tangents->GetTriElement(TriangleID, TriVertexIndex, Tangent);
+		Bitangents->GetTriElement(TriangleID, TriVertexIndex, Bitangent);
+	}
+	else
+	{
+		Tangent = FVector3f::UnitX();
+		Bitangent = FVector3f::UnitY();
+	}
+}
+
+
 
 template<typename RealType>
 void TMeshTangents<RealType>::SetTangentCount(int Count, bool bClearToZero)

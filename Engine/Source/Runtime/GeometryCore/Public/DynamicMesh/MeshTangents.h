@@ -11,6 +11,36 @@ namespace UE
 namespace Geometry
 {
 
+/**
+ * FDynamicMeshTangents is a helper object for accessing tangents stored in the AttributeSet of a FDynamicMesh3.
+ */
+class GEOMETRYCORE_API FDynamicMeshTangents
+{
+public:
+	const FDynamicMesh3* Mesh = nullptr;
+	const FDynamicMeshNormalOverlay* Normals = nullptr;
+	const FDynamicMeshNormalOverlay* Tangents = nullptr;
+	const FDynamicMeshNormalOverlay* Bitangents = nullptr;
+
+	FDynamicMeshTangents(const FDynamicMesh3* MeshIn);
+
+	/** @return true if the mesh has valid tangents */
+	bool HasValidTangents() const { return Tangents != nullptr && Bitangents != nullptr; }
+
+	/**
+	 * If tangents are available in the overlays, returns them. If only Normal is available, computes orthogonal basis. Falls back to unit axes if no overlays are available.
+	 */
+	void GetTangentFrame(int32 TriangleID, int32 TriVertexIndex, FVector3f& NormalOut, FVector3f& TangentOut, FVector3f& BitangentOut) const;
+	/**
+	 * If tangents are available in the overlays, returns them. Otherwise computes orthogonal basis to Normal argument.
+	 */
+	void GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, const FVector3f& Normal, FVector3f& TangentOut, FVector3f& BitangentOut) const;
+	/**
+	 * If tangents are available in the overlays, returns them, otherwise falls back to unit X/Y axes.
+	 */
+	void GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, FVector3f& TangentOut, FVector3f& BitangentOut) const;
+};
+
 
 /**
  * Options used by TMeshTangents for tangents computation
@@ -167,6 +197,19 @@ public:
 		int k = TriangleID * 3 + TriVertIdx;
 		Tangents[k] = Tangent;
 		Bitangents[k] = Bitangent;
+	}
+
+	/**
+	 * Get tangent and bitangent at a vertex of a triangle for per-triangle computed tangents
+	 * @param TriangleID triangle index in mesh
+	 * @param TriVertIdx vertex index in range 0,1,2
+	 */
+	template<typename OtherVectorType>
+	inline void GetTriangleVertexTangentVectors(int32 TriangleID, int32 TriVertexIndex, OtherVectorType& TangentOut, OtherVectorType& BitangentOut) const
+	{
+		int k = TriangleID * 3 + TriVertexIndex;
+		TangentOut = (OtherVectorType)Tangents[k];
+		BitangentOut = (OtherVectorType)Bitangents[k];
 	}
 
 
