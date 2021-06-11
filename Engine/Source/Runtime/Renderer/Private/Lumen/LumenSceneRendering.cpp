@@ -64,16 +64,19 @@ FAutoConsoleVariableRef CVarLumenGIMaxConeSteps(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-
 int32 GLumenSceneSurfaceCacheReset = 0;
 FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheReset(
 	TEXT("r.LumenScene.SurfaceCache.Reset"),
 	GLumenSceneSurfaceCacheReset,
-	TEXT("Reset all atlases and captured cards.\n")
-	TEXT("1 - one time reset\n")
-	TEXT("2 - continuos reset\n")
-	TEXT("3 - continuos reset every 2 frames\n")
-	TEXT("4 - continuos reset every 3 frames\n"),
+	TEXT("Reset all atlases and captured cards.\n"),	
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenSceneSurfaceCacheResetEveryNthFrame = 0;
+FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheResetEveryNthFrame(
+	TEXT("r.LumenScene.SurfaceCache.ResetEveryNthFrame"),
+	GLumenSceneSurfaceCacheResetEveryNthFrame,
+	TEXT("Continuosly reset all atlases and captured cards every N-th frame.\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -208,10 +211,7 @@ extern int32 GAllowLumenReflections;
 
 void Lumen::DebugResetSurfaceCache()
 {
-	if (GLumenSceneSurfaceCacheReset < 2)
-	{
-		GLumenSceneSurfaceCacheReset = 1;
-	}
+	GLumenSceneSurfaceCacheReset = 1;
 }
 
 namespace Lumen
@@ -1575,16 +1575,11 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame != 0;
 		const bool bReallocateAtlas = LumenSceneData.UpdateAtlasSize();
 
-		if (GLumenSceneSurfaceCacheReset == 1
-			|| GLumenSceneSurfaceCacheReset == 2
-			|| (GLumenSceneSurfaceCacheReset == 3 && View.Family->FrameNumber % 2 == 0)
-			|| (GLumenSceneSurfaceCacheReset == 4 && View.Family->FrameNumber % 3 == 0))
+		// Surface cache reset for debugging
+		if ((GLumenSceneSurfaceCacheReset != 0)
+			|| (GLumenSceneSurfaceCacheResetEveryNthFrame > 0 && (View.Family->FrameNumber % (uint32)GLumenSceneSurfaceCacheResetEveryNthFrame == 0)))
 		{
 			LumenSceneData.bDebugClearAllCachedState = true;
-		}
-
-		if (GLumenSceneSurfaceCacheReset == 1)
-		{
 			GLumenSceneSurfaceCacheReset = 0;
 		}
 
