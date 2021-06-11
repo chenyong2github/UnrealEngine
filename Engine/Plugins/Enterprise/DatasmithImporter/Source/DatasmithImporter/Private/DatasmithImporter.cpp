@@ -275,8 +275,10 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 	{
 		for (int32 MeshIndex = 0; MeshIndex < StaticMeshesCount && !ImportContext.bUserCancelled; ++MeshIndex)
 		{
-			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
-
+			if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+			{
+				ImportContext.bUserCancelled = true;
+			}
 
 			if (!ImportContext.AssetsContext.StaticMeshesFinalPackage || ImportContext.AssetsContext.StaticMeshesFinalPackage->GetFName() == NAME_None || ImportContext.SceneTranslator == nullptr)
 			{
@@ -317,7 +319,10 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 	// This pass will wait on the futures we got from the first pass async tasks
 	for ( int32 MeshIndex = 0; MeshIndex < StaticMeshesCount && !ImportContext.bUserCancelled; ++MeshIndex )
 	{
-		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+		{
+			ImportContext.bUserCancelled = true;
+		}
 
 		TSharedRef< IDatasmithMeshElement > MeshElement = ImportContext.FilteredScene->GetMesh( MeshIndex ).ToSharedRef();
 
@@ -504,7 +509,10 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 		{
 			for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
 			{
-				ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+				if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+				{
+					ImportContext.bUserCancelled = true;
+				}
 
 				if (ImportContext.bUserCancelled)
 				{
@@ -550,7 +558,10 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 				continue;
 			}
 
-			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+			{
+				ImportContext.bUserCancelled = true;
+			}
 
 			AsyncData[TextureIndex].Result =
 				Async(
@@ -582,7 +593,10 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 				continue;
 			}
 
-			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+			{
+				ImportContext.bUserCancelled = true;
+			}
 
 			if ( ImportContext.bUserCancelled )
 			{
@@ -872,7 +886,10 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 
 		for (int32 i = 0; i < ActorsCount && !ImportContext.bUserCancelled; ++i)
 		{
-			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+			{
+				ImportContext.bUserCancelled = true;
+			}
 
 			TSharedPtr< IDatasmithActorElement > ActorElement = ImportContext.Scene->GetActor(i);
 
@@ -894,7 +911,10 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 		// After all actors were imported, perform a post import step so that any dependencies can be resolved
 		for (int32 i = 0; i < ActorsCount && !ImportContext.bUserCancelled; ++i)
 		{
-			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+			{
+				ImportContext.bUserCancelled = true;
+			}
 
 			TSharedPtr< IDatasmithActorElement > ActorElement = ImportContext.Scene->GetActor(i);
 
@@ -984,7 +1004,10 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 
 	for (int32 i = 0; i < ActorElement->GetChildrenCount() && !ImportContext.bUserCancelled; ++i)
 	{
-		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+		{
+			ImportContext.bUserCancelled = true;
+		}
 
 		const TSharedPtr< IDatasmithActorElement >& ChildActorElement = ActorElement->GetChild(i);
 
@@ -1353,7 +1376,10 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 	SequencesToImport.Reserve(SequencesCount);
 	for ( int32 SequenceIndex = 0; SequenceIndex < SequencesCount && !ImportContext.bUserCancelled; ++SequenceIndex )
 	{
-		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+		{
+			ImportContext.bUserCancelled = true;
+		}
 
 		TSharedPtr< IDatasmithLevelSequenceElement > SequenceElement = ImportContext.FilteredScene->GetLevelSequence( SequenceIndex );
 		if ( !SequenceElement )
@@ -1376,7 +1402,10 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 		// Scan remaining sequences and import the ones we can, removing from this array
 		for ( int32 SequenceIndex = SequencesToImport.Num() - 1; SequenceIndex >= 0 && !ImportContext.bUserCancelled; --SequenceIndex )
 		{
-			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+			if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+			{
+				ImportContext.bUserCancelled = true;
+			}
 
 			TSharedPtr<IDatasmithLevelSequenceElement>& SequenceElement = SequencesToImport[SequenceIndex];
 
@@ -1460,7 +1489,10 @@ void FDatasmithImporter::ImportLevelVariantSets( FDatasmithImportContext& Import
 
 	for ( int32 LevelVariantSetIndex = 0; LevelVariantSetIndex < LevelVariantSetsCount && !ImportContext.bUserCancelled; ++LevelVariantSetIndex )
 	{
-		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+		{
+			ImportContext.bUserCancelled = true;
+		}
 
 		TSharedPtr< IDatasmithLevelVariantSetsElement > LevelVariantSetsElement = ImportContext.FilteredScene->GetLevelVariantSets( LevelVariantSetIndex );
 		if ( !LevelVariantSetsElement )
