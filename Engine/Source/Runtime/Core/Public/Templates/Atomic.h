@@ -7,10 +7,17 @@
 #include "Templates/IsIntegral.h"
 #include "Templates/IsTrivial.h"
 #include "Traits/IntType.h"
+#include <atomic>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // `TAtomic` is planned for deprecation. Please use `std::atomic`
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define USE_DEPRECATED_TATOMIC 1
+
+#if !defined(USE_DEPRECATED_TATOMIC)
+#define USE_DEPRECATED_TATOMIC 0
+#endif
 
 template <typename T>
 struct TAtomicBase_Basic;
@@ -33,7 +40,9 @@ enum class EMemoryOrder
 	Relaxed,
 
 	// Establishes a single total order of all other atomic operations marked with this.
-	SequentiallyConsistent
+	SequentiallyConsistent,
+
+	Count
 };
 
 namespace UE4Atomic_Private
@@ -210,7 +219,11 @@ namespace UE4Atomic_Private
 
 // Basic storage and implementation - only allows getting and setting via platform atomics.
 template <typename T>
-struct alignas((UE4Atomic_Private::TIsSupportedSize<sizeof(T)>::Value) ? alignof(UE4Atomic_Private::TUnderlyingIntegerType_T<T>) : alignof(T)) TAtomicBase_Basic
+struct 
+#if USE_DEPRECATED_TATOMIC
+	alignas((UE4Atomic_Private::TIsSupportedSize<sizeof(T)>::Value) ? alignof(UE4Atomic_Private::TUnderlyingIntegerType_T<T>) : alignof(T))
+#endif
+	TAtomicBase_Basic
 {
 public:
 	/**
@@ -222,6 +235,7 @@ public:
 	 */
 	FORCEINLINE T Load(EMemoryOrder Order = EMemoryOrder::SequentiallyConsistent) const
 	{
+#if USE_DEPRECATED_TATOMIC
 		switch (Order)
 		{
 			case EMemoryOrder::Relaxed:
@@ -229,6 +243,9 @@ public:
 		}
 
 		return UE4Atomic_Private::Load(&Element);
+#else
+		return Element.load(ToStd(Order));
+#endif
 	}
 
 	/**
@@ -239,6 +256,7 @@ public:
 	 */
 	FORCEINLINE void Store(T Value, EMemoryOrder Order = EMemoryOrder::SequentiallyConsistent)
 	{
+#if USE_DEPRECATED_TATOMIC
 		switch (Order)
 		{
 			case EMemoryOrder::Relaxed:
@@ -246,6 +264,9 @@ public:
 		}
 
 		return UE4Atomic_Private::Store(&Element, Value);
+#else
+		Element.store(Value, ToStd(Order));
+#endif
 	}
 
 	/**
@@ -257,7 +278,11 @@ public:
 	 */
 	FORCEINLINE T Exchange(T Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::Exchange(&Element, Value);
+#else
+		return Element.exchange(Value);
+#endif
 	}
 
 	/**
@@ -284,10 +309,14 @@ public:
 	 */
 	FORCEINLINE bool CompareExchange(T& Expected, T Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		T PrevValue = UE4Atomic_Private::CompareExchange(&this->Element, Expected, Value);
 		bool bResult = PrevValue == Expected;
 		Expected = PrevValue;
 		return bResult;
+#else
+		return Element.compare_exchange_strong(Expected, Value);
+#endif
 	}
 
 protected:
@@ -298,7 +327,18 @@ protected:
 	{
 	}
 
+#if USE_DEPRECATED_TATOMIC
 	volatile T Element;
+#else
+	std::atomic<T> Element;
+#endif
+
+private:
+	static std::memory_order ToStd(EMemoryOrder Order)
+	{
+		std::memory_order Map[(int)EMemoryOrder::Count] = { std::memory_order_relaxed, std::memory_order_seq_cst };
+		return Map[(int)Order];
+	}
 };
 
 // TODO : basic storage and getting and setting, but the element is protected by a mutex instead of using platform atomics.
@@ -318,7 +358,11 @@ public:
 	 */
 	FORCEINLINE T operator++()
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::IncrementExchange(&this->Element) + 1;
+#else
+		return this->Element.fetch_add(1) + 1;
+#endif
 	}
 
 	/**
@@ -328,7 +372,11 @@ public:
 	 */
 	FORCEINLINE T operator++(int)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::IncrementExchange(&this->Element);
+#else
+		return this->Element.fetch_add(1);
+#endif
 	}
 
 	/**
@@ -340,7 +388,11 @@ public:
 	 */
 	FORCEINLINE T operator+=(DiffType Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::AddExchange(&this->Element, Value) + Value;
+#else
+		return this->Element.fetch_add(Value) + Value;
+#endif
 	}
 
 	/**
@@ -350,7 +402,11 @@ public:
 	 */
 	FORCEINLINE T operator--()
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::DecrementExchange(&this->Element) - 1;
+#else
+		return this->Element.fetch_sub(1) - 1;
+#endif
 	}
 
 	/**
@@ -360,7 +416,11 @@ public:
 	 */
 	FORCEINLINE T operator--(int)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::DecrementExchange(&this->Element);
+#else
+		return this->Element.fetch_sub(1);
+#endif
 	}
 
 	/**
@@ -372,7 +432,11 @@ public:
 	 */
 	FORCEINLINE T operator-=(DiffType Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::SubExchange(&this->Element, Value) - Value;
+#else
+		return this->Element.fetch_sub(Value) - Value;
+#endif
 	}
 
 	/**
@@ -382,7 +446,11 @@ public:
 	 */
 	FORCEINLINE T IncrementExchange()
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::IncrementExchange(&this->Element);
+#else
+		return this->Element.fetch_add(1);
+#endif
 	}
 
 	/**
@@ -392,7 +460,11 @@ public:
 	 */
 	FORCEINLINE T DecrementExchange()
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::DecrementExchange(&this->Element);
+#else
+		return this->Element.fetch_sub(1);
+#endif
 	}
 
 	/**
@@ -404,7 +476,11 @@ public:
 	 */
 	FORCEINLINE T AddExchange(DiffType Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::AddExchange(&this->Element, Value);
+#else
+		return this->Element.fetch_add(Value);
+#endif
 	}
 
 	/**
@@ -416,7 +492,11 @@ public:
 	 */
 	FORCEINLINE T SubExchange(DiffType Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::SubExchange(&this->Element, Value);
+#else
+		return this->Element.fetch_sub(Value);
+#endif
 	}
 
 protected:
@@ -455,7 +535,11 @@ public:
 	 */
 	FORCEINLINE T operator&=(const T Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::AndExchange(&this->Element, Value) & Value;
+#else
+		return this->Element.fetch_and(Value) & Value;
+#endif
 	}
 
 	/**
@@ -467,7 +551,11 @@ public:
 	 */
 	FORCEINLINE T operator|=(const T Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::OrExchange(&this->Element, Value) | Value;
+#else
+		return this->Element.fetch_or(Value) | Value;
+#endif
 	}
 
 	/**
@@ -479,7 +567,11 @@ public:
 	 */
 	FORCEINLINE T operator^=(const T Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::XorExchange(&this->Element, Value) ^ Value;
+#else
+		return this->Element.fetch_xor(Value) ^ Value;
+#endif
 	}
 
 	/**
@@ -491,7 +583,11 @@ public:
 	 */
 	FORCEINLINE T AndExchange(const T Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::AndExchange(&this->Element, Value);
+#else
+		return this->Element.fetch_and(Value);
+#endif
 	}
 
 	/**
@@ -503,7 +599,11 @@ public:
 	 */
 	FORCEINLINE T OrExchange(const T Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::OrExchange(&this->Element, Value);
+#else
+		return this->Element.fetch_or(Value);
+#endif
 	}
 
 	/**
@@ -515,7 +615,11 @@ public:
 	 */
 	FORCEINLINE T XorExchange(const T Value)
 	{
+#if USE_DEPRECATED_TATOMIC
 		return UE4Atomic_Private::XorExchange(&this->Element, Value);
+#else
+		return this->Element.fetch_xor(Value);
+#endif
 	}
 
 

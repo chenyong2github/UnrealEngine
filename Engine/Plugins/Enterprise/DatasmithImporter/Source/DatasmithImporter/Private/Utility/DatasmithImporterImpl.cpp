@@ -247,7 +247,10 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 	FFeedbackContext* FeedbackContext = ImportContext.FeedbackContext;
 	for ( int32 TextureIndex = 0; TextureIndex < TexturesCount && !ImportContext.bUserCancelled; ++TextureIndex )
 	{
-		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
+		if (FDatasmithImporterImpl::HasUserCancelledTask(ImportContext.FeedbackContext))
+		{
+			ImportContext.bUserCancelled = true;
+		}
 
 		TSharedPtr< IDatasmithTextureElement > TextureElement = ImportContext.FilteredScene->GetTexture( TextureIndex );
 		if (TextureElement->GetTextureMode() == EDatasmithTextureMode::Ies)
