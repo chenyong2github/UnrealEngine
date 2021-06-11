@@ -149,8 +149,8 @@ bool FSnapshotArchive::IsPropertyReferenceToSubobject(const FProperty* InPropert
 	}
 
 	const bool bIsMarkedAsSubobject = InProperty->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance);
-	const bool bIsActorOrComponentPtr = ObjectProperty->PropertyClass->IsChildOf(AActor::StaticClass()) || ObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass());
-	if (bIsMarkedAsSubobject || bIsActorOrComponentPtr)
+	const bool bIsComponentPtr = ObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass());
+	if (bIsMarkedAsSubobject || bIsComponentPtr)
 	{
 		return true;
 	}
