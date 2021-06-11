@@ -168,6 +168,7 @@ private:
 
 	TMap<FString, CefRefPtr<CefRequestContext>> RequestContexts;
 	FCefSchemeHandlerFactories SchemeHandlerFactories;
+	bool bAllowCEF;
 #endif
 
 	/** List of currently existing browser windows */
