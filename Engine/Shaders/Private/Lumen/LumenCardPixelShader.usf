@@ -63,11 +63,14 @@ void Main(
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 
 	float3 DiffuseColor = BaseColor - BaseColor * Metallic;
-	float3 SpecularColor = lerp(0.08 * Specular.xxx, BaseColor, Metallic.xxx);
+	float3 SpecularColor = lerp(0.08f * Specular.xxx, BaseColor, Metallic.xxx);
 
 	EnvBRDFApproxFullyRough(DiffuseColor, SpecularColor);
 
+	// Normals are stored in local card space
+	float3 CardSpaceNormal = mul(float4(MaterialParameters.WorldNormal, 0.0f), ResolvedView.TranslatedWorldToView).xyz;
+
 	OutTarget0 = float4(sqrt(DiffuseColor), Opacity);
-	OutTarget1 = float4(UnitVectorToOctahedron(MaterialParameters.WorldNormal), 0.0f, 0.0f);
+	OutTarget1 = float4(CardSpaceNormal.xy * 0.5f + 0.5f, 0.0f, 0.0f);
 	OutTarget2 = float4(GetMaterialEmissive(PixelMaterialInputs), 0.0f);
 }

@@ -298,9 +298,12 @@ float2 SamplePositonToCardUV(FLumenCardData Card, float2 LocalSamplePosition)
 }
 
 // Return decoded world space normal
-float3 DecodeSurfaceCacheNormal(float2 EncodedNormal)
+float3 DecodeSurfaceCacheNormal(FLumenCardData Card, float2 EncodedNormal)
 {
-	return OctahedronToUnitVector(EncodedNormal);
+	float3 CardSpaceNormal;
+	CardSpaceNormal.xy = EncodedNormal.xy * 2.0f - 1.0f;
+	CardSpaceNormal.z = sqrt(max(1.0f - length2(CardSpaceNormal.xy), 0.0001f));
+	return mul(Card.WorldToLocalRotation, CardSpaceNormal);
 }
 
 bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3 ConeAxis, float ConeAngleCos, float ConeAngleSin)

@@ -264,6 +264,6 @@ void ClearLumenCardsPS(
 )
 {
 	OutAlbedo = float4(0.0f, 0.0f, 0.0f, 0.0f);
-	OutNormals = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	OutNormals = float4(0.5f, 0.5f, 0.0f, 0.0f);
 	OutEmissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
 }

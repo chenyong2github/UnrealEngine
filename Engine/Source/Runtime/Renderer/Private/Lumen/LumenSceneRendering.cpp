@@ -1879,7 +1879,7 @@ void AllocatedCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureA
 	CardCaptureAtlas.Normal = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
-			PF_R8G8B8A8,
+			PF_R8G8,
 			FClearValueBinding::Green,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
 		TEXT("Lumen.CardCaptureNormalAtlas"));
