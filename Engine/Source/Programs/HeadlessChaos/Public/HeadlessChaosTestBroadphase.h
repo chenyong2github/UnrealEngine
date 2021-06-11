@@ -13,6 +13,8 @@ namespace ChaosTest {
 
 	void AABBTreeTest();
 
+	void AABBTreeDirtyGridTest();
+
 	void AABBTreeTimesliceTest();
 
 	void BroadphaseCollectionTest();

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/AABB.h"
+#include "Chaos/AABBTreeDirtyGridUtils.h"
 #include "Chaos/Defines.h"
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/Transform.h"
@@ -9,11 +10,29 @@
 #include "Chaos/ISpatialAcceleration.h"
 #include "Templates/Models.h"
 #include "Chaos/BoundingVolume.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+CSV_DECLARE_CATEGORY_EXTERN(ChaosPhysicsTimers);
 
 struct FAABBTreeCVars
 {
 	static int32 UpdateDirtyElementPayloadData;
 	static FAutoConsoleVariableRef CVarUpdateDirtyElementPayloadData;
+};
+
+struct CHAOS_API FAABBTreeDirtyGridCVars
+{
+	static int32 DirtyElementGridCellSize;
+	static FAutoConsoleVariableRef CVarDirtyElementGridCellSize;
+
+	static int32 DirtyElementMaxGridCellQueryCount;
+	static FAutoConsoleVariableRef CVarDirtyElementMaxGridCellQueryCount;
+
+	static int32 DirtyElementMaxPhysicalSizeInCells;
+	static FAutoConsoleVariableRef CVarDirtyElementMaxPhysicalSizeInCells;
+
+	static int32 DirtyElementMaxCellCapacity;
+	static FAutoConsoleVariableRef CVarDirtyElementMaxCellCapacity;
 };
 
 namespace Chaos
@@ -285,11 +304,13 @@ struct FAABBTreePayloadInfo
 	int32 GlobalPayloadIdx;
 	int32 DirtyPayloadIdx;
 	int32 LeafIdx;
+	int32 DirtyGridOverflowIdx;
 
-	FAABBTreePayloadInfo(int32 InGlobalPayloadIdx = INDEX_NONE, int32 InDirtyIdx = INDEX_NONE, int32 InLeafIdx = INDEX_NONE)
+	FAABBTreePayloadInfo(int32 InGlobalPayloadIdx = INDEX_NONE, int32 InDirtyIdx = INDEX_NONE, int32 InLeafIdx = INDEX_NONE, int32 InDirtyGridOverflowIdx = INDEX_NONE)
 		: GlobalPayloadIdx(InGlobalPayloadIdx)
 		, DirtyPayloadIdx(InDirtyIdx)
 		, LeafIdx(InLeafIdx)
+		, DirtyGridOverflowIdx(InDirtyGridOverflowIdx)
 	{}
 
 	void Serialize(FArchive& Ar)
@@ -297,6 +318,7 @@ struct FAABBTreePayloadInfo
 		Ar << GlobalPayloadIdx;
 		Ar << DirtyPayloadIdx;
 		Ar << LeafIdx;
+		Ar << DirtyGridOverflowIdx;
 	}
 };
 
@@ -329,6 +351,24 @@ static void UpdateElementHelper(T& InElem, const T& InFrom)
 	}
 }
 
+struct DirtyGridHashEntry
+{
+	DirtyGridHashEntry()
+	{
+		Index = 0;
+		Count = 0;
+	}
+
+	DirtyGridHashEntry(const DirtyGridHashEntry& Other)
+	{
+		Index = Other.Index;
+		Count = Other.Count;
+	}
+
+	int32 Index;  // Index into FlattenedCellArrayOfDirtyIndices
+	int32 Count;  // Number of valid entries from Index in FlattenedCellArrayOfDirtyIndices
+};
+
 template <typename TPayloadType, typename TLeafType, bool bMutable = true>
 class TAABBTree final : public ISpatialAcceleration<TPayloadType, FReal, 3>
 {
@@ -349,6 +389,7 @@ public:
 		, MaxPayloadBounds(DefaultMaxPayloadBounds)
 		, MaxNumToProcess(DefaultMaxNumToProcess)
 	{
+		GetCVars();
 	}
 
 	virtual void Reset() override
@@ -356,6 +397,9 @@ public:
 		Nodes.Reset();
 		Leaves.Reset();
 		DirtyElements.Reset();
+		CellHashToFlatArray.Reset();
+		FlattenedCellArrayOfDirtyIndices.Reset();
+		DirtyElementsGridOverflow.Reset();
 		GlobalPayloads.Reset();
 		PayloadToInfo.Reset();
 
@@ -487,6 +531,194 @@ public:
 		return QueryImp<EAABBQueryType::Overlap>(FVec3(), VoidData, FVec3(), QueryBounds, Visitor, VoidData.Dir, VoidData.InvDir, VoidData.bParallel);
 	}
 
+	// This is to make sure important parameters are not changed during inopportune times
+	void GetCVars()
+	{
+		DirtyElementGridCellSize = (FReal) FAABBTreeDirtyGridCVars::DirtyElementGridCellSize;
+		if (DirtyElementGridCellSize > SMALL_NUMBER)
+		{
+			DirtyElementGridCellSizeInv = 1.0f / DirtyElementGridCellSize;
+		}
+		else
+		{
+			DirtyElementGridCellSizeInv = 1.0f;
+		}
+
+		DirtyElementMaxGridCellQueryCount = FAABBTreeDirtyGridCVars::DirtyElementMaxGridCellQueryCount;
+		DirtyElementMaxPhysicalSizeInCells = FAABBTreeDirtyGridCVars::DirtyElementMaxPhysicalSizeInCells;
+		DirtyElementMaxCellCapacity = FAABBTreeDirtyGridCVars::DirtyElementMaxCellCapacity;
+	}
+
+	FORCEINLINE_DEBUGGABLE bool DirtyElementGridEnabled() const
+	{
+		return DirtyElementGridCellSize > 0.0f &&
+			DirtyElementMaxGridCellQueryCount > 0 &&
+			DirtyElementMaxPhysicalSizeInCells > 0 &&
+			DirtyElementMaxCellCapacity > 0;
+	}
+
+	FORCEINLINE_DEBUGGABLE bool EnoughSpaceInGridCell(int32 Hash)
+	{
+		DirtyGridHashEntry* HashEntry = CellHashToFlatArray.Find(Hash);
+		if (HashEntry)
+		{
+			if (HashEntry->Count >= DirtyElementMaxCellCapacity) // Checking if we are at capacity
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	// Returns true if there was enough space in the cell to add the new dirty element index and if the element is not already in the cell 
+	//(The second condition should never be true for the current implementation)
+	FORCEINLINE_DEBUGGABLE bool AddNewDirtyParticleIndexToGridCell(int32 Hash, int32 NewDirtyIndex)
+	{
+		DirtyGridHashEntry* HashEntry = CellHashToFlatArray.Find(Hash);
+		if (HashEntry)
+		{
+			if (HashEntry->Count < DirtyElementMaxCellCapacity && ensure(InsertValueIntoSortedSubArray(FlattenedCellArrayOfDirtyIndices, NewDirtyIndex, HashEntry->Index, HashEntry->Count)))
+			{
+				++(HashEntry->Count);
+				return true;
+			}
+		}
+		else
+		{
+			DirtyGridHashEntry& NewHashEntry = CellHashToFlatArray.Add(Hash);
+			NewHashEntry.Index = FlattenedCellArrayOfDirtyIndices.Num(); // End of flat array
+			NewHashEntry.Count = 1;
+			FlattenedCellArrayOfDirtyIndices.AddUninitialized(DirtyElementMaxCellCapacity);
+			FlattenedCellArrayOfDirtyIndices[NewHashEntry.Index] = NewDirtyIndex;
+			return true;
+		}
+		return false;
+	}
+
+	// Returns true if the dirty particle was in the grid and successfully deleted
+	FORCEINLINE_DEBUGGABLE bool DeleteDirtyParticleIndexFromGridCell(int32 Hash, int32 DirtyIndex)
+	{
+		DirtyGridHashEntry* HashEntry = CellHashToFlatArray.Find(Hash);
+		if (HashEntry && HashEntry->Count >= 1)
+		{
+			if (DeleteValueFromSortedSubArray(FlattenedCellArrayOfDirtyIndices, DirtyIndex, HashEntry->Index, HashEntry->Count))
+			{
+				--(HashEntry->Count);
+				// Not deleting cell when it gets empty, it may get reused or will be deleted when the AABBTree is rebuilt
+				return true;
+			}
+		}
+		return false;
+	}
+
+	FORCEINLINE_DEBUGGABLE void DeleteDirtyParticleEverywhere(int32 DeleteDirtyParticleIdx, int32 DeleteDirtyGridOverflowIdx)
+	{
+		if (DeleteDirtyGridOverflowIdx == INDEX_NONE)
+		{
+			// Remove this element from the Grid
+			DoForOverlappedCells(DirtyElements[DeleteDirtyParticleIdx].Bounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) {
+				ensure(DeleteDirtyParticleIndexFromGridCell(Hash, DeleteDirtyParticleIdx));
+				});
+		}
+		else
+		{
+			// remove element from the grid overflow
+			ensure(DirtyElementsGridOverflow[DeleteDirtyGridOverflowIdx] == DeleteDirtyParticleIdx);
+
+			if (DeleteDirtyGridOverflowIdx + 1 < DirtyElementsGridOverflow.Num())
+			{
+				auto LastOverflowPayload = DirtyElements[DirtyElementsGridOverflow.Last()].Payload;
+				PayloadToInfo.FindChecked(LastOverflowPayload).DirtyGridOverflowIdx = DeleteDirtyGridOverflowIdx;
+			}
+			DirtyElementsGridOverflow.RemoveAtSwap(DeleteDirtyGridOverflowIdx);
+		}
+
+		if (DeleteDirtyParticleIdx + 1 < DirtyElements.Num())
+		{
+			// Now rename the last element in DirtyElements in both the grid and the overflow
+			// So that it is correct after swapping Dirty elements in next step
+			int32 LastDirtyElementIndex = DirtyElements.Num() - 1;
+			auto LastDirtyPayload = DirtyElements[LastDirtyElementIndex].Payload;
+			int32 LastDirtyGridOverflowIdx = PayloadToInfo.FindChecked(LastDirtyPayload).DirtyGridOverflowIdx;
+			if (LastDirtyGridOverflowIdx == INDEX_NONE)
+			{
+				// Rename this element in the Grid
+				DoForOverlappedCells(DirtyElements.Last().Bounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) {
+					ensure(DeleteDirtyParticleIndexFromGridCell(Hash, LastDirtyElementIndex));
+					ensure(AddNewDirtyParticleIndexToGridCell(Hash, DeleteDirtyParticleIdx));
+					});
+			}
+			else
+			{
+				// Rename element in overflow instead
+				DirtyElementsGridOverflow[LastDirtyGridOverflowIdx] = DeleteDirtyParticleIdx;
+			}
+
+			// Copy the Payload to the new index
+			
+			PayloadToInfo.FindChecked(LastDirtyPayload).DirtyPayloadIdx = DeleteDirtyParticleIdx;
+		}
+		DirtyElements.RemoveAtSwap(DeleteDirtyParticleIdx);
+	}
+
+	FORCEINLINE_DEBUGGABLE int32 AddDirtyElementToGrid(const TAABB<FReal, 3>& NewBounds, int32 NewDirtyElement)
+	{
+		bool bAddToGrid = !TooManyOverlapQueryCells(NewBounds, DirtyElementGridCellSizeInv, DirtyElementMaxPhysicalSizeInCells);
+		if (bAddToGrid)
+		{
+			DoForOverlappedCells(NewBounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) {
+				if (!EnoughSpaceInGridCell(Hash))
+				{
+					bAddToGrid = false;
+				}
+				});
+		}
+
+		if (bAddToGrid)
+		{
+			DoForOverlappedCells(NewBounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) {
+				ensure(AddNewDirtyParticleIndexToGridCell(Hash, NewDirtyElement));
+				});
+		}
+		else
+		{
+			int32 NewOverflowIndex = DirtyElementsGridOverflow.Add(NewDirtyElement);
+			return NewOverflowIndex;
+		}
+
+		return INDEX_NONE;
+	}
+
+	FORCEINLINE_DEBUGGABLE int32 UpdateDirtyElementInGrid(const TAABB<FReal, 3>& NewBounds, int32 DirtyElementIndex, int32 DirtyGridOverflowIdx)
+	{
+		if (DirtyGridOverflowIdx == INDEX_NONE)
+		{
+			const TAABB<FReal, 3>& OldBounds = DirtyElements[DirtyElementIndex].Bounds;
+
+			// Delete element in cells that are no longer overlapping
+			DoForOverlappedCellsExclude(OldBounds, NewBounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) -> bool {
+				ensure(DeleteDirtyParticleIndexFromGridCell(Hash, DirtyElementIndex));
+				return true;
+				});
+
+			// Add to new overlapped cells
+			if (!DoForOverlappedCellsExclude(NewBounds, OldBounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) -> bool {
+					return AddNewDirtyParticleIndexToGridCell(Hash, DirtyElementIndex);
+				}))
+			{
+				// Was not able to add it to the grid , so delete element from grid
+				DoForOverlappedCells(NewBounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) {
+						DeleteDirtyParticleIndexFromGridCell(Hash, DirtyElementIndex);
+					});
+				// Add to overflow
+				int32 NewOverflowIndex = DirtyElementsGridOverflow.Add(DirtyElementIndex);
+				return NewOverflowIndex;
+			}
+		}
+		return DirtyGridOverflowIdx;
+	}
+
 	virtual void RemoveElement(const TPayloadType& Payload)
 	{
 		if (ensure(bMutable))
@@ -496,6 +728,7 @@ public:
 				if (PayloadInfo->GlobalPayloadIdx != INDEX_NONE)
 				{
 					ensure(PayloadInfo->DirtyPayloadIdx == INDEX_NONE);
+					ensure(PayloadInfo->DirtyGridOverflowIdx == INDEX_NONE);
 					ensure(PayloadInfo->LeafIdx == INDEX_NONE);
 					if (PayloadInfo->GlobalPayloadIdx + 1 < GlobalPayloads.Num())
 					{
@@ -506,12 +739,19 @@ public:
 				}
 				else if (PayloadInfo->DirtyPayloadIdx != INDEX_NONE)
 				{
-					if (PayloadInfo->DirtyPayloadIdx + 1 < DirtyElements.Num())
+					if (DirtyElementGridEnabled())
 					{
-						auto LastDirtyPayload = DirtyElements.Last().Payload;
-						PayloadToInfo.FindChecked(LastDirtyPayload).DirtyPayloadIdx = PayloadInfo->DirtyPayloadIdx;
+						DeleteDirtyParticleEverywhere(PayloadInfo->DirtyPayloadIdx, PayloadInfo->DirtyGridOverflowIdx);
 					}
-					DirtyElements.RemoveAtSwap(PayloadInfo->DirtyPayloadIdx);
+					else
+					{
+						if (PayloadInfo->DirtyPayloadIdx + 1 < DirtyElements.Num())
+						{
+							auto LastDirtyPayload = DirtyElements.Last().Payload;
+							PayloadToInfo.FindChecked(LastDirtyPayload).DirtyPayloadIdx = PayloadInfo->DirtyPayloadIdx;
+						}
+						DirtyElements.RemoveAtSwap(PayloadInfo->DirtyPayloadIdx);
+					}
 				}
 				else if (ensure(PayloadInfo->LeafIdx != INDEX_NONE))
 				{
@@ -525,6 +765,7 @@ public:
 
 	virtual void UpdateElement(const TPayloadType& Payload, const FAABB3& NewBounds, bool bHasBounds) override
 	{
+		//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBTreeUpdateElement)
 		if (ensure(bMutable))
 		{
 			FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
@@ -568,11 +809,22 @@ public:
 				if (PayloadInfo->DirtyPayloadIdx == INDEX_NONE)
 				{
 					PayloadInfo->DirtyPayloadIdx = DirtyElements.Add(FElement{ Payload, NewBounds });
+					if (DirtyElementGridEnabled())
+					{
+						//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBAddElement)
+						PayloadInfo->DirtyGridOverflowIdx = AddDirtyElementToGrid(NewBounds, PayloadInfo->DirtyPayloadIdx);
+					}
 				}
 				else
 				{
-					DirtyElements[PayloadInfo->DirtyPayloadIdx].Bounds = NewBounds;
-					UpdateElementHelper(DirtyElements[PayloadInfo->DirtyPayloadIdx].Payload, Payload);
+					const int32 DirtyElementIndex = PayloadInfo->DirtyPayloadIdx;
+					if (DirtyElementGridEnabled())
+					{
+						//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBUpElement)
+						PayloadInfo->DirtyGridOverflowIdx = UpdateDirtyElementInGrid(NewBounds, DirtyElementIndex, PayloadInfo->DirtyGridOverflowIdx);
+					}
+					DirtyElements[DirtyElementIndex].Bounds = NewBounds;
+					UpdateElementHelper(DirtyElements[DirtyElementIndex].Payload, Payload);
 				}
 
 				// Handle something that previously did not have bounds that may be in global elements.
@@ -604,14 +856,22 @@ public:
 				// Handle something that previously had bounds that may be in dirty elements.
 				if (PayloadInfo->DirtyPayloadIdx != INDEX_NONE)
 				{
-					if (PayloadInfo->DirtyPayloadIdx + 1 < DirtyElements.Num())
+					if (DirtyElementGridEnabled())
 					{
-						auto LastDirtyPayload = DirtyElements.Last().Payload;
-						PayloadToInfo.FindChecked(LastDirtyPayload).DirtyPayloadIdx = PayloadInfo->DirtyPayloadIdx;
+						DeleteDirtyParticleEverywhere(PayloadInfo->DirtyPayloadIdx, PayloadInfo->DirtyGridOverflowIdx);
 					}
-					DirtyElements.RemoveAtSwap(PayloadInfo->DirtyPayloadIdx);
+					else
+					{
+						if (PayloadInfo->DirtyPayloadIdx + 1 < DirtyElements.Num())
+						{
+							auto LastDirtyPayload = DirtyElements.Last().Payload;
+							PayloadToInfo.FindChecked(LastDirtyPayload).DirtyPayloadIdx = PayloadInfo->DirtyPayloadIdx;
+						}
+						DirtyElements.RemoveAtSwap(PayloadInfo->DirtyPayloadIdx);
+					}
 
 					PayloadInfo->DirtyPayloadIdx = INDEX_NONE;
+					PayloadInfo->DirtyGridOverflowIdx = INDEX_NONE;
 				}
 			}
 		}
@@ -671,6 +931,13 @@ public:
 		Ar << MaxChildrenInLeaf;
 		Ar << MaxTreeDepth;
 		Ar << MaxPayloadBounds;
+
+		if (Ar.IsLoading())
+		{
+			// Disable the Grid until it is rebuilt
+			DirtyElementGridCellSize = 0.0f;
+			DirtyElementGridCellSizeInv = 1.0f;
+		}
 	}
 
 private:
@@ -703,6 +970,85 @@ private:
 		*this = NewTree;
 	}
 
+	// Returns true if the query should continue
+	// Execute a function for all cells found in a query as well as the overflow 
+	template <typename FunctionType>
+	bool DoForHitGridCellsAndOverflow(TArray<DirtyGridHashEntry>& HashEntryForOverlappedCells, FunctionType Function) const
+	{
+
+		// Now merge and iterate the lists of elements found in the overlapping cells
+		bool DoneWithGridElements = false;
+		bool DoneWithNonGridElements = false;
+		int NonGridElementIter = 0;
+		while (!DoneWithGridElements || !DoneWithNonGridElements)
+		{
+			// Get the next dirty element index
+
+			int32 SmallestDirtyParticleIndex = INT_MAX; // Best dirty particle index to find
+
+			if (!DoneWithGridElements)
+			{
+				// Find the next smallest index 
+				// This will start slowing down if we are overlapping a lot of cells
+				DoneWithGridElements = true;
+				for (const DirtyGridHashEntry& HashEntry : HashEntryForOverlappedCells)
+				{
+					int32 Count = HashEntry.Count;
+					if (Count > 0)
+					{
+						int32 DirtyParticleIndex = FlattenedCellArrayOfDirtyIndices[HashEntry.Index];
+						if (DirtyParticleIndex < SmallestDirtyParticleIndex)
+						{
+							SmallestDirtyParticleIndex = DirtyParticleIndex;
+							DoneWithGridElements = false;
+						}
+					}
+				}
+			}
+
+			// Now skip all elements with the same best index
+			if (!DoneWithGridElements)
+			{
+				for (DirtyGridHashEntry& HashEntry : HashEntryForOverlappedCells)
+				{
+					int32 Count = HashEntry.Count;
+					if (Count > 0)
+					{
+						int32 DirtyParticleIndex = FlattenedCellArrayOfDirtyIndices[HashEntry.Index];
+						if (DirtyParticleIndex == SmallestDirtyParticleIndex)
+						{
+							++HashEntry.Index; // Increment Index
+							--HashEntry.Count; // Decrement count
+						}
+					}
+				}
+			}
+
+			DoneWithNonGridElements = NonGridElementIter >= DirtyElementsGridOverflow.Num();
+			if (DoneWithGridElements && !DoneWithNonGridElements)
+			{
+				SmallestDirtyParticleIndex = DirtyElementsGridOverflow[NonGridElementIter];
+				++NonGridElementIter;
+			}
+
+			// Elements that are in the overflow should not also be in the grid
+			ensure(DoneWithGridElements || PayloadToInfo.Find(DirtyElements[SmallestDirtyParticleIndex].Payload)->DirtyGridOverflowIdx == INDEX_NONE);
+
+			if ((!DoneWithGridElements || !DoneWithNonGridElements))
+			{
+				const int32 Index = SmallestDirtyParticleIndex;
+				const auto& Elem = DirtyElements[Index];
+
+				if (!Function(Elem))
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	
+
 	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
 	bool QueryImp(const FVec3& RESTRICT Start, TQueryFastData& CurData, const FVec3 QueryHalfExtents, const FAABB3& QueryBounds, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
 	{
@@ -710,9 +1056,7 @@ private:
 		FVec3 TmpPosition;
 		FReal TOI = 0;
 		const void* QueryData = Visitor.GetQueryData();
-
 		{
-
 			//QUICK_SCOPE_CYCLE_COUNTER(QueryGlobal);
 
 			for(const auto& Elem : GlobalPayloads)
@@ -744,15 +1088,13 @@ private:
 		}
 
 		if (bMutable)
-		{
-			//QUICK_SCOPE_CYCLE_COUNTER(QueryDirty);
-
-			for (const auto& Elem : DirtyElements)
+		{	// Returns true if we should continue
+			auto IntersectAndVisit = [&](const FElement& Elem) -> bool
 			{
 				const auto& InstanceBounds = Elem.Bounds;
 				if (PrePreFilterHelper(Elem.Payload, QueryData))
 				{
-					continue;
+					return true;
 				}
 
 				if (TAABBTreeIntersectionHelper<TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents, Dir, InvDir, bParallel))
@@ -773,8 +1115,75 @@ private:
 						return false;
 					}
 				}
-			}
+				return true;
+			};
 
+			//QUICK_SCOPE_CYCLE_COUNTER(QueryDirty);
+			bool bUseGrid = false;
+
+			if (DirtyElementGridEnabled())
+			{
+				if (Query == EAABBQueryType::Overlap)
+				{
+					bUseGrid = !TooManyOverlapQueryCells(QueryBounds, DirtyElementGridCellSizeInv, DirtyElementMaxGridCellQueryCount);
+				}
+				else if (Query == EAABBQueryType::Raycast)
+				{
+					bUseGrid = !TooManyRaycastQueryCells(Start, CurData.Dir, CurData.CurrentLength, DirtyElementGridCellSizeInv, DirtyElementMaxGridCellQueryCount);
+				}
+				else if (Query == EAABBQueryType::Sweep)
+				{
+					bUseGrid = !TooManySweepQueryCells(QueryHalfExtents, Start, CurData.Dir, CurData.CurrentLength, DirtyElementGridCellSizeInv, DirtyElementMaxGridCellQueryCount);
+				}
+			}
+			
+			if (bUseGrid)
+			{
+				TArray<DirtyGridHashEntry> HashEntryForOverlappedCells;
+				auto AddHashEntry = [&](int32 QueryCellHash)
+				{
+					const DirtyGridHashEntry* HashEntry = CellHashToFlatArray.Find(QueryCellHash);
+					if (HashEntry)
+					{
+						HashEntryForOverlappedCells.Add(*HashEntry);
+					}
+				};
+
+				if (Query == EAABBQueryType::Overlap)
+				{
+					DoForOverlappedCells(QueryBounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, AddHashEntry);
+				}
+				else if (Query == EAABBQueryType::Raycast)
+				{
+					DoForRaycastIntersectCells(Start, CurData.Dir, CurData.CurrentLength, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, AddHashEntry);
+				}
+				else if (Query == EAABBQueryType::Sweep)
+				{
+					DoForSweepIntersectCells(QueryHalfExtents, Start, CurData.Dir, CurData.CurrentLength, DirtyElementGridCellSize , DirtyElementGridCellSizeInv ,
+					[&](FReal X, FReal Y)
+					{
+						int32 QueryCellHash = HashCoordinates(X, Y, DirtyElementGridCellSizeInv);
+						const DirtyGridHashEntry* HashEntry = CellHashToFlatArray.Find(QueryCellHash);
+						if (HashEntry)
+						{
+							HashEntryForOverlappedCells.Add(*HashEntry);
+						}
+					});
+				}
+
+				if (!DoForHitGridCellsAndOverflow(HashEntryForOverlappedCells, IntersectAndVisit))
+				{
+					return false;
+				}
+			}  // end overlap
+
+			else for (const auto& Elem : DirtyElements)
+			{
+				if (!IntersectAndVisit(Elem))
+				{
+					return false;
+				}
+			}
 		}
 
 		struct FNodeQueueEntry
@@ -882,8 +1291,12 @@ private:
 		Leaves.Reset();
 		Nodes.Reset();
 		DirtyElements.Reset();
+		CellHashToFlatArray.Reset(); 
+		FlattenedCellArrayOfDirtyIndices.Reset();
+		DirtyElementsGridOverflow.Reset();
 		PayloadToInfo.Reset();
 		NumProcessedThisSlice = 0;
+		GetCVars();  // Safe to copy CVARS here
 
 		WorkSnapshot.Bounds = FAABB3::EmptyAABB();
 
@@ -922,7 +1335,7 @@ private:
 				{
 					if (bMutable)
 					{
-						PayloadToInfo.Add(Payload, FAABBTreePayloadInfo{ GlobalPayloads.Num(), INDEX_NONE, INDEX_NONE });
+						PayloadToInfo.Add(Payload, FAABBTreePayloadInfo{ GlobalPayloads.Num(), INDEX_NONE, INDEX_NONE, INDEX_NONE });
 					}
 					GlobalPayloads.Add(FElement{ Payload, ElemBounds });
 				}
@@ -1269,6 +1682,14 @@ private:
 		, Nodes(Other.Nodes)
 		, Leaves(Other.Leaves)
 		, DirtyElements(Other.DirtyElements)
+		, CellHashToFlatArray(Other.CellHashToFlatArray)
+		, FlattenedCellArrayOfDirtyIndices(Other.FlattenedCellArrayOfDirtyIndices)
+		, DirtyElementsGridOverflow(Other.DirtyElementsGridOverflow)
+		, DirtyElementGridCellSize(Other.DirtyElementGridCellSize)
+		, DirtyElementGridCellSizeInv(Other.DirtyElementGridCellSizeInv)
+		, DirtyElementMaxGridCellQueryCount(Other.DirtyElementMaxGridCellQueryCount)
+		, DirtyElementMaxPhysicalSizeInCells(Other.DirtyElementMaxPhysicalSizeInCells)
+		, DirtyElementMaxCellCapacity(Other.DirtyElementMaxCellCapacity)
 		, GlobalPayloads(Other.GlobalPayloads)
 		, PayloadToInfo(Other.PayloadToInfo)
 		, MaxChildrenInLeaf(Other.MaxChildrenInLeaf)
@@ -1293,6 +1714,17 @@ private:
 			Nodes = Rhs.Nodes;
 			Leaves = Rhs.Leaves;
 			DirtyElements = Rhs.DirtyElements;
+			
+			CellHashToFlatArray = Rhs.CellHashToFlatArray;
+			FlattenedCellArrayOfDirtyIndices = Rhs.FlattenedCellArrayOfDirtyIndices;
+			DirtyElementsGridOverflow = Rhs.DirtyElementsGridOverflow;
+			
+			DirtyElementGridCellSize = Rhs.DirtyElementGridCellSize;
+			DirtyElementGridCellSizeInv = Rhs.DirtyElementGridCellSizeInv;
+			DirtyElementMaxGridCellQueryCount = Rhs.DirtyElementMaxGridCellQueryCount;
+			DirtyElementMaxPhysicalSizeInCells = Rhs.DirtyElementMaxPhysicalSizeInCells;
+			DirtyElementMaxCellCapacity = Rhs.DirtyElementMaxCellCapacity;
+			
 			GlobalPayloads = Rhs.GlobalPayloads;
 			PayloadToInfo = Rhs.PayloadToInfo;
 			MaxChildrenInLeaf = Rhs.MaxChildrenInLeaf;
@@ -1308,6 +1740,18 @@ private:
 	TArray<FNode> Nodes;
 	TArray<TLeafType> Leaves;
 	TArray<FElement> DirtyElements;
+
+	// Data needed for DirtyElement2DAccelerationGrid
+	TMap<int32, DirtyGridHashEntry> CellHashToFlatArray; // Index, size into flat grid structure (FlattenedCellArrayOfDirtyIndices)
+	TArray<int32> FlattenedCellArrayOfDirtyIndices; // Array of indices into dirty Elements array, indices are always sorted within a 2D cell
+	TArray<int32> DirtyElementsGridOverflow; // Array of indices of DirtyElements that is not in the grid for some reason
+	// Copy of CVARS
+	FReal DirtyElementGridCellSize;
+	FReal DirtyElementGridCellSizeInv;
+	int32 DirtyElementMaxGridCellQueryCount;
+	int32 DirtyElementMaxPhysicalSizeInCells;
+	int32 DirtyElementMaxCellCapacity;
+
 	TArray<FElement> GlobalPayloads;
 	TArrayAsMap<TPayloadType, FAABBTreePayloadInfo> PayloadToInfo;
 
