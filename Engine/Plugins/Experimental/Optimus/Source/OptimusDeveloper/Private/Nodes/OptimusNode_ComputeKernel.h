@@ -12,8 +12,10 @@
 #include "OptimusNode_ComputeKernel.generated.h"
 
 
+class UOptimusComputeDataInterface;
 class USkeletalMesh;
 enum class EOptimusNodePinDirection : uint8;
+
 
 UCLASS()
 class UOptimusKernelSource : public UComputeKernelSource
@@ -56,6 +58,8 @@ private:
 
 	UPROPERTY()
 	uint64 Hash;
+
+	
 };
 
 
@@ -72,9 +76,21 @@ struct FOptimus_ShaderBinding
 };
 
 
+USTRUCT()
+struct FOptimus_ShaderContextBinding :
+	public FOptimus_ShaderBinding
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Binding)
+	EOptimusResourceContext Context = EOptimusResourceContext::Vertex;
+};
+
+
+
 UCLASS()
-class UOptimusNode_ComputeKernel
-	: public UOptimusNode
+class UOptimusNode_ComputeKernel :
+	public UOptimusNode
 {
 	GENERATED_BODY()
 
@@ -86,25 +102,31 @@ public:
 		return CategoryName::Deformers;
 	}
 
-	UOptimusKernelSource *CreateComputeKernel(UObject *InOuter) const;
+	UOptimusKernelSource* CreateComputeKernel(
+		UObject* InKernelSourceOuter,
+		const TMap<const UOptimusNode *, UOptimusComputeDataInterface *>& InNodeDataInterfaceMap,
+		TMap<int32, TPair<UOptimusComputeDataInterface *, int32>>& OutInputDataBindings,
+		TMap<int32, TPair<UOptimusComputeDataInterface *, int32>>& OutOutputDataBindings
+		) const;
 
 	UPROPERTY(EditAnywhere, Category=KernelConfiguration)
-	FString KernelName = "KernelCS";
+	FString KernelName = "MyKernel";
 
 	UPROPERTY(EditAnywhere, Category = KernelConfiguration, meta=(Min=1))
-	int32 InvocationCount = 1024;
+	int32 ThreadCount = 128;
 
+	// HACK: Replace with contexts gathered from supported DataInterfaces.
 	UPROPERTY(EditAnywhere, Category = KernelConfiguration)
-	EOptimusResourceContext Context = EOptimusResourceContext::Vertex;
+	EOptimusResourceContext DriverContext = EOptimusResourceContext::Vertex;
 
 	UPROPERTY(EditAnywhere, Category=Bindings)
 	TArray<FOptimus_ShaderBinding> Parameters;
 	
 	UPROPERTY(EditAnywhere, Category=Bindings)
-	TArray<FOptimus_ShaderBinding> InputBindings;
+	TArray<FOptimus_ShaderContextBinding> InputBindings;
 
 	UPROPERTY(EditAnywhere, Category=Bindings)
-	TArray<FOptimus_ShaderBinding> OutputBindings;
+	TArray<FOptimus_ShaderContextBinding> OutputBindings;
 
 	UPROPERTY(EditAnywhere, Category = ShaderSource)
 	FOptimusType_ShaderText ShaderSource;
@@ -129,4 +151,6 @@ private:
 	TArray<UOptimusNodePin *> GetKernelPins(
 		EOptimusNodePinDirection InPinDirection
 		) const;
+
+	FString GetWrappedShaderSource() const;
 };

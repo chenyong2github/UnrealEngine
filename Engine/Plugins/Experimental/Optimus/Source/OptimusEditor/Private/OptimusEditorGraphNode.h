@@ -61,7 +61,11 @@ private:
 		EEdGraphPinDirection InDirection, 
 	    UEdGraphPin* InParentPin = nullptr);
 
-
+	void RemoveGraphSubPins(
+		UEdGraphPin *InParentPin,
+		bool bInIsRootPinToDelete = true
+		);
+	
 	TMap<FName, UOptimusNodePin*> PathToModelPinMap;
 	TMap<FName, UEdGraphPin*> PathToGraphPinMap;
 

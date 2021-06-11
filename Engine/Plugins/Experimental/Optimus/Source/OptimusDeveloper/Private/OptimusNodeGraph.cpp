@@ -535,6 +535,28 @@ bool UOptimusNodeGraph::RemoveAllLinksToNodeDirect(UOptimusNode* InNode)
 }
 
 
+TArray<UOptimusNodePin*> UOptimusNodeGraph::GetConnectedPins(
+	const UOptimusNodePin* InNodePin
+	) const
+{
+	TArray<UOptimusNodePin*> ConnectedPins;
+	for (int32 Index: GetAllLinkIndexesToPin(InNodePin))
+	{
+		const UOptimusNodeLink* Link = Links[Index];
+
+		if (Link->GetNodeInputPin() == InNodePin)
+		{
+			ConnectedPins.Add(Link->GetNodeOutputPin());
+		}
+		else if (Link->GetNodeOutputPin() == InNodePin)
+		{
+			ConnectedPins.Add(Link->GetNodeInputPin());
+		}
+	}
+	return ConnectedPins;
+}
+
+
 void UOptimusNodeGraph::RemoveLinkByIndex(int32 LinkIndex)
 {
 	UOptimusNodeLink* Link = Links[LinkIndex];
@@ -644,9 +666,11 @@ TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToNode(const UOptimusNode* InN
 }
 
 
-TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToPin(UOptimusNodePin* InNodePin)
+TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToPin(
+	const UOptimusNodePin* InNodePin
+	) const
 {
-	TArray<int32> LinksToRemove;
+	TArray<int32> LinkIndexes;
 	for (int32 LinkIndex = 0; LinkIndex < Links.Num(); LinkIndex++)
 	{
 		const UOptimusNodeLink* Link = Links[LinkIndex];
@@ -656,11 +680,11 @@ TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToPin(UOptimusNodePin* InNodeP
 			(InNodePin->GetDirection() == EOptimusNodePinDirection::Output &&
 				Link->GetNodeOutputPin() == InNodePin))
 		{
-			LinksToRemove.Add(LinkIndex);
+			LinkIndexes.Add(LinkIndex);
 		}
 	}
 
-	return LinksToRemove;
+	return LinkIndexes;
 }
 
 

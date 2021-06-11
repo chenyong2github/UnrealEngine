@@ -9,6 +9,22 @@
 #include "SceneInterface.h"
 #include "ShaderParameterMetadataBuilder.h"
 
+
+FString USceneDataInterface::GetDisplayName() const
+{
+	return TEXT("Scene Data");
+}
+
+
+TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
+{
+	TArray<FOptimusCDIPinDefinition> Defs;
+	Defs.Add({"GameTime", "SD_ReadGameTime", {}, {}});
+	Defs.Add({"FrameNumber", "SD_ReadFrameNumber", {}, {}});
+	return Defs;
+}
+
+
 void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	// Functions must match those exposed in data interface shader code.
@@ -16,7 +32,7 @@ void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& 
 	// todo[CF]: Expose other general scene information here.
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadGameTime");
+		Fn.Name = TEXT("SD_ReadGameTime");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -26,7 +42,7 @@ void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& 
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadFrameNumber");
+		Fn.Name = TEXT("SD_ReadFrameNumber");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
@@ -50,6 +66,13 @@ void USceneDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceScene.ush\"\n");
 }
+
+
+UClass* USceneDataInterface::GetDataProviderClass() const
+{
+	return USceneDataProvider::StaticClass();
+}
+
 
 FComputeDataProviderRenderProxy* USceneDataProvider::GetRenderProxy()
 {

@@ -21,10 +21,10 @@ FString USkeletalMeshReadDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"Position", "ReadPosition", "ReadNumVertices", "Vertex"});
-	Defs.Add({"TangentX", "ReadTangentX", "ReadNumVertices", "Vertex"});
-	Defs.Add({"TangentZ", "ReadTangentZ", "ReadNumVertices", "Vertex"});
-	Defs.Add({"BindMatrix", "ReadBlendMatrix", "ReadNumVertices", "Vertex"});
+	Defs.Add({"Position", "SM_ReadPosition", "SM_ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentX", "SM_ReadTangentX", "SM_ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentZ", "SM_ReadTangentZ", "SM_ReadNumVertices", "Vertex"});
+	Defs.Add({"BindMatrix", "SM_ReadBlendMatrix", "SM_ReadNumVertices", "Vertex"});
 
 	return Defs;
 }
@@ -46,7 +46,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	// todo[CF]: Make these easier to write. Maybe even get from shader code reflection?
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadNumVertices");
+		Fn.Name = TEXT("SM_ReadNumVertices");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
@@ -56,7 +56,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadNumTriangles");
+		Fn.Name = TEXT("SM_ReadNumTriangles");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
@@ -66,7 +66,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadIndexBuffer");
+		Fn.Name = TEXT("SM_ReadIndexBuffer");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
@@ -80,7 +80,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadPosition");
+		Fn.Name = TEXT("SM_ReadPosition");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -95,7 +95,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadTangentX");
+		Fn.Name = TEXT("SM_ReadTangentX");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -110,7 +110,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadTangentZ");
+		Fn.Name = TEXT("SM_ReadTangentZ");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -125,7 +125,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadUV");
+		Fn.Name = TEXT("SM_ReadUV");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -144,7 +144,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadBoneMatrix");
+		Fn.Name = TEXT("SM_ReadBoneMatrix");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -160,7 +160,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadBlendMatrix");
+		Fn.Name = TEXT("SM_ReadBlendMatrix");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -176,7 +176,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadMorphDeltaPosition");
+		Fn.Name = TEXT("SM_ReadMorphDeltaPosition");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -191,7 +191,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadMorphDeltaTangentZ");
+		Fn.Name = TEXT("SM_ReadMorphDeltaTangentZ");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
@@ -206,7 +206,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadDuplicatedIndicesStart");
+		Fn.Name = TEXT("SM_ReadDuplicatedIndicesStart");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
@@ -220,7 +220,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadDuplicatedIndicesLength");
+		Fn.Name = TEXT("SM_ReadDuplicatedIndicesLength");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
@@ -234,7 +234,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadDuplicatedIndex");
+		Fn.Name = TEXT("SM_ReadDuplicatedIndex");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
@@ -278,6 +278,13 @@ void USkeletalMeshReadDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkeletalMeshRead.ush\"\n");
 }
+
+
+UClass* USkeletalMeshReadDataInterface::GetDataProviderClass() const
+{
+	return USkeletalMeshReadDataProvider::StaticClass();
+}
+
 
 FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
 {

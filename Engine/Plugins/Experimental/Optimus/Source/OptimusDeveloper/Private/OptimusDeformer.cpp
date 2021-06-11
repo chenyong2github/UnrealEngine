@@ -18,6 +18,7 @@
 #include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
 #include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
 #include "Nodes/OptimusNode_ComputeKernel.h"
+#include "Nodes/OptimusNode_DataInterface.h"
 
 #include "UObject/Package.h"
 
@@ -482,121 +483,217 @@ bool UOptimusDeformer::RenameResourceDirect(
 	return bChanged;
 }
 
+static void CollectNodes(
+	const UOptimusNodeGraph* InGraph, 
+	const UOptimusNode *InNode,
+	TSet<const UOptimusNode *>& CollectedNodes
+	)
+{
+	if (CollectedNodes.Contains(InNode))
+	{
+		return;
+	}
+	
+	CollectedNodes.Add(InNode);
+	
+	// Traverse in the direction of input pins (up the graph).
+	for (const UOptimusNodePin* Pin: InNode->GetPins())
+	{
+		if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
+		{
+			for (const UOptimusNodePin* ConnectedPin: InGraph->GetConnectedPins(Pin))
+			{
+				CollectNodes(InGraph, ConnectedPin->GetNode(), CollectedNodes);
+			}
+		}
+	}	
+}
+
+
 
 bool UOptimusDeformer::Compile()
 {
-	// HACK: Find a kernel node.
-
-	const UOptimusNode_ComputeKernel* KernelNode = nullptr;
+	const UOptimusNodeGraph* UpdateGraph = nullptr;
 	for (const UOptimusNodeGraph* NodeGraph: GetGraphs())
 	{
 		if (NodeGraph->GetGraphType() == EOptimusNodeGraphType::Update)
 		{
-			for (const UOptimusNode* Node: NodeGraph->GetAllNodes())
+			UpdateGraph = NodeGraph;
+			break;
+		}
+	}
+	if (!UpdateGraph)
+	{
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("No update graph found. Compilation aborted."));
+		return false;
+	}
+	
+	// HACK: Find an interface node that has no output pins. That's our terminal node.
+	// FIXME: Resource nodes can be terminals too.
+	TArray<const UOptimusNode*> TerminalNodes;
+	
+	for (const UOptimusNode* Node: UpdateGraph->GetAllNodes())
+	{
+		const UOptimusNode_DataInterface* TerminalNode = Cast<const UOptimusNode_DataInterface>(Node);
+
+		if (TerminalNode)
+		{
+			for (const UOptimusNodePin* Pin: Node->GetPins())
 			{
-				KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node);
-				if (KernelNode)
+				if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 				{
+					TerminalNode = nullptr;
 					break;
 				}
 			}
 		}
-		if (KernelNode)
+		if (TerminalNode)
 		{
-			break;
-		}	
+			TerminalNodes.Add(TerminalNode);
+		}
 	}
 
-	if (!KernelNode)
+	if (TerminalNodes.IsEmpty())
 	{
-		UE_LOG(LogOptimusDeveloper, Warning, TEXT("No kernel node found. Compilation aborted."));
+		UE_LOG(LogOptimusDeveloper, Warning, TEXT("No data interface terminal nodes found. Compilation aborted."));
 		return false;
 	}
 
+	CompileBeginDelegate.Broadcast(this);
+	
 	// Clean out any existing data.
 	KernelInvocations.Reset();
 	DataInterfaces.Reset();
 	GraphEdges.Reset();
 
-	UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(this);
-	if (!KernelSource)
+	TSet<const UOptimusNode *> ConnectedNodes;
+	for (const UOptimusNode* Node: TerminalNodes)
 	{
-		UE_LOG(LogOptimusDeveloper, Warning, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
-		return false;
+		CollectNodes(UpdateGraph, Node, ConnectedNodes);
 	}
+
+	// Find all data interface nodes and create their data interfaces.
+	TMap<const UOptimusNode *, UOptimusComputeDataInterface *> NodeDataInterfaceMap;
+
+	for (const UOptimusNode* Node: ConnectedNodes)
+	{
+		const UOptimusNode_DataInterface *DataInterfaceNode = Cast<const UOptimusNode_DataInterface>(Node);
+
+		if (DataInterfaceNode)
+		{
+			UOptimusComputeDataInterface *DataInterface =
+				NewObject<UOptimusComputeDataInterface>(this, DataInterfaceNode->GetDataInterfaceClass());
+
+			NodeDataInterfaceMap.Add(Node, DataInterface);
+		}
+	}
+
+	// TODO: Find all kernel-kernel connections and create a raw data interface for them. 
+
+	// Loop through all kernels, create a kernel source, and create a compute kernel for it.
+	struct FKernelWithDataBindings
+	{
+		UComputeKernel *Kernel;
+		TMap<int32 /* Kernel Index */, TPair<UOptimusComputeDataInterface *, int32 /* DI Index */>> InputDataBindings;
+		TMap<int32, TPair<UOptimusComputeDataInterface *, int32>> OutputDataBindings;
+	};
 	
-	UComputeKernel *Kernel = NewObject<UComputeKernel>(this);
-	Kernel->KernelSource = KernelSource; 
-
-	KernelInvocations.Add(Kernel);
-
-	// Hard code data interfaces.
-	USkeletalMeshReadDataInterface* SkinnedMeshDataInterface = NewObject<USkeletalMeshReadDataInterface>(this);
-	DataInterfaces.Add(SkinnedMeshDataInterface);
-	USkeletalMeshSkinCacheDataInterface* SkinnedMeshSkinCacheInterface = NewObject<USkeletalMeshSkinCacheDataInterface>(this);
-	DataInterfaces.Add(SkinnedMeshSkinCacheInterface);
-
-	// Setup the graph edges using function name/type matching.
-	// Generally function names don't need to match, but we make the assumption here to get something working without a graph editor.
-	TArray<FShaderFunctionDefinition> const& Inputs = Kernel->KernelSource->ExternalInputs;
-	for (int32 KernelBindingIndex = 0; KernelBindingIndex < Inputs.Num(); ++KernelBindingIndex)
+	TArray<FKernelWithDataBindings> BoundKernels;
+	for (const UOptimusNode* Node: ConnectedNodes)
 	{
-		FComputeGraphEdge GraphEdge;
-		GraphEdge.bKernelInput = true;
-		GraphEdge.KernelIndex = 0;
-		GraphEdge.KernelBindingIndex = KernelBindingIndex;
-
-		bool bFound = false;
-		for (int32 DataInterfaceIndex = 0; DataInterfaceIndex < DataInterfaces.Num() && !bFound; ++DataInterfaceIndex)
+		if (const UOptimusNode_ComputeKernel *KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node))
 		{
-			TArray<FShaderFunctionDefinition> DataProviderFunctions;
-			DataInterfaces[DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
-			for (int32 DataInterfaceBindingIndex = 0; DataInterfaceBindingIndex < DataProviderFunctions.Num() && !bFound; ++DataInterfaceBindingIndex)
+			FKernelWithDataBindings BoundKernel;
+			
+			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(this, NodeDataInterfaceMap, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings);
+			if (!KernelSource)
 			{
-				if (DataProviderFunctions[DataInterfaceBindingIndex].Name == Inputs[KernelBindingIndex].Name)
-				{
-					GraphEdge.DataInterfaceIndex = DataInterfaceIndex;
-					GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
-					bFound = true;
-				}
+				UE_LOG(LogOptimusDeveloper, Warning, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
+				return false;
 			}
-		}
+			if (BoundKernel.InputDataBindings.IsEmpty() || BoundKernel.OutputDataBindings.IsEmpty())
+			{
+				UE_LOG(LogOptimusDeveloper, Warning, TEXT("Kernel has either no input or output bindings. Compilation aborted."));
+				return false;
+			}
+			
+			BoundKernel.Kernel = NewObject<UComputeKernel>(this);
+			BoundKernel.Kernel->KernelSource = KernelSource;
 
-		if (bFound)
-		{
-			GraphEdges.Add(GraphEdge);
+			BoundKernels.Add(BoundKernel);
 		}
 	}
 
-	TArray<FShaderFunctionDefinition> const& Outputs = Kernel->KernelSource->ExternalOutputs;
-	for (int32 KernelBindingIndex = 0; KernelBindingIndex < Outputs.Num(); ++KernelBindingIndex)
+	// Now that we've collected all the pieces, time to line them up.
+	for (TPair<const UOptimusNode *, UOptimusComputeDataInterface *>&Item: NodeDataInterfaceMap)
 	{
-		FComputeGraphEdge GraphEdge;
-		GraphEdge.bKernelInput = false;
-		GraphEdge.KernelIndex = 0;
-		GraphEdge.KernelBindingIndex = KernelBindingIndex;
+		DataInterfaces.Add(Item.Value);
+	}
 
-		bool bFound = false;
-		for (int32 DataInterfaceIndex = 0; DataInterfaceIndex < DataInterfaces.Num() && !bFound; ++DataInterfaceIndex)
+	for (FKernelWithDataBindings& BoundKernel: BoundKernels)
+	{
+		KernelInvocations.Add(BoundKernel.Kernel);
+	}
+
+	// Create the graph edges.
+	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); KernelIndex++)
+	{
+		const FKernelWithDataBindings& BoundKernel = BoundKernels[KernelIndex];
+		const TArray<FShaderFunctionDefinition>& KernelInputs = BoundKernel.Kernel->KernelSource->ExternalInputs;
+
+		// FIXME: Hoist these two loops into a helper function/lambda.
+		for (const TPair<int32, TPair<UOptimusComputeDataInterface *, int32>>& DataBinding: BoundKernel.InputDataBindings)
 		{
-			TArray<FShaderFunctionDefinition> DataProviderFunctions;
-			DataInterfaces[DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
-			for (int32 DataInterfaceBindingIndex = 0; DataInterfaceBindingIndex < DataProviderFunctions.Num() && !bFound; ++DataInterfaceBindingIndex)
+			const int32 KernelBindingIndex = DataBinding.Key;
+			const UOptimusComputeDataInterface* DataInterface = DataBinding.Value.Key;
+			const int32 DataInterfaceBindingIndex = DataBinding.Value.Value;
+
+			// FIXME: Collect this beforehand.
+			TArray<FShaderFunctionDefinition> DataInterfaceFunctions;
+			DataInterface->GetSupportedInputs(DataInterfaceFunctions);
+			
+			if (ensure(KernelInputs.IsValidIndex(KernelBindingIndex)) &&
+				ensure(DataInterfaceFunctions.IsValidIndex(DataInterfaceBindingIndex)) &&
+				ensure(KernelInputs[KernelBindingIndex].Name == DataInterfaceFunctions[DataInterfaceBindingIndex].Name))
 			{
-				if (DataProviderFunctions[DataInterfaceBindingIndex].Name == Outputs[KernelBindingIndex].Name)
-				{
-					GraphEdge.DataInterfaceIndex = DataInterfaceIndex;
-					GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
-					bFound = true;
-				}
+				FComputeGraphEdge GraphEdge;
+				GraphEdge.bKernelInput = true;
+				GraphEdge.KernelIndex = KernelIndex;
+				GraphEdge.KernelBindingIndex = KernelBindingIndex;
+				GraphEdge.DataInterfaceIndex = DataInterfaces.IndexOfByKey(DataInterface);
+				GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
+				GraphEdges.Add(GraphEdge);
 			}
 		}
 
-		if (bFound)
+		const TArray<FShaderFunctionDefinition>& KernelOutputs = BoundKernels[KernelIndex].Kernel->KernelSource->ExternalOutputs;
+		for (const TPair<int32, TPair<UOptimusComputeDataInterface *, int32>>& DataBinding: BoundKernel.OutputDataBindings)
 		{
-			GraphEdges.Add(GraphEdge);
+			const int32 KernelBindingIndex = DataBinding.Key;
+			const UOptimusComputeDataInterface* DataInterface = DataBinding.Value.Key;
+			const int32 DataInterfaceBindingIndex = DataBinding.Value.Value;
+
+			// FIXME: Collect this beforehand.
+			TArray<FShaderFunctionDefinition> DataInterfaceFunctions;
+			DataInterface->GetSupportedOutputs(DataInterfaceFunctions);
+			
+			if (ensure(KernelOutputs.IsValidIndex(KernelBindingIndex)) &&
+				ensure(DataInterfaceFunctions.IsValidIndex(DataInterfaceBindingIndex)) &&
+				ensure(KernelOutputs[KernelBindingIndex].Name == DataInterfaceFunctions[DataInterfaceBindingIndex].Name))
+			{
+				FComputeGraphEdge GraphEdge;
+				GraphEdge.bKernelInput = false;
+				GraphEdge.KernelIndex = KernelIndex;
+				GraphEdge.KernelBindingIndex = KernelBindingIndex;
+				GraphEdge.DataInterfaceIndex = DataInterfaces.IndexOfByKey(DataInterface);
+				GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
+				GraphEdges.Add(GraphEdge);
+			}
 		}
-	}	
+	}
+
+	// Let folks know _before_ we update resources.
+	CompileEndDelegate.Broadcast(this);
 
 	UpdateResources();
 	
@@ -691,6 +788,17 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	}
 
 	GlobalNotifyDelegate.Broadcast(InNotifyType, InObject);
+}
+
+
+TArray<TSubclassOf<UComputeDataProvider>> UOptimusDeformer::GetDataProviderClasses() const
+{
+	TArray<TSubclassOf<UComputeDataProvider>> DataProviders;
+	for (UComputeDataInterface *DataInterface: DataInterfaces)
+	{
+		DataProviders.Add(DataInterface->GetDataProviderClass());
+	}
+	return DataProviders;
 }
 
 

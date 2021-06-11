@@ -17,6 +17,7 @@
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "UnrealWidget.h"
+#include "DataInterfaces/DataInterfaceScene.h"
 
 class FOptimusEditorViewportClient : public FEditorViewportClient
 {
@@ -92,7 +93,10 @@ void FOptimusEditorViewportClient::Tick(float DeltaSeconds)
 	TSharedPtr<SOptimusEditorViewport> EditorViewportPtr = EditorViewport.Pin();
 	if (EditorViewport.IsValid())
 	{
-		EditorViewportPtr->GetComputeGraphComponent()->QueueExecute();
+		if (!EditorViewportPtr->GetComputeGraphComponent()->DataProviders.IsEmpty())
+		{
+			EditorViewportPtr->GetComputeGraphComponent()->QueueExecute();
+		}
 	}
 	
 	FEditorViewportClient::Tick(DeltaSeconds);
@@ -237,15 +241,17 @@ void SOptimusEditorViewport::Construct(const FArguments& InArgs, TWeakPtr<FOptim
 	
 	// Create the compute graph component.
 	ComputeGraphComponent = NewObject<UComputeGraphComponent>(GetTransientPackage(), UComputeGraphComponent::StaticClass(), NAME_None, RF_Transient);
-	if (TSharedPtr<FOptimusEditor> Editor = InEditor.Pin(); Editor.IsValid())
+	TSharedPtr<FOptimusEditor> Editor = InEditor.Pin();
+	if (Editor.IsValid())
 	{
 		ComputeGraphComponent->ComputeGraph = Editor->GetDeformer();
 
 		// Set up the data interfaces. Those will get filled in when we set the preview asset.
 		SkeletalMeshReadDataProvider = NewObject<USkeletalMeshReadDataProvider>(GetTransientPackage(), USkeletalMeshReadDataProvider::StaticClass(), NAME_None, RF_Transient);
-		ComputeGraphComponent->DataProviders.Add(SkeletalMeshReadDataProvider);
 		SkeletalMeshSkinCacheDataProvider = NewObject<USkeletalMeshSkinCacheDataProvider>(GetTransientPackage(), USkeletalMeshSkinCacheDataProvider::StaticClass(), NAME_None, RF_Transient);
-		ComputeGraphComponent->DataProviders.Add(SkeletalMeshSkinCacheDataProvider);
+		SceneDataProvider = NewObject<USceneDataProvider>(GetTransientPackage(), USceneDataProvider::StaticClass(), NAME_None, RF_Transient);
+
+		InstallDataProviders(Editor->GetDeformer());
 	}
 
 	SetPreviewAsset(GUnrealEd->GetThumbnailManager()->EditorSphere);
@@ -282,6 +288,7 @@ bool SOptimusEditorViewport::SetPreviewAsset(UObject* InAsset)
 			{
 				SkeletalMeshReadDataProvider->SkeletalMesh = SkeletalMeshComponent;
 				SkeletalMeshSkinCacheDataProvider->SkeletalMesh = SkeletalMeshComponent;
+				SceneDataProvider->SceneComponent = SkeletalMeshComponent;
 			}
 		}
 	}
@@ -313,11 +320,44 @@ void SOptimusEditorViewport::SetOwnerTab(const TSharedRef<SDockTab>& InOwnerTab)
 }
 
 
+void SOptimusEditorViewport::InstallDataProviders(UOptimusDeformer *InDeformer)
+{
+	ComputeGraphComponent->DataProviders.Reset();
+
+	for (UClass* DataProviderClass: InDeformer->GetDataProviderClasses())
+	{
+		if (DataProviderClass == USkeletalMeshReadDataProvider::StaticClass())
+		{
+			ComputeGraphComponent->DataProviders.Add(SkeletalMeshReadDataProvider);
+		}
+		else if (DataProviderClass == USkeletalMeshSkinCacheDataProvider::StaticClass())
+		{
+			ComputeGraphComponent->DataProviders.Add(SkeletalMeshSkinCacheDataProvider);
+		}
+		else if (DataProviderClass == USceneDataProvider::StaticClass())
+		{
+			ComputeGraphComponent->DataProviders.Add(SceneDataProvider);
+		}
+		else
+		{
+			checkf(false, TEXT("Unknown provider class: %s"), *DataProviderClass->GetName());
+		}
+	}
+}
+
+
+void SOptimusEditorViewport::RemoveDataProviders()
+{
+	ComputeGraphComponent->DataProviders.Reset();
+}
+
+
 void SOptimusEditorViewport::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(ComputeGraphComponent);
 	Collector.AddReferencedObject(SkeletalMeshReadDataProvider);
 	Collector.AddReferencedObject(SkeletalMeshSkinCacheDataProvider);
+	Collector.AddReferencedObject(SceneDataProvider);
 	Collector.AddReferencedObject(PreviewMeshComponent);
 	Collector.AddReferencedObject(PreviewMaterial);
 }

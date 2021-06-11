@@ -16,8 +16,8 @@ enum class EOptimusResourceContext : uint8
 {
 	Vertex,
 	Triangle,
+	Bone,
 	Index,
-	ExplicitCount
 };
 
 
