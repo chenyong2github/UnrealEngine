@@ -6,6 +6,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "LiveCodingLog.h"
+#include "External/LC_Commands.h"
 #include "External/LC_EntryPoint.h"
 #include "External/LC_API.h"
 #include "Misc/App.h"
@@ -20,6 +21,8 @@
 #include "Algo/BinarySearch.h"
 #if WITH_EDITOR
 	#include "Kismet2/ReloadUtilities.h"
+	#include "Widgets/Notifications/SNotificationList.h"
+	#include "Framework/Notifications/NotificationManager.h"
 #else
 	#include "UObject/Reload.h"
 #endif
@@ -36,6 +39,7 @@ IMPLEMENT_MODULE(FLiveCodingModule, LiveCoding)
 bool GIsCompileActive = false;
 bool GTriggerReload = false;
 bool GHasLoadedPatch = false;
+commands::PostCompileResult GPostCompileResult = commands::PostCompileResult::Success;
 FString GLiveCodingConsolePath;
 FString GLiveCodingConsoleArguments;
 FLiveCodingModule* GLiveCodingModule = nullptr;
@@ -96,6 +100,7 @@ public:
 		if (bHasChanged && !bEnabledMessage)
 		{
 			bEnabledMessage = true;
+			bHasReinstancingOccurred = true;
 			static const TCHAR* Message = TEXT("Object structure changes detected.  LiveCoding re-instancing isn't supported in builds without the editor");
 			UE_LOG(LogLiveCoding, Error, TEXT("%s"), Message);
 #if WITH_ENGINE
@@ -112,18 +117,25 @@ public:
 	{
 	}
 
+	bool HasReinstancingOccurred() const
+	{
+		return bHasReinstancingOccurred;
+	}
+
+	void Reset()
+	{
+		bHasReinstancingOccurred = false;
+	}
+
 private:
 	FLiveCodingModule& LiveCodingModule;
 	mutable bool bEnabledMessage = false;
+	mutable bool bHasReinstancingOccurred = false;
 };
 #endif
 
 FLiveCodingModule::FLiveCodingModule()
-	: bEnabledLastTick(false)
-	, bEnabledForSession(false)
-	, bStarted(false)
-	, bUpdateModulesInTick(false)
-	, FullEnginePluginsDir(FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir()))
+	: FullEnginePluginsDir(FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir()))
 	, FullProjectDir(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()))
 	, FullProjectPluginsDir(FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir()))
 {
@@ -456,15 +468,105 @@ void FLiveCodingModule::AttemptSyncLivePatching()
 
 			OnPatchCompleteDelegate.Broadcast();
 			GHasLoadedPatch = false;
+
+			bHasReinstancingOccurred |= Reload->HasReinstancingOccurred();
 		}
 		else if (GTriggerReload)
 		{
 			LppSyncPoint();
 		}
-		Reload.Reset();
+		if (!GIsCompileActive)
+		{
+			static const FString Success("Live coding succeeded");
+
+			// Reset this first so it does its logging first
+			Reload.Reset();
+
+			switch (GPostCompileResult)
+			{
+			case commands::PostCompileResult::Success:
+				if (bHasReinstancingOccurred)
+				{
+#if WITH_EDITOR
+					UE_LOG(LogLiveCoding, Warning, TEXT("%s, %s"), *Success, TEXT("data type changes may cause packaging to fail if assets reference the new or updated data types"));
+#else
+					UE_LOG(LogLiveCoding, Warning, TEXT("%s, %s"), *Success, TEXT("data type changes may cause unexpected failures"));
+#endif
+				}
+				else
+				{
+					UE_LOG(LogLiveCoding, Display, TEXT("%s"), *Success);
+				}
+				break;
+			case commands::PostCompileResult::NoChanges:
+				UE_LOG(LogLiveCoding, Display, TEXT("%s, %s"), *Success, TEXT("no code changes detected"));
+				break;
+			case commands::PostCompileResult::Cancelled:
+				UE_LOG(LogLiveCoding, Error, TEXT("Live coding cancelled"));
+				break;
+			case commands::PostCompileResult::Failure:
+				UE_LOG(LogLiveCoding, Error, TEXT("Live coding failed, please see Live console for more information"));
+				break;
+			default:
+				check(false);
+			}
+
+#if WITH_EDITOR
+			static const FText SuccessText = LOCTEXT("Success", "Live coding succeeded");
+			static const FText NoChangesText = LOCTEXT("NoChanges", "No code changes were detected.");
+			static const FText FailureText = LOCTEXT("Failed", "Live coding failed");
+			static const FText FailureDetailText = LOCTEXT("FailureDetail", "Please see Live Coding console for more information.");
+			static const FText CancelledText = LOCTEXT("Cancelled", "Live coding cancelled");
+			static const FText ReinstancingText = LOCTEXT("Reinstancing", "Data type changes may cause packaging to fail if assets reference the new or updated data types.");
+
+			switch (GPostCompileResult)
+			{
+			case commands::PostCompileResult::Success:
+				if (bHasReinstancingOccurred)
+				{
+					ShowNotification(true, SuccessText, &ReinstancingText);
+				}
+				else
+				{
+					ShowNotification(true, SuccessText, nullptr);
+				}
+				break;
+			case commands::PostCompileResult::NoChanges:
+				ShowNotification(true, SuccessText, &NoChangesText);
+				break;
+			case commands::PostCompileResult::Cancelled:
+				ShowNotification(false, CancelledText, nullptr);
+				break;
+			case commands::PostCompileResult::Failure:
+				ShowNotification(false, FailureText, &FailureDetailText);
+				break;
+			default:
+				check(false);
+			}
+#endif
+		}
+		else
+		{
+			Reload->Reset();
+		}
 	}
 	GTriggerReload = false;
 }
+
+#if WITH_EDITOR
+void FLiveCodingModule::ShowNotification(bool Success, const FText& Title, const FText* SubText)
+{
+	FNotificationInfo Info(Title);
+	Info.ExpireDuration = 5.0f;
+	Info.bUseSuccessFailIcons = true;
+	if (SubText)
+	{
+		Info.SubText = *SubText;
+	}
+	TSharedPtr<SNotificationItem> CompileNotification = FSlateNotificationManager::Get().AddNotification(Info);
+	CompileNotification->SetCompletionState(Success ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
+}
+#endif
 
 ILiveCodingModule::FOnPatchCompleteDelegate& FLiveCodingModule::GetOnPatchCompleteDelegate()
 {
@@ -528,7 +630,12 @@ bool FLiveCodingModule::StartLiveCoding()
 		GConfig->GetBool(TEXT("LiveCoding"), TEXT("bEnableReinstancing"), bEnableReinstancing, GEngineIni);
 		if (bEnableReinstancing)
 		{
-			LppEnableReinstancingFlow();
+			LppSetReinstancingFlow(true);
+		}
+
+		if (GEditor != nullptr)
+		{
+			LppDisableCompileFinishNotification();
 		}
 #endif
 
@@ -701,6 +808,9 @@ void FLiveCodingModule::BeginReload()
 	{
 		if (!GLiveCodingModule->Reload.IsValid())
 		{
+			GLiveCodingModule->bHasReinstancingOccurred = false;
+			GLiveCodingModule->bHasPatchBeenLoaded = false;
+			GPostCompileResult = commands::PostCompileResult::Success;
 #if WITH_EDITOR
 			bool bEnableReinstancing = true;
 			GConfig->GetBool(TEXT("LiveCoding"), TEXT("bEnableReinstancing"), bEnableReinstancing, GEngineIni);
@@ -740,9 +850,9 @@ void LiveCodingPreCompile()
 }
 
 // Invoked from LC_ClientCommandActions
-void LiveCodingPostCompile()
+void LiveCodingPostCompile(commands::PostCompileResult PostCompileResult)
 {
-	UE_LOG(LogLiveCoding, Display, TEXT("Live Coding compile done.  See Live Coding console for more information."));
+	GPostCompileResult = PostCompileResult;
 	GIsCompileActive = false;
 }
 

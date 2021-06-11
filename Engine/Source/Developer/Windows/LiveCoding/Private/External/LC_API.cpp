@@ -346,9 +346,16 @@ LPP_DLL_API(void*) LppEnableLazyLoadedModule(const wchar_t* nameOfExeOrDll)
 // END EPIC MOD
 
 // BEGIN EPIC MOD
-LPP_DLL_API(void) LppEnableReinstancingFlow()
+LPP_DLL_API(void) LppSetReinstancingFlow(bool enable)
 {
-	g_startupThread->EnableReinstancingFlow();
+	g_startupThread->SetReinstancingFlow(enable);
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD
+LPP_DLL_API(void) LppDisableCompileFinishNotification()
+{
+	g_startupThread->DisableCompileFinishNotification();
 }
 // END EPIC MOD
 

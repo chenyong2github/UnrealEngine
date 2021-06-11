@@ -201,6 +201,18 @@ void ServerCommandThread::RestartTargets(void)
 				liveModule->UnregisterProcess(liveProcess);
 			}
 
+			// BEGIN EPIC MOD
+			if (liveProcess->IsReinstancingFlowEnabled())
+			{
+				--m_reinstancingProcessCount;
+			}
+
+			if (liveProcess->IsDisableCompileFinishNotification())
+			{
+				--m_disableCompileFinishNotificationProcessCount;
+			}
+			// END EPIC MOD
+
 			delete liveProcess;
 
 			processIt = m_liveProcesses.erase(processIt);
@@ -619,6 +631,13 @@ bool ServerCommandThread::HasReinstancingProcess()
 }
 // END EPIC MOD
 
+// BEGIN EPIC MOD
+bool ServerCommandThread::ShowCompileFinishNotification()
+{
+	return m_disableCompileFinishNotificationProcessCount.load() == 0;
+}
+// END EPIC MOD
+
 // BEGIN EPIC MOD - Focus application windows on patch complete
 BOOL CALLBACK FocusApplicationWindows(HWND WindowHandle, LPARAM Lparam)
 {
@@ -752,7 +771,9 @@ bool ServerCommandThread::EnableRequiredModules(const TArray<FString>& RequiredM
 }
 // END EPIC MOD
 
-void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
+// BEGIN EPIC MOD
+void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, commands::PostCompileResult& postCompileResult)
+// END EPIC MOD
 {
 	// recompile files, if any
 	// EPIC REMOVED: g_theApp.GetMainFrame()->SetBusy(true);
@@ -800,11 +821,17 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 			}
 			else if (CompileResult == ELiveCodingCompileResult::Canceled)
 			{
+				// BEGIN EPIC MOD
+				postCompileResult = commands::PostCompileResult::Cancelled;
+				// END EPIC MOD
 				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation canceled.");
 				return;
 			}
 			else if (CompileResult == ELiveCodingCompileResult::Failure)
 			{
+				// BEGIN EPIC MOD
+				postCompileResult = commands::PostCompileResult::Failure;
+				// END EPIC MOD
 				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
 				return;
 			}
@@ -812,6 +839,9 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 			// Enable any lazy-loaded modules that we need
 			if (!RequiredModules.IsEmpty() && !EnableRequiredModules(RequiredModules))
 			{
+				// BEGIN EPIC MOD
+				postCompileResult = commands::PostCompileResult::Failure;
+				// END EPIC MOD
 				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
 				return;
 			}
@@ -852,6 +882,9 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 				{
 					LC_ERROR_USER("Live coding is not enabled for %S.", ModuleFileName.c_str());
 					LC_ERROR_USER("Configure the list of enabled modules from the Live Coding section of the editor preferences window.");
+					// BEGIN EPIC MOD
+					postCompileResult = commands::PostCompileResult::Failure;
+					// END EPIC MOD
 					GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, *FString::Printf(TEXT("Live coding not enabled for %s"), ModuleFileName.c_str()));
 					return;
 				}
@@ -1012,36 +1045,50 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 	}
 
 	// BEGIN EPIC MOD - Custom hooks for finishing compile
+	bool setFocus = false;
 	switch (updateError)
 	{
 		case LiveModule::ErrorType::NO_CHANGE:
+			postCompileResult = commands::PostCompileResult::NoChanges;
 			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Success, L"No changes detected.");
+			setFocus = !ShowCompileFinishNotification();
 			break;
 
 		case LiveModule::ErrorType::COMPILE_ERROR:
+			postCompileResult = commands::PostCompileResult::Failure;
 			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
 			break;
 
 		case LiveModule::ErrorType::LINK_ERROR:
+			postCompileResult = commands::PostCompileResult::Failure;
 			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Linker error.");
 			break;
 
 		case LiveModule::ErrorType::LOAD_PATCH_ERROR:
+			postCompileResult = commands::PostCompileResult::Failure;
 			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Could not load patch image.");
 			break;
 
 		case LiveModule::ErrorType::ACTIVATE_PATCH_ERROR:
+			postCompileResult = commands::PostCompileResult::Failure;
 			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Could not activate patch.");
 			break;
 
 		case LiveModule::ErrorType::SUCCESS:
+			postCompileResult = commands::PostCompileResult::Success;
 			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Success, L"Patch creation successful.");
-			EnumWindows(FocusApplicationWindows, (LPARAM)&m_liveProcesses);
+			setFocus = true;
 			break;
 
 		default:
+			postCompileResult = commands::PostCompileResult::Success;
 			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Success, L"Finished.");
 			break;
+	}
+
+	if (setFocus)
+	{
+		EnumWindows(FocusApplicationWindows, (LPARAM)&m_liveProcesses);
 	}
 	// END EPIC MOD
 	
@@ -1077,7 +1124,7 @@ void ServerCommandThread::CallPrecompileHooks(bool didAllProcessesMakeProgress)
 	}
 }
 
-void ServerCommandThread::CallPostcompileHooks(bool didAllProcessesMakeProgress)
+void ServerCommandThread::CallPostcompileHooks(bool didAllProcessesMakeProgress, commands::PostCompileResult postCompileResult)
 {
 	// when all processes made progress, none of them is being held in the debugger which means it is safe to
 	// communicate with the client, call hooks, use synchronization points, etc.
@@ -1098,7 +1145,7 @@ void ServerCommandThread::CallPostcompileHooks(bool didAllProcessesMakeProgress)
 	for (size_t i = 0u; i < count; ++i)
 	{
 		LiveProcess* liveProcess = m_liveProcesses[i];
-		liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::PostCompile{}, nullptr, 0u);
+		liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::PostCompile{ postCompileResult }, nullptr, 0u);
 	}
 }
 // END EPIC MOD
@@ -1210,6 +1257,18 @@ Thread::ReturnValue ServerCommandThread::CompileThread(void)
 							liveModule->UnregisterProcess(liveProcess);
 						}
 
+						// BEGIN EPIC MOD
+						if (liveProcess->IsReinstancingFlowEnabled())
+						{
+							--m_reinstancingProcessCount;
+						}
+
+						if (liveProcess->IsDisableCompileFinishNotification())
+						{
+							--m_disableCompileFinishNotificationProcessCount;
+						}
+						// END EPIC MOD
+
 						delete liveProcess;
 
 						processIt = m_liveProcesses.erase(processIt);
@@ -1286,10 +1345,13 @@ Thread::ReturnValue ServerCommandThread::CompileThread(void)
 			CallPrecompileHooks(didAllProcessesMakeProgress);
 			// END EPIC MOD
 
-			CompileChanges(didAllProcessesMakeProgress);
+			// BEGIN EPIC MOD 
+			commands::PostCompileResult postCompileResult = commands::PostCompileResult::Success;
+			CompileChanges(didAllProcessesMakeProgress, postCompileResult);
+			// END EPIC MOD
 
 			// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
-			CallPostcompileHooks(didAllProcessesMakeProgress);
+			CallPostcompileHooks(didAllProcessesMakeProgress, postCompileResult);
 			// END EPIC MOD
 
 			// BEGIN EPIC MOD - Non-destructive compile
@@ -1377,7 +1439,8 @@ Thread::ReturnValue ServerCommandThread::CommandThread(DuplexPipeServer* pipe, E
 	commandMap.RegisterAction<actions::EnableLazyLoadedModule>();
 	// END EPIC MOD
 	// BEGIN EPIC MOD
-	commandMap.RegisterAction<actions::EnableReinstancingFlow>();
+	commandMap.RegisterAction<actions::SetReinstancingFlow>();
+	commandMap.RegisterAction<actions::DisableCompileFinishNotification>();
 	// END EPIC MOD
 
 	for (;;)
@@ -1735,7 +1798,7 @@ bool ServerCommandThread::actions::EnableLazyLoadedModule::Execute(const Command
 // END EPIC MOD
 
 // BEGIN EPIC MOD
-bool ServerCommandThread::actions::EnableReinstancingFlow::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
+bool ServerCommandThread::actions::SetReinstancingFlow::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
@@ -1751,11 +1814,49 @@ bool ServerCommandThread::actions::EnableReinstancingFlow::Execute(const Command
 	{
 		if (process->GetProcessId() == command->processId)
 		{
-			if (!process->IsReinstancingFlowEnabled())
+			if (command->enable)
 			{
-				++commandThread->m_reinstancingProcessCount;
-				process->EnableReinstancingFlow();
+				if (!process->IsReinstancingFlowEnabled())
+				{
+					++commandThread->m_reinstancingProcessCount;
+				}
 			}
+			else
+			{
+				if (process->IsReinstancingFlowEnabled())
+				{
+					--commandThread->m_reinstancingProcessCount;
+				}
+			}
+			process->SetReinstancingFlow(command->enable);
+		}
+	}
+
+	pipe->SendAck();
+
+	return true;
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD
+bool ServerCommandThread::actions::DisableCompileFinishNotification::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
+{
+	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
+
+	if (!commandThread->HasReinstancingProcess())
+	{
+		LC_WARNING_USER("Quick restart disabled when re-instancing is enabled.");
+	}
+
+	// protect against accepting this command while compilation is already in progress
+	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
+
+	for (LiveProcess* process : commandThread->m_liveProcesses)
+	{
+		if (process->GetProcessId() == command->processId)
+		{
+			++commandThread->m_disableCompileFinishNotificationProcessCount;
+			process->DisableCompileFinishNotification();
 		}
 	}
 

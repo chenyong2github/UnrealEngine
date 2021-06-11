@@ -15,7 +15,7 @@ class ULiveCodingSettings;
 #if WITH_EDITOR
 class FReload;
 #else
-class IReload;
+class FNullReload;
 #endif
 
 class FLiveCodingModule final : public ILiveCodingModule
@@ -49,10 +49,12 @@ private:
 private:
 	ULiveCodingSettings* Settings;
 	TSharedPtr<ISettingsSection> SettingsSection;
-	bool bEnabledLastTick;
-	bool bEnabledForSession;
-	bool bStarted;
-	bool bUpdateModulesInTick;
+	bool bEnabledLastTick = false;
+	bool bEnabledForSession = false;
+	bool bStarted = false;
+	bool bUpdateModulesInTick = false;
+	bool bHasReinstancingOccurred = false;
+	bool bHasPatchBeenLoaded = false;
 	TSet<FName> ConfiguredModules;
 	TArray<void*> LppPendingTokens;
 
@@ -71,7 +73,7 @@ private:
 #if WITH_EDITOR
 	TUniquePtr<FReload> Reload;
 #else
-	TUniquePtr<IReload> Reload;
+	TUniquePtr<FNullReload> Reload;
 #endif
 
 	bool StartLiveCoding();
@@ -81,5 +83,9 @@ private:
 	void UpdateModules();
 
 	bool ShouldPreloadModule(const FName& Name, const FString& FullFilePath) const;
+
+#if WITH_EDITOR
+	void ShowNotification(bool Success, const FText& Title, const FText* SubText);
+#endif
 };
 

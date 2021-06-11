@@ -555,9 +555,20 @@ void* ClientUserCommandThread::EnableLazyLoadedModule(const wchar_t* fileName, W
 // END EPIC MOD
 
 // BEGIN EPIC MOD
-void ClientUserCommandThread::EnableReinstancingFlow()
+void ClientUserCommandThread::SetReinstancingFlow(bool enable)
 {
-	ProxyCommand<commands::EnableReinstancingFlow>* proxy = new ProxyCommand<commands::EnableReinstancingFlow>(false, 0u);
+	ProxyCommand<commands::SetReinstancingFlow>* proxy = new ProxyCommand<commands::SetReinstancingFlow>(false, 0u);
+	proxy->m_command.processId = Process::Current::GetId();
+	proxy->m_command.enable = enable;
+
+	PushUserCommand(proxy);
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD
+void ClientUserCommandThread::DisableCompileFinishNotification()
+{
+	ProxyCommand<commands::DisableCompileFinishNotification>* proxy = new ProxyCommand<commands::DisableCompileFinishNotification>(false, 0u);
 	proxy->m_command.processId = Process::Current::GetId();
 
 	PushUserCommand(proxy);

@@ -85,5 +85,7 @@ public:
 	virtual FSetVisibleDelegate& GetSetVisibleDelegate() = 0;
 
 	virtual bool HasReinstancingProcess() = 0;
+
+	virtual bool ShowCompileFinishNotification() = 0;
 };
 

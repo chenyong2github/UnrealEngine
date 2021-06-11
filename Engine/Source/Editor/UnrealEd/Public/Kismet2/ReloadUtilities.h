@@ -69,6 +69,14 @@ public:
 		bEnableReinstancing = bInEnableReinstancing;
 	}
 
+	/**
+	 * Return true if anything was re-instanced
+	 */
+	bool HasReinstancingOccurred() const
+	{
+		return bHasReinstancingOccurred;
+	}
+
 private:
 
 	struct FReinstanceStats
@@ -80,6 +88,11 @@ private:
 		bool HasValues() const
 		{
 			return New + Changed + Unchanged != 0;
+		}
+
+		bool HasReinstancingOccurred() const
+		{
+			return New + Changed != 0;
 		}
 	};
 
@@ -158,4 +171,5 @@ private:
 	int32 NumFunctionsRemapped = 0;
 	int32 NumScriptStructsRemapped = 0;
 	mutable bool bEnabledMessage = false;
+	mutable bool bHasReinstancingOccurred = false;
 };

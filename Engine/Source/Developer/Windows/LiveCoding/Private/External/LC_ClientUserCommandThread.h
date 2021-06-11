@@ -93,7 +93,11 @@ public:
 	// END EPIC MOD
 
 	// BEGIN EPIC MOD
-	void EnableReinstancingFlow();
+	void SetReinstancingFlow(bool enable);
+	// END EPIC MOD
+
+	// BEGIN EPIC MOD
+	void DisableCompileFinishNotification();
 	// END EPIC MOD
 
 	void ApplySettingBool(const char* settingName, int value);

@@ -451,28 +451,46 @@ private:
 	{
 		if(CompileNotification.IsValid())
 		{
-			if(Result == ELiveCodingResult::Success)
+			if (Result == ELiveCodingResult::Success)
 			{
-				CompileNotification->SetText(FText::FromString(Status));
-				CompileNotification->SetCompletionState(SNotificationItem::CS_Success);
-				CompileNotification->SetExpireDuration(1.5f);
-				CompileNotification->SetFadeOutDuration(0.4f);
+				if (Server.ShowCompileFinishNotification())
+				{
+					CompileNotification->SetText(FText::FromString(Status));
+					CompileNotification->SetCompletionState(SNotificationItem::CS_Success);
+					CompileNotification->SetExpireDuration(1.5f);
+					CompileNotification->SetFadeOutDuration(0.4f);
+				}
+				else
+				{
+					CompileNotification->SetExpireDuration(0.0f);
+					CompileNotification->SetFadeOutDuration(0.1f);
+				}
 			}
-			else if(HasCancelledBuild())
+			else if (HasCancelledBuild())
 			{
 				CompileNotification->SetExpireDuration(0.0f);
 				CompileNotification->SetFadeOutDuration(0.1f);
 			}
 			else
 			{
-				CompileNotification->SetText(FText::FromString(Status));
-				CompileNotification->SetCompletionState(SNotificationItem::CS_Fail);
-				CompileNotification->SetExpireDuration(5.0f);
-				CompileNotification->SetFadeOutDuration(2.0f);
+				if (Server.ShowCompileFinishNotification())
+				{
+					CompileNotification->SetText(FText::FromString(Status));
+					CompileNotification->SetCompletionState(SNotificationItem::CS_Fail);
+					CompileNotification->SetExpireDuration(5.0f);
+					CompileNotification->SetFadeOutDuration(2.0f);
+				}
+				else
+				{
+					CompileNotification->SetExpireDuration(0.0f);
+					CompileNotification->SetFadeOutDuration(0.1f);
+					ShowConsole();
+				}
 			}
-			CompileNotification->ExpireAndFadeout();
-			CompileNotification.Reset();
+
 		}
+		CompileNotification->ExpireAndFadeout();
+		CompileNotification.Reset();
 	}
 
 	void OnStatusChangedAsync(const FString& Status)
