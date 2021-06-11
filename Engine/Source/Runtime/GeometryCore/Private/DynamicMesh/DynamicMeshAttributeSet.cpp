@@ -400,7 +400,7 @@ void FDynamicMeshAttributeSet::SetNumNormalLayers(int Num)
 	}
 	else
 	{
-		NormalLayers.RemoveAt(Num, UVLayers.Num() - Num);
+		NormalLayers.RemoveAt(Num, NormalLayers.Num() - Num);
 	}
 	ensure(NormalLayers.Num() == Num);
 }

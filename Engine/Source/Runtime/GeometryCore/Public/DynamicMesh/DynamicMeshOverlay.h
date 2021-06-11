@@ -574,6 +574,16 @@ public:
 	}
 
 	/**
+	 * Get the Element associated with a vertex of a triangle
+	 * @param TriVertexIndex index of vertex in triangle, valid values are 0,1,2
+	 */
+	inline void GetTriElement(int TriangleID, int32 TriVertexIndex, VectorType& Value) const
+	{
+		checkSlow(TriVertexIndex >= 0 && TriVertexIndex <= 2);
+		GetElement(BaseType::ElementTriangles[(3 * TriangleID) + TriVertexIndex], Value);
+	}
+
+	/**
 	 * Get the three Elements associated with a triangle
 	 */
 	inline void GetTriElements(int TriangleID, VectorType& A, VectorType& B, VectorType& C) const
