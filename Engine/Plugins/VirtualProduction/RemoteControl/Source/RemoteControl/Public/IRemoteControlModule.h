@@ -14,7 +14,9 @@ REMOTECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControl, Log, All);
 class IStructDeserializerBackend;
 class IStructSerializerBackend;
 class URemoteControlPreset;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FExposedProperty;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 struct FRemoteControlProperty;
 
 /**
@@ -262,14 +264,20 @@ public:
 	 * Resolve the underlying function from a preset.
 	 * @return the underlying function and objects that the property is exposed on.
 	 */
+	UE_DEPRECATED(4.27, "This function is deprecated, please resolve directly on the preset.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TOptional<struct FExposedFunction> ResolvePresetFunction(const FResolvePresetFieldArgs& Args) const = 0;
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	/**
 	 * Resolve the underlying property from a preset.
 	 * @return the underlying property and objects that the property is exposed on.
 	 */
+	UE_DEPRECATED(4.27, "This function is deprecated, please resolve directly on the preset.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TOptional<struct FExposedProperty> ResolvePresetProperty(const FResolvePresetFieldArgs& Args) const = 0;
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	/**
 	 * Get a preset using its name.
 	 * @arg PresetName name of the preset to resolve.
