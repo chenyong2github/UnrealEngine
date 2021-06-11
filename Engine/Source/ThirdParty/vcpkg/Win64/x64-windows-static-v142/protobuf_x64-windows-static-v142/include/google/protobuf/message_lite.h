@@ -74,9 +74,16 @@ class ZeroCopyOutputStream;
 }  // namespace io
 namespace internal {
 
+// Tag type used to invoke the constinit constructor overload of some classes.
+// Such constructors are internal implementation details of the library.
+struct ConstantInitialized {
+  explicit ConstantInitialized() = default;
+};
+
 // See parse_context.h for explanation
 class ParseContext;
 
+class Proto3ArenaTestHelper;
 class RepeatedPtrFieldBase;
 class WireFormatLite;
 class WeakFieldMap;
@@ -139,7 +146,7 @@ class ExplicitlyConstructed {
  private:
   // Prefer c++14 aligned_storage, but for compatibility this will do.
   union AlignedUnion {
-    char space[sizeof(T)];
+    alignas(T) char space[sizeof(T)];
     int64 align_to_int64;
     void* align_to_ptr;
   } union_;
@@ -151,7 +158,7 @@ PROTOBUF_EXPORT extern ExplicitlyConstructed<std::string>
     fixed_address_empty_string;
 
 
-PROTOBUF_EXPORT inline const std::string& GetEmptyStringAlreadyInited() {
+PROTOBUF_EXPORT constexpr const std::string& GetEmptyStringAlreadyInited() {
   return fixed_address_empty_string.get();
 }
 
@@ -187,7 +194,7 @@ PROTOBUF_EXPORT size_t StringSpaceUsedExcludingSelfLong(const std::string& str);
 // the internal library are allowed to create subclasses.
 class PROTOBUF_EXPORT MessageLite {
  public:
-  inline MessageLite() {}
+  constexpr MessageLite() {}
   virtual ~MessageLite() = default;
 
   // Basic Operations ------------------------------------------------
@@ -203,11 +210,11 @@ class PROTOBUF_EXPORT MessageLite {
   // if arena is a NULL. Default implementation for backwards compatibility.
   virtual MessageLite* New(Arena* arena) const;
 
-  // Get the arena, if any, associated with this message. Virtual method
-  // required for generic operations but most arena-related operations should
-  // use the GetArena() generated-code method. Default implementation
-  // to reduce code size by avoiding the need for per-type implementations
-  // when types do not implement arena support.
+  // Get the arena for allocating submessages, if any, associated with this
+  // message. Virtual method required for generic operations but most
+  // arena-related operations should use the GetArena() generated-code method.
+  // Default implementation to reduce code size by avoiding the need for
+  // per-type implementations when types do not implement arena support.
   Arena* GetArena() const { return _internal_metadata_.arena(); }
 
   // Get a pointer that may be equal to this message's arena, or may not be.
@@ -315,12 +322,11 @@ class PROTOBUF_EXPORT MessageLite {
   // format, matching the encoding output by MessageLite::SerializeToString().
   // If you'd like to convert a human-readable string into a protocol buffer
   // object, see google::protobuf::TextFormat::ParseFromString().
-  PROTOBUF_ATTRIBUTE_REINITIALIZES bool ParseFromString(
-      const std::string& data);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES bool ParseFromString(ConstStringParam data);
   // Like ParseFromString(), but accepts messages that are missing
   // required fields.
   PROTOBUF_ATTRIBUTE_REINITIALIZES bool ParsePartialFromString(
-      const std::string& data);
+      ConstStringParam data);
   // Parse a protocol buffer contained in an array of bytes.
   PROTOBUF_ATTRIBUTE_REINITIALIZES bool ParseFromArray(const void* data,
                                                        int size);
@@ -351,7 +357,7 @@ class PROTOBUF_EXPORT MessageLite {
   bool MergePartialFromCodedStream(io::CodedInputStream* input);
 
   // Merge a protocol buffer contained in a string.
-  bool MergeFromString(const std::string& data);
+  bool MergeFromString(ConstStringParam data);
 
 
   // Serialization ---------------------------------------------------
@@ -497,8 +503,18 @@ class PROTOBUF_EXPORT MessageLite {
   // TODO(gerbens) make this a pure abstract function
   virtual const void* InternalGetTable() const { return NULL; }
 
+  // Get the arena that owns this message.
+  Arena* GetOwningArena() const { return _internal_metadata_.GetOwningArena(); }
+
+  // Set the owning arena to the given one.
+  void SetOwningArena(Arena* arena) {
+    _internal_metadata_.SetOwningArena(arena);
+  }
+
+  friend class Arena;
   friend class internal::WireFormatLite;
   friend class Message;
+  friend class internal::Proto3ArenaTestHelper;
   friend class internal::WeakFieldMap;
 
   void LogInitializationErrorMessage() const;
