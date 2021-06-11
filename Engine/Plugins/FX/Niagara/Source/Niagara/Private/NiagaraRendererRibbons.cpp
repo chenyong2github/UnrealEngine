@@ -175,6 +175,7 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 	, FacingMode(ENiagaraRibbonFacingMode::Screen)
 	, Shape(ENiagaraRibbonShapeMode::Plane)
+	, bEnableAccurateGeometry(false)
 	, WidthSegmentationCount(1)
 	, MultiPlaneCount(2)
 	, TubeSubdivisions(3)
@@ -191,6 +192,7 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	UV1Settings = Properties->UV1Settings;
 	DrawDirection = Properties->DrawDirection;
 	Shape = Properties->Shape;
+	bEnableAccurateGeometry = Properties->bEnableAccurateGeometry;
 	WidthSegmentationCount = FMath::Max(Properties->WidthSegmentationCount, 1);
 	MultiPlaneCount = Properties->MultiPlaneCount;
 	TubeSubdivisions = Properties->TubeSubdivisions;
@@ -271,6 +273,8 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 
 	if (Shape == ENiagaraRibbonShapeMode::MultiPlane)
 	{
+		int32 FrontFaceVertexCount = MultiPlaneCount * (WidthSegmentationCount + 1);
+
 		for (int32 PlaneIndex = 0; PlaneIndex < MultiPlaneCount; PlaneIndex++)
 		{
 			int32 BaseVertexId = (PlaneIndex * (WidthSegmentationCount + 1));
@@ -279,6 +283,15 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 			{
 				SliceTriangleToVertexIds.Add(BaseVertexId + VertexIdx);
 				SliceTriangleToVertexIds.Add(BaseVertexId + VertexIdx + 1);
+			}
+
+			if (bEnableAccurateGeometry)
+			{
+				for (int32 VertexIdx = 0; VertexIdx < WidthSegmentationCount; VertexIdx++)
+				{
+					SliceTriangleToVertexIds.Add(FrontFaceVertexCount + BaseVertexId + VertexIdx + 1);
+					SliceTriangleToVertexIds.Add(FrontFaceVertexCount + BaseVertexId + VertexIdx);
+				}
 			}
 		}
 	}
@@ -618,10 +631,27 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			for (int32 VertexId = 0; VertexId <= WidthSegmentationCount; VertexId++)
 			{
 				FVector2D Position = FVector2D((((float)VertexId) / WidthSegmentationCount) - 0.5f, 0).GetRotated(RotationAngle);
-				FVector2D Normal = FVector2D(-1, 0).GetRotated(RotationAngle);
+				FVector2D Normal = FVector2D(0, 1).GetRotated(RotationAngle);
 				float TextureV = ((float)VertexId) / WidthSegmentationCount;
 
 				DynamicData->PackSliceVertexData(Position, Normal, TextureV);
+			}
+		}
+
+		if (bEnableAccurateGeometry)
+		{
+			for (int32 PlaneIndex = 0; PlaneIndex < MultiPlaneCount; PlaneIndex++)
+			{
+				float RotationAngle = (float(PlaneIndex) / MultiPlaneCount) * 180.0f;
+
+				for (int32 VertexId = 0; VertexId <= WidthSegmentationCount; VertexId++)
+				{
+					FVector2D Position = FVector2D((((float)VertexId) / WidthSegmentationCount) - 0.5f, 0).GetRotated(RotationAngle);
+					FVector2D Normal = FVector2D(0, -1).GetRotated(RotationAngle);
+					float TextureV = ((float)VertexId) / WidthSegmentationCount;
+
+					DynamicData->PackSliceVertexData(Position, Normal, TextureV);
+				}
 			}
 		}
 	}
@@ -1109,7 +1139,7 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 #endif
 	MeshBatch.bUseAsOccluder = false;
 	MeshBatch.ReverseCulling = SceneProxy->IsLocalToWorldDeterminantNegative();
-	MeshBatch.bDisableBackfaceCulling = true;
+	MeshBatch.bDisableBackfaceCulling = Shape != ENiagaraRibbonShapeMode::MultiPlane || !bEnableAccurateGeometry;
 	MeshBatch.Type = PT_TriangleList;
 	MeshBatch.DepthPriorityGroup = SceneProxy->GetDepthPriorityGroup(View);
 	MeshBatch.bCanApplyViewModeOverrides = true;
@@ -1268,8 +1298,8 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 
 	if (Shape == ENiagaraRibbonShapeMode::MultiPlane)
 	{
-		TrianglesPerSegment *= MultiPlaneCount * WidthSegmentationCount;
-		NumVerticesInSlice = MultiPlaneCount * (WidthSegmentationCount + 1);
+		TrianglesPerSegment *= MultiPlaneCount * WidthSegmentationCount * (bEnableAccurateGeometry? 2 : 1);
+		NumVerticesInSlice = MultiPlaneCount * (WidthSegmentationCount + 1) * (bEnableAccurateGeometry ? 2 : 1);
 	}
 	else if (Shape == ENiagaraRibbonShapeMode::Tube)
 	{
@@ -1322,6 +1352,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	PerViewUniformParameters.InterpIdShift = IndexBufferOffsets.InterpBitShift;
 	PerViewUniformParameters.InterpIdMask = IndexBufferOffsets.InterpBitMask;
 	PerViewUniformParameters.SliceVertexIdMask = IndexBufferOffsets.SliceVertexBitMask;
+	PerViewUniformParameters.ShouldFlipNormalToView = Shape == ENiagaraRibbonShapeMode::MultiPlane && !bEnableAccurateGeometry;
 
 	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
 	PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraRibbonVFLayout::Position].GetGPUOffset();

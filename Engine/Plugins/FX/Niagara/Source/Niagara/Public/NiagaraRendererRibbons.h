@@ -107,6 +107,7 @@ private:
 	ENiagaraRibbonDrawDirection DrawDirection;
 
 	ENiagaraRibbonShapeMode Shape;
+	bool bEnableAccurateGeometry;
 	int32 WidthSegmentationCount;
 	int32 MultiPlaneCount;
 	int32 TubeSubdivisions;
