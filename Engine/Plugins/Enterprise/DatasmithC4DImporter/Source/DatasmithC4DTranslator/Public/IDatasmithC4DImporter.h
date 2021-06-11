@@ -87,9 +87,9 @@ public:
 
 struct FDatasmithC4DImportOptions
 {
-	bool bImportEmptyMesh;
-	bool bOptimizeEmptySingleChildActors;
-	bool bAlwaysGenerateNormals;
-	float ScaleVertices;
-	bool bExportToUDatasmith;
+	bool bImportEmptyMesh = false;
+	bool bOptimizeEmptySingleChildActors = false;
+	bool bAlwaysGenerateNormals = false;
+	float ScaleVertices = 1.0;
+	bool bExportToUDatasmith = false;
 };
