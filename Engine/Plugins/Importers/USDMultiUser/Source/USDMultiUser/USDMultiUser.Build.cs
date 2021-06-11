@@ -19,6 +19,7 @@ public class USDMultiUser : ModuleRules
 				"ConcertSyncCore",
 				"Engine",
 				"UnrealUSDWrapper",
+				"USDClasses",
 				"UsdStage",
 				"UsdUtilities",
 			}
