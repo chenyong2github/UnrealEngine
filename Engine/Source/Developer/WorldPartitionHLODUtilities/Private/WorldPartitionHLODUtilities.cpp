@@ -145,26 +145,38 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<FWo
 
 TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayer*>& InDataLayers)
 {
-	TMap<UHLODLayer*, TArray<FGuid>> HLODLayersActors;
+	struct FSubActorsInfo
+	{
+		TArray<FGuid>			SubActors;
+		EActorGridPlacement		GridPlacement = EActorGridPlacement::Location;
+	};
+	TMap<UHLODLayer*, FSubActorsInfo> SubActorsInfos;
+
 	for (const FActorInstance& ActorInstance : InActors)
 	{
-		FWorldPartitionActorDesc& ActorDesc = InCreationParams.WorldPartition->GetActorDescChecked(ActorInstance.Actor);
-		if (ActorDesc.GetActorIsHLODRelevant())
+		const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
+		if (ActorDescView.GetActorIsHLODRelevant())
 		{
-			UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(ActorDesc, InCreationParams.WorldPartition);
+			UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(ActorDescView, InCreationParams.WorldPartition);
 			if (HLODLayer)
 			{
-				HLODLayersActors.FindOrAdd(HLODLayer).Add(ActorInstance.Actor);
+				FSubActorsInfo& SubActorsInfo = SubActorsInfos.FindOrAdd(HLODLayer);
+
+				SubActorsInfo.SubActors.Add(ActorInstance.Actor);
+				if (ActorDescView.GetGridPlacement() == EActorGridPlacement::Bounds)
+				{
+					SubActorsInfo.GridPlacement = EActorGridPlacement::Bounds;
+				}
 			}
 		}
 	}
 
 	TArray<AWorldPartitionHLOD*> HLODActors;
-	for (const auto& Pair : HLODLayersActors)
+	for (const auto& Pair : SubActorsInfos)
 	{
 		const UHLODLayer* HLODLayer = Pair.Key;
-		const TArray<FGuid> HLODLayerActors = Pair.Value;
-		check(!HLODLayerActors.IsEmpty());
+		const FSubActorsInfo& SubActorsInfo = Pair.Value;
+		check(!SubActorsInfo.SubActors.IsEmpty());
 
 		// Compute HLODActor hash
 		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), InCreationParams.GridIndexX, InCreationParams.GridIndexY, InCreationParams.GridIndexZ, InCreationParams.DataLayersID);
@@ -218,11 +230,11 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 
 		// Sub actors
 		{
-			bool bSubActorsChanged = HLODActor->GetSubActors().Num() != HLODLayerActors.Num();
+			bool bSubActorsChanged = HLODActor->GetSubActors().Num() != SubActorsInfo.SubActors.Num();
 			if (!bSubActorsChanged)
 			{
 				TArray<FGuid> A = HLODActor->GetSubActors();
-				TArray<FGuid> B = HLODLayerActors;
+				TArray<FGuid> B = SubActorsInfo.SubActors;
 				A.Sort();
 				B.Sort();
 				bSubActorsChanged = A != B;
@@ -230,7 +242,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 
 			if (bSubActorsChanged)
 			{
-				HLODActor->SetSubActors(HLODLayerActors);
+				HLODActor->SetSubActors(SubActorsInfo.SubActors);
 				bIsDirty = true;
 			}
 		}
@@ -240,6 +252,13 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 		if (HLODActor->GetRuntimeGrid() != RuntimeGrid)
 		{
 			HLODActor->SetRuntimeGrid(RuntimeGrid);
+			bIsDirty = true;
+		}
+
+		// Runtime grid placement
+		if (HLODActor->GetGridPlacement() != SubActorsInfo.GridPlacement)
+		{
+			HLODActor->SetGridPlacement(SubActorsInfo.GridPlacement);
 			bIsDirty = true;
 		}
 

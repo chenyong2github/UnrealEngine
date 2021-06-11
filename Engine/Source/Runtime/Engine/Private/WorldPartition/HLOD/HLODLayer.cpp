@@ -16,6 +16,7 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);
@@ -103,7 +104,7 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 	return nullptr;
 }
 
-UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition)
+UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDescView& InActorDesc, const UWorldPartition* InWorldPartition)
 {
 	check(InWorldPartition);
 
@@ -121,6 +122,11 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc
 	}
 
 	return nullptr;
+}
+
+UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition)
+{
+	return GetHLODLayer(FWorldPartitionActorDescView(&InActorDesc), InWorldPartition);
 }
 
 #endif // WITH_EDITOR

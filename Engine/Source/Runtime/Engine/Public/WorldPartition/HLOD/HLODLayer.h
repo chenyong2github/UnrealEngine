@@ -12,15 +12,15 @@
 
 #if WITH_EDITOR
 #include "Engine/MeshMerging.h"
-#include "Engine/MeshMerging.h"
 #endif
 
 #include "HLODLayer.generated.h"
 
+class AActor;
 class UMaterial;
 class UWorldPartition;
-class AActor;
 class FWorldPartitionActorDesc;
+class FWorldPartitionActorDescView;
 
 UENUM()
 enum class EHLODLayerType : uint8
@@ -40,6 +40,7 @@ class ENGINE_API UHLODLayer : public UObject
 public:
 	static UHLODLayer* GetHLODLayer(const AActor* InActor);
 	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition);
+	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDescView& InActorDescView, const UWorldPartition* InWorldPartition);
 
 	uint32 GetCRC() const;
 #endif
