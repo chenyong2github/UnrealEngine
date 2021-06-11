@@ -152,6 +152,12 @@ float UQuartzClockHandle::GetDurationOfQuantizationTypeInSeconds(const UObject* 
 
 void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FName OtherClockName, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
 {
+	if (OtherClockName == CurrentClockId)
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to start itself on a quantization boundary.  Ignoring command"), *CurrentClockId.ToString());
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForStartOtherClock(this, OtherClockName, InQuantizationBoundary, InDelegate));

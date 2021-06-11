@@ -151,13 +151,6 @@ namespace Audio
 		check(OwningClockPtr.IsValid());
 
 		NameOfClockToStart = InCommandInitInfo.OtherClockName;
-
-		// shouldn't be trying to start the same clock that owns this command
-		if (OwningClockPtr->GetName() == NameOfClockToStart)
-		{
-			UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to start itself on a quantization boundary.  Ignoring command"), *NameOfClockToStart.ToString());
-			OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
-		}
 	}
 
 	void FQuantizedOtherClockStart::OnFinalCallbackCustom(int32 InNumFramesLeft)
