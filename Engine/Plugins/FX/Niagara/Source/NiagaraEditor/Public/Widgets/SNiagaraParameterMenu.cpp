@@ -270,6 +270,22 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 			bMakeNameUnique
 		);
 	};
+	auto CollectEmitterNamespaceParameterActions = [this, &Collector]() {
+		const FNiagaraNamespaceMetadata NamespaceMetaData = FNiagaraEditorUtilities::GetNamespaceMetaDataForId(FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid);
+		TArray<FNiagaraVariable> Variables = FNiagaraConstants::GetEngineConstants().FilterByPredicate([](const FNiagaraVariable& Var) { return Var.IsInNameSpace(FNiagaraConstants::EmitterNamespace); });
+		const FText CategoryText = bShowNamespaceCategory ? GetNamespaceCategoryText(NamespaceMetaData) : LOCTEXT("EngineConstantNamespaceCategory", "Add Emitter Constant");
+		const FString RootCategoryStr = FString();
+		const bool bMakeNameUnique = false;
+		AddParameterGroup(
+			Collector,
+			Variables,
+			FNiagaraEditorGuids::EngineNamespaceMetaDataGuid,
+			CategoryText,
+			4,
+			RootCategoryStr,
+			bMakeNameUnique
+		);
+	};
 
 	TSet<FGuid> ExistingGraphParameterIds;
 	TSet<FName> VisitedParameterNames;
@@ -337,6 +353,12 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	else if (NamespaceId == FNiagaraEditorGuids::EngineNamespaceMetaDataGuid)
 	{
 		CollectEngineNamespaceParameterActions();
+	}
+	// Emitter intrinsic parameters
+	else if (NamespaceId == FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid)
+	{
+		CollectEmitterNamespaceParameterActions();
+		CollectMakeNew(Collector, NamespaceId);
 	}
 	// DataInstance intrinsic parameters
 	else if (NamespaceId == FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid && (ExcludedNamespaceIds.Contains(FNiagaraEditorGuids::ParticleAttributeNamespaceMetaDataGuid) == false))

@@ -7,7 +7,6 @@
 #include "NiagaraConstants.h"
 #include "NiagaraEditorData.h"
 #include "NiagaraEditorModule.h"
-#include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterHandle.h"
@@ -30,7 +29,6 @@
 #include "NiagaraSystemScriptViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "Widgets/SNiagaraParameterMenu.h"
-#include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/SNiagaraParameterPanel.h"
 
 #include "Framework/Commands/GenericCommands.h"
@@ -810,6 +808,19 @@ void FNiagaraSystemToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable
 		UNiagaraEditorParametersAdapter* EditorParametersAdapter = SystemViewModel->GetEditorOnlyParametersAdapter();
 		TArray<UNiagaraScriptVariable*>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
 		bool bNewScriptVarAlreadyExists = EditorOnlyScriptVars.ContainsByPredicate([&NewVariable](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Variable == NewVariable; });
+
+		// unless the namespace prevents name changes we make sure the new parameter has a unique name  
+		if (!Category.NamespaceMetaData.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName))
+		{
+			TSet<FName> Names;
+			for (UNiagaraScriptVariable* ScriptVar : EditorOnlyScriptVars)
+			{
+				Names.Add(ScriptVar->Variable.GetName());
+			}
+			NewVariable.SetName(FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names));
+			bNewScriptVarAlreadyExists = false;
+		}
+		
 		if (bNewScriptVarAlreadyExists == false)
 		{
 			EditorParametersAdapter->Modify();
