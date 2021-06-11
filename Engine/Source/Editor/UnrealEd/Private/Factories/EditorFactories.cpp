@@ -4232,6 +4232,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 				);
 			// the loader can suggest a compression setting
 			TextureCube->CompressionSettings = TC_HDR;
+			TextureCube->SRGB = false;
 		}
 
 		return TextureCube;

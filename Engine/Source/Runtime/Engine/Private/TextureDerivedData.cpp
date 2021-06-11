@@ -48,7 +48,7 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define TEXTURE_DERIVEDDATA_VER		TEXT("2D528FAD496A42E180956107C6FFBD67")
+#define TEXTURE_DERIVEDDATA_VER		TEXT("E01F4250BECD420DA9CE63B5EECEC2C2")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
@@ -385,11 +385,6 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.DiffuseConvolveMipLevel = GDiffuseConvolveMipLevel;
 		const UTextureCube* Cube = CastChecked<UTextureCube>(&Texture);
 		OutBuildSettings.bLongLatSource = (Cube->Source.GetNumSlices() == 1);
-		if (OutBuildSettings.bLongLatSource && Texture.MaxTextureSize <= 0)
-		{
-			// long/lat source use 512 as default
-			OutBuildSettings.MaxTextureResolution = 512;
-		}
 	}
 	else if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
