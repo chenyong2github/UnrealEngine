@@ -8,6 +8,7 @@
 #include "UObject/GCObject.h"
 
 #include "TickableEditorObject.h"
+#include "EditorUndoClient.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraScript.h"
 
