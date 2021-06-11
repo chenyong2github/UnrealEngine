@@ -1130,7 +1130,7 @@ FDatasmithImporterUtils::FDatasmithMaterialImportIterator::FDatasmithMaterialImp
 	: ImportContext(InImportContext),
 	CurrentIndex(0)
 {
-	if (!ImportContext.bIsAReimport)
+	if (!ImportContext.bIsAReimport || !ImportContext.SceneAsset)
 	{
 		return;
 	}

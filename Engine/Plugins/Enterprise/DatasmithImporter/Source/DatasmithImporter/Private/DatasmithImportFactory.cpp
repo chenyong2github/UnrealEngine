@@ -802,7 +802,7 @@ EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* Sc
 	FString ImportPath = ImportContext.Options->BaseOptions.AssetOptions.PackagePath.ToString();
 
 	TSharedRef< IDatasmithScene > Scene = FDatasmithSceneFactory::CreateScene( *Source.GetSceneName() );
-	bool bIsSilent = false;
+	bool bIsSilent = IsAutomatedImport();
 	if ( !ImportContext.Init( Scene, ImportPath, ImportContext.SceneAsset->GetFlags(), GWarn, ImportSettingsJson, bIsSilent ) )
 	{
 		return EReimportResult::Cancelled;
