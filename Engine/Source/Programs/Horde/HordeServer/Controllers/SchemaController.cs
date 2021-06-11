@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeServer.Models;
 using HordeServer.Utilities;
-using Json.Schema;
-using Json.Schema.Generation;
-
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using System;
@@ -96,9 +94,7 @@ namespace HordeServer.Controllers
 					JsonSchema Schema = Schemas.CreateSchema(SchemaType);
 
 					using MemoryStream Stream = new MemoryStream();
-					using Utf8JsonWriter Writer = new Utf8JsonWriter(Stream);
-					JsonSerializer.Serialize(Writer, Schema, new JsonSerializerOptions());
-					Writer.Flush();
+					Schema.Write(Stream);
 
 					return new FileContentResult(Stream.ToArray(), "application/json");
 				}
