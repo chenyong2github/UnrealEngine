@@ -10,37 +10,38 @@ public class Niagara : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
+                "ApplicationCore",
+                "AudioPlatformConfiguration",
+                "Core",
+                "DeveloperSettings",
+                "Engine",
+                "HeadMountedDisplay",
+                "Json",
+                "JsonUtilities",
+                "Landscape",
                 "NiagaraCore",
                 "NiagaraShader",
-                "Core",
-                "Engine",
+                "Renderer",
+                "SignalProcessing",
                 "TimeManagement",
                 "TraceLog",
-                "Renderer",
-                "JsonUtilities",
-				"Landscape",
-				"Json",
-				"AudioPlatformConfiguration",
-				"SignalProcessing",
-				"ApplicationCore",
-				"DeveloperSettings",
-				"HeadMountedDisplay",
-			}
+            }
         );
 
 
         PublicDependencyModuleNames.AddRange(
             new string[] {
+                "CoreUObject",
+                "IntelISPC",
+                "MovieScene",
+                "MovieSceneTracks",
                 "NiagaraCore",
                 "NiagaraShader",
-                "MovieScene",
-				"MovieSceneTracks",
-				"CoreUObject",
-                "VectorVM",
-                "RHI",
                 "NiagaraVertexFactories",
+                "PhysicsCore",
                 "RenderCore",
-                "IntelISPC",
+                "RHI",
+                "VectorVM",
             }
         );
 

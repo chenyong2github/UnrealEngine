@@ -10,6 +10,7 @@
 
 class ALandscape;
 struct FNDILandscapeData_GameThread;
+class UPhysicalMaterial;
 
 UENUM()
 enum class ENDILandscape_SourceMode : uint8
@@ -47,6 +48,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Landscape")
 	ENDILandscape_SourceMode SourceMode = ENDILandscape_SourceMode::Default;
 
+	UPROPERTY(EditAnywhere, Category = "Landscape")
+	TArray<UPhysicalMaterial*> PhysicalMaterials;
+
 	//UObject Interface
 	virtual void PostInitProperties() override;	
 	//UObject Interface End
@@ -83,4 +87,5 @@ protected:
 
 	static const FName GetHeightName;
 	static const FName GetWorldNormalName;
+	static const FName GetPhysicalMaterialIndexName;
 };

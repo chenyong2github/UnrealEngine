@@ -44,6 +44,9 @@ struct FNDILandscapeContext
 	float4 CachedHeightTextureUvScaleBias;
 	float2 CachedHeightTextureGridSize;
 	SamplerState PointClampedSampler;
+
+	Texture2D<int> CachedPhysMatTexture;
+	int2 CachedPhysMatTextureDimension;
 };
 
 void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos, out float OutHeight, out bool OutIsValid)
@@ -167,6 +170,25 @@ void NDILandscape_GetWorldNormal(in FNDILandscapeContext DIContext, float3 InWor
 	}
 }
 
+void NDILandscape_GetPhysicalMaterialIndex(in FNDILandscapeContext DIContext, float3 InWorldPos, out int OutIndex, out bool OutIsValid)
+{
+	float2 Uv = mul(float4(InWorldPos, 1.0f), DIContext.CachedHeightTextureWorldToUvTransform).xy;
+	Uv = Uv * DIContext.CachedHeightTextureUvScaleBias.xy + DIContext.CachedHeightTextureUvScaleBias.zw;
+
+	int3 SampleIndex = int3(Uv * DIContext.CachedPhysMatTextureDimension, 0);
+	OutIndex = DIContext.CachedPhysMatTexture.Load(SampleIndex).x;
+
+	if (OutIndex >= 255)
+	{
+		OutIndex = -1;
+		OutIsValid = false;
+	}
+	else
+	{
+		OutIsValid = true;
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define NDILANDSCAPE_DECLARE_CONSTANTS(NAME) \
@@ -196,8 +218,10 @@ void NDILandscape_GetWorldNormal(in FNDILandscapeContext DIContext, float3 InWor
 	float4x4			CachedHeightTextureUvToWorldTransform_ ## NAME; \
 	float4				CachedHeightTextureUvScaleBias_ ## NAME; \
 	float2				CachedHeightTextureGridSize_ ## NAME; \
-	SamplerState		PointClampedSampler_ ## NAME;
-	
+	SamplerState		PointClampedSampler_ ## NAME; \
+	Texture2D<int>		CachedPhysMatTexture_ ## NAME; \
+	int2				CachedPhysMatTextureDimension_ ## NAME;
+
 #define NDILANDSCAPE_MAKE_CONTEXT(NAME) \
 	FNDILandscapeContext DIContext; \
 	DIContext.HeightVirtualTexture = HeightVirtualTexture_ ## NAME; \
@@ -226,4 +250,6 @@ void NDILandscape_GetWorldNormal(in FNDILandscapeContext DIContext, float3 InWor
 	DIContext.CachedHeightTextureUvToWorldTransform = CachedHeightTextureUvToWorldTransform_ ## NAME; \
 	DIContext.CachedHeightTextureUvScaleBias = CachedHeightTextureUvScaleBias_ ## NAME; \
 	DIContext.CachedHeightTextureGridSize = CachedHeightTextureGridSize_ ## NAME; \
-	DIContext.PointClampedSampler = PointClampedSampler_ ## NAME;
+	DIContext.PointClampedSampler = PointClampedSampler_ ## NAME; \
+	DIContext.CachedPhysMatTexture = CachedPhysMatTexture_ ## NAME; \
+	DIContext.CachedPhysMatTextureDimension = CachedPhysMatTextureDimension_ ## NAME;
