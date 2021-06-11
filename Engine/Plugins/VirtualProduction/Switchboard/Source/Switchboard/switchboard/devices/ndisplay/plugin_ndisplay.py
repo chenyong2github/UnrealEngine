@@ -286,6 +286,12 @@ class DevicenDisplay(DeviceUnreal):
             value='',
             tool_tip="Device profile console variables (comma separated)."
         ),
+        'ndisplay_unattended': Setting(
+            attr_name='ndisplay_unattended',
+            nice_name='Unattended',
+            value=True,
+            tool_tip='Include the "-unattended" command line argument, which is documented to "Disable anything requiring feedback from user."',
+        ),
         'max_gpu_count': Setting(
             attr_name="max_gpu_count",
             nice_name="Number of GPUs",
@@ -492,8 +498,12 @@ class DevicenDisplay(DeviceUnreal):
         # Friendly name. Avoid spaces to avoid parsing issues.
         friendly_name = f'-StageFriendlyName={self.name.replace(" ", "_")}'
 
+        # Unattended mode
+        unattended = ''
+        if DevicenDisplay.csettings['ndisplay_unattended'].get_value(self.name):
+            unattended = '-unattended -ini:EditorSettings:[/Script/UnrealEd.CrashReportsPrivacySettings]:bSendUnattendedBugReports=False'
+
         # fill in fixed arguments
-        # TODO: Consider -unattended as an option to avoid crash window from appearing.
         args = [
             f'"{uproject}"',
             f'{map_name}',                     # map to open
@@ -521,6 +531,7 @@ class DevicenDisplay(DeviceUnreal):
             f'Log={self.name}.log',            # log file
             f'{ini_engine}',                   # Engine ini injections
             f'{ini_game}',                     # Game ini injections
+            f'{unattended}',                   # -unattended, bSendUnattendedBugReports=False
         ]
 
         # fill in ExecCmds
