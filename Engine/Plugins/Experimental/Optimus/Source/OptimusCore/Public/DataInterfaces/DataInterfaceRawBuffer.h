@@ -24,6 +24,7 @@ public:
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const override;
+	UClass* GetDataProviderClass() const override;
 	//~ End UComputeDataInterface Interface
 
 	UPROPERTY()

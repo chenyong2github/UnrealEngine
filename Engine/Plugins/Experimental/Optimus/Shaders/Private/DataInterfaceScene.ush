@@ -5,12 +5,12 @@
 float DI_LOCAL(GameTime);
 uint DI_LOCAL(FrameNumber);
 
-DI_IMPL_READ(ReadGameTime, float, )
+DI_IMPL_READ(SD_ReadGameTime, float, )
 {
 	return DI_LOCAL(GameTime);
 }
 
-DI_IMPL_READ(ReadFrameNumber, uint, )
+DI_IMPL_READ(SD_ReadFrameNumber, uint, )
 {
 	return DI_LOCAL(FrameNumber);
 }

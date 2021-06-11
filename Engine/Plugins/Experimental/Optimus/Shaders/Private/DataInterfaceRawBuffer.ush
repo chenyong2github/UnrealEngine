@@ -8,13 +8,13 @@ uint DI_LOCAL(BufferSize);
 StructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferSRV);
 RWStructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferUAV);
 
-DI_IMPL_READ(ReadValue, BUFFER_TYPE, uint Index)
+DI_IMPL_READ(TB_ReadValue, BUFFER_TYPE, uint Index)
 {
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
 	return DI_LOCAL(BufferSRV)[BufferIndex];
 }
 
-DI_IMPL_WRITE(WriteValue, uint Index, BUFFER_TYPE Value)
+DI_IMPL_WRITE(TB_WriteValue, uint Index, BUFFER_TYPE Value)
 {
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
 	DI_LOCAL(BufferUAV)[BufferIndex] = Value;
@@ -22,7 +22,7 @@ DI_IMPL_WRITE(WriteValue, uint Index, BUFFER_TYPE Value)
 
 #ifdef BUFFER_TYPE_SUPPORTS_ATOMIC
 
-DI_IMPL_READ(ReadAtomicAdd, BUFFER_TYPE, uint Index, BUFFER_TYPE Value)
+DI_IMPL_READ(TB_ReadAtomicAdd, BUFFER_TYPE, uint Index, BUFFER_TYPE Value)
 {
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
 	
@@ -31,7 +31,7 @@ DI_IMPL_READ(ReadAtomicAdd, BUFFER_TYPE, uint Index, BUFFER_TYPE Value)
 	return OldValue;
 }
 
-DI_IMPL_WRITE(WriteAtomicAdd, uint Index, BUFFER_TYPE Value)
+DI_IMPL_WRITE(TB_WriteAtomicAdd, uint Index, BUFFER_TYPE Value)
 {
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
 

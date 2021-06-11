@@ -17,7 +17,7 @@ void UTransientBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDef
 {
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadValue");
+		Fn.Name = TEXT("TB_ReadValue");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = Type;
 		Fn.ParamTypes.Add(ReturnParam);
@@ -30,7 +30,7 @@ void UTransientBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDef
 	if (SupportsAtomics())
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadAtomicAdd");
+		Fn.Name = TEXT("TB_ReadAtomicAdd");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = Type;
 		Fn.ParamTypes.Add(ReturnParam);
@@ -48,7 +48,7 @@ void UTransientBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDe
 {
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("WriteValue");
+		Fn.Name = TEXT("TB_WriteValue");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
 		Param0.FundamentalType = EShaderFundamentalType::Uint;
@@ -61,7 +61,7 @@ void UTransientBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDe
 	if (SupportsAtomics())
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("WriteAtomicAdd");
+		Fn.Name = TEXT("TB_WriteAtomicAdd");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
 		Param0.FundamentalType = EShaderFundamentalType::Uint;
@@ -99,6 +99,13 @@ void UTransientBufferDataInterface::GetHLSL(FString& OutHLSL) const
 void UTransientBufferDataInterface::ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const
 {
 }
+
+
+UClass* UTransientBufferDataInterface::GetDataProviderClass() const
+{
+	return UTransientBufferDataProvider::StaticClass();
+}
+
 
 FComputeDataProviderRenderProxy* UTransientBufferDataProvider::GetRenderProxy()
 {

@@ -8,6 +8,8 @@
 #include "SCommonEditorViewportToolbarBase.h"
 #include "AdvancedPreviewScene.h"
 
+class UOptimusDeformer;
+class USceneDataProvider;
 class USkeletalMeshSkinCacheDataProvider;
 class USkeletalMeshReadDataProvider;
 class IOptimusEditor;
@@ -42,7 +44,9 @@ public:
 	{
 		return ComputeGraphComponent;
 	}
-	
+
+	void InstallDataProviders(UOptimusDeformer *InDeformer);
+	void RemoveDataProviders();
 
 	TSharedRef<FAdvancedPreviewScene> GetAdvancedPreviewScene() const
 	{
@@ -77,6 +81,7 @@ private:
 	UComputeGraphComponent* ComputeGraphComponent = nullptr;
 	USkeletalMeshReadDataProvider* SkeletalMeshReadDataProvider = nullptr;
 	USkeletalMeshSkinCacheDataProvider *SkeletalMeshSkinCacheDataProvider = nullptr;
+	USceneDataProvider *SceneDataProvider = nullptr;
 	UMeshComponent* PreviewMeshComponent = nullptr;
 	UMaterialInterface* PreviewMaterial = nullptr;
 };

@@ -11,11 +11,15 @@
 
 #include "OptimusDeformer.generated.h"
 
+class UComputeDataProvider;
 class USkeletalMesh;
 class UOptimusActionStack;
+class UOptimusDeformer;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 
 UCLASS()
 class OPTIMUSDEVELOPER_API UOptimusDeformer :
@@ -145,7 +149,11 @@ public:
 
 	/// Graph compilation
 	bool Compile();
-	
+
+	FOptimusCompileBegin& GetCompileBeginDelegate()  { return CompileBeginDelegate; }
+	FOptimusCompileEnd& GetCompileEndDelegate() { return CompileEndDelegate; }
+
+	TArray<TSubclassOf<UComputeDataProvider>> GetDataProviderClasses() const;
 
 	/// IOptimusNodeGraphCollectionOwner overrides
 	FOptimusGlobalNotifyDelegate& GetNotifyDelegate() override { return GlobalNotifyDelegate; }
@@ -202,4 +210,8 @@ private:
 	UOptimusActionStack *ActionStack;
 
 	FOptimusGlobalNotifyDelegate GlobalNotifyDelegate;
+	
+	FOptimusCompileBegin CompileBeginDelegate;
+	
+	FOptimusCompileEnd CompileEndDelegate;
 };

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ComputeFramework/ComputeDataInterface.h"
+#include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DataInterfaceScene.generated.h"
 
@@ -10,21 +10,27 @@ class USceneComponent;
 
 /** Compute Framework Data Interface for reading general scene data. */
 UCLASS(Category = ComputeFramework)
-class USceneDataInterface : public UComputeDataInterface
+class USceneDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
 public:
+	//~ Begin UOptimusComputeDataInterface Interface
+	FString GetDisplayName() const override;
+	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	//~ End UOptimusComputeDataInterface Interface
+
 	//~ Begin UComputeDataInterface Interface
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
+	UClass* GetDataProviderClass() const override;
 	//~ End UComputeDataInterface Interface
 };
 
 /** Compute Framework Data Provider for reading general scene data. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class USceneDataProvider : public UComputeDataProvider
+class OPTIMUSCORE_API USceneDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 

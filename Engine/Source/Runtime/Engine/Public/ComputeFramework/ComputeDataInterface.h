@@ -33,4 +33,6 @@ public:
 	virtual void GetHLSL(FString& OutHLSL) const {}
 	/** Gather modifications to the compilation environment always required when including this data provider. */
 	virtual void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const {}
+
+	virtual UClass* GetDataProviderClass() const PURE_VIRTUAL(UComputeDataInterface::GetDataProviderClass, return nullptr; )
 };

@@ -140,6 +140,8 @@ public:
 
 	bool RemoveAllLinksToNodeDirect(UOptimusNode* InNode);
 
+	TArray<UOptimusNodePin *> GetConnectedPins(const UOptimusNodePin* InNodePin) const;
+
 	/// Check to see if connecting these two pins will form a graph cycle.
 	/// @param InNodeOutputPin The output pin to connect from.
 	/// @param InNodeInputPin The input pin to connect into.
@@ -185,11 +187,15 @@ private:
 		EOptimusNodePinDirection InDirection
 		) const;
 
+
 	TArray<int32> GetAllLinkIndexesToNode(
-	    const UOptimusNode* InNode) const;
+	    const UOptimusNode* InNode
+	    ) const;
 
 		
-	TArray<int32> GetAllLinkIndexesToPin(UOptimusNodePin* InNodePin);
+	TArray<int32> GetAllLinkIndexesToPin(
+		const UOptimusNodePin* InNodePin
+		) const;
 
 	UPROPERTY()
 	TArray<UOptimusNode*> Nodes;
@@ -197,7 +203,6 @@ private:
 	// FIXME: Use a map.
 	UPROPERTY()
 	TArray<UOptimusNodeLink*> Links;
-
 
 	FOptimusGraphNotifyDelegate GraphNotifyDelegate;
 };

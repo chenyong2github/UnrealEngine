@@ -15,6 +15,9 @@
 
 void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 {
+	// Our graph nodes are not transactional. We handle the transacting ourselves.
+	ClearFlags(RF_Transactional);
+	
 	if (ensure(InModelNode))
 	{
 		ModelNode = InModelNode;
@@ -152,12 +155,6 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 	const UOptimusNodePin* InModelPin
 	)
 {
-	// FIXME: We only support changing pins with no sub-pins for now.
-	if (!ensure(InModelPin->GetSubPins().IsEmpty()))
-	{
-		return;
-	}
-
 	FOptimusDataTypeHandle DataType = InModelPin->GetDataType();
 	if (!ensure(DataType.IsValid()))
 	{
@@ -165,16 +162,33 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 	}
 
 	FEdGraphPinType PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
-	
+
 	// If the pin has sub-pins, we need to reconstruct.
 	UEdGraphPin* GraphPin = FindGraphPinFromModelPin(InModelPin);
-
-	if (GraphPin && GraphPin->SubPins.IsEmpty())
+	if (!GraphPin)
 	{
-		GraphPin->PinType = PinType;
-
-		Cast<UOptimusEditorGraph>(GetGraph())->RefreshVisualNode(this);
+		// TBD: Does it need to exist?
+		return;
 	}
+
+	// If the graph node had sub-pins, we need to remove those.
+	if (!GraphPin->SubPins.IsEmpty())
+	{
+		RemoveGraphSubPins(GraphPin);
+		GraphPin->Purge();
+	}
+
+	if (!InModelPin->GetSubPins().IsEmpty())
+	{
+		for (const UOptimusNodePin* ModelSubPin : InModelPin->GetSubPins())
+		{
+			CreateGraphPinFromModelPin(ModelSubPin, GraphPin->Direction, GraphPin);
+		}
+	}
+		
+	GraphPin->PinType = PinType;
+
+	Cast<UOptimusEditorGraph>(GetGraph())->RefreshVisualNode(this);
 }
 
 
@@ -230,6 +244,35 @@ bool UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 		}
 	}
 	return true;
+}
+
+void UOptimusEditorGraphNode::RemoveGraphSubPins(
+	UEdGraphPin* InParentPin,
+	bool bInIsRootPinToDelete
+	)
+{
+	// Make a copy of the subpins, because calling MarkPendingKill removes it from the subpin
+	// list of the parent.
+	TArray<UEdGraphPin*> SubPins = InParentPin->SubPins;
+	
+	for (UEdGraphPin* SubPin: SubPins)
+	{
+		PathToModelPinMap.Remove(SubPin->PinName);
+		PathToGraphPinMap.Remove(SubPin->PinName);
+
+		// Remove this pin from our owned pins
+		Pins.Remove(SubPin);
+
+		if (!SubPin->SubPins.IsEmpty())
+		{
+			RemoveGraphSubPins(SubPin, false);
+		}
+
+		if (bInIsRootPinToDelete)
+		{
+			SubPin->MarkPendingKill();
+		}
+	}
 }
 
 

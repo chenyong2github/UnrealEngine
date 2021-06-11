@@ -27,6 +27,7 @@ public:
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
+	UClass* GetDataProviderClass() const override;
 	//~ End UComputeDataInterface Interface
 };
 
