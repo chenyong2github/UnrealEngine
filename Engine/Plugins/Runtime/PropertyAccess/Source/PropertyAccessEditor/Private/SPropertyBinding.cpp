@@ -458,52 +458,55 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 	//---------------------------------------
 	// Function Bindings
 
-	if ( UClass* OwnerClass = Cast<UClass>(InOwnerStruct) )
+	if (Args.bAllowFunctionBindings)
 	{
-		static FName FunctionIcon(TEXT("GraphEditor.Function_16x"));
-
-		MenuBuilder.BeginSection("Functions", LOCTEXT("Functions", "Functions"));
+		if ( UClass* OwnerClass = Cast<UClass>(InOwnerStruct) )
 		{
-			ForEachBindableFunction(OwnerClass, [this, &InBindingChain, &MenuBuilder, &MakeFunctionWidget] (const FFunctionInfo& Info) 
+			static FName FunctionIcon(TEXT("GraphEditor.Function_16x"));
+
+			MenuBuilder.BeginSection("Functions", LOCTEXT("Functions", "Functions"));
 			{
-				TArray<TSharedPtr<FBindingChainElement>> NewBindingChain(InBindingChain);
-				NewBindingChain.Emplace(MakeShared<FBindingChainElement>(Info.Function));
-
-				FProperty* ReturnProperty = Info.Function->GetReturnProperty();
-				// We can get here if we accept non-leaf UObject functions, so if so we need to check the return value for compatibility
-				if(!Args.bAllowUObjectFunctions || Args.OnCanBindProperty.Execute(ReturnProperty))
+				ForEachBindableFunction(OwnerClass, [this, &InBindingChain, &MenuBuilder, &MakeFunctionWidget] (const FFunctionInfo& Info) 
 				{
-					MenuBuilder.AddMenuEntry(
-						FUIAction(FExecuteAction::CreateSP(this, &SPropertyBinding::HandleAddBinding, NewBindingChain)),
-						MakeFunctionWidget(Info));
-				}
+					TArray<TSharedPtr<FBindingChainElement>> NewBindingChain(InBindingChain);
+					NewBindingChain.Emplace(MakeShared<FBindingChainElement>(Info.Function));
 
-				// Only show bindable subobjects, structs and variables if we're generating pure bindings.
-				if(Args.bGeneratePureBindings)
-				{
-					if(FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(ReturnProperty))
+					FProperty* ReturnProperty = Info.Function->GetReturnProperty();
+					// We can get here if we accept non-leaf UObject functions, so if so we need to check the return value for compatibility
+					if(!Args.bAllowUObjectFunctions || Args.OnCanBindProperty.Execute(ReturnProperty))
 					{
-						MenuBuilder.AddSubMenu(
-							MakeFunctionWidget(Info),
-							FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(ObjectPropertyBase->PropertyClass), NewBindingChain));
+						MenuBuilder.AddMenuEntry(
+							FUIAction(FExecuteAction::CreateSP(this, &SPropertyBinding::HandleAddBinding, NewBindingChain)),
+							MakeFunctionWidget(Info));
 					}
-					else if(FStructProperty* StructProperty = CastField<FStructProperty>(ReturnProperty))
+
+					// Only show bindable subobjects, structs and variables if we're generating pure bindings.
+					if(Args.bGeneratePureBindings)
 					{
-						MenuBuilder.AddSubMenu(
-							MakeFunctionWidget(Info),
-							FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(StructProperty->Struct), NewBindingChain));
+						if(FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(ReturnProperty))
+						{
+							MenuBuilder.AddSubMenu(
+								MakeFunctionWidget(Info),
+								FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(ObjectPropertyBase->PropertyClass), NewBindingChain));
+						}
+						else if(FStructProperty* StructProperty = CastField<FStructProperty>(ReturnProperty))
+						{
+							MenuBuilder.AddSubMenu(
+								MakeFunctionWidget(Info),
+								FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(StructProperty->Struct), NewBindingChain));
+						}
 					}
-				}
-			});
+				});
+			}
+			MenuBuilder.EndSection(); //Functions
 		}
-		MenuBuilder.EndSection(); //Functions
 	}
 
 	//---------------------------------------
 	// Property Bindings
 
 	// Only show bindable subobjects and variables if we're generating pure bindings.
-	if ( Args.bGeneratePureBindings )
+	if ( Args.bGeneratePureBindings && Args.bAllowPropertyBindings )
 	{
 		FProperty* BindingProperty = nullptr;
 		if(Args.BindableSignature != nullptr)
@@ -744,6 +747,8 @@ void SPropertyBinding::HandleCreateAndAddBinding()
 	UFunction* Function = Blueprint->SkeletonGeneratedClass->FindFunctionByName(FunctionGraph->GetFName());
 	check(Function);
 
+	Args.OnNewFunctionBindingCreated.ExecuteIfBound(FunctionGraph, Function);
+	
 	// Add the binding to the blueprint
 	TArray<TSharedPtr<FBindingChainElement>> BindingPath;
 	BindingPath.Emplace(MakeShared<FBindingChainElement>(Function));

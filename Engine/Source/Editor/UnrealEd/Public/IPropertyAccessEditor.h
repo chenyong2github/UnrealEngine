@@ -118,6 +118,9 @@ DECLARE_DELEGATE_OneParam(FOnRemoveBinding, FName /*InPropertyName*/);
 /** Delegate called to see if we can remove remove a binding (ie. if it exists) */
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanRemoveBinding, FName /*InPropertyName*/);
 
+/** Delegate called once a new function binding has been created */
+DECLARE_DELEGATE_TwoParams(FOnNewFunctionBindingCreated, UEdGraph* /*InFunctionGraph*/, UFunction* /*InFunction*/);
+
 /** Setup arguments structure for a property binding widget */
 struct FPropertyBindingWidgetArgs
 {
@@ -157,6 +160,9 @@ struct FPropertyBindingWidgetArgs
 	/** Delegate called to see if we can remove remove a binding (ie. if it exists) */
 	FOnCanRemoveBinding OnCanRemoveBinding;
 
+	/** Delegate called once a new function binding has been created */
+	FOnNewFunctionBindingCreated OnNewFunctionBindingCreated;
+	
 	/** The current binding's text label */
 	TAttribute<FText> CurrentBindingText;
 
@@ -175,6 +181,12 @@ struct FPropertyBindingWidgetArgs
 	/** Whether to generate pure bindings */
 	bool bGeneratePureBindings = true;
 
+	/** Whether to allow function bindings */
+	bool bAllowFunctionBindings = true;
+
+	/** Whether to allow property bindings */
+	bool bAllowPropertyBindings = true;	
+	
 	/** Whether to allow array element bindings */
 	bool bAllowArrayElementBindings = false;
 
