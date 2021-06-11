@@ -9,7 +9,7 @@
 
 #include "DisplayClusterConfigurationTypes_Base.generated.h"
 
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationRectangle
 {
 	GENERATED_BODY()
@@ -28,16 +28,16 @@ public:
 	FIntRect ToRect() const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	int32 X;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	int32 Y;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	int32 W;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	int32 H;
 };
 
@@ -64,18 +64,18 @@ private:
 	TArray<UObject*> ExportedObjects;
 };
 
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPolymorphicEntity
 {
 	GENERATED_BODY()
 
 public:
 	// Polymorphic entity type
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
 	FString Type;
 
 	// Generic parameters map
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
 	TMap<FString, FString> Parameters;
 
 #if WITH_EDITORONLY_DATA
