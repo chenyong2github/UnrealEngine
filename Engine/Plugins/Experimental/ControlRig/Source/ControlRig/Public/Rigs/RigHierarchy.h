@@ -99,6 +99,7 @@ public:
 	, ResetPoseHash(INDEX_NONE)
 #if WITH_EDITOR
 	, bPropagatingChange(false)
+	, bForcePropagation(false)
 	, TraceFramesLeft(0)
 	, TraceFramesCaptured(0)
 #endif
@@ -1414,6 +1415,36 @@ public:
 	}
 
 	/**
+	 * Sets the control settings for a given control element by key
+	 * @param InKey The key of the control element to set the settings for
+	 * @param InSettings The new control settings value to set
+	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE void SetControlSettings(FRigElementKey InKey, FRigControlSettings InSettings, bool bSetupUndo = false, bool bForce = false)
+	{
+		return SetControlSettingsByIndex(GetIndex(InKey), InSettings, bSetupUndo, bForce);
+	}
+
+	/**
+	 * Sets the control settings for a given control element by index
+	 * @param InElementIndex The index of the control element to set the settings for
+	 * @param InSettings The new control settings value to set
+	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE void SetControlSettingsByIndex(int32 InElementIndex, FRigControlSettings InSettings, bool bSetupUndo = false, bool bForce = false)
+	{
+		if(Elements.IsValidIndex(InElementIndex))
+		{
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Elements[InElementIndex]))
+			{
+				SetControlSettings(ControlElement, InSettings, bSetupUndo, bForce);
+			}
+		}
+	}
+
+	/**
 	 * Returns the global current or initial value for a given key.
 	 * If the element does not have a parent FTransform::Identity will be returned.
 	 * @param InKey The key of the element to retrieve the transform for
@@ -2056,6 +2087,14 @@ public:
 	void SetControlGizmoTransform(FRigControlElement* InControlElement, const FTransform& InTransform, const ERigTransformType::Type InTransformType, bool bSetupUndo = false, bool bForce = false);
 
 	/**
+	 * Sets the control settings for a given control element
+	 * @param InControlElement The element to set the settings for
+	 * @param InSettings The new control settings value to set
+	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
+	 */
+	void SetControlSettings(FRigControlElement* InControlElement, FRigControlSettings InSettings, bool bSetupUndo = false, bool bForce = false);
+
+	/**
 	 * Returns a control's current value
 	 * @param InControlElement The element to retrieve the current value for
 	 * @param InValueType The type of value to return
@@ -2366,9 +2405,13 @@ private:
 	};
 	
 	TArray<FRigHierarchyListener> ListeningHierarchies;
+	friend class FRigHierarchyListenerGuard;
 
 	// a bool to guard against circular dependencies among listening hierarchies
 	bool bPropagatingChange;
+
+	// a bool to disable any propagation checks and force propagation
+	bool bForcePropagation;
 	
 #endif
 
@@ -2386,3 +2429,99 @@ protected:
 	friend class UControlRig;
 	friend class FControlRigEditor;
 };
+
+#if WITH_EDITOR
+
+class FRigHierarchyListenerGuard
+{
+public:
+	FORCEINLINE_DEBUGGABLE FRigHierarchyListenerGuard(
+		URigHierarchy* InHierarchy, 
+		bool bInEnableInitialChanges, 
+		bool bInEnableCurrentChanges,
+		URigHierarchy* InListeningHierarchy = nullptr)
+			: Hierarchy(InHierarchy)
+			, bEnableInitialChanges(bInEnableInitialChanges)
+			, bEnableCurrentChanges(bInEnableCurrentChanges)
+			, ListeningHierarchy(InListeningHierarchy)
+	{
+		check(Hierarchy);
+
+		if(ListeningHierarchy == nullptr)
+		{
+			InitialFlags.AddUninitialized(Hierarchy->ListeningHierarchies.Num());
+			CurrentFlags.AddUninitialized(Hierarchy->ListeningHierarchies.Num());
+
+			for(int32 Index = 0; Index < Hierarchy->ListeningHierarchies.Num(); Index++)
+			{
+				URigHierarchy::FRigHierarchyListener& Listener = Hierarchy->ListeningHierarchies[Index];
+				InitialFlags[Index] = Listener.bShouldReactToInitialChanges;
+				CurrentFlags[Index] = Listener.bShouldReactToCurrentChanges;
+
+				Listener.bShouldReactToInitialChanges = bInEnableInitialChanges; 
+				Listener.bShouldReactToCurrentChanges = bInEnableCurrentChanges; 
+			}
+		}
+		else
+		{
+			for(int32 Index = 0; Index < Hierarchy->ListeningHierarchies.Num(); Index++)
+			{
+				URigHierarchy::FRigHierarchyListener& Listener = Hierarchy->ListeningHierarchies[Index];
+
+				if(Listener.Hierarchy.Get() == ListeningHierarchy)
+				{
+					InitialFlags.Add(Listener.bShouldReactToInitialChanges);
+					CurrentFlags.Add(Listener.bShouldReactToCurrentChanges);
+
+					Listener.bShouldReactToInitialChanges = bInEnableInitialChanges; 
+					Listener.bShouldReactToCurrentChanges = bInEnableCurrentChanges;
+					break;
+				}
+			}
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE ~FRigHierarchyListenerGuard()
+	{
+		if(ListeningHierarchy == nullptr)
+		{
+			check(Hierarchy->ListeningHierarchies.Num() == InitialFlags.Num());
+			check(Hierarchy->ListeningHierarchies.Num() == CurrentFlags.Num());
+			
+			for(int32 Index = 0; Index < Hierarchy->ListeningHierarchies.Num(); Index++)
+			{
+				URigHierarchy::FRigHierarchyListener& Listener = Hierarchy->ListeningHierarchies[Index];
+				Listener.bShouldReactToInitialChanges = InitialFlags[Index];
+				Listener.bShouldReactToCurrentChanges = CurrentFlags[Index];
+			}
+		}
+		else
+		{
+			for(int32 Index = 0; Index < Hierarchy->ListeningHierarchies.Num(); Index++)
+			{
+				URigHierarchy::FRigHierarchyListener& Listener = Hierarchy->ListeningHierarchies[Index];
+
+				if(Listener.Hierarchy.Get() == ListeningHierarchy)
+				{
+					check(InitialFlags.Num() == 1);
+					check(CurrentFlags.Num() == 1);
+
+					Listener.bShouldReactToInitialChanges = InitialFlags[0];
+					Listener.bShouldReactToCurrentChanges = CurrentFlags[0];
+					break;
+				}
+			}
+		}
+	}
+
+private:
+
+	URigHierarchy* Hierarchy; 
+	bool bEnableInitialChanges; 
+	bool bEnableCurrentChanges;
+	URigHierarchy* ListeningHierarchy;
+	TArray<bool> InitialFlags;
+	TArray<bool> CurrentFlags;
+};
+
+#endif

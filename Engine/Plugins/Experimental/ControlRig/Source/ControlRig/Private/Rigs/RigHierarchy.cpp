@@ -931,7 +931,7 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentInde
 			
 				for(FRigHierarchyListener& Listener : ListeningHierarchies)
 				{
-					if(!Listener.ShouldReactToChange(LocalType))
+					if(!bForcePropagation && !Listener.ShouldReactToChange(LocalType))
 					{
 						continue;
 					}
@@ -1414,7 +1414,7 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 			
 		for(FRigHierarchyListener& Listener : ListeningHierarchies)
 		{
-			if(!Listener.ShouldReactToChange(InTransformType))
+			if(!bForcePropagation && !Listener.ShouldReactToChange(InTransformType))
 			{
 				continue;
 			}
@@ -1516,11 +1516,6 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 			
 		for(FRigHierarchyListener& Listener : ListeningHierarchies)
 		{
-			if(!Listener.ShouldReactToChange(InTransformType))
-			{
-				continue;
-			}
-
 			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
 			if (ensure(ListeningHierarchy))
 			{	
@@ -1618,11 +1613,6 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 			
 		for(FRigHierarchyListener& Listener : ListeningHierarchies)
 		{
-			if(!Listener.ShouldReactToChange(InTransformType))
-			{
-				continue;
-			}
-
 			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
 			if (ensure(ListeningHierarchy))
 			{	
@@ -1630,6 +1620,43 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 				{
 					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierachy undos
 					ListeningHierarchy->SetControlGizmoTransform(ListeningElement, InTransform, InTransformType, false, bForce);
+				}
+			}
+		}
+	}
+#endif
+}
+
+void URigHierarchy::SetControlSettings(FRigControlElement* InControlElement, FRigControlSettings InSettings, bool bSetupUndo, bool bForce)
+{
+	if(InControlElement == nullptr)
+	{
+		return;
+	}
+
+	const FRigControlSettings PreviousSettings = InControlElement->Settings;
+	if(!bForce && PreviousSettings == InSettings)
+	{
+		return;
+	}
+
+	InControlElement->Settings = InSettings;
+	Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
+	
+#if WITH_EDITOR
+	if (ensure(!bPropagatingChange))
+	{
+		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+		for(FRigHierarchyListener& Listener : ListeningHierarchies)
+		{
+			URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+			if (ensure(ListeningHierarchy))
+			{	
+				if(FRigControlElement* ListeningElement = Cast<FRigControlElement>(ListeningHierarchy->Find(InControlElement->GetKey())))
+				{
+					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierachy undos
+					ListeningHierarchy->SetControlSettings(ListeningElement, InSettings, false, bForce);
 				}
 			}
 		}

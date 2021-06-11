@@ -75,36 +75,16 @@ void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETex
 
 		bool bIsOnInstance = false;
 		URigHierarchy* Hierarchy = Blueprint->Hierarchy;
-		UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged());
-
-		if (DebuggedControlRig)
-		{
-			if (!DebuggedControlRig->IsSetupModeEnabled())
-			{
-				Hierarchy = DebuggedControlRig->GetHierarchy();
-				bIsOnInstance = true;
-			}
-		}
 
 		FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(ControlIndex);
 		if ((ControlElement != nullptr) && (ControlElement->Settings.GizmoName != NewName))
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeGizmoName", "Change Gizmo Name"));
-			Blueprint->Hierarchy->Modify();
+			Hierarchy->Modify();
 
-			ControlElement->Settings.GizmoName = NewName;
-
-			if (bIsOnInstance && DebuggedControlRig)
-			{
-				FRigControlElement* OtherControlElement = Blueprint->Hierarchy->Get<FRigControlElement>(ControlIndex);
-				if(OtherControlElement)
-				{
-					OtherControlElement->Settings.GizmoName = NewName;
-					Blueprint->Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, OtherControlElement);
-				}
-			}
-
-			Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+			FRigControlSettings Settings = ControlElement->Settings;
+			Settings.GizmoName = NewName;
+			Hierarchy->SetControlSettings(ControlElement, Settings, true, true);
 		}
 	}
 }
