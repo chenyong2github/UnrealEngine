@@ -25,6 +25,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
+using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+
 namespace HordeServer.Tasks.Impl
 {
 	/// <summary>
@@ -409,28 +411,17 @@ namespace HordeServer.Tasks.Impl
 			{
 				Operation.SetStatus(ExecutionStage.Types.Value.Queued, null);
 
-				// Get a new subscription
-				Subscription? Subscription = await WaitForSubscriberAsync(TimeSpan.FromSeconds(20.0));
-				if (Subscription == null)
-				{
-					ExecuteResponse FailedResponse = new ExecuteResponse();
-					FailedResponse.Status = new Status(StatusCode.ResourceExhausted, "Unable to find agent to execute request");
-					return FailedResponse;
-				}
-
-				// Create a lease for it
-				string LeaseName = $"Remote action ({Request.ActionDigest.Hash.Substring(0, 16)}...)";
-
-				ILogFile LogFile = await LogFileService.CreateLogFileAsync(ObjectId.Empty, Subscription.Agent.SessionId, LogType.Json);
-
+				List<string>? PoolFilter = null;
+				
 				ActionTask ActionTask = new ActionTask();
 				ActionTask.InstanceName = Request.InstanceName;
 				ActionTask.Digest = Request.ActionDigest;
-				ActionTask.LogId = LogFile.Id.ToString();
 				ActionTask.QueueTime = Timestamp.FromDateTimeOffset(QueueTime);
-
+				
 				if (Request.InstanceName != null && RemoteExecSettings.Instances.TryGetValue(Request.InstanceName, out var InstanceSettings))
 				{
+					PoolFilter = InstanceSettings.PoolFilter;
+					
 					if (InstanceSettings.CasUrl != null)
 					{
 						ActionTask.CasUrl = InstanceSettings.CasUrl.ToString();
@@ -446,6 +437,21 @@ namespace HordeServer.Tasks.Impl
 						ActionTask.ServiceAccountToken = InstanceSettings.ServiceAccountToken;
 					}
 				}
+				
+				// Get a new subscription
+				Subscription? Subscription = await WaitForSubscriberAsync(TimeSpan.FromSeconds(20.0), PoolFilter);
+				if (Subscription == null)
+				{
+					ExecuteResponse FailedResponse = new ExecuteResponse();
+					FailedResponse.Status = new Status(StatusCode.ResourceExhausted, "Unable to find agent to execute request");
+					return FailedResponse;
+				}
+
+				// Create a lease for it
+				string LeaseName = $"Remote action ({Request.ActionDigest.Hash.Substring(0, 16)}...)";
+
+				ILogFile LogFile = await LogFileService.CreateLogFileAsync(ObjectId.Empty, Subscription.Agent.SessionId, LogType.Json);
+				ActionTask.LogId = LogFile.Id.ToString();
 
 				byte[] Payload = Any.Pack(ActionTask).ToByteArray();
 				AgentLease Lease = new AgentLease(Operation.Id, LeaseName, null, null, LogFile.Id, LeaseState.Pending, Payload, new AgentRequirements(), null);
@@ -479,8 +485,9 @@ namespace HordeServer.Tasks.Impl
 		/// Waits until there is an available agent for executing work
 		/// </summary>
 		/// <param name="TimeLimit"></param>
+		/// <param name="PoolFilter"></param>
 		/// <returns></returns>
-		async Task<Subscription?> WaitForSubscriberAsync(TimeSpan TimeLimit)
+		async Task<Subscription?> WaitForSubscriberAsync(TimeSpan TimeLimit, List<string>? PoolFilter)
 		{
 			Stopwatch Timer = Stopwatch.StartNew();
 			for (; ; )
@@ -489,7 +496,7 @@ namespace HordeServer.Tasks.Impl
 				lock (Subscriptions)
 				{
 					Subscription? Subscription = Subscriptions.FirstOrDefault();
-					if (Subscription != null)
+					if (Subscription != null && CanBeScheduledOnAgent(Subscription.Agent, PoolFilter))
 					{
 						Subscriptions.Remove(Subscription);
 						return Subscription;
@@ -596,6 +603,11 @@ namespace HordeServer.Tasks.Impl
 		public Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
 		{
 			return Task.CompletedTask;
+		}
+		
+		internal static bool CanBeScheduledOnAgent(IAgent Agent, List<string>? PoolFilter)
+		{
+			return PoolFilter == null || Agent.ExplicitPools.Any(PoolId => PoolFilter.Contains(PoolId.ToString()));
 		}
 	}
 }

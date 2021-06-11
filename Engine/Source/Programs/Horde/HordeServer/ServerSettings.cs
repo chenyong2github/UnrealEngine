@@ -81,6 +81,12 @@ namespace HordeServer
 		/// </summary>
 		[Required]
 		public string? ServiceAccountToken { get; set; }
+		
+		/// <summary>
+		/// List of pool IDs this instance can be scheduled in
+		/// </summary>
+		[Required]
+		public List<string>? PoolFilter { get; set; }
 	}
 	
 	/// <summary>
