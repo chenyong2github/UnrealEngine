@@ -61,9 +61,8 @@ public:
 	/**
 	 * Prepare the directory on disk.  Called OnDemand from the other interface functions.  Can also be called if desired by client code.
 	 * May take a long time to run if cleanup from a crashed previous process is required.
-	 * @return False if the TempRoot directory could not be constructed; calls to DeleteDirectory will fail in this case
 	 */
-	bool Setup();
+	void Setup();
 
 	/** Synchronously wait for all tasks to complete, and remove the temproot. */
 	void Teardown();
@@ -127,6 +126,7 @@ private:
 	uint32 ActiveTaskCount = 0;
 	uint32 DeleteCounter = 0;
 	bool bInitialized = false;
+	bool bAsyncInitialized = false;
 	bool bPaused = false;
 
 #if WITH_ASYNCIODELETE_DEBUG
