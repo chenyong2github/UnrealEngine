@@ -899,10 +899,13 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 
 #if WITH_EDITOR
 	// Check if the linker is instanced @todo: pass through a load flag?
-	FName PackageNameToLoad = *FPackageName::FilenameToLongPackageName(InFilename);
-	if (LinkerRoot->GetFName() != PackageNameToLoad)
+	FString PackageName;
+	if (FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
 	{
-		InstancingContext.AddMapping(PackageNameToLoad, LinkerRoot->GetFName());
+		if (LinkerRoot->GetFName() != *PackageName)
+		{
+			InstancingContext.AddMapping(*PackageName, LinkerRoot->GetFName());
+		}
 	}
 #endif
 }
@@ -4788,7 +4791,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			TFunction<void(UClass*)> PreloadSubobjects = [this, &SubObjects, &PreloadSubobjects](UClass* PreloadClass)
 			{
 				if (PreloadClass == nullptr || PreloadClass->IsNative())
-				{
+			{
 					return;
 				}
 
@@ -4810,12 +4813,12 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			};
 			PreloadSubobjects(LoadClass->GetSuperClass());
 
-			// Preload may have already created this object.
-			if (Export.Object)
-			{
-				return Export.Object;
+				// Preload may have already created this object.
+				if (Export.Object)
+				{
+					return Export.Object;
+				}
 			}
-		}
 
 		LoadClass->GetDefaultObject();
 
