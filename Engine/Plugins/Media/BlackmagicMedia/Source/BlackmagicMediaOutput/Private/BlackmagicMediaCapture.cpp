@@ -10,7 +10,7 @@
 #include "HAL/Event.h"
 #include "HAL/IConsoleManager.h"
 #include "IBlackmagicMediaModule.h"
-#include "MediaIoCoreFileWriter.h"
+#include "MediaIOCoreFileWriter.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/SceneViewport.h"

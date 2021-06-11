@@ -58,6 +58,21 @@ bool FBlackmagic::Initialize()
 	}
 
 	return bInitialized;
+#elif BLACKMAGICMEDIA_LINUX_PLATFORM
+	//Check if command line argument to force Blackmagic card usage is there
+	bCanForceBlackmagicUsage = FParse::Param(FCommandLine::Get(), TEXT("forceblackmagicusage"));
+
+#if !NO_LOGGING
+	BlackmagicDesign::SetLoggingCallbacks(&LogInfo, &LogWarning, &LogError);
+#endif // !NO_LOGGING
+
+	bInitialized = BlackmagicDesign::ApiInitialization();
+	if (!bInitialized)
+	{
+		Shutdown();
+	}
+
+	return bInitialized;
 #else
 	return false;
 #endif // BLACKMAGICMEDIA_DLL_PLATFORM
@@ -65,7 +80,11 @@ bool FBlackmagic::Initialize()
 
 bool FBlackmagic::IsInitialized()
 {
+#if BLACKMAGICMEDIA_DLL_PLATFORM
 	return LibHandle != nullptr && bInitialized;
+#elif BLACKMAGICMEDIA_LINUX_PLATFORM
+	return bInitialized;
+#endif
 }
 
 void FBlackmagic::Shutdown()
@@ -85,6 +104,16 @@ void FBlackmagic::Shutdown()
 	{
 		FPlatformProcess::FreeDllHandle(LibHandle);
 		LibHandle = nullptr;
+	}
+#elif BLACKMAGICMEDIA_LINUX_PLATFORM
+	if (bInitialized)
+	{
+		bInitialized = false;
+		BlackmagicDesign::ApiUninitialization();
+
+#if !NO_LOGGING
+		BlackmagicDesign::SetLoggingCallbacks(nullptr, nullptr, nullptr);
+#endif // !NO_LOGGING
 	}
 #endif // BLACKMAGICMEDIA_DLL_PLATFORM
 }

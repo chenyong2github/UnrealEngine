@@ -2,11 +2,19 @@
 
 #pragma once
 
-#ifdef UE4BLACKMAGICDESIGN_EXPORTS
-#define UE4BLACKMAGICDESIGN_API __declspec(dllexport)
-#else
-#define UE4BLACKMAGICDESIGN_API __declspec(dllimport)
-#endif
+#ifdef _WINDOWS
+	#ifdef UE4BLACKMAGICDESIGN_EXPORTS
+		#define UE4BLACKMAGICDESIGN_API __declspec(dllexport)
+	#else
+		#define UE4BLACKMAGICDESIGN_API __declspec(dllimport)
+	#endif
+#else // _WINDOWS
+	#ifdef UE4BLACKMAGICDESIGN_EXPORTS
+		#define UE4BLACKMAGICDESIGN_API __attribute__ ((visibility ("default")))
+	#else
+		#define UE4BLACKMAGICDESIGN_API
+	#endif
+#endif // _WINDOWS
 
 #include "BlackmagicReferencePtr.h"
 
@@ -100,6 +108,7 @@ namespace BlackmagicDesign
 		FBlackmagicVideoFormat DisplayMode; // Unique identifier that represent all that combination for the device
 
 		bool operator==(FFormatInfo& Other) const;
+
 	};
 
 	/* FChannelInfo definition
