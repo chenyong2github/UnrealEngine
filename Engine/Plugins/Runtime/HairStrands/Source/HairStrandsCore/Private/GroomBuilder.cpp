@@ -216,7 +216,9 @@ namespace HairStrandsBuilder
 	template<typename TFormatType>
 	void CopyToBulkData(FByteBulkData& Out, const TArray<typename TFormatType::Type>& Data)
 	{
-		const uint32 DataSizeInByte = Data.Num() * sizeof(typename TFormatType::BulkType);
+		static_assert(TFormatType::SizeInByte == sizeof(typename TFormatType::BulkType));
+		const uint32 ElementSizeInByte = sizeof(typename TFormatType::BulkType);
+		const uint32 DataSizeInByte = Data.Num() * ElementSizeInByte;
 
 		// The buffer is then stored into bulk data
 		Out.Lock(LOCK_READ_WRITE);
