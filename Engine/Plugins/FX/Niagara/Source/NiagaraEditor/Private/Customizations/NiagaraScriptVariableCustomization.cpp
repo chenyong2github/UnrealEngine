@@ -519,12 +519,17 @@ void FNiagaraScriptVariableDetails::OnBeginLibraryValueChanged()
 	if (TypeUtilityLibraryValue && ParameterEditorLibraryValue && CachedDetailBuilder.IsValid())
 	{
 		const TSharedPtr<IPropertyHandle> DefaultValueHandle = CachedDetailBuilder.Pin()->GetProperty("DefaultValueVariant", UNiagaraScriptVariable::StaticClass());
-		GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeLibraryValue", "Change Default Value"));
-		DefaultValueHandle->NotifyPreChange();
-		Variable->Modify();
+		
 		TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 		ParameterEditorLibraryValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
-		Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
+		 
+		if (FMemory::Memcmp(Variable->GetDefaultValueData(), ParameterValue->GetStructMemory(), Variable->Variable.GetType().GetSize()) != 0)
+		{
+			GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeLibraryValue", "Change Default Value"));
+			DefaultValueHandle->NotifyPreChange();
+			Variable->Modify();
+			Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
+		}
 	}
 }
 
