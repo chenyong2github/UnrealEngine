@@ -242,9 +242,12 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
 
 FObjectImport::FObjectImport()
 	: FObjectResource()
+	, SourceIndex(INDEX_NONE)
 	, bImportPackageHandled(false)
 	, bImportSearchedFor(false)
 	, bImportFailed(false)
+	, XObject(nullptr)
+	, SourceLinker(nullptr)
 {
 }
 
@@ -252,12 +255,12 @@ FObjectImport::FObjectImport(UObject* InObject)
 	: FObjectResource(InObject)
 	, ClassPackage(InObject ? InObject->GetClass()->GetOuter()->GetFName() : NAME_None)
 	, ClassName(InObject ? InObject->GetClass()->GetFName() : NAME_None)
-	, XObject(InObject)
-	, SourceLinker(NULL)
 	, SourceIndex(INDEX_NONE)
 	, bImportPackageHandled(false)
 	, bImportSearchedFor(false)
 	, bImportFailed(false)
+	, XObject(InObject)
+	, SourceLinker(nullptr)
 {
 }
 
@@ -265,12 +268,12 @@ FObjectImport::FObjectImport(UObject* InObject, UClass* InClass)
 	: FObjectResource(InObject)
 	, ClassPackage((InObject && InClass) ? InClass->GetOuter()->GetFName() : NAME_None)
 	, ClassName((InObject && InClass) ? InClass->GetFName() : NAME_None)
-	, XObject(InObject)
-	, SourceLinker(NULL)
 	, SourceIndex(INDEX_NONE)
 	, bImportPackageHandled(false)
 	, bImportSearchedFor(false)
 	, bImportFailed(false)
+	, XObject(InObject)
+	, SourceLinker(nullptr)
 {
 }
 

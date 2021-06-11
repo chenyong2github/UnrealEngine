@@ -445,18 +445,6 @@ struct FObjectImport : public FObjectResource
 #endif
 
 	/**
-	 * The UObject represented by this resource.  Assigned the first time CreateImport is called for this import.
-	 * Transient
-	 */
-	UObject*		XObject;
-
-	/**
-	 * The linker that contains the original FObjectExport resource associated with this import.
-	 * Transient
-	 */
-	FLinkerLoad*	SourceLinker;
-
-	/**
 	 * Index into SourceLinker's ExportMap for the export associated with this import's UObject.
 	 * Transient
 	 */
@@ -465,6 +453,18 @@ struct FObjectImport : public FObjectResource
 	bool			bImportPackageHandled;
 	bool			bImportSearchedFor;
 	bool			bImportFailed;
+
+	/**
+	 * The UObject represented by this resource.  Assigned the first time CreateImport is called for this import.
+	 * Transient
+	 */
+	UObject* XObject;
+
+	/**
+	 * The linker that contains the original FObjectExport resource associated with this import.
+	 * Transient
+	 */
+	FLinkerLoad* SourceLinker;
 
 	/**
 	 * Constructors
