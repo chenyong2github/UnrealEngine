@@ -139,7 +139,7 @@ namespace UnrealBuildTool.Storage.Impl
 		static FileReference GetFileForDigest(ContentHash Digest)
 		{
 			string DigestText = Digest.ToString();
-			return FileReference.Combine(UnrealBuild.EngineDirectory, "Saved", "UnrealBuildTool", "Cache", String.Format("{0}/{1}/{2}/{3}.bin", DigestText[0], DigestText[1], DigestText[2], DigestText));
+			return FileReference.Combine(Unreal.EngineDirectory, "Saved", "UnrealBuildTool", "Cache", String.Format("{0}/{1}/{2}/{3}.bin", DigestText[0], DigestText[1], DigestText[2], DigestText));
 		}
 	}
 }

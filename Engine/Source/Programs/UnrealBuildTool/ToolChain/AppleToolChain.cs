@@ -56,7 +56,7 @@ namespace UnrealBuildTool
 			}
 
 			// Installed engine requires Xcode 11
-			if (UnrealBuild.IsEngineInstalled())
+			if (Unreal.IsEngineInstalled())
 			{
 				string XcodeBuilderVersionOutput = Utils.RunLocalProcessAndReturnStdOut("xcodebuild", "-version");
 				if (XcodeBuilderVersionOutput.Length > 10)
@@ -275,7 +275,7 @@ namespace UnrealBuildTool
 			// if the installed one is too old, use a fixed up one if it can
 			if (bUseInstalledDsymutil == false)
 			{
-				FileReference PatchedDsymutilLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Restricted/NotForLicensees/Binaries/Mac/LLVM/bin/dsymutil");
+				FileReference PatchedDsymutilLocation = FileReference.Combine(Unreal.EngineDirectory, "Restricted/NotForLicensees/Binaries/Mac/LLVM/bin/dsymutil");
 
 				if (File.Exists(PatchedDsymutilLocation.FullName))
 				{

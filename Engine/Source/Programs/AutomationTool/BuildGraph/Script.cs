@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Schema;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -1158,7 +1159,7 @@ namespace AutomationTool
 				}
 
 				// Remove all the lock names from the list of required names
-				HashSet<FileReference> RequiredTokens = new HashSet<FileReference>(TokenFileNames.Select(x => FileReference.Combine(CommandUtils.RootDirectory, x)));
+				HashSet<FileReference> RequiredTokens = new HashSet<FileReference>(TokenFileNames.Select(x => FileReference.Combine(Unreal.RootDirectory, x)));
 
 				// Recursively include all their dependencies too
 				foreach (Node InputDependency in InputDependencies.ToArray())

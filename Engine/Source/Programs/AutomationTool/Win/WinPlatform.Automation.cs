@@ -9,6 +9,7 @@ using UnrealBuildTool;
 using Microsoft.Win32;
 using System.Diagnostics;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 public class Win64Platform : Platform
 {
@@ -47,7 +48,7 @@ public class Win64Platform : Platform
 
 		if (SC.bStageCrashReporter)
 		{
-			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(CommandUtils.EngineDirectory, "CrashReportClient", SC.StageTargetPlatform.PlatformType, UnrealTargetConfiguration.Shipping, null);
+			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(Unreal.EngineDirectory, "CrashReportClient", SC.StageTargetPlatform.PlatformType, UnrealTargetConfiguration.Shipping, null);
 			if(FileReference.Exists(ReceiptFileName))
 			{
 				TargetReceipt Receipt = TargetReceipt.Read(ReceiptFileName);
@@ -438,7 +439,7 @@ public class Win64Platform : Platform
 		if(FilesToAdd.Count > 0)
 		{
 			DateTime Start = DateTime.Now;
-			DirectoryReference TempSymStoreDir = DirectoryReference.Combine(RootDirectory, "Saved", "SymStore");
+			DirectoryReference TempSymStoreDir = DirectoryReference.Combine(Unreal.RootDirectory, "Saved", "SymStore");
 
 			if (DirectoryReference.Exists(TempSymStoreDir))
 			{

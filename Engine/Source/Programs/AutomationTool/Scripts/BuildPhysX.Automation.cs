@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 [Help("Builds PhysX/APEX libraries using CMake build system.")]
 [Help("TargetLibs", "Specify a list of target libraries to build, separated by '+' characters (eg. -TargetLibs=PhysX+APEX). Default is PhysX+APEX+NvCloth.")]
@@ -46,14 +47,14 @@ public sealed class BuildPhysX : BuildCommand
 
 	public abstract class TargetPlatform : CommandUtils
 	{
-		public virtual DirectoryReference CMakeRootDirectory { get { return DirectoryReference.Combine(RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CMake"); } }
-		public static DirectoryReference PhysX3RootDirectory = DirectoryReference.Combine(RootDirectory, "Engine/Source/ThirdParty/PhysX3");
-		public static DirectoryReference ThirdPartySourceDirectory = DirectoryReference.Combine(RootDirectory, "Engine/Source/ThirdParty");
+		public virtual DirectoryReference CMakeRootDirectory { get { return DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CMake"); } }
+		public static DirectoryReference PhysX3RootDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine/Source/ThirdParty/PhysX3");
+		public static DirectoryReference ThirdPartySourceDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine/Source/ThirdParty");
 		public static DirectoryReference PxSharedRootDirectory = DirectoryReference.Combine(PhysX3RootDirectory, "PxShared");
 
 		public DirectoryReference PlatformEngineRoot => IsPlatformExtension
-			? DirectoryReference.Combine(RootDirectory, "Engine", "Platforms", Platform.ToString())
-			: DirectoryReference.Combine(RootDirectory, "Engine");
+			? DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Platforms", Platform.ToString())
+			: DirectoryReference.Combine(Unreal.RootDirectory, "Engine");
 
 		public DirectoryReference OutputBinaryDirectory => DirectoryReference.Combine(PlatformEngineRoot, "Binaries/ThirdParty/PhysX3", IsPlatformExtension ? "" : Platform.ToString(), PlatformBuildSubdirectory ?? "");
 		public DirectoryReference OutputLibraryDirectory => DirectoryReference.Combine(PlatformEngineRoot, "Source/ThirdParty/PhysX3/Lib", IsPlatformExtension ? "" : Platform.ToString(), PlatformBuildSubdirectory ?? "");
@@ -80,7 +81,7 @@ public sealed class BuildPhysX : BuildCommand
 				{ PhysXTargetLib.NvCloth, "Engine/Source/ThirdParty/PhysX3/NvCloth/compiler/cmake/common" },
 			};
 
-			return DirectoryReference.Combine(RootDirectory, SourcePathMap[TargetLib]);
+			return DirectoryReference.Combine(Unreal.RootDirectory, SourcePathMap[TargetLib]);
 		}
 
 		protected DirectoryReference GetTargetLibPlatformCMakeDirectory(PhysXTargetLib TargetLib) =>
@@ -601,7 +602,7 @@ public sealed class BuildPhysX : BuildCommand
 		// NOTE: these are Windows executables
 		if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 		{
-			DirectoryReference ThirdPartyNotUERootDirectory = DirectoryReference.Combine(RootDirectory, "Engine/Extras/ThirdPartyNotUE");
+			DirectoryReference ThirdPartyNotUERootDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine/Extras/ThirdPartyNotUE");
 			string CMakePath = DirectoryReference.Combine(ThirdPartyNotUERootDirectory, "CMake/bin").FullName;
 			string MakePath = DirectoryReference.Combine(ThirdPartyNotUERootDirectory, "GNU_Make/make-3.81/bin").FullName;
 
@@ -955,8 +956,8 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 		this.GeneratedDebugSymbols = new Dictionary<string, bool>();
 	}
 
-	private static DirectoryReference DumpSymsPath = DirectoryReference.Combine(RootDirectory, "Engine/Binaries/Linux/dump_syms");
-	private static DirectoryReference BreakpadSymbolEncoderPath = DirectoryReference.Combine(RootDirectory, "Engine/Binaries/Linux/BreakpadSymbolEncoder");
+	private static DirectoryReference DumpSymsPath = DirectoryReference.Combine(Unreal.RootDirectory, "Engine/Binaries/Linux/dump_syms");
+	private static DirectoryReference BreakpadSymbolEncoderPath = DirectoryReference.Combine(Unreal.RootDirectory, "Engine/Binaries/Linux/BreakpadSymbolEncoder");
 
 	public string Architecture { get; private set; }
 

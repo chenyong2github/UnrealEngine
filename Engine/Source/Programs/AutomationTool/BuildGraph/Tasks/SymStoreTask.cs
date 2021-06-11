@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Xml;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -77,7 +78,7 @@ namespace AutomationTool
         public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
         {
 			// Find the matching files
-			List<FileReference> Files = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet).ToList();
+			List<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet).ToList();
             
             // Get the symbol store directory
             DirectoryReference StoreDir = ResolveDirectory(Parameters.StoreDir);

@@ -1060,7 +1060,7 @@ namespace UnrealBuildTool
 			{
 				const string InvalidMessage = "echo The selected platform/configuration is not valid for this target.";
 
-				string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "Unused"));
+				string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "Unused"));
 
 				VCProjectFileContent.AppendLine("  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='Invalid|{0}'\">", InvalidConfigPlatformName);
 				VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0}</NMakeBuildCommandLine>", InvalidMessage);
@@ -1232,7 +1232,7 @@ namespace UnrealBuildTool
 			}
 
 			// For Installed engine builds, include engine source in the source search paths if it exists. We never build it locally, so the debugger can't find it.
-			if (UnrealBuild.IsEngineInstalled() && !IsStubProject)
+			if (Unreal.IsEngineInstalled() && !IsStubProject)
 			{
 				VCProjectFileContent.AppendLine("  <PropertyGroup>");
 				VCProjectFileContent.Append("    <SourcePath>");
@@ -1536,7 +1536,7 @@ namespace UnrealBuildTool
 
 				if (IsStubProject)
 				{
-					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "Unused"));
+					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "Unused"));
 
 					VCProjectFileContent.AppendLine("  <PropertyGroup {0}>", ConditionString);
 					VCProjectFileContent.AppendLine("    <OutDir>{0}{1}</OutDir>", ProjectRelativeUnusedDirectory, Path.DirectorySeparatorChar);
@@ -1547,10 +1547,10 @@ namespace UnrealBuildTool
 					VCProjectFileContent.AppendLine("    <NMakeOutput/>");
 					VCProjectFileContent.AppendLine("  </PropertyGroup>");
 				}
-				else if (UnrealBuild.IsEngineInstalled() && Combination.ProjectTarget != null && Combination.ProjectTarget.TargetRules != null &&
+				else if (Unreal.IsEngineInstalled() && Combination.ProjectTarget != null && Combination.ProjectTarget.TargetRules != null &&
 					(Combination.Platform == null || !Combination.ProjectTarget.SupportedPlatforms.Contains(Combination.Platform.Value)))
 				{
-					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "Unused"));
+					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "Unused"));
 
 					string TargetName = Combination.ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
 					string ValidPlatforms = String.Join(", ", Combination.ProjectTarget.SupportedPlatforms.Select(x => x.ToString()));
@@ -1594,7 +1594,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						RootOutputDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UnrealBuild.EngineDirectory, TargetRulesObject.File);
+						RootOutputDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(Unreal.EngineDirectory, TargetRulesObject.File);
 					}
 
 					// Get the output directory
@@ -1658,11 +1658,11 @@ namespace UnrealBuildTool
 					List<string> ExtraTargets = new List<string>();
 					if (!bUsePrecompiled)
 					{
-						if (TargetRulesObject.Type == TargetType.Editor && Settings.bEditorDependsOnShaderCompileWorker && !UnrealBuild.IsEngineInstalled())
+						if (TargetRulesObject.Type == TargetType.Editor && Settings.bEditorDependsOnShaderCompileWorker && !Unreal.IsEngineInstalled())
 						{
 							ExtraTargets.Add("ShaderCompileWorker Win64 Development");
 						}
-						if (TargetRulesObject.bWithLiveCoding && Settings.bBuildLiveCodingConsole && !UnrealBuild.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
+						if (TargetRulesObject.bWithLiveCoding && Settings.bBuildLiveCodingConsole && !Unreal.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
 						{
 							ExtraTargets.Add(TargetRulesObject.bUseDebugLiveCodingConsole ? "LiveCodingConsole Win64 Debug" : "LiveCodingConsole Win64 Development");
 						}
@@ -1696,7 +1696,7 @@ namespace UnrealBuildTool
 						BuildArguments.Append(" -FastPDB");
 					}
 
-					DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Build", "BatchFiles");
+					DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Build", "BatchFiles");
 
 					if (BuildToolOverride != null)
 					{

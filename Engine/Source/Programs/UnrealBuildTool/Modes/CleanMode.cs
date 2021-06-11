@@ -117,7 +117,7 @@ namespace UnrealBuildTool
 
 				// Find the base folders that can contain binaries
 				List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
-				BaseDirs.Add(UnrealBuild.EngineDirectory);
+				BaseDirs.Add(Unreal.EngineDirectory);
 				foreach (FileReference Plugin in Plugins.EnumeratePlugins(Target.ProjectFile))
 				{
 					BaseDirs.Add(Plugin.Directory);

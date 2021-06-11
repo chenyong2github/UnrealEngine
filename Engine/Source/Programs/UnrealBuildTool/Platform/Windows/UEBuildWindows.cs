@@ -404,7 +404,7 @@ namespace UnrealBuildTool
 		{
 			this.Target = Target;
 
-			ManifestFile = FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "Resources", String.Format("Default-{0}.manifest", Target.Platform)).FullName;
+			ManifestFile = FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "Resources", String.Format("Default-{0}.manifest", Target.Platform)).FullName;
 		}
 	}
 
@@ -1822,7 +1822,7 @@ namespace UnrealBuildTool
 			}
 
 			// Otherwise use the default
-			return FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "Resources", "Default.ico");
+			return FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "Resources", "Default.ico");
 		}
 
 		/// <summary>

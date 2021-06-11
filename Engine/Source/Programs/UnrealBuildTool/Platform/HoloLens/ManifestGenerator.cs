@@ -436,7 +436,7 @@ namespace UnrealBuildTool
 			{
 				if (AllowEngineFallback)
 				{
-					SourcePath = Path.Combine(UnrealBuild.EngineDirectory.FullName, BuildResourceProjectRelativePath, EngineResourceSubPath);
+					SourcePath = Path.Combine(Unreal.EngineDirectory.FullName, BuildResourceProjectRelativePath, EngineResourceSubPath);
 					bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 				}
 			}
@@ -2054,7 +2054,7 @@ namespace UnrealBuildTool
 				ConfigPostfix = TargetConfig.ToString();
 			}
 
-			string MakeRelativeTo = IsGameSpecificExe ? Path.Combine(ProjectPath, "..") : UnrealBuild.EngineDirectory.FullName;
+			string MakeRelativeTo = IsGameSpecificExe ? Path.Combine(ProjectPath, "..") : Unreal.EngineDirectory.FullName;
 			string RelativeExePath = IsGameSpecificExe ?
 				Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo) :
 				Path.Combine(RelativeProjectRootForStage, Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo));
@@ -2162,7 +2162,7 @@ namespace UnrealBuildTool
 						, to
 						//, Path.Combine(IntermediatePath, "tempGltf") //temp path doesn't work
 						);
-					string Exe = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Binaries", "Win64", "WindowsMRAssetConverter.exe");
+					string Exe = Path.Combine(Unreal.EngineDirectory.FullName, "Binaries", "Win64", "WindowsMRAssetConverter.exe");
 					System.Diagnostics.ProcessStartInfo StartInfo = new System.Diagnostics.ProcessStartInfo(Exe, Args);
 					StartInfo.UseShellExecute = false;
 					StartInfo.RedirectStandardOutput = true;

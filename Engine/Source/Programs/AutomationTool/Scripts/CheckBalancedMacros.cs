@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -110,10 +111,10 @@ namespace AutomationTool
 
 				// Create a list of all the root directories
 				HashSet<DirectoryReference> RootDirs = new HashSet<DirectoryReference>();
-				RootDirs.Add(EngineDirectory);
+				RootDirs.Add(Unreal.EngineDirectory);
 
 				// Add the enterprise directory
-				DirectoryReference EnterpriseDirectory = DirectoryReference.Combine(RootDirectory, "Enterprise");
+				DirectoryReference EnterpriseDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Enterprise");
 				if(DirectoryReference.Exists(EnterpriseDirectory))
 				{
 					RootDirs.Add(EnterpriseDirectory);

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -73,7 +74,7 @@ namespace BuildGraph.Tasks
 			DirectoryReference ToDir = Parameters.ToDir;
 
 			// Find all the zip files
-			IEnumerable<FileReference> ZipFiles = ResolveFilespec(CommandUtils.RootDirectory, Parameters.ZipFile, TagNameToFileSet);
+			IEnumerable<FileReference> ZipFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.ZipFile, TagNameToFileSet);
 
 			// Extract the files
 			HashSet<FileReference> OutputFiles = new HashSet<FileReference>();

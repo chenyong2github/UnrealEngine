@@ -100,7 +100,7 @@ namespace UnrealBuildTool
 		/// <returns>Path to the Build.version file</returns>
 		public static FileReference GetDefaultFileName()
 		{
-			return FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Build.version");
+			return FileReference.Combine(Unreal.EngineDirectory, "Build", "Build.version");
 		}
 
 		/// <summary>

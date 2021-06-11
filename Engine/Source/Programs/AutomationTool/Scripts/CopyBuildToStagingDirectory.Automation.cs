@@ -15,6 +15,7 @@ using System.Text;
 using EpicGames.Core;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using UnrealBuildBase;
 
 /// <summary>
 /// Helper command used for cooking.
@@ -282,11 +283,11 @@ public partial class Project : CommandUtils
 	{
 		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
 		{
-			return FileReference.Combine(CommandUtils.EngineDirectory, "Binaries", "Win64", "UnrealPak.exe");
+			return FileReference.Combine(Unreal.EngineDirectory, "Binaries", "Win64", "UnrealPak.exe");
 		}
 		else
 		{
-			return FileReference.Combine(CommandUtils.EngineDirectory, "Binaries", HostPlatform.Current.HostEditorPlatform.ToString(), "UnrealPak");
+			return FileReference.Combine(Unreal.EngineDirectory, "Binaries", HostPlatform.Current.HostEditorPlatform.ToString(), "UnrealPak");
 		}
 	}
 
@@ -547,7 +548,7 @@ public partial class Project : CommandUtils
 	private static List<FileReference> GetPluginsForContentProject(FileReference ProjectFile, List<TargetReceipt> Targets)
 	{
 		ProjectDescriptor Project = ProjectDescriptor.FromFile(ProjectFile);
-		List<PluginInfo> AvailablePlugins = UnrealBuildTool.Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, ProjectFile.Directory, null);
+		List<PluginInfo> AvailablePlugins = UnrealBuildTool.Plugins.ReadAvailablePlugins(Unreal.EngineDirectory, ProjectFile.Directory, null);
 
 		HashSet<FileReference> Plugins = new HashSet<FileReference>();
 		foreach (TargetReceipt Target in Targets)
@@ -1078,7 +1079,7 @@ public partial class Project : CommandUtils
 
 					foreach (RuntimeDependency RuntimeDependency in Receipt.RuntimeDependencies)
 					{
-						StagedFileReference StagedFile = new StagedFileReference(RuntimeDependency.Path.MakeRelativeTo(RootDirectory));
+						StagedFileReference StagedFile = new StagedFileReference(RuntimeDependency.Path.MakeRelativeTo(Unreal.RootDirectory));
 						SC.StageCrashReporterFile(RuntimeDependency.Type, RuntimeDependency.Path, StagedFile);
 					}
 
@@ -4212,7 +4213,7 @@ public partial class Project : CommandUtils
 
 			string StageDirectory = ((ShouldCreatePak(Params) || (Params.Stage)) || !String.IsNullOrEmpty(Params.StageDirectoryParam)) ? Params.BaseStageDirectory : "";
 			string ArchiveDirectory = (Params.Archive || !String.IsNullOrEmpty(Params.ArchiveDirectoryParam)) ? Params.BaseArchiveDirectory : "";
-			DirectoryReference EngineDir = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine");
+			DirectoryReference EngineDir = DirectoryReference.Combine(Unreal.RootDirectory, "Engine");
 			DirectoryReference ProjectDir = DirectoryReference.FromFile(Params.RawProjectPath);
 
 			List<StageTarget> TargetsToStage = new List<StageTarget>();
@@ -4276,7 +4277,7 @@ public partial class Project : CommandUtils
 			}
 
 			//@todo should pull StageExecutables from somewhere else if not cooked
-			var SC = new DeploymentContext(Params.RawProjectPath, CommandUtils.RootDirectory,
+			var SC = new DeploymentContext(Params.RawProjectPath, Unreal.RootDirectory,
 				String.IsNullOrEmpty(StageDirectory) ? null : new DirectoryReference(StageDirectory),
 				String.IsNullOrEmpty(ArchiveDirectory) ? null : new DirectoryReference(ArchiveDirectory),
 				Platform.Platforms[CookedDataPlatform],

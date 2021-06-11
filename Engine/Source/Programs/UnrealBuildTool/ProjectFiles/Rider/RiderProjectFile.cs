@@ -493,7 +493,7 @@ namespace UnrealBuildTool
 			else if(UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Linux) ||
 			        UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Unix))
 			{
-				var EngineDirectory = UnrealBuild.EngineDirectory.ToString();
+				var EngineDirectory = Unreal.EngineDirectory.ToString();
 
 				string UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE4_LINUX_USE_LIBCXX");
 				if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")

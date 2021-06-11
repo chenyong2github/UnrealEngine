@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool.Benchmark
@@ -244,7 +245,7 @@ namespace AutomationTool.Benchmark
 				CachePaths.Clear();
 
 				// We put our temp DDC paths in here
-				DirectoryReference BasePath = DirectoryReference.Combine(CommandUtils.EngineDirectory, "BenchmarkDDC");
+				DirectoryReference BasePath = DirectoryReference.Combine(Unreal.EngineDirectory, "BenchmarkDDC");
 
 				// For Linux and Mac the ENV vars will be UE_BootDataCachePath and UE_LocalDataCachePath
 				IEnumerable<string> DDCEnvVars = new string[] { GetXPlatformEnvironmentKey("UE-BootDataCachePath"), GetXPlatformEnvironmentKey("UE-LocalDataCachePath") };

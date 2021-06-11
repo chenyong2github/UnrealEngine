@@ -6,6 +6,7 @@ using System.IO;
 using EpicGames.Core;
 using System.Collections.Generic;
 using System.Linq;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -62,7 +63,7 @@ namespace AutomationTool
 
 			if (SetIgnore)
 			{
-				string IgnorePath = Path.Combine(CommandUtils.EngineDirectory.ToString(), "Extras", "Perforce", "p4ignore");
+				string IgnorePath = Path.Combine(Unreal.EngineDirectory.ToString(), "Extras", "Perforce", "p4ignore");
 				P4Config["P4IGNORE"] = IgnorePath;
 			}
 

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Xml;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -129,7 +130,7 @@ namespace BuildGraph.Tasks
 			}
 			if (!String.IsNullOrEmpty(Parameters.ValuesFile))
 			{
-				foreach (FileReference ValuesFile in ResolveFilespec(CommandUtils.RootDirectory, Parameters.ValuesFile, TagNameToFileSet))
+				foreach (FileReference ValuesFile in ResolveFilespec(Unreal.RootDirectory, Parameters.ValuesFile, TagNameToFileSet))
 				{
 					Arguments.Add("--values");
 					Arguments.Add(ValuesFile.FullName);

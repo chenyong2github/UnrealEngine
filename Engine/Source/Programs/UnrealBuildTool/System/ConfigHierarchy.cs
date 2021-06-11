@@ -994,9 +994,9 @@ namespace UnrealBuildTool
 
 		private static string PerformFinalExpansions(string InString, string PlatformName, DirectoryReference? ProjectDir)
 		{
-			string PlatformExtensionEngineConfigDir = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Platforms", PlatformName).FullName;
+			string PlatformExtensionEngineConfigDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms", PlatformName).FullName;
 
-			string OutString = InString.Replace("{ENGINE}", UnrealBuild.EngineDirectory.FullName);
+			string OutString = InString.Replace("{ENGINE}", Unreal.EngineDirectory.FullName);
 			OutString = OutString.Replace("{EXTENGINE}", PlatformExtensionEngineConfigDir);
 			OutString = OutString.Replace("{PLATFORM}", PlatformName);
 
@@ -1004,11 +1004,11 @@ namespace UnrealBuildTool
 			{
 				DirectoryReference NFLDir;
 				DirectoryReference NRDir;
-				if (ProjectDir.IsUnderDirectory(UnrealBuild.EngineDirectory))
+				if (ProjectDir.IsUnderDirectory(Unreal.EngineDirectory))
 				{
-					string RelativeDir = ProjectDir.MakeRelativeTo(UnrealBuild.EngineDirectory);
-					NFLDir = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Restricted/NotForLicensees", RelativeDir);
-					NRDir = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Restricted/NoRedist", RelativeDir);
+					string RelativeDir = ProjectDir.MakeRelativeTo(Unreal.EngineDirectory);
+					NFLDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Restricted/NotForLicensees", RelativeDir);
+					NRDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Restricted/NoRedist", RelativeDir);
 				}
 				else
 				{
@@ -1129,7 +1129,7 @@ namespace UnrealBuildTool
 		{
 			if(ProjectDir == null)
 			{
-				return DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Saved", "Config");
+				return DirectoryReference.Combine(Unreal.EngineDirectory, "Saved", "Config");
 			}
 			else
 			{
@@ -1143,7 +1143,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static DirectoryReference GetGameAgnosticSavedDir()
 		{
-			if(UnrealBuild.IsEngineInstalled())
+			if(Unreal.IsEngineInstalled())
 			{
 				DirectoryReference? UserSettingDir = Utils.GetUserSettingDirectory();
 				if (UserSettingDir != null)
@@ -1151,7 +1151,7 @@ namespace UnrealBuildTool
 					return DirectoryReference.Combine(UserSettingDir, "UnrealEngine", String.Format("{0}.{1}", ReadOnlyBuildVersion.Current.MajorVersion, ReadOnlyBuildVersion.Current.MinorVersion), "Saved");
 				}
 			}
-			return DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Saved");
+			return DirectoryReference.Combine(Unreal.EngineDirectory, "Saved");
 		}
 
 		/// <summary>

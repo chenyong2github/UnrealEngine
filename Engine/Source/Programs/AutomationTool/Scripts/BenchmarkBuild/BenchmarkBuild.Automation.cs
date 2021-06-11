@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace AutomationTool.Benchmark
 {
@@ -583,7 +584,7 @@ namespace AutomationTool.Benchmark
 			if (SourceFile == null)
 			{
 				// touch the write time on a file, first making it writable since it may be under P4
-				SourceFile = FileReference.Combine(CommandUtils.EngineDirectory, "Source/Runtime/Engine/Private/UnrealEngine.cpp");
+				SourceFile = FileReference.Combine(Unreal.EngineDirectory, "Source/Runtime/Engine/Private/UnrealEngine.cpp");
 			}
 
 			Log.TraceVerbose("Will compile {0} for single-file compilation test for {1}", SourceFile, InProjectFile.GetFileNameWithoutAnyExtensions());

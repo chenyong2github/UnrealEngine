@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using EpicGames.Core;
 using AutomationTool;
 using System.Threading;
+using UnrealBuildBase;
 
 namespace Turnkey
 {
@@ -41,7 +42,7 @@ namespace Turnkey
 				SetupVisuals();
 
 				// cache some settings for other classes
-				TurnkeyUtils.SetVariable("EngineDir", EngineDirectory.FullName);
+				TurnkeyUtils.SetVariable("EngineDir", Unreal.EngineDirectory.FullName);
 				TurnkeyUtils.SetVariable("Project", CommandUtilHelper.ParseParamValue("Project="));
 
 				TurnkeySettings.Initialize();

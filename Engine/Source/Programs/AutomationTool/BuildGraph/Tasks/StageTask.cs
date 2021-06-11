@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -102,7 +103,7 @@ namespace BuildGraph.Tasks
 			}
 
 			// Get the directories used for staging this project
-			DirectoryReference SourceEngineDir = CommandUtils.EngineDirectory;
+			DirectoryReference SourceEngineDir = Unreal.EngineDirectory;
 			DirectoryReference SourceProjectDir = (ProjectFile == null)? SourceEngineDir : ProjectFile.Directory;
 
 			// Get the output directories. We flatten the directory structure on output.

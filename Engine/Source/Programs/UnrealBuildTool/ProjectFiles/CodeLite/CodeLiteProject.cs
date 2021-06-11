@@ -46,7 +46,7 @@ namespace UnrealBuildTool
 			string ProjectPlatformName = BuildHostPlatform.Current.Platform.ToString();
 
 			// Get the output directory
-			string EngineRootDirectory = UnrealBuild.EngineDirectory.FullName;
+			string EngineRootDirectory = Unreal.EngineDirectory.FullName;
 
 			//
 			// Build the working directory of the Game executable.
@@ -130,7 +130,7 @@ namespace UnrealBuildTool
 							TargetName.Equals("UnrealGame") ||
 							TargetName.Equals("UnrealEditor"))
 						{
-							int Idx = UnrealBuild.EngineDirectory.FullName.Length;
+							int Idx = Unreal.EngineDirectory.FullName.Length;
 							CurrentFilePath = Path.GetDirectoryName(Path.GetFullPath(CurrentFile.Reference.FullName)).Substring(Idx);
 						}
 						else
@@ -424,7 +424,7 @@ namespace UnrealBuildTool
 							PlatformName = "Mac";
 						}
 
-						BuildTarget = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Build/BatchFiles", PlatformName, "Build.sh") + " " + BuildTarget;
+						BuildTarget = Path.Combine(Unreal.EngineDirectory.FullName, "Build/BatchFiles", PlatformName, "Build.sh") + " " + BuildTarget;
 					}
 					else
 					{

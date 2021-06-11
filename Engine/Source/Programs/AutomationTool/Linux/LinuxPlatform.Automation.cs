@@ -9,11 +9,12 @@ using System.Diagnostics;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 public abstract class BaseLinuxPlatform : Platform
 {
-	static string PScpPath = CombinePaths(CommandUtils.RootDirectory.FullName, "\\Engine\\Extras\\ThirdPartyNotUE\\putty\\PSCP.EXE");
-	static string PlinkPath = CombinePaths(CommandUtils.RootDirectory.FullName, "\\Engine\\Extras\\ThirdPartyNotUE\\putty\\PLINK.EXE");
+	static string PScpPath = CombinePaths(Unreal.RootDirectory.FullName, "\\Engine\\Extras\\ThirdPartyNotUE\\putty\\PSCP.EXE");
+	static string PlinkPath = CombinePaths(Unreal.RootDirectory.FullName, "\\Engine\\Extras\\ThirdPartyNotUE\\putty\\PLINK.EXE");
 	static string LaunchOnHelperShellScriptName = "LaunchOnHelper.sh";
 
 	public BaseLinuxPlatform(UnrealTargetPlatform P)
@@ -25,7 +26,7 @@ public abstract class BaseLinuxPlatform : Platform
 	{
 		if (SC.bStageCrashReporter)
 		{
-			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(CommandUtils.EngineDirectory, "CrashReportClient", SC.StageTargetPlatform.PlatformType, UnrealTargetConfiguration.Shipping, null);
+			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(Unreal.EngineDirectory, "CrashReportClient", SC.StageTargetPlatform.PlatformType, UnrealTargetConfiguration.Shipping, null);
 			if (FileReference.Exists(ReceiptFileName))
 			{
 				TargetReceipt Receipt = TargetReceipt.Read(ReceiptFileName);

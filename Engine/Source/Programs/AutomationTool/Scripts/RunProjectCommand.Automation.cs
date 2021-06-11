@@ -12,6 +12,7 @@ using System.Collections;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 /// <summary>
 /// Helper command to run a game.
@@ -59,7 +60,7 @@ public partial class Project : CommandUtils
 	/// <returns></returns>
 	private static string GetLogFolderOutsideOfSandbox()
 	{
-		return CommandUtils.IsEngineInstalled() ?
+		return Unreal.IsEngineInstalled() ?
 			CmdEnv.LogFolder :
 			CombinePaths(Path.GetTempPath(), CommandUtils.EscapePath(CmdEnv.LocalRoot), "Logs");
 	}
@@ -69,7 +70,7 @@ public partial class Project : CommandUtils
 	/// </summary>
 	private static void CopyLogsBackToLogFolder()
 	{
-		if (!CommandUtils.IsEngineInstalled())
+		if (!Unreal.IsEngineInstalled())
 		{
 			var LogFolderOutsideOfSandbox = GetLogFolderOutsideOfSandbox();
 			var TempLogFiles = FindFiles_NoExceptions("*", false, LogFolderOutsideOfSandbox);
@@ -92,7 +93,7 @@ public partial class Project : CommandUtils
 		LogInformation("********** RUN COMMAND STARTED **********");
 
 		var LogFolderOutsideOfSandbox = GetLogFolderOutsideOfSandbox();
-		if (!CommandUtils.IsEngineInstalled() && ServerProcess == null)
+		if (!Unreal.IsEngineInstalled() && ServerProcess == null)
 		{
 			// In the installed runs, this is the same folder as CmdEnv.LogFolder so delete only in not-installed
 			DeleteDirectory(LogFolderOutsideOfSandbox);

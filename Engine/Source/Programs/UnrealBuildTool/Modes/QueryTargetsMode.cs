@@ -74,7 +74,7 @@ namespace UnrealBuildTool
 		{
 			if (ProjectFile == null)
 			{
-				return FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "TargetInfo.json");
+				return FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "TargetInfo.json");
 			}
 			else
 			{

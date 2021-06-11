@@ -11,6 +11,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using System.Collections.Concurrent;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 /// <summary>
 /// Helper command used for cooking.
@@ -46,7 +47,7 @@ public partial class Project : CommandUtils
 			if (Params.ClientTargetPlatforms.Count > 0)
 			{
 				var LogFolderOutsideOfSandbox = GetLogFolderOutsideOfSandbox();
-				if (!CommandUtils.IsEngineInstalled())
+				if (!Unreal.IsEngineInstalled())
 				{
 					// In the installed runs, this is the same folder as CmdEnv.LogFolder so delete only in not-installed
 					DeleteDirectory(LogFolderOutsideOfSandbox);

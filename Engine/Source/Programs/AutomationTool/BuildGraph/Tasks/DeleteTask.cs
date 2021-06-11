@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -74,7 +75,7 @@ namespace BuildGraph.Tasks
 			if (Parameters.Files != null)
 			{
 				// Find all the referenced files and delete them
-				HashSet<FileReference> Files = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet);
+				HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 				foreach (FileReference File in Files)
 				{
 					if (Parameters.Verbose)
@@ -100,7 +101,7 @@ namespace BuildGraph.Tasks
 					// Recurse back up from each of those directories to the root folder
 					foreach (DirectoryReference ParentDirectory in ParentDirectories)
 					{
-						for (DirectoryReference CurrentDirectory = ParentDirectory; CurrentDirectory != CommandUtils.RootDirectory; CurrentDirectory = CurrentDirectory.ParentDirectory)
+						for (DirectoryReference CurrentDirectory = ParentDirectory; CurrentDirectory != Unreal.RootDirectory; CurrentDirectory = CurrentDirectory.ParentDirectory)
 						{
 							if (!TryDeleteEmptyDirectory(CurrentDirectory))
 							{

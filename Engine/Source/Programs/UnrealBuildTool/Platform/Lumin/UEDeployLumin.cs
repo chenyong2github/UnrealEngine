@@ -493,10 +493,10 @@ namespace UnrealBuildTool
 
 		public void InitUPL(TargetReceipt Receipt)
 		{
-			DirectoryReference ProjectDirectory = Receipt.ProjectDir ?? UnrealBuild.EngineDirectory;
+			DirectoryReference ProjectDirectory = Receipt.ProjectDir ?? Unreal.EngineDirectory;
 
 			string UE4BuildPath = Path.Combine(ProjectDirectory.FullName, "Intermediate/Lumin/Mabu");
-			string RelativeEnginePath = UnrealBuild.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
+			string RelativeEnginePath = Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
 			string RelativeProjectPath = ProjectDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());//.MakeRelativeTo(ProjectDirectory);
 
 			string ConfigurationString = Receipt.Configuration.ToString();

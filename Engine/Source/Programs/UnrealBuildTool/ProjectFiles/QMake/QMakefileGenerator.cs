@@ -233,7 +233,7 @@ namespace UnrealBuildTool
 				BuildCommand = "build=bash $$unrealRootPath/Engine/Build/BatchFiles/Linux/Build.sh\n";
 			}
 
-			string UnrealRootPath = UnrealBuild.RootDirectory.FullName;
+			string UnrealRootPath = Unreal.RootDirectory.FullName;
 
 			string FileName = MasterProjectName + ".pro";
 
@@ -287,7 +287,7 @@ namespace UnrealBuildTool
 				List<FileReference> FoundFiles = SourceFileSearch.FindModuleSourceFiles(CurModuleFile);
 				foreach (FileReference CurSourceFile in FoundFiles)
 				{
-					string SourceFileRelativeToRoot = CurSourceFile.MakeRelativeTo(UnrealBuild.EngineDirectory);
+					string SourceFileRelativeToRoot = CurSourceFile.MakeRelativeTo(Unreal.EngineDirectory);
 					// Exclude some directories that we don't compile (note that we still want Windows/Mac etc for code navigation)
 					if (!SourceFileRelativeToRoot.Contains("Source/ThirdParty/"))
 					{

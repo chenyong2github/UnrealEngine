@@ -19,6 +19,7 @@ using EpicGames.Core;
 using System.Xml;
 using System.Xml.Serialization;
 using System.IO.Compression;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -98,21 +99,6 @@ namespace AutomationTool
 			// Initializing a type in system.Security.Permissions to make sure it is present as Ionic.Zip requires this assembly
 			EnvironmentPermission _ = new EnvironmentPermission(PermissionState.None);
 		}
-
-		/// <summary>
-		/// Returns true if AutomationTool is running using installed Engine components
-		/// </summary>
-		/// <returns>True if running using installed Engine components</returns>
-		static public bool IsEngineInstalled()
-		{
-			if (!bIsEngineInstalled.HasValue)
-			{
-				bIsEngineInstalled = FileReference.Exists(FileReference.Combine(CommandUtils.EngineDirectory, "Build", "InstalledBuild.txt"));
-			}
-			return bIsEngineInstalled.Value;
-		}
-
-		static private bool? bIsEngineInstalled;
 
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.Console).
@@ -2049,22 +2035,12 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Path to the root directory
-		/// </summary>
-		public static readonly DirectoryReference RootDirectory = new DirectoryReference(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
-
-		/// <summary>
-		/// Path to the engine directory
-		/// </summary>
-		public static readonly DirectoryReference EngineDirectory = DirectoryReference.Combine(RootDirectory, "Engine");
-
-		/// <summary>
 		/// Return the main engine directory and any platform extension engine directories
 		/// </summary>
  		public static DirectoryReference[] GetAllEngineDirectories()
 		{
-			List<DirectoryReference> EngineDirectories = new List<DirectoryReference>() { EngineDirectory };
-			DirectoryReference EnginePlatformsDirectory = DirectoryReference.Combine(EngineDirectory, "Platforms");
+			List<DirectoryReference> EngineDirectories = new List<DirectoryReference>() { Unreal.EngineDirectory };
+			DirectoryReference EnginePlatformsDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms");
 			if (DirectoryReference.Exists(EnginePlatformsDirectory))
 			{
 				EngineDirectories.AddRange(DirectoryReference.EnumerateDirectories(EnginePlatformsDirectory).ToList());

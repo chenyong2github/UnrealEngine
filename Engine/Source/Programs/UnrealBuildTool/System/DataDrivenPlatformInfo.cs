@@ -61,7 +61,7 @@ namespace UnrealBuildTool
 				Dictionary<string, string> IniParents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 				// find all platform directories (skipping NFL/NoRedist)
-				foreach (DirectoryReference EngineConfigDir in UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, "Config", bIncludeRestrictedDirectories:false))
+				foreach (DirectoryReference EngineConfigDir in UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Config", bIncludeRestrictedDirectories:false))
 				{
 					// look through all config dirs looking for the data driven ini file
 					foreach (string FilePath in Directory.EnumerateFiles(EngineConfigDir.FullName, "DataDrivenPlatformInfo.ini", SearchOption.AllDirectories))
@@ -70,7 +70,7 @@ namespace UnrealBuildTool
 
 						// get the platform name from the path
 						string IniPlatformName;
-						if (FileRef.IsUnderDirectory(DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Config")))
+						if (FileRef.IsUnderDirectory(DirectoryReference.Combine(Unreal.EngineDirectory, "Config")))
 						{
 							// Foo/Engine/Config/<Platform>/DataDrivenPlatformInfo.ini
 							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(FilePath))!;

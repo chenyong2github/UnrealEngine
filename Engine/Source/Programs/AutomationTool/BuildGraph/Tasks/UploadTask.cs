@@ -164,7 +164,7 @@ namespace BuildGraph.Tasks
 			Dictionary<FileReference, List<string>> Mapping = Task.Result;
 
 			// Debug output of which files mapped to which blobs, can be useful to determine which files are constantly being uploaded
-			// Json.Save(FileReference.Combine(AutomationTool.CommandUtils.RootDirectory, "JupiterUpload.json"), Mapping);
+			// Json.Save(FileReference.Combine(AutomationTool.Unreal.RootDirectory, "JupiterUpload.json"), Mapping);
 		}
 
 		/// <summary>

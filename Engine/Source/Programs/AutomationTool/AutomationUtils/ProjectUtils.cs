@@ -9,6 +9,7 @@ using UnrealBuildTool;
 using System.Diagnostics;
 using EpicGames.Core;
 using System.Reflection;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -196,7 +197,7 @@ namespace AutomationTool
 			}
 
 			// check the target platforms for any differences in build settings or additional plugins
-			if(!CommandUtils.IsEngineInstalled() && !PlatformExports.HasDefaultBuildConfig(RawProjectPath, Platform))
+			if(!Unreal.IsEngineInstalled() && !PlatformExports.HasDefaultBuildConfig(RawProjectPath, Platform))
 			{
 				OutReason = "project has non-default build configuration";
 				return true;
@@ -211,7 +212,7 @@ namespace AutomationTool
 			ProjectDescriptor Project = ProjectDescriptor.FromFile(RawProjectPath);
 
 			// Enumerate all the available plugins
-			Dictionary<string, PluginInfo> AllPlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, DirectoryReference.FromFile(RawProjectPath), new List<DirectoryReference>()).ToDictionary(x => x.Name, x => x, StringComparer.OrdinalIgnoreCase);
+			Dictionary<string, PluginInfo> AllPlugins = Plugins.ReadAvailablePlugins(Unreal.EngineDirectory, DirectoryReference.FromFile(RawProjectPath), new List<DirectoryReference>()).ToDictionary(x => x.Name, x => x, StringComparer.OrdinalIgnoreCase);
 
 			// find if there are any plugins enabled or disabled which differ from the default
 			string Reason;
@@ -611,13 +612,13 @@ namespace AutomationTool
 			switch (TargetType)
 			{
 				case TargetType.Program:
-					BinPath = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Binaries");
+					BinPath = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Binaries");
 					break;
 				case TargetType.Client:
 				case TargetType.Game:
 					if (!bIsCodeBasedProject)
 					{
-						BinPath = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Binaries");
+						BinPath = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Binaries");
 					}
 					else
 					{
@@ -634,7 +635,7 @@ namespace AutomationTool
 		private static string GetRulesAssemblyFolder()
 		{
 			string RulesFolder;
-			if (CommandUtils.IsEngineInstalled())
+			if (Unreal.IsEngineInstalled())
 			{
 				RulesFolder = CommandUtils.CombinePaths(Path.GetTempPath(), "UAT", CommandUtils.EscapePath(CommandUtils.CmdEnv.LocalRoot), "Rules"); 
 			}

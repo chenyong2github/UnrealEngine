@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 [Help("Builds Hlslcc using CMake build system.")]
 [Help("TargetPlatforms", "Specify a list of target platforms to build, separated by '+' characters (eg. -TargetPlatforms=Win64+Linux+Mac). Architectures are specified with '-'. Default is Win64+Linux.")]
@@ -58,13 +59,13 @@ class BuildHlslcc : BuildCommand
 	private static FileReference MsBuildExe;
 
 	// Cache directories under the PhysX/ directory
-	private static DirectoryReference SourceRootDirectory = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Source", "ThirdParty", "hlslcc", "hlslcc");
+	private static DirectoryReference SourceRootDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Source", "ThirdParty", "hlslcc", "hlslcc");
 	private static DirectoryReference RootOutputLibDirectory = DirectoryReference.Combine(SourceRootDirectory, "lib");
-	private static DirectoryReference ThirdPartySourceDirectory = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Source", "ThirdParty");
+	private static DirectoryReference ThirdPartySourceDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Source", "ThirdParty");
 
 	private static string GetCMakeNameAndSetupEnv(TargetPlatformData TargetData)
 	{
-		DirectoryReference CMakeRootDirectory = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CMake");
+		DirectoryReference CMakeRootDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CMake");
 		if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 		{
 			return "cmake";
@@ -533,7 +534,7 @@ class BuildHlslcc : BuildCommand
 			// NOTE: these are Windows executables
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
-				DirectoryReference ThirdPartyNotUERootDirectory = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE");
+				DirectoryReference ThirdPartyNotUERootDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE");
 				string CMakePath = DirectoryReference.Combine(ThirdPartyNotUERootDirectory, "CMake", "bin").ToString();
 				string MakePath = DirectoryReference.Combine(ThirdPartyNotUERootDirectory, "GNU_Make", "make-3.81", "bin").ToString();
 

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using AutomationTool;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -99,7 +100,7 @@ namespace BuildGraph.Tasks
 				DirectoryReference BaseDir = ResolveDirectory(Parameters.BaseDir);
 				List<FileReference> SourceFiles = ResolveFilespec(BaseDir, Parameters.Files, TagNameToFileSet).ToList();
 
-				DirectoryReference StagingDir = DirectoryReference.Combine(CommandUtils.EngineDirectory, "Intermediate", "Docker");
+				DirectoryReference StagingDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Docker");
 				FileUtils.ForceDeleteDirectoryContents(StagingDir);
 
 				List<FileReference> TargetFiles = SourceFiles.ConvertAll(x => FileReference.Combine(StagingDir, x.MakeRelativeTo(BaseDir)));

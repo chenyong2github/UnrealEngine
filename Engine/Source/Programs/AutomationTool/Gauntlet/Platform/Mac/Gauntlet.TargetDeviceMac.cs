@@ -7,6 +7,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace Gauntlet
 {
@@ -301,7 +302,7 @@ namespace Gauntlet
 					new List<UnrealTargetConfiguration>(new[] { AppConfig.Configuration }));
 
 				// Would this executable be built under Engine or a Project?
-				DirectoryReference  WorkingDir = Props.bIsCodeBasedProject ? AppConfig.ProjectFile.Directory : CommandUtils.EngineDirectory;
+				DirectoryReference  WorkingDir = Props.bIsCodeBasedProject ? AppConfig.ProjectFile.Directory : Unreal.EngineDirectory;
 
 				// The bundlepath may be under Binaries/Mac for a staged build, or it could be in any folder for a packaged build so just use the name and
 				// build the path ourselves

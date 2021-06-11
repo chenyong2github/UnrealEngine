@@ -9,6 +9,7 @@ using UnrealBuildTool;
 using AutomationTool;
 using System.Xml;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -223,9 +224,9 @@ namespace AutomationTool
 		/// <returns>Readable form of the path</returns>
 		static string GetReadablePathForDiagnostics(FileReference File)
 		{
-			if(File.IsUnderDirectory(CommandUtils.RootDirectory))
+			if(File.IsUnderDirectory(Unreal.RootDirectory))
 			{
-				return File.MakeRelativeTo(CommandUtils.RootDirectory);
+				return File.MakeRelativeTo(Unreal.RootDirectory);
 			}
 			else
 			{

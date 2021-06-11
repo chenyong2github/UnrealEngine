@@ -339,7 +339,7 @@ namespace UnrealBuildTool
 				// @todo ubtmake: Some platforms may not save any files into this folder.  We should delete + generate a "touch" file to force the directory timestamp to be updated (or just check the timestamp file itself.  We could put it ANYWHERE, actually)
 
 				// Installed Build doesn't need to check engine projects for outdatedness
-				if (!UnrealBuild.IsEngineInstalled())
+				if (!Unreal.IsEngineInstalled())
 				{
 					if (DirectoryReference.Exists(ProjectFileGenerator.IntermediateProjectFilesPath))
 					{
@@ -684,7 +684,7 @@ namespace UnrealBuildTool
 		/// <returns>Path to the makefile</returns>
 		public static FileReference GetLocation(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, string Architecture, UnrealTargetConfiguration Configuration)
 		{
-			DirectoryReference BaseDirectory = DirectoryReference.FromFile(ProjectFile) ?? UnrealBuild.EngineDirectory;
+			DirectoryReference BaseDirectory = DirectoryReference.FromFile(ProjectFile) ?? Unreal.EngineDirectory;
 			return FileReference.Combine(BaseDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), TargetName, Configuration.ToString(), "Makefile.bin");
 		}
 

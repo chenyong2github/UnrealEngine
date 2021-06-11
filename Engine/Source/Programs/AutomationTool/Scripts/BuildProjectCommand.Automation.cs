@@ -8,6 +8,7 @@ using System.Linq;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 [Flags]
 public enum ProjectBuildTargets
@@ -61,7 +62,7 @@ public partial class Project : CommandUtils
 		{
 			return;
 		}
-		if (CommandUtils.IsEngineInstalled() && !Params.IsCodeBasedProject)
+		if (Unreal.IsEngineInstalled() && !Params.IsCodeBasedProject)
 		{
 			return;
 		}
@@ -81,7 +82,7 @@ public partial class Project : CommandUtils
 
             Agenda.AddTargets(Params.EditorTargets.ToArray(), EditorPlatform, EditorConfiguration, Params.CodeBasedUprojectPath);
 
-			if(!CommandUtils.IsEngineInstalled())
+			if(!Unreal.IsEngineInstalled())
 			{
 				CrashReportPlatforms.Add(EditorPlatform);
 				if (Params.EditorTargets.Contains("UnrealHeaderTool") == false)
@@ -101,7 +102,7 @@ public partial class Project : CommandUtils
 		}
 		
 		// Build any tools we need to stage
-		if ((TargetMask & ProjectBuildTargets.UnrealPak) == ProjectBuildTargets.UnrealPak && !CommandUtils.IsEngineInstalled())
+		if ((TargetMask & ProjectBuildTargets.UnrealPak) == ProjectBuildTargets.UnrealPak && !Unreal.IsEngineInstalled())
 		{
 			if (Params.EditorTargets.Contains("UnrealPak") == false)
 			{
@@ -171,7 +172,7 @@ public partial class Project : CommandUtils
 				}
 			}
 		}
-		if (!Params.NoBootstrapExe && !CommandUtils.IsEngineInstalled() && (TargetMask & ProjectBuildTargets.Bootstrap) == ProjectBuildTargets.Bootstrap)
+		if (!Params.NoBootstrapExe && !Unreal.IsEngineInstalled() && (TargetMask & ProjectBuildTargets.Bootstrap) == ProjectBuildTargets.Bootstrap)
 		{
 			UnrealBuildTool.UnrealTargetPlatform[] BootstrapPackagedGamePlatforms = { UnrealBuildTool.UnrealTargetPlatform.Win64 };
 			foreach(UnrealBuildTool.UnrealTargetPlatform BootstrapPackagedGamePlatformType in BootstrapPackagedGamePlatforms)
@@ -182,7 +183,7 @@ public partial class Project : CommandUtils
 				}
 			}
 		}
-		if (Params.CrashReporter && !CommandUtils.IsEngineInstalled() && (TargetMask & ProjectBuildTargets.CrashReporter) == ProjectBuildTargets.CrashReporter)
+		if (Params.CrashReporter && !Unreal.IsEngineInstalled() && (TargetMask & ProjectBuildTargets.CrashReporter) == ProjectBuildTargets.CrashReporter)
 		{
 			foreach (var CrashReportPlatform in CrashReportPlatforms)
 			{

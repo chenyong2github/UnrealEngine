@@ -7,6 +7,7 @@ using UnrealBuildTool;
 using System.IO;
 using System.Reflection;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -617,7 +618,7 @@ namespace AutomationTool
 				}
 				else
 				{
-					List<PluginInfo> CandidatePlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, DirectoryReference.FromFile(RawProjectPath), null);
+					List<PluginInfo> CandidatePlugins = Plugins.ReadAvailablePlugins(Unreal.EngineDirectory, DirectoryReference.FromFile(RawProjectPath), null);
 					PluginInfo DLCPlugin = CandidatePlugins.FirstOrDefault(x => String.Equals(x.Name, DLCName, StringComparison.InvariantCultureIgnoreCase));
 					if (DLCPlugin == null)
 					{

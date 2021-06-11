@@ -9,6 +9,7 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using System.Linq;
 using System.Reflection;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -316,7 +317,7 @@ namespace AutomationTool
 		/// </summary>
 		public List<FileReference> UpdateVersionFiles(bool ActuallyUpdateVersionFiles = true, int? ChangelistNumberOverride = null, int? CompatibleChangelistNumberOverride = null, string Build = null, bool? IsPromotedOverride = null)
 		{
-			bool bIsLicenseeVersion = ParseParam("Licensee") || !FileReference.Exists(FileReference.Combine(CommandUtils.EngineDirectory, "Restricted", "NotForLicensees", "Build", "EpicInternal.txt"));
+			bool bIsLicenseeVersion = ParseParam("Licensee") || !FileReference.Exists(FileReference.Combine(Unreal.EngineDirectory, "Restricted", "NotForLicensees", "Build", "EpicInternal.txt"));
 			bool bIsPromotedBuild = IsPromotedOverride.HasValue? IsPromotedOverride.Value : (ParseParamInt("Promoted", 1) != 0);
 			bool bDoUpdateVersionFiles = CommandUtils.P4Enabled && ActuallyUpdateVersionFiles;		
 			int ChangelistNumber = 0;
@@ -397,7 +398,7 @@ namespace AutomationTool
 
             {
                 // Use Version.h data to update MetaData.cs so the assemblies match the engine version.
-				FileReference MetaDataFile = FileReference.Combine(CommandUtils.EngineDirectory, "Source", "Programs", "DotNETCommon", "MetaData.cs");
+				FileReference MetaDataFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "DotNETCommon", "MetaData.cs");
 
 				if (bDoUpdateVersionFiles)
                 {
@@ -1284,7 +1285,7 @@ namespace AutomationTool
 		public void AddUATFilesToBuildProducts()
 		{
 			// Find all DLLs (scripts and their dependencies)
-            DirectoryReference OutputDir = DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine", "Binaries", "DotNET", "AutomationTool");
+            DirectoryReference OutputDir = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Binaries", "DotNET", "AutomationTool");
 			foreach (FileReference OutputFile in DirectoryReference.EnumerateFiles(OutputDir, "*", SearchOption.AllDirectories))
 			{
 				AddBuildProduct(OutputFile.FullName);
@@ -1305,13 +1306,13 @@ namespace AutomationTool
 		FileReference GetManifestFile(FileReference ProjectFile)
 		{
 			// Can't write to Engine directory on installed builds
-			if (CommandUtils.IsEngineInstalled() && ProjectFile != null)
+			if (Unreal.IsEngineInstalled() && ProjectFile != null)
 			{
 				return FileReference.Combine(ProjectFile.Directory, "Intermediate", "Build", "Manifest.xml");
 			}
 			else
 			{
-				return FileReference.Combine(CommandUtils.EngineDirectory, "Intermediate", "Build", "Manifest.xml");
+				return FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "Manifest.xml");
 			}
 		}
 

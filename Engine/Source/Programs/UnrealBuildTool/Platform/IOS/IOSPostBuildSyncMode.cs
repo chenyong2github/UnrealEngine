@@ -46,7 +46,7 @@ namespace UnrealBuildTool
 			this.SdkVersion = SdkVersion;
 			this.bCreateStubIPA = Target.IOSPlatform.bCreateStubIPA;
 			this.bSkipCrashlytics = Target.IOSPlatform.bSkipCrashlytics;
-			this.ProjectDirectory = DirectoryReference.FromFile(Target.ProjectFile) ?? UnrealBuild.EngineDirectory;
+			this.ProjectDirectory = DirectoryReference.FromFile(Target.ProjectFile) ?? Unreal.EngineDirectory;
 			this.ProjectIntermediateDirectory = ProjectIntermediateDirectory;
 			this.ImportProvision = Target.IOSPlatform.ImportProvision;
 			this.ImportCertificate = Target.IOSPlatform.ImportCertificate;

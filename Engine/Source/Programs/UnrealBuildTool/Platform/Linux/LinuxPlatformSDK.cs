@@ -164,7 +164,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private static DirectoryReference GetInTreeSDKRoot()
 		{
-			return DirectoryReference.Combine(UnrealBuild.RootDirectory, "Engine/Extras/ThirdPartyNotUE/SDKs", "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName);
+			return DirectoryReference.Combine(Unreal.RootDirectory, "Engine/Extras/ThirdPartyNotUE/SDKs", "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName);
 		}
 
 		/// <summary>

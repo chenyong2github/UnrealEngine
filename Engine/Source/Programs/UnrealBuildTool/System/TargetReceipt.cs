@@ -502,7 +502,7 @@ namespace UnrealBuildTool
 		/// <param name="Location">Filename to read from</param>
 		public static TargetReceipt Read(FileReference Location)
 		{
-			return Read(Location, UnrealBuild.EngineDirectory);
+			return Read(Location, Unreal.EngineDirectory);
 		}
 
 		/// <summary>
@@ -656,7 +656,7 @@ namespace UnrealBuildTool
 		/// <returns>True if successful</returns>
 		public static bool TryRead(FileReference Location, [NotNullWhen(true)] out TargetReceipt? Receipt)
 		{
-			return TryRead(Location, UnrealBuild.EngineDirectory, out Receipt);
+			return TryRead(Location, Unreal.EngineDirectory, out Receipt);
 		}
 
 		/// <summary>
@@ -692,7 +692,7 @@ namespace UnrealBuildTool
 		/// <param name="Location">Output filename</param>
 		public void Write(FileReference Location)
 		{
-			Write(Location, UnrealBuild.EngineDirectory);
+			Write(Location, Unreal.EngineDirectory);
 		}
 
 		/// <summary>

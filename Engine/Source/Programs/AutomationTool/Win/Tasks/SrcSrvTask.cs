@@ -14,6 +14,7 @@ using System.Diagnostics;
 
 using Action = System.Action;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace Win.Automation
 {
@@ -76,16 +77,16 @@ namespace Win.Automation
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Find the matching files
-			FileReference[] PdbFiles = ResolveFilespec(CommandUtils.RootDirectory, Parameters.BinaryFiles, TagNameToFileSet).Where(x => x.HasExtension(".pdb")).ToArray();
+			FileReference[] PdbFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.BinaryFiles, TagNameToFileSet).Where(x => x.HasExtension(".pdb")).ToArray();
 
 			// Find all the matching source files
-			FileReference[] SourceFiles = ResolveFilespec(CommandUtils.RootDirectory, Parameters.SourceFiles, TagNameToFileSet).ToArray();
+			FileReference[] SourceFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.SourceFiles, TagNameToFileSet).ToArray();
 
 			// Get the PDBSTR.EXE path, using the latest SDK version we can find.
 			FileReference PdbStrExe = GetPdbStrExe();
 
 			// Get the path to the generated SRCSRV.INI file
-			FileReference SrcSrvIni = FileReference.Combine(CommandUtils.RootDirectory, "Engine", "Intermediate", "SrcSrv.ini");
+			FileReference SrcSrvIni = FileReference.Combine(Unreal.RootDirectory, "Engine", "Intermediate", "SrcSrv.ini");
 			DirectoryReference.CreateDirectory(SrcSrvIni.Directory);
 
 			// Generate the SRCSRV.INI file
@@ -102,7 +103,7 @@ namespace Win.Automation
 				Writer.WriteLine("SRCSRV: source files ---------------------------------------");
 				foreach (FileReference SourceFile in SourceFiles)
 				{
-					string RelativeSourceFile = SourceFile.MakeRelativeTo(CommandUtils.RootDirectory);
+					string RelativeSourceFile = SourceFile.MakeRelativeTo(Unreal.RootDirectory);
 					Writer.WriteLine("{0}*{1}", SourceFile.FullName, RelativeSourceFile.Replace('\\', '/'));
 				}
 				Writer.WriteLine("SRCSRV: end------------------------------------------------");

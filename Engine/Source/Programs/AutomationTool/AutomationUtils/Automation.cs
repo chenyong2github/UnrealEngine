@@ -609,16 +609,6 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 		}
 
 		/// <summary>
-		/// Returns true if AutomationTool is running using installed Engine components
-		/// </summary>
-		/// <returns>True if running using installed Engine components</returns>
-		[Obsolete("IsEngineInstalled() is deprecated in 4.22. Call CommandUtils.IsEngineInstalled instead.")]
-		static public bool IsEngineInstalled()
-		{
-			return CommandUtils.IsEngineInstalled();
-		}
-
-		/// <summary>
 		/// True if this process is running on a build machine, false if locally.
 		/// </summary>
 		/// <remarks>

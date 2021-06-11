@@ -197,7 +197,7 @@ namespace UnrealBuildTool
 				AppName = UEBuildTarget.GetAppNameForTargetType(TargetType);
 			}
 
-			return FileReference.Combine(UnrealBuild.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, "ActionHistory.bin");
+			return FileReference.Combine(Unreal.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, "ActionHistory.bin");
 		}
 
 		/// <summary>
@@ -224,7 +224,7 @@ namespace UnrealBuildTool
 		/// <returns>Dependency cache hierarchy for the given project</returns>
 		public static IEnumerable<FileReference> GetFilesToClean(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, TargetType TargetType, string Architecture)
 		{
-			if(ProjectFile == null || !UnrealBuild.IsEngineInstalled())
+			if(ProjectFile == null || !Unreal.IsEngineInstalled())
 			{
 				yield return GetEngineLocation(TargetName, Platform, TargetType, Architecture);
 			}
@@ -400,7 +400,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public ActionHistory()
 		{
-			Partitions.Add(new ActionHistoryPartition(UnrealBuild.EngineDirectory));
+			Partitions.Add(new ActionHistoryPartition(Unreal.EngineDirectory));
 		}
 
 		/// <summary>

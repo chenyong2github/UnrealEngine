@@ -2565,7 +2565,7 @@ namespace UnrealBuildTool
 		{
 			if (EngineDirectory == null)
 			{
-				EngineDirectory = UnrealBuild.EngineDirectory;
+				EngineDirectory = Unreal.EngineDirectory;
 			}
 
 			// cache base ini for use as the seed for the rest
@@ -2709,7 +2709,7 @@ namespace UnrealBuildTool
 			bIsMergingConfigs = true;
 			if (EngineDirectory == null)
 			{
-				EngineDirectory = UnrealBuild.EngineDirectory;
+				EngineDirectory = Unreal.EngineDirectory;
 			}
 
 			if (BaseCache != null)

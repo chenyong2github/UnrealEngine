@@ -8,6 +8,7 @@ using System.Diagnostics;
 using UnrealBuildTool;
 using EpicGames.Core;
 using System.Threading.Tasks;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -57,7 +58,7 @@ namespace AutomationTool
 			Dictionary<string, string> MsBuildProperties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 			MsBuildProperties.Add("Platform", "AnyCPU");
 			MsBuildProperties.Add("Configuration", BuildConfig);
-			MsBuildProperties.Add("EngineDir", CommandUtils.EngineDirectory.FullName);
+			MsBuildProperties.Add("EngineDir", value: Unreal.EngineDirectory.FullName);
 
 			// Read all the projects
 			Stopwatch ParsingTimer = Stopwatch.StartNew();
@@ -69,7 +70,7 @@ namespace AutomationTool
 			BuildProducts = new HashSet<FileReference>();
 
 			HashSet<DirectoryReference> OutputDirs = new HashSet<DirectoryReference>();
-			OutputDirs.Add(DirectoryReference.Combine(CommandUtils.EngineDirectory, "Binaries", "DotNET")); // Don't want any artifacts from this directory (just AutomationTool.exe and AutomationScripts.dll)
+			OutputDirs.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Binaries", "DotNET")); // Don't want any artifacts from this directory (just AutomationTool.exe and AutomationScripts.dll)
 
 			foreach (CsProjectInfo Project in Projects)
 			{
@@ -157,7 +158,7 @@ namespace AutomationTool
 			else
 			{
 				// Project automation scripts currently require source engine builds
-				if (!CommandUtils.IsEngineInstalled())
+				if (!Unreal.IsEngineInstalled())
 				{
 					AllGameFolders = new List<DirectoryReference> { new DirectoryReference(Path.GetDirectoryName(ScriptsForProjectFileName)) };
 				}

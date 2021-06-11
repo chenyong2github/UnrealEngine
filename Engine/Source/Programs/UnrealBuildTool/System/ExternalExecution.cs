@@ -715,7 +715,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				return TargetReceipt.GetDefaultPath(UnrealBuild.EngineDirectory, "UnrealHeaderTool", BuildHostPlatform.Current.Platform, Configuration, "");
+				return TargetReceipt.GetDefaultPath(Unreal.EngineDirectory, "UnrealHeaderTool", BuildHostPlatform.Current.Platform, Configuration, "");
 			}
 		}
 
@@ -783,7 +783,7 @@ namespace UnrealBuildTool
 		private static DateTime GetCoreGeneratedTimestampUtc(string ModuleName, string ModuleGeneratedCodeDirectory)
 		{
 			// In Installed Builds, we don't check the timestamps on engine headers.  Default to a very old date.
-			if (UnrealBuild.IsEngineInstalled())
+			if (Unreal.IsEngineInstalled())
 			{
 				return DateTime.MinValue;
 			}
@@ -1076,7 +1076,7 @@ namespace UnrealBuildTool
 				// UHTLite
 				bIsBuildingUHT |= TargetName.Equals("UHTLite", StringComparison.InvariantCultureIgnoreCase);
 
-				string RootLocalPath = UnrealBuild.RootDirectory.FullName;
+				string RootLocalPath = Unreal.RootDirectory.FullName;
 
 				UnrealTargetConfiguration UHTConfig = BuildConfiguration.bForceDebugUnrealHeaderTool ? UnrealTargetConfiguration.Debug : UnrealTargetConfiguration.Development;
 
@@ -1136,7 +1136,7 @@ namespace UnrealBuildTool
 				if (!bIsBuildingUHT && bUHTNeedsToRun)
 				{
 					// Always build UnrealHeaderTool if header regeneration is required, unless we're running within an installed ecosystem or hot-reloading
-					if ((!UnrealBuild.IsEngineInstalled() || bHasProjectScriptPlugin) &&
+					if ((!Unreal.IsEngineInstalled() || bHasProjectScriptPlugin) &&
 						!BuildConfiguration.bDoNotBuildUHT &&
 						!(bHaveHeaderTool && !bIsGatheringBuild && bIsAssemblingBuild))	// If running in "assembler only" mode, we assume UHT is already up to date for much faster iteration!
 					{
@@ -1212,7 +1212,7 @@ namespace UnrealBuildTool
 						CmdLine += " -abslog=\"" + LogFileName + "\"";
 					}
 
-					if (UnrealBuild.IsEngineInstalled())
+					if (Unreal.IsEngineInstalled())
 					{
 						CmdLine += " -installed";
 					}
