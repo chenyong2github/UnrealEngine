@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeServer.Models;
-using Json.Schema;
-using Json.Schema.Generation;
-using Json.Schema.Generation.Generators;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Serializers;
@@ -20,28 +18,10 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Utilities
 {
-	class StringIdSchemaIntent : ISchemaKeywordIntent
-	{
-		public void Apply(JsonSchemaBuilder Builder) => Builder.Type(SchemaValueType.String);
-	}
-
-
-	internal class StringIdSchemaGenerator : ISchemaGenerator
-	{
-		public bool Handles(Type Type)
-		{
-			return Type.IsGenericType && Type.GetGenericTypeDefinition() == typeof(StringId<>);
-		}
-
-		public void AddConstraints(SchemaGeneratorContext context)
-		{
-			context.Intents.Add(new StringIdSchemaIntent());
-		}
-	}
-
 	/// <summary>
 	/// Normalized string identifier for a resource
 	/// </summary>
+	[JsonSchemaString]
 	[TypeConverter(typeof(StringIdTypeConverter))]
 	public struct StringId<T> : IEquatable<StringId<T>>
 	{
