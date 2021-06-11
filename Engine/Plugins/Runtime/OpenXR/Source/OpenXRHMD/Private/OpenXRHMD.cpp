@@ -1730,20 +1730,7 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 	
 	if (Session)
 	{
-		uint32_t ViewCount = 0;
-		XrViewLocateInfo ViewInfo;
-		ViewInfo.type = XR_TYPE_VIEW_LOCATE_INFO;
-		ViewInfo.next = nullptr;
-		ViewInfo.viewConfigurationType = SelectedViewConfigurationType;
-		ViewInfo.space = DeviceSpaces[HMDDeviceId].Space;
-		ViewInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
-		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-		{
-			ViewInfo.next = Module->OnLocateViews(Session, ViewInfo.displayTime, ViewInfo.next);
-		}
-		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, 0, &ViewCount, nullptr));
-		PipelineState.Views.SetNum(ViewCount, false);
-		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));
+		LocateViews(PipelineState, true);
 
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
@@ -2340,12 +2327,12 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	}
 #endif
 
-	// Enumerate the views we will actually be rendering for.
-	// This is required to support late-updating the field-of-view.
-	EnumerateViews(PipelinedFrameStateRendering);
-
 	if (bIsRunning)
 	{
+		// Locate the views we will actually be rendering for.
+		// This is required to support late-updating the field-of-view.
+		LocateViews(PipelinedFrameStateRendering, false);
+
 		SCOPED_NAMED_EVENT(EnqueueFrame, FColor::Red);
 
 		// Reset the update flag on all layers
@@ -2372,6 +2359,35 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 
 	// Snapshot new poses for late update.
 	UpdateDeviceLocations(false);
+}
+
+void FOpenXRHMD::LocateViews(FPipelinedFrameState& PipelineState, bool ResizeViewsArray)
+{
+	check(PipelineState.FrameState.predictedDisplayTime);
+
+	uint32_t ViewCount = 0;
+	XrViewLocateInfo ViewInfo;
+	ViewInfo.type = XR_TYPE_VIEW_LOCATE_INFO;
+	ViewInfo.next = nullptr;
+	ViewInfo.viewConfigurationType = SelectedViewConfigurationType;
+	ViewInfo.space = DeviceSpaces[HMDDeviceId].Space;
+	ViewInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		ViewInfo.next = Module->OnLocateViews(Session, ViewInfo.displayTime, ViewInfo.next);
+	}
+
+	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, 0, &ViewCount, nullptr));
+	if (ResizeViewsArray)
+	{
+		PipelineState.Views.SetNum(ViewCount, false);
+	}
+	else
+	{
+		ensure(PipelinedFrameStateRendering.Views.Num() == ViewCount);
+	}
+	
+	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelinedFrameStateRendering.ViewState, PipelinedFrameStateRendering.Views.Num(), &ViewCount, PipelinedFrameStateRendering.Views.GetData()));
 }
 
 void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform)
