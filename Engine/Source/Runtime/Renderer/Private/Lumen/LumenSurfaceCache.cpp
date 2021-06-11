@@ -55,7 +55,7 @@ const FLumenSurfaceLayerConfig& GetSurfaceLayerConfig(ELumenSurfaceCacheLayer La
 {
 	static FLumenSurfaceLayerConfig Configs[(uint32)ELumenSurfaceCacheLayer::MAX] =
 	{
-		{ TEXT("Depth"),	PF_G16R16,			PF_BC5,		PF_R32G32B32A32_UINT,	FVector(0.0f, 1.0f, 0.0f)		},
+		{ TEXT("Depth"),	PF_G16R16,			PF_Unknown,	PF_Unknown,				FVector(0.0f, 1.0f, 0.0f)		},
 		{ TEXT("Albedo"),	PF_R8G8B8A8,		PF_BC7,		PF_R32G32B32A32_UINT,	FVector(0.0f, 1.0f, 1.0f)		},
 		{ TEXT("Opacity"),	PF_G8,				PF_BC4,		PF_R32G32_UINT,			FVector(1.0f, 0.0f, 0.0f)		},
 		{ TEXT("Normal"),	PF_R8G8,			PF_BC5,		PF_R32G32B32A32_UINT,	FVector(0.5f, 0.5f, 0.0f)		},
@@ -103,26 +103,26 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
 	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
-const TRefCountPtr<IPooledRenderTarget>& CreateAtlas(FRDGBuilder& GraphBuilder, const FIntPoint PageAtlasSize, ESurfaceCacheCompression PhysicalAtlasCompression, ELumenSurfaceCacheLayer LayerId, const TCHAR* Name)
+const TRefCountPtr<IPooledRenderTarget>& CreateCardAtlas(FRDGBuilder& GraphBuilder, const FIntPoint PageAtlasSize, ESurfaceCacheCompression PhysicalAtlasCompression, ELumenSurfaceCacheLayer LayerId, const TCHAR* Name)
 {
 	const FLumenSurfaceLayerConfig& Config = GetSurfaceLayerConfig(LayerId);
-	const bool bCompress = PhysicalAtlasCompression != ESurfaceCacheCompression::Disabled;
 	ETextureCreateFlags TexFlags = TexCreate_ShaderResource | TexCreate_NoFastClear;
+	const bool bCompressed = PhysicalAtlasCompression != ESurfaceCacheCompression::Disabled && Config.CompressedFormat != PF_Unknown;
 
 	// Without compression we can write directly into this surface
-	if (!bCompress)
+	if (!bCompressed)
 	{
 		TexFlags |= TexCreate_RenderTargetable;
 	}
 
 	FRHITextureCreateInfo CreateInfo = FRDGTextureDesc::Create2D(
 		PageAtlasSize,
-		bCompress ? Config.CompressedFormat : Config.UncompressedFormat,
+		bCompressed ? Config.CompressedFormat : Config.UncompressedFormat,
 		FClearValueBinding::None,
 		TexFlags);
 
 	// With UAV aliasing we can directly write into a BC target by overriding UAV format
-	if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
+	if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing && Config.CompressedFormat != PF_Unknown)
 	{
 		CreateInfo.Flags |= TexCreate_UAV;
 		CreateInfo.UAVFormat = Config.CompressedUAVFormat;
@@ -136,11 +136,11 @@ void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FView
 {
 	const FIntPoint PageAtlasSize = GetPhysicalAtlasSize();
 
-	AlbedoAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Albedo, TEXT("Lumen.SceneAlbedo"));
-	OpacityAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Opacity, TEXT("Lumen.SceneOpacity"));
-	DepthAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Depth, TEXT("Lumen.SceneDepth"));
-	NormalAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Normal, TEXT("Lumen.SceneNormal"));
-	EmissiveAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Emissive, TEXT("Lumen.SceneEmissive"));
+	AlbedoAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Albedo, TEXT("Lumen.SceneAlbedo"));
+	OpacityAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Opacity, TEXT("Lumen.SceneOpacity"));
+	DepthAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Depth, TEXT("Lumen.SceneDepth"));
+	NormalAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Normal, TEXT("Lumen.SceneNormal"));
+	EmissiveAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Emissive, TEXT("Lumen.SceneEmissive"));
 
 	// FinalLighting
 	{
@@ -210,125 +210,115 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	{
 		FRDGTextureRef CardCaptureAtlas = nullptr;
 		FRDGTextureRef SurfaceCacheAtlas = nullptr;
-		FRDGTextureRef TempAtlas = nullptr;
 		ELumenSurfaceCacheLayer Layer = ELumenSurfaceCacheLayer::MAX;
 	};
 
 	FPassConfig PassConfigs[(uint32)ELumenSurfaceCacheLayer::MAX] =
 	{
-		{ CardCaptureAtlas.DepthStencil,	DepthAtlas,		nullptr, ELumenSurfaceCacheLayer::Depth },
-		{ CardCaptureAtlas.Albedo,			AlbedoAtlas,	nullptr, ELumenSurfaceCacheLayer::Albedo },
-		{ CardCaptureAtlas.Albedo,			OpacityAtlas,	nullptr, ELumenSurfaceCacheLayer::Opacity },
-		{ CardCaptureAtlas.Normal,			NormalAtlas,	nullptr, ELumenSurfaceCacheLayer::Normal },
-		{ CardCaptureAtlas.Emissive,		EmissiveAtlas,	nullptr, ELumenSurfaceCacheLayer::Emissive },
+		{ CardCaptureAtlas.DepthStencil,	DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
+		{ CardCaptureAtlas.Albedo,			AlbedoAtlas,	ELumenSurfaceCacheLayer::Albedo },
+		{ CardCaptureAtlas.Albedo,			OpacityAtlas,	ELumenSurfaceCacheLayer::Opacity },
+		{ CardCaptureAtlas.Normal,			NormalAtlas,	ELumenSurfaceCacheLayer::Normal },
+		{ CardCaptureAtlas.Emissive,		EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
 	};
 
-	if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
+	for (FPassConfig& Pass : PassConfigs)
 	{
-		// Compress to surface cache directly
-		for (FPassConfig& Pass : PassConfigs)
+		const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
+
+		if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing && LayerConfig.CompressedFormat != PF_Unknown)
 		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
-			const FIntPoint CompressedCardCaptureAtlasSize = FIntPoint::DivideAndRoundUp(CardCaptureAtlasSize, 4);
-			const FIntPoint CompressedPhysicalAtlasSize = FIntPoint::DivideAndRoundUp(PhysicalAtlasSize, 4);
+			// Compress to surface cache directly
+			{
+				const FIntPoint CompressedCardCaptureAtlasSize = FIntPoint::DivideAndRoundUp(CardCaptureAtlasSize, 4);
+				const FIntPoint CompressedPhysicalAtlasSize = FIntPoint::DivideAndRoundUp(PhysicalAtlasSize, 4);
 
-			FLumenCardCopyParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyParameters>();
-			PassParameters->PS.View = View.ViewUniformBuffer;
-			PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
-			PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
-			PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
-			PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
+				FLumenCardCopyParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyParameters>();
+				PassParameters->PS.View = View.ViewUniformBuffer;
+				PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
+				PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
+				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
+				PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
 
-			FLumenCardCopyPS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);
-			PermutationVector.Set<FLumenCardCopyPS::FCompress>(true);
-			auto PixelShader = View.ShaderMap->GetShader<FLumenCardCopyPS>(PermutationVector);
+				FLumenCardCopyPS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);
+				PermutationVector.Set<FLumenCardCopyPS::FCompress>(true);
+				auto PixelShader = View.ShaderMap->GetShader<FLumenCardCopyPS>(PermutationVector);
 
-			FPixelShaderUtils::AddRasterizeToRectsPass<FLumenCardCopyPS>(GraphBuilder,
-				View.ShaderMap,
-				RDG_EVENT_NAME("CompressToSurfaceCache %s", LayerConfig.Name),
-				PixelShader,
-				PassParameters,
-				CompressedPhysicalAtlasSize,
-				SurfaceCacheRectBufferSRV,
-				CardPagesToRender.Num(),
-				/*BlendState*/ nullptr,
-				/*RasterizerState*/ nullptr,
-				/*DepthStencilState*/ nullptr,
-				/*StencilRef*/ 0,
-				/*TextureSize*/ CompressedCardCaptureAtlasSize,
-				/*RectUVBufferSRV*/ CardCaptureRectBufferSRV,
-				/*DownsampleFactor*/ 4);
+				FPixelShaderUtils::AddRasterizeToRectsPass<FLumenCardCopyPS>(GraphBuilder,
+					View.ShaderMap,
+					RDG_EVENT_NAME("CompressToSurfaceCache %s", LayerConfig.Name),
+					PixelShader,
+					PassParameters,
+					CompressedPhysicalAtlasSize,
+					SurfaceCacheRectBufferSRV,
+					CardPagesToRender.Num(),
+					/*BlendState*/ nullptr,
+					/*RasterizerState*/ nullptr,
+					/*DepthStencilState*/ nullptr,
+					/*StencilRef*/ 0,
+					/*TextureSize*/ CompressedCardCaptureAtlasSize,
+					/*RectUVBufferSRV*/ CardCaptureRectBufferSRV,
+					/*DownsampleFactor*/ 4);
+			}
 		}
-	}
-	else if (PhysicalAtlasCompression == ESurfaceCacheCompression::CopyTextureRegion)
-	{
-		// Compress through a temp surface
-		const FIntPoint TempAtlasSize = FIntPoint::DivideAndRoundUp(CardCaptureAtlasSize, 4);
-
-		// TempAtlas is required on platforms without UAV aliasing (GRHISupportsUAVFormatAliasing), where we can't directly compress into the final surface cache
-		for (FPassConfig& Pass : PassConfigs)
+		else if (PhysicalAtlasCompression == ESurfaceCacheCompression::CopyTextureRegion && LayerConfig.CompressedFormat != PF_Unknown)
 		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
+			// Compress through a temp surface
+			const FIntPoint TempAtlasSize = FIntPoint::DivideAndRoundUp(CardCaptureAtlasSize, 4);
 
-			Pass.TempAtlas = GraphBuilder.CreateTexture(
+			// TempAtlas is required on platforms without UAV aliasing (GRHISupportsUAVFormatAliasing), where we can't directly compress into the final surface cache
+			FRDGTextureRef TempAtlas = GraphBuilder.CreateTexture(
 				FRDGTextureDesc::Create2D(
 					TempAtlasSize,
 					LayerConfig.CompressedUAVFormat,
 					FClearValueBinding::None,
 					TexCreate_UAV | TexCreate_ShaderResource | TexCreate_NoFastClear),
 				TEXT("Lumen.TempCaptureAtlas"));
-		}
 
-		// Compress into temporary atlas
-		for (FPassConfig& Pass : PassConfigs)
-		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
+			// Compress into temporary atlas
+			{
+				FLumenCardCopyParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyParameters>();
 
-			FLumenCardCopyParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyParameters>();
+				PassParameters->PS.View = View.ViewUniformBuffer;
+				PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
+				PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
+				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
+				PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
 
-			PassParameters->PS.View = View.ViewUniformBuffer;
-			PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(Pass.TempAtlas) : nullptr;
-			PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(Pass.TempAtlas) : nullptr;
-			PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
-			PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
+				FLumenCardCopyPS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);
+				PermutationVector.Set<FLumenCardCopyPS::FCompress>(true);
+				auto PixelShader = View.ShaderMap->GetShader<FLumenCardCopyPS>(PermutationVector);
 
-			FLumenCardCopyPS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);
-			PermutationVector.Set<FLumenCardCopyPS::FCompress>(true);
-			auto PixelShader = View.ShaderMap->GetShader<FLumenCardCopyPS>(PermutationVector);
+				FPixelShaderUtils::AddRasterizeToRectsPass<FLumenCardCopyPS>(GraphBuilder,
+					View.ShaderMap,
+					RDG_EVENT_NAME("CompressToTemp %s", LayerConfig.Name),
+					PixelShader,
+					PassParameters,
+					TempAtlasSize,
+					CardCaptureRectBufferSRV,
+					CardPagesToRender.Num(),
+					/*BlendState*/ nullptr,
+					/*RasterizerState*/ nullptr,
+					/*DepthStencilState*/ nullptr,
+					/*StencilRef*/ 0,
+					/*TextureSize*/ TempAtlasSize,
+					/*RectUVBufferSRV*/ nullptr,
+					/*DownsampleFactor*/ 4);
+			}
 
-			FPixelShaderUtils::AddRasterizeToRectsPass<FLumenCardCopyPS>(GraphBuilder,
-				View.ShaderMap,
-				RDG_EVENT_NAME("CompressToTemp %s", LayerConfig.Name),
-				PixelShader,
-				PassParameters,
-				TempAtlasSize,
-				CardCaptureRectBufferSRV,
-				CardPagesToRender.Num(),
-				/*BlendState*/ nullptr,
-				/*RasterizerState*/ nullptr,
-				/*DepthStencilState*/ nullptr,
-				/*StencilRef*/ 0,
-				/*TextureSize*/ TempAtlasSize,
-				/*RectUVBufferSRV*/ nullptr,
-				/*DownsampleFactor*/ 4);
-		}
+			// Copy from temporary atlas to surface cache
+			{
+				FCopyTextureParameters* Parameters = GraphBuilder.AllocParameters<FCopyTextureParameters>();
+				Parameters->InputTexture = TempAtlas;
+				Parameters->OutputTexture = Pass.SurfaceCacheAtlas;
 
-		// Copy from temporary atlas to surface cache
-		for (FPassConfig& Pass : PassConfigs)
-		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
-
-			FCopyTextureParameters* Parameters = GraphBuilder.AllocParameters<FCopyTextureParameters>();
-			Parameters->InputTexture = Pass.TempAtlas;
-			Parameters->OutputTexture = Pass.SurfaceCacheAtlas;
-
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("CopyTempToSurfaceCache %s", LayerConfig.Name),
-				Parameters,
-				ERDGPassFlags::Copy,
-				[&CardPagesToRender, InputTexture = Pass.TempAtlas, OutputTexture = Pass.SurfaceCacheAtlas](FRHICommandList& RHICmdList)
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("CopyTempToSurfaceCache %s", LayerConfig.Name),
+					Parameters,
+					ERDGPassFlags::Copy,
+					[&CardPagesToRender, InputTexture = TempAtlas, OutputTexture = Pass.SurfaceCacheAtlas](FRHICommandList& RHICmdList)
 				{
 					for (int32 PageIndex = 0; PageIndex < CardPagesToRender.Num(); ++PageIndex)
 					{
@@ -348,41 +338,39 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 						RHICmdList.CopyTexture(InputTexture->GetRHI(), OutputTexture->GetRHI(), CopyInfo);
 					}
 				});
+			}
 		}
-	}
-	else
-	{
-		// Copy uncompressed to surface cache
-		for (FPassConfig& Pass : PassConfigs)
+		else
 		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
+			// Copy uncompressed to surface cache
+			{
+				FLumenCardCopyParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyParameters>();
 
-			FLumenCardCopyParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyParameters>();
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(Pass.SurfaceCacheAtlas, ERenderTargetLoadAction::ENoAction, 0);
+				PassParameters->PS.View = View.ViewUniformBuffer;
+				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
+				PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
 
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(Pass.SurfaceCacheAtlas, ERenderTargetLoadAction::ENoAction, 0);
-			PassParameters->PS.View = View.ViewUniformBuffer;
-			PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
-			PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
+				FLumenCardCopyPS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);
+				PermutationVector.Set<FLumenCardCopyPS::FCompress>(false);
+				auto PixelShader = View.ShaderMap->GetShader<FLumenCardCopyPS>(PermutationVector);
 
-			FLumenCardCopyPS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);
-			PermutationVector.Set<FLumenCardCopyPS::FCompress>(false);
-			auto PixelShader = View.ShaderMap->GetShader<FLumenCardCopyPS>(PermutationVector);
-
-			FPixelShaderUtils::AddRasterizeToRectsPass<FLumenCardCopyPS>(GraphBuilder,
-				View.ShaderMap,
-				RDG_EVENT_NAME("CopyToSurfaceCache %s", LayerConfig.Name),
-				PixelShader,
-				PassParameters,
-				PhysicalAtlasSize,
-				SurfaceCacheRectBufferSRV,
-				CardPagesToRender.Num(),
-				/*BlendState*/ nullptr,
-				/*RasterizerState*/ nullptr,
-				/*DepthStencilState*/ nullptr,
-				/*StencilRef*/ 0,
-				/*TextureSize*/ CardCaptureAtlasSize,
-				/*RectUVBufferSRV*/ CardCaptureRectBufferSRV);
+				FPixelShaderUtils::AddRasterizeToRectsPass<FLumenCardCopyPS>(GraphBuilder,
+					View.ShaderMap,
+					RDG_EVENT_NAME("CopyToSurfaceCache %s", LayerConfig.Name),
+					PixelShader,
+					PassParameters,
+					PhysicalAtlasSize,
+					SurfaceCacheRectBufferSRV,
+					CardPagesToRender.Num(),
+					/*BlendState*/ nullptr,
+					/*RasterizerState*/ nullptr,
+					/*DepthStencilState*/ nullptr,
+					/*StencilRef*/ 0,
+					/*TextureSize*/ CardCaptureAtlasSize,
+					/*RectUVBufferSRV*/ CardCaptureRectBufferSRV);
+			}
 		}
 	}
 
@@ -455,111 +443,99 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 	struct FPassConfig
 	{
 		FRDGTextureRef SurfaceCacheAtlas = nullptr;
-		FRDGTextureRef TempAtlas = nullptr;
 		ELumenSurfaceCacheLayer Layer = ELumenSurfaceCacheLayer::MAX;
 	};
 
 	FPassConfig PassConfigs[(uint32)ELumenSurfaceCacheLayer::MAX] =
 	{
-		{ DepthAtlas,		nullptr, ELumenSurfaceCacheLayer::Depth },
-		{ AlbedoAtlas,		nullptr, ELumenSurfaceCacheLayer::Albedo },
-		{ OpacityAtlas,		nullptr, ELumenSurfaceCacheLayer::Opacity },
-		{ NormalAtlas,		nullptr, ELumenSurfaceCacheLayer::Normal },
-		{ EmissiveAtlas,	nullptr, ELumenSurfaceCacheLayer::Emissive },
+		{ DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
+		{ AlbedoAtlas,		ELumenSurfaceCacheLayer::Albedo },
+		{ OpacityAtlas,		ELumenSurfaceCacheLayer::Opacity },
+		{ NormalAtlas,		ELumenSurfaceCacheLayer::Normal },
+		{ EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
 	};
 
 	const FIntPoint PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
 	const ESurfaceCacheCompression PhysicalAtlasCompression = LumenSceneData.GetPhysicalAtlasCompression();
 
-	if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
+	for (FPassConfig& Pass : PassConfigs)
 	{
-		// Clear compressed surface cache directly
-		for (FPassConfig& Pass : PassConfigs)
+		const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
+
+		if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing && LayerConfig.CompressedFormat != PF_Unknown)
 		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
+			// Clear compressed surface cache directly
+			{
+				const FRDGTextureUAVDesc CompressedSurfaceUAVDesc(Pass.SurfaceCacheAtlas, 0, LayerConfig.CompressedUAVFormat);
 
-			const FRDGTextureUAVDesc CompressedSurfaceUAVDesc(Pass.SurfaceCacheAtlas, 0, LayerConfig.CompressedUAVFormat);
+				FClearCompressedAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearCompressedAtlasCS::FParameters>();
+				PassParameters->RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(CompressedSurfaceUAVDesc) : nullptr;
+				PassParameters->RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(CompressedSurfaceUAVDesc) : nullptr;
+				PassParameters->ClearValue = LayerConfig.ClearValue;
+				PassParameters->OutputAtlasSize = PhysicalAtlasSize;
 
-			FClearCompressedAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearCompressedAtlasCS::FParameters>();
-			PassParameters->RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(CompressedSurfaceUAVDesc) : nullptr;
-			PassParameters->RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(CompressedSurfaceUAVDesc) : nullptr;
-			PassParameters->ClearValue = LayerConfig.ClearValue;
-			PassParameters->OutputAtlasSize = PhysicalAtlasSize;
+				FClearCompressedAtlasCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FClearCompressedAtlasCS::FSurfaceCacheLayer>(Pass.Layer);
+				auto ComputeShader = View.ShaderMap->GetShader<FClearCompressedAtlasCS>(PermutationVector);
 
-			FClearCompressedAtlasCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FClearCompressedAtlasCS::FSurfaceCacheLayer>(Pass.Layer);
-			auto ComputeShader = View.ShaderMap->GetShader<FClearCompressedAtlasCS>(PermutationVector);
+				FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(PhysicalAtlasSize, FClearCompressedAtlasCS::GetGroupSize()));
 
-			FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(PhysicalAtlasSize, FClearCompressedAtlasCS::GetGroupSize()));
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("ClearCompressedAtlas %s", LayerConfig.Name),
-				ComputeShader,
-				PassParameters,
-				FIntVector(GroupSize.X, GroupSize.Y, 1));
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("ClearCompressedAtlas %s", LayerConfig.Name),
+					ComputeShader,
+					PassParameters,
+					FIntVector(GroupSize.X, GroupSize.Y, 1));
+			}
 		}
-	}
-	else if (PhysicalAtlasCompression == ESurfaceCacheCompression::CopyTextureRegion)
-	{
-		// Temporary atlas is required on platforms without UAV aliasing (GRHISupportsUAVFormatAliasing), where we can't directly compress into the final surface cache
-
-		const FIntPoint TempAtlasSize = FIntPoint::DivideAndRoundUp(LumenSceneData.GetCardCaptureAtlasSize(), 4);
-
-		for (FPassConfig& Pass : PassConfigs)
+		else if (PhysicalAtlasCompression == ESurfaceCacheCompression::CopyTextureRegion && LayerConfig.CompressedFormat != PF_Unknown)
 		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
+			// Temporary atlas is required on platforms without UAV aliasing (GRHISupportsUAVFormatAliasing), where we can't directly compress into the final surface cache
+			const FIntPoint TempAtlasSize = FIntPoint::DivideAndRoundUp(LumenSceneData.GetCardCaptureAtlasSize(), 4);
 
 			const EPixelFormat TempFormat = LayerConfig.CompressedUAVFormat;
 
-			Pass.TempAtlas = GraphBuilder.CreateTexture(
+			FRDGTextureRef TempAtlas = GraphBuilder.CreateTexture(
 				FRDGTextureDesc::Create2D(
 					TempAtlasSize,
 					LayerConfig.CompressedUAVFormat,
 					FClearValueBinding::None,
 					TexCreate_UAV | TexCreate_ShaderResource | TexCreate_NoFastClear),
 				TEXT("Lumen.TempCaptureAtlas"));
-		}
 
-		// Clear temporary atlas
-		for (FPassConfig& Pass : PassConfigs)
-		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
+			// Clear temporary atlas
+			{
+				FClearCompressedAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearCompressedAtlasCS::FParameters>();
+				PassParameters->RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
+				PassParameters->RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
+				PassParameters->ClearValue = LayerConfig.ClearValue;
+				PassParameters->OutputAtlasSize = TempAtlasSize;
 
-			FClearCompressedAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearCompressedAtlasCS::FParameters>();
-			PassParameters->RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(Pass.TempAtlas) : nullptr;
-			PassParameters->RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(Pass.TempAtlas) : nullptr;
-			PassParameters->ClearValue = LayerConfig.ClearValue;
-			PassParameters->OutputAtlasSize = TempAtlasSize;
+				FClearCompressedAtlasCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FClearCompressedAtlasCS::FSurfaceCacheLayer>(Pass.Layer);
+				auto ComputeShader = View.ShaderMap->GetShader<FClearCompressedAtlasCS>(PermutationVector);
 
-			FClearCompressedAtlasCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FClearCompressedAtlasCS::FSurfaceCacheLayer>(Pass.Layer);
-			auto ComputeShader = View.ShaderMap->GetShader<FClearCompressedAtlasCS>(PermutationVector);
+				FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(TempAtlasSize, FClearCompressedAtlasCS::GetGroupSize()));
 
-			FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(TempAtlasSize, FClearCompressedAtlasCS::GetGroupSize()));
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("ClearCompressedAtlas %s", LayerConfig.Name),
+					ComputeShader,
+					PassParameters,
+					FIntVector(GroupSize.X, GroupSize.Y, 1));
+			}
 
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("ClearCompressedAtlas %s", LayerConfig.Name),
-				ComputeShader,
-				PassParameters,
-				FIntVector(GroupSize.X, GroupSize.Y, 1));
-		}
+			// Copy from temporary atlas into surface cache
+			{
+				FCopyTextureParameters* Parameters = GraphBuilder.AllocParameters<FCopyTextureParameters>();
+				Parameters->InputTexture = TempAtlas;
+				Parameters->OutputTexture = Pass.SurfaceCacheAtlas;
 
-		// Copy from temporary atlas into surface cache
-		for (FPassConfig& Pass : PassConfigs)
-		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
-
-			FCopyTextureParameters* Parameters = GraphBuilder.AllocParameters<FCopyTextureParameters>();
-			Parameters->InputTexture = Pass.TempAtlas;
-			Parameters->OutputTexture = Pass.SurfaceCacheAtlas;
-
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("CopyToSurfaceCache %s", LayerConfig.Name),
-				Parameters,
-				ERDGPassFlags::Copy,
-				[InputTexture = Pass.TempAtlas, PhysicalAtlasSize, TempAtlasSize, OutputTexture = Pass.SurfaceCacheAtlas](FRHICommandList& RHICmdList)
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("CopyToSurfaceCache %s", LayerConfig.Name),
+					Parameters,
+					ERDGPassFlags::Copy,
+					[InputTexture = TempAtlas, PhysicalAtlasSize, TempAtlasSize, OutputTexture = Pass.SurfaceCacheAtlas](FRHICommandList& RHICmdList)
 				{
 					const int32 NumTilesX = FMath::DivideAndRoundDown(PhysicalAtlasSize.X / 4, TempAtlasSize.X);
 					const int32 NumTilesY = FMath::DivideAndRoundDown(PhysicalAtlasSize.Y / 4, TempAtlasSize.Y);
@@ -583,15 +559,11 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 						}
 					}
 				});
+			}
 		}
-	}
-	else
-	{
-		// Simple clear of an uncompressed surface cache
-		for (FPassConfig& Pass : PassConfigs)
+		else
 		{
-			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
-
+			// Simple clear of an uncompressed surface cache
 			AddClearRenderTargetPass(GraphBuilder, Pass.SurfaceCacheAtlas, LayerConfig.ClearValue);
 		}
 	}
