@@ -486,7 +486,7 @@ bool FTcpMessageTransportConnection::SendHeader()
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 
 	// See if we're writable
-	if (!Socket->Wait(ESocketWaitConditions::WaitForWrite, FTimespan::Zero()))
+	if (!Socket->Wait(ESocketWaitConditions::WaitForWrite, FTimespan::FromSeconds(5)))
 	{
 		return true;
 	}
