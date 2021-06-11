@@ -8,8 +8,8 @@
 #include "BaseGizmos/GizmoGroupObject.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "EditorGizmos/EditorAxisSources.h"
+#include "EditorInteractiveGizmoSelectionBuilder.h"
 #include "InteractiveGizmo.h"
-#include "InteractiveGizmoBuilder.h"
 #include "InteractiveToolObjects.h"
 #include "InteractiveToolChange.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -26,13 +26,15 @@ class FEditorTransformGizmoTransformChange;
 class FRay;
 
 UCLASS()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmoBuilder : public UInteractiveGizmoBuilder
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmoBuilder : public UEditorInteractiveGizmoSelectionBuilder
 {
 	GENERATED_BODY()
 
 public:
 
 	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
+
+	virtual bool SatisfiesCondition(const FToolBuilderState& SceneState) const override;
 };
 
 
