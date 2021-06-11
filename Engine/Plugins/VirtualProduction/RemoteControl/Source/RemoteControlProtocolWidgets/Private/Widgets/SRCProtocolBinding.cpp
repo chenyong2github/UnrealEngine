@@ -151,7 +151,7 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 FReply SRCProtocolBinding::OnDelete()
 {
 	ViewModel->Remove();
-	Visibility = EVisibility::Collapsed;
+	SetVisibility(EVisibility::Collapsed);
 	return FReply::Handled();
 }
 
