@@ -592,7 +592,7 @@ struct FPermutation
 	int32 Slots[SF_NumFrequencies];
 };
 
-void GeneratePermuations(TArray<FPermutation>& Permutations, FPermutation& WorkingPerm, int32 SlotIndex , const TArray<int32> StableShadersPerSlot[SF_NumFrequencies], const TArray<FStableShaderKeyAndValue>& StableArray, const bool ActivePerSlot[SF_NumFrequencies])
+void GeneratePermutations(TArray<FPermutation>& Permutations, FPermutation& WorkingPerm, int32 SlotIndex , const TArray<int32> StableShadersPerSlot[SF_NumFrequencies], const TArray<FStableShaderKeyAndValue>& StableArray, const bool ActivePerSlot[SF_NumFrequencies])
 {
 	check(SlotIndex >= 0 && SlotIndex <= SF_NumFrequencies);
 	while (SlotIndex < SF_NumFrequencies && !ActivePerSlot[SlotIndex])
@@ -626,7 +626,7 @@ void GeneratePermuations(TArray<FPermutation>& Permutations, FPermutation& Worki
 			continue;
 		}
 		WorkingPerm.Slots[SlotIndex] = StableShadersPerSlot[SlotIndex][StableIndex];
-		GeneratePermuations(Permutations, WorkingPerm, SlotIndex + 1, StableShadersPerSlot, StableArray, ActivePerSlot);
+		GeneratePermutations(Permutations, WorkingPerm, SlotIndex + 1, StableShadersPerSlot, StableArray, ActivePerSlot);
 	}
 }
 
@@ -803,13 +803,27 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 	TArray<FPermsPerPSO> StableResults;
 	StableResults.Reserve(PSOs.Num());
 	int32 NumSkipped = 0;
-	int32 NumExamined = 0;
+	int32 NumExamined = PSOs.Num();
+	FCriticalSection StableResultsAdditionGuard;	// guards addition to StableResults table
+	FCriticalSection ConsoleOutputGuard;			// so the printouts from various PSOs aren't interleaved. Also guards NumSkipped, TotalStablePSO and other stat vars
 
+	// we cannot run ParallelFor on a TSet, so linearize it
+	TArray<const FPipelineCacheFileFormatPSO*> PSOPtrs;
+	PSOPtrs.Reserve(PSOs.Num());
 	for (const FPipelineCacheFileFormatPSO& Item : PSOs)
-	{ 
-		NumExamined++;
+	{
+		PSOPtrs.Add(&Item);
+	}
+
+	check(SF_Vertex == 0 && SF_Compute == 5);
+	ParallelFor(
+		PSOPtrs.Num(),
+		[&StableResults, &StableResultsAdditionGuard, &ConsoleOutputGuard, &PSOPtrs,
+		&TotalStablePSOs, &NumSkipped, &InverseMap, &StableShaderKeyIndexTable
+		](int32 PSOIndex)
+	{
+		const FPipelineCacheFileFormatPSO& Item = *PSOPtrs[PSOIndex];
 		
-		check(SF_Vertex == 0 && SF_Compute == 5);
 		TArray<int32> StableShadersPerSlot[SF_NumFrequencies];
 		bool ActivePerSlot[SF_NumFrequencies] = { false };
 
@@ -834,11 +848,13 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		}
 		else
 		{
+			FScopeLock Lock(&ConsoleOutputGuard);
 			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.Type));
 		}
 
 		if (OutAnyActiveButMissing)
 		{
+			FScopeLock Lock(&ConsoleOutputGuard);
 			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("PSO had an active shader slot that did not match any current shaders, ignored."));
 			if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute)
 			{
@@ -861,7 +877,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			{
 				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.Type));
 			}
-			continue;
+			return;
 		}
 
 		if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
@@ -914,13 +930,15 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			}
 			if (!bAnyActive)
 			{
+				FScopeLock Lock(&ConsoleOutputGuard);
 				NumSkipped++;
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("PSO did not create any stable PSOs! (no active shader slots)"));
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("   %s"), *Item.GraphicsDesc.StateToString());
-				continue;
+				return;
 			}
 			if (bRemovedAll)
 			{
+				FScopeLock Lock(&ConsoleOutputGuard);
 				UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("PSO did not create any stable PSOs! (no cross shader slot compatibility)"));
 				UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("   %s"), *Item.GraphicsDesc.StateToString());
 
@@ -930,13 +948,12 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.HullShader, TEXT("HullShader"));
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.DomainShader, TEXT("DomainShader"));
 
-				continue;
+				return;
 			}
 			// We could have done this on the fly, but that loop was already pretty complicated. Here we generate all plausible permutations and write them out
 		}
 
-		StableResults.AddDefaulted();
-		FPermsPerPSO& Current = StableResults.Last();
+		FPermsPerPSO Current;
 		Current.PSO = &Item;
 
 		for (int32 Index = 0; Index < SF_NumFrequencies; Index++)
@@ -946,18 +963,28 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 
 		TArray<FPermutation>& Permutations(Current.Permutations);
 		FPermutation WorkingPerm = {};
-		GeneratePermuations(Permutations, WorkingPerm, 0, StableShadersPerSlot, StableShaderKeyIndexTable, ActivePerSlot);
+		GeneratePermutations(Permutations, WorkingPerm, 0, StableShadersPerSlot, StableShaderKeyIndexTable, ActivePerSlot);
 		if (!Permutations.Num())
 		{
+			FScopeLock Lock(&ConsoleOutputGuard);
 			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("PSO did not create any stable PSOs! (somehow)"));
 			// this is fatal because now we have a bogus thing in the list
 			UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("   %s"), *Item.GraphicsDesc.StateToString());
-			continue;
+			return;
 		}
 
+		{
+			FScopeLock Lock(&StableResultsAdditionGuard);
+			StableResults.Add(Current);
+		}
+
+		FScopeLock Lock(&ConsoleOutputGuard);
 		UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("----- PSO created %d stable permutations --------------"), Permutations.Num());
 		TotalStablePSOs += Permutations.Num();
-	}
+	},
+	EParallelForFlags::Unbalanced
+	);
+
 	UE_CLOG(NumSkipped > 0, LogShaderPipelineCacheTools, Warning, TEXT("%d/%d PSO did not create any stable PSOs! (no active shader slots)"), NumSkipped, NumExamined);
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Generated %d stable PSOs total"), TotalStablePSOs);
 	if (!TotalStablePSOs || !StableResults.Num())
