@@ -1044,7 +1044,8 @@ public partial class Project : CommandUtils
 
 				// CrashReportClient is a standalone slate app that does not look in the generated pak file, so it needs the Content/Slate and Shaders/StandaloneRenderer folders Non-UFS
 				// @todo Make CrashReportClient more portable so we don't have to do this
-				if (SC.bStageCrashReporter && PlatformSupportsCrashReporter(SC.StageTargetPlatform.PlatformType) && (Params.IterateSharedBuildUsePrecompiledExe == false))
+				UnrealTargetPlatform CrashReportPlatform = ThisPlatform.CrashReportPlatform ?? SC.StageTargetPlatform.PlatformType;
+				if (SC.bStageCrashReporter && PlatformSupportsCrashReporter(CrashReportPlatform) && (Params.IterateSharedBuildUsePrecompiledExe == false))
 				{
 					SC.StageCrashReporterFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.EngineRoot, "Content", "Slate"), StageFilesSearch.AllDirectories);
 					SC.StageCrashReporterFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.EngineRoot, "Shaders", "StandaloneRenderer"), StageFilesSearch.AllDirectories);
@@ -1055,14 +1056,14 @@ public partial class Project : CommandUtils
 					if (string.IsNullOrEmpty(Architecture))
 					{
 						Architecture = "";
-						if (PlatformExports.IsPlatformAvailable(SC.StageTargetPlatform.PlatformType))
+						if (PlatformExports.IsPlatformAvailable(CrashReportPlatform))
 						{
-							Architecture = PlatformExports.GetDefaultArchitecture(SC.StageTargetPlatform.PlatformType, Params.RawProjectPath);
+							Architecture = PlatformExports.GetDefaultArchitecture(CrashReportPlatform, Params.RawProjectPath);
 						}
 					}
 
 					// Get the target receipt path for CrashReportClient
-					FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(SC.EngineRoot, "CrashReportClient", SC.StageTargetPlatform.PlatformType, UnrealTargetConfiguration.Shipping, Architecture);
+					FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(SC.EngineRoot, "CrashReportClient", CrashReportPlatform, UnrealTargetConfiguration.Shipping, Architecture);
 					if (!FileReference.Exists(ReceiptFileName))
 					{
 						throw new AutomationException(ExitCode.Error_MissingExecutable, "Stage Failed. Missing receipt '{0}'. Check that this target has been built.", ReceiptFileName);
