@@ -5,7 +5,6 @@
 #include "ScenePrivate.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "LightmapRayTracing.h"
-#include "PathTracingLightParameters.inl"
 #include "GPULightmassModule.h"
 #include "RHIGPUReadback.h"
 #include "LevelEditorViewport.h"

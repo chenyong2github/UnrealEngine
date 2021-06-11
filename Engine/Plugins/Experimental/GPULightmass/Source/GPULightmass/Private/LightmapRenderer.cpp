@@ -8,7 +8,6 @@
 #include "Scene/StaticMesh.h"
 #include "LightmapGBuffer.h"
 #include "LightmapRayTracing.h"
-#include "PathTracingLightParameters.inl"
 #include "ClearQuad.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "Async/ParallelFor.h"
