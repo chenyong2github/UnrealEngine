@@ -22,6 +22,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/IntervalGizmo.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "ModelingToolTargetUtil.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "CoreMinimal.h"
 #include "Math/Matrix.h"
@@ -275,9 +276,9 @@ void UMeshSpaceDeformerTool::Setup()
 		Preview->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
 		Preview->PreviewMesh->SetTransform(MeshTransform);
 
-		Preview->ConfigureMaterials(StoredMaterialSet.Materials,
-			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-		);
+		FComponentMaterialSet MaterialSet;
+		MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
+		Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 
 		// show the preview mesh
 		Preview->SetVisibility(true);

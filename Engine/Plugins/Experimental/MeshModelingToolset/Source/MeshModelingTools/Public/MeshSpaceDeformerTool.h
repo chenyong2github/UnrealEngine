@@ -238,9 +238,6 @@ protected:
 	UPROPERTY()
 	UPreviewMesh* OriginalMeshPreview;
 
-	// Stores the materials of the original object, used to make the object semi-transparent.
-	FComponentMaterialSet StoredMaterialSet;
-
 	UPROPERTY()
 	UIntervalGizmo* IntervalGizmo;
 
