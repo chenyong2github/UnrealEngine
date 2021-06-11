@@ -10,6 +10,7 @@
 #include "HairStrandsInterface.h"
 
 class UMeshComponent;
+class UGroomComponent;
 class FHairCardsVertexFactory;
 class FHairStrandsVertexFactory;
 enum class EGroomCacheType : uint8;
@@ -197,6 +198,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		EGroomCacheType			GroomCacheType;
 		UMeshComponent*			MeshComponent = nullptr;
 		FString					MeshComponentName;
+		const UGroomComponent*	GroomComponentForDebug = nullptr; // For debug only, shouldn't be deferred on the rendering thread
 		FTransform				SkeletalLocalToWorld = FTransform::Identity;
 		FTransform				SkeletalPreviousLocalToWorld = FTransform::Identity;
 		bool					bDrawCardsGuides = false;
