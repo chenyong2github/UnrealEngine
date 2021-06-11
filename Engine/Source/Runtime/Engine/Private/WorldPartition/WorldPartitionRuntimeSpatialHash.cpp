@@ -66,11 +66,24 @@ static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridLevelCount(
 	GShowRuntimeSpatialHashGridLevelCount,
 	TEXT("Used to choose how many grid levels to display when showing world partition runtime hash."));
 
+static float GBlockOnSlowStreamingRatio = 0.25f;
+static FAutoConsoleVariableRef CVarBlockOnSlowStreamingRatio(
+	TEXT("wp.Runtime.BlockOnSlowStreamingRatio"),
+	GBlockOnSlowStreamingRatio,
+	TEXT("Ratio of DistanceToCell / LoadingRange to use to determine if World Partition streaming needs to block"));
+
+static float GBlockOnSlowStreamingWarningFactor = 2.f;
+static FAutoConsoleVariableRef CVarBlockOnSlowStreamingWarningFactor(
+	TEXT("wp.Runtime.BlockOnSlowStreamingWarningFactor"),
+	GBlockOnSlowStreamingWarningFactor,
+	TEXT("Factor of wp.Runtime.BlockOnSlowStreamingRatio we want to start notifying the user"));
+
 // ------------------------------------------------------------------------------------------------
 FSpatialHashStreamingGrid::FSpatialHashStreamingGrid()
 	: Origin(ForceInitToZero)
 	, CellSize(0)
 	, LoadingRange(0.0f)
+	, bBlockOnSlowStreaming(false)
 	, DebugColor(ForceInitToZero)
 	, WorldBounds(ForceInitToZero)
 	, bClientOnlyVisible(false)
@@ -100,6 +113,11 @@ const FSquare2DGridHelper& FSpatialHashStreamingGrid::GetGridHelper() const
 	check(GridHelper->WorldBounds == WorldBounds);
 
 	return *GridHelper;
+}
+
+int32 FSpatialHashStreamingGrid::GetCellSize(int32 Level) const
+{
+	return GetGridHelper().Levels[Level].CellSize;
 }
 
 void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const
@@ -767,6 +785,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	CurrentStreamingGrid.CellSize = PartionedActors.CellSize;
 	CurrentStreamingGrid.WorldBounds = PartionedActors.WorldBounds;
 	CurrentStreamingGrid.LoadingRange = RuntimeGrid.LoadingRange;
+	CurrentStreamingGrid.bBlockOnSlowStreaming = RuntimeGrid.bBlockOnSlowStreaming;
 	CurrentStreamingGrid.DebugColor = RuntimeGrid.DebugColor;
 	CurrentStreamingGrid.bClientOnlyVisible = RuntimeGrid.bClientOnlyVisible;
 
@@ -867,6 +886,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				StreamingCell->Position = FVector(Bounds.GetCenter(), 0.f);
 				StreamingCell->SetDebugInfo(CellGlobalCoords, CurrentStreamingGrid.GridName);
 				StreamingCell->SetClientOnlyVisible(CurrentStreamingGrid.bClientOnlyVisible);
+				StreamingCell->SetBlockOnSlowLoading(CurrentStreamingGrid.bBlockOnSlowStreaming);
 
 				UE_LOG(LogWorldPartition, Verbose, TEXT("Cell%s %s Actors = %d Bounds (%s)"), bIsCellAlwaysLoaded ? TEXT(" (AlwaysLoaded)") : TEXT(""), *StreamingCell->GetName(), FilteredActors.Num(), *Bounds.ToString());
 
@@ -1108,6 +1128,53 @@ bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPar
 	}
 
 	return !!(OutActivateCells.Num() + OutLoadCells.Num());
+}
+
+const TMap<FName, const FSpatialHashStreamingGrid*>& UWorldPartitionRuntimeSpatialHash::GetNameToGridMapping() const
+{
+	if (NameToGridMapping.IsEmpty())
+	{
+		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		{
+			NameToGridMapping.Add(StreamingGrid.GridName, &StreamingGrid);
+		}
+	}
+
+	return NameToGridMapping;
+}
+
+EWorldPartitionStreamingPerformance UWorldPartitionRuntimeSpatialHash::GetStreamingPerformanceForCell(const UWorldPartitionRuntimeCell* Cell) const
+{
+	// If base class already returning critical. Early out.
+	if (Super::GetStreamingPerformanceForCell(Cell) == EWorldPartitionStreamingPerformance::Critical)
+	{
+		return EWorldPartitionStreamingPerformance::Critical;
+	}
+
+	check(Cell->GetBlockOnSlowLoading());
+	const float BlockOnSlowStreamingWarningRatio = GBlockOnSlowStreamingRatio * GBlockOnSlowStreamingWarningFactor;
+	
+	const UWorldPartitionRuntimeSpatialHashCell* StreamingCell = Cast<const UWorldPartitionRuntimeSpatialHashCell>(Cell);
+	check(StreamingCell);
+
+	const FSpatialHashStreamingGrid* const* StreamingGrid = GetNameToGridMapping().Find(StreamingCell->GetGridName());
+	check(StreamingGrid && *StreamingGrid);
+	
+	const float LoadingRange = (*StreamingGrid)->LoadingRange;
+	const float Distance = FMath::Sqrt(StreamingCell->CachedSourceMinDistanceSquare) - ((float)(*StreamingGrid)->GetCellSize(StreamingCell->Level) / 2.f);
+
+	const float Ratio = Distance / LoadingRange;
+
+	if (Ratio < GBlockOnSlowStreamingRatio)
+	{
+		return EWorldPartitionStreamingPerformance::Critical;
+	}
+	else if (Ratio < BlockOnSlowStreamingWarningRatio)
+	{
+		return EWorldPartitionStreamingPerformance::Slow;
+	}
+
+	return EWorldPartitionStreamingPerformance::Good;
 }
 
 FVector2D UWorldPartitionRuntimeSpatialHash::GetDraw2DDesiredFootprint(const FVector2D& CanvasSize) const

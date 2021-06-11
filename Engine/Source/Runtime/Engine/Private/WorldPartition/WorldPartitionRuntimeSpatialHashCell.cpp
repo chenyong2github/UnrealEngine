@@ -17,7 +17,8 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributi
 UWorldPartitionRuntimeSpatialHashCell::UWorldPartitionRuntimeSpatialHashCell(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , Level(0)
-, CachedSourceMinDistance(0.f)
+, CachedSourceMinDistanceSquare(0.f)
+, CachedSourceMinSortDistance(0.f)
 {}
 
 #if WITH_EDITOR
@@ -55,7 +56,8 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const FWorl
 	float ModulatedDistance = SqrDistance * AngleFactor;
 
 	// If cache was dirtied, use value, else use minimum with existing cached value
-	CachedSourceMinDistance = bWasCacheDirtied ? ModulatedDistance : FMath::Min(ModulatedDistance, CachedSourceMinDistance);
+	CachedSourceMinSortDistance = bWasCacheDirtied ? ModulatedDistance : FMath::Min(ModulatedDistance, CachedSourceMinSortDistance);
+	CachedSourceMinDistanceSquare = bWasCacheDirtied ? SqrDistance : FMath::Min(SqrDistance, CachedSourceMinDistanceSquare);
 
 	return bWasCacheDirtied;
 }
@@ -73,7 +75,7 @@ int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRu
 		if (Result == 0)
 		{
 			// Closest distance (lower value is higher prio)
-			const float Diff = CachedSourceMinDistance - Other->CachedSourceMinDistance;
+			const float Diff = CachedSourceMinSortDistance - Other->CachedSourceMinSortDistance;
 			Result = Diff < 0.f ? -1 : (Diff > 0.f ? 1 : 0);
 		}
 	}

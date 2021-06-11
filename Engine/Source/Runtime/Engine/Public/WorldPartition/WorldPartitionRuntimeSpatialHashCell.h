@@ -23,9 +23,12 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 
 	UPROPERTY()
 	int32 Level;
+		
+	// Used to determine if the streaming of cells is lagging
+	mutable float CachedSourceMinDistanceSquare;
 
 	// Computed and cached value used by SortCompare to sort Cells
-	mutable float CachedSourceMinDistance;
+	mutable float CachedSourceMinSortDistance;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

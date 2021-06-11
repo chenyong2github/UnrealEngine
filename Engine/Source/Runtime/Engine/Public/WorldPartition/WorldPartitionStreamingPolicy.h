@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Containers/Set.h"
+#include "Misc/CoreDelegates.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
@@ -43,6 +44,10 @@ public:
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) {}
 #endif
 
+#if !UE_BUILD_SHIPPING
+	virtual void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
+#endif
+
 	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) { return nullptr; }
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const { return StreamingSources; }
@@ -54,6 +59,8 @@ protected:
 	virtual int32 GetCellLoadingCount() const { return 0; }
 	virtual int32 GetMaxCellsToLoad() const;
 	virtual void UpdateStreamingSources();
+	void UpdateStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellsToActivate);
+	bool ShouldSkipCellForPerformance(const UWorldPartitionRuntimeCell* Cell) const;
 
 	const UWorldPartition* WorldPartition;
 	TSet<const UWorldPartitionRuntimeCell*> LoadedCells;
@@ -68,4 +75,10 @@ protected:
 	mutable TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedAddToWorldCells;
 
 	int32 DataLayersStatesServerEpoch;
+
+	EWorldPartitionStreamingPerformance StreamingPerformance;
+#if !UE_BUILD_SHIPPING
+	double OnScreenMessageStartTime;
+	EWorldPartitionStreamingPerformance  OnScreenMessageStreamingPerformance;
+#endif
 };

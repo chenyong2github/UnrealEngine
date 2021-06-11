@@ -629,6 +629,10 @@ void UWorldPartition::RegisterDelegates()
 	if (World->IsGameWorld())
 	{
 		World->OnWorldBeginPlay.AddUObject(this, &UWorldPartition::OnWorldBeginPlay);
+
+#if !UE_BUILD_SHIPPING
+		FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
+#endif
 	}
 }
 
@@ -654,8 +658,22 @@ void UWorldPartition::UnregisterDelegates()
 	if (World->IsGameWorld())
 	{
 		World->OnWorldBeginPlay.RemoveAll(this);
+
+#if !UE_BUILD_SHIPPING
+		FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
+#endif
 	}
 }
+
+#if !UE_BUILD_SHIPPING
+void UWorldPartition::GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages)
+{
+	if (StreamingPolicy)
+	{
+		StreamingPolicy->GetOnScreenMessages(OutMessages);
+	}
+}
+#endif
 
 void UWorldPartition::OnWorldBeginPlay()
 {

@@ -12,6 +12,7 @@
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "Stats/StatsMisc.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
@@ -3596,8 +3597,19 @@ void FStreamingLevelsToConsider::AddReferencedObjects(UObject* InThis, FReferenc
 
 void UWorld::BlockTillLevelStreamingCompleted()
 {
-	const double StartTime = FPlatformTime::Seconds();
+	if (bIsInBlockTillLevelStreamingCompleted)
+	{
+		return;
+	}
 
+	bIsInBlockTillLevelStreamingCompleted = true;
+	ON_SCOPE_EXIT
+	{
+		bIsInBlockTillLevelStreamingCompleted = false;
+	};
+
+	const double StartTime = FPlatformTime::Seconds();
+	
 	bool bWorkToDo = false;
 	do
 	{
