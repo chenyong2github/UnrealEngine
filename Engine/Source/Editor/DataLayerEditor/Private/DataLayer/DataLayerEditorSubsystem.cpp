@@ -187,15 +187,20 @@ void UDataLayerEditorSubsystem::UpdateDataLayerEditorPerProjectUserSettings()
 	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
 		TArray<FName> DataLayersNotLoadedInEditor;
-		WorldDataLayers->ForEachDataLayer([&DataLayersNotLoadedInEditor](UDataLayer* DataLayer)
+		TArray<FName> DataLayersLoadedInEditor;
+		WorldDataLayers->ForEachDataLayer([&DataLayersNotLoadedInEditor, &DataLayersLoadedInEditor](UDataLayer* DataLayer)
 		{
-			if (!DataLayer->IsDynamicallyLoadedInEditor())
+			if (!DataLayer->IsDynamicallyLoadedInEditor() && DataLayer->IsInitiallyLoadedInEditor())
 			{
 				DataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
 			}
+			else if (DataLayer->IsDynamicallyLoadedInEditor() && !DataLayer->IsInitiallyLoadedInEditor())
+			{
+				DataLayersLoadedInEditor.Add(DataLayer->GetFName());
+			}
 			return true;
 		});
-		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetWorldDataLayersNotLoadedInEditor(GetWorld(), DataLayersNotLoadedInEditor);
+		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetWorldDataLayersNonDefaultEditorLoadStates(GetWorld(), DataLayersLoadedInEditor, DataLayersNotLoadedInEditor);
 	}
 }
 
@@ -1064,6 +1069,16 @@ bool UDataLayerEditorSubsystem::ToggleDataLayersIsDynamicallyLoadedInEditor(cons
 	for (UDataLayer* DataLayer : DataLayers)
 	{
 		bRefreshNeeded = bRefreshNeeded || SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, !DataLayer->IsDynamicallyLoadedInEditor());
+	}
+	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
+}
+
+bool UDataLayerEditorSubsystem::ResetUserSettings(const TArray<UDataLayer*>& DataLayers)
+{
+	bool bRefreshNeeded = false;
+	for (UDataLayer* DataLayer : DataLayers)
+	{
+		bRefreshNeeded = bRefreshNeeded || SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor());
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
 }

@@ -412,6 +412,12 @@ void AWorldDataLayers::PostLoad()
 	GetWorld()->SetWorldDataLayers(this);
 
 #if WITH_EDITOR
+	// Setup defaults before overriding with user settings
+	for (UDataLayer* DataLayer : WorldDataLayers)
+	{
+		DataLayer->SetIsDynamicallyLoadedInEditor(DataLayer->IsInitiallyLoadedInEditor());
+	}
+
 	// Initialize DataLayer's IsDynamicallyLoadedInEditor based on DataLayerEditorPerProjectUserSettings
 	const TArray<FName>& SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
 	for (const FName& DataLayerName : SettingsDataLayersNotLoadedInEditor)
@@ -420,6 +426,15 @@ void AWorldDataLayers::PostLoad()
 		{
 			DataLayer->SetIsDynamicallyLoadedInEditor(false);
 		}
+	}
+
+	const TArray<FName>& SettingsDataLayersLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersLoadedInEditor(GetWorld());
+	for (const FName& DataLayerName : SettingsDataLayersLoadedInEditor)
+	{
+		if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
+		{
+			DataLayer->SetIsDynamicallyLoadedInEditor(true);
+}
 	}
 #else
 	// Build acceleration tables

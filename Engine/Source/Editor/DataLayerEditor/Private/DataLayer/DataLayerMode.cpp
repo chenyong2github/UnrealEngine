@@ -636,6 +636,26 @@ void FDataLayerMode::RegisterContextMenu()
 						FCanExecuteAction::CreateLambda([=] { return !AllDataLayers.IsEmpty(); })
 					));
 			}
+
+			{
+				FToolMenuSection& Section = InMenu->AddSection("DataLayerUserSettings", LOCTEXT("DataLayerUserSettings", "User Settings"));
+
+				Section.AddMenuEntry("ResetDataLayerUserSettings", LOCTEXT("ResetDataLayerUserSettings", "Reset User Settings"), FText(), FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([=]() {
+							check(!SelectedDataLayers.IsEmpty());
+							{
+								const FScopedTransaction Transaction(LOCTEXT("ResetDataLayerUserSettings", "Reset User Settings"));
+								if (!DataLayerEditorSubsystem->ResetUserSettings(SelectedDataLayers))
+								{
+									// Nothing changed
+									GEditor->Trans->Undo();
+								}
+								
+							}}),
+						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
+								));
+			}
 		}));
 	}
 
