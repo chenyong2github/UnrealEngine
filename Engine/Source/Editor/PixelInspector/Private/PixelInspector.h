@@ -39,11 +39,14 @@ namespace PixelInspector
 
 	public:
 		FScreenPassTexture PostProcessPassAfterFxaa_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs);
-		const EPixelFormat GetPixelFormat() const { return FinalColorPixelFormat; }
+		FScreenPassTexture PostProcessPassAfterMotionBlur_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs);
+		const EPixelFormat GetFinalColorPixelFormat() const { return FinalColorPixelFormat; }
+		const EPixelFormat GetHDRPixelFormat() const { return HDRPixelFormat; }
 		const float GetGamma() const { return FinalColorGamma; }
 		
 	private:
 		EPixelFormat FinalColorPixelFormat;
+		EPixelFormat HDRPixelFormat;
 		float FinalColorGamma;
 	};
 
