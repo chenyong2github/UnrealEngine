@@ -222,7 +222,7 @@ namespace ChaosTest
 	};
 
 
-	auto BuildBoxes(TUniquePtr<TBox<FReal,3>>& Box, FReal BoxSize = 100, const FVec3& BoxGridDimensions = FVec3(10,10,10))
+	auto BuildBoxes(TUniquePtr<TBox<FReal,3>>& Box, FReal BoxSize = 100, const FVec3& BoxGridDimensions = FVec3(10,10,10), const FVec3 Offset = FVec3(0, 0, 0))
 	{
 		Box = MakeUnique<TBox<FReal, 3>>(FVec3(0, 0, 0), FVec3(BoxSize, BoxSize, BoxSize));
 		auto Boxes = MakeUnique<FGeometryParticles>();
@@ -240,7 +240,7 @@ namespace ChaosTest
 				for (int32 Col = 0; Col < NumCols; ++Col)
 				{
 					Boxes->SetGeometry(Idx, MakeSerializable(Box));
-					Boxes->X(Idx) = FVec3(Col * 100, Row * 100, Height * 100);
+					Boxes->X(Idx) = FVec3(Col * 100, Row * 100, Height * 100) + Offset;
 					Boxes->R(Idx) = FRotation3::Identity;
 					Boxes->LocalBounds(Idx) = Box->BoundingBox();
 					Boxes->HasBounds(Idx) = true;
@@ -553,6 +553,122 @@ namespace ChaosTest
 
 			EXPECT_EQ(Spatial.NumDirtyElements(),Boxes->Size() - 1);
 		}
+	}
+
+
+	void AABBTreeDirtyGridTest()
+	{
+		using TreeType = TAABBTree<int32, TBoundingVolume<int32>>;
+
+		// Save CVARS
+		int32 DirtyElementGridCellSize = FAABBTreeDirtyGridCVars::DirtyElementGridCellSize;
+		int32 DirtyElementMaxGridCellQueryCount = FAABBTreeDirtyGridCVars::DirtyElementMaxGridCellQueryCount;
+		int32 DirtyElementMaxPhysicalSizeInCells = FAABBTreeDirtyGridCVars::DirtyElementMaxPhysicalSizeInCells;
+		int32 DirtyElementMaxCellCapacity = FAABBTreeDirtyGridCVars::DirtyElementMaxCellCapacity;
+
+		// Set CVARS to known values
+		FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 100;
+		FAABBTreeDirtyGridCVars::DirtyElementMaxGridCellQueryCount = 10000;
+		FAABBTreeDirtyGridCVars::DirtyElementMaxPhysicalSizeInCells = 20;
+		FAABBTreeDirtyGridCVars::DirtyElementMaxCellCapacity = 20;
+
+
+		// Do the standard tests
+		{
+			TUniquePtr<TBox<FReal, 3>> Box;
+			auto Boxes = BuildBoxes(Box);
+			TreeType Spatial{};
+
+			int32 Idx;
+			for (Idx = 0; Idx < (int32)Boxes->Size(); ++Idx)
+			{
+				Spatial.UpdateElement(Idx, Boxes->WorldSpaceInflatedBounds(Idx), true);
+			}
+			EXPECT_EQ(Spatial.NumDirtyElements(), Boxes->Size());
+
+			SpatialTestHelper(Spatial, Boxes.Get(), Box);
+		}
+
+
+		// Repeat the standard tests with low cell capacity and different cell sizes
+		{
+			// Set CVARS to known values
+			FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 44;
+			FAABBTreeDirtyGridCVars::DirtyElementMaxCellCapacity = 2;
+
+			TUniquePtr<TBox<FReal, 3>> Box;
+			auto Boxes = BuildBoxes(Box);
+			TreeType Spatial{};
+
+			int32 Idx;
+			for (Idx = 0; Idx < (int32)Boxes->Size(); ++Idx)
+			{
+				Spatial.UpdateElement(Idx, Boxes->WorldSpaceInflatedBounds(Idx), true);
+			}
+			EXPECT_EQ(Spatial.NumDirtyElements(), Boxes->Size());
+
+			SpatialTestHelper(Spatial, Boxes.Get(), Box);
+		}
+
+
+		// Make sure we get the same results, with and without the grid for sweeps and raycasts
+		{
+			FAABBTreeDirtyGridCVars::DirtyElementMaxCellCapacity = 7;
+			TUniquePtr<TBox<FReal, 3>> Box;
+			auto Boxes = BuildBoxes(Box, 100, FVec3(40, 40, 1), FVec3(-2000, -2000, -50));
+
+			for (float Angle = 0.0; Angle < 2 * PI; Angle += (10.0f / 360.0f) * 2.0f * PI)
+			{
+
+				FVec3 Direction{ FMath::Cos(Angle), FMath::Sin(Angle), 0 };
+				// With the grid
+				FVisitor VisitorGrid(FVec3(53, 27, 0), Direction, 0, *Boxes);
+				VisitorGrid.HalfExtents = FVec3(102, 20, 2);
+				{
+					FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 100;
+
+					TreeType Spatial{};
+
+					int32 Idx;
+					for (Idx = 0; Idx < (int32)Boxes->Size(); ++Idx)
+					{
+						Spatial.UpdateElement(Idx, Boxes->WorldSpaceInflatedBounds(Idx), true);
+					}
+					EXPECT_EQ(Spatial.NumDirtyElements(), Boxes->Size());
+
+					Spatial.Raycast(VisitorGrid.Start, VisitorGrid.Dir, 1900, VisitorGrid);
+					Spatial.Sweep(VisitorGrid.Start, VisitorGrid.Dir, 1800, VisitorGrid.HalfExtents, VisitorGrid);
+				}
+
+				// Without the grid
+				FVisitor VisitorNoGrid(FVec3(53, 27, 0), Direction, 0, *Boxes);
+				VisitorNoGrid.HalfExtents = FVec3(102, 20, 2);
+				{
+					FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 0;
+					TreeType Spatial{};
+
+					int32 Idx;
+					for (Idx = 0; Idx < (int32)Boxes->Size(); ++Idx)
+					{
+						Spatial.UpdateElement(Idx, Boxes->WorldSpaceInflatedBounds(Idx), true);
+					}
+					EXPECT_EQ(Spatial.NumDirtyElements(), Boxes->Size());
+
+					Spatial.Raycast(VisitorNoGrid.Start, VisitorNoGrid.Dir, 1900, VisitorNoGrid);
+					Spatial.Sweep(VisitorNoGrid.Start, VisitorNoGrid.Dir, 1800, VisitorNoGrid.HalfExtents, VisitorNoGrid);
+				}
+				// These will be in the same order, but we can drop this requirement in the future
+				EXPECT_TRUE(VisitorNoGrid.Instances == VisitorGrid.Instances);  
+			}
+			
+		}
+		
+
+		// Restore CVARS
+		FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = DirtyElementGridCellSize;
+		FAABBTreeDirtyGridCVars::DirtyElementMaxGridCellQueryCount = DirtyElementMaxGridCellQueryCount;
+		FAABBTreeDirtyGridCVars::DirtyElementMaxPhysicalSizeInCells = DirtyElementMaxPhysicalSizeInCells;
+		FAABBTreeDirtyGridCVars::DirtyElementMaxCellCapacity = DirtyElementMaxCellCapacity;
 	}
 	
 

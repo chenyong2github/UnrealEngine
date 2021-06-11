@@ -231,6 +231,7 @@ TEST(BP, BroadphaseTests) {
 	ChaosTest::GridBPTest();
 	ChaosTest::GridBPTest2();
 	ChaosTest::AABBTreeTest();
+	ChaosTest::AABBTreeDirtyGridTest();
 	ChaosTest::AABBTreeTimesliceTest();
 	ChaosTest::BoundingVolumeNoBoundsTest();
 	ChaosTest::BroadphaseCollectionTest();
