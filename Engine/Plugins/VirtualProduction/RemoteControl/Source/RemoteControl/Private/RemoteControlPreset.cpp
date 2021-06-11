@@ -498,6 +498,7 @@ TOptional<FRemoteControlFunction> FRemoteControlTarget::GetFunction(FGuid Functi
 	return Field;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TOptional<FExposedProperty> FRemoteControlTarget::ResolveExposedProperty(FGuid PropertyId) const
 {
 	TOptional<FExposedProperty> OptionalExposedProperty;
@@ -518,7 +519,9 @@ TOptional<FExposedProperty> FRemoteControlTarget::ResolveExposedProperty(FGuid P
 
 	return OptionalExposedProperty;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TOptional<FExposedFunction> FRemoteControlTarget::ResolveExposedFunction(FGuid FunctionId) const
 {
 	TOptional<FExposedFunction> OptionalExposedFunction;
@@ -534,6 +537,7 @@ TOptional<FExposedFunction> FRemoteControlTarget::ResolveExposedFunction(FGuid F
 
 	return OptionalExposedFunction;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TArray<UObject*> FRemoteControlTarget::ResolveBoundObjects() const
 {
@@ -601,6 +605,7 @@ bool FRemoteControlTarget::CanBindObjects(const TArray<UObject*>& ObjectsToTest)
 	return OwnersCommonBase && OwnersCommonBase->IsChildOf(Class);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FProperty* FRemoteControlTarget::FindPropertyRecursive(UStruct* Container, TArray<FString>& DesiredPropertyPath) const
 {
 	if (DesiredPropertyPath.Num() <= 0)
@@ -631,6 +636,7 @@ FProperty* FRemoteControlTarget::FindPropertyRecursive(UStruct* Container, TArra
 
 	return nullptr;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 URemoteControlPreset::URemoteControlPreset()
 	: Layout(FRemoteControlPresetLayout{ this })
@@ -1078,6 +1084,7 @@ void URemoteControlPreset::RenameField(FName OldFieldLabel, FName NewFieldLabel)
 	RenameExposedEntity(GetExposedEntityId(OldFieldLabel), NewFieldLabel);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TOptional<FExposedProperty> URemoteControlPreset::ResolveExposedProperty(FName PropertyLabel) const
 {
 	TOptional<FExposedProperty> OptionalExposedProperty;
@@ -1090,7 +1097,9 @@ TOptional<FExposedProperty> URemoteControlPreset::ResolveExposedProperty(FName P
 
 	return OptionalExposedProperty;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TOptional<FExposedFunction> URemoteControlPreset::ResolveExposedFunction(FName FunctionLabel) const
 {
 	TOptional<FExposedFunction> OptionalExposedFunction;
@@ -1104,6 +1113,7 @@ TOptional<FExposedFunction> URemoteControlPreset::ResolveExposedFunction(FName F
 
 	return OptionalExposedFunction;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void URemoteControlPreset::Unexpose(FName EntityLabel)
 {
@@ -1131,6 +1141,7 @@ FName URemoteControlPreset::CreateTarget(const TArray<UObject*>& TargetObjects)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FRemoteControlTarget& URemoteControlPreset::CreateAndGetTarget(const TArray<UObject*>& TargetObjects)
 {
 	check(TargetObjects.Num() != 0);
@@ -1149,9 +1160,11 @@ FRemoteControlTarget& URemoteControlPreset::CreateAndGetTarget(const TArray<UObj
 
 	return RemoteControlTargets.Add(Alias, MoveTemp(Target));
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void URemoteControlPreset::DeleteTarget(FName TargetName)
 {	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (FRemoteControlTarget* Target = RemoteControlTargets.Find(TargetName))
 	{
 		for (auto It = Target->ExposedProperties.CreateConstIterator(); It; ++It)
@@ -1161,14 +1174,17 @@ void URemoteControlPreset::DeleteTarget(FName TargetName)
 	}
 
 	RemoteControlTargets.Remove(TargetName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void URemoteControlPreset::RenameTarget(FName TargetName, FName NewTargetName)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FRemoteControlTarget Target;
 	RemoteControlTargets.RemoveAndCopyValue(TargetName, Target);
 	Target.Alias = NewTargetName;
 	RemoteControlTargets.Add(NewTargetName, MoveTemp(Target));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void URemoteControlPreset::CacheLayoutData()
@@ -1241,6 +1257,7 @@ FRemoteControlField* URemoteControlPreset::GetFieldPtr(FGuid FieldId)
 
 void URemoteControlPreset::ConvertFieldsToRemoveComponentChain()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITOR
 	CacheFieldsData();
 
@@ -1304,9 +1321,7 @@ void URemoteControlPreset::ConvertFieldsToRemoveComponentChain()
 
 			if (!DestinationTarget)
 			{
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				DestinationTarget = &CreateAndGetTarget({ ObjectMapEntry.Key });
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			MovePropertiesToTarget(MoveTemp(ObjectMapEntry.Value), *DestinationTarget);
@@ -1328,12 +1343,14 @@ void URemoteControlPreset::ConvertFieldsToRemoveComponentChain()
 	RegroupPropertiesInTargets(GroupPropertiesByObjects());
 	RemoveEmptyTargets();
 #endif
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void URemoteControlPreset::ConvertFieldsToEntities()
 {
 #if WITH_EDITOR
 	// Convert properties and functions to inherit from FRemoteControlEntities while preserving their old data.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (TTuple<FName, FRemoteControlTarget>& Tuple : RemoteControlTargets)
 	{
 		for (FRemoteControlProperty& Property : Tuple.Value.ExposedProperties)
@@ -1346,6 +1363,7 @@ void URemoteControlPreset::ConvertFieldsToEntities()
 			Function.Owner = this;
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -1353,6 +1371,7 @@ void URemoteControlPreset::ConvertTargetsToBindings()
 {
 #if WITH_EDITOR
 	// Convert targets to bindings, and put everything in the registry.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (TTuple<FName, FRemoteControlTarget>& Tuple : RemoteControlTargets)
 	{
 		TArray<URemoteControlBinding*> NewBindings;
@@ -1386,6 +1405,7 @@ void URemoteControlPreset::ConvertTargetsToBindings()
 	{
 		RCActor->Bindings = { FindOrAddBinding(TSoftObjectPtr<UObject>{ RCActor->Path }) }; 
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -1544,6 +1564,7 @@ void URemoteControlPreset::CacheFieldsData()
 		return;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (TTuple<FName, FRemoteControlTarget>& Target : RemoteControlTargets)
 	{
 		FieldCache.Reserve(FieldCache.Num() + Target.Value.ExposedProperties.Num() + Target.Value.ExposedFunctions.Num());
@@ -1557,6 +1578,7 @@ void URemoteControlPreset::CacheFieldsData()
 		Algo::ForEach(Target.Value.ExposedProperties, CacheField);
 		Algo::ForEach(Target.Value.ExposedFunctions, CacheField);
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void URemoteControlPreset::CacheFieldLayoutData()
@@ -1574,43 +1596,48 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 {
 	// Objects modified should have run through the preobjectmodified. If interesting, they will be cached
 	TRACE_CPUPROFILER_EVENT_SCOPE(URemoteControlPreset::OnObjectPropertyChanged);
-
-	if (Event.Property == nullptr && Event.MemberProperty == nullptr)
+ 
+	if (Event.Property == nullptr)
 	{
-		// When no property is passed to ObObjectPropertyChanged (such as by LevelSnapshot->Restore()), let's assume they all changed since we don't have more context.
-		for (TSharedPtr<FRemoteControlProperty> Property : Registry->GetExposedEntities<FRemoteControlProperty>())
+		if(Event.MemberProperty == nullptr)
 		{
-			if (Property->GetBoundObjects().Contains(Object))
+			// When no property is passed to OnObjectPropertyChanged (such as by LevelSnapshot->Restore()), let's assume they all changed since we don't have more context.
+			for (TSharedPtr<FRemoteControlProperty> Property : Registry->GetExposedEntities<FRemoteControlProperty>())
 			{
-				PerFrameModifiedProperties.Add(Property->GetId());
+				if (Property->GetBoundObjects().Contains(Object))
+				{
+					PerFrameModifiedProperties.Add(Property->GetId());
+				}
 			}
 		}
 	}
-	
-	for (auto Iter = PreObjectsModifiedCache.CreateIterator(); Iter; ++Iter)
+	else
 	{
-		FGuid& PropertyId = Iter.Key();
-		FPreObjectsModifiedCache& CacheEntry = Iter.Value();
-
-		if (CacheEntry.Objects.Contains(Object)
-			&& CacheEntry.Property == Event.Property)
+		for (auto Iter = PreObjectsModifiedCache.CreateIterator(); Iter; ++Iter)
 		{
-			if (TSharedPtr<FRemoteControlProperty> Property = Registry->GetExposedEntity<FRemoteControlProperty>(PropertyId))
+			FGuid& PropertyId = Iter.Key();
+			FPreObjectsModifiedCache& CacheEntry = Iter.Value();
+ 
+			if (CacheEntry.Objects.Contains(Object)
+                && CacheEntry.Property == Event.Property)
 			{
-				UE_LOG(LogRemoteControl, VeryVerbose, TEXT("(%s) Change detected on %s::%s"), *GetName(), *Object->GetName(), *Event.Property->GetName());
-				PerFrameModifiedProperties.Add(Property->GetId());
-				Iter.RemoveCurrent();
+				if (TSharedPtr<FRemoteControlProperty> Property = Registry->GetExposedEntity<FRemoteControlProperty>(PropertyId))
+				{
+					UE_LOG(LogRemoteControl, VeryVerbose, TEXT("(%s) Change detected on %s::%s"), *GetName(), *Object->GetName(), *Event.Property->GetName());
+					PerFrameModifiedProperties.Add(Property->GetId());
+					Iter.RemoveCurrent();
+				}
 			}
 		}
 	}
-
+ 
 	for (auto Iter = PreObjectsModifiedActorCache.CreateIterator(); Iter; ++Iter)
 	{
 		FGuid& ActorId = Iter.Key();
 		FPreObjectsModifiedCache& CacheEntry = Iter.Value();
-
+ 
 		if (CacheEntry.Objects.Contains(Object)
-			&& CacheEntry.Property == Event.Property)
+            && CacheEntry.Property == Event.Property)
 		{
 			if (TSharedPtr<FRemoteControlActor> RCActor = GetExposedEntity<FRemoteControlActor>(ActorId).Pin())
 			{
