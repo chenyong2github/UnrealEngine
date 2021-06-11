@@ -195,6 +195,7 @@ public:
 	void StartGraphNodeInteraction(UEdGraphNode* InNode) const;
 	void EndGraphNodeInteraction(UEdGraphNode* InNode) const;
 	static TArray<UEdGraphNode*> GetNodesToMoveForNode(UEdGraphNode* InNode);
+	FVector2D GetNodePositionAtStartOfInteraction(UEdGraphNode* InNode) const;
 
 private:
 
