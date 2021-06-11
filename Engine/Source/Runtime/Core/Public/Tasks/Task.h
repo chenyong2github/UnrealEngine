@@ -6,10 +6,20 @@
 #include "Async/Fundamental/Task.h"
 #include "Templates/RefCounting.h"
 #include "Containers/StaticArray.h"
+#include "HAL/Event.h"
 #include "CoreTypes.h"
 
 namespace UE { namespace Tasks
 {
+	template<typename ResultType>
+	class TTask;
+
+	template<typename TaskBodyType>
+	TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal);
+
+	template<typename TaskBodyType, typename PrerequisitesCollectionType>
+	TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal);
+
 	// a common part of the generic `TTask<ResultType>` and its `TTask<void>` specialisation
 	template<typename ResultType>
 	class TTaskBase
@@ -18,6 +28,9 @@ namespace UE { namespace Tasks
 
 		template<typename... TaskTypes>
 		friend class TPrerequisites;
+
+		template<typename TaskCollectionType>
+		friend bool Private::TryRetractAndExecute(TaskCollectionType&& Tasks);
 
 	protected:
 		TTaskBase() = default;
@@ -38,30 +51,68 @@ namespace UE { namespace Tasks
 			return !IsValid() || Pimpl->IsCompleted();
 		}
 
-		// waits for task's completion
-		void Wait()
+		// waits for task's completion, with optional timeout
+		// @return true if the task is completed
+		bool Wait(FTimespan Timeout = FTimespan::MaxValue())
+		{
+			if (!IsValid() || IsCompleted())
+			{
+				return true;
+			}
+
+			// "zero timeout" - just check if the task is completed
+			if (Timeout == FTimespan::Zero())
+			{
+				return false;
+			}
+
+			// waiting with timeout can't do retraction, otherwise timeout value is unreliable
+			if (Timeout == FTimespan::MaxValue() && Pimpl->TryRetractAndExecute())
+			{
+				return true;
+			}
+
+			// the event must be alive for the task and this function lifetime, we don't know which one will be finished first as waiting can time out
+			// before the waiting task is completed
+			FSharedEventRef CompletionEvent;
+
+			TRefCountPtr<Private::TTaskWithResult<void>> WaitingTask{ new Private::TTaskWithResult<void>, /*bAddRef=*/ false };
+			WaitingTask->Init(TEXT("Waiting Task"), [CompletionEvent] { CompletionEvent->Trigger(); }, Private::FTaskBase::InlineTaskPriority);
+			WaitingTask->AddPrerequisites(*this);
+
+			if (WaitingTask->TryLaunch())
+			{	// was executed inline
+				check(WaitingTask->IsCompleted());
+				return true;
+			}
+
+			return CompletionEvent->Wait(Timeout);
+		}
+
+		// waits for task's completion while executing other tasks. Shouldn't be used inside a latency-sensitive task
+		void BusyWait()
 		{
 			if (IsValid())
 			{
-				Pimpl->Wait();
+				Pimpl->BusyWait();
 			}
 		}
 
-		// waits for task's completion at least specified amount of time.
+		// waits for task's completion at least specified amount of time, while executing other tasks.
 		// the call can return much later than the given timeout
 		// @return true if the task is completed
-		bool Wait(FTimespan Timeout)
+		bool BusyWait(FTimespan Timeout)
 		{
-			return !IsValid() || Pimpl->Wait(Timeout);
+			return !IsValid() || Pimpl->BusyWait(Timeout);
 		}
 
-		// waits for task's completion or the given condition becomes true
+		// waits for task's completion or the given condition becomes true, while executing other tasks.
 		// the call can return much later than the given condition became true
 		// @return true if the task is completed
 		template<typename ConditionType>
-		bool Wait(ConditionType&& Condition)
+		bool BusyWait(ConditionType&& Condition)
 		{
-			return !IsValid() || Pimpl->Wait(Forward<ConditionType>(Condition));
+			return !IsValid() || Pimpl->BusyWait(Forward<ConditionType>(Condition));
 		}
 
 	protected:
@@ -82,6 +133,7 @@ namespace UE { namespace Tasks
 		ResultType& GetResult()
 		{
 			check(FSuper::IsValid());
+			FSuper::Wait();
 			return FSuper::Pimpl->GetResult();
 		}
 
@@ -188,12 +240,40 @@ namespace UE { namespace Tasks
 		return TTask<FResult>{ Task };
 	}
 
+	// wait for multiple tasks, with optional timeout
 	template<typename TaskCollectionType>
-	void Wait(TaskCollectionType&& Tasks)
+	bool Wait(TaskCollectionType&& Tasks, FTimespan Timeout = FTimespan::MaxValue())
+	{
+		// waiting with timeout can't do retraction, otherwise timeout value is unreliable
+		if (Timeout == FTimespan::MaxValue() && Private::TryRetractAndExecute(Tasks))
+		{
+			return true;
+		}
+
+		// the event must be alive for the task and this function lifetime, we don't know which one will be finished first as waiting can time out
+		// before the waiting task is completed
+		FSharedEventRef CompletionEvent;
+
+		TRefCountPtr<Private::TTaskWithResult<void>> WaitingTask{ new Private::TTaskWithResult<void>, /*bAddRef=*/ false };
+		WaitingTask->Init(TEXT("Waiting Task"), [CompletionEvent] { CompletionEvent->Trigger(); }, Private::FTaskBase::InlineTaskPriority);
+		WaitingTask->AddPrerequisites(Tasks);
+
+		if (WaitingTask->TryLaunch())
+		{	// was executed inline
+			check(WaitingTask->IsCompleted());
+			return true;
+		}
+
+		return CompletionEvent->Wait(Timeout);
+	}
+
+	// wait for multiple tasks while executing other tasks
+	template<typename TaskCollectionType>
+	void BusyWait(TaskCollectionType&& Tasks)
 	{
 		for (auto& Task : Tasks)
 		{
-			Task.Wait();
+			Task.BusyWait();
 		}
 	}
 
