@@ -4387,8 +4387,8 @@ int32 FHlslNiagaraTranslator::GetConstant(const FNiagaraVariable& Constant, FStr
 	FNiagaraVariable LiteralConstant = Constant;
 	if (GetLiteralConstantVariable(LiteralConstant))
 	{
-		checkf(LiteralConstant.GetType() == FNiagaraTypeDefinition::GetBoolDef(), TEXT("Only boolean types are currently supported for literal constants."));
-		ConstantStr = LiteralConstant.GetValue<bool>() ? TEXT("true") : TEXT("false");
+		checkf(LiteralConstant.GetType() == FNiagaraTypeDefinition::GetBoolDef() || LiteralConstant.GetType() == FNiagaraTypeDefinition::GetVec3Def(), TEXT("Only boolean and vec3 types are currently supported for literal constants."));
+		ConstantStr = GenerateConstantString(LiteralConstant);
 	}
 	else
 	{
@@ -5043,6 +5043,12 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 		return true;
 	}
 
+	else if (CompileOptions.AdditionalDefines.Contains(SYS_PARAM_EMITTER_LOCALSPACE.GetName().ToString()) && OutVar == SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION)
+	{
+		OutVar.SetValue(FVector(EForceInit::ForceInitToZero));
+		return true;
+	}
+
 	return false;
 }
 
@@ -5052,29 +5058,11 @@ bool FHlslNiagaraTranslator::HandleBoundConstantVariableToDataSetRead(FNiagaraVa
 	{
 		// Simulation position is 0 for localspace emitters.
 		// If we are not in localspace then this will not be a literal constant and is instead a default linked variable as handled in GenerateConstantString().
+		// If we are in localspace, interpret Engine.Emitter.SimulationPosition and Engine.Owner.Position and handle via ParameterMapRegisterExternalConstantNamespaceVariable.
 		const bool bEmitterLocalSpace = CompileOptions.AdditionalDefines.Contains(SYS_PARAM_EMITTER_LOCALSPACE.GetName().ToString());
 		if (bEmitterLocalSpace == false)
 		{
-			const FString SysParamEnginePositionSymbolNameString = GetSanitizedSymbolName(SYS_PARAM_ENGINE_POSITION.GetName().ToString(), true);
-			const FString ConstantStr = FString::Printf(TEXT("%s%s"), *SysParamEnginePositionSymbolNameString, *FString(TEXT(".xyz")));
-			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType());
-			if (CodeChunks.IsValidIndex(Output))
-			{
-				CodeChunks[Output].Original = InVariable;
-			}
-			return true;
-		}
-		else
-		{
-			InVariable.SetValue(FVector(EForceInit::ForceInitToZero));
-			float* ValuePtr = (float*)InVariable.GetData();
-			const FString ConstantStr = FString::Printf(TEXT("float3(%g,%g,%g)"), *ValuePtr, *(ValuePtr + 1), *(ValuePtr + 2));
-			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType()); 
-			if (CodeChunks.IsValidIndex(Output))
-			{
-				CodeChunks[Output].Original = InVariable;
-			}
-			return true;
+			return ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_POSITION, InNode, InParamMapHistoryIdx, Output, InDefaultPin);
 		}
 	}
 	return false;
