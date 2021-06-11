@@ -488,7 +488,7 @@ if (bMeetsMatch)
 					}
 					UE_LOG(LogAutomationCommandLine, Log, TEXT("Shutting down. GIsCriticalError=%d"), GIsCriticalError);
 					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
-					FPlatformMisc::RequestExit(true);
+					FPlatformMisc::RequestExitWithStatus(true, GIsCriticalError ? -1 : 0);
 					AutomationTestState = EAutomationTestState::Complete;
 				}
 				break;
