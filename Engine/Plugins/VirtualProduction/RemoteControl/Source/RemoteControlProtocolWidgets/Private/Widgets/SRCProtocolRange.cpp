@@ -49,24 +49,26 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 		[
 			MakeOutput()
 		]
+	]
 
-		// Copies current property value
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Top)
-		.Padding(0, 4, 0, 0)
+	// Copies current property value
+	+ SHorizontalBox::Slot()
+	.HAlign(HAlign_Left)
+	.VAlign(VAlign_Top)
+	.Padding(0, 6, 0, 0)
+	.AutoWidth()
+	[
+		SNew(SButton)
+		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.OnClicked(this, &SRCProtocolRange::CopyFromCurrentPropertyValue)
+		.ToolTipText(LOCTEXT("UsePropertyValue", "Use current property value."))
+		.ContentPadding(4.0f)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.IsFocusable(false)
 		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.OnClicked(this, &SRCProtocolRange::CopyFromCurrentPropertyValue)
-			.ToolTipText(LOCTEXT("UsePropertyValue", "Use current property value."))
-			.ContentPadding(4.0f)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.IsFocusable(false)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Use"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
+			SNew(SImage)
+			.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Use"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	]
 
