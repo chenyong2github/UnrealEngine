@@ -5,6 +5,7 @@
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
 #include "Misc/QueuedThreadPool.h"
+#include "Misc/ScopeExit.h"
 #include "Internationalization/Internationalization.h"
 #include "Math/Vector2D.h"
 #include "Misc/ConfigCacheIni.h"
@@ -678,6 +679,14 @@ SubmitCrashReportResult SendErrorReport(FPlatformErrorReport& ErrorReport,
 bool IsCrashReportAvailable(uint32 WatchedProcess, FSharedCrashContext& CrashContext, void* ReadPipe)
 {
 	TArray<uint8> Buffer;
+
+	// Temporary code: CRC suspiciously goes away without reason too often. It is either killed or died badly with an exception that skip over
+	//                 SEH exception handling (like STACK_BUFFER_OVERFLOW). One hypothesis is that we try to read a pipe to a corrupted process.
+	//                 So for a limited time, we are going to track when we are reading the pipe. This is IO extensive, because we need to flush
+	//                 the CRC analytics summary file each time, so we probably want to turn it off later once we figured out whether CRC crashes
+	//                 while reading the pipe or not.
+	FCrashReportAnalyticsSessionSummary::Get().OnCheckingForCrash(true);
+	ON_SCOPE_EXIT { FCrashReportAnalyticsSessionSummary::Get().OnCheckingForCrash(false); };
 
 	// Is data available on the pipe.
 	if (FPlatformProcess::ReadPipeToArray(ReadPipe, Buffer))

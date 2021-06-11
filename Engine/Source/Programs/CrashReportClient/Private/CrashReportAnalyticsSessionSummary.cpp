@@ -66,7 +66,8 @@ namespace CrcAnalyticsProperties
 	//     - V3 -> Windows optimization for stall/ensure -> The engine only captures the responsible thread so CRC walks 1 thread rather than all threads.
 	//     - V4 -> Stripped ensure callstack from the ensure error message to remove noise in the diagnostic log.
 	//     - V5 -> Measured time to stack-walk, gather files and addded stall count.
-	constexpr uint32 CrcAnalyticsSummaryVersion = 5;
+	//     - V6 -> Added MonitorTickCount, MonitorQueryingPipe and App/Death log.
+	constexpr uint32 CrcAnalyticsSummaryVersion = 6;
 
 	/** The exit code of the monitored application. */
 	static const TAnalyticsProperty<int32> MonitoredAppExitCode(TEXT("ExitCode"));
@@ -81,6 +82,8 @@ namespace CrcAnalyticsProperties
 	static const TAnalyticsProperty<FDateTime> StartupTimestamp(TEXT("MonitorStartupTimestamp"));
 	/** The CRC timestamp. */
 	static const TAnalyticsProperty<FDateTime> Timestamp(TEXT("MonitorTimestamp"));
+	/** Number of time CRC analytic thread ticked. */
+	static const TAnalyticsProperty<uint32> TickCount(TEXT("MonitorTickCount"));
 	/** If CRC raised an exception that was captured by SEH, this is the exception code. */
 	static const TAnalyticsProperty<int32> ExceptCode(TEXT("MonitorExceptCode"));
 	/** If CRC is about to close because the system sent a quit signal. */
@@ -115,6 +118,8 @@ namespace CrcAnalyticsProperties
 	static const TAnalyticsProperty<uint32> StallCount(TEXT("MonitorStallCount"));
 	/** The worst unattended report time measured (if any). The user is not involved, so it measure how fast CRC can process a crash, especially ensures and stalls. */
 	static const TAnalyticsProperty<float> LonguestUnattendedReportSecs(TEXT("MonitorLongestUnattendedReportSecs"));
+	/** Flags raised when the CRC is reading the pipe. */
+	static const TAnalyticsProperty<bool> ReadingPipeForCrash(TEXT("MonitorQueryingPipe"));
 }
 
 namespace CrashReportClientUtils
@@ -298,6 +303,7 @@ void FCrashReportAnalyticsSessionSummary::Initialize(const FString& ProcessGroup
 				CrcAnalyticsProperties::SummaryVersionNumber.Set(PropertyStore.Get(), CrcAnalyticsProperties::CrcAnalyticsSummaryVersion);
 				CrcAnalyticsProperties::StartupTimestamp.Set(PropertyStore.Get(), FDateTime::UtcNow());
 				CrcAnalyticsProperties::Timestamp.Set(PropertyStore.Get(), FDateTime::UtcNow());
+				CrcAnalyticsProperties::TickCount.Set(PropertyStore.Get(), 0);
 				CrcAnalyticsProperties::SessionDurationSecs.Set(PropertyStore.Get(), FMath::FloorToInt(static_cast<float>(FPlatformTime::Seconds() - SessionStartTimeSecs)));
 				CrcAnalyticsProperties::DiagnosticLogs.Set(PropertyStore.Get(), DiagnosticLog, CrashReportClientUtils::MaxDiagnosticLogLen);
 				CrcAnalyticsProperties::IsReportingCrash.Set(PropertyStore.Get(), false);
@@ -311,6 +317,7 @@ void FCrashReportAnalyticsSessionSummary::Initialize(const FString& ProcessGroup
 				CrcAnalyticsProperties::EnsureCount.Set(PropertyStore.Get(), 0);
 				CrcAnalyticsProperties::AssertCount.Set(PropertyStore.Get(), 0);
 				CrcAnalyticsProperties::StallCount.Set(PropertyStore.Get(), 0);
+				CrcAnalyticsProperties::ReadingPipeForCrash.Set(PropertyStore.Get(), false);
 
 				UpdatePowerStatus();
 				Flush();
@@ -336,6 +343,7 @@ void FCrashReportAnalyticsSessionSummary::Initialize(const FString& ProcessGroup
 
 					while (!bShutdown)
 					{
+						CrcAnalyticsProperties::TickCount.Update(PropertyStore.Get(), [](uint32& Actual) { ++Actual; return true; });
 						CrashReportClientUtils::TickPlatformSpecific();
 
 						// Monitor the power level.
@@ -512,6 +520,7 @@ void FCrashReportAnalyticsSessionSummary::OnMonitoredAppDeath(FProcHandle& Handl
 	if (IsValid() && bMonitoredAppDeathRecorded.compare_exchange_strong(Expected, true))
 	{
 		CrcAnalyticsProperties::MonitoredAppDeathTimestamp.Set(PropertyStore.Get(), FDateTime::UtcNow());
+		LogEvent(TEXT("App/Death"));
 
 		int32 ExitCode;
 		if (Handle.IsValid() && FPlatformProcess::GetProcReturnCode(Handle, &ExitCode))
@@ -727,4 +736,10 @@ bool FCrashReportAnalyticsSessionSummary::UpdatePowerStatus()
 	}
 
 	return bShouldFlush;
+}
+
+void FCrashReportAnalyticsSessionSummary::OnCheckingForCrash(bool bChecking)
+{
+	CrcAnalyticsProperties::ReadingPipeForCrash.Set(PropertyStore.Get(), bChecking);
+	Flush();
 }
