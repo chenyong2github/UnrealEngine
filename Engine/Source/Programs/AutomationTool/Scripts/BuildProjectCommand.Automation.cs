@@ -151,7 +151,8 @@ public partial class Project : CommandUtils
 			{
                 foreach (var ClientPlatformType in UniquePlatformTypes)
 				{
-                    CrashReportPlatforms.Add(ClientPlatformType);
+					UnrealTargetPlatform CrashReportPlatform = Platform.GetPlatform(ClientPlatformType).CrashReportPlatform ?? ClientPlatformType;
+                    CrashReportPlatforms.Add(CrashReportPlatform);
 					Agenda.AddTargets(Params.ClientCookedTargets.ToArray(), ClientPlatformType, BuildConfig, Params.CodeBasedUprojectPath, InAddArgs: " -remoteini=\"" + Params.RawProjectPath.Directory.FullName + "\"" + AdditionalArgs);
 				}
 			}
@@ -164,7 +165,8 @@ public partial class Project : CommandUtils
 			{
 				foreach (var ServerPlatformType in UniquePlatformTypes)
 				{
-                    CrashReportPlatforms.Add(ServerPlatformType);
+					UnrealTargetPlatform CrashReportPlatform = Platform.GetPlatform(ServerPlatformType).CrashReportPlatform ?? ServerPlatformType;
+                    CrashReportPlatforms.Add(CrashReportPlatform);
 					Agenda.AddTargets(Params.ServerCookedTargets.ToArray(), ServerPlatformType, BuildConfig, Params.CodeBasedUprojectPath, InAddArgs: " -remoteini=\"" + Params.RawProjectPath.Directory.FullName + "\"" + AdditionalArgs);
 				}
 			}

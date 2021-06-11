@@ -729,6 +729,14 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Allows a platform to use the crash reporter from a different (built-in) platform
+		/// </summary>
+		public virtual UnrealTargetPlatform? CrashReportPlatform
+		{
+			get { return null; }
+		}
+
+		/// <summary>
 		/// General purpose command to run generic string commands inside the platform interfeace
 		/// </summary>
 		/// <param name="Command"></param>
