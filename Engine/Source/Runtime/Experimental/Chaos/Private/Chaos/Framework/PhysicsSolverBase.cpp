@@ -154,10 +154,9 @@ namespace Chaos
 		if (AsyncDt != FixedDt)
 		{
 			AccumulatedTime = 0;
+			UE_LOG(LogChaos, Log, TEXT("FPhysicsSolverBase::AsyncDt:%f"), AsyncDt);
 		}
 		AsyncDt = FixedDt;
-		
-		UE_LOG(LogChaos, Log, TEXT("FPhysicsSolverBase::AsyncDt:%f"), AsyncDt);
 	}
 
 	void FPhysicsSolverBase::DisableAsyncMode()
