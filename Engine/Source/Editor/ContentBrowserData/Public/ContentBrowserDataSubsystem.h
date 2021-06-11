@@ -296,6 +296,21 @@ private:
 	 */
 	void Tick(const float InDeltaTime);
 
+	/**
+	 * Returns true if item data modifications are being processed.
+	 */
+	bool AllowModifiedItemDataUpdates() const;
+
+	/**
+	 * Called when Play in Editor begins.
+	 */
+	void OnBeginPIE(const bool bIsSimulating);
+
+	/**
+	 * Called when Play in Editor stops.
+	 */
+	void OnEndPIE(const bool bIsSimulating);
+
 	//~ IContentBrowserItemDataSink interface
 	virtual void QueueItemDataUpdate(FContentBrowserItemDataUpdate&& InUpdate) override;
 	virtual void NotifyItemDataRefreshed() override;
@@ -337,6 +352,16 @@ private:
 	 * True if an item data refresh notification is pending.
 	 */
 	bool bPendingItemDataRefreshedNotification = false;
+
+	/**
+	 * True if there are currently any ignored changes.
+	 */
+	bool bHasIgnoredItemUpdates = false;
+
+	/**
+	 * True if Play in Editor is active.
+	 */
+	bool bIsPIEActive = false;
 
 	/**
 	 * >0 if Tick events have currently been suppressed.
