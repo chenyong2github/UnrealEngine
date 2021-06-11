@@ -147,14 +147,10 @@ void SunMaskPS_Mobile(
 {
 	half4 SceneColor = SceneColorTexture.Sample(SceneColorSampler, InUVPos.xy);
 
-	#if MOBILE_USEDEPTHTEXTURE
+	#if MOBILE_USEDEPTHTEXTURE 
 		half InDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, InUVPos.xy, 0).r);
 	#else
-		#if MOBILE_DEFERRED_SHADING
-			half InDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, InUVPos.xy, 0).r);
-		#else
-			half InDepth = ConvertFromDeviceZ(SceneColor.a);
-		#endif
+		half InDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, InUVPos.xy, 0).r);
 	#endif
 	
 	#if MOBILE_USESUN
@@ -853,6 +849,7 @@ void IntegrateDOFPS_Mobile(
 	half4 Dof = Texture2DSample(DofBlurTexture, DofBlurSampler, TexCoords.zw);
 	half DofCoc = Texture2DSample(SunShaftAndDofTexture, SunShaftAndDofSampler, TexCoords.xy).r;
 	// Convert alpha back into circle of confusion.
+	OutColor.a = SceneColor.a;
 	SceneColor.a = max(Dof.a, abs(DofCoc * 2.0 - 1.0));
 	// Convert circle of confusion into blend factors.		
 	half2 ScaleBias = CocBlendScaleBias(); // Constant.
@@ -863,7 +860,6 @@ void IntegrateDOFPS_Mobile(
 	OutColor.rgb = lerp(SceneColor.rgb, DofFine.rgb, DofAmountFine);
 	// Blend in coarse DOF.
 	OutColor.rgb = lerp(OutColor.rgb, Dof.rgb, DofAmount);
-	OutColor.a = SceneColor.a;
 }
 
 //

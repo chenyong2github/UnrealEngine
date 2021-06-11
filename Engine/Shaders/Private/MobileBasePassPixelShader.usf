@@ -92,10 +92,16 @@ int NumDynamicPointLights;
 #define FORCE_VERTEX_NORMAL (MOBILE_QL_DISABLE_MATERIAL_NORMAL)
 #define SUPPORT_SPOTLIGHTS_SHADOW (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS_SHADOW
 #define DEFERRED_SHADING_PATH (MOBILE_DEFERRED_SHADING && ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER))
-#define USE_SCENE_DEPTH_AUX (DEFERRED_SHADING_PATH && METAL_PROFILE)
+#define USE_SCENE_DEPTH_AUX (DEFERRED_SHADING_PATH && METAL_PROFILE) || !DEFERRED_SHADING_PATH
+#if DEFERRED_SHADING_PATH
+	#define SV_TargetDepthAux SV_Target4
+#else
+	#define SV_TargetDepthAux SV_Target1
+#endif
 #define TRANSLUCENCY_NON_DIRECTIONAL (MATERIALBLENDING_ANY_TRANSLUCENT && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
 #define ALLOW_CUBE_REFLECTIONS HQ_REFLECTIONS
+#define MOBILE_PROPAGATE_ALPHA_PREMULTIPLY 2
 
 #include "SHCommon.ush"
 #include "MobileBasePassCommon.ush"
@@ -566,7 +572,7 @@ void Main(
 	, out HALF4_TYPE OutColor		: SV_Target0
 #endif
 #if USE_SCENE_DEPTH_AUX
-	, out float OutSceneDepthAux : SV_Target4
+	, out float OutSceneDepthAux : SV_TargetDepthAux
 #endif
 #if OUTPUT_PIXEL_DEPTH_OFFSET
     , out float OutDepth : SV_Depth
@@ -996,11 +1002,10 @@ void Main(
 		#if !MATERIAL_USE_ALPHA_TO_COVERAGE
 			// Scene color alpha is not used yet so we set it to 1
 			OutColor.a = 1.0;
-
-			#if OUTPUT_MOBILE_HDR 
-				// Store depth in FP16 alpha. This depth value can be fetched during translucency or sampled in post-processing
-				OutColor.a = SvPosition.z;
-			#endif
+			
+		#if USE_SCENE_DEPTH_AUX
+			OutSceneDepthAux = SvPosition.z;
+		#endif
 		#else
 			half MaterialOpacityMask = GetMaterialMaskInputRaw(PixelMaterialInputs);
 			OutColor.a = GetMaterialMask(PixelMaterialInputs) / max(abs(ddx(MaterialOpacityMask)) + abs(ddy(MaterialOpacityMask)), 0.0001f) + 0.5f;
@@ -1018,10 +1023,6 @@ void Main(
 		OutColor.rgb = min(OutColor.rgb, Max10BitsFloat.xxx * 0.5f);
 	#endif
 
-#if USE_SCENE_DEPTH_AUX
-	OutSceneDepthAux = SvPosition.z;
-#endif
-
 #if USE_EDITOR_COMPOSITING && (MOBILE_EMULATION)
 	// Editor primitive depth testing
 	OutColor.a = 1.0;
@@ -1035,7 +1036,9 @@ void Main(
 		OutColor.rgb = sqrt(OutColor.rgb);
 	#endif
 #endif
-
+#if (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ALPHACOMPOSITE) && (MOBILE_PROPAGATE_ALPHA == MOBILE_PROPAGATE_ALPHA_PREMULTIPLY)
+		OutColor.rgb = OutColor.rgb * OutColor.a;
+#endif
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
 	FinalizeVirtualTextureFeedback(
 		MaterialParameters.VirtualTextureFeedback,

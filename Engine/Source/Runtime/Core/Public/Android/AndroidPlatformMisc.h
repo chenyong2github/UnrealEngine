@@ -302,6 +302,11 @@ public:
 	 */
 	static bool Expand16BitIndicesTo32BitOnLoad();
 
+	/**
+	 * Will return true if we wish to propagate the alpha to the backbuffer
+	 */
+	static int GetMobilePropagateAlphaSetting();
+
 	static bool SupportsBackbufferSampling();
 
 	static void SetMemoryWarningHandler(void (*Handler)(const FGenericMemoryWarningContext& Context));

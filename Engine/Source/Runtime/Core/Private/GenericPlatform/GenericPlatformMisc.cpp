@@ -1817,8 +1817,12 @@ bool FGenericPlatformMisc::IsPGOEnabled()
 	return PLATFORM_COMPILER_OPTIMIZATION_PG;
 }
 
-bool FGenericPlatformMisc::CheckPersistentDownloadStorageSpaceAvailable( uint64 BytesRequired, bool bAttemptToUseUI )
+int FGenericPlatformMisc::GetMobilePropagateAlphaSetting()
 {
-	return true;
+	static int PropagateAlpha = -1;
+	if (PropagateAlpha < 0)
+	{
+		GConfig->GetInt(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.PropagateAlpha"), PropagateAlpha, GEngineIni);
+	}
+	return PropagateAlpha;
 }
-

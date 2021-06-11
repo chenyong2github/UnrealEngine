@@ -188,7 +188,6 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool SupportsDepthStencilRead() { return false; }
 	static FORCEINLINE bool SupportsFloatReadSurface() { return SupportsColorBufferHalfFloat(); }
 	static FORCEINLINE bool SupportsWideMRT() { return true; }
-	static FORCEINLINE bool SupportsMultisampledTextures() { return false; }
 	static FORCEINLINE bool SupportsPolygonMode() { return false; }
 	static FORCEINLINE bool SupportsTexture3D() { return true; }
 	static FORCEINLINE bool SupportsMobileMultiView() { return bSupportsMobileMultiView; }
@@ -369,6 +368,12 @@ struct FOpenGLES : public FOpenGLBase
 	{
 		check(bSupportsCopyImage);
 		glCopyImageSubDataEXT(SrcName, SrcTarget, SrcLevel, SrcX, SrcY, SrcZ, DstName, DstTarget, DstLevel, DstX, DstY, DstZ, Width, Height, Depth);
+	}
+
+	static FORCEINLINE bool TexStorage2DMultisample(GLenum Target, GLsizei Samples, GLint InternalFormat, GLsizei Width, GLsizei Height, GLboolean FixedSampleLocations)
+	{
+		glTexStorage2DMultisample(Target, Samples, InternalFormat, Width, Height, FixedSampleLocations);
+		return true;
 	}
 
 	static FORCEINLINE void ClearBufferfv(GLenum Buffer, GLint DrawBufferIndex, const GLfloat* Value)

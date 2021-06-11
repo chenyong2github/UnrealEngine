@@ -161,8 +161,8 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 	FRDGTextureRef GBufferE{};
 	FRDGTextureRef GBufferF{};
 
-	// (Mobile Deferred) Additional GBuffer texture used by mobile
-	FRDGTextureRef DepthAux{};
+	// Additional Buffer texture used by mobile
+	FRDGTextureMSAA DepthAux{};
 
 	// Texture containing dynamic motion vectors. Can be bound by the base pass or its own velocity pass.
 	FRDGTextureRef Velocity{};

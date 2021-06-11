@@ -290,7 +290,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	}
 #endif
 
-#if !POST_PROCESS_ALPHA
+#if !POST_PROCESS_ALPHA && !MOBILE_PROPAGATE_ALPHA
 	OutColor.a = 0; // Skip all computations related to alpha
 #endif
 }

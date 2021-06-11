@@ -4869,6 +4869,11 @@ void GlobalBeginCompileShader(
 			bool bGLESDeferredShading = Target.Platform == SP_OPENGL_ES3_1_ANDROID;
 			Input.Environment.SetDefine(TEXT("USE_GLES_FBF_DEFERRED"), bGLESDeferredShading ? 1 : 0);
 		}
+
+		static FShaderPlatformCachedIniValue<int32> MobilePropagateAlphaIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.PropagateAlpha"));
+		int MobilePropagateAlphaIniValueInt = MobilePropagateAlphaIniValue.Get((EShaderPlatform)ShaderPlatform);
+
+		Input.Environment.SetDefine(TEXT("MOBILE_PROPAGATE_ALPHA"), MobilePropagateAlphaIniValueInt);
 	}
 
 	// Set VR definitions

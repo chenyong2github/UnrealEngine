@@ -39,13 +39,16 @@
 	// 1 component: R_4
 	Texture2D<float> gl_LastFragDataR_4;
 	#define SubpassFetchR_4() gl_LastFragDataR_4.Load(uint3(0, 0, 0), 0)
+
+	Texture2D<float> gl_LastFragDataR_1;
+	#define SubpassFetchR_1() gl_LastFragDataR_1.Load(uint3(0, 0, 0), 0)
 	//
 	// Rest of SubpassFetch can be found in MetalSubpassSupport.ush
 	//
 	#if MOBILE_DEFERRED_SHADING
 		#define DepthbufferFetchES2() SubpassFetchR_4()
 	#else
-		#define DepthbufferFetchES2() SubpassFetchRGBA_0().w
+		#define DepthbufferFetchES2() SubpassFetchR_1()
 	#endif
 #else
 	#define SubpassFetchRGBA_0() ((float4)0.0)

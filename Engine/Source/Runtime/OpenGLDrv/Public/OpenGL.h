@@ -94,7 +94,6 @@ public:
 	static FORCEINLINE bool SupportsDepthStencilReadSurface()			{ return true; }
 	static FORCEINLINE bool SupportsFloatReadSurface()					{ return true; }
 	static FORCEINLINE bool SupportsWideMRT()							{ return true; }
-	static FORCEINLINE bool SupportsMultisampledTextures()				{ return true; }
 	static FORCEINLINE bool SupportsPolygonMode()						{ return true; }
 	static FORCEINLINE bool SupportsTexture3D()							{ return true; }
 	static FORCEINLINE bool SupportsMobileMultiView()					{ return false; }

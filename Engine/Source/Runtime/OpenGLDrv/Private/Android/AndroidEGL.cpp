@@ -137,6 +137,10 @@ validConfig (0)
 	int DepthBufferPreference = (int)FAndroidWindow::GetDepthBufferPreference();
 	if (DepthBufferPreference > 0)
 		depthSize = DepthBufferPreference;
+	if (FAndroidMisc::GetMobilePropagateAlphaSetting() > 0)
+	{
+		alphaSize = 8;
+	}
 }
 
 AndroidEGL::AndroidEGL()
