@@ -439,7 +439,7 @@ namespace HordeServer.Tasks.Impl
 				}
 				
 				// Get a new subscription
-				Subscription? Subscription = await WaitForSubscriberAsync(TimeSpan.FromSeconds(5.0), PoolFilter);
+				Subscription? Subscription = await WaitForSubscriberAsync(TimeSpan.FromSeconds(20.0), null);
 				if (Subscription == null)
 				{
 					ExecuteResponse FailedResponse = new ExecuteResponse();
