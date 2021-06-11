@@ -161,6 +161,7 @@ public:
 	virtual bool RequestVariableDropOnPin(UEdGraph* InGraph, FProperty* InVariableToDrop, UEdGraphPin* InPin, const FVector2D& InDropPosition, const FVector2D& InScreenPosition) override;
 	virtual bool IsStructEditable(UStruct* InStruct) const;
 	virtual void SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const override;
+	void SetNodePosition(UEdGraphNode* Node, const FVector2D& Position, bool bSetupUndo) const;
 	virtual void GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const override;
 	virtual bool GetLocalVariables(const UEdGraph* InGraph, TArray<FBPVariableDescription>& OutLocalVariables) const override;
 	virtual TSharedPtr<FEdGraphSchemaAction> MakeActionFromVariableDescription(const UEdGraph* InEdGraph, const FBPVariableDescription& Variable) const override;
@@ -191,13 +192,20 @@ public:
 	/** Returns all of the applicable pin types for variables within a control rig */
 	virtual void GetVariablePinTypes(TArray<FEdGraphPinType>& PinTypes) const;
 
+	void StartGraphNodeInteraction(UEdGraphNode* InNode) const;
 	void EndGraphNodeInteraction(UEdGraphNode* InNode) const;
+	static TArray<UEdGraphNode*> GetNodesToMoveForNode(UEdGraphNode* InNode);
 
 private:
 
 	const UEdGraphPin* LastPinForCompatibleCheck = nullptr;
 	bool bLastPinWasInput;
 	mutable UEdGraphPin* PinBeingDropped = nullptr;
+
+#if WITH_EDITOR
+	mutable TArray<UEdGraphNode*> NodesBeingInteracted;
+	mutable TMap<FName, FVector2D> NodePositionsDuringStart;
+#endif
 
 	friend class UControlRigRerouteNodeSpawner;
 	friend class UControlRigIfNodeSpawner;

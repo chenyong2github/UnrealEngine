@@ -570,7 +570,7 @@ void SControlRigGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFi
 		{
 			if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
 			{
-				RigSchema->SetNodePosition(GraphNode, NewPosition);
+				RigSchema->SetNodePosition(GraphNode, NewPosition, false);
 			}
 		}
 	}

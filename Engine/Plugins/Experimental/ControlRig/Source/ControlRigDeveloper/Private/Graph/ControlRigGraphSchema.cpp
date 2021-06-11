@@ -775,9 +775,16 @@ bool UControlRigGraphSchema::IsStructEditable(UStruct* InStruct) const
 
 void UControlRigGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const
 {
+	return SetNodePosition(Node, Position, true);
+}
+
+void UControlRigGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D& Position, bool bSetupUndo) const
+{
+	StartGraphNodeInteraction(Node);
+
 	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 	{
-		RigNode->GetController()->SetNodePosition(RigNode->GetModelNode(), Position, true, false);
+		RigNode->GetController()->SetNodePosition(RigNode->GetModelNode(), Position, bSetupUndo, false);
 	}
 }
 
@@ -1302,6 +1309,43 @@ bool UControlRigGraphSchema::RequestVariableDropOnPin(UEdGraph* InGraph, FProper
 	return false;
 }
 
+void UControlRigGraphSchema::StartGraphNodeInteraction(UEdGraphNode* InNode) const
+{
+#if WITH_EDITOR
+
+	check(InNode);
+
+	if(NodesBeingInteracted.Contains(InNode))
+	{
+		return;
+	}
+	
+	NodePositionsDuringStart.Reset();
+	NodesBeingInteracted.Reset();
+
+	UControlRigGraph* Graph = Cast<UControlRigGraph>(InNode->GetOuter());
+	if (Graph == nullptr)
+	{
+		return;
+	}
+
+	check(Graph->GetController());
+	check(Graph->GetModel());
+
+	NodesBeingInteracted = GetNodesToMoveForNode(InNode);
+
+	for (UEdGraphNode* NodeToMove : NodesBeingInteracted)
+	{
+		FName NodeName = NodeToMove->GetFName();
+		if (URigVMNode* ModelNode = Graph->GetModel()->FindNodeByName(NodeName))
+		{
+			NodePositionsDuringStart.FindOrAdd(NodeName, ModelNode->GetPosition());
+		}
+	}
+
+#endif
+}
+
 void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 {
 #if WITH_EDITOR
@@ -1315,7 +1359,59 @@ void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 	check(Graph->GetController());
 	check(Graph->GetModel());
 
+	TArray<UEdGraphNode*> NodesToMove = GetNodesToMoveForNode(InNode);
+	
+	bool bMovedSomething = false;
+
+	Graph->GetController()->OpenUndoBracket(TEXT("Move Nodes"));
+
+	for (UEdGraphNode* NodeToMove : NodesToMove)
+	{
+		FName NodeName = NodeToMove->GetFName();
+		if (URigVMNode* ModelNode = Graph->GetModel()->FindNodeByName(NodeName))
+		{
+			if(FVector2D* OldPosition = NodePositionsDuringStart.Find(NodeName))
+			{
+				Graph->GetController()->SuspendNotifications(true);
+				Graph->GetController()->SetNodePositionByName(NodeName, *OldPosition, false, false);
+				Graph->GetController()->SuspendNotifications(false);
+			}
+			
+			FVector2D NewPosition(NodeToMove->NodePosX, NodeToMove->NodePosY);
+			if(Graph->GetController()->SetNodePositionByName(NodeName, NewPosition, true, false))
+			{
+				bMovedSomething = true;
+			}
+		}
+	}
+
+	if (bMovedSomething)
+	{
+		Graph->GetController()->CloseUndoBracket();
+	}
+	else
+	{
+		Graph->GetController()->CancelUndoBracket();
+	}
+
+	NodesBeingInteracted.Reset();
+	NodePositionsDuringStart.Reset();
+
+#endif
+}
+
+TArray<UEdGraphNode*> UControlRigGraphSchema::GetNodesToMoveForNode(UEdGraphNode* InNode)
+{
 	TArray<UEdGraphNode*> NodesToMove;
+
+#if WITH_EDITOR
+
+	UControlRigGraph* Graph = Cast<UControlRigGraph>(InNode->GetOuter());
+	if (Graph == nullptr)
+	{
+		return NodesToMove;
+	}
+
 	NodesToMove.Add(InNode);
 
 	for (UEdGraphNode* SelectedGraphNode : Graph->Nodes)
@@ -1343,33 +1439,10 @@ void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 		}
 	}
 
-	bool bMovedSomething = false;
-
-	Graph->GetController()->OpenUndoBracket(TEXT("Move Nodes"));
-
-	for (UEdGraphNode* NodeToMove : NodesToMove)
-	{
-		FName NodeName = NodeToMove->GetFName();
-		if (URigVMNode* ModelNode = Graph->GetModel()->FindNodeByName(NodeName))
-		{
-			FVector2D Position(NodeToMove->NodePosX, NodeToMove->NodePosY);
-			if (Graph->GetController()->SetNodePositionByName(NodeName, Position, true, false))
-			{
-				bMovedSomething = true;
-			}
-		}
-	}
-
-	if (bMovedSomething)
-	{
-		Graph->GetController()->CloseUndoBracket();
-	}
-	else
-	{
-		Graph->GetController()->CancelUndoBracket();
-	}
-
 #endif
+
+	return NodesToMove;
 }
+
 
 #undef LOCTEXT_NAMESPACE
