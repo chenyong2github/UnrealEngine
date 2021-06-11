@@ -710,6 +710,17 @@ namespace UnrealBuildTool
 				if (bCanUseMultipleRPATHs)
 				{
 					LinkCommand += " -rpath \"@loader_path/" + RelativePath + "\"";
+
+					// We are referencing plugins that need to be relative to the engine not the dylib we are building
+					// To be safe leave the previous relative loader_path in place and add a relative engine executable path
+					if (!bIsBuildingAppBundle && LibraryDir.Contains("/Engine/Plugins/") && ExeAbsolutePath.EndsWith("dylib"))
+					{
+						int EngineDirStrIndex = LibraryDir.IndexOf("Engine");
+						if (EngineDirStrIndex >= 0)
+						{
+							LinkCommand += " -rpath \"@executable_path/../../../../../../" + LibraryDir.Substring(EngineDirStrIndex) + "\"";
+						}
+					}
 				}
 
 				// If building an app bundle, we also need an RPATH for use in packaged game and a separate one for staged builds

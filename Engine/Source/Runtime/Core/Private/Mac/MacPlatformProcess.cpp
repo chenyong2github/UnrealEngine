@@ -53,11 +53,18 @@ static void* GetDllHandleImpl(NSString* DylibPath, NSString* ExecutableFolder)
 		}
 		Handle = dlopen([[@"@rpath" stringByAppendingPathComponent:DylibName] fileSystemRepresentation], RTLD_NOLOAD | RTLD_LAZY | RTLD_LOCAL);
 	}
+	
 	if (!Handle)
 	{
 		// Not loaded yet, so try to open it
 		Handle = dlopen([DylibPath fileSystemRepresentation], RTLD_LAZY | RTLD_LOCAL);
 	}
+	
+	if (!Handle)
+	{
+		UE_LOG(LogMac, Warning, TEXT("dlopen failed: %s"), ANSI_TO_TCHAR(dlerror()));
+	}
+		
 	return Handle;
 }
 
@@ -80,7 +87,6 @@ void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
 		{
 			// If it's not a absolute or relative path, try to find the file in the app bundle
 			DylibPath = [ExecutableFolder stringByAppendingPathComponent:FString(Filename).GetNSString()];
-	
 			Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
 		}
 	}
@@ -93,10 +99,6 @@ void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
 			DylibPath = [ExecutableFolder stringByAppendingPathComponent:FString(Filename).GetNSString()];
 		}
 		Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
-	}
-	if (!Handle)
-	{
-		UE_LOG(LogMac, Warning, TEXT("dlopen failed: %s"), ANSI_TO_TCHAR(dlerror()));
 	}
 	return Handle;
 }
