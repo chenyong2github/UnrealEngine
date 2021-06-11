@@ -1093,9 +1093,10 @@ public:
 		return Current.Offset;
 	}
 
+	// Remaining size from the current offset
 	inline uint64 GetCurrentSize() const
 	{
-		return Current.Size;
+		return Current.Alloc.Size - (Current.Offset - Current.Alloc.Offset);
 	}
 
 
