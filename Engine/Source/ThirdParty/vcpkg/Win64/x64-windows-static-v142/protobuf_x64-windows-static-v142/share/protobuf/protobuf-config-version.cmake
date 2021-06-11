@@ -1,4 +1,4 @@
-set(PACKAGE_VERSION "3.13.0.0")
+set(PACKAGE_VERSION "3.15.8.0")
 set(${PACKAGE_FIND_NAME}_VERSION_PRERELEASE "" PARENT_SCOPE)
 
 # Prerelease versions cannot be passed in directly via the find_package command,
@@ -45,8 +45,8 @@ macro(_check_and_save_build_option OPTION VALUE)
   set(${PACKAGE_FIND_NAME}_${OPTION} ${VALUE} PARENT_SCOPE)
 endmacro()
 _check_and_save_build_option(WITH_ZLIB OFF)
-_check_and_save_build_option(MSVC_STATIC_RUNTIME ON)
-_check_and_save_build_option(BUILD_SHARED_LIBS OFF)
+_check_and_save_build_option(MSVC_STATIC_RUNTIME 1)
+_check_and_save_build_option(BUILD_SHARED_LIBS 0)
 
 # if the installed or the using project don't have CMAKE_SIZEOF_VOID_P set, ignore it:
 if(CMAKE_SIZEOF_VOID_P AND "8")

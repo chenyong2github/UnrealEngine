@@ -36,11 +36,6 @@ ABSL_NAMESPACE_BEGIN
 static HANDLE process = NULL;
 
 void InitializeSymbolizer(const char*) {
-// UWP doesn't support this function
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && \
-    !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-  return;
-#else
   if (process != nullptr) {
     return;
   }
@@ -57,16 +52,9 @@ void InitializeSymbolizer(const char*) {
     const unsigned long long error{GetLastError()};  // NOLINT(runtime/int)
     ABSL_RAW_LOG(FATAL, "SymInitialize() failed: %llu", error);
   }
-#endif
 }
 
 bool Symbolize(const void* pc, char* out, int out_size) {
-
-// UWP doesn't support this function
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && \
-    !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-  return false;
-#else
   if (out_size <= 0) {
     return false;
   }
@@ -87,7 +75,6 @@ bool Symbolize(const void* pc, char* out, int out_size) {
     out[out_size - 1] = '\0';
   }
   return true;
-#endif
 }
 
 ABSL_NAMESPACE_END

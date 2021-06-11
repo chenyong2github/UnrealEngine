@@ -173,7 +173,7 @@ class MessageSetFieldSkipper;
 // off to the ExtensionSet for parsing.  Etc.
 class PROTOBUF_EXPORT ExtensionSet {
  public:
-  ExtensionSet();
+  constexpr ExtensionSet();
   explicit ExtensionSet(Arena* arena);
   ~ExtensionSet();
 
@@ -469,7 +469,14 @@ class PROTOBUF_EXPORT ExtensionSet {
   // Returns a pointer past the last written byte.
   uint8* _InternalSerialize(int start_field_number, int end_field_number,
                             uint8* target,
-                            io::EpsCopyOutputStream* stream) const;
+                            io::EpsCopyOutputStream* stream) const {
+    if (flat_size_ == 0) {
+      assert(!is_large());
+      return target;
+    }
+    return _InternalSerializeImpl(start_field_number, end_field_number, target,
+                                  stream);
+  }
 
   // Like above but serializes in MessageSet format.
   void SerializeMessageSetWithCachedSizes(io::CodedOutputStream* output) const {
@@ -510,6 +517,10 @@ class PROTOBUF_EXPORT ExtensionSet {
   int SpaceUsedExcludingSelf() const;
 
  private:
+  // Implementation of _InternalSerialize for non-empty map_.
+  uint8* _InternalSerializeImpl(int start_field_number, int end_field_number,
+                                uint8* target,
+                                io::EpsCopyOutputStream* stream) const;
   // Interface of a lazily parsed singular message extension.
   class PROTOBUF_EXPORT LazyMessageExtension {
    public:
@@ -849,6 +860,9 @@ class PROTOBUF_EXPORT ExtensionSet {
 
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ExtensionSet);
 };
+
+constexpr ExtensionSet::ExtensionSet()
+    : arena_(nullptr), flat_capacity_(0), flat_size_(0), map_{nullptr} {}
 
 // These are just for convenience...
 inline void ExtensionSet::SetString(int number, FieldType type,
@@ -1325,7 +1339,9 @@ RepeatedMessageTypeTraits<Type>::GetDefaultRepeatedField() {
 // ExtensionIdentifier
 
 // This is the type of actual extension objects.  E.g. if you have:
-//   extends Foo with optional int32 bar = 1234;
+//   extend Foo {
+//     optional int32 bar = 1234;
+//   }
 // then "bar" will be defined in C++ as:
 //   ExtensionIdentifier<Foo, PrimitiveTypeTraits<int32>, 5, false> bar(1234);
 //
