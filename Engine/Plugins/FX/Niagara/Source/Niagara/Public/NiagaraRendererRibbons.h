@@ -50,7 +50,6 @@ protected:
 		uint32 SliceVertexBitMask;
 	};
 
-	static int32 CalculateInterpIndex(const FRibbonRenderingIndexOffsets& Offsets, int32 SegmentIndex, int32 SubSegmentIndex, int32 SliceVertexId);
 	static int32 CalculateBitsForRange(int32 Range);
 	static FRibbonRenderingIndexOffsets CalculateIndexBufferPacking(int32 NumSegments, int32 NumInterpolations, int32 NumSliceVertices);
 
