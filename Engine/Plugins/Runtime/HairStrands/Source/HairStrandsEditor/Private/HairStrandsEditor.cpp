@@ -19,14 +19,18 @@
 #include "GroomBindingDetailsCustomization.h"
 #include "GroomCacheImportOptions.h"
 #include "GroomCacheImportSettingsCustomization.h"
+#include "GroomCacheStreamingManager.h"
 #include "GroomCacheTrackEditor.h"
 #include "GroomComponentDetailsCustomization.h"
 #include "GroomCreateBindingOptions.h"
 #include "GroomEditorCommands.h"
 #include "GroomEditorMode.h"
+#include "GroomPluginSettings.h"
 
 #include "AssetRegistryModule.h"
 #include "FileHelpers.h"
+#include "ISettingsModule.h"
+#include "ISettingsSection.h"
 #include "ISequencerModule.h"
 
 IMPLEMENT_MODULE(FGroomEditor, HairStrandsEditor);
@@ -139,10 +143,30 @@ void FGroomEditor::StartupModule()
 
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
 	TrackEditorBindingHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FGroomCacheTrackEditor::CreateTrackEditor));
+
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule != nullptr)
+	{
+		ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "Groom",
+			LOCTEXT("GroomPluginSettingsName", "Groom"),
+			LOCTEXT("GroomPluginSettingsDescription", "Configure the Groom plug-in."),
+			GetMutableDefault<UGroomPluginSettings>()
+		);
+	}
+
+	IGroomCacheStreamingManager::Register();
 }
 
 void FGroomEditor::ShutdownModule()
 {
+	IGroomCacheStreamingManager::Unregister();
+
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule != nullptr)
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "Groom");
+	}
+
 	ISequencerModule* SequencerModulePtr = FModuleManager::Get().GetModulePtr<ISequencerModule>("Sequencer");
 	if (SequencerModulePtr)
 	{

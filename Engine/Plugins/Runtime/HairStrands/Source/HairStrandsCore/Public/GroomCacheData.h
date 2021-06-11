@@ -144,17 +144,13 @@ class IGroomCacheBuffers
 public:
 	virtual ~IGroomCacheBuffers() {}
 
-	virtual FGroomCacheAnimationData& GetCurrentFrameBuffer() = 0;
-	virtual FGroomCacheAnimationData& GetNextFrameBuffer() = 0;
-	virtual FGroomCacheAnimationData& GetInterpolatedFrameBuffer() = 0;
+	virtual const FGroomCacheAnimationData& GetCurrentFrameBuffer() = 0;
+	virtual const FGroomCacheAnimationData& GetNextFrameBuffer() = 0;
+	virtual const FGroomCacheAnimationData& GetInterpolatedFrameBuffer() = 0;
 
 	virtual int32 GetCurrentFrameIndex() const = 0;
 	virtual int32 GetNextFrameIndex() const = 0;
 	virtual float GetInterpolationFactor() const = 0;
-
-	virtual void SetCurrentFrameIndex(int32 FrameIndex) = 0;
-	virtual void SetNextFrameIndex(int32 FrameIndex) = 0;
-	virtual void SetInterpolationFactor(float Factor) = 0;
 
 	FCriticalSection* GetCriticalSection() { return &CriticalSection; }
 
