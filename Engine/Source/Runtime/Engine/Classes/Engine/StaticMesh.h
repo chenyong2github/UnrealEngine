@@ -1583,6 +1583,26 @@ public:
 	ENGINE_API int32 GetNumVertices(int32 LODIndex) const;
 
 	/**
+	 * Returns the number of triangles for the specified LOD.
+	 */
+	ENGINE_API int32 GetNumTriangles(int32 LODIndex) const;
+
+	/**
+	 * Returns the number of tex coords for the specified LOD.
+	 */
+	ENGINE_API int32 GetNumTexCoords(int32 LODIndex) const;
+
+	/**
+	 * Returns the number of vertices of the Nanite representation of this mesh.
+	 */
+	ENGINE_API int32 GetNumNaniteVertices() const;
+
+	/**
+	 * Returns the number of triangles of the Nanite representation of this mesh.
+	 */
+	ENGINE_API int32 GetNumNaniteTriangles() const;
+
+	/**
 	 * Returns the number of LODs used by the mesh.
 	 */
 	UFUNCTION(BlueprintPure, Category = "StaticMesh", meta=(ScriptName="GetNumLods"))
