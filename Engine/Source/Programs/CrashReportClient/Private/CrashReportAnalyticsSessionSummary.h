@@ -58,6 +58,9 @@ public:
 	/** Invoked when the system gently signal CRC to quit. */
 	void OnQuitSignal();
 
+	/** Invoked when CRC is reading the pipe to detect a crash. */
+	void OnCheckingForCrash(bool bChecking);
+
 	/** Invoked when CRC starts to process a crash/ensure/stall.*/
 	void OnCrashReportStarted(ECrashContextType Type, const TCHAR* ErrorMsg);
 
