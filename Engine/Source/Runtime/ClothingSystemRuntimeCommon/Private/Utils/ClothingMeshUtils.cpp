@@ -682,11 +682,10 @@ namespace ClothingMeshUtils
 		// Pass in inverted normals, since they get inverted at runtime (Left handed system).
 		double W[3];
 		const int32 Count = CoplanarityParam(A, B, C, NA, NB, NC, Point, W);
-
-		if (Count == 0)
-		{
-			return GetPointBaryAndDist(A, B, C, Point);
-		}
+		
+		// We should always have a solution. The only case where we can get zero roots from the
+		// cubic equation, we handle separately.
+		checkSlow(Count != 0);
 
 		FVector4 BaryAndDist;
 		double MinDistanceSq = std::numeric_limits<double>::max();
