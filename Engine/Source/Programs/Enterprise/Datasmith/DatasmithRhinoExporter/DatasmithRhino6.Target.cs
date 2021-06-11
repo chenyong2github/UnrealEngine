@@ -73,6 +73,11 @@ public abstract class DatasmithRhinoBaseTarget : TargetRules
 		{
 			string CSharpDllPath = Path.Combine("$(EngineDir)", "Binaries", "$(TargetPlatform)", ExeBinariesSubFolder, string.Format("{0}.dll", ProjectName));
 			AdditionalBuildProducts.Add(CSharpDllPath);
+
+			if (Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				AdditionalBuildProducts.Add(Path.Combine("$(EngineDir)", "Binaries", "$(TargetPlatform)", ExeBinariesSubFolder, string.Format("{0}.rhp", ProjectName)));
+			}
 		}
 
 		PostBuildSteps.Add(string.Format(@"echo {0}", BuildCommand));

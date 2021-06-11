@@ -6,6 +6,10 @@ using Rhino;
 using Rhino.PlugIns;
 using System;
 
+#if MAC_OS
+using RhinoMac;
+#endif
+
 namespace DatasmithRhino
 {
 	///<summary>
@@ -46,6 +50,23 @@ namespace DatasmithRhino
 			result.AddFileType("Unreal Datasmith (*.udatasmith)", "udatasmith");
 			return result;
 		}
+
+#if MAC_OS
+		protected override LoadReturnCode OnLoad(ref string errorMessage)
+		{
+			string PluginPath = System.IO.Path.GetDirectoryName(Assembly.Location);
+			string ResourcesPath = System.IO.Path.Combine(PluginPath, "Resources");
+			string PListPath = System.IO.Path.Combine(ResourcesPath, "DatasmithRhino.plist");
+			
+			bool bLoaded = RhinoMac.Runtime.MacPlatformService.LoadToolPaletteCollection(PListPath);
+			if (!bLoaded)
+			{
+				System.Diagnostics.Debug.WriteLine("WARNING: Failed to load tool palette.");
+			}
+					
+			return base.OnLoad(ref errorMessage);
+		}
+#endif
 
 		/// <summary>
 		/// Is called when a user requests to export a ".udatasmith" file.
