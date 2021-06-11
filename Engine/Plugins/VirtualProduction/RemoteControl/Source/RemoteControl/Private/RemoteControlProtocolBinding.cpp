@@ -148,7 +148,8 @@ namespace EntityInterpolation
 		}
 		else if (*RangeMax.Range == *RangeMin.Range)
 		{
-			return ensure(false);
+			UE_LOG(LogRemoteControl, Warning, TEXT("Range input values are the same."));
+			return true;
 		}
 
 		// Normalize value to range for interpolation
@@ -474,9 +475,88 @@ TSharedPtr<FStructOnScope> FRemoteControlProtocolMapping::GetMappingPropertyAsSt
 	return nullptr;
 }
 
-void FRemoteControlProtocolMapping::RefreshCachedData()
+bool FRemoteControlProtocolMapping::PropertySizeMatchesData(const TArray<uint8>& InSource, const FName& InPropertyTypeName)
 {
-	// Opportunity to write a different representation of the mapping property to be used at runtime (persisted mapping property might be serialized as text, for example)
+	const int32 SourceNum = InSource.Num();
+	if(InPropertyTypeName == NAME_ByteProperty
+		|| InPropertyTypeName == NAME_BoolProperty)
+	{
+		return SourceNum == sizeof(uint8);
+	}
+	else if(InPropertyTypeName == NAME_UInt16Property
+		|| InPropertyTypeName == NAME_Int16Property)
+	{
+		return SourceNum == sizeof(uint16);
+	}
+	else if(InPropertyTypeName == NAME_UInt32Property
+		|| InPropertyTypeName == NAME_Int32Property
+		|| InPropertyTypeName == NAME_FloatProperty)
+	{
+		return SourceNum == sizeof(uint32);
+	}
+	else if(InPropertyTypeName == NAME_UInt64Property
+		|| InPropertyTypeName == NAME_Int64Property
+		|| InPropertyTypeName == NAME_DoubleProperty)
+	{
+		return SourceNum == sizeof(uint64);
+	}
+
+	// @note: only the above types are expected
+	return false;
+}
+
+void FRemoteControlProtocolMapping::RefreshCachedData(const FName& InRangePropertyTypeName)
+{
+	// Opportunity to write a different representation of the range and mapping properties to be used at runtime
+	// (persisted range might be a 1byte uint8, but the property 4byte uint32)
+	// (persisted mapping property might be serialized as text)
+
+	// @note: range type seems to be always interpreted from a 4byte value, so just check for that
+	if(InRangePropertyTypeName != NAME_None)
+	{
+		if(!PropertySizeMatchesData(InterpolationRangePropertyData, InRangePropertyTypeName))
+		{
+			if(InRangePropertyTypeName.ToString().Contains(TEXT("Int")))
+			{
+				// Only handles UInt32 range types when theres a size mismatch
+				if(InRangePropertyTypeName == NAME_UInt32Property)
+				{
+					uint32 CachedRangeValue = 0;
+					if(InterpolationRangePropertyData.Num() == 1)
+					{
+						uint8* StoredRangeValue = reinterpret_cast<uint8*>(InterpolationRangePropertyData.GetData());
+						if(StoredRangeValue != nullptr)
+						{
+							CachedRangeValue = static_cast<uint32>(*StoredRangeValue);				
+						}
+					}
+					else if(InterpolationRangePropertyData.Num() == 2)
+					{
+						uint16* StoredRangeValue = reinterpret_cast<uint16*>(InterpolationRangePropertyData.GetData());
+						if(StoredRangeValue != nullptr)
+						{
+							CachedRangeValue = static_cast<uint32>(*StoredRangeValue);
+						}
+					}
+					else if(InterpolationRangePropertyData.Num() == 8)
+					{
+						uint64* StoredRangeValue = reinterpret_cast<uint64*>(InterpolationRangePropertyData.GetData());
+						if(StoredRangeValue != nullptr)
+						{
+							CachedRangeValue = static_cast<uint32>(*StoredRangeValue);
+						}
+					}
+
+					InterpolationRangePropertyDataCache.SetNumZeroed(sizeof(uint32));
+					*reinterpret_cast<uint32*>(InterpolationRangePropertyDataCache.GetData()) = CachedRangeValue;
+				}
+			}
+		}
+		else
+		{
+			InterpolationRangePropertyDataCache = InterpolationRangePropertyData;
+		}
+	}
 
 	FProperty* Property = CastField<FProperty>(BoundPropertyPath.Get());
 	if(const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
@@ -552,7 +632,8 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 {
 	if (Mappings.Num() <= 1)
 	{
-		return false;
+		UE_LOG(LogRemoteControl, Warning, TEXT("Binding doesn't container any range mappings."));
+		return true;
 	}
 
 	URemoteControlPreset* Preset = Owner.Get();
@@ -575,7 +656,8 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 
 	if (!RemoteControlTypeUtilities::IsSupportedMappingType(Property))
 	{
-		return false;
+		UE_LOG(LogRemoteControl, Warning, TEXT("Property type %s is unsupported for mapping."), *Property->GetClass()->GetName());
+		return true;
 	}
 
 	FRCObjectReference ObjectRef;
@@ -688,13 +770,14 @@ TArray<FRemoteControlProtocolEntity::FRangeMappingData> FRemoteControlProtocolEn
 
 	for (FRemoteControlProtocolMapping& Mapping : Mappings)
 	{
-		if (Mapping.InterpolationMappingPropertyDataCache.Num() == 0)
+		if (Mapping.InterpolationMappingPropertyDataCache.Num() == 0
+			|| Mapping.InterpolationRangePropertyDataCache.Num() == 0)
 		{
-			Mapping.RefreshCachedData();
+			Mapping.RefreshCachedData(GetRangePropertyName());
 		}
 
 		RangeMappingBuffers.Emplace(
-			Mapping.InterpolationRangePropertyData,
+			Mapping.InterpolationRangePropertyDataCache,
 			Mapping.InterpolationMappingPropertyDataCache,
 			Mapping.InterpolationMappingPropertyElementNum);
 	}

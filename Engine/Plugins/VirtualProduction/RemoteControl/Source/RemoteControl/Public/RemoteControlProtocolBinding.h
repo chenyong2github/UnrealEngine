@@ -100,6 +100,8 @@ public:
 	{
 		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType));
 		*reinterpret_cast<ValueType*>(InterpolationRangePropertyData.GetData()) = InRangeValue;
+
+		RefreshCachedData(PropertyType::StaticClass()->GetFName());
 	}
 
 	/** Get Mapping Property Value as a primitive type */
@@ -137,8 +139,9 @@ public:
 		check(TRemoteControlTypeTraits<ValueType>::IsSupportedMappingType());
 		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
 		*reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData()) = InMappingPropertyValue;
-	}
 
+		RefreshCachedData(NAME_None);
+	}
 
 	/** Set primitive Mapping Property Struct Value based on template value input */
 	template <typename ValueType, typename PropertyType>
@@ -147,6 +150,8 @@ public:
 	{
 		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
 		*reinterpret_cast<ValueType*>(InterpolationMappingPropertyData.GetData()) = InMappingPropertyValue;
+
+		RefreshCachedData(NAME_None);
 	}
 
 #if WITH_EDITOR
@@ -156,7 +161,12 @@ public:
 	{
 		RemoteControlPropertyUtilities::FRCPropertyVariant Src{InPropertyHandle->GetProperty(), InterpolationRangePropertyData};
 		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InPropertyHandle};
-		return RemoteControlPropertyUtilities::Deserialize<PropertyType>(Src, Dst);
+		if(RemoteControlPropertyUtilities::Deserialize<PropertyType>(Src, Dst))
+		{
+			RefreshCachedData(InPropertyHandle->GetPropertyClass()->GetFName());
+			return true;
+		}
+		return false;
 	}
 
 	/** Sets the underlying InterpolationRangePropertyData to the given source, using the input property for type information */
@@ -164,14 +174,24 @@ public:
 	bool SetRawRangeData(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 	{
 		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InPropertyHandle->GetProperty(), InterpolationRangePropertyData};
-		return RemoteControlPropertyUtilities::Serialize<PropertyType>(InPropertyHandle, Dst);
+		if(RemoteControlPropertyUtilities::Serialize<PropertyType>(InPropertyHandle, Dst))
+		{
+			RefreshCachedData(InPropertyHandle->GetPropertyClass()->GetFName());
+			return true;
+		}
+		return false;
 	}
 
 	/** Sets the underlying InterpolationRangePropertyData to the given source, using the input property for type information */
 	bool SetRawRangeData(URemoteControlPreset* InOwningPreset, const FProperty* InProperty, const void* InSource)
 	{
 		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InProperty, InterpolationRangePropertyData};
-		return RemoteControlPropertyUtilities::Serialize<FProperty>({InProperty, InSource}, Dst);
+		if(RemoteControlPropertyUtilities::Serialize<FProperty>({InProperty, InSource}, Dst))
+		{
+			RefreshCachedData(InProperty-> GetFName());
+			return true;
+		}
+		return false;
 	}
 
 	/** Copies the underlying InterpolationMappingPropertyData to the given destination, using the input property for type information */
@@ -180,7 +200,13 @@ public:
 	{
 		RemoteControlPropertyUtilities::FRCPropertyVariant Src{InPropertyHandle->GetProperty(), InterpolationMappingPropertyData, InterpolationMappingPropertyElementNum};
 		RemoteControlPropertyUtilities::FRCPropertyVariant Dst{InPropertyHandle};
-		return RemoteControlPropertyUtilities::Deserialize<PropertyType>(Src, Dst);
+		if(RemoteControlPropertyUtilities::Deserialize<PropertyType>(Src, Dst))
+		{
+			InterpolationMappingPropertyElementNum = Dst.Num();
+			RefreshCachedData(NAME_None);
+			return true;
+		}
+		return false;
 	}
 
 	/** Sets the underlying InterpolationMappingPropertyData to the given source, using the input property for type information */
@@ -191,7 +217,7 @@ public:
 		if (RemoteControlPropertyUtilities::Serialize<PropertyType>(InPropertyHandle, Dst))
 		{
 			InterpolationMappingPropertyElementNum = Dst.Num();
-			RefreshCachedData();
+			RefreshCachedData(NAME_None);
 			return true;
 		}
 		return false;
@@ -204,7 +230,7 @@ public:
 		if (RemoteControlPropertyUtilities::Serialize<FProperty>({InProperty, InSource}, Dst))
 		{
 			InterpolationMappingPropertyElementNum = Dst.Num();
-			RefreshCachedData();
+			RefreshCachedData(NAME_None);
 			return true;
 		}
 		return false;
@@ -219,8 +245,11 @@ private:
 	template <typename PropertyType>
 	bool PropertySizeMatchesData(const TArray<uint8>& InSource, const PropertyType* InProperty);
 
-	/** Refreshes (deserializes) mapping data to cache */
-	void RefreshCachedData();
+	/** Checks that the source data matches the expected size of the property */
+	bool PropertySizeMatchesData(const TArray<uint8>& InSource, const FName& InPropertyTypeName);
+
+	/** Refreshes (deserializes) mapping data to cache. If the RangePropertyTypeName is NAME_None, it is not set. */
+	void RefreshCachedData(const FName& InRangePropertyTypeName);
 
 private:
 	/** Unique Id of the current binding */
@@ -242,6 +271,13 @@ private:
 	 */
 	UPROPERTY()
 	TArray<uint8> InterpolationMappingPropertyData;
+
+	/** 
+	* Holds the range property data buffer. 
+	* This is the cached raw data as opposed to the serialized data.
+	*/
+	UPROPERTY(Transient)
+	TArray<uint8> InterpolationRangePropertyDataCache;
 
 	/** 
 	* Holds the mapped property data buffer. 
