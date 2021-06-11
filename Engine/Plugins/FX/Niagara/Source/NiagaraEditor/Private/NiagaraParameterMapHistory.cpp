@@ -807,6 +807,13 @@ void FNiagaraParameterMapHistoryBuilder::EndNodeVisitation(int32 WhichParameterM
 	}
 }
 
+void FNiagaraParameterMapHistoryBuilder::RegisterDataSetWrite(int32 WhichParameterMap, const FNiagaraDataSetID& DataSet)
+{
+	if (Histories.IsValidIndex(WhichParameterMap))
+	{
+		Histories[WhichParameterMap].AdditionalDataSetWrites.AddUnique(DataSet);
+	}
+}
 
 int32 FNiagaraParameterMapHistoryBuilder::RegisterParameterMapPin(int32 WhichParameterMap, const UEdGraphPin* Pin)
 {

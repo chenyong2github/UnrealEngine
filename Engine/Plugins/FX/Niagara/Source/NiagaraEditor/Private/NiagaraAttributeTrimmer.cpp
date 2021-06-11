@@ -611,6 +611,11 @@ void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InComp
 		return;
 	}
 
+	if (DataSetWriteInfo[(uint8)ENiagaraDataSetAccessMode::AppendConsume].Num())
+	{
+		return;
+	}
+
 	const bool SafeTrimAttributesEnabled = InCompileOptions.AdditionalDefines.Contains(TEXT("TrimAttributesSafe"));
 	const bool AggressiveTrimAttributesEnabled = InCompileOptions.AdditionalDefines.Contains(TEXT("TrimAttributes"));
 
@@ -650,6 +655,14 @@ void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InComp
 		{
 			if (UNiagaraScript::IsParticleScript(History.OriginatingScriptUsage))
 			{
+				// for now we'll be disabling attribute trimming if a family of particle scripts contain generation of
+				// additional dataset writes (events) as we don't have access to the connectivity of it's variables as
+				// we do for the rest of the script
+				if (History.AdditionalDataSetWrites.Num())
+				{
+					return;
+				}
+
 				LocalParamHistories.Add(&History);
 			}
 		}

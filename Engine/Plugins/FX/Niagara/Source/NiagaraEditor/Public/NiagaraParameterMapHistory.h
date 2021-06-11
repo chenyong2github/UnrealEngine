@@ -108,6 +108,9 @@ public:
 	/** List of all the custom iteration source override namespaces encountered */
 	TArray<FName> IterationNamespaceOverridesEncountered;
 
+	/** List of additional DataSets to be written that were encountered during traversal. */
+	TArray<FNiagaraDataSetID> AdditionalDataSetWrites;
+
 	bool IsVariableFromCustomIterationNamespaceOverride(const FNiagaraVariable& InVar) const;
 	
 	/**
@@ -298,6 +301,9 @@ public:
 
 	/** Important. Must be called for each routing of the parameter map. This feeds the list used by TraceParameterMapOutputPin.*/
 	int32 RegisterParameterMapPin(int32 WhichParameterMap, const UEdGraphPin* Pin);
+
+	/** Records a write to a DataSet in the appropriate parameter map history */
+	void RegisterDataSetWrite(int32 WhichParameterMap, const FNiagaraDataSetID& DataSet);
 
 	uint32 BeginNodeVisitation(int32 WhichParameterMap, const class UNiagaraNode* Node);
 	void EndNodeVisitation(int32 WhichParameterMap, uint32 IndexFromBeginNode);
