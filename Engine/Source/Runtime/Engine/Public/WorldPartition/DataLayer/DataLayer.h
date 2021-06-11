@@ -36,6 +36,7 @@ public:
 	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
 
 	bool IsDynamicallyLoadedInEditor() const { return bIsDynamicallyLoadedInEditor; }
+	bool IsInitiallyLoadedInEditor() const { return bIsInitiallyLoadedInEditor; }
 
 	static FText GetDataLayerText(const UDataLayer* InDataLayer);
 
@@ -83,7 +84,11 @@ private:
 	UPROPERTY(Category = "Data Layer - Editor", EditAnywhere)
 	uint32 bIsInitiallyVisible : 1;
 
-	/** Whether the Data Layer affects actor editor loading */
+	/** Determines the default value of the data layer's loaded state in editor if it hasn't been changed in data layer outliner by the user */
+	UPROPERTY(Category = "Data Layer - Editor", EditAnywhere, meta = (DisplayName = "Is Initially Loaded"))
+	uint32 bIsInitiallyLoadedInEditor : 1;
+
+	/** Wheter the data layer is loaded in editor (user setting) */
 	UPROPERTY(Transient)
 	uint32 bIsDynamicallyLoadedInEditor : 1;
 

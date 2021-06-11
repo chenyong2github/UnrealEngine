@@ -15,6 +15,7 @@ UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 , bIsInitiallyActive_DEPRECATED(false)
 , bIsVisible(true)
 , bIsInitiallyVisible(true)
+, bIsInitiallyLoadedInEditor(true)
 , bIsDynamicallyLoadedInEditor(true)
 , bIsLocked(false)
 #endif

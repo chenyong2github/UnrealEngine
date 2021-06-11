@@ -573,6 +573,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	bool RenameDataLayer(UDataLayer* DataLayer, const FName& NewDataLayerLabel);
 
+	/**
+	* Resets user override settings of the provided DataLayers
+	* 
+	* @param DataLayers A valid list of DataLayer.
+	*/
+	bool ResetUserSettings(const TArray<UDataLayer*>& DataLayers);
+
 private:
 
 	/**

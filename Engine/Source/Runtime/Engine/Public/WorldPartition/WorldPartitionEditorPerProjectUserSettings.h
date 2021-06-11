@@ -29,6 +29,9 @@ struct FWorldPartitionPerWorldSettings
 
 	UPROPERTY()
 	TArray<FName> NotLoadedDataLayers;
+
+	UPROPERTY()
+	TArray<FName> LoadedDataLayers;
 #endif
 };
 
@@ -97,12 +100,19 @@ public:
 		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).NotLoadedDataLayers;
 	}
 
-	void SetWorldDataLayersNotLoadedInEditor(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor)
+	const TArray<FName>& GetWorldDataLayersLoadedInEditor(UWorld* InWorld)
+	{
+		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedDataLayers;
+	}
+
+	void SetWorldDataLayersNonDefaultEditorLoadStates(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor, const TArray<FName>& InDataLayersNotLoadedInEditor)
 	{
 		if (ShouldSaveSettings(InWorld))
 		{
-			TArray<FName>& DataLayersNotLoadedInEditor = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).NotLoadedDataLayers;
-			DataLayersNotLoadedInEditor = InDataLayersLoadedInEditor;
+			FWorldPartitionPerWorldSettings& PerWorldSettings = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld));
+
+			PerWorldSettings.NotLoadedDataLayers = InDataLayersNotLoadedInEditor;
+			PerWorldSettings.LoadedDataLayers = InDataLayersLoadedInEditor;
 			SaveConfig();
 		}
 	}
