@@ -88,12 +88,6 @@ namespace UnrealBuildTool
 		public bool bUseUBTMakefiles = true;
 
 		/// <summary>
-		/// Whether to allow using parallel executor on Windows.
-		/// </summary>
-		[XmlConfigFile]
-		public bool bAllowParallelExecutor = true;
-
-		/// <summary>
 		/// Number of actions that can be executed in parallel. If 0 then code will pick a default based
 		/// on the number of cores and memory available. Applies to the ParallelExecutor, HybridExecutor, and LocalExecutor
 		/// </summary>

@@ -7,7 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -318,6 +318,11 @@ namespace EpicGames.Core
 		Process? FrameworkProcess;
 
 		/// <summary>
+		/// Merged output & error write stream for the framework child process.
+		/// </summary>
+		AnonymousPipeServerStream? FrameworkMergedStdWriter;
+
+		/// <summary>
 		/// Static lock object. This is used to synchronize the creation of child processes - in particular, the inheritance of stdout/stderr write pipes. If processes
 		/// inherit pipes meant for other processes, they won't be closed until both terminate.
 		/// </summary>
@@ -598,8 +603,15 @@ namespace EpicGames.Core
 		/// <param name="Environment">Environment variables for the new process. May be null, in which case the current process' environment is inherited</param>
 		/// <param name="Priority">Priority for the child process</param>
 		/// <param name="Flags">Flags for the new process</param>
-		private void CreateManagedProcessPortable(ManagedProcessGroup? Group, string FileName, string CommandLine, string? WorkingDirectory, IReadOnlyDictionary<string, string>? Environment, ProcessPriorityClass Priority, ManagedProcessFlags Flags)
+		private void CreateManagedProcessPortable(ManagedProcessGroup? Group, string FileName, string CommandLine, string? WorkingDirectory, IReadOnlyDictionary<string, string>? Environment, ProcessPriorityClass Priority, ManagedProcessFlags ManagedFlags)
 		{
+			// TODO: Process Arguments follow windows conventions in .NET Core
+			// Which means single quotes ' are not considered quotes.
+			// see https://github.com/dotnet/runtime/issues/29857
+			// also see UE-102580
+			// for rules see https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
+			CommandLine = CommandLine.Replace('\'', '\"');
+
 			// for non-Windows platforms
 			FrameworkProcess = new Process();
 			FrameworkProcess.StartInfo.FileName = FileName;
@@ -607,6 +619,7 @@ namespace EpicGames.Core
 			FrameworkProcess.StartInfo.WorkingDirectory = WorkingDirectory;
 			FrameworkProcess.StartInfo.RedirectStandardInput = true;
 			FrameworkProcess.StartInfo.RedirectStandardOutput = true;
+			FrameworkProcess.StartInfo.RedirectStandardError = true;
 			FrameworkProcess.StartInfo.UseShellExecute = false;
 			FrameworkProcess.StartInfo.CreateNoWindow = true;
 
@@ -618,19 +631,62 @@ namespace EpicGames.Core
 				}
 			}
 
+			// Merge StdOut with StdErr
+			if ((ManagedFlags & ManagedProcessFlags.MergeOutputPipes) != 0)
+			{
+				FrameworkProcess.EnableRaisingEvents = true;
+				FrameworkProcess.Exited += (Sender, Args) =>
+				{
+					if (FrameworkMergedStdWriter != null)
+					{
+						FrameworkMergedStdWriter.Flush();
+						FrameworkMergedStdWriter.Dispose();
+						FrameworkMergedStdWriter = null;
+					}
+				};
+
+				// AnonymousPipes block reading even if the stream has been fully read, until the writer pipe handle is closed.
+				FrameworkMergedStdWriter = new AnonymousPipeServerStream(PipeDirection.Out);
+				StdOut = new AnonymousPipeClientStream(PipeDirection.In, FrameworkMergedStdWriter.ClientSafePipeHandle);
+				StdOutText = new StreamReader(StdOut, Console.OutputEncoding);
+				DataReceivedEventHandler OutputEventHandler = (Sender, Args) =>
+				{
+					if (FrameworkMergedStdWriter != null && Args.Data != null)
+					{
+						FrameworkMergedStdWriter.Write(Console.OutputEncoding.GetBytes(Args.Data + System.Environment.NewLine));
+					}
+				};
+				FrameworkProcess.OutputDataReceived += OutputEventHandler;
+				FrameworkProcess.ErrorDataReceived += OutputEventHandler;
+
+				StdErr = StdOut;
+				StdErrText = StdOutText;
+			}
+
 			FrameworkProcess.Start();
+			if ((ManagedFlags & ManagedProcessFlags.MergeOutputPipes) != 0)
+			{
+				FrameworkProcess.BeginOutputReadLine();
+				FrameworkProcess.BeginErrorReadLine();
+			}
+
 			try
 			{
 				FrameworkProcess.PriorityClass = Priority;
 			}
 			catch
 			{
-
 			}
 
 			Id = FrameworkProcess.Id;
 			StdIn = FrameworkProcess.StandardInput.BaseStream;
-			StdOut = FrameworkProcess.StandardOutput.BaseStream;
+			if ((ManagedFlags & ManagedProcessFlags.MergeOutputPipes) == 0)
+			{
+				StdOut = FrameworkProcess.StandardOutput.BaseStream;
+				StdOutText = FrameworkProcess.StandardOutput;
+				StdErr = FrameworkProcess.StandardError.BaseStream;
+				StdErrText = FrameworkProcess.StandardError;
+			}
 		}
 
 		/// <summary>
@@ -672,6 +728,11 @@ namespace EpicGames.Core
 				FrameworkProcess.Dispose();
 				FrameworkProcess = null;
 			}
+			if(FrameworkMergedStdWriter != null)
+			{
+				FrameworkMergedStdWriter.Dispose();
+				FrameworkMergedStdWriter = null;
+			}
 		}
 
 		/// <summary>
@@ -684,15 +745,7 @@ namespace EpicGames.Core
 		public int Read(byte[] Buffer, int Offset, int Count)
 		{
 			// Fill the buffer, reentering managed code every 20ms to allow thread abort exceptions to be thrown
-			Task<int> ReadTask;
-			if(FrameworkProcess == null)
-			{
-				ReadTask = StdOut!.ReadAsync(Buffer, Offset, Count);
-			}
-			else
-			{
-				ReadTask = FrameworkProcess.StandardOutput.BaseStream.ReadAsync(Buffer, Offset, Count);
-			}
+			Task<int> ReadTask = StdOut!.ReadAsync(Buffer, Offset, Count);
 			while(!ReadTask.Wait(20))
 			{
 				// Spin through managed code to allow things like ThreadAbortExceptions to be thrown.
@@ -709,14 +762,7 @@ namespace EpicGames.Core
 		/// <returns>Number of bytes read</returns>
 		public async Task<int> ReadAsync(byte[] Buffer, int Offset, int Count, CancellationToken CancellationToken)
 		{
-			if (FrameworkProcess == null)
-			{
-				return await StdOut!.ReadAsync(Buffer, Offset, Count, CancellationToken);
-			}
-			else
-			{
-				return await FrameworkProcess.StandardOutput.BaseStream.ReadAsync(Buffer, Offset, Count, CancellationToken);
-			}
+			return await StdOut!.ReadAsync(Buffer, Offset, Count, CancellationToken);
 		}
 
 		/// <summary>
@@ -727,14 +773,7 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public Task CopyToAsync(Stream OutputStream, CancellationToken CancellationToken)
 		{
-			if(FrameworkProcess == null)
-			{
-				return StdOut!.CopyToAsync(OutputStream, CancellationToken);
-			}
-			else
-			{
-				return FrameworkProcess.StandardOutput.BaseStream.CopyToAsync(OutputStream, CancellationToken);
-			}
+			return StdOut!.CopyToAsync(OutputStream, CancellationToken);
 		}
 
 		/// <summary>
@@ -831,6 +870,7 @@ namespace EpicGames.Core
 				Array.Copy(Buffer, LastStartIdx, Buffer, 0, Buffer.Length - LastStartIdx);
 				NumBytesInBuffer -= LastStartIdx;
 			}
+			WaitForExit();
 			return OutputLines;
 		}
 
@@ -840,14 +880,7 @@ namespace EpicGames.Core
 		/// <returns>New line</returns>
 		public async Task<string?> ReadLineAsync()
 		{
-			if (FrameworkProcess == null)
-			{
-				return await StdOutText!.ReadLineAsync();
-			}
-			else
-			{
-				return await FrameworkProcess.StandardOutput.ReadLineAsync();
-			}
+			return await StdOutText!.ReadLineAsync();
 		}
 
 		/// <summary>
@@ -861,15 +894,7 @@ namespace EpicGames.Core
 			try
 			{
 				// Busy wait for the ReadLine call to finish, so we can get interrupted by thread abort exceptions
-				Task<string?> ReadLineTask;
-				if(FrameworkProcess == null)
-				{
-					ReadLineTask = StdOutText!.ReadLineAsync();
-				}
-				else
-				{
-					ReadLineTask = FrameworkProcess.StandardOutput.ReadLineAsync();
-				}
+				Task<string?> ReadLineTask = StdOutText!.ReadLineAsync();
 				for (;;)
 				{
 					const int MillisecondsTimeout = 20;
