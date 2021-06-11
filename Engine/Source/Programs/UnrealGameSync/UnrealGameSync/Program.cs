@@ -22,8 +22,8 @@ namespace UnrealGameSync
 	{
 		public static string GetVersionString()
 		{
-			Version Version = Assembly.GetExecutingAssembly().GetName().Version;
-			return $"{Version.Major}.{Version.Minor}-Core";
+			AssemblyInformationalVersionAttribute Version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+			return Version?.InformationalVersion ?? "Unknown";
 		}
 
 		static JsonSerializerOptions GetDefaultJsonSerializerOptions()
