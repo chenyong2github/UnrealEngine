@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/GCObject.h"
 #include "Toolkits/IToolkitHost.h"
-
 #include "Toolkits/AssetEditorToolkit.h"
+#include "EditorUndoClient.h"
 
 #include "ISequencer.h"
 #include "ISequencerTrackEditor.h"
