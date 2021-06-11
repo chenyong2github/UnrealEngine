@@ -11,6 +11,7 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 struct FRCPanelGroup;
+class FRCPanelWidgetRegistry;
 struct FRemoteControlTarget;
 class FDragDropOperation;
 struct FGuid;
@@ -57,7 +58,8 @@ public:
 		SLATE_EVENT(FSimpleDelegate, OnEntityListUpdated)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset);
+	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry);
+
 	~SRCPanelExposedEntitiesList();
 
 	/** Get the currently selected group or exposed entity. */
@@ -148,4 +150,6 @@ private:
 	float ColumnWidth = 0.65f;
 	/** Event triggered when the entity list is updated. */
 	FSimpleDelegate OnEntityListUpdatedDelegate;
+	/** Holds the cache of widgets to be used by this list's entities. */
+	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 };

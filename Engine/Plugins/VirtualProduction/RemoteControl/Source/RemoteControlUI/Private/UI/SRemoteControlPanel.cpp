@@ -93,6 +93,8 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 {
 	OnEditModeChange = InArgs._OnEditModeChange;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
+	WidgetRegistry = MakeShared<FRCPanelWidgetRegistry>();
+
 	UpdateRebindButtonVisibility();
 
 	TArray<TSharedRef<SWidget>> ExtensionWidgets;
@@ -102,7 +104,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	EntityProtocolDetails = SNew(SBox);
 	
-	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get())
+	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get(), WidgetRegistry)
 		.DisplayValues(true)
 		.OnEntityListUpdated_Lambda([this] ()
 		{
@@ -320,7 +322,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	for (const TSharedRef<SWidget>& Widget : ExtensionWidgets)
 	{
 		// We want to insert the widgets before the edit mode buttons.
-		TopExtensions->InsertSlot(TopExtensions->NumSlots()-4)
+		TopExtensions->InsertSlot(TopExtensions->NumSlots()-6)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
@@ -336,7 +338,6 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 SRemoteControlPanel::~SRemoteControlPanel()
 {
 	UnregisterEvents();
-	FRCPanelWidgetRegistry::Get().Clear();
 
 	// Clear the log
 	FRemoteControlLogger::Get().ClearLog();

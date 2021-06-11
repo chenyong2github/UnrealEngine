@@ -68,6 +68,7 @@ FRemoteControlPresetEditorToolkit::~FRemoteControlPresetEditorToolkit()
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 		if (TSharedPtr<FTabManager> EditorTabManager = LevelEditorModule.GetLevelEditorTabManager())
 		{
+			UnregisterTabSpawners(EditorTabManager.ToSharedRef());
 			if (TSharedPtr<SDockTab> Tab = EditorTabManager->FindExistingLiveTab(PanelTabId))
 			{
 				Tab->RequestCloseTab();
@@ -76,7 +77,7 @@ FRemoteControlPresetEditorToolkit::~FRemoteControlPresetEditorToolkit()
 	}
 }
 
-void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_RemoteControlPanel", "Remote Control Panel"));
 
@@ -86,7 +87,7 @@ void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<cla
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
 }
 
-void FRemoteControlPresetEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+void FRemoteControlPresetEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	InTabManager->UnregisterTabSpawner(PanelTabId);
 }

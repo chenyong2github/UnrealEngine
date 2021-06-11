@@ -15,6 +15,7 @@
 struct EVisibility;
 enum class EExposedFieldType : uint8;
 struct FSlateBrush;
+class FRCPanelWidgetRegistry;
 struct FRemoteControlField;
 struct FGuid;
 class IDetailTreeNode;
@@ -40,7 +41,7 @@ struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelExposedEnti
 	using SWidget::SharedThis;
 	using SWidget::AsShared;
 
-	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field, FRCColumnSizeData ColumnSizeData);
+	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field, FRCColumnSizeData ColumnSizeData, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry);
 
 	void Tick(const FGeometry&, const double, const float);
 
@@ -126,6 +127,8 @@ private:
 	TSharedPtr<SInlineEditableTextBlock> NameTextBox;
 	/** Whether to display the call function button and the property values. */
 	bool bDisplayValues;
+	/** Holds the panel's cached widgets. */
+	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 };
 
 

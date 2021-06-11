@@ -14,6 +14,7 @@ struct EVisibility;
 struct FAssetData;
 class FExposedEntityDragDrop;
 struct FListEntry;
+class FRCPanelWidgetRegistry;
 struct FRemoteControlEntity;
 class FReply;
 class IPropertyRowGenerator;
@@ -27,6 +28,7 @@ class SRemoteControlPanel;
 class SRCPanelExposedEntitiesList;
 class STextBlock;
 class URemoteControlPreset;
+
 
 DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
 
@@ -214,4 +216,6 @@ private:
 	TSet<TWeakPtr<IPropertyHandle>> CachedExposedProperties;
 	/** Preset name widget. */
 	TSharedPtr<STextBlock> PresetNameTextBlock;
+	/** Holds a cache of widgets. */
+	TSharedPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 };
