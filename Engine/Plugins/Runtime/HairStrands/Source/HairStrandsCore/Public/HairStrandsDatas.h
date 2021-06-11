@@ -731,6 +731,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData
 	void Reset();
 	void Serialize(FArchive& Ar, UObject* Owner);
 	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
+	void Validate(bool bIsSaving);
 
 	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
 	TArray<bool>	LODVisibility;
