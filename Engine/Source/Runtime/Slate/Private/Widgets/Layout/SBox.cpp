@@ -20,7 +20,7 @@ void SBox::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitia
 }
 
 SBox::SBox()
-	: ChildSlot(*this)
+	: ChildSlot(this)
 	, WidthOverride(*this)
 	, HeightOverride(*this)
 	, MinDesiredWidth(*this)

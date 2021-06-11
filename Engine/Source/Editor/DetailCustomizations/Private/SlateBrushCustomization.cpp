@@ -776,8 +776,8 @@ private:
 	 */
 	void UpdateOverlayAlignment()
 	{
-		OverlaySlot->HAlign( HorizontalAlignment );
-		OverlaySlot->VAlign( VerticalAlignment );
+		OverlaySlot->SetHorizontalAlignment( HorizontalAlignment );
+		OverlaySlot->SetVerticalAlignment( VerticalAlignment );
 	}
 
 	/**

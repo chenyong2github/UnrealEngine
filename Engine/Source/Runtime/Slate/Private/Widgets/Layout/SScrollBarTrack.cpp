@@ -12,26 +12,14 @@ void SScrollBarTrack::Construct(const FArguments& InArgs)
 	MinThumbSize = 35;
 	Orientation = InArgs._Orientation;
 
-	// This panel only supports 3 children!
-	for (int32 CurChild = 0; CurChild < NUM_SCROLLBAR_SLOTS; ++CurChild)
-	{
-		Children.Add(new FSlot());
-	}
-
-	Children[TOP_SLOT_INDEX]
-		[
-			InArgs._TopSlot.Widget
-		];
-
-	Children[BOTTOM_SLOT_INDEX]
-		[
-			InArgs._BottomSlot.Widget
-		];
-
-	Children[THUMB_SLOT_INDEX]
-		[
-			InArgs._ThumbSlot.Widget
-		];
+	
+	static_assert(NUM_SCROLLBAR_SLOTS == 3, "SScrollBarTrack::FSlot numbers changed");
+	static_assert(TOP_SLOT_INDEX == 0, "SScrollBarTrack::FSlot order has changed");
+	Children.AddSlot(MoveTemp(FSlot::FSlotArguments(MakeUnique<FSlot>())[InArgs._TopSlot.Widget]));
+	static_assert(BOTTOM_SLOT_INDEX == 1, "SScrollBarTrack::FSlot order has changed");
+	Children.AddSlot(MoveTemp(FSlot::FSlotArguments(MakeUnique<FSlot>())[InArgs._BottomSlot.Widget]));
+	static_assert(THUMB_SLOT_INDEX == 2, "SScrollBarTrack::FSlot order has changed");
+	Children.AddSlot(MoveTemp(FSlot::FSlotArguments(MakeUnique<FSlot>())[InArgs._ThumbSlot.Widget]));
 }
 
 SScrollBarTrack::FTrackSizeInfo SScrollBarTrack::GetTrackSizeInfo(const FGeometry& InTrackGeometry) const

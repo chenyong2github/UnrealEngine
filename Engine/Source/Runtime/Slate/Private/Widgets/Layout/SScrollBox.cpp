@@ -15,6 +15,7 @@ SScrollBox::FSlot::FSlotArguments SScrollBox::Slot()
 	return FSlot::FSlotArguments(MakeUnique<FSlot>());
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SScrollPanel::Construct(const FArguments& InArgs, const TArray<SScrollBox::FSlot*>& InSlots)
 {
 	PhysicalOffset = 0;
@@ -27,6 +28,7 @@ void SScrollPanel::Construct(const FArguments& InArgs, const TArray<SScrollBox::
 	BackPadScrolling = InArgs._BackPadScrolling;
 	FrontPadScrolling = InArgs._FrontPadScrolling;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 void SScrollPanel::Construct(const FArguments& InArgs, TArray<SScrollBox::FSlot::FSlotArguments> InSlots)

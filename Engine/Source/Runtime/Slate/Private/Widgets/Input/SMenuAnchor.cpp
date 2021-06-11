@@ -83,15 +83,12 @@ SMenuAnchor::FPopupPlacement::FPopupPlacement(const FGeometry& PlacementGeometry
  */
 void SMenuAnchor::Construct( const FArguments& InArgs )
 {
-	Children.Add(new FBasicLayoutWidgetSlot());
-	Children.Add(new FBasicLayoutWidgetSlot());
-	
-
-	Children[0]
+	Children.AddSlot(MoveTemp(FBasicLayoutWidgetSlot::FSlotArguments(MakeUnique<FBasicLayoutWidgetSlot>())
 		.Padding(InArgs._Padding)
 		[
 			InArgs._Content.Widget
-		];
+		]));
+	Children.AddSlot(FBasicLayoutWidgetSlot::FSlotArguments(MakeUnique<FBasicLayoutWidgetSlot>()));
 
 	MenuContent                            = InArgs._MenuContent;
 	WrappedContent                         = InArgs._MenuContent;
@@ -283,11 +280,8 @@ bool SMenuAnchor::IsOpenViaCreatedWindow() const
 
 void SMenuAnchor::SetContent(TSharedRef<SWidget> InContent)
 {
-	Children[0]
-	.Padding(0.f)
-	[
-		InContent
-	];
+	Children[0].SetPadding(0.f);
+	Children[0].AttachWidget(InContent);
 }
 
 void SMenuAnchor::SetMenuContent(TSharedRef<SWidget> InMenuContent)

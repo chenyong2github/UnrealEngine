@@ -71,7 +71,7 @@ void SSequencerTrackArea::Empty()
 void SSequencerTrackArea::AddTrackSlot(const TSharedRef<FSequencerDisplayNode>& InNode, const TSharedPtr<SSequencerTrackLane>& InSlot)
 {
 	TrackSlots.Add(InNode, InSlot);
-	Children.Add(new FTrackAreaSlot(InSlot));
+	Children.AddSlot(FTrackAreaSlot::FSlotArguments(MakeUnique<FTrackAreaSlot>(InSlot)));
 }
 
 
