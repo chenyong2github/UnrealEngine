@@ -558,6 +558,8 @@ uint32 FNiagaraRendererMeshes::PerformSortAndCull(FParticleMeshRenderData& Parti
 {
 	if ( SourceMode == ENiagaraRendererSourceDataMode::Emitter )
 	{
+		ParticleMeshRenderData.ParticleSortedIndicesSRV = GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference();
+		ParticleMeshRenderData.ParticleSortedIndicesOffset = 0xffffffff;
 		return 1;
 	}
 
@@ -876,7 +878,7 @@ void FNiagaraRendererMeshes::CreateMeshBatchForSection(
 		BatchElement.NumPrimitives = Section.NumTriangles;
 	}
 
-	if (GPUCountBufferOffset != INDEX_NONE)
+	if ((SourceMode != ENiagaraRendererSourceDataMode::Emitter) && (GPUCountBufferOffset != INDEX_NONE))
 	{
 		// We need to use indirect draw args, because the number of actual instances is coming from the GPU
 		auto Batcher = SceneProxy.GetBatcher();
