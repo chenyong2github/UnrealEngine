@@ -88,7 +88,8 @@ CommandMap::CommandMap(void)
 	RegisterDefaultAction<commands::PreCompile>(m_actions);
 	RegisterDefaultAction<commands::PostCompile>(m_actions);
 	RegisterDefaultAction<commands::TriggerReload>(m_actions);
-	RegisterDefaultAction<commands::EnableReinstancingFlow>(m_actions);
+	RegisterDefaultAction<commands::SetReinstancingFlow>(m_actions);
+	RegisterDefaultAction<commands::DisableCompileFinishNotification>(m_actions);
 	// END EPIC MOD
 }
 

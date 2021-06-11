@@ -19,7 +19,8 @@ public class LiveCoding : ModuleRules
 		if (Target.bBuildEditor == true)
         {
             PrivateDependencyModuleNames.Add("UnrealEd");
-        }        
+			PrivateDependencyModuleNames.Add("Slate");
+		}
 
 		if(Target.bUseDebugLiveCodingConsole)
         {

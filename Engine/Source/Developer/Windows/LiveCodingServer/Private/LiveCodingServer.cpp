@@ -119,3 +119,8 @@ bool FLiveCodingServer::HasReinstancingProcess()
 {
 	return CommandThread->HasReinstancingProcess();
 }
+
+bool FLiveCodingServer::ShowCompileFinishNotification()
+{
+	return CommandThread->ShowCompileFinishNotification();
+}

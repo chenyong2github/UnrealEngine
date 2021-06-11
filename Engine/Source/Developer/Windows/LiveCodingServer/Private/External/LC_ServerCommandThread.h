@@ -40,6 +40,10 @@ public:
 	bool HasReinstancingProcess();
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD
+	bool ShowCompileFinishNotification();
+	// END EPIC MOD
+
 private:
 	scheduler::Task<LiveModule*>* LoadModule(Process::Id processId, void* moduleBase, const wchar_t* modulePath, scheduler::TaskBase* taskRoot);
 	bool UnloadModule(Process::Id processId, const wchar_t* modulePath);
@@ -51,7 +55,7 @@ private:
 
 	// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
 	void CallPrecompileHooks(bool didAllProcessesMakeProgress);
-	void CallPostcompileHooks(bool didAllProcessesMakeProgress);
+	void CallPostcompileHooks(bool didAllProcessesMakeProgress, commands::PostCompileResult postCompileResult);
 	// END EPIC MOD
 
 	struct CommandThreadContext
@@ -71,8 +75,9 @@ private:
 
 	LiveProcess* FindProcessById(Process::Id processId);
 
-	void CompileChanges(bool didAllProcessesMakeProgress);
-
+	// BEGIN EPIC MOD
+	void CompileChanges(bool didAllProcessesMakeProgress, commands::PostCompileResult& postCompileResult);
+	// END EPIC MOD
 
 	// actions
 	struct actions
@@ -122,7 +127,11 @@ private:
 		// END EPIC MOD
 
 		// BEGIN EPIC MOD
-		DECLARE_ACTION(EnableReinstancingFlow);
+		DECLARE_ACTION(SetReinstancingFlow);
+		// END EPIC MOD
+
+		// BEGIN EPIC MOD
+		DECLARE_ACTION(DisableCompileFinishNotification);
 		// END EPIC MOD
 
 		#undef DECLARE_ACTION
@@ -154,6 +163,10 @@ private:
 
 	// BEGIN EPIC MOD
 	std::atomic<unsigned int> m_reinstancingProcessCount = 0;
+	// END EPIC MOD
+
+	// BEGIN EPIC MOD
+	std::atomic<unsigned int> m_disableCompileFinishNotificationProcessCount = 0;
 	// END EPIC MOD
 
 	// BEGIN EPIC MOD - Non-destructive compile

@@ -739,6 +739,7 @@ bool FReload::GetEnableReinstancing(bool bHasChanged) const
 	if (bHasChanged && !bEnableReinstancing  && !bEnabledMessage)
 	{
 		bEnabledMessage = true;
+		bHasReinstancingOccurred = true;
 		Ar.Logf(ELogVerbosity::Display, TEXT("Re-instancing has been disabled.  Some changes will be ignored."));
 	}
 	return bEnableReinstancing;
@@ -750,6 +751,10 @@ void FReload::Reset()
 	FunctionRemap.Empty();
 	ReconstructedCDOsMap.Empty();
 	ReinstancedClasses.Empty();
+	ReinstancedEnums.Empty();
+	ReinstancedStructs.Empty();
+	Packages.Empty();
+	bHasReinstancingOccurred = false;
 }
 
 void FReload::UpdateStats(FReinstanceStats& Stats, void* New, void* Old)
@@ -802,6 +807,11 @@ void FReload::NotifyChange(UClass* New, UClass* Old)
 {
 	UpdateStats(ClassStats, New, Old);
 
+	if (New != Old)
+	{
+		bHasReinstancingOccurred = true;
+	}
+
 	// Ignore new classes
 	if (Old != nullptr)
 	{
@@ -824,6 +834,12 @@ void FReload::NotifyChange(UEnum* New, UEnum* Old)
 {
 	UpdateStats(EnumStats, New, Old);
 
+	if (New != Old)
+	{
+		bHasReinstancingOccurred = true;
+	}
+
+
 	if (Old != nullptr)
 	{
 		UEnum* NewIfChanged = Old != New ? New : nullptr; // supporting code detects unchanged based on null new pointer
@@ -835,6 +851,11 @@ void FReload::NotifyChange(UEnum* New, UEnum* Old)
 void FReload::NotifyChange(UScriptStruct* New, UScriptStruct* Old)
 {
 	UpdateStats(StructStats, New, Old);
+
+	if (New != Old)
+	{
+		bHasReinstancingOccurred = true;
+	}
 
 	if (Old != nullptr)
 	{

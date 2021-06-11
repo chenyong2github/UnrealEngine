@@ -116,7 +116,7 @@ extern void LiveCodingEndCompile();
 
 // BEGIN EPIC MOD
 extern void LiveCodingPreCompile();
-extern void LiveCodingPostCompile();
+extern void LiveCodingPostCompile(commands::PostCompileResult postCompileResult);
 extern void LiveCodingTriggerReload();
 // END EPIC MOD
 
@@ -217,9 +217,9 @@ bool actions::PreCompile::Execute(const CommandType*, const DuplexPipe* pipe, vo
 }
 
 
-bool actions::PostCompile::Execute(const CommandType*, const DuplexPipe* pipe, void*, const void*, size_t)
+bool actions::PostCompile::Execute(const CommandType* command, const DuplexPipe* pipe, void*, const void*, size_t)
 {
-	LiveCodingPostCompile();
+	LiveCodingPostCompile(command->postCompileResult);
 	pipe->SendAck();
 
 	return true;

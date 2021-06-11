@@ -98,13 +98,24 @@ public:
 	// END EPIC MOD
 
 	// BEGIN EPIC MOD
-	void EnableReinstancingFlow()
+	void SetReinstancingFlow(bool enable)
 	{
-		m_reinstancingFlow = true;
+		m_reinstancingFlow = enable;
 	}
 	bool IsReinstancingFlowEnabled() const
 	{
 		return m_reinstancingFlow;
+	}
+	// END EPIC MOD
+
+	// BEGIN EPIC MOD
+	void DisableCompileFinishNotification()
+	{
+		m_disableCompileFinishNotification = true;
+	}
+	bool IsDisableCompileFinishNotification()
+	{
+		return m_disableCompileFinishNotification;
 	}
 	// END EPIC MOD
 
@@ -136,6 +147,10 @@ private:
 
 	// BEGIN EPIC MOD
 	bool m_reinstancingFlow = false;
+	// END EPIC MOD
+
+	// BEGIN EPIC MOD
+	bool m_disableCompileFinishNotification = false;
 	// END EPIC MOD
 
 	// loaded modules are not identified by their full path, but by their executable image header.

@@ -385,14 +385,27 @@ void* ClientStartupThread::EnableLazyLoadedModule(const wchar_t* fileName, Windo
 // END EPIC MOD
 
 // BEGIN EPIC MOD
-void ClientStartupThread::EnableReinstancingFlow()
+void ClientStartupThread::SetReinstancingFlow(bool enable)
 {
 	// we cannot wait for commands in the user command thread as long as startup hasn't finished
 	Join();
 
 	if (m_userCommandThread)
 	{
-		m_userCommandThread->EnableReinstancingFlow();
+		m_userCommandThread->SetReinstancingFlow(enable);
+	}
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD
+void ClientStartupThread::DisableCompileFinishNotification()
+{
+	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	Join();
+
+	if (m_userCommandThread)
+	{
+		m_userCommandThread->DisableCompileFinishNotification();
 	}
 }
 // END EPIC MOD

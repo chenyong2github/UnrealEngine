@@ -78,7 +78,11 @@ public:
 	// END EPIC MOD
 
 	// BEGIN EPIC MOD
-	void EnableReinstancingFlow();
+	void SetReinstancingFlow(bool Enable);
+	// END EPIC MOD
+
+	// BEGIN EPIC MOD
+	void DisableCompileFinishNotification();
 	// END EPIC MOD
 
 private:

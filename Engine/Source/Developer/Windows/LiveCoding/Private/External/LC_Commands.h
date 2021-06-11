@@ -319,9 +319,18 @@ namespace commands
 		static const uint32_t ID = FinishedLazyLoadingModules::ID + 1u;
 	};
 
+	enum class PostCompileResult : unsigned char
+	{
+		Success,
+		NoChanges,
+		Failure,
+		Cancelled,
+	};
+
 	struct PostCompile
 	{
 		static const uint32_t ID = PreCompile::ID + 1u;
+		PostCompileResult postCompileResult = PostCompileResult::Success;
 	};
 
 	struct TriggerReload
@@ -329,13 +338,21 @@ namespace commands
 		static const uint32_t ID = PostCompile::ID + 1u;
 	};
 
-	struct EnableReinstancingFlow
+	struct SetReinstancingFlow
 	{
 		static const uint32_t ID = TriggerReload::ID + 1u;
 
 		Process::Id processId;
+		bool enable;
 	};
 
-	static const uint32_t COUNT = EnableReinstancingFlow::ID + 1u;
+	struct DisableCompileFinishNotification
+	{
+		static const uint32_t ID = SetReinstancingFlow::ID + 1u;
+
+		Process::Id processId;
+	};
+
+	static const uint32_t COUNT = DisableCompileFinishNotification::ID + 1u;
 	// END EPIC MOD
 }
