@@ -23,6 +23,10 @@
 #include "RenderTargetPool.h"
 #include "GroomBindingBuilder.h"
 
+#ifndef CLEAR_COMPRESSION
+#define CLEAR_COMPRESSION 1
+#endif
+
 static int32 GHairStrandsBulkData_ReleaseAfterUse = 0;
 static FAutoConsoleVariableRef CVarHairStrandsBulkData_ReleaseAfterUse(TEXT("r.HairStrands.Strands.BulkData.ReleaseAfterUse"), GHairStrandsBulkData_ReleaseAfterUse, TEXT("Release CPU bulk data once hair groom/groom binding asset GPU resources are created. This saves memory"));
 
@@ -839,11 +843,24 @@ void FHairStrandsClusterCullingBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	const int32 ChunkIndex = 0;
 	bool bAttemptFileMapping = false;
 
-	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
-	ClusterLODInfos.SetBulkDataFlags(BulkFlags);
-	VertexToClusterIds.SetBulkDataFlags(BulkFlags);
-	ClusterVertexIds.SetBulkDataFlags(BulkFlags);
-	PackedClusterInfos.SetBulkDataFlags(BulkFlags);
+	if (Ar.IsSaving())
+	{
+		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+		ClusterLODInfos.SetBulkDataFlags(BulkFlags);
+		VertexToClusterIds.SetBulkDataFlags(BulkFlags);
+		ClusterVertexIds.SetBulkDataFlags(BulkFlags);
+		PackedClusterInfos.SetBulkDataFlags(BulkFlags);
+
+		#if CLEAR_COMPRESSION
+		if (Ar.IsCooking())
+		{
+			ClusterLODInfos.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			VertexToClusterIds.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			ClusterVertexIds.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			PackedClusterInfos.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+		}
+		#endif
+	}
 
 	if (ClusterLODCount)
 	{
@@ -1136,16 +1153,34 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairStrandsRootBulk
 	const int32 ChunkIndex = 0;
 	bool bAttemptFileMapping = false;
 
-	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
-	LOD.RootTriangleIndexBuffer.SetBulkDataFlags(BulkFlags);
-	LOD.RootTriangleBarycentricBuffer.SetBulkDataFlags(BulkFlags);
-	LOD.RestRootTrianglePosition0Buffer.SetBulkDataFlags(BulkFlags);
-	LOD.RestRootTrianglePosition1Buffer.SetBulkDataFlags(BulkFlags);
-	LOD.RestRootTrianglePosition2Buffer.SetBulkDataFlags(BulkFlags);
+	if (Ar.IsSaving())
+	{
+		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+		LOD.RootTriangleIndexBuffer.SetBulkDataFlags(BulkFlags);
+		LOD.RootTriangleBarycentricBuffer.SetBulkDataFlags(BulkFlags);
+		LOD.RestRootTrianglePosition0Buffer.SetBulkDataFlags(BulkFlags);
+		LOD.RestRootTrianglePosition1Buffer.SetBulkDataFlags(BulkFlags);
+		LOD.RestRootTrianglePosition2Buffer.SetBulkDataFlags(BulkFlags);
 
-	LOD.MeshInterpolationWeightsBuffer.SetBulkDataFlags(BulkFlags);
-	LOD.MeshSampleIndicesBuffer.SetBulkDataFlags(BulkFlags);
-	LOD.RestSamplePositionsBuffer.SetBulkDataFlags(BulkFlags);
+		LOD.MeshInterpolationWeightsBuffer.SetBulkDataFlags(BulkFlags);
+		LOD.MeshSampleIndicesBuffer.SetBulkDataFlags(BulkFlags);
+		LOD.RestSamplePositionsBuffer.SetBulkDataFlags(BulkFlags);
+
+		#if CLEAR_COMPRESSION
+		if (Ar.IsCooking())
+		{
+			LOD.RootTriangleIndexBuffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			LOD.RootTriangleBarycentricBuffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			LOD.RestRootTrianglePosition0Buffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			LOD.RestRootTrianglePosition1Buffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			LOD.RestRootTrianglePosition2Buffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+
+			LOD.MeshInterpolationWeightsBuffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			LOD.MeshSampleIndicesBuffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			LOD.RestSamplePositionsBuffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+		}
+		#endif
+	}
 
 	Ar << LOD.LODIndex;
 	LOD.RootTriangleIndexBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
@@ -1183,8 +1218,16 @@ void FHairStrandsRootBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	const int32 ChunkIndex = 0;
 	bool bAttemptFileMapping = false;
 
-	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
-	VertexToCurveIndexBuffer.SetBulkDataFlags(BulkFlags);
+	{
+		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+		VertexToCurveIndexBuffer.SetBulkDataFlags(BulkFlags);
+		#if CLEAR_COMPRESSION
+		if (Ar.IsCooking())
+		{
+			VertexToCurveIndexBuffer.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+		}
+		#endif
+	}
 
 	if (!Ar.IsObjectReferenceCollector())
 	{
