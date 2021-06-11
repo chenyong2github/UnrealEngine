@@ -399,6 +399,12 @@ public:
 	void DeleteJob(UMoviePipelineExecutorJob* InJob);
 
 	/**
+	* Delete all jobs from the Queue.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Queue", meta = (Keywords = "Clear Empty"))
+	void DeleteAllJobs();
+
+	/**
 	* Duplicate the specific job and return the duplicate. Configurations are duplicated and not shared.
 	*
 	* @param InJob	The job to look for to duplicate.
