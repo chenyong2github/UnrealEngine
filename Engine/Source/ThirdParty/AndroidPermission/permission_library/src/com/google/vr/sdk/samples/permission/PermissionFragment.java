@@ -7,7 +7,7 @@ import android.app.FragmentTransaction;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Build;
-import android.support.v13.app.FragmentCompat;
+import androidx.legacy.app.FragmentCompat;
 import android.util.Log;
 
 public class PermissionFragment extends Fragment
