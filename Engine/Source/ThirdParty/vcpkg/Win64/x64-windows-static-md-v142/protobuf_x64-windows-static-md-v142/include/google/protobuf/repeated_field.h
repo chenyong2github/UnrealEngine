@@ -169,7 +169,7 @@ class RepeatedField final {
       "We only support types that have an alignment smaller than Arena");
 
  public:
-  RepeatedField();
+  constexpr RepeatedField();
   explicit RepeatedField(Arena* arena);
   RepeatedField(const RepeatedField& other);
   template <typename Iter>
@@ -334,13 +334,12 @@ class RepeatedField final {
   int total_size_;
   struct Rep {
     Arena* arena;
-    Element elements[1];
+    // Here we declare a huge array as a way of approximating C's "flexible
+    // array member" feature without relying on undefined behavior.
+    Element elements[(std::numeric_limits<int>::max() - 2 * sizeof(Arena*)) /
+                     sizeof(Element)];
   };
-  // We can not use sizeof(Rep) - sizeof(Element) due to the trailing padding on
-  // the struct. We can not use sizeof(Arena*) as well because there might be
-  // a "gap" after the field arena and before the field elements (e.g., when
-  // Element is double and pointer is 32bit).
-  static const size_t kRepHeaderSize;
+  static constexpr size_t kRepHeaderSize = offsetof(Rep, elements);
 
   // If total_size_ == 0 this points to an Arena otherwise it points to the
   // elements member of a Rep struct. Using this invariant allows the storage of
@@ -381,14 +380,14 @@ class RepeatedField final {
   void CopyArray(Element* to, const Element* from, int size);
 
   // Internal helper to delete all elements and deallocate the storage.
-  // If Element has a trivial destructor (for example, if it's a fundamental
-  // type, like int32), the loop will be removed by the optimizer.
   void InternalDeallocate(Rep* rep, int size) {
     if (rep != NULL) {
       Element* e = &rep->elements[0];
-      Element* limit = &rep->elements[size];
-      for (; e < limit; e++) {
-        e->~Element();
+      if (!std::is_trivial<Element>::value) {
+        Element* limit = &rep->elements[size];
+        for (; e < limit; e++) {
+          e->~Element();
+        }
       }
       if (rep->arena == NULL) {
 #if defined(__GXX_DELETE_WITH_SIZE__) || defined(__cpp_sized_deallocation)
@@ -439,7 +438,7 @@ class RepeatedField final {
   //
   // The first version executes at 7 cycles per iteration while the second
   // version near 1 or 2 cycles.
-  template <int = 0, bool = std::is_pod<Element>::value>
+  template <int = 0, bool = std::is_trivial<Element>::value>
   class FastAdderImpl {
    public:
     explicit FastAdderImpl(RepeatedField* rf) : repeated_field_(rf) {
@@ -487,10 +486,6 @@ class RepeatedField final {
   friend class ::google::protobuf::internal::ParseContext;
 };
 
-template <typename Element>
-const size_t RepeatedField<Element>::kRepHeaderSize =
-    reinterpret_cast<size_t>(&reinterpret_cast<Rep*>(16)->elements[0]) - 16;
-
 namespace internal {
 template <typename It>
 class RepeatedPtrIterator;
@@ -505,8 +500,7 @@ namespace internal {
 // shouldn't be necessary, but our compiler doesn't optimize std::copy very
 // effectively.
 template <typename Element,
-          bool HasTrivialCopy =
-              std::is_pod<Element>::value>
+          bool HasTrivialCopy = std::is_trivial<Element>::value>
 struct ElementCopier {
   void operator()(Element* to, const Element* from, int array_size);
 };
@@ -582,7 +576,7 @@ struct IsMovable
 //   };
 class PROTOBUF_EXPORT RepeatedPtrFieldBase {
  protected:
-  RepeatedPtrFieldBase();
+  constexpr RepeatedPtrFieldBase();
   explicit RepeatedPtrFieldBase(Arena* arena);
   ~RepeatedPtrFieldBase() {
 #ifndef NDEBUG
@@ -662,7 +656,7 @@ class PROTOBUF_EXPORT RepeatedPtrFieldBase {
   const typename TypeHandler::Type* const* data() const;
 
   template <typename TypeHandler>
-  PROTOBUF_ALWAYS_INLINE void Swap(RepeatedPtrFieldBase* other);
+  PROTOBUF_NDEBUG_INLINE void Swap(RepeatedPtrFieldBase* other);
 
   void SwapElements(int index1, int index2);
 
@@ -741,9 +735,12 @@ class PROTOBUF_EXPORT RepeatedPtrFieldBase {
   int total_size_;
   struct Rep {
     int allocated_size;
-    void* elements[1];
+    // Here we declare a huge array as a way of approximating C's "flexible
+    // array member" feature without relying on undefined behavior.
+    void* elements[(std::numeric_limits<int>::max() - 2 * sizeof(int)) /
+                   sizeof(void*)];
   };
-  static constexpr size_t kRepHeaderSize = sizeof(Rep) - sizeof(void*);
+  static constexpr size_t kRepHeaderSize = offsetof(Rep, elements);
   Rep* rep_;
 
   template <typename TypeHandler>
@@ -922,7 +919,7 @@ class StringTypeHandler {
 template <typename Element>
 class RepeatedPtrField final : private internal::RepeatedPtrFieldBase {
  public:
-  RepeatedPtrField();
+  constexpr RepeatedPtrField();
   explicit RepeatedPtrField(Arena* arena);
 
   RepeatedPtrField(const RepeatedPtrField& other);
@@ -1182,7 +1179,7 @@ class RepeatedPtrField final : private internal::RepeatedPtrFieldBase {
 // implementation ====================================================
 
 template <typename Element>
-inline RepeatedField<Element>::RepeatedField()
+constexpr RepeatedField<Element>::RepeatedField()
     : current_size_(0), total_size_(0), arena_or_elements_(nullptr) {}
 
 template <typename Element>
@@ -1208,6 +1205,12 @@ RepeatedField<Element>::RepeatedField(Iter begin, const Iter& end)
 
 template <typename Element>
 RepeatedField<Element>::~RepeatedField() {
+#ifndef NDEBUG
+  // Try to trigger segfault / asan failure in non-opt builds. If arena_
+  // lifetime has ended before the destructor.
+  auto arena = GetArena();
+  if (arena) (void)arena->SpaceAllocated();
+#endif
   if (total_size_ > 0) {
     InternalDeallocate(rep(), total_size_);
   }
@@ -1649,7 +1652,7 @@ struct ElementCopier<Element, true> {
 
 namespace internal {
 
-inline RepeatedPtrFieldBase::RepeatedPtrFieldBase()
+constexpr RepeatedPtrFieldBase::RepeatedPtrFieldBase()
     : arena_(NULL), current_size_(0), total_size_(0), rep_(NULL) {}
 
 inline RepeatedPtrFieldBase::RepeatedPtrFieldBase(Arena* arena)
@@ -2092,7 +2095,8 @@ class RepeatedPtrField<std::string>::TypeHandler
     : public internal::StringTypeHandler {};
 
 template <typename Element>
-inline RepeatedPtrField<Element>::RepeatedPtrField() : RepeatedPtrFieldBase() {}
+constexpr RepeatedPtrField<Element>::RepeatedPtrField()
+    : RepeatedPtrFieldBase() {}
 
 template <typename Element>
 inline RepeatedPtrField<Element>::RepeatedPtrField(Arena* arena)

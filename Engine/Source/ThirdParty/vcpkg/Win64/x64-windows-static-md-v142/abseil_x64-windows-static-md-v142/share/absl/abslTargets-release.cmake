@@ -35,16 +35,6 @@ set_target_properties(absl::spinlock_wait PROPERTIES
 list(APPEND _IMPORT_CHECK_TARGETS absl::spinlock_wait )
 list(APPEND _IMPORT_CHECK_FILES_FOR_absl::spinlock_wait "${_IMPORT_PREFIX}/lib/absl_spinlock_wait.lib" )
 
-# Import target "absl::dynamic_annotations" for configuration "Release"
-set_property(TARGET absl::dynamic_annotations APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
-set_target_properties(absl::dynamic_annotations PROPERTIES
-  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_dynamic_annotations.lib"
-  )
-
-list(APPEND _IMPORT_CHECK_TARGETS absl::dynamic_annotations )
-list(APPEND _IMPORT_CHECK_FILES_FOR_absl::dynamic_annotations "${_IMPORT_PREFIX}/lib/absl_dynamic_annotations.lib" )
-
 # Import target "absl::malloc_internal" for configuration "Release"
 set_property(TARGET absl::malloc_internal APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(absl::malloc_internal PROPERTIES
@@ -104,6 +94,16 @@ set_target_properties(absl::scoped_set_env PROPERTIES
 
 list(APPEND _IMPORT_CHECK_TARGETS absl::scoped_set_env )
 list(APPEND _IMPORT_CHECK_FILES_FOR_absl::scoped_set_env "${_IMPORT_PREFIX}/lib/absl_scoped_set_env.lib" )
+
+# Import target "absl::strerror" for configuration "Release"
+set_property(TARGET absl::strerror APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::strerror PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_strerror.lib"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS absl::strerror )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::strerror "${_IMPORT_PREFIX}/lib/absl_strerror.lib" )
 
 # Import target "absl::hashtablez_sampler" for configuration "Release"
 set_property(TARGET absl::hashtablez_sampler APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
@@ -205,16 +205,6 @@ set_target_properties(absl::leak_check_disable PROPERTIES
 list(APPEND _IMPORT_CHECK_TARGETS absl::leak_check_disable )
 list(APPEND _IMPORT_CHECK_FILES_FOR_absl::leak_check_disable "${_IMPORT_PREFIX}/lib/absl_leak_check_disable.lib" )
 
-# Import target "absl::flags_internal" for configuration "Release"
-set_property(TARGET absl::flags_internal APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
-set_target_properties(absl::flags_internal PROPERTIES
-  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_flags_internal.lib"
-  )
-
-list(APPEND _IMPORT_CHECK_TARGETS absl::flags_internal )
-list(APPEND _IMPORT_CHECK_FILES_FOR_absl::flags_internal "${_IMPORT_PREFIX}/lib/absl_flags_internal.lib" )
-
 # Import target "absl::flags_program_name" for configuration "Release"
 set_property(TARGET absl::flags_program_name APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(absl::flags_program_name PROPERTIES
@@ -245,15 +235,55 @@ set_target_properties(absl::flags_marshalling PROPERTIES
 list(APPEND _IMPORT_CHECK_TARGETS absl::flags_marshalling )
 list(APPEND _IMPORT_CHECK_FILES_FOR_absl::flags_marshalling "${_IMPORT_PREFIX}/lib/absl_flags_marshalling.lib" )
 
-# Import target "absl::flags_registry" for configuration "Release"
-set_property(TARGET absl::flags_registry APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
-set_target_properties(absl::flags_registry PROPERTIES
+# Import target "absl::flags_commandlineflag_internal" for configuration "Release"
+set_property(TARGET absl::flags_commandlineflag_internal APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::flags_commandlineflag_internal PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
-  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_flags_registry.lib"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_flags_commandlineflag_internal.lib"
   )
 
-list(APPEND _IMPORT_CHECK_TARGETS absl::flags_registry )
-list(APPEND _IMPORT_CHECK_FILES_FOR_absl::flags_registry "${_IMPORT_PREFIX}/lib/absl_flags_registry.lib" )
+list(APPEND _IMPORT_CHECK_TARGETS absl::flags_commandlineflag_internal )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::flags_commandlineflag_internal "${_IMPORT_PREFIX}/lib/absl_flags_commandlineflag_internal.lib" )
+
+# Import target "absl::flags_commandlineflag" for configuration "Release"
+set_property(TARGET absl::flags_commandlineflag APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::flags_commandlineflag PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_flags_commandlineflag.lib"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS absl::flags_commandlineflag )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::flags_commandlineflag "${_IMPORT_PREFIX}/lib/absl_flags_commandlineflag.lib" )
+
+# Import target "absl::flags_private_handle_accessor" for configuration "Release"
+set_property(TARGET absl::flags_private_handle_accessor APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::flags_private_handle_accessor PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_flags_private_handle_accessor.lib"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS absl::flags_private_handle_accessor )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::flags_private_handle_accessor "${_IMPORT_PREFIX}/lib/absl_flags_private_handle_accessor.lib" )
+
+# Import target "absl::flags_reflection" for configuration "Release"
+set_property(TARGET absl::flags_reflection APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::flags_reflection PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_flags_reflection.lib"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS absl::flags_reflection )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::flags_reflection "${_IMPORT_PREFIX}/lib/absl_flags_reflection.lib" )
+
+# Import target "absl::flags_internal" for configuration "Release"
+set_property(TARGET absl::flags_internal APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::flags_internal PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_flags_internal.lib"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS absl::flags_internal )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::flags_internal "${_IMPORT_PREFIX}/lib/absl_flags_internal.lib" )
 
 # Import target "absl::flags" for configuration "Release"
 set_property(TARGET absl::flags APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
@@ -315,6 +345,16 @@ set_target_properties(absl::city PROPERTIES
 list(APPEND _IMPORT_CHECK_TARGETS absl::city )
 list(APPEND _IMPORT_CHECK_FILES_FOR_absl::city "${_IMPORT_PREFIX}/lib/absl_city.lib" )
 
+# Import target "absl::wyhash" for configuration "Release"
+set_property(TARGET absl::wyhash APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::wyhash PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_wyhash.lib"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS absl::wyhash )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::wyhash "${_IMPORT_PREFIX}/lib/absl_wyhash.lib" )
+
 # Import target "absl::int128" for configuration "Release"
 set_property(TARGET absl::int128 APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(absl::int128 PROPERTIES
@@ -375,6 +415,16 @@ set_target_properties(absl::random_internal_pool_urbg PROPERTIES
 list(APPEND _IMPORT_CHECK_TARGETS absl::random_internal_pool_urbg )
 list(APPEND _IMPORT_CHECK_FILES_FOR_absl::random_internal_pool_urbg "${_IMPORT_PREFIX}/lib/absl_random_internal_pool_urbg.lib" )
 
+# Import target "absl::random_internal_platform" for configuration "Release"
+set_property(TARGET absl::random_internal_platform APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::random_internal_platform PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_random_internal_platform.lib"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS absl::random_internal_platform )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::random_internal_platform "${_IMPORT_PREFIX}/lib/absl_random_internal_platform.lib" )
+
 # Import target "absl::random_internal_randen" for configuration "Release"
 set_property(TARGET absl::random_internal_randen APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(absl::random_internal_randen PROPERTIES
@@ -434,6 +484,16 @@ set_target_properties(absl::status PROPERTIES
 
 list(APPEND _IMPORT_CHECK_TARGETS absl::status )
 list(APPEND _IMPORT_CHECK_FILES_FOR_absl::status "${_IMPORT_PREFIX}/lib/absl_status.lib" )
+
+# Import target "absl::statusor" for configuration "Release"
+set_property(TARGET absl::statusor APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(absl::statusor PROPERTIES
+  IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "CXX"
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/absl_statusor.lib"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS absl::statusor )
+list(APPEND _IMPORT_CHECK_FILES_FOR_absl::statusor "${_IMPORT_PREFIX}/lib/absl_statusor.lib" )
 
 # Import target "absl::strings" for configuration "Release"
 set_property(TARGET absl::strings APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)

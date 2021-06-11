@@ -16,13 +16,7 @@
  *
  */
 
-// DEPRECATED: The headers in include/grpc++ are deprecated. Please include the
-// headers in include/grpcpp instead. This header exists only for backwards
-// compatibility.
+#ifndef GRPCPP_IMPL_CODEGEN_METHOD_HANDLER_IMPL_H
+#define GRPCPP_IMPL_CODEGEN_METHOD_HANDLER_IMPL_H
 
-#ifndef GRPCXX_EXT_PROTO_SERVER_REFLECTION_PLUGIN_H
-#define GRPCXX_EXT_PROTO_SERVER_REFLECTION_PLUGIN_H
-
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
-
-#endif  // GRPCXX_EXT_PROTO_SERVER_REFLECTION_PLUGIN_H
+#endif  // GRPCPP_IMPL_CODEGEN_METHOD_HANDLER_IMPL_H
