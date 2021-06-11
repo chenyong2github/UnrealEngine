@@ -129,7 +129,7 @@ namespace AutomationTool.Tasks
 					Client.Name = $"{Parameters.Workspace}_{Regex.Replace(Client.Host, "[^a-zA-Z0-9]", "-")}_{ContentHash.MD5((CommandUtils.P4Env.ServerAndPort ?? "").ToUpperInvariant())}";
 					Client.Options = P4ClientOption.NoAllWrite | P4ClientOption.Clobber | P4ClientOption.NoCompress | P4ClientOption.Unlocked | P4ClientOption.NoModTime | P4ClientOption.RmDir;
 					Client.LineEnd = P4LineEnd.Local;
-					if (Parameters.Branch != null)
+					if (!String.IsNullOrEmpty(Parameters.Branch))
 					{
 						Client.View.Add(new KeyValuePair<string, string>($"{Parameters.Branch}/...", $"/..."));
 					}
