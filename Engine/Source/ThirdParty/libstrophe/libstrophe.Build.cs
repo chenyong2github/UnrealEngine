@@ -44,7 +44,6 @@ public class libstrophe : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicSystemIncludePaths.Add(StropheIncludePath);
 			PublicAdditionalLibraries.Add(Path.Combine(StropheLibRootPath, "Android", ConfigName, "arm64", "libstrophe.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(StropheLibRootPath, "Android", ConfigName, "armv7", "libstrophe.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(StropheLibRootPath, "Android", ConfigName, "x86", "libstrophe.a"));
