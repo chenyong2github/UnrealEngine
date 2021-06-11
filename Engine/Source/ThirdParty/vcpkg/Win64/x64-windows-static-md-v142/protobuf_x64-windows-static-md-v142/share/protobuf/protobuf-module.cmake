@@ -97,6 +97,10 @@ function(_protobuf_find_libraries name filename)
   else()
     get_target_property(${name}_LIBRARY_RELEASE protobuf::lib${filename}
       LOCATION_RELEASE)
+    get_target_property(${name}_LIBRARY_RELWITHDEBINFO protobuf::lib${filename}
+      LOCATION_RELWITHDEBINFO)
+    get_target_property(${name}_LIBRARY_MINSIZEREL protobuf::lib${filename}
+      LOCATION_MINSIZEREL)
     get_target_property(${name}_LIBRARY_DEBUG protobuf::lib${filename}
       LOCATION_DEBUG)
 
@@ -148,6 +152,14 @@ get_target_property(Protobuf_PROTOC_EXECUTABLE protobuf::protoc
   IMPORTED_LOCATION_RELEASE)
 if(NOT EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
   get_target_property(Protobuf_PROTOC_EXECUTABLE protobuf::protoc
+    IMPORTED_LOCATION_RELWITHDEBINFO)
+endif()
+if(NOT EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
+  get_target_property(Protobuf_PROTOC_EXECUTABLE protobuf::protoc
+    IMPORTED_LOCATION_MINSIZEREL)
+endif()
+if(NOT EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
+  get_target_property(Protobuf_PROTOC_EXECUTABLE protobuf::protoc
     IMPORTED_LOCATION_DEBUG)
 endif()
 if(NOT EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
@@ -156,7 +168,7 @@ if(NOT EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
 endif()
 
 # Version info variable
-set(Protobuf_VERSION "3.13.0.0")
+set(Protobuf_VERSION "3.15.8.0")
 
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(Protobuf

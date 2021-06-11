@@ -30,3 +30,5 @@ endmacro()
 ####################################################################################
 
 include ("${CMAKE_CURRENT_LIST_DIR}/abslTargets.cmake")
+
+set(ABSL_USE_CXX17 OFF)
