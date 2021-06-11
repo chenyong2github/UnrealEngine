@@ -487,9 +487,18 @@ static FAutoConsoleCommand TraceAuxiliaryResumeCmd(
 
 #if WITH_UNREAL_TRACE_LAUNCH
 ////////////////////////////////////////////////////////////////////////////////
+static std::atomic<int32> GUnrealTraceLanuched; // = 0;
+
+////////////////////////////////////////////////////////////////////////////////
 #if PLATFORM_WINDOWS
-static void StartUnrealTrace()
+static void LaunchUnrealTraceInternal()
 {
+	if (GUnrealTraceLanuched.load(std::memory_order_relaxed))
+	{
+		UE_LOG(LogCore, Log, TEXT("UnrealTraceServer: Trace store already started"));
+		return;
+	}
+
 	FString BinPath = "\"";
 	BinPath += FPaths::EngineDir();
 	BinPath += "/Binaries/Win64/UnrealTraceServer.exe\"";
@@ -502,13 +511,13 @@ static void StartUnrealTrace()
 
 	if (!bOk)
 	{
-		UE_LOG(LogCore, Warning, TEXT("Unable to launch the trace store from '%s' (%08x)"), *BinPath, GetLastError());
+		UE_LOG(LogCore, Warning, TEXT("UnrealTraceServer: Unable to launch the trace store from '%s' (%08x)"), *BinPath, GetLastError());
 		return;
 	}
 
 	if (WaitForSingleObject(ProcessInfo.hProcess, 5000) == WAIT_TIMEOUT)
 	{
-		UE_LOG(LogCore, Warning, TEXT("Timed out waiting for the trace store to start"));
+		UE_LOG(LogCore, Warning, TEXT("UnrealTraceServer: Timed out waiting for the trace store to start"));
 	}
 	else
 	{
@@ -516,11 +525,12 @@ static void StartUnrealTrace()
 		GetExitCodeProcess(ProcessInfo.hProcess, &ExitCode);
 		if (ExitCode)
 		{
-			UE_LOG(LogCore, Warning, TEXT("Trace store returned an error (%08x)"), ExitCode);
+			UE_LOG(LogCore, Warning, TEXT("UnrealTraceServer: Trace store returned an error (%08x)"), ExitCode);
 		}
 		else
 		{
-			UE_LOG(LogCore, Log, TEXT("Trace store launch successful"));
+			UE_LOG(LogCore, Log, TEXT("UnrealTraceServer: Trace store launch successful"));
+			GUnrealTraceLanuched.fetch_add(1, std::memory_order_relaxed);
 		}
 	}
 
@@ -531,7 +541,7 @@ static void StartUnrealTrace()
 
 ////////////////////////////////////////////////////////////////////////////////
 #if PLATFORM_UNIX || PLATFORM_MAC
-static void StartUnrealTrace()
+static void LaunchUnrealTraceInternal()
 {
 	/* nop */
 }
@@ -559,8 +569,8 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 
 #if WITH_UNREAL_TRACE_LAUNCH
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FTraceAux_StartUnrealTrace);
-		StartUnrealTrace();
+		TRACE_CPUPROFILER_EVENT_SCOPE(FTraceAux_LaunchUnrealTrace);
+		LaunchUnrealTraceInternal();
 	}
 #endif
 
@@ -686,5 +696,13 @@ void FTraceAuxiliary::TryAutoConnect()
 		::CloseHandle(KnownEvent);
 	}
 	#endif
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliary::LaunchUnrealTrace()
+{
+#if WITH_UNREAL_TRACE_LAUNCH
+	LaunchUnrealTraceInternal();
 #endif
 }

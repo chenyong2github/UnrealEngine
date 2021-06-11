@@ -13,4 +13,5 @@ public:
 	static void Shutdown();
 	static void TryAutoConnect();
 	static void EnableChannels();
+	static void LaunchUnrealTrace();
 };
