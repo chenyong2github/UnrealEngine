@@ -104,6 +104,9 @@ struct FSpatialHashStreamingGrid
 	float LoadingRange;
 
 	UPROPERTY()
+	bool bBlockOnSlowStreaming;
+		
+	UPROPERTY()
 	FLinearColor DebugColor;
 
 	UPROPERTY()
@@ -127,6 +130,7 @@ struct FSpatialHashStreamingGrid
 	}
 
 	// Used by PIE/Game
+	int32 GetCellSize(int32 Level) const;
 	void GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const;
 	void GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const class UDataLayerSubsystem* DataLayerSubsystem, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const;
 	void GetAlwaysLoadedCells(const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const;
@@ -154,6 +158,7 @@ struct FSpatialHashRuntimeGrid
 #if WITH_EDITORONLY_DATA
 		: CellSize(0)
 		, LoadingRange(1000)
+		, bBlockOnSlowStreaming(false)
 		, Priority(0)
 		, DebugColor(FLinearColor::MakeRandomColor())
 		, bClientOnlyVisible(false)
@@ -170,6 +175,10 @@ struct FSpatialHashRuntimeGrid
 	UPROPERTY(EditAnywhere, Category=Settings)
 	float LoadingRange;
 
+	/** Should streaming block in situations where cells aren't getting loaded fast enough. */
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bBlockOnSlowStreaming;
+		
 	UPROPERTY(EditAnywhere, Category=Settings)
 	int32 Priority;
 
@@ -232,6 +241,7 @@ public:
 
 protected:
 	bool ShouldConsiderClientOnlyVisibleCells() const;
+	virtual EWorldPartitionStreamingPerformance GetStreamingPerformanceForCell(const UWorldPartitionRuntimeCell* Cell) const override;
 
 #if WITH_EDITOR
 	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate = nullptr) override;
@@ -263,6 +273,8 @@ private:
 	UPROPERTY(NonPIEDuplicateTransient)
 	TArray<FSpatialHashStreamingGrid> StreamingGrids;
 
+	mutable TMap<FName, const FSpatialHashStreamingGrid*> NameToGridMapping;
+	
 	virtual FVector2D GetDraw2DDesiredFootprint(const FVector2D& CanvasSize) const override;
 	virtual void Draw2D(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasSize, FVector2D& Offset) const override;
 	virtual void Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const override;
@@ -271,6 +283,7 @@ private:
 private:
 	void GetAlwaysLoadedStreamingCells(const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const;
 	void GetStreamingCells(const FVector& Position, const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const;
+	const TMap<FName, const FSpatialHashStreamingGrid*>& GetNameToGridMapping() const;
 #if WITH_EDITOR
 	bool CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate = nullptr);
 #endif

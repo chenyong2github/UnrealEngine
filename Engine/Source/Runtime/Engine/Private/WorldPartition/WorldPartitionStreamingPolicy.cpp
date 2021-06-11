@@ -27,17 +27,31 @@
 #include "LevelEditorViewport.h"
 #endif
 
+#define LOCTEXT_NAMESPACE "WorldPartitionStreamingPolicy"
+
 static int32 GMaxLoadingStreamingCells = 4;
 static FAutoConsoleVariableRef CMaxLoadingStreamingCells(
 	TEXT("wp.Runtime.MaxLoadingStreamingCells"),
 	GMaxLoadingStreamingCells,
 	TEXT("Used to limit the number of concurrent loading world partition streaming cells."));
 
+static int32 GBlockOnSlowStreaming = 1;
+static FAutoConsoleCommand CVarBlockOnSlowStreaming(
+	TEXT("wp.Runtime.ToggleBlockOnSlowStreaming"),
+	TEXT("Toggles if streaming needs to block when to slow to catchup."),
+	FConsoleCommandDelegate::CreateLambda([] { GBlockOnSlowStreaming = !GBlockOnSlowStreaming; }));
+
+
 UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer) 
 , UpdateStreamingStateEpoch(0)
 , SortedAddToWorldCellsEpoch(INT_MIN)
 , DataLayersStatesServerEpoch(INT_MIN)
+, StreamingPerformance(EWorldPartitionStreamingPerformance::Good)
+#if !UE_BUILD_SHIPPING
+, OnScreenMessageStartTime(0.0)
+, OnScreenMessageStreamingPerformance(EWorldPartitionStreamingPerformance::Good)
+#endif
 {
 	if (!IsTemplate())
 	{
@@ -240,9 +254,87 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Loaded, ToLoadCells);
 	}
 
+	// Evaluate streaming performance based on cells that should be activated
+	UpdateStreamingPerformance(ActivateStreamingCells);
+	
 	// Reset frame StreamingSourceCells (optimization to avoid reallocation at every call to UpdateStreamingState)
 	FrameActivateCells.Reset();
 	FrameLoadCells.Reset();
+}
+
+void UWorldPartitionStreamingPolicy::UpdateStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellsToActivate)
+{		
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingPerformance);
+	UWorld* World = GetWorld();
+	// If we are currently in a blocked loading just reset the on screen message time and return
+	if (StreamingPerformance == EWorldPartitionStreamingPerformance::Critical && World->GetIsInBlockTillLevelStreamingCompleted())
+	{
+#if !UE_BUILD_SHIPPING
+		OnScreenMessageStartTime = FPlatformTime::Seconds();
+#endif
+		return;
+	}
+
+	EWorldPartitionStreamingPerformance NewStreamingPerformance = WorldPartition->RuntimeHash->GetStreamingPerformance(CellsToActivate);
+		
+	if (StreamingPerformance != NewStreamingPerformance)
+	{
+		UE_LOG(LogWorldPartition, Log, TEXT("Streaming performance changed: %s -> %s"),
+			*StaticEnum<EWorldPartitionStreamingPerformance>()->GetDisplayNameTextByValue((int64)StreamingPerformance).ToString(),
+			*StaticEnum<EWorldPartitionStreamingPerformance>()->GetDisplayNameTextByValue((int64)NewStreamingPerformance).ToString());
+		
+		StreamingPerformance = NewStreamingPerformance;
+	}
+
+#if !UE_BUILD_SHIPPING
+	if (StreamingPerformance != EWorldPartitionStreamingPerformance::Good)
+	{
+		// performance still bad keep message alive
+		OnScreenMessageStartTime = FPlatformTime::Seconds();
+		OnScreenMessageStreamingPerformance = StreamingPerformance;
+	}
+#endif
+	
+	if (StreamingPerformance == EWorldPartitionStreamingPerformance::Critical)
+	{
+		// This is a first very simple standalone implementation of handling of critical streaming conditions.
+		if (GBlockOnSlowStreaming && !World->GetIsInBlockTillLevelStreamingCompleted() && World->GetNetMode() == NM_Standalone)
+		{
+			World->bRequestedBlockOnAsyncLoading = true;
+		}
+	}
+}
+
+#if !UE_BUILD_SHIPPING
+void UWorldPartitionStreamingPolicy::GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages)
+{
+	// Keep displaying for 2 seconds (or more if health stays bad)
+	double DisplayTime = FPlatformTime::Seconds() - OnScreenMessageStartTime;
+	if (DisplayTime < 2.0)
+	{
+		switch (OnScreenMessageStreamingPerformance)
+		{
+		case EWorldPartitionStreamingPerformance::Critical:
+			OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Error, LOCTEXT("WPStreamingCritical", "[Critical] WorldPartition Streaming Performance"));
+			break;
+		case EWorldPartitionStreamingPerformance::Slow:
+			OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, LOCTEXT("WPStreamingWarning", "[Slow] WorldPartition Streaming Performance"));
+			break;
+		default:
+			break;
+		}
+	}
+	else
+	{
+		OnScreenMessageStreamingPerformance = EWorldPartitionStreamingPerformance::Good;
+	}
+}
+#endif
+
+bool UWorldPartitionStreamingPolicy::ShouldSkipCellForPerformance(const UWorldPartitionRuntimeCell* Cell) const
+{
+	// When performance is degrading start skipping non blocking cells
+	return StreamingPerformance != EWorldPartitionStreamingPerformance::Good && !Cell->GetBlockOnSlowLoading();
 }
 
 int32 UWorldPartitionStreamingPolicy::GetMaxCellsToLoad() const
@@ -290,6 +382,11 @@ void UWorldPartitionStreamingPolicy::SetCellsStateToLoaded(const TSet<const UWor
 	// Trigger cell loading. Depending on actual state of cell limit loading.
 	for (const UWorldPartitionRuntimeCell* Cell : SortedCells)
 	{
+		if (ShouldSkipCellForPerformance(Cell))
+		{
+			continue;
+		}
+
 		UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy::LoadCells %s"), *Cell->GetName());
 		if (ActivatedCells.Contains(Cell))
 		{
@@ -322,6 +419,11 @@ void UWorldPartitionStreamingPolicy::SetCellsStateToActivated(const TSet<const U
 	// Trigger cell activation. Depending on actual state of cell limit loading.
 	for (const UWorldPartitionRuntimeCell* Cell : SortedCells)
 	{
+		if (ShouldSkipCellForPerformance(Cell))
+		{
+			continue;
+		}
+
 		UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy::ActivateCells %s"), *Cell->GetName());
 		if (LoadedCells.Contains(Cell))
 		{
@@ -460,3 +562,5 @@ void UWorldPartitionStreamingPolicy::DrawRuntimeHash3D()
 		WorldPartition->RuntimeHash->Draw3D(StreamingSources);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

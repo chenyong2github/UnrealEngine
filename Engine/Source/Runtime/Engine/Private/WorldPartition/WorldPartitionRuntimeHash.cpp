@@ -279,6 +279,36 @@ void UWorldPartitionRuntimeHash::SortStreamingCellsByImportance(const TSet<const
 	});
 }
 
+EWorldPartitionStreamingPerformance UWorldPartitionRuntimeHash::GetStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellsToActivate) const
+{
+	EWorldPartitionStreamingPerformance StreamingPerformance = EWorldPartitionStreamingPerformance::Good;
+
+	if (!CellsToActivate.IsEmpty() && GetWorld()->bMatchStarted)
+	{
+		UWorld* World = GetWorld();
+
+		for (const UWorldPartitionRuntimeCell* Cell : CellsToActivate)
+		{
+			if (Cell->GetBlockOnSlowLoading() && !Cell->IsAlwaysLoaded() && Cell->GetStreamingStatus() != LEVEL_Visible)
+			{
+				EWorldPartitionStreamingPerformance CellPerformance = GetStreamingPerformanceForCell(Cell);
+				// Cell Performance is worst than previous cell performance
+				if (CellPerformance > StreamingPerformance)
+				{
+					StreamingPerformance = CellPerformance;
+					// Early out performance is critical
+					if (StreamingPerformance == EWorldPartitionStreamingPerformance::Critical)
+					{
+						return StreamingPerformance;
+					}
+				}
+			}
+		}
+	}
+
+	return StreamingPerformance;
+}
+
 void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPartitionRuntimeCell* InCell, const FWorldPartitionStreamingSource& InSource)
 {
 	InCell->CacheStreamingSourceInfo(InSource);

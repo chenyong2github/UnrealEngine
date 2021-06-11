@@ -129,7 +129,7 @@ class UWorldPartitionRuntimeCell : public UObject
 	virtual const FString& GetDebugName() const { return DebugName; }
 	virtual bool IsDebugShown() const;
 	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* Other) const;
-
+	virtual FName GetGridName() const { return GridName; }
 	/** Caches information on streaming source that will be used later on to sort cell. Returns true if cache was reset, else returns false. */
 	virtual bool CacheStreamingSourceInfo(const struct FWorldPartitionStreamingSource& Source) const;
 
@@ -142,7 +142,10 @@ class UWorldPartitionRuntimeCell : public UObject
 		return Algo::AnyOf(DataLayers, [&InDataLayers](const FName& DataLayer) { return InDataLayers.Contains(DataLayer); });
 	}
 
+	bool GetBlockOnSlowLoading() const { return bBlockOnSlowLoading; }
 #if WITH_EDITOR
+	void SetBlockOnSlowLoading(bool bInBlockOnSlowLoading) { bBlockOnSlowLoading = bInBlockOnSlowLoading; }
+
 	void SetClientOnlyVisible(bool bInClientOnlyVisible) { bClientOnlyVisible = bInClientOnlyVisible; }
 	bool GetClientOnlyVisible() const { return bClientOnlyVisible; }
 
@@ -194,6 +197,9 @@ private:
 
 	UPROPERTY()
 	bool bClientOnlyVisible;
+
+	UPROPERTY()
+	bool bBlockOnSlowLoading;
 
 	// Source Priority
 	mutable int32 CachedSourcePriority;

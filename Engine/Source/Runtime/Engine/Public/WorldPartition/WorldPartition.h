@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "Misc/CoreDelegates.h"
 #include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
@@ -242,6 +243,10 @@ private:
 	bool UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded);
 
 	void ApplyActorTransform(AActor* Actor, const FTransform& InTransform);
+#endif
+
+#if !UE_BUILD_SHIPPING
+	void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
 #endif
 
 	friend class UWorldPartitionStreamingPolicy;

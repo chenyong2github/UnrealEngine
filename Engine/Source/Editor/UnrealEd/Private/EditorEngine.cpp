@@ -1771,6 +1771,13 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 					bAWorldTicked = true;
 					TickType = LEVELTICK_All;
 
+					// Block on async loading if requested.
+					if (PlayWorld->bRequestedBlockOnAsyncLoading)
+					{
+						BlockTillLevelStreamingCompleted(PlayWorld);
+						PlayWorld->bRequestedBlockOnAsyncLoading = false;
+					}
+
 					if (!bFirstTick)
 					{
 						// Update sky light first because sky diffuse will be visible in reflection capture indirect specular
