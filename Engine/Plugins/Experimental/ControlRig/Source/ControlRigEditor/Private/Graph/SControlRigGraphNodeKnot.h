@@ -15,4 +15,5 @@ class SControlRigGraphNodeKnot : public SGraphNodeKnot
 
 	// SGraphNode interface
 	virtual void EndUserInteraction() const override;
+	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
 };

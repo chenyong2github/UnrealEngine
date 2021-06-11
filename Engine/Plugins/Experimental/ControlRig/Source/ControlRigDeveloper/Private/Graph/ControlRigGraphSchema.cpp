@@ -786,6 +786,14 @@ void UControlRigGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D
 	{
 		RigNode->GetController()->SetNodePosition(RigNode->GetModelNode(), Position, bSetupUndo, false);
 	}
+	
+	if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+	{
+		if(UControlRigGraph* Graph = CommentNode->GetTypedOuter<UControlRigGraph>())
+		{
+			Graph->GetController()->SetNodePositionByName(CommentNode->GetFName(), Position, bSetupUndo, false);
+		}
+	}
 }
 
 void UControlRigGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const
@@ -1370,14 +1378,14 @@ void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 		FName NodeName = NodeToMove->GetFName();
 		if (URigVMNode* ModelNode = Graph->GetModel()->FindNodeByName(NodeName))
 		{
+			FVector2D NewPosition(NodeToMove->NodePosX, NodeToMove->NodePosY);
+
 			if(FVector2D* OldPosition = NodePositionsDuringStart.Find(NodeName))
 			{
-				Graph->GetController()->SuspendNotifications(true);
+				TGuardValue<bool> SuspendNotification(Graph->bSuspendModelNotifications, true);
 				Graph->GetController()->SetNodePositionByName(NodeName, *OldPosition, false, false);
-				Graph->GetController()->SuspendNotifications(false);
 			}
 			
-			FVector2D NewPosition(NodeToMove->NodePosX, NodeToMove->NodePosY);
 			if(Graph->GetController()->SetNodePositionByName(NodeName, NewPosition, true, false))
 			{
 				bMovedSomething = true;
@@ -1387,6 +1395,11 @@ void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 
 	if (bMovedSomething)
 	{
+		if (GEditor)
+		{
+			GEditor->CancelTransaction(0);
+		}
+
 		Graph->GetController()->CloseUndoBracket();
 	}
 	else
@@ -1442,6 +1455,23 @@ TArray<UEdGraphNode*> UControlRigGraphSchema::GetNodesToMoveForNode(UEdGraphNode
 #endif
 
 	return NodesToMove;
+}
+
+FVector2D UControlRigGraphSchema::GetNodePositionAtStartOfInteraction(UEdGraphNode* InNode) const
+{
+#if WITH_EDITOR
+	if(InNode)
+	{
+		if(const FVector2D* Position = NodePositionsDuringStart.Find(InNode->GetFName()))
+		{
+			return *Position;
+		}
+
+		return FVector2D(InNode->NodePosX, InNode->NodePosY);
+	}
+#endif
+
+	return FVector2D::ZeroVector;
 }
 
 

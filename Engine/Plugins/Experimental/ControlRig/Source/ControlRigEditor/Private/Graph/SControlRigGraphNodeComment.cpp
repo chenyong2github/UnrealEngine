@@ -129,6 +129,33 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 	SGraphNodeComment::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
+void SControlRigGraphNodeComment::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
+{
+	if (!NodeFilter.Find(SharedThis(this)))
+	{
+		if (GraphNode && !RequiresSecondPassLayout())
+		{
+			if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
+			{
+				const FVector2D CommentOldPosition = RigSchema->GetNodePositionAtStartOfInteraction(GraphNode);
+				const FVector2D Delta = NewPosition - CommentOldPosition;
+
+				TArray<UEdGraphNode*> NodesToMove = UControlRigGraphSchema::GetNodesToMoveForNode(GraphNode);
+				for(UEdGraphNode* NodeToMove : NodesToMove)
+				{
+					const FVector2D OldPosition = RigSchema->GetNodePositionAtStartOfInteraction(NodeToMove);
+
+					if((NodeToMove == GraphNode) || IsNodeUnderComment(CommentOldPosition, OldPosition))
+					{
+						const FVector2D AccumulatedPosition = OldPosition + Delta; 
+						RigSchema->SetNodePosition(NodeToMove, AccumulatedPosition, false);
+					}
+				}
+			}
+		}
+	}
+}
+
 /*
 void SControlRigGraphNodeComment::OnCommentTextCommitted(const FText& NewComment, ETextCommit::Type CommitInfo)
 {
@@ -156,11 +183,25 @@ void SControlRigGraphNodeComment::OnCommentTextCommitted(const FText& NewComment
 
 bool SControlRigGraphNodeComment::IsNodeUnderComment(UEdGraphNode_Comment* InCommentNode, const TSharedRef<SGraphNode> InNodeWidget) const
 {
-	const FVector2D NodePosition = GetPosition();
-	const FVector2D NodeSize = GetDesiredSize();
-	const FSlateRect CommentRect(NodePosition.X, NodePosition.Y, NodePosition.X + NodeSize.X, NodePosition.Y + NodeSize.Y);
+	return IsNodeUnderComment(InNodeWidget->GetPosition());
+}
 
-	const FVector2D InNodePosition = InNodeWidget->GetPosition();
+
+bool SControlRigGraphNodeComment::IsNodeUnderComment(UEdGraphNode* InNode) const
+{
+	return IsNodeUnderComment(FVector2D(InNode->NodePosX, InNode->NodePosY));
+}
+
+bool SControlRigGraphNodeComment::IsNodeUnderComment(const FVector2D& InNodePosition) const
+{
+	return IsNodeUnderComment(GetPosition(), InNodePosition);
+}
+
+bool SControlRigGraphNodeComment::IsNodeUnderComment(const FVector2D& InCommentPosition, const FVector2D& InNodePosition) const
+{
+	const FVector2D NodeSize = GetDesiredSize();
+	const FSlateRect CommentRect(InCommentPosition.X, InCommentPosition.Y, InCommentPosition.X + NodeSize.X, InCommentPosition.Y + NodeSize.Y);
+
 	return CommentRect.ContainsPoint(InNodePosition);
 }
 

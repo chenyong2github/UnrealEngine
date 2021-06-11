@@ -34,4 +34,18 @@ void SControlRigGraphNodeKnot::EndUserInteraction() const
 	SGraphNodeKnot::EndUserInteraction();
 }
 
+void SControlRigGraphNodeKnot::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
+{
+	if (!NodeFilter.Find(SharedThis(this)))
+	{
+		if (GraphNode && !RequiresSecondPassLayout())
+		{
+			if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
+			{
+				RigSchema->SetNodePosition(GraphNode, NewPosition, false);
+			}
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
