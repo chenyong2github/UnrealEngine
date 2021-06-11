@@ -17,7 +17,7 @@
 	<gameActivityImportAdditions>
 		<insert>
 import android.net.Uri;
-import android.support.customtabs.CustomTabsIntent;
+import androidx.browser.customtabs.CustomTabsIntent;
 import static android.content.Intent.ACTION_VIEW;
 import android.content.SharedPreferences;
 import android.webkit.CookieManager;
