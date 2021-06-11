@@ -5,17 +5,6 @@
 #include "RayTracingDefinitions.h"
 #include "PathTracingDefinitions.h"
 
-BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingLightGrid, RENDERER_API)
-	SHADER_PARAMETER(uint32, SceneInfiniteLightCount)
-	SHADER_PARAMETER(FVector, SceneLightsBoundMin)
-	SHADER_PARAMETER(FVector, SceneLightsBoundMax)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LightGrid)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, LightGridData)
-	SHADER_PARAMETER(unsigned, LightGridResolution)
-	SHADER_PARAMETER(unsigned, LightGridMaxCount)
-	SHADER_PARAMETER(int, LightGridAxis)
-END_SHADER_PARAMETER_STRUCT()
-
 RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder);
 
 RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV);
