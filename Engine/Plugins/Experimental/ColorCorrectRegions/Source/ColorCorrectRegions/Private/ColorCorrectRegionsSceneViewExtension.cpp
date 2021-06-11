@@ -242,11 +242,13 @@ namespace
 	}
 
 	// A helper function for getting the right shader.
-	TShaderMapRef<FColorCorrectRegionMaterialPS> GetRegionShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectRegionsType RegionType, bool bIsAdvanced, bool bSampleOpacityFromGbuffer)
+	TShaderMapRef<FColorCorrectRegionMaterialPS> GetRegionShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectRegionsType RegionType, FColorCorrectRegionMaterialPS::ETemperatureType TemperatureType, bool bIsAdvanced, bool bSampleOpacityFromGbuffer)
 	{
 		FColorCorrectRegionMaterialPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FColorCorrectRegionMaterialPS::FAdvancedShader>(bIsAdvanced);
 		PermutationVector.Set<FColorCorrectRegionMaterialPS::FShaderType>(RegionType);
+		PermutationVector.Set<FColorCorrectRegionMaterialPS::FTemperatureType>(TemperatureType);
+
 #if ColorCorrectRegions_SHADER_DISPLAY_BOUNDING_RECT
 		PermutationVector.Set<FColorCorrectRegionMaterialPS::FDisplayBoundingRect>(true);
 #endif
@@ -456,7 +458,13 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 			PostProcessMaterialParameters->View = View.ViewUniformBuffer;
 
 			TShaderMapRef<FColorCorrectRegionMaterialVS> VertexShader(GlobalShaderMap);
-			TShaderMapRef<FColorCorrectRegionMaterialPS> PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, bIsAdvanced, bSampleOpacityFromGbuffer);
+			const float DefaultTemperature = 6500;
+
+			// If temperature is default we don't want to do the calculations.
+			FColorCorrectRegionMaterialPS::ETemperatureType TemperatureType = FMath::IsNearlyEqual(Region->Temperature, DefaultTemperature) 
+				? FColorCorrectRegionMaterialPS::ETemperatureType::Disabled 
+				: static_cast<FColorCorrectRegionMaterialPS::ETemperatureType>(Region->TemperatureType);
+			TShaderMapRef<FColorCorrectRegionMaterialPS> PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, TemperatureType, bIsAdvanced, bSampleOpacityFromGbuffer);
 
 			ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 
