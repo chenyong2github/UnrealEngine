@@ -55,6 +55,9 @@ public:
 
 	void BuildHLOD(bool bForceBuild = false);
 	uint32 GetHLODHash() const;
+
+	virtual EActorGridPlacement GetGridPlacement() const override;
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
 #endif // WITH_EDITOR
 
 protected:
@@ -68,8 +71,6 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 #if WITH_EDITOR
 	virtual bool IsHiddenEd() const override;
-	virtual EActorGridPlacement GetGridPlacement() const override;
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;

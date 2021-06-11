@@ -78,7 +78,7 @@ bool AWorldPartitionHLOD::IsHiddenEd() const
 
 EActorGridPlacement AWorldPartitionHLOD::GetGridPlacement() const
 {
-	return SubActorsHLODLayer && SubActorsHLODLayer->IsAlwaysLoaded() ? EActorGridPlacement::AlwaysLoaded : EActorGridPlacement::Bounds;
+	return SubActorsHLODLayer && SubActorsHLODLayer->IsAlwaysLoaded() ? EActorGridPlacement::AlwaysLoaded : Super::GetGridPlacement();
 }
 
 EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const

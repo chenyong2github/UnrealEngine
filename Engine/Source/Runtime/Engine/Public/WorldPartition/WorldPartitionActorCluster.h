@@ -68,7 +68,7 @@ struct FActorClusterInstance
 /**
  * Represents one actor and his owning container instance 
  */
-struct FActorInstance
+struct ENGINE_API FActorInstance
 {
 	FGuid Actor;
 	const FActorContainerInstance* ContainerInstance;
