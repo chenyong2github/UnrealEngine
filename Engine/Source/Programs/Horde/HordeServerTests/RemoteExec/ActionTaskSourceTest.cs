@@ -90,8 +90,8 @@ namespace HordeServerTests.RemoteExec
 			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string> {"bogus", "pool2"}));
 			Assert.IsFalse(ActionTaskSource.CanBeScheduledOnAgent(AgentWithNoPools, new List<string> {"bogus", "pool2"}));
 			Assert.IsFalse(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string> {"bogus", "foobar"}));
-			Assert.IsFalse(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string>()));
-			Assert.IsFalse(ActionTaskSource.CanBeScheduledOnAgent(AgentWithNoPools, new List<string>()));
+			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string>()));
+			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(AgentWithNoPools, new List<string>()));
 			
 			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(Agent, null));
 			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(AgentWithNoPools, null));
