@@ -1066,6 +1066,15 @@ namespace AutomationTool
 							{
 								using (var ZipArchive = Ionic.Zip.ZipFile.Read(ZipFile.FullName))
 								{
+									// Overwrite silently is failing in some cases, so try to clear out any existing files in advance of extracting.
+									foreach (string EntryFileName in ZipArchive.EntryFileNames)
+									{
+										string ExtractedFilePath = Path.Combine(RootDir.FullName, EntryFileName);
+										if (File.Exists(ExtractedFilePath))
+										{
+											File.Delete(ExtractedFilePath);
+										}
+									}
 									ZipArchive.ExtractAll(RootDir.FullName, Ionic.Zip.ExtractExistingFileAction.OverwriteSilently);
 								}
 								break;
