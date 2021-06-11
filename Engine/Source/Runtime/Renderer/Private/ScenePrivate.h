@@ -990,9 +990,14 @@ public:
 #if RHI_RAYTRACING
 	// Invalidates cached results related to the path tracer so accumulated rendering can start over
 	void PathTracingInvalidate();
+	virtual uint32 GetPathTracingSampleIndex() const override;
+	virtual uint32 GetPathTracingSampleCount() const override;
 
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceRT;
+	TRefCountPtr<IPooledRenderTarget> PathTracingAlbedoRT;
+	TRefCountPtr<IPooledRenderTarget> PathTracingNormalRT;
+	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceDenoisedRT;
 	// Keeps track of the internal path tracer options relevant to detecting when to restart the path tracer accumulation
 	TPimplPtr<FPathTracingConfig> PathTracingLastConfig;
 
