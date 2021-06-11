@@ -91,6 +91,7 @@ namespace UE { namespace TasksTests
 
 		{	// launch a task and wait till it's executed
 			Launch(UE_SOURCE_LOCATION, [] {}).Wait();
+			Launch(UE_SOURCE_LOCATION, [] {}).BusyWait();
 		}
 
 		{	// FTaskEvent
@@ -105,6 +106,7 @@ namespace UE { namespace TasksTests
 			Event.Trigger();
 			check(Event.IsCompleted());
 			verify(Event.Wait(FTimespan::Zero()));
+			verify(Event.BusyWait(FTimespan::Zero()));
 		}
 
 		{	// postpone execution so waiting kicks in first
@@ -116,12 +118,29 @@ namespace UE { namespace TasksTests
 			check(Counter == 1);
 		}
 
+		{	// postpone execution so busy waiting kicks in first
+			std::atomic<int32> Counter{ 0 };
+			FTask Task = Launch(UE_SOURCE_LOCATION, [&Counter] { ++Counter; FPlatformProcess::Sleep(0.1f); });
+
+			ensure(!Task.BusyWait(FTimespan::Zero()));
+			Task.BusyWait();
+			check(Counter == 1);
+		}
+
 		{	// same but using `FTaskEvent`
 			FTaskEvent Event{ UE_SOURCE_LOCATION };
 			FTask Task = Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); });
 			ensure(!Task.Wait(FTimespan::FromMilliseconds(100)));
 			Event.Trigger();
 			Task.Wait();
+		}
+
+		{	// same but using busy-wait and `FTaskEvent`
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
+			FTask Task = Launch(UE_SOURCE_LOCATION, [&Event] { Event.BusyWait(); });
+			ensure(!Task.BusyWait(FTimespan::FromMilliseconds(100)));
+			Event.Trigger();
+			Task.BusyWait();
 		}
 
 		{	// basic use-case, postpone waiting so the task is executed first
@@ -132,6 +151,17 @@ namespace UE { namespace TasksTests
 				FPlatformProcess::Yield();
 			}
 			Task.Wait();
+			check(Done);
+		}
+
+		{	// basic use-case, postpone busy-waiting so the task is executed first
+			std::atomic<bool> Done{ false };
+			FTask Task = Launch(UE_SOURCE_LOCATION, [&Done] { Done = true; });
+			while (!Task.IsCompleted())
+			{
+				FPlatformProcess::Yield();
+			}
+			Task.BusyWait();
 			check(Done);
 		}
 

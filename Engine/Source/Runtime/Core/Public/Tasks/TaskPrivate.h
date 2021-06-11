@@ -21,32 +21,10 @@ namespace UE { namespace Tasks
 
 	// BEGIN: forward declarations
 
-	class FTaskEvent;
-	class FPipe;
-
-	template<typename T>
-	class TTask;
-
-	template<typename TaskBodyType>
-	TTask<TInvokeResult_T<TaskBodyType>> Launch(
-		const TCHAR* DebugName, 
-		TaskBodyType&& TaskBody, 
-		LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal
-	);
-
-	template<typename TaskBodyType, typename PrerequisitesCollectionType>
-	TTask<TInvokeResult_T<TaskBodyType>> Launch(
-		const TCHAR* DebugName, 
-		TaskBodyType&& TaskBody, 
-		PrerequisitesCollectionType&& Prerequisites, 
-		LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal
-	);
-
 	template<typename ResultType>
 	class TTaskBase;
 
-	template<typename... TaskTypes>
-	class TPrerequisites;
+	class FPipe;
 
 	// END: forward declarations
 
@@ -184,8 +162,15 @@ namespace UE { namespace Tasks
 				return Subsequents.IsClosed();
 			}
 
-			// waits until the task is completed
-			void Wait()
+			FORCENOINLINE bool TryRetractAndExecute()
+			{
+				bool bUnlocked = NumLocks.load(std::memory_order_acquire) == (GetPipe() == nullptr ? 1 : 0);
+				// TryCancel() will try to cancel the task (if it's not being executed yet) and execute it
+				return bUnlocked && LowLevelTask.TryCancel() && IsCompleted();
+			}
+
+			// waits until the task is completed while executing other tasks
+			void BusyWait()
 			{
 				// we try to retract the task from the scheduler, if it's execution hasn't started yet, to execute it immediately. This makes
 				// the task skip waiting in the scheduler's queue.
@@ -197,9 +182,8 @@ namespace UE { namespace Tasks
 				LowLevelTasks::BusyWaitUntil([this] { return IsCompleted(); });
 			}
 
-			// waits until the task is completed or waiting timed out
-			// @see `void Wait()`
-			bool Wait(FTimespan InTimeout)
+			// waits until the task is completed or waiting timed out, while executing other tasks
+			bool BusyWait(FTimespan InTimeout)
 			{
 				FTimeout Timeout{ InTimeout };
 				LowLevelTasks::BusyWaitUntil([this, Timeout] { return !LowLevelTask.IsReady() || Timeout; });
@@ -214,10 +198,9 @@ namespace UE { namespace Tasks
 				return IsCompleted();
 			}
 
-			// waits until the task is completed or the condition returns true
-			// @see `void Wait()`
+			// waits until the task is completed or the condition returns true, while executing other tasks
 			template<typename ConditionType>
-			bool Wait(ConditionType&& Condition)
+			bool BusyWait(ConditionType&& Condition)
 			{
 				LowLevelTasks::BusyWaitUntil(
 					[this, Condition = Forward<ConditionType>(Condition)] { return !LowLevelTask.IsReady() || Condition(); }
@@ -301,9 +284,6 @@ namespace UE { namespace Tasks
 				{
 					// the task is locked for a pipe initially even if eventually there's no pipe
 					check(LocalNumLocks == 1);
-					// there's no need to set NumLocks to 0 in non-shipping builds as it's not used anymore, but we do this for debugging
-					// as it's confusing to see scheduled tasks that are still locked
-					check(NumLocks.exchange(0, std::memory_order_relaxed) == 1);
 
 					return true;
 				}
@@ -350,6 +330,20 @@ namespace UE { namespace Tasks
 #endif
 		};
 
+		template<typename TaskCollectionType>
+		bool TryRetractAndExecute(TaskCollectionType&& Tasks)
+		{
+			bool bResult = true;
+			for (auto& Task : Tasks)
+			{
+				if (!Task.Pimpl->TryRetractAndExecute())
+				{
+					bResult = false;
+				}
+			}
+			return bResult;
+		}
+
 		// Extends FTaskBase by supporting execution result.
 		template<typename ResultType>
 		class TTaskWithResultBase : public FTaskBase
@@ -364,8 +358,7 @@ namespace UE { namespace Tasks
 
 			~TTaskWithResultBase()
 			{
-				// Every task instance must be launched. This is quaranteed by the the high level task API (`UE::Tasks::TTask`)
-				checkf(bLaunched, TEXT("Every task instance must be launched"));
+				checkf(IsCompleted(), TEXT("Every task instance must be completed before it's destroyed"));
 				DestructItem(ResultStorage.GetTypedPtr());
 			}
 
@@ -386,26 +379,17 @@ namespace UE { namespace Tasks
 
 			bool TryLaunch()
 			{
-#if DO_CHECK
-				bLaunched = true;
-#endif
 				return FTaskBase::TryLaunch();
 			}
 
 			ResultType& GetResult()
 			{
-				check(bLaunched);
-				Wait();
-
+				checkf(IsCompleted(), TEXT("The task must be completed to obtain its result"));
 				return *ResultStorage.GetTypedPtr();
 			}
 
 		private:
 			TTypeCompatibleBytes<ResultType> ResultStorage;
-
-#if DO_CHECK
-			bool bLaunched = false;
-#endif
 		};
 
 		template<>
@@ -417,7 +401,7 @@ namespace UE { namespace Tasks
 		public:
 			void GetResult()
 			{
-				Wait();
+				checkf(IsCompleted(), TEXT("The task must be completed to obtain its result"));
 			}
 		};
 
@@ -452,7 +436,7 @@ namespace UE { namespace Tasks
 			std::atomic<uint32> RefCount;
 		};
 
-		// A final task class that must be used only with `TRefCountPtr`, thus only friends are allowed to construct instances.
+		// A final task class that must be used only with `TRefCountPtr`
 		// @see UE::Tasks::Task<T>
 		template<typename ResultType>
 		class TTaskWithResult final : public TTaskWithResultBase<ResultType>, public TRefCountedBase<TTaskWithResult<ResultType>>
@@ -461,23 +445,13 @@ namespace UE { namespace Tasks
 
 			using FSelf = TTaskWithResult<ResultType>;
 
-		private:
-			template<typename TaskBodyType>
-			friend TTask<TInvokeResult_T<TaskBodyType>> UE::Tasks::Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, LowLevelTasks::ETaskPriority Priority);
-
-			template<typename TaskBodyType, typename PrerequisitesCollectionType>
-			friend TTask<TInvokeResult_T<TaskBodyType>> UE::Tasks::Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority);
-
-			friend FTaskEvent;
-			friend FPipe;
-
+		public:
 			TTaskWithResult()
 				: TRefCountedBase<FSelf>(2) // one for the initial reference (we don't increment it when passing to `TRefCountPtr`) and 
 				// one for scheduler's reference which will be released on task completion
 			{
 			}
 
-		public:
 			template<typename TaskBodyType>
 			void Init(const TCHAR* DebugName, TaskBodyType&& TaskBody, LowLevelTasks::ETaskPriority Priority)
 			{
