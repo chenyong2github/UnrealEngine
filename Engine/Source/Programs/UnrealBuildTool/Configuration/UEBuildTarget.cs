@@ -1415,7 +1415,7 @@ namespace UnrealBuildTool
 			}
 
 			// If this is an installed engine build, clear the promoted flag on the output binaries. This will ensure we will rebuild them.
-			if (Version.IsPromotedBuild && UnrealBuildTool.IsEngineInstalled())
+			if (Version.IsPromotedBuild && UnrealBuild.IsEngineInstalled())
 			{
 				Version.IsPromotedBuild = false;
 			}
@@ -1824,7 +1824,7 @@ namespace UnrealBuildTool
 			BuildProducts.AddRange(RuntimeDependencyTargetFileToSourceFile.Select(x => new KeyValuePair<FileReference, BuildProductType>(x.Key, BuildProductType.RequiredResource)));
 
 			// Remove any installed build products that don't exist. They may be part of an optional install.
-			if(UnrealBuildTool.IsEngineInstalled())
+			if(UnrealBuild.IsEngineInstalled())
 			{
 				BuildProducts.RemoveAll(x => UnrealBuildTool.IsFileInstalled(x.Key) && !FileReference.Exists(x.Key));
 			}
@@ -3489,7 +3489,7 @@ namespace UnrealBuildTool
 			// Installed Engine intermediates go to the project's intermediate folder. Installed Engine never writes to the engine intermediate folder. (Those files are immutable)
 			// Also, when compiling in monolithic, all intermediates go to the project's folder.  This is because a project can change definitions that affects all engine translation
 			// units too, so they can't be shared between different targets.  They are effectively project-specific engine intermediates.
-			if (UnrealBuildTool.IsEngineInstalled() || (ProjectFile != null && ShouldCompileMonolithic()))
+			if (UnrealBuild.IsEngineInstalled() || (ProjectFile != null && ShouldCompileMonolithic()))
 			{
 				if (ProjectFile != null)
 				{

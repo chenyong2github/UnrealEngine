@@ -333,7 +333,7 @@ namespace UnrealBuildTool
 					else if (IsEngineTarget)
 					{
 						EngineProject = ProjectFile;
-						if (UnrealBuildTool.IsEngineInstalled())
+						if (UnrealBuild.IsEngineInstalled())
 						{
 							// Allow engine projects to be created but not built for Installed Engine builds
 							EngineProject.IsForeignProject = false;

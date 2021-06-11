@@ -224,7 +224,7 @@ namespace UnrealBuildTool
 		/// <returns>Dependency cache hierarchy for the given project</returns>
 		public static IEnumerable<FileReference> GetFilesToClean(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, TargetType TargetType, string Architecture)
 		{
-			if(ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
+			if(ProjectFile == null || !UnrealBuild.IsEngineInstalled())
 			{
 				yield return GetEngineLocation(TargetName, Platform, TargetType, Architecture);
 			}

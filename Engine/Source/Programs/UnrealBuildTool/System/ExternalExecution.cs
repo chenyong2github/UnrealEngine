@@ -783,7 +783,7 @@ namespace UnrealBuildTool
 		private static DateTime GetCoreGeneratedTimestampUtc(string ModuleName, string ModuleGeneratedCodeDirectory)
 		{
 			// In Installed Builds, we don't check the timestamps on engine headers.  Default to a very old date.
-			if (UnrealBuildTool.IsEngineInstalled())
+			if (UnrealBuild.IsEngineInstalled())
 			{
 				return DateTime.MinValue;
 			}
@@ -1136,7 +1136,7 @@ namespace UnrealBuildTool
 				if (!bIsBuildingUHT && bUHTNeedsToRun)
 				{
 					// Always build UnrealHeaderTool if header regeneration is required, unless we're running within an installed ecosystem or hot-reloading
-					if ((!UnrealBuildTool.IsEngineInstalled() || bHasProjectScriptPlugin) &&
+					if ((!UnrealBuild.IsEngineInstalled() || bHasProjectScriptPlugin) &&
 						!BuildConfiguration.bDoNotBuildUHT &&
 						!(bHaveHeaderTool && !bIsGatheringBuild && bIsAssemblingBuild))	// If running in "assembler only" mode, we assume UHT is already up to date for much faster iteration!
 					{
@@ -1212,7 +1212,7 @@ namespace UnrealBuildTool
 						CmdLine += " -abslog=\"" + LogFileName + "\"";
 					}
 
-					if (UnrealBuildTool.IsEngineInstalled())
+					if (UnrealBuild.IsEngineInstalled())
 					{
 						CmdLine += " -installed";
 					}

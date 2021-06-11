@@ -289,7 +289,7 @@ namespace UnrealBuildTool
 		public static bool IsValidPlatform(UnrealTargetPlatform Platform, EProjectType ProjectType = EProjectType.Any)
 		{
 			// HACK: For installed builds, we always need to treat Mac as a valid platform for generating project files. When remote building from PC, we won't have all the libraries to do this, so we need to fake it.
-			if(Platform == UnrealTargetPlatform.Mac && ProjectType == EProjectType.Any && BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && UnrealBuildTool.IsEngineInstalled())
+			if(Platform == UnrealTargetPlatform.Mac && ProjectType == EProjectType.Any && BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && UnrealBuild.IsEngineInstalled())
 			{
 				return true;
 			}
@@ -334,7 +334,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the target can be built</returns>
 		public static bool IsValid(TargetType? TargetType, UnrealTargetPlatform? Platform, UnrealTargetConfiguration? Configuration, EProjectType ProjectType, InstalledPlatformState State)
 		{
-			if(!UnrealBuildTool.IsEngineInstalled() || InstalledPlatformConfigurations == null)
+			if(!UnrealBuild.IsEngineInstalled() || InstalledPlatformConfigurations == null)
 			{
 				return true;
 			}
@@ -372,7 +372,7 @@ namespace UnrealBuildTool
 
 		private static bool ContainsValidConfiguration(Predicate<InstalledPlatformConfiguration> ConfigFilter)
 		{
-			if (UnrealBuildTool.IsEngineInstalled() && InstalledPlatformConfigurations != null)
+			if (UnrealBuild.IsEngineInstalled() && InstalledPlatformConfigurations != null)
 			{
 				foreach (InstalledPlatformConfiguration PlatformConfiguration in InstalledPlatformConfigurations)
 				{

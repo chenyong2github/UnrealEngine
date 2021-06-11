@@ -27,11 +27,6 @@ namespace UnrealBuildTool
 		static public System.Collections.IDictionary? InitialEnvironment;
 
 		/// <summary>
-		/// Whether we're running with engine installed
-		/// </summary>
-		static private bool? bIsEngineInstalled;
-
-		/// <summary>
 		/// Whether we're running with an installed project
 		/// </summary>
 		static private bool? bIsProjectInstalled;
@@ -96,7 +91,7 @@ namespace UnrealBuildTool
 				if (CachedWritableEngineDirectory == null)
 				{
 					DirectoryReference? UserDir = null;
-					if (IsEngineInstalled())
+					if (UnrealBuild.IsEngineInstalled())
 					{
 						UserDir = Utils.GetUserSettingDirectory();
 					}
@@ -122,7 +117,7 @@ namespace UnrealBuildTool
 			{
 				if (CachedEngineProgramSavedDirectory == null)
 				{
-					if (IsEngineInstalled())
+					if (UnrealBuild.IsEngineInstalled())
 					{
 						CachedEngineProgramSavedDirectory = Utils.GetUserSettingDirectory() ?? DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Programs");
 					}
@@ -223,19 +218,6 @@ namespace UnrealBuildTool
 		static string? RemoteIniPath = null;
 
 		/// <summary>
-		/// Returns true if UnrealBuildTool is running using installed Engine components
-		/// </summary>
-		/// <returns>True if running using installed Engine components</returns>
-		static public bool IsEngineInstalled()
-		{
-			if (!bIsEngineInstalled.HasValue)
-			{
-				bIsEngineInstalled = FileReference.Exists(FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "InstalledBuild.txt"));
-			}
-			return bIsEngineInstalled.Value;
-		}
-
-		/// <summary>
 		/// Returns true if UnrealBuildTool is running using an installed project (ie. a mod kit)
 		/// </summary>
 		/// <returns>True if running using an installed project</returns>
@@ -281,7 +263,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the file is part of the installed distribution, false otherwise</returns>
 		static public bool IsFileInstalled(FileReference File)
 		{
-			if(IsEngineInstalled() && File.IsUnderDirectory(UnrealBuild.EngineDirectory))
+			if(UnrealBuild.IsEngineInstalled() && File.IsUnderDirectory(UnrealBuild.EngineDirectory))
 			{
 				return true;
 			}

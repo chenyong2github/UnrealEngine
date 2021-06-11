@@ -275,7 +275,7 @@ namespace UnrealBuildTool
 		{
 			SourceFileMetadataCache? Cache = null;
 
-			if(ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
+			if(ProjectFile == null || !UnrealBuild.IsEngineInstalled())
 			{
 				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
 				Cache = FindOrAddCache(EngineCacheLocation, UnrealBuild.EngineDirectory, Cache);
@@ -297,7 +297,7 @@ namespace UnrealBuildTool
 		/// <returns>Dependency cache hierarchy for the given project</returns>
 		public static IEnumerable<FileReference> GetFilesToClean(FileReference? ProjectFile)
 		{
-			if(ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
+			if(ProjectFile == null || !UnrealBuild.IsEngineInstalled())
 			{
 				yield return FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
 			}

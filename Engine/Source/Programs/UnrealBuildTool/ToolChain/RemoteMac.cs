@@ -918,7 +918,7 @@ namespace UnrealBuildTool
 			// Upload the engine files
 			List<FileReference> EngineFilters = new List<FileReference>();
 			EngineFilters.Add(ScriptProtectList);
-			if(UnrealBuildTool.IsEngineInstalled())
+			if(UnrealBuild.IsEngineInstalled())
 			{
 				EngineFilters.Add(FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Rsync", "RsyncEngineInstalled.txt"));
 			}

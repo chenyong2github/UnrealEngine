@@ -339,7 +339,7 @@ namespace UnrealBuildTool
 				// @todo ubtmake: Some platforms may not save any files into this folder.  We should delete + generate a "touch" file to force the directory timestamp to be updated (or just check the timestamp file itself.  We could put it ANYWHERE, actually)
 
 				// Installed Build doesn't need to check engine projects for outdatedness
-				if (!UnrealBuildTool.IsEngineInstalled())
+				if (!UnrealBuild.IsEngineInstalled())
 				{
 					if (DirectoryReference.Exists(ProjectFileGenerator.IntermediateProjectFilesPath))
 					{

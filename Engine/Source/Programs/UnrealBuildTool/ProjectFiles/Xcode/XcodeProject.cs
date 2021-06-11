@@ -1025,7 +1025,7 @@ namespace UnrealBuildTool
 					if (InProjectFile == null)
 					{
 						// For misc tools we default to Intel for installed builds because we know all of that works. 
-						TargetArchitectures = UnrealBuildTool.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
+						TargetArchitectures = UnrealBuild.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
 					}
 					else
 					{

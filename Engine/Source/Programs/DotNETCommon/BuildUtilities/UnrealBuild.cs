@@ -91,5 +91,23 @@ namespace UnrealBuildBase
 		/// The path to UBT
 		/// </summary>
 		public static readonly FileReference UnrealBuildToolPath = FindUnrealBuildTool();
+
+		/// <summary>
+		/// Whether we're running with engine installed
+		/// </summary>
+		static private bool? bIsEngineInstalled;
+
+		/// <summary>
+		/// Returns true if UnrealBuildTool is running using installed Engine components
+		/// </summary>
+		/// <returns>True if running using installed Engine components</returns>
+		static public bool IsEngineInstalled()
+		{
+			if (!bIsEngineInstalled.HasValue)
+			{
+				bIsEngineInstalled = FileReference.Exists(FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "InstalledBuild.txt"));
+			}
+			return bIsEngineInstalled.Value;
+		}
 	}
 }

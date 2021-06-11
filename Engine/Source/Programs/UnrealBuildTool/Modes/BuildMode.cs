@@ -146,7 +146,7 @@ namespace UnrealBuildTool
 			}
 
 			// now that we know the available platforms, we can delete other platforms' junk. if we're only building specific modules from the editor, don't touch anything else (it may be in use).
-			if (!bIgnoreJunk && !UnrealBuildTool.IsEngineInstalled())
+			if (!bIgnoreJunk && !UnrealBuild.IsEngineInstalled())
 			{
 				using(Timeline.ScopeEvent("DeleteJunk()"))
 				{

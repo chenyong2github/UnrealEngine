@@ -690,7 +690,7 @@ namespace UnrealBuildTool
 			bool IncludeAllPlatforms = true;
 			ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms);
 
-			if (bGeneratingGameProjectFiles || UnrealBuildTool.IsEngineInstalled())
+			if (bGeneratingGameProjectFiles || UnrealBuild.IsEngineInstalled())
 			{
 				Log.TraceInformation("Discovering modules, targets and source code for project...");
 
@@ -1240,7 +1240,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (bGeneratingGameProjectFiles || UnrealBuildTool.IsEngineInstalled())
+			if (bGeneratingGameProjectFiles || UnrealBuild.IsEngineInstalled())
 			{
 				if (OnlyGameProject == null)
 				{
@@ -1253,7 +1253,7 @@ namespace UnrealBuildTool
 					throw new BuildException("A valid game project was not found in the specified location (" + OnlyGameProject.Directory.FullName + ")");
 				}
 
-				bool bInstalledEngineWithSource = UnrealBuildTool.IsEngineInstalled() && DirectoryReference.Exists(UnrealBuildTool.EngineSourceDirectory);
+				bool bInstalledEngineWithSource = UnrealBuild.IsEngineInstalled() && DirectoryReference.Exists(UnrealBuildTool.EngineSourceDirectory);
 
 				bIncludeEngineSource = bAlwaysIncludeEngineModules || bInstalledEngineWithSource;
 				bIncludeDocumentation = false;
@@ -2378,7 +2378,7 @@ namespace UnrealBuildTool
 					else if (IsEngineTarget)
 					{
 						EngineProject = ProjectFile;
-						if (UnrealBuildTool.IsEngineInstalled())
+						if (UnrealBuild.IsEngineInstalled())
 						{
 							// Allow engine projects to be created but not built for Installed Engine builds
 							EngineProject.IsForeignProject = false;

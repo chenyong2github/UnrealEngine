@@ -572,7 +572,7 @@ namespace UnrealBuildTool
 			}
 
 			// Set the default value for whether to use the shared build environment
-			if(Rules.BuildEnvironment == TargetBuildEnvironment.Unique && UnrealBuildTool.IsEngineInstalled())
+			if(Rules.BuildEnvironment == TargetBuildEnvironment.Unique && UnrealBuild.IsEngineInstalled())
 			{
 				throw new BuildException("Targets with a unique build environment cannot be built an installed engine.");
 			}

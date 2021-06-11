@@ -56,7 +56,7 @@ namespace UnrealBuildTool
 			}
 
 			// Installed engine requires Xcode 11
-			if (UnrealBuildTool.IsEngineInstalled())
+			if (UnrealBuild.IsEngineInstalled())
 			{
 				string XcodeBuilderVersionOutput = Utils.RunLocalProcessAndReturnStdOut("xcodebuild", "-version");
 				if (XcodeBuilderVersionOutput.Length > 10)

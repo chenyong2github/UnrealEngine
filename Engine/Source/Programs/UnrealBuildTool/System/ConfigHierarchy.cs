@@ -1143,7 +1143,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static DirectoryReference GetGameAgnosticSavedDir()
 		{
-			if(UnrealBuildTool.IsEngineInstalled())
+			if(UnrealBuild.IsEngineInstalled())
 			{
 				DirectoryReference? UserSettingDir = Utils.GetUserSettingDirectory();
 				if (UserSettingDir != null)
