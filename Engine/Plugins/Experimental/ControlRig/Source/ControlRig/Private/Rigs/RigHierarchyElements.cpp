@@ -448,6 +448,86 @@ void FRigControlSettings::Load(FArchive& Ar)
 // FRigControlElement
 ////////////////////////////////////////////////////////////////////////////////
 
+bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
+{
+	if(ControlType != InOther.ControlType)
+	{
+		return false;
+	}
+	if(DisplayName != InOther.DisplayName)
+	{
+		return false;
+	}
+	if(PrimaryAxis != InOther.PrimaryAxis)
+	{
+		return false;
+	}
+	if(bIsCurve != InOther.bIsCurve)
+	{
+		return false;
+	}
+	if(bAnimatable != InOther.bAnimatable)
+	{
+		return false;
+	}
+	if(bLimitTranslation != InOther.bLimitTranslation)
+	{
+		return false;
+	}
+	if(bLimitRotation != InOther.bLimitRotation)
+	{
+		return false;
+	}
+	if(bLimitScale != InOther.bLimitScale)
+	{
+		return false;
+	}
+	if(bDrawLimits != InOther.bDrawLimits)
+	{
+		return false;
+	}
+	if(bGizmoEnabled != InOther.bGizmoEnabled)
+	{
+		return false;
+	}
+	if(bGizmoVisible != InOther.bGizmoVisible)
+	{
+		return false;
+	}
+	if(GizmoName != InOther.GizmoName)
+	{
+		return false;
+	}
+	if(bIsTransientControl != InOther.bIsTransientControl)
+	{
+		return false;
+	}
+	if( ControlEnum != InOther. ControlEnum)
+	{
+		return false;
+	}
+	if(!GizmoColor.Equals(InOther.GizmoColor, 0.001))
+	{
+		return false;
+	}
+
+	const FTransform MinimumTransform = MinimumValue.GetAsTransform(ControlType, PrimaryAxis);
+	const FTransform OtherMinimumTransform = InOther.MinimumValue.GetAsTransform(ControlType, PrimaryAxis);
+	if(!MinimumTransform.Equals(OtherMinimumTransform, 0.001))
+	{
+		return false;
+	}
+
+	const FTransform MaximumTransform = MaximumValue.GetAsTransform(ControlType, PrimaryAxis);
+	const FTransform OtherMaximumTransform = InOther.MaximumValue.GetAsTransform(ControlType, PrimaryAxis);
+	if(!MaximumTransform.Equals(OtherMaximumTransform, 0.001))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void FRigControlElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
 	Super::Save(Ar, Hierarchy, SerializationPhase);

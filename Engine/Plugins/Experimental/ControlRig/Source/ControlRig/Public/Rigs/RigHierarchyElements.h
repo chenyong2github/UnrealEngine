@@ -864,6 +864,13 @@ struct CONTROLRIG_API FRigControlSettings
 		Value.SetFromTransform(FTransform::Identity, ControlType, PrimaryAxis);
 		return Value;
 	}
+
+	bool operator == (const FRigControlSettings& InOther) const;
+
+	FORCEINLINE bool operator != (const FRigControlSettings& InOther) const
+	{
+		return !(*this == InOther);
+	}
 };
 
 USTRUCT(BlueprintType)

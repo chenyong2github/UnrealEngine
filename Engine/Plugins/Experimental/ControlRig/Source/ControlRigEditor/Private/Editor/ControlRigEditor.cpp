@@ -4013,7 +4013,14 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 				FRigControlElement* DebuggedControlElement = DebuggedControlRig->GetHierarchy()->Find<FRigControlElement>(RigElementInDetailPanel);
 				if(DebuggedControlElement)
 				{
-					ControlElement->Settings = DebuggedControlElement->Settings;
+					if(bSetupModeEnabled)
+					{
+						DebuggedControlElement->Settings = ControlElement->Settings;
+					}
+					else
+					{
+						ControlElement->Settings = DebuggedControlElement->Settings;
+					}
 				}
 			
 				if (PropertyChangedEvent.Property->GetName() == TEXT("GizmoColor"))
@@ -4063,33 +4070,35 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 		{
 			TransformType = ERigTransformType::MakeInitial(TransformType); 
 		}
+		
 		if(bIsLocal)
 		{
 			TransformType = ERigTransformType::MakeLocal(TransformType); 
 		}
 
+		UControlRig* DefaultRig = Cast<UControlRig>(ControlRigBP->GeneratedClass->GetDefaultObject(true /* create if needed */));
+		URigHierarchy* DefaultHierarchy = DefaultRig->GetHierarchy();
 		URigHierarchy* DebuggedHierarchy = DebuggedControlRig->GetHierarchy();
-		URigHierarchy* Hierarchy = DebuggedHierarchy;
-		if(bSetupModeEnabled || bIsInitial)
-		{
-			Hierarchy = ControlRigBP->Hierarchy;
-			DebuggedHierarchy = Hierarchy;
-		}
+		URigHierarchy* BlueprintHierarchy = ControlRigBP->Hierarchy;
 
-		FRigBaseElement* SourceElement = DebuggedHierarchy->Find(RigElementInDetailPanel);
-		if(SourceElement == nullptr)
-		{
-			SourceElement = Hierarchy->Find(RigElementInDetailPanel);;
-		}
+		FRigBaseElement* SourceElement = bSetupModeEnabled ?
+			BlueprintHierarchy->Find(RigElementInDetailPanel) :
+			DebuggedHierarchy->Find(RigElementInDetailPanel);
+
 		if(SourceElement == nullptr)
 		{
 			return;
 		}
-		FRigBaseElement* TargetElement = Hierarchy->Find(RigElementInDetailPanel);
+		
+		FRigBaseElement* TargetElement = BlueprintHierarchy->Find(RigElementInDetailPanel);
 		if(TargetElement == nullptr)
 		{
 			return;
 		}
+
+		// force propagation of any change from the blueprint hierarchy
+		FRigHierarchyListenerGuard PropagateToDefault(BlueprintHierarchy, true, true);
+		FRigHierarchyListenerGuard PropagateToDebugged(DefaultHierarchy, true, true, DebuggedHierarchy);
 		
 		if(HeadProperty->GetValue() == FRigTransformElement::StaticStruct()->FindPropertyByName(TEXT("Pose")))
 		{
@@ -4106,18 +4115,27 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 						FRigControlValue Value;
 						Value.SetFromTransform(Transform, TargetControlElement->Settings.ControlType, TargetControlElement->Settings.PrimaryAxis);
 						
-						if(ERigTransformType::IsInitial(TransformType))
+						if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
 						{
-							Hierarchy->SetControlValue(TargetControlElement, Value, ERigControlValueType::Initial, true, true);
+							BlueprintHierarchy->SetControlValue(TargetControlElement, Value, ERigControlValueType::Initial, true, true);
+							BlueprintHierarchy->SetControlValue(TargetControlElement, Value, ERigControlValueType::Current, true, true);
 						}
 						else
 						{
-							Hierarchy->SetControlValue(TargetControlElement, Value, ERigControlValueType::Current, true, true);
+							BlueprintHierarchy->SetControlValue(TargetControlElement, Value, ERigControlValueType::Current, true, true);
 						}
 					}
 					else
 					{
-						Hierarchy->SetTransform(TargetTransformElement, Transform, TransformType, true, true, true);
+						if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
+						{
+							BlueprintHierarchy->SetTransform(TargetTransformElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, true);
+							BlueprintHierarchy->SetTransform(TargetTransformElement, Transform, ERigTransformType::MakeCurrent(TransformType), true, true, true);
+						}
+						else
+						{
+							BlueprintHierarchy->SetTransform(TargetTransformElement, Transform, TransformType, true, true, true);
+						}
 					}
 				}
 			}
@@ -4130,8 +4148,8 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 				if(FRigControlElement* TargetControlElement = Cast<FRigControlElement>(TargetElement))
 				{
 					const FTransform Transform = SourceControlElement->Offset.Get(TransformType);
-					Hierarchy->SetControlOffsetTransform(TargetControlElement, Transform, TransformType, true, true, true);
-					Hierarchy->SetControlOffsetTransform(TargetControlElement, Transform, ERigTransformType::MakeCurrent(TransformType), true, true, true);
+					// this will call the current version internally as well
+					BlueprintHierarchy->SetControlOffsetTransform(TargetControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, true);
 				}
 			}
 		}
@@ -4143,8 +4161,8 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 				if(FRigControlElement* TargetControlElement = Cast<FRigControlElement>(TargetElement))
 				{
 					const FTransform Transform = SourceControlElement->Gizmo.Get(TransformType);
-					DebuggedHierarchy->SetControlGizmoTransform(SourceControlElement, Transform, TransformType, false, true);
-					DebuggedHierarchy->SetControlGizmoTransform(SourceControlElement, Transform, ERigTransformType::MakeCurrent(TransformType), false, true);
+					// this will call the current version internally as well
+					BlueprintHierarchy->SetControlGizmoTransform(TargetControlElement, Transform, ERigTransformType::MakeInitial(TransformType), false, true);
 					return;
 				}
 			}
