@@ -676,8 +676,10 @@ void MainClusterCullingPrepareIndirectDispatchCS(
 /// 1. Indirect dispatch buffer preparation for rendering and prefix sums
 #ifdef SHADER_PREPAREINDIRECTDRAW
 
+uint GroupSize1D;
 Buffer<uint> DispatchIndirectParametersClusterCount;
 
+RWBuffer<uint> DispatchIndirectParametersClusterCount1D;
 RWBuffer<uint> DispatchIndirectParametersClusterCount2D;
 RWBuffer<uint> DispatchIndirectParametersClusterCountDiv512;
 RWBuffer<uint> DispatchIndirectParametersClusterCountDiv512Div512;
@@ -703,6 +705,10 @@ void MainClusterCullingPrepareIndirectDrawsCS(uint3 DispatchThreadId : SV_Dispat
 		DispatchIndirectParametersClusterCount2D[0] = DispatchGroupCount2D.x;
 		DispatchIndirectParametersClusterCount2D[1] = DispatchGroupCount2D.y;
 		DispatchIndirectParametersClusterCount2D[2] = 1.0;
+
+		DispatchIndirectParametersClusterCount1D[0] = (ClusterCount + GroupSize1D - 1) / GroupSize1D;
+		DispatchIndirectParametersClusterCount1D[1] = 1;
+		DispatchIndirectParametersClusterCount1D[2] = 1;
 	}
 }
 

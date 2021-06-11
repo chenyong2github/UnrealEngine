@@ -562,9 +562,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 float3 CPUBoundMin;
 float3 CPUBoundMax;
 
-uint DispatchCountX;
-uint ClusterCount;
-//float3 OutHairPositionOffset;
 float4x4 LocalToWorldMatrix;
 
 Buffer<uint4> RenderDeformedPositionBuffer;
@@ -572,7 +569,9 @@ Buffer<uint> ClusterVertexIdBuffer;
 Buffer<uint> ClusterIdBuffer;
 Buffer<uint> ClusterIndexOffsetBuffer;
 Buffer<uint> ClusterIndexCountBuffer;
+Buffer<uint> CulledClusterCountBuffer;
 
+Buffer<uint> IndirectBuffer;
 Buffer<uint> HairStrandsVF_CullingIndirectBuffer;
 Buffer<float4> RenderDeformedOffsetBuffer;
 
@@ -599,8 +598,10 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 		WriteHairAABB(0, Bound, OutGroupAABBBuffer);
 	}
 #else // PERMUTATION_USE_CPU_AABB
+	const uint CulledClusterCount = CulledClusterCountBuffer[0];
+	const uint DispatchCountX = IndirectBuffer[0];
 	const uint ClusterFetchIndex = GroupId.x + GroupId.y * DispatchCountX;
-	if (ClusterFetchIndex >= ClusterCount)
+	if (ClusterFetchIndex >= CulledClusterCount)
 	{
 		return;
 	}
