@@ -37,7 +37,7 @@ struct FUVRange
 	int2	Min;
 	uint2	GapStart;
 	uint2	GapLength;
-	uint	Precision;
+	int		Precision;
 };
 
 
