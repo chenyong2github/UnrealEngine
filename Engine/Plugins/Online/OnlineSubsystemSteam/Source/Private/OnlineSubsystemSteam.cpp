@@ -687,7 +687,6 @@ bool FOnlineSubsystemSteam::InitSteamworksServer()
 	{
 		// Grab the port values so that we save them.
 		GameServerGamePort = SteamAPIServerHandle->GetGamePort();
-		GameServerSteamPort = SteamAPIServerHandle->GetSteamPort();
 		GameServerQueryPort = SteamAPIServerHandle->GetQueryPort();
 
 		// Test all the Steam interfaces
