@@ -14,15 +14,13 @@ namespace UE
 		void AttributeTypes::Initialize()
 		{
 			static bool bInitialized = false;
-			if (!bInitialized)
-			{
-				bInitialized = true;
-
-				RegisterType<FFloatAnimationAttribute>();
-				RegisterType<FIntegerAnimationAttribute>();
-				RegisterType<FStringAnimationAttribute>();
-				RegisterType<FTransformAnimationAttribute>();
-			}
+			checkf(bInitialized == false, TEXT("Trying to initialize attribute type system multiple times"));
+			
+			bInitialized = true;
+			RegisterType<FFloatAnimationAttribute>();
+			RegisterType<FIntegerAnimationAttribute>();
+			RegisterType<FStringAnimationAttribute>();
+			RegisterType<FTransformAnimationAttribute>();
 		}		
 	}
 }
