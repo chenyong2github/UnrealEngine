@@ -611,11 +611,6 @@ void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InComp
 		return;
 	}
 
-	if (DataSetWriteInfo[(uint8)ENiagaraDataSetAccessMode::AppendConsume].Num())
-	{
-		return;
-	}
-
 	const bool SafeTrimAttributesEnabled = InCompileOptions.AdditionalDefines.Contains(TEXT("TrimAttributesSafe"));
 	const bool AggressiveTrimAttributesEnabled = InCompileOptions.AdditionalDefines.Contains(TEXT("TrimAttributes"));
 
