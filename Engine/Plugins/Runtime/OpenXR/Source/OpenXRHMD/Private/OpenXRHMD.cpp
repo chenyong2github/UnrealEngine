@@ -1753,7 +1753,7 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 			View.type = XR_TYPE_VIEW;
 			View.next = nullptr;
 			// FIXME: should be recommendedFov
-			View.fov = ViewFov[ViewIndex].recommendedMutableFov;
+			View.fov = ViewFov[ViewIndex].recommendedFov;
 			View.pose = ToXrPose(FTransform::Identity);
 		}
 	}
@@ -1896,7 +1896,11 @@ bool FOpenXRHMD::OnStereoStartup()
 	{
 		SessionInfo.next = Module->OnCreateSession(Instance, System, SessionInfo.next);
 	}
-	XR_ENSURE(xrCreateSession(Instance, &SessionInfo, &Session));
+
+	if (!XR_ENSURE(xrCreateSession(Instance, &SessionInfo, &Session)))
+	{
+		return false;
+	}
 
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
