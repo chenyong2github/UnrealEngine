@@ -225,7 +225,7 @@ void UNiagaraDataInterfaceVectorField::GetFeedback(UNiagaraSystem* InAsset, UNia
 			}
 		}
 	}
-	else
+	else if (InAsset)
 	{
 		for (const UNiagaraDataInterface* DI : InAsset->GetExposedParameters().GetDataInterfaces())
 		{
