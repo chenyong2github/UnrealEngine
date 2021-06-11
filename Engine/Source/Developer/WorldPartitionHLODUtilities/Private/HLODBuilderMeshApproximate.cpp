@@ -10,6 +10,7 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
+#include "MaterialUtilities.h"
 
 #include "Modules/ModuleManager.h"
 #include "IGeometryProcessingInterfacesModule.h"
@@ -48,14 +49,45 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshApproximate::CreateComponents(AWor
 	Options.bUsePackedMRS = true;
 	Options.PackedMRSTexParamName = FName("PackedTexture");
 
-	// Scale capture size based on grid promotion (higher z grid index -> higher area covered)
-	uint64 GridIndexX = 0;
-	uint64 GridIndexY = 0;
-	uint64 GridIndexZ = 0;
-	InHLODActor->GetGridIndices(GridIndexX, GridIndexY, GridIndexZ);
-	uint64 TexSizeMultiplier = (uint64)FMath::Pow(2.0f, GridIndexZ);
-	Options.TextureImageSize *= TexSizeMultiplier;
-	Options.RenderCaptureImageSize *= TexSizeMultiplier;
+	// Gather bounds of the input components
+	auto GetActorsBounds = [&]() -> FBoxSphereBounds
+	{
+		FBoxSphereBounds Bounds;
+		bool bFirst = true;
+
+		for (UPrimitiveComponent* Component : InSubComponents)
+		{
+			FBoxSphereBounds ComponentBounds = Component->Bounds;
+			Bounds = bFirst ? ComponentBounds : Bounds + ComponentBounds;
+			bFirst = false;
+		}
+
+		return Bounds;
+	};
+	
+	// Compute texel density if needed, depending on the TextureSizingType setting
+	ETextureSizingType TextureSizingType = UseSettings.MaterialSettings.TextureSizingType;
+	float TexelDensityPerMeter = 0.0f;
+
+	IGeometryProcessing_ApproximateActors::ETextureSizePolicy TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TextureSize;
+	if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromTexelDensity)
+	{
+		TexelDensityPerMeter = UseSettings.MaterialSettings.TargetTexelDensityPerMeter;
+		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
+	}
+	else if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshScreenSize)
+	{
+		TexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromScreenSize(UseSettings.MaterialSettings.MeshMaxScreenSizePercent, GetActorsBounds().SphereRadius);
+		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
+	}
+	else if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshDrawDistance)
+	{
+		TexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromDrawDistance(UseSettings.MaterialSettings.MeshMinDrawDistance, GetActorsBounds().SphereRadius);
+		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
+	}
+
+	Options.MeshTexelDensity = TexelDensityPerMeter;
+	Options.TextureSizePolicy = TextureSizePolicy;
 
 	// run actor approximation computation
 	IGeometryProcessing_ApproximateActors::FResults Results;

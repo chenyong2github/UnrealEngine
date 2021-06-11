@@ -58,6 +58,12 @@ public:
 		GeometricTolerance = 2
 	};
 
+	enum class ETextureSizePolicy : uint8
+	{
+		TextureSize = 0,
+		TexelDensity = 1
+	};
+
 
 	/**
 	 * Input options to Actor Approximation process
@@ -134,7 +140,9 @@ public:
 		FName PackedMRSTexParamName = FName("PackedMRS");
 
 		// output texture options
+		ETextureSizePolicy TextureSizePolicy = ETextureSizePolicy::TextureSize;
 		int32 TextureImageSize = 1024;
+		float MeshTexelDensity = 0;
 
 		// supersampling parameter
 		int32 AntiAliasMultiSampling = 0;

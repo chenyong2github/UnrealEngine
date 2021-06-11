@@ -35,6 +35,7 @@ public class MergeActors : ModuleRules
 				"CoreUObject",
 				"Engine",
                 "InputCore",
+				"MaterialUtilities",
 				"Slate",
 				"SlateCore",
                 "EditorStyle",

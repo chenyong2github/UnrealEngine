@@ -18,6 +18,7 @@
 #include "Misc/MessageDialog.h"
 #include "MeshApproximationTool/SMeshApproximationDialog.h"
 #include "MeshUtilities.h"
+#include "MaterialUtilities.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "AssetRegistryModule.h"
@@ -157,6 +158,53 @@ bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<T
 		return false;
 	}
 
+    // Gather bounds of the input components
+	auto GetActorsBounds = [&]() -> FBoxSphereBounds
+	{
+		FBoxSphereBounds Bounds;
+		bool bFirst = true;
+
+		for (auto& Component : SelectedComponents)
+		{
+			if (!Component.IsValid() || !Component.Get()->bShouldIncorporate)
+			{
+				continue;
+			}
+
+			if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component.Get()->PrimComponent))
+			{
+				// Append bounds of visible components only
+				FBoxSphereBounds ComponentBounds = PrimitiveComponent->Bounds;
+				Bounds = bFirst ? ComponentBounds : Bounds + ComponentBounds;
+				bFirst = false;
+			}
+		}
+
+		return Bounds;
+	};
+	
+
+	// Compute texel density if needed, depending on the TextureSizingType setting
+	ETextureSizingType TextureSizingType = SettingsObject->Settings.MaterialSettings.TextureSizingType;
+	float TexelDensityPerMeter = 0.0f;
+
+	IGeometryProcessing_ApproximateActors::ETextureSizePolicy TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TextureSize;
+	if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromTexelDensity)
+	{
+		TexelDensityPerMeter = SettingsObject->Settings.MaterialSettings.TargetTexelDensityPerMeter;
+		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
+	}
+	else if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshScreenSize)
+	{
+		TexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromScreenSize(SettingsObject->Settings.MaterialSettings.MeshMaxScreenSizePercent, GetActorsBounds().SphereRadius);
+		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
+	}
+	else if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshDrawDistance)
+	{
+		TexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromScreenSize(SettingsObject->Settings.MaterialSettings.MeshMinDrawDistance, GetActorsBounds().SphereRadius);
+		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
+	}
+
 	const FMeshApproximationSettings& UseSettings = SettingsObject->Settings;
 
 	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
@@ -168,6 +216,9 @@ bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<T
 
 	IGeometryProcessing_ApproximateActors::FOptions Options = ApproxActorsAPI->ConstructOptions(UseSettings);
 	Options.BasePackagePath = PackageName;
+
+	Options.TextureSizePolicy = TextureSizePolicy;
+	Options.MeshTexelDensity = TexelDensityPerMeter;
 	
 	// run actor approximation computation
 	IGeometryProcessing_ApproximateActors::FResults Results;

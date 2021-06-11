@@ -521,6 +521,23 @@ public:
 
 	/** Creates a proxy material and the required texture assets */
 	static UMaterialInterface* CreateProxyMaterialAndTextures(const FString& PackageName, const FString& AssetName, const FBakeOutput& BakeOutput, const FMeshData& MeshData, const FMaterialData& MaterialData, UMaterialOptions* Options);
+
+	/** Compute the required texel density needed to properly represent an object/objects covering the provided world space radius
+	* 
+	* @param InScreenSize		Screen size at which the objects are expected to be be shown
+	* @param InWorldSpaceRadius	World space radius of the objects
+	* @return					The required texel density per METER
+	*/
+	static float ComputeRequiredTexelDensityFromScreenSize(const float InScreenSize, float InWorldSpaceRadius);
+
+	/** Compute the required texel density needed to properly represent an object/objects covering the provided world space radius
+	*
+	* @param InDrawDistance		Draw distance at which the objects are expected to be shown
+	* @param InWorldSpaceRadius	World space radius of the objects
+	* @return					The required texel density per METER
+	*/
+	static float ComputeRequiredTexelDensityFromDrawDistance(const float InDrawDistance, float InWorldSpaceRadius);
+
 private:
 	
 	/**
