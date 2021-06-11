@@ -20,6 +20,7 @@ public class WorldPartitionHLODUtilities : ModuleRules
 			{
 				"EditorFramework",
 				"Engine",
+				"MaterialUtilities",
 				"MeshDescription",
 				"StaticMeshDescription",
 				"UnrealEd",

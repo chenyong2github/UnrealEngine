@@ -647,6 +647,46 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 }
 
 
+static int32 GetMeshTextureSizeFromTargetTexelDensity(const FDynamicMesh3& Mesh, float TargetTexelDensity)
+{
+	const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
+	double Mesh3DArea = 0;
+	double MeshUVArea = 0;
+	for (int TriangleID : Mesh.TriangleIndicesItr())
+	{
+		// World space area
+		Mesh3DArea += Mesh.GetTriArea(TriangleID);
+
+		FIndex3i UVVertices = UVOverlay->GetTriangle(TriangleID);
+		FTriangle2d TriangleUV = FTriangle2d(
+			(FVector2d)UVOverlay->GetElement(UVVertices.A),
+			(FVector2d)UVOverlay->GetElement(UVVertices.B),
+			(FVector2d)UVOverlay->GetElement(UVVertices.C));
+
+		// UV space area
+		MeshUVArea += TriangleUV.Area();
+	}
+	double TexelRatio = FMath::Sqrt(MeshUVArea / Mesh3DArea) * 100;
+
+	// Compute the perfect texture size that would get us to our texture density
+	// Also compute the nearest power of two sizes (below and above our target)
+	const int32 SizePerfect = FMath::CeilToInt(TargetTexelDensity / TexelRatio);
+	const int32 SizeHi = FMath::RoundUpToPowerOfTwo(SizePerfect);
+	const int32 SizeLo = SizeHi >> 1;
+
+	// Compute the texel density we achieve with these two texture sizes
+	const double TexelDensityLo = SizeLo * TexelRatio;
+	const double TexelDensityHi = SizeHi * TexelRatio;
+
+	// Select best match between low & high res textures.
+	const double TexelDensityLoDiff = TargetTexelDensity - TexelDensityLo;
+	const double TexelDensityHiDiff = TexelDensityHi - TargetTexelDensity;
+	const int32 BestTextureSize = TexelDensityLoDiff < TexelDensityHiDiff ? SizeLo : SizeHi;
+
+	return BestTextureSize;
+}
+
+
 IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::ConstructOptions(const FMeshApproximationSettings& UseSettings)
 {
 	//
@@ -839,9 +879,28 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 	FDynamicMesh3 FinalMesh = MoveTemp(ApproximationMeshData->Mesh);
 	FMeshTangentsd FinalMeshTangents = MoveTemp(ApproximationMeshData->Tangents);
 
+	FOptions OverridenOptions = Options;
+
+	// evaluate required texture size if needed
+	if (Options.TextureSizePolicy == ETextureSizePolicy::TexelDensity)
+	{
+		const int32 MaxTextureSize = 8192;
+		const int32 BestTextureSize = GetMeshTextureSizeFromTargetTexelDensity(FinalMesh, Options.MeshTexelDensity);
+
+		if (BestTextureSize > MaxTextureSize)
+		{
+			UE_LOG(LogApproximateActors, Warning, TEXT("Mesh would require %dx%d textures, clamping down to maximum (%dx%d)"), BestTextureSize, BestTextureSize, MaxTextureSize, MaxTextureSize);
+			OverridenOptions.TextureImageSize = MaxTextureSize;
+		}
+		else
+		{
+			OverridenOptions.TextureImageSize = BestTextureSize;
+		}
+	}
+	
 	// bake textures for Actor
 	FGeneratedResultTextures GeneratedTextures;
-	BakeTexturesFromPhotoCapture(SceneCapture, Options,
+	BakeTexturesFromPhotoCapture(SceneCapture, OverridenOptions,
 		GeneratedTextures,
 		&FinalMesh, &FinalMeshTangents);
 

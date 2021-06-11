@@ -82,6 +82,12 @@ struct TTriangle2
 	{
 		return SignedArea(V[0], V[1], V[2]);
 	}
+	
+	/** @return unsigned area of the triangle */
+	RealType Area() const
+	{
+		return TMathUtil<RealType>::Abs(SignedArea());
+	}
 
 
 	/**

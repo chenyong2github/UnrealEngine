@@ -3073,3 +3073,37 @@ void FMaterialUtilities::GeneratedBinnedTextureSquares(const FVector2D Destinati
 		Box = Texture.Area;
 	}
 }
+
+float FMaterialUtilities::ComputeRequiredTexelDensityFromScreenSize(const float InScreenSize, float InWorldSpaceRadius)
+{
+	static const float ScreenX = 1920;
+
+	float WorldSizeCM = InWorldSpaceRadius * 2;
+	float WorldSizeMeter = WorldSizeCM / 100;
+
+	float ScreenSizePercent = InScreenSize;
+	float ScreenSizePixel = ScreenSizePercent * ScreenX;
+
+	float TexelDensityPerMeter = ScreenSizePixel / WorldSizeMeter;
+
+	return TexelDensityPerMeter;
+}
+
+float FMaterialUtilities::ComputeRequiredTexelDensityFromDrawDistance(const float InDrawDistance, float InWorldSpaceRadius)
+{
+	// Generate a projection matrix.
+	static const float ScreenX = 1920;
+	static const float ScreenY = 1080;
+	static const float HalfFOVRad = FMath::DegreesToRadians(45.0f);
+	static const FMatrix ProjectionMatrix = FPerspectiveMatrix(HalfFOVRad, ScreenX, ScreenY, 0.01f);
+
+	float WorldSizeCM = InWorldSpaceRadius * 2;
+	float WorldSizeMeter = WorldSizeCM / 100;
+
+	float ScreenSizePercent = ComputeBoundsScreenSize(FVector::ZeroVector, InWorldSpaceRadius, FVector(0.0f, 0.0f, InDrawDistance), ProjectionMatrix);
+	float ScreenSizePixel = ScreenSizePercent * ScreenX;
+
+	float TexelDensityPerMeter = ScreenSizePixel / WorldSizeMeter;
+
+	return TexelDensityPerMeter;
+}
