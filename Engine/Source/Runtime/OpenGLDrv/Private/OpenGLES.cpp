@@ -250,7 +250,7 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 		glBufferStorageEXT = (PFNGLBUFFERSTORAGEEXTPROC)((void*)eglGetProcAddress("glBufferStorageEXT"));
 	}
 
-	if (ExtensionsString.Contains(TEXT("GL_EXT_multisampled_render_to_texture")))
+	if (ExtensionsString.Contains(TEXT("GL_EXT_multisampled_render_to_texture2")))
 	{
 		glFramebufferTexture2DMultisampleEXT = (PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC)((void*)eglGetProcAddress("glFramebufferTexture2DMultisampleEXT"));
 		glRenderbufferStorageMultisampleEXT = (PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC)((void*)eglGetProcAddress("glRenderbufferStorageMultisampleEXT"));

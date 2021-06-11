@@ -1546,6 +1546,11 @@ public:
 	 */
 	static bool IsPGOEnabled();
 
+	/**
+	 * For mobile devices, this function will return true if we wish to propagate the alpha to the backbuffer
+	 */
+	static int GetMobilePropagateAlphaSetting();
+
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Returns any platform specific warning messages we want printed on screen

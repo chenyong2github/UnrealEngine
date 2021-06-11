@@ -356,8 +356,8 @@ FRHITexture* FOpenGLDynamicRHI::CreateOpenGLRHITextureOnly(const uint32 SizeX, c
 
 	// Move NumSamples to on-chip MSAA if supported
 	uint32 NumSamplesTileMem = 1;
-	GLint MaxSamplesTileMem = FOpenGL::GetMaxMSAASamplesTileMem(); /* RHIs which do not support tiled GPU MSAA return 0 */
-	if (MaxSamplesTileMem > 0)
+	GLint MaxSamplesTileMem = FOpenGL::GetMaxMSAASamplesTileMem(); /* RHIs which do not support tiled GPU MSAA return 1 */
+	if (MaxSamplesTileMem > 1)
 	{
 		NumSamplesTileMem = FMath::Min<uint32>(NumSamples, MaxSamplesTileMem);
 		NumSamples = 1;
@@ -689,7 +689,6 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint TextureID, FRHITextur
 	}
 	else
 	{
-		check( FOpenGL::SupportsMultisampledTextures() );
 		check( BulkData == NULL);
 
 		// Try to create an immutable texture and fallback if it fails

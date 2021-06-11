@@ -208,7 +208,6 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 				if (NumSamplesTileMem > 1 && glFramebufferTexture2DMultisampleEXT)
 				{
 					// GL_EXT_multisampled_render_to_texture requires GL_COLOR_ATTACHMENT0
-					check(RenderTargetIndex == 0);
 					glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], NumSamplesTileMem);
 					VERIFY_GL(glFramebufferTexture2DMultisampleEXT);
 				}
@@ -248,7 +247,6 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 				if (NumSamplesTileMem > 1 && glFramebufferTexture2DMultisampleEXT)
 				{
 					// GL_EXT_multisampled_render_to_texture requires GL_COLOR_ATTACHMENT0
-					check(RenderTargetIndex == 0);
 					glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], NumSamplesTileMem);
 					VERIFY_GL(glFramebufferTexture2DMultisampleEXT);
 				}

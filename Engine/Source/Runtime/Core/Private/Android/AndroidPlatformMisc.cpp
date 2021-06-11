@@ -3007,6 +3007,12 @@ bool FAndroidMisc::Expand16BitIndicesTo32BitOnLoad()
 	return  (CVarMaliMidgardIndexingBug.GetValueOnAnyThread() > 0);
 }
 
+int FAndroidMisc::GetMobilePropagateAlphaSetting()
+{
+	extern int GAndroidPropagateAlpha;
+	return GAndroidPropagateAlpha;
+}
+
 TArray<int32> FAndroidMisc::GetSupportedNativeDisplayRefreshRates()
 {
 	TArray<int32> Result;

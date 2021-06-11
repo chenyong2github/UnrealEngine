@@ -732,7 +732,14 @@ FMobileSunMaskOutputs AddMobileSunMaskPass(FRDGBuilder& GraphBuilder, const FVie
 
 		if (!Inputs.bUseDepthTexture)
 		{
-			OutputDesc.Format = PF_FloatR11G11B10;
+			if (IsMobilePropagateAlphaEnabled(View.GetShaderPlatform()))
+			{
+				OutputDesc.Format = PF_FloatRGBA;
+			}
+			else
+			{
+				OutputDesc.Format = PF_FloatR11G11B10;
+			}
 			SceneColorOutput = FScreenPassRenderTarget(GraphBuilder.CreateTexture(OutputDesc, TEXT("SceneColor")), Inputs.SceneColor.ViewRect, ERenderTargetLoadAction::ENoAction);
 		}
 

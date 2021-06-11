@@ -13,6 +13,16 @@ bool IsMobileHDR()
 	return MobileHDRCvar->GetValueOnAnyThread() == 1;
 }
 
+bool IsMobilePropagateAlphaEnabled(EShaderPlatform Platform)
+{
+	return IsMobilePlatform(Platform) && (FPlatformMisc::GetMobilePropagateAlphaSetting() > 0);
+}
+
+bool IsMobilePropagateAlphaPremultiply(EShaderPlatform Platform)
+{
+	return IsMobilePlatform(Platform) && (FPlatformMisc::GetMobilePropagateAlphaSetting() == 2);
+}
+
 ENGINE_API EMobileHDRMode GetMobileHDRMode()
 {
 	EMobileHDRMode HDRMode = EMobileHDRMode::EnabledFloat16;

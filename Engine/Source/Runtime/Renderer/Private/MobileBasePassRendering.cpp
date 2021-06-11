@@ -43,6 +43,22 @@ static TAutoConsoleVariable<int32> CVarMobileMaxVisibleMovableSpotLightsShadow(
 	TEXT("The max number of visible spotlighs can cast shadow sorted by screen size, should be as less as possible for performance reason"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarMobileSceneDepthAux(
+	TEXT("r.Mobile.SceneDepthAux"),
+	1,
+	TEXT("1: 16F SceneDepthAux Format")
+	TEXT("2: 32F SceneDepthAux Format"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarMobilePropagateAlpha(
+	TEXT("r.Mobile.PropagateAlpha"),
+	0,
+	TEXT("0: Disabled")
+	TEXT("1: Propagate Full Alpha Propagate")
+	TEXT("2: Propagate Full Alpha Propagate + Premultiply"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileBasePassUniformParameters, "MobileBasePass", SceneTextures);
 
 static TAutoConsoleVariable<int32> CVarMobileUseHWsRGBEncoding(

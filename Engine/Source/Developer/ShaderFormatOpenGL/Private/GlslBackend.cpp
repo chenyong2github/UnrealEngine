@@ -1347,7 +1347,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 				ralloc_asprintf_append(buffer, "\n#ifdef GL_ARM_shader_framebuffer_fetch_depth_stencil\n");
 				ralloc_asprintf_append(buffer, "  float DepthbufferFetchES2() { return gl_LastFragDepthARM; }\n");
 				ralloc_asprintf_append(buffer, "#elif defined(GL_EXT_shader_framebuffer_fetch)\n");
-				ralloc_asprintf_append(buffer, "  float DepthbufferFetchES2() { return out_Target0.w; }\n");
+				ralloc_asprintf_append(buffer, "  float DepthbufferFetchES2() { return out_Target1.r; }\n");
 				ralloc_asprintf_append(buffer, "#else\n");
 				ralloc_asprintf_append(buffer, "  float DepthbufferFetchES2() { return 0.0; }\n");
 				ralloc_asprintf_append(buffer, "#endif\n\n");

@@ -107,15 +107,14 @@ static EPixelFormat GetGBufferFFormat()
 	return NormalGBufferFormat;
 }
 
-static EPixelFormat GetMobileSceneColorFormat()
+static EPixelFormat GetMobileSceneColorFormat(EShaderPlatform ShaderPlatform)
 {
 	const EPixelFormat DefaultLowPrecisionFormat = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice()
 		? PF_R8G8B8A8 : PF_B8G8R8A8;
-	EPixelFormat DefaultColorFormat = (!IsMobileHDR() || !GSupportsRenderTargetFormat_PF_FloatRGBA) ? DefaultLowPrecisionFormat : PF_FloatRGBA;
-	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
-	{
-		DefaultColorFormat = PF_FloatR11G11B10;
-	}
+	const EPixelFormat DefaultPrecisionFormat = IsMobilePropagateAlphaEnabled(ShaderPlatform) ? PF_FloatRGBA : PF_FloatR11G11B10;
+
+	EPixelFormat DefaultColorFormat = (!IsMobileHDR() || !GSupportsRenderTargetFormat_PF_FloatRGBA) ? DefaultLowPrecisionFormat : DefaultPrecisionFormat;
+
 	check(GPixelFormats[DefaultColorFormat].Supported);
 
 	EPixelFormat Format = DefaultColorFormat;
@@ -181,6 +180,27 @@ static EPixelFormat GetSceneColorFormat(const FSceneViewFamily& ViewFamily)
 		Format = PF_FloatRGBA;
 	}
 
+	return Format;
+}
+
+inline EPixelFormat GetMobileSceneDepthAuxPixelFormat(EShaderPlatform ShaderPlatform)
+{
+	if (IsMobileDeferredShadingEnabled(ShaderPlatform))
+	{
+		return PF_R32_FLOAT;
+	}
+
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SceneDepthAux"));
+	EPixelFormat Format = PF_R16F;
+	switch (CVar->GetValueOnAnyThread())
+	{
+	case 1:
+		Format =  PF_R16F;
+		break;
+	case 2:
+		Format = PF_R32_FLOAT;
+		break;
+	}
 	return Format;
 }
 
@@ -515,7 +535,7 @@ FSceneTexturesConfig FSceneTexturesConfig::Create(const FSceneViewFamily& ViewFa
 
 	case EShadingPath::Mobile:
 	{
-		Config.ColorFormat = GetMobileSceneColorFormat();
+		Config.ColorFormat = GetMobileSceneColorFormat(Config.ShaderPlatform);
 
 		// On mobile the scene depth is calculated from the alpha component of the scene color
 		// Use FarPlane for alpha to ensure un-rendered pixels have max depth...
@@ -760,15 +780,25 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, GetGBufferFFormat(), FClearValueBinding({ 0.5f, 0.5f, 0.5f, 0.5f }), TexCreate_RenderTargetable | TexCreate_ShaderResource | FlagsToAdd | GFastVRamConfig.GBufferF);
 			SceneTextures.GBufferF = GraphBuilder.CreateTexture(Desc, TEXT("GBufferF"));
 		}
-		else if (MobileRequiresSceneDepthAux(Config.ShaderPlatform))
-		{
-			const float FarDepth = (float)ERHIZBuffer::FarPlane;
-			const FLinearColor FarDepthColor(FarDepth, FarDepth, FarDepth, FarDepth);
-			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, PF_R32_FLOAT, FClearValueBinding(FarDepthColor), TexCreate_RenderTargetable | TexCreate_ShaderResource | FlagsToAdd);
-			SceneTextures.DepthAux = GraphBuilder.CreateTexture(Desc, TEXT("SceneDepthAux"));
-		}
 	}
 
+
+	if(Config.ShadingPath == EShadingPath::Mobile && MobileRequiresSceneDepthAux(Config.ShaderPlatform))
+	{
+		const float FarDepth = (float)ERHIZBuffer::FarPlane;
+		const FLinearColor FarDepthColor(FarDepth, FarDepth, FarDepth, FarDepth);
+		ETextureCreateFlags FlagsToAdd = IsMobileDeferredShadingEnabled(Config.ShaderPlatform)? TexCreate_Memoryless : TexCreate_None;
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, GetMobileSceneDepthAuxPixelFormat(Config.ShaderPlatform), FClearValueBinding(FarDepthColor), TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead| FlagsToAdd);
+		Desc.NumSamples = Config.NumSamples;
+		SceneTextures.DepthAux = GraphBuilder.CreateTexture(Desc, TEXT("SceneDepthAux"));
+		
+		if (Desc.NumSamples > 1)
+		{
+			Desc.NumSamples = 1;
+			Desc.Flags = TexCreate_ResolveTargetable | TexCreate_ShaderResource;
+			SceneTextures.DepthAux.Resolve = GraphBuilder.CreateTexture(Desc, TEXT("SceneDepthAux"));
+		}
+	}
 #if WITH_EDITOR
 	{
 		const FRDGTextureDesc ColorDesc(FRDGTextureDesc::Create2D(Config.Extent, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_RenderTargetable, 1, Config.EditorPrimitiveNumSamples));
@@ -1116,10 +1146,13 @@ void SetupMobileSceneTextureUniformParameters(
 			{
 				SceneTextureParameters.GBufferDTexture = SceneTextures->GBufferD;
 			}
+		}
 
-			if (HasBeenProduced(SceneTextures->DepthAux))
+		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneDepthAux))
+		{
+			if (HasBeenProduced(SceneTextures->DepthAux.Resolve))
 			{
-				SceneTextureParameters.SceneDepthAuxTexture = SceneTextures->DepthAux;
+				SceneTextureParameters.SceneDepthAuxTexture = SceneTextures->DepthAux.Resolve;
 			}
 		}
 
