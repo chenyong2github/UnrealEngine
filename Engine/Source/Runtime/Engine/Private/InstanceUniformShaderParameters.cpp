@@ -9,11 +9,12 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(
 	uint32 PrimitiveId,
 	const FRenderTransform& PrimitiveLocalToWorld,
 	const FRenderTransform& PrimitivePrevLocalToWorld,
-	uint32 LastUpdateFrame
+	uint32 LastUpdateFrame,
+	bool bHasPreviousTransform
 )
 : Data(InPlace, NoInit)
 {
-	Setup(Instance, PrimitiveId, PrimitiveLocalToWorld, PrimitivePrevLocalToWorld, LastUpdateFrame);
+	Setup(Instance, PrimitiveId, PrimitiveLocalToWorld, PrimitivePrevLocalToWorld, LastUpdateFrame, bHasPreviousTransform);
 }
 
 void FInstanceSceneShaderData::Setup(
@@ -21,7 +22,8 @@ void FInstanceSceneShaderData::Setup(
 	uint32 PrimitiveId,
 	const FRenderTransform& PrimitiveToWorld,
 	const FRenderTransform& PrevPrimitiveToWorld,
-	uint32 LastUpdateFrame
+	uint32 LastUpdateFrame,
+	bool bHasPreviousTransform
 )
 {
 	// Note: layout must match GetInstanceData in SceneData.ush
@@ -30,7 +32,11 @@ void FInstanceSceneShaderData::Setup(
 	// This is a read-only setting that will cause all shaders to recompile if changed.
 
 	FRenderTransform LocalToWorld		= Instance.LocalToPrimitive * PrimitiveToWorld;
-	FRenderTransform PrevLocalToWorld	= Instance.PrevLocalToPrimitive * PrevPrimitiveToWorld;
+
+	// TODO: Remove
+	const FRenderTransform& PrevLocalToPrimitive = bHasPreviousTransform ? Instance.PrevLocalToPrimitive : Instance.LocalToPrimitive;
+	FRenderTransform PrevLocalToWorld = PrevLocalToPrimitive * PrevPrimitiveToWorld;
+	//FRenderTransform PrevLocalToWorld	= Instance.PrevLocalToPrimitive * PrevPrimitiveToWorld;
 
 	// Remove shear
 	LocalToWorld.Orthonormalize();
@@ -91,7 +97,8 @@ ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 		0xFFFFFFFFu, /* Primitive Id */
 		FRenderTransform::Identity, /* Primitive LocalToWorld */
 		FRenderTransform::Identity,  /* Primitive PrevLocalToWorld */
-		INVALID_LAST_UPDATE_FRAME
+		INVALID_LAST_UPDATE_FRAME,
+		false /* Has Previous Transform */
 	);
 	return DummyShaderData;
 }

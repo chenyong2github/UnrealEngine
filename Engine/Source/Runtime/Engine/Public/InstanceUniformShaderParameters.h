@@ -79,6 +79,8 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 )
 {
 	FPrimitiveInstance Result;
+	Result.LocalToPrimitive.SetIdentity();
+	Result.PrevLocalToPrimitive.SetIdentity();
 	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
 	Result.LocalBounds							= LocalBounds;
 	Result.NaniteHierarchyOffset				= NaniteHierarchyOffset;
@@ -110,7 +112,8 @@ struct FInstanceSceneShaderData
 			0, /* Primitive Id */
 			FRenderTransform::Identity,  /* LocalToWorld */
 			FRenderTransform::Identity,  /* PrevLocalToWorld */
-			INVALID_LAST_UPDATE_FRAME
+			INVALID_LAST_UPDATE_FRAME,
+			false /* Has Previous Transform */
 		);
 	}
 
@@ -119,7 +122,8 @@ struct FInstanceSceneShaderData
 		uint32 PrimitiveId,
 		const FRenderTransform& PrimitiveLocalToWorld,
 		const FRenderTransform& PrimitivePrevLocalToWorld,
-		uint32 LastUpdateFrame
+		uint32 LastUpdateFrame,
+		bool bHasPreviousTransform
 	);
 
 	ENGINE_API void Setup(
@@ -127,7 +131,8 @@ struct FInstanceSceneShaderData
 		uint32 PrimitiveId,
 		const FRenderTransform& PrimitiveLocalToWorld,
 		const FRenderTransform& PrimitivePrevLocalToWorld,
-		uint32 LastUpdateFrame
+		uint32 LastUpdateFrame,
+		bool bHasPreviousTransform
 	);
 };
 
