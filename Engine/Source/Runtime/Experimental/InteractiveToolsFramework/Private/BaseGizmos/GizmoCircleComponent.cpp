@@ -258,7 +258,7 @@ bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector
 			: GizmoViewContext->GetViewDirection();
 		ViewDirection.Normalize();
 
-		GetVisibility(GizmoViewContext, ViewDirection, WorldNormal, WorldOrigin, bRenderVisibility, bCircleIsViewPlaneParallel);
+		GetVisibility(ToRawPtr(GizmoViewContext), ViewDirection, WorldNormal, WorldOrigin, bRenderVisibility, bCircleIsViewPlaneParallel);
 
 		if (!bRenderVisibility)
 		{

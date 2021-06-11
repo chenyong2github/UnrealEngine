@@ -401,8 +401,8 @@ void UBakeMeshAttributeMapsTool::Setup()
 	AddToolPropertySource(MultiTextureProps);
 	SetToolPropertySourceEnabled(MultiTextureProps, false);
 
-	auto SetDirtyCallback = [this](TMap<int32, UTexture2D*>) { bInputsDirty = true; };
-	auto NotEqualsCallback = [](const TMap<int32, UTexture2D*>& A, const TMap<int32, UTexture2D*>& B) -> bool { return !(A.OrderIndependentCompareEqual(B)); };
+	auto SetDirtyCallback = [this](decltype(MultiTextureProps->MaterialIDSourceTextureMap)) { bInputsDirty = true; };
+	auto NotEqualsCallback = [](const decltype(MultiTextureProps->MaterialIDSourceTextureMap)& A, const decltype(MultiTextureProps->MaterialIDSourceTextureMap)& B) -> bool { return !(A.OrderIndependentCompareEqual(B)); };
 	MultiTextureProps->WatchProperty(MultiTextureProps->MaterialIDSourceTextureMap, SetDirtyCallback, NotEqualsCallback);
 	MultiTextureProps->WatchProperty(MultiTextureProps->UVLayer, [this](float) { bInputsDirty = true; });
 
@@ -1143,7 +1143,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MultiTexture()
 		return EBakeOpState::Invalid;
 	}
 
-	for (TPair<int32, UTexture2D*>& InputTexture : MultiTextureProps->MaterialIDSourceTextureMap)
+	for (auto& InputTexture : MultiTextureProps->MaterialIDSourceTextureMap)
 	{
 		if (InputTexture.Value == nullptr)
 		{
@@ -1155,7 +1155,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MultiTexture()
 
 	CachedMultiTextures.Reset();
 
-	for ( TPair<int32, UTexture2D*>& InputTexture : MultiTextureProps->MaterialIDSourceTextureMap)
+	for ( auto& InputTexture : MultiTextureProps->MaterialIDSourceTextureMap)
 	{
 		UTexture2D* Texture = InputTexture.Value;
 		if (!ensure(Texture != nullptr))

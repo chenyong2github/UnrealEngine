@@ -305,7 +305,7 @@ UObject* ULevelVariantSets::GetDirectorInstance(UObject* WorldContext)
 	}
 
 	ULevelVariantSetsFunctionDirector* TargetDirector = nullptr;
-	if ( ULevelVariantSetsFunctionDirector** ExistingDirector = DirectorOuter->DirectorInstances.Find( DirectorClass ) )
+	if ( UE_TRANSITIONAL_OBJECT_PTR(ULevelVariantSetsFunctionDirector*)* ExistingDirector = DirectorOuter->DirectorInstances.Find( DirectorClass ) )
 	{
 		TargetDirector = *ExistingDirector;
 	}

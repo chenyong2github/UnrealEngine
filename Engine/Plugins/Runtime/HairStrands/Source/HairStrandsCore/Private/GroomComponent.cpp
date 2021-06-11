@@ -1129,7 +1129,7 @@ void UGroomComponent::ReleaseHairSimulation()
 {
 	for (int32 CompIndex = 0; CompIndex < NiagaraComponents.Num(); ++CompIndex)
 	{
-		UNiagaraComponent*& NiagaraComponent = NiagaraComponents[CompIndex];
+		UE_TRANSITIONAL_OBJECT_PTR(UNiagaraComponent)& NiagaraComponent = NiagaraComponents[CompIndex];
 		if (NiagaraComponent && !NiagaraComponent->IsBeingDestroyed())
 		{
 			if (GetWorld() && NiagaraComponent->IsRegistered())
@@ -1167,7 +1167,7 @@ void UGroomComponent::UpdateHairSimulation()
 	NiagaraComponents.SetNumZeroed(NumComponents);
 	for (int32 CompIndex = 0; CompIndex < NumComponents; ++CompIndex)
 	{
-		UNiagaraComponent*& NiagaraComponent = NiagaraComponents[CompIndex];
+		UE_TRANSITIONAL_OBJECT_PTR(UNiagaraComponent)& NiagaraComponent = NiagaraComponents[CompIndex];
 		if (ValidComponents[CompIndex])
 		{
 			if (!NiagaraComponent)
@@ -1187,8 +1187,8 @@ void UGroomComponent::UpdateHairSimulation()
 				if(!CosseratRodsSystem) CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/StableRodsSystem.StableRodsSystem"));
 
 				UNiagaraSystem* NiagaraAsset =
-					(GroomAsset->HairGroupsPhysics[CompIndex].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings) ? AngularSpringsSystem :
-					(GroomAsset->HairGroupsPhysics[CompIndex].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods) ? CosseratRodsSystem :
+					(GroomAsset->HairGroupsPhysics[CompIndex].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings) ? ToRawPtr(AngularSpringsSystem) :
+					(GroomAsset->HairGroupsPhysics[CompIndex].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods) ? ToRawPtr(CosseratRodsSystem) :
 					GroomAsset->HairGroupsPhysics[CompIndex].SolverSettings.CustomSystem.LoadSynchronous();
 
 				NiagaraComponent->SetAsset(NiagaraAsset);

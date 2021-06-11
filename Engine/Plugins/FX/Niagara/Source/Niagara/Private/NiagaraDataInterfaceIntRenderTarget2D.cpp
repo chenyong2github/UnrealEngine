@@ -586,7 +586,7 @@ void UNiagaraDataInterfaceIntRenderTarget2D::DestroyPerInstanceData(void* PerIns
 
 	// Make sure to clear out the reference to the render target if we created one.
 	extern int32 GNiagaraReleaseResourceOnRemove;
-	UTextureRenderTarget2D* ExistingRenderTarget = nullptr;
+	decltype(ManagedRenderTargets)::ValueType ExistingRenderTarget = nullptr;
 	if ( ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
 	{
 		ExistingRenderTarget->ReleaseResource();
@@ -674,7 +674,7 @@ bool UNiagaraDataInterfaceIntRenderTarget2D::UpdateInstanceTexture(FNiagaraSyste
 				InstanceData->TargetTexture = UserTargetTexture;
 
 				extern int32 GNiagaraReleaseResourceOnRemove;
-				UTextureRenderTarget2D* ExistingRenderTarget = nullptr;
+				decltype(ManagedRenderTargets)::ValueType ExistingRenderTarget = nullptr;
 				if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
 				{
 					ExistingRenderTarget->ReleaseResource();

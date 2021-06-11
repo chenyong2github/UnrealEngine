@@ -274,7 +274,7 @@ bool UGizmoBoxComponent::LineTraceComponent(FHitResult& OutHit, const FVector St
 	if (bIsViewDependent)
 	{
 		FVector UseDirectionX, UseDirectionY, UseDirectionZ; // not used
-		GetBoxDirections(bIsViewDependent, GizmoViewContext,
+		GetBoxDirections(bIsViewDependent, ToRawPtr(GizmoViewContext),
 			Transform.TransformPosition(FVector::ZeroVector), // Origin
 			Rotation * FVector(1, 0, 0), // DirectionX
 			Rotation * FVector(0, 1, 0), // DirectionY

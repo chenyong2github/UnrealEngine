@@ -3441,10 +3441,10 @@ void BuildGeometry(
 		HairCards::CreateCardsInterpolation(Out.Cards, OutGuides, OutInterpolation);
 		check(Out.Cards.GetNum() > 0);
 
-		AllocateAtlasTexture(OutTextures.DepthTexture,		Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Depth"), AllocateAtlasTexture_Depth);
-		AllocateAtlasTexture(OutTextures.CoverageTexture,	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Coverage"), AllocateAtlasTexture_Coverage);
-		AllocateAtlasTexture(OutTextures.TangentTexture,	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Tangent"), AllocateAtlasTexture_Tangent);
-		AllocateAtlasTexture(OutTextures.AttributeTexture,	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Attribute"), AllocateAtlasTexture_Attribute);
+		AllocateAtlasTexture(static_cast<UTexture2D*&>(OutTextures.DepthTexture),		Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Depth"), AllocateAtlasTexture_Depth);
+		AllocateAtlasTexture(static_cast<UTexture2D*&>(OutTextures.CoverageTexture),	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Coverage"), AllocateAtlasTexture_Coverage);
+		AllocateAtlasTexture(static_cast<UTexture2D*&>(OutTextures.TangentTexture),	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Tangent"), AllocateAtlasTexture_Tangent);
+		AllocateAtlasTexture(static_cast<UTexture2D*&>(OutTextures.AttributeTexture),	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Attribute"), AllocateAtlasTexture_Attribute);
 	}
 
 	Out.Cards.BoundingBox.Init();

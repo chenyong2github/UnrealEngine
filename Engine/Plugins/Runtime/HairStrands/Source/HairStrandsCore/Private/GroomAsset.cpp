@@ -1593,7 +1593,7 @@ void UGroomAsset::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataCl
 
 const TArray<UAssetUserData*>* UGroomAsset::GetAssetUserDataArray() const
 {
-	return &AssetUserData;
+	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }
 
 bool UGroomAsset::CanRebuildFromDescription() const
