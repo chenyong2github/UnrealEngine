@@ -65,10 +65,10 @@ protected:
 	FSlateDeprecatedTAttribute<float> DPIScale;
 #endif
 
-	struct FDPIScalerOneChildSlot : ::FOneSimpleMemberChild
+	struct FDPIScalerOneChildSlot : ::TSingleWidgetChildrenWithBasicLayoutSlot<EInvalidateWidgetReason::None> // we want to add it to the Attribute descriptor
 	{
 		friend SDPIScaler;
-		using ::FOneSimpleMemberChild::FOneSimpleMemberChild;
+		using ::TSingleWidgetChildrenWithBasicLayoutSlot<EInvalidateWidgetReason::None>::TSingleWidgetChildrenWithBasicLayoutSlot;
 	};
 
 	/** The content being scaled. */

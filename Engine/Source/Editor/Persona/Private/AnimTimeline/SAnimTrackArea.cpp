@@ -51,7 +51,7 @@ void SAnimTrackArea::Empty()
 void SAnimTrackArea::AddTrackSlot(const TSharedRef<FAnimTimelineTrack>& InTrack, const TSharedPtr<SAnimTrack>& InSlot)
 {
 	TrackSlots.Add(InTrack, InSlot);
-	Children.Add(new FAnimTrackAreaSlot(InSlot));
+	Children.AddSlot(FAnimTrackAreaSlot::FSlotArguments(MakeUnique<FAnimTrackAreaSlot>(InSlot)));
 }
 
 TSharedPtr<SAnimTrack> SAnimTrackArea::FindTrackSlot(const TSharedRef<FAnimTimelineTrack>& InTrack)

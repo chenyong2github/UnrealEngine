@@ -134,10 +134,10 @@ protected:
 
 protected:
 
-	struct FBoxOneChildSlot : ::FOneSimpleMemberChild
+	struct FBoxOneChildSlot : ::TSingleWidgetChildrenWithBasicLayoutSlot<EInvalidateWidgetReason::None> // we want to add it to the Attribute descriptor
 	{
 		friend SBox;
-		using ::FOneSimpleMemberChild::FOneSimpleMemberChild;
+		using ::TSingleWidgetChildrenWithBasicLayoutSlot<EInvalidateWidgetReason::None>::TSingleWidgetChildrenWithBasicLayoutSlot;
 	};
 	FBoxOneChildSlot ChildSlot;
 

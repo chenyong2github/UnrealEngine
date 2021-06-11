@@ -11,7 +11,7 @@ void SDPIScaler::PrivateRegisterAttributes(FSlateAttributeInitializer& Attribute
 }
 
 SDPIScaler::SDPIScaler()
-	: ChildSlot(*this)
+	: ChildSlot(this)
 	, DPIScaleAttribute(*this, 1.f)
 {
 	SetCanTick(false);

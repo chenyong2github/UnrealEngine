@@ -102,10 +102,10 @@ protected:
 	/** Disallow public construction */
 	SCompoundWidget();
 
-	struct FCompoundWidgetOneChildSlot : ::FOneSimpleMemberChild
+	struct FCompoundWidgetOneChildSlot : ::TSingleWidgetChildrenWithBasicLayoutSlot<EInvalidateWidgetReason::None>
 	{
 		friend SCompoundWidget;
-		using ::FOneSimpleMemberChild::FOneSimpleMemberChild;
+		using ::TSingleWidgetChildrenWithBasicLayoutSlot<EInvalidateWidgetReason::None>::TSingleWidgetChildrenWithBasicLayoutSlot;
 	};
 
 	/** The slot that contains this widget's descendants.*/

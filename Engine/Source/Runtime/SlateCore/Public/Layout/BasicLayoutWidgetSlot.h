@@ -9,6 +9,8 @@
 #include "Misc/Optional.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+#include <type_traits>
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /** Mixin to add the alignment functionality to a base slot. */
 template <typename MixedIntoType>
@@ -57,14 +59,118 @@ protected:
 	}
 
 public:
-	// HAlign will be deprecated soon. Use SetVerticalAlignment, or if you are using ChildSlot, construct a new slot with FSlotArguments
+	UE_DEPRECATED(5.0, "HAlign is now deprecated. Use the FSlotArgument or the SetHorizontalAlignment function.")
 	MixedIntoType& HAlign(EHorizontalAlignment InHAlignment)
 	{
 		HAlignment = InHAlignment;
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
-	// VAlign will be deprecated soon. Use SetVerticalAlignment, or if you are using ChildSlot, construct a new slot with FSlotArguments
+	UE_DEPRECATED(5.0, "VAlign is now deprecated. Use the FSlotArgument or the SetVerticalAlignment function.")
+	MixedIntoType& VAlign(EVerticalAlignment InVAlignment)
+	{
+		VAlignment = InVAlignment;
+		return *(static_cast<MixedIntoType*>(this));
+	}
+
+public:
+	void SetHorizontalAlignment(EHorizontalAlignment Alignment)
+	{
+		if (HAlignment != Alignment)
+		{
+			HAlignment = Alignment;
+			static_cast<MixedIntoType*>(this)->Invalidate(EInvalidateWidgetReason::Layout);
+		}
+	}
+
+	EHorizontalAlignment GetHorizontalAlignment() const
+	{
+		return HAlignment;
+	}
+
+	void SetVerticalAlignment(EVerticalAlignment Alignment)
+	{
+		if (VAlignment != Alignment)
+		{
+			VAlignment = Alignment;
+			static_cast<MixedIntoType*>(this)->Invalidate(EInvalidateWidgetReason::Layout);
+		}
+	}
+
+	EVerticalAlignment GetVerticalAlignment() const
+	{
+		return VAlignment;
+	}
+
+public:
+	/** Horizontal positioning of child within the allocated slot */
+	UE_DEPRECATED(5.0, "Direct access to HAlignment is now deprecated. Use the getter.")
+	EHorizontalAlignment HAlignment;
+	/** Vertical positioning of child within the allocated slot */
+	UE_DEPRECATED(5.0, "Direct access to VAlignment is now deprecated. Use the getter.")
+	EVerticalAlignment VAlignment;
+};
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+/** Mixin to add the alignment functionality to a base slot that is also a single children. */
+template <typename MixedIntoType>
+class TAlignmentSingleWidgetSlotMixin
+{
+public:
+	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+	TAlignmentSingleWidgetSlotMixin(WidgetType& InParent)
+		: HAlignment(HAlign_Fill)
+		, VAlignment(VAlign_Fill)
+	{}
+
+	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+	TAlignmentSingleWidgetSlotMixin(WidgetType& InParent, const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign)
+		: HAlignment(InHAlign)
+		, VAlignment(InVAlign)
+	{}
+
+public:
+	struct FSlotArgumentsMixin
+	{
+	private:
+		friend TAlignmentSingleWidgetSlotMixin;
+
+	public:
+		typename MixedIntoType::FSlotArguments& HAlign(EHorizontalAlignment InHAlignment)
+		{
+			_HAlignment = InHAlignment;
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+		typename MixedIntoType::FSlotArguments& VAlign(EVerticalAlignment InVAlignment)
+		{
+			_VAlignment = InVAlignment;
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+	private:
+		TOptional<EHorizontalAlignment> _HAlignment;
+		TOptional<EVerticalAlignment> _VAlignment;
+	};
+
+protected:
+	void ConstructMixin(FSlotArgumentsMixin&& InArgs)
+	{
+		HAlignment = InArgs._HAlignment.Get(HAlignment);
+		VAlignment = InArgs._VAlignment.Get(VAlignment);
+	}
+
+public:
+	// HAlign will be deprecated soon. Use SetVerticalAlignment or construct a new slot with FSlotArguments
+	MixedIntoType& HAlign(EHorizontalAlignment InHAlignment)
+	{
+		HAlignment = InHAlignment;
+		return *(static_cast<MixedIntoType*>(this));
+	}
+
+	// VAlign will be deprecated soon. Use SetVerticalAlignment or construct a new slot with FSlotArguments
 	MixedIntoType& VAlign(EVerticalAlignment InVAlignment)
 	{
 		VAlignment = InVAlignment;
@@ -165,31 +271,31 @@ protected:
 	}
 
 public:
-	// Padding will be deprecated soon. Use SetPadding, or if you are using ChildSlot, construct a new slot with FSlotArguments
+	UE_DEPRECATED(5.0, "Padding is now deprecated. Use the FSlotArgument or the SetPadding function.")
 	MixedIntoType& Padding(TAttribute<FMargin> InPadding)
 	{
-		SlotPadding = MoveTemp(InPadding);
+		SetPadding(MoveTemp(InPadding));
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
-	// Padding will be deprecated soon. Use SetPadding, or if you are using ChildSlot, construct a new slot with FSlotArguments
+	UE_DEPRECATED(5.0, "Padding is now deprecated. Use the FSlotArgument or the SetPadding function.")
 	MixedIntoType& Padding(float Uniform)
 	{
-		SlotPadding = FMargin(Uniform);
+		SetPadding(FMargin(Uniform));
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
-	// Padding will be deprecated soon. Use SetPadding, or if you are using ChildSlot, construct a new slot with FSlotArguments
+	UE_DEPRECATED(5.0, "Padding is now deprecated. Use the FSlotArgument or the SetPadding function.")
 	MixedIntoType& Padding(float Horizontal, float Vertical)
 	{
-		SlotPadding = FMargin(Horizontal, Vertical);
+		SetPadding(FMargin(Horizontal, Vertical));
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
-	// Padding will be deprecated soon. Use SetPadding, or if you are using ChildSlot, construct a new slot with FSlotArguments
+	UE_DEPRECATED(5.0, "Padding is now deprecated. Use the FSlotArgument or the SetPadding function.")
 	MixedIntoType& Padding(float Left, float Top, float Right, float Bottom)
 	{
-		SlotPadding = FMargin(Left, Top, Right, Bottom);
+		SetPadding(FMargin(Left, Top, Right, Bottom));
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
@@ -200,11 +306,141 @@ public:
 		static_cast<MixedIntoType*>(this)->Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
 	}
 
-	const FMargin& GetPadding() const { return SlotPadding.Get(); }
+	FMargin GetPadding() const
+	{
+		return SlotPadding.Get();
+	}
 
 public:
 	UE_DEPRECATED(5.0, "Direct access to SlotPadding is now deprecated. Use the setter or getter.")
 	TAttribute<FMargin> SlotPadding;
+};
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+/** Mixin to add the padding functionality to a base slot that is also a single children. */
+template <typename MixedIntoType, EInvalidateWidgetReason InPaddingInvalidationReason = EInvalidateWidgetReason::Layout>
+class TPaddingSingleWidgetSlotMixin
+{
+public:
+	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+	TPaddingSingleWidgetSlotMixin(WidgetType& InParent)
+		: SlotPaddingAttribute(InParent)
+	{}
+
+	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+	TPaddingSingleWidgetSlotMixin(WidgetType& InParent, const FMargin & Margin)
+		: SlotPaddingAttribute(InParent, Margin)
+	{}
+
+public:
+	struct FSlotArgumentsMixin
+	{
+	private:
+		friend TPaddingSingleWidgetSlotMixin;
+		TAttribute<FMargin> _Padding;
+
+	public:
+		typename MixedIntoType::FSlotArguments& Padding(TAttribute<FMargin> InPadding)
+		{
+			_Padding = MoveTemp(InPadding);
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+		typename MixedIntoType::FSlotArguments& Padding(float Uniform)
+		{
+			_Padding = FMargin(Uniform);
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+		typename MixedIntoType::FSlotArguments& Padding(float Horizontal, float Vertical)
+		{
+			_Padding = FMargin(Horizontal, Vertical);
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+		typename MixedIntoType::FSlotArguments& Padding(float Left, float Top, float Right, float Bottom)
+		{
+			_Padding = FMargin(Left, Top, Right, Bottom);
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+	};
+
+protected:
+	void ConstructMixin(FSlotArgumentsMixin&& InArgs)
+	{
+		if (InArgs._Padding.IsSet())
+		{
+			SWidget* OwnerWidget = static_cast<MixedIntoType*>(this)->GetOwnerWidget();
+			check(OwnerWidget);
+			SlotPaddingAttribute.Assign(*OwnerWidget, MoveTemp(InArgs._Padding));
+		}
+	}
+
+public:
+	// Padding will be deprecated soon. Use SetPadding or construct a new slot with FSlotArguments
+	MixedIntoType& Padding(TAttribute<FMargin> InPadding)
+	{
+		SetPadding(MoveTemp(InPadding));
+		return *(static_cast<MixedIntoType*>(this));
+	}
+
+	// Padding will be deprecated soon. Use SetPadding or construct a new slot with FSlotArguments
+	MixedIntoType& Padding(float Uniform)
+	{
+		SetPadding(FMargin(Uniform));
+		return *(static_cast<MixedIntoType*>(this));
+	}
+
+	// Padding will be deprecated soon. Use SetPadding or construct a new slot with FSlotArguments
+	MixedIntoType& Padding(float Horizontal, float Vertical)
+	{
+		SetPadding(FMargin(Horizontal, Vertical));
+		return *(static_cast<MixedIntoType*>(this));
+	}
+
+	// Padding will be deprecated soon. Use SetPadding or construct a new slot with FSlotArguments
+	MixedIntoType& Padding(float Left, float Top, float Right, float Bottom)
+	{
+		SetPadding(FMargin(Left, Top, Right, Bottom));
+		return *(static_cast<MixedIntoType*>(this));
+	}
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.0, "Direct access to SlotPadding is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute<FMargin> SlotPadding;
+#endif
+
+public:
+	void SetPadding(TAttribute<FMargin> InPadding)
+	{
+		SWidget* OwnerWidget = static_cast<MixedIntoType*>(this)->GetOwnerWidget();
+		check(OwnerWidget);
+		SlotPaddingAttribute.Assign(*OwnerWidget, MoveTemp(InPadding));
+	}
+
+	FMargin GetPadding() const
+	{
+		return SlotPaddingAttribute.Get();
+	}
+
+public:
+	using SlotPaddingInvalidationType = typename std::conditional<InPaddingInvalidationReason == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InPaddingInvalidationReason>>::type;
+	using SlotPaddingAttributeType = SlateAttributePrivate::TSlateMemberAttribute<FMargin, SlotPaddingInvalidationType, TSlateAttributeComparePredicate<>>;
+	using SlotPaddingAttributeRefType = SlateAttributePrivate::TSlateMemberAttributeRef<SlotPaddingAttributeType>;
+
+	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+	SlotPaddingAttributeRefType GetSlotPaddingAttribute() const
+	{
+		WidgetType* Widget = static_cast<WidgetType*>(static_cast<MixedIntoType*>(this)->GetOwnerWidget());
+		check(Widget);
+		return SlotPaddingAttributeRefType(Widget->template SharedThis<WidgetType>(Widget), SlotPaddingAttribute);
+	}
+
+protected:
+	SlotPaddingAttributeType SlotPaddingAttribute;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -248,9 +484,9 @@ public:
 
 	void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 	{
+		TSlotBase<SlotType>::Construct(SlotOwner, MoveTemp(InArgs));
 		TPaddingWidgetSlotMixin<SlotType>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
 		TAlignmentWidgetSlotMixin<SlotType>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
-		TSlotBase<SlotType>::Construct(SlotOwner, MoveTemp(InArgs));
 	}
 };
 

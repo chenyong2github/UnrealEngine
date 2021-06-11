@@ -78,7 +78,7 @@ FSlateColor SCompoundWidget::GetForegroundColor() const
 }
 
 SCompoundWidget::SCompoundWidget()
-	: ChildSlot(*this)
+	: ChildSlot(this)
 	, ContentScaleAttribute( *this, FVector2D(1.0f,1.0f) )
 	, ColorAndOpacityAttribute( *this, FLinearColor::White )
 	, ForegroundColorAttribute( *this, FSlateColor::UseForeground() )

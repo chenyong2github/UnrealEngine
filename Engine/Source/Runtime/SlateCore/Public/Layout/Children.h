@@ -584,38 +584,51 @@ public:
 
 
 /** A FChildren that has only one child and support alignment and padding. */
-class FSingleWidgetChildrenWithBasicLayoutSlot : public TSingleWidgetChildrenWithSlot<FSingleWidgetChildrenWithBasicLayoutSlot>
-	, public TPaddingWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>
-	, public TAlignmentWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>
+template<EInvalidateWidgetReason InPaddingInvalidationReason = EInvalidateWidgetReason::Layout>
+class TSingleWidgetChildrenWithBasicLayoutSlot : public TSingleWidgetChildrenWithSlot<TSingleWidgetChildrenWithBasicLayoutSlot<InPaddingInvalidationReason>>
+	, public TPaddingSingleWidgetSlotMixin<TSingleWidgetChildrenWithBasicLayoutSlot<InPaddingInvalidationReason>, InPaddingInvalidationReason>
+	, public TAlignmentSingleWidgetSlotMixin<TSingleWidgetChildrenWithBasicLayoutSlot<InPaddingInvalidationReason>>
 {
+private:
+	using ParentType = TSingleWidgetChildrenWithSlot<TSingleWidgetChildrenWithBasicLayoutSlot<InPaddingInvalidationReason>>;
+	using PaddingMixinType = TPaddingSingleWidgetSlotMixin<TSingleWidgetChildrenWithBasicLayoutSlot<InPaddingInvalidationReason>, InPaddingInvalidationReason>;
+	using AlignmentMixinType = TAlignmentSingleWidgetSlotMixin<TSingleWidgetChildrenWithBasicLayoutSlot<InPaddingInvalidationReason>>;
 public:
-	FSingleWidgetChildrenWithBasicLayoutSlot(SWidget* InOwner)
-		: TSingleWidgetChildrenWithSlot<FSingleWidgetChildrenWithBasicLayoutSlot>(InOwner)
-		, TPaddingWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>()
-		, TAlignmentWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>(HAlign_Fill, VAlign_Fill)
+	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+	TSingleWidgetChildrenWithBasicLayoutSlot(WidgetType* InOwner)
+		: ParentType(InOwner)
+		, PaddingMixinType(*InOwner)
+		, AlignmentMixinType(*InOwner, HAlign_Fill, VAlign_Fill)
 	{
 	}
 
-	FSingleWidgetChildrenWithBasicLayoutSlot(SWidget* InOwner, const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign)
-		: TSingleWidgetChildrenWithSlot<FSingleWidgetChildrenWithBasicLayoutSlot>(InOwner)
-		, TPaddingWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>()
-		, TAlignmentWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>(InHAlign, InVAlign)
+	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+	TSingleWidgetChildrenWithBasicLayoutSlot(WidgetType* InOwner, const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign)
+		: ParentType(InOwner)
+		, PaddingMixinType(*InOwner)
+		, AlignmentMixinType(*InOwner, InHAlign, InVAlign)
 	{
 	}
 
-	FSingleWidgetChildrenWithBasicLayoutSlot(std::nullptr_t) = delete;
-	FSingleWidgetChildrenWithBasicLayoutSlot(std::nullptr_t, const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign) = delete;
+	TSingleWidgetChildrenWithBasicLayoutSlot(std::nullptr_t) = delete;
+	TSingleWidgetChildrenWithBasicLayoutSlot(std::nullptr_t, const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign) = delete;
 
 public:
-	SLATE_SLOT_BEGIN_ARGS_TwoMixins(FSingleWidgetChildrenWithBasicLayoutSlot, TSingleWidgetChildrenWithSlot<FSingleWidgetChildrenWithBasicLayoutSlot>, TPaddingWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>, TAlignmentWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>)
+	SLATE_SLOT_BEGIN_ARGS_TwoMixins(TSingleWidgetChildrenWithBasicLayoutSlot, ParentType, PaddingMixinType, AlignmentMixinType)
 	SLATE_SLOT_END_ARGS()
 
 	void Construct(FSlotArguments&& InArgs)
 	{
-		TSingleWidgetChildrenWithSlot<FSingleWidgetChildrenWithBasicLayoutSlot>::Construct(MoveTemp(InArgs));
-		TPaddingWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>::ConstructMixin(*this, MoveTemp(InArgs));
-		TAlignmentWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>::ConstructMixin(*this, MoveTemp(InArgs));
+		ParentType::Construct(MoveTemp(InArgs));
+		PaddingMixinType::ConstructMixin(MoveTemp(InArgs));
+		AlignmentMixinType::ConstructMixin( MoveTemp(InArgs));
 	}
+};
+
+
+class FSingleWidgetChildrenWithBasicLayoutSlot : public TSingleWidgetChildrenWithBasicLayoutSlot<>
+{
+	using TSingleWidgetChildrenWithBasicLayoutSlot<>::TSingleWidgetChildrenWithBasicLayoutSlot;
 };
 
 
@@ -674,6 +687,7 @@ public:
 	}
 
 public:
+	UE_DEPRECATED(5.0, "Add a slot directly has been deprecated. use the FSlotArgument to create a new slot")
 	int32 Add( SlotType* Slot )
 	{
 		int32 Index = Children.Add(TUniquePtr<SlotType>(Slot));
@@ -746,6 +760,7 @@ public:
 		Children = MoveTemp(ChildrenCopy);
 	}
 
+	UE_DEPRECATED(5.0, "Insert a slot directly has been deprecated. use the FSlotArgument to create a new slot")
 	void Insert(SlotType* Slot, int32 Index)
 	{
 		check(Slot);
@@ -1172,74 +1187,6 @@ public:
 
 private:
 	bool bChangesInvalidatePrepass;
-};
-
-
-/** A FChildren that support only one slot and alignment of content and padding */
-class FOneSimpleMemberChild : public TSingleWidgetChildrenWithSlot<FOneSimpleMemberChild>
-	, public TAlignmentWidgetSlotMixin<FOneSimpleMemberChild>
-{
-public:
-	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-	FOneSimpleMemberChild(WidgetType& InParent)
-		: TSingleWidgetChildrenWithSlot<FOneSimpleMemberChild>(&InParent)
-		, TAlignmentWidgetSlotMixin<FOneSimpleMemberChild>(HAlign_Fill, VAlign_Fill)
-		, SlotPaddingAttribute(InParent)
-	{
-	}
-
-	//~ TSlateAttribute cannot be copied
-	FOneSimpleMemberChild(const FOneSimpleMemberChild&) = delete;
-	FOneSimpleMemberChild& operator=(const FOneSimpleMemberChild&) = delete;
-
-	FOneSimpleMemberChild& Padding(TAttribute<FMargin> InPadding)
-	{
-		SlotPaddingAttribute.Assign(FChildren::GetOwner(), MoveTemp(InPadding));
-		return *this;
-	}
-
-	FOneSimpleMemberChild& Padding(float Uniform)
-	{
-		SlotPaddingAttribute.Set(FChildren::GetOwner(), FMargin(Uniform));
-		return *this;
-	}
-
-	FOneSimpleMemberChild& Padding(float Horizontal, float Vertical)
-	{
-		SlotPaddingAttribute.Set(FChildren::GetOwner(), FMargin(Horizontal, Vertical));
-		return *this;
-	}
-
-	FOneSimpleMemberChild& Padding(float Left, float Top, float Right, float Bottom)
-	{
-		SlotPaddingAttribute.Set(FChildren::GetOwner(), FMargin(Left, Top, Right, Bottom));
-		return *this;
-	}
-
-	void SetPadding(TAttribute<FMargin> InPadding)
-	{
-		SlotPaddingAttribute.Assign(FChildren::GetOwner(), MoveTemp(InPadding));
-	}
-	const FMargin& GetPadding() const { return SlotPaddingAttribute.Get(); }
-
-#if WITH_EDITORONLY_DATA
-	UE_DEPRECATED(5.0, "Direct access to SlotPadding is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FMargin> SlotPadding;
-#endif
-
-public:
-	using SlotPaddingAttributeType = SlateAttributePrivate::TSlateMemberAttribute<FMargin, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeComparePredicate<>>;
-	using SlotPaddingAttributeRefType = SlateAttributePrivate::TSlateMemberAttributeRef<SlotPaddingAttributeType>;
-
-	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-	SlotPaddingAttributeRefType GetSlotPaddingAttribute() const
-	{
-		WidgetType&  Widget = static_cast<WidgetType&>(FChildren::GetOwner());
-		return SlotPaddingAttributeRefType(Widget.template SharedThis<WidgetType>(&Widget), SlotPaddingAttribute);
-	}
-
-protected:
-	SlotPaddingAttributeType SlotPaddingAttribute;
 };
 
 

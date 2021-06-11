@@ -19,26 +19,17 @@ void SListPanel::Construct( const FArguments& InArgs )
 	NumDesiredItems = InArgs._NumDesiredItems;
 	ItemAlignment = InArgs._ItemAlignment;
 	Orientation = InArgs._ListOrientation;
+	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 }
 
-SListPanel::FSlot& SListPanel::Slot()
+SListPanel::FSlot::FSlotArguments SListPanel::Slot()
 {
-	return *(new FSlot());
+	return FSlot::FSlotArguments(MakeUnique<FSlot>());
 }
 	
-SListPanel::FSlot& SListPanel::AddSlot(int32 InsertAtIndex)
+SListPanel::FScopedWidgetSlotArguments SListPanel::AddSlot(int32 InsertAtIndex)
 {
-	FSlot& NewSlot = SListPanel::Slot();
-	if (InsertAtIndex == INDEX_NONE)
-	{
-		this->Children.Add( &NewSlot );
-	}
-	else
-	{
-		this->Children.Insert( &NewSlot, InsertAtIndex );
-	}
-	
-	return NewSlot;
+	return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), Children, InsertAtIndex };
 }
 
 void SListPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const

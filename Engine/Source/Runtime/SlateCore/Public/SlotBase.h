@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
+#include "Types/SlateAttribute.h"
 #include "Widgets/InvalidateWidgetReason.h"
 
 class FChildren;

@@ -38,7 +38,7 @@ public:
 		SLATE_NAMED_SLOT(FArguments, BottomSlot)
 		SLATE_ARGUMENT(EOrientation, Orientation)
 
-		SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
 	SScrollBarTrack()
 		: Children(this)

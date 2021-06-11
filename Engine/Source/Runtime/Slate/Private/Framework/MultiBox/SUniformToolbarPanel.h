@@ -43,8 +43,8 @@ public:
 
 		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 		{
-			TAlignmentWidgetSlotMixin<FSlot>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
 			TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+			TAlignmentWidgetSlotMixin<FSlot>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
 		}
 	};
 

@@ -155,7 +155,7 @@ void SDockingTabStack::Construct( const FArguments& InArgs, const TSharedRef<FTa
 
 				+ SVerticalBox::Slot()
 				.Expose(TitleBarSlot)
-				.AutoHeight()				
+				.AutoHeight()
 
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -837,7 +837,7 @@ TSharedPtr<FTabManager::FLayoutNode> SDockingTabStack::GatherPersistentLayout() 
 void SDockingTabStack::ClearReservedSpace()
 {
 	bShowingTitleBarArea = false;
-	(*TitleBarSlot).Padding(0.f);
+	TitleBarSlot->SetPadding(0.f);
 }
 
 void SDockingTabStack::ReserveSpaceForWindowChrome(EChromeElement Element, bool bIncludePaddingForMenuBar, bool bOnlyMinorTabs)
@@ -858,11 +858,11 @@ void SDockingTabStack::ReserveSpaceForWindowChrome(EChromeElement Element, bool 
 	switch (Element)
 	{
 	case EChromeElement::Controls:
-		(*TitleBarSlot).Padding(CurrentPadding + ControlsPadding);
+		TitleBarSlot->SetPadding(CurrentPadding + ControlsPadding);
 		break;
 
 	case EChromeElement::Icon:
-		(*TitleBarSlot).Padding(CurrentPadding + IconPadding);
+		TitleBarSlot->SetPadding(CurrentPadding + IconPadding);
 		break;
 
 	default:
@@ -896,7 +896,7 @@ void SDockingTabStack::SetParentNode( TSharedRef<class SDockingSplitter> InParen
 	// place the title bar widgets into our content instead!
 	const TSharedPtr<SDockingArea>& DockArea = GetDockArea();
 
-	(*TitleBarSlot)[TitleBarContent.ToSharedRef()];
+	TitleBarSlot->AttachWidget(TitleBarContent.ToSharedRef());
 }
 
 

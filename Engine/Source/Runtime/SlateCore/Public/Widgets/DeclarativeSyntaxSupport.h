@@ -263,6 +263,7 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
  * in order to add support for slots.
  */
 #define SLATE_SUPPORTS_SLOT( SlotType ) \
+		UE_DEPRECATED(5.0, "SLATE_SUPPORTS_SLOT is deprecated. Use SLATE_SLOT_ARGUMENT") \
 		TArray< SlotType* > Slots; \
 		WidgetArgsType& operator + (SlotType& SlotToAdd) \
 		{ \
