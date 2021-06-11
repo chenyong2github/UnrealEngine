@@ -5,6 +5,8 @@
 #include "AssetRegistry/AssetData.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraNodalOffsetAlgo.h"
+#include "Dialogs/CustomDialog.h"
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
 #include "LensFile.h"
@@ -171,7 +173,55 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
 		AlgosComboBox->SetSelectedItem(nullptr);
 	}
 
-	return AlgosComboBox.ToSharedRef();
+	return SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot() // algo picker
+		[
+			AlgosComboBox.ToSharedRef()
+		]
+
+		+ SHorizontalBox::Slot() // Help button
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ToolTipText(LOCTEXT("ShowHelp_Tip", "Help about this algo"))
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ButtonColorAndOpacity(FLinearColor::Transparent)
+			.OnClicked_Lambda([&]() -> FReply
+			{
+				if (!NodalOffsetTool.IsValid())
+				{
+					return FReply::Handled();
+				}
+
+				UCameraNodalOffsetAlgo* Algo = NodalOffsetTool->GetNodalOffsetAlgo();
+
+				if (!Algo)
+				{
+					return FReply::Handled();
+				}
+
+				TSharedRef< SCustomDialog> AlgoHelpWindow =
+					SNew(SCustomDialog)
+					.Title(FText::FromName(NodalOffsetTool->FriendlyName()))
+					.DialogContent(Algo->BuildHelpWidget())
+					.Buttons({
+						SCustomDialog::FButton(LOCTEXT("Ok", "Ok")),
+						});
+
+				AlgoHelpWindow->Show();
+
+				return FReply::Handled();
+			})
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
+				.Text(FEditorFontGlyphs::Info_Circle)
+				.ColorAndOpacity(FLinearColor::White)
+			]
+		]
+	;
 }
 
 

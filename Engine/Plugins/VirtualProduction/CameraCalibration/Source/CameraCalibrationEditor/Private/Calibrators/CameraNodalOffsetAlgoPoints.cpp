@@ -1443,5 +1443,50 @@ bool UCameraNodalOffsetAlgoPoints::GetStepsControllerAndLensFile(
 	return true;
 }
 
+TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildHelpWidget()
+{
+	return SNew(STextBlock)
+		.Text(LOCTEXT("NodalOffsetAlgoPointsHelp",
+			"This nodal offset algorithm will estimate the camera pose by minimizing the reprojection\n"
+			"error of a set of 3d points.\n\n"
+
+			"The 3d points are taken from the calibrator object, which you need to select using the\n"
+			"provided picker. All that is required is that the object contains one or more 'Calibration\n'"
+			"Point Components'. These 3d calibration points will appear in the provided drop-down.\n\n"
+
+			"To build the table that correlates these 3d points with where they are in the media plate,\n"
+			"simply click on the viewport, as accurately as possible, where their physical counterpart\n"
+			"appears. You can right-click the viewport to pause it if it helps in accuracy.\n\n"
+
+			"Once the table is built, the algorithm will calculate where the camera must be so that\n"
+			"the projection of these 3d points onto the camera plane are as close as possible to their\n"
+			"actual 2d location that specified by clicking on the viewport.\n\n"
+
+			"This camera pose information can then be used in the following ways:\n\n"
+
+			"- To calculate the offset between where it currently is and where it should be. This offset\n"
+			"  will be added to the lens file when 'Add To Nodal Offset Calibration' is clicked, and will\n"
+			"  ultimately be applied to the tracking data so that the camera's position in the CG scene\n"
+			"  is accurate. This requires that the position of the calibrator is accurate with respect to\n"
+			"  the camera tracking system.\n\n"
+
+			"- To place the calibrator actor, and any actors parented to it, in such a way that it coincides\n"
+			"  with its physical counterpart as seen by both the live action camera and the virtual camera.\n"
+			"  In this case, it is not required that the calibrator is tracked, and its pose will be\n"
+			"  altered directly. In this case, the lens file is not modified, and requires that the camera\n"
+			"  nodal offset (i.e. no parallax point) is already calibrated.\n\n"
+
+			"- The same as above, but by offsetting the calibrator's parent. In this case, it is implied\n"
+			"  that we are adjusting the calibrator's tracking system origin.\n\n"
+
+			"- Similarly as above, but by offsetting the camera's parent. The camera lens file is not\n"
+			"  changed, and it is implied that we are calibrating the camera tracking system origin.\n\n"
+
+			"Notes:\n\n"
+			" - This calibration step relies on the camera having a lens distortion calibration.\n"
+			" - It requires the camera to not move much from the moment you capture the first\n"
+			"   point until you capture the last one.\n"
+		));
+}
 
 #undef LOCTEXT_NAMESPACE

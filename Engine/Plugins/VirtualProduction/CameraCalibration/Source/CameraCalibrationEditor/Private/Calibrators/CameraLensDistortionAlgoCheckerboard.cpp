@@ -10,6 +10,7 @@
 #include "CameraCalibrationEditorLog.h"
 #include "CameraCalibrationUtils.h"
 #include "Editor.h"
+#include "EditorFontGlyphs.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
@@ -27,6 +28,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
 #include <vector>
@@ -292,7 +294,12 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		
 		if (!bCornersFound)
 		{
-			OutErrorMessage = LOCTEXT("InvalidCheckerboard", "Could not identify the expected checkerboard points of interest");
+			OutErrorMessage = FText::FromString(FString::Printf(TEXT(
+				"Could not identify the expected checkerboard points of interest. "
+				"The expected checkerboard has %dx%d inner corners."), 
+				Row->NumCornerCols, Row->NumCornerRows)
+			);
+
 			return false;
 		}
 		
@@ -668,25 +675,63 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationDevicePickerWidget()
 {
-	return SNew(SObjectPropertyEntryBox)
-		.AllowedClass(ACameraCalibrationCheckerboard::StaticClass())
-		.OnObjectChanged_Lambda([&](const FAssetData& AssetData) -> void
-		{
-			if (AssetData.IsValid())
-			{
-				SetCalibrator(Cast<ACameraCalibrationCheckerboard>(AssetData.GetAsset()));
-			}
-		})
-		.ObjectPath_Lambda([&]() -> FString
-		{
-			if (AActor* TheCalibrator = GetCalibrator())
-			{
-				FAssetData AssetData(TheCalibrator, true);
-				return AssetData.ObjectPath.ToString();
-			}
+	return SNew(SHorizontalBox)
 
-			return TEXT("");
-		});
+		+ SHorizontalBox::Slot() // Picker
+		[
+			SNew(SObjectPropertyEntryBox)
+			.AllowedClass(ACameraCalibrationCheckerboard::StaticClass())
+			.OnObjectChanged_Lambda([&](const FAssetData& AssetData) -> void
+			{
+				if (AssetData.IsValid())
+				{
+					SetCalibrator(Cast<ACameraCalibrationCheckerboard>(AssetData.GetAsset()));
+				}
+			})
+			.ObjectPath_Lambda([&]() -> FString
+			{
+				if (AActor* TheCalibrator = GetCalibrator())
+				{
+					FAssetData AssetData(TheCalibrator, true);
+					return AssetData.ObjectPath.ToString();
+				}
+
+				return TEXT("");
+			})
+		]
+
+		+ SHorizontalBox::Slot() // Spawner
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Spawn", "Spawn"))
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ButtonColorAndOpacity(FLinearColor::Transparent)
+			.OnClicked_Lambda([&]() -> FReply
+			{
+				const FCameraCalibrationStepsController* StepsController = GetStepsController();
+
+				if (!ensure(StepsController))
+				{
+					return FReply::Handled();
+				}
+
+				if (UWorld* const World = StepsController->GetWorld())
+				{
+					SetCalibrator(World->SpawnActor<ACameraCalibrationCheckerboard>());
+				}
+
+				return FReply::Handled();
+			})
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
+				.Text(FEditorFontGlyphs::Plus)
+				.ColorAndOpacity(FLinearColor::White)
+			]
+		]
+		;
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationActionButtons()
@@ -811,6 +856,33 @@ void UCameraLensDistortionAlgoCheckerboard::ClearCalibrationRows()
 	{
 		CalibrationListView->RequestListRefresh();
 	}
+}
+
+TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildHelpWidget()
+{
+	return SNew(STextBlock)
+		.Text(LOCTEXT("LensDistortionCheckerboardHelp",
+			"This Lens Distortion algorithm is based on capturing at least 4 different views of a checkerboard.\n\n"
+			"The camera and/or the checkerboard may be moved for each. To capture, simply click the simulcam\n"
+			"viewport. You can optionally right-click the simulcam viewport to pause it and ensure it will be\n"
+			"a sharp capture.\n\n"
+
+			"This will require the selection of a Checkerboard actor that exists in the scene, and is configured\n"
+			"to match the dimensions and number of inner corner rows and columns as the physical checkerboard.\n"
+			"If there isn't a checkerboard in the scene, you can spawn one from either the Place Actors panel\n"
+			"or the '+' button next to the checkerboard picker. You can then edit its details panel properties.\n\n"
+
+			"Each capture will be added to the table with the thumbnails. It is important that the collection of\n"
+			"captures sweep the viewport area as much as possible, so that the calibration includes samples from\n"
+			"all of its regions (otherwise the calibration may be skewed towards a particular region and not be\n"
+			"very accurate in others).\n\n"
+
+			"When you are done capturing, click the 'Add To Lens Distortion Calibration' button to run the calibration\n"
+			"algorithm, which calculates the distortion parameters k1,k2,p1,p2,k3 and adds them to the lens file.\n\n"
+
+			"A dialog window will show you the reprojection error of the calibration, and you can decide to add the\n"
+			"data to the lens file or not.\n"
+		));
 }
 
 #undef LOCTEXT_NAMESPACE

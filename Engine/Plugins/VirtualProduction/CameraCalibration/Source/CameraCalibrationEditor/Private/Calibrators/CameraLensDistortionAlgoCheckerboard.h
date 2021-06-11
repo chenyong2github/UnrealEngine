@@ -60,6 +60,7 @@ public:
 		double& OutError,
 		FText& OutErrorMessage
 	) override;
+	virtual TSharedRef<SWidget> BuildHelpWidget() override;
 	//~ End CameraLensDistortionAlgo
 
 private:

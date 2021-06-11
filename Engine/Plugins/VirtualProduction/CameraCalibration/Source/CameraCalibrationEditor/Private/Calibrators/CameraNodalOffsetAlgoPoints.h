@@ -50,6 +50,7 @@ public:
 	virtual bool GetNodalOffset(FNodalPointOffset& OutNodalOffset, float& OutFocus, float& OutZoom, float& OutError, FText& OutErrorMessage) override;
 	virtual FName FriendlyName() const override { return TEXT("Nodal Offset Points Method"); };
 	virtual void OnSavedNodalOffset() override;
+	virtual TSharedRef<SWidget> BuildHelpWidget() override;
 	//~ End CalibPointsNodalOffsetAlgo
 
 protected:
