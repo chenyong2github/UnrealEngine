@@ -315,6 +315,8 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	}*/
 
 	bChangesDiscarded = false;
+
+	GEditor->RegisterForUndo(this);
 }
 
 void FNiagaraScriptToolkit::InitViewWithVersionedData()
@@ -817,6 +819,32 @@ void FNiagaraScriptToolkit::UpdateModuleStats()
 	
 	StatsListing->ClearMessages();
 	StatsListing->AddMessages(Messages);
+}
+
+bool FNiagaraScriptToolkit::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const
+{
+	const auto* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph();
+	if (Graph)
+	{
+		for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjects)
+		{
+			UObject* Object = TransactionObjectPair.Key;
+			while (Object != nullptr)
+			{
+				if (Object == Graph)
+				{
+					return true;
+				}
+				Object = Object->GetOuter();
+			}
+		}
+	}
+	return false;
+}
+
+void FNiagaraScriptToolkit::PostUndo(bool bSuccess)
+{
+	MarkDirtyWithPendingChanges();
 }
 
 void FNiagaraScriptToolkit::GetSaveableObjects(TArray<UObject*>& OutObjects) const

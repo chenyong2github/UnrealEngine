@@ -36,7 +36,7 @@ class FNiagaraBakerViewModel;
 
 /** Viewer/editor for a NiagaraSystem
 */
-class FNiagaraSystemToolkit : public FAssetEditorToolkit, public FGCObject
+class FNiagaraSystemToolkit : public FAssetEditorToolkit, public FGCObject, public FEditorUndoClient
 {
 	enum class ESystemToolkitMode
 	{
@@ -63,6 +63,12 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	//~ End IToolkit Interface
+
+		//~ Begin FEditorUndoClient Interface
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	// End of FEditorUndoClient
 
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -176,6 +182,9 @@ private:
 
 	/** The value of the emitter change id from the last time it was in sync with the original emitter. */
 	FGuid LastSyncedEmitterChangeId;
+
+	/** The graphs being undone/redone currently so we only mark for compile the right ones */
+	mutable TArray<TWeakObjectPtr<UNiagaraGraph>> LastUndoGraphs;
 
 	/** Whether or not the emitter thumbnail has been updated.  The is needed because after the first update the
 		screenshot uobject is reused, so a pointer comparison doesn't work to checking if the images has been updated. */

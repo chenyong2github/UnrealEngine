@@ -467,6 +467,9 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 
 	bChangesDiscarded = false;
 	bScratchPadChangesDiscarded = false;
+
+
+	GEditor->RegisterForUndo(this);
 }
 
 FName FNiagaraSystemToolkit::GetToolkitFName() const
@@ -490,6 +493,48 @@ FLinearColor FNiagaraSystemToolkit::GetWorldCentricTabColorScale() const
 	return FNiagaraEditorModule::WorldCentricTabColorScale;
 }
 
+bool FNiagaraSystemToolkit::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const
+{
+	TArray<UNiagaraGraph*> Graphs;
+
+	for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadViewModel : SystemViewModel->GetScriptScratchPadViewModel()->GetScriptViewModels())
+	{
+		Graphs.AddUnique(ScratchPadViewModel->GetGraphViewModel()->GetGraph());
+	}
+
+	LastUndoGraphs.Empty();
+
+	if (Graphs.Num() > 0)
+	{
+		for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjects)
+		{
+			UObject* Object = TransactionObjectPair.Key;
+			while (Object != nullptr)
+			{
+				if (Graphs.Contains(Object))
+				{
+					LastUndoGraphs.AddUnique(Cast<UNiagaraGraph>(Object));
+					return true;
+				}
+				Object = Object->GetOuter();
+			}
+		}
+	}
+	return LastUndoGraphs.Num() > 0;
+}
+
+void FNiagaraSystemToolkit::PostUndo(bool bSuccess)
+{
+	for (TWeakObjectPtr<UNiagaraGraph> Graph : LastUndoGraphs)
+	{
+		if (Graph.IsValid())
+		{
+			Graph->NotifyGraphNeedsRecompile();
+		}
+	}
+
+	LastUndoGraphs.Empty();
+}
 
 TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_Viewport(const FSpawnTabArgs& Args)
 {

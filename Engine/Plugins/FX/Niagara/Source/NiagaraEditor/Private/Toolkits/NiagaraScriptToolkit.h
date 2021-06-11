@@ -28,7 +28,7 @@ class FNiagaraScriptToolkitParameterDefinitionsPanelViewModel;
 class SNiagaraSelectedObjectsDetails;
 
 /** Viewer/editor for a DataTable */
-class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject, public FTickableEditorObject
+class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject, public FTickableEditorObject, public FEditorUndoClient
 {
 public:
 	FNiagaraScriptToolkit();
@@ -62,6 +62,13 @@ public:
 	* Updates list of module info used to show stats
 	*/
 	void UpdateModuleStats();
+
+	//~ Begin FEditorUndoClient Interface
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	// End of FEditorUndoClient
+
 
 	//~ FTickableEditorObject interface
 	virtual void Tick(float DeltaTime) override;
