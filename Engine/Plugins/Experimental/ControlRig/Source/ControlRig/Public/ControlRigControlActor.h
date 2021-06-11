@@ -22,10 +22,12 @@ class CONTROLRIG_API AControlRigControlActor : public AActor
 public:
 
 	AControlRigControlActor(const FObjectInitializer& ObjectInitializer);
-
+	~AControlRigControlActor();
 	// AACtor overrides
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void BeginPlay() override { Clear(); }
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -82,4 +84,8 @@ private:
 
 	UPROPERTY(transient)
 	FName ColorParameterName;
+
+private:
+	void RemoveUnbindDelegate();
+	FDelegateHandle OnUnbindDelegate;
 };
