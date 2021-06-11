@@ -41,6 +41,16 @@ void UMoviePipelineQueue::DeleteJob(UMoviePipelineExecutorJob* InJob)
 	QueueSerialNumber++;
 }
 
+void UMoviePipelineQueue::DeleteAllJobs()
+{
+#if WITH_EDITOR
+	Modify();
+#endif
+
+	Jobs.Empty();
+	QueueSerialNumber++;
+}
+
 UMoviePipelineExecutorJob* UMoviePipelineQueue::DuplicateJob(UMoviePipelineExecutorJob* InJob)
 {
 	if (!InJob)
