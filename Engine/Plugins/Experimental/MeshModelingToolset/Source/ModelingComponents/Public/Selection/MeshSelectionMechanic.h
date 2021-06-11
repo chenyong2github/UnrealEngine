@@ -78,11 +78,16 @@ public:
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 
+	// IModifierToggleBehaviorTarget implementation
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+
 	FSimpleMulticastDelegate OnSelectionChanged;
 
 	EMeshSelectionMechanicMode SelectionMode;
 
 protected:
+
+	bool InMultiSelectMode() const { return bShiftToggle; }
 
 	UPROPERTY()
 	APreviewGeometryActor* PreviewGeometryActor = nullptr;
@@ -98,6 +103,10 @@ protected:
 	FViewCameraState CameraState;
 
 	FColor LineColor = FColor::Yellow;
+
+	bool bShiftToggle = false;
+	static const int32 ShiftModifierID = 1;
+
 	float LineThickness = 3;
 	float DepthBias = 0.3;
 
