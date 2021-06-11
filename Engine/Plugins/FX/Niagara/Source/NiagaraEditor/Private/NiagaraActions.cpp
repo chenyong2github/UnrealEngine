@@ -457,7 +457,7 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 			
 			if(ScriptVariable != nullptr && ScriptVariable->GetIsStaticSwitch())
 			{
-				MakeStaticSwitch(NewNodeParams);
+				MakeStaticSwitch(NewNodeParams, ScriptVariable);
 				return FReply::Handled();
 			}
 			
@@ -565,11 +565,18 @@ void FNiagaraParameterGraphDragOperation::MakeSetMap(FNiagaraParameterNodeConstr
 	}
 }
 
-void FNiagaraParameterGraphDragOperation::MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams)
+void FNiagaraParameterGraphDragOperation::MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams, const UNiagaraScriptVariable* ScriptVariable)
 {
 	FScopedTransaction AddNewPinTransaction(LOCTEXT("MakeStaticSwitch", "Make Static Switch"));
 	check(InParams.Graph);
 	InParams.Graph->Modify();
+
+	// copy metadata
+	if (UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(InParams.Graph))
+	{
+		NiagaraGraph->AddParameter(ScriptVariable);
+	}
+	
 	FGraphNodeCreator<UNiagaraNodeStaticSwitch> SetNodeCreator(*InParams.Graph);
 	UNiagaraNodeStaticSwitch* SwitchNode = SetNodeCreator.CreateNode();
 	SwitchNode->NodePosX = InParams.GraphPosition.X;
