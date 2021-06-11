@@ -250,7 +250,7 @@ bool UGizmoRectangleComponent::LineTraceComponent(FHitResult& OutHit, const FVec
 	FVector UseOrigin = Transform.TransformPosition(FVector::ZeroVector);
 
 	TArray<FVector> Corners;
-	bool bRenderVisibility = GetWorldCorners(bIsViewDependent, GizmoViewContext, UseOrigin, DirectionX, DirectionY, 
+	bool bRenderVisibility = GetWorldCorners(bIsViewDependent, ToRawPtr(GizmoViewContext), UseOrigin, DirectionX, DirectionY, 
 		OffsetX, OffsetY, LengthX, LengthY,	bWorld, bOrientYAccordingToCamera,
 		[&Transform](const FVector& VectorIn) { return Transform.TransformVector(VectorIn); },
 		Corners);

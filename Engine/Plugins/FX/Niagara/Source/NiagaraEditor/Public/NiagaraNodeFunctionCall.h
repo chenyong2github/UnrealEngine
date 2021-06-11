@@ -168,7 +168,7 @@ public:
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 
 	// Messages API
-	NIAGARAEDITOR_API const TMap<FGuid, UNiagaraMessageData*>& GetMessages() const { return MessageKeyToMessageMap; };
+	NIAGARAEDITOR_API const auto& GetMessages() const { return MessageKeyToMessageMap; };
 	NIAGARAEDITOR_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageData* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
 	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
@@ -216,7 +216,7 @@ protected:
 	FString FunctionDisplayName;
 
 	UPROPERTY(meta = (SkipForCompileHash="true"))
-	TMap<FGuid, UNiagaraMessageData*> MessageKeyToMessageMap;
+	TMap<FGuid, TObjectPtr<UNiagaraMessageData>> MessageKeyToMessageMap;
 	
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TArray<FNiagaraStackMessage> StackMessages;

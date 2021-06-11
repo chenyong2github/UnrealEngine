@@ -191,7 +191,7 @@ bool UGizmoArrowComponent::LineTraceComponent(FHitResult& OutHit, const FVector 
 	// Copy what is done in the proxy object, but get data from the gizmo view context.
 	FVector StartPoint, EndPoint;
 	float PixelToWorldScale = 0;
-	bool bRenderVisibility = GetWorldEndpoints(bIsViewDependent, GizmoViewContext, UseOrigin, Direction, Gap, Length, bWorld,
+	bool bRenderVisibility = GetWorldEndpoints(bIsViewDependent, ToRawPtr(GizmoViewContext), UseOrigin, Direction, Gap, Length, bWorld,
 		[&Transform](const FVector& VectorIn) { return Transform.TransformVector(VectorIn); },
 		StartPoint, EndPoint, PixelToWorldScale);
 

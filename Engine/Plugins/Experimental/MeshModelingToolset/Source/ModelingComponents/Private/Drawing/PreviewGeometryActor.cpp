@@ -102,7 +102,7 @@ ULineSetComponent* UPreviewGeometry::AddLineSet(const FString& SetIdentifier)
 
 ULineSetComponent* UPreviewGeometry::FindLineSet(const FString& LineSetIdentifier)
 {
-	ULineSetComponent** Found = LineSets.Find(LineSetIdentifier);
+	UE_TRANSITIONAL_OBJECT_PTR(ULineSetComponent)* Found = LineSets.Find(LineSetIdentifier);
 	if (Found != nullptr)
 	{
 		return *Found;
@@ -112,7 +112,7 @@ ULineSetComponent* UPreviewGeometry::FindLineSet(const FString& LineSetIdentifie
 
 bool UPreviewGeometry::RemoveLineSet(const FString& LineSetIdentifier, bool bDestroy)
 {
-	ULineSetComponent** Found = LineSets.Find(LineSetIdentifier);
+	UE_TRANSITIONAL_OBJECT_PTR(ULineSetComponent)* Found = LineSets.Find(LineSetIdentifier);
 	if (Found != nullptr)
 	{
 		ULineSetComponent* LineSet = *Found;
@@ -146,7 +146,7 @@ void UPreviewGeometry::RemoveAllLineSets(bool bDestroy)
 
 bool UPreviewGeometry::SetLineSetVisibility(const FString& LineSetIdentifier, bool bVisible)
 {
-	ULineSetComponent** Found = LineSets.Find(LineSetIdentifier);
+	UE_TRANSITIONAL_OBJECT_PTR(ULineSetComponent)* Found = LineSets.Find(LineSetIdentifier);
 	if (Found != nullptr)
 	{
 		(*Found)->SetVisibility(bVisible);
@@ -158,7 +158,7 @@ bool UPreviewGeometry::SetLineSetVisibility(const FString& LineSetIdentifier, bo
 
 bool UPreviewGeometry::SetLineSetMaterial(const FString& LineSetIdentifier, UMaterialInterface* NewMaterial)
 {
-	ULineSetComponent** Found = LineSets.Find(LineSetIdentifier);
+	UE_TRANSITIONAL_OBJECT_PTR(ULineSetComponent)* Found = LineSets.Find(LineSetIdentifier);
 	if (Found != nullptr)
 	{
 		(*Found)->SetLineMaterial(NewMaterial);
