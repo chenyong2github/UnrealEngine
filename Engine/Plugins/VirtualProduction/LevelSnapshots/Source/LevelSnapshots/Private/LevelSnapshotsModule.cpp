@@ -94,6 +94,33 @@ void FLevelSnapshotsModule::UnregisterPropertyComparer(UClass* Class, TSharedRef
 	}
 }
 
+void FLevelSnapshotsModule::RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses)
+{
+	if (!ensureAlways(Class))
+	{
+		return;
+	}
+	
+	const bool bIsBlueprint = Class->IsInBlueprint();
+	if (!ensureAlwaysMsgf(!bIsBlueprint, TEXT("Registering to Blueprint classes is unsupported because they can be reinstanced at any time")))
+	{
+		return;
+	}
+
+	FCustomSerializer* ExistingSerializer = CustomSerializers.Find(Class);
+	if (!ensureAlwaysMsgf(!ExistingSerializer, TEXT("Class already registered")))
+	{
+		return;
+	}
+
+	CustomSerializers.Add(Class, { CustomSerializer, bIncludeBlueprintChildClasses });
+}
+
+void FLevelSnapshotsModule::UnregisterCustomObjectSerializer(UClass* Class)
+{
+	CustomSerializers.Remove(Class);
+}
+
 void FLevelSnapshotsModule::AddWhitelistedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
@@ -166,6 +193,24 @@ IPropertyComparer::EPropertyComparison FLevelSnapshotsModule::ShouldConsiderProp
 		}
 	}
 	return IPropertyComparer::EPropertyComparison::CheckNormally;
+}
+
+TSharedPtr<ICustomObjectSnapshotSerializer> FLevelSnapshotsModule::GetCustomSerializerForClass(UClass* Class) const
+{
+	// Walk to first native parent
+	const bool bPassedInBlueprint = Class->IsInBlueprint();
+	while (Class && Class->IsInBlueprint())
+	{
+		Class = Class->GetSuperClass();
+	}
+
+	if (ensureAlways(Class))
+	{
+		const FCustomSerializer* Result = CustomSerializers.Find(Class);
+		return (Result && (!bPassedInBlueprint || Result->bIncludeBlueprintChildren)) ? Result->Serializer : TSharedPtr<ICustomObjectSnapshotSerializer>();
+	}
+
+	return nullptr;
 }
 
 IMPLEMENT_MODULE(FLevelSnapshotsModule, LevelSnapshots)

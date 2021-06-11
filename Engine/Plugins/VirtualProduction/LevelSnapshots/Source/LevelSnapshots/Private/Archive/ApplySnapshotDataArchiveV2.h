@@ -32,11 +32,6 @@ private:
 	FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects, TOptional<const FPropertySelection*> InSelectionSet);
 
 	bool ShouldSerializeAllProperties() const;
-	
-	/* Object we are serializing into.
-	* Needed for Pre and Post Edit change
-	*/
-	UObject* OriginalObject;
 
 	/* Needed so subobjects can be fully reconstructed */
 	const FPropertySelectionMap& SelectionMapForResolvingSubobjects; 

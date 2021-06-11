@@ -29,6 +29,8 @@ public:
 	virtual void UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) override;
 	virtual void RegisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) override;
 	virtual void UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) override;
+	virtual void RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses = true);
+	virtual void UnregisterCustomObjectSerializer(UClass* Class) override;
 	virtual void AddWhitelistedProperties(const TSet<const FProperty*>& Properties) override;
 	virtual void RemoveWhitelistedProperties(const TSet<const FProperty*>& Properties) override;
 	virtual void AddBlacklistedProperties(const TSet<const FProperty*>& Properties) override;
@@ -41,13 +43,23 @@ public:
 
 	FPropertyComparerArray GetPropertyComparerForClass(UClass* Class) const;
 	IPropertyComparer::EPropertyComparison ShouldConsiderPropertyEqual(const FPropertyComparerArray& Comparers, const FPropertyComparisonParams& Params) const;
+
+	TSharedPtr<ICustomObjectSnapshotSerializer> GetCustomSerializerForClass(UClass* Class) const;
 	
 private:
 
+	struct FCustomSerializer
+	{
+		TSharedRef<ICustomObjectSnapshotSerializer> Serializer;
+		bool bIncludeBlueprintChildren;
+	};
+	
 	/* Allows external modules to override what objects and properties are considered by the snapshot system. */
 	TArray<TSharedRef<ISnapshotRestorabilityOverrider>> Overrides;
 	/**/
 	TMap<FSoftClassPath, TArray<TSharedRef<IPropertyComparer>>> PropertyComparers;
+	/**/
+	TMap<FSoftClassPath, FCustomSerializer> CustomSerializers;
 
 	/* Allows these properties even when the default behaviour would exclude them. */
 	TSet<const FProperty*> WhitelistedProperties;

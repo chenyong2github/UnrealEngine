@@ -85,7 +85,7 @@ namespace
 
 		const FSoftObjectPath PathToNewActor(NewActor);
 		// PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes .StaticMeshComponent
-		const FString PathAfterOriginalActor = SubPathString.Right(SubPathString.Len() - DotAfterActorNameIndex + 1); // + 1 to include the dot after the actor
+		const FString PathAfterOriginalActor = SubPathString.Right(SubPathString.Len() - DotAfterActorNameIndex); 
 		return FSoftObjectPath(PathToNewActor.GetAssetPathName(), PathToNewActor.GetSubPathString() + PathAfterOriginalActor);
 	}
 
@@ -327,7 +327,6 @@ bool FWorldSnapshotData::AreReferencesEquivalent(UObject* SnapshotPropertyValue,
 
 int32 FWorldSnapshotData::AddObjectDependency(UObject* ReferenceFromOriginalObject)
 {
-	// TODO: Check whether subobject and track as such. Do this by walking up the chain of outers and determining whether it is owned by an actor or component.
 	return SerializedObjectReferences.AddUnique(ReferenceFromOriginalObject);
 }
 
@@ -454,6 +453,65 @@ int32 FWorldSnapshotData::AddSubobjectDependency(UObject* ReferenceFromOriginalO
 	}
 	
 	return Index;
+}
+
+int32 FWorldSnapshotData::AddCustomSubobjectDependency(UObject* ReferenceFromOriginalObject)
+{
+	if (!ensure(ReferenceFromOriginalObject))
+	{
+		return INDEX_NONE;
+	}
+
+	int32 SubobjectIndex = SerializedObjectReferences.Find(ReferenceFromOriginalObject);
+	if (SubobjectIndex == INDEX_NONE)
+	{
+		SubobjectIndex = SerializedObjectReferences.AddUnique(ReferenceFromOriginalObject);
+	}
+	
+	if (CustomSubobjectSerializationData.Find(SubobjectIndex) == nullptr)
+	{
+		CustomSubobjectSerializationData.Add(SubobjectIndex);
+	}
+	else
+	{
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("Object %s was already added as dependency. Investigate"), *ReferenceFromOriginalObject->GetName());
+		UE_DEBUG_BREAK();
+	}
+		
+	return SubobjectIndex;
+}
+
+FCustomSerializationData* FWorldSnapshotData::GetCustomSubobjectData_ForSubobject(const FSoftObjectPath& ReferenceFromOriginalObject)
+{
+	const int32 SubobjectIndex = SerializedObjectReferences.Find(ReferenceFromOriginalObject);
+	if (FCustomSerializationData* Data = CustomSubobjectSerializationData.Find(SubobjectIndex))
+	{
+		return Data;
+	}
+	return nullptr;
+}
+
+const FCustomSerializationData* FWorldSnapshotData::GetCustomSubobjectData_ForActorOrSubobject(UObject* OriginalObject) const
+{
+	// Is it an actor?
+	if (const FActorSnapshotData* SavedActorData = ActorData.Find(OriginalObject))
+	{
+		return &SavedActorData->GetCustomActorSerializationData();
+	}
+	if (Cast<AActor>(OriginalObject))
+	{
+		// Return immediately to avoid searching the entire array below.
+		return nullptr;
+	}
+
+	// If not an actor, it is a subobject
+	const int32 ObjectReferenceIndex = SerializedObjectReferences.Find(OriginalObject);
+	if (ObjectReferenceIndex != INDEX_NONE)
+	{
+		return CustomSubobjectSerializationData.Find(ObjectReferenceIndex);
+	}
+
+	return nullptr;
 }
 
 void FWorldSnapshotData::AddClassDefault(UClass* Class)
@@ -652,12 +710,9 @@ void FWorldSnapshotData::ApplyToWorld_HandleSerializingMatchingActors(TSet<AActo
 			{
 				OriginalWorldActor = AsActor;
 			}
-			else if (UActorComponent* AsComponent = Cast<UActorComponent>(ResolvedObject))
+			else if (ensure(ResolvedObject))
 			{
-				if (AActor* OwningActor = AsComponent->GetOwner())
-				{
-					OriginalWorldActor = OwningActor;
-				}
+				OriginalWorldActor = ResolvedObject->GetTypedOuter<AActor>();
 			}
 
 			if (ensure(OriginalWorldActor))

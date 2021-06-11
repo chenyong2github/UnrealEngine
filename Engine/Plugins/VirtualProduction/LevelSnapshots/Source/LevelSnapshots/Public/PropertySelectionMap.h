@@ -23,17 +23,21 @@ struct LEVELSNAPSHOTS_API FPropertySelectionMap
 	void RemoveNewActorToDespawn(AActor* WorldActor);
 
 	/* Binds properties to an object which are supposed to be rolled back. */
-	void AddObjectProperties(UObject* WorldObject, const FPropertySelection& SelectedProperties);
+	bool AddObjectProperties(UObject* WorldObject, const FPropertySelection& SelectedProperties);
 	void RemoveObjectPropertiesFromMap(UObject* WorldObject);
 	
 	const FPropertySelection* GetSelectedProperties(UObject* WorldObject) const;
 	const FPropertySelection* GetSelectedProperties(const FSoftObjectPath& WorldObjectPath) const;
 	TArray<FSoftObjectPath> GetKeys() const;
-	int32 GetKeyCount() const;
-	const TSet<FSoftObjectPath>& GetDeletedActorsToRespawn() const;
-	const TSet<TWeakObjectPtr<AActor>>& GetNewActorsToDespawn() const;
+	
+	int32 GetKeyCount() const { return SelectedWorldObjectsToSelectedProperties.Num(); }
+	const TSet<FSoftObjectPath>& GetDeletedActorsToRespawn() const { return DeletedActorsToRespawn; }
+	const TSet<TWeakObjectPtr<AActor>>& GetNewActorsToDespawn() const { return NewActorsToDespawn; }
 
 	void Empty(bool bCanShrink = true);
+
+	/* Gets the direct subobjects of root that have selected properties. You can recursively call this function with the element of the result array. */
+	TArray<UObject*> GetDirectSubobjectsWithProperties(UObject* Root) const;
 	
 private:
 	

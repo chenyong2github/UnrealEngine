@@ -4,6 +4,24 @@
 
 #include "PropertyInfoHelpers.h"
 
+namespace
+{
+	FArchiveSerializedPropertyChain TakeFirstElements(const FArchiveSerializedPropertyChain* Chain, int32 ElementsToTake)
+	{
+		if (!ensure(ElementsToTake <= Chain->GetNumProperties()))
+		{
+			return *Chain;
+		}
+
+		FArchiveSerializedPropertyChain Result;
+		for (int32 i = 0; i < ElementsToTake; ++i)
+		{
+			Result.PushProperty(Chain->GetPropertyFromStack(i), false);
+		}
+		return Result;
+	}
+}
+
 FLevelSnapshotPropertyChain FLevelSnapshotPropertyChain::MakeAppended(const FProperty* Property) const
 {
 	FLevelSnapshotPropertyChain Result = *this;
@@ -106,7 +124,9 @@ bool FPropertySelection::ShouldSerializeProperty(const FArchiveSerializedPropert
 		const FStructProperty* StructProperty = CastField<FStructProperty>(ParentProperty); 
 		if (StructProperty && StructProperty->Struct->UseNativeSerialization())
 		{
-			return true;
+			const FArchiveSerializedPropertyChain ChainMinusOne = TakeFirstElements(ContainerChain, i - 1); // Yes, it can be -1 when i = 0, this is valid.
+			// ... however the property is only like SomeVar if the struct does not show up in our selected properties
+			return !IsPropertySelected(&ChainMinusOne, StructProperty);
 		}
 		
 		// Always serialize all properties inside of collections
@@ -128,7 +148,7 @@ bool FPropertySelection::IsPropertySelected(const FArchiveSerializedPropertyChai
 
 bool FPropertySelection::IsEmpty() const
 {
-	return SelectedProperties.Num() == 0;
+	return SelectedProperties.Num() == 0 && !HasCustomSerializedSubobjects();
 }
 
 void FPropertySelection::AddProperty(const FLevelSnapshotPropertyChain& SelectedProperty)

@@ -6,13 +6,16 @@
 #include "SnapshotVersion.h"
 #include "WorldSnapshotData.h"
 
+#include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
 #include "Internationalization/TextNamespaceUtil.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
+#include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "UObject/ObjectMacros.h"
 
 void FSnapshotArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage)
 {
-	FSnapshotArchive Archive(InObjectData, InSharedData, true);
+	FSnapshotArchive Archive(InObjectData, InSharedData, true, InObjectToRestore);
 #if USE_STABLE_LOCALIZATION_KEYS
 	Archive.SetLocalizationNamespace(TextNamespaceUtil::EnsurePackageNamespace(InLocalisationSnapshotPackage));
 #endif
@@ -43,10 +46,7 @@ void FSnapshotArchive::Seek(int64 InPos)
 bool FSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
 	return InProperty->HasAnyPropertyFlags(ExcludedPropertyFlags)
-		// CPF_InstancedReference and CPF_ContainsInstancedReference skips properties skip references to components.
-		// CPF_PersistentInstance skips things like UPROPERTY(Instanced)
-		// Note, this still allows subobjects, e.g. when construction script creates a new material instance.
-		|| InProperty->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance);
+		|| IsPropertyReferenceToSubobject(InProperty);
 }
 
 FArchive& FSnapshotArchive::operator<<(FName& Value)
@@ -140,9 +140,42 @@ UObject* FSnapshotArchive::ResolveObjectDependency(int32 ObjectIndex) const
 	return SharedData.ResolveObjectDependencyForSnapshotWorld(ObjectIndex);
 }
 
-FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading)
+bool FSnapshotArchive::IsPropertyReferenceToSubobject(const FProperty* InProperty) const
+{
+	const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(InProperty);
+	if (!ObjectProperty)
+	{
+		return false;
+	}
+
+	const bool bIsMarkedAsSubobject = InProperty->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance);
+	const bool bIsActorOrComponentPtr = ObjectProperty->PropertyClass->IsChildOf(AActor::StaticClass()) || ObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass());
+	if (bIsMarkedAsSubobject || bIsActorOrComponentPtr)
+	{
+		return true;
+	}
+
+	const FArchiveSerializedPropertyChain* PropertyChain = GetSerializedPropertyChain();
+	const void* ContainerPtr = GetSerializedObject();
+	for (int32 i = 0; PropertyChain && i < PropertyChain->GetNumProperties(); ++i)
+	{
+		ContainerPtr = PropertyChain->GetPropertyFromRoot(i)->ContainerPtrToValuePtr<void>(ContainerPtr);
+	}
+
+	const void* LeafValuePtr = InProperty->ContainerPtrToValuePtr<void>(ContainerPtr);
+	if (const UObject* ContainedPtr = ObjectProperty->GetObjectPropertyValue(LeafValuePtr))
+	{
+		const bool bIsPointingToSubobject = ContainedPtr->IsIn(GetSerializedObject());
+		return bIsPointingToSubobject;
+	}
+	
+	return false;
+}
+
+FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InSerializedObject)
 	:
 	ExcludedPropertyFlags(CPF_BlueprintAssignable | CPF_Transient | CPF_Deprecated),
+	SerializedObject(InSerializedObject),
     ObjectData(InObjectData),
     SharedData(InSharedData)
 {
@@ -164,17 +197,6 @@ FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnap
 
 	if (bIsLoading)
 	{
-		const FSnapshotVersionInfo& VersionInfo = InSharedData.GetSnapshotVersionInfo();
-		
-		Super::SetUE4Ver(VersionInfo.FileVersion.FileVersionUE4);
-		Super::SetLicenseeUE4Ver(VersionInfo.FileVersion.FileVersionLicenseeUE4);
-		Super::SetEngineVer(FEngineVersionBase(VersionInfo.EngineVersion.Major, VersionInfo.EngineVersion.Minor, VersionInfo.EngineVersion.Patch, VersionInfo.EngineVersion.Changelist));
-
-		FCustomVersionContainer EngineCustomVersions;
-		for (const FSnapshotCustomVersionInfo& CustomVersion : VersionInfo.CustomVersions)
-		{
-			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
-		}
-		Super::SetCustomVersions(EngineCustomVersions);
+		InSharedData.GetSnapshotVersionInfo().ApplyToArchive(*this);
 	}
 }

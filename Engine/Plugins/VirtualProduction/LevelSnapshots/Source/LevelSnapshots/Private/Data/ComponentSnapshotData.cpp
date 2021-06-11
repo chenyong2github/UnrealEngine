@@ -26,7 +26,7 @@ TOptional<FComponentSnapshotData> FComponentSnapshotData::SnapshotComponent(UAct
 	return Result;
 }
 
-bool FComponentSnapshotData::IsRestoreSupportedForSavedComponent()
+bool FComponentSnapshotData::IsRestoreSupportedForSavedComponent() const
 {
 	return CreationMethod != EComponentCreationMethod::Instance && CreationMethod != EComponentCreationMethod::UserConstructionScript;
 }

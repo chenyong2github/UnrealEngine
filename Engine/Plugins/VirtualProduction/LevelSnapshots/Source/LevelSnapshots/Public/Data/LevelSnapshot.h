@@ -59,11 +59,15 @@ public:
 	void SetSnapshotDescription(const FString& InSnapshotDescription);
 
 	UFUNCTION(BlueprintPure, Category = "Level Snapshots")
-	FDateTime GetCaptureTime() const;
+	FSoftObjectPath GetMapPath() const { return MapPath; }
 	UFUNCTION(BlueprintPure, Category = "Level Snapshots")
-	FName GetSnapshotName() const;
+	FDateTime GetCaptureTime() const { return CaptureTime; }
 	UFUNCTION(BlueprintPure, Category = "Level Snapshots")
-	FString GetSnapshotDescription() const;
+	FName GetSnapshotName() const { return SnapshotName; }
+	UFUNCTION(BlueprintPure, Category = "Level Snapshots")
+	FString GetSnapshotDescription() const { return SnapshotDescription; }
+
+	const FWorldSnapshotData& GetSerializedData() const { return SerializedData; }
 
 	
 	//~ Begin UObject Interface
@@ -87,7 +91,7 @@ private:
 	FWorldSnapshotData SerializedData;
 
 	/* Path of the map that the snapshot was taken in */
-	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Snapshot")
+	UPROPERTY(VisibleAnywhere, BlueprintGetter = "GetMapPath", AssetRegistrySearchable, Category = "Snapshot")
 	FSoftObjectPath MapPath;
 	
 	/* UTC Time that the snapshot was taken */
