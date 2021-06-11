@@ -136,7 +136,7 @@ namespace PixelInspector
 		void DecodeFinalColor(TArray<FLinearColor> &BufferFinalColorValue, float InGamma, bool bHasAlphaChannel);
 		void DecodeSceneColor(TArray<FLinearColor> &BufferSceneColorValue);
 		void DecodeDepth(TArray<FLinearColor> &BufferDepthValue);
-		void DecodeHDR(TArray<FLinearColor> &BufferHDRValue);
+		void DecodeHDR(TArray<FLinearColor> &BufferHDRValue, bool bHasAlphaChannel);
 
 		void DecodeBufferData(TArray<FColor> &BufferAValue, TArray<FColor> &BufferBCDEValue, bool AllowStaticLighting);
 		void DecodeBufferData(TArray<FLinearColor> &BufferAValue, TArray<FColor> &BufferBCDEValue, bool AllowStaticLighting);

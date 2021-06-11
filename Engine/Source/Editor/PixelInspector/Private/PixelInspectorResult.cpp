@@ -81,7 +81,7 @@ namespace PixelInspector
 		}
 		Depth = BufferDepthValue[0].R;
 	}
-	void PixelInspectorResult::DecodeHDR(TArray<FLinearColor> &BufferHDRValue)
+	void PixelInspectorResult::DecodeHDR(TArray<FLinearColor> &BufferHDRValue, bool bHasAlphaChannel)
 	{
 		if (BufferHDRValue.Num() <= 0)
 		{
@@ -91,6 +91,11 @@ namespace PixelInspector
 		}
 		HdrLuminance = BufferHDRValue[0].GetLuminance() * OneOverPreExposure;
 		HdrColor = BufferHDRValue[0] * OneOverPreExposure;
+		if (!bHasAlphaChannel)
+		{
+			//Set the alpha to 1.0 as the default value
+			HdrColor.A = 1.0f;
+		}
 	}
 
 	void PixelInspectorResult::DecodeBufferData(TArray<FColor> &BufferAValue, TArray<FColor> &BufferBCDEValue, bool AllowStaticLighting)
