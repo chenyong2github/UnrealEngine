@@ -253,7 +253,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 
 				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-				float3 WorldNormal = DecodeSurfaceCacheNormal(Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
+				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
 				float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
 				// Trace visibility ray
