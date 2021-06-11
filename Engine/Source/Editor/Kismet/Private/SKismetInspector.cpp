@@ -912,14 +912,6 @@ bool SKismetInspector::IsPropertyEditingEnabled() const
 				break;
 			}
 		}
-		else if(UEdGraph* EdGraph = Cast<UEdGraph>(SelectedObject.Get()))
-		{
-			if(!BlueprintEditorPtr.Pin()->IsEditable(EdGraph))
-			{
-				bIsEditable = false;
-				break;
-			}
-		}
 		else if(UEdGraphNode* EdGraphNode = Cast<UEdGraphNode>(SelectedObject.Get()))
 		{
 			if(UEdGraph* OuterGraph = EdGraphNode->GetGraph())
