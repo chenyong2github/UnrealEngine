@@ -369,8 +369,17 @@ namespace HordeServer.Tasks.Impl
 		/// <returns></returns>
 		async Task RunAsync(ExecuteOperation Operation)
 		{
-			ExecuteResponse Response = await RunInternalAsync(Operation);
-			Operation.SetStatus(ExecutionStage.Types.Value.Completed, Any.Pack(Response));
+			try
+			{
+				ExecuteResponse Response = await RunInternalAsync(Operation);
+				Operation.SetStatus(ExecutionStage.Types.Value.Completed, Any.Pack(Response));
+			}
+			catch (Exception e)
+			{
+				Logger.LogError(e, "Exception in background run");
+				throw;
+			}
+			
 		}
 
 		/// <summary>
