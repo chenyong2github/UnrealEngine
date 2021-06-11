@@ -771,23 +771,23 @@ float GetNiagaraParticleSubimage(uint InstanceID)
 float3 GetNiagaraParticleFacingVector(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	return SafeGetVec3(NiagaraSpriteVF.FacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultFacing.xyz);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.FacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultFacing.xyz), Primitive.LocalToWorld);
 }
 
 float3 GetNiagaraPreviousParticleFacingVector(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	return SafeGetVec3(NiagaraSpriteVF.PrevFacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevFacing.xyz);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevFacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevFacing.xyz), Primitive.PreviousLocalToWorld);
 }
 
 float3 GetNiagaraParticleAlignmentVector(uint InstanceID)
 {
-	return SafeGetVec3(NiagaraSpriteVF.AlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultAlignment.xyz);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.AlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultAlignment.xyz), Primitive.LocalToWorld);
 }
 
 float3 GetNiagaraPreviousParticleAlignmentVector(uint InstanceID)
 {
-	return SafeGetVec3(NiagaraSpriteVF.PrevAlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevAlignment.xyz);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevAlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevAlignment.xyz), Primitive.PreviousLocalToWorld);
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
