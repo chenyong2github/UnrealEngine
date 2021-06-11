@@ -10,6 +10,7 @@ class SWidget;
 
 /**
  * Custom display cluster logging. TODO: Currently not used anywhere in favor of compiler results logging.
+ * Leaving in for now because cluster logging options may be needed in the future.
  */
 class FDisplayClusterConfiguratorViewLog
 	: public IDisplayClusterConfiguratorViewLog

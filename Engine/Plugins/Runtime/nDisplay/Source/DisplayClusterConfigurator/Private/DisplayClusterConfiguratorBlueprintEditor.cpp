@@ -21,7 +21,6 @@
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
-#include "Views/General/DisplayClusterConfiguratorViewGeneral.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/TreeViews/Cluster/DisplayClusterConfiguratorViewCluster.h"
 #include "Views/Viewport/DisplayClusterConfiguratorSCSEditorViewport.h"
@@ -445,11 +444,6 @@ TSharedRef<IDisplayClusterConfiguratorViewTree> FDisplayClusterConfiguratorBluep
 	return ViewCluster.ToSharedRef();
 }
 
-TSharedRef<IDisplayClusterConfiguratorView> FDisplayClusterConfiguratorBlueprintEditor::GetViewGeneral() const
-{
-	return ViewGeneral.ToSharedRef();
-}
-
 void FDisplayClusterConfiguratorBlueprintEditor::SyncViewports()
 {
 	if (ViewportTabContent.IsValid())
@@ -666,7 +660,6 @@ bool FDisplayClusterConfiguratorBlueprintEditor::SaveWithOpenFileDialog()
 
 void FDisplayClusterConfiguratorBlueprintEditor::OnReadOnlyChanged(bool bReadOnly)
 {
-	ViewGeneral->SetEnabled(!bReadOnly);
 	ViewOutputMapping->SetEnabled(!bReadOnly);
 	ViewCluster->SetEnabled(!bReadOnly);
 }
@@ -811,11 +804,9 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateWidgets()
 {
 	TSharedRef<FDisplayClusterConfiguratorBlueprintEditor> ThisRef(SharedThis(this));
 
-	ViewGeneral			= MakeShared<FDisplayClusterConfiguratorViewGeneral>(ThisRef);
 	ViewOutputMapping	= MakeShared<FDisplayClusterConfiguratorViewOutputMapping>(ThisRef);
 	ViewCluster			= MakeShared<FDisplayClusterConfiguratorViewCluster>(ThisRef);
 
-	ViewGeneral->CreateWidget();
 	ViewOutputMapping->CreateWidget();
 	ViewCluster->CreateWidget();
 	
@@ -825,7 +816,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateWidgets()
 	{
 		bool bReadOnly = false;// FConsoleManager::Get().FindConsoleVariable(TEXT("nDisplay.configurator.ReadOnly"))->GetBool();
 
-		ViewGeneral->SetEnabled(!bReadOnly);
 		ViewOutputMapping->SetEnabled(!bReadOnly);
 		ViewCluster->SetEnabled(!bReadOnly);
 	}

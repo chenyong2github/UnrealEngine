@@ -37,7 +37,7 @@ FDisplayClusterConfiguratorEditorConfigurationMode::FDisplayClusterConfiguratorE
 	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> EditorIn) : FDisplayClusterConfiguratorBlueprintModeBase(EditorIn,
 		FDisplayClusterEditorModes::DisplayClusterEditorConfigurationMode)
 {
-	TabLayout = BuildDefaultLayout(FString(TEXT("DisplayClusterConfigurator_v0.17")));
+	TabLayout = BuildDefaultLayout(FString(TEXT("DisplayClusterConfigurator_v1.0")));
 
 	EditorTabFactories.RegisterFactory(MakeShared<FDisplayClusterViewClusterSummoner>(EditorIn));
 	EditorTabFactories.RegisterFactory(MakeShared<FDisplayClusterViewOutputMappingSummoner>(EditorIn));
@@ -161,99 +161,6 @@ TSharedPtr<FTabManager::FLayout> FDisplayClusterConfiguratorEditorConfigurationM
 						FTabManager::NewStack()
 						->SetSizeCoefficient(.3f)
 						->AddTab(FBlueprintEditorTabs::CompilerResultsID, ETabState::OpenedTab)
-					)
-				)
-			)
-		);
-}
-
-FDisplayClusterConfiguratorEditorBlueprintMode::FDisplayClusterConfiguratorEditorBlueprintMode(
-	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> EditorIn) : FDisplayClusterConfiguratorBlueprintModeBase(EditorIn,
-		FDisplayClusterEditorModes::DisplayClusterEditorGraphMode)
-{
-	TabLayout = BuildDefaultLayout(FString(TEXT("DisplayClusterBlueprint_v0.2")));
-
-	ToolbarExtender = MakeShareable(new FExtender);
-	if (UToolMenu* Toolbar = EditorIn->RegisterModeToolbarIfUnregistered(GetModeName()))
-	{
-		EditorIn->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
-		EditorIn->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);
-		EditorIn->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar, false);
-		EditorIn->GetToolbarBuilder()->AddDebuggingToolbar(Toolbar);
-	}
-
-	EditorIn->GetConfiguratorToolbar()->AddModesToolbar(ToolbarExtender);
-}
-
-void FDisplayClusterConfiguratorEditorBlueprintMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
-{
-	TSharedPtr<FBlueprintEditor> BP = MyBlueprintEditor.Pin();
-
-	BP->RegisterToolbarTab(InTabManager.ToSharedRef());
-
-	// Mode-specific setup
-	BP->PushTabFactories(CoreTabFactories);
-	BP->PushTabFactories(BlueprintEditorOnlyTabFactories);
-	BP->PushTabFactories(BlueprintEditorTabFactories);
-}
-
-TSharedPtr<FTabManager::FLayout> FDisplayClusterConfiguratorEditorBlueprintMode::BuildDefaultLayout(
-	const FString& LayoutName)
-{
-	return FTabManager::NewLayout(*LayoutName)
-		->AddArea
-		(
-			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.186721f)
-				->SetHideTabWell(true)
-				->AddTab(MyBlueprintEditor.Pin()->GetToolbarTabId(), ETabState::OpenedTab)
-			)
-			->Split
-			(
-				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
-				->Split
-				(
-					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.15f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.50f)
-						->AddTab(FBlueprintEditorTabs::MyBlueprintID, ETabState::OpenedTab)
-					)
-				)
-				->Split
-				(
-					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.60f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.80f)
-						->AddTab("Document", ETabState::ClosedTab)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.20f)
-						->AddTab(FBlueprintEditorTabs::CompilerResultsID, ETabState::ClosedTab)
-						->AddTab(FBlueprintEditorTabs::FindResultsID, ETabState::ClosedTab)
-						->AddTab(FBlueprintEditorTabs::BookmarksID, ETabState::ClosedTab)
-					)
-				)
-				->Split
-				(
-					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.2f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.7f)
-						->AddTab(FBlueprintEditorTabs::DetailsID, ETabState::OpenedTab)
-						->AddTab(FBlueprintEditorTabs::PaletteID, ETabState::ClosedTab)
 					)
 				)
 			)

@@ -125,23 +125,6 @@ private:
 };
 
 /**
- * Input Detail Customization -- TODO: Delete or modify.
- */
-class FDisplayClusterConfiguratorInputDetailCustomization final
-	: public FDisplayClusterConfiguratorDetailCustomization
-{
-public:
-	using Super = FDisplayClusterConfiguratorDetailCustomization;
-
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
-	/** End IDetailCustomization interface */
-
-private:
-	TWeakObjectPtr<UDisplayClusterConfigurationInput> ConfigurationInputPtr;
-};
-
-/**
  * Base Scene Component Detail Customization
  */
 class FDisplayClusterConfiguratorSceneComponentDetailCustomization
