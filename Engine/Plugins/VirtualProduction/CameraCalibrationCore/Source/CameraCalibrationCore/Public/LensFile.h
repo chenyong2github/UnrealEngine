@@ -104,8 +104,14 @@ public:
 	/** Callbacked when stmap derived data has completed */
 	void OnDistortionDerivedDataJobCompleted(const FDerivedDistortionDataJobOutput& JobOutput);
 
+	/** Update the resolution used for intermediate blending displacement maps and for STMap derived data */
+	void UpdateDisplacementMapResolution(const FIntPoint NewDisplacementMapResolution);
+
 	/** Whether the sensor dimensions in the lens file will be compatible with the sensor dimensions of the input CineCameraComponent */
 	bool IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent) const;
+
+	/** Update the input tolerance used when adding points to calibration tables */
+	void UpdateInputTolerance(const float NewTolerance);
 
 	/** Adds a distortion point in our map. If a point already exist at the location, it is updated */
 	void AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewPoint, const FFocalLengthInfo& NewFocalLength);
@@ -140,6 +146,9 @@ public:
 protected:
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
 	void UpdateDerivedData();
+
+	/** Create the intermediate displacement maps needed to do map blending to get final distortion/undistortion maps */
+	void CreateIntermediateDisplacementMaps(const FIntPoint DisplacementMapResolution);
 
 	/** Returns the overscan factor based on distorted UV and image center */
 	float ComputeOverscan(const FDistortionData& DerivedData, FVector2D PrincipalPoint) const;
@@ -192,8 +201,8 @@ public:
 	FSTMapTable STMapTable;
 	
 	/** Tolerance used to consider input focus or zoom to be identical */
-	static constexpr float InputTolerance = 0.001f;
-	
+	float InputTolerance = KINDA_SMALL_NUMBER;
+
 protected:
 
 	/** Derived data compute jobs we are waiting on */
@@ -210,6 +219,7 @@ protected:
 	UPROPERTY(Transient)
 	TArray<UTextureRenderTarget2D*> DistortionDisplacementMapHolders;
 
+	/** The number of intermediate displacement maps needed to do map blending */
 	static constexpr int32 DisplacementMapHolderCount = 4;
 
 	/** UV coordinates of 8 points (4 corners + 4 mid points) */
@@ -272,7 +282,7 @@ struct FLensFileEvalData
 	/** Information about the Distortion evaluation */
 	struct
 	{
-		/** True if distotion was applied (and the lens distortion handler updated its state) */
+		/** True if distortion was applied (and the lens distortion handler updated its state) */
 		bool bWasEvaluated;
 	} Distortion;
 

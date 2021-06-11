@@ -64,6 +64,31 @@ UMaterialInterface* UCameraCalibrationSettings::GetDefaultDistortionMaterial(con
 	return DistortionMaterial->LoadSynchronous();
 }
 
+#if WITH_EDITOR
+void UCameraCalibrationSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	const FName MemberPropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UCameraCalibrationSettings, DisplacementMapResolution))
+	{
+		DisplacementMapResolutionChangedDelegate.Broadcast(DisplacementMapResolution);
+	}
+	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UCameraCalibrationSettings, CalibrationInputTolerance))
+	{
+		CalibrationInputToleranceChangedDelegate.Broadcast(CalibrationInputTolerance);
+	}
+}
+
+FOnDisplacementMapResolutionChanged& UCameraCalibrationSettings::OnDisplacementMapResolutionChanged()
+{
+	return DisplacementMapResolutionChangedDelegate;
+}
+
+FOnCalibrationInputToleranceChanged& UCameraCalibrationSettings::OnCalibrationInputToleranceChanged()
+{
+	return CalibrationInputToleranceChangedDelegate;
+}
+#endif
+
 FName UCameraCalibrationEditorSettings::GetCategoryName() const
 {
 	return TEXT("Plugins");

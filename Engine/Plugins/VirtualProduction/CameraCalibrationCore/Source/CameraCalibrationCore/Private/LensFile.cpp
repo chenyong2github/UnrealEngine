@@ -5,6 +5,7 @@
 #include "Algo/MaxElement.h"
 #include "CalibratedMapProcessor.h"
 #include "CameraCalibrationCoreLog.h"
+#include "CameraCalibrationSettings.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Engine/Engine.h"
@@ -18,19 +19,18 @@
 
 namespace LensFileUtils
 {
-	UTextureRenderTarget2D* CreateDisplacementMapRenderTarget(UObject* Outer)
+	UTextureRenderTarget2D* CreateDisplacementMapRenderTarget(UObject* Outer, const FIntPoint DisplacementMapResolution)
 	{
 		check(Outer);
-
-		//Will be good using a project settings or global resolution that user can change
-		const FIntPoint Size{256,256};
 
 		UTextureRenderTarget2D* NewRenderTarget2D = NewObject<UTextureRenderTarget2D>(Outer, MakeUniqueObjectName(Outer, UTextureRenderTarget2D::StaticClass(), TEXT("LensDisplacementMap")), RF_Public);
 		NewRenderTarget2D->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
 		NewRenderTarget2D->ClearColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.5f);
+		NewRenderTarget2D->AddressX = TA_Clamp;
+		NewRenderTarget2D->AddressY = TA_Clamp;
 		NewRenderTarget2D->bAutoGenerateMips = false;
 		NewRenderTarget2D->bCanCreateUAV = true;
-		NewRenderTarget2D->InitAutoFormat(Size.X, Size.Y);
+		NewRenderTarget2D->InitAutoFormat(DisplacementMapResolution.X, DisplacementMapResolution.Y);
 		NewRenderTarget2D->UpdateResourceImmediate(true);
 
 		//Flush RHI thread after creating texture render target to make sure that RHIUpdateTextureReference is executed before doing any rendering with it
@@ -189,6 +189,13 @@ ULensFile::ULensFile()
 	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
 		CalibratedMapProcessor = MakeUnique<FCalibratedMapProcessor>();
+#if WITH_EDITOR
+		UCameraCalibrationSettings* DefaultSettings = GetMutableDefault<UCameraCalibrationSettings>();
+		DefaultSettings->OnDisplacementMapResolutionChanged().AddUObject(this, &ULensFile::UpdateDisplacementMapResolution);
+		DefaultSettings->OnCalibrationInputToleranceChanged().AddUObject(this, &ULensFile::UpdateInputTolerance);
+
+		UpdateInputTolerance(DefaultSettings->GetCalibrationInputTolerance());
+#endif // WITH_EDITOR
 	}
 }
 
@@ -999,6 +1006,11 @@ bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraCom
 	return true;
 }
 
+void ULensFile::UpdateInputTolerance(const float NewTolerance)
+{
+	InputTolerance = NewTolerance;
+}
+
 void ULensFile::AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewDistortionPoint, const FFocalLengthInfo& NewFocalLength)
 {
 	const bool bPointAdded = DistortionTable.AddPoint(NewFocus, NewZoom, NewDistortionPoint, InputTolerance, false);
@@ -1203,15 +1215,8 @@ void ULensFile::PostInitProperties()
 {
 	Super::PostInitProperties();
 	
-	//Create displacement maps used when blending them together to get final distortion map
-	UndistortionDisplacementMapHolders.Reserve(DisplacementMapHolderCount);
-	DistortionDisplacementMapHolders.Reserve(DisplacementMapHolderCount);
-	for (int32 Index = 0; Index < DisplacementMapHolderCount; ++Index)
-	{
-		UTextureRenderTarget2D* NewMap = LensFileUtils::CreateDisplacementMapRenderTarget(GetTransientPackage());
-		UndistortionDisplacementMapHolders.Add(NewMap);
-		DistortionDisplacementMapHolders.Add(NewMap);
-	}
+	const FIntPoint DisplacementMapResolution = GetDefault<UCameraCalibrationSettings>()->GetDisplacementMapResolution();
+	CreateIntermediateDisplacementMaps(DisplacementMapResolution);
 }
 
 void ULensFile::Tick(float DeltaTime)
@@ -1222,6 +1227,23 @@ void ULensFile::Tick(float DeltaTime)
 	}
 
 	UpdateDerivedData();
+}
+
+void ULensFile::UpdateDisplacementMapResolution(const FIntPoint NewDisplacementMapResolution)
+{
+	CreateIntermediateDisplacementMaps(NewDisplacementMapResolution);
+
+	// Mark all points in the STMap table as dirty, so that they will update their derived data on the next tick
+	if (DataMode == ELensDataMode::STMap)
+	{
+		for (FSTMapFocusPoint& FocusPoint : STMapTable.GetFocusPoints())
+		{
+			for (FSTMapZoomPoint& ZoomPoint : FocusPoint.ZoomPoints)
+			{
+				ZoomPoint.DerivedDistortionData.bIsDirty = true;
+			}
+		}
+	}
 }
 
 TStatId ULensFile::GetStatId() const
@@ -1246,16 +1268,23 @@ void ULensFile::UpdateDerivedData()
 						continue;
 					}
 
+					const FIntPoint CurrentDisplacementMapResolution = GetDefault<UCameraCalibrationSettings>()->GetDisplacementMapResolution();
+
 					//Create required undistortion texture for newly added points
-					if (ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap == nullptr)
+					if ((ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap == nullptr)
+						|| (ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap->SizeX != CurrentDisplacementMapResolution.X)
+						|| (ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap->SizeY != CurrentDisplacementMapResolution.Y))
+
 					{
-						ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
+						ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this, CurrentDisplacementMapResolution);
 					}
 
 					//Create required distortion texture for newly added points
-					if (ZoomPoint.DerivedDistortionData.DistortionDisplacementMap == nullptr)
+					if ((ZoomPoint.DerivedDistortionData.DistortionDisplacementMap == nullptr)
+						|| (ZoomPoint.DerivedDistortionData.DistortionDisplacementMap->SizeX != CurrentDisplacementMapResolution.X)
+						|| (ZoomPoint.DerivedDistortionData.DistortionDisplacementMap->SizeY != CurrentDisplacementMapResolution.Y))
 					{
-						ZoomPoint.DerivedDistortionData.DistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
+						ZoomPoint.DerivedDistortionData.DistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this, CurrentDisplacementMapResolution);
 					}
 
 					check(ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap);
@@ -1277,6 +1306,19 @@ void ULensFile::UpdateDerivedData()
 			}
 		
 		}
+	}
+}
+
+void ULensFile::CreateIntermediateDisplacementMaps(const FIntPoint DisplacementMapResolution)
+{
+	UndistortionDisplacementMapHolders.Reset(DisplacementMapHolderCount);
+	DistortionDisplacementMapHolders.Reset(DisplacementMapHolderCount);
+	for (int32 Index = 0; Index < DisplacementMapHolderCount; ++Index)
+	{
+		UTextureRenderTarget2D* NewUndistortionMap = LensFileUtils::CreateDisplacementMapRenderTarget(GetTransientPackage(), DisplacementMapResolution);
+		UTextureRenderTarget2D* NewDistortionMap = LensFileUtils::CreateDisplacementMapRenderTarget(GetTransientPackage(), DisplacementMapResolution);
+		UndistortionDisplacementMapHolders.Add(NewUndistortionMap);
+		DistortionDisplacementMapHolders.Add(NewDistortionMap);
 	}
 }
 
