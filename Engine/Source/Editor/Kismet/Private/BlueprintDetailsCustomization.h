@@ -1048,3 +1048,25 @@ private:
 	TArray<TSharedPtr<FString>> ExcerptList;
 
 };
+
+class FBlueprintMemberReferenceDetails : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance(TWeakPtr<SMyBlueprint> InMyBlueprint)
+	{
+		return MakeShareable(new FBlueprintMemberReferenceDetails(InMyBlueprint));
+	}
+
+private:
+	FBlueprintMemberReferenceDetails(TWeakPtr<SMyBlueprint> InMyBlueprint)
+		: MyBlueprint(InMyBlueprint)
+	{
+	}
+	
+	// IPropertyTypeCustomization interface
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& InStructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& InStructCustomizationUtils) override {};
+
+private:
+	TWeakPtr<SMyBlueprint> MyBlueprint;
+};

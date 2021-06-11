@@ -82,6 +82,7 @@
 #include "UObject/TextProperty.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "SupportedRangeTypes.h"	// StructsSupportingRangeVisibility
+#include "IPropertyAccessEditor.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDetailsCustomization"
 
@@ -6891,5 +6892,197 @@ TSharedRef<SWidget> FBlueprintDocumentationDetails::GenerateExcerptList()
 		];
 }
 
+void FBlueprintMemberReferenceDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& InStructCustomizationUtils)
+{
+	if(IModularFeatures::Get().IsModularFeatureAvailable("PropertyAccessEditor"))
+	{
+		UBlueprint* Blueprint = MyBlueprint.Pin()->GetBlueprintObj();
+		if(Blueprint == nullptr)
+		{
+			return;
+		}
+
+		const bool bFunctionReference = InStructPropertyHandle->HasMetaData("FunctionReference");
+		const bool bPropertyReference = InStructPropertyHandle->HasMetaData("PropertyReference");
+		if(bPropertyReference || !bFunctionReference)
+		{
+			// Only function references are supported right now
+			return;
+		}
+		
+		// Try to find the prototype function
+		const FString& PrototypeFunctionName = InStructPropertyHandle->GetMetaData("PrototypeFunction");
+		UFunction* PrototypeFunction = PrototypeFunctionName.IsEmpty() ? nullptr : FindObject<UFunction>(nullptr, *PrototypeFunctionName);
+
+		auto OnGenerateBindingName = []() -> FString
+		{
+			return TEXT("NewFunction");
+		};
+		
+		auto OnCanBindProperty = [](FProperty* InProperty)
+		{
+			return true;
+		};
+		
+		auto OnCanBindFunction = [PrototypeFunction](UFunction* InFunction)
+		{
+			if(PrototypeFunction != nullptr)
+			{
+				return PrototypeFunction->IsSignatureCompatibleWith(InFunction)
+					&& FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(PrototypeFunction) == FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(InFunction);
+			}
+			
+			return false;
+		};
+
+		auto OnAddBinding = [InStructPropertyHandle, Blueprint](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+		{
+			void* StructData = nullptr;
+			const FPropertyAccess::Result Result = InStructPropertyHandle->GetValueData(StructData);
+			if(Result == FPropertyAccess::Success)
+			{
+				InStructPropertyHandle->NotifyPreChange();
+				
+				check(StructData);
+				FMemberReference* MemberReference = static_cast<FMemberReference*>(StructData);
+				MemberReference->SetFromField<UFunction>(InBindingChain[0].Field.Get<UFunction>(), true);
+
+				InStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+			}
+		};
+
+		auto OnRemoveBinding = [InStructPropertyHandle](FName InPropertyName)
+		{
+			
+			
+			void* StructData = nullptr;
+			const FPropertyAccess::Result Result = InStructPropertyHandle->GetValueData(StructData);
+			if(Result == FPropertyAccess::Success)
+			{
+				InStructPropertyHandle->NotifyPreChange();
+				
+				check(StructData);
+				FMemberReference* MemberReference = static_cast<FMemberReference*>(StructData);
+				FGuid EmptyGuid;
+				MemberReference->SetSelfMember(NAME_None, EmptyGuid);
+
+				InStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+			}
+		};
+
+		auto CanRemoveBinding = [InStructPropertyHandle](FName InPropertyName)
+		{
+			void* StructData = nullptr;
+			const FPropertyAccess::Result Result = InStructPropertyHandle->GetValueData(StructData);
+			if(Result == FPropertyAccess::Success)
+			{
+				check(StructData);
+				FMemberReference* MemberReference = static_cast<FMemberReference*>(StructData);
+				return MemberReference->GetMemberName() != NAME_None;
+			}
+			
+			return false;
+		};
+
+		auto OnNewFunctionBindingCreated = [PrototypeFunction](UEdGraph* InFunctionGraph, UFunction* InFunction)
+		{
+			// Ensure newly created function is thread safe 
+			if(PrototypeFunction && FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(PrototypeFunction))
+			{
+				TArray<UK2Node_FunctionEntry*> EntryNodes;
+				InFunctionGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryNodes);
+				if(EntryNodes.Num() > 0)
+				{
+					EntryNodes[0]->MetaData.bThreadSafe = true;
+				}
+			}
+		};
+
+		auto CurrentBindingText = [bFunctionReference, Blueprint, InStructPropertyHandle]()
+		{
+			void* StructData = nullptr;
+			const FPropertyAccess::Result Result = InStructPropertyHandle->GetValueData(StructData);
+			if(Result == FPropertyAccess::Success)
+			{
+				check(StructData);
+				FMemberReference* MemberReference = static_cast<FMemberReference*>(StructData);
+				if(bFunctionReference)
+				{
+					UFunction* Function = MemberReference->ResolveMember<UFunction>(Blueprint->SkeletonGeneratedClass);
+					if(Function)
+					{
+						return FText::FromName(Function->GetFName());
+					}
+					else
+					{
+						return FText::FromName(MemberReference->GetMemberName());
+					}
+				}
+			}
+			else if(Result == FPropertyAccess::MultipleValues)
+			{
+				return LOCTEXT("MultipleValues", "Multiple Values");
+			}
+
+			return FText::GetEmpty();
+		};
+
+		auto CurrentBindingToolTipText = [InStructPropertyHandle]()
+		{
+			void* StructData = nullptr;
+			const FPropertyAccess::Result Result = InStructPropertyHandle->GetValueData(StructData);
+			if(Result == FPropertyAccess::Success)
+			{
+				check(StructData);
+				FMemberReference* MemberReference = static_cast<FMemberReference*>(StructData);
+				return FText::FromName(MemberReference->GetMemberName());
+			}
+			else if(Result == FPropertyAccess::MultipleValues)
+			{
+				return LOCTEXT("MultipleValues", "Multiple Values");
+			}
+
+			return FText::GetEmpty();
+		};
+	
+		FPropertyBindingWidgetArgs Args;
+		Args.BindableSignature = PrototypeFunction;
+		Args.OnGenerateBindingName = FOnGenerateBindingName::CreateLambda(OnGenerateBindingName);
+		Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda(OnCanBindProperty);
+		Args.OnCanBindFunction = FOnCanBindFunction::CreateLambda(OnCanBindFunction);
+		Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([](UClass* InClass){ return true; });
+		Args.OnAddBinding = FOnAddBinding::CreateLambda(OnAddBinding);
+		Args.OnRemoveBinding = FOnRemoveBinding::CreateLambda(OnRemoveBinding);
+		Args.OnCanRemoveBinding = FOnCanRemoveBinding::CreateLambda(CanRemoveBinding);
+		Args.OnNewFunctionBindingCreated = FOnNewFunctionBindingCreated::CreateLambda(OnNewFunctionBindingCreated);
+		Args.CurrentBindingText = MakeAttributeLambda(CurrentBindingText);
+		Args.CurrentBindingToolTipText = MakeAttributeLambda(CurrentBindingToolTipText);
+		Args.CurrentBindingImage = FEditorStyle::GetBrush("GraphEditor.Function_16x");
+		Args.CurrentBindingColor = FEditorStyle::GetSlateColor("Colors.Foreground").GetSpecifiedColor();
+		Args.bGeneratePureBindings = false;
+		Args.bAllowFunctionBindings = bFunctionReference;
+		Args.bAllowPropertyBindings = false;
+		Args.bAllowNewBindings = true;
+		Args.bAllowArrayElementBindings = false;
+		Args.bAllowUObjectFunctions = false;
+		Args.bAllowStructFunctions = false;
+		Args.bAllowStructMemberBindings = false;
+
+		IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+		InHeaderRow
+		.NameContent()
+		[
+			InStructPropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		[
+			SNew(SBox)
+			.MaxDesiredWidth(200.0f)
+			[
+				PropertyAccessEditor.MakePropertyBindingWidget(Blueprint, Args)
+			]
+		];
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
