@@ -129,6 +129,8 @@ FORCEINLINE_DEBUGGABLE os_log_t GetLog()
 	return Log;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void FApplePlatformDebugEvents::DebugSignPost(uint16 Code, uintptr_t Arg1, uintptr_t Arg2, uintptr_t Arg3, uintptr_t Arg4)
 {
 	if (GAppleInstrumentsEvents)
@@ -152,6 +154,8 @@ void FApplePlatformDebugEvents::DebugSignPostEnd(uint16 Code, uintptr_t Arg1, ui
 		kdebug_signpost_end(Code, Arg1, Arg2, Arg3, Arg4);
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TArray<FApplePlatformDebugEvents::FEvent>* FApplePlatformDebugEvents::GetEventStack()
 {
