@@ -80,65 +80,80 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 	ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ActorGroupBorder"))
+			.BorderImage(new FSlateColorBrush(FColor(10, 10, 10)))
 			[
 				SNew(SVerticalBox)
 
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Top)
-				[
-					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-					.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameLabel", "Name"))
-				]
-
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.HAlign(HAlign_Center)
+				.Padding(8.f, 5.f, 8.f, 0.f)
+				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Top)
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 					[
-						SNew(SEditableTextBox)
-						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
-						.BackgroundColor(FLinearColor::Transparent)
-						.ForegroundColor(FSlateColor::UseForeground())
-						.Justification(ETextJustify::Center)
-						.SelectAllTextWhenFocused(true)
-						.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameOverrideHintText", "Override Snapshot Name..."))
-						.Text(this, &SLevelSnapshotsEditorCreationForm::GetNameOverrideText)
-						.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetNameOverrideText)
-						.ToolTipText(
-						NSLOCTEXT("LevelSnapshots", "CreationForm_NameOverrideFieldTooltipText", "Override the name defined in Project Settings while using the Creation Form."))
-					]
+						SNew(SVerticalBox)
 
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SButton)
-						.IsFocusable(false)
-						.ToolTipText(
-							NSLOCTEXT("LevelSnapshots", "CreationForm_ResetNameTooltipText", "Reset the overridden name to the one defined in Project Settings."))
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-						.ContentPadding(0)
-						.Visibility(this, &SLevelSnapshotsEditorCreationForm::GetNameDiffersFromDefaultAsVisibility)
-						.OnClicked(this, &SLevelSnapshotsEditorCreationForm::OnResetNameClicked)
-						.Content()
+						+SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(1.f, 1.f, 0.f, 0.f)
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Top)
 						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+							SNew(STextBlock)
+							.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
+							.ColorAndOpacity(FColor(200, 200, 200))
+							.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameLabel", "NAME"))
+						]
+
+						+SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(8.f, 1.f, 8.f, 10.f)
+						[
+							SNew(SHorizontalBox)
+
+							+ SHorizontalBox::Slot()
+							.HAlign(HAlign_Fill)
+							[
+								SNew(SEditableTextBox)
+								.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+								.BackgroundColor(FLinearColor::Transparent)
+								.ForegroundColor(FSlateColor::UseForeground())
+								.Justification(ETextJustify::Center)
+								.SelectAllTextWhenFocused(true)
+								.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameOverrideHintText", "Override Snapshot Name..."))
+								.Text(this, &SLevelSnapshotsEditorCreationForm::GetNameOverrideText)
+								.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetNameOverrideText)
+								.ToolTipText(
+								NSLOCTEXT("LevelSnapshots", "CreationForm_NameOverrideFieldTooltipText", "Override the name defined in Project Settings while using the Creation Form."))
+							]
+
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.HAlign(HAlign_Right)
+							.VAlign(VAlign_Center)
+							[
+								SNew(SButton)
+								.IsFocusable(false)
+								.ToolTipText(
+									NSLOCTEXT("LevelSnapshots", "CreationForm_ResetNameTooltipText", "Reset the overridden name to the one defined in Project Settings."))
+								.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+								.ContentPadding(0)
+								.Visibility(this, &SLevelSnapshotsEditorCreationForm::GetNameDiffersFromDefaultAsVisibility)
+								.OnClicked(this, &SLevelSnapshotsEditorCreationForm::OnResetNameClicked)
+								.Content()
+								[
+									SNew(SImage)
+									.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+								]
+							]
 						]
 					]
 				]
 
 				+SVerticalBox::Slot()
-				.Padding(8.f, 20.f, 8.f, 20.f)
+				.Padding(8.f, 10.f, 8.f, 20.f)
 				.VAlign(VAlign_Fill)
 				[
 					SNew(SMultiLineEditableTextBox)
