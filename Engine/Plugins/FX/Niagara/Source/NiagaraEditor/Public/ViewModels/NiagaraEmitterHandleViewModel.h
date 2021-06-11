@@ -26,7 +26,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnNameChanged);
 public:
 	/** Creates a new emitter editor view model.  This must be initialized before it can be used. */
-	FNiagaraEmitterHandleViewModel();
+	FNiagaraEmitterHandleViewModel(bool bInIsForDataProcessingOnly);
 	
 	~FNiagaraEmitterHandleViewModel();
 

@@ -19,7 +19,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPinIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 
-	FNiagaraScratchPadScriptViewModel();
+	FNiagaraScratchPadScriptViewModel(bool bInIsForDataProcessingOnly);
 
 	~FNiagaraScratchPadScriptViewModel();
 

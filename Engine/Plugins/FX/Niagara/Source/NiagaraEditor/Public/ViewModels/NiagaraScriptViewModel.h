@@ -29,7 +29,7 @@ class FNiagaraScriptViewModel
 	, public INiagaraParameterDefinitionsSubscriberViewModel
 {
 public:
-	FNiagaraScriptViewModel(TAttribute<FText> DisplayName, ENiagaraParameterEditMode InParameterEditMode);
+	FNiagaraScriptViewModel(TAttribute<FText> DisplayName, ENiagaraParameterEditMode InParameterEditMode, bool bInIsForDataProcessingOnly);
 
 	virtual ~FNiagaraScriptViewModel();
 
@@ -145,4 +145,7 @@ protected:
 	TArray<FString> CompileErrors;
 	TArray<FString> CompilePaths;
 	TArray<TPair<ENiagaraScriptUsage, FGuid>> CompileTypes;
+
+	/** Whether or not this view model is going to be used for data processing only and will not be shown in the UI. */
+	bool bIsForDataProcessingOnly;
 };

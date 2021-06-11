@@ -13,9 +13,10 @@ FNiagaraStandaloneScriptViewModel::FNiagaraStandaloneScriptViewModel(
 	FText DisplayName,
 	ENiagaraParameterEditMode InParameterEditMode,
 	TSharedPtr<FNiagaraMessageLogViewModel> InNiagaraMessageLogViewModel,
-	const FGuid& InSourceScriptObjKey
+	const FGuid& InSourceScriptObjKey,
+	bool bInIsForDataProcessingOnly
 )
-	: FNiagaraScriptViewModel(DisplayName, InParameterEditMode)
+	: FNiagaraScriptViewModel(DisplayName, InParameterEditMode, bInIsForDataProcessingOnly)
 	, NiagaraMessageLogViewModel(InNiagaraMessageLogViewModel)
 	, ScriptMessageLogGuidKey(InSourceScriptObjKey)
 {

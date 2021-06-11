@@ -2869,7 +2869,8 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 			TSharedPtr<FNiagaraScriptViewModel> AffectedScriptViewModel = FNiagaraScriptViewModel::GetExistingViewModelForObject(Script);
 			if (!AffectedScriptViewModel.IsValid())
 			{
-				AffectedScriptViewModel = MakeShareable(new FNiagaraScriptViewModel(FText::FromString(Script->GetName()), ENiagaraParameterEditMode::EditValueOnly));
+				bool bIsForDataProcessingOnly = true;
+				AffectedScriptViewModel = MakeShareable(new FNiagaraScriptViewModel(FText::FromString(Script->GetName()), ENiagaraParameterEditMode::EditValueOnly, bIsForDataProcessingOnly));
 				AffectedScriptViewModel->SetScript(FVersionedNiagaraScript(Script));
 			}
 			AffectedScriptViewModel->CompileStandaloneScript();

@@ -737,7 +737,8 @@ private:
 			if (LastMergedEmitter != nullptr)
 			{
 				UNiagaraScriptSource* LastMergedScriptSource = CastChecked<UNiagaraScriptSource>(LastMergedEmitter->GraphSource);
-				TSharedRef<FNiagaraScriptGraphViewModel> LastMergedScriptGraphViewModel = MakeShared<FNiagaraScriptGraphViewModel>(FText());
+				bool bIsForDataProcessingOnly = false;
+				TSharedRef<FNiagaraScriptGraphViewModel> LastMergedScriptGraphViewModel = MakeShared<FNiagaraScriptGraphViewModel>(FText(), bIsForDataProcessingOnly);
 				LastMergedScriptGraphViewModel->SetScriptSource(LastMergedScriptSource);
 				TSharedRef<SWidget> LastMergedEmitterWidget = 
 					SNew(SSplitter)

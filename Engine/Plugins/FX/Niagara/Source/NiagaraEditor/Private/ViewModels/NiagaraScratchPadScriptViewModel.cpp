@@ -20,8 +20,8 @@
 
 
 
-FNiagaraScratchPadScriptViewModel::FNiagaraScratchPadScriptViewModel()
-	: FNiagaraScriptViewModel(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal)), ENiagaraParameterEditMode::EditAll)
+FNiagaraScratchPadScriptViewModel::FNiagaraScratchPadScriptViewModel(bool bInIsForDataProcessingOnly)
+	: FNiagaraScriptViewModel(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal)), ENiagaraParameterEditMode::EditAll, bInIsForDataProcessingOnly)
 	, bIsPendingRename(false)
 	, bIsPinned(false)
 	, EditorHeight(300)

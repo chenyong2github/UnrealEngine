@@ -15,19 +15,23 @@
 
 template<> TMap<UNiagaraScript*, TArray<FNiagaraScriptViewModel*>> TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::ObjectsToViewModels{};
 
-FNiagaraScriptViewModel::FNiagaraScriptViewModel(TAttribute<FText> DisplayName, ENiagaraParameterEditMode InParameterEditMode)
+FNiagaraScriptViewModel::FNiagaraScriptViewModel(TAttribute<FText> DisplayName, ENiagaraParameterEditMode InParameterEditMode, bool bInIsForDataProcessingOnly)
 	: InputCollectionViewModel(MakeShareable(new FNiagaraScriptInputCollectionViewModel(DisplayName, InParameterEditMode)))
 	, OutputCollectionViewModel(MakeShareable(new FNiagaraScriptOutputCollectionViewModel(InParameterEditMode)))
-	, GraphViewModel(MakeShareable(new FNiagaraScriptGraphViewModel(DisplayName)))
+	, GraphViewModel(MakeShareable(new FNiagaraScriptGraphViewModel(DisplayName, bInIsForDataProcessingOnly)))
 	, VariableSelection(MakeShareable(new FNiagaraObjectSelection()))
 	, bUpdatingSelectionInternally(false)
 	, LastCompileStatus(ENiagaraScriptCompileStatus::NCS_Unknown)
+	, bIsForDataProcessingOnly(bInIsForDataProcessingOnly)
 {
 	InputCollectionViewModel->GetSelection().OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::InputViewModelSelectionChanged);
 	InputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::InputParameterValueChanged);
 	OutputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::OutputParameterValueChanged);
 	GraphViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::GraphViewModelSelectedNodesChanged);
-	GEditor->RegisterForUndo(this);
+	if (bIsForDataProcessingOnly == false)
+	{
+		GEditor->RegisterForUndo(this);
+	}
 }
 
 void FNiagaraScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion)
@@ -106,7 +110,7 @@ FNiagaraScriptViewModel::~FNiagaraScriptViewModel()
 		}
 	}
 
-	if (GEditor != nullptr)
+	if (bIsForDataProcessingOnly == false && GEditor != nullptr)
 	{
 		GEditor->UnregisterForUndo(this);
 	}

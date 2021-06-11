@@ -26,9 +26,9 @@
 
 #define LOCTEXT_NAMESPACE "EmitterHandleViewModel"
 
-FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel()
+FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel(bool bInIsForDataProcessingOnly)
 	: EmitterHandle(nullptr)
-	, EmitterViewModel(MakeShared<FNiagaraEmitterViewModel>())
+	, EmitterViewModel(MakeShared<FNiagaraEmitterViewModel>(bInIsForDataProcessingOnly))
 	, EmitterStackViewModel(NewObject<UNiagaraStackViewModel>(GetTransientPackage()))
 	, bIsRenamePending(false)
 {
