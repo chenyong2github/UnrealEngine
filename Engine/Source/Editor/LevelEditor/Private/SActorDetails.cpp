@@ -353,7 +353,7 @@ void SActorDetails::RefreshSubobjectTreeElements(TArrayView<const FSubobjectEdit
 			{
 				if(const FSubobjectData* Data = SelectedNode->GetDataSource())
 				{
-					if(Data->IsDefaultSceneRoot())
+					if(Data->IsRootActor())
 					{
 						// If the actor node is selected then we ignore the component selection
                         Components.Reset();
