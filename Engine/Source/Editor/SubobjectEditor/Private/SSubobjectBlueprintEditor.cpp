@@ -288,12 +288,21 @@ void SSubobjectBlueprintEditor::OnDuplicateComponent()
 		// this would prevent the completion of the 'rename' or 'create + give initial name' transaction (occurring on focus lost).
 		FSlateApplication::Get().ClearKeyboardFocus();
 		
-		const FScopedTransaction Transaction(SelectedNodes.Num() > 1 ? LOCTEXT("DuplicateComponents", "Duplicate Components") : LOCTEXT("DuplicateComponent", "Duplicate Component"));
+		TUniquePtr<FScopedTransaction> Transaction = MakeUnique<FScopedTransaction>(SelectedNodes.Num() > 1 ? LOCTEXT("DuplicateComponents", "Duplicate Components") : LOCTEXT("DuplicateComponent", "Duplicate Component"));
 		
 		if(USubobjectDataSubsystem* System = USubobjectDataSubsystem::Get())
 		{
-			System->DuplicateSubobjects(GetObjectContextHandle(), SelectedNodes, GetBlueprint());
+			TArray<FSubobjectDataHandle> DuplicatedHandles;
+			System->DuplicateSubobjects(GetObjectContextHandle(), SelectedNodes, GetBlueprint(), DuplicatedHandles);
 			UpdateTree();
+
+			// Set focus to the newly created subobject
+			FSubobjectEditorTreeNodePtrType NewNode = DuplicatedHandles.Num() > 0 ? FindSlateNodeForHandle(DuplicatedHandles[0]) : nullptr;
+			if (NewNode != nullptr)
+			{
+				TreeWidget->SetSelection(NewNode);
+				OnRenameComponent(MoveTemp(Transaction));
+			}
 		}
 	}
 }
