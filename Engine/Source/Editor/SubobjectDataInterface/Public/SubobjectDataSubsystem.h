@@ -332,8 +332,9 @@ public:
 	 * @param Context			The owning context that the subobjects to dup come from
 	 * @param SubobjectsToDup	Array of handles of existing subobejcts you would like to have duplicated
 	 * @param BpContext			Pointer to the current blueprint context if necessary. Use nullptr if dealing with instances
+	 * @param OutNewSubobjects	Array that will be populated with any newly created subobjects
 	 */
-	void DuplicateSubobjects(const FSubobjectDataHandle& Context, const TArray<FSubobjectDataHandle>& SubobjectsToDup, UBlueprint* BpContext);
+	void DuplicateSubobjects(const FSubobjectDataHandle& Context, const TArray<FSubobjectDataHandle>& SubobjectsToDup, UBlueprint* BpContext, TArray<FSubobjectDataHandle>& OutNewSubobjects);
 	
 	FScopedTransaction* BeginTransaction(const TArray<FSubobjectDataHandle>& Handles, const FText& Description, UBlueprint* Blueprint);
 

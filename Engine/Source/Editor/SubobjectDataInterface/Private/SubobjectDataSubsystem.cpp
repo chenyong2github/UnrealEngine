@@ -1998,7 +1998,7 @@ void USubobjectDataSubsystem::PasteSubobjects(const FSubobjectDataHandle& PasteT
 	}
 }
 
-void USubobjectDataSubsystem::DuplicateSubobjects(const FSubobjectDataHandle& Context, const TArray<FSubobjectDataHandle>& SubobjectsToDup, UBlueprint* BpContext)
+void USubobjectDataSubsystem::DuplicateSubobjects(const FSubobjectDataHandle& Context, const TArray<FSubobjectDataHandle>& SubobjectsToDup, UBlueprint* BpContext, TArray<FSubobjectDataHandle>& OutNewSubobjects)
 {
 	if(!Context.IsValid() || SubobjectsToDup.IsEmpty())
 	{
@@ -2046,6 +2046,11 @@ void USubobjectDataSubsystem::DuplicateSubobjects(const FSubobjectDataHandle& Co
 			}
 			
 			FSubobjectDataHandle ClonedSubobject = AddNewSubobject(NewSubobjectParams, FailedAddReason);
+			if (ClonedSubobject.IsValid())
+			{
+				OutNewSubobjects.Add(ClonedSubobject);
+			}
+
 			FSubobjectData* ClonedData = ClonedSubobject.GetSharedDataPtr().Get();
 			
 			if(ClonedData && ClonedData->IsSceneComponent())
