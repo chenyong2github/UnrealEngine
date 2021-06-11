@@ -4,14 +4,16 @@
 
 #include "Widgets/SCompoundWidget.h"
 
+#include "Camera/CameraActor.h"
 #include "LiveLinkRole.h"
 #include "SLensFilePanel.h"
 #include "SLiveLinkSubjectRepresentationPicker.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 
 class ULensFile;
+class FCameraCalibrationStepsController;
 
 /**
  * Widget using LiveLink subject input to evaluate lens file and show resulting data
@@ -24,7 +26,7 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, ULensFile* InLensFile);
+	void Construct(const FArguments& InArgs, TWeakPtr<FCameraCalibrationStepsController> StepsController, ULensFile* InLensFile);
 
 	//~ Begin SCompoundWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -35,35 +37,32 @@ public:
 
 private:
 
-	/** Returns tracking checkbox state */
-	ECheckBoxState IsTrackingActive() const;
-
-	/** Triggered when tracking checkbox state changes */
-	void OnTrackingStateChanged(ECheckBoxState NewState);
-
-	/** Whether tracking should be active and source can be selected */
-	bool CanSelectTrackingSource() const;
-
-	/** Returns the currently selected LiveLink subject */
-	SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole GetTrackingSubject() const;
-
-	/** Set LiveLink subject to use */
-	void SetTrackingSubject(SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue);
-
 	/** Evaluates LiveLink subjects */
 	void CacheLiveLinkData();
 
 	/** Evaluates LensFile using tracking data */
 	void CacheLensFileData();
 
-	/** Whether it should evaluate LiveLink subject */
-	bool ShouldUpdateTracking() const { return IsTrackingActive() == ECheckBoxState::Checked; }
+	/** Get the name of the selected camera actor */
+	FText GetTrackedCameraLabel() const;
+
+	/** Get the text color for the tracked camera text */
+	FSlateColor GetTrackedCameraLabelColor() const;
+
+	/** Get the name of the livelink camera controller driving the selected camera */
+	FText GetLiveLinkCameraControllerLabel() const;
+
+	/** Get the text color for the livelink camera controller text */
+	FSlateColor GetLiveLinkCameraControllerLabelColor() const;
 
 	/** Make LiveLink subject selection widget */
 	TSharedRef<SWidget> MakeTrackingWidget();
-	
+
 	/** Make FIZ widget evaluated from LiveLink subject */
-	TSharedRef<SWidget> MakeFIZWidget() const;
+	TSharedRef<SWidget> MakeRawInputFIZWidget() const;
+
+	/** Make FIZ widget evaluated from LiveLink subject */
+	TSharedRef<SWidget> MakeEvaluatedFIZWidget() const;
 
 	/** Make widget showing distortion data evaluated from LensFile */
 	TSharedRef<SWidget> MakeDistortionWidget() const;
@@ -79,11 +78,14 @@ private:
 	/** LensFile being edited */
 	TStrongObjectPtr<ULensFile> LensFile;
 
-	/** Whether LiveLink is used */
-	bool bIsUsingLiveLinkTracking = true;
+	/** Whether the tracked camera has a LiveLink Camera Controller */
+	bool bCameraControllerExists = false;
 
-	/** Subject used to get tracking input */
-	FLiveLinkSubjectRepresentation TrackingSource;
+	/** Whether LiveLink is used */
+	bool bCanEvaluateLensFile = false;
+
+	/** Calibration steps controller, which provides a selected target camera and livelink camera controller */
+	TWeakPtr<FCameraCalibrationStepsController> WeakStepsController;
 
 	//~ Cached data taken from LiveLink subject and LensFile
 	FCachedFIZData CachedLiveLinkData;
