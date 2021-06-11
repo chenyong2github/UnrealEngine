@@ -39,6 +39,7 @@ public:
 	// Basic operations
 	TSharedPtr<FUICommandInfo> OpenGraph;
 	TSharedPtr<FUICommandInfo> OpenGraphInNewTab;
+	TSharedPtr<FUICommandInfo> OpenExternalGraph;
 	TSharedPtr<FUICommandInfo> FocusNode;
 	TSharedPtr<FUICommandInfo> FocusNodeInNewTab;
 	TSharedPtr<FUICommandInfo> ImplementFunction;
@@ -155,8 +156,9 @@ private:
 	/** Callback used to populate all actions list in SGraphActionMenu */
 	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
 	void CollectStaticSections(TArray<int32>& StaticSectionIDs);
-	void GetChildGraphs(UEdGraph* EdGraph, int32 const SectionId, FGraphActionSort& SortList, const FText& ParentCategory = FText::GetEmpty());
-	void GetChildEvents(UEdGraph const* EdGraph, int32 const SectionId, FGraphActionSort& SortList, const FText& ParentCategory = FText::GetEmpty()) const;
+	void AddEventForFunctionGraph(UEdGraph* EdGraph, int32 const SectionId, FGraphActionSort& SortList, const FText& ParentCategory = FText::GetEmpty(), bool bAddChildGraphs = true) const;
+	void GetChildGraphs(UEdGraph* EdGraph, int32 const SectionId, FGraphActionSort& SortList, const FText& ParentCategory = FText::GetEmpty()) const;
+	void GetChildEvents(UEdGraph const* EdGraph, int32 const SectionId, FGraphActionSort& SortList, const FText& ParentCategory = FText::GetEmpty(), bool bInAddChildGraphs = true) const;
 	void GetLocalVariables(FGraphActionSort& SortList) const;
 	
 	/** Handles the visibility of the local action list */
@@ -213,7 +215,7 @@ private:
 	bool GetShowAccessSpecifier() const;
 
 	/** Helper function to open the selected graph */
-	void OpenGraph(FDocumentTracker::EOpenDocumentCause InCause);
+	void OpenGraph(FDocumentTracker::EOpenDocumentCause InCause, bool bOpenExternalGraphInNewEditor = false);
 
 	/**
 	* Check if the override of a given function is most likely desired as a blueprint function 
@@ -228,7 +230,9 @@ private:
 	/** Callbacks for commands */
 	void OnOpenGraph();
 	void OnOpenGraphInNewTab();
+	void OnOpenExternalGraph();
 	bool CanOpenGraph() const;
+	bool CanOpenExternalGraph() const;
 	bool CanFocusOnNode() const;
 	void OnFocusNode();
 	void OnFocusNodeInNewTab();
