@@ -1027,7 +1027,13 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	bIsCulledByScalability = false; 
+	bIsCulledByScalability = false;
+	
+	//We reset last render time to the current time so that any visibility culling on a delay will function correctly.
+	//Leaving as the default of -1000 causes the visibility code to always assume this should be culled until it's first rendered and initialized by the RT.
+	//Set the component last render time *before* preculling otherwise there are cases where we can pre cull incorrectly.
+	SetLastRenderTime(GetWorld()->GetTimeSeconds());
+
 	if (ShouldPreCull())
 	{
 		//We have decided to pre cull the system.
@@ -1105,7 +1111,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	//We reset last render time to the current time so that any visibility culling on a delay will function correctly.
 	//Leaving as the default of -1000 causes the visibility code to always assume this should be culled until it's first rendered and initialized by the RT.
-	SetLastRenderTime(GetWorld()->GetTimeSeconds());
 	SystemInstance->SetLastRenderTime(GetLastRenderTime());
 
 	RegisterWithScalabilityManager();
