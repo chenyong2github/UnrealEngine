@@ -178,7 +178,7 @@ namespace UnrealBuildTool
 				string TempTargetFilePath = InTargetFilePath.FullName.Replace("\\", "/");
 				if (TempTargetFilePath.Contains("/Templates/"))
 				{
-					string AbsoluteEnginePath = UnrealBuild.EngineDirectory.FullName;
+					string AbsoluteEnginePath = Unreal.EngineDirectory.FullName;
 					AbsoluteEnginePath = AbsoluteEnginePath.Replace("\\", "/");
 					if (AbsoluteEnginePath.EndsWith("/") == false)
 					{

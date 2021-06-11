@@ -9,7 +9,7 @@ using System.Text;
 
 namespace UnrealBuildBase
 {
-	public static class UnrealBuild
+	public static class Unreal
 	{
 		private static DirectoryReference FindRootDirectory()
 		{
@@ -105,7 +105,7 @@ namespace UnrealBuildBase
 		{
 			if (!bIsEngineInstalled.HasValue)
 			{
-				bIsEngineInstalled = FileReference.Exists(FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "InstalledBuild.txt"));
+				bIsEngineInstalled = FileReference.Exists(FileReference.Combine(EngineDirectory, "Build", "InstalledBuild.txt"));
 			}
 			return bIsEngineInstalled.Value;
 		}

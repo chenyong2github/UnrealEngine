@@ -723,7 +723,7 @@ namespace UnrealBuildTool
 				DirectoryReference DependencyListDir;
 				if(RulesObject.ProjectFile == null)
 				{
-					DependencyListDir = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "DependencyLists", RulesObject.Name, RulesObject.Configuration.ToString(), RulesObject.Platform.ToString());
+					DependencyListDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "DependencyLists", RulesObject.Name, RulesObject.Configuration.ToString(), RulesObject.Platform.ToString());
 				}
 				else
 				{
@@ -1085,7 +1085,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				ProjectDirectory = UnrealBuild.EngineDirectory;
+				ProjectDirectory = Unreal.EngineDirectory;
 			}
 
 			// Build the project intermediate directory
@@ -1098,11 +1098,11 @@ namespace UnrealBuildTool
 			}
 			else if (Configuration == UnrealTargetConfiguration.DebugGame)
 			{
-				EngineIntermediateDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, PlatformIntermediateFolder, AppName, UnrealTargetConfiguration.Development.ToString());
+				EngineIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, AppName, UnrealTargetConfiguration.Development.ToString());
 			}
 			else
 			{
-				EngineIntermediateDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, PlatformIntermediateFolder, AppName, Configuration.ToString());
+				EngineIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, AppName, Configuration.ToString());
 			}
 
 			// Get the receipt path for this target
@@ -1289,7 +1289,7 @@ namespace UnrealBuildTool
 			// Write the file
 			Log.TraceInformation("Writing dependency list to {0}", Location);
 			DirectoryReference.CreateDirectory(Location.Directory);
-			FileReference.WriteAllLines(Location, Files.Where(x => x.IsUnderDirectory(UnrealBuild.RootDirectory)).Select(x => x.MakeRelativeTo(UnrealBuild.RootDirectory).Replace(Path.DirectorySeparatorChar, '/')).OrderBy(x => x));
+			FileReference.WriteAllLines(Location, Files.Where(x => x.IsUnderDirectory(Unreal.RootDirectory)).Select(x => x.MakeRelativeTo(Unreal.RootDirectory).Replace(Path.DirectorySeparatorChar, '/')).OrderBy(x => x));
 		}
 
 		private void ResolveLibraryName(string LibraryPath, string LibraryName, string LibraryExtension, HashSet<FileReference> Files)
@@ -1415,7 +1415,7 @@ namespace UnrealBuildTool
 			}
 
 			// If this is an installed engine build, clear the promoted flag on the output binaries. This will ensure we will rebuild them.
-			if (Version.IsPromotedBuild && UnrealBuild.IsEngineInstalled())
+			if (Version.IsPromotedBuild && Unreal.IsEngineInstalled())
 			{
 				Version.IsPromotedBuild = false;
 			}
@@ -1730,7 +1730,7 @@ namespace UnrealBuildTool
 				{
 					if(!Rules.bFormalBuild)
 					{
-						FileReference DefaultResourceLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "Resources", "Default.rc2");
+						FileReference DefaultResourceLocation = FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "Resources", "Default.rc2");
 						if (!UnrealBuildTool.IsFileInstalled(DefaultResourceLocation))
 						{
 							CppCompileEnvironment DefaultResourceCompileEnvironment = new CppCompileEnvironment(GlobalCompileEnvironment);
@@ -1824,7 +1824,7 @@ namespace UnrealBuildTool
 			BuildProducts.AddRange(RuntimeDependencyTargetFileToSourceFile.Select(x => new KeyValuePair<FileReference, BuildProductType>(x.Key, BuildProductType.RequiredResource)));
 
 			// Remove any installed build products that don't exist. They may be part of an optional install.
-			if(UnrealBuild.IsEngineInstalled())
+			if(Unreal.IsEngineInstalled())
 			{
 				BuildProducts.RemoveAll(x => UnrealBuildTool.IsFileInstalled(x.Key) && !FileReference.Exists(x.Key));
 			}
@@ -1947,7 +1947,7 @@ namespace UnrealBuildTool
 				if (ProjectFile == null && !Rules.bLegalToDistributeBinary)
 				{
 					List<DirectoryReference> RootDirectories = new List<DirectoryReference>();
-					RootDirectories.Add(UnrealBuild.EngineDirectory);
+					RootDirectories.Add(Unreal.EngineDirectory);
 					if (ProjectFile != null)
 					{
 						DirectoryReference ProjectDir = DirectoryReference.FromFile(ProjectFile);
@@ -2072,9 +2072,9 @@ namespace UnrealBuildTool
 		{
 			// Find the base directory for this binary
 			DirectoryReference BaseDir;
-			if(File.IsUnderDirectory(UnrealBuild.RootDirectory))
+			if(File.IsUnderDirectory(Unreal.RootDirectory))
 			{
-				BaseDir = UnrealBuild.RootDirectory;
+				BaseDir = Unreal.RootDirectory;
 			}
 			else if(ProjectDirectory != null && File.IsUnderDirectory(ProjectDirectory))
 			{
@@ -2311,7 +2311,7 @@ namespace UnrealBuildTool
 
 			if(Module.RulesFile != null)
 			{
-				foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory))
+				foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory))
 				{
 					DirectoryReference SourceDeveloperDir = DirectoryReference.Combine(ExtensionDir, "Source/Developer");
 					if(Module.RulesFile.IsUnderDirectory(SourceDeveloperDir))
@@ -2494,8 +2494,8 @@ namespace UnrealBuildTool
 		private Dictionary<string, string> GetTargetVariables(UEBuildPlugin? Plugin)
 		{
 			Dictionary<string, string> Variables = new Dictionary<string,string>();
-			Variables.Add("RootDir", UnrealBuild.RootDirectory.FullName);
-			Variables.Add("EngineDir", UnrealBuild.EngineDirectory.FullName);
+			Variables.Add("RootDir", Unreal.RootDirectory.FullName);
+			Variables.Add("EngineDir", Unreal.EngineDirectory.FullName);
 			Variables.Add("ProjectDir", ProjectDirectory.FullName);
 			Variables.Add("TargetName", TargetName);
 			Variables.Add("TargetPlatform", Platform.ToString());
@@ -2690,15 +2690,15 @@ namespace UnrealBuildTool
 				List<DirectoryReference> Directories = new List<DirectoryReference>();
 				if (TargetType == TargetType.Editor)
 				{
-					Directories.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, "Source/Editor"));
+					Directories.AddRange(UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source/Editor"));
 				}
-				Directories.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, "Source/Runtime"));
+				Directories.AddRange(UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source/Runtime"));
 
 				// Also allow anything in the developer directory in non-shipping configurations (though we blacklist by default unless the PrecompileForTargets
 				// setting indicates that it's actually useful at runtime).
 				if(Rules.bBuildDeveloperTools)
 				{
-					Directories.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, "Source/Developer"));
+					Directories.AddRange(UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source/Developer"));
 				}
 
 				// Find all the modules that are not part of the standard set
@@ -2723,7 +2723,7 @@ namespace UnrealBuildTool
 							}
 							else
 							{
-								if (!ModuleFileName.ContainsAnyNames(ExcludeFolders, UnrealBuild.EngineDirectory))
+								if (!ModuleFileName.ContainsAnyNames(ExcludeFolders, Unreal.EngineDirectory))
 								{
 									FilteredModuleNames.Add(ModuleName);
 								}
@@ -2862,7 +2862,7 @@ namespace UnrealBuildTool
 		/// <returns>The output directory for this target</returns>
 		public static DirectoryReference GetOutputDirectoryForExecutable(DirectoryReference BaseDir, FileReference TargetFile)
 		{
-			return UnrealBuildTool.GetExtensionDirs(BaseDir).Where(x => TargetFile.IsUnderDirectory(x)).OrderByDescending(x => x.FullName.Length).FirstOrDefault() ?? UnrealBuild.EngineDirectory;
+			return UnrealBuildTool.GetExtensionDirs(BaseDir).Where(x => TargetFile.IsUnderDirectory(x)).OrderByDescending(x => x.FullName.Length).FirstOrDefault() ?? Unreal.EngineDirectory;
 		}
 
 		/// <summary>
@@ -3126,7 +3126,7 @@ namespace UnrealBuildTool
 			// If this is a program, synthesize references for plugins which are enabled via the config file
 			if(TargetType == TargetType.Program)
 			{
-				ConfigHierarchy EngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Programs", TargetName), Platform);
+				ConfigHierarchy EngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.Combine(Unreal.EngineDirectory, "Programs", TargetName), Platform);
 
 				List<string>? PluginNames;
 				if(EngineConfig.GetArray("Plugins", "ProgramEnabledPlugins", out PluginNames))
@@ -3318,7 +3318,7 @@ namespace UnrealBuildTool
 		{
 			if (Plugin.LoadedFrom == PluginLoadedFrom.Engine)
 			{
-				return Plugin.File.ContainsAnyNames(ExcludeFolders, UnrealBuild.EngineDirectory);
+				return Plugin.File.ContainsAnyNames(ExcludeFolders, Unreal.EngineDirectory);
 			}
 			else if(ProjectFile != null)
 			{
@@ -3346,9 +3346,9 @@ namespace UnrealBuildTool
 
 			// Get the intermediate directory for the launch module directory. This can differ from the standard engine intermediate directory because it is always configuration-specific.
 			DirectoryReference IntermediateDirectory;
-			if(LaunchModule.RulesFile.IsUnderDirectory(UnrealBuild.EngineDirectory) && !ShouldCompileMonolithic())
+			if(LaunchModule.RulesFile.IsUnderDirectory(Unreal.EngineDirectory) && !ShouldCompileMonolithic())
 			{
-				IntermediateDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, PlatformIntermediateFolder, AppName, Configuration.ToString());
+				IntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, AppName, Configuration.ToString());
 			}
 			else
 			{
@@ -3363,7 +3363,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				OutputDirectory = GetOutputDirectoryForExecutable(UnrealBuild.EngineDirectory, Rules.File);
+				OutputDirectory = GetOutputDirectoryForExecutable(Unreal.EngineDirectory, Rules.File);
 			}
 
 			bool bCompileAsDLL = Rules.bShouldCompileAsDLL && bCompileMonolithic;
@@ -3377,7 +3377,7 @@ namespace UnrealBuildTool
 				bAllowExports: Rules.bHasExports,
 				bBuildAdditionalConsoleApp: Rules.bBuildAdditionalConsoleApp,
 				PrimaryModule: LaunchModule,
-				bUsePrecompiled: LaunchModule.Rules.bUsePrecompiled && OutputPaths[0].IsUnderDirectory(UnrealBuild.EngineDirectory)
+				bUsePrecompiled: LaunchModule.Rules.bUsePrecompiled && OutputPaths[0].IsUnderDirectory(Unreal.EngineDirectory)
 			);
 			Binaries.Add(Binary);
 
@@ -3484,12 +3484,12 @@ namespace UnrealBuildTool
 			//@todo.PLATFORM: Do any platform specific tool chain initialization here if required
 
 			UnrealTargetConfiguration EngineTargetConfiguration = Configuration == UnrealTargetConfiguration.DebugGame ? UnrealTargetConfiguration.Development : Configuration;
-			DirectoryReference LinkIntermediateDirectory = DirectoryReference.Combine(UnrealBuild.EngineDirectory, PlatformIntermediateFolder, AppName, EngineTargetConfiguration.ToString());
+			DirectoryReference LinkIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, AppName, EngineTargetConfiguration.ToString());
 
 			// Installed Engine intermediates go to the project's intermediate folder. Installed Engine never writes to the engine intermediate folder. (Those files are immutable)
 			// Also, when compiling in monolithic, all intermediates go to the project's folder.  This is because a project can change definitions that affects all engine translation
 			// units too, so they can't be shared between different targets.  They are effectively project-specific engine intermediates.
-			if (UnrealBuild.IsEngineInstalled() || (ProjectFile != null && ShouldCompileMonolithic()))
+			if (Unreal.IsEngineInstalled() || (ProjectFile != null && ShouldCompileMonolithic()))
 			{
 				if (ProjectFile != null)
 				{
@@ -3509,9 +3509,9 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.LocalShadowDirectory = GlobalLinkEnvironment.OutputDirectory;
 
 			DirectoryReference OutputDir = Binaries[0].OutputDir;
-			if (OutputDir.IsUnderDirectory(UnrealBuild.EngineDirectory))
+			if (OutputDir.IsUnderDirectory(Unreal.EngineDirectory))
 			{
-				DirectoryReference BaseDir = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Binaries", Platform.ToString());
+				DirectoryReference BaseDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Binaries", Platform.ToString());
 				if (BaseDir != OutputDir)
 				{
 					string RelativeBaseDir = BaseDir.MakeRelativeTo(OutputDir).Replace(Path.DirectorySeparatorChar, '/');
@@ -3716,7 +3716,7 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_LIVE_CODING=1");
 				if (Rules.LinkType == TargetLinkType.Monolithic)
 				{
-					GlobalCompileEnvironment.Definitions.Add(String.Format("UE_LIVE_CODING_ENGINE_DIR=\"{0}\"", UnrealBuild.EngineDirectory.FullName.Replace("\\", "\\\\")));
+					GlobalCompileEnvironment.Definitions.Add(String.Format("UE_LIVE_CODING_ENGINE_DIR=\"{0}\"", Unreal.EngineDirectory.FullName.Replace("\\", "\\\\")));
 					if(ProjectFile != null)
 					{
 						GlobalCompileEnvironment.Definitions.Add(String.Format("UE_LIVE_CODING_PROJECT=\"{0}\"", ProjectFile.FullName.Replace("\\", "\\\\")));
@@ -3772,7 +3772,7 @@ namespace UnrealBuildTool
 					{
 						OutputFilePath = OutputFilePath.Substring(0, OutputFilePath.LastIndexOf(".app/Contents/MacOS") + 4);
 					}
-					string EnginePath = Utils.CleanDirectorySeparators(UnrealBuild.EngineDirectory.MakeRelativeTo(ExecutableBinary.OutputFilePath.Directory), '/');
+					string EnginePath = Utils.CleanDirectorySeparators(Unreal.EngineDirectory.MakeRelativeTo(ExecutableBinary.OutputFilePath.Directory), '/');
 					if (EnginePath.EndsWith("/") == false)
 					{
 						EnginePath += "/";

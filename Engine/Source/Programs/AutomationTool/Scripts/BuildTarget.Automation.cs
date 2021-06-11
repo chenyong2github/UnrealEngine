@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -177,7 +178,7 @@ namespace AutomationTool
 			else
 			{
 				// Get the path to UBT
-				FileReference InstalledUBT = FileReference.Combine(CommandUtils.EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.exe");
+				FileReference InstalledUBT = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.exe");
 				UnrealTargetPlatform PlatformToBuild = PlatformList.First();
 				UnrealTargetConfiguration ConfigToBuild = ConfigurationList.First();
 				string TargetToBuild = BuildTargets.First();

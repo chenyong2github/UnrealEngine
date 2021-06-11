@@ -249,7 +249,7 @@ namespace UnrealBuildTool
 		public static IEnumerable<FileReference> EnumeratePlugins(FileReference? ProjectFile)
 		{
 			List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
-			BaseDirs.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuild.EngineDirectory, "Plugins"));
+			BaseDirs.AddRange(UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Plugins"));
 			if(ProjectFile != null)
 			{
 				BaseDirs.AddRange(UnrealBuildTool.GetExtensionDirs(ProjectFile.Directory, "Plugins"));

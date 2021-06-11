@@ -10,6 +10,7 @@ using System.Threading;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 /// Lumin platform behaves more like Linux than Android as there's no Android
 /// system running on it. It's just the bare OS with non-Java additions.
@@ -203,7 +204,7 @@ public class LuminPlatform : Platform
 			HashSet<RuntimeDependency> DependenciesToRemove = new HashSet<RuntimeDependency>();
 			foreach (RuntimeDependency RuntimeDependency in Target.Receipt.RuntimeDependencies)
 			{
-				foreach (FileReference File in CommandUtils.ResolveFilespec(CommandUtils.RootDirectory, RuntimeDependency.Path.FullName, ExcludePatterns))
+				foreach (FileReference File in CommandUtils.ResolveFilespec(Unreal.RootDirectory, RuntimeDependency.Path.FullName, ExcludePatterns))
 				{
 					// Stage all libraries described as Runtime Dependencies in the bin folder.
 					if (File.GetExtension() == ".so")

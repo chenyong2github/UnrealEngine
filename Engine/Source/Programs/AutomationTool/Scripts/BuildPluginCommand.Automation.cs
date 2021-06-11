@@ -9,6 +9,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using System.Text;
+using UnrealBuildBase;
 
 [Help("Builds a plugin, and packages it for distribution")]
 [Help("Plugin", "Specify the path to the descriptor file for the plugin that should be packaged")]
@@ -54,7 +55,7 @@ class BuildPlugin : BuildCommand
 		{
 			throw new AutomationException("Packaged plugin output directory must be different to source");
 		}
-		if (PackageDir.IsUnderDirectory(DirectoryReference.Combine(CommandUtils.RootDirectory, "Engine")))
+		if (PackageDir.IsUnderDirectory(DirectoryReference.Combine(Unreal.RootDirectory, "Engine")))
 		{
 			throw new AutomationException("Output directory for packaged plugin must be outside engine directory");
 		}

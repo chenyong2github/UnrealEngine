@@ -36,12 +36,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// File containing a list of macros to be used to generate a prelude file
 		/// </summary>
-		static readonly FileReference MacroNamesFile = FileReference.Combine(UnrealBuild.EngineDirectory, "Build", "Windows", "PreludeMacros.txt");
+		static readonly FileReference MacroNamesFile = FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "PreludeMacros.txt");
 
 		/// <summary>
 		/// Base directory for the cache
 		/// </summary>
-		static readonly DirectoryReference PreludeCacheDir = DirectoryReference.Combine(UnrealBuild.EngineDirectory, "Saved", "UnrealBuildTool", "Prelude", "MSVC");
+		static readonly DirectoryReference PreludeCacheDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Saved", "UnrealBuildTool", "Prelude", "MSVC");
 
 		/// <summary>
 		/// The parsed list of macros

@@ -104,8 +104,8 @@ namespace UnrealBuildTool
 			bool bHasValidCompiler = false;
 
 			// these are supplied by the engine and do not change depending on the circumstances
-			DumpSymsPath = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Binaries", "Linux", "dump_syms");
-			BreakpadEncoderPath = Path.Combine(UnrealBuild.EngineDirectory.FullName, "Binaries", "Linux", "BreakpadSymbolEncoder");
+			DumpSymsPath = Path.Combine(Unreal.EngineDirectory.FullName, "Binaries", "Linux", "dump_syms");
+			BreakpadEncoderPath = Path.Combine(Unreal.EngineDirectory.FullName, "Binaries", "Linux", "BreakpadSymbolEncoder");
 
 			if (bForceUseSystemCompiler)
 			{
@@ -1295,7 +1295,7 @@ namespace UnrealBuildTool
 			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 			{
 				string IncludePathString;
-				if (IncludePath.IsUnderDirectory(UnrealBuild.RootDirectory))
+				if (IncludePath.IsUnderDirectory(Unreal.RootDirectory))
 				{
 					IncludePathString = IncludePath.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
 				}
@@ -1679,21 +1679,21 @@ namespace UnrealBuildTool
 
 					if (LinkEnvironment.bIsBuildingDLL)
 					{
-						// Remove the root UnrealBuild.RootDirectory from the RuntimeLibaryPath
-						string AdditionalLibraryRootPath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(UnrealBuild.RootDirectory);
+						// Remove the root Unreal.RootDirectory from the RuntimeLibaryPath
+						string AdditionalLibraryRootPath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(Unreal.RootDirectory);
 
 						// Figure out how many dirs we need to go back
-						string RelativeRootPath = UnrealBuild.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+						string RelativeRootPath = Unreal.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
 
 						// Combine the two together ie. number of ../ + the path after the root
 						RelativePath = Path.Combine(RelativeRootPath, AdditionalLibraryRootPath);
 					}
 
 					// On Windows, MakeRelativeTo can silently fail if the engine and the project are located on different drives
-					if (CrossCompiling() && RelativePath.StartsWith(UnrealBuild.RootDirectory.FullName))
+					if (CrossCompiling() && RelativePath.StartsWith(Unreal.RootDirectory.FullName))
 					{
 						// do not replace directly, but take care to avoid potential double slashes or missed slashes
-						string PathFromRootDir = RelativePath.Replace(UnrealBuild.RootDirectory.FullName, "");
+						string PathFromRootDir = RelativePath.Replace(Unreal.RootDirectory.FullName, "");
 						// Path.Combine doesn't combine these properly
 						RelativePath = ((PathFromRootDir.StartsWith("\\") || PathFromRootDir.StartsWith("/")) ? "..\\..\\.." : "..\\..\\..\\") + PathFromRootDir;
 					}
@@ -1714,18 +1714,18 @@ namespace UnrealBuildTool
 				{
 					if (LinkEnvironment.bIsBuildingDLL)
 					{
-						// Remove the root UnrealBuild.RootDirectory from the RuntimeLibaryPath
-						string RuntimeLibraryRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuild.RootDirectory);
+						// Remove the root Unreal.RootDirectory from the RuntimeLibaryPath
+						string RuntimeLibraryRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(Unreal.RootDirectory);
 
 						// Figure out how many dirs we need to go back
-						string RelativeRootPath = UnrealBuild.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+						string RelativeRootPath = Unreal.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
 
 						// Combine the two together ie. number of ../ + the path after the root
 						RelativePath = Path.Combine(RelativeRootPath, RuntimeLibraryRootPath);
 					}
 					else
 					{
-						string RelativeRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuild.RootDirectory);
+						string RelativeRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(Unreal.RootDirectory);
 
 						// We're assuming that the binary will be placed according to our ProjectName/Binaries/Platform scheme
 						RelativePath = Path.Combine("..", "..", "..", RelativeRootPath);
@@ -1733,10 +1733,10 @@ namespace UnrealBuildTool
 				}
 
 				// On Windows, MakeRelativeTo can silently fail if the engine and the project are located on different drives
-				if (CrossCompiling() && RelativePath.StartsWith(UnrealBuild.RootDirectory.FullName))
+				if (CrossCompiling() && RelativePath.StartsWith(Unreal.RootDirectory.FullName))
 				{
 					// do not replace directly, but take care to avoid potential double slashes or missed slashes
-					string PathFromRootDir = RelativePath.Replace(UnrealBuild.RootDirectory.FullName, "");
+					string PathFromRootDir = RelativePath.Replace(Unreal.RootDirectory.FullName, "");
 					// Path.Combine doesn't combine these properly
 					RelativePath = ((PathFromRootDir.StartsWith("\\") || PathFromRootDir.StartsWith("/")) ? "..\\..\\.." : "..\\..\\..\\") + PathFromRootDir;
 				}

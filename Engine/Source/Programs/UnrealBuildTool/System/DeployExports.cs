@@ -30,7 +30,7 @@ namespace UnrealBuildTool
 		{
 			string DeployFolder = string.Format("{0}-{1}-{2}",
 				ShortProjectName,
-				UnrealBuild.RootDirectory.GetDirectoryName(),
+				Unreal.RootDirectory.GetDirectoryName(),
 				Environment.UserName);
 
 			DeployFolder = DeployFolder.Replace(" ", "");

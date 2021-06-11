@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -83,7 +84,7 @@ namespace BuildGraph.Tasks
 					FileText += Environment.NewLine;
 				}
 
-				HashSet<FileReference> Files = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet);
+				HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 				if (Files.Any())
 				{
 					FileText += string.Join(Environment.NewLine, Files.Select(f => f.FullName));

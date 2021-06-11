@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -288,7 +289,7 @@ namespace AutomationTool
 			// If we're running on a Windows build machine, copy any crash dumps into the log folder
 			if(HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64 && IsBuildMachine)
 			{
-				DirectoryInfo CrashesDir = new DirectoryInfo(DirectoryReference.Combine(DirectoryReference.FromFile(ProjectName) ?? CommandUtils.EngineDirectory, "Saved", "Crashes").FullName);
+				DirectoryInfo CrashesDir = new DirectoryInfo(DirectoryReference.Combine(DirectoryReference.FromFile(ProjectName) ?? Unreal.EngineDirectory, "Saved", "Crashes").FullName);
 				if(CrashesDir.Exists)
 				{
 					foreach(DirectoryInfo CrashDir in CrashesDir.EnumerateDirectories())

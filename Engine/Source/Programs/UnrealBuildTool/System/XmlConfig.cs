@@ -87,13 +87,13 @@ namespace UnrealBuildTool
 			else
 			{
 				// Get the default cache file
-				CacheFile = FileReference.Combine(UnrealBuild.EngineDirectory, "Intermediate", "Build", "XmlConfigCache.bin");
-				if(UnrealBuild.IsEngineInstalled())
+				CacheFile = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "XmlConfigCache.bin");
+				if(Unreal.IsEngineInstalled())
 				{
 					DirectoryReference? UserSettingsDir = Utils.GetUserSettingDirectory();
 					if(UserSettingsDir != null)
 					{
-						CacheFile = FileReference.Combine(UserSettingsDir, "UnrealEngine", String.Format("XmlConfigCache-{0}.bin", UnrealBuild.RootDirectory.FullName.Replace(":", "").Replace(Path.DirectorySeparatorChar, '+')));
+						CacheFile = FileReference.Combine(UserSettingsDir, "UnrealEngine", String.Format("XmlConfigCache-{0}.bin", Unreal.RootDirectory.FullName.Replace(":", "").Replace(Path.DirectorySeparatorChar, '+')));
 					}
 				}
 
@@ -122,7 +122,7 @@ namespace UnrealBuildTool
 
 					// Create a schema for the config files
 					XmlSchema Schema = CreateSchema(CategoryToFields);
-					if(!UnrealBuild.IsEngineInstalled())
+					if(!Unreal.IsEngineInstalled())
 					{
 						WriteSchema(Schema, SchemaFile);
 					}
@@ -211,7 +211,7 @@ namespace UnrealBuildTool
 		/// <returns>The location of the schema file</returns>
 		public static FileReference GetSchemaLocation()
 		{
-			return FileReference.Combine(UnrealBuild.EngineDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.Schema.xsd");
+			return FileReference.Combine(Unreal.EngineDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.Schema.xsd");
 		}
 
 		/// <summary>
@@ -223,17 +223,17 @@ namespace UnrealBuildTool
 			List<InputFile> InputFiles = new List<InputFile>();
 
 			// Skip all the config files under the Engine folder if it's an installed build
-			if(!UnrealBuild.IsEngineInstalled())
+			if(!Unreal.IsEngineInstalled())
 			{
  				// Check for the config file under /Engine/Programs/NotForLicensees/UnrealBuildTool
- 				FileReference NotForLicenseesConfigLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Restricted", "NotForLicensees", "Programs", "UnrealBuildTool", "BuildConfiguration.xml");
+ 				FileReference NotForLicenseesConfigLocation = FileReference.Combine(Unreal.EngineDirectory, "Restricted", "NotForLicensees", "Programs", "UnrealBuildTool", "BuildConfiguration.xml");
  				if(FileReference.Exists(NotForLicenseesConfigLocation))
  				{
  					InputFiles.Add(new InputFile(NotForLicenseesConfigLocation, "NotForLicensees"));
  				}
 
 				// Check for the user config file under /Engine/Saved/UnrealBuildTool
-				FileReference UserConfigLocation = FileReference.Combine(UnrealBuild.EngineDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
+				FileReference UserConfigLocation = FileReference.Combine(Unreal.EngineDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
 				if(!FileReference.Exists(UserConfigLocation))
 				{
 					CreateDefaultConfigFile(UserConfigLocation);

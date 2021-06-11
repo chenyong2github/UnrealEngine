@@ -281,7 +281,7 @@ namespace UnrealBuildTool
 						{
 							FailPaths.Add(ProducedItem.Location);
 						}
-						if (ProducedItem.Location.FullName.Length > UnrealBuild.RootDirectory.FullName.Length + BuildConfiguration.MaxNestedPathLength && ProducedItem.Location.IsUnderDirectory(UnrealBuild.RootDirectory))
+						if (ProducedItem.Location.FullName.Length > Unreal.RootDirectory.FullName.Length + BuildConfiguration.MaxNestedPathLength && ProducedItem.Location.IsUnderDirectory(Unreal.RootDirectory))
 						{
 							WarnPaths.Add(ProducedItem.Location);
 						}
@@ -305,7 +305,7 @@ namespace UnrealBuildTool
 					Message.AppendFormat("Detected paths more than {0} characters below UE root directory. This may cause portability issues due to the {1} character maximum path length on Windows:\n", BuildConfiguration.MaxNestedPathLength, MAX_PATH);
 					foreach (FileReference Path in WarnPaths)
 					{
-						string RelativePath = Path.MakeRelativeTo(UnrealBuild.RootDirectory);
+						string RelativePath = Path.MakeRelativeTo(Unreal.RootDirectory);
 						Message.AppendFormat("\n[{0} characters] {1}", RelativePath.Length, RelativePath);
 					}
 					Message.AppendFormat("\n\nConsider setting {0} = ... in module *.Build.cs files to use alternative names for intermediate paths.", nameof(ModuleRules.ShortName));

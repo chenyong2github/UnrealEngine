@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 public class BuildDerivedDataCache : BuildCommand
 {
@@ -38,7 +39,7 @@ public class BuildDerivedDataCache : BuildCommand
 		{
 			if (!String.IsNullOrWhiteSpace(FeaturePack))
 			{
-				string FeaturePackPath = CommandUtils.CombinePaths(CommandUtils.RootDirectory.FullName, FeaturePack);
+				string FeaturePackPath = CommandUtils.CombinePaths(Unreal.RootDirectory.FullName, FeaturePack);
 				if (!CommandUtils.FileExists(FeaturePackPath))
 				{
 					throw new AutomationException("Could not find project: " + FeaturePack);

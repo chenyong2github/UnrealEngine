@@ -300,7 +300,7 @@ namespace UnrealBuildTool
 		/// <returns>Dependency cache hierarchy for the given project</returns>
 		public void Mount(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, string Architecture)
 		{
-			if (ProjectFile == null || !UnrealBuild.IsEngineInstalled())
+			if (ProjectFile == null || !Unreal.IsEngineInstalled())
 			{
 				string AppName;
 				if (TargetType == TargetType.Program)
@@ -312,8 +312,8 @@ namespace UnrealBuildTool
 					AppName = UEBuildTarget.GetAppNameForTargetType(TargetType);
 				}
 
-				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuild.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, Configuration.ToString(), "DependencyCache.bin");
-				FindOrAddPartition(EngineCacheLocation, UnrealBuild.EngineDirectory);
+				FileReference EngineCacheLocation = FileReference.Combine(Unreal.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, Configuration.ToString(), "DependencyCache.bin");
+				FindOrAddPartition(EngineCacheLocation, Unreal.EngineDirectory);
 			}
 
 			if (ProjectFile != null)

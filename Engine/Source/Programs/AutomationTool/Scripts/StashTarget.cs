@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -36,7 +37,7 @@ namespace AutomationTool
 			DirectoryReference ToDir = ParseRequiredDirectoryReferenceParam("To");
 
 			// Read the receipt
-			FileReference ReceiptFile = TargetReceipt.GetDefaultPath(DirectoryReference.FromFile(ProjectFile) ?? EngineDirectory, TargetName, Platform, Configuration, Architecture);
+			FileReference ReceiptFile = TargetReceipt.GetDefaultPath(DirectoryReference.FromFile(ProjectFile) ?? Unreal.EngineDirectory, TargetName, Platform, Configuration, Architecture);
 			if(!FileReference.Exists(ReceiptFile))
 			{
 				throw new AutomationException("Unable to find '{0}'", ReceiptFile);
@@ -54,7 +55,7 @@ namespace AutomationTool
 			CommandUtils.DeleteDirectoryContents(ToDir.FullName);
 			foreach(FileReference SourceFile in FilesToMove)
 			{
-				FileReference TargetFile = FileReference.Combine(ToDir, SourceFile.MakeRelativeTo(RootDirectory));
+				FileReference TargetFile = FileReference.Combine(ToDir, SourceFile.MakeRelativeTo(Unreal.RootDirectory));
 				LogInformation("Copying {0} to {1}", SourceFile, TargetFile);
 				CommandUtils.CopyFile(SourceFile.FullName, TargetFile.FullName);
 			}
@@ -77,7 +78,7 @@ namespace AutomationTool
 			// Just copy all the files into place
 			foreach(FileReference SourceFile in DirectoryReference.EnumerateFiles(FromDir, "*", SearchOption.AllDirectories))
 			{
-				FileReference TargetFile = FileReference.Combine(RootDirectory, SourceFile.MakeRelativeTo(FromDir));
+				FileReference TargetFile = FileReference.Combine(Unreal.RootDirectory, SourceFile.MakeRelativeTo(FromDir));
 				LogInformation("Copying {0} to {1}", SourceFile, TargetFile);
 				CopyFile(SourceFile.FullName, TargetFile.FullName);
 			}

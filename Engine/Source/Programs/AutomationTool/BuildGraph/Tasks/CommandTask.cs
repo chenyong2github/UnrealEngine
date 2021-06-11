@@ -10,6 +10,7 @@ using UnrealBuildTool;
 using System.Xml;
 using System.IO;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -77,7 +78,7 @@ namespace BuildGraph.Tasks
 			FileReference TelemetryFile = null;
 			if (Parameters.MergeTelemetryWithPrefix != null)
 			{
-				TelemetryFile = FileReference.Combine(CommandUtils.RootDirectory, "Engine", "Intermediate", "UAT", "Telemetry.json");
+				TelemetryFile = FileReference.Combine(Unreal.RootDirectory, "Engine", "Intermediate", "UAT", "Telemetry.json");
 				DirectoryReference.CreateDirectory(TelemetryFile.Directory);
 			}
 

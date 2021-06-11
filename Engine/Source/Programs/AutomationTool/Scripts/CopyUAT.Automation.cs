@@ -8,6 +8,7 @@ using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 /// <summary>
 /// Copies all UAT and UBT build products to a directory
@@ -52,7 +53,7 @@ public class CopyUAT : BuildCommand
 		DirectoryReference TargetDir = new DirectoryReference(TargetDirParam);
 		foreach(FileReference SourceFile in SourceFiles)
 		{
-			FileReference TargetFile = FileReference.Combine(TargetDir, SourceFile.MakeRelativeTo(CommandUtils.RootDirectory));
+			FileReference TargetFile = FileReference.Combine(TargetDir, SourceFile.MakeRelativeTo(Unreal.RootDirectory));
 			DirectoryReference.CreateDirectory(TargetFile.Directory);
 			CommandUtils.CopyFile(SourceFile.FullName, TargetFile.FullName);
 		}

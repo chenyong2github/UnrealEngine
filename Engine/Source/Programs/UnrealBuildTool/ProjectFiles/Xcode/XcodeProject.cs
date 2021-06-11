@@ -759,7 +759,7 @@ namespace UnrealBuildTool
 			
 			// @todo: look also in Project/Build/Frameworks directory!
 			ProjectDescriptor Project = ProjectDescriptor.FromFile(UProjectPath);
-			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(UnrealBuild.EngineDirectory, DirectoryReference.FromFile(UProjectPath), Project.AdditionalPluginDirectories);
+			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(Unreal.EngineDirectory, DirectoryReference.FromFile(UProjectPath), Project.AdditionalPluginDirectories);
 
 			// look in each plugin for frameworks
 			// @todo: Cache this kind of things since every target will re-do this work!
@@ -1025,7 +1025,7 @@ namespace UnrealBuildTool
 					if (InProjectFile == null)
 					{
 						// For misc tools we default to Intel for installed builds because we know all of that works. 
-						TargetArchitectures = UnrealBuild.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
+						TargetArchitectures = Unreal.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
 					}
 					else
 					{
@@ -1379,7 +1379,7 @@ namespace UnrealBuildTool
 							FileReference ReceiptFilename;
 							if (bIsUnrealGame)
 							{
-								ReceiptFilename = TargetReceipt.GetDefaultPath(UnrealBuild.EngineDirectory, "UnrealGame", UnrealTargetPlatform.IOS, Config.BuildConfig, "");
+								ReceiptFilename = TargetReceipt.GetDefaultPath(Unreal.EngineDirectory, "UnrealGame", UnrealTargetPlatform.IOS, Config.BuildConfig, "");
 							}
 							else
 							{
@@ -1588,7 +1588,7 @@ namespace UnrealBuildTool
 											string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
 
 											// Get the output directory
-											DirectoryReference RootDirectory = UnrealBuild.EngineDirectory;
+											DirectoryReference RootDirectory = Unreal.EngineDirectory;
 											if ((ProjectTarget.TargetRules.Type == TargetType.Game || ProjectTarget.TargetRules.Type == TargetType.Client || ProjectTarget.TargetRules.Type == TargetType.Server) && bShouldCompileMonolithic)
 											{
 												if (ProjectTarget.UnrealProjectFilePath != null)

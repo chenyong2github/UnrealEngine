@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool.Tasks
@@ -120,10 +121,10 @@ namespace AutomationTool.Tasks
 			}
 
 			// Set the Engine directory
-			DirectoryReference EngineDir = Parameters.EngineDir ?? CommandUtils.EngineDirectory;
+			DirectoryReference EngineDir = Parameters.EngineDir ?? Unreal.EngineDirectory;
 
 			// Resolve the input list
-			IEnumerable<FileReference> TargetFiles = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet);
+			IEnumerable<FileReference> TargetFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 			HashSet<FileReference> Files = new HashSet<FileReference>();
 
 			foreach (FileReference TargetFile in TargetFiles)

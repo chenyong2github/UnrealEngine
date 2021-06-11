@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -74,7 +75,7 @@ namespace BuildGraph.Tasks
 			// Print the contents of the given tag, if specified
 			if(!String.IsNullOrEmpty(Parameters.Files))
 			{
-				HashSet<FileReference> Files = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet);
+				HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 				foreach(FileReference File in Files.OrderBy(x => x.FullName))
 				{
 					CommandUtils.LogInformation("  {0}", File.FullName);

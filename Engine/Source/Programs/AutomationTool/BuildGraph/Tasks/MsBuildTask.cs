@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool.Tasks
 {
@@ -75,7 +76,7 @@ namespace AutomationTool.Tasks
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Get the project file
-			HashSet<FileReference> ProjectFiles = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Project, TagNameToFileSet);
+			HashSet<FileReference> ProjectFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.Project, TagNameToFileSet);
 			foreach(FileReference ProjectFile in ProjectFiles)
 			{
 				if(!FileReference.Exists(ProjectFile))

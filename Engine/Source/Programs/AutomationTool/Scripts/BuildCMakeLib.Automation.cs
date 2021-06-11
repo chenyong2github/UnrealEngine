@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 // TODO Currently this only supports one lib and one platform at a time.
 // The reason for this is that the the library version and additional arguments (which are per platform) is passed on the command line.
@@ -55,7 +56,7 @@ public sealed class BuildCMakeLib : BuildCommand
 			{ "release", "" }
 		};
 
-		public static DirectoryReference ThirdPartySourceDirectory = DirectoryReference.Combine(RootDirectory, "Engine", "Source", "ThirdParty");
+		public static DirectoryReference ThirdPartySourceDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Source", "ThirdParty");
 
 		public DirectoryReference GetLibSourceDirectory()
 		{
@@ -87,12 +88,12 @@ public sealed class BuildCMakeLib : BuildCommand
 
 	public abstract class TargetPlatform : CommandUtils
 	{
-		public static DirectoryReference CMakeRootDirectory = DirectoryReference.Combine(RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CMake");
-		public static DirectoryReference MakeRootDirectory = DirectoryReference.Combine(RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "GNU_Make", "make-3.81");
+		public static DirectoryReference CMakeRootDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CMake");
+		public static DirectoryReference MakeRootDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "GNU_Make", "make-3.81");
 
 		private DirectoryReference PlatformEngineRoot => IsPlatformExtension
-			? DirectoryReference.Combine(RootDirectory, "Engine", "Platforms", Platform.ToString())
-			: DirectoryReference.Combine(RootDirectory, "Engine");
+			? DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Platforms", Platform.ToString())
+			: DirectoryReference.Combine(Unreal.RootDirectory, "Engine");
 
 		private DirectoryReference GetTargetLibRootDirectory(TargetLib TargetLib)
 		{
@@ -101,7 +102,7 @@ public sealed class BuildCMakeLib : BuildCommand
 
 		private DirectoryReference GetTargetLibBaseRootDirectory(TargetLib TargetLib)
 		{
-			return DirectoryReference.Combine(RootDirectory, "Engine", "Source", "ThirdParty", TargetLib.Name, TargetLib.Version);
+			return DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Source", "ThirdParty", TargetLib.Name, TargetLib.Version);
 		}
 
 		private DirectoryReference GetTargetLibBuildScriptDirectory(TargetLib TargetLib)

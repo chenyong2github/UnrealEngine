@@ -1484,7 +1484,7 @@ namespace UnrealBuildTool
 				{
 					return TargetBuildEnvironment.Unique;
 				}
-				else if (UnrealBuild.IsEngineInstalled() || LinkType != TargetLinkType.Monolithic)
+				else if (Unreal.IsEngineInstalled() || LinkType != TargetLinkType.Monolithic)
 				{
 					return TargetBuildEnvironment.Shared;
 				}
@@ -1858,7 +1858,7 @@ namespace UnrealBuildTool
 		/// <returns>Flag for whether the engine is installed</returns>
 		public bool bIsEngineInstalled
 		{
-			get { return UnrealBuild.IsEngineInstalled(); }
+			get { return Unreal.IsEngineInstalled(); }
 		}
 
 		/// <summary>
@@ -2908,7 +2908,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string RelativeEnginePath
 		{
-			get { return UnrealBuild.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()); }
+			get { return Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()); }
 		}
 
 		/// <summary>

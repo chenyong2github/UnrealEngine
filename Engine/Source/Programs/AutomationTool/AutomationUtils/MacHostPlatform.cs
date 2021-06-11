@@ -9,6 +9,7 @@ using System.IO;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -39,7 +40,7 @@ namespace AutomationTool
 
 		public override FileReference GetDotnetExe()
 		{
-			return FileReference.Combine(CommandUtils.EngineDirectory, @"Binaries\ThirdParty\DotNet\Mac\dotnet");
+			return FileReference.Combine(Unreal.EngineDirectory, @"Binaries\ThirdParty\DotNet\Mac\dotnet");
 		}
 
 		public override string GetDotnetMsbuildExe()

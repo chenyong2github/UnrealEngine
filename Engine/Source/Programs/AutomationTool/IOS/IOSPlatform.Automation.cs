@@ -14,6 +14,7 @@ using System.Threading;
 using System.Diagnostics;
 using EpicGames.Core;
 using System.Xml;
+using UnrealBuildBase;
 
 static class IOSEnvVarNames
 {
@@ -234,8 +235,8 @@ public class IOSPlatform : Platform
 		public string Team = null;
 		public string Provision = null;
 
-		public string RubyScript = Path.Combine(CommandUtils.EngineDirectory.FullName, "Build/Turnkey/VerifyIOS.ru");
-		public string InstallCertScript = Path.Combine(CommandUtils.EngineDirectory.FullName, "Build/Turnkey/InstallCert.ru");
+		public string RubyScript = Path.Combine(Unreal.EngineDirectory.FullName, "Build/Turnkey/VerifyIOS.ru");
+		public string InstallCertScript = Path.Combine(Unreal.EngineDirectory.FullName, "Build/Turnkey/InstallCert.ru");
 
 		private ITurnkeyContext TurnkeyContext;
 
@@ -1059,7 +1060,7 @@ public class IOSPlatform : Platform
 			Arguments += " -platforms=" + PlatformName + " -game -nointellisense -" + PlatformName + "deployonly -ignorejunk -projectfileformat=XCode -includetemptargets -automated";
 
 			// If engine is installed then UBT doesn't need to be built
-			if (CommandUtils.IsEngineInstalled())
+			if (Unreal.IsEngineInstalled())
 			{
 				// Get the path to UBT
 				string InstalledUBT = UE4Build.GetUBTExecutable();
@@ -2295,7 +2296,7 @@ public class IOSPlatform : Platform
 
 	public override void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
 	{
-		if (UnrealBuildTool.BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac && !CommandUtils.IsEngineInstalled())
+		if (UnrealBuildTool.BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac && !Unreal.IsEngineInstalled())
 		{
 			Agenda.DotNetProjects.Add(@"Engine\Source\Programs\IOS\MobileDeviceInterface\MobileDeviceInterface.csproj");
 		}

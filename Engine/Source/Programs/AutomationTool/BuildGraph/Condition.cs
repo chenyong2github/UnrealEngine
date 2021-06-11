@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -343,7 +344,7 @@ namespace AutomationTool
 		{
 			try
 			{
-				string FullPath = Path.Combine(CommandUtils.RootDirectory.FullName, Scalar);
+				string FullPath = Path.Combine(Unreal.RootDirectory.FullName, Scalar);
 				return CommandUtils.FileExists(FullPath) || CommandUtils.DirectoryExists(FullPath);
 			}
 			catch

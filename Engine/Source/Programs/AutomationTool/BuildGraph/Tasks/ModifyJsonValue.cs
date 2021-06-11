@@ -8,6 +8,7 @@ using System.Xml;
 using System.IO;
 using System.Text;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
@@ -62,7 +63,7 @@ namespace BuildGraph.Tasks
             {
 				return;
             }
-			HashSet<FileReference> Files = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet);
+			HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 			foreach (var JsonFile in Files.Select(f => f.FullName))
 			{
 				var OldContents = File.ReadAllText(JsonFile);

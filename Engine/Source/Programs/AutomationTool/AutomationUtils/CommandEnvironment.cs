@@ -8,6 +8,7 @@ using Microsoft.Win32;
 using System.Diagnostics;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -100,7 +101,7 @@ namespace AutomationTool
 			LogFolder = CommandUtils.GetEnvVar(EnvVarNames.LogFolder);
 			if (String.IsNullOrEmpty(LogFolder))
 			{
-				if (CommandUtils.IsEngineInstalled())
+				if (Unreal.IsEngineInstalled())
 				{
 					LogFolder = GetInstalledLogFolder();
 				}

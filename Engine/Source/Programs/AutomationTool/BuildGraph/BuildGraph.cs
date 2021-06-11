@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Xml;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -114,7 +115,7 @@ namespace AutomationTool
 
 			if (SchemaFileName == null && ParseParam("Schema"))
 			{
-				SchemaFileName = FileReference.Combine(CommandUtils.EngineDirectory, "Build", "Graph", "Schema.xsd").FullName;
+				SchemaFileName = FileReference.Combine(Unreal.EngineDirectory, "Build", "Graph", "Schema.xsd").FullName;
 			}
 
 			// Parse any specific nodes to clean
@@ -151,7 +152,7 @@ namespace AutomationTool
 			// Prevent expansion of the root directory if we're just preprocessing the output. They may vary by machine.
 			if (PreprocessedFileName == null)
 			{
-				DefaultProperties["RootDir"] = CommandUtils.RootDirectory.FullName;
+				DefaultProperties["RootDir"] = Unreal.RootDirectory.FullName;
 			}
 			else
 			{
@@ -645,7 +646,7 @@ namespace AutomationTool
 		/// <returns>True if the assembly is distributed publically</returns>
 		static bool IsPublicAssembly(FileReference File)
 		{
-			DirectoryReference EngineDirectory = CommandUtils.EngineDirectory;
+			DirectoryReference EngineDirectory = Unreal.EngineDirectory;
 			if(File.IsUnderDirectory(EngineDirectory))
 			{
 				string[] PathFragments = File.MakeRelativeTo(EngineDirectory).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -798,7 +799,7 @@ namespace AutomationTool
 			foreach(TempStorageFile File in InputManifests.Values.SelectMany(x => x.Files))
 			{
 				string Message;
-				if(!ModifiedFiles.ContainsKey(File.RelativePath) && !File.Compare(CommandUtils.RootDirectory, out Message))
+				if(!ModifiedFiles.ContainsKey(File.RelativePath) && !File.Compare(Unreal.RootDirectory, out Message))
 				{
 					ModifiedFiles.Add(File.RelativePath, Message);
 				}

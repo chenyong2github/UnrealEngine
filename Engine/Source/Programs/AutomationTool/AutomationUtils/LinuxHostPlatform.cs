@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -40,7 +41,7 @@ namespace AutomationTool
 
 		public override FileReference GetDotnetExe()
 		{
-			return FileReference.Combine(CommandUtils.EngineDirectory, @"Binaries\ThirdParty\DotNet\Linux\dotnet");
+			return FileReference.Combine(Unreal.EngineDirectory, @"Binaries\ThirdParty\DotNet\Linux\dotnet");
 		}
 
 		public override string GetDotnetMsbuildExe()

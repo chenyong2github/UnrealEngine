@@ -77,7 +77,7 @@ namespace UnrealBuildTool
 
 			string MakeGameProjectFile = "";
 
-			string UnrealRootPath = UnrealBuild.RootDirectory.FullName;
+			string UnrealRootPath = Unreal.RootDirectory.FullName;
 
 			if (!String.IsNullOrEmpty(GameProjectName))
 			{

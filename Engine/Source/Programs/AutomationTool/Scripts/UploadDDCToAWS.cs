@@ -17,6 +17,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -246,11 +247,11 @@ namespace AutomationTool
 					}
 
 					// Create the working directory
-					DirectoryReference WorkingDir = DirectoryReference.Combine(EngineDirectory, "Saved", "UploadDDC");
+					DirectoryReference WorkingDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Saved", "UploadDDC");
 					DirectoryReference.CreateDirectory(WorkingDir);
 
 					// Get the path to the manifest
-					FileReference RootManifestFile = FileReference.Combine(CommandUtils.RootDirectory, RootManifestPath);
+					FileReference RootManifestFile = FileReference.Combine(Unreal.RootDirectory, RootManifestPath);
 
 					// Read the old root manifest
 					RootManifest OldRootManifest = new RootManifest();

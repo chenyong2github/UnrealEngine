@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace AutomationTool
@@ -206,7 +207,7 @@ namespace AutomationTool
 		/// <param name="Prefix">Prefix for metadata entries</param>
 		public virtual void GetTraceMetadata(ITraceSpan Span, string Prefix)
 		{
-			Span.AddMetadata(Prefix + "source.file", SourceLocation.Item1.MakeRelativeTo(CommandUtils.RootDirectory));
+			Span.AddMetadata(Prefix + "source.file", SourceLocation.Item1.MakeRelativeTo(Unreal.RootDirectory));
 			Span.AddMetadata(Prefix + "source.line", SourceLocation.Item2.ToString());
 		}
 
@@ -283,7 +284,7 @@ namespace AutomationTool
 		{
 			if(String.IsNullOrEmpty(Name))
 			{
-				return CommandUtils.RootDirectory;
+				return Unreal.RootDirectory;
 			}
 			else if(Path.IsPathRooted(Name))
 			{
@@ -291,7 +292,7 @@ namespace AutomationTool
 			}
 			else
 			{
-				return DirectoryReference.Combine(CommandUtils.RootDirectory, Name);
+				return DirectoryReference.Combine(Unreal.RootDirectory, Name);
 			}
 		}
 

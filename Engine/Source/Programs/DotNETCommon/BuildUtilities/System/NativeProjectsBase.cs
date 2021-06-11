@@ -52,7 +52,7 @@ namespace UnrealBuildBase
 					if(CachedBaseDirectories == null)
 					{
 						HashSet<DirectoryReference> BaseDirs = new HashSet<DirectoryReference>();
-						foreach (FileReference RootFile in DirectoryLookupCache.EnumerateFiles(UnrealBuild.RootDirectory))
+						foreach (FileReference RootFile in DirectoryLookupCache.EnumerateFiles(Unreal.RootDirectory))
 						{
 							if(RootFile.HasExtension(".uprojectdirs"))
 							{
@@ -61,14 +61,14 @@ namespace UnrealBuildBase
 									string TrimLine = Line.Trim();
 									if(!TrimLine.StartsWith(";"))
 									{
-										DirectoryReference BaseProjectDir = DirectoryReference.Combine(UnrealBuild.RootDirectory, TrimLine);
-										if(BaseProjectDir.IsUnderDirectory(UnrealBuild.RootDirectory))
+										DirectoryReference BaseProjectDir = DirectoryReference.Combine(Unreal.RootDirectory, TrimLine);
+										if(BaseProjectDir.IsUnderDirectory(Unreal.RootDirectory))
 										{
 											BaseDirs.Add(BaseProjectDir);
 										}
 										else
 										{
-											Log.TraceWarning("Project search path '{0}' referenced by '{1}' is not under '{2}', ignoring.", TrimLine, RootFile, UnrealBuild.RootDirectory);
+											Log.TraceWarning("Project search path '{0}' referenced by '{1}' is not under '{2}', ignoring.", TrimLine, RootFile, Unreal.RootDirectory);
 										}
 									}
 								}

@@ -8,6 +8,7 @@ using System.Text;
 using System.Reflection;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -393,7 +394,7 @@ namespace AutomationTool
 						}
 						else
 						{
-							ExecutableNames.Add(FileReference.Combine(SC.RuntimeRootDir, BuildProductFile.MakeRelativeTo(RootDirectory)));
+							ExecutableNames.Add(FileReference.Combine(SC.RuntimeRootDir, BuildProductFile.MakeRelativeTo(Unreal.RootDirectory)));
 						}
 					}
 				}

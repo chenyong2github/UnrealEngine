@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using UnrealBuildBase;
 
 namespace AutomationTool.Tasks
 {
@@ -79,7 +80,7 @@ namespace AutomationTool.Tasks
 				DirectoryReference GitDir = DirectoryReference.Combine(Dir, ".git");
 				if (!FileReference.Exists(FileReference.Combine(GitDir, "HEAD")))
 				{
-					RunGit(GitExe, $"init \"{Dir}\"", CommandUtils.RootDirectory);
+					RunGit(GitExe, $"init \"{Dir}\"", Unreal.RootDirectory);
 				}
 
 				if (Parameters.ConfigFile != null)

@@ -705,8 +705,8 @@ namespace UnrealBuildTool
 			// get the receipt
 			if (bIsUnrealGame)
 			{
-				//               ReceiptFilename = TargetReceipt.GetDefaultPath(UnrealBuild.EngineDirectory, "UnrealGame", UnrealTargetPlatform.IOS, Config, "");
-				BundlePath = Path.Combine(UnrealBuild.EngineDirectory.ToString(), "Intermediate", "IOS-Deploy", "UnrealGame", Config.ToString(), "Payload", "UnrealGame.app");
+				//               ReceiptFilename = TargetReceipt.GetDefaultPath(Unreal.EngineDirectory, "UnrealGame", UnrealTargetPlatform.IOS, Config, "");
+				BundlePath = Path.Combine(Unreal.EngineDirectory.ToString(), "Intermediate", "IOS-Deploy", "UnrealGame", Config.ToString(), "Payload", "UnrealGame.app");
 			}
 			else
 			{
@@ -714,7 +714,7 @@ namespace UnrealBuildTool
 				BundlePath = AppDirectory;//Path.Combine(ProjectDirectory, "Binaries", "IOS", "Payload", ProjectName + ".app");
 			}
 
-			string RelativeEnginePath = UnrealBuild.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
+			string RelativeEnginePath = Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
 
 			UnrealPluginLanguage UPL = new UnrealPluginLanguage(ProjectFile, UPLScripts, ProjectArches, "", "", UnrealTargetPlatform.IOS);
 
@@ -1038,7 +1038,7 @@ namespace UnrealBuildTool
 			string SubDir = GetTargetPlatformName();
 
 			string GameName = TargetName;
-			string ProjectDirectory = (DirectoryReference.FromFile(ProjectFile) ?? UnrealBuild.EngineDirectory).FullName;
+			string ProjectDirectory = (DirectoryReference.FromFile(ProjectFile) ?? Unreal.EngineDirectory).FullName;
 			string BuildPath = (GameName == "UnrealGame" ? "../../Engine" : ProjectDirectory) + "/Binaries/" + SubDir;
 			bool bIsUnrealGame = GameName.Contains("UnrealGame");
 
