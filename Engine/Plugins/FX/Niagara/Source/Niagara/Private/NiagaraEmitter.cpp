@@ -1816,9 +1816,6 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 
 void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& InNewName)
 {
-	TMap<FString, FString> RenameMap;
-	RenameMap.Add(InOldName, InNewName);
-
 	TArray<UNiagaraScript*> Scripts;
 	GetScripts(Scripts, false, true); // Get all the scripts...
 
@@ -1827,7 +1824,8 @@ void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& 
 		// We don't mark the package dirty here because this can happen as a result of a compile and we don't want to dirty files
 		// due to compilation, in cases where the package should be marked dirty an previous modify would have already done this.
 		Script->Modify(false);
-		Script->SyncAliases(RenameMap);
+		Script->SyncAliases(FNiagaraAliasContext(Script->GetUsage())
+			.ChangeEmitterName(InOldName, InNewName));
 	}
 
 	// if we haven't yet been postloaded then we'll hold off on updating the renderers as they are dependent on everything

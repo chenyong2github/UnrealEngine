@@ -157,9 +157,8 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 			}
 			else if (Var.IsInNameSpace(InEmitter->GetUniqueEmitterName()) && bEmitter)
 			{
-				TMap<FString, FString> Aliases;
-				Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
-				Bindings.AddUnique(Var.ResolveAliases(Var, Aliases));
+				Bindings.AddUnique(FNiagaraUtilities::ResolveAliases(Var, FNiagaraAliasContext()
+					.ChangeEmitterNameToEmitter(InEmitter->GetUniqueEmitterName())));
 			}
 			else if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var) && bEmitter)
 			{
@@ -795,7 +794,8 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 				FName VariableName = BaseVariable.GetName();
 				if (BaseVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
 				{
-					VariableName = FNiagaraVariable::ResolveAliases(BaseVariable, EmitterAlias).GetName();
+					VariableName = FNiagaraUtilities::ResolveAliases(BaseVariable, FNiagaraAliasContext()
+						.ChangeEmitterToEmitterName(BaseEmitter->GetUniqueEmitterName())).GetName();
 				}
 
 				for (UNiagaraScript* Script : Scripts)

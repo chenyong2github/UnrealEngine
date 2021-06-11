@@ -935,7 +935,7 @@ public:
 
 	NIAGARA_API FString GetFriendlyName() const;
 
-	NIAGARA_API void SyncAliases(const TMap<FString, FString>& RenameMap);
+	NIAGARA_API void SyncAliases(const FNiagaraAliasContext& ResolveAliasesContext);
 #endif
 	
 	UFUNCTION()

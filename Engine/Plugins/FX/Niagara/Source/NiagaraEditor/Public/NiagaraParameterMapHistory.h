@@ -155,11 +155,6 @@ public:
 	static FString GetNamespace(const FNiagaraVariable& InVar, bool bIncludeDelimiter = true);
 
 
-	/**
-	* Use the input alias map to resolve any aliases in this input variable name.
-	*/
-	static FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TMap<FString, FString>& InStartAliases = TMap<FString, FString>(), const TCHAR* InJoinSeparator = TEXT("."));
-
 	static FName ResolveEmitterAlias(const FName& InName, const FString& InAlias);
 
 	
@@ -461,8 +456,7 @@ protected:
 	/** Keeps track of the script usage at the current context level. This allows us to make some decisions about relevence.*/
 	TArray<ENiagaraScriptUsage> RelevantScriptUsageContext;
 	/** Resolved alias map for the current context level. Rebuilt by BuildCurrentAliases.*/
-	TMap<FString, FString> AliasMap;
-	TMap<FString, FString> StartOnlyAliasMap;
+	FNiagaraAliasContext ResolveAliasContext;
 	TArray<FName> ScriptUsageContextNameStack;
 
 	TArray<TArray<FString> > EncounteredFunctionNames;
