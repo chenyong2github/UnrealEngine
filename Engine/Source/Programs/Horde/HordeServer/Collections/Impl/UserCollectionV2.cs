@@ -32,6 +32,9 @@ namespace HordeServer.Collections.Impl
 			public string? Email { get; set; }
 			public string? EmailUpper { get; set; }
 
+			[BsonIgnoreIfDefault]
+			public bool? Hidden { get; set; }
+
 			[BsonConstructor]
 			private UserDocument()
 			{
@@ -230,6 +233,8 @@ namespace HordeServer.Collections.Impl
 				BsonRegularExpression Regex = new BsonRegularExpression(NameRegex, "i");
 				Filter &= Builders<UserDocument>.Filter.Regex(x => x.Name, Regex);
 			}
+
+			Filter &= Builders<UserDocument>.Filter.Ne(x => x.Hidden, true);
 
 			return await Users.Find(Filter).Range(Index, Count ?? 100).ToListAsync<UserDocument, IUser>();
 		}
