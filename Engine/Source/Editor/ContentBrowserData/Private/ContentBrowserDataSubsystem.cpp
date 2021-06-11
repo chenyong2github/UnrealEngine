@@ -11,6 +11,7 @@
 #include "Settings/ContentBrowserSettings.h"
 #include "Interfaces/IPluginManager.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Editor.h"
 
 void UContentBrowserDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -38,6 +39,9 @@ void UContentBrowserDataSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 	ModularFeatures.OnModularFeatureRegistered().AddUObject(this, &UContentBrowserDataSubsystem::HandleDataSourceRegistered);
 	ModularFeatures.OnModularFeatureUnregistered().AddUObject(this, &UContentBrowserDataSubsystem::HandleDataSourceUnregistered);
 
+	FEditorDelegates::BeginPIE.AddUObject(this, &UContentBrowserDataSubsystem::OnBeginPIE);
+	FEditorDelegates::EndPIE.AddUObject(this, &UContentBrowserDataSubsystem::OnEndPIE);
+
 	// Tick during normal operation
 	TickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("ContentBrowserData"), 0.1f, [this](const float InDeltaTime)
 	{
@@ -57,6 +61,9 @@ void UContentBrowserDataSubsystem::Deinitialize()
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
 	ModularFeatures.OnModularFeatureRegistered().RemoveAll(this);
 	ModularFeatures.OnModularFeatureUnregistered().RemoveAll(this);
+
+	FEditorDelegates::BeginPIE.RemoveAll(this);
+	FEditorDelegates::EndPIE.RemoveAll(this);
 
 	ActiveDataSources.Reset();
 	AvailableDataSources.Reset();
@@ -557,6 +564,7 @@ void UContentBrowserDataSubsystem::Tick(const float InDeltaTime)
 	if (bPendingItemDataRefreshedNotification)
 	{
 		bPendingItemDataRefreshedNotification = false;
+		bHasIgnoredItemUpdates = false;
 		PendingUpdates.Empty();
 		ItemDataRefreshedDelegate.Broadcast();
 	}
@@ -598,13 +606,42 @@ void UContentBrowserDataSubsystem::Tick(const float InDeltaTime)
 
 void UContentBrowserDataSubsystem::QueueItemDataUpdate(FContentBrowserItemDataUpdate&& InUpdate)
 {
-	// TODO: Merge multiple Modified updates for a single item?
-	PendingUpdates.Emplace(MoveTemp(InUpdate));
+	// Ignore modified during PIE to reduce hitches, they will be updated when PIE stops
+	if ((InUpdate.GetUpdateType() == EContentBrowserItemUpdateType::Modified) && !AllowModifiedItemDataUpdates())
+	{
+		bHasIgnoredItemUpdates = true;
+	}
+	else
+	{
+		// TODO: Merge multiple Modified updates for a single item?
+		PendingUpdates.Emplace(MoveTemp(InUpdate));
+	}
 }
 
 void UContentBrowserDataSubsystem::NotifyItemDataRefreshed()
 {
 	bPendingItemDataRefreshedNotification = true;
+}
+
+bool UContentBrowserDataSubsystem::AllowModifiedItemDataUpdates() const
+{
+	return !bIsPIEActive;
+}
+
+void UContentBrowserDataSubsystem::OnBeginPIE(const bool bIsSimulating)
+{
+	bIsPIEActive = true;
+}
+
+void UContentBrowserDataSubsystem::OnEndPIE(const bool bIsSimulating)
+{
+	bIsPIEActive = false;
+
+	if (bHasIgnoredItemUpdates)
+	{
+		// Perform a full update because modified updates were ignored during PIE
+		NotifyItemDataRefreshed();
+	}
 }
 
 void UContentBrowserDataSubsystem::SetPathViewSpecialSortFolders(const TArray<FName>& InSpecialSortFolders)
