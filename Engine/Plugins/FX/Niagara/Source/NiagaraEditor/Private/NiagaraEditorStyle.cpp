@@ -194,6 +194,18 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("GraphActionMenu.TemplateTabTextBlock", TemplateTabText);
 	
 	Style->Set( "GraphActionMenu.FilterCheckBox", NiagaraGraphActionMenuFilterCheckBox );
+
+	//Parameters panel
+	const FTableRowStyle TreeViewStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("DetailsView.TreeView.TableRow");
+	FTableRowStyle ParameterPanelRowStyle = FTableRowStyle(TreeViewStyle)
+		.SetTextColor(FLinearColor::White)
+		.SetSelectedTextColor(FLinearColor::White);
+	Style->Set("NiagaraEditor.Parameters.TableRow", ParameterPanelRowStyle);
+	
+	const FTextBlockStyle CategoryTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyle");
+	FTextBlockStyle ParameterSectionStyle = FTextBlockStyle(CategoryTextStyle)
+		.SetColorAndOpacity(FLinearColor::White);
+	Style->Set("NiagaraEditor.Parameters.HeaderText", ParameterSectionStyle);
 	
 	// Emitter Header
 	FTextBlockStyle HeadingText = FTextBlockStyle(NormalText)

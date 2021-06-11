@@ -5,29 +5,20 @@
 #include "DetailLayoutBuilder.h"
 #include "EdGraphSchema_Niagara.h"
 #include "EditorFontGlyphs.h"
-#include "Editor/GraphEditor/Private/GraphActionNode.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Misc/Guid.h"
 #include "NiagaraActions.h"
-#include "NiagaraConstants.h"
-#include "NiagaraEditorCommon.h"
 #include "NiagaraEditorStyle.h"
-#include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraTypes.h"
 #include "SDropTarget.h"
-#include "SGraphActionMenu.h"
-#include "SNiagaraGraphActionWidget.h"
-#include "SNiagaraParameterPanelPaletteItem.h"
 #include "SNiagaraPinTypeSelector.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/SNiagaraParameterMapView.h"
@@ -96,7 +87,7 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	.OnItemActivated(this, &SNiagaraParameterPanel::OnParameterItemActived)
 	.AllowMultiselect(false)
 	.ClearSelectionOnClick(true)
-	.CategoryRowStyle(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+	.CategoryRowStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Parameters.TableRow")
 	.OnGetCategoryBackgroundImage(this, &SNiagaraParameterPanel::GetCategoryBackgroundImage)
 	.CategoryBorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 	.CategoryChildSlotPadding(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
@@ -217,15 +208,17 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForCategory(const FN
 	const FText& CategoryText = Category.NamespaceMetaData.DisplayNameLong.IsEmptyOrWhitespace() == false ?
 		Category.NamespaceMetaData.DisplayNameLong : Category.NamespaceMetaData.DisplayName;
 	TSharedRef<SHorizontalBox> ParameterPanelCategoryHorizontalBox = SNew(SHorizontalBox);
-
+	
 	ParameterPanelCategoryHorizontalBox->AddSlot()
 	.VAlign(VAlign_Center)
 	.Padding(3, 0, 0, 0)
 	[
+
 		SNew(SRichTextBlock)
 		.Text(CategoryText)
-		.DecoratorStyleSet(&FEditorStyle::Get())
-		.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+		.ToolTip(SNew(SToolTip).Text(Category.NamespaceMetaData.Description))
+		.DecoratorStyleSet(&FNiagaraEditorStyle::Get())
+		.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Parameters.HeaderText")
 	];
 
 	if (GetCanAddParametersToCategory(Category))
