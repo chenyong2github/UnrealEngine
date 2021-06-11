@@ -34,6 +34,7 @@ namespace FNiagaraParameterUtilities
 // NOTE: These utilities are not defined in the view model directly as they are shared between ParameterPanelViewModel and ParameterDefinitionsPanelViewModel.
 namespace FNiagaraSystemToolkitParameterPanelUtilities
 {
+	TArray<UNiagaraGraph*> GetAllGraphs(const TSharedPtr<FNiagaraSystemViewModel>& SystemViewModel);
 	TArray<UNiagaraGraph*> GetEditableGraphs(const TSharedPtr<FNiagaraSystemViewModel>& SystemViewModel, const TWeakPtr<FNiagaraSystemGraphSelectionViewModel>& SystemGraphSelectionViewModelWeak);
 	FReply CreateDragEventForParameterItem(
 		const FNiagaraParameterPanelItemBase& DraggedItem,
@@ -292,6 +293,8 @@ public:
 	//~ End INiagaraParameterPanelViewModel interface
 
 private:
+	const TArray<UNiagaraGraph*> GetAllGraphsConst() const;
+
 	TArray<UNiagaraGraph*> GetEditableGraphs() const;
 
 	TArray<TWeakObjectPtr<UNiagaraGraph>> GetEditableEmitterScriptGraphs() const;

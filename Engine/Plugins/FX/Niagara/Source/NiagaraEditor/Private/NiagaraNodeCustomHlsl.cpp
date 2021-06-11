@@ -266,6 +266,7 @@ bool UNiagaraNodeCustomHlsl::CommitEditablePinName(const FText& InName, UEdGraph
 
 		FString OldPinName = InGraphPinObj->PinName.ToString();
 		InGraphPinObj->PinName = *InName.ToString();
+		InGraphPinObj->PinFriendlyName = InName;
 		if (bSuppressEvents == false)
 			OnPinRenamed(InGraphPinObj, OldPinName);
 
