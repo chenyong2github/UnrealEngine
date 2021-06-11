@@ -536,8 +536,29 @@ void UNiagaraNodeUsageSelector::OnPinRenamed(UEdGraphPin* RenamedPin, const FStr
 		}
 		const FName OutputName = FNiagaraUtilities::GetUniqueName(RenamedPin->PinName, OutputNames);
 		OutputVars[FoundIndex].SetName(OutputName);
+
+		 TArray<int32> OptionValues = GetOptionValues();
+		 int32 OptionsCount = OptionValues.Num();
+		
+		 TArray<UEdGraphPin*> InputPins;
+		 GetInputPins(InputPins);
+		
+		 InputPins.RemoveAll([](UEdGraphPin* Pin)
+		 {
+		 	return Pin->bOrphanedPin == true;
+		 });
+
+		if(OptionValues.Num() > 0)
+		{
+			int32 OptionIndex = OptionValues[0];
+			 for(int32 StartIndex = FoundIndex; StartIndex < OutputVars.Num() * OptionsCount; StartIndex += OutputVars.Num())
+			 {
+		 		InputPins[StartIndex]->PinName = GetOptionPinName(OutputVars[FoundIndex], OptionValues[OptionIndex]);
+			 	InputPins[StartIndex]->PinFriendlyName = GetOptionPinFriendlyName(OutputVars[FoundIndex]);
+			 	OptionIndex++;
+			 }
+		}
 	}
-	ReallocatePins();
 }
 
 bool UNiagaraNodeUsageSelector::CanRenamePin(const UEdGraphPin* Pin) const
