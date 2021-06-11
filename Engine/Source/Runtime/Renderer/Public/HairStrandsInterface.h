@@ -355,8 +355,11 @@ struct FHairStrandClusterData
 		bool GetCullingResultAvailable() const							{ return HairGroupPublicPtr ? HairGroupPublicPtr->GetCullingResultAvailable() : false; }
 		void SetCullingResultAvailable(bool b)							{ if (HairGroupPublicPtr) HairGroupPublicPtr->SetCullingResultAvailable(b); }
 
-		TRefCountPtr<FRDGPooledBuffer> ClusterDebugInfoBuffer;							// Null if this debug is not enabled.
-		TRefCountPtr<FRDGPooledBuffer> CulledDispatchIndirectParametersClusterCount;	// Null if this debug is not enabled.
+		TRefCountPtr<FRDGPooledBuffer> ClusterDebugInfoBuffer;	// Null if this debug is not enabled.
+		FRDGBufferRef CulledClusterCountBuffer = nullptr;
+		FRDGBufferRef CulledCluster1DIndirectArgsBuffer = nullptr;
+		FRDGBufferRef CulledCluster2DIndirectArgsBuffer = nullptr;
+		uint32 GroupSize1D = 0;
 
 		FHairGroupPublicData* HairGroupPublicPtr = nullptr;
 	};

@@ -999,9 +999,8 @@ static void AddDrawDebugClusterPass(
 						if (HairGroupPublicData != HairGroupClusters.HairGroupPublicPtr)
 							continue;
 
-						if (ShaderDrawDebug::IsEnabled(View) && HairGroupClusters.CulledDispatchIndirectParametersClusterCount)
+						if (ShaderDrawDebug::IsEnabled(View) && HairGroupClusters.CulledClusterCountBuffer)
 						{
-							FRDGBufferRef CulledDispatchIndirectParametersClusterCount = GraphBuilder.RegisterExternalBuffer(HairGroupClusters.CulledDispatchIndirectParametersClusterCount);
 							FRDGExternalBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
 
 							FDrawDebugClusterAABBCS::FPermutationDomain Permutation;
@@ -1015,7 +1014,7 @@ static void AddDrawDebugClusterPass(
 							Parameters->HairGroupId = DataIndex;
 							Parameters->ClusterDebugMode = GHairStrandsClusterDebug;
 							Parameters->ClusterAABBBuffer = HairGroupClusters.ClusterAABBBuffer->SRV;
-							Parameters->CulledDispatchIndirectParametersClusterCountBuffer = GraphBuilder.CreateSRV(CulledDispatchIndirectParametersClusterCount, EPixelFormat::PF_R32_UINT);
+							Parameters->CulledDispatchIndirectParametersClusterCountBuffer = GraphBuilder.CreateSRV(HairGroupClusters.CulledClusterCountBuffer, EPixelFormat::PF_R32_UINT);
 							Parameters->CulledDrawIndirectParameters = DrawIndirectBuffer.SRV;
 							Parameters->GroupAABBBuffer = HairGroupClusters.GroupAABBBuffer->SRV;
 
