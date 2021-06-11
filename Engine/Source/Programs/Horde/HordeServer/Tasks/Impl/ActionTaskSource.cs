@@ -607,7 +607,7 @@ namespace HordeServer.Tasks.Impl
 		
 		internal static bool CanBeScheduledOnAgent(IAgent Agent, List<string>? PoolFilter)
 		{
-			return PoolFilter == null || Agent.ExplicitPools.Any(PoolId => PoolFilter.Contains(PoolId.ToString()));
+			return PoolFilter == null || PoolFilter.Count == 0 || Agent.ExplicitPools.Any(PoolId => PoolFilter.Contains(PoolId.ToString()));
 		}
 	}
 }

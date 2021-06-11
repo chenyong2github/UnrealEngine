@@ -85,7 +85,6 @@ namespace HordeServer
 		/// <summary>
 		/// List of pool IDs this instance can be scheduled in
 		/// </summary>
-		[Required]
 		public List<string>? PoolFilter { get; set; }
 	}
 	
