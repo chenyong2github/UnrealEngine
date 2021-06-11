@@ -93,7 +93,7 @@ namespace HordeServer.Notifications.Impl
 
 		class UserInfo
 		{
-			[JsonPropertyName("username")]
+			[JsonPropertyName("id")]
 			public string? UserName { get; set; }
 
 			[JsonPropertyName("profile")]
