@@ -801,6 +801,7 @@ private:
 	//~ Keep track of any property change to notify if one of the exposed property has changed
 	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
 	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
+	void OnPostPropertyModifiedRemotely(const FRCObjectReference& ObjectRef);
 
 #if WITH_EDITOR	
 	//~ Handle events that can incur bindings to be modified.
@@ -951,7 +952,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TMap<FGuid, FRCPropertyWatcher> PropertyWatchers;
 
 	/** Frame counter for delaying property change checks. */
-	int8 PropertyChangeWatchFrameCounter = 0;
+	int32 PropertyChangeWatchFrameCounter = 0;
 
 #if WITH_EDITOR
 	/** List of blueprints for which we have registered events. */

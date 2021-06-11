@@ -133,4 +133,7 @@ private:
 	
 	/** Holds the ID of the client currently making a request. Used to prevent sending back notifications to it. */
 	const FGuid& ActingClientId;
+	
+	/** Frame counter for delaying property change checks. */
+	int32 PropertyNotificationFrameCounter = 0;
 };

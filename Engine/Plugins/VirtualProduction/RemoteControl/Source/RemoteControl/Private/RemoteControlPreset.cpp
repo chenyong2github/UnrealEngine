@@ -36,7 +36,7 @@ URemoteControlPreset::FOnPostLoadRemoteControlPreset URemoteControlPreset::OnPos
 
 #define LOCTEXT_NAMESPACE "RemoteControlPreset"
 
-static TAutoConsoleVariable<int32> CVarRemoteControlFramesBetweenPropertyWatch(TEXT("RemoteControl.FramesBetweenPropertyWatch"), 30, TEXT("The number of frames between every property value comparison when manually watching for property changes."));
+static TAutoConsoleVariable<int32> CVarRemoteControlFramesBetweenPropertyWatch(TEXT("RemoteControl.FramesBetweenPropertyWatch"), 5, TEXT("The number of frames between every property value comparison when manually watching for property changes."));
 
 namespace
 {
@@ -1737,6 +1737,33 @@ void URemoteControlPreset::OnPreObjectPropertyChanged(UObject* Object, const cla
 	}
 }
 
+void URemoteControlPreset::OnPostPropertyModifiedRemotely(const FRCObjectReference& ObjectRef)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(URemoteControlPreset::OnPostPropertyModifiedRemotely);
+	if (!ObjectRef.Property.IsValid())
+	{
+		return;
+	}
+
+	uint32 ModifiedPropertyPathHash = ObjectRef.PropertyPathInfo.PathHash;
+	
+	for (const TSharedPtr<FRemoteControlProperty>& RCProperty : Registry->GetExposedEntities<FRemoteControlProperty>())
+	{
+		if (RCProperty->FieldPathInfo.PathHash == ModifiedPropertyPathHash && RCProperty->GetBoundObjects().Contains(ObjectRef.Object.Get()))
+		{
+			PerFrameModifiedProperties.Add(RCProperty->GetId());
+		}
+	}
+
+	for (const TSharedPtr<FRemoteControlActor>& RCActor : Registry->GetExposedEntities<FRemoteControlActor>())
+	{
+		if (RCActor->GetBoundObjects().Contains(ObjectRef.Object.Get()))
+		{
+			OnActorPropertyModified().Broadcast(this, *RCActor, ObjectRef.Object.Get(), ObjectRef.Property.Get());
+		}
+	}
+}
+
 void URemoteControlPreset::RegisterDelegates()
 {
 	UnregisterDelegates();
@@ -1762,10 +1789,15 @@ void URemoteControlPreset::RegisterDelegates()
 
 	FCoreDelegates::OnBeginFrame.AddUObject(this, &URemoteControlPreset::OnBeginFrame);
 	FCoreDelegates::OnEndFrame.AddUObject(this, &URemoteControlPreset::OnEndFrame);
+	IRemoteControlModule::Get().OnPostPropertyModifiedRemotely().AddUObject(this, &URemoteControlPreset::OnPostPropertyModifiedRemotely);
 }
 
 void URemoteControlPreset::UnregisterDelegates()
 {
+	if (FModuleManager::Get().IsModuleLoaded("RemoteControl"))
+	{
+		IRemoteControlModule::Get().OnPostPropertyModifiedRemotely().RemoveAll(this);
+	}
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
 

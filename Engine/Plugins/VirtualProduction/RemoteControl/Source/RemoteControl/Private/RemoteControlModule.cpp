@@ -16,12 +16,15 @@
 #include "Features/IModularFeatures.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/ScopeExit.h"
+#include "Misc/TVariant.h"
 #include "UObject/Class.h"
 #include "UObject/FieldPath.h"
 #include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "HAL/IConsoleManager.h"
 #include "ScopedTransaction.h"
 #endif
 
@@ -33,6 +36,10 @@ struct FRCInterceptionPayload
 	TArray<uint8> Payload;
 	ERCPayloadType Type;
 };
+
+#if WITH_EDITOR
+static TAutoConsoleVariable<int32> CVarRemoteControlEnableOngoingChangeOptimization(TEXT("RemoteControl.EnableOngoingChangeOptimization"), 1, TEXT("Enable an optimization that keeps track of the ongoing remote control change in order to improve performance."));
+#endif
 
 namespace RemoteControlUtil
 {
@@ -118,6 +125,7 @@ namespace RemoteControlUtil
 
 	URemoteControlPreset* GetFirstPreset(const FARFilter& Filter)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::GetFirstPreset);
 		IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 		TArray<FAssetData> Assets;
@@ -128,6 +136,7 @@ namespace RemoteControlUtil
 
 	URemoteControlPreset* GetPresetById(const FGuid& Id)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::GetPresetId);
 		FARFilter Filter = GetBasePresetFilter();
 		Filter.TagsAndValues.Add(FName("PresetId"), Id.ToString());
 		return GetFirstPreset(Filter);
@@ -158,6 +167,7 @@ namespace RemoteControlUtil
 
 	FGuid GetPresetId(const FAssetData& PresetAsset)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::GetPresetId);
 		FGuid Id;
 		FAssetDataTagMapSharedView::FFindTagResult Result = PresetAsset.TagsAndValues.FindTag(FName("PresetId"));
 		if (Result.IsSet())
@@ -419,10 +429,18 @@ public:
 		RCIProcessor = MakeUnique<FRemoteControlInterceptionProcessor>();
 		// Register the interceptor feature
 		IModularFeatures::Get().RegisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
+
+#if WITH_EDITOR
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::RegisterEditorDelegates);
+#endif
 	}
 
 	virtual void ShutdownModule() override
 	{
+#if WITH_EDITOR
+		UnregisterEditorDelegates();
+		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+#endif
 		if (FModuleManager::Get().IsModuleLoaded(AssetRegistryConstants::ModuleName))
 		{
 			IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
@@ -543,15 +561,59 @@ public:
 			}
 
 #if WITH_EDITOR
-			FScopedTransaction Transaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"), InCall.bGenerateTransaction);
-#endif
-			if (InCall.bGenerateTransaction)
+			if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
 			{
-				InCall.CallRef.Object->Modify();
+				// If we have a different ongoing change that hasn't been finalized, do that before handling the next function call.
+				if (OngoingModification && GetTypeHash(*OngoingModification) != GetTypeHash(InCall.CallRef))
+				{
+					constexpr bool bForceFinalizeChange = true;
+					TestOrFinalizeOngoingChange(true);
+				}
+				
+				if (!OngoingModification)
+				{
+					if (InCall.bGenerateTransaction)
+					{
+						if (GEditor)
+						{
+							GEditor->BeginTransaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"));
+						}
+						InCall.CallRef.Object->Modify();
+					}
+				}
 			}
-
+			else if (GEditor && InCall.bGenerateTransaction)
+			{
+				GEditor->BeginTransaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"));
+			}
+			
+#endif
 			FEditorScriptExecutionGuard ScriptGuard;
 			InCall.CallRef.Object->ProcessEvent(InCall.CallRef.Function.Get(), InCall.ParamStruct.GetStructMemory());
+
+#if WITH_EDITOR
+			if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
+			{
+				// If we've called the same function recently, refresh the triggered flag and snapshot the object to the transaction buffer
+				if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(InCall.CallRef))
+				{
+					OngoingModification->bWasTriggeredSinceLastPass = true;
+					if (OngoingModification->bHasStartedTransaction)
+					{
+						SnapshotTransactionBuffer(InCall.CallRef.Object.Get());
+					}
+				}
+				else
+				{
+					OngoingModification = InCall.CallRef;
+					OngoingModification->bHasStartedTransaction = InCall.bGenerateTransaction;
+				}
+			}
+			else if (GEditor && InCall.bGenerateTransaction)
+			{
+				GEditor->EndTransaction();
+			}
+#endif
 			return true;
 		}
 		return false;
@@ -591,6 +653,7 @@ public:
 
 	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, FRCFieldPathInfo PropertyPath, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::ResolveObjectProperty);
 		bool bSuccess = true;
 		FString ErrorText;
 		if (!GIsSavingPackage && !IsGarbageCollecting())
@@ -704,6 +767,7 @@ public:
 
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::SetObjectProperties);
 		// Check the replication path before applying property values
 		if (InPayload.Num() != 0 && ObjectAccess.Object.IsValid())
 		{
@@ -766,7 +830,7 @@ public:
 			}
 		}
 
-		//Setting object properties require a property and can't be done at the object level. Property must be valid to move forward
+		// Setting object properties require a property and can't be done at the object level. Property must be valid to move forward
 		if (ObjectAccess.IsValid()
 			&& (RemoteControlUtil::IsWriteAccess(ObjectAccess.Access))
 			&& ObjectAccess.Property.IsValid()
@@ -777,14 +841,35 @@ public:
 
 #if WITH_EDITOR
 			const bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
-			if (GEditor && bGenerateTransaction)
+			if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
 			{
-				GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
-			}
+				// If we have a change that hasn't yet generated a post edit change property, do that before handling the next change.
+				if (OngoingModification && GetTypeHash(*OngoingModification) != GetTypeHash(ObjectAccess))
+				{
+					constexpr bool bForcePostEditChange = true;
+					TestOrFinalizeOngoingChange(true);
+				}
 
-			FEditPropertyChain PreEditChain;
-			ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
-			Object->PreEditChange(PreEditChain);
+				// Only create the transaction if we have no ongoing change.
+				if (!OngoingModification)
+				{
+					if (GEditor && bGenerateTransaction)
+					{
+						GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
+					}
+				}
+			}
+			else 
+			{
+				FEditPropertyChain PreEditChain;
+				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+				Object->PreEditChange(PreEditChain);
+				
+				if (GEditor && bGenerateTransaction)
+				{
+					GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
+				}
+			}
 #endif
 
 			FStructDeserializerPolicies Policies;
@@ -817,16 +902,37 @@ public:
 				bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
 			}
 
-			// Generate post edit property event independently from a transaction
 #if WITH_EDITOR
-			if (GEditor && bGenerateTransaction)
+			if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
 			{
-				GEditor->EndTransaction();
+				// If we have modified the same object and property in the last frames,
+				// update the triggered flag and snapshot the object to the transaction buffer.
+				if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(ObjectAccess))
+				{
+					OngoingModification->bWasTriggeredSinceLastPass = true;
+					if (OngoingModification->bHasStartedTransaction)
+					{
+						SnapshotTransactionBuffer(ObjectAccess.Object.Get());
+					}
+				}
+				else
+				{
+					OngoingModification = ObjectAccess;
+					OngoingModification->bHasStartedTransaction = bGenerateTransaction;
+				}
 			}
-
-			FPropertyChangedEvent PropertyEvent = ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent();
-			Object->PostEditChangeProperty(PropertyEvent);
+			else
+			{
+				FPropertyChangedEvent PropertyEvent(ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent());
+				Object->PostEditChangeProperty(PropertyEvent);
+				
+				if (GEditor && bGenerateTransaction)
+				{
+					GEditor->EndTransaction();
+				}
+			}
 #endif
+			PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
 			return bSuccess;
 		}
 		return false;
@@ -872,6 +978,8 @@ public:
 
 #if WITH_EDITOR
 			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+			constexpr bool bForceEndChange = true;
+			TestOrFinalizeOngoingChange(true);
 			FScopedTransaction Transaction(LOCTEXT("RemoteResetPropertyTransaction", "Remote Reset Object Property"), bGenerateTransaction);
 			if (bGenerateTransaction)
 			{
@@ -898,6 +1006,7 @@ public:
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif
+			PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
 			return true;
 		}
 		return false;
@@ -951,6 +1060,8 @@ public:
 
 	virtual URemoteControlPreset* ResolvePreset(const FGuid& PresetId) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::ResolvePreset);
+
 		if (const FName* AssetName = CachedPresetNamesById.Find(PresetId))
 		{
 			if (const TArray<FAssetData>* Assets = CachedPresetsByName.Find(*AssetName))
@@ -1020,6 +1131,11 @@ public:
 	{
 		constexpr bool bInGameOrPackage = true;
 		return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlSetterUtils::FindSetterFunction(Property));
+	}
+
+	virtual FOnPostPropertyModifiedRemotely& OnPostPropertyModifiedRemotely() override
+	{
+		return PostPropertyModifiedRemotelyDelegate;
 	}
 
 private:
@@ -1134,14 +1250,69 @@ private:
 			return false;
 		}
 
-		const bool bObjectInGamePackage = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
-		if (!RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bObjectInGamePackage))
-		{
-			return !!RemoteControlSetterUtils::FindSetterFunction(Property);
-		}
-
-		return false;
+		return !!RemoteControlSetterUtils::FindSetterFunction(Property);
 	}
+
+#if WITH_EDITOR
+	void TestOrFinalizeOngoingChange(bool bForceEndChange = false)
+	{
+		if (OngoingModification)
+		{
+			if (bForceEndChange || !OngoingModification->bWasTriggeredSinceLastPass)
+			{
+				// Call PreEditChange for the last call
+				if (OngoingModification->Reference.IsType<FRCObjectReference>())
+				{
+					FRCObjectReference& Reference = OngoingModification->Reference.Get<FRCObjectReference>();
+					if (Reference.IsValid())
+					{
+						FEditPropertyChain PreEditChain;
+						Reference.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+						Reference.Object->PreEditChange(PreEditChain);
+					}
+				}
+			
+				// If not, trigger the post edit change (and end the transaction if one was started)
+				if (GEditor && OngoingModification->bHasStartedTransaction)
+				{
+					GEditor->EndTransaction();
+				}
+
+				if (OngoingModification->Reference.IsType<FRCObjectReference>())
+				{
+					FPropertyChangedEvent PropertyEvent = OngoingModification->Reference.Get<FRCObjectReference>().PropertyPathInfo.ToPropertyChangedEvent();
+					if (UObject* Object = OngoingModification->Reference.Get<FRCObjectReference>().Object.Get())
+					{
+						Object->PostEditChangeProperty(PropertyEvent);
+					}
+				}
+
+				OngoingModification.Reset();
+			}
+			else
+			{
+				// If the change has occured for this change, effectively reset the counter for it.
+				OngoingModification->bWasTriggeredSinceLastPass = false;
+			}
+		}
+	}
+
+	void RegisterEditorDelegates()
+	{
+		if (GEditor)
+		{
+			GEditor->GetTimerManager()->SetTimer(OngoingChangeTimer, FTimerDelegate::CreateRaw(this, &FRemoteControlModule::TestOrFinalizeOngoingChange, false), SecondsBetweenOngoingChangeCheck, true);
+		}
+	}
+	
+	void UnregisterEditorDelegates()
+	{
+		if (GEditor)
+		{ 
+			GEditor->GetTimerManager()->ClearTimer(OngoingChangeTimer);
+		}
+	}
+#endif
 
 private:
 	/** Cache of preset names to preset assets */
@@ -1161,6 +1332,53 @@ private:
 
 	/** RC Processor feature instance */
 	TUniquePtr<IRemoteControlInterceptionFeatureProcessor> RCIProcessor;
+
+#if WITH_EDITOR
+	/** Flags for a given RC change. */
+	struct FOngoingChange
+	{
+		FOngoingChange(FRCObjectReference InReference)
+		{
+			Reference.Set<FRCObjectReference>(MoveTemp(InReference));
+		}
+		
+		FOngoingChange(FRCCallReference InReference)
+		{
+			Reference.Set<FRCCallReference>(MoveTemp(InReference));
+		}
+
+		friend uint32 GetTypeHash(const FOngoingChange& Modification)
+		{
+			if (Modification.Reference.IsType<FRCObjectReference>())
+			{
+				return GetTypeHash(Modification.Reference.Get<FRCObjectReference>());
+			}
+			else
+			{
+				return GetTypeHash(Modification.Reference.Get<FRCCallReference>());
+			}
+		}
+
+		/** Reference to either the property we're modifying or the function we're calling. */
+		TVariant<FRCObjectReference, FRCCallReference> Reference;
+		/** Whether this change was triggered with a transaction or not. */
+		bool bHasStartedTransaction = false;
+		/** Whether this change was triggered since the last tick of OngoingChangeTimer. */
+		bool bWasTriggeredSinceLastPass = true;
+	};
+	
+	/** Ongoing change that needs to end its transaction and call PostEditChange in the case of a property modification. */
+	TOptional<FOngoingChange> OngoingModification;
+
+	/** Handle to the timer that that ends the ongoing change in regards to PostEditChange and transactions. */
+	FTimerHandle OngoingChangeTimer;
+
+	/** Delay before we check if a modification is no longer ongoing. */
+	static constexpr float SecondsBetweenOngoingChangeCheck = 0.2f;
+#endif
+
+	/** Delegate called after modifying a property through SetObjectProperties. */
+	FOnPostPropertyModifiedRemotely PostPropertyModifiedRemotelyDelegate;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

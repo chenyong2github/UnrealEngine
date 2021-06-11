@@ -146,6 +146,7 @@ void FRCWebSocketServer::Broadcast(const TArray<uint8>& InUTF8Payload)
 
 void FRCWebSocketServer::Send(const FGuid& InTargetClientId, const TArray<uint8>& InUTF8Payload)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRCWebSocketServer::Send);
 	if (FWebSocketConnection* Connection = Connections.FindByPredicate([&InTargetClientId](const FWebSocketConnection& InConnection) { return InConnection.Id == InTargetClientId; }))
 	{
 		Connection->Socket->Send(InUTF8Payload.GetData(), InUTF8Payload.Num(), /*PrependSize=*/false);
@@ -187,7 +188,9 @@ void FRCWebSocketServer::ReceivedRawPacket(void* Data, int32 Size, FGuid ClientI
 	{
 		return;
 	}
-
+	
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRCWebSocketServer::ReceivedRawPacket);
+	
 	TArray<uint8> Payload;
 	WebRemoteControlUtils::ConvertToTCHAR(MakeArrayView(static_cast<uint8*>(Data), Size), Payload);
 
