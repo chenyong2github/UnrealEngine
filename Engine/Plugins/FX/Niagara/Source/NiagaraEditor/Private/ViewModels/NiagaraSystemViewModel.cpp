@@ -1287,7 +1287,7 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 		}
 
 		EmitterHandleViewModels.Add(ViewModel.ToSharedRef());
-		ViewModel->Initialize(this->AsShared(), EmitterHandle, Simulation);
+		ViewModel->Initialize(this->AsShared(), i, Simulation);
 	}
 
 	check(EmitterHandleViewModels.Num() == GetSystem().GetNumEmitters());

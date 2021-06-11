@@ -27,7 +27,8 @@
 #define LOCTEXT_NAMESPACE "EmitterHandleViewModel"
 
 FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel(bool bInIsForDataProcessingOnly)
-	: EmitterHandle(nullptr)
+	: EmitterHandleIndex(INDEX_NONE)
+	, EmitterHandle(nullptr)
 	, EmitterViewModel(MakeShared<FNiagaraEmitterViewModel>(bInIsForDataProcessingOnly))
 	, EmitterStackViewModel(NewObject<UNiagaraStackViewModel>(GetTransientPackage()))
 	, bIsRenamePending(false)
@@ -36,7 +37,16 @@ FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel(bool bInIsForData
 
 bool FNiagaraEmitterHandleViewModel::IsValid() const
 {
-	return EmitterHandle != nullptr;
+	if(EmitterHandleIndex != INDEX_NONE && EmitterHandle != nullptr)
+	{
+		TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = OwningSystemViewModelWeak.Pin();
+		if (SystemViewModel.IsValid() && SystemViewModel->IsValid())
+		{
+			UNiagaraSystem& System = SystemViewModel->GetSystem();
+			return EmitterHandleIndex < System.GetNumEmitters() && &System.GetEmitterHandle(EmitterHandleIndex) == EmitterHandle;
+		}
+	}
+	return false;
 }
 
 void FNiagaraEmitterHandleViewModel::Cleanup()
@@ -101,10 +111,11 @@ FNiagaraEmitterHandleViewModel::~FNiagaraEmitterHandleViewModel()
 }
 
 
-void FNiagaraEmitterHandleViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InOwningSystemViewModel, FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
+void FNiagaraEmitterHandleViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InOwningSystemViewModel, int32 InEmitterHandleIndex, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
 {
 	OwningSystemViewModelWeak = InOwningSystemViewModel;
-	EmitterHandle = InEmitterHandle;
+	EmitterHandleIndex = InEmitterHandleIndex;
+	EmitterHandle = &InOwningSystemViewModel->GetSystem().GetEmitterHandle(InEmitterHandleIndex);
 	UNiagaraEmitter* Emitter = EmitterHandle != nullptr ? EmitterHandle->GetInstance() : nullptr;
 	EmitterViewModel->Initialize(Emitter, InSimulation);
 	EmitterStackViewModel->InitializeWithViewModels(InOwningSystemViewModel, this->AsShared(), FNiagaraStackViewModelOptions(false, true));
@@ -114,6 +125,7 @@ void FNiagaraEmitterHandleViewModel::Reset()
 {
 	EmitterStackViewModel->Reset();
 	OwningSystemViewModelWeak.Reset();
+	EmitterHandleIndex = INDEX_NONE;
 	EmitterHandle = nullptr;
 	EmitterViewModel->Reset();
 }

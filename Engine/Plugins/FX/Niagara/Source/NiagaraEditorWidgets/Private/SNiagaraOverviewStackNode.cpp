@@ -39,6 +39,8 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 	OverviewStackNode = InNode;
 	StackViewModel = nullptr;
 	OverviewSelectionViewModel = nullptr;
+	bIsHoveringThumbnail = false;
+	bThumbnailBarRefreshPending = true;
 	CurrentIssueIndex = -1;
 
 	EmitterHandleViewModelWeak.Reset();
@@ -251,6 +253,12 @@ void SNiagaraOverviewStackNode::Tick(const FGeometry& AllottedGeometry, const do
 			SGraphNode::RequestRename();
 			OverviewStackNode->RenameStarted();
 		}
+
+		if (bThumbnailBarRefreshPending)
+		{
+			FillThumbnailBar();
+			bThumbnailBarRefreshPending = false;
+		}
 	}
 }
 
@@ -277,7 +285,7 @@ void SNiagaraOverviewStackNode::OnMaterialCompiled(class UMaterialInterface* Mat
 
 		if (bUsingThisMaterial)
 		{
-			FillThumbnailBar();
+			bThumbnailBarRefreshPending = true;
 		}
 	}
 }
@@ -359,32 +367,18 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 
 void SNiagaraOverviewStackNode::StackViewModelStructureChanged()
 {
-	FillThumbnailBar();
+	bThumbnailBarRefreshPending = true;
 }
 
 void SNiagaraOverviewStackNode::StackViewModelDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
 {
-	bool bFillThumbnailBar = false;
-
-	if (ChangedObjects.Num() == 0)
+	for (UObject* ChangedObject : ChangedObjects)
 	{
-		bFillThumbnailBar = true;
-	}
-	else
-	{
-		for (UObject* ChangedObject : ChangedObjects)
+		if (ChangedObject->IsA<UNiagaraRendererProperties>())
 		{
-			if (ChangedObject->IsA<UNiagaraRendererProperties>())
-			{
-				bFillThumbnailBar = true;
-				break;
-			}
+			bThumbnailBarRefreshPending = true;
+			break;
 		}
-	}
-
-	if (bFillThumbnailBar)
-	{
-		FillThumbnailBar();
 	}
 }
 
