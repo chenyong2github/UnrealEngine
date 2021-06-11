@@ -84,6 +84,29 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Specifies how UnrealHeaderTool should enforce member pointer declarations in UCLASSes and USTRUCTs.  This should match (by name, not value) the
+	/// EPointerMemberBehavior enum in BaseParser.h so that it can be interpreted correctly by UnrealHeaderTool.
+	/// </summary>
+	[Serializable]
+	public enum PointerMemberBehavior
+	{
+		/// <summary>
+		/// Pointer members of the associated type will be disallowed and result in an error emitted from UnrealHeaderTool.
+		/// </summary>
+		Disallow,
+
+		/// <summary>
+		/// Pointer members of the associated type will be allowed and not emit any messages to log or screen.
+		/// </summary>
+		AllowSilently,
+
+		/// <summary>
+		/// Pointer members of the associated type will be allowed but will emit messages to log.
+		/// </summary>
+		AllowAndLog,
+	}
+
+	/// <summary>
 	/// Determines which version of the engine to take default build settings from. This allows for backwards compatibility as new options are enabled by default.
 	/// </summary>
 	public enum BuildSettingsVersion
@@ -809,6 +832,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bEventDrivenLoader;
+
+		/// <summary>
+		/// Used to override the behavior controlling whether UCLASSes and USTRUCTs are allowed to have native pointer members, if disallowed they will be a UHT error and should be substituted with TObjectPtr members instead.
+		/// </summary>
+		public PointerMemberBehavior? NativePointerMemberBehaviorOverride = null;
 
 		/// <summary>
 		/// Whether the XGE controller worker and modules should be included in the engine build.
@@ -2330,6 +2358,11 @@ namespace UnrealBuildTool
 		public bool bEventDrivenLoader
 		{
 			get { return Inner.bEventDrivenLoader; }
+		}
+
+		public PointerMemberBehavior? NativePointerMemberBehaviorOverride
+		{
+			get { return Inner.NativePointerMemberBehaviorOverride; }
 		}
 
 		[Obsolete("Use DefaultBuildSettings to determine the default settings used for this target instead")]

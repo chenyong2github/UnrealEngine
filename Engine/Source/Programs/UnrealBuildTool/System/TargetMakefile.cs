@@ -22,7 +22,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 23;
+		public const int CurrentVersion = 24;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -83,6 +83,11 @@ namespace UnrealBuildTool
 		/// The array of command-line arguments. The makefile will be invalidated whenever these change.
 		/// </summary>
 		public string[]? AdditionalArguments;
+
+		/// <summary>
+		/// The array of command-line arguments passed to UnrealHeaderTool.
+		/// </summary>
+		public string[]? UHTAdditionalArguments;
 
 		/// <summary>
 		/// Scripts which should be run before building anything
@@ -228,6 +233,7 @@ namespace UnrealBuildTool
 			bDeployAfterCompile = Reader.ReadBool();
 			bHasProjectScriptPlugin = Reader.ReadBool();
 			AdditionalArguments = Reader.ReadArray(() => Reader.ReadString());
+			UHTAdditionalArguments = Reader.ReadArray(() => Reader.ReadString());
 			PreBuildScripts = Reader.ReadArray(() => Reader.ReadFileReference());
 			PreBuildTargets = Reader.ReadArray(() => new TargetInfo(Reader));
 			Actions = Reader.ReadList(() => Reader.ReadAction());
@@ -263,6 +269,7 @@ namespace UnrealBuildTool
 			Writer.WriteBool(bDeployAfterCompile);
 			Writer.WriteBool(bHasProjectScriptPlugin);
 			Writer.WriteArray(AdditionalArguments, Item => Writer.WriteString(Item));
+			Writer.WriteArray(UHTAdditionalArguments, Item => Writer.WriteString(Item));
 			Writer.WriteArray(PreBuildScripts, Item => Writer.WriteFileReference(Item));
 			Writer.WriteArray(PreBuildTargets, Item => Item.Write(Writer));
 			Writer.WriteList(Actions, x => Writer.WriteAction(x));
