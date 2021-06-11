@@ -184,7 +184,8 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 					0, /* Primitive Id */
 					PrimitiveParams.LocalToWorld,
 					PrimitiveParams.PreviousLocalToWorld,
-					INVALID_LAST_UPDATE_FRAME
+					INVALID_LAST_UPDATE_FRAME,
+					false /* Has Previous Transform */
 				);
 
 				// Set up the parameters for the LightmapSceneData from the given LCI data 

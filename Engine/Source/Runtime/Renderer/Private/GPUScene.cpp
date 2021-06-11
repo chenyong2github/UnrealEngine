@@ -171,6 +171,8 @@ struct FInstanceUploadInfo
 	FRenderTransform PrevPrimitiveToWorld;
 	int32 PrimitiveID = INDEX_NONE;
 	uint32 LastUpdateSceneFrameNumber = ~uint32(0);
+
+	bool bHasPreviousTransforms = false;
 };
 
 /**
@@ -256,6 +258,8 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.LastUpdateSceneFrameNumber = SceneFrameNumber;
 			InstanceUploadInfo.PrimitiveID = PrimitiveID;
 			InstanceUploadInfo.PrimitiveToWorld = PrimitiveSceneProxy->GetLocalToWorld();
+			InstanceUploadInfo.bHasPreviousTransforms = PrimitiveSceneProxy->HasPrevInstanceTransforms();
+
 			{
 				bool bHasPrecomputedVolumetricLightmap{};
 				bool bOutputVelocity{};
@@ -754,7 +758,8 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 								InstanceDataGPU.PrimitiveId,
 								PrimitiveToWorld,
 								PrevPrimitiveToWorld,
-								SceneFrameNumber
+								SceneFrameNumber,
+								PrimitiveSceneProxy->HasPrevInstanceTransforms()
 							);
 
 							// unpack again, just as on GPU...
@@ -1221,7 +1226,8 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 											UploadInfo.PrimitiveID,
 											UploadInfo.PrimitiveToWorld,
 											UploadInfo.PrevPrimitiveToWorld,
-											UploadInfo.LastUpdateSceneFrameNumber
+											UploadInfo.LastUpdateSceneFrameNumber,
+											UploadInfo.bHasPreviousTransforms
 										);
 
 										void* DstRefs[FInstanceSceneShaderData::InstanceDataStrideInFloat4s];

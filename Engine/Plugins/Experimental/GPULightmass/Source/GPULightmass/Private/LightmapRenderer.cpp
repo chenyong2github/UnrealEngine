@@ -336,7 +336,8 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					InstanceIndex, /* Primitive Id */
 					PrimitiveUniformShaderParameters.LocalToWorld,
 					PrimitiveUniformShaderParameters.PreviousLocalToWorld,
-					INVALID_LAST_UPDATE_FRAME
+					INVALID_LAST_UPDATE_FRAME,
+					false /* Has Previous Transform */
 				);
 
 				for (int32 LODIndex = 0; LODIndex < Instance.LODLightmapRenderStates.Num(); LODIndex++)
@@ -415,7 +416,8 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 						PrimitiveId,
 						InstanceGroup.LocalToWorld,
 						InstanceGroup.LocalToWorld,
-						INVALID_LAST_UPDATE_FRAME
+						INVALID_LAST_UPDATE_FRAME,
+						false /* Has Previous Transform */
 					)
 				);
 			}
@@ -479,7 +481,8 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				PrimitiveId,
 				PrimitiveUniformShaderParameters.LocalToWorld,
 				PrimitiveUniformShaderParameters.PreviousLocalToWorld,
-				INVALID_LAST_UPDATE_FRAME
+				INVALID_LAST_UPDATE_FRAME,
+				false /* Has Previous Transform */
 			));
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));
