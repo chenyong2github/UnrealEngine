@@ -155,20 +155,7 @@ bool FSnapshotArchive::IsPropertyReferenceToSubobject(const FProperty* InPropert
 		return true;
 	}
 
-	const FArchiveSerializedPropertyChain* PropertyChain = GetSerializedPropertyChain();
-	const void* ContainerPtr = GetSerializedObject();
-	for (int32 i = 0; PropertyChain && i < PropertyChain->GetNumProperties(); ++i)
-	{
-		ContainerPtr = PropertyChain->GetPropertyFromRoot(i)->ContainerPtrToValuePtr<void>(ContainerPtr);
-	}
-
-	const void* LeafValuePtr = InProperty->ContainerPtrToValuePtr<void>(ContainerPtr);
-	if (const UObject* ContainedPtr = ObjectProperty->GetObjectPropertyValue(LeafValuePtr))
-	{
-		const bool bIsPointingToSubobject = ContainedPtr->IsIn(GetSerializedObject());
-		return bIsPointingToSubobject;
-	}
-	
+	// TODO: Walk GetSerializedPropertyChain to get the value ptr of ObjectProperty. Then check whether contained object IsIn(GetSerializedObject()). Extra complicated because sometimes values may be in arrays, set, and tmaps.
 	return false;
 }
 
