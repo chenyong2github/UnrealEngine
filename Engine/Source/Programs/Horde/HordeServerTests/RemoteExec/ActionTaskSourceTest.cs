@@ -2,15 +2,21 @@
 
 extern alias HordeAgent;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Amazon.EC2.Model;
 using Build.Bazel.Remote.Execution.V2;
 using Google.LongRunning;
+using HordeServer;
 using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Tasks.Impl;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 
 namespace HordeServerTests.RemoteExec
 {
@@ -47,6 +53,48 @@ namespace HordeServerTests.RemoteExec
 			Task Pump2 = PumpExecuteOperation(TaskSource, ExecuteOp2, 20, Agent);
 
 			await Task.WhenAll(Pump1, Pump2);
+		}
+		
+		[TestMethod]
+		public async Task BasicExecutionWithPoolFilter()
+		{
+			RemoteExecInstanceSettings InstanceSettings = new RemoteExecInstanceSettings();
+			InstanceSettings.PoolFilter = new List<string> {"pool1"};
+			TestSetup.ServerSettingsMon.CurrentValue.RemoteExecSettings.Instances["foobar"] = InstanceSettings; 
+			ActionTaskSource TaskSource = CreateTaskSource();
+
+			FakeAgent Agent = new FakeAgent();
+			Agent.ExplicitPools = new List<PoolId> {new PoolId("pool1")};
+			await TaskSource.SubscribeAsync(Agent);
+			
+			ExecuteRequest Req1 = new ExecuteRequest();
+			Req1.InstanceName = "foobar";
+			Req1.SkipCacheLookup = true;
+			Req1.ActionDigest = new Digest { Hash = "bogusTestingHash1", SizeBytes = 17 };
+
+			IActionExecuteOperation ExecuteOp1 = TaskSource.Execute(Req1);
+
+			await PumpExecuteOperation(TaskSource, ExecuteOp1, 10, Agent);
+		}
+
+		[TestMethod]
+		public void CanBeScheduledOnAgent()
+		{
+			FakeAgent AgentWithNoPools = new FakeAgent();
+			FakeAgent Agent = new FakeAgent();
+			Agent.ExplicitPools = new List<StringId<IPool>> {new PoolId("pool1"), new PoolId("pool2")};
+
+			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string> {"pool1"}));
+			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string> {"pool2"}));
+			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string> {"pool1", "pool2"}));
+			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string> {"bogus", "pool2"}));
+			Assert.IsFalse(ActionTaskSource.CanBeScheduledOnAgent(AgentWithNoPools, new List<string> {"bogus", "pool2"}));
+			Assert.IsFalse(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string> {"bogus", "foobar"}));
+			Assert.IsFalse(ActionTaskSource.CanBeScheduledOnAgent(Agent, new List<string>()));
+			Assert.IsFalse(ActionTaskSource.CanBeScheduledOnAgent(AgentWithNoPools, new List<string>()));
+			
+			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(Agent, null));
+			Assert.IsTrue(ActionTaskSource.CanBeScheduledOnAgent(AgentWithNoPools, null));
 		}
 		
 		private async Task<Operation> PumpExecuteOperation(ActionTaskSource TaskSource, IActionExecuteOperation ExecuteOp, int ExitCode, IAgent? AgentToReschedule)
