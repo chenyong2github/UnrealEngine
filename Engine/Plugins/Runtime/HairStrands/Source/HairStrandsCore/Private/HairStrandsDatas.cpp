@@ -4,6 +4,10 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
+#ifndef CLEAR_COMPRESSION
+#define CLEAR_COMPRESSION 1
+#endif
+
 void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 {
 	PointsSimCurvesVertexWeights.SetNum(NumCurves);
@@ -181,11 +185,24 @@ void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	static_assert(sizeof(FHairInterpolation1Vertex::BulkType) == sizeof(FHairInterpolation1Vertex));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
 
-	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
-	Interpolation.SetBulkDataFlags(BulkFlags);
-	Interpolation0.SetBulkDataFlags(BulkFlags);
-	Interpolation1.SetBulkDataFlags(BulkFlags);
-	SimRootPointIndex.SetBulkDataFlags(BulkFlags);
+	if (Ar.IsSaving())
+	{
+		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+		Interpolation.SetBulkDataFlags(BulkFlags);
+		Interpolation0.SetBulkDataFlags(BulkFlags);
+		Interpolation1.SetBulkDataFlags(BulkFlags);
+		SimRootPointIndex.SetBulkDataFlags(BulkFlags);
+
+		#if CLEAR_COMPRESSION
+		if (Ar.IsCooking())
+		{
+			Interpolation.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			Interpolation0.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			Interpolation1.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			SimRootPointIndex.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+		}
+		#endif
+	}
 
 	Ar << Flags;
 	Ar << PointCount;
@@ -229,12 +246,26 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 	// Forced not inline means the bulk data won't automatically be loaded when we deserialize
 	// but only when we explicitly take action to load it
-	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
-	Positions.SetBulkDataFlags(BulkFlags);
-	Attributes0.SetBulkDataFlags(BulkFlags);
-	Attributes1.SetBulkDataFlags(BulkFlags);
-	Materials.SetBulkDataFlags(BulkFlags);
-	CurveOffsets.SetBulkDataFlags(BulkFlags);
+	if (Ar.IsSaving())
+	{
+		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+		Positions.SetBulkDataFlags(BulkFlags);
+		Attributes0.SetBulkDataFlags(BulkFlags);
+		Attributes1.SetBulkDataFlags(BulkFlags);
+		Materials.SetBulkDataFlags(BulkFlags);
+		CurveOffsets.SetBulkDataFlags(BulkFlags);
+
+		#if CLEAR_COMPRESSION
+		if (Ar.IsCooking())
+		{
+			Positions.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			Attributes0.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			Attributes1.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			Materials.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+			CurveOffsets.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
+		}
+		#endif
+	}
 
 	if (!!(Flags & DataFlags_HasData))
 	{
