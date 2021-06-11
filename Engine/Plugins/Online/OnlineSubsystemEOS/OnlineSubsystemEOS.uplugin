@@ -8,7 +8,7 @@
 	"Category": "Online Platform",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://dev.epicgames.com/services",
-	"EnabledByDefault": true,
+	"EnabledByDefault": false,
 	"IsBetaVersion" : true,
 
 	"Modules": [
