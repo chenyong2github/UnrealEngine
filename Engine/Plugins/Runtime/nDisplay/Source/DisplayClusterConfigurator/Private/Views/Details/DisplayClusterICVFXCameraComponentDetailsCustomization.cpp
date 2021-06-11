@@ -23,9 +23,11 @@ namespace DisplayClusterICVFXCameraComponentDetailsCustomizationUtils
 		{
 			TEXT("Variable"),
 			TEXT("TransformCommon"),
+			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
 			DisplayClusterConfigurationStrings::categories::ICVFXCategory,
 			DisplayClusterConfigurationStrings::categories::ChromaKeyCategory,
 			DisplayClusterConfigurationStrings::categories::OCIOCategory,
+			DisplayClusterConfigurationStrings::categories::CameraPostprocessCategory,
 			DisplayClusterConfigurationStrings::categories::OverrideCategory
 		};
 
@@ -106,6 +108,15 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 
 	GET_MEMBER_NAME_CHECKED(UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable);
 
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.RenderOrder)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.CustomFrameSize)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.RenderTargetRatio)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.GPUIndex)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.StereoGPUIndex)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.StereoMode)
+	END_CATEGORY();
+
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable)
 		ADD_PROPERTY(UDisplayClusterICVFXCameraComponent, ExternalCameraActor)
@@ -117,11 +128,8 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumOffset)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraMotionBlur)
 
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.RenderOrder)
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.CustomFrameSize)
 		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.PostprocessBlur)
 		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips)
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings)
 
 		BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Camera"))
 			ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.ActorLayers)
@@ -130,7 +138,7 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 
 	END_CATEGORY();
 
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraPostprocessCategory)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.bUseCameraComponentPostprocess)
 		ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PostProcessSettings)
 	END_CATEGORY();

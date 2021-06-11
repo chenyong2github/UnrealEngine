@@ -147,15 +147,15 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Post
 
 public:
 	// Exclude this viewport from the global cluster post process
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings", meta = (DisplayName = "Ignore Post Process from All Viewports"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Process", meta = (DisplayName = "Ignore Post Process from All Viewports"))
 	bool bExcludeFromOverallClusterPostProcess = false;
 
 	// Allow using a separate post process for this viewport
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings", meta = (DisplayName = "Enable Viewport Post Process"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Process", meta = (DisplayName = "Enable Viewport Post Process"))
 	bool bIsEnabled = false;
 
 	// Post process settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings", Meta = (EditCondition = "bIsEnabled"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Process", Meta = (EditCondition = "bIsEnabled"))
 	FDisplayClusterConfigurationViewport_PerViewportSettings ViewportSettings;
 };
 

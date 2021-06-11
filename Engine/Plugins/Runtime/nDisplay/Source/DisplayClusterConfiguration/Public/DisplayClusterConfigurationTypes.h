@@ -333,37 +333,37 @@ private:
 #endif
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = NDisplay, meta = (DisplayName = "Host IP"))
+	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration", meta = (DisplayName = "Host IP"))
 	FString Host;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	bool bIsSoundEnabled;
 
-	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration")
 	bool bIsFullscreen;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	FDisplayClusterConfigurationRectangle WindowRect;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bFixedAspectRatio;
 #endif
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = "Configuration", meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Configuration", meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
 	bool bIsVisible;
 
-	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
 	bool bIsEnabled;
 
-	UPROPERTY(EditDefaultsOnly, Category = NDisplay)
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
 	FDisplayClusterConfigurationExternalImage PreviewImage;
 #endif
 
@@ -392,25 +392,25 @@ private:
 	#endif
 
 public:
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	FText HostName;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (EditCondition = "bAllowManualPlacement"))
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (EditCondition = "bAllowManualPlacement"))
 	FVector2D Position;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bAllowManualPlacement;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (EditCondition = "bAllowManualSizing"))
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (EditCondition = "bAllowManualSizing"))
 	FVector2D HostResolution;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bAllowManualSizing;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	FVector2D Origin;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	FLinearColor Color;
 	
 	UPROPERTY()

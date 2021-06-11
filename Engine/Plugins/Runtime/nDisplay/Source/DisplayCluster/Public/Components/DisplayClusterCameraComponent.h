@@ -106,13 +106,13 @@ protected:
 	virtual void ApplyConfigurationData() override;
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "NDisplay")
+	UPROPERTY(EditAnywhere, Category = "Stereo")
 	float InterpupillaryDistance;
 	
-	UPROPERTY(EditAnywhere, Category = "NDisplay")
+	UPROPERTY(EditAnywhere, Category = "Stereo")
 	bool bSwapEyes;
 	
-	UPROPERTY(EditAnywhere, Category = "NDisplay")
+	UPROPERTY(EditAnywhere, Category = "Stereo")
 	EDisplayClusterEyeStereoOffset StereoOffset;
 
 #if WITH_EDITORONLY_DATA

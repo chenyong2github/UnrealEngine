@@ -28,6 +28,7 @@ namespace DisplayClusterRootActorDetailsCustomizationUtils
 		static const TArray<FName> CategoryOrder =
 		{
 			TEXT("TransformCommon"),
+			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
 			DisplayClusterConfigurationStrings::categories::ICVFXCategory,
 			DisplayClusterConfigurationStrings::categories::LightcardCategory,
 			DisplayClusterConfigurationStrings::categories::OCIOCategory,
@@ -97,13 +98,10 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	PropertyNodeId = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewNodeId), ADisplayClusterRootActor::StaticClass());
 	check(PropertyNodeId->IsValidHandle());
 
-	if (EditedObject.IsValid() && !EditedObject->IsTemplate(RF_ClassDefaultObject))
-	{
-		InLayoutBuilder.HideCategory(TEXT("NDisplay"));
-		InLayoutBuilder.HideCategory(TEXT("NDisplay Configuration"));
-		InLayoutBuilder.HideCategory(TEXT("NDisplay Cluster"));
-		InLayoutBuilder.HideCategory(TEXT("NDisplay Cluster Configuration"));
-	}
+	InLayoutBuilder.HideCategory(TEXT("NDisplay"));
+	InLayoutBuilder.HideCategory(TEXT("NDisplay Configuration"));
+	InLayoutBuilder.HideCategory(TEXT("NDisplay Cluster"));
+	InLayoutBuilder.HideCategory(TEXT("NDisplay Cluster Configuration"));
 
 	InLayoutBuilder.SortCategories(DisplayClusterRootActorDetailsCustomizationUtils::SortCategories);
 	
@@ -120,14 +118,20 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 	
 	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
 	
-	if (EditedObject.IsValid() && !EditedObject->IsTemplate(RF_ClassDefaultObject) && EditedObject->CurrentConfigData)
+	if (EditedObject.IsValid() && EditedObject->CurrentConfigData)
 	{
-		// Build ICVFX category.
-		
+		const bool bIsCDO = EditedObject->IsTemplate(RF_ClassDefaultObject);
+
+		// Only get the viewport names if we are not editing the CDO object in this details panel
+		// (i.e. only level instance details panels should show viewport groupings)
 		TArray<FString> ViewportNames;
-		NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
+		if (!bIsCDO)
+		{
+			NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
+		}
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable)
 
 			const TSharedRef<IPropertyHandle> EnableInnerFrustumPropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, EnableInnerFrustum));
 			{
@@ -158,10 +162,18 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 					}
 				END_GROUP();
 
+			}
+
+			if (!bIsCDO)
+			{
 				ADD_PROPERTY(ADisplayClusterRootActor, InnerFrustumPriority);
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterRenderTargetRatioMult)
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult)
+			}
+
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterRenderTargetRatioMult)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult)
 				
+			if (ViewportNames.Num() > 0)
+			{
 				TArray<TSharedPtr<IPropertyHandle>> ScreenPercentageHandles;
 				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.BufferRatio"), ScreenPercentageHandles);
 
@@ -179,6 +191,21 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from nDisplay"))
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.ActorLayers)
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.Actors)
+
+				if (bIsCDO)
+				{
+					ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.RootActorComponentNames)
+				}
+			END_GROUP();
+
+			BEGIN_GROUP(TEXT("HiddenOuterViewportsGroup"), LOCTEXT("HiddenOuterViewportsLabel", "Content Hidden from Outer Viewports"))
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.ActorLayers)
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.Actors)
+
+				if (bIsCDO)
+				{
+					ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.RootActorComponentNames)
+				}
 			END_GROUP();
 		END_CATEGORY();
 		
@@ -189,6 +216,11 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Content Visibile Only in Outer Viewports"))
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers)
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors)
+
+				if (bIsCDO)
+				{
+					ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.RootActorComponentNames)
+				}
 			END_GROUP();
 
 			BEGIN_GROUP(TEXT("LightCardOCIOGroup"), LOCTEXT("LightCardOCIOGroupLabel", "OCIO"))
@@ -196,18 +228,24 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnableViewportOCIO)
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.OCIO_Configuration)
 			END_GROUP();
-		END_CATEGORY();
-	}
-	
-	// Add custom properties and lay out/order properties into their correct categories.
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::PreviewCategory)
-		if (RebuildNodeIdOptionsList())
-		{
-			REPLACE_PROPERTY_WITH_CUSTOM(ADisplayClusterRootActor, PreviewNodeId, CreateCustomNodeIdWidget());
-		}
-	END_CATEGORY();
 
-	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::AdvancedCategory).SetCategoryVisibility(false); // Re-enable for access to more adv control.
+			ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.RenderSettings)
+		END_CATEGORY();
+	
+		// Add custom properties and lay out/order properties into their correct categories.
+		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::PreviewCategory)
+			if (RebuildNodeIdOptionsList())
+			{
+				REPLACE_PROPERTY_WITH_CUSTOM(ADisplayClusterRootActor, PreviewNodeId, CreateCustomNodeIdWidget());
+			}
+		END_CATEGORY();
+
+		// Hide the Configuration category from level instances, will only be allowed to edit them in the config editor
+		if (!bIsCDO)
+		{
+			InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::ConfigurationCategory).SetCategoryVisibility(false);
+		}
+	}
 }
 
 

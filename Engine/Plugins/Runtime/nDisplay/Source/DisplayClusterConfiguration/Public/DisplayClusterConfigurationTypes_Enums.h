@@ -91,10 +91,10 @@ enum class EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode : uint8
 	Disabled    UMETA(DisplayName = "Disabled"),
 
 	// Render incamera frame over lightcard for this viewport
-	Over    UMETA(DisplayName = "Lightcard OVER"),
+	Over    UMETA(DisplayName = "Lightcard Over Frustum"),
 
 	// Over lightcard over incamera frame  for this viewport
-	Under   UMETA(DisplayName = "Lightcard UNDER"),
+	Under   UMETA(DisplayName = "Lightcard Under Frustum"),
 };
 
 UENUM()
