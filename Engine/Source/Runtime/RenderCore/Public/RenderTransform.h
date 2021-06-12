@@ -26,6 +26,14 @@ public:
 		Origin				= FVector3f(M.M[3][0], M.M[3][1], M.M[3][2]);
 	}
 
+	FORCEINLINE FRenderTransform(const FMatrix44d& M)
+	{
+		TransformRows[0] = FVector3f(M.M[0][0], M.M[0][1], M.M[0][2]);
+		TransformRows[1] = FVector3f(M.M[1][0], M.M[1][1], M.M[1][2]);
+		TransformRows[2] = FVector3f(M.M[2][0], M.M[2][1], M.M[2][2]);
+		Origin = FVector3f(M.M[3][0], M.M[3][1], M.M[3][2]);
+	}
+
 	FORCEINLINE FRenderTransform& operator=(const FRenderTransform& From)
 	{
 		TransformRows[0] = From.TransformRows[0];
@@ -41,6 +49,15 @@ public:
 		TransformRows[1]	= FVector3f(From.M[1][0], From.M[1][1], From.M[1][2]);
 		TransformRows[2]	= FVector3f(From.M[2][0], From.M[2][1], From.M[2][2]);
 		Origin				= FVector3f(From.M[3][0], From.M[3][1], From.M[3][2]);
+		return *this;
+	}
+
+	FORCEINLINE FRenderTransform& operator=(const FMatrix44d& From)
+	{
+		TransformRows[0] = FVector3f(From.M[0][0], From.M[0][1], From.M[0][2]);
+		TransformRows[1] = FVector3f(From.M[1][0], From.M[1][1], From.M[1][2]);
+		TransformRows[2] = FVector3f(From.M[2][0], From.M[2][1], From.M[2][2]);
+		Origin = FVector3f(From.M[3][0], From.M[3][1], From.M[3][2]);
 		return *this;
 	}
 
@@ -299,6 +316,7 @@ public:
 	 * @return The transformed volume.
 	 */
 	RENDERCORE_API FRenderBounds TransformBy(const FMatrix44f& M) const;
+	RENDERCORE_API FRenderBounds TransformBy(const FMatrix44d& M) const;
 
 	/**
 	 * Gets a bounding volume transformed by a render transform.
