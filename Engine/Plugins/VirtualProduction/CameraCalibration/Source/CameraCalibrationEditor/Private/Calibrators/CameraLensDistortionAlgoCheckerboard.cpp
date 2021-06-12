@@ -9,16 +9,19 @@
 #include "CameraCalibrationCheckerboard.h"
 #include "CameraCalibrationEditorLog.h"
 #include "CameraCalibrationUtils.h"
+#include "Dialogs/CustomDialog.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "GenericPlatform/GenericApplication.h"
 #include "Input/Events.h"
 #include "Internationalization/Text.h"
 #include "Layout/Geometry.h"
 #include "LensFile.h"
 #include "Math/Color.h"
+#include "Math/UnrealMathUtility.h"
 #include "Math/Vector.h"
 #include "Misc/MessageDialog.h"
 #include "PropertyCustomizationHelpers.h"
@@ -26,6 +29,7 @@
 #include "AssetEditor/SSimulcamViewport.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/SNullWidget.h"
@@ -95,6 +99,7 @@ namespace CameraLensDistortionAlgoCheckerboard
 						.MinAspectRatio(AspectRatio)
 						.MaxAspectRatio(AspectRatio)
 						.MinDesiredHeight(4 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+						.MaxDesiredHeight(4 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 						[CalibrationRowData->Thumbnail.ToSharedRef()];
 				}
 				else
@@ -316,18 +321,24 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		cv::drawChessboardCorners(CvFrame, CheckerboardSize, Corners, bCornersFound);
 	}
 
-	// Create thumbnail
-	do
+	auto TextureFromMat = [&](cv::Mat& Mat) -> UTexture2D*
 	{
-		// Resize the frame
-		cv::Mat CvThumbnail;
-		cv::resize(CvFrame, CvThumbnail, cv::Size(CvFrame.cols / 4, CvFrame.rows / 4));
+		// Currently we only support the pixel format below
+		if (Mat.depth() != CV_8U)
+		{
+			return nullptr;
+		}
 
-		UTexture2D* Texture = UTexture2D::CreateTransient(CvThumbnail.cols, CvThumbnail.rows, PF_R8G8B8A8);
+		if (Mat.channels() != 4)
+		{
+			return nullptr;
+		}
+
+		UTexture2D* Texture = UTexture2D::CreateTransient(Mat.cols, Mat.rows, PF_B8G8R8A8);
 
 		if (!Texture)
 		{
-			break;
+			return nullptr;
 		}
 
 #if WITH_EDITORONLY_DATA
@@ -340,13 +351,105 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
 
 		const int32 PixelStride = 4;
-		FMemory::Memcpy(TextureData, CvThumbnail.data, SIZE_T(CvThumbnail.cols * CvThumbnail.rows * PixelStride));
+		FMemory::Memcpy(TextureData, Mat.data, SIZE_T(Mat.cols * Mat.rows * PixelStride));
 
 		Mip0.BulkData.Unlock();
 		Texture->UpdateResource();
 
-		Row->Thumbnail = SNew(SSimulcamViewport, Texture);
-	} while (0);
+		return Texture;
+	};
+
+	// Show the detection to the user
+	if (bShouldShowDetectionWindow)
+	{
+		if (UTexture2D* FullTexture = TextureFromMat(CvFrame))
+		{
+			// Display the full resolution image a large as possible but clamped to the size of the primary display
+			// and preserving the aspect ratio of the image.
+
+			FDisplayMetrics Display;
+			FDisplayMetrics::RebuildDisplayMetrics(Display);
+
+			float DetectionWindowMaxWidth = FullTexture->GetSurfaceWidth();
+			float DetectionWindowMaxHeight = FullTexture->GetSurfaceHeight();
+
+			float MarginFactor = 0.85f; // Some margin off of full screen.
+
+			float FactorWidth = MarginFactor * Display.PrimaryDisplayWidth / DetectionWindowMaxWidth;
+			float FactorHeight = MarginFactor * Display.PrimaryDisplayHeight / DetectionWindowMaxHeight;
+
+			if (FactorWidth < FactorHeight)
+			{
+				DetectionWindowMaxWidth *= FactorWidth;
+				DetectionWindowMaxHeight *= FactorWidth;
+			}
+			else
+			{
+				DetectionWindowMaxWidth *= FactorHeight;
+				DetectionWindowMaxHeight *= FactorHeight;
+			}
+
+			TSharedPtr<SBox> ViewportWrapper;
+
+			TSharedRef<SCustomDialog> DetectionWindow =
+				SNew(SCustomDialog)
+				.Title(LOCTEXT("Detection", "Detection"))
+				.ScrollBoxMaxHeight(DetectionWindowMaxHeight)
+				.DialogContent
+				(
+					SAssignNew(ViewportWrapper, SBox)
+					.MinDesiredWidth(DetectionWindowMaxWidth)
+					.MinDesiredHeight(DetectionWindowMaxHeight)
+					[
+						SNew(SSimulcamViewport, FullTexture)
+					]
+			)
+				.Buttons
+				({
+					SCustomDialog::FButton(LOCTEXT("Ok", "Ok")),
+					});
+
+			DetectionWindow->Show();
+
+			// Compensate for DPI scale the window size and its location
+			{
+				const float DPIScale = DetectionWindow->GetDPIScaleFactor();
+
+				if (!FMath::IsNearlyEqual(DPIScale, 1.0f))
+				{
+					check(DPIScale > KINDA_SMALL_NUMBER);
+
+					const int32 DetectionWindowMaxWidthScaled = DetectionWindowMaxWidth / DPIScale;
+					const int32 DetectionWindowMaxHeightScaled = DetectionWindowMaxHeight / DPIScale;
+
+					ViewportWrapper->SetMaxDesiredWidth(DetectionWindowMaxWidthScaled);
+					ViewportWrapper->SetMaxDesiredHeight(DetectionWindowMaxHeightScaled);
+
+					const int32 DisplayWidthScaled = Display.PrimaryDisplayWidth / DPIScale;
+					const int32 DisplayHeightScaled = Display.PrimaryDisplayHeight / DPIScale;
+
+					DetectionWindow->MoveWindowTo(FVector2D(
+						(DisplayWidthScaled - DetectionWindowMaxWidthScaled) / 2,
+						(DisplayHeightScaled - DetectionWindowMaxHeightScaled) / 2
+					));
+				}
+			}
+		}
+	}
+
+	// Create thumbnail and add it to the row
+	{
+		// Resize the frame to thumbnail size
+
+		cv::Mat CvThumbnail;
+		const int32 ResolutionDivider = 4;
+		cv::resize(CvFrame, CvThumbnail, cv::Size(CvFrame.cols / ResolutionDivider, CvFrame.rows / ResolutionDivider));
+
+		if (UTexture2D* ThumbnailTexture = TextureFromMat(CvThumbnail))
+		{
+			Row->Thumbnail = SNew(SSimulcamViewport, ThumbnailTexture);
+		}
+	}
 
 	// Validate the new row, show a message if validation fails.
 	{
@@ -384,7 +487,13 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildUI()
 		.AutoHeight()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 		[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Checkerboard", "Checkerboard"), BuildCalibrationDevicePickerWidget()) ]
-				
+
+		+ SVerticalBox::Slot() // Show Detection
+		.VAlign(EVerticalAlignment::VAlign_Top)
+		.AutoHeight()
+		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("ShowDetection", "Show Detection"), BuildShowDetectionWidget())]
+
 		+ SVerticalBox::Slot() // Calibration Rows
 		.AutoHeight()
 		.MaxHeight(12 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
@@ -734,6 +843,19 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationDevic
 		;
 }
 
+TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildShowDetectionWidget()
+{
+	return SNew(SCheckBox)
+		.IsChecked_Lambda([&]() -> ECheckBoxState
+		{
+			return bShouldShowDetectionWindow ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		})
+		.OnCheckStateChanged_Lambda([&](ECheckBoxState NewState) -> void
+		{
+			bShouldShowDetectionWindow = (NewState == ECheckBoxState::Checked);
+		});
+}
+
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationActionButtons()
 {
 	return SNew(SHorizontalBox)
@@ -865,7 +987,7 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildHelpWidget()
 			"This Lens Distortion algorithm is based on capturing at least 4 different views of a checkerboard.\n\n"
 			"The camera and/or the checkerboard may be moved for each. To capture, simply click the simulcam\n"
 			"viewport. You can optionally right-click the simulcam viewport to pause it and ensure it will be\n"
-			"a sharp capture.\n\n"
+			"a sharp capture (if the media source supports pause).\n\n"
 
 			"This will require the selection of a Checkerboard actor that exists in the scene, and is configured\n"
 			"to match the dimensions and number of inner corner rows and columns as the physical checkerboard.\n"

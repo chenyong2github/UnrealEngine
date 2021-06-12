@@ -202,13 +202,11 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
 					return FReply::Handled();
 				}
 
-				TSharedRef< SCustomDialog> AlgoHelpWindow =
+				TSharedRef<SCustomDialog> AlgoHelpWindow =
 					SNew(SCustomDialog)
 					.Title(FText::FromName(NodalOffsetTool->FriendlyName()))
 					.DialogContent(Algo->BuildHelpWidget())
-					.Buttons({
-						SCustomDialog::FButton(LOCTEXT("Ok", "Ok")),
-						});
+					.Buttons({ SCustomDialog::FButton(LOCTEXT("Ok", "Ok")) });
 
 				AlgoHelpWindow->Show();
 

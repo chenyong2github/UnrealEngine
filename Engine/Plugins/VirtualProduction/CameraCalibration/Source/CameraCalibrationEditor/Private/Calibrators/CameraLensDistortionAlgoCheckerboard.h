@@ -132,10 +132,16 @@ private:
 	/** Caches the last camera data.  Will hold last value before the media is paused */
 	FCameraDataCache LastCameraData;
 
+	/** True if a detection window should be shown after every capture */
+	bool bShouldShowDetectionWindow = false;
+
 private:
 
 	/** Builds the UI of the calibration device picker */
 	TSharedRef<SWidget> BuildCalibrationDevicePickerWidget();
+
+	/** Builds the UI for the user to select if they want a corner detection window to be shown after every capture */
+	TSharedRef<SWidget> BuildShowDetectionWidget();
 
 	/** Builds the UI of the calibration points table */
 	TSharedRef<SWidget> BuildCalibrationPointsTable();
