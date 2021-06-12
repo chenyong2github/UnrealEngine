@@ -31,1030 +31,731 @@ UE_PUSH_MACRO("TEXT")
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ActionCacheUpdateCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<5> scc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_BatchReadBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_BatchUpdateBlobsRequest_Request_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_BatchUpdateBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_CacheCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Command_EnvironmentVariable_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<4> scc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_DirectoryNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_ExecuteResponse_ServerLogsEntry_DoNotUse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_ExecutedActionMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_ExecutionCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ExecutionPolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_FileNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_LogFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_NodeProperty_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_OutputDirectory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_OutputFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_OutputSymlink_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Platform_Property_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_PriorityCapabilities_PriorityRange_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ResultsCachePolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_SymlinkNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ToolDetails_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_build_2fbazel_2fsemver_2fsemver_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_SemVer_build_2fbazel_2fsemver_2fsemver_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2fany_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Any_google_2fprotobuf_2fany_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2fduration_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Duration_google_2fprotobuf_2fduration_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2ftimestamp_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2fwrappers_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_UInt32Value_google_2fprotobuf_2fwrappers_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fstatus_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_Status_google_2frpc_2fstatus_2eproto;
+
+PROTOBUF_PRAGMA_INIT_SEG
 namespace build {
 namespace bazel {
 namespace remote {
 namespace execution {
 namespace v2 {
-class ActionDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Action> _instance;
-} _Action_default_instance_;
-class Command_EnvironmentVariableDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Command_EnvironmentVariable> _instance;
-} _Command_EnvironmentVariable_default_instance_;
-class CommandDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Command> _instance;
-} _Command_default_instance_;
-class Platform_PropertyDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Platform_Property> _instance;
-} _Platform_Property_default_instance_;
-class PlatformDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Platform> _instance;
-} _Platform_default_instance_;
-class DirectoryDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Directory> _instance;
-} _Directory_default_instance_;
-class NodePropertyDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<NodeProperty> _instance;
-} _NodeProperty_default_instance_;
-class NodePropertiesDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<NodeProperties> _instance;
-} _NodeProperties_default_instance_;
-class FileNodeDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<FileNode> _instance;
-} _FileNode_default_instance_;
-class DirectoryNodeDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<DirectoryNode> _instance;
-} _DirectoryNode_default_instance_;
-class SymlinkNodeDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<SymlinkNode> _instance;
-} _SymlinkNode_default_instance_;
-class DigestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Digest> _instance;
-} _Digest_default_instance_;
-class ExecutedActionMetadataDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ExecutedActionMetadata> _instance;
-} _ExecutedActionMetadata_default_instance_;
-class ActionResultDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ActionResult> _instance;
-} _ActionResult_default_instance_;
-class OutputFileDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<OutputFile> _instance;
-} _OutputFile_default_instance_;
-class TreeDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Tree> _instance;
-} _Tree_default_instance_;
-class OutputDirectoryDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<OutputDirectory> _instance;
-} _OutputDirectory_default_instance_;
-class OutputSymlinkDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<OutputSymlink> _instance;
-} _OutputSymlink_default_instance_;
-class ExecutionPolicyDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ExecutionPolicy> _instance;
-} _ExecutionPolicy_default_instance_;
-class ResultsCachePolicyDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ResultsCachePolicy> _instance;
-} _ResultsCachePolicy_default_instance_;
-class ExecuteRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ExecuteRequest> _instance;
-} _ExecuteRequest_default_instance_;
-class LogFileDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<LogFile> _instance;
-} _LogFile_default_instance_;
-class ExecuteResponse_ServerLogsEntry_DoNotUseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ExecuteResponse_ServerLogsEntry_DoNotUse> _instance;
-} _ExecuteResponse_ServerLogsEntry_DoNotUse_default_instance_;
-class ExecuteResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ExecuteResponse> _instance;
-} _ExecuteResponse_default_instance_;
-class ExecutionStageDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ExecutionStage> _instance;
-} _ExecutionStage_default_instance_;
-class ExecuteOperationMetadataDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ExecuteOperationMetadata> _instance;
-} _ExecuteOperationMetadata_default_instance_;
-class WaitExecutionRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<WaitExecutionRequest> _instance;
-} _WaitExecutionRequest_default_instance_;
-class GetActionResultRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<GetActionResultRequest> _instance;
-} _GetActionResultRequest_default_instance_;
-class UpdateActionResultRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<UpdateActionResultRequest> _instance;
-} _UpdateActionResultRequest_default_instance_;
-class FindMissingBlobsRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<FindMissingBlobsRequest> _instance;
-} _FindMissingBlobsRequest_default_instance_;
-class FindMissingBlobsResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<FindMissingBlobsResponse> _instance;
-} _FindMissingBlobsResponse_default_instance_;
-class BatchUpdateBlobsRequest_RequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BatchUpdateBlobsRequest_Request> _instance;
-} _BatchUpdateBlobsRequest_Request_default_instance_;
-class BatchUpdateBlobsRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BatchUpdateBlobsRequest> _instance;
-} _BatchUpdateBlobsRequest_default_instance_;
-class BatchUpdateBlobsResponse_ResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BatchUpdateBlobsResponse_Response> _instance;
-} _BatchUpdateBlobsResponse_Response_default_instance_;
-class BatchUpdateBlobsResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BatchUpdateBlobsResponse> _instance;
-} _BatchUpdateBlobsResponse_default_instance_;
-class BatchReadBlobsRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BatchReadBlobsRequest> _instance;
-} _BatchReadBlobsRequest_default_instance_;
-class BatchReadBlobsResponse_ResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BatchReadBlobsResponse_Response> _instance;
-} _BatchReadBlobsResponse_Response_default_instance_;
-class BatchReadBlobsResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BatchReadBlobsResponse> _instance;
-} _BatchReadBlobsResponse_default_instance_;
-class GetTreeRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<GetTreeRequest> _instance;
-} _GetTreeRequest_default_instance_;
-class GetTreeResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<GetTreeResponse> _instance;
-} _GetTreeResponse_default_instance_;
-class GetCapabilitiesRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<GetCapabilitiesRequest> _instance;
-} _GetCapabilitiesRequest_default_instance_;
-class ServerCapabilitiesDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ServerCapabilities> _instance;
-} _ServerCapabilities_default_instance_;
-class DigestFunctionDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<DigestFunction> _instance;
-} _DigestFunction_default_instance_;
-class ActionCacheUpdateCapabilitiesDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ActionCacheUpdateCapabilities> _instance;
-} _ActionCacheUpdateCapabilities_default_instance_;
-class PriorityCapabilities_PriorityRangeDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<PriorityCapabilities_PriorityRange> _instance;
-} _PriorityCapabilities_PriorityRange_default_instance_;
-class PriorityCapabilitiesDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<PriorityCapabilities> _instance;
-} _PriorityCapabilities_default_instance_;
-class SymlinkAbsolutePathStrategyDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<SymlinkAbsolutePathStrategy> _instance;
-} _SymlinkAbsolutePathStrategy_default_instance_;
-class CacheCapabilitiesDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<CacheCapabilities> _instance;
-} _CacheCapabilities_default_instance_;
-class ExecutionCapabilitiesDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ExecutionCapabilities> _instance;
-} _ExecutionCapabilities_default_instance_;
-class ToolDetailsDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ToolDetails> _instance;
-} _ToolDetails_default_instance_;
-class RequestMetadataDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<RequestMetadata> _instance;
-} _RequestMetadata_default_instance_;
+constexpr Action::Action(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : salt_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , command_digest_(nullptr)
+  , input_root_digest_(nullptr)
+  , timeout_(nullptr)
+  , platform_(nullptr)
+  , do_not_cache_(false){}
+struct ActionDefaultTypeInternal {
+  constexpr ActionDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ActionDefaultTypeInternal() {}
+  union {
+    Action _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ActionDefaultTypeInternal _Action_default_instance_;
+constexpr Command_EnvironmentVariable::Command_EnvironmentVariable(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , value_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct Command_EnvironmentVariableDefaultTypeInternal {
+  constexpr Command_EnvironmentVariableDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~Command_EnvironmentVariableDefaultTypeInternal() {}
+  union {
+    Command_EnvironmentVariable _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT Command_EnvironmentVariableDefaultTypeInternal _Command_EnvironmentVariable_default_instance_;
+constexpr Command::Command(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : arguments_()
+  , environment_variables_()
+  , output_files_()
+  , output_directories_()
+  , output_paths_()
+  , output_node_properties_()
+  , working_directory_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , platform_(nullptr){}
+struct CommandDefaultTypeInternal {
+  constexpr CommandDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~CommandDefaultTypeInternal() {}
+  union {
+    Command _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT CommandDefaultTypeInternal _Command_default_instance_;
+constexpr Platform_Property::Platform_Property(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , value_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct Platform_PropertyDefaultTypeInternal {
+  constexpr Platform_PropertyDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~Platform_PropertyDefaultTypeInternal() {}
+  union {
+    Platform_Property _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT Platform_PropertyDefaultTypeInternal _Platform_Property_default_instance_;
+constexpr Platform::Platform(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : properties_(){}
+struct PlatformDefaultTypeInternal {
+  constexpr PlatformDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~PlatformDefaultTypeInternal() {}
+  union {
+    Platform _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PlatformDefaultTypeInternal _Platform_default_instance_;
+constexpr Directory::Directory(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : files_()
+  , directories_()
+  , symlinks_()
+  , node_properties_(nullptr){}
+struct DirectoryDefaultTypeInternal {
+  constexpr DirectoryDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~DirectoryDefaultTypeInternal() {}
+  union {
+    Directory _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT DirectoryDefaultTypeInternal _Directory_default_instance_;
+constexpr NodeProperty::NodeProperty(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , value_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct NodePropertyDefaultTypeInternal {
+  constexpr NodePropertyDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~NodePropertyDefaultTypeInternal() {}
+  union {
+    NodeProperty _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT NodePropertyDefaultTypeInternal _NodeProperty_default_instance_;
+constexpr NodeProperties::NodeProperties(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : properties_()
+  , mtime_(nullptr)
+  , unix_mode_(nullptr){}
+struct NodePropertiesDefaultTypeInternal {
+  constexpr NodePropertiesDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~NodePropertiesDefaultTypeInternal() {}
+  union {
+    NodeProperties _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT NodePropertiesDefaultTypeInternal _NodeProperties_default_instance_;
+constexpr FileNode::FileNode(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , digest_(nullptr)
+  , node_properties_(nullptr)
+  , is_executable_(false){}
+struct FileNodeDefaultTypeInternal {
+  constexpr FileNodeDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~FileNodeDefaultTypeInternal() {}
+  union {
+    FileNode _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT FileNodeDefaultTypeInternal _FileNode_default_instance_;
+constexpr DirectoryNode::DirectoryNode(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , digest_(nullptr){}
+struct DirectoryNodeDefaultTypeInternal {
+  constexpr DirectoryNodeDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~DirectoryNodeDefaultTypeInternal() {}
+  union {
+    DirectoryNode _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT DirectoryNodeDefaultTypeInternal _DirectoryNode_default_instance_;
+constexpr SymlinkNode::SymlinkNode(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , target_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , node_properties_(nullptr){}
+struct SymlinkNodeDefaultTypeInternal {
+  constexpr SymlinkNodeDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~SymlinkNodeDefaultTypeInternal() {}
+  union {
+    SymlinkNode _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT SymlinkNodeDefaultTypeInternal _SymlinkNode_default_instance_;
+constexpr Digest::Digest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : hash_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , size_bytes_(PROTOBUF_LONGLONG(0)){}
+struct DigestDefaultTypeInternal {
+  constexpr DigestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~DigestDefaultTypeInternal() {}
+  union {
+    Digest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT DigestDefaultTypeInternal _Digest_default_instance_;
+constexpr ExecutedActionMetadata::ExecutedActionMetadata(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : auxiliary_metadata_()
+  , worker_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , queued_timestamp_(nullptr)
+  , worker_start_timestamp_(nullptr)
+  , worker_completed_timestamp_(nullptr)
+  , input_fetch_start_timestamp_(nullptr)
+  , input_fetch_completed_timestamp_(nullptr)
+  , execution_start_timestamp_(nullptr)
+  , execution_completed_timestamp_(nullptr)
+  , output_upload_start_timestamp_(nullptr)
+  , output_upload_completed_timestamp_(nullptr){}
+struct ExecutedActionMetadataDefaultTypeInternal {
+  constexpr ExecutedActionMetadataDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ExecutedActionMetadataDefaultTypeInternal() {}
+  union {
+    ExecutedActionMetadata _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExecutedActionMetadataDefaultTypeInternal _ExecutedActionMetadata_default_instance_;
+constexpr ActionResult::ActionResult(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : output_files_()
+  , output_directories_()
+  , output_file_symlinks_()
+  , output_directory_symlinks_()
+  , output_symlinks_()
+  , stdout_raw_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , stderr_raw_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , stdout_digest_(nullptr)
+  , stderr_digest_(nullptr)
+  , execution_metadata_(nullptr)
+  , exit_code_(0){}
+struct ActionResultDefaultTypeInternal {
+  constexpr ActionResultDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ActionResultDefaultTypeInternal() {}
+  union {
+    ActionResult _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ActionResultDefaultTypeInternal _ActionResult_default_instance_;
+constexpr OutputFile::OutputFile(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : path_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , contents_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , digest_(nullptr)
+  , node_properties_(nullptr)
+  , is_executable_(false){}
+struct OutputFileDefaultTypeInternal {
+  constexpr OutputFileDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~OutputFileDefaultTypeInternal() {}
+  union {
+    OutputFile _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT OutputFileDefaultTypeInternal _OutputFile_default_instance_;
+constexpr Tree::Tree(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : children_()
+  , root_(nullptr){}
+struct TreeDefaultTypeInternal {
+  constexpr TreeDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~TreeDefaultTypeInternal() {}
+  union {
+    Tree _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT TreeDefaultTypeInternal _Tree_default_instance_;
+constexpr OutputDirectory::OutputDirectory(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : path_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , tree_digest_(nullptr){}
+struct OutputDirectoryDefaultTypeInternal {
+  constexpr OutputDirectoryDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~OutputDirectoryDefaultTypeInternal() {}
+  union {
+    OutputDirectory _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT OutputDirectoryDefaultTypeInternal _OutputDirectory_default_instance_;
+constexpr OutputSymlink::OutputSymlink(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : path_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , target_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , node_properties_(nullptr){}
+struct OutputSymlinkDefaultTypeInternal {
+  constexpr OutputSymlinkDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~OutputSymlinkDefaultTypeInternal() {}
+  union {
+    OutputSymlink _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT OutputSymlinkDefaultTypeInternal _OutputSymlink_default_instance_;
+constexpr ExecutionPolicy::ExecutionPolicy(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : priority_(0){}
+struct ExecutionPolicyDefaultTypeInternal {
+  constexpr ExecutionPolicyDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ExecutionPolicyDefaultTypeInternal() {}
+  union {
+    ExecutionPolicy _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExecutionPolicyDefaultTypeInternal _ExecutionPolicy_default_instance_;
+constexpr ResultsCachePolicy::ResultsCachePolicy(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : priority_(0){}
+struct ResultsCachePolicyDefaultTypeInternal {
+  constexpr ResultsCachePolicyDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ResultsCachePolicyDefaultTypeInternal() {}
+  union {
+    ResultsCachePolicy _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ResultsCachePolicyDefaultTypeInternal _ResultsCachePolicy_default_instance_;
+constexpr ExecuteRequest::ExecuteRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : instance_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , action_digest_(nullptr)
+  , execution_policy_(nullptr)
+  , results_cache_policy_(nullptr)
+  , skip_cache_lookup_(false){}
+struct ExecuteRequestDefaultTypeInternal {
+  constexpr ExecuteRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ExecuteRequestDefaultTypeInternal() {}
+  union {
+    ExecuteRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExecuteRequestDefaultTypeInternal _ExecuteRequest_default_instance_;
+constexpr LogFile::LogFile(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : digest_(nullptr)
+  , human_readable_(false){}
+struct LogFileDefaultTypeInternal {
+  constexpr LogFileDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~LogFileDefaultTypeInternal() {}
+  union {
+    LogFile _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT LogFileDefaultTypeInternal _LogFile_default_instance_;
+constexpr ExecuteResponse_ServerLogsEntry_DoNotUse::ExecuteResponse_ServerLogsEntry_DoNotUse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct ExecuteResponse_ServerLogsEntry_DoNotUseDefaultTypeInternal {
+  constexpr ExecuteResponse_ServerLogsEntry_DoNotUseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ExecuteResponse_ServerLogsEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    ExecuteResponse_ServerLogsEntry_DoNotUse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExecuteResponse_ServerLogsEntry_DoNotUseDefaultTypeInternal _ExecuteResponse_ServerLogsEntry_DoNotUse_default_instance_;
+constexpr ExecuteResponse::ExecuteResponse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : server_logs_(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{})
+  , message_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , result_(nullptr)
+  , status_(nullptr)
+  , cached_result_(false){}
+struct ExecuteResponseDefaultTypeInternal {
+  constexpr ExecuteResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ExecuteResponseDefaultTypeInternal() {}
+  union {
+    ExecuteResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExecuteResponseDefaultTypeInternal _ExecuteResponse_default_instance_;
+constexpr ExecutionStage::ExecutionStage(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct ExecutionStageDefaultTypeInternal {
+  constexpr ExecutionStageDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ExecutionStageDefaultTypeInternal() {}
+  union {
+    ExecutionStage _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExecutionStageDefaultTypeInternal _ExecutionStage_default_instance_;
+constexpr ExecuteOperationMetadata::ExecuteOperationMetadata(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : stdout_stream_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , stderr_stream_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , action_digest_(nullptr)
+  , stage_(0)
+{}
+struct ExecuteOperationMetadataDefaultTypeInternal {
+  constexpr ExecuteOperationMetadataDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ExecuteOperationMetadataDefaultTypeInternal() {}
+  union {
+    ExecuteOperationMetadata _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExecuteOperationMetadataDefaultTypeInternal _ExecuteOperationMetadata_default_instance_;
+constexpr WaitExecutionRequest::WaitExecutionRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct WaitExecutionRequestDefaultTypeInternal {
+  constexpr WaitExecutionRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~WaitExecutionRequestDefaultTypeInternal() {}
+  union {
+    WaitExecutionRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT WaitExecutionRequestDefaultTypeInternal _WaitExecutionRequest_default_instance_;
+constexpr GetActionResultRequest::GetActionResultRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : inline_output_files_()
+  , instance_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , action_digest_(nullptr)
+  , inline_stdout_(false)
+  , inline_stderr_(false){}
+struct GetActionResultRequestDefaultTypeInternal {
+  constexpr GetActionResultRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~GetActionResultRequestDefaultTypeInternal() {}
+  union {
+    GetActionResultRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT GetActionResultRequestDefaultTypeInternal _GetActionResultRequest_default_instance_;
+constexpr UpdateActionResultRequest::UpdateActionResultRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : instance_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , action_digest_(nullptr)
+  , action_result_(nullptr)
+  , results_cache_policy_(nullptr){}
+struct UpdateActionResultRequestDefaultTypeInternal {
+  constexpr UpdateActionResultRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~UpdateActionResultRequestDefaultTypeInternal() {}
+  union {
+    UpdateActionResultRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT UpdateActionResultRequestDefaultTypeInternal _UpdateActionResultRequest_default_instance_;
+constexpr FindMissingBlobsRequest::FindMissingBlobsRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : blob_digests_()
+  , instance_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct FindMissingBlobsRequestDefaultTypeInternal {
+  constexpr FindMissingBlobsRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~FindMissingBlobsRequestDefaultTypeInternal() {}
+  union {
+    FindMissingBlobsRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT FindMissingBlobsRequestDefaultTypeInternal _FindMissingBlobsRequest_default_instance_;
+constexpr FindMissingBlobsResponse::FindMissingBlobsResponse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : missing_blob_digests_(){}
+struct FindMissingBlobsResponseDefaultTypeInternal {
+  constexpr FindMissingBlobsResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~FindMissingBlobsResponseDefaultTypeInternal() {}
+  union {
+    FindMissingBlobsResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT FindMissingBlobsResponseDefaultTypeInternal _FindMissingBlobsResponse_default_instance_;
+constexpr BatchUpdateBlobsRequest_Request::BatchUpdateBlobsRequest_Request(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : data_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , digest_(nullptr){}
+struct BatchUpdateBlobsRequest_RequestDefaultTypeInternal {
+  constexpr BatchUpdateBlobsRequest_RequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BatchUpdateBlobsRequest_RequestDefaultTypeInternal() {}
+  union {
+    BatchUpdateBlobsRequest_Request _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BatchUpdateBlobsRequest_RequestDefaultTypeInternal _BatchUpdateBlobsRequest_Request_default_instance_;
+constexpr BatchUpdateBlobsRequest::BatchUpdateBlobsRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : requests_()
+  , instance_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct BatchUpdateBlobsRequestDefaultTypeInternal {
+  constexpr BatchUpdateBlobsRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BatchUpdateBlobsRequestDefaultTypeInternal() {}
+  union {
+    BatchUpdateBlobsRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BatchUpdateBlobsRequestDefaultTypeInternal _BatchUpdateBlobsRequest_default_instance_;
+constexpr BatchUpdateBlobsResponse_Response::BatchUpdateBlobsResponse_Response(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : digest_(nullptr)
+  , status_(nullptr){}
+struct BatchUpdateBlobsResponse_ResponseDefaultTypeInternal {
+  constexpr BatchUpdateBlobsResponse_ResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BatchUpdateBlobsResponse_ResponseDefaultTypeInternal() {}
+  union {
+    BatchUpdateBlobsResponse_Response _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BatchUpdateBlobsResponse_ResponseDefaultTypeInternal _BatchUpdateBlobsResponse_Response_default_instance_;
+constexpr BatchUpdateBlobsResponse::BatchUpdateBlobsResponse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : responses_(){}
+struct BatchUpdateBlobsResponseDefaultTypeInternal {
+  constexpr BatchUpdateBlobsResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BatchUpdateBlobsResponseDefaultTypeInternal() {}
+  union {
+    BatchUpdateBlobsResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BatchUpdateBlobsResponseDefaultTypeInternal _BatchUpdateBlobsResponse_default_instance_;
+constexpr BatchReadBlobsRequest::BatchReadBlobsRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : digests_()
+  , instance_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct BatchReadBlobsRequestDefaultTypeInternal {
+  constexpr BatchReadBlobsRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BatchReadBlobsRequestDefaultTypeInternal() {}
+  union {
+    BatchReadBlobsRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BatchReadBlobsRequestDefaultTypeInternal _BatchReadBlobsRequest_default_instance_;
+constexpr BatchReadBlobsResponse_Response::BatchReadBlobsResponse_Response(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : data_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , digest_(nullptr)
+  , status_(nullptr){}
+struct BatchReadBlobsResponse_ResponseDefaultTypeInternal {
+  constexpr BatchReadBlobsResponse_ResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BatchReadBlobsResponse_ResponseDefaultTypeInternal() {}
+  union {
+    BatchReadBlobsResponse_Response _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BatchReadBlobsResponse_ResponseDefaultTypeInternal _BatchReadBlobsResponse_Response_default_instance_;
+constexpr BatchReadBlobsResponse::BatchReadBlobsResponse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : responses_(){}
+struct BatchReadBlobsResponseDefaultTypeInternal {
+  constexpr BatchReadBlobsResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BatchReadBlobsResponseDefaultTypeInternal() {}
+  union {
+    BatchReadBlobsResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BatchReadBlobsResponseDefaultTypeInternal _BatchReadBlobsResponse_default_instance_;
+constexpr GetTreeRequest::GetTreeRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : instance_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , page_token_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , root_digest_(nullptr)
+  , page_size_(0){}
+struct GetTreeRequestDefaultTypeInternal {
+  constexpr GetTreeRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~GetTreeRequestDefaultTypeInternal() {}
+  union {
+    GetTreeRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT GetTreeRequestDefaultTypeInternal _GetTreeRequest_default_instance_;
+constexpr GetTreeResponse::GetTreeResponse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : directories_()
+  , next_page_token_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct GetTreeResponseDefaultTypeInternal {
+  constexpr GetTreeResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~GetTreeResponseDefaultTypeInternal() {}
+  union {
+    GetTreeResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT GetTreeResponseDefaultTypeInternal _GetTreeResponse_default_instance_;
+constexpr GetCapabilitiesRequest::GetCapabilitiesRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : instance_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct GetCapabilitiesRequestDefaultTypeInternal {
+  constexpr GetCapabilitiesRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~GetCapabilitiesRequestDefaultTypeInternal() {}
+  union {
+    GetCapabilitiesRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT GetCapabilitiesRequestDefaultTypeInternal _GetCapabilitiesRequest_default_instance_;
+constexpr ServerCapabilities::ServerCapabilities(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : cache_capabilities_(nullptr)
+  , execution_capabilities_(nullptr)
+  , deprecated_api_version_(nullptr)
+  , low_api_version_(nullptr)
+  , high_api_version_(nullptr){}
+struct ServerCapabilitiesDefaultTypeInternal {
+  constexpr ServerCapabilitiesDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ServerCapabilitiesDefaultTypeInternal() {}
+  union {
+    ServerCapabilities _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ServerCapabilitiesDefaultTypeInternal _ServerCapabilities_default_instance_;
+constexpr DigestFunction::DigestFunction(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct DigestFunctionDefaultTypeInternal {
+  constexpr DigestFunctionDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~DigestFunctionDefaultTypeInternal() {}
+  union {
+    DigestFunction _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT DigestFunctionDefaultTypeInternal _DigestFunction_default_instance_;
+constexpr ActionCacheUpdateCapabilities::ActionCacheUpdateCapabilities(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : update_enabled_(false){}
+struct ActionCacheUpdateCapabilitiesDefaultTypeInternal {
+  constexpr ActionCacheUpdateCapabilitiesDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ActionCacheUpdateCapabilitiesDefaultTypeInternal() {}
+  union {
+    ActionCacheUpdateCapabilities _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ActionCacheUpdateCapabilitiesDefaultTypeInternal _ActionCacheUpdateCapabilities_default_instance_;
+constexpr PriorityCapabilities_PriorityRange::PriorityCapabilities_PriorityRange(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : min_priority_(0)
+  , max_priority_(0){}
+struct PriorityCapabilities_PriorityRangeDefaultTypeInternal {
+  constexpr PriorityCapabilities_PriorityRangeDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~PriorityCapabilities_PriorityRangeDefaultTypeInternal() {}
+  union {
+    PriorityCapabilities_PriorityRange _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PriorityCapabilities_PriorityRangeDefaultTypeInternal _PriorityCapabilities_PriorityRange_default_instance_;
+constexpr PriorityCapabilities::PriorityCapabilities(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : priorities_(){}
+struct PriorityCapabilitiesDefaultTypeInternal {
+  constexpr PriorityCapabilitiesDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~PriorityCapabilitiesDefaultTypeInternal() {}
+  union {
+    PriorityCapabilities _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PriorityCapabilitiesDefaultTypeInternal _PriorityCapabilities_default_instance_;
+constexpr SymlinkAbsolutePathStrategy::SymlinkAbsolutePathStrategy(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct SymlinkAbsolutePathStrategyDefaultTypeInternal {
+  constexpr SymlinkAbsolutePathStrategyDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~SymlinkAbsolutePathStrategyDefaultTypeInternal() {}
+  union {
+    SymlinkAbsolutePathStrategy _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT SymlinkAbsolutePathStrategyDefaultTypeInternal _SymlinkAbsolutePathStrategy_default_instance_;
+constexpr CacheCapabilities::CacheCapabilities(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : digest_function_()
+  , _digest_function_cached_byte_size_()
+  , action_cache_update_capabilities_(nullptr)
+  , cache_priority_capabilities_(nullptr)
+  , max_batch_total_size_bytes_(PROTOBUF_LONGLONG(0))
+  , symlink_absolute_path_strategy_(0)
+{}
+struct CacheCapabilitiesDefaultTypeInternal {
+  constexpr CacheCapabilitiesDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~CacheCapabilitiesDefaultTypeInternal() {}
+  union {
+    CacheCapabilities _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT CacheCapabilitiesDefaultTypeInternal _CacheCapabilities_default_instance_;
+constexpr ExecutionCapabilities::ExecutionCapabilities(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : supported_node_properties_()
+  , execution_priority_capabilities_(nullptr)
+  , digest_function_(0)
+
+  , exec_enabled_(false){}
+struct ExecutionCapabilitiesDefaultTypeInternal {
+  constexpr ExecutionCapabilitiesDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ExecutionCapabilitiesDefaultTypeInternal() {}
+  union {
+    ExecutionCapabilities _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExecutionCapabilitiesDefaultTypeInternal _ExecutionCapabilities_default_instance_;
+constexpr ToolDetails::ToolDetails(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : tool_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , tool_version_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct ToolDetailsDefaultTypeInternal {
+  constexpr ToolDetailsDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ToolDetailsDefaultTypeInternal() {}
+  union {
+    ToolDetails _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ToolDetailsDefaultTypeInternal _ToolDetails_default_instance_;
+constexpr RequestMetadata::RequestMetadata(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : action_id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , tool_invocation_id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , correlated_invocations_id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , tool_details_(nullptr){}
+struct RequestMetadataDefaultTypeInternal {
+  constexpr RequestMetadataDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~RequestMetadataDefaultTypeInternal() {}
+  union {
+    RequestMetadata _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT RequestMetadataDefaultTypeInternal _RequestMetadata_default_instance_;
 }  // namespace v2
 }  // namespace execution
 }  // namespace remote
 }  // namespace bazel
 }  // namespace build
-static void InitDefaultsscc_info_Action_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_Action_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::Action();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::Action::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_Action_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_Action_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_Duration_google_2fprotobuf_2fduration_2eproto.base,
-      &scc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ActionCacheUpdateCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ActionCacheUpdateCapabilities_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ActionCacheUpdateCapabilities();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ActionCacheUpdateCapabilities::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ActionCacheUpdateCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ActionCacheUpdateCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ActionResult_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ActionResult();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ActionResult::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<5> scc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 5, 0, InitDefaultsscc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_OutputFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_OutputSymlink_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_OutputDirectory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_ExecutedActionMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_BatchReadBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_BatchReadBlobsRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::BatchReadBlobsRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::BatchReadBlobsRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_BatchReadBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_BatchReadBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_BatchReadBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_BatchReadBlobsResponse_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::BatchReadBlobsResponse();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::BatchReadBlobsResponse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_BatchReadBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_BatchReadBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_BatchReadBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_BatchReadBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_BatchReadBlobsResponse_Response_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::BatchReadBlobsResponse_Response();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::BatchReadBlobsResponse_Response::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_BatchReadBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_BatchReadBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_Status_google_2frpc_2fstatus_2eproto.base,}};
-
-static void InitDefaultsscc_info_BatchUpdateBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_BatchUpdateBlobsRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_BatchUpdateBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_BatchUpdateBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_BatchUpdateBlobsRequest_Request_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_BatchUpdateBlobsRequest_Request_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_BatchUpdateBlobsRequest_Request_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest_Request();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest_Request::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_BatchUpdateBlobsRequest_Request_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_BatchUpdateBlobsRequest_Request_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_BatchUpdateBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_BatchUpdateBlobsResponse_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_BatchUpdateBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_BatchUpdateBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_BatchUpdateBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_BatchUpdateBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_BatchUpdateBlobsResponse_Response_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse_Response();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse_Response::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_BatchUpdateBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_BatchUpdateBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_Status_google_2frpc_2fstatus_2eproto.base,}};
-
-static void InitDefaultsscc_info_CacheCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_CacheCapabilities_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::CacheCapabilities();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::CacheCapabilities::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_CacheCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_CacheCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_ActionCacheUpdateCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_Command_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_Command_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::Command();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::Command::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_Command_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_Command_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Command_EnvironmentVariable_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_Command_EnvironmentVariable_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_Command_EnvironmentVariable_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::Command_EnvironmentVariable();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::Command_EnvironmentVariable::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Command_EnvironmentVariable_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_Command_EnvironmentVariable_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_Digest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::Digest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::Digest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_DigestFunction_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_DigestFunction_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::DigestFunction();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::DigestFunction::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_DigestFunction_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_DigestFunction_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_Directory_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::Directory();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::Directory::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<4> scc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 4, 0, InitDefaultsscc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_FileNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_DirectoryNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_SymlinkNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_DirectoryNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_DirectoryNode_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::DirectoryNode();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::DirectoryNode::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_DirectoryNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_DirectoryNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ExecuteOperationMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ExecuteOperationMetadata_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ExecuteOperationMetadata();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ExecuteOperationMetadata::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_ExecuteOperationMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_ExecuteOperationMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ExecuteRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ExecuteRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ExecuteRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ExecuteRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_ExecuteRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_ExecuteRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_ExecutionPolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_ResultsCachePolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ExecuteResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ExecuteResponse_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ExecuteResponse();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ExecuteResponse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_ExecuteResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_ExecuteResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_Status_google_2frpc_2fstatus_2eproto.base,
-      &scc_info_ExecuteResponse_ServerLogsEntry_DoNotUse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ExecuteResponse_ServerLogsEntry_DoNotUse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ExecuteResponse_ServerLogsEntry_DoNotUse_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ExecuteResponse_ServerLogsEntry_DoNotUse();
-  }
-  ::build::bazel::remote::execution::v2::ExecuteResponse_ServerLogsEntry_DoNotUse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_ExecuteResponse_ServerLogsEntry_DoNotUse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_ExecuteResponse_ServerLogsEntry_DoNotUse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_LogFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ExecutedActionMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ExecutedActionMetadata();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ExecutedActionMetadata::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_ExecutedActionMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_ExecutedActionMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto.base,
-      &scc_info_Any_google_2fprotobuf_2fany_2eproto.base,}};
-
-static void InitDefaultsscc_info_ExecutionCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ExecutionCapabilities_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ExecutionCapabilities();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ExecutionCapabilities::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_ExecutionCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_ExecutionCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ExecutionPolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ExecutionPolicy_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ExecutionPolicy();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ExecutionPolicy::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ExecutionPolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ExecutionPolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_ExecutionStage_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ExecutionStage_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ExecutionStage();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ExecutionStage::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ExecutionStage_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ExecutionStage_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_FileNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_FileNode_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::FileNode();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::FileNode::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_FileNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_FileNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_FindMissingBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_FindMissingBlobsRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::FindMissingBlobsRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::FindMissingBlobsRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_FindMissingBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_FindMissingBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_FindMissingBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_FindMissingBlobsResponse_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::FindMissingBlobsResponse();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::FindMissingBlobsResponse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_FindMissingBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_FindMissingBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_GetActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_GetActionResultRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::GetActionResultRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::GetActionResultRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_GetActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_GetActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_GetCapabilitiesRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_GetCapabilitiesRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::GetCapabilitiesRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::GetCapabilitiesRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_GetCapabilitiesRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_GetCapabilitiesRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_GetTreeRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_GetTreeRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::GetTreeRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::GetTreeRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_GetTreeRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_GetTreeRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_GetTreeResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_GetTreeResponse_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::GetTreeResponse();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::GetTreeResponse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_GetTreeResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_GetTreeResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_LogFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_LogFile_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::LogFile();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::LogFile::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_LogFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_LogFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_NodeProperties_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::NodeProperties();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::NodeProperties::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_NodeProperty_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto.base,
-      &scc_info_UInt32Value_google_2fprotobuf_2fwrappers_2eproto.base,}};
-
-static void InitDefaultsscc_info_NodeProperty_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_NodeProperty_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::NodeProperty();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::NodeProperty::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_NodeProperty_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_NodeProperty_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_OutputDirectory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_OutputDirectory_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::OutputDirectory();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::OutputDirectory::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_OutputDirectory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_OutputDirectory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_OutputFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_OutputFile_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::OutputFile();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::OutputFile::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_OutputFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_OutputFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_OutputSymlink_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_OutputSymlink_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::OutputSymlink();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::OutputSymlink::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_OutputSymlink_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_OutputSymlink_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_Platform_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::Platform();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::Platform::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Platform_Property_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_Platform_Property_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_Platform_Property_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::Platform_Property();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::Platform_Property::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Platform_Property_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_Platform_Property_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_PriorityCapabilities_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::PriorityCapabilities();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::PriorityCapabilities::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_PriorityCapabilities_PriorityRange_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_PriorityCapabilities_PriorityRange_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_PriorityCapabilities_PriorityRange_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::PriorityCapabilities_PriorityRange();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::PriorityCapabilities_PriorityRange::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_PriorityCapabilities_PriorityRange_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_PriorityCapabilities_PriorityRange_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_RequestMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_RequestMetadata_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::RequestMetadata();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::RequestMetadata::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_RequestMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_RequestMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_ToolDetails_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ResultsCachePolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ResultsCachePolicy_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ResultsCachePolicy();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ResultsCachePolicy::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ResultsCachePolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ResultsCachePolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_ServerCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ServerCapabilities_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ServerCapabilities();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ServerCapabilities::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_ServerCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_ServerCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_CacheCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_ExecutionCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_SemVer_build_2fbazel_2fsemver_2fsemver_2eproto.base,}};
-
-static void InitDefaultsscc_info_SymlinkAbsolutePathStrategy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_SymlinkAbsolutePathStrategy_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::SymlinkAbsolutePathStrategy();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::SymlinkAbsolutePathStrategy::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_SymlinkAbsolutePathStrategy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_SymlinkAbsolutePathStrategy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_SymlinkNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_SymlinkNode_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::SymlinkNode();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::SymlinkNode::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_SymlinkNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_SymlinkNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_ToolDetails_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_ToolDetails_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::ToolDetails();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::ToolDetails::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ToolDetails_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ToolDetails_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
-static void InitDefaultsscc_info_Tree_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_Tree_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::Tree();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::Tree::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_Tree_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_Tree_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_UpdateActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_UpdateActionResultRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::UpdateActionResultRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::UpdateActionResultRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_UpdateActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_UpdateActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {
-      &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-      &scc_info_ResultsCachePolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,}};
-
-static void InitDefaultsscc_info_WaitExecutionRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::remote::execution::v2::_WaitExecutionRequest_default_instance_;
-    new (ptr) ::build::bazel::remote::execution::v2::WaitExecutionRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::remote::execution::v2::WaitExecutionRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_WaitExecutionRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_WaitExecutionRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto}, {}};
-
 static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto[51];
 static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto[3];
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto = nullptr;
@@ -1852,69 +1553,21 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
   &::descriptor_table_google_2fprotobuf_2fwrappers_2eproto,
   &::descriptor_table_google_2frpc_2fstatus_2eproto,
 };
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto_sccs[51] = {
-  &scc_info_Action_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ActionCacheUpdateCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_BatchReadBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_BatchReadBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_BatchReadBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_BatchUpdateBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_BatchUpdateBlobsRequest_Request_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_BatchUpdateBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_BatchUpdateBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_CacheCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_Command_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_Command_EnvironmentVariable_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_DigestFunction_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_DirectoryNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ExecuteOperationMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ExecuteRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ExecuteResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ExecuteResponse_ServerLogsEntry_DoNotUse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ExecutedActionMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ExecutionCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ExecutionPolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ExecutionStage_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_FileNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_FindMissingBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_FindMissingBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_GetActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_GetCapabilitiesRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_GetTreeRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_GetTreeResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_LogFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_NodeProperty_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_OutputDirectory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_OutputFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_OutputSymlink_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_Platform_Property_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_PriorityCapabilities_PriorityRange_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_RequestMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ResultsCachePolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ServerCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_SymlinkAbsolutePathStrategy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_SymlinkNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_ToolDetails_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_Tree_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_UpdateActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-  &scc_info_WaitExecutionRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base,
-};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto = {
-  false, false, descriptor_table_protodef_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto, "build/bazel/remote/execution/v2/remote_execution.proto", 10544,
-  &descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto_once, descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto_sccs, descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto_deps, 51, 8,
+  false, false, 10544, descriptor_table_protodef_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto, "build/bazel/remote/execution/v2/remote_execution.proto", 
+  &descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto_once, descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto_deps, 8, 51,
   schemas, file_default_instances, TableStruct_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto::offsets,
-  file_level_metadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto, 51, file_level_enum_descriptors_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto, file_level_service_descriptors_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto,
+  file_level_metadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto, file_level_enum_descriptors_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto, file_level_service_descriptors_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto,
 };
+PROTOBUF_ATTRIBUTE_WEAK ::PROTOBUF_NAMESPACE_ID::Metadata
+descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto_metadata_getter(int index) {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto);
+  return descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.file_level_metadata[index];
+}
 
 // Force running AddDescriptors() at dynamic initialization time.
-static bool dynamic_init_dummy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto = (static_cast<void>(::PROTOBUF_NAMESPACE_ID::internal::AddDescriptors(&descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto)), true);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto(&descriptor_table_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto);
 namespace build {
 namespace bazel {
 namespace remote {
@@ -2006,16 +1659,6 @@ constexpr int SymlinkAbsolutePathStrategy::Value_ARRAYSIZE;
 
 // ===================================================================
 
-void Action::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_Action_default_instance_._instance.get_mutable()->command_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_Action_default_instance_._instance.get_mutable()->input_root_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_Action_default_instance_._instance.get_mutable()->timeout_ = const_cast< PROTOBUF_NAMESPACE_ID::Duration*>(
-      PROTOBUF_NAMESPACE_ID::Duration::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_Action_default_instance_._instance.get_mutable()->platform_ = const_cast< ::build::bazel::remote::execution::v2::Platform*>(
-      ::build::bazel::remote::execution::v2::Platform::internal_default_instance());
-}
 class Action::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& command_digest(const Action* msg);
@@ -2057,7 +1700,7 @@ Action::Action(const Action& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   salt_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_salt().empty()) {
-    salt_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_salt(),
+    salt_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_salt(), 
       GetArena());
   }
   if (from._internal_has_command_digest()) {
@@ -2085,11 +1728,11 @@ Action::Action(const Action& from)
 }
 
 void Action::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Action_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  salt_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&command_digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&do_not_cache_) -
-      reinterpret_cast<char*>(&command_digest_)) + sizeof(do_not_cache_));
+salt_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&command_digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&do_not_cache_) -
+    reinterpret_cast<char*>(&command_digest_)) + sizeof(do_not_cache_));
 }
 
 Action::~Action() {
@@ -2116,11 +1759,6 @@ void Action::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Action::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Action& Action::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Action_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Action::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.Action)
@@ -2128,7 +1766,7 @@ void Action::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  salt_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  salt_.ClearToEmpty();
   if (GetArena() == nullptr && command_digest_ != nullptr) {
     delete command_digest_;
   }
@@ -2151,7 +1789,6 @@ void Action::Clear() {
 
 const char* Action::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2416,8 +2053,6 @@ void Action::InternalSwap(Action* other) {
 
 // ===================================================================
 
-void Command_EnvironmentVariable::InitAsDefaultInstance() {
-}
 class Command_EnvironmentVariable::_Internal {
  public:
 };
@@ -2433,21 +2068,20 @@ Command_EnvironmentVariable::Command_EnvironmentVariable(const Command_Environme
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_value().empty()) {
-    value_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_value(),
+    value_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_value(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.Command.EnvironmentVariable)
 }
 
 void Command_EnvironmentVariable::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Command_EnvironmentVariable_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 Command_EnvironmentVariable::~Command_EnvironmentVariable() {
@@ -2471,11 +2105,6 @@ void Command_EnvironmentVariable::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Are
 void Command_EnvironmentVariable::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Command_EnvironmentVariable& Command_EnvironmentVariable::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Command_EnvironmentVariable_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Command_EnvironmentVariable::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.Command.EnvironmentVariable)
@@ -2483,14 +2112,13 @@ void Command_EnvironmentVariable::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  value_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
+  value_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* Command_EnvironmentVariable::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2663,10 +2291,6 @@ void Command_EnvironmentVariable::InternalSwap(Command_EnvironmentVariable* othe
 
 // ===================================================================
 
-void Command::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_Command_default_instance_._instance.get_mutable()->platform_ = const_cast< ::build::bazel::remote::execution::v2::Platform*>(
-      ::build::bazel::remote::execution::v2::Platform::internal_default_instance());
-}
 class Command::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Platform& platform(const Command* msg);
@@ -2699,7 +2323,7 @@ Command::Command(const Command& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   working_directory_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_working_directory().empty()) {
-    working_directory_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_working_directory(),
+    working_directory_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_working_directory(), 
       GetArena());
   }
   if (from._internal_has_platform()) {
@@ -2711,9 +2335,8 @@ Command::Command(const Command& from)
 }
 
 void Command::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Command_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  working_directory_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  platform_ = nullptr;
+working_directory_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+platform_ = nullptr;
 }
 
 Command::~Command() {
@@ -2737,11 +2360,6 @@ void Command::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Command::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Command& Command::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Command_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Command::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.Command)
@@ -2755,7 +2373,7 @@ void Command::Clear() {
   output_directories_.Clear();
   output_paths_.Clear();
   output_node_properties_.Clear();
-  working_directory_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  working_directory_.ClearToEmpty();
   if (GetArena() == nullptr && platform_ != nullptr) {
     delete platform_;
   }
@@ -2765,7 +2383,6 @@ void Command::Clear() {
 
 const char* Command::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -3133,8 +2750,6 @@ void Command::InternalSwap(Command* other) {
 
 // ===================================================================
 
-void Platform_Property::InitAsDefaultInstance() {
-}
 class Platform_Property::_Internal {
  public:
 };
@@ -3150,21 +2765,20 @@ Platform_Property::Platform_Property(const Platform_Property& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_value().empty()) {
-    value_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_value(),
+    value_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_value(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.Platform.Property)
 }
 
 void Platform_Property::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Platform_Property_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 Platform_Property::~Platform_Property() {
@@ -3188,11 +2802,6 @@ void Platform_Property::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Platform_Property::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Platform_Property& Platform_Property::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Platform_Property_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Platform_Property::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.Platform.Property)
@@ -3200,14 +2809,13 @@ void Platform_Property::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  value_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
+  value_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* Platform_Property::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -3380,8 +2988,6 @@ void Platform_Property::InternalSwap(Platform_Property* other) {
 
 // ===================================================================
 
-void Platform::InitAsDefaultInstance() {
-}
 class Platform::_Internal {
  public:
 };
@@ -3401,7 +3007,6 @@ Platform::Platform(const Platform& from)
 }
 
 void Platform::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
 }
 
 Platform::~Platform() {
@@ -3423,11 +3028,6 @@ void Platform::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Platform::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Platform& Platform::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Platform_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Platform::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.Platform)
@@ -3441,7 +3041,6 @@ void Platform::Clear() {
 
 const char* Platform::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -3583,10 +3182,6 @@ void Platform::InternalSwap(Platform* other) {
 
 // ===================================================================
 
-void Directory::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_Directory_default_instance_._instance.get_mutable()->node_properties_ = const_cast< ::build::bazel::remote::execution::v2::NodeProperties*>(
-      ::build::bazel::remote::execution::v2::NodeProperties::internal_default_instance());
-}
 class Directory::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::NodeProperties& node_properties(const Directory* msg);
@@ -3620,8 +3215,7 @@ Directory::Directory(const Directory& from)
 }
 
 void Directory::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  node_properties_ = nullptr;
+node_properties_ = nullptr;
 }
 
 Directory::~Directory() {
@@ -3644,11 +3238,6 @@ void Directory::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Directory::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Directory& Directory::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Directory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Directory::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.Directory)
@@ -3668,7 +3257,6 @@ void Directory::Clear() {
 
 const char* Directory::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -3894,8 +3482,6 @@ void Directory::InternalSwap(Directory* other) {
 
 // ===================================================================
 
-void NodeProperty::InitAsDefaultInstance() {
-}
 class NodeProperty::_Internal {
  public:
 };
@@ -3911,21 +3497,20 @@ NodeProperty::NodeProperty(const NodeProperty& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_value().empty()) {
-    value_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_value(),
+    value_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_value(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.NodeProperty)
 }
 
 void NodeProperty::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_NodeProperty_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 NodeProperty::~NodeProperty() {
@@ -3949,11 +3534,6 @@ void NodeProperty::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void NodeProperty::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const NodeProperty& NodeProperty::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_NodeProperty_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void NodeProperty::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.NodeProperty)
@@ -3961,14 +3541,13 @@ void NodeProperty::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  value_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
+  value_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* NodeProperty::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -4141,12 +3720,6 @@ void NodeProperty::InternalSwap(NodeProperty* other) {
 
 // ===================================================================
 
-void NodeProperties::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_NodeProperties_default_instance_._instance.get_mutable()->mtime_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_NodeProperties_default_instance_._instance.get_mutable()->unix_mode_ = const_cast< PROTOBUF_NAMESPACE_ID::UInt32Value*>(
-      PROTOBUF_NAMESPACE_ID::UInt32Value::internal_default_instance());
-}
 class NodeProperties::_Internal {
  public:
   static const PROTOBUF_NAMESPACE_ID::Timestamp& mtime(const NodeProperties* msg);
@@ -4198,10 +3771,10 @@ NodeProperties::NodeProperties(const NodeProperties& from)
 }
 
 void NodeProperties::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  ::memset(&mtime_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&unix_mode_) -
-      reinterpret_cast<char*>(&mtime_)) + sizeof(unix_mode_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&mtime_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&unix_mode_) -
+    reinterpret_cast<char*>(&mtime_)) + sizeof(unix_mode_));
 }
 
 NodeProperties::~NodeProperties() {
@@ -4225,11 +3798,6 @@ void NodeProperties::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void NodeProperties::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const NodeProperties& NodeProperties::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_NodeProperties_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void NodeProperties::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.NodeProperties)
@@ -4251,7 +3819,6 @@ void NodeProperties::Clear() {
 
 const char* NodeProperties::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -4449,12 +4016,6 @@ void NodeProperties::InternalSwap(NodeProperties* other) {
 
 // ===================================================================
 
-void FileNode::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_FileNode_default_instance_._instance.get_mutable()->digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_FileNode_default_instance_._instance.get_mutable()->node_properties_ = const_cast< ::build::bazel::remote::execution::v2::NodeProperties*>(
-      ::build::bazel::remote::execution::v2::NodeProperties::internal_default_instance());
-}
 class FileNode::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& digest(const FileNode* msg);
@@ -4480,7 +4041,7 @@ FileNode::FileNode(const FileNode& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   if (from._internal_has_digest()) {
@@ -4498,11 +4059,11 @@ FileNode::FileNode(const FileNode& from)
 }
 
 void FileNode::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_FileNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&is_executable_) -
-      reinterpret_cast<char*>(&digest_)) + sizeof(is_executable_));
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&is_executable_) -
+    reinterpret_cast<char*>(&digest_)) + sizeof(is_executable_));
 }
 
 FileNode::~FileNode() {
@@ -4527,11 +4088,6 @@ void FileNode::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void FileNode::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const FileNode& FileNode::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_FileNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void FileNode::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.FileNode)
@@ -4539,7 +4095,7 @@ void FileNode::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
   if (GetArena() == nullptr && digest_ != nullptr) {
     delete digest_;
   }
@@ -4554,7 +4110,6 @@ void FileNode::Clear() {
 
 const char* FileNode::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -4774,10 +4329,6 @@ void FileNode::InternalSwap(FileNode* other) {
 
 // ===================================================================
 
-void DirectoryNode::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_DirectoryNode_default_instance_._instance.get_mutable()->digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-}
 class DirectoryNode::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& digest(const DirectoryNode* msg);
@@ -4798,7 +4349,7 @@ DirectoryNode::DirectoryNode(const DirectoryNode& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   if (from._internal_has_digest()) {
@@ -4810,9 +4361,8 @@ DirectoryNode::DirectoryNode(const DirectoryNode& from)
 }
 
 void DirectoryNode::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_DirectoryNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  digest_ = nullptr;
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+digest_ = nullptr;
 }
 
 DirectoryNode::~DirectoryNode() {
@@ -4836,11 +4386,6 @@ void DirectoryNode::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void DirectoryNode::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const DirectoryNode& DirectoryNode::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_DirectoryNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void DirectoryNode::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.DirectoryNode)
@@ -4848,7 +4393,7 @@ void DirectoryNode::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
   if (GetArena() == nullptr && digest_ != nullptr) {
     delete digest_;
   }
@@ -4858,7 +4403,6 @@ void DirectoryNode::Clear() {
 
 const char* DirectoryNode::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -5027,10 +4571,6 @@ void DirectoryNode::InternalSwap(DirectoryNode* other) {
 
 // ===================================================================
 
-void SymlinkNode::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_SymlinkNode_default_instance_._instance.get_mutable()->node_properties_ = const_cast< ::build::bazel::remote::execution::v2::NodeProperties*>(
-      ::build::bazel::remote::execution::v2::NodeProperties::internal_default_instance());
-}
 class SymlinkNode::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::NodeProperties& node_properties(const SymlinkNode* msg);
@@ -5051,12 +4591,12 @@ SymlinkNode::SymlinkNode(const SymlinkNode& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   target_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_target().empty()) {
-    target_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_target(),
+    target_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_target(), 
       GetArena());
   }
   if (from._internal_has_node_properties()) {
@@ -5068,10 +4608,9 @@ SymlinkNode::SymlinkNode(const SymlinkNode& from)
 }
 
 void SymlinkNode::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_SymlinkNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  target_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  node_properties_ = nullptr;
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+target_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+node_properties_ = nullptr;
 }
 
 SymlinkNode::~SymlinkNode() {
@@ -5096,11 +4635,6 @@ void SymlinkNode::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void SymlinkNode::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const SymlinkNode& SymlinkNode::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_SymlinkNode_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void SymlinkNode::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.SymlinkNode)
@@ -5108,8 +4642,8 @@ void SymlinkNode::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  target_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
+  target_.ClearToEmpty();
   if (GetArena() == nullptr && node_properties_ != nullptr) {
     delete node_properties_;
   }
@@ -5119,7 +4653,6 @@ void SymlinkNode::Clear() {
 
 const char* SymlinkNode::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -5318,8 +4851,6 @@ void SymlinkNode::InternalSwap(SymlinkNode* other) {
 
 // ===================================================================
 
-void Digest::InitAsDefaultInstance() {
-}
 class Digest::_Internal {
  public:
 };
@@ -5335,7 +4866,7 @@ Digest::Digest(const Digest& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   hash_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_hash().empty()) {
-    hash_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_hash(),
+    hash_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_hash(), 
       GetArena());
   }
   size_bytes_ = from.size_bytes_;
@@ -5343,9 +4874,8 @@ Digest::Digest(const Digest& from)
 }
 
 void Digest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  hash_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  size_bytes_ = PROTOBUF_LONGLONG(0);
+hash_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+size_bytes_ = PROTOBUF_LONGLONG(0);
 }
 
 Digest::~Digest() {
@@ -5368,11 +4898,6 @@ void Digest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Digest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Digest& Digest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Digest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Digest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.Digest)
@@ -5380,14 +4905,13 @@ void Digest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  hash_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  hash_.ClearToEmpty();
   size_bytes_ = PROTOBUF_LONGLONG(0);
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* Digest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -5554,26 +5078,6 @@ void Digest::InternalSwap(Digest* other) {
 
 // ===================================================================
 
-void ExecutedActionMetadata::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->queued_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->worker_start_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->worker_completed_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->input_fetch_start_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->input_fetch_completed_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->execution_start_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->execution_completed_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->output_upload_start_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecutedActionMetadata_default_instance_._instance.get_mutable()->output_upload_completed_timestamp_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-}
 class ExecutedActionMetadata::_Internal {
  public:
   static const PROTOBUF_NAMESPACE_ID::Timestamp& queued_timestamp(const ExecutedActionMetadata* msg);
@@ -5693,7 +5197,7 @@ ExecutedActionMetadata::ExecutedActionMetadata(const ExecutedActionMetadata& fro
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   worker_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_worker().empty()) {
-    worker_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_worker(),
+    worker_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_worker(), 
       GetArena());
   }
   if (from._internal_has_queued_timestamp()) {
@@ -5745,11 +5249,11 @@ ExecutedActionMetadata::ExecutedActionMetadata(const ExecutedActionMetadata& fro
 }
 
 void ExecutedActionMetadata::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ExecutedActionMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  worker_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&queued_timestamp_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&output_upload_completed_timestamp_) -
-      reinterpret_cast<char*>(&queued_timestamp_)) + sizeof(output_upload_completed_timestamp_));
+worker_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&queued_timestamp_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&output_upload_completed_timestamp_) -
+    reinterpret_cast<char*>(&queued_timestamp_)) + sizeof(output_upload_completed_timestamp_));
 }
 
 ExecutedActionMetadata::~ExecutedActionMetadata() {
@@ -5781,11 +5285,6 @@ void ExecutedActionMetadata::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) 
 void ExecutedActionMetadata::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ExecutedActionMetadata& ExecutedActionMetadata::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ExecutedActionMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ExecutedActionMetadata::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ExecutedActionMetadata)
@@ -5794,7 +5293,7 @@ void ExecutedActionMetadata::Clear() {
   (void) cached_has_bits;
 
   auxiliary_metadata_.Clear();
-  worker_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  worker_.ClearToEmpty();
   if (GetArena() == nullptr && queued_timestamp_ != nullptr) {
     delete queued_timestamp_;
   }
@@ -5836,7 +5335,6 @@ void ExecutedActionMetadata::Clear() {
 
 const char* ExecutedActionMetadata::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -6239,14 +5737,6 @@ void ExecutedActionMetadata::InternalSwap(ExecutedActionMetadata* other) {
 
 // ===================================================================
 
-void ActionResult::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_ActionResult_default_instance_._instance.get_mutable()->stdout_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ActionResult_default_instance_._instance.get_mutable()->stderr_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ActionResult_default_instance_._instance.get_mutable()->execution_metadata_ = const_cast< ::build::bazel::remote::execution::v2::ExecutedActionMetadata*>(
-      ::build::bazel::remote::execution::v2::ExecutedActionMetadata::internal_default_instance());
-}
 class ActionResult::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& stdout_digest(const ActionResult* msg);
@@ -6287,12 +5777,12 @@ ActionResult::ActionResult(const ActionResult& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   stdout_raw_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_stdout_raw().empty()) {
-    stdout_raw_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_stdout_raw(),
+    stdout_raw_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_stdout_raw(), 
       GetArena());
   }
   stderr_raw_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_stderr_raw().empty()) {
-    stderr_raw_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_stderr_raw(),
+    stderr_raw_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_stderr_raw(), 
       GetArena());
   }
   if (from._internal_has_stdout_digest()) {
@@ -6315,12 +5805,12 @@ ActionResult::ActionResult(const ActionResult& from)
 }
 
 void ActionResult::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  stdout_raw_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  stderr_raw_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&stdout_digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&exit_code_) -
-      reinterpret_cast<char*>(&stdout_digest_)) + sizeof(exit_code_));
+stdout_raw_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+stderr_raw_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&stdout_digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&exit_code_) -
+    reinterpret_cast<char*>(&stdout_digest_)) + sizeof(exit_code_));
 }
 
 ActionResult::~ActionResult() {
@@ -6347,11 +5837,6 @@ void ActionResult::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ActionResult::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ActionResult& ActionResult::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ActionResult_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ActionResult::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ActionResult)
@@ -6364,8 +5849,8 @@ void ActionResult::Clear() {
   output_file_symlinks_.Clear();
   output_directory_symlinks_.Clear();
   output_symlinks_.Clear();
-  stdout_raw_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  stderr_raw_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  stdout_raw_.ClearToEmpty();
+  stderr_raw_.ClearToEmpty();
   if (GetArena() == nullptr && stdout_digest_ != nullptr) {
     delete stdout_digest_;
   }
@@ -6384,7 +5869,6 @@ void ActionResult::Clear() {
 
 const char* ActionResult::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -6796,12 +6280,6 @@ void ActionResult::InternalSwap(ActionResult* other) {
 
 // ===================================================================
 
-void OutputFile::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_OutputFile_default_instance_._instance.get_mutable()->digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_OutputFile_default_instance_._instance.get_mutable()->node_properties_ = const_cast< ::build::bazel::remote::execution::v2::NodeProperties*>(
-      ::build::bazel::remote::execution::v2::NodeProperties::internal_default_instance());
-}
 class OutputFile::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& digest(const OutputFile* msg);
@@ -6827,12 +6305,12 @@ OutputFile::OutputFile(const OutputFile& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_path().empty()) {
-    path_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_path(),
+    path_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_path(), 
       GetArena());
   }
   contents_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_contents().empty()) {
-    contents_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_contents(),
+    contents_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_contents(), 
       GetArena());
   }
   if (from._internal_has_digest()) {
@@ -6850,12 +6328,12 @@ OutputFile::OutputFile(const OutputFile& from)
 }
 
 void OutputFile::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_OutputFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  contents_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&is_executable_) -
-      reinterpret_cast<char*>(&digest_)) + sizeof(is_executable_));
+path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+contents_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&is_executable_) -
+    reinterpret_cast<char*>(&digest_)) + sizeof(is_executable_));
 }
 
 OutputFile::~OutputFile() {
@@ -6881,11 +6359,6 @@ void OutputFile::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void OutputFile::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const OutputFile& OutputFile::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_OutputFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void OutputFile::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.OutputFile)
@@ -6893,8 +6366,8 @@ void OutputFile::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  path_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  contents_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  path_.ClearToEmpty();
+  contents_.ClearToEmpty();
   if (GetArena() == nullptr && digest_ != nullptr) {
     delete digest_;
   }
@@ -6909,7 +6382,6 @@ void OutputFile::Clear() {
 
 const char* OutputFile::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -7154,10 +6626,6 @@ void OutputFile::InternalSwap(OutputFile* other) {
 
 // ===================================================================
 
-void Tree::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_Tree_default_instance_._instance.get_mutable()->root_ = const_cast< ::build::bazel::remote::execution::v2::Directory*>(
-      ::build::bazel::remote::execution::v2::Directory::internal_default_instance());
-}
 class Tree::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Directory& root(const Tree* msg);
@@ -7187,8 +6655,7 @@ Tree::Tree(const Tree& from)
 }
 
 void Tree::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Tree_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  root_ = nullptr;
+root_ = nullptr;
 }
 
 Tree::~Tree() {
@@ -7211,11 +6678,6 @@ void Tree::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Tree::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Tree& Tree::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Tree_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Tree::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.Tree)
@@ -7233,7 +6695,6 @@ void Tree::Clear() {
 
 const char* Tree::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -7401,10 +6862,6 @@ void Tree::InternalSwap(Tree* other) {
 
 // ===================================================================
 
-void OutputDirectory::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_OutputDirectory_default_instance_._instance.get_mutable()->tree_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-}
 class OutputDirectory::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& tree_digest(const OutputDirectory* msg);
@@ -7425,7 +6882,7 @@ OutputDirectory::OutputDirectory(const OutputDirectory& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_path().empty()) {
-    path_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_path(),
+    path_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_path(), 
       GetArena());
   }
   if (from._internal_has_tree_digest()) {
@@ -7437,9 +6894,8 @@ OutputDirectory::OutputDirectory(const OutputDirectory& from)
 }
 
 void OutputDirectory::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_OutputDirectory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  tree_digest_ = nullptr;
+path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+tree_digest_ = nullptr;
 }
 
 OutputDirectory::~OutputDirectory() {
@@ -7463,11 +6919,6 @@ void OutputDirectory::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void OutputDirectory::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const OutputDirectory& OutputDirectory::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_OutputDirectory_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void OutputDirectory::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.OutputDirectory)
@@ -7475,7 +6926,7 @@ void OutputDirectory::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  path_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  path_.ClearToEmpty();
   if (GetArena() == nullptr && tree_digest_ != nullptr) {
     delete tree_digest_;
   }
@@ -7485,7 +6936,6 @@ void OutputDirectory::Clear() {
 
 const char* OutputDirectory::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -7654,10 +7104,6 @@ void OutputDirectory::InternalSwap(OutputDirectory* other) {
 
 // ===================================================================
 
-void OutputSymlink::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_OutputSymlink_default_instance_._instance.get_mutable()->node_properties_ = const_cast< ::build::bazel::remote::execution::v2::NodeProperties*>(
-      ::build::bazel::remote::execution::v2::NodeProperties::internal_default_instance());
-}
 class OutputSymlink::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::NodeProperties& node_properties(const OutputSymlink* msg);
@@ -7678,12 +7124,12 @@ OutputSymlink::OutputSymlink(const OutputSymlink& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_path().empty()) {
-    path_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_path(),
+    path_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_path(), 
       GetArena());
   }
   target_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_target().empty()) {
-    target_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_target(),
+    target_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_target(), 
       GetArena());
   }
   if (from._internal_has_node_properties()) {
@@ -7695,10 +7141,9 @@ OutputSymlink::OutputSymlink(const OutputSymlink& from)
 }
 
 void OutputSymlink::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_OutputSymlink_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  target_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  node_properties_ = nullptr;
+path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+target_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+node_properties_ = nullptr;
 }
 
 OutputSymlink::~OutputSymlink() {
@@ -7723,11 +7168,6 @@ void OutputSymlink::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void OutputSymlink::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const OutputSymlink& OutputSymlink::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_OutputSymlink_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void OutputSymlink::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.OutputSymlink)
@@ -7735,8 +7175,8 @@ void OutputSymlink::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  path_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  target_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  path_.ClearToEmpty();
+  target_.ClearToEmpty();
   if (GetArena() == nullptr && node_properties_ != nullptr) {
     delete node_properties_;
   }
@@ -7746,7 +7186,6 @@ void OutputSymlink::Clear() {
 
 const char* OutputSymlink::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -7945,8 +7384,6 @@ void OutputSymlink::InternalSwap(OutputSymlink* other) {
 
 // ===================================================================
 
-void ExecutionPolicy::InitAsDefaultInstance() {
-}
 class ExecutionPolicy::_Internal {
  public:
 };
@@ -7965,7 +7402,7 @@ ExecutionPolicy::ExecutionPolicy(const ExecutionPolicy& from)
 }
 
 void ExecutionPolicy::SharedCtor() {
-  priority_ = 0;
+priority_ = 0;
 }
 
 ExecutionPolicy::~ExecutionPolicy() {
@@ -7987,11 +7424,6 @@ void ExecutionPolicy::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ExecutionPolicy::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ExecutionPolicy& ExecutionPolicy::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ExecutionPolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ExecutionPolicy::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ExecutionPolicy)
@@ -8005,7 +7437,6 @@ void ExecutionPolicy::Clear() {
 
 const char* ExecutionPolicy::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -8142,8 +7573,6 @@ void ExecutionPolicy::InternalSwap(ExecutionPolicy* other) {
 
 // ===================================================================
 
-void ResultsCachePolicy::InitAsDefaultInstance() {
-}
 class ResultsCachePolicy::_Internal {
  public:
 };
@@ -8162,7 +7591,7 @@ ResultsCachePolicy::ResultsCachePolicy(const ResultsCachePolicy& from)
 }
 
 void ResultsCachePolicy::SharedCtor() {
-  priority_ = 0;
+priority_ = 0;
 }
 
 ResultsCachePolicy::~ResultsCachePolicy() {
@@ -8184,11 +7613,6 @@ void ResultsCachePolicy::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ResultsCachePolicy::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ResultsCachePolicy& ResultsCachePolicy::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ResultsCachePolicy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ResultsCachePolicy::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ResultsCachePolicy)
@@ -8202,7 +7626,6 @@ void ResultsCachePolicy::Clear() {
 
 const char* ResultsCachePolicy::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -8339,14 +7762,6 @@ void ResultsCachePolicy::InternalSwap(ResultsCachePolicy* other) {
 
 // ===================================================================
 
-void ExecuteRequest::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_ExecuteRequest_default_instance_._instance.get_mutable()->action_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecuteRequest_default_instance_._instance.get_mutable()->execution_policy_ = const_cast< ::build::bazel::remote::execution::v2::ExecutionPolicy*>(
-      ::build::bazel::remote::execution::v2::ExecutionPolicy::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecuteRequest_default_instance_._instance.get_mutable()->results_cache_policy_ = const_cast< ::build::bazel::remote::execution::v2::ResultsCachePolicy*>(
-      ::build::bazel::remote::execution::v2::ResultsCachePolicy::internal_default_instance());
-}
 class ExecuteRequest::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& action_digest(const ExecuteRequest* msg);
@@ -8377,7 +7792,7 @@ ExecuteRequest::ExecuteRequest(const ExecuteRequest& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_instance_name().empty()) {
-    instance_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_instance_name(),
+    instance_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_instance_name(), 
       GetArena());
   }
   if (from._internal_has_action_digest()) {
@@ -8400,11 +7815,11 @@ ExecuteRequest::ExecuteRequest(const ExecuteRequest& from)
 }
 
 void ExecuteRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ExecuteRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&action_digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&skip_cache_lookup_) -
-      reinterpret_cast<char*>(&action_digest_)) + sizeof(skip_cache_lookup_));
+instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&action_digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&skip_cache_lookup_) -
+    reinterpret_cast<char*>(&action_digest_)) + sizeof(skip_cache_lookup_));
 }
 
 ExecuteRequest::~ExecuteRequest() {
@@ -8430,11 +7845,6 @@ void ExecuteRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ExecuteRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ExecuteRequest& ExecuteRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ExecuteRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ExecuteRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ExecuteRequest)
@@ -8442,7 +7852,7 @@ void ExecuteRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  instance_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  instance_name_.ClearToEmpty();
   if (GetArena() == nullptr && action_digest_ != nullptr) {
     delete action_digest_;
   }
@@ -8461,7 +7871,6 @@ void ExecuteRequest::Clear() {
 
 const char* ExecuteRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -8706,10 +8115,6 @@ void ExecuteRequest::InternalSwap(ExecuteRequest* other) {
 
 // ===================================================================
 
-void LogFile::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_LogFile_default_instance_._instance.get_mutable()->digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-}
 class LogFile::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& digest(const LogFile* msg);
@@ -8738,10 +8143,10 @@ LogFile::LogFile(const LogFile& from)
 }
 
 void LogFile::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_LogFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  ::memset(&digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&human_readable_) -
-      reinterpret_cast<char*>(&digest_)) + sizeof(human_readable_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&human_readable_) -
+    reinterpret_cast<char*>(&digest_)) + sizeof(human_readable_));
 }
 
 LogFile::~LogFile() {
@@ -8764,11 +8169,6 @@ void LogFile::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void LogFile::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const LogFile& LogFile::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_LogFile_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void LogFile::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.LogFile)
@@ -8786,7 +8186,6 @@ void LogFile::Clear() {
 
 const char* LogFile::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -8968,12 +8367,6 @@ void ExecuteResponse_ServerLogsEntry_DoNotUse::MergeFrom(
 
 // ===================================================================
 
-void ExecuteResponse::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_ExecuteResponse_default_instance_._instance.get_mutable()->result_ = const_cast< ::build::bazel::remote::execution::v2::ActionResult*>(
-      ::build::bazel::remote::execution::v2::ActionResult::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ExecuteResponse_default_instance_._instance.get_mutable()->status_ = const_cast< ::google::rpc::Status*>(
-      ::google::rpc::Status::internal_default_instance());
-}
 class ExecuteResponse::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::ActionResult& result(const ExecuteResponse* msg);
@@ -9007,7 +8400,7 @@ ExecuteResponse::ExecuteResponse(const ExecuteResponse& from)
   server_logs_.MergeFrom(from.server_logs_);
   message_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_message().empty()) {
-    message_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_message(),
+    message_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_message(), 
       GetArena());
   }
   if (from._internal_has_result()) {
@@ -9025,11 +8418,11 @@ ExecuteResponse::ExecuteResponse(const ExecuteResponse& from)
 }
 
 void ExecuteResponse::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ExecuteResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  message_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&result_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&cached_result_) -
-      reinterpret_cast<char*>(&result_)) + sizeof(cached_result_));
+message_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&result_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&cached_result_) -
+    reinterpret_cast<char*>(&result_)) + sizeof(cached_result_));
 }
 
 ExecuteResponse::~ExecuteResponse() {
@@ -9054,11 +8447,6 @@ void ExecuteResponse::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ExecuteResponse::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ExecuteResponse& ExecuteResponse::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ExecuteResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ExecuteResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ExecuteResponse)
@@ -9067,7 +8455,7 @@ void ExecuteResponse::Clear() {
   (void) cached_has_bits;
 
   server_logs_.Clear();
-  message_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  message_.ClearToEmpty();
   if (GetArena() == nullptr && result_ != nullptr) {
     delete result_;
   }
@@ -9082,7 +8470,6 @@ void ExecuteResponse::Clear() {
 
 const char* ExecuteResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -9366,8 +8753,6 @@ void ExecuteResponse::InternalSwap(ExecuteResponse* other) {
 
 // ===================================================================
 
-void ExecutionStage::InitAsDefaultInstance() {
-}
 class ExecutionStage::_Internal {
  public:
 };
@@ -9406,11 +8791,6 @@ void ExecutionStage::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ExecutionStage::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ExecutionStage& ExecutionStage::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ExecutionStage_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ExecutionStage::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ExecutionStage)
@@ -9423,7 +8803,6 @@ void ExecutionStage::Clear() {
 
 const char* ExecutionStage::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -9531,10 +8910,6 @@ void ExecutionStage::InternalSwap(ExecutionStage* other) {
 
 // ===================================================================
 
-void ExecuteOperationMetadata::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_ExecuteOperationMetadata_default_instance_._instance.get_mutable()->action_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-}
 class ExecuteOperationMetadata::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& action_digest(const ExecuteOperationMetadata* msg);
@@ -9555,12 +8930,12 @@ ExecuteOperationMetadata::ExecuteOperationMetadata(const ExecuteOperationMetadat
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   stdout_stream_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_stdout_stream_name().empty()) {
-    stdout_stream_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_stdout_stream_name(),
+    stdout_stream_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_stdout_stream_name(), 
       GetArena());
   }
   stderr_stream_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_stderr_stream_name().empty()) {
-    stderr_stream_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_stderr_stream_name(),
+    stderr_stream_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_stderr_stream_name(), 
       GetArena());
   }
   if (from._internal_has_action_digest()) {
@@ -9573,12 +8948,12 @@ ExecuteOperationMetadata::ExecuteOperationMetadata(const ExecuteOperationMetadat
 }
 
 void ExecuteOperationMetadata::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ExecuteOperationMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  stdout_stream_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  stderr_stream_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&action_digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&stage_) -
-      reinterpret_cast<char*>(&action_digest_)) + sizeof(stage_));
+stdout_stream_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+stderr_stream_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&action_digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&stage_) -
+    reinterpret_cast<char*>(&action_digest_)) + sizeof(stage_));
 }
 
 ExecuteOperationMetadata::~ExecuteOperationMetadata() {
@@ -9603,11 +8978,6 @@ void ExecuteOperationMetadata::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*
 void ExecuteOperationMetadata::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ExecuteOperationMetadata& ExecuteOperationMetadata::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ExecuteOperationMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ExecuteOperationMetadata::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ExecuteOperationMetadata)
@@ -9615,8 +8985,8 @@ void ExecuteOperationMetadata::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  stdout_stream_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  stderr_stream_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  stdout_stream_name_.ClearToEmpty();
+  stderr_stream_name_.ClearToEmpty();
   if (GetArena() == nullptr && action_digest_ != nullptr) {
     delete action_digest_;
   }
@@ -9627,7 +8997,6 @@ void ExecuteOperationMetadata::Clear() {
 
 const char* ExecuteOperationMetadata::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -9855,8 +9224,6 @@ void ExecuteOperationMetadata::InternalSwap(ExecuteOperationMetadata* other) {
 
 // ===================================================================
 
-void WaitExecutionRequest::InitAsDefaultInstance() {
-}
 class WaitExecutionRequest::_Internal {
  public:
 };
@@ -9872,15 +9239,14 @@ WaitExecutionRequest::WaitExecutionRequest(const WaitExecutionRequest& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.WaitExecutionRequest)
 }
 
 void WaitExecutionRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_WaitExecutionRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 WaitExecutionRequest::~WaitExecutionRequest() {
@@ -9903,11 +9269,6 @@ void WaitExecutionRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void WaitExecutionRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const WaitExecutionRequest& WaitExecutionRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_WaitExecutionRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void WaitExecutionRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.WaitExecutionRequest)
@@ -9915,13 +9276,12 @@ void WaitExecutionRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* WaitExecutionRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -10064,10 +9424,6 @@ void WaitExecutionRequest::InternalSwap(WaitExecutionRequest* other) {
 
 // ===================================================================
 
-void GetActionResultRequest::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_GetActionResultRequest_default_instance_._instance.get_mutable()->action_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-}
 class GetActionResultRequest::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& action_digest(const GetActionResultRequest* msg);
@@ -10090,7 +9446,7 @@ GetActionResultRequest::GetActionResultRequest(const GetActionResultRequest& fro
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_instance_name().empty()) {
-    instance_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_instance_name(),
+    instance_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_instance_name(), 
       GetArena());
   }
   if (from._internal_has_action_digest()) {
@@ -10105,11 +9461,11 @@ GetActionResultRequest::GetActionResultRequest(const GetActionResultRequest& fro
 }
 
 void GetActionResultRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_GetActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&action_digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&inline_stderr_) -
-      reinterpret_cast<char*>(&action_digest_)) + sizeof(inline_stderr_));
+instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&action_digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&inline_stderr_) -
+    reinterpret_cast<char*>(&action_digest_)) + sizeof(inline_stderr_));
 }
 
 GetActionResultRequest::~GetActionResultRequest() {
@@ -10133,11 +9489,6 @@ void GetActionResultRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) 
 void GetActionResultRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const GetActionResultRequest& GetActionResultRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_GetActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void GetActionResultRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.GetActionResultRequest)
@@ -10146,7 +9497,7 @@ void GetActionResultRequest::Clear() {
   (void) cached_has_bits;
 
   inline_output_files_.Clear();
-  instance_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  instance_name_.ClearToEmpty();
   if (GetArena() == nullptr && action_digest_ != nullptr) {
     delete action_digest_;
   }
@@ -10159,7 +9510,6 @@ void GetActionResultRequest::Clear() {
 
 const char* GetActionResultRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -10409,14 +9759,6 @@ void GetActionResultRequest::InternalSwap(GetActionResultRequest* other) {
 
 // ===================================================================
 
-void UpdateActionResultRequest::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_UpdateActionResultRequest_default_instance_._instance.get_mutable()->action_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_UpdateActionResultRequest_default_instance_._instance.get_mutable()->action_result_ = const_cast< ::build::bazel::remote::execution::v2::ActionResult*>(
-      ::build::bazel::remote::execution::v2::ActionResult::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_UpdateActionResultRequest_default_instance_._instance.get_mutable()->results_cache_policy_ = const_cast< ::build::bazel::remote::execution::v2::ResultsCachePolicy*>(
-      ::build::bazel::remote::execution::v2::ResultsCachePolicy::internal_default_instance());
-}
 class UpdateActionResultRequest::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& action_digest(const UpdateActionResultRequest* msg);
@@ -10447,7 +9789,7 @@ UpdateActionResultRequest::UpdateActionResultRequest(const UpdateActionResultReq
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_instance_name().empty()) {
-    instance_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_instance_name(),
+    instance_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_instance_name(), 
       GetArena());
   }
   if (from._internal_has_action_digest()) {
@@ -10469,11 +9811,11 @@ UpdateActionResultRequest::UpdateActionResultRequest(const UpdateActionResultReq
 }
 
 void UpdateActionResultRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_UpdateActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&action_digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&results_cache_policy_) -
-      reinterpret_cast<char*>(&action_digest_)) + sizeof(results_cache_policy_));
+instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&action_digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&results_cache_policy_) -
+    reinterpret_cast<char*>(&action_digest_)) + sizeof(results_cache_policy_));
 }
 
 UpdateActionResultRequest::~UpdateActionResultRequest() {
@@ -10499,11 +9841,6 @@ void UpdateActionResultRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena
 void UpdateActionResultRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const UpdateActionResultRequest& UpdateActionResultRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_UpdateActionResultRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void UpdateActionResultRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.UpdateActionResultRequest)
@@ -10511,7 +9848,7 @@ void UpdateActionResultRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  instance_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  instance_name_.ClearToEmpty();
   if (GetArena() == nullptr && action_digest_ != nullptr) {
     delete action_digest_;
   }
@@ -10529,7 +9866,6 @@ void UpdateActionResultRequest::Clear() {
 
 const char* UpdateActionResultRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -10753,8 +10089,6 @@ void UpdateActionResultRequest::InternalSwap(UpdateActionResultRequest* other) {
 
 // ===================================================================
 
-void FindMissingBlobsRequest::InitAsDefaultInstance() {
-}
 class FindMissingBlobsRequest::_Internal {
  public:
 };
@@ -10772,15 +10106,14 @@ FindMissingBlobsRequest::FindMissingBlobsRequest(const FindMissingBlobsRequest& 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_instance_name().empty()) {
-    instance_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_instance_name(),
+    instance_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_instance_name(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.FindMissingBlobsRequest)
 }
 
 void FindMissingBlobsRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_FindMissingBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 FindMissingBlobsRequest::~FindMissingBlobsRequest() {
@@ -10803,11 +10136,6 @@ void FindMissingBlobsRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*)
 void FindMissingBlobsRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const FindMissingBlobsRequest& FindMissingBlobsRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_FindMissingBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void FindMissingBlobsRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.FindMissingBlobsRequest)
@@ -10816,13 +10144,12 @@ void FindMissingBlobsRequest::Clear() {
   (void) cached_has_bits;
 
   blob_digests_.Clear();
-  instance_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  instance_name_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* FindMissingBlobsRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -10994,8 +10321,6 @@ void FindMissingBlobsRequest::InternalSwap(FindMissingBlobsRequest* other) {
 
 // ===================================================================
 
-void FindMissingBlobsResponse::InitAsDefaultInstance() {
-}
 class FindMissingBlobsResponse::_Internal {
  public:
 };
@@ -11015,7 +10340,6 @@ FindMissingBlobsResponse::FindMissingBlobsResponse(const FindMissingBlobsRespons
 }
 
 void FindMissingBlobsResponse::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_FindMissingBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
 }
 
 FindMissingBlobsResponse::~FindMissingBlobsResponse() {
@@ -11037,11 +10361,6 @@ void FindMissingBlobsResponse::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*
 void FindMissingBlobsResponse::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const FindMissingBlobsResponse& FindMissingBlobsResponse::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_FindMissingBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void FindMissingBlobsResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.FindMissingBlobsResponse)
@@ -11055,7 +10374,6 @@ void FindMissingBlobsResponse::Clear() {
 
 const char* FindMissingBlobsResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -11197,10 +10515,6 @@ void FindMissingBlobsResponse::InternalSwap(FindMissingBlobsResponse* other) {
 
 // ===================================================================
 
-void BatchUpdateBlobsRequest_Request::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_BatchUpdateBlobsRequest_Request_default_instance_._instance.get_mutable()->digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-}
 class BatchUpdateBlobsRequest_Request::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& digest(const BatchUpdateBlobsRequest_Request* msg);
@@ -11221,7 +10535,7 @@ BatchUpdateBlobsRequest_Request::BatchUpdateBlobsRequest_Request(const BatchUpda
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_data().empty()) {
-    data_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_data(),
+    data_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_data(), 
       GetArena());
   }
   if (from._internal_has_digest()) {
@@ -11233,9 +10547,8 @@ BatchUpdateBlobsRequest_Request::BatchUpdateBlobsRequest_Request(const BatchUpda
 }
 
 void BatchUpdateBlobsRequest_Request::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BatchUpdateBlobsRequest_Request_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  digest_ = nullptr;
+data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+digest_ = nullptr;
 }
 
 BatchUpdateBlobsRequest_Request::~BatchUpdateBlobsRequest_Request() {
@@ -11259,11 +10572,6 @@ void BatchUpdateBlobsRequest_Request::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID:
 void BatchUpdateBlobsRequest_Request::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BatchUpdateBlobsRequest_Request& BatchUpdateBlobsRequest_Request::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BatchUpdateBlobsRequest_Request_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BatchUpdateBlobsRequest_Request::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.BatchUpdateBlobsRequest.Request)
@@ -11271,7 +10579,7 @@ void BatchUpdateBlobsRequest_Request::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  data_.ClearToEmpty();
   if (GetArena() == nullptr && digest_ != nullptr) {
     delete digest_;
   }
@@ -11281,7 +10589,6 @@ void BatchUpdateBlobsRequest_Request::Clear() {
 
 const char* BatchUpdateBlobsRequest_Request::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -11445,8 +10752,6 @@ void BatchUpdateBlobsRequest_Request::InternalSwap(BatchUpdateBlobsRequest_Reque
 
 // ===================================================================
 
-void BatchUpdateBlobsRequest::InitAsDefaultInstance() {
-}
 class BatchUpdateBlobsRequest::_Internal {
  public:
 };
@@ -11464,15 +10769,14 @@ BatchUpdateBlobsRequest::BatchUpdateBlobsRequest(const BatchUpdateBlobsRequest& 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_instance_name().empty()) {
-    instance_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_instance_name(),
+    instance_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_instance_name(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.BatchUpdateBlobsRequest)
 }
 
 void BatchUpdateBlobsRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BatchUpdateBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 BatchUpdateBlobsRequest::~BatchUpdateBlobsRequest() {
@@ -11495,11 +10799,6 @@ void BatchUpdateBlobsRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*)
 void BatchUpdateBlobsRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BatchUpdateBlobsRequest& BatchUpdateBlobsRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BatchUpdateBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BatchUpdateBlobsRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.BatchUpdateBlobsRequest)
@@ -11508,13 +10807,12 @@ void BatchUpdateBlobsRequest::Clear() {
   (void) cached_has_bits;
 
   requests_.Clear();
-  instance_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  instance_name_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* BatchUpdateBlobsRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -11686,12 +10984,6 @@ void BatchUpdateBlobsRequest::InternalSwap(BatchUpdateBlobsRequest* other) {
 
 // ===================================================================
 
-void BatchUpdateBlobsResponse_Response::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_BatchUpdateBlobsResponse_Response_default_instance_._instance.get_mutable()->digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_BatchUpdateBlobsResponse_Response_default_instance_._instance.get_mutable()->status_ = const_cast< ::google::rpc::Status*>(
-      ::google::rpc::Status::internal_default_instance());
-}
 class BatchUpdateBlobsResponse_Response::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& digest(const BatchUpdateBlobsResponse_Response* msg);
@@ -11735,10 +11027,10 @@ BatchUpdateBlobsResponse_Response::BatchUpdateBlobsResponse_Response(const Batch
 }
 
 void BatchUpdateBlobsResponse_Response::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BatchUpdateBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  ::memset(&digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&status_) -
-      reinterpret_cast<char*>(&digest_)) + sizeof(status_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&status_) -
+    reinterpret_cast<char*>(&digest_)) + sizeof(status_));
 }
 
 BatchUpdateBlobsResponse_Response::~BatchUpdateBlobsResponse_Response() {
@@ -11762,11 +11054,6 @@ void BatchUpdateBlobsResponse_Response::RegisterArenaDtor(::PROTOBUF_NAMESPACE_I
 void BatchUpdateBlobsResponse_Response::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BatchUpdateBlobsResponse_Response& BatchUpdateBlobsResponse_Response::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BatchUpdateBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BatchUpdateBlobsResponse_Response::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.BatchUpdateBlobsResponse.Response)
@@ -11787,7 +11074,6 @@ void BatchUpdateBlobsResponse_Response::Clear() {
 
 const char* BatchUpdateBlobsResponse_Response::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -11956,8 +11242,6 @@ void BatchUpdateBlobsResponse_Response::InternalSwap(BatchUpdateBlobsResponse_Re
 
 // ===================================================================
 
-void BatchUpdateBlobsResponse::InitAsDefaultInstance() {
-}
 class BatchUpdateBlobsResponse::_Internal {
  public:
 };
@@ -11977,7 +11261,6 @@ BatchUpdateBlobsResponse::BatchUpdateBlobsResponse(const BatchUpdateBlobsRespons
 }
 
 void BatchUpdateBlobsResponse::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BatchUpdateBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
 }
 
 BatchUpdateBlobsResponse::~BatchUpdateBlobsResponse() {
@@ -11999,11 +11282,6 @@ void BatchUpdateBlobsResponse::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*
 void BatchUpdateBlobsResponse::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BatchUpdateBlobsResponse& BatchUpdateBlobsResponse::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BatchUpdateBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BatchUpdateBlobsResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.BatchUpdateBlobsResponse)
@@ -12017,7 +11295,6 @@ void BatchUpdateBlobsResponse::Clear() {
 
 const char* BatchUpdateBlobsResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -12159,8 +11436,6 @@ void BatchUpdateBlobsResponse::InternalSwap(BatchUpdateBlobsResponse* other) {
 
 // ===================================================================
 
-void BatchReadBlobsRequest::InitAsDefaultInstance() {
-}
 class BatchReadBlobsRequest::_Internal {
  public:
 };
@@ -12178,15 +11453,14 @@ BatchReadBlobsRequest::BatchReadBlobsRequest(const BatchReadBlobsRequest& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_instance_name().empty()) {
-    instance_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_instance_name(),
+    instance_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_instance_name(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.BatchReadBlobsRequest)
 }
 
 void BatchReadBlobsRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BatchReadBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 BatchReadBlobsRequest::~BatchReadBlobsRequest() {
@@ -12209,11 +11483,6 @@ void BatchReadBlobsRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void BatchReadBlobsRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BatchReadBlobsRequest& BatchReadBlobsRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BatchReadBlobsRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BatchReadBlobsRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.BatchReadBlobsRequest)
@@ -12222,13 +11491,12 @@ void BatchReadBlobsRequest::Clear() {
   (void) cached_has_bits;
 
   digests_.Clear();
-  instance_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  instance_name_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* BatchReadBlobsRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -12400,12 +11668,6 @@ void BatchReadBlobsRequest::InternalSwap(BatchReadBlobsRequest* other) {
 
 // ===================================================================
 
-void BatchReadBlobsResponse_Response::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_BatchReadBlobsResponse_Response_default_instance_._instance.get_mutable()->digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_BatchReadBlobsResponse_Response_default_instance_._instance.get_mutable()->status_ = const_cast< ::google::rpc::Status*>(
-      ::google::rpc::Status::internal_default_instance());
-}
 class BatchReadBlobsResponse_Response::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& digest(const BatchReadBlobsResponse_Response* msg);
@@ -12437,7 +11699,7 @@ BatchReadBlobsResponse_Response::BatchReadBlobsResponse_Response(const BatchRead
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_data().empty()) {
-    data_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_data(),
+    data_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_data(), 
       GetArena());
   }
   if (from._internal_has_digest()) {
@@ -12454,11 +11716,11 @@ BatchReadBlobsResponse_Response::BatchReadBlobsResponse_Response(const BatchRead
 }
 
 void BatchReadBlobsResponse_Response::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BatchReadBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&status_) -
-      reinterpret_cast<char*>(&digest_)) + sizeof(status_));
+data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&status_) -
+    reinterpret_cast<char*>(&digest_)) + sizeof(status_));
 }
 
 BatchReadBlobsResponse_Response::~BatchReadBlobsResponse_Response() {
@@ -12483,11 +11745,6 @@ void BatchReadBlobsResponse_Response::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID:
 void BatchReadBlobsResponse_Response::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BatchReadBlobsResponse_Response& BatchReadBlobsResponse_Response::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BatchReadBlobsResponse_Response_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BatchReadBlobsResponse_Response::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.BatchReadBlobsResponse.Response)
@@ -12495,7 +11752,7 @@ void BatchReadBlobsResponse_Response::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  data_.ClearToEmpty();
   if (GetArena() == nullptr && digest_ != nullptr) {
     delete digest_;
   }
@@ -12509,7 +11766,6 @@ void BatchReadBlobsResponse_Response::Clear() {
 
 const char* BatchReadBlobsResponse_Response::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -12703,8 +11959,6 @@ void BatchReadBlobsResponse_Response::InternalSwap(BatchReadBlobsResponse_Respon
 
 // ===================================================================
 
-void BatchReadBlobsResponse::InitAsDefaultInstance() {
-}
 class BatchReadBlobsResponse::_Internal {
  public:
 };
@@ -12724,7 +11978,6 @@ BatchReadBlobsResponse::BatchReadBlobsResponse(const BatchReadBlobsResponse& fro
 }
 
 void BatchReadBlobsResponse::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BatchReadBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
 }
 
 BatchReadBlobsResponse::~BatchReadBlobsResponse() {
@@ -12746,11 +11999,6 @@ void BatchReadBlobsResponse::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) 
 void BatchReadBlobsResponse::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BatchReadBlobsResponse& BatchReadBlobsResponse::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BatchReadBlobsResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BatchReadBlobsResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.BatchReadBlobsResponse)
@@ -12764,7 +12012,6 @@ void BatchReadBlobsResponse::Clear() {
 
 const char* BatchReadBlobsResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -12906,10 +12153,6 @@ void BatchReadBlobsResponse::InternalSwap(BatchReadBlobsResponse* other) {
 
 // ===================================================================
 
-void GetTreeRequest::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_GetTreeRequest_default_instance_._instance.get_mutable()->root_digest_ = const_cast< ::build::bazel::remote::execution::v2::Digest*>(
-      ::build::bazel::remote::execution::v2::Digest::internal_default_instance());
-}
 class GetTreeRequest::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::Digest& root_digest(const GetTreeRequest* msg);
@@ -12930,12 +12173,12 @@ GetTreeRequest::GetTreeRequest(const GetTreeRequest& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_instance_name().empty()) {
-    instance_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_instance_name(),
+    instance_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_instance_name(), 
       GetArena());
   }
   page_token_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_page_token().empty()) {
-    page_token_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_page_token(),
+    page_token_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_page_token(), 
       GetArena());
   }
   if (from._internal_has_root_digest()) {
@@ -12948,12 +12191,12 @@ GetTreeRequest::GetTreeRequest(const GetTreeRequest& from)
 }
 
 void GetTreeRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_GetTreeRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  page_token_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&root_digest_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&page_size_) -
-      reinterpret_cast<char*>(&root_digest_)) + sizeof(page_size_));
+instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+page_token_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&root_digest_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&page_size_) -
+    reinterpret_cast<char*>(&root_digest_)) + sizeof(page_size_));
 }
 
 GetTreeRequest::~GetTreeRequest() {
@@ -12978,11 +12221,6 @@ void GetTreeRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void GetTreeRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const GetTreeRequest& GetTreeRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_GetTreeRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void GetTreeRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.GetTreeRequest)
@@ -12990,8 +12228,8 @@ void GetTreeRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  instance_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  page_token_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  instance_name_.ClearToEmpty();
+  page_token_.ClearToEmpty();
   if (GetArena() == nullptr && root_digest_ != nullptr) {
     delete root_digest_;
   }
@@ -13002,7 +12240,6 @@ void GetTreeRequest::Clear() {
 
 const char* GetTreeRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -13229,8 +12466,6 @@ void GetTreeRequest::InternalSwap(GetTreeRequest* other) {
 
 // ===================================================================
 
-void GetTreeResponse::InitAsDefaultInstance() {
-}
 class GetTreeResponse::_Internal {
  public:
 };
@@ -13248,15 +12483,14 @@ GetTreeResponse::GetTreeResponse(const GetTreeResponse& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   next_page_token_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_next_page_token().empty()) {
-    next_page_token_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_next_page_token(),
+    next_page_token_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_next_page_token(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.GetTreeResponse)
 }
 
 void GetTreeResponse::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_GetTreeResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  next_page_token_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+next_page_token_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 GetTreeResponse::~GetTreeResponse() {
@@ -13279,11 +12513,6 @@ void GetTreeResponse::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void GetTreeResponse::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const GetTreeResponse& GetTreeResponse::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_GetTreeResponse_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void GetTreeResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.GetTreeResponse)
@@ -13292,13 +12521,12 @@ void GetTreeResponse::Clear() {
   (void) cached_has_bits;
 
   directories_.Clear();
-  next_page_token_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  next_page_token_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* GetTreeResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -13470,8 +12698,6 @@ void GetTreeResponse::InternalSwap(GetTreeResponse* other) {
 
 // ===================================================================
 
-void GetCapabilitiesRequest::InitAsDefaultInstance() {
-}
 class GetCapabilitiesRequest::_Internal {
  public:
 };
@@ -13487,15 +12713,14 @@ GetCapabilitiesRequest::GetCapabilitiesRequest(const GetCapabilitiesRequest& fro
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_instance_name().empty()) {
-    instance_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_instance_name(),
+    instance_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_instance_name(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.GetCapabilitiesRequest)
 }
 
 void GetCapabilitiesRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_GetCapabilitiesRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+instance_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 GetCapabilitiesRequest::~GetCapabilitiesRequest() {
@@ -13518,11 +12743,6 @@ void GetCapabilitiesRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) 
 void GetCapabilitiesRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const GetCapabilitiesRequest& GetCapabilitiesRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_GetCapabilitiesRequest_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void GetCapabilitiesRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.GetCapabilitiesRequest)
@@ -13530,13 +12750,12 @@ void GetCapabilitiesRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  instance_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  instance_name_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* GetCapabilitiesRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -13679,18 +12898,6 @@ void GetCapabilitiesRequest::InternalSwap(GetCapabilitiesRequest* other) {
 
 // ===================================================================
 
-void ServerCapabilities::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_ServerCapabilities_default_instance_._instance.get_mutable()->cache_capabilities_ = const_cast< ::build::bazel::remote::execution::v2::CacheCapabilities*>(
-      ::build::bazel::remote::execution::v2::CacheCapabilities::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ServerCapabilities_default_instance_._instance.get_mutable()->execution_capabilities_ = const_cast< ::build::bazel::remote::execution::v2::ExecutionCapabilities*>(
-      ::build::bazel::remote::execution::v2::ExecutionCapabilities::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ServerCapabilities_default_instance_._instance.get_mutable()->deprecated_api_version_ = const_cast< ::build::bazel::semver::SemVer*>(
-      ::build::bazel::semver::SemVer::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ServerCapabilities_default_instance_._instance.get_mutable()->low_api_version_ = const_cast< ::build::bazel::semver::SemVer*>(
-      ::build::bazel::semver::SemVer::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_ServerCapabilities_default_instance_._instance.get_mutable()->high_api_version_ = const_cast< ::build::bazel::semver::SemVer*>(
-      ::build::bazel::semver::SemVer::internal_default_instance());
-}
 class ServerCapabilities::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::CacheCapabilities& cache_capabilities(const ServerCapabilities* msg);
@@ -13776,10 +12983,10 @@ ServerCapabilities::ServerCapabilities(const ServerCapabilities& from)
 }
 
 void ServerCapabilities::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ServerCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  ::memset(&cache_capabilities_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&high_api_version_) -
-      reinterpret_cast<char*>(&cache_capabilities_)) + sizeof(high_api_version_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&cache_capabilities_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&high_api_version_) -
+    reinterpret_cast<char*>(&cache_capabilities_)) + sizeof(high_api_version_));
 }
 
 ServerCapabilities::~ServerCapabilities() {
@@ -13806,11 +13013,6 @@ void ServerCapabilities::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ServerCapabilities::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ServerCapabilities& ServerCapabilities::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ServerCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ServerCapabilities::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ServerCapabilities)
@@ -13843,7 +13045,6 @@ void ServerCapabilities::Clear() {
 
 const char* ServerCapabilities::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -14087,8 +13288,6 @@ void ServerCapabilities::InternalSwap(ServerCapabilities* other) {
 
 // ===================================================================
 
-void DigestFunction::InitAsDefaultInstance() {
-}
 class DigestFunction::_Internal {
  public:
 };
@@ -14127,11 +13326,6 @@ void DigestFunction::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void DigestFunction::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const DigestFunction& DigestFunction::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_DigestFunction_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void DigestFunction::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.DigestFunction)
@@ -14144,7 +13338,6 @@ void DigestFunction::Clear() {
 
 const char* DigestFunction::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -14252,8 +13445,6 @@ void DigestFunction::InternalSwap(DigestFunction* other) {
 
 // ===================================================================
 
-void ActionCacheUpdateCapabilities::InitAsDefaultInstance() {
-}
 class ActionCacheUpdateCapabilities::_Internal {
  public:
 };
@@ -14272,7 +13463,7 @@ ActionCacheUpdateCapabilities::ActionCacheUpdateCapabilities(const ActionCacheUp
 }
 
 void ActionCacheUpdateCapabilities::SharedCtor() {
-  update_enabled_ = false;
+update_enabled_ = false;
 }
 
 ActionCacheUpdateCapabilities::~ActionCacheUpdateCapabilities() {
@@ -14294,11 +13485,6 @@ void ActionCacheUpdateCapabilities::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::A
 void ActionCacheUpdateCapabilities::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ActionCacheUpdateCapabilities& ActionCacheUpdateCapabilities::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ActionCacheUpdateCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ActionCacheUpdateCapabilities::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ActionCacheUpdateCapabilities)
@@ -14312,7 +13498,6 @@ void ActionCacheUpdateCapabilities::Clear() {
 
 const char* ActionCacheUpdateCapabilities::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -14447,8 +13632,6 @@ void ActionCacheUpdateCapabilities::InternalSwap(ActionCacheUpdateCapabilities* 
 
 // ===================================================================
 
-void PriorityCapabilities_PriorityRange::InitAsDefaultInstance() {
-}
 class PriorityCapabilities_PriorityRange::_Internal {
  public:
 };
@@ -14469,9 +13652,10 @@ PriorityCapabilities_PriorityRange::PriorityCapabilities_PriorityRange(const Pri
 }
 
 void PriorityCapabilities_PriorityRange::SharedCtor() {
-  ::memset(&min_priority_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&max_priority_) -
-      reinterpret_cast<char*>(&min_priority_)) + sizeof(max_priority_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&min_priority_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&max_priority_) -
+    reinterpret_cast<char*>(&min_priority_)) + sizeof(max_priority_));
 }
 
 PriorityCapabilities_PriorityRange::~PriorityCapabilities_PriorityRange() {
@@ -14493,11 +13677,6 @@ void PriorityCapabilities_PriorityRange::RegisterArenaDtor(::PROTOBUF_NAMESPACE_
 void PriorityCapabilities_PriorityRange::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const PriorityCapabilities_PriorityRange& PriorityCapabilities_PriorityRange::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_PriorityCapabilities_PriorityRange_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void PriorityCapabilities_PriorityRange::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.PriorityCapabilities.PriorityRange)
@@ -14513,7 +13692,6 @@ void PriorityCapabilities_PriorityRange::Clear() {
 
 const char* PriorityCapabilities_PriorityRange::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -14678,8 +13856,6 @@ void PriorityCapabilities_PriorityRange::InternalSwap(PriorityCapabilities_Prior
 
 // ===================================================================
 
-void PriorityCapabilities::InitAsDefaultInstance() {
-}
 class PriorityCapabilities::_Internal {
  public:
 };
@@ -14699,7 +13875,6 @@ PriorityCapabilities::PriorityCapabilities(const PriorityCapabilities& from)
 }
 
 void PriorityCapabilities::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
 }
 
 PriorityCapabilities::~PriorityCapabilities() {
@@ -14721,11 +13896,6 @@ void PriorityCapabilities::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void PriorityCapabilities::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const PriorityCapabilities& PriorityCapabilities::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_PriorityCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void PriorityCapabilities::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.PriorityCapabilities)
@@ -14739,7 +13909,6 @@ void PriorityCapabilities::Clear() {
 
 const char* PriorityCapabilities::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -14881,8 +14050,6 @@ void PriorityCapabilities::InternalSwap(PriorityCapabilities* other) {
 
 // ===================================================================
 
-void SymlinkAbsolutePathStrategy::InitAsDefaultInstance() {
-}
 class SymlinkAbsolutePathStrategy::_Internal {
  public:
 };
@@ -14921,11 +14088,6 @@ void SymlinkAbsolutePathStrategy::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Are
 void SymlinkAbsolutePathStrategy::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const SymlinkAbsolutePathStrategy& SymlinkAbsolutePathStrategy::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_SymlinkAbsolutePathStrategy_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void SymlinkAbsolutePathStrategy::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.SymlinkAbsolutePathStrategy)
@@ -14938,7 +14100,6 @@ void SymlinkAbsolutePathStrategy::Clear() {
 
 const char* SymlinkAbsolutePathStrategy::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -15046,12 +14207,6 @@ void SymlinkAbsolutePathStrategy::InternalSwap(SymlinkAbsolutePathStrategy* othe
 
 // ===================================================================
 
-void CacheCapabilities::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_CacheCapabilities_default_instance_._instance.get_mutable()->action_cache_update_capabilities_ = const_cast< ::build::bazel::remote::execution::v2::ActionCacheUpdateCapabilities*>(
-      ::build::bazel::remote::execution::v2::ActionCacheUpdateCapabilities::internal_default_instance());
-  ::build::bazel::remote::execution::v2::_CacheCapabilities_default_instance_._instance.get_mutable()->cache_priority_capabilities_ = const_cast< ::build::bazel::remote::execution::v2::PriorityCapabilities*>(
-      ::build::bazel::remote::execution::v2::PriorityCapabilities::internal_default_instance());
-}
 class CacheCapabilities::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::ActionCacheUpdateCapabilities& action_cache_update_capabilities(const CacheCapabilities* msg);
@@ -15094,10 +14249,10 @@ CacheCapabilities::CacheCapabilities(const CacheCapabilities& from)
 }
 
 void CacheCapabilities::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_CacheCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  ::memset(&action_cache_update_capabilities_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&symlink_absolute_path_strategy_) -
-      reinterpret_cast<char*>(&action_cache_update_capabilities_)) + sizeof(symlink_absolute_path_strategy_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&action_cache_update_capabilities_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&symlink_absolute_path_strategy_) -
+    reinterpret_cast<char*>(&action_cache_update_capabilities_)) + sizeof(symlink_absolute_path_strategy_));
 }
 
 CacheCapabilities::~CacheCapabilities() {
@@ -15121,11 +14276,6 @@ void CacheCapabilities::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void CacheCapabilities::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const CacheCapabilities& CacheCapabilities::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_CacheCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void CacheCapabilities::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.CacheCapabilities)
@@ -15150,7 +14300,6 @@ void CacheCapabilities::Clear() {
 
 const char* CacheCapabilities::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -15406,10 +14555,6 @@ void CacheCapabilities::InternalSwap(CacheCapabilities* other) {
 
 // ===================================================================
 
-void ExecutionCapabilities::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_ExecutionCapabilities_default_instance_._instance.get_mutable()->execution_priority_capabilities_ = const_cast< ::build::bazel::remote::execution::v2::PriorityCapabilities*>(
-      ::build::bazel::remote::execution::v2::PriorityCapabilities::internal_default_instance());
-}
 class ExecutionCapabilities::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::PriorityCapabilities& execution_priority_capabilities(const ExecutionCapabilities* msg);
@@ -15442,10 +14587,10 @@ ExecutionCapabilities::ExecutionCapabilities(const ExecutionCapabilities& from)
 }
 
 void ExecutionCapabilities::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ExecutionCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  ::memset(&execution_priority_capabilities_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&exec_enabled_) -
-      reinterpret_cast<char*>(&execution_priority_capabilities_)) + sizeof(exec_enabled_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&execution_priority_capabilities_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&exec_enabled_) -
+    reinterpret_cast<char*>(&execution_priority_capabilities_)) + sizeof(exec_enabled_));
 }
 
 ExecutionCapabilities::~ExecutionCapabilities() {
@@ -15468,11 +14613,6 @@ void ExecutionCapabilities::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ExecutionCapabilities::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ExecutionCapabilities& ExecutionCapabilities::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ExecutionCapabilities_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ExecutionCapabilities::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ExecutionCapabilities)
@@ -15493,7 +14633,6 @@ void ExecutionCapabilities::Clear() {
 
 const char* ExecutionCapabilities::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -15716,8 +14855,6 @@ void ExecutionCapabilities::InternalSwap(ExecutionCapabilities* other) {
 
 // ===================================================================
 
-void ToolDetails::InitAsDefaultInstance() {
-}
 class ToolDetails::_Internal {
  public:
 };
@@ -15733,21 +14870,20 @@ ToolDetails::ToolDetails(const ToolDetails& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   tool_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_tool_name().empty()) {
-    tool_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_tool_name(),
+    tool_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_tool_name(), 
       GetArena());
   }
   tool_version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_tool_version().empty()) {
-    tool_version_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_tool_version(),
+    tool_version_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_tool_version(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:build.bazel.remote.execution.v2.ToolDetails)
 }
 
 void ToolDetails::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ToolDetails_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  tool_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  tool_version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+tool_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+tool_version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 ToolDetails::~ToolDetails() {
@@ -15771,11 +14907,6 @@ void ToolDetails::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ToolDetails::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ToolDetails& ToolDetails::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ToolDetails_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ToolDetails::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.ToolDetails)
@@ -15783,14 +14914,13 @@ void ToolDetails::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  tool_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  tool_version_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  tool_name_.ClearToEmpty();
+  tool_version_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* ToolDetails::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -15963,10 +15093,6 @@ void ToolDetails::InternalSwap(ToolDetails* other) {
 
 // ===================================================================
 
-void RequestMetadata::InitAsDefaultInstance() {
-  ::build::bazel::remote::execution::v2::_RequestMetadata_default_instance_._instance.get_mutable()->tool_details_ = const_cast< ::build::bazel::remote::execution::v2::ToolDetails*>(
-      ::build::bazel::remote::execution::v2::ToolDetails::internal_default_instance());
-}
 class RequestMetadata::_Internal {
  public:
   static const ::build::bazel::remote::execution::v2::ToolDetails& tool_details(const RequestMetadata* msg);
@@ -15987,17 +15113,17 @@ RequestMetadata::RequestMetadata(const RequestMetadata& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   action_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_action_id().empty()) {
-    action_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_action_id(),
+    action_id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_action_id(), 
       GetArena());
   }
   tool_invocation_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_tool_invocation_id().empty()) {
-    tool_invocation_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_tool_invocation_id(),
+    tool_invocation_id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_tool_invocation_id(), 
       GetArena());
   }
   correlated_invocations_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_correlated_invocations_id().empty()) {
-    correlated_invocations_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_correlated_invocations_id(),
+    correlated_invocations_id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_correlated_invocations_id(), 
       GetArena());
   }
   if (from._internal_has_tool_details()) {
@@ -16009,11 +15135,10 @@ RequestMetadata::RequestMetadata(const RequestMetadata& from)
 }
 
 void RequestMetadata::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_RequestMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  action_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  tool_invocation_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  correlated_invocations_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  tool_details_ = nullptr;
+action_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+tool_invocation_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+correlated_invocations_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+tool_details_ = nullptr;
 }
 
 RequestMetadata::~RequestMetadata() {
@@ -16039,11 +15164,6 @@ void RequestMetadata::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void RequestMetadata::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const RequestMetadata& RequestMetadata::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_RequestMetadata_build_2fbazel_2fremote_2fexecution_2fv2_2fremote_5fexecution_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void RequestMetadata::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.remote.execution.v2.RequestMetadata)
@@ -16051,9 +15171,9 @@ void RequestMetadata::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  action_id_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  tool_invocation_id_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  correlated_invocations_id_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  action_id_.ClearToEmpty();
+  tool_invocation_id_.ClearToEmpty();
+  correlated_invocations_id_.ClearToEmpty();
   if (GetArena() == nullptr && tool_details_ != nullptr) {
     delete tool_details_;
   }
@@ -16063,7 +15183,6 @@ void RequestMetadata::Clear() {
 
 const char* RequestMetadata::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);

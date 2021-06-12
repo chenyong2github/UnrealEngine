@@ -31,291 +31,204 @@ UE_PUSH_MACRO("TEXT")
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2fduration_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Duration_google_2fprotobuf_2fduration_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2ferror_5fdetails_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_BadRequest_FieldViolation_google_2frpc_2ferror_5fdetails_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2ferror_5fdetails_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ErrorInfo_MetadataEntry_DoNotUse_google_2frpc_2ferror_5fdetails_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2ferror_5fdetails_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Help_Link_google_2frpc_2ferror_5fdetails_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2ferror_5fdetails_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_PreconditionFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2ferror_5fdetails_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_QuotaFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto;
+
+PROTOBUF_PRAGMA_INIT_SEG
 namespace google {
 namespace rpc {
-class RetryInfoDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<RetryInfo> _instance;
-} _RetryInfo_default_instance_;
-class DebugInfoDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<DebugInfo> _instance;
-} _DebugInfo_default_instance_;
-class QuotaFailure_ViolationDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<QuotaFailure_Violation> _instance;
-} _QuotaFailure_Violation_default_instance_;
-class QuotaFailureDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<QuotaFailure> _instance;
-} _QuotaFailure_default_instance_;
-class ErrorInfo_MetadataEntry_DoNotUseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ErrorInfo_MetadataEntry_DoNotUse> _instance;
-} _ErrorInfo_MetadataEntry_DoNotUse_default_instance_;
-class ErrorInfoDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ErrorInfo> _instance;
-} _ErrorInfo_default_instance_;
-class PreconditionFailure_ViolationDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<PreconditionFailure_Violation> _instance;
-} _PreconditionFailure_Violation_default_instance_;
-class PreconditionFailureDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<PreconditionFailure> _instance;
-} _PreconditionFailure_default_instance_;
-class BadRequest_FieldViolationDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BadRequest_FieldViolation> _instance;
-} _BadRequest_FieldViolation_default_instance_;
-class BadRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BadRequest> _instance;
-} _BadRequest_default_instance_;
-class RequestInfoDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<RequestInfo> _instance;
-} _RequestInfo_default_instance_;
-class ResourceInfoDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ResourceInfo> _instance;
-} _ResourceInfo_default_instance_;
-class Help_LinkDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Help_Link> _instance;
-} _Help_Link_default_instance_;
-class HelpDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Help> _instance;
-} _Help_default_instance_;
-class LocalizedMessageDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<LocalizedMessage> _instance;
-} _LocalizedMessage_default_instance_;
+constexpr RetryInfo::RetryInfo(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : retry_delay_(nullptr){}
+struct RetryInfoDefaultTypeInternal {
+  constexpr RetryInfoDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~RetryInfoDefaultTypeInternal() {}
+  union {
+    RetryInfo _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT RetryInfoDefaultTypeInternal _RetryInfo_default_instance_;
+constexpr DebugInfo::DebugInfo(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : stack_entries_()
+  , detail_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct DebugInfoDefaultTypeInternal {
+  constexpr DebugInfoDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~DebugInfoDefaultTypeInternal() {}
+  union {
+    DebugInfo _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT DebugInfoDefaultTypeInternal _DebugInfo_default_instance_;
+constexpr QuotaFailure_Violation::QuotaFailure_Violation(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : subject_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , description_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct QuotaFailure_ViolationDefaultTypeInternal {
+  constexpr QuotaFailure_ViolationDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~QuotaFailure_ViolationDefaultTypeInternal() {}
+  union {
+    QuotaFailure_Violation _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT QuotaFailure_ViolationDefaultTypeInternal _QuotaFailure_Violation_default_instance_;
+constexpr QuotaFailure::QuotaFailure(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : violations_(){}
+struct QuotaFailureDefaultTypeInternal {
+  constexpr QuotaFailureDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~QuotaFailureDefaultTypeInternal() {}
+  union {
+    QuotaFailure _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT QuotaFailureDefaultTypeInternal _QuotaFailure_default_instance_;
+constexpr ErrorInfo_MetadataEntry_DoNotUse::ErrorInfo_MetadataEntry_DoNotUse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct ErrorInfo_MetadataEntry_DoNotUseDefaultTypeInternal {
+  constexpr ErrorInfo_MetadataEntry_DoNotUseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ErrorInfo_MetadataEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    ErrorInfo_MetadataEntry_DoNotUse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ErrorInfo_MetadataEntry_DoNotUseDefaultTypeInternal _ErrorInfo_MetadataEntry_DoNotUse_default_instance_;
+constexpr ErrorInfo::ErrorInfo(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : metadata_(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{})
+  , reason_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , domain_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct ErrorInfoDefaultTypeInternal {
+  constexpr ErrorInfoDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ErrorInfoDefaultTypeInternal() {}
+  union {
+    ErrorInfo _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ErrorInfoDefaultTypeInternal _ErrorInfo_default_instance_;
+constexpr PreconditionFailure_Violation::PreconditionFailure_Violation(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : type_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , subject_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , description_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct PreconditionFailure_ViolationDefaultTypeInternal {
+  constexpr PreconditionFailure_ViolationDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~PreconditionFailure_ViolationDefaultTypeInternal() {}
+  union {
+    PreconditionFailure_Violation _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PreconditionFailure_ViolationDefaultTypeInternal _PreconditionFailure_Violation_default_instance_;
+constexpr PreconditionFailure::PreconditionFailure(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : violations_(){}
+struct PreconditionFailureDefaultTypeInternal {
+  constexpr PreconditionFailureDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~PreconditionFailureDefaultTypeInternal() {}
+  union {
+    PreconditionFailure _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PreconditionFailureDefaultTypeInternal _PreconditionFailure_default_instance_;
+constexpr BadRequest_FieldViolation::BadRequest_FieldViolation(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : field_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , description_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct BadRequest_FieldViolationDefaultTypeInternal {
+  constexpr BadRequest_FieldViolationDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BadRequest_FieldViolationDefaultTypeInternal() {}
+  union {
+    BadRequest_FieldViolation _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BadRequest_FieldViolationDefaultTypeInternal _BadRequest_FieldViolation_default_instance_;
+constexpr BadRequest::BadRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : field_violations_(){}
+struct BadRequestDefaultTypeInternal {
+  constexpr BadRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BadRequestDefaultTypeInternal() {}
+  union {
+    BadRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BadRequestDefaultTypeInternal _BadRequest_default_instance_;
+constexpr RequestInfo::RequestInfo(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : request_id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , serving_data_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct RequestInfoDefaultTypeInternal {
+  constexpr RequestInfoDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~RequestInfoDefaultTypeInternal() {}
+  union {
+    RequestInfo _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT RequestInfoDefaultTypeInternal _RequestInfo_default_instance_;
+constexpr ResourceInfo::ResourceInfo(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : resource_type_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , resource_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , owner_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , description_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct ResourceInfoDefaultTypeInternal {
+  constexpr ResourceInfoDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ResourceInfoDefaultTypeInternal() {}
+  union {
+    ResourceInfo _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ResourceInfoDefaultTypeInternal _ResourceInfo_default_instance_;
+constexpr Help_Link::Help_Link(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : description_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , url_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct Help_LinkDefaultTypeInternal {
+  constexpr Help_LinkDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~Help_LinkDefaultTypeInternal() {}
+  union {
+    Help_Link _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT Help_LinkDefaultTypeInternal _Help_Link_default_instance_;
+constexpr Help::Help(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : links_(){}
+struct HelpDefaultTypeInternal {
+  constexpr HelpDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~HelpDefaultTypeInternal() {}
+  union {
+    Help _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT HelpDefaultTypeInternal _Help_default_instance_;
+constexpr LocalizedMessage::LocalizedMessage(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : locale_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , message_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct LocalizedMessageDefaultTypeInternal {
+  constexpr LocalizedMessageDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~LocalizedMessageDefaultTypeInternal() {}
+  union {
+    LocalizedMessage _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT LocalizedMessageDefaultTypeInternal _LocalizedMessage_default_instance_;
 }  // namespace rpc
 }  // namespace google
-static void InitDefaultsscc_info_BadRequest_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_BadRequest_default_instance_;
-    new (ptr) ::google::rpc::BadRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::BadRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_BadRequest_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_BadRequest_google_2frpc_2ferror_5fdetails_2eproto}, {
-      &scc_info_BadRequest_FieldViolation_google_2frpc_2ferror_5fdetails_2eproto.base,}};
-
-static void InitDefaultsscc_info_BadRequest_FieldViolation_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_BadRequest_FieldViolation_default_instance_;
-    new (ptr) ::google::rpc::BadRequest_FieldViolation();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::BadRequest_FieldViolation::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_BadRequest_FieldViolation_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_BadRequest_FieldViolation_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_DebugInfo_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_DebugInfo_default_instance_;
-    new (ptr) ::google::rpc::DebugInfo();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::DebugInfo::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_DebugInfo_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_DebugInfo_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_ErrorInfo_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_ErrorInfo_default_instance_;
-    new (ptr) ::google::rpc::ErrorInfo();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::ErrorInfo::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_ErrorInfo_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_ErrorInfo_google_2frpc_2ferror_5fdetails_2eproto}, {
-      &scc_info_ErrorInfo_MetadataEntry_DoNotUse_google_2frpc_2ferror_5fdetails_2eproto.base,}};
-
-static void InitDefaultsscc_info_ErrorInfo_MetadataEntry_DoNotUse_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_ErrorInfo_MetadataEntry_DoNotUse_default_instance_;
-    new (ptr) ::google::rpc::ErrorInfo_MetadataEntry_DoNotUse();
-  }
-  ::google::rpc::ErrorInfo_MetadataEntry_DoNotUse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ErrorInfo_MetadataEntry_DoNotUse_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ErrorInfo_MetadataEntry_DoNotUse_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_Help_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_Help_default_instance_;
-    new (ptr) ::google::rpc::Help();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::Help::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_Help_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_Help_google_2frpc_2ferror_5fdetails_2eproto}, {
-      &scc_info_Help_Link_google_2frpc_2ferror_5fdetails_2eproto.base,}};
-
-static void InitDefaultsscc_info_Help_Link_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_Help_Link_default_instance_;
-    new (ptr) ::google::rpc::Help_Link();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::Help_Link::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Help_Link_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_Help_Link_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_LocalizedMessage_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_LocalizedMessage_default_instance_;
-    new (ptr) ::google::rpc::LocalizedMessage();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::LocalizedMessage::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_LocalizedMessage_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_LocalizedMessage_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_PreconditionFailure_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_PreconditionFailure_default_instance_;
-    new (ptr) ::google::rpc::PreconditionFailure();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::PreconditionFailure::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_PreconditionFailure_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_PreconditionFailure_google_2frpc_2ferror_5fdetails_2eproto}, {
-      &scc_info_PreconditionFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto.base,}};
-
-static void InitDefaultsscc_info_PreconditionFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_PreconditionFailure_Violation_default_instance_;
-    new (ptr) ::google::rpc::PreconditionFailure_Violation();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::PreconditionFailure_Violation::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_PreconditionFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_PreconditionFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_QuotaFailure_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_QuotaFailure_default_instance_;
-    new (ptr) ::google::rpc::QuotaFailure();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::QuotaFailure::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_QuotaFailure_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_QuotaFailure_google_2frpc_2ferror_5fdetails_2eproto}, {
-      &scc_info_QuotaFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto.base,}};
-
-static void InitDefaultsscc_info_QuotaFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_QuotaFailure_Violation_default_instance_;
-    new (ptr) ::google::rpc::QuotaFailure_Violation();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::QuotaFailure_Violation::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_QuotaFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_QuotaFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_RequestInfo_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_RequestInfo_default_instance_;
-    new (ptr) ::google::rpc::RequestInfo();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::RequestInfo::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_RequestInfo_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_RequestInfo_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_ResourceInfo_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_ResourceInfo_default_instance_;
-    new (ptr) ::google::rpc::ResourceInfo();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::ResourceInfo::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ResourceInfo_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ResourceInfo_google_2frpc_2ferror_5fdetails_2eproto}, {}};
-
-static void InitDefaultsscc_info_RetryInfo_google_2frpc_2ferror_5fdetails_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::_RetryInfo_default_instance_;
-    new (ptr) ::google::rpc::RetryInfo();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::RetryInfo::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_RetryInfo_google_2frpc_2ferror_5fdetails_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_RetryInfo_google_2frpc_2ferror_5fdetails_2eproto}, {
-      &scc_info_Duration_google_2fprotobuf_2fduration_2eproto.base,}};
-
 static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_google_2frpc_2ferror_5fdetails_2eproto[15];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_google_2frpc_2ferror_5fdetails_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_google_2frpc_2ferror_5fdetails_2eproto = nullptr;
@@ -499,42 +412,26 @@ const char descriptor_table_protodef_google_2frpc_2ferror_5fdetails_2eproto[] PR
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_deps[1] = {
   &::descriptor_table_google_2fprotobuf_2fduration_2eproto,
 };
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_sccs[15] = {
-  &scc_info_BadRequest_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_BadRequest_FieldViolation_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_DebugInfo_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_ErrorInfo_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_ErrorInfo_MetadataEntry_DoNotUse_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_Help_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_Help_Link_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_LocalizedMessage_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_PreconditionFailure_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_PreconditionFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_QuotaFailure_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_QuotaFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_RequestInfo_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_ResourceInfo_google_2frpc_2ferror_5fdetails_2eproto.base,
-  &scc_info_RetryInfo_google_2frpc_2ferror_5fdetails_2eproto.base,
-};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_google_2frpc_2ferror_5fdetails_2eproto = {
-  false, false, descriptor_table_protodef_google_2frpc_2ferror_5fdetails_2eproto, "google/rpc/error_details.proto", 1162,
-  &descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_once, descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_sccs, descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_deps, 15, 1,
+  false, false, 1162, descriptor_table_protodef_google_2frpc_2ferror_5fdetails_2eproto, "google/rpc/error_details.proto", 
+  &descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_once, descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_deps, 1, 15,
   schemas, file_default_instances, TableStruct_google_2frpc_2ferror_5fdetails_2eproto::offsets,
-  file_level_metadata_google_2frpc_2ferror_5fdetails_2eproto, 15, file_level_enum_descriptors_google_2frpc_2ferror_5fdetails_2eproto, file_level_service_descriptors_google_2frpc_2ferror_5fdetails_2eproto,
+  file_level_metadata_google_2frpc_2ferror_5fdetails_2eproto, file_level_enum_descriptors_google_2frpc_2ferror_5fdetails_2eproto, file_level_service_descriptors_google_2frpc_2ferror_5fdetails_2eproto,
 };
+PROTOBUF_ATTRIBUTE_WEAK ::PROTOBUF_NAMESPACE_ID::Metadata
+descriptor_table_google_2frpc_2ferror_5fdetails_2eproto_metadata_getter(int index) {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_google_2frpc_2ferror_5fdetails_2eproto);
+  return descriptor_table_google_2frpc_2ferror_5fdetails_2eproto.file_level_metadata[index];
+}
 
 // Force running AddDescriptors() at dynamic initialization time.
-static bool dynamic_init_dummy_google_2frpc_2ferror_5fdetails_2eproto = (static_cast<void>(::PROTOBUF_NAMESPACE_ID::internal::AddDescriptors(&descriptor_table_google_2frpc_2ferror_5fdetails_2eproto)), true);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_google_2frpc_2ferror_5fdetails_2eproto(&descriptor_table_google_2frpc_2ferror_5fdetails_2eproto);
 namespace google {
 namespace rpc {
 
 // ===================================================================
 
-void RetryInfo::InitAsDefaultInstance() {
-  ::google::rpc::_RetryInfo_default_instance_._instance.get_mutable()->retry_delay_ = const_cast< PROTOBUF_NAMESPACE_ID::Duration*>(
-      PROTOBUF_NAMESPACE_ID::Duration::internal_default_instance());
-}
 class RetryInfo::_Internal {
  public:
   static const PROTOBUF_NAMESPACE_ID::Duration& retry_delay(const RetryInfo* msg);
@@ -568,8 +465,7 @@ RetryInfo::RetryInfo(const RetryInfo& from)
 }
 
 void RetryInfo::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_RetryInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  retry_delay_ = nullptr;
+retry_delay_ = nullptr;
 }
 
 RetryInfo::~RetryInfo() {
@@ -592,11 +488,6 @@ void RetryInfo::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void RetryInfo::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const RetryInfo& RetryInfo::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_RetryInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void RetryInfo::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.RetryInfo)
@@ -613,7 +504,6 @@ void RetryInfo::Clear() {
 
 const char* RetryInfo::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -752,8 +642,6 @@ void RetryInfo::InternalSwap(RetryInfo* other) {
 
 // ===================================================================
 
-void DebugInfo::InitAsDefaultInstance() {
-}
 class DebugInfo::_Internal {
  public:
 };
@@ -771,15 +659,14 @@ DebugInfo::DebugInfo(const DebugInfo& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   detail_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_detail().empty()) {
-    detail_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_detail(),
+    detail_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_detail(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.DebugInfo)
 }
 
 void DebugInfo::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_DebugInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  detail_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+detail_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 DebugInfo::~DebugInfo() {
@@ -802,11 +689,6 @@ void DebugInfo::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void DebugInfo::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const DebugInfo& DebugInfo::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_DebugInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void DebugInfo::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.DebugInfo)
@@ -815,13 +697,12 @@ void DebugInfo::Clear() {
   (void) cached_has_bits;
 
   stack_entries_.Clear();
-  detail_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  detail_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* DebugInfo::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -998,8 +879,6 @@ void DebugInfo::InternalSwap(DebugInfo* other) {
 
 // ===================================================================
 
-void QuotaFailure_Violation::InitAsDefaultInstance() {
-}
 class QuotaFailure_Violation::_Internal {
  public:
 };
@@ -1015,21 +894,20 @@ QuotaFailure_Violation::QuotaFailure_Violation(const QuotaFailure_Violation& fro
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   subject_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_subject().empty()) {
-    subject_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_subject(),
+    subject_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_subject(), 
       GetArena());
   }
   description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_description().empty()) {
-    description_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_description(),
+    description_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_description(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.QuotaFailure.Violation)
 }
 
 void QuotaFailure_Violation::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_QuotaFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto.base);
-  subject_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+subject_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 QuotaFailure_Violation::~QuotaFailure_Violation() {
@@ -1053,11 +931,6 @@ void QuotaFailure_Violation::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) 
 void QuotaFailure_Violation::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const QuotaFailure_Violation& QuotaFailure_Violation::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_QuotaFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void QuotaFailure_Violation::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.QuotaFailure.Violation)
@@ -1065,14 +938,13 @@ void QuotaFailure_Violation::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  subject_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  description_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  subject_.ClearToEmpty();
+  description_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* QuotaFailure_Violation::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1245,8 +1117,6 @@ void QuotaFailure_Violation::InternalSwap(QuotaFailure_Violation* other) {
 
 // ===================================================================
 
-void QuotaFailure::InitAsDefaultInstance() {
-}
 class QuotaFailure::_Internal {
  public:
 };
@@ -1266,7 +1136,6 @@ QuotaFailure::QuotaFailure(const QuotaFailure& from)
 }
 
 void QuotaFailure::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_QuotaFailure_google_2frpc_2ferror_5fdetails_2eproto.base);
 }
 
 QuotaFailure::~QuotaFailure() {
@@ -1288,11 +1157,6 @@ void QuotaFailure::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void QuotaFailure::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const QuotaFailure& QuotaFailure::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_QuotaFailure_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void QuotaFailure::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.QuotaFailure)
@@ -1306,7 +1170,6 @@ void QuotaFailure::Clear() {
 
 const char* QuotaFailure::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1465,8 +1328,6 @@ void ErrorInfo_MetadataEntry_DoNotUse::MergeFrom(
 
 // ===================================================================
 
-void ErrorInfo::InitAsDefaultInstance() {
-}
 class ErrorInfo::_Internal {
  public:
 };
@@ -1484,21 +1345,20 @@ ErrorInfo::ErrorInfo(const ErrorInfo& from)
   metadata_.MergeFrom(from.metadata_);
   reason_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_reason().empty()) {
-    reason_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_reason(),
+    reason_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_reason(), 
       GetArena());
   }
   domain_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_domain().empty()) {
-    domain_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_domain(),
+    domain_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_domain(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.ErrorInfo)
 }
 
 void ErrorInfo::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ErrorInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  reason_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  domain_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+reason_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+domain_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 ErrorInfo::~ErrorInfo() {
@@ -1522,11 +1382,6 @@ void ErrorInfo::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ErrorInfo::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ErrorInfo& ErrorInfo::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ErrorInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ErrorInfo::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.ErrorInfo)
@@ -1535,14 +1390,13 @@ void ErrorInfo::Clear() {
   (void) cached_has_bits;
 
   metadata_.Clear();
-  reason_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  domain_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  reason_.ClearToEmpty();
+  domain_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* ErrorInfo::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1783,8 +1637,6 @@ void ErrorInfo::InternalSwap(ErrorInfo* other) {
 
 // ===================================================================
 
-void PreconditionFailure_Violation::InitAsDefaultInstance() {
-}
 class PreconditionFailure_Violation::_Internal {
  public:
 };
@@ -1800,27 +1652,26 @@ PreconditionFailure_Violation::PreconditionFailure_Violation(const PreconditionF
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_type().empty()) {
-    type_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_type(),
+    type_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_type(), 
       GetArena());
   }
   subject_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_subject().empty()) {
-    subject_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_subject(),
+    subject_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_subject(), 
       GetArena());
   }
   description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_description().empty()) {
-    description_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_description(),
+    description_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_description(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.PreconditionFailure.Violation)
 }
 
 void PreconditionFailure_Violation::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_PreconditionFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto.base);
-  type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  subject_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+subject_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 PreconditionFailure_Violation::~PreconditionFailure_Violation() {
@@ -1845,11 +1696,6 @@ void PreconditionFailure_Violation::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::A
 void PreconditionFailure_Violation::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const PreconditionFailure_Violation& PreconditionFailure_Violation::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_PreconditionFailure_Violation_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void PreconditionFailure_Violation::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.PreconditionFailure.Violation)
@@ -1857,15 +1703,14 @@ void PreconditionFailure_Violation::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  type_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  subject_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  description_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  type_.ClearToEmpty();
+  subject_.ClearToEmpty();
+  description_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* PreconditionFailure_Violation::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2068,8 +1913,6 @@ void PreconditionFailure_Violation::InternalSwap(PreconditionFailure_Violation* 
 
 // ===================================================================
 
-void PreconditionFailure::InitAsDefaultInstance() {
-}
 class PreconditionFailure::_Internal {
  public:
 };
@@ -2089,7 +1932,6 @@ PreconditionFailure::PreconditionFailure(const PreconditionFailure& from)
 }
 
 void PreconditionFailure::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_PreconditionFailure_google_2frpc_2ferror_5fdetails_2eproto.base);
 }
 
 PreconditionFailure::~PreconditionFailure() {
@@ -2111,11 +1953,6 @@ void PreconditionFailure::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void PreconditionFailure::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const PreconditionFailure& PreconditionFailure::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_PreconditionFailure_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void PreconditionFailure::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.PreconditionFailure)
@@ -2129,7 +1966,6 @@ void PreconditionFailure::Clear() {
 
 const char* PreconditionFailure::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2271,8 +2107,6 @@ void PreconditionFailure::InternalSwap(PreconditionFailure* other) {
 
 // ===================================================================
 
-void BadRequest_FieldViolation::InitAsDefaultInstance() {
-}
 class BadRequest_FieldViolation::_Internal {
  public:
 };
@@ -2288,21 +2122,20 @@ BadRequest_FieldViolation::BadRequest_FieldViolation(const BadRequest_FieldViola
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   field_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_field().empty()) {
-    field_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_field(),
+    field_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_field(), 
       GetArena());
   }
   description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_description().empty()) {
-    description_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_description(),
+    description_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_description(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.BadRequest.FieldViolation)
 }
 
 void BadRequest_FieldViolation::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BadRequest_FieldViolation_google_2frpc_2ferror_5fdetails_2eproto.base);
-  field_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+field_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 BadRequest_FieldViolation::~BadRequest_FieldViolation() {
@@ -2326,11 +2159,6 @@ void BadRequest_FieldViolation::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena
 void BadRequest_FieldViolation::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BadRequest_FieldViolation& BadRequest_FieldViolation::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BadRequest_FieldViolation_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BadRequest_FieldViolation::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.BadRequest.FieldViolation)
@@ -2338,14 +2166,13 @@ void BadRequest_FieldViolation::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  field_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  description_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  field_.ClearToEmpty();
+  description_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* BadRequest_FieldViolation::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2518,8 +2345,6 @@ void BadRequest_FieldViolation::InternalSwap(BadRequest_FieldViolation* other) {
 
 // ===================================================================
 
-void BadRequest::InitAsDefaultInstance() {
-}
 class BadRequest::_Internal {
  public:
 };
@@ -2539,7 +2364,6 @@ BadRequest::BadRequest(const BadRequest& from)
 }
 
 void BadRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BadRequest_google_2frpc_2ferror_5fdetails_2eproto.base);
 }
 
 BadRequest::~BadRequest() {
@@ -2561,11 +2385,6 @@ void BadRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void BadRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BadRequest& BadRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BadRequest_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BadRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.BadRequest)
@@ -2579,7 +2398,6 @@ void BadRequest::Clear() {
 
 const char* BadRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2721,8 +2539,6 @@ void BadRequest::InternalSwap(BadRequest* other) {
 
 // ===================================================================
 
-void RequestInfo::InitAsDefaultInstance() {
-}
 class RequestInfo::_Internal {
  public:
 };
@@ -2738,21 +2554,20 @@ RequestInfo::RequestInfo(const RequestInfo& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   request_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_request_id().empty()) {
-    request_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_request_id(),
+    request_id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_request_id(), 
       GetArena());
   }
   serving_data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_serving_data().empty()) {
-    serving_data_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_serving_data(),
+    serving_data_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_serving_data(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.RequestInfo)
 }
 
 void RequestInfo::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_RequestInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  request_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  serving_data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+request_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+serving_data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 RequestInfo::~RequestInfo() {
@@ -2776,11 +2591,6 @@ void RequestInfo::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void RequestInfo::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const RequestInfo& RequestInfo::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_RequestInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void RequestInfo::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.RequestInfo)
@@ -2788,14 +2598,13 @@ void RequestInfo::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  request_id_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  serving_data_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  request_id_.ClearToEmpty();
+  serving_data_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* RequestInfo::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2968,8 +2777,6 @@ void RequestInfo::InternalSwap(RequestInfo* other) {
 
 // ===================================================================
 
-void ResourceInfo::InitAsDefaultInstance() {
-}
 class ResourceInfo::_Internal {
  public:
 };
@@ -2985,33 +2792,32 @@ ResourceInfo::ResourceInfo(const ResourceInfo& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   resource_type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_resource_type().empty()) {
-    resource_type_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_resource_type(),
+    resource_type_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_resource_type(), 
       GetArena());
   }
   resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_resource_name().empty()) {
-    resource_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_resource_name(),
+    resource_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_resource_name(), 
       GetArena());
   }
   owner_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_owner().empty()) {
-    owner_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_owner(),
+    owner_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_owner(), 
       GetArena());
   }
   description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_description().empty()) {
-    description_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_description(),
+    description_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_description(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.ResourceInfo)
 }
 
 void ResourceInfo::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ResourceInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  resource_type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  owner_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+resource_type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+owner_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 ResourceInfo::~ResourceInfo() {
@@ -3037,11 +2843,6 @@ void ResourceInfo::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ResourceInfo::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ResourceInfo& ResourceInfo::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ResourceInfo_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ResourceInfo::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.ResourceInfo)
@@ -3049,16 +2850,15 @@ void ResourceInfo::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  resource_type_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  resource_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  owner_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  description_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  resource_type_.ClearToEmpty();
+  resource_name_.ClearToEmpty();
+  owner_.ClearToEmpty();
+  description_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* ResourceInfo::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -3291,8 +3091,6 @@ void ResourceInfo::InternalSwap(ResourceInfo* other) {
 
 // ===================================================================
 
-void Help_Link::InitAsDefaultInstance() {
-}
 class Help_Link::_Internal {
  public:
 };
@@ -3308,21 +3106,20 @@ Help_Link::Help_Link(const Help_Link& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_description().empty()) {
-    description_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_description(),
+    description_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_description(), 
       GetArena());
   }
   url_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_url().empty()) {
-    url_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_url(),
+    url_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_url(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.Help.Link)
 }
 
 void Help_Link::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Help_Link_google_2frpc_2ferror_5fdetails_2eproto.base);
-  description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  url_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+url_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 Help_Link::~Help_Link() {
@@ -3346,11 +3143,6 @@ void Help_Link::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Help_Link::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Help_Link& Help_Link::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Help_Link_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Help_Link::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.Help.Link)
@@ -3358,14 +3150,13 @@ void Help_Link::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  description_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  url_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  description_.ClearToEmpty();
+  url_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* Help_Link::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -3538,8 +3329,6 @@ void Help_Link::InternalSwap(Help_Link* other) {
 
 // ===================================================================
 
-void Help::InitAsDefaultInstance() {
-}
 class Help::_Internal {
  public:
 };
@@ -3559,7 +3348,6 @@ Help::Help(const Help& from)
 }
 
 void Help::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Help_google_2frpc_2ferror_5fdetails_2eproto.base);
 }
 
 Help::~Help() {
@@ -3581,11 +3369,6 @@ void Help::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Help::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Help& Help::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Help_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Help::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.Help)
@@ -3599,7 +3382,6 @@ void Help::Clear() {
 
 const char* Help::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -3741,8 +3523,6 @@ void Help::InternalSwap(Help* other) {
 
 // ===================================================================
 
-void LocalizedMessage::InitAsDefaultInstance() {
-}
 class LocalizedMessage::_Internal {
  public:
 };
@@ -3758,21 +3538,20 @@ LocalizedMessage::LocalizedMessage(const LocalizedMessage& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   locale_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_locale().empty()) {
-    locale_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_locale(),
+    locale_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_locale(), 
       GetArena());
   }
   message_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_message().empty()) {
-    message_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_message(),
+    message_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_message(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.LocalizedMessage)
 }
 
 void LocalizedMessage::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_LocalizedMessage_google_2frpc_2ferror_5fdetails_2eproto.base);
-  locale_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  message_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+locale_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+message_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 LocalizedMessage::~LocalizedMessage() {
@@ -3796,11 +3575,6 @@ void LocalizedMessage::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void LocalizedMessage::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const LocalizedMessage& LocalizedMessage::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_LocalizedMessage_google_2frpc_2ferror_5fdetails_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void LocalizedMessage::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.LocalizedMessage)
@@ -3808,14 +3582,13 @@ void LocalizedMessage::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  locale_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  message_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  locale_.ClearToEmpty();
+  message_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* LocalizedMessage::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);

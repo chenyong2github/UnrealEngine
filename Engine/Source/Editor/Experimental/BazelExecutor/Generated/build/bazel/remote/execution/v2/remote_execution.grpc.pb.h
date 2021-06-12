@@ -236,9 +236,9 @@ class Execution final {
       // multiple times, potentially in parallel. These redundant executions MAY
       // continue to run, even if the operation is completed.
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
-      virtual void Execute(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::ClientReadReactor< ::google::longrunning::Operation>* reactor) = 0;
+      virtual void Execute(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::ClientReadReactor< ::google::longrunning::Operation>* reactor) = 0;
       #else
-      virtual void Execute(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) = 0;
+      virtual void Execute(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) = 0;
       #endif
       // Wait for an execution operation to complete. When the client initially
       // makes the request, the server immediately responds with the current status
@@ -247,9 +247,9 @@ class Execution final {
       // server MAY choose to stream additional updates as execution progresses,
       // such as to provide an update as to the state of the execution.
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
-      virtual void WaitExecution(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::ClientReadReactor< ::google::longrunning::Operation>* reactor) = 0;
+      virtual void WaitExecution(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::ClientReadReactor< ::google::longrunning::Operation>* reactor) = 0;
       #else
-      virtual void WaitExecution(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) = 0;
+      virtual void WaitExecution(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) = 0;
       #endif
     };
     #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
@@ -292,14 +292,14 @@ class Execution final {
       public StubInterface::experimental_async_interface {
      public:
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
-      void Execute(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::ClientReadReactor< ::google::longrunning::Operation>* reactor) override;
+      void Execute(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::ClientReadReactor< ::google::longrunning::Operation>* reactor) override;
       #else
-      void Execute(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) override;
+      void Execute(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) override;
       #endif
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
-      void WaitExecution(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::ClientReadReactor< ::google::longrunning::Operation>* reactor) override;
+      void WaitExecution(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::ClientReadReactor< ::google::longrunning::Operation>* reactor) override;
       #else
-      void WaitExecution(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) override;
+      void WaitExecution(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) override;
       #endif
      private:
       friend class Stub;
@@ -1587,9 +1587,9 @@ class ContentAddressableStorage final {
       //
       // * `NOT_FOUND`: The requested tree root is not present in the CAS.
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
-      virtual void GetTree(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) = 0;
+      virtual void GetTree(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) = 0;
       #else
-      virtual void GetTree(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::experimental::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) = 0;
+      virtual void GetTree(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::experimental::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) = 0;
       #endif
     };
     #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
@@ -1665,9 +1665,9 @@ class ContentAddressableStorage final {
       void BatchReadBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchReadBlobsRequest* request, ::build::bazel::remote::execution::v2::BatchReadBlobsResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
       #endif
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
-      void GetTree(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) override;
+      void GetTree(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) override;
       #else
-      void GetTree(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::experimental::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) override;
+      void GetTree(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::experimental::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) override;
       #endif
      private:
       friend class Stub;

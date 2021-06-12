@@ -4,7 +4,7 @@ setlocal
 SET vcpkg_root=%~dp0..\..\..\ThirdParty\vcpkg\Win64\x64-windows-static-md-v142
 SET protoc=%vcpkg_root%\protobuf_x64-windows-static-md-v142\tools\protobuf\protoc.exe
 SET include=%vcpkg_root%\protobuf_x64-windows-static-md-v142\include
-SET grpc_cpp_plugin=%vcpkg_root%\grpc_x64-windows-static-md-v142\tools\grpc\grpc_cpp_plugin.exe
+SET grpc_cpp_plugin=%vcpkg_root%\grpc_x64-windows\tools\grpc\grpc_cpp_plugin.exe
 
 pushd %~dp0
 mkdir .\Generated

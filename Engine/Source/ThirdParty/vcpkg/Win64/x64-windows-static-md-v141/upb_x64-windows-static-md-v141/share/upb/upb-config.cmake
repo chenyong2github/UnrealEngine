@@ -4,7 +4,7 @@ if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" LESS 2.5)
    message(FATAL_ERROR "CMake >= 2.6.0 required")
 endif()
 cmake_policy(PUSH)
-cmake_policy(VERSION 2.6...3.17)
+cmake_policy(VERSION 2.6...3.18)
 #----------------------------------------------------------------
 # Generated CMake target import file.
 #----------------------------------------------------------------
@@ -16,7 +16,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_targetsDefined)
 set(_targetsNotDefined)
 set(_expectedTargets)
-foreach(_expectedTarget upb::upb upb::upb_cc_bindings upb::upb_json upb::upb_pb upb::port upb::table upb::descriptor_upbproto upb::handlers upb::reflection)
+foreach(_expectedTarget upb::upb upb::fastdecode upb::upb_json upb::upb_pb upb::port upb::table upb::descriptor_upb_proto upb::handlers upb::reflection upb::textformat upb::all_libs)
   list(APPEND _expectedTargets ${_expectedTarget})
   if(NOT TARGET ${_expectedTarget})
     list(APPEND _targetsNotDefined ${_expectedTarget})
@@ -54,14 +54,14 @@ add_library(upb::upb STATIC IMPORTED)
 
 set_target_properties(upb::upb PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include"
-  INTERFACE_LINK_LIBRARIES "upb::port"
+  INTERFACE_LINK_LIBRARIES "upb::fastdecode;upb::port"
 )
 
-# Create imported target upb::upb_cc_bindings
-add_library(upb::upb_cc_bindings INTERFACE IMPORTED)
+# Create imported target upb::fastdecode
+add_library(upb::fastdecode STATIC IMPORTED)
 
-set_target_properties(upb::upb_cc_bindings PROPERTIES
-  INTERFACE_LINK_LIBRARIES "descriptor_upb_proto;upb::handlers;upb::port;upb::upb"
+set_target_properties(upb::fastdecode PROPERTIES
+  INTERFACE_LINK_LIBRARIES "upb::port;upb::table"
 )
 
 # Create imported target upb::upb_json
@@ -75,21 +75,21 @@ set_target_properties(upb::upb_json PROPERTIES
 add_library(upb::upb_pb STATIC IMPORTED)
 
 set_target_properties(upb::upb_pb PROPERTIES
-  INTERFACE_LINK_LIBRARIES "descriptor_upb_proto;upb::handlers;upb::port;upb::reflection;upb::table;upb::upb"
+  INTERFACE_LINK_LIBRARIES "upb::descriptor_upb_proto;upb::handlers;upb::port;upb::reflection;upb::table;upb::upb"
 )
 
 # Create imported target upb::port
-add_library(upb::port STATIC IMPORTED)
+add_library(upb::port INTERFACE IMPORTED)
 
 # Create imported target upb::table
 add_library(upb::table INTERFACE IMPORTED)
 
 set_target_properties(upb::table PROPERTIES
-  INTERFACE_LINK_LIBRARIES "upb::port;upb::upb"
+  INTERFACE_LINK_LIBRARIES "upb::port"
 )
 
-# Create imported target upb::descriptor_upbproto
-add_library(upb::descriptor_upbproto INTERFACE IMPORTED)
+# Create imported target upb::descriptor_upb_proto
+add_library(upb::descriptor_upb_proto INTERFACE IMPORTED)
 
 # Create imported target upb::handlers
 add_library(upb::handlers STATIC IMPORTED)
@@ -102,7 +102,21 @@ set_target_properties(upb::handlers PROPERTIES
 add_library(upb::reflection STATIC IMPORTED)
 
 set_target_properties(upb::reflection PROPERTIES
-  INTERFACE_LINK_LIBRARIES "descriptor_upb_proto;upb::port;upb::table;upb::upb"
+  INTERFACE_LINK_LIBRARIES "upb::descriptor_upb_proto;upb::port;upb::table;upb::upb"
+)
+
+# Create imported target upb::textformat
+add_library(upb::textformat STATIC IMPORTED)
+
+set_target_properties(upb::textformat PROPERTIES
+  INTERFACE_LINK_LIBRARIES "upb::port;upb::reflection"
+)
+
+# Create imported target upb::all_libs
+add_library(upb::all_libs INTERFACE IMPORTED)
+
+set_target_properties(upb::all_libs PROPERTIES
+  INTERFACE_LINK_LIBRARIES "upb::upb;upb::fastdecode;upb::upb_json;upb::upb_pb;upb::port;upb::table;upb::descriptor_upb_proto;upb::handlers;upb::reflection;upb::textformat"
 )
 
 if(CMAKE_VERSION VERSION_LESS 3.0.0)

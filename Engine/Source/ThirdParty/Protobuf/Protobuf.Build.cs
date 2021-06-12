@@ -8,14 +8,13 @@ public class Protobuf : ModuleRules
 {
 	string GetVcPackageRoot(ReadOnlyTargetRules Target, string PackageName)
 	{
-		string TargetPlatform = null;
+		string TargetPlatform = Target.Platform.ToString();
 		string Platform = null;
 		string Architecture = null;
 		string Linkage = string.Empty;
 		string Toolset = string.Empty;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			TargetPlatform = "Win64";
 			Platform = "windows";
 			Architecture = Target.WindowsPlatform.Architecture.ToString().ToLowerInvariant();
 			if (Target.bUseStaticCRT)
@@ -30,13 +29,18 @@ public class Protobuf : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			Platform = "linux";
-			Architecture = "x64";
+			Architecture = "x86_64";
+			Platform = "unknown-linux-gnu";
+		}
+		else if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+		{
+			Architecture = "aarch64";
+			Platform = "unknown-linux-gnueabi";
 		}
 
 		if (string.IsNullOrEmpty(TargetPlatform) || string.IsNullOrEmpty(Platform) || string.IsNullOrEmpty(Architecture))
 		{
-			throw new System.NotSupportedException($"Platform {Target.Platform.ToString()} not currently supported by vcpkg");
+			throw new System.NotSupportedException($"Platform {Target.Name} not currently supported by vcpkg");
 		}
 
 		string Triplet = $"{Architecture}-{Platform}{Linkage}{Toolset}";
@@ -58,7 +62,7 @@ public class Protobuf : ModuleRules
 		{
 			LibraryExtension = ".lib";
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			LibraryExtension = ".a";
 		}
@@ -66,7 +70,7 @@ public class Protobuf : ModuleRules
 		foreach (string Library in Libraries)
 		{
 			string LibraryPath = Path.Combine(VcPackageRoot, "lib", $"{Library}{LibraryExtension}");
-			if (Target.Platform == UnrealTargetPlatform.Linux && !Library.StartsWith("lib"))
+			if ((Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64) && !Library.StartsWith("lib"))
 			{
 				LibraryPath = Path.Combine(VcPackageRoot, "lib", $"lib{Library}{LibraryExtension}");
 			}
@@ -95,7 +99,7 @@ public class Protobuf : ModuleRules
 
 		if (Target.Platform != UnrealTargetPlatform.Win64)
 		{
-			// Currently only supported for Win64 MSVC
+			// Currently only supported for Win64
 			return;
 		}
 
