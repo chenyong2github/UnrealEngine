@@ -35,7 +35,7 @@ class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentToolTarget :
 
 public:
 	// IMeshDescriptionProvider implementation
-	FMeshDescription* GetMeshDescription() override;
+	const FMeshDescription* GetMeshDescription() override;
 
 	// IMeshDescritpionCommitter implementation
 	void CommitMeshDescription(const FCommitter& Committer) override;

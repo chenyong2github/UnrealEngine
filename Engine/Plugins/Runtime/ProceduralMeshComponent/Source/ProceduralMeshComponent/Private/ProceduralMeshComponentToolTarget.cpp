@@ -6,7 +6,7 @@
 #include "ProceduralMeshComponent.h"
 #include "ProceduralMeshConversion.h"
 
-FMeshDescription* UProceduralMeshComponentToolTarget::GetMeshDescription()
+const FMeshDescription* UProceduralMeshComponentToolTarget::GetMeshDescription()
 {
 	if (!MeshDescription.IsValid())
 	{

@@ -47,7 +47,7 @@ public:
 	virtual bool IsValid() const override;
 
 	// IMeshDescriptionProvider implementation
-	FMeshDescription* GetMeshDescription() override;
+	const FMeshDescription* GetMeshDescription() override;
 
 	// IMeshDescritpionCommitter implementation
 	virtual void CommitMeshDescription(const FCommitter& Committer) override;

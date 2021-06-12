@@ -179,7 +179,7 @@ bool UStaticMeshToolTarget::CommitMaterialSetUpdate(UStaticMesh* StaticMeshIn,
 	return true;
 }
 
-FMeshDescription* UStaticMeshToolTarget::GetMeshDescription()
+const FMeshDescription* UStaticMeshToolTarget::GetMeshDescription()
 {
 	if (ensure(IsValid()))
 	{
@@ -193,7 +193,10 @@ void UStaticMeshToolTarget::CommitMeshDescription(const FCommitter& Committer)
 {
 	if (ensure(IsValid()) == false) return;
 
-	CommitMeshDescription(StaticMesh, GetMeshDescription(), Committer, EditingLOD);
+	FMeshDescription* UpdateMeshDescription = (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
+		StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
+
+	CommitMeshDescription(StaticMesh, UpdateMeshDescription, Committer, EditingLOD);
 }
 
 void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, FMeshDescription* MeshDescription,

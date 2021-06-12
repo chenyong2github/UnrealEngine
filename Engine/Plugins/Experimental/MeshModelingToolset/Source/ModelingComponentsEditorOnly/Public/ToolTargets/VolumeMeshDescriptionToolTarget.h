@@ -22,7 +22,7 @@ class MODELINGCOMPONENTSEDITORONLY_API UVolumeMeshDescriptionToolTarget : public
 public:
 
 	// IMeshDescriptionProvider implementation
-	FMeshDescription* GetMeshDescription() override;
+	const FMeshDescription* GetMeshDescription() override;
 
 	// IMeshDescritpionCommitter implementation
 	virtual void CommitMeshDescription(const FCommitter& Committer) override;

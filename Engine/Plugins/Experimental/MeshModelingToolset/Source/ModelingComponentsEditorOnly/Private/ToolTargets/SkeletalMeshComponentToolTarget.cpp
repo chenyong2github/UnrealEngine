@@ -83,7 +83,7 @@ bool USkeletalMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentM
 	return true;
 }
 
-FMeshDescription* USkeletalMeshComponentToolTarget::GetMeshDescription()
+const FMeshDescription* USkeletalMeshComponentToolTarget::GetMeshDescription()
 {
 	if (!ensure(IsValid()))
 	{
@@ -105,11 +105,16 @@ void USkeletalMeshComponentToolTarget::CommitMeshDescription(const FCommitter& C
 	if (ensure(IsValid()) == false) return;
 
 	USkeletalMesh* SkeletalMesh = Cast<USkinnedMeshComponent>(Component)->SkeletalMesh;
+	if (!CachedMeshDescription.IsValid())
+	{
+		CachedMeshDescription = MakeUnique<FMeshDescription>();
+		USkeletalMeshToolTarget::GetMeshDescription(SkeletalMesh, *CachedMeshDescription);
+	}
 
 	// unregister the component while we update its skeletal mesh
 	FComponentReregisterContext ComponentReregisterContext(Component);
 
-	USkeletalMeshToolTarget::CommitMeshDescription(SkeletalMesh, GetMeshDescription(), Committer);
+	USkeletalMeshToolTarget::CommitMeshDescription(SkeletalMesh, CachedMeshDescription.Get(), Committer);
 
 	// this rebuilds physics, but it doesn't undo!
 	Component->RecreatePhysicsState();
