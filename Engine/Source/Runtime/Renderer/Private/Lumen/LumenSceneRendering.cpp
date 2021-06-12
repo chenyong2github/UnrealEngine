@@ -1048,7 +1048,7 @@ public:
 				const FLumenPrimitiveGroup& PrimitiveGroup = PrimitiveGroups[PrimitiveGroupIndex];
 
 				// Rough card min resolution test
-				const float DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(PrimitiveGroup.WorldSpaceBoundingBox.Min, PrimitiveGroup.WorldSpaceBoundingBox.Max, ViewOrigin);
+				const float DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(FVector(PrimitiveGroup.WorldSpaceBoundingBox.Min), FVector(PrimitiveGroup.WorldSpaceBoundingBox.Max), ViewOrigin);
 				const float MaxCardExtent = PrimitiveGroup.WorldSpaceBoundingBox.GetExtent().GetMax();
 				const float MaxCardResolution = (TexelDensityScale * MaxCardExtent) / FMath::Sqrt(FMath::Max(DistanceSquared, 1.0f)) + 0.01f;
 
