@@ -68,9 +68,13 @@ class TRange;
 // Aux constants.
 #define INV_PI			(0.31830988618f)
 #define HALF_PI			(1.57079632679f)
+#define TWO_PI			(6.28318530717f)
+#define PI_SQUARED		(9.86960440108f)
 
-#define DOUBLE_INV_PI	(0.31830988618379067154)
-#define DOUBLE_HALF_PI	(1.57079632679489661923)
+#define DOUBLE_INV_PI		(0.31830988618379067154)
+#define DOUBLE_HALF_PI		(1.57079632679489661923)
+#define DOUBLE_TWO_PI		(6.28318530717958647692)
+#define DOUBLE_PI_SQUARED	(9.86960440108935861883)
 
 // Common square roots
 #define UE_SQRT_2		(1.4142135623730950488016887242097f)
@@ -567,7 +571,7 @@ public:
 		{
 			quotient = (T)((int64)(quotient - 0.5f));
 		}
-		T y = Value - (2.0f*PI)*quotient;
+		T y = Value - TWO_PI * quotient;
 
 		// Map y to [-pi/2,pi/2] with sin(y) = sin(Value).
 		T sign;
@@ -695,13 +699,13 @@ public:
 		if (Delta > PI)
 		{
 			// Flip to negative equivalent
-			Delta = Delta - (PI * 2.0f);
+			Delta = Delta - TWO_PI;
 		}
 		else if (Delta < -PI)
 		{
 			// Otherwise, if change is smaller than -PI
 			// Flip to positive equivalent
-			Delta = Delta + (PI * 2.0f);
+			Delta = Delta + TWO_PI;
 		}
 
 		// Return delta in [-PI,PI] range
@@ -719,12 +723,12 @@ public:
 	{
 		while(A > PI)
 		{
-			A -= ((float)PI * 2.0f);
+			A -= TWO_PI;
 		}
 
 		while(A < -PI)
 		{
-			A += ((float)PI * 2.0f);
+			A += TWO_PI;
 		}
 
 		return A;
@@ -1324,38 +1328,51 @@ public:
 	* 
 	* The implementation is exact, so stable and accurate for all values of DeltaTime etc
 	* 
-	* @param  InOutValue        The value to be smoothed
-	* @param  InOutValueRate    The rate of change of the value
-	* @param  InTargetValue     The target to smooth towards
-	* @param  InTargetValueRate The target rate of change smooth towards. Note that if this is discontinuous, then the output will have discontinuous velocity too.
-	* @param  InDeltaTime       Time interval
-	* @param  InSmoothingTime   Timescale over which to smooth. Larger values result in more smoothed behaviour. Can be zero.
-	* @param  InDampingRatio    1 is critical damping. <1 results in under-damped motion (i.e. with overshoot), and >1 results in over-damped motion. 
+	* @param  InOutValue          The value to be smoothed
+	* @param  InOutValueRate      The rate of change of the value
+	* @param  InTargetValue       The target to smooth towards
+	* @param  InTargetValueRate   The target rate of change smooth towards. Note that if this is discontinuous, then the output will have discontinuous velocity too.
+	* @param  InDeltaTime         Time interval
+	* @param  InUndampedFrequency Oscillation frequency when there is no damping. Proportional to the square root of the spring stiffness.
+	* @param  InDampingRatio      1 is critical damping. <1 results in under-damped motion (i.e. with overshoot), and >1 results in over-damped motion. 
 	*/
 	template< class T >
-	static void SpringDamperSmoothing(
+	static void SpringDamper(
 	    T&          InOutValue,
 	    T&          InOutValueRate,
 	    const T&    InTargetValue,
 	    const T&    InTargetValueRate,
 	    const float InDeltaTime,
-	    const float InSmoothingTime,
+	    const float InUndampedFrequency,
 	    const float InDampingRatio)
 	{
 		if (InDeltaTime <= 0.0f)
 		{
 			return;
 		}
-		if (InSmoothingTime < KINDA_SMALL_NUMBER)
+
+		float W = InUndampedFrequency * TWO_PI;
+		// Handle special cases
+		if (W < SMALL_NUMBER) // no strength which means no damping either
 		{
-			InOutValueRate = (InTargetValue - InOutValue) / InDeltaTime;
-			InOutValue = InTargetValue;
+			InOutValue += InOutValueRate * InDeltaTime;
 			return;
 		}
-		// Target velocity turns into an offset to the position
-		T AdjustedTarget = InTargetValue + InTargetValueRate * (InDampingRatio * InSmoothingTime);
+		else if (InDampingRatio < SMALL_NUMBER) // No damping at all
+		{
+			T Err = InOutValue - InTargetValue;
+			const T A = Err;
+			const T B = InOutValueRate / W;
+			const float C = FMath::Cos(W * InDeltaTime);
+			const float S = FMath::Sin(W * InDeltaTime);
+			InOutValue = InTargetValue + (A * C + B * S);
+			InOutValueRate = InOutValueRate * C - Err * (W * S);
+			return;
+		}
 
-		float W = 2.0f / InSmoothingTime;
+		// Target velocity turns into an offset to the position
+		float SmoothingTime = 2.0f / W;
+		T AdjustedTarget = InTargetValue + InTargetValueRate * (InDampingRatio * SmoothingTime);
 		T Err = InOutValue - AdjustedTarget;
 
 		// Handle the three cases separately
@@ -1368,9 +1385,8 @@ public:
 			const float A2 = -(WD + InDampingRatio * W);
 			const float E1 = FMath::Exp(A1 * InDeltaTime);
 			const float E2 = FMath::Exp(A2 * InDeltaTime);
-			InOutValue = E1 * C1 + E2 * C2;
+			InOutValue = AdjustedTarget + E1 * C1 + E2 * C2;
 			InOutValueRate = E1 * C1 * A1 + E2 * C2 * A2;
-			InOutValue += AdjustedTarget;
 		}
 		else if (InDampingRatio < 1.0f) // Underdamped
 		{
@@ -1390,9 +1406,152 @@ public:
 			const T& C1 = Err;
 			T C2 = InOutValueRate + Err * W;
 			float E = FMath::Exp(-W * InDeltaTime);
-			InOutValue = (C1 + C2 * InDeltaTime) * E;
+			InOutValue = AdjustedTarget + (C1 + C2 * InDeltaTime) * E;
 			InOutValueRate = (C2 - C1 * W - C2 * (W * InDeltaTime)) * E;
+		}
+	}
+
+	/**
+	* Smooths a value using a spring damper towards a target.
+	* 
+	* The implementation is exact, so stable and accurate for all values of DeltaTime etc
+	* 
+	* @param  InOutValue        The value to be smoothed
+	* @param  InOutValueRate    The rate of change of the value
+	* @param  InTargetValue     The target to smooth towards
+	* @param  InTargetValueRate The target rate of change smooth towards. Note that if this is discontinuous, then the output will have discontinuous velocity too.
+	* @param  InDeltaTime       Time interval
+	* @param  InSmoothingTime   Timescale over which to smooth. Larger values result in more smoothed behaviour. Can be zero.
+	* @param  InDampingRatio    1 is critical damping. <1 results in under-damped motion (i.e. with overshoot), and >1 results in over-damped motion. 
+	*/
+	template< class T >
+	static void SpringDamperSmoothing(
+		T&          InOutValue,
+		T&          InOutValueRate,
+		const T&    InTargetValue,
+		const T&    InTargetValueRate,
+		const float InDeltaTime,
+		const float InSmoothingTime,
+		const float InDampingRatio)
+	{
+		if (InSmoothingTime < SMALL_NUMBER)
+		{
+			if (InDeltaTime <= 0.0f)
+			{
+				return;
+			}
+			InOutValueRate = (InTargetValue - InOutValue) / InDeltaTime;
+			InOutValue = InTargetValue;
+			return;
+		}
+
+		// Undamped frequency
+		float UndampedFrequency = UndampedFrequency = 1.0f / (PI * InSmoothingTime);
+		SpringDamper(InOutValue, InOutValueRate, InTargetValue, InTargetValueRate, InDeltaTime, UndampedFrequency, InDampingRatio);
+	}
+
+	/**
+	* Smooths a value using a spring damper towards a target.
+	* 
+	* The implementation uses approximations for Exp/Sin/Cos. These are good for most sensible values of DampingRatio so
+	* long as InDeltaTime < 0.5 * InSmoothingTime. If you are passing in a very large delta time, or want accurate
+	* results for highly overdamped motion, you might need to use the exact version of this function. 
+	* 
+	* @param  InOutValue          The value to be smoothed
+	* @param  InOutValueRate      The rate of change of the value
+	* @param  InTargetValue       The target to smooth towards
+	* @param  InTargetValueRate   The target rate of change smooth towards. Note that if this is discontinuous, then the output will have discontinuous velocity too.
+	* @param  InDeltaTime         Time interval
+	* @param  InUndampedFrequency Oscillation frequency when there is no damping. Proportional to the square root of the spring stiffness.
+	* @param  InDampingRatio      1 is critical damping. <1 results in under-damped motion (i.e. with overshoot), and >1 results in over-damped motion. 
+	*/
+	template< class T >
+	static void SpringDamperApprox(
+	    T&          InOutValue,
+	    T&          InOutValueRate,
+	    const T&    InTargetValue,
+	    const T&    InTargetValueRate,
+	    const float InDeltaTime,
+	    const float InUndampedFrequency,
+	    const float InDampingRatio)
+	{
+		if (InDeltaTime <= 0.0f)
+		{
+			return;
+		}
+
+		float W = InUndampedFrequency * TWO_PI;
+		// Handle special cases
+		if (W < SMALL_NUMBER) // no strength which means no damping either
+		{
+			InOutValue += InOutValueRate * InDeltaTime;
+			return;
+		}
+		else if (InDampingRatio < SMALL_NUMBER) // No damping at all
+		{
+			T Err = InOutValue - InTargetValue;
+			const T B = InOutValueRate / W;
+			// Bhaskara approximation for Sin(Angle) and Cos.
+			// Sin is really accurate for Angle < PI, and Cos is really accurate for Angle < PI/2
+			const float Angle = FMath::Min(W * InDeltaTime, HALF_PI);
+			const float S = 16.f * Angle * (PI - Angle) / (5.f * PI_SQUARED - 4.f * Angle * (PI - Angle));
+			const float C = (PI_SQUARED - 4.0f * FMath::Square(Angle)) / (PI_SQUARED + FMath::Square(Angle));
+			InOutValue = InTargetValue + Err * C + B * S;
+			InOutValueRate = InOutValueRate * C - Err * (W * S);
+			return;
+		}
+
+		// Target velocity turns into an offset to the position
+		float SmoothingTime = 2.0f / W;
+		T AdjustedTarget = InTargetValue + InTargetValueRate * (InDampingRatio * SmoothingTime);
+ 		T Err = InOutValue - AdjustedTarget;
+
+		// Handle the cases separately
+		if (InDampingRatio > 1.0f) // Overdamped
+		{
+			const float WD = W * FMath::Sqrt(FMath::Square(InDampingRatio) - 1.0f);
+			const T C2 = -(InOutValueRate + (W * InDampingRatio - WD) * Err) / (2.0f * WD);
+			const T C1 = Err - C2;
+			const float A1 = (WD - InDampingRatio * W);
+			const float A2 = -(WD + InDampingRatio * W);
+			// Note that A1 and A2 will always be negative. We will use an approximation for 1/Exp(-A * DeltaTime).
+			const float A1_DT = -A1 * InDeltaTime;
+			const float A2_DT = -A2 * InDeltaTime;
+			// This approximation in practice will be good for all DampingRatios
+			const float E1 = InvExpApprox(A1_DT);
+			// As DampingRatio gets big, this approximation gets worse, but mere inaccuracy for overdamped motion is
+			// not likely to be important, since we end up with 1 / BigNumber
+			const float E2 = InvExpApprox(A2_DT);
+			InOutValue = AdjustedTarget + E1 * C1 + E2 * C2;
+			InOutValueRate = E1 * C1 * A1 + E2 * C2 * A2;
+		}
+		else if (InDampingRatio < 1.0f) // Underdamped
+		{
+			const float WD = W * FMath::Sqrt(1.0f - FMath::Square(InDampingRatio));
+			const T A = Err;
+			const T B = (InOutValueRate + Err * (InDampingRatio * W)) / WD;
+			// Bhaskara approximation for Sin(Angle) and Cos.
+			// Sin is really accurate for Angle < PI, and Cos is really accurate for Angle < PI/2
+			const float Angle = FMath::Min(WD * InDeltaTime, HALF_PI);
+			const float S = 16.f * Angle * (PI - Angle) / (5.f * PI_SQUARED - 4.f * Angle * (PI - Angle));
+			const float C = (PI_SQUARED - 4.0f * FMath::Square(Angle)) / (PI_SQUARED + FMath::Square(Angle));
+			const float E0 = InDampingRatio * WD * InDeltaTime;
+			// Needs E0 < 1 so DeltaTime < SmoothingTime / (2 * DampingRatio * Sqrt(1 - DampingRatio^2))
+			const float E = InvExpApprox(E0);
+			InOutValue = E * (A * C + B * S);
+			InOutValueRate = -InOutValue * InDampingRatio * W;
+			InOutValueRate += E * (B * (WD * C) - A * (WD * S));
 			InOutValue += AdjustedTarget;
+		}
+		else // Critical damping
+		{
+			const T& C1 = Err;
+			T C2 = InOutValueRate + Err * W;
+			const float E0 = W * InDeltaTime;
+			// Needs E0 < 1 so InDeltaTime < SmoothingTime / 2 
+			float E = InvExpApprox(E0);
+			InOutValue = AdjustedTarget + (C1 + C2 * InDeltaTime) * E;
+			InOutValueRate = (C2 - C1 * W - C2 * (W * InDeltaTime)) * E;
 		}
 	}
 
@@ -1413,79 +1572,28 @@ public:
 	*/
 	template< class T >
 	static void SpringDamperSmoothingApprox(
-	    T&          InOutValue,
-	    T&          InOutValueRate,
-	    const T&    InTargetValue,
-	    const T&    InTargetValueRate,
-	    const float InDeltaTime,
-	    const float InSmoothingTime,
-	    const float InDampingRatio)
+		T&          InOutValue,
+		T&          InOutValueRate,
+		const T&    InTargetValue,
+		const T&    InTargetValueRate,
+		const float InDeltaTime,
+		const float InSmoothingTime,
+		const float InDampingRatio)
 	{
-		if (InDeltaTime <= 0.0f)
+		if (InSmoothingTime < SMALL_NUMBER)
 		{
-			return;
-		}
-		if (InSmoothingTime < KINDA_SMALL_NUMBER)
-		{
+			if (InDeltaTime <= 0.0f)
+			{
+				return;
+			}
 			InOutValueRate = (InTargetValue - InOutValue) / InDeltaTime;
 			InOutValue = InTargetValue;
 			return;
 		}
-		// Target velocity turns into an offset to the position
-		T AdjustedTarget = InTargetValue + InTargetValueRate * (InDampingRatio * InSmoothingTime);
 
-		float W = 2.0f / InSmoothingTime;
-		T Err = InOutValue - AdjustedTarget;
-
-		// Handle the three cases separately
-		if (InDampingRatio > 1.0f) // Overdamped
-		{
-			const float WD = W * FMath::Sqrt(FMath::Square(InDampingRatio) - 1.0f);
-			const T C2 = -(InOutValueRate + (W * InDampingRatio - WD) * Err) / (2.0f * WD);
-			const T C1 = Err - C2;
-			const float A1 = (WD - InDampingRatio * W);
-			const float A2 = -(WD + InDampingRatio * W);
-			// Note that A1 and A2 will always be negative. We will use an approximation for 1/Exp(-A * DeltaTime).
-			const float A1_DT = -A1 * InDeltaTime;
-			const float A2_DT = -A2 * InDeltaTime;
-			// This approximation in practice will be good for all DampingRatios
-			const float E1 = InvExpApprox(A1_DT);
-			// As DampingRatio gets big, this approximation gets worse, but mere inaccuracy for overdamped motion is
-			// not likely to be important, since we end up with 1 / BigNumber
-			const float E2 = InvExpApprox(A2_DT);
-			InOutValue = E1 * C1 + E2 * C2;
-			InOutValueRate = E1 * C1 * A1 + E2 * C2 * A2;
-			InOutValue += AdjustedTarget;
-		}
-		else if (InDampingRatio < 1.0f) // Underdamped
-		{
-			const float WD = W * FMath::Sqrt(1.0f - FMath::Square(InDampingRatio));
-			const T A = Err;
-			const T B = (InOutValueRate + Err * (InDampingRatio * W)) / WD;
-			// Bhaskara approximation for Sin(Angle) and Cos.
-			// Needs Angle < 1 so DeltaTime < SmoothingTime / (2 * DampingRatio * Sqrt(1 - DampingRatio^2)) 
-			const float Angle = WD * InDeltaTime;
-			const float S = 16.f * Angle * (PI - Angle) / (5.f * FMath::Square(PI) - 4.f * Angle * (PI - Angle));
-			const float C = (FMath::Square(PI) - 4.0f * FMath::Square(Angle)) / (FMath::Square(PI) + FMath::Square(Angle));
-			const float E0 = InDampingRatio * WD * InDeltaTime;
-			// Needs E0 < 1 so DeltaTime < SmoothingTime / (2 * DampingRatio * Sqrt(1 - DampingRatio^2))
-			const float E = InvExpApprox(E0);
-			InOutValue = E * (A * C + B * S);
-			InOutValueRate = -InOutValue * InDampingRatio * W;
-			InOutValueRate += E * (B * (WD * C) - A * (WD * S));
-			InOutValue += AdjustedTarget;
-		}
-		else // Critical damping
-		{
-			const T& C1 = Err;
-			T C2 = InOutValueRate + Err * W;
-			const float E0 = W * InDeltaTime;
-			// Needs E0 < 1 so InDeltaTime < InSmoothingTime / 2 
-			float E = InvExpApprox(E0);
-			InOutValue = (C1 + C2 * InDeltaTime) * E;
-			InOutValueRate = (C2 - C1 * W - C2 * (W * InDeltaTime)) * E;
-			InOutValue += AdjustedTarget;
-		}
+		// Undamped frequency
+		float UndampedFrequency = UndampedFrequency = 1.0f / (PI * InSmoothingTime);
+		SpringDamperApprox(InOutValue, InOutValueRate, InTargetValue, InTargetValueRate, InDeltaTime, UndampedFrequency, InDampingRatio);
 	}
 
 	/**
@@ -1499,7 +1607,7 @@ public:
 	 */
 	static float MakePulsatingValue( const double InCurrentTime, const float InPulsesPerSecond, const float InPhase = 0.0f )
 	{
-		return 0.5f + 0.5f * FMath::Sin( ( ( 0.25f + InPhase ) * (float)PI * 2.0f ) + ( (float)InCurrentTime * (float)PI * 2.0f ) * InPulsesPerSecond );
+		return 0.5f + 0.5f * FMath::Sin( ( ( 0.25f + InPhase ) * TWO_PI ) + ( (float)InCurrentTime * TWO_PI ) * InPulsesPerSecond );
 	}
 
 	// Geometry intersection 

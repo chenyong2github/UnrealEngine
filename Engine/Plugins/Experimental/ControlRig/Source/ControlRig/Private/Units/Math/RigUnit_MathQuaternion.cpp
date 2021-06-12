@@ -52,7 +52,6 @@ FRigUnit_MathQuaternionToAxisAndAngle_Execute()
 	float AngleSign = Angle < 0.f ? -1.f : 1.f;
 	Angle = FMath::Abs(Angle);
 
-	static const float TWO_PI = PI * 2.f;
 	if (Angle > TWO_PI)
 	{
 		Angle = FMath::Fmod(Angle, TWO_PI);

@@ -153,6 +153,30 @@ struct ENGINE_API FVectorSpringState
 	}
 };
 
+USTRUCT(BlueprintType)
+struct ENGINE_API FQuaternionSpringState
+{
+	GENERATED_BODY()
+
+	FQuat   PrevTarget;
+	FVector Velocity; // Angular velocity
+	bool    bPrevTargetValid;
+
+	FQuaternionSpringState()
+	: PrevTarget(FQuat::Identity)
+	, Velocity(FVector::ZeroVector)
+	, bPrevTargetValid(false)
+	{
+	}
+
+	void Reset()
+	{
+		PrevTarget = FQuat::Identity;
+		Velocity = FVector::ZeroVector;
+		bPrevTargetValid = false;
+	}
+};
+
 UCLASS(meta=(BlueprintThreadSafe, ScriptName = "MathLibrary"))
 class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 {
@@ -1754,13 +1778,34 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 * @param MinValue              Clamps the minimum output value and cancels the velocity if it reaches this limit
 	 * @param MaxValue              Clamps the maximum output value and cancels the velocity if it reaches this limit
 	 * @param bApproximate          Use an approximate/fast implementation. Will be suitable for all cases unless the delta time is very large or high accuracy is needed.
+	 * @param bInitializeFromTarget If set then the current value will be set from the target on the first update
 	 */
 	UFUNCTION(BlueprintCallable,  meta = (ScriptMethod = "InterpSpringTo", Keywords = "position", AdvancedDisplay = "8"), Category = "Math|Interpolation")
 	static FVector VectorSpringInterp(FVector Current, FVector Target, UPARAM(ref) FVectorSpringState& SpringState,
 	                                  float Stiffness, float CriticalDampingFactor, float DeltaTime,
 	                                  float Mass = 1.f, float TargetVelocityAmount = 1.f, 
 	                                  bool bClamp = false, FVector MinValue = FVector(-1.f), FVector MaxValue = FVector(1.f),
-	                                  bool bApproximate = true);
+	                                  bool bApproximate = true, bool bInitializeFromTarget = false);
+
+	/**
+	* Uses a simple spring model to interpolate a quaternion from Current to Target.
+	*
+	* @param Current               Current value
+	* @param Target                Target value
+	* @param SpringState           Data related to spring model (velocity, error, etc..) - Create a unique variable per spring
+	* @param Stiffness             How stiff the spring model is (more stiffness means more oscillation around the target value)
+	* @param CriticalDampingFactor How much damping to apply to the spring (0 means no damping, 1 means critically damped which means no oscillation)
+	* @param DeltaTime             Time difference since the last update
+	* @param Mass                  Multiplier that acts like mass on a spring
+	* @param TargetVelocityAmount  If 1 then the target velocity will be calculated and used, which results following the target more closely/without lag. Values down to zero (recommended when using this to smooth data) will progressively disable this effect.
+	* @param bApproximate          Use an approximate/fast implementation. Will be suitable for all cases unless the delta time is very large or high accuracy is needed.
+	* @param bInitializeFromTarget If set then the current value will be set from the target on the first update
+	*/
+	UFUNCTION(BlueprintCallable,  meta = (ScriptMethod = "InterpSpringTo", Keywords = "quaternion", AdvancedDisplay = "8"), Category = "Math|Interpolation")
+	static FQuat QuaternionSpringInterp(FQuat Current, FQuat Target, UPARAM(ref) FQuaternionSpringState& SpringState,
+	                                    float Stiffness, float CriticalDampingFactor, float DeltaTime,
+	                                    float Mass = 1.f, float TargetVelocityAmount = 1.f, bool bApproximate = true, 
+                                        bool bInitializeFromTarget = false);
 
 	/**
 	 * Gets the reciprocal of this vector, avoiding division by zero.
@@ -3858,22 +3903,38 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 * @param MinValue              Clamps the minimum output value and cancels the velocity if it reaches this limit
 	 * @param MaxValue              Clamps the maximum output value and cancels the velocity if it reaches this limit
 	 * @param bApproximate          Use an approximate/fast implementation. Will be suitable for all cases unless the delta time is very large or high accuracy is needed.
+	 * @param bInitializeFromTarget If set then the current value will be set from the target on the first update
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation", meta=(AdvancedDisplay = "8"))
 	static float FloatSpringInterp(float Current, float Target, UPARAM(ref) FFloatSpringState& SpringState,
 	                               float Stiffness, float CriticalDampingFactor, float DeltaTime,
 	                               float Mass = 1.f, float TargetVelocityAmount = 1.f, 
 	                               bool bClamp = false, float MinValue = -1.f, float MaxValue = 1.f,
-	                               bool bApproximate = true);
+	                               bool bApproximate = true, bool bInitializeFromTarget = false);
 
-	/** Resets the state of a given spring */
+	/** Resets the state of a float spring */
 	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")
 	static void ResetFloatSpringState(UPARAM(ref) FFloatSpringState& SpringState);
 
-	/** Resets the state of a given spring */
+	/** Resets the state of a vector spring */
 	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")
 	static void ResetVectorSpringState(UPARAM(ref) FVectorSpringState& SpringState);
 
+	/** Resets the state of a quaternion spring */
+	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")
+	static void ResetQuaternionSpringState(UPARAM(ref) FQuaternionSpringState& SpringState);
+
+	/** Sets the state velocity of a float spring */
+	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")
+	static void SetFloatSpringStateVelocity(UPARAM(ref) FFloatSpringState& SpringState, float Velocity);
+
+	/** Sets the state velocity of a vector spring */
+	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")
+	static void SetVectorSpringStateVelocity(UPARAM(ref) FVectorSpringState& SpringState, FVector Velocity);
+
+	/** Sets the state angular velocity of a quaternion spring */
+	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")
+	static void SetQuaternionSpringStateVelocity(UPARAM(ref) FQuaternionSpringState& SpringState, FVector Velocity);
 
 	//
 	// Random stream functions
