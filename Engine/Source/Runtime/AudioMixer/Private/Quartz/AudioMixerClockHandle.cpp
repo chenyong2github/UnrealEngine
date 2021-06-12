@@ -146,7 +146,31 @@ float UQuartzClockHandle::GetDurationOfQuantizationTypeInSeconds(const UObject* 
 	}
 	else
 	{
-		return -1;
+		return INDEX_NONE;
+	}
+}
+
+FQuartzTransportTimeStamp UQuartzClockHandle::GetCurrentTimestamp(const UObject* WorldContextObject)
+{
+	if (QuartzSubsystem != nullptr)
+	{
+		return QuartzSubsystem->GetCurrentClockTimestamp(WorldContextObject, CurrentClockId);
+	}
+	else
+	{
+		return FQuartzTransportTimeStamp();
+	}
+}
+
+float UQuartzClockHandle::GetEstimatedRunTime(const UObject* WorldContextObject)
+{
+	if (QuartzSubsystem != nullptr)
+	{
+		return QuartzSubsystem->GetEstimatedClockRunTime(WorldContextObject, CurrentClockId);
+	}
+	else
+	{
+		return INDEX_NONE;
 	}
 }
 

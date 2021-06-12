@@ -140,11 +140,21 @@ struct ENGINE_API FQuartzTransportTimeStamp
 {
 	GENERATED_BODY()
 
+	// The current bar this clock is on
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quantized Audio TimeStamp")
 	int32 Bars { 0 };
 
+	// The current beat this clock is on
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quantized Audio TimeStamp")
 	int32 Beat{ 0 };
 
+	// A fractional representation of the time that's played since the last bear
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quantized Audio TimeStamp")
 	float BeatFraction{ 0.f };
+
+	// The time in seconds that this TimeStamp occured at
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quantized Audio TimeStamp")
+	float Seconds{ 0.f };
 
 	bool IsZero() const;
 

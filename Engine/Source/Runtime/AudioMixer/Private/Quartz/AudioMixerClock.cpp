@@ -343,7 +343,28 @@ namespace Audio
 		int64 FramesUntilExec = TickRate.GetFramesPerDuration(QuantizationType);
 
 		//Translate frames to seconds
-		return (FramesUntilExec * Multiplier) / TickRate.GetSampleRate();
+		float SampleRate = TickRate.GetSampleRate();
+
+		if (SampleRate != 0)
+		{
+			return (FramesUntilExec * Multiplier) / SampleRate;
+		}
+		else //Handle potential divide by zero
+		{
+			return INDEX_NONE;
+		}
+	}
+
+	FQuartzTransportTimeStamp FQuartzClock::GetCurrentTimestamp()
+	{
+		FQuartzTransportTimeStamp CurrentTimeStamp = Metronome.GetTimeStamp();
+
+		return CurrentTimeStamp;
+	}
+
+	float FQuartzClock::GetEstimatedRunTime()
+	{
+		return Metronome.GetTimeSinceStart();
 	}
 
 	FMixerDevice* FQuartzClock::GetMixerDevice()

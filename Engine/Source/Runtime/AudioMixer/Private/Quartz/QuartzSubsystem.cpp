@@ -392,10 +392,32 @@ float UQuartzSubsystem::GetDurationOfQuantizationTypeInSeconds(const UObject* Wo
 	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
 	if (!ClockManager)
 	{
-		return -1;
+		return INDEX_NONE;
 	}
 
 	return ClockManager->GetDurationOfQuantizationTypeInSeconds(ClockName, QuantizationType, Multiplier);
+}
+
+FQuartzTransportTimeStamp UQuartzSubsystem::GetCurrentClockTimestamp(const UObject* WorldContextObject, const FName& InClockName)
+{
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, InClockName);
+	if (!ClockManager)
+	{
+		return FQuartzTransportTimeStamp();
+	}
+
+	return ClockManager->GetCurrentTimestamp(InClockName);
+}
+
+float UQuartzSubsystem::GetEstimatedClockRunTime(const UObject* WorldContextObject, const FName& InClockName)
+{
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, InClockName);
+	if (!ClockManager)
+	{
+		return INDEX_NONE;
+	}
+
+	return ClockManager->GetEstimatedRunTime(InClockName);
 }
 
 float UQuartzSubsystem::GetGameThreadToAudioRenderThreadAverageLatency(const UObject* WorldContextObject)
