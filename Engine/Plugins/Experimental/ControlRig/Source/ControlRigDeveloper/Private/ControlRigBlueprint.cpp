@@ -1721,7 +1721,7 @@ FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString
 FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 {
 	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
 	{
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
@@ -1771,7 +1771,7 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 FName UControlRigBlueprint::RemoveTransientControl(URigVMPin* InPin)
 {
 	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
 	{
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
@@ -1801,7 +1801,7 @@ FName UControlRigBlueprint::RemoveTransientControl(URigVMPin* InPin)
 FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
 {
 	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
 	{
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
@@ -1860,7 +1860,7 @@ FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
 FName UControlRigBlueprint::RemoveTransientControl(const FRigElementKey& InElement)
 {
 	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
 	{
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
@@ -1890,7 +1890,7 @@ FName UControlRigBlueprint::RemoveTransientControl(const FRigElementKey& InEleme
 void UControlRigBlueprint::ClearTransientControls()
 {
 	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
 	{
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}

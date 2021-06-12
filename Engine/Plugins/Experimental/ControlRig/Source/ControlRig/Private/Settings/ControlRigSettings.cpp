@@ -9,12 +9,19 @@
 
 UControlRigSettings::UControlRigSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if WITH_EDITORONLY_DATA
-	, bResetControlTransformsOnCompile(true)
-#endif
 {
 #if WITH_EDITORONLY_DATA
 	DefaultGizmoLibrary = LoadObject<UControlRigGizmoLibrary>(nullptr, TEXT("/ControlRig/Controls/DefaultGizmoLibrary.DefaultGizmoLibrary"));
+#endif
+}
+
+UControlRigEditorSettings::UControlRigEditorSettings(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+    , bResetControlTransformsOnCompile(true)
+#endif
+{
+#if WITH_EDITORONLY_DATA
 	bResetControlsOnCompile = true;
 	bResetControlsOnPinValueInteraction = false;
 	bEnableUndoForPoseInteraction = true;
@@ -22,6 +29,5 @@ UControlRigSettings::UControlRigSettings(const FObjectInitializer& ObjectInitial
 	SetupEventBorderColor = FLinearColor::Red;
 	BackwardsSolveBorderColor = FLinearColor::Yellow;
 	BackwardsAndForwardsBorderColor = FLinearColor::Blue;
-
 #endif
 }

@@ -40,7 +40,24 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, config, Category = DefaultGizmo)
 	TSoftObjectPtr<UControlRigGizmoLibrary> DefaultGizmoLibrary;
+#endif
+	
+	static UControlRigSettings * Get() { return GetMutableDefault<UControlRigSettings>(); }
+};
 
+/**
+ * Customize Control Rig Editor.
+ */
+UCLASS(config = EditorPerProjectUserSettings, meta=(DisplayName="Control Rig Editor"))
+class CONTROLRIG_API UControlRigEditorSettings : public UDeveloperSettings
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	/** Gets the category for the settings, some high level grouping like, Editor, Engine, Game...etc. */
+	virtual FName GetCategoryName() const override { return TEXT("ContentEditors"); }
+	
+#if WITH_EDITORONLY_DATA
 	// When this is checked all controls will return to their initial
 	// value as the user hits the Compile button.
 	UPROPERTY(EditAnywhere, config, Category = Interaction)
@@ -149,5 +166,7 @@ public:
 
 #endif
 
-	static UControlRigSettings * Get() { return GetMutableDefault<UControlRigSettings>(); }
+	static UControlRigEditorSettings * Get() { return GetMutableDefault<UControlRigEditorSettings>(); }
 };
+
+

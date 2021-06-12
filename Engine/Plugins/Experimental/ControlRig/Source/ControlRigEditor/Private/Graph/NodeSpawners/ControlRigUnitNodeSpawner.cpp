@@ -160,7 +160,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 #if WITH_EDITORONLY_DATA
 			if (!bIsTemplateNode)
 			{
-				const FControlRigSettingsPerPinBool* ExpansionMapPtr = UControlRigSettings::Get()->RigUnitPinExpansion.Find(ModelNode->GetScriptStruct()->GetName());
+				const FControlRigSettingsPerPinBool* ExpansionMapPtr = UControlRigEditorSettings::Get()->RigUnitPinExpansion.Find(ModelNode->GetScriptStruct()->GetName());
 				if (ExpansionMapPtr)
 				{
 					const FControlRigSettingsPerPinBool& ExpansionMap = *ExpansionMapPtr;
