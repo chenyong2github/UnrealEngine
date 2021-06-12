@@ -43,14 +43,14 @@ ENUM_CLASS_FLAGS(EMeshRenderAttributeFlags);
  * Tangent calculation modes
  */
 UENUM()
-enum class EDynamicMeshTangentCalcType : uint8
+enum class EDynamicMeshComponentTangentsMode : uint8
 {
 	/** Tangents are not used/available, proceed accordingly (eg generate arbitrary orthogonal basis) */
 	NoTangents,
-	/** Tangents should be automatically calculated on demand */
+	/** Tangents will be automatically calculated on demand. Note that mesh changes due to tangents calculation will *not* be broadcast via MeshChange events! */
 	AutoCalculated,
-	/** Tangents are externally calculated (behavior undefined if they are not actually externally calculated!) */
-	ExternallyCalculated
+	/** Tangents are externally provided via the FDynamicMesh3 AttributeSet */
+	ExternallyProvided
 };
 
 
@@ -73,10 +73,9 @@ class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent :
 	//
 public:
 	/**
-	 * initialize the internal mesh from a MeshDescription
-	 * @warning avoid usage of this function, access via GetDynamicMesh() instead
+	 * initialize the internal mesh from a DynamicMesh
 	 */
-	virtual void InitializeMesh(const FMeshDescription* MeshDescription)
+	virtual void SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh)
 	{
 		unimplemented();
 	}
@@ -98,6 +97,14 @@ public:
 	{
 		unimplemented();
 		return nullptr;
+	}
+
+	/**
+	 * Allow external code to read the internal mesh.
+	 */
+	virtual void ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc) const
+	{
+		unimplemented();
 	}
 
 	/**
@@ -151,15 +158,6 @@ public:
 		unimplemented();
 	}
 
-	/**
-	 * Write the internal mesh to a MeshDescription
-	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
-	 * @param ConversionOptions struct of additional options for the conversion
-	 */
-	virtual void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
-	{
-		unimplemented();
-	}
 
 protected:
 	/**

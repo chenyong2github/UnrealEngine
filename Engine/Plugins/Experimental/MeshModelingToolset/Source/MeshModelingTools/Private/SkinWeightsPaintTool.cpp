@@ -98,7 +98,7 @@ void USkinWeightsPaintTool::Setup()
 	UpdateBonePositionInfos(MaxDrawRadius);
 
 	// configure preview mesh
-	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	//PreviewMesh->EnableWireframe(SelectionProps->bShowWireframe);
 	PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;
 

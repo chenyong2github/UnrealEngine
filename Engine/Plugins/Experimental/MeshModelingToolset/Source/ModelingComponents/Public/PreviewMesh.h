@@ -171,19 +171,7 @@ public:
 	 * Set the tangents mode for the underlying component, if available. 
 	 * Note that this function may need to be called before the mesh is initialized.
 	 */
-	void SetTangentsMode(EDynamicMeshTangentCalcType TangentsType);
-
-	/**
-	 * @return a MeshTangents data structure for the underlying component, if available, otherwise nullptr
-	 */
-	const UE::Geometry::TMeshTangents<float>* GetTangents() const;
-
-	/**
-	 * Update tangents on internal Mesh Component
-	 */
-	template<typename RealType>
-	void UpdateTangents(const UE::Geometry::TMeshTangents<RealType>* ExternalTangents, bool bFastUpdateIfPossible);
-
+	void SetTangentsMode(EDynamicMeshComponentTangentsMode TangentsType);
 
 
 	/**
@@ -294,19 +282,22 @@ public:
 		EMeshRenderAttributeFlags ModifiedAttribs = EMeshRenderAttributeFlags::AllVertexAttribs);
 
 	/**
-	 * Initialize the internal mesh based on the given MeshDescription
-	 */
-	void InitializeMesh(FMeshDescription* MeshDescription);
-
-	/**
 	* @return pointer to the current FDynamicMesh used for preview  @todo deprecate this function, use GetMesh() instead
 	*/
 	const FDynamicMesh3* GetPreviewDynamicMesh() const { return GetMesh(); }
 
 	/**
+	* Read access to the internal mesh. This function will be deprecated/removed, use ProcessMesh() instead.
 	* @return pointer to the current FDynamicMesh used for preview
 	*/
 	const FDynamicMesh3* GetMesh() const;
+
+
+	/**
+	 * Give external code direct read access to the internal FDynamicMesh3. 
+	 * This should be used preferentially over GetMesh() / GetPreviewDynamicMesh()
+	 */
+	virtual void ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc) const;
 
 	/**
 	 * @return point to the current AABBTree used for preview spatial mesh, or nullptr if not available
@@ -318,12 +309,6 @@ public:
 	 * @return the current preview FDynamicMesh, and replace with a new empty mesh
 	 */
 	TUniquePtr<FDynamicMesh3> ExtractPreviewMesh() const;
-
-	/**
-	 * Write the internal mesh to a MeshDescription
-	 * @param bHaveModifiedToplogy if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
-	 */
-	void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedToplogy);
 
 
 
@@ -450,12 +435,3 @@ protected:
 };
 
 
-
-template<typename RealType>
-void UPreviewMesh::UpdateTangents(const UE::Geometry::TMeshTangents<RealType>* ExternalTangents, bool bFastUpdateIfPossible)
-{
-	if (ensure(DynamicMeshComponent))
-	{
-		DynamicMeshComponent->UpdateTangents(ExternalTangents, bFastUpdateIfPossible);
-	}
-}

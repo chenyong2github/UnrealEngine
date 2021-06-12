@@ -133,7 +133,7 @@ void UGroupEdgeInsertionTool::SetupPreview()
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory);
 	Preview->Setup(TargetWorld, OpFactory);
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 	FComponentMaterialSet MaterialSet;
 	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);

@@ -14,11 +14,7 @@
 #include "Solvers/ConstrainedMeshDeformer.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSceneQueriesUtil.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -853,23 +849,22 @@ void UDeformMeshPolygonsTool::Setup()
 	LaplacianDeformer = MakePimpl<FGroupTopologyLaplacianDeformer>();
 
 	// create dynamic mesh component to use for live preview
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "DynamicMesh");
-	DynamicMeshComponent->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
+	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
+	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform(TargetComponent->GetWorldTransform());
+	WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	DynamicMeshComponent->SetWorldTransform((FTransform)WorldTransform);
 
 	// set materials
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
 	// dynamic mesh configuration settings
-	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
-	DynamicMeshComponent->InitializeMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
+	DynamicMeshComponent->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	DynamicMeshComponent->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
 	OnDynamicMeshComponentChangedHandle =
 	    DynamicMeshComponent->OnMeshChanged.Add(FSimpleMulticastDelegate::FDelegate::CreateUObject(
 	        this, &UDeformMeshPolygonsTool::OnDynamicMeshComponentChanged));
@@ -886,14 +881,13 @@ void UDeformMeshPolygonsTool::Setup()
 	//initialize topology selector
 	TopoSelector.Initialize(DynamicMeshComponent->GetMesh(), &Topology);
 	TopoSelector.SetSpatialSource([this]() { return &GetSpatial(); });
-	TopoSelector.PointsWithinToleranceTest = [this, TargetComponent](const FVector3d& Position1, const FVector3d& Position2, double TolScale) {
-		UE::Geometry::FTransform3d Transform(TargetComponent->GetWorldTransform());
-		return ToolSceneQueriesUtil::PointSnapQuery(CameraState, Transform.TransformPosition(Position1), Transform.TransformPosition(Position2),
+	TopoSelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2, double TolScale) {
+		return ToolSceneQueriesUtil::PointSnapQuery(CameraState, WorldTransform.TransformPosition(Position1), WorldTransform.TransformPosition(Position2),
 			ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * TolScale);
 	};
 
 	// hide input StaticMeshComponent
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Target);
 
 	// init state flags flags
 	bInDrag = false;
@@ -952,17 +946,18 @@ void UDeformMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		DynamicMeshComponent->OnMeshChanged.Remove(OnDynamicMeshComponentChangedHandle);
 
-		Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Target);
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("DeformMeshPolygonsToolTransactionName", "Deform Mesh"));
-			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams) {
+			DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+			{
 				FConversionToMeshDescriptionOptions ConversionOptions;
 				ConversionOptions.bSetPolyGroups =
-				    false; // don't save polygroups, as we may change these temporarily in this tool just to get a different edit effect
-				DynamicMeshComponent->Bake(CommitParams.MeshDescriptionOut, false, ConversionOptions);
+					false; // don't save polygroups, as we may change these temporarily in this tool just to get a different edit effect
+				UE::ToolTarget::CommitDynamicMeshUpdate(Target, ReadMesh, false, ConversionOptions);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -1039,9 +1034,8 @@ FDynamicMeshAABBTree3& UDeformMeshPolygonsTool::GetSpatial()
 
 bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 {
-	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FRay3d LocalRay(Transform.InverseTransformPosition((FVector3d)WorldRay.Origin),
-	                Transform.InverseTransformVector((FVector3d)WorldRay.Direction));
+	FRay3d LocalRay(WorldTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+					WorldTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
 	FGroupTopologySelection Selection;
@@ -1056,13 +1050,13 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 	{
 		OutHit.FaceIndex   = Selection.GetASelectedCornerID();
 		OutHit.Distance    = LocalRay.Project(LocalPosition);
-		OutHit.ImpactPoint = (FVector)Transform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
+		OutHit.ImpactPoint = (FVector)WorldTransform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
 	else if (Selection.SelectedEdgeIDs.Num() > 0)
 	{
 		OutHit.FaceIndex   = Selection.GetASelectedEdgeID();
 		OutHit.Distance    = LocalRay.Project(LocalPosition);
-		OutHit.ImpactPoint = (FVector)Transform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
+		OutHit.ImpactPoint = (FVector)WorldTransform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
 	else
 	{
@@ -1075,8 +1069,8 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 			Query.Find();
 			OutHit.FaceIndex = HitTID;
 			OutHit.Distance  = Query.RayParameter;
-			OutHit.Normal    = (FVector)Transform.TransformVectorNoScale(GetSpatial().GetMesh()->GetTriNormal(HitTID));
-			OutHit.ImpactPoint = (FVector)Transform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
+			OutHit.Normal    = (FVector)WorldTransform.TransformVectorNoScale(GetSpatial().GetMesh()->GetTriNormal(HitTID));
+			OutHit.ImpactPoint = (FVector)WorldTransform.TransformPosition(LocalRay.PointAt(Query.RayParameter));
 		}
 	}
 	return true;
@@ -1085,9 +1079,8 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 
 void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 {
-	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FRay3d LocalRay(Transform.InverseTransformPosition((FVector3d)WorldRay.Origin),
-	                Transform.InverseTransformVector((FVector3d)WorldRay.Direction));
+	FRay3d LocalRay(WorldTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+					WorldTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
 	HilightSelection.Clear();
@@ -1105,8 +1098,8 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 
 	HilightSelection = Selection;
 
-	FVector3d WorldHitPos    = Transform.TransformPosition(LocalPosition);
-	FVector3d WorldHitNormal = Transform.TransformVector(LocalNormal);
+	FVector3d WorldHitPos    = WorldTransform.TransformPosition(LocalPosition);
+	FVector3d WorldHitNormal = WorldTransform.TransformVector(LocalNormal);
 
 	bInDrag             = true;
 	StartHitPosWorld    = (FVector)WorldHitPos;
@@ -1117,7 +1110,7 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 	UpdateActiveSurfaceFrame(HilightSelection);
 	UpdateQuickTransformer();
 
-	LastBrushPosLocal  = (FVector)Transform.InverseTransformPosition((FVector3d)LastHitPosWorld);
+	LastBrushPosLocal  = (FVector)WorldTransform.InverseTransformPosition((FVector3d)LastHitPosWorld);
 	StartBrushPosLocal = LastBrushPosLocal;
 
 	// Record the requested deformation strategy - NB: will be forced to linear if there aren't any free points to solve.
@@ -1194,8 +1187,6 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 
 void UDeformMeshPolygonsTool::UpdateActiveSurfaceFrame(FGroupTopologySelection& Selection)
 {
-	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-
 	// update surface frame
 	ActiveSurfaceFrame.Origin = (FVector3d)StartHitPosWorld;
 	if (HilightSelection.SelectedCornerIDs.Num() == 1)
@@ -1210,7 +1201,7 @@ void UDeformMeshPolygonsTool::UpdateActiveSurfaceFrame(FGroupTopologySelection& 
 			FVector3d Tangent;
 			if (Topology.GetGroupEdgeTangent(HilightSelection.GetASelectedEdgeID(), Tangent))
 			{
-				Tangent = Transform.TransformVector(Tangent);
+				Tangent = WorldTransform.TransformVector(Tangent);
 				ActiveSurfaceFrame.ConstrainedAlignAxis(0, Tangent, ActiveSurfaceFrame.Z());
 			}
 		}
@@ -1300,9 +1291,8 @@ bool UDeformMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	//if (!bNeedEmitEndChange)
 	if (ActiveVertexChange == nullptr)
 	{
-		UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-		FRay3d LocalRay(Transform.InverseTransformPosition((FVector3d)DevicePos.WorldRay.Origin),
-		                Transform.InverseTransformVector((FVector3d)DevicePos.WorldRay.Direction));
+		FRay3d LocalRay(WorldTransform.InverseTransformPosition((FVector3d)DevicePos.WorldRay.Origin),
+						WorldTransform.InverseTransformVector((FVector3d)DevicePos.WorldRay.Direction));
 		UE::Geometry::Normalize(LocalRay.Direction);
 
 		HilightSelection.Clear();
@@ -1312,8 +1302,8 @@ bool UDeformMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 
 		if (bHit)
 		{
-			StartHitPosWorld    = (FVector)Transform.TransformPosition(LocalPosition);
-			StartHitNormalWorld = (FVector)Transform.TransformVector(LocalNormal);
+			StartHitPosWorld    = (FVector)WorldTransform.TransformPosition(LocalPosition);
+			StartHitNormalWorld = (FVector)WorldTransform.TransformVector(LocalNormal);
 
 			UpdateActiveSurfaceFrame(HilightSelection);
 			UpdateQuickTransformer();
@@ -1398,7 +1388,6 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? *LaplacianDeformer : LinearDeformer;
 
 	FDynamicMesh3* Mesh    = DynamicMeshComponent->GetMesh();
-	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	FVector NewHitPosWorld = LastHitPosWorld;
 
 	FVector3d SnappedPoint;
@@ -1454,8 +1443,8 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 	FVector2d RotateToVec = RotationStartFrame.ToPlaneUV((FVector3d)NewHitPosWorld, 2);
 	UE::Geometry::Normalize(RotateToVec);
 	double AngleRad = UE::Geometry::SignedAngleR(RotateStartVec, RotateToVec);
-	FQuaterniond Rotation(Transform.InverseTransformVectorNoScale(RotationStartFrame.Z()), AngleRad, false);
-	FVector3d LocalOrigin = Transform.InverseTransformPosition(RotationStartFrame.Origin);
+	FQuaterniond Rotation(WorldTransform.InverseTransformVectorNoScale(RotationStartFrame.Z()), AngleRad, false);
+	FVector3d LocalOrigin = WorldTransform.InverseTransformPosition(RotationStartFrame.Origin);
 
 	// Linear Deformer: Update Mesh the rotation,
 	// Laplacian Deformer:  Update handles constraints with the rotation and set bDeformerNeedsToRun = true;.
@@ -1492,7 +1481,6 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 		};
 	}
 
-	FTransform Transform   = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
 	FVector NewHitPosWorld = LastHitPosWorld;
 	FVector3d SnappedPoint;
 	if (QuickAxisTranslater.UpdateSnap(FRay3d(UpdateRay), SnappedPoint, PointConstraintFunc))
@@ -1504,8 +1492,8 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 		return;
 	}
 
-	FVector NewBrushPosLocal = Transform.InverseTransformPosition(NewHitPosWorld);
-	FVector3d NewMoveDelta   = (FVector3d)NewBrushPosLocal - (FVector3d)StartBrushPosLocal;
+	FVector3d NewBrushPosLocal = WorldTransform.InverseTransformPosition(NewHitPosWorld);
+	FVector3d NewMoveDelta   = NewBrushPosLocal - (FVector3d)StartBrushPosLocal;
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	if (LastMoveDelta.SquaredLength() > 0.)
@@ -1571,7 +1559,7 @@ void UDeformMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FDynamicMesh3* TargetMesh                    = DynamicMeshComponent->GetMesh();
 
 	PolyEdgesRenderer.BeginFrame(RenderAPI, CameraState);
-	PolyEdgesRenderer.SetTransform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	PolyEdgesRenderer.SetTransform((FTransform)WorldTransform);
 
 
 	for (FGroupTopology::FGroupEdge& Edge : Topology.Edges)
@@ -1588,7 +1576,7 @@ void UDeformMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 	HilightRenderer.BeginFrame(RenderAPI, CameraState);
-	HilightRenderer.SetTransform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	HilightRenderer.SetTransform((FTransform)WorldTransform);
 
 #ifdef DEBUG_ROI_WEIGHTS
 	FDynamicMesh3* MeshPtr = DynamicMeshComponent->GetMesh();

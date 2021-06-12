@@ -165,7 +165,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(OperatorFactory);
 	Preview->Setup(this->TargetWorld, OperatorFactory);
 	Preview->OnMeshUpdated.AddUObject(this, &UUVProjectionTool::OnMeshUpdated);
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target, false);
 	Preview->ConfigureMaterials(MaterialSet.Materials,

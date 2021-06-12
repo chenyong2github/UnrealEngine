@@ -3,10 +3,7 @@
 #include "DynamicMeshBrushTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -25,29 +22,27 @@ UDynamicMeshBrushTool::UDynamicMeshBrushTool()
 
 void UDynamicMeshBrushTool::Setup()
 {
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->bBuildSpatialDataStructure = true;
-	PreviewMesh->CreateInWorld(TargetComponent->GetOwnerActor()->GetWorld(), FTransform::Identity);
-	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
+	PreviewMesh->CreateInWorld(UE::ToolTarget::GetTargetActor(Target)->GetWorld(), FTransform::Identity);
+	FTransform3d LocalToWorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	PreviewMesh->SetTransform((FTransform)LocalToWorldTransform);
 
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	PreviewMesh->SetMaterials(MaterialSet.Materials);
 
-	// initialize from LOD-0 MeshDescription
-	PreviewMesh->InitializeMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
+	PreviewMesh->ReplaceMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
+
 	OnBaseMeshComponentChangedHandle = PreviewMesh->GetOnMeshChanged().Add(
 		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UDynamicMeshBrushTool::OnBaseMeshComponentChanged));
 
 	// call this here so that base tool can estimate target dimension
 	InputMeshBoundsLocal = PreviewMesh->GetPreviewDynamicMesh()->GetBounds();
-	double ScaledDim = TargetComponent->GetWorldTransform().TransformVector(FVector::OneVector).Size();
+	double ScaledDim = LocalToWorldTransform.TransformVector(FVector::OneVector).Size();
 	this->WorldToLocalScale = FMathd::Sqrt3 / FMathd::Max(FMathf::ZeroTolerance, ScaledDim);
 	UBaseBrushTool::Setup();
 
-	// hide input StaticMeshComponent
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Target);
 }
 
 
@@ -62,7 +57,7 @@ void UDynamicMeshBrushTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	UBaseBrushTool::Shutdown(ShutdownType);
 
-	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+	UE::ToolTarget::ShowSourceObject(Target);
 
 	if (PreviewMesh != nullptr)
 	{

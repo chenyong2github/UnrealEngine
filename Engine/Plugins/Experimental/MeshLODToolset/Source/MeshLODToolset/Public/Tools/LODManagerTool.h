@@ -78,7 +78,7 @@ class MESHLODTOOLSET_API ULODManagerPreviewLODProperties : public UInteractiveTo
 {
 	GENERATED_BODY()
 public:
-
+	/** LOD to visualise. Default option is equivalent to disabling the Tool, RenderData is the mesh used for rendering derived from the SourceModel (possibly simplified) */
 	UPROPERTY(EditAnywhere, Category = LODPreview, meta = (DisplayName = "Show LOD", GetOptions = GetLODNamesFunc))
 	FString VisibleLOD;
 
@@ -87,6 +87,10 @@ public:
 
 	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> LODNamesList;
+
+	/** Control whether mesh borders are displayed */
+	UPROPERTY(EditAnywhere, Category = LODPreview)
+	bool bShowSeams = true;
 };
 
 
@@ -232,7 +236,6 @@ protected:
 	struct FLODMeshInfo
 	{
 		UE::Geometry::FDynamicMesh3 Mesh;
-		UE::Geometry::FMeshTangentsf Tangents;		// todo: store tangents on the Mesh. Requires support from SimpleDynamicMeshComponent.
 
 		bool bInfoCached = false;
 		TArray<int> BoundaryEdges;
@@ -249,5 +252,6 @@ protected:
 	bool bPreviewLODValid = false;
 	void UpdatePreviewLOD();
 	void UpdatePreviewLines(FLODMeshInfo& LODMeshInfo);
+	void ClearPreviewLines();
 	bool CacheLODMesh(const FString& Name, FLODName LODName);
 };

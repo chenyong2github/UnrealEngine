@@ -9,14 +9,10 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 
 #include "SimpleDynamicMeshComponent.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 #include "Async/ParallelFor.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -49,26 +45,24 @@ void UWeldMeshEdgesTool::Setup()
 	UInteractiveTool::Setup();
 
 	// create dynamic mesh component to use for live preview
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "DynamicMesh");
-	DynamicMeshComponent->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
+	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
+	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetComponent(Target));
 	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform(TargetComponent->GetWorldTransform());
+	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 
 	// transfer materials
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
-	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
-	DynamicMeshComponent->InitializeMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
-	OriginalMesh.Copy(*DynamicMeshComponent->GetMesh());
+	DynamicMeshComponent->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	DynamicMeshComponent->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
+	DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { OriginalMesh = ReadMesh; });
 
 	// hide input StaticMeshComponent
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Target);
 
 	// initialize our properties
 	ToolPropertyObjects.Add(this);
@@ -86,15 +80,15 @@ void UWeldMeshEdgesTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	if (DynamicMeshComponent != nullptr)
 	{
-		Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Target);
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("WeldMeshEdgesToolTransactionName", "Remesh Mesh"));
-			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+			DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& CurMesh)
 			{
-				DynamicMeshComponent->Bake(CommitParams.MeshDescriptionOut, true);
+				UE::ToolTarget::CommitDynamicMeshUpdate(Target, CurMesh, true);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -111,7 +105,7 @@ void UWeldMeshEdgesTool::Render(IToolsContextRenderAPI* RenderAPI)
 	UpdateResult();
 
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	FTransform Transform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform(); //Actor->GetTransform();
+	FTransform Transform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 
 	FColor LineColor(200, 200, 200);
 	float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
@@ -155,29 +149,31 @@ void UWeldMeshEdgesTool::UpdateResult()
 		return;
 	}
 
-	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
-	TargetMesh->Copy(OriginalMesh);
+	ComputeMesh = OriginalMesh;
 
-	FMergeCoincidentMeshEdges Merger(TargetMesh);
+	FMergeCoincidentMeshEdges Merger(&ComputeMesh);
 	Merger.MergeVertexTolerance = this->Tolerance;
 	Merger.MergeSearchTolerance = 2*Merger.MergeVertexTolerance;
 	Merger.OnlyUniquePairs = this->bOnlyUnique;
+	FDynamicMesh3* SetMesh = &ComputeMesh;
 		
 	if (Merger.Apply() == false)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("WeldMeshEdgesTool : Merger.Apply() returned false"));
-		TargetMesh->Copy(OriginalMesh);
+		SetMesh = &OriginalMesh;
 	}
-
-	if (TargetMesh->CheckValidity(true, EValidityCheckFailMode::ReturnOnly) == false)
+	else if (ComputeMesh.CheckValidity(true, EValidityCheckFailMode::ReturnOnly) == false)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("WeldMeshEdgesTool : returned mesh is invalid"));
-		TargetMesh->Copy(OriginalMesh);
+		SetMesh = &OriginalMesh;
 	}
 
-	DynamicMeshComponent->NotifyMeshUpdated();
-	GetToolManager()->PostInvalidation();
+	DynamicMeshComponent->EditMesh([SetMesh](FDynamicMesh3& EditMesh)
+	{
+		EditMesh = *SetMesh;
+	});
 
+	GetToolManager()->PostInvalidation();
 	bResultValid = true;
 }
 

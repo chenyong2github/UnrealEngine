@@ -66,8 +66,8 @@ class MODELINGCOMPONENTS_API USimpleDynamicMeshComponent : public UBaseDynamicMe
 
 
 	//===============================================================================================================
-	// Mesh Access. Usage via GetDynamicMesh() is preferred, the GetMesh() pass-throughs exist largely to support
-	// existing code from before UDynamicMesh was added.
+	// Mesh Access. Usage via GetDynamicMesh() or SetMesh()/ProcessMesh()/EditMesh() is preferred, the GetMesh() 
+	// pointer access exist largely to support existing code from before UDynamicMesh was added.
 public:
 	/**
 	 * @return pointer to internal mesh
@@ -93,6 +93,30 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	void SetDynamicMesh(UDynamicMesh* NewMesh);
+
+	/**
+	 * initialize the internal mesh from a DynamicMesh
+	 */
+	virtual void SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh) override;
+
+	/**
+	 * Allow external code to read the internal mesh.
+	 */
+	virtual void ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc) const;
+
+	/**
+	 * Allow external code to to edit the internal mesh.
+	 */
+	virtual void EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc,
+						  EDynamicMeshComponentRenderUpdateMode UpdateMode = EDynamicMeshComponentRenderUpdateMode::FullUpdate);
+
+	/**
+	 * Apply transform to internal mesh. In some cases this can be more efficient than a general edit.
+	 * @param bInvert if true, inverse tranform is applied instead of forward transform
+	 */
+	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert) override;
+
+
 
 protected:
 	/**
@@ -416,77 +440,40 @@ protected:
 
 
 
-
-
-
-
-	///===============================================================================================================
-	// The functions below should be considered DEPRECATED
-	// They are slated for removal (but require some 
-	// refactoring for that to be possible)
+	//===============================================================================================================
+	// Triangle-Vertex Tangents support. The default behavior is to not use Tangents, this will lead to incorrect
+	// rendering for any material with Normal Maps and some other shaders.
+	// If TangentsType == EDynamicMeshComponentTangentsMode::ExternallyProvided, the Tangent and Bitangent attributes of
+	//   the FDynamicMesh3 AttributeSet are used at the SceneProxy level, the Component is not involved
+	// If TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated, the Tangents are computed internally using
+	//   a fast MikkT approximation via FMeshTangentsf. They will be recomputed when the mesh is modified, however
+	//   they are *not* recomputed when using the Fast Update functions above (in that case InvalidateAutoCalculatedTangents() 
+	//   can be used to force recomputation)
 	//
 public:
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	void SetTangentsType(EDynamicMeshComponentTangentsMode NewTangentsType);
 
-	/**
-	 * initialize the internal mesh from a MeshDescription
-	 */
-	virtual void InitializeMesh(const FMeshDescription* MeshDescription) override;
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	EDynamicMeshComponentTangentsMode GetTangentsType() const { return TangentsType; }
 
+	/** This function marks the auto tangents as dirty, they will be recomputed before they are used again */
+	virtual void InvalidateAutoCalculatedTangents();
 
-	/** How should Tangents be calculated/handled */
-	UPROPERTY()
-	EDynamicMeshTangentCalcType TangentsType = EDynamicMeshTangentCalcType::NoTangents;
-
-	//
-	// Separate Tangents support (todo: remove this)
-	//
-
-	/**
-	 * Copy externally-calculated tangents into the internal tangets buffer.
-	 * @param bFastUpdateIfPossible if true, will try to do a fast normals/tangets update of the SceneProxy, instead of full invalidatiohn
-	 */
-	void UpdateTangents(const UE::Geometry::FMeshTangentsf* ExternalTangents, bool bFastUpdateIfPossible);
-
-	/**
-	 * Copy externally-calculated tangents into the internal tangets buffer.
-	 * @param bFastUpdateIfPossible if true, will try to do a fast normals/tangets update of the SceneProxy, instead of full invalidatiohn
-	 */
-	void UpdateTangents(const UE::Geometry::FMeshTangentsd* ExternalTangents, bool bFastUpdateIfPossible);
-
-	/**
-	 * @return pointer to internal tangents object.
-	 * @warning calling this with TangentsType = AutoCalculated will result in possibly-expensive Tangents calculation
-	 * @warning this is only currently safe to call on the Game Thread!!
-	 */
-	const UE::Geometry::FMeshTangentsf* GetTangents();
-
-
-	/**
-	 * Write the internal mesh to a MeshDescription
-	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
-	 * @param ConversionOptions struct of additional options for the conversion
-	 */
-	virtual void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions) override;
-
-	/**
-	* Write the internal mesh to a MeshDescription with default conversion options
-	* @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
-	*/
-	void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology)
-	{
-		FConversionToMeshDescriptionOptions ConversionOptions;
-		Bake(MeshDescription, bHaveModifiedTopology, ConversionOptions);
-	}
-
-	/**
-	 * Apply transform to internal mesh. Updates Octree and RenderProxy if available.
-	 * @param bInvert if true, inverse tranform is applied instead of forward transform
-	 */
-	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert) override;
-
+	/** @return AutoCalculated Tangent Set, which may require that they be recomputed, or nullptr if not enabled/available */
+	const UE::Geometry::FMeshTangentsf* GetAutoCalculatedTangents();
 
 protected:
-	/** Separate tangents storage (should be replaced with DynamicMesh Tangents attribute overlays) */
-	bool bTangentsValid = false;
-	UE::Geometry::FMeshTangentsf Tangents;
+	/** How should Tangents be calculated/handled */
+	UPROPERTY()
+	EDynamicMeshComponentTangentsMode TangentsType = EDynamicMeshComponentTangentsMode::NoTangents;
+
+	/** true if AutoCalculatedTangents has been computed for current mesh */
+	bool bAutoCalculatedTangentsValid = false;
+
+	/** Set of per-triangle-vertex tangents computed for the current mesh. Only valid if bAutoCalculatedTangentsValid == true */
+	UE::Geometry::FMeshTangentsf AutoCalculatedTangents;
+
+	void UpdateAutoCalculatedTangents();
+
 };

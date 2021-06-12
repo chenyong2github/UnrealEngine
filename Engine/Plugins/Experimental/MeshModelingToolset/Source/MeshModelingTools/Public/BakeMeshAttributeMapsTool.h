@@ -416,7 +416,6 @@ protected:
 	UMaterialInstanceDynamic* WorkingPreviewMaterial;
 	float SecondsBeforeWorkingMaterial = 0.75;
 
-	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> BaseMeshDescription;
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	UE::Geometry::FDynamicMesh3 BaseMesh;
 	UE::Geometry::FDynamicMeshAABBTree3 BaseSpatial;
@@ -574,6 +573,6 @@ protected:
 
 	void InitializeEmptyMaps();
 
-	void GetTexturesFromDetailMesh(const IPrimitiveComponentBackedTarget* DetailComponent);
+	void GetTexturesFromDetailMesh(const UPrimitiveComponent* DetailComponent);
 
 };

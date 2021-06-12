@@ -187,7 +187,7 @@ void UConvertToPolygonsTool::Setup()
 
 		// Give the preview something to display
 		PreviewWithBackgroundCompute->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
-		PreviewWithBackgroundCompute->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+		PreviewWithBackgroundCompute->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 		PreviewWithBackgroundCompute->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
 		
 		PreviewWithBackgroundCompute->ConfigureMaterials(MaterialSet.Materials,

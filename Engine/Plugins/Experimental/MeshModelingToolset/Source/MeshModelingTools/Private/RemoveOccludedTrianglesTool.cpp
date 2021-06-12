@@ -258,7 +258,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
-			Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+			Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 			FComponentMaterialSet MaterialSet;
 			TargetMaterialInterface(TargetIdx)->GetMaterialSet(MaterialSet);

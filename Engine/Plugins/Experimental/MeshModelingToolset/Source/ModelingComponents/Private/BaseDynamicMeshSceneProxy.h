@@ -414,7 +414,7 @@ public:
 		const FDynamicMeshUVOverlay* UVOverlay,
 		const FDynamicMeshNormalOverlay* NormalOverlay,
 		const FDynamicMeshColorOverlay* ColorOverlay,
-		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr,
+		TFunctionRef<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc,
 		bool bTrackTriangles = false)
 	{
 		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
@@ -437,7 +437,7 @@ public:
 		const TArray<const FDynamicMeshUVOverlay*>& UVOverlays,
 		const FDynamicMeshNormalOverlay* NormalOverlay,
 		const FDynamicMeshColorOverlay* ColorOverlay,
-		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr,
+		TFunctionRef<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc,
 		bool bTrackTriangles = false)
 	{
 		RenderBuffers->TriangleCount = NumTriangles;
@@ -493,16 +493,10 @@ public:
 
 				FVector3f Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ?
 					NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
-				
-				// either request known tangent, or calculate a nonsense one
-				if (TangentsFunc != nullptr)
-				{
-					TangentsFunc(Tri[j], TriangleID, j, TangentX, TangentY);
-				}
-				else
-				{
-					VectorUtil::MakePerpVectors(Normal, TangentX, TangentY);
-				}
+
+				// get tangents
+				TangentsFunc(Tri[j], TriangleID, j, Normal, TangentX, TangentY);
+
 				RenderBuffers->StaticMeshVertexBuffer.SetVertexTangents(VertIdx, (FVector)TangentX, (FVector)TangentY, (FVector)Normal);
 
 				for (int32 k = 0; k < NumTexCoords; ++k)
@@ -640,8 +634,8 @@ public:
 		FMeshRenderBufferSet* RenderBuffers,
 		const FDynamicMesh3* Mesh,
 		int NumTriangles, TriangleEnumerable Enumerable,
-		FDynamicMeshNormalOverlay* NormalOverlay,
-		FDynamicMeshColorOverlay* ColorOverlay,
+		const FDynamicMeshNormalOverlay* NormalOverlay,
+		const FDynamicMeshColorOverlay* ColorOverlay,
 		TFunctionRef<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc,
 		bool bUpdatePositions = true,
 		bool bUpdateNormals = false,
@@ -718,7 +712,7 @@ public:
 		FMeshRenderBufferSet* RenderBuffers,
 		const FDynamicMesh3* Mesh,
 		int32 NumTriangles, TriangleEnumerable Enumerable,
-		FDynamicMeshUVOverlay* UVOverlay, int32 UVIndex)
+		const FDynamicMeshUVOverlay* UVOverlay, int32 UVIndex)
 	{
 		if (RenderBuffers->TriangleCount == 0)
 		{

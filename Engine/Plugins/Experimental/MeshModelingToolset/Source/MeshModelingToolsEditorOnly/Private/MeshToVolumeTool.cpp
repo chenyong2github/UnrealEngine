@@ -12,10 +12,9 @@
 #include "ToolSetupUtil.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
+
 
 #include "Engine/Classes/Engine/BlockingVolume.h"
 #include "Engine/Classes/Components/BrushComponent.h"
@@ -56,26 +55,16 @@ void UMeshToVolumeTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	check(TargetComponent);
-
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->bBuildSpatialDataStructure = false;
-	PreviewMesh->CreateInWorld(TargetComponent->GetOwnerActor()->GetWorld(), FTransform::Identity);
-	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
+	PreviewMesh->CreateInWorld(UE::ToolTarget::GetTargetActor(Target)->GetWorld(), FTransform::Identity);
+	PreviewMesh->SetTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 
-	FComponentMaterialSet MaterialSet;
-	check(Cast<IMaterialProvider>(Target));
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
+	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	PreviewMesh->ReplaceMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
+
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	PreviewMesh->SetMaterials(MaterialSet.Materials);
-
-	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
-
-	// TODO: We really just need a dynamic mesh, not a mesh description (since we're converting the mesh
-	// description to a dynamic mesh), but it requires refactoring PreviewMesh to accept a dynamic mesh. 
-	// Once we do, however, the requirement for this tool will change to IDynamicMeshProvider, and we'll
-	// use that instead.
-	PreviewMesh->InitializeMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
 
 	InputMesh.Copy(*PreviewMesh->GetMesh());
 
@@ -84,8 +73,7 @@ void UMeshToVolumeTool::Setup()
 	VolumeEdgesSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager()));
 	VolumeEdgesSet->RegisterComponent();
 
-	// hide input StaticMeshComponent
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Target);
 
 	Settings = NewObject<UMeshToVolumeToolProperties>(this);
 	Settings->RestoreProperties(this);
@@ -117,21 +105,18 @@ void UMeshToVolumeTool::Shutdown(EToolShutdownType ShutdownType)
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
 
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	TargetComponent->SetOwnerVisibility(true);
-
-	UWorld* TargetOwnerWorld = TargetComponent->GetOwnerActor()->GetWorld();
-
+	UE::ToolTarget::ShowSourceObject(Target);
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshToVolumeToolTransactionName", "Create Volume"));
 
-		FTransform TargetTransform = TargetComponent->GetWorldTransform();
+		AActor* TargetOwnerActor = UE::ToolTarget::GetTargetActor(Target);
+		UWorld* TargetOwnerWorld = TargetOwnerActor->GetWorld();
+		FTransform SetTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 
 		AVolume* TargetVolume = nullptr;
 
-		FTransform SetTransform = TargetTransform;
 		if (Settings->TargetVolume.IsValid() == false)
 		{
 			FRotator Rotation(0.0f, 0.0f, 0.0f);
@@ -166,12 +151,10 @@ void UMeshToVolumeTool::Shutdown(EToolShutdownType ShutdownType)
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), TargetVolume);
 
 		TArray<AActor*> Actors;
-		Actors.Add(TargetComponent->GetOwnerActor());
+		Actors.Add(TargetOwnerActor);
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
 
-
 		GetToolManager()->EndUndoTransaction();
-
 	}
 }
 

@@ -16,12 +16,9 @@
 #include "ToolSetupUtil.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Selections/MeshFaceSelection.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "Algo/MaxElement.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -83,7 +80,7 @@ void UMeshSelectionTool::Setup()
 	AddToolPropertySource(EditActions);
 
 	// set autocalculated tangents
-	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 	// enable wireframe on component
 	PreviewMesh->EnableWireframe(SelectionProps->bShowWireframe);
@@ -164,11 +161,7 @@ void UMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 	{
 		// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelectionToolTransactionName", "Edit Mesh"));
-
-		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			PreviewMesh->Bake(CommitParams.MeshDescriptionOut, true);
-		});
+		UE::ToolTarget::CommitDynamicMeshUpdate(Target, *PreviewMesh->GetMesh(), true);
 		GetToolManager()->EndUndoTransaction();
 	}
 	else if (ShutdownType == EToolShutdownType::Cancel)
@@ -323,7 +316,8 @@ bool UMeshSelectionTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 		SourceMesh->GetTriInfo(OutHit.FaceIndex, Normal, Area, Centroid);
 		FViewCameraState StateOut;
 		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FVector3d LocalEyePosition(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform().InverseTransformPosition(StateOut.Position));
+		FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
+		FVector3d LocalEyePosition(LocalToWorld.InverseTransformPosition(StateOut.Position));
 
 		if (Normal.Dot((Centroid - LocalEyePosition)) > 0)
 		{
@@ -378,7 +372,7 @@ TUniquePtr<FDynamicMeshOctree3>& UMeshSelectionTool::GetOctree()
 
 void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray<int>& VertexROI)
 {
-	FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FTransform3d Transform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	// TODO: need dynamic vertex hash table!
@@ -400,7 +394,7 @@ void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray
 
 void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArray<int>& TriangleROI)
 {
-	FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FTransform3d Transform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	// always select first triangle
@@ -553,7 +547,8 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 	{
 		FViewCameraState StateOut;
 		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FVector3d LocalEyePosition(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform().InverseTransformPosition(StateOut.Position));
+		FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
+		FVector3d LocalEyePosition(LocalToWorld.InverseTransformPosition(StateOut.Position));
 
 		for (int tid : TriangleROI)
 		{
@@ -784,7 +779,7 @@ void UMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UDynamicMeshBrushTool::Render(RenderAPI);
 
-	FTransform WorldTransform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
+	FTransform WorldTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 	const FDynamicMesh3* Mesh = PreviewMesh->GetMesh();
 
 	if (SelectionProps->bShowPoints)
@@ -1380,12 +1375,8 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelectionToolSeparate", "Separate"));
 
 	// build array of materials from the original
-	TArray<UMaterialInterface*> Materials;
-	IMaterialProvider* TargetMaterial = Cast<IMaterialProvider>(Target);
-	for (int MaterialIdx = 0, NumMaterials = TargetMaterial->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
-	{
-		Materials.Add(TargetMaterial->GetMaterial(MaterialIdx));
-	}
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
+	TArray<UMaterialInterface*> Materials = MaterialSet.Materials;
 
 	FCreateMeshObjectParams NewMeshObjectParams;
 	NewMeshObjectParams.TargetWorld = TargetWorld;

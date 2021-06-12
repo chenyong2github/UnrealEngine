@@ -203,7 +203,7 @@ void UGenerateLODMeshesTool::UpdateNumPreviews()
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
 
-		NewPreview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+		NewPreview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 		NewPreview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 		FTransform UseTransform = OrigTransform;

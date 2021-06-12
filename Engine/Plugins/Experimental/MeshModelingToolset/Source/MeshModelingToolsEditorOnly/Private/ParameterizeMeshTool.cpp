@@ -15,7 +15,7 @@
 
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 #include "ToolSetupUtil.h"
-
+#include "ModelingToolTargetUtil.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -72,9 +72,8 @@ void UParameterizeMeshTool::Setup()
 	IMeshDescriptionProvider* TargetMeshProvider = Cast<IMeshDescriptionProvider>(Target);
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
-
-	Preview->PreviewMesh->InitializeMesh(TargetMeshProvider->GetMeshDescription());
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	Preview->PreviewMesh->ReplaceMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
 
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
 	{

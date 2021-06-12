@@ -15,16 +15,13 @@
 #include "Async/ParallelFor.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "MeshDescription.h"
+#include "ModelingToolTargetUtil.h"
 
 // needed to disable normals recalculation on the underlying asset
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "Engine/Classes/Engine/StaticMesh.h"
 #include "Engine/Classes/Components/StaticMeshComponent.h"
 
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -773,9 +770,9 @@ void UDisplaceMeshTool::Setup()
 	}
 	
 	// populate weight maps list
-	IMeshDescriptionProvider* TargetMeshProvider = Cast<IMeshDescriptionProvider>(Target);
+	const FMeshDescription* MeshDescription = UE::ToolTarget::GetMeshDescription(Target);
 	TArray<FName> WeightMaps;
-	UE::WeightMaps::FindVertexWeightMaps(TargetMeshProvider->GetMeshDescription(), WeightMaps);
+	UE::WeightMaps::FindVertexWeightMaps(MeshDescription, WeightMaps);
 	CommonProperties->WeightMapsList.Add(TEXT("None"));
 	for (FName Name : WeightMaps)
 	{
@@ -789,23 +786,21 @@ void UDisplaceMeshTool::Setup()
 
 
 	// create dynamic mesh component to use for live preview
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "DynamicMesh");
-	DynamicMeshComponent->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
+	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
+	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform(TargetComponent->GetWorldTransform());
+	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 	DynamicMeshComponent->bExplicitShowWireframe = CommonProperties->bShowWireframe;
 
 	// transfer materials
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
-	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
-	DynamicMeshComponent->InitializeMesh(TargetMeshProvider->GetMeshDescription());
+	DynamicMeshComponent->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	DynamicMeshComponent->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
 	OriginalMesh.Copy(*DynamicMeshComponent->GetMesh());
 	OriginalMeshSpatial.SetMesh(&OriginalMesh, true);
 
@@ -827,7 +822,7 @@ void UDisplaceMeshTool::Setup()
 	Displacer = MakeUnique<FDisplaceMeshOpFactory>(SubdividedMesh, Parameters, CommonProperties->DisplacementType);
 		
 	// hide input StaticMeshComponent
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Target);
 
 	// initialize our properties
 	ToolPropertyObjects.Add(this);
@@ -880,8 +875,7 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (DynamicMeshComponent != nullptr)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-		TargetComponent->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Target);
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
@@ -892,7 +886,7 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 			// on the underlying StaticMesh Asset, or it will run on the Bake() below and the output result will not be the same as the preview
 			if (CommonProperties->DisplacementType == EDisplaceMeshToolDisplaceType::DisplacementMap && TextureMapProperties->bRecalcNormals == false)
 			{
-				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponent->GetOwnerComponent());
+				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Target));
 				if (StaticMeshComponent)
 				{
 					if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
@@ -907,10 +901,9 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 				}
 			}
 
-
-			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+			DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 			{
-				DynamicMeshComponent->Bake(CommitParams.MeshDescriptionOut, CommonProperties->Subdivisions > 0);
+				UE::ToolTarget::CommitDynamicMeshUpdate(Target, ReadMesh, CommonProperties->Subdivisions > 0);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -1212,7 +1205,8 @@ void UDisplaceMeshTool::UpdateActiveWeightMap()
 	else
 	{
 		TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> NewWeightMap = MakeShared<FIndexedWeightMap, ESPMode::ThreadSafe>();
-		UE::WeightMaps::GetVertexWeightMap(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), CommonProperties->WeightMap, *NewWeightMap, 1.0f);
+		const FMeshDescription* MeshDescription = UE::ToolTarget::GetMeshDescription(Target);
+		UE::WeightMaps::GetVertexWeightMap(MeshDescription, CommonProperties->WeightMap, *NewWeightMap, 1.0f);
 		if (CommonProperties->bInvertWeightMap)
 		{
 			NewWeightMap->InvertWeightMap();

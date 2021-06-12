@@ -857,7 +857,7 @@ void USkinWeightsBindingTool::Setup()
 	OriginalMesh->Attributes()->PrimaryColors()->CreateFromPredicate([](int ParentVID, int TriIDA, int TriIDB){return true;}, 0.f);
 
 	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
