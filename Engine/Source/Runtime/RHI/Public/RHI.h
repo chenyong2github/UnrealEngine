@@ -196,7 +196,7 @@ inline bool RHISupports4ComponentUAVReadWrite(const FStaticShaderPlatform Platfo
 	Shader Platform must not use the mobile renderer, and for Metal, the shader language must be at least 2. */
 inline bool RHISupportsManualVertexFetch(const FStaticShaderPlatform InShaderPlatform)
 {
-	bool bIsMetalMobilePlatform = !IsMetalSM5Platform(InShaderPlatform);
+	bool bIsMetalMobilePlatform = IsMetalMobilePlatform(InShaderPlatform);
 	bool bIsUnsupportedGL = IsOpenGLPlatform(InShaderPlatform);
 
 	return (!bIsUnsupportedGL && !IsMobilePlatform(InShaderPlatform) && !bIsMetalMobilePlatform)
