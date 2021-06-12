@@ -1446,7 +1446,7 @@ public:
 		}
 
 		// Undamped frequency
-		float UndampedFrequency = UndampedFrequency = 1.0f / (PI * InSmoothingTime);
+		float UndampedFrequency = 1.0f / (PI * InSmoothingTime);
 		SpringDamper(InOutValue, InOutValueRate, InTargetValue, InTargetValueRate, InDeltaTime, UndampedFrequency, InDampingRatio);
 	}
 
@@ -1592,7 +1592,7 @@ public:
 		}
 
 		// Undamped frequency
-		float UndampedFrequency = UndampedFrequency = 1.0f / (PI * InSmoothingTime);
+		float UndampedFrequency = 1.0f / (PI * InSmoothingTime);
 		SpringDamperApprox(InOutValue, InOutValueRate, InTargetValue, InTargetValueRate, InDeltaTime, UndampedFrequency, InDampingRatio);
 	}
 
