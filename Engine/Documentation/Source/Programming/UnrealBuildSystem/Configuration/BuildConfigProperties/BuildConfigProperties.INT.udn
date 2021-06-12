@@ -28,8 +28,6 @@ $ bUseUBTMakefiles : Enables support for very fast iterative builds by caching t
     * You can force regeneration of the 'UBT Makefile' by passing the '-gather' argument, or simply regenerating project files. 
     * This also enables the fast include file dependency scanning and caching system that allows Unreal Build Tool to detect out of date dependencies very quickly. When enabled, a deep C++ include graph does not have to be generated, and instead, we only scan and cache indirect includes for after a dependent build product was already found to be out of date. During the next build, we will load those cached indirect includes and check for outdatedness.
 
-$ bAllowParallelExecutor : Whether to allow using parallel executor on Windows.
-
 $ MaxParallelActions : Number of actions that can be executed in parallel. If 0 then code will pick a default based on the number of cores and memory available. Applies to the ParallelExecutor, HybridExecutor, and LocalExecutor
 
 $ bEnableAddressSanitizer : Enables address sanitizer (ASan). Only supported for Visual Studio 2019 16.7.0 and up.
@@ -240,14 +238,6 @@ $ MsvcCRTRedistVersion : Which MSVC CRT Redist version to use
 ### HybridExecutor
 
 $ MaxLocalActions : Maximum number of actions to execute locally.
-
-### LocalExecutor
-
-$ MaxProcessorCount : Maximum processor count for local execution.
-
-$ ProcessorCountMultiplier : Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks. When using the local executor (not XGE), run a single action on each CPU core. Note that you can set this to a larger value to get slightly faster build times in many cases, but your computer's responsiveness during compiling may be much worse. This value is ignored if the CPU does not support hyper-threading.
-
-$ MemoryPerActionBytes : Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved. Set to 0 to disable free memory checking.
 
 ### ParallelExecutor
 
