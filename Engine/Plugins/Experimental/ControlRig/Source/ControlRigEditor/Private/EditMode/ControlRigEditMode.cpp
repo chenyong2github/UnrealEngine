@@ -747,7 +747,7 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 					InteractionScope = new FControlRigInteractionScope(ControlRig);
 				}
 			}
-			else if(UControlRigSettings::Get()->bEnableUndoForPoseInteraction)
+			else if(UControlRigEditorSettings::Get()->bEnableUndoForPoseInteraction)
 			{
 				InteractionScope = new FControlRigInteractionScope(ControlRig);
 			}

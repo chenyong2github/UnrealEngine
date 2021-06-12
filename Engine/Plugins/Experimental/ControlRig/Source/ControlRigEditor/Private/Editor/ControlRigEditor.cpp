@@ -1628,7 +1628,7 @@ void FControlRigEditor::Compile()
 		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 		TUniquePtr<UControlRigBlueprint::FControlValueScope> ValueScope;
-		if (!UControlRigSettings::Get()->bResetControlsOnCompile) // if we need to retain the controls
+		if (!UControlRigEditorSettings::Get()->bResetControlsOnCompile) // if we need to retain the controls
 		{
 			ValueScope = MakeUnique<UControlRigBlueprint::FControlValueScope>(GetControlRigBlueprint());
 		}
@@ -1785,7 +1785,7 @@ void FControlRigEditor::Compile()
 			}
 		}
 
-		if (UControlRigSettings::Get()->bResetControlTransformsOnCompile)
+		if (UControlRigEditorSettings::Get()->bResetControlTransformsOnCompile)
 		{
 			RigBlueprint->Hierarchy->ForEach<FRigControlElement>([RigBlueprint](FRigControlElement* ControlElement) -> bool
             {
@@ -3183,13 +3183,13 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 		switch (GetEventQueue())
 		{
 			case EControlRigEditorEventQueue::Setup:
-				Color = UControlRigSettings::Get()->SetupEventBorderColor;
+				Color = UControlRigEditorSettings::Get()->SetupEventBorderColor;
 				break;
 			case EControlRigEditorEventQueue::Inverse:
-				Color = UControlRigSettings::Get()->BackwardsSolveBorderColor;
+				Color = UControlRigEditorSettings::Get()->BackwardsSolveBorderColor;
 				break;
 			case EControlRigEditorEventQueue::InverseAndUpdate:
-				Color = UControlRigSettings::Get()->BackwardsAndForwardsBorderColor;
+				Color = UControlRigEditorSettings::Get()->BackwardsAndForwardsBorderColor;
 				break;
 			default:
 				Color = FLinearColor::Transparent;
@@ -5789,12 +5789,12 @@ void FControlRigEditor::StoreNodeSnippet(int32 InSnippetIndex)
 	FString* Setting = GetSnippetStorage(InSnippetIndex);
 	check(Setting != nullptr);
 
-	UControlRigSettings* Settings = UControlRigSettings::Get();
+	UControlRigEditorSettings* Settings = UControlRigEditorSettings::Get();
 	Settings->Modify();
 	(*Setting) = Snippet;
 
 	const FString PropertyName = FString::Printf(TEXT("NodeSnippet_%d"), InSnippetIndex);
-	FProperty* Property = UControlRigSettings::StaticClass()->FindPropertyByName(*PropertyName);
+	FProperty* Property = UControlRigEditorSettings::StaticClass()->FindPropertyByName(*PropertyName);
 	check(Property);
 	
 	Settings->UpdateSinglePropertyInConfigFile(Property, Settings->GetDefaultConfigFilename());
@@ -5838,7 +5838,7 @@ void FControlRigEditor::RestoreNodeSnippet(int32 InSnippetIndex)
 
 FString* FControlRigEditor::GetSnippetStorage(int32 InSnippetIndex)
 {
-	UControlRigSettings* Settings = UControlRigSettings::Get();
+	UControlRigEditorSettings* Settings = UControlRigEditorSettings::Get();
 	switch(InSnippetIndex)
 	{
 		case 1:

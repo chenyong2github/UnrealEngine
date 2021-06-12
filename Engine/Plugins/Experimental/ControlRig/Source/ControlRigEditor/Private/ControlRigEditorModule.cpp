@@ -1856,9 +1856,9 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 #if WITH_EDITORONLY_DATA
 
 								FScopedTransaction Transaction(LOCTEXT("RigUnitDefaultExpansionStateChanged", "Changed Rig Unit Default Expansion State"));
-								UControlRigSettings::Get()->Modify();
+								UControlRigEditorSettings::Get()->Modify();
 
-								FControlRigSettingsPerPinBool& ExpansionMap = UControlRigSettings::Get()->RigUnitPinExpansion.FindOrAdd(UnitNode->GetScriptStruct()->GetName());
+								FControlRigSettingsPerPinBool& ExpansionMap = UControlRigEditorSettings::Get()->RigUnitPinExpansion.FindOrAdd(UnitNode->GetScriptStruct()->GetName());
 								ExpansionMap.Values.Empty();
 
 								TArray<URigVMPin*> Pins = UnitNode->GetAllPinsRecursively();
