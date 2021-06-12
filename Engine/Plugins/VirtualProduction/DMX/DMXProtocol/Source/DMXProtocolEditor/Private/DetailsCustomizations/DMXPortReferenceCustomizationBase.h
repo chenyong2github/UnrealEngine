@@ -11,6 +11,7 @@ class SDMXPortSelector;
 
 class SBorder;
 class IPropertyHandle;
+class IPropertyUtilities;
 
 
 /** Base class for input and output port reference details customizations. */
@@ -38,11 +39,8 @@ private:
 	/** Called when a port was selected in the port selector */
 	void OnPortSelected();
 
-	/** Updates the info row */
-	void UpdateInfoRow();
-
-	/** Generates an info widget for specified port */
-	TSharedRef<SWidget> GeneratePortInfoWidget(TSharedRef<FDMXPort, ESPMode::ThreadSafe> Port) const;
+	/** Called when ports changed */
+	void OnPortsChanged();
 
 	/** Helper function that finds the corresponding input port, or nullptr if no corresponding port */
 	TSharedPtr<FDMXPort, ESPMode::ThreadSafe> FindPortItem() const;
@@ -61,4 +59,7 @@ private:
 
 	/** Error text shown when the port couldn't be found, may contain the last error if there is no error - I11t is not a state. */
 	FText ErrorText;
+
+	/** Detail customization utils */
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 };
