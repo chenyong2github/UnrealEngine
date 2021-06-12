@@ -478,7 +478,7 @@ void UControlRigComponent::AddMappedElements(TArray<FControlRigComponentMappedEl
 
 void UControlRigComponent::AddMappedComponents(TArray<FControlRigComponentMappedComponent> Components)
 {
-	if (!EnsureCalledOutsideOfBracket(TEXT("AddMapprepedComponents")))
+	if (!EnsureCalledOutsideOfBracket(TEXT("AddMappedComponents")))
 	{
 		return;
 	}
