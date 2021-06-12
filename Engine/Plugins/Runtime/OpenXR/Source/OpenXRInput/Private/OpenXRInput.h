@@ -1,23 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "OpenXRCore.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "XRMotionControllerBase.h"
 #include "IOpenXRInputPlugin.h"
 #include "IInputDevice.h"
 #include "IHapticDevice.h"
 
-#include <openxr/openxr.h>
-
 class FOpenXRHMD;
 struct FInputActionKeyMapping;
 struct FInputAxisKeyMapping;
-
-// On some platforms the XrPath type becomes ambigious for overloading
-FORCEINLINE uint32 GetTypeHash(const TPair<XrPath, XrPath>& Pair)
-{
-	return HashCombine(GetTypeHash((uint64)Pair.Key), GetTypeHash((uint64)Pair.Value));
-}
 
 class FOpenXRInputPlugin : public IOpenXRInputPlugin
 {

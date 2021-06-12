@@ -2,10 +2,9 @@
 
 #pragma once
 
+#include "OpenXRCore.h"
 #include "IXRSystemAssets.h"
 #include "UObject/SoftObjectPtr.h"
-
-#include <openxr/openxr.h>
 
 class FOpenXRHMD;
 class UStaticMesh;
