@@ -660,16 +660,13 @@ namespace Audio
 	{
 		const int32 Num = InMinuend.Num();
 
-		checkf(Num == InSubtrahend.Num(), TEXT("InMinuend and InSubtrahend must have equal Num elements (%d vs %d)"), Num, InSubtrahend.Num());
-
-		OutArray.Reset(Num);
+		checkf(Num == InSubtrahend.Num() && Num == OutArray.Num(), TEXT("InMinuend, InSubtrahend, and OutArray must have equal Num elements (%d vs %d vs %d)"), Num, InSubtrahend.Num(), OutArray.Num());
+		
 
 		if (Num < 1)
 		{
 			return;
 		}
-
-		OutArray.AddUninitialized(Num);
 		
 		const float* MinuendPtr = InMinuend.GetData();
 		const float* SubtrahendPtr = InSubtrahend.GetData();
@@ -679,6 +676,11 @@ namespace Audio
 		{
 			OutPtr[i] = MinuendPtr[i] - SubtrahendPtr[i];
 		}
+	}
+
+	void ArraySubtract(const FAlignedFloatBuffer& InMinuend, const FAlignedFloatBuffer& InSubtrahend, FAlignedFloatBuffer& OutArray)
+	{
+		BufferSubtractFast(InMinuend, InSubtrahend, OutArray);
 	}
 
 	void ArraySqrtInPlace(TArrayView<float> InValues)
