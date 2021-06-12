@@ -137,8 +137,8 @@ void UMotionControllerComponent::TickComponent(float DeltaTime, enum ELevelTick 
 			SetRelativeLocationAndRotation(Position, Orientation);
 		}
 
-		// if controller tracking just kicked in 
-		if (!bTracked && bNewTrackedState && bDisplayDeviceModel && DisplayModelSource != UMotionControllerComponent::CustomModelSourceId)
+		// if controller tracking just kicked in or we haven't gotten a valid model yet
+		if (((!bTracked && bNewTrackedState) || !DisplayComponent) && bDisplayDeviceModel && DisplayModelSource != UMotionControllerComponent::CustomModelSourceId)
 		{
 			RefreshDisplayComponent();
 		}

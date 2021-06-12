@@ -3,6 +3,7 @@
 #pragma once
 
 #include "OpenXRHMD_Layer.h"
+#include "OpenXRAssetManager.h"
 #include "CoreMinimal.h"
 #include "HeadMountedDisplayBase.h"
 #include "XRTrackingSystemBase.h"
@@ -29,13 +30,14 @@ class FOpenXRHMD
 	: public FHeadMountedDisplayBase
 	, public FXRRenderTargetManager
 	, public FSceneViewExtensionBase
+	, public FOpenXRAssetManager
 	, public TStereoLayerManager<FOpenXRLayer>
 {
 public:
 	class FDeviceSpace
 	{
 	public:
-		FDeviceSpace(XrAction InAction);
+		FDeviceSpace(XrAction InAction, XrPath InPath);
 		~FDeviceSpace();
 
 		bool CreateSpace(XrSession InSession);
@@ -43,6 +45,7 @@ public:
 
 		XrAction Action;
 		XrSpace Space;
+		XrPath Path;
 	};
 
 	// The game and render threads each have a separate copy of these structures so that they don't stomp on each other or cause tearing
@@ -272,8 +275,9 @@ public:
 	OPENXRHMD_API bool IsRunning() const;
 	OPENXRHMD_API bool IsFocused() const;
 
-	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
+	OPENXRHMD_API int32 AddActionDevice(XrAction Action, XrPath Path);
 	OPENXRHMD_API void ResetActionDevices();
+	OPENXRHMD_API XrPath GetTrackedDevicePath(const int32 DeviceId);
 
 	OPENXRHMD_API bool IsExtensionEnabled(const FString& Name) const { return EnabledExtensions.Contains(Name); }
 	OPENXRHMD_API XrInstance GetInstance() { return Instance; }
