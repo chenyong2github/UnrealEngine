@@ -125,9 +125,9 @@ public:
 	UENUM(BlueprintType)
 	enum class ETemperatureType : uint8
 	{
-		LegacyTemperature = EColorCorrectRegionTemperatureType::LegacyTemperature,
-		WhiteBalance = EColorCorrectRegionTemperatureType::WhiteBalance,
-		ColorTemperature = EColorCorrectRegionTemperatureType::ColorTemperature,
+		LegacyTemperature = static_cast<uint8>(EColorCorrectRegionTemperatureType::LegacyTemperature),
+		WhiteBalance = static_cast<uint8>(EColorCorrectRegionTemperatureType::WhiteBalance),
+		ColorTemperature = static_cast<uint8>(EColorCorrectRegionTemperatureType::ColorTemperature),
 		Disabled,
 		MAX
 	};
