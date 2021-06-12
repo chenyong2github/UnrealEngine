@@ -7,6 +7,7 @@
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
 #include "Templates/IsSigned.h"
+#include "FloatArrayMath.h"
 
 // Macros which can be enabled to cause DSP sample checking
 #if 0
@@ -371,7 +372,7 @@ namespace Audio
 		OutRight = FMath::Clamp(FastSin(RightPhase), 0.0f, 1.0f);
 	}
  
-	// This function encodes a stereo Left/Right signal into a stereo Mid/Side signal 
+	// Encodes a stereo Left/Right signal into a stereo Mid/Side signal 
 	static FORCEINLINE void EncodeMidSide(float& LeftChannel, float& RightChannel)
 	{
 		const float Temp = (LeftChannel - RightChannel);
@@ -380,7 +381,15 @@ namespace Audio
 		RightChannel = Temp;
 	}
 
-	// This function decodes a stereo Mid/Side signal into a stereo Left/Right signal
+	// Encodes a stereo Left/Right signal into a stereo Mid/Side signal
+	SIGNALPROCESSING_API void EncodeMidSide(
+		const FAlignedFloatBuffer& InLeftChannel,
+		const FAlignedFloatBuffer& InRightChannel,
+		FAlignedFloatBuffer& OutMidChannel,
+		FAlignedFloatBuffer& OutSideChannel);
+	
+
+	// Decodes a stereo Mid/Side signal into a stereo Left/Right signal
 	static FORCEINLINE void DecodeMidSide(float& MidChannel, float& SideChannel)
 	{
 		const float Temp = (MidChannel - SideChannel) * 0.5f;
@@ -388,6 +397,13 @@ namespace Audio
 		MidChannel = (MidChannel + SideChannel) * 0.5f;
 		SideChannel = Temp;
 	}
+
+	// Decodes a stereo Mid/Side signal into a stereo Left/Right signal
+	SIGNALPROCESSING_API void DecodeMidSide(
+		const FAlignedFloatBuffer& InMidChannel,
+		const FAlignedFloatBuffer& InSideChannel,
+		FAlignedFloatBuffer& OutLeftChannel,
+		FAlignedFloatBuffer& OutRightChannel);
 
 	// Helper function to get bandwidth from Q
 	static FORCEINLINE float GetBandwidthFromQ(const float InQ)
