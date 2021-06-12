@@ -31,121 +31,97 @@ UE_PUSH_MACRO("TEXT")
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
-extern PROTOBUF_INTERNAL_EXPORT_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<4> scc_info_Lease_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2fany_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Any_google_2fprotobuf_2fany_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2ffield_5fmask_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_FieldMask_google_2fprotobuf_2ffield_5fmask_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2ftimestamp_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fstatus_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_Status_google_2frpc_2fstatus_2eproto;
+
+PROTOBUF_PRAGMA_INIT_SEG
 namespace google {
 namespace devtools {
 namespace remoteworkers {
 namespace v1test2 {
-class BotSessionDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<BotSession> _instance;
-} _BotSession_default_instance_;
-class LeaseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Lease> _instance;
-} _Lease_default_instance_;
-class AdminTempDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AdminTemp> _instance;
-} _AdminTemp_default_instance_;
-class CreateBotSessionRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<CreateBotSessionRequest> _instance;
-} _CreateBotSessionRequest_default_instance_;
-class UpdateBotSessionRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<UpdateBotSessionRequest> _instance;
-} _UpdateBotSessionRequest_default_instance_;
+constexpr BotSession::BotSession(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : leases_()
+  , name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , bot_id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , version_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , worker_(nullptr)
+  , expire_time_(nullptr)
+  , status_(0)
+{}
+struct BotSessionDefaultTypeInternal {
+  constexpr BotSessionDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~BotSessionDefaultTypeInternal() {}
+  union {
+    BotSession _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BotSessionDefaultTypeInternal _BotSession_default_instance_;
+constexpr Lease::Lease(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : assignment_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , status_(nullptr)
+  , requirements_(nullptr)
+  , expire_time_(nullptr)
+  , inline_assignment_(nullptr)
+  , payload_(nullptr)
+  , result_(nullptr)
+  , state_(0)
+{}
+struct LeaseDefaultTypeInternal {
+  constexpr LeaseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~LeaseDefaultTypeInternal() {}
+  union {
+    Lease _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT LeaseDefaultTypeInternal _Lease_default_instance_;
+constexpr AdminTemp::AdminTemp(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : arg_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , command_(0)
+{}
+struct AdminTempDefaultTypeInternal {
+  constexpr AdminTempDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AdminTempDefaultTypeInternal() {}
+  union {
+    AdminTemp _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AdminTempDefaultTypeInternal _AdminTemp_default_instance_;
+constexpr CreateBotSessionRequest::CreateBotSessionRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : parent_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , bot_session_(nullptr){}
+struct CreateBotSessionRequestDefaultTypeInternal {
+  constexpr CreateBotSessionRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~CreateBotSessionRequestDefaultTypeInternal() {}
+  union {
+    CreateBotSessionRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT CreateBotSessionRequestDefaultTypeInternal _CreateBotSessionRequest_default_instance_;
+constexpr UpdateBotSessionRequest::UpdateBotSessionRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , bot_session_(nullptr)
+  , update_mask_(nullptr){}
+struct UpdateBotSessionRequestDefaultTypeInternal {
+  constexpr UpdateBotSessionRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~UpdateBotSessionRequestDefaultTypeInternal() {}
+  union {
+    UpdateBotSessionRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT UpdateBotSessionRequestDefaultTypeInternal _UpdateBotSessionRequest_default_instance_;
 }  // namespace v1test2
 }  // namespace remoteworkers
 }  // namespace devtools
 }  // namespace google
-static void InitDefaultsscc_info_AdminTemp_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_AdminTemp_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::AdminTemp();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::AdminTemp::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AdminTemp_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_AdminTemp_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto}, {}};
-
-static void InitDefaultsscc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_BotSession_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::BotSession();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::BotSession::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto}, {
-      &scc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-      &scc_info_Lease_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base,
-      &scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto.base,}};
-
-static void InitDefaultsscc_info_CreateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_CreateBotSessionRequest_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_CreateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_CreateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto}, {
-      &scc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base,}};
-
-static void InitDefaultsscc_info_Lease_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_Lease_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::Lease();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::Lease::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<4> scc_info_Lease_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 4, 0, InitDefaultsscc_info_Lease_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto}, {
-      &scc_info_Any_google_2fprotobuf_2fany_2eproto.base,
-      &scc_info_Status_google_2frpc_2fstatus_2eproto.base,
-      &scc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-      &scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto.base,}};
-
-static void InitDefaultsscc_info_UpdateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_UpdateBotSessionRequest_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_UpdateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_UpdateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto}, {
-      &scc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base,
-      &scc_info_FieldMask_google_2fprotobuf_2ffield_5fmask_2eproto.base,}};
-
 static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto[5];
 static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto[3];
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto = nullptr;
@@ -295,23 +271,21 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
   &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
   &::descriptor_table_google_2frpc_2fstatus_2eproto,
 };
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto_sccs[5] = {
-  &scc_info_AdminTemp_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base,
-  &scc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base,
-  &scc_info_CreateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base,
-  &scc_info_Lease_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base,
-  &scc_info_UpdateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base,
-};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto = {
-  false, false, descriptor_table_protodef_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto, "google/devtools/remoteworkers/v1test2/bots.proto", 2612,
-  &descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto_once, descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto_sccs, descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto_deps, 5, 9,
+  false, false, 2612, descriptor_table_protodef_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto, "google/devtools/remoteworkers/v1test2/bots.proto", 
+  &descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto_once, descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto_deps, 9, 5,
   schemas, file_default_instances, TableStruct_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto::offsets,
-  file_level_metadata_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto, 5, file_level_enum_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto, file_level_service_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto,
+  file_level_metadata_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto, file_level_enum_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto, file_level_service_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto,
 };
+PROTOBUF_ATTRIBUTE_WEAK ::PROTOBUF_NAMESPACE_ID::Metadata
+descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto_metadata_getter(int index) {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto);
+  return descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.file_level_metadata[index];
+}
 
 // Force running AddDescriptors() at dynamic initialization time.
-static bool dynamic_init_dummy_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto = (static_cast<void>(::PROTOBUF_NAMESPACE_ID::internal::AddDescriptors(&descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto)), true);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto(&descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto);
 namespace google {
 namespace devtools {
 namespace remoteworkers {
@@ -381,12 +355,6 @@ bool LeaseState_IsValid(int value) {
 
 // ===================================================================
 
-void BotSession::InitAsDefaultInstance() {
-  ::google::devtools::remoteworkers::v1test2::_BotSession_default_instance_._instance.get_mutable()->worker_ = const_cast< ::google::devtools::remoteworkers::v1test2::Worker*>(
-      ::google::devtools::remoteworkers::v1test2::Worker::internal_default_instance());
-  ::google::devtools::remoteworkers::v1test2::_BotSession_default_instance_._instance.get_mutable()->expire_time_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-}
 class BotSession::_Internal {
  public:
   static const ::google::devtools::remoteworkers::v1test2::Worker& worker(const BotSession* msg);
@@ -426,17 +394,17 @@ BotSession::BotSession(const BotSession& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   bot_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_bot_id().empty()) {
-    bot_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_bot_id(),
+    bot_id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_bot_id(), 
       GetArena());
   }
   version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_version().empty()) {
-    version_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_version(),
+    version_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_version(), 
       GetArena());
   }
   if (from._internal_has_worker()) {
@@ -454,13 +422,13 @@ BotSession::BotSession(const BotSession& from)
 }
 
 void BotSession::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  bot_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&worker_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&status_) -
-      reinterpret_cast<char*>(&worker_)) + sizeof(status_));
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+bot_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&worker_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&status_) -
+    reinterpret_cast<char*>(&worker_)) + sizeof(status_));
 }
 
 BotSession::~BotSession() {
@@ -487,11 +455,6 @@ void BotSession::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void BotSession::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const BotSession& BotSession::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_BotSession_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void BotSession::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.BotSession)
@@ -500,9 +463,9 @@ void BotSession::Clear() {
   (void) cached_has_bits;
 
   leases_.Clear();
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  bot_id_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  version_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
+  bot_id_.ClearToEmpty();
+  version_.ClearToEmpty();
   if (GetArena() == nullptr && worker_ != nullptr) {
     delete worker_;
   }
@@ -517,7 +480,6 @@ void BotSession::Clear() {
 
 const char* BotSession::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -829,20 +791,6 @@ void BotSession::InternalSwap(BotSession* other) {
 
 // ===================================================================
 
-void Lease::InitAsDefaultInstance() {
-  ::google::devtools::remoteworkers::v1test2::_Lease_default_instance_._instance.get_mutable()->payload_ = const_cast< PROTOBUF_NAMESPACE_ID::Any*>(
-      PROTOBUF_NAMESPACE_ID::Any::internal_default_instance());
-  ::google::devtools::remoteworkers::v1test2::_Lease_default_instance_._instance.get_mutable()->result_ = const_cast< PROTOBUF_NAMESPACE_ID::Any*>(
-      PROTOBUF_NAMESPACE_ID::Any::internal_default_instance());
-  ::google::devtools::remoteworkers::v1test2::_Lease_default_instance_._instance.get_mutable()->status_ = const_cast< ::google::rpc::Status*>(
-      ::google::rpc::Status::internal_default_instance());
-  ::google::devtools::remoteworkers::v1test2::_Lease_default_instance_._instance.get_mutable()->requirements_ = const_cast< ::google::devtools::remoteworkers::v1test2::Worker*>(
-      ::google::devtools::remoteworkers::v1test2::Worker::internal_default_instance());
-  ::google::devtools::remoteworkers::v1test2::_Lease_default_instance_._instance.get_mutable()->expire_time_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::google::devtools::remoteworkers::v1test2::_Lease_default_instance_._instance.get_mutable()->inline_assignment_ = const_cast< PROTOBUF_NAMESPACE_ID::Any*>(
-      PROTOBUF_NAMESPACE_ID::Any::internal_default_instance());
-}
 class Lease::_Internal {
  public:
   static const PROTOBUF_NAMESPACE_ID::Any& payload(const Lease* msg);
@@ -924,12 +872,12 @@ Lease::Lease(const Lease& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   assignment_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_assignment().empty()) {
-    assignment_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_assignment(),
+    assignment_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_assignment(), 
       GetArena());
   }
   id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_id().empty()) {
-    id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_id(),
+    id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_id(), 
       GetArena());
   }
   if (from._internal_has_status()) {
@@ -967,12 +915,12 @@ Lease::Lease(const Lease& from)
 }
 
 void Lease::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Lease_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  assignment_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&status_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&state_) -
-      reinterpret_cast<char*>(&status_)) + sizeof(state_));
+assignment_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&status_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&state_) -
+    reinterpret_cast<char*>(&status_)) + sizeof(state_));
 }
 
 Lease::~Lease() {
@@ -1002,11 +950,6 @@ void Lease::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Lease::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Lease& Lease::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Lease_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Lease::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.Lease)
@@ -1014,8 +957,8 @@ void Lease::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  assignment_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  id_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  assignment_.ClearToEmpty();
+  id_.ClearToEmpty();
   if (GetArena() == nullptr && status_ != nullptr) {
     delete status_;
   }
@@ -1046,7 +989,6 @@ void Lease::Clear() {
 
 const char* Lease::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1399,8 +1341,6 @@ void Lease::InternalSwap(Lease* other) {
 
 // ===================================================================
 
-void AdminTemp::InitAsDefaultInstance() {
-}
 class AdminTemp::_Internal {
  public:
 };
@@ -1416,7 +1356,7 @@ AdminTemp::AdminTemp(const AdminTemp& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   arg_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_arg().empty()) {
-    arg_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_arg(),
+    arg_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_arg(), 
       GetArena());
   }
   command_ = from.command_;
@@ -1424,9 +1364,8 @@ AdminTemp::AdminTemp(const AdminTemp& from)
 }
 
 void AdminTemp::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_AdminTemp_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  arg_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  command_ = 0;
+arg_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+command_ = 0;
 }
 
 AdminTemp::~AdminTemp() {
@@ -1449,11 +1388,6 @@ void AdminTemp::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void AdminTemp::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const AdminTemp& AdminTemp::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_AdminTemp_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void AdminTemp::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.AdminTemp)
@@ -1461,14 +1395,13 @@ void AdminTemp::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  arg_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  arg_.ClearToEmpty();
   command_ = 0;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* AdminTemp::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1636,10 +1569,6 @@ void AdminTemp::InternalSwap(AdminTemp* other) {
 
 // ===================================================================
 
-void CreateBotSessionRequest::InitAsDefaultInstance() {
-  ::google::devtools::remoteworkers::v1test2::_CreateBotSessionRequest_default_instance_._instance.get_mutable()->bot_session_ = const_cast< ::google::devtools::remoteworkers::v1test2::BotSession*>(
-      ::google::devtools::remoteworkers::v1test2::BotSession::internal_default_instance());
-}
 class CreateBotSessionRequest::_Internal {
  public:
   static const ::google::devtools::remoteworkers::v1test2::BotSession& bot_session(const CreateBotSessionRequest* msg);
@@ -1660,7 +1589,7 @@ CreateBotSessionRequest::CreateBotSessionRequest(const CreateBotSessionRequest& 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   parent_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_parent().empty()) {
-    parent_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_parent(),
+    parent_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_parent(), 
       GetArena());
   }
   if (from._internal_has_bot_session()) {
@@ -1672,9 +1601,8 @@ CreateBotSessionRequest::CreateBotSessionRequest(const CreateBotSessionRequest& 
 }
 
 void CreateBotSessionRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_CreateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  parent_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  bot_session_ = nullptr;
+parent_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+bot_session_ = nullptr;
 }
 
 CreateBotSessionRequest::~CreateBotSessionRequest() {
@@ -1698,11 +1626,6 @@ void CreateBotSessionRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*)
 void CreateBotSessionRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const CreateBotSessionRequest& CreateBotSessionRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_CreateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void CreateBotSessionRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.CreateBotSessionRequest)
@@ -1710,7 +1633,7 @@ void CreateBotSessionRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  parent_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  parent_.ClearToEmpty();
   if (GetArena() == nullptr && bot_session_ != nullptr) {
     delete bot_session_;
   }
@@ -1720,7 +1643,6 @@ void CreateBotSessionRequest::Clear() {
 
 const char* CreateBotSessionRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1889,12 +1811,6 @@ void CreateBotSessionRequest::InternalSwap(CreateBotSessionRequest* other) {
 
 // ===================================================================
 
-void UpdateBotSessionRequest::InitAsDefaultInstance() {
-  ::google::devtools::remoteworkers::v1test2::_UpdateBotSessionRequest_default_instance_._instance.get_mutable()->bot_session_ = const_cast< ::google::devtools::remoteworkers::v1test2::BotSession*>(
-      ::google::devtools::remoteworkers::v1test2::BotSession::internal_default_instance());
-  ::google::devtools::remoteworkers::v1test2::_UpdateBotSessionRequest_default_instance_._instance.get_mutable()->update_mask_ = const_cast< PROTOBUF_NAMESPACE_ID::FieldMask*>(
-      PROTOBUF_NAMESPACE_ID::FieldMask::internal_default_instance());
-}
 class UpdateBotSessionRequest::_Internal {
  public:
   static const ::google::devtools::remoteworkers::v1test2::BotSession& bot_session(const UpdateBotSessionRequest* msg);
@@ -1926,7 +1842,7 @@ UpdateBotSessionRequest::UpdateBotSessionRequest(const UpdateBotSessionRequest& 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   if (from._internal_has_bot_session()) {
@@ -1943,11 +1859,11 @@ UpdateBotSessionRequest::UpdateBotSessionRequest(const UpdateBotSessionRequest& 
 }
 
 void UpdateBotSessionRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_UpdateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&bot_session_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&update_mask_) -
-      reinterpret_cast<char*>(&bot_session_)) + sizeof(update_mask_));
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&bot_session_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&update_mask_) -
+    reinterpret_cast<char*>(&bot_session_)) + sizeof(update_mask_));
 }
 
 UpdateBotSessionRequest::~UpdateBotSessionRequest() {
@@ -1972,11 +1888,6 @@ void UpdateBotSessionRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*)
 void UpdateBotSessionRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const UpdateBotSessionRequest& UpdateBotSessionRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_UpdateBotSessionRequest_google_2fdevtools_2fremoteworkers_2fv1test2_2fbots_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void UpdateBotSessionRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.UpdateBotSessionRequest)
@@ -1984,7 +1895,7 @@ void UpdateBotSessionRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  name_.ClearToEmpty();
   if (GetArena() == nullptr && bot_session_ != nullptr) {
     delete bot_session_;
   }
@@ -1998,7 +1909,6 @@ void UpdateBotSessionRequest::Clear() {
 
 const char* UpdateBotSessionRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);

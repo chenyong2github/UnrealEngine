@@ -155,9 +155,9 @@ class ByteStream final {
       // of bytes. The bytes are returned in a sequence of responses, and the
       // responses are delivered as the results of a server-side streaming RPC.
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
-      virtual void Read(::grpc::ClientContext* context, ::google::bytestream::ReadRequest* request, ::grpc::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) = 0;
+      virtual void Read(::grpc::ClientContext* context, const ::google::bytestream::ReadRequest* request, ::grpc::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) = 0;
       #else
-      virtual void Read(::grpc::ClientContext* context, ::google::bytestream::ReadRequest* request, ::grpc::experimental::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) = 0;
+      virtual void Read(::grpc::ClientContext* context, const ::google::bytestream::ReadRequest* request, ::grpc::experimental::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) = 0;
       #endif
       // `Write()` is used to send the contents of a resource as a sequence of
       // bytes. The bytes are sent in a sequence of request protos of a client-side
@@ -256,9 +256,9 @@ class ByteStream final {
       public StubInterface::experimental_async_interface {
      public:
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
-      void Read(::grpc::ClientContext* context, ::google::bytestream::ReadRequest* request, ::grpc::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) override;
+      void Read(::grpc::ClientContext* context, const ::google::bytestream::ReadRequest* request, ::grpc::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) override;
       #else
-      void Read(::grpc::ClientContext* context, ::google::bytestream::ReadRequest* request, ::grpc::experimental::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) override;
+      void Read(::grpc::ClientContext* context, const ::google::bytestream::ReadRequest* request, ::grpc::experimental::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) override;
       #endif
       #ifdef GRPC_CALLBACK_API_NONEXPERIMENTAL
       void Write(::grpc::ClientContext* context, ::google::bytestream::WriteResponse* response, ::grpc::ClientWriteReactor< ::google::bytestream::WriteRequest>* reactor) override;

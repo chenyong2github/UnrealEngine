@@ -31,118 +31,90 @@ UE_PUSH_MACRO("TEXT")
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
+
+PROTOBUF_PRAGMA_INIT_SEG
 namespace google {
 namespace bytestream {
-class ReadRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ReadRequest> _instance;
-} _ReadRequest_default_instance_;
-class ReadResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<ReadResponse> _instance;
-} _ReadResponse_default_instance_;
-class WriteRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<WriteRequest> _instance;
-} _WriteRequest_default_instance_;
-class WriteResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<WriteResponse> _instance;
-} _WriteResponse_default_instance_;
-class QueryWriteStatusRequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<QueryWriteStatusRequest> _instance;
-} _QueryWriteStatusRequest_default_instance_;
-class QueryWriteStatusResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<QueryWriteStatusResponse> _instance;
-} _QueryWriteStatusResponse_default_instance_;
+constexpr ReadRequest::ReadRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : resource_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , read_offset_(PROTOBUF_LONGLONG(0))
+  , read_limit_(PROTOBUF_LONGLONG(0)){}
+struct ReadRequestDefaultTypeInternal {
+  constexpr ReadRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ReadRequestDefaultTypeInternal() {}
+  union {
+    ReadRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ReadRequestDefaultTypeInternal _ReadRequest_default_instance_;
+constexpr ReadResponse::ReadResponse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : data_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct ReadResponseDefaultTypeInternal {
+  constexpr ReadResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~ReadResponseDefaultTypeInternal() {}
+  union {
+    ReadResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ReadResponseDefaultTypeInternal _ReadResponse_default_instance_;
+constexpr WriteRequest::WriteRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : resource_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , data_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , write_offset_(PROTOBUF_LONGLONG(0))
+  , finish_write_(false){}
+struct WriteRequestDefaultTypeInternal {
+  constexpr WriteRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~WriteRequestDefaultTypeInternal() {}
+  union {
+    WriteRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT WriteRequestDefaultTypeInternal _WriteRequest_default_instance_;
+constexpr WriteResponse::WriteResponse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : committed_size_(PROTOBUF_LONGLONG(0)){}
+struct WriteResponseDefaultTypeInternal {
+  constexpr WriteResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~WriteResponseDefaultTypeInternal() {}
+  union {
+    WriteResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT WriteResponseDefaultTypeInternal _WriteResponse_default_instance_;
+constexpr QueryWriteStatusRequest::QueryWriteStatusRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : resource_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct QueryWriteStatusRequestDefaultTypeInternal {
+  constexpr QueryWriteStatusRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~QueryWriteStatusRequestDefaultTypeInternal() {}
+  union {
+    QueryWriteStatusRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT QueryWriteStatusRequestDefaultTypeInternal _QueryWriteStatusRequest_default_instance_;
+constexpr QueryWriteStatusResponse::QueryWriteStatusResponse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : committed_size_(PROTOBUF_LONGLONG(0))
+  , complete_(false){}
+struct QueryWriteStatusResponseDefaultTypeInternal {
+  constexpr QueryWriteStatusResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~QueryWriteStatusResponseDefaultTypeInternal() {}
+  union {
+    QueryWriteStatusResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT QueryWriteStatusResponseDefaultTypeInternal _QueryWriteStatusResponse_default_instance_;
 }  // namespace bytestream
 }  // namespace google
-static void InitDefaultsscc_info_QueryWriteStatusRequest_google_2fbytestream_2fbytestream_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::bytestream::_QueryWriteStatusRequest_default_instance_;
-    new (ptr) ::google::bytestream::QueryWriteStatusRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::bytestream::QueryWriteStatusRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_QueryWriteStatusRequest_google_2fbytestream_2fbytestream_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_QueryWriteStatusRequest_google_2fbytestream_2fbytestream_2eproto}, {}};
-
-static void InitDefaultsscc_info_QueryWriteStatusResponse_google_2fbytestream_2fbytestream_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::bytestream::_QueryWriteStatusResponse_default_instance_;
-    new (ptr) ::google::bytestream::QueryWriteStatusResponse();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::bytestream::QueryWriteStatusResponse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_QueryWriteStatusResponse_google_2fbytestream_2fbytestream_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_QueryWriteStatusResponse_google_2fbytestream_2fbytestream_2eproto}, {}};
-
-static void InitDefaultsscc_info_ReadRequest_google_2fbytestream_2fbytestream_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::bytestream::_ReadRequest_default_instance_;
-    new (ptr) ::google::bytestream::ReadRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::bytestream::ReadRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ReadRequest_google_2fbytestream_2fbytestream_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ReadRequest_google_2fbytestream_2fbytestream_2eproto}, {}};
-
-static void InitDefaultsscc_info_ReadResponse_google_2fbytestream_2fbytestream_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::bytestream::_ReadResponse_default_instance_;
-    new (ptr) ::google::bytestream::ReadResponse();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::bytestream::ReadResponse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ReadResponse_google_2fbytestream_2fbytestream_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_ReadResponse_google_2fbytestream_2fbytestream_2eproto}, {}};
-
-static void InitDefaultsscc_info_WriteRequest_google_2fbytestream_2fbytestream_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::bytestream::_WriteRequest_default_instance_;
-    new (ptr) ::google::bytestream::WriteRequest();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::bytestream::WriteRequest::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_WriteRequest_google_2fbytestream_2fbytestream_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_WriteRequest_google_2fbytestream_2fbytestream_2eproto}, {}};
-
-static void InitDefaultsscc_info_WriteResponse_google_2fbytestream_2fbytestream_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::bytestream::_WriteResponse_default_instance_;
-    new (ptr) ::google::bytestream::WriteResponse();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::bytestream::WriteResponse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_WriteResponse_google_2fbytestream_2fbytestream_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_WriteResponse_google_2fbytestream_2fbytestream_2eproto}, {}};
-
 static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_google_2fbytestream_2fbytestream_2eproto[6];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_google_2fbytestream_2fbytestream_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_google_2fbytestream_2fbytestream_2eproto = nullptr;
@@ -232,33 +204,26 @@ const char descriptor_table_protodef_google_2fbytestream_2fbytestream_2eproto[] 
   "/genproto/googleapis/bytestream;bytestre"
   "amb\006proto3"
   ;
-static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_google_2fbytestream_2fbytestream_2eproto_deps[1] = {
-};
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_google_2fbytestream_2fbytestream_2eproto_sccs[6] = {
-  &scc_info_QueryWriteStatusRequest_google_2fbytestream_2fbytestream_2eproto.base,
-  &scc_info_QueryWriteStatusResponse_google_2fbytestream_2fbytestream_2eproto.base,
-  &scc_info_ReadRequest_google_2fbytestream_2fbytestream_2eproto.base,
-  &scc_info_ReadResponse_google_2fbytestream_2fbytestream_2eproto.base,
-  &scc_info_WriteRequest_google_2fbytestream_2fbytestream_2eproto.base,
-  &scc_info_WriteResponse_google_2fbytestream_2fbytestream_2eproto.base,
-};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_google_2fbytestream_2fbytestream_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_google_2fbytestream_2fbytestream_2eproto = {
-  false, false, descriptor_table_protodef_google_2fbytestream_2fbytestream_2eproto, "google/bytestream/bytestream.proto", 810,
-  &descriptor_table_google_2fbytestream_2fbytestream_2eproto_once, descriptor_table_google_2fbytestream_2fbytestream_2eproto_sccs, descriptor_table_google_2fbytestream_2fbytestream_2eproto_deps, 6, 0,
+  false, false, 810, descriptor_table_protodef_google_2fbytestream_2fbytestream_2eproto, "google/bytestream/bytestream.proto", 
+  &descriptor_table_google_2fbytestream_2fbytestream_2eproto_once, nullptr, 0, 6,
   schemas, file_default_instances, TableStruct_google_2fbytestream_2fbytestream_2eproto::offsets,
-  file_level_metadata_google_2fbytestream_2fbytestream_2eproto, 6, file_level_enum_descriptors_google_2fbytestream_2fbytestream_2eproto, file_level_service_descriptors_google_2fbytestream_2fbytestream_2eproto,
+  file_level_metadata_google_2fbytestream_2fbytestream_2eproto, file_level_enum_descriptors_google_2fbytestream_2fbytestream_2eproto, file_level_service_descriptors_google_2fbytestream_2fbytestream_2eproto,
 };
+PROTOBUF_ATTRIBUTE_WEAK ::PROTOBUF_NAMESPACE_ID::Metadata
+descriptor_table_google_2fbytestream_2fbytestream_2eproto_metadata_getter(int index) {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_google_2fbytestream_2fbytestream_2eproto);
+  return descriptor_table_google_2fbytestream_2fbytestream_2eproto.file_level_metadata[index];
+}
 
 // Force running AddDescriptors() at dynamic initialization time.
-static bool dynamic_init_dummy_google_2fbytestream_2fbytestream_2eproto = (static_cast<void>(::PROTOBUF_NAMESPACE_ID::internal::AddDescriptors(&descriptor_table_google_2fbytestream_2fbytestream_2eproto)), true);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_google_2fbytestream_2fbytestream_2eproto(&descriptor_table_google_2fbytestream_2fbytestream_2eproto);
 namespace google {
 namespace bytestream {
 
 // ===================================================================
 
-void ReadRequest::InitAsDefaultInstance() {
-}
 class ReadRequest::_Internal {
  public:
 };
@@ -274,7 +239,7 @@ ReadRequest::ReadRequest(const ReadRequest& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_resource_name().empty()) {
-    resource_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_resource_name(),
+    resource_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_resource_name(), 
       GetArena());
   }
   ::memcpy(&read_offset_, &from.read_offset_,
@@ -284,11 +249,11 @@ ReadRequest::ReadRequest(const ReadRequest& from)
 }
 
 void ReadRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ReadRequest_google_2fbytestream_2fbytestream_2eproto.base);
-  resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&read_offset_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&read_limit_) -
-      reinterpret_cast<char*>(&read_offset_)) + sizeof(read_limit_));
+resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&read_offset_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&read_limit_) -
+    reinterpret_cast<char*>(&read_offset_)) + sizeof(read_limit_));
 }
 
 ReadRequest::~ReadRequest() {
@@ -311,11 +276,6 @@ void ReadRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ReadRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ReadRequest& ReadRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ReadRequest_google_2fbytestream_2fbytestream_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ReadRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.bytestream.ReadRequest)
@@ -323,7 +283,7 @@ void ReadRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  resource_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  resource_name_.ClearToEmpty();
   ::memset(&read_offset_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&read_limit_) -
       reinterpret_cast<char*>(&read_offset_)) + sizeof(read_limit_));
@@ -332,7 +292,6 @@ void ReadRequest::Clear() {
 
 const char* ReadRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -527,8 +486,6 @@ void ReadRequest::InternalSwap(ReadRequest* other) {
 
 // ===================================================================
 
-void ReadResponse::InitAsDefaultInstance() {
-}
 class ReadResponse::_Internal {
  public:
 };
@@ -544,15 +501,14 @@ ReadResponse::ReadResponse(const ReadResponse& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_data().empty()) {
-    data_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_data(),
+    data_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_data(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.bytestream.ReadResponse)
 }
 
 void ReadResponse::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_ReadResponse_google_2fbytestream_2fbytestream_2eproto.base);
-  data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 ReadResponse::~ReadResponse() {
@@ -575,11 +531,6 @@ void ReadResponse::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void ReadResponse::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const ReadResponse& ReadResponse::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_ReadResponse_google_2fbytestream_2fbytestream_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void ReadResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.bytestream.ReadResponse)
@@ -587,13 +538,12 @@ void ReadResponse::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  data_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* ReadResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -731,8 +681,6 @@ void ReadResponse::InternalSwap(ReadResponse* other) {
 
 // ===================================================================
 
-void WriteRequest::InitAsDefaultInstance() {
-}
 class WriteRequest::_Internal {
  public:
 };
@@ -748,12 +696,12 @@ WriteRequest::WriteRequest(const WriteRequest& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_resource_name().empty()) {
-    resource_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_resource_name(),
+    resource_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_resource_name(), 
       GetArena());
   }
   data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_data().empty()) {
-    data_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_data(),
+    data_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_data(), 
       GetArena());
   }
   ::memcpy(&write_offset_, &from.write_offset_,
@@ -763,12 +711,12 @@ WriteRequest::WriteRequest(const WriteRequest& from)
 }
 
 void WriteRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_WriteRequest_google_2fbytestream_2fbytestream_2eproto.base);
-  resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&write_offset_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&finish_write_) -
-      reinterpret_cast<char*>(&write_offset_)) + sizeof(finish_write_));
+resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&write_offset_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&finish_write_) -
+    reinterpret_cast<char*>(&write_offset_)) + sizeof(finish_write_));
 }
 
 WriteRequest::~WriteRequest() {
@@ -792,11 +740,6 @@ void WriteRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void WriteRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const WriteRequest& WriteRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_WriteRequest_google_2fbytestream_2fbytestream_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void WriteRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.bytestream.WriteRequest)
@@ -804,8 +747,8 @@ void WriteRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  resource_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  data_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  resource_name_.ClearToEmpty();
+  data_.ClearToEmpty();
   ::memset(&write_offset_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&finish_write_) -
       reinterpret_cast<char*>(&write_offset_)) + sizeof(finish_write_));
@@ -814,7 +757,6 @@ void WriteRequest::Clear() {
 
 const char* WriteRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1032,8 +974,6 @@ void WriteRequest::InternalSwap(WriteRequest* other) {
 
 // ===================================================================
 
-void WriteResponse::InitAsDefaultInstance() {
-}
 class WriteResponse::_Internal {
  public:
 };
@@ -1052,7 +992,7 @@ WriteResponse::WriteResponse(const WriteResponse& from)
 }
 
 void WriteResponse::SharedCtor() {
-  committed_size_ = PROTOBUF_LONGLONG(0);
+committed_size_ = PROTOBUF_LONGLONG(0);
 }
 
 WriteResponse::~WriteResponse() {
@@ -1074,11 +1014,6 @@ void WriteResponse::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void WriteResponse::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const WriteResponse& WriteResponse::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_WriteResponse_google_2fbytestream_2fbytestream_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void WriteResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.bytestream.WriteResponse)
@@ -1092,7 +1027,6 @@ void WriteResponse::Clear() {
 
 const char* WriteResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1229,8 +1163,6 @@ void WriteResponse::InternalSwap(WriteResponse* other) {
 
 // ===================================================================
 
-void QueryWriteStatusRequest::InitAsDefaultInstance() {
-}
 class QueryWriteStatusRequest::_Internal {
  public:
 };
@@ -1246,15 +1178,14 @@ QueryWriteStatusRequest::QueryWriteStatusRequest(const QueryWriteStatusRequest& 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_resource_name().empty()) {
-    resource_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_resource_name(),
+    resource_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_resource_name(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.bytestream.QueryWriteStatusRequest)
 }
 
 void QueryWriteStatusRequest::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_QueryWriteStatusRequest_google_2fbytestream_2fbytestream_2eproto.base);
-  resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+resource_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 QueryWriteStatusRequest::~QueryWriteStatusRequest() {
@@ -1277,11 +1208,6 @@ void QueryWriteStatusRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*)
 void QueryWriteStatusRequest::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const QueryWriteStatusRequest& QueryWriteStatusRequest::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_QueryWriteStatusRequest_google_2fbytestream_2fbytestream_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void QueryWriteStatusRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.bytestream.QueryWriteStatusRequest)
@@ -1289,13 +1215,12 @@ void QueryWriteStatusRequest::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  resource_name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  resource_name_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* QueryWriteStatusRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1438,8 +1363,6 @@ void QueryWriteStatusRequest::InternalSwap(QueryWriteStatusRequest* other) {
 
 // ===================================================================
 
-void QueryWriteStatusResponse::InitAsDefaultInstance() {
-}
 class QueryWriteStatusResponse::_Internal {
  public:
 };
@@ -1460,9 +1383,10 @@ QueryWriteStatusResponse::QueryWriteStatusResponse(const QueryWriteStatusRespons
 }
 
 void QueryWriteStatusResponse::SharedCtor() {
-  ::memset(&committed_size_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&complete_) -
-      reinterpret_cast<char*>(&committed_size_)) + sizeof(complete_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&committed_size_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&complete_) -
+    reinterpret_cast<char*>(&committed_size_)) + sizeof(complete_));
 }
 
 QueryWriteStatusResponse::~QueryWriteStatusResponse() {
@@ -1484,11 +1408,6 @@ void QueryWriteStatusResponse::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*
 void QueryWriteStatusResponse::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const QueryWriteStatusResponse& QueryWriteStatusResponse::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_QueryWriteStatusResponse_google_2fbytestream_2fbytestream_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void QueryWriteStatusResponse::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.bytestream.QueryWriteStatusResponse)
@@ -1504,7 +1423,6 @@ void QueryWriteStatusResponse::Clear() {
 
 const char* QueryWriteStatusResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);

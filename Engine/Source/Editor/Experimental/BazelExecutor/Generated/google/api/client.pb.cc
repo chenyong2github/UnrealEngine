@@ -31,6 +31,8 @@ UE_PUSH_MACRO("TEXT")
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
+
+PROTOBUF_PRAGMA_INIT_SEG
 namespace google {
 namespace api {
 }  // namespace api
@@ -56,30 +58,33 @@ const char descriptor_table_protodef_google_2fapi_2fclient_2eproto[] PROTOBUF_SE
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_google_2fapi_2fclient_2eproto_deps[1] = {
   &::descriptor_table_google_2fprotobuf_2fdescriptor_2eproto,
 };
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_google_2fapi_2fclient_2eproto_sccs[1] = {
-};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_google_2fapi_2fclient_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_google_2fapi_2fclient_2eproto = {
-  false, false, descriptor_table_protodef_google_2fapi_2fclient_2eproto, "google/api/client.proto", 357,
-  &descriptor_table_google_2fapi_2fclient_2eproto_once, descriptor_table_google_2fapi_2fclient_2eproto_sccs, descriptor_table_google_2fapi_2fclient_2eproto_deps, 0, 1,
+  false, false, 357, descriptor_table_protodef_google_2fapi_2fclient_2eproto, "google/api/client.proto", 
+  &descriptor_table_google_2fapi_2fclient_2eproto_once, descriptor_table_google_2fapi_2fclient_2eproto_deps, 1, 0,
   schemas, file_default_instances, TableStruct_google_2fapi_2fclient_2eproto::offsets,
-  file_level_metadata_google_2fapi_2fclient_2eproto, 0, file_level_enum_descriptors_google_2fapi_2fclient_2eproto, file_level_service_descriptors_google_2fapi_2fclient_2eproto,
+  file_level_metadata_google_2fapi_2fclient_2eproto, file_level_enum_descriptors_google_2fapi_2fclient_2eproto, file_level_service_descriptors_google_2fapi_2fclient_2eproto,
 };
+PROTOBUF_ATTRIBUTE_WEAK ::PROTOBUF_NAMESPACE_ID::Metadata
+descriptor_table_google_2fapi_2fclient_2eproto_metadata_getter(int index) {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_google_2fapi_2fclient_2eproto);
+  return descriptor_table_google_2fapi_2fclient_2eproto.file_level_metadata[index];
+}
 
 // Force running AddDescriptors() at dynamic initialization time.
-static bool dynamic_init_dummy_google_2fapi_2fclient_2eproto = (static_cast<void>(::PROTOBUF_NAMESPACE_ID::internal::AddDescriptors(&descriptor_table_google_2fapi_2fclient_2eproto)), true);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_google_2fapi_2fclient_2eproto(&descriptor_table_google_2fapi_2fclient_2eproto);
 namespace google {
 namespace api {
 const std::string method_signature_default("");
-::PROTOBUF_NAMESPACE_ID::internal::ExtensionIdentifier< ::google::protobuf::MethodOptions,
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY ::PROTOBUF_NAMESPACE_ID::internal::ExtensionIdentifier< ::google::protobuf::MethodOptions,
     ::PROTOBUF_NAMESPACE_ID::internal::RepeatedStringTypeTraits, 9, false >
   method_signature(kMethodSignatureFieldNumber, method_signature_default);
 const std::string default_host_default("");
-::PROTOBUF_NAMESPACE_ID::internal::ExtensionIdentifier< ::google::protobuf::ServiceOptions,
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY ::PROTOBUF_NAMESPACE_ID::internal::ExtensionIdentifier< ::google::protobuf::ServiceOptions,
     ::PROTOBUF_NAMESPACE_ID::internal::StringTypeTraits, 9, false >
   default_host(kDefaultHostFieldNumber, default_host_default);
 const std::string oauth_scopes_default("");
-::PROTOBUF_NAMESPACE_ID::internal::ExtensionIdentifier< ::google::protobuf::ServiceOptions,
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY ::PROTOBUF_NAMESPACE_ID::internal::ExtensionIdentifier< ::google::protobuf::ServiceOptions,
     ::PROTOBUF_NAMESPACE_ID::internal::StringTypeTraits, 9, false >
   oauth_scopes(kOauthScopesFieldNumber, oauth_scopes_default);
 

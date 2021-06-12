@@ -58,19 +58,19 @@ Bots::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel)
   {}
 
 ::grpc::Status Bots::Stub::CreateBotSession(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest& request, ::google::devtools::remoteworkers::v1test2::BotSession* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_CreateBotSession_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest, ::google::devtools::remoteworkers::v1test2::BotSession, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_CreateBotSession_, context, request, response);
 }
 
 void Bots::Stub::experimental_async::CreateBotSession(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest* request, ::google::devtools::remoteworkers::v1test2::BotSession* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_CreateBotSession_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest, ::google::devtools::remoteworkers::v1test2::BotSession, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_CreateBotSession_, context, request, response, std::move(f));
 }
 
 void Bots::Stub::experimental_async::CreateBotSession(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest* request, ::google::devtools::remoteworkers::v1test2::BotSession* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_CreateBotSession_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_CreateBotSession_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::google::devtools::remoteworkers::v1test2::BotSession>* Bots::Stub::PrepareAsyncCreateBotSessionRaw(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::google::devtools::remoteworkers::v1test2::BotSession>::Create(channel_.get(), cq, rpcmethod_CreateBotSession_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::google::devtools::remoteworkers::v1test2::BotSession, ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_CreateBotSession_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::google::devtools::remoteworkers::v1test2::BotSession>* Bots::Stub::AsyncCreateBotSessionRaw(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest& request, ::grpc::CompletionQueue* cq) {
@@ -81,19 +81,19 @@ void Bots::Stub::experimental_async::CreateBotSession(::grpc::ClientContext* con
 }
 
 ::grpc::Status Bots::Stub::UpdateBotSession(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest& request, ::google::devtools::remoteworkers::v1test2::BotSession* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_UpdateBotSession_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest, ::google::devtools::remoteworkers::v1test2::BotSession, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_UpdateBotSession_, context, request, response);
 }
 
 void Bots::Stub::experimental_async::UpdateBotSession(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest* request, ::google::devtools::remoteworkers::v1test2::BotSession* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_UpdateBotSession_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest, ::google::devtools::remoteworkers::v1test2::BotSession, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_UpdateBotSession_, context, request, response, std::move(f));
 }
 
 void Bots::Stub::experimental_async::UpdateBotSession(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest* request, ::google::devtools::remoteworkers::v1test2::BotSession* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_UpdateBotSession_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_UpdateBotSession_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::google::devtools::remoteworkers::v1test2::BotSession>* Bots::Stub::PrepareAsyncUpdateBotSessionRaw(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::google::devtools::remoteworkers::v1test2::BotSession>::Create(channel_.get(), cq, rpcmethod_UpdateBotSession_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::google::devtools::remoteworkers::v1test2::BotSession, ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_UpdateBotSession_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::google::devtools::remoteworkers::v1test2::BotSession>* Bots::Stub::AsyncUpdateBotSessionRaw(::grpc::ClientContext* context, const ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest& request, ::grpc::CompletionQueue* cq) {
@@ -107,7 +107,7 @@ Bots::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       Bots_method_names[0],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< Bots::Service, ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest, ::google::devtools::remoteworkers::v1test2::BotSession>(
+      new ::grpc::internal::RpcMethodHandler< Bots::Service, ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest, ::google::devtools::remoteworkers::v1test2::BotSession, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](Bots::Service* service,
              ::grpc::ServerContext* ctx,
              const ::google::devtools::remoteworkers::v1test2::CreateBotSessionRequest* req,
@@ -117,7 +117,7 @@ Bots::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       Bots_method_names[1],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< Bots::Service, ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest, ::google::devtools::remoteworkers::v1test2::BotSession>(
+      new ::grpc::internal::RpcMethodHandler< Bots::Service, ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest, ::google::devtools::remoteworkers::v1test2::BotSession, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](Bots::Service* service,
              ::grpc::ServerContext* ctx,
              const ::google::devtools::remoteworkers::v1test2::UpdateBotSessionRequest* req,

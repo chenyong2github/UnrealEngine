@@ -61,7 +61,7 @@ ByteStream::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel
   return ::grpc::internal::ClientReaderFactory< ::google::bytestream::ReadResponse>::Create(channel_.get(), rpcmethod_Read_, context, request);
 }
 
-void ByteStream::Stub::experimental_async::Read(::grpc::ClientContext* context, ::google::bytestream::ReadRequest* request, ::grpc::experimental::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) {
+void ByteStream::Stub::experimental_async::Read(::grpc::ClientContext* context, const ::google::bytestream::ReadRequest* request, ::grpc::experimental::ClientReadReactor< ::google::bytestream::ReadResponse>* reactor) {
   ::grpc::internal::ClientCallbackReaderFactory< ::google::bytestream::ReadResponse>::Create(stub_->channel_.get(), stub_->rpcmethod_Read_, context, request, reactor);
 }
 
@@ -90,19 +90,19 @@ void ByteStream::Stub::experimental_async::Write(::grpc::ClientContext* context,
 }
 
 ::grpc::Status ByteStream::Stub::QueryWriteStatus(::grpc::ClientContext* context, const ::google::bytestream::QueryWriteStatusRequest& request, ::google::bytestream::QueryWriteStatusResponse* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_QueryWriteStatus_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::google::bytestream::QueryWriteStatusRequest, ::google::bytestream::QueryWriteStatusResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_QueryWriteStatus_, context, request, response);
 }
 
 void ByteStream::Stub::experimental_async::QueryWriteStatus(::grpc::ClientContext* context, const ::google::bytestream::QueryWriteStatusRequest* request, ::google::bytestream::QueryWriteStatusResponse* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_QueryWriteStatus_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::google::bytestream::QueryWriteStatusRequest, ::google::bytestream::QueryWriteStatusResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_QueryWriteStatus_, context, request, response, std::move(f));
 }
 
 void ByteStream::Stub::experimental_async::QueryWriteStatus(::grpc::ClientContext* context, const ::google::bytestream::QueryWriteStatusRequest* request, ::google::bytestream::QueryWriteStatusResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_QueryWriteStatus_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_QueryWriteStatus_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::google::bytestream::QueryWriteStatusResponse>* ByteStream::Stub::PrepareAsyncQueryWriteStatusRaw(::grpc::ClientContext* context, const ::google::bytestream::QueryWriteStatusRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::google::bytestream::QueryWriteStatusResponse>::Create(channel_.get(), cq, rpcmethod_QueryWriteStatus_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::google::bytestream::QueryWriteStatusResponse, ::google::bytestream::QueryWriteStatusRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_QueryWriteStatus_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::google::bytestream::QueryWriteStatusResponse>* ByteStream::Stub::AsyncQueryWriteStatusRaw(::grpc::ClientContext* context, const ::google::bytestream::QueryWriteStatusRequest& request, ::grpc::CompletionQueue* cq) {
@@ -136,7 +136,7 @@ ByteStream::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ByteStream_method_names[2],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< ByteStream::Service, ::google::bytestream::QueryWriteStatusRequest, ::google::bytestream::QueryWriteStatusResponse>(
+      new ::grpc::internal::RpcMethodHandler< ByteStream::Service, ::google::bytestream::QueryWriteStatusRequest, ::google::bytestream::QueryWriteStatusResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](ByteStream::Service* service,
              ::grpc::ServerContext* ctx,
              const ::google::bytestream::QueryWriteStatusRequest* req,

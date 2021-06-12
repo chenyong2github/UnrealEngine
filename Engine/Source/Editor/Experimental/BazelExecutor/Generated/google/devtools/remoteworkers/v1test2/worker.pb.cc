@@ -31,112 +31,82 @@ UE_PUSH_MACRO("TEXT")
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
-extern PROTOBUF_INTERNAL_EXPORT_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_Device_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Device_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Worker_Config_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Worker_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto;
+
+PROTOBUF_PRAGMA_INIT_SEG
 namespace google {
 namespace devtools {
 namespace remoteworkers {
 namespace v1test2 {
-class Worker_PropertyDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Worker_Property> _instance;
-} _Worker_Property_default_instance_;
-class Worker_ConfigDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Worker_Config> _instance;
-} _Worker_Config_default_instance_;
-class WorkerDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Worker> _instance;
-} _Worker_default_instance_;
-class Device_PropertyDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Device_Property> _instance;
-} _Device_Property_default_instance_;
-class DeviceDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<Device> _instance;
-} _Device_default_instance_;
+constexpr Worker_Property::Worker_Property(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : key_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , value_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct Worker_PropertyDefaultTypeInternal {
+  constexpr Worker_PropertyDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~Worker_PropertyDefaultTypeInternal() {}
+  union {
+    Worker_Property _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT Worker_PropertyDefaultTypeInternal _Worker_Property_default_instance_;
+constexpr Worker_Config::Worker_Config(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : key_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , value_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct Worker_ConfigDefaultTypeInternal {
+  constexpr Worker_ConfigDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~Worker_ConfigDefaultTypeInternal() {}
+  union {
+    Worker_Config _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT Worker_ConfigDefaultTypeInternal _Worker_Config_default_instance_;
+constexpr Worker::Worker(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : devices_()
+  , properties_()
+  , configs_(){}
+struct WorkerDefaultTypeInternal {
+  constexpr WorkerDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~WorkerDefaultTypeInternal() {}
+  union {
+    Worker _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT WorkerDefaultTypeInternal _Worker_default_instance_;
+constexpr Device_Property::Device_Property(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : key_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , value_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct Device_PropertyDefaultTypeInternal {
+  constexpr Device_PropertyDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~Device_PropertyDefaultTypeInternal() {}
+  union {
+    Device_Property _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT Device_PropertyDefaultTypeInternal _Device_Property_default_instance_;
+constexpr Device::Device(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : properties_()
+  , handle_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct DeviceDefaultTypeInternal {
+  constexpr DeviceDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~DeviceDefaultTypeInternal() {}
+  union {
+    Device _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT DeviceDefaultTypeInternal _Device_default_instance_;
 }  // namespace v1test2
 }  // namespace remoteworkers
 }  // namespace devtools
 }  // namespace google
-static void InitDefaultsscc_info_Device_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_Device_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::Device();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::Device::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_Device_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_Device_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto}, {
-      &scc_info_Device_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,}};
-
-static void InitDefaultsscc_info_Device_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_Device_Property_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::Device_Property();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::Device_Property::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Device_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_Device_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto}, {}};
-
-static void InitDefaultsscc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_Worker_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::Worker();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::Worker::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto}, {
-      &scc_info_Device_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-      &scc_info_Worker_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-      &scc_info_Worker_Config_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,}};
-
-static void InitDefaultsscc_info_Worker_Config_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_Worker_Config_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::Worker_Config();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::Worker_Config::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Worker_Config_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_Worker_Config_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto}, {}};
-
-static void InitDefaultsscc_info_Worker_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::devtools::remoteworkers::v1test2::_Worker_Property_default_instance_;
-    new (ptr) ::google::devtools::remoteworkers::v1test2::Worker_Property();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::devtools::remoteworkers::v1test2::Worker_Property::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Worker_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_Worker_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto}, {}};
-
 static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto[5];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto = nullptr;
@@ -216,25 +186,21 @@ const char descriptor_table_protodef_google_2fdevtools_2fremoteworkers_2fv1test2
   "workers\242\002\002RW\252\002%Google.DevTools.RemoteWor"
   "kers.V1Test2b\006proto3"
   ;
-static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto_deps[1] = {
-};
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto_sccs[5] = {
-  &scc_info_Device_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-  &scc_info_Device_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-  &scc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-  &scc_info_Worker_Config_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-  &scc_info_Worker_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base,
-};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto = {
-  false, false, descriptor_table_protodef_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto, "google/devtools/remoteworkers/v1test2/worker.proto", 740,
-  &descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto_once, descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto_sccs, descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto_deps, 5, 0,
+  false, false, 740, descriptor_table_protodef_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto, "google/devtools/remoteworkers/v1test2/worker.proto", 
+  &descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto_once, nullptr, 0, 5,
   schemas, file_default_instances, TableStruct_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto::offsets,
-  file_level_metadata_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto, 5, file_level_enum_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto, file_level_service_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto,
+  file_level_metadata_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto, file_level_enum_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto, file_level_service_descriptors_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto,
 };
+PROTOBUF_ATTRIBUTE_WEAK ::PROTOBUF_NAMESPACE_ID::Metadata
+descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto_metadata_getter(int index) {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto);
+  return descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.file_level_metadata[index];
+}
 
 // Force running AddDescriptors() at dynamic initialization time.
-static bool dynamic_init_dummy_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto = (static_cast<void>(::PROTOBUF_NAMESPACE_ID::internal::AddDescriptors(&descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto)), true);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto(&descriptor_table_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto);
 namespace google {
 namespace devtools {
 namespace remoteworkers {
@@ -242,8 +208,6 @@ namespace v1test2 {
 
 // ===================================================================
 
-void Worker_Property::InitAsDefaultInstance() {
-}
 class Worker_Property::_Internal {
  public:
 };
@@ -259,21 +223,20 @@ Worker_Property::Worker_Property(const Worker_Property& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_key().empty()) {
-    key_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_key(),
+    key_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_key(), 
       GetArena());
   }
   value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_value().empty()) {
-    value_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_value(),
+    value_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_value(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.devtools.remoteworkers.v1test2.Worker.Property)
 }
 
 void Worker_Property::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Worker_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 Worker_Property::~Worker_Property() {
@@ -297,11 +260,6 @@ void Worker_Property::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Worker_Property::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Worker_Property& Worker_Property::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Worker_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Worker_Property::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.Worker.Property)
@@ -309,14 +267,13 @@ void Worker_Property::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  key_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  value_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  key_.ClearToEmpty();
+  value_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* Worker_Property::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -489,8 +446,6 @@ void Worker_Property::InternalSwap(Worker_Property* other) {
 
 // ===================================================================
 
-void Worker_Config::InitAsDefaultInstance() {
-}
 class Worker_Config::_Internal {
  public:
 };
@@ -506,21 +461,20 @@ Worker_Config::Worker_Config(const Worker_Config& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_key().empty()) {
-    key_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_key(),
+    key_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_key(), 
       GetArena());
   }
   value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_value().empty()) {
-    value_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_value(),
+    value_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_value(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.devtools.remoteworkers.v1test2.Worker.Config)
 }
 
 void Worker_Config::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Worker_Config_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 Worker_Config::~Worker_Config() {
@@ -544,11 +498,6 @@ void Worker_Config::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Worker_Config::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Worker_Config& Worker_Config::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Worker_Config_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Worker_Config::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.Worker.Config)
@@ -556,14 +505,13 @@ void Worker_Config::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  key_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  value_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  key_.ClearToEmpty();
+  value_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* Worker_Config::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -736,8 +684,6 @@ void Worker_Config::InternalSwap(Worker_Config* other) {
 
 // ===================================================================
 
-void Worker::InitAsDefaultInstance() {
-}
 class Worker::_Internal {
  public:
 };
@@ -761,7 +707,6 @@ Worker::Worker(const Worker& from)
 }
 
 void Worker::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
 }
 
 Worker::~Worker() {
@@ -783,11 +728,6 @@ void Worker::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Worker::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Worker& Worker::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Worker_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Worker::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.Worker)
@@ -803,7 +743,6 @@ void Worker::Clear() {
 
 const char* Worker::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1003,8 +942,6 @@ void Worker::InternalSwap(Worker* other) {
 
 // ===================================================================
 
-void Device_Property::InitAsDefaultInstance() {
-}
 class Device_Property::_Internal {
  public:
 };
@@ -1020,21 +957,20 @@ Device_Property::Device_Property(const Device_Property& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_key().empty()) {
-    key_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_key(),
+    key_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_key(), 
       GetArena());
   }
   value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_value().empty()) {
-    value_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_value(),
+    value_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_value(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.devtools.remoteworkers.v1test2.Device.Property)
 }
 
 void Device_Property::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Device_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+value_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 Device_Property::~Device_Property() {
@@ -1058,11 +994,6 @@ void Device_Property::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Device_Property::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Device_Property& Device_Property::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Device_Property_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Device_Property::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.Device.Property)
@@ -1070,14 +1001,13 @@ void Device_Property::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  key_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  value_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  key_.ClearToEmpty();
+  value_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* Device_Property::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1250,8 +1180,6 @@ void Device_Property::InternalSwap(Device_Property* other) {
 
 // ===================================================================
 
-void Device::InitAsDefaultInstance() {
-}
 class Device::_Internal {
  public:
 };
@@ -1269,15 +1197,14 @@ Device::Device(const Device& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   handle_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_handle().empty()) {
-    handle_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_handle(),
+    handle_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_handle(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.devtools.remoteworkers.v1test2.Device)
 }
 
 void Device::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_Device_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  handle_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+handle_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 Device::~Device() {
@@ -1300,11 +1227,6 @@ void Device::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void Device::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const Device& Device::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_Device_google_2fdevtools_2fremoteworkers_2fv1test2_2fworker_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void Device::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.devtools.remoteworkers.v1test2.Device)
@@ -1313,13 +1235,12 @@ void Device::Clear() {
   (void) cached_has_bits;
 
   properties_.Clear();
-  handle_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  handle_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* Device::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);

@@ -31,233 +31,177 @@ UE_PUSH_MACRO("TEXT")
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2fany_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Any_google_2fprotobuf_2fany_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2fstruct_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_ListValue_google_2fprotobuf_2fstruct_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2fprotobuf_2ftimestamp_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Api_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_AttributeContext_Auth_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_AttributeContext_Peer_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Peer_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_AttributeContext_Request_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Request_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_AttributeContext_Resource_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Resource_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_AttributeContext_Response_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
-extern PROTOBUF_INTERNAL_EXPORT_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Response_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto;
+
+PROTOBUF_PRAGMA_INIT_SEG
 namespace google {
 namespace rpc {
 namespace context {
-class AttributeContext_Peer_LabelsEntry_DoNotUseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Peer_LabelsEntry_DoNotUse> _instance;
-} _AttributeContext_Peer_LabelsEntry_DoNotUse_default_instance_;
-class AttributeContext_PeerDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Peer> _instance;
-} _AttributeContext_Peer_default_instance_;
-class AttributeContext_ApiDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Api> _instance;
-} _AttributeContext_Api_default_instance_;
-class AttributeContext_AuthDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Auth> _instance;
-} _AttributeContext_Auth_default_instance_;
-class AttributeContext_Request_HeadersEntry_DoNotUseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Request_HeadersEntry_DoNotUse> _instance;
-} _AttributeContext_Request_HeadersEntry_DoNotUse_default_instance_;
-class AttributeContext_RequestDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Request> _instance;
-} _AttributeContext_Request_default_instance_;
-class AttributeContext_Response_HeadersEntry_DoNotUseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Response_HeadersEntry_DoNotUse> _instance;
-} _AttributeContext_Response_HeadersEntry_DoNotUse_default_instance_;
-class AttributeContext_ResponseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Response> _instance;
-} _AttributeContext_Response_default_instance_;
-class AttributeContext_Resource_LabelsEntry_DoNotUseDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Resource_LabelsEntry_DoNotUse> _instance;
-} _AttributeContext_Resource_LabelsEntry_DoNotUse_default_instance_;
-class AttributeContext_ResourceDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext_Resource> _instance;
-} _AttributeContext_Resource_default_instance_;
-class AttributeContextDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<AttributeContext> _instance;
-} _AttributeContext_default_instance_;
+constexpr AttributeContext_Peer_LabelsEntry_DoNotUse::AttributeContext_Peer_LabelsEntry_DoNotUse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct AttributeContext_Peer_LabelsEntry_DoNotUseDefaultTypeInternal {
+  constexpr AttributeContext_Peer_LabelsEntry_DoNotUseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_Peer_LabelsEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    AttributeContext_Peer_LabelsEntry_DoNotUse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_Peer_LabelsEntry_DoNotUseDefaultTypeInternal _AttributeContext_Peer_LabelsEntry_DoNotUse_default_instance_;
+constexpr AttributeContext_Peer::AttributeContext_Peer(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : labels_(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{})
+  , ip_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , principal_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , region_code_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , port_(PROTOBUF_LONGLONG(0)){}
+struct AttributeContext_PeerDefaultTypeInternal {
+  constexpr AttributeContext_PeerDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_PeerDefaultTypeInternal() {}
+  union {
+    AttributeContext_Peer _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_PeerDefaultTypeInternal _AttributeContext_Peer_default_instance_;
+constexpr AttributeContext_Api::AttributeContext_Api(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : service_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , operation_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , protocol_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , version_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct AttributeContext_ApiDefaultTypeInternal {
+  constexpr AttributeContext_ApiDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_ApiDefaultTypeInternal() {}
+  union {
+    AttributeContext_Api _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_ApiDefaultTypeInternal _AttributeContext_Api_default_instance_;
+constexpr AttributeContext_Auth::AttributeContext_Auth(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : audiences_()
+  , access_levels_()
+  , principal_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , presenter_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , claims_(nullptr){}
+struct AttributeContext_AuthDefaultTypeInternal {
+  constexpr AttributeContext_AuthDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_AuthDefaultTypeInternal() {}
+  union {
+    AttributeContext_Auth _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_AuthDefaultTypeInternal _AttributeContext_Auth_default_instance_;
+constexpr AttributeContext_Request_HeadersEntry_DoNotUse::AttributeContext_Request_HeadersEntry_DoNotUse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct AttributeContext_Request_HeadersEntry_DoNotUseDefaultTypeInternal {
+  constexpr AttributeContext_Request_HeadersEntry_DoNotUseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_Request_HeadersEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    AttributeContext_Request_HeadersEntry_DoNotUse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_Request_HeadersEntry_DoNotUseDefaultTypeInternal _AttributeContext_Request_HeadersEntry_DoNotUse_default_instance_;
+constexpr AttributeContext_Request::AttributeContext_Request(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : headers_(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{})
+  , id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , method_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , path_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , host_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , scheme_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , query_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , protocol_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , reason_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , time_(nullptr)
+  , auth_(nullptr)
+  , size_(PROTOBUF_LONGLONG(0)){}
+struct AttributeContext_RequestDefaultTypeInternal {
+  constexpr AttributeContext_RequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_RequestDefaultTypeInternal() {}
+  union {
+    AttributeContext_Request _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_RequestDefaultTypeInternal _AttributeContext_Request_default_instance_;
+constexpr AttributeContext_Response_HeadersEntry_DoNotUse::AttributeContext_Response_HeadersEntry_DoNotUse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct AttributeContext_Response_HeadersEntry_DoNotUseDefaultTypeInternal {
+  constexpr AttributeContext_Response_HeadersEntry_DoNotUseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_Response_HeadersEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    AttributeContext_Response_HeadersEntry_DoNotUse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_Response_HeadersEntry_DoNotUseDefaultTypeInternal _AttributeContext_Response_HeadersEntry_DoNotUse_default_instance_;
+constexpr AttributeContext_Response::AttributeContext_Response(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : headers_(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{})
+  , time_(nullptr)
+  , code_(PROTOBUF_LONGLONG(0))
+  , size_(PROTOBUF_LONGLONG(0)){}
+struct AttributeContext_ResponseDefaultTypeInternal {
+  constexpr AttributeContext_ResponseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_ResponseDefaultTypeInternal() {}
+  union {
+    AttributeContext_Response _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_ResponseDefaultTypeInternal _AttributeContext_Response_default_instance_;
+constexpr AttributeContext_Resource_LabelsEntry_DoNotUse::AttributeContext_Resource_LabelsEntry_DoNotUse(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct AttributeContext_Resource_LabelsEntry_DoNotUseDefaultTypeInternal {
+  constexpr AttributeContext_Resource_LabelsEntry_DoNotUseDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_Resource_LabelsEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    AttributeContext_Resource_LabelsEntry_DoNotUse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_Resource_LabelsEntry_DoNotUseDefaultTypeInternal _AttributeContext_Resource_LabelsEntry_DoNotUse_default_instance_;
+constexpr AttributeContext_Resource::AttributeContext_Resource(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : labels_(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{})
+  , service_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , type_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct AttributeContext_ResourceDefaultTypeInternal {
+  constexpr AttributeContext_ResourceDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContext_ResourceDefaultTypeInternal() {}
+  union {
+    AttributeContext_Resource _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContext_ResourceDefaultTypeInternal _AttributeContext_Resource_default_instance_;
+constexpr AttributeContext::AttributeContext(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : extensions_()
+  , source_(nullptr)
+  , destination_(nullptr)
+  , request_(nullptr)
+  , response_(nullptr)
+  , resource_(nullptr)
+  , api_(nullptr)
+  , origin_(nullptr){}
+struct AttributeContextDefaultTypeInternal {
+  constexpr AttributeContextDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AttributeContextDefaultTypeInternal() {}
+  union {
+    AttributeContext _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AttributeContextDefaultTypeInternal _AttributeContext_default_instance_;
 }  // namespace context
 }  // namespace rpc
 }  // namespace google
-static void InitDefaultsscc_info_AttributeContext_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::context::AttributeContext::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<6> scc_info_AttributeContext_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 6, 0, InitDefaultsscc_info_AttributeContext_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {
-      &scc_info_AttributeContext_Peer_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-      &scc_info_AttributeContext_Request_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-      &scc_info_AttributeContext_Response_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-      &scc_info_AttributeContext_Resource_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-      &scc_info_AttributeContext_Api_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-      &scc_info_Any_google_2fprotobuf_2fany_2eproto.base,}};
-
-static void InitDefaultsscc_info_AttributeContext_Api_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Api_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Api();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::context::AttributeContext_Api::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Api_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_AttributeContext_Api_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {}};
-
-static void InitDefaultsscc_info_AttributeContext_Auth_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Auth_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Auth();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::context::AttributeContext_Auth::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_AttributeContext_Auth_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_AttributeContext_Auth_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {
-      &scc_info_ListValue_google_2fprotobuf_2fstruct_2eproto.base,}};
-
-static void InitDefaultsscc_info_AttributeContext_Peer_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Peer_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Peer();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::context::AttributeContext_Peer::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_AttributeContext_Peer_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_AttributeContext_Peer_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {
-      &scc_info_AttributeContext_Peer_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,}};
-
-static void InitDefaultsscc_info_AttributeContext_Peer_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Peer_LabelsEntry_DoNotUse_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Peer_LabelsEntry_DoNotUse();
-  }
-  ::google::rpc::context::AttributeContext_Peer_LabelsEntry_DoNotUse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Peer_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_AttributeContext_Peer_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {}};
-
-static void InitDefaultsscc_info_AttributeContext_Request_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Request_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Request();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::context::AttributeContext_Request::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<3> scc_info_AttributeContext_Request_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 3, 0, InitDefaultsscc_info_AttributeContext_Request_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {
-      &scc_info_AttributeContext_Request_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-      &scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto.base,
-      &scc_info_AttributeContext_Auth_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,}};
-
-static void InitDefaultsscc_info_AttributeContext_Request_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Request_HeadersEntry_DoNotUse_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Request_HeadersEntry_DoNotUse();
-  }
-  ::google::rpc::context::AttributeContext_Request_HeadersEntry_DoNotUse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Request_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_AttributeContext_Request_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {}};
-
-static void InitDefaultsscc_info_AttributeContext_Resource_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Resource_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Resource();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::context::AttributeContext_Resource::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<1> scc_info_AttributeContext_Resource_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 1, 0, InitDefaultsscc_info_AttributeContext_Resource_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {
-      &scc_info_AttributeContext_Resource_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,}};
-
-static void InitDefaultsscc_info_AttributeContext_Resource_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Resource_LabelsEntry_DoNotUse_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Resource_LabelsEntry_DoNotUse();
-  }
-  ::google::rpc::context::AttributeContext_Resource_LabelsEntry_DoNotUse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Resource_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_AttributeContext_Resource_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {}};
-
-static void InitDefaultsscc_info_AttributeContext_Response_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Response_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Response();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::google::rpc::context::AttributeContext_Response::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<2> scc_info_AttributeContext_Response_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 2, 0, InitDefaultsscc_info_AttributeContext_Response_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {
-      &scc_info_AttributeContext_Response_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-      &scc_info_Timestamp_google_2fprotobuf_2ftimestamp_2eproto.base,}};
-
-static void InitDefaultsscc_info_AttributeContext_Response_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::google::rpc::context::_AttributeContext_Response_HeadersEntry_DoNotUse_default_instance_;
-    new (ptr) ::google::rpc::context::AttributeContext_Response_HeadersEntry_DoNotUse();
-  }
-  ::google::rpc::context::AttributeContext_Response_HeadersEntry_DoNotUse::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_AttributeContext_Response_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_AttributeContext_Response_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto}, {}};
-
 static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto[11];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto = nullptr;
@@ -461,29 +405,21 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
   &::descriptor_table_google_2fprotobuf_2fstruct_2eproto,
   &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
 };
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto_sccs[11] = {
-  &scc_info_AttributeContext_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Api_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Auth_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Peer_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Peer_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Request_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Request_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Resource_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Resource_LabelsEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Response_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-  &scc_info_AttributeContext_Response_HeadersEntry_DoNotUse_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base,
-};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto = {
-  false, false, descriptor_table_protodef_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto, "google/rpc/context/attribute_context.proto", 1955,
-  &descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto_once, descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto_sccs, descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto_deps, 11, 3,
+  false, false, 1955, descriptor_table_protodef_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto, "google/rpc/context/attribute_context.proto", 
+  &descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto_once, descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto_deps, 3, 11,
   schemas, file_default_instances, TableStruct_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto::offsets,
-  file_level_metadata_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto, 11, file_level_enum_descriptors_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto, file_level_service_descriptors_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto,
+  file_level_metadata_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto, file_level_enum_descriptors_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto, file_level_service_descriptors_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto,
 };
+PROTOBUF_ATTRIBUTE_WEAK ::PROTOBUF_NAMESPACE_ID::Metadata
+descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto_metadata_getter(int index) {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto);
+  return descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.file_level_metadata[index];
+}
 
 // Force running AddDescriptors() at dynamic initialization time.
-static bool dynamic_init_dummy_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto = (static_cast<void>(::PROTOBUF_NAMESPACE_ID::internal::AddDescriptors(&descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto)), true);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto(&descriptor_table_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto);
 namespace google {
 namespace rpc {
 namespace context {
@@ -507,8 +443,6 @@ void AttributeContext_Peer_LabelsEntry_DoNotUse::MergeFrom(
 
 // ===================================================================
 
-void AttributeContext_Peer::InitAsDefaultInstance() {
-}
 class AttributeContext_Peer::_Internal {
  public:
 };
@@ -526,17 +460,17 @@ AttributeContext_Peer::AttributeContext_Peer(const AttributeContext_Peer& from)
   labels_.MergeFrom(from.labels_);
   ip_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_ip().empty()) {
-    ip_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_ip(),
+    ip_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_ip(), 
       GetArena());
   }
   principal_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_principal().empty()) {
-    principal_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_principal(),
+    principal_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_principal(), 
       GetArena());
   }
   region_code_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_region_code().empty()) {
-    region_code_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_region_code(),
+    region_code_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_region_code(), 
       GetArena());
   }
   port_ = from.port_;
@@ -544,11 +478,10 @@ AttributeContext_Peer::AttributeContext_Peer(const AttributeContext_Peer& from)
 }
 
 void AttributeContext_Peer::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_AttributeContext_Peer_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  ip_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  principal_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  region_code_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  port_ = PROTOBUF_LONGLONG(0);
+ip_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+principal_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+region_code_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+port_ = PROTOBUF_LONGLONG(0);
 }
 
 AttributeContext_Peer::~AttributeContext_Peer() {
@@ -573,11 +506,6 @@ void AttributeContext_Peer::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void AttributeContext_Peer::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const AttributeContext_Peer& AttributeContext_Peer::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_AttributeContext_Peer_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void AttributeContext_Peer::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.context.AttributeContext.Peer)
@@ -586,16 +514,15 @@ void AttributeContext_Peer::Clear() {
   (void) cached_has_bits;
 
   labels_.Clear();
-  ip_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  principal_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  region_code_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  ip_.ClearToEmpty();
+  principal_.ClearToEmpty();
+  region_code_.ClearToEmpty();
   port_ = PROTOBUF_LONGLONG(0);
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* AttributeContext_Peer::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -890,8 +817,6 @@ void AttributeContext_Peer::InternalSwap(AttributeContext_Peer* other) {
 
 // ===================================================================
 
-void AttributeContext_Api::InitAsDefaultInstance() {
-}
 class AttributeContext_Api::_Internal {
  public:
 };
@@ -907,33 +832,32 @@ AttributeContext_Api::AttributeContext_Api(const AttributeContext_Api& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   service_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_service().empty()) {
-    service_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_service(),
+    service_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_service(), 
       GetArena());
   }
   operation_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_operation().empty()) {
-    operation_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_operation(),
+    operation_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_operation(), 
       GetArena());
   }
   protocol_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_protocol().empty()) {
-    protocol_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_protocol(),
+    protocol_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_protocol(), 
       GetArena());
   }
   version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_version().empty()) {
-    version_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_version(),
+    version_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_version(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.context.AttributeContext.Api)
 }
 
 void AttributeContext_Api::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_AttributeContext_Api_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  service_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  operation_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  protocol_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+service_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+operation_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+protocol_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+version_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 AttributeContext_Api::~AttributeContext_Api() {
@@ -959,11 +883,6 @@ void AttributeContext_Api::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void AttributeContext_Api::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const AttributeContext_Api& AttributeContext_Api::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_AttributeContext_Api_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void AttributeContext_Api::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.context.AttributeContext.Api)
@@ -971,16 +890,15 @@ void AttributeContext_Api::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  service_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  operation_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  protocol_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  version_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  service_.ClearToEmpty();
+  operation_.ClearToEmpty();
+  protocol_.ClearToEmpty();
+  version_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* AttributeContext_Api::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1213,10 +1131,6 @@ void AttributeContext_Api::InternalSwap(AttributeContext_Api* other) {
 
 // ===================================================================
 
-void AttributeContext_Auth::InitAsDefaultInstance() {
-  ::google::rpc::context::_AttributeContext_Auth_default_instance_._instance.get_mutable()->claims_ = const_cast< PROTOBUF_NAMESPACE_ID::Struct*>(
-      PROTOBUF_NAMESPACE_ID::Struct::internal_default_instance());
-}
 class AttributeContext_Auth::_Internal {
  public:
   static const PROTOBUF_NAMESPACE_ID::Struct& claims(const AttributeContext_Auth* msg);
@@ -1247,12 +1161,12 @@ AttributeContext_Auth::AttributeContext_Auth(const AttributeContext_Auth& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   principal_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_principal().empty()) {
-    principal_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_principal(),
+    principal_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_principal(), 
       GetArena());
   }
   presenter_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_presenter().empty()) {
-    presenter_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_presenter(),
+    presenter_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_presenter(), 
       GetArena());
   }
   if (from._internal_has_claims()) {
@@ -1264,10 +1178,9 @@ AttributeContext_Auth::AttributeContext_Auth(const AttributeContext_Auth& from)
 }
 
 void AttributeContext_Auth::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_AttributeContext_Auth_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  principal_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  presenter_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  claims_ = nullptr;
+principal_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+presenter_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+claims_ = nullptr;
 }
 
 AttributeContext_Auth::~AttributeContext_Auth() {
@@ -1292,11 +1205,6 @@ void AttributeContext_Auth::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void AttributeContext_Auth::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const AttributeContext_Auth& AttributeContext_Auth::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_AttributeContext_Auth_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void AttributeContext_Auth::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.context.AttributeContext.Auth)
@@ -1306,8 +1214,8 @@ void AttributeContext_Auth::Clear() {
 
   audiences_.Clear();
   access_levels_.Clear();
-  principal_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  presenter_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  principal_.ClearToEmpty();
+  presenter_.ClearToEmpty();
   if (GetArena() == nullptr && claims_ != nullptr) {
     delete claims_;
   }
@@ -1317,7 +1225,6 @@ void AttributeContext_Auth::Clear() {
 
 const char* AttributeContext_Auth::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -1601,12 +1508,6 @@ void AttributeContext_Request_HeadersEntry_DoNotUse::MergeFrom(
 
 // ===================================================================
 
-void AttributeContext_Request::InitAsDefaultInstance() {
-  ::google::rpc::context::_AttributeContext_Request_default_instance_._instance.get_mutable()->time_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-  ::google::rpc::context::_AttributeContext_Request_default_instance_._instance.get_mutable()->auth_ = const_cast< ::google::rpc::context::AttributeContext_Auth*>(
-      ::google::rpc::context::AttributeContext_Auth::internal_default_instance());
-}
 class AttributeContext_Request::_Internal {
  public:
   static const PROTOBUF_NAMESPACE_ID::Timestamp& time(const AttributeContext_Request* msg);
@@ -1640,42 +1541,42 @@ AttributeContext_Request::AttributeContext_Request(const AttributeContext_Reques
   headers_.MergeFrom(from.headers_);
   id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_id().empty()) {
-    id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_id(),
+    id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_id(), 
       GetArena());
   }
   method_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_method().empty()) {
-    method_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_method(),
+    method_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_method(), 
       GetArena());
   }
   path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_path().empty()) {
-    path_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_path(),
+    path_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_path(), 
       GetArena());
   }
   host_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_host().empty()) {
-    host_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_host(),
+    host_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_host(), 
       GetArena());
   }
   scheme_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_scheme().empty()) {
-    scheme_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_scheme(),
+    scheme_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_scheme(), 
       GetArena());
   }
   query_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_query().empty()) {
-    query_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_query(),
+    query_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_query(), 
       GetArena());
   }
   protocol_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_protocol().empty()) {
-    protocol_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_protocol(),
+    protocol_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_protocol(), 
       GetArena());
   }
   reason_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_reason().empty()) {
-    reason_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_reason(),
+    reason_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_reason(), 
       GetArena());
   }
   if (from._internal_has_time()) {
@@ -1693,18 +1594,18 @@ AttributeContext_Request::AttributeContext_Request(const AttributeContext_Reques
 }
 
 void AttributeContext_Request::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_AttributeContext_Request_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  method_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  host_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  scheme_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  query_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  protocol_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  reason_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&time_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&size_) -
-      reinterpret_cast<char*>(&time_)) + sizeof(size_));
+id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+method_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+path_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+host_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+scheme_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+query_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+protocol_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+reason_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&time_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&size_) -
+    reinterpret_cast<char*>(&time_)) + sizeof(size_));
 }
 
 AttributeContext_Request::~AttributeContext_Request() {
@@ -1736,11 +1637,6 @@ void AttributeContext_Request::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*
 void AttributeContext_Request::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const AttributeContext_Request& AttributeContext_Request::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_AttributeContext_Request_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void AttributeContext_Request::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.context.AttributeContext.Request)
@@ -1749,14 +1645,14 @@ void AttributeContext_Request::Clear() {
   (void) cached_has_bits;
 
   headers_.Clear();
-  id_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  method_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  path_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  host_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  scheme_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  query_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  protocol_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  reason_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  id_.ClearToEmpty();
+  method_.ClearToEmpty();
+  path_.ClearToEmpty();
+  host_.ClearToEmpty();
+  scheme_.ClearToEmpty();
+  query_.ClearToEmpty();
+  protocol_.ClearToEmpty();
+  reason_.ClearToEmpty();
   if (GetArena() == nullptr && time_ != nullptr) {
     delete time_;
   }
@@ -1771,7 +1667,6 @@ void AttributeContext_Request::Clear() {
 
 const char* AttributeContext_Request::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2288,10 +2183,6 @@ void AttributeContext_Response_HeadersEntry_DoNotUse::MergeFrom(
 
 // ===================================================================
 
-void AttributeContext_Response::InitAsDefaultInstance() {
-  ::google::rpc::context::_AttributeContext_Response_default_instance_._instance.get_mutable()->time_ = const_cast< PROTOBUF_NAMESPACE_ID::Timestamp*>(
-      PROTOBUF_NAMESPACE_ID::Timestamp::internal_default_instance());
-}
 class AttributeContext_Response::_Internal {
  public:
   static const PROTOBUF_NAMESPACE_ID::Timestamp& time(const AttributeContext_Response* msg);
@@ -2330,10 +2221,10 @@ AttributeContext_Response::AttributeContext_Response(const AttributeContext_Resp
 }
 
 void AttributeContext_Response::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_AttributeContext_Response_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  ::memset(&time_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&size_) -
-      reinterpret_cast<char*>(&time_)) + sizeof(size_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&time_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&size_) -
+    reinterpret_cast<char*>(&time_)) + sizeof(size_));
 }
 
 AttributeContext_Response::~AttributeContext_Response() {
@@ -2356,11 +2247,6 @@ void AttributeContext_Response::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena
 void AttributeContext_Response::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const AttributeContext_Response& AttributeContext_Response::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_AttributeContext_Response_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void AttributeContext_Response::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.context.AttributeContext.Response)
@@ -2381,7 +2267,6 @@ void AttributeContext_Response::Clear() {
 
 const char* AttributeContext_Response::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -2656,8 +2541,6 @@ void AttributeContext_Resource_LabelsEntry_DoNotUse::MergeFrom(
 
 // ===================================================================
 
-void AttributeContext_Resource::InitAsDefaultInstance() {
-}
 class AttributeContext_Resource::_Internal {
  public:
 };
@@ -2675,27 +2558,26 @@ AttributeContext_Resource::AttributeContext_Resource(const AttributeContext_Reso
   labels_.MergeFrom(from.labels_);
   service_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_service().empty()) {
-    service_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_service(),
+    service_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_service(), 
       GetArena());
   }
   name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_name().empty()) {
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_name(),
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
       GetArena());
   }
   type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_type().empty()) {
-    type_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_type(),
+    type_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_type(), 
       GetArena());
   }
   // @@protoc_insertion_point(copy_constructor:google.rpc.context.AttributeContext.Resource)
 }
 
 void AttributeContext_Resource::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_AttributeContext_Resource_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  service_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+service_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+type_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 AttributeContext_Resource::~AttributeContext_Resource() {
@@ -2720,11 +2602,6 @@ void AttributeContext_Resource::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena
 void AttributeContext_Resource::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const AttributeContext_Resource& AttributeContext_Resource::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_AttributeContext_Resource_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void AttributeContext_Resource::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.context.AttributeContext.Resource)
@@ -2733,15 +2610,14 @@ void AttributeContext_Resource::Clear() {
   (void) cached_has_bits;
 
   labels_.Clear();
-  service_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  name_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
-  type_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  service_.ClearToEmpty();
+  name_.ClearToEmpty();
+  type_.ClearToEmpty();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* AttributeContext_Resource::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
@@ -3012,22 +2888,6 @@ void AttributeContext_Resource::InternalSwap(AttributeContext_Resource* other) {
 
 // ===================================================================
 
-void AttributeContext::InitAsDefaultInstance() {
-  ::google::rpc::context::_AttributeContext_default_instance_._instance.get_mutable()->origin_ = const_cast< ::google::rpc::context::AttributeContext_Peer*>(
-      ::google::rpc::context::AttributeContext_Peer::internal_default_instance());
-  ::google::rpc::context::_AttributeContext_default_instance_._instance.get_mutable()->source_ = const_cast< ::google::rpc::context::AttributeContext_Peer*>(
-      ::google::rpc::context::AttributeContext_Peer::internal_default_instance());
-  ::google::rpc::context::_AttributeContext_default_instance_._instance.get_mutable()->destination_ = const_cast< ::google::rpc::context::AttributeContext_Peer*>(
-      ::google::rpc::context::AttributeContext_Peer::internal_default_instance());
-  ::google::rpc::context::_AttributeContext_default_instance_._instance.get_mutable()->request_ = const_cast< ::google::rpc::context::AttributeContext_Request*>(
-      ::google::rpc::context::AttributeContext_Request::internal_default_instance());
-  ::google::rpc::context::_AttributeContext_default_instance_._instance.get_mutable()->response_ = const_cast< ::google::rpc::context::AttributeContext_Response*>(
-      ::google::rpc::context::AttributeContext_Response::internal_default_instance());
-  ::google::rpc::context::_AttributeContext_default_instance_._instance.get_mutable()->resource_ = const_cast< ::google::rpc::context::AttributeContext_Resource*>(
-      ::google::rpc::context::AttributeContext_Resource::internal_default_instance());
-  ::google::rpc::context::_AttributeContext_default_instance_._instance.get_mutable()->api_ = const_cast< ::google::rpc::context::AttributeContext_Api*>(
-      ::google::rpc::context::AttributeContext_Api::internal_default_instance());
-}
 class AttributeContext::_Internal {
  public:
   static const ::google::rpc::context::AttributeContext_Peer& origin(const AttributeContext* msg);
@@ -3120,10 +2980,10 @@ AttributeContext::AttributeContext(const AttributeContext& from)
 }
 
 void AttributeContext::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_AttributeContext_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  ::memset(&source_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&origin_) -
-      reinterpret_cast<char*>(&source_)) + sizeof(origin_));
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&source_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&origin_) -
+    reinterpret_cast<char*>(&source_)) + sizeof(origin_));
 }
 
 AttributeContext::~AttributeContext() {
@@ -3152,11 +3012,6 @@ void AttributeContext::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void AttributeContext::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const AttributeContext& AttributeContext::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_AttributeContext_google_2frpc_2fcontext_2fattribute_5fcontext_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void AttributeContext::Clear() {
 // @@protoc_insertion_point(message_clear_start:google.rpc.context.AttributeContext)
@@ -3198,7 +3053,6 @@ void AttributeContext::Clear() {
 
 const char* AttributeContext::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);

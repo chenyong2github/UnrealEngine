@@ -62,7 +62,7 @@ Execution::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel)
   return ::grpc::internal::ClientReaderFactory< ::google::longrunning::Operation>::Create(channel_.get(), rpcmethod_Execute_, context, request);
 }
 
-void Execution::Stub::experimental_async::Execute(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) {
+void Execution::Stub::experimental_async::Execute(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::ExecuteRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) {
   ::grpc::internal::ClientCallbackReaderFactory< ::google::longrunning::Operation>::Create(stub_->channel_.get(), stub_->rpcmethod_Execute_, context, request, reactor);
 }
 
@@ -78,7 +78,7 @@ void Execution::Stub::experimental_async::Execute(::grpc::ClientContext* context
   return ::grpc::internal::ClientReaderFactory< ::google::longrunning::Operation>::Create(channel_.get(), rpcmethod_WaitExecution_, context, request);
 }
 
-void Execution::Stub::experimental_async::WaitExecution(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) {
+void Execution::Stub::experimental_async::WaitExecution(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::WaitExecutionRequest* request, ::grpc::experimental::ClientReadReactor< ::google::longrunning::Operation>* reactor) {
   ::grpc::internal::ClientCallbackReaderFactory< ::google::longrunning::Operation>::Create(stub_->channel_.get(), stub_->rpcmethod_WaitExecution_, context, request, reactor);
 }
 
@@ -148,19 +148,19 @@ ActionCache::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channe
   {}
 
 ::grpc::Status ActionCache::Stub::GetActionResult(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetActionResultRequest& request, ::build::bazel::remote::execution::v2::ActionResult* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_GetActionResult_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::build::bazel::remote::execution::v2::GetActionResultRequest, ::build::bazel::remote::execution::v2::ActionResult, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetActionResult_, context, request, response);
 }
 
 void ActionCache::Stub::experimental_async::GetActionResult(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetActionResultRequest* request, ::build::bazel::remote::execution::v2::ActionResult* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_GetActionResult_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::build::bazel::remote::execution::v2::GetActionResultRequest, ::build::bazel::remote::execution::v2::ActionResult, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetActionResult_, context, request, response, std::move(f));
 }
 
 void ActionCache::Stub::experimental_async::GetActionResult(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetActionResultRequest* request, ::build::bazel::remote::execution::v2::ActionResult* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_GetActionResult_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetActionResult_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::ActionResult>* ActionCache::Stub::PrepareAsyncGetActionResultRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetActionResultRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::build::bazel::remote::execution::v2::ActionResult>::Create(channel_.get(), cq, rpcmethod_GetActionResult_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::build::bazel::remote::execution::v2::ActionResult, ::build::bazel::remote::execution::v2::GetActionResultRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetActionResult_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::ActionResult>* ActionCache::Stub::AsyncGetActionResultRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetActionResultRequest& request, ::grpc::CompletionQueue* cq) {
@@ -171,19 +171,19 @@ void ActionCache::Stub::experimental_async::GetActionResult(::grpc::ClientContex
 }
 
 ::grpc::Status ActionCache::Stub::UpdateActionResult(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::UpdateActionResultRequest& request, ::build::bazel::remote::execution::v2::ActionResult* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_UpdateActionResult_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::build::bazel::remote::execution::v2::UpdateActionResultRequest, ::build::bazel::remote::execution::v2::ActionResult, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_UpdateActionResult_, context, request, response);
 }
 
 void ActionCache::Stub::experimental_async::UpdateActionResult(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::UpdateActionResultRequest* request, ::build::bazel::remote::execution::v2::ActionResult* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_UpdateActionResult_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::build::bazel::remote::execution::v2::UpdateActionResultRequest, ::build::bazel::remote::execution::v2::ActionResult, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_UpdateActionResult_, context, request, response, std::move(f));
 }
 
 void ActionCache::Stub::experimental_async::UpdateActionResult(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::UpdateActionResultRequest* request, ::build::bazel::remote::execution::v2::ActionResult* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_UpdateActionResult_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_UpdateActionResult_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::ActionResult>* ActionCache::Stub::PrepareAsyncUpdateActionResultRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::UpdateActionResultRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::build::bazel::remote::execution::v2::ActionResult>::Create(channel_.get(), cq, rpcmethod_UpdateActionResult_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::build::bazel::remote::execution::v2::ActionResult, ::build::bazel::remote::execution::v2::UpdateActionResultRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_UpdateActionResult_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::ActionResult>* ActionCache::Stub::AsyncUpdateActionResultRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::UpdateActionResultRequest& request, ::grpc::CompletionQueue* cq) {
@@ -197,7 +197,7 @@ ActionCache::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ActionCache_method_names[0],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< ActionCache::Service, ::build::bazel::remote::execution::v2::GetActionResultRequest, ::build::bazel::remote::execution::v2::ActionResult>(
+      new ::grpc::internal::RpcMethodHandler< ActionCache::Service, ::build::bazel::remote::execution::v2::GetActionResultRequest, ::build::bazel::remote::execution::v2::ActionResult, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](ActionCache::Service* service,
              ::grpc::ServerContext* ctx,
              const ::build::bazel::remote::execution::v2::GetActionResultRequest* req,
@@ -207,7 +207,7 @@ ActionCache::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ActionCache_method_names[1],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< ActionCache::Service, ::build::bazel::remote::execution::v2::UpdateActionResultRequest, ::build::bazel::remote::execution::v2::ActionResult>(
+      new ::grpc::internal::RpcMethodHandler< ActionCache::Service, ::build::bazel::remote::execution::v2::UpdateActionResultRequest, ::build::bazel::remote::execution::v2::ActionResult, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](ActionCache::Service* service,
              ::grpc::ServerContext* ctx,
              const ::build::bazel::remote::execution::v2::UpdateActionResultRequest* req,
@@ -255,19 +255,19 @@ ContentAddressableStorage::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInte
   {}
 
 ::grpc::Status ContentAddressableStorage::Stub::FindMissingBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::FindMissingBlobsRequest& request, ::build::bazel::remote::execution::v2::FindMissingBlobsResponse* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_FindMissingBlobs_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::build::bazel::remote::execution::v2::FindMissingBlobsRequest, ::build::bazel::remote::execution::v2::FindMissingBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_FindMissingBlobs_, context, request, response);
 }
 
 void ContentAddressableStorage::Stub::experimental_async::FindMissingBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::FindMissingBlobsRequest* request, ::build::bazel::remote::execution::v2::FindMissingBlobsResponse* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_FindMissingBlobs_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::build::bazel::remote::execution::v2::FindMissingBlobsRequest, ::build::bazel::remote::execution::v2::FindMissingBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_FindMissingBlobs_, context, request, response, std::move(f));
 }
 
 void ContentAddressableStorage::Stub::experimental_async::FindMissingBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::FindMissingBlobsRequest* request, ::build::bazel::remote::execution::v2::FindMissingBlobsResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_FindMissingBlobs_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_FindMissingBlobs_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::FindMissingBlobsResponse>* ContentAddressableStorage::Stub::PrepareAsyncFindMissingBlobsRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::FindMissingBlobsRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::build::bazel::remote::execution::v2::FindMissingBlobsResponse>::Create(channel_.get(), cq, rpcmethod_FindMissingBlobs_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::build::bazel::remote::execution::v2::FindMissingBlobsResponse, ::build::bazel::remote::execution::v2::FindMissingBlobsRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_FindMissingBlobs_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::FindMissingBlobsResponse>* ContentAddressableStorage::Stub::AsyncFindMissingBlobsRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::FindMissingBlobsRequest& request, ::grpc::CompletionQueue* cq) {
@@ -278,19 +278,19 @@ void ContentAddressableStorage::Stub::experimental_async::FindMissingBlobs(::grp
 }
 
 ::grpc::Status ContentAddressableStorage::Stub::BatchUpdateBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest& request, ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_BatchUpdateBlobs_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest, ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_BatchUpdateBlobs_, context, request, response);
 }
 
 void ContentAddressableStorage::Stub::experimental_async::BatchUpdateBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest* request, ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_BatchUpdateBlobs_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest, ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_BatchUpdateBlobs_, context, request, response, std::move(f));
 }
 
 void ContentAddressableStorage::Stub::experimental_async::BatchUpdateBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest* request, ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_BatchUpdateBlobs_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_BatchUpdateBlobs_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse>* ContentAddressableStorage::Stub::PrepareAsyncBatchUpdateBlobsRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse>::Create(channel_.get(), cq, rpcmethod_BatchUpdateBlobs_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse, ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_BatchUpdateBlobs_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse>* ContentAddressableStorage::Stub::AsyncBatchUpdateBlobsRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest& request, ::grpc::CompletionQueue* cq) {
@@ -301,19 +301,19 @@ void ContentAddressableStorage::Stub::experimental_async::BatchUpdateBlobs(::grp
 }
 
 ::grpc::Status ContentAddressableStorage::Stub::BatchReadBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchReadBlobsRequest& request, ::build::bazel::remote::execution::v2::BatchReadBlobsResponse* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_BatchReadBlobs_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::build::bazel::remote::execution::v2::BatchReadBlobsRequest, ::build::bazel::remote::execution::v2::BatchReadBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_BatchReadBlobs_, context, request, response);
 }
 
 void ContentAddressableStorage::Stub::experimental_async::BatchReadBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchReadBlobsRequest* request, ::build::bazel::remote::execution::v2::BatchReadBlobsResponse* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_BatchReadBlobs_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::build::bazel::remote::execution::v2::BatchReadBlobsRequest, ::build::bazel::remote::execution::v2::BatchReadBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_BatchReadBlobs_, context, request, response, std::move(f));
 }
 
 void ContentAddressableStorage::Stub::experimental_async::BatchReadBlobs(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchReadBlobsRequest* request, ::build::bazel::remote::execution::v2::BatchReadBlobsResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_BatchReadBlobs_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_BatchReadBlobs_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::BatchReadBlobsResponse>* ContentAddressableStorage::Stub::PrepareAsyncBatchReadBlobsRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchReadBlobsRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::build::bazel::remote::execution::v2::BatchReadBlobsResponse>::Create(channel_.get(), cq, rpcmethod_BatchReadBlobs_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::build::bazel::remote::execution::v2::BatchReadBlobsResponse, ::build::bazel::remote::execution::v2::BatchReadBlobsRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_BatchReadBlobs_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::BatchReadBlobsResponse>* ContentAddressableStorage::Stub::AsyncBatchReadBlobsRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::BatchReadBlobsRequest& request, ::grpc::CompletionQueue* cq) {
@@ -327,7 +327,7 @@ void ContentAddressableStorage::Stub::experimental_async::BatchReadBlobs(::grpc:
   return ::grpc::internal::ClientReaderFactory< ::build::bazel::remote::execution::v2::GetTreeResponse>::Create(channel_.get(), rpcmethod_GetTree_, context, request);
 }
 
-void ContentAddressableStorage::Stub::experimental_async::GetTree(::grpc::ClientContext* context, ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::experimental::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) {
+void ContentAddressableStorage::Stub::experimental_async::GetTree(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetTreeRequest* request, ::grpc::experimental::ClientReadReactor< ::build::bazel::remote::execution::v2::GetTreeResponse>* reactor) {
   ::grpc::internal::ClientCallbackReaderFactory< ::build::bazel::remote::execution::v2::GetTreeResponse>::Create(stub_->channel_.get(), stub_->rpcmethod_GetTree_, context, request, reactor);
 }
 
@@ -343,7 +343,7 @@ ContentAddressableStorage::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ContentAddressableStorage_method_names[0],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< ContentAddressableStorage::Service, ::build::bazel::remote::execution::v2::FindMissingBlobsRequest, ::build::bazel::remote::execution::v2::FindMissingBlobsResponse>(
+      new ::grpc::internal::RpcMethodHandler< ContentAddressableStorage::Service, ::build::bazel::remote::execution::v2::FindMissingBlobsRequest, ::build::bazel::remote::execution::v2::FindMissingBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](ContentAddressableStorage::Service* service,
              ::grpc::ServerContext* ctx,
              const ::build::bazel::remote::execution::v2::FindMissingBlobsRequest* req,
@@ -353,7 +353,7 @@ ContentAddressableStorage::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ContentAddressableStorage_method_names[1],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< ContentAddressableStorage::Service, ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest, ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse>(
+      new ::grpc::internal::RpcMethodHandler< ContentAddressableStorage::Service, ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest, ::build::bazel::remote::execution::v2::BatchUpdateBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](ContentAddressableStorage::Service* service,
              ::grpc::ServerContext* ctx,
              const ::build::bazel::remote::execution::v2::BatchUpdateBlobsRequest* req,
@@ -363,7 +363,7 @@ ContentAddressableStorage::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ContentAddressableStorage_method_names[2],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< ContentAddressableStorage::Service, ::build::bazel::remote::execution::v2::BatchReadBlobsRequest, ::build::bazel::remote::execution::v2::BatchReadBlobsResponse>(
+      new ::grpc::internal::RpcMethodHandler< ContentAddressableStorage::Service, ::build::bazel::remote::execution::v2::BatchReadBlobsRequest, ::build::bazel::remote::execution::v2::BatchReadBlobsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](ContentAddressableStorage::Service* service,
              ::grpc::ServerContext* ctx,
              const ::build::bazel::remote::execution::v2::BatchReadBlobsRequest* req,
@@ -429,19 +429,19 @@ Capabilities::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chann
   {}
 
 ::grpc::Status Capabilities::Stub::GetCapabilities(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetCapabilitiesRequest& request, ::build::bazel::remote::execution::v2::ServerCapabilities* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_GetCapabilities_, context, request, response);
+  return ::grpc::internal::BlockingUnaryCall< ::build::bazel::remote::execution::v2::GetCapabilitiesRequest, ::build::bazel::remote::execution::v2::ServerCapabilities, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetCapabilities_, context, request, response);
 }
 
 void Capabilities::Stub::experimental_async::GetCapabilities(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetCapabilitiesRequest* request, ::build::bazel::remote::execution::v2::ServerCapabilities* response, std::function<void(::grpc::Status)> f) {
-  ::grpc::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_GetCapabilities_, context, request, response, std::move(f));
+  ::grpc::internal::CallbackUnaryCall< ::build::bazel::remote::execution::v2::GetCapabilitiesRequest, ::build::bazel::remote::execution::v2::ServerCapabilities, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetCapabilities_, context, request, response, std::move(f));
 }
 
 void Capabilities::Stub::experimental_async::GetCapabilities(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetCapabilitiesRequest* request, ::build::bazel::remote::execution::v2::ServerCapabilities* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_GetCapabilities_, context, request, response, reactor);
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetCapabilities_, context, request, response, reactor);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::ServerCapabilities>* Capabilities::Stub::PrepareAsyncGetCapabilitiesRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetCapabilitiesRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc::internal::ClientAsyncResponseReaderFactory< ::build::bazel::remote::execution::v2::ServerCapabilities>::Create(channel_.get(), cq, rpcmethod_GetCapabilities_, context, request, false);
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::build::bazel::remote::execution::v2::ServerCapabilities, ::build::bazel::remote::execution::v2::GetCapabilitiesRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetCapabilities_, context, request);
 }
 
 ::grpc::ClientAsyncResponseReader< ::build::bazel::remote::execution::v2::ServerCapabilities>* Capabilities::Stub::AsyncGetCapabilitiesRaw(::grpc::ClientContext* context, const ::build::bazel::remote::execution::v2::GetCapabilitiesRequest& request, ::grpc::CompletionQueue* cq) {
@@ -455,7 +455,7 @@ Capabilities::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       Capabilities_method_names[0],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< Capabilities::Service, ::build::bazel::remote::execution::v2::GetCapabilitiesRequest, ::build::bazel::remote::execution::v2::ServerCapabilities>(
+      new ::grpc::internal::RpcMethodHandler< Capabilities::Service, ::build::bazel::remote::execution::v2::GetCapabilitiesRequest, ::build::bazel::remote::execution::v2::ServerCapabilities, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](Capabilities::Service* service,
              ::grpc::ServerContext* ctx,
              const ::build::bazel::remote::execution::v2::GetCapabilitiesRequest* req,

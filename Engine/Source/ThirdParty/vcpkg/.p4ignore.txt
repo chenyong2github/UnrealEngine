@@ -2,9 +2,18 @@
 vcpkg/
 vcpkg-*/
 
-# Ignore vcpkg_installed (combined libs & headers for all packages) except for the metadata
+# Ignore Win64 packages except custom triplet cross-compiled folders
+Win64/x64-windows-static-*/*/
+!Win64/x64-windows-static-*/*_x64-windows-static-*/
+
+# Ignore Linux packages except custom triplet cross-compiled folders
+Linux/x86_64-unknown-linux-gnu/*/
+!Linux/x86_64-unknown-linux-gnu/*_x86_64-unknown-linux-gnu/
+LinuxAArch64/aarch64-unknown-linux-gnueabi/*/
+!LinuxAArch64/aarch64-unknown-linux-gnueabi/*_aarch64-unknown-linux-gnueabi/
+
+# Ignore vcpkg_installed (combined libs & headers for all packages)
 **/vcpkg_installed/
-!**/vcpkg_installed/vcpkg/
 
 # Ignore OpenSSL and Zlib until vcpkg is also used to build them
 **/openssl_*/

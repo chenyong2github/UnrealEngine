@@ -31,30 +31,29 @@ UE_PUSH_MACRO("TEXT")
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
+
+PROTOBUF_PRAGMA_INIT_SEG
 namespace build {
 namespace bazel {
 namespace semver {
-class SemVerDefaultTypeInternal {
- public:
-  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<SemVer> _instance;
-} _SemVer_default_instance_;
+constexpr SemVer::SemVer(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : prerelease_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , major_(0)
+  , minor_(0)
+  , patch_(0){}
+struct SemVerDefaultTypeInternal {
+  constexpr SemVerDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~SemVerDefaultTypeInternal() {}
+  union {
+    SemVer _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT SemVerDefaultTypeInternal _SemVer_default_instance_;
 }  // namespace semver
 }  // namespace bazel
 }  // namespace build
-static void InitDefaultsscc_info_SemVer_build_2fbazel_2fsemver_2fsemver_2eproto() {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  {
-    void* ptr = &::build::bazel::semver::_SemVer_default_instance_;
-    new (ptr) ::build::bazel::semver::SemVer();
-    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
-  }
-  ::build::bazel::semver::SemVer::InitAsDefaultInstance();
-}
-
-::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_SemVer_build_2fbazel_2fsemver_2fsemver_2eproto =
-    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, 0, InitDefaultsscc_info_SemVer_build_2fbazel_2fsemver_2fsemver_2eproto}, {}};
-
 static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_build_2fbazel_2fsemver_2fsemver_2eproto[1];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_build_2fbazel_2fsemver_2fsemver_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_build_2fbazel_2fsemver_2fsemver_2eproto = nullptr;
@@ -86,29 +85,27 @@ const char descriptor_table_protodef_build_2fbazel_2fsemver_2fsemver_2eproto[] P
   "otoP\001Z\006semver\242\002\003SMV\252\002\022Build.Bazel.Semver"
   "b\006proto3"
   ;
-static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto_deps[1] = {
-};
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto_sccs[1] = {
-  &scc_info_SemVer_build_2fbazel_2fsemver_2fsemver_2eproto.base,
-};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto = {
-  false, false, descriptor_table_protodef_build_2fbazel_2fsemver_2fsemver_2eproto, "build/bazel/semver/semver.proto", 208,
-  &descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto_once, descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto_sccs, descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto_deps, 1, 0,
+  false, false, 208, descriptor_table_protodef_build_2fbazel_2fsemver_2fsemver_2eproto, "build/bazel/semver/semver.proto", 
+  &descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto_once, nullptr, 0, 1,
   schemas, file_default_instances, TableStruct_build_2fbazel_2fsemver_2fsemver_2eproto::offsets,
-  file_level_metadata_build_2fbazel_2fsemver_2fsemver_2eproto, 1, file_level_enum_descriptors_build_2fbazel_2fsemver_2fsemver_2eproto, file_level_service_descriptors_build_2fbazel_2fsemver_2fsemver_2eproto,
+  file_level_metadata_build_2fbazel_2fsemver_2fsemver_2eproto, file_level_enum_descriptors_build_2fbazel_2fsemver_2fsemver_2eproto, file_level_service_descriptors_build_2fbazel_2fsemver_2fsemver_2eproto,
 };
+PROTOBUF_ATTRIBUTE_WEAK ::PROTOBUF_NAMESPACE_ID::Metadata
+descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto_metadata_getter(int index) {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto);
+  return descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto.file_level_metadata[index];
+}
 
 // Force running AddDescriptors() at dynamic initialization time.
-static bool dynamic_init_dummy_build_2fbazel_2fsemver_2fsemver_2eproto = (static_cast<void>(::PROTOBUF_NAMESPACE_ID::internal::AddDescriptors(&descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto)), true);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_build_2fbazel_2fsemver_2fsemver_2eproto(&descriptor_table_build_2fbazel_2fsemver_2fsemver_2eproto);
 namespace build {
 namespace bazel {
 namespace semver {
 
 // ===================================================================
 
-void SemVer::InitAsDefaultInstance() {
-}
 class SemVer::_Internal {
  public:
 };
@@ -124,7 +121,7 @@ SemVer::SemVer(const SemVer& from)
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   prerelease_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_prerelease().empty()) {
-    prerelease_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from._internal_prerelease(),
+    prerelease_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_prerelease(), 
       GetArena());
   }
   ::memcpy(&major_, &from.major_,
@@ -134,11 +131,11 @@ SemVer::SemVer(const SemVer& from)
 }
 
 void SemVer::SharedCtor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_SemVer_build_2fbazel_2fsemver_2fsemver_2eproto.base);
-  prerelease_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  ::memset(&major_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&patch_) -
-      reinterpret_cast<char*>(&major_)) + sizeof(patch_));
+prerelease_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&major_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&patch_) -
+    reinterpret_cast<char*>(&major_)) + sizeof(patch_));
 }
 
 SemVer::~SemVer() {
@@ -161,11 +158,6 @@ void SemVer::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
 void SemVer::SetCachedSize(int size) const {
   _cached_size_.Set(size);
 }
-const SemVer& SemVer::default_instance() {
-  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_SemVer_build_2fbazel_2fsemver_2fsemver_2eproto.base);
-  return *internal_default_instance();
-}
-
 
 void SemVer::Clear() {
 // @@protoc_insertion_point(message_clear_start:build.bazel.semver.SemVer)
@@ -173,7 +165,7 @@ void SemVer::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  prerelease_.ClearToEmpty(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArena());
+  prerelease_.ClearToEmpty();
   ::memset(&major_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&patch_) -
       reinterpret_cast<char*>(&major_)) + sizeof(patch_));
@@ -182,7 +174,6 @@ void SemVer::Clear() {
 
 const char* SemVer::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  ::PROTOBUF_NAMESPACE_ID::Arena* arena = GetArena(); (void)arena;
   while (!ctx->Done(&ptr)) {
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);

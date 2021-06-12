@@ -7,20 +7,18 @@ using System.Collections.Generic;
 // TODO: Split apart dependency libs into separate External modules (double check dependencies)
 // grpc -> abseil, c-ares, protobuf, openssl, re2, ubp, zlib
 // make base ModuleRules class for vcpkg
-// Build with GOOGLE_PROTOBUF_NO_RTTI? https://github.com/protocolbuffers/protobuf/issues/5541
-// Linux and MacOS support
+// MacOS support
 public class Grpc : ModuleRules
 {
 	string GetVcPackageRoot(ReadOnlyTargetRules Target, string PackageName)
 	{
-		string TargetPlatform = null;
+		string TargetPlatform = Target.Platform.ToString();
 		string Platform = null;
 		string Architecture = null;
 		string Linkage = string.Empty;
 		string Toolset = string.Empty;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			TargetPlatform = "Win64";
 			Platform = "windows";
 			Architecture = Target.WindowsPlatform.Architecture.ToString().ToLowerInvariant();
 			if (Target.bUseStaticCRT)
@@ -35,13 +33,18 @@ public class Grpc : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			Platform = "linux";
-			Architecture = "x64";
+			Architecture = "x86_64";
+			Platform = "unknown-linux-gnu";
+		}
+		else if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+		{
+			Architecture = "aarch64";
+			Platform = "unknown-linux-gnueabi";
 		}
 
 		if (string.IsNullOrEmpty(TargetPlatform) || string.IsNullOrEmpty(Platform) || string.IsNullOrEmpty(Architecture))
 		{
-			throw new System.NotSupportedException($"Platform {Target.Platform.ToString()} not currently supported by vcpkg");
+			throw new System.NotSupportedException($"Platform {Target.Platform} not currently supported by vcpkg");
 		}
 
 		string Triplet = $"{Architecture}-{Platform}{Linkage}{Toolset}";
@@ -63,7 +66,7 @@ public class Grpc : ModuleRules
 		{
 			LibraryExtension = ".lib";
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			LibraryExtension = ".a";
 		}
@@ -71,7 +74,7 @@ public class Grpc : ModuleRules
 		foreach (string Library in Libraries)
 		{
 			string LibraryPath = Path.Combine(VcPackageRoot, "lib", $"{Library}{LibraryExtension}");
-			if (Target.Platform == UnrealTargetPlatform.Linux && !Library.StartsWith("lib"))
+			if ((Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64) && !Library.StartsWith("lib"))
 			{
 				LibraryPath = Path.Combine(VcPackageRoot, "lib", $"lib{Library}{LibraryExtension}");
 			}
@@ -109,7 +112,7 @@ public class Grpc : ModuleRules
 		PublicDependencyModuleNames.Add("Protobuf");
 
 		// abseil
-		AddVcPackage(Target, "abseil", false,
+		AddVcPackage(Target, "abseil", true,
 			"absl_bad_any_cast_impl",
 			"absl_bad_optional_access",
 			"absl_bad_variant_access",
@@ -119,17 +122,19 @@ public class Grpc : ModuleRules
 			"absl_cord",
 			"absl_debugging_internal",
 			"absl_demangle_internal",
-			"absl_dynamic_annotations",
 			"absl_examine_stack",
 			"absl_exponential_biased",
 			"absl_failure_signal_handler",
 			"absl_flags",
+			"absl_flags_commandlineflag",
+			"absl_flags_commandlineflag_internal",
 			"absl_flags_config",
 			"absl_flags_internal",
 			"absl_flags_marshalling",
 			"absl_flags_parse",
+			"absl_flags_private_handle_accessor",
 			"absl_flags_program_name",
-			"absl_flags_registry",
+			"absl_flags_reflection",
 			"absl_flags_usage",
 			"absl_flags_usage_internal",
 			"absl_graphcycles_internal",
@@ -143,6 +148,7 @@ public class Grpc : ModuleRules
 			"absl_periodic_sampler",
 			"absl_random_distributions",
 			"absl_random_internal_distribution_test_util",
+			"absl_random_internal_platform",
 			"absl_random_internal_pool_urbg",
 			"absl_random_internal_randen",
 			"absl_random_internal_randen_hwaes",
@@ -157,6 +163,8 @@ public class Grpc : ModuleRules
 			"absl_spinlock_wait",
 			"absl_stacktrace",
 			"absl_status",
+			"absl_statusor",
+			"absl_strerror",
 			"absl_strings",
 			"absl_strings_internal",
 			"absl_str_format_internal",
@@ -164,17 +172,22 @@ public class Grpc : ModuleRules
 			"absl_synchronization",
 			"absl_throw_delegate",
 			"absl_time",
-			"absl_time_zone"
+			"absl_time_zone",
+			"absl_wyhash"
 		);
 
 		// grpc
 		AddVcPackage(Target, "grpc", true,
 			"address_sorting",
 			"gpr",
-			"grpc",
-			"grpc_unsecure",
 			"grpc++",
-			"grpc++_unsecure"
+			"grpc++_alts",
+			"grpc++_error_details",
+			"grpc++_unsecure",
+			"grpc",
+			"grpc_plugin_support",
+			"grpc_unsecure",
+			"grpc_upbdefs"
 		);
 
 		// c-ares
@@ -185,12 +198,13 @@ public class Grpc : ModuleRules
 
 		// upb (micro-pb)
 		AddVcPackage(Target, "upb", false,
-			"handlers",
-			"port",
-			"reflection",
 			"upb",
+			"upb_fastdecode",
+			"upb_handlers",
 			"upb_json",
-			"upb_pb"
+			"upb_pb",
+			"upb_reflection",
+			"upb_textformat"
 		);
 	}
 }
