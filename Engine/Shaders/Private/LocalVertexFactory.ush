@@ -178,7 +178,9 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
 
+#if GPUSKIN_PASS_THROUGH || MANUAL_VERTEX_FETCH
 	Input.VertexId = Tri.Indices[VertexIndex];
+#endif
 	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
 	#if VF_USE_PRIMITIVE_SCENE_DATA
 		Input.PrimitiveId = GetInstanceUserData();
@@ -209,11 +211,13 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 			Input.PrimitiveId = PrimitiveId;
 		#endif
 	#else
-		Input.VertexId = TriangleIndex * 3 + VertexIndex;
-		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId * 3;
-		Input.Position.x = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 0];
-		Input.Position.y = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 1];
-		Input.Position.z = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 2];
+#		if MANUAL_VERTEX_FETCH
+			Input.VertexId = TriangleIndex * 3 + VertexIndex;
+			uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId * 3;
+			Input.Position.x = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 0];
+			Input.Position.y = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 1];
+			Input.Position.z = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 2];
+		#endif
 		#if VF_USE_PRIMITIVE_SCENE_DATA
 			Input.PrimitiveId = PrimitiveId;
 		#endif

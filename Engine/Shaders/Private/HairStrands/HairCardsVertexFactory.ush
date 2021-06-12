@@ -61,7 +61,9 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
 
 	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+#if MANUAL_VERTEX_FETCH
 	Input.VertexId = Tri.Indices[VertexIndex];
+#endif
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	Input.PrimitiveId = GetInstanceUserData();
 #endif
