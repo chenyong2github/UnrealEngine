@@ -175,7 +175,7 @@ void UEditPivotTool::Precompute()
 	{
 		Transform = UE::Geometry::FTransform3d(TargetComponentInterface(0)->GetWorldTransform());
 
-		FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
+		const FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 		VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
 			ObjectBounds.Contain((FVector3d)Position);
 			WorldBounds.Contain(Transform.TransformPosition((FVector3d)Position));
@@ -189,7 +189,7 @@ void UEditPivotTool::Precompute()
 			IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(k);
 			IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(k);
 			UE::Geometry::FTransform3d CurTransform(TargetComponent->GetWorldTransform());
-			FMeshDescription* Mesh = TargetMeshProvider->GetMeshDescription();
+			const FMeshDescription* Mesh = TargetMeshProvider->GetMeshDescription();
 			VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
 				ObjectBounds.Contain(CurTransform.TransformPosition((FVector3d)Position));
 				WorldBounds.Contain(CurTransform.TransformPosition((FVector3d)Position));

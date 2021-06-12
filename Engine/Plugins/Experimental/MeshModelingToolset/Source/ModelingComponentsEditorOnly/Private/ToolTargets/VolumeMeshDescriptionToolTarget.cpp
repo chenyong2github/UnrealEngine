@@ -18,7 +18,7 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-FMeshDescription* UVolumeMeshDescriptionToolTarget::GetMeshDescription()
+const FMeshDescription* UVolumeMeshDescriptionToolTarget::GetMeshDescription()
 {
 	if (!ConvertedMeshDescription.IsValid())
 	{

@@ -16,7 +16,7 @@ class PROCEDURALMESHCOMPONENT_API UProceduralMeshComponentToolTarget : public UP
 	GENERATED_BODY()
 
 public:
-	virtual FMeshDescription* GetMeshDescription() override;
+	virtual const FMeshDescription* GetMeshDescription() override;
 	virtual void CommitMeshDescription(const FCommitter&) override;
 private:
 	TSharedPtr<FMeshDescription> MeshDescription;

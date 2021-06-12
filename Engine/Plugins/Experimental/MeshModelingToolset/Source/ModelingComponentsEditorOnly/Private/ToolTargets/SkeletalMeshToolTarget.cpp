@@ -97,7 +97,7 @@ bool USkeletalMeshToolTarget::CommitMaterialSetUpdate(USkeletalMesh* SkeletalMes
 	return true;
 }
 
-FMeshDescription* USkeletalMeshToolTarget::GetMeshDescription()
+const FMeshDescription* USkeletalMeshToolTarget::GetMeshDescription()
 {
 	if (!ensure(IsValid()))
 	{
@@ -140,7 +140,13 @@ void USkeletalMeshToolTarget::GetMeshDescription(const USkeletalMesh* SkeletalMe
 void USkeletalMeshToolTarget::CommitMeshDescription(const FCommitter& Committer)
 {
 	if (ensure(IsValid()) == false) return;
-	CommitMeshDescription(SkeletalMesh, GetMeshDescription(), Committer);
+
+	if (!CachedMeshDescription.IsValid())
+	{
+		CachedMeshDescription = MakeUnique<FMeshDescription>();
+		GetMeshDescription(SkeletalMesh, *CachedMeshDescription);
+	}
+	CommitMeshDescription(SkeletalMesh, CachedMeshDescription.Get(), Committer);
 }
 
 void USkeletalMeshToolTarget::CommitMeshDescription(USkeletalMesh* SkeletalMeshIn,

@@ -124,7 +124,7 @@ bool UStaticMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMat
 }
 
 
-FMeshDescription* UStaticMeshComponentToolTarget::GetMeshDescription()
+const FMeshDescription* UStaticMeshComponentToolTarget::GetMeshDescription()
 {
 	if (ensure(IsValid()))
 	{
@@ -159,11 +159,13 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 	if (ensure(IsValid()) == false) return;
 
 	UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
+	FMeshDescription* UpdateMeshDescription = (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
+		StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
 
 	// unregister the component while we update its static mesh
 	FComponentReregisterContext ComponentReregisterContext(Component);
 
-	UStaticMeshToolTarget::CommitMeshDescription(StaticMesh, GetMeshDescription(), Committer, EditingLOD);
+	UStaticMeshToolTarget::CommitMeshDescription(StaticMesh, UpdateMeshDescription, Committer, EditingLOD);
 
 	// this rebuilds physics, but it doesn't undo!
 	Component->RecreatePhysicsState();

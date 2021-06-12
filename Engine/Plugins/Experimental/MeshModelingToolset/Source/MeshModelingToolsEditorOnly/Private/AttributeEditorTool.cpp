@@ -153,7 +153,7 @@ void UAttributeEditorTool::Setup()
 
 
 template<typename AttribSetType>
-void ExtractAttribList(FMeshDescription* Mesh, AttribSetType& AttribSet, EAttributeEditorElementType ElemType, TArray<FAttributeEditorAttribInfo>& AttribList, TArray<FString>& StringList)
+void ExtractAttribList(const FMeshDescription* Mesh, AttribSetType& AttribSet, EAttributeEditorElementType ElemType, TArray<FAttributeEditorAttribInfo>& AttribList, TArray<FString>& StringList)
 {
 	AttribList.Reset();
 	StringList.Reset();
@@ -209,6 +209,26 @@ void ExtractAttribList(FMeshDescription* Mesh, AttribSetType& AttribSet, EAttrib
 
 
 
+static const FAttributesSetBase* GetAttributeSetByType(const FMeshDescription* Mesh, EAttributeEditorElementType ElemType)
+{
+	switch (ElemType)
+	{
+	case EAttributeEditorElementType::Vertex:
+		return &Mesh->VertexAttributes();
+	case EAttributeEditorElementType::VertexInstance:
+		return &Mesh->VertexInstanceAttributes();
+	case EAttributeEditorElementType::Triangle:
+		return &Mesh->TriangleAttributes();
+	case EAttributeEditorElementType::Polygon:
+		return &Mesh->PolygonAttributes();
+	case EAttributeEditorElementType::Edge:
+		return &Mesh->EdgeAttributes();
+	case EAttributeEditorElementType::PolygonGroup:
+		return &Mesh->PolygonGroupAttributes();
+	}
+	check(false);
+	return nullptr;
+}
 static FAttributesSetBase* GetAttributeSetByType(FMeshDescription* Mesh, EAttributeEditorElementType ElemType)
 {
 	switch (ElemType)
@@ -230,9 +250,10 @@ static FAttributesSetBase* GetAttributeSetByType(FMeshDescription* Mesh, EAttrib
 	return nullptr;
 }
 
-static bool HasAttribute(FMeshDescription* Mesh, EAttributeEditorElementType ElemType, FName AttributeName)
+
+static bool HasAttribute(const FMeshDescription* Mesh, EAttributeEditorElementType ElemType, FName AttributeName)
 {
-	FAttributesSetBase* AttribSetBase = GetAttributeSetByType(Mesh, ElemType);
+	const FAttributesSetBase* AttribSetBase = GetAttributeSetByType(Mesh, ElemType);
 	return (AttribSetBase) ? AttribSetBase->HasAttribute(AttributeName) : false;
 }
 
@@ -283,10 +304,9 @@ static bool RemoveAttribute(FMeshDescription* Mesh, EAttributeEditorElementType 
 
 void UAttributeEditorTool::InitializeAttributeLists()
 {
-	FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
+	const FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 
-
-	TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
+	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs =
 		Mesh->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
 	UVActions->UVLayerNamesList.Reset();
@@ -662,7 +682,7 @@ void UAttributeEditorTool::AddNewAttribute(EAttributeEditorElementType ElemType,
 		return;
 	}
 
-	FMeshDescription* CurMesh = TargetMeshProviderInterface(0)->GetMeshDescription();
+	const FMeshDescription* CurMesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 	if (HasAttribute(CurMesh, ElemType, AttributeName))
 	{
 		GetToolManager()->DisplayMessage(LOCTEXT("ErrorAddingDuplicateNameMessage", "Attribute with this name already exists"), EToolMessageLevel::UserWarning);
@@ -715,7 +735,7 @@ void UAttributeEditorTool::ClearAttribute()
 
 void UAttributeEditorTool::DeleteAttribute()
 {
-	FMeshDescription* CurMesh = TargetMeshProviderInterface(0)->GetMeshDescription();
+	const FMeshDescription* CurMesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 	FName SelectedName(ModifyAttributeProps->Attribute);
 
 	// We check on the skeletal mesh attributes because it is a superset of the static mesh
@@ -791,7 +811,7 @@ void UAttributeEditorTool::ResetLightmapUVsChannels()
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("ResetLightmapUVs", "Reset Lightmap UVs"));
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TVertexInstanceAttributesRef<FVector2D> InstanceUVs = 
+		TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = 
 			TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription()->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		int32 SetChannel = FMath::Max(InstanceUVs.GetNumChannels(), 1);
 
