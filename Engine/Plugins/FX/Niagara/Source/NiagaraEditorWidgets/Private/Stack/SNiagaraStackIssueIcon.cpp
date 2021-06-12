@@ -56,7 +56,7 @@ void SNiagaraStackIssueIcon::Construct(const FArguments& InArgs, UNiagaraStackVi
 	[
 		IconWidget
 	];
-	UpdateFromEntry();
+	UpdateFromEntry(ENiagaraStructureChangedFlags::StructureChanged);
 }
 
 SNiagaraStackIssueIcon::~SNiagaraStackIssueIcon()
@@ -218,7 +218,7 @@ FText SNiagaraStackIssueIcon::GetIconToolTip() const
 	return IconToolTipCache.GetValue();
 }
 
-void SNiagaraStackIssueIcon::UpdateFromEntry()
+void SNiagaraStackIssueIcon::UpdateFromEntry(ENiagaraStructureChangedFlags Flags)
 {
 	if (StackEntry.IsValid() == false || StackEntry->IsFinalized() || StackEntry->HasIssuesOrAnyChildHasIssues() == false)
 	{

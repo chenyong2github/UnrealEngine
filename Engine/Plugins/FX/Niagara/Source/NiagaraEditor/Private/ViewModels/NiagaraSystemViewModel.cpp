@@ -2315,9 +2315,9 @@ void FNiagaraSystemViewModel::SystemChanged(UNiagaraSystem* ChangedSystem)
 	}
 }
 
-void FNiagaraSystemViewModel::StackViewModelStructureChanged()
+void FNiagaraSystemViewModel::StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags)
 {
-	if (SelectionViewModel != nullptr)
+	if ((Flags & StructureChanged) != 0 && SelectionViewModel != nullptr)
 	{
 		SelectionViewModel->RefreshDeferred();
 	}

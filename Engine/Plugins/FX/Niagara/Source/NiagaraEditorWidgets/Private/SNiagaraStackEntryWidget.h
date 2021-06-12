@@ -56,7 +56,7 @@ private:
 
 	FText GetTopLevelDisplayName(TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModelWeak) const;
 
-	void StackViewModelStructureChanged();
+	void StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags);
 
 	void StackEntryItemAlternateNameChanged();
 

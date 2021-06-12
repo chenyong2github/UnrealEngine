@@ -260,6 +260,7 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 {
 	StackViewModel = InStackViewModel;
 	StackViewModel->OnStructureChanged().AddSP(this, &SNiagaraStack::StackStructureChanged);
+	StackViewModel->OnExpansionChanged().AddSP(this, &SNiagaraStack::OnStackExpansionChanged);
 	StackViewModel->OnSearchCompleted().AddSP(this, &SNiagaraStack::OnStackSearchComplete); 
 	NameColumnWidth = .3f;
 	ContentColumnWidth = .7f;
@@ -453,25 +454,13 @@ FReply SNiagaraStack::ScrollToPreviousMatch()
 	TArray<UNiagaraStackViewModel::FSearchResult> CurrentSearchResults = StackViewModel->GetCurrentSearchResults();
 	if (CurrentSearchResults.Num() != 0)
 	{
-		if (PreviousMatchIndex > 0)
+		if (PreviousMatchIndex >= 0)
 		{
-			for (auto SearchResultEntry : CurrentSearchResults[PreviousMatchIndex].EntryPath)
-			{
-				if (!SearchResultEntry->IsA<UNiagaraStackRoot>())
-				{
-					SearchResultEntry->SetIsExpanded(true);
-				}
-			}
+			ExpandAllInPath(CurrentSearchResults[PreviousMatchIndex].EntryPath);
 		}
 		else
 		{
-			for (auto SearchResultEntry : CurrentSearchResults.Last().EntryPath)
-			{
-				if (!SearchResultEntry->IsA<UNiagaraStackRoot>())
-				{
-					SearchResultEntry->SetIsExpanded(true);
-				}
-			}
+			ExpandAllInPath(CurrentSearchResults.Last().EntryPath);
 		}
 	}
 
@@ -548,7 +537,6 @@ void CollapseEntriesRecursive(TArray<UNiagaraStackEntry*> Entries)
 void SNiagaraStack::CollapseAll()
 {
 	CollapseEntriesRecursive(StackViewModel->GetRootEntryAsArray());
-	StackViewModel->NotifyStructureChanged();
 }
 
 TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
@@ -635,14 +623,10 @@ void SNiagaraStack::ExpandSearchResults()
 {
 	for (auto SearchResult : StackViewModel->GetCurrentSearchResults())
 	{
-		for (UNiagaraStackEntry* ParentalUnit : SearchResult.EntryPath)
-		{
-			if (!ParentalUnit->IsA<UNiagaraStackRoot>()) // should not alter expansion state of root entries
-			{
-				ParentalUnit->SetIsExpanded(true);
-			}
-		}
+		ExpandAllInPath(SearchResult.EntryPath);
 	}
+
+	bSynchronizeExpansionPending = true;
 }
 
 void SNiagaraStack::OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
@@ -1097,7 +1081,12 @@ void SNiagaraStack::OnContentColumnWidthChanged(float Width)
 	ContentColumnWidth = Width;
 }
 
-void SNiagaraStack::StackStructureChanged()
+void SNiagaraStack::OnStackExpansionChanged()
+{
+	bSynchronizeExpansionPending = true;
+}
+
+void SNiagaraStack::StackStructureChanged(ENiagaraStructureChangedFlags Flags)
 {
 	bSynchronizeExpansionPending = true;
 	StackTree->RequestTreeRefresh();

@@ -101,6 +101,7 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 		StackRoot->Initialize(RequiredEntryData, Options.GetIncludeSystemInformation(), Options.GetIncludeEmitterInformation());
 		StackRoot->RefreshChildren();
 		StackRoot->OnStructureChanged().AddUObject(this, &UNiagaraStackViewModel::EntryStructureChanged);
+		StackRoot->OnExpansionChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionChanged);
 		StackRoot->OnDataObjectModified().AddUObject(this, &UNiagaraStackViewModel::EntryDataObjectModified);
 		StackRoot->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
 		StackRoot->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
@@ -110,7 +111,7 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 		bExternalRootEntry = false;
 	}
 
-	StructureChangedDelegate.Broadcast();
+	StructureChangedDelegate.Broadcast(ENiagaraStructureChangedFlags::StructureChanged);
 }
 
 void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootEntry)
@@ -120,19 +121,21 @@ void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootE
 
 	RootEntry = InRootEntry;
 	RootEntry->OnStructureChanged().AddUObject(this, &UNiagaraStackViewModel::EntryStructureChanged);
+	RootEntry->OnExpansionChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionChanged);
 	RootEntry->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
 	RootEntry->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
 	RootEntries.Add(RootEntry);
 
 	bExternalRootEntry = true;
 
-	StructureChangedDelegate.Broadcast();
+	StructureChangedDelegate.Broadcast(ENiagaraStructureChangedFlags::StructureChanged);
 }
 
 void UNiagaraStackViewModel::Reset()
 {
 	if (RootEntry != nullptr)
 	{
+		RootEntry->OnExpansionChanged().RemoveAll(this);
 		RootEntry->OnStructureChanged().RemoveAll(this);
 		RootEntry->OnDataObjectModified().RemoveAll(this);
 		RootEntry->OnRequestFullRefresh().RemoveAll(this);
@@ -244,7 +247,6 @@ void UNiagaraStackViewModel::AddSearchScrollOffset(int NumberOfSteps)
 void UNiagaraStackViewModel::CollapseToHeaders()
 {
 	CollapseToHeadersRecursive(GetRootEntryAsArray());
-	NotifyStructureChanged();
 }
 
 void UNiagaraStackViewModel::UndismissAllIssues()
@@ -482,6 +484,11 @@ TArray<UNiagaraStackEntry*>& UNiagaraStackViewModel::GetRootEntryAsArray()
 	return RootEntries;
 }
 
+UNiagaraStackViewModel::FOnExpansionChanged& UNiagaraStackViewModel::OnExpansionChanged()
+{
+	return ExpansionChangedDelegate;
+}
+
 UNiagaraStackViewModel::FOnStructureChanged& UNiagaraStackViewModel::OnStructureChanged()
 {
 	return StructureChangedDelegate;
@@ -622,20 +629,25 @@ void UNiagaraStackViewModel::SetLastScrollPosition(double InLastScrollPosition)
 	}
 }
 
-void UNiagaraStackViewModel::NotifyStructureChanged()
+void UNiagaraStackViewModel::EntryExpansionChanged()
 {
-	EntryStructureChanged();
+	ExpansionChangedDelegate.Broadcast();
 }
 
-void UNiagaraStackViewModel::EntryStructureChanged()
+void UNiagaraStackViewModel::EntryStructureChanged(ENiagaraStructureChangedFlags Flags)
 {
 	if (bUsesTopLevelViewModels)
 	{
 		RefreshTopLevelViewModels();
 	}
 	RefreshHasIssues();
-	StructureChangedDelegate.Broadcast();
-	InvalidateSearchResults();
+	StructureChangedDelegate.Broadcast(Flags);
+
+	// if the structure changed, additionally invalidate search results
+	if((Flags & StructureChanged) != 0)
+	{
+		InvalidateSearchResults();
+	}
 }
 
 void UNiagaraStackViewModel::EntryDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)

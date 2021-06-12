@@ -141,6 +141,16 @@ private:
 	const TSharedPtr<INiagaraScriptGraphFocusInfo> ScriptGraphFocusInfo;
 };
 
+/** Defines different flags to use in conjunction with OnStructureChanged delegates for stack entries and related classes. */
+enum ENiagaraStructureChangedFlags
+{
+	/** The actual stack structure changed - used to invalidate or refresh previous state, like search results */
+	StructureChanged = 1 << 0,
+	/** Only filtering changed; we don't need to invalidate or refresh as much state */
+	FilteringChanged = 1 << 1
+	// add more flags here if needed
+};
+
 /** Defines different types of changes to data objects within a niagara system. */
 enum class ENiagaraDataObjectChange
 {

@@ -91,7 +91,8 @@ public:
 		const FText DropMessage;
 	};
 
-	DECLARE_MULTICAST_DELEGATE(FOnStructureChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnExpansionChanged);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnStructureChanged, ENiagaraStructureChangedFlags);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataObjectModified, TArray<UObject*>, ENiagaraDataObjectChange);
 	DECLARE_MULTICAST_DELEGATE(FOnRequestFullRefresh);
 	DECLARE_MULTICAST_DELEGATE(FOnRequestFullRefreshDeferred);
@@ -303,6 +304,8 @@ public:
 		}
 	}
 
+	FOnExpansionChanged& OnExpansionChanged();
+
 	FOnStructureChanged& OnStructureChanged();
 
 	FOnDataObjectModified& OnDataObjectModified();
@@ -446,7 +449,9 @@ protected:
 	virtual void FinalizeInternal();
 
 private:
-	void ChildStructureChanged();
+	void ChildStructureChanged(ENiagaraStructureChangedFlags Info);
+
+	void ChildExpansionChanged();
 	
 	void ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 
@@ -493,6 +498,8 @@ private:
 
 	FString StackEditorDataKey;
 
+	FOnExpansionChanged ExpansionChangedDelegate;
+	
 	FOnStructureChanged StructureChangedDelegate;
 
 	FOnDataObjectModified DataObjectModifiedDelegate;

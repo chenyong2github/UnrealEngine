@@ -365,7 +365,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 
 }
 
-void SNiagaraOverviewStackNode::StackViewModelStructureChanged()
+void SNiagaraOverviewStackNode::StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags)
 {
 	bThumbnailBarRefreshPending = true;
 }

@@ -139,7 +139,7 @@ void UNiagaraStackItem::ToggleShowAdvanced()
 {
 	bool bCurrentShowAdvanced = GetStackEditorData().GetStackItemShowAdvanced(GetStackEditorDataKey(), false);
 	GetStackEditorData().SetStackItemShowAdvanced(GetStackEditorDataKey(), !bCurrentShowAdvanced);
-	OnStructureChanged().Broadcast();
+	OnStructureChanged().Broadcast(FilteringChanged);
 }
 
 void UNiagaraStackItemContent::Initialize(FRequiredEntryData InRequiredEntryData, FString InOwningStackItemEditorDataKey, FString InStackEditorDataKey)
@@ -174,7 +174,7 @@ void UNiagaraStackItemContent::SetIsHidden(bool bInIsHidden)
 	{
 		// When changing is hidden, invalidate the structure so that the filters run again.
 		bIsHidden = bInIsHidden;
-		OnStructureChanged().Broadcast();
+		OnStructureChanged().Broadcast(ENiagaraStructureChangedFlags::FilteringChanged);
 	}
 }
 
@@ -194,7 +194,7 @@ void UNiagaraStackItemContent::SetIsAdvanced(bool bInIsAdvanced)
 	{
 		// When changing advanced, invalidate the structure so that the filters run again.
 		bIsAdvanced = bInIsAdvanced;
-		OnStructureChanged().Broadcast();
+		OnStructureChanged().Broadcast(ENiagaraStructureChangedFlags::FilteringChanged);
 	}
 }
 

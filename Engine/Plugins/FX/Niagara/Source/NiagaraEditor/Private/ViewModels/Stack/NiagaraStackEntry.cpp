@@ -264,7 +264,8 @@ void UNiagaraStackEntry::SetIsExpanded(bool bInExpanded)
 		StackEditorData->SetStackEntryIsExpanded(GetStackEditorDataKey(), bInExpanded);
 	}
 	bIsExpandedCache.Reset();
-	StructureChangedDelegate.Broadcast();
+
+	ExpansionChangedDelegate.Broadcast();
 }
 
 void UNiagaraStackEntry::SetIsExpanded_Recursive(bool bInExpanded)
@@ -282,7 +283,7 @@ void UNiagaraStackEntry::SetIsExpanded_Recursive(bool bInExpanded)
 	}
 
 	bIsExpandedCache.Reset();
-	StructureChangedDelegate.Broadcast();
+	ExpansionChangedDelegate.Broadcast();
 }
 
 bool UNiagaraStackEntry::GetIsEnabled() const
@@ -363,14 +364,14 @@ void UNiagaraStackEntry::GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutU
 FDelegateHandle UNiagaraStackEntry::AddChildFilter(FOnFilterChild ChildFilter)
 {
 	ChildFilters.Add(ChildFilter);
-	StructureChangedDelegate.Broadcast();
+	StructureChangedDelegate.Broadcast(ENiagaraStructureChangedFlags::FilteringChanged);
 	return ChildFilters.Last().GetHandle();
 }
 
 void UNiagaraStackEntry::RemoveChildFilter(FDelegateHandle FilterHandle)
 {
 	ChildFilters.RemoveAll([=](const FOnFilterChild& ChildFilter) { return ChildFilter.GetHandle() == FilterHandle; });
-	StructureChangedDelegate.Broadcast();
+	StructureChangedDelegate.Broadcast(ENiagaraStructureChangedFlags::FilteringChanged);
 }
 
 TSharedRef<FNiagaraSystemViewModel> UNiagaraStackEntry::GetSystemViewModel() const
@@ -383,6 +384,11 @@ TSharedRef<FNiagaraSystemViewModel> UNiagaraStackEntry::GetSystemViewModel() con
 TSharedPtr<FNiagaraEmitterViewModel> UNiagaraStackEntry::GetEmitterViewModel() const
 {
 	return EmitterViewModel.Pin();
+}
+
+UNiagaraStackEntry::FOnExpansionChanged& UNiagaraStackEntry::OnExpansionChanged()
+{
+	return ExpansionChangedDelegate;
 }
 
 UNiagaraStackEntry::FOnStructureChanged& UNiagaraStackEntry::OnStructureChanged()
@@ -566,6 +572,7 @@ void UNiagaraStackEntry::RefreshChildren()
 
 	for (UNiagaraStackEntry* Child : Children)
 	{
+		Child->OnExpansionChanged().RemoveAll(this);
 		Child->OnStructureChanged().RemoveAll(this);
 		Child->OnDataObjectModified().RemoveAll(this);
 		Child->OnRequestFullRefresh().RemoveAll(this);
@@ -579,6 +586,7 @@ void UNiagaraStackEntry::RefreshChildren()
 	}
 	for (UNiagaraStackErrorItem* ErrorChild : ErrorChildren)
 	{
+		ErrorChild->OnExpansionChanged().RemoveAll(this);
 		ErrorChild->OnStructureChanged().RemoveAll(this);
 		ErrorChild->OnDataObjectModified().RemoveAll(this);
 		ErrorChild->OnRequestFullRefresh().RemoveAll(this);
@@ -614,6 +622,7 @@ void UNiagaraStackEntry::RefreshChildren()
 		Child->bOwnerIsEnabled = OuterOwner == nullptr || (OuterOwner->GetIsEnabled() && OuterOwner->GetOwnerIsEnabled());
 		Child->RefreshChildren();
 		Child->OnStructureChanged().AddUObject(this, &UNiagaraStackEntry::ChildStructureChanged);
+		Child->OnExpansionChanged().AddUObject(this, &UNiagaraStackEntry::ChildExpansionChanged);
 		Child->OnDataObjectModified().AddUObject(this, &UNiagaraStackEntry::ChildDataObjectModified);
 		Child->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackEntry::ChildRequestFullRefresh);
 		Child->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackEntry::ChildRequestFullRefreshDeferred);
@@ -635,6 +644,7 @@ void UNiagaraStackEntry::RefreshChildren()
 		ErrorChild->IndentLevel = GetChildIndentLevel();
 		ErrorChild->RefreshChildren();
 		ErrorChild->OnStructureChanged().AddUObject(this, &UNiagaraStackEntry::ChildStructureChanged);
+		ErrorChild->OnExpansionChanged().AddUObject(this, &UNiagaraStackEntry::ChildExpansionChanged);
 		ErrorChild->OnDataObjectModified().AddUObject(this, &UNiagaraStackEntry::ChildDataObjectModified);
 		ErrorChild->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackEntry::ChildRequestFullRefresh);
 		ErrorChild->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackEntry::ChildRequestFullRefreshDeferred);
@@ -658,7 +668,7 @@ void UNiagaraStackEntry::RefreshChildren()
 
 	PostRefreshChildrenInternal();
 
-	StructureChangedDelegate.Broadcast();
+	StructureChangedDelegate.Broadcast(ENiagaraStructureChangedFlags::StructureChanged);
 }
 
 void UNiagaraStackEntry::RefreshFilteredChildren()
@@ -671,7 +681,7 @@ void UNiagaraStackEntry::RefreshFilteredChildren()
 		Child->OnStructureChanged().AddUObject(this, &UNiagaraStackEntry::ChildStructureChanged);
 	}
 
-	StructureChangedDelegate.Broadcast();
+	StructureChangedDelegate.Broadcast(ENiagaraStructureChangedFlags::FilteringChanged);
 }
 
 void UNiagaraStackEntry::RefreshStackErrorChildren()
@@ -810,11 +820,16 @@ int32 UNiagaraStackEntry::GetChildIndentLevel() const
 	return GetShouldShowInStack() ? GetIndentLevel() + 1 : GetIndentLevel();
 }
 
-void UNiagaraStackEntry::ChildStructureChanged()
+void UNiagaraStackEntry::ChildStructureChanged(ENiagaraStructureChangedFlags Info)
 {
 	InvalidateFilteredChildren();
 	ChildStructureChangedInternal();
-	StructureChangedDelegate.Broadcast();
+	StructureChangedDelegate.Broadcast(Info);
+}
+
+void UNiagaraStackEntry::ChildExpansionChanged()
+{
+	ExpansionChangedDelegate.Broadcast();
 }
 
 void UNiagaraStackEntry::ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)

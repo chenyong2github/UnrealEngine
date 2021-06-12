@@ -505,7 +505,7 @@ private:
 	void SystemChanged(UNiagaraSystem* ChangedSystem);
 
 	/** Called whenever one of the owned stack viewmodels structure changes. */
-	void StackViewModelStructureChanged();
+	void StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags);
 
 	/** Called whenever one of the scripts in the scratch pad changes. */
 	void ScratchPadScriptsChanged();
