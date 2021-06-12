@@ -13,8 +13,6 @@
 
 #define SOFTWARE_CONSERVATIVE_RASTERIZATION 1
 
-RWTexture3D<uint> VoxelizeVolume;
-
 struct FVLMVoxelizationVSToGS
 {
 	float4 WorldPosition : SV_POSITION;
