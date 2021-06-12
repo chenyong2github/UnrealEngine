@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "TargetInterfaces/MaterialProvider.h" // FComponentMaterialSet
+#include "MeshConversionOptions.h"
 
 class UToolTarget;
 class UPrimitiveComponent;
@@ -63,6 +64,16 @@ MODELINGCOMPONENTS_API FComponentMaterialSet GetMaterialSet(UToolTarget* Target,
 
 
 /**
+ * Update the material set of the Target
+ * @param bApplyToAsset In situations where the Target has both Component-level and Asset-level materials, this specifies which should be updated (this flag is passed to the IMaterialProvider, which may or may not respect it)
+ */
+MODELINGCOMPONENTS_API bool CommitMaterialSetUpdate(
+	UToolTarget* Target,
+	const FComponentMaterialSet& UpdatedMaterials,
+	bool bApplyToAsset = true);
+
+
+/**
  * @return the MeshDescription underlying a ToolTarget, if it has such a mesh. May be generated internally by the ToolTarget. May be nullptr if the Target does not have a mesh.
  */
 MODELINGCOMPONENTS_API const FMeshDescription* GetMeshDescription(UToolTarget* Target);
@@ -70,9 +81,10 @@ MODELINGCOMPONENTS_API const FMeshDescription* GetMeshDescription(UToolTarget* T
 /**
  * Fetch a DynamicMesh3 representing the given ToolTarget. This may be a conersion of the output of GetMeshDescription().
  * This function returns a copy, so the caller can take ownership of this Mesh.
+ * @param bWantMeshTangents if true, tangents will be returned if the target has them available. This may require that they be auto-calculated in some cases (which may be expensive)
  * @return a created DynamicMesh3, which may be empty if the Target doesn't have a mesh 
  */
-MODELINGCOMPONENTS_API UE::Geometry::FDynamicMesh3 GetDynamicMeshCopy(UToolTarget* Target);
+MODELINGCOMPONENTS_API UE::Geometry::FDynamicMesh3 GetDynamicMeshCopy(UToolTarget* Target, bool bWantMeshTangents = false);
 
 
 /**
@@ -98,6 +110,19 @@ MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitMeshDescriptionUpdate(
 	const FMeshDescription* UpdatedMesh, 
 	const FComponentMaterialSet* UpdatedMaterials = nullptr);
 
+/**
+ * Update the Mesh in a ToolTarget based on the provided DynamicMesh, and optional material set
+ * @param bHaveModifiedTopology If the update only changes vertex or attribute values (but not counts), then in some cases a more efficient and/or less destructive update can be applied to the Target
+ * @param ConversionOptions if the commit to the Target involves conversion to MeshDescription, these options can configure that conversion
+ * @param UpdatedMaterials optional new material set that will be applied to the updated Target, and the Target Asset if available. If more control is needed use CommitMaterialSetUpdate()
+ * @return EDynamicMeshUpdateResult::Ok on success
+ */
+MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshUpdate(
+	UToolTarget* Target,
+	const UE::Geometry::FDynamicMesh3& UpdatedMesh,
+	bool bHaveModifiedTopology,
+	const FConversionToMeshDescriptionOptions& ConversionOptions = FConversionToMeshDescriptionOptions(),
+	const FComponentMaterialSet* UpdatedMaterials = nullptr);
 
 /**
  * Update the UV sets of the ToolTarget's mesh (assuming it has one) based on the provided UpdatedMesh.

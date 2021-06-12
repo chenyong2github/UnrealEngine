@@ -9,6 +9,7 @@
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "IndexedMeshToDynamicMesh.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
@@ -88,6 +89,30 @@ void ULODManagerTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+
+	if (Targets.Num() == 1)
+	{
+		LODPreviewProperties = NewObject<ULODManagerPreviewLODProperties>(this);
+		AddToolPropertySource(LODPreviewProperties);
+		LODPreviewProperties->VisibleLOD = this->DefaultLODName;
+		LODPreviewProperties->WatchProperty(LODPreviewProperties->VisibleLOD, [this](FString NewLOD) { bPreviewLODValid = false; });
+		LODPreviewProperties->WatchProperty(LODPreviewProperties->bShowSeams, [this](bool bNewValue) { bPreviewLODValid = false; });
+
+		LODPreview = NewObject<UPreviewMesh>(this);
+		LODPreview->CreateInWorld(TargetWorld, (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
+		LODPreview->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
+		LODPreview->SetVisible(false);
+
+		LODPreviewLines = NewObject<UPreviewGeometry>(this);
+		LODPreviewLines->CreateInWorld(TargetWorld, (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
+
+		FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
+		LODPreview->SetMaterials(MaterialSet.Materials);
+
+		bLODInfoValid = false;
+	}
+
+
 	HiResSourceModelActions = NewObject<ULODManagerHiResSourceModelActions>(this);
 	HiResSourceModelActions->Initialize(this);
 	AddToolPropertySource(HiResSourceModelActions);
@@ -96,28 +121,11 @@ void ULODManagerTool::Setup()
 	MaterialActions->Initialize(this);
 	AddToolPropertySource(MaterialActions);
 
+
 	if (Targets.Num() == 1)
 	{
 		LODInfoProperties = NewObject<ULODManagerLODProperties>(this);
 		AddToolPropertySource(LODInfoProperties);
-
-		LODPreviewProperties = NewObject<ULODManagerPreviewLODProperties>(this);
-		AddToolPropertySource(LODPreviewProperties);
-		LODPreviewProperties->VisibleLOD = this->DefaultLODName;
-		LODPreviewProperties->WatchProperty(LODPreviewProperties->VisibleLOD, [this](FString NewLOD) { bPreviewLODValid = false; });
-
-		LODPreview = NewObject<UPreviewMesh>(this);
-		LODPreview->CreateInWorld(TargetWorld, TargetComponentInterface(0)->GetWorldTransform());
-		LODPreview->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
-		LODPreview->SetVisible(false);
-
-		LODPreviewLines = NewObject<UPreviewGeometry>(this);
-		LODPreviewLines->CreateInWorld(TargetWorld, TargetComponentInterface(0)->GetWorldTransform());
-
-		FComponentMaterialSet MaterialSet;
-		TargetMaterialInterface(0)->GetMaterialSet(MaterialSet);
-		LODPreview->SetMaterials(MaterialSet.Materials);
-
 		bLODInfoValid = false;
 	}
 
@@ -192,8 +200,7 @@ UStaticMesh* ULODManagerTool::GetSingleStaticMesh()
 	{
 		return nullptr;
 	}
-	IPrimitiveComponentBackedTarget* Target = TargetComponentInterface(0);
-	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Target->GetOwnerComponent());
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[0]));
 	if (StaticMeshComponent == nullptr || StaticMeshComponent->GetStaticMesh() == nullptr)
 	{
 		return nullptr;
@@ -363,6 +370,15 @@ void ULODManagerTool::UpdatePreviewLines(FLODMeshInfo& MeshInfo)
 }
 
 
+void ULODManagerTool::ClearPreviewLines()
+{
+	ULineSetComponent* BoundaryLines = LODPreviewLines->FindLineSet(TEXT("BoundaryLines"));
+	if (BoundaryLines)
+	{
+		BoundaryLines->Clear();
+	}
+}
+
 
 void ULODManagerTool::UpdatePreviewLOD()
 {
@@ -377,9 +393,11 @@ void ULODManagerTool::UpdatePreviewLOD()
 	const FLODName* FoundName = ActiveLODNames.Find(SelectedLOD);
 	if (SelectedLOD.IsEmpty() || FoundName == nullptr || FoundName->IsDefault() )
 	{
-		// badness
+		// currently just showing the source object when Default is selected
 		LODPreview->SetVisible(false);
-		TargetComponentInterface(0)->SetOwnerVisibility(true);
+		ClearPreviewLines();
+		LODPreviewLines->SetAllVisible(false);
+		UE::ToolTarget::ShowSourceObject(Targets[0]);
 		return;
 	}
 
@@ -392,18 +410,19 @@ void ULODManagerTool::UpdatePreviewLOD()
 	
 	if (Found)
 	{
-		TargetComponentInterface(0)->SetOwnerVisibility(false);
-		LODPreview->ReplaceMesh( (*Found)->Mesh );
-		LODPreview->UpdateTangents<float>( &(*Found)->Tangents, false);
+		UE::ToolTarget::HideSourceObject(Targets[0]);
+
+		LODPreview->ReplaceMesh((*Found)->Mesh);
 		LODPreview->SetVisible(true);
 		UpdatePreviewLines(**Found);
-		LODPreviewLines->SetAllVisible(true);
+		LODPreviewLines->SetAllVisible(LODPreviewProperties->bShowSeams);
 	}
 	else
 	{
 		LODPreview->SetVisible(false);
+		ClearPreviewLines();
 		LODPreviewLines->SetAllVisible(false);
-		TargetComponentInterface(0)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[0]);
 	}
 }
 
@@ -428,8 +447,7 @@ bool ULODManagerTool::CacheLODMesh(const FString& Name, FLODName LODName)
 			UE::MeshDescription::InitializeAutoGeneratedAttributes(TmpMeshDescription, &HiResBuildSettings);
 
 			TUniquePtr<FLODMeshInfo> NewMeshInfo = MakeUnique<FLODMeshInfo>();
-			Converter.Convert(&TmpMeshDescription, NewMeshInfo->Mesh);
-			Converter.CopyTangents(&TmpMeshDescription, &NewMeshInfo->Mesh, &NewMeshInfo->Tangents);
+			Converter.Convert(&TmpMeshDescription, NewMeshInfo->Mesh, true);
 			LODMeshCache.Add(Name, MoveTemp(NewMeshInfo));
 			return true;
 		}
@@ -446,8 +464,7 @@ bool ULODManagerTool::CacheLODMesh(const FString& Name, FLODName LODName)
 			UE::MeshDescription::InitializeAutoGeneratedAttributes(TmpMeshDescription, &LODBuildSettings);
 
 			TUniquePtr<FLODMeshInfo> NewMeshInfo = MakeUnique<FLODMeshInfo>();
-			Converter.Convert(&TmpMeshDescription, NewMeshInfo->Mesh);
-			Converter.CopyTangents(&TmpMeshDescription, &NewMeshInfo->Mesh, &NewMeshInfo->Tangents);
+			Converter.Convert(&TmpMeshDescription, NewMeshInfo->Mesh, true);
 			LODMeshCache.Add(Name, MoveTemp(NewMeshInfo));
 			return true;
 		}
@@ -462,8 +479,6 @@ bool ULODManagerTool::CacheLODMesh(const FString& Name, FLODName LODName)
 				const FStaticMeshLODResources& LODResource = RenderData->LODResources[LODName.RenderDataIndex];
 				TUniquePtr<FLODMeshInfo> NewMeshInfo = MakeUnique<FLODMeshInfo>();
 				UE::Conversion::RenderBuffersToDynamicMesh(LODResource.VertexBuffers, LODResource.IndexBuffer, LODResource.Sections, NewMeshInfo->Mesh);
-				NewMeshInfo->Tangents.SetMesh(&NewMeshInfo->Mesh);
-				NewMeshInfo->Tangents.CopyTriVertexTangents(NewMeshInfo->Mesh);
 				LODMeshCache.Add(Name, MoveTemp(NewMeshInfo));
 				return true;
 			}

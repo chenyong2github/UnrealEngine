@@ -4,6 +4,7 @@
 
 #include "SimpleDynamicMeshComponent.h"
 #include "BaseDynamicMeshSceneProxy.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "Async/ParallelFor.h"
 
 /**
@@ -84,6 +85,37 @@ public:
 
 
 
+	TUniqueFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> MakeTangentsFunc(bool bSkipAutoCompute = false)
+	{
+		EDynamicMeshComponentTangentsMode TangentsType = ParentComponent->GetTangentsType();
+		if (TangentsType == EDynamicMeshComponentTangentsMode::ExternallyProvided)
+		{
+			UE::Geometry::FDynamicMeshTangents Tangents(ParentComponent->GetRenderMesh());
+			return [Tangents](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY) -> void
+			{
+				Tangents.GetTangentVectors(TriangleID, TriVtxIdx, Normal, TangentX, TangentY);
+			};
+		}
+		else if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated && bSkipAutoCompute == false)
+		{
+			const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetAutoCalculatedTangents();
+			if (Tangents != nullptr )
+			{
+				return [Tangents](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY) -> void
+				{
+					Tangents->GetTriangleVertexTangentVectors(TriangleID, TriVtxIdx, TangentX, TangentY);
+				};
+			}
+		}
+
+		// fallback to orthogonal basis
+		return [](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY) -> void
+		{
+			VectorUtil::MakePerpVectors(Normal, TangentX, TangentY);
+		};
+	}
+
+
 	/**
 	 * Initialize multiple buffers for the mesh based on the given Decomposition
 	 */
@@ -104,21 +136,12 @@ public:
 
 		bIsSingleBuffer = false;
 
-		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
+		const FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 		// find suitable overlays
-		FDynamicMeshUVOverlay* UVOverlay = Mesh->Attributes()->PrimaryUV();
-		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
-		FDynamicMeshColorOverlay* ColorOverlay = Mesh->Attributes()->PrimaryColors();
-
-		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
-		if (Tangents != nullptr)
-		{
-			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
-			{
-				return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
-			};
-		}
+		const FDynamicMeshUVOverlay* UVOverlay = Mesh->Attributes()->PrimaryUV();
+		const FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+		const FDynamicMeshColorOverlay* ColorOverlay = Mesh->Attributes()->PrimaryColors();
+		TUniqueFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc = MakeTangentsFunc();
 
 		// init renderbuffers for each set
 		ParallelFor(NumSets, [&](int32 SetIndex)
@@ -171,16 +194,7 @@ public:
 			}
 			ColorOverlay = Attributes->PrimaryColors();
 		}
-
-		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
-		if (Tangents != nullptr)
-		{
-			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
-			{
-				return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
-			};
-		}
+		TUniqueFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc = MakeTangentsFunc();
 
 		InitializeBuffersFromOverlays(RenderBuffers, Mesh,
 			Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
@@ -220,15 +234,7 @@ public:
 			UVOverlays[k] = Attributes->GetUVLayer(k);
 		}
 
-		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
-		if (Tangents != nullptr)
-		{
-			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
-			{
-				return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
-			};
-		}
+		TUniqueFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc = MakeTangentsFunc();
 
 		// count number of triangles for each material (could do in parallel?)
 		int NumMaterials = BufferSets.Num();
@@ -371,20 +377,9 @@ public:
 
 		// find suitable overlays and attributes
 		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
-		TFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc =
-			[](int, int, int, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY) { VectorUtil::MakePerpVectors(Normal, TangentX, TangentY); };
 		if (bNormals && ensure(Mesh->HasAttributes()) )
 		{
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
-
-			const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
-			if (Tangents != nullptr)
-			{
-				TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY)
-				{
-					return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
-				};
-			}
 		}
 		FDynamicMeshUVOverlay* UVOVerlay = nullptr;
 		if (bUVs && ensure(Mesh->HasAttributes()) )
@@ -395,8 +390,11 @@ public:
 		if (bColors && ensure(Mesh->HasAttributes()) )
 		{
 			ColorOverlay = Mesh->Attributes()->PrimaryColors();
-					
 		}
+
+		// Currently deferring tangents auto-computation if doing fast vertex update (maybe needs to be exposed?)
+		TUniqueFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc = MakeTangentsFunc(true);
+
 		if (bIsSingleBuffer)
 		{
 			if (ensure(RenderBufferSets.Num() == 1))
@@ -475,36 +473,28 @@ public:
 		// This needs to be rewritten for split-by-material buffers.
 		// Could store triangle set with each buffer, and then rebuild vtx buffer(s) as needed?
 
-		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
+		const FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
 		// find suitable overlays
-		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
-		TFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc =
-			[](int, int, int, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY) { VectorUtil::MakePerpVectors(Normal, TangentX, TangentY); };
+		const FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
 		if (bNormals && ensure(Mesh->HasAttributes()))
 		{
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
-
-			const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
-			if (Tangents != nullptr)
-			{
-				TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY)
-				{
-					return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
-				};
-			}
 		}
-		FDynamicMeshUVOverlay* UVOVerlay = nullptr;
+		const FDynamicMeshUVOverlay* UVOVerlay = nullptr;
 		if (bUVs && ensure(Mesh->HasAttributes()))
 		{
 			UVOVerlay = Mesh->Attributes()->PrimaryUV();
 		}
-		FDynamicMeshColorOverlay* ColorOverlay = nullptr;
+		const FDynamicMeshColorOverlay* ColorOverlay = nullptr;
 		if (bColors && ensure(Mesh->HasAttributes()))
 		{
 			ColorOverlay = Mesh->Attributes()->PrimaryColors();
-
 		}
+
+		// Currently deferring tangents auto-computation if doing fast vertex update (maybe needs to be exposed?)
+		TUniqueFunction<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc = MakeTangentsFunc(true);
+
 		ParallelFor(WhichBuffers.Num(), [&](int idx)
 		{
 			int32 BufferIndex = WhichBuffers[idx];

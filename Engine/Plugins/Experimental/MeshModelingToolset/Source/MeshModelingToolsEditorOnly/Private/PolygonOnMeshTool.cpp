@@ -216,7 +216,7 @@ void UPolygonOnMeshTool::SetupPreview()
 {
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
 	Preview->Setup(this->TargetWorld, this);
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 	FComponentMaterialSet MaterialSet;
 	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);

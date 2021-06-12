@@ -6,6 +6,9 @@
 #include "Engine/Classes/Materials/Material.h"
 #include "TargetInterfaces/MaterialProvider.h" //FComponentMaterialSet
 
+#include "DynamicMeshToMeshDescription.h"
+#include "MeshDescriptionToDynamicMesh.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -170,16 +173,13 @@ void UPreviewMesh::DisableSecondaryTriangleBuffers()
 }
 
 
-void UPreviewMesh::SetTangentsMode(EDynamicMeshTangentCalcType TangentsType)
+void UPreviewMesh::SetTangentsMode(EDynamicMeshComponentTangentsMode TangentsType)
 {
 	check(DynamicMeshComponent);
-	DynamicMeshComponent->TangentsType = TangentsType;
+	DynamicMeshComponent->SetTangentsType(TangentsType);
 }
 
-const TMeshTangents<float>* UPreviewMesh::GetTangents() const
-{
-	return DynamicMeshComponent->GetTangents();
-}
+
 
 void UPreviewMesh::EnableWireframe(bool bEnable)
 {
@@ -263,6 +263,17 @@ const FDynamicMesh3* UPreviewMesh::GetMesh() const
 	}
 	return nullptr;
 }
+
+
+void UPreviewMesh::ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc) const
+{
+	if (ensure(DynamicMeshComponent))
+	{
+		DynamicMeshComponent->ProcessMesh(ProcessFunc);
+	}
+}
+
+
 
 FDynamicMeshAABBTree3* UPreviewMesh::GetSpatial()
 {
@@ -354,22 +365,6 @@ FVector3d UPreviewMesh::FindNearestPoint(const FVector3d& WorldPoint, bool bLine
 
 
 
-void UPreviewMesh::InitializeMesh(FMeshDescription* MeshDescription)
-{
-	check(DynamicMeshComponent != nullptr);
-	DynamicMeshComponent->InitializeMesh(MeshDescription);
-
-	if (bBuildSpatialDataStructure)
-	{
-		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
-	}
-	if (bDecompositionEnabled)
-	{
-		UpdateRenderMeshDecomposition();
-	}
-}
-
-
 void UPreviewMesh::ReplaceMesh(const FDynamicMesh3& NewMesh)
 {
 	ReplaceMesh(FDynamicMesh3(NewMesh));
@@ -377,10 +372,7 @@ void UPreviewMesh::ReplaceMesh(const FDynamicMesh3& NewMesh)
 
 void UPreviewMesh::ReplaceMesh(FDynamicMesh3&& NewMesh)
 {
-	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	*Mesh = MoveTemp(NewMesh);
-
-	DynamicMeshComponent->NotifyMeshUpdated();
+	DynamicMeshComponent->SetMesh(MoveTemp(NewMesh));
 
 	if (bBuildSpatialDataStructure)
 	{
@@ -532,11 +524,6 @@ FSimpleMulticastDelegate& UPreviewMesh::GetOnMeshChanged()
 }
 
 
-void UPreviewMesh::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedToplogy)
-{
-	check(DynamicMeshComponent != nullptr);
-	DynamicMeshComponent->Bake(MeshDescription, bHaveModifiedToplogy);
-}
 
 void UPreviewMesh::SetTriangleColorFunction(TFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFunc, ERenderUpdateMode UpdateMode)
 {

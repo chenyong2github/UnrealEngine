@@ -6,7 +6,8 @@
 #include "Drawing/MeshElementsVisualizer.h"
 #include "Async/ParallelFor.h"
 #include "Async/Async.h"
-
+#include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
 #include "MeshWeights.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshIndexUtil.h"
@@ -28,15 +29,9 @@
 #include "Sculpting/StampFalloffs.h"
 #include "Sculpting/MeshSculptUtil.h"
 
-
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
 
-#include "ToolSetupUtil.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -91,12 +86,11 @@ void UMeshGroupPaintTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "Paint PolyGroups"));
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor());
+	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
 	InitializeSculptMeshComponent(DynamicMeshComponent);
 
 	// assign materials
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
@@ -267,10 +261,9 @@ void UMeshGroupPaintTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupPaintMeshToolTransactionName", "Paint Groups"));
-		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 		{
-			FConversionToMeshDescriptionOptions ConversionOptions;
-			DynamicMeshComponent->Bake(CommitParams.MeshDescriptionOut, true, ConversionOptions);
+			UE::ToolTarget::CommitDynamicMeshUpdate(Target, ReadMesh, true);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
@@ -882,7 +875,8 @@ void UMeshGroupPaintTool::ApplyVisibilityFilter(const TArray<int32>& Triangles, 
 
 	FViewCameraState StateOut;
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-	FVector3d LocalEyePosition(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform().InverseTransformPosition(StateOut.Position));
+	FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	FVector3d LocalEyePosition(LocalToWorld.InverseTransformPosition(StateOut.Position));
 
 	const FDynamicMesh3* Mesh = GetSculptMesh();
 

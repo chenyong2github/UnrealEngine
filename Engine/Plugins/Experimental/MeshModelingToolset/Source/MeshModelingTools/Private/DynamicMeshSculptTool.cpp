@@ -18,6 +18,7 @@
 #include "PreviewMesh.h"
 #include "ToolSetupUtil.h"
 #include "ToolSceneQueriesUtil.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
@@ -35,11 +36,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -104,17 +100,16 @@ void UDynamicMeshSculptTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "DynaSculpt"));
 
 	// create dynamic mesh component to use for live preview
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	DynamicMeshComponent = NewObject<UOctreeDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "DynamicMeshSculptToolMesh");
-	DynamicMeshComponent->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
+	DynamicMeshComponent = NewObject<UOctreeDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
+	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
 
 	// initialize from LOD-0 MeshDescription
-	DynamicMeshComponent->InitializeMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
+	DynamicMeshComponent->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
 
 	// transform mesh to world space because handling scaling inside brush is a mess
 	// Note: this transform does not include translation ( so only the 3x3 transform)
-	InitialTargetTransform = UE::Geometry::FTransform3d(TargetComponent->GetWorldTransform());
+	InitialTargetTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	// clamp scaling because if we allow zero-scale we cannot invert this transform on Accept
 	InitialTargetTransform.ClampMinimumScale(0.01);
 	FVector3d Translation = InitialTargetTransform.GetTranslation();
@@ -125,10 +120,10 @@ void UDynamicMeshSculptTool::Setup()
 	DynamicMeshComponent->SetWorldTransform((FTransform)CurTargetTransform);
 
 	// copy material if there is one
-	UMaterialInterface* Material = Cast<IMaterialProvider>(Target)->GetMaterial(0);
-	if (Material != nullptr)
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
+	if (MaterialSet.Materials.Num() > 0)
 	{
-		DynamicMeshComponent->SetMaterial(0, Material);
+		DynamicMeshComponent->SetMaterial(0, MaterialSet.Materials[0]);
 	}
 
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.Add(
@@ -166,7 +161,7 @@ void UDynamicMeshSculptTool::Setup()
 	InitialEdgeLength = EstimateIntialSafeTargetLength(*Mesh, 5000);
 
 	// hide input Component
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Target);
 
 	// init state flags flags
 	bInDrag = false;
@@ -307,7 +302,7 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		DynamicMeshComponent->OnMeshChanged.Remove(OnDynamicMeshComponentChangedHandle);
 
-		Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Target);
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
@@ -316,9 +311,9 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("SculptMeshToolTransactionName", "Sculpt Mesh"));
-			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+			DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 			{
-				DynamicMeshComponent->Bake(CommitParams.MeshDescriptionOut, bHaveRemeshed);
+				UE::ToolTarget::CommitDynamicMeshUpdate(Target, ReadMesh, bHaveRemeshed);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -2453,7 +2448,7 @@ void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes Materi
 	if (MaterialMode == EMeshEditingMaterialModes::ExistingMaterial)
 	{
 		DynamicMeshComponent->ClearOverrideRenderMaterial();
-		DynamicMeshComponent->bCastDynamicShadow = Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerComponent()->bCastDynamicShadow;
+		DynamicMeshComponent->bCastDynamicShadow = UE::ToolTarget::GetTargetComponent(Target)->bCastDynamicShadow;
 		ActiveOverrideMaterial = nullptr;
 	}
 	else 

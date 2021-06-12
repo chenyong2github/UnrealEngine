@@ -21,7 +21,6 @@
 #include "DynamicMeshAttributeSet.h"
 #include "MeshNormals.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshToMeshDescription.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
@@ -59,7 +58,7 @@ USimpleDynamicMeshComponent::USimpleDynamicMeshComponent(const FObjectInitialize
 
 	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &USimpleDynamicMeshComponent::OnMeshObjectChanged);
 
-	Tangents.SetMesh(GetMesh());
+	ResetProxy();
 }
 
 
@@ -70,11 +69,51 @@ void USimpleDynamicMeshComponent::PostLoad()
 	check(MeshObject != nullptr);
 	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &USimpleDynamicMeshComponent::OnMeshObjectChanged);
 
-	Tangents.SetMesh(GetMesh());
-
 	ResetProxy();
 }
 
+
+
+void USimpleDynamicMeshComponent::SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh)
+{
+	MeshObject->SetMesh(MoveTemp(MoveMesh));
+}
+
+
+void USimpleDynamicMeshComponent::ProcessMesh(
+	TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc ) const
+{
+	MeshObject->ProcessMesh(ProcessFunc);
+}
+
+
+void USimpleDynamicMeshComponent::EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc,
+										   EDynamicMeshComponentRenderUpdateMode UpdateMode )
+{
+	MeshObject->EditMesh(EditFunc);
+	if (UpdateMode != EDynamicMeshComponentRenderUpdateMode::NoUpdate)
+	{
+		NotifyMeshUpdated();
+	}
+}
+
+
+void USimpleDynamicMeshComponent::SetRenderMeshPostProcessor(TUniquePtr<IRenderMeshPostProcessor> Processor)
+{
+	RenderMeshPostProcessor = MoveTemp(Processor);
+	if (RenderMeshPostProcessor)
+	{
+		if (!RenderMesh)
+		{
+			RenderMesh = MakeUnique<FDynamicMesh3>(*GetMesh());
+		}
+	}
+	else
+	{
+		// No post processor, no render mesh
+		RenderMesh = nullptr;
+	}
+}
 
 FDynamicMesh3* USimpleDynamicMeshComponent::GetRenderMesh()
 {
@@ -100,129 +139,67 @@ const FDynamicMesh3* USimpleDynamicMeshComponent::GetRenderMesh() const
 	}
 }
 
-void USimpleDynamicMeshComponent::InitializeMesh(const FMeshDescription* MeshDescription)
-{
-	FMeshDescriptionToDynamicMesh Converter;
-	MeshObject->Reset();
-	Converter.Convert(MeshDescription, *GetMesh());
-	if (TangentsType == EDynamicMeshTangentCalcType::ExternallyCalculated)
-	{
-		Converter.CopyTangents(MeshDescription, GetMesh(), &Tangents);
-	}
-
-	NotifyMeshUpdated();
-}
-
-void USimpleDynamicMeshComponent::SetRenderMeshPostProcessor(TUniquePtr<IRenderMeshPostProcessor> Processor)
-{
-	RenderMeshPostProcessor = MoveTemp(Processor);
-	if (RenderMeshPostProcessor)
-	{
-		if (!RenderMesh)
-		{
-			RenderMesh = MakeUnique<FDynamicMesh3>(*GetMesh());
-		}
-	}
-	else
-	{
-		// No post processor, no render mesh
-		RenderMesh = nullptr;
-	}
-}
-
-void USimpleDynamicMeshComponent::UpdateTangents(const FMeshTangentsf* ExternalTangents, bool bFastUpdateIfPossible)
-{
-	Tangents.CopyTriVertexTangents(*ExternalTangents);
-	if (bFastUpdateIfPossible)
-	{
-		FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexNormals);
-	}
-	else
-	{
-		NotifyMeshUpdated();
-	}
-}
-
-void USimpleDynamicMeshComponent::UpdateTangents(const FMeshTangentsd* ExternalTangents, bool bFastUpdateIfPossible)
-{
-	Tangents.CopyTriVertexTangents(*ExternalTangents);
-	if (bFastUpdateIfPossible)
-	{
-		FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexNormals);
-	}
-	else
-	{
-		NotifyMeshUpdated();
-	}
-}
 
 
 
 void USimpleDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
 {
-	if (bInvert)
+	MeshObject->EditMesh([&](FDynamicMesh3& EditMesh)
 	{
-		MeshTransforms::ApplyTransformInverse(*GetMesh(), Transform);
-	}
-	else
-	{
-		MeshTransforms::ApplyTransform(*GetMesh(), Transform);
-	}
-
-	NotifyMeshUpdated();
-}
-
-
-void USimpleDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
-{
-	FDynamicMeshToMeshDescription Converter(ConversionOptions);
-	if (!bHaveModifiedTopology)
-	{
-		Converter.UpdateUsingConversionOptions(GetMesh(), *MeshDescription);
-	}
-	else
-	{
-		Converter.Convert(GetMesh(), *MeshDescription);
-	}
-}
-
-
-
-
-
-
-const FMeshTangentsf* USimpleDynamicMeshComponent::GetTangents()
-{
-	if (TangentsType == EDynamicMeshTangentCalcType::NoTangents)
-	{
-		return nullptr;
-	}
-	
-	if (TangentsType == EDynamicMeshTangentCalcType::AutoCalculated)
-	{
-		if (bTangentsValid == false && GetMesh()->HasAttributes())
+		if (bInvert)
 		{
-			FDynamicMeshUVOverlay* UVOverlay = GetMesh()->Attributes()->PrimaryUV();
-			FDynamicMeshNormalOverlay* NormalOverlay = GetMesh()->Attributes()->PrimaryNormals();
-			if (UVOverlay != nullptr && NormalOverlay != nullptr)
-			{
-				Tangents.ComputeTriVertexTangents(NormalOverlay, UVOverlay, FComputeTangentsOptions());
-				bTangentsValid = true;
-			}
+			MeshTransforms::ApplyTransformInverse(EditMesh, Transform);
 		}
-		return (bTangentsValid) ? &Tangents : nullptr;
-	}
-
-	// in this mode we assume the tangents are valid
-	ensure(TangentsType == EDynamicMeshTangentCalcType::ExternallyCalculated);
-	if (TangentsType == EDynamicMeshTangentCalcType::ExternallyCalculated)
-	{
-		// if you hit this, you did not request ExternallyCalculated tangents before initializing this PreviewMesh
-		ensure(Tangents.GetTangents().Num() > 0);
-	}
-
-	return &Tangents;
+		else
+		{
+			MeshTransforms::ApplyTransform(EditMesh, Transform);
+		}
+	}, EDynamicMeshChangeType::DeformationEdit);
 }
+
+
+
+void USimpleDynamicMeshComponent::SetTangentsType(EDynamicMeshComponentTangentsMode NewTangentsType)
+{
+	if (NewTangentsType != TangentsType)
+	{
+		TangentsType = NewTangentsType;
+		InvalidateAutoCalculatedTangents();
+	}
+}
+
+void USimpleDynamicMeshComponent::InvalidateAutoCalculatedTangents() 
+{ 
+	bAutoCalculatedTangentsValid = false; 
+}
+
+const UE::Geometry::FMeshTangentsf* USimpleDynamicMeshComponent::GetAutoCalculatedTangents() 
+{ 
+	if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated)
+	{
+		UpdateAutoCalculatedTangents();
+		return (bAutoCalculatedTangentsValid) ? &AutoCalculatedTangents : nullptr;
+	}
+	return nullptr;
+}
+
+void USimpleDynamicMeshComponent::UpdateAutoCalculatedTangents()
+{
+	if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated && bAutoCalculatedTangentsValid == false)
+	{
+		GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh)
+		{
+			const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
+			const FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
+			AutoCalculatedTangents.SetMesh(&Mesh);
+			AutoCalculatedTangents.ComputeTriVertexTangents(NormalOverlay, UVOverlay, FComputeTangentsOptions());
+			AutoCalculatedTangents.SetMesh(nullptr);
+		});
+
+		bAutoCalculatedTangentsValid = true;
+	}
+}
+
 
 
 
@@ -248,16 +225,12 @@ FSimpleDynamicMeshSceneProxy* USimpleDynamicMeshComponent::GetCurrentSceneProxy(
 void USimpleDynamicMeshComponent::ResetProxy()
 {
 	bProxyValid = false;
+	InvalidateAutoCalculatedTangents();
 
 	// Need to recreate scene proxy to send it over
 	MarkRenderStateDirty();
 	UpdateLocalBounds();
 	UpdateBounds();
-
-	if (TangentsType != EDynamicMeshTangentCalcType::ExternallyCalculated)
-	{
-		bTangentsValid = false;
-	}
 
 	// this seems speculative, ie we may not actually have a mesh update, but we currently ResetProxy() in lots
 	// of places where that is what it means

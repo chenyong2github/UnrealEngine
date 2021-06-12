@@ -39,9 +39,9 @@ class MODELINGCOMPONENTS_API UOctreeDynamicMeshComponent : public UBaseDynamicMe
 
 public:
 	/**
-	 * initialize the internal mesh from a MeshDescription
+	 * initialize the internal mesh from a DynamicMesh
 	 */
-	virtual void InitializeMesh(const FMeshDescription* MeshDescription) override;
+	virtual void SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh) override;
 
 	/**
 	 * @return pointer to internal mesh
@@ -54,24 +54,15 @@ public:
 	virtual const FDynamicMesh3* GetMesh() const override { return MeshObject->GetMeshPtr(); }
 
 
+	virtual void ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc) const
+	{
+		MeshObject->ProcessMesh(ProcessFunc);
+	}
+
+
 	UE::Geometry::FDynamicMeshOctree3* GetOctree() { return Octree.Get(); }
 
-	/**
-	 * Write the internal mesh to a MeshDescription
-	 * @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
-	 * @param ConversionOptions struct of additional options for the conversion
-	 */
-	virtual void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions) override;
 
-	/**
-	* Write the internal mesh to a MeshDescription with default conversion options
-	* @param bHaveModifiedTopology if false, we only update the vertex positions in the MeshDescription, otherwise it is Empty()'d and regenerated entirely
-	*/
-	void Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology)
-	{
-		FConversionToMeshDescriptionOptions ConversionOptions;
-		Bake(MeshDescription, bHaveModifiedTopology, ConversionOptions);
-	}
 
 	/**
 	 * Apply transform to internal mesh. Invalidates RenderProxy.

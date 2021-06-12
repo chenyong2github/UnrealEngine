@@ -11,13 +11,9 @@
 #include "Transforms/MultiTransformer.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "Materials/MaterialInstanceDynamic.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -47,16 +43,14 @@ void UEditUVIslandsTool::Setup()
 	UMeshSurfacePointTool::Setup();
 
 	// create dynamic mesh component to use for live preview
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "DynamicMesh");
-	DynamicMeshComponent->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
+	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
+	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform(TargetComponent->GetWorldTransform());
+	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 	WorldTransform = UE::Geometry::FTransform3d(DynamicMeshComponent->GetComponentTransform());
 
 	// set materials
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
@@ -70,8 +64,8 @@ void UEditUVIslandsTool::Setup()
 	});
 
 	// dynamic mesh configuration settings
-	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
-	DynamicMeshComponent->InitializeMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
+	DynamicMeshComponent->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	DynamicMeshComponent->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
 	FMeshNormals::QuickComputeVertexNormals(*DynamicMeshComponent->GetMesh());
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.Add(
 		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UEditUVIslandsTool::OnDynamicMeshComponentChanged));
@@ -92,7 +86,7 @@ void UEditUVIslandsTool::Setup()
 	UVTranslateScale = 1.0 / DynamicMeshComponent->GetMesh()->GetBounds().MaxDim();
 
 	// hide input StaticMeshComponent
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Target);
 
 	// init state flags flags
 	bInDrag = false;
@@ -136,18 +130,18 @@ void UEditUVIslandsTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		DynamicMeshComponent->OnMeshChanged.Remove(OnDynamicMeshComponentChangedHandle);
 
-		Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Target);
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("EditUVIslandsToolTransactionName", "Edit UVs"));
-			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+			DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 			{
 				FConversionToMeshDescriptionOptions ConversionOptions;
 				ConversionOptions.bUpdateNormals = ConversionOptions.bUpdatePositions = false;
 				ConversionOptions.bUpdateUVs = true;
-				DynamicMeshComponent->Bake(CommitParams.MeshDescriptionOut, false, ConversionOptions);
+				UE::ToolTarget::CommitDynamicMeshUpdate(Target, ReadMesh, true, ConversionOptions);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}

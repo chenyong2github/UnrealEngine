@@ -21,7 +21,6 @@
 #include "MeshNormals.h"
 #include "MeshTransforms.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshToMeshDescription.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
@@ -55,18 +54,16 @@ UOctreeDynamicMeshComponent::UOctreeDynamicMeshComponent(const FObjectInitialize
 
 
 
-void UOctreeDynamicMeshComponent::InitializeMesh(const FMeshDescription* MeshDescription)
+void UOctreeDynamicMeshComponent::SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh)
 {
-	FMeshDescriptionToDynamicMesh Converter;
-	GetMesh()->Clear();
-	Converter.Convert(MeshDescription, *GetMesh());
+	MeshObject->SetMesh(MoveTemp(MoveMesh));
 
 	FAxisAlignedBox3d MeshBounds = GetMesh()->GetCachedBounds();
 	Octree = MakeUnique<FDynamicMeshOctree3>();
 	Octree->RootDimension = MeshBounds.MaxDim() * 0.25;
 
 	Octree->Initialize(GetMesh());
-	
+
 	FDynamicMeshOctree3::FStatistics Stats;
 	Octree->ComputeStatistics(Stats);
 	//UE_LOG(LogTemp, Warning, TEXT("OctreeStats %s"), *Stats.ToString());
@@ -93,8 +90,8 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3
 	if (GetCurrentSceneProxy() != nullptr)
 	{
 		Octree->ModifiedBounds = FAxisAlignedBox3d(
-			-TNumericLimits<float>::Max()*FVector3d::One(),
-			TNumericLimits<float>::Max()*FVector3d::One());
+			-TNumericLimits<float>::Max() * FVector3d::One(),
+			TNumericLimits<float>::Max() * FVector3d::One());
 		NotifyMeshUpdated();
 	}
 	else
@@ -107,22 +104,6 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3
 		CutCellSetMap.Reset();
 	}
 
-}
-
-
-void UOctreeDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
-{
-	FDynamicMeshToMeshDescription Converter(ConversionOptions);
-	if (bHaveModifiedTopology == false && Converter.HaveMatchingElementCounts(GetMesh(), MeshDescription))
-	{
-		Converter.Update(GetMesh(), *MeshDescription);
-	}
-	else
-	{
-		Converter.Convert(GetMesh(), *MeshDescription);
-
-		//UE_LOG(LogTemp, Warning, TEXT("MeshDescription has %d instances"), MeshDescription->VertexInstances().Num());
-	}
 }
 
 

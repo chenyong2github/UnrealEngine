@@ -133,7 +133,7 @@ void URemeshMeshTool::Setup()
 	Converter.Convert(TargetMeshProvider->GetMeshDescription(), *OriginalMesh);
 
 	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 	OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalMesh.Get(), true);

@@ -124,7 +124,7 @@ void USimplifyMeshTool::Setup()
 	}
 
 	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 	// initialize our properties

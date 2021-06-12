@@ -40,9 +40,25 @@ enum class EDynamicMeshChangeType : uint8
 	GeneralEdit = 0,
 	MeshChange = 1,
 	MeshReplacementChange = 2,
-	MeshVertexChange = 3
+	MeshVertexChange = 3,
+	
+	DeformationEdit = 4,
+	AttributeEdit = 5
 };
 
+UENUM(BlueprintType)
+enum class EDynamicMeshAttributeChangeFlags : uint8
+{
+	Unknown = 0,
+	MeshTopology = 1 << 0,
+
+	VertexPositions = 1 << 1,
+	NormalsTangents = 1 << 2,
+	VertexColors = 1 << 3,
+	UVs = 1 << 4,
+	TriangleGroups = 1 << 5
+};
+ENUM_CLASS_FLAGS(EDynamicMeshAttributeChangeFlags)
 
 /**
  * FDynamicMeshChangeInfo stores information about a change to a UDynamicMesh.
@@ -55,6 +71,9 @@ struct MODELINGCOMPONENTS_API FDynamicMeshChangeInfo
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "DynamicMeshChangeInfo")
 	EDynamicMeshChangeType Type = EDynamicMeshChangeType::GeneralEdit;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "DynamicMeshChangeInfo")
+	EDynamicMeshAttributeChangeFlags Flags = EDynamicMeshAttributeChangeFlags::Unknown;
 
 	// for changes that are an FChange, indicates whether this is an 'Apply' or 'Revert' of the FChange
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "DynamicMeshChangeInfo")
@@ -147,7 +166,10 @@ public:
 	 * Apply EditFunc to the internal mesh.
 	 * This will broadcast PreMeshChangedEvent, then call EditFunc(), then broadcast MeshChangedEvent and MeshModifiedBPEvent
 	 */
-	void EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc);
+	void EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc,
+				  EDynamicMeshChangeType ChangeType = EDynamicMeshChangeType::GeneralEdit,
+				  EDynamicMeshAttributeChangeFlags ChangeFlags = EDynamicMeshAttributeChangeFlags::Unknown,
+				  bool bDeferChangeEvents = false);
 
 	/**
 	 * Take ownership of the internal Mesh, and have it replaced with a new mesh
@@ -234,7 +256,7 @@ protected:
 	/**
 	 * Internal function that edits the Mesh, but broadcasts PreMeshChangedEvent and MeshChangedEvent, and then MeshModifiedBPEvent
 	 */
-	void EditMeshInternal(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo);
+	void EditMeshInternal(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo, bool bDeferChangeEvents = false);
 
 
 public:

@@ -239,7 +239,7 @@ protected:
 	 * Subclass can override this to change what results are written.
 	 * Default is to apply a default vertex positions update to the target object.
 	 */
-	virtual void CommitResult(UBaseDynamicMeshComponent* Component);
+	virtual void CommitResult(UBaseDynamicMeshComponent* Component, bool bModifiedTopology);
 
 
 	//

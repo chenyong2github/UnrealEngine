@@ -212,7 +212,7 @@ void ULatticeDeformerTool::StartPreview()
 		Preview->PreviewMesh->SetSecondaryRenderMaterial(SelectionMaterial);
 	}
 
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::NoTangents);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::NoTangents);
 	Preview->SetVisibility(true);
 	Preview->InvalidateResult();
 

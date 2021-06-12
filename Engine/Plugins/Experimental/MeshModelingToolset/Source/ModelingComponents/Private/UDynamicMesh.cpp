@@ -106,19 +106,29 @@ void UDynamicMesh::ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMes
 	ProcessFunc(GetMeshRef());
 }
 
-void UDynamicMesh::EditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc)
+void UDynamicMesh::EditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc,
+							EDynamicMeshChangeType ChangeType,
+							EDynamicMeshAttributeChangeFlags ChangeFlags,
+							bool bDeferChangeEvents)
 {
 	FDynamicMeshChangeInfo ChangeInfo;
-	ChangeInfo.Type = EDynamicMeshChangeType::GeneralEdit;
-	EditMeshInternal(EditFunc, ChangeInfo);
+	ChangeInfo.Type = ChangeType;
+	ChangeInfo.Flags = ChangeFlags;
+	EditMeshInternal(EditFunc, ChangeInfo, bDeferChangeEvents);
 }
 
-void UDynamicMesh::EditMeshInternal(TFunctionRef<void(FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo)
+void UDynamicMesh::EditMeshInternal(TFunctionRef<void(FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo, bool bDeferChangeEvents)
 {
-	PreMeshChangedEvent.Broadcast(this, ChangeInfo);
+	if (!bDeferChangeEvents)
+	{
+		PreMeshChangedEvent.Broadcast(this, ChangeInfo);
+	}
 	EditFunc(GetMeshRef());
-	MeshChangedEvent.Broadcast(this, ChangeInfo);
-	MeshModifiedBPEvent.Broadcast(this);
+	if (!bDeferChangeEvents)
+	{
+		MeshChangedEvent.Broadcast(this, ChangeInfo);
+		MeshModifiedBPEvent.Broadcast(this);
+	}
 }
 
 

@@ -19,6 +19,8 @@
 #include "DynamicMeshChangeTracker.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Parameterization/MeshUVTransforms.h"
+#include "ModelingToolTargetUtil.h"
+#include "DynamicMeshToMeshDescription.h"
 
 #include "Changes/MeshVertexChange.h"
 
@@ -27,11 +29,7 @@
 #include "Engine/Classes/Engine/StaticMesh.h"
 #include "Engine/Classes/Components/StaticMeshComponent.h"
 #include "Engine/Classes/Engine/StaticMeshActor.h"
-#include "MeshDescriptionToDynamicMesh.h"
 
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #define LOCTEXT_NAMESPACE "UGroomCardsEditorTool"
 
@@ -75,11 +73,10 @@ void UGroomCardsEditorTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->bBuildSpatialDataStructure = true;
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
-	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
+	PreviewMesh->SetTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 
 	MeshMaterial = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
 	UVMaterial = ToolSetupUtil::GetUVCheckerboardMaterial(50.0);
@@ -112,11 +109,9 @@ void UGroomCardsEditorTool::Setup()
 
 	PreviewGeom = NewObject<UPreviewGeometry>(this);
 	PreviewGeom->CreateInWorld(TargetWorld, FTransform::Identity);
-	PreviewGeom->GetActor()->SetActorTransform(TargetComponent->GetWorldTransform());
+	PreviewGeom->GetActor()->SetActorTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 
-	TargetComponent->SetOwnerVisibility(false);
-
-
+	UE::ToolTarget::HideSourceObject(Target);
 
 	ControlPointsMechanic = NewObject<USpaceCurveDeformationMechanic>(this);
 	ControlPointsMechanic->Setup(this);
@@ -184,9 +179,9 @@ void UGroomCardsEditorTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("CardsMeshApplyEditChange", "Update Cards Mesh"));
-		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		PreviewMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 		{
-			PreviewMesh->Bake(CommitParams.MeshDescriptionOut, false);
+			UE::ToolTarget::CommitDynamicMeshUpdate(Target, ReadMesh, false);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
@@ -197,7 +192,7 @@ void UGroomCardsEditorTool::Shutdown(EToolShutdownType ShutdownType)
 	PreviewGeom->Disconnect();
 	PreviewGeom = nullptr;
 
-	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+	UE::ToolTarget::ShowSourceObject(Target);
 }
 
 
@@ -762,7 +757,7 @@ void UGroomCardsEditorTool::UpdateLineSet()
 void UGroomCardsEditorTool::InitializeMesh()
 {
 	EditableCardSet = MakePimpl<FEditableGroomCardSet>();
-	EditableCardSet->Initialize(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
+	EditableCardSet->Initialize(UE::ToolTarget::GetMeshDescription(Target));
 	const FDynamicMesh3* CardsMesh = EditableCardSet->FullCardMesh.Get();
 
 	PreviewMesh->UpdatePreview(CardsMesh);
