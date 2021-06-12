@@ -71,6 +71,11 @@ public:
 	FORCEINLINE FQuat(float InX, float InY, float InZ, float InW);
 
 	/**
+	 * Initializes all elements to V
+	 */
+	explicit FORCEINLINE FQuat(float V);
+
+	/**
 	 * Creates and initializes a new quaternion from the XYZW values in the given VectorRegister4Float.
 	 *
 	 * @param V XYZW components of the quaternion packed into a single VectorRegister4Float
@@ -137,6 +142,13 @@ public:
 	 * @return The result of subtraction.
 	 */
 	FORCEINLINE FQuat operator-(const FQuat& Q) const;
+
+	/**
+	* Negates the quaternion. Note that this represents the same rotation.
+	*
+	* @return The result of negation.
+	*/
+	FORCEINLINE FQuat operator-() const;
 
 	/**
 	 * Checks whether another Quaternion is equal to this, within specified tolerance.
@@ -714,7 +726,6 @@ FORCEINLINE FQuat::FQuat(EForceInit ZeroOrNot)
 	:	X(0), Y(0), Z(0), W(ZeroOrNot == ForceInitToZero ? 0.0f : 1.0f)
 { }
 
-
 FORCEINLINE FQuat::FQuat(float InX, float InY, float InZ, float InW)
 	: X(InX)
 	, Y(InY)
@@ -724,6 +735,11 @@ FORCEINLINE FQuat::FQuat(float InX, float InY, float InZ, float InW)
 	DiagnosticCheckNaN();
 }
 
+FORCEINLINE FQuat::FQuat(float V)
+	: X(V), Y(V), Z(V), W(V)
+{
+	DiagnosticCheckNaN();
+}
 
 FORCEINLINE FQuat::FQuat(const VectorRegister4Float& V)
 {
@@ -736,7 +752,6 @@ FORCEINLINE FQuat::FQuat(const VectorRegister4Double& V)
 	VectorStoreAligned(V, &(this->X));
 	DiagnosticCheckNaN();
 }
-
 
 FORCEINLINE FString FQuat::ToString() const
 {
@@ -827,6 +842,10 @@ FORCEINLINE FQuat FQuat::operator-(const FQuat& Q) const
 #endif // PLATFORM_ENABLE_VECTORINTRINSICS
 }
 
+FORCEINLINE FQuat FQuat::operator-() const
+{
+	return FQuat(-X, -Y, -Z, -W);
+}
 
 FORCEINLINE bool FQuat::Equals(const FQuat& Q, float Tolerance) const
 {
@@ -923,6 +942,10 @@ FORCEINLINE FQuat FQuat::operator*(const float Scale) const
 #endif // PLATFORM_ENABLE_VECTORINTRINSICS
 }
 
+FORCEINLINE FQuat operator*(const float Scale, const FQuat& Q)
+{
+	return Q.operator*(Scale);
+}
 
 FORCEINLINE FQuat FQuat::operator/=(const float Scale)
 {
