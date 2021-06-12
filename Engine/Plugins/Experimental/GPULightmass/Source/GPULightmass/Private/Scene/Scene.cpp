@@ -790,7 +790,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 	{
 		FStaticMeshInstanceRenderStateRef InstanceRenderStateRef = RenderState.StaticMeshInstanceRenderStates.Emplace(MoveTemp(InstanceRenderState));
 
-		FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters =
+		InstanceRenderStateRef->PrimitiveUniformShaderParameters =
 			FPrimitiveUniformShaderParametersBuilder{}
 			.Defaults()
 				.LocalToWorld(InstanceRenderStateRef->LocalToWorld)
