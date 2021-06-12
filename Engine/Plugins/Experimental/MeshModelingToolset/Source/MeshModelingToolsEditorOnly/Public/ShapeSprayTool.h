@@ -89,7 +89,7 @@ protected:
 
 	// small meshes are accumulated here
 	UPROPERTY()
-	USimpleDynamicMeshComponent* AccumMeshComponent;
+	UDynamicMeshComponent* AccumMeshComponent;
 
 
 protected:

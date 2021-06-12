@@ -12,7 +12,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  * FMeshVertexChange represents an reversible change to a set of vertex positions.
- * Currently only a USimpleDynamicMeshComponent target is supported.
+ * Currently only a UDynamicMeshComponent target is supported.
  * 
  * @todo support optionally storing old/new normals and tangents
  * @todo support applying to a StaticMeshComponent/MeshDescription ?

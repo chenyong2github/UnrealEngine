@@ -8,7 +8,7 @@
 #include "InteractiveToolBuilder.h"
 #include "ModelingOperators.h"
 #include "SingleSelectionTool.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "MeshOpPreviewHelpers.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "SubdividePolyTool.generated.h"

@@ -13,7 +13,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Volume.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 
 #include "MeshConversionOptions.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -261,7 +261,7 @@ bool UE::ToolTarget::ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, 
 			return true;
 		}
 
-		if (Cast<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerComponent()) != nullptr)
+		if (Cast<UDynamicMeshComponent>(ComponentTarget->GetOwnerComponent()) != nullptr)
 		{
 			DerivedParamsOut.TypeHint = ECreateObjectTypeHint::DynamicMeshActor;
 			return true;

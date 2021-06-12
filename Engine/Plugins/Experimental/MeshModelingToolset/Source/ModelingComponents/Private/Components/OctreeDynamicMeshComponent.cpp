@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
-#include "OctreeDynamicMeshComponent.h"
+#include "Components/OctreeDynamicMeshComponent.h"
 #include "RenderingThread.h"
 #include "RenderResource.h"
 #include "PrimitiveViewRelevance.h"

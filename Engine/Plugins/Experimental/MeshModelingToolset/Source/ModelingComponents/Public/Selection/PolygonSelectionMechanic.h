@@ -8,7 +8,7 @@
 #include "InputBehavior.h"
 #include "InteractiveTool.h"
 #include "Mechanics/RectangleMarqueeMechanic.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "Selection/GroupTopologySelector.h"
 #include "TransformTypes.h"
 #include "ToolDataVisualizer.h"
@@ -75,7 +75,7 @@ public:
 
 /**
  * UPolygonSelectionMechanic implements the interaction for selecting a set of faces/vertices/edges
- * from a FGroupTopology on a USimpleDynamicMeshComponent. 
+ * from a FGroupTopology on a UDynamicMeshComponent. 
  */
 UCLASS()
 class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
@@ -113,7 +113,7 @@ public:
 		TFunction<FDynamicMeshAABBTree3*()> GetSpatialSourceFunc
 		);
 
-	void Initialize(USimpleDynamicMeshComponent* MeshComponent, const FGroupTopology* Topology,
+	void Initialize(UDynamicMeshComponent* MeshComponent, const FGroupTopology* Topology,
 		TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFunc
 	);
 

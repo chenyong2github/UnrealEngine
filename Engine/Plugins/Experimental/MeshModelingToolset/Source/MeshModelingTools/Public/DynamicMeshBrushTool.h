@@ -7,7 +7,7 @@
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/BaseBrushTool.h"
 #include "DynamicMeshAABBTree3.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "PreviewMesh.h"
 #include "DynamicMeshBrushTool.generated.h"
 

@@ -14,7 +14,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  * FMeshReplacementChange represents an undoable *complete* change to a FDynamicMesh3.
- * Currently only valid to call Apply/Revert when the Object is a USimpleDynamicMeshComponent
+ * Currently only valid to call Apply/Revert when the Object is a UDynamicMeshComponent
  */
 class MODELINGCOMPONENTS_API FMeshReplacementChange : public FToolCommandChange
 {

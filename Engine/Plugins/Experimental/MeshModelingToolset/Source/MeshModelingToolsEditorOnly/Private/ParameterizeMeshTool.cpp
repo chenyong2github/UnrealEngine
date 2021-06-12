@@ -8,7 +8,7 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "FaceGroupUtil.h"
 
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"

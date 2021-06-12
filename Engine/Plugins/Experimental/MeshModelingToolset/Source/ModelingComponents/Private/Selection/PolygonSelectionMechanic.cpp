@@ -151,7 +151,7 @@ void UPolygonSelectionMechanic::Initialize(
 }
 
 void UPolygonSelectionMechanic::Initialize(
-	USimpleDynamicMeshComponent* MeshComponentIn,
+	UDynamicMeshComponent* MeshComponentIn,
 	const FGroupTopology* TopologyIn,
 	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn)
 {

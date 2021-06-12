@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
-#include "BaseDynamicMeshComponent.h"
+#include "Components/BaseDynamicMeshComponent.h"
 
 using namespace UE::Geometry;
 

@@ -17,7 +17,7 @@
 
 // predeclarations
 struct FMeshDescription;
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 class UMeshOpPreviewWithBackgroundCompute;
 class UGenerateStaticMeshLODAssetTool;
 namespace GenerateStaticMeshLODAssetLocals

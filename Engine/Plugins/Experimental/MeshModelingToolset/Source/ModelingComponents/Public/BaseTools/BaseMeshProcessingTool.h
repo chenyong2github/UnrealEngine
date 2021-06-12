@@ -14,7 +14,7 @@
 
 // predeclarations
 struct FMeshDescription;
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 class UPreviewMesh;
 PREDECLARE_USE_GEOMETRY_CLASS(FMeshBoundaryLoops);
 PREDECLARE_USE_GEOMETRY_CLASS(FMeshNormals);

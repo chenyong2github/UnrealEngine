@@ -9,7 +9,7 @@
 #include "ToolSetupUtil.h"
 #include "Util/ColorConstants.h"
 #include "MeshNormals.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
@@ -204,7 +204,7 @@ void USubdividePolyTool::Setup()
 	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 	PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
-	USimpleDynamicMeshComponent* PreviewDynamicMeshComponent = (USimpleDynamicMeshComponent*)PreviewMesh->GetRootComponent();
+	UDynamicMeshComponent* PreviewDynamicMeshComponent = (UDynamicMeshComponent*)PreviewMesh->GetRootComponent();
 	if (PreviewDynamicMeshComponent == nullptr)
 	{
 		return;
@@ -236,7 +236,7 @@ void USubdividePolyTool::Setup()
 	// dynamic mesh configuration settings
 	auto RebuildMeshPostProcessor = [this]()
 	{
-		USimpleDynamicMeshComponent* PreviewDynamicMeshComponent = (USimpleDynamicMeshComponent*)PreviewMesh->GetRootComponent();
+		UDynamicMeshComponent* PreviewDynamicMeshComponent = (UDynamicMeshComponent*)PreviewMesh->GetRootComponent();
 		PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
 																								Properties->SubdivisionScheme,
 																								Properties->NormalComputationMethod,
@@ -390,7 +390,7 @@ void USubdividePolyTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("USubdividePolyTool", "Subdivide Mesh"));
 
-			USimpleDynamicMeshComponent* PreviewDynamicMeshComponent = (USimpleDynamicMeshComponent*)PreviewMesh->GetRootComponent();
+			UDynamicMeshComponent* PreviewDynamicMeshComponent = (UDynamicMeshComponent*)PreviewMesh->GetRootComponent();
 			FDynamicMesh3* DynamicMeshResult = PreviewDynamicMeshComponent->GetRenderMesh();
 
 			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)

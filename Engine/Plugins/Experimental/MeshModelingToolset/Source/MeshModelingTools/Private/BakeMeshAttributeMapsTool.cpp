@@ -15,7 +15,7 @@
 #include "Sampling/MeshResampleImageEvaluator.h"
 #include "Util/IndexUtil.h"
 
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -277,7 +277,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	// create dynamic mesh component to use for live preview
 	// TODO: convert to UPreviewMesh
 	AActor* ParentActor = UE::ToolTarget::GetTargetActor(Targets[0]);
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ParentActor);
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(ParentActor);
 	DynamicMeshComponent->SetupAttachment(ParentActor->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
 	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));

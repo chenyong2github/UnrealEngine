@@ -14,7 +14,7 @@
 
 // predeclarations
 struct FMeshDescription;
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 
 /**
  *
@@ -63,7 +63,7 @@ protected:
 	bool bOnlyUnique;
 
 protected:
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
+	UDynamicMeshComponent* DynamicMeshComponent;
 	UE::Geometry::FDynamicMesh3 OriginalMesh;
 	UE::Geometry::FDynamicMesh3 ComputeMesh;
 	bool bResultValid;

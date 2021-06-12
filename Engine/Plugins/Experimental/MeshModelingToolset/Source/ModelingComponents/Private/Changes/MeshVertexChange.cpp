@@ -3,7 +3,7 @@
 #include "Changes/MeshVertexChange.h"
 #include "DynamicMesh3.h"
 
-#include "BaseDynamicMeshComponent.h"
+#include "Components/BaseDynamicMeshComponent.h"
 
 using namespace UE::Geometry;
 

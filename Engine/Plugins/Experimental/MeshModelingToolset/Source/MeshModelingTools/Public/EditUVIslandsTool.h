@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "Properties/MeshMaterialProperties.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
 #include "ToolDataVisualizer.h"
 #include "Changes/MeshVertexChange.h"
@@ -96,7 +96,7 @@ public:
 
 protected:
 	UPROPERTY()
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
+	UDynamicMeshComponent* DynamicMeshComponent;
 
 	UPROPERTY()
 	UPolygonSelectionMechanic* SelectionMechanic;
