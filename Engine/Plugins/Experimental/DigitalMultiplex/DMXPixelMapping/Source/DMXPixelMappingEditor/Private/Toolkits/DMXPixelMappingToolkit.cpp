@@ -428,14 +428,12 @@ void FDMXPixelMappingToolkit::CreateMatrixPixels(UDMXPixelMappingMatrixComponent
 
 		if (DMXLibrary != nullptr && FixturePatch != nullptr)
 		{
-			if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
+			if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->GetFixtureType())
 			{
 				const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
 
 				if(ModePtr)
 				{
-					int32 ActiveMode = FixturePatch->ActiveMode;
-
 					const FDMXFixtureMatrix& FixtureMatrixConfig = ModePtr->FixtureMatrixConfig;
 
 					// If there are any pixel functions

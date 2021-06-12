@@ -196,12 +196,15 @@ private:
 	uint8 FilterFlags;
 };
 
+
 class FDMXCategoryTreeNode
 	: public FDMXTreeNodeBase
 {
 public:
-	FDMXCategoryTreeNode(ECategoryType InCategoryType, FText InCategoryName, const void* InCategoryValuePtr, const FText& ToolTip = FText::GetEmpty());
-	
+	FDMXCategoryTreeNode(ECategoryType InCategoryType, FText InCategoryName, const FText& ToolTip = FText::GetEmpty());
+	FDMXCategoryTreeNode(ECategoryType InCategoryType, FText InCategoryName, int32 Value, const FText& ToolTip = FText::GetEmpty());
+	FDMXCategoryTreeNode(ECategoryType InCategoryType, FText InCategoryName, const FDMXFixtureCategory& Value, const FText& ToolTip = FText::GetEmpty());
+
 	// ~ start FDMXTreeNodeBase interface
 	virtual FString GetDisplayString() const override;
 	virtual FText GetDisplayName() const override;
@@ -210,20 +213,19 @@ public:
 
 	const FText& GetToolTip() const { return ToolTip; }
 
-	bool IsCategoryValueValid() const { return CategoryValuePtr != nullptr; }
-	template<typename ValType>
-	const ValType* GetCategoryValue() const
-	{
-		return CategoryValuePtr == nullptr ? nullptr : (ValType*)(CategoryValuePtr);
-	}
+	bool CanDropOntoCategory() const { return bCanDropOntoCategory; }
+	int32 GetIntValue() const { return IntValue; }
+	const FDMXFixtureCategory& GetCategoryValue() { return CategoryValue; }
 
-protected:
+private:
 	/** This node's category type */
 	ECategoryType CategoryType;
-	const void* CategoryValuePtr;
-
 	FText CategoryName;
 	FText ToolTip;
+
+	bool bCanDropOntoCategory;
+	int32 IntValue = 0;
+	FDMXFixtureCategory CategoryValue;
 };
 
 class FDMXEntityTreeNode : public FDMXTreeNodeBase
@@ -525,8 +527,17 @@ protected:
 	/**
 	 * Creates a new category node directly under the passed parent or just retrieves it if existent.
 	 * If InParentNodePtr is null, a root category node is created/retrieved.
+	 * Stores a value, so when something is dropped on the category the value can be retrieved.
 	 */
-	TSharedPtr<FDMXTreeNodeBase> GetOrCreateCategoryNode(const FDMXTreeNodeBase::ECategoryType InCategoryType, const FText InCategoryName, void* CategoryValuePtr, TSharedPtr<FDMXTreeNodeBase> InParentNodePtr = nullptr, const FText& InToolTip = FText::GetEmpty());
+	template <typename ValueType>
+	TSharedPtr<FDMXTreeNodeBase> GetOrCreateCategoryNode(const FDMXTreeNodeBase::ECategoryType InCategoryType, const FText InCategoryName, ValueType Value, TSharedPtr<FDMXTreeNodeBase> InParentNodePtr = nullptr, const FText& InToolTip = FText::GetEmpty());
+
+	/**
+	 * Creates a new category node directly under the passed parent or just retrieves it if existent.
+	 * If InParentNodePtr is null, a root category node is created/retrieved.
+	 * Doesn't store a value, and does not support drop onto the category.
+	 */
+	TSharedPtr<FDMXTreeNodeBase> GetOrCreateCategoryNode(const FDMXTreeNodeBase::ECategoryType InCategoryType, const FText InCategoryName, TSharedPtr<FDMXTreeNodeBase> InParentNodePtr = nullptr, const FText& InToolTip = FText::GetEmpty());
 
 	/** Called when the active tab in the editor changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);

@@ -9,6 +9,7 @@
 #include "SDMXFixturePatchFragment.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
+#include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 
@@ -91,6 +92,11 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 		CreateChannelConnectors();
 
 		SetUniverseID(UniverseID);
+
+		UpdatePatchedUniverseReachability();
+
+		// Bind to port changes
+		FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXPatchedUniverse::UpdatePatchedUniverseReachability);
 	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -119,7 +125,7 @@ void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
 		TArray<UDMXEntityFixturePatch*> PatchesInUniverse;
 		Library->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch) 
 		{
-			if (Patch->UniverseID == UniverseID)
+			if (Patch->GetUniverseID() == UniverseID)
 			{
 				PatchesInUniverse.Add(Patch);
 			}
@@ -210,7 +216,7 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 	const int32 NewChannelSpan = FixturePatch->GetChannelSpan();
 
 	// Auto assign patches that have bAutoAssignAddress set
-	if (FixturePatch->bAutoAssignAddress)
+	if (FixturePatch->IsAutoAssignAddress())
 	{
 		NewStartingChannel = FixturePatch->GetStartingChannel();
 	}
@@ -362,7 +368,7 @@ TSharedPtr<FDMXFixturePatchNode> SDMXPatchedUniverse::FindPatchNodeOfType(UDMXEn
 		}
 
 		if (PatchNode->GetFixturePatch().IsValid() &&
-			PatchNode->GetFixturePatch()->ParentFixtureTypeTemplate == Type)
+			PatchNode->GetFixturePatch()->GetFixtureType() == Type)
 		{
 			return PatchNode;
 		}
@@ -427,34 +433,37 @@ void SDMXPatchedUniverse::UpdatePatchedUniverseReachability()
 	UDMXLibrary* Library = GetDMXLibrary();
 	if (Library)
 	{
+		bool bReachableForAnyInput = false;
 		for (const FDMXInputPortSharedRef& InputPort : Library->GetInputPorts())
 		{
-			if (UniverseID >= InputPort->GetLocalUniverseStart() &&
-				UniverseID <= InputPort->GetLocalUniverseEnd())
+			if (InputPort->IsLocalUniverseInPortRange(UniverseID))
 			{
-				continue;
+				bReachableForAnyInput = true;
+				break;
 			}
-
-			PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForInputPorts;
 		}
-		
-		bool bUnreachableForInputPorts = PatchedUniverseReachability == EDMXPatchedUniverseReachability::UnreachableForInputPorts;
+
+		bool bReachableForAnyOutput = false;
 		for (const FDMXOutputPortSharedRef& OutputPort : Library->GetOutputPorts())
 		{
-			if (UniverseID >= OutputPort->GetLocalUniverseStart() &&
-				UniverseID <= OutputPort->GetLocalUniverseEnd())
+			if (OutputPort->IsLocalUniverseInPortRange(UniverseID))
 			{
-				continue;
+				bReachableForAnyOutput = true;
+				break;
 			}
+		}
 
-			if (bUnreachableForInputPorts)
-			{
-				PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForInputAndOutputPorts;
-			}
-			else
-			{
-				PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForOutputPorts;
-			}
+		if (!bReachableForAnyInput && !bReachableForAnyOutput)
+		{
+			PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForInputAndOutputPorts;
+		}
+		else if(!bReachableForAnyOutput)
+		{
+			PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForOutputPorts;
+		}
+		else if (!bReachableForAnyInput)
+		{
+			PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForInputPorts;
 		}
 	}
 }

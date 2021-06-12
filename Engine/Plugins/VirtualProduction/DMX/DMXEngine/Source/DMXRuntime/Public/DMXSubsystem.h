@@ -13,9 +13,10 @@
 #include "Subsystems/EngineSubsystem.h"
 #include "DMXSubsystem.generated.h"
 
-class UDMXLibrary;
 class IDMXProtocol;
 class UDMXEntityFixturePatch;
+class UDMXLibrary;
+class UDMXModulator;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FProtocolReceivedDelegate, FDMXProtocolName, Protocol, int32, RemoteUniverse, const TArray<uint8>&, DMXBuffer);
@@ -46,7 +47,7 @@ public:
 	static void SendDMXToOutputPort(FDMXOutputPortReference OutputPortReference, int32 LocalUniverse, TMap<int32, uint8> ChannelToValueMap);
 
 	/**  DEPRECATED 4.27 */
-	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Use GetRawBufferFromInputPort or GetRawBufferFromOutputPort from instead."))
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Use GetDMXDataFromInputPort or GetDMXDataFromOutputPort instead."))
 	void GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TArray<uint8>& DMXBuffer);
 	
 	/**  Gets accumulated latest DMX Values from the Input Port (all that's been received since Begin Play) */
@@ -223,39 +224,47 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	FName GetAttributeLabel(FDMXAttributeName AttributeName);
 
-	UE_DEPRECATED(4.26, "No longer supported in 4.26. Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead.")
+	UE_DEPRECATED(4.26, "Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead.")
 	UPROPERTY(BlueprintAssignable, Category = "DMX", meta = (DeprecatedProperty, DeprecationMessage = "WARNING: This can execute faster than tick leading to possible blueprint performance issues. Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead."))
 	FProtocolReceivedDelegate OnProtocolReceived_DEPRECATED;
 
 	/**  Set DMX Cell value using matrix coordinates. */
+	UE_DEPRECATED(4.27, "Use UDMXEntityFixturePatch::SetMatrixCellValue instead.")
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::SendMatrixCellValue instead"))
 	bool SetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, FDMXAttributeName Attribute, int32 Value);
 
 	/**  Get DMX Cell value using matrix coordinates. */
+	UE_DEPRECATED(4.27, "Use UDMXEntityFixturePatch::GetMatrixCellValue instead.")
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::GetMatrixCellValues instead"))
 	bool GetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap);
 
 	/**  Gets the starting channel of each cell attribute at given coordinate, relative to the Starting Channel of the patch. */
+	UE_DEPRECATED(4.27, "Use UDMXEntityFixturePatch::GetMatrixCellChannelsRelative instead.")
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::GetMatrixCellChannelsRelative instead"))
 	bool GetMatrixCellChannelsRelative(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
 	
 	/**  Gets the absolute starting channel of each cell attribute at given coordinate */
+	UE_DEPRECATED(4.27, "Use UDMXEntityFixturePatch::GetMatrixCellChannelsAbsolute instead.")
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::GetMatrixCellChannelsAbsolute instead"))
 	bool GetMatrixCellChannelsAbsolute(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
 
 	/**  Get Matrix Fixture properties */
+	UE_DEPRECATED(4.27, "Use UDMXEntityFixturePatch::GetMatrixProperties instead.")
 	UFUNCTION(BlueprintPure, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::GetMatrixProperties instead"))
 	bool GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXFixtureMatrix& MatrixProperties);
 
 	/**  Get all attributes for the fixture patch. */
+	UE_DEPRECATED(4.27, "Use UDMXEntityFixturePatch::GetCellAttributes instead.")
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::GetCellAttributes instead"))
 	bool GetCellAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& CellAttributes);
 
 	/**  Get data for single cell. */
+	UE_DEPRECATED(4.27, "Use UDMXEntityFixturePatch::GetMatrixCell instead.")
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::GetMatrixCell instead"))
 	bool GetMatrixCell(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, FDMXCell& Cell);
 
 	/**  Get array of all cells and associated data. */
+	UE_DEPRECATED(4.27, "Use UDMXEntityFixturePatch::GetAllMatrixCells instead.")
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::GetAllMatrixCells instead"))
 	bool GetAllMatrixCells(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXCell>& Cells);
 

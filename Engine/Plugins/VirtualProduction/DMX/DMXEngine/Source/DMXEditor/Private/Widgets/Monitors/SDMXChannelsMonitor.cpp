@@ -5,6 +5,7 @@
 #include "DMXEditorSettings.h"
 #include "DMXEditorUtils.h"
 #include "DMXProtocolCommon.h"
+#include "DMXProtocolSettings.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
 #include "Widgets/SDMXChannel.h"
@@ -66,7 +67,7 @@ void SDMXChannelsMonitor::Construct(const FArguments& InArgs)
 					[
 						SNew(STextBlock)
 						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						.Text(LOCTEXT("UniverseIDLabel", "Remote Universe"))
+						.Text(LOCTEXT("UniverseIDLabel", "Local Universe"))
 					]
 
 					+ SHorizontalBox::Slot()
@@ -136,23 +137,25 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SDMXChannelsMonitor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	// Create inputs from the selected ports
 	FDMXSignalSharedPtr Signal;
 
-	// Arbitrarly the best available signal
-	for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
-	{
-		if(InputPort->GameThreadGetDMXSignal(UniverseID, Signal))
-		{
-			break;
-		}
-	}
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	const bool bSendOrReceiveDisabled = !ProtocolSettings->IsSendDMXEnabled() || !ProtocolSettings->IsReceiveDMXEnabled();
 
-	if (!Signal.IsValid())
+	// The widget returns the right arrays, also output ports that loopback when input ports are selected.
+	if (SourceSelector->IsMonitorAllPorts())
 	{
+		for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
+		{
+			if (InputPort->GameThreadGetDMXSignal(UniverseID, Signal))
+			{
+				break;
+			}
+		}
+
 		for (const FDMXOutputPortSharedRef& OutputPort : SourceSelector->GetSelectedOutputPorts())
 		{
-			bool bEvenIfNotLoopbackToEngine = true;
+			constexpr bool bEvenIfNotLoopbackToEngine = true;
 			if (OutputPort->GameThreadGetDMXSignal(UniverseID, Signal, bEvenIfNotLoopbackToEngine))
 			{
 				break;
@@ -192,9 +195,6 @@ void SDMXChannelsMonitor::CreateChannelValueWidgets()
 
 void SDMXChannelsMonitor::LoadMonitorSettings()
 {
-	check(SourceSelector.IsValid());
-	check(UniverseIDEditableTextBox.IsValid());
-
 	// Restore from config
 	UDMXEditorSettings* DMXEditorSettings = GetMutableDefault<UDMXEditorSettings>();
 
@@ -266,8 +266,6 @@ FReply SDMXChannelsMonitor::OnClearButtonClicked()
 
 void SDMXChannelsMonitor::OnUniverseIDValueCommitted(const FText& InNewText, ETextCommit::Type CommitType)
 {
-	check(UniverseIDEditableTextBox.IsValid());
-
 	// If the entered text isn't numeric, restore the previous Value
 	if (!InNewText.IsNumeric())
 	{

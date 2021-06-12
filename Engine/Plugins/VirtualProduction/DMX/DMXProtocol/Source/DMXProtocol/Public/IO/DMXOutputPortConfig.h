@@ -44,7 +44,7 @@ struct DMXPROTOCOL_API FDMXOutputPortConfig
 	GENERATED_BODY()
 
 public:
-	/** Default constructor, only for CDOs */
+	/** Default constructor, only for Default Objects */
 	FDMXOutputPortConfig() = default;
 
 	/** Constructs a config from the guid */
@@ -97,7 +97,7 @@ protected:
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Destination IP Address"))
 	FString DestinationAddress; 
 
-	/** If true, the signals of output to this port is input into to the engine */
+	/** If true, the signals of output to this port is input into to the engine. It will still show only under output ports and is not visible in Monitors as Input. */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Input into Engine"))
 	bool bLoopbackToEngine;
 

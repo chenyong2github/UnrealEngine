@@ -388,7 +388,7 @@ void UDMXPixelMappingFixtureGroupItemComponent::SendDMX()
 			{
 				for (const FDMXOutputPortSharedRef& OutputPort : Library->GetOutputPorts())
 				{
-					OutputPort->SendDMX(FixturePatch->UniverseID, ChannelToValueMap);
+					OutputPort->SendDMX(FixturePatch->GetUniverseID(), ChannelToValueMap);
 				}
 			}
 		}

@@ -300,8 +300,6 @@ void FDMXPortManager::StartupManager()
 
 	check(!CurrentManager.IsValid());
 	CurrentManager = MakeUnique<FDMXPortManager>();
-
-	CurrentManager->UpdateFromProtocolSettings();
 }
 
 void FDMXPortManager::ShutdownManager()

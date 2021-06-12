@@ -64,7 +64,7 @@ void UDMXPixelMappingMatrixComponent::LogInvalidProperties()
 		{
 			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Active Mode set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
 		}
-		else if (!FixturePatch->ParentFixtureTypeTemplate)
+		else if (!FixturePatch->GetFixtureType())
 		{
 			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Fixture Type set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
 		}
@@ -73,7 +73,7 @@ void UDMXPixelMappingMatrixComponent::LogInvalidProperties()
 			FIntPoint NumCellsInActiveMode = FIntPoint(ModePtr->FixtureMatrixConfig.XCells, ModePtr->FixtureMatrixConfig.YCells);
 			if (NumCellsInActiveMode != NumCells)
 			{
-				UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Number of cells in %s no longer matches %s. %s will not function properly."), *GetName(), *FixturePatch->ParentFixtureTypeTemplate->GetDisplayName(), *GetName());
+				UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Number of cells in %s no longer matches %s. %s will not function properly."), *GetName(), *FixturePatch->GetFixtureType()->Name, *GetName());
 			}
 		}
 	}
@@ -352,7 +352,7 @@ void UDMXPixelMappingMatrixComponent::Tick(float DeltaTime)
 
 			if (DMXLibrary != nullptr && FixturePatch != nullptr)
 			{
-				if (UDMXEntityFixtureType * ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
+				if (UDMXEntityFixtureType * ParentFixtureType = FixturePatch->GetFixtureType())
 				{
 					if (!FixturePatch->GetActiveMode() && GetChildrenCount() > 0)
 					{
@@ -364,20 +364,22 @@ void UDMXPixelMappingMatrixComponent::Tick(float DeltaTime)
 					}
 					else
 					{
-						int32 ActiveMode = FixturePatch->ActiveMode;
+						const FDMXFixtureMode* FixtureMode = FixturePatch->GetActiveMode();
 
-						const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[ActiveMode];
-						const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
+						if (FixtureMode)
+						{
+							const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode->FixtureMatrixConfig;
 
-						FIntPoint NewNumCells(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
-						if (NumCells != NewNumCells)
-						{
-							bShouldRebuildChildren = true;
-						}
-						else if (FixtureMatrixConfig.PixelMappingDistribution != Distribution)
-						{
-							bShouldRebuildChildren = true;
-							Distribution = FixtureMatrixConfig.PixelMappingDistribution;
+							FIntPoint NewNumCells(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
+							if (NumCells != NewNumCells)
+							{
+								bShouldRebuildChildren = true;
+							}
+							else if (FixtureMatrixConfig.PixelMappingDistribution != Distribution)
+							{
+								bShouldRebuildChildren = true;
+								Distribution = FixtureMatrixConfig.PixelMappingDistribution;
+							}
 						}
 					}
 				}
@@ -591,7 +593,7 @@ void UDMXPixelMappingMatrixComponent::UpdateNumCells()
 
 	if (DMXLibrary != nullptr && FixturePatch != nullptr)
 	{
-		if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
+		if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->GetFixtureType())
 		{
 			const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
 			if (ModePtr && ParentFixtureType->bFixtureMatrixEnabled)

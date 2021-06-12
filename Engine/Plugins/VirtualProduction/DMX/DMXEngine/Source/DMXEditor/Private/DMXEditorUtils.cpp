@@ -13,13 +13,14 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
+#include "AssetRegistryModule.h"
+#include "Factories.h"
 #include "ScopedTransaction.h"
 #include "UnrealExporter.h"
+#include "Dialogs/Dialogs.h"
 #include "Exporters/Exporter.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "Factories.h"
 #include "UObject/Package.h"
-#include "AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "FDMXEditorUtils"
 // In blueprints name verification, it is said that '.' is known for causing problems
@@ -299,7 +300,7 @@ bool FDMXEditorUtils::IsEntityUsed(const UDMXLibrary* InLibrary, const UDMXEntit
 			bool bIsUsed = false;
 			InLibrary->ForEachEntityOfTypeWithBreak<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch)
 				{
-					if (Patch->ParentFixtureTypeTemplate == InEntity)
+					if (Patch->GetFixtureType() == InEntity)
 					{
 						bIsUsed = true;
 						return false;
@@ -318,10 +319,68 @@ bool FDMXEditorUtils::IsEntityUsed(const UDMXLibrary* InLibrary, const UDMXEntit
 	return false;
 }
 
-void FDMXEditorUtils::RemoveEntities(UDMXLibrary* InLibrary, const TArray<UDMXEntity*>&& InEntities)
+void FDMXEditorUtils::RemoveEntities(UDMXLibrary* InLibrary, const TArray<UDMXEntity*>& InEntities)
 {
-	if (InLibrary != nullptr)
+	if (InLibrary)
 	{
+		TArray<UDMXEntity*> EntitiesInUse;
+		for (UDMXEntity* Entity : InEntities)
+		{
+			if (FDMXEditorUtils::IsEntityUsed(InLibrary, Entity))
+			{
+				EntitiesInUse.Add(Entity);
+			}
+		}
+
+		// Confirm deletion of Entities in use, if any
+		if (EntitiesInUse.Num() > 0)
+		{
+			FText ConfirmDelete;
+
+			// Confirmation text for a single entity in use
+			if (EntitiesInUse.Num() == 1)
+			{
+				ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteEntityInUse", "Entity \"{0}\" is in use! Do you really want to delete it?"),
+					FText::FromString(EntitiesInUse[0]->Name));
+			}
+			// Confirmation text for when all of the selected entities are in use
+			else if (EntitiesInUse.Num() == InEntities.Num())
+			{
+				ConfirmDelete = LOCTEXT("ConfirmDeleteAllEntitiesInUse", "All selected entities are in use! Do you really want to delete them?");
+			}
+			// Confirmation text for multiple entities, but not so much that would make the dialog huge
+			else if (EntitiesInUse.Num() > 1 && EntitiesInUse.Num() <= 10)
+			{
+				FString EntitiesNames;
+				for (UDMXEntity* Entity : EntitiesInUse)
+				{
+					EntitiesNames += TEXT("\t") + Entity->GetDisplayName() + TEXT("\n");
+				}
+
+				ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteSomeEntitiesInUse", "The Entities below are in use!\n{0}\nDo you really want to delete them?"),
+					FText::FromString(EntitiesNames));
+			}
+			// Confirmation text for several entities. Displaying each of their names would make a huge dialog
+			else
+			{
+				ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteManyEntitiesInUse", "{0} of the selected entities are in use!\nDo you really want to delete them?"),
+					FText::AsNumber(EntitiesInUse.Num()));
+			}
+
+			// Warn the user that this may result in data loss
+			FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("DeleteEntities", "Delete Entities"), "DeleteEntitiesInUse_Warning");
+			Info.ConfirmText = LOCTEXT("DeleteEntities_Yes", "Yes");
+			Info.CancelText = LOCTEXT("DeleteEntities_No", "No");
+
+			FSuppressableWarningDialog DeleteEntitiesInUse(Info);
+			if (DeleteEntitiesInUse.ShowModal() == FSuppressableWarningDialog::Cancel)
+			{
+				return;
+			}
+		}
+
+		const FScopedTransaction Transaction(InEntities.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
+
 		for (UDMXEntity* EntityToDelete : InEntities)
 		{
 			// Fix references to this Entity
@@ -330,11 +389,7 @@ void FDMXEditorUtils::RemoveEntities(UDMXLibrary* InLibrary, const TArray<UDMXEn
 				// Find Fixture Patches using this Fixture Type and null their templates
 				InLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&AsFixtureType](UDMXEntityFixturePatch* Patch)
 					{
-						if (Patch->ParentFixtureTypeTemplate == AsFixtureType)
-						{
-							Patch->Modify();
-							Patch->ParentFixtureTypeTemplate = nullptr;
-						}
+						Patch->SetFixtureType(nullptr);
 					});
 			}
 
@@ -365,13 +420,13 @@ void FDMXEditorUtils::CopyEntities(const TArray<UDMXEntity*>&& EntitiesToCopy)
 		// Fixture Patches require copying their template because it's a reference to a private object
 		if (UDMXEntityFixturePatch* AsPatch = Cast<UDMXEntityFixturePatch>(Entity))
 		{
-			if (AsPatch->ParentFixtureTypeTemplate != nullptr)
+			if (UDMXEntityFixtureType* FixtureType = AsPatch->GetFixtureType())
 			{
 				bool bExportedTemplate = false;
 
 				// Try to get a cached duplicate of the template
 				UDMXEntityFixtureType* DuplicateFixtureType;
-				if (UDMXEntityFixtureType** CachedTemplate = CopiedPatchTemplates.Find(AsPatch->ParentFixtureTypeTemplate->GetFName()))
+				if (UDMXEntityFixtureType** CachedTemplate = CopiedPatchTemplates.Find(FixtureType->GetFName()))
 				{
 					DuplicateFixtureType = *CachedTemplate;
 					bExportedTemplate = true;
@@ -379,12 +434,12 @@ void FDMXEditorUtils::CopyEntities(const TArray<UDMXEntity*>&& EntitiesToCopy)
 				else
 				{
 					// Copy the template to the transient package to make the Patch reference the copy
-					FObjectDuplicationParameters DuplicationParams(AsPatch->ParentFixtureTypeTemplate, GetTransientPackage());
-					DuplicationParams.DestName = AsPatch->ParentFixtureTypeTemplate->GetFName();
+					FObjectDuplicationParameters DuplicationParams(FixtureType, GetTransientPackage());
+					DuplicationParams.DestName = FixtureType->GetFName();
 
 					DuplicateFixtureType = CastChecked<UDMXEntityFixtureType>(StaticDuplicateObjectEx(DuplicationParams));
 					// Keep same entity ID to find the original Template when pasting
-					DuplicateFixtureType->ReplicateID(AsPatch->ParentFixtureTypeTemplate);
+					DuplicateFixtureType->ReplicateID(FixtureType);
 
 					// Cache this copy so we don't copy the same template over and over for several Patches
 					CopiedPatchTemplates.Add(DuplicateFixtureType->GetFName(), DuplicateFixtureType);
@@ -392,8 +447,8 @@ void FDMXEditorUtils::CopyEntities(const TArray<UDMXEntity*>&& EntitiesToCopy)
 
 				// We'll temporarily change the ParentFixtureTypeTemplate of the Patch to copy it
 				// with a reference to the duplicate Fixture Type
-				UDMXEntityFixtureType* OriginalTemplate = AsPatch->ParentFixtureTypeTemplate;
-				AsPatch->ParentFixtureTypeTemplate = DuplicateFixtureType;
+				UDMXEntityFixtureType* OriginalTemplate = FixtureType;
+				FixtureType = DuplicateFixtureType;
 				// Export the Patch referencing the duplicate template
 				UExporter::ExportToOutputDevice(&Context, AsPatch, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, GetTransientPackage());
 				if (!bExportedTemplate)
@@ -402,7 +457,7 @@ void FDMXEditorUtils::CopyEntities(const TArray<UDMXEntity*>&& EntitiesToCopy)
 					UExporter::ExportToOutputDevice(&Context, DuplicateFixtureType, nullptr, Archive, TEXT("copy"), 4, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, GetTransientPackage());
 				}
 				// Revert the patch to it's original, private template
-				AsPatch->ParentFixtureTypeTemplate = OriginalTemplate;
+				FixtureType = OriginalTemplate;
 			}
 			else // Template is null
 			{
@@ -555,19 +610,19 @@ FText FDMXEditorUtils::GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass
 
 bool FDMXEditorUtils::TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, const TSet<int32>& AllowedUniverses)
 {
-	check(Patch->bAutoAssignAddress);
-	const int32 UniverseToRestore = Patch->UniverseID;
-	const int32 AutoAddressToRestore = Patch->AutoStartingAddress;
+	check(Patch->IsAutoAssignAddress());
+	const int32 UniverseToRestore = Patch->GetUniverseID();
+	const int32 AutoAddressToRestore = Patch->GetAutoStartingAddress();
 	
 	for(auto UniverseIt = AllowedUniverses.CreateConstIterator(); UniverseIt; ++UniverseIt)
 	{
 		// Don't auto assign to a universe smaller than the initial one
-		if (Patch->UniverseID > *UniverseIt)
+		if (Patch->GetUniverseID() > *UniverseIt)
 		{
 			continue;
 		}
 
-		Patch->UniverseID = *UniverseIt;
+		Patch->SetUniverseID(*UniverseIt);
 		const FUnassignedPatchesArray UnassignedPatches = AutoAssignedAddresses({ Patch }, 1, false);
 		
 		const bool bWasPatchAssignedToUniverse = UnassignedPatches.Num() == 0;
@@ -577,8 +632,8 @@ bool FDMXEditorUtils::TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, co
 		}
 	}
 
-	Patch->UniverseID = UniverseToRestore;
-	Patch->AutoStartingAddress = AutoAddressToRestore;
+	Patch->SetUniverseID(UniverseToRestore);
+	Patch->SetAutoStartingAddress(AutoAddressToRestore);
 	return false;
 }
 
@@ -592,7 +647,7 @@ void FDMXEditorUtils::AutoAssignedAddresses(UDMXEntityFixtureType* ChangedParent
 		TArray<UDMXEntityFixturePatch*> FixturePatches;
 		Library->ForEachEntityOfType<UDMXEntityFixturePatch>([&FixturePatches, ChangedParentFixtureType](UDMXEntityFixturePatch* Patch)
 			{
-				if (Patch->ParentFixtureTypeTemplate == ChangedParentFixtureType)
+				if (Patch->GetFixtureType() == ChangedParentFixtureType)
 				{
 					FixturePatches.Add(Patch);
 				}
@@ -671,8 +726,8 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 		
 		static void AssignPatchTo(UDMXEntityFixturePatch* Patch, int32 ToAddress, int32 UniverseToAssignTo)
 		{
-			Patch->AutoStartingAddress = ToAddress;
-			Patch->UniverseID = UniverseToAssignTo;
+			Patch->SetAutoStartingAddress(ToAddress);
+			Patch->SetUniverseID(UniverseToAssignTo);
 		}
 
 		static bool FillIntoFirstGap(
@@ -747,7 +802,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 	// Only care about those that have auto assign addresses set
 	TArray<UDMXEntityFixturePatch*> PatchesToAutoAssign = ChangedFixturePatches;
 	PatchesToAutoAssign.RemoveAll([](UDMXEntityFixturePatch* Patch) {
-		return !Patch->bAutoAssignAddress;
+		return !Patch->IsAutoAssignAddress();
 		});
 	
 	TArray<UDMXEntityFixturePatch*> AllFixturePatches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
@@ -763,12 +818,12 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 				return PatchesToAutoAssign.Contains(Patch);
 				});
 			Result.RemoveAll([&, PatchesToAutoAssign, CurrentUniverse](UDMXEntityFixturePatch* Patch) {
-				return Patch->UniverseID != CurrentUniverse;
+				return Patch->GetUniverseID() != CurrentUniverse;
 				});
 			Result.Sort([](const UDMXEntityFixturePatch& Patch, const UDMXEntityFixturePatch& Other) {
 				return
-					Patch.UniverseID < Other.UniverseID ||
-					(Patch.UniverseID == Other.UniverseID && Patch.GetStartingChannel() <= Other.GetStartingChannel());
+					Patch.GetUniverseID() < Other.GetUniverseID() ||
+					(Patch.GetUniverseID() == Other.GetUniverseID() && Patch.GetStartingChannel() <= Other.GetStartingChannel());
 				}
 			);
 			return Result;
@@ -778,7 +833,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			TArray<UDMXEntityFixturePatch*> Result = PatchesToAutoAssign;
 			Result.RemoveAll([&, UniverseIterator](UDMXEntityFixturePatch* Patch)
 				{
-					return Patch->UniverseID != CurrentUniverse;
+					return Patch->GetUniverseID() != CurrentUniverse;
 				});
 			return Result;
 		}();
@@ -811,7 +866,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			for(UDMXEntityFixturePatch* UnassignedPatch : PatchesToAssignInNextUniverse)
 			{
 				UnassignedPatch->Modify();
-				UnassignedPatch->UniverseID = HighestUniverse + 1;
+				UnassignedPatch->SetUniverseID(HighestUniverse + 1);
 			}
 			return AutoAssignedAddresses(PatchesToAssignInNextUniverse, 1, bCanChangePatchUniverses);
 		}
@@ -835,7 +890,7 @@ void FDMXEditorUtils::UpdatePatchColors(UDMXLibrary* Library)
 
 			UDMXEntityFixturePatch** ColoredPatchOfSameType = Patches.FindByPredicate([&](const UDMXEntityFixturePatch* Other) {
 				return Other != Patch &&
-					Other->ParentFixtureTypeTemplate == Patch->ParentFixtureTypeTemplate &&
+					Other->GetFixtureType() == Patch->GetFixtureType() &&
 					Other->EditorColor != FLinearColor::White;
 				});
 
@@ -854,13 +909,11 @@ void FDMXEditorUtils::UpdatePatchColors(UDMXLibrary* Library)
 				}
 			}
 
-			Patch->Modify();
-
 			FProperty* ColorProperty = FindFProperty<FProperty>(UDMXEntityFixturePatch::StaticClass(), GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, EditorColor));
+
+			Patch->Modify();
 			Patch->PreEditChange(ColorProperty);
-
 			Patch->EditorColor = NewColor;
-
 			Patch->PostEditChange();
 		}
 	}
@@ -976,7 +1029,7 @@ void FDMXEditorUtils::ClearFixturePatchCachedData()
 			if (Library != nullptr && Library->IsValidLowLevel())
 			{
 				Library->ForEachEntityOfType<UDMXEntityFixturePatch>([](UDMXEntityFixturePatch* Patch) {
-					Patch->ClearCachedData();
+					Patch->RebuildCache();
 				});
 			}
 		}

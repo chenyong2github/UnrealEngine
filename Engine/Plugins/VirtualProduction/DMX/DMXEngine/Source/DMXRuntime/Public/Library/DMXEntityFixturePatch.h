@@ -9,13 +9,16 @@
 #include "DMXProtocolCommon.h"
 #include "DMXTypes.h"
 #include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXEntityFixturePatchCache.h"
 
 #include "Tickable.h"
 
 #include "DMXEntityFixturePatch.generated.h"
 
+class FDMXEntityFixturePatchCache;
 class UDMXEntityController;
 class UDMXEntityFixtureType;
+class UDMXModulator;
 
 struct FPropertyChangedEvent;
 
@@ -38,6 +41,10 @@ public:
 	UDMXEntityFixturePatch();
 
 protected:
+	// ~Begin UObject Interface
+	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -56,12 +63,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SendDMX(TMap<FDMXAttributeName, int32> AttributeMap);
 
-
-
-#if WITH_EDITOR
-/** Clears cached data. Useful in dmx to rest to default state on begin and end PIE */
-	void ClearCachedData();
-#endif // WITH_EDITOR
+	/** 
+	 * Rebuilds the cache. Should be called when relevant properties, for example the starting channel changed. 
+	 * This will not clear cached DMX data.
+	 */
+	void RebuildCache();
 
 	/** Returns the last received DMX signal. */
 	const FDMXSignalSharedPtr& GetLastReceivedDMXSignal() const { return LastDMXSignal; }
@@ -71,20 +77,14 @@ public:
 	FDMXOnFixturePatchReceivedDMXDelegate OnFixturePatchReceivedDMX;
 
 private:
-	/** Updates the cached values. Returns true if the values got updated (if the values changed) */
-	bool UpdateCachedValues();
+	/** Updates the cache. Returns true if the values got updated (if the values changed) */
+	bool UpdateCache();
 
 	/** The last received DMX signal */
 	FDMXSignalSharedPtr LastDMXSignal;
 
-	/** 
-	 * Raw cached DMX values, last received. This only contains DMX data relevant to the patch,
-	 * from starting channel to starting channel + channel span.
-	 */
-	TArray<uint8> CachedDMXValues;
-
-	/** Map of normalized values per attribute, direct represpentation of CachedDMXValues. */
-	FDMXNormalizedAttributeValueMap CachedNormalizedValuesPerAttribute;
+	/** Cache of dmx values */
+	FDMXEntityFixturePatchCache Cache;
 
 public:
 	//~ Begin UDMXEntity Interface
@@ -100,8 +100,71 @@ public:
 
 	/** Returns the active mode, or nullptr if there is no valid active mode */
 	const FDMXFixtureMode* GetActiveMode() const;
+	
+	/** Gets the parent fixture type this was constructed from */
+	FORCEINLINE UDMXEntityFixtureType* GetFixtureType() const { return ParentFixtureTypeTemplate; }
 
-public:
+	/** Sets the fixture type this is using */
+	void SetFixtureType(UDMXEntityFixtureType* NewFixtureType);
+
+	/** Returns the universe ID of the patch*/
+	FORCEINLINE int32 GetUniverseID() const { return UniverseID; }
+
+	/** Sets the Universe ID of the patch*/
+	void SetUniverseID(int32 NewUniverseID);
+
+	/**  Sets the auto starting address */
+	void SetAutoStartingAddress(int32 NewAutoStartingAddress);
+
+	/** Returns the auto starting channel. Used only when bAutoAssignAdress is true. In most cases, you'll want GetStartingChannel instead. */
+	FORCEINLINE int32 GetAutoStartingAddress() const { return AutoStartingAddress; }
+
+	/**  Sets the manual starting address */
+	void SetManualStartingAddress(int32 NewManualStartingAddress);
+
+	/** Returns the manual starting channel. Used only when bAutoAssignAdress is false.  In most cases, you'll want GetStartingChannel instead. */
+	FORCEINLINE int32 GetManualStartingAddress() const { return ManualStartingAddress; }
+
+	/** Return the starting channel */
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	int32 GetStartingChannel() const;
+
+#if WITH_EDITOR
+	/** Sets bAutoAssignAddress for the patch. Does not update relevant properties. Use UDMXEditor Module's UDMXEditorUtils::AutoAssignAddresses methods instead. */
+	void SetAutoAssignAddressUnsafe(bool bShouldAutoAssignAddress) { bAutoAssignAddress = bShouldAutoAssignAddress; }
+#endif // WITH_EDITOR
+
+	/** Returns true if the patch is set to auto assign address */
+	FORCEINLINE bool IsAutoAssignAddress() const { return bAutoAssignAddress; }
+
+	/** Returns the number of channels this Patch occupies with the Fixture functions from its Active Mode or 0 if the patch has no valid Active Mode */
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	int32 GetChannelSpan() const;
+
+	/** Returns the last channel of the patch */
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	int32 GetEndingChannel() const;
+
+	/** Sets the index of the Mode the Patch uses from its Fixture Type */
+	bool SetActiveModeIndex(int32 NewActiveModeIndex);
+
+	/** Returns the index of the Mode the Patch uses from its Fixture Type */
+	FORCEINLINE int32 GetActiveModeIndex() const { return ActiveMode; }
+
+	/** Returns custom tags defined for the patch */
+	FORCEINLINE const TArray<FName>& GetCustomTags() const { return CustomTags; }
+
+#if WITH_EDITOR
+	/** Property name getters. When accessing the this way, use with care. The patch will need to update its cache after using property setters. Call RebuildCache to do that. */
+	static FName GetUniverseIDPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, UniverseID); }
+	static FName GetAutoAssignAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, bAutoAssignAddress); }
+	static FName GetManualStartingAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ManualStartingAddress); }
+	static FName GetAutoStartingAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, AutoStartingAddress); }
+	static FName GetParentFixtureTypeTemplatePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ParentFixtureTypeTemplate); }
+	static FName GetActiveModePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ActiveMode); }
+#endif // WITH_EDITOR
+
+protected:
 	/** The local universe of the patch */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch", meta = (ClampMin = 0, DisplayName = "Universe"))
 	int32 UniverseID;
@@ -111,7 +174,7 @@ public:
 	bool bAutoAssignAddress;
 
 	/** Starting channel for when auto-assign address is false */
-	UPROPERTY(EditAnywhere, Category = "Fixture Patch", meta = (EditCondition = "!bAutoAssignAddress", DisplayName = "Manual Starting Address", UIMin = "1", UIMax = "512", ClampMin = "1", ClampMax = "512"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch", meta = (EditCondition = "!bAutoAssignAddress", DisplayName = "Manual Starting Address", UIMin = "1", UIMax = "512", ClampMin = "1", ClampMax = "512"))
 	int32 ManualStartingAddress;
 
 	/** Starting channel from auto-assignment. Used when AutoAssignAddress is true */
@@ -122,10 +185,11 @@ public:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Fixture Patch", meta = (DisplayName = "Fixture Type"))
 	UDMXEntityFixtureType* ParentFixtureTypeTemplate;
 
-	/** The fixture type mode the patch should use */
+	/** The Index of the Mode in the Fixture Type the Patch uses */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
-	int32 ActiveMode;	
-	
+	int32 ActiveMode;
+
+public:
 	/** Custom tags for filtering patches  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
 	TArray<FName> CustomTags;
@@ -137,81 +201,71 @@ public:
 
 	/** 
 	 * If true, the patch receives dmx and raises the OnFixturePatchReceivedDMX event in editor. 
-	 * Note: DMXComponent does not support this. To receive the patch in editor, drag out from the patch and bind its OnFixturePatchReceivedDMX event.
+	 * NOTE: DMXComponent does not support this. To receive the patch in editor, drag out from the patch and bind its OnFixturePatchReceivedDMX event!
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
 	bool bReceiveDMXInEditor;
 #endif
 
 public:
-	/** Returns the number of channels this Patch occupies with the Fixture functions from its Active Mode or 0 if the patch has no valid Active Mode. */
-	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	int32 GetChannelSpan() const;
-
-	/**  Return the active starting channel, evaluated after checking if Auto-Assignment is activated. */
-	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	int32 GetStartingChannel() const;
-
-	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	int32 GetEndingChannel() const;
-
 	/** DEPRECATED 4.27 */
 	UE_DEPRECATED(4.27, "Controllers are replaced with DMX Ports.")
-	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Controllers are replaced with DMX Ports."))
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. No clear remote universe can be deduced from controllers (before 4.27) or ports (from 4.27 on)."))
 	int32 GetRemoteUniverse() const;
 
 	/**
-	 * Return an array of valid attributes for the currently active mode.
+	 * Returns an array of valid attributes for the currently active mode.
 	 * Attributes outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	TArray<FDMXAttributeName> GetAllAttributesInActiveMode() const;
 
 	/**
-	 * Return map of attributes and function names.
+	 * Returns a map of attributes and function names.
 	 * Attributes outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	TMap<FDMXAttributeName, FDMXFixtureFunction> GetAttributeFunctionsMap() const;
 
 	/**
-	 * Return map of function names and default values.
+	 * Returns a map of function names and default values.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	TMap<FDMXAttributeName, int32> GetAttributeDefaultMap() const;
 
-	/** Return map of Attributes and their assigned channels */
+	/** Returns a map of Attributes and their assigned channels */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	TMap<FDMXAttributeName, int32> GetAttributeChannelAssignments() const;
 
 	/**
-	 * Return map of function names and their Data Types.
+	 * Returns a map of function names and their Data Types.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	TMap<FDMXAttributeName, EDMXFixtureSignalFormat> GetAttributeSignalFormats() const;
 
-	/**  Given a <Channel Index -> Raw Value> map , return map of function names and their values. */
-	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	/** DEPRECATED 4.27 */
+	UE_DEPRECATED(4.27, "Deprecated since it's unclear how to use this function correctly. Use UDMXSubsystem::BytesToInt instead.")
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch", Meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Please use DMXSubsystem's Bytes to Int instead, then create a map from that with Attribute Names ."))
 	TMap<FDMXAttributeName, int32> ConvertRawMapToAttributeMap(const TMap<int32, uint8>& RawMap) const;
 
 	/**
-	 * Return map of function channels and their values.
+	 * Returns a map of function channels and their values.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	TMap<int32, uint8> ConvertAttributeMapToRawMap(const TMap<FDMXAttributeName, int32>& FunctionMap) const;
 
-	/**  Return if given function map is valid for this fixture. */
+	/**  Returns true if given function map is valid for this fixture. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	bool IsMapValid(const TMap<FDMXAttributeName, int32>& FunctionMap) const;
 
-	/**  Return if fixture contains function. */
+	/**  Returns true if the fixture patch contains the attribute. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	bool ContainsAttribute(const FDMXAttributeName FunctionAttribute) const;
+	bool ContainsAttribute(FDMXAttributeName FunctionAttribute) const;
 
-	/**  Return a map that is valid for this fixture. */
+	/**  Returns a map that only contains attributes used this patch. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	TMap<FDMXAttributeName, int32> ConvertToValidMap(const TMap<FDMXAttributeName, int32>& FunctionMap) const;
 	
@@ -231,7 +285,7 @@ public:
 	bool IsInControllersRange(const TArray<UDMXEntityController*>& InControllers) const { return false; }
 
 	/**
-	 * Return the function currently mapped to the passed in Attribute, if any.
+	 * Returns the function currently mapped to the passed in Attribute, if any.
 	 * If no function is mapped to it, returns nullptr.
 	 *
 	 * @param Attribute The attribute name to search for.
@@ -241,7 +295,7 @@ public:
 	const FDMXFixtureFunction* GetAttributeFunction(const FDMXAttributeName& Attribute) const;
 
 	/**
-	 * Retrieve the value of an Attribute. Will fail and return 0 if the Attribute doesn't exist.
+	 * Retrieves the value of an Attribute. Will fail and return 0 if the Attribute doesn't exist.
 	 *
 	 * @param Attribute	The Attribute to try to get the value from.
 	 * @param bSuccess	Whether the Attribute was found in this Fixture Patch
@@ -251,7 +305,7 @@ public:
 	int32 GetAttributeValue(FDMXAttributeName Attribute, bool& bSuccess);
 
 	/**
-	 * Retrieve the normalized value of an Attribute. Will fail and return 0 if the Attribute doesn't exist.
+	 * Retrieves the normalized value of an Attribute. Will fail and return 0 if the Attribute doesn't exist.
 	 *
 	 * @param Attribute	The Attribute to try to get the value from.
 	 * @param bSuccess	Whether the Attribute was found in this Fixture Patch
@@ -288,11 +342,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool SendNormalizedMatrixCellValue(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, const FDMXAttributeName& Attribute, float RelativeValue);
 
-	/**  Get DMX Cell value using matrix coordinates. */
+	/**  Gets the DMX Cell value using matrix coordinates */
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool GetMatrixCellValues(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& ValuePerAttribute);
 	
-	/**  Get DMX Cell value using matrix coordinates. */
+	/**  Gets the DMX Cell value using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool GetNormalizedMatrixCellValues(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, float>& NormalizedValuePerAttribute);
 
@@ -304,29 +358,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool GetMatrixCellChannelsAbsolute(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
 
-	/**  Validate and gets the absolute starting channel of each cell attribute at given coordinate */
+	/**  Validates and gets the absolute starting channel of each cell attribute at given coordinate */
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool GetMatrixCellChannelsAbsoluteWithValidation(const FIntPoint& InCellCoordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& OutAttributeChannelMap);
 
-	/**  Get Matrix Fixture properties */
+	/**  Gets the Matrix Fixture properties, returns false if the patch is not using a matrix fixture */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	bool GetMatrixProperties(FDMXFixtureMatrix& MatrixProperties) const;
 
-	/**  Get all attributes for the fixture patch. */
+	/**  Gets all attributes names of a cell */
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool GetCellAttributes(TArray<FDMXAttributeName>& CellAttributes);
 
-	/**  Get data for single cell. */
+	/**  Gets the cell corresponding to the passed in coordinate */
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool GetMatrixCell(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, FDMXCell& Cell);
 
-	/**  Get array of all cells and associated data. */
+	/**  Gets all matrix cells */
 	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	bool GetAllMatrixCells(TArray<FDMXCell>& Cells);
 
 private:
-	/** Try to access the FixtureMatrix config of this patch and logs issues. Returns the matrix of nullptr if it isn't valid. */
-	const FDMXFixtureMatrix* GetFixtureMatrixValidated() const;
+	/** Tries to access the FixtureMatrix config of this patch and logs issues. Returns the matrix of nullptr if it isn't valid. */
+	const FDMXFixtureMatrix* GetFixtureMatrix() const;
 
 	/** Returns true if the specified coordinates are valid for the specified matrix */
 	static bool AreCoordinatesValid(const FDMXFixtureMatrix& FixtureMatrix, const FIntPoint& Coordinate, bool bLogged = true);

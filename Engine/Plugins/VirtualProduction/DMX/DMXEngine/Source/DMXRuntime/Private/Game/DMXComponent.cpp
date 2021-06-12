@@ -70,6 +70,17 @@ void UDMXComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (UDMXEntityFixturePatch* FixturePatch = GetFixturePatch())
+	{
+		FDMXNormalizedAttributeValueMap NormalizeAttributeValues;
+		FixturePatch->GetNormalizedAttributesValues(NormalizeAttributeValues);
+
+		if (NormalizeAttributeValues.Map.Num() > 0)
+		{
+			OnFixturePatchReceived.Broadcast(FixturePatch, NormalizeAttributeValues);
+		}
+	}
+
 	SetupReceiveDMXBinding();
 }
 

@@ -126,7 +126,7 @@ void UDMXSubsystem::SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttri
 void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TMap<int32, uint8> ChannelToValueMap, EDMXSendResult& OutResult)
 {
 	// DEPRECATED 4.27
-
+	
 	for (const FDMXOutputPortSharedRef& OutputPort : FDMXPortManager::Get().GetOutputPorts())
 	{
 		const IDMXProtocolPtr& Protocol = OutputPort->GetProtocol();
@@ -155,7 +155,7 @@ void UDMXSubsystem::SendDMXToOutputPort(FDMXOutputPortReference OutputPortRefere
 	}
 	else
 	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("Unexpected: Cannot find DMX Port, failed sending DMX with node Send DMX To Port."));
+		UE_LOG(DMXSubsystemLog, Error, TEXT("Unexpected: Cannot find DMX Port, failed sending DMX with node Send DMX To Outputport."));
 	}
 }
 
@@ -218,7 +218,7 @@ void UDMXSubsystem::GetDMXDataFromInputPort(FDMXInputPortReference InputPortRefe
 	}
 	else
 	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("Unexpected: Cannot find DMX Port, failed reading DMX from node Get DMX Buffer from Input Port."));
+		UE_LOG(DMXSubsystemLog, Error, TEXT("Unexpected: Cannot find DMX Port, failed reading DMX in node 'Get DMX Data from Input Port'."));
 	}
 }
 
@@ -241,7 +241,7 @@ void UDMXSubsystem::GetDMXDataFromOutputPort(FDMXOutputPortReference OutputPortR
 	}
 	else
 	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("Unexpected: Cannot find DMX Port, failed reading DMX from node Get DMX Buffer from Input Port."));
+		UE_LOG(DMXSubsystemLog, Error, TEXT("Unexpected: Cannot find DMX Port, failed reading DMX in node 'Get DMX Data from Input Port'."));
 	}
 }
 
@@ -339,7 +339,7 @@ void UDMXSubsystem::GetAllFixturesOfType(const FDMXEntityFixtureTypeRef& Fixture
 	{
 		FixtureTypeObj->GetParentLibrary()->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Fixture)
 		{
-			if (Fixture->ParentFixtureTypeTemplate == FixtureTypeObj)
+			if (Fixture->GetFixtureType() == FixtureTypeObj)
 			{
 				OutResult.Add(Fixture);
 			}
@@ -353,11 +353,11 @@ void UDMXSubsystem::GetAllFixturesOfCategory(const UDMXLibrary* DMXLibrary, FDMX
 
 	if (DMXLibrary != nullptr)
 	{
-		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Fixture)
+		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* FixturePatch)
 		{
-			if (Fixture->ParentFixtureTypeTemplate != nullptr && Fixture->ParentFixtureTypeTemplate->DMXCategory == Category)
+			if (FixturePatch->GetFixtureType() && FixturePatch->GetFixtureType()->DMXCategory == Category)
 			{
-				OutResult.Add(Fixture);
+				OutResult.Add(FixturePatch);
 			}
 		});
 	}
@@ -371,7 +371,7 @@ void UDMXSubsystem::GetAllFixturesInUniverse(const UDMXLibrary* DMXLibrary, int3
 	{
 		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Fixture)
 		{
-			if (Fixture->UniverseID == UniverseId)
+			if (Fixture->GetUniverseID() == UniverseId)
 			{
 				OutResult.Add(Fixture);
 			}
@@ -385,34 +385,35 @@ void UDMXSubsystem::GetFixtureAttributes(const UDMXEntityFixturePatch* InFixture
 
 	if (InFixturePatch != nullptr)
 	{
-		if (const UDMXEntityFixtureType* FixtureType = InFixturePatch->ParentFixtureTypeTemplate)
+		if (const UDMXEntityFixtureType* FixtureType = InFixturePatch->GetFixtureType())
 		{
 			const int32 StartingAddress = InFixturePatch->GetStartingChannel() - 1;
 
-			if (FixtureType->Modes.Num() < 1)
+			const FDMXFixtureMode* ActiveModePtr = InFixturePatch->GetActiveMode();
+			if (ActiveModePtr)
 			{
-				UE_LOG(DMXSubsystemLog, Error, TEXT("%S: Tried to use Fixture Patch which Parent Fixture Type has no Modes set up."));
-				return;
+				for (const FDMXFixtureFunction& Function : ActiveModePtr->Functions)
+				{
+					if (!UDMXEntityFixtureType::IsFunctionInModeRange(Function, *ActiveModePtr, StartingAddress))
+					{
+						// This function and the following ones are outside the Universe's range.
+						break;
+					}
+
+					const int32 ChannelIndex = Function.Channel - 1 + StartingAddress;
+					if (ChannelIndex >= DMXBuffer.Num())
+					{
+						continue;
+					}
+					const uint32 ChannelVal = UDMXEntityFixtureType::BytesToFunctionValue(Function, DMXBuffer.GetData() + ChannelIndex);
+
+					OutResult.Add(Function.Attribute, ChannelVal);
+				}
 			}
-			const int32 ActiveMode = FMath::Min(InFixturePatch->ActiveMode, FixtureType->Modes.Num() - 1);
-			const FDMXFixtureMode& CurrentMode = FixtureType->Modes[ActiveMode];
-
-			for (const FDMXFixtureFunction& Function : CurrentMode.Functions)
+			else
 			{
-				if (!UDMXEntityFixtureType::IsFunctionInModeRange(Function, CurrentMode, StartingAddress))
-				{
-					// This function and the following ones are outside the Universe's range.
-					break;
-				}
-
-				const int32 ChannelIndex = Function.Channel - 1 + StartingAddress;
-				if (ChannelIndex >= DMXBuffer.Num())
-				{
-					continue;
-				}
-				const uint32 ChannelVal = UDMXEntityFixtureType::BytesToFunctionValue(Function, DMXBuffer.GetData() + ChannelIndex);
-
-				OutResult.Add(Function.Attribute, ChannelVal);
+				UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch %s, but its Fixture Type has no Modes set up."), *InFixturePatch->Name);
+				return;
 			}
 		}
 	}
@@ -437,7 +438,7 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, TMap
 	const FDMXFixtureMode* ModePtr = InFixturePatch->GetActiveMode();
 	if (!ModePtr)
 	{
-		UE_LOG(DMXSubsystemLog, Warning, TEXT("Cannot get function map, fixture Patch %s has no valid active mode"), *InFixturePatch->GetName());
+		UE_LOG(DMXSubsystemLog, Warning, TEXT("Cannot get function map, fixture Patch %s has no valid active mode"), *InFixturePatch->Name);
 		return false;
 	}
 
@@ -535,7 +536,7 @@ TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesWithTag(const UDMXL
 	{
 		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch)
 		{
-			if (Patch->CustomTags.Contains(CustomTag))
+			if (Patch->GetCustomTags().Contains(CustomTag))
 			{
 				FoundPatches.Add(Patch);
 			}
@@ -560,12 +561,12 @@ TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesInLibrary(const UDM
 	// Sort patches by universes and channels
 	FoundPatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB) {
 
-		if (FixturePatchA.UniverseID < FixturePatchB.UniverseID)
+		if (FixturePatchA.GetUniverseID() < FixturePatchB.GetUniverseID())
 		{
 			return true;
 		}
 
-		bool bSameUniverse = FixturePatchA.UniverseID == FixturePatchB.UniverseID;
+		bool bSameUniverse = FixturePatchA.GetUniverseID() == FixturePatchB.GetUniverseID();
 		if (bSameUniverse)
 		{
 			return FixturePatchA.GetStartingChannel() <= FixturePatchB.GetStartingChannel();
@@ -718,40 +719,28 @@ float UDMXSubsystem::IntToNormalizedValue(int32 InValue, EDMXFixtureSignalFormat
 
 float UDMXSubsystem::GetNormalizedAttributeValue(UDMXEntityFixturePatch* InFixturePatch, FDMXAttributeName InFunctionAttribute, int32 InValue) const
 {
-	if (InFixturePatch == nullptr)
+	if (InFixturePatch)
 	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("%S: InFixturePatch is null!"), __FUNCTION__);
-		return 0.0f;
-	}
-
-	UDMXEntityFixtureType* ParentType = InFixturePatch->ParentFixtureTypeTemplate;
-	if (ParentType == nullptr)
-	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("%S: InFixturePatch->ParentFixtureTypeTemplate is null!"), __FUNCTION__);
-		return 0.0f;
-	}
-
-	if (ParentType->Modes.Num() == 0)
-	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("%S: InFixturePatch's Fixture Type has no Modes!"), __FUNCTION__);
-		return 0.0f;
-	}
-
-	if (InFixturePatch->ActiveMode >= InFixturePatch->ParentFixtureTypeTemplate->Modes.Num())
-	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("%S: InFixturePatch' ActiveMode is not an existing mode from its Fixture Type!"), __FUNCTION__);
-		return 0.0f;
-	}
-
-	const FDMXFixtureMode& Mode = ParentType->Modes[InFixturePatch->ActiveMode];
-
-	// Search for a Function named InFunctionName in the Fixture Type current mode
-	for (const FDMXFixtureFunction& Function : Mode.Functions)
-	{
-		if (Function.Attribute == InFunctionAttribute)
+		const FDMXFixtureMode* ActiveModePtr = InFixturePatch->GetActiveMode();
+		if (ActiveModePtr)
 		{
-			return IntToNormalizedValue(InValue, Function.DataType);
+			// Search for a Function named InFunctionName in the Fixture Type current mode
+			for (const FDMXFixtureFunction& Function : ActiveModePtr->Functions)
+			{
+				if (Function.Attribute == InFunctionAttribute)
+				{
+					return IntToNormalizedValue(InValue, Function.DataType);
+				}
+			}
 		}
+		else
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("%S: Cannot access the Mode of Fixture Patch %s. Either it is of fixture type none, or the fixture type has no mode."), __FUNCTION__, *InFixturePatch->Name);
+		}
+	}
+	else
+	{
+		UE_LOG(DMXSubsystemLog, Error, TEXT("%S: InFixturePatch is invalid."), __FUNCTION__);
 	}
 
 	return -1.0f;
@@ -778,8 +767,10 @@ void UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles()
 	for (const FAssetData& Asset : Assets)
 	{
 		UObject* AssetObject = Asset.GetAsset();
-		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
-		LoadedDMXLibraries.AddUnique(Library);
+		if (UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject))
+		{
+			LoadedDMXLibraries.AddUnique(Library);
+		}
 	}
 
 #if WITH_EDITOR
@@ -794,10 +785,11 @@ void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
 	if (Asset.AssetClass == UDMXLibrary::StaticClass()->GetFName())
 	{
 		UObject* AssetObject = Asset.GetAsset();
-		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
-		LoadedDMXLibraries.AddUnique(Library);
-
-		OnDMXLibraryAssetAdded.Broadcast(Library);
+		if (UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject))
+		{
+			LoadedDMXLibraries.AddUnique(Library);
+			OnDMXLibraryAssetAdded.Broadcast(Library);
+		}
 	}
 }
 
@@ -806,9 +798,10 @@ void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
 	if (Asset.AssetClass == UDMXLibrary::StaticClass()->GetFName())
 	{
 		UObject* AssetObject = Asset.GetAsset();
-		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
-		LoadedDMXLibraries.Remove(Library);
-
-		OnDMXLibraryAssetRemoved.Broadcast(Library);
+		if (UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject))
+		{
+			LoadedDMXLibraries.Remove(Library);
+			OnDMXLibraryAssetRemoved.Broadcast(Library);
+		}
 	}
 }

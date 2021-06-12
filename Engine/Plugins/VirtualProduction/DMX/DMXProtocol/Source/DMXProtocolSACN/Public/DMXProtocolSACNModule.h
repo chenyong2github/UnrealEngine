@@ -8,6 +8,9 @@
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleInterface.h"
 
+struct FDMXProtocolRegistrationParams;
+
+
 /**
  */
 class FDMXProtocolFactorySACN : public IDMXProtocolFactory
@@ -38,6 +41,9 @@ public:
 	FDMXProtocolSACNModule& Get();
 
 private:
+	/** Registers this sACN implementation with the Protocol Module */
+	void RegisterWithProtocolModule(TArray<FDMXProtocolRegistrationParams>& InOutProtocolRegistrationParamsArray);
+
 	/**
 	 * Sending DMX through console command
 	 * Command structure is DMX.SACN.SendDMX [UniverseID] Channel:Value Channel:Value Channel:Value ...

@@ -54,7 +54,7 @@ TMap<int32, TArray<UDMXEntityFixturePatch*>> FDMXRuntimeUtils::MapToUniverses(co
 	TMap<int32, TArray<UDMXEntityFixturePatch*>> Result;
 	for (UDMXEntityFixturePatch* Patch : AllPatches)
 	{
-		TArray<UDMXEntityFixturePatch*>& UniverseGroup = Result.FindOrAdd(Patch->UniverseID);
+		TArray<UDMXEntityFixturePatch*>& UniverseGroup = Result.FindOrAdd(Patch->GetUniverseID());
 		UniverseGroup.Add(Patch);
 	}
 	return Result;

@@ -18,7 +18,7 @@ class UDMXEntityFixturePatch;
 
 /** 
  * Component that receives DMX input each Tick from a fixture patch.  
- * Only useful if updates are required each tick (otherwise use DMX Fixture Patch Ref variable and acess Data on demand from there).
+ * NOTE: Does not support receive in Editor! Use the 'Get DMX Fixture Patch' and bind 'On Fixture Patch Received DMX' instead (requires the patch to be set to 'Receive DMX in Editor' in the library). 
  */
 UCLASS( ClassGroup=(DMX), meta=(BlueprintSpawnableComponent), HideCategories = ("Variable", "Sockets", "Tags", "Activation", "Cooking", "ComponentReplication", "AssetUserData", "Collision", "Events"))
 class DMXRUNTIME_API UDMXComponent

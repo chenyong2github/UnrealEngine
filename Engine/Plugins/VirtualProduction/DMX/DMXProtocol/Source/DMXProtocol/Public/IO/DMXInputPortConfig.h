@@ -41,7 +41,7 @@ struct DMXPROTOCOL_API FDMXInputPortConfig
 	GENERATED_BODY()
 
 public:
-	/** Default constructor, only for CDOs */
+	/** Default constructor, only for Default Objects */
 	FDMXInputPortConfig() = default;
 
 	/** Constructs a config from the guid */

@@ -17,7 +17,7 @@ class SHorizontalBox;
 class STextBlock;
 
 
-/** Widget to select Ports to monitor */
+/** Widget to select Ports to monitor. Note, when inputs are selected, loop back outputs are selected too. */
 class SDMXMonitorSourceSelector
 	: public SCompoundWidget
 {

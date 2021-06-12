@@ -54,13 +54,6 @@ void SDMXCommunicationTypeComboBox::Construct(const FArguments& InArgs)
 	}
 }
 
-void SDMXCommunicationTypeComboBox::SetCommunicationTypes(const TArray<EDMXCommunicationType>& NewCommunicationTypes)
-{
-	SetCommunicationTypesInternal(NewCommunicationTypes);
-
-	OnCommunicationTypeSelected.ExecuteIfBound();
-}
-
 void SDMXCommunicationTypeComboBox::SetCommunicationTypesInternal(const TArray<EDMXCommunicationType>& NewCommunicationTypes)
 {
 	check(CommunicationTypeComboBox.IsValid());
@@ -159,10 +152,13 @@ void SDMXCommunicationTypeComboBox::HandleCommunicationTypeSelectionChanged(TSha
 {
 	check(CommunicationTypeTextBlock.IsValid());
 
-	CommunicationTypeTextBlock->SetText(FText::FromString(*InCommunicationType));
-
-	if (InSelectInfo != ESelectInfo::Direct)
+	if (ensure(InCommunicationType.IsValid()))
 	{
-		OnCommunicationTypeSelected.ExecuteIfBound();
+		CommunicationTypeTextBlock->SetText(FText::FromString(*InCommunicationType));
+
+		if (InSelectInfo != ESelectInfo::Direct)
+		{
+			OnCommunicationTypeSelected.ExecuteIfBound();
+		}
 	}
 }

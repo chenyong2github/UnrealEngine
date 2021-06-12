@@ -125,6 +125,9 @@ public:
 	/** Clears all buffers */
 	void ClearBuffers();
 
+	/** Returns true if the port loopsback to engine */
+	bool IsLoopbackToEngine() const;
+
 	/** 
 	 * Game-Thread only: Gets the last signal received in specified local universe. 
 	 * 

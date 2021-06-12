@@ -90,7 +90,7 @@ TSharedPtr<FDMXFixturePatchNode> FDMXFixturePatchNode::Create(TWeakPtr<FDMXEdito
 
 	NewNode->DMXEditor = InDMXEditor;
 	NewNode->FixturePatch = InFixturePatch;
-	NewNode->LastTransactedUniverseID = InFixturePatch->UniverseID;
+	NewNode->LastTransactedUniverseID = InFixturePatch->GetUniverseID();
 	NewNode->LastTransactedChannelID = InFixturePatch->GetStartingChannel();
 
 	// Bind to shared data's selection event 
@@ -170,22 +170,22 @@ void FDMXFixturePatchNode::CommitPatch(bool bTransacted)
 	{	
 		// As we allow the asset to update even when not transacted,
 		// We have to set the last known values to enable proper undo
-		FixturePatch->UniverseID = LastTransactedUniverseID;
-		FixturePatch->ManualStartingAddress = LastTransactedChannelID;
+		FixturePatch->SetUniverseID(LastTransactedUniverseID);
+		FixturePatch->SetManualStartingAddress(LastTransactedChannelID);
 
 		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("FixturePatchAssigned", "Patched Fixture"));
 		FixturePatch->Modify();
 
-		FixturePatch->UniverseID = Universe->GetUniverseID();
-		FixturePatch->ManualStartingAddress = StartingChannel;
+		FixturePatch->SetUniverseID(Universe->GetUniverseID());
+		FixturePatch->SetManualStartingAddress(StartingChannel);
 
 		LastTransactedUniverseID = Universe->GetUniverseID();
 		LastTransactedChannelID = StartingChannel;
 	}
 	else
 	{
-		FixturePatch->UniverseID = Universe->GetUniverseID();
-		FixturePatch->ManualStartingAddress = StartingChannel;
+		FixturePatch->SetUniverseID(Universe->GetUniverseID());
+		FixturePatch->SetManualStartingAddress(StartingChannel);
 	}
 }
 

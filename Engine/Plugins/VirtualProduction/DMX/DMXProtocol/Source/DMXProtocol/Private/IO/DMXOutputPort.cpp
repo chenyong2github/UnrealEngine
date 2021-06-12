@@ -178,7 +178,8 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 			{
 				int32 ChannelIndex = ChannelValueKvp.Key - 1;
 
-				if (ensure(Signal->ChannelData.IsValidIndex(ChannelIndex)))
+				// Filter invalid indicies so we can send bp calls here without testing them first.
+				if (Signal->ChannelData.IsValidIndex(ChannelIndex))
 				{
 					Signal->ChannelData[ChannelIndex] = ChannelValueKvp.Value;
 				}
@@ -194,12 +195,9 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 			}
 
 			// Loopback to Listeners
-			if (bNeedsLoopbackToEngine)
+			for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 			{
-				for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
-				{
-					RawListener->EnqueueSignal(this, Signal);
-				}
+				RawListener->EnqueueSignal(this, Signal);
 			}
 		}
 	}
@@ -299,6 +297,11 @@ void FDMXOutputPort::ClearBuffers()
 	{
 		RawInput->ClearBuffer();
 	}
+}
+
+bool FDMXOutputPort::IsLoopbackToEngine() const
+{
+	return CommunicationDeterminator.NeedsLoopbackToEngine();
 }
 
 bool FDMXOutputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal, bool bEvenIfNotLoopbackToEngine)
