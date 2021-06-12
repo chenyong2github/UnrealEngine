@@ -608,6 +608,11 @@ namespace HordeServer.Services
 					{
 						P4.P4CommandResult Result = Command.Run();
 
+						if (Result.BinaryOutput != null)
+						{
+							return Result.BinaryOutput;
+						}
+					
 						return Encoding.Default.GetBytes(Result.TextOutput);
 
 					}
