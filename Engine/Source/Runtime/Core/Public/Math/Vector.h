@@ -2451,8 +2451,8 @@ static FORCEINLINE UE::Math::TVector<T> INTEL_ORDER_VECTOR(UE::Math::TVector<T> 
  * @param Point 3D position of interest
  * @return the distance from the Point to the bounding box.
  */
-template<typename T>
-FORCEINLINE T ComputeSquaredDistanceFromBoxToPoint(const UE::Math::TVector<T>& Mins, const UE::Math::TVector<T>& Maxs, const UE::Math::TVector<T>& Point)
+template<typename T, typename U>
+FORCEINLINE T ComputeSquaredDistanceFromBoxToPoint(const UE::Math::TVector<T>& Mins, const UE::Math::TVector<T>& Maxs, const UE::Math::TVector<U>& Point)
 {
 	// Accumulates the distance as we iterate axis
 	T DistSquared = 0;
