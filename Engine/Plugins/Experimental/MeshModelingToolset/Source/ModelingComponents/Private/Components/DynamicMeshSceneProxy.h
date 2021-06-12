@@ -2,20 +2,20 @@
 
 #pragma once
 
-#include "SimpleDynamicMeshComponent.h"
-#include "BaseDynamicMeshSceneProxy.h"
+#include "Components/DynamicMeshComponent.h"
+#include "Components/BaseDynamicMeshSceneProxy.h"
 #include "DynamicMesh/MeshTangents.h"
 #include "Async/ParallelFor.h"
 
 /**
- * Scene Proxy for USimpleDynamicMeshComponent.
+ * Scene Proxy for UDynamicMeshComponent.
  * 
  * Based on FProceduralMeshSceneProxy but simplified in various ways.
  * 
  * Supports wireframe-on-shaded rendering.
  * 
  */
-class FSimpleDynamicMeshSceneProxy final : public FBaseDynamicMeshSceneProxy
+class FDynamicMeshSceneProxy final : public FBaseDynamicMeshSceneProxy
 {
 	using FIndex2i = UE::Geometry::FIndex2i;
 	using FIndex3i = UE::Geometry::FIndex3i;
@@ -30,10 +30,10 @@ private:
 
 public:
 	/** Component that created this proxy (is there a way to look this up?) */
-	USimpleDynamicMeshComponent* ParentComponent;
+	UDynamicMeshComponent* ParentComponent;
 
 
-	FSimpleDynamicMeshSceneProxy(USimpleDynamicMeshComponent* Component)
+	FDynamicMeshSceneProxy(UDynamicMeshComponent* Component)
 		: FBaseDynamicMeshSceneProxy(Component)
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	{
@@ -156,7 +156,7 @@ public:
 					Triangles.Num(), Triangles,
 					UVOverlay, NormalOverlay, ColorOverlay, TangentsFunc);
 
-				ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyInitializeFromDecomposition)(
+				ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyInitializeFromDecomposition)(
 					[RenderBuffers](FRHICommandListImmediate& RHICmdList)
 				{
 					RenderBuffers->Upload();
@@ -200,7 +200,7 @@ public:
 			Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
 			UVOverlays, NormalOverlay, ColorOverlay, TangentsFunc);
 
-		ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyInitializeSingle)(
+		ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyInitializeSingle)(
 			[RenderBuffers](FRHICommandListImmediate& RHICmdList)
 		{
 			RenderBuffers->Upload();
@@ -288,7 +288,7 @@ public:
 
 				RenderBuffers->Triangles = Triangles;
 
-				ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyInitializeByMaterial)(
+				ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyInitializeByMaterial)(
 					[RenderBuffers](FRHICommandListImmediate& RHICmdList)
 				{
 					RenderBuffers->Upload();
@@ -414,7 +414,7 @@ public:
 				}
 
 
-				ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateVertices)(
+				ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyFastUpdateVertices)(
 					[Buffers, bPositions, bNormals, bColors, bUVs](FRHICommandListImmediate& RHICmdList)
 				{
 					Buffers->UploadVertexUpdate(bPositions, bNormals || bUVs, bColors);
@@ -445,7 +445,7 @@ public:
 							Buffers->Triangles->Num(), Buffers->Triangles.GetValue(), UVOVerlay, 0);
 					}
 
-					ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateVertices)(
+					ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyFastUpdateVertices)(
 						[Buffers, bPositions, bNormals, bColors, bUVs](FRHICommandListImmediate& RHICmdList)
 					{
 						Buffers->UploadVertexUpdate(bPositions, bNormals || bUVs, bColors);
@@ -462,7 +462,7 @@ public:
 	 */
 	void FastUpdateVertices(const TArray<int32>& WhichBuffers, bool bPositions, bool bNormals, bool bColors, bool bUVs)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshProxy_FastUpdateVertices);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshProxy_FastUpdateVertices);
 
 		// skip if we have no updates
 		if (bPositions == false && bNormals == false && bColors == false && bUVs == false)
@@ -518,7 +518,7 @@ public:
 						Buffers->Triangles->Num(), Buffers->Triangles.GetValue(), UVOVerlay, 0);
 				}
 
-				ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateVerticesBufferList)(
+				ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyFastUpdateVerticesBufferList)(
 					[Buffers, bPositions, bNormals, bColors, bUVs](FRHICommandListImmediate& RHICmdList)
 				{
 					Buffers->TransferVertexUpdateToGPU(bPositions, bNormals, bUVs, bColors);
@@ -551,7 +551,7 @@ public:
 				RecomputeRenderBufferTriangleIndexSets(Buffers, Mesh);
 			}
 
-			ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateAllIndexBuffers)(
+			ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyFastUpdateAllIndexBuffers)(
 				[Buffers](FRHICommandListImmediate& RHICmdList)
 			{
 				Buffers->UploadIndexBufferUpdate();
@@ -587,7 +587,7 @@ public:
 				RecomputeRenderBufferTriangleIndexSets(Buffers, Mesh);
 			}
 
-			ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateSomeIndexBuffers)(
+			ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyFastUpdateSomeIndexBuffers)(
 				[Buffers](FRHICommandListImmediate& RHICmdList)
 			{
 				Buffers->UploadIndexBufferUpdate();

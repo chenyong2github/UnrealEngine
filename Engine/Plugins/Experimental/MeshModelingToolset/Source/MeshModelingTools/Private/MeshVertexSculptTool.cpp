@@ -64,7 +64,7 @@ void UMeshVertexSculptTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "Sculpt"));
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor());
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor());
 	InitializeSculptMeshComponent(DynamicMeshComponent);
 
 	// assign materials
@@ -1028,7 +1028,7 @@ void UMeshVertexSculptTool::WaitForPendingUndoRedo()
 	}
 }
 
-void UMeshVertexSculptTool::OnDynamicMeshComponentChanged(USimpleDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert)
+void UMeshVertexSculptTool::OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert)
 {
 	// have to wait for any outstanding stamp update to finish...
 	WaitForPendingStampUpdate();

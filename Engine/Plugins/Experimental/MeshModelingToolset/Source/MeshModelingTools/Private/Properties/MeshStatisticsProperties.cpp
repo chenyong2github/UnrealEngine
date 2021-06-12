@@ -6,7 +6,7 @@
 #include "DynamicMeshAttributeSet.h"
 #include "MeshNormals.h"
 
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 
 using namespace UE::Geometry;
 

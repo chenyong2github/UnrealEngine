@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
 #include "InteractiveToolObjects.h"
 #include "Changes/MeshVertexChange.h"
@@ -39,7 +39,7 @@ public:
  * This can be used to show live preview geometry during modeling operations.
  * Call CreateInWorld() to set it up, and Disconnect() to shut it down.
  * 
- * Currently implemented via an internal Actor that has a USimpleDynamicMeshComponent root component,
+ * Currently implemented via an internal Actor that has a UDynamicMeshComponent root component,
  * with an AABBTree created/updated if FProperty bBuildSpatialDataStructure=true.
  * The Actor is destroyed on Disconnect().
  * 
@@ -422,7 +422,7 @@ protected:
 
 	/** This component is set as the root component of TemporaryParentActor */
 	UPROPERTY()
-	USimpleDynamicMeshComponent* DynamicMeshComponent = nullptr;
+	UDynamicMeshComponent* DynamicMeshComponent = nullptr;
 
 	/** Spatial data structure that is initialized if bBuildSpatialDataStructure = true when UpdatePreview() is called */
 	UE::Geometry::FDynamicMeshAABBTree3 MeshAABBTree;

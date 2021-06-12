@@ -17,7 +17,7 @@
 
 struct FMeshDescription;
 class UCurveFloat;
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 
 UENUM()
 enum class EDisplaceMeshToolDisplaceType : uint8
@@ -298,7 +298,7 @@ private:
 	float WeightMapQuery(const FVector3d& Position, const UE::Geometry::FIndexedWeightMap& WeightMap) const;
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> SubdividedMesh = nullptr;
-	USimpleDynamicMeshComponent* DynamicMeshComponent = nullptr;
+	UDynamicMeshComponent* DynamicMeshComponent = nullptr;
 
 	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> Subdivider = nullptr;
 	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> Displacer = nullptr;

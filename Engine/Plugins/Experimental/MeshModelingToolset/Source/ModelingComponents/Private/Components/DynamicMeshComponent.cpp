@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "RenderingThread.h"
 #include "RenderResource.h"
 #include "PrimitiveViewRelevance.h"
@@ -28,7 +28,7 @@
 #include "MeshTransforms.h"
 
 // default proxy for this component
-#include "SimpleDynamicMeshSceneProxy.h"
+#include "Components/DynamicMeshSceneProxy.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -37,16 +37,16 @@ namespace
 {
 	// probably should be something defined for the whole tool framework...
 #if WITH_EDITOR
-	static EAsyncExecution SimpleDynamicMeshComponentAsyncExecTarget = EAsyncExecution::LargeThreadPool;
+	static EAsyncExecution DynamicMeshComponentAsyncExecTarget = EAsyncExecution::LargeThreadPool;
 #else
-	static EAsyncExecution SimpleDynamicMeshComponentAsyncExecTarget = EAsyncExecution::ThreadPool;
+	static EAsyncExecution DynamicMeshComponentAsyncExecTarget = EAsyncExecution::ThreadPool;
 #endif
 }
 
 
 
 
-USimpleDynamicMeshComponent::USimpleDynamicMeshComponent(const FObjectInitializer& ObjectInitializer)
+UDynamicMeshComponent::UDynamicMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -56,38 +56,38 @@ USimpleDynamicMeshComponent::USimpleDynamicMeshComponent(const FObjectInitialize
 	MeshObject = CreateDefaultSubobject<UDynamicMesh>(TEXT("DynamicMesh"));
 	//MeshObject->SetFlags(RF_Transactional);
 
-	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &USimpleDynamicMeshComponent::OnMeshObjectChanged);
+	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &UDynamicMeshComponent::OnMeshObjectChanged);
 
 	ResetProxy();
 }
 
 
-void USimpleDynamicMeshComponent::PostLoad()
+void UDynamicMeshComponent::PostLoad()
 {
 	Super::PostLoad();
 
 	check(MeshObject != nullptr);
-	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &USimpleDynamicMeshComponent::OnMeshObjectChanged);
+	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &UDynamicMeshComponent::OnMeshObjectChanged);
 
 	ResetProxy();
 }
 
 
 
-void USimpleDynamicMeshComponent::SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh)
+void UDynamicMeshComponent::SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh)
 {
 	MeshObject->SetMesh(MoveTemp(MoveMesh));
 }
 
 
-void USimpleDynamicMeshComponent::ProcessMesh(
+void UDynamicMeshComponent::ProcessMesh(
 	TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc ) const
 {
 	MeshObject->ProcessMesh(ProcessFunc);
 }
 
 
-void USimpleDynamicMeshComponent::EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc,
+void UDynamicMeshComponent::EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc,
 										   EDynamicMeshComponentRenderUpdateMode UpdateMode )
 {
 	MeshObject->EditMesh(EditFunc);
@@ -98,7 +98,7 @@ void USimpleDynamicMeshComponent::EditMesh(TFunctionRef<void(UE::Geometry::FDyna
 }
 
 
-void USimpleDynamicMeshComponent::SetRenderMeshPostProcessor(TUniquePtr<IRenderMeshPostProcessor> Processor)
+void UDynamicMeshComponent::SetRenderMeshPostProcessor(TUniquePtr<IRenderMeshPostProcessor> Processor)
 {
 	RenderMeshPostProcessor = MoveTemp(Processor);
 	if (RenderMeshPostProcessor)
@@ -115,7 +115,7 @@ void USimpleDynamicMeshComponent::SetRenderMeshPostProcessor(TUniquePtr<IRenderM
 	}
 }
 
-FDynamicMesh3* USimpleDynamicMeshComponent::GetRenderMesh()
+FDynamicMesh3* UDynamicMeshComponent::GetRenderMesh()
 {
 	if (RenderMeshPostProcessor && RenderMesh)
 	{
@@ -127,7 +127,7 @@ FDynamicMesh3* USimpleDynamicMeshComponent::GetRenderMesh()
 	}
 }
 
-const FDynamicMesh3* USimpleDynamicMeshComponent::GetRenderMesh() const
+const FDynamicMesh3* UDynamicMeshComponent::GetRenderMesh() const
 {
 	if (RenderMeshPostProcessor && RenderMesh)
 	{
@@ -142,7 +142,7 @@ const FDynamicMesh3* USimpleDynamicMeshComponent::GetRenderMesh() const
 
 
 
-void USimpleDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
+void UDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
 {
 	MeshObject->EditMesh([&](FDynamicMesh3& EditMesh)
 	{
@@ -159,7 +159,7 @@ void USimpleDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3
 
 
 
-void USimpleDynamicMeshComponent::SetTangentsType(EDynamicMeshComponentTangentsMode NewTangentsType)
+void UDynamicMeshComponent::SetTangentsType(EDynamicMeshComponentTangentsMode NewTangentsType)
 {
 	if (NewTangentsType != TangentsType)
 	{
@@ -168,12 +168,12 @@ void USimpleDynamicMeshComponent::SetTangentsType(EDynamicMeshComponentTangentsM
 	}
 }
 
-void USimpleDynamicMeshComponent::InvalidateAutoCalculatedTangents() 
+void UDynamicMeshComponent::InvalidateAutoCalculatedTangents() 
 { 
 	bAutoCalculatedTangentsValid = false; 
 }
 
-const UE::Geometry::FMeshTangentsf* USimpleDynamicMeshComponent::GetAutoCalculatedTangents() 
+const UE::Geometry::FMeshTangentsf* UDynamicMeshComponent::GetAutoCalculatedTangents() 
 { 
 	if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated)
 	{
@@ -183,7 +183,7 @@ const UE::Geometry::FMeshTangentsf* USimpleDynamicMeshComponent::GetAutoCalculat
 	return nullptr;
 }
 
-void USimpleDynamicMeshComponent::UpdateAutoCalculatedTangents()
+void UDynamicMeshComponent::UpdateAutoCalculatedTangents()
 {
 	if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated && bAutoCalculatedTangentsValid == false)
 	{
@@ -203,7 +203,7 @@ void USimpleDynamicMeshComponent::UpdateAutoCalculatedTangents()
 
 
 
-void USimpleDynamicMeshComponent::UpdateLocalBounds()
+void UDynamicMeshComponent::UpdateLocalBounds()
 {
 	LocalBounds = GetMesh()->GetBounds(true);
 	if (LocalBounds.MaxDim() <= 0)
@@ -212,17 +212,17 @@ void USimpleDynamicMeshComponent::UpdateLocalBounds()
 	}
 }
 
-FSimpleDynamicMeshSceneProxy* USimpleDynamicMeshComponent::GetCurrentSceneProxy() 
+FDynamicMeshSceneProxy* UDynamicMeshComponent::GetCurrentSceneProxy() 
 { 
 	if (bProxyValid)
 	{
-		return (FSimpleDynamicMeshSceneProxy*)SceneProxy;
+		return (FDynamicMeshSceneProxy*)SceneProxy;
 	}
 	return nullptr;
 }
 
 
-void USimpleDynamicMeshComponent::ResetProxy()
+void UDynamicMeshComponent::ResetProxy()
 {
 	bProxyValid = false;
 	InvalidateAutoCalculatedTangents();
@@ -237,7 +237,7 @@ void USimpleDynamicMeshComponent::ResetProxy()
 	GetDynamicMesh()->PostRealtimeUpdate();
 }
 
-void USimpleDynamicMeshComponent::NotifyMeshUpdated()
+void UDynamicMeshComponent::NotifyMeshUpdated()
 {
 	if (RenderMeshPostProcessor)
 	{
@@ -248,7 +248,7 @@ void USimpleDynamicMeshComponent::NotifyMeshUpdated()
 }
 
 
-void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
+void UDynamicMeshComponent::FastNotifyColorsUpdated()
 {
 	// should not be using fast paths if we have to run mesh postprocessor
 	if (ensure(!RenderMeshPostProcessor) == false)
@@ -258,7 +258,7 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 		return;
 	}
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (Proxy)
 	{
 		if (HasTriangleColorFunction() && Proxy->bUsePerTriangleColor == false )
@@ -283,7 +283,7 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 
 
 
-void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated(bool bNormals, bool bColors, bool bUVs)
+void UDynamicMeshComponent::FastNotifyPositionsUpdated(bool bNormals, bool bColors, bool bUVs)
 {
 	// should not be using fast paths if we have to run mesh postprocessor
 	if (ensure(!RenderMeshPostProcessor) == false)
@@ -293,12 +293,12 @@ void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated(bool bNormals, bool
 		return;
 	}
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (Proxy)
 	{
 		// calculate bounds while we are updating vertices
 		TFuture<void> UpdateBoundsCalc;
-		UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this]()
+		UpdateBoundsCalc = Async(DynamicMeshComponentAsyncExecTarget, [this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastPositionsUpdate_AsyncBoundsUpdate);
 			UpdateLocalBounds();
@@ -320,7 +320,7 @@ void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated(bool bNormals, bool
 }
 
 
-void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(bool bNormals, bool bColors, bool bUVs)
+void UDynamicMeshComponent::FastNotifyVertexAttributesUpdated(bool bNormals, bool bColors, bool bUVs)
 {
 	// should not be using fast paths if we have to run mesh postprocessor
 	if (ensure(!RenderMeshPostProcessor) == false)
@@ -330,7 +330,7 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(bool bNormal
 		return;
 	}
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (Proxy && ensure(bNormals || bColors || bUVs) )
 	{
 		GetCurrentSceneProxy()->FastUpdateVertices(false, bNormals, bColors, bUVs);
@@ -346,7 +346,7 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(bool bNormal
 }
 
 
-void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags UpdatedAttributes)
+void UDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags UpdatedAttributes)
 {
 	// should not be using fast paths if we have to run mesh postprocessor
 	if (ensure(!RenderMeshPostProcessor) == false)
@@ -356,7 +356,7 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderA
 		return;
 	}
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (Proxy && ensure(UpdatedAttributes != EMeshRenderAttributeFlags::None))
 	{
 		bool bPositions = (UpdatedAttributes & EMeshRenderAttributeFlags::Positions) != EMeshRenderAttributeFlags::None;
@@ -365,7 +365,7 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderA
 		TFuture<void> UpdateBoundsCalc;
 		if (bPositions)
 		{
-			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this]()
+			UpdateBoundsCalc = Async(DynamicMeshComponentAsyncExecTarget, [this]()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexAttribUpdate_AsyncBoundsUpdate);
 				UpdateLocalBounds();
@@ -393,14 +393,14 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderA
 }
 
 
-void USimpleDynamicMeshComponent::FastNotifyUVsUpdated()
+void UDynamicMeshComponent::FastNotifyUVsUpdated()
 {
 	FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexUVs);
 }
 
 
 
-void USimpleDynamicMeshComponent::FastNotifySecondaryTrianglesChanged()
+void UDynamicMeshComponent::FastNotifySecondaryTrianglesChanged()
 {
 	// should not be using fast paths if we have to run mesh postprocessor
 	if (ensure(!RenderMeshPostProcessor) == false)
@@ -410,7 +410,7 @@ void USimpleDynamicMeshComponent::FastNotifySecondaryTrianglesChanged()
 		return;
 	}
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (Proxy)
 	{
 		GetCurrentSceneProxy()->FastUpdateAllIndexBuffers();
@@ -423,7 +423,7 @@ void USimpleDynamicMeshComponent::FastNotifySecondaryTrianglesChanged()
 }
 
 
-void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes)
+void UDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes)
 {
 	// should not be using fast paths if we have to run mesh postprocessor
 	if (ensure(!RenderMeshPostProcessor) == false)
@@ -436,7 +436,7 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray
 	bool bUpdateSecondarySort = (SecondaryTriFilterFunc) &&
 		((UpdatedAttributes & EMeshRenderAttributeFlags::SecondaryIndexBuffers) != EMeshRenderAttributeFlags::None);
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (!Proxy)
 	{
 		ResetProxy();
@@ -469,7 +469,7 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray
 		TFuture<void> UpdateBoundsCalc;
 		if (bPositions)
 		{
-			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this]()
+			UpdateBoundsCalc = Async(DynamicMeshComponentAsyncExecTarget, [this]()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexUpdate_AsyncBoundsUpdate);
 				UpdateLocalBounds();
@@ -505,7 +505,7 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray
 
 
 
-void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes)
+void UDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes)
 {
 	// should not be using fast paths if we have to run mesh postprocessor
 	if (ensure(!RenderMeshPostProcessor) == false)
@@ -518,7 +518,7 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<i
 	bool bUpdateSecondarySort = (SecondaryTriFilterFunc) &&
 		((UpdatedAttributes & EMeshRenderAttributeFlags::SecondaryIndexBuffers) != EMeshRenderAttributeFlags::None);
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (!Proxy)
 	{
 		ResetProxy();
@@ -551,7 +551,7 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<i
 		TFuture<void> UpdateBoundsCalc;
 		if (bPositions)
 		{
-			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this]()
+			UpdateBoundsCalc = Async(DynamicMeshComponentAsyncExecTarget, [this]()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexUpdate_AsyncBoundsUpdate);
 				UpdateLocalBounds();
@@ -627,7 +627,7 @@ static FAxisAlignedBox3d ParallelComputeROIBounds(const FDynamicMesh3& Mesh, con
 
 
 
-TFuture<bool> USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_TryPrecompute(
+TFuture<bool> UDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_TryPrecompute(
 	const TArray<int32>& Triangles,
 	TArray<int32>& UpdateSetsOut,
 	FAxisAlignedBox3d& BoundsOut)
@@ -635,18 +635,18 @@ TFuture<bool> USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_Try
 	if ((!!RenderMeshPostProcessor) || (GetCurrentSceneProxy() == nullptr) || (!Decomposition))
 	{
 		// is there a simpler way to do this? cannot seem to just make a TFuture<bool>...
-		return Async(SimpleDynamicMeshComponentAsyncExecTarget, []() { return false; });
+		return Async(DynamicMeshComponentAsyncExecTarget, []() { return false; });
 	}
 
-	return Async(SimpleDynamicMeshComponentAsyncExecTarget, [this, &Triangles, &UpdateSetsOut, &BoundsOut]()
+	return Async(DynamicMeshComponentAsyncExecTarget, [this, &Triangles, &UpdateSetsOut, &BoundsOut]()
 	{
-		TFuture<void> ComputeBounds = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this, &BoundsOut, &Triangles]()
+		TFuture<void> ComputeBounds = Async(DynamicMeshComponentAsyncExecTarget, [this, &BoundsOut, &Triangles]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexUpdatePrecomp_CalcBounds);
 			BoundsOut = ParallelComputeROIBounds(*GetMesh(), Triangles);
 		});
 
-		TFuture<void> ComputeSets = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this, &UpdateSetsOut, &Triangles]()
+		TFuture<void> ComputeSets = Async(DynamicMeshComponentAsyncExecTarget, [this, &UpdateSetsOut, &Triangles]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexUpdatePrecomp_FindSets);
 			int32 NumBuffers = Decomposition->Num();
@@ -680,7 +680,7 @@ TFuture<bool> USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_Try
 }
 
 
-void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_ApplyPrecompute(
+void UDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_ApplyPrecompute(
 	const TArray<int32>& Triangles,
 	EMeshRenderAttributeFlags UpdatedAttributes, 
 	TFuture<bool>& Precompute, 
@@ -696,7 +696,7 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_ApplyPrecomp
 		return;
 	}
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	bool bPositions = (UpdatedAttributes & EMeshRenderAttributeFlags::Positions) != EMeshRenderAttributeFlags::None;
 	bool bUpdateSecondarySort = (SecondaryTriFilterFunc) &&
 		((UpdatedAttributes & EMeshRenderAttributeFlags::SecondaryIndexBuffers) != EMeshRenderAttributeFlags::None);
@@ -732,15 +732,15 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_ApplyPrecomp
 
 
 
-FPrimitiveSceneProxy* USimpleDynamicMeshComponent::CreateSceneProxy()
+FPrimitiveSceneProxy* UDynamicMeshComponent::CreateSceneProxy()
 {
 	// if this is not always the case, we have made incorrect assumptions
 	ensure(GetCurrentSceneProxy() == nullptr);
 
-	FSimpleDynamicMeshSceneProxy* NewProxy = nullptr;
+	FDynamicMeshSceneProxy* NewProxy = nullptr;
 	if (GetMesh()->TriangleCount() > 0)
 	{
-		NewProxy = new FSimpleDynamicMeshSceneProxy(this);
+		NewProxy = new FDynamicMeshSceneProxy(this);
 
 		if (TriangleColorFunc)
 		{
@@ -773,7 +773,7 @@ FPrimitiveSceneProxy* USimpleDynamicMeshComponent::CreateSceneProxy()
 
 
 
-void USimpleDynamicMeshComponent::NotifyMaterialSetUpdated()
+void UDynamicMeshComponent::NotifyMaterialSetUpdated()
 {
 	if (GetCurrentSceneProxy() != nullptr)
 	{
@@ -782,7 +782,7 @@ void USimpleDynamicMeshComponent::NotifyMaterialSetUpdated()
 }
 
 
-void USimpleDynamicMeshComponent::SetTriangleColorFunction(
+void UDynamicMeshComponent::SetTriangleColorFunction(
 	TUniqueFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFuncIn,
 	EDynamicMeshComponentRenderUpdateMode UpdateMode)
 {
@@ -798,7 +798,7 @@ void USimpleDynamicMeshComponent::SetTriangleColorFunction(
 	}
 }
 
-void USimpleDynamicMeshComponent::ClearTriangleColorFunction(EDynamicMeshComponentRenderUpdateMode UpdateMode)
+void UDynamicMeshComponent::ClearTriangleColorFunction(EDynamicMeshComponentRenderUpdateMode UpdateMode)
 {
 	if (TriangleColorFunc)
 	{
@@ -815,7 +815,7 @@ void USimpleDynamicMeshComponent::ClearTriangleColorFunction(EDynamicMeshCompone
 	}
 }
 
-bool USimpleDynamicMeshComponent::HasTriangleColorFunction()
+bool UDynamicMeshComponent::HasTriangleColorFunction()
 {
 	return !!TriangleColorFunc;
 }
@@ -823,20 +823,20 @@ bool USimpleDynamicMeshComponent::HasTriangleColorFunction()
 
 
 
-void USimpleDynamicMeshComponent::EnableSecondaryTriangleBuffers(TUniqueFunction<bool(const FDynamicMesh3*, int32)> SecondaryTriFilterFuncIn)
+void UDynamicMeshComponent::EnableSecondaryTriangleBuffers(TUniqueFunction<bool(const FDynamicMesh3*, int32)> SecondaryTriFilterFuncIn)
 {
 	SecondaryTriFilterFunc = MoveTemp(SecondaryTriFilterFuncIn);
 	NotifyMeshUpdated();
 }
 
-void USimpleDynamicMeshComponent::DisableSecondaryTriangleBuffers()
+void UDynamicMeshComponent::DisableSecondaryTriangleBuffers()
 {
 	SecondaryTriFilterFunc = nullptr;
 	NotifyMeshUpdated();
 }
 
 
-void USimpleDynamicMeshComponent::SetExternalDecomposition(TUniquePtr<FMeshRenderDecomposition> DecompositionIn)
+void UDynamicMeshComponent::SetExternalDecomposition(TUniquePtr<FMeshRenderDecomposition> DecompositionIn)
 {
 	Decomposition = MoveTemp(DecompositionIn);
 	NotifyMeshUpdated();
@@ -844,7 +844,7 @@ void USimpleDynamicMeshComponent::SetExternalDecomposition(TUniquePtr<FMeshRende
 
 
 
-FColor USimpleDynamicMeshComponent::GetTriangleColor(const FDynamicMesh3* MeshIn, int TriangleID)
+FColor UDynamicMeshComponent::GetTriangleColor(const FDynamicMesh3* MeshIn, int TriangleID)
 {
 	if (TriangleColorFunc)
 	{
@@ -858,7 +858,7 @@ FColor USimpleDynamicMeshComponent::GetTriangleColor(const FDynamicMesh3* MeshIn
 
 
 
-FBoxSphereBounds USimpleDynamicMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
+FBoxSphereBounds UDynamicMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
 	// can get a tighter box by calculating in world space, but we care more about performance
 	FBox LocalBoundingBox = (FBox)LocalBounds;
@@ -871,31 +871,31 @@ FBoxSphereBounds USimpleDynamicMeshComponent::CalcBounds(const FTransform& Local
 
 
 
-void USimpleDynamicMeshComponent::SetInvalidateProxyOnChangeEnabled(bool bEnabled)
+void UDynamicMeshComponent::SetInvalidateProxyOnChangeEnabled(bool bEnabled)
 {
 	bInvalidateProxyOnChange = bEnabled;
 }
 
 
-void USimpleDynamicMeshComponent::ApplyChange(const FMeshVertexChange* Change, bool bRevert)
+void UDynamicMeshComponent::ApplyChange(const FMeshVertexChange* Change, bool bRevert)
 {
 	// will fire UDynamicMesh::MeshChangedEvent, which will call OnMeshObjectChanged() below to invalidate proxy, fire change events, etc
 	MeshObject->ApplyChange(Change, bRevert);
 }
 
-void USimpleDynamicMeshComponent::ApplyChange(const FMeshChange* Change, bool bRevert)
+void UDynamicMeshComponent::ApplyChange(const FMeshChange* Change, bool bRevert)
 {
 	// will fire UDynamicMesh::MeshChangedEvent, which will call OnMeshObjectChanged() below to invalidate proxy, fire change events, etc
 	MeshObject->ApplyChange(Change, bRevert);
 }
 
-void USimpleDynamicMeshComponent::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)
+void UDynamicMeshComponent::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)
 {
 	// will fire UDynamicMesh::MeshChangedEvent, which will call OnMeshObjectChanged() below to invalidate proxy, fire change events, etc
 	MeshObject->ApplyChange(Change, bRevert);
 }
 
-void USimpleDynamicMeshComponent::OnMeshObjectChanged(UDynamicMesh* ChangedMeshObject, FDynamicMeshChangeInfo ChangeInfo)
+void UDynamicMeshComponent::OnMeshObjectChanged(UDynamicMesh* ChangedMeshObject, FDynamicMeshChangeInfo ChangeInfo)
 {
 	bool bIsFChange = (
 		ChangeInfo.Type == EDynamicMeshChangeType::MeshChange
@@ -924,7 +924,7 @@ void USimpleDynamicMeshComponent::OnMeshObjectChanged(UDynamicMesh* ChangedMeshO
 }
 
 
-void USimpleDynamicMeshComponent::SetDynamicMesh(UDynamicMesh* NewMesh)
+void UDynamicMeshComponent::SetDynamicMesh(UDynamicMesh* NewMesh)
 {
 	if (ensure(NewMesh) == false)
 	{
@@ -937,7 +937,7 @@ void USimpleDynamicMeshComponent::SetDynamicMesh(UDynamicMesh* NewMesh)
 	}
 
 	MeshObject = NewMesh;
-	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &USimpleDynamicMeshComponent::OnMeshObjectChanged);
+	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &UDynamicMeshComponent::OnMeshObjectChanged);
 
 	NotifyMeshUpdated();
 	OnMeshChanged.Broadcast();
@@ -945,12 +945,12 @@ void USimpleDynamicMeshComponent::SetDynamicMesh(UDynamicMesh* NewMesh)
 
 
 
-void USimpleDynamicMeshComponent::OnChildAttached(USceneComponent* ChildComponent)
+void UDynamicMeshComponent::OnChildAttached(USceneComponent* ChildComponent)
 {
 	Super::OnChildAttached(ChildComponent);
 	OnChildAttachmentModified.Broadcast(ChildComponent, true);
 }
-void USimpleDynamicMeshComponent::OnChildDetached(USceneComponent* ChildComponent)
+void UDynamicMeshComponent::OnChildDetached(USceneComponent* ChildComponent)
 {
 	Super::OnChildDetached(ChildComponent);
 	OnChildAttachmentModified.Broadcast(ChildComponent, false);

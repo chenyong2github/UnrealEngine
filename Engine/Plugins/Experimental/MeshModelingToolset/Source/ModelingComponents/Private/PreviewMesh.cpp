@@ -39,7 +39,7 @@ void UPreviewMesh::CreateInWorld(UWorld* World, const FTransform& WithTransform)
 	FActorSpawnParameters SpawnInfo;
 	TemporaryParentActor = World->SpawnActor<APreviewMeshActor>(FVector::ZeroVector, Rotation, SpawnInfo);
 
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(TemporaryParentActor);
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(TemporaryParentActor);
 	TemporaryParentActor->SetRootComponent(DynamicMeshComponent);
 	//DynamicMeshComponent->SetupAttachment(TemporaryParentActor->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();

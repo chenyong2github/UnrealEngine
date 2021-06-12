@@ -20,7 +20,7 @@
 
 // predeclarations
 struct FMeshDescription;
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 class UTransformGizmo;
 class UTransformProxy;
 class ULineSetComponent;

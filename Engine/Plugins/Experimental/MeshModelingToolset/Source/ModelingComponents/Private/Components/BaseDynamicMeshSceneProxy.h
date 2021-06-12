@@ -7,7 +7,7 @@
 #include "VertexFactory.h"
 #include "LocalVertexFactory.h"
 #include "PrimitiveViewRelevance.h"
-#include "BaseDynamicMeshComponent.h"
+#include "Components/BaseDynamicMeshComponent.h"
 
 using UE::Geometry::FDynamicMesh3;
 using UE::Geometry::FDynamicMeshAttributeSet;

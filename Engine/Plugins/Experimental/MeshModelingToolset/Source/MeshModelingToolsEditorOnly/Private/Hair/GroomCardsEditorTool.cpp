@@ -258,7 +258,7 @@ void UGroomCardsEditorTool::OnTick(float DeltaTime)
 
 	if (bSelectionStateDirty)
 	{
-		USimpleDynamicMeshComponent* DynamicMeshComponent = Cast<USimpleDynamicMeshComponent>(PreviewMesh->GetRootComponent());		// ugh
+		UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(PreviewMesh->GetRootComponent());		// ugh
 		if (DynamicMeshComponent)
 		{
 			DynamicMeshComponent->FastNotifySecondaryTrianglesChanged();

@@ -9,7 +9,7 @@
 #include "BoxTypes.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Changes/ValueWatcher.h"
-#include "BaseDynamicMeshComponent.h"
+#include "Components/BaseDynamicMeshComponent.h"
 #include "MeshSculptToolBase.generated.h"
 
 

@@ -69,7 +69,7 @@ void UShapeSprayTool::Setup()
 
 	// create dynamic mesh component to use for live preview
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	AccumMeshComponent = NewObject<USimpleDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "SprayMesh");
+	AccumMeshComponent = NewObject<UDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "SprayMesh");
 		AccumMeshComponent->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
 	AccumMeshComponent->RegisterComponent();
 

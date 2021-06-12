@@ -6,7 +6,7 @@
 #include "HAL/Platform.h"
 #include "UObject/NoExportTypes.h"
 #include "BaseTools/BaseBrushTool.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "Mechanics/PolyLassoMarqueeMechanic.h"
 
@@ -383,13 +383,13 @@ protected:
 
 protected:
 	UPROPERTY()
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
+	UDynamicMeshComponent* DynamicMeshComponent;
 
 	UPROPERTY()
 	UMeshElementsVisualizer* MeshElementsDisplay;
 
 	// realtime visualization
-	void OnDynamicMeshComponentChanged(USimpleDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);
+	void OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
 	TUniquePtr<UE::Geometry::FPolygroupSet> ActiveGroupSet;

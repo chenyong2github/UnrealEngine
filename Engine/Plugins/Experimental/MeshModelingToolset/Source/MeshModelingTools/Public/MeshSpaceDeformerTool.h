@@ -10,7 +10,7 @@
 #include "SpaceDeformerOps/BendMeshOp.h"
 #include "SpaceDeformerOps/TwistMeshOp.h"
 #include "SpaceDeformerOps/FlareMeshOp.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "ToolDataVisualizer.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"

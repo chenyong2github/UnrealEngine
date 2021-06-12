@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "OctreeDynamicMeshComponent.h"
+#include "Components/OctreeDynamicMeshComponent.h"
+#include "Components/BaseDynamicMeshSceneProxy.h"
 #include "Util/IndexSetDecompositions.h"
-#include "BaseDynamicMeshSceneProxy.h"
 
 
 DECLARE_STATS_GROUP(TEXT("SculptToolOctree"), STATGROUP_SculptToolOctree, STATCAT_Advanced);

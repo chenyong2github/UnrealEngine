@@ -15,7 +15,7 @@
 
 // predeclarations
 struct FMeshDescription;
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 class IPrimitiveComponentBackedTarget;
 class IMeshDescriptionCommitter;
 class IMeshDescriptionProvider;

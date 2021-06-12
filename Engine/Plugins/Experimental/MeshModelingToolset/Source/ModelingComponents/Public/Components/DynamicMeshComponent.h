@@ -11,17 +11,17 @@
 #include "Async/Future.h"
 #include "UDynamicMesh.h"
 
-#include "SimpleDynamicMeshComponent.generated.h"
+#include "DynamicMeshComponent.generated.h"
 
 // predecl
 struct FMeshDescription;
 
-/** internal FPrimitiveSceneProxy defined in SimpleDynamicMeshSceneProxy.h */
-class FSimpleDynamicMeshSceneProxy;
+/** internal FPrimitiveSceneProxy defined in DynamicMeshSceneProxy.h */
+class FDynamicMeshSceneProxy;
 
 
 /**
- * Interface for a render mesh processor. Use this to process the Mesh stored in USimpleDynamicMeshComponent before
+ * Interface for a render mesh processor. Use this to process the Mesh stored in UDynamicMeshComponent before
  * sending it off for rendering.
  * NOTE: This is called whenever the Mesh is updated and before rendering, so performance matters.
  */
@@ -48,7 +48,7 @@ enum class EDynamicMeshComponentRenderUpdateMode
 
 
 /** 
- * USimpleDynamicMeshComponent is a mesh component similar to UProceduralMeshComponent,
+ * UDynamicMeshComponent is a mesh component similar to UProceduralMeshComponent,
  * except it bases the renderable geometry off an internal UDynamicMesh instance (which
  * encapsulates a FDynamicMesh3). 
  * 
@@ -59,7 +59,7 @@ enum class EDynamicMeshComponentRenderUpdateMode
  * 
  */
 UCLASS(hidecategories = (LOD, Physics, Collision), meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
-class MODELINGCOMPONENTS_API USimpleDynamicMeshComponent : public UBaseDynamicMeshComponent
+class MODELINGCOMPONENTS_API UDynamicMeshComponent : public UBaseDynamicMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -242,7 +242,7 @@ public:
 	/**
 	 * This delegate fires when the mesh vertices have been changed via an FMeshVertexChange
 	 */
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FMeshVerticesModified, USimpleDynamicMeshComponent*, const FMeshVertexChange*, bool);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FMeshVerticesModified, UDynamicMeshComponent*, const FMeshVertexChange*, bool);
 	FMeshVerticesModified OnMeshVerticesChanged;
 
 	/**
@@ -383,7 +383,7 @@ public:
 
 	/**
 	 * The OnChildAttached() and OnChildDetached() implementations (from USceneComponent API) broadcast this delegate. This
-	 * allows Actors that have USimpleDynamicMeshComponent's to respond to changes in their Component hierarchy.
+	 * allows Actors that have UDynamicMeshComponent's to respond to changes in their Component hierarchy.
 	 */
 	FComponentChildrenChangedDelegate OnChildAttachmentModified;
 
@@ -419,7 +419,7 @@ protected:
 	/** 
 	 * @return current render proxy, if valid, otherwise nullptr 
 	 */
-	FSimpleDynamicMeshSceneProxy* GetCurrentSceneProxy();
+	FDynamicMeshSceneProxy* GetCurrentSceneProxy();
 
 	/**
 	 * Fully invalidate all rendering data for this Component. Current Proxy will be discarded, Bounds and possibly Tangents recomputed, etc

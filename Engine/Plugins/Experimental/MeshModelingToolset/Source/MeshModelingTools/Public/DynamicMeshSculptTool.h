@@ -7,7 +7,7 @@
 #include "SubRegionRemesher.h"
 #include "UObject/NoExportTypes.h"
 #include "BaseTools/MeshSurfacePointTool.h"
-#include "OctreeDynamicMeshComponent.h"
+#include "Components/OctreeDynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
 #include "DynamicMeshOctree3.h"
 #include "MeshNormals.h"

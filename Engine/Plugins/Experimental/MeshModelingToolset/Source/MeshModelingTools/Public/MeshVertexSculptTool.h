@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "UObject/NoExportTypes.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
 #include "DynamicMeshOctree3.h"
 #include "MeshNormals.h"
@@ -229,10 +229,10 @@ protected:
 
 protected:
 	UPROPERTY()
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
+	UDynamicMeshComponent* DynamicMeshComponent;
 
 	// realtime visualization
-	void OnDynamicMeshComponentChanged(USimpleDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);
+	void OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
 	void UpdateBrushType(EMeshVertexSculptBrushType BrushType);

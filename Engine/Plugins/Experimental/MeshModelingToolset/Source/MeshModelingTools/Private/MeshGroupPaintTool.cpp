@@ -86,7 +86,7 @@ void UMeshGroupPaintTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "Paint PolyGroups"));
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
 	InitializeSculptMeshComponent(DynamicMeshComponent);
 
 	// assign materials
@@ -1383,7 +1383,7 @@ void UMeshGroupPaintTool::WaitForPendingUndoRedo()
 	}
 }
 
-void UMeshGroupPaintTool::OnDynamicMeshComponentChanged(USimpleDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert)
+void UMeshGroupPaintTool::OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert)
 {
 	// update octree
 	FDynamicMesh3* Mesh = GetSculptMesh();

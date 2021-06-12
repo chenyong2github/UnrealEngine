@@ -16,7 +16,7 @@
 
 
 // predeclarations
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 

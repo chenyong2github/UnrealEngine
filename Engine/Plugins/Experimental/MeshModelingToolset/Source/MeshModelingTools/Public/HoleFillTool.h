@@ -18,7 +18,7 @@
 class UPolygonSelectionMechanic;
 class UDynamicMeshReplacementChangeTarget;
 class UMeshOpPreviewWithBackgroundCompute;
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 struct FDynamicMeshOpResult;
 class UHoleFillTool;
 

@@ -166,7 +166,7 @@ void UEditMeshPolygonsTool::Setup()
 	AddInputBehavior(ClickBehavior);
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target), "DynamicMesh");
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target), "DynamicMesh");
 	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
 	WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);

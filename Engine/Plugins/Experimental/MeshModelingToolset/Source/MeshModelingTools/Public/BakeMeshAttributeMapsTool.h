@@ -18,7 +18,7 @@
 
 // predeclarations
 struct FMeshDescription;
-class USimpleDynamicMeshComponent;
+class UDynamicMeshComponent;
 class UMaterialInstanceDynamic;
 class UTexture2D;
 PREDECLARE_GEOMETRY(template<typename RealType> class TMeshTangents);
@@ -404,7 +404,7 @@ protected:
 	friend class FBakeMultiTextureOp;
 	friend class FMeshMapBakerOp;
 
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
+	UDynamicMeshComponent* DynamicMeshComponent;
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* PreviewMaterial;

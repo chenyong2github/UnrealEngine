@@ -6,7 +6,7 @@
 #include "Templates/PimplPtr.h"
 #include "UObject/NoExportTypes.h"
 #include "BaseTools/MeshSurfacePointTool.h"
-#include "SimpleDynamicMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "DynamicMeshAABBTree3.h"
 #include "ToolDataVisualizer.h"
 #include "Transforms/QuickAxisTranslater.h"
@@ -178,7 +178,7 @@ public:
 
 protected:
 	UPROPERTY()
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
+	UDynamicMeshComponent* DynamicMeshComponent;
 
 	UPROPERTY()
 	UDeformMeshPolygonsTransformProperties* TransformProps;
