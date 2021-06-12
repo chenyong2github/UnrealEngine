@@ -10,9 +10,10 @@ static TAutoConsoleVariable<int32> CVarOpenXRSwapchainRetryCount(
 	TEXT("Number of times the OpenXR plugin will attempt to wait for the next swapchain image."),
 	ECVF_RenderThreadSafe);
 
-FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
-	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
-	Handle(InHandle)
+FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle)
+	: FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture)
+	, Handle(InHandle)
+	, Acquired(false)
 {
 }
 
@@ -27,6 +28,11 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
+	if (Acquired)
+	{
+		return;
+	}
+
 	SCOPED_NAMED_EVENT(AcquireImage, FColor::Red);
 
 	XrSwapchainImageAcquireInfo Info;
@@ -35,6 +41,7 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 	XR_ENSURE(xrAcquireSwapchainImage(Handle, &Info, &SwapChainIndex_RHIThread));
 
 	GDynamicRHI->RHIAliasTextureResources((FTextureRHIRef&)RHITexture, (FTextureRHIRef&)RHITextureSwapChain[SwapChainIndex_RHIThread]);
+	Acquired = true;
 }
 
 void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
@@ -70,12 +77,19 @@ void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
+	if (!Acquired)
+	{
+		return;
+	}
+
 	SCOPED_NAMED_EVENT(ReleaseImage, FColor::Red);
 
 	XrSwapchainImageReleaseInfo ReleaseInfo;
 	ReleaseInfo.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO;
 	ReleaseInfo.next = nullptr;
 	XR_ENSURE(xrReleaseSwapchainImage(Handle, &ReleaseInfo));
+
+	Acquired = false;
 }
 
 uint8 FOpenXRSwapchain::GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFormat, TFunction<uint32(uint8)> ToPlatformFormat /*= nullptr*/)

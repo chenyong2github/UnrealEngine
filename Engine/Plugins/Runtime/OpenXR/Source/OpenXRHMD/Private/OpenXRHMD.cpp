@@ -2193,6 +2193,9 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 			return false;
 		}
 
+		// Acquire the first swapchain image
+		Swapchain->IncrementSwapChainIndex_RHIThread();
+
 #if WITH_EDITOR
 		if (GIsEditor)
 		{
@@ -2243,6 +2246,9 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 		{
 			return false;
 		}
+
+		// Acquire the first swapchain image
+		Swapchain->IncrementSwapChainIndex_RHIThread();
 	}
 
 	bNeedReAllocatedDepth = false;

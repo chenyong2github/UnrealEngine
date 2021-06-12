@@ -25,6 +25,7 @@ public:
 
 protected:
 	XrSwapchain Handle;
+	std::atomic<bool> Acquired;
 };
 
 #ifdef XR_USE_GRAPHICS_API_D3D11
