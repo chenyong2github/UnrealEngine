@@ -136,7 +136,7 @@ public:
 	{
 	}
 
-	void Construct(const FArguments& InArgs) {}
+	void Construct(const FArguments& InArgs){}
 
 	TSlateAttribute<int32, EInvalidateWidgetReason::Layout> IntAttributeH;
 	TSlateAttribute<int32> IntAttributeI;
@@ -178,7 +178,14 @@ public:
 	{
 	}
 
-	void Construct(const FArguments& InArgs) {}
+	using SWidget::IsConstructed;
+
+	void Construct(const FArguments& InArgs)
+	{
+		IntAttributeA.Assign(*this, 88);
+		IntAttributeB.Assign(*this, 88);
+		IntAttributeC.Assign(*this, 88);
+	}
 	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D{ 100, 100 }; }
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
@@ -193,10 +200,92 @@ public:
 	TSlateAttribute<int32> IntAttributeA;
 	TSlateAttribute<int32> IntAttributeB;
 	TSlateAttribute<int32> IntAttributeC;
-	int32 CallbackValueA;
-	int32 CallbackValueB;
-	int32 CallbackValueC;
+	int32 CallbackValueA = 555;
+	int32 CallbackValueB = 555;
+	int32 CallbackValueC = 555;
+	int32 CallbackIsConstructedValueA = 0;
+	int32 CallbackIsConstructedValueB = 0;
+	int32 CallbackIsConstructedValueC = 0;
 };
+
+SLATE_IMPLEMENT_WIDGET(SAttributeLeftWidget_OnInvalidationParent)
+void SAttributeLeftWidget_OnInvalidationParent::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, IntAttributeA, EInvalidateWidgetReason::Layout)
+		.OnValueChanged(FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				SAttributeLeftWidget_OnInvalidationParent& Instance = static_cast<SAttributeLeftWidget_OnInvalidationParent&>(Widget);
+				Instance.CallbackValueA = Instance.IntAttributeA.Get();
+				Instance.CallbackIsConstructedValueA += static_cast<SAttributeLeftWidget_OnInvalidationParent&>(Widget).IsConstructed() ? 1 : 0;
+			}));
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, IntAttributeB, EInvalidateWidgetReason::Layout)
+		.OnValueChanged(FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				SAttributeLeftWidget_OnInvalidationParent& Instance = static_cast<SAttributeLeftWidget_OnInvalidationParent&>(Widget);
+				Instance.CallbackValueB = Instance.IntAttributeB.Get();
+				Instance.CallbackIsConstructedValueB += static_cast<SAttributeLeftWidget_OnInvalidationParent&>(Widget).IsConstructed() ? 1 : 0;
+			}));
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, IntAttributeC, EInvalidateWidgetReason::Layout)
+		.OnValueChanged(FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				SAttributeLeftWidget_OnInvalidationParent& Instance = static_cast<SAttributeLeftWidget_OnInvalidationParent&>(Widget);
+				Instance.CallbackValueC = Instance.IntAttributeC.Get();
+				Instance.CallbackIsConstructedValueC += static_cast<SAttributeLeftWidget_OnInvalidationParent&>(Widget).IsConstructed() ? 1 : 0;
+			}));
+}
+
+class SAttributeLeftWidget_OnInvalidationChild : public SAttributeLeftWidget_OnInvalidationParent
+{
+	SLATE_DECLARE_WIDGET(SAttributeLeftWidget_OnInvalidationChild, SAttributeLeftWidget_OnInvalidationParent)
+public:
+	SLATE_BEGIN_ARGS(SAttributeLeftWidget_OnInvalidationChild) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs) {}
+	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D{ 100, 100 }; }
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
+	{
+		return LayerId;
+	}
+
+	virtual void SetCallbackValue(int32 Value) override
+	{
+		Super::SetCallbackValue(Value);
+		OverrideCallbackValueA = Value;
+		OverrideCallbackValueB = Value;
+		OverrideCallbackValueC = Value;
+	}
+
+	int32 OverrideCallbackValueA;
+	int32 OverrideCallbackValueB;
+	int32 OverrideCallbackValueC;
+};
+
+SLATE_IMPLEMENT_WIDGET(SAttributeLeftWidget_OnInvalidationChild)
+void SAttributeLeftWidget_OnInvalidationChild::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	AttributeInitializer.OverrideOnValueChanged("IntAttributeA"
+		, FSlateAttributeDescriptor::ECallbackOverrideType::ReplacePrevious
+		, FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				SAttributeLeftWidget_OnInvalidationChild& Instance = static_cast<SAttributeLeftWidget_OnInvalidationChild&>(Widget);
+				Instance.OverrideCallbackValueA = Instance.IntAttributeA.Get();
+			}));
+	AttributeInitializer.OverrideOnValueChanged("IntAttributeB"
+		, FSlateAttributeDescriptor::ECallbackOverrideType::ExecuteAfterPrevious
+		, FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				SAttributeLeftWidget_OnInvalidationChild& Instance = static_cast<SAttributeLeftWidget_OnInvalidationChild&>(Widget);
+				Instance.OverrideCallbackValueB = Instance.CallbackValueB;
+			}));
+	AttributeInitializer.OverrideOnValueChanged("IntAttributeC"
+		, FSlateAttributeDescriptor::ECallbackOverrideType::ExecuteBeforePrevious
+		, FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				SAttributeLeftWidget_OnInvalidationChild& Instance = static_cast<SAttributeLeftWidget_OnInvalidationChild&>(Widget);
+				Instance.OverrideCallbackValueC = Instance.CallbackValueC;
+			}));
+}
 
 }
 }
@@ -784,6 +873,116 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 				Attribute.Assign(MoveTemp(Attribute1), MoveTemp(Counter));
 				AddErrorIfCounterDoNotMatches(0, 0, 2, 0, 1, TEXT("Assign Set Move failed."));
 			}
+		}
+	}
+
+	// Test OnInvalidation
+	{
+		{
+			TSharedRef<UE::Slate::Private::SAttributeLeftWidget_OnInvalidationParent> WidgetParent
+				= SNew(UE::Slate::Private::SAttributeLeftWidget_OnInvalidationParent);
+
+
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueA == 0, TEXT("The callback for value A was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueB == 0, TEXT("The callback for value B was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueC == 0, TEXT("The callback for value C was triggered while the widget was constructed."));
+
+			WidgetParent->SetCallbackValue(10);
+			WidgetParent->MarkPrepassAsDirty();
+			WidgetParent->SlatePrepass(1.f);
+			AddErrorIfFalse(WidgetParent->CallbackValueA == 10, TEXT("The callback for value A was triggered."));
+			AddErrorIfFalse(WidgetParent->CallbackValueB == 10, TEXT("The callback for value B was triggered."));
+			AddErrorIfFalse(WidgetParent->CallbackValueC == 10, TEXT("The callback for value C was triggered."));
+
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueA == 0, TEXT("The callback for value A was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueB == 0, TEXT("The callback for value B was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueC == 0, TEXT("The callback for value C was triggered while the widget was constructed."));
+		}
+		{
+			TSharedRef<UE::Slate::Private::SAttributeLeftWidget_OnInvalidationChild> WidgetChild = SNew(UE::Slate::Private::SAttributeLeftWidget_OnInvalidationChild);
+
+			AddErrorIfFalse(WidgetChild->CallbackIsConstructedValueA == 0, TEXT("The callback for value A was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetChild->CallbackIsConstructedValueB == 0, TEXT("The callback for value B was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetChild->CallbackIsConstructedValueC == 0, TEXT("The callback for value C was triggered while the widget was constructed."));
+
+			WidgetChild->SetCallbackValue(10);
+			WidgetChild->MarkPrepassAsDirty();
+			WidgetChild->SlatePrepass(1.f);
+			AddErrorIfFalse(WidgetChild->CallbackValueA == 10, TEXT("The callback for value A was triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueB == 10, TEXT("The callback for value B was triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueC == 10, TEXT("The callback for value C was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueA == 10, TEXT("The callback for override value A was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueB == 10, TEXT("The callback for override value B was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueC == 10, TEXT("The callback for override value C was triggered."));
+
+			AddErrorIfFalse(WidgetChild->CallbackIsConstructedValueA == 0, TEXT("The callback for value A was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetChild->CallbackIsConstructedValueB == 0, TEXT("The callback for value B was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetChild->CallbackIsConstructedValueC == 0, TEXT("The callback for value C was triggered while the widget was constructed."));
+		}
+
+		{
+			TSharedRef<UE::Slate::Private::SAttributeLeftWidget_OnInvalidationParent> WidgetParent = SNew(UE::Slate::Private::SAttributeLeftWidget_OnInvalidationParent);
+
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueA == 0, TEXT("The callback for value A was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueB == 0, TEXT("The callback for value B was triggered while the widget was constructed."));
+			AddErrorIfFalse(WidgetParent->CallbackIsConstructedValueC == 0, TEXT("The callback for value C was triggered while the widget was constructed."));
+
+			WidgetParent->SetCallbackValue(10);
+			WidgetParent->SetAttributeA(4);
+			AddErrorIfFalse(WidgetParent->CallbackValueA == 4, TEXT("The callback for value A was not triggered."));
+			AddErrorIfFalse(WidgetParent->CallbackValueB == 10, TEXT("The callback for value B was triggered."));
+			AddErrorIfFalse(WidgetParent->CallbackValueC == 10, TEXT("The callback for value C was triggered."));
+			WidgetParent->SetAttributeB(5);
+			AddErrorIfFalse(WidgetParent->CallbackValueB == 5, TEXT("The callback for value B was not triggered."));
+			AddErrorIfFalse(WidgetParent->CallbackValueC == 10, TEXT("The callback for value C was triggered."));
+			WidgetParent->SetAttributeC(6);
+			AddErrorIfFalse(WidgetParent->CallbackValueC == 6, TEXT("The callback for value C was not triggered."));
+		}
+
+		{
+			TSharedRef<UE::Slate::Private::SAttributeLeftWidget_OnInvalidationChild> WidgetChild = SNew(UE::Slate::Private::SAttributeLeftWidget_OnInvalidationChild);
+			WidgetChild->SetCallbackValue(10);
+			WidgetChild->CallbackValueB = 15;
+			WidgetChild->SetAttributeA(4);
+			AddErrorIfFalse(WidgetChild->CallbackValueA == 10, TEXT("The callback for value A was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueA == 4, TEXT("The callback for override value A was not triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueB == 15, TEXT("The callback for value B was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueB == 10, TEXT("The callback for override value B was triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueC == 10, TEXT("The callback for value C was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueC == 10, TEXT("The callback for override value C was triggered."));
+			WidgetChild->SetAttributeB(5);
+			AddErrorIfFalse(WidgetChild->CallbackValueB == 5, TEXT("The callback for value B was not triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueB == 15, TEXT("The callback for override value B was not triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueC == 10, TEXT("The callback for value C was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueC == 10, TEXT("The callback for override value C was triggered."));
+			WidgetChild->SetAttributeC(6);
+			AddErrorIfFalse(WidgetChild->CallbackValueC == 6, TEXT("The callback for value C was not triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueC == 6, TEXT("The callback for override value C was not triggered."));
+		}
+		{
+			TSharedRef<UE::Slate::Private::SAttributeLeftWidget_OnInvalidationChild> WidgetChild = SNew(UE::Slate::Private::SAttributeLeftWidget_OnInvalidationChild);
+			WidgetChild->SetCallbackValue(10);
+			WidgetChild->CallbackValueB = 15;
+			WidgetChild->SetAttributeA(MakeAttributeLambda([](){ return 4; }));
+			WidgetChild->SetAttributeB(MakeAttributeLambda([](){ return 5; }));
+			WidgetChild->SetAttributeC(MakeAttributeLambda([](){ return 6; }));
+
+			AddErrorIfFalse(WidgetChild->CallbackValueA == 10, TEXT("The callback for value A was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueA == 10, TEXT("The callback for override value A was triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueB == 15, TEXT("The callback for value B was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueB == 10, TEXT("The callback for override value B was triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueC == 10, TEXT("The callback for value C was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueC == 10, TEXT("The callback for override value C was triggered."));
+
+			WidgetChild->MarkPrepassAsDirty();
+			WidgetChild->SlatePrepass(1.f);
+
+			AddErrorIfFalse(WidgetChild->CallbackValueA == 10, TEXT("The callback for value A was triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueA == 4, TEXT("The callback for override value A was not triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueB == 5, TEXT("The callback for value B was not triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueB == 15, TEXT("The callback for override value B was not triggered."));
+			AddErrorIfFalse(WidgetChild->CallbackValueC == 6, TEXT("The callback for value C was not triggered."));
+			AddErrorIfFalse(WidgetChild->OverrideCallbackValueC == 6, TEXT("The callback for override value C was not triggered."));
 		}
 	}
 

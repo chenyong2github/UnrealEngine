@@ -271,6 +271,15 @@ void FSlateInvalidationRoot::InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWi
 {
 	ensureMsgf(bProcessingChildOrderInvalidation == false, TEXT("A widget got invalidated while building the childorder."));
 
+	if (bProcessingAttributeUpdate)
+	{
+		if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::AttributeRegistration | EInvalidateWidgetReason::ChildOrder | EInvalidateWidgetReason::Visibility))
+		{
+			ensureMsgf(false, TEXT("An invalid invalidation occurred while processing the widget attributes. That may result in an infinit loop."));
+			return;
+		}
+	}
+
 	if (!bNeedsSlowPath)
 	{
 		Proxy.CurrentInvalidateReason |= InvalidateReason;
@@ -714,8 +723,19 @@ void FSlateInvalidationRoot::ProcessAttributeUpdate()
 					ensureAlwaysMsgf(!GSlateInvalidationRootVerifySlateAttribute || InvalidationWidget.bDebug_AttributeUpdated == false, TEXT("Attribute should only be updated once per frame."));
 					InvalidationWidget.bDebug_AttributeUpdated = true;
 #endif
+
+#if WITH_SLATE_DEBUGGING
+					FSlateInvalidationWidgetVisibility PreviousVisibility = InvalidationWidget.Visibility;
+					FSlateInvalidationWidgetIndex PreviousLeafMostChildIndex = InvalidationWidget.LeafMostChildIndex;
+#endif
+
 					FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(*WidgetPtr, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidation);
 					AttributeItt.Advance();
+
+#if WITH_SLATE_DEBUGGING
+					ensureMsgf(PreviousVisibility == InvalidationWidget.Visibility, TEXT("The visibility of widget '%s' doens't match the previous visibility after the attribute update."), *FReflectionMetaData::GetWidgetDebugInfo(WidgetPtr));
+					ensureMsgf(PreviousLeafMostChildIndex == InvalidationWidget.LeafMostChildIndex, TEXT("The number of child of widget '%s' doens't match the previous count after the attribute update."), *FReflectionMetaData::GetWidgetDebugInfo(WidgetPtr));
+#endif
 				}
 				else
 				{

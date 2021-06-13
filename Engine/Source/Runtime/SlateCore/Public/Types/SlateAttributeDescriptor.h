@@ -67,6 +67,20 @@ public:
 		FGetter Getter;
 	};
 
+	/** */
+	DECLARE_DELEGATE_OneParam(FAttributeValueChangedDelegate, SWidget& /*Widget*/);
+
+	/** */
+	enum class ECallbackOverrideType
+	{
+		/** Replace the callback that the base class defined. */
+		ReplacePrevious,
+		/** Execute the callback that the base class defined, then execute the new callback. */
+		ExecuteAfterPrevious,
+		/** Execute the new callback, then execute the callback that the base class defined. */
+		ExecuteBeforePrevious,
+	};
+
 public:
 	using OffsetType = uint32;
 
@@ -81,6 +95,7 @@ public:
 		FName Prerequisite;
 		uint32 SortOrder = 0;
 		FInvalidateWidgetReasonAttribute InvalidationReason = FInvalidateWidgetReasonAttribute(EInvalidateWidgetReason::None);
+		FAttributeValueChangedDelegate OnValueChanged;
 		bool bIsMemberAttribute = false;
 		bool bIsPrerequisiteAlsoADependency = false;
 		bool bIsADependencyForSomeoneElse = false;
@@ -126,6 +141,15 @@ public:
 			 */
 			FAttributeEntry& AffectVisibility();
 
+			/**
+			 * Notified when the attribute value changed.
+			 * It's preferable that you delay any action to the Tick or Paint function.
+			 * You are not allowed to make changes that would affect the SWidget ChildOrder or its Visibility.
+			 * It will not be called when the SWidget is in his construction phase.
+			 * @see SWidget::IsConstructed
+			 */
+			FAttributeEntry& OnValueChanged(FAttributeValueChangedDelegate Callback);
+
 		private:
 			FSlateAttributeDescriptor& Descriptor;
 			int32 AttributeIndex;
@@ -138,6 +162,9 @@ public:
 		void OverrideInvalidationReason(FName AttributeName, const FInvalidateWidgetReasonAttribute& Reason);
 		/** Change the InvalidationReason of an attribute defined in a base class. */
 		void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason);
+
+		/** Change the FAttributeValueChangedDelegate of an attribute defined in a base class. */
+		void OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
 
 		/** Change the update type of an attribute defined in a base class. */
 		void SetAffectVisibility(FName AttributeName, bool bAffectVisibility);
@@ -182,6 +209,7 @@ private:
 
 	FInitializer::FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute ReasonGetter);
 	void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute ReasonGetter);
+	void OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
 	void SetPrerequisite(FAttribute& Attribute, FName Prerequisite, bool bSetAsDependency);
 	void SetAffectVisibility(FAttribute& Attribute, bool bUpdate);
 

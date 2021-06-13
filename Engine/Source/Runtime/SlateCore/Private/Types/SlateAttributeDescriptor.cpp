@@ -44,6 +44,16 @@ FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescrip
 }
 
 
+FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::OnValueChanged(FAttributeValueChangedDelegate InCallback)
+{
+	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
+	{
+		Descriptor.Attributes[AttributeIndex].OnValueChanged = MoveTemp(InCallback);
+	}
+	return *this;
+}
+
+
 /** */
 FSlateAttributeDescriptor::FInitializer::FInitializer(FSlateAttributeDescriptor& InDescriptor)
 	: Descriptor(InDescriptor)
@@ -228,6 +238,12 @@ void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName A
 }
 
 
+void FSlateAttributeDescriptor::FInitializer::OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback)
+{
+	Descriptor.OverrideOnValueChanged(AttributeName, OverrideType, MoveTemp(Callback));
+}
+
+
 void FSlateAttributeDescriptor::FInitializer::SetAffectVisibility(FName AttributeName, bool bAffectVisibility)
 {
 	FAttribute* Attribute = Descriptor.FindAttribute(AttributeName);
@@ -313,6 +329,48 @@ void FSlateAttributeDescriptor::OverrideInvalidationReason(FName AttributeName, 
 	if (ensureAlwaysMsgf(FoundAttribute != nullptr, TEXT("The attribute 's' doesn't exist."), *AttributeName.ToString()))
 	{
 		FoundAttribute->InvalidationReason = MoveTemp(Reason);
+	}
+}
+
+
+void FSlateAttributeDescriptor::OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback)
+{
+	check(!AttributeName.IsNone());
+
+	FAttribute* FoundAttribute = FindAttribute(AttributeName);
+	if (ensureAlwaysMsgf(FoundAttribute != nullptr, TEXT("The attribute 's' doesn't exist."), *AttributeName.ToString()))
+	{
+		switch(OverrideType)
+		{
+		case ECallbackOverrideType::ReplacePrevious:
+			FoundAttribute->OnValueChanged = MoveTemp(Callback);
+			break;
+		case ECallbackOverrideType::ExecuteAfterPrevious:
+		case ECallbackOverrideType::ExecuteBeforePrevious:
+			if (FoundAttribute->OnValueChanged.IsBound() && Callback.IsBound())
+			{
+				FAttributeValueChangedDelegate Previous = FoundAttribute->OnValueChanged;
+				FoundAttribute->OnValueChanged = FAttributeValueChangedDelegate::CreateLambda([Previous{MoveTemp(Previous)}, Callback{MoveTemp(Callback)}, OverrideType](SWidget& Widget)
+					{
+						if (OverrideType == ECallbackOverrideType::ExecuteBeforePrevious)
+						{
+							Previous.ExecuteIfBound(Widget);
+						}
+						Callback.ExecuteIfBound(Widget);
+						if (OverrideType == ECallbackOverrideType::ExecuteAfterPrevious)
+						{
+							Previous.ExecuteIfBound(Widget);
+						}
+					});
+			}
+			else if (Callback.IsBound())
+			{
+				FoundAttribute->OnValueChanged = MoveTemp(Callback);
+			}
+			break;
+		default:
+			check(false);
+		}
 	}
 }
 
