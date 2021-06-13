@@ -204,9 +204,9 @@ UCommonInputPlatformSettings::UCommonInputPlatformSettings()
 	DefaultGamepadName = FCommonInputDefaults::GamepadGeneric;
 }
 
-void UCommonInputPlatformSettings::PostInitProperties()
+void UCommonInputPlatformSettings::PostLoad()
 {
-	Super::PostInitProperties();
+	Super::PostLoad();
 
 	ControllerDataClasses.Reset();
 	InitializeControllerData();

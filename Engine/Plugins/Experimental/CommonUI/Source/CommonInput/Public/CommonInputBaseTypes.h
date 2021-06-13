@@ -148,7 +148,7 @@ class COMMONINPUT_API UCommonInputPlatformSettings : public UPlatformSettings
 public:
 	UCommonInputPlatformSettings();
 
-	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 
 	static UCommonInputPlatformSettings* Get()
 	{
