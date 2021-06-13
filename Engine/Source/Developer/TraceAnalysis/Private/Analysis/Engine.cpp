@@ -779,7 +779,6 @@ enum ERouteId : uint16
 FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 : Analyzers(MoveTemp(InAnalyzers))
 {
-	uint16 SelfIndex = Analyzers.Num();
 	Analyzers.Add(this);
 }
 
