@@ -7,6 +7,7 @@
 #include "RCTypeTraits.h"
 #include "RCTypeUtilities.h"
 #include "Serialization/BufferArchive.h"
+#include "Serialization/MemoryReader.h"
 #include "UObject/WeakFieldPtr.h"
 
 #if WITH_EDITOR
