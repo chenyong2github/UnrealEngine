@@ -1678,7 +1678,17 @@ void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChil
 			{
 				if (bUpdateAttributes)
 				{
+#if WITH_SLATE_DEBUGGING
+					EVisibility PreviousVisibility = GetVisibility();
+					int32 PreviousAllChildrenNum = Child.GetAllChildren()->Num();
+#endif
+
 					FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Child, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+
+#if WITH_SLATE_DEBUGGING
+					ensureMsgf(PreviousVisibility == GetVisibility(), TEXT("The visibility of widget '%s' doens't match the previous visibility after the attribute update."), *FReflectionMetaData::GetWidgetDebugInfo(this));
+					ensureMsgf(PreviousAllChildrenNum == Child.GetAllChildren()->Num(), TEXT("The number of child of widget '%s' doens't match the previous count after the attribute update."), *FReflectionMetaData::GetWidgetDebugInfo(this));
+#endif
 				}
 
 				const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale

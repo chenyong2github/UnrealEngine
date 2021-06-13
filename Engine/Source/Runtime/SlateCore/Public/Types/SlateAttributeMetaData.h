@@ -154,7 +154,8 @@ private:
 			return SortOrder < Other.SortOrder;
 		}
 
-		EInvalidateWidgetReason GetInvalidationDetail(const SWidget&, EInvalidateWidgetReason Reason) const;
+		using FInvalidationDetail = TTuple<const FSlateAttributeDescriptor::FAttributeValueChangedDelegate*, EInvalidateWidgetReason>;
+		FInvalidationDetail GetInvalidationDetail(const SWidget&, EInvalidateWidgetReason Reason) const;
 
 		/** If available, return the name of the attribute. */
 		FName GetAttributeName(const SWidget& OwningWidget) const;

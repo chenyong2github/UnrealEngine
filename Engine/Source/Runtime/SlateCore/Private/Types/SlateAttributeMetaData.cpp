@@ -192,14 +192,14 @@ TArray<FName> FSlateAttributeMetaData::GetAttributeNames(const SWidget& OwningWi
 }
 
 
-EInvalidateWidgetReason FSlateAttributeMetaData::FGetterItem::GetInvalidationDetail(const SWidget& OwningWidget, EInvalidateWidgetReason Reason) const
+FSlateAttributeMetaData::FGetterItem::FInvalidationDetail FSlateAttributeMetaData::FGetterItem::GetInvalidationDetail(const SWidget& OwningWidget, EInvalidateWidgetReason Reason) const
 {
 	if (CachedAttributeDescriptorIndex != FGetterItem::InvalidAttributeIndex)
 	{
 		const FSlateAttributeDescriptor::FAttribute& DescriptorAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex);
-		return DescriptorAttribute.InvalidationReason.Get(OwningWidget);
+		return FInvalidationDetail{&DescriptorAttribute.OnValueChanged, DescriptorAttribute.InvalidationReason.Get(OwningWidget)};
 	}
-	return Reason;
+	return FInvalidationDetail{nullptr, Reason};
 }
 
 
@@ -226,6 +226,8 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		return;
 	}
 
+	const FSlateAttributeDescriptor::FAttributeValueChangedDelegate* OnValueChangedCallback = nullptr;
+
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
 		const int32 FoundIndex = AttributeMetaData->IndexOfAttribute(Attribute);
@@ -233,7 +235,9 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		{
 			FGetterItem& GetterItem = AttributeMetaData->Attributes[FoundIndex];
 			{
-				Reason = GetterItem.GetInvalidationDetail(OwningWidget, Reason) | AttributeMetaData->CachedInvalidationReason;
+				const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Reason);
+				OnValueChangedCallback = Detail.Get<0>();
+				Reason = Detail.Get<1>() | AttributeMetaData->CachedInvalidationReason;
 				AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 			}
 
@@ -251,6 +255,7 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 			const FSlateAttributeDescriptor::OffsetType Offset = Private::FindOffet(OwningWidget, Attribute);
 			if (FSlateAttributeDescriptor::FAttribute const* FoundAttribute = AttributeDescriptor.FindMemberAttribute(Offset))
 			{
+				OnValueChangedCallback = &FoundAttribute->OnValueChanged;
 				Reason = FoundAttribute->InvalidationReason.Get(OwningWidget) | AttributeMetaData->CachedInvalidationReason;
 				AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 
@@ -281,6 +286,7 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		if (FSlateAttributeDescriptor::FAttribute const* FoundAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().FindMemberAttribute(Offset))
 		{
 			Reason = FoundAttribute->InvalidationReason.Get(OwningWidget);
+			OnValueChangedCallback = &FoundAttribute->OnValueChanged;
 		}
 	}
 
@@ -289,6 +295,10 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 #endif
 
 	OwningWidget.Invalidate(Reason);
+	if (OnValueChangedCallback)
+	{
+		OnValueChangedCallback->ExecuteIfBound(OwningWidget);
+	}
 }
 
 
@@ -373,8 +383,8 @@ void FSlateAttributeMetaData::UpdateChildrenOnlyVisibilityAttributes(SWidget& Ow
 
 void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, int32 StartIndex, int32 IndexNum)
 {
-	const bool bInvalidateIfNeeded = (InvalidationStyle == EInvalidationPermission::AllowInvalidation) || (InvalidationStyle == EInvalidationPermission::AllowInvalidationIfConstructed && OwningWidget.IsConstructed());
-	const bool bAllowInvalidation = bInvalidateIfNeeded || InvalidationStyle == EInvalidationPermission::DelayInvalidation;
+	bool bInvalidateIfNeeded = (InvalidationStyle == EInvalidationPermission::AllowInvalidation) || (InvalidationStyle == EInvalidationPermission::AllowInvalidationIfConstructed && OwningWidget.IsConstructed());
+	bool bAllowInvalidation = bInvalidateIfNeeded || InvalidationStyle == EInvalidationPermission::DelayInvalidation;
 	EInvalidateWidgetReason InvalidationReason = EInvalidateWidgetReason::None;
 	for (int32 Index = StartIndex; Index < IndexNum; ++Index)
 	{
@@ -412,7 +422,12 @@ void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInval
 		if (Result.bInvalidationRequested && bAllowInvalidation)
 		{
 			SetNeedToResetFlag(Index);
-			InvalidationReason |= GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
+			const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
+			if (Detail.Get<0>())
+			{
+				Detail.Get<0>()->ExecuteIfBound(OwningWidget);
+			}
+			InvalidationReason |= Detail.Get<1>();
 		}
 	}
 
@@ -450,11 +465,16 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 			{
 				if (OwningWidget.IsConstructed())
 				{
-					EInvalidateWidgetReason Reason = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
+					const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
+					EInvalidateWidgetReason Reason = Detail.Get<1>() | AttributeMetaData->CachedInvalidationReason;
 #if WITH_SLATE_DEBUGGING
-					ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(Reason | AttributeMetaData->CachedInvalidationReason), TEXT("%s is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(Reason | AttributeMetaData->CachedInvalidationReason));
+					ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(Reason), TEXT("%s is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(Reason));
 #endif
-					OwningWidget.Invalidate(Reason | AttributeMetaData->CachedInvalidationReason);
+					OwningWidget.Invalidate(Reason);
+					if (Detail.Get<0>())
+					{
+						Detail.Get<0>()->ExecuteIfBound(OwningWidget);
+					}
 					AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 				}
 
