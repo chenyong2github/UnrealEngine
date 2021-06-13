@@ -5,7 +5,7 @@
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Implicit/Morphology.h"
 
 

@@ -2,7 +2,7 @@
 
 #include "Selections/MeshEdgeSelection.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Containers/Set.h"
 #include "Selections/MeshFaceSelection.h"
 #include "Selections/MeshVertexSelection.h"

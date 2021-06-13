@@ -8,12 +8,12 @@
 
 #include "Generators/SphereGenerator.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
 #include "Selection/SelectClickedAction.h"
 #include "DynamicMeshEditor.h"
-#include "MeshTransforms.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTransforms.h"
+#include "DynamicMesh/MeshTangents.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"

@@ -7,7 +7,7 @@
 #include "Generators/MinimalBoxMeshGenerator.h"
 #include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 

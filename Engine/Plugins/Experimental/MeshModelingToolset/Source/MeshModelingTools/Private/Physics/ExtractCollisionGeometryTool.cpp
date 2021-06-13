@@ -11,11 +11,11 @@
 #include "PreviewMesh.h"
 
 #include "DynamicMeshEditor.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Generators/SphereGenerator.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
 #include "Generators/CapsuleGenerator.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 
 #include "Physics/PhysicsDataCollection.h"

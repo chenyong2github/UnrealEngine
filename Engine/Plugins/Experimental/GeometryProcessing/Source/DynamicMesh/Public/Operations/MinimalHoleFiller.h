@@ -11,7 +11,7 @@
 #include "SimpleHoleFiller.h"
 #include "Containers/Set.h"
 #include "MeshRegionOperator.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "QueueRemesher.h"
 #include "MeshConstraintsUtil.h"
 

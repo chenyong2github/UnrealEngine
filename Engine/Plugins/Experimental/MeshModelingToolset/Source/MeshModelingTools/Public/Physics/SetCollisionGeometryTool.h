@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "SphereTypes.h"
 #include "OrientedBoxTypes.h"
 #include "CapsuleTypes.h"

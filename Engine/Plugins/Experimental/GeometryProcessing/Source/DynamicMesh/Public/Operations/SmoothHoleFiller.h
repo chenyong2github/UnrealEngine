@@ -7,7 +7,7 @@
 #include "HoleFiller.h"
 #include "GeometryTypes.h"
 #include "VectorTypes.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "ProjectionTargets.h"
 
 namespace UE

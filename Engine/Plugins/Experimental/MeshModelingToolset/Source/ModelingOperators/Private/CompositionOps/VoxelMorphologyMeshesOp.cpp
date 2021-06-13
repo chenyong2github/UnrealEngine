@@ -4,8 +4,8 @@
 #include "CleaningOps/EditNormalsOp.h"
 
 #include "DynamicMeshEditor.h"
-#include "DynamicMeshAABBTree3.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "MeshSimplification.h"
 #include "Operations/RemoveOccludedTriangles.h"
 #include "Operations/ExtrudeMesh.h"

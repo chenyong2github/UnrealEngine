@@ -9,7 +9,7 @@
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CuttingOps/EmbedPolygonsOp.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "BaseTools/SingleClickTool.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "Mechanics/CollectSurfacePathMechanic.h"

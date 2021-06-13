@@ -6,7 +6,7 @@
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Components/DynamicMeshComponent.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "ToolDataVisualizer.h"
 #include "Changes/MeshVertexChange.h"
 #include "GroupTopology.h"

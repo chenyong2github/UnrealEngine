@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Remesher.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "MeshWeights.h"
 
 #include "Async/ParallelFor.h"

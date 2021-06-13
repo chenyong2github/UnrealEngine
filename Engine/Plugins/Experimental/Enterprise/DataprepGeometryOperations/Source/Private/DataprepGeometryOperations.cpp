@@ -4,7 +4,7 @@
 
 #include "DataprepOperationsLibraryUtil.h"
 #include "DataprepAssetUserData.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "DynamicMeshEditor.h"
 #include "Components/StaticMeshComponent.h"

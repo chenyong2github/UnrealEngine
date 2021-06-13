@@ -5,7 +5,7 @@
 #include "ToolBuilderUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "DynamicMeshEditor.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "Changes/ToolCommandChangeSequence.h"
 #include "Changes/MeshChange.h"
 #include "Util/ColorConstants.h"

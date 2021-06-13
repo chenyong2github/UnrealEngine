@@ -7,7 +7,7 @@
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "ModelingOperators.h" //IDynamicMeshOperatorFactory
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "PreviewMesh.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "Graphs/GenerateStaticMeshLODProcess.h"

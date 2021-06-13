@@ -6,8 +6,8 @@
 
 #include "ToolSetupUtil.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshTriangleAttribute.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshTriangleAttribute.h"
 #include "DynamicMeshEditor.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"

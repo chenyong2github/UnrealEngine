@@ -2,7 +2,7 @@
 
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Util/IndexUtil.h"
 #include "Async/ParallelFor.h"
 #include "Templates/UnrealTypeTraits.h"

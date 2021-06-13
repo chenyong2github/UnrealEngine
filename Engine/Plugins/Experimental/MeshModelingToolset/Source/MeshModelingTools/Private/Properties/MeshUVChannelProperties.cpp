@@ -2,8 +2,8 @@
 
 #include "Properties/MeshUVChannelProperties.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"

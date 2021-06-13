@@ -6,7 +6,7 @@
 
 #include "ToolSetupUtil.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Polygroups/PolygroupUtil.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
 #include "Selection/SelectClickedAction.h"

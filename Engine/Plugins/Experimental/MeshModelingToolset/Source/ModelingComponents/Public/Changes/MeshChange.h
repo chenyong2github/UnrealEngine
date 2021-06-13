@@ -6,7 +6,7 @@
 #include "UObject/Interface.h"
 #include "InteractiveToolChange.h"
 #include "VectorTypes.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "MeshChange.generated.h"
 
 //class FDynamicMeshChange;		// need to refactor this out of DynamicMeshChangeTracker

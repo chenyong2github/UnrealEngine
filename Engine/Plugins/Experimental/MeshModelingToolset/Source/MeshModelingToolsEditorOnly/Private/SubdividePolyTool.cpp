@@ -8,7 +8,7 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "ToolSetupUtil.h"
 #include "Util/ColorConstants.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
 

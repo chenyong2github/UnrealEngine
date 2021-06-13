@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Changes/MeshPolygroupChange.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Polygroups/PolygroupUtil.h"
 
 using namespace UE::Geometry;

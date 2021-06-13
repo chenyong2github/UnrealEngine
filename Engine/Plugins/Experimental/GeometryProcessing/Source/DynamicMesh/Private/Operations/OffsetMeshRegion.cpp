@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Operations/OffsetMeshRegion.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "Selections/MeshVertexSelection.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Operations/ExtrudeMesh.h"
 #include "DynamicSubmesh3.h"

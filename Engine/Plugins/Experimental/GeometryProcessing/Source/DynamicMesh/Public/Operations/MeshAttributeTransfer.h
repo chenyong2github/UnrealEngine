@@ -4,7 +4,7 @@
 
 #include "MathUtil.h"
 #include "VectorTypes.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 namespace UE
 {

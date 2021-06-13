@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Util/IndexUtil.h"
 
 namespace UE

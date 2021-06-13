@@ -6,7 +6,7 @@
 #include "Mechanics/DragAlignmentMechanic.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "ToolSceneQueriesUtil.h"
 

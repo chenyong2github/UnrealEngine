@@ -9,7 +9,7 @@
 #include "Engine/Brush.h"
 #include "GameFramework/Volume.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "StaticMeshAttributes.h"
 #include "ToolSetupUtil.h"
 

@@ -9,7 +9,7 @@
 #include "Changes/MeshChange.h"
 #include "Changes/MeshReplacementChange.h"
 #include "MeshConversionOptions.h"
-#include "DynamicMesh3.h"		// todo replace with predeclaration (lots of fallout)
+#include "DynamicMesh/DynamicMesh3.h"		// todo replace with predeclaration (lots of fallout)
 #include "UDynamicMesh.h"
 
 #include "BaseDynamicMeshComponent.generated.h"

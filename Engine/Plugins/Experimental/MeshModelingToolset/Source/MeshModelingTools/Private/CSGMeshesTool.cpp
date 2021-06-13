@@ -6,7 +6,7 @@
 #include "ToolSetupUtil.h"
 #include "BaseGizmos/TransformProxy.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 

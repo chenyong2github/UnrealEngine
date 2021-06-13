@@ -5,7 +5,7 @@
 #include "InteractiveToolManager.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "ToolSetupUtil.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Changes/DynamicMeshChangeTarget.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "BaseBehaviors/SingleClickBehavior.h"

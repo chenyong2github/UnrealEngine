@@ -6,7 +6,7 @@
 #include "SegmentTypes.h"
 #include "CapsuleTypes.h"
 #include "SphereTypes.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "ShapeApproximation/SimpleShapeSet3.h"
 
 #include "Physics/PhysicsDataCollection.h"

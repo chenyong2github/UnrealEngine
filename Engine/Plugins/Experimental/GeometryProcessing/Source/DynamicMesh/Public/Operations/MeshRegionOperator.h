@@ -7,10 +7,10 @@
 #include "MathUtil.h"
 #include "VectorTypes.h"
 #include "Util/SparseIndexCollectionTypes.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicSubmesh3.h"
 #include "FaceGroupUtil.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Algo/RemoveIf.h"
 
 namespace UE

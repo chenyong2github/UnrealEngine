@@ -2,12 +2,12 @@
 
 #include "Drawing/PolyEditPreviewMesh.h"
 #include "DynamicSubmesh3.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Operations/ExtrudeMesh.h"
 #include "Operations/InsetMeshRegion.h"
 #include "Selections/MeshVertexSelection.h"
 #include "MeshBoundaryLoops.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 
 using namespace UE::Geometry;

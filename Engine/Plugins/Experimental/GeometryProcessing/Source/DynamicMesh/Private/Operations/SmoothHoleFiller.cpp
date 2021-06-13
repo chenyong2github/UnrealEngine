@@ -9,7 +9,7 @@
 #include "Operations/OffsetMeshRegion.h"
 #include "Operations/MeshRegionOperator.h"
 #include "Solvers/ConstrainedMeshSmoother.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "SubRegionRemesher.h"
 #include "ProjectionTargets.h"
 #include "MeshConstraintsUtil.h"

@@ -7,7 +7,7 @@
 #include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
 #include "CompositionOps/VoxelBooleanMeshesOp.h"

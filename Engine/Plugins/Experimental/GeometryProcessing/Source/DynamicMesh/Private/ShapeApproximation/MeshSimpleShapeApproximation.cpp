@@ -6,7 +6,7 @@
 #include "MinVolumeSphere3.h"
 #include "MinVolumeBox3.h"
 #include "FitCapsule3.h"
-//#include "DynamicMeshAABBTree3.h"
+//#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 #include "ShapeApproximation/ShapeDetection3.h"
 #include "MeshQueries.h"

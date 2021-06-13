@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshProcessingNodes/MeshThickenNode.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Operations/DisplaceMesh.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 using namespace UE::Geometry;
 using namespace UE::GeometryFlow;

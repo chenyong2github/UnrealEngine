@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "InteractionMechanic.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "ToolDataVisualizer.h"
 #include "CollectSurfacePathMechanic.generated.h"
 

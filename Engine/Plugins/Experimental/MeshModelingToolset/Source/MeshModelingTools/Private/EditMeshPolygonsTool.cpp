@@ -6,7 +6,7 @@
 
 #include "CompGeom/PolygonTriangulation.h"
 #include "SegmentTypes.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Mechanics/DragAlignmentMechanic.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "ToolSceneQueriesUtil.h"
@@ -24,7 +24,7 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "FaceGroupUtil.h"
 #include "DynamicMeshEditor.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "Changes/MeshChange.h"
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "MeshRegionBoundaryLoops.h"
@@ -33,7 +33,7 @@
 #include "Operations/OffsetMeshRegion.h"
 #include "Operations/InsetMeshRegion.h"
 #include "Operations/SimpleHoleFiller.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 
 #include "Algo/ForEach.h"
 #include "Async/ParallelFor.h"

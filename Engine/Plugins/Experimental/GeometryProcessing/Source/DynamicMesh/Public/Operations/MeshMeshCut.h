@@ -12,7 +12,7 @@
 #include "Spatial/PointHashGrid3.h"
 #include "Spatial/MeshAABBTree3.h" // for MeshIntersection::FIntersectionsQueryResult
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 namespace UE
 {

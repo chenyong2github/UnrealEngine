@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/DynamicMeshComponent.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "InteractiveToolObjects.h"
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"

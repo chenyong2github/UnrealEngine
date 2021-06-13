@@ -7,9 +7,9 @@
 #include "Components/DynamicMeshComponent.h"
 #include "Async/Async.h"
 
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "MeshBoundaryLoops.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "WeightMapUtil.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"

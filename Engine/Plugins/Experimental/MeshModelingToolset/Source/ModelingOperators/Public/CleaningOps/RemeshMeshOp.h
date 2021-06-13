@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "MeshConstraints.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"

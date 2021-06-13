@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "MeshConstraints.h"
 #include "Util/ProgressCancel.h"
 

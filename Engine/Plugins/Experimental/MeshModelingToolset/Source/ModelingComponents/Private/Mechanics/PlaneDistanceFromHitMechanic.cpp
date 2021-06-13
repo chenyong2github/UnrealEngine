@@ -3,7 +3,7 @@
 #include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "ToolSceneQueriesUtil.h"
 #include "MeshQueries.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Distance/DistLine3Ray3.h"
 #include "ToolDataVisualizer.h"
 

@@ -3,8 +3,8 @@
 #include "SmoothMeshTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-#include "DynamicMesh3.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshNormals.h"
 
 // Smoothing operators
 #include "SmoothingOps/IterativeSmoothingOp.h"

@@ -6,7 +6,7 @@
 
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "GroupTopology.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 

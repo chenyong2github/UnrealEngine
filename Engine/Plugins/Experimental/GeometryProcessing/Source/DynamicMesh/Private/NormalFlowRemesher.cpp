@@ -2,7 +2,7 @@
 
 #include "NormalFlowRemesher.h"
 #include "Async/ParallelFor.h"
-#include "InfoTypes.h"
+#include "DynamicMesh/InfoTypes.h"
 #include "Async/ParallelTransformReduce.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)

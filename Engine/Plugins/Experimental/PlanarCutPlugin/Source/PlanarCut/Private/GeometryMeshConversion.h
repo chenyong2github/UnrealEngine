@@ -2,11 +2,11 @@
 #pragma once
 #include "CoreMinimal.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMeshEditor.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Selections/MeshConnectedComponents.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "MeshConstraints.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "Spatial/PointHashGrid3.h"

@@ -6,7 +6,7 @@
 #include "Sampling/MeshImageBaker.h"
 #include "Sampling/MeshImageBakingCache.h"
 #include "Image/ImageBuilder.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 
 namespace UE
 {

@@ -4,7 +4,7 @@
 
 #include "Engine/StaticMesh.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Image/ImageBuilder.h"
 
 #include "Graphs/GenerateMeshLODGraph.h"

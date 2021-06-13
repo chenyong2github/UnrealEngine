@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshOverlay.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
 #include "EdgeLoop.h"
 #include "Util/SparseIndexCollectionTypes.h"
 

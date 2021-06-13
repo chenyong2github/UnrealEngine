@@ -2,13 +2,13 @@
 
 #include "Operations/MeshPlaneCut.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshTriangleAttribute.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshTriangleAttribute.h"
 
 #include "Operations/SimpleHoleFiller.h"
 #include "Operations/PlanarHoleFiller.h"
 #include "Operations/MinimalHoleFiller.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "MathUtil.h"
 #include "Selections/MeshConnectedComponents.h"

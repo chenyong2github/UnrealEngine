@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/UniquePtr.h"
 #include "Solvers/ConstrainedMeshSolver.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 namespace UE
 {

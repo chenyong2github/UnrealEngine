@@ -2,7 +2,7 @@
 
 #include "Selection/GroupTopologyStorableSelection.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "Util/CompactMaps.h"
 

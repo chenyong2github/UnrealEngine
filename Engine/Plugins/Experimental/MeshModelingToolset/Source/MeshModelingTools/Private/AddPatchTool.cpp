@@ -10,9 +10,9 @@
 
 #include "MeshDescriptionBuilder.h"
 #include "Generators/RectangleMeshGenerator.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Drawing/MeshDebugDrawing.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "Async/ParallelFor.h"
 

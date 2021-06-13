@@ -6,7 +6,7 @@
 #include "IntVectorTypes.h"
 #include "BoxTypes.h"
 #include "Containers/StaticArray.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 class FProgressCancel;
 

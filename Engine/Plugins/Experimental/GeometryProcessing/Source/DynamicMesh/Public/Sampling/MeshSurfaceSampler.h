@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 namespace UE
 {

@@ -8,9 +8,9 @@
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Operations/RepairOrientation.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

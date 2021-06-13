@@ -2,14 +2,14 @@
 
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "ProxyLODParameterization.h"
 #include "Selections/MeshConnectedComponents.h"
 
 #include "Parameterization/MeshLocalParam.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
-#include "DynamicMeshAABBTree3.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicSubmesh3.h"
 #include "XAtlasWrapper.h"
 

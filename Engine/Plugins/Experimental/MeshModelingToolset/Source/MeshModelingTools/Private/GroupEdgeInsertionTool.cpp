@@ -5,7 +5,7 @@
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "CuttingOps/GroupEdgeInsertionOp.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "InteractiveToolManager.h"
 #include "MeshDescriptionToDynamicMesh.h"

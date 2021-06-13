@@ -4,7 +4,7 @@
 
 #include "GroupTopology.h"
 #include "Spatial/GeometrySet3.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "RayTypes.h"
 
 struct FCameraRectangle;

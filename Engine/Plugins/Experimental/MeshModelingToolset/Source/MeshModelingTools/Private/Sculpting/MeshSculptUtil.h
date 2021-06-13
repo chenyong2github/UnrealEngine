@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DynamicMeshAABBTree3.h"
-#include "DynamicMeshOctree3.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshOctree3.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Util/UniqueIndexSet.h"
 
 

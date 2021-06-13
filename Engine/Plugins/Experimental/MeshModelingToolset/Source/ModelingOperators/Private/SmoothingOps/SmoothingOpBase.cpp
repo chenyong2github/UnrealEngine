@@ -2,8 +2,8 @@
 
 #include "SmoothingOps/SmoothingOpBase.h"
 
-#include "DynamicMesh3.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

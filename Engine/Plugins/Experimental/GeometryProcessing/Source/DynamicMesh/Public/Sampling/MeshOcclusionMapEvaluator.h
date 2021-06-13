@@ -6,7 +6,7 @@
 #include "Templates/Tuple.h"
 #include "Misc/EnumClassFlags.h"
 #include "Math/RandomStream.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 
 namespace UE
 {

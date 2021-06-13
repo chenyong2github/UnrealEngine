@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "CalculateTangentsOp.generated.h"
 
 

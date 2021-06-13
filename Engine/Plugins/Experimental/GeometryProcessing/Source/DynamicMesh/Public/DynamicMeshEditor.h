@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "EdgeLoop.h"
 #include "Util/SparseIndexCollectionTypes.h"
-#include "MeshIndexMappings.h"
+#include "DynamicMesh/MeshIndexMappings.h"
 #include "MeshAdapter.h"
 
 namespace UE

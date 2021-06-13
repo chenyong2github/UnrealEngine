@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Drawing/MeshElementsVisualizer.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/MeshWireframeComponent.h"
 #include "ToolSetupUtil.h"

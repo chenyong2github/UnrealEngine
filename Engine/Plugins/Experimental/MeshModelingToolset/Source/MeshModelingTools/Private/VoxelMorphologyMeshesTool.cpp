@@ -9,8 +9,8 @@
 
 #include "Selection/ToolSelectionUtil.h"
 
-#include "DynamicMesh3.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshTransforms.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"

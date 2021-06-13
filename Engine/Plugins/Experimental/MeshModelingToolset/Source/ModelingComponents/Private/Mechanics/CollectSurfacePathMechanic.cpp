@@ -4,10 +4,10 @@
 #include "ToolSceneQueriesUtil.h"
 #include "MeshQueries.h"
 #include "SceneManagement.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Distance/DistLine3Ray3.h"
 #include "Util/ColorConstants.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

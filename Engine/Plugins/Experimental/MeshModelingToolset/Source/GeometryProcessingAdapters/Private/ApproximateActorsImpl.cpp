@@ -3,9 +3,9 @@
 #include "GeometryProcessing/ApproximateActorsImpl.h"
 
 #include "Scene/MeshSceneAdapter.h"
-#include "DynamicMesh3.h"
-#include "MeshNormals.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 #include "Implicit/Solidify.h"

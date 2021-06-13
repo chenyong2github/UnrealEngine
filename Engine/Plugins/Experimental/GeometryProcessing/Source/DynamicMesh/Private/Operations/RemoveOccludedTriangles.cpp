@@ -2,7 +2,7 @@
 
 #include "Operations/RemoveOccludedTriangles.h"
 
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 #include "Selections/MeshConnectedComponents.h"
 

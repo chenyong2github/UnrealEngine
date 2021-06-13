@@ -3,7 +3,7 @@
 #include "Operations/MeshProjectionHull.h"
 #include "Solvers/MeshLinearization.h"
 #include "MeshSimplification.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "CompGeom/ConvexHull2.h"
 #include "Generators/SweepGenerator.h"
 

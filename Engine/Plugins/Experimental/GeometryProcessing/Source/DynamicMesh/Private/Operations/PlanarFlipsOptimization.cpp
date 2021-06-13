@@ -2,7 +2,7 @@
 
 #include "Operations/PlanarFlipsOptimization.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "MathUtil.h"
 #include "VectorTypes.h"
 

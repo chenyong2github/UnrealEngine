@@ -5,7 +5,7 @@
 #include "GeometryFlowCoreNodes.h"
 #include "BaseNodes/TransferNode.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 namespace UE
 {

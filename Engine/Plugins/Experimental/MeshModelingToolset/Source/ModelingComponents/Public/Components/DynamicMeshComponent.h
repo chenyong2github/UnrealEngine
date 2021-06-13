@@ -6,7 +6,7 @@
 #include "BaseDynamicMeshComponent.h"
 #include "MeshConversionOptions.h"
 #include "Drawing/MeshRenderDecomposition.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "TransformTypes.h"
 #include "Async/Future.h"
 #include "UDynamicMesh.h"

@@ -5,7 +5,7 @@
 #include "Sampling/Gaussians.h"
 #include "MeshCurvature.h"
 #include "MeshWeights.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "Math/RandomStream.h"
 

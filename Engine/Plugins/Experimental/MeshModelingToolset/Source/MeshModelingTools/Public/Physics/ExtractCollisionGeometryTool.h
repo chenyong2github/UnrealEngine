@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Physics/CollisionPropertySets.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "ExtractCollisionGeometryTool.generated.h"

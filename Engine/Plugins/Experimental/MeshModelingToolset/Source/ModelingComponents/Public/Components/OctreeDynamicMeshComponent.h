@@ -6,7 +6,7 @@
 #include "BaseDynamicMeshComponent.h"
 #include "MeshConversionOptions.h"
 #include "UDynamicMesh.h"
-#include "DynamicMeshOctree3.h"
+#include "DynamicMesh/DynamicMeshOctree3.h"
 #include "Util/IndexSetDecompositions.h"
 
 #include "OctreeDynamicMeshComponent.generated.h"

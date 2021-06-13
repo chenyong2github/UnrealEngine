@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Sculpting/MeshBrushOpBase.h"
-#include "DynamicMesh3.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "MeshWeights.h"
 #include "Async/ParallelFor.h"
 #include "MeshSculptBrushOps.generated.h"

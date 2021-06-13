@@ -2,7 +2,7 @@
 
 #include "ShapeApproximation/ShapeDetection3.h"
 #include "Sampling/VectorSetAnalysis.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "MeshQueries.h"
 #include "FitCapsule3.h"
 

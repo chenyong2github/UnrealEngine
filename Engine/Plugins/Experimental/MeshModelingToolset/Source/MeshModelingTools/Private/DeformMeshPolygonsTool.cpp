@@ -4,11 +4,11 @@
 
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "FindPolygonsAlgorithm.h"
 #include "InteractiveToolManager.h"
 #include "Intersection/IntersectionUtil.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "ModelingOperators/Public/ModelingTaskTypes.h"
 #include "SegmentTypes.h"
 #include "Solvers/ConstrainedMeshDeformer.h"

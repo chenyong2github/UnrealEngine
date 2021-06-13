@@ -17,14 +17,14 @@
 #include "StaticMeshResources.h"
 #include "StaticMeshAttributes.h"
 
-#include "DynamicMeshAttributeSet.h"
-#include "MeshNormals.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 
 
 // default proxy for this component

@@ -6,7 +6,7 @@
 #include "UObject/NoExportTypes.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "Components/DynamicMeshComponent.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "ToolDataVisualizer.h"
 #include "Transforms/QuickAxisTranslater.h"
 #include "Transforms/QuickAxisRotator.h"

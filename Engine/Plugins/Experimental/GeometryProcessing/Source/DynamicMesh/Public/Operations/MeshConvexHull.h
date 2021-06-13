@@ -6,7 +6,7 @@
 #include "VectorTypes.h"
 #include "IntVectorTypes.h"
 #include "GeometryTypes.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 class FProgressCancel;
 

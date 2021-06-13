@@ -2,7 +2,7 @@
 
 #include "ParameterizationOps/UVProjectionOp.h"
 
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 

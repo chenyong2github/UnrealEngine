@@ -8,7 +8,7 @@
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/SingleClickTool.h"
 #include "PreviewMesh.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Snapping/PointPlanarSnapSolver.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Properties/MeshMaterialProperties.h"

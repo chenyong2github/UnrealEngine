@@ -6,7 +6,7 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 #include "ProxyLODVolume.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Polygon2.h"
 
 #include "EmbedPolygonsOp.generated.h"

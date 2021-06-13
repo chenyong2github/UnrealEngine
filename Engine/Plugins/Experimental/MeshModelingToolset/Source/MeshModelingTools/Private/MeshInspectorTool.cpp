@@ -4,9 +4,9 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "Components/DynamicMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"

@@ -3,7 +3,7 @@
 #include "Operations/MeshConvexHull.h"
 #include "Solvers/MeshLinearization.h"
 #include "MeshSimplification.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "CompGeom/ConvexHull3.h"
 #include "Util/GridIndexing3.h"
 

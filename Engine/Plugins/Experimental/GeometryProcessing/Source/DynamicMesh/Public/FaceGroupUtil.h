@@ -5,7 +5,7 @@
 #pragma once
 
 #include "MathUtil.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMeshEditor.h"
 
 /**

@@ -11,7 +11,7 @@
 #include "Curve/GeneralPolygon2.h"
 #include "FrameTypes.h"
 #include "MatrixTypes.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "Generators/FlatTriangulationMeshGenerator.h"
 #include "Generators/DiscMeshGenerator.h"

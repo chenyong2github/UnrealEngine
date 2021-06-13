@@ -3,7 +3,7 @@
 #include "MeshProcessingNodes/MeshNormalFlowNode.h"
 #include "NormalFlowRemesher.h"
 #include "ProjectionTargets.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 using namespace UE::Geometry;
 using namespace UE::GeometryFlow;

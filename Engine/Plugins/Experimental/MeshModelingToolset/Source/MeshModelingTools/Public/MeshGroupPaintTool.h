@@ -13,9 +13,9 @@
 #include "Sculpting/MeshSculptToolBase.h"
 #include "Sculpting/MeshBrushOpBase.h"
 
-#include "DynamicMeshAABBTree3.h"
-#include "DynamicMeshOctree3.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshOctree3.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "TransformTypes.h"
 #include "Changes/MeshPolygroupChange.h"
 #include "Polygroups/PolygroupSet.h"

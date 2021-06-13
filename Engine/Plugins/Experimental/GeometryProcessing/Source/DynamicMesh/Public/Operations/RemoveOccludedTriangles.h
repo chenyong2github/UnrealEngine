@@ -6,14 +6,14 @@
 
 #include "MathUtil.h"
 #include "VectorTypes.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Spatial/MeshAABBTree3.h"
 #include "Spatial/FastWinding.h"
 
 #include "Math/RandomStream.h"
 
 #include "MeshAdapter.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 
 #include "Async/ParallelFor.h"

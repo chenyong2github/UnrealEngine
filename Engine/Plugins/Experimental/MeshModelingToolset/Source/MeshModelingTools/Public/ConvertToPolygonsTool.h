@@ -6,7 +6,7 @@
 #include "UObject/NoExportTypes.h"
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "FindPolygonsAlgorithm.h"
 #include "PreviewMesh.h"
 #include "ModelingOperators.h"

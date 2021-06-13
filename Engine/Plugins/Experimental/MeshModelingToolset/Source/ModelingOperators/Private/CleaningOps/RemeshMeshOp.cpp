@@ -2,14 +2,14 @@
 
 #include "CleaningOps/RemeshMeshOp.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAABBTree3.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Remesher.h"
 #include "QueueRemesher.h"
 #include "MeshConstraintsUtil.h"
 #include "ProjectionTargets.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "NormalFlowRemesher.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)

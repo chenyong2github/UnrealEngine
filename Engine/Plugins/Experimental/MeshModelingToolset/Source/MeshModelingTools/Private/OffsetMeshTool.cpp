@@ -3,8 +3,8 @@
 #include "OffsetMeshTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "WeightMapTypes.h"
 #include "DeformationOps/MeshOffsetOps.h"
 

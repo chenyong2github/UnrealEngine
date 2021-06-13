@@ -2,7 +2,7 @@
 
 #include "Hair/GroomQueryUtil.h"
 
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "FaceGroupUtil.h"

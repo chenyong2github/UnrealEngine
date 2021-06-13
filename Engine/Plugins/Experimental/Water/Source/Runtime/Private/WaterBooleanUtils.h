@@ -11,7 +11,7 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "DynamicMeshEditor.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "MeshSimplification.h"
 #include "MeshQueries.h"
 #include "CompGeom/PolygonTriangulation.h"

@@ -2,7 +2,7 @@
 
 #include "Operations/SubdividePoly.h"
 #include "GroupTopology.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 // OpenSubdiv needs M_PI defined
 #ifndef M_PI
