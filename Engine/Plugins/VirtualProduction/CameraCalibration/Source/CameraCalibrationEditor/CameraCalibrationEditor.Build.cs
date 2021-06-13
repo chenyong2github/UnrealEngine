@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 	                "CurveEditor",
 					"EditorStyle",
+					"EditorWidgets",
 					"Engine",
 					"InputCore",
 					"LiveLinkCamera",

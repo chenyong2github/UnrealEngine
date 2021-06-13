@@ -17,6 +17,7 @@
 #include "Math/Vector.h"
 #include "Misc/MessageDialog.h"
 #include "PropertyCustomizationHelpers.h"
+#include "UI/SFilterableActorPicker.h"
 #include "SphericalLensDistortionModelHandler.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SButton.h"
@@ -817,24 +818,31 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffset(FNodalPointOffset& OutNodalOff
 
 TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationDevicePickerWidget()
 {
-	return SNew(SObjectPropertyEntryBox)
-		.AllowedClass(AActor::StaticClass()) //@todo Consider populating this by searching for actors with CalibrationPoint components.
-		.OnObjectChanged_Lambda([&](const FAssetData& AssetData) -> void
+	return SNew(SFilterableActorPicker)
+		.OnSetObject_Lambda([&](const FAssetData& AssetData) -> void
 		{
 			if (AssetData.IsValid())
 			{
 				SetCalibrator(Cast<AActor>(AssetData.GetAsset()));
 			}
 		})
-		.ObjectPath_Lambda([&]() -> FString
+		.OnShouldFilterAsset_Lambda([&](const FAssetData& AssetData) -> bool
 		{
-			if (AActor* TheCalibrator = GetCalibrator())
+			const AActor* Actor = Cast<AActor>(AssetData.GetAsset());
+
+			if (!Actor)
 			{
-				FAssetData AssetData(TheCalibrator, true);
-				return AssetData.ObjectPath.ToString();
+				return false;
 			}
 
-			return TEXT("");
+			TArray<UCalibrationPointComponent*, TInlineAllocator<4>> CalibrationPoints;
+			Actor->GetComponents<UCalibrationPointComponent, TInlineAllocator<4>>(CalibrationPoints);
+
+			return (CalibrationPoints.Num() > 0);
+		})
+		.ActorAssetData_Lambda([&]() -> FAssetData
+		{
+			return FAssetData(GetCalibrator(), true);
 		});
 }
 
