@@ -22,8 +22,6 @@ class FAssetThumbnailPool;
 struct FNiagaraDataSetCompiledData;
 struct FSlateBrush;
 
-extern int32 GbEnableMinimalGPUBuffers;
-
 #if WITH_EDITOR
 // Helper class for GUI error handling
 DECLARE_DELEGATE(FNiagaraRendererFeedbackFix);
@@ -111,12 +109,17 @@ struct FNiagaraRendererVariableInfo
 
 	FORCEINLINE int32 GetGPUOffset() const
 	{
-		int32 Offset = GbEnableMinimalGPUBuffers ? GPUBufferOffset : DatasetOffset;
+		int32 Offset = GPUBufferOffset;
 		if (bHalfType)
 		{
 			Offset |= 1 << 31;
 		}
 		return Offset;
+	}
+
+	FORCEINLINE int32 GetEncodedDatasetOffset() const
+	{
+		return DatasetOffset | (bHalfType ? (1<<31) : 0);
 	}
 
 	int32 DatasetOffset = INDEX_NONE;

@@ -218,6 +218,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Sorting")
 	uint32 bSortOnlyWhenTranslucent : 1;
 
+	/**
+	If true and a GPU emitter, we will use the current frames data to render with regardless of where the batcher may execute the dispatches.
+	If you have other emitters that are not translucent and using data that forces it to be a frame latent (i.e. view uniform buffer) you may need to disable
+	on renderers with translucent materials if you need the frame they are reading to match exactly.
+	*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Rendering")
+	uint32 bGpuLowLatencyTranslucency : 1;
+
 	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayName = "Sub UV Blending Enabled"))
 	uint32 bSubImageBlend : 1;

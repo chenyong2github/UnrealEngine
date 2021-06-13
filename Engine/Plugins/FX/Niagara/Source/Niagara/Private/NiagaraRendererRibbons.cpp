@@ -1056,8 +1056,8 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	FCPUSimParticleDataAllocation CPUSimParticleDataAllocation = AllocateParticleDataIfCPUSim(DynamicDataRibbon, Collector.GetDynamicReadBuffer());
 	auto& ParticleData = CPUSimParticleDataAllocation.ParticleData;
 
-	int32 ParticleDataFloatStride = GbEnableMinimalGPUBuffers ? SourceParticleData->GetNumInstances() : SourceParticleData->GetFloatStride() / sizeof(float);
-	int32 ParticleDataHalfStride = GbEnableMinimalGPUBuffers ? SourceParticleData->GetNumInstances() : SourceParticleData->GetHalfStride() / sizeof(FFloat16);
+	int32 ParticleDataFloatStride = SourceParticleData->GetNumInstances();
+	int32 ParticleDataHalfStride = SourceParticleData->GetNumInstances();
 
 	check(ParticleDataFloatStride == ParticleDataHalfStride);
 
@@ -1168,19 +1168,7 @@ FNiagaraRendererRibbons::FCPUSimParticleDataAllocation FNiagaraRendererRibbons::
 	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbonsCPUSimMemCopy);
-		if (GbEnableMinimalGPUBuffers)
-		{
-			CPUSimParticleDataAllocation.ParticleData = TransferDataToGPU(DynamicReadBuffer, RendererLayout, SourceParticleData);
-		}
-		else
-		{
-			int32 TotalFloatSize = SourceParticleData->GetFloatBuffer().Num() / sizeof(float);
-			CPUSimParticleDataAllocation.ParticleData.FloatData = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
-			FMemory::Memcpy(CPUSimParticleDataAllocation.ParticleData.FloatData.Buffer, SourceParticleData->GetFloatBuffer().GetData(), SourceParticleData->GetFloatBuffer().Num());
-			int32 TotalHalfSize = SourceParticleData->GetHalfBuffer().Num() / sizeof(FFloat16);
-			CPUSimParticleDataAllocation.ParticleData.HalfData = DynamicReadBuffer.AllocateHalf(TotalFloatSize);
-			FMemory::Memcpy(CPUSimParticleDataAllocation.ParticleData.HalfData.Buffer, SourceParticleData->GetHalfBuffer().GetData(), SourceParticleData->GetHalfBuffer().Num());
-		}
+		CPUSimParticleDataAllocation.ParticleData = TransferDataToGPU(DynamicReadBuffer, RendererLayout, MakeArrayView<uint32>(nullptr, 0), SourceParticleData);
 	}
 
 	return CPUSimParticleDataAllocation;
