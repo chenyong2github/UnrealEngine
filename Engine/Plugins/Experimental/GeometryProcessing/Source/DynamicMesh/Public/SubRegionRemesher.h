@@ -5,7 +5,7 @@
 #include "Remesher.h"
 #include "Util/BufferUtil.h"
 #include "Util/UniqueIndexSet.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "MeshWeights.h"
 #include "Async/ParallelFor.h"
 

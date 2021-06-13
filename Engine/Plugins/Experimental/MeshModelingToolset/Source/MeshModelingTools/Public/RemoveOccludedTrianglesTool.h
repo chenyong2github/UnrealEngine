@@ -8,7 +8,7 @@
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CleaningOps/RemoveOccludedTrianglesOp.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "MeshAdapter.h"
 #include "BaseTools/SingleClickTool.h"
 #include "PropertySets/PolygroupLayersProperties.h"

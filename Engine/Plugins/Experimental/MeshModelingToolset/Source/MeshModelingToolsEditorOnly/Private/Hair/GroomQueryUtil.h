@@ -8,7 +8,7 @@
 #include "GroomComponent.h"
 #include "GroomAsset.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 
 

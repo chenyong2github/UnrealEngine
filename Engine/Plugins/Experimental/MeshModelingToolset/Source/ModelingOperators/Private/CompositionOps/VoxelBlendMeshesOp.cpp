@@ -3,11 +3,11 @@
 #include "CompositionOps/VoxelBlendMeshesOp.h"
 #include "CleaningOps/EditNormalsOp.h"
 
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMeshEditor.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "MeshSimplification.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Operations/ExtrudeMesh.h"
 #include "Operations/RemoveOccludedTriangles.h"
 

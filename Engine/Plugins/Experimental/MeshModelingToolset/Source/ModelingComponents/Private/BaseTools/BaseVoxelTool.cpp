@@ -5,7 +5,7 @@
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "Components/DynamicMeshComponent.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 

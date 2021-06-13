@@ -15,7 +15,7 @@
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "DynamicMeshToMeshDescription.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Algo/ForEach.h"
 #include "Operations/FFDLattice.h"
 

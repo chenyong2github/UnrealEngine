@@ -6,7 +6,7 @@
 #include "GameFramework/Volume.h"
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "PreviewMesh.h"
 #include "Drawing/LineSetComponent.h"
 #include "VolumeToMeshTool.generated.h"

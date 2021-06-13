@@ -4,7 +4,7 @@
 #include "MeshRegionBoundaryLoops.h"
 
 #include "Algo/ForEach.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "MeshBoundaryLoops.h"   // has a set of internal static functions we re-use
 #include "VectorUtil.h"
 #include "Util/SparseIndexCollectionTypes.h"

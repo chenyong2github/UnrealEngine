@@ -9,7 +9,7 @@
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "AssetUtils/Texture2DUtil.h"
 #include "AssetUtils/Texture2DBuilder.h"

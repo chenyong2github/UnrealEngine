@@ -6,7 +6,7 @@
 #include "GeometryBase.h" // Predeclare macros
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "InteractionMechanic.h"
 #include "InteractiveTool.h"
 #include "Selection/DynamicMeshSelection.h"

@@ -10,8 +10,8 @@
 #include "Changes/ToolCommandChangeSequence.h"
 #include "Changes/MeshChange.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshOverlay.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
 #include "DynamicMeshEditor.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Parameterization/MeshUVTransforms.h"
@@ -19,7 +19,7 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshIndexUtil.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "DynamicMeshToMeshDescription.h"
 
 #include "TargetInterfaces/MeshDescriptionCommitter.h"

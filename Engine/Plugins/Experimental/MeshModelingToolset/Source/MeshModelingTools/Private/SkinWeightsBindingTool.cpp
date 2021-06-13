@@ -4,7 +4,7 @@
 
 #include "BoneWeights.h"
 #include "DynamicMeshToMeshDescription.h"
-#include "DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
 #include "InteractiveToolManager.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "MeshOpPreviewHelpers.h"

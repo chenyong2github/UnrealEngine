@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "UObject/ObjectMacros.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"

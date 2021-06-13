@@ -2,7 +2,7 @@
 
 #include "MeshCurvature.h"
 #include "MeshWeights.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "VectorUtil.h"
 #include "Async/ParallelFor.h"
 

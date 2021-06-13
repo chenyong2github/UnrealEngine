@@ -3,12 +3,12 @@
 
 #include "Scene/MeshSceneAdapter.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Spatial/MeshAABBTree3.h"
 #include "Spatial/FastWinding.h"
 #include "MeshDescriptionAdapter.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "BoxTypes.h"
 #include "FrameTypes.h"
 #include "Selections/MeshConnectedComponents.h"

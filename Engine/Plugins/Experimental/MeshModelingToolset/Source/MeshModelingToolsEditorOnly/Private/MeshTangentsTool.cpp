@@ -4,7 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"

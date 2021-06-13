@@ -22,7 +22,7 @@
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 
 #include "ToolDataVisualizer.h"
 #include "Components/PrimitiveComponent.h"

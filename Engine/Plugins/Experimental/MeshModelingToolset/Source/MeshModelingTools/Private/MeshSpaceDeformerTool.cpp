@@ -6,9 +6,9 @@
 #include "ToolBuilderUtil.h"
 
 #include "SegmentTypes.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Mechanics/DragAlignmentMechanic.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "MeshOpPreviewHelpers.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"

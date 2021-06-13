@@ -6,7 +6,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "CuttingOps/EdgeLoopInsertionOp.h"
 #include "DynamicMeshToMeshDescription.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "InteractiveToolManager.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Operations/GroupEdgeInserter.h"

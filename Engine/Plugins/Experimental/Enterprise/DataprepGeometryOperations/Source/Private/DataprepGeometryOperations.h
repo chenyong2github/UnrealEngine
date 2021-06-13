@@ -9,7 +9,7 @@
 #include "Properties/RemeshProperties.h"
 #include "CleaningOps/RemeshMeshOp.h"
 #include "CleaningOps/SimplifyMeshOp.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "ModelingOperators.h"
 #include "BakeTransformTool.h"
 

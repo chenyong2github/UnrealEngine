@@ -8,8 +8,8 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Async/Async.h"
 
-#include "MeshNormals.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
 

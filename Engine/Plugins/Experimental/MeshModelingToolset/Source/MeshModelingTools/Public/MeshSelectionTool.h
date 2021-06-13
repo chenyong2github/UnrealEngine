@@ -6,7 +6,7 @@
 #include "DynamicMeshBrushTool.h"
 #include "SelectionSet.h"
 #include "Changes/MeshSelectionChange.h"
-#include "DynamicMeshOctree3.h"
+#include "DynamicMesh/DynamicMeshOctree3.h"
 #include "MeshSelectionTool.generated.h"
 
 /**

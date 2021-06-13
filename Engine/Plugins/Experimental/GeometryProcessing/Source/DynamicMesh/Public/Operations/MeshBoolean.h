@@ -11,7 +11,7 @@
 #include "DynamicMeshEditor.h"
 
 #include "Spatial/FastWinding.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 #include "Util/ProgressCancel.h"
 

@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "IntBoxTypes.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Containers/IndirectArray.h"
 
 namespace UE

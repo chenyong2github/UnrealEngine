@@ -5,8 +5,8 @@
 #include "ToolBuilderUtil.h"
 
 #include "SegmentTypes.h"
-#include "DynamicMeshAttributeSet.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Transforms/MultiTransformer.h"
 #include "BaseBehaviors/SingleClickBehavior.h"

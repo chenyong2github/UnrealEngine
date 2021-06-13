@@ -6,7 +6,7 @@
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 
 
 namespace UE

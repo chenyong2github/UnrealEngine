@@ -19,7 +19,7 @@
 #include "Generators/BoxSphereGenerator.h"
 #include "Generators/DiscMeshGenerator.h"
 #include "Generators/StairGenerator.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "FaceGroupUtil.h"
 
 #include "Drawing/MeshDebugDrawing.h"

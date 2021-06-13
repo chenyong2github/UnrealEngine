@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "FrameTypes.h"
 #include "InteractiveTool.h"
 //#include "InteractiveToolChange.h"

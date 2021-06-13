@@ -12,8 +12,8 @@
 #include "Mechanics/SpaceCurveDeformationMechanic.h"
 #include "Transforms/MultiTransformer.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "GroupTopology.h"
 
 #include "GroomCardsEditorTool.generated.h"

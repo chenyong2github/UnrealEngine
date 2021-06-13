@@ -5,7 +5,7 @@
 #include "Algo/ForEach.h"
 #include "CompGeom/PolygonTriangulation.h"
 #include "ConstrainedDelaunay2.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "DynamicMeshEditor.h"
 #include "FrameTypes.h"
 #include "DynamicMesh/MeshIndexUtil.h"

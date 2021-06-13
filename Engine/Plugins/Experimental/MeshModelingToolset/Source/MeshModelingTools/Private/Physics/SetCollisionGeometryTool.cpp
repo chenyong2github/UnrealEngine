@@ -6,7 +6,7 @@
 #include "ToolSetupUtil.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "DynamicMeshEditor.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "DynamicSubmesh3.h"

@@ -6,7 +6,7 @@
 
 #include "DynamicMeshEditor.h"
 #include "MeshSimplification.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Operations/RemoveOccludedTriangles.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)

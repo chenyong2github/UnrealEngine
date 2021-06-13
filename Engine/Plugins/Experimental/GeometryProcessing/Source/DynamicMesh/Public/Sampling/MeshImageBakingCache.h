@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Sampling/MeshSurfaceSampler.h"
 #include "Spatial/DenseGrid2.h"
 #include "Image/ImageDimensions.h"

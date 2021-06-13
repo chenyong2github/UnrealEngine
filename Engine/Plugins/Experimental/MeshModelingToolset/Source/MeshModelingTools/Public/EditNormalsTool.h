@@ -8,7 +8,7 @@
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CleaningOps/EditNormalsOp.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "BaseTools/SingleClickTool.h"
 #include "EditNormalsTool.generated.h"
 

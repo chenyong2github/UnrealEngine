@@ -15,10 +15,10 @@
 #include "Generators/RectangleMeshGenerator.h"
 #include "Distance/DistLine3Line3.h"
 #include "ModelingObjectsCreationAPI.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "Operations/ExtrudeMesh.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

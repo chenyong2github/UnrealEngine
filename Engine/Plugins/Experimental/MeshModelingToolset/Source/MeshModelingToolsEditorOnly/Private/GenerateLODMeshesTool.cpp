@@ -8,7 +8,7 @@
 #include "ToolSetupUtil.h"
 #include "Util/ColorConstants.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"

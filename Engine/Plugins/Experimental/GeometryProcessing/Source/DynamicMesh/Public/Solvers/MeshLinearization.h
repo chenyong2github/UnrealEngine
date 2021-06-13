@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Util/ElementLinearization.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 
 namespace UE

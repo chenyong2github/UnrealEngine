@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Sampling/MeshMapEvaluator.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 
 namespace UE
 {

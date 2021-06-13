@@ -5,7 +5,7 @@
 #include "Solvers/ConstrainedMeshSmoother.h"
 #include "MeshCurvature.h"
 #include "MeshWeights.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

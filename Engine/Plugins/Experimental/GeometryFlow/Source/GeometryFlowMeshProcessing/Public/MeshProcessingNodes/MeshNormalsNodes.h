@@ -5,7 +5,7 @@
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 
 namespace UE

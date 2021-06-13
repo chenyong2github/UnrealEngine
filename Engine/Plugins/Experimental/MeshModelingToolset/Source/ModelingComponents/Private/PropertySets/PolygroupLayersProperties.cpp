@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertySets/PolygroupLayersProperties.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 
 void UPolygroupLayersProperties::InitializeGroupLayers(const FDynamicMesh3* Mesh)

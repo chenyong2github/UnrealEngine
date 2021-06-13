@@ -4,7 +4,7 @@
 #include "ToolSceneQueriesUtil.h"
 #include "MeshQueries.h"
 #include "SceneManagement.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Distance/DistRay3Segment3.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)

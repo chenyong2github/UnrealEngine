@@ -3,8 +3,8 @@
 #pragma once
 
 #include "PreviewMesh.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicSubmesh3.h"
 #include "EdgeLoop.h"
 #include "PolyEditPreviewMesh.generated.h"

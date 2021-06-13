@@ -6,7 +6,7 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "MeshAdapter.h"
 #include "Operations/RemoveOccludedTriangles.h"
 

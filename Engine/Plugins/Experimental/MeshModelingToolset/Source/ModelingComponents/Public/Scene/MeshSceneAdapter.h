@@ -7,7 +7,7 @@
 #include "BoxTypes.h"
 #include "TransformTypes.h"
 #include "TransformSequence.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 class AActor;
 class UActorComponent;

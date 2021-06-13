@@ -5,8 +5,8 @@
 #include "ToolBuilderUtil.h"
 
 #include "ConversionUtils/VolumeToDynamicMesh.h"
-#include "DynamicMesh3.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"

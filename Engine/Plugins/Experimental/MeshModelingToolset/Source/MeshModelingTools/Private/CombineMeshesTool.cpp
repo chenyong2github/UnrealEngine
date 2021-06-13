@@ -6,11 +6,11 @@
 
 #include "ToolSetupUtil.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
 #include "Selection/SelectClickedAction.h"
 #include "DynamicMeshEditor.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"

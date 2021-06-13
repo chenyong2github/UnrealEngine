@@ -6,7 +6,7 @@
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
 #include "Polygon2.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 namespace UE
 {

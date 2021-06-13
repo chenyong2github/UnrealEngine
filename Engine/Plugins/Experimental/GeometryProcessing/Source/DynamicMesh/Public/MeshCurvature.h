@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Sampling/SampleSetStatistics.h"
 
 namespace UE

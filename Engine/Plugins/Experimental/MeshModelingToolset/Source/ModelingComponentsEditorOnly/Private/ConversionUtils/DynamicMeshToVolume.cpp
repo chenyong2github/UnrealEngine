@@ -3,10 +3,10 @@
 #include "ConversionUtils/DynamicMeshToVolume.h"
 
 #include "BSPOps.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Engine/Polys.h"
 #include "GameFramework/Volume.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "MeshRegionBoundaryLoops.h"
 #include "Model.h"
 #include "Selections/MeshConnectedComponents.h"

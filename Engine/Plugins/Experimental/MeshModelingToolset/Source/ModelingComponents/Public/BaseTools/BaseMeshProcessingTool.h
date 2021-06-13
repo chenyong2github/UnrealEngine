@@ -6,7 +6,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "WeightMapTypes.h"
 #include "MeshOpPreviewHelpers.h"
 #include "PropertySets/WeightMapSetProperties.h"

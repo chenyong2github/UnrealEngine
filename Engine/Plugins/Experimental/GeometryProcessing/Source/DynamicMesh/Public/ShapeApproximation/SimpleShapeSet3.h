@@ -8,7 +8,7 @@
 #include "SegmentTypes.h"
 #include "CapsuleTypes.h"
 #include "SphereTypes.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "TransformTypes.h"
 
 

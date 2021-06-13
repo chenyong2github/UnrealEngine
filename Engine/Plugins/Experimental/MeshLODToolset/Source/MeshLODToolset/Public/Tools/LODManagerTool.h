@@ -8,7 +8,7 @@
 #include "Engine/StaticMesh.h"
 #include "PreviewMesh.h"
 #include "Drawing/PreviewGeometryActor.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "LODManagerTool.generated.h"
 
 // predeclarations

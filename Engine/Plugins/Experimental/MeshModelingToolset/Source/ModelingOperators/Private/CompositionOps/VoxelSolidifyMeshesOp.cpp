@@ -2,14 +2,14 @@
 
 #include "CompositionOps/VoxelSolidifyMeshesOp.h"
 
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMeshEditor.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "MeshSimplification.h"
 #include "Operations/ExtrudeMesh.h"
 #include "Spatial/FastWinding.h"
 #include "Generators/MarchingCubes.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "Implicit/Solidify.h"
 

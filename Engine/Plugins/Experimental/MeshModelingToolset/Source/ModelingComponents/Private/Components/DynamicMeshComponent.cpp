@@ -18,14 +18,14 @@
 #include "StaticMeshAttributes.h"
 #include "Async/Async.h"
 
-#include "DynamicMeshAttributeSet.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
-#include "DynamicMeshChangeTracker.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
+#include "DynamicMesh/MeshTransforms.h"
 
 // default proxy for this component
 #include "Components/DynamicMeshSceneProxy.h"

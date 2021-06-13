@@ -5,7 +5,7 @@
 #include "DynamicMeshBrushTool.h"
 #include "Changes/ValueWatcher.h"
 #include "Changes/IndexedAttributeChange.h"
-#include "DynamicVerticesOctree3.h"
+#include "DynamicMesh/DynamicVerticesOctree3.h"
 #include "MeshDescription.h"
 #include "MeshAttributePaintTool.generated.h"
 

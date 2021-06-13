@@ -10,7 +10,7 @@
 #include "CleaningOps/HoleFillOp.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "GroupTopology.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "HoleFillTool.generated.h"

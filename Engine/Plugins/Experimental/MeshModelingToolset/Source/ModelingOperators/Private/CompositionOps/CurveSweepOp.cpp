@@ -5,8 +5,8 @@
 #include "ConstrainedDelaunay2.h"
 #include "DynamicMeshEditor.h"
 #include "MeshBoundaryLoops.h"
-#include "MeshNormals.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Operations/SimpleHoleFiller.h"
 #include "Operations/PlanarHoleFiller.h"
 

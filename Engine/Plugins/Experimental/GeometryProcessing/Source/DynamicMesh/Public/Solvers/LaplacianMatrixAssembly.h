@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Util/IndexUtil.h"
 #include "Solvers/MatrixInterfaces.h"
 #include "Solvers/MeshLinearization.h"

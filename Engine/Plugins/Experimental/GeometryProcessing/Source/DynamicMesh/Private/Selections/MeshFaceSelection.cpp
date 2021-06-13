@@ -2,7 +2,7 @@
 
 #include "Selections/MeshFaceSelection.h"
 #include "Selections/MeshVertexSelection.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

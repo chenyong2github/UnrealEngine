@@ -8,7 +8,7 @@
 #include "QuadricError.h"
 #include "Util/IndexPriorityQueue.h"
 
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 
 namespace UE

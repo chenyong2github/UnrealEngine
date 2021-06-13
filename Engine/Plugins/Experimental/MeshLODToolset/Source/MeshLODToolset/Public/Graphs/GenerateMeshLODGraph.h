@@ -7,8 +7,8 @@
 #include "DataTypes/NormalMapData.h"
 #include "DataTypes/TextureImageData.h"
 #include "DataTypes/CollisionGeometryData.h"
-#include "DynamicMesh3.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshTangents.h"
 
 #include "MeshProcessingNodes/MeshSolidifyNode.h"
 #include "MeshProcessingNodes/MeshVoxMorphologyNode.h"

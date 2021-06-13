@@ -5,7 +5,7 @@
 #include "MathUtil.h"
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Async/ParallelFor.h"
 
 namespace UE

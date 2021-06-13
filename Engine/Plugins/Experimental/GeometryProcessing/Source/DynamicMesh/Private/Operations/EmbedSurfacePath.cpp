@@ -6,7 +6,7 @@
 #include "TriangleTypes.h"
 #include "SegmentTypes.h"
 #include "Distance/DistPoint3Triangle3.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)

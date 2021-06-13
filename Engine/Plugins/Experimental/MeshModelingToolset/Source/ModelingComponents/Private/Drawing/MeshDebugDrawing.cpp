@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Drawing/MeshDebugDrawing.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "FrameTypes.h"
 #include "ToolSceneQueriesUtil.h"
 

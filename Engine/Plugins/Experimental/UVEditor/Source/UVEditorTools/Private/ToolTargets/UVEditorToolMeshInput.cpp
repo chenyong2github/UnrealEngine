@@ -3,7 +3,7 @@
 #include "ToolTargets/UVEditorToolMeshInput.h"
 
 #include "Drawing/MeshElementsVisualizer.h" // for wireframe display
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "MeshOpPreviewHelpers.h"
 #include "ModelingToolTargetUtil.h"
 #include "TargetInterfaces/AssetBackedTarget.h"

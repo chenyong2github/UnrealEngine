@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "EdgeLoop.h"
 #include "EdgeSpan.h"
 #include "VectorUtil.h"

@@ -6,8 +6,8 @@
 #include "GeometryFlowImmutableData.h"
 #include "DataTypes/DynamicMeshData.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Sampling/MeshImageBakingCache.h"
 
 namespace UE

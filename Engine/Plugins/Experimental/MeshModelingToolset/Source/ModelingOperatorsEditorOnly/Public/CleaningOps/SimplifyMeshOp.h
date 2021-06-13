@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "MeshConstraints.h"
 #include "ModelingOperators.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Util/ProgressCancel.h"
 
 #include "SimplifyMeshOp.generated.h"

@@ -4,7 +4,7 @@
 
 #include "ConstrainedDelaunay2.h"
 #include "Polygon2.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "GameFramework/Volume.h"
 #include "MeshBoundaryLoops.h"
 #include "MeshQueries.h"

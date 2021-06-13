@@ -2,12 +2,12 @@
 
 
 #include "DynamicMeshEditor.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Util/BufferUtil.h"
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicSubmesh3.h"
-#include "DynamicVertexSkinWeightsAttribute.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "MeshQueries.h"
 #include "Selections/MeshConnectedComponents.h"
 

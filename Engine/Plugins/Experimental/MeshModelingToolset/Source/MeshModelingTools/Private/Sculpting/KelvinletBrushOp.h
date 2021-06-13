@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MatrixTypes.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Deformers/Kelvinlets.h"
 #include "Sculpting/MeshSculptToolBase.h"
 #include "Sculpting/MeshBrushOpBase.h"

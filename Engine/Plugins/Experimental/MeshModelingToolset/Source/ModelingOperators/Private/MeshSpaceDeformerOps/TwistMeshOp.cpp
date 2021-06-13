@@ -3,7 +3,7 @@
 #include "SpaceDeformerOps/TwistMeshOp.h"
 
 #include "Async/ParallelFor.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

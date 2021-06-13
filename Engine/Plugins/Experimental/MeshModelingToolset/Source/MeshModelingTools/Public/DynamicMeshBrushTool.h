@@ -6,7 +6,7 @@
 #include "UObject/NoExportTypes.h"
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/BaseBrushTool.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Components/DynamicMeshComponent.h"
 #include "PreviewMesh.h"
 #include "DynamicMeshBrushTool.generated.h"

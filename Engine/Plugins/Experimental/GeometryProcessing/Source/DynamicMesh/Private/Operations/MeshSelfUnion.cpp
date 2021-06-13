@@ -7,15 +7,15 @@
 
 #include "Selections/MeshConnectedComponents.h"
 
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "Async/ParallelFor.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Spatial/SparseDynamicOctree3.h"
 
 #include "Algo/RemoveIf.h"
 
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

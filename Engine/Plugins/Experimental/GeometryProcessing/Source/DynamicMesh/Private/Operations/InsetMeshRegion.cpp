@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Operations/InsetMeshRegion.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "Selections/MeshVertexSelection.h"
-#include "DynamicMeshChangeTracker.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Distance/DistLine3Line3.h"
 #include "DynamicSubmesh3.h"
 #include "Solvers/ConstrainedMeshDeformer.h"
-#include "DynamicMeshAABBTree3.h"
-#include "MeshTransforms.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "DynamicMesh/MeshTransforms.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

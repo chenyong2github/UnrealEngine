@@ -4,7 +4,7 @@
 
 #include "BaseOps/SimpleMeshProcessingBaseOp.h"
 #include "DynamicMeshEditor.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "MeshWeights.h"
 #include "MeshBoundaryLoops.h"
 #include "Operations/JoinMeshLoops.h"

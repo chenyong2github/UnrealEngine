@@ -5,7 +5,7 @@
 #include "DynamicMeshBrushTool.h"
 #include "Changes/ValueWatcher.h"
 #include "MeshDescription.h"
-#include "DynamicVerticesOctree3.h"
+#include "DynamicMesh/DynamicVerticesOctree3.h"
 #include "BoneContainer.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "Misc/Optional.h"

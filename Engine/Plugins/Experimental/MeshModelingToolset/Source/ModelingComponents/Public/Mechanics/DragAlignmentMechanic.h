@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "ToolContextInterfaces.h" // FViewCameraState
 #include "Engine/EngineTypes.h" //FHitResult
 #include "InteractionMechanic.h"

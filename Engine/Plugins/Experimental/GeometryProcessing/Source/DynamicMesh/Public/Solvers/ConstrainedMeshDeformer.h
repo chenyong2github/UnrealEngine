@@ -6,7 +6,7 @@
 #include "Templates/UniquePtr.h"
 #include "Solvers/ConstrainedMeshSolver.h"
 #include "Solvers/MeshLaplacian.h"
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 namespace UE
 {
