@@ -17,6 +17,13 @@
 	"Plugins":
 	[
 		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true,
+			"WhitelistTargets": [
+				"Editor"
+			]
+		},
+		{
 			"Name": "LevelSequenceEditor",
 			"Enabled": true
 		},
