@@ -2031,6 +2031,7 @@ bool UGroomAsset::CacheDerivedDatas()
 
 	if (bIsGameThread)
 	{
+		ReleaseResource();
 		InitResources();
 	}
 	return true;
