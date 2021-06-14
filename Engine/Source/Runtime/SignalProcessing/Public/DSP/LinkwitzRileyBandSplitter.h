@@ -84,7 +84,8 @@ namespace Audio
 		// initalize filters
 		void Init(const int32 InChannels,
 				  const float InSampleRate,
-				  const EFilterOrder FilterOrder,
+				  const EFilterOrder FilterOrder, 
+				  const bool bInPhaseCompensate,
 				  const TArray<float>& InCrossovers); // Always InBands - 1 Crossovers
 
 		void ProcessAudioFrame(const float* InBuffer, FMultibandBuffer& OutBuffer);
