@@ -63,11 +63,25 @@ void UAnimGraphNode_BlendSpaceGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 		{ UAimOffsetBlendSpace::StaticClass(), UAimOffsetBlendSpace1D::StaticClass() },
 		[](const FAssetData& InAssetData)
 		{
-			return FText::Format(LOCTEXT("MenuDescFormat", "Blendspace '{0}'"), FText::FromName(InAssetData.AssetName));
+			if(InAssetData.IsValid())
+			{
+				return FText::Format(LOCTEXT("MenuDescFormat", "Blendspace '{0}'"), FText::FromName(InAssetData.AssetName));
+			}
+			else
+			{
+				return LOCTEXT("MenuDesc", "Blendspace");
+			}
 		},
 		[](const FAssetData& InAssetData)
 		{
-			return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			if(InAssetData.IsValid())
+			{
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			}
+			else
+			{
+				return LOCTEXT("MenuDesc", "Blendspace");
+			}
 		},
 		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
 		{

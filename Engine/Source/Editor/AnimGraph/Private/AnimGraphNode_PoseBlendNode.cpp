@@ -97,95 +97,39 @@ FText UAnimGraphNode_PoseBlendNode::GetNodeTitle(ENodeTitleType::Type TitleType)
 	}
 }
 
-void UAnimGraphNode_PoseBlendNode::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+void UAnimGraphNode_PoseBlendNode::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const
 {
-	auto LoadedAssetSetup = [](UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UPoseAsset> PoseAssetPtr)
-	{
-		UAnimGraphNode_PoseBlendNode* PoseBlendNodeNode = CastChecked<UAnimGraphNode_PoseBlendNode>(NewNode);
-		PoseBlendNodeNode->Node.PoseAsset = PoseAssetPtr.Get();
-	};
-
-	auto UnloadedAssetSetup = [](UEdGraphNode* NewNode, bool bIsTemplateNode, const FAssetData AssetData)
-	{
-		UAnimGraphNode_PoseBlendNode* PoseBlendNodeNode = CastChecked<UAnimGraphNode_PoseBlendNode>(NewNode);
-		if (bIsTemplateNode)
+	GetMenuActionsHelper(
+		InActionRegistrar,
+		GetClass(),
+		{ UPoseAsset::StaticClass() },
+		{ },
+		[](const FAssetData& InAssetData)
 		{
-			AssetData.GetTagValue("Skeleton", PoseBlendNodeNode->UnloadedSkeletonName);
-		}
-		else
-		{
-			UPoseAsset* PoseAsset = Cast<UPoseAsset>(AssetData.GetAsset());
-			check(PoseAsset != nullptr);
-			PoseBlendNodeNode->Node.PoseAsset = PoseAsset;
-		}
-	};
-
-	const UObject* QueryObject = ActionRegistrar.GetActionKeyFilter();
-	if (QueryObject == nullptr)
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		// define a filter to help in pulling UPoseAsset asset data from the registry
-		FARFilter Filter;
-		Filter.ClassNames.Add(UPoseAsset::StaticClass()->GetFName());
-		Filter.bRecursiveClasses = true;
-		// Find matching assets and add an entry for each one
-		TArray<FAssetData> PoseAssetList;
-		AssetRegistryModule.Get().GetAssets(Filter, /*out*/PoseAssetList);
-
-		for (auto AssetIt = PoseAssetList.CreateConstIterator(); AssetIt; ++AssetIt)
-		{
-			const FAssetData& Asset = *AssetIt;
-
-			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
-			if (Asset.IsAssetLoaded())
+			if(InAssetData.IsValid())
 			{
-				TWeakObjectPtr<UPoseAsset> PoseAsset = Cast<UPoseAsset>(Asset.GetAsset());
-				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(LoadedAssetSetup, PoseAsset);
-				NodeSpawner->DefaultMenuSignature.MenuName = GetTitleGivenAssetInfo(FText::FromName(PoseAsset->GetFName()));
+				return GetTitleGivenAssetInfo(FText::FromName(InAssetData.AssetName));
 			}
 			else
 			{
-				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(UnloadedAssetSetup, Asset);
-				NodeSpawner->DefaultMenuSignature.MenuName = GetTitleGivenAssetInfo(FText::FromName(Asset.AssetName));
+				return LOCTEXT("PlayerDesc", "Evaluate Pose");
 			}
-			ActionRegistrar.AddBlueprintAction(Asset, NodeSpawner);
-		}
-	}
-	else if (const UPoseAsset* PoseAsset = Cast<UPoseAsset>(QueryObject))
-	{
-		UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
-
-		TWeakObjectPtr<UPoseAsset> PoseAssetPtr = MakeWeakObjectPtr(const_cast<UPoseAsset*>(PoseAsset));
-		NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(LoadedAssetSetup, PoseAssetPtr);
-		NodeSpawner->DefaultMenuSignature.MenuName = GetTitleGivenAssetInfo(FText::FromName(PoseAsset->GetFName()));
-
-		ActionRegistrar.AddBlueprintAction(QueryObject, NodeSpawner);
-	}
-	else if (QueryObject == GetClass())
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		// define a filter to help in pulling UPoseAsset asset data from the registry
-		FARFilter Filter;
-		Filter.ClassNames.Add(UPoseAsset::StaticClass()->GetFName());
-		Filter.bRecursiveClasses = true;
-		// Find matching assets and add an entry for each one
-		TArray<FAssetData> PoseAssetList;
-		AssetRegistryModule.Get().GetAssets(Filter, /*out*/PoseAssetList);
-
-		for (auto AssetIt = PoseAssetList.CreateConstIterator(); AssetIt; ++AssetIt)
+		},
+		[](const FAssetData& InAssetData)
 		{
-			const FAssetData& Asset = *AssetIt;
-			if (Asset.IsAssetLoaded())
+			if(InAssetData.IsValid())
 			{
-				continue;
+				return GetTitleGivenAssetInfo(FText::FromName(InAssetData.AssetName));
 			}
-
-			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
-			NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(UnloadedAssetSetup, Asset);
-			NodeSpawner->DefaultMenuSignature.MenuName = GetTitleGivenAssetInfo(FText::FromName(Asset.AssetName));
-			ActionRegistrar.AddBlueprintAction(Asset, NodeSpawner);
-		}
-	}
+			else
+			{
+				return LOCTEXT("PlayerDescTooltip", "Evaluate Pose Asset");
+			}
+		},
+		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
+		{
+			UAnimGraphNode_AssetPlayerBase::SetupNewNode(InNewNode, bInIsTemplateNode, InAssetData);
+		});	
 }
 
 FText UAnimGraphNode_PoseBlendNode::GetTitleGivenAssetInfo(const FText& AssetName)
@@ -194,44 +138,6 @@ FText UAnimGraphNode_PoseBlendNode::GetTitleGivenAssetInfo(const FText& AssetNam
 	Args.Add(TEXT("AssetName"), AssetName);
 
 	return FText::Format(LOCTEXT("PoseAssetNodeTitle", "Evaluate Pose {AssetName}"), Args);
-}
-
-bool UAnimGraphNode_PoseBlendNode::IsActionFilteredOut(class FBlueprintActionFilter const& Filter)
-{
-	bool bIsFilteredOut = false;
-	FBlueprintActionContext const& FilterContext = Filter.Context;
-
-	for (UBlueprint* Blueprint : FilterContext.Blueprints)
-	{
-		if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
-		{
-			if (Node.PoseAsset)
-			{
-				if (Node.PoseAsset->GetSkeleton() != AnimBlueprint->TargetSkeleton)
-				{
-					// PoseAsset does not use the same skeleton as the Blueprint, cannot use
-					bIsFilteredOut = true;
-					break;
-				}
-			}
-			else
-			{
-				FAssetData SkeletonData(AnimBlueprint->TargetSkeleton);
-				if (UnloadedSkeletonName != SkeletonData.GetExportTextName())
-				{
-					bIsFilteredOut = true;
-					break;
-				}
-			}
-		}
-		else
-		{
-			// Not an animation Blueprint, cannot use
-			bIsFilteredOut = true;
-			break;
-		}
-	}
-	return bIsFilteredOut;
 }
 
 FText UAnimGraphNode_PoseBlendNode::GetMenuCategory() const

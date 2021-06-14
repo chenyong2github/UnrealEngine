@@ -243,19 +243,19 @@ bool UAnimGraphNode_Mirror::IsActionFilteredOut(class FBlueprintActionFilter con
 	{
 		if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
 		{
-			if (Node.GetMirrorDataTable())
+			UMirrorDataTable* MirrorDataTable = Node.GetMirrorDataTable();
+			if (MirrorDataTable)
 			{
-				if (Node.GetMirrorDataTable()->Skeleton != AnimBlueprint->TargetSkeleton)
+				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatible(MirrorDataTable->Skeleton))
 				{
 					// Mirror Data Table does not use the same skeleton as the Blueprint, cannot use
 					bIsFilteredOut = true;
 					break;
 				}
 			}
-			else
+			else if(!UnloadedSkeletonName.IsEmpty())
 			{
-				FAssetData SkeletonData(AnimBlueprint->TargetSkeleton);
-				if (UnloadedSkeletonName != SkeletonData.GetExportTextName())
+				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(UnloadedSkeletonName))
 				{
 					bIsFilteredOut = true;
 					break;

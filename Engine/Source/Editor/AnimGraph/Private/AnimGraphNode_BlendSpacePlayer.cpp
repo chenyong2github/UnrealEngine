@@ -18,7 +18,7 @@
 /////////////////////////////////////////////////////
 // UAnimGraphNode_BlendSpacePlayer
 
-#define LOCTEXT_NAMESPACE "A3Nodes"
+#define LOCTEXT_NAMESPACE "UAnimGraphNode_BlendSpacePlayer"
 
 UAnimGraphNode_BlendSpacePlayer::UAnimGraphNode_BlendSpacePlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -83,7 +83,7 @@ void UAnimGraphNode_BlendSpacePlayer::GetNodeContextMenuActions(UToolMenu* Menu,
 	{
 		// add an option to convert to single frame
 		{
-			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeBlendSpaceEvaluator", NSLOCTEXT("A3Nodes", "BlendSpaceHeading", "Blend Space"));
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeBlendSpaceEvaluator", LOCTEXT("BlendSpaceHeading", "Blend Space"));
 			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
 			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToBSEvaluator);
 			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToBSGraph);
@@ -100,11 +100,25 @@ void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseReg
 		{ },
 		[](const FAssetData& InAssetData)
 		{
-			return FText::Format(LOCTEXT("MenuDescFormat", "Blendspace Player '{0}'"), FText::FromName(InAssetData.AssetName));
+			if(InAssetData.IsValid())
+			{
+				return FText::Format(LOCTEXT("MenuDescFormat", "Blendspace Player '{0}'"), FText::FromName(InAssetData.AssetName));
+			}
+			else
+			{
+				return LOCTEXT("MenuDesc", "Blendspace Player");
+			}
 		},
 		[](const FAssetData& InAssetData)
 		{
-			return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace Player\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			if(InAssetData.IsValid())
+			{
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace Player\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			}
+			else
+			{
+				return LOCTEXT("MenuDescTooltip", "Blendspace Player");
+			}
 		},
 		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
 		{

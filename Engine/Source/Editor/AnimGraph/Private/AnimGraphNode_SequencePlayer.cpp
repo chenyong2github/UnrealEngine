@@ -21,7 +21,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "IAnimBlueprintNodeOverrideAssetsContext.h"
 
-#define LOCTEXT_NAMESPACE "A3Nodes"
+#define LOCTEXT_NAMESPACE "UAnimGraphNode_SequencePlayer"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_SequencePlayer
@@ -94,71 +94,46 @@ void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegis
 		{ },
 		[](const FAssetData& InAssetData)
 		{
-			const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
-			if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+			if(InAssetData.IsValid())
 			{
-				return FText::Format(LOCTEXT("MenuDescFormat", "Play '{0}' (additive)"), FText::FromName(InAssetData.AssetName));
+				const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+				if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+				{
+					return FText::Format(LOCTEXT("MenuDescFormat", "Play '{0}' (additive)"), FText::FromName(InAssetData.AssetName));
+				}
+				else
+				{
+					return FText::Format(LOCTEXT("MenuDescFormat", "Play '{0}'"), FText::FromName(InAssetData.AssetName));
+				}
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("MenuDescFormat", "Play '{0}'"), FText::FromName(InAssetData.AssetName));
+				return LOCTEXT("PlayerDesc", "Sequence Player");
 			}
 		},
 		[](const FAssetData& InAssetData)
 		{
-			const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
-			if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+			if(InAssetData.IsValid())
 			{
-				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Play (additive)\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+				if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+				{
+					return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Play (additive)\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				}
+				else
+				{
+					return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Play\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				}
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Play\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				return LOCTEXT("PlayerDescTooltip", "Sequence Player");
 			}
 		},
 		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
 		{
 			UAnimGraphNode_AssetPlayerBase::SetupNewNode(InNewNode, bInIsTemplateNode, InAssetData);
 		});	
-}
-
-bool UAnimGraphNode_SequencePlayer::IsActionFilteredOut(class FBlueprintActionFilter const& Filter)
-{
-	bool bIsFilteredOut = false;
-	FBlueprintActionContext const& FilterContext = Filter.Context;
-
-	for (UBlueprint* Blueprint : FilterContext.Blueprints)
-	{
-		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint);
-		if (AnimBlueprint && AnimBlueprint->TargetSkeleton)
-		{
-			UAnimSequenceBase* Sequence = Node.GetSequence();
-			if(Sequence)
-			{
-				if (!AnimBlueprint->TargetSkeleton->IsCompatible(Sequence->GetSkeleton()))
-				{
-					// Asset does not use a compatible skeleton with the Blueprint, cannot use
-					bIsFilteredOut = true;
-					break;
-				}
-			}
-			else 
-			{
-				if (!AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(UnloadedSkeletonName))
-				{
-					bIsFilteredOut = true;
-					break;
-				}
-			}
-		}
-		else
-		{
-			// Not an animation Blueprint or has no target skeleton, cannot use
-			bIsFilteredOut = true;
-			break;
-		}
-	}
-	return bIsFilteredOut;
 }
 
 EAnimAssetHandlerType UAnimGraphNode_SequencePlayer::SupportsAssetClass(const UClass* AssetClass) const
@@ -233,7 +208,7 @@ void UAnimGraphNode_SequencePlayer::GetNodeContextMenuActions(UToolMenu* Menu, U
 	{
 		// add an option to convert to single frame
 		{
-			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeSequencePlayer", NSLOCTEXT("A3Nodes", "SequencePlayerHeading", "Sequence Player"));
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeSequencePlayer", LOCTEXT("SequencePlayerHeading", "Sequence Player"));
 			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
 			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToSeqEvaluator);
 		}

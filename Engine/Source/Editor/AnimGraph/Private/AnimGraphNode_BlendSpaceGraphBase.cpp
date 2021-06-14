@@ -145,44 +145,51 @@ void UAnimGraphNode_BlendSpaceGraphBase::OnCopyTermDefaultsToDefaultObject(IAnim
 
 void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(const FAssetData& InAssetData, bool bInIsTemplateNode)
 {
-	InAssetData.GetTagValue("Skeleton", SkeletonName);
-	
-	if(!bInIsTemplateNode)
+	if(InAssetData.IsValid())
 	{
-		UBlendSpace* Asset = CastChecked<UBlendSpace>(InAssetData.GetAsset());
-		
-		UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
-		const UAnimationGraphSchema* AnimationGraphSchema = GetDefault<UAnimationGraphSchema>();
-
-		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, Asset->GetFName(), UBlendSpaceGraph::StaticClass(), UEdGraphSchema::StaticClass()));
-		BlendSpaceGraph->BlendSpace = BlendSpace = DuplicateObject(Asset, BlendSpaceGraph);
-		BlendSpaceGraph->BlendSpace->ClearFlags(RF_Public | RF_Standalone | RF_Transient);
-		BlendSpaceGraph->BlendSpace->SetFlags(RF_Transactional);
-		BlendSpaceGraph->BlendSpace->ResetSkeleton(nullptr);
-		BlendSpaceGraph->BlendSpace->EmptyMetaData();
-		BlendSpaceGraph->BlendSpace->RemoveUserDataOfClass(UAssetUserData::StaticClass());
-		BlendSpaceGraph->bAllowDeletion = false;
-		BlendSpaceGraph->bAllowRenaming = true;
-
-		// Add the new graph as a child of our parent graph
-		UEdGraph* ParentGraph = GetGraph();
-	
-		if(ParentGraph->SubGraphs.Find(BlendSpaceGraph) == INDEX_NONE)
+		InAssetData.GetTagValue("Skeleton", SkeletonName);
+		if(SkeletonName == TEXT("None"))
 		{
-			ParentGraph->Modify();
-			ParentGraph->SubGraphs.Add(BlendSpaceGraph);
+			SkeletonName.Empty();
 		}
-
-		for(int32 SampleIndex = 0; SampleIndex < BlendSpace->SampleData.Num(); ++SampleIndex)
+		
+		if(!bInIsTemplateNode)
 		{
-			FBlendSample& Sample = BlendSpace->SampleData[SampleIndex];
+			UBlendSpace* Asset = CastChecked<UBlendSpace>(InAssetData.GetAsset());
+			
+			UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+			const UAnimationGraphSchema* AnimationGraphSchema = GetDefault<UAnimationGraphSchema>();
 
-			FName SampleName = Sample.Animation != nullptr ? Sample.Animation->GetFName() : FName("Sample", SampleIndex);
+			BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, Asset->GetFName(), UBlendSpaceGraph::StaticClass(), UEdGraphSchema::StaticClass()));
+			BlendSpaceGraph->BlendSpace = BlendSpace = DuplicateObject(Asset, BlendSpaceGraph);
+			BlendSpaceGraph->BlendSpace->ClearFlags(RF_Public | RF_Standalone | RF_Transient);
+			BlendSpaceGraph->BlendSpace->SetFlags(RF_Transactional);
+			BlendSpaceGraph->BlendSpace->ResetSkeleton(nullptr);
+			BlendSpaceGraph->BlendSpace->EmptyMetaData();
+			BlendSpaceGraph->BlendSpace->RemoveUserDataOfClass(UAssetUserData::StaticClass());
+			BlendSpaceGraph->bAllowDeletion = false;
+			BlendSpaceGraph->bAllowRenaming = true;
 
-			UAnimationBlendSpaceSampleGraph* SampleGraph = AddGraph(SampleName, Sample.Animation);
+			// Add the new graph as a child of our parent graph
+			UEdGraph* ParentGraph = GetGraph();
+		
+			if(ParentGraph->SubGraphs.Find(BlendSpaceGraph) == INDEX_NONE)
+			{
+				ParentGraph->Modify();
+				ParentGraph->SubGraphs.Add(BlendSpaceGraph);
+			}
 
-			// Clear the animation now we have created the point
-			Sample.Animation = nullptr;
+			for(int32 SampleIndex = 0; SampleIndex < BlendSpace->SampleData.Num(); ++SampleIndex)
+			{
+				FBlendSample& Sample = BlendSpace->SampleData[SampleIndex];
+
+				FName SampleName = Sample.Animation != nullptr ? Sample.Animation->GetFName() : FName("Sample", SampleIndex);
+
+				UAnimationBlendSpaceSampleGraph* SampleGraph = AddGraph(SampleName, Sample.Animation);
+
+				// Clear the animation now we have created the point
+				Sample.Animation = nullptr;
+			}
 		}
 	}
 }
@@ -533,28 +540,29 @@ bool UAnimGraphNode_BlendSpaceGraphBase::IsActionFilteredOut(class FBlueprintAct
 {
 	bool bIsFilteredOut = false;
 
-	if(!SkeletonName.IsEmpty())
-	{
-		FBlueprintActionContext const& FilterContext = Filter.Context;
+	FBlueprintActionContext const& FilterContext = Filter.Context;
 
-		for (UBlueprint* Blueprint : FilterContext.Blueprints)
+	for (UBlueprint* Blueprint : FilterContext.Blueprints)
+	{
+		if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
 		{
-			if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
+			if(!SkeletonName.IsEmpty())
 			{
-				if(!AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(SkeletonName))
+				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(SkeletonName))
 				{
 					bIsFilteredOut = true;
 					break;
 				}
 			}
-			else
-			{
-				// Not an animation Blueprint, cannot use
-				bIsFilteredOut = true;
-				break;
-			}
+		}
+		else
+		{
+			// Not an animation Blueprint, cannot use
+			bIsFilteredOut = true;
+			break;
 		}
 	}
+
 	return bIsFilteredOut;
 }
 

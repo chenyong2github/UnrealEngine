@@ -21,7 +21,7 @@
 /////////////////////////////////////////////////////
 // UAnimGraphNode_RotationOffsetBlendSpace
 
-#define LOCTEXT_NAMESPACE "A3Nodes"
+#define LOCTEXT_NAMESPACE "UAnimGraphNode_RotationOffsetBlendSpace"
 
 UAnimGraphNode_RotationOffsetBlendSpace::UAnimGraphNode_RotationOffsetBlendSpace(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -79,11 +79,25 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDat
 		{ },
 		[](const FAssetData& InAssetData)
 		{
-			return FText::Format(LOCTEXT("MenuDescFormat", "AimOffset Player '{0}'"), FText::FromName(InAssetData.AssetName));
+			if(InAssetData.IsValid())
+			{
+				return FText::Format(LOCTEXT("MenuDescFormat", "AimOffset Player '{0}'"), FText::FromName(InAssetData.AssetName));
+			}
+			else
+			{
+				return LOCTEXT("MenuDesc", "AimOffset Player");
+			}
 		},
 		[](const FAssetData& InAssetData)
 		{
-			return FText::Format(LOCTEXT("MenuDescTooltipFormat", "AimOffset Player\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			if(InAssetData.IsValid())
+			{
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "AimOffset Player\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			}
+			else
+			{
+				return LOCTEXT("MenuDescTooltip", "AimOffset Player");
+			}
 		},
 		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
 		{
@@ -156,7 +170,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetNodeContextMenuActions(UToolMen
 	{
 		// add an option to convert to single frame
 		{
-			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeBlendSpacePlayer", NSLOCTEXT("A3Nodes", "BlendSpaceHeading", "Blend Space"));
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeBlendSpacePlayer", LOCTEXT("BlendSpaceHeading", "Blend Space"));
 			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
 			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToAimOffsetLookAt);
 			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToAimOffsetGraph);
