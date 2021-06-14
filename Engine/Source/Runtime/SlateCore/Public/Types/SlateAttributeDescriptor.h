@@ -8,7 +8,13 @@
 
 #include <type_traits>
 
+
 class FSlateWidgetClassData;
+namespace SlateAttributePrivate
+{
+	enum class ESlateAttributeType : uint8;
+}
+
 
 /**
  * Describes the static information about a Widget's type SlateAttributes.
@@ -23,6 +29,8 @@ public:
 	 */
 	struct FInvalidateWidgetReasonAttribute
 	{
+		friend FSlateAttributeDescriptor;
+
 		using Arg1Type = const class SWidget&;
 		DECLARE_DELEGATE_RetVal_OneParam(EInvalidateWidgetReason, FGetter, Arg1Type);
 
@@ -82,6 +90,11 @@ public:
 	};
 
 public:
+	/** */
+	struct FAttribute;
+	struct FInitializer;
+
+	/** */
 	using OffsetType = uint32;
 
 	/** The default sort order that define in which order attributes will be updated. */
@@ -90,16 +103,29 @@ public:
 	/** */
 	struct FAttribute
 	{
+		friend FSlateAttributeDescriptor;
+		friend FInitializer;
+
+	public:
+		FAttribute(FName Name, OffsetType Offset, FInvalidateWidgetReasonAttribute Reason);
+
+		FName GetName() const { return Name; }
+		uint32 GetSortOrder() const { return SortOrder; }
+		EInvalidateWidgetReason GetInvalidationReason(const SWidget& Widget) const { return InvalidationReason.Get(Widget); }
+		SlateAttributePrivate::ESlateAttributeType GetAttributeType() const { return AttributeType; }
+		bool DoesAffectVisibility() const { return bAffectVisibility; }
+
+		void ExecuteOnValueChangedIfBound(SWidget& Widget) const { OnValueChanged.ExecuteIfBound(Widget); }
+
+	private:
 		FName Name;
-		OffsetType Offset = 0;
+		OffsetType Offset;
 		FName Prerequisite;
-		uint32 SortOrder = 0;
-		FInvalidateWidgetReasonAttribute InvalidationReason = FInvalidateWidgetReasonAttribute(EInvalidateWidgetReason::None);
+		uint32 SortOrder;
+		FInvalidateWidgetReasonAttribute InvalidationReason;
 		FAttributeValueChangedDelegate OnValueChanged;
-		bool bIsMemberAttribute = false;
-		bool bIsPrerequisiteAlsoADependency = false;
-		bool bIsADependencyForSomeoneElse = false;
-		bool bAffectVisibility = false;
+		SlateAttributePrivate::ESlateAttributeType AttributeType;
+		bool bAffectVisibility;
 	};
 
 	/** Internal class to initialize the SlateAttributeDescriptor (Add attributes or modify existing attributes). */
@@ -125,14 +151,6 @@ public:
 			 * No order is guaranteed if the prerequisite or this property is updated manually.
 			 */
 			FAttributeEntry& UpdatePrerequisite(FName Prerequisite);
-
-			/**
-			 * The property only needs to be updated when the dependency changes inside the update loop.
-			 * The property can still be set/updated manually.
-			 * If the dependency is updated manually, then the property will be updated in the next update loop.
-			 * It will implicitly set a prerequisite.
-			 */
-			FAttributeEntry& UpdateDependency(FName Dependency);
 
 			/**
 			 * The attribute affect the visibility of the widget.
@@ -183,26 +201,14 @@ public:
 	/** @returns the Attribute with the corresponding name. */
 	const FAttribute* FindAttribute(FName AttributeName) const;
 
-	/** @returns the index of a SlateAttribute that have the corresponding memory offset. */
-	int32 IndexOfMemberAttribute(OffsetType AttributeOffset) const;
-
-	/** @returns the index of a SlateAttribute that have the corresponding memory offset. */
-	int32 IndexOfMemberAttribute(FName AttributeName) const;
-
 	/** @returns the Attribute of a SlateAttribute that have the corresponding memory offset. */
 	const FAttribute* FindMemberAttribute(OffsetType AttributeOffset) const;
 
-	/** Iterator over each dependency this attribute is responsible of. */
-	template<typename Predicate>
-	void ForEachDependentsOn(FAttribute const& Attribute, Predicate Pred) const
-	{
-		checkf(&Attribute >= Attributes.GetData() && &Attribute <= Attributes.GetData()+Attributes.Num()
-			, TEXT("The attribute is not part of this Descriptor."));
-		if (Attribute.bIsADependencyForSomeoneElse)
-		{
-			ForEachDependentsOfImpl(Attribute.Name, (int32)(&Attribute - Attributes.GetData()), Pred);
-		}
-	}
+	/** @returns the index of a SlateAttribute that have the corresponding memory offset. */
+	int32 IndexOfAttribute(FName AttributeName) const;
+
+	/** @returns the index of a SlateAttribute that have the corresponding memory offset. */
+	int32 IndexOfMemberAttribute(OffsetType AttributeOffset) const;
 
 private:
 	FAttribute* FindAttribute(FName AttributeName);
@@ -210,26 +216,8 @@ private:
 	FInitializer::FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute ReasonGetter);
 	void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute ReasonGetter);
 	void OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
-	void SetPrerequisite(FAttribute& Attribute, FName Prerequisite, bool bSetAsDependency);
+	void SetPrerequisite(FAttribute& Attribute, FName Prerequisite);
 	void SetAffectVisibility(FAttribute& Attribute, bool bUpdate);
-
-	template<typename Predicate>
-	void ForEachDependentsOfImpl(FName const& LookForName, int32 Index, Predicate& Pred) const
-	{
-		++Index;
-		for (; Index < Attributes.Num(); ++Index)
-		{
-			FAttribute const& Other = Attributes[Index];
-			if (Other.Prerequisite == LookForName && Other.bIsPrerequisiteAlsoADependency)
-			{
-				Pred(Index);
-				if (Other.bIsADependencyForSomeoneElse)
-				{
-					ForEachDependentsOfImpl(Other.Name, Index, Pred);
-				}
-			}
-		}
-	}
 
 private:
 	TArray<FAttribute> Attributes;
