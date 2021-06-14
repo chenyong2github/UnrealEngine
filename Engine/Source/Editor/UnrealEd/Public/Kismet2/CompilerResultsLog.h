@@ -299,7 +299,8 @@ public:
 	UEdGraphPin* FindSourcePin(UEdGraphPin* PossiblyDuplicatedPin);
 	const UEdGraphPin* FindSourcePin(const UEdGraphPin* PossiblyDuplicatedPin) const;
 	
-	void Append(FCompilerResultsLog const& Other);
+	/** Copy errors from an existing log into this one, and optionally write out to log if it was suppressed the first time */
+	void Append(FCompilerResultsLog const& Other, bool bWriteToSystemLog = false);
 
 	/** Begin a new compiler event */
 	void BeginEvent(const TCHAR* InName);
