@@ -5,7 +5,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
-#include "Matinee/MatineeAnimInterface.h"
 #include "SkeletalMeshActor.generated.h"
 
 class UAnimMontage;
@@ -20,7 +19,7 @@ class UAnimSequence;
  * @see USkeletalMesh
  */
 UCLASS(ClassGroup=ISkeletalMeshes, Blueprintable, ComponentWrapperClass, ConversionRoot, meta=(ChildCanTick))
-class ENGINE_API ASkeletalMeshActor : public AActor, public IMatineeAnimInterface
+class ENGINE_API ASkeletalMeshActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -82,18 +81,6 @@ public:
 #endif
 	virtual void PostInitializeComponents() override;
 	//~ End AActor Interface
-
-	//~ Begin IMatineeAnimInterface Interface
-	virtual void PreviewBeginAnimControl(class UInterpGroup* InInterpGroup) override;
-	virtual void PreviewSetAnimPosition(FName SlotName, int32 ChannelIndex, UAnimSequence* InAnimSequence, float InPosition, bool bLooping, bool bFireNotifies, float AdvanceTime) override;
-	virtual void PreviewSetAnimWeights(TArray<FAnimSlotInfo>& SlotInfos) override;
-	virtual void PreviewFinishAnimControl(class UInterpGroup* InInterpGroup) override;
-	virtual void GetAnimControlSlotDesc(TArray<struct FAnimSlotDesc>& OutSlotDescs) override {};
-	virtual void SetAnimWeights( const TArray<struct FAnimSlotInfo>& SlotInfos ) override;
-	virtual void BeginAnimControl(class UInterpGroup* InInterpGroup) override;
-	virtual void SetAnimPosition(FName SlotName, int32 ChannelIndex, class UAnimSequence* InAnimSequence, float InPosition, bool bFireNotifies, bool bLooping) override;
-	virtual void FinishAnimControl(class UInterpGroup* InInterpGroup) override;
-	//~ End IMatineeAnimInterface Interface
 
 private:
 	// utility function to see if it can play animation or not

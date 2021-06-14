@@ -37,61 +37,6 @@ void ASkeletalMeshActor::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > 
 	DOREPLIFETIME(ASkeletalMeshActor, ReplicatedMaterial1);
 }
 
-void ASkeletalMeshActor::PreviewBeginAnimControl(UInterpGroup* InInterpGroup)
-{
-	if (CanPlayAnimation())
-	{
-		UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
-		if (!AnimInst)
-		{
-			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
-		}
-	}
-}
-
-
-void ASkeletalMeshActor::PreviewFinishAnimControl(UInterpGroup* InInterpGroup)
-{
-	if (CanPlayAnimation())
-	{
-		// if in editor, reset the Animations, makes easier for artist to see them visually and align them
-		// in game, we keep the last pose that matinee kept. If you'd like it to have animation, you'll need to have AnimTree or AnimGraph to handle correctly
-		if (SkeletalMeshComponent->GetAnimationMode() == EAnimationMode::Type::AnimationBlueprint)
-		{
-			UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
-			if (AnimInst)
-			{
-				AnimInst->Montage_Stop(0.f);
-				AnimInst->UpdateAnimation(0.f, false);
-			}
-		}
-		// Update space bases to reset it back to ref pose
-		SkeletalMeshComponent->RefreshBoneTransforms();
-		SkeletalMeshComponent->RefreshSlaveComponents();
-		SkeletalMeshComponent->UpdateComponentToWorld();
-	}
-}
-
-
-void ASkeletalMeshActor::PreviewSetAnimPosition(FName SlotName, int32 ChannelIndex, UAnimSequence* InAnimSequence, float InPosition, bool bLooping, bool bFireNotifies, float DeltaTime)
-{
-	if (CanPlayAnimation(InAnimSequence))
-	{
-		TWeakObjectPtr<class UAnimMontage>& CurrentlyPlayingMontage = CurrentlyPlayingMontages.FindOrAdd(SlotName);
-		CurrentlyPlayingMontage = FAnimMontageInstance::PreviewMatineeSetAnimPositionInner(SlotName, SkeletalMeshComponent, SkeletalMeshComponent->GetAnimInstance(),  InAnimSequence, InPosition, bLooping, bFireNotifies, DeltaTime);
-	}
-}
-
-void ASkeletalMeshActor::PreviewSetAnimWeights(TArray<FAnimSlotInfo>& SlotInfos)
-{
-	//no support yet
-}
-
-void ASkeletalMeshActor::SetAnimWeights(const TArray<struct FAnimSlotInfo>& SlotInfos)
-{
-	//no support yet
-}
-
 /** Check SkeletalMeshActor for errors. */
 #if WITH_EDITOR
 void ASkeletalMeshActor::CheckForErrors()
@@ -201,51 +146,11 @@ void ASkeletalMeshActor::OnRep_ReplicatedMaterial1()
 	SkeletalMeshComponent->SetMaterial(1, ReplicatedMaterial1);
 }
 
-void ASkeletalMeshActor::BeginAnimControl(UInterpGroup* InInterpGroup)
-{
-	if (CanPlayAnimation())
-	{
-		UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
-		if (!AnimInst)
-		{
-			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
-		}
-	}
-}
-
 bool ASkeletalMeshActor::CanPlayAnimation(class UAnimSequenceBase* AnimAssetBase/*=NULL*/) const
 {
 	return (SkeletalMeshComponent->SkeletalMesh && SkeletalMeshComponent->SkeletalMesh->GetSkeleton() &&
 		(!AnimAssetBase || SkeletalMeshComponent->SkeletalMesh->GetSkeleton()->IsCompatible(AnimAssetBase->GetSkeleton())));
 }
-
-void ASkeletalMeshActor::SetAnimPosition(FName SlotName, int32 ChannelIndex, UAnimSequence* InAnimSequence, float InPosition, bool bFireNotifies, bool bLooping)
-{
-	if (CanPlayAnimation(InAnimSequence))
-	{
-		TWeakObjectPtr<class UAnimMontage>& CurrentlyPlayingMontage = CurrentlyPlayingMontages.FindOrAdd(SlotName);
-		CurrentlyPlayingMontage = FAnimMontageInstance::SetMatineeAnimPositionInner(SlotName, SkeletalMeshComponent->GetAnimInstance(), InAnimSequence, InPosition, bLooping);
-	}
-}
-
-void ASkeletalMeshActor::FinishAnimControl(UInterpGroup* InInterpGroup)
-{
-	if (SkeletalMeshComponent->GetAnimationMode() == EAnimationMode::Type::AnimationBlueprint)
-	{
-		UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
-		if (AnimInst)
-		{
-			AnimInst->Montage_Stop(0.f);
-			AnimInst->UpdateAnimation(0.f, false);
-		}
-
-		// Update space bases to reset it back to ref pose
-		SkeletalMeshComponent->RefreshBoneTransforms();
-		SkeletalMeshComponent->RefreshSlaveComponents();
-		SkeletalMeshComponent->UpdateComponentToWorld();
-	}
-}
-
 
 #if WITH_EDITOR
 
