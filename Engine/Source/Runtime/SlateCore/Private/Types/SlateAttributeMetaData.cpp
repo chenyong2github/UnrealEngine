@@ -10,9 +10,6 @@
 #include <limits>
 
 
-const FSlateAttributeMetaData::FGetterItem::FAttributeIndex FSlateAttributeMetaData::FGetterItem::InvalidAttributeIndex = std::numeric_limits<FSlateAttributeMetaData::FGetterItem::FAttributeIndex>::max();
-
-
 namespace Private
 {
 	FSlateAttributeDescriptor::OffsetType FindOffet(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute)
@@ -74,7 +71,6 @@ void FSlateAttributeMetaData::RegisterAttributeImpl(SWidget& OwningWidget, FSlat
 	if (FoundIndex != INDEX_NONE)
 	{
 		Attributes[FoundIndex].Getter = MoveTemp(Getter);
-		Attributes[FoundIndex].bUpdatedOnce = false;
 	}
 	else
 	{
@@ -82,32 +78,13 @@ void FSlateAttributeMetaData::RegisterAttributeImpl(SWidget& OwningWidget, FSlat
 		{
 			// MemberAttribute are optional for now but will be needed in the future
 			const FSlateAttributeDescriptor::OffsetType Offset = Private::FindOffet(OwningWidget, Attribute);
-			const FSlateAttributeDescriptor& Descriptor = OwningWidget.GetWidgetClass().GetAttributeDescriptor();
-			const int32 FoundMemberAttributeIndex = Descriptor.IndexOfMemberAttribute(Offset);
-
-			if (FoundMemberAttributeIndex != INDEX_NONE)
+			const FSlateAttributeDescriptor::FAttribute* FoundMemberAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().FindMemberAttribute(Offset);
+			if (FoundMemberAttribute)
 			{
-				FSlateAttributeDescriptor::FAttribute const& FoundAttribute = Descriptor.GetAttributeAtIndex(FoundMemberAttributeIndex);
-				check(FoundMemberAttributeIndex < std::numeric_limits<FGetterItem::FAttributeIndex>::max());
-
-				const int32 InsertLocation = Algo::LowerBoundBy(Attributes, FoundAttribute.SortOrder, [](const FGetterItem& Item) { return Item.SortOrder; }, TLess<>());
-				FGetterItem& GetterItem = Attributes.Insert_GetRef({ &Attribute, FoundAttribute.SortOrder, MoveTemp(Getter), (FGetterItem::FAttributeIndex)FoundMemberAttributeIndex }, InsertLocation);
+				const int32 InsertLocation = Algo::LowerBoundBy(Attributes, FoundMemberAttribute->GetSortOrder(), [](const FGetterItem& Item) { return Item.SortOrder; }, TLess<>());
+				FGetterItem& GetterItem = Attributes.Insert_GetRef({ &Attribute, FoundMemberAttribute->GetSortOrder(), MoveTemp(Getter), FoundMemberAttribute }, InsertLocation);
 				GetterItem.AttributeType = ESlateAttributeType::Member;
-
-				// Do I have dependency or am I a dependency
-				if (!FoundAttribute.Prerequisite.IsNone() && FoundAttribute.bIsPrerequisiteAlsoADependency) 
-				{
-					// I can only be updated if the prerequisite is updated
-					const int32 FoundDependencyAttributeIndex = Descriptor.IndexOfMemberAttribute(FoundAttribute.Prerequisite);
-					if (FoundDependencyAttributeIndex != INDEX_NONE)
-					{
-						check(FoundDependencyAttributeIndex < std::numeric_limits<FGetterItem::FAttributeIndex>::max());
-						GetterItem.CachedAttributeDependencyIndex = (FGetterItem::FAttributeIndex)FoundDependencyAttributeIndex;
-					}
-				}
-				GetterItem.bIsADependencyForSomeoneElse = FoundAttribute.bIsADependencyForSomeoneElse;
-				GetterItem.bAffectVisibility = FoundAttribute.bAffectVisibility;
-				if (GetterItem.bAffectVisibility)
+				if (FoundMemberAttribute->DoesAffectVisibility())
 				{
 					++AffectVisibilityCounter;
 				}
@@ -161,7 +138,7 @@ bool FSlateAttributeMetaData::UnregisterAttributeImpl(const FSlateAttributeBase&
 	const int32 FoundIndex = IndexOfAttribute(Attribute);
 	if (FoundIndex != INDEX_NONE)
 	{
-		if (Attributes[FoundIndex].bAffectVisibility)
+		if (Attributes[FoundIndex].CachedAttributeDescriptor && Attributes[FoundIndex].CachedAttributeDescriptor->DoesAffectVisibility())
 		{
 			check(AffectVisibilityCounter > 0);
 			--AffectVisibilityCounter;
@@ -192,25 +169,9 @@ TArray<FName> FSlateAttributeMetaData::GetAttributeNames(const SWidget& OwningWi
 }
 
 
-FSlateAttributeMetaData::FGetterItem::FInvalidationDetail FSlateAttributeMetaData::FGetterItem::GetInvalidationDetail(const SWidget& OwningWidget, EInvalidateWidgetReason Reason) const
-{
-	if (CachedAttributeDescriptorIndex != FGetterItem::InvalidAttributeIndex)
-	{
-		const FSlateAttributeDescriptor::FAttribute& DescriptorAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex);
-		return FInvalidationDetail{&DescriptorAttribute.OnValueChanged, DescriptorAttribute.InvalidationReason.Get(OwningWidget)};
-	}
-	return FInvalidationDetail{nullptr, Reason};
-}
-
-
 FName FSlateAttributeMetaData::FGetterItem::GetAttributeName(const SWidget& OwningWidget) const
 {
-	if (CachedAttributeDescriptorIndex != FGetterItem::InvalidAttributeIndex)
-	{
-		const FSlateAttributeDescriptor::FAttribute& DescriptorAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex);
-		return DescriptorAttribute.Name;
-	}
-	return FName();
+	return CachedAttributeDescriptor ? CachedAttributeDescriptor->GetName() : FName();
 }
 
 
@@ -226,6 +187,18 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		return;
 	}
 
+	auto InvalidateForMember = [Reason](SWidget& OwningWidget, const FSlateAttributeBase& Attribute) -> EInvalidateWidgetReason
+	{
+		const FSlateAttributeDescriptor::OffsetType Offset = Private::FindOffet(OwningWidget, Attribute);
+		if (const FSlateAttributeDescriptor::FAttribute* FoundAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().FindMemberAttribute(Offset))
+		{
+			ensureMsgf(Reason == EInvalidateWidgetReason::None, TEXT("SWidget is using the AttributeDescriptor, the invalidation reason should only be defined in one place. See SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION"));
+			FoundAttribute->ExecuteOnValueChangedIfBound(OwningWidget);
+			return FoundAttribute->GetInvalidationReason(OwningWidget);
+		}
+		return Reason;
+	};
+
 	const FSlateAttributeDescriptor::FAttributeValueChangedDelegate* OnValueChangedCallback = nullptr;
 
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
@@ -234,60 +207,25 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		if (FoundIndex != INDEX_NONE)
 		{
 			FGetterItem& GetterItem = AttributeMetaData->Attributes[FoundIndex];
+			if (GetterItem.CachedAttributeDescriptor)
 			{
-				const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Reason);
-				OnValueChangedCallback = Detail.Get<0>();
-				Reason = Detail.Get<1>() | AttributeMetaData->CachedInvalidationReason;
-				AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
-			}
-
-			// The dependency attribute need to be updated in the update loop (note that it may not be registered yet)
-			if (GetterItem.bIsADependencyForSomeoneElse)
-			{
-				GetterItem.bUpdatedManually = true;
-				AttributeMetaData->SetNeedToResetFlag(FoundIndex);
+				ensureMsgf(Reason == EInvalidateWidgetReason::None, TEXT("SWidget is using the AttributeDescriptor, the invalidation reason should only be defined in one place. See SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION"));
+				GetterItem.CachedAttributeDescriptor->ExecuteOnValueChangedIfBound(OwningWidget);
+				Reason = GetterItem.CachedAttributeDescriptor->GetInvalidationReason(OwningWidget);
 			}
 		}
 		// Not registered/bound but may be defined in the Descriptor
 		else if (AttributeType == ESlateAttributeType::Member)
 		{
-			FSlateAttributeDescriptor const& AttributeDescriptor = OwningWidget.GetWidgetClass().GetAttributeDescriptor();
-			const FSlateAttributeDescriptor::OffsetType Offset = Private::FindOffet(OwningWidget, Attribute);
-			if (FSlateAttributeDescriptor::FAttribute const* FoundAttribute = AttributeDescriptor.FindMemberAttribute(Offset))
-			{
-				OnValueChangedCallback = &FoundAttribute->OnValueChanged;
-				Reason = FoundAttribute->InvalidationReason.Get(OwningWidget) | AttributeMetaData->CachedInvalidationReason;
-				AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
-
-				if (FoundAttribute->bIsADependencyForSomeoneElse)
-				{
-					// Find if that dependency is registered, if not it is ok because every attribute is updated at least once
-					// Set UpdatedOnce to false to force a new update.
-					AttributeDescriptor.ForEachDependentsOn(*FoundAttribute, [AttributeMetaData](int32 DependencyIndex)
-					{
-						FGetterItem* FoundOther = AttributeMetaData->Attributes.FindByPredicate([DependencyIndex](FGetterItem const& Other)
-						{
-							check(DependencyIndex != INDEX_NONE);
-							check(DependencyIndex < std::numeric_limits<FGetterItem::FAttributeIndex>::max());
-							return Other.CachedAttributeDescriptorIndex == (FGetterItem::FAttributeIndex)DependencyIndex;
-						});
-						if (FoundOther)
-						{
-							FoundOther->bUpdatedOnce = false;
-						}
-					});
-				}
-			}
+			Reason = InvalidateForMember(OwningWidget, Attribute);
 		}
+
+		Reason |= AttributeMetaData->CachedInvalidationReason;
+		AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 	}
 	else if (AttributeType == ESlateAttributeType::Member)
 	{
-		const FSlateAttributeDescriptor::OffsetType Offset = Private::FindOffet(OwningWidget, Attribute);
-		if (FSlateAttributeDescriptor::FAttribute const* FoundAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().FindMemberAttribute(Offset))
-		{
-			Reason = FoundAttribute->InvalidationReason.Get(OwningWidget);
-			OnValueChangedCallback = &FoundAttribute->OnValueChanged;
-		}
+		Reason = InvalidateForMember(OwningWidget, Attribute);
 	}
 
 #if WITH_SLATE_DEBUGGING
@@ -295,10 +233,6 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 #endif
 
 	OwningWidget.Invalidate(Reason);
-	if (OnValueChangedCallback)
-	{
-		OnValueChangedCallback->ExecuteIfBound(OwningWidget);
-	}
 }
 
 
@@ -307,15 +241,6 @@ void FSlateAttributeMetaData::UpdateAllAttributes(SWidget& OwningWidget, EInvali
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
 		AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, 0, AttributeMetaData->Attributes.Num());
-		if (AttributeMetaData->ResetFlag != EResetFlags::None)
-		{
-			for (FGetterItem& GetterItem : AttributeMetaData->Attributes)
-			{
-				GetterItem.bUpdatedManually = false;
-				GetterItem.bUpdatedThisFrame = false;
-			}
-			AttributeMetaData->ResetFlag = EResetFlags::None;
-		}
 	}
 }
 
@@ -329,16 +254,6 @@ void FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(SWidget& OwningWidg
 			const int32 StartIndex = 0;
 			const int32 EndIndex = AttributeMetaData->AffectVisibilityCounter;
 			AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, StartIndex, EndIndex);
-			if (EnumHasAllFlags(AttributeMetaData->ResetFlag, EResetFlags::NeedToReset_OnlyVisibility))
-			{
-				for (int32 Index = StartIndex; Index < EndIndex; ++Index)
-				{
-					FGetterItem& GetterItem = AttributeMetaData->Attributes[Index];
-					GetterItem.bUpdatedManually = false;
-					GetterItem.bUpdatedThisFrame = false;
-				}
-				EnumRemoveFlags(AttributeMetaData->ResetFlag, EResetFlags::NeedToReset_OnlyVisibility);
-			}
 		}
 	}
 }
@@ -353,16 +268,6 @@ void FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(SWidget& OwningWi
 			const int32 StartIndex = AttributeMetaData->AffectVisibilityCounter;
 			const int32 EndIndex = AttributeMetaData->Attributes.Num();
 			AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, StartIndex, EndIndex);
-			if (EnumHasAllFlags(AttributeMetaData->ResetFlag, EResetFlags::NeedToReset_ExceptVisibility))
-			{
-				for (int32 Index = StartIndex; Index < EndIndex; ++Index)
-				{
-					FGetterItem& GetterItem = AttributeMetaData->Attributes[Index];
-					GetterItem.bUpdatedManually = false;
-					GetterItem.bUpdatedThisFrame = false;
-				}
-				EnumRemoveFlags(AttributeMetaData->ResetFlag, EResetFlags::NeedToReset_ExceptVisibility);
-			}
 		}
 	}
 }
@@ -390,52 +295,30 @@ void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInval
 	{
 		FGetterItem& GetterItem = Attributes[Index];
 
-		// Update every attribute at least once.
-		//Check if it has a dependency and if it was updated this frame (it could be from an UpdateNow)
-		if (GetterItem.CachedAttributeDependencyIndex != FGetterItem::InvalidAttributeIndex && GetterItem.bUpdatedOnce)
+		ISlateAttributeGetter::FUpdateAttributeResult Result = GetterItem.Getter->UpdateAttribute(OwningWidget);
+		if (Result.bInvalidationRequested)
 		{
-			// Note that the dependency is maybe not registered and the attribute may have been invalidated manually
-
-			// Because the list is sorted, the dependency needs to be before this element.
-			bool bShouldUpdate = false;
-			bool bFound = false;
-			for (int32 OtherIndex = Index-1; OtherIndex >= 0; --OtherIndex)
+			if (GetterItem.CachedAttributeDescriptor)
 			{
-				const FGetterItem& OtherGetterItem = Attributes[OtherIndex];
-				if (OtherGetterItem.CachedAttributeDescriptorIndex == GetterItem.CachedAttributeDependencyIndex)
+				GetterItem.CachedAttributeDescriptor->ExecuteOnValueChangedIfBound(OwningWidget);
+				if (bAllowInvalidation)
 				{
-					bFound = true;
-					bShouldUpdate = OtherGetterItem.bUpdatedThisFrame || OtherGetterItem.bUpdatedManually;
-					break;
+					InvalidationReason |= GetterItem.CachedAttributeDescriptor->GetInvalidationReason(OwningWidget);
 				}
 			}
-
-			if (!bShouldUpdate)
+			else if (bAllowInvalidation)
 			{
-				continue;
+				InvalidationReason |= Result.InvalidationReason;
 			}
-		}
-
-		ISlateAttributeGetter::FUpdateAttributeResult Result = GetterItem.Getter->UpdateAttribute(OwningWidget);
-		GetterItem.bUpdatedOnce = true;
-		GetterItem.bUpdatedThisFrame = Result.bInvalidationRequested;
-		if (Result.bInvalidationRequested && bAllowInvalidation)
-		{
-			SetNeedToResetFlag(Index);
-			const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
-			if (Detail.Get<0>())
-			{
-				Detail.Get<0>()->ExecuteIfBound(OwningWidget);
-			}
-			InvalidationReason |= Detail.Get<1>();
 		}
 	}
 
+#if WITH_SLATE_DEBUGGING
+	ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(InvalidationReason), TEXT("'%s' is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(InvalidationReason));
+#endif
+
 	if (bInvalidateIfNeeded)
 	{
-#if WITH_SLATE_DEBUGGING
-		ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(InvalidationReason | CachedInvalidationReason), TEXT("%s is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(InvalidationReason | CachedInvalidationReason));
-#endif
 		OwningWidget.Invalidate(InvalidationReason | CachedInvalidationReason);
 		CachedInvalidationReason = EInvalidateWidgetReason::None;
 	}
@@ -458,32 +341,22 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 		if (FoundIndex != INDEX_NONE)
 		{
 			FGetterItem& GetterItem = AttributeMetaData->Attributes[FoundIndex];
-			GetterItem.bUpdatedOnce = true;
 			check(GetterItem.Getter.Get());
 			ISlateAttributeGetter::FUpdateAttributeResult Result = GetterItem.Getter->UpdateAttribute(OwningWidget);
-			if (Result.bInvalidationRequested)
+			if (Result.bInvalidationRequested && OwningWidget.IsConstructed())
 			{
-				if (OwningWidget.IsConstructed())
+				EInvalidateWidgetReason InvalidationReason = Result.InvalidationReason;
+				if (GetterItem.CachedAttributeDescriptor)
 				{
-					const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
-					EInvalidateWidgetReason Reason = Detail.Get<1>() | AttributeMetaData->CachedInvalidationReason;
-#if WITH_SLATE_DEBUGGING
-					ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(Reason), TEXT("%s is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(Reason));
-#endif
-					OwningWidget.Invalidate(Reason);
-					if (Detail.Get<0>())
-					{
-						Detail.Get<0>()->ExecuteIfBound(OwningWidget);
-					}
-					AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
+					GetterItem.CachedAttributeDescriptor->ExecuteOnValueChangedIfBound(OwningWidget);
+					InvalidationReason = GetterItem.CachedAttributeDescriptor->GetInvalidationReason(OwningWidget);
 				}
 
-				// The dependency attribute need to be updated in the update loop (note that it may not be registered yet)
-				if (GetterItem.bIsADependencyForSomeoneElse)
-				{
-					GetterItem.bUpdatedManually = true;
-					AttributeMetaData->SetNeedToResetFlag(FoundIndex);
-				}
+#if WITH_SLATE_DEBUGGING
+				ensureAlwaysMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(InvalidationReason), TEXT("%s is not an EInvalidateWidgetReason supported by SlateAttribute."), *LexToString(InvalidationReason));
+#endif
+				OwningWidget.Invalidate(InvalidationReason | AttributeMetaData->CachedInvalidationReason);
+				AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 			}
 		}
 	}

@@ -8,6 +8,20 @@
 
 
 /** */
+FSlateAttributeDescriptor::FAttribute::FAttribute(FName InName, OffsetType InOffset, FInvalidateWidgetReasonAttribute InReason)
+	: Name(InName)
+	, Offset(InOffset)
+	, Prerequisite()
+	, SortOrder(DefaultSortOrder(InOffset))
+	, InvalidationReason(MoveTemp(InReason))
+	, OnValueChanged()
+	, AttributeType(SlateAttributePrivate::ESlateAttributeType::Member)
+	, bAffectVisibility(false)
+{
+
+}
+
+/** */
 FSlateAttributeDescriptor::FInitializer::FAttributeEntry::FAttributeEntry(FSlateAttributeDescriptor& InDescriptor, int32 InAttributeIndex)
 	: Descriptor(InDescriptor)
 	, AttributeIndex(InAttributeIndex)
@@ -18,17 +32,7 @@ FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescrip
 {
 	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
 	{
-		Descriptor.SetPrerequisite(Descriptor.Attributes[AttributeIndex], Prerequisite, false);
-	}
-	return *this;
-}
-
-
-FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::UpdateDependency(FName Dependency)
-{
-	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
-	{
-		Descriptor.SetPrerequisite(Descriptor.Attributes[AttributeIndex], Dependency, true);
+		Descriptor.SetPrerequisite(Descriptor.Attributes[AttributeIndex], Prerequisite);
 	}
 	return *this;
 }
@@ -153,7 +157,6 @@ FSlateAttributeDescriptor::FInitializer::~FInitializer()
 			if (ensureAlwaysMsgf(Descriptor.Attributes.IsValidIndex(PrerequisiteIndex), TEXT("The Prerequisite '%s' doesn't exist"), *Prerequisite.ToString()))
 			{
 				Prerequisites.Emplace(Index, PrerequisiteIndex, -1);
-				Descriptor.Attributes[PrerequisiteIndex].bIsADependencyForSomeoneElse = true;
 				bHavePrerequisite = true;
 			}
 			else
@@ -195,7 +198,7 @@ FSlateAttributeDescriptor::FInitializer::~FInitializer()
 	}
 
 	// Confirm that the attributes marked as "AffectVisibility" are in front of the list.
-#if 0
+#if 1
 	{
 		bool bLookingForAffectVisibility = true;
 		for (const FAttribute& Attribute : Descriptor.Attributes)
@@ -269,36 +272,39 @@ FSlateAttributeDescriptor::FAttribute const* FSlateAttributeDescriptor::FindAttr
 }
 
 
-int32 FSlateAttributeDescriptor::IndexOfMemberAttribute(OffsetType AttributeOffset) const
+FSlateAttributeDescriptor::FAttribute* FSlateAttributeDescriptor::FindAttribute(FName AttributeName)
 {
-	int32 FoundIndex = Attributes.IndexOfByPredicate([AttributeOffset](const FAttribute& Other) { return Other.Offset == AttributeOffset; });
-	check(FoundIndex == INDEX_NONE || Attributes[FoundIndex].bIsMemberAttribute);
-	return FoundIndex;
-}
-
-
-int32 FSlateAttributeDescriptor::IndexOfMemberAttribute(FName AttributeName) const
-{
-	int32 FoundIndex = Attributes.IndexOfByPredicate([AttributeName](const FAttribute& Other) { return Other.Name == AttributeName; });
-	if (ensure(FoundIndex == INDEX_NONE || Attributes[FoundIndex].bIsMemberAttribute))
-	{
-		return FoundIndex;
-	}
-	return INDEX_NONE;
+	return Attributes.FindByPredicate([AttributeName](const FAttribute& Other) { return Other.Name == AttributeName; });
 }
 
 
 FSlateAttributeDescriptor::FAttribute const* FSlateAttributeDescriptor::FindMemberAttribute(OffsetType AttributeOffset) const
 {
-	FSlateAttributeDescriptor::FAttribute const* Result = Attributes.FindByPredicate([AttributeOffset](const FAttribute& Other) { return Other.Offset == AttributeOffset; });
-	check(Result == nullptr || Result->bIsMemberAttribute);
+	FSlateAttributeDescriptor::FAttribute const* Result = Attributes.FindByPredicate(
+		[AttributeOffset](const FAttribute& Other)
+		{
+			return Other.Offset == AttributeOffset
+				&& Other.AttributeType == SlateAttributePrivate::ESlateAttributeType::Member;
+		});
 	return Result;
 }
 
 
-FSlateAttributeDescriptor::FAttribute* FSlateAttributeDescriptor::FindAttribute(FName AttributeName)
+int32 FSlateAttributeDescriptor::IndexOfAttribute(FName AttributeName) const
 {
-	return Attributes.FindByPredicate([AttributeName](const FAttribute& Other) { return Other.Name == AttributeName; });
+	return Attributes.IndexOfByPredicate([AttributeName](const FAttribute& Other) { return Other.Name == AttributeName; });
+}
+
+
+int32 FSlateAttributeDescriptor::IndexOfMemberAttribute(OffsetType AttributeOffset) const
+{
+	int32 FoundIndex = Attributes.IndexOfByPredicate(
+		[AttributeOffset](const FAttribute& Other)
+		{
+			return Other.Offset == AttributeOffset
+				&& Other.AttributeType == SlateAttributePrivate::ESlateAttributeType::Member;
+		});
+	return FoundIndex;
 }
 
 
@@ -310,12 +316,7 @@ FSlateAttributeDescriptor::FInitializer::FAttributeEntry FSlateAttributeDescript
 	FAttribute const* FoundAttribute = FindAttribute(AttributeName);
 	if (ensureAlwaysMsgf(FoundAttribute == nullptr, TEXT("The attribute '%s' already exist. (Do you have the correct parrent class in SLATE_DECLARE_WIDGET)"), *AttributeName.ToString()))
 	{
-		NewIndex = Attributes.AddZeroed();
-		FAttribute& NewAttribute = Attributes[NewIndex];
-		NewAttribute.Name = AttributeName;
-		NewAttribute.Offset = Offset;
-		NewAttribute.InvalidationReason = MoveTemp(Reason);
-		NewAttribute.bIsMemberAttribute = true;
+		NewIndex = Attributes.Emplace(AttributeName, Offset, MoveTemp(Reason));
 	}
 	return FInitializer::FAttributeEntry(*this, NewIndex);
 }
@@ -375,12 +376,11 @@ void FSlateAttributeDescriptor::OverrideOnValueChanged(FName AttributeName, ECal
 }
 
 
-void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttribute& Attribute, FName Prerequisite, bool bSetAsDependency)
+void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttribute& Attribute, FName Prerequisite)
 {
 	if (Prerequisite.IsNone())
 	{
 		Attribute.Prerequisite = FName();
-		Attribute.bIsPrerequisiteAlsoADependency = false;
 	}
 	else
 	{
@@ -388,7 +388,6 @@ void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttr
 		if (ensureAlwaysMsgf(FoundPrerequisite, TEXT("The prerequisite '%s' doesn't exist for attribute '%s'"), *Prerequisite.ToString(), *Attribute.Name.ToString()))
 		{
 			Attribute.Prerequisite = Prerequisite;
-			Attribute.bIsPrerequisiteAlsoADependency = bSetAsDependency;
 
 			// Verify recursion
 			{
@@ -401,7 +400,6 @@ void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttr
 					{
 						ensureAlwaysMsgf(false, TEXT("The prerequsite '%s' would introduce an infinit loop with attribute '%s'."), *Prerequisite.ToString(), *Attribute.Name.ToString());
 						Attribute.Prerequisite = FName();
-						Attribute.bIsPrerequisiteAlsoADependency = false;
 						break;
 					}
 					Recursion.Add(CurrentAttribute->Name);
@@ -413,7 +411,6 @@ void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttr
 		else
 		{
 			Attribute.Prerequisite = FName();
-			Attribute.bIsPrerequisiteAlsoADependency = false;
 		}
 	}
 }
@@ -424,6 +421,12 @@ void FSlateAttributeDescriptor::SetAffectVisibility(FAttribute& Attribute, bool 
 	if (Attribute.Name == "Visibility")
 	{
 		checkf(bInAffectVisibility, TEXT("The Visibility attribute must be marked at 'Affect Visibility'"));
+	}
+
+	if (bInAffectVisibility)
+	{
+		ensureAlwaysMsgf(EnumHasAnyFlags(Attribute.InvalidationReason.Reason, EInvalidateWidgetReason::Visibility) || Attribute.InvalidationReason.IsBound()
+			, TEXT("The attribute '%s' affect the visibility but doesn't have a Visibility as it's InvalidateWidgetReason"), *Attribute.Name.ToString());
 	}
 
 	Attribute.bAffectVisibility = bInAffectVisibility;
