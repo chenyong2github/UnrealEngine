@@ -43,26 +43,23 @@ float4 Unpack_R10G10B10A2_UNORM_To_Float4(uint Packed)
 }
 
 // Implement BitStreamReader for ByteAddressBuffer (RO), RWByteAddressBuffer (RW) and dynamic choice (RORW).
-#define FBitStreamReaderStateType FBitStreamReaderStateRO
+#define TYPE_SUFFIX RO
 #define RO_ENABLED 1
 #include "BitStreamReaderImplementation.ush"
-#undef ByteAddressBufferType
-#undef FBitStreamReaderStateType
+#undef TYPE_SUFFIX
 #undef RO_ENABLED
 
-#define FBitStreamReaderStateType FBitStreamReaderStateRW
+#define TYPE_SUFFIX RW
 #define RW_ENABLED 1
 #include "BitStreamReaderImplementation.ush"
-#undef ByteAddressBufferType
-#undef FBitStreamReaderStateType
+#undef TYPE_SUFFIX
 #undef RW_ENABLED
 
-#define FBitStreamReaderStateType FBitStreamReaderStateRORW
+#define TYPE_SUFFIX RORW
 #define RO_ENABLED 1
 #define RW_ENABLED 1
 #include "BitStreamReaderImplementation.ush"
-#undef ByteAddressBufferType
-#undef FBitStreamReaderStateType
+#undef TYPE_SUFFIX
 #undef RO_ENABLED
 #undef RW_ENABLED
 

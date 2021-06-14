@@ -279,7 +279,7 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 	const uint Address = bIsParentRef ? (BaseAddress + SrcCluster.AttributeOffset) : (SrcPageBaseOffset + SrcClusterDiskHeader.AttributeDataOffset);
 
 	FBitStreamWriterState OutputStream = BitStreamWriter_Create_Aligned(DstPageBuffer, DstPageBaseOffset + Cluster.AttributeOffset, VertexIndex * Cluster.BitsPerAttribute);	
-	FBitStreamReaderStateRORW InputStream = BitStreamReader_Create(SrcPageBuffer, DstPageBuffer, bIsParentRef, Address, SrcCodedVertexIndex * BitsPerAttribute, CompileTimeMaxVertexBits);
+	FBitStreamReaderStateRORW InputStream = BitStreamReader_Create_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, Address, SrcCodedVertexIndex * BitsPerAttribute, CompileTimeMaxVertexBits);
 
 	// Normal
     uint PackedNormal = BitStreamReader_Read(InputStream, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
@@ -389,7 +389,7 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 #if USE_STRIP_INDICES
 			uint3 Indices = UnpackStripIndices(SrcPageBaseOffset, PageDiskHeader, ClusterDiskHeader, LocalClusterIndex, TriangleIndex);
 #else
-			FBitStreamReaderStateRO InputStream = BitStreamReader_Create(SrcPageBuffer, SrcPageBaseOffset + ClusterDiskHeader.IndexDataOffset, TriangleIndex * 24, 24);
+			FBitStreamReaderStateRO InputStream = BitStreamReader_Create_RO(SrcPageBuffer, SrcPageBaseOffset + ClusterDiskHeader.IndexDataOffset, TriangleIndex * 24, 24);
 			uint Indices24 = BitStreamReader_Read(InputStream, 24, 24);
 			uint3 Indices = uint3(Indices24 & 0xFF, (Indices24 >> 8) & 0xFF, (Indices24 >> 16) & 0xFF);
 #endif
@@ -513,14 +513,14 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 				{
 					uint BaseAddress = (ParentGPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS) + SrcCluster.PositionOffset;
 					uint SrcPositionBitsPerVertex = SrcCluster.PosBits.x + SrcCluster.PosBits.y + SrcCluster.PosBits.z;
-					FBitStreamReaderStateRW InputStream = BitStreamReader_Create(DstPageBuffer, BaseAddress, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
+					FBitStreamReaderStateRW InputStream = BitStreamReader_Create_RW(DstPageBuffer, BaseAddress, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
 					SrcPosition = BitStreamReader_Read3(InputStream, SrcCluster.PosBits, MAX_POSITION_QUANTIZATION_BITS);
 				}
 				else
 				{
 					uint BaseAddress = SrcPageBaseOffset + SrcClusterDiskHeader.PositionDataOffset;
 					uint SrcPositionBitsPerVertex = (SrcCluster.PosBits.x + SrcCluster.PosBits.y + SrcCluster.PosBits.z + 7) & ~7u;
-					FBitStreamReaderStateRO InputStream = BitStreamReader_Create(SrcPageBuffer, BaseAddress, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
+					FBitStreamReaderStateRO InputStream = BitStreamReader_Create_RO(SrcPageBuffer, BaseAddress, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
 					SrcPosition = BitStreamReader_Read3(InputStream, SrcCluster.PosBits, MAX_POSITION_QUANTIZATION_BITS);
 				}
 
