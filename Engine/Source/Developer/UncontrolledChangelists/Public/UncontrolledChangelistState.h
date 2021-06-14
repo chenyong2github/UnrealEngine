@@ -123,4 +123,5 @@ public:
 };
 
 ENUM_CLASS_FLAGS(FUncontrolledChangelistState::ECheckFlags);
+typedef TSharedPtr<FUncontrolledChangelistState, ESPMode::ThreadSafe> FUncontrolledChangelistStatePtr;
 typedef TSharedRef<FUncontrolledChangelistState, ESPMode::ThreadSafe> FUncontrolledChangelistStateRef;
