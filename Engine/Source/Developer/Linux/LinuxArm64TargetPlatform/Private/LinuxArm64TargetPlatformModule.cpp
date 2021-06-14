@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	LinuxAArch64NoEditorTargetPlatformModule.cpp: Implements the FLinuxAArch64NoEditorTargetPlatformModule class.
+	LinuxArm64NoEditorTargetPlatformModule.cpp: Implements the FLinuxArm64NoEditorTargetPlatformModule class.
 =============================================================================*/
 
 #include "CoreMinimal.h"
@@ -16,7 +16,7 @@
 /**
  * Module for the Linux target platforms
  */
-class FLinuxAArch64TargetPlatformModule
+class FLinuxArm64TargetPlatformModule
 	: public ITargetPlatformModule
 {
 public:
@@ -33,4 +33,4 @@ public:
 };
 
 
-IMPLEMENT_MODULE(FLinuxAArch64TargetPlatformModule, LinuxAArch64TargetPlatform);
+IMPLEMENT_MODULE(FLinuxArm64TargetPlatformModule, LinuxArm64TargetPlatform);
