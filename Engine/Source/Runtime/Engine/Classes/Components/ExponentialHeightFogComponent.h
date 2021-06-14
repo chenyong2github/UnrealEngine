@@ -63,8 +63,11 @@ class ENGINE_API UExponentialHeightFogComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ExponentialHeightFogComponent)
 	FExponentialHeightFogData SecondFogData;
 
-	UPROPERTY(BlueprintReadOnly, interp, Category=ExponentialHeightFogComponent)
-	FLinearColor FogInscatteringColor;
+	UPROPERTY()
+	FLinearColor FogInscatteringColor_DEPRECATED;
+
+	UPROPERTY(BlueprintReadOnly, interp, Category=ExponentialHeightFogComponent, meta = (DisplayName = "Fog Inscattering Color"))
+	FLinearColor FogInscatteringLuminance;
 
 	/** 
 	 * Cubemap that can be specified for fog color, which is useful to make distant, heavily fogged scene elements match the sky.
@@ -103,12 +106,15 @@ class ENGINE_API UExponentialHeightFogComponent : public USceneComponent
 	UPROPERTY(BlueprintReadOnly, interp, Category=DirectionalInscattering)
 	float DirectionalInscatteringStartDistance;
 
+	UPROPERTY()
+	FLinearColor DirectionalInscatteringColor_DEPRECATED;
+
 	/** 
 	 * Controls the color of the directional inscattering, which is used to approximate inscattering from a directional light. 
 	 * Note: there must be a directional light with bUsedAsAtmosphereSunLight enabled for DirectionalInscattering to be used.
 	 */
-	UPROPERTY(BlueprintReadOnly, interp, Category=DirectionalInscattering)
-	FLinearColor DirectionalInscatteringColor;
+	UPROPERTY(BlueprintReadOnly, interp, Category=DirectionalInscattering, meta = (DisplayName = "Directional Inscattering Color"))
+	FLinearColor DirectionalInscatteringLuminance;
 
 	/** 
 	 * Maximum opacity of the fog.  
@@ -255,6 +261,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
+	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 };
 

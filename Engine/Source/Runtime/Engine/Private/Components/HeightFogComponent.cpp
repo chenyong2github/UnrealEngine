@@ -15,15 +15,18 @@
 #include "Engine/ExponentialHeightFog.h"
 #include "Net/UnrealNetwork.h"
 #include "Components/BillboardComponent.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 UExponentialHeightFogComponent::UExponentialHeightFogComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	FogInscatteringColor = FLinearColor(0.447f, 0.638f, 1.0f);
+	FogInscatteringColor_DEPRECATED = FLinearColor(0.447f, 0.638f, 1.0f);
+	FogInscatteringLuminance = FLinearColor::Black;
 
 	DirectionalInscatteringExponent = 4.0f;
 	DirectionalInscatteringStartDistance = 10000.0f;
-	DirectionalInscatteringColor = FLinearColor(0.25f, 0.25f, 0.125f);
+	DirectionalInscatteringColor_DEPRECATED = FLinearColor(0.25f, 0.25f, 0.125f);
+	DirectionalInscatteringLuminance = FLinearColor::Black;
 
 	InscatteringTextureTint = FLinearColor::White;
 	FullyDirectionalInscatteringColorDistance = 100000.0f;
@@ -85,8 +88,8 @@ bool UExponentialHeightFogComponent::CanEditChange(const FProperty* InProperty) 
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, DirectionalInscatteringExponent) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, DirectionalInscatteringStartDistance) ||
-			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, DirectionalInscatteringColor) ||
-			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, FogInscatteringColor))
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, DirectionalInscatteringLuminance) ||
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, FogInscatteringLuminance))
 		{
 			return !InscatteringColorCubemap;
 		}
@@ -137,9 +140,9 @@ void UExponentialHeightFogComponent::SetFogDensity(float Value)
 
 void UExponentialHeightFogComponent::SetFogInscatteringColor(FLinearColor Value)
 {
-	if(FogInscatteringColor != Value)
+	if(FogInscatteringLuminance != Value)
 	{
-		FogInscatteringColor = Value;
+		FogInscatteringLuminance = Value;
 		MarkRenderStateDirty();
 	}
 }
@@ -209,9 +212,9 @@ void UExponentialHeightFogComponent::SetDirectionalInscatteringStartDistance(flo
 
 void UExponentialHeightFogComponent::SetDirectionalInscatteringColor(FLinearColor Value)
 {
-	if(DirectionalInscatteringColor != Value)
+	if(DirectionalInscatteringLuminance != Value)
 	{
-		DirectionalInscatteringColor = Value;
+		DirectionalInscatteringLuminance = Value;
 		MarkRenderStateDirty();
 	}
 }
@@ -303,6 +306,19 @@ void UExponentialHeightFogComponent::SetVolumetricFogDistance(float NewValue)
 	{
 		VolumetricFogDistance = NewValue;
 		MarkRenderStateDirty();
+	}
+}
+
+void UExponentialHeightFogComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::SkyAtmosphereAffectsHeightFogWithBetterDefault))
+	{
+		FogInscatteringLuminance = FogInscatteringColor_DEPRECATED;
+		DirectionalInscatteringLuminance = DirectionalInscatteringColor_DEPRECATED;
 	}
 }
 
