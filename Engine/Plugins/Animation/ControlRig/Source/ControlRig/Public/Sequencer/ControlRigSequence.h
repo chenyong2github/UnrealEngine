@@ -13,7 +13,7 @@ class UMovieScene;
 class UAnimSequence;
 class USkeletalMesh;
 
-UCLASS(BlueprintType, Experimental)
+UCLASS(BlueprintType)
 class CONTROLRIG_API UControlRigSequence : public ULevelSequence
 {
 	GENERATED_UCLASS_BODY()
