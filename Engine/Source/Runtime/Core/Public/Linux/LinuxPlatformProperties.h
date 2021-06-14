@@ -16,7 +16,7 @@
 /**
  * Implements Linux platform properties.
  */
-template<bool HAS_EDITOR_DATA, bool IS_DEDICATED_SERVER, bool IS_CLIENT_ONLY, bool IS_AARCH64>
+template<bool HAS_EDITOR_DATA, bool IS_DEDICATED_SERVER, bool IS_CLIENT_ONLY, bool IS_ARM64>
 struct FLinuxPlatformProperties
 	: public FGenericPlatformProperties
 {
@@ -27,7 +27,7 @@ struct FLinuxPlatformProperties
 
 	static FORCEINLINE const char* IniPlatformName( )
 	{
-		return IS_AARCH64 ? "LinuxAArch64" : "Linux";
+		return IS_ARM64 ? "LinuxArm64" : "Linux";
 	}
 
 	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
@@ -50,16 +50,16 @@ struct FLinuxPlatformProperties
 		return IS_CLIENT_ONLY;
 	}
 
-	static FORCEINLINE bool IsAArch64()
+	static FORCEINLINE bool IsArm64()
 	{
-		return IS_AARCH64;
+		return IS_ARM64;
 	}
 
 	static FORCEINLINE const char* PlatformName( )
 	{
 		if (IS_DEDICATED_SERVER)
 		{
-			return IS_AARCH64 ? "LinuxAArch64Server" : "LinuxServer";
+			return IS_ARM64 ? "LinuxArm64Server" : "LinuxServer";
 		}
 
 		if (HAS_EDITOR_DATA)
@@ -69,10 +69,10 @@ struct FLinuxPlatformProperties
 
 		if (IS_CLIENT_ONLY)
 		{
-			return IS_AARCH64 ? "LinuxAArch64Client" : "LinuxClient";
+			return IS_ARM64 ? "LinuxArm64Client" : "LinuxClient";
 		}
 
-		return IS_AARCH64 ? "LinuxAArch64" : "Linux";
+		return IS_ARM64 ? "LinuxArm64" : "Linux";
 	}
 
 	static FORCEINLINE bool RequiresCookedData( )

@@ -68,7 +68,7 @@ public class OodleDataCompressionFormat : ModuleRules
 			ReleaseLib = "liboo2corelinux64.a";
 			DebugLib = "liboo2corelinux64_dbg.a";
         }
-		else if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+		else if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
 		{
 			ReleaseLib = "liboo2corelinuxarm64.a";
 			DebugLib = "liboo2corelinuxarm64_dbg.a";

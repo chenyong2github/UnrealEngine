@@ -27,7 +27,7 @@ args=(
 	--no-engine --no-full
 	
 	# This disables building the Engine for AArch64 when creating an Installed Build
-	--opt buildgraph-args='-set:WithLinuxAArch64=false'
+	--opt buildgraph-args='-set:WithLinuxArm64=false'
 	
 	# This enables the use of BuildKit build secrets, which is necessary in order to build images independently of ue4-docker itself
 	--opt credential-mode=secrets

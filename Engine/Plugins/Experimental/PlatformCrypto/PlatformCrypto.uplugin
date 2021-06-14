@@ -26,7 +26,7 @@
 				"Mac",
 				"Win64",
 				"Linux",
-				"LinuxAArch64",
+				"LinuxArm64",
 				"PS4"
 			],
 			"BlacklistPlatforms": [
@@ -44,7 +44,7 @@
 				"Mac",
 				"Win64",
 				"Linux",
-				"LinuxAArch64",
+				"LinuxArm64",
 				"PS4"
 			],
 			"BlacklistPlatforms": [
@@ -61,7 +61,7 @@
 				"Mac",
 				"Win64",
 				"Linux",
-				"LinuxAArch64",
+				"LinuxArm64",
 				"PS4"
 			],
 			"BlacklistPlatforms": [

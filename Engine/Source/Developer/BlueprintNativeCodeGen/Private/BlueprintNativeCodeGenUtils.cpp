@@ -135,7 +135,7 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 				// Hack to allow clients for PS4/XboxOne (etc.) to build the nativized assets plugin
 				const bool bIsClientValidForPlatform = UBTPlatformName == TEXT("Win64") ||
 					UBTPlatformName == TEXT("Linux") ||
-					UBTPlatformName == TEXT("LinuxAArch64") ||
+					UBTPlatformName == TEXT("LinuxArm64") ||
 					UBTPlatformName == TEXT("Mac");
 
 				// should correspond to UnrealBuildTool::TargetType in TargetRules.cs

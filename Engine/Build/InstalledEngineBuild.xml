@@ -22,8 +22,8 @@
 	<Property Name="DefaultWithLinux" Value="true"/>
 	<Property Name="DefaultWithLinux" Value="false" If="$(HostPlatformEditorOnly) Or ($(HostPlatformOnly) And '$(HostPlatform)' != 'Linux')"/>
 
-	<Property Name="DefaultWithLinuxAArch64" Value="true"/>
-	<Property Name="DefaultWithLinuxAArch64" Value="false" If="$(HostPlatformEditorOnly) Or ($(HostPlatformOnly) And '$(HostPlatform)' != 'Linux')"/>
+	<Property Name="DefaultWithLinuxArm64" Value="true"/>
+	<Property Name="DefaultWithLinuxArm64" Value="false" If="$(HostPlatformEditorOnly) Or ($(HostPlatformOnly) And '$(HostPlatform)' != 'Linux')"/>
 
 	<Property Name="DefaultWithPlatform" Value="true"/>
 	<Property Name="DefaultWithPlatform" Value="false" If="$(HostPlatformEditorOnly) Or $(HostPlatformOnly)"/>
@@ -41,7 +41,7 @@
 	<Option Name="WithIOS" Restrict="true|false" DefaultValue="$(DefaultWithIOS)" Description="Include the iOS target platform"/>
 	<Option Name="WithTVOS" Restrict="true|false" DefaultValue="$(DefaultWithIOS)" Description="Include the tvOS target platform"/>
 	<Option Name="WithLinux" Restrict="true|false" DefaultValue="$(DefaultWithLinux)" Description="Include the Linux target platform"/>
-	<Option Name="WithLinuxAArch64" Restrict="true|false" DefaultValue="$(DefaultWithLinuxAArch64)" Description="Include the Linux AArch64 target platform"/>
+	<Option Name="WithLinuxArm64" Restrict="true|false" DefaultValue="$(DefaultWithLinuxArm64)" Description="Include the Linux AArch64 target platform"/>
 	<Option Name="WithLumin" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the Lumin target platform on Windows"/>
 	<Option Name="WithLuminMac" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the Lumin target platform on Mac"/>
 	<Option Name="WithHoloLens" Restrict="true|false" DefaultValue="$(DefaultWithHoloLens)" Description="Include the HoloLens target platform"/>
@@ -299,20 +299,20 @@
 	</Agent>
 	<Aggregate Name="TargetPlatforms_Linux" Requires="Compile UnrealGame Linux"/>
 	
-	<Agent Name="Target LinuxAArch64" Type="Win64_Licensee">
-		<Node Name="Compile UnrealGame LinuxAArch64" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UnrealGame LinuxAArch64;#UnrealGame LinuxAArch64 Unstripped;#UnrealGame LinuxAArch64 Stripped">
+	<Agent Name="Target LinuxArm64" Type="Win64_Licensee">
+		<Node Name="Compile UnrealGame LinuxArm64" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UnrealGame LinuxArm64;#UnrealGame LinuxArm64 Unstripped;#UnrealGame LinuxArm64 Stripped">
 			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget);$(OptionalServerTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="LinuxAArch64" Configuration="$(Configuration)" Tag="#UnrealGame LinuxAArch64" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="LinuxAArch64" Configuration="$(Configuration)" Tag="#UnrealGame LinuxAArch64" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="LinuxArm64" Configuration="$(Configuration)" Tag="#UnrealGame LinuxArm64" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="LinuxArm64" Configuration="$(Configuration)" Tag="#UnrealGame LinuxArm64" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
-			<Tag Files="#UnrealGame LinuxAArch64" Filter="$(LinuxStripFilter)" With="#UnrealGame LinuxAArch64 Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="LinuxAArch64" Files="#UnrealGame LinuxAArch64 Unstripped" Tag="#UnrealGame LinuxAArch64 Stripped"/>
+			<Tag Files="#UnrealGame LinuxArm64" Filter="$(LinuxStripFilter)" With="#UnrealGame LinuxArm64 Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="LinuxArm64" Files="#UnrealGame LinuxArm64 Unstripped" Tag="#UnrealGame LinuxArm64 Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_LinuxAArch64" Label="Platforms/Linux (AArch64)" Requires="Compile UnrealGame LinuxAArch64"/>
+	<Aggregate Name="TargetPlatforms_LinuxArm64" Label="Platforms/Linux (AArch64)" Requires="Compile UnrealGame LinuxArm64"/>
 
 	<Agent Name="Target Android" Type="Win64_Licensee">
 		<Node Name="Compile UnrealGame Android" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UnrealGame Android;#UnrealGame Android Unstripped;#UnrealGame Android Stripped">
@@ -617,7 +617,7 @@
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+IOS" If="'$(WithIOS)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+TVOS" If="'$(WithTVOS)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Linux" If="'$(WithLinux)' == true"/>
-		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxAArch64" If="'$(WithLinuxAArch64)' == true"/>
+		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxArm64" If="'$(WithLinuxArm64)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Lumin" If="'$(WithLumin)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+HoloLens" If="'$(WithHoloLens)' == true"/>
 		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
@@ -732,7 +732,7 @@
 	<Property Name="DDCPlatformsLinux" Value="LinuxEditor"/>
 	<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+Linux" If="'$(WithLinux)' == true"/>
 	<Do If="'$(HostPlatformDDCOnly)' == false">
-		<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+LinuxAArch64" If="'$(WithLinuxAArch64)' == true"/>
+		<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+LinuxArm64" If="'$(WithLinuxArm64)' == true"/>
 		<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+Android_ATC" If="'$(WithAndroid)' == true"/>
 	</Do>
 
@@ -812,7 +812,7 @@
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame IOS;#UnrealGame IOS Unstripped;#UnrealGame IOS Stripped;#Compile UnrealHeaderTool Mac" If="'$(WithIOS)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame TVOS;#UnrealGame TVOS Unstripped;#UnrealGame TVOS Stripped" If="'$(WithTVOS)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame Linux;#UnrealGame Linux Unstripped;#UnrealGame Linux Stripped;#Build Tools Linux" If="'$(WithLinux)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame LinuxAArch64;#UnrealGame LinuxAArch64 Unstripped;#UnrealGame LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame LinuxArm64;#UnrealGame LinuxArm64 Unstripped;#UnrealGame LinuxArm64 Stripped" If="'$(WithLinuxArm64)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame Lumin" If="'$(WithLumin)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame HoloLens" If="'$(WithHoloLens)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#CompressedDDCWin64" If="$(WithDDC) And $(WithWin64)"/>
@@ -876,10 +876,10 @@
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
-			<Do If="'$(WithLinuxAArch64)' == true">
-				<Tag Files="#UnrealGame LinuxAArch64" Except="#UnrealGame LinuxAArch64 Unstripped" With="#Installed Win64"/>
-				<Tag Files="#UnrealGame LinuxAArch64 Stripped" With="#Saved Output"/>
-				<Property Name="Platforms" Value="$(Platforms)LinuxAArch64;"/>
+			<Do If="'$(WithLinuxArm64)' == true">
+				<Tag Files="#UnrealGame LinuxArm64" Except="#UnrealGame LinuxArm64 Unstripped" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame LinuxArm64 Stripped" With="#Saved Output"/>
+				<Property Name="Platforms" Value="$(Platforms)LinuxArm64;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
@@ -1099,7 +1099,7 @@
 
 		<!-- Optional Target Platform requirements -->
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame Linux;#UnrealGame Linux Unstripped;#UnrealGame Linux Stripped" If="'$(WithLinux)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame LinuxAArch64;#UnrealGame LinuxAArch64 Unstripped;#UnrealGame LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame LinuxArm64;#UnrealGame LinuxArm64 Unstripped;#UnrealGame LinuxArm64 Stripped" If="'$(WithLinuxArm64)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Android;#UE4Game Android Unstripped;#UE4Game Android Stripped" If="'$(WithAndroid)' == true"/>		
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#CompressedDDCLinux" If="'$(WithDDC)' == true And $(WithLinux)"/>
 
@@ -1133,10 +1133,10 @@
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
-			<Do If="'$(WithLinuxAArch64)' == true">
-				<Tag Files="#UnrealGame LinuxAArch64" Except="#UnrealGame LinuxAArch64 Unstripped" With="#Installed Linux"/>
-				<Tag Files="#UnrealGame LinuxAArch64 Stripped" With="#Saved Output"/>
-				<Property Name="Platforms" Value="$(Platforms)LinuxAArch64;"/>
+			<Do If="'$(WithLinuxArm64)' == true">
+				<Tag Files="#UnrealGame LinuxArm64" Except="#UnrealGame LinuxArm64 Unstripped" With="#Installed Linux"/>
+				<Tag Files="#UnrealGame LinuxArm64 Stripped" With="#Saved Output"/>
+				<Property Name="Platforms" Value="$(Platforms)LinuxArm64;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>

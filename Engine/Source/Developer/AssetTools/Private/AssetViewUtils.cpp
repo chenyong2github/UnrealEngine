@@ -1339,8 +1339,8 @@ int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, boo
 		GameNamePadded += TEXT(" ");
 	}
 
-	// We use "LinuxAArch64Server" below as it's probably the longest platform name, so will also prove that any shorter platform names will validate correctly
-	const TCHAR* LongPlatformName = TEXT("LinuxAArch64Server");
+	// We use "LinuxArm64Server" below as it's probably the longest platform name, so will also prove that any shorter platform names will validate correctly
+	const TCHAR* LongPlatformName = TEXT("LinuxArm64Server");
 	const FString AbsoluteRootPath = FPaths::ConvertRelativePathToFull(FPaths::RootDir());
 	const FString AbsoluteGamePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
 	const FString AbsoluteEnginePath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir());

@@ -293,7 +293,7 @@ public class Core : ModuleRules
 		{
 			if (Target.Platform == UnrealTargetPlatform.Mac
 				|| Target.Platform == UnrealTargetPlatform.Linux
-				|| Target.Platform == UnrealTargetPlatform.LinuxAArch64
+				|| Target.Platform == UnrealTargetPlatform.LinuxArm64
 				|| Target.Platform == UnrealTargetPlatform.Win64
 				|| Target.Platform.IsInGroup(UnrealPlatformGroup.XboxCommon)	// Base Xbox will run out of virtual memory very quickly but it can be utilized on some hardware configs
 				)

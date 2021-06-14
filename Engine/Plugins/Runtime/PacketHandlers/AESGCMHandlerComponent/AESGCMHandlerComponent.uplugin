@@ -27,7 +27,7 @@
 				"Mac",
 				"Win64",
 				"Linux",
-				"LinuxAArch64",
+				"LinuxArm64",
 				"PS4"
 			]
 		}
@@ -44,7 +44,7 @@
 				"Mac",
 				"Win64",
 				"Linux",
-				"LinuxAArch64",
+				"LinuxArm64",
 				"PS4"
 			]
 		}

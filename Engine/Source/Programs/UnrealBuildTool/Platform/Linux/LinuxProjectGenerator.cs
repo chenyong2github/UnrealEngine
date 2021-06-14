@@ -31,7 +31,7 @@ namespace UnrealBuildTool
 		public override IEnumerable<UnrealTargetPlatform> GetPlatforms()
 		{
 			yield return UnrealTargetPlatform.Linux;
-			yield return UnrealTargetPlatform.LinuxAArch64;
+			yield return UnrealTargetPlatform.LinuxArm64;
 		}
 
 		///

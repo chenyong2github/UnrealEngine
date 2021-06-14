@@ -1034,14 +1034,14 @@ protected:
 					PlatformName = TEXT("LinuxServer");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
 				}
-				else if (PlatformName == TEXT("LinuxAArch64"))
+				else if (PlatformName == TEXT("LinuxArm64"))
 				{
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
-					PlatformName = TEXT("LinuxAArch64");
+					PlatformName = TEXT("LinuxArm64");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
-					PlatformName = TEXT("LinuxAArch64Client");
+					PlatformName = TEXT("LinuxArm64Client");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
-					PlatformName = TEXT("LinuxAArch64Server");
+					PlatformName = TEXT("LinuxArm64Server");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
 				}
 				else if (PlatformName == TEXT("Desktop"))

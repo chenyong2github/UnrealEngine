@@ -62,8 +62,8 @@
 #if !defined(PLATFORM_LINUX)
 	#define PLATFORM_LINUX 0
 #endif
-#if !defined(PLATFORM_LINUXAARCH64)
-	#define PLATFORM_LINUXAARCH64 0
+#if !defined(PLATFORM_LINUXARM64)
+	#define PLATFORM_LINUXARM64 0
 #endif
 #if !defined(PLATFORM_SWITCH)
 	#define PLATFORM_SWITCH 0

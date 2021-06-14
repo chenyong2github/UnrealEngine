@@ -62,7 +62,7 @@ public class OodleNetworkHandlerComponent : ModuleRules
 			ReleaseLib = "liboo2netlinux64.a";
 			DebugLib = "liboo2netlinux64_dbg.a";
 		}
-		else if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+		else if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
 		{
 			ReleaseLib = "liboo2netlinuxarm64.a";
 			DebugLib = "liboo2netlinuxarm64_dbg.a";

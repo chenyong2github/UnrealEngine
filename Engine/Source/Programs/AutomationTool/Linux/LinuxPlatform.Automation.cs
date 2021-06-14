@@ -90,9 +90,9 @@ public abstract class BaseLinuxPlatform : Platform
 						}
 
 						string Extension = ".sh";
-						if (Target.Receipt.Platform == UnrealTargetPlatform.LinuxAArch64)
+						if (Target.Receipt.Platform == UnrealTargetPlatform.LinuxArm64)
 						{
-								Extension = "-AArch64.sh";
+								Extension = "-Arm64.sh";
 						}
 
 						List<StagedFileReference> StagePaths = SC.FilesToStage.NonUFSFiles.Where(x => x.Value == Executable.Path).Select(x => x.Key).ToList();
@@ -151,7 +151,7 @@ public abstract class BaseLinuxPlatform : Platform
 		const string NoEditorCookPlatform = "";
 		const string ServerCookPlatform = "Server";
 		const string ClientCookPlatform = "Client";
-		string PlatformStr = (TargetPlatformType == UnrealTargetPlatform.LinuxAArch64) ? "LinuxAArch64" : "Linux";
+		string PlatformStr = (TargetPlatformType == UnrealTargetPlatform.LinuxArm64) ? "LinuxArm64" : "Linux";
 
 		if (bDedicatedServer)
 		{
@@ -167,9 +167,9 @@ public abstract class BaseLinuxPlatform : Platform
 
 	public override string GetEditorCookPlatform()
 	{
-		if (TargetPlatformType == UnrealTargetPlatform.LinuxAArch64)
+		if (TargetPlatformType == UnrealTargetPlatform.LinuxArm64)
 		{
-			return "LinuxAArch64Editor";
+			return "LinuxArm64Editor";
 		}
 
 		return "LinuxEditor";
@@ -376,10 +376,10 @@ public class GenericLinuxPlatform : BaseLinuxPlatform
 	}
 }
 
-public class GenericLinuxPlatformAArch64 : BaseLinuxPlatform
+public class GenericLinuxPlatformArm64 : BaseLinuxPlatform
 {
-	public GenericLinuxPlatformAArch64()
-		: base(UnrealTargetPlatform.LinuxAArch64)
+	public GenericLinuxPlatformArm64()
+		: base(UnrealTargetPlatform.LinuxArm64)
 	{
 	}
 }
