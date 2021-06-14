@@ -505,6 +505,13 @@ void FRigUnitDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				continue;
 			}
 		}
+		else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			const FSimpleDelegate OnStructContentsChangedDelegate = FSimpleDelegate::CreateSP(this, &FRigUnitDetails::OnStructContentsChanged, Property, DetailBuilder.GetPropertyUtilities());
+			PropertyHandle->SetOnPropertyValueChanged(OnStructContentsChangedDelegate);
+			PropertyHandle->SetOnChildPropertyValueChanged(OnStructContentsChangedDelegate);
+		}
+
 		CategoryBuilder.AddProperty(PropertyHandle);
 	}
 }
@@ -563,6 +570,12 @@ void FRigUnitDetails::OnNameListComboBox(TSharedPtr<FStructOnScope> InStructOnSc
 	TSharedPtr<SControlRigGraphPinNameListValueWidget> Widget = NameListWidgets.FindChecked(InProperty->GetFName());
 	const TSharedPtr<FString> CurrentlySelected = GetCurrentlySelectedItem(InStructOnScope, InProperty, InNameList);
 	Widget->SetSelectedItem(CurrentlySelected);
+}
+
+void FRigUnitDetails::OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	const FPropertyChangedEvent ChangeEvent(InProperty, EPropertyChangeType::ValueSet);
+	PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
 }
 
 void FRigComputedTransformDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
