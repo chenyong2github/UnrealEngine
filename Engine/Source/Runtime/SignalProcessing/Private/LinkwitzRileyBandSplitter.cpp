@@ -8,7 +8,7 @@
 #endif
 namespace Audio
 {
-	void FLinkwitzRileyBandSplitter::Init(const int32 InChannels, const float InSampleRate, const EFilterOrder InFilterOrder, const TArray<float>& InCrossovers)
+	void FLinkwitzRileyBandSplitter::Init(const int32 InChannels, const float InSampleRate, const EFilterOrder InFilterOrder, const bool bInPhaseCompensate, const TArray<float>& InCrossovers)
 	{
 		NumBands = InCrossovers.Num() + 1;
 		NumChannels = InChannels;
@@ -42,7 +42,8 @@ namespace Audio
 
 		for (int32 BandId = 1; BandId < NumBands; BandId++)
 		{
-			BandFilters[BandId].Filters.AddDefaulted(NumBands - BandId);
+			const int32 NumFilters = NumBands - BandId;
+			BandFilters[BandId].Filters.AddDefaulted( bInPhaseCompensate ? NumFilters : FMath::Clamp(NumFilters, 1, 2) );
 		}
 
 		// band 0 special case

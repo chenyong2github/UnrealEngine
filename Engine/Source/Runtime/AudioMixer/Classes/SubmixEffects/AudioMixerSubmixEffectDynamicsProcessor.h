@@ -65,6 +65,91 @@ enum class ESubmixEffectDynamicsKeySource : uint8
 	Count UMETA(Hidden)
 };
 
+class FKeySource
+{
+	ESubmixEffectDynamicsKeySource Type = ESubmixEffectDynamicsKeySource::Default;
+	int32 NumChannels = 0;
+	uint32 ObjectId = INDEX_NONE;
+	bool bReportInactive = true;
+
+	mutable FCriticalSection MutateSourceCritSection;
+
+public:
+	Audio::FPatchOutputStrongPtr Patch;
+
+	void Reset()
+	{
+		Patch.Reset();
+
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			NumChannels = 0;
+			ObjectId = INDEX_NONE;
+			Type = ESubmixEffectDynamicsKeySource::Default;
+			bReportInactive = true;
+		}
+	}
+
+	uint32 GetObjectId() const
+	{
+		const FScopeLock ScopeLock(&MutateSourceCritSection);
+		return ObjectId;
+	}
+
+	int32 GetNumChannels() const
+	{
+		const FScopeLock ScopeLock(&MutateSourceCritSection);
+		return NumChannels;
+	}
+
+	void SetReportInactive(bool bInReportInactive)
+	{
+		const FScopeLock ScopeLock(&MutateSourceCritSection);
+		bReportInactive = bInReportInactive;
+	}
+
+	bool ShouldReportInactive() const
+	{
+		const FScopeLock ScopeLock(&MutateSourceCritSection);
+		return bReportInactive;
+	}
+
+	ESubmixEffectDynamicsKeySource GetType() const
+	{
+		const FScopeLock ScopeLock(&MutateSourceCritSection);
+		return Type;
+	}
+
+	void SetNumChannels(const int32 InNumChannels)
+	{
+		const FScopeLock ScopeLock(&MutateSourceCritSection);
+		NumChannels = InNumChannels;
+	}
+
+	void Update(ESubmixEffectDynamicsKeySource InType, uint32 InObjectId, int32 InNumChannels = 0)
+	{
+		bool bResetPatch = false;
+
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			if (Type != InType || ObjectId != InObjectId || NumChannels != InNumChannels)
+			{
+				Type = InType;
+				ObjectId = InObjectId;
+				NumChannels = InNumChannels;
+
+				bResetPatch = true;
+				bReportInactive = true;
+			}
+		}
+
+		if (bResetPatch)
+		{
+			Patch.Reset();
+		}
+	}
+};
+
 USTRUCT(BlueprintType)
 struct AUDIOMIXER_API FSubmixEffectDynamicProcessorFilterSettings
 {
@@ -235,91 +320,6 @@ protected:
 	bool bBypass = false;
 
 private:
-	class FKeySource
-	{
-		ESubmixEffectDynamicsKeySource Type = ESubmixEffectDynamicsKeySource::Default;
-		int32 NumChannels = 0;
-		uint32 ObjectId = INDEX_NONE;
-		bool bReportInactive = true;
-
-		mutable FCriticalSection MutateSourceCritSection;
-
-	public:
-		Audio::FPatchOutputStrongPtr Patch;
-
-		void Reset()
-		{
-			Patch.Reset();
-
-			{
-				const FScopeLock ScopeLock(&MutateSourceCritSection);
-				NumChannels = 0;
-				ObjectId = INDEX_NONE;
-				Type = ESubmixEffectDynamicsKeySource::Default;
-				bReportInactive = true;
-			}
-		}
-
-		uint32 GetObjectId() const
-		{
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
-			return ObjectId;
-		}
-
-		int32 GetNumChannels() const
-		{
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
-			return NumChannels;
-		}
-
-		void SetReportInactive(bool bInReportInactive)
-		{
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
-			bReportInactive = bInReportInactive;
-		}
-
-		bool ShouldReportInactive() const
-		{
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
-			return bReportInactive;
-		}
-
-		ESubmixEffectDynamicsKeySource GetType() const
-		{
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
-			return Type;
-		}
-
-		void SetNumChannels(const int32 InNumChannels)
-		{
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
-			NumChannels = InNumChannels;
-		}
-
-		void Update(ESubmixEffectDynamicsKeySource InType, uint32 InObjectId, int32 InNumChannels = 0)
-		{
-			bool bResetPatch = false;
-
-			{
-				const FScopeLock ScopeLock(&MutateSourceCritSection);
-				if (Type != InType || ObjectId != InObjectId || NumChannels != InNumChannels)
-				{
-					Type = InType;
-					ObjectId = InObjectId;
-					NumChannels = InNumChannels;
-
-					bResetPatch = true;
-					bReportInactive = true;
-				}
-			}
-
-			if (bResetPatch)
-			{
-				Patch.Reset();
-			}
-		}
-	};
-
 	FKeySource KeySource;
 	Audio::FDynamicsProcessor DynamicsProcessor;
 
