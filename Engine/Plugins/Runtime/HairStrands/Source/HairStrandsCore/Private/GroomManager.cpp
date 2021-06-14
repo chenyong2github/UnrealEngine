@@ -724,6 +724,9 @@ static void RunHairLODSelection(
 		Instance->Guides.bIsSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
 		Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
 		Instance->Strands.bIsCullingEnabled = bCullingEnable;
+
+		// Update the local-to-world transform based on the binding type 
+		Instance->LocalToWorld = Instance->BindingType == EHairBindingType::Skinning ? Instance->Debug.SkeletalLocalToWorld : Instance->LocalToWorld;
 	}
 }
 
