@@ -242,22 +242,20 @@ namespace Audio
 			CurrentDryLevel = FMath::Clamp(SoundSubmix->DryLevel, 0.0f, 1.0f);
 			TargetDryLevel = CurrentDryLevel;
 
-			FModulationDestination VolumeModulation;
-			VolumeModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-			VolumeModulation.UpdateModulator(SoundSubmix->OutputVolumeModulation.Modulator);
-			VolumeModBase = SoundSubmix->OutputVolumeModulation.Value;
+			if(MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+			{
+				VolumeMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+				VolumeMod.UpdateModulator(SoundSubmix->OutputVolumeModulation.Modulator);
+				VolumeModBase = SoundSubmix->OutputVolumeModulation.Value;
 
-			FModulationDestination WetModulation;
-			WetModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-			WetModulation.UpdateModulator(SoundSubmix->WetLevelModulation.Modulator);
-			WetModBase = SoundSubmix->WetLevelModulation.Value;
+				WetLevelMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+				WetLevelMod.UpdateModulator(SoundSubmix->WetLevelModulation.Modulator);
+				WetModBase = SoundSubmix->WetLevelModulation.Value;
 
-			FModulationDestination DryModulation;
-			DryModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-			DryModulation.UpdateModulator(SoundSubmix->DryLevelModulation.Modulator);
-			DryModBase = SoundSubmix->DryLevelModulation.Value;
-
-			SetModulationSettings(VolumeModulation, WetModulation, DryModulation);
+				DryLevelMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+				DryLevelMod.UpdateModulator(SoundSubmix->DryLevelModulation.Modulator);
+				DryModBase = SoundSubmix->DryLevelModulation.Value;
+			}
 
 			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 			{
@@ -2130,11 +2128,11 @@ namespace Audio
 		TargetWetLevel = FMath::Clamp(InWetLevel, 0.0f, 1.0f);
 	}
 
-	void FMixerSubmix::SetModulationSettings(FModulationDestination InOutputModulation, FModulationDestination InWetLevelModulation, FModulationDestination InDryLevelModulation)
+	void FMixerSubmix::UpdateModulationSettings(USoundModulatorBase* InOutputModulator, USoundModulatorBase* InWetLevelModulator, USoundModulatorBase* InDryLevelModulator)
 	{
-		VolumeMod = InOutputModulation;
-		WetLevelMod = InWetLevelModulation;
-		DryLevelMod = InDryLevelModulation;
+		VolumeMod.UpdateModulator(InOutputModulator);
+		WetLevelMod.UpdateModulator(InWetLevelModulator);
+		DryLevelMod.UpdateModulator(InDryLevelModulator);
 	}
 
 	void FMixerSubmix::SetModulationBaseLevels(float InVolumeModBase, float InWetModBase, float InDryModBase)

@@ -15,6 +15,7 @@
 // Forward Declarations
 class FOnSubmixEnvelopeBP;
 class IAudioMixerPlatformInterface;
+class USoundModulatorBase;
 
 namespace Audio
 {
@@ -136,7 +137,7 @@ namespace Audio
 		virtual void SetSubmixDryLevel(USoundSubmix* InSoundSubmix, float InDryLevel) override;
 
 		// Submix Modulation Settings
-		virtual void SetSubmixModulationSettings(USoundSubmix* InSoundSubmix, FSoundModulationDestinationSettings InOutputModulation, FSoundModulationDestinationSettings InWetLevelModulation, FSoundModulationDestinationSettings InDryLevelModulation) override;
+		virtual void UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, USoundModulatorBase* InOutputModulation, USoundModulatorBase* InWetLevelModulation, USoundModulatorBase* InDryLevelModulation) override;
 		virtual void SetSubmixModulationBaseLevels(USoundSubmix* InSoundSubmix, float InVolumeModBase, float InWetModBase, float InDryModBase) override;
 
 		// Submix effect chain override settings
