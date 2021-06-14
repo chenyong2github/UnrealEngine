@@ -686,7 +686,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 				CounterpartRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ CounterpartComponent });
 			}
 			
-			NewComponentGroup->InitObjectRow(InComponent, CounterpartComponent, CounterpartRowGeneratorInfo, RowGeneratorInfo);
+			NewComponentGroup->InitObjectRow(CounterpartComponent, InComponent,CounterpartRowGeneratorInfo, RowGeneratorInfo);
 
 			const TArray<TFieldPath<FProperty>> PropertyRowsGenerated = FLocalPropertyLooper::LoopOverProperties(CounterpartRowGeneratorInfo, RowGeneratorInfo, NewComponentGroup, PropertiesThatPassFilter, InResultsView);
 
@@ -718,14 +718,14 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 	{
 		SnapshotActorLocal = Cast<AActor>(SnapshotObject.Get());
 		SnapshotRowGeneratorInfo = ResultsViewPtr.Pin()->RegisterRowGenerator(SharedThis(this), ObjectType_Snapshot, PropertyEditorModule);
-		SnapshotRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ SnapshotActorLocal });
+		SnapshotRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ SnapshotObject.Get() });
 	}
 
 	if (WorldObject.IsValid())
 	{
 		WorldActorLocal = Cast<AActor>(WorldObject.Get());
 		WorldRowGeneratorInfo = ResultsViewPtr.Pin()->RegisterRowGenerator(SharedThis(this), ObjectType_World, PropertyEditorModule);
-		WorldRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ WorldActorLocal });
+		WorldRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ WorldObject.Get() });
 	}
 
 	// Iterate over components
@@ -1924,7 +1924,7 @@ FReply SLevelSnapshotsEditorResults::OnClickApplyToWorld()
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OnClickApplyToWorld"), STAT_LevelSnapshots, STATGROUP_LevelSnapshots);
 		{
 			// Measure how long it takes to get all selected properties from UI
-			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("BuildSelectionSetFromSelectedProperties"), STAT_BuildSelectionSetFromSelectedProperties, STATGROUP_LevelSnapshots);
+			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("BuildSelectionSetFromSelectedPropertiesInEachActorGroup"), STAT_BuildSelectionSetFromSelectedProperties, STATGROUP_LevelSnapshots);
 			BuildSelectionSetFromSelectedPropertiesInEachActorGroup();
 		}
 
@@ -2043,8 +2043,16 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 		static void RemoveUndesirablePropertiesFromSelectionMapRecursively(
 			FPropertySelectionMap& SelectionMap, const FLevelSnapshotsEditorResultsRowPtr& Group)
 		{
-			if (!ensureMsgf(Group->DoesRowRepresentObject() && Group->GetWorldObject(),
-				TEXT("AddAllChildPropertiesInObjectGroupToSelectionSetRecursively: Group does not represent an object. Group name: %s"), *Group->GetDisplayName().ToString()))
+			if (!ensureMsgf(Group->DoesRowRepresentObject(),
+				TEXT("%hs: Group does not represent an object. Group name: %s"), __FUNCTION__, *Group->GetDisplayName().ToString()))
+			{
+				return;
+			}
+
+			UObject* WorldObject = Group->GetWorldObject();
+
+			if (!ensureMsgf(WorldObject,
+				TEXT("%hs: WorldObject is not valid. Group name: %s"), __FUNCTION__, *Group->GetDisplayName().ToString()))
 			{
 				return;
 			}
@@ -2060,19 +2068,13 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 			{
 				return;
 			}
-
-			const UObject* WorldObject = Group->GetWorldObject();
-
-			const FPropertySelection* PropertySelection = SelectionMap.GetSelectedProperties(WorldObject);
-
-			if (!PropertySelection)
+			
+			FPropertySelection CheckedNodeFieldPaths;
+			if (const FPropertySelection* PropertySelection = SelectionMap.GetSelectedProperties(WorldObject))
 			{
-				return;
+				// Make a copy of the property selection. If a node is unchecked, we'll remove it from the copy.
+				CheckedNodeFieldPaths = *PropertySelection;
 			}
-
-			// Make a copy of the property selection. If a node is unchecked, we'll remove it from the copy.
-			FPropertySelection CheckedNodeFieldPaths = *PropertySelection;
-			SelectionMap.RemoveObjectPropertiesFromMap(Group->GetWorldObject());
 
 			TArray<FLevelSnapshotsEditorResultsRowPtr> UncheckedChildPropertyNodes;
 			
@@ -2112,6 +2114,8 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 				return;
 			}
 
+			SelectionMap.RemoveObjectPropertiesFromMap(WorldObject);
+
 			// Hack for Post Process Volume
 			if (WorldObject->GetClass() == APostProcessVolume::StaticClass())
 			{
@@ -2121,17 +2125,22 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 					{
 						for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& Node : UncheckedChildPropertyNodes)
 						{
-							FLevelSnapshotPropertyChain OldChain = Node->GetPropertyChain();
-							
-							FLevelSnapshotPropertyChain NewChain;
-							NewChain.AppendInline(BaseProperty);
-
-							for (int32 ChainItr = 0; ChainItr < OldChain.GetNumProperties() -1; ChainItr++)
+							// We only want to execute this hack on properties that are isnide the Settings struct.
+							// Properties on the Volume actor should not be modified.
+							if (Node->GetProperty() && Node->GetProperty()->GetOwner<UScriptStruct>())
 							{
-								NewChain.AppendInline(OldChain.GetPropertyFromRoot(ChainItr));
-							}
+								FLevelSnapshotPropertyChain NewChain;
+								FLevelSnapshotPropertyChain OldChain = Node->GetPropertyChain();
+								
+								NewChain.AppendInline(BaseProperty);
 
-							Node->SetPropertyChain(NewChain);
+								for (int32 ChainItr = 0; ChainItr < OldChain.GetNumProperties(); ChainItr++)
+								{
+									NewChain.AppendInline(OldChain.GetPropertyFromRoot(ChainItr));
+								}
+
+								Node->SetPropertyChain(NewChain);
+							}
 						}
 					}
 				}
@@ -2143,13 +2152,13 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 				{
 					FLevelSnapshotPropertyChain Chain = ChildRow->GetPropertyChain();
 					
-					CheckedNodeFieldPaths.RemoveProperty(&Chain, ChildRow->GetProperty());
+					CheckedNodeFieldPaths.RemoveProperty(&Chain);
 				}
 			}
 
 			if (!CheckedNodeFieldPaths.IsEmpty())
 			{
-				SelectionMap.AddObjectProperties(Group->GetWorldObject(), CheckedNodeFieldPaths);
+				SelectionMap.AddObjectProperties(WorldObject, CheckedNodeFieldPaths);
 			}
 		}
 	};
@@ -2836,20 +2845,14 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 		.HitDetectionSplitterHandleSize(bDoesRowNeedSplitter ? 5.0f : 0.f);
 
 		SplitterPtr->AddSlot()
+		.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SLevelSnapshotsEditorResultsRow::SetNameColumnSize))
+		.Value(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetNameColumnSize)))
 		[
 			BasicRowWidgets
 		];
-		
-		// Splitter Slot 0
-		int32 SlotIndex = 0;
-		{
-			SplitterPtr->SlotAt(SlotIndex).OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetNameColumnSize);
-			const auto SlotDelegate = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetNameColumnSize);
-			SplitterPtr->SlotAt(SlotIndex).SizeValue.Bind(SlotDelegate);
-		}
 	
 		// Splitter Slot 1
-		SlotIndex = 1;
+		int32 SlotIndex = 1;
 		
 		TSharedPtr<SWidget> WorldChildWidget;
 
@@ -2924,15 +2927,11 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 		}
 
 		SplitterPtr->AddSlot()
+		.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SLevelSnapshotsEditorResultsRow::SetWorldColumnSize))
+		.Value(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetWorldColumnSize)))
 		[
 			FinalWorldWidget.ToSharedRef()
 		];
-
-		{
-			SplitterPtr->SlotAt(SlotIndex).OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetWorldColumnSize);
-			const auto SlotDelegate = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetWorldColumnSize);
-			SplitterPtr->SlotAt(SlotIndex).SizeValue.Bind(SlotDelegate);
-		}
 
 		// Splitter Slot 2
 		SlotIndex = 2;
@@ -3010,15 +3009,11 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 		}
 
 		SplitterPtr->AddSlot()
+		.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize))
+		.Value(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSnapshotColumnSize)))
 		[
 			FinalSnapshotWidget.ToSharedRef()
 		];
-
-		{
-			SplitterPtr->SlotAt(SlotIndex).OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize);
-			const auto SlotDelegate = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSnapshotColumnSize);
-			SplitterPtr->SlotAt(SlotIndex).SizeValue.Bind(SlotDelegate);
-		}
 		
 		BorderPtr->SetContent(SplitterPtr.ToSharedRef());
 	}
@@ -3037,7 +3032,7 @@ SLevelSnapshotsEditorResultsRow::~SLevelSnapshotsEditorResultsRow()
 	{
 		for (int32 SplitterSlotCount = 0; SplitterSlotCount < SplitterPtr->GetChildren()->Num(); SplitterSlotCount++)
 		{
-			SplitterPtr->SlotAt(SplitterSlotCount).OnSlotResized_Handler.Unbind();
+			SplitterPtr->SlotAt(SplitterSlotCount).OnSlotResized(nullptr);
 		}
 	}
 

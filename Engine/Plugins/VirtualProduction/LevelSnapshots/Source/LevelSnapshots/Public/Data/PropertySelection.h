@@ -67,6 +67,8 @@ struct LEVELSNAPSHOTS_API FPropertySelection
 	void AddProperty(const FLevelSnapshotPropertyChain& SelectedProperty);
 	void RemoveProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty);
 
+	void RemoveProperty(FArchiveSerializedPropertyChain* ContainerChain);
+
 	/* Gets a flat list of all selected properties. The result contains no information what nested struct a property came from. */
 	const TArray<TFieldPath<FProperty>>& GetSelectedLeafProperties() const;
 

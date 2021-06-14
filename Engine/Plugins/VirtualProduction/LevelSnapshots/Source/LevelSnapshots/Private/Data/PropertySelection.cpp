@@ -172,6 +172,15 @@ void FPropertySelection::RemoveProperty(const FArchiveSerializedPropertyChain* C
 	}
 }
 
+void FPropertySelection::RemoveProperty(FArchiveSerializedPropertyChain* ContainerChain)
+{
+	FArchiveSerializedPropertyChain CopiedContainerChain = *ContainerChain;
+	FProperty* LeafProperty = CopiedContainerChain.GetPropertyFromStack(0);
+	CopiedContainerChain.PopProperty(LeafProperty, LeafProperty->IsEditorOnlyProperty());
+	
+	RemoveProperty(&CopiedContainerChain, LeafProperty);
+}
+
 const TArray<TFieldPath<FProperty>>& FPropertySelection::GetSelectedLeafProperties() const
 {
 	return SelectedLeafProperties;
