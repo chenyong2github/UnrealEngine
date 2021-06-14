@@ -254,10 +254,16 @@ private:
 	static FSlateIcon GetEventQueueIcon(EControlRigEditorEventQueue InEventQueue);
 	FSlateIcon GetEventQueueIcon() const;
 
-	void SetExecutionMode(const bool bSetDebugMode);
+	enum EControlRigExecutionModeType
+	{
+		EControlRigExecutionModeType_Release,
+		EControlRigExecutionModeType_Debug
+	};
+
+	void SetExecutionMode(const EControlRigExecutionModeType InExecutionMode);
 	int32 GetExecutionModeComboValue() const;
 	FText GetExecutionModeLabel() const;
-	static FSlateIcon GetExecutionModeIcon(const bool bInIsDebugMode);
+	static FSlateIcon GetExecutionModeIcon(const EControlRigExecutionModeType InExecutionMode);
 	FSlateIcon GetExecutionModeIcon() const;
 	
 	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const override;
@@ -329,6 +335,8 @@ private:
 	 void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 
 	 void HandleVariableDroppedFromBlueprint(UObject* InSubject, FProperty* InVariableToDrop, const FVector2D& InDropPosition, const FVector2D& InScreenPosition);
+
+	 void HandleBreakpointAdded();
 
 	 void OnGraphNodeClicked(UControlRigGraphNode* InNode);
 
@@ -443,7 +451,7 @@ protected:
 	bool bAnyErrorsLeft;
 
 	EControlRigEditorEventQueue LastEventQueue;
-	bool bIsInDebugMode;
+	EControlRigExecutionModeType ExecutionMode;
 	FString LastDebuggedRig;
 	int32 RigHierarchyTabCount;
 	TMap<FString, FString> KnownInstructionLimitWarnings;
