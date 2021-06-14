@@ -106,6 +106,7 @@ namespace AudioModulation
 		{
 			if (USoundModulationParameter* Parameter = InPatch.PatchSettings.OutputParameter)
 			{
+				DefaultOutputValue = Parameter->Settings.ValueNormalized;
 				MixFunction = Parameter->GetMixFunction();
 			}
 			else
