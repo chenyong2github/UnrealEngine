@@ -1007,8 +1007,7 @@ int32 USubobjectDataSubsystem::DeleteSubobjects(const FSubobjectDataHandle& Cont
 					
 					if (SCS_Node)
 					{
-						USimpleConstructionScript* SCS = SCS_Node->GetSCS();
-						check(SCS != nullptr && BPContext == SCS->GetBlueprint());
+						USimpleConstructionScript* SCS = SCS_Node->GetSCS();						
 						BPContext->Modify();
 						SaveSCSCurrentState(SCS);
 					
