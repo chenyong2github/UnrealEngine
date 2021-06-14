@@ -275,7 +275,7 @@ public:
 	public:
 
 		/** A slot that support alignment of content and padding and z-order */
-		class FNodeSlot : public TSlotBase<FNodeSlot>, public TAlignmentWidgetSlotMixin<FNodeSlot>
+		class GRAPHEDITOR_API FNodeSlot : public TSlotBase<FNodeSlot>, public TAlignmentWidgetSlotMixin<FNodeSlot>
 		{
 		public:
 			friend SNode;
@@ -300,11 +300,7 @@ public:
 				SLATE_ATTRIBUTE(bool, AllowScaling)
 			SLATE_SLOT_END_ARGS()
 
-			void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
-			{
-				TSlotBase<FNodeSlot>::Construct(SlotOwner, MoveTemp(InArgs));
-				TAlignmentWidgetSlotMixin<FNodeSlot>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
-			}
+			void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
 
 		public:
 			UE_DEPRECATED(5.0, "Padding is now deprecated. Use the FSlotArgument or the SetPadding function.")
