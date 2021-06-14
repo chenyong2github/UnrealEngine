@@ -555,7 +555,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby
 	SUEntityRef ParentEntity = SU_INVALID;
 	if (!NIL_P(ruby_parent_entity) && (SUEntityFromRuby(ruby_parent_entity, &ParentEntity) != SU_ERROR_NONE)) {
 		
-		rb_raise(rb_eTypeError, "Expected SketchUp Entity but found '%s'", StringValue(ruby_parent_entity));
+		rb_raise(rb_eTypeError, "Expected SketchUp Entity but found '%s'", StringValuePtr(ruby_parent_entity));
 	}
 
 	SUEntityRef Entity = SU_INVALID;
