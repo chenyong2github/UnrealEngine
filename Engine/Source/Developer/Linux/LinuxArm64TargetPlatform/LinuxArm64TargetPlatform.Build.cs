@@ -2,11 +2,11 @@
 
 using UnrealBuildTool;
 
-public class LinuxAArch64TargetPlatform : ModuleRules
+public class LinuxArm64TargetPlatform : ModuleRules
 {
-    public LinuxAArch64TargetPlatform(ReadOnlyTargetRules Target) : base(Target)
+    public LinuxArm64TargetPlatform(ReadOnlyTargetRules Target) : base(Target)
     {
-        BinariesSubFolder = "LinuxAArch64";
+        BinariesSubFolder = "LinuxArm64";
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
