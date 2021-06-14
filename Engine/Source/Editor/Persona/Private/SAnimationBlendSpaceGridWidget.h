@@ -201,6 +201,7 @@ protected:
 	/** Tool tip text content getters*/
 	FText GetToolTipAnimationName() const;
 	FText GetToolTipSampleValue() const;
+	FText GetToolTipSampleValidity() const;
 	FText GetSampleErrorMessage(const struct FBlendSample& BlendSample) const;
 
 	/** Functionality for the grid input box widgets (also used by FBlendSampleDetails) */
@@ -224,6 +225,12 @@ protected:
 
 	/** Enable/disable the status bar message */
 	void EnableStatusBarMessage(bool bEnable);
+
+	/**
+	 * This returns the weight for this sample if a lookup was made on its position. Ideally this would be 1 
+	 * (and will be for triangulation). It will not always be so when using the grid.
+	 */
+	float GetSampleLookupWeight(int32 SampleIndex) const;
 private:
 	/** Currently visualized blendspace (const to ensure changes to it are only made within SAnimationBlendSpace */
 	TAttribute<const UBlendSpace*> BlendSpaceBase;

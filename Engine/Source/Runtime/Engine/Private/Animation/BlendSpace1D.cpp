@@ -24,7 +24,6 @@ void UBlendSpace1D::SnapSamplesToClosestGridPoint()
 	if (!BlendParameters[0].bSnapToGrid)
 		return;
 
-	TArray<float> GridPoints;
 	TArray<int32> ClosestSampleToGridPoint;
 
 	const float GridMin = BlendParameters[0].Min;
@@ -33,18 +32,12 @@ void UBlendSpace1D::SnapSamplesToClosestGridPoint()
 	const int32 NumGridPoints = BlendParameters[0].GridNum + 1;
 	const float GridStep = GridRange / BlendParameters[0].GridNum;
 
-	for (int32 GridPointIndex = 0; GridPointIndex < NumGridPoints; ++GridPointIndex)
-	{
-		const float GridPointValue = (GridPointIndex * GridStep) + GridMin;
-		GridPoints.Add(GridPointValue);
-	}
-
-	ClosestSampleToGridPoint.Init(INDEX_NONE, GridPoints.Num());
+	ClosestSampleToGridPoint.Init(INDEX_NONE, NumGridPoints);
 
 	// Find closest sample to grid point
-	for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
+	for (int32 PointIndex = 0; PointIndex < NumGridPoints; ++PointIndex)
 	{
-		const float GridPoint = GridPoints[PointIndex];
+		const float GridPoint = GetGridPosition(PointIndex)[0];
 		float SmallestDistance = FLT_MAX;
 		int32 Index = INDEX_NONE;
 
@@ -70,9 +63,9 @@ void UBlendSpace1D::SnapSamplesToClosestGridPoint()
 		// Find closest grid point
 		float SmallestDistance = FLT_MAX;
 		int32 Index = INDEX_NONE;
-		for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
+		for (int32 PointIndex = 0; PointIndex < NumGridPoints; ++PointIndex)
 		{
-			const float Distance = FMath::Abs(GridPoints[PointIndex] - BlendSample.SampleValue[0]);
+			const float Distance = FMath::Abs(GetGridPosition(PointIndex)[0] - BlendSample.SampleValue[0]);
 			if (Distance < SmallestDistance)
 			{
 				Index = PointIndex;
@@ -83,7 +76,7 @@ void UBlendSpace1D::SnapSamplesToClosestGridPoint()
 		// Only move the sample if it is also closest to the grid point
 		if (Index != INDEX_NONE && ClosestSampleToGridPoint[Index] == SampleIndex)
 		{
-			BlendSample.SampleValue[0] = GridPoints[Index];
+			BlendSample.SampleValue[0] = GetGridPosition(Index)[0];
 		}
 	}
 }

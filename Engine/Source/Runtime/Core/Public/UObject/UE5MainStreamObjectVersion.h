@@ -154,6 +154,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// The SkyAtmosphere now light up the heightfog by default, and by default the height fog has a black color.
 		SkyAtmosphereAffectsHeightFogWithBetterDefault,
 
+		// Ordering of samples in BlendSpace
+		BlendSpaceSampleOrdering,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
