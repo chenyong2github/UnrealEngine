@@ -612,6 +612,8 @@ protected:
 	// GetArithmeticResultType
 	EMaterialValueType GetArithmeticResultType(EMaterialValueType TypeA, EMaterialValueType TypeB);
 
+	int32 GenericSwitch(const TCHAR* Function, int32 IfTrue, int32 IfFalse);
+
 	// FMaterialCompiler interface.
 
 	/** 
