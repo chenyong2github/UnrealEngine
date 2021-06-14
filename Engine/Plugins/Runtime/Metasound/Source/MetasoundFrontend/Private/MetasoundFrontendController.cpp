@@ -2,7 +2,6 @@
 
 #include "MetasoundFrontendController.h"
 
-#include "MetasoundFrontendBaseClasses.h"
 #include "MetasoundFrontendInvalidController.h"
 #include "MetasoundFrontendStandardController.h"
 

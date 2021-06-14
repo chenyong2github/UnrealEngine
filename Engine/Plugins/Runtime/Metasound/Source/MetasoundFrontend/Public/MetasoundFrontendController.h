@@ -6,7 +6,6 @@
 #include "MetasoundAccessPtr.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundFrontend.h"
-#include "MetasoundFrontendBaseClasses.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendDocumentAccessPtr.h"
 #include "MetasoundFrontendRegistries.h"
@@ -274,14 +273,6 @@ namespace Metasound
 			 * @return True on success, false on failure. 
 			 */
 			virtual bool Disconnect() = 0;
-
-			/*
-			virtual bool IsLiteralSet() const = 0;
-			virtual FMetasoundFrontendLiteral GetLiteral() const = 0;
-			virtual bool SetLiteral(const FMetasoundFrontendLiteral& InLiteral) = 0;
-			*/
-
-
 		};
 
 		/* An INodeController provides methods for querying and manipulating a Metasound node. */
@@ -618,21 +609,13 @@ namespace Metasound
 			 */
 			virtual bool ClearLiteralForInput(const FString& InInputName, FGuid InVertexID) = 0;
 
-			/** Add a new node to this graph.
+			/** Add a new node to this graph from the node registry.
 			 *
-			 * @param InNodeClass - Info for node class.
+			 * @param InKey - Registry key for node.
 			 * 
 			 * @return Node handle for class. On error, an invalid handle is returned. 
 			 */
-			virtual FNodeHandle AddNode(const FNodeClassInfo& InNodeClass) = 0;
-
-			/** Add a new node to this graph.
-			 *
-			 * @param InNodeClass - Info for node class.
-			 * 
-			 * @return Node handle for class. On error, an invalid handle is returned. 
-			 */
-			virtual FNodeHandle AddNode(const FNodeRegistryKey& InNodeClass) = 0;
+			virtual FNodeHandle AddNode(const FNodeRegistryKey& InKey) = 0;
 
 			/** Add a new node to this graph.
 			 *
@@ -642,8 +625,8 @@ namespace Metasound
 			 */
 			virtual FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata) = 0;
 
-			/** Add a new node to this graph by duplicating the input node.
-			 * The new node has the same interface and node class as the input node.
+			/** Add a new node to this graph by duplicating the supplied node.
+			 * The new node has the same interface and node class as the supplied node.
 			 * This method will not duplicate node connections.
 			 *
 			 * @param InNodeController - Node to duplicate.
@@ -726,7 +709,7 @@ namespace Metasound
 			 *
 			 * @return A pointer to the found object, or nullptr if it could not be found.
 			 */
-			virtual FConstClassAccessPtr FindClass(const FNodeClassInfo& InNodeClass) const = 0; // TODO: swap for just using metadata in future. 
+			virtual FConstClassAccessPtr FindClass(const FNodeRegistryKey& InKey) const = 0; 
 
 			/** Attempts to find an existing Metasound class description corresponding
 			 * to a dependency which matches the provided class information. If the
@@ -735,7 +718,7 @@ namespace Metasound
 			 *
 			 * @return A pointer to the object, or nullptr on error.
 			 */
-			virtual FConstClassAccessPtr FindOrAddClass(const FNodeClassInfo& InNodeClass) = 0; // TODO: swap for just using metadata in future. 
+			virtual FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey) = 0; 
 
 			/** Returns an existing Metasound class description corresponding to 
 			 * a dependency which matches the provided class information.

@@ -32,49 +32,71 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 		AssetName = OwningAsset->GetName();
 	}
 
-
-	// Function for creating a core INode.
-	FCreateMetasoundNodeFunction CreateNode = [Name=AssetName, DocumentPtr=DocumentPtr](const Metasound::FNodeInitData& InInitData) -> TUniquePtr<INode>
+	// Registers node by copying document. Updates to document require re-registration.
+	class FNodeRegistryEntry : public INodeRegistryEntry
 	{
-		check(IsInGameThread());
-
-		if (const FMetasoundFrontendDocument* Document = DocumentPtr.Get())
+	public:
+		FNodeRegistryEntry(const FString& InName, const FMetasoundFrontendDocument& InDocument)
+		: Name(InName)
+		, Document(InDocument)
 		{
-			return FFrontendGraphBuilder().CreateGraph(*Document);
-		}
-		else
-		{
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to create node for MetaSoundSource [Name:%s]"), *Name);
-			return TUniquePtr<INode>(nullptr);
-		}
-	};
-
-	// Function for creating a frontend class.
-	FCreateMetasoundFrontendClassFunction CreateFrontendClass = [Name=AssetName, DocumentPtr=DocumentPtr]() -> FMetasoundFrontendClass
-	{
-		check(IsInGameThread());
-
-		FMetasoundFrontendClass FrontendClass;
-		if (const FMetasoundFrontendDocument* Document = DocumentPtr.Get())
-		{
-			FrontendClass = Document->RootGraph;
+			// Copy frontend class to preserve original document.
+			FrontendClass = Document.RootGraph;
 			FrontendClass.Metadata.Type = EMetasoundFrontendClassType::External;
-		}
-		else
-		{
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to create frontend class for MetaSoundSource [Name:%s]"), *Name);
+			ClassInfo = FNodeClassInfo{FrontendClass};
 		}
 
-		return FrontendClass;
+		virtual ~FNodeRegistryEntry() = default;
+
+		virtual const FNodeClassInfo& GetClassInfo() const override
+		{
+			return ClassInfo;
+		}
+
+		virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&&) const override
+		{
+			return nullptr;
+		}
+
+		virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&&) const override
+		{
+			return nullptr;
+		}
+
+		virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
+		{
+			return FFrontendGraphBuilder().CreateGraph(Document);
+		}
+
+		virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+		{
+			return FrontendClass;
+		}
+
+		virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+		{
+			return MakeUnique<FNodeRegistryEntry>(Name, Document);
+		}
+
+	private:
+		
+		FString Name;
+		FMetasoundFrontendDocument Document;
+		FMetasoundFrontendClass FrontendClass;
+		FNodeClassInfo ClassInfo;
 	};
+
 
 	if (IsValidNodeRegistryKey(RegistryKey))
 	{
 		// Unregister prior version if it exists.
-		ensure(FMetasoundFrontendRegistryContainer::Get()->UnregisterExternalNode(RegistryKey));
+		ensure(FMetasoundFrontendRegistryContainer::Get()->UnregisterNode(RegistryKey));
 	}
-
-	RegistryKey = FMetasoundFrontendRegistryContainer::Get()->RegisterExternalNode(MoveTemp(CreateNode), MoveTemp(CreateFrontendClass));
+	
+	if (const FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
+	{
+		RegistryKey = FMetasoundFrontendRegistryContainer::Get()->RegisterNode(MakeUnique<FNodeRegistryEntry>(AssetName, *Doc));
+	}
 
 	if (!IsValidNodeRegistryKey(RegistryKey))
 	{
@@ -291,7 +313,7 @@ TArray<FString> FMetasoundAssetBase::GetTransmittableInputVertexNames() const
 		Frontend::FConstClassInputAccessPtr ClassInputPtr = RootGraph->FindClassInputWithName(InVertexName);
 		if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
 		{
-			FDataTypeRegistryInfo TypeInfo;
+			Frontend::FDataTypeRegistryInfo TypeInfo;
 			if (Frontend::GetTraitsForDataType(ClassInput->TypeName, TypeInfo))
 			{
 				if (TypeInfo.bIsTransmittable)

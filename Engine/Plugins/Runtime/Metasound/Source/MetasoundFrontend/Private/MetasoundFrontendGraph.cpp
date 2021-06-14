@@ -183,7 +183,7 @@ namespace Metasound
 					};
 
 					// TODO: create input node using external class definition
-					return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InputVertex.TypeName, MoveTemp(InitParams));
+					return FMetasoundFrontendRegistryContainer::Get()->CreateInputNode(InputVertex.TypeName, MoveTemp(InitParams));
 				}
 				else
 				{
@@ -225,7 +225,7 @@ namespace Metasound
 			}
 
 			// TODO: create output node using external class definition
-			return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(OutputVertex.TypeName, MoveTemp(InitParams));
+			return FMetasoundFrontendRegistryContainer::Get()->CreateOutputNode(OutputVertex.TypeName, MoveTemp(InitParams));
 		}
 		return TUniquePtr<INode>(nullptr);
 	}
@@ -249,7 +249,7 @@ namespace Metasound
 
 		Metasound::Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(InClass.Metadata);
 
-		return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(Key, InitData);
+		return FMetasoundFrontendRegistryContainer::Get()->CreateNode(Key, InitData);
 	}
 
 	const FMetasoundFrontendClassInput* FFrontendGraphBuilder::FindClassInputForInputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InInputNode, int32& OutClassInputIndex)
@@ -530,7 +530,7 @@ namespace Metasound
 			// 1. Construct and add the default variable to the graph
 			{
 				FVariableNodeConstructorParams InitParams = VariableData.InitParams.Clone();
-				TUniquePtr<const INode> DefaultVariable = FMetasoundFrontendRegistryContainer::Get()->ConstructVariableNode(VariableData.TypeName, MoveTemp(InitParams));
+				TUniquePtr<const INode> DefaultVariable = FMetasoundFrontendRegistryContainer::Get()->CreateVariableNode(VariableData.TypeName, MoveTemp(InitParams));
 				InGraphContext.Graph->AddNode(VariableNodeID, TSharedPtr<const INode>(DefaultVariable.Release()));
 			}
 

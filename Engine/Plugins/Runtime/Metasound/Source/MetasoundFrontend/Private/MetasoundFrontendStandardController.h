@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundBuilderInterface.h"
-#include "MetasoundFrontendBaseClasses.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendInvalidController.h"
@@ -21,6 +20,7 @@ namespace Metasound
 		 */
 		class FBaseOutputController : public IOutputController
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
 		public:
 
 			struct FInitParams
@@ -92,6 +92,7 @@ namespace Metasound
 		 */
 		class FInputNodeOutputController : public FBaseOutputController
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
 		public:
 			struct FInitParams
 			{
@@ -136,6 +137,7 @@ namespace Metasound
 		 */
 		class FOutputNodeOutputController : public FBaseOutputController
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
 		public:
 			struct FInitParams
 			{
@@ -176,6 +178,7 @@ namespace Metasound
 		 */
 		class FBaseInputController : public IInputController 
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
 		public:
 
 			struct FInitParams
@@ -252,6 +255,7 @@ namespace Metasound
 		 */
 		class FOutputNodeInputController : public FBaseInputController 
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
 		public:
 			struct FInitParams
 			{
@@ -293,6 +297,7 @@ namespace Metasound
 		 */
 		class FInputNodeInputController : public FBaseInputController 
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
 		public:
 			struct FInitParams
 			{
@@ -331,6 +336,7 @@ namespace Metasound
 		 */
 		class FBaseNodeController : public INodeController
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
 		public:
 
 			struct FInitParams
@@ -489,6 +495,8 @@ namespace Metasound
 		/** FNodeController represents a external or subgraph node. */
 		class FNodeController : public FBaseNodeController
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
+
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
 
@@ -539,6 +547,8 @@ namespace Metasound
 		/** FOutputNodeController represents an output node. */
 		class FOutputNodeController: public FBaseNodeController
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
+
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
 
@@ -600,6 +610,8 @@ namespace Metasound
 		/** FInputNodeController represents an input node. */
 		class FInputNodeController: public FBaseNodeController
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
+
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
 
@@ -665,6 +677,7 @@ namespace Metasound
 		/** FGraphController represents a Metasound graph class. */
 		class FGraphController : public IGraphController
 		{
+			using FRegistry = FMetasoundFrontendRegistryContainer;
 
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
@@ -779,7 +792,6 @@ namespace Metasound
 			// @returns false if the input name couldn't be found.
 			bool ClearLiteralForInput(const FString& InInputName, FGuid InVertexID) override;
 
-			FNodeHandle AddNode(const FNodeClassInfo& InNodeClass) override;
 			FNodeHandle AddNode(const FNodeRegistryKey& InNodeClass) override;
 			FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata) override;
 			FNodeHandle AddDuplicateNode(const INodeController& InNode) override;
@@ -867,9 +879,6 @@ namespace Metasound
 			FClassOutputAccessPtr FindOutputDescriptionWithNodeID(FGuid InNodeID);
 			FConstClassOutputAccessPtr FindOutputDescriptionWithNodeID(FGuid InNodeID) const;
 
-			FMetasoundFrontendClassMetadata CreateInputClassMetadata(const FMetasoundFrontendClassInput& InClassInput);
-			FMetasoundFrontendClassMetadata CreateOutputClassMetadata(const FMetasoundFrontendClassOutput& InClassOutput);
-
 			FGraphClassAccessPtr GraphClassPtr;
 			FDocumentHandle OwningDocument; 
 		};
@@ -909,10 +918,10 @@ namespace Metasound
 			FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const override;
 			FConstClassAccessPtr FindClassWithID(FGuid InClassID) const override;
 
-			FConstClassAccessPtr FindClass(const FNodeClassInfo& InNodeClass) const override;
+			FConstClassAccessPtr FindClass(const FNodeRegistryKey& InKey) const override;
 			FConstClassAccessPtr FindClass(const FMetasoundFrontendClassMetadata& InMetadata) const override;
 
-			FConstClassAccessPtr FindOrAddClass(const FNodeClassInfo& InNodeClass) override;
+			FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey) override;
 			FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override;
 
 			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override;
@@ -942,6 +951,7 @@ namespace Metasound
 
 			static bool IsMatchingMetasoundClass(const FMetasoundFrontendClassMetadata& InMetadataA, const FMetasoundFrontendClassMetadata& InMetadataB);
 			static bool IsMatchingMetasoundClass(const FNodeClassInfo& InNodeClass, const FMetasoundFrontendClassMetadata& InMetadata);
+			static bool IsMatchingMetasoundClass(const FNodeRegistryKey& InKey, const FMetasoundFrontendClassMetadata& InMetadata);
 
 		protected:
 			FDocumentAccess ShareAccess() override;

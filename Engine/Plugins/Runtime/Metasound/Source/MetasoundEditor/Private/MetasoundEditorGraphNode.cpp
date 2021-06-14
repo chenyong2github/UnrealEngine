@@ -277,7 +277,7 @@ FString UMetasoundEditorGraphNode::GetPinMetaData(FName InPinName, FName InKey)
 				return FString();
 			}
 
-			Metasound::FDataTypeRegistryInfo DataTypeInfo;
+			Metasound::Frontend::FDataTypeRegistryInfo DataTypeInfo;
 			if (!ensure(Registry->GetInfoForDataType(Handle->GetDataType(), DataTypeInfo)))
 			{
 				return FString();

@@ -25,23 +25,6 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		TArray<FNodeClassInfo> GetAllAvailableNodeClasses(FRegistryTransactionID* OutCurrentRegistryTransactionID)
-		{
-			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-			if (ensure(nullptr != Registry))
-			{
-				return Registry->GetAllAvailableNodeClasses(OutCurrentRegistryTransactionID);
-			}
-			else
-			{
-				if (nullptr != OutCurrentRegistryTransactionID)
-				{
-					*OutCurrentRegistryTransactionID = GetOriginRegistryTransactionID();
-				}
-				return TArray<FNodeClassInfo>();
-			}
-		}
-
 		TArray<const IRegistryTransaction*> GetRegistryTransactionsSince(FRegistryTransactionID InTransactionID, FRegistryTransactionID* OutCurrentTransactionID)
 		{
 			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
@@ -60,9 +43,9 @@ namespace Metasound
 		}
 
 		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
-		FMetasoundFrontendClassMetadata GenerateClassMetadata(const FNodeClassInfo& InInfo)
+		FMetasoundFrontendClassMetadata GenerateClassMetadata(const FNodeRegistryKey& InKey)
 		{
-			return GenerateClassDescription(InInfo).Metadata;
+			return GenerateClassDescription(InKey).Metadata;
 		}
 
 		FMetasoundFrontendClass GenerateClassDescription(const FNodeClassMetadata& InNodeMetadata, EMetasoundFrontendClassType ClassType)
@@ -155,7 +138,7 @@ namespace Metasound
 			return ClassDescription;
 		}
 
-		FMetasoundFrontendClass GenerateClassDescription(const FNodeClassInfo& InNodeInfo)
+		FMetasoundFrontendClass GenerateClassDescription(const FNodeRegistryKey& InKey)
 		{
 			FMetasoundFrontendClass OutClass;
 
@@ -163,8 +146,8 @@ namespace Metasound
 
 			if (ensure(nullptr != Registry))
 			{
-				bool bSuccess = Registry->FindFrontendClassFromRegistered(InNodeInfo, OutClass);
-				ensureAlwaysMsgf(bSuccess, TEXT("Cannot generate description of unregistered node [RegistryKey:%s]"), *InNodeInfo.LookupKey);
+				bool bSuccess = Registry->FindFrontendClassFromRegistered(InKey, OutClass);
+				ensureAlwaysMsgf(bSuccess, TEXT("Cannot generate description of unregistered node [RegistryKey:%s]"), *InKey);
 			}
 
 			return OutClass;

@@ -94,70 +94,84 @@ namespace Metasound
 			}
 		}
 
-		FRegistryTransactionPtr MakeAddNodeRegistryTransaction(const FNodeClassInfo& InInfo)
+		FRegistryTransactionPtr MakeAddNodeRegistryTransaction(const FNodeRegistryKey& InKey, const FNodeClassInfo& InInfo)
 		{
 			class FNodeRegistryTransaction : public IRegistryTransaction
 			{
 			public:
-				FNodeRegistryTransaction(const FNodeClassInfo& InNodeClassInfo)
+				FNodeRegistryTransaction(const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo)
 				: NodeClassInfo(InNodeClassInfo)
+				, Key(InKey)
 				{
 				}
 
-				ETransactionType GetTransactionType() const override
+				virtual ETransactionType GetTransactionType() const override
 				{
 					return ETransactionType::Add;
 				}
 
-				TUniquePtr<IRegistryTransaction> Clone() const override
+				virtual TUniquePtr<IRegistryTransaction> Clone() const override
 				{
 					return MakeUnique<FNodeRegistryTransaction>(*this);
 				}
 
-				const FNodeClassInfo* GetNodeClassInfo() const 
+				virtual const FNodeClassInfo* GetNodeClassInfo() const override
 				{
 					return &NodeClassInfo;
+				}
+
+				virtual const FNodeRegistryKey* GetNodeRegistryKey() const override
+				{
+					return &Key;
 				}
 
 			private:
 
 				FNodeClassInfo NodeClassInfo;
+				FNodeRegistryKey Key;
 			};
 
-			return MakeUnique<FNodeRegistryTransaction>(InInfo);
+			return MakeUnique<FNodeRegistryTransaction>(InKey, InInfo);
 		}
 
-		FRegistryTransactionPtr MakeRemoveNodeRegistryTransaction(const FNodeClassInfo& InInfo)
+		FRegistryTransactionPtr MakeRemoveNodeRegistryTransaction(const FNodeRegistryKey& InKey, const FNodeClassInfo& InInfo)
 		{
 			class FNodeRegistryTransaction : public IRegistryTransaction
 			{
 			public:
-				FNodeRegistryTransaction(const FNodeClassInfo& InNodeClassInfo)
+				FNodeRegistryTransaction(const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo)
 				: NodeClassInfo(InNodeClassInfo)
+				, Key(InKey)
 				{
 				}
 
-				ETransactionType GetTransactionType() const override
+				virtual ETransactionType GetTransactionType() const override
 				{
 					return ETransactionType::Remove;
 				}
 
-				TUniquePtr<IRegistryTransaction> Clone() const override
+				virtual TUniquePtr<IRegistryTransaction> Clone() const override
 				{
 					return MakeUnique<FNodeRegistryTransaction>(*this);
 				}
 
-				const FNodeClassInfo* GetNodeClassInfo() const 
+				virtual const FNodeClassInfo* GetNodeClassInfo() const override
 				{
 					return &NodeClassInfo;
+				}
+
+				virtual const FNodeRegistryKey* GetNodeRegistryKey() const override
+				{
+					return &Key;
 				}
 
 			private:
 
 				FNodeClassInfo NodeClassInfo;
+				FNodeRegistryKey Key;
 			};
 
-			return MakeUnique<FNodeRegistryTransaction>(InInfo);
+			return MakeUnique<FNodeRegistryTransaction>(InKey, InInfo);
 		}
 	}
 }

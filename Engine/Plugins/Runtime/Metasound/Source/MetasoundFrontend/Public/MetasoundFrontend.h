@@ -20,9 +20,6 @@ namespace Metasound
 
 		METASOUNDFRONTEND_API FRegistryTransactionID GetCurrentRegistryTransactionID();
 
-		// Get all available nodes of any type.
-		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllAvailableNodeClasses(FRegistryTransactionID* OutCurrentTransactionID=nullptr);
-
 		/** Return all registry transactions that have occurred since the given transaction ID. 
 		 *
 		 * @param InTransactionID - Initial transaction ID. 
@@ -38,7 +35,7 @@ namespace Metasound
 		 *
 		 * @return Metadata for node.
 		 */
-		METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata GenerateClassMetadata(const FNodeClassInfo& InInfo);
+		METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata GenerateClassMetadata(const FNodeRegistryKey& InKey);
 
 		/** Generates a new FMetasoundFrontendClass from Node Metadata 
 		 *
@@ -54,7 +51,7 @@ namespace Metasound
 		 *
 		 * @return Class description for external node.
 		 */
-		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClassDescription(const Metasound::Frontend::FNodeClassInfo& InInfo);
+		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClassDescription(const Metasound::Frontend::FNodeRegistryKey& InKey);
 
 		/** Generates a new FMetasoundFrontendClass from Node init data
 		 *
@@ -132,6 +129,5 @@ namespace Metasound
 			// to convert between the input and output.
 			TArray<FConverterNodeInfo> PossibleConverterNodeClasses;
 		};
-
 	} // namespace Frontend
 } // namespace Metasound

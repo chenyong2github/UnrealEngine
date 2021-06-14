@@ -40,19 +40,59 @@ namespace Metasound
 
 		bAlreadyRegisteredThisDataType = true;
 
-		Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::Get()->RegisterExternalNode(
-			[](const Metasound::FNodeInitData& InInitData) -> TUniquePtr<Metasound::INode>
+		// Node registry entry specialized to FNodeType.
+		class FNodeRegistryEntry : public Frontend::INodeRegistryEntry
+		{
+		public:
+			FNodeRegistryEntry(const Metasound::FNodeClassMetadata& InMetadata)
+			: ClassInfo(InMetadata)
+			, FrontendClass(Metasound::Frontend::GenerateClassDescription(InMetadata)) 
 			{
-				return TUniquePtr<Metasound::INode>(new FNodeType(InInitData));
-			},
-			[=]() -> FMetasoundFrontendClass
-			{
-				return Metasound::Frontend::GenerateClassDescription(InMetadata);
 			}
-		);
-			
+
+			virtual ~FNodeRegistryEntry() = default;
+
+			virtual const Frontend::FNodeClassInfo& GetClassInfo() const override
+			{
+				return ClassInfo;
+			}
+
+			virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&& InParams) const override
+			{
+				return nullptr;
+			}
+		
+			virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
+			{
+				return nullptr;
+			}
+
+			virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const override
+			{
+				return MakeUnique<FNodeType>(InParams);
+			}
+
+			virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+			{
+				return FrontendClass;
+			}
+
+			virtual TUniquePtr<INodeRegistryEntry> Clone() const 
+			{
+				return MakeUnique<FNodeRegistryEntry>(*this);
+			}
+
+		private:
+
+			Frontend::FNodeClassInfo ClassInfo;
+			FMetasoundFrontendClass FrontendClass;
+		};
+
+
+		Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::Get()->RegisterNode(MakeUnique<FNodeRegistryEntry>(InMetadata));
 		const bool bSuccessfullyRegisteredNode = Frontend::IsValidNodeRegistryKey(Key);
 		ensureAlwaysMsgf(bSuccessfullyRegisteredNode, TEXT("Registering node class failed. Please check the logs."));
+
 		return bSuccessfullyRegisteredNode;
 	}
 
