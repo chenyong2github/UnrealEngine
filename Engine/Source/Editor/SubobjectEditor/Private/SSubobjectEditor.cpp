@@ -1925,7 +1925,7 @@ bool SSubobject_RowWidget::IsReadOnly() const
 ////////////////////////////////////////////////
 // SSubobjectEditor
 
-FMenuBuilder SSubobjectEditor::CreateMenuBuilder() const
+FMenuBuilder SSubobjectEditor::CreateMenuBuilder()
 {
 	// Menu builder for editing a blueprint
 	FMenuBuilder EditBlueprintMenuBuilder(true, nullptr);

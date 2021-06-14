@@ -44,6 +44,7 @@ protected:
     virtual TSharedPtr<SWidget> BuildSceneRootDropActionMenu(FSubobjectEditorTreeNodePtrType DroppedOntoNodePtr, FSubobjectEditorTreeNodePtrType DroppedNodePtr) override;
 	virtual FSubobjectDataHandle AddNewSubobject(const FSubobjectDataHandle& ParentHandle, UClass* NewClass, UObject* AssetOverride, FText& OutFailReason, TUniquePtr<FScopedTransaction> InOngoingTransaction) override;
 	virtual void PopulateContextMenuImpl(UToolMenu* InMenu, TArray<FSubobjectEditorTreeNodePtrType>& InSelectedItems, bool bIsChildActorSubtreeNodeSelected) override;
+	virtual FMenuBuilder CreateMenuBuilder();
 
 public:
 	virtual FSlateColor GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const override;
@@ -51,5 +52,19 @@ public:
 
 	/** Delegate to invoke when objects within the Subobject tree are replaced (eg, via re-instancing from a BP compile) */
 	FSimpleDelegate OnObjectReplaced;
+
+private:
+
+	/** @return the tooltip describing how many properties will be applied to the blueprint */
+	FText OnGetApplyChangesToBlueprintTooltip() const;
+
+	/** Propagates instance changes to the blueprint */
+	void OnApplyChangesToBlueprint() const;
+
+	/** Resets instance changes to the blueprint default */
+	void OnResetToBlueprintDefaults();
+
+	/** @return the tooltip describing how many properties will be reset to the blueprint default*/
+	FText OnGetResetToBlueprintDefaultsTooltip() const;
 
 };
