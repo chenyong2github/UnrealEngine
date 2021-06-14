@@ -421,7 +421,7 @@ public:
 	/** True to smoothly interpolate color scale values when they change. */
 	uint32 bEnableColorScaleInterp : 1;
 
-	/** True if clients are handling setting their own viewtarget and the server should not replicate it (e.g. during certain Matinee sequences) */
+	/** True if clients are handling setting their own viewtarget and the server should not replicate it. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PlayerCameraManager)
 	uint32 bClientSimulatingViewTarget : 1;
 

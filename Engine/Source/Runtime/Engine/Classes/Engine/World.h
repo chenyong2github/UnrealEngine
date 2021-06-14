@@ -36,7 +36,6 @@ class ACameraActor;
 class AController;
 class AGameModeBase;
 class AGameStateBase;
-class AMatineeActor;
 class APhysicsVolume;
 class APlayerController;
 class AWorldSettings;
@@ -3827,9 +3826,6 @@ public:
 
 	/** Sets world origin at specified position and stream-in all relevant levels */
 	void NavigateTo(FIntVector InLocation);
-
-	/** Gets all matinee actors for the current level */
-	void GetMatineeActors( TArray<AMatineeActor*>& OutMatineeActors );
 
 	/** Updates all physics constraint actor joint locations.  */
 	void UpdateConstraintActors();

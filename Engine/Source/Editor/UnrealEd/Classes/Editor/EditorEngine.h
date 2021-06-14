@@ -36,6 +36,7 @@
 
 class APlayerStart;
 class Error;
+class AMatineeActor;
 class FEditorViewportClient;
 class FEditorWorldManager;
 class FMessageLog;

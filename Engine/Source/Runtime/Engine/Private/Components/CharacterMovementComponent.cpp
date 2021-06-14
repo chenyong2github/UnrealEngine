@@ -1690,7 +1690,7 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 			// Avoid moving the mesh during movement if SmoothClientPosition will take care of it.
 			{
 				const FScopedPreventAttachedComponentMove PreventMeshMovement(bPreventMeshMovement ? Mesh : nullptr);
-				if (CharacterOwner->IsMatineeControlled() || CharacterOwner->IsPlayingRootMotion())
+				if (CharacterOwner->IsPlayingRootMotion())
 				{
 					PerformMovement(DeltaSeconds);
 				}
@@ -2108,81 +2108,71 @@ void UCharacterMovementComponent::UpdateBasedMovement(float DeltaSeconds)
 		const FQuatRotationTranslationMatrix OldLocalToWorld(OldBaseQuat, OldBaseLocation);
 		const FQuatRotationTranslationMatrix NewLocalToWorld(NewBaseQuat, NewBaseLocation);
 
-		if( CharacterOwner->IsMatineeControlled() )
-		{
-			FRotationTranslationMatrix HardRelMatrix(CharacterOwner->GetBasedMovement().Rotation, CharacterOwner->GetBasedMovement().Location);
-			const FMatrix NewWorldTM = HardRelMatrix * NewLocalToWorld;
-			const FQuat NewWorldRot = bIgnoreBaseRotation ? UpdatedComponent->GetComponentQuat() : NewWorldTM.ToQuat();
-			MoveUpdatedComponent( NewWorldTM.GetOrigin() - UpdatedComponent->GetComponentLocation(), NewWorldRot, true );
-		}
-		else
-		{
-			FQuat FinalQuat = UpdatedComponent->GetComponentQuat();
+		FQuat FinalQuat = UpdatedComponent->GetComponentQuat();
 			
-			if (bRotationChanged && !bIgnoreBaseRotation)
+		if (bRotationChanged && !bIgnoreBaseRotation)
+		{
+			// Apply change in rotation and pipe through FaceRotation to maintain axis restrictions
+			const FQuat PawnOldQuat = UpdatedComponent->GetComponentQuat();
+			const FQuat TargetQuat = DeltaQuat * FinalQuat;
+			FRotator TargetRotator(TargetQuat);
+			CharacterOwner->FaceRotation(TargetRotator, 0.f);
+			FinalQuat = UpdatedComponent->GetComponentQuat();
+
+			if (PawnOldQuat.Equals(FinalQuat, 1e-6f))
 			{
-				// Apply change in rotation and pipe through FaceRotation to maintain axis restrictions
-				const FQuat PawnOldQuat = UpdatedComponent->GetComponentQuat();
-				const FQuat TargetQuat = DeltaQuat * FinalQuat;
-				FRotator TargetRotator(TargetQuat);
-				CharacterOwner->FaceRotation(TargetRotator, 0.f);
-				FinalQuat = UpdatedComponent->GetComponentQuat();
-
-				if (PawnOldQuat.Equals(FinalQuat, 1e-6f))
+				// Nothing changed. This means we probably are using another rotation mechanism (bOrientToMovement etc). We should still follow the base object.
+				// @todo: This assumes only Yaw is used, currently a valid assumption. This is the only reason FaceRotation() is used above really, aside from being a virtual hook.
+				if (bOrientRotationToMovement || (bUseControllerDesiredRotation && CharacterOwner->Controller))
 				{
-					// Nothing changed. This means we probably are using another rotation mechanism (bOrientToMovement etc). We should still follow the base object.
-					// @todo: This assumes only Yaw is used, currently a valid assumption. This is the only reason FaceRotation() is used above really, aside from being a virtual hook.
-					if (bOrientRotationToMovement || (bUseControllerDesiredRotation && CharacterOwner->Controller))
-					{
-						TargetRotator.Pitch = 0.f;
-						TargetRotator.Roll = 0.f;
-						MoveUpdatedComponent(FVector::ZeroVector, TargetRotator, false);
-						FinalQuat = UpdatedComponent->GetComponentQuat();
-					}
-				}
-
-				// Pipe through ControlRotation, to affect camera.
-				if (CharacterOwner->Controller)
-				{
-					const FQuat PawnDeltaRotation = FinalQuat * PawnOldQuat.Inverse();
-					FRotator FinalRotation = FinalQuat.Rotator();
-					UpdateBasedRotation(FinalRotation, PawnDeltaRotation.Rotator());
+					TargetRotator.Pitch = 0.f;
+					TargetRotator.Roll = 0.f;
+					MoveUpdatedComponent(FVector::ZeroVector, TargetRotator, false);
 					FinalQuat = UpdatedComponent->GetComponentQuat();
 				}
 			}
 
-			// We need to offset the base of the character here, not its origin, so offset by half height
-			float HalfHeight, Radius;
-			CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleSize(Radius, HalfHeight);
-
-			FVector const BaseOffset(0.0f, 0.0f, HalfHeight);
-			FVector const LocalBasePos = OldLocalToWorld.InverseTransformPosition(UpdatedComponent->GetComponentLocation() - BaseOffset);
-			FVector const NewWorldPos = ConstrainLocationToPlane(NewLocalToWorld.TransformPosition(LocalBasePos) + BaseOffset);
-			DeltaPosition = ConstrainDirectionToPlane(NewWorldPos - UpdatedComponent->GetComponentLocation());
-
-			// move attached actor
-			if (bFastAttachedMove)
+			// Pipe through ControlRotation, to affect camera.
+			if (CharacterOwner->Controller)
 			{
-				// we're trusting no other obstacle can prevent the move here
-				UpdatedComponent->SetWorldLocationAndRotation(NewWorldPos, FinalQuat, false);
+				const FQuat PawnDeltaRotation = FinalQuat * PawnOldQuat.Inverse();
+				FRotator FinalRotation = FinalQuat.Rotator();
+				UpdateBasedRotation(FinalRotation, PawnDeltaRotation.Rotator());
+				FinalQuat = UpdatedComponent->GetComponentQuat();
 			}
-			else
-			{
-				// hack - transforms between local and world space introducing slight error FIXMESTEVE - discuss with engine team: just skip the transforms if no rotation?
-				FVector BaseMoveDelta = NewBaseLocation - OldBaseLocation;
-				if (!bRotationChanged && (BaseMoveDelta.X == 0.f) && (BaseMoveDelta.Y == 0.f))
-				{
-					DeltaPosition.X = 0.f;
-					DeltaPosition.Y = 0.f;
-				}
+		}
 
-				FHitResult MoveOnBaseHit(1.f);
-				const FVector OldLocation = UpdatedComponent->GetComponentLocation();
-				MoveUpdatedComponent(DeltaPosition, FinalQuat, true, &MoveOnBaseHit);
-				if ((UpdatedComponent->GetComponentLocation() - (OldLocation + DeltaPosition)).IsNearlyZero() == false)
-				{
-					OnUnableToFollowBaseMove(DeltaPosition, OldLocation, MoveOnBaseHit);
-				}
+		// We need to offset the base of the character here, not its origin, so offset by half height
+		float HalfHeight, Radius;
+		CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleSize(Radius, HalfHeight);
+
+		FVector const BaseOffset(0.0f, 0.0f, HalfHeight);
+		FVector const LocalBasePos = OldLocalToWorld.InverseTransformPosition(UpdatedComponent->GetComponentLocation() - BaseOffset);
+		FVector const NewWorldPos = ConstrainLocationToPlane(NewLocalToWorld.TransformPosition(LocalBasePos) + BaseOffset);
+		DeltaPosition = ConstrainDirectionToPlane(NewWorldPos - UpdatedComponent->GetComponentLocation());
+
+		// move attached actor
+		if (bFastAttachedMove)
+		{
+			// we're trusting no other obstacle can prevent the move here
+			UpdatedComponent->SetWorldLocationAndRotation(NewWorldPos, FinalQuat, false);
+		}
+		else
+		{
+			// hack - transforms between local and world space introducing slight error FIXMESTEVE - discuss with engine team: just skip the transforms if no rotation?
+			FVector BaseMoveDelta = NewBaseLocation - OldBaseLocation;
+			if (!bRotationChanged && (BaseMoveDelta.X == 0.f) && (BaseMoveDelta.Y == 0.f))
+			{
+				DeltaPosition.X = 0.f;
+				DeltaPosition.Y = 0.f;
+			}
+
+			FHitResult MoveOnBaseHit(1.f);
+			const FVector OldLocation = UpdatedComponent->GetComponentLocation();
+			MoveUpdatedComponent(DeltaPosition, FinalQuat, true, &MoveOnBaseHit);
+			if ((UpdatedComponent->GetComponentLocation() - (OldLocation + DeltaPosition)).IsNearlyZero() == false)
+			{
+				OnUnableToFollowBaseMove(DeltaPosition, OldLocation, MoveOnBaseHit);
 			}
 		}
 
@@ -2490,7 +2480,7 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 		// Update character state based on change from movement
 		UpdateCharacterStateAfterMovement(DeltaSeconds);
 
-		if ((bAllowPhysicsRotationDuringAnimRootMotion || !HasAnimRootMotion()) && !CharacterOwner->IsMatineeControlled())
+		if (bAllowPhysicsRotationDuringAnimRootMotion || !HasAnimRootMotion())
 		{
 			PhysicsRotation(DeltaSeconds);
 		}
@@ -2652,7 +2642,7 @@ void UCharacterMovementComponent::SaveBaseLocation()
 		// Read transforms into OldBaseLocation, OldBaseQuat. Do this regardless of whether the object is movable, since mobility can change.
 		MovementBaseUtility::GetMovementBaseTransform(MovementBase, CharacterOwner->GetBasedMovement().BoneName, OldBaseLocation, OldBaseQuat);
 
-		if (MovementBaseUtility::UseRelativeLocation(MovementBase) && !CharacterOwner->IsMatineeControlled())
+		if (MovementBaseUtility::UseRelativeLocation(MovementBase))
 		{
 			// Relative Location
 			const FVector RelativeLocation = UpdatedComponent->GetComponentLocation() - OldBaseLocation;
@@ -3483,10 +3473,6 @@ bool UCharacterMovementComponent::CanStartPathFollowing() const
 	if (CharacterOwner)
 	{
 		if (CharacterOwner->GetRootComponent() && CharacterOwner->GetRootComponent()->IsSimulatingPhysics())
-		{
-			return false;
-		}
-		else if (CharacterOwner->IsMatineeControlled())
 		{
 			return false;
 		}
@@ -6959,10 +6945,6 @@ FString UCharacterMovementComponent::GetMovementName() const
 		if ( CharacterOwner->GetRootComponent() && CharacterOwner->GetRootComponent()->IsSimulatingPhysics() )
 		{
 			return TEXT("Rigid Body");
-		}
-		else if ( CharacterOwner->IsMatineeControlled() )
-		{
-			return TEXT("Matinee");
 		}
 	}
 
@@ -12073,7 +12055,6 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 		return;
 	}
 
-	ensure(CharacterOwner->IsMatineeControlled() == false); // See UpdateBasedMovement
 	ensure(UpdatedComponent); // assumed to exist in  MockMoveUpdatedComponent
 	ensure(HasRootMotionSources() == false); // Skipped some impl in PerformMovement, is this required for first test?
 	ensure(CharacterOwner->GetCapsuleComponent()); // check in FindFloor

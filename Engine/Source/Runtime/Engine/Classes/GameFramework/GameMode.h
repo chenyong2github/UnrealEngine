@@ -192,9 +192,6 @@ public:
 	/** SetViewTarget of player control on server change */
 	virtual void SetSeamlessTravelViewTarget(APlayerController* PC);
 
-	/** Called when this PC is in cinematic mode, and its matinee is canceled by the user. */
-	virtual void MatineeCancelled();
-
 	/**
 	 * Called from CommitMapChange before unloading previous level. Used for asynchronous level streaming
 	 * @param PreviousMapName - Name of the previous persistent level
