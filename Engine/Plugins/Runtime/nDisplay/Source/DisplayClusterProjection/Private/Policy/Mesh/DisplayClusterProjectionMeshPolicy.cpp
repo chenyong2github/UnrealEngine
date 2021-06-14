@@ -29,15 +29,16 @@ bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(class IDisplay
 	if (WarpBlendInterface.IsValid() == false)
 	{
 		FDisplayClusterWarpBlendConstruct::FAssignWarpMesh CreateParameters;
-		if (GetWarpMeshAndOrigin(InViewport, CreateParameters.MeshComponent, CreateParameters.OriginComponent))
+		if (!GetWarpMeshAndOrigin(InViewport, CreateParameters.MeshComponent, CreateParameters.OriginComponent))
 		{
-			IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
+			return false;
+		}
 
-			if (!ShadersAPI.GetWarpBlendManager().Create(CreateParameters, WarpBlendInterface))
-			{
-				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
-				return false;
-			}
+		IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
+		if (!ShadersAPI.GetWarpBlendManager().Create(CreateParameters, WarpBlendInterface))
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
+			return false;
 		}
 	}
 
