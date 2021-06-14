@@ -18,6 +18,9 @@
 
 // BitStreamReader
 // Helper 'class' for efficiently parsing bit streams of arbitrary length.
+#define CONCAT2(A, B) A##B
+#define CONCAT(A, B) CONCAT2(A, B)
+#define FBitStreamReaderStateType CONCAT(FBitStreamReaderState, TYPE_SUFFIX)
 
 struct FBitStreamReaderStateType
 {
@@ -41,7 +44,7 @@ struct FBitStreamReaderStateType
 	int		CompileTimeMaxRemainingBits;
 };
 
-FBitStreamReaderStateType BitStreamReader_Create_Aligned(
+FBitStreamReaderStateType CONCAT(BitStreamReader_Create_Aligned_, TYPE_SUFFIX)(
 #if RO_ENABLED
 	ByteAddressBuffer InputBufferRO,
 #endif
@@ -77,7 +80,7 @@ FBitStreamReaderStateType BitStreamReader_Create_Aligned(
 	return State;
 }
 
-FBitStreamReaderStateType BitStreamReader_Create(
+FBitStreamReaderStateType CONCAT(BitStreamReader_Create_, TYPE_SUFFIX)(
 #if RO_ENABLED
 	ByteAddressBuffer InputBufferRO,
 #endif
@@ -91,7 +94,7 @@ FBitStreamReaderStateType BitStreamReader_Create(
 {
 	uint AlignedByteAddress = ByteAddress & ~3u;
 	BitOffset += (ByteAddress & 3u) << 3;
-	return BitStreamReader_Create_Aligned(
+	return CONCAT(BitStreamReader_Create_Aligned_, TYPE_SUFFIX)(
 #if RO_ENABLED
 		InputBufferRO,
 #endif
@@ -181,3 +184,5 @@ uint4 BitStreamReader_Read4(inout FBitStreamReaderStateType State, int4 NumBits,
 	uint ResultW = BitStreamReader_Read(State, NumBits.w, CompileTimeMaxBits.w);
 	return uint4(ResultX, ResultY, ResultZ, ResultW);
 }
+#undef CONCAT
+#undef CONCAT2

@@ -287,9 +287,9 @@ FNaniteAttributeData GetAttributeData(
 #else
 	const uint MaxAttributeBits = CalculateMaxAttributeBits(CompileTimeMaxTexCoords);
 
-	FBitStreamReaderStateRO AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
-	FBitStreamReaderStateRO AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
-	FBitStreamReaderStateRO AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream0 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream1 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream2 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
 
 	uint NormalBits0 = BitStreamReader_Read(AttributeStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
 	uint NormalBits1 = BitStreamReader_Read(AttributeStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
@@ -462,9 +462,9 @@ FTexCoord GetTexCoord(
 
 	const uint BitOffset = 2 * NORMAL_QUANTIZATION_BITS + dot(NumColorComponentBits, 1u) + TexCoord_OffsetBits;
 
-	FBitStreamReaderStateRO AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.x * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
-	FBitStreamReaderStateRO AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.y * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
-	FBitStreamReaderStateRO AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.z * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream0 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.x * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream1 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.y * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream2 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.z * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
 #endif
 
 #if USE_UNCOMPRESSED_VERTEX_DATA
