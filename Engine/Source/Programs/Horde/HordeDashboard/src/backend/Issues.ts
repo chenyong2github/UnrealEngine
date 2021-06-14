@@ -29,7 +29,7 @@ const getCompilerIssueSummary = (issue: GetIssueResponse, events: GetLogEventRes
 
                     if (relativePath) {
 
-                        const sourceFile = relativePath.replace(/^.*[\\\/]/, '');
+                        const sourceFile = relativePath.replace(/^.*[\\]/, '');
                         if (!sourceFiles.find(s => s === sourceFile)) {
                             sourceFiles.push(sourceFile);
                         }
