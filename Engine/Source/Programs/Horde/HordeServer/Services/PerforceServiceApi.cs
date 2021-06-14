@@ -682,19 +682,26 @@ namespace HordeServer.Services
 		{
 			await Task.Run(() =>
 			{
-				using (P4.Repository Repository = GetConnection(NoClient: true))
+				try
 				{
-					P4.Changelist Changelist = Repository.GetChangelist(Change);
-
-					Repository.Connection.Disconnect();
-
-					// the client must exist for the change list, otherwise will fail (for example, CreateNewChangeAsync deletes the client before returning)
-					using (P4.Repository UpdateRepository = GetConnection(ClientFromChange: Change, UseClientFromChange: true, Username: Changelist.OwnerName))
+					using (P4.Repository Repository = GetConnection(NoClient: true))
 					{
-						P4.Changelist UpdatedChangelist = UpdateRepository.GetChangelist(Change);
-						UpdatedChangelist.Description = Description;
-						UpdateRepository.UpdateChangelist(UpdatedChangelist);
+						P4.Changelist Changelist = Repository.GetChangelist(Change);
+
+						Repository.Connection.Disconnect();
+
+						// the client must exist for the change list, otherwise will fail (for example, CreateNewChangeAsync deletes the client before returning)
+						using (P4.Repository UpdateRepository = GetConnection(ClientFromChange: Change, UseClientFromChange: true, Username: Changelist.OwnerName))
+						{
+							P4.Changelist UpdatedChangelist = UpdateRepository.GetChangelist(Change);
+							UpdatedChangelist.Description = Description;
+							UpdateRepository.UpdateChangelist(UpdatedChangelist);
+						}
 					}
+				} 
+				catch (Exception Ex)
+				{
+					LogPerforce(1, "", $"Unable to update Changelist for CL {Change} to ${Description}, {Ex.Message}");
 				}
 			});
 		}
