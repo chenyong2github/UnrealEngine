@@ -212,7 +212,7 @@ namespace CADKernel
 		virtual const FPoint2D& Get2DPoint(EGridSpace Space, const FGrid& Grid) const = 0;
 
 		virtual const FPoint& Get3DPoint(const FGrid& Grid) const = 0;
-		virtual const FPoint& GetNormal(const FGrid& Grid) const = 0;
+		virtual const FVector& GetNormal(const FGrid& Grid) const = 0;
 
 		/**
 		 * Only for display purpose as it return a copy of the point
@@ -280,7 +280,7 @@ namespace CADKernel
 			return Grid.GetLoops3D()[LoopIndex][Index];
 		}
 
-		virtual const FPoint& GetNormal(const FGrid& Grid) const override
+		virtual const FVector& GetNormal(const FGrid& Grid) const override
 		{
 			return Grid.GetLoopNormals()[LoopIndex][Index];
 		}
@@ -427,7 +427,7 @@ namespace CADKernel
 			return Grid.GetInner3DPoint(Index);
 		}
 
-		virtual const FPoint& GetNormal(const FGrid& Grid) const override
+		virtual const FVector& GetNormal(const FGrid& Grid) const override
 		{
 			return Grid.GetPointNormal(Index);
 		}

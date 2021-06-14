@@ -151,6 +151,11 @@ namespace CADKernel
 			OtherModel.Faces.Empty();
 		}
 
+		int32 EntityCount() const
+		{
+			return Bodies.Num() + Faces.Num();
+		}
+
 		const TArray<TSharedPtr<FTopologicalFace>>& GetFaces() const
 		{
 			return Faces;

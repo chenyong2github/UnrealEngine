@@ -102,7 +102,7 @@ namespace CADKernel
 			{
 				Polyline.Normals.Emplace(Point.GradientU ^ Point.GradientV);
 			}
-			for (FPoint Normal : Polyline.Normals)
+			for (FVector Normal : Polyline.Normals)
 			{
 				Normal.Normalize();
 			}
@@ -141,13 +141,13 @@ namespace CADKernel
 			Polyline.Normals.Emplace(Point.GradientU ^ Point.GradientV);
 		}
 
-		for (FPoint& Normal : Polyline.Normals)
+		for (FVector& Normal : Polyline.Normals)
 		{
 			Normal.Normalize();
 		}
 	}
 
-	void FSurface::EvaluateNormals(const TArray<FPoint2D>& InPoints2D, TArray<FPoint>& Normals) const
+	void FSurface::EvaluateNormals(const TArray<FPoint2D>& InPoints2D, TArray<FVector>& Normals) const
 	{
 		int32 DerivativeOrder = 1;
 		TArray<FSurfacicPoint> Point3D;
@@ -160,7 +160,7 @@ namespace CADKernel
 			Normals.Emplace(Point.GradientU ^ Point.GradientV);
 		}
 
-		for (FPoint& Normal : Normals)
+		for (FVector& Normal : Normals)
 		{
 			Normal.Normalize();
 		}

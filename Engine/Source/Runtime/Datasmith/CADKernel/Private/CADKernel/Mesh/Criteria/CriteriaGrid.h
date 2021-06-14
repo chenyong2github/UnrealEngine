@@ -35,7 +35,7 @@ namespace CADKernel
 			return TrueVIndex * TrueUcoorindateCount + TrueUIndex;
 		}
 
-		const FPoint& GetPoint(int32 UIndex, int32 VIndex, bool bIsInterU, bool bIsInterV, FPoint* normal = nullptr) const;
+		const FPoint& GetPoint(int32 UIndex, int32 VIndex, bool bIsInterU, bool bIsInterV, FVector* normal = nullptr) const;
 		void Init();
 
 	public:
@@ -68,27 +68,27 @@ namespace CADKernel
 			return Grid.Points3D;
 		}
 
-		const TArray<FPoint>& GetGridNormals() const
+		const TArray<FVector>& GetGridNormals() const
 		{
 			return Grid.Normals;
 		}
 
-		const FPoint& GetPoint(int32 iU, int32 iV, FPoint* normal = nullptr) const
+		const FPoint& GetPoint(int32 iU, int32 iV, FVector* normal = nullptr) const
 		{
 			return GetPoint(iU, iV, false, false, normal);
 		}
 
-		const FPoint& GetIntermediateU(int32 iU, int32 iV, FPoint* normal = nullptr) const
+		const FPoint& GetIntermediateU(int32 iU, int32 iV, FVector* normal = nullptr) const
 		{
 			return GetPoint(iU, iV, true, false, normal);
 		}
 
-		const FPoint& GetIntermediateV(int32 iU, int32 iV, FPoint* normal = nullptr) const
+		const FPoint& GetIntermediateV(int32 iU, int32 iV, FVector* normal = nullptr) const
 		{
 			return GetPoint(iU, iV, false, true, normal);
 		}
 
-		const FPoint& GetIntermediateUV(int32 iU, int32 iV, FPoint* normal = nullptr) const
+		const FPoint& GetIntermediateUV(int32 iU, int32 iV, FVector* normal = nullptr) const
 		{
 			return GetPoint(iU, iV, true, true, normal);
 		}

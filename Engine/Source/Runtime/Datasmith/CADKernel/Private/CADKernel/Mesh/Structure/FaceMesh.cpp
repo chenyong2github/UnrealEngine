@@ -13,8 +13,9 @@ using namespace CADKernel;
 
 void FFaceMesh::GetNodeIdToCoordinates(TMap<int32, const FPoint*>& NodeIdToCoordinates) const
 {
-	const TSharedRef<FTopologicalFace> Face = StaticCastSharedRef<FTopologicalFace>(GetGeometricEntity());
-	for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+	const FTopologicalFace& Face = (const FTopologicalFace&) GetGeometricEntity();
+
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 	{
 		const TArray<FOrientedEdge>& Edges = Loop->GetEdges();
 
@@ -60,7 +61,7 @@ void FFaceMesh::InverseOrientation()
 		Swap(TrianglesVerticesIndex[Index], TrianglesVerticesIndex[Index+1]);
 	}
 
-	for (FPoint& Normal : Normals)
+	for (FVector& Normal : Normals)
 	{
 		Normal *= -1.;
 	}

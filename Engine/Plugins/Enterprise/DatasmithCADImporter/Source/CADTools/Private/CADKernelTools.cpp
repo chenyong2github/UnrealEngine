@@ -32,23 +32,14 @@ uint32 FCADKernelTools::GetFaceTessellation(const TSharedRef<CADKernel::FFaceMes
 
 	CADLibrary::FTessellationData& Tessellation = OutBodyMesh.Faces.Emplace_GetRef();
 
-	const TSharedRef<CADKernel::FMetadataDictionary>& HaveMetadata = StaticCastSharedRef<CADKernel::FMetadataDictionary>(StaticCastSharedRef<CADKernel::FTopologicalFace>(FaceMesh->GetGeometricEntity()));
-	Tessellation.PatchId = HaveMetadata->GetPatchId();
+	const CADKernel::FTopologicalFace& HaveMetadata = (const CADKernel::FTopologicalFace&) FaceMesh->GetGeometricEntity();
+	Tessellation.PatchId = HaveMetadata.GetPatchId();
 
 	Tessellation.PositionIndices = FaceMesh->VerticesGlobalIndex;
 	Tessellation.VertexIndices = FaceMesh->TrianglesVerticesIndex;
 
-	Tessellation.NormalArray.Reserve(FaceMesh->Normals.Num());
-	for (const CADKernel::FPoint& Normal : FaceMesh->Normals)
-	{
-		Tessellation.NormalArray.Emplace((float)Normal.X, (float)Normal.Y, (float)Normal.Z);
-	}
-
-	Tessellation.TexCoordArray.Reserve(FaceMesh->UVMap.Num());
-	for (const CADKernel::FPoint2D& TexCoord : FaceMesh->UVMap)
-	{
-		Tessellation.TexCoordArray.Emplace((float)TexCoord.U, (float)TexCoord.V);
-	}
+	Tessellation.NormalArray = FaceMesh->Normals;
+	Tessellation.TexCoordArray = FaceMesh->UVMap;
 
 	return Tessellation.VertexIndices.Num() / 3;
 }

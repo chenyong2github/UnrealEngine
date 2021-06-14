@@ -168,6 +168,19 @@ namespace CADKernel
 		return Result;
 	}
 
+	FVector FMatrixH::PointRotation(const FVector& PointToRotate, const FVector& Origin) const
+	{
+		FVector Result = Origin;
+		for (int32 Index = 0; Index < 3; Index++)
+		{
+			for (int32 Jndex = 0; Jndex < 3; Jndex++)
+			{
+				Result[Index] += Get(Index, Jndex) * (PointToRotate[Jndex] - Origin[Jndex]);
+			}
+		}
+		return Result;
+	}
+
 	FPoint2D FMatrixH::PointRotation(const FPoint2D& PointToRotate, const FPoint2D& Origin) const
 	{
 		FPoint2D Result = Origin;

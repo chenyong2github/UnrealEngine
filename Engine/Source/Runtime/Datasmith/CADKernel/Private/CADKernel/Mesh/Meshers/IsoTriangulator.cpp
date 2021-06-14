@@ -319,12 +319,14 @@ void FIsoTriangulator::FillMeshNodes()
 
 	for (FLoopNode& Node : LoopNodes)
 	{
-		Mesh->UVMap.Emplace(Node.Get2DPoint(EGridSpace::Scaled, Grid));
+		const FPoint2D& UVCoordinate = Node.Get2DPoint(EGridSpace::Scaled, Grid);
+		Mesh->UVMap.Emplace(UVCoordinate.U, UVCoordinate.V);
 	}
 
 	for (FIsoInnerNode& Node : InnerNodes)
 	{
-		Mesh->UVMap.Emplace(Node.Get2DPoint(EGridSpace::Scaled, Grid));
+		const FPoint2D& UVCoordinate = Node.Get2DPoint(EGridSpace::Scaled, Grid);
+		Mesh->UVMap.Emplace(UVCoordinate.U, UVCoordinate.V);
 	}
 }
 
@@ -2307,7 +2309,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 				const FPoint& NodePoint3D = Node->Get3DPoint(Grid);
 				FPoint NodeNormal;
 				double PointCriteria = FMath::Abs(CotangentCriteria(StartPoint3D, EndPoint3D, NodePoint3D, NodeNormal));
-				double CosAngle = FMath::Abs(NodeNormal.ComputeCosinus(Node->GetNormal(Grid)));
+				double CosAngle = FMath::Abs(ComputeCosinus(NodeNormal, Node->GetNormal(Grid)));
 
 				// the criteria is weighted according to the cosinus of the angle between the normal of the candidate triangle and the normal at the tested point
 				if (CosAngle > SMALL_NUMBER)

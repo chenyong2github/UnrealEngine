@@ -11,7 +11,7 @@
 using namespace CADKernel;
 
 
-const FPoint& FCriteriaGrid::GetPoint(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV, FPoint* OutNormal) const
+const FPoint& FCriteriaGrid::GetPoint(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV, FVector* OutNormal) const
 {
 	int32 Index = GetIndex(UIndex, VIndex, bIsInternalU, bIsInternalV);
 	ensureCADKernel(Grid.Points3D.IsValidIndex(Index));

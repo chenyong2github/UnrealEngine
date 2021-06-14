@@ -88,7 +88,7 @@ namespace CADKernel
 		/**
 		 * Surface Normal at each boundary nodes
 		 */
-		TArray<TArray<FPoint>> NormalsOfFaceLoops;
+		TArray<TArray<FVector>> NormalsOfFaceLoops;
 
 		TArray<TArray<int32>> NodeIdsOfFaceLoops;
 
@@ -146,7 +146,7 @@ namespace CADKernel
 		/**
 		 * Surface Normal at each inner nodes
 		 */
-		TArray<FPoint> Normals;
+		TArray<FVector> Normals;
 
 	public:
 		FGridChronos Chronos;
@@ -372,7 +372,7 @@ namespace CADKernel
 		/**
 		 * @return the normal of the surface at the point at the Index of the grid
 		 */
-		const FPoint& GetPointNormal(int32 IndexU, int32 IndexV) const
+		const FVector& GetPointNormal(int32 IndexU, int32 IndexV) const
 		{
 			return Normals[GobalIndex(IndexU, IndexV)];
 		}
@@ -380,7 +380,7 @@ namespace CADKernel
 		/**
 		 * @return the normal of the surface at the point at the Index of the grid
 		 */
-		const FPoint& GetPointNormal(int32 Index) const
+		const FVector& GetPointNormal(int32 Index) const
 		{
 			return Normals[Index];
 		}
@@ -432,7 +432,7 @@ namespace CADKernel
 		/**
 		 * @return the array of normal of the points of the grid
 		 */
-		TArray<FPoint>& GetNormals()
+		TArray<FVector>& GetNormals()
 		{
 			return Normals;
 		}
@@ -489,7 +489,7 @@ namespace CADKernel
 		/**
 		 * @return the array of array of normal of the points of the loops
 		 */
-		const TArray<TArray<FPoint>>& GetLoopNormals() const
+		const TArray<TArray<FVector>>& GetLoopNormals() const
 		{
 			return NormalsOfFaceLoops;
 		}

@@ -134,3 +134,13 @@ const TArray<TSharedPtr<FMesh>>& FModelMesh::GetMeshes() const
 	}
 	return (TArray<TSharedPtr<FMesh>>&) VertexMeshes;
 }
+
+int32 FModelMesh::GetTriangleCount() const
+{
+	int32 TriangleCount = 0;
+	for (const TSharedPtr<FFaceMesh>& FaceMesh : FaceMeshes)
+	{
+		TriangleCount += FaceMesh->TrianglesVerticesIndex.Num() / 3;
+	}
+	return TriangleCount;
+}

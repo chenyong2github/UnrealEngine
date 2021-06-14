@@ -20,7 +20,6 @@ namespace CADKernel
 	{
 		friend FEntity;
 
-		//TSharedRef<FSession> Session;
 		TArray<TSharedPtr<FCriterion>> Criteria;
 
 		TArray<TArray<FPoint>*> GlobalPointCloud;
@@ -36,14 +35,25 @@ namespace CADKernel
 		double MaxAngle = PI;
 		double Sag = HUGE_VALUE;
 
-		FModelMesh(/*TSharedRef<FSession>& InSession*/)
+		FModelMesh()
 			: FEntityGeom()
-			//, Session(InSession)
 			, LastIdUsed(0)
 		{
 		}
 
 	public:
+		
+		int32 GetFaceCount() const
+		{
+			return FaceMeshes.Num();
+		}
+
+		int32 GetVertexCount() const
+		{
+			return LastIdUsed;
+		}
+
+		int32 GetTriangleCount() const;
 
 		virtual void SpawnIdent(FDatabase& Database) override
 		{
@@ -137,6 +147,11 @@ namespace CADKernel
 		void GetNodeCoordinates(TArray<FVector>& NodeCoordinates) const;
 
 		const TArray<TSharedPtr<FMesh>>& GetMeshes() const;
+
+		const TArray<TSharedPtr<FFaceMesh>>& GetFaceMeshes() const 
+		{
+			return FaceMeshes;
+		}
 
 #ifdef CADKERNEL_DEV
 		virtual FInfoEntity& GetInfo(FInfoEntity&) const override;

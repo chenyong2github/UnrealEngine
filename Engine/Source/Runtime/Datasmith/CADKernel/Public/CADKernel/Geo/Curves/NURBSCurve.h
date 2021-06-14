@@ -6,6 +6,17 @@
 
 namespace CADKernel
 {
+	struct FNurbsCurveData
+	{
+		bool bIsRational;
+		int32 Dimension = 0;
+
+		int32 Degree = 0;
+		TArray<double> NodalVector;
+
+		TArray<double> Weights;
+		TArray<FPoint> Poles;
+	};
 
 	class CADKERNEL_API FNURBSCurve : public FCurve
 	{
@@ -30,6 +41,7 @@ namespace CADKernel
 
 		FNURBSCurve(int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension = 3);
 		FNURBSCurve(int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension = 3);
+		FNURBSCurve(FNurbsCurveData& NurbsCurveData);
 		FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs);
 
 		FNURBSCurve(FCADKernelArchive& Archive)
