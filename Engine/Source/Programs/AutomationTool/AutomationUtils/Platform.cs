@@ -821,7 +821,7 @@ namespace AutomationTool
 			{
 				return ".stub";
 			}
-			if (Target == UnrealTargetPlatform.Linux || Target == UnrealTargetPlatform.LinuxAArch64)
+			if (Target == UnrealTargetPlatform.Linux || Target == UnrealTargetPlatform.LinuxArm64)
 			{
 				return "";
 			}

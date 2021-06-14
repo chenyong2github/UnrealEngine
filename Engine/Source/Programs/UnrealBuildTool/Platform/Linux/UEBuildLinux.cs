@@ -22,7 +22,7 @@ namespace UnrealBuildTool
 		/** A.k.a. AArch32, ARM 32-bit with hardware floats */
 		ArmUnknownLinuxGnueabihf,
 
-		/** AArch64, ARM 64-bit */
+		/** Arm64, ARM 64-bit */
 		AArch64UnknownLinuxGnueabi,
 
 		/** i686, Intel 32-bit */
@@ -160,7 +160,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override string GetDefaultArchitecture(FileReference ProjectFile)
 		{
-			if (Platform == UnrealTargetPlatform.LinuxAArch64)
+			if (Platform == UnrealTargetPlatform.LinuxArm64)
 			{
 				return "aarch64-unknown-linux-gnueabi";
 			}
@@ -223,6 +223,12 @@ namespace UnrealBuildTool
 				{
 					Target.Name = Target.Name + "-" + SanitizerSuffix;
 				}
+
+				System.Console.WriteLine("New - Name: {0}", Target.Name);
+			}
+			else
+			{
+				System.Console.WriteLine("Cannot Name: {0}", Target.Name);
 			}
 
 			if (Target.bAllowLTCG && Target.LinkType != TargetLinkType.Monolithic)
@@ -365,7 +371,7 @@ namespace UnrealBuildTool
 						if (Target.bBuildDeveloperTools)
 						{
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
-							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64TargetPlatform");
+							Rules.DynamicallyLoadedModuleNames.Add("LinuxArm64TargetPlatform");
 						}
 					}
 				}
@@ -374,7 +380,7 @@ namespace UnrealBuildTool
 				if (Target.bForceBuildTargetPlatforms && ModuleName == "TargetPlatform")
 				{
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64TargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxArm64TargetPlatform");
 				}
 			}
 		}
@@ -404,7 +410,7 @@ namespace UnrealBuildTool
 				if (Target.bForceBuildTargetPlatforms)
 				{
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
-					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64TargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxArm64TargetPlatform");
 				}
 
 				if (bBuildShaderFormats)
@@ -426,11 +432,11 @@ namespace UnrealBuildTool
 			// this define does not set jemalloc as default, just indicates its support
 			CompileEnvironment.Definitions.Add("PLATFORM_SUPPORTS_JEMALLOC=1");
 
-			// LinuxAArch64 uses only Linux header files
+			// LinuxArm64 uses only Linux header files
 			CompileEnvironment.Definitions.Add("OVERRIDE_PLATFORM_HEADER_NAME=Linux");
 
-			CompileEnvironment.Definitions.Add("PLATFORM_LINUXAARCH64=" +
-				(Target.Platform == UnrealTargetPlatform.LinuxAArch64 ? "1" : "0"));
+			CompileEnvironment.Definitions.Add("PLATFORM_LINUXARM64=" +
+				(Target.Platform == UnrealTargetPlatform.LinuxArm64 ? "1" : "0"));
 		}
 
 		/// <summary>
@@ -605,17 +611,18 @@ namespace UnrealBuildTool
 		public override void RegisterBuildPlatforms()
 		{
 			LinuxPlatformSDK SDK = new LinuxPlatformSDK();
-			LinuxPlatformSDK SDKAarch64 = new LinuxPlatformSDK();
+			LinuxPlatformSDK SDKArm64 = new LinuxPlatformSDK();
 
-			// Register this build platform for Linux x86-64 and AArch64
+			// Register this build platform for Linux x86-64 and Arm64
 			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.Linux, SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Linux);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Unix);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Desktop);
 
-			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.LinuxAArch64, SDKAarch64));
-			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxAArch64, UnrealPlatformGroup.Linux);
-			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxAArch64, UnrealPlatformGroup.Unix);
+			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.LinuxArm64, SDKArm64));
+			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxArm64, UnrealPlatformGroup.Linux);
+			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxArm64, UnrealPlatformGroup.Unix);
+			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxArm64, UnrealPlatformGroup.Desktop);
 		}
 	}
 }

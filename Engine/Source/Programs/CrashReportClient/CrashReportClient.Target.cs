@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win64", "Mac", "Linux", "LinuxAArch64")]
+[SupportedPlatforms("Win64", "Mac", "Linux", "LinuxArm64")]
 [SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping)]
 public class CrashReportClientTarget : TargetRules
 {

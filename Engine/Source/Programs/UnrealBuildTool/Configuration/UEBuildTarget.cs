@@ -245,9 +245,9 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Linux = FindOrAddByName("Linux");
 
 		/// <summary>
-		/// LinuxAArch64
+		/// LinuxArm64
 		/// </summary>
-		public static UnrealTargetPlatform LinuxAArch64 = FindOrAddByName("LinuxAArch64");
+		public static UnrealTargetPlatform LinuxArm64 = FindOrAddByName("LinuxArm64");
 
 		/// <summary>
 		/// TVOS
@@ -1064,6 +1064,9 @@ namespace UnrealBuildTool
 
 			bCompileMonolithic = (Rules.LinkType == TargetLinkType.Monolithic);
 
+			// make UnrealEditor-ASan
+			// make UnrealEditor
+
 			// Set the build environment
 			bUseSharedBuildEnvironment = (Rules.BuildEnvironment == TargetBuildEnvironment.Shared);
 			if (bUseSharedBuildEnvironment)
@@ -1087,6 +1090,8 @@ namespace UnrealBuildTool
 			{
 				ProjectDirectory = Unreal.EngineDirectory;
 			}
+
+			System.Console.WriteLine("THE REAL Name: {0} {1} -- {2}", TargetName, AppName, bUseSharedBuildEnvironment);
 
 			// Build the project intermediate directory
 			ProjectIntermediateDirectory = DirectoryReference.Combine(ProjectDirectory, PlatformIntermediateFolder, TargetName, Configuration.ToString());

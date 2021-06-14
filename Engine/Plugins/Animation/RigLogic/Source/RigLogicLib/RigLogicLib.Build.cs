@@ -42,13 +42,13 @@ public class RigLogicLib : ModuleRules
             PrivateDefinitions.Add("TRIO_CUSTOM_WINDOWS_H=\"WindowsPlatformUE.h\"");
         }
 
-        if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+        if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxArm64)
         {
             PrivateDefinitions.Add("TRIO_MREMAP_AVAILABLE=1");
         }
 
         if (Target.Platform == UnrealTargetPlatform.Linux ||
-                Target.Platform == UnrealTargetPlatform.LinuxAArch64 ||
+                Target.Platform == UnrealTargetPlatform.LinuxArm64 ||
                 Target.Platform == UnrealTargetPlatform.Mac)
         {
             PrivateDefinitions.Add("TRIO_MMAP_AVAILABLE=1");

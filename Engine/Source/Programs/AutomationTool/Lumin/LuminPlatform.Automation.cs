@@ -314,7 +314,7 @@ public class LuminPlatform : Platform
 	private static string GetFinalBatchName(ProjectParams Params, DeploymentContext SC, bool bUninstall)
 	{
 		string Extension = ".bat";
-		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Linux || HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.LinuxAArch64)
+		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Linux || HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.LinuxArm64)
 		{
 			Extension = ".sh";
 		}

@@ -171,7 +171,7 @@ public:
 	/** An identifier to group similar platforms together, such as "Mobile" and "Console". Used for Per-Platform Override Properties. */
 	FName PlatformGroupName;
 
-	/** Submenu name to group similar platforms together in menus, such as "Linux" and "LinuxAArch64".  */
+	/** Submenu name to group similar platforms together in menus, such as "Linux" and "LinuxArm64".  */
 	FName PlatformSubMenu;
 
 	/** An identifier that corresponds to UBT's UnrealTargetPlatform enum (and by proxy, FGenericPlatformMisc::GetUBTPlatform()), as well as the directory Binaries are placed under */

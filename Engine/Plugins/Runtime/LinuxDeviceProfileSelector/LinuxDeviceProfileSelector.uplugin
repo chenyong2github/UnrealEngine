@@ -23,7 +23,7 @@
 			"WhitelistPlatforms" :
 			[
 				"Linux",
-				"LinuxAArch64"
+				"LinuxArm64"
 			]
 		}
 	]

@@ -516,7 +516,7 @@ namespace UnrealBuildTool
 				}
 				else if (Target.Architecture.StartsWith("aarch64"))
 				{
-					BuildPlatform = UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.LinuxAArch64);
+					BuildPlatform = UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.LinuxArm64);
 				}
 				else
 				{

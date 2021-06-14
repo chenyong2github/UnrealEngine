@@ -184,12 +184,12 @@ namespace UnrealBuildTool
 			List<string> ISPCTargets = new List<string>();
 
 			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) ||
-				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxAArch64) ||
+				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxArm64) ||
 				Platform == UnrealTargetPlatform.Mac)
 			{
 				ISPCTargets.AddRange(new string[] { "avx512skx-i32x8", "avx2", "avx", "sse4", "sse2" });
 			}
-			else if (Platform == UnrealTargetPlatform.LinuxAArch64)
+			else if (Platform == UnrealTargetPlatform.LinuxArm64)
 			{
 				ISPCTargets.AddRange(new string[] { "neon" });
 			}
@@ -256,12 +256,12 @@ namespace UnrealBuildTool
 			string ISPCArch = "";
 
 			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) ||
-				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxAArch64) ||
+				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxArm64) ||
 				Platform == UnrealTargetPlatform.Mac)
 			{
 				ISPCArch += "x86-64";
 			}
-			else if (Platform == UnrealTargetPlatform.LinuxAArch64)
+			else if (Platform == UnrealTargetPlatform.LinuxArm64)
 			{
 				ISPCArch += "aarch64";
 			}

@@ -19,7 +19,8 @@ public class TestPAL : ModuleRules
 			}
 		);
 
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Mac ||
+			Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxArm64)
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
@@ -28,7 +29,7 @@ public class TestPAL : ModuleRules
 			);
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxArm64)
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {

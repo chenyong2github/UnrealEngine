@@ -320,8 +320,8 @@ class BuildPlugin : BuildCommand
 				if (TargetPlatforms.Contains(UnrealTargetPlatform.Linux))
 					TargetPlatforms.Remove(UnrealTargetPlatform.Linux);
 
-				if (TargetPlatforms.Contains(UnrealTargetPlatform.LinuxAArch64))
-					TargetPlatforms.Remove(UnrealTargetPlatform.LinuxAArch64);
+				if (TargetPlatforms.Contains(UnrealTargetPlatform.LinuxArm64))
+					TargetPlatforms.Remove(UnrealTargetPlatform.LinuxArm64);
 			}
 
 			// Remove any platforms that aren't enabled on the command line

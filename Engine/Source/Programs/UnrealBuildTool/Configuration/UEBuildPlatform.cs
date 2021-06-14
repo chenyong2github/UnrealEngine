@@ -496,7 +496,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static String GetPathVarDelimiter()
 		{
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.LinuxAArch64 ||
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.LinuxArm64 ||
 				BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 			{
 				return ":";

@@ -2169,7 +2169,7 @@ namespace AutomationTool
 			{
 				return "Windows";
 			}
-			else if(Platform == UnrealTargetPlatform.Linux || Platform == UnrealTargetPlatform.LinuxAArch64)
+			else if(Platform == UnrealTargetPlatform.Linux || Platform == UnrealTargetPlatform.LinuxArm64)
 			{
 				return "Linux";
 			}

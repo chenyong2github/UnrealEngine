@@ -72,7 +72,7 @@ public class TextureFormatOodle : ModuleRules
 			ReleaseLib = "liboo2texlinux64.a";
 			DebugLib = "liboo2texlinux64_dbg.a";
         }
-		else if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+		else if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
 		{
 			ReleaseLib = "liboo2texlinuxarm64.a";
 			DebugLib = "liboo2texlinuxarm64_dbg.a";
