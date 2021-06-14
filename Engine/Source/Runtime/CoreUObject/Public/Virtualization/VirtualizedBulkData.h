@@ -173,6 +173,8 @@ private:
 		/** The payload should not have compression applied to it. It is assumed that the payload is already 
 			in some sort of compressed format, see the compression documentation above for more details. */
 		DisablePayloadCompression	= 1 << 4,
+		/** The legacy file being referenced derived its key from guid and it should be replaced with a key-from-hash when saved */
+		LegacyKeyWasGuidDerived		= 1 << 5,
 	};
 
 	/** Used to control what level of error reporting we return from some methods */
@@ -205,7 +207,7 @@ private:
 	void UpdateKeyIfNeeded();
 
 	void RecompressForSerialization(FCompressedBuffer& InOutPayload, EFlags PayloadFlags) const;
-	EFlags BuildFlagsForSerialization(FArchive& Ar) const;
+	EFlags BuildFlagsForSerialization(FArchive& Ar, bool bUpgradeLegacyData) const;
 
 	bool IsDataVirtualized() const { return EnumHasAnyFlags(Flags, EFlags::IsVirtualized); }
 	bool HasPayloadSidecarFile() const { return EnumHasAnyFlags(Flags, EFlags::HasPayloadSidecarFile); }
@@ -236,9 +238,6 @@ private:
 
 	/** PackageSegment to load with the packagepath (unused if the payload does not come from PackageResourceManager) */
 	EPackageSegment PackageSegment;
-
-	/** Records if the payload key was created from a FGuid via CreateFromBulkData */
-	bool bWasKeyGuidDerived = false;
 
 	/** A 32bit bitfield of flags */
 	EFlags Flags = EFlags::None;
