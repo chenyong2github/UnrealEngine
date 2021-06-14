@@ -49,6 +49,7 @@ class FOnSubmixEnvelopeBP;
 class USoundEffectSubmix;
 class USoundSubmix;
 class USoundSubmixBase;
+class USoundModulatorBase;
 
 namespace Audio
 {
@@ -139,7 +140,7 @@ namespace Audio
 		void SetWetLevel(float InWetLevel);
 
 		// Update modulation settings of the submix
-		void SetModulationSettings(FModulationDestination InOutputModulation, FModulationDestination InWetLevelModulation, FModulationDestination InDryLevelModulation);
+		void UpdateModulationSettings(USoundModulatorBase* InOutputModulator, USoundModulatorBase* InWetLevelModulator, USoundModulatorBase* InDryLevelModulator);
 
 		// Update modulation settings of the submix
 		void SetModulationBaseLevels(float InVolumeModBase, float InWetModeBase, float InDryModBase);

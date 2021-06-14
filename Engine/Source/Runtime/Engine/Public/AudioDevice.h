@@ -49,6 +49,7 @@ class USoundConcurrency;
 class USoundEffectSourcePreset;
 class USoundEffectSubmixPreset;
 class USoundMix;
+class USoundModulatorBase;
 class USoundSubmixBase;
 class USoundSourceBus;
 class USoundWave;
@@ -1339,7 +1340,7 @@ public:
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
 
-	virtual void SetSubmixModulationSettings(USoundSubmix* InSoundSubmix, FSoundModulationDestinationSettings InOutputModulation, FSoundModulationDestinationSettings InWetLevelModulation, FSoundModulationDestinationSettings InDryLevelModulation)
+	virtual void UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, USoundModulatorBase* InOutputModulation, USoundModulatorBase* InWetLevelModulation, USoundModulatorBase* InDryLevelModulation)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}

@@ -1369,7 +1369,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerDevice::SetSubmixModulationSettings(USoundSubmix* InSoundSubmix, FSoundModulationDestinationSettings InOutputModulation, FSoundModulationDestinationSettings InWetLevelModulation, FSoundModulationDestinationSettings InDryLevelModulation)
+	void FMixerDevice::UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, USoundModulatorBase* InOutputModulation, USoundModulatorBase* InWetLevelModulation, USoundModulatorBase* InDryLevelModulation)
 	{
 		if (!IsInAudioThread())
 		{
@@ -1377,31 +1377,26 @@ namespace Audio
 
 			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, InOutputModulation, InWetLevelModulation, InDryLevelModulation]() 
 			{
-				MixerDevice->SetSubmixModulationSettings(InSoundSubmix, InOutputModulation, InWetLevelModulation, InDryLevelModulation);
+				MixerDevice->UpdateSubmixModulationSettings(InSoundSubmix, InOutputModulation, InWetLevelModulation, InDryLevelModulation);
 			});
 			return;
 		}
 
-		FModulationDestination VolumeModulation;
-		VolumeModulation.Init(DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-		VolumeModulation.UpdateModulator(InOutputModulation.Modulator);
-
-		FModulationDestination WetModulation;
-		WetModulation.Init(DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-		WetModulation.UpdateModulator(InWetLevelModulation.Modulator);
-
-		FModulationDestination DryModulation;
-		DryModulation.Init(DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-		DryModulation.UpdateModulator(InDryLevelModulation.Modulator);
-
-		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
-
-		if (MixerSubmixPtr.IsValid())
+		if (IsModulationPluginEnabled() && ModulationInterface.IsValid())
 		{
-			AudioRenderThreadCommand([MixerSubmixPtr, VolumeModulation, WetModulation, DryModulation]() 
+			FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+
+			if (MixerSubmixPtr.IsValid())
 			{
-				MixerSubmixPtr->SetModulationSettings(VolumeModulation, WetModulation, DryModulation);
-			});
+				USoundModulatorBase* VolumeMod = InOutputModulation;
+				USoundModulatorBase* WetMod = InOutputModulation;
+				USoundModulatorBase* DryMod = InOutputModulation;
+
+				AudioRenderThreadCommand([MixerSubmixPtr, VolumeMod, WetMod, DryMod]()
+				{
+					MixerSubmixPtr->UpdateModulationSettings(VolumeMod, WetMod, DryMod);
+				});
+			}
 		}
 	}
 
