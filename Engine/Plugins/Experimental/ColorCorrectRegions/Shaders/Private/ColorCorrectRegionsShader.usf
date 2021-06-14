@@ -675,7 +675,7 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 	FinalColor = AP1toRGB(FinalColor);
 	
 	// White temperature calculation.
-	MaterialFloat3 AfterTemperature = ExternalExpressions.SceneTexture.rgb;
+	MaterialFloat3 AfterTemperature = FinalColor;
 
 #if TEMPERATURE_TYPE == TEMPERATURE_TYPE_LEGACY
 	MaterialFloat Local4 = smoothstep(0.00000000, 13000.00000000, ExternalExpressions.WhiteTemp);
