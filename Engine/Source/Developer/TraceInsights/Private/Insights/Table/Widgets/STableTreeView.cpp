@@ -2,13 +2,16 @@
 
 #include "STableTreeView.h"
 
+#include "DesktopPlatformModule.h"
 #include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformFileManager.h"
 #include "Layout/WidgetPath.h"
+#include "Logging/MessageLog.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -66,6 +69,8 @@ public:
 		UI_COMMAND(Command_ExpandSubtree, "Expand Subtree", "Expand the subtree that starts from the selected group node.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::E));
 		UI_COMMAND(Command_ExpandCriticalPath, "Expand Critical Path", "Expand the first group child node recursively until a leaf nodes in reached.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::R));
 		UI_COMMAND(Command_CollapseSubtree, "Collapse Subtree", "Collapse the subtree that starts from the selected group node.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::C));
+		UI_COMMAND(Command_ExportToFile, "Export To File", "Export the table content to a file.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::E));
+		UI_COMMAND(Command_ExportExpandedToFile, "Export Expanded To File", "Export the fully expanded table to a file.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::E));
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
@@ -75,6 +80,8 @@ public:
 	TSharedPtr<FUICommandInfo> Command_ExpandSubtree;
 	TSharedPtr<FUICommandInfo> Command_ExpandCriticalPath;
 	TSharedPtr<FUICommandInfo> Command_CollapseSubtree;
+	TSharedPtr<FUICommandInfo> Command_ExportToFile;
+	TSharedPtr<FUICommandInfo> Command_ExportExpandedToFile;
 };
 
 const FName STableTreeView::RootNodeName(TEXT("Root"));
@@ -341,6 +348,8 @@ void STableTreeView::InitCommandList()
 	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExpandSubtree, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandSubtree_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandSubtree_CanExecute));
 	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExpandCriticalPath, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandCriticalPath_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExpandCriticalPath_CanExecute));
 	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CollapseSubtree, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CollapseSubtree_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CollapseSubtree_CanExecute));
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportToFile, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, true), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportExpandedToFile, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, false), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -477,6 +486,15 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
 		);
+
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("ContextMenu_Header_Misc_Export", "Export"),
+			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Export to file"),
+			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildExportMenu),
+			false,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
+		);
 	}
 	MenuBuilder.EndSection();
 
@@ -611,6 +629,34 @@ void STableTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("Export", LOCTEXT("Export", "Export"));
+
+	MenuBuilder.AddMenuEntry
+	(
+		FTableTreeViewCommands::Get().Command_ExportToFile,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
+	);
+
+	MenuBuilder.AddMenuEntry
+	(
+		FTableTreeViewCommands::Get().Command_ExportExpandedToFile,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
+	);
+
+	MenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 void STableTreeView::InitializeAndShowHeaderColumns()
 {
@@ -2845,7 +2891,7 @@ void STableTreeView::ContextMenu_CopySelectedToClipboard_Execute()
 		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
 	}
 
-	Table->GetVisibleColumnsData(SelectedNodes, GetLogListingName(), ClipboardText);
+	Table->GetVisibleColumnsData(SelectedNodes, GetLogListingName(), TEXT('\t'), true, ClipboardText);
 
 	if (ClipboardText.Len() > 0)
 	{
@@ -3008,6 +3054,113 @@ void STableTreeView::ContextMenu_ExpandCriticalPath_Execute()
 	}
 
 	TreeView->RequestTreeRefresh();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ContextMenu_ExportToFile_CanExecute() const
+{
+	return !FilteredGroupNodes.IsEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ContextMenu_ExportToFile_Execute(bool bExportOnlyExpanded)
+{
+	TArray<FString> SaveFilenames;
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	bool bDialogResult = false;
+	if (DesktopPlatform)
+	{
+		const FString DefaultBrowsePath = FPaths::ProjectLogDir();
+		bDialogResult = DesktopPlatform->SaveFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			LOCTEXT("ExportFileTitle", "Export Table").ToString(),
+			DefaultBrowsePath,
+			TEXT(""),
+			TEXT("Tab-separated values file (*.tsv)|*.tsv|Comma-separated values file (*.csv)|*.csv"),
+			EFileDialogFlags::None,
+			SaveFilenames
+		);
+	}
+
+	if (!bDialogResult || SaveFilenames.Num() == 0)
+	{
+		return;
+	}
+
+	FString& Path = SaveFilenames[0];
+	TCHAR Separator = TEXT('\t');
+	if (Path.EndsWith(TEXT(".csv")))
+	{
+		Separator = TEXT(',');
+	}
+
+	IFileHandle* ExportFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*Path);
+
+	if (ExportFileHandle == nullptr)
+	{
+		FMessageLog ReportMessageLog((LogListingName != NAME_None) ? LogListingName : TEXT("Other"));
+		ReportMessageLog.Error(LOCTEXT("FailedToOpenFile", "Export failed. Failed to open file for write."));
+		ReportMessageLog.Notify();
+		return;
+	}
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	UTF16CHAR BOM = UNICODE_BOM;
+	ExportFileHandle->Write((uint8*)&BOM, sizeof(UTF16CHAR));
+
+	bool bIncludeHeaders = true;
+	auto WriteToFile = [this, &Path, &bIncludeHeaders, ExportFileHandle, Separator](TArray<Insights::FBaseTreeNodePtr>& InNodes)
+	{
+		FString Text;
+		this->GetTable()->GetVisibleColumnsData(InNodes, GetLogListingName(), Separator, bIncludeHeaders, Text);
+		// Only write the headers once, at the top of the file
+		bIncludeHeaders = false;
+
+		// Note: This is a no-op on platforms that are using a 16-bit TCHAR
+		FTCHARToUTF16 UTF16String(*Text, Text.Len());
+		ExportFileHandle->Write((uint8*)*Text, Text.Len() * sizeof(UTF16CHAR));
+
+		InNodes.Empty(InNodes.Num());
+	};
+
+	TArray<Insights::FBaseTreeNodePtr> NodesBuffer;
+	ExportToFileRec(Root, NodesBuffer, bExportOnlyExpanded, WriteToFile);
+
+	// Write the remaining lines
+	WriteToFile(NodesBuffer);
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported table to file in %.3fs."), TotalTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<Insights::FBaseTreeNodePtr>& InNodes, bool bInExportOnlyExpanded, WriteToFileCallback Callback)
+{
+	constexpr int MaxBufferSize = 10000;
+
+	for (const FBaseTreeNodePtr& Node : InGroupNode->GetFilteredChildren())
+	{
+		if (InNodes.Num() > MaxBufferSize)
+		{
+			// Flush the buffer to the file
+			Callback(InNodes);
+		}
+		InNodes.Add(Node);
+		if (Node->IsGroup() && (!bInExportOnlyExpanded || TreeView->IsItemExpanded(StaticCastSharedPtr<FTableTreeNode>(Node))))
+		{
+			ExportToFileRec(Node, InNodes, bInExportOnlyExpanded, Callback);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

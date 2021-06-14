@@ -128,17 +128,18 @@ void FTable::GetVisibleColumns(TArray<TSharedRef<FTableColumn>>& InArray) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InNodes, const FName& LogListingName, FString& OutData) const
+void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InNodes, const FName& LogListingName, TCHAR Separator, bool bIncludeHeaders, FString& OutData) const
 {
-	constexpr TCHAR Separator = TEXT('\t');
-
 	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
 	GetVisibleColumns(VisibleColumns);
 
 	// Table headers
-	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+	if (bIncludeHeaders)
 	{
-		OutData += ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar() + Separator;
+		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		{
+			OutData += ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar() + Separator;
+		}
 	}
 
 	if (OutData.Len() > 0)
