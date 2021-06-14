@@ -30,6 +30,19 @@ namespace UnrealBuildTool
 		private Assembly? CompiledAssembly;
 
 		/// <summary>
+		/// Returns the simple name of the assembly e.g. "UE5ProgramRules"
+		/// </summary>
+		/// <returns></returns>
+		public string? GetSimpleAssemblyName()
+		{
+			if (CompiledAssembly != null)
+			{
+				return CompiledAssembly.GetName().Name;
+			}
+			else return null;
+		}
+
+		/// <summary>
 		/// The base directories for this assembly
 		/// </summary>
 		private List<DirectoryReference> BaseDirs;
@@ -73,7 +86,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The parent rules assembly that this assembly inherits. Game assemblies inherit the engine assembly, and the engine assembly inherits nothing.
 		/// </summary>
-		private RulesAssembly? Parent;
+		public RulesAssembly? Parent { get; }
+
+		/// <summary>
+		/// The set of files that were compiled to create this assembly
+		/// </summary>
+		public HashSet<FileReference>? AssemblySourceFiles { get; }
+
+		/// <summary>
+		/// Any preprocessor defines that were set when this assembly was created
+		/// </summary>
+		public List<string>? PreprocessorDefines { get;  }
 
 		/// <summary>
 		/// Constructor. Compiles a rules assembly from the given source files.
@@ -101,14 +124,14 @@ namespace UnrealBuildTool
 			this.Parent = Parent;
 
 			// Find all the source files
-			HashSet<FileReference> AssemblySourceFiles = new HashSet<FileReference>();
+			AssemblySourceFiles = new HashSet<FileReference>();
 			AssemblySourceFiles.UnionWith(ModuleFileToContext.Keys);
 			AssemblySourceFiles.UnionWith(TargetFiles);
 
 			// Compile the assembly
 			if (AssemblySourceFiles.Count > 0)
 			{
-				List<string> PreprocessorDefines = GetPreprocessorDefinitions();
+				PreprocessorDefines = GetPreprocessorDefinitions();
 				CompiledAssembly = DynamicCompilation.CompileAndLoadAssembly(AssemblyFileName, AssemblySourceFiles, PreprocessorDefines: PreprocessorDefines, DoNotCompile: bSkipCompile);
 			}
 
