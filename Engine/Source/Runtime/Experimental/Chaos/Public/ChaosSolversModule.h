@@ -126,7 +126,7 @@ public:
 	 * @param ThreadingMode The desired threading mode the solver will use
 	 * @param bStandalone Whether the solver is standalone (not sent to physics thread - updating left to caller)
 	 */
-	Chaos::FPBDRigidsSolver* CreateSolver(UObject* InOwner, Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread
+	Chaos::FPBDRigidsSolver* CreateSolver(UObject* InOwner, Chaos::FReal InAsyncDt, Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread
 #if CHAOS_CHECKED
 		, const FName& DebugName = NAME_None
 #endif

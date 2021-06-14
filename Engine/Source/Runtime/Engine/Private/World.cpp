@@ -1670,7 +1670,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	if (GetPhysicsScene())
 	{
 		FVector Gravity = FVector( 0.f, 0.f, GetGravityZ() );
-		GetPhysicsScene()->SetUpForFrame( &Gravity, 0, 0, 0, 0, false, -1 );
+		GetPhysicsScene()->SetUpForFrame( &Gravity, 0, 0, 0, 0, false);
 	}
 
 	// Create physics collision handler, if we have a physics scene

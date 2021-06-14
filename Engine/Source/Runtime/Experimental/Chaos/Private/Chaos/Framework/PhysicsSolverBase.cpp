@@ -126,7 +126,7 @@ namespace Chaos
 		" 1 blocks on everything except the single most recent task (including tasks from current frame). 1 should gurantee we will always have a future output for interpolation from 2 frames in the past."));
 
 
-	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner)
+	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner, Chaos::FReal InAsyncDt)
 		: BufferMode(BufferingModeIn)
 		, ThreadingMode(InThreadingMode)
 		, PullResultsManager(MakeUnique<FChaosResultsManager>(MarshallingManager))
@@ -136,7 +136,7 @@ namespace Chaos
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, bIsShuttingDown(false)
-		, AsyncDt(-1)
+		, AsyncDt(InAsyncDt)
 		, AccumulatedTime(0)
 		, MMaxDeltaTime(0.0)
 		, MMinDeltaTime(SMALL_NUMBER)

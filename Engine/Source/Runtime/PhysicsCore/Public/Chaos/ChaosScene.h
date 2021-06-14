@@ -80,6 +80,7 @@ class PHYSICSCORE_API FChaosScene
 public:
 	FChaosScene(
 		UObject* OwnerPtr
+		, Chaos::FReal InAsyncDt
 #if CHAOS_CHECKED
 	, const FName& DebugName=NAME_None
 #endif
@@ -132,7 +133,7 @@ public:
 #endif
 
 	void StartFrame();
-	void SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds,float InMaxPhysicsDeltaTime,float InMaxSubstepDeltaTime,int32 InMaxSubsteps,bool bSubstepping,float InAsyncDt);
+	void SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds,float InMaxPhysicsDeltaTime,float InMaxSubstepDeltaTime,int32 InMaxSubsteps,bool bSubstepping);
 	void EndFrame();
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysScenePostTick,FChaosScene*);
