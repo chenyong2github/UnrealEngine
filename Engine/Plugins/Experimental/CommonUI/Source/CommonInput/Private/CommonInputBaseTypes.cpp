@@ -119,6 +119,14 @@ void UCommonInputBaseControllerData::PreSave(FObjectPreSaveContext ObjectSaveCon
 	}
 }
 
+void UCommonInputBaseControllerData::PostLoad()
+{
+	Super::PostLoad();
+
+	// Have to clear it even though it's transient because it's saved into the CDO.
+	SetButtonImageHeightTo = 0;
+}
+
 const TArray<FName>& UCommonInputBaseControllerData::GetRegisteredGamepads()
 {
 	auto GenerateRegisteredGamepads = []()
@@ -171,19 +179,25 @@ void UCommonInputBaseControllerData::PostEditChangeProperty(struct FPropertyChan
 				for (FCommonInputKeyBrushConfiguration& BrushConfig : InputBrushDataMap)
 				{
 					FVector2D NewBrushSize = BrushConfig.KeyBrush.GetImageSize();
-					NewBrushSize.X = FMath::RoundToInt(NewBrushSize.X * (SetButtonImageHeightTo / NewBrushSize.X));
-					NewBrushSize.Y = SetButtonImageHeightTo;
+					if (NewBrushSize.X != 0 && NewBrushSize.Y != 0)
+					{
+						NewBrushSize.X = FMath::RoundToInt(SetButtonImageHeightTo * (NewBrushSize.X / NewBrushSize.Y));
+						NewBrushSize.Y = SetButtonImageHeightTo;
 
-					BrushConfig.KeyBrush.SetImageSize(NewBrushSize);
+						BrushConfig.KeyBrush.SetImageSize(NewBrushSize);
+					}
 				}
 
 				for (FCommonInputKeySetBrushConfiguration& BrushConfig : InputBrushKeySets)
 				{
 					FVector2D NewBrushSize = BrushConfig.KeyBrush.GetImageSize();
-					NewBrushSize.X = FMath::RoundToInt(NewBrushSize.X * (SetButtonImageHeightTo / NewBrushSize.X));
-					NewBrushSize.Y = SetButtonImageHeightTo;
+					if (NewBrushSize.X != 0 && NewBrushSize.Y != 0)
+					{
+						NewBrushSize.X = FMath::RoundToInt(SetButtonImageHeightTo * (NewBrushSize.X / NewBrushSize.Y));
+						NewBrushSize.Y = SetButtonImageHeightTo;
 
-					BrushConfig.KeyBrush.SetImageSize(NewBrushSize);
+						BrushConfig.KeyBrush.SetImageSize(NewBrushSize);
+					}
 				}
 			}
 		}

@@ -11,6 +11,7 @@
 #include "CommonUITypes.h"
 #include "CommonUIRichTextData.h"
 #include "CommonTextBlock.h"
+#include "GameplayTagContainer.h"
 #include "CommonUISettings.generated.h"
 
 class UMaterial;
@@ -36,6 +37,7 @@ public:
 	UCommonUIRichTextData* GetRichTextData() const;
 	const FSlateBrush& GetDefaultThrobberBrush() const;
 	UObject* GetDefaultImageResourceObject() const;
+	const FGameplayTagContainer& GetPlatformHardwareFeatures() const { return PlatformHardwareFeatures; }
 
 private:
 
@@ -56,6 +58,10 @@ private:
 	/** The Default Data for rich text to show inline icon and others. */
 	UPROPERTY(config, EditAnywhere, Category = "RichText", meta=(AllowAbstract=false))
 	TSoftClassPtr<UCommonUIRichTextData> DefaultRichTextDataClass;
+
+	/** The Default Data for rich text to show inline icon and others. */
+	UPROPERTY(config, EditAnywhere, Category = "Visibility", meta=(Categories="Hardware.Feature", ConfigHierarchyEditable))
+	FGameplayTagContainer PlatformHardwareFeatures;
 
 private:
 	void LoadEditorData();

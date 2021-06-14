@@ -103,6 +103,7 @@ public:
 	virtual bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys) const;
 
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	virtual void PostLoad() override;
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -111,22 +112,25 @@ private:
 #endif
 
 public:
-	UPROPERTY(EditDefaultsOnly, Category = "Properties")
+	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	ECommonInputType InputType;
 	
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (GetOptions = GetRegisteredGamepads))
+	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta=(EditCondition="InputType == ECommonInputType::Gamepad"))
 	FName GamepadName;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties")
+	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta = (EditCondition = "InputType == ECommonInputType::Gamepad"))
+	FText GamepadDisplayName;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Display")
 	TSoftObjectPtr<UTexture2D> ControllerTexture;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties")
+	UPROPERTY(EditDefaultsOnly, Category = "Display")
 	TSoftObjectPtr<UTexture2D> ControllerButtonMaskTexture;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (TitleProperty = "Key"))
+	UPROPERTY(EditDefaultsOnly, Category = "Display", Meta = (TitleProperty = "Key"))
 	TArray<FCommonInputKeyBrushConfiguration> InputBrushDataMap;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (TitleProperty = "Keys"))
+	UPROPERTY(EditDefaultsOnly, Category = "Display", Meta = (TitleProperty = "Keys"))
 	TArray<FCommonInputKeySetBrushConfiguration> InputBrushKeySets;
 
 	UFUNCTION()
@@ -207,7 +211,7 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category = "Default", Meta = (EditCondition = "bSupportsGamepad"))
 	bool bCanChangeGamepadType;
 
-	UPROPERTY(config, EditAnywhere, Category = "Default", Meta = (TitleProperty = "Key"))
+	UPROPERTY(config, EditAnywhere, Category = "Default", Meta = (TitleProperty = "InputType"))
 	TArray<TSoftClassPtr<UCommonInputBaseControllerData>> ControllerData;
 
 	UPROPERTY(Transient)
@@ -302,7 +306,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Properties")
 	bool bSupportsTouch;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (TitleProperty = "Key"))
+	UPROPERTY(EditDefaultsOnly, Category = "Properties", Meta = (TitleProperty = "GamepadName"))
 	TArray<TSoftClassPtr<UCommonInputBaseControllerData>> ControllerData;
 
 	UPROPERTY(Transient)
