@@ -20,6 +20,8 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		using FDataTypeRegistryInfo = Frontend::FDataTypeRegistryInfo;
+
 		struct FEditorDataType
 		{
 			FEdGraphPinType PinType;

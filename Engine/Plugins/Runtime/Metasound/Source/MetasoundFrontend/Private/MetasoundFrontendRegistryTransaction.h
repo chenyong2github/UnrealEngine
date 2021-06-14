@@ -14,10 +14,10 @@ namespace Metasound
 		FRegistryTransactionID GetOriginRegistryTransactionID();
 
 		/** Create a node registration transaction. */
-		FRegistryTransactionPtr MakeAddNodeRegistryTransaction(const FNodeClassInfo& InInfo);
+		FRegistryTransactionPtr MakeAddNodeRegistryTransaction(const FNodeRegistryKey& InKey, const FNodeClassInfo& InInfo);
 
 		/** Create a node unregistration transaction. */
-		FRegistryTransactionPtr MakeRemoveNodeRegistryTransaction(const FNodeClassInfo& InInfo);
+		FRegistryTransactionPtr MakeRemoveNodeRegistryTransaction(const FNodeRegistryKey& InKey, const FNodeClassInfo& InInfo);
 
 		/** Maintains a history of IRegistryTransactions. Calls are threadsafe (excluding
 		 * the constructor and destructor.)

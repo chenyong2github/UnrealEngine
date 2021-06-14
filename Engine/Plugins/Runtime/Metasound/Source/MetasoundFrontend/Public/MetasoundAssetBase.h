@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "MetasoundAccessPtr.h"
 #include "MetasoundFrontend.h"
-#include "MetasoundFrontendBaseClasses.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocumentAccessPtr.h"
 #include "MetasoundGraph.h"

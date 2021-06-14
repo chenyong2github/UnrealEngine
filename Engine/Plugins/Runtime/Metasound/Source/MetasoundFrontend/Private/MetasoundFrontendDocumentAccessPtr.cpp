@@ -25,11 +25,12 @@ namespace Metasound
 
 			bool IsMatchingMetasoundClass(const FNodeClassInfo& InNodeClass, const FMetasoundFrontendClassMetadata& InMetadata) 
 			{
-				if (InNodeClass.NodeType == InMetadata.Type)
-				{
-					return InNodeClass.LookupKey == FRegistry::GetRegistryKey(InMetadata);
-				}
-				return false;
+				return FRegistry::GetRegistryKey(InNodeClass) == FRegistry::GetRegistryKey(InMetadata);
+			}
+
+			bool IsMatchingMetasoundClass(const FNodeRegistryKey& InKey, const FMetasoundFrontendClassMetadata& InMetadata) 
+			{
+				return InKey == FRegistry::GetRegistryKey(InMetadata);
 			}
 		}
 
@@ -513,6 +514,22 @@ namespace Metasound
 			return GetMemberAccessPtr<FClassAccessPtr>(FindClassWithInfo);
 		}
 
+		FClassAccessPtr FDocumentAccessPtr::GetClassWithRegistryKey(const FNodeRegistryKey& InKey)
+		{
+			auto FindClassWithRegistryKey = [Key=InKey](FMetasoundFrontendDocument& InDoc)
+			{
+				auto IsClassWithRegistryKey = [=](const FMetasoundFrontendClass& InClass) 
+				{ 
+					using namespace MetasoundFrontendDocumentAccessPtrPrivate;
+					return IsMatchingMetasoundClass(Key, InClass.Metadata);
+				};
+
+				return InDoc.Dependencies.FindByPredicate(IsClassWithRegistryKey);
+			};
+
+			return GetMemberAccessPtr<FClassAccessPtr>(FindClassWithRegistryKey);
+		}
+
 		FConstGraphClassAccessPtr FDocumentAccessPtr::GetRootGraph() const
 		{
 			return GetMemberAccessPtr<FConstGraphClassAccessPtr>([](const FMetasoundFrontendDocument& InDoc) { return &InDoc.RootGraph; });
@@ -595,6 +612,22 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstClassAccessPtr>(FindClassWithInfo);
 		}
 
+		FConstClassAccessPtr FDocumentAccessPtr::GetClassWithRegistryKey(const FNodeRegistryKey& InKey) const
+		{
+			auto FindClassWithRegistryKey = [Key=InKey](const FMetasoundFrontendDocument& InDoc)
+			{
+				auto IsClassWithRegistryKey = [=](const FMetasoundFrontendClass& InClass) 
+				{ 
+					using namespace MetasoundFrontendDocumentAccessPtrPrivate;
+					return IsMatchingMetasoundClass(Key, InClass.Metadata);
+				};
+
+				return InDoc.Dependencies.FindByPredicate(IsClassWithRegistryKey);
+			};
+
+			return GetMemberAccessPtr<FConstClassAccessPtr>(FindClassWithRegistryKey);
+		}
+
 		FConstGraphClassAccessPtr FConstDocumentAccessPtr::GetRootGraph() const
 		{
 			return GetMemberAccessPtr<FConstGraphClassAccessPtr>([](const FMetasoundFrontendDocument& InDoc) { return &InDoc.RootGraph; });
@@ -675,6 +708,23 @@ namespace Metasound
 			};
 
 			return GetMemberAccessPtr<FConstClassAccessPtr>(FindClassWithInfo);
+		}
+
+
+		FConstClassAccessPtr FConstDocumentAccessPtr::GetClassWithRegistryKey(const FNodeRegistryKey& InKey) const
+		{
+			auto FindClassWithRegistryKey = [Key=InKey](const FMetasoundFrontendDocument& InDoc)
+			{
+				auto IsClassWithRegistryKey = [=](const FMetasoundFrontendClass& InClass) 
+				{ 
+					using namespace MetasoundFrontendDocumentAccessPtrPrivate;
+					return IsMatchingMetasoundClass(Key, InClass.Metadata);
+				};
+
+				return InDoc.Dependencies.FindByPredicate(IsClassWithRegistryKey);
+			};
+
+			return GetMemberAccessPtr<FConstClassAccessPtr>(FindClassWithRegistryKey);
 		}
 	}
 }

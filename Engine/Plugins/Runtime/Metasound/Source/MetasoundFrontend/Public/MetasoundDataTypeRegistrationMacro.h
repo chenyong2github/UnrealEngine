@@ -59,7 +59,6 @@ namespace Metasound
 
 	namespace MetasoundDataTypeRegistrationPrivate
 	{
-
 		// Helper utility to test if we can transmit a datatype between a send and a receive node.
 		template <typename TDataType>
 		struct TIsTransmittable
@@ -67,12 +66,6 @@ namespace Metasound
 		private:
 			static constexpr bool bIsCopyConstructible = std::is_copy_constructible<TDataType>::value;
 			static constexpr bool bIsCopyAssignable = std::is_copy_assignable<TDataType>::value;
-
-			// TODO: audio types were intended to be send/receive nodes but they require 
-			// template specialization.  TIsTransmittable should ask the Send and Receive nodes
-			// if they are transmittable rather than attempting to do the logic for all
-			// types here. 
-			//static constexpr bool bIsAudioDataType = TIsDerivedFrom<TDataType, IAudioDataType>::Value;
 
 			static constexpr bool bCanBeTransmitted = bIsCopyConstructible && bIsCopyAssignable;
 
@@ -240,151 +233,16 @@ namespace Metasound
 			AttemptToRegisterConverter<TDataType, FString>();
 		}
 
-		// SFINAE for enum types.
-		template<typename TDataType, typename std::enable_if<TEnumTraits<TDataType>::bIsEnum, bool>::type = true>
-		bool RegisterEnumDataTypeWithFrontend()
+		/** Creates the FDataTypeRegistryInfo for a data type.
+		 * 
+		 * @tparam TDataType - The data type to create info for.
+		 * @tparam PreferredArgType - The preferred constructor argument type to use when creating an instance of the data type.
+		 * @tparam UClassToUse - The preferred UObject class to use when constructing from an Audio::IProxyData.
+		 */
+		template<typename TDataType, ELiteralType PreferredArgType, typename UClassToUse>
+		Frontend::FDataTypeRegistryInfo CreateDataTypeInfo()
 		{
-			using InnerType = typename TEnumTraits<TDataType>::InnerType;
-			using FStringHelper = TEnumStringHelper<InnerType>;
-
-			struct FEnumHandler : Metasound::Frontend::IEnumDataTypeInterface
-			{
-				FName GetNamespace() const override
-				{
-					return FStringHelper::GetNamespace();
-				}
-				int32 GetDefaultValue() const override
-				{
-					return static_cast<int32>(TEnumTraits<TDataType>::DefaultValue);
-				}
-				const TArray<FGenericInt32Entry>& GetAllEntries() const override
-				{
-					auto BuildIntEntries = []()
-					{
-						// Convert to int32 representation 
-						TArray<FGenericInt32Entry> IntEntries;
-						IntEntries.Reserve(FStringHelper::GetAllEntries().Num());
-						for (const TEnumEntry<InnerType>& i : FStringHelper::GetAllEntries())
-						{
-							IntEntries.Emplace(i);
-						}
-						return IntEntries;
-					};
-					static const TArray<FGenericInt32Entry> IntEntries = BuildIntEntries();
-					return IntEntries;
-				}
-			};
-
-			return FMetasoundFrontendRegistryContainer::Get()->RegisterEnumDataInterface(
-				GetMetasoundDataTypeName<TDataType>(), MakeShared<FEnumHandler>());
-		}
-		
-		// SFINAE stub for non-enum types. 
-		template<typename TDataType, typename std::enable_if<!TEnumTraits<TDataType>::bIsEnum, bool>::type = true>
-		bool RegisterEnumDataTypeWithFrontend() { return false; }
-
-		template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = UObject>
-		bool RegisterDataTypeWithFrontendInternal()
-		{
-			// if we reenter this code (because DECLARE_METASOUND_DATA_REFERENCE_TYPES was called twice with the same type),
-			// we catch it here.
-			static bool bAlreadyRegisteredThisDataType = false;
-			if (bAlreadyRegisteredThisDataType)
-			{
-				UE_LOG(LogMetaSound, Display, TEXT("Tried to call REGISTER_METASOUND_DATATYPE twice with the same class %s. ignoring the second call. Likely because REGISTER_METASOUND_DATATYPE is in a header that's used in multiple modules. Consider moving it to a private header or cpp file."), TDataReferenceTypeInfo<TDataType>::TypeName)
-				return false;
-			}
-
-			bAlreadyRegisteredThisDataType = true;
-
-			// Lambdas that generate our template-instantiated input, variable, and output nodes:
-			FCreateInputNodeFunction InputNodeConstructor = [](FInputNodeConstructorParams&& InParams) -> TUniquePtr<INode>
-			{
-				return TUniquePtr<INode>(new TInputNode<TDataType>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam)));
-			};
-
-			FCreateMetasoundFrontendClassFunction CreateFrontendInputClass = []() -> FMetasoundFrontendClass
-			{
-				// Create class info using prototype node
-				// TODO: register input nodes with static class info.
-				static TInputNode<TDataType> Prototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
-				return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Input);
-			};
-
-			FCreateVariableNodeFunction VariableNodeConstructor = [](FVariableNodeConstructorParams&& InParams) -> TUniquePtr<INode>
-			{
-				return TUniquePtr<INode>(new TGetVariableNode<TDataType>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam)));
-			};
-
-			FCreateMetasoundFrontendClassFunction CreateFrontendVariableClass = []() -> FMetasoundFrontendClass
-			{
-				// Create class info using prototype node
-				static TGetVariableNode<TDataType> Prototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
-				return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
-			};
-
-			FCreateOutputNodeFunction OutputNodeConstructor = [](const FOutputNodeConstructorParams& InParams) -> TUniquePtr<INode>
-			{
-				return TUniquePtr<INode>(new TOutputNode<TDataType>(InParams.NodeName, InParams.InstanceID, InParams.VertexName));
-			};
-
-			FCreateMetasoundFrontendClassFunction CreateFrontendOutputClass = []() -> FMetasoundFrontendClass
-			{
-				// Create class info using prototype node
-				// TODO: register output nodes with static class info.
-				static TOutputNode<TDataType> Prototype(TEXT(""), FGuid(), TEXT(""));
-				return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Output);
-			};
-			
-			// By default, this function should not be used, unless the preferred arg type is UObjectProxy or UObjectProxyArray, and UClassToUse should be specified.
-			FCreateAudioProxyFunction ProxyGenerator = [](UObject* InObject) -> Audio::IProxyDataPtr
-			{
-				checkNoEntry();
-				return Audio::IProxyDataPtr(nullptr);
-			};
-
-			// If this datatype uses a UObject or UObject array literal, we generate a lambda to build a proxy here:
-			constexpr bool bSpecifiedUClassForProxy = !TIsSame<UClassToUse, UObject>::Value;
-			if (bSpecifiedUClassForProxy)
-			{
-				static_assert(!bSpecifiedUClassForProxy || std::is_base_of<IAudioProxyDataFactory, UClassToUse>::value, "If a Metasound Datatype uses a UObject as a literal, the UClass of that object needs to also derive from Audio::IProxyDataFactory. See USoundWave as an example.");
-				ProxyGenerator = [](UObject* InObject) -> Audio::IProxyDataPtr
-				{
-					if (InObject)
-					{
-						IAudioProxyDataFactory* ObjectAsFactory = CastToAudioProxyDataFactory<UClassToUse>(InObject);
-						if (ensureAlways(ObjectAsFactory))
-						{
-							static FName ProxySubsystemName = TEXT("Metasound");
-
-							Audio::FProxyDataInitParams ProxyInitParams;
-							ProxyInitParams.NameOfFeatureRequestingProxy = ProxySubsystemName;
-
-							return ObjectAsFactory->CreateNewProxyData(ProxyInitParams);
-						}
-					}
-
-					return Audio::IProxyDataPtr(nullptr);
-				};
-			}
-
-			FCreateDataChannelFunction CreateDataChannelFunc(&FTransmissionDataChannelFactory::CreateDataChannel<TDataType>);
-
-			// Pack all of our various constructor lambdas to a single struct.
-			FDataTypeConstructorCallbacks Callbacks = 
-			{ 
-				MoveTemp(InputNodeConstructor),
-				MoveTemp(CreateFrontendInputClass),
-				MoveTemp(VariableNodeConstructor),
-				MoveTemp(CreateFrontendVariableClass),
-				MoveTemp(OutputNodeConstructor),
-				MoveTemp(CreateFrontendOutputClass),
-				MoveTemp(ProxyGenerator),
-				MoveTemp(CreateDataChannelFunc)
-			};
-
-
-			FDataTypeRegistryInfo RegistryInfo;
+			Frontend::FDataTypeRegistryInfo RegistryInfo;
 
 			RegistryInfo.DataTypeName = GetMetasoundDataTypeName<TDataType>();
 			RegistryInfo.PreferredLiteralType = PreferredArgType;
@@ -401,32 +259,235 @@ namespace Metasound
 			RegistryInfo.bIsIntArrayParsable = TIsParsable<TDataType, TArray<int32>>::Value;
 			RegistryInfo.bIsFloatArrayParsable = TIsParsable<TDataType, TArray<float>>::Value;
 			RegistryInfo.bIsStringArrayParsable = TIsParsable<TDataType, TArray<FString>>::Value;
-
 			RegistryInfo.bIsProxyArrayParsable = TIsParsable<TDataType, const TArray<Audio::IProxyDataPtr>& >::Value;
+
 			RegistryInfo.bIsEnum = TEnumTraits<TDataType>::bIsEnum;
 
 			RegistryInfo.bIsTransmittable = TIsTransmittable<TDataType>::Value;
 			
-			RegistryInfo.ProxyGeneratorClass = UClassToUse::StaticClass();
-
-			bool bSucceeded = FMetasoundFrontendRegistryContainer::Get()->RegisterDataType(RegistryInfo, MoveTemp(Callbacks));
-			ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), *GetMetasoundDataTypeString<TDataType>());
-
-			// If its an enum, register its data interface AFTER we've registered the data type.
-			if (TEnumTraits<TDataType>::bIsEnum)
+			if constexpr (std::is_base_of<UObject, UClassToUse>::value)
 			{
-				if (!ensure(RegisterEnumDataTypeWithFrontend<TDataType>()))
-				{
-					return false;
-				}
+				RegistryInfo.ProxyGeneratorClass = UClassToUse::StaticClass();
+			}
+			else 
+			{
+				static_assert(std::is_same<UClassToUse, void>::value, "Only UObject derived classes can supply proxy interfaces.");
+				RegistryInfo.ProxyGeneratorClass = nullptr;
 			}
 
-			RegisterConverterNodes<TDataType>();
-			AttemptToRegisterSendAndReceiveNodes<TDataType>();
+			return RegistryInfo;
+		}
+
+		/** Returns an IEnumDataTypeInterface pointer for the data type. If the 
+		 * data type has no IEnumDataTypeInterface, the returned pointer will be
+		 * invalid.
+		 *
+		 * @tparam TDataType - The data type to create the interface for.
+		 *
+		 * @return A shared pointer to the IEnumDataTypeInterface. If the TDataType
+		 *         does not have an IEnumDataTypeInterface, returns an invalid pointer.
+		 */
+		template<typename TDataType>
+		TSharedPtr<Frontend::IEnumDataTypeInterface> GetEnumDataTypeInterface()
+		{
+			TSharedPtr<Frontend::IEnumDataTypeInterface> EnumInterfacePtr;
+
+			using FEnumTraits = TEnumTraits<TDataType>;
+
+			// Check if data type is an enum.
+			if constexpr (FEnumTraits::bIsEnum)
+			{
+				using InnerType = typename FEnumTraits::InnerType;
+				using FStringHelper = TEnumStringHelper<InnerType>;
+
+				struct FEnumHandler : Metasound::Frontend::IEnumDataTypeInterface
+				{
+					FName GetNamespace() const override
+					{
+						return FStringHelper::GetNamespace();
+					}
+
+					int32 GetDefaultValue() const override
+					{
+						return static_cast<int32>(TEnumTraits<TDataType>::DefaultValue);
+					}
+
+					const TArray<FGenericInt32Entry>& GetAllEntries() const override
+					{
+						auto BuildIntEntries = []()
+						{
+							// Convert to int32 representation 
+							TArray<FGenericInt32Entry> IntEntries;
+							IntEntries.Reserve(FStringHelper::GetAllEntries().Num());
+							for (const TEnumEntry<InnerType>& i : FStringHelper::GetAllEntries())
+							{
+								IntEntries.Emplace(i);
+							}
+							return IntEntries;
+						};
+						static const TArray<FGenericInt32Entry> IntEntries = BuildIntEntries();
+						return IntEntries;
+					}
+				};
+
+				EnumInterfacePtr = MakeShared<FEnumHandler>();
+			}
+
+			return EnumInterfacePtr;
+		}
+
+		/** Registers a data type with the MetaSound Frontend. This allows the data type
+		 * to be used in Input and Output nodes by informing the Frontend how to 
+		 * instantiate an instance. 
+		 *
+		 * @tparam TDataType - The data type to register.
+		 * @tparam PreferredArgType - The preferred constructor argument type to use when creating an instance of the data type.
+		 * @tparam UClassToUse - The preferred UObject class to use when constructing from an Audio::IProxyDataPtr. If the type is not
+		 *                       constructible with an Audio::IProxyDataPtr, then this should be void.
+		 *
+		 * @return True on success, false on failure.
+		 */
+		template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = void>
+		bool RegisterDataTypeWithFrontendInternal()
+		{
+			// if we reenter this code (because DECLARE_METASOUND_DATA_REFERENCE_TYPES was called twice with the same type),
+			// we catch it here.
+			static bool bAlreadyRegisteredThisDataType = false;
+			if (bAlreadyRegisteredThisDataType)
+			{
+				UE_LOG(LogMetaSound, Display, TEXT("Tried to call REGISTER_METASOUND_DATATYPE twice with the same class %s. ignoring the second call. Likely because REGISTER_METASOUND_DATATYPE is in a header that's used in multiple modules. Consider moving it to a private header or cpp file."), TDataReferenceTypeInfo<TDataType>::TypeName)
+				return false;
+			}
+
+			bAlreadyRegisteredThisDataType = true;
+
+			// Define registry entry class for this data type.
+			class FDataTypeRegistryEntry : public Frontend::IDataTypeRegistryEntry
+			{
+			public:
+				FDataTypeRegistryEntry()
+				: Info(CreateDataTypeInfo<TDataType, PreferredArgType, UClassToUse>())
+				, EnumInterface(GetEnumDataTypeInterface<TDataType>())
+				{
+					// Create class info using prototype node
+					// TODO: register nodes with static class info instead of prototype instance.
+
+					TInputNode<TDataType> InputPrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
+					InputClass = Metasound::Frontend::GenerateClassDescription(InputPrototype.GetMetadata(), EMetasoundFrontendClassType::Input);
+
+					TOutputNode<TDataType> OutputPrototype(TEXT(""), FGuid(), TEXT(""));
+					OutputClass = Metasound::Frontend::GenerateClassDescription(OutputPrototype.GetMetadata(), EMetasoundFrontendClassType::Output);
+
+					TGetVariableNode<TDataType> VariablePrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
+					VariableClass = Metasound::Frontend::GenerateClassDescription(VariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
+				}
+				virtual ~FDataTypeRegistryEntry() = default;
+
+				virtual const Frontend::FDataTypeRegistryInfo& GetDataTypeInfo() const override
+				{
+					return Info;
+				}
+
+				virtual TSharedPtr<const Frontend::IEnumDataTypeInterface> GetEnumInterface() const override
+				{
+					return EnumInterface;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendInputClass() const override
+				{
+					return InputClass;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendVariableClass() const override
+				{
+					return VariableClass;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendOutputClass() const override
+				{
+					return OutputClass;
+				}
+
+				virtual TUniquePtr<INode> CreateInputNode(FInputNodeConstructorParams&& InParams) const override
+				{
+					return MakeUnique<TInputNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
+				}
+
+				virtual TUniquePtr<INode> CreateOutputNode(FOutputNodeConstructorParams&& InParams) const override
+				{
+					return MakeUnique<TOutputNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName);
+				}
+
+				virtual TUniquePtr<INode> CreateVariableNode(FVariableNodeConstructorParams&& InParams) const override
+				{
+					return MakeUnique<TGetVariableNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
+				}
+
+				virtual Audio::IProxyDataPtr CreateProxy(UObject* InObject) const override
+				{
+					// Only attempt to create proxy if the `UClassToUse` is not void.
+					if constexpr (!std::is_same<UClassToUse, void>::value)
+					{
+						static_assert(std::is_base_of<IAudioProxyDataFactory, UClassToUse>::value, "If a Metasound Datatype uses a UObject as a literal, the UClass of that object needs to also derive from Audio::IProxyDataFactory. See USoundWave as an example.");
+						if (InObject)
+						{
+							IAudioProxyDataFactory* ObjectAsFactory = CastToAudioProxyDataFactory<UClassToUse>(InObject);
+							if (ensureAlways(ObjectAsFactory))
+							{
+								static FName ProxySubsystemName = TEXT("Metasound");
+
+								Audio::FProxyDataInitParams ProxyInitParams;
+								ProxyInitParams.NameOfFeatureRequestingProxy = ProxySubsystemName;
+
+								return ObjectAsFactory->CreateNewProxyData(ProxyInitParams);
+							}
+						}
+					}
+
+					return Audio::IProxyDataPtr(nullptr);
+				}
+
+				virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FOperatorSettings& InOperatorSettings) const override
+				{
+					return FTransmissionDataChannelFactory::CreateDataChannel<TDataType>(InOperatorSettings);
+				}
+
+				virtual TUniquePtr<IDataTypeRegistryEntry> Clone() const override
+				{
+					return MakeUnique<FDataTypeRegistryEntry>();
+				}
+
+			private:
+				Frontend::FDataTypeRegistryInfo Info;
+				FMetasoundFrontendClass InputClass;
+				FMetasoundFrontendClass OutputClass;
+				FMetasoundFrontendClass VariableClass;
+				TSharedPtr<Frontend::IEnumDataTypeInterface> EnumInterface;
+			};
+
+			bool bSucceeded = FMetasoundFrontendRegistryContainer::Get()->RegisterDataType(GetMetasoundDataTypeName<TDataType>(), MakeUnique<FDataTypeRegistryEntry>());
+			ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), *GetMetasoundDataTypeString<TDataType>());
+
+			if (bSucceeded)
+			{
+				RegisterConverterNodes<TDataType>();
+				AttemptToRegisterSendAndReceiveNodes<TDataType>();
+			}
 			
 			return bSucceeded;
 		}
 
+		/** Registers an array of a data type with the MetaSound Frontend. This allows 
+		 * an array of the data type to be used in Input, Output, Send and Receive 
+		 * nodes by informing the Frontend how to instantiate an instance. 
+		 *
+		 * @tparam TDataType - The data type to register.
+		 * @tparam PreferredArgType - The preferred constructor argument type to use when creating an instance of the data type.
+		 * @tparam UClassToUse - The preferred UObject class to use when constructing from an Audio::IProxyDataPtr. If the type is not
+		 *                       constructible with an Audio::IProxyDataPtr, then this should be void.
+		 *
+		 * @return True on success, false on failure.
+		 */
 		template<typename TDataType, ELiteralType PreferredArgType, typename UClassToUse>
 		bool RegisterDataTypeArrayWithFrontend()
 		{
@@ -444,7 +505,18 @@ namespace Metasound
 		}
 	}
 	
-	template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = UObject>
+	/** Registers a data type with the MetaSound Frontend. This allows the data type 
+	 * to be used in Input, Output, Send and Receive  nodes by informing the 
+	 * Frontend how to instantiate an instance. 
+	 *
+	 * @tparam TDataType - The data type to register.
+	 * @tparam PreferredArgType - The preferred constructor argument type to use when creating an instance of the data type.
+	 * @tparam UClassToUse - The preferred UObject class to use when constructing from an Audio::IProxyDataPtr. If the type is not
+	 *                       constructible with an Audio::IProxyDataPtr, then this should be void.
+	 *
+	 * @return True on success, false on failure.
+	 */
+	template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = void>
 	bool RegisterDataTypeWithFrontend()
 	{
 		using namespace MetasoundDataTypeRegistrationPrivate;
@@ -461,13 +533,19 @@ namespace Metasound
 	}
 
 
+	/** Registration info for a data type.
+	 *
+	 * @tparam DataType - The data type to be registered. 
+	 */
 	template<typename DataType>
 	struct TMetasoundDataTypeRegistration
 	{
 		static_assert(std::is_same<DataType, typename std::decay<DataType>::type>::value, "DataType and decayed DataType must be the same");
 		
+		// To register a data type, an input node must be able to instantiate it.
 		static constexpr bool bCanRegister = TInputNode<DataType>::bCanRegister;
 
+		// If a data type has been successfully registered, this will be true.
 		static const bool bSuccessfullyRegistered;
 	};
 }

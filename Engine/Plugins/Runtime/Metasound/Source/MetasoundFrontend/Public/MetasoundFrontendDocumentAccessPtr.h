@@ -143,6 +143,7 @@ namespace Metasound
 			FClassAccessPtr GetClassWithID(const FGuid& InID);
 			FClassAccessPtr GetClassWithMetadata(const FMetasoundFrontendClassMetadata& InMetadata);
 			FClassAccessPtr GetClassWithInfo(const FNodeClassInfo& InInfo);
+			FClassAccessPtr GetClassWithRegistryKey(const FNodeRegistryKey& InKey);
 
 			FConstGraphClassAccessPtr GetRootGraph() const;
 			FConstGraphClassAccessPtr GetSubgraphWithID(const FGuid& InID) const;
@@ -150,6 +151,7 @@ namespace Metasound
 			FConstClassAccessPtr GetClassWithID(const FGuid& InID) const;
 			FConstClassAccessPtr GetClassWithMetadata(const FMetasoundFrontendClassMetadata& InMetadata) const;
 			FConstClassAccessPtr GetClassWithInfo(const FNodeClassInfo& InInfo) const;
+			FConstClassAccessPtr GetClassWithRegistryKey(const FNodeRegistryKey& InKey) const;
 		};
 
 		class METASOUNDFRONTEND_API FConstDocumentAccessPtr : public TAccessPtr<const FMetasoundFrontendDocument>
@@ -166,6 +168,7 @@ namespace Metasound
 			FConstClassAccessPtr GetClassWithID(const FGuid& InID) const;
 			FConstClassAccessPtr GetClassWithMetadata(const FMetasoundFrontendClassMetadata& InMetadata) const;
 			FConstClassAccessPtr GetClassWithInfo(const FNodeClassInfo& InInfo) const;
+			FConstClassAccessPtr GetClassWithRegistryKey(const FNodeRegistryKey& InKey) const;
 		};
 	}
 }

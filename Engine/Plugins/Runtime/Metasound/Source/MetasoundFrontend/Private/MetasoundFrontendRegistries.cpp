@@ -2,6 +2,7 @@
 
 #include "MetasoundFrontendRegistries.h"
 
+#include "Algo/ForEach.h"
 #include "CoreMinimal.h"
 #include "MetasoundFrontendRegistryTransaction.h"
 #include "MetasoundLog.h"
@@ -56,17 +57,6 @@ namespace Metasound
 			Frontend::FNodeRegistryKey GetRegistryKey(EMetasoundFrontendClassType InType, const FString& InFullClassName, int32 InMajorVersion, int32 InMinorVersion)
 			{
 				FString RegistryKey = FString::Format(TEXT("{0}_{1}_{2}.{3}"), {*GetClassTypeString(InType), *InFullClassName, InMajorVersion, InMinorVersion});
-				/*
-				Frontend::FNodeRegistryKey Key;
-
-				Key.NodeClassFullName = InClassName;
-
-				// NodeHash is hash of node name and major version.
-				Key.NodeHash = FCrc::StrCrc32(*Key.NodeClassFullName.ToString());
-				Key.NodeHash = HashCombine(Key.NodeHash, FCrc::TypeCrc32(InMajorVersion));
-
-				return Key;
-				*/
 				return RegistryKey;
 			}
 
@@ -168,6 +158,195 @@ namespace Metasound
 				}
 			}
 
+			// Node registry entry for input nodes created from a data type registry entry.
+			class FInputNodeRegistryEntry : public INodeRegistryEntry
+			{
+			public:
+				FInputNodeRegistryEntry() = delete;
+
+				FInputNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
+				: DataTypeEntry(MoveTemp(InDataTypeEntry))
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						FrontendClass = DataTypeEntry->GetFrontendInputClass();
+						ClassInfo = FNodeClassInfo(FrontendClass);
+					}
+				}
+
+				virtual ~FInputNodeRegistryEntry() = default;
+
+				virtual const FNodeClassInfo& GetClassInfo() const override
+				{
+					return ClassInfo;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&&) const override
+				{
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return DataTypeEntry->CreateInputNode(MoveTemp(InParams));
+					}
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
+				{
+					return nullptr;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+				{
+					return FrontendClass;
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return MakeUnique<FInputNodeRegistryEntry>(DataTypeEntry->Clone());
+					}
+					return MakeUnique<FInputNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
+				}
+
+			private:
+				
+				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
+				FNodeClassInfo ClassInfo;
+				FMetasoundFrontendClass FrontendClass;
+			};
+
+			// Node registry entry for output nodes created from a data type registry entry.
+			class FOutputNodeRegistryEntry : public INodeRegistryEntry
+			{
+			public:
+				FOutputNodeRegistryEntry() = delete;
+
+				FOutputNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
+				: DataTypeEntry(MoveTemp(InDataTypeEntry))
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						FrontendClass = DataTypeEntry->GetFrontendOutputClass();
+						ClassInfo = FNodeClassInfo(FrontendClass);
+					}
+				}
+
+				virtual ~FOutputNodeRegistryEntry() = default;
+
+				virtual const FNodeClassInfo& GetClassInfo() const override
+				{
+					return ClassInfo;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&& InParams) const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return DataTypeEntry->CreateOutputNode(MoveTemp(InParams));
+					}
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
+				{
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
+				{
+					return nullptr;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+				{
+					return FrontendClass;
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return MakeUnique<FOutputNodeRegistryEntry>(DataTypeEntry->Clone());
+					}
+					return MakeUnique<FOutputNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
+				}
+
+			private:
+				
+				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
+				FNodeClassInfo ClassInfo;
+				FMetasoundFrontendClass FrontendClass;
+			};
+
+			// Node registry entry for variable nodes created from a data type registry entry.
+			class FVariableNodeRegistryEntry : public INodeRegistryEntry
+			{
+			public:
+				FVariableNodeRegistryEntry() = delete;
+
+				FVariableNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
+				: DataTypeEntry(MoveTemp(InDataTypeEntry))
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						FrontendClass = DataTypeEntry->GetFrontendVariableClass();
+						ClassInfo = FNodeClassInfo(FrontendClass);
+					}
+				}
+
+				virtual ~FVariableNodeRegistryEntry() = default;
+
+				virtual const FNodeClassInfo& GetClassInfo() const override
+				{
+					return ClassInfo;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&& InParams) const override
+				{
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return DataTypeEntry->CreateVariableNode(MoveTemp(InParams));
+					}
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
+				{
+					return nullptr;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+				{
+					return FrontendClass;
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return MakeUnique<FVariableNodeRegistryEntry>(DataTypeEntry->Clone());
+					}
+					return MakeUnique<FVariableNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
+				}
+
+			private:
+				
+				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
+				FNodeClassInfo ClassInfo;
+				FMetasoundFrontendClass FrontendClass;
+			};
+
 			// Registry container private implementation.
 			class FRegistryContainerImpl : public FMetasoundFrontendRegistryContainer
 			{
@@ -178,10 +357,8 @@ namespace Metasound
 				using FConverterNodeInfo = ::Metasound::Frontend::FConverterNodeInfo;
 
 				using FNodeRegistryKey = Metasound::Frontend::FNodeRegistryKey;
-				using FNodeRegistryElement = Metasound::Frontend::FNodeRegistryElement;
 
-				using FDataTypeRegistryInfo = Metasound::FDataTypeRegistryInfo;
-				using FDataTypeConstructorCallbacks = ::Metasound::FDataTypeConstructorCallbacks;
+				using FDataTypeRegistryInfo = Metasound::Frontend::FDataTypeRegistryInfo;
 				using FNodeClassMetadata = Metasound::FNodeClassMetadata;
 				using IEnumDataTypeInterface = Metasound::Frontend::IEnumDataTypeInterface;
 
@@ -205,13 +382,11 @@ namespace Metasound
 				 *
 				 * @return True on success.
 				 */
-				FNodeRegistryKey RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription) override;
-				bool UnregisterExternalNode(const FNodeRegistryKey& InKey) override;
-				bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo) override;
-				bool IsNodeRegistered(const FNodeRegistryKey& InKey) const override;
+				virtual FNodeRegistryKey RegisterNode(TUniquePtr<Metasound::Frontend::INodeRegistryEntry>&&) override;
+				virtual bool UnregisterNode(const FNodeRegistryKey& InKey) override;
+				virtual bool IsNodeRegistered(const FNodeRegistryKey& InKey) const override;
 
-				// Get all available nodes
-				TArray<Frontend::FNodeClassInfo> GetAllAvailableNodeClasses(Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const override;
+				bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo) override;
 
 				TArray<const Metasound::Frontend::IRegistryTransaction*> GetRegistryTransactionsSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const override;
 
@@ -221,25 +396,25 @@ namespace Metasound
 				void IterateRegistry(Metasound::FIterateMetasoundFrontendClassFunction InIterFunc, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) const override;
 
 				// Find Frontend Document data.
-				bool FindFrontendClassFromRegistered(const FNodeClassInfo& InClassInfo, FMetasoundFrontendClass& OutClass) override;
-				bool FindFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass) override;
-				bool FindInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata) override;
-				bool FindVariableNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata) override;
-				bool FindOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata) override;
+				bool FindFrontendClassFromRegistered(const FNodeRegistryKey& InKey, FMetasoundFrontendClass& OutClass) override;
+				virtual bool FindNodeClassInfoFromRegistered(const Metasound::Frontend::FNodeRegistryKey& InKey, FNodeClassInfo& OutInfo) override;
+				bool FindInputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey) override;
+				bool FindVariableNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey) override;
+				bool FindOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey) override;
 
 				// Create a new instance of a C++ implemented node from the registry.
-				TUniquePtr<Metasound::INode> ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams) override;
-				TUniquePtr<Metasound::INode> ConstructVariableNode(const FName& InVariableType, FVariableNodeConstructorParams&& InParams) override;
-				TUniquePtr<Metasound::INode> ConstructOutputNode(const FName& InOutputType, Metasound::FOutputNodeConstructorParams&& InParams) override;
-				TUniquePtr<Metasound::INode> ConstructExternalNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData) override;
+				TUniquePtr<Metasound::INode> CreateInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams) override;
+				TUniquePtr<Metasound::INode> CreateVariableNode(const FName& InVariableType, FVariableNodeConstructorParams&& InParams) override;
+				TUniquePtr<Metasound::INode> CreateOutputNode(const FName& InOutputType, Metasound::FOutputNodeConstructorParams&& InParams) override;
+				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultNodeConstructorParams&&) const override;
+				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultLiteralNodeConstructorParams&&) const override;
+				virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData) const override;
 
 				// Returns a list of possible nodes to use to convert from FromDataType to ToDataType.
 				// Returns an empty array if none are available.
 				TArray<FConverterNodeInfo> GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType) override;
 
-				bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, const FDataTypeConstructorCallbacks& InCallbacks) override;
-
-				bool RegisterEnumDataInterface(FName InDataType, TSharedPtr<IEnumDataTypeInterface>&& InInterface) override;
+				virtual bool RegisterDataType(const FName& InName, TUniquePtr<Metasound::Frontend::IDataTypeRegistryEntry>&&) override;
 
 				// Get the desired kind of literal for a given data type. Returns EConstructorArgType::Invalid if the data type couldn't be found.
 				Metasound::ELiteralType GetDesiredLiteralTypeForDataType(FName InDataType) const override;
@@ -249,8 +424,8 @@ namespace Metasound
 
 				// Handle uobjects and literals
 				UClass* GetLiteralUClassForDataType(FName InDataType) const override;
-				Metasound::FLiteral GenerateLiteralForUObject(const FName& InDataType, UObject* InObject) override;
-				Metasound::FLiteral GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray) override;
+				Metasound::FLiteral CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) override;
+				Metasound::FLiteral CreateLiteralFromUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray) override;
 
 				// Get info about a specific data type (what kind of literals we can use, etc.)
 				// @returns false if InDataType wasn't found in the registry. 
@@ -260,6 +435,9 @@ namespace Metasound
 
 				TSharedPtr<Metasound::IDataChannel, ESPMode::ThreadSafe> CreateDataChannelForDataType(const FName& InDataType, const Metasound::FOperatorSettings& InOperatorSettings) const override;
 			private:
+
+				const IDataTypeRegistryEntry* FindDataTypeEntry(const FName& InDataTypeName) const;
+				const INodeRegistryEntry* FindNodeEntry(const FNodeRegistryKey& InKey) const;
 
 
 				// This buffer is used to enqueue nodes and datatypes to register when the module has been initialized,
@@ -272,23 +450,12 @@ namespace Metasound
 				FCriticalSection LazyInitCommandCritSection;
 
 				// Registry in which we keep all information about nodes implemented in C++.
-				TMap<FNodeRegistryKey, FNodeRegistryElement> ExternalNodeRegistry;
+				TMap<FNodeRegistryKey, TUniquePtr<INodeRegistryEntry>> RegisteredNodes;
+				TMap<FName, TUniquePtr<IDataTypeRegistryEntry>> RegisteredDataTypes;
 
 				// Registry in which we keep lists of possible nodes to use to convert between two datatypes
 				TMap<FConverterNodeRegistryKey, FConverterNodeRegistryValue> ConverterNodeRegistry;
 
-				struct FDataTypeRegistryElement
-				{
-					Metasound::FDataTypeConstructorCallbacks Callbacks;
-
-					Metasound::FDataTypeRegistryInfo Info;
-
-					TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> EnumInterface;
-				};
-
-				TMap<FName, FDataTypeRegistryElement> DataTypeRegistry;
-				TMap<FNodeRegistryKey, FDataTypeRegistryElement> DataTypeNodeRegistry;
-				
 				FRegistryTransactionHistory RegistryTransactionHistory;
 			};
 
@@ -322,33 +489,18 @@ namespace Metasound
 				return true;
 			}
 
-			TArray<FNodeClassInfo> FRegistryContainerImpl::GetAllAvailableNodeClasses(FRegistryTransactionID* OutCurrentRegistryTransactionID) const 
-			{
-				TArray<FNodeClassInfo> OutClasses;
-
-				TArray<const IRegistryTransaction*> Transactions = RegistryTransactionHistory.GetTransactions(GetOriginRegistryTransactionID(), OutCurrentRegistryTransactionID);
-
-				for (const IRegistryTransaction* Transaction : Transactions)
-				{
-					if (const FNodeClassInfo* Info = Transaction->GetNodeClassInfo())
-					{
-						OutClasses.Add(*Info);
-					}
-				}
-
-				return OutClasses;
-			}
-
 			TArray<const Metasound::Frontend::IRegistryTransaction*> FRegistryContainerImpl::GetRegistryTransactionsSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const 
 			{
 				return RegistryTransactionHistory.GetTransactions(InSince, OutCurrentRegistryTransactionID);
 			}
 
-			TUniquePtr<Metasound::INode> FRegistryContainerImpl::ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams)
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateInputNode(const FName& InDataType, Metasound::FInputNodeConstructorParams&& InParams)
 			{
-				if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InInputType), TEXT("Couldn't find data type %s!"), *InInputType.ToString()))
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]"), *InDataType.ToString()))
 				{
-					return DataTypeRegistry[InInputType].Callbacks.CreateInputNode(MoveTemp(InParams));
+					return Entry->CreateInputNode(MoveTemp(InParams));
 				}
 				else
 				{
@@ -356,11 +508,13 @@ namespace Metasound
 				}
 			}
 
-			TUniquePtr<Metasound::INode> FRegistryContainerImpl::ConstructVariableNode(const FName& InVariableType, Metasound::FVariableNodeConstructorParams&& InParams)
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateVariableNode(const FName& InDataType, Metasound::FVariableNodeConstructorParams&& InParams)
 			{
-				if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InVariableType), TEXT("Couldn't find data type %s!"), *InVariableType.ToString()))
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]"), *InDataType.ToString()))
 				{
-					return DataTypeRegistry[InVariableType].Callbacks.CreateVariableNode(MoveTemp(InParams));
+					return Entry->CreateVariableNode(MoveTemp(InParams));
 				}
 				else
 				{
@@ -368,11 +522,13 @@ namespace Metasound
 				}
 			}
 
-			TUniquePtr<Metasound::INode> FRegistryContainerImpl::ConstructOutputNode(const FName& InOutputType, Metasound::FOutputNodeConstructorParams&& InParams)
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateOutputNode(const FName& InDataType, Metasound::FOutputNodeConstructorParams&& InParams)
 			{
-				if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InOutputType), TEXT("Couldn't find data type %s!"), *InOutputType.ToString()))
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]"), *InDataType.ToString()))
 				{
-					return DataTypeRegistry[InOutputType].Callbacks.CreateOutputNode(MoveTemp(InParams));
+					return Entry->CreateOutputNode(MoveTemp(InParams));
 				}
 				else
 				{
@@ -380,15 +536,18 @@ namespace Metasound
 				}
 			}
 
-			Metasound::FLiteral FRegistryContainerImpl::GenerateLiteralForUObject(const FName& InDataType, UObject* InObject)
+			Metasound::FLiteral FRegistryContainerImpl::CreateLiteralFromUObject(const FName& InDataType, UObject* InObject)
 			{
-				if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InDataType), TEXT("Couldn't find data type %s!"), *InDataType.ToString()))
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]"), *InDataType.ToString()))
+
 				{
-					if (Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.CreateAudioProxy(InObject))
+					if (Audio::IProxyDataPtr ProxyPtr = Entry->CreateProxy(InObject))
 					{
 						if (InObject)
 						{
-							ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy!"));
+							ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy."));
 						}
 						return Metasound::FLiteral(MoveTemp(ProxyPtr));
 					}
@@ -397,15 +556,18 @@ namespace Metasound
 				return Metasound::FLiteral();
 			}
 
-			Metasound::FLiteral FRegistryContainerImpl::GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray)
+			Metasound::FLiteral FRegistryContainerImpl::CreateLiteralFromUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray)
 			{
-				if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InDataType), TEXT("Couldn't find data type %s!"), *InDataType.ToString()))
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]"), *InDataType.ToString()))
+
 				{
 					TArray<Audio::IProxyDataPtr> ProxyArray;
 
 					for (UObject* InObject : InObjectArray)
 					{
-						Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.CreateAudioProxy(InObject);
+						Audio::IProxyDataPtr ProxyPtr = Entry->CreateProxy(InObject);
 
 						if (InObject)
 						{
@@ -422,17 +584,40 @@ namespace Metasound
 					return Metasound::FLiteral();
 				}
 			}
-
-			TUniquePtr<Metasound::INode> FRegistryContainerImpl::ConstructExternalNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData)
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, FDefaultNodeConstructorParams&& InParams) const
 			{
-				if (!ExternalNodeRegistry.Contains(InKey))
+				const INodeRegistryEntry* Entry = FindNodeEntry(InKey);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find node [RegistryKey:%s]"), *InKey))
 				{
-					return nullptr;
+					return Entry->CreateNode(MoveTemp(InParams));
 				}
-				else
+
+				return nullptr;
+			}
+
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, FDefaultLiteralNodeConstructorParams&& InParams) const
+			{
+				const INodeRegistryEntry* Entry = FindNodeEntry(InKey);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find node [RegistryKey:%s]"), *InKey))
 				{
-					return ExternalNodeRegistry[InKey].CreateNode(InInitData);
+					return Entry->CreateNode(MoveTemp(InParams));
 				}
+
+				return nullptr;
+			}
+
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData) const
+			{
+				const INodeRegistryEntry* Entry = FindNodeEntry(InKey);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find node [RegistryKey:%s]"), *InKey))
+				{
+					return Entry->CreateNode(InInitData);
+				}
+
+				return nullptr;
 			}
 
 			TArray<::Metasound::Frontend::FConverterNodeInfo> FRegistryContainerImpl::GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType)
@@ -448,166 +633,152 @@ namespace Metasound
 				}
 			}
 
-
-
 			Metasound::ELiteralType FRegistryContainerImpl::GetDesiredLiteralTypeForDataType(FName InDataType) const
 			{
-				if (!DataTypeRegistry.Contains(InDataType))
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (nullptr == Entry)
 				{
 					return Metasound::ELiteralType::Invalid;
 				}
 
-				const FDataTypeRegistryElement& DataTypeInfo = DataTypeRegistry[InDataType];
+				const FDataTypeRegistryInfo& Info = Entry->GetDataTypeInfo();
 
 				// If there's a designated preferred literal type for this datatype, use that.
-				if (DataTypeInfo.Info.PreferredLiteralType != Metasound::ELiteralType::Invalid)
+				if (Info.PreferredLiteralType != Metasound::ELiteralType::Invalid)
 				{
-					return DataTypeInfo.Info.PreferredLiteralType;
+					return Info.PreferredLiteralType;
 				}
 
 				// Otherwise, we opt for the highest precision construction option available.
-				return Metasound::Frontend::MetasoundFrontendRegistryPrivate::GetMostDescriptiveLiteralForDataType(DataTypeInfo.Info);
+				return Metasound::Frontend::MetasoundFrontendRegistryPrivate::GetMostDescriptiveLiteralForDataType(Info);
 			}
 
 			UClass* FRegistryContainerImpl::GetLiteralUClassForDataType(FName InDataType) const
 			{
-				if (!DataTypeRegistry.Contains(InDataType))
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]."), *InDataType.ToString()))
 				{
-					ensureAlwaysMsgf(false, TEXT("DataType %s not registered."), *InDataType.ToString());
-					return nullptr;
+					return Entry->GetDataTypeInfo().ProxyGeneratorClass;
 				}
-				else
-				{
-					return DataTypeRegistry[InDataType].Info.ProxyGeneratorClass;
-				}
+
+				return nullptr;
 			}
 
 			bool FRegistryContainerImpl::DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralType InLiteralType) const
 			{
-				if (!DataTypeRegistry.Contains(InDataType))
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]."), *InDataType.ToString()))
 				{
-					ensureAlwaysMsgf(false, TEXT("DataType %s not registered."), *InDataType.ToString());
-					return false;
+					const FDataTypeRegistryInfo& Info = Entry->GetDataTypeInfo();
+
+					switch (InLiteralType)
+					{
+						case Metasound::ELiteralType::Boolean:
+						{
+							return Info.bIsBoolParsable;
+						}
+						case Metasound::ELiteralType::BooleanArray:
+						{
+							return Info.bIsBoolArrayParsable;
+						}
+
+						case Metasound::ELiteralType::Integer:
+						{
+							return Info.bIsIntParsable;
+						}
+						case Metasound::ELiteralType::IntegerArray:
+						{
+							return Info.bIsIntArrayParsable;
+						}
+
+						case Metasound::ELiteralType::Float:
+						{
+							return Info.bIsFloatParsable;
+						}
+						case Metasound::ELiteralType::FloatArray:
+						{
+							return Info.bIsFloatArrayParsable;
+						}
+
+						case Metasound::ELiteralType::String:
+						{
+							return Info.bIsStringParsable;
+						}
+						case Metasound::ELiteralType::StringArray:
+						{
+							return Info.bIsStringArrayParsable;
+						}
+
+						case Metasound::ELiteralType::UObjectProxy:
+						{
+							return Info.bIsProxyParsable;
+						}
+						case Metasound::ELiteralType::UObjectProxyArray:
+						{
+							return Info.bIsProxyArrayParsable;
+						}
+
+						case Metasound::ELiteralType::None:
+						{
+							return Info.bIsDefaultParsable;
+						}
+						case Metasound::ELiteralType::NoneArray:
+						{
+							return Info.bIsDefaultArrayParsable;
+						}
+
+						case Metasound::ELiteralType::Invalid:
+						default:
+						{
+							static_assert(static_cast<int32>(Metasound::ELiteralType::COUNT) == 13, "Possible missing case coverage for ELiteralType");
+							return false;
+						}
+					}
 				}
 
-				const FDataTypeRegistryElement& DataTypeInfo = DataTypeRegistry[InDataType];
-				
-				switch (InLiteralType)
-				{
-					case Metasound::ELiteralType::Boolean:
-					{
-						return DataTypeInfo.Info.bIsBoolParsable;
-					}
-					case Metasound::ELiteralType::BooleanArray:
-					{
-						return DataTypeInfo.Info.bIsBoolArrayParsable;
-					}
-
-					case Metasound::ELiteralType::Integer:
-					{
-						return DataTypeInfo.Info.bIsIntParsable;
-					}
-					case Metasound::ELiteralType::IntegerArray:
-					{
-						return DataTypeInfo.Info.bIsIntArrayParsable;
-					}
-
-					case Metasound::ELiteralType::Float:
-					{
-						return DataTypeInfo.Info.bIsFloatParsable;
-					}
-					case Metasound::ELiteralType::FloatArray:
-					{
-						return DataTypeInfo.Info.bIsFloatArrayParsable;
-					}
-
-					case Metasound::ELiteralType::String:
-					{
-						return DataTypeInfo.Info.bIsStringParsable;
-					}
-					case Metasound::ELiteralType::StringArray:
-					{
-						return DataTypeInfo.Info.bIsStringArrayParsable;
-					}
-
-					case Metasound::ELiteralType::UObjectProxy:
-					{
-						return DataTypeInfo.Info.bIsProxyParsable;
-					}
-					case Metasound::ELiteralType::UObjectProxyArray:
-					{
-						return DataTypeInfo.Info.bIsProxyArrayParsable;
-					}
-
-					case Metasound::ELiteralType::None:
-					{
-						return DataTypeInfo.Info.bIsDefaultParsable;
-					}
-					case Metasound::ELiteralType::NoneArray:
-					{
-						return DataTypeInfo.Info.bIsDefaultArrayParsable;
-					}
-
-					case Metasound::ELiteralType::Invalid:
-					default:
-					{
-						static_assert(static_cast<int32>(Metasound::ELiteralType::COUNT) == 13, "Possible missing case coverage for ELiteralType");
-						return false;
-					}
-				}
-			}
-
-			bool FRegistryContainerImpl::RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, const ::Metasound::FDataTypeConstructorCallbacks& InCallbacks)
-			{
-				if (!ensureAlwaysMsgf(!DataTypeRegistry.Contains(InDataInfo.DataTypeName),
-					TEXT("Name collision when trying to register Metasound Data Type %s! DataType must have "
-						"unique name and REGISTER_METASOUND_DATATYPE cannot be called in a public header."),
-						*InDataInfo.DataTypeName.ToString()))
-				{
-					// todo: capture callstack for previous declaration for non-shipping builds to help clarify who already registered this name for a type.
-					return false;
-				}
-				else
-				{
-					FDataTypeRegistryElement InElement = { InCallbacks, InDataInfo };
-
-					DataTypeRegistry.Add(InDataInfo.DataTypeName, InElement);
-
-					Metasound::Frontend::FNodeRegistryKey InputNodeRegistryKey = GetRegistryKey(InCallbacks.CreateFrontendInputClass().Metadata);
-					DataTypeNodeRegistry.Add(InputNodeRegistryKey, InElement);
-
-					Metasound::Frontend::FNodeRegistryKey VariableNodeRegistryKey = GetRegistryKey(InCallbacks.CreateFrontendVariableClass().Metadata);
-					DataTypeNodeRegistry.Add(VariableNodeRegistryKey, InElement);
-
-					Metasound::Frontend::FNodeRegistryKey OutputNodeRegistryKey = GetRegistryKey(InCallbacks.CreateFrontendOutputClass().Metadata);
-					DataTypeNodeRegistry.Add(OutputNodeRegistryKey, InElement);
-
-					UE_LOG(LogMetaSound, Display, TEXT("Registered Metasound Datatype %s."), *InDataInfo.DataTypeName.ToString());
-					return true;
-				}
-			}
-
-			bool FRegistryContainerImpl::RegisterEnumDataInterface(FName InDataType, TSharedPtr<IEnumDataTypeInterface>&& InInterface)
-			{
-				if (FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataType))
-				{
-					Element->EnumInterface = MoveTemp(InInterface);
-					return true;
-				}
 				return false;
 			}
 
-			FNodeRegistryKey FRegistryContainerImpl::RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription)
+			bool FRegistryContainerImpl::RegisterDataType(const FName& InName, TUniquePtr<IDataTypeRegistryEntry>&& InRegistryEntry)
 			{
-				FNodeRegistryElement RegistryElement = FNodeRegistryElement(MoveTemp(InCreateNode), MoveTemp(InCreateDescription));
+				if (InRegistryEntry.IsValid())
+				{
+					if (!ensureAlwaysMsgf(!RegisteredDataTypes.Contains(InName),
+						TEXT("Name collision when trying to register Metasound Data Type [Name:%s]. DataType must have "
+							"unique name and REGISTER_METASOUND_DATATYPE cannot be called in a public header."),
+							*InName.ToString()))
+					{
+						return false;
+					}
 
+
+					RegisteredDataTypes.Add(InName, InRegistryEntry->Clone());
+
+					RegisterNode(MakeUnique<FInputNodeRegistryEntry>(InRegistryEntry->Clone()));
+					RegisterNode(MakeUnique<FOutputNodeRegistryEntry>(InRegistryEntry->Clone()));
+					RegisterNode(MakeUnique<FVariableNodeRegistryEntry>(MoveTemp(InRegistryEntry)));
+
+					UE_LOG(LogMetaSound, Verbose, TEXT("Registered Metasound Datatype [Name:%s]."), *InName.ToString());
+					return true;
+				}
+
+				return false;
+			}
+
+			FNodeRegistryKey FRegistryContainerImpl::RegisterNode(TUniquePtr<INodeRegistryEntry>&& InEntry)
+			{
 				FNodeRegistryKey Key;
 
-				if (ensure(FMetasoundFrontendRegistryContainer::GetRegistryKey(RegistryElement, Key)))
+				if (InEntry.IsValid())
 				{
+					Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(InEntry->GetClassInfo());
+
 					// check to see if an identical node was already registered, and log
 					ensureAlwaysMsgf(
-						!ExternalNodeRegistry.Contains(Key),
+						!RegisteredNodes.Contains(Key),
 						TEXT("Node with registry key already registered. "
 							"The previously registered node will be overwritten. "
 							"This can happen if two classes share the same name or if METASOUND_REGISTER_NODE is defined in a public header."),
@@ -615,26 +786,24 @@ namespace Metasound
 
 					// Store update to newly registered node in history so nodes
 					// can be queried by transaction ID
-					FNodeClassInfo ClassInfo = { EMetasoundFrontendClassType::External, Key };
-					RegistryTransactionHistory.Add(MakeAddNodeRegistryTransaction(ClassInfo));
+					RegistryTransactionHistory.Add(MakeAddNodeRegistryTransaction(Key, InEntry->GetClassInfo()));
 
 					// Store registry elements in map so nodes can be queried using registry key.
-					ExternalNodeRegistry.Add(Key, MoveTemp(RegistryElement));
+					RegisteredNodes.Add(Key, MoveTemp(InEntry));
 				}
 
 				return Key;
 			}
 
-			bool FRegistryContainerImpl::UnregisterExternalNode(const FNodeRegistryKey& InKey)
+			bool FRegistryContainerImpl::UnregisterNode(const FNodeRegistryKey& InKey)
 			{
 				if (IsValidNodeRegistryKey(InKey))
 				{
-					if (ExternalNodeRegistry.Contains(InKey))
+					if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
 					{
-						FNodeClassInfo ClassInfo = { EMetasoundFrontendClassType::External, InKey };
-						RegistryTransactionHistory.Add(MakeRemoveNodeRegistryTransaction(ClassInfo));
+						RegistryTransactionHistory.Add(MakeRemoveNodeRegistryTransaction(InKey, Entry->GetClassInfo()));
 
-						ExternalNodeRegistry.Remove(InKey);
+						RegisteredNodes.Remove(InKey);
 						return true;
 					}
 				}
@@ -666,14 +835,14 @@ namespace Metasound
 
 			bool FRegistryContainerImpl::IsNodeRegistered(const FNodeRegistryKey& InKey) const
 			{
-				return ExternalNodeRegistry.Contains(InKey);
+				return RegisteredNodes.Contains(InKey);
 			}
 
 			TArray<FName> FRegistryContainerImpl::GetAllValidDataTypes()
 			{
 				TArray<FName> OutDataTypes;
 
-				for (auto& DataTypeTuple : DataTypeRegistry)
+				for (auto& DataTypeTuple : RegisteredDataTypes)
 				{
 					OutDataTypes.Add(DataTypeTuple.Key);
 				}
@@ -681,106 +850,80 @@ namespace Metasound
 				return OutDataTypes;
 			}
 
-			bool FRegistryContainerImpl::GetInfoForDataType(FName InDataType, Metasound::FDataTypeRegistryInfo& OutInfo)
+			bool FRegistryContainerImpl::GetInfoForDataType(FName InDataType, Metasound::Frontend::FDataTypeRegistryInfo& OutInfo)
 			{
-				if (!DataTypeRegistry.Contains(InDataType))
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					return false;
-				}
-				else
-				{
-					OutInfo = DataTypeRegistry[InDataType].Info;
+					OutInfo = Entry->GetDataTypeInfo();
 					return true;
 				}
+				return false;
 			}
 
-
-			TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface>
-			FRegistryContainerImpl::GetEnumInterfaceForDataType(FName InDataType) const
+			TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> FRegistryContainerImpl::GetEnumInterfaceForDataType(FName InDataType) const
 			{
-				if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataType))
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					return Element->EnumInterface;
+					return Entry->GetEnumInterface();
 				}
 				return nullptr;
 			}
 
 			TSharedPtr<Metasound::IDataChannel, ESPMode::ThreadSafe> FRegistryContainerImpl::CreateDataChannelForDataType(const FName& InDataType, const Metasound::FOperatorSettings& InSettings) const
 			{
-				if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataType))
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					if (Element->Callbacks.CreateDataChannel)
-					{
-						return Element->Callbacks.CreateDataChannel(InSettings);
-					}
+					return Entry->CreateDataChannel(InSettings);
 				}
 				return nullptr;
 			}
 
-			bool FRegistryContainerImpl::FindFrontendClassFromRegistered(const FNodeClassInfo& InClassInfo, FMetasoundFrontendClass& OutClass)
+			bool FRegistryContainerImpl::FindFrontendClassFromRegistered(const FNodeRegistryKey& InKey, FMetasoundFrontendClass& OutClass)
 			{
-				if (InClassInfo.NodeType == EMetasoundFrontendClassType::External)
+				if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
 				{
-					if (ExternalNodeRegistry.Contains(InClassInfo.LookupKey))
-					{
-						OutClass = ExternalNodeRegistry[InClassInfo.LookupKey].CreateFrontendClass();
-						return true;
-					}
-				}
-				else if (InClassInfo.NodeType == EMetasoundFrontendClassType::Input)
-				{
-					if (DataTypeNodeRegistry.Contains(InClassInfo.LookupKey))
-					{
-						OutClass = DataTypeNodeRegistry[InClassInfo.LookupKey].Callbacks.CreateFrontendInputClass();
-						return true;
-					}
-				}
-				else if (InClassInfo.NodeType == EMetasoundFrontendClassType::Output)
-				{
-					if (DataTypeNodeRegistry.Contains(InClassInfo.LookupKey))
-					{
-						OutClass = DataTypeNodeRegistry[InClassInfo.LookupKey].Callbacks.CreateFrontendOutputClass();
-						return true;
-					}
-				}
-
-				return false;
-			}
-
-			bool FRegistryContainerImpl::FindFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass)
-			{
-				FNodeClassInfo Info;
-				Info.NodeType = InMetadata.Type;
-				Info.LookupKey = GetRegistryKey(InMetadata);
-
-				return FindFrontendClassFromRegistered(Info, OutClass);
-			}
-
-			bool FRegistryContainerImpl::FindInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
-			{
-				if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataTypeName))
-				{
-					OutMetadata = Element->Callbacks.CreateFrontendInputClass().Metadata;
+					OutClass = Entry->GetFrontendClass();
 					return true;
 				}
 				return false;
 			}
 
-			bool FRegistryContainerImpl::FindVariableNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
+			bool FRegistryContainerImpl::FindNodeClassInfoFromRegistered(const Metasound::Frontend::FNodeRegistryKey& InKey, FNodeClassInfo& OutInfo)
 			{
-				if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataTypeName))
+				if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
 				{
-					OutMetadata = Element->Callbacks.CreateFrontendVariableClass().Metadata;
+					OutInfo = Entry->GetClassInfo();
+					return true;
+				}
+
+				return false;
+			}
+
+			bool FRegistryContainerImpl::FindInputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataTypeName))
+				{
+					OutKey = GetRegistryKey(Entry->GetFrontendInputClass().Metadata);
 					return true;
 				}
 				return false;
 			}
 
-			bool FRegistryContainerImpl::FindOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
+			bool FRegistryContainerImpl::FindVariableNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
 			{
-				if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataTypeName))
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataTypeName))
 				{
-					OutMetadata = Element->Callbacks.CreateFrontendOutputClass().Metadata;
+					OutKey = GetRegistryKey(Entry->GetFrontendVariableClass().Metadata);
+					return true;
+				}
+				return false;
+			}
+
+			bool FRegistryContainerImpl::FindOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataTypeName))
+				{
+					OutKey = GetRegistryKey(Entry->GetFrontendOutputClass().Metadata);
 					return true;
 				}
 				return false;
@@ -788,88 +931,74 @@ namespace Metasound
 
 			void FRegistryContainerImpl::IterateRegistry(Metasound::FIterateMetasoundFrontendClassFunction InIterFunc, EMetasoundFrontendClassType InClassType) const
 			{
-				auto IterateExternalClasses = [=]
+				auto WrappedFunc = [&](const TPair<FNodeRegistryKey, TUniquePtr<INodeRegistryEntry>>& Pair)
 				{
-					for (const TPair<FNodeRegistryKey, FNodeRegistryElement>& Pair : ExternalNodeRegistry)
-					{
-						InIterFunc(Pair.Value.CreateFrontendClass());
-					}
+					InIterFunc(Pair.Value->GetFrontendClass());
 				};
 
-				auto IterateInputClasses = [=]
+				if (EMetasoundFrontendClassType::Invalid == InClassType)
 				{
-					for (const TPair<FNodeRegistryKey, FDataTypeRegistryElement>& Pair : DataTypeNodeRegistry)
-					{
-						InIterFunc(Pair.Value.Callbacks.CreateFrontendInputClass());
-					}
-				};
-
-				auto IterateOutputClasses = [=]
-				{
-					for (const TPair<FNodeRegistryKey, FDataTypeRegistryElement>& Pair : DataTypeNodeRegistry)
-					{
-						InIterFunc(Pair.Value.Callbacks.CreateFrontendOutputClass());
-					}
-				};
-
-				auto IterateVariableClasses = [=]
-				{
-					for (const TPair<FNodeRegistryKey, FDataTypeRegistryElement>& Pair : DataTypeNodeRegistry)
-					{
-						InIterFunc(Pair.Value.Callbacks.CreateFrontendVariableClass());
-					}
-				};
-
-				switch (InClassType)
-				{
-					case EMetasoundFrontendClassType::External:
-					{
-						IterateExternalClasses();
-					}
-					break;
-
-					// TODO: Implement
-					case EMetasoundFrontendClassType::Graph:
-					{
-						checkNoEntry();
-					}
-					break;
-
-					case EMetasoundFrontendClassType::Input:
-					{
-						IterateInputClasses();
-					}
-					break;
-
-					case EMetasoundFrontendClassType::Output:
-					{
-						IterateOutputClasses();
-					}
-					break;
-
-					case EMetasoundFrontendClassType::Variable:
-					{
-						IterateVariableClasses();
-					}
-					break;
-
-					default:
-					case EMetasoundFrontendClassType::Invalid:
-					{
-						IterateExternalClasses();
-						IterateVariableClasses();
-						IterateInputClasses();
-						IterateOutputClasses();
-					}
-					break;
+					// Iterate through all classes. 
+					Algo::ForEach(RegisteredNodes, WrappedFunc);
 				}
-				static_assert(static_cast<uint32>(EMetasoundFrontendClassType::Invalid) == 5, "Possible missing switch case coverage for EMetasoundFrontendClassType");
+				else
+				{
+					// Only call function on classes of certain type.
+					auto IsMatchingClassType = [&](const TPair<FNodeRegistryKey, TUniquePtr<INodeRegistryEntry>>& Pair)
+					{
+						return Pair.Value->GetClassInfo().Type == InClassType;
+					};
+					Algo::ForEachIf(RegisteredNodes, IsMatchingClassType, WrappedFunc);
+				}
+			}
+
+			const IDataTypeRegistryEntry* FRegistryContainerImpl::FindDataTypeEntry(const FName& InDataTypeName) const
+			{
+				if (const TUniquePtr<IDataTypeRegistryEntry>* Entry = RegisteredDataTypes.Find(InDataTypeName))
+				{
+					if (Entry->IsValid())
+					{
+						return Entry->Get();
+					}
+				}
+
+				return nullptr;
+			}
+
+			const INodeRegistryEntry* FRegistryContainerImpl::FindNodeEntry(const FNodeRegistryKey& InKey) const
+			{
+				if (const TUniquePtr<INodeRegistryEntry>* Entry = RegisteredNodes.Find(InKey))
+				{
+					if (Entry->IsValid())
+					{
+						return Entry->Get();
+					}
+				}
+
+				return nullptr;
 			}
 		} // namespace MetasoundFrontendRegistriesPrivate
 
 		bool IsValidNodeRegistryKey(const FNodeRegistryKey& InKey)
 		{
 			return !InKey.IsEmpty();
+		}
+
+		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendClassMetadata& InMetadata)
+		: ClassName(InMetadata.ClassName)
+		, Type(InMetadata.Type)
+		, Version(InMetadata.Version)
+		{
+		}
+
+		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendClass& InClass)
+		: FNodeClassInfo(InClass.Metadata)
+		{
+		}
+
+		FNodeClassInfo::FNodeClassInfo(const FNodeClassMetadata& InMetadata)
+		: FNodeClassInfo(FMetasoundFrontendClassMetadata(InMetadata))
+		{
 		}
 	} // namespace Frontend
 } // namespace Metasound
@@ -895,20 +1024,6 @@ void FMetasoundFrontendRegistryContainer::ShutdownMetasoundFrontend()
 	}
 }
 
-bool FMetasoundFrontendRegistryContainer::GetRegistryKey(const Metasound::Frontend::FNodeRegistryElement& InElement, Metasound::Frontend::FNodeRegistryKey& OutKey)
-{
-	if (InElement.CreateFrontendClass)
-	{
-		FMetasoundFrontendClass FrontendClass = InElement.CreateFrontendClass();
-
-		OutKey = GetRegistryKey(FrontendClass.Metadata);
-
-		return true;
-	}
-
-	return false;
-}
-
 Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeClassMetadata& InNodeMetadata)
 {
 	return Metasound::Frontend::MetasoundFrontendRegistryPrivate::GetRegistryKey(EMetasoundFrontendClassType::External, InNodeMetadata.ClassName.GetFullName().ToString(), InNodeMetadata.MajorVersion, InNodeMetadata.MinorVersion);
@@ -919,41 +1034,56 @@ Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRe
 	return Metasound::Frontend::MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.Type, InNodeMetadata.ClassName.GetFullName().ToString(), InNodeMetadata.Version.Major, InNodeMetadata.Version.Minor);
 }
 
-bool FMetasoundFrontendRegistryContainer::GetFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass)
+Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeClassInfo& InClassInfo)
+{
+	return Metasound::Frontend::MetasoundFrontendRegistryPrivate::GetRegistryKey(InClassInfo.Type, InClassInfo.ClassName.GetFullName().ToString(), InClassInfo.Version.Major, InClassInfo.Version.Minor);
+}
+
+bool FMetasoundFrontendRegistryContainer::GetFrontendClassFromRegistered(const FNodeRegistryKey& InKey, FMetasoundFrontendClass& OutClass)
 {
 	FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
 
 	if (ensure(nullptr != Registry))
 	{
-		return Registry->FindFrontendClassFromRegistered(InMetadata, OutClass);
+		return Registry->FindFrontendClassFromRegistered(InKey, OutClass);
 	}
 
 	return false;
 }
 
-bool FMetasoundFrontendRegistryContainer::GetInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
+bool FMetasoundFrontendRegistryContainer::GetNodeClassInfoFromRegistered(const FNodeRegistryKey& InKey, FNodeClassInfo& OutInfo)
 {
 	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
 	{
-		return Registry->FindInputNodeClassMetadataForDataType(InDataTypeName, OutMetadata);
+		return Registry->FindNodeClassInfoFromRegistered(InKey, OutInfo);
 	}
 	return false;
 }
 
-bool FMetasoundFrontendRegistryContainer::GetVariableNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
+
+bool FMetasoundFrontendRegistryContainer::GetInputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
 {
 	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
 	{
-		return Registry->FindVariableNodeClassMetadataForDataType(InDataTypeName, OutMetadata);
+		return Registry->FindInputNodeRegistryKeyForDataType(InDataTypeName, OutKey);
 	}
 	return false;
 }
 
-bool FMetasoundFrontendRegistryContainer::GetOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
+bool FMetasoundFrontendRegistryContainer::GetVariableNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
 {
 	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
 	{
-		return Registry->FindOutputNodeClassMetadataForDataType(InDataTypeName, OutMetadata);
+		return Registry->FindVariableNodeRegistryKeyForDataType(InDataTypeName, OutKey);
+	}
+	return false;
+}
+
+bool FMetasoundFrontendRegistryContainer::GetOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
+{
+	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
+	{
+		return Registry->FindOutputNodeRegistryKeyForDataType(InDataTypeName, OutKey);
 	}
 	return false;
 }

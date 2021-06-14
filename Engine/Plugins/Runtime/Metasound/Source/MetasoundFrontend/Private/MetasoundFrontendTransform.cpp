@@ -121,14 +121,23 @@ namespace Metasound
 				FGraphHandle GraphHandle = InDocument->GetRootGraph();
 				TArray<FNodeHandle> FrontendNodes = GraphHandle->GetNodes();
 
-				// If was connected to a hidden node, then remove that node and set the literal value accordingly.
+				// Before literals could be stored on node inputs directly, they were stored
+				// by creating hidden input nodes. Update the doc by finding all hidden input
+				// nodes, placing the literal value of the input node directly on the
+				// downstream node's input. Then delete the hidden input node.
 				for (FNodeHandle& NodeHandle : FrontendNodes)
 				{
-					if (NodeHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+					const bool bIsHiddenNode = NodeHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden;
+					const bool bIsInputNode = EMetasoundFrontendClassType::Input == NodeHandle->GetClassMetadata().Type;
+					const bool bIsHiddenInputNode = bIsHiddenNode && bIsInputNode;
+
+					if (bIsHiddenInputNode)
 					{
+						// Get literal value from input node.
 						const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeHandle->GetNodeName());
 						const FMetasoundFrontendLiteral DefaultLiteral = GraphHandle->GetDefaultInput(VertexID);
 
+						// Apply literal value to downstream node's inputs.
 						TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputs();
 						if (ensure(OutputHandles.Num() == 1))
 						{
@@ -150,9 +159,8 @@ namespace Metasound
 									Input->SetLiteral(DefaultLiteral);
 								}
 							}
-
-							GraphHandle->RemoveNode(*NodeHandle);
 						}
+						GraphHandle->RemoveNode(*NodeHandle);
 					}
 				}
 			}

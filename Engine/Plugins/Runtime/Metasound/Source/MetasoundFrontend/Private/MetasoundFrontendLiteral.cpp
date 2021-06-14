@@ -502,7 +502,7 @@ Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoun
 			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
 			if (ensure(Registry))
 			{
-				Literal = Registry->GenerateLiteralForUObject(InMetasoundDataTypeName, AsUObject[0]);
+				Literal = Registry->CreateLiteralFromUObject(InMetasoundDataTypeName, AsUObject[0]);
 			}
 		}
 	}
@@ -513,7 +513,7 @@ Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoun
 		FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
 		if (ensure(Registry))
 		{
-			Literal = Registry->GenerateLiteralForUObjectArray(InMetasoundDataTypeName, AsUObject);
+			Literal = Registry->CreateLiteralFromUObjectArray(InMetasoundDataTypeName, AsUObject);
 		}
 	}
 	else 

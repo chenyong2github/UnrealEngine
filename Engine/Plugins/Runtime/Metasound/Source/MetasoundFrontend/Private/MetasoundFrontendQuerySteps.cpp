@@ -45,11 +45,10 @@ namespace Metasound
 		{
 			if (const IRegistryTransaction* Transaction = InEntry.Value.Get<const IRegistryTransaction*>())
 			{
-				const FNodeClassInfo* ClassInfo = Transaction->GetNodeClassInfo();
-
-				if (nullptr != ClassInfo)
+				const FNodeRegistryKey* Key = Transaction->GetNodeRegistryKey();
+				if (nullptr != Key)
 				{
-					RegistryKey = ClassInfo->LookupKey;
+					RegistryKey = *Key;
 				}
 			}
 		}
@@ -101,10 +100,10 @@ namespace Metasound
 		{
 			if (const IRegistryTransaction* Transaction = InValue.Get<const IRegistryTransaction*>())
 			{
-				const FNodeClassInfo* ClassInfo = Transaction->GetNodeClassInfo();
-				if (nullptr != ClassInfo)
+				const FNodeRegistryKey* Key = Transaction->GetNodeRegistryKey();
+				if (nullptr != Key)
 				{
-					bool bSuccess = FMetasoundFrontendRegistryContainer::Get()->FindFrontendClassFromRegistered(*ClassInfo, FrontendClass);
+					bool bSuccess = FMetasoundFrontendRegistryContainer::Get()->FindFrontendClassFromRegistered(*Key, FrontendClass);
 					check(bSuccess);
 				}
 			}
