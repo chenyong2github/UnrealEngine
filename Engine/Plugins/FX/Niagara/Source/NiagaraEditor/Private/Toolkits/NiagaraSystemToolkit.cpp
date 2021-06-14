@@ -988,6 +988,11 @@ void FNiagaraSystemToolkit::SetupCommands()
 		FCanExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnApplyEnabled));
 
 	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().ApplyScratchPadChanges,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnApplyScratchPadChanges),
+		FCanExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnApplyScratchPadChangesEnabled));
+
+	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().ToggleAutoPlay,
 		FExecuteAction::CreateLambda([]()
 		{
@@ -1144,17 +1149,21 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FNiagaraSystemToolkit* Toolkit)
 		{
-			if (Toolkit->Emitter != nullptr)
+			ToolbarBuilder.BeginSection("Apply");
 			{
-				ToolbarBuilder.BeginSection("Apply");
+				if (Toolkit->Emitter != nullptr)
 				{
 					ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().Apply,
 						NAME_None, TAttribute<FText>(), TAttribute<FText>(),
 						FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Apply"),
 						FName(TEXT("ApplyNiagaraEmitter")));
 				}
-				ToolbarBuilder.EndSection();
+				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ApplyScratchPadChanges,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.ApplyScratchPadChanges"),
+					FName(TEXT("ApplyScratchPadChanges")));
 			}
+			ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("Compile");
 			{
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().Compile,
@@ -1881,6 +1890,25 @@ bool FNiagaraSystemToolkit::OnApplyEnabled() const
 		return EmitterViewModel->GetEmitter()->GetChangeId() != LastSyncedEmitterChangeId || bEmitterThumbnailUpdated;
 	}
 	return false;
+}
+
+void FNiagaraSystemToolkit::OnApplyScratchPadChanges()
+{
+	if (SystemViewModel.IsValid() && SystemViewModel->GetScriptScratchPadViewModel() != nullptr)
+	{
+		for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel : SystemViewModel->GetScriptScratchPadViewModel()->GetScriptViewModels())
+		{
+			if(ScratchPadScriptViewModel->HasUnappliedChanges())
+			{
+				ScratchPadScriptViewModel->ApplyChanges();
+			}
+		}
+	}
+}
+
+bool FNiagaraSystemToolkit::OnApplyScratchPadChangesEnabled() const
+{
+	return SystemViewModel.IsValid() && SystemViewModel->GetScriptScratchPadViewModel() != nullptr && SystemViewModel->GetScriptScratchPadViewModel()->HasUnappliedChanges();
 }
 
 void FNiagaraSystemToolkit::OnPinnedCurvesChanged()

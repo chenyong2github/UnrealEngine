@@ -94,6 +94,7 @@ void UNiagaraScratchPadViewModel::RefreshScriptViewModels()
 {
 	TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>> OldScriptViewModels = ScriptViewModels;
 	ScriptViewModels.Empty();
+	bHasUnappliedChangesCache.Reset();
 
 	bool bViewModelsChanged = false;
 
@@ -549,6 +550,20 @@ void UNiagaraScratchPadViewModel::SelectNextUsageForActiveScript()
 	}
 }
 
+bool UNiagaraScratchPadViewModel::HasUnappliedChanges() const
+{
+	if (bHasUnappliedChangesCache.IsSet() == false)
+	{
+		bool bHasUnappliedChanges = false;
+		for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScriptViewModel : ScriptViewModels)
+		{
+			bHasUnappliedChanges |= ScriptViewModel->HasUnappliedChanges();
+		}
+		bHasUnappliedChangesCache = bHasUnappliedChanges;
+	}
+	return bHasUnappliedChangesCache.GetValue();
+}
+
 UNiagaraScratchPadViewModel::FOnScriptViewModelsChanged& UNiagaraScratchPadViewModel::OnScriptViewModelsChanged()
 {
 	return OnScriptViewModelsChangedDelegate;
@@ -588,6 +603,7 @@ TSharedRef<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 	ScriptViewModel->GetGraphViewModel()->GetNodeSelection()->OnSelectedObjectsChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptGraphNodeSelectionChanged, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
 	ScriptViewModel->OnRenamed().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelScriptRenamed);
 	ScriptViewModel->OnPinnedChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelPinnedChanged, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
+	ScriptViewModel->OnHasUnappliedChangesChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelHasUnappliedChangesChanged);
 	ScriptViewModel->OnChangesApplied().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelChangesApplied);
 	ScriptViewModel->OnRequestDiscardChanges().BindUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelRequestDiscardChanges, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
 	ScriptViewModel->GetVariableSelection()->OnSelectedObjectsChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelVariableSelectionChanged, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
@@ -599,6 +615,7 @@ void UNiagaraScratchPadViewModel::TearDownScriptViewModel(TSharedRef<FNiagaraScr
 	InScriptViewModel->GetGraphViewModel()->GetNodeSelection()->OnSelectedObjectsChanged().RemoveAll(this);
 	InScriptViewModel->OnRenamed().RemoveAll(this);
 	InScriptViewModel->OnPinnedChanged().RemoveAll(this);
+	InScriptViewModel->OnHasUnappliedChangesChanged().RemoveAll(this);
 	InScriptViewModel->OnChangesApplied().RemoveAll(this);
 	InScriptViewModel->OnRequestDiscardChanges().Unbind();
 	InScriptViewModel->GetVariableSelection()->OnSelectedObjectsChanged().RemoveAll(this);
@@ -686,6 +703,11 @@ void UNiagaraScratchPadViewModel::ScriptViewModelPinnedChanged(TWeakPtr<FNiagara
 			}
 		}
 	}
+}
+
+void UNiagaraScratchPadViewModel::ScriptViewModelHasUnappliedChangesChanged()
+{
+	bHasUnappliedChangesCache.Reset();
 }
 
 void UNiagaraScratchPadViewModel::ScriptViewModelChangesApplied()

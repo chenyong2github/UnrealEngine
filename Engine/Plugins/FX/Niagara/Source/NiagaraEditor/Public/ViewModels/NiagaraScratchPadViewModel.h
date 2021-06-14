@@ -69,6 +69,8 @@ public:
 
 	void SelectNextUsageForActiveScript();
 
+	bool HasUnappliedChanges() const;
+
 	FOnScriptViewModelsChanged& OnScriptViewModelsChanged();
 
 	FOnScriptViewModelsChanged& OnEditScriptViewModelsChanged();
@@ -96,6 +98,8 @@ private:
 
 	void ScriptViewModelPinnedChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
 
+	void ScriptViewModelHasUnappliedChangesChanged();
+
 	void ScriptViewModelChangesApplied();
 
 	void ScriptViewModelRequestDiscardChanges(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
@@ -116,6 +120,8 @@ private:
 	TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>> EditScriptViewModels;
 
 	TArray<ENiagaraScriptUsage> AvailableUsages;
+
+	mutable TOptional<bool> bHasUnappliedChangesCache;
 
 	FOnScriptViewModelsChanged OnScriptViewModelsChangedDelegate;
 

@@ -15,6 +15,7 @@ class NIAGARAEDITOR_API FNiagaraScratchPadScriptViewModel : public FNiagaraScrip
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnRenamed);
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnHasUnappliedChangesChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnChangesApplied);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPinIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
@@ -72,6 +73,8 @@ public:
 
 	FOnPinnedChanged& OnPinnedChanged();
 
+	FOnHasUnappliedChangesChanged& OnHasUnappliedChangesChanged();
+
 	FOnChangesApplied& OnChangesApplied();
 
 	FSimpleDelegate& OnRequestDiscardChanges();
@@ -105,8 +108,9 @@ private:
 
 	FOnRenamed OnRenamedDelegate;
 	FOnPinnedChanged OnPinnedChangedDelegate;
+	FOnHasUnappliedChangesChanged OnHasUnappliedChangesChangedDelegate;
 	FOnChangesApplied OnChangesAppliedDelegate;
-	FSimpleDelegate		OnRequestDiscardChangesDelegate;
+	FSimpleDelegate	OnRequestDiscardChangesDelegate;
 
 	FOnNodeIDFocusRequested OnNodeIDFocusRequestedDelegate;
 	FOnPinIDFocusRequested OnPinIDFocusRequestedDelegate;

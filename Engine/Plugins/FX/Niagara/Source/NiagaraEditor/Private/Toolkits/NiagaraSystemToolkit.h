@@ -159,6 +159,9 @@ private:
 	void OnApply();
 	bool OnApplyEnabled() const;
 
+	void OnApplyScratchPadChanges();
+	bool OnApplyScratchPadChangesEnabled() const;
+
 	void OnPinnedCurvesChanged();
 	void RefreshParameters();
 	void OnSystemSelectionChanged();
