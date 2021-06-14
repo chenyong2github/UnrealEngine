@@ -73,7 +73,7 @@ void AWorldPartitionHLOD::RerunConstructionScripts()
 
 bool AWorldPartitionHLOD::IsHiddenEd() const
 {
-	return true;
+	return !IsRunningCommandlet();
 }
 
 EActorGridPlacement AWorldPartitionHLOD::GetGridPlacement() const

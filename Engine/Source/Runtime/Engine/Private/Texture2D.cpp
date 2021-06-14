@@ -1344,7 +1344,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 {
 	// Create a texture resource from the lowest resolution VT page data
 	// this will then be used during asset tumbnails/hitproxies/...
-	if (GIsEditor)
+	if (GIsEditor && !IsRunningCommandlet())
 	{
 		struct FPageToProduce
 		{
