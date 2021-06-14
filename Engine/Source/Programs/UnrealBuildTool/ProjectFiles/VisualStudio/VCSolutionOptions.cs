@@ -13,6 +13,7 @@ using System.Diagnostics;
 
 using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
 using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
+using UnrealBuildBase;
 
 #nullable disable
 
