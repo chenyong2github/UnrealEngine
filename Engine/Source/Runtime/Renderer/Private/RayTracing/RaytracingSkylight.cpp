@@ -376,6 +376,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	FSkyLightData SkyLightData;
 	if (!SetupSkyLightParameters(GraphBuilder, Scene, Views[0], bShouldRenderRayTracingSkyLight, &SkylightParameters, &SkyLightData))
 	{
+		OutSkyLightTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		OutHitDistanceTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 		return;
 	}
 
