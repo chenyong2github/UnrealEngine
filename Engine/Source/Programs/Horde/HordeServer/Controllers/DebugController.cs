@@ -702,7 +702,8 @@ namespace HordeServer.Controllers
 
 			Dictionary<string, string> Results = new Dictionary<string, string>();
 
-			int NewChangeId = await Perforce.CreateNewChangeAsync("//UE4/Private-Build", "HordeTestFile.txt");
+			// NOTE: This is in Private-Build not DevBuild
+			int NewChangeId = await Perforce.CreateNewChangeAsync("//UE4/Private-Build", "Counter.txt");
 
 			List<ChangeDetails> ChangeDetails = await Perforce.GetChangeDetailsAsync("//UE4/Private-Build", new int[] { NewChangeId }, PerforceUser);
 
