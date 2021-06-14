@@ -26,6 +26,9 @@
 #define INTERR_UNSUPPORTED_FORMAT				2
 #define INTERR_COULD_NOT_LOCATE_START_SEGMENT	3
 #define INTERR_COULD_NOT_LOCATE_START_PERIOD	4
+#define INTERR_UNSUPPORTED_CODEC				5
+#define INTERR_CODEC_CHANGE_NOT_SUPPORTED		6
+#define INTERR_NO_STREAM_INFORMATION			7
 #define INTERR_FRAGMENT_NOT_AVAILABLE			0x101
 #define INTERR_FRAGMENT_READER_REQUEST			0x102
 #define INTERR_CREATE_FRAGMENT_READER			0x103
@@ -629,8 +632,8 @@ private:
 	void StopWorkerThread();
 	void WorkerThreadFN();
 
-	FMediaThread													WorkerThread;
-	TMediaMessageQueueDynamicNoTimeout<TSharedPtrTS<FMetricEvent>>		EventQueue;
+	FMediaThread																WorkerThread;
+	TMediaMessageQueueDynamicNoTimeout<TSharedPtrTS<FMetricEvent>>				EventQueue;
 	static TWeakPtr<FAdaptiveStreamingPlayerEventHandler, ESPMode::ThreadSafe>	SingletonSelf;
 	static FCriticalSection														SingletonLock;
 };
@@ -854,11 +857,6 @@ private:
 
 	struct FVideoDecoder : public IAccessUnitBufferListener, public IDecoderOutputBufferListener
 		{
-		FVideoDecoder()
-			: Parent(nullptr)
-			, Decoder(nullptr)
-		{
-		}
 		void Close()
 		{
 			if (Decoder)
@@ -892,8 +890,12 @@ private:
 			}
 		}
 
-		FAdaptiveStreamingPlayer*		Parent;
-		IVideoDecoderH264*				Decoder;
+		FStreamCodecInformation			CurrentCodecInfo;
+		FAdaptiveStreamingPlayer*		Parent = nullptr;
+		IVideoDecoderBase*				Decoder = nullptr;
+		bool							bDrainingForCodecChange = false;
+		bool							bDrainingForCodecChangeDone = false;
+		bool							bApplyNewLimits = false;
 		};
 
 	struct FAudioDecoder : public IAccessUnitBufferListener, public IDecoderOutputBufferListener
@@ -936,6 +938,7 @@ private:
 			}
 		}
 
+		FStreamCodecInformation			CurrentCodecInfo;
 		FAdaptiveStreamingPlayer*		Parent;
 		IAudioDecoderAAC*				Decoder;
 		};
@@ -1327,7 +1330,7 @@ private:
 		FPlayStartPosition							StartoverPosition;
 	};
 
-	struct FUpcomingPeriod
+	struct FPeriodInformation
 	{
 		TSharedPtrTS<ITimelineMediaAsset>		Period;
 		FString									ID;
@@ -1356,9 +1359,9 @@ private:
 	int32 CreateRenderers();
 	void DestroyRenderers();
 
-	int32 CreateInitialDecoder(EStreamType type);
+	int32 CreateDecoder(EStreamType type);
 	void DestroyDecoders();
-	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, int32 MaxWidth, int32 MaxHeight);
+	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight);
 	void UpdateStreamResolutionLimit();
 	void AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPeriod> InUpcomingPeriod);
 
@@ -1504,7 +1507,8 @@ private:
 	FLoopParam															CurrentLoopParam;
 	TMediaQueueDynamicNoLock<FPlayerLoopState>							NextLoopStates;
 
-	TArray<FUpcomingPeriod>												UpcomingPeriods;
+	TArray<FPeriodInformation>											ActivePeriods;
+	TArray<FPeriodInformation>											UpcomingPeriods;
 	TSharedPtrTS<IManifest::IPlayPeriod>								InitialPlayPeriod;
 	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriodVideo;
 	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriodAudio;

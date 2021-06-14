@@ -800,12 +800,14 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 
 								int64 MediaLocalFirstAUTime = Request->Segment.MediaLocalFirstAUTime;
 								int64 MediaLocalLastAUTime = Request->Segment.MediaLocalLastAUTime;
+								int64 PTO = Request->Segment.PTO;
 
 								if (TrackTimescale != Request->Segment.Timescale)
 								{
 									// Need to rescale the AU times from the MPD timescale to the media timescale.
 									MediaLocalFirstAUTime = FTimeFraction(Request->Segment.MediaLocalFirstAUTime, Request->Segment.Timescale).GetAsTimebase(TrackTimescale);
 									MediaLocalLastAUTime = FTimeFraction(Request->Segment.MediaLocalLastAUTime, Request->Segment.Timescale).GetAsTimebase(TrackTimescale);
+									PTO = FTimeFraction(Request->Segment.PTO, Request->Segment.Timescale).GetAsTimebase(TrackTimescale);
 
 									if (!Request->bWarnedAboutTimescale)
 									{
@@ -875,9 +877,9 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									AccessUnit->Duration = Duration;
 
 									// Offset the AU's DTS and PTS to the time mapping of the segment.
-									AccessUnit->DTS.SetFromND(AUDTS, TrackTimescale);
+									AccessUnit->DTS.SetFromND(AUDTS - PTO, TrackTimescale);
 									AccessUnit->DTS += TimeOffset;
-									AccessUnit->PTS.SetFromND(AUPTS, TrackTimescale);
+									AccessUnit->PTS.SetFromND(AUPTS - PTO, TrackTimescale);
 									AccessUnit->PTS += TimeOffset;
 
 									ElectraCDM::FMediaCDMSampleInfo SampleEncryptionInfo;
@@ -957,6 +959,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									// Check if the AU is outside the time range we are allowed to read.
 									// The last one (the one that is already outside the range, actually) is tagged as such and sent into the buffer.
 									// The respective decoder has to handle this flag if necessary and/or drop the AU.
+									// We need to send at least one AU down so the FMultiTrackAccessUnitBuffer does not stay empty for this period!
 									if (AccessUnit)
 									{
 										// Already sent the last one?

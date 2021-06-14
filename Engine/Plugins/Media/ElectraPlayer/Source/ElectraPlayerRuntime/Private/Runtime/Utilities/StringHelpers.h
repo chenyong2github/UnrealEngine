@@ -5,6 +5,8 @@
 #include "PlayerCore.h"
 
 inline void LexFromStringHex(int32& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoi(Buffer, nullptr, 16); }
+inline void LexFromStringHex64(int64& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoi64(Buffer, nullptr, 16); }
+inline void LexFromStringHexU64(uint64& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoui64(Buffer, nullptr, 16); }
 
 namespace Electra
 {

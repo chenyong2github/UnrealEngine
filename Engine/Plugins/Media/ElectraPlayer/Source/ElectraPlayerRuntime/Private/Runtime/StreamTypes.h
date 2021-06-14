@@ -275,6 +275,16 @@ namespace Electra
 			FrameRate = InFrameRate;
 		}
 
+		void SetProfileSpace(int32 InProfileSpace)
+		{
+			ProfileLevel.ProfileSpace = InProfileSpace;
+		}
+
+		int32 GetProfileSpace() const
+		{
+			return ProfileLevel.ProfileSpace;
+		}
+
 		void SetProfile(int32 InProfile)
 		{
 			ProfileLevel.Profile = InProfile;
@@ -295,12 +305,22 @@ namespace Electra
 			return ProfileLevel.Level;
 		}
 
-		void SetProfileConstraints(int32 InConstraints)
+		void SetProfileCompatibilityFlags(uint32 InCompatibilityFlags)
+		{
+			ProfileLevel.CompatibilityFlags = InCompatibilityFlags;
+		}
+
+		uint32 GetProfileCompatibilityFlags() const
+		{
+			return ProfileLevel.CompatibilityFlags;
+		}
+
+		void SetProfileConstraints(uint64 InConstraints)
 		{
 			ProfileLevel.Constraints = InConstraints;
 		}
 
-		int32 GetProfileConstraints() const
+		uint64 GetProfileConstraints() const
 		{
 			return ProfileLevel.Constraints;
 		}
@@ -459,19 +479,23 @@ namespace Electra
 			}
 			void Clear()
 			{
+				ProfileSpace = 0;
 				Profile = 0;
 				Level = 0;
+				CompatibilityFlags = 0;
 				Constraints = 0;
 				Tier = 0;
 			}
+			int32		ProfileSpace;
 			int32		Profile;
 			int32		Level;
-			int32		Constraints;
+			uint32		CompatibilityFlags;
+			uint64		Constraints;
 			int32		Tier;
 
 			bool operator == (const FProfileLevel& rhs) const
 			{
-				return Profile == rhs.Profile && Level == rhs.Level && Constraints == rhs.Constraints && Tier == rhs.Tier;
+				return ProfileSpace == rhs.ProfileSpace && Profile == rhs.Profile && Level == rhs.Level && Constraints == rhs.Constraints && Tier == rhs.Tier;
 			}
 
 			bool operator != (const FProfileLevel& rhs) const

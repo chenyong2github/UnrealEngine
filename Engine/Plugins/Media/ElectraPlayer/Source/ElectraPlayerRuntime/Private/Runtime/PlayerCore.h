@@ -15,4 +15,4 @@
 #include "Core/MediaCriticalSection.h"
 #include "Core/MediaMessageQueue.h"
 
-
+#include "PlayerCodecConfiguration.h"

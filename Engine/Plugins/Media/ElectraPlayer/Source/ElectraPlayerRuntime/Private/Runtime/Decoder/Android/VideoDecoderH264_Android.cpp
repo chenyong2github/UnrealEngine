@@ -44,6 +44,7 @@ public:
 
 	virtual void Open(const FInstanceConfiguration& InConfig) override;
 	virtual void Close() override;
+	virtual void DrainForCodecChange() override;
 
 	virtual void SetMaximumDecodeCapability(int32 MaxWidth, int32 MaxHeight, int32 MaxProfile, int32 MaxProfileLevel, const FParamDict& AdditionalOptions) override;
 
@@ -471,6 +472,18 @@ void FVideoDecoderH264::Open(const IVideoDecoderH264::FInstanceConfiguration& In
 void FVideoDecoderH264::Close()
 {
 	StopThread();
+}
+
+
+//-----------------------------------------------------------------------------
+/**
+ * Drains the decoder of all enqueued input and ends it, after which the decoder must send an FDecoderMessage to the player
+ * to signal completion.
+ */
+void FVideoDecoderH264::DrainForCodecChange()
+{
+	// Draining is currently not implemented. Send the player message nonetheless so the player will proceed with Close() and termination.
+	PlayerSessionServices->SendMessageToPlayer(FDecoderMessage::Create(FDecoderMessage::EReason::DrainingFinished, this, EStreamType::Video, FStreamCodecInformation::ECodec::H264));
 }
 
 

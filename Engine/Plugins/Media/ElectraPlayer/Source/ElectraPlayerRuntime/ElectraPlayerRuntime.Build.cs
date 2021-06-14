@@ -54,8 +54,9 @@ namespace UnrealBuildTool.Rules
 
                 PrivateDefinitions.Add("ELECTRA_ENABLE_MFDECODER");
                 PrivateDefinitions.Add("ELECTRA_ENABLE_SWDECODE");
+				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
 
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "WinHttp");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "WinHttp");
 
 				if (WinSupportsDX9())
 				{
@@ -102,6 +103,8 @@ namespace UnrealBuildTool.Rules
 								"QuartzCore"
 				});
 
+				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
+
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Apple");
 
 				PrivateIncludePaths.Add("ElectraPlayerRuntime/Private/Runtime/Decoder/Apple");
@@ -117,6 +120,8 @@ namespace UnrealBuildTool.Rules
                                 "VideoToolbox",
 								"QuartzCore"
 				});
+
+				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
 
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Apple");
 

@@ -31,6 +31,17 @@ namespace Electra
 			return a > b ? a : b;
 		}
 
+		inline uint32 BitReverse32(uint32 InValue)
+		{
+			uint32 rev = 0;
+			for(int32 i=0; i<32; ++i)
+			{
+				rev = (rev << 1) | (InValue & 1);
+				InValue >>= 1;
+			}
+			return rev;
+		}
+
 
 	} // namespace Utils
 
