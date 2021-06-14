@@ -88,7 +88,7 @@ namespace FractureToolBrickLocals
 	static FVector GetBrickDimensions(const UFractureBrickSettings* BrickSettings, const FVector& Extents)
 	{
 		// Limit for the total number of bricks.
-		const int64 NumBricksLimit = 1 << 18;
+		const int64 NumBricksLimit = 8192;
 
 		FVector Dimensions(BrickSettings->BrickLength, BrickSettings->BrickDepth, BrickSettings->BrickHeight);
 		
