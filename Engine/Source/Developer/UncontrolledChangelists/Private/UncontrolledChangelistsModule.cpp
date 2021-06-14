@@ -263,20 +263,37 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 		return;
 	}
 
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	TArray<FString> UncontrolledFilenames;
+	
+	Algo::Transform(InUncontrolledFileStates, UncontrolledFilenames, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
+	MoveFilesToControlledChangelist(UncontrolledFilenames, InChangelist);
+}
+
+void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArray<FString>& InUncontrolledFiles, const FSourceControlChangelistPtr& InChangelist)
+{
+	if (!IsEnabled())
+	{
+		return;
+	}
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	TArray<FSourceControlStateRef> UpdatedFilestates;
 
 	// Get updated filestates to check Checkout capabilities.
-	Algo::Transform(InUncontrolledFileStates, UncontrolledFilenames, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
-	SourceControlProvider.GetState(UncontrolledFilenames, UpdatedFilestates, EStateCacheUsage::ForceUpdate);
+	SourceControlProvider.GetState(InUncontrolledFiles, UpdatedFilestates, EStateCacheUsage::ForceUpdate);
 
 	TArray<UPackage*> PackageConflicts;
+	TArray<FString> FilesToAdd;
+	TArray<FString> FilesToCheckout;
 
-	// Check if we can Checkout files
+	// Check if we can Checkout files or mark for add
 	for (const FSourceControlStateRef& Filestate : UpdatedFilestates)
 	{
-		if (!Filestate->CanCheckout())
+		if (!Filestate->IsSourceControlled())
+		{
+			FilesToAdd.Add(Filestate->GetFilename());
+		}
+		else if (!Filestate->CanCheckout())
 		{
 			FString PackageName;
 			FPackageName::TryConvertFilenameToLongPackageName(Filestate->GetFilename(), PackageName);
@@ -285,7 +302,12 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 			if (FoundPackage != nullptr)
 			{
 				PackageConflicts.Add(FoundPackage);
+				FilesToCheckout.Add(Filestate->GetFilename());
 			}
+		}
+		else
+		{
+			FilesToCheckout.Add(Filestate->GetFilename());
 		}
 	}
 
@@ -299,7 +321,15 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 
 	if (bCanProceed)
 	{
-		SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), InChangelist, UncontrolledFilenames);
+		if (!FilesToCheckout.IsEmpty())
+		{
+			SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), InChangelist, FilesToCheckout);
+		}
+
+		if (!FilesToAdd.IsEmpty())
+		{
+			SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), InChangelist, FilesToAdd);
+		}
 
 		// UpdateStatus so UncontrolledChangelists can remove files from their cache if they were present before checkout.
 		UpdateStatus();

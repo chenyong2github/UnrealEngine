@@ -437,6 +437,25 @@ FSourceControlChangelistStatePtr SSourceControlChangelistsWidget::GetCurrentChan
 	}
 }
 
+FUncontrolledChangelistStatePtr SSourceControlChangelistsWidget::GetCurrentUncontrolledChangelistState()
+{
+	if (!TreeView)
+	{
+		return nullptr;
+	}
+
+	TArray<FChangelistTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
+
+	if (SelectedItems.Num() != 1 || SelectedItems[0]->GetTreeItemType() != IChangelistTreeItem::UncontrolledChangelist)
+	{
+		return nullptr;
+	}
+	else
+	{
+		return StaticCastSharedPtr<FUncontrolledChangelistTreeItem>(SelectedItems[0])->UncontrolledChangelistState;
+	}
+}
+
 FSourceControlChangelistPtr SSourceControlChangelistsWidget::GetCurrentChangelist()
 {
 	FSourceControlChangelistStatePtr ChangelistState = GetCurrentChangelistState();
@@ -487,12 +506,80 @@ TArray<FString> SSourceControlChangelistsWidget::GetSelectedFiles()
 	else
 	{
 		TArray<FString> Files;
+
 		for (FChangelistTreeItemPtr Item : SelectedItems)
 		{
+			if (Item->GetTreeItemType() != IChangelistTreeItem::File)
+			{
+				continue;
+			}
+
 			Files.Add(StaticCastSharedPtr<FFileTreeItem>(Item)->FileState->GetFilename());
 		}
 
 		return Files;
+	}
+}
+
+void SSourceControlChangelistsWidget::GetSelectedFiles(TArray<FString>& OutControlledFiles, TArray<FString>& OutUncontrolledFiles)
+{
+	TArray<FChangelistTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
+
+	for (const FChangelistTreeItemPtr& Item : SelectedItems)
+	{
+		if (Item->GetTreeItemType() != IChangelistTreeItem::File)
+		{
+			continue;
+		}
+
+		const FChangelistTreeItemPtr& Parent = Item->GetParent();
+
+		if (!Parent.IsValid())
+		{
+			continue;
+		}
+
+		const FString& Filename = StaticCastSharedPtr<FFileTreeItem>(Item)->FileState->GetFilename();
+
+		if (Parent->GetTreeItemType() == IChangelistTreeItem::Changelist)
+		{
+			OutControlledFiles.Add(Filename);
+		}
+		else if (Parent->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+		{
+			OutUncontrolledFiles.Add(Filename);
+		}
+	}
+}
+
+void SSourceControlChangelistsWidget::GetSelectedFileStates(TArray<FSourceControlStateRef>& OutControlledFileStates, TArray<FSourceControlStateRef>& OutUncontrolledFileStates)
+{
+	TArray<FChangelistTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
+
+	for (const FChangelistTreeItemPtr& Item : SelectedItems)
+	{
+		if (Item->GetTreeItemType() != IChangelistTreeItem::File)
+		{
+			continue;
+		}
+
+		const FChangelistTreeItemPtr& Parent = Item->GetParent();
+
+		if (!Parent.IsValid())
+		{
+			continue;
+		}
+
+		FSourceControlStateRef FileState = StaticCastSharedPtr<FFileTreeItem>(Item)->FileState;
+
+		if (Parent->GetTreeItemType() == IChangelistTreeItem::Changelist)
+		{
+			OutControlledFileStates.Add(MoveTemp(FileState));
+		}
+		else if (Parent->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+		{
+			OutUncontrolledFileStates.Add(MoveTemp(FileState));
+		}
 	}
 }
 
@@ -522,6 +609,36 @@ TArray<FString> SSourceControlChangelistsWidget::GetSelectedShelvedFiles()
 	}
 
 	return ShelvedFiles;
+}
+
+bool SSourceControlChangelistsWidget::IsParentOfSelection(const IChangelistTreeItem::TreeItemType ParentType) const
+{
+	return Algo::AnyOf(TreeView->GetSelectedItems(), [ParentType = ParentType](const FChangelistTreeItemPtr& Item)
+	{
+		IChangelistTreeItem::TreeItemType ItemType = Item->GetTreeItemType();
+
+		if (ItemType == ParentType)
+		{
+			return true;
+		}
+		else if ((ItemType == IChangelistTreeItem::File) || (ItemType == IChangelistTreeItem::ShelvedChangelist))
+		{
+			const FChangelistTreeItemPtr& Parent = Item->GetParent();
+			return Parent.IsValid() && (Parent->GetTreeItemType() == ParentType);
+		}
+		else if (ItemType == IChangelistTreeItem::ShelvedFile)
+		{
+			const FChangelistTreeItemPtr& Parent = Item->GetParent();
+
+			if (Parent.IsValid())
+			{
+				const FChangelistTreeItemPtr& GrandParent = Parent->GetParent();
+				return GrandParent.IsValid() && (GrandParent->GetTreeItemType() == ParentType);
+			}
+		}
+
+		return false;
+	});
 }
 
 void SSourceControlChangelistsWidget::OnNewChangelist()
@@ -625,14 +742,57 @@ void SSourceControlChangelistsWidget::OnRevert()
 		return;
 	}
 
+	TArray<FString> SelectedControlledFiles;
+	TArray<FString> SelectedUncontrolledFiles;
+
+	GetSelectedFiles(SelectedControlledFiles, SelectedUncontrolledFiles);
+
+	FSourceControlChangelistPtr SelectedChangelist = GetChangelistFromSelection();
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	auto RevertOperation = ISourceControlOperation::Create<FRevert>();
-	SourceControlProvider.Execute(RevertOperation, GetChangelistFromSelection(), GetSelectedFiles());
+
+	// Reverts the selected Changelist or Files
+	if (SelectedChangelist.IsValid() || (!SelectedControlledFiles.IsEmpty()))
+	{
+		auto RevertOperation = ISourceControlOperation::Create<FRevert>();
+		SourceControlProvider.Execute(RevertOperation, SelectedChangelist, SelectedControlledFiles);
+	}
+
+	// Reverts selected Uncontrolled Files
+	if (!SelectedUncontrolledFiles.IsEmpty())
+	{
+		auto ForceSyncOperation = ISourceControlOperation::Create<FSync>();
+		ForceSyncOperation->SetForce(true);
+		ForceSyncOperation->SetHeadRevisionFlag(true);
+		SourceControlProvider.Execute(ForceSyncOperation, SelectedUncontrolledFiles);
+
+		FUncontrolledChangelistsModule::Get().UpdateStatus();
+	}
+
+	FUncontrolledChangelistStatePtr SelectedUncontrolledChangelist = GetCurrentUncontrolledChangelistState();
+
+	// Reverts the selected Uncontrolled Changelist
+	if (SelectedUncontrolledChangelist.IsValid())
+	{
+		SelectedUncontrolledFiles.Reset();
+		Algo::Transform(SelectedUncontrolledChangelist->GetFilesStates(), SelectedUncontrolledFiles, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
+
+		auto ForceSyncOperation = ISourceControlOperation::Create<FSync>();
+		ForceSyncOperation->SetForce(true);
+		ForceSyncOperation->SetHeadRevisionFlag(true);
+		SourceControlProvider.Execute(ForceSyncOperation, SelectedUncontrolledFiles);
+
+		FUncontrolledChangelistsModule::Get().UpdateStatus();
+	}
 }
 
 bool SSourceControlChangelistsWidget::CanRevert()
 {
-	return GetSelectedFiles().Num() > 0 || (GetCurrentChangelistState() && GetCurrentChangelistState()->GetFilesStates().Num() > 0);
+	FSourceControlChangelistStatePtr CurrentChangelistState = GetCurrentChangelistState();
+	FUncontrolledChangelistStatePtr CurrentUncontrolledChangelistState = GetCurrentUncontrolledChangelistState();
+
+	return GetSelectedFiles().Num() > 0
+		|| (CurrentChangelistState.IsValid() && CurrentChangelistState->GetFilesStates().Num() > 0)
+		|| (CurrentUncontrolledChangelistState.IsValid() && CurrentUncontrolledChangelistState->GetFilesStates().Num() > 0);
 }
 
 void SSourceControlChangelistsWidget::OnShelve()
@@ -864,9 +1024,12 @@ bool SSourceControlChangelistsWidget::CanSubmitChangelist()
 
 void SSourceControlChangelistsWidget::OnMoveFiles()
 {
-	TArray<FString> SelectedFiles = GetSelectedFiles();
+	TArray<FString> SelectedControlledFiles;
+	TArray<FString> SelectedUncontrolledFiles;
+	
+	GetSelectedFiles(SelectedControlledFiles, SelectedUncontrolledFiles);
 
-	if (SelectedFiles.Num() == 0)
+	if (SelectedControlledFiles.IsEmpty() && SelectedUncontrolledFiles.IsEmpty())
 	{
 		return;
 	}
@@ -890,13 +1053,21 @@ void SSourceControlChangelistsWidget::OnMoveFiles()
 
 	for (FChangelistTreeItemPtr Changelist : ChangelistsNodes)
 	{
-		if (!Changelist || Changelist->GetTreeItemType() != IChangelistTreeItem::Changelist)
+		if (!Changelist)
 		{
 			continue;
 		}
 
-		auto TypedChangelist = StaticCastSharedPtr<FChangelistTreeItem>(Changelist);
-		Items.Emplace(TypedChangelist->GetDisplayText(), TypedChangelist->GetDescriptionText(), bCanEditAlreadyExistingChangelistDescription);
+		if (Changelist->GetTreeItemType() == IChangelistTreeItem::Changelist)
+		{
+			const auto& TypedChangelist = StaticCastSharedPtr<FChangelistTreeItem>(Changelist);
+			Items.Emplace(TypedChangelist->GetDisplayText(), TypedChangelist->GetDescriptionText(), bCanEditAlreadyExistingChangelistDescription);
+		}
+		else if (Changelist->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+		{
+			const FUncontrolledChangelistTreeItemPtr& TypedChangelist = StaticCastSharedPtr<FUncontrolledChangelistTreeItem>(Changelist);
+			Items.Emplace(TypedChangelist->GetDisplayText(), TypedChangelist->GetDescriptionText(), bCanEditAlreadyExistingChangelistDescription);
+		}
 	}
 
 	int32 PickedItem = 0;
@@ -922,13 +1093,46 @@ void SSourceControlChangelistsWidget::OnMoveFiles()
 	{
 		auto NewChangelistOperation = ISourceControlOperation::Create<FNewChangelist>();
 		NewChangelistOperation->SetDescription(ChangelistDescription);
-		SourceControlProvider.Execute(NewChangelistOperation, SelectedFiles);
+		SourceControlProvider.Execute(NewChangelistOperation, SelectedControlledFiles);
+
+		if ((!SelectedUncontrolledFiles.IsEmpty()) && NewChangelistOperation->GetNewChangelist().IsValid())
+		{
+			FUncontrolledChangelistsModule::Get().MoveFilesToControlledChangelist(SelectedUncontrolledFiles, NewChangelistOperation->GetNewChangelist());
+		}
 	}
 	else
 	{
 		const int32 ChangelistIndex = (bAddNewChangelistEntry ? PickedItem - 1 : PickedItem);
-		FSourceControlChangelistPtr Changelist = StaticCastSharedPtr<FChangelistTreeItem>(ChangelistsNodes[ChangelistIndex])->ChangelistState->GetChangelist();
-		SourceControlProvider.Execute(ISourceControlOperation::Create<FMoveToChangelist>(), Changelist, SelectedFiles);
+		const FChangelistTreeItemPtr& SelectedItem = ChangelistsNodes[ChangelistIndex];
+
+		if (SelectedItem->GetTreeItemType() == IChangelistTreeItem::Changelist)
+		{
+			FSourceControlChangelistPtr Changelist = StaticCastSharedPtr<FChangelistTreeItem>(SelectedItem)->ChangelistState->GetChangelist();
+
+			if (!SelectedControlledFiles.IsEmpty())
+			{
+				SourceControlProvider.Execute(ISourceControlOperation::Create<FMoveToChangelist>(), Changelist, SelectedControlledFiles);
+			}
+
+			if (!SelectedUncontrolledFiles.IsEmpty())
+			{
+				FUncontrolledChangelistsModule::Get().MoveFilesToControlledChangelist(SelectedUncontrolledFiles, Changelist);
+			}
+		}
+		else if (SelectedItem->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+		{
+			const FUncontrolledChangelist UncontrolledChangelist = StaticCastSharedPtr<FUncontrolledChangelistTreeItem>(SelectedItem)->UncontrolledChangelistState->Changelist;
+			
+			TArray<FSourceControlStateRef> SelectedControlledFileStates;
+			TArray<FSourceControlStateRef> SelectedUnControlledFileStates;
+
+			GetSelectedFileStates(SelectedControlledFileStates, SelectedUnControlledFileStates);
+
+			if ((!SelectedControlledFileStates.IsEmpty()) || (!SelectedUnControlledFileStates.IsEmpty()))
+			{
+				FUncontrolledChangelistsModule::Get().MoveFilesToUncontrolledChangelist(SelectedControlledFileStates, SelectedUnControlledFileStates, UncontrolledChangelist);
+			}
+		}
 	}
 }
 
@@ -1014,11 +1218,13 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	// Build up the menu for a selection
 	FToolMenuContext Context;
 	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
-		
+
 	bool bHasSelectedChangelist = (GetCurrentChangelist() != nullptr);
 	bool bHasSelectedFiles = (GetSelectedFiles().Num() > 0);
 	bool bHasSelectedShelvedFiles = (GetSelectedShelvedFiles().Num() > 0);
 	bool bHasEmptySelection = (!bHasSelectedChangelist && !bHasSelectedFiles && !bHasSelectedShelvedFiles);
+	bool bIsChangelistParentOfSelection = IsParentOfSelection(IChangelistTreeItem::Changelist);
+	bool bIsUncontrolledChangelistParentOfSelection = IsParentOfSelection(IChangelistTreeItem::UncontrolledChangelist);
 
 	FToolMenuSection& Section = Menu->AddSection("Source Control");
 	
@@ -1032,25 +1238,27 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	}
 
 	// This can appear on both files & changelist
-	if (bHasSelectedChangelist || bHasSelectedFiles)
+	if (bIsChangelistParentOfSelection)
 	{
 		Section.AddMenuEntry("RevertUnchanged", LOCTEXT("SourceControl_RevertUnchanged", "Revert Unchanged"), LOCTEXT("SourceControl_Revert_Unchanged_Tooltip", "Reverts unchanged files & changelists"), FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevertUnchanged),
-				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanRevertUnchanged)));
+							 FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevertUnchanged),
+									   FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanRevertUnchanged)));
+	}
 
+	if (bIsChangelistParentOfSelection || bIsUncontrolledChangelistParentOfSelection)
+	{
 		Section.AddMenuEntry("Revert", LOCTEXT("SourceControl_Revert", "Revert Files"), LOCTEXT("SourceControl_Revert_Tooltip", "Reverts all files in the changelist or from the selection"), FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevert),
 				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanRevert)));
 	}
 
-	if(bHasSelectedFiles || bHasSelectedShelvedFiles || (bHasSelectedChangelist && (GetCurrentChangelistState()->GetFilesStates().Num() > 0 || GetCurrentChangelistState()->GetShelvedFilesStates().Num() > 0)))
+	if (bIsChangelistParentOfSelection && (bHasSelectedFiles || bHasSelectedShelvedFiles || (bHasSelectedChangelist && (GetCurrentChangelistState()->GetFilesStates().Num() > 0 || GetCurrentChangelistState()->GetShelvedFilesStates().Num() > 0))))
 	{
 		Section.AddSeparator("ShelveSeparator");
 	}
 
-	if(bHasSelectedFiles || (bHasSelectedChangelist && GetCurrentChangelistState()->GetFilesStates().Num() > 0))
+	if (bIsChangelistParentOfSelection && (bHasSelectedFiles || (bHasSelectedChangelist && GetCurrentChangelistState()->GetFilesStates().Num() > 0)))
 	{
 		Section.AddMenuEntry("Shelve", LOCTEXT("SourceControl_Shelve", "Shelve Files"), LOCTEXT("SourceControl_Shelve_Tooltip", "Shelves the changelist or the selected files"), FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnShelve)));

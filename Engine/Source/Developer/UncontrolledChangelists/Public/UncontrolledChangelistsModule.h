@@ -121,6 +121,13 @@ public:
 	 * @param 	InChangelist 				The Controlled Changelist where to move the files.
 	 */
 	void MoveFilesToControlledChangelist(const TArray<FSourceControlStateRef>& InUncontrolledFileStates, const FSourceControlChangelistPtr& InChangelist);
+	
+	/**
+	 * Moves files to a Controlled Changelist.
+	 * @param 	InUncontrolledFiles 	The files to move.
+	 * @param 	InChangelist 			The Controlled Changelist where to move the files.
+	 */
+	void MoveFilesToControlledChangelist(const TArray<FString>& InUncontrolledFiles, const FSourceControlChangelistPtr& InChangelist);
 
 private:
 	/**

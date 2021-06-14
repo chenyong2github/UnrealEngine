@@ -218,9 +218,35 @@ public:
 		return Revision;
 	}
 
+	void SetHeadRevisionFlag(const bool bInHeadRevision)
+	{
+		bHeadRevision = bInHeadRevision;
+	}
+
+	bool IsHeadRevisionFlagSet() const
+	{
+		return bHeadRevision;
+	}
+
+	void SetForce(const bool bInForce)
+	{
+		bForce = bInForce;
+	}
+
+	bool IsForced() const
+	{
+		return bForce;
+	}
+
 protected:
 	/** Revision to sync to */
 	FString Revision;
+
+	/** Flag abstracting if the operation aim to sync to head */
+	bool bHeadRevision = false;
+
+	/** Forces operation, even if the file is already at the wanted revision. */
+	bool bForce = false;
 };
 
 /**
@@ -477,9 +503,20 @@ public:
 		return Description;
 	}
 
+	void SetNewChangelist(FSourceControlChangelistPtr InNewChangelist)
+	{
+		NewChangelist = InNewChangelist;
+	}
+
+	const FSourceControlChangelistPtr& GetNewChangelist() const
+	{
+		return NewChangelist;
+	}
+
 protected:
 	/** Description of the changelist */
 	FText Description;
+	FSourceControlChangelistPtr NewChangelist;
 };
 
 /**

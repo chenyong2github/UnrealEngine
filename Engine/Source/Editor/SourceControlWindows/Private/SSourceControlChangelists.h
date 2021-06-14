@@ -46,6 +46,7 @@ private:
 
 	/** Returns the currently selected changelist state ptr or null in invalid cases */
 	FSourceControlChangelistStatePtr GetCurrentChangelistState();
+	FUncontrolledChangelistStatePtr GetCurrentUncontrolledChangelistState();
 	FSourceControlChangelistPtr GetCurrentChangelist();
 	FSourceControlChangelistStatePtr GetChangelistStateFromSelection();
 	FSourceControlChangelistPtr GetChangelistFromSelection();
@@ -53,8 +54,29 @@ private:
 	/** Returns list of currently selected files */
 	TArray<FString> GetSelectedFiles();
 
+	/**
+	 * Splits selected files between Controlled and Uncontrolled files.
+	 * @param 	OutControlledFiles 		Selected source controlled files will be added to this array.
+	 * @param 	OutUncontrolledFiles	Selected uncontrolled files will be added to this array.
+	 */
+	void GetSelectedFiles(TArray<FString>& OutControlledFiles, TArray<FString>& OutUncontrolledFiles);
+
+	/**
+	 * Splits selected files between Controlled and Uncontrolled files.
+	 * @param 	OutControlledFileStates 	Selected source controlled file states will be added to this array.
+	 * @param 	OutUncontrolledFileStates	Selected uncontrolled file states will be added to this array.
+	 */
+	void GetSelectedFileStates(TArray<FSourceControlStateRef>& OutControlledFileStates, TArray<FSourceControlStateRef>& OutUncontrolledFileStates);
+
 	/** Returns list of currently selected shelved files */
 	TArray<FString> GetSelectedShelvedFiles();
+
+	/**
+	 * Check if the type given as argument is a parent of selected items.
+	 * @param 	ParentType 	The parent type to look for.
+	 * @return 	True of ParentType is a parent of selected items.
+	 */
+	bool IsParentOfSelection(const IChangelistTreeItem::TreeItemType ParentType) const;
 
 	/** Changelist operations */
 	void OnNewChangelist();

@@ -185,6 +185,26 @@ static void ParseRecordSetForState(const FP4RecordSet& InRecords, TMap<FString, 
 	}
 }
 
+static void UpdateChangelistState(const FPerforceSourceControlChangelist& InChangelist, const TMap<FString, EPerforceState::Type>& InOperationResults)
+{
+	if (InChangelist.IsInitialized())
+	{
+		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InChangelist);
+
+		for (TMap<FString, EPerforceState::Type>::TConstIterator It(InOperationResults); It; ++It)
+		{
+			if ((It.Value() != EPerforceState::CheckedOut) && (It.Value() != EPerforceState::OpenForAdd))
+			{
+				continue;
+			}
+
+			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(It.Key());
+			ChangelistState->Files.Add(State);
+		}
+	}
+}
+
 static bool UpdateCachedStates(const TMap<FString, EPerforceState::Type>& InResults)
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
@@ -339,22 +359,7 @@ bool FPerforceCheckOutWorker::Execute(FPerforceSourceControlCommand& InCommand)
 bool FPerforceCheckOutWorker::UpdateStates() const
 {
 	// If files have been checkedout directly to a CL, modify the cached state to reflect it.
-	if (InChangelist.IsInitialized())
-	{
-		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InChangelist);
-
-		for (TMap<FString, EPerforceState::Type>::TConstIterator It(OutResults); It; ++It)
-		{
-			if (It.Value() != EPerforceState::CheckedOut)
-			{
-				continue;
-			}
-
-			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(It.Key());
-			ChangelistState->Files.Add(State);
-		}
-	}
+	UpdateChangelistState(InChangelist, OutResults);
 
 	return UpdateCachedStates(OutResults);
 }
@@ -632,6 +637,18 @@ bool FPerforceMarkForAddWorker::Execute(FPerforceSourceControlCommand& InCommand
 		TArray<FString> Parameters;
 		FP4RecordSet Records;
 
+		if (InCommand.Changelist.IsInitialized())
+		{
+			FString ChangelistNumber = InCommand.Changelist.ToString();
+
+			if (!ChangelistNumber.IsEmpty())
+			{
+				Parameters.Add(TEXT("-c"));
+				Parameters.Add(ChangelistNumber);
+				InChangelist = InCommand.Changelist;
+			}
+		}
+
 		AppendChangelistParameter(Parameters);
 		Parameters.Append(InCommand.Files);
 
@@ -643,6 +660,8 @@ bool FPerforceMarkForAddWorker::Execute(FPerforceSourceControlCommand& InCommand
 
 bool FPerforceMarkForAddWorker::UpdateStates() const
 {
+	UpdateChangelistState(InChangelist, OutResults);
+
 	return UpdateCachedStates(OutResults);
 }
 
@@ -756,9 +775,9 @@ static void ParseSyncResults(const FP4RecordSet& InRecords, TMap<FString, EPerfo
 		FString FullPath(FileName);
 		FPaths::NormalizeFilename(FullPath);
 
-		if(Action.Len() > 0)
+		if (Action.Len() > 0)
 		{
-			if(Action == TEXT("updated"))
+			if (Action == TEXT("updated") || (Action == TEXT("refreshed")))
 			{
 				OutResults.Add(FullPath, EPerforceState::ReadOnly);
 			}
@@ -772,24 +791,35 @@ bool FPerforceSyncWorker::Execute(FPerforceSourceControlCommand& InCommand)
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
-		TArray<FString> Parameters;
-		Parameters.Append(InCommand.Files);
-
 		TSharedRef<FSync, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FSync>(InCommand.Operation);
+		TArray<FString> Parameters;
+
+		if (Operation->IsForced())
+		{
+			Parameters.Add(TEXT("-f"));
+		}
+
 		const FString& Revision = Operation->GetRevision();
 
 		// check for directories and add '...'
-		for(FString& FileName : Parameters)
+		for (FString FileName : InCommand.Files)
 		{
-			if(FileName.EndsWith(TEXT("/")))
+			if (FileName.EndsWith(TEXT("/")))
 			{
 				FileName += TEXT("...");
 			}
-			if (!Revision.IsEmpty())
+
+			if (Operation->IsHeadRevisionFlagSet())
+			{
+				FileName += TEXT("#head");
+			}
+			else if (!Revision.IsEmpty())
 			{
 				// @= syncs the file to the submitted/shelved changelist number
 				FileName += FString::Printf(TEXT("@%s"), *Revision);
 			}
+
+			Parameters.Add(MoveTemp(FileName));
 		}
 
 		FP4RecordSet Records;
@@ -2245,6 +2275,8 @@ bool FPerforceNewChangelistWorker::Execute(class FPerforceSourceControlCommand& 
 			NewChangelistState.Changelist = NewChangelist;
 			NewChangelistState.Description = Operation->GetDescription().ToString();
 			NewChangelistState.bHasShelvedFiles = false;
+
+			Operation->SetNewChangelist(MakeShared<FPerforceSourceControlChangelist>(NewChangelist));
 
 			if (InCommand.Files.Num() > 0)
 			{
