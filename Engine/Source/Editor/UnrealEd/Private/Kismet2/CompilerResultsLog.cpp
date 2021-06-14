@@ -632,7 +632,7 @@ void FCompilerResultsLog::GetNodesFromTokens(const TArray<TSharedRef<IMessageTok
 			UObject* ObjectArgument = ObjectPtr.Get();
 			if(UEdGraphNode* Node = Cast<UEdGraphNode>(ObjectArgument))
 			{
-				OutOwnerNodes.Add(Node);
+				OutOwnerNodes.AddUnique(Node);
 			}
 		}
 		else if (Token->GetType() == EMessageToken::EdGraph)
@@ -644,18 +644,18 @@ void FCompilerResultsLog::GetNodesFromTokens(const TArray<TSharedRef<IMessageTok
 			{
 				if (PinBeingReferenced)
 				{
-					OutOwnerNodes.Add(Cast<UEdGraphNode>(PinBeingReferenced->GetOwningNodeUnchecked()));
+					OutOwnerNodes.AddUnique(Cast<UEdGraphNode>(PinBeingReferenced->GetOwningNodeUnchecked()));
 				}
 			}
 			else
 			{
-				OutOwnerNodes.Add(OwnerNode);
+				OutOwnerNodes.AddUnique(OwnerNode);
 			}
 		}
 	}
 }
 
-void FCompilerResultsLog::Append(FCompilerResultsLog const& Other)
+void FCompilerResultsLog::Append(FCompilerResultsLog const& Other, bool bWriteToSystemLog)
 {
 	for (TSharedRef<FTokenizedMessage> const& Message : Other.Messages)
 	{
@@ -678,11 +678,19 @@ void FCompilerResultsLog::Append(FCompilerResultsLog const& Other)
 				break;
 			}
 		}
-		Messages.Add(Message);
-		
+
 		TArray<UEdGraphNode*> OwnerNodes;
 		GetNodesFromTokens(Message->GetMessageTokens(), OwnerNodes);
-		AnnotateNode(OwnerNodes, Message);
+
+		if (bWriteToSystemLog)
+		{
+			InternalLogMessage(Message->GetIdentifier(), Message, OwnerNodes);
+		}
+		else
+		{
+			Messages.Add(Message);
+			AnnotateNode(OwnerNodes, Message);
+		}
 	}
 }
 
