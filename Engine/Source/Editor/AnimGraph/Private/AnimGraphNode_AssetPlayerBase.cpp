@@ -221,11 +221,19 @@ bool SupportNodeClassForAsset(const UClass* AssetClass, UClass* NodeClass)
 void UAnimGraphNode_AssetPlayerBase::SetupNewNode(UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
 {
 	UAnimGraphNode_AssetPlayerBase* GraphNode = CastChecked<UAnimGraphNode_AssetPlayerBase>(InNewNode);
-	InAssetData.GetTagValue("Skeleton", GraphNode->UnloadedSkeletonName);
 	
-	if(!bInIsTemplateNode)
+	if(InAssetData.IsValid())
 	{
-		GraphNode->SetAnimationAsset(CastChecked<UAnimationAsset>(InAssetData.GetAsset()));
+		InAssetData.GetTagValue("Skeleton", GraphNode->UnloadedSkeletonName);
+		if(GraphNode->UnloadedSkeletonName == TEXT("None"))
+		{
+			GraphNode->UnloadedSkeletonName.Empty();
+		}
+		
+		if(!bInIsTemplateNode)
+		{
+			GraphNode->SetAnimationAsset(CastChecked<UAnimationAsset>(InAssetData.GetAsset()));
+		}
 	}
 }
 
@@ -271,16 +279,19 @@ void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(FBlueprintActionDataba
 		}	
 		Filter.bRecursiveClasses = true;
 		
-		TArray<FAssetData> AnimBlueprints;
-		AssetRegistryModule.Get().GetAssets(Filter, AnimBlueprints);
+		TArray<FAssetData> Assets;
+		AssetRegistryModule.Get().GetAssets(Filter, Assets);
 
-		for (const FAssetData& AssetData : AnimBlueprints)
+		for (const FAssetData& AssetData : Assets)
 		{
 			if(AssetData.IsUAsset())
 			{
 				MakeAction(AssetData);
 			}
 		}
+
+		// Add 'empty' asset node
+		MakeAction(FAssetData());
 	}
 	else if (bIsObjectOfAssetType)
 	{
@@ -291,27 +302,37 @@ void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(FBlueprintActionDataba
 bool UAnimGraphNode_AssetPlayerBase::IsActionFilteredOut(class FBlueprintActionFilter const& Filter)
 {
 	bool bIsFilteredOut = false;
+	FBlueprintActionContext const& FilterContext = Filter.Context;
 
-	if(!UnloadedSkeletonName.IsEmpty())
+	for (UBlueprint* Blueprint : FilterContext.Blueprints)
 	{
-		FBlueprintActionContext const& FilterContext = Filter.Context;
-
-		for (UBlueprint* Blueprint : FilterContext.Blueprints)
+		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint);
+		if (AnimBlueprint)
 		{
-			if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
+			UAnimationAsset* Asset = GetAnimationAsset();
+			if(Asset)
 			{
-				if(!AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(UnloadedSkeletonName))
+				if (AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatible(Asset->GetSkeleton()))
+				{
+					// Asset does not use a compatible skeleton with the Blueprint, cannot use
+					bIsFilteredOut = true;
+					break;
+				}
+			}
+			else if(!UnloadedSkeletonName.IsEmpty())
+			{
+				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(UnloadedSkeletonName))
 				{
 					bIsFilteredOut = true;
 					break;
 				}
 			}
-			else
-			{
-				// Not an animation Blueprint, cannot use
-				bIsFilteredOut = true;
-				break;
-			}
+		}
+		else
+		{
+			// Not an animation Blueprint, cannot use
+			bIsFilteredOut = true;
+			break;
 		}
 	}
 	return bIsFilteredOut;

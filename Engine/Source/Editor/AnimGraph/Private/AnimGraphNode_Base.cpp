@@ -295,6 +295,16 @@ FStructProperty* UAnimGraphNode_Base::GetFNodeProperty() const
 	return NULL;
 }
 
+FAnimNode_Base* UAnimGraphNode_Base::GetFNode()
+{
+	if(FStructProperty* Property = GetFNodeProperty())
+	{
+		return Property->ContainerPtrToValuePtr<FAnimNode_Base>(this);
+	}
+
+	return nullptr;
+}
+
 FString UAnimGraphNode_Base::GetNodeCategory() const
 {
 	return TEXT("Misc.");
@@ -701,6 +711,13 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 			{
 				AnimGraphNode->Modify();
 
+				// Reset to default so that references are not preserved
+				if(BindingProperty)
+				{
+					void* PropertyAddress = BindingProperty->ContainerPtrToValuePtr<void>(AnimGraphNode->GetFNode());
+					BindingProperty->InitializeValue(PropertyAddress);
+				}
+				
 				// Pins are exposed if we have a binding or not - and after running this we do.
 				AnimGraphNode->SetPinVisibility(true, InArgs.OptionalPinIndex);
 

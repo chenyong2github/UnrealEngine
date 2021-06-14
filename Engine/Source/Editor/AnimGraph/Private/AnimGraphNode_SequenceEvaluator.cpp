@@ -19,7 +19,7 @@
 /////////////////////////////////////////////////////
 // UAnimGraphNode_SequenceEvaluator
 
-#define LOCTEXT_NAMESPACE "A3Nodes"
+#define LOCTEXT_NAMESPACE "UAnimGraphNode_SequenceEvaluator"
 
 UAnimGraphNode_SequenceEvaluator::UAnimGraphNode_SequenceEvaluator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -77,26 +77,40 @@ void UAnimGraphNode_SequenceEvaluator::GetMenuActions(FBlueprintActionDatabaseRe
 		{ },
 		[](const FAssetData& InAssetData)
 		{
-			const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
-			if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+			if(InAssetData.IsValid())
 			{
-				return FText::Format(LOCTEXT("MenuDescFormat", "Evaluate '{0}' (additive)"), FText::FromName(InAssetData.AssetName));
+				const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+				if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+				{
+					return FText::Format(LOCTEXT("MenuDescFormatAdditive", "Evaluate '{0}' (additive)"), FText::FromName(InAssetData.AssetName));
+				}
+				else
+				{
+					return FText::Format(LOCTEXT("MenuDescFormat", "Evaluate '{0}'"), FText::FromName(InAssetData.AssetName));
+				}
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("MenuDescFormat", "Evaluate '{0}'"), FText::FromName(InAssetData.AssetName));
+				return LOCTEXT("MenuDesc", "Sequence Evaluator");
 			}
 		},
 		[](const FAssetData& InAssetData)
 		{
-			const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
-			if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+			if(InAssetData.IsValid())
 			{
-				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Evaluate (additive)\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+				if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+				{
+					return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Evaluate (additive)\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				}
+				else
+				{
+					return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Evaluate\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				}
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Evaluate\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				return LOCTEXT("MenuDescTooltip", "Sequence Evaluator");
 			}
 		},
 		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
@@ -171,7 +185,7 @@ void UAnimGraphNode_SequenceEvaluator::GetNodeContextMenuActions(UToolMenu* Menu
 	{
 		// add an option to convert to a regular sequence player
 		{
-			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeSequenceEvaluator", NSLOCTEXT("A3Nodes", "SequenceEvaluatorHeading", "Sequence Evaluator"));
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeSequenceEvaluator", LOCTEXT("SequenceEvaluatorHeading", "Sequence Evaluator"));
 			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
 			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToSeqPlayer);
 		}

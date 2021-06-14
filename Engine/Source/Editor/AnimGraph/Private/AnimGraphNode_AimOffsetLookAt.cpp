@@ -16,7 +16,7 @@
 /////////////////////////////////////////////////////
 // UAnimGraphNode_RotationOffsetBlendSpace
 
-#define LOCTEXT_NAMESPACE "A3Nodes"
+#define LOCTEXT_NAMESPACE "UAnimGraphNode_AimOffsetLookAt"
 
 UAnimGraphNode_AimOffsetLookAt::UAnimGraphNode_AimOffsetLookAt(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -448,6 +448,9 @@ protected:
 	// Gets the animation FNode property represented by this ed graph node
 	FStructProperty* GetFNodeProperty() const;
 
+	// Get the runtime anim node that we template
+	FAnimNode_Base* GetFNode();
+	
 	// Get the extension types that this node type holds on the anim blueprint. Some extension types are always requested by the system
 	virtual void GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const {}
 	
