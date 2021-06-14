@@ -298,7 +298,6 @@ int32 FMemoryGraphTrack::RemoveAllMemTagSeries()
 		const TSharedPtr<FMemoryGraphSeries> Series = StaticCastSharedPtr<FMemoryGraphSeries>(GraphSeries);
 		return Series->GetTimelineType() == FMemoryGraphSeries::ETimelineType::MemTag;
 	});
-	return Count;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
