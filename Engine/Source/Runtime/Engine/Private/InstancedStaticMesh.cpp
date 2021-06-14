@@ -909,6 +909,9 @@ void FPerInstanceRenderData::UpdateFromPreallocatedData(FStaticMeshInstanceData&
 	ENQUEUE_RENDER_COMMAND(FInstanceBuffer_UpdateFromPreallocatedData)(
 		[InInstanceBufferDataPtr, InInstanceBuffer, this](FRHICommandListImmediate& RHICmdList)
 		{
+			// The assignment to InstanceData shared pointer kills the old data
+			// If UpdateBoundsTask is in-flight it will crash
+			EnsureInstanceDataUpdated();
 			InInstanceBuffer->InstanceData = InInstanceBufferDataPtr;
 			InInstanceBuffer->UpdateRHI();
 			UpdateBoundsTransforms_Concurrent();
@@ -1034,6 +1037,13 @@ const TArray<FMatrix>& FPerInstanceRenderData::GetPerInstanceTransforms()
 
 void FPerInstanceRenderData::UpdateFromCommandBuffer(FInstanceUpdateCmdBuffer& CmdBuffer)
 {
+	// UpdateFromCommandBuffer reallocates InstanceData in InstanceBuffer
+	// If UpdateBoundsTask is in-flight it will crash
+	ENQUEUE_RENDER_COMMAND(EnsureInstanceDataUpdatedCmd)(
+		[this](FRHICommandList&) {
+		EnsureInstanceDataUpdated();
+	});
+
 	InstanceBuffer.UpdateFromCommandBuffer_Concurrent(CmdBuffer);
 	UpdateBoundsTransforms_Concurrent();
 }
