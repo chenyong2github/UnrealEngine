@@ -1143,22 +1143,53 @@ void SSlateFileOpenDlg::SetOutputFiles()
 	}
 }
 
+TSharedPtr<FFileEntry> SSlateFileOpenDlg::GetSoloDirectorySelected() const
+{
+	TArray<TSharedPtr<FFileEntry>> SelectedItems = ListView->GetSelectedItems();
+	if (SelectedItems.Num() == 1 && SelectedItems[0]->bIsDirectory)
+	{
+		return SelectedItems[0];
+	}
+
+	return nullptr;
+}
 
 bool SSlateFileOpenDlg::IsAcceptEnabled() const
 {
-	if (!bDirectoriesOnly)
+	if (bDirectoriesOnly)
 	{
-		return !SaveFilename.IsEmpty();
+		return true;
 	}
 
-	return true;
-}
+	TSharedPtr<FFileEntry> SoloSelectedDirectory = GetSoloDirectorySelected();
 
+	if (SoloSelectedDirectory.IsValid()) 
+	{
+		return true;
+	}
+	else if (!SaveFilename.IsEmpty())
+	{
+		return true;
+	}
+
+	return false;
+}
 
 FReply SSlateFileOpenDlg::OnAcceptCancelClick(FSlateFileDlgWindow::EResult ButtonID)
 {
 	if (ButtonID == FSlateFileDlgWindow::Accept)
 	{
+		if (!bDirectoriesOnly)
+		{
+			TSharedPtr<FFileEntry> SoloSelectedDirectory = GetSoloDirectorySelected();
+
+			if (SoloSelectedDirectory.IsValid())
+			{
+				OnItemDoubleClicked(SoloSelectedDirectory);
+				return FReply::Handled();
+			}
+		}
+
 		SetOutputFiles();
 	}
 	else
@@ -1174,7 +1205,6 @@ FReply SSlateFileOpenDlg::OnAcceptCancelClick(FSlateFileDlgWindow::EResult Butto
 
 	return FReply::Handled();
 }
-
 
 FReply SSlateFileOpenDlg::OnDirSublevelClick(int32 Level)
 {
@@ -1196,8 +1226,6 @@ FReply SSlateFileOpenDlg::OnDirSublevelClick(int32 Level)
 
 	return FReply::Handled();
 }
-
-
 
 void SSlateFileOpenDlg::Tick(const FGeometry &AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
@@ -1493,7 +1521,7 @@ void SSlateFileOpenDlg::OnItemSelected(TSharedPtr<FFileEntry> Item, ESelectInfo:
 		if (!bDirectoriesOnly)
 		{
 			TArray<TSharedPtr<FFileEntry>> SelectedItems = ListView->GetSelectedItems();
-			
+
 			for (int32 i = 0; i < SelectedItems.Num(); i++)
 			{
 				if (!SelectedItems[i]->bIsDirectory)

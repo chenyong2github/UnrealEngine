@@ -188,6 +188,9 @@ private:
 	/** @return true if the extension filter contains a wildcard or not */
 	bool IsWildcardExtension(const FString& Extension);
 
+	/** @return ptr to directory if only one directory and zero files are selected, else nullptr */
+	TSharedPtr<FFileEntry> GetSoloDirectorySelected() const;
+
 	TArray< FDirNode > DirectoryNodesArray;
 	TArray<TSharedPtr<FFileEntry>> FoldersArray;
 	TArray<TSharedPtr<FFileEntry>> FilesArray;
