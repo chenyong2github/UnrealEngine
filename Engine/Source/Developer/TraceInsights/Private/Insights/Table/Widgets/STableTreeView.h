@@ -158,6 +158,7 @@ protected:
 	TSharedPtr<SWidget> TreeView_GetMenuContent();
 	void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 	void TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder);
+	void TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder);
 
 	bool ContextMenu_CopySelectedToClipboard_CanExecute() const;
 	void ContextMenu_CopySelectedToClipboard_Execute();
@@ -171,6 +172,8 @@ protected:
 	void ContextMenu_ExpandCriticalPath_Execute();
 	bool ContextMenu_CollapseSubtree_CanExecute() const;
 	void ContextMenu_CollapseSubtree_Execute();
+	bool ContextMenu_ExportToFile_CanExecute() const;
+	void ContextMenu_ExportToFile_Execute(bool bExportOnlyExpanded);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header
@@ -390,6 +393,9 @@ protected:
 	void SetExpandValueForChildGroupsRec(FBaseTreeNode* InRoot, int32 InDepth, int32 InMaxDepth, bool InValue);
 
 	virtual void ExtendMenu(FMenuBuilder& Menu) {}
+
+	typedef TFunctionRef<void(TArray<Insights::FBaseTreeNodePtr>& InNodes)> WriteToFileCallback;
+	void ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<Insights::FBaseTreeNodePtr>& InNodes, bool bInExportOnlyExpanded, WriteToFileCallback Callback);
 
 protected:
 	/** Table view model. */

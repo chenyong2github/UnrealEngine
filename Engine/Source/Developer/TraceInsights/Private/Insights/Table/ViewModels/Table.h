@@ -51,7 +51,7 @@ public:
 
 	int32 GetColumnPositionIndex(const FName& ColumnId) const;
 
-	void GetVisibleColumnsData(const TArray<TSharedPtr<class FBaseTreeNode>>& InNodes, const FName& LogListingName, FString& OutData) const;
+	void GetVisibleColumnsData(const TArray<TSharedPtr<class FBaseTreeNode>>& InNodes, const FName& LogListingName, TCHAR Separator, bool bIncludeHeaders, FString& OutData) const;
 
 	static const FName GetHierarchyColumnId();
 
