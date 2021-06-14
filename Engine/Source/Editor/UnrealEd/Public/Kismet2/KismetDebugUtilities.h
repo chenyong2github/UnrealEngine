@@ -263,9 +263,10 @@ protected:
 	* @param 	OutDelta		Populated with the same thing as OutData
 	* @param 	OutParent		Populated with the active object
 	* @param 	SeenObjects		Used to track what objects have been traversed to find the OutProperty address
+	* @param 	bOutIsDirectPtr	True if OutData/OutDelta point directly at the property rather than its base address
 	* @return	EWTR_Valid if the debug data could be found, otherwise an appropriate error code
 	*/
-	static EWatchTextResult FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, FProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects, bool* OutbShouldUseContainerOffset = nullptr);
+	static EWatchTextResult FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, FProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects, bool* bOutIsDirectPtr = nullptr);
 
 private:
 	FKismetDebugUtilities() {}
