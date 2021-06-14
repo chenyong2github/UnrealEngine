@@ -8,16 +8,15 @@ public class Protobuf : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform != UnrealTargetPlatform.Win64)
+		if (!IsVcPackageSupported)
 		{
-			// Currently only supported for Win64
 			return;
 		}
 
 		PublicDependencyModuleNames.Add("zlib");
 
 		// protobuf
-		AddVcPackage(Target, "protobuf", true,
+		AddVcPackage("protobuf", true,
 			"libprotobuf"
 		);
 

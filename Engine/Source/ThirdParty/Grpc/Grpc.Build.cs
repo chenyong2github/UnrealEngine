@@ -11,9 +11,8 @@ public class Grpc : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform != UnrealTargetPlatform.Win64)
+		if (!IsVcPackageSupported)
 		{
-			// Currently only supported for Win64
 			return;
 		}
 
@@ -23,7 +22,7 @@ public class Grpc : ModuleRules
 		PublicDependencyModuleNames.Add("Protobuf");
 
 		// abseil
-		AddVcPackage(Target, "abseil", true,
+		AddVcPackage("abseil", true,
 			"absl_bad_any_cast_impl",
 			"absl_bad_optional_access",
 			"absl_bad_variant_access",
@@ -88,7 +87,7 @@ public class Grpc : ModuleRules
 		);
 
 		// grpc
-		AddVcPackage(Target, "grpc", true,
+		AddVcPackage("grpc", true,
 			"address_sorting",
 			"gpr",
 			"grpc++",
@@ -102,10 +101,10 @@ public class Grpc : ModuleRules
 		);
 
 		// c-ares
-		AddVcPackage(Target, "c-ares", false, "cares");
+		AddVcPackage("c-ares", false, "cares");
 
 		// upb (micro-pb)
-		AddVcPackage(Target, "upb", false,
+		AddVcPackage("upb", false,
 			"upb",
 			"upb_fastdecode",
 			"upb_handlers",

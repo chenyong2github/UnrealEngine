@@ -1480,5 +1480,118 @@ namespace UnrealBuildTool
 
 			return false;
 		}
+
+		/// <summary>
+		/// Returns if VcPkg is supported for the build configuration.
+		/// </summary>
+		/// <returns>True if supported</returns>
+		public bool IsVcPackageSupported
+		{
+			get
+			{
+				return Target.Platform == UnrealTargetPlatform.Win64 ||
+					Target.Platform == UnrealTargetPlatform.Linux ||
+					Target.Platform == UnrealTargetPlatform.LinuxAArch64;
+			}
+		}
+
+		/// <summary>
+		/// Returns the VcPkg root directory for the build configuration
+		/// </summary>
+		/// <param name="PackageName">The name of the third-party package</param>
+		/// <returns></returns>
+		public string GetVcPackageRoot(string PackageName)
+		{
+			// TODO: MacOS support, other platform support
+			string TargetPlatform = Target.Platform.ToString();
+			string? Platform = null;
+			string? Architecture = null;
+			string Linkage = string.Empty;
+			string Toolset = string.Empty;
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				Platform = "windows";
+				Architecture = Target.WindowsPlatform.Architecture.ToString().ToLowerInvariant();
+				if (Target.bUseStaticCRT)
+				{
+					Linkage = "-static";
+				}
+				else
+				{
+					Linkage = "-static-md";
+				}
+				Toolset = "-v141";
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Linux)
+			{
+				Architecture = "x86_64";
+				Platform = "unknown-linux-gnu";
+			}
+			else if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+			{
+				Architecture = "aarch64";
+				Platform = "unknown-linux-gnueabi";
+			}
+
+			if (string.IsNullOrEmpty(TargetPlatform) || string.IsNullOrEmpty(Platform) || string.IsNullOrEmpty(Architecture))
+			{
+				throw new System.NotSupportedException($"Platform {Target.Platform} not currently supported by vcpkg");
+			}
+
+			string Triplet = $"{Architecture}-{Platform}{Linkage}{Toolset}";
+
+			return Path.Combine("ThirdParty", "vcpkg", TargetPlatform, Triplet, $"{PackageName}_{Triplet}");
+		}
+
+		/// <summary>
+		/// Adds libraries compiled with vcpkg to the current module
+		/// </summary>
+		/// <param name="PackageName">The name of the third-party package</param>
+		/// <param name="AddInclude">Should the include directory be added to PublicIncludePaths</param>
+		/// <param name="Libraries">The names of the libaries to add to PublicAdditionalLibraries/</param>
+		public void AddVcPackage(string PackageName, bool AddInclude, params string[] Libraries)
+		{
+			string VcPackageRoot = GetVcPackageRoot(PackageName);
+
+			if (!System.IO.Directory.Exists(VcPackageRoot))
+			{
+				throw new DirectoryNotFoundException(VcPackageRoot);
+			}
+
+			string LibraryExtension = string.Empty;
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				LibraryExtension = ".lib";
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+			{
+				LibraryExtension = ".a";
+			}
+
+			foreach (string Library in Libraries)
+			{
+				string LibraryPath = Path.Combine(VcPackageRoot, "lib", $"{Library}{LibraryExtension}");
+				if ((Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64) && !Library.StartsWith("lib"))
+				{
+					LibraryPath = Path.Combine(VcPackageRoot, "lib", $"lib{Library}{LibraryExtension}");
+				}
+				if (!System.IO.File.Exists(LibraryPath))
+				{
+					throw new FileNotFoundException(LibraryPath);
+				}
+				PublicAdditionalLibraries.Add(LibraryPath);
+			}
+
+			if (AddInclude)
+			{
+				string IncludePath = Path.Combine(VcPackageRoot, "include");
+				if (!System.IO.Directory.Exists(IncludePath))
+				{
+					throw new DirectoryNotFoundException(IncludePath);
+				}
+
+				PublicIncludePaths.Add(Path.Combine(VcPackageRoot, "include"));
+			}
+		}
 	}
 }
