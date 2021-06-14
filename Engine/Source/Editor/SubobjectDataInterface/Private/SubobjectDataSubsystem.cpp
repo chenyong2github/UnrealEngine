@@ -1092,6 +1092,10 @@ int32 USubobjectDataSubsystem::DeleteSubobjects(const FSubobjectDataHandle& Cont
 								}
 							}
 						}
+						else
+						{
+							UE_LOG(LogSubobjectSubsystem, Warning, TEXT("Cannot remove subobject '%s' because it is the default scene root!"), *Data->GetDisplayString());
+						}
 					}
 				}
 			}
