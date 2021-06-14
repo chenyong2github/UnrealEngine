@@ -48,7 +48,7 @@ public:
 	 * @param	Frame			Actual frame to add.
 	 * @param	HasMipMaps		Whether this frame contains mipmaps or not.
 	 */
-	void AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, bool HasMipMaps = true);
+	void AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, bool HasMipMaps);
 
 	/**
 	 * Find the entry with the specified sequence and index and mark it as the most recently used.
