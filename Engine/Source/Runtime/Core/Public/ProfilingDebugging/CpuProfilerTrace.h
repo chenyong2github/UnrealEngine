@@ -61,6 +61,13 @@ struct FCpuProfilerTrace
 	 */
 	CORE_API static void OutputBeginDynamicEvent(const TCHAR* Name);
 	/*
+	 * Output begin event marker for a dynamic event identified by an FName. This is more expensive than
+	 * statically known event names using \ref OutputBeginEvent, but it is faster than \ref OutputBeginDynamicEvent
+	 * that receives ANSICHAR* / TCHAR* name. Must always be matched with an end event.
+	 * @param Name Name of event
+	 */
+	CORE_API static void OutputBeginDynamicEvent(const FName Name);
+	/*
 	 * Output end event marker for static or dynamic event for the currently open scope.
 	 */
 	CORE_API static void OutputEndEvent();

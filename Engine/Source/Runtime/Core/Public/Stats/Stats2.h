@@ -1601,6 +1601,17 @@ public:
 		Start(InStatId, EStatFlags::None, bAlways);
 	}
 
+	FORCEINLINE_STATS void StartTrace(const FName Name)
+	{
+#if CPUPROFILERTRACE_ENABLED
+		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+		{
+			FCpuProfilerTrace::OutputBeginDynamicEvent(Name);
+			EmittedEvent |= TraceEvent;
+		}
+#endif
+	}
+
 	/**
 	 * Stops the capturing and stores the result
 	 */
