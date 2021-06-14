@@ -20,6 +20,7 @@
 #include "Algo/Sort.h"
 #include "Algo/BinarySearch.h"
 #if WITH_EDITOR
+	#include "Editor.h"
 	#include "Kismet2/ReloadUtilities.h"
 	#include "Widgets/Notifications/SNotificationList.h"
 	#include "Framework/Notifications/NotificationManager.h"

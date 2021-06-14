@@ -12,6 +12,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "IPersonaPreviewScene.h"
 #include "Preferences/PersonaOptions.h"
+#include "ScopedTransaction.h"
 
 class FCanvas;
 class UPersonaOptions;
