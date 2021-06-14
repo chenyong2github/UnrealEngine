@@ -141,4 +141,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	static UMoviePipelineSetting* FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot);
 
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static ULevelSequence* GetCurrentSequence(const UMoviePipeline* InMoviePipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static UMoviePipelineExecutorShot* GetCurrentExecutorShot(const UMoviePipeline* InMoviePipeline);
 };

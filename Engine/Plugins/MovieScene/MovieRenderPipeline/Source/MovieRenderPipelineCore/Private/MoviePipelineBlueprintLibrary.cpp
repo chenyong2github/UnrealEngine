@@ -910,3 +910,27 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 	}
 }
 
+ULevelSequence* UMoviePipelineBlueprintLibrary::GetCurrentSequence(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		return InMoviePipeline->GetTargetSequence();
+	}
+
+	return nullptr;
+}
+
+UMoviePipelineExecutorShot* UMoviePipelineBlueprintLibrary::GetCurrentExecutorShot(const UMoviePipeline* InMoviePipeline)
+{
+	if (InMoviePipeline)
+	{
+		const TArray<UMoviePipelineExecutorShot*>& ActiveShotList = InMoviePipeline->GetActiveShotList();
+		int32 CurrentShotIndex = InMoviePipeline->GetCurrentShotIndex();
+		if (ActiveShotList.IsValidIndex(CurrentShotIndex))
+		{
+			return ActiveShotList[CurrentShotIndex];
+		}
+	}
+
+	return nullptr;
+}
