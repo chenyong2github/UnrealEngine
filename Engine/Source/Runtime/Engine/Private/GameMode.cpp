@@ -66,7 +66,6 @@ void AGameMode::InitGame(const FString& MapName, const FString& Options, FString
 	}
 
 	// Bind to delegates
-	FGameDelegates::Get().GetMatineeCancelledDelegate().AddUObject(this, &AGameMode::MatineeCancelled);
 	FGameDelegates::Get().GetPendingConnectionLostDelegate().AddUObject(this, &AGameMode::NotifyPendingConnectionLost);
 	FGameDelegates::Get().GetPreCommitMapChangeDelegate().AddUObject(this, &AGameMode::PreCommitMapChange);
 	FGameDelegates::Get().GetPostCommitMapChangeDelegate().AddUObject(this, &AGameMode::PostCommitMapChange);
@@ -796,8 +795,6 @@ bool AGameMode::IsHandlingReplays()
 
 	return bHandleDedicatedServerReplays && GetNetMode() == ENetMode::NM_DedicatedServer;
 }
-
-void AGameMode::MatineeCancelled() {}
 
 void AGameMode::PreCommitMapChange(const FString& PreviousMapName, const FString& NextMapName) {}
 

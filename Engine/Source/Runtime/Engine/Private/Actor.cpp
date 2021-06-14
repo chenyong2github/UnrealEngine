@@ -28,9 +28,6 @@
 #include "Logging/MessageLog.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/RepLayout.h"
-#include "Matinee/MatineeActor.h"
-#include "Matinee/InterpGroup.h"
-#include "Matinee/InterpGroupInst.h"
 #include "Engine/Canvas.h"
 #include "DisplayDebugHelpers.h"
 #include "Animation/AnimInstance.h"
@@ -680,28 +677,6 @@ bool AActor::GetTickableWhenPaused()
 void AActor::SetTickableWhenPaused(bool bTickableWhenPaused)
 {
 	PrimaryActorTick.bTickEvenWhenPaused = bTickableWhenPaused;
-}
-
-void AActor::AddControllingMatineeActor( AMatineeActor& InMatineeActor )
-{
-	if (RootComponent)
-	{
-		RootComponent->PrimaryComponentTick.AddPrerequisite(&InMatineeActor, InMatineeActor.PrimaryActorTick);
-	}
-
-	PrimaryActorTick.AddPrerequisite(&InMatineeActor, InMatineeActor.PrimaryActorTick);
-	ControllingMatineeActors.AddUnique(&InMatineeActor);
-}
-
-void AActor::RemoveControllingMatineeActor( AMatineeActor& InMatineeActor )
-{
-	if (RootComponent)
-	{
-		RootComponent->PrimaryComponentTick.RemovePrerequisite(&InMatineeActor, InMatineeActor.PrimaryActorTick);
-	}
-
-	PrimaryActorTick.RemovePrerequisite(&InMatineeActor, InMatineeActor.PrimaryActorTick);
-	ControllingMatineeActors.RemoveSwap(&InMatineeActor);
 }
 
 void AActor::BeginDestroy()
@@ -2211,33 +2186,6 @@ bool AActor::IsInPersistentLevel(bool bIncludeLevelStreamingPersistent) const
 	return ( (MyLevel == World->PersistentLevel) || ( bIncludeLevelStreamingPersistent && World->GetStreamingLevels().Num() > 0 &&
 														Cast<ULevelStreamingPersistent>(World->GetStreamingLevels()[0]) &&
 														World->GetStreamingLevels()[0]->GetLoadedLevel() == MyLevel ) );
-}
-
-
-bool AActor::IsMatineeControlled() const 
-{
-	bool bMovedByMatinee = false;
-	for(auto It(ControllingMatineeActors.CreateConstIterator()); It; It++)
-	{
-		AMatineeActor* ControllingMatineeActor = *It;
-		if(ControllingMatineeActor != nullptr)
-		{
-			UInterpGroupInst* GroupInst = ControllingMatineeActor->FindGroupInst(this);
-			if(GroupInst != nullptr)
-			{
-				if(GroupInst->Group && GroupInst->Group->HasMoveTrack())
-				{
-					bMovedByMatinee = true;
-					break;
-				}
-			}
-			else
-			{
-				UE_LOG(LogActor, Log, TEXT("IsMatineeControlled: ControllingMatineeActor is set but no GroupInstance (%s)"), *GetPathName());
-			}
-		}
-	}
-	return bMovedByMatinee;
 }
 
 bool AActor::IsRootComponentStatic() const

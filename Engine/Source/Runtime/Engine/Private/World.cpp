@@ -62,7 +62,6 @@
 #include "Engine/WorldComposition.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "Matinee/MatineeActor.h"
 #include "Misc/NetworkVersion.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -6180,22 +6179,6 @@ void UWorld::NavigateTo(FIntVector InLocation)
 	SetNewWorldOrigin(InLocation);
 	WorldComposition->UpdateStreamingState(FVector::ZeroVector);
 	FlushLevelStreaming();
-}
-
-void UWorld::GetMatineeActors(TArray<class AMatineeActor*>& OutMatineeActors)
-{
-	check( IsGameWorld() && GetCurrentLevel());
-
-	ULevel* CurLevel = GetCurrentLevel();
-	for( int32 ActorIndex = 0; ActorIndex < CurLevel->Actors.Num(); ++ActorIndex )
-	{
-		AActor* Actor = CurLevel->Actors[ ActorIndex ];
-		AMatineeActor* MatineeActor = Cast<AMatineeActor>( Actor );
-		if( MatineeActor )
-		{
-			OutMatineeActors.Add( MatineeActor );
-		}
-	}
 }
 
 /*-----------------------------------------------------------------------------

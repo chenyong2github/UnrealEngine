@@ -475,7 +475,7 @@ public:
 protected:
 
 	/**
-	 *	Check to see if we should start in cinematic mode (e.g. matinee movie capture).
+	 *	Check to see if we should start in cinematic mode 
 	 * 	@param	OutHidePlayer		Whether to hide the player
 	 *	@param	OutHideHud			Whether to hide the HUD		
 	 *	@param	OutDisableMovement	Whether to disable movement

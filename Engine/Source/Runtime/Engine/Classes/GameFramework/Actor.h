@@ -28,7 +28,6 @@
 
 class AActor;
 class AController;
-class AMatineeActor;
 class APawn;
 class APlayerController;
 class UActorChannel;
@@ -733,10 +732,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=Actor)
 	FVector PivotOffset;
 #endif
-
-	/** The matinee actors that control this actor. */
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<class AMatineeActor>> ControllingMatineeActors;
 
 	/** Handle for efficient management of LifeSpanExpired timer */
 	FTimerHandle TimerHandle_LifeSpanExpired;
@@ -2470,9 +2465,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Collision", meta=(UnsafeDuringActorConstruction="true"))
 	bool IsOverlappingActor(const AActor* Other) const;
 
-	/** Returns whether a MatineeActor is currently controlling this Actor */
-	bool IsMatineeControlled() const;
-
 	/** See if the root component has ModifyFrequency of MF_Static */
 	bool IsRootComponentStatic() const;
 
@@ -2564,17 +2556,6 @@ public:
 	/** Allow actors to initialize themselves on the C++ side after all of their components have been initialized, only called during gameplay */
 	virtual void PostInitializeComponents();
 
-	/**
-	 * Adds a controlling matinee actor for use during matinee playback
-	 * @param InMatineeActor	The matinee actor which controls this actor
-	 */
-	void AddControllingMatineeActor( AMatineeActor& InMatineeActor );
-
-	/**
-	 * Removes a controlling matinee actor
-	 * @param InMatineeActor	The matinee actor which currently controls this actor
-	 */
-	void RemoveControllingMatineeActor( AMatineeActor& InMatineeActor );
 
 	/** Dispatches ReceiveHit virtual and OnComponentHit delegate */
 	virtual void DispatchPhysicsCollisionHit(const struct FRigidBodyCollisionInfo& MyInfo, const struct FRigidBodyCollisionInfo& OtherInfo, const FCollisionImpactData& RigidCollisionData);

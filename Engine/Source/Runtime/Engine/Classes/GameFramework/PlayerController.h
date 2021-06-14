@@ -806,8 +806,6 @@ public:
 	 */
 	virtual bool IsPlayerMuted(const class FUniqueNetId& PlayerId);
 
-	/** Notification when a matinee director track starts or stops controlling the ViewTarget of this PlayerController */
-	virtual void NotifyDirectorControl(bool bNowControlling, class AMatineeActor* CurrentMatinee);
 
 	/** Console control commands, useful when remote debugging so you can't touch the console the normal way */
 	UFUNCTION(exec)
@@ -1652,16 +1650,6 @@ public:
 	 * @param HiddenComponents this list will have all components that should be hidden added to it
 	 */
 	void BuildHiddenComponentList(const FVector& ViewLocation, TSet<FPrimitiveComponentId>& HiddenComponentsOut);
-
-	/**
-	 * Sets the Matinee director track instance that's currently possessing this player controller
-	 * @param   NewControllingDirector    The director track instance that's now controlling this player controller (or nullptr for none)
-	 * @param	bClientSimulatingViewTarget	True to allow clients to simulate their own camera cuts (ignored if NewControllingDirector is nullptr).
-	 */
-	void SetControllingDirector(UInterpTrackInstDirector* NewControllingDirector, bool bClientSimulatingViewTarget);
-
-	/** Returns the Matinee director track that's currently possessing this player controller, or nullptr for none */
-	UInterpTrackInstDirector* GetControllingDirector();
 
 	/** spawn cameras for servers and owning players */
 	virtual void SpawnPlayerCameraManager();

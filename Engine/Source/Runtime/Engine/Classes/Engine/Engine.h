@@ -23,7 +23,6 @@
 
 #define WITH_DYNAMIC_RESOLUTION (!UE_SERVER)
 
-class AMatineeActor;
 class APlayerController;
 class Error;
 class FCanvas;
@@ -1558,9 +1557,6 @@ public:
 	/** Used to alter the intensity level of the selection highlight on selected billboard objects */
 	UPROPERTY(transient)
 	float SelectionHighlightIntensityBillboards;
-
-	/** The "outermost" active matinee, if any. */
-	TWeakObjectPtr<AMatineeActor> ActiveMatinee;
 
 	/** Delegate handling when streaming pause begins. Set initially in FStreamingPauseRenderingModule::StartupModule() but can then be overridden by games. */
 	void RegisterBeginStreamingPauseRenderingDelegate( FBeginStreamingPauseDelegate* InDelegate );

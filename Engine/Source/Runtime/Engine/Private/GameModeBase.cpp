@@ -2,7 +2,6 @@
 
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameNetworkManager.h"
-#include "Matinee/MatineeActor.h"
 #include "Engine/LevelScriptActor.h"
 #include "Engine/World.h"
 #include "Misc/CommandLine.h"
@@ -948,18 +947,10 @@ void AGameModeBase::GenericPlayerInitialization(AController* C)
 
 		bool HidePlayer = false, HideHUD = false, DisableMovement = false, DisableTurning = false;
 
-		// Check to see if we should start in cinematic mode (matinee movie capture)
+		// Check to see if we should start in cinematic mode
 		if (ShouldStartInCinematicMode(PC, HidePlayer, HideHUD, DisableMovement, DisableTurning))
 		{
 			PC->SetCinematicMode(true, HidePlayer, HideHUD, DisableMovement, DisableTurning);
-		}
-
-		// Add the player to any matinees running so that it gets in on any cinematics already running, etc
-		TArray<AMatineeActor*> AllMatineeActors;
-		GetWorld()->GetMatineeActors(AllMatineeActors);
-		for (int32 i = 0; i < AllMatineeActors.Num(); i++)
-		{
-			AllMatineeActors[i]->AddPlayerToDirectorTracks(PC);
 		}
 	}
 }

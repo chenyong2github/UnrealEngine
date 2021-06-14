@@ -44,8 +44,6 @@
 #include "IXRInput.h"
 #include "GameFramework/TouchInterface.h"
 #include "DisplayDebugHelpers.h"
-#include "Matinee/InterpTrackInstDirector.h"
-#include "Matinee/MatineeActor.h"
 #include "Engine/ActorChannel.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/SpectatorPawn.h"
@@ -433,14 +431,6 @@ AActor* APlayerController::GetViewTarget() const
 
 void APlayerController::SetViewTarget(class AActor* NewViewTarget, struct FViewTargetTransitionParams TransitionParams)
 {
-	// if we're being controlled by a director track, update it with the new viewtarget 
-	// so it returns to the proper viewtarget when it finishes.
-	UInterpTrackInstDirector* const Director = GetControllingDirector();
-	if (Director)
-	{
-		Director->OldViewTarget = NewViewTarget;
-	}
-
 	if (PlayerCameraManager)
 	{
 		PlayerCameraManager->SetViewTarget(NewViewTarget, TransitionParams);
@@ -532,24 +522,6 @@ ACameraActor* APlayerController::GetAutoActivateCameraForPlayer() const
 	}
 
 	return NULL;
-}
-
-
-
-void APlayerController::SetControllingDirector(UInterpTrackInstDirector* NewControllingDirector, bool bClientSimulatingViewTarget)
-{
-	ControllingDirTrackInst = NewControllingDirector;
-
-	if (PlayerCameraManager != NULL)
-	{
-		PlayerCameraManager->bClientSimulatingViewTarget = (NewControllingDirector != NULL) ? bClientSimulatingViewTarget : false;
-	}
-}
-
-
-UInterpTrackInstDirector* APlayerController::GetControllingDirector()
-{
-	return ControllingDirTrackInst;
 }
 
 /// @cond DOXYGEN_WARNINGS
@@ -675,20 +647,6 @@ void APlayerController::InitInputSystem()
 	UWorld* World = GetWorld();
 	check(World);
 	World->PersistentLevel->PushPendingAutoReceiveInput(this);
-
-	// add the player to any matinees running so that it gets in on any cinematics already running, etc
-	// (already done on server in PostLogin())
-	if (GetLocalRole() < ROLE_Authority)
-	{
-		TArray<AMatineeActor*> AllMatineeActors;
-		World->GetMatineeActors(AllMatineeActors);
-
-		// tell them all to add this PC to any running Director tracks
-		for (int32 i = 0; i < AllMatineeActors.Num(); i++)
-		{
-			AllMatineeActors[i]->AddPlayerToDirectorTracks(this);
-		}
-	}
 
 	// setup optional touchscreen interface
 	CreateTouchInterface();
@@ -3515,16 +3473,6 @@ APlayerController* APlayerController::GetPlayerControllerForMuting(const FUnique
 bool APlayerController::IsPlayerMuted(const FUniqueNetId& PlayerId)
 {
 	return MuteList.IsPlayerMuted(PlayerId);
-}
-
-void APlayerController::NotifyDirectorControl(bool bNowControlling, AMatineeActor* CurrentMatinee)
-{
-	// matinee is done, make sure client syncs up viewtargets, since we were ignoring
-	// ClientSetViewTarget during the matinee.
-	if (!bNowControlling && (GetNetMode() == NM_Client) && PlayerCameraManager && PlayerCameraManager->bClientSimulatingViewTarget)
-	{
-		ServerVerifyViewTarget();
-	}
 }
 
 /// @cond DOXYGEN_WARNINGS

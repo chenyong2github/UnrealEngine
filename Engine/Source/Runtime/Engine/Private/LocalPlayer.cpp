@@ -21,9 +21,6 @@
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
 
-#include "Matinee/MatineeActor.h"
-#include "Matinee/InterpData.h"
-#include "Matinee/InterpGroupInst.h"
 #include "Net/OnlineEngineInterface.h"
 #include "SceneManagement.h"
 #include "Physics/PhysicsInterfaceCore.h"
@@ -50,7 +47,7 @@ DEFINE_LOG_CATEGORY(LogPlayerManagement);
 static TAutoConsoleVariable<int32> CVarViewportTest(
 	TEXT("r.Test.ConstrainedView"),
 	0,
-	TEXT("Allows to test different viewport rectangle configuations (in game only) as they can happen when using Matinee/Editor.\n")
+	TEXT("Allows to test different viewport rectangle configuations (in game only) as they can happen when using cinematics/Editor.\n")
 	TEXT("0: off(default)\n")
 	TEXT("1..7: Various Configuations"),
 	ECVF_RenderThreadSafe);
@@ -870,7 +867,6 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 		}
 
 		//	CAMERA OVERRIDE
-		//	NOTE: Matinee works through this channel
 		View->OverridePostProcessSettings(ViewInfo.PostProcessSettings, ViewInfo.PostProcessBlendWeight);
 
 		if (PlayerController->PlayerCameraManager)
@@ -1363,52 +1359,6 @@ bool ULocalPlayer::HandleToggleStreamingVolumesCommand( const TCHAR* Cmd, FOutpu
 	return true;
 }
 
-bool ULocalPlayer::HandleCancelMatineeCommand( const TCHAR* Cmd, FOutputDevice& Ar )
-{
-	// allow optional parameter for initial time in the matinee that this won't work (ie,
-	// 'cancelmatinee 5' won't do anything in the first 5 seconds of the matinee)
-	float InitialNoSkipTime = FCString::Atof(Cmd);
-
-	// is the player in cinematic mode?
-	if (PlayerController->bCinematicMode)
-	{
-		bool bFoundMatinee = false;
-		// if so, look for all active matinees that has this Player in a director group
-		for (TActorIterator<AMatineeActor> It(GetWorld()); It; ++It)
-		{
-			AMatineeActor* MatineeActor = *It;
-
-			// is it currently playing (and skippable)?
-			if (MatineeActor->bIsPlaying && MatineeActor->bIsSkippable && (MatineeActor->bClientSideOnly || MatineeActor->GetWorld()->IsServer()))
-			{
-				for (int32 GroupIndex = 0; GroupIndex < MatineeActor->GroupInst.Num(); GroupIndex++)
-				{
-					// is the PC the group actor?
-					if (MatineeActor->GroupInst[GroupIndex]->GetGroupActor() == PlayerController)
-					{
-						const float RightBeforeEndTime = 0.1f;
-						// make sure we aren';t already at the end (or before the allowed skip time)
-						if ((MatineeActor->InterpPosition < MatineeActor->MatineeData->InterpLength - RightBeforeEndTime) &&
-							(MatineeActor->InterpPosition >= InitialNoSkipTime))
-						{
-							// skip to end
-							MatineeActor->SetPosition(MatineeActor->MatineeData->InterpLength - RightBeforeEndTime, true);
-							bFoundMatinee = true;
-						}
-					}
-				}
-			}
-		}
-
-		if (bFoundMatinee)
-		{
-			FGameDelegates::Get().GetMatineeCancelledDelegate().Broadcast();
-		}
-	}
-	return true;
-}
-
-
 bool ULocalPlayer::Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 {
 #if WITH_EDITOR
@@ -1520,12 +1470,6 @@ bool ULocalPlayer::Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 	else if( FParse::Command(&Cmd,TEXT("TOGGLESTREAMINGVOLUMES")) )
 	{
 		return HandleToggleStreamingVolumesCommand( Cmd, Ar );
-	}
-	// @hack: This is a test matinee skipping function, quick and dirty to see if it's good enough for
-	// gameplay. Will fix up better when we have some testing done!
-	else if (FParse::Command(&Cmd, TEXT("CANCELMATINEE")))
-	{
-		return HandleCancelMatineeCommand( Cmd, Ar );
 	}
 	else if(ViewportClient && ViewportClient->Exec( InWorld, Cmd,Ar))
 	{

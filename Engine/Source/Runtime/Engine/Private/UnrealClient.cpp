@@ -1115,19 +1115,8 @@ int32 FStatHitchesData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32
 			Hitches[OverwriteIndex] = DeltaSeconds;
 			When[OverwriteIndex] = CurrentTime;
 			OverwriteIndex = (OverwriteIndex + 1) % NumHitches;
-			if (GEngine->ActiveMatinee.IsValid())
-			{
-				float MatineeTime = GEngine->ActiveMatinee.Get()->InterpPosition;
-				float MatineeMM = FPlatformMath::TruncToFloat(MatineeTime / 60.0f);
-				float MatineeSS = FPlatformMath::TruncToFloat(MatineeTime - MatineeMM * 60.0f);
-				float MatineeMS = FPlatformMath::TruncToFloat((MatineeTime - MatineeMM * 60.0f - MatineeSS) * 1000.0f);
-				UE_LOG(LogClient, Warning, TEXT("HITCH @ %02dm:%02d.%03ds,%d,%d,%d"),
-					(int32)MatineeMM, (int32)MatineeSS, (int32)MatineeMS, int32(MatineeTime * 1000), int32(DeltaSeconds * 1000), Count++);
-			}
-			else
-			{
-				UE_LOG(LogClient, Warning, TEXT("HITCH %d              running cnt = %5d"), int32(DeltaSeconds * 1000), Count++);
-			}
+
+			UE_LOG(LogClient, Warning, TEXT("HITCH %d              running cnt = %5d"), int32(DeltaSeconds * 1000), Count++);
 		}
 
 		const int32 MaxY = InCanvas->GetRenderTarget()->GetSizeXY().Y;

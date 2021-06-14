@@ -241,7 +241,6 @@ public:
 	bool HandleExecCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleToggleDrawEventsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleToggleStreamingVolumesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleCancelMatineeCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	
 protected:
 	/**

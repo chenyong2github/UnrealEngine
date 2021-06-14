@@ -876,11 +876,7 @@ void AMatineeActor::InitInterp()
 
 	if( MatineeData )
 	{
-		// Register myself as the active matinee if one is not active.
-		if (GEngine->ActiveMatinee.IsValid() == false)
-		{
-			GEngine->ActiveMatinee = this;
-		}
+
 
 		TMap<FName, FInterpGroupActorInfo*> InterpGroupToActorInfoMap;
 	
@@ -976,14 +972,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 
-		// set matinee actor when initialize it, otherwise, we'll have random tick order
-		for(int32 i=0; i<GroupInst.Num(); i++)
-		{
-			if(GroupInst[i]->GroupActor)
-			{
-				GroupInst[i]->GroupActor->AddControllingMatineeActor( *this );
-			}
-		}
 
 		EnableCinematicMode(true);
 	}
@@ -1000,21 +988,11 @@ void AMatineeActor::TermInterp()
 	// Destroy each group instance.
 	for(int32 i=0; i<GroupInst.Num(); i++)
 	{
-		if(GroupInst[i]->GroupActor)
-		{
-			GroupInst[i]->GroupActor->RemoveControllingMatineeActor( *this );
-		}
 
 		GroupInst[i]->TermGroupInst(true);
 
 	}
 	GroupInst.Empty();
-
-	// Unregister myself as the active matinee if one is not active.
-	if (GEngine->ActiveMatinee.Get() == this)
-	{
-		GEngine->ActiveMatinee.Reset();
-	}
 
 	// disable cinematic mode
 	EnableCinematicMode(false);
@@ -1490,11 +1468,6 @@ void AMatineeActor::DeleteActorGroupInfo(class UInterpGroup * Group, AActor* Act
 			{
 				if (GroupInfo.Actors[ActorID] == ActorToDelete)
 				{
-					if (ActorToDelete)
-					{
-						ActorToDelete->RemoveControllingMatineeActor(*this);
-					}
-
 					GroupInfo.Actors.RemoveAt(ActorID);
 					return;
 				}
@@ -1512,15 +1485,6 @@ void AMatineeActor::DeleteGroupinfo(class UInterpGroup * GroupToDelete)
 
 		if(GroupToDelete->GetFName() == Info.ObjectName)
 		{
-			for (int32 ActorIndex = 0; ActorIndex<Info.Actors.Num(); ++ActorIndex)
-			{
-				if ( Info.Actors[ActorIndex] )
-				{
-					// clear Matinee Actor
-					Info.Actors[ActorIndex]->RemoveControllingMatineeActor(*this);
-				}
-			}
-
 			GroupActorInfos.RemoveAt( InfoIndex );
 			break;
 		}
@@ -1543,17 +1507,7 @@ void AMatineeActor::ReplaceActorGroupInfo(UInterpGroup * Group, AActor* OldActor
 				{
 					if (GroupInfo.Actors[ActorID] == OldActor)
 					{
-						if (OldActor)
-						{
-							OldActor->RemoveControllingMatineeActor(*this);
-						}
-
 						GroupInfo.Actors[ActorID] = NewActor;
-
-						if (NewActor)
-						{
-							NewActor->AddControllingMatineeActor(*this);
-						}
 						return;
 					}
 				}
@@ -1743,11 +1697,6 @@ void AMatineeActor::InitGroupActorForGroup(class UInterpGroup* InGroup, class AA
 		{
 			bFoundGroup = true;
 			Info.Actors.AddUnique( InGroupActor );
-
-			if (InGroupActor)
-			{
-				InGroupActor->AddControllingMatineeActor(*this);
-			}
 		}
 	}
 
@@ -1758,11 +1707,6 @@ void AMatineeActor::InitGroupActorForGroup(class UInterpGroup* InGroup, class AA
 		NewInfo.Actors.Add( InGroupActor );
 
 		GroupActorInfos.Add( NewInfo );
-
-		if (InGroupActor)
-		{
-			InGroupActor->AddControllingMatineeActor(*this);
-		}
 	}
 
 	PostEditChange();
@@ -6735,21 +6679,8 @@ void UInterpTrackDirector::UpdateTrack(float NewPosition, UInterpTrackInst* TrIn
 						// If the actor's current view target is a director track camera, then we want to store 
 						// the director track's 'old view target' in case the current Matinee sequence finishes
 						// before our's does.
-						UInterpTrackInstDirector* PreviousDirInst = PC->GetControllingDirector();
-						if( PreviousDirInst != NULL && PreviousDirInst->OldViewTarget != NULL )
-						{
-							// Store the underlying director track's old view target so we can restore this later
-							DirInst->OldViewTarget = PreviousDirInst->OldViewTarget;
-						}
-						else
-						{
-							DirInst->OldViewTarget = ViewTarget;
-						}
+						DirInst->OldViewTarget = ViewTarget;
 					}
-
-					PC->SetControllingDirector(DirInst, bSimulateCameraCutsOnClients);
-	
-					PC->NotifyDirectorControl(true, MatineeActor); 
 
 					//UE_LOG(LogMatinee, Log, TEXT("UInterpTrackDirector::UpdateTrack SetViewTarget ViewGroupInst->GroupActor Time:%f Name: %s"), PC->GetWorld()->GetTimeSeconds(), *ViewGroupInst->GroupActor->GetFName());
 					// Change view to desired view target.
@@ -6779,9 +6710,6 @@ void UInterpTrackDirector::UpdateTrack(float NewPosition, UInterpTrackInst* TrIn
 					PC->SetViewTarget( DirInst->OldViewTarget, TransitionParams );
 				}
 
-				PC->NotifyDirectorControl(false, MatineeActor); 
-				PC->SetControllingDirector(NULL, false);
-				
 				DirInst->OldViewTarget = NULL;
 			}
 		}
@@ -6941,9 +6869,6 @@ void UInterpTrackInstDirector::TermTrackInst(UInterpTrack* Track)
 				PC->SetViewTarget(OldViewTarget);
 			}
 		}
-		// this may be a duplicate call if it was already called in UpdateTrack(), but that's better than not at all and leaving code thinking we stayed in matinee forever
-		PC->NotifyDirectorControl(false, MatineeActor);
-		PC->SetControllingDirector(NULL, false);
 	}
 	
 	OldViewTarget = NULL;

@@ -367,7 +367,7 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 		// Update character state based on change from movement
 		UpdateCharacterStateAfterMovement(DeltaSeconds, Output);
 
-		if ((bAllowPhysicsRotationDuringAnimRootMotion || !Output.RootMotionParams.bHasRootMotion)/* && !CharacterOwner->IsMatineeControlled()*/)
+		if ((bAllowPhysicsRotationDuringAnimRootMotion || !Output.RootMotionParams.bHasRootMotion))
 		{
 			PhysicsRotation(DeltaSeconds, Output);
 		}
@@ -602,94 +602,82 @@ void FCharacterMovementComponentAsyncInput::UpdateBasedMovement(float DeltaSecon
 		const FQuatRotationTranslationMatrix OldLocalToWorld(OldBaseQuat, OldBaseLocation);
 		const FQuatRotationTranslationMatrix NewLocalToWorld(NewBaseQuat, NewBaseLocation);
 
+		FQuat FinalQuat = UpdatedComponentInput->GetRotation();
 
-		// TODO Matinee
-		if (false)//CharacterOwner->IsMatineeControlled())
+		if (bRotationChanged && !bIgnoreBaseRotation)
 		{
-			/*FRotationTranslationMatrix HardRelMatrix(CharacterOwner->GetBasedMovement().Rotation, CharacterOwner->GetBasedMovement().Location);
-			const FMatrix NewWorldTM = HardRelMatrix * NewLocalToWorld;
-			const FQuat NewWorldRot = bIgnoreBaseRotation ? UpdatedComponent->GetComponentQuat() : NewWorldTM.ToQuat();
-			MoveUpdatedComponent(NewWorldTM.GetOrigin() - UpdatedComponent->GetComponentLocation(), NewWorldRot, true);*/
+			// Apply change in rotation and pipe through FaceRotation to maintain axis restrictions
+			const FQuat PawnOldQuat = UpdatedComponentInput->GetRotation();
+			const FQuat TargetQuat = Output.DeltaQuat * FinalQuat;
+			FRotator TargetRotator(TargetQuat);
+
+			// Do we need this value after all?
+
+			CharacterInput->FaceRotation(TargetRotator, 0.0f, *this, Output);
+			FinalQuat =  Output.CharacterOutput->Rotation.Quaternion();//UpdatedComponent->GetComponentQuat(); supposed to be modified by MockFaceRotation, si this ok?
+
+
+			if (PawnOldQuat.Equals(FinalQuat, 1e-6f))
+			{
+				// Nothing changed. This means we probably are using another rotation mechanism (bOrientToMovement etc). We should still follow the base object.
+				// @todo: This assumes only Yaw is used, currently a valid assumption. This is the only reason FaceRotation() is used above really, aside from being a virtual hook.
+				if (bOrientRotationToMovement || (bUseControllerDesiredRotation /*&& CharacterOwner->Controller*/))
+				{
+					TargetRotator.Pitch = 0.f;
+					TargetRotator.Roll = 0.f;
+
+					MoveUpdatedComponent(FVector::ZeroVector, FQuat(TargetRotator), /*bSweep=*/false, Output);
+					//FinalQuat = UpdatedComponent->GetComponentQuat();
+					FinalQuat = UpdatedComponentInput->GetRotation();
+				}
+			}
+
+			// TODO Camera
+			// Pipe through ControlRotation, to affect camera.
+			/*if (CharacterOwner->Controller)
+			{
+				const FQuat PawnDeltaRotation = FinalQuat * PawnOldQuat.Inverse();
+				FRotator FinalRotation = FinalQuat.Rotator();
+				UpdateBasedRotation(FinalRotation, PawnDeltaRotation.Rotator());
+				FinalQuat = UpdatedComponent->GetComponentQuat();
+			}*/
+		}
+
+		// We need to offset the base of the character here, not its origin, so offset by half height
+		float HalfHeight = Output.ScaledCapsuleHalfHeight;
+		float Radius = Output.ScaledCapsuleRadius;
+
+		FVector const BaseOffset(0.0f, 0.0f, HalfHeight);
+		FVector const LocalBasePos = OldLocalToWorld.InverseTransformPosition(UpdatedComponentInput->GetPosition() - BaseOffset);
+		FVector const NewWorldPos = ConstrainLocationToPlane(NewLocalToWorld.TransformPosition(LocalBasePos) + BaseOffset);
+		Output.DeltaPosition = ConstrainDirectionToPlane(NewWorldPos - UpdatedComponentInput->GetPosition());
+
+		// move attached actor
+		if (false)//bFastAttachedMove) // TODO bFastAttachedMove
+		{
+			// we're trusting no other obstacle can prevent the move here
+			//	UpdatedComponent->SetWorldLocationAndRotation(NewWorldPos, FinalQuat, false);
+
+			UpdatedComponentInput->SetPosition(NewWorldPos);
+			UpdatedComponentInput->SetRotation(FinalQuat);
 		}
 		else
 		{
-			FQuat FinalQuat = UpdatedComponentInput->GetRotation();
-
-			if (bRotationChanged && !bIgnoreBaseRotation)
+			// hack - transforms between local and world space introducing slight error FIXMESTEVE - discuss with engine team: just skip the transforms if no rotation?
+			FVector BaseMoveDelta = NewBaseLocation - OldBaseLocation;
+			if (!bRotationChanged && (BaseMoveDelta.X == 0.f) && (BaseMoveDelta.Y == 0.f))
 			{
-				// Apply change in rotation and pipe through FaceRotation to maintain axis restrictions
-				const FQuat PawnOldQuat = UpdatedComponentInput->GetRotation();
-				const FQuat TargetQuat = Output.DeltaQuat * FinalQuat;
-				FRotator TargetRotator(TargetQuat);
-
-				// Do we need this value after all?
-
-				CharacterInput->FaceRotation(TargetRotator, 0.0f, *this, Output);
-				FinalQuat =  Output.CharacterOutput->Rotation.Quaternion();//UpdatedComponent->GetComponentQuat(); supposed to be modified by MockFaceRotation, si this ok?
-
-
-				if (PawnOldQuat.Equals(FinalQuat, 1e-6f))
-				{
-					// Nothing changed. This means we probably are using another rotation mechanism (bOrientToMovement etc). We should still follow the base object.
-					// @todo: This assumes only Yaw is used, currently a valid assumption. This is the only reason FaceRotation() is used above really, aside from being a virtual hook.
-					if (bOrientRotationToMovement || (bUseControllerDesiredRotation /*&& CharacterOwner->Controller*/))
-					{
-						TargetRotator.Pitch = 0.f;
-						TargetRotator.Roll = 0.f;
-
-						MoveUpdatedComponent(FVector::ZeroVector, FQuat(TargetRotator), /*bSweep=*/false, Output);
-						//FinalQuat = UpdatedComponent->GetComponentQuat();
-						FinalQuat = UpdatedComponentInput->GetRotation();
-					}
-				}
-
-				// TODO Camera
-				// Pipe through ControlRotation, to affect camera.
-				/*if (CharacterOwner->Controller)
-				{
-					const FQuat PawnDeltaRotation = FinalQuat * PawnOldQuat.Inverse();
-					FRotator FinalRotation = FinalQuat.Rotator();
-					UpdateBasedRotation(FinalRotation, PawnDeltaRotation.Rotator());
-					FinalQuat = UpdatedComponent->GetComponentQuat();
-				}*/
+				Output.DeltaPosition.X = 0.f;
+				Output.DeltaPosition.Y = 0.f;
 			}
 
-			// We need to offset the base of the character here, not its origin, so offset by half height
-			float HalfHeight = Output.ScaledCapsuleHalfHeight;
-			float Radius = Output.ScaledCapsuleRadius;
-
-			FVector const BaseOffset(0.0f, 0.0f, HalfHeight);
-			FVector const LocalBasePos = OldLocalToWorld.InverseTransformPosition(UpdatedComponentInput->GetPosition() - BaseOffset);
-			FVector const NewWorldPos = ConstrainLocationToPlane(NewLocalToWorld.TransformPosition(LocalBasePos) + BaseOffset);
-			Output.DeltaPosition = ConstrainDirectionToPlane(NewWorldPos - UpdatedComponentInput->GetPosition());
-
-			// move attached actor
-			if (false)//bFastAttachedMove) // TODO bFastAttachedMove
+			FHitResult MoveOnBaseHit(1.f);
+			const FVector OldLocation = UpdatedComponentInput->GetPosition();
+			MoveUpdatedComponent(Output.DeltaPosition, FinalQuat, true, Output, &MoveOnBaseHit);
+			if ((UpdatedComponentInput->GetPosition() - (OldLocation + Output.DeltaPosition)).IsNearlyZero() == false)
 			{
-				// we're trusting no other obstacle can prevent the move here
-				//	UpdatedComponent->SetWorldLocationAndRotation(NewWorldPos, FinalQuat, false);
-
-				UpdatedComponentInput->SetPosition(NewWorldPos);
-				UpdatedComponentInput->SetRotation(FinalQuat);
-			}
-			else
-			{
-				// hack - transforms between local and world space introducing slight error FIXMESTEVE - discuss with engine team: just skip the transforms if no rotation?
-				FVector BaseMoveDelta = NewBaseLocation - OldBaseLocation;
-				if (!bRotationChanged && (BaseMoveDelta.X == 0.f) && (BaseMoveDelta.Y == 0.f))
-				{
-					Output.DeltaPosition.X = 0.f;
-					Output.DeltaPosition.Y = 0.f;
-				}
-
-				FHitResult MoveOnBaseHit(1.f);
-				const FVector OldLocation = UpdatedComponentInput->GetPosition();
-				MoveUpdatedComponent(Output.DeltaPosition, FinalQuat, true, Output, &MoveOnBaseHit);
-				if ((UpdatedComponentInput->GetPosition() - (OldLocation + Output.DeltaPosition)).IsNearlyZero() == false)
-				{
-					// TODO OnUnableToFollowBaseMove
-					//OnUnableToFollowBaseMove(DeltaPosition, OldLocation, MoveOnBaseHit);
-				}
+				// TODO OnUnableToFollowBaseMove
+				//OnUnableToFollowBaseMove(DeltaPosition, OldLocation, MoveOnBaseHit);
 			}
 		}
 
