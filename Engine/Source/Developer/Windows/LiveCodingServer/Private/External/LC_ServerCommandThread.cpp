@@ -1802,7 +1802,7 @@ bool ServerCommandThread::actions::SetReinstancingFlow::Execute(const CommandTyp
 {
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
-	if (!commandThread->HasReinstancingProcess())
+	if (!commandThread->HasReinstancingProcess() && command->enable)
 	{
 		LC_WARNING_USER("Quick restart disabled when re-instancing is enabled.");
 	}
@@ -1842,11 +1842,6 @@ bool ServerCommandThread::actions::SetReinstancingFlow::Execute(const CommandTyp
 bool ServerCommandThread::actions::DisableCompileFinishNotification::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
-
-	if (!commandThread->HasReinstancingProcess())
-	{
-		LC_WARNING_USER("Quick restart disabled when re-instancing is enabled.");
-	}
 
 	// protect against accepting this command while compilation is already in progress
 	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
