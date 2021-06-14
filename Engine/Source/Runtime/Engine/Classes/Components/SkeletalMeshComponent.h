@@ -321,14 +321,6 @@ class ENGINE_API USkeletalMeshComponent : public USkinnedMeshComponent, public I
 	friend struct FAnimNode_LinkedAnimLayer;
 	friend struct FLinkedInstancesAdapter;
 
-	/**
-	 * Animation 
-	 */
-	
-	/** @Todo anim: Matinee related data start - this needs to be replaced to new system. */
-	
-	/** @Todo anim: Matinee related data end - this needs to be replaced to new system. */
-
 public:
 #if WITH_EDITORONLY_DATA
 	/** The blueprint for creating an AnimationScript. */
