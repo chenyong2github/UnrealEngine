@@ -13,6 +13,11 @@ namespace UnrealBuildBase
 	{
 		private static DirectoryReference FindRootDirectory()
 		{
+			if (LocationOverride.RootDirectory != null)
+			{
+				return LocationOverride.RootDirectory;
+			}
+
 			// This base library may be used - and so be launched - from more than one location (at time of writing, UnrealBuildTool and AutomationTool)
 			// Programs that use this assembly must be located under "Engine/Binaries/DotNET" and so we look for that sequence of directories in that path of the executing assembly
 			
@@ -108,6 +113,14 @@ namespace UnrealBuildBase
 				bIsEngineInstalled = FileReference.Exists(FileReference.Combine(EngineDirectory, "Build", "InstalledBuild.txt"));
 			}
 			return bIsEngineInstalled.Value;
+		}
+
+		public static class LocationOverride 
+		{
+			/// <summary>
+			/// If set, this value will be used to populate Unreal.RootDirectory
+			/// </summary>
+			public static DirectoryReference? RootDirectory = null;
 		}
 	}
 }
