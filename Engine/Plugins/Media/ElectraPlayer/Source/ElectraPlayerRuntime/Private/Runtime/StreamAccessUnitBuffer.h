@@ -619,6 +619,7 @@ namespace Electra
 			const FMultiTrackAccessUnitBuffer& LockedSelf;
 		};
 
+		bool PeekAndAddRef(FAccessUnit*& OutAU);
 		bool Pop(FAccessUnit*& OutAU);
 		void PopDiscardUntil(FTimeValue UntilTime);
 		bool IsEODFlagSet();

@@ -23,6 +23,7 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/WindowsHWrapper.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Misc/CoreDelegates.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "mftransform.h"
@@ -151,9 +152,17 @@ namespace Electra
 
 		bool IsDifferentFormat(const FAccessUnit* Data);
 
+		void HandleApplicationHasEnteredForeground();
+		void HandleApplicationWillEnterBackground();
+
 		FInstanceConfiguration													Config;
 
 		FAccessUnitBuffer														AccessUnits;
+
+		FDelegateHandle															ApplicationSuspendedDelegate;
+		FDelegateHandle															ApplicationResumeDelegate;
+		FMediaEvent																ApplicationRunningSignal;
+		FMediaEvent																ApplicationSuspendConfirmedSignal;
 
 		FMediaEvent																TerminateThreadEvent;
 		FMediaEvent																FlushDecoderEvent;
@@ -862,11 +871,38 @@ namespace Electra
 
 	//-----------------------------------------------------------------------------
 	/**
+	 * Application has entered foreground.
+	 */
+	void FAudioDecoderAAC::HandleApplicationHasEnteredForeground()
+	{
+		ApplicationRunningSignal.Signal();
+	}
+
+	
+	//-----------------------------------------------------------------------------
+	/**
+	 * Application goes into background.
+	 */
+	void FAudioDecoderAAC::HandleApplicationWillEnterBackground()
+	{
+		ApplicationSuspendConfirmedSignal.Reset();
+		ApplicationRunningSignal.Reset();
+		ApplicationSuspendConfirmedSignal.WaitTimeoutAndReset(1000 * 500);
+	}
+
+	
+	//-----------------------------------------------------------------------------
+	/**
 	 * AAC audio decoder main threaded decode loop
 	 */
 	void FAudioDecoderAAC::WorkerThread()
 	{
 		LLM_SCOPE(ELLMTag::ElectraPlayer);
+
+		ApplicationRunningSignal.Signal();
+		ApplicationSuspendConfirmedSignal.Reset();
+		ApplicationSuspendedDelegate = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAudioDecoderAAC::HandleApplicationWillEnterBackground);
+		ApplicationResumeDelegate = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAudioDecoderAAC::HandleApplicationHasEnteredForeground);
 
 		bool bError = false;
 		bool bInDummyDecodeMode = false;
@@ -882,6 +918,16 @@ namespace Electra
 
 		while (!TerminateThreadEvent.IsSignaled())
 		{
+			// If in background, wait until we get activated again.
+			if (!ApplicationRunningSignal.IsSignaled())
+			{
+				ApplicationSuspendConfirmedSignal.Signal();
+				while(!ApplicationRunningSignal.WaitTimeout(100 * 1000) && !TerminateThreadEvent.IsSignaled())
+				{
+				}
+				continue;
+			}
+
 			// Notify optional buffer listener that we will now be needing an AU for our input buffer.
 			if (!bError && InputBufferListener && AccessUnits.Num() == 0)
 			{
@@ -1134,6 +1180,17 @@ namespace Electra
 
 		CurrentPTS.SetToInvalid();
 		NextExpectedPTS.SetToInvalid();
+
+		if (ApplicationSuspendedDelegate.IsValid())
+		{
+			FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(ApplicationSuspendedDelegate);
+			ApplicationSuspendedDelegate.Reset();
+		}
+		if (ApplicationResumeDelegate.IsValid())
+		{
+			FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(ApplicationResumeDelegate);
+			ApplicationResumeDelegate.Reset();
+		}
 	}
 
 

@@ -11,6 +11,7 @@
 
 #include "Renderer/RendererAudio.h"
 #include "Decoder/VideoDecoderH264.h"
+#include "Decoder/VideoDecoderH265.h"
 #include "Decoder/AudioDecoderAAC.h"
 
 #include "ElectraPlayerPrivate.h"
@@ -80,7 +81,9 @@ public:
 		// H.264 decoder
 		IVideoDecoderH264::FSystemConfiguration SysCfgH264;
 		IVideoDecoderH264::Startup(SysCfgH264);
-
+		// H.265 decoder
+		FParamDict NoOptions;
+		IVideoDecoderH265::Startup(NoOptions);
 		// AAC decoder
 		IAudioDecoderAAC::FSystemConfiguration SysCfgAAC;
 		IAudioDecoderAAC::Startup(SysCfgAAC);
@@ -94,6 +97,7 @@ public:
 		{
 			Electra::WaitForAllPlayersToHaveTerminated();
 			IAudioDecoderAAC::Shutdown();
+			IVideoDecoderH265::Shutdown();
 			IVideoDecoderH264::Shutdown();
 			FElectraRendererAudio::Shutdown();
 			FElectraRendererVideo::Shutdown();

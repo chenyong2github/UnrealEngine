@@ -4,11 +4,13 @@
 #include "ElectraPlayerPrivate.h"
 #include "ElectraPlayerPrivate_Platform.h"
 #include "StreamAccessUnitBuffer.h"
-#include "Decoder/VideoDecoderH264.h"
+#include "Decoder/VideoDecoderH265.h"
 #include "Renderer/RendererBase.h"
 #include "Renderer/RendererVideo.h"
 #include "Player/PlayerSessionServices.h"
 #include "Utilities/StringHelpers.h"
+
+#if ELECTRA_PLATFORM_HAS_H265_DECODER
 
 #include "Decoder/DX/DecoderErrors_DX.h"
 #include "MediaVideoDecoderOutputPC.h"
@@ -28,45 +30,31 @@ THIRD_PARTY_INCLUDES_START
 #include "mfidl.h"
 THIRD_PARTY_INCLUDES_END
 
+#include "Decoder/DX/MediaFoundationGUIDs.h"
+
 #include "Windows/HideWindowsPlatformTypes.h"
 
-#include "Decoder/DX/VideoDecoderH264_DX.h"
-#include "Decoder/DX/MediaFoundationGUIDs.h"
+#include "Decoder/DX/VideoDecoderH265_DX.h"
+#include "Decoder/Windows/PlatformVideoDecoderH265.h"
 
 
 #define ELECTRA_USE_IMF2DBUFFER	1		// set to 1 to use IMF2DBuffer interface rather then plain media buffer when retrieving HW decoded data for CPU use
 
-
-const D3DFORMAT DX9_NV12_FORMAT = (D3DFORMAT)MAKEFOURCC('N', 'V', '1', '2');
-
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
 
-#ifdef ELECTRA_ENABLE_SWDECODE
-static TAutoConsoleVariable<int32> CVarElectraPCUseSoftwareDecoding(
-	TEXT("Electra.PC.UseSoftwareDecoding"),
-	0,
-	TEXT("Use software decoding on PC even if hardware decoding is supported.\n")
-	TEXT(" 0: use hardware decoding if supported (default); 1: use software decoding."),
-	ECVF_Default);
-#endif
-
-/*********************************************************************************************************************/
-/*********************************************************************************************************************/
-/*********************************************************************************************************************/
-
-class FElectraPlayerVideoDecoderOutputPC : public FVideoDecoderOutputPC
+class FElectraPlayerVideoDecoderOutputH265PC : public FVideoDecoderOutputPC
 {
 public:
-	FElectraPlayerVideoDecoderOutputPC()
+	FElectraPlayerVideoDecoderOutputH265PC()
 		: OutputType(EOutputType::Unknown)
 		, Stride(0)
 		, SampleDim(0,0)
 	{
 	}
 
-	// Hardware decode to buffer (Win7/DX12)
+	// Hardware decode to buffer (DX12)
 	void InitializeWithBuffer(const void* InBuffer, uint32 InSize, uint32 InStride, FIntPoint Dim, Electra::FParamDict* InParamDict);
 
 	// Hardware decode to shared DX11 texture (Win8+)
@@ -145,7 +133,7 @@ private:
 };
 
 
-void FElectraPlayerVideoDecoderOutputPC::PreInitForDecode(FIntPoint OutputDim, const TFunction<void(int32 /*ApiReturnValue*/, const FString& /*Message*/, uint16 /*Code*/, UEMediaError /*Error*/ )>& PostError)
+void FElectraPlayerVideoDecoderOutputH265PC::PreInitForDecode(FIntPoint OutputDim, const TFunction<void(int32 /*ApiReturnValue*/, const FString& /*Message*/, uint16 /*Code*/, UEMediaError /*Error*/ )>& PostError)
 {
 	FIntPoint Dim;
 	Dim.X = OutputDim.X;
@@ -208,9 +196,8 @@ void FElectraPlayerVideoDecoderOutputPC::PreInitForDecode(FIntPoint OutputDim, c
 		}
 		else // Software decode into CPU buffer
 		{
-			DWORD AllocSize = ((OutputDim.X + 15) & ~15) * ((OutputDim.Y + 15) & ~15) * sizeof(uint8*) * 2;
 			// SW decode results are just delivered in a simple CPU-side buffer. Create the decoder side version of this...
-			if (FAILED(Result = MFCreateMemoryBuffer(AllocSize, MediaBuffer.GetInitReference())))
+			if (FAILED(Result = MFCreateMemoryBuffer(Dim.X * Dim.Y * sizeof(uint8), MediaBuffer.GetInitReference())))
 			{
 				UE_LOG(LogElectraPlayer, Error, TEXT("MFCreateMemoryBuffer() failed with 0x%X %s"), Result, *GetComErrorDescription(Result));
 				PostError(Result, "Failed to create software decode output buffer", ERRCODE_INTERNAL_COULD_NOT_CREATE_OUTPUTBUFFER, UEMEDIA_ERROR_OK);
@@ -238,7 +225,7 @@ void FElectraPlayerVideoDecoderOutputPC::PreInitForDecode(FIntPoint OutputDim, c
 }
 
 
-void FElectraPlayerVideoDecoderOutputPC::ProcessDecodeOutput(FIntPoint OutputDim, Electra::FParamDict* InParamDict)
+void FElectraPlayerVideoDecoderOutputH265PC::ProcessDecodeOutput(FIntPoint OutputDim, Electra::FParamDict* InParamDict)
 {
 	check(OutputType == EOutputType::SoftwareWin7 || OutputType == EOutputType::SoftwareWin8Plus);
 
@@ -251,9 +238,6 @@ void FElectraPlayerVideoDecoderOutputPC::ProcessDecodeOutput(FIntPoint OutputDim
 
 	if (OutputType == EOutputType::SoftwareWin7) // Win7 & DX12 (SW)
 	{
-		// This needs to be a multiple of 16
-		SampleDim.Y = ((OutputDim.Y + 15) & ~15) * 3 / 2;
-
 		// Retrieve frame data and store it in Buffer for rendering later
 		TRefCountPtr<IMFMediaBuffer> MediaBuffer;
 		if (MFSample->GetBufferByIndex(0, MediaBuffer.GetInitReference()) != S_OK)
@@ -290,7 +274,7 @@ void FElectraPlayerVideoDecoderOutputPC::ProcessDecodeOutput(FIntPoint OutputDim
 }
 
 
-void FElectraPlayerVideoDecoderOutputPC::InitializeWithBuffer(const void* InBuffer, uint32 InSize, uint32 InStride, FIntPoint Dim, Electra::FParamDict* InParamDict)
+void FElectraPlayerVideoDecoderOutputH265PC::InitializeWithBuffer(const void* InBuffer, uint32 InSize, uint32 InStride, FIntPoint Dim, Electra::FParamDict* InParamDict)
 {
 	FVideoDecoderOutput::Initialize(InParamDict);
 
@@ -304,7 +288,7 @@ void FElectraPlayerVideoDecoderOutputPC::InitializeWithBuffer(const void* InBuff
 }
 
 
-void FElectraPlayerVideoDecoderOutputPC::InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<IMFSample>& InMFSample, const FIntPoint& OutputDim, Electra::FParamDict* InParamDict)
+void FElectraPlayerVideoDecoderOutputH265PC::InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<IMFSample>& InMFSample, const FIntPoint& OutputDim, Electra::FParamDict* InParamDict)
 {
 	FVideoDecoderOutput::Initialize(InParamDict);
 
@@ -395,7 +379,7 @@ void FElectraPlayerVideoDecoderOutputPC::InitializeWithSharedTexture(const TRefC
 	}
 }
 
-void FElectraPlayerVideoDecoderOutputPC::ShutdownPoolable()
+void FElectraPlayerVideoDecoderOutputH265PC::ShutdownPoolable()
 {
 	TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> lockedVideoRenderer = OwningRenderer.Pin();
 	if (lockedVideoRenderer.IsValid())
@@ -449,11 +433,6 @@ void FElectraPlayerVideoDecoderOutputPC::ShutdownPoolable()
 
 // -----------------------------------------------------------------------------------------------------------------------------
 
-FVideoDecoderOutput* FElectraPlayerPlatformVideoDecoderOutputFactory::Create()
-{
-	return new FElectraPlayerVideoDecoderOutputPC();
-}
-
 
 namespace Electra
 {
@@ -462,14 +441,9 @@ namespace Electra
 /*********************************************************************************************************************/
 /*********************************************************************************************************************/
 
-class FVideoDecoderH264_PC : public FVideoDecoderH264
+class FVideoDecoderH265_PC : public FVideoDecoderH265
 {
 public:
-	enum
-	{
-		MaxHWDecodeW = 1920,
-		MaxHWDecodeH = 1088
-	};
 private:
 	virtual bool InternalDecoderCreate() override;
 	virtual bool CreateDecoderOutputBuffer() override;
@@ -479,14 +453,13 @@ private:
 	bool CopyTexture(const TRefCountPtr<IMFSample>& DecodedSample, Electra::FParamDict* ParamDict, FIntPoint OutputDim);
 };
 
-
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-IVideoDecoderH264* IVideoDecoderH264::Create()
+IVideoDecoderH265* IVideoDecoderH265::Create()
 {
-	return new FVideoDecoderH264_PC();
+	return new FVideoDecoderH265_PC();
 }
 
 //-----------------------------------------------------------------------------
@@ -495,64 +468,9 @@ IVideoDecoderH264* IVideoDecoderH264::Create()
  *	Can be called after Startup() but should be called only shortly before playback to ensure all relevant
  *	libraries are initialized.
  */
-bool FVideoDecoderH264::GetStreamDecodeCapability(FStreamDecodeCapability& OutResult, const FStreamDecodeCapability& InStreamParameter)
+bool FVideoDecoderH265::GetStreamDecodeCapability(FStreamDecodeCapability& OutResult, const FStreamDecodeCapability& InStreamParameter)
 {
-	// Set the output same as the input. Modifications are made below.
-	OutResult = InStreamParameter;
-	OutResult.DecoderSupportType = FStreamDecodeCapability::ESupported::NotSupported;
-
-#ifdef ELECTRA_ENABLE_SWDECODE
-	// Software forced through CVar?
-	if (CVarElectraPCUseSoftwareDecoding.GetValueOnAnyThread() > 0)
-	{
-		bIsHWSupported = false;
-	}
-	else
-#endif
-	{
-		// Did we check the actual decoder for being HW supported yet?
-		if (!bDidCheckHWSupport)
-		{
-			// Check for HW support by creating and configuring a decoder.
-			FVideoDecoderH264* TestDecoder = new FVideoDecoderH264_PC;
-			// Set width and height in the decoder configuration. These are used in creating the decoder.
-			TestDecoder->Config.MaxFrameWidth = InStreamParameter.Width ? InStreamParameter.Width : FVideoDecoderH264_PC::MaxHWDecodeW;
-			TestDecoder->Config.MaxFrameHeight = InStreamParameter.Height ? InStreamParameter.Height : FVideoDecoderH264_PC::MaxHWDecodeH;
-			TestDecoder->TestHardwareDecoding();
-			bIsHWSupported = TestDecoder->bIsHardwareAccelerated;
-			delete TestDecoder;
-			bDidCheckHWSupport = true;
-		}
-	}
-	if (bIsHWSupported)
-	{
-		// FIXME: Should we check the resolution or profile level here?
-		//        Right now we won't be going higher than 1080 so we should be fine.
-		OutResult.DecoderSupportType = FStreamDecodeCapability::ESupported::HardwareOnly;
-	}
-	else
-	{
-		// Global query?
-		if (InStreamParameter.Width <= 0 && InStreamParameter.Height <= 0)
-		{
-			// For the sake of argument we limit SW decoding to 720p@60.
-			OutResult.Width = 1280;
-			OutResult.Height = 720;
-			OutResult.Profile = 100;
-			OutResult.Level = 42;
-			OutResult.FPS = 60.0;
-			OutResult.DecoderSupportType = FStreamDecodeCapability::ESupported::SoftwareOnly;
-		}
-		else
-		{
-			// Calculate via number of macroblocks per second.
-			int32 maxMB = (1280 / 16) * (720 / 16) * 60;
-			int32 numMB = (int32) (((InStreamParameter.Width + 15) / 16) * ((InStreamParameter.Height + 15) / 16) * (InStreamParameter.FPS > 0.0 ? InStreamParameter.FPS : 30.0));
-			OutResult.DecoderSupportType = numMB <= maxMB ? FStreamDecodeCapability::ESupported::SoftwareOnly : FStreamDecodeCapability::ESupported::NotSupported;
-		}
-	}
-
-	return true;
+	return FPlatformVideoDecoderH265::GetPlatformStreamDecodeCapability(OutResult, InStreamParameter);
 }
 
 //-----------------------------------------------------------------------------
@@ -561,11 +479,14 @@ bool FVideoDecoderH264::GetStreamDecodeCapability(FStreamDecodeCapability& OutRe
  *
  * @return true if successful, false on error
  */
-bool FVideoDecoderH264_PC::InternalDecoderCreate()
+bool FVideoDecoderH265_PC::InternalDecoderCreate()
 {
+	MFT_REGISTER_TYPE_INFO		MediaInputInfo { MFMediaType_Video , MFVideoFormat_HEVC };
 	TRefCountPtr<IMFAttributes>	Attributes;
 	TRefCountPtr<IMFTransform>	Decoder;
-	HRESULT					res;
+	IMFActivate**				ActivateObjects = nullptr;
+	UINT32						NumActivateObjects = 0;
+	HRESULT						res;
 
 	if (Electra::IsWindows8Plus())
 	{
@@ -577,82 +498,72 @@ bool FVideoDecoderH264_PC::InternalDecoderCreate()
 		}
 	}
 
-	VERIFY_HR(CoCreateInstance(MFTmsH264Decoder, nullptr, CLSCTX_INPROC_SERVER, IID_IMFTransform, reinterpret_cast<void**>(&Decoder)), "CoCreateInstance failed", ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
+	VERIFY_HR(MFTEnumEx(MFT_CATEGORY_VIDEO_DECODER, MFT_ENUM_FLAG_SYNCMFT, &MediaInputInfo, nullptr, &ActivateObjects, &NumActivateObjects), "MFTEnumEx failed", ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
+	if (NumActivateObjects == 0)
+	{
+		PostError(S_OK, "MFTEnumEx returned zero activation objects", ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
+		return false;
+	}
+
+	IMFTransform* NewDecoder = nullptr;
+	res = ActivateObjects[0]->ActivateObject(IID_PPV_ARGS(&NewDecoder));
+	if (res == S_OK)
+	{
+		*Decoder.GetInitReference() = NewDecoder;
+	}
+	for(UINT32 i=0; i<NumActivateObjects; ++i)
+	{
+		ActivateObjects[i]->Release();
+	}
+	CoTaskMemFree(ActivateObjects);
+	ActivateObjects = nullptr;
+	if (res != S_OK)
+	{
+		PostError(res, "HEVC decoder transform activation failed", ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
+		return false;
+	}
+
 	VERIFY_HR(Decoder->GetAttributes(Attributes.GetInitReference()), "Failed to get video decoder transform attributes", ERRCODE_INTERNAL_COULD_GET_TRANSFORM_ATTRIBUTES);
 
-	// Force SW decoding?
-#ifdef ELECTRA_ENABLE_SWDECODE
-	if (CVarElectraPCUseSoftwareDecoding.GetValueOnAnyThread() > 0)
+	// Check if the transform is D3D aware
+	if (Electra::IsWindows8Plus())
 	{
-		FallbackToSwDecoding(FString::Printf(TEXT("Windows %s"), *FWindowsPlatformMisc::GetOSVersion()));
-	}
-	else
-#endif
-	{
-		// Check if the transform is D3D aware
-		if (Electra::IsWindows8Plus())
+		if (!Electra::FDXDeviceInfo::s_DXDeviceInfo->DxDeviceManager)
 		{
-			if (!Electra::FDXDeviceInfo::s_DXDeviceInfo->DxDeviceManager)
-			{
-				// Win8+ with no DX11. No need to check for any DX11 awareness...
-				return true;
-			}
-
-			uint32 IsDX11Aware = 0;
-			res = Attributes->GetUINT32(MF_SA_D3D11_AWARE, &IsDX11Aware);
-			if (FAILED(res))
-			{
-				FallbackToSwDecoding(TEXT("Failed to get MF_SA_D3D11_AWARE"));
-			}
-			else if (IsDX11Aware == 0)
-			{
-				FallbackToSwDecoding(TEXT("Not MF_SA_D3D11_AWARE"));
-			}
-			else if (FAILED(res = Decoder->ProcessMessage(MFT_MESSAGE_SET_D3D_MANAGER, reinterpret_cast<ULONG_PTR>(Electra::FDXDeviceInfo::s_DXDeviceInfo->DxDeviceManager.GetReference()))))
-			{
-				FallbackToSwDecoding(FString::Printf(TEXT("Failed to set MFT_MESSAGE_SET_D3D_MANAGER: 0x%X %s"), res, *GetComErrorDescription(res)));
-			}
+			// Win8+ with no DX11. No need to check for any DX11 awareness...
+			return true;
 		}
-		else // Windows 7
-		{
-#ifdef ELECTRA_HAVE_DX9
-			if (!Electra::FDXDeviceInfo::s_DXDeviceInfo->Dx9Device || !Electra::FDXDeviceInfo::s_DXDeviceInfo->Dx9DeviceManager)
-			{
-				FallbackToSwDecoding(TEXT("Failed to create DirectX 9 device / device manager"));
-			}
 
-			uint32 IsD3DAware = 0;
-			HRESULT HRes = Attributes->GetUINT32(MF_SA_D3D_AWARE, &IsD3DAware);
-			if (FAILED(HRes))
-			{
-				FallbackToSwDecoding(TEXT("Failed to get MF_SA_D3D_AWARE"));
-			}
-			else if (IsD3DAware == 0)
-			{
-				FallbackToSwDecoding(TEXT("Not MF_SA_D3D_AWARE"));
-			}
-			else if (FAILED(HRes = Decoder->ProcessMessage(MFT_MESSAGE_SET_D3D_MANAGER, reinterpret_cast<ULONG_PTR>(Electra::FDXDeviceInfo::s_DXDeviceInfo->Dx9DeviceManager.GetReference()))))
-			{
-				FallbackToSwDecoding(FString::Printf(TEXT("Failed to set MFT_MESSAGE_SET_D3D_MANAGER: 0x%X %s"), HRes, *GetComErrorDescription(HRes)));
-			}
-#else
+		uint32 IsDX11Aware = 0;
+		res = Attributes->GetUINT32(MF_SA_D3D11_AWARE, &IsDX11Aware);
+		if (FAILED(res))
+		{
+			PostError(res, TEXT("Failed to get MF_SA_D3D11_AWARE"), ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
 			return false;
-#endif
+		}
+		else if (IsDX11Aware == 0)
+		{
+			PostError(res, TEXT("Not MF_SA_D3D11_AWARE"), ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
+			return false;
+		}
+		else if (FAILED(res = Decoder->ProcessMessage(MFT_MESSAGE_SET_D3D_MANAGER, reinterpret_cast<ULONG_PTR>(Electra::FDXDeviceInfo::s_DXDeviceInfo->DxDeviceManager.GetReference()))))
+		{
+			PostError(res, FString::Printf(TEXT("Failed to set MFT_MESSAGE_SET_D3D_MANAGER: 0x%X %s"), res, *GetComErrorDescription(res)), ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
+			return false;
 		}
 	}
+	else // Windows 7
+	{
+		return false;
+	}
 
-	// Sugar & spice
+	// Prepare for the maximum resolution
+	VERIFY_HR(Attributes->SetUINT32(MF_MT_DECODER_USE_MAX_RESOLUTION, 1), "Failed to allocate for maximum resolution", ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
+
 	if (FAILED(res = Attributes->SetUINT32(CODECAPI_AVLowLatencyMode, 1)))
 	{
 		// Not an error. If it doesn't work it just doesn't.
 	}
-
-	/*
-	if (FAILED(res = Attributes->SetUINT32(AVDecVideoMaxCodedWidth, 1280 + 64)))
-		return false;
-	if (FAILED(res = Attributes->SetUINT32(AVDecVideoMaxCodedHeight, 720 + 64)))
-		return false;
-	*/
 
 	// Create successful, take on the decoder.
 	DecoderTransform = Decoder;
@@ -661,7 +572,7 @@ bool FVideoDecoderH264_PC::InternalDecoderCreate()
 }
 
 
-bool FVideoDecoderH264_PC::CreateDecoderOutputBuffer()
+bool FVideoDecoderH265_PC::CreateDecoderOutputBuffer()
 {
 	HRESULT									res;
 	TUniquePtr<FDecoderOutputBuffer>		NewDecoderOutputBuffer(new FDecoderOutputBuffer());
@@ -670,70 +581,37 @@ bool FVideoDecoderH264_PC::CreateDecoderOutputBuffer()
 	// Do we need to provide the sample output buffer or does the decoder create it for us?
 	if ((NewDecoderOutputBuffer->mOutputStreamInfo.dwFlags & (MFT_OUTPUT_STREAM_PROVIDES_SAMPLES | MFT_OUTPUT_STREAM_CAN_PROVIDE_SAMPLES)) == 0)
 	{
-#if ELECTRA_ENABLE_SWDECODE
-		check(bIsHardwareAccelerated == false);
-		if (CurrentRenderOutputBuffer)
-		{
-			TSharedPtr<FElectraPlayerVideoDecoderOutputPC, ESPMode::ThreadSafe> DecoderOutput = CurrentRenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputPC>();
-			check(DecoderOutput);
-			// Get the sample which was created earlier
-			NewDecoderOutputBuffer->mOutputBuffer.pSample = DecoderOutput->GetMFSample();
-			// Destination is a plain old pointer, we need to ref manually
-			if (NewDecoderOutputBuffer->mOutputBuffer.pSample)
-			{
-				NewDecoderOutputBuffer->mOutputBuffer.pSample->AddRef();
-			}
-			else
-			{
-				return false;
-			}
-		}
-		else
-#endif
-		{
-			return false;
-		}
+		return false;
 	}
 	CurrentDecoderOutputBuffer = MoveTemp(NewDecoderOutputBuffer);
 	return true;
 }
 
 
-void FVideoDecoderH264_PC::PreInitDecodeOutputForSW(const FIntPoint& Dim)
+void FVideoDecoderH265_PC::PreInitDecodeOutputForSW(const FIntPoint& Dim)
 {
-	TSharedPtr<FElectraPlayerVideoDecoderOutputPC, ESPMode::ThreadSafe> DecoderOutput = CurrentRenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputPC>();
+	TSharedPtr<FElectraPlayerVideoDecoderOutputH265PC, ESPMode::ThreadSafe> DecoderOutput = CurrentRenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputH265PC>();
 	check(DecoderOutput);
 	DecoderOutput->PreInitForDecode(Dim, [this](int32 ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error) { PostError(ApiReturnValue, Message, Code, Error); });
 }
 
 
-bool FVideoDecoderH264_PC::SetupDecodeOutputData(const FIntPoint & ImageDim, const TRefCountPtr<IMFSample>& DecodedOutputSample, FParamDict* OutputBufferSampleProperties)
+bool FVideoDecoderH265_PC::SetupDecodeOutputData(const FIntPoint & ImageDim, const TRefCountPtr<IMFSample>& DecodedOutputSample, FParamDict* OutputBufferSampleProperties)
 {
-#ifdef ELECTRA_ENABLE_SWDECODE
-	if (!bIsHardwareAccelerated)
+	bool bCopyResult = CopyTexture(DecodedOutputSample, OutputBufferSampleProperties, ImageDim);
+	if (!bCopyResult)
 	{
-		TSharedPtr<FElectraPlayerVideoDecoderOutputPC, ESPMode::ThreadSafe> DecoderOutput = CurrentRenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputPC>();
-		check(DecoderOutput);
-		DecoderOutput->ProcessDecodeOutput(ImageDim, OutputBufferSampleProperties);
-	}
-	else
-#endif
-	{
-		bool bCopyResult = CopyTexture(DecodedOutputSample, OutputBufferSampleProperties, ImageDim);
-		if (!bCopyResult)
-		{
-			// Failed for some reason. Let's best not render this then, but put in the buffers nonetheless to maintain the normal data flow.
-			OutputBufferSampleProperties->Set("is_dummy", FVariantValue(true));
-		}
+		// Failed for some reason. Let's best not render this then, but put in the buffers nonetheless to maintain the normal data flow.
+		OutputBufferSampleProperties->Set("is_dummy", FVariantValue(true));
 	}
 	return true;
 }
 
 
-bool FVideoDecoderH264_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, Electra::FParamDict* ParamDict, FIntPoint OutputDim)
+bool FVideoDecoderH265_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, Electra::FParamDict* ParamDict, FIntPoint OutputDim)
 {
 #if !UE_SERVER
-	TSharedPtr<FElectraPlayerVideoDecoderOutputPC, ESPMode::ThreadSafe> DecoderOutput = CurrentRenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputPC>();
+	TSharedPtr<FElectraPlayerVideoDecoderOutputH265PC, ESPMode::ThreadSafe> DecoderOutput = CurrentRenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputH265PC>();
 	check(DecoderOutput);
 
 	DWORD BuffersNum = 0;
@@ -765,7 +643,7 @@ bool FVideoDecoderH264_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 
 		if (!DecoderOutput->GetTexture())
 		{
-			UE_LOG(LogElectraPlayer, Error, TEXT("FVideoDecoderH264: InD3D11Device->CreateTexture2D() failed!"));
+			UE_LOG(LogElectraPlayer, Error, TEXT("FVideoDecoderH265: InD3D11Device->CreateTexture2D() failed!"));
 			return false;
 		}
 	}
@@ -781,7 +659,7 @@ bool FVideoDecoderH264_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 		Texture2D->GetDesc(&TextureDesc);
 		if (TextureDesc.Format != DXGI_FORMAT_NV12)
 		{
-			LogMessage(IInfoLog::ELevel::Error, "FVideoDecoderH264::CopyTexture(): Decoded texture is not in NV12 format");
+			LogMessage(IInfoLog::ELevel::Error, "FVideoDecoderH265::CopyTexture(): Decoded texture is not in NV12 format");
 			return false;
 		}
 
@@ -835,42 +713,9 @@ bool FVideoDecoderH264_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 
 		return true;
 	}
-#ifdef ELECTRA_HAVE_DX9
-	else if (FDXDeviceInfo::s_DXDeviceInfo->DxVersion == FDXDeviceInfo::ED3DVersion::Version9Win7)
-	{
-		TRefCountPtr<IDirect3DSurface9> Dx9DecoderSurface;
-		TRefCountPtr<IMFGetService> BufferService;
-		CHECK_HR(Buffer->QueryInterface(IID_PPV_ARGS(BufferService.GetInitReference())));
-		CHECK_HR(BufferService->GetService(MR_BUFFER_SERVICE, IID_PPV_ARGS(Dx9DecoderSurface.GetInitReference())));
-
-		D3DSURFACE_DESC Dx9SurfaceDesc;
-		CHECK_HR_DX9(Dx9DecoderSurface->GetDesc(&Dx9SurfaceDesc));
-		check(Dx9SurfaceDesc.Format == DX9_NV12_FORMAT);
-
-		if (Dx9SurfaceDesc.Format != DX9_NV12_FORMAT)
-		{
-			LogMessage(IInfoLog::ELevel::Error, "FVideoDecoderH264::CopyTexture(): Decoded DX9 surface is not in NV12 format");
-		}
-
-		// Read back DX9 surface data and pass it onto the texture sample
-		D3DLOCKED_RECT Dx9DecoderTexLockedRect;
-		CHECK_HR_DX9(Dx9DecoderSurface->LockRect(&Dx9DecoderTexLockedRect, nullptr, D3DLOCK_READONLY));
-		check(Dx9DecoderTexLockedRect.pBits && Dx9DecoderTexLockedRect.Pitch > 0);
-
-		// note: 3/2 scale is to account for NV12 data format (Y+UV section)
-		DecoderOutput->InitializeWithBuffer(
-			Dx9DecoderTexLockedRect.pBits,									// Buffer ptr
-			Dx9DecoderTexLockedRect.Pitch * Dx9SurfaceDesc.Height * 3 / 2,	// Buffer size
-			Dx9DecoderTexLockedRect.Pitch,									// Buffer stride
-			FIntPoint(Dx9DecoderTexLockedRect.Pitch, Dx9SurfaceDesc.Height * 3 / 2), // Buffer dimensions
-			ParamDict);
-
-		CHECK_HR_DX9(Dx9DecoderSurface->UnlockRect());
-	}
-#endif
 	else
 	{
-		LogMessage(IInfoLog::ELevel::Error, "FVideoDecoderH264::CopyTexture(): Unhandled D3D version");
+		LogMessage(IInfoLog::ELevel::Error, "FVideoDecoderH265::CopyTexture(): Unhandled D3D version");
 		return false;
 	}
 	return true;
@@ -881,3 +726,4 @@ bool FVideoDecoderH264_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 
 } // namespace Electra
 
+#endif

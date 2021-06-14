@@ -4,18 +4,18 @@
 
 namespace Electra {
 	/**
-	 * H264 video decoder class implementation.
+	 * H265 video decoder class implementation.
 	**/
-	class FVideoDecoderH264 : public IVideoDecoderH264, public FMediaThread
+	class FVideoDecoderH265 : public IVideoDecoderH265, public FMediaThread
 	{
 	public:
-		static bool Startup(const IVideoDecoderH264::FSystemConfiguration& InConfig);
+		static bool Startup(const FParamDict& Options);
 		static void Shutdown();
 
 		static bool GetStreamDecodeCapability(FStreamDecodeCapability& OutResult, const FStreamDecodeCapability& InStreamParameter);
 
-		FVideoDecoderH264();
-		virtual ~FVideoDecoderH264();
+		FVideoDecoderH265();
+		virtual ~FVideoDecoderH265();
 
 		void TestHardwareDecoding();
 
@@ -25,7 +25,7 @@ namespace Electra {
 		virtual void Close() override;
 		virtual void DrainForCodecChange() override;
 
-		virtual void SetMaximumDecodeCapability(int32 MaxWidth, int32 MaxHeight, int32 MaxProfile, int32 MaxProfileLevel, const FParamDict& AdditionalOptions) override;
+		virtual void SetMaximumDecodeCapability(int32 MaxTier, int32 MaxWidth, int32 MaxHeight, int32 MaxProfile, int32 MaxProfileLevel, const FParamDict& AdditionalOptions) override;
 
 		virtual void SetAUInputBufferListener(IAccessUnitBufferListener* InListener) override;
 
@@ -105,15 +105,13 @@ namespace Electra {
 
 		void PrepareAU(FAccessUnit* InAccessUnit);
 
-		bool Decode(FAccessUnit* InAccessUnit, bool bResolutionChanged);
-		bool PerformFlush();
+		bool Decode(FAccessUnit* InAccessUnit);
 		bool DecodeDummy(FAccessUnit* InAccessUnit);
 
 		void ReturnUnusedFrame();
 
 		void PostError(int32 ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
 		void LogMessage(IInfoLog::ELevel Level, const FString& Message);
-		bool FallbackToSwDecoding(FString Reason);
 		bool ReconfigureForSwDecoding(FString Reason);
 		bool Configure();
 		bool StartStreaming();
@@ -160,9 +158,7 @@ namespace Electra {
 		TRefCountPtr<IMFMediaType>							CurrentOutputMediaType;
 		MFT_OUTPUT_STREAM_INFO								DecoderOutputStreamInfo;
 		bool												bIsHardwareAccelerated;
-		bool												bRequiresReconfigurationForSW;
 		int32												NumFramesInDecoder;
-		bool												bDecoderFlushPending;
 		bool												bError;
 
 		TUniquePtr<FDecoderOutputBuffer>					CurrentDecoderOutputBuffer;
@@ -172,14 +168,6 @@ namespace Electra {
 		int32												MaxDecodeBufferSize;
 
 		FIntPoint											MaxDecodeDim;
-
-	public:
-		static FSystemConfiguration							SystemConfig;
-
-#ifdef ELECTRA_ENABLE_SWDECODE
-		static bool bDidCheckHWSupport;
-		static bool bIsHWSupported;
-#endif
 	};
 
 } // namespace

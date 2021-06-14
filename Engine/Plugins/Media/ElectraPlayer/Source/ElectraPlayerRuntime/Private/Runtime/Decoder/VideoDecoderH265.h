@@ -15,36 +15,24 @@ namespace Electra
 
 
 	/**
-	 * H264 video decoder.
+	 * H265 video decoder.
 	**/
-	class IVideoDecoderH264 : public IVideoDecoderBase
+	class IVideoDecoderH265 : public IVideoDecoderBase
 	{
 	public:
-		struct FSystemConfiguration
-		{
-			FSystemConfiguration();
-			struct FThreadConfig
-			{
-				FMediaRunnable::Param		Decoder;							//!< Decoder thread settings.
-				FMediaRunnable::Param		PassOn;							//!< Settings for thread passing decoded images to the renderer.
-			};
-			FThreadConfig					ThreadConfig;
-		};
-
 		struct FInstanceConfiguration
 		{
 			FInstanceConfiguration();
-			int32								MaxFrameWidth;				//!< Maximum width of any image to be decoded
-			int32								MaxFrameHeight;			//!< Maximum height of any image to be decoded
-			int32								ProfileIdc;				//!< IDC profile (baseline (66), main (77) or high (100))
-			int32								LevelIdc;					//!< IDC profile level (eg, 30, 31, 51)
-			uint32								MaxDecodedFrames;			//!<
-			FSystemConfiguration::FThreadConfig	ThreadConfig;					//!< Thread configuration (defaults to values set in SystemConfiguration)
-
+			int32								MaxFrameWidth = 0;				//!< Maximum width of any image to be decoded
+			int32								MaxFrameHeight = 0;				//!< Maximum height of any image to be decoded
+			int32								Tier = 0;						//!< Maximum tier level
+			int32								Profile = 0;					//!< Profile
+			int32								Level = 0;						//!< Level
+			uint32								MaxDecodedFrames = 0;			//!< Maximum number of decoded frames
 			FParamDict							AdditionalOptions;
 		};
 
-		static bool Startup(const FSystemConfiguration& InConfig);
+		static bool Startup(const FParamDict& Options);
 		static void Shutdown();
 
 		struct FStreamDecodeCapability
@@ -59,8 +47,11 @@ namespace Electra
 			ESupported	DecoderSupportType = ESupported::NotSupported;
 			int32		Width = 0;
 			int32		Height = 0;
+			int32		Tier = 0;
 			int32		Profile = 0;
+			uint32		CompatibilityFlags = 0;
 			int32		Level = 0;
+			uint64		ConstraintFlags = 0;
 			double		FPS = 0.0;
 			FParamDict	AdditionalOptions;
 		};
@@ -71,9 +62,9 @@ namespace Electra
 		*/
 		static bool GetStreamDecodeCapability(FStreamDecodeCapability& OutResult, const FStreamDecodeCapability& InStreamParameter);
 
-		static IVideoDecoderH264* Create();
+		static IVideoDecoderH265* Create();
 
-		virtual ~IVideoDecoderH264() = default;
+		virtual ~IVideoDecoderH265() = default;
 
 		virtual void SetPlayerSessionServices(IPlayerSessionServices* SessionServices) = 0;
 
@@ -82,7 +73,7 @@ namespace Electra
 		virtual void DrainForCodecChange() = 0;
 
 
-		virtual void SetMaximumDecodeCapability(int32 MaxWidth, int32 MaxHeight, int32 MaxProfile, int32 MaxProfileLevel, const FParamDict& AdditionalOptions) = 0;
+		virtual void SetMaximumDecodeCapability(int32 MaxTier, int32 MaxWidth, int32 MaxHeight, int32 MaxProfile, int32 MaxProfileLevel, const FParamDict& AdditionalOptions) = 0;
 
 		virtual void SetResourceDelegate(const TSharedPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe>& ResourceDelegate) = 0;
 

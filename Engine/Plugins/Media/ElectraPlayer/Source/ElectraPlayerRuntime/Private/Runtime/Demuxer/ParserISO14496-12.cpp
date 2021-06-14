@@ -598,6 +598,7 @@ private:
 		static const IParserISO14496_12::FBoxType kBox_btrt = MAKE_BOX_ATOM('b', 't', 'r', 't');
 		static const IParserISO14496_12::FBoxType kBox_pasp = MAKE_BOX_ATOM('p', 'a', 's', 'p');
 		static const IParserISO14496_12::FBoxType kBox_avcC = MAKE_BOX_ATOM('a', 'v', 'c', 'C');
+		static const IParserISO14496_12::FBoxType kBox_hvcC = MAKE_BOX_ATOM('h', 'v', 'c', 'C');
 		static const IParserISO14496_12::FBoxType kBox_esds = MAKE_BOX_ATOM('e', 's', 'd', 's');
 		static const IParserISO14496_12::FBoxType kBox_dac3 = MAKE_BOX_ATOM('d', 'a', 'c', '3');
 		static const IParserISO14496_12::FBoxType kBox_dec3 = MAKE_BOX_ATOM('d', 'e', 'c', '3');
@@ -658,6 +659,9 @@ private:
 		 * Sample types
 		 */
 		static const IParserISO14496_12::FBoxType kSample_avc1 = MAKE_BOX_ATOM('a', 'v', 'c', '1');
+		static const IParserISO14496_12::FBoxType kSample_avc3 = MAKE_BOX_ATOM('a', 'v', 'c', '3');
+		static const IParserISO14496_12::FBoxType kSample_hvc1 = MAKE_BOX_ATOM('h', 'v', 'c', '1');
+		static const IParserISO14496_12::FBoxType kSample_hev1 = MAKE_BOX_ATOM('h', 'e', 'v', '1');
 		static const IParserISO14496_12::FBoxType kSample_mp4a = MAKE_BOX_ATOM('m', 'p', '4', 'a');
 		static const IParserISO14496_12::FBoxType kSample_stpp = MAKE_BOX_ATOM('s', 't', 'p', 'p');
 		static const IParserISO14496_12::FBoxType kSample_sbtt = MAKE_BOX_ATOM('s', 'b', 't', 't');
@@ -1977,6 +1981,55 @@ private:
 		}
 
 		MPEG::FAVCDecoderConfigurationRecord		ConfigurationRecord;
+	};
+
+	/**
+	 * HEVC Decoder Configuration box (ISO/IEC 14496-15:2014 - 8.3.3.1.2)
+	 */
+	class FMP4BoxHVCC : public FMP4BoxBasic
+	{
+	public:
+		FMP4BoxHVCC(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxBasic(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+		{
+		}
+
+		virtual ~FMP4BoxHVCC()
+		{
+		}
+
+		const MPEG::FHEVCDecoderConfigurationRecord& GetDecoderConfigurationRecord() const
+		{
+			return ConfigurationRecord;
+		}
+
+	private:
+		FMP4BoxHVCC() = delete;
+		FMP4BoxHVCC(const FMP4BoxHVCC&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			if (BytesRemaining)
+			{
+				void* TempBuffer = FMemory::Malloc(BytesRemaining);
+				if (!TempBuffer)
+				{
+					return UEMEDIA_ERROR_OOM;
+				}
+				Error = ParseInfo->Reader()->ReadBytes(TempBuffer, BytesRemaining);
+				if (Error == UEMEDIA_ERROR_OK)
+				{
+					ConfigurationRecord.SetRawData(TempBuffer, BytesRemaining);
+				}
+				FMemory::Free(TempBuffer);
+			}
+			return Error;
+		}
+
+		MPEG::FHEVCDecoderConfigurationRecord ConfigurationRecord;
 	};
 
 
@@ -4364,6 +4417,9 @@ private:
 						case FMP4Box::kBox_avcC:
 							NextBox = new FMP4BoxAVCC(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
+						case FMP4Box::kBox_hvcC:
+							NextBox = new FMP4BoxHVCC(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
 						case FMP4Box::kBox_btrt:
 							NextBox = new FMP4BoxBTRT(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
@@ -4811,6 +4867,7 @@ private:
 			int64									CompositionTimeEditOffset = 0;
 
 			MPEG::FAVCDecoderConfigurationRecord	CodecSpecificDataAVC;
+			MPEG::FHEVCDecoderConfigurationRecord	CodecSpecificDataHEVC;
 			MPEG::FESDescriptor						CodecSpecificDataMP4A;
 			FBitrateInfo							BitrateInfo;
 		};
@@ -4882,6 +4939,7 @@ private:
 
 
 		UEMediaError ParseAVC1SampleType(FTrack* Track, const FMP4Box* SampleBox);
+		UEMediaError ParseHVC1SampleType(FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseMP4ASampleType(FTrack* Track, const FMP4Box* SampleBox);
 
 		FMP4ParseInfo* ParsedData;
@@ -4973,6 +5031,10 @@ private:
 			{
 				return CodecSpecificDataAVC.GetCodecSpecificData();
 			}
+			case FStreamCodecInformation::ECodec::H265:
+			{
+				return CodecSpecificDataHEVC.GetCodecSpecificData();
+			}
 			case FStreamCodecInformation::ECodec::AAC:
 			{
 				return CodecSpecificDataMP4A.GetCodecSpecificData();
@@ -4993,6 +5055,10 @@ private:
 			case FStreamCodecInformation::ECodec::H264:
 			{
 				return CodecSpecificDataAVC.GetRawData();
+			}
+			case FStreamCodecInformation::ECodec::H265:
+			{
+				return CodecSpecificDataHEVC.GetRawData();
 			}
 			case FStreamCodecInformation::ECodec::AAC:
 			{
@@ -5816,6 +5882,85 @@ private:
 		return UEMEDIA_ERROR_FORMAT_ERROR;
 	}
 
+	UEMediaError FParserISO14496_12::ParseHVC1SampleType(FTrack* Track, const FMP4Box* SampleBox)
+	{
+		const FMP4BoxVisualSampleEntry* VisualSampleEntry = static_cast<const FMP4BoxVisualSampleEntry*>(SampleBox);
+		check(VisualSampleEntry->GetNumberOfChildren() > 0);
+		if (VisualSampleEntry->GetNumberOfChildren() > 0)
+		{
+			// There may be several entries. Usually there is an 'hvcC' (required) and optional boxes like 'pasp', 'btrt', 'clap', etc.
+			bool bGotVideoFormat = false;
+			for(int32 j = 0, jMax = VisualSampleEntry->GetNumberOfChildren(); j < jMax; ++j)
+			{
+				const FMP4Box* SampleEntry = VisualSampleEntry->GetChildBox(j);
+				switch(SampleEntry->GetType())
+				{
+					case FMP4Box::kBox_hvcC:
+					{
+						const FMP4BoxHVCC* HVCCBox = static_cast<const FMP4BoxHVCC*>(SampleEntry);
+						Track->CodecSpecificDataHEVC = HVCCBox->GetDecoderConfigurationRecord();
+						bool bOk = Track->CodecSpecificDataHEVC.Parse();
+						check(bOk);
+						if (bOk)
+						{
+							Track->CodecInformation.SetStreamType(EStreamType::Video);
+							Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::H265);
+							Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
+							if (Track->CodecSpecificDataHEVC.GetNumberOfSPS() == 0)
+							{
+								return UEMEDIA_ERROR_FORMAT_ERROR;
+							}
+							const MPEG::FISO23008_2_seq_parameter_set_data& sps = Track->CodecSpecificDataHEVC.GetParsedSPS(0);
+							int32 CropL, CropR, CropT, CropB;
+							sps.GetCrop(CropL, CropR, CropT, CropB);
+							Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(sps.GetWidth() - CropL - CropR, sps.GetHeight() - CropT - CropB));
+							Track->CodecInformation.SetCrop(FStreamCodecInformation::FCrop(CropL, CropT, CropR, CropB));
+							FStreamCodecInformation::FAspectRatio ar;
+							sps.GetAspect(ar.Width, ar.Height);
+							Track->CodecInformation.SetAspectRatio(ar);
+							Track->CodecInformation.SetFrameRate(sps.GetTiming());
+							Track->CodecInformation.SetProfileSpace(sps.general_profile_space);
+							Track->CodecInformation.SetProfileTier(sps.general_tier_flag);
+							Track->CodecInformation.SetProfile(sps.general_profile_idc);
+							Track->CodecInformation.SetProfileLevel(sps.general_level_idc);
+							Track->CodecInformation.SetProfileConstraints(sps.GetConstraintFlags());
+							Track->CodecInformation.SetProfileCompatibilityFlags(sps.general_profile_compatibility_flag);
+							Track->CodecInformation.SetCodecSpecifierRFC6381(sps.GetRFC6381(TEXT("hvc1")));
+							bGotVideoFormat = true;
+						}
+						else
+						{
+							return UEMEDIA_ERROR_FORMAT_ERROR;
+						}
+						break;
+					}
+					case FMP4Box::kBox_btrt:
+					{
+						const FMP4BoxBTRT* BTRTBox = static_cast<const FMP4BoxBTRT*>(SampleEntry);
+						Track->BitrateInfo.BufferSizeDB = BTRTBox->GetBufferSizeDB();
+						Track->BitrateInfo.MaxBitrate = BTRTBox->GetMaxBitrate();
+						Track->BitrateInfo.AvgBitrate = BTRTBox->GetAverageBitrate();
+						break;
+					}
+					case FMP4Box::kBox_pasp:
+					{
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
+			}
+			// Check that we got the required information
+			if (bGotVideoFormat)
+			{
+				return UEMEDIA_ERROR_OK;
+			}
+		}
+		return UEMEDIA_ERROR_FORMAT_ERROR;
+	}
+
 	UEMediaError FParserISO14496_12::ParseMP4ASampleType(FTrack* Track, const FMP4Box* SampleBox)
 	{
 		const FMP4BoxAudioSampleEntry* AudioSampleEntry = static_cast<const FMP4BoxAudioSampleEntry*>(Track->STSDBox->GetChildBox(0));
@@ -6111,18 +6256,25 @@ private:
 								{
 									return UEMEDIA_ERROR_FORMAT_ERROR;
 								}
-								// Expecting avc1 for video right now.
-								if (FRMABox->GetDataFormat() != FMP4Box::kSample_avc1)
-								{
-									return UEMEDIA_ERROR_FORMAT_ERROR;
-								}
-								// Likewise fo encryption it needs to be 'cenc'
+								// Expecting encryption to be 'cenc'
 								if (SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cenc)
 								{
 									return UEMEDIA_ERROR_FORMAT_ERROR;
 								}
-								// Parse the sample
-								UEMediaError Error = ParseAVC1SampleType(Track.Get(), STSDFirstChildBox);
+								// Expecting avc1/avc3/hvc1/hev1 for video right now.
+								UEMediaError Error = UEMEDIA_ERROR_FORMAT_ERROR;
+								if (FRMABox->GetDataFormat() == FMP4Box::kSample_avc1 || FRMABox->GetDataFormat() == FMP4Box::kSample_avc3)
+								{
+									Error = ParseAVC1SampleType(Track.Get(), STSDFirstChildBox);
+								}
+								else if ( FRMABox->GetDataFormat() == FMP4Box::kSample_hvc1 || FRMABox->GetDataFormat() == FMP4Box::kSample_hev1)
+								{
+									Error = ParseHVC1SampleType(Track.Get(), STSDFirstChildBox);
+								}
+								else
+								{
+									return UEMEDIA_ERROR_FORMAT_ERROR;
+								}
 								/*if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
 								{
 									bIsSupported = false;
@@ -6170,8 +6322,24 @@ private:
 								break;
 							}
 							case FMP4Box::kSample_avc1:
+							case FMP4Box::kSample_avc3:
 							{
 								UEMediaError Error = ParseAVC1SampleType(Track.Get(), STSDFirstChildBox);
+								/*
+								if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
+								{
+									bIsSupported = false;
+								}
+								else*/ if (Error != UEMEDIA_ERROR_OK)
+								{
+									return Error;
+								}
+								break;
+							}
+							case FMP4Box::kSample_hvc1:
+							case FMP4Box::kSample_hev1:
+							{
+								UEMediaError Error = ParseHVC1SampleType(Track.Get(), STSDFirstChildBox);
 								/*
 								if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
 								{

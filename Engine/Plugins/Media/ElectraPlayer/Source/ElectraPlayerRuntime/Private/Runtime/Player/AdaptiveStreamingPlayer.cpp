@@ -819,103 +819,6 @@ void FAdaptiveStreamingPlayer::DestroyRenderers()
 
 
 
-//-----------------------------------------------------------------------------
-/**
- * Create the necessary AV decoders.
- *
- * @return
- */
-int32 FAdaptiveStreamingPlayer::CreateInitialDecoder(EStreamType type)
-{
-	if (type == EStreamType::Video)
-	{
-		if (VideoDecoder.Decoder == nullptr)
-		{
-			// Get the largest stream resolution of the currently selected video adaptation set.
-			// This is only an initial selection as there could be other adaptation sets in upcoming periods
-			// that have a larger resolution that is still within the allowed limits.
-			FStreamCodecInformation HighestStream;
-			FindMatchingStreamInfo(HighestStream, 0, 0);
-
-			// Create H.264 video decoder
-			VideoDecoder.Decoder = IVideoDecoderH264::Create();
-			VideoDecoder.Decoder->SetPlayerSessionServices(this);
-			VideoDecoder.Parent = this;
-			IVideoDecoderH264::FInstanceConfiguration h264Cfg = PlayerConfig.DecoderCfg264;
-			h264Cfg.ProfileIdc = HighestStream.GetProfile();
-			h264Cfg.LevelIdc = HighestStream.GetProfileLevel();
-			h264Cfg.MaxFrameWidth = HighestStream.GetResolution().Width;
-			h264Cfg.MaxFrameHeight = HighestStream.GetResolution().Height;
-			h264Cfg.AdditionalOptions = HighestStream.GetExtras();
-
-			// Add in any player options that are for decoder use
-			TArray<FString> DecoderOptionKeys;
-			PlayerOptions.GetKeysStartingWith("videoDecoder", DecoderOptionKeys);
-			for (const FString & Key : DecoderOptionKeys)
-			{
-				h264Cfg.AdditionalOptions.Set(Key, PlayerOptions.GetValue(Key));
-			}
-
-			// Attach video decoder buffer monitor.
-			VideoDecoder.Decoder->SetAUInputBufferListener(&VideoDecoder);
-			VideoDecoder.Decoder->SetReadyBufferListener(&VideoDecoder);
-			// Have the video decoder send its output to the video renderer
-			VideoDecoder.Decoder->SetRenderer(VideoRender.Renderer);
-			// Hand it (may be nullptr) a delegate for platform for resource queries
-			VideoDecoder.Decoder->SetResourceDelegate(VideoDecoderResourceDelegate.Pin());
-			// Open the decoder after having set all listeners.
-			VideoDecoder.Decoder->Open(h264Cfg);
-
-			// Now we get the currently limited stream resolution and let the decoder now what we will be using
-			// at most right now. This allows the decoder to be created with a smaller memory footprint at first.
-			UpdateStreamResolutionLimit();
-		}
-		return 0;
-	}
-	else if (type == EStreamType::Audio)
-	{
-		if (AudioDecoder.Decoder == nullptr)
-		{
-			// Create an AAC audio decoder
-			AudioDecoder.Decoder = IAudioDecoderAAC::Create();
-			AudioDecoder.Decoder->SetPlayerSessionServices(this);
-			AudioDecoder.Parent = this;
-			// Attach buffer monitors.
-			AudioDecoder.Decoder->SetAUInputBufferListener(&AudioDecoder);
-			AudioDecoder.Decoder->SetReadyBufferListener(&AudioDecoder);
-			// Have to audio decoder send its output to the audio renderer
-			AudioDecoder.Decoder->SetRenderer(AudioRender.Renderer);
-			// Open the decoder after having set all listeners.
-			AudioDecoder.Decoder->Open(PlayerConfig.DecoderCfgAAC);
-		}
-		return 0;
-	}
-	return -1;
-}
-
-
-//-----------------------------------------------------------------------------
-/**
- * Destroys the decoders.
- */
-void FAdaptiveStreamingPlayer::DestroyDecoders()
-{
-/*
-NOTE: We do not clear out the renderers from the decoder. On their way down the decoders should still be able
-      to access the renderer without harm and dispatch their last remaining data.
-
-	if (mVideoDecoder.Decoder)
-		mVideoDecoder.Decoder->SetRenderer(nullptr);
-	if (mAudioDecoder.Decoder)
-		mAudioDecoder.Decoder->SetRenderer(nullptr);
-*/
-	AudioDecoder.Close();
-	VideoDecoder.Close();
-}
-
-
-
-
 
 
 void FAdaptiveStreamingPlayer::PostLog(Facility::EFacility FromFacility, IInfoLog::ELevel inLogLevel, const FString &Message)
@@ -1019,31 +922,58 @@ bool FAdaptiveStreamingPlayer::CanDecodeStream(const FStreamCodecInformation& In
 {
 	if (InStreamCodecInfo.IsVideoCodec())
 	{
-		const AdaptiveStreamingPlayerConfig::FConfiguration::FVideoDecoderLimit* DecoderLimit = &PlayerConfig.H264LimitUpto30fps;
 		double Rate = InStreamCodecInfo.GetFrameRate().IsValid() ? InStreamCodecInfo.GetFrameRate().GetAsDouble() : 30.0;
-		if (Rate > 31.0)
+		if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H264)
 		{
-			DecoderLimit = &PlayerConfig.H264LimitAbove30fps;
-		}
-		// Check against user configured resolution limit
-		if (DecoderLimit->MaxResolution.Height && InStreamCodecInfo.GetResolution().Height > DecoderLimit->MaxResolution.Height)
-		{
-			return false;
-		}
-
-		// Check against video decoder capabilities.
-		IVideoDecoderH264::FStreamDecodeCapability StreamParam, Capability;
-		StreamParam.Width = InStreamCodecInfo.GetResolution().Width;
-		StreamParam.Height = InStreamCodecInfo.GetResolution().Height;
-		StreamParam.Profile = InStreamCodecInfo.GetProfile();
-		StreamParam.Level = InStreamCodecInfo.GetProfileLevel();
-		StreamParam.FPS = Rate;
-		if (IVideoDecoderH264::GetStreamDecodeCapability(Capability, StreamParam))
-		{
-			if (Capability.DecoderSupportType == IVideoDecoderH264::FStreamDecodeCapability::ESupported::NotSupported)
+			const AdaptiveStreamingPlayerConfig::FConfiguration::FVideoDecoderLimit* DecoderLimit = &PlayerConfig.H264LimitUpto30fps;
+			if (Rate > 31.0)
+			{
+				DecoderLimit = &PlayerConfig.H264LimitAbove30fps;
+			}
+			// Check against user configured resolution limit
+			if (DecoderLimit->MaxResolution.Height && InStreamCodecInfo.GetResolution().Height > DecoderLimit->MaxResolution.Height)
 			{
 				return false;
 			}
+
+			// Check against video decoder capabilities.
+			IVideoDecoderH264::FStreamDecodeCapability StreamParam, Capability;
+			StreamParam.Width = InStreamCodecInfo.GetResolution().Width;
+			StreamParam.Height = InStreamCodecInfo.GetResolution().Height;
+			StreamParam.Profile = InStreamCodecInfo.GetProfile();
+			StreamParam.Level = InStreamCodecInfo.GetProfileLevel();
+			StreamParam.FPS = Rate;
+			if (IVideoDecoderH264::GetStreamDecodeCapability(Capability, StreamParam))
+			{
+				if (Capability.DecoderSupportType == IVideoDecoderH264::FStreamDecodeCapability::ESupported::NotSupported)
+				{
+					return false;
+				}
+			}
+		}
+		else if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H265)
+		{
+			#if ELECTRA_PLATFORM_HAS_H265_DECODER
+				// Check against video decoder capabilities.
+				IVideoDecoderH265::FStreamDecodeCapability StreamParam, Capability;
+				StreamParam.Width = InStreamCodecInfo.GetResolution().Width;
+				StreamParam.Height = InStreamCodecInfo.GetResolution().Height;
+				StreamParam.Tier = InStreamCodecInfo.GetProfileTier();
+				StreamParam.CompatibilityFlags = InStreamCodecInfo.GetProfileCompatibilityFlags();
+				StreamParam.Profile = InStreamCodecInfo.GetProfile();
+				StreamParam.Level = InStreamCodecInfo.GetProfileLevel();
+				StreamParam.ConstraintFlags = InStreamCodecInfo.GetProfileConstraints();
+				StreamParam.FPS = Rate;
+				if (IVideoDecoderH265::GetStreamDecodeCapability(Capability, StreamParam))
+				{
+					if (Capability.DecoderSupportType == IVideoDecoderH265::FStreamDecodeCapability::ESupported::NotSupported)
+					{
+						return false;
+					}
+				}
+			#else
+				return false;
+			#endif
 		}
 	}
 
@@ -1581,48 +1511,61 @@ void FAdaptiveStreamingPlayer::HandleMetadataChanges()
 		PlaybackState.SetDuration(Manifest->GetDuration());
 	}
 
+	FTimeValue Current = GetCurrentPlayTime();
+
 	// See if we may be reaching the next period.
-	if (UpcomingPeriods.Num())
+	if (UpcomingPeriods.Num() && Current.IsValid())
 	{
-		FTimeValue Current = GetCurrentPlayTime();
-		if (Current.IsValid())
+		for(int32 i=0; i<UpcomingPeriods.Num(); )
 		{
-			for(int32 i=0; i<UpcomingPeriods.Num(); )
+			if (Current < UpcomingPeriods[i].TimeRange.Start)
 			{
-				if (Current < UpcomingPeriods[i].TimeRange.Start)
+				break;
+			}
+			else
+			{
+				// Did we already pass the end of the period?
+				// This could be happening with really short periods and in this case we do not want to
+				// handle those. Since we passed them already there is no point.
+				if (!UpcomingPeriods[i].TimeRange.End.IsValid() || Current < UpcomingPeriods[i].TimeRange.End)
 				{
-					break;
-				}
-				else
-				{
-					// Did we already pass the end of the period?
-					// This could be happening with really short periods and in this case we do not want to
-					// handle those. Since we passed them already there is no point.
-					if (!UpcomingPeriods[i].TimeRange.End.IsValid() || Current < UpcomingPeriods[i].TimeRange.End)
+					// Handle it.
+					TArray<FTrackMetadata> MetadataVideo;
+					TArray<FTrackMetadata> MetadataAudio;
+					//TArray<FTrackMetadata> MetadataSubtitle;
+					UpcomingPeriods[i].Period->GetMetaData(MetadataVideo, EStreamType::Video);
+					UpcomingPeriods[i].Period->GetMetaData(MetadataAudio, EStreamType::Audio);
+					//UpcomingPeriods[i].Period->GetMetaData(MetadataSubtitle, EStreamType::Subtitle);
+
+					bool bMetadataChanged = PlaybackState.SetTrackMetadata(MetadataVideo, MetadataAudio);
+					PlaybackState.SetHaveMetadata(true);
+					if (bMetadataChanged)
 					{
-						// Handle it.
-						TArray<FTrackMetadata> MetadataVideo;
-						TArray<FTrackMetadata> MetadataAudio;
-						//TArray<FTrackMetadata> MetadataSubtitle;
-						UpcomingPeriods[i].Period->GetMetaData(MetadataVideo, EStreamType::Video);
-						UpcomingPeriods[i].Period->GetMetaData(MetadataAudio, EStreamType::Audio);
-						//UpcomingPeriods[i].Period->GetMetaData(MetadataSubtitle, EStreamType::Subtitle);
-
-						bool bMetadataChanged = PlaybackState.SetTrackMetadata(MetadataVideo, MetadataAudio);
-						PlaybackState.SetHaveMetadata(true);
-						if (bMetadataChanged)
-						{
-							DispatchEvent(FMetricEvent::ReportTracksChanged());
-						}
+						DispatchEvent(FMetricEvent::ReportTracksChanged());
 					}
-
-					// Inform AEMS handler of the period transition.
-					AEMSEventHandler->PlaybackPeriodTransition(UpcomingPeriods[i].ID, UpcomingPeriods[i].TimeRange);
-
-					// Remove it and continue with the next.
-					UpcomingPeriods.RemoveAt(i);
-					++i;
 				}
+
+				// Inform AEMS handler of the period transition.
+				AEMSEventHandler->PlaybackPeriodTransition(UpcomingPeriods[i].ID, UpcomingPeriods[i].TimeRange);
+
+				// Remove it and continue with the next.
+				UpcomingPeriods.RemoveAt(i);
+				++i;
+			}
+		}
+	}
+
+	// Dump periods that are no longer active because we passed their end with some threshold.
+	if (Current.IsValid())
+	{
+		FTimeValue PastTime = Current - FTimeValue().SetFromMilliseconds(1000);
+		for(int32 i=0; i<ActivePeriods.Num(); ++i)
+		{
+			if ((ActivePeriods[i].TimeRange.End.IsValid() && PastTime > ActivePeriods[i].TimeRange.End) ||
+				(!ActivePeriods[i].TimeRange.End.IsValid() && (i+1) < ActivePeriods.Num() && PastTime >= ActivePeriods[i+1].TimeRange.Start))
+			{
+				ActivePeriods.RemoveAt(i);
+				--i;
 			}
 		}
 	}
@@ -1709,6 +1652,15 @@ void FAdaptiveStreamingPlayer::HandleSessionMessage(TSharedPtrTS<IPlayerMessage>
 		stats.URL   		 = pMsg->GetConnectionInfo().EffectiveURL;
 		stats.FailureReason  = pMsg->GetResult().IsError() ? pMsg->GetResult().GetPrintable() : FString(); //pMsg->GetConnectionInfo().StatusInfo.ErrorDetail.GetMessage();
 		DispatchEvent(FMetricEvent::ReportLicenseKey(stats));
+	}
+	// Decoder message?
+	else if (SessionMessage->GetType() == FDecoderMessage::Type())
+	{
+		FDecoderMessage* pMsg = static_cast<FDecoderMessage*>(SessionMessage.Get());
+		if (pMsg->GetStreamType() == EStreamType::Video)
+		{
+			VideoDecoder.bDrainingForCodecChangeDone = true;
+		}
 	}
 	else
 	{
@@ -1836,30 +1788,10 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 
 				// Send pre-roll begin event.
 				DispatchEvent(FMetricEvent::ReportPrerollStart());
-
-				// Create the first decoders here.
-				if (bHaveVideoReader.GetWithDefault(false))
-				{
-					CreateInitialDecoder(EStreamType::Video);
-				}
-				if (bHaveAudioReader.GetWithDefault(false))
-				{
-					CreateInitialDecoder(EStreamType::Audio);
-				}
 			}
 		}
 	}
 }
-
-//-----------------------------------------------------------------------------
-/**
- * Check if the decoders need to change.
- */
-void FAdaptiveStreamingPlayer::HandleDecoderChanges()
-{
-	// Nothing to do for now.
-}
-
 
 //-----------------------------------------------------------------------------
 /**
@@ -2915,9 +2847,9 @@ void FAdaptiveStreamingPlayer::AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPe
 	{
 		FString PeriodID = Period->GetUniqueIdentifier();
 		// Only add if it is not already in the list.
-		if (!UpcomingPeriods.ContainsByPredicate([PeriodID](const FUpcomingPeriod& e){ return e.ID.Equals(PeriodID); }))
+		if (!UpcomingPeriods.ContainsByPredicate([PeriodID](const FPeriodInformation& e){ return e.ID.Equals(PeriodID); }))
 		{
-			FUpcomingPeriod Next;
+			FPeriodInformation Next;
 			Next.ID = MoveTemp(PeriodID);
 			Next.TimeRange = Period->GetTimeRange();
 			Next.Period = MoveTemp(Period);
@@ -2927,6 +2859,7 @@ void FAdaptiveStreamingPlayer::AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPe
 			// Tell the AEMS handler that a new period will be coming up. It needs this information to cut overlapping events.
 			AEMSEventHandler->NewUpcomingPeriod(Next.ID, Next.TimeRange);
 
+			ActivePeriods.Add(Next);
 			UpcomingPeriods.Emplace(MoveTemp(Next));
 		}
 	}
@@ -2988,292 +2921,14 @@ void FAdaptiveStreamingPlayer::UpdateDataAvailabilityState(Metrics::FDataAvailab
 }
 
 
-
-//-----------------------------------------------------------------------------
-/**
- * Sends an available AU to a decoder.
- * If the current buffer level is below the underrun threshold an underrun
- * message is sent to the worker thread.
- *
- * @param Type
- * @param FromMultistreamBuffer
- * @param Decoder
- */
-void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder)
-{
-	// Lock the AU buffer for the duration of this function to ensure this can never clash with a Flush() call
-	// since we are checking size, eod state and subsequently popping an AU, for which the buffer must stay consistent inbetween!
-	// Also to ensure the active buffer doesn't get changed from one track to another.
-	FMultiTrackAccessUnitBuffer::FScopedLock lock(FromMultistreamBuffer);
-
-	FBufferStats* pStats = nullptr;
-	Metrics::FDataAvailabilityChange* pAvailability = nullptr;
-	switch(Type)
-	{
-		case EStreamType::Video:
-			pStats = &VideoBufferStats;
-			pAvailability = &DataAvailabilityStateVid;
-			break;
-		case EStreamType::Audio:
-			pStats = &AudioBufferStats;
-			pAvailability = &DataAvailabilityStateAud;
-			break;
-		case EStreamType::Subtitle:
-			pStats = &TextBufferStats;
-			pAvailability = &DataAvailabilityStateTxt;
-			break;
-		default:
-			checkNoEntry();
-			return;
-	}
-
-	// Is the buffer (the Type of elementary stream actually) active/selected?
-	if (!FromMultistreamBuffer.IsDeselected())
-	{
-		// Check for buffer underrun.
-		if (!bRebufferPending && CurrentState == EPlayerState::eState_Playing && StreamState == EStreamState::eStream_Running && PipelineState == EPipelineState::ePipeline_Running)
-		{
-			bool bEODSet = FromMultistreamBuffer.IsEODFlagSet();
-			if (!bEODSet && FromMultistreamBuffer.Num() == 0)
-			{
-				// Buffer underrun.
-				bRebufferPending = true;
-				FTimeValue LastKnownPTS = FromMultistreamBuffer.GetLastPoppedPTS();
-				// Only set the 'rebuffer at' time if we have a valid last known PTS. If we don't
-				// then maybe this is a cascade failure from a previous rebuffer attempt for which
-				// we then try that time once more.
-				if (LastKnownPTS.IsValid())
-				{
-					RebufferDetectedAtPlayPos = LastKnownPTS;
-				}
-				WorkerThread.SendMessage(FWorkerThread::FMessage::EType::BufferUnderrun);
-			}
-		}
-
-		FAccessUnit* AccessUnit = nullptr;
-		bool bOk;
-		bOk = FromMultistreamBuffer.Pop(AccessUnit);
-		if (AccessUnit)
-		{
-			if (Decoder)
-			{
-			// The decoder has asked to be fed a new AU so it better be able to accept it.
-				/*IAccessUnitBufferInterface::EAUpushResult auPushRes =*/ Decoder->AUdataPushAU(AccessUnit);
-			}
-
-			// The decoder will have added a ref count if it took the AU. If it didnt' for whatever reason
-			// we still release it to get rid of it and not cause a memory leak.
-			FAccessUnit::Release(AccessUnit);
-			AccessUnit = nullptr;
-
-			if (pAvailability)
-			{
-				UpdateDataAvailabilityState(*pAvailability, Metrics::FDataAvailabilityChange::EAvailability::DataAvailable);
-			}
-		}
-	}
-	// An AU is not tagged as being "the last" one. Instead the EOD is handled separately and must be dealt with
-	// by the decoders accordingly.
-	if (FromMultistreamBuffer.IsEODFlagSet() && FromMultistreamBuffer.Num() == 0)
-	{
-		if (pStats && !pStats->DecoderInputBuffer.bEODSignaled)
-		{
-			if (Decoder)
-			{
-				Decoder->AUdataPushEOD();
-			}
-		}
-		if (pAvailability)
-		{
-			UpdateDataAvailabilityState(*pAvailability, Metrics::FDataAvailabilityChange::EAvailability::DataNotAvailable);
-		}
-	}
-}
-
-void FAdaptiveStreamingPlayer::VideoDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats &currentInputBufferStats)
-{
-	DiagnosticsCriticalSection.Lock();
-	VideoBufferStats.DecoderInputBuffer = currentInputBufferStats;
-	DiagnosticsCriticalSection.Unlock();
-	EDecoderState decState = DecoderState;
-	if (decState == EDecoderState::eDecoder_Running)
-	{
-		FeedDecoder(EStreamType::Video, MultiStreamBufferVid, VideoDecoder.Decoder);
-	}
-}
-
-void FAdaptiveStreamingPlayer::VideoDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats &currentReadyStats)
-{
-	DiagnosticsCriticalSection.Lock();
-	VideoBufferStats.DecoderOutputBuffer = currentReadyStats;
-	DiagnosticsCriticalSection.Unlock();
-}
-
-
-void FAdaptiveStreamingPlayer::AudioDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats &currentInputBufferStats)
-{
-	DiagnosticsCriticalSection.Lock();
-	AudioBufferStats.DecoderInputBuffer = currentInputBufferStats;
-	DiagnosticsCriticalSection.Unlock();
-	EDecoderState decState = DecoderState;
-	if (decState == EDecoderState::eDecoder_Running)
-	{
-		FeedDecoder(EStreamType::Audio, MultiStreamBufferAud, AudioDecoder.Decoder);
-	}
-}
-
-void FAdaptiveStreamingPlayer::AudioDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats &currentReadyStats)
-{
-	DiagnosticsCriticalSection.Lock();
-	AudioBufferStats.DecoderOutputBuffer = currentReadyStats;
-	DiagnosticsCriticalSection.Unlock();
-}
-
-
-
-
-bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, int32 MaxWidth, int32 MaxHeight)
-{
-	if (!CurrentPlayPeriodVideo.IsValid())
-	{
-		return false;
-	}
-	TArray<FStreamCodecInformation> VideoCodecInfos;
-
-	TSharedPtrTS<ITimelineMediaAsset> Asset = CurrentPlayPeriodVideo->GetMediaAsset();
-	if (Asset.IsValid())
-	{
-		if (Asset->GetNumberOfAdaptationSets(EStreamType::Video) > 0)
-		{
-			// What if this is more than one?
-			TSharedPtrTS<IPlaybackAssetAdaptationSet> VideoSet = Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Video, 0);
-			check(VideoSet.IsValid());
-			if (VideoSet.IsValid())
-			{
-				for(int32 i = 0, iMax = VideoSet->GetNumberOfRepresentations(); i < iMax; ++i)
-				{
-					VideoCodecInfos.Push(VideoSet->GetRepresentationByIndex(i)->GetCodecInformation());
-				}
-				check(VideoCodecInfos.Num());
-				if (VideoCodecInfos.Num())
-				{
-					if (MaxWidth == 0 && MaxHeight == 0)
-					{
-						FStreamCodecInformation Best = VideoCodecInfos[0];
-						for(int32 i=1; i<VideoCodecInfos.Num(); ++i)
-						{
-							const FStreamCodecInformation::FResolution& Res = VideoCodecInfos[i].GetResolution();
-							if (Res.Width > Best.GetResolution().Width)
-							{
-								Best.SetResolution(FStreamCodecInformation::FResolution(Res.Width, Best.GetResolution().Height));
-							}
-							if (Res.Height > Best.GetResolution().Height)
-							{
-								Best.SetResolution(FStreamCodecInformation::FResolution(Best.GetResolution().Width, Res.Height));
-							}
-							// Note: the final RFC 6381 codec string will be bogus since we do not re-create it here.
-							if (VideoCodecInfos[i].GetProfile() > Best.GetProfile())
-							{
-								Best.SetProfile(VideoCodecInfos[i].GetProfile());
-							}
-							if (VideoCodecInfos[i].GetProfileLevel() > Best.GetProfileLevel())
-							{
-								Best.SetProfileLevel(VideoCodecInfos[i].GetProfileLevel());
-							}
-							if (VideoCodecInfos[i].GetExtras().GetValue("b_frames").SafeGetInt64(0))
-							{
-								Best.GetExtras().Set("b_frames", FVariantValue((int64) 1));
-							}
-						}
-						OutStreamInfo = Best;
-					}
-					else
-					{
-						if (MaxWidth == 0)
-						{
-							MaxWidth = 32768;
-						}
-						if (MaxHeight == 0)
-						{
-							MaxHeight = 32768;
-						}
-						FStreamCodecInformation		Best;
-						bool bFirst = true;
-						for(int32 i=0; i<VideoCodecInfos.Num(); ++i)
-						{
-							const FStreamCodecInformation::FResolution& Res = VideoCodecInfos[i].GetResolution();
-							if (Res.ExceedsLimit(MaxWidth, MaxHeight))
-							{
-								continue;
-							}
-							if (bFirst)
-							{
-								bFirst = false;
-								Best = VideoCodecInfos[i];
-							}
-							if (Res.Width > Best.GetResolution().Width)
-							{
-								Best.SetResolution(FStreamCodecInformation::FResolution(Res.Width, Best.GetResolution().Height));
-							}
-							if (Res.Height > Best.GetResolution().Height)
-							{
-								Best.SetResolution(FStreamCodecInformation::FResolution(Best.GetResolution().Width, Res.Height));
-							}
-							// Note: the final RFC 6381 codec string will be bogus since we do not re-create it here.
-							if (VideoCodecInfos[i].GetProfile() > Best.GetProfile())
-							{
-								Best.SetProfile(VideoCodecInfos[i].GetProfile());
-							}
-							if (VideoCodecInfos[i].GetProfileLevel() > Best.GetProfileLevel())
-							{
-								Best.SetProfileLevel(VideoCodecInfos[i].GetProfileLevel());
-							}
-							if (VideoCodecInfos[i].GetExtras().GetValue("b_frames").SafeGetInt64(0))
-							{
-								Best.GetExtras().Set("b_frames", FVariantValue((int64) 1));
-							}
-						}
-						// Found none? (resolution limit set too low)
-						if (bFirst)
-						{
-							// Find smallest by bandwidth
-							Best = VideoCodecInfos[0];
-							int32 BestBW = VideoSet->GetRepresentationByIndex(0)->GetBitrate();
-							for(int32 i=1; i<VideoCodecInfos.Num(); ++i)
-							{
-								if (VideoSet->GetRepresentationByIndex(i)->GetBitrate() < BestBW)
-								{
-									Best = VideoCodecInfos[i];
-									BestBW = VideoSet->GetRepresentationByIndex(i)->GetBitrate();
-								}
-							}
-						}
-						OutStreamInfo = Best;
-					}
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
-
 //-----------------------------------------------------------------------------
 /**
  * Updates the ABR and video decoder with maximum stream resolution limits.
  */
 void FAdaptiveStreamingPlayer::UpdateStreamResolutionLimit()
 {
-	FStreamCodecInformation StreamInfo;
-	if (FindMatchingStreamInfo(StreamInfo, VideoResolutionLimitWidth, VideoResolutionLimitHeight))
-	{
-		if (VideoDecoder.Decoder)
-		{
-			VideoDecoder.Decoder->SetMaximumDecodeCapability(StreamInfo.GetResolution().Width, StreamInfo.GetResolution().Height, StreamInfo.GetProfile(), StreamInfo.GetProfileLevel(), StreamInfo.GetExtras());
-		}
-	}
 	StreamSelector->SetMaxVideoResolution(VideoResolutionLimitWidth, VideoResolutionLimitHeight);
+	VideoDecoder.bApplyNewLimits = true;
 }
 
 
@@ -3570,6 +3225,7 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 	CurrentPlayPeriodVideo.Reset();
 	CurrentPlayPeriodAudio.Reset();
 	CurrentPlayPeriodText.Reset();
+	ActivePeriods.Empty();
 	UpcomingPeriods.Empty();
 
 	PlaybackRate = 0.0;

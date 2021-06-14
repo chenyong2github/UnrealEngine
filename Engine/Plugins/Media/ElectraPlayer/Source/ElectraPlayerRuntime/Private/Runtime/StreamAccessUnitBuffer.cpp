@@ -127,10 +127,17 @@ namespace Electra
 	void FMultiTrackAccessUnitBuffer::Flush()
 	{
 		FMediaCriticalSection::ScopedLock lock(AccessLock);
-		// Flush all existing buffers but keep them in the track map.
-		for(auto& It : TrackBuffers)
+		if (bIsParallelTrackMode)
 		{
-			It.Value->Flush();
+			// Flush all existing buffers but keep them in the track map.
+			for(auto& It : TrackBuffers)
+			{
+				It.Value->Flush();
+			}
+		}
+		else
+		{
+			TrackBuffers.Empty();
 		}
 		Clear();
 	}
@@ -448,6 +455,21 @@ namespace Electra
 		}
 	}
 
+	bool FMultiTrackAccessUnitBuffer::PeekAndAddRef(FAccessUnit*& OutAU)
+	{
+		FScopedLock lock(*this);
+		ActivateBuffer(false);
+		TSharedPtrTS<FAccessUnitBuffer> Buf = FMultiTrackAccessUnitBuffer::GetSelectedTrackBuffer();
+		if (Buf->Num())
+		{
+			return Buf->Peek(OutAU);
+		}
+		else
+		{
+			OutAU = nullptr;
+			return false;
+		}
+	}
 
 	bool FMultiTrackAccessUnitBuffer::Pop(FAccessUnit*& OutAU)
 	{

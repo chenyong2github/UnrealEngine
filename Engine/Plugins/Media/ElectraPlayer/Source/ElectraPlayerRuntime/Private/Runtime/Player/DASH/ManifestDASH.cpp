@@ -359,16 +359,9 @@ IManifest::FResult FManifestDASH::FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutP
 				{
 					case ESearchType::Closest:
 					{
-						// If there is a following period whose start is closer to the current position than the start of this period and the position
-						// is within a short duration to the next we jump ahead to the next.
-						if (DiffToNextPeriod < DiffToStart && DiffToNextPeriod.GetAsMilliseconds() < 1000)
-						{
-							SelectedPeriod = Periods[nPeriod + 1];
-						}
-						else
-						{
-							SelectedPeriod = Periods[nPeriod];
-						}
+						// There is no actual choice. We have to use the period the time falls into. Why would we want
+						// to snap to a different period that won't contain the segments for the time we're looking for.
+						SelectedPeriod = Periods[nPeriod];
 						break;
 					}
 					case ESearchType::Before:
@@ -1974,6 +1967,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	int32 PreviousN = 0;
 	int64 CurrentOffset = 0;
 	int64 PreviousOffset = 0;
+	bool bFound = false;
 	for(CurrentN=0; CurrentN<EndNumber; ++CurrentN)
 	{
 		const IParserISO14496_12::ISegmentIndex::FEntry& SegmentInfo = Sidx->GetEntry(CurrentN);
@@ -2009,6 +2003,8 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		// Does the segment start on or after the time we're looking for?
 		if (CurrentT >= MediaLocalSearchTime)
 		{
+			bFound = true;
+
 			// Yes, so we have now found the segment of interest. It is either this one or the previous one.
 			if (InSearchOptions.SearchType == IManifest::ESearchType::Closest)
 			{
@@ -2081,8 +2077,21 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		CurrentOffset += SegmentInfo.Size;
 	}
 
+	// If the search time falls into the last segment we will not have found it above.
+	if (!bFound && CurrentT >= MediaLocalSearchTime && CurrentN == EndNumber)
+	{
+		if (InSearchOptions.SearchType == IManifest::ESearchType::Closest || InSearchOptions.SearchType == IManifest::ESearchType::Same || InSearchOptions.SearchType == IManifest::ESearchType::Before || InSearchOptions.SearchType == IManifest::ESearchType::StrictlyBefore)
+		{
+			--CurrentN;
+			CurrentD = PreviousD;
+			CurrentT = PreviousT;
+			CurrentOffset -= Sidx->GetEntry(CurrentN).Size;
+			bFound = true;
+		}
+	}
+
 	// Did we find it?
-	if (CurrentN < EndNumber && CurrentT < MediaLocalPeriodEnd)
+	if (bFound && CurrentT < MediaLocalPeriodEnd)
 	{
 		OutSegmentInfo.Time = CurrentT;
 		OutSegmentInfo.PTO = PTO;
