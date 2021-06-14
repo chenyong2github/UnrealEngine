@@ -84,8 +84,9 @@ void UBlendSpace::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) <
-		FUE5MainStreamObjectVersion::BlendSpaceRuntimeTriangulation))
+	if (Ar.IsLoading() && 
+		(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) <
+		 FUE5MainStreamObjectVersion::BlendSpaceRuntimeTriangulation))
 	{
 		// Make old blend spaces use the grid
 		bInterpolateUsingGrid = true;
@@ -116,6 +117,15 @@ void UBlendSpace::Serialize(FArchive& Ar)
 			}
 		}
 	}
+
+	if (Ar.IsLoading() && 
+		(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) <
+		 FUE5MainStreamObjectVersion::BlendSpaceSampleOrdering))
+	{
+		// Force the data to be updated after the ordering of 2D SampleData has been changed to be consistent with 1D
+		ResampleData();
+	}
+
 #endif // WITH_EDITOR
 }
 
@@ -1911,7 +1921,8 @@ void UBlendSpace::GetRawSamplesFromBlendInput1D(const FVector& BlendInput, TArra
 
 const FEditorElement* UBlendSpace::GetEditorElement(int32 XIndex, int32 YIndex) const
 {
-	int32 Index = XIndex * (BlendParameters[1].GridNum + 1) + YIndex;
+	// Needs to match FBlendSpaceGrid::GetElement and FBlendSpaceGrid::GetElement
+	int32 Index = YIndex * (BlendParameters[0].GridNum + 1) + XIndex;
 	return GetGridSampleInternal(Index);
 }
 
@@ -1984,6 +1995,31 @@ void UBlendSpace::GetRawSamplesFromBlendInput2D(const FVector& BlendInput, TArra
 
 #if WITH_EDITOR
 
+//======================================================================================================================
+FVector UBlendSpace::GetGridPosition(int32 GridX, int32 GridY) const
+{
+	const FVector GridMin(BlendParameters[0].Min, BlendParameters[1].Min, 0.0f);
+	const FVector GridMax(BlendParameters[0].Max, BlendParameters[1].Max, 0.0f);
+	const FVector GridRange(GridMax.X - GridMin.X, GridMax.Y - GridMin.Y, 0.0f);
+	const FIntPoint NumGridDivisions(BlendParameters[0].GridNum, BlendParameters[1].GridNum);
+
+	const FVector GridPoint(
+		GridMin.X + (GridX * GridRange.X / NumGridDivisions.X), 
+		GridMin.Y + (GridY * GridRange.Y / NumGridDivisions.Y),
+		0.0f);
+	return GridPoint;
+}
+
+//======================================================================================================================
+FVector UBlendSpace::GetGridPosition(int32 GridIndex) const
+{
+	// Needs to match FBlendSpaceGrid::GetElement and UBlendSpace::GetEditorElement
+	int32 GridX = GridIndex % (BlendParameters[0].GridNum + 1);
+	int32 GridY = (GridIndex - GridX) / (BlendParameters[0].GridNum + 1);
+	return GetGridPosition(GridX, GridY);
+}
+
+//======================================================================================================================
 // Note that this runs and is needed if the axes settings are change to enable snapping - then we do
 // a pass over all the samples and make sure everything is in order. When samples are being dragged
 // around/dropped then that moving sample will be handled in SBlendSpaceGridWidget so, whilst this
@@ -1992,7 +2028,6 @@ void UBlendSpace::SnapSamplesToClosestGridPoint()
 {
 	if (BlendParameters[0].bSnapToGrid && BlendParameters[1].bSnapToGrid)
 	{
-		TArray<FVector> GridPoints;
 		TArray<int32> ClosestSampleToGridPoint;
 
 		const FVector GridMin(BlendParameters[0].Min, BlendParameters[1].Min, 0.0f);
@@ -2004,26 +2039,13 @@ void UBlendSpace::SnapSamplesToClosestGridPoint()
 		// Snap to nearest in normalized space - not depending on the units of the params (which may be completely different).
 		const float GridRatio = GridStep.Y / GridStep.X;
 
-		for (int32 GridY = 0; GridY < NumGridDivisions.Y + 1; ++GridY)
-		{
-			for (int32 GridX = 0; GridX < NumGridDivisions.X + 1; ++GridX)
-			{
-				const FVector GridPoint(
-					GridMin.X + (GridX * GridRange.X / NumGridDivisions.X), 
-					GridMin.Y + (GridY * GridRange.Y / NumGridDivisions.Y),
-					0.0f);
-
-				//const FVector GridPoint((GridX * GridStep.X) + GridMin.X, (GridY * GridStep.Y) + GridMin.Y, 0.0f);
-				GridPoints.Add(GridPoint);
-			}
-		}
-
-		ClosestSampleToGridPoint.Init(INDEX_NONE, GridPoints.Num());
+		int32 NumGridPoints = (NumGridDivisions.X + 1) * (NumGridDivisions.Y + 1);
+		ClosestSampleToGridPoint.Init(INDEX_NONE, NumGridPoints);
 
 		// Find closest sample to grid point
-		for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
+		for (int32 GridIndex = 0; GridIndex < NumGridPoints; ++GridIndex)
 		{
-			const FVector& GridPoint = GridPoints[PointIndex];
+			const FVector& GridPoint = GetGridPosition(GridIndex);
 			float SmallestDistanceSq = FLT_MAX;
 			int32 Index = INDEX_NONE;
 
@@ -2040,7 +2062,7 @@ void UBlendSpace::SnapSamplesToClosestGridPoint()
 				}
 			}
 
-			ClosestSampleToGridPoint[PointIndex] = Index;
+			ClosestSampleToGridPoint[GridIndex] = Index;
 		}
 
 		// Find closest grid point to sample
@@ -2051,14 +2073,14 @@ void UBlendSpace::SnapSamplesToClosestGridPoint()
 			// Find closest grid point
 			float SmallestDistanceSq = FLT_MAX;
 			int32 Index = INDEX_NONE;
-			for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
+			for (int32 GridIndex = 0; GridIndex < NumGridPoints; ++GridIndex)
 			{
-				FVector Delta = GridPoints[PointIndex] - BlendSample.SampleValue;
+				FVector Delta = GetGridPosition(GridIndex) - BlendSample.SampleValue;
 				Delta.X *= GridRatio;
 				const float DistanceSq = Delta.SizeSquared2D();
 				if (DistanceSq < SmallestDistanceSq)
 				{
-					Index = PointIndex;
+					Index = GridIndex;
 					SmallestDistanceSq = DistanceSq;
 				}
 			}
@@ -2068,7 +2090,7 @@ void UBlendSpace::SnapSamplesToClosestGridPoint()
 			{
 				for (int32 AxisIndex = 0; AxisIndex != 2; ++AxisIndex)
 				{
-					BlendSample.SampleValue[AxisIndex] = GridPoints[Index][AxisIndex];
+					BlendSample.SampleValue[AxisIndex] = GetGridPosition(Index)[AxisIndex];
 				}
 			}
 		}

@@ -592,6 +592,12 @@ public:
 	*/
 	ENGINE_API const TArray<FEditorElement>& GetGridSamples() const;
 
+	/** Returns the sample position associated with the elements returned by GetGridSamples */
+	ENGINE_API FVector GetGridPosition(int32 GridIndex) const;
+
+	/** Returns the sample position associated with the coordinates */
+	ENGINE_API FVector GetGridPosition(int32 GridX, int32 GridY) const;
+
 	/**
 	 * Returns the runtime triangulation etc data
 	 */

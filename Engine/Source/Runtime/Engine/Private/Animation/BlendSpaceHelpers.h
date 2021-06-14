@@ -486,6 +486,7 @@ public:
 	const FVector2D GetPosFromIndex(const int32 GridX, const int32 GridY) const;
 
 private:
+	FEditorElement& GetElement(const int32 GridX, const int32 GridY);
 	// Grid Dimension
 	FVector2D GridMin;
 	FVector2D GridMax;

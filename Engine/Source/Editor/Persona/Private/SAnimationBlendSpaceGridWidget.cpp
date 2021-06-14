@@ -40,6 +40,150 @@
 // Draws additional data on the triangulation to help debugging
 //#define DEBUG_BLENDSPACE_TRIANGULATION
 
+// Threshold for it being considered a problem that when a lookup is made at the same location as a sample, the returned
+// weight is less than this.
+static const float SampleLookupWeightThreshold = 0.2f;
+
+// Flag any triangle that has an interior angle smaller than this (degrees)
+static const float CriticalTriangulationAngle = 4.0f;
+
+// Flag any triangle that has a smaller area than this (normalized units)
+static const float CriticalTriangulationArea = 5e-4f;
+
+//======================================================================================================================
+// Paint a filled triangle
+static void PaintTriangle(
+	const FVector2D&         P0,
+	const FVector2D&         P1,
+	const FVector2D&         P2,
+	const FGeometry&         AllottedGeometry,
+	FLinearColor             Color,
+	const FSlateBrush*       Brush,
+	FSlateWindowElementList& OutDrawElements,
+	int32                    DrawLayerId)
+{
+	const FVector2D* Points[3] = { &P0, &P1, &P2 };
+
+	TArray<FSlateVertex> Vertices;
+	Vertices.Reserve(3);
+
+	for (int32 PointIndex = 0; PointIndex != 3; ++PointIndex)
+	{
+		Vertices.AddZeroed();
+		FSlateVertex& NewVert = Vertices.Last();
+		NewVert.Position = AllottedGeometry.LocalToAbsolute(*Points[PointIndex]);
+		NewVert.Color = Color.ToFColor(false);
+	}
+
+	// Fill by making triangles
+	TArray<SlateIndex> VertexIndices = { 0, 1, 2 };
+	FSlateDrawElement::MakeCustomVerts(
+		OutDrawElements, DrawLayerId, Brush->GetRenderingResource(), Vertices, VertexIndices, nullptr, 0, 0);
+}
+
+//======================================================================================================================
+// Paints a filled polygon with outline, defined by a set of points which don't need to be sorted.
+// This will handle concave polygons, but only if the centroid lies inside the polygon.
+static void PaintPolygon(
+	TArray<FVector2D>&       Points,
+	const FGeometry&         AllottedGeometry,
+	FLinearColor             FillColor,
+	FLinearColor             OutlineColor,
+	const FSlateBrush*       Brush,
+	FSlateWindowElementList& OutDrawElements,
+	int32                    DrawLayerId)
+{
+	TArray<FSlateVertex> Vertices;
+	Vertices.Reserve(Points.Num() + 1);
+
+	// Add a mid-position vertex so that we handle polygons that aren't completely convex
+	Vertices.AddZeroed();
+
+	FSlateVertex& MidVertex = Vertices.Last();
+	for (int32 PointIndex = 0; PointIndex != Points.Num(); ++PointIndex)
+	{
+		Vertices.AddZeroed();
+		FSlateVertex& NewVert = Vertices.Last();
+		NewVert.Position = AllottedGeometry.LocalToAbsolute(Points[PointIndex]);
+		NewVert.Color = FillColor.ToFColor(false);
+		MidVertex.Position += NewVert.Position;
+	}
+	MidVertex.Position /= Points.Num();
+	MidVertex.Color = FillColor.ToFColor(false);
+
+	// Make sure the points all wind correctly relative to the mid point
+	struct FComparePoints
+	{
+		FComparePoints(const FSlateVertex& Mid) : MidPoint(Mid) {}
+		bool operator()(const FSlateVertex& A, const FSlateVertex& B) const
+		{
+			FVector2D DeltaA = A.Position - MidPoint.Position;
+			FVector2D DeltaB = B.Position - MidPoint.Position;
+			float AngleA = FMath::Atan2(DeltaA.Y, DeltaA.X);
+			float AngleB = FMath::Atan2(DeltaB.Y, DeltaB.X);
+			return AngleA < AngleB;
+		}
+		FSlateVertex MidPoint;
+	};
+	Sort(Vertices.GetData() + 1, Vertices.Num() - 1, FComparePoints(MidVertex));
+
+	if (FillColor.A > 0)
+	{
+		// Fill by making triangles
+		TArray<SlateIndex> VertexIndices;
+		for (int VertexIndex = 1; VertexIndex < Vertices.Num(); ++VertexIndex)
+		{
+			VertexIndices.Add(0);
+			VertexIndices.Add(VertexIndex);
+			VertexIndices.Add(VertexIndex + 1 >= Vertices.Num() ? 1 : VertexIndex + 1);
+		}
+
+		FSlateDrawElement::MakeCustomVerts(
+			OutDrawElements, DrawLayerId, Brush->GetRenderingResource(), Vertices, VertexIndices, nullptr, 0, 0);
+	}
+
+	if (OutlineColor.A > 0)
+	{
+		TArray<FVector2D> LinePoints;
+		LinePoints.Reserve(Points.Num() + 1);
+		for (int VertexIndex = 1; VertexIndex <= Vertices.Num(); ++VertexIndex)
+		{
+			LinePoints.Add(VertexIndex < Vertices.Num() ? Vertices[VertexIndex].Position : Vertices[1].Position);
+		}
+		FSlateDrawElement::MakeLines(
+			OutDrawElements, DrawLayerId + 1, FPaintGeometry(), LinePoints, ESlateDrawEffect::None, OutlineColor, true, 1.0f);
+	}
+}
+
+//======================================================================================================================
+static void PaintCircle(
+	const FVector2D&         Centre,
+	const float              Radius,
+	const int32              NumVerts,
+	const FGeometry&         AllottedGeometry,
+	FLinearColor             FillColor,
+	FLinearColor             OutlineColor,
+	const FSlateBrush*       Brush,
+	FSlateWindowElementList& OutDrawElements,
+	int32                    DrawLayerId)
+{
+	// NumVerts needs to be a multiple of 4
+	int32 NumVertsPerSector = ((NumVerts + 3) / 4);
+	TArray<FVector2D> Points;
+	Points.SetNum(NumVertsPerSector * 4);
+	for (int32 Index = 0 ; Index != NumVertsPerSector ; ++Index)
+	{
+		float Angle = Index * (HALF_PI / NumVertsPerSector);
+		float S, C;
+		FMath::SinCos(&S, &C, Angle);
+		Points[Index + NumVertsPerSector * 0] = Centre + FVector2D(C * Radius, S * Radius);
+		Points[Index + NumVertsPerSector * 1] = Centre + FVector2D(-S * Radius, C * Radius);
+		Points[Index + NumVertsPerSector * 2] = Centre + FVector2D(-C * Radius, -S * Radius);
+		Points[Index + NumVertsPerSector * 3] = Centre + FVector2D(S * Radius, -C * Radius);
+	}
+	PaintPolygon(Points, AllottedGeometry, FillColor, OutlineColor, Brush, OutDrawElements, DrawLayerId);
+}
+
 void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 {
 	BlendSpaceBase = InArgs._BlendSpaceBase;
@@ -74,7 +218,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 
 	PreviewFilteredPosition = PreviewPosition;
 
-	bShowTriangulation = true;
+	bShowTriangulation = (BlendSpaceBase.Get() != nullptr && BlendSpaceBase.Get()->bInterpolateUsingGrid) ? false : true;
 	bMouseIsOverGeometry = false;
 	bRefreshCachedData = true;
 	bStretchToFit = true;
@@ -155,7 +299,12 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 								.VAlign(VAlign_Center)
 								[
 									SNew(SButton)
-									.ToolTipText(LOCTEXT("ShowTriangulation", "Show Triangulation"))
+									.ToolTipText_Lambda([this]()
+														{ 
+															return (BlendSpaceBase.Get() && BlendSpaceBase.Get()->bInterpolateUsingGrid) 
+																? LOCTEXT("ShowGridToSampleConnections", "Show Grid/Sample Connections")
+																: LOCTEXT("ShowTriangulation", "Show Triangulation");
+														})
 									.OnClicked(this, &SBlendSpaceGridWidget::ToggleTriangulationVisibility)
 									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bShowTriangulation ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
 									.ContentPadding(1)
@@ -284,6 +433,15 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
+			SNew(STextBlock)
+			.Text(this, &SBlendSpaceGridWidget::GetToolTipSampleValidity)
+			.Font(FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont"))
+			.Visibility_Lambda([this]() { return GetToolTipSampleValidity().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
 			SAssignNew(ToolTipExtensionContainer, SBox)
 		]
 	];
@@ -328,10 +486,7 @@ int32 SBlendSpaceGridWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Al
 	
 	PaintBackgroundAndGrid(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 
-	if (bShowTriangulation)
-	{
-		PaintTriangulation(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
-	}	
+	PaintTriangulation(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 	PaintSampleKeys(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 
 	if(bShowAxisLabels)
@@ -403,9 +558,38 @@ void SBlendSpaceGridWidget::PaintBackgroundAndGrid(const FGeometry& AllottedGeom
 	DrawLayerId += 3;
 }
 
+//======================================================================================================================
+float SBlendSpaceGridWidget::GetSampleLookupWeight(int32 SampleIndex) const
+{
+	const UBlendSpace* BlendSpace = BlendSpaceBase.Get();
+	if (BlendSpace && BlendSpace->bInterpolateUsingGrid)
+	{
+		const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
+		const FBlendSample& Sample = Samples[SampleIndex];
+			
+		TArray<FBlendSampleData> SampleDataList;
+		int32 TempTriangulationIndex = -1;
+		BlendSpace->GetSamplesFromBlendInput(Sample.SampleValue, SampleDataList, TempTriangulationIndex, true);
+		float LookedUpSampleWeight = 0.0f;
+		for (const FBlendSampleData& LookedUpSample : SampleDataList)
+		{
+			if (LookedUpSample.SampleDataIndex == SampleIndex)
+			{
+				LookedUpSampleWeight += LookedUpSample.GetWeight();
+			}
+		}
+		return FMath::Clamp(LookedUpSampleWeight, 0.0f, 1.0f);
+	}
+	return 1.0f; // Return 1 to avoid anything treating this as a problem
+}
+
+
+//======================================================================================================================
 void SBlendSpaceGridWidget::PaintSampleKeys(
-	const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, 
-	FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
+	const FGeometry&         AllottedGeometry, 
+	const FSlateRect&        MyCullingRect, 
+	FSlateWindowElementList& OutDrawElements, 
+	int32&                   DrawLayerId) const
 {
 	const int32 FilteredPositionLayer = DrawLayerId + 1;
 	const int32 PreviewPositionLayer = DrawLayerId + 2;
@@ -441,6 +625,19 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 			FSlateDrawElement::MakeBox(
 				OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(GridPosition, KeySize), 
 				KeyBrush, ESlateDrawEffect::None, DrawColor );
+
+			float SampleLookupWeight = GetSampleLookupWeight(SampleIndex);
+			if (SampleLookupWeight <= SampleLookupWeightThreshold)
+			{
+				const FVector2D CirclePosition = SampleValueToScreenPosition(Sample.SampleValue);
+				FLinearColor IsolatedColor = FLinearColor::Red;
+				IsolatedColor.A = SampleLookupWeightThreshold > 0.0f ? 
+					(SampleLookupWeightThreshold - SampleLookupWeight) / SampleLookupWeightThreshold :
+					1.0f;
+				IsolatedColor.A *= 0.4f;
+				PaintCircle(CirclePosition, 8.0f, 12, AllottedGeometry, IsolatedColor, IsolatedColor,
+							LabelBrush, OutDrawElements, SampleLayer - 1);
+			}
 
 			// Draw lines/boxes to indicated which axes are locked
 			if (!bReadOnly)
@@ -537,7 +734,12 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 	DrawLayerId += 3;
 }
 
-void SBlendSpaceGridWidget::PaintAxisText(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
+//======================================================================================================================
+void SBlendSpaceGridWidget::PaintAxisText(
+	const FGeometry&         AllottedGeometry, 
+	const FSlateRect&        MyCullingRect, 
+	FSlateWindowElementList& OutDrawElements, 
+	int32&                   DrawLayerId) const
 {
 	const TSharedRef< FSlateFontMeasure > FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	const FVector2D GridCenter = CachedGridRectangle.GetCenter();
@@ -632,146 +834,52 @@ void SBlendSpaceGridWidget::PaintAxisText(const FGeometry& AllottedGeometry, con
 	DrawLayerId += 1;
 }
 
-// Paint a filled triangle
-static void PaintTriangle(
-	const FVector2D&         P0,
-	const FVector2D&         P1,
-	const FVector2D&         P2,
-	const FGeometry&         AllottedGeometry,
-	FLinearColor             Color,
-	const FSlateBrush*       Brush,
-	FSlateWindowElementList& OutDrawElements,
-	int32                    DrawLayerId)
+//======================================================================================================================
+void SBlendSpaceGridWidget::PaintTriangulation(
+	const FGeometry&         AllottedGeometry, 
+	const FSlateRect&        MyCullingRect, 
+	FSlateWindowElementList& OutDrawElements, 
+	int32&                   DrawLayerId) const
 {
-	const FVector2D* Points[3] = { &P0, &P1, &P2 };
-
-	TArray<FSlateVertex> Vertices;
-	Vertices.Reserve(3);
-
-	for (int32 PointIndex = 0; PointIndex != 3; ++PointIndex)
+	if (const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
-		Vertices.AddZeroed();
-		FSlateVertex& NewVert = Vertices.Last();
-		NewVert.Position = AllottedGeometry.LocalToAbsolute(*Points[PointIndex]);
-		NewVert.Color = Color.ToFColor(false);
-	}
-
-	// Fill by making triangles
-	TArray<SlateIndex> VertexIndices = { 0, 1, 2 };
-	FSlateDrawElement::MakeCustomVerts(
-		OutDrawElements, DrawLayerId, Brush->GetRenderingResource(), Vertices, VertexIndices, nullptr, 0, 0);
-}
-
-// Paints a filled polygon with outline, defined by a set of points which don't need to be sorted.
-// This will handle concave polygons, but only if the centroid lies inside the polygon.
-static void PaintPolygon(
-	TArray<FVector2D>&       Points,
-	const FGeometry&         AllottedGeometry,
-	FLinearColor             FillColor,
-	FLinearColor             OutlineColor,
-	const FSlateBrush*       Brush,
-	FSlateWindowElementList& OutDrawElements,
-	int32                    DrawLayerId)
-{
-	TArray<FSlateVertex> Vertices;
-	Vertices.Reserve(Points.Num() + 1);
-
-	// Add a mid-position vertex so that we handle polygons that aren't completely convex
-	Vertices.AddZeroed();
-
-	FSlateVertex& MidVertex = Vertices.Last();
-	for (int32 PointIndex = 0; PointIndex != Points.Num(); ++PointIndex)
-	{
-		Vertices.AddZeroed();
-		FSlateVertex& NewVert = Vertices.Last();
-		NewVert.Position = AllottedGeometry.LocalToAbsolute(Points[PointIndex]);
-		NewVert.Color = FillColor.ToFColor(false);
-		MidVertex.Position += NewVert.Position;
-	}
-	MidVertex.Position /= Points.Num();
-	MidVertex.Color = FillColor.ToFColor(false);
-
-	// Make sure the points all wind correctly relative to the mid point
-	struct FComparePoints
-	{
-		FComparePoints(const FSlateVertex& Mid) : MidPoint(Mid) {}
-		bool operator()(const FSlateVertex& A, const FSlateVertex& B) const
+		if ( 
+			(bReadOnly && BlendSpace->bInterpolateUsingGrid) ||
+			(!bReadOnly && !bShowTriangulation)
+			)
 		{
-			FVector2D DeltaA = A.Position - MidPoint.Position;
-			FVector2D DeltaB = B.Position - MidPoint.Position;
-			float AngleA = FMath::Atan2(DeltaA.Y, DeltaA.X);
-			float AngleB = FMath::Atan2(DeltaB.Y, DeltaB.X);
-			return AngleA < AngleB;
-		}
-		FSlateVertex MidPoint;
-	};
-	Sort(Vertices.GetData() + 1, Vertices.Num() - 1, FComparePoints(MidVertex));
-
-	if (FillColor.A > 0)
-	{
-		// Fill by making triangles
-		TArray<SlateIndex> VertexIndices;
-		for (int VertexIndex = 1; VertexIndex < Vertices.Num(); ++VertexIndex)
-		{
-			VertexIndices.Add(0);
-			VertexIndices.Add(VertexIndex);
-			VertexIndices.Add(VertexIndex + 1 >= Vertices.Num() ? 1 : VertexIndex + 1);
+			return;
 		}
 
-		FSlateDrawElement::MakeCustomVerts(
-			OutDrawElements, DrawLayerId, Brush->GetRenderingResource(), Vertices, VertexIndices, nullptr, 0, 0);
-	}
-
-	if (OutlineColor.A > 0)
-	{
-		TArray<FVector2D> LinePoints;
-		LinePoints.Reserve(Points.Num() + 1);
-		for (int VertexIndex = 1; VertexIndex <= Vertices.Num(); ++VertexIndex)
-		{
-			LinePoints.Add(VertexIndex < Vertices.Num() ? Vertices[VertexIndex].Position : Vertices[1].Position);
-		}
-		FSlateDrawElement::MakeLines(
-			OutDrawElements, DrawLayerId + 1, FPaintGeometry(), LinePoints, ESlateDrawEffect::None, OutlineColor, true, 1.0f);
-	}
-}
-
-void SBlendSpaceGridWidget::PaintTriangulation(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
-{
-	TArray<FVector2D> PolygonPoints;
-
-	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
-	{
+		TArray<FVector2D> PolygonPoints; 
 		const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
 		if (BlendSpace->bInterpolateUsingGrid)
 		{
-			// Use the Grid
+			// Use the Grid. After preprocessing, each grid point will have been located within the triangulation, and
+			// will store the indices of the three samples that surround/contribute to it.
 			const TArray<FEditorElement>& EditorElements = BlendSpace->GetGridSamples();
-			for (const FEditorElement& Element : EditorElements)
+			for (int32 ElementIndex = 0 ; ElementIndex != EditorElements.Num() ; ++ElementIndex)
 			{
+				const FEditorElement& Element = EditorElements[ElementIndex];
+				FVector ElementPosition = BlendSpace->GetGridPosition(ElementIndex);
+				FVector2D ElementScreenPosition = SampleValueToScreenPosition(ElementPosition);
 				for (int32 SourceIndex = 0; SourceIndex < 3; ++SourceIndex)
 				{
 					const int32 SourceSampleIndex = Element.Indices[SourceIndex]; 
 					if (Samples.IsValidIndex(SourceSampleIndex))
 					{
 						const FBlendSample& SourceSample = Samples[SourceSampleIndex];
-						for (int32 TargetIndex = 0; TargetIndex < 3; ++TargetIndex)
+						FVector2D SourceSampleScreenPosition = SampleValueToScreenPosition(SourceSample.SampleValue);
+						// Draw line from the grid point to each sample that contributes to it
+						if (Element.Weights[SourceIndex] > 0)
 						{
-							const int32 TargetSampleIndex = Element.Indices[TargetIndex]; 
-							if (Samples.IsValidIndex(TargetSampleIndex))
+							if (ElementScreenPosition != SourceSampleScreenPosition)
 							{
-								if (TargetIndex != SourceIndex)
-								{
-									const FBlendSample& TargetSample = Samples[TargetSampleIndex];
-									TArray<FVector2D> Points;
-
-									Points.Add(SampleValueToScreenPosition(SourceSample.SampleValue));
-									Points.Add(SampleValueToScreenPosition(TargetSample.SampleValue));
-
-									// Draw line from and to element
-									FSlateDrawElement::MakeLines(
-										OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(), Points, 
-										ESlateDrawEffect::None,  TriangulationColor.GetSpecifiedColor(), true, 0.5f);
-								}
+								FSlateDrawElement::MakeLines(
+									OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(), 
+									{ ElementScreenPosition, SourceSampleScreenPosition },
+									ESlateDrawEffect::None,  TriangulationColor.GetSpecifiedColor(), 
+									true, Element.Weights[SourceIndex]);
 							}
 						}
 					}
@@ -794,11 +902,7 @@ void SBlendSpaceGridWidget::PaintTriangulation(const FGeometry& AllottedGeometry
 					ESlateDrawEffect::None, TriangulationColor.GetSpecifiedColor(), true, 0.5f);
 			}
 
-			// Flag any triangle that has an interior angle smaller than this
-			const float CriticalAngle = 4.0f;
-			// Flag any triangle that has a smaller area than this (normalized units)
-			const float CriticalArea = 5e-4f;
-			const float CriticalDot = FMath::Cos(FMath::DegreesToRadians(CriticalAngle));
+			const float CriticalDot = FMath::Cos(FMath::DegreesToRadians(CriticalTriangulationAngle));
 			for (const FBlendSpaceTriangle& Triangle : BlendSpaceData.Triangles)
 			{
 				FLinearColor TriangleFillColor = TriangulationCurrentColor.GetSpecifiedColor();
@@ -827,7 +931,7 @@ void SBlendSpaceGridWidget::PaintTriangulation(const FGeometry& AllottedGeometry
 						FVector2D B = NormalizedPositions[Index] - NormalizedPositions[(Index + 1) % 3];
 						float Dot = A.GetSafeNormal() | B.GetSafeNormal();
 						float Area = 0.5f * FMath::Abs(B ^ A);
-						if (Dot > CriticalDot || Area < CriticalArea)
+						if (Dot > CriticalDot || Area < CriticalTriangulationArea)
 						{
 							TriangleFillColor = FLinearColor::Red;
 							TriangleFillColor.A = 0.5f;
@@ -1371,9 +1475,24 @@ void SBlendSpaceGridWidget::MakeViewContextMenuEntries(FMenuBuilder& InMenuBuild
 {
 	InMenuBuilder.BeginSection("ViewOptions", LOCTEXT("ViewOptionsMenuHeader", "View Options"));
 	{
+		TAttribute<FText> ShowTriangulation = TAttribute<FText>::Create(
+			[this]()
+			{
+				return (BlendSpaceBase.Get() && BlendSpaceBase.Get()->bInterpolateUsingGrid) 
+					? LOCTEXT("ShowGridToSampleConnections", "Show Grid/Sample Connections")
+					: LOCTEXT("ShowTriangulation", "Show Triangulation");
+			});
+		TAttribute<FText> ShowTriangulationToolTip = TAttribute<FText>::Create(
+			[this]()
+			{
+				return (BlendSpaceBase.Get() && BlendSpaceBase.Get()->bInterpolateUsingGrid) 
+					? LOCTEXT("ShowGridToSampleConnectionsToolTip", "Show which samples each grid point is associated with")
+					: LOCTEXT("ShowTriangulationToolTip", "Show the Delaunay triangulation for all blend space samples");
+			});
+
 		InMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowTriangulation", "Show Triangulation"),
-			LOCTEXT("ShowTriangulationToolTip", "Show the Delaunay triangulation for all blend space samples"),
+			ShowTriangulation,
+			ShowTriangulationToolTip,
 			FSlateIcon("EditorStyle", "BlendSpaceEditor.ToggleTriangulation"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this](){ bShowTriangulation = !bShowTriangulation; }),
@@ -1731,6 +1850,56 @@ void SBlendSpaceGridWidget::StopPreviewing()
 	bSamplePreviewing = false;
 }
 
+FText SBlendSpaceGridWidget::GetToolTipSampleValidity() const
+{
+	const UBlendSpace* BlendSpace = BlendSpaceBase.Get();
+	FText ToolTipText = FText::GetEmpty();
+	if(!bReadOnly && BlendSpace && BlendSpace->bInterpolateUsingGrid)
+	{
+		int32 SampleIndex = INDEX_NONE;
+		if (DragState == EDragState::None)
+		{
+			SampleIndex = HighlightedSampleIndex;
+		}
+		else if (DragState == EDragState::DragSample)
+		{
+			SampleIndex = DraggedSampleIndex;
+		}
+		else
+		{
+			SampleIndex = INDEX_NONE;
+		}
+
+		if (SampleIndex != INDEX_NONE && BlendSpace->IsValidBlendSampleIndex(SampleIndex))
+		{
+			float SampleLookupWeight = GetSampleLookupWeight(SampleIndex);
+			if (SampleLookupWeight >= 1.0f)
+			{
+				return ToolTipText;
+			}
+			else if (SampleLookupWeight <= 0.0f)
+			{
+				ToolTipText = FText::Format(
+					LOCTEXT("SampleValidityZero", "Self weight is zero"), 
+					SampleLookupWeight);
+			}
+			else if (SampleLookupWeight <= SampleLookupWeightThreshold)
+			{
+				ToolTipText = FText::Format(
+					LOCTEXT("SampleValidityLow", "Self weight is low: {0}"), 
+					SampleLookupWeight);
+			}
+			else if (SampleLookupWeight < 1.0f)
+			{
+				ToolTipText = FText::Format(
+					LOCTEXT("SampleValidity", "Self weight: {0}"), 
+					SampleLookupWeight);
+			}
+		}
+	}
+	return ToolTipText;
+}
+
 FText SBlendSpaceGridWidget::GetToolTipAnimationName() const
 {
 	FText ToolTipText = FText::GetEmpty();
@@ -1822,7 +1991,7 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		static const FTextFormat OneAxisFormat = LOCTEXT("OneAxisFormat", "{0}: {1}");
-		static const FTextFormat TwoAxisFormat = LOCTEXT("TwoAxisFormat", "{0}: {1} - {2}: {3}");
+		static const FTextFormat TwoAxisFormat = LOCTEXT("TwoAxisFormat", "{0}: {1}  {2}: {3}");
 		const FTextFormat& ValueFormattingText = (GridType == EGridType::TwoAxis) ? TwoAxisFormat : OneAxisFormat;
 
 		auto AddAdvancedPreview = [this, &ToolTipText, BlendSpace]()

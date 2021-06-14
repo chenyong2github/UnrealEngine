@@ -634,7 +634,7 @@ void FBlendSpaceGrid::GenerateGridElements(const TArray<FVertex>& SamplePoints, 
 		for (int32 GridPositionY = 0; GridPositionY < NumGridPointsForAxis.Y; ++GridPositionY)
 		{
 			FTriangle * SelectedTriangle = NULL;
-			FEditorElement& GridPoint = GridPoints[ GridPositionX*NumGridPointsForAxis.Y + GridPositionY ];
+			FEditorElement& GridPoint = GetElement(GridPositionX, GridPositionY);
 
 			GridPointPosition = GetPosFromIndex(GridPositionX, GridPositionY);
 
@@ -758,7 +758,19 @@ const FEditorElement& FBlendSpaceGrid::GetElement(const int32 GridX, const int32
 	check (NumGridPointsForAxis.Y >= GridY);
 
 	check (GridPoints.Num() > 0 );
-	return GridPoints[GridX * NumGridPointsForAxis.Y + GridY];
+	return GridPoints[GridY * NumGridPointsForAxis.X + GridX];
+}
+
+FEditorElement& FBlendSpaceGrid::GetElement(const int32 GridX, const int32 GridY)
+{
+	FEditorElement& Test = const_cast<FEditorElement &>(std::as_const(*this).GetElement(GridX, GridY));
+
+	check (NumGridPointsForAxis.X >= GridX);
+	check (NumGridPointsForAxis.Y >= GridY);
+
+	check (GridPoints.Num() > 0 );
+	FEditorElement& Test2 = GridPoints[GridY * NumGridPointsForAxis.X + GridX];
+	return Test2;
 }
 
 #undef LOCTEXT_NAMESPACE
