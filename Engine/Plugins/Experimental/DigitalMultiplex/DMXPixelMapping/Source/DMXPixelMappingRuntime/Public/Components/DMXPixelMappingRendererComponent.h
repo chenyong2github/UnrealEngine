@@ -46,15 +46,9 @@ public:
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
-	virtual void Render() override;
-	virtual void RenderAndSendDMX() override;
+	virtual void Render() final;
+	virtual void RenderAndSendDMX() final;
 	//~ End UDMXPixelMappingBaseComponent implementation
-
-	//~ Begin UDMXPixelMappingOutputComponent implementation
-#if WITH_EDITOR
-	virtual FVector2D GetSize() const override;
-#endif
-	//~ End UDMXPixelMappingOutputComponent implementation
 
 #if WITH_EDITOR
 	/** Render all downsample pixel for editor preview texture */
@@ -177,12 +171,17 @@ public:
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
+#if WITH_EDITOR
+	/** Returns the component canvas used for this widget */
+	FORCEINLINE TSharedPtr<SConstraintCanvas> GetComponentsCanvas() const { return ComponentsCanvas; }
+#endif // WITH_EDITOR
+
 private:
 #if WITH_EDITORONLY_DATA
 	/** Editor preview output target */
 	UPROPERTY(Transient)
 	UTextureRenderTarget2D* PreviewRenderTarget;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	/** Material of UMG texture to downsample */
 	UPROPERTY(Transient)
@@ -201,7 +200,7 @@ private:
 
 	/** Change level Delegate */
 	FDelegateHandle OnChangeLevelHandle;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	/** Retrieve total count of all output targets that support shared rendering and updates a counter. O(n) */
 	int32 GetTotalDownsamplePixelCount();

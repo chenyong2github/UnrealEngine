@@ -47,7 +47,7 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
-	void OnFixturePatchMatrixChanged();
+	void OnFixturePatchChanged();
 
 	EVisibility GetRGBAttributeRowVisibilty(FDMXCellAttributeGroup* Attribute) const;
 
@@ -59,18 +59,16 @@ private:
 
 	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FDMXCellAttributeGroup> InAtribute, const TSharedRef<STableViewBase>& OwnerTable);
 
-public:
-	static void PopulateActiveModeFunctions(TArray<TSharedPtr<FName>>& OutActiveModeFunctions, const UDMXEntityFixturePatch* InFixturePatch);
 
-	static UDMXEntityFixturePatch* GetFixturePatch(UDMXPixelMappingMatrixComponent* InMatrixComponent);
-
-protected:
-	/** Weak reference to the DMX editor */
-	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
-
+private:	
 	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
 
-private:
+	/** Creates Details for the Output Modulators */
+	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
+
+	/** Forces the layout to redraw */
+	void ForceRefresh();
+
 	TArray<TWeakObjectPtr<UDMXPixelMappingMatrixComponent>> MatrixComponents;
 
 	IDetailLayoutBuilder* DetailLayout;
@@ -84,4 +82,9 @@ private:
 	TSharedPtr<IPropertyHandle> ColorModePropertyHandle;
 
 	TSharedPtr<SListView<TSharedPtr<FDMXCellAttributeGroup>>> ExposeAndInvertListView;
+
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
+
+	/** Weak reference to the DMX editor */
+	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 };

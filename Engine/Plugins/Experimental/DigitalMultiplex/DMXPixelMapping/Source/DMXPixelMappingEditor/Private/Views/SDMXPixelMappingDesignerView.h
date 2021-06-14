@@ -4,6 +4,9 @@
 
 #include "Widgets/SDMXPixelMappingSurface.h"
 
+#include "DMXPixelMappingComponentReference.h"
+
+#include "Templates/SharedPointer.h"
 
 class FDMXPixelMappingToolkit;
 class FDMXPixelMappingComponentReference;
@@ -12,6 +15,8 @@ class SDMXPixelMappingRuler;
 class SDMXPixelMappingTransformHandle;
 class SDMXPixelMappingSourceTextureViewport;
 class UDMXPixelMappingBaseComponent;
+class UDMXPixelMappingFixtureGroupComponent;
+class UDMXPixelMappingFixtureGroupItemComponent;
 class UDMXPixelMappingOutputComponent;
 class UDMXPixelMappingRendererComponent;
 
@@ -43,8 +48,6 @@ public:
 
 	SLATE_BEGIN_ARGS(SDMXPixelMappingDesignerView) { }
 	SLATE_END_ARGS()
-
-	virtual ~SDMXPixelMappingDesignerView();
 
 public:
 	/**
@@ -85,14 +88,18 @@ public:
 
 	void UpdateOutput(bool bForceUpdate);
 
-	const TSet<FDMXPixelMappingComponentReference>& GetSelectedComponents() const;
+	TSet<FDMXPixelMappingComponentReference> GetSelectedComponents() const;
 
 	FDMXPixelMappingComponentReference GetSelectedComponent() const;
 
 	float GetPreviewScale() const;
 
 private:
-	bool FindComponentUnderCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSubclassOf<UDMXPixelMappingOutputComponent> FindType, FComponentHitResult& HitResult);
+	/** Returns the component under the cursor */
+	UDMXPixelMappingOutputComponent* FindComponentUnderCursor() const;
+
+	/** Returns the cursor position in graph space */
+	bool GetGraphSpaceCursorPosition(FVector2D& OutGraphSpaceCursorPosition) const;
 
 	void PopulateWidgetGeometryCache(FArrangedWidget& Root);
 
@@ -100,7 +107,7 @@ private:
 
 	FGeometry GetDesignerGeometry() const;
 
-	void HandleChangeComponents(bool bIsSuccess);
+	void HandleChangeComponents();
 
 	EVisibility GetRulerVisibility() const;
 
@@ -118,15 +125,13 @@ private:
 
 	FReply HandleZoomToFitClicked();
 
-	void OnSelectedComponenetChanged();
+	void OnSelectedComponentsChanged();
 
 	/** Adds any pending selected Components to the selection set */
 	void ResolvePendingSelectedComponents(bool bClearPreviousSelection = false);
 	
-	/** Adds a new component from a drag drop op from the palette */
-	void AddComponentFromPalette(const FGeometry& MyGeometry, const TSharedPtr<FDMXPixelMappingDragDropOp>& TemplateDragDropOp);
-
-	void DropComponent(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent);
+	/** Updates the drag drop op to use the patches selected in the Palette */
+	void HandleDragEnterFromDetailsOrPalette(const TSharedPtr<FDMXPixelMappingDragDropOp>& DragDropOp);
 
 	void ClearExtensionWidgets();
 
@@ -138,17 +143,26 @@ private:
 
 	FVector2D GetExtensionSize(TSharedPtr<SDMXPixelMappingTransformHandle> Handle);
 
-	bool GetWidgetParentGeometry(FDMXPixelMappingComponentReference ComponentReference, FGeometry& Geometry);
-
 	bool GetComponentGeometry(FDMXPixelMappingComponentReference ComponentReference, FGeometry& Geometry);
 
 	bool GetComponentGeometry(UDMXPixelMappingBaseComponent* BaseComponent, FGeometry& Geometry);
 
-	FText GetSelectedComponentNameText() const;
-	FText GetSelectedComponentParentNameText() const;
-	EVisibility GetTitleBarVisibility() const;
+	/** Returns text for the currently hovered component */
+	FText GetHoveredComponentNameText() const;
+
+	/** Returns text for the currently hovered component's parent */
+	FText GetHoveredComponentParentNameText() const;
 
 private:
+	/** The component that should be selected, but isn't selected yet */
+	TWeakObjectPtr<UDMXPixelMappingBaseComponent> PendingSelectedComponent;
+
+	/** The drag over DragDropOp that should be handled on the next tick*/
+	TSharedPtr<FDMXPixelMappingDragDropOp> PendingDragDropOp;
+
+	/** If true, terminates any existing drag drop op without handling it */
+	bool bRequestTerminateDragDrop = false;
+
 	TSharedPtr<SCanvas> ExtensionWidgetCanvas;
 
 	TSharedPtr<SDMXPixelMappingSourceTextureViewport> SourceTextureViewport;
@@ -166,26 +180,28 @@ private:
 
 	TWeakObjectPtr<UDMXPixelMappingRendererComponent> CachedRendererComponent;
 
-	FDelegateHandle DelegateHandleChangeComponents;
-
-	FDelegateHandle OnSelectedComponenetChangedHandle;
-
 	/** The ruler bar at the top of the designer. */
 	TSharedPtr<SDMXPixelMappingRuler> TopRuler;
 
 	/** The ruler bar on the left side of the designer. */
 	TSharedPtr<SDMXPixelMappingRuler> SideRuler;
 
-	TWeakObjectPtr<UDMXPixelMappingBaseComponent> PendingSelectedComponent;
-
-	/** True if new components are being dragged. */
-	bool bDraggingNewGroupItems = false;
-
-	/** If true, terminates any existing drag drop op without handling it */
-	bool bRequestTerminateDragDrop = false;
-
-	/** The position in screen space where the user began dragging a widget */
-	FVector2D DraggingStartPositionScreenSpace;
+	/** The position in local space where the user began dragging a widget */
+	FVector2D DragAnchor;
 
 	TArray<TSharedPtr<SDMXPixelMappingTransformHandle>> TransformHandles;
+
+	/** Helper class to restore selection on scope */
+	class FScopedRestoreSelection
+	{
+	public:
+		FScopedRestoreSelection(TSharedRef<FDMXPixelMappingToolkit> ToolkitPtr, TSharedRef<SDMXPixelMappingDesignerView> DesignerView);
+		~FScopedRestoreSelection();
+
+	private:
+		TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
+		TWeakPtr<SDMXPixelMappingDesignerView> WeakDesignerView;
+		TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> CachedSelectedComponents;
+	};
 };
+

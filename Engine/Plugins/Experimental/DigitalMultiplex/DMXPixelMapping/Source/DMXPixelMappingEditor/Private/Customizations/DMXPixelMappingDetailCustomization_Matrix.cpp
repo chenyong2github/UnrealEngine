@@ -2,27 +2,30 @@
 
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
 
-#include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "DMXEditorStyle.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
 #include "DMXPixelMapping.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Components/DMXPixelMappingRootComponent.h"
 #include "DMXPixelMappingEditorUtils.h"
 #include "DMXPixelMappingTypes.h"
+#include "Components/DMXPixelMappingMatrixComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
+#include "Components/DMXPixelMappingRootComponent.h"
+#include "Library/DMXEntityFixturePatch.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
+#include "IPropertyUtilities.h"
 #include "Misc/Attribute.h"
 #include "Layout/Visibility.h"
+
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_Matrix"
 
 void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
 	DetailLayout = &InDetailLayout;
+	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 
 	// Get editing UObject
 	TArray<TWeakObjectPtr<UObject>> OuterObjects;
@@ -39,10 +42,15 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
 
 	// Add Fixture Patch change delegates
-	TSharedRef<IPropertyHandle> FixturePatchMatrixRefPropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, FixturePatchMatrixRef));
-	FSimpleDelegate OnFixturePatchMatrixChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_Matrix::OnFixturePatchMatrixChanged);
-	FixturePatchMatrixRefPropertyHandle->SetOnChildPropertyValueChanged(OnFixturePatchMatrixChangedDelegate);
-	FixturePatchMatrixRefPropertyHandle->SetOnPropertyValueChanged(OnFixturePatchMatrixChangedDelegate);
+	TSharedRef<IPropertyHandle> FixturePatchRefPropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, FixturePatchRef));
+	FSimpleDelegate OnFixturePatchChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_Matrix::OnFixturePatchChanged);
+	FixturePatchRefPropertyHandle->SetOnChildPropertyValueChanged(OnFixturePatchChangedDelegate);
+	FixturePatchRefPropertyHandle->SetOnPropertyValueChanged(OnFixturePatchChangedDelegate);
+
+	// Bind to library changes
+	TSharedPtr<IPropertyHandle> LibraryPropertyHandle = FixturePatchRefPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXEntityFixturePatchRef, DMXLibrary));
+	LibraryPropertyHandle->SetOnChildPropertyValueChanged(OnFixturePatchChangedDelegate);
+	LibraryPropertyHandle->SetOnPropertyValueChanged(OnFixturePatchChangedDelegate);
 
 	// Add color mode property
 	ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, ColorMode), UDMXPixelMappingMatrixComponent::StaticClass());
@@ -126,6 +134,7 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeRowVisibilty, Attribute.Get())));
 	}
 	
+	CreateModulatorDetails(InDetailLayout);
 }
 
 bool FDMXPixelMappingDetailCustomization_Matrix::CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const
@@ -141,7 +150,7 @@ bool FDMXPixelMappingDetailCustomization_Matrix::CheckComponentsDMXColorMode(con
 	return false;
 }
 
-void FDMXPixelMappingDetailCustomization_Matrix::OnFixturePatchMatrixChanged()
+void FDMXPixelMappingDetailCustomization_Matrix::OnFixturePatchChanged()
 {
 	TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
 	check(Toolkit.IsValid());
@@ -259,6 +268,93 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_Matrix::GenerateExpose
 				]
 			]
 		];
+}
+
+void FDMXPixelMappingDetailCustomization_Matrix::CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout)
+{	
+	IDetailCategoryBuilder& ModualtorsCategory = InDetailLayout.EditCategory("Modulators", LOCTEXT("DMXModulatorsCategory", "Modulators"), ECategoryPriority::Important);
+
+	TSharedPtr<IPropertyHandle> ModulatorClassesHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, ModulatorClasses), UDMXPixelMappingMatrixComponent::StaticClass());
+	ModulatorClassesHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_Matrix::ForceRefresh));
+	ModulatorClassesHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_Matrix::ForceRefresh));
+
+	ModualtorsCategory.AddProperty(ModulatorClassesHandle);
+
+	TSharedPtr<IPropertyHandle> ModulatorsHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, Modulators), UDMXPixelMappingMatrixComponent::StaticClass());
+	InDetailLayout.HideProperty(ModulatorsHandle);
+
+	// Create detail views for the modulators
+	TArray<TWeakObjectPtr<UObject>> CustomizedObjects;
+	InDetailLayout.GetObjectsBeingCustomized(CustomizedObjects);
+	if (CustomizedObjects.Num() > 0)
+	{
+		if (UDMXPixelMappingMatrixComponent* FirstMatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(CustomizedObjects[0].Get()))
+		{
+			for (int32 IndexModulator = 0; IndexModulator < FirstMatrixComponent->Modulators.Num(); IndexModulator++)
+			{
+				TArray<UObject*> ModulatorsToEdit;
+				ModulatorsToEdit.Add(FirstMatrixComponent->Modulators[IndexModulator]);
+
+				for (const TWeakObjectPtr<UObject>& Other : CustomizedObjects)
+				{
+					if (UDMXPixelMappingMatrixComponent* OtherMatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Other.Get()))
+					{
+						const bool bModulatorOfSameType =
+							OtherMatrixComponent != FirstMatrixComponent &&
+							OtherMatrixComponent->Modulators.IsValidIndex(IndexModulator) &&
+							OtherMatrixComponent->Modulators[IndexModulator] &&
+							OtherMatrixComponent->Modulators[IndexModulator]->GetClass() == FirstMatrixComponent->Modulators[IndexModulator]->GetClass();
+
+						if (bModulatorOfSameType)
+						{
+							ModulatorsToEdit.Add(OtherMatrixComponent->Modulators[IndexModulator]);
+						}
+						else if (CustomizedObjects.Num() > 1)
+						{
+							// Don't allow multi edit if not all modulators are of same class
+							ModulatorsToEdit.Reset();
+						}
+					}
+				}
+
+				if (ModulatorsToEdit.Num() > 0)
+				{
+					FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+					const bool bUpdateFromSelection = false;
+					const bool bLockable			= true;
+					const bool bAllowSearch			= false;
+					const bool bHidSelectionTip		= false;
+					const FDetailsViewArgs DetailsViewArgs(bUpdateFromSelection, bLockable, bAllowSearch, FDetailsViewArgs::HideNameArea, false);
+					TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+					DetailsView->SetObjects(ModulatorsToEdit);
+
+					ModualtorsCategory.AddCustomRow(FText::GetEmpty())
+						.WholeRowContent()
+						[
+							DetailsView
+						];
+				}
+				else
+				{
+					ModualtorsCategory.AddCustomRow(FText::GetEmpty())
+						.WholeRowContent()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ModulatorMultipleValues", "Multiple Values"))
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+						];
+
+					break;
+				}
+			}
+		}
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_Matrix::ForceRefresh()
+{
+	PropertyUtilities->ForceRefresh();
 }
 
 #undef LOCTEXT_NAMESPACE

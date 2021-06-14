@@ -5,8 +5,14 @@
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
+#include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Library/DMXEntityFixturePatch.h"
+
+#if WITH_EDITOR
+#include "DMXPixelMappingComponentWidget.h"
+#include "SDMXPixelMappingComponentBox.h"
+#endif // WITH_EDITOR
 
 #include "UObject/LinkerLoad.h"
 
@@ -98,10 +104,13 @@ UDMXPixelMappingBaseComponent* UDMXPixelMapping::FindComponent(UDMXEntityFixture
 		}
 		else if (UDMXPixelMappingMatrixCellComponent* MatrixCellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(InComponent))
 		{
-			if (MatrixCellComponent->IsValidLowLevel() && MatrixCellComponent->FixturePatchMatrixRef == FixturePatch)
+			if (UDMXPixelMappingMatrixComponent* ParentMatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(InComponent))
 			{
-				Component = MatrixCellComponent;
-				return;
+				if (MatrixCellComponent->IsValidLowLevel() && ParentMatrixComponent->FixturePatchRef == FixturePatch)
+				{
+					Component = MatrixCellComponent;
+					return;
+				}
 			}
 		}
 	});
@@ -128,29 +137,39 @@ UDMXPixelMappingOutputComponent* UDMXPixelMapping::FindComponent(TSharedPtr<SWid
 {
 	UDMXPixelMappingOutputComponent* FoundComponent = nullptr;
 
-	ForEachComponentOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent) {
-		if (InComponent->GetCachedWidget() == InWidget)
+	ForEachComponentOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent)
 		{
-			FoundComponent = InComponent;
-		}
-	});
+			if (TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget = InComponent->GetComponentWidget())
+			{
+				if(ComponentWidget->GetComponentBox() == InWidget)
+				{
+					FoundComponent = InComponent;
+				}
+			}
+		});
 
 	return FoundComponent;
 }
 
 #endif // WITH_EDITOR
 
-bool UDMXPixelMapping::RemoveComponent(UDMXPixelMappingBaseComponent* InComponent)
+
+void UDMXPixelMapping::RemoveComponent(UDMXPixelMappingBaseComponent* InComponent)
 {
-	if (UDMXPixelMappingBaseComponent* Parent = InComponent->Parent)
+	ensureMsgf(!InComponent, TEXT("Trying to remove invalid component."));
+
+	if (InComponent)
 	{
-		if (InComponent != RootComponent &&Parent->RemoveChild(InComponent))
+		ensureMsgf(!InComponent->Parent, TEXT("Trying to remove component %s but it has no valid parent."), *InComponent->GetUserFriendlyName());
+
+		if (UDMXPixelMappingBaseComponent* Parent = InComponent->Parent)
 		{
-			return true;
+			if (InComponent && InComponent != RootComponent)
+			{
+				Parent->RemoveChild(InComponent);
+			}
 		}
 	}
-
-	return false;
 }
 
 void UDMXPixelMapping::ForEachComponent(TComponentPredicate Predicate) const

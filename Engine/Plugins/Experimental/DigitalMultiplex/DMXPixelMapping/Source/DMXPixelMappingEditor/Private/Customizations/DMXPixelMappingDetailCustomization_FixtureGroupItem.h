@@ -17,8 +17,9 @@ class IPropertyHandle;
 class UDMXPixelMappingFixtureGroupItemComponent;
 enum class EDMXColorMode : uint8;
 
-template <typename ItemType>
-class SListView;
+class IPropertyUitilities;
+template <typename ItemType> class SListView;
+
 
 class FDMXPixelMappingDetailCustomization_FixtureGroupItem
 	: public IDetailCustomization
@@ -60,13 +61,15 @@ private:
 
 	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FFunctionAttribute> InAttribute, const TSharedRef<STableViewBase>& OwnerTable);
 
-protected:
-	/** Weak reference to the DMX editor */
-	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
-
+private:
 	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
 
-private:
+	/** Creates Details for the Output Modulators */
+	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
+
+	/** Forces the layout to redraw */
+	void ForceRefresh();
+
 	IDetailLayoutBuilder* DetailLayout;
 
 	TArray<TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent>> FixtureGroupItemComponents;
@@ -78,4 +81,9 @@ private:
 	TArray<TSharedPtr<FFunctionAttribute>> MonochromeAttributes;
 
 	TSharedPtr<SListView<TSharedPtr<FFunctionAttribute>>> ExposeAndInvertListView;
+
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
+
+	/** Weak reference to the DMX editor */
+	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 };

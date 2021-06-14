@@ -24,6 +24,7 @@ public class DMXPixelMappingEditor : ModuleRules
 			"DMXRuntime",
 			"DMXEditor",
 			"DMXPixelMappingCore",
+			"DMXPixelMappingEditorWidgets",
 			"DMXPixelMappingRuntime",
 			"DMXPixelMappingRenderer",
 			"DMXPixelMappingBlueprintGraph",

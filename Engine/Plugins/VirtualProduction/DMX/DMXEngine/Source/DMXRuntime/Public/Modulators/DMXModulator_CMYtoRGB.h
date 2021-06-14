@@ -11,7 +11,6 @@
 UCLASS(NotBlueprintable, DisplayName = "DMX Modulator CMY to RGB", AutoExpandCategories = ("DMX"))
 class DMXRUNTIME_API UDMXModulator_CMYtoRGB
 	: public UDMXModulator
-
 {
 	GENERATED_BODY()
 

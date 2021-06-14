@@ -57,6 +57,9 @@ public:
 	/** Gets the current zoom factor. */
 	float GetZoomAmount() const;
 
+	/** Returns the toolkit used with this surface */
+	FORCEINLINE TSharedPtr<FDMXPixelMappingToolkit> GetToolkit() { return ToolkitWeakPtr.Pin(); }
+
 protected:
 	virtual void OnPaintBackground(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 

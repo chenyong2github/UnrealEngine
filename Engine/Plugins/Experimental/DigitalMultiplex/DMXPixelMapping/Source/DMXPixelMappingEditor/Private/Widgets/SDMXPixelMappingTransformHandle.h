@@ -80,7 +80,7 @@ protected:
 	FVector2D MouseDownPosition;
 	FMargin StartingOffsets;
 
-	FScopedTransaction* ScopedTransaction;
+	TSharedPtr<FScopedTransaction> ScopedTransaction;
 
 	TWeakPtr<SDMXPixelMappingDesignerView> DesignerViewWeakPtr;
 

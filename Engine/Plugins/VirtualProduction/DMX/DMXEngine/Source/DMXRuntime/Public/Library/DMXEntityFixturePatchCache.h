@@ -99,7 +99,7 @@ public:
 	FORCEINLINE const TArray<FDMXFixtureCellAttribute>& GetCellAttributes() const { return FixtureMatrix.CellAttributes; }
 
 	/** Returns the absolute starting channel of the matrix attributes */
-	FORCEINLINE const int32 GetMatrixStartingChannelAbsolute() const { return DataIndex + MatrixOffset; }
+	FORCEINLINE const int32 GetMatrixStartingChannelAbsolute() const { return DataIndex + MatrixOffset + 1; }
 
 	/** Returns the number of collumns in the matrix. Does not test if the cache is using the matrix. */
 	FORCEINLINE int32 GetMatrixNumXCells() const { return FixtureMatrix.XCells; }

@@ -12,8 +12,9 @@
 
 
 enum class EDMXCellFormat : uint8;
+class FDMXPixelMappingComponentWidget;
 class FDMXOutputPort;
-class SDMXPixelMappingScreenLayout;
+class SDMXPixelMappingScreenComponentBox;
 class UTextureRenderTarget2D;
 class UDMXPixelMappingRendererComponent;
 
@@ -44,26 +45,17 @@ public:
 	virtual void SendDMX() override;
 	//~ End UDMXPixelMappingBaseComponent implementation
 
-	//~ Begin FTickableGameObject begin
-	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const override { return true; }
-	//~ End FTickableGameObject end
-
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
 	virtual bool IsExposedToTemplate() { return true; }
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
-	virtual void ToggleHighlightSelection(bool bIsSelected) override;
-
-	virtual void UpdateWidget() override;
+	virtual TSharedRef<FDMXPixelMappingComponentWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 #endif // WITH_EDITOR
+	virtual void SetPosition(const FVector2D& NewPosition) override;
+	virtual void SetSize(const FVector2D& NewSize) override;
+	//~ End UDMXPixelMappingOutputComponent implementation
 
-	virtual FVector2D GetSize() const override;
-	virtual FVector2D GetPosition() override;
-	virtual void SetPosition(const FVector2D& InPosition) override;
-	virtual void SetSize(const FVector2D& InSize) override;
-
+public:
 	virtual void QueueDownsample() override;
 	//~ End UDMXPixelMappingOutputComponent implementation
 
@@ -81,15 +73,6 @@ public:
 	void ForEachPixel(ForEachPixelCallback InCallback);
 
 private:
-#if WITH_EDITOR
-	/** Constract the screen grid widget */
-	TSharedRef<SWidget> ConstructGrid();
-
-#endif // WITH_EDITOR
-
-	/** Set size of the rendering texture and designer widget */
-	void SetSizeInternal(const FVector2D& InSize);
-
 	/** Prepare the final color to send */
 	void AddColorToSendBuffer(const FColor& Color, TArray<uint8>& OutDMXSendBuffer);
 
@@ -127,7 +110,7 @@ public:
 	FDMXProtocolName ProtocolName_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (ClampMin = "1", ClampMax = "100000", UIMin = "1", UIMax = "100000", DisplayPriority = "1"))
-	int32 RemoteUniverse;
+	int32 LocalUniverse;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (ClampMin = "1", ClampMax = "512", UIMin = "1", UIMax = "512", DisplayPriority = "1"))
 	int32 StartAddress;
@@ -156,6 +139,11 @@ public:
 #endif
 
 private:
+#if WITH_EDITOR
+	/** Screen Component box used in the ComponentWidget */
+	TSharedPtr<SDMXPixelMappingScreenComponentBox> ScreenComponentBox;
+#endif // WITH_EDITOR
+
 	/**Range of the downsample pixel positions */
 	TTuple<int32, int32> PixelDownsamplePositionRange;
 
@@ -165,10 +153,5 @@ private:
 	bool bIsUpdateWidgetRequested;
 #endif
 
-private:
 	static const FVector2D MinGridSize;
-
-#if WITH_EDITORONLY_DATA
-	static const uint32 MaxGridUICells;
-#endif
 };

@@ -87,14 +87,14 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, SizeX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, SizeY))
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
+		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
 	{
 		// The target always needs be within GMaxTextureDimensions, larger dimensions are not supported by the engine
 		const uint32 MaxTextureDimensions = GetMax2DTextureDimension();
 
 		if (SizeX > MaxTextureDimensions ||
-			SizeY > MaxTextureDimensions)
+			SizeX > MaxTextureDimensions)
 		{
 			SizeX = FMath::Clamp(SizeX, 0.0f, static_cast<float>(MaxTextureDimensions));
 			SizeY = FMath::Clamp(SizeY, 0.0f, static_cast<float>(MaxTextureDimensions));
@@ -150,8 +150,8 @@ void UDMXPixelMappingRendererComponent::RenderEditorPreviewTexture()
 		{
 			const FVector2D SizePixel = ScreenComponent->GetScreenPixelSize();
 			const int32 DownsampleIndexStart = ScreenComponent->GetPixelDownsamplePositionRange().Key;
-			const int32 PositionX = ScreenComponent->PositionX;
-			const int32 PositionY = ScreenComponent->PositionY;
+			const int32 PositionX = ScreenComponent->GetPosition().X;
+			const int32 PositionY = ScreenComponent->GetPosition().Y;
 
 			ScreenComponent->ForEachPixel([this, &PixelPreviewParams, SizePixel, PositionX, PositionY, DownsampleIndexStart](const int32 InXYIndex, const int32 XIndex, const int32 YIndex)
 				{
@@ -187,20 +187,7 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetPreviewRenderTarge
 	return PreviewRenderTarget;
 }
 
-FVector2D UDMXPixelMappingRendererComponent::GetSize() const
-{
-	// Get a size from Input Texture
-	if (const UTexture* const RendererInputTexture = GetRendererInputTexture())
-	{
-		if (class FTextureResource* Resource = RendererInputTexture->Resource)
-		{
-			return FVector2D(Resource->GetSizeX(), Resource->GetSizeY());
-		}
-	}
-
-	return ComponentsCanvas->GetDesiredSize();
-}
-
+#if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 {
 	if (!ComponentsCanvas.IsValid())
@@ -208,8 +195,6 @@ TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 		ComponentsCanvas =
 			SNew(SConstraintCanvas);
 	}
-
-	ComponentsCanvas->ClearChildren();
 
 	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
 		if (UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(InComponent))
@@ -221,6 +206,7 @@ TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 
 	return ComponentsCanvas.ToSharedRef();
 }
+#endif // WITH_EDITOR
 
 void UDMXPixelMappingRendererComponent::OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType)
 {
@@ -469,7 +455,7 @@ int32 UDMXPixelMappingRendererComponent::GetTotalDownsamplePixelCount()
 
 	// Count all pixels
 	constexpr bool bIsRecursive = true;
-	ForEachComponentOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent)
+	ForEachChildOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent)
 		{
 			// If that is screen component
 			if (UDMXPixelMappingScreenComponent* ScreenComponent = Cast<UDMXPixelMappingScreenComponent>(InComponent))

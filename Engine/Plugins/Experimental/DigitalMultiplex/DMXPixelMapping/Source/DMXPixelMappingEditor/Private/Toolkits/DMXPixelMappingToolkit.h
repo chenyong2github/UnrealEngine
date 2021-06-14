@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "TickableEditorObject.h"
+#include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "DMXPixelMappingComponentReference.h"
 
@@ -26,6 +27,7 @@ class UDMXPixelMappingRendererComponent;
 class UDMXPixelMappingOutputComponent;
 class UDMXPixelMappingMatrixComponent;
 
+
 /**
  * Implements an Editor toolkit for Pixel Mapping.
  */
@@ -36,11 +38,11 @@ class FDMXPixelMappingToolkit
 	friend class FDMXPixelMappingToolbar;
 
 public:
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnComponenetAddedOrDeletedDelegate, bool)
-	FOnComponenetAddedOrDeletedDelegate& GetOnComponenetAddedOrDeletedDelegate() { return OnComponenetAddedOrDeletedDelegate; }
+	DECLARE_MULTICAST_DELEGATE(FOnComponentsAddedOrDeletedDelegate)
+	FOnComponentsAddedOrDeletedDelegate& GetOnComponentsAddedOrDeletedDelegate() { return OnComponentsAddedOrDeletedDelegate; }
 
-	DECLARE_MULTICAST_DELEGATE(FOnSelectedComponenetChangedDelegate)
-	FOnSelectedComponenetChangedDelegate& GetOnSelectedComponenetChangedDelegate() { return OnSelectedComponenetChangedDelegate; }
+	DECLARE_MULTICAST_DELEGATE(FOnSelectedComponentsChangedDelegate)
+	FOnSelectedComponentsChangedDelegate& GetOnSelectedComponentsChangedDelegate() { return OnSelectedComponentsChangedDelegate; }
 
 public:
 	/** Default constructor */
@@ -121,9 +123,21 @@ public:
 
 	void SetActiveRenderComponent(UDMXPixelMappingRendererComponent* InComponent);
 
-	void HandleAddComponent(bool bIsSuccess);
+	void HandleAddComponents();
+
+	void HandleRemoveComponents();
+
+	/** Creates an array of components given specifed component references */
+	template <typename ComponentType>
+	TArray<ComponentType> MakeComponentArray(const TSet<FDMXPixelMappingComponentReference>& Components) const;
 
 	void SelectComponents(const TSet<FDMXPixelMappingComponentReference>& Components);
+
+	/** Returns true if the component is selected */
+	bool IsComponentSelected(UDMXPixelMappingBaseComponent* Component) const;
+
+	/** Gives each component widget a color depending on selection and whether it's over its parent */
+	void UpdateComponentWidgetColors();
 
 	void AddRenderer();
 
@@ -136,6 +150,12 @@ public:
 	void OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent);
 
 	void BroadcastPostChange(UDMXPixelMapping* InDMXPixelMapping);
+
+	/** 
+	 * Creates components from the template. Returns the new components.
+	 * If many component were created, the first component is the topmost parent.
+	 */
+	TArray<UDMXPixelMappingBaseComponent*> CreateComponentsFromTemplates(UDMXPixelMappingRootComponent* RootComponent, UDMXPixelMappingBaseComponent* Target, const TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>>& Templates);
 
 	void DeleteMatrixPixels(UDMXPixelMappingMatrixComponent* InMatrixComponent);
 
@@ -194,9 +214,9 @@ private:
 
 	TSharedPtr<FDMXPixelMappingPaletteViewModel> PaletteViewModel;
 
-	FOnComponenetAddedOrDeletedDelegate OnComponenetAddedOrDeletedDelegate;
+	FOnComponentsAddedOrDeletedDelegate OnComponentsAddedOrDeletedDelegate;
 
-	FOnSelectedComponenetChangedDelegate OnSelectedComponenetChangedDelegate;
+	FOnSelectedComponentsChangedDelegate OnSelectedComponentsChangedDelegate;
 
 	TSet<FDMXPixelMappingComponentReference> SelectedComponents;
 

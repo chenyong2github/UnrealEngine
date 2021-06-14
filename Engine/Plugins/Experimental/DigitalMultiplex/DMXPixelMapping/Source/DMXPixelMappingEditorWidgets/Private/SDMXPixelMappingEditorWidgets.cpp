@@ -21,7 +21,7 @@ void SDMXPixelMappingScreenLayout::Construct(const FArguments& InArgs)
 {
 	bShowAddresses = InArgs._bShowAddresses;
 	bShowUniverse = InArgs._bShowUniverse;
-	RemoteUniverse = InArgs._RemoteUniverse;
+	LocalUniverse = InArgs._LocalUniverse;
 	StartAddress = InArgs._StartAddress;
 	NumXCells = InArgs._NumXCells;
 	NumYCells = InArgs._NumYCells;
@@ -50,7 +50,7 @@ void SDMXPixelMappingScreenLayout::Construct(const FArguments& InArgs)
 
 			TPair<int32, int32> AddressUniversePair;
 			AddressUniversePair.Key = UniverseChannel - 1 % UniverseMaxChannels + 1;
-			AddressUniversePair.Value = RemoteUniverse + UniverseIndex;
+			AddressUniversePair.Value = LocalUniverse + UniverseIndex;
 			UnorderedList.Add(AddressUniversePair);
 
 			UniverseChannel += DMXCellStep;
@@ -141,7 +141,7 @@ void SDMXPixelMappingScreenLayout::Construct(const FArguments& InArgs)
 
 void SDMXPixelMappingSimpleScreenLayout::Construct(const FArguments& InArgs)
 {
-	RemoteUniverse = InArgs._RemoteUniverse;
+	LocalUniverse = InArgs._LocalUniverse;
 	StartAddress = InArgs._StartAddress;
 	Brush = InArgs._Brush;
 
@@ -191,7 +191,7 @@ void SDMXPixelMappingSimpleScreenLayout::Construct(const FArguments& InArgs)
 									SNew(STextBlock)
 									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.ColorAndOpacity(FSlateColor::UseForeground())
-									.Text(FText::Format(LOCTEXT("UniverseAndAddress", "Universe: {0}, Start Address: {1}"), RemoteUniverse, StartAddress))
+									.Text(FText::Format(LOCTEXT("UniverseAndAddress", "Universe: {0}, Start Address: {1}"), LocalUniverse, StartAddress))
 								]
 							]
 						]
