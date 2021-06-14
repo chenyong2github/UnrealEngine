@@ -78,6 +78,9 @@ bool FInterchangeWorkerImpl::Run()
 					));
 				}
 					break;
+				case ECommandId::QueryTaskProgress:
+					ProcessCommand(*StaticCast<FQueryTaskProgressCommand*>(Command.Get()));
+					break;
 
 				case ECommandId::Terminate:
 					UE_LOG(LogInterchangeWorker, Verbose, TEXT("Terminate command received. Exiting."));
@@ -149,6 +152,24 @@ void FInterchangeWorkerImpl::ProcessCommand(const FBackPingCommand& BackPingComm
 		UE_LOG(LogInterchangeWorker, Verbose, TEXT("Ping %f s"), ElapsedTime_s);
 	}
 	PingStartCycle = 0;
+}
+
+void FInterchangeWorkerImpl::ProcessCommand(const UE::Interchange::FQueryTaskProgressCommand& QueryTaskProgressCommand)
+{
+	FCompletedQueryTaskProgressCommand CompletedCommand;
+	CompletedCommand.TaskStates.AddDefaulted(QueryTaskProgressCommand.TaskIndexes.Num());
+	{
+		FScopeLock Lock(&TFinishThreadCriticalSection);
+		for (int32 ProgressTaskIndex = 0; ProgressTaskIndex < QueryTaskProgressCommand.TaskIndexes.Num(); ++ProgressTaskIndex)
+		{
+			CompletedCommand.TaskStates[ProgressTaskIndex].TaskIndex = QueryTaskProgressCommand.TaskIndexes[ProgressTaskIndex];
+			//If we do not have any job to process, set the state to unknown. The caller will know we are not currently processing this task, whihc mean we never receive this task or this task is completed.
+			CompletedCommand.TaskStates[ProgressTaskIndex].TaskState = ActiveThreads.Num() == 0 ? ETaskState::Unknown : ETaskState::Running;
+			//TODO: implement better progress report, we currently always return 0.0
+			CompletedCommand.TaskStates[ProgressTaskIndex].TaskProgress = 0.0f;
+		}
+	}
+	CommandIO.SendCommand(CompletedCommand, Config::SendCommandTimeout_s);
 }
 
 void FInterchangeWorkerImpl::ProcessCommand(const TSharedPtr<UE::Interchange::ICommand> Command, const FString& ThreadName)

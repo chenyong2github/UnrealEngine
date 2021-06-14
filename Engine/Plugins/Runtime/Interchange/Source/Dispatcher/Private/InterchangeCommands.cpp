@@ -18,6 +18,8 @@ namespace UE
 				case ECommandId::BackPing: return MakeShared<FBackPingCommand>();
 				case ECommandId::RunTask: return MakeShared<FRunTaskCommand>();
 				case ECommandId::NotifyEndTask: return MakeShared<FCompletedTaskCommand>();
+				case ECommandId::QueryTaskProgress: return MakeShared<FQueryTaskProgressCommand>();
+				case ECommandId::CompletedQueryTaskProgress: return MakeShared<FCompletedQueryTaskProgressCommand>();
 				case ECommandId::Terminate: return MakeShared<FTerminateCommand>();
 			}
 			return nullptr;
@@ -56,6 +58,29 @@ namespace UE
 			Ar << JSonMessages;
 			Ar << JSonResult;
 			Ar << TaskIndex;
+		}
+
+		FQueryTaskProgressCommand::FQueryTaskProgressCommand(const TArray<int32>& Tasks)
+		{
+			TaskIndexes = Tasks;
+		}
+		
+		void FQueryTaskProgressCommand::SerializeImpl(FArchive& Ar)
+		{
+			Ar << TaskIndexes;
+		}
+
+		FArchive& operator<<(FArchive& Ar, FCompletedQueryTaskProgressCommand::FTaskProgressData& A)
+		{
+			Ar << A.TaskIndex;
+			Ar << A.TaskState;
+			Ar << A.TaskProgress;
+			return Ar;
+		}
+
+		void FCompletedQueryTaskProgressCommand::SerializeImpl(FArchive& Ar)
+		{
+			Ar << TaskStates;
 		}
 	}//ns Interchange
 }//ns UE

@@ -42,6 +42,7 @@ namespace UE
 			FString JsonResult;
 			TArray<FString> JsonMessages;
 			FInterchangeDispatcherTaskCompleted OnTaskCompleted;
+			double RunningStateStartTime = 0;
 		};
 
 		/**

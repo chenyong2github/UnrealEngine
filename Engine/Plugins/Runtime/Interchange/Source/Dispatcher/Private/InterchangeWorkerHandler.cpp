@@ -106,6 +106,7 @@ namespace UE
 			int32 UniqueID = (FPlatformTime::Cycles64() & 0x00000000EFFFFFFF);
 			ThreadName = FString(TEXT("InterchangeWorkerHandler_")) + FString::FromInt(UniqueID);
 			IOThread = FThread(*ThreadName, [this]() { Run(); });
+			LastProgressMessageTime = FPlatformTime::Seconds();
 		}
 
 		FInterchangeWorkerHandler::~FInterchangeWorkerHandler()
@@ -164,6 +165,46 @@ namespace UE
 				WorkerState = EWorkerState::Closing;
 				ErrorState = EWorkerErrorState::WorkerProcess_Lost;
 			}
+			//Send periodic query progress for task that take long time to resolve
+			const double MinimumProgressTime = 5.0;
+			const double ProgressTickTime = 5.0;
+			const double CurrentTime = FPlatformTime::Seconds();
+			if(CurrentTime - LastProgressMessageTime > ProgressTickTime)
+			{
+				LastProgressMessageTime = CurrentTime;
+				FScopeLock Lock(&CurrentTasksLock);
+				TArray<int32> TasksToQuery;
+				//Look all current tasks
+				for (const int32 TaskIndex : CurrentTasks)
+				{
+					UE::Interchange::ETaskState TaskState;
+					double TaskRunningStateStartTime;
+					Dispatcher.GetTaskState(TaskIndex, TaskState, TaskRunningStateStartTime);
+					
+					if (TaskState == ETaskState::Running)
+					{
+						double RunningTime = FPlatformTime::Seconds() - TaskRunningStateStartTime;
+						//Ask only for old task that run longer then the minimum progress time
+						if (RunningTime > MinimumProgressTime)
+						{
+							TasksToQuery.Add(TaskIndex);
+						}
+					}
+				}
+				//Send the query command
+				FQueryTaskProgressCommand QueryProgressCommand(TasksToQuery);
+
+				if (CommandIO.SendCommand(QueryProgressCommand, Config::SendCommandTimeout_s))
+				{
+					UE_LOG(LogInterchangeDispatcher, Verbose, TEXT("Query progress command sent"));
+				}
+				else
+				{
+					// Cannot send a command to the worker, let set the Closing state
+					WorkerState = EWorkerState::Closing;
+					ErrorState = EWorkerErrorState::ConnectionLost_SendFailed;
+				}
+			}
 		}
 
 		void FInterchangeWorkerHandler::Run()
@@ -174,9 +215,20 @@ namespace UE
 			UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogInterchangeDispatcher, Warning, TEXT("Handler ended with error: %s"), EWorkerErrorStateAsString(ErrorState));
 		}
 
+		void FInterchangeWorkerHandler::KillAllCurrentTasks()
+		{
+			FScopeLock Lock(&CurrentTasksLock);
+			//Fail all current tasks
+			for (const int32 TaskIndex : CurrentTasks)
+			{
+				TArray<FString> GarbageMessages;
+				Dispatcher.SetTaskState(TaskIndex, ETaskState::ProcessFailed, FString(), GarbageMessages);
+			}
+			CurrentTasks.Empty();
+		}
+
 		void FInterchangeWorkerHandler::RunInternal()
 		{
-
 			auto StartNewTask = [this]()->bool
 			{
 				// Fetch a new task
@@ -185,7 +237,10 @@ namespace UE
 				if (CurrentTask.IsSet())
 				{
 					FRunTaskCommand NewTask(CurrentTask.GetValue());
-					CurrentTasks.Add(NewTask.TaskIndex);
+					{
+						FScopeLock Lock(&CurrentTasksLock);
+						CurrentTasks.Add(NewTask.TaskIndex);
+					}
 
 					if (CommandIO.SendCommand(NewTask, Config::SendCommandTimeout_s))
 					{
@@ -196,7 +251,7 @@ namespace UE
 					{
 						// Signal that the Task was not processed
 						TArray<FString> GarbageMessages;
-						Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::UnTreated, FString(), GarbageMessages);
+						Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::ProcessFailed, FString(), GarbageMessages);
 						WorkerState = EWorkerState::Closing;
 						ErrorState = EWorkerErrorState::ConnectionLost_SendFailed;
 					}
@@ -246,32 +301,29 @@ namespace UE
 						ValidateConnection();
 						if (ErrorState == EWorkerErrorState::WorkerProcess_Lost)
 						{
-							for (const int32 TaskIndex : CurrentTasks)
+							WorkerState = EWorkerState::Closing;
+						}
+						else
+						{
+							//Start a task
+							if (StartNewTask())
 							{
-								TArray<FString> GarbageMessages;
-								Dispatcher.SetTaskState(TaskIndex, ETaskState::ProcessFailed, FString(), GarbageMessages);
+								WorkerState = EWorkerState::Processing;
 							}
-							CurrentTasks.Empty();
-							WorkerState = EWorkerState::Closing;
-						}
-						//Start a task
-						if (StartNewTask())
-						{
-							WorkerState = EWorkerState::Processing;
-						}
 
-						// consume task
-						if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::IdleLoopDelay))
-						{
-							//Make the processing asynchronous
-							TGraphTask<UE::Interchange::Dispatcher::FTaskProcessCommand>::CreateTask().ConstructAndDispatchWhenReady(this, Command);
-						}
+							// consume task
+							if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(Config::IdleLoopDelay))
+							{
+								//Make the processing asynchronous
+								TGraphTask<UE::Interchange::Dispatcher::FTaskProcessCommand>::CreateTask().ConstructAndDispatchWhenReady(this, Command);
+							}
 
-						//Need to terminate?
-						if (bShouldTerminate)
-						{
-							UE_LOG(LogInterchangeDispatcher, Verbose, TEXT("Exit loop gracefully"));
-							WorkerState = EWorkerState::Closing;
+							//Need to terminate?
+							if (bShouldTerminate)
+							{
+								UE_LOG(LogInterchangeDispatcher, Verbose, TEXT("Exit loop gracefully"));
+								WorkerState = EWorkerState::Closing;
+							}
 						}
 						break;
 					}
@@ -313,6 +365,9 @@ namespace UE
 							ProcessCommand(*Command);
 						}
 
+						//Make sure all running task are completed with error
+						KillAllCurrentTasks();
+
 						WorkerState = EWorkerState::Terminated;
 						break;
 					}
@@ -323,6 +378,8 @@ namespace UE
 					}
 				}
 			}
+			//Notify the dispatcher the worker handler is done so it can terminate queue tasks
+			OnWorkerHandlerExitLoop.Broadcast();
 		}
 
 		void FInterchangeWorkerHandler::Stop()
@@ -356,6 +413,10 @@ namespace UE
 					ProcessCommand(StaticCast<FCompletedTaskCommand&>(Command));
 					break;
 
+				case ECommandId::CompletedQueryTaskProgress:
+					ProcessCommand(StaticCast<FCompletedQueryTaskProgressCommand&>(Command));
+					break;
+
 				default:
 					break;
 			}
@@ -369,9 +430,32 @@ namespace UE
 
 		void FInterchangeWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTaskCommand)
 		{
-
+			{
+				FScopeLock Lock(&CurrentTasksLock);
+				CurrentTasks.Remove(CompletedTaskCommand.TaskIndex);
+			}
 			Dispatcher.SetTaskState(CompletedTaskCommand.TaskIndex, CompletedTaskCommand.ProcessResult, CompletedTaskCommand.JSonResult, CompletedTaskCommand.JSonMessages);
-			CurrentTasks.Remove(CompletedTaskCommand.TaskIndex);
+		}
+
+		void FInterchangeWorkerHandler::ProcessCommand(FCompletedQueryTaskProgressCommand& CompletedQueryTaskProgressCommand)
+		{
+			for (const FCompletedQueryTaskProgressCommand::FTaskProgressData& TaskData : CompletedQueryTaskProgressCommand.TaskStates)
+			{
+				if (TaskData.TaskState != ETaskState::Running)
+				{
+					ETaskState CurrentTaskState;
+					double TaskRunningStateStartTime;
+					Dispatcher.GetTaskState(TaskData.TaskIndex, CurrentTaskState, TaskRunningStateStartTime);
+					if (CurrentTaskState == ETaskState::Running)
+					{
+						//This is a stale task, we must complete it failed. This can happen if a completed task message is skip (lost, not process, etc...)
+						//We must ensure we complete the task with a failed so if someone wait for it it will be release.
+						FString EmptyGarbage1;
+						TArray<FString> EmptyGarbage2;
+						Dispatcher.SetTaskState(TaskData.TaskIndex, ETaskState::ProcessFailed, EmptyGarbage1, EmptyGarbage2);
+					}
+				}
+			}
 		}
 
 		const TCHAR* FInterchangeWorkerHandler::EWorkerErrorStateAsString(EWorkerErrorState Error)

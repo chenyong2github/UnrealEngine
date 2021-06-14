@@ -66,6 +66,8 @@ namespace UE
 			BackPing,
 			RunTask,
 			NotifyEndTask,
+			QueryTaskProgress,
+			CompletedQueryTaskProgress,
 			Terminate,
 			Last
 		};
@@ -147,5 +149,39 @@ namespace UE
 			int32 TaskIndex = INDEX_NONE;
 		};
 
+		class INTERCHANGEDISPATCHER_API FQueryTaskProgressCommand : public ICommand
+		{
+		public:
+			FQueryTaskProgressCommand() = default;
+			FQueryTaskProgressCommand(const TArray<int32>& Tasks);
+			virtual ECommandId GetType() const override { return ECommandId::QueryTaskProgress; }
+
+		protected:
+			virtual void SerializeImpl(FArchive&) override;
+
+		public:
+			TArray<int32> TaskIndexes;
+		};
+
+		class INTERCHANGEDISPATCHER_API FCompletedQueryTaskProgressCommand : public ICommand
+		{
+		public:
+			FCompletedQueryTaskProgressCommand() = default;
+			virtual ECommandId GetType() const override { return ECommandId::CompletedQueryTaskProgress; }
+
+		protected:
+			virtual void SerializeImpl(FArchive&) override;
+
+		public:
+			struct FTaskProgressData
+			{
+				int32 TaskIndex;
+				ETaskState TaskState;
+				float TaskProgress;
+
+				friend FArchive& operator<<(FArchive& Ar, FTaskProgressData& A);
+			};
+			TArray<FTaskProgressData> TaskStates;
+		};
 	} //ns Interchange
 }//ns UE
