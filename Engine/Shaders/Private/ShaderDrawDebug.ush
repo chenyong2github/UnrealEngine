@@ -172,18 +172,14 @@ void AddCross(float3 Pos, float Size, float4 Color)
 	AddLine(Pos - float3(0,0,Size), Pos + float3(0,0,Size), Color, Color);
 }
 
-void AddReferential(float3 Pos, float3 T, float3 B, float3 N)
+void AddReferential(float3 Pos, float3 T, float3 B, float3 N, float Scale=1)
 {
-	const float4 Red = float4(1, 0, 0, 1);
-	const float4 Green = float4(0, 1, 0, 1);
-	const float4 Blue = float4(0, 0, 1, 1);
-
-	AddLine(Pos, Pos + T, Red, Red);
-	AddLine(Pos, Pos + B, Green, Green);
-	AddLine(Pos, Pos + N, Blue, Blue);
+	AddLine(Pos, Pos + T*Scale, ColorRed);
+	AddLine(Pos, Pos + B*Scale, ColorGreen);
+	AddLine(Pos, Pos + N*Scale, ColorBlue);
 }
 
-void AddReferential(float3 Pos, float3 TangentZ)
+void AddReferential(float3 Pos, float3 TangentZ, float Scale=1)
 {
 	const float Sign = TangentZ.z >= 0 ? 1 : -1;
 	const float a = -rcp(Sign + TangentZ.z);
@@ -192,7 +188,12 @@ void AddReferential(float3 Pos, float3 TangentZ)
 	const float3 TangentX = { 1 + Sign * a * Pow2(TangentZ.x), Sign * b, -Sign * TangentZ.x };
 	const float3 TangentY = { b,  Sign + a * Pow2(TangentZ.y), -TangentZ.y };
 
-	AddReferential(Pos, TangentX, TangentY, TangentZ);
+	AddReferential(Pos, TangentX, TangentY, TangentZ, Scale);
+}
+
+void AddReferential(float4x4 InM, float Scale = 1)
+{
+	AddReferential(InM[3].xyz, InM[0].xyz, InM[1].xyz, InM[2].xyz, Scale);
 }
 
 void AddLineTriangle(float3 P0, float3 P1, float3 P2, float4 Color)
