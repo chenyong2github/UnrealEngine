@@ -2087,6 +2087,14 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 			{
 				const bool bUseDeltaSerialization = ReinstancingJob.Reinstancer.IsValid() ? ReinstancingJob.Reinstancer->bUseDeltaSerializationToCopyProperties : false;
 				UObject* NewCDO = ReinstancingJob.OldToNew.Value->GetDefaultObject(true);
+
+				UBlueprint* CompiledBlueprint = UBlueprint::GetBlueprintFromClass(ReinstancingJob.OldToNew.Key);
+				if (CompiledBlueprint && CompiledBlueprint->bIsRegeneratingOnLoad)
+				{
+					// This is a catch-all for any deferred dependencies that didn't get resolved during loading/linking (that system is not bulletproof for complex circular dependencies)
+					FBlueprintSupport::RepairDeferredDependenciesInObject(OldCDO);
+				}
+
 				FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(OldCDO, NewCDO, true, bUseDeltaSerialization);
 
 				if (ReinstancingJob.Compiler.IsValid())
