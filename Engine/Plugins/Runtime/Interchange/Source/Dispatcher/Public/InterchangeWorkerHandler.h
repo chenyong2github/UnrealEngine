@@ -3,13 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/Thread.h"
 #include "InterchangeCommands.h"
 #include "InterchangeDispatcherNetworking.h"
 #include "InterchangeDispatcherTask.h"
-
-#include "HAL/PlatformProcess.h"
-#include "HAL/Thread.h"
 
 namespace UE
 {
@@ -53,6 +52,7 @@ namespace UE
 			void Stop();
 			void StopBlocking();
 
+			FSimpleMulticastDelegate OnWorkerHandlerExitLoop;
 		protected:
 			void ProcessCommand(ICommand& Command);
 		private:
@@ -62,7 +62,10 @@ namespace UE
 
 			void ProcessCommand(FPingCommand& PingCommand);
 			void ProcessCommand(FCompletedTaskCommand& RunTaskCommand);
+			void ProcessCommand(FCompletedQueryTaskProgressCommand& CompletedQueryTaskProgressCommand);
 			const TCHAR* EWorkerErrorStateAsString(EWorkerErrorState e);
+
+			void KillAllCurrentTasks();
 
 		private:
 			FInterchangeDispatcher& Dispatcher;
@@ -80,8 +83,10 @@ namespace UE
 
 			// self
 			FString ResultFolder;
+			FCriticalSection CurrentTasksLock;
 			TArray<int32> CurrentTasks;
 			bool bShouldTerminate;
+			double LastProgressMessageTime;
 
 			friend Dispatcher::FTaskProcessCommand;
 		};

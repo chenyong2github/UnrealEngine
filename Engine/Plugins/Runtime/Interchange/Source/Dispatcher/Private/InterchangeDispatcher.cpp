@@ -4,6 +4,7 @@
 
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTime.h"
 #include "InterchangeDispatcherConfig.h"
 #include "InterchangeDispatcherLog.h"
 #include "InterchangeDispatcherTask.h"
@@ -24,6 +25,10 @@ namespace UE
 
 		int32 FInterchangeDispatcher::AddTask(const FString& JsonDescription)
 		{
+			if (!WorkerHandler->IsAlive())
+			{
+				return INDEX_NONE;
+			}
 			FScopeLock Lock(&TaskPoolCriticalSection);
 			int32 TaskIndex = TaskPool.Emplace(JsonDescription);
 			TaskPool[TaskIndex].Index = TaskIndex;
@@ -32,7 +37,10 @@ namespace UE
 		int32 FInterchangeDispatcher::AddTask(const FString& JsonDescription, FInterchangeDispatcherTaskCompleted TaskCompledDelegate)
 		{
 			int32 TaskIndex = AddTask(JsonDescription);
-			TaskPool[TaskIndex].OnTaskCompleted = TaskCompledDelegate;
+			if (TaskIndex != INDEX_NONE)
+			{
+				TaskPool[TaskIndex].OnTaskCompleted = TaskCompledDelegate;
+			}
 			return TaskIndex;
 		}
 
@@ -51,6 +59,7 @@ namespace UE
 			}
 
 			TaskPool[NextTaskIndex].State = ETaskState::Running;
+			TaskPool[NextTaskIndex].RunningStateStartTime = FPlatformTime::Seconds();
 			return TaskPool[NextTaskIndex++];
 		}
 
@@ -66,6 +75,11 @@ namespace UE
 				}
 
 				FTask& Task = TaskPool[TaskIndex];
+				if (Task.State == ETaskState::ProcessOk || Task.State == ETaskState::ProcessFailed)
+				{
+					//Task was already processed, we cannot set its state after it was process
+					return;
+				}
 				Task.State = TaskState;
 				Task.JsonResult = JsonResult;
 				Task.JsonMessages = JSonMessages;
@@ -88,6 +102,20 @@ namespace UE
 			UE_CLOG(TaskState == ETaskState::ProcessOk, LogInterchangeDispatcher, Verbose, TEXT("Json processed: %s"), *JsonDescription);
 			UE_CLOG(TaskState == ETaskState::UnTreated, LogInterchangeDispatcher, Warning, TEXT("Json resubmitted: %s"), *JsonDescription);
 			UE_CLOG(TaskState == ETaskState::ProcessFailed, LogInterchangeDispatcher, Error, TEXT("Json processing failure: %s"), *JsonDescription);
+		}
+
+		void FInterchangeDispatcher::GetTaskState(int32 TaskIndex, ETaskState& TaskState, double& TaskRunningStateStartTime)
+		{
+			FScopeLock Lock(&TaskPoolCriticalSection);
+
+			if (!ensure(TaskPool.IsValidIndex(TaskIndex)))
+			{
+				return;
+			}
+
+			FTask& Task = TaskPool[TaskIndex];
+			TaskState = Task.State;
+			TaskRunningStateStartTime = Task.RunningStateStartTime;
 		}
 
 		void FInterchangeDispatcher::GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, TArray<FString>& JSonMessages)
@@ -124,6 +152,7 @@ namespace UE
 					WorkerHandler->Stop();
 				}
 			}
+			EmptyQueueTasks();
 		}
 
 		void FInterchangeDispatcher::TerminateProcess()
@@ -181,6 +210,10 @@ namespace UE
 		void FInterchangeDispatcher::SpawnHandler()
 		{
 			WorkerHandler = MakeUnique<FInterchangeWorkerHandler>(*this, ResultFolder);
+			WorkerHandler->OnWorkerHandlerExitLoop.AddLambda([this]()
+			{
+				EmptyQueueTasks();
+			});
 		}
 
 		bool FInterchangeDispatcher::IsHandlerAlive()
@@ -192,6 +225,19 @@ namespace UE
 		{
 			StopProcess(false);
 			WorkerHandler.Reset();
+		}
+
+		void FInterchangeDispatcher::EmptyQueueTasks()
+		{
+			//Make sure all queue tasks are completed to process fail,
+			//This ensure any wait on completed delegate like promise of a future is unblock.
+			TOptional<FTask> NextTask = GetNextTask();
+			while (NextTask.IsSet())
+			{
+				TArray<FString> GarbageMessages;
+				SetTaskState(NextTask->Index, ETaskState::ProcessFailed, FString(), GarbageMessages);
+				NextTask = GetNextTask();
+			}
 		}
 
 	} //ns Interchange

@@ -162,8 +162,8 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeFbx
 	}
 
 	//Create a json command to read the fbx file
-	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-	int32 TaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
+	const FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
+	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
 	{
 		UE::Interchange::ETaskState TaskState;
 		FString JsonResult;
@@ -216,6 +216,12 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeFbx
 		Promise->SetValue(MoveTemp(SkeletalMeshLodPayload));
 	}));
 
+	//The task was not added to the dispatcher
+	if (CreatedTaskIndex == INDEX_NONE)
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>{});
+	}
+
 	return Promise->GetFuture();
 }
 
@@ -229,8 +235,7 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> UInterch
 	}
 
 	//Create a json command to read the fbx file
-	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-
+	const FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
 	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
 	{
 		UE::Interchange::ETaskState TaskState;
@@ -274,6 +279,12 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> UInterch
 		SkeletalMeshBlendShapePayload.LodMeshDescription.Serialize(Ar);
 		Promise->SetValue(MoveTemp(SkeletalMeshBlendShapePayload));
 	}));
+
+	//The task was not added to the dispatcher
+	if (CreatedTaskIndex == INDEX_NONE)
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>{});
+	}
 
 	return Promise->GetFuture();
 }
