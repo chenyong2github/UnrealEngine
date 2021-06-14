@@ -820,10 +820,17 @@ public:
 	{
 		if (Object)
 		{
+			bool bStarted = false;
 			TStatId ObjectStatId = Object->GetStatID();
 			if (FThreadStats::IsCollectingData(ObjectStatId))
 			{
 				Start(ObjectStatId);
+				bStarted = true;
+			}
+
+			if (!bStarted && UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+			{
+				StartTrace(Object->GetFName());
 			}
 		}
 
@@ -839,12 +846,22 @@ public:
 	 */
 	FORCEINLINE_STATS FScopeCycleCounterUObject(const UObjectBaseUtility *Object, TStatId OtherStat)
 	{
-		if (FThreadStats::IsCollectingData(OtherStat) && Object)
+		if (Object)
 		{
-			TStatId ObjectStatId = Object->GetStatID();
-			if (!ObjectStatId.IsNone())
+			bool bStarted = false;
+			if (FThreadStats::IsCollectingData(OtherStat))
 			{
-				Start(ObjectStatId);
+				TStatId ObjectStatId = Object->GetStatID();
+				if (!ObjectStatId.IsNone())
+				{
+					Start(ObjectStatId);
+					bStarted = true;
+				}
+			}
+
+			if (!bStarted && UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+			{
+				StartTrace(Object->GetFName());
 			}
 		}
 

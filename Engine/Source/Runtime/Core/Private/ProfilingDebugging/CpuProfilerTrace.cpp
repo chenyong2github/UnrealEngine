@@ -80,6 +80,7 @@ struct FCpuProfilerTraceInternal
 		FMemStackBase DynamicScopeNamesMemory;
 		TMap<const ANSICHAR*, uint32, FDefaultSetAllocator, FDynamicScopeNameMapKeyFuncs<ANSICHAR>> DynamicAnsiScopeNamesMap;
 		TMap<const TCHAR*, uint32, FDefaultSetAllocator, FDynamicScopeNameMapKeyFuncs<TCHAR>> DynamicTCharScopeNamesMap;
+		TMap<FNameEntryId, uint32> DynamicFNameScopeNamesMap;
 	};
 
 	uint32 static GetNextSpecId();
@@ -170,6 +171,30 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name)
 		FMemory::Memmove(NameCopy, Name, NameSize);
 		SpecId = OutputEventType(NameCopy);
 		ThreadBuffer->DynamicTCharScopeNamesMap.Add(NameCopy, SpecId);
+	}
+	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
+}
+
+void FCpuProfilerTrace::OutputBeginDynamicEvent(const FName Name)
+{
+	CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE();
+	uint32 SpecId = ThreadBuffer->DynamicFNameScopeNamesMap.FindRef(Name.GetComparisonIndex());
+	if (!SpecId)
+	{
+		const FNameEntry* NameEntry = Name.GetDisplayNameEntry();
+		if (NameEntry->IsWide())
+		{
+			static WIDECHAR WideName[NAME_SIZE];
+			NameEntry->GetWideName(WideName);
+			SpecId = OutputEventType(WideName);
+		}
+		else
+		{
+			static ANSICHAR AnsiName[NAME_SIZE];
+			NameEntry->GetAnsiName(AnsiName);
+			SpecId = OutputEventType(AnsiName);
+		}
+		ThreadBuffer->DynamicFNameScopeNamesMap.Add(Name.GetComparisonIndex(), SpecId);
 	}
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
 }
