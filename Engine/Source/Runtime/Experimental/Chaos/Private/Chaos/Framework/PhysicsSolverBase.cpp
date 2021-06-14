@@ -238,15 +238,6 @@ namespace Chaos
 		SpatialData.SpatialIdx = Particle->SpatialIdx();
 		SpatialData.AccelerationHandle = AccelerationHandle;
 		SpatialData.SyncTimestamp = MarshallingManager.GetExternalTimestamp_External();
-		SpatialData.bInterpolatedMovement = false;
-
-		if (bDelete == false)
-		{
-			if (FKinematicGeometryParticle* Kinematic = Particle->CastToKinematicParticle())
-			{
-				SpatialData.bInterpolatedMovement = Kinematic->IsKinematicTargetDirty();
-			}
-		}
 	}
 
 	void FPhysicsSolverBase::EnqueueSimcallbackRewindRegisteration(ISimCallbackObject* Callback)

@@ -318,7 +318,7 @@ namespace Chaos
 				// Editor will tick with 0 DT, this will guarantee acceleration structure is still processing even if we don't advance evolution.
 				if (MDeltaTime < MinDeltaTime)
 				{
-					MSolver->GetEvolution()->ComputeIntermediateSpatialAcceleration(MSubStepInfo.Step == MSubStepInfo.NumSteps - 1, /*bBlock=*/false);
+					MSolver->GetEvolution()->ComputeIntermediateSpatialAcceleration();
 				}
 
 

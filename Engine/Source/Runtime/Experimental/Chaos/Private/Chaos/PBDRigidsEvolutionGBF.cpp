@@ -206,8 +206,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt,const FSubSte
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ComputeIntermediateSpatialAcceleration);
-		const bool bOnLastSubstep = SubStepInfo.Step == SubStepInfo.NumSteps - 1;
-		Base::ComputeIntermediateSpatialAcceleration(bOnLastSubstep, /*bBlock=*/false);
+		Base::ComputeIntermediateSpatialAcceleration();
 	}
 
 	{

@@ -546,7 +546,8 @@ namespace ChaosTest {
 		}
 	}
 	
-	GTEST_TEST(EngineInterface, KinematicTargetsPassingGTWrongAccelBoundsBeforeHittingTarget)
+	// Disabled until we move fix with kineamtic bounds update on PushToPhysicsState into this branch. Might also need to remove bounds computation in ApplyKinematicTarget.
+	GTEST_TEST(EngineInterface, DISABLED_KinematicTargetsPassingGTWrongAccelBoundsBeforeHittingTarget)
 	{
 		// This test is designed to catch an edge case with kinematic targets (or other things interpolated over multiple physics steps), and acceleration structure bounds.
 		// Timestep is setup such that 1 GT frame = 10 physics steps, we have to make sure that if a non-final step gives an acceleration structure to game thread, in which
