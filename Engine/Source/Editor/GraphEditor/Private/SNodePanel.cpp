@@ -204,6 +204,30 @@ namespace NodePanelDefs
 	static const float MouseZoomScaling = 0.04f;
 };
 
+
+void SNodePanel::SNode::FNodeSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+{
+	TSlotBase<FNodeSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+	TAlignmentWidgetSlotMixin<FNodeSlot>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
+
+	if (InArgs._Padding.IsSet())
+	{
+		SlotPadding = MoveTemp(InArgs._Padding);
+	}
+	if (InArgs._SlotOffset.IsSet())
+	{
+		Offset = MoveTemp(InArgs._SlotOffset);
+	}
+	if (InArgs._SlotSize.IsSet())
+	{
+		Size = MoveTemp(InArgs._SlotSize);
+	}
+	if (InArgs._AllowScaling.IsSet())
+	{
+		AllowScale = MoveTemp(InArgs._AllowScaling);
+	}
+}
+
 SNodePanel::SNodePanel()
 	: Children(this)
 	, VisibleChildren(this)
