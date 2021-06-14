@@ -207,6 +207,64 @@ void FBlueprintSupport::RegisterDeferredDependenciesInStruct(const UStruct* Stru
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 }
 
+void FBlueprintSupport::RepairDeferredDependenciesInObject(UObject* Object)
+{
+	// Go through each property's value on the object and check for placeholders. 
+	//   Try to replace them with the real imported object, if it exists.
+	// This function was created to catch any cases where a deferred dependency fails to resolve during load
+
+	for (TPropertyValueIterator<const FObjectProperty> It(Object->GetClass(), Object); It; ++It)
+	{
+		const FObjectProperty* Property = It.Key();
+		void* PropertyValue = (void*)It.Value();
+		UObject* PropertyValueAsObj = *((UObject**)PropertyValue);
+
+		FLinkerPlaceholderBase* Placeholder = nullptr;
+
+		if (ULinkerPlaceholderExportObject* ValueAsPlaceholderObj = Cast<ULinkerPlaceholderExportObject>(PropertyValueAsObj))
+		{
+			Placeholder = (FLinkerPlaceholderBase*)ValueAsPlaceholderObj;
+		}
+		else if (ULinkerPlaceholderClass* ValueAsPlaceholderClass = Cast<ULinkerPlaceholderClass>(PropertyValueAsObj))
+		{
+			Placeholder = (FLinkerPlaceholderBase*)ValueAsPlaceholderClass;
+		}
+
+		if (Placeholder)
+		{
+			UE_LOG(LogBlueprintSupport, Warning, TEXT("Object %s still has a %s '%s' in property %s. This indicates a failure to resolve every deferred/circular dependency in blueprints."), *Object->GetName(), *PropertyValueAsObj->GetClass()->GetName(), *PropertyValueAsObj->GetName(), *Property->GetName());
+
+			bool bDidRepairStalePlaceholder = false;
+
+			if (!Placeholder->PackageIndex.IsNull())
+			{
+				if (const UPackage* PlaceholderPackage = PropertyValueAsObj->GetPackage())
+				{
+					if (FLinkerLoad* PlaceholderLinker = PlaceholderPackage->LinkerLoad)
+					{
+						int32 const ImportIndex = Placeholder->PackageIndex.ToImport();
+						FObjectImport& Import = PlaceholderLinker->ImportMap[ImportIndex];
+						if ((Import.XObject != nullptr) && (Import.XObject != PropertyValueAsObj))
+						{
+							Property->SetObjectPropertyValue(PropertyValue, Import.XObject);
+							bDidRepairStalePlaceholder = true;
+
+							UE_LOG(LogBlueprintSupport, Display, TEXT("Repaired deferred dependency on object %s: replaced '%s' with '%s'"), *Object->GetName(), *PropertyValueAsObj->GetName(), *Import.XObject->GetName());
+						}
+					}
+				}
+			}
+
+			if (!bDidRepairStalePlaceholder)
+			{
+				UE_LOG(LogBlueprintSupport, Error, TEXT("Failed to repair deferred dependency on object %s (%s). This may lead to blueprint execution problems."), *Object->GetName(), *PropertyValueAsObj->GetName());
+			}
+		}
+	}
+
+}
+
+
 bool FBlueprintSupport::IsInBlueprintPackage(UObject* LoadedObj)
 {
 	UPackage* Pkg = LoadedObj->GetOutermost();

@@ -100,6 +100,9 @@ struct FBlueprintSupport
 	/** Registers any object properties in this struct with the deferred dependency system */
 	COREUOBJECT_API static void RegisterDeferredDependenciesInStruct(const UStruct* Struct, void* StructData);
 
+	/** Repair function to scan for any deferred dependency placeholders and attempt to resolve them in-place with real assets */
+	COREUOBJECT_API static void RepairDeferredDependenciesInObject(UObject* Object);
+
 	/** Not a particularly fast function. Mostly intended for validation in debug builds. */
 	static bool IsInBlueprintPackage(UObject* LoadedObj);
 
