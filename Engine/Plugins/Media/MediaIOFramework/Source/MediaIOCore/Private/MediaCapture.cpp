@@ -1011,7 +1011,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 			uint32 GPUMaskNative = GPUMask.GetNative();
 
 			// If GPUMask is not set to a specific GPU we and since we are reading back the texture, it shouldn't matter which GPU we do this on.
-			if (!FMath::IsPowerOfTwo(GPUMaskNative))
+			if (!GPUMask.HasSingleIndex())
 			{
 				GPUMask = FRHIGPUMask::FromIndex(GPUMask.GetFirstIndex());
 			}
