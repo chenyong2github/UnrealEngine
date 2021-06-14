@@ -328,22 +328,52 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 	}
 }
 
-void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Scene, int32 LODIndex)
+void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Scene)
 {
 #if RHI_RAYTRACING
-	SceneLODIndex = LODIndex;
+	RayTracingGeometryInstancesPerLOD.AddDefaulted(MAX_STATIC_MESH_LODS);
+	VisibleRayTracingMeshCommandsPerLOD.AddDefaulted(MAX_STATIC_MESH_LODS);
 
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
+	for (int32 LODIndex = 0; LODIndex < MAX_STATIC_MESH_LODS; LODIndex++)
 	{
-		RayTracingGeometryInstances.Reserve(Scene.StaticMeshInstanceRenderStates.Elements.Num());
-		StaticMeshInstanceIndices.AddZeroed(Scene.StaticMeshInstanceRenderStates.Elements.Num());
+		bool bShouldIncludeThisLODLevel = false;
+
+		for (int32 StaticMeshIndex = 0; StaticMeshIndex < Scene.StaticMeshInstanceRenderStates.Elements.Num(); StaticMeshIndex++)
+		{
+			FStaticMeshInstanceRenderState& Instance = Scene.StaticMeshInstanceRenderStates.Elements[StaticMeshIndex];
+			int32 LODIndexToUse = FMath::Clamp(LODIndex, Instance.ClampedMinLOD, Instance.RenderData->LODResources.Num() - 1);
+			if (LODIndexToUse == LODIndex)
+			{
+				bShouldIncludeThisLODLevel = true;
+				break;
+			}
+		}
+
+		for (int32 InstanceGroupIndex = 0; InstanceGroupIndex < Scene.InstanceGroupRenderStates.Elements.Num(); InstanceGroupIndex++)
+		{
+			FInstanceGroupRenderState& InstanceGroup = Scene.InstanceGroupRenderStates.Elements[InstanceGroupIndex];
+			int32 LODIndexToUse = FMath::Clamp(LODIndex, 0, InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources.Num() - 1);
+			if (LODIndexToUse == LODIndex)
+			{
+				bShouldIncludeThisLODLevel = true;
+				break;
+			}
+		}
+
+		if (!bShouldIncludeThisLODLevel)
+		{
+			continue;
+		}
+
+		RayTracingGeometryInstancesPerLOD[LODIndex].Reserve(Scene.StaticMeshInstanceRenderStates.Elements.Num());
 
 		for (int32 StaticMeshIndex = 0; StaticMeshIndex < Scene.StaticMeshInstanceRenderStates.Elements.Num();  StaticMeshIndex++)
 		{
 			FStaticMeshInstanceRenderState& Instance = Scene.StaticMeshInstanceRenderStates.Elements[StaticMeshIndex];
 
-			int32 LODIndexToUse = FMath::Clamp(SceneLODIndex, Instance.ClampedMinLOD, Instance.RenderData->LODResources.Num() - 1);
+			int32 LODIndexToUse = FMath::Clamp(LODIndex, Instance.ClampedMinLOD, Instance.RenderData->LODResources.Num() - 1);
 
 			TArray<FMeshBatch> MeshBatches = Instance.GetMeshBatchesForGBufferRendering(LODIndexToUse);
 
@@ -367,9 +397,8 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 			if (!bAllSegmentsUnlit)
 			{
-				int32 InstanceIndex = RayTracingGeometryInstances.AddDefaulted(1);
-				StaticMeshInstanceIndices[StaticMeshIndex] = InstanceIndex;
-				FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
+				int32 InstanceIndex = RayTracingGeometryInstancesPerLOD[LODIndex].AddDefaulted(1);
+				FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstancesPerLOD[LODIndex][InstanceIndex];
 				RayTracingInstance.GeometryRHI = Instance.RenderData->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
 				RayTracingInstance.Transforms.Add(Instance.LocalToWorld);
 				RayTracingInstance.NumTransforms = 1;
@@ -379,55 +408,48 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 				for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 				{
-					FFullyCachedRayTracingMeshCommandContext CommandContext(MeshCommandStorage, VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
+					FFullyCachedRayTracingMeshCommandContext CommandContext(MeshCommandStorage, VisibleRayTracingMeshCommandsPerLOD[LODIndex], SegmentIndex, InstanceIndex);
 					FMeshPassProcessorRenderState PassDrawRenderState(CachedViewUniformBuffer, CachedViewUniformBuffer);
 					FLightmapRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, PassDrawRenderState);
 
 					RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
 				}
 			}
-			else
-			{
-				StaticMeshInstanceIndices[StaticMeshIndex] = INDEX_NONE;
-			}
 		}
 
-		RayTracingGeometryInstances.Reserve(Scene.InstanceGroupRenderStates.Elements.Num());
-		InstanceGroupInstanceIndices.AddZeroed(Scene.InstanceGroupRenderStates.Elements.Num());
+		RayTracingGeometryInstancesPerLOD[LODIndex].Reserve(Scene.InstanceGroupRenderStates.Elements.Num());
 
+		for (int32 InstanceGroupIndex = 0; InstanceGroupIndex < Scene.InstanceGroupRenderStates.Elements.Num(); InstanceGroupIndex++)
 		{
-			for (int32 InstanceGroupIndex = 0; InstanceGroupIndex < Scene.InstanceGroupRenderStates.Elements.Num(); InstanceGroupIndex++)
+			FInstanceGroupRenderState& InstanceGroup = Scene.InstanceGroupRenderStates.Elements[InstanceGroupIndex];
+
+			int32 LODIndexToUse = FMath::Clamp(LODIndex, 0, InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources.Num() - 1);
+
+			TArray<FMeshBatch> MeshBatches = InstanceGroup.GetMeshBatchesForGBufferRendering(LODIndexToUse, FTileVirtualCoordinates{});
+
+			bool bAllSegmentsUnlit = true;
+			bool bAllSegmentsOpaque = true;
+			bool bAnySegmentsCastShadow = false;
+			uint8 InstanceMask = 0;
+
+			for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 			{
-				FInstanceGroupRenderState& InstanceGroup = Scene.InstanceGroupRenderStates.Elements[InstanceGroupIndex];
+				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
+				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(GMaxRHIFeatureLevel, FallbackMaterialRenderProxyPtr);
 
-				int32 LODIndexToUse = FMath::Clamp(SceneLODIndex, 0, InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources.Num() - 1);
+				bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
+				bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
+				bAnySegmentsCastShadow |= MeshBatches[SegmentIndex].CastRayTracedShadow && Material.CastsRayTracedShadows();
+				InstanceMask |= ComputeBlendModeMask(Material.GetBlendMode());
+			}
 
-				TArray<FMeshBatch> MeshBatches = InstanceGroup.GetMeshBatchesForGBufferRendering(LODIndexToUse, FTileVirtualCoordinates{});
+			InstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
 
-				bool bAllSegmentsUnlit = true;
-				bool bAllSegmentsOpaque = true;
-				bool bAnySegmentsCastShadow = false;
-				uint8 InstanceMask = 0;
-
-				for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
-				{
-					const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-					const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(GMaxRHIFeatureLevel, FallbackMaterialRenderProxyPtr);
-
-					bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
-					bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
-					bAnySegmentsCastShadow |= MeshBatches[SegmentIndex].CastRayTracedShadow && Material.CastsRayTracedShadows();
-					InstanceMask |= ComputeBlendModeMask(Material.GetBlendMode());
-				}
-
-				InstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
-
-				if (!bAllSegmentsUnlit)
-				{
-					int32 InstanceIndex = RayTracingGeometryInstances.AddDefaulted(1);
-					InstanceGroupInstanceIndices[InstanceGroupIndex] = InstanceIndex;
-					FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
-					RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
+			if (!bAllSegmentsUnlit)
+			{
+				int32 InstanceIndex = RayTracingGeometryInstancesPerLOD[LODIndex].AddDefaulted(1);
+				FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstancesPerLOD[LODIndex][InstanceIndex];
+				RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
 
 					RayTracingInstance.Transforms.AddZeroed(InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances());
 
@@ -447,18 +469,13 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 					RayTracingInstance.Mask = InstanceMask;
 					RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
 
-					for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
-					{
-						FFullyCachedRayTracingMeshCommandContext CommandContext(MeshCommandStorage, VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
-						FMeshPassProcessorRenderState PassDrawRenderState(CachedViewUniformBuffer, CachedViewUniformBuffer);
-						FLightmapRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, PassDrawRenderState);
-
-						RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
-					}
-				}
-				else
+				for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 				{
-					InstanceGroupInstanceIndices[InstanceGroupIndex] = INDEX_NONE;
+					FFullyCachedRayTracingMeshCommandContext CommandContext(MeshCommandStorage, VisibleRayTracingMeshCommandsPerLOD[LODIndex], SegmentIndex, InstanceIndex);
+					FMeshPassProcessorRenderState PassDrawRenderState(CachedViewUniformBuffer, CachedViewUniformBuffer);
+					FLightmapRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, PassDrawRenderState);
+
+					RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
 				}
 			}
 		}
@@ -466,37 +483,6 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 #else // RHI_RAYTRACING
 	checkNoEntry();
 #endif // RHI_RAYTRACING
-}
-
-void FCachedRayTracingSceneData::UpdateLODRayTracingGeometry(FSceneRenderState& Scene, int32 LODIndex)
-{
-	SceneLODIndex = LODIndex;
-
-	for (int32 StaticMeshIndex = 0; StaticMeshIndex < Scene.StaticMeshInstanceRenderStates.Elements.Num(); StaticMeshIndex++)
-	{
-		FStaticMeshInstanceRenderState& Instance = Scene.StaticMeshInstanceRenderStates.Elements[StaticMeshIndex];
-
-		int32 LODIndexToUse = FMath::Clamp(SceneLODIndex, Instance.ClampedMinLOD, Instance.RenderData->LODResources.Num() - 1);
-
-		if (StaticMeshInstanceIndices[StaticMeshIndex] != INDEX_NONE)
-		{
-			FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[StaticMeshInstanceIndices[StaticMeshIndex]];
-			RayTracingInstance.GeometryRHI = Instance.RenderData->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
-		}
-	}
-
-	for (int32 InstanceGroupIndex = 0; InstanceGroupIndex < Scene.InstanceGroupRenderStates.Elements.Num(); InstanceGroupIndex++)
-	{
-		FInstanceGroupRenderState& InstanceGroup = Scene.InstanceGroupRenderStates.Elements[InstanceGroupIndex];
-
-		int32 LODIndexToUse = FMath::Clamp(SceneLODIndex, 0, InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources.Num() - 1);
-
-		if (InstanceGroupInstanceIndices[InstanceGroupIndex] != INDEX_NONE)
-		{
-			FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceGroupInstanceIndices[InstanceGroupIndex]];
-			RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
-		}
-	}
 }
 
 void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
@@ -515,13 +501,9 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 	{
 		CachedRayTracingScene = MakeUnique<FCachedRayTracingSceneData>();
 		CachedRayTracingScene->SetupViewUniformBufferFromSceneRenderState(*this);
-		CachedRayTracingScene->SetupFromSceneRenderState(*this, LODIndex);
+		CachedRayTracingScene->SetupFromSceneRenderState(*this);
 		
 		CalculateDistributionPrefixSumForAllLightmaps();
-	}
-	else if (CachedRayTracingScene->SceneLODIndex != LODIndex)
-	{
-		CachedRayTracingScene->UpdateLODRayTracingGeometry(*this, LODIndex);
 	}
 
 #if 0 // Debug: verify cached ray tracing scene has up-to-date shader bindings
@@ -609,7 +591,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		SCOPED_DRAW_EVENTF(RHICmdList, GPULightmassUpdateRayTracingScene, TEXT("GPULightmass UpdateRayTracingScene %d Instances"), StaticMeshInstanceRenderStates.Elements.Num());
 
 		TArray<FRayTracingGeometryInstance> RayTracingGeometryInstances;
-		RayTracingGeometryInstances.Append(CachedRayTracingScene->RayTracingGeometryInstances);
+		RayTracingGeometryInstances.Append(CachedRayTracingScene->RayTracingGeometryInstancesPerLOD[LODIndex]);
 
 		int32 LandscapeStartOffset = RayTracingGeometryInstances.Num();
 		for (FLandscapeRenderState& Landscape : LandscapeRenderStates.Elements)
@@ -746,7 +728,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SetRayTracingShaderBindings);
 
-				for (const FVisibleRayTracingMeshCommand VisibleMeshCommand : CachedRayTracingScene->VisibleRayTracingMeshCommands)
+				for (const FVisibleRayTracingMeshCommand VisibleMeshCommand : CachedRayTracingScene->VisibleRayTracingMeshCommandsPerLOD[LODIndex])
 				{
 					const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
 

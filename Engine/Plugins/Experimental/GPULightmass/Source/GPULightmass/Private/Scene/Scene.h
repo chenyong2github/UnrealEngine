@@ -57,9 +57,7 @@ private:
 
 struct FCachedRayTracingSceneData
 {
-	int32 SceneLODIndex = 0;
-
-	TArray<FVisibleRayTracingMeshCommand> VisibleRayTracingMeshCommands;
+	TArray<TArray<FVisibleRayTracingMeshCommand>> VisibleRayTracingMeshCommandsPerLOD;
 	TChunkedArray<FRayTracingMeshCommand> MeshCommandStorage;
 
 	FStructuredBufferRHIRef PrimitiveSceneDataBufferRHI;
@@ -68,16 +66,12 @@ struct FCachedRayTracingSceneData
 	FStructuredBufferRHIRef LightmapSceneDataBufferRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
 
-	TArray<FRayTracingGeometryInstance> RayTracingGeometryInstances;
+	TArray<TArray<FRayTracingGeometryInstance>> RayTracingGeometryInstancesPerLOD;
 
 	TUniformBufferRef<FViewUniformShaderParameters> CachedViewUniformBuffer;
 
-	TArray<int32> StaticMeshInstanceIndices;
-	TArray<int32> InstanceGroupInstanceIndices;
-
 	void SetupViewUniformBufferFromSceneRenderState(class FSceneRenderState& Scene);
-	void SetupFromSceneRenderState(class FSceneRenderState& Scene, int32 LODIndex);
-	void UpdateLODRayTracingGeometry(FSceneRenderState& Scene, int32 LODIndex);
+	void SetupFromSceneRenderState(class FSceneRenderState& Scene);
 };
 
 class FSceneRenderState
