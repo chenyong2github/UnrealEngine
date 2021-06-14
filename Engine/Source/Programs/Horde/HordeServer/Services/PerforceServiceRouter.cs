@@ -61,33 +61,27 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		override public Task<int> CreateNewChangeAsync(string StreamName, string Path)
+		override public Task<byte[]> PrintAsync(string Path)
 		{
-			return PythonBridgeService.CreateNewChangeAsync(StreamName, Path);
+			return P4APIService.PrintAsync(Path);
 		}
 
 		/// <inheritdoc/>
 		override public Task<List<ChangeDetails>> GetChangeDetailsAsync(string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
 		{
-			return PythonBridgeService.GetChangeDetailsAsync(StreamName, ChangeNumbers, ImpersonateUser);
+			return P4APIService.GetChangeDetailsAsync(StreamName, ChangeNumbers, ImpersonateUser);
 		}
 
 		/// <inheritdoc/>
 		override public Task<List<FileSummary>> FindFilesAsync(IEnumerable<string> Paths)
 		{
-			return PythonBridgeService.FindFilesAsync(Paths);
+			return P4APIService.FindFilesAsync(Paths);
 		}
 
 		/// <inheritdoc/>
-		override public Task<byte[]> PrintAsync(string Path)
+		override public Task<int> CreateNewChangeAsync(string StreamName, string Path)
 		{
-			return PythonBridgeService.PrintAsync(Path);
-		}
-
-		/// <inheritdoc/>
-		override public Task<int> DuplicateShelvedChangeAsync(int ShelvedChange)
-		{
-			throw new Exception("DuplicateShelvedChangeAsync is disabled due to p4 issue: https://jira.it.epicgames.com/servicedesk/customer/portal/1/ITH-144069");	
+			return PythonBridgeService.CreateNewChangeAsync(StreamName, Path);
 		}
 
 		/// <inheritdoc/>
@@ -106,6 +100,12 @@ namespace HordeServer.Services
 		override public Task UpdateChangelistDescription(int Change, string Description)
 		{
 			return PythonBridgeService.UpdateChangelistDescription(Change, Description );
+		}
+
+		/// <inheritdoc/>
+		override public Task<int> DuplicateShelvedChangeAsync(int ShelvedChange)
+		{
+			throw new Exception("DuplicateShelvedChangeAsync is disabled due to p4 issue: https://jira.it.epicgames.com/servicedesk/customer/portal/1/ITH-144069");
 		}
 
 		/// <inheritdoc/>
