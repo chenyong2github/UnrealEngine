@@ -192,9 +192,8 @@ void UEditorUtilitySubsystem::RegisterTabAndGetID(class UEditorUtilityWidgetBlue
 				.SetDisplayName(DisplayName)
 				.SetGroup(BlutilityModule->GetMenuGroup().ToSharedRef());
 			InBlueprint->SetRegistrationName(RegistrationName);
-			RegisteredTabs.Add(RegistrationName, InBlueprint);
-			
 		}
+		RegisteredTabs.Add(RegistrationName, InBlueprint);
 		NewTabID = RegistrationName;
 	}
 }
