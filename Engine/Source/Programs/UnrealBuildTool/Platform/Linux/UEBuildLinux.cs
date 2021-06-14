@@ -223,12 +223,6 @@ namespace UnrealBuildTool
 				{
 					Target.Name = Target.Name + "-" + SanitizerSuffix;
 				}
-
-				System.Console.WriteLine("New - Name: {0}", Target.Name);
-			}
-			else
-			{
-				System.Console.WriteLine("Cannot Name: {0}", Target.Name);
 			}
 
 			if (Target.bAllowLTCG && Target.LinkType != TargetLinkType.Monolithic)
