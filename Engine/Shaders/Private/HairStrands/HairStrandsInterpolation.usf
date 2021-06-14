@@ -7,6 +7,13 @@
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 
+#define DEBUG_ENABLE 0
+
+#if DEBUG_ENABLE
+#include "../ShaderDrawDebug.ush"
+#include "../ColorMap.ush"
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Common
 
@@ -559,6 +566,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	#error Unknown group size	
 #endif
 
+uint TotalClusterCount;
 float3 CPUBoundMin;
 float3 CPUBoundMax;
 
@@ -586,7 +594,7 @@ groupshared float3 SharedClusterAABBMin[GROUP_SIZE];
 groupshared float3 SharedClusterAABBMax[GROUP_SIZE];
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID)
+void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID, uint ThreadIndex : SV_GroupIndex)
 {
 #if PERMUTATION_USE_CPU_AABB
 	// Only update the full group AABB
@@ -705,6 +713,15 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 		Bound.Max.z = SharedClusterAABBMax[0].z;
 		InterlockHairAABB(0, Bound, OutGroupAABBBuffer);
 	}
+
+	#if DEBUG_ENABLE
+	if (ThreadIndex == 0)
+	{
+		const float4 DebugColor = float4(ColorMapViridis(ClusterId / float(TotalClusterCount)),1);
+		AddAABB(SharedClusterAABBMin[0], SharedClusterAABBMax[0], DebugColor);
+		AddReferential(LocalToWorldMatrix, 10);
+	}
+	#endif
 
 	// Min/Max group AABB is done later by another pass
 #endif // PERMUTATION_USE_CPU_AABB
