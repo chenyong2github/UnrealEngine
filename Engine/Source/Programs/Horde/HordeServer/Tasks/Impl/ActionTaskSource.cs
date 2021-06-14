@@ -495,8 +495,8 @@ namespace HordeServer.Tasks.Impl
 				// Try to allocate a subscription
 				lock (Subscriptions)
 				{
-					Subscription? Subscription = Subscriptions.FirstOrDefault();
-					if (Subscription != null && CanBeScheduledOnAgent(Subscription.Agent, PoolFilter))
+					Subscription? Subscription = Subscriptions.FirstOrDefault(s => CanBeScheduledOnAgent(s.Agent, PoolFilter));
+					if (Subscription != null)
 					{
 						Subscriptions.Remove(Subscription);
 						return Subscription;
