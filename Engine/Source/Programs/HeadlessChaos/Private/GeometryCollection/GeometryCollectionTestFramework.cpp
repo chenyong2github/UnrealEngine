@@ -266,7 +266,7 @@ namespace GeometryCollectionTest
 	, Module(FChaosSolversModule::GetModule())
 	, Solver(nullptr)
 	{
-		Solver = Module->CreateSolver(nullptr,Parameters.ThreadingMode);	//until refactor is done, solver must be created after thread change
+		Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1, Parameters.ThreadingMode);	//until refactor is done, solver must be created after thread change
 		ChaosTest::InitSolverSettings(Solver);
 	}
 

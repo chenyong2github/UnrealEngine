@@ -27,7 +27,7 @@ namespace ChaosTest {
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 
 		// Make a particle
 
@@ -69,7 +69,7 @@ namespace ChaosTest {
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 
 		// Make a particle
 
