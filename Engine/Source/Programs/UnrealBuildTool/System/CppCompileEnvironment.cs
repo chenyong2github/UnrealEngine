@@ -399,6 +399,11 @@ namespace UnrealBuildTool
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
 
 		/// <summary>
+		/// The amount of the stack usage to report static analysis warnings.
+		/// </summary>
+		public int AnalyzeStackSizeWarning = 300000;
+
+		/// <summary>
 		/// Default constructor.
 		/// </summary>
         public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
