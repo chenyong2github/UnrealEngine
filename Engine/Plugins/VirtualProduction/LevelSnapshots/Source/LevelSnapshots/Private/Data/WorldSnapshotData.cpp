@@ -186,6 +186,7 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 	SerializedNames.Empty();
 	SerializedObjectReferences.Empty();
 	Subobjects.Empty();
+	CustomSubobjectSerializationData.Empty();
 	
 	SnapshotVersionInfo.Initialize();
 

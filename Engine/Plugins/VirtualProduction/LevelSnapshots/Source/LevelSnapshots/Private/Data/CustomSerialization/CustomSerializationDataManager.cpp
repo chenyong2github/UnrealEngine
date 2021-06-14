@@ -172,13 +172,16 @@ int32 FCustomSerializationDataWriter::AddSubobjectSnapshot(UObject* Subobject)
 
 	if (ObjectIndex != INDEX_NONE)
 	{
-		UE_CLOG(ExistingSubobjectIndex == INDEX_NONE, LogLevelSnapshots, Error, TEXT("You tried to register the same subobject twice."));
-		UE_CLOG(ExistingSubobjectIndex != INDEX_NONE, LogLevelSnapshots, Error, TEXT("You tried to register an object which was already found by standard Level Snapshot serialisation. Is your subobject referenced by an property with a CPF_Edit flag?"));
+		UE_LOG(LogLevelSnapshots, Error, TEXT("You tried to register an object which was already found by standard Level Snapshot serialisation. Is your subobject referenced by an property with a CPF_Edit flag?"));
 		UE_DEBUG_BREAK();
-		
 		return ExistingSubobjectIndex;
 	}
-
+	if (ExistingSubobjectIndex != INDEX_NONE)
+	{
+		UE_LOG(LogLevelSnapshots, Error, TEXT("You tried to register the same subobject twice."));
+		UE_DEBUG_BREAK();
+		return ExistingSubobjectIndex;
+	}
 
 	FCustomSubbjectSerializationData SubobjectData;
 	SubobjectData.ObjectPathIndex = WorldData_ReadWrite.AddObjectDependency(Subobject);

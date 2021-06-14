@@ -3,6 +3,7 @@
 #include "SnapshotArchive.h"
 
 #include "ObjectSnapshotData.h"
+#include "SnapshotRestorability.h"
 #include "SnapshotVersion.h"
 #include "WorldSnapshotData.h"
 
@@ -45,8 +46,10 @@ void FSnapshotArchive::Seek(int64 InPos)
 
 bool FSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
-	return InProperty->HasAnyPropertyFlags(ExcludedPropertyFlags)
-		|| IsPropertyReferenceToSubobject(InProperty);
+	const bool bIsPropertyUnsupported = InProperty->HasAnyPropertyFlags(ExcludedPropertyFlags)|| IsPropertyReferenceToSubobject(InProperty);
+	const bool bIsBlacklisted = FSnapshotRestorability::IsPropertyBlacklistedForCapture(InProperty);
+	const bool bIsWhitelisted = FSnapshotRestorability::IsPropertyWhitelistedForCapture(InProperty);
+	return bIsPropertyUnsupported || bIsBlacklisted || (!bIsPropertyUnsupported && bIsWhitelisted);
 }
 
 FArchive& FSnapshotArchive::operator<<(FName& Value)
