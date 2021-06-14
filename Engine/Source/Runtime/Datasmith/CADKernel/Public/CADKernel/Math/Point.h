@@ -69,6 +69,11 @@ namespace CADKernel
 			return FPoint(X + Point.X, Y + Point.Y, Z + Point.Z);
 		}
 
+		FPoint operator+(const FVector& Point) const
+		{
+			return FPoint(X + Point.X, Y + Point.Y, Z + Point.Z);
+		}
+
 		FPoint operator-(const FPoint& Point) const
 		{
 			return FPoint(X - Point.X, Y - Point.Y, Z - Point.Z);
@@ -108,6 +113,14 @@ namespace CADKernel
 		}
 
 		FPoint& operator+=(const FPoint& Point)
+		{
+			X += Point.X;
+			Y += Point.Y;
+			Z += Point.Z;
+			return *this;
+		}
+
+		FPoint& operator+=(const FVector& Point)
 		{
 			X += Point.X;
 			Y += Point.Y;
@@ -163,6 +176,11 @@ namespace CADKernel
 
 			Compare = CADKernel::RealCompare(Z, Other.Z);
 			return (Compare < 0);
+		}
+
+		operator FVector() 
+		{ 
+			return FVector(X, Y, Z);
 		}
 
 		void SetMin(const FPoint& Point)
@@ -669,4 +687,14 @@ inline uint32 GetTypeHash(const CADKernel::FPoint2D& Point)
 inline uint32 GetTypeHash(const CADKernel::FPointH& Point)
 {
 	return HashCombine(GetTypeHash(Point.X), HashCombine(GetTypeHash(Point.Y), HashCombine(GetTypeHash(Point.Z), GetTypeHash(Point.W))));
+}
+
+inline float ComputeCosinus(FVector Vector, FVector OtherVector)
+{
+	Vector.Normalize();
+	OtherVector.Normalize();
+
+	float Cosinus = Vector.X * OtherVector.X + Vector.Y * OtherVector.Y + Vector.Z * OtherVector.Z;
+
+	return FMath::Max(-1.0f, FMath::Min(Cosinus, 1.0f));
 }

@@ -142,8 +142,14 @@ void FTopologicalLoop::Orient()
 	{
 		// if the slop of the selected segment is not close to the BBox side (closed of 0 of 4), so the angle between the neighboring segments of the local extrema is not closed to 4 and allows to defined the orientation
 		// Pic case: the slop is compute between previous and nex segment of the extrema 
-		int32 Index2 = Index == 0 ? PointCount - 1 : Index - 1;
-		double Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[Index + 1], LoopSampling[Index2]);
+		int32 PreviousIndex = Index == 0 ? PointCount - 1 : Index - 1;
+		int32 NextIndex = Index+1;
+		if(NextIndex  == LoopSampling.Num()) 
+		{
+			NextIndex = 0;
+		}
+
+		double Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
 		if (Slop > 4.2)
 		{
 			WrongOrientationNum++;
@@ -151,7 +157,7 @@ void FTopologicalLoop::Orient()
 		else if (Slop > 3.8)
 		{
 			// the angle between the neighboring segments of the local extrema is too closed to 4 (PI) so the slop of the segment Index, Index+1 is compared to the AABB side to define the orientation
-			Slop = ComputeUnorientedSlope(LoopSampling[Index], LoopSampling[Index + 1], ReferenceSlop);
+			Slop = ComputeUnorientedSlope(LoopSampling[Index], LoopSampling[NextIndex], ReferenceSlop);
 			// slop should be closed to [0, 0.2] or [3.8, 4]
 			if (Slop > 3)
 			{
@@ -173,7 +179,7 @@ void FTopologicalLoop::Orient()
 			}
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Previous")));
-				::DisplaySegment(LoopSampling[Index2], LoopSampling[Index], EVisuProperty::NonManifoldEdge);
+				::DisplaySegment(LoopSampling[PreviousIndex], LoopSampling[Index], EVisuProperty::NonManifoldEdge);
 			}
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));

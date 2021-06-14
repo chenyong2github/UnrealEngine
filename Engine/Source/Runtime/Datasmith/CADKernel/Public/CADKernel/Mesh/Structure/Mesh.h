@@ -13,8 +13,8 @@ namespace CADKernel
 	class CADKERNEL_API FMesh : public FEntityGeom
 	{
 	protected:
-		TWeakPtr<FModelMesh> ModelMesh;
-		TWeakPtr<FTopologicalEntity> TopologicalEntity;
+		FModelMesh& ModelMesh;
+		FTopologicalEntity& TopologicalEntity;
 
 		int32 StartNodeId;
 		int32 LastNodeIndex;
@@ -26,8 +26,8 @@ namespace CADKernel
 
 		FMesh(TSharedRef<FModelMesh> InMeshModel, TSharedRef<FTopologicalEntity> InTopologicalEntity)
 			: FEntityGeom()
-			, ModelMesh(InMeshModel)
-			, TopologicalEntity(InTopologicalEntity)
+			, ModelMesh(*InMeshModel)
+			, TopologicalEntity(*InTopologicalEntity)
 		{
 		}
 
@@ -69,20 +69,19 @@ namespace CADKernel
 			return MeshModelIndex;
 		}
 
-		TSharedRef<FModelMesh> GetMeshModel()
+		FModelMesh& GetMeshModel()
 		{
-			ensureCADKernel(ModelMesh.Pin().IsValid());
-			return ModelMesh.Pin().ToSharedRef();
+			return ModelMesh;
 		}
 
-		const TSharedRef<FModelMesh> GetMeshModel() const
+		const FModelMesh& GetMeshModel() const
 		{
-			return ModelMesh.Pin().ToSharedRef();
+			return ModelMesh;
 		}
 
-		const TSharedRef<FTopologicalEntity> GetGeometricEntity() const
+		const FTopologicalEntity& GetGeometricEntity() const
 		{
-			return TopologicalEntity.Pin().ToSharedRef();
+			return TopologicalEntity;
 		}
 	};
 }

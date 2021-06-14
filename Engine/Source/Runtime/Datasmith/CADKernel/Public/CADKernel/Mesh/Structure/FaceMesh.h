@@ -21,10 +21,10 @@ namespace CADKernel
 		TArray<int32> VerticesGlobalIndex;
 
 		/** Normals of the surface mesh vertices*/
-		TArray<FPoint> Normals;
+		TArray<FVector> Normals;
 
 		/** UV coordinates of the surface mesh vertices*/
-		TArray<FPoint2D> UVMap;
+		TArray<FVector2D> UVMap;
 
 	public:
 		FFaceMesh(TSharedRef<FModelMesh> InMeshModel, TSharedRef<FTopologicalEntity> InTopologicalEntity)
@@ -56,6 +56,7 @@ namespace CADKernel
 		void InverseOrientation();
 
 		void GetNodeIdToCoordinates(TMap<int32, const FPoint*>& NodeIdToCoordinates) const;
+
 	};
 }
 

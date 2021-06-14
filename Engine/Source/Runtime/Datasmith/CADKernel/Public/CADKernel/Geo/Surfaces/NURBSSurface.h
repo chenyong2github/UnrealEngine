@@ -7,13 +7,46 @@
 namespace CADKernel
 {
 
+	struct FNurbsSurfaceHomogeneousData
+	{
+		bool bSwapUV;
+		int32 PoleUCount;
+		int32 PoleVCount;
+
+		int32 UDegree;
+		int32 VDegree;
+
+		TArray<double> UNodalVector;
+		TArray<double> VNodalVector;
+
+		bool bIsRational;
+		TArray<double> HomogeneousPoles;
+	};
+
+	struct FNurbsSurfaceData
+	{
+		bool bSwapUV;
+		int32 PoleUCount;
+		int32 PoleVCount;
+
+		int32 UDegree;
+		int32 VDegree;
+
+		TArray<double> UNodalVector;
+		TArray<double> VNodalVector;
+
+		// if Weights.Num() == 0  => bIsRational = false
+		TArray<double> Weights;
+		TArray<FPoint> Poles;
+	};
+
 	class CADKERNEL_API FNURBSSurface : public FSurface
 	{
 		friend FEntity;
 
 	protected:
-		int32 PoleUNum;
-		int32 PoleVNum;
+		int32 PoleUCount;
+		int32 PoleVCount;
 
 		int32 UDegree;
 		int32 VDegree;
@@ -37,10 +70,10 @@ namespace CADKernel
 		 * @param NodalVectorU Its size is the number of poles in U + the surface degree in U + 1 (PoleUNum + UDegre + 1)
 		 * @param NodalVectorV Its size is the number of poles in V + the surface degree in V + 1 (PoleVNum + VDegre + 1)
 		 */
-		FNURBSSurface(const double InToleranceGeometric, int32 InPoleUNum, int32 InPoleVNum, int32 InDegreU, int32 InDegreV, const TArray<double>& InNodalVectorU, const TArray<double>& InNodalVectorV, const TArray<FPoint>& InPoles)
+		FNURBSSurface(const double InToleranceGeometric, int32 InPoleUCount, int32 InPoleVCount, int32 InDegreU, int32 InDegreV, const TArray<double>& InNodalVectorU, const TArray<double>& InNodalVectorV, const TArray<FPoint>& InPoles)
 			: FSurface(InToleranceGeometric)
-			, PoleUNum(InPoleUNum)
-			, PoleVNum(InPoleVNum)
+			, PoleUCount(InPoleUCount)
+			, PoleVCount(InPoleVCount)
 			, UDegree(InDegreU)
 			, VDegree(InDegreV)
 			, UNodalVector(InNodalVectorU)
@@ -56,10 +89,10 @@ namespace CADKernel
 		 * @param NodalVectorU Its size is the number of poles in U + the surface degree in U + 1 (PoleUNum + UDegre + 1)
 		 * @param NodalVectorV Its size is the number of poles in V + the surface degree in V + 1 (PoleVNum + VDegre + 1)
 		 */
-		FNURBSSurface(const double InToleranceGeometric, int32 InPoleUNum, int32 InPoleVNum, int32 InDegreU, int32 InDegreV, const TArray<double>& InNodalVectorU, const TArray<double>& InNodalVectorV, const TArray<FPoint>& InPoles, const TArray<double>& InWeights)
+		FNURBSSurface(const double InToleranceGeometric, int32 InPoleUCount, int32 InPoleVCount, int32 InDegreU, int32 InDegreV, const TArray<double>& InNodalVectorU, const TArray<double>& InNodalVectorV, const TArray<FPoint>& InPoles, const TArray<double>& InWeights)
 			: FSurface(InToleranceGeometric)
-			, PoleUNum(InPoleUNum)
-			, PoleVNum(InPoleVNum)
+			, PoleUCount(InPoleUCount)
+			, PoleVCount(InPoleVCount)
 			, UDegree(InDegreU)
 			, VDegree(InDegreV)
 			, UNodalVector(InNodalVectorU)
@@ -70,6 +103,17 @@ namespace CADKernel
 		{
 			SetMinToleranceIso();
 			Finalize();
+		}
+
+		/**
+		 * Build a Non uniform B-Spline surface
+		 * @param NodalVectorU Its size is the number of poles in U + the surface degree in U + 1 (PoleUNum + UDegre + 1)
+		 * @param NodalVectorV Its size is the number of poles in V + the surface degree in V + 1 (PoleVNum + VDegre + 1)
+		 */
+		FNURBSSurface(const double InToleranceGeometric, FNurbsSurfaceHomogeneousData NurbsData)
+			: FSurface(InToleranceGeometric)
+		{
+			FillNurbs(NurbsData);
 		}
 
 		FNURBSSurface(FCADKernelArchive& Archive)
@@ -84,8 +128,8 @@ namespace CADKernel
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
 			FSurface::Serialize(Ar);
-			Ar << PoleUNum;
-			Ar << PoleVNum;
+			Ar << PoleUCount;
+			Ar << PoleVCount;
 			Ar << UDegree;
 			Ar << VDegree;
 			Ar.Serialize(UNodalVector);
@@ -121,10 +165,10 @@ namespace CADKernel
 			switch (Iso)
 			{
 			case EIso::IsoU:
-				return PoleUNum;
+				return PoleUCount;
 			case EIso::IsoV:
 			default:
-				return PoleVNum;
+				return PoleVCount;
 			}
 		}
 
@@ -180,6 +224,8 @@ namespace CADKernel
 
 	private:
 		void Finalize();
+		void FillNurbs(FNurbsSurfaceHomogeneousData& NurbsData);
+		void FillNurbs(FNurbsSurfaceData& NurbsData);
 	};
 
 } // namespace CADKernel

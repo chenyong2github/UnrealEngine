@@ -171,7 +171,7 @@ namespace CADKernel
 		virtual void EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals = false) const;
 		void EvaluateGrid(FGrid& Grid) const;
 
-		virtual void EvaluateNormals(const TArray<FPoint2D>& Points2D, TArray<FPoint>& Normals) const;
+		virtual void EvaluateNormals(const TArray<FPoint2D>& Points2D, TArray<FVector>& Normals) const;
 
 		/**
 		 * Divide the parametric space in the desired number of regular subdivisions and compute the associated PointGrid

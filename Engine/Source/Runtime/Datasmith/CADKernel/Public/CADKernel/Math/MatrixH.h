@@ -91,6 +91,7 @@ namespace CADKernel
 		 */
 		FPoint PointRotation(const FPoint& PointToRotate, const FPoint& Origin) const;
 		FPoint2D PointRotation(const FPoint2D& PointToRotate, const FPoint2D& Origin) const;
+		FVector PointRotation(const FVector& PointToRotate, const FVector& Origin) const;
 
 		void Inverse();
 

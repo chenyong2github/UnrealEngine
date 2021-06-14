@@ -72,3 +72,9 @@ void FSession::AddDatabase(const TArray<uint8>& InRawData)
 	FCADKernelArchive Archive = FCADKernelArchive(*this, InRawData);
 	Database.Deserialize(Archive);
 }
+
+void FSession::SetGeometricTolerance(double NewTolerance)
+{
+	ensure(Database.GetModel()->EntityCount() == 0);
+	GeometricTolerance = NewTolerance;
+}

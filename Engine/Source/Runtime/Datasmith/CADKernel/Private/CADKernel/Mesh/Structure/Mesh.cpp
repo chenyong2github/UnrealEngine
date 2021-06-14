@@ -10,7 +10,7 @@ using namespace CADKernel;
 
 int32 FMesh::RegisterCoordinates()
 {
-	ModelMesh.Pin()->RegisterCoordinates(NodeCoordinates, StartNodeId, MeshModelIndex);
+	ModelMesh.RegisterCoordinates(NodeCoordinates, StartNodeId, MeshModelIndex);
 	LastNodeIndex = StartNodeId + (int32)NodeCoordinates.Num();
 	return StartNodeId;
 }

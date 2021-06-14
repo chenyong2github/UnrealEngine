@@ -12,7 +12,7 @@ namespace CADKernel
 		bool bWithNormals = false;
 		TArray<FPoint2D> Points2D;
 		TArray<FPoint> Points3D;
-		TArray<FPoint> Normals;
+		TArray<FVector> Normals;
 
 		int32 Count()
 		{
@@ -41,7 +41,7 @@ namespace CADKernel
 
 		void NormalizeNormals()
 		{
-			for (FPoint& Normal : Normals)
+			for (FVector& Normal : Normals)
 			{
 				Normal.Normalize();
 			}

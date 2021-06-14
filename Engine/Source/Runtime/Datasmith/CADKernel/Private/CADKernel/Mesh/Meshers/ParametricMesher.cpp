@@ -674,11 +674,11 @@ void FParametricMesher::GenerateEdgeElements(TSharedRef<FTopologicalEdge> Edge)
 	int32 StartVertexNodeIndex = Edge->GetStartVertex()->GetOrCreateMesh(GetMeshModel())->GetMesh();
 	int32 EndVertexNodeIndex = Edge->GetEndVertex()->GetOrCreateMesh(GetMeshModel())->GetMesh();
 
-	TSharedRef<FTopologicalEdge> ActiveEdge = StaticCastSharedRef<FTopologicalEdge>(EdgeMesh->GetGeometricEntity());
+	const FTopologicalEdge& ActiveEdge = (const FTopologicalEdge&) EdgeMesh->GetGeometricEntity();
 
 	TArray<double> CuttingPointCoordinates;
-	CuttingPointCoordinates.Reserve(ActiveEdge->GetCuttingPoints().Num());
-	for (const FCuttingPoint& CuttingPoint : ActiveEdge->GetCuttingPoints())
+	CuttingPointCoordinates.Reserve(ActiveEdge.GetCuttingPoints().Num());
+	for (const FCuttingPoint& CuttingPoint : ActiveEdge.GetCuttingPoints())
 	{
 		CuttingPointCoordinates.Add(CuttingPoint.Coordinate);
 	}
@@ -688,7 +688,7 @@ void FParametricMesher::GenerateEdgeElements(TSharedRef<FTopologicalEdge> Edge)
 	CuttingPointCoordinates.Pop();
 
 	TArray<FPoint>& Coordinates = EdgeMesh->GetNodeCoordinates();
-	ActiveEdge->ApproximatePoints(CuttingPointCoordinates, Coordinates);
+	ActiveEdge.ApproximatePoints(CuttingPointCoordinates, Coordinates);
 
 	EdgeMesh->RegisterCoordinates();
 	EdgeMesh->Mesh(StartVertexNodeIndex, EndVertexNodeIndex);

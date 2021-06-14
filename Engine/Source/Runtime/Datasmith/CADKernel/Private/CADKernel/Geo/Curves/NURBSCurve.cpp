@@ -34,6 +34,17 @@ FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, con
 	Finalize();
 }
 
+FNURBSCurve::FNURBSCurve(FNurbsCurveData& NurbsCurveData)
+	: FCurve(NurbsCurveData.Dimension)
+	, Degree(NurbsCurveData.Degree)
+	, NodalVector(NurbsCurveData.NodalVector)
+	, Weights(NurbsCurveData.Weights)
+	, Poles(NurbsCurveData.Poles)
+	, bIsRational(NurbsCurveData.bIsRational)
+{
+	Finalize();
+}
+
 FNURBSCurve::FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs)
 	: FNURBSCurve(Nurbs->Degree, Nurbs->NodalVector, Nurbs->Poles, Nurbs->Weights, Nurbs->Dimension)
 {

@@ -18,8 +18,6 @@ namespace CADKernel
 		double GeometricTolerance;
 		FDatabase Database;
 
-		TSharedPtr<FModel> Model;
-
 	public:
 #ifdef CADKERNEL_DEV
 		static TSharedPtr<FSession> Session;
@@ -41,6 +39,11 @@ namespace CADKernel
 		{
 			return Database;
 		}
+
+		/**
+		 * Tolerance must not be modified as soon as a geometric entity has been build.
+		 */
+		void SetGeometricTolerance(double NewTolerance);
 
 		double GetGeometricTolerance() const
 		{
@@ -87,7 +90,6 @@ namespace CADKernel
 
 		void Clear()
 		{
-			Model.Reset();
 			Database.Empty();
 		}
 

@@ -22,7 +22,7 @@ namespace CADKernel
 		TArray<double> Coordinates;
 		TArray<FPoint2D> Points2D;
 		TArray<FPoint> Points3D;
-		TArray<FPoint> Normals;
+		TArray<FVector> Normals;
 		TArray<FPoint> Tangents;
 
 		bool bWithNormals;
@@ -264,7 +264,7 @@ namespace CADKernel
 			return Points3D;
 		}
 
-		const TArray<FPoint>& GetNormals() const
+		const TArray<FVector>& GetNormals() const
 		{
 			return Normals;
 		}
