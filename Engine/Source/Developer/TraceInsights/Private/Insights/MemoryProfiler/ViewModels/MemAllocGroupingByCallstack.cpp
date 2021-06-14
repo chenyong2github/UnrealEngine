@@ -203,6 +203,7 @@ FMemAllocGroupingByCallstack::FCallstackGroup* FMemAllocGroupingByCallstack::Cre
 
 	NewGroupPtr->Node = NodePtr.Get();
 	NewGroupPtr->Node->SetTooltip(GetGroupTooltip(InFrame));
+	NewGroupPtr->Node->SetContext((void*)InFrame);
 
 	return NewGroupPtr;
 }

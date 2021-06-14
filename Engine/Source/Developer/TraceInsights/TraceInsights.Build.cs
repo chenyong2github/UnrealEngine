@@ -28,6 +28,7 @@ public class TraceInsights : ModuleRules
 				"RHI",
 				"Slate",
 				"Sockets",
+				"SourceCodeAccess",
 				"TraceAnalysis",
 				"TraceLog",
 				"TraceServices",
