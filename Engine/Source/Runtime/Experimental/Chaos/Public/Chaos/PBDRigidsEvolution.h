@@ -653,8 +653,6 @@ public:
 		check(StepFraction > (FReal)0);
 		check(StepFraction <= (FReal)1);
 
-		bool bPositionChanged = false;
-
 		// @todo(ccaulfield): optimize. Depending on the number of kinematics relative to the number that have 
 		// targets set, it may be faster to process a command list rather than iterate over them all each frame. 
 		const FReal MinDt = 1e-6f;
@@ -707,7 +705,6 @@ public:
 					FVec3 W = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
 					Particle.W() = W;
 				}
-				bPositionChanged = true;
 				Particle.X() = NewX;
 				Particle.R() = NewR;
 				Particles.MarkTransientDirtyParticle(Particle.Handle());
@@ -717,7 +714,6 @@ public:
 			case EKinematicTargetMode::Velocity:
 			{
 				// Move based on velocity
-				bPositionChanged = true;
 				Particle.X() = Particle.X() + Particle.V() * Dt;
 				Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
 				Particles.MarkTransientDirtyParticle(Particle.Handle());
@@ -735,17 +731,17 @@ public:
 				Rigid->PreV() = Rigid->V();
 				Rigid->PreW() = Rigid->W();
 
-				if (Particle.HasBounds() && bPositionChanged)
+				// Update the world bounds
+			/*	if (Rigid->HasBounds())
 				{
-					const FAABB3& LocalBounds = Particle.LocalBounds();
-					FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+					const FAABB3& LocalBounds = Rigid->LocalBounds();
+					FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Rigid->X(), Rigid->R()));
 					if (Rigid->CCDEnabled())
 					{
 						WorldSpaceBounds.ThickenSymmetrically(Rigid->V() * Dt);
 					}
-					Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
-					DirtyParticle(Particle);
-				}
+					Rigid->SetWorldSpaceInflatedBounds(WorldSpaceBounds);
+				}*/
 				
 			}
 		}
@@ -764,7 +760,7 @@ public:
 	CHAOS_API void RebuildSpatialAccelerationForPerfTest();
 
 	/* Ticks computation of acceleration structures. Normally handled by Advance, but if not advancing can be called to incrementally build structures.*/
-	CHAOS_API void ComputeIntermediateSpatialAcceleration(bool bOnLastSubstep, bool bBlock);
+	CHAOS_API void ComputeIntermediateSpatialAcceleration(bool bBlock = false);
 
 	CHAOS_API const FPBDConstraintGraph& GetConstraintGraph() const { return ConstraintGraph; }
 	CHAOS_API FPBDConstraintGraph& GetConstraintGraph() { return ConstraintGraph; }
@@ -881,8 +877,8 @@ protected:
 		}
 	}
 
-	void FlushInternalAccelerationQueue(bool bOnLastSubstep);
-	void FlushAsyncAccelerationQueue(bool bOnLastSubstep);
+	void FlushInternalAccelerationQueue();
+	void FlushAsyncAccelerationQueue();
 	void WaitOnAccelerationStructure();
 
 	TArray<FForceRule> ForceRules;
