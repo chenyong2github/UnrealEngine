@@ -1110,7 +1110,7 @@ namespace FramePro
 			for(int i = 0; i < len; ++i)
 				mp_Value[i] = p_value[i];
 
-			mp_Value[len - 1] = L'\0';
+			mp_Value[len] = L'\0';
 		}
 
 		//------------------------------------------------------------------------
@@ -1127,7 +1127,7 @@ namespace FramePro
 
 			for(int i = 0; i < len; ++i)
 				mp_Value[i] = p_value[i];
-			mp_Value[len - 1] = L'\0';
+			mp_Value[len] = L'\0';
 		}
 
 		//------------------------------------------------------------------------
