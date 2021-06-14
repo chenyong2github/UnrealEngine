@@ -709,14 +709,9 @@ public:
 		return false;
 	}
 
-	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
+	TConstArrayView<FPrimitiveInstance> GetInstanceSceneData() const
 	{
-		return nullptr;
-	}
-
-	virtual TArray<FPrimitiveInstance>* GetPrimitiveInstances()
-	{
-		return nullptr;
+		return InstanceSceneData;
 	}
 
 	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const
@@ -831,8 +826,11 @@ public:
 	ENGINE_API const FCustomPrimitiveData* GetCustomPrimitiveData() const { return &CustomPrimitiveData; }
 
 protected:
+	ENGINE_API void UpdateDefaultInstanceSceneData();
+
 	/** Returns true if a primitive can never be rendered outside of a runtime virtual texture. */
 	ENGINE_API bool IsVirtualTextureOnly() const { return bVirtualTextureMainPassDrawNever; }
+
 	/** Returns true if a primitive should currently be hidden because it is drawn only to the runtime virtual texture. The result can depend on the current scene state. */
 	bool DrawInVirtualTextureOnly(bool bEditor) const;
 
@@ -1108,6 +1106,7 @@ private:
 	uint8 RayTracingGroupCullingPriority;
 
 protected:
+	TArray<FPrimitiveInstance, TInlineAllocator<1>> InstanceSceneData;
 
 	/** Quality of interpolated indirect lighting for Movable components. */
 	TEnumAsByte<EIndirectLightingCacheQuality> IndirectLightingCacheQuality;

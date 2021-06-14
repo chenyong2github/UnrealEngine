@@ -9,7 +9,7 @@ RWStructuredBuffer<uint> InstanceVisibilityFlagsOut;
 uint NumInstances;
 uint NumInstanceFlagWords;
 uint NumViews;
-uint InstanceDataSOAStride;
+uint InstanceSceneDataSOAStride;
 
 /**
  */
@@ -23,7 +23,7 @@ void CullInstancesCs(uint InstanceId : SV_DispatchThreadID)
 
 	const bool bNearClip = true;
 
-	FInstanceSceneData InstanceData = GetInstanceData(InstanceId, InstanceDataSOAStride);
+	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 	uint WordMask = 1U << (InstanceId % 32U);
 	uint InstanceWordOffset = InstanceId / 32U;
 

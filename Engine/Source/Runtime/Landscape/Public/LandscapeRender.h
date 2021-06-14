@@ -806,9 +806,6 @@ public:
 	// Also being reused by GPULightmass currently to save mem
 	static TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
 
-	// GPUCULL_TODO: put instances in base proxy and make non-virtual
-	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const	{ return &Instances; }
-	virtual TArray<FPrimitiveInstance>* GetPrimitiveInstances()	{return &Instances;	}
 protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
 	int8						NumWeightmapLayerAllocations;
@@ -928,9 +925,6 @@ protected:
 
 	// Cached versions of these
 	FMatrix					WorldToLocal;
-
-	// Instances (going to contain just one).
-	TArray<FPrimitiveInstance> Instances;
 
 	FLandscapeVisibilityHelper VisibilityHelper;
 

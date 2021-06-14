@@ -900,16 +900,16 @@ void AddCardCaptureDraws(const FScene* Scene,
 			{
 				if (PrimitiveGroup.PrimitiveInstanceIndex >= 0)
 				{
-					CardPageRenderData.NaniteInstanceIds.Add(PrimitiveSceneInfo->GetInstanceDataOffset() + PrimitiveGroup.PrimitiveInstanceIndex);
+					CardPageRenderData.NaniteInstanceIds.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset() + PrimitiveGroup.PrimitiveInstanceIndex);
 				}
 				else
 				{
 					// Render all instances
-					const int32 NumInstances = PrimitiveSceneInfo->GetNumInstanceDataEntries();
+					const int32 NumInstances = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
 
 					for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 					{
-						CardPageRenderData.NaniteInstanceIds.Add(PrimitiveSceneInfo->GetInstanceDataOffset() + InstanceIndex);
+						CardPageRenderData.NaniteInstanceIds.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset() + InstanceIndex);
 					}
 				}
 
@@ -2058,7 +2058,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 				SharedView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 				SharedView->CachedViewUniformShaderParameters->PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
-				SharedView->CachedViewUniformShaderParameters->InstanceSceneData = Scene->GPUScene.InstanceDataBuffer.SRV;
+				SharedView->CachedViewUniformShaderParameters->InstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
 				SharedView->CachedViewUniformShaderParameters->LightmapSceneData = Scene->GPUScene.LightmapDataBuffer.SRV;
 				SharedView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 			}

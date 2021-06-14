@@ -127,16 +127,16 @@ public:
 	// Stores stats over frames when activated.
 	TRefCountPtr<FRDGPooledBuffer>		AccumulatedStatsBuffer;
 	bool bAccumulatingStats = false;
-	FRHIGPUBufferReadback *GPUBufferReadback = nullptr;
+	FRHIGPUBufferReadback* GPUBufferReadback = nullptr;
 	
 private:
 
 	// Must match shader...
-	struct FInstanceDataRange
+	struct FInstanceSceneDataRange
 	{
-		int32 InstanceDataOffset;
-		int32 NumInstanceDataEntries;
+		int32 InstanceSceneDataOffset;
+		int32 NumInstanceSceneDataEntries;
 	};
 
-	void ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange, SceneRenderingAllocator>& InstanceRangesLarge, const TArray<FInstanceDataRange, SceneRenderingAllocator>& InstanceRangesSmall, const FGPUScene& GPUScene);
+	void ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesLarge, const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesSmall, const FGPUScene& GPUScene);
 };

@@ -513,8 +513,8 @@ public:
 	/** Will output the FMeshBatch associated with the specified LODIndex. */
 	RENDERER_API const FMeshBatch* GetMeshBatch(int8 InLODIndex) const;
 
-	int32 GetInstanceDataOffset() const { return InstanceDataOffset; }
-	int32 GetNumInstanceDataEntries() const { return NumInstanceDataEntries; }
+	int32 GetInstanceSceneDataOffset() const { return InstanceSceneDataOffset; }
+	int32 GetNumInstanceSceneDataEntries() const { return NumInstanceSceneDataEntries; }
 
 	int32 GetLightmapDataOffset() const { return LightmapDataOffset; }
 	int32 GetNumLightmapDataEntries() const { return NumLightmapDataEntries; }
@@ -580,11 +580,11 @@ private:
 	/** True if the primitive registered with velocity data and needs to remove itself when being removed from the scene. */
 	bool bRegisteredWithVelocityData : 1;
 
-	/** Offset into the scene's instance data buffer, when GPUScene is enabled. */
-	int32 InstanceDataOffset;
+	/** Offset into the scene's instance scene data buffer, when GPUScene is enabled. */
+	int32 InstanceSceneDataOffset;
 
-	/** Number of entries in the scene's instance data buffer. */
-	int32 NumInstanceDataEntries;
+	/** Number of entries in the scene's instance scene data buffer. */
+	int32 NumInstanceSceneDataEntries;
 
 	/** Offset into the scene's lightmap data buffer, when GPUScene is enabled. */
 	int32 LightmapDataOffset;

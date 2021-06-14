@@ -131,7 +131,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
+		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FPrimCullingCommand >, PrimitiveCullingCommands)
@@ -236,9 +236,9 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	// Because the view uniforms are not set up by the time this runs
 	// PassParameters->View = View.ViewUniformBuffer;
 	// Set up global GPU-scene data instead...
-	PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+	PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 	PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-	PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
+	PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
 	PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 
 	// Upload data etc
@@ -317,9 +317,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	// Because the view uniforms are not set up by the time this runs
 	// PassParameters->View = View.ViewUniformBuffer;
 	// Set up global GPU-scene data instead...
-	PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+	PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 	PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-	PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
+	PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
 	PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 
 	// Upload data etc
@@ -531,9 +531,10 @@ void FInstanceCullingContext::BuildRenderingCommandsDeferred(
 	// Because the view uniforms are not set up by the time this runs
 	// PassParameters->View = View.ViewUniformBuffer;
 	// Set up global GPU-scene data instead...
-	PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+	PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 	PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-	PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
+	PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
+
 	// Upload data etc
 	PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(CullingCommandsRDG);
 

@@ -1353,18 +1353,8 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 #endif
 
-	// 100% generic default-instance
-	Instances.SetNum(1);
-	FPrimitiveInstance& Instance = Instances[0];
-	Instance.LocalToPrimitive.SetIdentity();
-	Instance.PrevLocalToPrimitive = Instance.LocalToPrimitive;
-	Instance.LocalBounds = GetLocalBounds();
-	Instance.PerInstanceRandom = 0.0f;
-	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-	Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-	Instance.Flags = 0U;
-
 	bSupportsInstanceDataBuffer = true;
+	UpdateDefaultInstanceSceneData();
 }
 
 void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
@@ -1927,9 +1917,7 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	// Recache mesh draw commands for changed uniform buffers
 	GetScene().UpdateCachedRenderStates(this);
 
-	// 
-	FPrimitiveInstance& Instance = Instances[0];
-	Instance.LocalBounds = GetLocalBounds();
+	UpdateDefaultInstanceSceneData();
 }
 
 /** Creates a mesh batch for virtual texture rendering. Will render a simple fixed grid with combined subsections. */

@@ -179,8 +179,8 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 	Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
 	// We have a unified path for both static meshes and instanced static meshes
 	// However due to static meshes being auto-instanced GetBaseInstanceIndex() may not match InstanceIndex() and a non-zero DrawInstanceId is generated
-	// Force DrawInstanceId to 0 when it is a static mesh by checking NumInstanceDataEntries
-	if (GetPrimitiveData(PrimitiveId).NumInstanceDataEntries == 1)
+	// Force DrawInstanceId to 0 when it is a static mesh by checking NumInstanceSceneDataEntries
+	if (GetPrimitiveData(PrimitiveId).NumInstanceSceneDataEntries == 1)
 	{
 		Input.DrawInstanceId = 0;
 	}
@@ -780,7 +780,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.InstanceId = Intermediates.SceneData.InstanceId;
 
 	// Calculate the local (within the range of instance IDs belonging to a given primitive), as this can be used to load custom stuff
-	Intermediates.PrimitiveLocalInstanceIndex = Intermediates.SceneData.InstanceId - Intermediates.SceneData.Primitive.InstanceDataOffset;
+	Intermediates.PrimitiveLocalInstanceIndex = Intermediates.SceneData.InstanceId - Intermediates.SceneData.Primitive.InstanceSceneDataOffset;
 
 
 #if USE_INSTANCE_CULLING

@@ -1586,7 +1586,7 @@ public:
 
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
+		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 
 
@@ -1837,10 +1837,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 				GetPageTableParameters(GraphBuilder, PassParameters->PageTableParams);
 
-				PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+				PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 				PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-				PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
 				PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
+				PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
 				PassParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdsBuffer);
 				PassParameters->DrawCommandIdsBuffer = GraphBuilder.CreateSRV(Params.DrawCommandIdsBuffer);
 				PassParameters->NumInstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdWriteOffsetBuffer);

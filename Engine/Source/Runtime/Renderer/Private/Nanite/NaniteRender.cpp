@@ -2419,8 +2419,8 @@ FCullingContext InitCullingContext(
 	}
 
 	// TODO: Might this not break if the view has overridden the InstanceSceneData?
-	const uint32 NumSceneInstancesPo2					= FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceDataAllocator.GetMaxSize());
-	CullingContext.SOAStrides.X							= Scene.GPUScene.InstanceDataSOAStride;
+	const uint32 NumSceneInstancesPo2					= FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize());
+	CullingContext.SOAStrides.X							= Scene.GPUScene.InstanceSceneDataSOAStride;
 	CullingContext.SOAStrides.Y							= NumSceneInstancesPo2;
 	
 	check(NumSceneInstancesPo2 <= MAX_INSTANCES);		// There are too many instances in the scene.
@@ -3266,7 +3266,7 @@ void CullRasterize(
 	else
 	{
 		CullingContext.InstanceDrawsBuffer = nullptr;
-		CullingContext.NumInstancesPreCull = Scene.GPUScene.InstanceDataAllocator.GetMaxSize();
+		CullingContext.NumInstancesPreCull = Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize();
 	}
 
 	if (CullingContext.DebugFlags != 0)
@@ -3332,7 +3332,7 @@ void CullRasterize(
 		VirtualTargetParameters.ShadowHZBPageTable = GraphBuilder.CreateSRV( HZBPageTableRDG, PF_R32_UINT );
 	}
 	FGPUSceneParameters GPUSceneParameters;
-	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceDataBuffer.SRV;
+	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceSceneDataBuffer.SRV;
 	GPUSceneParameters.GPUScenePrimitiveSceneData = Scene.GPUScene.PrimitiveBuffer.SRV;
 	GPUSceneParameters.GPUSceneFrameNumber = Scene.GPUScene.GetSceneFrameNumber();
 	

@@ -724,8 +724,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									float MaxDrawDist = FMath::Max(PrimBounds.MaxCullDistance, 0.f) * GetCachedScalabilityCVars().ViewDistanceScale;
 
 									const uint32 GPUSceneInstanceIndex = PrimitiveSceneProxy->SupportsInstanceDataBuffer() ? 
-										PrimAndInst.Primitive->GetInstanceDataOffset() + PrimAndInst.InstanceIndex :
-										PrimAndInst.Primitive->GetInstanceDataOffset();
+										PrimAndInst.Primitive->GetInstanceSceneDataOffset() + PrimAndInst.InstanceIndex :
+										PrimAndInst.Primitive->GetInstanceSceneDataOffset();
 
 									// Bypass NaN checks in FVector4 ctor
 									FVector4 Vector4;

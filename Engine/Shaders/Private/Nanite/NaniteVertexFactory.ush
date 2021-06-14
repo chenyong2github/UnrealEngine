@@ -80,7 +80,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData          = GetInstanceData(VisibleCluster);
+		FInstanceSceneData InstanceData          = GetInstanceSceneData(VisibleCluster);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
@@ -214,7 +214,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 		}
 
 		const float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
-		if (PrimitiveData.NumInstanceDataEntries > 1)
+		if (PrimitiveData.NumInstanceSceneDataEntries > 1)
 		{
 			LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceData.LightMapAndShadowMapUVBias.xy;
 		}
@@ -225,7 +225,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 
 	#if STATICLIGHTING_TEXTUREMASK
 		const float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
-		if (PrimitiveData.NumInstanceDataEntries > 1)
+		if (PrimitiveData.NumInstanceSceneDataEntries > 1)
 		{
 			ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceData.LightMapAndShadowMapUVBias.zw;
 		}

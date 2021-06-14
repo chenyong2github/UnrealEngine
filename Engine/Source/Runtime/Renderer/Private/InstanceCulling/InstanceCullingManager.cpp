@@ -82,7 +82,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
+		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< Nanite::FPackedView >, InViews)
 
@@ -100,7 +100,7 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FInstanceCullingManager::CullInstances);
 	int32 NumViews = CullingViews.Num();
-	int32 NumInstances = GPUScene.InstanceDataAllocator.GetMaxSize();
+	int32 NumInstances = GPUScene.InstanceSceneDataAllocator.GetMaxSize();
 	RDG_EVENT_SCOPE(GraphBuilder, "CullInstances [%d Views X %d Instances]", NumViews, NumInstances);
 
 	check(!CullingIntermediate.VisibleInstanceFlags);
@@ -124,9 +124,9 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 
 			FCullInstancesCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullInstancesCs::FParameters>();
 
-			PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+			PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 			PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-			PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
+			PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
 			PassParameters->NumInstances = NumInstances;
 			PassParameters->NumInstanceFlagWords = NumInstanceFlagWords;
 

@@ -1251,15 +1251,15 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	{
 		const TArray<int32>& InstanceReorderTable = InComponent->InstanceReorderTable;
 		bSupportsInstanceDataBuffer = true;
-		Instances.SetNum(InComponent->GetInstanceCount());
-		for (int32 InInstanceIndex = 0; InInstanceIndex < Instances.Num(); ++InInstanceIndex)
+		InstanceSceneData.SetNum(InComponent->GetInstanceCount());
+		for (int32 InInstanceIndex = 0; InInstanceIndex < InstanceSceneData.Num(); ++InInstanceIndex)
 		{
 			int32 OutInstanceIndex = InInstanceIndex;
 			// GPUCULL_TODO: After deleting instances in a HISM the InstanceReorderTable often contains nonsense, this is then corrected
 			// by the async build, which re-creates the proxy in a nearby future frame. All this should be removed in favour of GPU-side culling.
-			if (OutInstanceIndex < InstanceReorderTable.Num() && InstanceReorderTable[OutInstanceIndex] < Instances.Num())
+			if (OutInstanceIndex < InstanceReorderTable.Num() && InstanceReorderTable[OutInstanceIndex] < InstanceSceneData.Num())
 			{
-				// Temporary workaround for out of bound arrary access
+				// Temporary workaround for out of bound array access
 				// TODO: fix this properly
 				OutInstanceIndex = InstanceReorderTable[OutInstanceIndex] != INDEX_NONE ? InstanceReorderTable[OutInstanceIndex] : OutInstanceIndex;
 			}
@@ -1270,7 +1270,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			FTransform InstancePrevTransform;
 			const bool bHasPrevTransform = InComponent->GetInstancePrevTransform(InInstanceIndex, InstancePrevTransform);
 
-			FPrimitiveInstance& Instance = Instances[OutInstanceIndex];
+			FPrimitiveInstance& Instance = InstanceSceneData[OutInstanceIndex];
 			Instance.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
 			
 			// TODO: KevinO cleanup
@@ -1315,17 +1315,17 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 
 			// This happens when this is actually a HISM and the data is not present in the component (which is true for landscape grass
 			// which manages its own setup.
-			if (Instances.Num() == 0)
+			if (InstanceSceneData.Num() == 0)
 			{
-				Instances.SetNum(InstanceBuffer.GetNumInstances());
+				InstanceSceneData.SetNum(InstanceBuffer.GetNumInstances());
 			}
 
 			// NOTE: we set up partial data in the construction of ISM proxy (yep, awful but the equally awful way the InstanceBuffer is maintained means complete data is not available)
-			if (Instances.Num() == InstanceBuffer.GetNumInstances())
+			if (InstanceSceneData.Num() == InstanceBuffer.GetNumInstances())
 			{
-				for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 				{
-					FPrimitiveInstance& PrimitiveInstance = Instances[InstanceIndex];
+					FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 					// TODO: redundant setting
 					PrimitiveInstance.LocalBounds = StaticMeshBounds;
 

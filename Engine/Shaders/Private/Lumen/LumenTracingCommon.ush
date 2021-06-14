@@ -742,7 +742,7 @@ void RayTraceSingleMeshSDF(
 
 float3 GetPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
 {
-	FInstanceSceneData InstanceSceneData = GetInstanceData(GPUSceneInstanceIndex, View.InstanceDataSOAStride);
+	FInstanceSceneData InstanceSceneData = GetInstanceSceneData(GPUSceneInstanceIndex, View.InstanceSceneDataSOAStride);
 	float4 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal);
 	float3 PrevWorldPosition = mul(LocalPosition, InstanceSceneData.PrevLocalToWorld).xyz;
 	return PrevWorldPosition;

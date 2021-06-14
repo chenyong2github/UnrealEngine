@@ -20,8 +20,8 @@
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(uint32,		Flags)
-	SHADER_PARAMETER(uint32,		InstanceDataOffset)
-	SHADER_PARAMETER(uint32,		NumInstanceDataEntries)
+	SHADER_PARAMETER(uint32,		InstanceSceneDataOffset)
+	SHADER_PARAMETER(uint32,		NumInstanceSceneDataEntries)
 	SHADER_PARAMETER(int32,			SingleCaptureIndex)										// Should default to 0 if no reflection captures are provided, as there will be a default black (0,0,0,0) cubemap in that slot
 	SHADER_PARAMETER(FMatrix44f,	LocalToWorld)											// Always needed
 	SHADER_PARAMETER(FMatrix44f,	WorldToLocal)											// Rarely needed
@@ -93,8 +93,8 @@ public:
 		Parameters.NaniteHierarchyOffset			= NANITE_INVALID_HIERARCHY_OFFSET;
 
 		// Instance culling
-		Parameters.InstanceDataOffset				= INDEX_NONE;
-		Parameters.NumInstanceDataEntries			= 0;
+		Parameters.InstanceSceneDataOffset			= INDEX_NONE;
+		Parameters.NumInstanceSceneDataEntries		= 0;
 
 		LightingChannels = GetDefaultLightingChannelMask();
 
@@ -116,8 +116,8 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			OutputVelocity);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastShadow);
 
-	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstanceDataOffset);
-	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NumInstanceDataEntries);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstanceSceneDataOffset);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NumInstanceSceneDataEntries);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				SingleCaptureIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteResourceID);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteHierarchyOffset);
@@ -332,14 +332,14 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match usf
-	enum { PrimitiveDataStrideInFloat4s = 35 };
+	enum { DataStrideInFloat4s = 35 };
 
-	TStaticArray<FVector4, PrimitiveDataStrideInFloat4s> Data;
+	TStaticArray<FVector4, DataStrideInFloat4s> Data;
 
 	FPrimitiveSceneShaderData()
 		: Data(InPlace, NoInit)
 	{
-		static_assert(FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s == FScatterUploadBuffer::PrimitiveDataStrideInFloat4s,"");
+		static_assert(FPrimitiveSceneShaderData::DataStrideInFloat4s == FScatterUploadBuffer::PrimitiveDataStrideInFloat4s,"");
 		Setup(GetIdentityPrimitiveParameters());
 	}
 

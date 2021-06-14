@@ -81,14 +81,14 @@ public:
 		return PrimitiveIdRange; 
 	}
 
-	FORCEINLINE int32 GetInstanceDataOffset(int32 PrimitiveId) const
+	FORCEINLINE int32 GetInstanceSceneDataOffset(int32 PrimitiveId) const
 	{
 		ensure(bCommitted);
 		ensure(PrimitiveIdRange.Contains(PrimitiveId));
 		ensure(UploadData->bIsUploaded);
 
 		// Assume a 1:1 mapping between primitive ID and instance ID
-		return UploadData->InstanceDataOffset + (PrimitiveId - PrimitiveIdRange.GetLowerBoundValue());
+		return UploadData->InstanceSceneDataOffset + (PrimitiveId - PrimitiveIdRange.GetLowerBoundValue());
 	}
 
 	int32 Num() const {	return UploadData != nullptr ? UploadData->PrimitiveShaderData.Num() : 0; }
@@ -100,7 +100,7 @@ private:
 	struct FUploadData
 	{
 		TArray<FPrimitiveUniformShaderParameters, TInlineAllocator<8>> PrimitiveShaderData;
-		int32 InstanceDataOffset = INDEX_NONE;
+		int32 InstanceSceneDataOffset = INDEX_NONE;
 		bool bIsUploaded = false;
 	};
 
@@ -147,14 +147,14 @@ private:
 struct FGPUSceneBufferState
 {
 	FRWBufferStructured	PrimitiveBuffer;
-	FRWBufferStructured	InstanceDataBuffer;
-	uint32				InstanceDataSOAStride = 1; // Distance between arrays in float4s
+	FRWBufferStructured	InstanceSceneDataBuffer;
+	uint32				InstanceSceneDataSOAStride = 1; // Distance between arrays in float4s
 	FRWBufferStructured	InstanceBVHBuffer;
 	FRWBufferStructured	LightmapDataBuffer;
 	uint32 LightMapDataBufferSize;
 
 	bool bResizedPrimitiveData = false;
-	bool bResizedInstanceData = false;
+	bool bResizedInstanceSceneData = false;
 	bool bResizedLightmapData = false;
 };
 
@@ -163,7 +163,7 @@ struct FGPUSceneBufferState
 BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneWriterParameters, )
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUSceneInstanceSceneDataRW)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUScenePrimitiveSceneDataRW)
-	SHADER_PARAMETER(uint32, GPUSceneInstanceDataSOAStride)
+	SHADER_PARAMETER(uint32, GPUSceneInstanceSceneDataSOAStride)
 	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 	SHADER_PARAMETER(uint32, GPUSceneNumAllocatedInstances)
 	SHADER_PARAMETER(uint32, GPUSceneNumAllocatedPrimitives)
@@ -174,7 +174,7 @@ class FGPUScene
 public:
 	FGPUScene()
 		: bUpdateAllPrimitives(false)
-		, InstanceDataSOAStride(0)
+		, InstanceSceneDataSOAStride(0)
 	{
 	}
 	~FGPUScene();
@@ -194,16 +194,16 @@ public:
 	EShaderPlatform GetShaderPlatform() const { return GShaderPlatformForFeatureLevel[FeatureLevel]; }
 
 	/**
-	 * Allocates a range of space in the instance data buffer for the required number of instances, 
-	 * returns the offset to the first instance or INDEX_NONE if either the allocation failed or NumInstanceDataEntries was zero.
+	 * Allocates a range of space in the instance scene data buffer for the required number of instances, 
+	 * returns the offset to the first instance or INDEX_NONE if either the allocation failed or NumInstanceSceneDataEntries was zero.
 	 * Marks the instances as requiring update (actual update is handled later).
 	 */
-	int32 AllocateInstanceSlots(int32 NumInstanceDataEntries);
+	int32 AllocateInstanceSceneDataSlots(int32 NumInstanceSceneDataEntries);
 	
 	/**
 	 * Free the instance data slots for reuse.
 	 */
-	void FreeInstanceSlots(int32 InstanceDataOffset, int32 NumInstanceDataEntries);
+	void FreeInstanceSceneDataSlots(int32 InstanceSceneDataOffset, int32 NumInstanceSceneDataEntries);
 
 	/**
 	 * Upload primitives from View.DynamicPrimitiveCollector.
@@ -284,10 +284,11 @@ public:
 	FScatterUploadBuffer PrimitiveUploadBuffer;
 
 	/** GPU primitive instance list */
-	FGrowOnlySpanAllocator	InstanceDataAllocator;
-	FRWBufferStructured		InstanceDataBuffer;
-	FScatterUploadBuffer	InstanceUploadBuffer;
-	uint32					InstanceDataSOAStride;	// Distance between arrays in float4s
+	FGrowOnlySpanAllocator	InstanceSceneDataAllocator;
+	FRWBufferStructured		InstanceSceneDataBuffer;
+	FScatterUploadBuffer	InstanceSceneUploadBuffer;
+	uint32					InstanceSceneDataSOAStride;	// Distance between arrays in float4s
+
 	FRWBufferStructured		InstanceBVHBuffer;
 
 	/** GPU light map data */
@@ -298,8 +299,8 @@ public:
 private:
 	TArray<EPrimitiveDirtyState> PrimitiveDirtyState;
 
-	TBitArray<>				InstanceDataToClear;
-	TSet<uint32>			InstanceClearList;
+	TBitArray<>				InstanceSceneDataToClear;
+	TSet<uint32>			InstanceSceneDataClearList;
 
 	TRange<int32> CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector);
 

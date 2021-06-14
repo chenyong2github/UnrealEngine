@@ -6,12 +6,12 @@ uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
 {
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	// Handle ray tracing auto instancing which can cause PrimitiveInstanceIndex to be above 0 for meshes with a single instance
-	if (GetPrimitiveData(PrimitiveIndex).NumInstanceDataEntries == 1)
+	if (GetPrimitiveData(PrimitiveIndex).NumInstanceSceneDataEntries == 1)
 	{
 		InstanceIndex = 0;
 	}
 
-	return GetPrimitiveData(PrimitiveIndex).InstanceDataOffset + InstanceIndex;
+	return GetPrimitiveData(PrimitiveIndex).InstanceSceneDataOffset + InstanceIndex;
 #else
 
 	return 0;

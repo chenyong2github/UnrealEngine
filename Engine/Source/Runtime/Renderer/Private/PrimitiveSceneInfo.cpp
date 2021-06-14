@@ -156,8 +156,8 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bIndirectLightingCacheBufferDirty(false),
 	bRegisteredVirtualTextureProducerCallback(false),
 	bRegisteredWithVelocityData(false),
-	InstanceDataOffset(INDEX_NONE),
-	NumInstanceDataEntries(0),
+	InstanceSceneDataOffset(INDEX_NONE),
+	NumInstanceSceneDataEntries(0),
 	LightmapDataOffset(INDEX_NONE),
 	NumLightmapDataEntries(0)
 {
@@ -966,23 +966,24 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
-			check(SceneInfo->InstanceDataOffset == INDEX_NONE);
-			check(SceneInfo->NumInstanceDataEntries == 0);
+			check(SceneInfo->InstanceSceneDataOffset == INDEX_NONE);
+			check(SceneInfo->NumInstanceSceneDataEntries == 0);
 			if (SceneInfo->Proxy->SupportsInstanceDataBuffer())
 			{
-				if (const TArray<FPrimitiveInstance>* PrimitiveInstances = SceneInfo->Proxy->GetPrimitiveInstances())
+				const TConstArrayView<FPrimitiveInstance> InstanceSceneData = SceneInfo->Proxy->GetInstanceSceneData();
+				if (InstanceSceneData.Num() > 0)
 				{
-					SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(PrimitiveInstances->Num());
-					SceneInfo->NumInstanceDataEntries = PrimitiveInstances->Num();
+					SceneInfo->NumInstanceSceneDataEntries = InstanceSceneData.Num();
+					SceneInfo->InstanceSceneDataOffset = Scene->GPUScene.AllocateInstanceSceneDataSlots(SceneInfo->NumInstanceSceneDataEntries);
 
 					if (GGPUSceneInstanceBVH)
 					{
-						for (int32 InstanceIndex = 0; InstanceIndex < PrimitiveInstances->Num(); ++InstanceIndex)
+						for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->NumInstanceSceneDataEntries; ++InstanceIndex)
 						{
-							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
+							const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 							const FRenderBounds WorldBounds = PrimitiveInstance.LocalBounds.TransformBy(SceneInfo->Proxy->GetLocalToWorld());
 							// TODO: Replace Instance BVH FBounds with FRenderBounds
-							Scene->InstanceBVH.Add(FBounds({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceDataOffset + InstanceIndex);
+							Scene->InstanceBVH.Add(FBounds({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceSceneDataOffset + InstanceIndex);
 						}
 					}
 				}
@@ -990,8 +991,8 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 			else
 			{
 				// Allocate a single 'dummy/fallback' instance for the primitive that gets automatically populated with the data from the primitive
-				SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(1);
-				SceneInfo->NumInstanceDataEntries = 1;
+				SceneInfo->InstanceSceneDataOffset = Scene->GPUScene.AllocateInstanceSceneDataSlots(1);
+				SceneInfo->NumInstanceSceneDataEntries = 1;
 			}
 
 			// Force a primitive update in the GPU scene, 
@@ -1010,22 +1011,22 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 void FPrimitiveSceneInfo::FreeGPUSceneInstances()
 {
 	// Release all instance data slots associated with this primitive.
-	if (InstanceDataOffset != INDEX_NONE && Scene->GPUScene.IsEnabled())
+	if (InstanceSceneDataOffset != INDEX_NONE && Scene->GPUScene.IsEnabled())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 
-		check(Proxy->SupportsInstanceDataBuffer() || NumInstanceDataEntries == 1);
+		check(Proxy->SupportsInstanceDataBuffer() || NumInstanceSceneDataEntries == 1);
 		if (GGPUSceneInstanceBVH)
 		{
-			for (int32 InstanceIndex = 0; InstanceIndex < NumInstanceDataEntries; InstanceIndex++)
+			for (int32 InstanceIndex = 0; InstanceIndex < NumInstanceSceneDataEntries; InstanceIndex++)
 			{
-				Scene->InstanceBVH.Remove(InstanceDataOffset + InstanceIndex);
+				Scene->InstanceBVH.Remove(InstanceSceneDataOffset + InstanceIndex);
 			}
 		}
 
-		Scene->GPUScene.FreeInstanceSlots(InstanceDataOffset, NumInstanceDataEntries);
-		InstanceDataOffset = INDEX_NONE;
-		NumInstanceDataEntries = 0;
+		Scene->GPUScene.FreeInstanceSceneDataSlots(InstanceSceneDataOffset, NumInstanceSceneDataEntries);
+		InstanceSceneDataOffset = INDEX_NONE;
+		NumInstanceSceneDataEntries = 0;
 	}
 }
 

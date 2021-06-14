@@ -35,9 +35,9 @@ ENGINE_API void GetPrecomputedLightingParameters(
 struct FLightmapSceneShaderData
 {
 	// Must match usf
-	enum { LightmapDataStrideInFloat4s = 15 };
+	enum { DataStrideInFloat4s = 15 };
 
-	TStaticArray<FVector4, LightmapDataStrideInFloat4s> Data;
+	TStaticArray<FVector4, DataStrideInFloat4s> Data;
 
 	FLightmapSceneShaderData()
 		: Data(InPlace, NoInit)

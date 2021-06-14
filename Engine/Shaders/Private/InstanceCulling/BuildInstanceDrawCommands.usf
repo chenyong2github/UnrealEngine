@@ -57,8 +57,8 @@ uint NumCulledViews;
 
 #if DEBUG_MODE
 int bDrawOnlyVSMInvalidatingGeometry;
-uint InstanceDataSOAStride;
-#endif // DEBUG_MODE
+uint InstanceSceneDataSOAStride;
+#endif
 
 uint NumPrimitiveIds;
 uint NumInstanceRuns;
@@ -164,9 +164,9 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 		if (Index < NumCmdPrimitiveIds)
 		{
 			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset + Index], BatchInfo);
-			if (GetPrimitiveData(PrimitiveId).InstanceDataOffset >= 0)
+			if (GetPrimitiveData(PrimitiveId).InstanceSceneDataOffset >= 0)
 			{
-				Num = GetPrimitiveData(PrimitiveId).NumInstanceDataEntries;
+				Num = GetPrimitiveData(PrimitiveId).NumInstanceSceneDataEntries;
 			}
 			else
 			{
@@ -208,7 +208,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 		uint InstanceIdOutputOffset = InstanceIdOffsetGroupShared;
 		{
 			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset], BatchInfo);
-			WriteInstanceId(InstanceIdOutputOffset, GetPrimitiveData(PrimitiveId).InstanceDataOffset, 0U, CommandSlotIndex);
+			WriteInstanceId(InstanceIdOutputOffset, GetPrimitiveData(PrimitiveId).InstanceSceneDataOffset, 0U, CommandSlotIndex);
 		}
 		GroupMemoryBarrierWithGroupSync();
 
@@ -216,7 +216,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 
 		uint CurrentRangeStart = 0;
 		uint CurrentRangeEnd = 0;
-		int InstanceDataOffset = 0;
+		int InstanceSceneDataOffset = 0;
 
 		// 4. loop over output primitive instance number
 		for (uint OutputIndex1 = GroupThreadIndex; OutputIndex1 < PrimitiveInstanceCount; OutputIndex1 += NUM_THREADS_PER_GROUP)
@@ -228,20 +228,20 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 				uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset + CurrentPrimitiveIdIndex], BatchInfo);
 
 				CurrentRangeStart = CurrentRangeEnd;
-				InstanceDataOffset = GetPrimitiveData(PrimitiveId).InstanceDataOffset;
-				CurrentRangeEnd += max(1, GetPrimitiveData(PrimitiveId).NumInstanceDataEntries);
+				InstanceSceneDataOffset = GetPrimitiveData(PrimitiveId).InstanceSceneDataOffset;
+				CurrentRangeEnd += max(1, GetPrimitiveData(PrimitiveId).NumInstanceSceneDataEntries);
 			}
 
-			uint OutId = InstanceDataOffset >= 0 ? uint(InstanceDataOffset) + OutputIndex1 - CurrentRangeStart : 0U;
+			uint OutId = InstanceSceneDataOffset >= 0 ? uint(InstanceSceneDataOffset) + OutputIndex1 - CurrentRangeStart : 0U;
 
 			bool bIsVisible = true;
 #if DEBUG_MODE
 			BRANCH
-			if (InstanceDataOffset >= 0 && bDrawOnlyVSMInvalidatingGeometry != 0)
+			if (InstanceSceneDataOffset >= 0 && bDrawOnlyVSMInvalidatingGeometry != 0)
 			{
-				FInstanceSceneData InstanceData = GetInstanceData(OutId, InstanceDataSOAStride);
-				const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
-				const bool bCastShadow = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & 1u) != 0u;
+				FInstanceSceneData InstanceSceneData = GetInstanceSceneData(OutId, InstanceSceneDataSOAStride);
+				const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceSceneData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
+				const bool bCastShadow = (GetPrimitiveData(InstanceSceneData.PrimitiveId).Flags & 1u) != 0u;
 
 				bIsVisible = bHasMoved && bCastShadow;
 			}
@@ -252,7 +252,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 			{
 				// In stereo mode we need to output all the instances in pairs, one for each eye
 #if STEREO_CULLING_MODE
-				if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 0]) || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 1]))
+				if (InstanceSceneDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 0]) || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 1]))
 				{
 					uint OutputOffset = 0;
 					InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
@@ -265,7 +265,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 #else // !STEREO_CULLING_MODE
 				for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
 				{
-					if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + ViewIdIndex]))
+					if (InstanceSceneDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + ViewIdIndex]))
 					{
 						uint OutputOffset = 0;
 						InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
@@ -278,7 +278,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 		// repeat process for the runs
 		CurrentRangeStart = 0;
 		CurrentRangeEnd = 0;
-		InstanceDataOffset = 0;
+		InstanceSceneDataOffset = 0;
 		FInstanceRun Run = (FInstanceRun)0;
 		int CurrentRunIndex = -1;
 		for (uint OutputIndex2 = GroupThreadIndex; OutputIndex2 < RunInstanceCount; OutputIndex2 += NUM_THREADS_PER_GROUP)
@@ -291,17 +291,17 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 
 				CurrentRangeStart = CurrentRangeEnd;
 				CurrentRangeEnd += (Run.EndInclusive + 1) - Run.Start;
-				InstanceDataOffset = GetPrimitiveData(Run.PrimitiveId).InstanceDataOffset;
+				InstanceSceneDataOffset = GetPrimitiveData(Run.PrimitiveId).InstanceSceneDataOffset;
 			}
 
-			uint OutId = uint(InstanceDataOffset) + Run.Start + OutputIndex2 - CurrentRangeStart;
+			uint OutId = uint(InstanceSceneDataOffset) + Run.Start + OutputIndex2 - CurrentRangeStart;
 
 			bool bIsVisible = true;
 #if DEBUG_MODE
 			BRANCH
 			if (bDrawOnlyVSMInvalidatingGeometry != 0)
 			{
-				FInstanceSceneData InstanceData = GetInstanceData(OutId, InstanceDataSOAStride);
+				FInstanceSceneData InstanceData = GetInstanceSceneData(OutId, InstanceSceneDataSOAStride);
 				const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
 				const bool bCastShadow = (GetPrimitiveData(Run.PrimitiveId).Flags & 1u) != 0u;
 

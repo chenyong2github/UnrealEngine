@@ -292,8 +292,8 @@ FRHIUniformBuffer* FNiagaraSceneProxy::GetCustomUniformBuffer(bool bHasVelocity,
 		UBBuilder.LightmapDataIndex(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetLightmapDataOffset() : 0);
 		UBBuilder.LightmapUVIndex(GetLightMapCoordinateIndex());
 		UBBuilder.SingleCaptureIndex(SingleCaptureIndex);
-		UBBuilder.InstanceDataOffset(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE);
-		UBBuilder.NumInstanceDataEntries(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetNumInstanceDataEntries() : 0);
+		UBBuilder.InstanceSceneDataOffset(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetInstanceSceneDataOffset() : INDEX_NONE);
+		UBBuilder.NumInstanceSceneDataEntries(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetNumInstanceSceneDataEntries() : 0);
 		UBBuilder.ReceivesDecals(ReceivesDecals());
 		UBBuilder.DrawsVelocity(DrawsVelocity());
 		UBBuilder.OutputVelocity(bOutputVelocity);

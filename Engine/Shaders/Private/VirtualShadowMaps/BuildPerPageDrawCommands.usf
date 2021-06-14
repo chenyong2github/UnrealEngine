@@ -44,7 +44,7 @@ uint FirstPrimaryView;
 uint NumPrimaryViews;
 RWStructuredBuffer<uint> DrawCommandInstanceCountBufferOut;
 RWStructuredBuffer<uint> VisibleInstanceCountBufferOut;
-uint InstanceDataSOAStride;
+uint InstanceSceneDataSOAStride;
 uint bInstancePerPage;
 
 RWStructuredBuffer<uint> OutDynamicCasterFlags;
@@ -171,7 +171,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 	FPrimCullingCommand Cmd = PrimitiveCullingCommands[DrawCommandId];
 
 	// Load relevant instance data
-	FInstanceSceneData InstanceData = GetInstanceData(InstanceId, InstanceDataSOAStride);
+	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
 	const uint PageFlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
 
