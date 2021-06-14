@@ -119,20 +119,10 @@ bool FHairGroupsCardsSourceDescription::operator==(const FHairGroupsCardsSourceD
 FString FHairGroupsCardsSourceDescription::GetMeshKey() const
 {
 #if WITH_EDITORONLY_DATA
-	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
+	if (UStaticMesh* Mesh = GetMesh())
 	{
-		ImportedMesh->ConditionalPostLoad();
-		FStaticMeshSourceModel& SourceModel = ImportedMesh->GetSourceModel(0);
-		if (SourceModel.GetMeshDescriptionBulkData())
-		{
-			return SourceModel.GetMeshDescriptionBulkData()->GetIdString();
-		}
-
-	}
-	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
-	{
-		ProceduralMesh->ConditionalPostLoad();
-		FStaticMeshSourceModel& SourceModel = ProceduralMesh->GetSourceModel(0);
+		Mesh->ConditionalPostLoad();
+		FStaticMeshSourceModel& SourceModel = Mesh->GetSourceModel(0);
 		if (SourceModel.GetMeshDescriptionBulkData())
 		{
 			return SourceModel.GetMeshDescriptionBulkData()->GetIdString();
@@ -170,4 +160,20 @@ void FHairGroupsCardsSourceDescription::UpdateMeshKey()
 		ProceduralMeshKey = GetMeshKey();
 	}
 #endif
+}
+
+UStaticMesh* FHairGroupsCardsSourceDescription::GetMesh() const
+{
+#if WITH_EDITORONLY_DATA
+	if (SourceType == EHairCardsSourceType::Imported)
+	{
+		return ImportedMesh;
+
+	}
+	else if (SourceType == EHairCardsSourceType::Procedural)
+	{
+		return ProceduralMesh;
+	}
+#endif
+	return nullptr;
 }

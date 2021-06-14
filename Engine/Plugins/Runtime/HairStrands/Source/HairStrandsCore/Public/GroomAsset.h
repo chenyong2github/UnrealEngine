@@ -599,6 +599,8 @@ private:
 	bool BuildCardsGeometry(uint32 GroupIndex);
 	bool BuildMeshesGeometry(uint32 GroupIndex);
 
+	bool HasValidCardsData(uint32 GroupIndex) const;
+	bool HasValidMeshesData(uint32 GroupIndex) const;
 public:
 	/** Commits a HairDescription to buffer for serialization */
 	void CommitHairDescription(FHairDescription&& HairDescription);

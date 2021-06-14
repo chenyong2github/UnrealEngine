@@ -2160,8 +2160,59 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 	return bSuccess;
 }
 
+bool UGroomAsset::HasValidMeshesData(uint32 GroupIndex) const
+{
+	const FHairGroupData& HairGroupData = HairGroupsData[GroupIndex];
+	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+	for (int32 LODIt = 0; LODIt < GroupsLOD.LODs.Num(); ++LODIt)
+	{
+		if (GroupsLOD.LODs[LODIt].GeometryType == EGroomGeometryType::Meshes)
+		{
+			int32 SourceIt = 0;
+			if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
+			{
+				if (Desc->ImportedMesh)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool UGroomAsset::HasValidCardsData(uint32 GroupIndex) const
+{
+	const FHairGroupData& HairGroupData = HairGroupsData[GroupIndex];
+	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+	for (int32 LODIt = 0; LODIt < GroupsLOD.LODs.Num(); ++LODIt)
+	{
+		if (GroupsLOD.LODs[LODIt].GeometryType == EGroomGeometryType::Cards)
+		{
+			int32 SourceIt = 0;
+			if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+			{
+				if (Desc->GetMesh())
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+// Return true if the meshes data have changed
 bool UGroomAsset::CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKey)
 {
+	const bool bHasValidCardsData = HasValidCardsData(GroupIndex);
+	if (!bHasValidCardsData)
+	{
+		const bool bNeedReset = !CardsDerivedDataKey[GroupIndex].IsEmpty();
+		CardsDerivedDataKey[GroupIndex].Empty();
+		return bNeedReset;
+	}
+
 	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsCards);
 	const FString DerivedDataKey = StrandsKey + KeySuffix;
 
@@ -2257,8 +2308,17 @@ bool UGroomAsset::CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKe
 	return true;
 }
 
+// Return true if the meshes data have changed
 bool UGroomAsset::CacheMeshesGeometry(uint32 GroupIndex)
 {
+	const bool bHasValidMeshesData = UGroomAsset::HasValidMeshesData(GroupIndex);
+	if (!bHasValidMeshesData)
+	{
+		const bool bNeedReset = !MeshesDerivedDataKey[GroupIndex].IsEmpty();
+		MeshesDerivedDataKey[GroupIndex].Empty();
+		return bNeedReset;
+	}
+
 	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsMeshes);
 	const FString DerivedDataKey = GroomDerivedDataCacheUtils::BuildGroomDerivedDataKey(KeySuffix);
 
