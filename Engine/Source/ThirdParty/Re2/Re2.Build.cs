@@ -8,12 +8,11 @@ public class Re2 : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform != UnrealTargetPlatform.Win64)
+		if (!IsVcPackageSupported)
 		{
-			// Currently only supported for Win64
 			return;
 		}
 
-		AddVcPackage(Target, "re2", true, "re2");
+		AddVcPackage("re2", true, "re2");
 	}
 }
