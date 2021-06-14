@@ -3678,7 +3678,8 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				]
 			];
 		}
-		const bool bShowCallInEditor = bIsCustomEvent || FBlueprintEditorUtils::IsEditorUtilityBlueprint( GetBlueprintObj() ) || (FunctionEntryNode && FunctionEntryNode->IsEditable());
+		
+		const bool bShowCallInEditor = bIsCustomEvent || bIsFunctionGraph;
 		if( bShowCallInEditor )
 		{
 			Category.AddCustomRow( LOCTEXT( "EditorCallable", "Call In Editor" ) )
@@ -4022,6 +4023,10 @@ void FBlueprintGraphActionDetails::OnEditorCallableEventModified( const ECheckBo
 			const FScopedTransaction Transaction( TransactionType );
 			EntryPoint->MetaData.bCallInEditor = bCallInEditor;
 			FBlueprintEditorUtils::MarkBlueprintAsModified( EntryPoint->GetBlueprint() );
+		}
+		else
+		{
+			checkf(false, TEXT("Only Events and Functions are Callable In Editor"));
 		}
 	}
 }
