@@ -596,6 +596,12 @@ namespace HordeServer.Tasks.Impl
 		/// <inheritdoc/>
 		public Task<ITaskListener?> SubscribeAsync(IAgent Agent)
 		{
+			if (Agent.Leases.Count > 0)
+			{
+				Logger.LogDebug("Cannot subscribe agent {AgentId} as it already has one or more leases. Num leases {Leases}", Agent.Id, Agent.Leases.Count);
+				return Task.FromResult<ITaskListener?>(null);
+			}
+			
 			return Task.FromResult<ITaskListener?>(new Subscription(this, Agent));
 		}
 
