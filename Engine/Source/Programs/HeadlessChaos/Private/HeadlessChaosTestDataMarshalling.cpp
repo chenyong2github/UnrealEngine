@@ -101,7 +101,7 @@ namespace ChaosTest
 
 	GTEST_TEST(AllTraits, DataMarshalling_Callbacks)
 	{
-		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, EThreadingMode::SingleThread);
+		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, /*AsyncDt=*/-1, EThreadingMode::SingleThread);
 		
 		int Count = 0;
 		FReal Time = 0;
@@ -167,7 +167,7 @@ namespace ChaosTest
 
 	GTEST_TEST(AllTraits,DataMarshalling_OneShotCallbacks)
 	{
-		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr,EThreadingMode::SingleThread);
+		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, /*AsyncDt=*/-1, EThreadingMode::SingleThread);
 		
 		int Count = 0;
 		Solver->RegisterSimOneShotCallback([&Count]()

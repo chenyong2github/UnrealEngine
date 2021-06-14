@@ -38,7 +38,7 @@ namespace ChaosTest {
 
 		// Make a solver
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		auto* Solver = Module->CreateSolver(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr,/*AsyncDt=*/-1);
                 InitSolverSettings(Solver);
 
 		Solver->EnableRewindCapture(RewindHistorySize, !!Optimization);
@@ -2340,7 +2340,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			//note: this 5 is just a suggestion, there could be more frames saved than that
@@ -2406,7 +2406,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 
 
 			InitSolverSettings(Solver);
@@ -2565,7 +2565,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -2661,7 +2661,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -2754,7 +2754,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -2852,7 +2852,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 			
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -2902,7 +2902,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -2994,7 +2994,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -3085,7 +3085,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(100, !!Optimization);
@@ -3177,7 +3177,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(100, !!Optimization);
@@ -3265,7 +3265,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -3345,7 +3345,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -3435,7 +3435,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -3526,7 +3526,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(100, !!Optimization);
@@ -3633,7 +3633,7 @@ namespace ChaosTest {
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 
 		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
@@ -3744,7 +3744,7 @@ namespace ChaosTest {
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 
 		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
@@ -3981,7 +3981,7 @@ namespace ChaosTest {
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 
 		TArray<FPhysicsActorHandle> Storage = InitFunc(Solver);
