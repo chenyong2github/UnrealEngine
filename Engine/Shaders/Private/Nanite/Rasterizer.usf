@@ -387,7 +387,9 @@ void MicropolyRasterize(
 
 struct VSOut
 {
-	noperspective  float DeviceZ			: TEXCOORD0;
+#if !NEAR_CLIP
+	float2 ClipZW							: TEXCOORD0;
+#endif
 #if PIXEL_VALUE
 	nointerpolation uint PixelValue			: TEXCOORD1;
 #endif
@@ -441,7 +443,9 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	Out.ViewId = VisibleCluster.ViewId;
 #endif
 	Out.Position = PointClip;
-	Out.DeviceZ = PointClip.z / PointClip.w;
+#if !NEAR_CLIP
+	Out.ClipZW = PointClip.zw;
+#endif
 
 	// Shader workaround to avoid HW depth clipping. Should be replaced with rasterizer state ideally.
 #if !NEAR_CLIP
@@ -609,7 +613,9 @@ VSOut HWRasterizeVS(
 
 	VSOut Out;
 	Out.Position = float4(0,0,0,1);
-	Out.DeviceZ = 0.0f;
+#if !NEAR_CLIP
+	Out.ClipZW = float2(0,0);
+#endif
 
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId );
@@ -675,9 +681,14 @@ void HWRasterizePS(VSOut In)
 	if (all(PixelPos >= In.ViewRect.xy && PixelPos < In.ViewRect.zw))
 #endif
 	{
-		WritePixel(OutVisBuffer64, PixelValue, PixelPos, In.DeviceZ, NaniteView, VIRTUAL_TEXTURE_TARGET);
+#if NEAR_CLIP
+		float DeviceZ = In.Position.z;
+#else
+		float DeviceZ = In.ClipZW.x / In.ClipZW.y;
+#endif
+		WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, NaniteView, VIRTUAL_TEXTURE_TARGET);
 	#if VISUALIZE
-		WritePixel(OutDbgBuffer64, In.VisualizeValues.x, PixelPos, In.DeviceZ, NaniteView, VIRTUAL_TEXTURE_TARGET);
+		WritePixel(OutDbgBuffer64, In.VisualizeValues.x, PixelPos, DeviceZ, NaniteView, VIRTUAL_TEXTURE_TARGET);
 		InterlockedAdd(OutDbgBuffer32[PixelPos], In.VisualizeValues.y);
 	#endif
 	}
