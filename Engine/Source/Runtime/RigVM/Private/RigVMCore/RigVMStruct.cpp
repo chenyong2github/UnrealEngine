@@ -434,6 +434,11 @@ FString FRigVMStruct::ExportToFullyQualifiedText(UScriptStruct* InStruct, const 
 	TArray<FString> FieldValues;
 	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
 	{
+		if(It->HasAnyPropertyFlags(CPF_Transient))
+		{
+			continue;
+		}
+		
 		FString PropertyName = It->GetName();
 		const uint8* StructMemberMemoryPtr = It->ContainerPtrToValuePtr<uint8>(InStructMemoryPtr);
 		FString DefaultValue = ExportToFullyQualifiedText(*It, StructMemberMemoryPtr);
