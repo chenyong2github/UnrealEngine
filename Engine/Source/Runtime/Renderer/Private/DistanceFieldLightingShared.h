@@ -43,6 +43,17 @@ enum EDistanceFieldPrimitiveType
 	DFPT_Num
 };
 
+// Must match equivalent shader defines
+static const int32 GDistanceFieldObjectDataStride = 9;
+static const int32 GDistanceFieldObjectBoundsStride = 2;
+static const int32 GDistanceFieldCulledObjectDataStride = GDistanceFieldObjectDataStride;
+static const int32 GDistanceFieldCulledObjectBoxBoundsStride = 5;
+
+static const int32 GHeightFieldObjectDataStride = 6;
+static const int32 GHeightFieldObjectBoundsStride = 2;
+static const int32 GHeightFieldCulledObjectDataStride = GHeightFieldObjectDataStride;
+static const int32 GHeightFieldCulledObjectBoxBoundsStride = 5;
+
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldObjectBuffers
 {
@@ -277,29 +288,6 @@ public:
 	}
 };
 
-class FDistanceFieldCulledObjectBuffers : public TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField> {};
-class FHeightFieldCulledObjectBuffers : public TDistanceFieldCulledObjectBuffers<DFPT_HeightField> {};
-
-template <EDistanceFieldPrimitiveType PrimitiveType>
-class TDistanceFieldObjectBufferResource : public FRenderResource
-{
-public:
-	typename TChooseClass<PrimitiveType == DFPT_HeightField, FHeightFieldCulledObjectBuffers, FDistanceFieldCulledObjectBuffers>::Result Buffers;
-
-	virtual void InitDynamicRHI()  override
-	{
-		Buffers.Initialize();
-	}
-
-	virtual void ReleaseDynamicRHI() override
-	{
-		Buffers.Release();
-	}
-};
-
-class FDistanceFieldObjectBufferResource : public TDistanceFieldObjectBufferResource<DFPT_SignedDistanceField> {};
-class FHeightFieldObjectBufferResource : public TDistanceFieldObjectBufferResource<DFPT_HeightField> {};
-
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldCulledObjectBufferParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectIndirectArguments)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectBounds)
@@ -312,10 +300,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldCulledObjectBufferParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 extern void AllocateDistanceFieldCulledObjectBuffers(
-	FRDGBuilder& GraphBuilder, 
-	bool bWantBoxBounds, 
-	uint32 MaxObjects, 
-	uint32 NumBoundsElementsScale,
+	FRDGBuilder& GraphBuilder,
+	bool bWantBoxBounds,
+	uint32 MaxObjects,
+	EDistanceFieldPrimitiveType PrimitiveType,
 	FRDGBufferRef& OutObjectIndirectArguments,
 	FDistanceFieldCulledObjectBufferParameters& OutParameters);
 
@@ -541,8 +529,6 @@ extern void CullDistanceFieldObjectsForLight(
 	const FDistanceFieldObjectBufferParameters& ObjectBufferParameters,
 	FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FLightTileIntersectionParameters& LightTileIntersectionParameters);
-
-extern TGlobalResource<FDistanceFieldObjectBufferResource> GAOCulledObjectBuffers;
 
 extern bool SupportsDistanceFieldAO(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform);
 

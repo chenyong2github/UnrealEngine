@@ -38,240 +38,44 @@ public:
 	FDistanceFieldAOParameters(float InOcclusionMaxDistance, float InContrast = 0);
 };
 
-/**  */
-class FTileIntersectionResources : public FRenderResource
-{
-public:
+BEGIN_SHADER_PARAMETER_STRUCT(FTileIntersectionParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector4>, RWTileConeAxisAndCos)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector4>, RWTileConeDepthRanges)
 
-	FRWBuffer TileConeAxisAndCos;
-	FRWBuffer TileConeDepthRanges;
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWNumCulledTilesArray)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledTilesStartOffsetArray)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledTileDataArray)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectTilesIndirectArguments)
 
-	FRWBuffer NumCulledTilesArray;
-	FRWBuffer CulledTilesStartOffsetArray;
-	FRWBuffer CulledTileDataArray;
-	FRWBuffer ObjectTilesIndirectArguments;
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector4>, TileConeAxisAndCos)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector4>, TileConeDepthRanges)
 
-	FIntPoint TileDimensions;
-	int32 MaxSceneObjects;
-	bool bAllow16BitIndices;
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumCulledTilesArray)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledTilesStartOffsetArray)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledTileDataArray)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ObjectTilesIndirectArguments)
 
-	FTileIntersectionResources(bool bInAllow16BitIndices) :
-		MaxSceneObjects(0), bAllow16BitIndices(bInAllow16BitIndices)
-	{}
-
-	bool HasAllocatedEnoughFor(FIntPoint TestTileDimensions, int32 TestMaxSceneObjects) const
-	{
-		return TestTileDimensions == TileDimensions && TestMaxSceneObjects <= MaxSceneObjects;
-	}
-
-	void SetupParameters(FIntPoint InTileDimensions, int32 InMaxSceneObjects)
-	{
-		TileDimensions = InTileDimensions;
-		MaxSceneObjects = InMaxSceneObjects;
-	}
-
-	virtual void InitDynamicRHI() override;
-
-	
-
-	virtual void ReleaseDynamicRHI() override
-	{
-		TileConeAxisAndCos.Release();
-		TileConeDepthRanges.Release();
-
-		NumCulledTilesArray.Release();
-		CulledTilesStartOffsetArray.Release();
-		CulledTileDataArray.Release();
-		ObjectTilesIndirectArguments.Release();
-	}
-
-	void AcquireTransientResource()
-	{
-		TileConeAxisAndCos.AcquireTransientResource();
-		TileConeDepthRanges.AcquireTransientResource();
-		NumCulledTilesArray.AcquireTransientResource();
-		CulledTilesStartOffsetArray.AcquireTransientResource();
-		CulledTileDataArray.AcquireTransientResource();
-	}
-
-	void DiscardTransientResource()
-	{
-		TileConeAxisAndCos.DiscardTransientResource();
-		TileConeDepthRanges.DiscardTransientResource();
-		NumCulledTilesArray.DiscardTransientResource();
-		CulledTilesStartOffsetArray.DiscardTransientResource();
-		CulledTileDataArray.DiscardTransientResource();
-	}
-
-	size_t GetSizeBytes() const
-	{
-		return TileConeAxisAndCos.NumBytes + TileConeDepthRanges.NumBytes
-			+ NumCulledTilesArray.NumBytes + CulledTilesStartOffsetArray.NumBytes + CulledTileDataArray.NumBytes + ObjectTilesIndirectArguments.NumBytes;
-	}
-};
+	SHADER_PARAMETER(FIntPoint, TileListGroupSize)
+END_SHADER_PARAMETER_STRUCT()
 
 static int32 CulledTileDataStride = 2;
 static int32 ConeTraceObjectsThreadGroupSize = 64;
 
-class FTileIntersectionParameters
+inline void TileIntersectionModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
 {
-	DECLARE_TYPE_LAYOUT(FTileIntersectionParameters, NonVirtual);
-public:
+	OutEnvironment.SetDefine(TEXT("CULLED_TILE_DATA_STRIDE"), CulledTileDataStride);
+	extern int32 GDistanceFieldAOTileSizeX;
+	OutEnvironment.SetDefine(TEXT("CULLED_TILE_SIZEX"), GDistanceFieldAOTileSizeX);
+	extern int32 GConeTraceDownsampleFactor;
+	OutEnvironment.SetDefine(TEXT("TRACE_DOWNSAMPLE_FACTOR"), GConeTraceDownsampleFactor);
+	OutEnvironment.SetDefine(TEXT("CONE_TRACE_OBJECTS_THREADGROUP_SIZE"), ConeTraceObjectsThreadGroupSize);
+}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.SetDefine(TEXT("CULLED_TILE_DATA_STRIDE"), CulledTileDataStride);
-		extern int32 GDistanceFieldAOTileSizeX;
-		OutEnvironment.SetDefine(TEXT("CULLED_TILE_SIZEX"), GDistanceFieldAOTileSizeX);
-		extern int32 GConeTraceDownsampleFactor;
-		OutEnvironment.SetDefine(TEXT("TRACE_DOWNSAMPLE_FACTOR"), GConeTraceDownsampleFactor);
-		OutEnvironment.SetDefine(TEXT("CONE_TRACE_OBJECTS_THREADGROUP_SIZE"), ConeTraceObjectsThreadGroupSize);
-	}
-
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		TileListGroupSize.Bind(ParameterMap, TEXT("TileListGroupSize"));
-		NumCulledTilesArray.Bind(ParameterMap, TEXT("NumCulledTilesArray"));
-		CulledTilesStartOffsetArray.Bind(ParameterMap, TEXT("CulledTilesStartOffsetArray"));
-		CulledTileDataArray.Bind(ParameterMap, TEXT("CulledTileDataArray"));
-		ObjectTilesIndirectArguments.Bind(ParameterMap, TEXT("ObjectTilesIndirectArguments"));
-	}
-
-	template<typename TParamRef>
-	void Set(FRHICommandList& RHICmdList, const TParamRef& ShaderRHI, const FTileIntersectionResources& TileIntersectionResources)
-	{
-		SetShaderValue(RHICmdList, ShaderRHI, TileListGroupSize, TileIntersectionResources.TileDimensions);
-
-		NumCulledTilesArray.SetBuffer(RHICmdList, ShaderRHI, TileIntersectionResources.NumCulledTilesArray);
-		CulledTilesStartOffsetArray.SetBuffer(RHICmdList, ShaderRHI, TileIntersectionResources.CulledTilesStartOffsetArray);
-		CulledTileDataArray.SetBuffer(RHICmdList, ShaderRHI, TileIntersectionResources.CulledTileDataArray);
-		ObjectTilesIndirectArguments.SetBuffer(RHICmdList, ShaderRHI, TileIntersectionResources.ObjectTilesIndirectArguments);
-	}
-
-	void GetUAVs(FTileIntersectionResources& TileIntersectionResources, TArray<FRHIUnorderedAccessView*>& UAVs)
-	{
-		uint32 MaxIndex = 0;
-		
-		MaxIndex = FMath::Max(MaxIndex, NumCulledTilesArray.GetUAVIndex());
-		MaxIndex = FMath::Max(MaxIndex, CulledTilesStartOffsetArray.GetUAVIndex());
-		MaxIndex = FMath::Max(MaxIndex, CulledTileDataArray.GetUAVIndex());
-		MaxIndex = FMath::Max(MaxIndex, ObjectTilesIndirectArguments.GetUAVIndex());
-
-		UAVs.AddZeroed(MaxIndex + 1);
-
-		if (NumCulledTilesArray.IsUAVBound())
-		{
-			UAVs[NumCulledTilesArray.GetUAVIndex()] = TileIntersectionResources.NumCulledTilesArray.UAV;
-		}
-
-		if (CulledTilesStartOffsetArray.IsUAVBound())
-		{
-			UAVs[CulledTilesStartOffsetArray.GetUAVIndex()] = TileIntersectionResources.CulledTilesStartOffsetArray.UAV;
-		}
-
-		if (CulledTileDataArray.IsUAVBound())
-		{
-			UAVs[CulledTileDataArray.GetUAVIndex()] = TileIntersectionResources.CulledTileDataArray.UAV;
-		}
-
-		if (ObjectTilesIndirectArguments.IsUAVBound())
-		{
-			UAVs[ObjectTilesIndirectArguments.GetUAVIndex()] = TileIntersectionResources.ObjectTilesIndirectArguments.UAV;
-		}
-
-		check(UAVs.Num() > 0);
-	}
-
-	void GetReadableTransitions(FTileIntersectionResources& TileIntersectionResources, TArray<FRHITransitionInfo>& TransitionInfos)
-	{
-		if (NumCulledTilesArray.IsUAVBound())
-		{
-			TransitionInfos.Add(FRHITransitionInfo(TileIntersectionResources.NumCulledTilesArray.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-		}
-
-		if (CulledTilesStartOffsetArray.IsUAVBound())
-		{
-			TransitionInfos.Add(FRHITransitionInfo(TileIntersectionResources.CulledTilesStartOffsetArray.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-		}
-
-		if (CulledTileDataArray.IsUAVBound())
-		{
-			TransitionInfos.Add(FRHITransitionInfo(TileIntersectionResources.CulledTileDataArray.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-		}
-
-		if (ObjectTilesIndirectArguments.IsUAVBound())
-		{
-			TransitionInfos.Add(FRHITransitionInfo(TileIntersectionResources.ObjectTilesIndirectArguments.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask | ERHIAccess::IndirectArgs));
-		}
-
-		check(TransitionInfos.Num() > 0);
-	}
-
-	template<typename TParamRef>
-	void UnsetParameters(FRHICommandList& RHICmdList, const TParamRef& ShaderRHI)
-	{
-		NumCulledTilesArray.UnsetUAV(RHICmdList, ShaderRHI);
-		CulledTilesStartOffsetArray.UnsetUAV(RHICmdList, ShaderRHI);
-		CulledTileDataArray.UnsetUAV(RHICmdList, ShaderRHI);
-		ObjectTilesIndirectArguments.UnsetUAV(RHICmdList, ShaderRHI);
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FTileIntersectionParameters& P)
-	{
-		Ar << P.TileListGroupSize;
-		Ar << P.NumCulledTilesArray;
-		Ar << P.CulledTilesStartOffsetArray;
-		Ar << P.CulledTileDataArray;
-		Ar << P.ObjectTilesIndirectArguments;
-		return Ar;
-	}
-
-private:
-	
-		LAYOUT_FIELD(FShaderParameter, TileListGroupSize)
-
-		LAYOUT_FIELD(FRWShaderParameter, NumCulledTilesArray)
-		LAYOUT_FIELD(FRWShaderParameter, CulledTilesStartOffsetArray)
-		LAYOUT_FIELD(FRWShaderParameter, CulledTileDataArray)
-		LAYOUT_FIELD(FRWShaderParameter, ObjectTilesIndirectArguments)
-	
-};
-
-class FAOScreenGridResources : public FRenderResource
-{
-public:
-
-	FAOScreenGridResources()
-	{}
-
-	virtual void InitDynamicRHI() override;
-
-	virtual void ReleaseDynamicRHI() override
-	{
-		ScreenGridConeVisibility.Release();
-		ConeDepthVisibilityFunction.Release();
-	}
-
-	void AcquireTransientResource()
-	{
-		ScreenGridConeVisibility.AcquireTransientResource();
-	}
-
-	void DiscardTransientResource()
-	{
-		ScreenGridConeVisibility.DiscardTransientResource();
-	}
-
-	FIntPoint ScreenGridDimensions;
-
-	FRWBuffer ScreenGridConeVisibility;
-	FRWBuffer ConeDepthVisibilityFunction;
-
-	size_t GetSizeBytesForAO() const
-	{
-		return ScreenGridConeVisibility.NumBytes;
-	}
-};
+BEGIN_SHADER_PARAMETER_STRUCT(FAOScreenGridParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWScreenGridConeVisibility)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ScreenGridConeVisibility)
+	SHADER_PARAMETER(FIntPoint, ScreenGridConeVisibilitySize)
+END_SHADER_PARAMETER_STRUCT()
 
 extern void GetSpacedVectors(uint32 FrameNumber, TArray<FVector, TInlineAllocator<9> >& OutVectors);
 
@@ -444,7 +248,6 @@ public:
 	{
 		BaseLevelTexelSize.Bind(ParameterMap, TEXT("BaseLevelTexelSize"));
 		JitterOffset.Bind(ParameterMap, TEXT("JitterOffset"));
-		ScreenGridConeVisibilitySize.Bind(ParameterMap, TEXT("ScreenGridConeVisibilitySize"));
 		DistanceFieldNormalTexture.Bind(ParameterMap, TEXT("DistanceFieldNormalTexture"));
 		DistanceFieldNormalSampler.Bind(ParameterMap, TEXT("DistanceFieldNormalSampler"));
 	}
@@ -459,9 +262,6 @@ public:
 		extern FVector2D GetJitterOffset(int32 SampleIndex);
 		SetShaderValue(RHICmdList, ShaderRHI, JitterOffset, GetJitterOffset(View.ViewState->GetDistanceFieldTemporalSampleIndex()));
 
-		FAOScreenGridResources* ScreenGridResources = View.ViewState->AOScreenGridResources;
-
-		SetShaderValue(RHICmdList, ShaderRHI, ScreenGridConeVisibilitySize, ScreenGridResources->ScreenGridDimensions);
 
 		SetTextureParameter(
 			RHICmdList,
@@ -475,7 +275,7 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar,FScreenGridParameters& P)
 	{
-		Ar << P.BaseLevelTexelSize << P.JitterOffset << P.ScreenGridConeVisibilitySize << P.DistanceFieldNormalTexture << P.DistanceFieldNormalSampler;
+		Ar << P.BaseLevelTexelSize << P.JitterOffset << P.DistanceFieldNormalTexture << P.DistanceFieldNormalSampler;
 		return Ar;
 	}
 
@@ -483,7 +283,6 @@ private:
 	
 		LAYOUT_FIELD(FShaderParameter, BaseLevelTexelSize)
 		LAYOUT_FIELD(FShaderParameter, JitterOffset)
-		LAYOUT_FIELD(FShaderParameter, ScreenGridConeVisibilitySize)
 		LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldNormalTexture)
 		LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldNormalSampler)
 	
@@ -493,6 +292,15 @@ extern void TrackGPUProgress(FRHICommandListImmediate& RHICmdList, uint32 DebugI
 
 extern bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 
-extern void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, class FDistanceFieldObjectBufferResource& CulledObjectBuffers);
-extern void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FViewInfo>& Views, FRDGTextureRef DistanceFieldNormal, const FDistanceFieldAOParameters& Parameters);
+class FDistanceFieldCulledObjectBufferParameters;
+
+extern void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, FDistanceFieldCulledObjectBufferParameters& CulledObjectBuffers);
+extern void BuildTileObjectLists(FRDGBuilder& GraphBuilder,
+	FScene* Scene,
+	TArray<FViewInfo>& Views,
+	FRDGBufferRef ObjectIndirectArguments,
+	const FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
+	FTileIntersectionParameters TileIntersectionParameters,
+	FRDGTextureRef DistanceFieldNormal,
+	const FDistanceFieldAOParameters& Parameters);
 extern FIntPoint GetTileListGroupSizeForView(const FViewInfo& View);

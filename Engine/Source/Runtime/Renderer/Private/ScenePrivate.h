@@ -1039,11 +1039,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> LightScatteringHistory;
 	TRefCountPtr<IPooledRenderTarget> PrevLightScatteringConservativeDepthTexture;
 
-	/** Distance field AO tile intersection GPU resources.  Last frame's state is not used, but they must be sized exactly to the view so stored here. */
-	class FTileIntersectionResources* AOTileIntersectionResources;
-
-	class FAOScreenGridResources* AOScreenGridResources;
-
 	bool bInitializedGlobalDistanceFieldOrigins;
 	bool bGlobalDistanceFieldPendingReset = false;
 	FGlobalDistanceFieldClipmapState GlobalDistanceFieldClipmapState[GMaxGlobalDistanceFieldClipmaps];

@@ -25,6 +25,8 @@
 enum class ERayTracingPrimaryRaysFlag : uint32;
 
 class FSceneTextureParameters;
+class FDistanceFieldCulledObjectBufferParameters;
+class FTileIntersectionParameters;
 class FDistanceFieldAOParameters;
 class UStaticMeshComponent;
 class FExponentialHeightFogSceneInfo;
@@ -485,6 +487,9 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
 		const FViewInfo& View,
+		const FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
+		FRDGBufferRef ObjectTilesIndirectArguments,
+		const FTileIntersectionParameters& TileIntersectionParameters,
 		const FDistanceFieldAOParameters& Parameters,
 		FRDGTextureRef DistanceFieldNormal,
 		FRDGTextureRef& OutDynamicBentNormalAO);

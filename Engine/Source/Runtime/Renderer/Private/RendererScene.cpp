@@ -208,8 +208,6 @@ FSceneViewState::FSceneViewState()
 	TemporalAASampleIndex = 0;
 	FrameIndex = 0;
 	DistanceFieldTemporalSampleIndex = 0;
-	AOTileIntersectionResources = NULL;
-	AOScreenGridResources = NULL;
 	bDOFHistory = true;
 	bDOFHistory2 = true;
 	
@@ -286,10 +284,6 @@ FSceneViewState::~FSceneViewState()
 	}
 
 	DestroyRenderResource(HeightfieldLightingAtlas);
-	DestroyRenderResource(AOTileIntersectionResources);
-	AOTileIntersectionResources = NULL;
-	DestroyRenderResource(AOScreenGridResources);
-	AOScreenGridResources = NULL;
 
 	HairStrandsViewStateData.Release();
 	ShaderDrawDebugStateData.Release();

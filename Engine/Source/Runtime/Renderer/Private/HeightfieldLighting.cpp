@@ -1088,8 +1088,15 @@ const int32 GHeightfieldOcclusionDispatchSize = 8;
 
 class FCalculateHeightfieldOcclusionScreenGridCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FCalculateHeightfieldOcclusionScreenGridCS, Global)
+	DECLARE_GLOBAL_SHADER(FCalculateHeightfieldOcclusionScreenGridCS);
+
 public:
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOScreenGridParameters, AOScreenGridParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		RDG_TEXTURE_ACCESS(DistanceFieldNormal, ERHIAccess::SRVCompute)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1111,11 +1118,11 @@ public:
 	FCalculateHeightfieldOcclusionScreenGridCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
 		AOParameters.Bind(Initializer.ParameterMap);
 		ScreenGridParameters.Bind(Initializer.ParameterMap);
 		HeightfieldDescriptionParameters.Bind(Initializer.ParameterMap);
 		HeightfieldTextureParameters.Bind(Initializer.ParameterMap);
-		ScreenGridConeVisibility.Bind(Initializer.ParameterMap, TEXT("ScreenGridConeVisibility"));
 		TanConeHalfAngle.Bind(Initializer.ParameterMap, TEXT("TanConeHalfAngle"));
 	}
 
@@ -1129,7 +1136,6 @@ public:
 		UTexture2D* HeightfieldTextureValue,
 		int32 NumHeightfieldsValue,
 		FRHITexture* DistanceFieldNormal,
-		const FAOScreenGridResources& ScreenGridResources,
 		const FDistanceFieldAOParameters& Parameters)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
@@ -1139,9 +1145,6 @@ public:
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
 		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
 		HeightfieldTextureParameters.Set(RHICmdList, ShaderRHI, HeightfieldTextureValue, nullptr, nullptr);
-
-		RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources.ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		ScreenGridConeVisibility.SetBuffer(RHICmdList, ShaderRHI, ScreenGridResources.ScreenGridConeVisibility);
 
 		FAOSampleData2 AOSampleData;
 
@@ -1159,60 +1162,66 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, TanConeHalfAngle, FMath::Tan(GAOConeHalfAngle));
 	}
 
-	void UnsetParameters(FRHICommandList& RHICmdList, const FAOScreenGridResources& ScreenGridResources)
-	{
-		ScreenGridConeVisibility.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
-		RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources.ScreenGridConeVisibility.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-	}
-
 private:
 
 	LAYOUT_FIELD(FAOParameters, AOParameters);
 	LAYOUT_FIELD(FScreenGridParameters, ScreenGridParameters);
 	LAYOUT_FIELD(FHeightfieldDescriptionParameters, HeightfieldDescriptionParameters);
 	LAYOUT_FIELD(FHeightfieldTextureParameters, HeightfieldTextureParameters);
-	LAYOUT_FIELD(FRWShaderParameter, ScreenGridConeVisibility);
 	LAYOUT_FIELD(FShaderParameter, TanConeHalfAngle);
 };
 
-IMPLEMENT_SHADER_TYPE(, FCalculateHeightfieldOcclusionScreenGridCS, TEXT("/Engine/Private/HeightfieldLighting.usf"), TEXT("CalculateHeightfieldOcclusionScreenGridCS"), SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCalculateHeightfieldOcclusionScreenGridCS, "/Engine/Private/HeightfieldLighting.usf", "CalculateHeightfieldOcclusionScreenGridCS", SF_Compute);
 
 
 void FHeightfieldLightingViewInfo::ComputeOcclusionForScreenGrid(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRHICommandListImmediate& RHICmdList,
-	FRHITexture* DistanceFieldNormal,
-	const FAOScreenGridResources& ScreenGridResources,
+	const FSceneTextures& SceneTextures,
+	FRDGTextureRef DistanceFieldNormal,
+	const FAOScreenGridParameters& AOScreenGridParameters,
 	const FDistanceFieldAOParameters& Parameters) const
 {
-	const FScene* Scene = (const FScene*)View.Family->Scene;
+	int32 DownsampleFactor = Heightfield.DownsampleFactor;
 
 	if (Heightfield.ComponentDescriptions.Num() > 0 && GAOHeightfieldOcclusion)
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, HeightfieldOcclusion);
-
-		FSceneViewState* ViewState = (FSceneViewState*)View.State;
-
+		for (TMap<FHeightfieldComponentTextures, TArray<FHeightfieldComponentDescription>>::TConstIterator It(Heightfield.ComponentDescriptions); It; ++It)
 		{
-			for (TMap<FHeightfieldComponentTextures, TArray<FHeightfieldComponentDescription>>::TConstIterator It(Heightfield.ComponentDescriptions); It; ++It)
+			UTexture2D* HeightfieldTexture = It.Key().HeightAndNormal;
+			const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions = It.Value();
+
+			if (HeightfieldDescriptions.Num() > 0)
 			{
-				const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions = It.Value();
+				auto* PassParameters = GraphBuilder.AllocParameters<FCalculateHeightfieldOcclusionScreenGridCS::FParameters>();
+				PassParameters->AOScreenGridParameters = AOScreenGridParameters;
+				PassParameters->SceneTextures = SceneTextures.UniformBuffer;
+				PassParameters->DistanceFieldNormal = DistanceFieldNormal;
 
-				if (HeightfieldDescriptions.Num() > 0)
-				{
-					UploadHeightfieldDescriptions(HeightfieldDescriptions, FVector2D(1, 1), 1.0f / Heightfield.DownsampleFactor);
+				auto ComputeShader = View.ShaderMap->GetShader<FCalculateHeightfieldOcclusionScreenGridCS>();
 
-					UTexture2D* HeightfieldTexture = It.Key().HeightAndNormal;
+				ClearUnusedGraphResources(ComputeShader, PassParameters);
 
-					const uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X / GAODownsampleFactor, GHeightfieldOcclusionDispatchSize);
-					const uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor, GHeightfieldOcclusionDispatchSize);
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("HeightfieldOcclusion"),
+					PassParameters,
+					ERDGPassFlags::Compute,
+					[PassParameters, ComputeShader, &View, Parameters, DistanceFieldNormal, &HeightfieldDescriptions, HeightfieldTexture, DownsampleFactor](FRHICommandListImmediate& RHICmdList)
+					{
+						UploadHeightfieldDescriptions(HeightfieldDescriptions, FVector2D(1, 1), 1.0f / DownsampleFactor);
 
-					TShaderMapRef<FCalculateHeightfieldOcclusionScreenGridCS> ComputeShader(View.ShaderMap);
-					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, View, HeightfieldTexture, HeightfieldDescriptions.Num(), DistanceFieldNormal, ScreenGridResources, Parameters);
-					DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
-					ComputeShader->UnsetParameters(RHICmdList, ScreenGridResources);
-				}
+						const uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X / GAODownsampleFactor, GHeightfieldOcclusionDispatchSize);
+						const uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor, GHeightfieldOcclusionDispatchSize);
+
+						RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+
+						ComputeShader->SetParameters(RHICmdList, View, HeightfieldTexture, HeightfieldDescriptions.Num(), DistanceFieldNormal->GetRHI(), Parameters);
+						SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters);
+
+						DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
+
+						UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShader.GetComputeShader());
+					});
 			}
 		}
 	}
