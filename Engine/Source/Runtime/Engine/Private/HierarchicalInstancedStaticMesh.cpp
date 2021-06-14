@@ -1393,13 +1393,13 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 					}
 
 					//MeshBatchElement.NumInstances = TotalInstances;
-					// The index was used as an offset, but the dynamic buffer thing uses a resource view to make this not needed (using PrimitiveInstanceDataOffset as a temp. debug help)
+					// The index was used as an offset, but the dynamic buffer thing uses a resource view to make this not needed (using PrimitiveInstanceSceneDataOffset as a temp. debug help)
 					MeshBatchElement.UserIndex = 0;
 
 					// Note: this call overrides the UserIndex to mean the command index, which is used to fetch the offset to the instance array
-					//Collector.AllocateInstancedBatchArguments(ElementParams.ViewIndex, MeshBatch, PrimitiveInstanceDataOffset, PrimitiveInstanceDataCount, RunArray);
+					//Collector.AllocateInstancedBatchArguments(ElementParams.ViewIndex, MeshBatch, PrimitiveInstanceSceneDataOffset, PrimitiveInstanceDataCount, RunArray);
 
-					// We use this existing hook to send info about the runs over to the visiblemeshbatch
+					// We use this existing hook to send info about the runs over to the visible mesh batch
 					MeshBatchElement.NumInstances = RunArray.Num() / 2;
 					MeshBatchElement.InstanceRuns = &RunArray[0];
 					MeshBatchElement.bIsInstanceRuns = true;

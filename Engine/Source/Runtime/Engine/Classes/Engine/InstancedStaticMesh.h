@@ -611,24 +611,12 @@ public:
 		return true;
 	}
 
-	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
-	{
-		return &Instances;
-	}
-
-	virtual TArray<FPrimitiveInstance>* GetPrimitiveInstances()
-	{
-		return &Instances;
-	}
-
 protected:
 	/** Cache of the StaticMesh asset, needed to release SpeedTree resources*/
 	UStaticMesh* StaticMesh;
 
 	/** Per component render data */
 	FInstancedStaticMeshRenderData InstancedRenderData;
-
-	TArray<FPrimitiveInstance> Instances;
 
 #if WITH_EDITOR
 	/* If we we have any selected instances */

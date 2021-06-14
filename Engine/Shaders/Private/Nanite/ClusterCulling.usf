@@ -235,7 +235,7 @@ void RequestPageRange( uint RuntimeResourceID, uint StartPageIndex, uint NumPage
 
 void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 {
-	FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
+	FInstanceSceneData InstanceData = GetInstanceSceneData( InstanceId );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
@@ -593,7 +593,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		NaniteView.LODScale *= DisocclusionLodScaleFactor;
 #endif
 
-	FInstanceSceneData InstanceData = GetInstanceData(CandidateNode.InstanceId);
+	FInstanceSceneData InstanceData = GetInstanceSceneData(CandidateNode.InstanceId);
 	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 	// Depth clipping should only be disabled with orthographic projections

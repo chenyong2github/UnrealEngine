@@ -3,7 +3,7 @@
 #pragma once
 
 /**
- * Include access API to update the GPU-Scene from a compute shader. 
+ * Include access API to update the GPU scene from a compute shader. 
  * This header must be included before SceneData.ush, as it modifies the behaviour. 
  * Expects FGPUSceneWriterParameters to be present in the parameter struct (use GPUScene::BeginReadWriteAccess/EndReadWriteAccess/GetWriteParameters)
  * Since this uses the GPU scene loading functions via a global RW buffer this cannot be used in the same translation unit as regular use of 
@@ -15,13 +15,13 @@
 
 #include "../SceneData.ush"
 
-uint GPUSceneInstanceDataSOAStride;
+uint GPUSceneInstanceSceneDataSOAStride;
 uint GPUSceneNumAllocatedInstances;
 uint GPUSceneNumAllocatedPrimitives;
 
 void StoreInstanceDataElement(uint InstanceId, uint ElementIndex, float4 DataElement)
 {
-	GPUSceneInstanceSceneDataRW[ElementIndex * GPUSceneInstanceDataSOAStride + InstanceId] = DataElement;
+	GPUSceneInstanceSceneDataRW[ElementIndex * GPUSceneInstanceSceneDataSOAStride + InstanceId] = DataElement;
 }
 
 /**
@@ -30,7 +30,7 @@ void StoreInstanceDataElement(uint InstanceId, uint ElementIndex, float4 DataEle
  */
 void WriteInstancePrimitiveId(uint InstanceId, uint NewPrimitiveId)
 {
-	float4 DataElement = LoadInstanceDataElement(0 * GPUSceneInstanceDataSOAStride + InstanceId);
+	float4 DataElement = LoadInstanceDataElement(0 * GPUSceneInstanceSceneDataSOAStride + InstanceId);
 	DataElement.y = asfloat(NewPrimitiveId);
 	checkSlow(InstanceId < GPUSceneNumAllocatedInstances);
 	StoreInstanceDataElement(InstanceId, 0, DataElement);

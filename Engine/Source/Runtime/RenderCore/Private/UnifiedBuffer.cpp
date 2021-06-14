@@ -297,6 +297,7 @@ void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, 
 
 		if (ResourceTypeTraits<ResourceType>::Type == EResourceType::TEXTURE)
 		{
+			// TODO: Is this even used?
 			uint16 PrimitivesPerTextureLine = FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
 			Parameters.Common.Float4sPerLine = PrimitivesPerTextureLine * FScatterUploadBuffer::PrimitiveDataStrideInFloat4s;
 		}

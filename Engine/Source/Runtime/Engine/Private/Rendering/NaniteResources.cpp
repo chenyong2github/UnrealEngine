@@ -446,11 +446,9 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	}
 #endif
 
-	Instances.Reserve(1);
-	Instances.SetNum(1);
-	FPrimitiveInstance& Instance = Instances[0];
+	FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
 	Instance.LocalToPrimitive.SetIdentity();
-	Instance.PrevLocalToPrimitive       = Instance.LocalToPrimitive;
+	Instance.PrevLocalToPrimitive.SetIdentity();
 	Instance.LocalBounds                = Component->GetStaticMesh()->GetBounds();
 	Instance.NaniteHierarchyOffset      = 0U;
 	Instance.PerInstanceRandom          = 0.0f;
@@ -463,9 +461,8 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
-	Instances.Reserve(Component->GetInstanceCount());
-	Instances.SetNum(Component->GetInstanceCount());
-	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+	InstanceSceneData.SetNum(Component->GetInstanceCount());
+	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
@@ -474,7 +471,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		FTransform InstancePrevTransform;
 		const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
 
-		FPrimitiveInstance& Instance = Instances[InstanceIndex];
+		FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
 		Instance.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
 		
 		// TODO: KevinO cleanup
@@ -499,22 +496,22 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		[this, PerInstanceRenderData = Component->PerInstanceRenderData](FRHICommandList& RHICmdList)
 	{
 		if (PerInstanceRenderData != nullptr &&
-			PerInstanceRenderData->InstanceBuffer.GetNumInstances() == Instances.Num())
+			PerInstanceRenderData->InstanceBuffer.GetNumInstances() == InstanceSceneData.Num())
 		{
-			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+			for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 			{
-				FPrimitiveInstance& Instance = Instances[InstanceIndex];
+				FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
 				PerInstanceRenderData->InstanceBuffer.GetInstanceLightMapData(InstanceIndex, Instance.LightMapAndShadowMapUVBias);
 				PerInstanceRenderData->InstanceBuffer.GetInstanceRandomID(InstanceIndex, Instance.PerInstanceRandom);
 			}
 		}
 	});
 
-	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, Instances.GetAllocatedSize());
-	INC_DWORD_STAT_BY(STAT_NaniteInstanceCount, Instances.Num());
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceSceneData.GetAllocatedSize());
+	INC_DWORD_STAT_BY(STAT_NaniteInstanceCount, InstanceSceneData.Num());
 
 #if RHI_RAYTRACING
-	if (Instances.Num() == 0)
+	if (InstanceSceneData.Num() == 0)
 	{
 		bHasRayTracingInstances = false;
 	}
@@ -528,8 +525,8 @@ FSceneProxy::FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component)
 
 FSceneProxy::~FSceneProxy()
 {
-	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, Instances.GetAllocatedSize());
-	DEC_DWORD_STAT_BY(STAT_NaniteInstanceCount, Instances.Num());
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceSceneData.GetAllocatedSize());
+	DEC_DWORD_STAT_BY(STAT_NaniteInstanceCount, InstanceSceneData.Num());
 }
 
 void FSceneProxy::CreateRenderThreadResources()
@@ -539,23 +536,23 @@ void FSceneProxy::CreateRenderThreadResources()
 	check(Resources->RuntimeResourceID != NANITE_INVALID_RESOURCE_ID && Resources->HierarchyOffset != NANITE_INVALID_HIERARCHY_OFFSET);
 	const bool bHasImposter = Resources->ImposterAtlas.Num() > 0;
 
-	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
 		// Regular static mesh instances only use hierarchy offset on primitive.
-		Instances[InstanceIndex].NaniteHierarchyOffset = 0;
+		InstanceSceneData[InstanceIndex].NaniteHierarchyOffset = 0;
 
 		if (bHasImposter)
 		{
-			Instances[InstanceIndex].Flags |= INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;
+			InstanceSceneData[InstanceIndex].Flags |= INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;
 		}
 		else
 		{
-			Instances[InstanceIndex].Flags &= ~INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;
+			InstanceSceneData[InstanceIndex].Flags &= ~INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;
 		}
 	}
 }
 
-FPrimitiveViewRelevance FSceneProxy::GetViewRelevance( const FSceneView* View ) const
+FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
@@ -899,7 +896,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 	RayTracingInstance.Geometry = RayTracingGeometry;
 
-	const int32 InstanceCount = Instances.Num();
+	const int32 InstanceCount = InstanceSceneData.Num();
 	if (CachedRayTracingInstanceTransforms.Num() != InstanceCount || !bCachedRayTracingInstanceTransformsValid)
 	{
 		const FRenderTransform PrimitiveToWorld = (FMatrix44f)GetLocalToWorld();
@@ -907,7 +904,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 		CachedRayTracingInstanceTransforms.SetNumUninitialized(InstanceCount);
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 		{
-			const FPrimitiveInstance& Instance = Instances[InstanceIndex];
+			const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
 			const FRenderTransform InstanceLocalToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
 			CachedRayTracingInstanceTransforms[InstanceIndex] = InstanceLocalToWorld.ToMatrix();
 		}
@@ -939,11 +936,11 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 
 	RayTracingInstance.Geometry = RayTracingGeometry;
 
-	const int32 InstanceCount = Instances.Num();
+	const int32 InstanceCount = InstanceSceneData.Num();
 	RayTracingInstance.InstanceTransforms.SetNumUninitialized(InstanceCount);
-	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
-		const FPrimitiveInstance& Instance = Instances[InstanceIndex];
+		const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
 		// LocalToWorld multiplication will be done when added to FScene, and re-done when doing UpdatePrimitiveTransform
 		RayTracingInstance.InstanceTransforms[InstanceIndex] = Instance.LocalToPrimitive.ToMatrix();
 	}
@@ -989,7 +986,7 @@ void FSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectL
 	if (DistanceFieldData)
 	{
 		const FRenderTransform PrimitiveToWorld = (FMatrix44f)GetLocalToWorld();
-		for (const FPrimitiveInstance& Instance : Instances)
+		for (const FPrimitiveInstance& Instance : InstanceSceneData)
 		{
 			FRenderTransform& InstanceToWorld = ObjectLocalToWorldTransforms.Emplace_GetRef();
 			InstanceToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);

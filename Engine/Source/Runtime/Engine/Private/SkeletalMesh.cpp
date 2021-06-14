@@ -5680,16 +5680,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 	if (bUseGPUScene)
 	{
 		bSupportsInstanceDataBuffer = true;
-		// 100% generic default-instance
-		Instances.SetNum(1);
-		FPrimitiveInstance& Instance = Instances[0];
-		Instance.LocalToPrimitive.SetIdentity();
-		Instance.PrevLocalToPrimitive.SetIdentity();
-		Instance.LocalBounds = GetLocalBounds();
-		Instance.PerInstanceRandom = 0.0f;
-		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-		Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-		Instance.Flags = 0U;
+		UpdateDefaultInstanceSceneData();
 	}
 
 #if RHI_RAYTRACING
@@ -6666,15 +6657,8 @@ void FSkeletalMeshSceneProxy::OnTransformChanged()
 	MeshObject->RefreshClothingTransforms(GetLocalToWorld(), GetScene().GetFrameNumber());
 
 	// Update the default-instance
-	// GPUCULL_TODO: really making more sense to move to the base proxy, or auto-generate default instance on GPU-scene update.
-	if (Instances.Num() == 1)
-	{
-	    FPrimitiveInstance& Instance = Instances[0];
-	    Instance.LocalBounds = GetLocalBounds();
-	}
+	UpdateDefaultInstanceSceneData();
 }
-
-
 
 FSkinnedMeshComponentRecreateRenderStateContext::FSkinnedMeshComponentRecreateRenderStateContext(USkeletalMesh* InSkeletalMesh, bool InRefreshBounds /*= false*/)
 	: bRefreshBounds(InRefreshBounds)

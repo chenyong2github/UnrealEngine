@@ -174,7 +174,7 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
 	
 	const FGPUScene& GPUScene = ((const FScene*)View.Family->Scene)->GPUScene;
-	TracingParameters.GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+	TracingParameters.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 	TracingParameters.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 
 	extern float GLumenSurfaceCacheFeedbackResLevelBias;

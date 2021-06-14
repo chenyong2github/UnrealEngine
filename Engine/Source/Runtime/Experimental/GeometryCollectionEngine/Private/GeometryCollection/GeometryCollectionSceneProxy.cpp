@@ -1198,10 +1198,10 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	// Need to specify initial instance list, even with just identity transforms, so that the
 	// GPUScene instance data allocator reserves space for the instances early on. The instance
 	// transforms will be corrected during the first frame before any rendering occurs.
-	Instances.SetNumZeroed(NumGeometry);
+	InstanceSceneData.SetNumZeroed(NumGeometry);
 	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
 	{
-		FPrimitiveInstance& Instance = Instances[GeometryIndex];
+		FPrimitiveInstance& Instance = InstanceSceneData[GeometryIndex];
 		Instance.LocalToPrimitive.SetIdentity();
 		Instance.PrevLocalToPrimitive.SetIdentity();
 		Instance.LocalBounds = GeometryNaniteData[GeometryIndex].LocalBounds;
@@ -1293,7 +1293,7 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 	const TManagedArray<int32>& TransformToGeometryIndices = Collection->TransformToGeometryIndex;
 
 	check(NewConstantData->RestTransforms.Num() == TransformToGeometryIndices.Num());
-	Instances.Reset(NewConstantData->RestTransforms.Num());
+	InstanceSceneData.Reset(NewConstantData->RestTransforms.Num());
 
 	for (int32 TransformIndex = 0; TransformIndex < NewConstantData->RestTransforms.Num(); ++TransformIndex)
 	{
@@ -1305,7 +1305,7 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 
 		const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
-		FPrimitiveInstance& Instance = Instances.Emplace_GetRef();
+		FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
 
 		Instance.LocalToPrimitive           = NewConstantData->RestTransforms[TransformIndex];
 		Instance.PrevLocalToPrimitive       = NewConstantData->RestTransforms[TransformIndex];
@@ -1333,7 +1333,7 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 		check(NumTransforms == TransformToGeometryIndices.Num());
 		check(NumTransforms == TransformChildren.Num());
 		check(NumTransforms == NewDynamicData->PrevTransforms.Num());
-		Instances.Reset(NumTransforms);
+		InstanceSceneData.Reset(NumTransforms);
 
 		for (int32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 		{
@@ -1345,7 +1345,7 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 
 			const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
-			FPrimitiveInstance& Instance = Instances.Emplace_GetRef();
+			FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
 
 			Instance.LocalToPrimitive = NewDynamicData->Transforms[TransformIndex];
 
@@ -1377,7 +1377,7 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 void FNaniteGeometryCollectionSceneProxy::ResetPreviousTransforms_RenderThread()
 {
 	// Reset previous transforms to avoid locked motion vectors
-	for (FPrimitiveInstance& Instance : Instances)
+	for (FPrimitiveInstance& Instance : InstanceSceneData)
 	{
 		Instance.PrevLocalToPrimitive = Instance.LocalToPrimitive;
 	}

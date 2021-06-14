@@ -61,16 +61,6 @@ public:
 		return MaterialMaxIndex;
 	}
 
-	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
-	{
-		return &Instances;
-	}
-
-	virtual TArray<FPrimitiveInstance>* GetPrimitiveInstances()
-	{
-		return &Instances;
-	}
-
 	// Nanite always uses LOD 0, and performs custom LOD streaming.
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const override { return 0; }
 
@@ -79,7 +69,6 @@ protected:
 
 protected:
 	TArray<FMaterialSection> MaterialSections;
-	TArray<FPrimitiveInstance> Instances;
 	int32 MaterialMaxIndex = INDEX_NONE;
 };
 

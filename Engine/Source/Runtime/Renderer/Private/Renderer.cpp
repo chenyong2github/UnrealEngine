@@ -159,8 +159,8 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				PrimitiveParams.LightmapUVIndex = 0;
 
 				// Set up reference to the single-instance 
-				PrimitiveParams.InstanceDataOffset = 0;
-				PrimitiveParams.NumInstanceDataEntries = 1;
+				PrimitiveParams.InstanceSceneDataOffset = 0;
+				PrimitiveParams.NumInstanceSceneDataEntries = 1;
 
 				// Now we just need to fill out the first entry of primitive data in a buffer and bind it
 				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);

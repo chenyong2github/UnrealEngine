@@ -763,7 +763,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(int, PhysicsFieldClipmapCount) \
 	VIEW_UNIFORM_BUFFER_MEMBER(int, PhysicsFieldTargetCount) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FIntVector4, PhysicsFieldTargets, [MAX_PHYSICS_FIELD_TARGETS]) \
-	VIEW_UNIFORM_BUFFER_MEMBER(uint32, InstanceDataSOAStride) \
+	VIEW_UNIFORM_BUFFER_MEMBER(uint32, InstanceSceneDataSOAStride) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, GPUSceneViewId) \
 
 #define VIEW_UNIFORM_BUFFER_MEMBER(type, identifier) \

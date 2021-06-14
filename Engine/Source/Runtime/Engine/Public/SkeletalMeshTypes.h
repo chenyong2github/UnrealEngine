@@ -206,16 +206,6 @@ public:
 	const TArray<FMatrix>& GetMeshObjectReferenceToLocalMatrices() const;
 	const TIndirectArray<FSkeletalMeshLODRenderData>& GetSkeletalMeshRenderDataLOD() const;
 
-	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
-	{
-		return &Instances;
-	}
-
-	virtual TArray<FPrimitiveInstance>* GetPrimitiveInstances()
-	{
-		return &Instances;
-	}
-
 protected:
 	AActor* Owner;
 	class FSkeletalMeshObject* MeshObject;
@@ -294,9 +284,6 @@ protected:
 	
 	/** The primitive's pre-skinned local space bounds. */
 	FBoxSphereBounds PreSkinnedLocalBounds;
-
-	// Instances (going to contain just one).
-	TArray<FPrimitiveInstance> Instances;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** The color we draw this component in if drawing debug bones */

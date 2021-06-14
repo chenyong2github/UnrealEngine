@@ -70,7 +70,7 @@ void EmitMaterialDepthPS(
 	{
 		// Export material depth ID as SV_Depth.
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData( VisibleCluster );
+		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster );
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
 		OutDepth = asfloat(MaterialDepthId | DummyZero); // Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to OutDepth in a buffer load instruction.
@@ -106,7 +106,7 @@ void EmitSceneDepthPS(
 	{
 #if VELOCITY_EXPORT
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 		const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
@@ -145,7 +145,7 @@ void EmitSceneStencilPS(
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 
 		// TODO: Move this into 'NaniteMask' to avoid the extra cluster decode, and to touch less memory
 		// by skipping the vbuffer (64b -> 8b)
@@ -186,7 +186,7 @@ void EmitSceneDepthStencilPS
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 		const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
@@ -273,7 +273,7 @@ void EmitHitProxyIdPS(
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		float4 HitProxyId = float4(
@@ -336,7 +336,7 @@ void EmitEditorLevelInstanceDepthPS(
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		if (BinarySearch(View.EditorVisualizeLevelInstanceIds, EDITOR_LEVELINSTANCE_BUFFER_COUNT, MaterialHitProxyId))
@@ -373,7 +373,7 @@ void EmitEditorSelectionDepthPS(
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		if (BinarySearch(View.EditorSelectedHitProxyIds, EDITOR_SELECTED_BUFFER_COUNT, MaterialHitProxyId))

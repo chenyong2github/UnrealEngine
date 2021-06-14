@@ -17,7 +17,7 @@ struct FPackedInstanceBatch
 struct FPackedInstanceBatchItem
 {
 	// packed 32-NumInstancesItemBits:NumInstancesItemBits - need one more bit for the case where one item has ThreadGroupSize work to do
-	uint InstanceDataOffset_NumInstances;
+	uint InstanceSceneDataOffset_NumInstances;
 	// packed 32-PrefixBits:PrefixBits
 	uint Payload_BatchPrefixOffset;
 };
@@ -46,7 +46,7 @@ FInstanceBatch UnpackBatch(FPackedInstanceBatch PackedBatch)
 
 struct FInstanceBatchItem
 {
-	uint InstanceDataOffset;
+	uint InstanceSceneDataOffset;
 	uint NumInstances;
 	uint Payload;
 	uint BatchPrefixOffset;
@@ -56,8 +56,8 @@ FInstanceBatchItem UnpackItem(FPackedInstanceBatchItem PackedItem)
 {
 	FInstanceBatchItem Result;
 
-	Result.InstanceDataOffset = PackedItem.InstanceDataOffset_NumInstances >> NUM_INSTANCES_ITEM_BITS;
-	Result.NumInstances = PackedItem.InstanceDataOffset_NumInstances & NUM_INSTANCES_ITEM_MASK;
+	Result.InstanceSceneDataOffset = PackedItem.InstanceSceneDataOffset_NumInstances >> NUM_INSTANCES_ITEM_BITS;
+	Result.NumInstances = PackedItem.InstanceSceneDataOffset_NumInstances & NUM_INSTANCES_ITEM_MASK;
 	Result.Payload = PackedItem.Payload_BatchPrefixOffset >> PREFIX_BITS;
 	Result.BatchPrefixOffset = PackedItem.Payload_BatchPrefixOffset & PREFIX_BIT_MASK;
 
@@ -69,7 +69,7 @@ FInstanceBatchItem UnpackItem(FPackedInstanceBatchItem PackedItem)
 
 groupshared uint WorkBoundary[NUM_THREADS_PER_GROUP];
 
-#else // !USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION
+#else
 
 groupshared uint ItemIndex[NUM_THREADS_PER_GROUP];
 
@@ -206,7 +206,7 @@ void GPUSceneSetInstancePrimitiveIdCS(uint GroupId : SV_GroupID, int GroupThread
 
 	if (LocalItemIndex >= 0 && LocalItemIndex < WorkItem.NumInstances)
 	{
-		int InstanceId = WorkItem.InstanceDataOffset + LocalItemIndex;
+		int InstanceId = WorkItem.InstanceSceneDataOffset + LocalItemIndex;
 		WriteInstancePrimitiveId(InstanceId, WorkItem.Payload);
 	}
 }

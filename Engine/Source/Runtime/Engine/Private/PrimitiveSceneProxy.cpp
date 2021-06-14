@@ -417,8 +417,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
 				.CastContactShadow(CastsContactShadow())
 				.CastShadow(CastsDynamicShadow())
-				.InstanceDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE)
-				.NumInstanceDataEntries(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceDataEntries() : 0)
+				.InstanceSceneDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceSceneDataOffset() : INDEX_NONE)
+				.NumInstanceSceneDataEntries(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceSceneDataEntries() : 0)
 			.Build();
 
 		if (UniformBuffer.GetReference())
@@ -711,6 +711,20 @@ void FPrimitiveSceneProxy::FDebugMassData::DrawDebugMass(class FPrimitiveDrawInt
 	PDI->DrawLine(COMWorldPosition + ZAxis * Size, COMWorldPosition - Size * ZAxis, FColor(0, 0, 255), SDPG_World, ZThickness);
 }
 #endif
+
+void FPrimitiveSceneProxy::UpdateDefaultInstanceSceneData()
+{
+	check(InstanceSceneData.Num() <= 1);
+	InstanceSceneData.SetNumUninitialized(1);
+	FPrimitiveInstance& DefaultInstance = InstanceSceneData[0];
+	DefaultInstance.LocalToPrimitive.SetIdentity();
+	DefaultInstance.PrevLocalToPrimitive.SetIdentity();
+	DefaultInstance.LocalBounds = GetLocalBounds();
+	DefaultInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+	DefaultInstance.Flags = 0;
+	DefaultInstance.PerInstanceRandom = 0.0f;
+	DefaultInstance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+}
 
 bool FPrimitiveSceneProxy::DrawInVirtualTextureOnly(bool bEditor) const
 {

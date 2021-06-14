@@ -135,7 +135,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		uint DebugValueAdd = DbgBuffer32[PixelPos];
 
 		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData          = GetInstanceData(VisibleCluster);
+		FInstanceSceneData InstanceData          = GetInstanceSceneData(VisibleCluster);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);

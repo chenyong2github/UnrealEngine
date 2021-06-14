@@ -40,7 +40,7 @@ void ClassifyMaterials(uint3 PixelPos : SV_DispatchThreadID)
 		if (VisibleClusterIndex != 0xFFFFFFFF)
 		{
 			const FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-			const FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
 			const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
 			MaterialDepthValue = asfloat(MaterialDepthId);
@@ -122,7 +122,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupIndex : 
 				if (ValidClusterIndex)
 				{
 					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-					FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
+					FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 					const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
 

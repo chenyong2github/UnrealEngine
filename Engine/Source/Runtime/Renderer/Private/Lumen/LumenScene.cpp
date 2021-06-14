@@ -65,8 +65,8 @@ bool FLumenPrimitiveGroup::HasMergedInstances() const
 		uint32 NumInstances = 0;
 		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : Primitives)
 		{
-			const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
-			NumInstances += PrimitiveInstances ? PrimitiveInstances->Num() : 1;
+			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
+			NumInstances += FMath::Min(InstanceSceneData.Num(), 1);
 
 			if (NumInstances > 1)
 			{
@@ -625,10 +625,10 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 		for (FPrimitiveSceneInfo* ScenePrimitiveInfo : LumenSceneData.PendingAddOperations)
 		{
-			const TArray<FPrimitiveInstance>* PrimitiveInstances = ScenePrimitiveInfo->Proxy->GetPrimitiveInstances();
+			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitiveInfo->Proxy->GetInstanceSceneData();
 
 			// #lumen_todo: Remove after non-Nanite per instance ISM capture is fixed (now every instance draws entire ISM)
-			int32 NumInstances = PrimitiveInstances ? PrimitiveInstances->Num() : 1;
+			int32 NumInstances = FMath::Min(InstanceSceneData.Num(), 1);
 			if (!ScenePrimitiveInfo->Proxy->IsNaniteMesh())
 			{
 				NumInstances = 1;
@@ -643,9 +643,9 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetLocalBounds().GetBox();
 					FMatrix LocalToWorld = PrimitiveToWorld;
 
-					if (PrimitiveInstances && InstanceIndex < PrimitiveInstances->Num())
+					if (InstanceIndex < InstanceSceneData.Num())
 					{
-						const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
+						const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 						LocalBoundingBox = PrimitiveInstance.LocalBounds.ToBox();
 						LocalToWorld = PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
 					}
@@ -711,7 +711,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 					bool bMergedInstances = false;
 
-					if (PrimitiveInstances && NumInstances > 1)
+					if (NumInstances > 1)
 					{
 						// Check if we can merge all instances into one MeshCards
 						extern int32 GLumenMeshCardsMergeInstances;
@@ -725,7 +725,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 							{
-								const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
+								const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
 								const FRenderBounds InstanceLocalBounds = Instance.LocalBounds.TransformBy(Instance.LocalToPrimitive);
 								LocalBounds += InstanceLocalBounds;
 								const double InstanceSurfaceArea = BoxSurfaceArea(InstanceLocalBounds.GetExtent());
@@ -776,7 +776,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
 								ScenePrimitiveInfo->LumenPrimitiveGroupIndices[InstanceIndex] = PrimitiveGroupIndex;
 
-								const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
+								const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 								const FRenderBounds& RenderBoundingBox = PrimitiveInstance.LocalBounds;
 
 								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
@@ -822,7 +822,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 			{
 				const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
 				const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
-				const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
+				const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
 
 				for (int32 PrimitiveGroupIndex : PrimitiveSceneInfo->LumenPrimitiveGroupIndices)
 				{
@@ -832,9 +832,9 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					{
 						FBox WorldSpaceBoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
 
-						if (PrimitiveInstances && PrimitiveGroup.PrimitiveInstanceIndex < PrimitiveInstances->Num())
+						if (PrimitiveGroup.PrimitiveInstanceIndex < InstanceSceneData.Num())
 						{
-							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[PrimitiveGroup.PrimitiveInstanceIndex];
+							const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[PrimitiveGroup.PrimitiveInstanceIndex];
 							WorldSpaceBoundingBox = PrimitiveInstance.LocalBounds.ToBox().TransformBy(PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld);
 						}
 
@@ -1327,11 +1327,8 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 			{
 				++NumPrimitivesMerged;
 
-				const TArray<FPrimitiveInstance>* PrimitiveInstances = ScenePrimitive->Proxy->GetPrimitiveInstances();
-				if (PrimitiveInstances)
-				{
-					NumInstancesMerged += PrimitiveInstances->Num();
-				}
+				const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitive->Proxy->GetInstanceSceneData();
+				NumInstancesMerged += InstanceSceneData.Num();
 			}
 		}
 

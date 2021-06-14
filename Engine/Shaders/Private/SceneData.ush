@@ -33,9 +33,9 @@
 // GPUCULL_TODO: Eventually we need to remove this workaround
 #define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
 
-#define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS			0x1
-#define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN		0x2
-#define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER			0x4
+#define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS				0x1
+#define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN			0x2
+#define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER				0x4
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
 
@@ -51,8 +51,8 @@ RWStructuredBuffer<float4> GPUScenePrimitiveSceneDataRW;
 struct FPrimitiveSceneData
 {
 	uint		Flags; // TODO: Use 16 bits?
-	int			InstanceDataOffset; // Link to the range of instances that belong to this primitive
-	int			NumInstanceDataEntries;
+	int			InstanceSceneDataOffset; // Link to the range of instances that belong to this primitive
+	int			NumInstanceSceneDataEntries;
 	uint		SingleCaptureIndex; // TODO: Use 16 bits? 8 bits?
 	float4x4	LocalToWorld;
 	float4x4	WorldToLocal;
@@ -116,8 +116,8 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	FPrimitiveSceneData PrimitiveData;
 
 	PrimitiveData.Flags							= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).x);
-	PrimitiveData.InstanceDataOffset			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).y);
-	PrimitiveData.NumInstanceDataEntries		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).z);
+	PrimitiveData.InstanceSceneDataOffset		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).y);
+	PrimitiveData.NumInstanceSceneDataEntries	= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).z);
 	PrimitiveData.SingleCaptureIndex			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).w);
 	PrimitiveData.LocalToWorld[0]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 1);
 	PrimitiveData.LocalToWorld[1]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 2);
@@ -279,13 +279,13 @@ float4 LoadInstanceDataElement(uint Index)
 }
 
 // Fetch from scene primitive buffer
-FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
+FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 {
 	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
 
 	//
 	// NOTE: When changing the packed data layout, ensure that GPUScene/GPUSceneWriter.ush is kept in sync!
-	//       Also, please update the GetInstanceData function in GPUScene.cpp for validation purposes.
+	//       Also, please update the GetInstanceSceneData function in GPUScene.cpp for validation purposes.
 	//
 
 	InstanceData.Flags										= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).x);
@@ -393,7 +393,7 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 	{
 		// mask off the flag
 		uint PrimitiveID = InstanceIdOffset & (VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG - 1U);
-		Intermediates.InstanceId = GetPrimitiveData(PrimitiveID).InstanceDataOffset + DrawInstanceId;
+		Intermediates.InstanceId = GetPrimitiveData(PrimitiveID).InstanceSceneDataOffset + DrawInstanceId;
 		Intermediates.ViewIndex = 0;
 	}
 	else
@@ -404,7 +404,7 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 		Intermediates.ViewIndex = InstanceCulling.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] >> 28U;
 	}
 
-	Intermediates.InstanceData = GetInstanceData(Intermediates.InstanceId, View.InstanceDataSOAStride);
+	Intermediates.InstanceData = GetInstanceSceneData(Intermediates.InstanceId, View.InstanceSceneDataSOAStride);
 	Intermediates.PrimitiveId = Intermediates.InstanceData.PrimitiveId;
 	Intermediates.Primitive = GetPrimitiveData(Intermediates.PrimitiveId);
 #else // Reference the uniform buffers

@@ -1827,12 +1827,12 @@ void FViewInfo::SetupUniformBufferParameters(
 		if (InstanceSceneDataOverrideSRV)
 		{
 			ViewUniformShaderParameters.InstanceSceneData = InstanceSceneDataOverrideSRV;
-			ViewUniformShaderParameters.InstanceDataSOAStride = 1;
+			ViewUniformShaderParameters.InstanceSceneDataSOAStride = 1;
 		}
-		else if (Scene && Scene->GPUScene.InstanceDataBuffer.SRV)
+		else if (Scene && Scene->GPUScene.InstanceSceneDataBuffer.SRV)
 		{
-			ViewUniformShaderParameters.InstanceSceneData = Scene->GPUScene.InstanceDataBuffer.SRV;
-			ViewUniformShaderParameters.InstanceDataSOAStride = Scene->GPUScene.InstanceDataSOAStride;
+			ViewUniformShaderParameters.InstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
+			ViewUniformShaderParameters.InstanceSceneDataSOAStride = Scene->GPUScene.InstanceSceneDataSOAStride;
 		}
 
 		if (LightmapSceneDataOverrideSRV)

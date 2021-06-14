@@ -376,9 +376,9 @@ FVisibleCluster GetVisibleCluster( uint ClusterIndex )
 	return VisibleCluster;
 }
 
-FInstanceSceneData GetInstanceData( inout FVisibleCluster VisibleCluster )
+FInstanceSceneData GetInstanceSceneData( inout FVisibleCluster VisibleCluster )
 {
-	FInstanceSceneData InstanceData = GetInstanceData( VisibleCluster.InstanceId, SOAStrides.x );
+	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, SOAStrides.x );
 
 	// Couldn't have been stored so signals this is an imposter
 	if( VisibleCluster.Flags == (1 << NUM_CULLING_FLAG_BITS) )
@@ -416,9 +416,9 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 	return DynamicData;
 }
 
-FInstanceSceneData GetInstanceData( uint InstanceId )
+FInstanceSceneData GetInstanceSceneData( uint InstanceId )
 {
-	return GetInstanceData( InstanceId, SOAStrides.x );
+	return GetInstanceSceneData( InstanceId, SOAStrides.x );
 }
 
 FCluster UnpackCluster(uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S])

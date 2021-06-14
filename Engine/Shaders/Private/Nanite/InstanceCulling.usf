@@ -125,7 +125,7 @@ void InstanceCull(
 #else
 		uint InstanceId = DispatchIndex;
 #endif
-		FInstanceSceneData InstanceData = GetInstanceData(InstanceId);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId);
 		const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
 
 		BRANCH
@@ -404,7 +404,7 @@ void InstanceCullVSM(
 		return;
 	}
 
-	FInstanceSceneData InstanceData = GetInstanceData(InstanceId);
+	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId);
 	const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
 
 	BRANCH

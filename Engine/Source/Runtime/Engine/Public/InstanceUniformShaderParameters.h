@@ -11,9 +11,9 @@
 #include "UniformBuffer.h"
 #include "Containers/StaticArray.h"
 
-#define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS			0x1
-#define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN		0x2
-#define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER			0x4
+#define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS				0x1
+#define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN			0x2
+#define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER				0x4
 
 #define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
 
@@ -92,10 +92,10 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 
 struct FInstanceSceneShaderData
 {
-	// Must match GetInstanceData() in SceneData.ush
-	enum { InstanceDataStrideInFloat4s = 10 };
+	// Must match GetInstanceSceneData() in SceneData.ush
+	enum { DataStrideInFloat4s = 10 };
 
-	TStaticArray<FVector4, InstanceDataStrideInFloat4s> Data;
+	TStaticArray<FVector4, DataStrideInFloat4s> Data;
 
 	FInstanceSceneShaderData()
 		: Data(InPlace, NoInit)
