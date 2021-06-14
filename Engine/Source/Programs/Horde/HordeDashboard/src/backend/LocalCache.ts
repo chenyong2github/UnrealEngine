@@ -3,11 +3,6 @@
 import * as CryptoJS from "crypto-js";
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
-type CacheItem = {
-    storeTime: number;
-    encodedData: string;
-}
-
 interface CacheSchema extends DBSchema {
     'cache-item': {
         key: string;

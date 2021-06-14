@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { initDatadog} from './Datadog';
+// import { initDatadog} from './Datadog';
 
 export type SiteConfig = {
     environment: "dev" | "production" | "dev-local" | "";
