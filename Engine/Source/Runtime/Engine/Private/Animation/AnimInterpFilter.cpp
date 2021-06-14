@@ -219,8 +219,8 @@ float FFIRFilterTimeBased::UpdateAndGetFilteredData(float Input, float DeltaTime
 					FilterWindow.Push(FFilterData(0.0f, 0.0f));
 				}
 				const float OrigValue = FilterWindow[0].Input;
-				FMath::SpringDamperSmoothingApprox(FilterWindow[0].Input, FilterWindow[1].Input, Input, 0.0f, DeltaTime,
-				                                   WindowDuration / EULERS_NUMBER, DampingRatio);
+				FMath::SpringDamperSmoothing(FilterWindow[0].Input, FilterWindow[1].Input, Input, 0.0f, DeltaTime,
+				                             WindowDuration / EULERS_NUMBER, DampingRatio);
 				if (MaxSpeed > 0.0f)
 				{
 					// Clamp the speed

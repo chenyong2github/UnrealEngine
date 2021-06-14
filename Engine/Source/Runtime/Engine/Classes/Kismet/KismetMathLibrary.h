@@ -1777,7 +1777,6 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 * @param bClamp                Whether to use the Min/Max values to clamp the motion
 	 * @param MinValue              Clamps the minimum output value and cancels the velocity if it reaches this limit
 	 * @param MaxValue              Clamps the maximum output value and cancels the velocity if it reaches this limit
-	 * @param bApproximate          Use an approximate/fast implementation. Will be suitable for all cases unless the delta time is very large or high accuracy is needed.
 	 * @param bInitializeFromTarget If set then the current value will be set from the target on the first update
 	 */
 	UFUNCTION(BlueprintCallable,  meta = (ScriptMethod = "InterpSpringTo", Keywords = "position", AdvancedDisplay = "8"), Category = "Math|Interpolation")
@@ -1785,7 +1784,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	                                  float Stiffness, float CriticalDampingFactor, float DeltaTime,
 	                                  float Mass = 1.f, float TargetVelocityAmount = 1.f, 
 	                                  bool bClamp = false, FVector MinValue = FVector(-1.f), FVector MaxValue = FVector(1.f),
-	                                  bool bApproximate = true, bool bInitializeFromTarget = false);
+	                                  bool bInitializeFromTarget = false);
 
 	/**
 	* Uses a simple spring model to interpolate a quaternion from Current to Target.
@@ -1798,13 +1797,12 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	* @param DeltaTime             Time difference since the last update
 	* @param Mass                  Multiplier that acts like mass on a spring
 	* @param TargetVelocityAmount  If 1 then the target velocity will be calculated and used, which results following the target more closely/without lag. Values down to zero (recommended when using this to smooth data) will progressively disable this effect.
-	* @param bApproximate          Use an approximate/fast implementation. Will be suitable for all cases unless the delta time is very large or high accuracy is needed.
 	* @param bInitializeFromTarget If set then the current value will be set from the target on the first update
 	*/
 	UFUNCTION(BlueprintCallable,  meta = (ScriptMethod = "InterpSpringTo", Keywords = "quaternion", AdvancedDisplay = "8"), Category = "Math|Interpolation")
 	static FQuat QuaternionSpringInterp(FQuat Current, FQuat Target, UPARAM(ref) FQuaternionSpringState& SpringState,
 	                                    float Stiffness, float CriticalDampingFactor, float DeltaTime,
-	                                    float Mass = 1.f, float TargetVelocityAmount = 1.f, bool bApproximate = true, 
+	                                    float Mass = 1.f, float TargetVelocityAmount = 1.f, 
                                         bool bInitializeFromTarget = false);
 
 	/**
@@ -3902,7 +3900,6 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 * @param bClamp                Whether to use the Min/Max values to clamp the motion
 	 * @param MinValue              Clamps the minimum output value and cancels the velocity if it reaches this limit
 	 * @param MaxValue              Clamps the maximum output value and cancels the velocity if it reaches this limit
-	 * @param bApproximate          Use an approximate/fast implementation. Will be suitable for all cases unless the delta time is very large or high accuracy is needed.
 	 * @param bInitializeFromTarget If set then the current value will be set from the target on the first update
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation", meta=(AdvancedDisplay = "8"))
@@ -3910,7 +3907,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	                               float Stiffness, float CriticalDampingFactor, float DeltaTime,
 	                               float Mass = 1.f, float TargetVelocityAmount = 1.f, 
 	                               bool bClamp = false, float MinValue = -1.f, float MaxValue = 1.f,
-	                               bool bApproximate = true, bool bInitializeFromTarget = false);
+	                               bool bInitializeFromTarget = false);
 
 	/** Resets the state of a float spring */
 	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")

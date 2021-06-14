@@ -24,7 +24,7 @@ FRigUnit_SpringInterp_Execute()
 		Result = UKismetMathLibrary::FloatSpringInterp(
 			bUseCurrentInput ? Current : Result, Target, SpringState, Stiffness, CriticalDamping,
 			Context.DeltaTime, RigUnitSpringInterpConstants::Mass, TargetVelocityAmount, 
-			false, 0.0f, 0.0f, true, !bUseCurrentInput || bInitializeFromTarget);
+			false, 0.0f, 0.0f, !bUseCurrentInput || bInitializeFromTarget);
 	}
 }
 
@@ -44,7 +44,7 @@ FRigUnit_SpringInterpVector_Execute()
 		Result = UKismetMathLibrary::VectorSpringInterp(
 			bUseCurrentInput ? Current : Result, Target, SpringState, Stiffness, CriticalDamping,
 			Context.DeltaTime, RigUnitSpringInterpConstants::Mass, TargetVelocityAmount, 
-			false, FVector(), FVector(), true, !bUseCurrentInput || bInitializeFromTarget);
+			false, FVector(), FVector(), !bUseCurrentInput || bInitializeFromTarget);
 	}
 }
 
@@ -64,7 +64,7 @@ FRigUnit_SpringInterpQuaternion_Execute()
 		Result = UKismetMathLibrary::QuaternionSpringInterp(
 			bUseCurrentInput ? Current : Result, Target, SpringState, Stiffness, CriticalDamping,
 			Context.DeltaTime, RigUnitSpringInterpConstants::Mass, TargetVelocityAmount, 
-			true, !bUseCurrentInput || bInitializeFromTarget);
+			!bUseCurrentInput || bInitializeFromTarget);
 	}
 }
 
