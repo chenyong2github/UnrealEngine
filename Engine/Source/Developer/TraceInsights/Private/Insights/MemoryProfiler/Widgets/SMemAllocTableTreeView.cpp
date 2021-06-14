@@ -3,6 +3,8 @@
 #include "SMemAllocTableTreeView.h"
 
 #include "EditorStyleSet.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
 #include "SlateOptMacros.h"
 #include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
@@ -636,7 +638,6 @@ FReply SMemAllocTableTreeView::OnSizeViewClicked()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 FReply SMemAllocTableTreeView::OnMemoryPageClicked()
 {
 	ColumnBeingSorted = FTable::GetHierarchyColumnId();
@@ -971,6 +972,102 @@ void SMemAllocTableTreeView::CallstackGroupingByFunction_OnCheckStateChanged(ECh
 ECheckBoxState SMemAllocTableTreeView::CallstackGroupingByFunction_IsChecked() const
 {
 	return bIsCallstackGroupingByFunction ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("CallstackFrame", LOCTEXT("ContextMenu_Header_CallstackFrame", "Callstack Frame"));
+	{
+		ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+		ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
+
+		FText ItemLabel = FText::Format(LOCTEXT("ContextMenu_Header_Open", "Open in {0}"), SourceCodeAccessor.GetNameText());
+		FText FileName = GetSelectedCallstackFrameFileName();
+		FText ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_Open_Desc", "Open source file of selected callstack frame in {0}.\n{1}"), SourceCodeAccessor.GetNameText(), FileName);
+
+		FUIAction Action_OpenIDE
+		(
+			FExecuteAction::CreateSP(this, &SMemAllocTableTreeView::OpenCallstackFrameSourceFileInIDE),
+			FCanExecuteAction::CreateSP(this, &SMemAllocTableTreeView::CanOpenCallstackFrameSourceFileInIDE)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			ItemLabel,
+			ItemToolTip,
+#if PLATFORM_WINDOWS
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.OpenVisualStudio"),
+#else
+			FSlateIcon(),
+#endif
+			Action_OpenIDE,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SMemAllocTableTreeView::CanOpenCallstackFrameSourceFileInIDE() const
+{
+	if (TreeView->GetNumItemsSelected() != 1)
+	{
+		return false;
+	}
+
+	FTableTreeNodePtr TreeNode = TreeView->GetSelectedItems()[0];
+	return TreeNode.IsValid() && TreeNode->IsGroup() && TreeNode->GetContext();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::OpenCallstackFrameSourceFileInIDE()
+{
+	if (TreeView->GetNumItemsSelected() > 0)
+	{
+		FTableTreeNodePtr TreeNode = TreeView->GetSelectedItems()[0];
+		if (TreeNode.IsValid() && TreeNode->IsGroup() && TreeNode->GetContext())
+		{
+			const TraceServices::FStackFrame* Frame = (const TraceServices::FStackFrame*)TreeNode->GetContext();
+
+			if (Frame->Symbol && Frame->Symbol->File)
+			{
+				//if (FPlatformFileManager::Get().GetPlatformFile().FileExists(Frame->Symbol->File))
+				{
+					ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+					ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
+					SourceCodeAccessor.OpenFileAtLine(Frame->Symbol->File, Frame->Symbol->Line);
+				}
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::GetSelectedCallstackFrameFileName() const
+{
+	if (TreeView->GetNumItemsSelected() > 0)
+	{
+		FTableTreeNodePtr TreeNode = TreeView->GetSelectedItems()[0];
+		if (TreeNode.IsValid() && TreeNode->IsGroup() && TreeNode->GetContext())
+		{
+			const TraceServices::FStackFrame* Frame = (const TraceServices::FStackFrame*)TreeNode->GetContext();
+			if (Frame->Symbol && Frame->Symbol->File)
+			{
+				FString SourceFileAndLine = FString::Printf(TEXT("%s(%d)"), Frame->Symbol->File, Frame->Symbol->Line);
+				return FText::FromString(SourceFileAndLine);
+			}
+			else
+			{
+				return LOCTEXT("NoSourceFile", "(source file not available)");
+			}
+		}
+	}
+	return LOCTEXT("NoCallstackFrame", "(only for resolved callstack frames)");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

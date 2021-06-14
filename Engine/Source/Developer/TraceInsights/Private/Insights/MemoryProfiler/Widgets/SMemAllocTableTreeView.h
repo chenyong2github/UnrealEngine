@@ -93,6 +93,11 @@ public:
 protected:
 	virtual void InternalCreateGroupings() override;
 
+	virtual void ExtendMenu(FMenuBuilder& Menu) override;
+	bool CanOpenCallstackFrameSourceFileInIDE() const;
+	void OpenCallstackFrameSourceFileInIDE();
+	FText GetSelectedCallstackFrameFileName() const;
+
 private:
 	void OnQueryInvalidated();
 	void StartQuery();
