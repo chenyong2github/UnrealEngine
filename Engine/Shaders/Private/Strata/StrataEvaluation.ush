@@ -202,16 +202,16 @@ float StrataBSDFBackFaceProjectedSolidAngleFactor(in FStrataBSDFContext BSDFCont
 
 #if STRATA_MICROFACET_MULTIPLESCATTERING
 
-FStrataGGXLUTResult StrataEvaluateGGXLUT(float3 DiffuseAlbedo, float3 F0, float NoV, float Metallic, float SafeRoughnessX, float SafeRoughnessY)
+FStrataGGXLUTResult StrataEvaluateGGXLUT(float3 DiffuseAlbedo, float3 F0, float3 F90, float NoV, float Metallic, float SafeRoughnessX, float SafeRoughnessY)
 {
 #if STRATA_TRANSLUCENT_ENABLED
 	return StrataSampleGGXLUT(
 		TranslucentBasePass.Strata.GGXEnergyLUT2DTexture, TranslucentBasePass.Strata.GGXEnergyLUT3DTexture, TranslucentBasePass.Strata.GGXEnergyLUTSampler,
-		TranslucentBasePass.Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughnessX, SafeRoughnessY, F0, Metallic, DiffuseAlbedo);
+		TranslucentBasePass.Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughnessX, SafeRoughnessY, F0, F90, Metallic, DiffuseAlbedo);
 #else
 	return StrataSampleGGXLUT(
 		Strata.GGXEnergyLUT2DTexture, Strata.GGXEnergyLUT3DTexture, Strata.GGXEnergyLUTSampler,
-		Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughnessX, SafeRoughnessY, F0, Metallic, DiffuseAlbedo);
+		Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughnessX, SafeRoughnessY, F0, F90, Metallic, DiffuseAlbedo);
 #endif
 }
 
@@ -330,13 +330,13 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			float3 MSScale = 1;
 			float3 HazeMSScale = 1;
 			#if STRATA_MICROFACET_MULTIPLESCATTERING
-				FStrataGGXLUTResult StrataGGXLUTResult = StrataEvaluateGGXLUT(DiffuseColor, F0, BSDFContext.Context.NoV, Metallic, SafeRoughnessX, SafeRoughnessY);
+				FStrataGGXLUTResult StrataGGXLUTResult = StrataEvaluateGGXLUT(DiffuseColor, F0, F90, BSDFContext.Context.NoV, Metallic, SafeRoughnessX, SafeRoughnessY);
 				MSScale	= StrataGGXLUTResult.SpecularMultipleScatteringScale;
 				const float3 DirectionalAlbedo_SpecularTransmission = StrataGGXLUTResult.DirectionalAlbedo.SpecularT; // We ignore Haziness influence
 				#if STRATA_FASTPATH==0
 				if (bHaziness)
 				{
-					HazeMSScale = StrataEvaluateGGXLUT(DiffuseColor, F0, BSDFContext.Context.NoV, Metallic, HazeSafeRoughnessX, HazeSafeRoughnessY).SpecularMultipleScatteringScale;
+					HazeMSScale = StrataEvaluateGGXLUT(DiffuseColor, F0, F90, BSDFContext.Context.NoV, Metallic, HazeSafeRoughnessX, HazeSafeRoughnessY).SpecularMultipleScatteringScale;
 				}
 				#endif
 			#else
@@ -704,7 +704,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			#if STRATA_MICROFACET_MULTIPLESCATTERING
 				float3 EvalEnvBRDF = 0;
 				{
-					FStrataGGXLUTResult GGXLUT	= StrataEvaluateGGXLUT(DiffuseColor, F0, BSDFContext.Context.NoV, Metallic, SafeRoughnessX, SafeRoughnessX);
+					FStrataGGXLUTResult GGXLUT	= StrataEvaluateGGXLUT(DiffuseColor, F0, F90, BSDFContext.Context.NoV, Metallic, SafeRoughnessX, SafeRoughnessX);
 					EvalEnvBRDF					= ThinFilmFresnelWeight * GGXLUT.DirectionalAlbedo.SpecularR;
 					StrataEnvLightResult.DiffuseWeight = GGXLUT.DirectionalAlbedo.Diffuse;
 					DirectionalAlbedo_SpecularTransmission = GGXLUT.DirectionalAlbedo.SpecularT; // We ignore Haziness influence
@@ -734,7 +734,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 					// Compute the directional albedo for hazy specular
 				#if STRATA_MICROFACET_MULTIPLESCATTERING
-					FStrataGGXLUTResult GGXLUTHaze = StrataEvaluateGGXLUT(DiffuseColor, F0, BSDFContext.Context.NoV, Metallic, SafeRoughnessHaze, SafeRoughnessHaze);
+					FStrataGGXLUTResult GGXLUTHaze = StrataEvaluateGGXLUT(DiffuseColor, F0, F90, BSDFContext.Context.NoV, Metallic, SafeRoughnessHaze, SafeRoughnessHaze);
 					const float3 EvalEnvBRDFHaze = ThinFilmFresnelWeight * GGXLUTHaze.DirectionalAlbedo.SpecularR;
 				#else
 					const float3 EvalEnvBRDFHaze = ThinFilmFresnelWeight * StrataEnvBRDF(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
@@ -749,7 +749,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			else
 			{
 				// Compute the directional albedo for diffuse
-				FStrataGGXLUTResult GGXLUT = StrataEvaluateGGXLUT(DiffuseColor, 1.f, BSDFContext.Context.NoV, 0.f, SafeRoughnessX, SafeRoughnessX);
+				FStrataGGXLUTResult GGXLUT = StrataEvaluateGGXLUT(DiffuseColor, 1.0f, 1.0f, BSDFContext.Context.NoV, 0.0f, SafeRoughnessX, SafeRoughnessX);
 				StrataEnvLightResult.DiffuseWeight = GGXLUT.DirectionalAlbedo.Diffuse;
 			}
 			#endif
