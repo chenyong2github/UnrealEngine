@@ -18,6 +18,9 @@
 #define INVALID_GROUP_INDEX				0xFFFFFFFFu
 #define INVALID_PAGE_INDEX				0xFFFFFFFFu
 
+#define FLT_INT_MIN						(-2147483648.0f)	// Smallest float >= INT_MIN
+#define FLT_INT_MAX						2147483520.0f		// Largest float <= INT_MAX
+
 namespace Nanite
 {
 
@@ -711,8 +714,8 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 			float MaxY = FMath::RoundToFloat(Bounds.Max.Y * QuantizationScale);
 			float MaxZ = FMath::RoundToFloat(Bounds.Max.Z * QuantizationScale);
 
-			if (MinX >= (double)MIN_int32 && MinY >= (double)MIN_int32 && MinZ >= (double)MIN_int32 &&	// MIN_int32/MAX_int32 is not representable in float
-				MaxX <= (double)MAX_int32 && MaxY <= (double)MAX_int32 && MaxZ <= (double)MAX_int32 &&
+			if (MinX >= FLT_INT_MIN && MinY >= FLT_INT_MIN && MinZ >= FLT_INT_MIN &&
+				MaxX <= FLT_INT_MAX && MaxY <= FLT_INT_MAX && MaxZ <= FLT_INT_MAX &&
 				((int64)MaxX - (int64)MinX) <= MaxPositionQuantizedValue && ((int64)MaxY - (int64)MinY) <= MaxPositionQuantizedValue && ((int64)MaxZ - (int64)MinZ) <= MaxPositionQuantizedValue)
 			{
 				break;
@@ -929,8 +932,8 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 				float MaxU = FMath::RoundToFloat(UVMax.X * QuantizationScale);
 				float MaxV = FMath::RoundToFloat(UVMax.Y * QuantizationScale);
 
-				if (MinU >= (double)MIN_int32 && MinV >= (double)MIN_int32 && // MIN_int32/MAX_int32 is not representable in float
-					MaxU <= (double)MAX_int32 && MaxV <= (double)MAX_int32)
+				if (MinU >= FLT_INT_MIN && MinV >= FLT_INT_MIN &&
+					MaxU <= FLT_INT_MAX && MaxV <= FLT_INT_MAX)
 				{
 					float GapStartU = FMath::RoundToFloat(LargestGapStart.X * QuantizationScale);
 					float GapStartV = FMath::RoundToFloat(LargestGapStart.Y * QuantizationScale);
