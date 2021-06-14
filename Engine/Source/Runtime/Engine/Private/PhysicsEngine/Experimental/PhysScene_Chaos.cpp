@@ -372,6 +372,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 #endif
 )
 	: Super(InSolverActor ? InSolverActor->GetWorld() : nullptr
+		, UPhysicsSettings::Get()->bTickPhysicsAsync ? UPhysicsSettings::Get()->AsyncFixedTimeStepSize : -1
 #if CHAOS_CHECKED
 		, DebugName
 #endif

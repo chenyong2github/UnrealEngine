@@ -180,7 +180,7 @@ void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 #endif
 }
 
-Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode InThreadingMode
+Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::FReal InAsyncDt, Chaos::EThreadingMode InThreadingMode
 #if CHAOS_CHECKED
 	, const FName& DebugName
 #endif
@@ -192,8 +192,7 @@ Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(UObject* InOwner, Cha
 	FChaosScopeSolverLock SolverScopeLock;
 	
 	EMultiBufferMode SolverBufferMode = InThreadingMode == EThreadingMode::SingleThread ? EMultiBufferMode::Single : EMultiBufferMode::Double;
-	
-	auto* NewSolver = new FPBDRigidsSolver(SolverBufferMode,InOwner);
+	auto* NewSolver = new FPBDRigidsSolver(SolverBufferMode,InOwner, InAsyncDt);
 	AllSolvers.Add(NewSolver);
 
 	// Add The solver to the owner list

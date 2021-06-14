@@ -46,6 +46,7 @@ TAutoConsoleVariable<int32> CVar_ApplyProjectSettings(TEXT("p.Chaos.Simulation.A
 
 FChaosScene::FChaosScene(
 	UObject* OwnerPtr
+	, Chaos::FReal InAsyncDt
 #if CHAOS_CHECKED
 	, const FName& DebugName
 #endif
@@ -64,7 +65,7 @@ FChaosScene::FChaosScene(
 
 	Chaos::EThreadingMode ThreadingMode = bForceSingleThread ? Chaos::EThreadingMode::SingleThread : Chaos::EThreadingMode::TaskGraph;
 
-	SceneSolver = ChaosModule->CreateSolver(OwnerPtr,ThreadingMode
+	SceneSolver = ChaosModule->CreateSolver(OwnerPtr, InAsyncDt, ThreadingMode
 #if CHAOS_CHECKED
 		,DebugName
 #endif
@@ -321,7 +322,7 @@ void FChaosScene::SetGravity(const Chaos::FVec3& Acceleration)
 	SimCallback->GetProducerInputData_External()->Gravity = Acceleration;
 }
 
-void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping,float InAsyncDt)
+void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping)
 {
 #if WITH_CHAOS
 	using namespace Chaos;
@@ -338,15 +339,6 @@ void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 
 
 	if(FPhysicsSolver* Solver = GetSolver())
 	{
-		const bool bIsAsync = InAsyncDt > 0;
-		if (bIsAsync)
-		{
-			Solver->EnableAsyncMode(InAsyncDt);
-		}
-		else
-		{
-			Solver->DisableAsyncMode();
-		}
 		if(bSubstepping)
 		{
 			Solver->SetMaxDeltaTime_External(InMaxSubstepDeltaTime);

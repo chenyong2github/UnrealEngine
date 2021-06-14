@@ -82,7 +82,7 @@ namespace Chaos
 	class CHAOS_API FPBDRigidsSolver : public FPhysicsSolverBase
 	{
 
-		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner);
+		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner, FReal AsyncDt);
 		virtual ~FPBDRigidsSolver();
 
 	public:
