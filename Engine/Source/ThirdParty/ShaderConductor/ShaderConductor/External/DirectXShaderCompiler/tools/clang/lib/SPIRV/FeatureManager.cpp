@@ -140,6 +140,7 @@ Extension FeatureManager::getExtensionSymbol(llvm::StringRef name) {
       .Case("SPV_NV_ray_tracing", Extension::NV_ray_tracing)
       .Case("SPV_NV_mesh_shader", Extension::NV_mesh_shader)
       .Case("SPV_KHR_ray_query", Extension::KHR_ray_query)
+      .Case("SPV_EXT_shader_image_int64", Extension::EXT_shader_image_int64)
       .Default(Extension::Unknown);
 }
 
@@ -189,6 +190,8 @@ const char *FeatureManager::getExtensionName(Extension symbol) {
     return "SPV_NV_mesh_shader";
   case Extension::KHR_ray_query:
     return "SPV_KHR_ray_query";
+  case Extension::EXT_shader_image_int64:
+    return "SPV_EXT_shader_image_int64";
   default:
     break;
   }

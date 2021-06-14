@@ -50,6 +50,7 @@ enum class Extension {
   NV_ray_tracing,
   NV_mesh_shader,
   KHR_ray_query,
+  EXT_shader_image_int64,
   Unknown,
 };
 
