@@ -18,7 +18,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/HLODProxy.h"
 #include "Materials/Material.h"
-#include "StaticMeshCompiler.h"
+#include "AssetCompilingManager.h"
 
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
@@ -65,9 +65,6 @@ static bool LoadSubActors(AWorldPartitionHLOD* InHLODActor, TArray<FWorldPartiti
 			bIsDirty = true;
 		}
 	}
-
-	// Wait for compilation to finish
-	FStaticMeshCompilingManager::Get().FinishAllCompilation();
 
 	return !bIsDirty;
 }
@@ -342,6 +339,12 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 
 	if (ensure(HLODBuilder))
 	{
+		if (HLODBuilder->RequiresCompiledAssets())
+		{
+			// Wait for compilation to finish
+			FAssetCompilingManager::Get().FinishAllCompilation();
+		}
+
 		HLODBuilder->Build(InHLODActor, HLODLayer, SubActors);
 	}
 			

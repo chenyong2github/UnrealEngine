@@ -19,6 +19,8 @@ class FHLODBuilder
 {
 public:
 	virtual ~FHLODBuilder() {}
+	
+	virtual bool RequiresCompiledAssets() const { return true; }
 
 	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) = 0;
 
