@@ -75,6 +75,24 @@ public:
 	FOnDeleteActorsEnd OnDeleteActorsEnd;
 
 	/**
+	 * Duplicate an actor from the world editor.
+	 * @param	ActorToDuplicate	Actor to duplicate.
+	 * @param	ToWorld				World to place the duplicated actor in.
+	 * @return	The duplicated actor, or none if it didn't succeed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (AdvancedDisplay = 1))
+	AActor* DuplicateActor(AActor* ActorToDuplicate, UWorld* ToWorld = nullptr, FVector Offset = FVector::ZeroVector);
+
+	/**
+	 * Duplicate actors from the world editor.
+	 * @param	ActorsToDuplicate	Actors to duplicate.
+	 * @param	ToWorld				World to place the duplicated actors in.
+	 * @return	The duplicated actors, or empty if it didn't succeed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (AdvancedDisplay = 1))
+	TArray<AActor*> DuplicateActors(const TArray<AActor*>& ActorsToDuplicate, UWorld* ToWorld = nullptr, FVector Offset = FVector::ZeroVector);
+
+	/**
 	 * Duplicate all the selected actors in the given world
 	 * @param	InWorld 	The world the actors are selected in.
 	 */

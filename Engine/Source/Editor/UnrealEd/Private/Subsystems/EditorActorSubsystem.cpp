@@ -612,8 +612,53 @@ TArray<class AActor*> UEditorActorSubsystem::ConvertActors(const TArray<class AA
 		}
 	}
 
-	UE_LOG(LogUtils, Log, TEXT("ConvertActorWith. %d convertions occurred."), Result.Num());
+	UE_LOG(LogUtils, Log, TEXT("ConvertActorWith. %d conversions occurred."), Result.Num());
 	return Result;
+}
+
+AActor* UEditorActorSubsystem::DuplicateActor(AActor* ActorToDuplicate, UWorld* ToWorld/*= nullptr*/, FVector Offset/* = FVector::ZeroVector*/)
+{
+	TArray<AActor*> Duplicate = DuplicateActors({ ActorToDuplicate }, ToWorld, Offset);
+	return (Duplicate.Num() > 0) ? Duplicate[0] : nullptr;
+}
+
+TArray<AActor*> UEditorActorSubsystem::DuplicateActors(const TArray<AActor*>& ActorsToDuplicate, UWorld* InToWorld/*= nullptr*/, FVector Offset/* = FVector::ZeroVector*/)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	FScopedTransaction Transaction(LOCTEXT("DuplicateActors", "Duplicate Actors"));
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem || !EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return TArray<AActor*>();
+	}
+
+	UWorld* ToWorld = InToWorld ? InToWorld : UnrealEditorSubsystem->GetEditorWorld();
+
+	if (!ToWorld)
+	{
+		return TArray<AActor*>();
+	}
+
+	FEditorDelegates::OnDuplicateActorsBegin.Broadcast();
+
+	TArray<AActor*> NewActors;
+	ABrush::SetSuppressBSPRegeneration(true);
+	GUnrealEd->DuplicateActors(ActorsToDuplicate, NewActors, ToWorld->GetCurrentLevel(), Offset);
+	ABrush::SetSuppressBSPRegeneration(false);
+
+	// Find out if any of the actors will change the BSP.
+	// and only then rebuild BSP as this is expensive. 
+	if (NewActors.FindItemByClass<ABrush>())
+	{
+		GEditor->RebuildAlteredBSP(); // Update the BSP of any levels containing a modified brush
+	}
+
+	FEditorDelegates::OnDuplicateActorsEnd.Broadcast();
+
+	return NewActors;
 }
 
 #undef LOCTEXT_NAMESPACE
