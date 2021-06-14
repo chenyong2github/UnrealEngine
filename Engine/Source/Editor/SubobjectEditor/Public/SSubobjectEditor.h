@@ -627,7 +627,7 @@ protected:
 	 */
 	FSubobjectDataHandle CachedRootHandle;
 
-	virtual FMenuBuilder CreateMenuBuilder() const;
+	virtual FMenuBuilder CreateMenuBuilder();
 
 	/** Constructs the slate drag/drop tree for this subobject editor */
 	virtual void ConstructTreeWidget();
