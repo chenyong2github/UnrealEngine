@@ -85,14 +85,14 @@ LLM_DEFINE_TAG(DistanceFields, NAME_None, NAME_None, GET_STATFNAME(STAT_Distance
 #endif // ENABLE_LOW_LEVEL_MEM_TRACKER
 
 // Must match equivalent shader defines
-template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 9;
-template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectBoundsStride = 2;
-template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
-template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectBoundsStride = 2;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride = 5;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = 6;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride = 5;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = GDistanceFieldObjectDataStride;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectBoundsStride = GDistanceFieldObjectBoundsStride;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = GHeightFieldObjectDataStride;
+template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectBoundsStride = GHeightFieldObjectBoundsStride;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = GDistanceFieldCulledObjectDataStride;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride = GDistanceFieldCulledObjectBoxBoundsStride;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = GHeightFieldCulledObjectDataStride;
+template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride = GHeightFieldCulledObjectBoxBoundsStride;
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
 void TDistanceFieldObjectBuffers<PrimitiveType>::Initialize()

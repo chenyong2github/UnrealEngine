@@ -128,9 +128,6 @@ FIntPoint GetBufferSizeForDFShadows()
 	return FIntPoint::DivideAndRoundDown(GetSceneTextureExtent(), GetDFShadowDownsampleFactor());
 }
 
-TGlobalResource<FDistanceFieldObjectBufferResource> GShadowCulledObjectBuffers;
-TGlobalResource<FHeightFieldObjectBufferResource> GShadowCulledHeightFieldObjectBuffers;
-
 class FCullObjectsForShadowCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCullObjectsForShadowCS);

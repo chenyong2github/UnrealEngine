@@ -24,7 +24,6 @@
 IMPLEMENT_TYPE_LAYOUT(FAOParameters);
 IMPLEMENT_TYPE_LAYOUT(FDFAOUpsampleParameters);
 IMPLEMENT_TYPE_LAYOUT(FScreenGridParameters);
-IMPLEMENT_TYPE_LAYOUT(FTileIntersectionParameters);
 
 int32 GDistanceFieldAO = 1;
 FAutoConsoleVariableRef CVarDistanceFieldAO(
@@ -612,6 +611,49 @@ void GenerateBestSpacedVectors()
 	}
 }
 
+void AllocateTileIntersectionBuffers(
+	FRDGBuilder& GraphBuilder,
+	FIntPoint TileListGroupSize,
+	uint32 MaxSceneObjects,
+	bool bAllow16BitIndices,
+	FRDGBufferRef& OutObjectTilesIndirectArguments,
+	FTileIntersectionParameters& OutParameters)
+{
+	// Can only use 16 bit for CulledTileDataArray if few enough objects and tiles
+	const bool b16BitObjectIndices = MaxSceneObjects < (1 << 16);
+	const bool b16BitCulledTileIndexBuffer = bAllow16BitIndices && b16BitObjectIndices && (TileListGroupSize.X * TileListGroupSize.Y < (1 << 16));
+
+	FRDGBufferRef TileConeAxisAndCos = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), TileListGroupSize.X * TileListGroupSize.Y), TEXT("TileConeAxisAndCos"));
+	OutParameters.RWTileConeAxisAndCos = GraphBuilder.CreateUAV(TileConeAxisAndCos, PF_A32B32G32R32F);
+	OutParameters.TileConeAxisAndCos = GraphBuilder.CreateSRV(TileConeAxisAndCos, PF_A32B32G32R32F);
+
+	FRDGBufferRef TileConeDepthRanges = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), TileListGroupSize.X * TileListGroupSize.Y), TEXT("TileConeDepthRanges"));
+	OutParameters.RWTileConeDepthRanges = GraphBuilder.CreateUAV(TileConeDepthRanges, PF_A32B32G32R32F);
+	OutParameters.TileConeDepthRanges = GraphBuilder.CreateSRV(TileConeDepthRanges, PF_A32B32G32R32F);
+
+	FRDGBufferRef NumCulledTilesArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxSceneObjects), TEXT("NumCulledTilesArray"));
+	OutParameters.RWNumCulledTilesArray = GraphBuilder.CreateUAV(NumCulledTilesArray, PF_R32_UINT);
+	OutParameters.NumCulledTilesArray = GraphBuilder.CreateSRV(NumCulledTilesArray, PF_R32_UINT);
+
+	FRDGBufferRef CulledTilesStartOffsetArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxSceneObjects), TEXT("CulledTilesStartOffsetArray"));
+	OutParameters.RWCulledTilesStartOffsetArray = GraphBuilder.CreateUAV(CulledTilesStartOffsetArray, PF_R32_UINT);
+	OutParameters.CulledTilesStartOffsetArray = GraphBuilder.CreateSRV(CulledTilesStartOffsetArray, PF_R32_UINT);
+
+	extern int32 GAverageDistanceFieldObjectsPerCullTile;
+
+	FRDGBufferRef CulledTileDataArray = GraphBuilder.CreateBuffer(
+		FRDGBufferDesc::CreateBufferDesc(b16BitCulledTileIndexBuffer ? sizeof(uint16) : sizeof(uint32), GAverageDistanceFieldObjectsPerCullTile * TileListGroupSize.X * TileListGroupSize.Y * CulledTileDataStride),
+		TEXT("CulledTileDataArray"));
+	OutParameters.RWCulledTileDataArray = GraphBuilder.CreateUAV(CulledTileDataArray, b16BitCulledTileIndexBuffer ? PF_R16_UINT : PF_R32_UINT);
+	OutParameters.CulledTileDataArray = GraphBuilder.CreateSRV(CulledTileDataArray, b16BitCulledTileIndexBuffer ? PF_R16_UINT : PF_R32_UINT);
+
+	OutObjectTilesIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(), TEXT("ObjectTilesIndirectArguments"));
+	OutParameters.RWObjectTilesIndirectArguments = GraphBuilder.CreateUAV(OutObjectTilesIndirectArguments, PF_R32_UINT);
+	OutParameters.ObjectTilesIndirectArguments = GraphBuilder.CreateSRV(OutObjectTilesIndirectArguments, PF_R32_UINT);
+
+	OutParameters.TileListGroupSize = TileListGroupSize;
+}
+
 void ListDistanceFieldLightingMemory(const FViewInfo& View, FSceneRenderer& SceneRenderer)
 {
 #if !NO_LOGGING
@@ -622,26 +664,6 @@ void ListDistanceFieldLightingMemory(const FViewInfo& View, FSceneRenderer& Scen
 	{
 		UE_LOG(LogRenderer, Log, TEXT("   Scene Object data %.3fMb"), Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->GetSizeBytes() / 1024.0f / 1024.0f);
 	}
-	
-	UE_LOG(LogRenderer, Log, TEXT(""));
-	UE_LOG(LogRenderer, Log, TEXT("Distance Field AO"));
-	
-	UE_LOG(LogRenderer, Log, TEXT("   Culled objects %.3fMb"), GAOCulledObjectBuffers.Buffers.GetSizeBytes() / 1024.0f / 1024.0f);
-
-	FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
-
-	if (TileIntersectionResources)
-	{
-		UE_LOG(LogRenderer, Log, TEXT("   Tile Culled objects %.3fMb"), TileIntersectionResources->GetSizeBytes() / 1024.0f / 1024.0f);
-	}
-	
-	FAOScreenGridResources* ScreenGridResources = ((FSceneViewState*)View.State)->AOScreenGridResources;
-
-	if (ScreenGridResources)
-	{
-		UE_LOG(LogRenderer, Log, TEXT("   Screen grid temporaries %.3fMb"), ScreenGridResources->GetSizeBytesForAO() / 1024.0f / 1024.0f);
-	}
-
 #endif // !NO_LOGGING
 }
 
@@ -742,8 +764,6 @@ bool FDeferredShadingSceneRenderer::ShouldRenderDistanceFieldLighting() const
 
 	return SupportsDistanceFieldAO(View.GetFeatureLevel(), View.GetShaderPlatform())
 		&& Views.Num() == 1
-		// ViewState is used to cache tile intersection resources which have to be sized based on the view
-		&& View.State
 		&& View.IsPerspectiveProjection()
 		&& Scene->DistanceFieldSceneData.NumObjectsInBuffer;
 }
@@ -788,9 +808,29 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 		DistanceFieldNormal = GraphBuilder.CreateTexture(Desc, TEXT("DistanceFieldNormal"));
 	}
 
+	const FIntPoint TileListGroupSize = GetTileListGroupSizeForView(View);
+	const int32 MaxSceneObjects = Scene->DistanceFieldSceneData.NumObjectsInBuffer;
+	const bool bAllow16BitIndices = !IsMetalPlatform(GShaderPlatformForFeatureLevel[View.FeatureLevel]);
+
+	FRDGBufferRef ObjectTilesIndirectArguments = nullptr;
+	FTileIntersectionParameters TileIntersectionParameters;
+
+	AllocateTileIntersectionBuffers(GraphBuilder, TileListGroupSize, MaxSceneObjects, bAllow16BitIndices, ObjectTilesIndirectArguments, TileIntersectionParameters);
+
+	FRDGBufferRef ObjectIndirectArguments = nullptr;
+	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
+
 	if (UseAOObjectDistanceField())
 	{
-		CullObjectsToView(GraphBuilder, Scene, View, Parameters, GAOCulledObjectBuffers);
+		AllocateDistanceFieldCulledObjectBuffers(
+			GraphBuilder,
+			false,
+			FMath::DivideAndRoundUp(MaxSceneObjects, 256) * 256,
+			DFPT_SignedDistanceField,
+			ObjectIndirectArguments,
+			CulledObjectBufferParameters);
+
+		CullObjectsToView(GraphBuilder, Scene, View, Parameters, CulledObjectBufferParameters);
 	}
 
 	ComputeDistanceFieldNormal(GraphBuilder, Views, SceneTextures.UniformBuffer, DistanceFieldNormal, Parameters);
@@ -798,7 +838,8 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 	// Intersect objects with screen tiles, build lists
 	if (UseAOObjectDistanceField())
 	{
-		BuildTileObjectLists(GraphBuilder, Scene, Views, DistanceFieldNormal, Parameters);
+		//@todo - support multiple views - should pass one TileIntersectionParameters per view
+		BuildTileObjectLists(GraphBuilder, Scene, Views, ObjectIndirectArguments, CulledObjectBufferParameters, TileIntersectionParameters, DistanceFieldNormal, Parameters);
 	}
 
 	FRDGTextureRef BentNormalOutput = nullptr;
@@ -807,20 +848,12 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 		GraphBuilder,
 		SceneTextures,
 		View,
+		CulledObjectBufferParameters,
+		ObjectTilesIndirectArguments,
+		TileIntersectionParameters,
 		Parameters,
 		DistanceFieldNormal,
 		BentNormalOutput);
-
-	if (IsTransientResourceBufferAliasingEnabled() && UseAOObjectDistanceField())
-	{
-		AddPass(GraphBuilder, [&View](FRHICommandListImmediate&)
-		{
-			GAOCulledObjectBuffers.Buffers.DiscardTransientResource();
-
-			FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
-			TileIntersectionResources->DiscardTransientResource();
-		});
-	}
 
 	RenderCapsuleShadowsForMovableSkylight(GraphBuilder, SceneTextures.UniformBuffer, BentNormalOutput);
 

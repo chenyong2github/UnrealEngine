@@ -15,7 +15,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "RenderGraphResources.h"
 
-class FAOScreenGridResources;
+class FAOScreenGridParameters;
 class FDistanceFieldAOParameters;
 class FLightSceneInfo;
 class FProjectedShadowInfo;
@@ -109,17 +109,11 @@ public:
 	void ComputeLighting(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLightSceneInfo& LightSceneInfo) const;
 
 	void ComputeOcclusionForScreenGrid(
-		const FViewInfo& View, 
-		FRHICommandListImmediate& RHICmdList, 
-		FRHITexture* DistanceFieldNormal,
-		const class FAOScreenGridResources& ScreenGridResources,
-		const class FDistanceFieldAOParameters& Parameters) const;
-
-	void ComputeIrradianceForScreenGrid(
-		const FViewInfo& View, 
-		FRHICommandListImmediate& RHICmdList,
-		FRHITexture* DistanceFieldNormal,
-		const FAOScreenGridResources& ScreenGridResources,
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FSceneTextures& SceneTextures,
+		FRDGTextureRef DistanceFieldNormal,
+		const FAOScreenGridParameters& AOScreenGridParameters,
 		const FDistanceFieldAOParameters& Parameters) const;
 
 private:
