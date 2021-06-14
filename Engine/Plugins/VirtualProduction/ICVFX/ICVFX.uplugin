@@ -88,8 +88,7 @@
 		},
 		{
 			"Name": "RemoteControlWebInterface",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/beb39fbe47e74bb1a8098e2b2c9c40b2"
+			"Enabled": true
 		},
 		{
 			"Name": "StageMonitoring",
