@@ -31,98 +31,27 @@ FStreamer::FStreamer(const FString& InSignallingServerUrl, const FString& InStre
 	// required for communication with Signalling Server and must be called in the game thread, while it's used in signalling thread
 	FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
 
-#if PLATFORM_WINDOWS
-	WebRtcSignallingThread = MakeUnique<FThread>(TEXT("PixelStreamerSignallingThread"), [this]() { WebRtcSignallingThreadFunc(); });
-#else
-	WebRtcSignallingThreadFunc();
-#endif
+	StartWebRtcSignallingThread();
+	ConnectToSignallingServer();
 }
 
 FStreamer::~FStreamer()
 {
-	// stop WebRtc WndProc thread
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
-	PostThreadMessage(WebRtcSignallingThreadId, WM_QUIT, 0, 0);
-	UE_LOG(PixelStreamer, Log, TEXT("Exiting WebRTC WndProc thread"));
-	WebRtcSignallingThread->Join();
-#else
 	DeleteAllPlayerSessions();
-	WebRtcSignallingThread->Stop();
 	PeerConnectionFactory = nullptr;
+	WebRtcSignallingThread->Stop();
 	rtc::CleanupSSL();
-#endif
 }
 
-// #endif
-
-void FStreamer::WebRtcSignallingThreadFunc()
+void FStreamer::StartWebRtcSignallingThread()
 {
 	// initialisation of WebRTC stuff and things that depends on it should happen in WebRTC signalling thread
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
-
-	// WebRTC assumes threads within which PeerConnectionFactory is created is the signalling thread
-	WebRtcSignallingThreadId = FPlatformTLS::GetCurrentThreadId();
-	
-	// init WebRTC networking and inter-thread communication
-	rtc::WinsockInitializer WSInitialiser;
-	if (WSInitialiser.error())
-	{
-		UE_LOG(PixelStreamer, Error, TEXT("Failed to initialise Winsock"));
-		return;
-	}
-
-	rtc::Win32SocketServer SocketServer;
-	rtc::Win32Thread W32Thread(&SocketServer);
-	rtc::ThreadManager::Instance()->SetCurrentThread(&W32Thread);
-	rtc::InitializeSSL();
-
-	// WebRTC assumes threads within which PeerConnectionFactory is created is the signalling thread
-	PeerConnectionConfig = {};
-
-	auto videoEncoderFactory = std::make_unique<FPixelStreamingVideoEncoderFactory>();
-	VideoEncoderFactory = videoEncoderFactory.get();
-
-	PeerConnectionFactory = webrtc::CreatePeerConnectionFactory(
-		nullptr, // network_thread
-		nullptr, // worker_thread
-		nullptr, // signal_thread
-		new rtc::RefCountedObject<FAudioCapturer>(), // audio device manager
-		webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>(),
-		webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>(),
-		std::move(videoEncoderFactory),
-		std::make_unique<webrtc::InternalDecoderFactory>(),
-		nullptr, // audio_mixer
-		nullptr); // audio_processing
-	check(PeerConnectionFactory);
-
-	// now that everything is ready
-	ConnectToSignallingServer();
-
-	// WebRTC window messaging loop
-	MSG Msg;
-	BOOL Gm;
-	while ((Gm = ::GetMessageW(&Msg, NULL, 0, 0)) != 0 && Gm != -1)
-	{
-		::TranslateMessage(&Msg);
-		::DispatchMessage(&Msg);
-	}
-
-	// WebRTC stuff created in this thread should be deleted here.
-	DeleteAllPlayerSessions();
-	PeerConnectionFactory = nullptr;
-
-	rtc::CleanupSSL();
-
-#elif PLATFORM_LINUX
-	// WebRTC assumes threads within which PeerConnectionFactory is created is the signalling thread
-	WebRtcSignallingThread = TUniquePtr<rtc::Thread>(rtc::Thread::CreateWithSocketServer().release());//MakeUnique<rtc::Thread>(std::make_unique<rtc::PhysicalSocketServer>());
+	// Create our own WebRTC thread for signalling
+	WebRtcSignallingThread = MakeUnique<rtc::Thread>(rtc::SocketServer::CreateDefault());
 	WebRtcSignallingThread->SetName("WebRtcSignallingThread", nullptr);
 	WebRtcSignallingThread->Start();
-	// rtc::ThreadManager::Instance()->SetCurrentThread(thread);
 
-	// thread->PostTask(rtc::Location("WebRtcSignallingThreadFunc", __FILE__, __LINE__), [&]()
-	// 	{
 	rtc::InitializeSSL();
 
 	PeerConnectionConfig = {};
@@ -142,11 +71,6 @@ void FStreamer::WebRtcSignallingThreadFunc()
 		nullptr, // audio_mixer
 		nullptr); // audio_processing
 	check(PeerConnectionFactory);
-
-	// now that everything is ready
-	ConnectToSignallingServer();
-	// });
-#endif 
 }
 
 void FStreamer::ConnectToSignallingServer()

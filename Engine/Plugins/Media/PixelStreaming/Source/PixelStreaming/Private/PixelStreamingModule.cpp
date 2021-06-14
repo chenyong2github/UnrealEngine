@@ -150,6 +150,12 @@ void FPixelStreamingModule::InitStreamer()
 /** IModuleInterface implementation */
 void FPixelStreamingModule::StartupModule()
 {
+	// Pixel Streaming does not make sense without an RHI so we don't run in commandlets without one.
+	if(IsRunningCommandlet() && !IsAllowCommandletRendering())
+	{
+		return;
+	}
+
 	// only D3D11/D3D12 is supported
 	if (GDynamicRHI == nullptr ||
 		!( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 

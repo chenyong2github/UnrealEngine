@@ -36,8 +36,8 @@ public:
 	void OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer);
 
 private:
-	// window procedure for WebRTC inter-thread communication
-	void WebRtcSignallingThreadFunc();
+	// Procedure for WebRTC inter-thread communication
+	void StartWebRtcSignallingThread();
 	void ConnectToSignallingServer();
 
 	// ISignallingServerConnectionObserver impl
@@ -58,12 +58,7 @@ private:
 	FString SignallingServerUrl;
 	FString StreamerId;
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
-	DWORD WebRtcSignallingThreadId = 0;
-	TUniquePtr<FThread> WebRtcSignallingThread;
-#elif PLATFORM_LINUX
 	TUniquePtr<rtc::Thread> WebRtcSignallingThread;
-#endif
 
 	TUniquePtr<FSignallingServerConnection> SignallingServerConnection;
 	double LastSignallingServerConnectionAttemptTimestamp = 0;
