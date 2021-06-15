@@ -6,9 +6,7 @@
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMeshToMeshDescription.h"
 #include "Mechanics/DragAlignmentMechanic.h"
-#include "MeshDescriptionToDynamicMesh.h"
 #include "MeshAdapterTransforms.h"
 #include "MeshDescriptionAdapter.h"
 #include "DynamicMesh/MeshTransforms.h"
@@ -20,6 +18,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/World.h"
 
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -125,7 +124,20 @@ void UEditPivotTool::Setup()
 	bool bSharesSources = GetMapToSharedSourceData(MapToFirstOccurrences);
 	if (bSharesSources)
 	{
-		AllTheWarnings = FText::Format(FTextFormat::FromString("{0}\n\n{1}"), AllTheWarnings, LOCTEXT("EditPivotSharedAssetsWarning", "WARNING: Multiple meshes in your selection use the same source asset!  This is not supported -- each asset can only have one baked pivot."));
+		AllTheWarnings = FText::Format(FTextFormat::FromString("{0}\n\n{1}"), AllTheWarnings, LOCTEXT("EditPivotSharedAssetsWarning", "WARNING: Multiple selected meshes share the same source Asset! Each Asset can only have one baked pivot, some results will be incorrect."));
+	}
+
+	bool bHasISMCs = false;
+	for (int32 k = 0; k < Targets.Num(); ++k)
+	{
+		if (Cast<UInstancedStaticMeshComponent>(TargetComponentInterface(k)->GetOwnerComponent()) != nullptr)
+		{
+			bHasISMCs = true;
+		}
+	}
+	if (bHasISMCs)
+	{
+		AllTheWarnings = FText::Format(FTextFormat::FromString("{0}\n\n{1}"), AllTheWarnings, LOCTEXT("EditPivotISMCWarning", "WARNING: Some selected objects are Instanced Components. Pivot of Instances will be modified, instead of Asset."));
 	}
 
 	GetToolManager()->DisplayMessage(AllTheWarnings, EToolMessageLevel::UserWarning);
@@ -430,12 +442,37 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
+		UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
+		Component->Modify();
+
+		UInstancedStaticMeshComponent* InstancedComponent = Cast<UInstancedStaticMeshComponent>(TargetComponent->GetOwnerComponent());
+		if (InstancedComponent != nullptr)
+		{
+			// For ISMC, we will not bake in a mesh transform, instead we will update the instance transforms relative to the new pivot
+			// TODO: this could be optional, and another alternative would be to bake the pivot to the mesh and then update
+			//   all the instance transforms so they stay in the same position?
+
+			// save world transforms
+			int32 NumInstances = InstancedComponent->GetInstanceCount();
+			TArray<FTransform> WorldTransforms;
+			WorldTransforms.SetNum(NumInstances);
+			for (int32 k = 0; k < NumInstances; ++k)
+			{
+				InstancedComponent->GetInstanceTransform(k, WorldTransforms[k], true);
+			}
+
+			// update position to new pivot
+			InstancedComponent->SetWorldTransform(NewWorldTransform);
+
+			// restore world transforms, which will compute new local transforms such that the instances do not move in the world
+			for (int32 k = 0; k < NumInstances; ++k)
+			{
+				InstancedComponent->UpdateInstanceTransform(k, WorldTransforms[k], true, true, false);
+			}
+		}
+		else if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
 		{
 			UE::Geometry::FTransform3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
-
-			UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
-			Component->Modify();
 
 			// transform simple collision geometry
 			UE::Geometry::TransformSimpleCollision(Component, ToBake);
@@ -450,13 +487,12 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 		}
 		else
 		{
-			UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
-			Component->Modify();
 			// try to invert baked transform
 			FTransform Baked = OriginalTransforms[MapToFirstOccurrences[ComponentIdx]] * NewWorldInverse;
 			Component->SetWorldTransform(Baked.Inverse() * OriginalTransforms[ComponentIdx]);
 		}
 		TargetComponent->GetOwnerActor()->MarkComponentsRenderStateDirty();
+		TargetComponent->GetOwnerActor()->UpdateComponentTransforms();
 	}
 
 	// hack to ensure user sees the updated pivot immediately: request re-select of the original selection

@@ -35,6 +35,23 @@ public:
 	virtual void AddComponent(USceneComponent* Component, bool bModifyComponentOnTransform = true);
 
 	/**
+	 * Add a component sub-object to the proxy set with custom transform access functions. This can be used
+	 * to do things like add an ISM Instance to the TransformProxy.
+	 * @param GetTransformFunc return current transform
+	 * @param SetTransformFunc set current transform
+	 * @param UserDefinedIndex an arbitrary integer that can be provided, not currently used but may be useful in subclasses
+	 * @param bModifyComponentOnTransform if true, Component->Modify() is called before the Component transform is updated
+	 * @warning The internal shared transform is regenerated each time a component is added
+	 */
+	virtual void AddComponentCustom(
+		USceneComponent* Component, 
+		TUniqueFunction<FTransform(void)> GetTransformFunc,
+		TUniqueFunction<void(FTransform)> SetTransformFunc,
+		int64 UserDefinedIndex = 0,
+		bool bModifyComponentOnTransform = true);
+
+
+	/**
 	 * @return the shared transform for all the sub-objects
 	 */
 	virtual FTransform GetTransform() const;
@@ -121,6 +138,11 @@ protected:
 	{
 		TWeakObjectPtr<USceneComponent> Component;
 		bool bModifyComponentOnTransform;
+
+		int64 UserDefinedIndex;		// no current purpose, reserved for subclass/future use
+
+		TUniqueFunction<FTransform(void)> GetTransformFunc;
+		TUniqueFunction<void(FTransform)> SetTransformFunc;
 
 		/** The initial transform of the object, set during UpdateSharedTransform() */
 		FTransform StartTransform;

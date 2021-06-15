@@ -11,12 +11,36 @@ void UTransformProxy::AddComponent(USceneComponent* Component, bool bModifyCompo
 {
 	check(Component);
 
-	FRelativeObject NewObj;
+	FRelativeObject& NewObj = Objects.Emplace_GetRef();
 	NewObj.Component = Component;
 	NewObj.bModifyComponentOnTransform = bModifyComponentOnTransform;
-	NewObj.StartTransform = Component->GetComponentToWorld();
+	NewObj.GetTransformFunc = [Component]() { return Component->GetComponentToWorld(); };
+	NewObj.SetTransformFunc = [Component](FTransform NewTransform) { return Component->SetWorldTransform(NewTransform); };
+	NewObj.UserDefinedIndex = 0;
+	NewObj.StartTransform = NewObj.GetTransformFunc();
 	NewObj.RelativeTransform = FTransform::Identity;
-	Objects.Add(NewObj);
+
+	UpdateSharedTransform();
+	OnPivotChanged.Broadcast(this, SharedTransform);
+}
+
+void UTransformProxy::AddComponentCustom(
+	USceneComponent* Component,
+	TUniqueFunction<FTransform(void)> GetTransformFunc,
+	TUniqueFunction<void(FTransform)> SetTransformFunc,
+	int64 UserDefinedIndex,
+	bool bModifyComponentOnTransform)
+{
+	check(Component);
+
+	FRelativeObject& NewObj = Objects.Emplace_GetRef();
+	NewObj.Component = Component;
+	NewObj.bModifyComponentOnTransform = bModifyComponentOnTransform;
+	NewObj.GetTransformFunc = MoveTemp(GetTransformFunc);
+	NewObj.SetTransformFunc = MoveTemp(SetTransformFunc);
+	NewObj.UserDefinedIndex = UserDefinedIndex;
+	NewObj.StartTransform = NewObj.GetTransformFunc();
+	NewObj.RelativeTransform = FTransform::Identity;
 
 	UpdateSharedTransform();
 	OnPivotChanged.Broadcast(this, SharedTransform);
@@ -99,7 +123,7 @@ void UTransformProxy::UpdateObjects()
 				Obj.Component->Modify();
 			}
 
-			Obj.Component->SetWorldTransform(CombinedTransform);
+			Obj.SetTransformFunc(CombinedTransform);
 		}
 	}
 }
@@ -148,7 +172,7 @@ void UTransformProxy::UpdateObjectTransforms()
 	{
 		if (Obj.Component != nullptr)
 		{
-			Obj.StartTransform = Obj.Component->GetComponentToWorld();
+			Obj.StartTransform = Obj.GetTransformFunc();
 		}
 		Obj.RelativeTransform = Obj.StartTransform;
 		Obj.RelativeTransform.SetToRelativeTransform(SharedTransform);

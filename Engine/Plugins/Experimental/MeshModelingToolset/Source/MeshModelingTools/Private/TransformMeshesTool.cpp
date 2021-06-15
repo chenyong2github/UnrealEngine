@@ -9,11 +9,13 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "ToolSceneQueriesUtil.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/World.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
@@ -86,12 +88,28 @@ void UTransformMeshesTool::Setup()
 
 	TransformProps = NewObject<UTransformMeshesToolProperties>();
 	AddToolPropertySource(TransformProps);
+	TransformProps->RestoreProperties(this);
+	TransformProps->WatchProperty(TransformProps->TransformMode, [this](ETransformMeshesTransformMode NewMode) { UpdateTransformMode(NewMode); });
+	TransformProps->WatchProperty(TransformProps->bApplyToInstances, [this](bool bNewValue) { UpdateTransformMode(TransformProps->TransformMode); });
+	TransformProps->WatchProperty(TransformProps->bSetPivotMode, [this](bool bNewValue) { UpdateSetPivotModes(bNewValue); });
+	TransformProps->WatchProperty(TransformProps->bSnapToGrid, [this](bool bNewValue) { OnSnappingSettingsUpdated(); });
+	TransformProps->WatchProperty(TransformProps->bSnapToRotation, [this](bool bNewValue) { OnSnappingSettingsUpdated(); });
+	
+	// determine if we have any ISMCs
+	TransformProps->bHaveInstances = false;
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
+	{
+		if (Cast<UInstancedStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx])) != nullptr)
+		{
+			TransformProps->bHaveInstances = true;
+		}
+	}
 
 	UpdateTransformMode(TransformProps->TransformMode);
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Transform"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTransformMeshesTool", "Translate/Rotate/Scale the selected objects. Use middle mouse button on gizmo to reposition it. Hold Ctrl while translating or (in local mode) rotating to align. [A] cycles through Transform modes. [S] toggles Set Pivot Mode. [D] Toggles Snap Drag Mode. [W] and [E] cycle through Snap Drag Source and Rotation types."),
+		LOCTEXT("OnStartTransformMeshesTool", "Transform the selected objects. Middle-mouse-drag on gizmo to reposition it. Hold Ctrl while dragging to snap/align. [A] cycles through Transform modes. [S] toggles Set Pivot Mode. [D] Toggles Snap Drag Mode. [W] and [E] cycle through Snap Drag Source and Rotation types."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -103,6 +121,8 @@ void UTransformMeshesTool::Setup()
 
 void UTransformMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	TransformProps->SaveProperties(this);
+
 	DragAlignmentMechanic->Shutdown();
 
 	GizmoManager->DestroyAllGizmosByOwner(this);
@@ -110,32 +130,12 @@ void UTransformMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 
 
-void UTransformMeshesTool::OnTick(float DeltaTime)
-{
-	// make sure state is up-to-date
-
-	if (CurTransformMode != TransformProps->TransformMode)
-	{
-		UpdateTransformMode(TransformProps->TransformMode);
-	}
-
-	if (bCurSetPivotMode != TransformProps->bSetPivot)
-	{
-		bool bEnableSetPivot = TransformProps->bSetPivot;
-		UpdateSetPivotModes(bEnableSetPivot);
-		bCurSetPivotMode = TransformProps->bSetPivot;
-	}
-}
-
 
 void UTransformMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	DragAlignmentMechanic->Render(RenderAPI);
 }
 
-void UTransformMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
-{
-}
 
 
 void UTransformMeshesTool::UpdateSetPivotModes(bool bEnableSetPivot)
@@ -155,7 +155,7 @@ void UTransformMeshesTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		LOCTEXT("TransformToggleSetPivot", "Toggle Set Pivot"),
 		LOCTEXT("TransformToggleSetPivotTooltip", "Toggle Set Pivot on and off"),
 		EModifierKey::None, EKeys::S,
-		[this]() { this->TransformProps->bSetPivot = !this->TransformProps->bSetPivot; });
+		[this]() { this->TransformProps->bSetPivotMode = !this->TransformProps->bSetPivotMode; });
 
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
 		TEXT("ToggleSnapDrag"),
@@ -213,7 +213,32 @@ void UTransformMeshesTool::UpdateTransformMode(ETransformMeshesTransformMode New
 			break;
 	}
 
+	OnSnappingSettingsUpdated();
+
 	CurTransformMode = NewMode;
+}
+
+
+
+namespace UE {
+namespace Local {
+
+static void AddInstancedComponentInstance(UInstancedStaticMeshComponent* ISMC, int32 Index, UTransformProxy* TransformProxy, bool bModifyOnTransform)
+{
+	TransformProxy->AddComponentCustom(ISMC,
+		[ISMC, Index]() {
+			FTransform Tmp;
+			ISMC->GetInstanceTransform(Index, Tmp, true);
+			return Tmp;
+		},
+		[ISMC, Index](FTransform NewTransform) {
+			ISMC->UpdateInstanceTransform(Index, NewTransform, true, true, true);
+		},
+		Index, bModifyOnTransform
+	);
+}
+
+}
 }
 
 
@@ -230,9 +255,23 @@ void UTransformMeshesTool::SetActiveGizmos_Single(bool bLocalRotations)
 
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		Transformable.TransformProxy->AddComponent(TargetComponent->GetOwnerComponent());
-		ComponentsToIgnoreInAlignment.Add(TargetComponent->GetOwnerComponent());
+		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]);
+		UInstancedStaticMeshComponent* InstancedComponent = Cast<UInstancedStaticMeshComponent>(Component);
+		if (InstancedComponent != nullptr && TransformProps->bApplyToInstances)
+		{
+			int32 NumInstances = InstancedComponent->GetInstanceCount();
+			for (int32 k = 0; k < NumInstances; ++k)
+			{
+				if (InstancedComponent->IsValidInstance(k) == false) return;
+				UE::Local::AddInstancedComponentInstance(InstancedComponent, k, Transformable.TransformProxy, true);
+			}
+		}
+		else
+		{
+			Transformable.TransformProxy->AddComponent(Component);
+		}
+
+		ComponentsToIgnoreInAlignment.Add(Component);
 	}
 
 	// leave out nonuniform scale if we have multiple objects in non-local mode
@@ -254,22 +293,49 @@ void UTransformMeshesTool::SetActiveGizmos_PerObject()
 	TArray<const UPrimitiveComponent*> ComponentsToIgnoreInAlignment;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
+		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]);
+		UInstancedStaticMeshComponent* InstancedComponent = Cast<UInstancedStaticMeshComponent>(Component);
+		if (InstancedComponent != nullptr && TransformProps->bApplyToInstances)
+		{
+			int32 NumInstances = InstancedComponent->GetInstanceCount();
+			for (int32 k = 0; k < NumInstances; ++k)
+			{
+				if (InstancedComponent->IsValidInstance(k) == false) return;
 
-		ComponentsToIgnoreInAlignment.Reset();
 
-		FTransformMeshesTarget Transformable;
-		Transformable.TransformProxy = NewObject<UTransformProxy>(this);
-		Transformable.TransformProxy->AddComponent(TargetComponent->GetOwnerComponent());
-		ComponentsToIgnoreInAlignment.Add(TargetComponent->GetOwnerComponent());
+				FTransformMeshesTarget Transformable;
+				Transformable.TransformProxy = NewObject<UTransformProxy>(this);
+				UE::Local::AddInstancedComponentInstance(InstancedComponent, k, Transformable.TransformProxy, true);
 
-		ETransformGizmoSubElements GizmoElements = ETransformGizmoSubElements::FullTranslateRotateScale;
-		Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(GetToolManager(), GizmoElements, this);
-		Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
+				ETransformGizmoSubElements GizmoElements = ETransformGizmoSubElements::FullTranslateRotateScale;
+				Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(GetToolManager(), GizmoElements, this);
+				Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
 
-		DragAlignmentMechanic->AddToGizmo(Transformable.TransformGizmo, &ComponentsToIgnoreInAlignment);
+				ComponentsToIgnoreInAlignment.Reset();
+				ComponentsToIgnoreInAlignment.Add(Component);
+				DragAlignmentMechanic->AddToGizmo(Transformable.TransformGizmo, &ComponentsToIgnoreInAlignment);
 
-		ActiveGizmos.Add(Transformable);
+				ActiveGizmos.Add(Transformable);
+			}
+		}
+		else
+		{
+
+			FTransformMeshesTarget Transformable;
+			Transformable.TransformProxy = NewObject<UTransformProxy>(this);
+			Transformable.TransformProxy->AddComponent(Component);
+
+			ETransformGizmoSubElements GizmoElements = ETransformGizmoSubElements::FullTranslateRotateScale;
+			Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(GetToolManager(), GizmoElements, this);
+			Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
+
+			ComponentsToIgnoreInAlignment.Reset();
+			ComponentsToIgnoreInAlignment.Add(Component);
+			DragAlignmentMechanic->AddToGizmo(Transformable.TransformGizmo, &ComponentsToIgnoreInAlignment);
+
+			ActiveGizmos.Add(Transformable);
+
+		}
 	}
 }
 
@@ -336,7 +402,7 @@ void UTransformMeshesTool::OnClickPress(const FInputDeviceRay& PressPos)
 
 void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 {
-	bool bApplyToPivot = TransformProps->bSetPivot;
+	bool bApplyToPivot = TransformProps->bSetPivotMode;
 
 	TArray<const UPrimitiveComponent*> IgnoreComponents;
 	if (bApplyToPivot == false)
@@ -347,7 +413,7 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		{
 			if (IgnoreIndex == -1 || k == IgnoreIndex)
 			{
-				IgnoreComponents.Add(TargetComponentInterface(k)->GetOwnerComponent());
+				IgnoreComponents.Add(UE::ToolTarget::GetTargetComponent(Targets[k]));
 			}
 		}
 	}
@@ -436,7 +502,14 @@ void UTransformMeshesTool::OnTerminateDragSequence()
 }
 
 
-
+void UTransformMeshesTool::OnSnappingSettingsUpdated()
+{
+	for (FTransformMeshesTarget& Target : ActiveGizmos)
+	{
+		Target.TransformGizmo->bSnapToWorldGrid = TransformProps->bSnapToGrid;
+		Target.TransformGizmo->bSnapToWorldRotGrid = TransformProps->bSnapToRotation;
+	}
+}
 
 
 #undef LOCTEXT_NAMESPACE
