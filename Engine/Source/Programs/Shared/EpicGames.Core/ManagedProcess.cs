@@ -647,6 +647,16 @@ namespace EpicGames.Core
 				FrameworkProcess.EnableRaisingEvents = true;
 				FrameworkProcess.Exited += (Sender, Args) =>
 				{
+					if (FrameworkStdOutThread != null)
+					{
+						FrameworkStdOutThread.Join();
+						FrameworkStdOutThread = null;
+					}
+					if (FrameworkStdErrThread != null)
+					{
+						FrameworkStdErrThread.Join();
+						FrameworkStdErrThread = null;
+					}
 					if (FrameworkMergedStdWriter != null)
 					{
 						FrameworkMergedStdWriter.Flush();
@@ -744,17 +754,6 @@ namespace EpicGames.Core
 					catch
 					{
 					}
-				}
-
-				if (FrameworkStdOutThread != null)
-				{
-					FrameworkStdOutThread.Join();
-					FrameworkStdOutThread = null;
-				}
-				if (FrameworkStdErrThread != null)
-				{
-					FrameworkStdErrThread.Join();
-					FrameworkStdOutThread = null;
 				}
 
 				FrameworkProcess.Dispose();
