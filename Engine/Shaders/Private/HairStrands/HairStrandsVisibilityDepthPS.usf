@@ -38,19 +38,19 @@ void MainPS(
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if PERMUTATION_OUTPUT_TYPE == 1
+uint bClear;
 void MainPS(
 	in FScreenVertexOutput Input,
 	out float SvDepth : SV_DEPTH)
 {
-	const FCategorizationData CategorisationData = DecodeCategorizationData(CategorisationTexture.Load(uint3(Input.Position.xy, 0)));
-	if (CategorisationData.PixelCoverage > 0.0f)
+	SvDepth = 0; // Inverse-Z
+	if (bClear == 0)
 	{
-		SvDepth = CategorisationData.ClosestDepth;
+		const FCategorizationData CategorisationData = DecodeCategorizationData(CategorisationTexture.Load(uint3(Input.Position.xy, 0)));
+		if (CategorisationData.PixelCoverage > 0.0f)
+		{
+			SvDepth = CategorisationData.ClosestDepth;
+		}
 	}
-	else
-	{
-		SvDepth = 0; // Inverse-Z|
-	}
-
 }
 #endif

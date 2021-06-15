@@ -14,6 +14,7 @@ int2 ViewResolution;
 Texture2D<uint4> InputTexture;
 RWBuffer<uint> TileCountBuffer;
 RWBuffer<uint2> TileDataBuffer;
+RWBuffer<uint2> TileClearBuffer;
 
 groupshared bool s_HasTileHair[GROUP_THREAD_COUNT];
 
@@ -57,11 +58,20 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 2];
 	}
 	GroupMemoryBarrierWithGroupSync();
-	if (LinearIndex < 1 && (s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 1]))
+	if (LinearIndex < 1)
 	{
-		uint WriteToIndex;
-		InterlockedAdd(TileCountBuffer[0], 1, WriteToIndex);
-		TileDataBuffer[WriteToIndex] = GroupId.xy;
+		if ((s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 1]))
+		{
+			uint WriteToIndex;
+			InterlockedAdd(TileCountBuffer[0], 1, WriteToIndex);
+			TileDataBuffer[WriteToIndex] = GroupId.xy;
+		}
+		else
+		{
+			uint WriteToIndex;
+			InterlockedAdd(TileCountBuffer[1], 1, WriteToIndex);
+			TileClearBuffer[WriteToIndex] = GroupId.xy;
+		}
 	}
 }
 #endif // SHADER_TILE_GENERATION
@@ -76,6 +86,7 @@ Buffer<uint> TileCountBuffer;
 RWBuffer<uint> TileIndirectDrawBuffer;
 RWBuffer<uint> TileIndirectDispatchBuffer;
 RWBuffer<uint> TilePerThreadIndirectDispatchBuffer;
+RWBuffer<uint> TileClearIndirectDrawBuffer;
 
 [numthreads(1, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
@@ -100,6 +111,12 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		TilePerThreadIndirectDispatchBuffer[0] = (TileCount + TilePerThread_GroupSize -1) / TilePerThread_GroupSize;
 		TilePerThreadIndirectDispatchBuffer[1] = 1;
 		TilePerThreadIndirectDispatchBuffer[2] = 1;
+
+		const uint TileClearCount = TileCountBuffer[1];
+
+		TileClearIndirectDrawBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
+		TileClearIndirectDrawBuffer[1] = TileClearCount;
+		TileClearIndirectDrawBuffer[2] = 1;
 	}
 }
 #endif // SHADER_TILE_COPY_ARGS

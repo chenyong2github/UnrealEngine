@@ -2723,6 +2723,7 @@ class FHairVisibilityDepthPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsTilePassVS::FParameters, TileData)
+		SHADER_PARAMETER(uint32, bClear)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorisationTexture)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -2744,11 +2745,18 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDepthPS, "/Engine/Private/HairStrands/HairStrandsVisibilityDepthPS.usf", "MainPS", SF_Pixel);
 
+enum class EHairPatchPass
+{
+	GBufferPatch,
+	DepthPatch,
+	DepthClear
+};
+
 static void AddHairVisibilityCommonPatchPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FHairStrandsTiles& TileData,
-	const bool bDepthOnly,
+	const EHairPatchPass PassType,
 	const FRDGTextureRef& CategorisationTexture,
 	FRDGTextureRef OutGBufferBTexture,
 	FRDGTextureRef OutGBufferCTexture,
@@ -2756,14 +2764,15 @@ static void AddHairVisibilityCommonPatchPass(
 	FRDGTextureRef OutDepthTexture)
 {
 	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
-	Parameters->TileData = GetHairStrandsTileParameters(TileData);
+	Parameters->bClear = PassType == EHairPatchPass::DepthClear ? 1u : 0u;
+	Parameters->TileData = GetHairStrandsTileParameters(TileData, PassType == EHairPatchPass::DepthClear ?  FHairStrandsTiles::ETileType::Other : FHairStrandsTiles::ETileType::Hair);
 	Parameters->CategorisationTexture = CategorisationTexture;
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 		OutDepthTexture,
 		ERenderTargetLoadAction::ELoad,
 		ERenderTargetLoadAction::ELoad,
 		FExclusiveDepthStencil::DepthWrite_StencilNop);
-	if (!bDepthOnly)
+	if (PassType == EHairPatchPass::GBufferPatch)
 	{
 		check(OutGBufferBTexture && OutGBufferCTexture && OutColorTexture);
 		Parameters->RenderTargets[0] = FRenderTargetBinding(OutGBufferBTexture, ERenderTargetLoadAction::ELoad);
@@ -2775,14 +2784,14 @@ static void AddHairVisibilityCommonPatchPass(
 	TShaderMapRef<FHairStrandsTilePassVS> TileVertexShader(View.ShaderMap);
 
 	FHairVisibilityDepthPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairVisibilityDepthPS::FOutputType>(bDepthOnly ? 1 : 0);
+	PermutationVector.Set<FHairVisibilityDepthPS::FOutputType>( (PassType == EHairPatchPass::DepthClear || PassType == EHairPatchPass::DepthPatch) ? 1 : 0);
 	TShaderMapRef<FHairVisibilityDepthPS> PixelShader(View.ShaderMap, PermutationVector);
 	const FIntRect Viewport = View.ViewRect;
 	const FIntPoint Resolution = OutDepthTexture->Desc.Extent;
 	const bool bUseTile = TileData.IsValid();
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("%s(%s)", bDepthOnly ? TEXT("HairStrandsVisibilityHairOnlyDepth") : TEXT("HairStrandsVisibilityWriteColorAndDepth"), bUseTile ? TEXT("Tile") : TEXT("Screen")),
+		RDG_EVENT_NAME("%s(%s)", (PassType == EHairPatchPass::DepthClear || PassType == EHairPatchPass::DepthPatch) ? TEXT("HairStrandsVisibilityPatchHairOnlyDepth") : TEXT("HairStrandsVisibilityWriteColorAndDepth"), bUseTile ? TEXT("Tile") : TEXT("Screen")),
 		Parameters,
 		ERDGPassFlags::Raster,
 		[Parameters, ScreenVertexShader, TileVertexShader, PixelShader, Viewport, Resolution, bUseTile](FRHICommandList& RHICmdList)
@@ -2847,7 +2856,7 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 		GraphBuilder,
 		View,
 		TileData,
-		false,
+		EHairPatchPass::GBufferPatch,
 		CategorisationTexture,
 		OutGBufferBTexture,
 		OutGBufferCTexture,
@@ -2866,11 +2875,29 @@ static void AddHairOnlyDepthPass(
 	{
 		return;
 	}
+
+	// If tile data are available, we dispatch a complementary set of tile to clear non-hair tile
+	// If tile data are not available, then the clearly is done prior to that.
+	if (TileData.IsValid())
+	{
+		AddHairVisibilityCommonPatchPass(
+			GraphBuilder,
+			View,
+			TileData,
+			EHairPatchPass::DepthClear,
+			CategorisationTexture,
+			nullptr,
+			nullptr,
+			nullptr,
+			OutDepthTexture);
+	}
+
+	// Depth value
 	AddHairVisibilityCommonPatchPass(
 		GraphBuilder,
 		View,
 		TileData,
-		true,
+		EHairPatchPass::DepthPatch,
 		CategorisationTexture,
 		nullptr,
 		nullptr,
