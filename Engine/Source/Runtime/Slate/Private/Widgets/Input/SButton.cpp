@@ -11,7 +11,49 @@
 
 static FName SButtonTypeName("SButton");
 
+SLATE_IMPLEMENT_WIDGET(SButton)
+void SButton::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "BaseBorderForegroundColor", BorderForegroundColorAttribute, EInvalidateWidgetReason::Paint)
+		.OnValueChanged(FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				static_cast<SButton&>(Widget).UpdateForegroundColor();
+			}));
+
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "ContentPadding", ContentPaddingAttribute, EInvalidateWidgetReason::Layout)
+		.OnValueChanged(FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+		{
+			static_cast<SButton&>(Widget).UpdatePadding();
+		}));
+	
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "AppearPressed", AppearPressedAttribute, EInvalidateWidgetReason::Paint)
+		.OnValueChanged(FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				static_cast<SButton&>(Widget).UpdatePressStateChanged();
+			}));
+
+	AttributeInitializer.OverrideInvalidationReason("EnabledState", FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{EInvalidateWidgetReason::Layout|EInvalidateWidgetReason::Paint});
+
+	AttributeInitializer.OverrideOnValueChanged("EnabledState"
+		, FSlateAttributeDescriptor::ECallbackOverrideType::ExecuteAfterPrevious
+		, FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				static_cast<SButton&>(Widget).UpdateBorderImage();
+			}));
+
+	AttributeInitializer.OverrideOnValueChanged("Hovered"
+		, FSlateAttributeDescriptor::ECallbackOverrideType::ExecuteAfterPrevious
+		, FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				static_cast<SButton&>(Widget).UpdateBorderImage();
+				static_cast<SButton&>(Widget).UpdateForegroundColor();
+			}));
+}
+
 SButton::SButton()
+	: BorderForegroundColorAttribute(*this)
+	, ContentPaddingAttribute(*this)
+	, AppearPressedAttribute(*this)
 {
 #if WITH_ACCESSIBILITY
 	AccessibleBehavior = EAccessibleBehavior::Summary;
@@ -27,6 +69,22 @@ SButton::SButton()
 void SButton::Construct( const FArguments& InArgs )
 {
 	bIsPressed = false;
+	bIsFocusable = InArgs._IsFocusable;
+
+	BorderForegroundColorAttribute.Assign(*this, InArgs._ForegroundColor);
+
+	OnClicked = InArgs._OnClicked;
+	OnPressed = InArgs._OnPressed;
+	OnReleased = InArgs._OnReleased;
+	OnHovered = InArgs._OnHovered;
+	OnUnhovered = InArgs._OnUnhovered;
+
+	ClickMethod = InArgs._ClickMethod;
+	TouchMethod = InArgs._TouchMethod;
+	PressMethod = InArgs._PressMethod;
+
+	HoveredSound = InArgs._HoveredSoundOverride.Get(InArgs._ButtonStyle->HoveredSlateSound);
+	PressedSound = InArgs._PressedSoundOverride.Get(InArgs._ButtonStyle->PressedSlateSound);
 
 	// Text overrides button content. If nothing is specified, put an null widget in the button.
 	// Null content makes the button enter a special mode where it will ask to be as big as the image used for its border.
@@ -54,41 +112,21 @@ void SButton::Construct( const FArguments& InArgs )
 		.ContentScale(InArgs._ContentScale)
 		.DesiredSizeScale(InArgs._DesiredSizeScale)
 		.BorderBackgroundColor(InArgs._ButtonColorAndOpacity)
-		.ForegroundColor(InArgs._ForegroundColor)
-		.BorderImage( this, &SButton::GetBorder )
-		.HAlign( InArgs._HAlign )
-		.VAlign( InArgs._VAlign )
-		.Padding( TAttribute<FMargin>(this, &SButton::GetCombinedPadding) )
-		.ShowEffectWhenDisabled( TAttribute<bool>(this, &SButton::GetShowDisabledEffect) )
+		.HAlign(InArgs._HAlign)
+		.VAlign(InArgs._VAlign)
 		[
 			DetermineContent(InArgs)
 		]
 	);
+
+	SetContentPadding(InArgs._ContentPadding);
+	SetButtonStyle(InArgs._ButtonStyle);
 
 	// Only do this if we're exactly an SButton
 	if (GetType() == SButtonTypeName)
 	{
 		SetCanTick(false);
 	}
-
-	ContentPadding = InArgs._ContentPadding;
-
-	SetButtonStyle(InArgs._ButtonStyle);
-
-	bIsFocusable = InArgs._IsFocusable;
-
-	OnClicked = InArgs._OnClicked;
-	OnPressed = InArgs._OnPressed;
-	OnReleased = InArgs._OnReleased;
-	OnHovered = InArgs._OnHovered;
-	OnUnhovered = InArgs._OnUnhovered;
-
-	ClickMethod = InArgs._ClickMethod;
-	TouchMethod = InArgs._TouchMethod;
-	PressMethod = InArgs._PressMethod;
-
-	HoveredSound = InArgs._HoveredSoundOverride.Get(Style->HoveredSlateSound);
-	PressedSound = InArgs._PressedSoundOverride.Get(Style->PressedSlateSound);
 }
 
 int32 SButton::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -96,7 +134,7 @@ int32 SButton::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry
 	bool bEnabled = ShouldBeEnabled(bParentEnabled);
 	bool bShowDisabledEffect = GetShowDisabledEffect();
 
-	const FSlateBrush* BrushResource = !bShowDisabledEffect && !bEnabled ? DisabledImage : GetBorder();
+	const FSlateBrush* BrushResource = !bShowDisabledEffect && !bEnabled ? &Style->Disabled : GetBorderImage();
 	
 	ESlateDrawEffect DrawEffects = bShowDisabledEffect && !bEnabled ? ESlateDrawEffect::DisabledEffect : ESlateDrawEffect::None;
 
@@ -118,36 +156,78 @@ int32 SButton::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry
 FMargin SButton::GetCombinedPadding() const
 {
 	return ( IsPressed() )
-		? ContentPadding.Get() + PressedBorderPadding
-		: ContentPadding.Get() + BorderPadding;	
+		? ContentPaddingAttribute.Get() + Style->PressedPadding
+		: ContentPaddingAttribute.Get() + Style->NormalPadding;
+}
+
+//~ Update when { ContentPaddingAttribute, IsPressed, Style }
+void SButton::UpdatePadding()
+{
+	SetPadding(GetCombinedPadding());
 }
 
 bool SButton::GetShowDisabledEffect() const
 {
-	return DisabledImage->DrawAs == ESlateBrushDrawType::NoDrawType;
+	return Style->Disabled.DrawAs == ESlateBrushDrawType::NoDrawType;
 }
 
-/** @return An image that represents this button's border*/
-const FSlateBrush* SButton::GetBorder() const
+//~ Update when { Style }
+void SButton::UpdateShowDisabledEffect()
 {
-	if (!GetShowDisabledEffect() && !IsEnabled())
+	// Needs to be called when the style changed
+	SetShowEffectWhenDisabled(GetShowDisabledEffect());
+}
+
+//~ Update when { GetShowDisabledEffect(Style), IsEnable(EnabledState), Pressed, Hovered, Style }
+void SButton::UpdateBorderImage()
+{
+	if (!GetShowDisabledEffect() && !IsInteractable())
 	{
-		return DisabledImage;
+		SetBorderImage(&Style->Disabled);
 	}
-	else if ( IsPressed() )
+	else if (IsPressed())
 	{
-		return PressedImage;
+		SetBorderImage(&Style->Pressed);
 	}
 	else if (IsHovered())
 	{
-		return HoverImage;
+		SetBorderImage(&Style->Hovered);
 	}
 	else
 	{
-		return NormalImage;
+		SetBorderImage(&Style->Normal);
 	}
 }
 
+//~ Update when { DefaultForegroundColorAttribute, Pressed, Hovered, Style }
+void SButton::UpdateForegroundColor()
+{
+	if (BorderForegroundColorAttribute.Get() == FSlateColor::UseStyle())
+	{
+		if (IsPressed())
+		{
+			SetForegroundColor(Style->PressedForeground);
+		}
+		else if (IsHovered())
+		{
+			SetForegroundColor(Style->HoveredForeground);
+		}
+		else
+		{
+			SetForegroundColor(Style->NormalForeground);
+		}
+	}
+	else
+	{
+		SetForegroundColor(BorderForegroundColorAttribute.Get());
+	}
+}
+
+//~ Update when { Style }
+void SButton::UpdateDisabledForegroundColor()
+{
+	Invalidate(EInvalidateWidgetReason::Paint);
+}
 
 bool SButton::SupportsKeyboardFocus() const
 {
@@ -251,15 +331,8 @@ FReply SButton::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEv
 		}
 	}
 
-	Invalidate(EInvalidateWidget::Layout);
-
 	//return the constructed reply
 	return Reply;
-}
-
-FReply SButton::OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent )
-{
-	return OnMouseButtonDown( InMyGeometry, InMouseEvent );
 }
 
 FReply SButton::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
@@ -275,7 +348,7 @@ FReply SButton::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEven
 
 		if ( IsEnabled() )
 		{
-			if (InputClickMethod == EButtonClickMethod::MouseDown )
+			if ( InputClickMethod == EButtonClickMethod::MouseDown )
 			{
 				// NOTE: If we're configured to click on mouse-down/precise-tap, then we never capture the mouse thus
 				//       may never receive an OnMouseButtonUp() call.  We make sure that our bIsPressed
@@ -322,8 +395,6 @@ FReply SButton::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEven
 		Reply.ReleaseMouseCapture();
 	}
 
-	Invalidate(EInvalidateWidget::Layout);
-
 	return Reply;
 }
 
@@ -339,16 +410,14 @@ FReply SButton::OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& M
 
 void SButton::OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	if ( IsEnabled() )
-	{
-		PlayHoverSound();
-	}
-	
+	const bool bWasHovered = IsHovered();
+
 	SBorder::OnMouseEnter( MyGeometry, MouseEvent );
 
-	OnHovered.ExecuteIfBound();
-
-	Invalidate(EInvalidateWidget::Layout);
+	if (!bWasHovered && IsHovered())
+	{
+		ExecuteHoverStateChanged(true);
+	}
 }
 
 void SButton::OnMouseLeave( const FPointerEvent& MouseEvent )
@@ -365,12 +434,10 @@ void SButton::OnMouseLeave( const FPointerEvent& MouseEvent )
 		Release();
 	}
 
-	if (bWasHovered)
+	if (bWasHovered && !IsHovered())
 	{
-		OnUnhovered.ExecuteIfBound();
+		ExecuteHoverStateChanged(true);
 	}
-
-	Invalidate(EInvalidateWidget::Layout);
 }
 
 void SButton::OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
@@ -401,6 +468,7 @@ void SButton::Press()
 		bIsPressed = true;
 		PlayPressedSound();
 		OnPressed.ExecuteIfBound();
+		UpdatePressStateChanged();
 	}
 }
 
@@ -410,18 +478,20 @@ void SButton::Release()
 	{
 		bIsPressed = false;
 		OnReleased.ExecuteIfBound();
+		UpdatePressStateChanged();
 	}
+}
+
+void SButton::UpdatePressStateChanged()
+{
+	UpdatePadding();
+	UpdateBorderImage();
+	UpdateForegroundColor();
 }
 
 bool SButton::IsInteractable() const
 {
 	return IsEnabled();
-}
-
-bool SButton::ComputeVolatility() const
-{
-	// Note: we need to be careful with button volatility.  The parent SBorder class always has bound delegates to button but the following are the only thing that actually would be bound that would not be caught by an Invalidate call alone
-	return ContentPadding.IsBound();
 }
 
 TEnumAsByte<EButtonClickMethod::Type> SButton::GetClickMethodFromInputType(const FPointerEvent& MouseEvent) const
@@ -463,7 +533,7 @@ FVector2D SButton::ComputeDesiredSize(float LayoutScaleMultiplier) const
 	// the border image specified by the style.
 	if (ChildSlot.GetWidget() == SNullWidget::NullWidget)
 	{
-		return GetBorder()->ImageSize;
+		return GetBorderImage()->ImageSize;
 	}
 	else
 	{
@@ -471,9 +541,9 @@ FVector2D SButton::ComputeDesiredSize(float LayoutScaleMultiplier) const
 	}
 }
 
-void SButton::SetContentPadding(const TAttribute<FMargin>& InContentPadding)
+void SButton::SetContentPadding(TAttribute<FMargin> InContentPadding)
 {
-	ContentPadding = InContentPadding;
+	ContentPaddingAttribute.Assign(*this, MoveTemp(InContentPadding));
 }
 
 void SButton::SetHoveredSound(TOptional<FSlateSound> InHoveredSound)
@@ -501,23 +571,41 @@ void SButton::SetOnUnhovered(FSimpleDelegate InOnUnhovered)
 	OnUnhovered = InOnUnhovered;
 }
 
-void SButton::SetButtonStyle(const FButtonStyle* ButtonStyle)
+void SButton::ExecuteHoverStateChanged(bool bPlaySound)
 {
-	/* Get pointer to the button style */
-	Style = ButtonStyle;
+	if (IsHovered())
+	{
+		if (bPlaySound)
+		{
+			PlayHoverSound();
+		}
+		OnHovered.ExecuteIfBound();
+	}
+	else
+	{
+		OnUnhovered.ExecuteIfBound();
+	}
+}
 
-	NormalImage = &Style->Normal;
-	HoverImage = &Style->Hovered;
-	PressedImage = &Style->Pressed;
-	DisabledImage = &Style->Disabled;
+void SButton::SetButtonStyle(const FButtonStyle* InButtonStyle)
+{
+	if (InButtonStyle == nullptr)
+	{
+		ensureAlwaysMsgf(false, TEXT("The Style is not valid."));
+		return;
+	}
 
-	BorderPadding = Style->NormalPadding;
-	PressedBorderPadding = Style->PressedPadding;
+	/* Get pointer to the button Style */
+	Style = InButtonStyle;
 
 	HoveredSound = Style->HoveredSlateSound;
 	PressedSound = Style->PressedSlateSound;
 
-	Invalidate(EInvalidateWidget::Layout);
+	UpdatePadding();
+	UpdateShowDisabledEffect();
+	UpdateBorderImage(); // Must be after UpdateShowDisabledEffect()
+	UpdateForegroundColor();
+	UpdateDisabledForegroundColor();
 }
 
 void SButton::SetClickMethod(EButtonClickMethod::Type InClickMethod)
@@ -537,30 +625,7 @@ void SButton::SetPressMethod(EButtonPressMethod::Type InPressMethod)
 
 FSlateColor SButton::GetDisabledForegroundColor() const
 {
-	return Style->DisabledForeground;	
-}
-
-FSlateColor SButton::GetForegroundColor() const
-{
-	FSlateColor UserColor = GetForegroundColorAttribute().Get();
-
-	if(UserColor == FSlateColor::UseStyle())
-	{
-		if (IsPressed())
-		{
-			return Style->PressedForeground;
-		}
-		else if (IsHovered())
-		{
-			return Style->HoveredForeground;
-		}
-		else
-		{
-			return Style->NormalForeground;
-		}
-	}
-
-	return UserColor;
+	return Style->DisabledForeground;
 }
 
 #if WITH_ACCESSIBILITY

@@ -53,7 +53,10 @@ class SBspButton: public SButton
 	{
 		if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
 		{
-			bIsPressed = true;
+			if (IsEnabled())
+			{
+				Press();
+			}
 
 			return FReply::Handled().DetectDrag( SharedThis( this ), MouseEvent.GetEffectingButton() );
 		}

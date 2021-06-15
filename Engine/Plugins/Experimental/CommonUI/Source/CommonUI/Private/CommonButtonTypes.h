@@ -90,8 +90,6 @@ public:
 
 	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
-	virtual bool IsPressed() const override;
-
 	void SetIsButtonEnabled(bool bInIsButtonEnabled);
 
 	void SetIsButtonFocusable(bool bInIsButtonFocusable);
@@ -104,6 +102,10 @@ public:
 	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent);
 
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+
+protected:
+	/** Press the button */
+	virtual void Press() override;
 
 private:
 	FOnClicked OnDoubleClicked;
