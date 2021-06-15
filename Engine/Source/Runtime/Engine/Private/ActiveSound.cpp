@@ -140,7 +140,6 @@ FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundT
 	if (Sound->VirtualizationMode == EVirtualizationMode::Restart)
 	{
 		ActiveSound->SoundNodeOffsetMap.Reset();
-		ActiveSound->PlaybackTime = 0.0f;
 	}
 
 	// If volume concurrency tracking is enabled, reset the value,

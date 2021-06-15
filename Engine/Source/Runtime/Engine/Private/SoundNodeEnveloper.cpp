@@ -67,7 +67,7 @@ void USoundNodeEnveloper::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT N
 
 	if( *RequiresInitialization )
 	{
-		StartTime = ActiveSound.PlaybackTime - ParseParams.StartTime;
+		StartTime = ActiveSound.PlaybackTimeNonVirtualized - ParseParams.StartTime;
 		UsedVolumeModulation = VolumeMax + ( ( VolumeMin - VolumeMax ) * RandomStream.FRand() );
 		UsedPitchModulation = PitchMax + ( ( PitchMin - PitchMax ) * RandomStream.FRand() );
 		LastLoopCount = -1;
@@ -75,7 +75,7 @@ void USoundNodeEnveloper::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT N
 		*RequiresInitialization = false;
 	}
 
-	float PlayTime = ActiveSound.PlaybackTime - StartTime;
+	float PlayTime = ActiveSound.PlaybackTimeNonVirtualized - StartTime;
 
 	if(bLoop && PlayTime > LoopEnd)
 	{
