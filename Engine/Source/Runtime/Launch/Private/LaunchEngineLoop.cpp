@@ -3957,7 +3957,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 	FModuleManager::Get().LoadModuleChecked("UnrealEd");
 	FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
 	FModuleManager::Get().LoadModuleChecked("LandscapeEditorUtilities");
-	//FModuleManager::Get().LoadModuleChecked("SubobjectDataInterface");
+	FModuleManager::Get().LoadModuleChecked("SubobjectDataInterface");
 #endif //WITH_EDITOR
 
 	// Load UI modules
