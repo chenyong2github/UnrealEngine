@@ -500,6 +500,7 @@ void UAnimPoseExtensions::GetAnimPoseAtTime(const UAnimSequenceBase* AnimationSe
 			Pose.Init(CompactPose.GetBoneContainer());
 
 			FBlendedCurve Curve;
+			Curve.InitFrom(RequiredBones);
 			UE::Anim::FStackAttributeContainer Attributes;
 
 			FAnimationPoseData PoseData(CompactPose, Curve, Attributes);
