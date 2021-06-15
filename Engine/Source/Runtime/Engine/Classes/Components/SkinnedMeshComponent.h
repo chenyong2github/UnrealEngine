@@ -230,7 +230,7 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncI
 	friend class FSkinnedMeshComponentRecreateRenderStateContext;
 
 	/** The skeletal mesh used by this component. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mesh")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mesh", meta = (DisallowedClasses = "DestructibleMesh"))
 	TObjectPtr<class USkeletalMesh> SkeletalMesh;
 
 	//

@@ -30,7 +30,7 @@ struct FPreviewMeshCollectionEntry
 	}
 
 	/** The skeletal mesh to display */
-	UPROPERTY(EditAnywhere, Category = "Skeletal Mesh", meta=(DisplayThumbnail=true))
+	UPROPERTY(EditAnywhere, Category = "Skeletal Mesh", meta=(DisplayThumbnail=true, DisallowedClasses = "DestructibleMesh"))
 	TSoftObjectPtr<USkeletalMesh> SkeletalMesh;
 };
 
