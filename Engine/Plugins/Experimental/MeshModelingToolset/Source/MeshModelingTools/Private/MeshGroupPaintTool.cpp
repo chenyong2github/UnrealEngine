@@ -214,7 +214,9 @@ void UMeshGroupPaintTool::Setup()
 		MeshElementsDisplay->Settings->RestoreProperties(this);
 		AddToolPropertySource(MeshElementsDisplay->Settings);
 	}
-	MeshElementsDisplay->SetMeshAccessFunction([&](void) { return GetSculptMesh(); });
+	MeshElementsDisplay->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
+		ProcessFunc(*GetSculptMesh());
+	});
 
 	// force colors update... ?
 	DynamicMeshComponent->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)

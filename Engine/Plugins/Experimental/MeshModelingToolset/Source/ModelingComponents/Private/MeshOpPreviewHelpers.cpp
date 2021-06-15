@@ -148,7 +148,20 @@ bool UMeshOpPreviewWithBackgroundCompute::GetCurrentResultCopy(FDynamicMesh3& Me
 {
 	if ( HaveValidResult() || bOnlyIfValid == false)
 	{
-		MeshOut.Copy( *PreviewMesh->GetMesh() );
+		PreviewMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			MeshOut = ReadMesh;
+		});
+		return true;
+	}
+	return false;
+}
+
+bool UMeshOpPreviewWithBackgroundCompute::ProcessCurrentMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc, bool bOnlyIfValid)
+{
+	if (HaveValidResult() || bOnlyIfValid == false)
+	{
+		PreviewMesh->ProcessMesh(ProcessFunc);
 		return true;
 	}
 	return false;

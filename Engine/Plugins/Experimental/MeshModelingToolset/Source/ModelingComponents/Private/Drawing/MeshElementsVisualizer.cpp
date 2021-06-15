@@ -14,53 +14,55 @@ using namespace UE::Geometry;
 /**
  * IMeshWireframeSource implementation for a FDynamicMesh3
  */
-class FDynamicMeshWireframeSource : public IMeshWireframeSource
+class FTemporaryDynamicMeshWireframeSource : public IMeshWireframeSource
 {
 public:
-	const FDynamicMesh3* Mesh = nullptr;
+	const FDynamicMesh3& Mesh;
 
-	virtual bool IsValid() const { return Mesh != nullptr; }
+	FTemporaryDynamicMeshWireframeSource(const FDynamicMesh3& MeshIn) : Mesh(MeshIn) {}
+
+	virtual bool IsValid() const { return true; }
 
 	virtual FBoxSphereBounds GetBounds() const 
 	{ 
-		FAxisAlignedBox3d Bounds = Mesh->GetBounds();
+		FAxisAlignedBox3d Bounds = Mesh.GetBounds();
 		return FBoxSphereBounds((FBox)Bounds);
 	}
 
 	virtual FVector GetVertex(int32 Index) const
 	{
-		return (FVector)Mesh->GetVertex(Index);
+		return (FVector)Mesh.GetVertex(Index);
 	}
 
 	virtual int32 GetEdgeCount() const
 	{
-		return Mesh->EdgeCount();
+		return Mesh.EdgeCount();
 	}
 
 	virtual int32 GetMaxEdgeIndex() const
 	{
-		return Mesh->MaxEdgeID();
+		return Mesh.MaxEdgeID();
 	}
 
 	virtual bool IsEdge(int32 Index) const
 	{
-		return Mesh->IsEdge(Index);
+		return Mesh.IsEdge(Index);
 	}
 
 	virtual void GetEdge(int32 EdgeIndex, int32& VertIndexAOut, int32& VertIndexBOut, EMeshEdgeType& TypeOut) const
 	{
-		FIndex2i EdgeV = Mesh->GetEdgeV(EdgeIndex);
+		FIndex2i EdgeV = Mesh.GetEdgeV(EdgeIndex);
 		VertIndexAOut = EdgeV.A;
 		VertIndexBOut = EdgeV.B;
 		int32 EdgeType = (int32)EMeshEdgeType::Regular;
-		if (Mesh->IsBoundaryEdge(EdgeIndex))
+		if (Mesh.IsBoundaryEdge(EdgeIndex))
 		{
 			EdgeType |= (int32)EMeshEdgeType::MeshBoundary;
 		}
-		if (Mesh->HasAttributes())
+		if (Mesh.HasAttributes())
 		{
 			bool bIsUVSeam = false, bIsNormalSeam = false, bIsColorSeam = false;
-			if (Mesh->Attributes()->IsSeamEdge(EdgeIndex, bIsUVSeam, bIsNormalSeam, bIsColorSeam))
+			if (Mesh.Attributes()->IsSeamEdge(EdgeIndex, bIsUVSeam, bIsNormalSeam, bIsColorSeam))
 			{
 				if (bIsUVSeam)
 				{
@@ -84,20 +86,20 @@ public:
 class FDynamicMeshWireframeSourceProvider : public IMeshWireframeSourceProvider
 {
 public:
-	TUniqueFunction<const FDynamicMesh3* (void)> MeshAccessFunction;
+	TUniqueFunction<void(UMeshElementsVisualizer::ProcessDynamicMeshFunc)> MeshAccessFunction;
 
-	FDynamicMeshWireframeSourceProvider(TUniqueFunction<const FDynamicMesh3* (void)>&& MeshAccessFuncIn)
+	FDynamicMeshWireframeSourceProvider(TUniqueFunction<void(UMeshElementsVisualizer::ProcessDynamicMeshFunc)>&& MeshAccessFuncIn)
 	{
 		MeshAccessFunction = MoveTemp(MeshAccessFuncIn);
 	}
 
 	virtual void AccessMesh(TFunctionRef<void(const IMeshWireframeSource&)> ProcessingFunc) override
 	{
-		const FDynamicMesh3* Mesh = MeshAccessFunction();
-		check(Mesh);
-		FDynamicMeshWireframeSource WireSource;
-		WireSource.Mesh = Mesh;
-		ProcessingFunc(WireSource);
+		MeshAccessFunction([&](const FDynamicMesh3& ReadMesh)
+		{
+			FTemporaryDynamicMeshWireframeSource WireSource(ReadMesh);
+			ProcessingFunc(WireSource);
+		});
 	}
 };
 
@@ -132,7 +134,7 @@ void UMeshElementsVisualizer::OnCreated()
 }
 
 
-void UMeshElementsVisualizer::SetMeshAccessFunction(TUniqueFunction<const FDynamicMesh3* (void)>&& MeshAccessFunctionIn)
+void UMeshElementsVisualizer::SetMeshAccessFunction(TUniqueFunction<void(ProcessDynamicMeshFunc)>&& MeshAccessFunctionIn)
 {
 	WireframeSourceProvider = MakeShared<FDynamicMeshWireframeSourceProvider>(MoveTemp(MeshAccessFunctionIn));
 
@@ -156,6 +158,7 @@ void UMeshElementsVisualizer::UpdateLineDepthBiasScale()
 		WireframeComponent->LineDepthBiasSizeScale = 1;
 	}
 }
+
 
 void UMeshElementsVisualizer::OnTick(float DeltaTime)
 {

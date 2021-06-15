@@ -5,15 +5,19 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
+#include "Properties/RemeshProperties.h"
+#include "Properties/MeshStatisticsProperties.h"
+#include "Drawing/MeshElementsVisualizer.h"
+
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
-
+#include "ModelingToolTargetUtil.h"
+#include "ToolSetupUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
-
-#include "SceneManagement.h" // for FPrimitiveDrawInterface
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -70,7 +74,6 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	RemeshType = ERemeshType::Standard;
 	SmoothingType = ERemeshSmoothingType::MeanValue;
 	bPreserveSharpEdges = true;
-	bShowWireframe = true;
 	bShowGroupColors = false;
 
 	TargetEdgeLength = 5.0;
@@ -106,26 +109,18 @@ void URemeshMeshTool::Setup()
 	check(Targets[0]);
 	IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(0);
 	IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(0);
-	IMaterialProvider* TargetMaterial = TargetMaterialInterface(0);
+
 
 	// hide component and create + show preview
 	TargetComponent->SetOwnerVisibility(false);
-	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
+	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
 	Preview->Setup(this->TargetWorld, this);
-	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute)
-	{
-		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
-	});
-	FComponentMaterialSet MaterialSet;
-	TargetMaterial->GetMaterialSet(MaterialSet);
+
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 	Preview->ConfigureMaterials( MaterialSet.Materials,
 								 ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
-	Preview->PreviewMesh->EnableWireframe(BasicProperties->bShowWireframe);
-
 	BasicProperties->WatchProperty(BasicProperties->bShowGroupColors,
-								   [this](bool bNewValue) { UpdateVisualization();});
-	BasicProperties->WatchProperty(BasicProperties->bShowWireframe,
 								   [this](bool bNewValue) { UpdateVisualization();});
 
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
@@ -156,6 +151,29 @@ void URemeshMeshTool::Setup()
 	AddToolPropertySource(BasicProperties);
 	AddToolPropertySource(MeshStatisticsProperties);
 
+
+	MeshElementsDisplay = NewObject<UMeshElementsVisualizer>(this);
+	MeshElementsDisplay->CreateInWorld(Preview->PreviewMesh->GetWorld(), Preview->PreviewMesh->GetTransform());
+	if (ensure(MeshElementsDisplay->Settings))
+	{
+		MeshElementsDisplay->Settings->bShowWireframe = true;
+		MeshElementsDisplay->Settings->RestoreProperties(this, TEXT("Remesh"));
+		AddToolPropertySource(MeshElementsDisplay->Settings);
+	}
+	MeshElementsDisplay->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
+		Preview->ProcessCurrentMesh(ProcessFunc);
+	});
+
+	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute)
+	{
+		Compute->ProcessCurrentMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			MeshStatisticsProperties->Update(ReadMesh);
+			MeshElementsDisplay->NotifyMeshChanged();
+		});
+	});
+
+
 	Preview->InvalidateResult();
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Remesh"));
@@ -167,20 +185,35 @@ void URemeshMeshTool::Setup()
 void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
+
+	if (ensure(MeshElementsDisplay->Settings))
+	{
+		MeshElementsDisplay->Settings->SaveProperties(this, TEXT("Remesh"));
+	}
+	MeshElementsDisplay->Disconnect();
+
+
 	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[ComponentIdx]);
 	}
+
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		GenerateAsset(Result);
+		if (ShutdownType == EToolShutdownType::Accept)
+		{
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("RemeshMeshToolTransactionName", "Remesh Mesh"));
+			UE::ToolTarget::CommitDynamicMeshUpdate(Targets[0], *Result.Mesh, true);
+			GetToolManager()->EndUndoTransaction();
+		}
 	}
 }
 
 void URemeshMeshTool::OnTick(float DeltaTime)
 {
 	Preview->Tick(DeltaTime);
+	MeshElementsDisplay->OnTick(DeltaTime);
 }
 
 TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
@@ -215,8 +248,7 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	Op->SmoothingStrength = BasicProperties->SmoothingStrength;
 	Op->SmoothingType = BasicProperties->SmoothingType;
 
-	check(Targets.Num() > 0);
-	FTransform LocalToWorld = TargetComponentInterface(0)->GetWorldTransform();
+	FTransform LocalToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 	Op->SetTransform(LocalToWorld);
 
 	Op->OriginalMesh = OriginalMesh;
@@ -228,43 +260,12 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	return Op;
 }
 
-void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	FTransform Transform = TargetComponentInterface(0)->GetWorldTransform();
-
-	if (BasicProperties->bShowConstraintEdges)
-	{
-		FColor LineColor(255, 0, 0);
-		const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
-		if (TargetMesh && TargetMesh->HasAttributes())
-		{
-			float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
-			const FDynamicMeshUVOverlay* UVOverlay = TargetMesh->Attributes()->PrimaryUV();
-			for (int eid : TargetMesh->EdgeIndicesItr())
-			{
-				if (UVOverlay->IsSeamEdge(eid))
-				{
-					FVector3d A, B;
-					TargetMesh->GetEdgeV(eid, A, B);
-					PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
-						LineColor, 0, 2.0 * PDIScale, 1.0f, true);
-				}
-			}
-		}
-	}
-}
 
 void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if ( Property )
 	{
-		if ( ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(URemeshMeshToolProperties, bShowWireframe) ) ||
-			 ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(URemeshMeshToolProperties, bShowGroupColors) ) )
-		{
-			//UpdateVisualization();
-		}
-		else
+		if ( Property->GetFName() != GET_MEMBER_NAME_CHECKED(URemeshMeshToolProperties, bShowGroupColors) )
 		{
 			Preview->InvalidateResult();
 		}
@@ -273,7 +274,6 @@ void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Proper
 
 void URemeshMeshTool::UpdateVisualization()
 {
-	Preview->PreviewMesh->EnableWireframe(BasicProperties->bShowWireframe);
 	FComponentMaterialSet MaterialSet;
 	if (BasicProperties->bShowGroupColors)
 	{
@@ -286,7 +286,7 @@ void URemeshMeshTool::UpdateVisualization()
 	}
 	else
 	{
-		TargetMaterialInterface(0)->GetMaterialSet(MaterialSet);
+		MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 		Preview->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	}
 	Preview->ConfigureMaterials(MaterialSet.Materials,
@@ -305,20 +305,6 @@ bool URemeshMeshTool::CanAccept() const
 	return Super::CanAccept() && Preview->HaveValidResult();
 }
 
-void URemeshMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)
-{
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("RemeshMeshToolTransactionName", "Remesh Mesh"));
 
-	check(Result.Mesh.Get() != nullptr);
-	TargetMeshCommitterInterface(0)->CommitMeshDescription([&Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-	{
-		FDynamicMeshToMeshDescription Converter;
-
-		// full conversion if normal topology changed or faces were inverted
-		Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescriptionOut);
-	});
-
-	GetToolManager()->EndUndoTransaction();
-}
 
 #undef LOCTEXT_NAMESPACE

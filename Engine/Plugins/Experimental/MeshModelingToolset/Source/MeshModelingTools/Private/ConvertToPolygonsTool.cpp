@@ -3,27 +3,23 @@
 #include "ConvertToPolygonsTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
+#include "Drawing/PreviewGeometryActor.h"
+#include "PreviewMesh.h"
+
+#include "MeshOpPreviewHelpers.h"
+#include "ModelingOperators.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "MeshRegionBoundaryLoops.h"
-#include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshToMeshDescription.h"
 #include "Util/ColorConstants.h"
-#include "ToolSetupUtil.h"
 #include "Polygroups/PolygroupUtil.h"
-#include "PreviewMesh.h"
+#include "Util/ColorConstants.h"
 
-#include "SceneManagement.h" // for FPrimitiveDrawInterface
-#include "ModelingOperators.h"
-#include "MeshOpPreviewHelpers.h"
-#include "ModelingOperators.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "FindPolygonsAlgorithm.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -149,73 +145,61 @@ UConvertToPolygonsTool::UConvertToPolygonsTool()
 
 bool UConvertToPolygonsTool::CanAccept() const
 {
-	return Super::CanAccept() && (PreviewWithBackgroundCompute == nullptr || PreviewWithBackgroundCompute->HaveValidResult());
+	return Super::CanAccept() && (PreviewCompute == nullptr || PreviewCompute->HaveValidResult());
 }
 
 void UConvertToPolygonsTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
-
-	// populate the OriginalDynamicMesh with a conversion of the input mesh.
-	{
-		OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
-		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalDynamicMesh);
-	}
+	OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(UE::ToolTarget::GetDynamicMeshCopy(Target));
 
 	Settings = NewObject<UConvertToPolygonsToolProperties>(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
-	FTransform MeshTransform = TargetComponent->GetWorldTransform();
-	// hide existing mesh
-	TargetComponent->SetOwnerVisibility(false);
-	// Set up the preview object
+	FTransform MeshTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
+	UE::ToolTarget::HideSourceObject(Target);
+
 	{
 		// create the operator factory
 		UConvertToPolygonsOperatorFactory* ConvertToPolygonsOperatorFactory = NewObject<UConvertToPolygonsOperatorFactory>(this);
 		ConvertToPolygonsOperatorFactory->ConvertToPolygonsTool = this; // set the back pointer
 
-
-		PreviewWithBackgroundCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(ConvertToPolygonsOperatorFactory, "Preview");
-		PreviewWithBackgroundCompute->Setup(this->TargetWorld, ConvertToPolygonsOperatorFactory);
-		PreviewWithBackgroundCompute->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
+		PreviewCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(ConvertToPolygonsOperatorFactory);
+		PreviewCompute->Setup(this->TargetWorld, ConvertToPolygonsOperatorFactory);
+		PreviewCompute->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
 
 		// Give the preview something to display
-		PreviewWithBackgroundCompute->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
-		PreviewWithBackgroundCompute->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
-		PreviewWithBackgroundCompute->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
+		PreviewCompute->PreviewMesh->SetTransform(MeshTransform);
+		PreviewCompute->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
+		PreviewCompute->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
 		
-		PreviewWithBackgroundCompute->ConfigureMaterials(MaterialSet.Materials,
+		PreviewCompute->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
 
 		// show the preview mesh
-		PreviewWithBackgroundCompute->SetVisibility(true);
+		PreviewCompute->SetVisibility(true);
 
 		// something to capture the polygons from the async task when it is done
-		PreviewWithBackgroundCompute->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator* MeshOp) 
+		PreviewCompute->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator* MeshOp) 
 		{ 
 			const FConvertToPolygonsOp*  ConvertToPolygonsOp = static_cast<const FConvertToPolygonsOp*>(MeshOp);
-				
-			// edges used for tool ::Render() method 
 			this->PolygonEdges = ConvertToPolygonsOp->Polygons.PolygonEdges;
-				
-			// we have new triangle groups to color
 			UpdateVisualization();
 		});
 
-		// updates the triangle color visualization
-		UpdateVisualization();
 		// start the compute
-		PreviewWithBackgroundCompute->InvalidateResult();
-		
+		PreviewCompute->InvalidateResult();
 	}
 	
+	PreviewGeometry = NewObject<UPreviewGeometry>(this);
+	PreviewGeometry->CreateInWorld(TargetWorld, MeshTransform);
+
+	// updates the triangle color visualization
+	UpdateVisualization();
 
 	Settings->WatchProperty(Settings->ConversionMode,
 							[this](EConvertToPolygonsMode NewMode)
@@ -240,74 +224,54 @@ void UConvertToPolygonsTool::UpdateOpParameters(FConvertToPolygonsOp& ConvertToP
 	ConvertToPolygonsOp.AngleTolerance    = Settings->AngleTolerance;
 	ConvertToPolygonsOp.OriginalMesh = OriginalDynamicMesh;
 	
-	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
+	FTransform LocalToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 	ConvertToPolygonsOp.SetTransform(LocalToWorld);
 }
 
-void UConvertToPolygonsTool::GenerateAsset(const FDynamicMeshOpResult& Result)
-{
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("ConvertToPolygonsToolTransactionName", "Find Polygroups"));
 
-	FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
-	check(DynamicMeshResult != nullptr);
-
-	Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-	{
-		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
-	});
-
-	GetToolManager()->EndUndoTransaction();
-}
 
 void UConvertToPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
-	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+	UE::ToolTarget::ShowSourceObject(Target);
 
-	if (PreviewWithBackgroundCompute)
+	PreviewGeometry->Disconnect();
+	PreviewGeometry = nullptr;
+
+	if (PreviewCompute)
 	{
-		FDynamicMeshOpResult Result = PreviewWithBackgroundCompute->Shutdown();
+		FDynamicMeshOpResult Result = PreviewCompute->Shutdown();
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
-			GenerateAsset(Result);
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("ConvertToPolygonsToolTransactionName", "Find Polygroups"));
+			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
+			if (ensure(DynamicMeshResult != nullptr))
+			{
+				// todo: have not actually modified topology here, but groups-only update is not supported yet
+				UE::ToolTarget::CommitDynamicMeshUpdate(Target, *DynamicMeshResult, true);
+			}
+			GetToolManager()->EndUndoTransaction();
 		}
 	}
 }
 
 void UConvertToPolygonsTool::OnSettingsModified()
 {
-	PreviewWithBackgroundCompute->InvalidateResult();
+	PreviewCompute->InvalidateResult();
 }
 
 
 void UConvertToPolygonsTool::OnTick(float DeltaTime)
 {
-	PreviewWithBackgroundCompute->Tick(DeltaTime);
+	PreviewCompute->Tick(DeltaTime);
 }
 
-void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-	FColor LineColor(255, 0, 0);
 
-	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
-	FTransform Transform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform(); //Actor->GetTransform();
-
-	for (int eid : PolygonEdges)
-	{
-		FVector3d A, B;
-		OriginalDynamicMesh->GetEdgeV(eid, A, B);
-		PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
-			LineColor, 0, 2.0*PDIScale, 1.0f, true);
-	}
-}
 
 
 void UConvertToPolygonsTool::UpdateVisualization()
 {
-	
-	if (!PreviewWithBackgroundCompute)
+	if (!PreviewCompute)
 	{
 		return;
 	}
@@ -321,7 +285,7 @@ void UConvertToPolygonsTool::UpdateVisualization()
 		{ 
 			MaterialSet.Materials.Add(ToolSetupUtil::GetSelectionMaterial(GetToolManager()));
 		}
-		PreviewWithBackgroundCompute->PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
+		PreviewCompute->PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
 		{
 			return LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
 		}, 
@@ -330,10 +294,21 @@ void UConvertToPolygonsTool::UpdateVisualization()
 	else
 	{
 		MaterialTarget->GetMaterialSet(MaterialSet);
-		PreviewWithBackgroundCompute->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
+		PreviewCompute->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	}
-	PreviewWithBackgroundCompute->ConfigureMaterials(MaterialSet.Materials,
+	PreviewCompute->ConfigureMaterials(MaterialSet.Materials,
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+
+	FColor GroupLineColor = FColor::Red;
+	float GroupLineThickness = 2.0f;
+
+	PreviewGeometry->CreateOrUpdateLineSet(TEXT("GroupBorders"), PolygonEdges.Num(), 
+		[&](int32 k, TArray<FRenderableLine>& LinesOut) {
+			FVector3d A, B;
+			OriginalDynamicMesh->GetEdgeV(PolygonEdges[k], A, B);
+			LinesOut.Add(FRenderableLine(A, B, GroupLineColor, GroupLineThickness));
+		}, 1);
+
 }
 
 

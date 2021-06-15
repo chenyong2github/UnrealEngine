@@ -92,14 +92,33 @@ class MODELINGCOMPONENTS_API UMeshElementsVisualizer : public UPreviewGeometry
 	GENERATED_BODY()
 
 public:
+
 	/**
-	 * UMeshElementsVisualizer must be provided with a callback function that can be used to
-	 * access the mesh. UMeshElementsVisualizer will hold onto this callback, and wrap it in
-	 * an API that is passed to child Components used to render mesh geometry. Those Components
-	 * will access the mesh when creating their Scene Proxies/etc. The callback can return null
-	 * if the mesh has become invalid/etc
+	 * A reference to a function that can be called with a const FDynamicMesh3 to do some computation on it.
 	 */
-	void SetMeshAccessFunction(TUniqueFunction<const UE::Geometry::FDynamicMesh3* (void)>&& MeshAccessFunction);
+	typedef TFunctionRef<void(const UE::Geometry::FDynamicMesh3& Mesh)> ProcessDynamicMeshFunc;
+
+	/**
+	 * UMeshElementsVisualizer needs access to a mesh to generate it's data structures. However
+	 * we may not be able to (or shouldn't) directly pass a pointer to UMeshElementsVisualizer.
+	 * For example a UDynamicMeshComponent can expose it's internal mesh via a function ProcessMesh( TFunctionRef<void(const FDynamicMesh3&)> Func ).
+	 * UMeshElementsVisualizer cannot directly call that function without knowing about the UDynamicMeshComponent,
+	 * which we would like to avoid. So instead the client of UMeshElementsVisualizer provides a 
+	 * MeshAccessFunction that we can call with an internal function/lambda that UMeshElementsVisualizer
+	 * internals will produce, that can be passed a const FDynamicMesh3& for processing (this is a ProcessDynamicMeshFunc).
+	 * The job of the MeshAccessFunction is to call this ProcessDynamicMeshFunc on a FDynamicMesh3,
+	 * which it may have direct access to, or it may get by calling (eg) UDynamicMeshComponent::ProcessMesh() internally. 
+	 * 
+	 * So for example usage with a Tool that has a DynamicMeshComponent could be as follows:
+	 *   MeshElementsVisualizer->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
+	 *       DynamicMeshComponent->ProcessMesh(ProcessFunc);
+	 *   });
+	 * And for usage with a mesh that a Tool class owns:
+	 *   MeshElementsVisualizer->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
+	 *       ProcessFunc(MyInternalMesh);
+	 *   });
+	 */
+	void SetMeshAccessFunction(TUniqueFunction<void(ProcessDynamicMeshFunc)>&& MeshAccessFunction);
 
 	/**
 	 * Call if mesh provided by MeshAccessFunction has been modified, will cause a full recomputation

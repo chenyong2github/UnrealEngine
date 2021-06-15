@@ -3,16 +3,14 @@
 #include "WeldMeshEdgesTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
+#include "PreviewMesh.h"
+#include "Drawing/MeshElementsVisualizer.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 
-#include "Components/DynamicMeshComponent.h"
-#include "ModelingToolTargetUtil.h"
-
-#include "SceneManagement.h" // for FPrimitiveDrawInterface
-#include "Async/ParallelFor.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -30,153 +28,198 @@ USingleSelectionMeshEditingTool* UWeldMeshEdgesToolBuilder::CreateNewTool(const 
 
 
 
+
+class FWeldMeshEdgesOp : public  FDynamicMeshOperator
+{
+public:
+
+	// parameters set by the tool
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SourceMesh;
+	double Tolerance;
+	bool bOnlyUnique;
+
+public:
+	FWeldMeshEdgesOp() : FDynamicMeshOperator() {}
+
+	virtual void CalculateResult(FProgressCancel* Progress) override
+	{
+		if ((Progress && Progress->Cancelled()) || !SourceMesh)
+		{
+			return;
+		}
+
+		ResultMesh->Copy(*SourceMesh, true, true, true, true);
+	
+		FMergeCoincidentMeshEdges Merger(ResultMesh.Get());
+		Merger.MergeVertexTolerance = Tolerance;
+		Merger.MergeSearchTolerance = 2 * Merger.MergeVertexTolerance;
+		Merger.OnlyUniquePairs = bOnlyUnique;
+
+		if (Merger.Apply() == false)
+		{
+			ResultMesh->Copy(*SourceMesh, true, true, true, true);
+		}
+		else if (ResultMesh->CheckValidity(true, EValidityCheckFailMode::ReturnOnly) == false)
+		{
+			ResultMesh->Copy(*SourceMesh, true, true, true, true);
+		}
+	}
+
+	void SetTransform(const FTransform& Transform)
+	{
+		ResultTransform = (UE::Geometry::FTransform3d)Transform;
+	}
+};
+
+
+
+TUniquePtr<FDynamicMeshOperator> UWeldMeshEdgesOperatorFactory::MakeNewOperator()
+{
+	check(WeldMeshEdgesTool);
+	TUniquePtr<FWeldMeshEdgesOp> MeshOp = MakeUnique<FWeldMeshEdgesOp>();
+	WeldMeshEdgesTool->UpdateOpParameters(*MeshOp);
+	return MeshOp;
+}
+
+
+
+
 /*
  * Tool
  */
 
+
 UWeldMeshEdgesTool::UWeldMeshEdgesTool()
 {
-	Tolerance = FMergeCoincidentMeshEdges::DEFAULT_TOLERANCE;
-	bOnlyUnique = false;
+	SetToolDisplayName(LOCTEXT("WeldMeshEdgesToolName", "Weld Edges"));
 }
+
+
 
 void UWeldMeshEdgesTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
-	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetComponent(Target));
-	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 
-	// transfer materials
+	SourceMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(UE::ToolTarget::GetDynamicMeshCopy(Target, true));
+
+	FTransform MeshTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
+
+	OperatorFactory = NewObject<UWeldMeshEdgesOperatorFactory>(this);
+	OperatorFactory->WeldMeshEdgesTool = this;
+
+	PreviewCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(OperatorFactory);
+	PreviewCompute->Setup(this->TargetWorld, OperatorFactory);
+
+	// Give the preview something to display
+	PreviewCompute->PreviewMesh->SetTransform(MeshTransform);
+	PreviewCompute->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
+	PreviewCompute->PreviewMesh->UpdatePreview(SourceMesh.Get());
+
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
-	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
-	{
-		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
-	}
+	PreviewCompute->ConfigureMaterials(MaterialSet.Materials,
+									   ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()) );
 
-	DynamicMeshComponent->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
-	DynamicMeshComponent->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
-	DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { OriginalMesh = ReadMesh; });
-
-	// hide input StaticMeshComponent
+	PreviewCompute->SetVisibility(true);
 	UE::ToolTarget::HideSourceObject(Target);
 
-	// initialize our properties
-	ToolPropertyObjects.Add(this);
 
-	bResultValid = false;
+	Settings = NewObject<UWeldMeshEdgesToolProperties>(this);
+	Settings->RestoreProperties(this);
+	AddToolPropertySource(Settings);
+	Settings->WatchProperty(Settings->Tolerance, [this](float) { PreviewCompute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->bOnlyUnique, [this](bool) { PreviewCompute->InvalidateResult(); });
+
+	// create mesh display
+	MeshElementsDisplay = NewObject<UMeshElementsVisualizer>(this);
+	MeshElementsDisplay->CreateInWorld(PreviewCompute->PreviewMesh->GetWorld(), PreviewCompute->PreviewMesh->GetTransform());
+	if (ensure(MeshElementsDisplay->Settings))
+	{
+		MeshElementsDisplay->Settings->bShowUVSeams = false;
+		MeshElementsDisplay->Settings->bShowNormalSeams = false;
+		MeshElementsDisplay->Settings->bShowColorSeams = false;
+		MeshElementsDisplay->Settings->RestoreProperties(this, TEXT("WeldEdges"));
+		AddToolPropertySource(MeshElementsDisplay->Settings);
+	}
+	MeshElementsDisplay->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
+		PreviewCompute->ProcessCurrentMesh(ProcessFunc);
+	});
+
+
+	PreviewCompute->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute)
+	{
+		Compute->ProcessCurrentMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			MeshElementsDisplay->NotifyMeshChanged();
+		});
+	});
+
+
+	PreviewCompute->InvalidateResult();
+
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Weld Edges"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("WeldMeshEdgesToolDescription", "Weld overlapping/identical border edges of the selected Mesh, by merging the vertices."),
 		EToolMessageLevel::UserNotification);
+
 }
 
 
 void UWeldMeshEdgesTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	if (DynamicMeshComponent != nullptr)
-	{
-		UE::ToolTarget::ShowSourceObject(Target);
+	Settings->SaveProperties(this);
+	UE::ToolTarget::ShowSourceObject(Target);
 
+	if (ensure(MeshElementsDisplay->Settings))
+	{
+		MeshElementsDisplay->Settings->SaveProperties(this, TEXT("WeldEdges"));
+	}
+	MeshElementsDisplay->Disconnect();
+
+	if (PreviewCompute)
+	{
+		FDynamicMeshOpResult Result = PreviewCompute->Shutdown();
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
-			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("WeldMeshEdgesToolTransactionName", "Remesh Mesh"));
-			DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& CurMesh)
+			GetToolManager()->BeginUndoTransaction(LOCTEXT("WeldMeshEdgesToolTransactionName", "Weld Edges"));
+			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
+			if (ensure(DynamicMeshResult != nullptr))
 			{
-				UE::ToolTarget::CommitDynamicMeshUpdate(Target, CurMesh, true);
-			});
+				// todo: have not actually modified topology here, but groups-only update is not supported yet
+				UE::ToolTarget::CommitDynamicMeshUpdate(Target, *DynamicMeshResult, true);
+			}
 			GetToolManager()->EndUndoTransaction();
 		}
-
-		DynamicMeshComponent->UnregisterComponent();
-		DynamicMeshComponent->DestroyComponent();
-		DynamicMeshComponent = nullptr;
 	}
 }
 
 
-void UWeldMeshEdgesTool::Render(IToolsContextRenderAPI* RenderAPI)
+
+bool UWeldMeshEdgesTool::CanAccept() const
 {
-	UpdateResult();
-
-	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	FTransform Transform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
-
-	FColor LineColor(200, 200, 200);
-	float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
-	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
-	FDynamicMeshUVOverlay* UVOverlay = TargetMesh->Attributes()->PrimaryUV();
-	for (int eid : TargetMesh->EdgeIndicesItr()) 
-	{
-		if (UVOverlay->IsSeamEdge(eid)) 
-		{
-			FVector3d A, B;
-			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
-				LineColor, 0, 1.0f*PDIScale, 1.0f, true);
-		}
-	}
-
-
-	FColor LineColor2(255, 0, 0);
-	for (int eid : TargetMesh->BoundaryEdgeIndicesItr()) 
-	{
-		FVector3d A, B;
-		TargetMesh->GetEdgeV(eid, A, B);
-		PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
-			LineColor2, 0, 2.0f*PDIScale, 1.0f, true);
-	}
-
+	return Super::CanAccept() && (PreviewCompute == nullptr || PreviewCompute->HaveValidResult());
 }
 
-#if WITH_EDITOR
-void UWeldMeshEdgesTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+
+
+void UWeldMeshEdgesTool::OnTick(float DeltaTime)
 {
-	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
-	bResultValid = false;
+	PreviewCompute->Tick(DeltaTime);
+	MeshElementsDisplay->OnTick(DeltaTime);
 }
-#endif
 
-void UWeldMeshEdgesTool::UpdateResult()
+
+
+void UWeldMeshEdgesTool::UpdateOpParameters(FWeldMeshEdgesOp& Op) const
 {
-	if (bResultValid) 
-	{
-		return;
-	}
+	Op.bOnlyUnique = Settings->bOnlyUnique;
+	Op.Tolerance = Settings->Tolerance;
+	Op.SourceMesh = SourceMesh;
 
-	ComputeMesh = OriginalMesh;
-
-	FMergeCoincidentMeshEdges Merger(&ComputeMesh);
-	Merger.MergeVertexTolerance = this->Tolerance;
-	Merger.MergeSearchTolerance = 2*Merger.MergeVertexTolerance;
-	Merger.OnlyUniquePairs = this->bOnlyUnique;
-	FDynamicMesh3* SetMesh = &ComputeMesh;
-		
-	if (Merger.Apply() == false)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("WeldMeshEdgesTool : Merger.Apply() returned false"));
-		SetMesh = &OriginalMesh;
-	}
-	else if (ComputeMesh.CheckValidity(true, EValidityCheckFailMode::ReturnOnly) == false)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("WeldMeshEdgesTool : returned mesh is invalid"));
-		SetMesh = &OriginalMesh;
-	}
-
-	DynamicMeshComponent->EditMesh([SetMesh](FDynamicMesh3& EditMesh)
-	{
-		EditMesh = *SetMesh;
-	});
-
-	GetToolManager()->PostInvalidation();
-	bResultValid = true;
+	FTransform LocalToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
+	Op.SetTransform(LocalToWorld);
 }
-
 
 
 

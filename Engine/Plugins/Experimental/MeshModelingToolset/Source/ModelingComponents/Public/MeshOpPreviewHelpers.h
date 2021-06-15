@@ -129,6 +129,15 @@ public:
 	 */
 	bool GetCurrentResultCopy(FDynamicMesh3& MeshOut, bool bOnlyIfValid = true);
 
+
+	/**
+	 * Allow an external function to safely access the PreviewMesh's mesh 
+	 * @param bOnlyIfValid if true, then only call ProcessFunc if current result is valid, ie HaveValidResult() == true. Default false.
+	 * @return true if ProcessFunc was called
+	 */
+	bool ProcessCurrentMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc, bool bOnlyIfValid = false);
+
+	/** @return UWorld that the created PreviewMesh exist in */
 	virtual UWorld* GetWorld() const override { return PreviewWorld; }
 
 	//

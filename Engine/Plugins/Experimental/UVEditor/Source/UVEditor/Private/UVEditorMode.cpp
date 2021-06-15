@@ -23,6 +23,7 @@
 #include "UVEditorSubsystem.h"
 #include "UVEditorToolUtil.h"
 #include "UVToolContextObjects.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
 
@@ -191,9 +192,9 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 		WireframeDisplay->WireframeComponent->BoundaryEdgeThickness = 2;
 
 		// The wireframe will track the unwrap preview mesh
-		WireframeDisplay->SetMeshAccessFunction([ToolInputObject](void) { 
-			return ToolInputObject->UnwrapPreview->PreviewMesh->GetMesh(); 
-			});
+		WireframeDisplay->SetMeshAccessFunction([ToolInputObject](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
+			ToolInputObject->UnwrapPreview->ProcessCurrentMesh(ProcessFunc);
+		});
 
 		// The settings object and wireframe are not part of a tool, so they won't get ticked like they
 		// are supposed to (to enable property watching), unless we add this here.
