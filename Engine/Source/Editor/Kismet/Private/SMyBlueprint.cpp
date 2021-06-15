@@ -2065,6 +2065,26 @@ void SMyBlueprint::ExecuteAction(TSharedPtr<FEdGraphSchemaAction> InAction)
 			{
 				BlueprintEditorPtr.Pin()->JumpToHyperlink(GraphAction->EdGraph);
 			}
+			else if(IsAnInterfaceEvent(GraphAction))
+			{
+				// Focus it's node in the event graph
+				UFunction* OverrideFunc = nullptr;
+				UClass* const OverrideFuncClass = FBlueprintEditorUtils::GetOverrideFunctionClass(BlueprintObj, GraphAction->FuncName, &OverrideFunc);
+				if (OverrideFunc)
+				{
+					FName EventName = OverrideFunc->GetFName();
+					// check if event has been implemented
+					if (UK2Node_Event* ExistingNode = FBlueprintEditorUtils::FindOverrideForFunction(BlueprintObj, OverrideFuncClass, EventName))
+					{
+						FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(ExistingNode);
+					}
+					else
+					{
+						// if there isn't an associated node, make one and focus it
+						ImplementFunction(GraphAction);
+					}
+				}
+			}
 		}
 		if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Delegate::StaticGetTypeId())
 		{
@@ -2833,6 +2853,11 @@ bool SMyBlueprint::IsEditingMode() const
 {
 	TSharedPtr<FBlueprintEditor> BlueprintEditorSPtr = BlueprintEditorPtr.Pin();
 	return BlueprintEditorSPtr.IsValid() && BlueprintEditorSPtr->InEditingMode();
+}
+
+bool SMyBlueprint::IsAnInterfaceEvent(FEdGraphSchemaAction_K2Graph* InAction)
+{
+	return InAction->GraphType == EEdGraphSchemaAction_K2Graph::Interface && !InAction->EdGraph;
 }
 
 void SMyBlueprint::OnDeleteDelegate(FEdGraphSchemaAction_K2Delegate* InDelegateAction)

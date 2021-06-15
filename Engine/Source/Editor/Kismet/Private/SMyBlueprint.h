@@ -300,6 +300,9 @@ private:
 	/** Helper function indicating whehter we're in editing mode, and can modify the target blueprint */
 	bool IsEditingMode() const;
 
+	/** Determine whether an FEdGraphSchemaAction is associated with an event */
+	static bool IsAnInterfaceEvent(FEdGraphSchemaAction_K2Graph* InAction);
+
 private:
 	/** List of UI Commands for this scope */
 	TSharedPtr<FUICommandList> CommandList;
