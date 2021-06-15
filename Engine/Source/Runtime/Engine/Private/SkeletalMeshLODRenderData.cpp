@@ -143,14 +143,24 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
     if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
 	{
-		if (GPUSkinCacheNeedsDuplicatedVertices())
+		const bool bSkinCacheNeedsDuplicatedVertices = GPUSkinCacheNeedsDuplicatedVertices();
+		for (auto& RenderSection : RenderSections)
 		{
-			for (auto& RenderSection : RenderSections)
+			if (bSkinCacheNeedsDuplicatedVertices)
 			{
+				// No need to discard CPU data in cooked builds as bNeedsCPUAccess is false (see FDuplicatedVerticesBuffer constructor), 
+				// so it'd be auto-discarded after the RHI has copied the resource data. Keep CPU data when in the editor for geometry operations.
 				check(RenderSection.DuplicatedVerticesBuffer.DupVertData.Num());
 				BeginInitResource(&RenderSection.DuplicatedVerticesBuffer);
 			}
-		}
+			else
+			{
+#if !WITH_EDITOR
+				// Discard CPU data in cooked builds. Keep CPU data when in the editor for geometry operations.
+				RenderSection.DuplicatedVerticesBuffer.ReleaseCPUResources();
+#endif
+			}
+}
     }
 
 	// UseGPUMorphTargets() can be toggled only on SM5 atm
@@ -272,7 +282,9 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 		{
 			for (auto& RenderSection : RenderSections)
 			{
+#if WITH_EDITOR
 				check(RenderSection.DuplicatedVerticesBuffer.DupVertData.Num());
+#endif
 				BeginReleaseResource(&RenderSection.DuplicatedVerticesBuffer);
 			}
 		}
