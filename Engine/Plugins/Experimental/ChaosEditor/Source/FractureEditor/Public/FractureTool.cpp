@@ -151,7 +151,7 @@ void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditor
 	else
 	{
 		EditBoneColor.SetSelectedBones(Context.GetSelection());
-		FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, Context.GetSelection(), true);
+		FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, Context.GetSelection(), true, false);
 	}
 	
 	Toolkit->UpdateExplodedVectors(GeometryCollectionComponent);

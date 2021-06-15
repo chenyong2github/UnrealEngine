@@ -482,6 +482,32 @@ void FGeometryCollectionClusteringUtility::GetChildBonesFromLevel(const FGeometr
 
 }
 
+void FGeometryCollectionClusteringUtility::GetChildBonesAtLevel(const FGeometryCollection* GeometryCollection, int32 SourceBone, int32 Level, TArray<int32>& BonesOut)
+{
+	check(GeometryCollection);
+
+	if (Level == -1)
+	{
+		GetLeafBones(GeometryCollection, SourceBone, false, BonesOut);
+	}
+	else
+	{
+		const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+		const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+		if (Levels[SourceBone] == Level)
+		{
+			BonesOut.Push(SourceBone);
+		}
+		else
+		{
+			for (int32 Child : Children[SourceBone])
+			{
+				GetChildBonesAtLevel(GeometryCollection, Child, Level, BonesOut);
+			}
+		}
+	}
+}
+
 void FGeometryCollectionClusteringUtility::RecursiveAddAllChildren(const TManagedArray<TSet<int32>>& Children, int32 SourceBone, TArray<int32>& BonesOut)
 {
 	BonesOut.AddUnique(SourceBone);
@@ -733,7 +759,7 @@ void FGeometryCollectionClusteringUtility::ContextBasedClusterSelection(
 
 }
 
-void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, bool bOnlyRigids, TArray<int32>& LeafBonesOut)
+void FGeometryCollectionClusteringUtility::GetLeafBones(const FGeometryCollection* GeometryCollection, int BoneIndex, bool bOnlyRigids, TArray<int32>& LeafBonesOut)
 {
 	if (!ensure(BoneIndex >= 0))
 	{
