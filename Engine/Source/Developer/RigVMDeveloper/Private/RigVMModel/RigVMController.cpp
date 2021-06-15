@@ -2962,10 +2962,15 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 	check(ExpandedNodeNames.Num() >= NodeNames.Num());
 
 	TMap<FName, FName> NodeNameMap;
-	for (int32 NodeNameIndex = 0; NodeNameIndex < NodeNames.Num(); NodeNameIndex++)
+	for (int32 NodeNameIndex = 0, ExpandedNodeNameIndex = 0; NodeNameIndex < NodeNames.Num(); ExpandedNodeNameIndex++)
 	{
-		NodeNameMap.Add(NodeNames[NodeNameIndex], ExpandedNodeNames[NodeNameIndex]);
-		SetNodePosition(ExpandedNodes[NodeNameIndex], InNode->Position + ContainedNodes[NodeNameIndex]->Position - Center, false, false);
+		if (ExpandedNodes[ExpandedNodeNameIndex]->IsInjected())
+		{
+			continue;
+		}
+		NodeNameMap.Add(NodeNames[NodeNameIndex], ExpandedNodeNames[ExpandedNodeNameIndex]);
+		SetNodePosition(ExpandedNodes[ExpandedNodeNameIndex], InNode->Position + ContainedNodes[NodeNameIndex]->Position - Center, false, false);
+		NodeNameIndex++;
 	}
 
 	// a) store all of the pin defaults off the library node

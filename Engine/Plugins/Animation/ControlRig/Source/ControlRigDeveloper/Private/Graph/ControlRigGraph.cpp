@@ -253,7 +253,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 
 			for (URigVMNode* Node : InGraph->GetNodes())
 			{
-				UEdGraphNode* EdNode = FindNodeForModelNodeName(Node->GetFName());
+				UEdGraphNode* EdNode = FindNodeForModelNodeName(Node->GetFName(), false);
 				if (EdNode != nullptr)
 				{
 					RemoveNode(EdNode);
@@ -393,7 +393,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					break;
 				}
 
-				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName());
+				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName(), false);
 				if (EdNode)
 				{
 					RemoveNode(EdNode, true);
@@ -743,7 +743,7 @@ int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
 	return INDEX_NONE;
 }
 
-UEdGraphNode* UControlRigGraph::FindNodeForModelNodeName(const FName& InModelNodeName)
+UEdGraphNode* UControlRigGraph::FindNodeForModelNodeName(const FName& InModelNodeName, const bool bCacheIfRequired)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -759,7 +759,10 @@ UEdGraphNode* UControlRigGraph::FindNodeForModelNodeName(const FName& InModelNod
 		{
 			if (RigNode->ModelNodePath == InModelNodePath)
 			{
-				ModelNodePathToEdNode.Add(InModelNodeName, EdNode);
+				if (bCacheIfRequired)
+				{
+					ModelNodePathToEdNode.Add(InModelNodeName, EdNode);
+				}
 				return EdNode;
 			}
 		}
@@ -767,7 +770,10 @@ UEdGraphNode* UControlRigGraph::FindNodeForModelNodeName(const FName& InModelNod
 		{
 			if (EdNode->GetFName() == InModelNodeName)
 			{
-				ModelNodePathToEdNode.Add(InModelNodeName, EdNode);
+				if (bCacheIfRequired)
+				{
+					ModelNodePathToEdNode.Add(InModelNodeName, EdNode);
+				}
 				return EdNode;
 			}
 		}

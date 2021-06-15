@@ -66,7 +66,7 @@ public:
 	bool bSuspendModelNotifications;
 	bool bIsTemporaryGraphForCopyPaste;
 
-	UEdGraphNode* FindNodeForModelNodeName(const FName& InModelNodeName);
+	UEdGraphNode* FindNodeForModelNodeName(const FName& InModelNodeName, const bool bCacheIfRequired = true);
 
 	UControlRigBlueprint* GetBlueprint() const;
 	URigVMGraph* GetModel() const;
