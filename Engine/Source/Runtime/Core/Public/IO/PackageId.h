@@ -17,7 +17,7 @@ class FPackageId
 public:
 	FPackageId() = default;
 
-	COREUOBJECT_API static FPackageId FromName(const FName& Name);
+	CORE_API static FPackageId FromName(const FName& Name);
 
 	inline bool IsValid() const
 	{
@@ -55,8 +55,7 @@ public:
 		return uint32(In.Id);
 	}
 
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FPackageId& Value);
+	CORE_API friend FArchive& operator<<(FArchive& Ar, FPackageId& Value);
 
-	COREUOBJECT_API friend void operator<<(FStructuredArchiveSlot Slot, FPackageId& Value);
+	CORE_API friend void operator<<(FStructuredArchiveSlot Slot, FPackageId& Value);
 };
-

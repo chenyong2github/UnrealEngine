@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Serialization/PackageStore.h"
+#include "Serialization/FilePackageStore.h"
+#include "IO/PackageStore.h"
 #include "Serialization/MappedName.h"
 #include "Serialization/AsyncLoading2.h"
 #include "Serialization/LargeMemoryReader.h"
@@ -40,14 +41,33 @@ public:
 
 	virtual bool DoesPackageExist(FPackageId PackageId) override
 	{
-		return nullptr != GetPackageEntry(PackageId);
+		FScopeLock Lock(&PackageNameMapsCritical);
+		return nullptr != StoreEntriesMap.Find(PackageId);
 	}
 
-	virtual const FPackageStoreEntry* GetPackageEntry(FPackageId PackageId) override
+	virtual FPackageStoreEntryHandle GetPackageEntryHandle(FPackageId PackageId, const FName& PackageName) override
 	{
 		FScopeLock Lock(&PackageNameMapsCritical);
-		FPackageStoreEntry* Entry = StoreEntriesMap.FindRef(PackageId);
-		return Entry;
+		const uint64 Handle = uint64(StoreEntriesMap.FindRef(PackageId));
+		return FPackageStoreEntryHandle::Create(Handle, Handle ? EPackageStoreEntryStatus::Ok : EPackageStoreEntryStatus::Missing);
+	}
+	
+	virtual FPackageStoreEntry GetPackageEntry(FPackageStoreEntryHandle Handle) override
+	{
+		const FFilePackageStoreEntry* Entry = reinterpret_cast<const FFilePackageStoreEntry*>(Handle.Value());
+
+		return FPackageStoreEntry
+		{
+			FPackageStoreExportInfo
+			{
+				Entry->ExportBundlesSize,
+				Entry->ExportCount,
+				Entry->ExportBundleCount,
+				Entry->LoadOrder
+			},
+			MakeArrayView(Entry->ImportedPackages.Data(), Entry->ImportedPackages.Num()),
+			MakeArrayView(Entry->ShaderMapHashes.Data(), Entry->ShaderMapHashes.Num())
+		};
 	}
 
 	virtual FPackageId GetRedirectedPackageId(FPackageId PackageId) override
@@ -137,32 +157,24 @@ private:
 					FContainerHeader ContainerHeader;
 					Ar << ContainerHeader;
 
-					const bool bHasContainerLocalNameMap = ContainerHeader.Names.Num() > 0;
-					if (bHasContainerLocalNameMap)
-					{
-						TRACE_CPUPROFILER_EVENT_SCOPE(LoadContainerNameMap);
-						LoadedContainer.ContainerNameMap.Reset(new FNameMap());
-						LoadedContainer.ContainerNameMap->Load(ContainerHeader.Names, ContainerHeader.NameHashes, FMappedName::EType::Container);
-					}
-
 					LoadedContainer.PackageCount = ContainerHeader.PackageCount;
 					LoadedContainer.StoreEntries = MoveTemp(ContainerHeader.StoreEntries);
 					{
 						TRACE_CPUPROFILER_EVENT_SCOPE(AddPackages);
 						FScopeLock Lock(&PackageNameMapsCritical);
 
-						TArrayView<FPackageStoreEntry> StoreEntries(reinterpret_cast<FPackageStoreEntry*>(LoadedContainer.StoreEntries.GetData()), LoadedContainer.PackageCount);
+						TArrayView<FFilePackageStoreEntry> StoreEntries(reinterpret_cast<FFilePackageStoreEntry*>(LoadedContainer.StoreEntries.GetData()), LoadedContainer.PackageCount);
 
 						int32 Index = 0;
 						StoreEntriesMap.Reserve(StoreEntriesMap.Num() + LoadedContainer.PackageCount);
-						for (FPackageStoreEntry& ContainerEntry : StoreEntries)
+						for (FFilePackageStoreEntry& StoreEntry : StoreEntries)
 						{
 							const FPackageId& PackageId = ContainerHeader.PackageIds[Index];
 
-							FPackageStoreEntry*& GlobalEntry = StoreEntriesMap.FindOrAdd(PackageId);
+							FFilePackageStoreEntry*& GlobalEntry = StoreEntriesMap.FindOrAdd(PackageId);
 							if (!GlobalEntry)
 							{
-								GlobalEntry = &ContainerEntry;
+								GlobalEntry = &StoreEntry;
 							}
 							++Index;
 						}
@@ -240,9 +252,9 @@ private:
 			const FPackageId& SourceId = It.Key();
 			const FPackageId& RedirectId = It.Value();
 			check(RedirectId.IsValid());
-			FPackageStoreEntry* RedirectEntry = StoreEntriesMap.FindRef(RedirectId);
+			FFilePackageStoreEntry* RedirectEntry = StoreEntriesMap.FindRef(RedirectId);
 			check(RedirectEntry);
-			FPackageStoreEntry*& PackageEntry = StoreEntriesMap.FindOrAdd(SourceId);
+			FFilePackageStoreEntry*& PackageEntry = StoreEntriesMap.FindOrAdd(SourceId);
 			if (RedirectEntry)
 			{
 				PackageEntry = RedirectEntry;
@@ -251,7 +263,7 @@ private:
 
 		for (auto It = StoreEntriesMap.CreateIterator(); It; ++It)
 		{
-			FPackageStoreEntry* StoreEntry = It.Value();
+			FFilePackageStoreEntry* StoreEntry = It.Value();
 
 			for (FPackageId& ImportedPackageId : StoreEntry->ImportedPackages)
 			{
@@ -266,7 +278,7 @@ private:
 	struct FLoadedContainer
 	{
 		TUniquePtr<FNameMap> ContainerNameMap;
-		TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount];
+		TArray<uint8> StoreEntries; //FFilePackageStoreEntry[PackageCount];
 		uint32 PackageCount = 0;
 		bool bValid = false;
 	};
@@ -278,7 +290,7 @@ private:
 
 	FCriticalSection PackageNameMapsCritical;
 
-	TMap<FPackageId, FPackageStoreEntry*> StoreEntriesMap;
+	TMap<FPackageId, FFilePackageStoreEntry*> StoreEntriesMap;
 	TMap<FPackageId, FPackageId> RedirectsPackageMap;
 	TSet<FPackageId> TargetRedirectIds;
 	int32 NextCustomPackageIndex = 0;

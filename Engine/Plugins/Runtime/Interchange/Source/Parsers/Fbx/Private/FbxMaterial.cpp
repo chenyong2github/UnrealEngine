@@ -12,6 +12,7 @@
 #include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Misc/Paths.h"
 
 namespace UE
 {

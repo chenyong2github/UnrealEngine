@@ -5,13 +5,20 @@
 #include "Async/AsyncFileHandle.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformFileManager.h"
-#include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ScopeLock.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
+
+TRACE_DECLARE_INT_COUNTER_EXTERN(IoDispatcherFileBackendSequentialReads);
+TRACE_DECLARE_INT_COUNTER_EXTERN(IoDispatcherFileBackendForwardSeeks);
+TRACE_DECLARE_INT_COUNTER_EXTERN(IoDispatcherFileBackendBackwardSeeks);
+TRACE_DECLARE_INT_COUNTER_EXTERN(IoDispatcherFileBackendSwitchContainerSeeks);
+TRACE_DECLARE_MEMORY_COUNTER_EXTERN(IoDispatcherFileBackendTotalSeekDistance);
+TRACE_DECLARE_INT_COUNTER_EXTERN(IoDispatcherFileBackendFileSystemRequests);
+TRACE_DECLARE_MEMORY_COUNTER_EXTERN(IoDispatcherFileBackendFileSystemTotalBytesRead);
 
 FGenericFileIoStoreEventQueue::FGenericFileIoStoreEventQueue()
 	: ServiceEvent(FPlatformProcess::GetSynchEventFromPool())
@@ -113,6 +120,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 			TRACE_CPUPROFILER_EVENT_SCOPE(ReadBlockFromFile);
 			NextRequest->bFailed = true;
 			int32 RetryCount = 0;
+			TRACE_COUNTER_INCREMENT(IoDispatcherFileBackendFileSystemRequests);
 			while (RetryCount++ < 10)
 			{
 				if (!FileHandle->Seek(NextRequest->Offset))
@@ -126,6 +134,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 					continue;
 				}
 				NextRequest->bFailed = false;
+				TRACE_COUNTER_ADD(IoDispatcherFileBackendFileSystemTotalBytesRead, NextRequest->Size);
 				BlockCache.Store(NextRequest);
 				break;
 			}

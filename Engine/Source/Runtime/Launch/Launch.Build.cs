@@ -34,7 +34,8 @@ public class Launch : ModuleRules
 				"TraceLog",
 				"Overlay",
 				"PreLoadScreen",
-				"InstallBundleManager"
+				"InstallBundleManager",
+				"CookOnTheFly"
 			});
 
 		// Set a macro allowing us to switch between debuggame/development configuration
@@ -258,6 +259,11 @@ public class Launch : ModuleRules
 			}
 
 			PrivateDependencyModuleNames.Add("UnixCommonStartup");
+		}
+
+		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			PrivateDependencyModuleNames.Add("StorageServerClient");
 		}
 
 		if(Target.LinkType == TargetLinkType.Monolithic && !Target.bFormalBuild)

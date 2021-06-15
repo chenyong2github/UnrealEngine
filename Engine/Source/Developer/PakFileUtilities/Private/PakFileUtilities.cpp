@@ -63,101 +63,6 @@ int64 GDDCHits = 0;
 int64 GDDCMisses = 0;
 #endif
 
-class FThreadLocalScratchSpace
-{
-public:
-
-	static FThreadLocalScratchSpace& Get()
-	{
-		static FThreadLocalScratchSpace Result;
-		return Result;
-	}
-	struct FScratchSpace 
-	{
-	public:
-		FScratchSpace()
-		{
-			Size = 0;
-			Buffer = nullptr;
-			Next = nullptr;
-		}
-		int64 Size;
-		uint8* Buffer;
-		TArray<uint8> Array;
-		FScratchSpace * Next; // Link is protected by Lock
-
-		virtual ~FScratchSpace()
-		{
-			// should be a NOP, CleanUpAll is called manually before we destruct
-			//	if we destruct before CleanUpAll the linked list points to freed memory
-			//	could call CleanUpAll here to prevent that
-			//	just assert instead
-			check( Buffer == nullptr );
-			CleanUp();
-		}
-
-		void Embiggen(int64 NewSize)
-		{
-			if (NewSize > Size)
-			{
-				Buffer = (uint8*)FMemory::Realloc(Buffer, NewSize);
-				Size = NewSize;
-			}
-		}
-		void CleanUp()
-		{
-			if ( Buffer )
-			{
-			FMemory::Free(Buffer);
-			Buffer = nullptr;
-			}
-			Size = 0;
-			Array.Empty();
-			// do NOT clear Next
-		}
-	};
-
-	void GetScratchSpace(FScratchSpace*& ScratchSpace)
-	{
-		ScratchSpace = (FScratchSpace*)FPlatformTLS::GetTlsValue(TLSSlot);
-		if (ScratchSpace == nullptr)
-		{
-			ScratchSpace = new FScratchSpace;
-			FPlatformTLS::SetTlsValue(TLSSlot, (void*)ScratchSpace);
-
-			FScopeLock Lock(&ScratchSpacesLinkLock);
-			ScratchSpace->Next = ScratchSpacesLink;
-			ScratchSpacesLink = ScratchSpace;
-		}
-	}
-
-	void CleanUpAll()
-	{
-		// free scratch memory of all threads scratch spaces :
-		//	(they must all be quiescent now)
-
-		FScopeLock Lock(&ScratchSpacesLinkLock);
-		for(FScratchSpace * Link = ScratchSpacesLink;Link != nullptr;Link = Link->Next)
-		{
-			Link->CleanUp();
-		}
-	}
-private:
-
-	FThreadLocalScratchSpace()
-	{
-		TLSSlot = FPlatformTLS::AllocTlsSlot();
-		ScratchSpacesLink = nullptr;
-	}
-
-	uint32 TLSSlot;
-	uint8 PadForFalseSharing[60];
-	FCriticalSection  ScratchSpacesLinkLock;
-	FScratchSpace * ScratchSpacesLink;
-	// ScratchSpacesLinkLock protects ScratchSpacesLink and the Next field of FScratchSpace
-};
-
-
 class FMemoryCompressor;
 
 /**
@@ -790,13 +695,6 @@ FString FCompressedFileBuffer::GetDDCKeyString(const uint8* UncompressedFile, co
 
 bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InFile, FName CompressionMethod, const int32 CompressionBlockSize)
 {
-
-	FThreadLocalScratchSpace::FScratchSpace* ScratchSpace = nullptr;
-	FThreadLocalScratchSpace::Get().GetScratchSpace(ScratchSpace);
-	check(ScratchSpace);
-
-
-
 	TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileReader(*InFile.Source));
 	if(!FileHandle)
 	{
@@ -808,28 +706,23 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 	const int64 FileSize = OriginalSize;
 	const int64 PaddedEncryptedFileSize = Align(FileSize,FAES::AESBlockSize);
 	check(PaddedEncryptedFileSize >= FileSize);
-	if(ScratchSpace->Size < PaddedEncryptedFileSize)
-	{
-		ScratchSpace->Embiggen(PaddedEncryptedFileSize);
-	}
 
-
-	uint8*& InOutPersistentBuffer = ScratchSpace->Buffer;
-	int64& InOutBufferSize = ScratchSpace->Size;
+	TArray<uint8, TInlineAllocator<4096>> UncompressedBuffer;
+	UncompressedBuffer.SetNumUninitialized(PaddedEncryptedFileSize);
 
 	// Load to buffer
-	FileHandle->Serialize(InOutPersistentBuffer,FileSize);
+	FileHandle->Serialize(UncompressedBuffer.GetData(), FileSize);
 
-
+#if USE_DDC_FOR_COMPRESSED_FILES
+	const bool bShouldUseDDC = true; // && (FileSize > 20 * 1024 ? true : false);
 	FString DDCKey;
-	TArray<uint8>& GetData = ScratchSpace->Array;
-	const bool bShouldUseDDC = USE_DDC_FOR_COMPRESSED_FILES; // && (FileSize > 20 * 1024 ? true : false);
+	TArray<uint8, TInlineAllocator<4096>> GetData;
 	if (bShouldUseDDC)
 	{
 #if DETAILED_UNREALPAK_TIMING
 		FUnrealPakScopeCycleCounter Scope(GDDCSyncReadTime);
 #endif
-		DDCKey = GetDDCKeyString(InOutPersistentBuffer, FileSize, CompressionMethod, CompressionBlockSize);
+		DDCKey = GetDDCKeyString(UncompressedBuffer.GetData(), FileSize, CompressionMethod, CompressionBlockSize);
 
 		if (GetDerivedDataCacheRef().CachedDataProbablyExists(*DDCKey))
 		{
@@ -846,13 +739,14 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 			}
 		}
 	}
+#endif
 
 	{
 #if DETAILED_UNREALPAK_TIMING
 		FUnrealPakScopeCycleCounter Scope(GCompressionTime);
 #endif
 		// Start parallel compress
-		FMemoryCompressor MemoryCompressor(InOutPersistentBuffer, FileSize, CompressionMethod, CompressionBlockSize);
+		FMemoryCompressor MemoryCompressor(UncompressedBuffer.GetData(), FileSize, CompressionMethod, CompressionBlockSize);
 
 		// Build buffers for working
 		int64 UncompressedSize = FileSize;
@@ -870,7 +764,7 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 			int32 CompressedBlockSize = FMath::Max<int32>(CompressionBufferSize, MaxCompressedBlockSize);
 			FileCompressionBlockSize = FMath::Max<uint32>(BlockSize, FileCompressionBlockSize);
 			EnsureBufferSpace(Align(TotalCompressedSize + CompressedBlockSize, FAES::AESBlockSize));
-			if (!MemoryCompressor.CompressMemory(CompressionMethod, CompressedBuffer.Get() + TotalCompressedSize, CompressedBlockSize, InOutPersistentBuffer + UncompressedBytes, BlockSize))
+			if (!MemoryCompressor.CompressMemory(CompressionMethod, CompressedBuffer.Get() + TotalCompressedSize, CompressedBlockSize, UncompressedBuffer.GetData() + UncompressedBytes, BlockSize))
 			{
 				return false;
 			}
@@ -897,6 +791,7 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 		}
 
 	}
+#if USE_DDC_FOR_COMPRESSED_FILES
 	if (bShouldUseDDC)
 	{
 #if DETAILED_UNREALPAK_TIMING
@@ -908,7 +803,7 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 		SerializeDDCData(Ar);
 		GetDerivedDataCacheRef().Put(*DDCKey, GetData, InFile.Dest);
 	}
-
+#endif
 
 	return true;
 }
@@ -2169,8 +2064,6 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	TArray<FAsyncCompressor> AsyncCompressors;
 	AsyncCompressors.AddZeroed(FilesToAdd.Num());
 	
-	FThreadLocalScratchSpace::Get();
-
 	class FRunCompressionTask : public FNonAbandonableTask
 	{
 		FAsyncCompressor* AsyncCompressor;
@@ -2517,8 +2410,6 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	FMemory::Free(PaddingBuffer);
 	FMemory::Free(ReadBuffer);
 	ReadBuffer = NULL;
-
-	FThreadLocalScratchSpace::Get().CleanUpAll();
 
 	if (RequiredPatchPadding > 0)
 	{

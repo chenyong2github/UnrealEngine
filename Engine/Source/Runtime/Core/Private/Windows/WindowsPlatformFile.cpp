@@ -545,11 +545,6 @@ class FFileHandleWindows : public IFileHandle
 	 */
 	uint32 Flags;
 
-	FORCEINLINE bool IsValid()
-	{
-		return FileHandle != NULL && FileHandle != INVALID_HANDLE_VALUE;
-	}
-
 	FORCEINLINE void UpdateOverlappedPos()
 	{
 		ULARGE_INTEGER LI;
@@ -565,11 +560,23 @@ class FFileHandleWindows : public IFileHandle
 		return SetFilePointer(FileHandle, LI.LowPart, &LI.HighPart, FILE_BEGIN) != INVALID_SET_FILE_POINTER;
 	}
 
-	FORCEINLINE void UpdateFileSize()
+	void UpdateFileSize()
 	{
 		LARGE_INTEGER LI;
-		GetFileSizeEx(FileHandle, &LI);
-		FileSize = LI.QuadPart;
+		BOOL Success = GetFileSizeEx(FileHandle, &LI);
+		if (Success)
+		{
+			FileSize = LI.QuadPart;
+		}
+		else
+		{
+			// This is a rare condition but it has been observed in the wild
+			// for SMB file shares. Since it's important to know the file size
+			// we render the file handle unusable if this condition occurs
+			FileSize = -1;
+
+			UE_LOG(LogTemp, Warning, TEXT("GetFileSizeEx: Failed to get file size for handle!"));
+		}
 	}
 
 public:
@@ -604,6 +611,10 @@ public:
 		(void)CloseResult;
 #endif
 		FileHandle = NULL;
+	}
+	bool IsValid()
+	{
+		return FileHandle != NULL && FileHandle != INVALID_HANDLE_VALUE && FileSize != -1;
 	}
 	virtual int64 Tell(void) override
 	{
@@ -1193,7 +1204,21 @@ public:
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
 			TRACE_PLATFORMFILE_END_OPEN(Handle);
-			return new FFileHandleWindows(Handle, Access, WinFlags, 0);
+
+			FFileHandleWindows* FileHandle = new FFileHandleWindows(Handle, Access, WinFlags, 0);
+
+			// Some operations can fail during the handle initialization, so we
+			// double check that the handle is valid before returning it
+			if (FileHandle->IsValid())
+			{
+				return FileHandle;
+			}
+			else
+			{
+				delete FileHandle;
+
+				return nullptr;
+			}
 		}
 #endif
 		else

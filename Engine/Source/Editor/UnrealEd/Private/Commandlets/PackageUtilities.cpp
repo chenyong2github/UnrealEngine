@@ -53,6 +53,7 @@
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/OutputDeviceFile.h"
 #include "UObject/UObjectThreadContext.h"
+#include "Internationalization/GatherableTextData.h"
 
 DEFINE_LOG_CATEGORY(LogPackageHelperFunctions);
 DEFINE_LOG_CATEGORY_STATIC(LogPackageUtilities, Log, All);

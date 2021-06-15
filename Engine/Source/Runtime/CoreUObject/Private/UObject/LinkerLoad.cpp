@@ -45,6 +45,7 @@
 #include "UObject/CoreRedirects.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Internationalization/GatherableTextData.h"
 
 class FTexture2DResourceMem;
 

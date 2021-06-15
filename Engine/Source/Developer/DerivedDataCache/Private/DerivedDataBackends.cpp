@@ -17,6 +17,8 @@
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "PakFileDerivedDataBackend.h"
 #include "S3DerivedDataBackend.h"
+#include "ZenKvDerivedDataBackend.h"
+#include "ZenDerivedDataBackend.h"
 #include "HierarchicalDerivedDataBackend.h"
 #include "DerivedDataLimitKeyLengthWrapper.h"
 #include "DerivedDataBackendCorruptionWrapper.h"
@@ -235,6 +237,14 @@ public:
 				else if (NodeType == TEXT("Http"))
 				{
 					ParsedNode = ParseHttpCache(NodeName, *Entry);
+				}
+				else if (NodeType == TEXT("ZenHttp"))
+				{
+					ParsedNode = ParseZenHttpCache(NodeName, *Entry);
+				}
+				else if (NodeType == TEXT("Zen"))
+				{
+					ParsedNode = ParseZenCache(NodeName, *Entry);
 				}
 			}
 		}
@@ -834,6 +844,74 @@ public:
 		return backend;
 #else
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("HTTP backend is not yet supported in the current build configuration."));
+		return nullptr;
+#endif
+	}
+
+	/**
+	 * Creates a Zen / HTTP data cache interface (DDC1 style)
+	 */
+	FDerivedDataBackendInterface * ParseZenHttpCache(const TCHAR * NodeName, const TCHAR * Entry)
+	{
+#if WITH_ZEN_DDC_BACKEND
+		FString ServiceUrl;
+		if (!FParse::Value(Entry, TEXT("Host="), ServiceUrl))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Host'."), NodeName);
+			return nullptr;
+		}
+
+		FString Namespace;
+		if (!FParse::Value(Entry, TEXT("Namespace="), Namespace))
+		{
+			Namespace = FApp::GetProjectName();
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'Namespace', falling back to '%s'"), NodeName, *Namespace);
+		}
+
+		FZenHttpDerivedDataBackend* backend = new FZenHttpDerivedDataBackend(*this, *ServiceUrl, *Namespace);
+		if (!backend->IsUsable())
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *ServiceUrl);
+			delete backend;
+			return nullptr;
+		}
+		return backend;
+#else
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("ZenHTTP backend is not yet supported in the current build configuration."));
+		return nullptr;
+#endif
+	}
+
+	/**
+	 * Creates a Zen data cache interface
+	 */
+	FDerivedDataBackendInterface* ParseZenCache(const TCHAR* NodeName, const TCHAR* Entry)
+	{
+#if WITH_ZEN_DDC_BACKEND
+		FString ServiceUrl;
+		if (!FParse::Value(Entry, TEXT("Host="), ServiceUrl))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Host'."), NodeName);
+			return nullptr;
+		}
+
+		FString Namespace;
+		if (!FParse::Value(Entry, TEXT("Namespace="), Namespace))
+		{
+			Namespace = FApp::GetProjectName();
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'Namespace', falling back to '%s'"), NodeName, *Namespace);
+		}
+
+		FZenDerivedDataBackend* backend = new FZenDerivedDataBackend(*this, *ServiceUrl, *Namespace);
+		if (!backend->IsUsable())
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *ServiceUrl);
+			delete backend;
+			return nullptr;
+		}
+		return backend;
+#else
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("Zen backend is not yet supported in the current build configuration."));
 		return nullptr;
 #endif
 	}

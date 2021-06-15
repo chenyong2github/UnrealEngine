@@ -9,6 +9,7 @@
 #include "UObject/Linker.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/Package.h"
+#include "Internationalization/GatherableTextData.h"
 
 FLinkerDiff FLinkerDiff::CompareLinkers(FLinker* LHSLinker, FLinker* RHSLinker)
 {

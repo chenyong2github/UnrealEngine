@@ -3,9 +3,12 @@
 #pragma once
 
 #include "Serialization/AsyncLoading2.h"
+#include "IO/PackageStore.h"
 #include "IO/IoDispatcher.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/UObjectMarks.h"
+
+class FBufferWriter;
 
 class FPackageStoreNameMapBuilder
 {
@@ -78,38 +81,6 @@ private:
 	FMappedName::EType NameMapType = FMappedName::EType::Package;
 };
 
-class FPackageStoreContainerHeaderEntry
-{
-public:
-	FPackageId GetId() const
-	{
-		return FPackageId::FromName(Name);
-	}
-
-	FPackageId GetSourceId() const
-	{
-		if (SourceName.IsNone())
-		{
-			return FPackageId();
-		}
-		return FPackageId::FromName(SourceName);
-	}
-
-private:
-	FName Name;
-	FName SourceName;
-	FString Region;
-	uint64 ExportBundlesSize = 0;
-	int32 ExportCount = 0;
-	int32 ExportBundleCount = 0;
-	uint32 LoadOrder = 0;
-	TArray<FPackageId> ImportedPackageIds;
-	TArray<FSHAHash> ShaderMapHashes;
-	bool bIsRedirected = false;
-
-	friend class FPackageStoreOptimizer;
-};
-
 class FPackageStorePackage
 {
 public:
@@ -118,14 +89,14 @@ public:
 		return Id;
 	}
 
-	uint64 GetLoadOrder() const
+	uint32 GetLoadOrder() const
 	{
-		return ExportBundles.Num() > 0 ? ExportBundles[0].LoadOrder : 0;
+		return LoadOrder;
 	}
 
-	uint64 GetExportBundleCount() const
+	uint64 GetHeaderSize() const
 	{
-		return ExportBundles.Num();
+		return HeaderSize;
 	}
 
 	uint64 GetImportMapSize() const
@@ -137,15 +108,20 @@ public:
 	{
 		return ExportMapSize;
 	}
-	
-	uint64 GetExportBundleArcsSize() const
+
+	uint64 GetExportBundleCount() const
 	{
-		return ExportBundleArcsSize;
+		return GraphData.ExportBundles.Num();
 	}
 
-	uint64 GetExportBundleHeadersSize() const
+	uint64 GetExportBundleEntriesSize() const
 	{
-		return ExportBundleHeadersSize;
+		return ExportBundleEntriesSize;
+	}
+	
+	uint64 GetGraphDataSize() const
+	{
+		return GraphDataSize;
 	}
 
 	uint64 GetNameCount() const
@@ -188,22 +164,19 @@ private:
 
 	struct FExternalDependency
 	{
-		FPackageId PackageId;
-		FPackageObjectIndex GlobalImportIndex;
-		FName DebugImportFullName;
+		int32 ImportIndex = -1;
 		FExportBundleEntry::EExportCommandType ExportBundleCommandType;
-		FExportGraphNode* ExportGraphNode = nullptr;
-		int32 ResolvedExportBundleIndex = -1;
 		bool bIsConfirmedMissing = false;
 	};
 
 	struct FExportGraphNode
 	{
-		FPackageStorePackage* Package = nullptr;
 		FExportBundleEntry BundleEntry;
+		TArray<FExportGraphNode*> InternalDependencies;
 		TArray<FExternalDependency> ExternalDependencies;
 		int32 ExportBundleIndex = -1;
 		int32 IncomingEdgeCount = 0;
+		bool bIsPublic = false;
 	};
 
 	struct FExport
@@ -217,18 +190,18 @@ private:
 		FPackageObjectIndex TemplateIndex;
 		EObjectFlags ObjectFlags = RF_NoFlags;
 		uint64 CookedSerialOffset = uint64(-1);
-		uint64 CookedSerialSize = uint64(-1);
+		uint64 SerialOffset = uint64(-1);
+		uint64 SerialSize = uint64(-1);
 		bool bNotForClient = false;
 		bool bNotForServer = false;
 		bool bIsPublic = false;
-		FExportGraphNode* CreateNode = nullptr;
-		FExportGraphNode* SerializeNode = nullptr;
+		FExportGraphNode* Nodes[FExportBundleEntry::ExportCommandType_Count] = { nullptr };
 	};
 
 	struct FExportBundle
 	{
+		uint64 SerialOffset = uint64(-1);
 		TArray<FExportBundleEntry> Entries;
-		uint32 LoadOrder = MAX_int32;
 	};
 
 	struct FImport
@@ -240,15 +213,45 @@ private:
 		bool bIsPackageImport = false;
 	};
 
-	struct FArc
+	struct FInternalArc
 	{
-		uint32 FromNodeIndex;
-		uint32 ToNodeIndex;
+		int32 FromExportBundleIndex;
+		int32 ToExportBundleIndex;
 
-		bool operator==(const FArc& Other) const
+		bool operator==(const FInternalArc& Other) const
 		{
-			return ToNodeIndex == Other.ToNodeIndex && FromNodeIndex == Other.FromNodeIndex;
+			return FromExportBundleIndex == Other.FromExportBundleIndex &&
+				ToExportBundleIndex == Other.ToExportBundleIndex;
 		}
+	};
+
+	struct FExternalArc
+	{
+		int32 FromImportIndex;
+		FExportBundleEntry::EExportCommandType FromCommandType;
+		int32 ToExportBundleIndex;
+
+		bool operator==(const FExternalArc& Other) const
+		{
+			return FromImportIndex == Other.FromImportIndex &&
+				FromCommandType == Other.FromCommandType &&
+				ToExportBundleIndex == Other.ToExportBundleIndex;
+		}
+	};
+
+	struct FGraphData
+	{
+		TArray<FExportBundle> ExportBundles;
+		TArray<FInternalArc> InternalArcs;
+		TMap<FPackageId, TArray<FExternalArc>> ExternalArcs;
+	};
+
+	struct FExportBundleGraphNode
+	{
+		FPackageStorePackage* Package = nullptr;
+		TArray<FExportGraphNode*> ExportGraphNodes;
+		int32 Index = -1;
+		int32 IncomingEdgeCount = 0;
 	};
 
 	FPackageId Id;
@@ -256,38 +259,33 @@ private:
 	FName SourceName;
 	FString Region;
 
-	FPackageFileSummary Summary;
-	TArray<FObjectImport> ObjectImports;
-	TArray<FObjectExport> ObjectExports;
-	TArray<FPackageIndex> PreloadDependencies;
-
 	FPackageStoreNameMapBuilder NameMapBuilder;
 	TArray<FImport> Imports;
 	TArray<FExport> Exports;
 	TArray<FExportGraphNode> ExportGraphNodes;
-	TMap<FPackageId, TArray<FArc>> ExternalArcs;
-	TArray<FExportBundle> ExportBundles;
+	FGraphData GraphData;
 
 	TArray<FPackageId> ImportedPackageIds;
-	TArray<FPackageStorePackage*> ImportedWaitingPackages;
-	TArray<FPackageStorePackage*> ImportedByWaitingPackages;
 	TSet<FPackageId> RedirectedToPackageIds;
 	TSet<FPackageId> ImportedRedirectedPackageIds;
 	TSet<FSHAHash> ShaderMapHashes;
 
-	FIoBuffer OptimizedHeaderBuffer;
+	FIoBuffer HeaderBuffer;
 
 	uint32 PackageFlags = 0;
 	uint32 CookedHeaderSize = 0;
+	uint64 HeaderSize = 0;
 	uint64 ExportsSerialSize = 0;
 	uint64 ImportMapSize = 0;
 	uint64 ExportMapSize = 0;
-	uint64 ExportBundleArcsSize = 0;
-	uint64 ExportBundleHeadersSize = 0;
+	uint64 ExportBundleEntriesSize = 0;
+	uint64 GraphDataSize = 0;
 	uint64 NameMapSize = 0;
+	uint32 LoadOrder = 0;
 	
-	uint32 UnresolvedImportedPackagesCount = 0;
-	TArray<FExportGraphNode*> NodesWithNoIncomingEdges;
+	TArray<FExportBundleGraphNode> ExportBundleGraphNodes;
+	FPackageStorePackage::FExportBundle* CurrentBundle = nullptr;
+	TArray<FExportBundleGraphNode*> NodesWithNoIncomingEdges;
 	bool bTemporaryMark = false;
 	bool bPermanentMark = false;
 
@@ -314,9 +312,14 @@ public:
 		return TotalExportBundleEntryCount;
 	}
 
-	uint64 GetTotalExportBundleArcCount() const
+	uint64 GetTotalInternalBundleArcsCount() const
 	{
-		return TotalExportBundleArcCount;
+		return TotalInternalBundleArcsCount;
+	}
+
+	uint64 GetTotalExternalBundleArcsCount() const
+	{
+		return TotalExternalBundleArcsCount;
 	}
 
 	uint64 GetTotalScriptObjectCount() const
@@ -326,19 +329,17 @@ public:
 
 	void Initialize(const ITargetPlatform* TargetPlatform);
 
-	void EnableIncrementalResolve()
-	{
-		bIncrementalResolveEnabled = true;
-	}
-
 	FPackageStorePackage* CreateMissingPackage(const FName& Name) const;
 	FPackageStorePackage* CreatePackageFromCookedHeader(const FName& Name, const FIoBuffer& CookedHeaderBuffer) const;
-	void BeginResolvePackage(FPackageStorePackage* Package);
-	void Flush(bool bAllowMissingImports, TFunction<void(FPackageStorePackage*)> ResolvedPackageCallback = TFunction<void(FPackageStorePackage*)>());
+	FPackageStorePackage* CreatePackageFromPackageStoreHeader(const FName& Name, const FIoBuffer& Buffer, const FPackageStoreEntryResource& PackageStoreEntry) const;
+	void FinalizePackage(FPackageStorePackage* Package);
 	FIoBuffer CreatePackageBuffer(const FPackageStorePackage* Package, const FIoBuffer& CookedExportsBuffer, TArray<FFileRegion>* InOutFileRegions) const;
-	FPackageStoreContainerHeaderEntry CreateContainerHeaderEntry(const FPackageStorePackage* Package) const;
-	FContainerHeader CreateContainerHeader(const FIoContainerId& ContainerId, const TArray<FPackageStoreContainerHeaderEntry>& Packages) const;
-	uint64 WriteScriptObjects(FIoStoreWriter* IoStoreWriter) const; // TODO: Merge name map and return FIoBuffer instead
+	FPackageStoreEntryResource CreatePackageStoreEntry(const FPackageStorePackage* Package) const;
+	FContainerHeader CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries) const;
+	FIoBuffer CreateScriptObjectsBuffer() const;
+	void ProcessRedirects(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const;
+	void OptimizeExportBundles(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap);
+	void FindImports(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const;
 
 private:
 	struct FScriptObjectData
@@ -350,44 +351,59 @@ private:
 		FPackageObjectIndex CDOClassIndex;
 	};
 
-	struct FResolvedPublicExport
+	struct FCookedHeaderData
 	{
-		FPackageObjectIndex GlobalImportIndex;
-		int32 CreateExportBundleIndex = -1;
-		int32 SerializeExportBundleIndex = -1;
+		FPackageFileSummary Summary;
+		TArray<FName> SummaryNames;
+		TArray<FObjectImport> ObjectImports;
+		TArray<FObjectExport> ObjectExports;
+		TArray<FPackageIndex> PreloadDependencies;
+	};
+
+	struct FPackageStoreHeaderData
+	{
+		FPackageSummary Summary;
+		TArray<FPackageId> ImportedPackageIds;
+		TArray<FNameEntryId> NameMap;
+		TArray<FPackageObjectIndex> Imports;
+		TArray<FExportMapEntry> Exports;
+		TArray<FExportBundleHeader> ExportBundleHeaders;
+		TArray<FExportBundleEntry> ExportBundleEntries;
+		TArray<FPackageStorePackage::FInternalArc> InternalArcs;
+		TArray<FPackageStorePackage::FExternalArc> ExternalArcs;
 	};
 
 	using FExportGraphEdges = TMultiMap<FPackageStorePackage::FExportGraphNode*, FPackageStorePackage::FExportGraphNode*>;
+	using FExportBundleGraphEdges = TMultiMap<FPackageStorePackage::FExportBundleGraphNode*, FPackageStorePackage::FExportBundleGraphNode*>;
 
-	void LoadCookedHeader(FPackageStorePackage* Package, const FIoBuffer& CookedHeaderBuffer) const;
+	FCookedHeaderData LoadCookedHeader(const FIoBuffer& CookedHeaderBuffer) const;
+	FPackageStoreHeaderData LoadPackageStoreHeader(const FIoBuffer& PackageStoreHeaderBuffer, const FPackageStoreEntryResource& PackageStoreEntry) const;
 	void ResolveImport(FPackageStorePackage::FImport* Imports, const FObjectImport* ObjectImports, int32 LocalImportIndex) const;
-	void ProcessImports(FPackageStorePackage* Package) const;
+	void ProcessImports(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const;
+	void ProcessImports(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const;
 	void ResolveExport(FPackageStorePackage::FExport* Exports, const FObjectExport* ObjectExports, const int32 LocalExportIndex, const FName& PackageName) const;
-	void ProcessExports(FPackageStorePackage* Package) const;
-	void SortPackagesInLoadOrder(TArray<FPackageStorePackage*>& Packages) const;
-	FExportGraphEdges ProcessPreloadDependencies(const TArray<FPackageStorePackage*>& Packages) const;
-	TArray<FPackageStorePackage::FExportGraphNode*> SortExportGraphNodesInLoadOrder(const TArray<FPackageStorePackage*>& Packages, FExportGraphEdges& Edges) const;
-	void CreateExportBundles(TArray<FPackageStorePackage*>& Packages);
+	void ResolveExport(FPackageStorePackage::FExport* Exports, const int32 LocalExportIndex, const FName& PackageName) const;
+	void ProcessExports(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const;
+	void ProcessExports(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const;
+	void ProcessPreloadDependencies(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const;
+	void ProcessPreloadDependencies(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const;
+	TArray<FPackageStorePackage*> SortPackagesInLoadOrder(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const;
+	void SerializeGraphData(const TArray<FPackageId>& ImportedPackageIds, FPackageStorePackage::FGraphData& GraphData, FBufferWriter& GraphArchive) const;
+	TArray<FPackageStorePackage::FExportGraphNode*> SortExportGraphNodesInLoadOrder(FPackageStorePackage* Package, FExportGraphEdges& Edges) const;
+	TArray<FPackageStorePackage::FExportBundleGraphNode*> SortExportBundleGraphNodesInLoadOrder(const TArray<FPackageStorePackage*>& Packages, FExportBundleGraphEdges& Edges) const;
+	void CreateExportBundles(FPackageStorePackage* Package) const;
 	bool RedirectPackage(const FPackageStorePackage& SourcePackage, FPackageStorePackage& TargetPackage, TMap<FPackageObjectIndex, FPackageObjectIndex>& RedirectedToSourceImportIndexMap) const;
 	void RedirectPackageUnverified(FPackageStorePackage& TargetPackage, TMap<FPackageObjectIndex, FPackageObjectIndex>& RedirectedToSourceImportIndexMap) const;
-	void ProcessRedirects(const TArray<FPackageStorePackage*> Packages) const;
-	void ResolvePackages(TArray<FPackageStorePackage*>& Packages, bool bAllowMissingImports);
 	void FinalizePackageHeader(FPackageStorePackage* Package) const;
-	void FinalizePackage(FPackageStorePackage* Package, bool bAllowMissingImports);
-	bool IsWaitingForImportsRecursive(FPackageStorePackage* Package) const;
 	void FindScriptObjectsRecursive(FPackageObjectIndex OuterIndex, UObject* Object, EObjectMark ExcludedObjectMarks, const ITargetPlatform* TargetPlatform);
 	void FindScriptObjects(const ITargetPlatform* TargetPlatform);
 
 	TMap<FPackageObjectIndex, FScriptObjectData> ScriptObjectsMap;
-	TMap<FPackageId, TArray<FResolvedPublicExport>> ResolvedPublicExportsMap;
-	TMap<FPackageId, FPackageStorePackage*> WaitingPackagesMap;
-	TMultiMap<FPackageId, FPackageStorePackage*> ImportedPackageToWaitingPackagesMap;
-	TArray<FPackageStorePackage*> ResolvedPackages;
 	uint64 TotalPackageCount = 0;
 	uint64 TotalExportBundleCount = 0;
 	uint64 TotalExportBundleEntryCount = 0;
-	uint64 TotalExportBundleArcCount = 0;
+	uint64 TotalInternalBundleArcsCount = 0;
+	uint64 TotalExternalBundleArcsCount = 0;
 	uint64 TotalScriptObjectCount = 0;
 	uint32 NextLoadOrder = 0;
-	bool bIncrementalResolveEnabled = false;
 };

@@ -11,8 +11,8 @@ FArchive& operator<<(FArchive& Ar, FMappedName& MappedName)
 	return Ar;
 }
 
-void FNameMap::Load(TArrayView<const uint8> NameBuffer, TArrayView<const uint8> HashBuffer, FMappedName::EType InNameMapType)
+void FNameMap::Load(FArchive& Ar, FMappedName::EType InNameMapType)
 {
-	LoadNameBatch(NameEntries, NameBuffer, HashBuffer);
+	NameEntries = LoadNameBatch(Ar);
 	NameMapType = InNameMapType;
 }

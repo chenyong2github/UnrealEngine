@@ -11,7 +11,9 @@
 #include "Templates/UnrealTemplate.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "HAL/PlatformAtomics.h"
+#include "Memory/MemoryView.h"
 #include "Misc/SecureHash.h"
+#include "IO/IoHash.h"
 #include "Misc/AES.h"
 #include "Misc/IEngineCrypto.h"
 #include "Serialization/FileRegions.h"
@@ -622,7 +624,8 @@ public:
 	static FIoChunkHash HashBuffer(const void* Data, uint64 DataSize)
 	{
 		FIoChunkHash Result;
-		FSHA1::HashBuffer(Data, DataSize, Result.Hash);
+		FIoHash IoHash = FIoHash::HashBuffer(Data, DataSize);
+		FMemory::Memcpy(Result.Hash, &IoHash, sizeof IoHash);
 		FMemory::Memset(Result.Hash + 20, 0, 12);
 		return Result;
 	}
@@ -655,6 +658,13 @@ public:
 		return Ar;
 	}
 
+	template <typename CharType>
+	friend TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FIoChunkId& ChunkId)
+	{
+		UE::String::BytesToHexLower(ChunkId.Id, Builder);
+		return Builder;
+	}
+
 	inline bool operator ==(const FIoChunkId& Rhs) const
 	{
 		return 0 == FMemory::Memcmp(Id, Rhs.Id, sizeof Id);
@@ -671,10 +681,19 @@ public:
 		FMemory::Memcpy(Id, InIdPtr, sizeof Id);
 	}
 
+	void Set(FMemoryView InView)
+	{
+		check(InView.GetSize() == sizeof Id);
+		FMemory::Memcpy(Id, InView.GetData(), sizeof Id);
+	}
+
 	inline bool IsValid() const
 	{
 		return *this != InvalidChunkId;
 	}
+
+	inline const uint8* GetData() const { return Id; }
+	inline uint32		GetSize() const { return sizeof Id; }
 
 private:
 	static inline FIoChunkId CreateEmptyId()
@@ -691,39 +710,84 @@ private:
 
 /**
  * Addressable chunk types.
+ * 
+ * The enumerators have explicitly defined values here to encourage backward/forward
+ * compatible updates. 
+ * 
+ * Also note that for certain discriminators, Zen Store will assume certain things
+ * about the structure of the chunk ID so changes must be made carefully.
+ * 
  */
 enum class EIoChunkType : uint8
 {
-	Invalid,
-	InstallManifest,
-	ExportBundleData,
-	BulkData,
-	OptionalBulkData,
-	MemoryMappedBulkData,
-	LoaderGlobalMeta,
-	LoaderInitialLoadMeta,
-	LoaderGlobalNames,
-	LoaderGlobalNameHashes,
-	ContainerHeader,
-	ShaderCodeLibrary,
-	ShaderCode
+	Invalid = 0,
+	ExportBundleData = 1,
+	BulkData = 2,
+	OptionalBulkData = 3,
+	MemoryMappedBulkData = 4,
+	ScriptObjects = 5,
+	ContainerHeader = 6,
+	ExternalFile = 7,
+	ShaderCodeLibrary = 8,
+	ShaderCode = 9
 };
 
 /**
- * Creates a chunk identifier,
+ * Creates a chunk identifier (generic -- prefer specialized versions where possible)
  */
 static FIoChunkId CreateIoChunkId(uint64 ChunkId, uint16 ChunkIndex, EIoChunkType IoChunkType)
 {
+	checkSlow(IoChunkType != EIoChunkType::ExternalFile);	// Use CreateExternalFileChunkId() instead
+
 	uint8 Data[12] = {0};
 
 	*reinterpret_cast<uint64*>(&Data[0]) = ChunkId;
-	*reinterpret_cast<uint16*>(&Data[8]) = ChunkIndex;
+	*reinterpret_cast<uint16*>(&Data[8]) = NETWORK_ORDER16(ChunkIndex);
 	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(IoChunkType);
 
 	FIoChunkId IoChunkId;
 	IoChunkId.Set(Data, 12);
 
 	return IoChunkId;
+}
+
+/**
+ * Create an "external file" chunk identifier
+ * 
+ * Layout (the index is big endian for better lexical sort behavior):
+ * 
+ *   00  01  02  03  04  05  06  07  08  09  10  11
+ * +---+---+---+---+---+---+---+---+---+---+---+---+
+ * |      ContainerId              | FileIndex | 7 |
+ * +---+---+---+---+---+---+---+---+---+---+---+---+
+ * 
+ */
+static inline FIoChunkId CreateExternalFileChunkId(uint64 ContainerId, uint32 FileIndex)
+{
+	check(FileIndex < (1 << 24));
+
+	uint8 Data[12] = { 0 };
+
+	Data[11] = uint8(EIoChunkType::ExternalFile);
+
+	memcpy(&Data[0], &ContainerId, sizeof ContainerId);
+
+	const uint32 NoFileIndex = NETWORK_ORDER32(FileIndex);
+	memcpy(&Data[8], reinterpret_cast<const uint8*>(&NoFileIndex) + 1, 3);
+
+	FIoChunkId IoChunkId;
+	IoChunkId.Set(Data, 12);
+
+	return IoChunkId;
+}
+
+inline uint32 FileIndexFromChunkId(FIoChunkId ChunkId)
+{
+	// See encoding details in CreateExternalFileChunkId()
+	uint32 FileIndex = 0;
+	memcpy(&FileIndex, ChunkId.GetData() + 7, sizeof FileIndex);
+	FileIndex = NETWORK_ORDER32(FileIndex) & 0xffFFff;
+	return FileIndex;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1173,6 +1237,37 @@ struct FIoStoreTocChunkInfo
 	bool bIsCompressed;
 };
 
+struct FIoStoreCompressedBlockInfo
+{
+	FName CompressionMethod;
+	uint32 CompressedSize;
+	uint32 UncompressedSize;
+};
+
+struct FIoStoreCompressedReadResult
+{
+	FIoBuffer IoBuffer;
+	TArray<FIoStoreCompressedBlockInfo> Blocks;
+	uint64 UncompressedOffset;
+	uint64 UncompressedSize;
+};
+
+class FIoStoreAsyncReadRequest
+{
+public:
+	using FCallback = TFunction<void(TIoStatusOr<FIoBuffer>)>;
+
+	CORE_API FIoStoreAsyncReadRequest();
+	CORE_API ~FIoStoreAsyncReadRequest();
+
+private:
+	friend class FIoStoreReaderImpl;
+	class FImpl;
+	using FImplPtr = TSharedPtr<FImpl, ESPMode::ThreadSafe>;
+	
+	FImplPtr Impl;
+};
+
 class FIoStoreReader
 {
 public:
@@ -1187,6 +1282,8 @@ public:
 	CORE_API TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const FIoChunkId& Chunk) const;
 	CORE_API TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const uint32 TocEntryIndex) const;
 	CORE_API TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
+	CORE_API TIoStatusOr<FIoStoreCompressedReadResult> ReadCompressed(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
+	CORE_API FIoStoreAsyncReadRequest ReadAsync(const FIoChunkId& Chunk, const FIoReadOptions& Options, FIoStoreAsyncReadRequest::FCallback&& Callback) const;
 
 	CORE_API const FIoDirectoryIndexReader& GetDirectoryIndexReader() const;
 

@@ -7,7 +7,7 @@
 #include "Serialization/EditorPackageLoader.h"
 #include "UObject/GCObject.h"
 #include "UObject/LinkerLoad.h"
-#include "UObject/PackageId.h"
+#include "IO/PackageId.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/PackageName.h"
 #include "Misc/PathViews.h"

@@ -8,7 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectResource.h"
-#include "UObject/PackageId.h"
+#include "IO/PackageId.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MappedName.h"
 #include "IO/IoContainerId.h"
@@ -25,8 +25,6 @@ struct FContainerHeader
 {
 	FIoContainerId ContainerId;
 	uint32 PackageCount = 0;
-	TArray<uint8> Names;
-	TArray<uint8> NameHashes;
 	TArray<FPackageId> PackageIds;
 	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
 	FCulturePackageMap CulturePackageMap;
@@ -150,19 +148,15 @@ enum class EExportFilterFlags : uint8
  */
 struct FPackageSummary
 {
+	uint32 HeaderSize;
 	FMappedName Name;
 	FMappedName SourceName;
 	uint32 PackageFlags;
 	uint32 CookedHeaderSize;
-	int32 NameMapNamesOffset;
-	int32 NameMapNamesSize;
-	int32 NameMapHashesOffset;
-	int32 NameMapHashesSize;
 	int32 ImportMapOffset;
 	int32 ExportMapOffset;
-	int32 ExportBundlesOffset;
+	int32 ExportBundleEntriesOffset;
 	int32 GraphDataOffset;
-	int32 GraphDataSize;
 	int32 Pad = 0;
 };
 
@@ -188,6 +182,7 @@ struct FExportBundleEntry
  */
 struct FExportBundleHeader
 {
+	uint64 SerialOffset;
 	uint32 FirstEntryIndex;
 	uint32 EntryCount;
 

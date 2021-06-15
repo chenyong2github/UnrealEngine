@@ -16,6 +16,7 @@ using EpicGames.Core;
 using System.Diagnostics;
 using System.Collections.Concurrent;
 using UnrealBuildBase;
+using System.Text.Json;
 
 /// <summary>
 /// Helper command used for cooking.
@@ -601,6 +602,30 @@ public partial class Project : CommandUtils
 		return Plugins.ToList();
 	}
 
+	private class PackageStoreManifest
+	{
+		public static IList<FileReference> GetCookedFiles(FileReference PackageStoreManifestFile)
+		{
+			List<FileReference> CookedFiles = new List<FileReference>();
+			if (FileReference.Exists(PackageStoreManifestFile))
+			{
+				String JsonString = FileReference.ReadAllText(PackageStoreManifestFile);
+				PackageStoreManifest PackageStoreManifest = JsonSerializer.Deserialize<PackageStoreManifest>(JsonString);
+				foreach (PackageStoreManifest.FileInfo File in PackageStoreManifest.Files)
+				{
+					CookedFiles.Add(new FileReference(File.Path));
+				}
+			}
+			return CookedFiles;
+		}
+		public IList<FileInfo> Files { get; set; }
+
+		public class FileInfo
+		{
+			public String Path { get; set; }
+		}
+	}
+
 	public static void CreateStagingManifest(ProjectParams Params, DeploymentContext SC)
 	{
 		if (!Params.Stage)
@@ -696,6 +721,13 @@ public partial class Project : CommandUtils
 
 			// Stage all the cooked data, this is the same rule as normal stage except we may skip Engine
 			List<FileReference> CookedFiles = DirectoryReference.EnumerateFiles(SC.PlatformCookDir, "*", SearchOption.AllDirectories).ToList();
+
+			// When cooking directly to I/O store contaier files look for the package store manifest
+			if (Params.IoStore)
+			{
+				CookedFiles.AddRange(PackageStoreManifest.GetCookedFiles(FileReference.Combine(SC.MetadataDir, "packagestore.manifest")));
+			}
+
 			foreach (FileReference CookedFile in CookedFiles)
 			{
 				// Skip metadata directory
@@ -718,7 +750,7 @@ public partial class Project : CommandUtils
 
 				// json files have never been staged
 				// metallib files cannot *currently* be staged as UFS as the Metal API needs to mmap them from files on disk in order to function efficiently
-				if (!CookedFile.HasExtension(".json") && !CookedFile.HasExtension(".metallib"))
+				if (!CookedFile.HasExtension(".json") && !CookedFile.HasExtension(".metallib") && !CookedFile.HasExtension(".utoc") && !CookedFile.HasExtension(".ucas"))
 				{
 					SC.StageFile(StagedFileType.UFS, CookedFile, new StagedFileReference(CookedFile.MakeRelativeTo(SC.PlatformCookDir)));
 				}
@@ -1020,6 +1052,13 @@ public partial class Project : CommandUtils
 				if (DirectoryReference.Exists(CookOutputDir))
 				{
 					List<FileReference> CookedFiles = DirectoryReference.EnumerateFiles(CookOutputDir, "*", SearchOption.AllDirectories).ToList();
+					
+					// When cooking directly to I/O store contaier files look for the package store manifest
+					if (Params.IoStore)
+					{
+						CookedFiles.AddRange(PackageStoreManifest.GetCookedFiles(FileReference.Combine(SC.MetadataDir, "packagestore.manifest")));
+					}
+
 					foreach (FileReference CookedFile in CookedFiles)
 					{
 						// Skip metadata directory
@@ -1036,7 +1075,7 @@ public partial class Project : CommandUtils
 
 						// json files have never been staged
 						// metallib files cannot *currently* be staged as UFS as the Metal API needs to mmap them from files on disk in order to function efficiently
-						if (!CookedFile.HasExtension(".json") && !CookedFile.HasExtension(".metallib"))
+						if (!CookedFile.HasExtension(".json") && !CookedFile.HasExtension(".metallib") && !CookedFile.HasExtension(".utoc") && !CookedFile.HasExtension(".ucas"))
 						{
 							SC.StageFile(StagedFileType.UFS, CookedFile, new StagedFileReference(CookedFile.MakeRelativeTo(CookOutputDir)));
 						}
@@ -3857,7 +3896,7 @@ public partial class Project : CommandUtils
 			string FileHostParams = " ";
 			if (Params.CookOnTheFly || Params.FileServer)
 			{
-				FileHostParams += "-filehostip=";
+				FileHostParams += Params.IoStore ? "-cookontheflyhost=" : "-filehostip=";
 				// add localhost first for platforms using redirection
 				const string LocalHost = "127.0.0.1";
 				if (!IsNullOrEmpty(Params.Port))
@@ -3973,7 +4012,15 @@ public partial class Project : CommandUtils
 						}
 					}
 				}
-				FileHostParams += " ";
+
+				if (Params.IoStore)
+				{
+					FileHostParams += string.Format(" -storageserverhost={0} ", Params.StorageServerHost);
+				}
+				else
+				{
+					FileHostParams += " ";
+				}
 			}
 
 			String ProjectFile = String.Format("{0} ", SC.ProjectArgForCommandLines);

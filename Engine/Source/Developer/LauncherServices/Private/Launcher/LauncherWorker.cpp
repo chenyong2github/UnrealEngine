@@ -693,6 +693,11 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 	case ELauncherProfileCookModes::OnTheFly:
 		{
 			UATCommand += TEXT(" -cookonthefly");
+			
+			if (InProfile->IsUsingIoStore())
+			{
+				UATCommand += TEXT(" -iostore");
+			}
 
 			//if UAT doesn't stick around as long as the process we are going to run, then we can't kill the COTF server when UAT goes down because the program
 			//will still need it.  If UAT DOES stick around with the process then we DO want the COTF server to die with UAT so the next time we launch we don't end up
@@ -718,6 +723,10 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 	case ELauncherProfileCookModes::OnTheFlyInEditor:
 		UATCommand += MapList;
 		UATCommand += " -skipcook -cookonthefly -CookInEditor";
+		if (InProfile->IsUsingIoStore())
+		{
+			UATCommand += TEXT(" -iostore");
+		}
 		break;
 	case ELauncherProfileCookModes::ByTheBookInEditor:
 		UATCommand += MapList;
@@ -726,6 +735,10 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		if (InProfile->IsPackingWithUnrealPak())
 		{
 			UATCommand += TEXT(" -pak");
+		}
+		if (InProfile->IsUsingIoStore())
+		{
+			UATCommand += TEXT(" -iostore");
 		}
 		break;
 	case ELauncherProfileCookModes::DoNotCook:

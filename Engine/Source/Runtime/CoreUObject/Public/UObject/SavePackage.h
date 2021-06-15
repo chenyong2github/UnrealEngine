@@ -21,6 +21,7 @@ class FPackagePath;
 class FSavePackageContext;
 class FArchiveDiffMap;
 class FOutputDevice;
+class IPackageStoreWriter;
 
 /**
  * Struct to encapsulate arguments specific to saving one package
@@ -50,52 +51,21 @@ struct FSavePackageArgs
 	FSavePackageContext* SavePackageContext = nullptr;
 };
 
-class IPackageStoreWriter
-{
-public:
-	COREUOBJECT_API virtual ~IPackageStoreWriter();
-
-	struct FPackageInfo
-	{
-		FName	PackageName;
-		FString	LooseFilePath;
-		uint64  HeaderSize;
-	};
-
-	virtual void WritePackage(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions) = 0;
-
-	struct FBulkDataInfo
-	{
-		enum EType 
-		{
-			Standard,
-			Mmap,
-			Optional
-		};
-
-		FName	PackageName;
-		EType	BulkdataType = Standard;
-		FString	LooseFilePath;
-	};
-
-	virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) = 0;
-
-	virtual void Finalize() = 0;
-};
-
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(IPackageStoreWriter* InPackageStoreWriter, bool InbForceLegacyOffsets)
-	: PackageStoreWriter(InPackageStoreWriter) 
+	FSavePackageContext(const ITargetPlatform* InTargetPlatform, IPackageStoreWriter* InPackageStoreWriter, bool InbForceLegacyOffsets)
+	: TargetPlatform(InTargetPlatform)
+	, PackageStoreWriter(InPackageStoreWriter) 
 	, bForceLegacyOffsets(InbForceLegacyOffsets)
 	{
 	}
 
 	COREUOBJECT_API ~FSavePackageContext();
 
-	IPackageStoreWriter* PackageStoreWriter;
-	bool bForceLegacyOffsets;
+	const ITargetPlatform* const TargetPlatform;
+	IPackageStoreWriter* const PackageStoreWriter;
+	const bool bForceLegacyOffsets;
 };
 
 namespace UE

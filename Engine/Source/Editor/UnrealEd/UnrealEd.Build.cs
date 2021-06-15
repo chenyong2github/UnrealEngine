@@ -202,6 +202,7 @@ public class UnrealEd : ModuleRules
 				"AnimationModifiers",
 				"AnimationBlueprintLibrary",
 				"MaterialBaking",
+				"CookOnTheFly",
 				"BazelExecutor",
 			}
 		);

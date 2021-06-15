@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UObject/PackageId.h"
+#include "IO/PackageId.h"
 #include "Serialization/StructuredArchive.h"
 
 FPackageId FPackageId::FromName(const FName& Name)

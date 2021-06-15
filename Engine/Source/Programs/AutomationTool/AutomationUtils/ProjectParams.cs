@@ -286,6 +286,7 @@ namespace AutomationTool
 			this.Pak = InParams.Pak;
 			this.IgnorePaksFromDifferentCookSource = InParams.IgnorePaksFromDifferentCookSource;
 			this.IoStore = InParams.IoStore;
+			this.Cook4IoStore = InParams.Cook4IoStore;
 			this.GenerateOptimizationData = InParams.GenerateOptimizationData;
 			this.SignPak = InParams.SignPak;
 			this.SignedPak = InParams.SignedPak;
@@ -371,6 +372,7 @@ namespace AutomationTool
 			this.bTreatNonShippingBinariesAsDebugFiles = InParams.bTreatNonShippingBinariesAsDebugFiles;
 			this.bUseExtraFlavor = InParams.bUseExtraFlavor;
 			this.AdditionalPackageOptions = InParams.AdditionalPackageOptions;
+			this.StorageServerHost = InParams.StorageServerHost;
 		}
 
 		/// <summary>
@@ -472,6 +474,7 @@ namespace AutomationTool
 			bool? Pak = null,
 			bool? IgnorePaksFromDifferentCookSource = null,
 			bool? IoStore = null,
+			bool? Cook4IoStore = null,
 			bool? SkipIoStore = null,
 			bool? GenerateOptimizationData = null,
 			bool? Prereqs = null,
@@ -521,7 +524,8 @@ namespace AutomationTool
 		    bool AutomaticSigning = false,
 			ParamList<string> InMapsToRebuildLightMaps = null,
             ParamList<string> InMapsToRebuildHLOD = null,
-            ParamList<string> TitleID = null
+            ParamList<string> TitleID = null,
+			string StorageServerhost = null
 			)
 		{
 			//
@@ -659,6 +663,12 @@ namespace AutomationTool
 			this.IgnorePaksFromDifferentCookSource = GetParamValueIfNotSpecified(Command, IgnorePaksFromDifferentCookSource, this.IgnorePaksFromDifferentCookSource, "IgnorePaksFromDifferentCookSource");
 			this.IoStore = GetParamValueIfNotSpecified(Command, IoStore, this.IoStore, "iostore");
 			this.SkipIoStore = GetParamValueIfNotSpecified(Command, SkipIoStore, this.SkipIoStore, "skipiostore");
+			this.Cook4IoStore = GetParamValueIfNotSpecified(Command, Cook4IoStore, this.Cook4IoStore, "cook4iostore");
+			if (this.Cook4IoStore)
+			{
+				this.IoStore = true;
+				this.AdditionalCookerOptions += " -IoStore";
+			}
 			this.GenerateOptimizationData = GetParamValueIfNotSpecified(Command, GenerateOptimizationData, this.GenerateOptimizationData, "makebinaryconfig");
 			
 			this.SkipPak = GetParamValueIfNotSpecified(Command, SkipPak, this.SkipPak, "skippak");
@@ -867,6 +877,7 @@ namespace AutomationTool
 			this.SpecifiedArchitecture = ParseParamValueIfNotSpecified(Command, SpecifiedArchitecture, "specifiedarchitecture", String.Empty);
 			this.UbtArgs = ParseParamValueIfNotSpecified(Command, UbtArgs, "ubtargs", String.Empty);
 			this.AdditionalPackageOptions = ParseParamValueIfNotSpecified(Command, AdditionalPackageOptions, "AdditionalPackageOptions", String.Empty);
+			this.StorageServerHost = ParseParamValueIfNotSpecified(Command, StorageServerHost, "StorageServerHost", "localhost");
 
 			if (ClientConfigsToBuild == null)
 			{
@@ -1230,6 +1241,12 @@ namespace AutomationTool
 		/// </summary>
 		[Help("iostore", "generate I/O store container file(s)")]
 		public bool IoStore { private set; get; }
+
+		/// <summary>
+		/// Shared: True if the cooker should write directly to container file(s)
+		/// </summary>
+		[Help("cook4iostore", "generate I/O store container file(s)")]
+		public bool Cook4IoStore { private set; get; }
 
 		/// <summary>
 		/// Shared: True if optimization data is generated during staging that can improve loadtimes
@@ -2056,6 +2073,9 @@ namespace AutomationTool
 
         [Help("IgnoreLightMapErrors", "Whether Light Map errors should be treated as critical")]
 		public bool IgnoreLightMapErrors { get; set; }
+
+		[Help("StorageServerHost", "Storage server host address")]
+		public string StorageServerHost { get; set; }
 
 		private List<SingleTargetProperties> DetectedTargets;
 		private Dictionary<UnrealTargetPlatform, ConfigHierarchy> LoadedEngineConfigs;
@@ -2936,6 +2956,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("IgnorePaksFromDifferentCookSource={0}", IgnorePaksFromDifferentCookSource);
 				CommandUtils.LogLog("IoStore={0}", IoStore);
 				CommandUtils.LogLog("SkipIoStore={0}", SkipIoStore);
+				CommandUtils.LogLog("Cook4IoStore={0}", Cook4IoStore);
 				CommandUtils.LogLog("SkipEncryption={0}", SkipEncryption);
 				CommandUtils.LogLog("GenerateOptimizationData={0}", GenerateOptimizationData);
 				CommandUtils.LogLog("SkipPackage={0}", SkipPackage);

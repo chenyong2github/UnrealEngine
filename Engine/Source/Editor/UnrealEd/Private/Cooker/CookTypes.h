@@ -54,8 +54,9 @@ namespace UE
 {
 namespace Cook
 {
+	struct FPackageData;
 	/** A function that is called when a requested package finishes cooking (when successful, failed, or skipped) */
-	typedef TUniqueFunction<void()> FCompletionCallback;
+	typedef TUniqueFunction<void(FPackageData*)> FCompletionCallback;
 
 	/** External Requests to the cooker can either by cook requests for a specific file, or arbitrary callbacks that need to execute within the Scheduler's lock. */
 	enum class EExternalRequestType

@@ -79,12 +79,23 @@ FString GetClassPrefix(const FString& InClassName, bool& bIsLabeledDeprecated )
 // Returns zero only for '\r' and '\0' 
 FORCEINLINE uint64 FindCrOrNulHelper(TCHAR C)
 {
+	if (C == '\r')
+	{
+		return 0;
+	}
+	return C;
+
+	// NOTE: This is the previous implementation. It might have been faster
+	// once but current compilers do a much better job and compile into
+	// conditional moves which are faster than the variable-count bit shift below
+#if 0
 	uint64 LoPassMask = ~((uint64(1) << '\0') | (uint64(1) << '\r'));
 	uint64 LoBit = uint64(1) << (C & 63);
 	uint64 LoPass = LoBit & LoPassMask;
 	uint64 HiPass = C & ~63;
 
 	return LoPass | HiPass;
+#endif
 }
 
 // Finds next CR or null term with a single branch 

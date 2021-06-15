@@ -39,6 +39,7 @@
 #include "UObject/SavePackage/SavePackageUtilities.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
+#include "IO/PackageStoreWriter.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -1632,14 +1633,29 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 
 ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 {
+	FSavePackageContext* SavePackageContext = SaveContext.GetSavePackageContext();
+	IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
+
 	if (SaveContext.IsCooking() && SaveContext.AdditionalFilesFromExports.Num() > 0)
 	{
-		const bool bWriteFileToDisk = !SaveContext.IsDiffing();
+		bool bWriteFileToDisk = !SaveContext.IsDiffing();
 		const bool bComputeHash = SaveContext.IsComputeHash();
 		for (FLargeMemoryWriter& Writer : SaveContext.AdditionalFilesFromExports)
 		{
 			const int64 Size = Writer.TotalSize();
 			SaveContext.TotalPackageSizeUncompressed += Size;
+
+			if (PackageStoreWriter)
+			{
+				IPackageStoreWriter::FAdditionalFileInfo FileInfo;
+				FileInfo.PackageName = SaveContext.GetPackage()->GetFName();
+				FileInfo.Filename = *Writer.GetArchiveName();
+
+				FIoBuffer FileData(FIoBuffer::Wrap, Writer.GetData(), Size);
+
+				const bool bWrittenToPackageStore = PackageStoreWriter->WriteAdditionalFile(FileInfo, FileData);
+				bWriteFileToDisk &= !bWrittenToPackageStore;
+			}
 
 			if (bComputeHash || bWriteFileToDisk)
 			{
@@ -1836,7 +1852,10 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				PackageInfo.LooseFilePath = SaveContext.GetFilename();
 				PackageInfo.HeaderSize = HeaderSize;
 
-				SavePackageContext->PackageStoreWriter->WritePackage(PackageInfo, IoBuffer, Linker->FileRegions);
+				FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
+				PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
+
+				SavePackageContext->PackageStoreWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
 			}
 			else
 			{
