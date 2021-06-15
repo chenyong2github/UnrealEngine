@@ -192,7 +192,7 @@ public:
 	/** Collection of scene profiles */
 	UPROPERTY(EditAnywhere, transient, Category = Settings, meta=(ShowOnlyInnerProperties))
 	TArray<FPreviewSceneProfile> Profiles;
-	
+
 	/** Cached value to determine whether or not a profile was added or removed */
 	int32 NumProfiles;
 protected:
@@ -202,4 +202,8 @@ protected:
 	FOnAssetViewerProfileAddRemovedEvent OnAssetViewerProfileAddRemovedEvent;
 
 	FOnAssetViewerSettingsPostUndo OnAssetViewerSettingsPostUndoEvent;
+
+	// This will enforce mutable CDO of UAssetViewerSettings transacted
+	UPROPERTY(Config)
+	bool bFakeConfigValue_HACK;
 };
